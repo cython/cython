@@ -746,8 +746,8 @@ def p_atom_string(s):
 
 def p_atom_ident_constants(s):
     """
-    Returns None if it isn't one special-cased named constants.
-    Only calls s.next() if it successfully matches a matches.
+    Returns None if it isn't a special-cased named constant.
+    Only calls s.next() if it successfully matches a named constant.
     """
     # s.sy == 'IDENT'
     pos = s.position()
@@ -4081,7 +4081,7 @@ def p_match_statement(s, ctx):
 
 def p_case_block(s, ctx):
     if not (s.sy == "IDENT" and s.systring == "case"):
-        s.error("Expected 'case'")
+        s.expected("case")
     s.next()
     pos = s.position()
     pattern = p_patterns(s)
@@ -4308,7 +4308,7 @@ def p_value_pattern(s):
     res = p_name(s, s.systring)
     s.next()
     if s.sy != '.':
-        s.error("Expected '.'")
+        s.error(".")
     while s.sy == '.':
         attr_pos = s.position()
         s.next()
@@ -4334,20 +4334,15 @@ def p_sequence_pattern(s):
         s.next()
         # maybe_sequence_pattern and open_sequence_pattern
         patterns = []
-        if s.sy == closer:
-            s.next()
-        else:
-            while True:
-                patterns.append(p_maybe_star_pattern(s))
-                if s.sy == ",":
-                    s.next()
-                    if s.sy == closer:
-                        break
-                else:
-                    if opener == ')' and len(patterns) == 1:
-                        s.error("tuple-like pattern of length 1 must finish with ','")
-                    break
-            s.expect(closer)
+        while s.sy != closer:
+            patterns.append(p_maybe_star_pattern(s))
+            if s.sy == ",":
+                s.next()
+            else:
+                if opener == '(' and len(patterns) == 1:
+                    s.error("tuple-like pattern of length 1 must finish with ','")
+                break
+        s.expect(closer)
         return MatchCaseNodes.MatchSequencePatternNode(pos, patterns=patterns)
     else:
         s.error("Expected '[' or '('")
@@ -4364,7 +4359,7 @@ def p_mapping_pattern(s):
     double_star_capture_target = None
     items_patterns = []
     star_star_arg_pos = None
-    while True:
+    while s.sy != '}':
         if double_star_capture_target and not star_star_arg_pos:
             star_star_arg_pos = s.position()
         if s.sy == '**':
@@ -4384,8 +4379,6 @@ def p_mapping_pattern(s):
         if s.sy != ',':
             break
         s.next()
-        if s.sy == '}':
-            break  # Allow trailing comma.
     s.expect('}')
 
     if star_star_arg_pos is not None:
@@ -4423,7 +4416,7 @@ def p_class_pattern(s):
     positional_patterns = []
     keyword_patterns = []
     keyword_patterns_error = None
-    while True:
+    while s.sy != ')':
         with tentatively_scan(s) as errors:
             positional_patterns.append(p_pattern(s))
         if not errors:
@@ -4435,8 +4428,6 @@ def p_class_pattern(s):
         if s.sy != ",":
             break
         s.next()
-        if s.sy == ")":
-            break  # Allow trailing comma.
     s.expect(")")
 
     if keyword_patterns_error is not None:
