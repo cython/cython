@@ -12,11 +12,11 @@ class MatchNode(StatNode):
     """
     subject  ExprNode    The expression to be matched
     cases    [MatchCaseBaseNode]  list of cases
+
+    subject_clonenode  CloneNode of subject
     """
 
     child_attrs = ["subject", "cases"]
-
-    subject_clonenode = None  # set to a value if we require a temp
 
     def validate_irrefutable(self):
         found_irrefutable_case = None
@@ -90,13 +90,11 @@ class MatchNode(StatNode):
         return self
 
     def generate_execution_code(self, code):
-        if self.subject_clonenode:
-            self.subject.generate_evaluation_code(code)
+        self.subject.generate_evaluation_code(code)
         for c in self.cases:
             c.generate_execution_code(code)
-        if self.subject_clonenode:
-            self.subject.generate_disposal_code(code)
-            self.subject.free_temps(code)
+        self.subject.generate_disposal_code(code)
+        self.subject.free_temps(code)
 
 
 class MatchCaseBaseNode(Node):
