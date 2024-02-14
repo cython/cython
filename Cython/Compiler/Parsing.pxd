@@ -1,6 +1,4 @@
-# cython: language_level=3
-
-# We declare all of these here to type the first argument.
+# We declare all of these parser functions here to type the first argument as PyrexScanner.
 
 from __future__ import absolute_import
 
@@ -170,7 +168,7 @@ cdef p_c_simple_declarator(PyrexScanner s, ctx, bint empty, bint is_type, bint c
                           bint assignable, bint nonempty)
 cdef p_nogil(PyrexScanner s)
 cdef p_with_gil(PyrexScanner s)
-cdef p_exception_value_clause(PyrexScanner s, ctx)
+cdef p_exception_value_clause(PyrexScanner s, bint is_extern)
 cpdef p_c_arg_list(PyrexScanner s, ctx = *, bint in_pyfunc = *, bint cmethod_flag = *,
                    bint nonempty_declarators = *, bint kw_only = *, bint annotated = *)
 cdef p_optional_ellipsis(PyrexScanner s)
@@ -205,3 +203,18 @@ cdef p_template_definition(PyrexScanner s)
 cdef p_cpp_class_definition(PyrexScanner s, pos, ctx)
 cdef p_cpp_class_attribute(PyrexScanner s, ctx)
 cdef p_annotation(PyrexScanner s)
+cdef p_match_statement(PyrexScanner s, ctx)
+cdef p_case_block(PyrexScanner s, ctx)
+cdef p_patterns(PyrexScanner s)
+cdef p_maybe_star_pattern(PyrexScanner s)
+cdef p_pattern(PyrexScanner s)
+cdef p_closed_pattern(PyrexScanner s)
+cdef p_literal_pattern(PyrexScanner s)
+cdef p_capture_pattern(PyrexScanner s)
+cdef p_value_pattern(PyrexScanner s)
+cdef p_group_pattern(PyrexScanner s)
+cdef p_sequence_pattern(PyrexScanner s)
+cdef p_mapping_pattern(PyrexScanner s)
+cdef p_class_pattern(PyrexScanner s)
+cdef p_keyword_pattern(PyrexScanner s)
+cdef p_pattern_capture_target(PyrexScanner s)

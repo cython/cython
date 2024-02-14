@@ -150,7 +150,11 @@ documentation`_. To compile the extension for use in the current directory use:
 Configuring the C-Build
 ------------------------
 
-If you have include files in non-standard places you can pass an
+.. note::
+
+   More details on building Cython modules that use cimport numpy can be found in the :ref:`Numpy section <numpy_compilation>` of the user guide.
+
+If you have :ref:`Cython include files <include_statement>` or :ref:`Cython definition files <definition_file>` in non-standard places you can pass an
 ``include_path`` parameter to ``cythonize``::
 
     from setuptools import setup
@@ -160,43 +164,6 @@ If you have include files in non-standard places you can pass an
         name="My hello app",
         ext_modules=cythonize("src/*.pyx", include_path=[...]),
     )
-
-Often, Python packages that offer a C-level API provide a way to find
-the necessary include files, e.g. for NumPy::
-
-    include_path = [numpy.get_include()]
-
-.. note::
-
-    Using memoryviews or importing NumPy with ``import numpy`` does not mean that
-    you have to add the path to NumPy include files. You need to add this path only
-    if you use ``cimport numpy``.
-
-Despite this, you may still get warnings like the following from the compiler,
-because Cython is not disabling the usage of the old deprecated Numpy API::
-
-   .../include/numpy/npy_1_7_deprecated_api.h:15:2: warning: #warning "Using deprecated NumPy API, disable it by " "#defining NPY_NO_DEPRECATED_API NPY_1_7_API_VERSION" [-Wcpp]
-
-In Cython 3.0, you can get rid of this warning by defining the C macro
-``NPY_NO_DEPRECATED_API`` as ``NPY_1_7_API_VERSION``
-in your build, e.g.::
-
-    # distutils: define_macros=NPY_NO_DEPRECATED_API=NPY_1_7_API_VERSION
-
-or (see below)::
-
-    Extension(
-        ...,
-        define_macros=[("NPY_NO_DEPRECATED_API", "NPY_1_7_API_VERSION")],
-    )
-
-With older Cython releases, setting this macro will fail the C compilation,
-because Cython generates code that uses this deprecated C-API.  However, the
-warning has no negative effects even in recent NumPy versions including 1.18.x.
-You can ignore it until you (or your library's users) switch to a newer NumPy
-version that removes this long deprecated API, in which case you also need to
-use Cython 3.0 or later.  Thus, the earlier you switch to Cython 3.0, the
-better for your users.
 
 If you need to specify compiler options, libraries to link with or other
 linker options you will need to create ``Extension`` instances manually
@@ -222,14 +189,29 @@ in one line)::
         ext_modules=cythonize(extensions),
     )
 
+Some useful options to know about are
+
+* ``include_dirs``- list of directories to search for C/C++ header files (in Unix form for portability),
+* ``libraries`` - list of library names (not filenames or paths) to link against,
+* ``library_dirs`` - list of directories to search for C/C++ libraries at link time.
+
 Note that when using setuptools, you should import it before Cython, otherwise,
 both might disagree about the class to use here.
 
-Note also that if you use setuptools instead of :mod:`distutils`, the default
-action when running ``python setup.py install`` is to create a zipped
-``egg`` file which will not work with ``cimport`` for ``pxd`` files
-when you try to use them from a dependent package.
-To prevent this, include ``zip_safe=False`` in the arguments to ``setup()``.
+Often, Python packages that offer a C-level API provide a way to find
+the necessary C header files::
+
+    from setuptools import Extension, setup
+    from Cython.Build import cythonize
+
+    extensions = [
+        Extension("*", ["*.pyx"],
+            include_dirs=["/usr/local/include"]),
+    ]
+    setup(
+        name="My hello app",
+        ext_modules=cythonize(extensions),
+    )
 
 If your options are static (for example you do not need to call a tool like
 ``pkg-config`` to determine them) you can also provide them directly in your
@@ -264,9 +246,7 @@ as follows::
     )
 
 The :class:`Extension` class takes many options, and a fuller explanation can
-be found in the `setuptools documentation`_. Some useful options to know about
-are ``include_dirs``, ``libraries``, and ``library_dirs`` which specify where
-to find the ``.h`` and library files when linking to external libraries.
+be found in the `setuptools documentation`_.
 
 .. _setuptools documentation: https://setuptools.readthedocs.io/
 
@@ -448,12 +428,6 @@ e.g.::
 These ``.pxd`` files need not have corresponding ``.pyx``
 modules if they contain purely declarations of external libraries.
 
-Remember that if you use setuptools instead of distutils, the default
-action when running ``python setup.py install`` is to create a zipped
-``egg`` file which will not work with ``cimport`` for ``pxd`` files
-when you try to use them from a dependent package.
-To prevent this, include ``zip_safe=False`` in the arguments to ``setup()``.
-
 
 .. _integrating_multiple_modules:
 
@@ -611,7 +585,7 @@ For example::
 
 Unbound variables are automatically pulled from the surrounding local
 and global scopes, and the result of the compilation is cached for
-efficient re-use.
+efficient reuse.
 
 
 Compiling with ``cython.compile``
@@ -854,6 +828,25 @@ Cython code.  Here is the list of currently supported directives:
     signature, which cannot otherwise be retrieved after
     compilation.  Default is False.
 
+``embedsignature.format`` (``c`` / ``python`` / ``clinic``)
+    If set to ``c``, Cython will generate signatures preserving
+    C type declarations and Python type annotations.
+    If set to ``python``, Cython will do a best attempt to use
+    pure-Python type annotations in embedded signatures. For arguments
+    without Python type annotations, the C type is mapped to the
+    closest Python type equivalent (e.g., C ``short`` is mapped to
+    Python ``int`` type and C ``double`` is mapped to Python ``float``
+    type).  The specific output and type mapping are experimental and
+    may change over time.
+    The ``clinic`` format generates signatures that are compatible
+    with those understood by CPython's Argument Clinic tool. The
+    CPython runtime strips these signatures from docstrings and
+    translates them into a ``__text_signature__`` attribute. This is
+    mainly useful when using ``binding=False``, since the Cython
+    functions generated with ``binding=True`` do not have (nor need)
+    a ``__text_signature__`` attribute.
+    Default is ``c``.
+
 ``cdivision`` (True / False)
     If set to False, Cython will adjust the remainder and quotient
     operators C types to match those of Python ints (which differ when
@@ -868,6 +861,24 @@ Cython code.  Here is the list of currently supported directives:
     division is performed with negative operands.  See `CEP 516
     <https://github.com/cython/cython/wiki/enhancements-division>`_.  Default is
     False.
+    
+``cpow`` (True / False)
+    ``cpow`` modifies the return type of ``a**b``, as shown in the
+    table below:
+    
+        .. csv-table:: cpow behaviour
+            :file: cpow_table.csv
+            :header-rows: 1
+            :class: longtable
+            :widths: 1 1 3 3
+    
+    The ``cpow==True`` behaviour largely keeps the result type the
+    same as the operand types, while the ``cpow==False`` behaviour
+    follows Python and returns a flexible type depending on the
+    inputs.
+
+    Introduced in Cython 3.0 with a default of False;
+    before that, the behaviour matched the ``cpow=True`` version.
 
 ``always_allow_keywords`` (True / False)
     When disabled, uses the ``METH_NOARGS`` and ``METH_O`` signatures when
@@ -905,13 +916,15 @@ Cython code.  Here is the list of currently supported directives:
     explicitly requested.
 
 ``language_level`` (2/3/3str)
-    Globally set the Python language level to be used for module
-    compilation.  Default is compatibility with Python 2.  To enable
-    Python 3 source code semantics, set this to 3 (or 3str) at the start
+    Globally set the Python language level to be used for module compilation.
+    Default is compatibility with Python 3 in Cython 3.x and with Python 2 in Cython 0.x.
+    To enable Python 3 source code semantics, set this to 3 (or 3str) at the start
     of a module or pass the "-3" or "--3str" command line options to the
-    compiler.  The ``3str`` option enables Python 3 semantics but does
+    compiler.  For Python 2 semantics, use 2 and "-2" accordingly.  The ``3str``
+    option enables Python 3 semantics but does
     not change the ``str`` type and unprefixed string literals to
     ``unicode`` when the compiled code runs in Python 2.x.
+    Language level 2 ignores ``x: int`` type annotations due to the int/long ambiguity.
     Note that cimported files inherit this setting from the module
     being compiled, unless they explicitly set their own language level.
     Included source files always inherit this setting.
@@ -945,7 +958,7 @@ Cython code.  Here is the list of currently supported directives:
     asyncio before Python 3.5.  This directive can be applied in modules or
     selectively as decorator on an async-def coroutine to make the affected
     coroutine(s) iterable and thus directly interoperable with yield-from.
-  
+
 ``annotation_typing`` (True / False)
     Uses function argument annotations to determine the type of variables. Default
     is True, but can be disabled. Since Python does not enforce types given in
@@ -957,11 +970,18 @@ Cython code.  Here is the list of currently supported directives:
     Copy the original source code line by line into C code comments in the generated
     code file to help with understanding the output.
     This is also required for coverage analysis.
-    
+
 ``cpp_locals`` (True / False)
     Make C++ variables behave more like Python variables by allowing them to be
     "unbound" instead of always default-constructing them at the start of a
     function.  See :ref:`cpp_locals directive` for more detail.
+
+``legacy_implicit_noexcept`` (True / False)
+    When enabled, ``cdef`` functions will not propagate raised exceptions by default. Hence,
+    the function will behave in the same way as if declared with `noexcept` keyword. See
+    :ref:`error_return_values` for details. Setting this directive to ``True`` will
+    cause Cython 3.0 to have the same semantics as Cython 0.x. This directive was solely added
+    to help migrate legacy code written before Cython 3. It will be removed in a future release.
 
 
 .. _configurable_optimisations:
@@ -1017,6 +1037,11 @@ to turn the warning on / off.
    Warns about multiple variables declared on the same line with at least one pointer type.
    For example ``cdef double* a, b`` - which, as in C, declares ``a`` as a pointer, ``b`` as
    a value type, but could be mininterpreted as declaring two pointers.
+   
+``show_performance_hints`` (default True)
+  Show performance hints during compilation pointing to places in the code which can yield performance degradation.
+  Note that performance hints are not warnings and hence the directives starting with ``warn.`` above do not affect them
+  and they will not trigger a failure when "error on warnings" is enabled.
 
 
 .. _how_to_set_directives:
@@ -1084,3 +1109,136 @@ argument to ``cythonize``::
 This will override the default directives as specified in the ``compiler_directives`` dictionary.
 Note that explicit per-file or local directives as explained above take precedence over the
 values passed to ``cythonize``.
+
+C macro defines
+===============
+
+Cython has a number of C macros that can be used to control compilation. Typically, these
+would be set using ``extra_compile_args`` in `setup.py` (for example
+``extra_compile_args=['-DCYTHON_USE_TYPE_SPECS=1']``), however they can also be set in
+other ways like using the ``CFLAGS`` environmental variable.
+
+These macros are set automatically by Cython to sensible default values unless
+you chose to explicitly override them, so they are a tool that most users
+can happily ignore.  Not all combinations of macros are compatible or tested, and
+some change the default value of other macros.  They are listed below in rough order from
+most important to least important:
+
+``CYTHON_LIMITED_API``
+    Turns on Cython's experimental Limited API support, meaning that one compiled module
+    can be used by many Python interpreter versions (at the cost of some performance).
+    At this stage many features do not work in the Limited API.  If you use this macro
+    you should also set the macro ``Py_LIMITED_API`` to be the version hex for the
+    minimum Python version you want to support (>=3.7).  ``0x03070000`` will support
+    Python 3.7 upwards.
+
+``CYTHON_PEP489_MULTI_PHASE_INIT``
+    Uses multi-phase module initialization as described in PEP489.  This improves
+    Python compatibility, especially when running the initial import of the code when it
+    makes attributes such as ``__file__`` available.  It is therefore on by default
+    where supported.
+
+``CYTHON_USE_MODULE_STATE``
+    Stores module data on a struct associated with the module object rather than as
+    C global variables.  The advantage is that it should be possible to import the
+    same module more than once (e.g. in different sub-interpreters).  At the moment
+    this is experimental and not all data has been moved.  It also requires that
+    ``CYTHON_PEP489_MULTI_PHASE_INIT`` is off - we plan to remove this limitation
+    in the future.
+
+``CYTHON_USE_TYPE_SPECS``
+    Defines ``cdef classes`` as `"heap types" <https://docs.python.org/3/c-api/typeobj.html#heap-types>`_
+    rather than "static types".  Practically this does not change a lot from a user
+    point of view, but it is needed to implement Limited API support.
+    
+``CYTHON_EXTERN_C``
+    Slightly different to the other macros, this controls how ``cdef public``
+    functions appear to C++ code. See :ref:`CYTHON_EXTERN_C` for full details.
+    
+There is a further list of macros which turn off various optimizations or language
+features.  Under normal circumstance Cython enables these automatically based on the
+version of Python you are compiling for so there is no need to use them
+to try to enable extra optimizations - all supported optimizations are enabled by
+default.  These are mostly relevant if you're tying to get Cython working in a
+new and unsupported Python interpreter where you will typically want to set
+them to 0 to *disable* optimizations.  They are listed below for completeness but
+hidden by default since most users will be uninterested in changing them.
+
+.. tabs::
+    .. tab:: Hide
+    
+    .. tab:: Show
+        
+        ``CYTHON_USE_TYPE_SLOTS``
+            If enabled, Cython will directly access members of the ``PyTypeObject``
+            struct.
+            
+        ``CYTHON_USE_PYTYPE_LOOKUP``
+            Use the internal `_PyType_Lookup()` function for more efficient access
+            to properties of C classes.
+            
+        ``CYTHON_USE_ASYNC_SLOTS``
+            Support the ``tp_as_async`` attribute on type objects.
+            
+        ``CYTHON_USE_PYLONG_INTERNALS``/``CYTHON_USE_PYLIST_INTERNALS``/``CYTHON_USE_UNICODE_INTERNALS``
+            Enable optimizations based on direct access into the internals of Python
+            ``int``/``list``/``unicode`` objects respectively.
+            
+        ``CYTHON_USE_UNICODE_WRITER``
+            Use a faster (but internal) mechanism for building unicode strings, for
+            example in f-strings.
+            
+        ``CYTHON_AVOID_BORROWED_REFS``
+            Avoid using "borrowed references" and ensure that Cython always holds
+            a reference to objects it manipulates.  Most useful for
+            non-reference-counted implementations of Python, like PyPy
+            (where it is enabled by default).
+            
+        ``CYTHON_ASSUME_SAFE_MACROS``
+            Use some C-API macros that increase performance by skipping error checking,
+            which may not be safe on all Python implementations (e.g. PyPy).
+            
+        ``CYTHON_ASSUME_SAFE_SIZE``
+            Prefer the ``Py*_GET_SIZE()`` C-API macros / inline-functions for builtin types
+            over their ``Py*_GetSize()`` counterparts if errors are not expected.
+
+        ``CYTHON_FAST_GIL``
+            On some Python versions this speeds up getting/releasing the GIL.
+            
+        ``CYTHON_UNPACK_METHODS``
+            Try to speed up method calls at the cost of code-size.  Linked to
+            the ``optimize.unpack_method_calls`` compiler directive - this macro
+            is used to selectively enable the compiler directive only on versions
+            of Python that support it.
+            
+        ``CYTHON_METH_FASTCALL``/``CYTHON_FAST_PYCALL``
+            These are used internally to incrementally enable the vectorcall calling
+            mechanism on older Python versions (<3.8).
+            
+        ``CYTHON_PEP487_INIT_SUBCLASS``
+            Enable `PEP-487 <https://peps.python.org/pep-0487/>`_ ``__init_subclass__`` behaviour.
+            
+        ``CYTHON_USE_TP_FINALIZE``
+            Use the ``tp_finalize`` type-slot instead of ``tp_dealloc``,
+            as described in `PEP-442 <https://peps.python.org/pep-0442/>`_.
+            
+        ``CYTHON_USE_DICT_VERSIONS``
+            Try to optimize attribute lookup by using versioned dictionaries
+            where supported.
+            
+        ``CYTHON_USE_EXC_INFO_STACK``
+            Use an internal structure to track exception state,
+            used in CPython 3.7 and later.
+            
+        ``CYTHON_UPDATE_DESCRIPTOR_DOC``
+            Attempt to provide docstrings also for special (double underscore) methods.
+            
+        ``CYTHON_USE_FREELISTS``
+            Enable the use of freelists on extension types with
+            :ref:`the @cython.freelist decorator<freelist>`.
+
+        ``CYTHON_ATOMICS``
+            Enable the use of atomic reference counting (as opposed to locking then
+            reference counting) in Cython typed memoryviews.
+            
+            

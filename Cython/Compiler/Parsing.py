@@ -1,9 +1,8 @@
-# cython: auto_cpdef=True, infer_types=True, language_level=3, py2_import=True
+# cython: auto_cpdef=True, infer_types=True, py2_import=True
 #
 #   Parser
 #
 
-from __future__ import absolute_import
 
 # This should be done automatically
 import cython
@@ -12,13 +11,12 @@ cython.declare(Nodes=object, ExprNodes=object, EncodedString=object,
                FileSourceDescriptor=object, lookup_unicodechar=object, unicode_category=object,
                Future=object, Options=object, error=object, warning=object,
                Builtin=object, ModuleNode=object, Utils=object, _unicode=object, _bytes=object,
-               re=object, sys=object, _parse_escape_sequences=object, _parse_escape_sequences_raw=object,
-               partial=object, reduce=object, _IS_PY3=cython.bint, _IS_2BYTE_UNICODE=cython.bint,
+               re=object, _parse_escape_sequences=object, _parse_escape_sequences_raw=object,
+               partial=object, reduce=object,
                _CDEF_MODIFIERS=tuple, COMMON_BINOP_MISTAKES=dict)
 
 from io import StringIO
 import re
-import sys
 from unicodedata import lookup as lookup_unicodechar, category as unicode_category
 from functools import partial, reduce
 
@@ -28,19 +26,18 @@ from . import ExprNodes
 from . import MatchCaseNodes
 from . import Builtin
 from . import StringEncoding
-from .StringEncoding import EncodedString, bytes_literal, _unicode, _bytes
+from .StringEncoding import EncodedString, bytes_literal
 from .ModuleNode import ModuleNode
 from .Errors import error, warning
 from .. import Utils
 from . import Future
 from . import Options
 
-_IS_PY3 = sys.version_info[0] >= 3
-_IS_2BYTE_UNICODE = sys.maxunicode == 0xffff
+
 _CDEF_MODIFIERS = ('inline', 'nogil', 'api')
 
 
-class Ctx(object):
+class Ctx:
     #  Parsing context
     level = 'other'
     visibility = 'private'
@@ -178,7 +175,7 @@ def p_namedexpr_test(s):
 COMMON_BINOP_MISTAKES = {'||': 'or', '&&': 'and'}
 
 def p_or_test(s):
-    return p_rassoc_binop_expr(s, u'or', p_and_test)
+    return p_rassoc_binop_expr(s, 'or', p_and_test)
 
 def p_rassoc_binop_expr(s, op, p_subexpr):
     n1 = p_subexpr(s)
@@ -199,7 +196,7 @@ def p_rassoc_binop_expr(s, op, p_subexpr):
 
 def p_and_test(s):
     #return p_binop_expr(s, ('and',), p_not_test)
-    return p_rassoc_binop_expr(s, u'and', p_not_test)
+    return p_rassoc_binop_expr(s, 'and', p_not_test)
 
 #not_test: 'not' not_test | comparison
 
@@ -730,6 +727,7 @@ def p_atom(s):
 
 
 def p_atom_string(s):
+    # s.sy == 'BEGIN_STRING'
     pos = s.position()
     kind, bytes_value, unicode_value = p_cat_string_literal(s)
     if kind == 'c':
@@ -748,9 +746,10 @@ def p_atom_string(s):
 
 def p_atom_ident_constants(s, bools_are_pybool=False):
     """
-    Returns None if it isn't one special-cased named constants.
-    Only calls s.next() if it successfully matches a matches.
+    Returns None if it isn't a special-cased named constant.
+    Only calls s.next() if it successfully matches a named constant.
     """
+    # s.sy == 'IDENT'
     pos = s.position()
     name = s.systring
     result = None
@@ -766,8 +765,9 @@ def p_atom_ident_constants(s, bools_are_pybool=False):
         result = ExprNodes.BoolNode(pos, value=False, **extra_kwds)
     elif name == "NULL" and not s.in_python_file:
         result = ExprNodes.NullNode(pos)
-    if result:
-        s.next()
+    else:
+        return None
+    s.next()
     return result
 
 
@@ -777,8 +777,8 @@ def p_int_literal(s):
     s.next()
     unsigned = ""
     longness = ""
-    while value[-1] in u"UuLl":
-        if value[-1] in u"Ll":
+    while value[-1] in "UuLl":
+        if value[-1] in "Ll":
             longness += "L"
         else:
             unsigned += "U"
@@ -814,7 +814,6 @@ def p_name(s, name):
 
 
 def wrap_compile_time_constant(pos, value):
-    rep = repr(value)
     if value is None:
         return ExprNodes.NoneNode(pos)
     elif value is Ellipsis:
@@ -822,9 +821,9 @@ def wrap_compile_time_constant(pos, value):
     elif isinstance(value, bool):
         return ExprNodes.BoolNode(pos, value=value)
     elif isinstance(value, int):
-        return ExprNodes.IntNode(pos, value=rep, constant_result=value)
+        return ExprNodes.IntNode(pos, value=repr(value), constant_result=value)
     elif isinstance(value, float):
-        return ExprNodes.FloatNode(pos, value=rep, constant_result=value)
+        return ExprNodes.FloatNode(pos, value=repr(value), constant_result=value)
     elif isinstance(value, complex):
         node = ExprNodes.ImagNode(pos, value=repr(value.imag), constant_result=complex(0.0, value.imag))
         if value.real:
@@ -834,21 +833,18 @@ def wrap_compile_time_constant(pos, value):
                 pos, '+', ExprNodes.FloatNode(pos, value=repr(value.real), constant_result=value.real), node,
                 constant_result=value)
         return node
-    elif isinstance(value, _unicode):
+    elif isinstance(value, str):
         return ExprNodes.UnicodeNode(pos, value=EncodedString(value))
-    elif isinstance(value, _bytes):
+    elif isinstance(value, bytes):
         bvalue = bytes_literal(value, 'ascii')  # actually: unknown encoding, but BytesLiteral requires one
         return ExprNodes.BytesNode(pos, value=bvalue, constant_result=value)
     elif isinstance(value, tuple):
-        args = [wrap_compile_time_constant(pos, arg)
-                for arg in value]
-        if None not in args:
-            return ExprNodes.TupleNode(pos, args=args)
-        else:
+        args = [wrap_compile_time_constant(pos, arg) for arg in value]
+        if None in args:
             # error already reported
             return None
-    elif not _IS_PY3 and isinstance(value, long):
-        return ExprNodes.IntNode(pos, value=rep.rstrip('L'), constant_result=value)
+        return ExprNodes.TupleNode(pos, args=args)
+
     error(pos, "Invalid type for compile-time constant: %r (type %s)"
                % (value, value.__class__.__name__))
     return None
@@ -886,7 +882,7 @@ def p_cat_string_literal(s):
         # Py3 enforced unicode literals are parsed as bytes/unicode combination
         bytes_value = bytes_literal(StringEncoding.join_bytes(bstrings), s.source_encoding)
     if kind in ('u', ''):
-        unicode_value = EncodedString(u''.join([u for u in ustrings if u is not None]))
+        unicode_value = EncodedString(''.join([u for u in ustrings if u is not None]))
     if kind == 'f':
         unicode_value = []
         for u, pos in zip(ustrings, positions):
@@ -915,7 +911,7 @@ def p_opt_string_literal(s, required_type='u'):
 
 def check_for_non_ascii_characters(string):
     for c in string:
-        if c >= u'\x80':
+        if c >= '\x80':
             return True
     return False
 
@@ -987,14 +983,14 @@ def p_string_literal(s, kind_override=None):
                 has_non_ascii_literal_characters = True
         elif sy == 'ESCAPE':
             # in Py2, 'ur' raw unicode strings resolve unicode escapes but nothing else
-            if is_raw and (is_python3_source or kind != 'u' or systr[1] not in u'Uu'):
+            if is_raw and (is_python3_source or kind != 'u' or systr[1] not in 'Uu'):
                 chars.append(systr)
                 if is_python3_source and not has_non_ascii_literal_characters and check_for_non_ascii_characters(systr):
                     has_non_ascii_literal_characters = True
             else:
                 _append_escape_sequence(kind, chars, systr, s)
         elif sy == 'NEWLINE':
-            chars.append(u'\n')
+            chars.append('\n')
         elif sy == 'END_STRING':
             break
         elif sy == 'EOF':
@@ -1007,7 +1003,7 @@ def p_string_literal(s, kind_override=None):
         unicode_value = None
         bytes_value = chars.getchar()
         if len(bytes_value) != 1:
-            error(pos, u"invalid character literal: %r" % bytes_value)
+            error(pos, "invalid character literal: %r" % bytes_value)
     else:
         bytes_value, unicode_value = chars.getstrings()
         if (has_non_ascii_literal_characters
@@ -1024,22 +1020,22 @@ def p_string_literal(s, kind_override=None):
 
 def _append_escape_sequence(kind, builder, escape_sequence, s):
     c = escape_sequence[1]
-    if c in u"01234567":
+    if c in "01234567":
         builder.append_charval(int(escape_sequence[1:], 8))
-    elif c in u"'\"\\":
+    elif c in "'\"\\":
         builder.append(c)
-    elif c in u"abfnrtv":
+    elif c in "abfnrtv":
         builder.append(StringEncoding.char_from_escape_sequence(escape_sequence))
-    elif c == u'\n':
+    elif c == '\n':
         pass  # line continuation
-    elif c == u'x':  # \xXX
+    elif c == 'x':  # \xXX
         if len(escape_sequence) == 4:
             builder.append_charval(int(escape_sequence[2:], 16))
         else:
             s.error("Invalid hex escape '%s'" % escape_sequence, fatal=False)
-    elif c in u'NUu' and kind in ('u', 'f', ''):  # \uxxxx, \Uxxxxxxxx, \N{...}
+    elif c in 'NUu' and kind in ('u', 'f', ''):  # \uxxxx, \Uxxxxxxxx, \N{...}
         chrval = -1
-        if c == u'N':
+        if c == 'N':
             uchar = None
             try:
                 uchar = lookup_unicodechar(escape_sequence[3:-1])
@@ -1047,14 +1043,6 @@ def _append_escape_sequence(kind, builder, escape_sequence, s):
             except KeyError:
                 s.error("Unknown Unicode character name %s" %
                         repr(escape_sequence[3:-1]).lstrip('u'), fatal=False)
-            except TypeError:
-                # 2-byte unicode build of CPython?
-                if (uchar is not None and _IS_2BYTE_UNICODE and len(uchar) == 2 and
-                        unicode_category(uchar[0]) == 'Cs' and unicode_category(uchar[1]) == 'Cs'):
-                    # surrogate pair instead of single character
-                    chrval = 0x10000 + (ord(uchar[0]) - 0xd800) >> 10 + (ord(uchar[1]) - 0xdc00)
-                else:
-                    raise
         elif len(escape_sequence) in (6, 10):
             chrval = int(escape_sequence[2:], 16)
             if chrval > 1114111:  # sys.maxunicode:
@@ -1086,7 +1074,8 @@ _parse_escape_sequences_raw, _parse_escape_sequences = [re.compile((
     br'\}\}?|'
     br'[^\\{}]+)'
     ).decode('us-ascii')).match
-    for is_raw in (True, False)]
+    for is_raw in (True, False)
+]
 
 
 def _f_string_error_pos(pos, string, i):
@@ -1894,7 +1883,7 @@ def p_dotted_name(s, as_allowed):
         names.append(p_ident(s))
     if as_allowed:
         as_name = p_as_name(s)
-    return (pos, target_name, s.context.intern_ustring(u'.'.join(names)), as_name)
+    return (pos, target_name, s.context.intern_ustring('.'.join(names)), as_name)
 
 
 def p_as_name(s):
@@ -2165,6 +2154,10 @@ def p_with_items(s, is_async=False):
             s.next()
             items = p_with_items_list(s, is_async)
             s.expect(")")
+            if s.sy != ":":
+                # Fail - the message doesn't matter because we'll try the
+                # non-bracket version so it'll never be shown
+                s.error("")
         brackets_succeeded = not errors
     if not brackets_succeeded:
         # try the non-bracket version
@@ -2369,10 +2362,12 @@ def p_statement(s, ctx, first_statement = 0):
         #    error(s.position(), "'api' not allowed with 'ctypedef'")
         return p_ctypedef_statement(s, ctx)
     elif s.sy == 'DEF':
-        warning(s.position(),
-                "The 'DEF' statement is deprecated and will be removed in a future Cython version. "
-                "Consider using global variables, constants, and in-place literals instead. "
-                "See https://github.com/cython/cython/issues/4310", level=1)
+        # We used to dep-warn about this but removed the warning again since
+        # we don't have a good answer yet for all use cases.
+        # warning(s.position(),
+        #         "The 'DEF' statement is deprecated and will be removed in a future Cython version. "
+        #         "Consider using global variables, constants, and in-place literals instead. "
+        #         "See https://github.com/cython/cython/issues/4310", level=1)
         return p_DEF_statement(s)
     elif s.sy == 'IF':
         warning(s.position(),
@@ -2466,11 +2461,11 @@ def p_statement(s, ctx, first_statement = 0):
                         return p_async_statement(s, ctx, decorators)
                     elif decorators:
                         s.error("Decorators can only be followed by functions or classes")
-                    s.put_back(u'IDENT', ident_name, ident_pos)  # re-insert original token
+                    s.put_back('IDENT', ident_name, ident_pos)  # re-insert original token
                 if s.sy == 'IDENT' and s.systring == 'match':
                     # p_match_statement returns None on a "soft" initial failure
                     match_statement = p_match_statement(s, ctx)
-                    if match_statement:
+                    if match_statement is not None:
                         return match_statement
                 return p_simple_statement_list(s, ctx, first_statement=first_statement)
 
@@ -2692,13 +2687,13 @@ def p_c_simple_base_type(s, nonempty, templates=None):
                 s.next()
                 if (s.sy == '*' or s.sy == '**' or s.sy == '&'
                         or (s.sy == 'IDENT' and s.systring in calling_convention_words)):
-                    s.put_back(u'(', u'(', old_pos)
+                    s.put_back('(', '(', old_pos)
                 else:
-                    s.put_back(u'(', u'(', old_pos)
-                    s.put_back(u'IDENT', name, name_pos)
+                    s.put_back('(', '(', old_pos)
+                    s.put_back('IDENT', name, name_pos)
                     name = None
             elif s.sy not in ('*', '**', '[', '&'):
-                s.put_back(u'IDENT', name, name_pos)
+                s.put_back('IDENT', name, name_pos)
                 name = None
 
     type_node = Nodes.CSimpleBaseTypeNode(pos,
@@ -2840,10 +2835,10 @@ def looking_at_expr(s):
 
         dotted_path.reverse()
         for p in dotted_path:
-            s.put_back(u'IDENT', *p)
-            s.put_back(u'.', u'.', p[1])  # gets the position slightly wrong
+            s.put_back('IDENT', *p)
+            s.put_back('.', '.', p[1])  # gets the position slightly wrong
 
-        s.put_back(u'IDENT', name, name_pos)
+        s.put_back('IDENT', name, name_pos)
         return not is_type and saved[0]
     else:
         return True
@@ -2858,7 +2853,7 @@ def looking_at_dotted_name(s):
         name_pos = s.position()
         s.next()
         result = s.sy == '.'
-        s.put_back(u'IDENT', name, name_pos)
+        s.put_back('IDENT', name, name_pos)
         return result
     else:
         return 0
@@ -2926,7 +2921,7 @@ def p_c_declarator(s, ctx = Ctx(), empty = 0, is_type = 0, cmethod_flag = 0,
     if s.sy == '(':
         s.next()
         if s.sy == ')' or looking_at_name(s):
-            base = Nodes.CNameDeclaratorNode(pos, name=s.context.intern_ustring(u""), cname=None)
+            base = Nodes.CNameDeclaratorNode(pos, name=s.context.intern_ustring(""), cname=None)
             result = p_c_func_declarator(s, pos, ctx, base, cmethod_flag)
         else:
             result = p_c_declarator(s, ctx, empty = empty, is_type = is_type,
@@ -2967,7 +2962,7 @@ def p_c_func_declarator(s, pos, ctx, base, cmethod_flag):
     ellipsis = p_optional_ellipsis(s)
     s.expect(')')
     nogil = p_nogil(s)
-    exc_val, exc_check, exc_clause = p_exception_value_clause(s, ctx)
+    exc_val, exc_check, exc_clause = p_exception_value_clause(s, ctx.visibility == 'extern')
     if nogil and exc_clause:
         warning(
             s.position(),
@@ -3087,7 +3082,7 @@ def p_with_gil(s):
     else:
         return 0
 
-def p_exception_value_clause(s, ctx):
+def p_exception_value_clause(s, is_extern):
     """
     Parse exception value clause.
 
@@ -3114,10 +3109,7 @@ def p_exception_value_clause(s, ctx):
     """
     exc_clause = False
     exc_val = None
-    if ctx.visibility  == 'extern':
-        exc_check = False
-    else:
-        exc_check = True
+    exc_check = False if is_extern else True
 
     if s.sy == 'IDENT' and s.systring == 'noexcept':
         exc_clause = True
@@ -3131,15 +3123,20 @@ def p_exception_value_clause(s, ctx):
             s.next()
         elif s.sy == '+':
             exc_check = '+'
+            plus_char_pos = s.position()[2]
             s.next()
-            if p_nogil(s):
-                ctx.nogil = True
-            elif s.sy == 'IDENT':
+            if s.sy == 'IDENT':
                 name = s.systring
-                s.next()
-                exc_val = p_name(s, name)
+                if name == 'nogil':
+                    if s.position()[2] == plus_char_pos + 1:
+                        error(s.position(),
+                              "'except +nogil' defines an exception handling function. Use 'except + nogil' for the 'nogil' modifier.")
+                    # 'except + nogil' is parsed outside
+                else:
+                    exc_val = p_name(s, name)
+                    s.next()
             elif s.sy == '*':
-                exc_val = ExprNodes.CharNode(s.position(), value=u'*')
+                exc_val = ExprNodes.CharNode(s.position(), value='*')
                 s.next()
         else:
             if s.sy == '?':
@@ -3149,6 +3146,9 @@ def p_exception_value_clause(s, ctx):
                 exc_check = False
             # exc_val can be non-None even if exc_check is False, c.f. "except -1"
             exc_val = p_test(s)
+    if not is_extern and not exc_clause and s.context.legacy_implicit_noexcept:
+        exc_check = False
+        warning(s.position(), "Implicit noexcept declaration is deprecated. Function declaration should contain 'noexcept' keyword.", level=2)
     return exc_val, exc_check, exc_clause
 
 c_arg_list_terminators = cython.declare(frozenset, frozenset((
@@ -3416,7 +3416,7 @@ def p_c_struct_or_union_definition(s, pos, ctx):
         else:
             s.expect('NEWLINE')
             s.expect_indent()
-            body_ctx = Ctx()
+            body_ctx = Ctx(visibility=ctx.visibility)
             while s.sy != 'DEDENT':
                 if s.sy != 'pass':
                     attributes.append(
@@ -3917,6 +3917,9 @@ def p_compiler_directive_comments(s):
             if 'language_level' in new_directives:
                 # Make sure we apply the language level already to the first token that follows the comments.
                 s.context.set_language_level(new_directives['language_level'])
+            if 'legacy_implicit_noexcept' in new_directives:
+                s.context.legacy_implicit_noexcept = new_directives['legacy_implicit_noexcept']
+
 
             result.update(new_directives)
 
@@ -3931,11 +3934,11 @@ def p_module(s, pxd, full_module_name, ctx=Ctx):
     s.parse_comments = False
 
     if s.context.language_level is None:
-        s.context.set_language_level('3str')
+        s.context.set_language_level('3')
         if pos[0].filename:
             import warnings
             warnings.warn(
-                "Cython directive 'language_level' not set, using '3str' for now (Py3). "
+                "Cython directive 'language_level' not set, using '3' (Py3). "
                 "This has changed from earlier releases! File: %s" % pos[0].filename,
                 FutureWarning,
                 stacklevel=1 if cython.compiled else 2,
@@ -4068,7 +4071,7 @@ def p_match_statement(s, ctx):
     if errors:
         return None
 
-    # at this stage were commited to it being a match block so continue
+    # at this stage we are committed to it being a match block so continue
     # outside "with tentatively_scan"
     # (I think this deviates from the PEG parser slightly, and it'd
     # backtrack on the whole thing)
@@ -4083,7 +4086,7 @@ def p_match_statement(s, ctx):
 
 def p_case_block(s, ctx):
     if not (s.sy == "IDENT" and s.systring == "case"):
-        s.error("Expected 'case'")
+        s.expected("case")
     s.next()
     pos = s.position()
     pattern = p_patterns(s)
@@ -4153,10 +4156,9 @@ def p_pattern(s):
     pos = s.position()
     while True:
         patterns.append(p_closed_pattern(s))
-        if s.sy == "|":
-            s.next()
-        else:
+        if s.sy != "|":
             break
+        s.next()
 
     if len(patterns) > 1:
         pattern = MatchCaseNodes.OrPatternNode(
@@ -4252,10 +4254,10 @@ def p_literal_pattern(s):
         s.next()
         res = ExprNodes.FloatNode(pos, value=value)
 
-    if res and sign == "-":
+    if res is not None and sign == "-":
         res = ExprNodes.UnaryMinusNode(sign_pos, operand=res)
 
-    if res and s.sy in ['+', '-']:
+    if res is not None and s.sy in ['+', '-']:
         sign = s.sy
         s.next()
         if s.sy != 'IMAG':
@@ -4271,21 +4273,21 @@ def p_literal_pattern(s):
                 operand2=ExprNodes.ImagNode(s.position(), value=value)
             )
 
-    if not res and sy == 'IMAG':
+    if res is None and sy == 'IMAG':
         value = s.systring[:-1]
         s.next()
         res = ExprNodes.ImagNode(pos, value=sign+value)
         if sign == "-":
             res = ExprNodes.UnaryMinusNode(sign_pos, operand=res)
 
-    if res:
+    if res is not None:
         return MatchCaseNodes.MatchValuePatternNode(pos, value=res)
 
     if next_must_be_a_number:
         s.error("Expected a number")
     if sy == 'BEGIN_STRING':
         res = p_atom_string(s)
-        # f-strings not being accepted is validated in PostParse
+        # Whether f-strings are suitable is validated in PostParse.
         return MatchCaseNodes.MatchValuePatternNode(pos, value=res)
     elif sy == 'IDENT':
         # Note that p_atom_ident_constants includes NULL.
@@ -4311,7 +4313,7 @@ def p_value_pattern(s):
     res = p_name(s, s.systring)
     s.next()
     if s.sy != '.':
-        s.error("Expected '.'")
+        s.error(".")
     while s.sy == '.':
         attr_pos = s.position()
         s.next()
@@ -4337,20 +4339,15 @@ def p_sequence_pattern(s):
         s.next()
         # maybe_sequence_pattern and open_sequence_pattern
         patterns = []
-        if s.sy == closer:
-            s.next()
-        else:
-            while True:
-                patterns.append(p_maybe_star_pattern(s))
-                if s.sy == ",":
-                    s.next()
-                    if s.sy == closer:
-                        break
-                else:
-                    if opener == ')' and len(patterns) == 1:
-                        s.error("tuple-like pattern of length 1 must finish with ','")
-                    break
-            s.expect(closer)
+        while s.sy != closer:
+            patterns.append(p_maybe_star_pattern(s))
+            if s.sy == ",":
+                s.next()
+            else:
+                if opener == '(' and len(patterns) == 1:
+                    s.error("tuple-like pattern of length 1 must finish with ','")
+                break
+        s.expect(closer)
         return MatchCaseNodes.MatchSequencePatternNode(pos, patterns=patterns)
     else:
         s.error("Expected '[' or '('")
@@ -4367,7 +4364,7 @@ def p_mapping_pattern(s):
     double_star_capture_target = None
     items_patterns = []
     star_star_arg_pos = None
-    while True:
+    while s.sy != '}':
         if double_star_capture_target and not star_star_arg_pos:
             star_star_arg_pos = s.position()
         if s.sy == '**':
@@ -4387,8 +4384,6 @@ def p_mapping_pattern(s):
         if s.sy != ',':
             break
         s.next()
-        if s.sy == '}':
-            break  # Allow trailing comma.
     s.expect('}')
 
     if star_star_arg_pos is not None:
@@ -4426,7 +4421,7 @@ def p_class_pattern(s):
     positional_patterns = []
     keyword_patterns = []
     keyword_patterns_error = None
-    while True:
+    while s.sy != ')':
         with tentatively_scan(s) as errors:
             positional_patterns.append(p_pattern(s))
         if not errors:
@@ -4438,8 +4433,6 @@ def p_class_pattern(s):
         if s.sy != ",":
             break
         s.next()
-        if s.sy == ")":
-            break  # Allow trailing comma.
     s.expect(")")
 
     if keyword_patterns_error is not None:

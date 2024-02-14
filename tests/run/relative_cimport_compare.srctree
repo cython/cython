@@ -17,20 +17,16 @@ setup(
 )
 
 ######## test_import.py ########
-import sys
-SUPPORTS_PEP_489 = sys.version_info > (3, 5)
-if SUPPORTS_PEP_489:
-    import cypkg.sub.submodule
-    import cypkg.sub.sub2.sub2module
-    import pypkg.module
-    import pypkg.sub.submodule
-    import pypkg.sub.sub2.sub2module
+
+import cypkg.sub.submodule
+import cypkg.sub.sub2.sub2module
+import pypkg.module
+import pypkg.sub.submodule
+import pypkg.sub.sub2.sub2module
 
 ######## test_cimport.py ########
-import sys
-SUPPORTS_PEP_489 = sys.version_info > (3, 5)
-if SUPPORTS_PEP_489:
-    import module
+
+import module
 
 
 ######## module.pyx ########

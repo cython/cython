@@ -14,7 +14,7 @@ class SomeMemory:
     def resize(self, new_number: cython.size_t):
         # Allocates new_number * sizeof(double) bytes,
         # preserving the current content and making a best-effort to
-        # re-use the original data location.
+        # reuse the original data location.
         mem = cython.cast(cython.p_double, PyMem_Realloc(
             self.data, new_number * cython.sizeof(cython.double)))
         if not mem:

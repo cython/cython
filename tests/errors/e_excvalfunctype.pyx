@@ -11,6 +11,6 @@ spam = grail # type mismatch
 
 
 _ERRORS = u"""
-9:8: Cannot assign type 'spamfunc' to 'grailfunc'
-10:7: Cannot assign type 'grailfunc' to 'spamfunc'
+9:8: Cannot assign type 'spamfunc' (alias of 'int (*)(int, char *) except 42') to 'grailfunc' (alias of 'int (*)(int, char *) noexcept'). Exception values are incompatible. Suggest adding 'noexcept' to type 'int (int, char *) except 42'.
+10:7: Cannot assign type 'grailfunc' (alias of 'int (*)(int, char *) noexcept') to 'spamfunc' (alias of 'int (*)(int, char *) except 42'). Exception values are incompatible.
 """

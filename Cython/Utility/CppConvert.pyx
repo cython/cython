@@ -60,19 +60,20 @@ cdef extern from "Python.h":
     void Py_INCREF(object)
     list PyList_New(Py_ssize_t size)
     void PyList_SET_ITEM(object list, Py_ssize_t i, object o)
-    cdef Py_ssize_t PY_SSIZE_T_MAX
+    const Py_ssize_t PY_SSIZE_T_MAX
 
 @cname("{{cname}}")
 cdef object {{cname}}(const vector[X]& v):
     if v.size() > <size_t> PY_SSIZE_T_MAX:
         raise MemoryError()
+    v_size_signed = <Py_ssize_t> v.size()
 
-    o = PyList_New(<Py_ssize_t> v.size())
+    o = PyList_New(v_size_signed)
 
     cdef Py_ssize_t i
     cdef object item
 
-    for i in range(v.size()):
+    for i in range(v_size_signed):
         item = v[i]
         Py_INCREF(item)
         PyList_SET_ITEM(o, i, item)
@@ -199,18 +200,13 @@ cdef extern from *:
         void insert(pair[T, U]&) except +
     cdef cppclass vector "std::vector" [T]:
         pass
-    int PY_MAJOR_VERSION
 
 
 @cname("{{cname}}")
 cdef map[X,Y] {{cname}}(object o) except *:
     cdef map[X,Y] m
-    if PY_MAJOR_VERSION < 3:
-        for key, value in o.iteritems():
-            m.insert(pair[X,Y](<X>key, <Y>value))
-    else:
-        for key, value in o.items():
-            m.insert(pair[X,Y](<X>key, <Y>value))
+    for key, value in o.items():
+        m.insert(pair[X,Y](<X>key, <Y>value))
     return m
 
 
