@@ -10,6 +10,15 @@ cdef str test_return_str_noexcept() noexcept:
 cdef test_noexcept() noexcept:
     pass
 
+cdef test_implicit_noexcept():
+    pass
+
+cdef object test_return_object(x):
+    return x
+
+cdef str test_return_str():
+    return 'a'
+
 cdef extern from *:
     cdef object extern_return_object():
         pass

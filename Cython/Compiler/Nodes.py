@@ -625,6 +625,7 @@ class CFuncDeclaratorNode(CDeclaratorNode):
     # has_varargs      boolean
     # exception_value  ConstNode or NameNode    NameNode when the name of a c++ exception conversion function
     # exception_check  boolean or "+"    True if PyErr_Occurred check needed, "+" for a c++ check
+    # exc_clause       boolean    True if exception clause is explicitly declared
     # nogil            boolean    Can be called without gil
     # with_gil         boolean    Acquire gil around function body
     # is_const_method  boolean    Whether this is a const method
@@ -718,7 +719,7 @@ class CFuncDeclaratorNode(CDeclaratorNode):
                 and (self.exception_value or self.exception_check)
                 and self.exception_check != '+'):
             error(self.pos, "Exception clause not allowed for function returning Python object")
-        elif return_type.is_pyobject and not self.exception_check and visibility != 'extern':
+        elif return_type.is_pyobject and not self.exception_check and visibility != 'extern' and self.exc_clause:
             warning(self.pos, "noexcept clause is ignored for function returning Python object", 1)
         else:
             if self.exception_value is None and self.exception_check and self.exception_check != '+':
@@ -2693,6 +2694,7 @@ class CFuncDefNode(FuncDefNode):
             defining=self.body is not None, modifiers=self.modifiers,
             overridable=self.overridable, in_pxd=self.inline_in_pxd)
         self.return_type = typ.return_type
+
         if self.return_type.is_array and self.visibility != 'extern':
             error(self.pos, "Function cannot return an array")
         if self.return_type.is_cpp_class:
