@@ -165,7 +165,7 @@ static CYTHON_INLINE Py_hash_t __Pyx_PyIndex_AsHash_t(PyObject*);
   typedef Py_ssize_t  __Pyx_compact_pylong;
   typedef size_t  __Pyx_compact_upylong;
 
-  #else  // Py < 3.12
+  #else  /* Py < 3.12 */
   #define __Pyx_PyLong_IsNeg(x)  (Py_SIZE(x) < 0)
   #define __Pyx_PyLong_IsNonNeg(x)  (Py_SIZE(x) >= 0)
   #define __Pyx_PyLong_IsZero(x)  (Py_SIZE(x) == 0)
@@ -680,6 +680,7 @@ static CYTHON_INLINE PyObject* {{TO_PY_FUNCTION}}({{TYPE}} value);
 
 /////////////// CIntToPy ///////////////
 //@requires: GCCDiagnostics
+//@requires: ObjectHandling.c::PyObjectVectorCallKwBuilder
 
 static CYTHON_INLINE PyObject* {{TO_PY_FUNCTION}}({{TYPE}} value) {
 #ifdef __Pyx_HAS_GCC_DIAGNOSTIC
@@ -718,8 +719,8 @@ static CYTHON_INLINE PyObject* {{TO_PY_FUNCTION}}({{TYPE}} value) {
                                      little, !is_unsigned);
 #else
         // call int.from_bytes()
-        PyObject *from_bytes, *result = NULL;
-        PyObject *py_bytes = NULL, *arg_tuple = NULL, *kwds = NULL, *order_str = NULL;
+        PyObject *from_bytes, *result = NULL, *kwds = NULL;
+        PyObject *py_bytes = NULL, *order_str = NULL;
         from_bytes = PyObject_GetAttrString((PyObject*)&PyLong_Type, "from_bytes");
         if (!from_bytes) return NULL;
         py_bytes = PyBytes_FromStringAndSize((char*)bytes, sizeof({{TYPE}}));
@@ -728,19 +729,18 @@ static CYTHON_INLINE PyObject* {{TO_PY_FUNCTION}}({{TYPE}} value) {
         // to ever run so it seems a pessimization mostly.
         order_str = PyUnicode_FromString(little ? "little" : "big");
         if (!order_str) goto limited_bad;
-        arg_tuple = PyTuple_Pack(2, py_bytes, order_str);
-        if (!arg_tuple) goto limited_bad;
-        if (!is_unsigned) {
-            // default is signed=False
-            kwds = PyDict_New();
-            if (!kwds) goto limited_bad;
-            if (PyDict_SetItemString(kwds, "signed", __Pyx_NewRef(Py_True))) goto limited_bad;
+        {
+            PyObject *args[3+(CYTHON_VECTORCALL ? 1 : 0)] = { NULL, py_bytes, order_str };
+            if (!is_unsigned) {
+                kwds = __Pyx_MakeVectorcallBuilderKwds(1);
+                if (!kwds) goto limited_bad;
+                if (__Pyx_VectorcallBuilder_AddArgStr("signed", __Pyx_NewRef(Py_True), kwds, args+3, 0) < 0) goto limited_bad;
+            }
+            result = __Pyx_Object_Vectorcall_CallFromBuilder(from_bytes, args+1, 2 | __Pyx_PY_VECTORCALL_ARGUMENTS_OFFSET, kwds);
         }
-        result = PyObject_Call(from_bytes, arg_tuple, kwds);
 
         limited_bad:
         Py_XDECREF(kwds);
-        Py_XDECREF(arg_tuple);
         Py_XDECREF(order_str);
         Py_XDECREF(py_bytes);
         Py_XDECREF(from_bytes);
@@ -1152,4 +1152,57 @@ raise_neg_overflow:
     PyErr_SetString(PyExc_OverflowError,
         "can't convert negative value to {{TYPE}}");
     return ({{TYPE}}) -1;
+}
+
+/////////////// CFuncPtrTypedef.proto ///////////////
+
+typedef void (*__Pyx_generic_func_pointer)(void);
+
+/////////////// CFuncPtrToPy.proto ///////////////
+//@requires: CFuncPtrTypedef
+
+static PyObject *__Pyx_c_func_ptr_to_capsule(__Pyx_generic_func_pointer funcptr, const char* name); /* proto */
+
+/////////////// CFuncPtrToPy ///////////////
+//@requires: StringTools.c::IncludeStringH
+
+static void __Pyx_destroy_c_func_ptr_capsule(PyObject *capsule) {
+    void* ptr = PyCapsule_GetPointer(capsule, PyCapsule_GetName(capsule));
+    PyMem_Free(ptr);
+}
+
+static PyObject *__Pyx_c_func_ptr_to_capsule(__Pyx_generic_func_pointer funcptr, const char* name) {
+    if (sizeof(funcptr) > sizeof(void*) || __Pyx_TEST_large_func_pointers) {
+        // The C standard does not guarantee that a function pointer fits inside a regular pointer
+        // (and on some platforms it doesn't). On these, we need to allocate space to store the function pointer
+        __Pyx_generic_func_pointer *copy_into = (__Pyx_generic_func_pointer*) PyMem_Malloc(sizeof(funcptr));
+        *copy_into = funcptr;
+        return PyCapsule_New(copy_into, name, __Pyx_destroy_c_func_ptr_capsule);
+    } else {
+        // on all other platforms (which is the vast majority, since POSIX require a function pointer
+        // can be  converted to a void*) we skip the allocation and store directly into the capsule's value.
+        // Use memcpy copy the data from the function pointer to the void* 
+        // (since just casting is prohibited by standard C, and using unions is prohibited by standard c++)
+        void *copy_into;
+        memcpy((void*)&copy_into, (void*)&funcptr, sizeof(funcptr));
+        return PyCapsule_New(copy_into, name, NULL);
+    }
+}
+
+/////////////// CFuncPtrFromPy.proto ///////////////
+//@requires: CFuncPtrTypedef
+
+static __Pyx_generic_func_pointer __Pyx_capsule_to_c_func_ptr(PyObject *capsule, const char* name); /* proto */
+
+/////////////// CFuncPtrFromPy.proto ///////////////
+
+static __Pyx_generic_func_pointer __Pyx_capsule_to_c_func_ptr(PyObject *capsule, const char* name) {
+    void *data = PyCapsule_GetPointer(capsule, name);
+    __Pyx_generic_func_pointer funcptr;
+    if (sizeof(funcptr) > sizeof(void*) || __Pyx_TEST_large_func_pointers) {
+        funcptr = *((__Pyx_generic_func_pointer*)data);
+    } else {
+        memcpy((void*)&funcptr, (void*)&data, sizeof(funcptr));
+    }
+    return funcptr;
 }

@@ -866,7 +866,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         PyrexTypes.c_int_type.create_from_py_utility_code(env)
 
         code.put(Nodes.branch_prediction_macros)
-        code.putln('static CYTHON_INLINE void __Pyx_pretend_to_initialize(void* ptr) { (void)ptr; }')
+
+        self._put_setup_code(code, "PretendToInitialize")
         code.putln('')
         code.putln('#if !CYTHON_USE_MODULE_STATE')
         code.putln('static PyObject *%s = NULL;' % env.module_cname)
@@ -1254,7 +1255,6 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
         code.mark_pos(entry.pos)
         # Generate final methods prototypes
-        type = entry.type
         for method_entry in entry.type.scope.cfunc_entries:
             if not method_entry.is_inherited and method_entry.final_func_cname:
                 declaration = method_entry.type.declaration_code(
