@@ -268,7 +268,7 @@ class MatchAndAssignPatternNode(PatternNode):
 
     def irrefutable_message(self):
         if self.target:
-            return "name capture '%s'" % self.target.name
+            return f"name capture '{self.target.name}'"
         else:
             return "wildcard"
 
