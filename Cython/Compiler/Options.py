@@ -2,14 +2,13 @@
 #  Cython - Compilation-wide options and pragma declarations
 #
 
-from __future__ import absolute_import
 
 import os
 
 from .. import Utils
 
 
-class ShouldBeFromDirective(object):
+class ShouldBeFromDirective:
 
     known_directives = []
 
@@ -361,6 +360,7 @@ directive_scopes = {  # defaults to available everywhere
     # 'module', 'function', 'class', 'with statement'
     'auto_pickle': ('module', 'cclass'),
     'final' : ('cclass', 'function'),
+    'ccomplex' : ('module',),
     'collection_type': ('cclass',),
     'nogil' : ('function', 'with statement'),
     'gil' : ('with statement'),
@@ -385,6 +385,7 @@ directive_scopes = {  # defaults to available everywhere
     'test_assert_c_code_has' : ('module',),
     'test_fail_if_c_code_has' : ('module',),
     'freelist': ('cclass',),
+    'formal_grammar': ('module',),
     'emit_code_comments': ('module',),
     # Avoid scope-specific to/from_py_functions for c_string.
     'c_string_type': ('module',),
@@ -395,6 +396,7 @@ directive_scopes = {  # defaults to available everywhere
     # but that would complicate the implementation
     'old_style_globals': ('module',),
     'np_pythran': ('module',),
+    'preliminary_late_includes_cy28': ('module',),
     'fast_gil': ('module',),
     'iterable_coroutine': ('module', 'function'),
     'trashcan' : ('cclass',),
@@ -403,6 +405,8 @@ directive_scopes = {  # defaults to available everywhere
     'cpp_locals': ('module', 'function', 'cclass'),  # I don't think they make sense in a with_statement
     'ufunc': ('function',),
     'legacy_implicit_noexcept': ('module', ),
+    'control_flow.dot_output': ('module',),
+    'control_flow.dot_annotate_defs': ('module',),
 }
 
 
@@ -616,7 +620,7 @@ def parse_compile_time_env(s, current_settings=None):
 # CompilationOptions are constructed from user input and are the `option`
 #  object passed throughout the compilation pipeline.
 
-class CompilationOptions(object):
+class CompilationOptions:
     r"""
     See default_options at the end of this module for a list of all possible
     options and CmdLine.usage and CmdLine.parse_command_line() for their

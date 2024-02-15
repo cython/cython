@@ -1,28 +1,27 @@
 #!/usr/bin/env python
 
-from __future__ import print_function
-
 import atexit
 import base64
-import os
-import sys
-import re
+import doctest
 import gc
+import glob
 import heapq
 import locale
-import shutil
-import time
-import unittest
-import doctest
+import math
 import operator
+import os
+import re
+import shutil
 import subprocess
+import sys
 import tempfile
+import time
 import traceback
+import unittest
 import warnings
 import zlib
-import glob
-from contextlib import contextmanager
 from collections import defaultdict
+from contextlib import contextmanager
 
 try:
     import platform
@@ -34,7 +33,6 @@ except (ImportError, AttributeError):
     IS_PYPY = False
     IS_GRAAL = False
 
-IS_PY2 = sys.version_info[0] < 3
 CAN_SYMLINK = sys.platform != 'win32' and hasattr(os, 'symlink')
 
 from io import open as io_open
@@ -454,63 +452,19 @@ EXT_EXTRAS = {
     'tag:cpp17': update_cpp_extension(17, min_gcc_version="5.0", min_macos_version="10.13"),
     'tag:cpp20': update_cpp_extension(20, min_gcc_version="11.0", min_clang_version="13.0", min_macos_version="10.13"),
     'tag:trace' : update_linetrace_extension,
-    'tag:bytesformat':  exclude_extension_in_pyver((3, 3), (3, 4)),  # no %-bytes formatting
     'tag:no-macos':  exclude_extension_on_platform('darwin'),
-    'tag:py3only':  exclude_extension_in_pyver((2, 7)),
     'tag:cppexecpolicies': require_gcc("9.1"),
 }
-
 
 # TODO: use tags
 VER_DEP_MODULES = {
     # tests are excluded if 'CurrentPythonVersion OP VersionTuple', i.e.
     # (2,4) : (operator.lt, ...) excludes ... when PyVer < 2.4.x
 
-    # The next line should start (3,); but this is a dictionary, so
-    # we can only have one (3,) key.  Since 2.7 is supposed to be the
-    # last 2.x release, things would have to change drastically for this
-    # to be unsafe...
-    (2,999): (operator.lt, lambda x: x in ['run.special_methods_T561_py3',
-                                           'run.test_raisefrom',
-                                           'run.different_package_names',
-                                           'run.unicode_imports',  # encoding problems on appveyor in Py2
-                                           'run.reimport_failure',  # reimports don't do anything in Py2
-                                           'run.cpp_stl_cmath_cpp17',
-                                           'run.cpp_stl_cmath_cpp20'
-                                           ]),
-    (3,): (operator.ge, lambda x: x in ['run.non_future_division',
-                                        'compile.extsetslice',
-                                        'compile.extdelslice',
-                                        'run.special_methods_T561_py2',
-                                        'run.builtin_type_inheritance_T608_py2only',
-                                        ]),
-    (3,3) : (operator.lt, lambda x: x in ['build.package_compilation',
-                                          'build.cythonize_pep420_namespace',
-                                          'run.yield_from_py33',
-                                          'pyximport.pyximport_namespace',
-                                          'run.qualname',
-                                          ]),
-    (3,4): (operator.lt, lambda x: x in ['run.py34_signature',
-                                         'run.test_unicode',  # taken from Py3.7, difficult to backport
-                                         'run.pep442_tp_finalize',
-                                         'run.pep442_tp_finalize_cimport',
-                                         ]),
+    # FIXME: fix? delete?
     (3,4,999): (operator.gt, lambda x: x in ['run.initial_file_path',
                                              ]),
-    (3,5): (operator.lt, lambda x: x in ['run.py35_pep492_interop',
-                                         'run.py35_asyncio_async_def',
-                                         'run.mod__spec__',
-                                         'run.pep526_variable_annotations',  # typing module
-                                         'run.test_exceptions',  # copied from Py3.7+
-                                         'run.time_pxd',  # _PyTime_GetSystemClock doesn't exist in 3.4
-                                         'run.cpython_capi_py35',
-                                         'embedding.embedded',  # From the docs, needs Py_DecodeLocale
-                                         ]),
-    (3,7): (operator.lt, lambda x: x in ['run.pycontextvar',
-                                         'run.pep557_dataclasses',  # dataclasses module
-                                         'run.test_dataclasses',
-                                         'run.isolated_limited_api_tests',
-                                         ]),
+
     (3,8): (operator.lt, lambda x: x in ['run.special_methods_T561_py38',
                                          ]),
     (3,11): (operator.lt, lambda x: x in ['run.test_except_star',
@@ -522,7 +476,8 @@ VER_DEP_MODULES = {
     ]),
     # See https://github.com/python/cpython/issues/104614 - fixed in Py3.12.0b2, remove eventually.
     (3,12,0,'beta',1): (operator.eq, lambda x: 'cdef_multiple_inheritance' in x or 'pep442' in x),
-
+    # Profiling is broken on Python 3.12
+    (3,12): ((lambda actual, v3_12: actual[:2]==v3_12), (lambda x: "pstats" in x)),
 }
 
 INCLUDE_DIRS = [ d for d in os.getenv('INCLUDE', '').split(os.pathsep) if d ]
@@ -534,6 +489,10 @@ TEST_SUPPORT_DIR = 'testsupport'
 BACKENDS = ['c', 'cpp']
 
 UTF8_BOM_BYTES = r'\xef\xbb\xbf'.encode('ISO-8859-1').decode('unicode_escape')
+
+# A selector that can be used to determine whether to run with Py_LIMITED_API
+# (if run in limited api mode)
+limited_api_full_tests = None
 
 
 def memoize(f):
@@ -601,11 +560,7 @@ def import_module_from_file(module_name, file_path, execute=True):
 
 def import_ext(module_name, file_path=None):
     if file_path:
-        if sys.version_info >= (3, 5):
-            return import_module_from_file(module_name, file_path)
-        else:
-            import imp
-            return imp.load_dynamic(module_name, file_path)
+        return import_module_from_file(module_name, file_path)
     else:
         try:
             from importlib import invalidate_caches
@@ -799,6 +754,10 @@ class TestBuilder(object):
                 if [1 for match in self.exclude_selectors
                         if match(fqmodule, tags)]:
                     continue
+            full_limited_api_mode = False
+            if limited_api_full_tests and limited_api_full_tests(fqmodule):
+                # TODO this (and CYTHON_LIMITED_API) don't yet make it into end-to-end tests
+                full_limited_api_mode = True
 
             mode = self.default_mode
             if tags['mode']:
@@ -834,7 +793,8 @@ class TestBuilder(object):
                 raise KeyError('Invalid test mode: ' + mode)
 
             for test in self.build_tests(test_class, path, workdir,
-                                         module, filepath, mode == 'error', tags):
+                                         module, filepath, mode == 'error', tags,
+                                         full_limited_api_mode=full_limited_api_mode):
                 suite.addTest(test)
 
             if mode == 'run' and ext == '.py' and not self.cython_only and not filename.startswith('test_'):
@@ -850,7 +810,7 @@ class TestBuilder(object):
 
         return suite
 
-    def build_tests(self, test_class, path, workdir, module, module_path, expect_errors, tags):
+    def build_tests(self, test_class, path, workdir, module, module_path, expect_errors, tags, full_limited_api_mode):
         warning_errors = 'werror' in tags['tag']
         expect_log = ("errors",) if expect_errors else ()
         if 'warnings' in tags['tag']:
@@ -902,7 +862,8 @@ class TestBuilder(object):
                                   warning_errors, preparse,
                                   pythran_dir if language == "cpp" else None,
                                   add_cython_import=add_cython_import,
-                                  extra_directives=extra_directives)
+                                  extra_directives=extra_directives,
+                                  full_limited_api_mode=full_limited_api_mode)
                   for language in languages
                   for preparse in preparse_list
                   for language_level in language_levels
@@ -912,7 +873,7 @@ class TestBuilder(object):
 
     def build_test(self, test_class, path, workdir, module, module_path, tags, language, language_level,
                    expect_log, warning_errors, preparse, pythran_dir, add_cython_import,
-                   extra_directives):
+                   extra_directives, full_limited_api_mode):
         language_workdir = os.path.join(workdir, language)
         if not os.path.exists(language_workdir):
             os.makedirs(language_workdir)
@@ -942,6 +903,7 @@ class TestBuilder(object):
                           pythran_dir=pythran_dir,
                           stats=self.stats,
                           add_cython_import=add_cython_import,
+                          full_limited_api_mode=full_limited_api_mode,
                           )
 
 
@@ -963,9 +925,7 @@ def skip_c(tags):
 
 def skip_limited(tags):
     if 'limited-api' in tags['tag']:
-        # Run limited-api tests only on CPython 3.x.
-        if sys.version_info[0] < 3:
-            return True
+        # Run limited-api tests only on CPython.
         if sys.implementation.name != 'cpython':
             return True
     return False
@@ -1002,7 +962,7 @@ class CythonCompileTestCase(unittest.TestCase):
                  fork=True, language_level=2, warning_errors=False,
                  test_determinism=False, shard_num=0,
                  common_utility_dir=None, pythran_dir=None, stats=None, add_cython_import=False,
-                 extra_directives=None):
+                 extra_directives=None, full_limited_api_mode=False):
         if extra_directives is None:
             extra_directives = {}
         self.test_directory = test_directory
@@ -1030,6 +990,7 @@ class CythonCompileTestCase(unittest.TestCase):
         self.stats = stats
         self.add_cython_import = add_cython_import
         self.extra_directives = extra_directives
+        self.full_limited_api_mode = full_limited_api_mode
         unittest.TestCase.__init__(self)
 
     def shortDescription(self):
@@ -1058,8 +1019,7 @@ class CythonCompileTestCase(unittest.TestCase):
         ]
         self._saved_default_directives = list(Options.get_directive_defaults().items())
         Options.warning_errors = self.warning_errors
-        if sys.version_info >= (3, 4):
-            Options._directive_defaults['autotestdict'] = False
+        Options._directive_defaults['autotestdict'] = False
         Options._directive_defaults.update(self.extra_directives)
 
         if not os.path.exists(self.workdir):
@@ -1331,6 +1291,12 @@ class CythonCompileTestCase(unittest.TestCase):
             if 'traceback' not in self.tags['tag']:
                 extension.define_macros.append(("CYTHON_CLINE_IN_TRACEBACK", 1))
 
+            # Allow tests to be incrementally enabled with Py_LIMITED_API set.
+            # This is intended to be temporary while limited API support
+            # is improved. Eventually we'll want to move to excluding tests
+            if self.full_limited_api_mode:
+                extension.define_macros.append(("Py_LIMITED_API", 'PY_VERSION_HEX'))
+
             for matcher, fixer in list(EXT_EXTRAS.items()):
                 if isinstance(matcher, str):
                     # lazy init
@@ -1345,8 +1311,6 @@ class CythonCompileTestCase(unittest.TestCase):
                     extension = newext or extension
             if self.language == 'cpp':
                 extension.language = 'c++'
-            if IS_PY2:
-                workdir = str(workdir)  # work around type check in distutils that disallows unicode strings
 
             build_extension.extensions = [extension]
             build_extension.build_temp = workdir
@@ -1371,8 +1335,7 @@ class CythonCompileTestCase(unittest.TestCase):
             if stderr:
                 # The test module name should always be ASCII, but let's not risk encoding failures.
                 output = b"Compiler output for module " + module.encode('utf-8') + b":\n" + stderr + b"\n"
-                out = sys.stdout if sys.version_info[0] == 2 else sys.stdout.buffer
-                out.write(output)
+                sys.stdout.buffer.write(output)
             if error is not None:
                 raise CompileError(u"%s\nCompiler output:\n%s" % (error, prepare_captured(stderr)))
         finally:
@@ -1665,11 +1628,7 @@ class PureDoctestTestCase(unittest.TestCase):
             self.setUp()
 
             with self.stats.time(self.name, 'py', 'pyimport'):
-                if sys.version_info >= (3, 5):
-                    m = import_module_from_file(self.module_name, self.module_path)
-                else:
-                    import imp
-                    m = imp.load_source(loaded_module_name, self.module_path)
+                m = import_module_from_file(self.module_name, self.module_path)
 
             try:
                 with self.stats.time(self.name, 'py', 'pyrun'):
@@ -1910,6 +1869,7 @@ def collect_unittests(path, module_prefix, suite, selectors, exclude_selectors):
         return dirname == "Tests"
 
     loader = unittest.TestLoader()
+    from importlib import import_module
 
     if include_debugger:
         skipped_dirs = []
@@ -1936,9 +1896,7 @@ def collect_unittests(path, module_prefix, suite, selectors, exclude_selectors):
                         continue
                     if any(1 for match in exclude_selectors if match(modulename)):
                         continue
-                    module = __import__(modulename)
-                    for x in modulename.split('.')[1:]:
-                        module = getattr(module, x)
+                    module = import_module(modulename)
                     suite.addTests([loader.loadTestsFromModule(module)])
 
 
@@ -1947,6 +1905,7 @@ def collect_doctests(path, module_prefix, suite, selectors, exclude_selectors):
         if dirname == 'Debugger' and not include_debugger:
             return False
         return dirname not in ("Mac", "Distutils", "Plex", "Tempita")
+
     def file_matches(filename):
         filename, ext = os.path.splitext(filename)
         excludelist = ['libcython', 'libpython', 'test_libcython_in_gdb',
@@ -1956,7 +1915,10 @@ def collect_doctests(path, module_prefix, suite, selectors, exclude_selectors):
                 '#' in filename and not
                 filename.startswith('.') and not
                 filename in excludelist)
+
     import doctest
+    from importlib import import_module
+
     for dirpath, dirnames, filenames in os.walk(path):
         for dir in list(dirnames):
             if not package_matches(dir):
@@ -1975,9 +1937,7 @@ def collect_doctests(path, module_prefix, suite, selectors, exclude_selectors):
                 if 'in_gdb' in modulename:
                     # These should only be imported from gdb.
                     continue
-                module = __import__(modulename)
-                for x in modulename.split('.')[1:]:
-                    module = getattr(module, x)
+                module = import_module(modulename)
                 if hasattr(module, "__doc__") or hasattr(module, "__test__"):
                     try:
                         suite.addTest(doctest.DocTestSuite(module))
@@ -2031,30 +1991,20 @@ class EndToEndTest(unittest.TestCase):
                     break
         os.chdir(self.old_dir)
 
-    def _try_decode(self, content):
-        if not isinstance(content, bytes):
-            return content
-        try:
-            return content.decode()
-        except UnicodeDecodeError:
-            return content.decode('iso-8859-1')
-
     def runTest(self):
         self.success = False
         old_path = os.environ.get('PYTHONPATH')
-        env = dict(os.environ)
         new_path = self.cython_syspath
         if old_path:
             new_path = new_path + os.pathsep + self.workdir + os.pathsep + old_path
-        env['PYTHONPATH'] = new_path
-        if not env.get("PYTHONIOENCODING"):
-            env["PYTHONIOENCODING"] = sys.stdout.encoding or sys.getdefaultencoding()
+        env = dict(os.environ, PYTHONPATH=new_path, PYTHONIOENCODING='utf8')
         cmd = []
         out = []
         err = []
         for command_no, command in enumerate(self.commands, 1):
-            with self.stats.time('%s(%d)' % (self.name, command_no), 'c',
-                                 'etoe-build' if 'setup.py' in command else 'etoe-run'):
+            time_category = 'etoe-build' if (
+                'setup.py' in command or 'cythonize.py' in command or 'cython.py' in command) else 'etoe-run'
+            with self.stats.time('%s(%d)' % (self.name, command_no), 'c', time_category):
                 if self.capture:
                     p = subprocess.Popen(command, stderr=subprocess.PIPE, stdout=subprocess.PIPE, env=env)
                     _out, _err = p.communicate()
@@ -2064,21 +2014,21 @@ class EndToEndTest(unittest.TestCase):
                     _out, _err = b'', b''
                     res = p
             cmd.append(command)
-            out.append(_out)
-            err.append(_err)
+            out.append(_out.decode('utf-8'))
+            err.append(_err.decode('utf-8'))
 
             if res == 0 and b'REFNANNY: ' in _out:
                 res = -1
             if res != 0:
                 for c, o, e in zip(cmd, out, err):
                     sys.stderr.write("[%d] %s\n%s\n%s\n\n" % (
-                        self.shard_num, c, self._try_decode(o), self._try_decode(e)))
+                        self.shard_num, c, o, e))
                 sys.stderr.write("Final directory layout of '%s':\n%s\n\n" % (
                     self.name,
                     '\n'.join(os.path.join(dirpath, filename) for dirpath, dirs, files in os.walk(".") for filename in files),
                 ))
                 self.assertEqual(0, res, "non-zero exit status, last output was:\n%r\n-- stdout:%s\n-- stderr:%s\n" % (
-                    ' '.join(command), self._try_decode(out[-1]), self._try_decode(err[-1])))
+                    ' '.join(command), out[-1], err[-1]))
         self.success = True
 
 
@@ -2256,11 +2206,10 @@ class ShardExcludeSelector(object):
         self.shard_num = shard_num
         self.shard_count = shard_count
 
-    def __call__(self, testname, tags=None, _hash=zlib.crc32, _is_py2=IS_PY2):
+    def __call__(self, testname, tags=None, _hash=zlib.crc32):
         # Cannot use simple hash() here as shard processes might use different hash seeds.
-        # CRC32 is fast and simple, but might return negative values in Py2.
-        hashval = _hash(self._seed + testname) & 0x7fffffff if _is_py2 else _hash(self._seed + testname.encode())
-        return hashval % self.shard_count != self.shard_num
+        # CRC32 is fast and simple.
+        return _hash(self._seed + testname.encode()) % self.shard_count != self.shard_num
 
 
 class PendingThreadsError(RuntimeError):
@@ -2481,11 +2430,11 @@ def main():
 
     options, cmd_args = parser.parse_args(args)
 
-    if options.with_cython and sys.version_info[0] >= 3:
+    if options.with_cython:
         sys.path.insert(0, options.cython_dir)
 
     # requires glob with the wildcard.
-    if sys.version_info < (3, 5) or cmd_args:
+    if cmd_args:
         options.code_style = False
 
     WITH_CYTHON = options.with_cython
@@ -2567,9 +2516,11 @@ def main():
         (as_msecs(stage_time), as_msecs(stage_time) / stage_count, stage_count, stage_name)
         for stage_name, (stage_time, stage_count) in merged_pipeline_stats.items()
     ]
+    total_pipeline_time_percent = math.fsum(stats[0] for stats in pipeline_stats) / 100.0
     pipeline_stats.sort(reverse=True)
     sys.stderr.write("Most expensive pipeline stages: %s\n" % ", ".join(
-        "%r: %.2f / %d (%.3f / run)" % (stage_name, total_stage_time, stage_count, stage_time)
+        "%r: %.2f / %d (%.3f / run, %.1f%%)" % (
+            stage_name, total_stage_time, stage_count, stage_time, total_stage_time / total_pipeline_time_percent)
         for total_stage_time, stage_time, stage_count, stage_name in pipeline_stats[:10]
     ))
 
@@ -2689,15 +2640,6 @@ def runtests(options, cmd_args, coverage=None):
     else:
         faulthandler.enable()
 
-    if sys.platform == "win32" and sys.version_info < (3, 6):
-        # enable Unicode console output, if possible
-        try:
-            import win_unicode_console
-        except ImportError:
-            pass
-        else:
-            win_unicode_console.enable()
-
     WITH_CYTHON = options.with_cython
     ROOTDIR = os.path.abspath(options.root_dir)
     WORKDIR = os.path.abspath(options.work_dir)
@@ -2753,8 +2695,13 @@ def runtests(options, cmd_args, coverage=None):
         CDEFS.append(('CYTHON_REFNANNY', '1'))
 
     if options.limited_api:
+        global limited_api_full_tests
         CDEFS.append(('CYTHON_LIMITED_API', '1'))
         CFLAGS.append('-Wno-unused-function')
+        # limited_api_full_tests is not actually "excludes" but just reusing the mechanism.
+        # These files will be run with Py_LIMITED_API defined
+        limited_api_full_tests = FileListExcluder(
+            os.path.join(ROOTDIR, "test_in_limited_api.txt"))
 
     if xml_output_dir and options.fork:
         # doesn't currently work together
@@ -2814,7 +2761,6 @@ def runtests(options, cmd_args, coverage=None):
         bug_files = [
             ('bugs.txt', True),
             ('pypy_bugs.txt', IS_PYPY),
-            ('pypy2_bugs.txt', IS_PYPY and IS_PY2),
             ('pypy_crash_bugs.txt', IS_PYPY),
             ('pypy_implementation_detail_bugs.txt', IS_PYPY),
             ('graal_bugs.txt', IS_GRAAL),

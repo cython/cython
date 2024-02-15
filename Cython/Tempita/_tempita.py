@@ -1,5 +1,3 @@
-# cython: language_level=3str
-
 """
 A small templating language
 
@@ -31,7 +29,6 @@ can use ``__name='tmpl.html'`` to set the name of the template.
 If there are syntax errors ``TemplateError`` will be raised.
 """
 
-from __future__ import absolute_import
 
 import re
 import sys
@@ -40,13 +37,20 @@ import tokenize
 from io import StringIO
 
 from ._looper import looper
-from .compat3 import bytes, unicode_, basestring_, next, is_unicode, coerce_text
 
 __all__ = ['TemplateError', 'Template', 'sub', 'bunch']
 
 in_re = re.compile(r'\s+in\s+')
 var_re = re.compile(r'^[a-z_][a-z0-9_]*$', re.I)
+basestring_ = (bytes, str)
 
+def coerce_text(v):
+    if not isinstance(v, basestring_):
+        if hasattr(v, '__str__'):
+            return str(v)
+        else:
+            return bytes(v)
+    return v
 
 class TemplateError(Exception):
     """Exception raised while parsing a template
@@ -82,7 +86,7 @@ def get_file_template(name, from_template):
         get_template=from_template.get_template)
 
 
-class Template(object):
+class Template:
 
     default_namespace = {
         'start_braces': '{{',
@@ -119,7 +123,7 @@ class Template(object):
             self.default_namespace['end_braces'] = delimiters[1]
         self.delimiters = self.delimeters = delimiters  # Keep a legacy read-only copy, but don't use it.
 
-        self._unicode = is_unicode(content)
+        self._unicode = isinstance(content, str)
         if name is None and stacklevel is not None:
             try:
                 caller = sys._getframe(stacklevel)
@@ -332,13 +336,13 @@ class Template(object):
                 return ''
             if self._unicode:
                 try:
-                    value = unicode_(value)
+                    value = str(value)
                 except UnicodeDecodeError:
                     value = bytes(value)
             else:
                 if not isinstance(value, basestring_):
                     value = coerce_text(value)
-                if (is_unicode(value)
+                if (isinstance(value, str)
                         and self.default_encoding):
                     value = value.encode(self.default_encoding)
         except Exception as e:
@@ -359,7 +363,7 @@ class Template(object):
                         e.start,
                         e.end,
                         e.reason + ' in string %r' % value)
-            elif not self._unicode and is_unicode(value):
+            elif not self._unicode and isinstance(value, str):
                 if not self.default_encoding:
                     raise UnicodeEncodeError(
                         'Cannot encode unicode value %r into bytes '
@@ -417,7 +421,7 @@ class bunch(dict):
             ' '.join(['%s=%r' % (k, v) for k, v in sorted(self.items())]))
 
 
-class TemplateDef(object):
+class TemplateDef:
     def __init__(self, template, func_name, func_signature,
                  body, ns, pos, bound_self=None):
         self._template = template
@@ -494,7 +498,7 @@ class TemplateDef(object):
         return values
 
 
-class TemplateObject(object):
+class TemplateObject:
 
     def __init__(self, name):
         self.__name = name
@@ -504,7 +508,7 @@ class TemplateObject(object):
         return '<%s %s>' % (self.__class__.__name__, self.__name)
 
 
-class TemplateObjectGetter(object):
+class TemplateObjectGetter:
 
     def __init__(self, template_obj):
         self.__template_obj = template_obj
@@ -516,7 +520,7 @@ class TemplateObjectGetter(object):
         return '<%s around %r>' % (self.__class__.__name__, self.__template_obj)
 
 
-class _Empty(object):
+class _Empty:
     def __call__(self, *args, **kw):
         return self
 
@@ -527,16 +531,13 @@ class _Empty(object):
         return 'Empty'
 
     def __unicode__(self):
-        return u''
+        return ''
 
     def __iter__(self):
         return iter(())
 
     def __bool__(self):
         return False
-
-    if sys.version < "3":
-        __nonzero__ = __bool__
 
 Empty = _Empty()
 del _Empty

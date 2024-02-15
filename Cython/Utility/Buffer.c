@@ -33,13 +33,9 @@ static void __Pyx_RaiseBufferIndexErrorNogil(int axis); /*proto*/
 
 /////////////// BufferIndexErrorNogil ///////////////
 static void __Pyx_RaiseBufferIndexErrorNogil(int axis) {
-    #ifdef WITH_THREAD
     PyGILState_STATE gilstate = PyGILState_Ensure();
-    #endif
     __Pyx_RaiseBufferIndexError(axis);
-    #ifdef WITH_THREAD
     PyGILState_Release(gilstate);
-    #endif
 }
 
 /////////////// BufferFallbackError.proto ///////////////
@@ -95,60 +91,6 @@ typedef struct {
 } __Pyx_BufFmt_Context;
 
 
-/////////////// GetAndReleaseBuffer.proto ///////////////
-
-#if PY_MAJOR_VERSION < 3
-    static int __Pyx_GetBuffer(PyObject *obj, Py_buffer *view, int flags);
-    static void __Pyx_ReleaseBuffer(Py_buffer *view);
-#else
-    #define __Pyx_GetBuffer PyObject_GetBuffer
-    #define __Pyx_ReleaseBuffer PyBuffer_Release
-#endif
-
-/////////////// GetAndReleaseBuffer ///////////////
-
-#if PY_MAJOR_VERSION < 3
-static int __Pyx_GetBuffer(PyObject *obj, Py_buffer *view, int flags) {
-    __Pyx_TypeName obj_type_name;
-    if (PyObject_CheckBuffer(obj)) return PyObject_GetBuffer(obj, view, flags);
-
-    {{for type_ptr, getbuffer, releasebuffer in types}}
-      {{if getbuffer}}
-        if (__Pyx_TypeCheck(obj, {{type_ptr}})) return {{getbuffer}}(obj, view, flags);
-      {{endif}}
-    {{endfor}}
-
-    obj_type_name = __Pyx_PyType_GetName(Py_TYPE(obj));
-    PyErr_Format(PyExc_TypeError,
-                 "'" __Pyx_FMT_TYPENAME "' does not have the buffer interface",
-                 obj_type_name);
-    __Pyx_DECREF_TypeName(obj_type_name);
-    return -1;
-}
-
-static void __Pyx_ReleaseBuffer(Py_buffer *view) {
-    PyObject *obj = view->obj;
-    if (!obj) return;
-
-    if (PyObject_CheckBuffer(obj)) {
-        PyBuffer_Release(view);
-        return;
-    }
-
-    if ((0)) {}
-    {{for type_ptr, getbuffer, releasebuffer in types}}
-      {{if releasebuffer}}
-        else if (__Pyx_TypeCheck(obj, {{type_ptr}})) {{releasebuffer}}(obj, view);
-      {{endif}}
-    {{endfor}}
-
-    view->obj = NULL;
-    Py_DECREF(obj);
-}
-
-#endif /*  PY_MAJOR_VERSION < 3 */
-
-
 /////////////// BufferGetAndValidate.proto ///////////////
 
 #define __Pyx_GetBufferAndValidate(buf, obj, dtype, flags, nd, cast, stack) \
@@ -171,7 +113,7 @@ static Py_ssize_t __Pyx_zeros[] = { {{ ", ".join(["0"] * max_dims) }} };
 static CYTHON_INLINE void __Pyx_SafeReleaseBuffer(Py_buffer* info) {
   if (unlikely(info->buf == NULL)) return;
   if (info->suboffsets == __Pyx_minusones) info->suboffsets = NULL;
-  __Pyx_ReleaseBuffer(info);
+  PyBuffer_Release(info);
 }
 
 static void __Pyx_ZeroBuffer(Py_buffer* buf) {
@@ -187,7 +129,7 @@ static int __Pyx__GetBufferAndValidate(
         int nd, int cast, __Pyx_BufFmt_StackElem* stack)
 {
   buf->buf = NULL;
-  if (unlikely(__Pyx_GetBuffer(obj, buf, flags) == -1)) {
+  if (unlikely(PyObject_GetBuffer(obj, buf, flags) == -1)) {
     __Pyx_ZeroBuffer(buf);
     return -1;
   }

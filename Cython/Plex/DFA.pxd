@@ -1,5 +1,3 @@
-# cython: auto_pickle=False
-
 cimport cython
 
 from . cimport Machines
