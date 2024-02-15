@@ -744,7 +744,7 @@ def p_atom_string(s):
         s.error("invalid string kind '%s'" % kind)
 
 
-def p_atom_ident_constants(s, bools_are_pybool=False):
+def p_atom_ident_constants(s):
     """
     Returns None if it isn't a special-cased named constant.
     Only calls s.next() if it successfully matches a named constant.
@@ -753,16 +753,12 @@ def p_atom_ident_constants(s, bools_are_pybool=False):
     pos = s.position()
     name = s.systring
     result = None
-    if bools_are_pybool:
-        extra_kwds = {'type': Builtin.bool_type}
-    else:
-        extra_kwds = {}
     if name == "None":
         result = ExprNodes.NoneNode(pos)
     elif name == "True":
-        result = ExprNodes.BoolNode(pos, value=True, **extra_kwds)
+        result = ExprNodes.BoolNode(pos, value=True)
     elif name == "False":
-        result = ExprNodes.BoolNode(pos, value=False, **extra_kwds)
+        result = ExprNodes.BoolNode(pos, value=False)
     elif name == "NULL" and not s.in_python_file:
         result = ExprNodes.NullNode(pos)
     else:
@@ -4290,7 +4286,7 @@ def p_literal_pattern(s):
     elif sy == 'IDENT':
         # Note that p_atom_ident_constants includes NULL.
         # This is a deliberate Cython addition to the pattern matching specification
-        result = p_atom_ident_constants(s, bools_are_pybool=True)
+        result = p_atom_ident_constants(s)
         if result:
             return MatchCaseNodes.MatchValuePatternNode(pos, value=result, is_is_check=True)
 

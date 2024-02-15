@@ -6,6 +6,7 @@ from .Nodes import Node, StatNode, ErrorNode
 from . import Nodes
 from .Errors import error
 from . import ExprNodes
+from . import PyrexTypes
 
 
 class MatchNode(StatNode):
@@ -245,7 +246,7 @@ class MatchValuePatternNode(PatternNode):
 
     def get_simple_comparison_node(self, subject_node):
         op = "is" if self.is_is_check else "=="
-        return ExprNodes.PrimaryCmpNode(
+        return MatchValuePrimaryCmpNode(
             self.pos, operator=op, operand1=subject_node, operand2=self.value
         )
 
@@ -419,3 +420,28 @@ class ClassPatternNode(PatternNode):
         for pattern in self.positional_patterns + self.keyword_pattern_patterns:
             self.update_targets_with_targets(targets, pattern.get_targets())
         return targets
+
+
+class MatchValuePrimaryCmpNode(ExprNodes.PrimaryCmpNode):
+    """
+    Overrides PrimaryCmpNode to be a little more restrictive
+    that normal. Specifically, Cython normally allows:
+      int(1) is True
+    Here, True should only match an exact Python object, or
+    a bint(True).
+    """
+    def __init__(self, pos, **kwds):
+        super().__init__(pos, **kwds)
+        # operand1 should be the match subject
+        assert isinstance(self.operand1, ExprNodes.CloneNode)
+        assert self.operator in ["==", "is"]
+
+    def analyse_types(self, env):
+        if (self.operator == "is" and
+                isinstance(self.operand2, ExprNodes.BoolNode)):
+            # because operand1 is a CloneNode its type should already be known
+            op1_type = self.operand1.arg.type
+            if not (op1_type.is_pyobject or op1_type is PyrexTypes.c_bint_type):
+                return ExprNodes.BoolNode(self.pos, value=False).analyse_expressions(env)
+
+        return super().analyse_types(env)
