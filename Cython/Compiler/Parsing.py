@@ -1,9 +1,8 @@
-# cython: auto_cpdef=True, infer_types=True, language_level=3, py2_import=True
+# cython: auto_cpdef=True, infer_types=True, py2_import=True
 #
 #   Parser
 #
 
-from __future__ import absolute_import
 
 # This should be done automatically
 import cython
@@ -12,34 +11,33 @@ cython.declare(Nodes=object, ExprNodes=object, EncodedString=object,
                FileSourceDescriptor=object, lookup_unicodechar=object, unicode_category=object,
                Future=object, Options=object, error=object, warning=object,
                Builtin=object, ModuleNode=object, Utils=object, _unicode=object, _bytes=object,
-               re=object, sys=object, _parse_escape_sequences=object, _parse_escape_sequences_raw=object,
-               partial=object, reduce=object, _IS_PY3=cython.bint, _IS_2BYTE_UNICODE=cython.bint,
+               re=object, _parse_escape_sequences=object, _parse_escape_sequences_raw=object,
+               partial=object, reduce=object,
                _CDEF_MODIFIERS=tuple, COMMON_BINOP_MISTAKES=dict)
 
 from io import StringIO
 import re
-import sys
 from unicodedata import lookup as lookup_unicodechar, category as unicode_category
 from functools import partial, reduce
 
 from .Scanning import PyrexScanner, FileSourceDescriptor, tentatively_scan
 from . import Nodes
 from . import ExprNodes
+from . import MatchCaseNodes
 from . import Builtin
 from . import StringEncoding
-from .StringEncoding import EncodedString, bytes_literal, _unicode, _bytes
+from .StringEncoding import EncodedString, bytes_literal
 from .ModuleNode import ModuleNode
 from .Errors import error, warning
 from .. import Utils
 from . import Future
 from . import Options
 
-_IS_PY3 = sys.version_info[0] >= 3
-_IS_2BYTE_UNICODE = sys.maxunicode == 0xffff
+
 _CDEF_MODIFIERS = ('inline', 'nogil', 'api')
 
 
-class Ctx(object):
+class Ctx:
     #  Parsing context
     level = 'other'
     visibility = 'private'
@@ -177,7 +175,7 @@ def p_namedexpr_test(s):
 COMMON_BINOP_MISTAKES = {'||': 'or', '&&': 'and'}
 
 def p_or_test(s):
-    return p_rassoc_binop_expr(s, u'or', p_and_test)
+    return p_rassoc_binop_expr(s, 'or', p_and_test)
 
 def p_rassoc_binop_expr(s, op, p_subexpr):
     n1 = p_subexpr(s)
@@ -198,7 +196,7 @@ def p_rassoc_binop_expr(s, op, p_subexpr):
 
 def p_and_test(s):
     #return p_binop_expr(s, ('and',), p_not_test)
-    return p_rassoc_binop_expr(s, u'and', p_not_test)
+    return p_rassoc_binop_expr(s, 'and', p_not_test)
 
 #not_test: 'not' not_test | comparison
 
@@ -717,35 +715,56 @@ def p_atom(s):
         s.next()
         return ExprNodes.ImagNode(pos, value = value)
     elif sy == 'BEGIN_STRING':
-        kind, bytes_value, unicode_value = p_cat_string_literal(s)
-        if kind == 'c':
-            return ExprNodes.CharNode(pos, value = bytes_value)
-        elif kind == 'u':
-            return ExprNodes.UnicodeNode(pos, value = unicode_value, bytes_value = bytes_value)
-        elif kind == 'b':
-            return ExprNodes.BytesNode(pos, value = bytes_value)
-        elif kind == 'f':
-            return ExprNodes.JoinedStrNode(pos, values = unicode_value)
-        elif kind == '':
-            return ExprNodes.StringNode(pos, value = bytes_value, unicode_value = unicode_value)
-        else:
-            s.error("invalid string kind '%s'" % kind)
+        return p_atom_string(s)
     elif sy == 'IDENT':
-        name = s.systring
-        if name == "None":
-            result = ExprNodes.NoneNode(pos)
-        elif name == "True":
-            result = ExprNodes.BoolNode(pos, value=True)
-        elif name == "False":
-            result = ExprNodes.BoolNode(pos, value=False)
-        elif name == "NULL" and not s.in_python_file:
-            result = ExprNodes.NullNode(pos)
-        else:
-            result = p_name(s, name)
-        s.next()
+        result = p_atom_ident_constants(s)
+        if result is None:
+            result = p_name(s, s.systring)
+            s.next()
         return result
     else:
         s.error("Expected an identifier or literal")
+
+
+def p_atom_string(s):
+    # s.sy == 'BEGIN_STRING'
+    pos = s.position()
+    kind, bytes_value, unicode_value = p_cat_string_literal(s)
+    if kind == 'c':
+        return ExprNodes.CharNode(pos, value=bytes_value)
+    elif kind == 'u':
+        return ExprNodes.UnicodeNode(pos, value=unicode_value, bytes_value=bytes_value)
+    elif kind == 'b':
+        return ExprNodes.BytesNode(pos, value=bytes_value)
+    elif kind == 'f':
+        return ExprNodes.JoinedStrNode(pos, values=unicode_value)
+    elif kind == '':
+        return ExprNodes.StringNode(pos, value=bytes_value, unicode_value=unicode_value)
+    else:
+        s.error("invalid string kind '%s'" % kind)
+
+
+def p_atom_ident_constants(s):
+    """
+    Returns None if it isn't a special-cased named constant.
+    Only calls s.next() if it successfully matches a named constant.
+    """
+    # s.sy == 'IDENT'
+    pos = s.position()
+    name = s.systring
+    if name == "None":
+        result = ExprNodes.NoneNode(pos)
+    elif name == "True":
+        result = ExprNodes.BoolNode(pos, value=True)
+    elif name == "False":
+        result = ExprNodes.BoolNode(pos, value=False)
+    elif name == "NULL" and not s.in_python_file:
+        result = ExprNodes.NullNode(pos)
+    else:
+        return None
+    s.next()
+    return result
+
 
 def p_int_literal(s):
     pos = s.position()
@@ -753,8 +772,8 @@ def p_int_literal(s):
     s.next()
     unsigned = ""
     longness = ""
-    while value[-1] in u"UuLl":
-        if value[-1] in u"Ll":
+    while value[-1] in "UuLl":
+        if value[-1] in "Ll":
             longness += "L"
         else:
             unsigned += "U"
@@ -790,7 +809,6 @@ def p_name(s, name):
 
 
 def wrap_compile_time_constant(pos, value):
-    rep = repr(value)
     if value is None:
         return ExprNodes.NoneNode(pos)
     elif value is Ellipsis:
@@ -798,9 +816,9 @@ def wrap_compile_time_constant(pos, value):
     elif isinstance(value, bool):
         return ExprNodes.BoolNode(pos, value=value)
     elif isinstance(value, int):
-        return ExprNodes.IntNode(pos, value=rep, constant_result=value)
+        return ExprNodes.IntNode(pos, value=repr(value), constant_result=value)
     elif isinstance(value, float):
-        return ExprNodes.FloatNode(pos, value=rep, constant_result=value)
+        return ExprNodes.FloatNode(pos, value=repr(value), constant_result=value)
     elif isinstance(value, complex):
         node = ExprNodes.ImagNode(pos, value=repr(value.imag), constant_result=complex(0.0, value.imag))
         if value.real:
@@ -810,21 +828,18 @@ def wrap_compile_time_constant(pos, value):
                 pos, '+', ExprNodes.FloatNode(pos, value=repr(value.real), constant_result=value.real), node,
                 constant_result=value)
         return node
-    elif isinstance(value, _unicode):
+    elif isinstance(value, str):
         return ExprNodes.UnicodeNode(pos, value=EncodedString(value))
-    elif isinstance(value, _bytes):
+    elif isinstance(value, bytes):
         bvalue = bytes_literal(value, 'ascii')  # actually: unknown encoding, but BytesLiteral requires one
         return ExprNodes.BytesNode(pos, value=bvalue, constant_result=value)
     elif isinstance(value, tuple):
-        args = [wrap_compile_time_constant(pos, arg)
-                for arg in value]
-        if None not in args:
-            return ExprNodes.TupleNode(pos, args=args)
-        else:
+        args = [wrap_compile_time_constant(pos, arg) for arg in value]
+        if None in args:
             # error already reported
             return None
-    elif not _IS_PY3 and isinstance(value, long):
-        return ExprNodes.IntNode(pos, value=rep.rstrip('L'), constant_result=value)
+        return ExprNodes.TupleNode(pos, args=args)
+
     error(pos, "Invalid type for compile-time constant: %r (type %s)"
                % (value, value.__class__.__name__))
     return None
@@ -862,7 +877,7 @@ def p_cat_string_literal(s):
         # Py3 enforced unicode literals are parsed as bytes/unicode combination
         bytes_value = bytes_literal(StringEncoding.join_bytes(bstrings), s.source_encoding)
     if kind in ('u', ''):
-        unicode_value = EncodedString(u''.join([u for u in ustrings if u is not None]))
+        unicode_value = EncodedString(''.join([u for u in ustrings if u is not None]))
     if kind == 'f':
         unicode_value = []
         for u, pos in zip(ustrings, positions):
@@ -891,7 +906,7 @@ def p_opt_string_literal(s, required_type='u'):
 
 def check_for_non_ascii_characters(string):
     for c in string:
-        if c >= u'\x80':
+        if c >= '\x80':
             return True
     return False
 
@@ -963,14 +978,14 @@ def p_string_literal(s, kind_override=None):
                 has_non_ascii_literal_characters = True
         elif sy == 'ESCAPE':
             # in Py2, 'ur' raw unicode strings resolve unicode escapes but nothing else
-            if is_raw and (is_python3_source or kind != 'u' or systr[1] not in u'Uu'):
+            if is_raw and (is_python3_source or kind != 'u' or systr[1] not in 'Uu'):
                 chars.append(systr)
                 if is_python3_source and not has_non_ascii_literal_characters and check_for_non_ascii_characters(systr):
                     has_non_ascii_literal_characters = True
             else:
                 _append_escape_sequence(kind, chars, systr, s)
         elif sy == 'NEWLINE':
-            chars.append(u'\n')
+            chars.append('\n')
         elif sy == 'END_STRING':
             break
         elif sy == 'EOF':
@@ -983,7 +998,7 @@ def p_string_literal(s, kind_override=None):
         unicode_value = None
         bytes_value = chars.getchar()
         if len(bytes_value) != 1:
-            error(pos, u"invalid character literal: %r" % bytes_value)
+            error(pos, "invalid character literal: %r" % bytes_value)
     else:
         bytes_value, unicode_value = chars.getstrings()
         if (has_non_ascii_literal_characters
@@ -1000,22 +1015,22 @@ def p_string_literal(s, kind_override=None):
 
 def _append_escape_sequence(kind, builder, escape_sequence, s):
     c = escape_sequence[1]
-    if c in u"01234567":
+    if c in "01234567":
         builder.append_charval(int(escape_sequence[1:], 8))
-    elif c in u"'\"\\":
+    elif c in "'\"\\":
         builder.append(c)
-    elif c in u"abfnrtv":
+    elif c in "abfnrtv":
         builder.append(StringEncoding.char_from_escape_sequence(escape_sequence))
-    elif c == u'\n':
+    elif c == '\n':
         pass  # line continuation
-    elif c == u'x':  # \xXX
+    elif c == 'x':  # \xXX
         if len(escape_sequence) == 4:
             builder.append_charval(int(escape_sequence[2:], 16))
         else:
             s.error("Invalid hex escape '%s'" % escape_sequence, fatal=False)
-    elif c in u'NUu' and kind in ('u', 'f', ''):  # \uxxxx, \Uxxxxxxxx, \N{...}
+    elif c in 'NUu' and kind in ('u', 'f', ''):  # \uxxxx, \Uxxxxxxxx, \N{...}
         chrval = -1
-        if c == u'N':
+        if c == 'N':
             uchar = None
             try:
                 uchar = lookup_unicodechar(escape_sequence[3:-1])
@@ -1023,14 +1038,6 @@ def _append_escape_sequence(kind, builder, escape_sequence, s):
             except KeyError:
                 s.error("Unknown Unicode character name %s" %
                         repr(escape_sequence[3:-1]).lstrip('u'), fatal=False)
-            except TypeError:
-                # 2-byte unicode build of CPython?
-                if (uchar is not None and _IS_2BYTE_UNICODE and len(uchar) == 2 and
-                        unicode_category(uchar[0]) == 'Cs' and unicode_category(uchar[1]) == 'Cs'):
-                    # surrogate pair instead of single character
-                    chrval = 0x10000 + (ord(uchar[0]) - 0xd800) >> 10 + (ord(uchar[1]) - 0xdc00)
-                else:
-                    raise
         elif len(escape_sequence) in (6, 10):
             chrval = int(escape_sequence[2:], 16)
             if chrval > 1114111:  # sys.maxunicode:
@@ -1062,7 +1069,8 @@ _parse_escape_sequences_raw, _parse_escape_sequences = [re.compile((
     br'\}\}?|'
     br'[^\\{}]+)'
     ).decode('us-ascii')).match
-    for is_raw in (True, False)]
+    for is_raw in (True, False)
+]
 
 
 def _f_string_error_pos(pos, string, i):
@@ -1870,7 +1878,7 @@ def p_dotted_name(s, as_allowed):
         names.append(p_ident(s))
     if as_allowed:
         as_name = p_as_name(s)
-    return (pos, target_name, s.context.intern_ustring(u'.'.join(names)), as_name)
+    return (pos, target_name, s.context.intern_ustring('.'.join(names)), as_name)
 
 
 def p_as_name(s):
@@ -2448,7 +2456,12 @@ def p_statement(s, ctx, first_statement = 0):
                         return p_async_statement(s, ctx, decorators)
                     elif decorators:
                         s.error("Decorators can only be followed by functions or classes")
-                    s.put_back(u'IDENT', ident_name, ident_pos)  # re-insert original token
+                    s.put_back('IDENT', ident_name, ident_pos)  # re-insert original token
+                if s.sy == 'IDENT' and s.systring == 'match':
+                    # p_match_statement returns None on a "soft" initial failure
+                    match_statement = p_match_statement(s, ctx)
+                    if match_statement is not None:
+                        return match_statement
                 return p_simple_statement_list(s, ctx, first_statement=first_statement)
 
 
@@ -2669,13 +2682,13 @@ def p_c_simple_base_type(s, nonempty, templates=None):
                 s.next()
                 if (s.sy == '*' or s.sy == '**' or s.sy == '&'
                         or (s.sy == 'IDENT' and s.systring in calling_convention_words)):
-                    s.put_back(u'(', u'(', old_pos)
+                    s.put_back('(', '(', old_pos)
                 else:
-                    s.put_back(u'(', u'(', old_pos)
-                    s.put_back(u'IDENT', name, name_pos)
+                    s.put_back('(', '(', old_pos)
+                    s.put_back('IDENT', name, name_pos)
                     name = None
             elif s.sy not in ('*', '**', '[', '&'):
-                s.put_back(u'IDENT', name, name_pos)
+                s.put_back('IDENT', name, name_pos)
                 name = None
 
     type_node = Nodes.CSimpleBaseTypeNode(pos,
@@ -2817,10 +2830,10 @@ def looking_at_expr(s):
 
         dotted_path.reverse()
         for p in dotted_path:
-            s.put_back(u'IDENT', *p)
-            s.put_back(u'.', u'.', p[1])  # gets the position slightly wrong
+            s.put_back('IDENT', *p)
+            s.put_back('.', '.', p[1])  # gets the position slightly wrong
 
-        s.put_back(u'IDENT', name, name_pos)
+        s.put_back('IDENT', name, name_pos)
         return not is_type and saved[0]
     else:
         return True
@@ -2835,7 +2848,7 @@ def looking_at_dotted_name(s):
         name_pos = s.position()
         s.next()
         result = s.sy == '.'
-        s.put_back(u'IDENT', name, name_pos)
+        s.put_back('IDENT', name, name_pos)
         return result
     else:
         return 0
@@ -2903,7 +2916,7 @@ def p_c_declarator(s, ctx = Ctx(), empty = 0, is_type = 0, cmethod_flag = 0,
     if s.sy == '(':
         s.next()
         if s.sy == ')' or looking_at_name(s):
-            base = Nodes.CNameDeclaratorNode(pos, name=s.context.intern_ustring(u""), cname=None)
+            base = Nodes.CNameDeclaratorNode(pos, name=s.context.intern_ustring(""), cname=None)
             result = p_c_func_declarator(s, pos, ctx, base, cmethod_flag)
         else:
             result = p_c_declarator(s, ctx, empty = empty, is_type = is_type,
@@ -3118,7 +3131,7 @@ def p_exception_value_clause(s, is_extern):
                     exc_val = p_name(s, name)
                     s.next()
             elif s.sy == '*':
-                exc_val = ExprNodes.CharNode(s.position(), value=u'*')
+                exc_val = ExprNodes.CharNode(s.position(), value='*')
                 s.next()
         else:
             if s.sy == '?':
@@ -3916,11 +3929,11 @@ def p_module(s, pxd, full_module_name, ctx=Ctx):
     s.parse_comments = False
 
     if s.context.language_level is None:
-        s.context.set_language_level('3str')
+        s.context.set_language_level('3')
         if pos[0].filename:
             import warnings
             warnings.warn(
-                "Cython directive 'language_level' not set, using '3str' for now (Py3). "
+                "Cython directive 'language_level' not set, using '3' (Py3). "
                 "This has changed from earlier releases! File: %s" % pos[0].filename,
                 FutureWarning,
                 stacklevel=1 if cython.compiled else 2,
@@ -4031,6 +4044,427 @@ def p_cpp_class_attribute(s, ctx):
                 s.error("Decorators can only be followed by functions or classes")
             node.decorators = decorators
         return node
+
+
+def p_match_statement(s, ctx):
+    assert s.sy == "IDENT" and s.systring == "match"
+    pos = s.position()
+    with tentatively_scan(s) as errors:
+        s.next()
+        subject = p_namedexpr_test(s)
+        subjects = None
+        if s.sy == ",":
+            subjects = [subject]
+        while s.sy == ",":
+            s.next()
+            if s.sy == ":":
+                break
+            subjects.append(p_test(s))
+        if subjects is not None:
+            subject = ExprNodes.TupleNode(pos, args=subjects)
+        s.expect(":")
+    if errors:
+        return None
+
+    # at this stage we are committed to it being a match block so continue
+    # outside "with tentatively_scan"
+    # (I think this deviates from the PEG parser slightly, and it'd
+    # backtrack on the whole thing)
+    s.expect_newline()
+    s.expect_indent()
+    cases = []
+    while s.sy != "DEDENT":
+        cases.append(p_case_block(s, ctx))
+    s.expect_dedent()
+    return MatchCaseNodes.MatchNode(pos, subject=subject, cases=cases)
+
+
+def p_case_block(s, ctx):
+    if not (s.sy == "IDENT" and s.systring == "case"):
+        s.expected("case")
+    s.next()
+    pos = s.position()
+    pattern = p_patterns(s)
+    guard = None
+    if s.sy == 'if':
+        s.next()
+        guard = p_test(s)
+    body = p_suite(s, ctx)
+
+    return MatchCaseNodes.MatchCaseNode(pos, pattern=pattern, body=body, guard=guard)
+
+
+def p_patterns(s):
+    # note - in slight contrast to the name (which comes from the Python grammar),
+    # returns a single pattern
+    patterns = []
+    seq = False
+    pos = s.position()
+    while True:
+        with tentatively_scan(s) as errors:
+            pattern = p_maybe_star_pattern(s)
+        if errors:
+            if patterns:
+                break  # all is good provided we have at least 1 pattern
+            else:
+                e = errors[0]
+                s.error(e.args[1], pos=e.args[0])
+        patterns.append(pattern)
+
+        if s.sy == ",":
+            seq = True
+            s.next()
+            if s.sy in [":", "if"]:
+                break  # common reasons to break
+        else:
+            break
+
+    if seq:
+        return MatchCaseNodes.MatchSequencePatternNode(pos, patterns=patterns)
+    else:
+        return patterns[0]
+
+
+def p_maybe_star_pattern(s):
+    # For match case. Either star_pattern or pattern
+    if s.sy == "*":
+        # star pattern
+        s.next()
+        target = None
+        if s.systring != "_":  # for match-case '_' is treated as a special wildcard
+            target = p_pattern_capture_target(s)
+        else:
+            s.next()
+        pattern = MatchCaseNodes.MatchAndAssignPatternNode(
+            s.position(), target=target, is_star=True
+        )
+        return pattern
+    else:
+        pattern = p_pattern(s)
+        return pattern
+
+
+def p_pattern(s):
+    # try "as_pattern" then "or_pattern"
+    # (but practically "as_pattern" starts with "or_pattern" too)
+    patterns = []
+    pos = s.position()
+    while True:
+        patterns.append(p_closed_pattern(s))
+        if s.sy != "|":
+            break
+        s.next()
+
+    if len(patterns) > 1:
+        pattern = MatchCaseNodes.OrPatternNode(
+            pos,
+            alternatives=patterns
+        )
+    else:
+        pattern = patterns[0]
+
+    if s.sy == 'IDENT' and s.systring == 'as':
+        s.next()
+        with tentatively_scan(s) as errors:
+            pattern.as_targets.append(p_pattern_capture_target(s))
+        if errors and s.sy == "_":
+            s.next()
+            # make this a specific error
+            return Nodes.ErrorNode(errors[0].args[0], what=errors[0].args[1])
+        elif errors:
+            with tentatively_scan(s):
+                expr = p_test(s)
+                return Nodes.ErrorNode(expr.pos, what="Invalid pattern target")
+            s.error(errors[0])
+    return pattern
+
+
+def p_closed_pattern(s):
+    """
+    The PEG parser specifies it as
+    | literal_pattern
+    | capture_pattern
+    | wildcard_pattern
+    | value_pattern
+    | group_pattern
+    | sequence_pattern
+    | mapping_pattern
+    | class_pattern
+
+    For the sake avoiding too much backtracking, we know:
+    * starts with "{" is a sequence_pattern
+    * starts with "[" is a mapping_pattern
+    * starts with "(" is a group_pattern or sequence_pattern
+    * wildcard pattern is just identifier=='_'
+    The rest are then tried in order with backtracking
+    """
+    if s.sy == 'IDENT' and s.systring == '_':
+        pos = s.position()
+        s.next()
+        return MatchCaseNodes.MatchAndAssignPatternNode(pos)
+    elif s.sy == '{':
+        return p_mapping_pattern(s)
+    elif s.sy == '[':
+        return p_sequence_pattern(s)
+    elif s.sy == '(':
+        with tentatively_scan(s) as errors:
+            result = p_group_pattern(s)
+            if not errors:
+                return result
+        return p_sequence_pattern(s)
+
+    with tentatively_scan(s) as errors:
+        result = p_literal_pattern(s)
+        if not errors:
+            return result
+    with tentatively_scan(s) as errors:
+        result = p_capture_pattern(s)
+        if not errors:
+            return result
+    with tentatively_scan(s) as errors:
+        result = p_value_pattern(s)
+        if not errors:
+            return result
+    return p_class_pattern(s)
+
+
+def p_literal_pattern(s):
+    # a lot of duplication in this function with "p_atom"
+    next_must_be_a_number = False
+    sign = ''
+    if s.sy == '-':
+        sign = s.sy
+        sign_pos = s.position()
+        s.next()
+        next_must_be_a_number = True
+
+    sy = s.sy
+    pos = s.position()
+
+    res = None
+    if sy == 'INT':
+        res = p_int_literal(s)
+    elif sy == 'FLOAT':
+        value = s.systring
+        s.next()
+        res = ExprNodes.FloatNode(pos, value=value)
+
+    if res is not None and sign == "-":
+        res = ExprNodes.UnaryMinusNode(sign_pos, operand=res)
+
+    if res is not None and s.sy in ['+', '-']:
+        sign = s.sy
+        s.next()
+        if s.sy != 'IMAG':
+            s.error("Expected imaginary number")
+        else:
+            add_pos = s.position()
+            value = s.systring[:-1]
+            s.next()
+            res = ExprNodes.binop_node(
+                add_pos,
+                sign,
+                operand1=res,
+                operand2=ExprNodes.ImagNode(s.position(), value=value)
+            )
+
+    if res is None and sy == 'IMAG':
+        value = s.systring[:-1]
+        s.next()
+        res = ExprNodes.ImagNode(pos, value=sign+value)
+        if sign == "-":
+            res = ExprNodes.UnaryMinusNode(sign_pos, operand=res)
+
+    if res is not None:
+        return MatchCaseNodes.MatchValuePatternNode(pos, value=res)
+
+    if next_must_be_a_number:
+        s.error("Expected a number")
+    if sy == 'BEGIN_STRING':
+        res = p_atom_string(s)
+        # Whether f-strings are suitable is validated in PostParse.
+        return MatchCaseNodes.MatchValuePatternNode(pos, value=res)
+    elif sy == 'IDENT':
+        # Note that p_atom_ident_constants includes NULL.
+        # This is a deliberate Cython addition to the pattern matching specification
+        result = p_atom_ident_constants(s)
+        if result:
+            return MatchCaseNodes.MatchValuePatternNode(pos, value=result, is_is_check=True)
+
+    s.error("Failed to match literal")
+
+
+def p_capture_pattern(s):
+    return MatchCaseNodes.MatchAndAssignPatternNode(
+        s.position(),
+        target=p_pattern_capture_target(s)
+    )
+
+
+def p_value_pattern(s):
+    if s.sy != "IDENT":
+        s.error("Expected identifier")
+    pos = s.position()
+    res = p_name(s, s.systring)
+    s.next()
+    if s.sy != '.':
+        s.error(".")
+    while s.sy == '.':
+        attr_pos = s.position()
+        s.next()
+        attr = p_ident(s)
+        res = ExprNodes.AttributeNode(attr_pos, obj=res, attribute=attr)
+    if s.sy in ['(', '=']:
+        s.error("Unexpected symbol '%s'" % s.sy)
+    return MatchCaseNodes.MatchValuePatternNode(pos, value=res)
+
+
+def p_group_pattern(s):
+    s.expect("(")
+    pattern = p_pattern(s)
+    s.expect(")")
+    return pattern
+
+
+def p_sequence_pattern(s):
+    opener = s.sy
+    pos = s.position()
+    if opener in ['[', '(']:
+        closer = ']' if opener == '[' else ')'
+        s.next()
+        # maybe_sequence_pattern and open_sequence_pattern
+        patterns = []
+        while s.sy != closer:
+            patterns.append(p_maybe_star_pattern(s))
+            if s.sy == ",":
+                s.next()
+            else:
+                if opener == '(' and len(patterns) == 1:
+                    s.error("tuple-like pattern of length 1 must finish with ','")
+                break
+        s.expect(closer)
+        return MatchCaseNodes.MatchSequencePatternNode(pos, patterns=patterns)
+    else:
+        s.error("Expected '[' or '('")
+
+
+def p_mapping_pattern(s):
+    pos = s.position()
+    s.expect('{')
+    if s.sy == '}':
+        # trivial empty mapping
+        s.next()
+        return MatchCaseNodes.MatchMappingPatternNode(pos)
+
+    double_star_capture_target = None
+    items_patterns = []
+    star_star_arg_pos = None
+    while s.sy != '}':
+        if double_star_capture_target and not star_star_arg_pos:
+            star_star_arg_pos = s.position()
+        if s.sy == '**':
+            s.next()
+            double_star_capture_target = p_pattern_capture_target(s)
+        else:
+            # key=(literal_expr | attr)
+            with tentatively_scan(s) as errors:
+                pattern = p_literal_pattern(s)
+                key = pattern.value
+            if errors:
+                pattern = p_value_pattern(s)
+                key = pattern.value
+            s.expect(':')
+            value = p_pattern(s)
+            items_patterns.append((key, value))
+        if s.sy != ',':
+            break
+        s.next()
+    s.expect('}')
+
+    if star_star_arg_pos is not None:
+        return Nodes.ErrorNode(
+            star_star_arg_pos,
+            what = "** pattern must be the final part of a mapping pattern."
+        )
+    return MatchCaseNodes.MatchMappingPatternNode(
+        pos,
+        keys = [kv[0] for kv in items_patterns],
+        value_patterns = [kv[1] for kv in items_patterns],
+        double_star_capture_target = double_star_capture_target
+    )
+
+
+def p_class_pattern(s):
+    # start by parsing the class as name_or_attr
+    pos = s.position()
+    res = p_name(s, s.systring)
+    s.next()
+    while s.sy == '.':
+        attr_pos = s.position()
+        s.next()
+        attr = p_ident(s)
+        res = ExprNodes.AttributeNode(attr_pos, obj=res, attribute=attr)
+    class_ = res
+
+    s.expect("(")
+    if s.sy == ")":
+        # trivial case with no arguments matched
+        s.next()
+        return MatchCaseNodes.ClassPatternNode(pos, class_=class_)
+
+    # parse the arguments
+    positional_patterns = []
+    keyword_patterns = []
+    keyword_patterns_error = None
+    while s.sy != ')':
+        with tentatively_scan(s) as errors:
+            positional_patterns.append(p_pattern(s))
+        if not errors:
+            if keyword_patterns:
+                keyword_patterns_error = s.position()
+        else:
+            with tentatively_scan(s) as errors:
+                keyword_patterns.append(p_keyword_pattern(s))
+        if s.sy != ",":
+            break
+        s.next()
+    s.expect(")")
+
+    if keyword_patterns_error is not None:
+        return Nodes.ErrorNode(
+            keyword_patterns_error,
+            what="Positional patterns follow keyword patterns"
+        )
+    return MatchCaseNodes.ClassPatternNode(
+        pos, class_ = class_,
+        positional_patterns = positional_patterns,
+        keyword_pattern_names = [kv[0] for kv in keyword_patterns],
+        keyword_pattern_patterns = [kv[1] for kv in keyword_patterns],
+    )
+
+
+def p_keyword_pattern(s):
+    if s.sy != "IDENT":
+        s.error("Expected identifier")
+    arg = p_name(s, s.systring)
+    s.next()
+    s.expect("=")
+    value = p_pattern(s)
+    return arg, value
+
+
+def p_pattern_capture_target(s):
+    # any name but '_', and with some constraints on what follows
+    if s.sy != 'IDENT':
+        s.error("Expected identifier")
+    if s.systring == '_':
+        s.error("Pattern capture target cannot be '_'")
+    target = p_name(s, s.systring)
+    s.next()
+    if s.sy in ['.', '(', '=']:
+        s.error("Illegal next symbol '%s'" % s.sy)
+    return target
+
 
 
 #----------------------------------------------

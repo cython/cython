@@ -1,11 +1,8 @@
-# cython: language_level=3str
-# cython: auto_pickle=False
 """
 Python Lexical Analyser
 
 Scanning an input stream
 """
-from __future__ import absolute_import
 
 import cython
 
@@ -17,7 +14,7 @@ from .Regexps import BOL, EOL, EOF
 NOT_FOUND = object()
 
 
-class Scanner(object):
+class Scanner:
     """
     A Scanner is used to read tokens from a stream of characters
     using the token set specified by a Plex.Lexicon.
@@ -89,7 +86,7 @@ class Scanner(object):
         """
         self.trace = 0
 
-        self.buffer = u''
+        self.buffer = ''
         self.buf_start_pos = 0
         self.next_pos = 0
         self.cur_pos = 0
@@ -166,7 +163,7 @@ class Scanner(object):
                 if self.cur_char is EOL:
                     self.next_char()
                 if self.cur_char is None or self.cur_char is EOF:
-                    return (u'', None)
+                    return ('', None)
             raise Errors.UnrecognizedInput(self, self.state_name)
 
     def run_machine_inlined(self):
@@ -184,7 +181,7 @@ class Scanner(object):
         buf_start_pos = self.buf_start_pos
         buf_len = len(buffer)
         b_action, b_cur_pos, b_cur_line, b_cur_line_start, b_cur_char, b_input_state, b_next_pos = \
-            None, 0, 0, 0, u'', 0, 0
+            None, 0, 0, 0, '', 0, 0
 
         trace = self.trace
         while 1:
@@ -229,9 +226,9 @@ class Scanner(object):
                             c = buffer[buf_index]
                             next_pos += 1
                         else:
-                            c = u''
+                            c = ''
                     # End inlined: c = self.read_char()
-                    if c == u'\n':
+                    if c == '\n':
                         cur_char = EOL
                         input_state = 2
                     elif not c:
@@ -240,7 +237,7 @@ class Scanner(object):
                     else:
                         cur_char = c
                 elif input_state == 2:  # after EoL (1) -> BoL (3)
-                    cur_char = u'\n'
+                    cur_char = '\n'
                     input_state = 3
                 elif input_state == 3:  # start new code line
                     cur_line += 1
@@ -251,7 +248,7 @@ class Scanner(object):
                     cur_char = EOF
                     input_state = 5
                 else:  # input_state == 5  (EoF)
-                    cur_char = u''
+                    cur_char = ''
                     # End inlined self.next_char()
             else:  # not new_state
                 if trace:
@@ -285,7 +282,7 @@ class Scanner(object):
         if input_state == 1:
             self.cur_pos = self.next_pos
             c = self.read_char()
-            if c == u'\n':
+            if c == '\n':
                 self.cur_char = EOL
                 self.input_state = 2
             elif not c:
@@ -294,7 +291,7 @@ class Scanner(object):
             else:
                 self.cur_char = c
         elif input_state == 2:
-            self.cur_char = u'\n'
+            self.cur_char = '\n'
             self.input_state = 3
         elif input_state == 3:
             self.cur_line += 1
@@ -305,7 +302,7 @@ class Scanner(object):
             self.cur_char = EOF
             self.input_state = 5
         else:  # input_state = 5
-            self.cur_char = u''
+            self.cur_char = ''
         if self.trace:
             print("--> [%d] %d %r" % (input_state, self.cur_pos, self.cur_char))
 

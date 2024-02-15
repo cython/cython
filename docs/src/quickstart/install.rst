@@ -67,10 +67,6 @@ of Cython with something like
 
 ::
 
-    pip install .  --install-option="--no-cython-compile"
-
-    or
-
     NO_CYTHON_COMPILE=true  pip install .
 
 
