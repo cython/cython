@@ -3128,6 +3128,7 @@ class DefNode(FuncDefNode):
                                          has_varargs=False,
                                          exception_check=cfunc_type.exception_check,
                                          exception_value=exception_value,
+                                         exc_clause = True,
                                          with_gil=cfunc_type.with_gil,
                                          nogil=cfunc_type.nogil)
         return CFuncDefNode(self.pos,
