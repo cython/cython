@@ -2945,7 +2945,7 @@ def p_c_func_declarator(s, pos, ctx, base, cmethod_flag):
     return Nodes.CFuncDeclaratorNode(pos,
         base = base, args = args, has_varargs = ellipsis,
         exception_value = exc_val, exception_check = exc_check,
-        nogil = nogil or ctx.nogil or with_gil, with_gil = with_gil, exc_clause=exc_clause)
+        nogil = nogil or ctx.nogil or with_gil, with_gil = with_gil, has_explicit_exc_clause=exc_clause)
 
 supported_overloaded_operators = cython.declare(frozenset, frozenset((
     '+', '-', '*', '/', '%',

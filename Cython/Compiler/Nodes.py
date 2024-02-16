@@ -619,16 +619,16 @@ class CArrayDeclaratorNode(CDeclaratorNode):
 
 
 class CFuncDeclaratorNode(CDeclaratorNode):
-    # base             CDeclaratorNode
-    # args             [CArgDeclNode]
-    # templates        [TemplatePlaceholderType]
-    # has_varargs      boolean
-    # exception_value  ConstNode or NameNode    NameNode when the name of a c++ exception conversion function
-    # exception_check  boolean or "+"    True if PyErr_Occurred check needed, "+" for a c++ check
-    # exc_clause       boolean    True if exception clause is explicitly declared
-    # nogil            boolean    Can be called without gil
-    # with_gil         boolean    Acquire gil around function body
-    # is_const_method  boolean    Whether this is a const method
+    # base                      CDeclaratorNode
+    # args                      [CArgDeclNode]
+    # templates                 [TemplatePlaceholderType]
+    # has_varargs               boolean
+    # exception_value           ConstNode or NameNode    NameNode when the name of a c++ exception conversion function
+    # exception_check           boolean or "+"    True if PyErr_Occurred check needed, "+" for a c++ check
+    # has_explicit_exc_clause   boolean    True if exception clause is explicitly declared
+    # nogil                     boolean    Can be called without gil
+    # with_gil                  boolean    Acquire gil around function body
+    # is_const_method           boolean    Whether this is a const method
 
     child_attrs = ["base", "args", "exception_value"]
 
@@ -719,7 +719,7 @@ class CFuncDeclaratorNode(CDeclaratorNode):
                 and (self.exception_value or self.exception_check)
                 and self.exception_check != '+'):
             error(self.pos, "Exception clause not allowed for function returning Python object")
-        elif return_type.is_pyobject and not self.exception_check and visibility != 'extern' and self.exc_clause:
+        elif return_type.is_pyobject and not self.exception_check and visibility != 'extern' and self.has_explicit_exc_clause:
             warning(self.pos, "noexcept clause is ignored for function returning Python object", 1)
         else:
             if self.exception_value is None and self.exception_check and self.exception_check != '+':
@@ -3077,8 +3077,8 @@ class DefNode(FuncDefNode):
         self.num_required_kw_args = rk
         self.num_required_args = r
 
-    def as_cfunction(self, cfunc=None, scope=None, overridable=True, returns=None, except_val=None, modifiers=None,
-                     nogil=False, with_gil=False):
+    def as_cfunction(self, cfunc=None, scope=None, overridable=True, returns=None, except_val=None, has_explicit_exc_clause=False,
+                     modifiers=None, nogil=False, with_gil=False):
         if self.star_arg:
             error(self.star_arg.pos, "cdef function cannot have star argument")
         if self.starstar_arg:
@@ -3128,7 +3128,7 @@ class DefNode(FuncDefNode):
                                          has_varargs=False,
                                          exception_check=cfunc_type.exception_check,
                                          exception_value=exception_value,
-                                         exc_clause = True,
+                                         has_explicit_exc_clause = has_explicit_exc_clause,
                                          with_gil=cfunc_type.with_gil,
                                          nogil=cfunc_type.nogil)
         return CFuncDefNode(self.pos,
