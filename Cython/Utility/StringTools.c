@@ -13,6 +13,7 @@
 static CYTHON_INLINE Py_ssize_t __Pyx_Py_UNICODE_ssize_strlen(const Py_UNICODE *u);/*proto*/
 
 //////////////////// ssize_pyunicode_strlen ////////////////////
+//@requires: pyunicode_strlen
 
 static CYTHON_INLINE Py_ssize_t __Pyx_Py_UNICODE_ssize_strlen(const Py_UNICODE *u) {
     size_t len = __Pyx_Py_UNICODE_strlen(u);
@@ -23,6 +24,27 @@ static CYTHON_INLINE Py_ssize_t __Pyx_Py_UNICODE_ssize_strlen(const Py_UNICODE *
     return (Py_ssize_t) len;
 }
 
+//////////////////// pyunicode_strlen.proto ///////////////
+
+// There used to be a Py_UNICODE_strlen() in CPython 3.x, but it is deprecated since Py3.3.
+static CYTHON_INLINE size_t __Pyx_Py_UNICODE_strlen(const Py_UNICODE *u); /* proto */
+
+//////////////////// pyunicode_strlen /////////////////////
+
+// Note: will not work in the limited API since Py_UNICODE is not available there.
+// May stop working at some point after Python 3.13 (deprecated)
+static CYTHON_INLINE size_t __Pyx_Py_UNICODE_strlen(const Py_UNICODE *u)
+{
+    const Py_UNICODE *u_end = u;
+    while (*u_end++) ;
+    return (size_t)(u_end - u - 1);
+}
+
+//////////////////// pyunicode_from_unicode.proto //////////////////////
+//@requires: pyunicode_strlen
+
+#define __Pyx_PyUnicode_FromUnicode(u)       PyUnicode_FromUnicode(u, __Pyx_Py_UNICODE_strlen(u))
+#define __Pyx_PyUnicode_FromUnicodeAndLength PyUnicode_FromUnicode
 
 //////////////////// InitStrings.proto ////////////////////
 
@@ -1161,3 +1183,4 @@ static CYTHON_INLINE PyObject* __Pyx_PyStr_Str(PyObject *obj) {
 
 #define __Pyx_PyObject_Str(obj) \
     (likely(PyString_CheckExact(obj)) ? __Pyx_NewRef(obj) : PyObject_Str(obj))
+
