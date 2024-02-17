@@ -2685,7 +2685,7 @@ class CPointerBaseType(CType):
 
     def create_to_py_utility_code(self, env):
         if self.to_py_function == "__Pyx_PyUnicode_FromUnicode":
-            # Not included in the standard TypeConversions.c string conversions because Py_UNICODE 
+            # Not included in the standard TypeConversions.c string conversions because Py_UNICODE
             # is deprecated.
             env.use_utility_code(UtilityCode.load_cached("pyunicode_from_unicode", "StringTools.c"))
         return super().create_to_py_utility_code(env)
