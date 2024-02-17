@@ -3562,6 +3562,8 @@ def specialize_entry(entry, cname):
 
     if entry.func_cname:
         entry.func_cname = get_fused_cname(cname, entry.func_cname)
+    if entry.final_func_cname:
+        entry.final_func_cname = get_fused_cname(cname, entry.final_func_cname)
 
 def get_fused_cname(fused_cname, orig_cname):
     """
