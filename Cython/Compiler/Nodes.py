@@ -10359,6 +10359,17 @@ class CnameDecoratorNode(StatNode):
         self.node.generate_execution_code(code)
 
 
+class ErrorNode(Node):
+    """
+    Node type for things that we want to get through the parser
+    (especially for things that are being scanned in "tentative_scan"
+    blocks), but should immediately raise and error afterwards.
+
+    what    str
+    """
+    child_attrs = []
+
+
 #------------------------------------------------------------------------------------
 #
 #  Runtime support code

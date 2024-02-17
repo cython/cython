@@ -408,13 +408,30 @@ class UtilityCodeBase:
         return code
 
     @classmethod
-    def load_as_string(cls, util_code_name, from_file, **kwargs):
+    def load_as_string(cls, util_code_name, from_file, include_requires=False, **kwargs):
         """
-        Load a utility code as a string. Returns (proto, implementation)
+        Load a utility code as a string. Returns (proto, implementation).
+
+        If 'include_requires=True', concatenates all requirements before the actually
+        requested utility code, separately for proto and impl part.
         """
         util = cls.load(util_code_name, from_file, **kwargs)
-        proto, impl = util.proto, util.impl
-        return util.format_code(proto), util.format_code(impl)
+
+        if not include_requires:
+            return util.format_code(util.proto), util.format_code(util.impl)
+
+        protos, impls = [], []
+        def prepend(util_code):
+            if util_code.requires:
+                for dep in util_code.requires:
+                    prepend(dep)
+            if util_code.proto:
+                protos.append(util_code.format_code(util_code.proto))
+            if util_code.impl:
+                impls.append(util_code.format_code(util_code.impl))
+
+        prepend(util)
+        return "".join(protos), "".join(impls)
 
     def format_code(self, code_string, replace_empty_lines=re.compile(r'\n\n+').sub):
         """
