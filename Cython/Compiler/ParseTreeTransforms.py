@@ -2950,6 +2950,7 @@ class AdjustDefByDirectives(CythonTransform, SkipDeclarations):
         nogil = self.directives.get('nogil')
         with_gil = self.directives.get('with_gil')
         except_val = self.directives.get('exceptval')
+        has_explicit_exc_clause = False if except_val is None else True
         return_type_node = self.directives.get('returns')
         if return_type_node is None and self.directives['annotation_typing']:
             return_type_node = node.return_type_annotation
@@ -2966,7 +2967,7 @@ class AdjustDefByDirectives(CythonTransform, SkipDeclarations):
                 error(node.pos, "ccall functions cannot be declared 'with_gil'")
             node = node.as_cfunction(
                 overridable=True, modifiers=modifiers, nogil=nogil,
-                returns=return_type_node, except_val=except_val)
+                returns=return_type_node, except_val=except_val, has_explicit_exc_clause=has_explicit_exc_clause)
             return self.visit(node)
         if 'cfunc' in self.directives:
             if self.in_py_class:
@@ -2974,7 +2975,7 @@ class AdjustDefByDirectives(CythonTransform, SkipDeclarations):
             else:
                 node = node.as_cfunction(
                     overridable=False, modifiers=modifiers, nogil=nogil, with_gil=with_gil,
-                    returns=return_type_node, except_val=except_val)
+                    returns=return_type_node, except_val=except_val, has_explicit_exc_clause=has_explicit_exc_clause)
                 return self.visit(node)
         if 'inline' in modifiers:
             error(node.pos, "Python functions cannot be declared 'inline'")

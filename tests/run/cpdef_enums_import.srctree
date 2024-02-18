@@ -41,11 +41,39 @@ cpdef enum NamedEnumType:
 cpdef enum EnumTypeNotInPyx:
     AnotherEnumValue = 500
 
+######## c_enum.h #############
+
+enum CEnum {
+    CEnumVal1, CEnumVal2
+};
+
+######## external_enums1.pxd ######
+
+cdef extern from "c_enum.h":
+    cpdef enum CEnum:
+        CEnumVal1
+        CEnumVal2
+
+######## external_enums1.pyx ######
+
+######## external_enums2.pxd ######
+
+# external_enums1 and external_enums2 expose the same
+# enum - this shouldn't lead to duplicate utility code
+cdef extern from "c_enum.h":
+    cpdef enum CEnum:
+        CEnumVal1
+        CEnumVal2
+
+######## external_enums2.pyx ######
+
 ######## no_enums.pyx ########
 
 from enums cimport *
 from enums_without_pyx cimport *
 cimport enums_same_name
+cimport external_enums1
+cimport external_enums2
 
 def get_named_enum_value():
     return NamedEnumType.NamedEnumValue
@@ -58,6 +86,12 @@ def get_from_enums_same_name():
 def get_named_without_pyx():
     # This'll generate a warning but return a c int
     return EnumTypeNotInPyx.AnotherEnumValue
+
+def get_external1():
+    return external_enums1.CEnumVal1
+
+def get_external2():
+    return external_enums2.CEnumVal1
 
 ######## import_enums_test.py ########
 
@@ -81,3 +115,5 @@ assert no_enums.get_named_enum_value() == NamedEnumType.NamedEnumValue
 assert no_enums.get_named_without_pyx() == 500
 
 assert no_enums.get_from_enums_same_name() == enums_same_name.NamedEnumType.Value
+
+assert no_enums.get_external1() == no_enums.get_external2()

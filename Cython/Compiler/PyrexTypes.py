@@ -321,9 +321,10 @@ class PyrexType(BaseType):
     def assignable_from_resolved_type(self, src_type):
         return self.same_as(src_type)
 
-    def assignment_failure_extra_info(self, src_type):
-        """Override if you can useful provide extra
-        information about why an assignment didn't work."""
+    def assignment_failure_extra_info(self, src_type, src_name):
+        """Override if you can provide useful extra information about why an assignment didn't work.
+
+        src_name may be None if unavailable"""
         return ""
 
     def as_argument_type(self):
@@ -1248,7 +1249,7 @@ class PyObjectType(PyrexType):
     default_value = "0"
     declaration_value = "0"
     buffer_defaults = None
-    is_extern = False
+    is_external = False
     is_subclassed = False
     is_gc_simple = False
     builtin_trashcan = False  # builtin type using trashcan
@@ -1501,7 +1502,7 @@ class BuiltinObjectType(PyObjectType):
             type_check = "PyMemoryView_Check"
         else:
             type_check = 'Py%s_Check' % type_name.capitalize()
-        if exact and type_name not in ('bool', 'slice', 'Exception'):
+        if exact and type_name not in ('bool', 'slice', 'Exception', 'memoryview'):
             type_check += 'Exact'
         return type_check
 
@@ -2911,7 +2912,7 @@ class CPtrType(CPointerBaseType):
             return self.base_type.is_void or self.base_type.same_as(other_type.base_type)
         return 0
 
-    def assignment_failure_extra_info(self, src_type):
+    def assignment_failure_extra_info(self, src_type, src_name):
         if self.base_type.is_cfunction and src_type.is_ptr:
             src_type = src_type.base_type.resolve()
         if self.base_type.is_cfunction and src_type.is_cfunction:
@@ -2923,9 +2924,13 @@ class CPtrType(CPointerBaseType):
                 # the only reason we can't assign is because of exception incompatibility
                 msg = "Exception values are incompatible."
                 if not self.base_type.exception_check and not self.base_type.exception_value:
-                    msg += " Suggest adding 'noexcept' to type '{}'.".format(src_type)
+                    if src_name is None:
+                        src_name = "the value being assigned"
+                    else:
+                        src_name = "'{}'".format(src_name)
+                    msg += " Suggest adding 'noexcept' to the type of {0}.".format(src_name)
                 return msg
-        return super(CPtrType, self).assignment_failure_extra_info(src_type)
+        return super(CPtrType, self).assignment_failure_extra_info(src_type, src_name)
 
     def specialize(self, values):
         base_type = self.base_type.specialize(values)
@@ -3557,6 +3562,8 @@ def specialize_entry(entry, cname):
 
     if entry.func_cname:
         entry.func_cname = get_fused_cname(cname, entry.func_cname)
+    if entry.final_func_cname:
+        entry.final_func_cname = get_fused_cname(cname, entry.final_func_cname)
 
 def get_fused_cname(fused_cname, orig_cname):
     """
@@ -5424,19 +5431,26 @@ _escape_special_type_characters = partial(re.compile(
 ).sub, lambda match: _special_type_characters[match.group(1)])
 
 def type_identifier(type, pyrex=False):
+    scope = None
     decl = type.empty_declaration_code(pyrex=pyrex)
-    return type_identifier_from_declaration(decl)
+    entry = getattr(type, "entry", None)
+    if entry and entry.scope:
+        scope = entry.scope
+    return type_identifier_from_declaration(decl, scope=scope)
 
 _type_identifier_cache = {}
-def type_identifier_from_declaration(decl):
-    safe = _type_identifier_cache.get(decl)
+def type_identifier_from_declaration(decl, scope = None):
+    key = (decl, scope)
+    safe = _type_identifier_cache.get(key)
     if safe is None:
         safe = decl
+        if scope:
+            safe = scope.mangle(prefix="", name=safe)
         safe = re.sub(' +', ' ', safe)
         safe = re.sub(' ?([^a-zA-Z0-9_]) ?', r'\1', safe)
         safe = _escape_special_type_characters(safe)
         safe = cap_length(re.sub('[^a-zA-Z0-9_]', lambda x: '__%X' % ord(x.group(0)), safe))
-        _type_identifier_cache[decl] = safe
+        _type_identifier_cache[key] = safe
     return safe
 
 def cap_length(s, max_prefix=63, max_len=1024):
