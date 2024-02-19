@@ -30,6 +30,18 @@ ptr_func_implicit = func_implicit
 cdef int(*ptr_func_noexcept)(int, int) noexcept
 ptr_func_noexcept = func_noexcept
 
+# tests checking that following warning does not occur:
+# noexcept clause is ignored for function returning Python object
+
+cdef object test_noexcept_warning_object(x):
+    return x
+
+cdef str test_noexcept_warning_str():
+    return 'a'
+
+cdef test_noexcept_warning():
+    pass
+
 @cython.cfunc
 def func_pure_implicit() -> cython.int:
     raise RuntimeError
@@ -140,4 +152,7 @@ _WARNINGS = """
 15:5: Unraisable exception in function 'legacy_implicit_noexcept.func_noexcept'.
 24:43: Implicit noexcept declaration is deprecated. Function declaration should contain 'noexcept' keyword.
 27:38: Implicit noexcept declaration is deprecated. Function declaration should contain 'noexcept' keyword.
+36:43: Implicit noexcept declaration is deprecated. Function declaration should contain 'noexcept' keyword.
+39:36: Implicit noexcept declaration is deprecated. Function declaration should contain 'noexcept' keyword.
+42:28: Implicit noexcept declaration is deprecated. Function declaration should contain 'noexcept' keyword.
 """

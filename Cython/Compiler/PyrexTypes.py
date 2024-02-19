@@ -827,7 +827,7 @@ class MemoryViewSliceType(PyrexType):
                 cfunctype = CFuncType(
                         return_type=c_bint_type,
                         args=[CFuncTypeArg("memviewslice", self, None)],
-                        exception_value="-1",
+                        exception_value=-1,
                 )
 
                 entry = scope.declare_cfunction(cython_name,
@@ -3163,7 +3163,8 @@ class CFuncType(CType):
         return 1
 
     def _same_exception_value(self, other_exc_value):
-        if self.exception_value == other_exc_value:
+        # Use fallback comparison as strings since we usually read exception values as strings.
+        if self.exception_value == other_exc_value or str(self.exception_value) == str(other_exc_value):
             return 1
         if self.exception_check != '+':
             return 0
@@ -3555,6 +3556,8 @@ def specialize_entry(entry, cname):
 
     if entry.func_cname:
         entry.func_cname = get_fused_cname(cname, entry.func_cname)
+    if entry.final_func_cname:
+        entry.final_func_cname = get_fused_cname(cname, entry.final_func_cname)
 
 def get_fused_cname(fused_cname, orig_cname):
     """
@@ -4656,8 +4659,8 @@ class ErrorType(PyrexType):
     # Used to prevent propagation of error messages.
 
     is_error = 1
-    exception_value = "0"
-    exception_check    = 0
+    exception_value = 0
+    exception_check = False
     to_py_function = "dummy"
     from_py_function = "dummy"
 

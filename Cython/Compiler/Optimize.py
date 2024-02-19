@@ -399,7 +399,8 @@ class IterationTransform(Visitor.EnvTransform):
     PyBytes_GET_SIZE_func_type = PyrexTypes.CFuncType(
         PyrexTypes.c_py_ssize_t_type, [
             PyrexTypes.CFuncTypeArg("s", Builtin.bytes_type, None)
-            ], exception_value="-1")
+        ],
+        exception_value=-1)
 
     def _transform_bytes_iteration(self, node, slice_node, reversed=False):
         target_type = node.target.type
@@ -454,7 +455,7 @@ class IterationTransform(Visitor.EnvTransform):
             PyrexTypes.CFuncTypeArg("data", PyrexTypes.c_void_ptr_ptr_type, None),
             PyrexTypes.CFuncTypeArg("kind", PyrexTypes.c_int_ptr_type, None)
         ],
-        exception_value = '-1')
+        exception_value=-1)
 
     def _transform_unicode_iteration(self, node, slice_node, reversed=False):
         if slice_node.is_literal:
@@ -2328,13 +2329,13 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
         PyrexTypes.c_int_type, [
             PyrexTypes.CFuncTypeArg("arg", PyrexTypes.c_py_ucs4_type, None)
         ],
-        exception_value="-1")
+        exception_value=-1)
 
     pyucs4_double_func_type = PyrexTypes.CFuncType(
         PyrexTypes.c_double_type, [
             PyrexTypes.CFuncTypeArg("arg", PyrexTypes.c_py_ucs4_type, None)
         ],
-        exception_value="-1.0")
+        exception_value=-1.0)
 
     def _pyucs4_to_number(self, node, py_type_name, func_arg):
         assert py_type_name in ("int", "float")
@@ -2775,19 +2776,19 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
         PyrexTypes.c_py_ssize_t_type, [
             PyrexTypes.CFuncTypeArg("bytes", PyrexTypes.c_const_char_ptr_type, None)
         ],
-        exception_value="-1")
+        exception_value=-1)
 
     Pyx_Py_UNICODE_strlen_func_type = PyrexTypes.CFuncType(
         PyrexTypes.c_py_ssize_t_type, [
             PyrexTypes.CFuncTypeArg("unicode", PyrexTypes.c_const_py_unicode_ptr_type, None)
         ],
-        exception_value="-1")
+        exception_value=-1)
 
     PyObject_Size_func_type = PyrexTypes.CFuncType(
         PyrexTypes.c_py_ssize_t_type, [
             PyrexTypes.CFuncTypeArg("obj", PyrexTypes.py_object_type, None)
         ],
-        exception_value="-1")
+        exception_value=-1)
 
     _map_to_capi_len_function = {
         Builtin.unicode_type:    "__Pyx_PyUnicode_GET_LENGTH",
@@ -3074,7 +3075,7 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
             PyrexTypes.CFuncTypeArg("list", PyrexTypes.py_object_type, None),
             PyrexTypes.CFuncTypeArg("item", PyrexTypes.py_object_type, None),
             ],
-        exception_value="-1")
+        exception_value=-1)
 
     def _handle_simple_method_object_append(self, node, function, args, is_unbound_method):
         """Optimistic optimisation as X.append() is almost always
@@ -3160,14 +3161,14 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
             PyrexTypes.CFuncTypeArg("bytearray", PyrexTypes.py_object_type, None),
             PyrexTypes.CFuncTypeArg("value", PyrexTypes.c_int_type, None),
             ],
-        exception_value="-1")
+        exception_value=-1)
 
     PyByteArray_AppendObject_func_type = PyrexTypes.CFuncType(
         PyrexTypes.c_returncode_type, [
             PyrexTypes.CFuncTypeArg("bytearray", PyrexTypes.py_object_type, None),
             PyrexTypes.CFuncTypeArg("value", PyrexTypes.py_object_type, None),
             ],
-        exception_value="-1")
+        exception_value=-1)
 
     def _handle_simple_method_bytearray_append(self, node, function, args, is_unbound_method):
         if len(args) != 2:
@@ -3292,7 +3293,7 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
         PyrexTypes.c_returncode_type, [
             PyrexTypes.CFuncTypeArg("obj", PyrexTypes.py_object_type, None),
             ],
-        exception_value = "-1")
+        exception_value=-1)
 
     def _handle_simple_method_list_sort(self, node, function, args, is_unbound_method):
         """Call PyList_Sort() instead of the 0-argument l.sort().
@@ -3717,7 +3718,7 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
             PyrexTypes.CFuncTypeArg("end", PyrexTypes.c_py_ssize_t_type, None),
             PyrexTypes.CFuncTypeArg("direction", PyrexTypes.c_int_type, None),
             ],
-        exception_value = '-1')
+        exception_value=-1)
 
     def _handle_simple_method_unicode_endswith(self, node, function, args, is_unbound_method):
         return self._inject_tailmatch(
@@ -3760,7 +3761,7 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
             PyrexTypes.CFuncTypeArg("end", PyrexTypes.c_py_ssize_t_type, None),
             PyrexTypes.CFuncTypeArg("direction", PyrexTypes.c_int_type, None),
             ],
-        exception_value = '-2')
+        exception_value=-2)
 
     def _handle_simple_method_unicode_find(self, node, function, args, is_unbound_method):
         return self._inject_unicode_find(
@@ -3797,7 +3798,7 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
             PyrexTypes.CFuncTypeArg("start", PyrexTypes.c_py_ssize_t_type, None),
             PyrexTypes.CFuncTypeArg("end", PyrexTypes.c_py_ssize_t_type, None),
             ],
-        exception_value = '-1')
+        exception_value=-1)
 
     def _handle_simple_method_unicode_count(self, node, function, args, is_unbound_method):
         """Replace unicode.count(...) by a direct call to the
