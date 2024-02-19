@@ -128,7 +128,7 @@ def handle_special_build(modname, pyxfilename):
             setup_args = make_setup_args()
             assert isinstance(setup_args,dict), ("make_setup_args in %s did not return a dict"
                                          % special_build)
-        assert set or setup_args, ("neither make_ext nor make_setup_args %s"
+        assert ext or setup_args, ("neither make_ext nor make_setup_args %s"
                                          % special_build)
         ext.sources = [os.path.join(os.path.dirname(special_build), source)
                        for source in ext.sources]
