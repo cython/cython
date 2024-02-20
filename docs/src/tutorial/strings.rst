@@ -368,6 +368,8 @@ that they will not modify a string, or to require that users must
 not modify a string they return, for example:
 
 .. literalinclude:: ../../examples/tutorial/string/someheader.h
+   :caption: someheader.h
+   :language: c
 
 Cython has support for the ``const`` modifier in
 the language, so you can declare the above functions straight away as
