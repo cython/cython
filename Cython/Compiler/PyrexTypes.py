@@ -1690,15 +1690,25 @@ class CType(PyrexType):
     #
 
     to_py_function = None
+    to_py_utility_code = None
     from_py_function = None
+    from_py_utility_code = None
     exception_value = None
     exception_check = 1
 
     def create_to_py_utility_code(self, env):
-        return self.to_py_function is not None
+        if self.to_py_function is not None:
+            if self.to_py_utility_code is not None:
+                env.use_utility_code(self.to_py_utility_code)
+            return True
+        return False
 
     def create_from_py_utility_code(self, env):
-        return self.from_py_function is not None
+        if self.from_py_function is not None:
+            if self.from_py_utility_code is not None:
+                env.use_utility_code(self.from_py_utility_code)
+            return True
+        return False
 
     def can_coerce_to_pyobject(self, env):
         return self.create_to_py_utility_code(env)
@@ -2686,6 +2696,8 @@ class CPointerBaseType(CType):
             self.exception_value = "NULL"
         elif self.is_pyunicode_ptr and not base_type.is_error:
             self.to_py_function = "__Pyx_PyUnicode_FromUnicode"
+            self.to_py_utility_code = UtilityCode.load_cached(
+                "pyunicode_from_unicode", "StringTools.c")
             if self.is_ptr:
                 self.from_py_function = "__Pyx_PyUnicode_AsUnicode"
             self.exception_value = "NULL"
