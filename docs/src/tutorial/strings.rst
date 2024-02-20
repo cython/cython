@@ -133,6 +133,7 @@ We have dummy C functions declared that we are going to reuse throughout this tu
 We make a corresponding :file:`c_func.pxd` to be able to cimport those functions:
 
 .. literalinclude:: ../../examples/tutorial/string/c_func.pxd
+    :caption: c_func.pxd
 
 It is very easy to pass byte strings between C code and Python.
 When receiving a byte string from a C library, you can let Cython
