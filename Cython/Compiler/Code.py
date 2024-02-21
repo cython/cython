@@ -1636,20 +1636,22 @@ class GlobalState:
                     n))
                 if py_string.py3str_cstring:
                     w.putln("#if PY_MAJOR_VERSION >= 3")
-                    w.putln("{%s, sizeof(%s), %s, %d, %d, %d}," % (
+                    w.putln("{%s, sizeof(%s), %s, %d, %d, %d}, /* PyObject cname: %s */" % (
                         py_string.py3str_cstring.cname,
                         py_string.py3str_cstring.cname,
                         '0', 1, 0,
-                        py_string.intern
+                        py_string.intern,
+                        py_string.cname
                         ))
                     w.putln("#else")
-                w.putln("{%s, sizeof(%s), %s, %d, %d, %d}," % (
+                w.putln("{%s, sizeof(%s), %s, %d, %d, %d}, /* PyObject cname: %s */" % (
                     c_cname,
                     c_cname,
                     encoding,
                     py_string.is_unicode,
                     py_string.is_str,
-                    py_string.intern
+                    py_string.intern,
+                    py_string.cname
                     ))
                 if py_string.py3str_cstring:
                     w.putln("#endif")
