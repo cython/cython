@@ -154,7 +154,11 @@ jobs:
             extra_hash: "-stackless"
           # Pypy
           - os: ubuntu-20.04
-            python-version: pypy-3.9-v7.3.12
+            python-version: pypy-3.9
+            backend: c
+            env: { NO_CYTHON_COMPILE: 1 }
+          - os: ubuntu-20.04
+            python-version: pypy-3.10
             backend: c
             env: { NO_CYTHON_COMPILE: 1 }
 
@@ -176,17 +180,17 @@ jobs:
 
     steps:
       - name: Checkout repo
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4.1.1
         with:
           fetch-depth: 1
 
       - name: Setup python
-        uses: actions/setup-python@v3
+        uses: actions/setup-python@v5.0.0
         with:
           python-version: ${{ matrix.python-version }}
 
       - name: Compilation Cache
-        uses: hendrikmuhs/ccache-action@v1.2.9
+        uses: hendrikmuhs/ccache-action@v1.2.12
         with:
           variant: ${{ startsWith(runner.os, 'windows') && 'sccache' || 'ccache' }}  # fake ternary
           key: ${{ runner.os }}-hendrikmuhs-ccache${{ matrix.extra_hash }}-${{ matrix.python-version }}-${{ matrix.backend == 'c' || matrix.backend == 'c,cpp' }}-${{ contains(matrix.backend, 'cpp') }}-${{ hashFiles('test-requirements*.txt', '.github/**/ci.yml', 'Tools/**/ci-run.sh') }}
@@ -198,16 +202,16 @@ jobs:
         run: bash ./Tools/ci-run.sh
 
       - name: Upload HTML docs
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4.3.0
         with:
           name: htmldocs
           path: docs/build/html
           if-no-files-found: ignore
 
       - name: Upload wheels
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4.3.0
         with:
-          name: wheels-${{ runner.os }}${{ matrix.extra_hash }}
+          name: wheels-${{ runner.os }}-${{ matrix.python-version }}${{ matrix.extra_hash }}
           path: dist/*.whl
           if-no-files-found: ignore
 
@@ -222,10 +226,10 @@ jobs:
 
     steps:
       - name: Checkout repo
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4.1.1
 
       - name: Setup python
-        uses: actions/setup-python@v3
+        uses: actions/setup-python@v5.0.0
         with:
           python-version: "3.11"
 
@@ -234,7 +238,7 @@ jobs:
         run: bash ./Tools/ci-run.sh
 
       - name: Upload Coverage Report
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4.3.0
         with:
           name: pycoverage_html
           path: coverage-report-html
@@ -249,12 +253,12 @@ jobs:
 
     steps:
       - name: Checkout repo
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4.1.1
         with:
           fetch-depth: 1
 
       - name: Setup python
-        uses: actions/setup-python@v3
+        uses: actions/setup-python@v5.0.0
         with:
           python-version: "3.11"
 
@@ -263,7 +267,7 @@ jobs:
         run: bash ./Tools/ci-run.sh
 
       - name: Upload Coverage Report
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4.3.0
         with:
           name: cycoverage_html
           path: coverage-report-html
@@ -274,6 +278,6 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4.1.1
       - name: Codespell
         uses: codespell-project/actions-codespell@v2

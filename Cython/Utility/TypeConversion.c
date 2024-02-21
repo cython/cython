@@ -85,27 +85,7 @@ static CYTHON_INLINE PyObject* __Pyx_PyUnicode_FromString(const char*);
 #define __Pyx_PyByteArray_FromCString(s)   __Pyx_PyByteArray_FromString((const char*)s)
 #define __Pyx_PyStr_FromCString(s)     __Pyx_PyStr_FromString((const char*)s)
 #define __Pyx_PyUnicode_FromCString(s) __Pyx_PyUnicode_FromString((const char*)s)
-
-// There used to be a Py_UNICODE_strlen() in CPython 3.x, but it is deprecated since Py3.3.
-#if CYTHON_COMPILING_IN_LIMITED_API
-static CYTHON_INLINE size_t __Pyx_Py_UNICODE_strlen(const wchar_t *u)
-{
-    const wchar_t *u_end = u;
-    while (*u_end++) ;
-    return (size_t)(u_end - u - 1);
-}
-#else
-static CYTHON_INLINE size_t __Pyx_Py_UNICODE_strlen(const Py_UNICODE *u)
-{
-    const Py_UNICODE *u_end = u;
-    while (*u_end++) ;
-    return (size_t)(u_end - u - 1);
-}
-#endif
-
 #define __Pyx_PyUnicode_FromOrdinal(o)       PyUnicode_FromOrdinal((int)o)
-#define __Pyx_PyUnicode_FromUnicode(u)       PyUnicode_FromUnicode(u, __Pyx_Py_UNICODE_strlen(u))
-#define __Pyx_PyUnicode_FromUnicodeAndLength PyUnicode_FromUnicode
 #define __Pyx_PyUnicode_AsUnicode            PyUnicode_AsUnicode
 
 #define __Pyx_NewRef(obj) (Py_INCREF(obj), obj)
@@ -1152,4 +1132,57 @@ raise_neg_overflow:
     PyErr_SetString(PyExc_OverflowError,
         "can't convert negative value to {{TYPE}}");
     return ({{TYPE}}) -1;
+}
+
+/////////////// CFuncPtrTypedef.proto ///////////////
+
+typedef void (*__Pyx_generic_func_pointer)(void);
+
+/////////////// CFuncPtrToPy.proto ///////////////
+//@requires: CFuncPtrTypedef
+
+static PyObject *__Pyx_c_func_ptr_to_capsule(__Pyx_generic_func_pointer funcptr, const char* name); /* proto */
+
+/////////////// CFuncPtrToPy ///////////////
+//@requires: StringTools.c::IncludeStringH
+
+static void __Pyx_destroy_c_func_ptr_capsule(PyObject *capsule) {
+    void* ptr = PyCapsule_GetPointer(capsule, PyCapsule_GetName(capsule));
+    PyMem_Free(ptr);
+}
+
+static PyObject *__Pyx_c_func_ptr_to_capsule(__Pyx_generic_func_pointer funcptr, const char* name) {
+    if (sizeof(funcptr) > sizeof(void*) || __Pyx_TEST_large_func_pointers) {
+        // The C standard does not guarantee that a function pointer fits inside a regular pointer
+        // (and on some platforms it doesn't). On these, we need to allocate space to store the function pointer
+        __Pyx_generic_func_pointer *copy_into = (__Pyx_generic_func_pointer*) PyMem_Malloc(sizeof(funcptr));
+        *copy_into = funcptr;
+        return PyCapsule_New(copy_into, name, __Pyx_destroy_c_func_ptr_capsule);
+    } else {
+        // on all other platforms (which is the vast majority, since POSIX require a function pointer
+        // can be  converted to a void*) we skip the allocation and store directly into the capsule's value.
+        // Use memcpy to copy the data from the function pointer to the void*.
+        // (since just casting is prohibited by standard C, and using unions is prohibited by standard c++)
+        void *copy_into;
+        memcpy((void*)&copy_into, (void*)&funcptr, sizeof(funcptr));
+        return PyCapsule_New(copy_into, name, NULL);
+    }
+}
+
+/////////////// CFuncPtrFromPy.proto ///////////////
+//@requires: CFuncPtrTypedef
+
+static __Pyx_generic_func_pointer __Pyx_capsule_to_c_func_ptr(PyObject *capsule, const char* name); /* proto */
+
+/////////////// CFuncPtrFromPy.proto ///////////////
+
+static __Pyx_generic_func_pointer __Pyx_capsule_to_c_func_ptr(PyObject *capsule, const char* name) {
+    void *data = PyCapsule_GetPointer(capsule, name);
+    __Pyx_generic_func_pointer funcptr;
+    if (sizeof(funcptr) > sizeof(void*) || __Pyx_TEST_large_func_pointers) {
+        funcptr = *((__Pyx_generic_func_pointer*)data);
+    } else {
+        memcpy((void*)&funcptr, (void*)&data, sizeof(funcptr));
+    }
+    return funcptr;
 }

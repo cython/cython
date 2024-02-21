@@ -549,16 +549,13 @@ static int __Pyx_ImportFunction_$cyversion(PyObject *module, const char *funcnam
 
 /////////////// FunctionImport ///////////////
 //@substitute: naming
+//@requires: TypeConversion.c::CFuncPtrFromPy
 
 #ifndef __PYX_HAVE_RT_ImportFunction_$cyversion
 #define __PYX_HAVE_RT_ImportFunction_$cyversion
 static int __Pyx_ImportFunction_$cyversion(PyObject *module, const char *funcname, void (**f)(void), const char *sig) {
     PyObject *d = 0;
     PyObject *cobj = 0;
-    union {
-        void (*fp)(void);
-        void *p;
-    } tmp;
 
     d = PyObject_GetAttrString(module, "$api_name");
     if (!d)
@@ -576,8 +573,7 @@ static int __Pyx_ImportFunction_$cyversion(PyObject *module, const char *funcnam
              PyModule_GetName(module), funcname, sig, PyCapsule_GetName(cobj));
         goto bad;
     }
-    tmp.p = PyCapsule_GetPointer(cobj, sig);
-    *f = tmp.fp;
+    *f = __Pyx_capsule_to_c_func_ptr(cobj, sig);
     if (!(*f))
         goto bad;
     Py_DECREF(d);
@@ -594,14 +590,11 @@ static int __Pyx_ExportFunction(const char *name, void (*f)(void), const char *s
 
 /////////////// FunctionExport ///////////////
 //@substitute: naming
+//@requires: TypeConversion.c::CFuncPtrToPy
 
 static int __Pyx_ExportFunction(const char *name, void (*f)(void), const char *sig) {
     PyObject *d = 0;
     PyObject *cobj = 0;
-    union {
-        void (*fp)(void);
-        void *p;
-    } tmp;
 
     d = PyObject_GetAttrString($module_cname, "$api_name");
     if (!d) {
@@ -613,8 +606,7 @@ static int __Pyx_ExportFunction(const char *name, void (*f)(void), const char *s
         if (PyModule_AddObject($module_cname, "$api_name", d) < 0)
             goto bad;
     }
-    tmp.fp = f;
-    cobj = PyCapsule_New(tmp.p, sig, 0);
+    cobj = __Pyx_c_func_ptr_to_capsule(f, sig);
     if (!cobj)
         goto bad;
     if (PyDict_SetItemString(d, name, cobj) < 0)

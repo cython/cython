@@ -619,15 +619,16 @@ class CArrayDeclaratorNode(CDeclaratorNode):
 
 
 class CFuncDeclaratorNode(CDeclaratorNode):
-    # base             CDeclaratorNode
-    # args             [CArgDeclNode]
-    # templates        [TemplatePlaceholderType]
-    # has_varargs      boolean
-    # exception_value  ConstNode or NameNode    NameNode when the name of a c++ exception conversion function
-    # exception_check  boolean or "+"    True if PyErr_Occurred check needed, "+" for a c++ check
-    # nogil            boolean    Can be called without gil
-    # with_gil         boolean    Acquire gil around function body
-    # is_const_method  boolean    Whether this is a const method
+    # base                      CDeclaratorNode
+    # args                      [CArgDeclNode]
+    # templates                 [TemplatePlaceholderType]
+    # has_varargs               boolean
+    # exception_value           ConstNode or NameNode    NameNode when the name of a c++ exception conversion function
+    # exception_check           boolean or "+"    True if PyErr_Occurred check needed, "+" for a c++ check
+    # has_explicit_exc_clause   boolean    True if exception clause is explicitly declared
+    # nogil                     boolean    Can be called without gil
+    # with_gil                  boolean    Acquire gil around function body
+    # is_const_method           boolean    Whether this is a const method
 
     child_attrs = ["base", "args", "exception_value"]
 
@@ -718,6 +719,8 @@ class CFuncDeclaratorNode(CDeclaratorNode):
                 and (self.exception_value or self.exception_check)
                 and self.exception_check != '+'):
             error(self.pos, "Exception clause not allowed for function returning Python object")
+        elif return_type.is_pyobject and not self.exception_check and visibility != 'extern' and self.has_explicit_exc_clause:
+            warning(self.pos, "noexcept clause is ignored for function returning Python object", 1)
         else:
             if self.exception_value is None and self.exception_check and self.exception_check != '+':
                 # Use an explicit exception return value to speed up exception checks.
@@ -2691,6 +2694,7 @@ class CFuncDefNode(FuncDefNode):
             defining=self.body is not None, modifiers=self.modifiers,
             overridable=self.overridable, in_pxd=self.inline_in_pxd)
         self.return_type = typ.return_type
+
         if self.return_type.is_array and self.visibility != 'extern':
             error(self.pos, "Function cannot return an array")
         if self.return_type.is_cpp_class:
@@ -3073,8 +3077,8 @@ class DefNode(FuncDefNode):
         self.num_required_kw_args = rk
         self.num_required_args = r
 
-    def as_cfunction(self, cfunc=None, scope=None, overridable=True, returns=None, except_val=None, modifiers=None,
-                     nogil=False, with_gil=False):
+    def as_cfunction(self, cfunc=None, scope=None, overridable=True, returns=None, except_val=None, has_explicit_exc_clause=False,
+                     modifiers=None, nogil=False, with_gil=False):
         if self.star_arg:
             error(self.star_arg.pos, "cdef function cannot have star argument")
         if self.starstar_arg:
@@ -3124,6 +3128,7 @@ class DefNode(FuncDefNode):
                                          has_varargs=False,
                                          exception_check=cfunc_type.exception_check,
                                          exception_value=exception_value,
+                                         has_explicit_exc_clause = has_explicit_exc_clause,
                                          with_gil=cfunc_type.with_gil,
                                          nogil=cfunc_type.nogil)
         return CFuncDefNode(self.pos,
@@ -6018,8 +6023,19 @@ class AssignmentNode(StatNode):
     #  parallel assignment to be evaluated before assigning
     #  to any of the left hand sides.
 
+    def _warn_on_const_assignment(self, lhs, rhs):
+        rhs_t = rhs.type
+        lhs_t = lhs.type
+        if rhs_t.is_ptr and rhs_t.base_type.is_const and lhs_t.is_ptr and not lhs_t.base_type.is_const:
+            warning(self.pos, "Assigning to '{}' from '{}' discards const qualifier".format(lhs_t, rhs_t), level=1)
+
+    def _check_const_assignment(self, node):
+        if isinstance(node, AssignmentNode):
+            self._warn_on_const_assignment(node.lhs, node.rhs)
+
     def analyse_expressions(self, env):
         node = self.analyse_types(env)
+        self._check_const_assignment(node)
         if isinstance(node, AssignmentNode) and not isinstance(node, ParallelAssignmentNode):
             if node.rhs.type.is_ptr and node.rhs.is_ephemeral():
                 error(self.pos, "Storing unsafe C derivative of temporary Python reference")
@@ -6370,6 +6386,11 @@ class CascadedAssignmentNode(AssignmentNode):
     coerced_values = None
     assignment_overloads = None
 
+    def _check_const_assignment(self, node):
+        if isinstance(node, CascadedAssignmentNode):
+            for lhs in node.lhs_list:
+                self._warn_on_const_assignment(lhs, node.rhs)
+
     def analyse_declarations(self, env):
         for lhs in self.lhs_list:
             lhs.analyse_target_declaration(env)
@@ -6476,6 +6497,9 @@ class ParallelAssignmentNode(AssignmentNode):
     def analyse_expressions(self, env):
         self.stats = [stat.analyse_types(env, use_temp=1)
                       for stat in self.stats]
+
+        for stat in self.stats:
+            stat._check_const_assignment(stat)
         return self
 
 #    def analyse_expressions(self, env):
@@ -10333,6 +10357,17 @@ class CnameDecoratorNode(StatNode):
 
     def generate_execution_code(self, code):
         self.node.generate_execution_code(code)
+
+
+class ErrorNode(Node):
+    """
+    Node type for things that we want to get through the parser
+    (especially for things that are being scanned in "tentative_scan"
+    blocks), but should immediately raise and error afterwards.
+
+    what    str
+    """
+    child_attrs = []
 
 
 #------------------------------------------------------------------------------------
