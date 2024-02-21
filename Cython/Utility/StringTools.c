@@ -26,12 +26,12 @@ static CYTHON_INLINE Py_ssize_t __Pyx_Py_UNICODE_ssize_strlen(const Py_UNICODE *
 
 //////////////////// InitStrings.proto ////////////////////
 
-static int __Pyx_InitStrings(__Pyx_StringTabEntry *t); /*proto*/
+static int __Pyx_InitStrings(__Pyx_StringTabEntry const *t, PyObject **target); /*proto*/
 
 //////////////////// InitStrings ////////////////////
 
-static int __Pyx_InitStrings(__Pyx_StringTabEntry *t) {
-    while (t->p) {
+static int __Pyx_InitStrings(__Pyx_StringTabEntry const *t, PyObject **target) {
+    while (t->s) {
         PyObject *str;
         if (t->is_unicode | t->is_str) {
             if (t->intern) {
@@ -46,11 +46,12 @@ static int __Pyx_InitStrings(__Pyx_StringTabEntry *t) {
         }
         if (!str)
             return -1;
-        *t->p = str;
+        *target = str;
         // initialise cached hash value
         if (PyObject_Hash(str) == -1)
             return -1;
         ++t;
+        ++target;
     }
     return 0;
 }
