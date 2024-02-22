@@ -1619,7 +1619,7 @@ class GlobalState:
                 Naming.stringtab_cname)
             self.parts['module_state_traverse'].putln("}")
 
-            w.putln("const __Pyx_StringTabEntry %s[] = {" % Naming.stringtab_cname)
+            w.putln("static const __Pyx_StringTabEntry %s[] = {" % Naming.stringtab_cname)
             for n, py_string_args in enumerate(py_strings):
                 c_cname, _, py_string = py_string_args
                 if not py_string.is_str or not py_string.encoding or \
