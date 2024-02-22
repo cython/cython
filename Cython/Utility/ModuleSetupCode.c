@@ -1485,7 +1485,7 @@ static CYTHON_INLINE float __PYX_NAN() {
 
 /////////////// UtilityFunctionPredeclarations.proto ///////////////
 
-typedef struct {PyObject **p; const char *s; const Py_ssize_t n; const char* encoding;
+typedef struct {const char *s; const Py_ssize_t n; const char* encoding;
                 const char is_unicode; const char is_str; const char intern; } __Pyx_StringTabEntry; /*proto*/
 
 
