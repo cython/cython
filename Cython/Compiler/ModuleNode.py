@@ -844,7 +844,6 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             code.putln("#define CYTHON_CCOMPLEX 1")
             code.putln("#endif")
             code.putln("")
-        code.put(UtilityCode.load_as_string("UtilityFunctionPredeclarations", "ModuleSetupCode.c")[0])
 
         c_string_type = env.directives['c_string_type']
         c_string_encoding = env.directives['c_string_encoding']
