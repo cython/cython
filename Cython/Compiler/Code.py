@@ -1572,7 +1572,8 @@ class GlobalState(object):
                 decls_writer.putln("#if PY_MAJOR_VERSION %s 3" % (
                     (2 in c.py_versions) and '<' or '>='))
             decls_writer.putln('static const char %s[] = "%s";' % (
-                cname, StringEncoding.split_string_literal(c.escaped_value)))
+                cname, StringEncoding.split_string_literal(c.escaped_value)),
+                safe=True)  # Braces in user strings are not for indentation.
             if conditional:
                 decls_writer.putln("#endif")
             if c.py_strings is not None:
