@@ -1009,7 +1009,7 @@ static CYTHON_INLINE int __Pyx__IsSameCFunction(PyObject *func, void *cfunc) {
   #define __Pyx_PyThreadState_Current _PyThreadState_UncheckedGet()
 #endif
 
-#if CYTHON_COMPILING_IN_LIMITED_API
+#if CYTHON_USE_MODULE_STATE
 static CYTHON_INLINE void *__Pyx_PyModule_GetState(PyObject *op)
 {
     void *result;
