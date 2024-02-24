@@ -2206,7 +2206,7 @@ typedef struct {
   // PyObject* freevars; // FIXME?
   // PyObject* cellvars; // FIXME
   PyObject* filename;
-  PyObject* name;
+  PyObject* funcname;
   int firstlineno;
 } __Pyx_CodeObjectTabEntry;
 
@@ -2227,7 +2227,7 @@ static int __Pyx_InitCodeObjects(__Pyx_CodeObjectTabEntry *table, PyObject **tar
             ${empty_tuple}, // freevars (FIXME)
             ${empty_tuple}, // cellvars (FIXME)
             table[i].filename,
-            table[i].name, // funcname
+            table[i].funcname,
             table[i].firstlineno,
             ${empty_bytes} // lnotab
         );

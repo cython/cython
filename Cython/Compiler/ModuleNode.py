@@ -3110,7 +3110,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.put_error_if_neg(self.pos, "__Pyx_InitConstants()")
         code.putln("stringtab_initialized = 1;")
         code.put_error_if_neg(self.pos, "__Pyx_InitGlobals()")  # calls any utility code
-        # code objects come after the other globals (since they strings and tuples)
+        # code objects come after the other globals (since they use strings and tuples)
         code.put_error_if_neg(self.pos, "__Pyx_CreateCodeTabAndInitCode()")
 
 

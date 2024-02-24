@@ -1197,7 +1197,7 @@ class GlobalState:
         self.string_const_index = {}
         self.dedup_const_index = {}
         self.pyunicode_ptr_const_index = {}
-        self.codeobject_constants = []
+        self.codeobject_constants = {}  # relies on Python 3.7+ dict ordering
         self.num_const_index = {}
         self.py_constants = []
         self.cached_cmethods = {}
@@ -1413,10 +1413,14 @@ class GlobalState:
             text.encoding, identifier, is_str, py3str_cstring)
         return py_string
 
-    def get_py_codeobj_const(self, *args):
+    def get_py_codeobj_const_cname(self):
         idx = len(self.codeobject_constants)
-        self.codeobject_constants.append(args)
-        return f"{Naming.codeobjtab_cname}[{idx}]"
+        name = f"{Naming.codeobjtab_cname}[{idx}]"
+        self.codeobject_constants[name] = None
+        return name
+
+    def set_py_codeobj_const_data(self, cname, value):
+        self.codeobject_constants[cname] = value
 
     def get_interned_identifier(self, text):
         return self.get_py_string_const(text, identifier=True)
@@ -1736,6 +1740,7 @@ class GlobalState:
         w.putln("static int __Pyx_CreateCodeTabAndInitCode(void) {")
 
         if not self.codeobject_constants:
+            w.putln("return 0;")
             w.putln("}")
             return
 
@@ -1760,19 +1765,12 @@ class GlobalState:
         ))
 
         w.putln("__Pyx_CodeObjectTabEntry tab[] = {")
-        for n, const in enumerate(self.codeobject_constants):
-            (pos,
-             argcount,
-             posonlycount,
-             kwonlycount,
-             nlocals,
-             flags,
-             varnames,
-             filename,
-             funcname) = const
-            s = (f"{self.lookup_filename(pos[0])}, {argcount}, {posonlycount}, {kwonlycount}, "
-                 f"{nlocals}, {flags}, {varnames}, {filename}, {funcname}, {pos[1]}")
-            w.putln("{%s}, /* %s[%d] */" % (s, Naming.codeobjtab_cname, n))
+        # Note that the iteration relies on dicts being insertion ordered
+        for cname, data in self.codeobject_constants.items():
+            s = (f"{self.lookup_filename(data.pos[0])}, {data.argcount}, {data.num_posonly_args}, "
+                 f"{data.kwonlyargcount}, {data.nlocals}, {data.flags}, {data.varnames}, "
+                 f"{data.filename}, {data.funcname}, {data.pos[1]}")
+            w.putln("{%s}, /* %s */" % (s, cname))
         w.putln("{0}")  # blank entry at end so we don't have to think about commas
         w.putln("};")
 
@@ -2106,9 +2104,11 @@ class CCodeWriter:
         return self.globalstate.get_py_string_const(
             text, identifier, is_str, unicode_value).cname
 
-    def get_py_codeobj_const(self, *args):
-        # code objects
-        return self.globalstate.get_py_codeobj_const(*args)
+    def get_py_codeobj_const_cname(self):
+        return self.globalstate.get_py_codeobj_const_cname()
+
+    def set_py_codeobj_const_data(self, cname, value):
+        self.globalstate.set_py_codeobj_const_data(cname, value)
 
     def get_argument_default_const(self, type):
         return self.globalstate.get_py_const(type).cname

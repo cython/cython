@@ -20,6 +20,7 @@ import sys
 import copy
 import os.path
 import operator
+import collections
 
 from .Errors import (
     error, warning, InternalError, CompileError, report_error, local_errors,
@@ -10137,6 +10138,12 @@ class CodeObjectNode(ExprNode):
     is_temp = False
     result_code = None
 
+    const_data_type = collections.namedtuple(
+        "const_data_type",
+        ["pos", "argcount", "num_posonly_args", "kwonlyargcount",
+         "nlocals", "flags", "varnames", "filename", "funcname"]
+    )
+
     def __init__(self, def_node):
         ExprNode.__init__(self, def_node.pos, def_node=def_node)
         args = list(def_node.args)
@@ -10152,10 +10159,16 @@ class CodeObjectNode(ExprNode):
     def may_be_none(self):
         return False
 
-    def calculate_result_code(self):
+    def calculate_result_code(self, code=None):
+        if self.result_code is None:
+            self.result_code = code.get_py_codeobj_const_cname()
         return self.result_code
 
     def generate_result_code(self, code):
+        if self.result_code is None:
+            # cname already generated
+            self.result_code = code.get_py_codeobj_const_cname()
+
         func = self.def_node
         func_name = code.get_py_string_const(
             func.name, identifier=True, is_str=False, unicode_value=func.name)
@@ -10177,18 +10190,18 @@ class CodeObjectNode(ExprNode):
         elif self.def_node.is_generator:
             flags.append('CO_GENERATOR')
 
-        self.result_code = code.get_py_codeobj_const(
-            self.pos,
-            len(func.args) - func.num_kwonly_args,  # argcount
-            func.num_posonly_args,     # posonlyargcount (Py3.8+ only)
-            func.num_kwonly_args,      # kwonlyargcount (Py3 only)
-            len(self.varnames.args),   # nlocals
-            '|'.join(flags) or '0',    # flags
-            self.varnames.result(),    # varnames
-            file_path_const,           # filename
-            func_name,                 # name
+        data = self.const_data_type(
+            pos=self.pos,
+            argcount=len(func.args) - func.num_kwonly_args,
+            num_posonly_args=func.num_posonly_args, # Py3.8+ only
+            kwonlyargcount=func.num_kwonly_args,
+            nlocals=len(self.varnames.args),
+            flags='|'.join(flags) or '0',
+            varnames=self.varnames.result(),
+            filename=file_path_const,
+            funcname=func_name
         )
-        return self.result_code
+        code.set_py_codeobj_const_data(self.result_code, data)
 
 
 class DefaultLiteralArgNode(ExprNode):
