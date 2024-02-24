@@ -3110,9 +3110,6 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.put_error_if_neg(self.pos, "__Pyx_InitConstants()")
         code.putln("stringtab_initialized = 1;")
         code.put_error_if_neg(self.pos, "__Pyx_InitGlobals()")  # calls any utility code
-        # code objects come after the other globals (since they use strings and tuples)
-        code.put_error_if_neg(self.pos, "__Pyx_CreateCodeTabAndInitCode()")
-
 
         code.putln("#if PY_MAJOR_VERSION < 3 && (__PYX_DEFAULT_STRING_ENCODING_IS_ASCII || "
                    "__PYX_DEFAULT_STRING_ENCODING_IS_DEFAULT)")
@@ -3135,6 +3132,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
         code.putln("/*--- Constants init code ---*/")
         code.put_error_if_neg(self.pos, "__Pyx_InitCachedConstants()")
+        # code objects come after the other globals (since they use strings and tuples)
+        code.put_error_if_neg(self.pos, "__Pyx_CreateCodeTabAndInitCode()")
 
         code.putln("/*--- Global type/function init code ---*/")
 

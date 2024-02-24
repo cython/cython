@@ -2218,8 +2218,12 @@ static int __Pyx_InitCodeObjects(__Pyx_CodeObjectTabEntry *table, PyObject **tar
 static int __Pyx_InitCodeObjects(__Pyx_CodeObjectTabEntry *table, PyObject **targets, Py_ssize_t N) {
     for (Py_ssize_t i=0; i<N; ++i) {
         PyObject *result = (PyObject*)__Pyx_PyCode_New(
-            table[i].argcount, table[i].num_posonly_args, table[i].kwonlyargcount,
-            table[i].nlocals, 0, table[i].flags,
+            table[i].argcount,
+            table[i].num_posonly_args,
+            table[i].kwonlyargcount,
+            table[i].nlocals,
+            0,
+            table[i].flags,
             ${empty_bytes}, // code
             ${empty_tuple}, // consts
             ${empty_tuple}, // names (FIXME)
