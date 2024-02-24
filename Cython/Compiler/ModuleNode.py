@@ -520,7 +520,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             self.generate_import_star(env, code)
 
         # initialise the macro to reduce the code size of one-time functionality
-        code.putln(UtilityCode.load_as_string("SmallCodeConfig", "ModuleSetupCode.c")[0].strip())
+        globalstate['module_state'].putln(UtilityCode.load_as_string("SmallCodeConfig", "ModuleSetupCode.c")[0].strip())
 
         self.generate_module_state_start(env, globalstate['module_state'])
         self.generate_module_state_defines(env, globalstate['module_state_defines'])
@@ -2932,7 +2932,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
     def generate_module_state_clear(self, env, code):
         code.putln("#if CYTHON_USE_MODULE_STATE")
-        code.putln("static int %s_clear(PyObject *m) {" % Naming.module_cname)
+        code.putln("static CYTHON_SMALL_CODE int %s_clear(PyObject *m) {" % Naming.module_cname)
         code.putln("%s *clear_module_state = %s(m);" % (
             Naming.modulestate_cname,
             Naming.modulestate_cname))
@@ -2960,7 +2960,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
     def generate_module_state_traverse(self, env, code):
         code.putln("#if CYTHON_USE_MODULE_STATE")
-        code.putln("static int %s_traverse(PyObject *m, visitproc visit, void *arg) {" % Naming.module_cname)
+        code.putln("static CYTHON_SMALL_CODE int %s_traverse(PyObject *m, visitproc visit, void *arg) {" % Naming.module_cname)
         code.putln("%s *traverse_module_state = %s(m);" % (
             Naming.modulestate_cname,
             Naming.modulestate_cname))
