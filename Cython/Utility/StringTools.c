@@ -49,11 +49,11 @@ static CYTHON_INLINE size_t __Pyx_Py_UNICODE_strlen(const Py_UNICODE *u)
 
 //////////////////// InitStrings.proto ////////////////////
 
-static int __Pyx_InitStrings(__Pyx_StringTabEntry const *t, PyObject **target, const char** encoding_names); /*proto*/
+static int __Pyx_InitStrings(__Pyx_StringTabEntry const *t, PyObject **target, const char* const* encoding_names); /*proto*/
 
 //////////////////// InitStrings ////////////////////
 
-static int __Pyx_InitStrings(__Pyx_StringTabEntry const *t, PyObject **target, const char** encoding_names) {
+static int __Pyx_InitStrings(__Pyx_StringTabEntry const *t, PyObject **target, const char* const* encoding_names) {
     while (t->s) {
         PyObject *str;
         if (t->is_unicode | t->is_str) {

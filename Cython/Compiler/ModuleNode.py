@@ -933,7 +933,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
     def generate_filename_table(self, code):
         from os.path import isabs, basename
         code.putln("")
-        code.putln("static const char *%s[] = {" % Naming.filetable_cname)
+        code.putln("static const char* const %s[] = {" % Naming.filetable_cname)
         if code.globalstate.filename_list:
             for source_desc in code.globalstate.filename_list:
                 file_path = source_desc.get_filenametable_entry()
