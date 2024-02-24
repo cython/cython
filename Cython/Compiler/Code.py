@@ -1680,7 +1680,7 @@ class GlobalState:
         # global "#define"s pointing into the module state. When this is done the
         # references to constants in the code object table can be done using
         # offsetof, and it can be defined as a C constant global.
-        # For now it must be deined as a function local.
+        # For now it must be defined as a function local.
         self.parts['decls'].putln("static int __Pyx_CreateCodeTabAndInitCode(void); /* proto */")
 
         w = self.parts['pycodeobj_table']
@@ -1711,7 +1711,7 @@ class GlobalState:
         ))
 
         w.putln("__Pyx_CodeObjectTabEntry tab[] = {")
-        for const in self.codeobject_constants:
+        for n, const in enumerate(self.codeobject_constants):
             (pos,
              argcount,
              posonlycount,
@@ -1723,7 +1723,7 @@ class GlobalState:
              funcname) = const
             s = (f"{self.lookup_filename(pos[0])}, {argcount}, {posonlycount}, {kwonlycount}, "
                  f"{nlocals}, {flags}, {varnames}, {filename}, {funcname}, {pos[1]}")
-            w.putln("{%s}," % s)
+            w.putln("{%s}, /* %s[%d] */" % (s, Naming.codeobjtab_cname, n))
         w.putln("{0}")  # blank entry at end so we don't have to think about commas
         w.putln("};")
 
