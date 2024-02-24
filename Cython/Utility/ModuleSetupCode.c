@@ -1009,7 +1009,7 @@ static CYTHON_INLINE int __Pyx__IsSameCFunction(PyObject *func, void *cfunc) {
   #define __Pyx_PyThreadState_Current _PyThreadState_UncheckedGet()
 #endif
 
-#if CYTHON_COMPILING_IN_LIMITED_API
+#if CYTHON_USE_MODULE_STATE
 static CYTHON_INLINE void *__Pyx_PyModule_GetState(PyObject *op)
 {
     void *result;
@@ -1481,32 +1481,6 @@ static CYTHON_INLINE float __PYX_NAN() {
 #else
 #define __Pyx_truncl truncl
 #endif
-
-
-/////////////// UtilityFunctionPredeclarations.proto ///////////////
-
-typedef struct {const char *s; const Py_ssize_t n; const char* encoding;
-                const char is_unicode; const char is_str; const char intern; } __Pyx_StringTabEntry; /*proto*/
-
-typedef struct {
-  // To get tracebacks
-  int filename_idx;
-
-  //
-  int argcount;
-  int num_posonly_args; // posonlyargcount (Py3.8+ only)
-  int kwonlyargcount;
-  int nlocals;
-  int flags;
-  // PyObject* names // FIXME?
-  PyObject* varnames;
-  // PyObject* freevars; // FIXME?
-  // PyObject* cellvars; // FIXME
-  PyObject* filename;
-  PyObject* name;
-  int firstlineno;
-} __Pyx_CodeObjectTabEntry;
-
 
 /////////////// ForceInitThreads.proto ///////////////
 //@proto_block: utility_code_proto_before_types
@@ -2216,6 +2190,25 @@ static CYTHON_INLINE void __Pyx_pretend_to_initialize(void* ptr) { (void)ptr; }
 #endif
 
 //////////////////// InitCodeObjs.proto ////////////////////////
+
+typedef struct {
+  // To get tracebacks
+  int filename_idx;
+
+  //
+  int argcount;
+  int num_posonly_args; // posonlyargcount (Py3.8+ only)
+  int kwonlyargcount;
+  int nlocals;
+  int flags;
+  // PyObject* names // FIXME?
+  PyObject* varnames;
+  // PyObject* freevars; // FIXME?
+  // PyObject* cellvars; // FIXME
+  PyObject* filename;
+  PyObject* name;
+  int firstlineno;
+} __Pyx_CodeObjectTabEntry;
 
 static int __Pyx_InitCodeObjects(__Pyx_CodeObjectTabEntry *table, PyObject **targets, Py_ssize_t N); /* proto */
 

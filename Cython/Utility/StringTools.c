@@ -46,20 +46,21 @@ static CYTHON_INLINE size_t __Pyx_Py_UNICODE_strlen(const Py_UNICODE *u)
 #define __Pyx_PyUnicode_FromUnicode(u)       PyUnicode_FromUnicode(u, __Pyx_Py_UNICODE_strlen(u))
 #define __Pyx_PyUnicode_FromUnicodeAndLength PyUnicode_FromUnicode
 
+
 //////////////////// InitStrings.proto ////////////////////
 
-static int __Pyx_InitStrings(__Pyx_StringTabEntry const *t, PyObject **target); /*proto*/
+static int __Pyx_InitStrings(__Pyx_StringTabEntry const *t, PyObject **target, const char** encoding_names); /*proto*/
 
 //////////////////// InitStrings ////////////////////
 
-static int __Pyx_InitStrings(__Pyx_StringTabEntry const *t, PyObject **target) {
+static int __Pyx_InitStrings(__Pyx_StringTabEntry const *t, PyObject **target, const char** encoding_names) {
     while (t->s) {
         PyObject *str;
         if (t->is_unicode | t->is_str) {
             if (t->intern) {
                 str = PyUnicode_InternFromString(t->s);
             } else if (t->encoding) {
-                str = PyUnicode_Decode(t->s, t->n - 1, t->encoding, NULL);
+                str = PyUnicode_Decode(t->s, t->n - 1, encoding_names[t->encoding], NULL);
             } else {
                 str = PyUnicode_FromStringAndSize(t->s, t->n - 1);
             }
