@@ -70,7 +70,6 @@ interned_prefixes = {
     'int': pyrex_prefix + "int_",
     'float': pyrex_prefix + "float_",
     'tuple': pyrex_prefix + "tuple_",
-    'codeobj': pyrex_prefix + "codeobj_",
     'slice': pyrex_prefix + "slice_",
     'ustring': pyrex_prefix + "ustring_",
     'umethod': pyrex_prefix + "umethod_",
@@ -106,6 +105,7 @@ retval_cname     = pyrex_prefix + "r"
 reqd_kwds_cname  = pyrex_prefix + "reqd_kwds"
 self_cname       = pyrex_prefix + "self"
 stringtab_cname  = pyrex_prefix + "string_tab"
+codeobjtab_cname = pyrex_prefix + "codeobj_tab"
 vtabslot_cname   = pyrex_prefix + "vtab"
 c_api_tab_cname  = pyrex_prefix + "c_api_tab"
 gilstate_cname   = pyrex_prefix + "state"

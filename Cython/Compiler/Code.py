@@ -1156,6 +1156,7 @@ class GlobalState:
         'module_state_defines',  # redefines names used in module_state/_clear/_traverse
         'module_code',  # user code goes here
         'pystring_table',
+        'pycodeobj_table',
         'cached_builtins',
         'cached_constants',
         'init_constants',
@@ -1196,6 +1197,7 @@ class GlobalState:
         self.string_const_index = {}
         self.dedup_const_index = {}
         self.pyunicode_ptr_const_index = {}
+        self.codeobject_constants = []
         self.num_const_index = {}
         self.py_constants = []
         self.cached_cmethods = {}
@@ -1411,6 +1413,11 @@ class GlobalState:
             text.encoding, identifier, is_str, py3str_cstring)
         return py_string
 
+    def get_py_codeobj_const(self, *args):
+        idx = len(self.codeobject_constants)
+        self.codeobject_constants.append(args)
+        return f"{Naming.codeobjtab_cname}[{idx}]"
+
     def get_interned_identifier(self, text):
         return self.get_py_string_const(text, identifier=True)
 
@@ -1526,6 +1533,7 @@ class GlobalState:
         self.generate_string_constants()
         self.generate_num_constants()
         self.generate_object_constant_decls()
+        self.generate_codeobject_constants()
 
     def generate_object_constant_decls(self):
         consts = [(len(c.cname), c.cname, c)
@@ -1665,6 +1673,65 @@ class GlobalState:
                     Naming.modulestateglobal_cname,
                     Naming.stringtab_cname,
                     init_constants.error_goto(self.module_pos)))
+
+    def generate_codeobject_constants(self):
+        # TODO:
+        # There will be a significant optimization here once we've got rid of the
+        # global "#define"s pointing into the module state. When this is done the
+        # references to constants in the code object table can be done using
+        # offsetof, and it can be defined as a C constant global.
+        # For now it must be deined as a function local.
+        self.parts['decls'].putln("static int __Pyx_CreateCodeTabAndInitCode(void); /* proto */")
+
+        w = self.parts['pycodeobj_table']
+        w.putln("static int __Pyx_CreateCodeTabAndInitCode(void) {")
+
+        if not self.codeobject_constants:
+            w.putln("}")
+            return
+
+        self.use_utility_code(UtilityCode.load_cached("InitCodeObjs", "ModuleSetupCode.c"))
+
+        self.parts['module_state'].putln("PyObject *%s[%s];" % (
+                Naming.codeobjtab_cname, len(self.codeobject_constants)))
+
+        self.parts['module_state_clear'].putln("for (int n=0; n<%s; ++n) {" %
+                                               len(self.codeobject_constants))
+        self.parts['module_state_clear'].putln("Py_CLEAR(clear_module_state->%s[n]);" %
+            Naming.codeobjtab_cname)
+        self.parts['module_state_clear'].putln("}")
+        self.parts['module_state_traverse'].putln("for (int n=0; n<%s; ++n) {" %
+                                                  len(self.codeobject_constants))
+        self.parts['module_state_traverse'].putln("Py_VISIT(traverse_module_state->%s[n]);" %
+            Naming.codeobjtab_cname)
+        self.parts['module_state_traverse'].putln("}")
+
+        self.parts['module_state_defines'].putln("#define %s %s->%s" % (
+            Naming.codeobjtab_cname, Naming.modulestateglobal_cname, Naming.codeobjtab_cname
+        ))
+
+        w.putln("__Pyx_CodeObjectTabEntry tab[] = {")
+        for const in self.codeobject_constants:
+            (pos,
+             argcount,
+             posonlycount,
+             kwonlycount,
+             nlocals,
+             flags,
+             varnames,
+             filename,
+             funcname) = const
+            s = (f"{self.lookup_filename(pos[0])}, {argcount}, {posonlycount}, {kwonlycount}, "
+                 f"{nlocals}, {flags}, {varnames}, {filename}, {funcname}, {pos[1]}")
+            w.putln("{%s}," % s)
+        w.putln("{0}")  # blank entry at end so we don't have to think about commas
+        w.putln("};")
+
+        w.putln("return __Pyx_InitCodeObjects(tab, %s, %d);" % (
+            Naming.codeobjtab_cname,
+            len(self.codeobject_constants)
+        ))
+        w.putln("}")
 
     def generate_num_constants(self):
         consts = [(c.py_type, c.value[0] == '-', len(c.value), c.value, c.value_code, c)
@@ -1989,6 +2056,10 @@ class CCodeWriter:
                             is_str=False, unicode_value=None):
         return self.globalstate.get_py_string_const(
             text, identifier, is_str, unicode_value).cname
+
+    def get_py_codeobj_const(self, *args):
+        # code objects
+        return self.globalstate.get_py_codeobj_const(*args)
 
     def get_argument_default_const(self, type):
         return self.globalstate.get_py_const(type).cname

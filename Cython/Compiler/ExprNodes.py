@@ -10152,19 +10152,10 @@ class CodeObjectNode(ExprNode):
     def may_be_none(self):
         return False
 
-    def calculate_result_code(self, code=None):
-        if self.result_code is None:
-            self.result_code = code.get_py_const(py_object_type, 'codeobj', cleanup_level=2)
+    def calculate_result_code(self):
         return self.result_code
 
     def generate_result_code(self, code):
-        if self.result_code is None:
-            self.result_code = code.get_py_const(py_object_type, 'codeobj', cleanup_level=2)
-
-        code = code.get_cached_constants_writer(self.result_code)
-        if code is None:
-            return  # already initialised
-        code.mark_pos(self.pos)
         func = self.def_node
         func_name = code.get_py_string_const(
             func.name, identifier=True, is_str=False, unicode_value=func.name)
@@ -10186,25 +10177,18 @@ class CodeObjectNode(ExprNode):
         elif self.def_node.is_generator:
             flags.append('CO_GENERATOR')
 
-        code.putln("%s = (PyObject*)__Pyx_PyCode_New(%d, %d, %d, %d, 0, %s, %s, %s, %s, %s, %s, %s, %s, %s, %d, %s); %s" % (
-            self.result_code,
+        self.result_code = code.get_py_codeobj_const(
+            self.pos,
             len(func.args) - func.num_kwonly_args,  # argcount
             func.num_posonly_args,     # posonlyargcount (Py3.8+ only)
             func.num_kwonly_args,      # kwonlyargcount (Py3 only)
             len(self.varnames.args),   # nlocals
             '|'.join(flags) or '0',    # flags
-            Naming.empty_bytes,        # code
-            Naming.empty_tuple,        # consts
-            Naming.empty_tuple,        # names (FIXME)
             self.varnames.result(),    # varnames
-            Naming.empty_tuple,        # freevars (FIXME)
-            Naming.empty_tuple,        # cellvars (FIXME)
             file_path_const,           # filename
             func_name,                 # name
-            self.pos[1],               # firstlineno
-            Naming.empty_bytes,        # lnotab
-            code.error_goto_if_null(self.result_code, self.pos),
-            ))
+        )
+        return self.result_code
 
 
 class DefaultLiteralArgNode(ExprNode):
