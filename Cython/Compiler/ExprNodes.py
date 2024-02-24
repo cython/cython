@@ -8086,7 +8086,8 @@ class SequenceNode(ExprNode):
                 mult_factor = mult_factor.coerce_to_pyobject(env)
             self.mult_factor = mult_factor.coerce_to_simple(env)
         self.is_temp = 1
-        if env.is_module_scope:
+        if (env.is_module_scope or env.is_c_class_scope or
+                (env.is_py_class_scope and env.outer_scope.is_module_scope)):
             # TODO - potentially behave differently in loops?
             self.slow = True
         # not setting self.type here, subtypes do this
@@ -8267,7 +8268,9 @@ class SequenceNode(ExprNode):
     def generate_subexpr_disposal_code(self, code):
         if self.mult_factor and self.mult_factor.type.is_int:
             super().generate_subexpr_disposal_code(code)
-        elif self.type is tuple_type and (self.is_literal or self.slow):
+        elif ((self.type is tuple_type or self.type is list_type) and
+                (self.is_literal or self.slow) and
+                len(self.args) > 0):
             super().generate_subexpr_disposal_code(code)
         else:
             # We call generate_post_assignment_code here instead
