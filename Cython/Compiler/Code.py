@@ -1612,6 +1612,15 @@ class GlobalState:
         c_consts = [(len(c.cname), c.cname, c) for c in self.string_const_index.values()]
         c_consts.sort()
         py_strings = []
+        longest_pystring = 0
+        encodings = set()
+
+        def normalise_encoding_name(py_string):
+            if py_string.is_str and py_string.encoding and py_string.encoding not in (
+                    'ASCII', 'USASCII', 'US-ASCII', 'UTF8', 'UTF-8'):
+                return '"%s"' % py_string.encoding.lower()
+            else:
+                return '0'
 
         decls_writer = self.parts['string_decls']
         for _, cname, c in c_consts:
@@ -1626,7 +1635,12 @@ class GlobalState:
             if conditional:
                 decls_writer.putln("#endif")
             if c.py_strings is not None:
+                if len(c.escaped_value) > longest_pystring:
+                    # This is not an accurate count since it adds up C escape characters,
+                    # but it's probably good enough for an upper bound.
+                    longest_pystring = len(c.escaped_value)
                 for py_string in c.py_strings.values():
+                    encodings.add(normalise_encoding_name(py_string))
                     py_strings.append((c.cname, len(py_string.cname), py_string))
 
         for c, cname in sorted(self.pyunicode_ptr_const_index.items()):
@@ -1640,70 +1654,104 @@ class GlobalState:
                 decls_writer.putln("static Py_UNICODE %s[] = { %s };" % (cname, utf16_array))
                 decls_writer.putln("#endif")
 
+        if not py_strings:
+            return
+
+        py_strings.sort()
+
+        # We use only type size macros from "pyport.h" here.
+        self.parts['utility_code_proto'].put(textwrap.dedent("""\
+        typedef struct {const char *s;
+        #if %(max_length)d <= 65535
+            const unsigned short n;
+        #elif %(max_length)d / 2 < INT_MAX
+            const unsigned int n;
+        #elif %(max_length)d / 2 < LONG_MAX
+            const unsigned long n;
+        #else
+            const Py_ssize_t n;
+        #endif
+        #if %(num_encodings)d <= 31
+            const unsigned char encoding : 5;
+        #elif %(num_encodings)d <= 255
+            const unsigned char encoding;
+        #elif %(num_encodings)d <= 65535
+            const unsigned short encoding;
+        #else
+            const Py_ssize_t encoding;
+        #endif
+            const unsigned char is_unicode : 1;
+            const unsigned char is_str : 1;
+            const unsigned char intern : 1;
+        } __Pyx_StringTabEntry; /*proto*/
+        """ % dict(
+            max_length=longest_pystring,
+            num_encodings=len(encodings),
+        )))
+
+        self.use_utility_code(UtilityCode.load_cached("InitStrings", "StringTools.c"))
+        w = self.parts['pystring_table']
+        w.putln("")
+
+        self.parts['module_state'].putln("PyObject *%s[%s];" % (
+            Naming.stringtab_cname, len(py_strings)))
+
+        self.parts['module_state_clear'].putln("for (int n=0; n<%s; ++n) {" % len(py_strings))
+        self.parts['module_state_clear'].putln("Py_CLEAR(clear_module_state->%s[n]);" %
+            Naming.stringtab_cname)
+        self.parts['module_state_clear'].putln("}")
+        self.parts['module_state_traverse'].putln("for (int n=0; n<%s; ++n) {" % len(py_strings))
+        self.parts['module_state_traverse'].putln("Py_VISIT(traverse_module_state->%s[n]);" %
+            Naming.stringtab_cname)
+        self.parts['module_state_traverse'].putln("}")
+
+        encodings = sorted(encodings)
+        encodings.sort(key=len)  # stable sort to make sure '0' comes first, index 0
+        assert not encodings or '0' not in encodings or encodings[0] == '0', encodings
+        encodings_map = {encoding: i for i, encoding in enumerate(encodings)}
+        w.putln("static const char* %s[] = { %s };" % (
+            Naming.stringtab_encodings_cname,
+            ', '.join(encodings),
+        ))
+
+        w.putln("static const __Pyx_StringTabEntry %s[] = {" % Naming.stringtab_cname)
+        for n, (c_cname, _, py_string) in enumerate(py_strings):
+            # TODO: 'py_string.py3str_cstring' can probably be removed
+            if py_string.py3str_cstring:
+                c_cname = py_string.py3str_cstring.cname
+                encodings_index = 0
+                is_unicode = 1
+                is_str = 0
+            else:
+                encodings_index = encodings_map[normalise_encoding_name(py_string)]
+                is_unicode = py_string.is_unicode
+                is_str = py_string.is_str
+
+            self.parts['string_constant_name_defines'].putln("#define %s %s[%s]" % (
+                py_string.cname,
+                Naming.stringtab_cname,
+                n))
+
+            w.putln("{%s, sizeof(%s), %d, %d, %d, %d}, /* PyObject cname: %s */" % (
+                c_cname,
+                c_cname,
+                encodings_index,
+                is_unicode,
+                is_str,
+                py_string.intern,
+                py_string.cname
+                ))
+        w.putln("{0, 0, 0, 0, 0, 0}")
+        w.putln("};")
+
         init_constants = self.parts['init_constants']
-        if py_strings:
-            self.use_utility_code(UtilityCode.load_cached("InitStrings", "StringTools.c"))
-            py_strings.sort()
-            w = self.parts['pystring_table']
-            w.putln("")
-
-            self.parts['module_state'].putln("PyObject *%s[%s];" % (
-                Naming.stringtab_cname, len(py_strings)))
-
-            self.parts['module_state_clear'].putln("for (int n=0; n<%s; ++n) {" % len(py_strings))
-            self.parts['module_state_clear'].putln("Py_CLEAR(clear_module_state->%s[n]);" %
-                Naming.stringtab_cname)
-            self.parts['module_state_clear'].putln("}")
-            self.parts['module_state_traverse'].putln("for (int n=0; n<%s; ++n) {" % len(py_strings))
-            self.parts['module_state_traverse'].putln("Py_VISIT(traverse_module_state->%s[n]);" %
-                Naming.stringtab_cname)
-            self.parts['module_state_traverse'].putln("}")
-
-            w.putln("static const __Pyx_StringTabEntry %s[] = {" % Naming.stringtab_cname)
-            for n, py_string_args in enumerate(py_strings):
-                c_cname, _, py_string = py_string_args
-                if not py_string.is_str or not py_string.encoding or \
-                        py_string.encoding in ('ASCII', 'USASCII', 'US-ASCII',
-                                               'UTF8', 'UTF-8'):
-                    encoding = '0'
-                else:
-                    encoding = '"%s"' % py_string.encoding.lower()
-
-                # map a useful name to the array lookup
-                self.parts['string_constant_name_defines'].putln("#define %s %s[%s]" % (
-                    py_string.cname,
-                    Naming.stringtab_cname,
-                    n))
-                if py_string.py3str_cstring:
-                    w.putln("#if PY_MAJOR_VERSION >= 3")
-                    w.putln("{%s, sizeof(%s), %s, %d, %d, %d}, /* PyObject cname: %s */" % (
-                        py_string.py3str_cstring.cname,
-                        py_string.py3str_cstring.cname,
-                        '0', 1, 0,
-                        py_string.intern,
-                        py_string.cname
-                        ))
-                    w.putln("#else")
-                w.putln("{%s, sizeof(%s), %s, %d, %d, %d}, /* PyObject cname: %s */" % (
-                    c_cname,
-                    c_cname,
-                    encoding,
-                    py_string.is_unicode,
-                    py_string.is_str,
-                    py_string.intern,
-                    py_string.cname
-                    ))
-                if py_string.py3str_cstring:
-                    w.putln("#endif")
-            w.putln("{0, 0, 0, 0, 0, 0}")
-            w.putln("};")
-
-            init_constants.putln(
-                "if (__Pyx_InitStrings(%s, %s->%s) < 0) %s;" % (
-                    Naming.stringtab_cname,
-                    Naming.modulestatevalue_cname,
-                    Naming.stringtab_cname,
-                    init_constants.error_goto(self.module_pos)))
+        init_constants.putln(
+            "if (__Pyx_InitStrings(%s, %s->%s, %s) < 0) %s;" % (
+                Naming.stringtab_cname,
+                Naming.modulestatevalue_cname,
+                Naming.stringtab_cname,
+                Naming.stringtab_encodings_cname,
+                init_constants.error_goto(self.module_pos)))
 
     def generate_num_constants(self):
         consts = [(c.py_type, c.value[0] == '-', len(c.value), c.value, c.value_code, c)

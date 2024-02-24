@@ -1009,7 +1009,7 @@ static CYTHON_INLINE int __Pyx__IsSameCFunction(PyObject *func, void *cfunc) {
   #define __Pyx_PyThreadState_Current _PyThreadState_UncheckedGet()
 #endif
 
-#if CYTHON_COMPILING_IN_LIMITED_API
+#if CYTHON_USE_MODULE_STATE
 static CYTHON_INLINE void *__Pyx_PyModule_GetState(PyObject *op)
 {
     void *result;
@@ -1481,12 +1481,6 @@ static CYTHON_INLINE float __PYX_NAN() {
 #else
 #define __Pyx_truncl truncl
 #endif
-
-
-/////////////// UtilityFunctionPredeclarations.proto ///////////////
-
-typedef struct {const char *s; const Py_ssize_t n; const char* encoding;
-                const char is_unicode; const char is_str; const char intern; } __Pyx_StringTabEntry; /*proto*/
 
 
 /////////////// ForceInitThreads.proto ///////////////
