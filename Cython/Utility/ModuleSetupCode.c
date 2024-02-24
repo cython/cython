@@ -1089,17 +1089,6 @@ static CYTHON_INLINE PyObject * __Pyx_PyDict_GetItemStrWithError(PyObject *dict,
   #define __Pyx_PyObject_GetIterNextFunc(obj)  PyIter_Next
 #endif
 
-#if CYTHON_COMPILING_IN_LIMITED_API
-  // Using PyObject_GenericSetAttr to bypass types immutability protection feels
-  // a little hacky, but it does work in the limited API .
-  // (It doesn't work on PyPy but that probably isn't a bug.)
-  #define __Pyx_SetItemOnTypeDict(tp, k, v) PyObject_GenericSetAttr((PyObject*)tp, k, v)
-  #define __Pyx_DelItemOnTypeDict(tp, k) PyObject_GenericSetAttr((PyObject*)tp, k, NULL)
-#else
-  #define __Pyx_SetItemOnTypeDict(tp, k, v) PyDict_SetItem(((PyTypeObject*)(tp))->tp_dict, k, v)
-  #define __Pyx_DelItemOnTypeDict(tp, k) PyDict_DelItem(((PyTypeObject*)(tp))->tp_dict, k)
-#endif
-
 #if CYTHON_USE_TYPE_SPECS && PY_VERSION_HEX >= 0x03080000
 // In Py3.8+, instances of heap types need to decref their type on deallocation.
 // https://bugs.python.org/issue35810
