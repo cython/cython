@@ -13,6 +13,7 @@
 static CYTHON_INLINE Py_ssize_t __Pyx_Py_UNICODE_ssize_strlen(const Py_UNICODE *u);/*proto*/
 
 //////////////////// ssize_pyunicode_strlen ////////////////////
+//@requires: pyunicode_strlen
 
 static CYTHON_INLINE Py_ssize_t __Pyx_Py_UNICODE_ssize_strlen(const Py_UNICODE *u) {
     size_t len = __Pyx_Py_UNICODE_strlen(u);
@@ -23,15 +24,36 @@ static CYTHON_INLINE Py_ssize_t __Pyx_Py_UNICODE_ssize_strlen(const Py_UNICODE *
     return (Py_ssize_t) len;
 }
 
+//////////////////// pyunicode_strlen.proto ///////////////
+
+// There used to be a Py_UNICODE_strlen() in CPython 3.x, but it is deprecated since Py3.3.
+static CYTHON_INLINE size_t __Pyx_Py_UNICODE_strlen(const Py_UNICODE *u); /* proto */
+
+//////////////////// pyunicode_strlen /////////////////////
+
+// Note: will not work in the limited API since Py_UNICODE is not available there.
+// May stop working at some point after Python 3.13 (deprecated)
+static CYTHON_INLINE size_t __Pyx_Py_UNICODE_strlen(const Py_UNICODE *u)
+{
+    const Py_UNICODE *u_end = u;
+    while (*u_end++) ;
+    return (size_t)(u_end - u - 1);
+}
+
+//////////////////// pyunicode_from_unicode.proto //////////////////////
+//@requires: pyunicode_strlen
+
+#define __Pyx_PyUnicode_FromUnicode(u)       PyUnicode_FromUnicode(u, __Pyx_Py_UNICODE_strlen(u))
+#define __Pyx_PyUnicode_FromUnicodeAndLength PyUnicode_FromUnicode
 
 //////////////////// InitStrings.proto ////////////////////
 
-static int __Pyx_InitStrings(__Pyx_StringTabEntry *t); /*proto*/
+static int __Pyx_InitStrings(__Pyx_StringTabEntry const *t, PyObject **target); /*proto*/
 
 //////////////////// InitStrings ////////////////////
 
-static int __Pyx_InitStrings(__Pyx_StringTabEntry *t) {
-    while (t->p) {
+static int __Pyx_InitStrings(__Pyx_StringTabEntry const *t, PyObject **target) {
+    while (t->s) {
         PyObject *str;
         if (t->is_unicode | t->is_str) {
             if (t->intern) {
@@ -46,11 +68,12 @@ static int __Pyx_InitStrings(__Pyx_StringTabEntry *t) {
         }
         if (!str)
             return -1;
-        *t->p = str;
+        *target = str;
         // initialise cached hash value
         if (PyObject_Hash(str) == -1)
             return -1;
         ++t;
+        ++target;
     }
     return 0;
 }
@@ -75,75 +98,13 @@ static CYTHON_INLINE int __Pyx_UnicodeContainsUCS4(PyObject* unicode, Py_UCS4 ch
 
 //////////////////// PyUCS4InUnicode ////////////////////
 
-#if PY_VERSION_HEX < 0x03090000 || (defined(PyUnicode_WCHAR_KIND) && defined(PyUnicode_AS_UNICODE))
-
-#if PY_VERSION_HEX < 0x03090000
-#define __Pyx_PyUnicode_AS_UNICODE(op) PyUnicode_AS_UNICODE(op)
-#define __Pyx_PyUnicode_GET_SIZE(op) PyUnicode_GET_SIZE(op)
-#else
-// Avoid calling deprecated C-API functions in Py3.9+ that PEP-623 schedules for removal in Py3.12.
-// https://www.python.org/dev/peps/pep-0623/
-#define __Pyx_PyUnicode_AS_UNICODE(op) (((PyASCIIObject *)(op))->wstr)
-#define __Pyx_PyUnicode_GET_SIZE(op) ((PyCompactUnicodeObject *)(op))->wstr_length
-#endif
-
-#if !defined(Py_UNICODE_SIZE) || Py_UNICODE_SIZE == 2
-static int __Pyx_PyUnicodeBufferContainsUCS4_SP(Py_UNICODE* buffer, Py_ssize_t length, Py_UCS4 character) {
-    /* handle surrogate pairs for Py_UNICODE buffers in 16bit Unicode builds */
-    Py_UNICODE high_val, low_val;
-    Py_UNICODE* pos;
-    high_val = (Py_UNICODE) (0xD800 | (((character - 0x10000) >> 10) & ((1<<10)-1)));
-    low_val  = (Py_UNICODE) (0xDC00 | ( (character - 0x10000)        & ((1<<10)-1)));
-    for (pos=buffer; pos < buffer+length-1; pos++) {
-        if (unlikely((high_val == pos[0]) & (low_val == pos[1]))) return 1;
-    }
-    return 0;
-}
-#endif
-
-static int __Pyx_PyUnicodeBufferContainsUCS4_BMP(Py_UNICODE* buffer, Py_ssize_t length, Py_UCS4 character) {
-    Py_UNICODE uchar;
-    Py_UNICODE* pos;
-    uchar = (Py_UNICODE) character;
-    for (pos=buffer; pos < buffer+length; pos++) {
-        if (unlikely(uchar == pos[0])) return 1;
-    }
-    return 0;
-}
-#endif
-
 static CYTHON_INLINE int __Pyx_UnicodeContainsUCS4(PyObject* unicode, Py_UCS4 character) {
-    const int kind = PyUnicode_KIND(unicode);
-    #ifdef PyUnicode_WCHAR_KIND
-    if (likely(kind != PyUnicode_WCHAR_KIND))
-    #endif
-    {
-        Py_ssize_t i;
-        const void* udata = PyUnicode_DATA(unicode);
-        const Py_ssize_t length = PyUnicode_GET_LENGTH(unicode);
-        for (i=0; i < length; i++) {
-            if (unlikely(character == PyUnicode_READ(kind, udata, i))) return 1;
-        }
-        return 0;
-    }
-
-#if PY_VERSION_HEX < 0x03090000 || (defined(PyUnicode_WCHAR_KIND) && defined(PyUnicode_AS_UNICODE))
-#if !defined(Py_UNICODE_SIZE) || Py_UNICODE_SIZE == 2
-    if ((sizeof(Py_UNICODE) == 2) && unlikely(character > 65535)) {
-        return __Pyx_PyUnicodeBufferContainsUCS4_SP(
-            __Pyx_PyUnicode_AS_UNICODE(unicode),
-            __Pyx_PyUnicode_GET_SIZE(unicode),
-            character);
-    } else
-#endif
-    {
-        return __Pyx_PyUnicodeBufferContainsUCS4_BMP(
-            __Pyx_PyUnicode_AS_UNICODE(unicode),
-            __Pyx_PyUnicode_GET_SIZE(unicode),
-            character);
-
-    }
-#endif
+    // Note that from Python 3.7, the indices of FindChar are adjusted to match the bounds
+    // so need to check the length
+    Py_ssize_t idx = PyUnicode_FindChar(unicode, character, 0, PY_SSIZE_T_MAX, 1);
+    if (unlikely(idx == -2)) return -1;
+    // >= 0: found the index, == -1: not found
+    return idx >= 0;
 }
 
 
@@ -193,13 +154,22 @@ static CYTHON_INLINE int __Pyx_PyUnicode_Equals(PyObject* s1, PyObject* s2, int 
     s1_is_unicode = PyUnicode_CheckExact(s1);
     s2_is_unicode = PyUnicode_CheckExact(s2);
     if (s1_is_unicode & s2_is_unicode) {
-        Py_ssize_t length;
+        Py_ssize_t length, length2;
         int kind;
         void *data1, *data2;
+        #if !CYTHON_COMPILING_IN_LIMITED_API
         if (unlikely(__Pyx_PyUnicode_READY(s1) < 0) || unlikely(__Pyx_PyUnicode_READY(s2) < 0))
             return -1;
+        #endif
         length = __Pyx_PyUnicode_GET_LENGTH(s1);
-        if (length != __Pyx_PyUnicode_GET_LENGTH(s2)) {
+        #if !CYTHON_ASSUME_SAFE_SIZE
+        if (unlikely(length < 0)) return -1;
+        #endif
+        length2 = __Pyx_PyUnicode_GET_LENGTH(s2);
+        #if !CYTHON_ASSUME_SAFE_SIZE
+        if (unlikely(length2 < 0)) return -1;
+        #endif
+        if (length != length2) {
             goto return_ne;
         }
 #if CYTHON_USE_UNICODE_INTERNALS
@@ -321,7 +291,7 @@ static CYTHON_INLINE int __Pyx_GetItemInt_ByteArray_Fast(PyObject* string, Py_ss
     if (wraparound | boundscheck) {
         length = __Pyx_PyByteArray_GET_SIZE(string);
         #if !CYTHON_ASSUME_SAFE_SIZE
-        if (unlikely(length == -1)) return -1;
+        if (unlikely(length < 0)) return -1;
         #endif
         if (wraparound & unlikely(i < 0)) i += length;
         if ((!boundscheck) || likely(__Pyx_is_valid_index(i, length))) {
@@ -354,7 +324,7 @@ static CYTHON_INLINE int __Pyx_SetItemInt_ByteArray_Fast(PyObject* string, Py_ss
     if (wraparound | boundscheck) {
         length = __Pyx_PyByteArray_GET_SIZE(string);
         #if !CYTHON_ASSUME_SAFE_SIZE
-        if (unlikely(length == -1)) return -1;
+        if (unlikely(length < 0)) return -1;
         #endif
         if (wraparound & unlikely(i < 0)) i += length;
         if ((!boundscheck) || likely(__Pyx_is_valid_index(i, length))) {
@@ -390,7 +360,7 @@ static CYTHON_INLINE Py_UCS4 __Pyx_GetItemInt_Unicode_Fast(PyObject* ustring, Py
     if (wraparound | boundscheck) {
         length = __Pyx_PyUnicode_GET_LENGTH(ustring);
         #if !CYTHON_ASSUME_SAFE_SIZE
-        if (unlikely(length == -1)) return (Py_UCS4)-1;
+        if (unlikely(length < 0)) return (Py_UCS4)-1;
         #endif
         if (wraparound & unlikely(i < 0)) i += length;
         if ((!boundscheck) || likely(__Pyx_is_valid_index(i, length))) {
@@ -568,8 +538,13 @@ static CYTHON_INLINE PyObject* __Pyx_PyUnicode_Substring(
 static CYTHON_INLINE PyObject* __Pyx_PyUnicode_Substring(
             PyObject* text, Py_ssize_t start, Py_ssize_t stop) {
     Py_ssize_t length;
+    #if !CYTHON_COMPILING_IN_LIMITED_API
     if (unlikely(__Pyx_PyUnicode_READY(text) == -1)) return NULL;
+    #endif
     length = __Pyx_PyUnicode_GET_LENGTH(text);
+    #if !CYTHON_ASSUME_SAFE_SIZE
+    if (unlikely(length < 0)) return NULL;
+    #endif
     if (start < 0) {
         start += length;
         if (start < 0)
@@ -583,8 +558,13 @@ static CYTHON_INLINE PyObject* __Pyx_PyUnicode_Substring(
         return __Pyx_NewRef(CGLOBAL($empty_unicode));
     if (start == 0 && stop == length)
         return __Pyx_NewRef(text);
+#if CYTHON_COMPILING_IN_LIMITED_API
+    // PyUnicode_Substring() does not support negative indexing but is otherwise fine to use.
+    return PyUnicode_Substring(text, start, stop);
+#else
     return PyUnicode_FromKindAndData(PyUnicode_KIND(text),
         PyUnicode_1BYTE_DATA(text) + start*PyUnicode_KIND(text), stop-start);
+#endif
 }
 
 
@@ -644,7 +624,7 @@ static int __Pyx_PyUnicode_TailmatchTuple(PyObject* s, PyObject* substrings,
                                           Py_ssize_t start, Py_ssize_t end, int direction) {
     Py_ssize_t i, count = __Pyx_PyTuple_GET_SIZE(substrings);
     #if !CYTHON_ASSUME_SAFE_SIZE
-    if (unlikely(count == -1)) return -1;
+    if (unlikely(count < 0)) return -1;
     #endif
     for (i = 0; i < count; i++) {
         Py_ssize_t result;
@@ -694,14 +674,14 @@ static int __Pyx_PyBytes_SingleTailmatch(PyObject* self, PyObject* arg,
     view.obj = NULL;
 
     #if !CYTHON_ASSUME_SAFE_SIZE
-    if (unlikely(self_len == -1)) return -1;
+    if (unlikely(self_len < 0)) return -1;
     #endif
 
     if (PyBytes_Check(arg)) {
         sub_ptr = PyBytes_AS_STRING(arg);
         sub_len = PyBytes_GET_SIZE(arg);
         #if !CYTHON_ASSUME_SAFE_SIZE
-        if (unlikely(sub_len == -1)) return -1;
+        if (unlikely(sub_len < 0)) return -1;
         #endif
     } else {
         if (unlikely(PyObject_GetBuffer(self, &view, PyBUF_SIMPLE) == -1))
@@ -742,7 +722,7 @@ static int __Pyx_PyBytes_TailmatchTuple(PyObject* self, PyObject* substrings,
                                         Py_ssize_t start, Py_ssize_t end, int direction) {
     Py_ssize_t i, count = PyTuple_GET_SIZE(substrings);
     #if !CYTHON_ASSUME_SAFE_SIZE
-    if (unlikely(count == -1)) return -1;
+    if (unlikely(count < 0)) return -1;
     #endif
     for (i = 0; i < count; i++) {
         int result;
@@ -802,14 +782,14 @@ static CYTHON_INLINE char __Pyx_PyBytes_GetItemInt(PyObject* bytes, Py_ssize_t i
     if (index < 0) {
         Py_ssize_t size = __Pyx_PyBytes_GET_SIZE(bytes);
         #if !CYTHON_ASSUME_SAFE_SIZE
-        if (unlikely(size == -1)) return (char) -1;
+        if (unlikely(size < 0)) return (char) -1;
         #endif
         index += size;
     }
     if (check_bounds) {
         Py_ssize_t size = __Pyx_PyBytes_GET_SIZE(bytes);
         #if !CYTHON_ASSUME_SAFE_SIZE
-        if (unlikely(size == -1)) return (char) -1;
+        if (unlikely(size < 0)) return (char) -1;
         #endif
         if (unlikely(!__Pyx_is_valid_index(index, size))) {
             PyErr_SetString(PyExc_IndexError, "string index out of range");
@@ -874,9 +854,14 @@ static PyObject* __Pyx_PyUnicode_Join(PyObject** values, Py_ssize_t value_count,
         Py_ssize_t ulength;
         void *udata;
         PyObject *uval = values[i];
+        #if !CYTHON_COMPILING_IN_LIMITED_API
         if (unlikely(__Pyx_PyUnicode_READY(uval)))
             goto bad;
+        #endif
         ulength = __Pyx_PyUnicode_GET_LENGTH(uval);
+        #if !CYTHON_ASSUME_SAFE_SIZE
+        if (unlikely(ulength < 0)) goto bad;
+        #endif
         if (unlikely(!ulength))
             continue;
         if (unlikely((PY_SSIZE_T_MAX >> kind_shift) - ulength < char_pos))
@@ -1199,3 +1184,4 @@ static CYTHON_INLINE PyObject* __Pyx_PyStr_Str(PyObject *obj) {
 
 #define __Pyx_PyObject_Str(obj) \
     (likely(PyString_CheckExact(obj)) ? __Pyx_NewRef(obj) : PyObject_Str(obj))
+

@@ -223,7 +223,7 @@ Depending on the application, one way or the other may be better:
 
   These constants can be cimported from the ``cpython.object`` module.
 
-* If you use the `functools.total_ordering<https://docs.python.org/3/library/functools.html#functools.total_ordering>`_
+* If you use the `functools.total_ordering <https://docs.python.org/3/library/functools.html#functools.total_ordering>`_
   decorator on an extension type/``cdef`` class, Cython replaces it with a low-level reimplementation
   designed specifically for extension types.  (On a normal Python classes, the ``functools`` 
   decorator continues to work as before.)  As a shortcut you can also use ``cython.total_ordering``, which

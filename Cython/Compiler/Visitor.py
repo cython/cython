@@ -575,15 +575,8 @@ class MethodDispatcherTransform(EnvTransform):
     ### dispatch to specific handlers
 
     def _find_handler(self, match_name, has_kwargs):
-        try:
-            match_name.encode('ascii')
-        except UnicodeEncodeError:
-            # specifically when running the Cython compiler under Python 2
-            #  getattr can't take a unicode string.
-            #  Classes with unicode names won't have specific handlers and thus it
-            #  should be OK to return None.
-            # Doing the test here ensures that the same code gets run on
-            # Python 2 and 3
+        if not match_name.isascii():
+            # Classes with unicode names won't have specific handlers.
             return None
 
         call_type = 'general' if has_kwargs else 'simple'

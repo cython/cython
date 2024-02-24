@@ -39,21 +39,21 @@ static PyObject* __Pyx_LoadInternalModule(const char* name, const char* fallback
     if (!module) {
         PyObject *localDict, *runValue, *builtins, *modulename;
         if (!PyErr_ExceptionMatches(PyExc_ImportError)) goto bad;
-        PyErr_Clear();  // this is reasonably likely (especially on older versions of Python)
+        PyErr_Clear();  /* this is reasonably likely (especially on older versions of Python) */
         modulename = PyUnicode_FromFormat("_cython_" CYTHON_ABI ".%s", name);
         if (!modulename) goto bad;
 #if CYTHON_COMPILING_IN_CPYTHON
-        module = PyImport_AddModuleObject(modulename); // borrowed
+        module = PyImport_AddModuleObject(modulename);  /* borrowed */
 #else
-        module = PyImport_AddModule(PyBytes_AsString(modulename)); // borrowed
+        module = PyImport_AddModule(PyBytes_AsString(modulename));  /* borrowed */
 #endif
         Py_DECREF(modulename);
         if (!module) goto bad;
         Py_INCREF(module);
         if (PyObject_SetAttrString(shared_abi_module, name, module) < 0) goto bad;
-        localDict = PyModule_GetDict(module); // borrowed
+        localDict = PyModule_GetDict(module);  /* borrowed */
         if (!localDict) goto bad;
-        builtins = PyEval_GetBuiltins(); // borrowed
+        builtins = PyEval_GetBuiltins();  /* borrowed */
         if (!builtins) goto bad;
         if (PyDict_SetItemString(localDict, "__builtins__", builtins) <0) goto bad;
 
@@ -98,7 +98,7 @@ static PyObject* __Pyx_DataclassesCallHelper(PyObject *callable, PyObject *kwds)
 static int __Pyx_DataclassesCallHelper_FilterToDict(PyObject *callable, PyObject *kwds, PyObject *new_kwds, PyObject *args_list, int is_kwonly) {
     Py_ssize_t size, i;
     size = PySequence_Size(args_list);
-    if (size == -1) return -1;
+    if (unlikely(size < 0)) return -1;
 
     for (i=0; i<size; ++i) {
         PyObject *key, *value;

@@ -16,6 +16,7 @@ cdef class PostParse(ScopeTrackingTransform):
     cdef dict specialattribute_handlers
     cdef size_t lambda_counter
     cdef size_t genexpr_counter
+    cdef bint in_pattern_node
     cdef _visit_assignment_node(self, node, list expr_list)
 
 
@@ -52,10 +53,12 @@ cdef class YieldNodeCollector(TreeVisitor):
     cdef public bint has_return_value
     cdef public bint has_yield
     cdef public bint has_await
+    cdef list excludes
 
 @cython.final
 cdef class MarkClosureVisitor(CythonTransform):
     cdef bint needs_closure
+    cdef list excludes
 
 @cython.final
 cdef class CreateClosureClasses(CythonTransform):

@@ -117,7 +117,7 @@ static int __Pyx_validate_bases_tuple(const char *type_name, Py_ssize_t dictoffs
     n = PyTuple_GET_SIZE(bases);
 #else
     n = PyTuple_Size(bases);
-    if (unlikely(n == -1)) return -1;
+    if (unlikely(n < 0)) return -1;
 #endif
     for (i = 1; i < n; i++)  /* Skip first base */
     {

@@ -408,14 +408,31 @@ class UtilityCodeBase:
         return code
 
     @classmethod
-    def load_as_string(cls, util_code_name, from_file, **kwargs):
+    def load_as_string(cls, util_code_name, from_file, include_requires=False, **kwargs):
         """
-        Load a utility code as a string. Returns (proto, implementation)
+        Load a utility code as a string. Returns (proto, implementation).
+
+        If 'include_requires=True', concatenates all requirements before the actually
+        requested utility code, separately for proto and impl part.
         """
         util = cls.load(util_code_name, from_file, **kwargs)
-        proto, impl = util.proto, util.impl
-        return (util.inject_cglobal(util.format_code(proto)),
-                util.inject_cglobal(util.format_code(impl)))
+
+        if not include_requires:
+            return (util.inject_cglobal(util.format_code(util.proto)), 
+                    util.inject_cglobal(util.format_code(util.impl)))
+
+        protos, impls = [], []
+        def prepend(util_code):
+            if util_code.requires:
+                for dep in util_code.requires:
+                    prepend(dep)
+            if util_code.proto:
+                protos.append(util.inject_cglobal(util_code.format_code(util_code.proto)))
+            if util_code.impl:
+                impls.append(util.inject_cglobal(util_code.format_code(util_code.impl)))
+
+        prepend(util)
+        return "".join(protos), "".join(impls)
 
     def format_code(self, code_string, replace_empty_lines=re.compile(r'\n\n+').sub):
         """
@@ -1165,6 +1182,7 @@ class GlobalState:
         'decls',
         'late_includes',
         'module_state',
+        'string_constant_name_defines',
         'module_state_clear',
         'module_state_traverse',
         'module_code',  # user code goes here
@@ -1603,7 +1621,8 @@ class GlobalState:
                 decls_writer.putln("#if PY_MAJOR_VERSION %s 3" % (
                     (2 in c.py_versions) and '<' or '>='))
             decls_writer.putln('static const char %s[] = "%s";' % (
-                cname, StringEncoding.split_string_literal(c.escaped_value)))
+                cname, StringEncoding.split_string_literal(c.escaped_value)),
+                safe=True)  # Braces in user strings are not for indentation.
             if conditional:
                 decls_writer.putln("#endif")
             if c.py_strings is not None:
@@ -1627,13 +1646,21 @@ class GlobalState:
             py_strings.sort()
             w = self.parts['pystring_table']
             w.putln("")
-            w.putln("static int __Pyx_CreateStringTabAndInitStrings(%s *state) {" % (
-                Naming.modulestatetype_cname)
-            )
-            # the stringtab is a function local rather than a global to
-            # ensure that it doesn't conflict with module state
-            w.putln("__Pyx_StringTabEntry %s[] = {" % Naming.stringtab_cname)
-            for py_string_args in py_strings:
+
+            self.parts['module_state'].putln("PyObject *%s[%s];" % (
+                Naming.stringtab_cname, len(py_strings)))
+
+            self.parts['module_state_clear'].putln("for (int n=0; n<%s; ++n) {" % len(py_strings))
+            self.parts['module_state_clear'].putln("Py_CLEAR(clear_module_state->%s[n]);" %
+                Naming.stringtab_cname)
+            self.parts['module_state_clear'].putln("}")
+            self.parts['module_state_traverse'].putln("for (int n=0; n<%s; ++n) {" % len(py_strings))
+            self.parts['module_state_traverse'].putln("Py_VISIT(traverse_module_state->%s[n]);" %
+                Naming.stringtab_cname)
+            self.parts['module_state_traverse'].putln("}")
+
+            w.putln("static const __Pyx_StringTabEntry %s[] = {" % Naming.stringtab_cname)
+            for n, py_string_args in enumerate(py_strings):
                 c_cname, _, py_string = py_string_args
                 if not py_string.is_str or not py_string.encoding or \
                         py_string.encoding in ('ASCII', 'USASCII', 'US-ASCII',
@@ -1642,40 +1669,40 @@ class GlobalState:
                 else:
                     encoding = '"%s"' % py_string.encoding.lower()
 
-                self.parts['module_state'].putln("PyObject *%s;" % py_string.cname)
-                self.parts['module_state_clear'].putln("Py_CLEAR(clear_module_state->%s);" %
-                    py_string.cname)
-                self.parts['module_state_traverse'].putln("Py_VISIT(traverse_module_state->%s);" %
-                    py_string.cname)
+                # map a useful name to the array lookup
+                self.parts['string_constant_name_defines'].putln("#define %s %s[%s]" % (
+                    py_string.cname,
+                    Naming.stringtab_cname,
+                    n))
                 if py_string.py3str_cstring:
                     w.putln("#if PY_MAJOR_VERSION >= 3")
-                    w.putln("{&state->%s, %s, sizeof(%s), %s, %d, %d, %d}," % (
-                        py_string.cname,
+                    w.putln("{%s, sizeof(%s), %s, %d, %d, %d}, /* PyObject cname: %s */" % (
                         py_string.py3str_cstring.cname,
                         py_string.py3str_cstring.cname,
                         '0', 1, 0,
-                        py_string.intern
+                        py_string.intern,
+                        py_string.cname
                         ))
                     w.putln("#else")
-                w.putln("{&state->%s, %s, sizeof(%s), %s, %d, %d, %d}," % (
-                    py_string.cname,
+                w.putln("{%s, sizeof(%s), %s, %d, %d, %d}, /* PyObject cname: %s */" % (
                     c_cname,
                     c_cname,
                     encoding,
                     py_string.is_unicode,
                     py_string.is_str,
-                    py_string.intern
+                    py_string.intern,
+                    py_string.cname
                     ))
                 if py_string.py3str_cstring:
                     w.putln("#endif")
-            w.putln("{0, 0, 0, 0, 0, 0, 0}")
+            w.putln("{0, 0, 0, 0, 0, 0}")
             w.putln("};")
-            w.putln("return __Pyx_InitStrings(%s);" % Naming.stringtab_cname)
-            w.putln("}")
 
             init_constants.putln(
-                "if (__Pyx_CreateStringTabAndInitStrings(%s) < 0) %s;" % (
+                "if (__Pyx_InitStrings(%s, %s->%s) < 0) %s;" % (
+                    Naming.stringtab_cname,
                     Naming.modulestatevalue_cname,
+                    Naming.stringtab_cname,
                     init_constants.error_goto(self.module_pos)))
 
     def generate_num_constants(self):

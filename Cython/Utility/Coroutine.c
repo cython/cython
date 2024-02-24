@@ -301,7 +301,7 @@ static void __Pyx_Generator_Replace_StopIteration(int in_async_gen); /*proto*/
 //@requires: Exceptions.c::GetException
 
 static void __Pyx_Generator_Replace_StopIteration(int in_async_gen) {
-    PyObject *exc, *val, *tb, *cur_exc;
+    PyObject *exc, *val, *tb, *cur_exc, *new_exc;
     __Pyx_PyThreadState_declare
     #ifdef __Pyx_StopAsyncIteration_USED
     int is_async_stopiteration = 0;
@@ -318,19 +318,23 @@ static void __Pyx_Generator_Replace_StopIteration(int in_async_gen) {
             return;
     }
 
+    // Explicitly chain the Stop(Async)Iteration exception to the RuntimeError
     __Pyx_PyThreadState_assign
-    // Chain exceptions by moving Stop(Async)Iteration to exc_info before creating the RuntimeError.
-    // In Py2.x, no chaining happens, but the exception still stays visible in exc_info.
     __Pyx_GetException(&exc, &val, &tb);
     Py_XDECREF(exc);
-    Py_XDECREF(val);
     Py_XDECREF(tb);
-    PyErr_SetString(PyExc_RuntimeError,
+    new_exc = PyObject_CallFunction(PyExc_RuntimeError, "s",
         #ifdef __Pyx_StopAsyncIteration_USED
         is_async_stopiteration ? "async generator raised StopAsyncIteration" :
         in_async_gen ? "async generator raised StopIteration" :
         #endif
         "generator raised StopIteration");
+    if (!new_exc) {
+        Py_XDECREF(val);
+        return;
+    }
+    PyException_SetCause(new_exc, val); // steals ref to val
+    PyErr_SetObject(PyExc_RuntimeError, new_exc);
 }
 
 
@@ -513,7 +517,7 @@ static int __Pyx_PyGen__FetchStopIterationValue(PyThreadState *$local_tstate_cna
             // if it's a tuple, it is interpreted as separate constructor arguments (surprise!)
             Py_ssize_t tuple_size = __Pyx_PyTuple_GET_SIZE(ev);
             #if !CYTHON_ASSUME_SAFE_SIZE
-            if (unlikely(tuple_size == -1)) {
+            if (unlikely(tuple_size < 0)) {
                 Py_XDECREF(tb);
                 Py_DECREF(ev);
                 Py_DECREF(et);

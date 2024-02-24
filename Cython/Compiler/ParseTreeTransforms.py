@@ -23,7 +23,6 @@ from .UtilNodes import LetNode, LetRefNode
 from .TreeFragment import TreeFragment
 from .StringEncoding import EncodedString
 from .Errors import error, warning, CompileError, InternalError
-from .Code import UtilityCode
 
 
 class SkipDeclarations:
@@ -189,6 +188,7 @@ class PostParse(ScopeTrackingTransform):
         self.specialattribute_handlers = {
             '__cythonbufferdefaults__' : self.handle_bufferdefaults
         }
+        self.in_pattern_node = False
 
     def visit_LambdaNode(self, node):
         # unpack a lambda expression into the corresponding DefNode
@@ -211,7 +211,7 @@ class PostParse(ScopeTrackingTransform):
     def visit_GeneratorExpressionNode(self, node):
         # unpack a generator expression into the corresponding DefNode
         collector = YieldNodeCollector()
-        collector.visitchildren(node.loop)
+        collector.visitchildren(node.loop, attrs=None, exclude=["iterator"])
         node.def_node = Nodes.DefNode(
             node.pos, name=node.name, doc=None,
             args=[], star_arg=None, starstar_arg=None,
@@ -380,6 +380,33 @@ class PostParse(ScopeTrackingTransform):
             node.value = None
         self.visitchildren(node)
         return node
+
+    def visit_ErrorNode(self, node):
+        error(node.pos, node.what)
+        return None
+
+    def visit_MatchCaseNode(self, node):
+        node.validate_targets()
+        self.visitchildren(node)
+        return node
+
+    def visit_MatchNode(self, node):
+        node.validate_irrefutable()
+        self.visitchildren(node)
+        return node
+
+    def visit_PatternNode(self, node):
+        in_pattern_node, self.in_pattern_node = self.in_pattern_node, True
+        self.visitchildren(node)
+        self.in_pattern_node = in_pattern_node
+        return node
+
+    def visit_JoinedStrNode(self, node):
+        if self.in_pattern_node:
+            error(node.pos, "f-strings are not accepted for pattern matching")
+        self.visitchildren(node)
+        return node
+
 
 class _AssignmentExpressionTargetNameFinder(TreeVisitor):
     def __init__(self):
@@ -2825,26 +2852,35 @@ class AnalyseExpressionsTransform(CythonTransform):
         return node
 
 
-class FindInvalidUseOfFusedTypes(CythonTransform):
+class FindInvalidUseOfFusedTypes(TreeVisitor):
+
+    def __call__(self, tree):
+        self._in_fused_function = False
+        self.visit(tree)
+        return tree
+
+    def visit_Node(self, node):
+        self.visitchildren(node)
 
     def visit_FuncDefNode(self, node):
-        # Errors related to use in functions with fused args will already
-        # have been detected
-        if not node.has_fused_arguments:
+        outer_status = self._in_fused_function
+        self._in_fused_function = node.has_fused_arguments
+
+        if not self._in_fused_function:
+            # Errors related to use in functions with fused args will already
+            # have been detected.
             if not node.is_generator_body and node.return_type.is_fused:
                 error(node.pos, "Return type is not specified as argument type")
-            else:
-                self.visitchildren(node)
 
-        return node
+        self.visitchildren(node)
+        self._in_fused_function = outer_status
 
     def visit_ExprNode(self, node):
-        if node.type and node.type.is_fused:
+        if not self._in_fused_function and node.type and node.type.is_fused:
             error(node.pos, "Invalid use of fused types, type cannot be specialized")
+            # Errors in subtrees are likely related, so do not recurse.
         else:
             self.visitchildren(node)
-
-        return node
 
 
 class ExpandInplaceOperators(EnvTransform):
@@ -2940,6 +2976,7 @@ class AdjustDefByDirectives(CythonTransform, SkipDeclarations):
         nogil = self.directives.get('nogil')
         with_gil = self.directives.get('with_gil')
         except_val = self.directives.get('exceptval')
+        has_explicit_exc_clause = False if except_val is None else True
         return_type_node = self.directives.get('returns')
         if return_type_node is None and self.directives['annotation_typing']:
             return_type_node = node.return_type_annotation
@@ -2956,7 +2993,7 @@ class AdjustDefByDirectives(CythonTransform, SkipDeclarations):
                 error(node.pos, "ccall functions cannot be declared 'with_gil'")
             node = node.as_cfunction(
                 overridable=True, modifiers=modifiers, nogil=nogil,
-                returns=return_type_node, except_val=except_val)
+                returns=return_type_node, except_val=except_val, has_explicit_exc_clause=has_explicit_exc_clause)
             return self.visit(node)
         if 'cfunc' in self.directives:
             if self.in_py_class:
@@ -2964,7 +3001,7 @@ class AdjustDefByDirectives(CythonTransform, SkipDeclarations):
             else:
                 node = node.as_cfunction(
                     overridable=False, modifiers=modifiers, nogil=nogil, with_gil=with_gil,
-                    returns=return_type_node, except_val=except_val)
+                    returns=return_type_node, except_val=except_val, has_explicit_exc_clause=has_explicit_exc_clause)
                 return self.visit(node)
         if 'inline' in modifiers:
             error(node.pos, "Python functions cannot be declared 'inline'")
@@ -3145,7 +3182,7 @@ class RemoveUnreachableCode(CythonTransform):
 
 class YieldNodeCollector(TreeVisitor):
 
-    def __init__(self):
+    def __init__(self, excludes=[]):
         super().__init__()
         self.yields = []
         self.returns = []
@@ -3154,9 +3191,11 @@ class YieldNodeCollector(TreeVisitor):
         self.has_return_value = False
         self.has_yield = False
         self.has_await = False
+        self.excludes = excludes
 
     def visit_Node(self, node):
-        self.visitchildren(node)
+        if node not in self.excludes:
+            self.visitchildren(node)
 
     def visit_YieldExprNode(self, node):
         self.yields.append(node)
@@ -3192,7 +3231,11 @@ class YieldNodeCollector(TreeVisitor):
         pass
 
     def visit_GeneratorExpressionNode(self, node):
-        pass
+        # node.loop iterator is evaluated outside the generator expression
+        if isinstance(node.loop, Nodes._ForInStatNode):
+            # Possibly should handle ForFromStatNode
+            # but for now do nothing
+            self.visit(node.loop.iterator)
 
     def visit_CArgDeclNode(self, node):
         # do not look into annotations
@@ -3206,6 +3249,7 @@ class MarkClosureVisitor(CythonTransform):
 
     def visit_ModuleNode(self, node):
         self.needs_closure = False
+        self.excludes = []
         self.visitchildren(node)
         return node
 
@@ -3215,7 +3259,7 @@ class MarkClosureVisitor(CythonTransform):
         node.needs_closure = self.needs_closure
         self.needs_closure = True
 
-        collector = YieldNodeCollector()
+        collector = YieldNodeCollector(self.excludes)
         collector.visitchildren(node)
 
         if node.is_async_def:
@@ -3274,7 +3318,11 @@ class MarkClosureVisitor(CythonTransform):
         return node
 
     def visit_GeneratorExpressionNode(self, node):
+        excludes = self.excludes
+        if isinstance(node.loop, Nodes._ForInStatNode):
+            self.excludes = [node.loop.iterator]
         node = self.visit_LambdaNode(node)
+        self.excludes = excludes
         if not isinstance(node.loop, Nodes._ForInStatNode):
             # Possibly should handle ForFromStatNode
             # but for now do nothing

@@ -150,7 +150,11 @@ documentation`_. To compile the extension for use in the current directory use:
 Configuring the C-Build
 ------------------------
 
-If you have include files in non-standard places you can pass an
+.. note::
+
+   More details on building Cython modules that use cimport numpy can be found in the :ref:`Numpy section <numpy_compilation>` of the user guide.
+
+If you have :ref:`Cython include files <include_statement>` or :ref:`Cython definition files <definition_file>` in non-standard places you can pass an
 ``include_path`` parameter to ``cythonize``::
 
     from setuptools import setup
@@ -160,43 +164,6 @@ If you have include files in non-standard places you can pass an
         name="My hello app",
         ext_modules=cythonize("src/*.pyx", include_path=[...]),
     )
-
-Often, Python packages that offer a C-level API provide a way to find
-the necessary include files, e.g. for NumPy::
-
-    include_path = [numpy.get_include()]
-
-.. note::
-
-    Using memoryviews or importing NumPy with ``import numpy`` does not mean that
-    you have to add the path to NumPy include files. You need to add this path only
-    if you use ``cimport numpy``.
-
-Despite this, you may still get warnings like the following from the compiler,
-because Cython is not disabling the usage of the old deprecated Numpy API::
-
-   .../include/numpy/npy_1_7_deprecated_api.h:15:2: warning: #warning "Using deprecated NumPy API, disable it by " "#defining NPY_NO_DEPRECATED_API NPY_1_7_API_VERSION" [-Wcpp]
-
-In Cython 3.0, you can get rid of this warning by defining the C macro
-``NPY_NO_DEPRECATED_API`` as ``NPY_1_7_API_VERSION``
-in your build, e.g.::
-
-    # distutils: define_macros=NPY_NO_DEPRECATED_API=NPY_1_7_API_VERSION
-
-or (see below)::
-
-    Extension(
-        ...,
-        define_macros=[("NPY_NO_DEPRECATED_API", "NPY_1_7_API_VERSION")],
-    )
-
-With older Cython releases, setting this macro will fail the C compilation,
-because Cython generates code that uses this deprecated C-API.  However, the
-warning has no negative effects even in recent NumPy versions including 1.18.x.
-You can ignore it until you (or your library's users) switch to a newer NumPy
-version that removes this long deprecated API, in which case you also need to
-use Cython 3.0 or later.  Thus, the earlier you switch to Cython 3.0, the
-better for your users.
 
 If you need to specify compiler options, libraries to link with or other
 linker options you will need to create ``Extension`` instances manually
@@ -222,8 +189,29 @@ in one line)::
         ext_modules=cythonize(extensions),
     )
 
+Some useful options to know about are
+
+* ``include_dirs``- list of directories to search for C/C++ header files (in Unix form for portability),
+* ``libraries`` - list of library names (not filenames or paths) to link against,
+* ``library_dirs`` - list of directories to search for C/C++ libraries at link time.
+
 Note that when using setuptools, you should import it before Cython, otherwise,
 both might disagree about the class to use here.
+
+Often, Python packages that offer a C-level API provide a way to find
+the necessary C header files::
+
+    from setuptools import Extension, setup
+    from Cython.Build import cythonize
+
+    extensions = [
+        Extension("*", ["*.pyx"],
+            include_dirs=["/usr/local/include"]),
+    ]
+    setup(
+        name="My hello app",
+        ext_modules=cythonize(extensions),
+    )
 
 If your options are static (for example you do not need to call a tool like
 ``pkg-config`` to determine them) you can also provide them directly in your
@@ -240,7 +228,7 @@ If you have some C files that have been wrapped with Cython and you want to
 compile them into your extension, you can define the setuptools ``sources``
 parameter::
 
-    # distutils: sources = helper.c, another_helper.c
+    # distutils: sources = [helper.c, another_helper.c]
 
 Note that these sources are added to the list of sources of the current
 extension module.  Spelling this out in the :file:`setup.py` file looks
@@ -258,9 +246,7 @@ as follows::
     )
 
 The :class:`Extension` class takes many options, and a fuller explanation can
-be found in the `setuptools documentation`_. Some useful options to know about
-are ``include_dirs``, ``libraries``, and ``library_dirs`` which specify where
-to find the ``.h`` and library files when linking to external libraries.
+be found in the `setuptools documentation`_.
 
 .. _setuptools documentation: https://setuptools.readthedocs.io/
 
@@ -1246,3 +1232,13 @@ hidden by default since most users will be uninterested in changing them.
             
         ``CYTHON_UPDATE_DESCRIPTOR_DOC``
             Attempt to provide docstrings also for special (double underscore) methods.
+            
+        ``CYTHON_USE_FREELISTS``
+            Enable the use of freelists on extension types with
+            :ref:`the @cython.freelist decorator<freelist>`.
+
+        ``CYTHON_ATOMICS``
+            Enable the use of atomic reference counting (as opposed to locking then
+            reference counting) in Cython typed memoryviews.
+            
+            

@@ -59,7 +59,7 @@ typedef struct {
     // Dynamic default args and annotations
     void *defaults;
     int defaults_pyobjects;
-    size_t defaults_size;  // used by FusedFunction for copying defaults
+    size_t defaults_size;  /* used by FusedFunction for copying defaults */
     int flags;
 
     // Defaults info
@@ -859,7 +859,7 @@ static PyObject *__Pyx_CyFunction_CallAsMethod(PyObject *func, PyObject *args, P
     PyObject *result;
     __pyx_CyFunctionObject *cyfunc = (__pyx_CyFunctionObject *) func;
 
-#if CYTHON_METH_FASTCALL
+#if CYTHON_METH_FASTCALL && (CYTHON_VECTORCALL || CYTHON_BACKPORT_VECTORCALL)
     // Prefer vectorcall if available. This is not the typical case, as
     // CPython would normally use vectorcall directly instead of tp_call.
      __pyx_vectorcallfunc vc = __Pyx_CyFunction_func_vectorcall(cyfunc);
@@ -907,7 +907,7 @@ static PyObject *__Pyx_CyFunction_CallAsMethod(PyObject *func, PyObject *args, P
     return result;
 }
 
-#if CYTHON_METH_FASTCALL
+#if CYTHON_METH_FASTCALL && (CYTHON_VECTORCALL || CYTHON_BACKPORT_VECTORCALL)
 // Check that kwnames is empty (if you want to allow keyword arguments,
 // simply pass kwnames=NULL) and figure out what to do with "self".
 // Return value:
@@ -1020,7 +1020,7 @@ static PyObject * __Pyx_CyFunction_Vectorcall_FASTCALL_KEYWORDS(PyObject *func, 
         return NULL;
     }
 
-    return ((_PyCFunctionFastWithKeywords)(void(*)(void))def->ml_meth)(self, args, nargs, kwnames);
+    return ((__Pyx_PyCFunctionFastWithKeywords)(void(*)(void))def->ml_meth)(self, args, nargs, kwnames);
 }
 
 static PyObject * __Pyx_CyFunction_Vectorcall_FASTCALL_KEYWORDS_METHOD(PyObject *func, PyObject *const *args, size_t nargsf, PyObject *kwnames)
@@ -1234,7 +1234,7 @@ static int __Pyx_CyFunction_InitClassCell(PyObject *cyfunctions, PyObject *class
 static int __Pyx_CyFunction_InitClassCell(PyObject *cyfunctions, PyObject *classobj) {
     Py_ssize_t i, count = __Pyx_PyList_GET_SIZE(cyfunctions);
     #if !CYTHON_ASSUME_SAFE_SIZE
-    if (unlikely(count == -1)) return -1;
+    if (unlikely(count < 0)) return -1;
     #endif
 
     for (i = 0; i < count; i++) {
@@ -1424,7 +1424,7 @@ __pyx_FusedFunction_getitem(__pyx_FusedFunctionObject *self, PyObject *idx)
         PyObject *list;
         int i;
         #if !CYTHON_ASSUME_SAFE_SIZE
-        if (unlikely(n == -1)) return NULL;
+        if (unlikely(n < 0)) return NULL;
         #endif
 
         list = PyList_New(n);
@@ -1509,7 +1509,7 @@ __pyx_FusedFunction_call(PyObject *func, PyObject *args, PyObject *kw)
     PyObject *result = NULL;
     int is_staticmethod = binding_func->func.flags & __Pyx_CYFUNCTION_STATICMETHOD;
     #if !CYTHON_ASSUME_SAFE_SIZE
-    if (unlikely(argc == -1)) return NULL;
+    if (unlikely(argc < 0)) return NULL;
     #endif
 
     if (binding_func->self) {

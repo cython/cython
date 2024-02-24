@@ -1510,6 +1510,7 @@ if the corresponding definition file also defines that type.
     and classes from each other without the Python overhead. To read more about
     what how to do that, you can see :ref:`pxd_files`.
 
+.. _definition_file:
 
 The definition file
 -------------------
@@ -1538,6 +1539,7 @@ wants to  access :keyword:`cdef` attributes and methods, or to inherit from
     presence in a definition file does that. You only need a public
     declaration if you want to make something available to external C code.
 
+.. _include_statement:
 
 The include statement and include files
 ---------------------------------------

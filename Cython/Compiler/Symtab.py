@@ -43,24 +43,22 @@ def c_safe_identifier(cname):
 def punycodify_name(cname, mangle_with=None):
     # if passed the mangle_with should be a byte string
     # modified from  PEP489
-    try:
-        cname.encode('ascii')
-    except UnicodeEncodeError:
-        cname = cname.encode('punycode').replace(b'-', b'_').decode('ascii')
-        if mangle_with:
-            # sometimes it necessary to mangle unicode names alone where
-            # they'll be inserted directly into C, because the punycode
-            # transformation can turn them into invalid identifiers
-            cname = "%s_%s" % (mangle_with, cname)
-        elif cname.startswith(Naming.pyrex_prefix):
-            # a punycode name could also be a valid ascii variable name so
-            # change the prefix to distinguish
-            cname = cname.replace(Naming.pyrex_prefix,
-                                  Naming.pyunicode_identifier_prefix, 1)
+    if cname.isascii():
+        return cname
+
+    cname = cname.encode('punycode').replace(b'-', b'_').decode('ascii')
+    if mangle_with:
+        # sometimes it necessary to mangle unicode names alone where
+        # they'll be inserted directly into C, because the punycode
+        # transformation can turn them into invalid identifiers
+        cname = "%s_%s" % (mangle_with, cname)
+    elif cname.startswith(Naming.pyrex_prefix):
+        # a punycode name could also be a valid ascii variable name so
+        # change the prefix to distinguish
+        cname = cname.replace(Naming.pyrex_prefix,
+                              Naming.pyunicode_identifier_prefix, 1)
 
     return cname
-
-
 
 
 class BufferAux:
@@ -173,7 +171,6 @@ class Entry:
     borrowed = 0
     init = ""
     annotation = None
-    pep563_annotation = None
     visibility = 'private'
     is_builtin = 0
     is_cglobal = 0
@@ -2346,7 +2343,7 @@ class CClassScope(ClassScope):
             del_entry = current_type_scope.lookup_here("__del__")
             if del_entry and del_entry.is_special:
                 return True
-            if (current_type_scope.parent_type.is_extern or not current_type_scope.implemented or
+            if (current_type_scope.parent_type.is_external or not current_type_scope.implemented or
                     current_type_scope.parent_type.multiple_bases):
                 # we don't know if we have __del__, so assume we do and call it
                 return True
