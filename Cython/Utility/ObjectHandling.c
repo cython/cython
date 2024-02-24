@@ -2914,12 +2914,12 @@ static PyObject *__Pyx_PyList_Pack(Py_ssize_t n, ...) {
     va_list va;
     PyObject *l = PyList_New(n);
     va_start(va, n);
-    if (!l) goto end;
+    if (unlikely(!l)) goto end;
 
     for (Py_ssize_t i=0; i<n; ++i) {
         PyObject *arg = va_arg(va, PyObject*);
         Py_INCREF(arg);
-        if (__Pyx_PyList_SET_ITEM(l, i, arg)) {
+        if (unlikely(__Pyx_PyList_SET_ITEM(l, i, arg))) {
             Py_CLEAR(l);
             goto end;
         }
