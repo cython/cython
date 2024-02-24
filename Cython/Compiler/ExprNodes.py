@@ -8086,6 +8086,9 @@ class SequenceNode(ExprNode):
                 mult_factor = mult_factor.coerce_to_pyobject(env)
             self.mult_factor = mult_factor.coerce_to_simple(env)
         self.is_temp = 1
+        if env.is_module_scope:
+            # TODO - potentially behave differently in loops?
+            self.slow = True
         # not setting self.type here, subtypes do this
         return self
 
@@ -8179,10 +8182,21 @@ class SequenceNode(ExprNode):
                 else:
                     size_factor = ' * (%s)' % (c_mult,)
 
-        if self.type is tuple_type and (self.is_literal or self.slow) and not c_mult:
+        if ((self.type is tuple_type or self.type is list_type) and 
+                (self.is_literal or self.slow) and 
+                not c_mult and
+                len(self.args) > 0):
             # use PyTuple_Pack() to avoid generating huge amounts of one-time code
-            code.putln('%s = PyTuple_Pack(%d, %s); %s' % (
+            if self.type is list_type:
+                pack_name = '__Pyx_PyList_Pack'
+                code.globalstate.use_utility_code(
+                    UtilityCode.load_cached('ListPack', 'ObjectHandling.c')
+                )
+            else:
+                pack_name = 'PyTuple_Pack'
+            code.putln('%s = %s(%d, %s); %s' % (
                 target,
+                pack_name,
                 len(self.args),
                 ', '.join(arg.py_result() for arg in self.args),
                 code.error_goto_if_null(target, self.pos)))
