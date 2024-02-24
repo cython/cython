@@ -5538,6 +5538,8 @@ class SliceIndexNode(ExprNode):
                         base_result,
                         start_code,
                         code.error_goto_if_null(result, self.pos)))
+                code.globalstate.use_utility_code(
+                    UtilityCode.load_cached("pyunicode_from_unicode", "StringTools.c"))
             else:
                 code.putln(
                     "%s = __Pyx_PyUnicode_FromUnicodeAndLength(%s + %s, %s - %s); %s" % (
@@ -5547,6 +5549,8 @@ class SliceIndexNode(ExprNode):
                         stop_code,
                         start_code,
                         code.error_goto_if_null(result, self.pos)))
+                code.globalstate.use_utility_code(
+                    UtilityCode.load_cached("pyunicode_from_unicode", "StringTools.c"))
 
         elif self.base.type is unicode_type:
             code.globalstate.use_utility_code(
