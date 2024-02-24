@@ -8182,8 +8182,8 @@ class SequenceNode(ExprNode):
                 else:
                     size_factor = ' * (%s)' % (c_mult,)
 
-        if ((self.type is tuple_type or self.type is list_type) and 
-                (self.is_literal or self.slow) and 
+        if ((self.type is tuple_type or self.type is list_type) and
+                (self.is_literal or self.slow) and
                 not c_mult and
                 len(self.args) > 0):
             # use PyTuple_Pack() to avoid generating huge amounts of one-time code
