@@ -810,12 +810,12 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         self._put_setup_code(code, "PythonCompatibility")
         self._put_setup_code(code, "MathInitCode")
 
-        # Using "(void)cname" to prevent "unused" warnings.
         if options.c_line_in_traceback:
             cinfo = "%s = %s; " % (Naming.clineno_cname, Naming.line_c_macro)
         else:
             cinfo = ""
         code.putln("#define __PYX_MARK_ERR_POS(f_index, lineno) \\")
+        # Using "(void)cname" to prevent "unused" warnings.
         code.putln("    { %s = %s[f_index]; (void)%s; %s = lineno; (void)%s; %s (void)%s; }" % (
             Naming.filename_cname, Naming.filetable_cname, Naming.filename_cname,
             Naming.lineno_cname, Naming.lineno_cname,
