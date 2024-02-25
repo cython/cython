@@ -811,6 +811,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         self._put_setup_code(code, "MathInitCode")
 
         if options.c_line_in_traceback:
+<<<<<<< HEAD
             # Actually the storing cline can be surprisingly costly in terms of code size.
             # So skip it if we know that we're going to ignore it later.
             code.putln("#if defined(CYTHON_CLINE_IN_TRACEBACK) && !CYTHON_CLINE_IN_TRACEBACK")
@@ -819,6 +820,9 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             code.putln(f"#define __PYX_ASSIGN_CLINE {Naming.clineno_cname} = {Naming.line_c_macro}")
             code.putln("#endif")
             cinfo = f"__PYX_ASSIGN_CLINE;"
+=======
+            cinfo = "%s = %s; " % (Naming.clineno_cname, Naming.line_c_macro)
+>>>>>>> real_origin/master
         else:
             cinfo = ""
             # We may as well eliminate a bunch of code elsewhere that handles

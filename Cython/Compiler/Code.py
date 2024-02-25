@@ -1633,7 +1633,7 @@ class GlobalState:
             const Py_ssize_t n;
         #endif
         #if %(num_encodings)d <= 31
-            const unsigned char encoding : 5;
+            const unsigned int encoding : 5;
         #elif %(num_encodings)d <= 255
             const unsigned char encoding;
         #elif %(num_encodings)d <= 65535
@@ -1641,9 +1641,9 @@ class GlobalState:
         #else
             const Py_ssize_t encoding;
         #endif
-            const unsigned char is_unicode : 1;
-            const unsigned char is_str : 1;
-            const unsigned char intern : 1;
+            const unsigned int is_unicode : 1;
+            const unsigned int is_str : 1;
+            const unsigned int intern : 1;
         } __Pyx_StringTabEntry; /*proto*/
         """ % dict(
             max_length=longest_pystring,
