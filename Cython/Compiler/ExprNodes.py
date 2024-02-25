@@ -20,7 +20,6 @@ import sys
 import copy
 import os.path
 import operator
-import collections
 
 from .Errors import (
     error, warning, InternalError, CompileError, report_error, local_errors,
