@@ -1116,33 +1116,25 @@ values passed to ``cythonize``.
 C line numbers in tracebacks
 ============================
 
-Control of whether to show the C line number in the traceback is complicated so is
-detailed here separately.  The main reason to want to disable it is that it can give
-a notable reduction in binary file size (0-5%, depending on the module).
+To provide more detailed debug information, Python tracebacks of Cython modules
+show the C line where the exception originated (or was propagated). This feature is not
+entirely for free and can visibly increase the C compile time as well as adding 0-5% to the
+size of the binary extension module. It can therefore be disabled using a C macro.
 
-At the top level it is controlled by the Cython option ``Options.cline_in_c_line_in_traceback``
-which defaults to ``True``.  You can also turn this off by passing ``--no-c-in-traceback``
-to Cython on the command line.
+* ``CYTHON_CLINE_IN_TRACEBACK=1`` always shows the C line number in tracebacks,
+* ``CYTHON_CLINE_IN_TRACEBACK=0`` never shows the C line number in tracebacks,
 
-Provided ``Options.cline_in_c_line_in_traceback`` is on, then you can use the C macro
-``CYTHON_CLINE_IN_TRACEBACK`` to control the exact behaviour:
-
-* ``CYTHON_CLINE_IN_TRACEBACK==1`` always shows the C line number in tracebacks,
-* ``CYTHON_CLINE_IN_TRACEBACK==0`` never shows the C line number in tracebacks,
-* the default is to pick at runtime (you can explicitly set this with
-  ``CYTHON_CLINE_IN_TRACEBACK==2`` from Cython 3.1 upwards, but is still the default
-  in earlier versions).
+If the macro is *not* defined by the build setup or ``CFLAGS``, the feature is included and
+can be enabled and disabled at runtime, at the before mentioned cost of longer C compile
+times and larger extension modules.
   
-For the default behaviour of picking at runtime, you can import the
-module ``cython_runtime`` and set the variable ``cline_in_traceback`` in that
-module to either ``True`` or ``False`` to control the behaviour as your Cython
-code is being run.
+For changing the value at runtime, you can import the special module ``cython_runtime``
+after loading a Cython module and set the attribute ``cline_in_traceback`` in that module
+to either true or false to control the behaviour as your Cython code is being run.
 
-From Cython 3.1 we will be allowing users to pick the full range of behaviours with
-the ``CYTHON_CLINE_IN_TRACEBACK`` macro define so it should no longer be necessary to
-use ``Options.cline_in_c_line_in_traceback``.
-However, in earlier versions it is necessary to turn this option off if you want to
-get the benefit of the reduced binary file size.
+Previously, the Cython option ``c_line_in_traceback`` or the command
+line argument ``--no-c-in-traceback`` could be used to disable this feature. This is still
+possible, but should be migrated to using the C macro instead.
 
 C macro defines
 ===============
