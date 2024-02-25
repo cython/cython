@@ -8052,6 +8052,10 @@ class SequenceNode(ExprNode):
     unpacked_items = None
     mult_factor = None
     slow = False  # trade speed for code size (e.g. use PyTuple_Pack())
+    references_stolen = True  # set to False in code-generation if we
+            # didn't steal references to our temps and thus need to dispose
+            # of them normally.
+
 
     def compile_time_value_list(self, denv):
         return [arg.compile_time_value(denv) for arg in self.args]
@@ -8202,6 +8206,7 @@ class SequenceNode(ExprNode):
                 ', '.join(arg.py_result() for arg in self.args),
                 code.error_goto_if_null(target, self.pos)))
             code.put_gotref(target, py_object_type)
+            self.references_stolen = False
         elif self.type.is_ctuple:
             for i, arg in enumerate(self.args):
                 code.putln("%s.f%s = %s;" % (
@@ -8235,6 +8240,7 @@ class SequenceNode(ExprNode):
                 code.putln('for (%s=0; %s < %s; %s++) {' % (
                     counter, counter, c_mult, counter
                     ))
+                self.references_stolen = False
             else:
                 offset = ''
 
@@ -8266,11 +8272,7 @@ class SequenceNode(ExprNode):
             code.putln('}')
 
     def generate_subexpr_disposal_code(self, code):
-        if self.mult_factor and self.mult_factor.type.is_int:
-            super().generate_subexpr_disposal_code(code)
-        elif ((self.type is tuple_type or self.type is list_type) and
-                (self.is_literal or self.slow) and
-                len(self.args) > 0):
+        if not self.references_stolen:
             super().generate_subexpr_disposal_code(code)
         else:
             # We call generate_post_assignment_code here instead
