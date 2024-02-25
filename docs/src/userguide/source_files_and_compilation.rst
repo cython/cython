@@ -1128,12 +1128,13 @@ If the macro is *not* defined by the build setup or ``CFLAGS``, the feature is i
 can be enabled and disabled at runtime, at the before mentioned cost of longer C compile
 times and larger extension modules.
   
-For changing the value at runtime, you can import the special module ``cython_runtime``
+To change the value at runtime, you can import the special module ``cython_runtime``
 after loading a Cython module and set the attribute ``cline_in_traceback`` in that module
 to either true or false to control the behaviour as your Cython code is being run.
 
-Previously, the Cython option ``c_line_in_traceback`` or the command
-line argument ``--no-c-in-traceback`` could be used to disable this feature. This is still
+In Cython 3.0 and earlier, the Cython option ``c_line_in_traceback`` or the command
+line argument ``--no-c-in-traceback`` could be used to disable this feature.
+From Cython 3.1, this is still
 possible, but should be migrated to using the C macro instead.
 
 C macro defines
