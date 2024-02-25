@@ -773,7 +773,7 @@ static int __Pyx_CLineForTraceback(PyThreadState *tstate, int c_line);/*proto*/
 //@requires: PyErrFetchRestore
 //@substitute: naming
 
-#if CYTHON_CLINE_IN_TRACEBACK == 0 || CYTHON_CLINE_IN_TRACEBACK == 1
+#if !(CYTHON_CLINE_IN_TRACEBACK == 0 || CYTHON_CLINE_IN_TRACEBACK == 1)
 static int __Pyx_CLineForTraceback(PyThreadState *tstate, int c_line) {
     PyObject *use_cline;
     PyObject *ptype, *pvalue, *ptraceback;
