@@ -1135,7 +1135,9 @@ to either true or false to control the behaviour as your Cython code is being ru
 In Cython 3.0 and earlier, the Cython option ``c_line_in_traceback`` or the command
 line argument ``--no-c-in-traceback`` could be used to disable this feature.
 From Cython 3.1, this is still
-possible, but should be migrated to using the C macro instead.
+possible, but should be migrated to using the C macro instead.  Below Cython 3.1
+the macros still work as described but the Cython option is needed to remove
+the compile-time cost.
 
 C macro defines
 ===============
