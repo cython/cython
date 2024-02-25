@@ -699,7 +699,6 @@ You can see them also by typing ```%%cython?`` in IPython or a Jupyter notebook.
 
 ============================================  =======================================================================================================================================
 
-
 .. _compiler_options:
 
 Compiler options
@@ -742,6 +741,8 @@ Here are the options that are available:
 .. autodata:: Cython.Compiler.Options.cimport_from_pyx
 .. autodata:: Cython.Compiler.Options.buffer_max_dims
 .. autodata:: Cython.Compiler.Options.closure_freelist_size
+Cython.Compiler.Options. **c_line_in_traceback** = True
+    See :ref:`cline_in_traceback`
 
 
 .. _compiler-directives:
@@ -1110,6 +1111,39 @@ This will override the default directives as specified in the ``compiler_directi
 Note that explicit per-file or local directives as explained above take precedence over the
 values passed to ``cythonize``.
 
+.. _cline_in_traceback:
+
+C line numbers in tracebacks
+============================
+
+Control of whether to show the C line number in the traceback is complicated so is
+detailed here separately.  The main reason to want to disable it is that it can give
+a notable reduction in binary file size (0-5%, depending on the module).
+
+At the top level it is controlled by the Cython option ``Options.cline_in_c_line_in_traceback``
+which defaults to ``True``.  You can also turn this off by passing ``--no-c-in-traceback``
+to Cython on the command line.
+
+Provided ``Options.cline_in_c_line_in_traceback`` is on, then you can use the C macro
+``CYTHON_CLINE_IN_TRACEBACK`` to control the exact behaviour:
+
+* ``CYTHON_CLINE_IN_TRACEBACK==1`` always shows the C line number in tracebacks,
+* ``CYTHON_CLINE_IN_TRACEBACK==0`` never shows the C line number in tracebacks,
+* the default is to pick at runtime (you can explicitly set this with
+  ``CYTHON_CLINE_IN_TRACEBACK==2`` from Cython 3.1 upwards, but is still the default
+  in earlier versions).
+  
+For the default behaviour of picking at runtime, you can import the
+module ``cython_runtime`` and set the variable ``cline_in_traceback`` in that
+module to either ``True`` or ``False`` to control the behaviour as your Cython
+code is being run.
+
+From Cython 3.1 we will be allowing users to pick the full range of behaviours with
+the ``CYTHON_CLINE_IN_TRACEBACK`` macro define so it should no longer be necessary to
+use ``Options.cline_in_c_line_in_traceback``.
+However, in earlier versions it is necessary to turn this option off if you want to
+get the benefit of the reduced binary file size.
+
 C macro defines
 ===============
 
@@ -1154,6 +1188,10 @@ most important to least important:
 ``CYTHON_EXTERN_C``
     Slightly different to the other macros, this controls how ``cdef public``
     functions appear to C++ code. See :ref:`CYTHON_EXTERN_C` for full details.
+
+``CYTHON_CLINE_IN_TRACEBACK``
+    Controls whether C lines numbers appear in tracebacks.
+    See :ref:`cline_in_traceback` for a complete description.
     
 There is a further list of macros which turn off various optimizations or language
 features.  Under normal circumstance Cython enables these automatically based on the
