@@ -10138,12 +10138,6 @@ class CodeObjectNode(ExprNode):
     is_temp = False
     result_code = None
 
-    const_data_type = collections.namedtuple(
-        "const_data_type",
-        ["pos", "argcount", "num_posonly_args", "kwonlyargcount",
-         "nlocals", "flags", "varnames", "filename", "funcname"]
-    )
-
     def __init__(self, def_node):
         ExprNode.__init__(self, def_node.pos, def_node=def_node)
         args = list(def_node.args)
@@ -10161,47 +10155,52 @@ class CodeObjectNode(ExprNode):
 
     def calculate_result_code(self, code=None):
         if self.result_code is None:
-            self.result_code = code.get_py_codeobj_const_cname()
+            self.result_code = code.get_py_codeobj_const(self)
         return self.result_code
 
     def generate_result_code(self, code):
         if self.result_code is None:
             # cname already generated
-            self.result_code = code.get_py_codeobj_const_cname()
+            self.result_code = code.get_py_codeobj_const(self)
 
         func = self.def_node
-        func_name = code.get_py_string_const(
+        self.func_name_result = code.get_py_string_const(
             func.name, identifier=True, is_str=False, unicode_value=func.name)
         # FIXME: better way to get the module file path at module init time? Encoding to use?
         file_path = StringEncoding.bytes_literal(func.pos[0].get_filenametable_entry().encode('utf8'), 'utf8')
-        file_path_const = code.get_py_string_const(file_path, identifier=False, is_str=True)
+        self.file_path_result = code.get_py_string_const(file_path, identifier=False, is_str=True)
+
+        self.varnames_result = self.varnames.result()
+
+    def generate_codeoj_tab_entry(self, code):
+        func = self.def_node
 
         # This combination makes CPython create a new dict for "frame.f_locals" (see GH #1836).
         flags = ['CO_OPTIMIZED', 'CO_NEWLOCALS']
 
-        if self.def_node.star_arg:
+        if func.star_arg:
             flags.append('CO_VARARGS')
-        if self.def_node.starstar_arg:
+        if func.starstar_arg:
             flags.append('CO_VARKEYWORDS')
-        if self.def_node.is_asyncgen:
+        if func.is_asyncgen:
             flags.append('CO_ASYNC_GENERATOR')
-        elif self.def_node.is_coroutine:
+        elif func.is_coroutine:
             flags.append('CO_COROUTINE')
-        elif self.def_node.is_generator:
+        elif func.is_generator:
             flags.append('CO_GENERATOR')
 
-        data = self.const_data_type(
-            pos=self.pos,
-            argcount=len(func.args) - func.num_kwonly_args,
-            num_posonly_args=func.num_posonly_args, # Py3.8+ only
-            kwonlyargcount=func.num_kwonly_args,
-            nlocals=len(self.varnames.args),
-            flags='|'.join(flags) or '0',
-            varnames=self.varnames.result(),
-            filename=file_path_const,
-            funcname=func_name
-        )
-        code.set_py_codeobj_const_data(self.result_code, data)
+        filename_idx = code.lookup_filename(self.pos[0])
+ 
+        argcount=len(func.args) - func.num_kwonly_args
+        num_posonly_args = func.num_posonly_args  # Py3.8+ only
+        kwonlyargcount = func.num_kwonly_args
+        nlocals = len(self.varnames.args)
+        flags = '|'.join(flags) or '0'
+
+        s = (f"{filename_idx}, {argcount}, {num_posonly_args}, {kwonlyargcount}, "
+             f"{nlocals}, {flags}, {self.varnames_result}, {self.file_path_result},"
+             f"{self.func_name_result}, {self.pos[1]}")
+        code.putln("{%s}, /* %s */" % (s, self.result_code))
 
 
 class DefaultLiteralArgNode(ExprNode):
