@@ -1670,7 +1670,7 @@ class GlobalState:
         encodings.sort(key=len)  # stable sort to make sure '0' comes first, index 0
         assert not encodings or '0' not in encodings or encodings[0] == '0', encodings
         encodings_map = {encoding: i for i, encoding in enumerate(encodings)}
-        w.putln("static const char* %s[] = { %s };" % (
+        w.putln("static const char * const %s[] = { %s };" % (
             Naming.stringtab_encodings_cname,
             ', '.join(encodings),
         ))
