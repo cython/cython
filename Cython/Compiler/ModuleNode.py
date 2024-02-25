@@ -819,15 +819,16 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             f" {Naming.lineno_cname} = lineno;"
             f" (void) {Naming.lineno_cname};"
             "%s"  # for C line info
-            f" (void) {Naming.clineno_cname}; "  # always suppress warnings
+            f" (void) {Naming.clineno_cname}; "  # always surpress warnings
             "}"
         )
         cline_info = f" {Naming.clineno_cname} = {Naming.line_c_macro};"
 
-        code.putln("#ifndef CYTHON_CLINE_IN_TRACEBACK")
-        code.putln(f"#define CYTHON_CLINE_IN_TRACEBACK  {2 if options.c_line_in_traceback else 0}")
-        code.putln("#endif")
-        code.putln("#if CYTHON_CLINE_IN_TRACEBACK")
+        if not options.c_line_in_traceback:
+            code.putln("#ifndef CYTHON_CLINE_IN_TRACEBACK")
+            code.putln("#define CYTHON_CLINE_IN_TRACEBACK  0")
+            code.putln("#endif")
+        code.putln("#if !defined(CYTHON_CLINE_IN_TRACEBACK) || CYTHON_CLINE_IN_TRACEBACK")
         code.putln(mark_errpos_code % cline_info)
         code.putln("#else")
         code.putln(mark_errpos_code % "")

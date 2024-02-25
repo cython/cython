@@ -761,7 +761,7 @@ static void __Pyx_WriteUnraisable(const char *name, int clineno,
 
 /////////////// CLineInTraceback.proto ///////////////
 
-#if CYTHON_CLINE_IN_TRACEBACK == 0 || CYTHON_CLINE_IN_TRACEBACK == 1 /* 0 or 1 to disable/enable C line display in tracebacks at C compile time */
+#ifdef CYTHON_CLINE_IN_TRACEBACK  /* 0 or 1 to disable/enable C line display in tracebacks at C compile time */
 #define __Pyx_CLineForTraceback(tstate, c_line)  (((CYTHON_CLINE_IN_TRACEBACK)) ? c_line : 0)
 #else
 static int __Pyx_CLineForTraceback(PyThreadState *tstate, int c_line);/*proto*/
@@ -773,7 +773,7 @@ static int __Pyx_CLineForTraceback(PyThreadState *tstate, int c_line);/*proto*/
 //@requires: PyErrFetchRestore
 //@substitute: naming
 
-#if !(CYTHON_CLINE_IN_TRACEBACK == 0 || CYTHON_CLINE_IN_TRACEBACK == 1)
+#ifndef CYTHON_CLINE_IN_TRACEBACK
 static int __Pyx_CLineForTraceback(PyThreadState *tstate, int c_line) {
     PyObject *use_cline;
     PyObject *ptype, *pvalue, *ptraceback;
