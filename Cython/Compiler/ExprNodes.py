@@ -10160,9 +10160,12 @@ class CodeObjectNode(ExprNode):
 
     def generate_result_code(self, code):
         if self.result_code is None:
-            # cname already generated
             self.result_code = code.get_py_codeobj_const(self)
 
+        # Generate the cached constants self.func_name_result, self.file_path_result,
+        # and self.varnames_result here, because it's expected to happen during the
+        # code generation stage, and the stringtab will already be complete by the time
+        # generate_codeoj_tab_entry is called.
         func = self.def_node
         self.func_name_result = code.get_py_string_const(
             func.name, identifier=True, is_str=False, unicode_value=func.name)
@@ -10190,7 +10193,7 @@ class CodeObjectNode(ExprNode):
             flags.append('CO_GENERATOR')
 
         filename_idx = code.lookup_filename(self.pos[0])
- 
+
         argcount=len(func.args) - func.num_kwonly_args
         num_posonly_args = func.num_posonly_args  # Py3.8+ only
         kwonlyargcount = func.num_kwonly_args

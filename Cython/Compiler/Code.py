@@ -1762,7 +1762,6 @@ class GlobalState:
         ))
 
         w.putln("__Pyx_CodeObjectTabEntry tab[] = {")
-        # Note that the iteration relies on dicts being insertion ordered
         for node in self.codeobject_constants:
             node.generate_codeoj_tab_entry(w)
         w.putln("{0}")  # blank entry at end so we don't have to think about commas
