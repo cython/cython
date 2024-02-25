@@ -811,9 +811,21 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         self._put_setup_code(code, "MathInitCode")
 
         if options.c_line_in_traceback:
-            cinfo = "%s = %s; " % (Naming.clineno_cname, Naming.line_c_macro)
+            # Actually the storing cline can be surprisingly costly in terms of code size.
+            # So skip it if we know that we're going to ignore it later.
+            code.putln("#if defined(CYTHON_CLINE_IN_TRACEBACK) && !CYTHON_CLINE_IN_TRACEBACK")
+            code.putln("#define __PYX_ASSIGN_CLINE")
+            code.putln("#else")
+            code.putln(f"#define __PYX_ASSIGN_CLINE {Naming.clineno_cname} = {Naming.line_c_macro}")
+            code.putln("#endif")
+            cinfo = f"__PYX_ASSIGN_CLINE;"
         else:
             cinfo = ""
+            # We may as well eliminate a bunch of code elsewhere that handles
+            # printing the cline, since we aren't recording the cline.
+            code.putln("#ifndef CYTHON_CLINE_IN_TRACEBACK")
+            code.putln("#define CYTHON_CLINE_IN_TRACEBACK 0")
+            code.putln("#endif")
         code.putln("#define __PYX_MARK_ERR_POS(f_index, lineno) \\")
         # Using "(void)cname" to prevent "unused" warnings.
         code.putln("    { %s = %s[f_index]; (void)%s; %s = lineno; (void)%s; %s (void)%s; }" % (
