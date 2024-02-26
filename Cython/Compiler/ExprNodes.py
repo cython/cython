@@ -8052,7 +8052,7 @@ class SequenceNode(ExprNode):
     unpacked_items = None
     mult_factor = None
     slow = False  # trade speed for code size (e.g. use PyTuple_Pack())
-    needs_subexpr_cleanup = False  # set to True in code-generation if we
+    needs_subexpr_disposal = False  # set to True in code-generation if we
             # didn't steal references to our temps and thus need to dispose
             # of them normally.
 
@@ -8206,7 +8206,7 @@ class SequenceNode(ExprNode):
                 ', '.join(arg.py_result() for arg in self.args),
                 code.error_goto_if_null(target, self.pos)))
             code.put_gotref(target, py_object_type)
-            self.needs_subexpr_cleanup = True
+            self.needs_subexpr_disposal = True
         elif self.type.is_ctuple:
             for i, arg in enumerate(self.args):
                 code.putln("%s.f%s = %s;" % (
@@ -8240,7 +8240,7 @@ class SequenceNode(ExprNode):
                 code.putln('for (%s=0; %s < %s; %s++) {' % (
                     counter, counter, c_mult, counter
                     ))
-                self.needs_subexpr_cleanup = True
+                self.needs_subexpr_disposal = True
             else:
                 offset = ''
 
@@ -8272,7 +8272,7 @@ class SequenceNode(ExprNode):
             code.putln('}')
 
     def generate_subexpr_disposal_code(self, code):
-        if self.needs_subexpr_cleanup:
+        if self.needs_subexpr_disposal:
             super().generate_subexpr_disposal_code(code)
         else:
             # We call generate_post_assignment_code here instead
