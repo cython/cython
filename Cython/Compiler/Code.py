@@ -1531,10 +1531,13 @@ class GlobalState:
 
     def generate_const_declarations(self):
         self.generate_cached_methods_decls()
-        self.generate_string_constants()
-        self.generate_num_constants()
         self.generate_object_constant_decls()
         self.generate_codeobject_constants()
+        # generate code for string and numeric constants as late as possible
+        # to allow new constants be to created by the earlier stages.
+        # (although the constants themselves are written early)
+        self.generate_string_constants()
+        self.generate_num_constants()
 
     def generate_object_constant_decls(self):
         consts = [(len(c.cname), c.cname, c)

@@ -10161,21 +10161,16 @@ class CodeObjectNode(ExprNode):
         if self.result_code is None:
             self.result_code = code.get_py_codeobj_const(self)
 
-        # Generate the cached constants self.func_name_result, self.file_path_result,
-        # and self.varnames_result here, because it's expected to happen during the
-        # code generation stage, and the stringtab will already be complete by the time
-        # generate_codeoj_tab_entry is called.
+    def generate_codeoj_tab_entry(self, code):
         func = self.def_node
-        self.func_name_result = code.get_py_string_const(
+
+        func_name_result = code.get_py_string_const(
             func.name, identifier=True, is_str=False, unicode_value=func.name)
         # FIXME: better way to get the module file path at module init time? Encoding to use?
         file_path = StringEncoding.bytes_literal(func.pos[0].get_filenametable_entry().encode('utf8'), 'utf8')
-        self.file_path_result = code.get_py_string_const(file_path, identifier=False, is_str=True)
+        file_path_result = code.get_py_string_const(file_path, identifier=False, is_str=True)
 
-        self.varnames_result = self.varnames.result()
-
-    def generate_codeoj_tab_entry(self, code):
-        func = self.def_node
+        varnames_result = self.varnames.result()
 
         # This combination makes CPython create a new dict for "frame.f_locals" (see GH #1836).
         flags = ['CO_OPTIMIZED', 'CO_NEWLOCALS']
@@ -10200,8 +10195,8 @@ class CodeObjectNode(ExprNode):
         flags = '|'.join(flags) or '0'
 
         s = (f"{filename_idx}, {argcount}, {num_posonly_args}, {kwonlyargcount}, "
-             f"{nlocals}, {flags}, {self.varnames_result}, {self.file_path_result},"
-             f"{self.func_name_result}, {self.pos[1]}")
+             f"{nlocals}, {flags}, {varnames_result}, {file_path_result},"
+             f"{func_name_result}, {self.pos[1]}")
         code.putln("{%s}, /* %s */" % (s, self.result_code))
 
 
