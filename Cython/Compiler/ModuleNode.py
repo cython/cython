@@ -819,7 +819,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             f" {Naming.lineno_cname} = lineno;"
             f" (void) {Naming.lineno_cname};"
             "%s"  # for C line info
-            f" (void) {Naming.clineno_cname}; "  # always surpress warnings
+            f" (void) {Naming.clineno_cname}; "  # always suppress warnings
             "}"
         )
         cline_info = f" {Naming.clineno_cname} = {Naming.line_c_macro};"

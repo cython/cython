@@ -1126,7 +1126,7 @@ size of the binary extension module. It can therefore be disabled using a C macr
 
 If the macro is *not* defined by the build setup or ``CFLAGS``, the feature is included and
 can be enabled and disabled at runtime, at the before mentioned cost of longer C compile
-times and larger extension modules.
+times and larger extension modules. This is the default behaviour.
   
 To change the value at runtime, you can import the special module ``cython_runtime``
 after loading a Cython module and set the attribute ``cline_in_traceback`` in that module
