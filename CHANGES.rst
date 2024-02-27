@@ -119,6 +119,9 @@ Features added
 Bugs fixed
 ----------
 
+* Subclass deallocation of extern classes could crash if the base class uses GC.
+  Original patch by Jason Fried.  (Github issue :issue:`5971`)
+
 * Type checks for Python ``memoryview`` could use an invalid C function.
   Patch by Xenia Lu.  (Github issue :issue:`5988`)
 
