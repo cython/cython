@@ -8052,6 +8052,10 @@ class SequenceNode(ExprNode):
     unpacked_items = None
     mult_factor = None
     slow = False  # trade speed for code size (e.g. use PyTuple_Pack())
+    needs_subexpr_disposal = False  # set to True in code-generation if we
+            # didn't steal references to our temps and thus need to dispose
+            # of them normally.
+
 
     def compile_time_value_list(self, denv):
         return [arg.compile_time_value(denv) for arg in self.args]
@@ -8086,6 +8090,10 @@ class SequenceNode(ExprNode):
                 mult_factor = mult_factor.coerce_to_pyobject(env)
             self.mult_factor = mult_factor.coerce_to_simple(env)
         self.is_temp = 1
+        if (env.is_module_scope or env.is_c_class_scope or
+                (env.is_py_class_scope and env.outer_scope.is_module_scope)):
+            # TODO - potentially behave differently in loops?
+            self.slow = True
         # not setting self.type here, subtypes do this
         return self
 
@@ -8179,14 +8187,26 @@ class SequenceNode(ExprNode):
                 else:
                     size_factor = ' * (%s)' % (c_mult,)
 
-        if self.type is tuple_type and (self.is_literal or self.slow) and not c_mult:
+        if ((self.type is tuple_type or self.type is list_type) and
+                (self.is_literal or self.slow) and
+                not c_mult and
+                len(self.args) > 0):
             # use PyTuple_Pack() to avoid generating huge amounts of one-time code
-            code.putln('%s = PyTuple_Pack(%d, %s); %s' % (
+            if self.type is list_type:
+                pack_name = '__Pyx_PyList_Pack'
+                code.globalstate.use_utility_code(
+                    UtilityCode.load_cached('ListPack', 'ObjectHandling.c')
+                )
+            else:
+                pack_name = 'PyTuple_Pack'
+            code.putln('%s = %s(%d, %s); %s' % (
                 target,
+                pack_name,
                 len(self.args),
                 ', '.join(arg.py_result() for arg in self.args),
                 code.error_goto_if_null(target, self.pos)))
             code.put_gotref(target, py_object_type)
+            self.needs_subexpr_disposal = True
         elif self.type.is_ctuple:
             for i, arg in enumerate(self.args):
                 code.putln("%s.f%s = %s;" % (
@@ -8220,6 +8240,7 @@ class SequenceNode(ExprNode):
                 code.putln('for (%s=0; %s < %s; %s++) {' % (
                     counter, counter, c_mult, counter
                     ))
+                self.needs_subexpr_disposal = True
             else:
                 offset = ''
 
@@ -8251,9 +8272,7 @@ class SequenceNode(ExprNode):
             code.putln('}')
 
     def generate_subexpr_disposal_code(self, code):
-        if self.mult_factor and self.mult_factor.type.is_int:
-            super().generate_subexpr_disposal_code(code)
-        elif self.type is tuple_type and (self.is_literal or self.slow):
+        if self.needs_subexpr_disposal:
             super().generate_subexpr_disposal_code(code)
         else:
             # We call generate_post_assignment_code here instead

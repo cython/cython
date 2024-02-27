@@ -2902,3 +2902,30 @@ static CYTHON_INLINE void __Pyx_RaiseCppAttributeError(const char *varname); /*p
 static CYTHON_INLINE void __Pyx_RaiseCppAttributeError(const char *varname) {
     PyErr_Format(PyExc_AttributeError, "C++ attribute '%s' is not initialized", varname);
 }
+
+/////////////// ListPack.proto //////////////////////////////////////
+
+// Equivalent to PyTuple_Pack for sections where we want to reduce the code size
+static PyObject *__Pyx_PyList_Pack(Py_ssize_t n, ...); /* proto */
+
+/////////////// ListPack //////////////////////////////////////
+
+static PyObject *__Pyx_PyList_Pack(Py_ssize_t n, ...) {
+    va_list va;
+    PyObject *l = PyList_New(n);
+    va_start(va, n);
+    if (unlikely(!l)) goto end;
+
+    for (Py_ssize_t i=0; i<n; ++i) {
+        PyObject *arg = va_arg(va, PyObject*);
+        Py_INCREF(arg);
+        if (unlikely(__Pyx_PyList_SET_ITEM(l, i, arg))) {
+            Py_CLEAR(l);
+            goto end;
+        }
+    }
+
+    end:
+    va_end(va);
+    return l;
+}
