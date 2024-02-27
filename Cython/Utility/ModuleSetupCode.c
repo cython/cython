@@ -1482,7 +1482,6 @@ static CYTHON_INLINE float __PYX_NAN() {
 #define __Pyx_truncl truncl
 #endif
 
-
 /////////////// ForceInitThreads.proto ///////////////
 //@proto_block: utility_code_proto_before_types
 
@@ -2189,3 +2188,59 @@ static CYTHON_INLINE void __Pyx_pretend_to_initialize(void* ptr) { (void)ptr; }
 #ifdef _MSC_VER
 #pragma warning( pop )  /* undo whatever Cython has done to warnings */
 #endif
+
+//////////////////// InitCodeObjs.proto ////////////////////////
+
+typedef struct {
+  // To get tracebacks
+  int filename_idx;
+
+  //
+  int argcount;
+  int num_posonly_args; // posonlyargcount (Py3.8+ only)
+  int kwonlyargcount;
+  int nlocals;
+  int flags;
+  // PyObject* names // FIXME?
+  PyObject* varnames;
+  // PyObject* freevars; // FIXME?
+  // PyObject* cellvars; // FIXME
+  PyObject* filename;
+  PyObject* funcname;
+  int firstlineno;
+} __Pyx_CodeObjectTabEntry;
+
+static int __Pyx_InitCodeObjects(__Pyx_CodeObjectTabEntry *table, PyObject **targets, Py_ssize_t N); /* proto */
+
+//////////////////// InitCodeObjs ////////////////////////
+//@substitute: naming
+
+static int __Pyx_InitCodeObjects(__Pyx_CodeObjectTabEntry *table, PyObject **targets, Py_ssize_t N) {
+    for (Py_ssize_t i=0; i<N; ++i) {
+        PyObject *result = (PyObject*)__Pyx_PyCode_New(
+            table[i].argcount,
+            table[i].num_posonly_args,
+            table[i].kwonlyargcount,
+            table[i].nlocals,
+            0,
+            table[i].flags,
+            ${empty_bytes}, // code
+            ${empty_tuple}, // consts
+            ${empty_tuple}, // names (FIXME)
+            table[i].varnames,
+            ${empty_tuple}, // freevars (FIXME)
+            ${empty_tuple}, // cellvars (FIXME)
+            table[i].filename,
+            table[i].funcname,
+            table[i].firstlineno,
+            ${empty_bytes} // lnotab
+        );
+        if (unlikely(!result)) __PYX_ERR(table[i].filename_idx, table[i].firstlineno, bad);
+
+        targets[i] = result;
+    }
+    return 0;
+
+    bad:
+    return -1;
+}
