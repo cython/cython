@@ -8,12 +8,21 @@ Cython Changelog
 Features added
 --------------
 
+* Several improvements were made to reduce the size of the resulting extension modules.
+  (Github issue :issue:`4425`)
+
+* Function calls now use the PEP-590 Vectorcall protocol, even when passing keyword arguments.
+  (Github issues :issue:`5804`)
+
 * Integer operations on known ``int`` types are faster.
-  (Github issues :issue:`5785`)
+  (Github issue :issue:`5785`)
 
 * Many issues with the Limited C-API were resolved.
   (Github issues :issue:`5697`, :issue:`5798`, :issue:`5845`, :issue:`5846`,
   :issue:`5885`, :issue:`5886`, :issue:`5888`)
+
+* Several issues with the gdb support were resolved.
+  Patches by Kent Slaney.  (Github issues :issue:`5955`,  :issue:`5948`)
 
 * Dataclasses support the ``match_args`` option.
   (Github issue :issue:`5381`)
@@ -28,12 +37,12 @@ Features added
   (Github issue :issue:`5911`)
 
 * Most builtin methods now provide their return type for type inference.
-  (Github issue :issue:`5865`)
+  (Github issues :issue:`4829`, :issue:`5865`)
 
 * ``.isprintable()`` is optimised for Unicode characters.
   (Github issue :issue:`3277`)
 
-* The parser was updated for Unicode 15.1 (as provided by CPython 3.13a1).
+* The parser was updated for Unicode 15.1 (as provided by CPython 3.13a4).
 
 Bugs fixed
 ----------
@@ -51,11 +60,26 @@ Bugs fixed
 * Several C++ warnings about ``char*`` casts were resolved.
   (Github issues :issue:`5515`, :issue:`5847`)
 
+* C++ undefined behaviour was fixed in an error handling case.
+  (Github issue :issue:`5278`)
+
+* The PEP-479 implementation could raise a visible ``RuntimeError`` without
+  a trace of the original ``StopIteration``.
+  (Github issue :issue:`5953`)
+
+* Unterminated string literals could lock up the build in an infinite loop.
+  (Github issue :issue:`5977`)
+
+* Exporting C functions uses better platform compatible code.
+  (Github issue :issue:`4683`)
+
 Other changes
 -------------
 
 * Support for Python 2.7 - 3.6 was removed, along with large chunks of legacy code.
   (Github issue :issue:`2800`)
+
+* The generated C code now requires a C99 compatible C compiler.
 
 * ``language_level=3`` is now the default.
   ``language_level=3str`` has become a legacy alias.
@@ -64,10 +88,14 @@ Other changes
 * The Python ``int`` type now maps directly to ``PyLong`` and is inferred accordingly.
   (Github issue :issue:`4237`)
 
+* The previously shipped NumPy C-API declarations (``cimport numpy``) were removed.
+  NumPy has been providing version specific declarations for several versions now.
+  (Github issue :issue:`5842`)
+
 * Usages of the outdated ``WITH_THREAD`` macro guard were removed.
   (Github issue :issue:`5812`)
 
-* Includes all fixes as of Cython 3.0.8 (but generates C99 code in some places).
+* Includes all fixes as of Cython 3.0.9 (but generates C99 code in some places).
 
 
 3.0.8 (2024-01-10)
