@@ -2,6 +2,51 @@
 Cython Changelog
 ================
 
+3.0.9 (2024-??-??)
+==================
+
+Features added
+--------------
+
+* Assigning ``const`` values to non-const variables now issues a warning.
+  (Github issue :issue:`5639`)
+
+* Using ``noexcept`` on a function returning Python objects now issues a warning.
+  (Github issue :issue:`5661`)
+
+* Some C-API usage was updated for the upcoming CPython 3.13.
+  Patches by Victor Stinner et al.  (Github issues :issue:`6003`, :issue:`6020`)
+
+* The deprecated ``Py_UNICODE`` type is no longer used, unless required by user code.
+  (Github issue :issue:`5982`)
+
+Bugs fixed
+----------
+
+* Type checks for Python ``memoryview`` could use an invalid C function.
+  Patch by Xenia Lu.  (Github issue :issue:`5988`)
+
+* Calling final fused functions could generate invalid C code.
+  (Github issue :issue:`5989`)
+
+* Declaring extern enums multiple times could generate invalid C code.
+  (Github issue :issue:`5905`)
+
+* ``pyximport`` used relative paths incorrectly.
+  Patch by Stefano Rivera.  (Github issue :issue:`5957`)
+
+* Running Cython with globbing characters (``[]*?``) in the module search path could fail.
+  Patch by eewanco.  (Github issue :issue:`5942`)
+
+* Literal strings that include braces could change the C code indentation.
+
+Other changes
+-------------
+
+* The "enum class not importable" warning is now only issued once per enum type.
+  (Github issue :issue:`5941`)
+
+
 3.0.8 (2024-01-10)
 ==================
 
