@@ -1774,14 +1774,23 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
         if base_type:
             base_cname = base_type.typeptr_cname
-            if needs_gc:
-                # The base class deallocator probably expects this to be tracked,
-                # so undo the untracking above.
-                if base_type.scope:
-                    # Assume that we know whether the base class uses GC or not.
-                    if base_type.scope.needs_gc():
-                        code.putln("PyObject_GC_Track(o);")
-                else:
+            tp_dealloc = TypeSlots.get_base_slot_function(scope, tp_slot)
+            if tp_dealloc is not None:
+                if needs_gc and base_type.scope and base_type.scope.needs_gc():
+                    # We know that the base class uses GC, so probably expects it to be tracked.
+                    # Undo the untracking above.
+                    code.putln("PyObject_GC_Track(o);")
+                code.putln("%s(o);" % tp_dealloc)
+            elif base_type.is_builtin_type:
+                if needs_gc and base_type.scope and base_type.scope.needs_gc():
+                    # We know that the base class uses GC, so probably expects it to be tracked.
+                    # Undo the untracking above.
+                    code.putln("PyObject_GC_Track(o);")
+                code.putln("__Pyx_PyType_GetSlot(%s, tp_dealloc, destructor)(o);" % base_cname)
+            else:
+                if needs_gc:
+                    # We don't know if the base class uses GC or not, so must find out at runtime
+                    # whether we should undo the untracking above or not.
                     code.putln("#if PY_MAJOR_VERSION < 3")
                     # Py2 lacks guarantees that the type pointer is still valid if we dealloc the object
                     # at system exit time.  Thus, we need an extra NULL check.
@@ -1789,13 +1798,6 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                     code.putln("#else")
                     code.putln("if (PyType_IS_GC(%s)) PyObject_GC_Track(o);" % base_cname)
                     code.putln("#endif")
-
-            tp_dealloc = TypeSlots.get_base_slot_function(scope, tp_slot)
-            if tp_dealloc is not None:
-                code.putln("%s(o);" % tp_dealloc)
-            elif base_type.is_builtin_type:
-                code.putln("__Pyx_PyType_GetSlot(%s, tp_dealloc, destructor)(o);" % base_cname)
-            else:
                 # This is an externally defined type.  Calling through the
                 # cimported base type pointer directly interacts badly with
                 # the module cleanup, which may already have cleared it.
