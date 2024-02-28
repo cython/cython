@@ -10207,7 +10207,7 @@ class CodeObjectNode(ExprNode):
 
         filename_idx = code.lookup_filename(self.pos[0])
 
-        argcount=len(func.args) - func.num_kwonly_args
+        argcount = len(func.args) - func.num_kwonly_args
         num_posonly_args = func.num_posonly_args  # Py3.8+ only
         kwonlyargcount = func.num_kwonly_args
         nlocals = len(self.varnames.args)
