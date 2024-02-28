@@ -2,7 +2,7 @@
 Cython Changelog
 ================
 
-3.0.9 (2024-??-??)
+3.0.9 (2024-02-28)
 ==================
 
 Features added
@@ -19,6 +19,9 @@ Features added
 
 * The deprecated ``Py_UNICODE`` type is no longer used, unless required by user code.
   (Github issue :issue:`5982`)
+
+* ``std::string.replace()`` declarations were added to libcpp.string.
+  Patch by Kieran Geary.  (Github issue :issue:`6037`)
 
 Bugs fixed
 ----------
