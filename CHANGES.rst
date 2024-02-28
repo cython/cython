@@ -26,6 +26,11 @@ Features added
 Bugs fixed
 ----------
 
+* Cython generates incorrect (but harmless) self-casts when directly calling
+  final methods of subtypes.  Lacking a better solution, the errors that recent
+  gcc versions produce have been silenced for the time being.
+  Original patch by Michał Górny.  (Github issue :issue:`2747`)
+
 * Subclass deallocation of extern classes could crash if the base class uses GC.
   Original patch by Jason Fried.  (Github issue :issue:`5971`)
 
