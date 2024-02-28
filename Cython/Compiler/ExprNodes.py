@@ -10185,10 +10185,6 @@ class CodeObjectNode(ExprNode):
 
         func_name_result = code.get_py_string_const(
             func.name, identifier=True, is_str=False, unicode_value=func.name)
-        # FIXME: better way to get the module file path at module init time? Encoding to use?
-        file_path = StringEncoding.bytes_literal(func.pos[0].get_filenametable_entry().encode('utf8'), 'utf8')
-        file_path_result = code.get_py_string_const(file_path, identifier=False, is_str=True)
-
         varnames_result = self.varnames.result()
 
         # This combination makes CPython create a new dict for "frame.f_locals" (see GH #1836).
@@ -10214,8 +10210,8 @@ class CodeObjectNode(ExprNode):
         flags = '|'.join(flags) or '0'
 
         s = (f"{filename_idx}, {argcount}, {num_posonly_args}, {kwonlyargcount}, "
-             f"{nlocals}, {flags}, {varnames_result}, {file_path_result},"
-             f"{func_name_result}, {self.pos[1]}")
+             f"{nlocals}, {self.pos[1]}, {flags}, "
+             f"{varnames_result}, {func_name_result}")
         code.putln("{%s}, /* %s */" % (s, self.result_code))
 
 

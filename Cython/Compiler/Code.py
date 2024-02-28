@@ -1634,6 +1634,7 @@ class GlobalState:
 
         # We use only type size macros from "pyport.h" here.
         self.parts['utility_code_proto'].put(textwrap.dedent("""\
+        /* StringTab struct */
         typedef struct {const char *s;
         #if %(max_length)d <= 65535
             const unsigned short n;
@@ -1744,8 +1745,6 @@ class GlobalState:
             w.putln("}")
             return
 
-        self.use_utility_code(UtilityCode.load_cached("InitCodeObjs", "ModuleSetupCode.c"))
-
         self.parts['module_state'].putln("PyObject *%s[%s];" % (
                 Naming.codeobjtab_cname, len(self.codeobject_constants)))
 
@@ -1764,13 +1763,66 @@ class GlobalState:
             Naming.codeobjtab_cname, Naming.modulestateglobal_cname, Naming.codeobjtab_cname
         ))
 
+        max_flags = 0x400
+        py_filenames = {}
+        max_func_args = 1
+        max_special_args = 1
+        max_vars = 1
+        max_line = 1
+        for node in self.codeobject_constants:
+            def_node = node.def_node
+            max_func_args = max(max_func_args, len(def_node.args))
+            max_special_args = max(max_special_args, def_node.num_kwonly_args, def_node.num_posonly_args)
+            max_vars = max(max_vars, len(node.varnames.args))
+            max_line = max(max_line, def_node.pos[1])
+            py_filenames[self.lookup_filename(def_node.pos[0])] = def_node.pos[0]
+
+        # write Python filename object table
+        w.putln("PyObject *filenames[] = {")
+        index_pos = 0
+        for index, file_descr in sorted(py_filenames.items()):
+            while index > index_pos:
+                w.putln("0,")
+                index_pos += 1
+            # FIXME: better way to get the module file path at module init time? Encoding to use?
+            file_path = StringEncoding.bytes_literal(file_descr.get_filenametable_entry().encode('utf8'), 'utf8')
+            file_path_cname = self.get_py_string_const(file_path, identifier=False, is_str=True).cname
+            w.putln(f"{file_path_cname},")
+            index_pos += 1
+        w.putln("0")
+        w.putln("};")
+
+        # write code object table
+        self.parts['utility_code_proto'].put(textwrap.dedent(f"""\
+        /* CodeObjectTab struct */
+        typedef struct {{
+            // To get tracebacks
+            unsigned int filename_idx : {index_pos.bit_length()};
+
+            //
+            unsigned int argcount : {max_func_args.bit_length()};
+            unsigned int num_posonly_args : {max_special_args.bit_length()};  // posonlyargcount (Py3.8+ only)
+            unsigned int kwonlyargcount : {max_special_args.bit_length()};
+            unsigned int nlocals : {max_vars.bit_length()};
+            unsigned int firstlineno : {max_line.bit_length()};
+            unsigned int flags : {max_flags.bit_length()};
+            // PyObject* names // FIXME?
+            PyObject* varnames;
+            // PyObject* freevars; // FIXME?
+            // PyObject* cellvars; // FIXME
+            PyObject* funcname;
+        }} __Pyx_CodeObjectTabEntry;
+        """))
+
         w.putln("__Pyx_CodeObjectTabEntry tab[] = {")
         for node in self.codeobject_constants:
             node.generate_codeoj_tab_entry(w)
         w.putln("{0}")  # blank entry at end so we don't have to think about commas
         w.putln("};")
 
-        w.putln("return __Pyx_InitCodeObjects(tab, %s, %d);" % (
+        self.use_utility_code(UtilityCode.load_cached("InitCodeObjs", "ModuleSetupCode.c"))
+
+        w.putln("return __Pyx_InitCodeObjects(tab, filenames, %s, %d);" % (
             Naming.codeobjtab_cname,
             len(self.codeobject_constants)
         ))
