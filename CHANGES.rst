@@ -31,6 +31,9 @@ Bugs fixed
   gcc versions produce have been silenced for the time being.
   Original patch by Michał Górny.  (Github issue :issue:`2747`)
 
+* Unused variable warnings about clineno were fixed.
+  (Github issue :issue:`6035`)
+
 * Subclass deallocation of extern classes could crash if the base class uses GC.
   Original patch by Jason Fried.  (Github issue :issue:`5971`)
 
