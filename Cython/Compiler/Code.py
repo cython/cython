@@ -1734,10 +1734,10 @@ class GlobalState:
         # references to constants in the code object table can be done using
         # offsetof, and it can be defined as a C constant global.
         # For now it must be defined as a function local.
-        self.parts['decls'].putln("static int __Pyx_CreateCodeTabAndInitCode(void); /* proto */")
+        self.parts['decls'].putln("static int __Pyx_CreateCodeObjectTabAndInitCode(void); /* proto */")
 
         w = self.parts['pycodeobj_table']
-        w.putln("static int __Pyx_CreateCodeTabAndInitCode(void) {")
+        w.putln("static int __Pyx_CreateCodeObjectTabAndInitCode(void) {")
 
         if not self.codeobject_constants:
             w.putln("return 0;")
