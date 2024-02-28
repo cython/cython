@@ -122,6 +122,8 @@ Features added
 Bugs fixed
 ----------
 
+* Unused variable warnings about clineno were fixed.
+
 * Subclass deallocation of extern classes could crash if the base class uses GC.
   Original patch by Jason Fried.  (Github issue :issue:`5971`)
 
