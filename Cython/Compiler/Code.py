@@ -1568,7 +1568,7 @@ class GlobalState:
                 part_writer = self.parts[f'module_state_{part}']
                 part_writer.putln(f"for (Py_ssize_t i=0; i<{count}; ++i) {{")
                 op = "Py_CLEAR" if part == 'clear' else "Py_VISIT"
-                part_writer.putln(f"{op}({part}_module_state->{full_prefix});")
+                part_writer.putln(f"{op}({part}_module_state->{full_prefix}[i]);")
                 part_writer.putln("}")
 
     def generate_cached_methods_decls(self):
