@@ -84,6 +84,28 @@ extension modules.  The default for gcc is ``-g2``, for example. Disabling them
 to produce stack traces on crashes (``CFLAGS=-g1`` for gcc), can visibly reduce
 the size of the binaries.
 
+Here are some more things to try:
+
+* If you don't need pickle support for your cdef classes, memoryviews or functions,
+  consider disabling auto-pickle support::
+
+    # cython: auto_pickle=False
+
+    # or locally for a given class:
+    @cython.auto_pickle(False)
+    @cclass
+    class MyClass:
+        ...
+
+* If you do not need C line information in exception stack traces (i.e. Python/Cython
+  lines are enough, as for normal Python code), you can disable this feature with the
+  C macro ``CYTHON_CLINE_IN_TRACEBACK``:
+
+    ``-DCYTHON_CLINE_IN_TRACEBACK=0``
+
+  In Cython versions before 3.1, you also had to pass the option ``--no-c-in-traceback``
+  or set the option ``c_line_in_traceback=False``.
+
 ----------
 
 How well is Unicode supported?
