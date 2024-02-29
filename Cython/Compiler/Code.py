@@ -1200,6 +1200,7 @@ class GlobalState:
         self.codeobject_constants = []
         self.num_const_index = {}
         self.py_constants = []
+        self.array_consts = {}  # counts of differently prefixed arrays of constants
         self.cached_cmethods = {}
         self.initialised_constants = set()
 
@@ -1359,23 +1360,25 @@ class GlobalState:
             c = self.new_num_const(str_value, 'float', value_code)
         return c
 
-    def get_py_const(self, type, prefix='', cleanup_level=None, dedup_key=None):
+    def get_py_const(self, prefix='', dedup_key=None):
         if dedup_key is not None:
             const = self.dedup_const_index.get(dedup_key)
             if const is not None:
                 return const
         # create a new Python object constant
-        const = self.new_py_const(type, prefix)
-        if (cleanup_level is not None
-                and cleanup_level <= Options.generate_cleanup_code
-                # Note that this function is used for all argument defaults
-                # which aren't just Python objects
-                and type.needs_refcounting):
-            cleanup_writer = self.parts['cleanup_globals']
-            cleanup_writer.putln('Py_CLEAR(%s);' % const.cname)
+        const = self.new_array_const_cname(prefix)
         if dedup_key is not None:
             self.dedup_const_index[dedup_key] = const
         return const
+
+    def get_argument_default_const(self, type):
+        cname = self.new_const_cname('')
+        c = PyObjectConst(cname, type)
+        self.py_constants.append(c)
+        # Argument default constants aren't currently cleaned up.
+        # If that changes, it needs to account for the fact that they
+        # aren't just Python objects
+        return c
 
     def get_string_const(self, text, py_version=None):
         # return a C string constant, creating a new one if necessary
@@ -1434,12 +1437,6 @@ class GlobalState:
         self.num_const_index[(value, py_type)] = c
         return c
 
-    def new_py_const(self, type, prefix=''):
-        cname = self.new_const_cname(prefix)
-        c = PyObjectConst(cname, type)
-        self.py_constants.append(c)
-        return c
-
     def new_string_const_cname(self, bytes_value):
         # Create a new globally-unique nice name for a C string constant.
         value = bytes_value.decode('ASCII', 'ignore')
@@ -1477,6 +1474,11 @@ class GlobalState:
         else:
             prefix = Naming.const_prefix
         return "%s%s" % (prefix, name_suffix)
+
+    def new_array_const_cname(self, prefix: str):
+        count = self.array_consts.get(prefix, 0)
+        self.array_consts[prefix] = count+1
+        return f"{Naming.pyrex_prefix}{prefix}[{count}]"
 
     def get_cached_unbound_method(self, type_cname, method_name):
         key = (type_cname, method_name)
@@ -1556,6 +1558,18 @@ class GlobalState:
                 "Py_CLEAR(clear_module_state->%s);" % cname)
             self.parts['module_state_traverse'].putln(
                 "Py_VISIT(traverse_module_state->%s);" % cname)
+
+        for prefix, count in self.array_consts.items():
+            full_prefix = f"{Naming.pyrex_prefix}{prefix}"
+            self.parts['module_state'].putln(f"PyObject *{full_prefix}[{count}];")
+            self.parts['module_state_defines'].putln(
+                f"#define {full_prefix} {Naming.modulestateglobal_cname}->{full_prefix}")
+            for part in ['clear', 'traverse']:
+                part_writer = self.parts[f'module_state_{part}']
+                part_writer.putln(f"for (Py_ssize_t i=0; i<{count}; ++i) {{")
+                op = "Py_CLEAR" if part == 'clear' else "Py_VISIT"
+                part_writer.putln(f"{op}({part}_module_state->{full_prefix});")
+                part_writer.putln("}")
 
     def generate_cached_methods_decls(self):
         if not self.cached_cmethods:
@@ -2086,8 +2100,8 @@ class CCodeWriter:
     def get_py_float(self, str_value, value_code):
         return self.globalstate.get_float_const(str_value, value_code).cname
 
-    def get_py_const(self, type, prefix='', cleanup_level=None, dedup_key=None):
-        return self.globalstate.get_py_const(type, prefix, cleanup_level, dedup_key).cname
+    def get_py_const(self, prefix='', dedup_key=None):
+        return self.globalstate.get_py_const(prefix, dedup_key)
 
     def get_string_const(self, text):
         return self.globalstate.get_string_const(text).cname
@@ -2104,7 +2118,7 @@ class CCodeWriter:
         return self.globalstate.get_py_codeobj_const(node)
 
     def get_argument_default_const(self, type):
-        return self.globalstate.get_py_const(type).cname
+        return self.globalstate.get_argument_default_const(type).cname
 
     def intern(self, text):
         return self.get_py_string_const(text)

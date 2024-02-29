@@ -1770,7 +1770,7 @@ class UnicodeNode(ConstNode):
             if StringEncoding.string_contains_lone_surrogates(self.value):
                 # lone (unpaired) surrogates are not really portable and cannot be
                 # decoded by the UTF-8 codec in Py3.3+
-                self.result_code = code.get_py_const(py_object_type, 'ustring')
+                self.result_code = code.get_py_const('ustring')
                 data_cname = code.get_string_const(
                     StringEncoding.BytesLiteral(self.value.encode('unicode_escape')))
                 const_code = code.get_cached_constants_writer(self.result_code)
@@ -5780,7 +5780,7 @@ class SliceNode(ExprNode):
     def generate_result_code(self, code):
         if self.is_literal:
             dedup_key = make_dedup_key(self.type, (self,))
-            self.result_code = code.get_py_const(py_object_type, 'slice', cleanup_level=2, dedup_key=dedup_key)
+            self.result_code = code.get_py_const('slice', dedup_key=dedup_key)
             code = code.get_cached_constants_writer(self.result_code)
             if code is None:
                 return  # already initialised
@@ -8715,7 +8715,7 @@ class TupleNode(SequenceNode):
             # The "mult_factor" is part of the deduplication if it is also constant, i.e. when
             # we deduplicate the multiplied result.  Otherwise, only deduplicate the constant part.
             dedup_key = make_dedup_key(self.type, [self.mult_factor if self.is_literal else None] + self.args)
-            tuple_target = code.get_py_const(py_object_type, 'tuple', cleanup_level=2, dedup_key=dedup_key)
+            tuple_target = code.get_py_const('tuple', dedup_key=dedup_key)
             const_code = code.get_cached_constants_writer(tuple_target)
             if const_code is not None:
                 # constant is not yet initialised
