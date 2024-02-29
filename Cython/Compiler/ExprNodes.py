@@ -10329,6 +10329,8 @@ class LambdaNode(InnerFunctionNode):
         self.def_node.pymethdef_required = True
         self.def_node.is_cyfunction = True
         self.def_node.analyse_declarations(env)
+        # Skipp creation of Code object for generator expressions, this currently fails
+        self.code_object = None if self.def_node.is_generator_expression else CodeObjectNode(self.def_node)
         self.pymethdef_cname = self.def_node.entry.pymethdef_cname
         env.add_lambda_def(self.def_node)
 
