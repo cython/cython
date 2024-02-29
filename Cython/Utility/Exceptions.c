@@ -827,7 +827,6 @@ static void __Pyx_AddTraceback(const char *funcname, int c_line,
                                int py_line, const char *filename); /*proto*/
 
 /////////////// AddTraceback ///////////////
-//@requires: ModuleSetupCode.c::CodeObjectCache
 //@requires: CLineInTraceback
 //@substitute: naming
 
