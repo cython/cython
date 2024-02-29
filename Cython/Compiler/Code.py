@@ -1766,29 +1766,31 @@ class GlobalState:
         max_flags = 0x400
         py_filenames = {}
         max_func_args = 1
-        max_special_args = 1
+        max_kwonly_args = 1
+        max_posonly_args = 1
         max_vars = 1
         max_line = 1
         for node in self.codeobject_constants:
             def_node = node.def_node
-            max_func_args = max(max_func_args, len(def_node.args))
-            max_special_args = max(max_special_args, def_node.num_kwonly_args, def_node.num_posonly_args)
+            max_func_args = max(max_func_args, len(def_node.args) - def_node.num_kwonly_args)
+            max_kwonly_args = max(max_kwonly_args, def_node.num_kwonly_args)
+            max_posonly_args = max(max_posonly_args, def_node.num_posonly_args)
             max_vars = max(max_vars, len(node.varnames.args))
             max_line = max(max_line, def_node.pos[1])
             py_filenames[self.lookup_filename(def_node.pos[0])] = def_node.pos[0]
 
         # write Python filename object table
         w.putln("PyObject *filenames[] = {")
-        index_pos = 0
+        filename_index_pos = 0
         for index, file_descr in sorted(py_filenames.items()):
-            while index > index_pos:
+            while index > filename_index_pos:
                 w.putln("0,")
-                index_pos += 1
+                filename_index_pos += 1
             # FIXME: better way to get the module file path at module init time? Encoding to use?
             file_path = StringEncoding.bytes_literal(file_descr.get_filenametable_entry().encode('utf8'), 'utf8')
             file_path_cname = self.get_py_string_const(file_path, identifier=False, is_str=True).cname
             w.putln(f"{file_path_cname},")
-            index_pos += 1
+            filename_index_pos += 1
         w.putln("0")
         w.putln("};")
 
@@ -1797,12 +1799,12 @@ class GlobalState:
         /* CodeObjectTab struct */
         typedef struct {{
             // To get tracebacks
-            unsigned int filename_idx : {index_pos.bit_length()};
+            unsigned int filename_idx : {filename_index_pos.bit_length()};
 
             //
             unsigned int argcount : {max_func_args.bit_length()};
-            unsigned int num_posonly_args : {max_special_args.bit_length()};  // posonlyargcount (Py3.8+ only)
-            unsigned int kwonlyargcount : {max_special_args.bit_length()};
+            unsigned int num_posonly_args : {max_posonly_args.bit_length()};  // posonlyargcount (Py3.8+ only)
+            unsigned int kwonlyargcount : {max_kwonly_args.bit_length()};
             unsigned int nlocals : {max_vars.bit_length()};
             unsigned int firstlineno : {max_line.bit_length()};
             unsigned int flags : {max_flags.bit_length()};
