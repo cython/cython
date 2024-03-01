@@ -105,6 +105,11 @@ Here are some more things to try:
 
   In Cython versions before 3.1, you also had to pass the option ``--no-c-in-traceback``
   or set the option ``c_line_in_traceback=False``.
+  
+* Turn off the ``cython.binding`` directive (either globally, or locally for a class
+  or specific functions). The ``binding`` directive significantly improves 
+  introspection of Cython-generated functions. However, if you don't need this
+  introspection then you can save some size.
 
 ----------
 
