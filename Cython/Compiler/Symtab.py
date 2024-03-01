@@ -30,7 +30,7 @@ iso_c99_keywords = {
 }
 
 # Builtins python 3.12.2
-
+KNOWN_PYTHON_BUILTINS_VERSION = (3, 12, 2, 'final', 0)
 KNOWN_PYTHON_BUILTINS = frozenset([
     'ArithmeticError',
     'AssertionError',

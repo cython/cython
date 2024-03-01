@@ -7,6 +7,9 @@ from ..Builtin import (
     builtin_scope,
 )
 
+from ..Symtab import (
+    KNOWN_PYTHON_BUILTINS_VERSION, KNOWN_PYTHON_BUILTINS,
+)
 
 class TestBuiltinReturnTypes(unittest.TestCase):
     def test_find_return_type_of_builtin_method(self):
@@ -30,3 +33,13 @@ class TestBuiltinReturnTypes(unittest.TestCase):
                         self.assertTrue(hasattr(py_type, method_name), f"{type_name}.{method_name}")
                 else:
                     self.assertEqual(return_type.empty_declaration_code(pyrex=True), return_type_name)
+
+class TestBuiltinCompatibility(unittest.TestCase):
+    def test_python_builtin_compatibility(self):
+        runtime_builtin_version = frozenset(dir(__builtins__))
+        if sys.version_info < KNOWN_PYTHON_BUILTINS_VERSION:
+            missing_builtins = KNOWN_PYTHON_BUILTINS-runtime_builtin_version
+            if len(missing_builtins) == 0:
+                self.skipTest('skipping test, older Python release found.')
+            self.skipTest(f'skipping test, older Python release found. Missing builtins: {", ".join(missing_builtins)}')
+        self.assertEqual(runtime_builtin_version, KNOWN_PYTHON_BUILTINS)
