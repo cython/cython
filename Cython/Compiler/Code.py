@@ -1559,7 +1559,7 @@ class GlobalState:
             self.parts['module_state_traverse'].putln(
                 "Py_VISIT(traverse_module_state->%s);" % cname)
 
-        for prefix, count in self.array_consts.items():
+        for prefix, count in sorted(self.array_consts.items()):
             full_prefix = f"{Naming.pyrex_prefix}{prefix}"
             self.parts['module_state'].putln(f"PyObject *{full_prefix}[{count}];")
             self.parts['module_state_defines'].putln(
