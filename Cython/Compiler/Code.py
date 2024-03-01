@@ -102,6 +102,12 @@ modifier_output_mapper = {
     'inline': 'CYTHON_INLINE'
 }.get
 
+cleanup_levels_map = {
+    'ustring': None,
+    'tuple': 2,
+    'slice': 2,
+}
+
 
 class IncludeCode:
     """
@@ -1560,18 +1566,24 @@ class GlobalState:
                 "Py_VISIT(traverse_module_state->%s);" % cname)
 
         for prefix, count in sorted(self.array_consts.items()):
-            full_prefix = f"{Naming.pyrex_prefix}{prefix}"
-            self.parts['module_state'].putln(f"PyObject *{full_prefix}[{count}];")
+            # name the struct attribute and the global "define" slightly differently
+            # to avoid the global define getting in the way
+            struct_attr_cname = f"{Naming.pyrex_prefix}_{prefix}"
+            global_cname = f"{Naming.pyrex_prefix}{prefix}"
+            self.parts['module_state'].putln(f"PyObject *{struct_attr_cname}[{count}];")
             self.parts['module_state_defines'].putln(
-                f"#define {full_prefix} {Naming.modulestateglobal_cname}->{full_prefix}")
-            cleanup_details = [('module_state_clear', 'Py_CLEAR', 'clear_module_state->'),
-                               ('module_state_traverse', 'Py_VISIT', 'traverse_module_state->')]
-            if Options.generate_cleanup_code >= 2 and prefix != 'ustring':
-                cleanup_details.append(('cleanup_globals', 'Py_CLEAR', ''))
-            for part_name, op, accessor in cleanup_details:
+                f"#define {global_cname} {Naming.modulestateglobal_cname}->{struct_attr_cname}")
+            cleanup_details = [
+                ('module_state_clear', 'Py_CLEAR', f'clear_module_state->{struct_attr_cname}'),
+                ('module_state_traverse', 'Py_VISIT', f'traverse_module_state->{struct_attr_cname}')]
+            cleanup_level = cleanup_levels_map[prefix]
+            if (cleanup_level is not None and
+                    cleanup_level <= Options.generate_cleanup_code):
+                cleanup_details.append(('cleanup_globals', 'Py_CLEAR', global_cname))
+            for part_name, op, cname in cleanup_details:
                 part_writer = self.parts[part_name]
                 part_writer.putln(f"for (Py_ssize_t i=0; i<{count}; ++i) {{")
-                part_writer.putln(f"{op}({accessor}{full_prefix}[i]);")
+                part_writer.putln(f"{op}({cname}[i]);")
                 part_writer.putln("}")
 
     def generate_cached_methods_decls(self):
