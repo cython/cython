@@ -1360,7 +1360,7 @@ class GlobalState:
             c = self.new_num_const(str_value, 'float', value_code)
         return c
 
-    def get_py_const(self, prefix='', dedup_key=None):
+    def get_py_const(self, prefix, dedup_key=None):
         if dedup_key is not None:
             const = self.dedup_const_index.get(dedup_key)
             if const is not None:
@@ -2103,7 +2103,7 @@ class CCodeWriter:
     def get_py_float(self, str_value, value_code):
         return self.globalstate.get_float_const(str_value, value_code).cname
 
-    def get_py_const(self, prefix='', dedup_key=None):
+    def get_py_const(self, prefix, dedup_key=None):
         return self.globalstate.get_py_const(prefix, dedup_key)
 
     def get_string_const(self, text):
