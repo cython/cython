@@ -1199,7 +1199,7 @@ class GlobalState:
         self.pyunicode_ptr_const_index = {}
         self.codeobject_constants = []
         self.num_const_index = {}
-        self.py_constants = []
+        self.arg_default_constants = []
         self.array_consts = {}  # counts of differently prefixed arrays of constants
         self.cached_cmethods = {}
         self.initialised_constants = set()
@@ -1374,7 +1374,7 @@ class GlobalState:
     def get_argument_default_const(self, type):
         cname = self.new_const_cname('')
         c = PyObjectConst(cname, type)
-        self.py_constants.append(c)
+        self.arg_default_constants.append(c)
         # Argument default constants aren't currently cleaned up.
         # If that changes, it needs to account for the fact that they
         # aren't just Python objects
@@ -1543,7 +1543,7 @@ class GlobalState:
 
     def generate_object_constant_decls(self):
         consts = [(len(c.cname), c.cname, c)
-                  for c in self.py_constants]
+                  for c in self.arg_default_constants]
         consts.sort()
         for _, cname, c in consts:
             self.parts['module_state'].putln("%s;" % c.type.declaration_code(cname))
@@ -1564,11 +1564,14 @@ class GlobalState:
             self.parts['module_state'].putln(f"PyObject *{full_prefix}[{count}];")
             self.parts['module_state_defines'].putln(
                 f"#define {full_prefix} {Naming.modulestateglobal_cname}->{full_prefix}")
-            for part in ['clear', 'traverse']:
-                part_writer = self.parts[f'module_state_{part}']
+            cleanup_details = [('module_state_clear', 'Py_CLEAR', 'clear_module_state->'),
+                               ('module_state_traverse', 'Py_VISIT', 'traverse_module_state->')]
+            if Options.generate_cleanup_code >= 2 and prefix != 'ustring':
+                cleanup_details.append(('cleanup_globals', 'Py_CLEAR', ''))
+            for part_name, op, accessor in cleanup_details:
+                part_writer = self.parts[part_name]
                 part_writer.putln(f"for (Py_ssize_t i=0; i<{count}; ++i) {{")
-                op = "Py_CLEAR" if part == 'clear' else "Py_VISIT"
-                part_writer.putln(f"{op}({part}_module_state->{full_prefix}[i]);")
+                part_writer.putln(f"{op}({accessor}{full_prefix}[i]);")
                 part_writer.putln("}")
 
     def generate_cached_methods_decls(self):
