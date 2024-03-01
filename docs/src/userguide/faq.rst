@@ -106,6 +106,9 @@ Here are some more things to try:
   In Cython versions before 3.1, you also had to pass the option ``--no-c-in-traceback``
   or set the option ``c_line_in_traceback=False``.
 
+* If you do not need docstrings of python functions and classes you can disable including
+  docstrings to final binary with the  :data:`Cython.Compiler.Options.docstrings` option.
+
 ----------
 
 How well is Unicode supported?
