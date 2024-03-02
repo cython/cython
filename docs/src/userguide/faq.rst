@@ -87,12 +87,12 @@ the size of the binaries.
 Here are some more things to try:
 
 * If you don't need pickle support for your cdef classes, memoryviews or functions,
-  consider disabling auto-pickle support::
+  consider disabling auto-pickle support with a directive::
 
     # cython: auto_pickle=False
 
-    # or locally for a given class:
-    @cython.auto_pickle(False)
+    # you can still enable or disable it locally for single classs:
+    @cython.auto_pickle(True)
     @cclass
     class MyClass:
         ...
@@ -104,15 +104,17 @@ Here are some more things to try:
     ``-DCYTHON_CLINE_IN_TRACEBACK=0``
 
   In Cython versions before 3.1, you also had to pass the option ``--no-c-in-traceback``
-  or set the option ``c_line_in_traceback=False``.
-  
-* Turn off the ``cython.binding`` directive (either globally, or locally for a class
-  or specific functions). The ``binding`` directive significantly improves 
-  introspection of Cython-generated functions. However, if you don't need this
-  introspection then you can save some size.
+  or set the option ``c_line_in_traceback=False`` to get the reduction in size.
 
-* If you do not need docstrings of python functions and classes you can disable including
-  docstrings to final binary with the  :data:`Cython.Compiler.Options.docstrings` option.
+* If you do not need Cython implemented functions to look and behave like Python
+  functions when it comes to introspection (argument names, annotations, etc.),
+  you can turn off the ``binding`` directive, either globally, or locally for classes
+  or specific functions.  This will make Cython use the normal CPython implementation
+  for natively implemented functions, which does not expose such functionality.
+
+* If you do not need to expose the docstrings of Python functions and classes,
+  you can exclude them from the extension module with the option
+  :data:`Cython.Compiler.Options.docstrings`.
 
 ----------
 
