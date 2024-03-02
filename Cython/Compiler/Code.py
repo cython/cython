@@ -102,11 +102,11 @@ modifier_output_mapper = {
     'inline': 'CYTHON_INLINE'
 }.get
 
-cleanup_levels_map = {
+cleanup_level_for_type_prefix = cython.declare(object, {
     'ustring': None,
     'tuple': 2,
     'slice': 2,
-}
+}.get)
 
 
 class IncludeCode:
@@ -1206,7 +1206,7 @@ class GlobalState:
         self.codeobject_constants = []
         self.num_const_index = {}
         self.arg_default_constants = []
-        self.array_consts = {}  # counts of differently prefixed arrays of constants
+        self.const_array_counters = {}  # counts of differently prefixed arrays of constants
         self.cached_cmethods = {}
         self.initialised_constants = set()
 
@@ -1371,7 +1371,6 @@ class GlobalState:
             const = self.dedup_const_index.get(dedup_key)
             if const is not None:
                 return const
-        # create a new Python object constant
         const = self.new_array_const_cname(prefix)
         if dedup_key is not None:
             self.dedup_const_index[dedup_key] = const
@@ -1482,8 +1481,8 @@ class GlobalState:
         return "%s%s" % (prefix, name_suffix)
 
     def new_array_const_cname(self, prefix: str):
-        count = self.array_consts.get(prefix, 0)
-        self.array_consts[prefix] = count+1
+        count = self.const_array_counters.get(prefix, 0)
+        self.const_array_counters[prefix] = count+1
         return f"{Naming.pyrex_prefix}{prefix}[{count}]"
 
     def get_cached_unbound_method(self, type_cname, method_name):
@@ -1565,7 +1564,7 @@ class GlobalState:
             self.parts['module_state_traverse'].putln(
                 "Py_VISIT(traverse_module_state->%s);" % cname)
 
-        for prefix, count in sorted(self.array_consts.items()):
+        for prefix, count in sorted(self.const_array_counters.items()):
             # name the struct attribute and the global "define" slightly differently
             # to avoid the global define getting in the way
             struct_attr_cname = f"{Naming.pyrex_prefix}_{prefix}"
@@ -1576,7 +1575,7 @@ class GlobalState:
             cleanup_details = [
                 ('module_state_clear', 'Py_CLEAR', f'clear_module_state->{struct_attr_cname}'),
                 ('module_state_traverse', 'Py_VISIT', f'traverse_module_state->{struct_attr_cname}')]
-            cleanup_level = cleanup_levels_map[prefix]
+            cleanup_level = cleanup_level_for_type_prefix(prefix)
             if (cleanup_level is not None and
                     cleanup_level <= Options.generate_cleanup_code):
                 cleanup_details.append(('cleanup_globals', 'Py_CLEAR', global_cname))
