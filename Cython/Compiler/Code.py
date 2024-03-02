@@ -1043,13 +1043,13 @@ class StringConst:
                 encoding_key = ''.join(find_alphanums(encoding))
 
         key = (is_str, is_unicode, encoding_key, py3str_cstring)
-        if py_strings is not None:
+        if py_strings is None:
+            self.py_strings = {}
+        else:
             try:
                 return py_strings[key]
             except KeyError:
                 pass
-        else:
-            self.py_strings = {}
 
         if identifier:
             intern = True
@@ -1060,26 +1060,19 @@ class StringConst:
                 intern = bool(possible_unicode_identifier(text))
         else:
             intern = False
-        if intern:
-            prefix = Naming.interned_prefixes['str']
-        else:
-            prefix = Naming.py_const_prefix
 
-        if encoding_key:
-            encoding_prefix = '_%s' % encoding_key
-        else:
-            encoding_prefix = ''
-
-        pystring_cname = "%s%s%s_%s" % (
-            prefix,
-            (is_str and 's') or (is_unicode and 'u') or 'b',
-            encoding_prefix,
-            self.cname[len(Naming.const_prefix):])
+        pystring_cname = (
+            f"{Naming.interned_prefixes['str'] if intern else Naming.py_const_prefix}"
+            f"{'s' if is_str else 'u' if is_unicode else 'b'}"
+            f"{'_' + encoding_key if encoding_key else ''}"
+            f"_{self.cname[len(Naming.const_prefix):]}"
+        )
 
         py_string = PyStringConst(
             pystring_cname, encoding, is_unicode, is_str, py3str_cstring, intern)
         self.py_strings[key] = py_string
         return py_string
+
 
 class PyStringConst:
     """Global info about a Python string constant held by GlobalState.
