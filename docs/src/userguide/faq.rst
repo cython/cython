@@ -111,6 +111,9 @@ Here are some more things to try:
   introspection of Cython-generated functions. However, if you don't need this
   introspection then you can save some size.
 
+* If you do not need docstrings of python functions and classes you can disable including
+  docstrings to final binary with the  :data:`Cython.Compiler.Options.docstrings` option.
+
 ----------
 
 How well is Unicode supported?
