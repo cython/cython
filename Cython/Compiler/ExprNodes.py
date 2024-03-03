@@ -10189,7 +10189,7 @@ class CodeObjectNode(ExprNode):
         if self.result_code is None:
             self.result_code = code.get_py_codeobj_const(self)
 
-    def generate_codeoj_tab_entry(self, code):
+    def generate_codeobj(self, code):
         func = self.def_node
 
         func_name_result = code.get_py_string_const(
@@ -10198,11 +10198,9 @@ class CodeObjectNode(ExprNode):
         file_path = StringEncoding.bytes_literal(func.pos[0].get_filenametable_entry().encode('utf8'), 'utf8')
         file_path_result = code.get_py_string_const(file_path, identifier=False, is_str=True)
 
-        varnames_result = self.varnames.result()
+        varnames_tuple_cname = self.varnames.result()
 
-        # This combination makes CPython create a new dict for "frame.f_locals" (see GH #1836).
-        flags = ['CO_OPTIMIZED', 'CO_NEWLOCALS']
-
+        flags = []
         if func.star_arg:
             flags.append('CO_VARARGS')
         if func.starstar_arg:
@@ -10218,14 +10216,25 @@ class CodeObjectNode(ExprNode):
 
         argcount = len(func.args) - func.num_kwonly_args
         num_posonly_args = func.num_posonly_args  # Py3.8+ only
-        kwonlyargcount = func.num_kwonly_args
+        kwonly_argcount = func.num_kwonly_args
         nlocals = len(self.varnames.args)
         flags = '|'.join(flags) or '0'
+        first_lineno = self.pos[1]
 
-        s = (f"{filename_idx}, {argcount}, {num_posonly_args}, {kwonlyargcount}, "
-             f"{nlocals}, {flags}, {varnames_result}, {file_path_result},"
-             f"{func_name_result}, {self.pos[1]}")
-        code.putln("{%s}, /* %s */" % (s, self.result_code))
+        code.putln(
+            f"{self.result_code} = __Pyx_PyCode_New("
+            f"{argcount}, "
+            f"{num_posonly_args}, "
+            f"{kwonly_argcount}, "
+            f"{nlocals}, "
+            f"{flags}, "
+            f"{filename_idx}, "
+            f"{varnames_tuple_cname}, "
+            f"{func_name_result}, "
+            f"{first_lineno}"
+            f"); "
+            f"if (unlikely(!{self.result_code})) return -1;"
+        )
 
 
 class DefaultLiteralArgNode(ExprNode):
