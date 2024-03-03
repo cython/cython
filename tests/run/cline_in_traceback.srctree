@@ -11,7 +11,6 @@ PYTHON setup_options_on_overridden.py build_ext --inplace
 PYTHON run_all_tests.py
 
 
-
 ######## setup_on.py ########
 
 from Cython.Build.Dependencies import cythonize
@@ -113,7 +112,8 @@ setup(
         Extension("test_options_on_overridden", ["test_options_on_overridden.pyx"],
         define_macros=[("CYTHON_CLINE_IN_TRACEBACK", 0)],
     ), c_line_in_traceback = True))
-    
+
+
 ####### test_on.pyx ###############
 
 include "should_be_on.pxi"
@@ -153,6 +153,7 @@ include "should_be_runtime.pxi"
 ####### test_options_on_overridden.pyx #######
 
 include "should_be_off.pxi"
+
 
 ####### should_be_on.pxi #########
 

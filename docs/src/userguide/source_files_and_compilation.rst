@@ -1142,7 +1142,7 @@ In Cython 3.0 and earlier, the Cython compiler option ``c_line_in_traceback`` (p
 an argument to ``cythonize`` in ``setup.py``) or the command
 line argument ``--no-c-in-traceback`` could also be used to disable this feature.
 From Cython 3.1, this is still possible, but should be migrated to using the C macros instead.
-Before Cython 3.1, the ``CYTHON_CLINE_IN_TRACABACK`` macro still works as described
+Before Cython 3.1, the ``CYTHON_CLINE_IN_TRACEBACK`` macro already works as described
 but the Cython option is needed to remove the compile-time cost.
 
 C macro defines

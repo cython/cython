@@ -824,14 +824,13 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         )
         cline_info = f" {Naming.clineno_cname} = {Naming.line_c_macro};"
 
-        # 0)  C macros take precedence over options
+        # Show the C code line in tracebacks or not? C macros take precedence over (deprecated) options.
         # 1)  "CYTHON_CLINE_IN_TRACEBACK=0"  always disables C lines in tracebacks
-        # 3) "CYTHON_CLINE_IN_TRACEBACK_RUNTIME=1"  enables the feature + runtime configuration
-        # 2a) "options.c_line_in_traceback=True"   changes the default to 
-        #     CYTHON_CLINE_IN_TRACEBACK_RUNTIME=1
-        # 2b) "options.c_line_in_traceback=False"  changes the default to disable the feature        
-        # 4)  "CYTHON_CLINE_IN_TRACEBACK=1"  enables the feature without runtime configuration
-        # 5)  default if nothing is set is to disable the feature
+        # 2) "CYTHON_CLINE_IN_TRACEBACK_RUNTIME=1"  enables the feature + runtime configuration
+        # 2a) "options.c_line_in_traceback=True"   changes the default to CYTHON_CLINE_IN_TRACEBACK_RUNTIME=1
+        # 2b) "options.c_line_in_traceback=False"  changes the default to disable C lines
+        # 4)  "CYTHON_CLINE_IN_TRACEBACK=1"  enables C lines without runtime configuration
+        # 5)  if nothing is set, the default is to disable the feature
 
         default_cline_runtime = 0
         print("XXXXXXX", options.c_line_in_traceback)
