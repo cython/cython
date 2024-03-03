@@ -1138,7 +1138,8 @@ to either true or false to control the behaviour as your Cython code is being ru
 
 If both macros are *not* defined by the build setup or ``CFLAGS``, the feature is disabled.
 
-In Cython 3.0 and earlier, the Cython compiler option ``c_line_in_traceback`` or the command
+In Cython 3.0 and earlier, the Cython compiler option ``c_line_in_traceback`` (passed as
+an argument to ``cythonize`` in ``setup.py``) or the command
 line argument ``--no-c-in-traceback`` could also be used to disable this feature.
 From Cython 3.1, this is still possible, but should be migrated to using the C macros instead.
 Before Cython 3.1, the ``CYTHON_CLINE_IN_TRACABACK`` macro still works as described
