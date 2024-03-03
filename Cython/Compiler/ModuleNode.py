@@ -833,7 +833,6 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         # 5)  if nothing is set, the default is to disable the feature
 
         default_cline_runtime = 0
-        print("XXXXXXX", options.c_line_in_traceback)
         if options.c_line_in_traceback is not None:
             # explicitly set by user
             default_cline_runtime = int(options.c_line_in_traceback)
@@ -842,7 +841,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln(f"#define CYTHON_CLINE_IN_TRACEBACK_RUNTIME {default_cline_runtime}")
         code.putln("#endif")
 
-        code.putln("#ifndef CYTHON_CLINE_IN_TRACEBACK")
+        code.putln("#if !defined(CYTHON_CLINE_IN_TRACEBACK) || CYTHON_CLINE_IN_TRACEBACK_RUNTIME")
+        code.putln("#undef CYTHON_CLINE_IN_TRACEBACK")
         code.putln("#define CYTHON_CLINE_IN_TRACEBACK CYTHON_CLINE_IN_TRACEBACK_RUNTIME")
         code.putln("#endif")
 

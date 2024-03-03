@@ -699,6 +699,7 @@ You can see them also by typing ```%%cython?`` in IPython or a Jupyter notebook.
 
 ============================================  =======================================================================================================================================
 
+
 .. _compiler_options:
 
 Compiler options
@@ -741,6 +742,7 @@ Here are the options that are available:
 .. autodata:: Cython.Compiler.Options.cimport_from_pyx
 .. autodata:: Cython.Compiler.Options.buffer_max_dims
 .. autodata:: Cython.Compiler.Options.closure_freelist_size
+
 
 .. _compiler-directives:
 
