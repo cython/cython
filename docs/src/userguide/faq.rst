@@ -91,7 +91,7 @@ Here are some more things to try:
 
     # cython: auto_pickle=False
 
-    # you can still enable or disable it locally for single classs:
+    # you can still enable or disable it locally for single class:
     @cython.auto_pickle(True)
     @cclass
     class MyClass:
