@@ -2,7 +2,7 @@
 Cython Changelog
 ================
 
-3.0.9 (2024-02-28)
+3.0.9 (2024-03-04)
 ==================
 
 Features added
@@ -31,7 +31,7 @@ Bugs fixed
   gcc versions produce have been silenced for the time being.
   Original patch by Michał Górny.  (Github issue :issue:`2747`)
 
-* Unused variable warnings about clineno were fixed.
+* Unused variable warnings about clineno were fixed when C lines in tracebacks are disabled.
   (Github issue :issue:`6035`)
 
 * Subclass deallocation of extern classes could crash if the base class uses GC.
