@@ -75,6 +75,7 @@ interned_prefixes = {
     'umethod': pyrex_prefix + "umethod_",
 }
 
+const_table_index_prefix = pyrex_prefix + "i_"
 ctuple_type_prefix = pyrex_prefix + "ctuple_"
 args_cname       = pyrex_prefix + "args"
 nargs_cname      = pyrex_prefix + "nargs"

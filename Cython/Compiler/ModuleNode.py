@@ -3135,8 +3135,18 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
         code.putln("/*--- Constants init code ---*/")
         code.put_error_if_neg(self.pos, "__Pyx_InitCachedConstants()")
-        # code objects come after the other globals (since they use strings and tuples)
-        code.put_error_if_neg(self.pos, "__Pyx_CreateCodeObjectTabAndInitCode()")
+        # Code objects come after the other globals (since they use strings and tuples).
+        # Pass None for pos to not lose the position set inside __Pyx_InitCodeObjects.
+        code.put_error_if_neg(
+            None,
+            "__Pyx_InitCodeObjects(%s, (void*)%s, sizeof(%s)/sizeof(__Pyx_CodeObjectTabEntry)-1, &%s, &%s, &%s)" % (
+                Naming.codeobjtab_cname+"_",
+                Naming.modulestateglobal_cname,
+                Naming.codeobjtab_cname+"_",
+                Naming.filename_cname,
+                Naming.lineno_cname,
+                Naming.clineno_cname
+        ))
 
         code.putln("/*--- Global type/function init code ---*/")
 

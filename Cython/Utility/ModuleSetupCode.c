@@ -2202,21 +2202,33 @@ typedef struct {
   int nlocals;
   int flags;
   // PyObject* names // FIXME?
-  PyObject* varnames;
+  Py_ssize_t varnames;  // index into tuple table
   // PyObject* freevars; // FIXME?
   // PyObject* cellvars; // FIXME
-  PyObject* filename;
-  PyObject* funcname;
+  Py_ssize_t filename;  // index into string table
+  Py_ssize_t funcname;  // index into string table
   int firstlineno;
 } __Pyx_CodeObjectTabEntry;
 
-static int __Pyx_InitCodeObjects(__Pyx_CodeObjectTabEntry *table, PyObject **targets, Py_ssize_t N); /* proto */
+static int __Pyx_InitCodeObjects(const __Pyx_CodeObjectTabEntry *table, 
+    void *modstate_v,  // declared to early to know the correct type
+    Py_ssize_t N,
+    const char **filename, int *lineno, int *clineno); /* proto */
 
 //////////////////// InitCodeObjs ////////////////////////
 //@substitute: naming
 
-static int __Pyx_InitCodeObjects(__Pyx_CodeObjectTabEntry *table, PyObject **targets, Py_ssize_t N) {
+static int __Pyx_InitCodeObjects(const __Pyx_CodeObjectTabEntry *table,
+        void *modstate_v,
+        Py_ssize_t N,
+        const char **filename, int *lineno, int *clineno) {
+
+    $modulestate_cname *modstate = ($modulestate_cname*)modstate_v;
     for (Py_ssize_t i=0; i<N; ++i) {
+        PyObject *varnames = modstate->__pyx__tuple[table[i].varnames];
+        PyObject *filename = modstate->$stringtab_cname[table[i].filename];
+        PyObject *funcname = modstate->$stringtab_cname[table[i].funcname];
+
         PyObject *result = (PyObject*)__Pyx_PyCode_New(
             table[i].argcount,
             table[i].num_posonly_args,
@@ -2227,20 +2239,27 @@ static int __Pyx_InitCodeObjects(__Pyx_CodeObjectTabEntry *table, PyObject **tar
             ${empty_bytes}, // code
             ${empty_tuple}, // consts
             ${empty_tuple}, // names (FIXME)
-            table[i].varnames,
+            varnames,
             ${empty_tuple}, // freevars (FIXME)
             ${empty_tuple}, // cellvars (FIXME)
-            table[i].filename,
-            table[i].funcname,
+            filename,
+            funcname,
             table[i].firstlineno,
             ${empty_bytes} // lnotab
         );
         if (unlikely(!result)) __PYX_ERR(table[i].filename_idx, table[i].firstlineno, bad);
 
-        targets[i] = result;
+        // TODO:
+        // modstate->$codeobjtab_cname[i] = result
+        // (but global define gets in the way)
+        $codeobjtab_cname[i] = result;
     }
     return 0;
 
     bad:
+    // export traceback lines to caller
+    *filename = $filename_cname;
+    *lineno = $lineno_cname;
+    *clineno = $clineno_cname;
     return -1;
 }

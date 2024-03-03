@@ -10156,6 +10156,10 @@ class CodeObjectNode(ExprNode):
     is_temp = False
     result_code = None
 
+    tuple_index_re = re.compile(
+        rf"{Naming.pyrex_prefix}tuple\[(\d+)\]"
+    )
+
     def __init__(self, def_node):
         ExprNode.__init__(self, def_node.pos, def_node=def_node)
         args = list(def_node.args)
@@ -10183,13 +10187,21 @@ class CodeObjectNode(ExprNode):
     def generate_codeoj_tab_entry(self, code):
         func = self.def_node
 
-        func_name_result = code.get_py_string_const(
+        func_name_index = code.get_py_string_const_index(
             func.name, identifier=True, is_str=False, unicode_value=func.name)
         # FIXME: better way to get the module file path at module init time? Encoding to use?
         file_path = StringEncoding.bytes_literal(func.pos[0].get_filenametable_entry().encode('utf8'), 'utf8')
-        file_path_result = code.get_py_string_const(file_path, identifier=False, is_str=True)
+        file_path_index = code.get_py_string_const_index(file_path, identifier=False, is_str=True)
 
         varnames_result = self.varnames.result()
+        if varnames_result == Naming.empty_tuple:
+            varnames_index = -1
+        else:
+            try:
+                varnames_match = self.tuple_index_re.match(varnames_result)
+                varnames_index = varnames_match.group(1)
+            except:
+                import pdb; pdb.set_trace()
 
         # This combination makes CPython create a new dict for "frame.f_locals" (see GH #1836).
         flags = ['CO_OPTIMIZED', 'CO_NEWLOCALS']
@@ -10214,8 +10226,8 @@ class CodeObjectNode(ExprNode):
         flags = '|'.join(flags) or '0'
 
         s = (f"{filename_idx}, {argcount}, {num_posonly_args}, {kwonlyargcount}, "
-             f"{nlocals}, {flags}, {varnames_result}, {file_path_result},"
-             f"{func_name_result}, {self.pos[1]}")
+             f"{nlocals}, {flags}, {varnames_index}, {file_path_index},"
+             f"{func_name_index}, {self.pos[1]}")
         code.putln("{%s}, /* %s */" % (s, self.result_code))
 
 
