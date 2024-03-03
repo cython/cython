@@ -824,11 +824,30 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         )
         cline_info = f" {Naming.clineno_cname} = {Naming.line_c_macro};"
 
-        if not options.c_line_in_traceback:
-            code.putln("#ifndef CYTHON_CLINE_IN_TRACEBACK")
-            code.putln("#define CYTHON_CLINE_IN_TRACEBACK  0")
-            code.putln("#endif")
-        code.putln("#if !defined(CYTHON_CLINE_IN_TRACEBACK) || CYTHON_CLINE_IN_TRACEBACK")
+        # 0)  C macros take precedence over options
+        # 1)  "CYTHON_CLINE_IN_TRACEBACK=0"  always disables C lines in tracebacks
+        # 3) "CYTHON_CLINE_IN_TRACEBACK_RUNTIME=1"  enables the feature + runtime configuration
+        # 2a) "options.c_line_in_traceback=True"   changes the default to 
+        #     CYTHON_CLINE_IN_TRACEBACK_RUNTIME=1
+        # 2b) "options.c_line_in_traceback=False"  changes the default to disable the feature        
+        # 4)  "CYTHON_CLINE_IN_TRACEBACK=1"  enables the feature without runtime configuration
+        # 5)  default if nothing is set is to disable the feature
+
+        default_cline_runtime = 0
+        print("XXXXXXX", options.c_line_in_traceback)
+        if options.c_line_in_traceback is not None:
+            # explicitly set by user
+            default_cline_runtime = int(options.c_line_in_traceback)
+
+        code.putln("#ifndef CYTHON_CLINE_IN_TRACEBACK_RUNTIME")
+        code.putln(f"#define CYTHON_CLINE_IN_TRACEBACK_RUNTIME {default_cline_runtime}")
+        code.putln("#endif")
+
+        code.putln("#ifndef CYTHON_CLINE_IN_TRACEBACK")
+        code.putln("#define CYTHON_CLINE_IN_TRACEBACK CYTHON_CLINE_IN_TRACEBACK_RUNTIME")
+        code.putln("#endif")
+
+        code.putln("#if CYTHON_CLINE_IN_TRACEBACK")
         code.putln(mark_errpos_code % cline_info)
         code.putln("#else")
         code.putln(mark_errpos_code % "")

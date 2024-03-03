@@ -741,9 +741,6 @@ Here are the options that are available:
 .. autodata:: Cython.Compiler.Options.cimport_from_pyx
 .. autodata:: Cython.Compiler.Options.buffer_max_dims
 .. autodata:: Cython.Compiler.Options.closure_freelist_size
-Cython.Compiler.Options. **c_line_in_traceback** = True
-    See :ref:`cline_in_traceback`
-
 
 .. _compiler-directives:
 

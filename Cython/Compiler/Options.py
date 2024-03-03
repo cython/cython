@@ -147,7 +147,6 @@ buffer_max_dims = 8
 #: Number of function closure instances to keep in a freelist (0: no freelists)
 closure_freelist_size = 8
 
-
 def get_directive_defaults():
     # To add an item to this list, all accesses should be changed to use the new
     # directive, and the global option itself should be set to an instance of
@@ -643,6 +642,7 @@ class CompilationOptions:
         # ignore valid options that are not in the defaults
         unknown_options.difference_update(['include_path'])
         if unknown_options:
+            import pdb; pdb.set_trace()
             message = "got unknown compilation option%s, please remove: %s" % (
                 's' if len(unknown_options) > 1 else '',
                 ', '.join(unknown_options))
@@ -787,7 +787,7 @@ default_options = dict(
     evaluate_tree_assertions=False,
     emit_linenums=False,
     relative_path_in_code_position_comments=True,
-    c_line_in_traceback=True,
+    c_line_in_traceback=None,
     language_level=None,  # warn but default to 2
     formal_grammar=False,
     gdb_debug=False,
