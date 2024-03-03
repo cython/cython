@@ -2222,7 +2222,9 @@ static int __Pyx_InitCodeObjects(const __Pyx_CodeObjectTabEntry *table,
         void *modstate_v,
         Py_ssize_t N,
         const char **filename, int *lineno, int *clineno) {
-
+    const char *$filename_cname = NULL;
+    int $lineno_cname = 0;
+    int $clineno_cname = 0;
     $modulestate_cname *modstate = ($modulestate_cname*)modstate_v;
     for (Py_ssize_t i=0; i<N; ++i) {
         PyObject *varnames = modstate->__pyx__tuple[table[i].varnames];
