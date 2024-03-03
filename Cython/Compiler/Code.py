@@ -1755,9 +1755,6 @@ class GlobalState:
                 init_constants.error_goto(self.module_pos)))
 
     def generate_codeobject_constants(self):
-        if not self.codeobject_constants:
-            return
-
         w = self.parts['pycodeobj_table']
 
         self.use_utility_code(UtilityCode.load_cached("InitCodeObjs", "ModuleSetupCode.c"))

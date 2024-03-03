@@ -2227,7 +2227,9 @@ static int __Pyx_InitCodeObjects(const __Pyx_CodeObjectTabEntry *table,
     int $clineno_cname = 0;
     $modulestate_cname *modstate = ($modulestate_cname*)modstate_v;
     for (Py_ssize_t i=0; i<N; ++i) {
-        PyObject *varnames = modstate->__pyx__tuple[table[i].varnames];
+        PyObject *varnames = table[i].varnames >= 0 ?
+          modstate->__pyx__tuple[table[i].varnames] :
+          $empty_tuple;
         PyObject *filename = modstate->$stringtab_cname[table[i].filename];
         PyObject *funcname = modstate->$stringtab_cname[table[i].funcname];
 
