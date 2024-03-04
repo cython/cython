@@ -10200,7 +10200,9 @@ class CodeObjectNode(ExprNode):
 
         varnames_tuple_cname = self.varnames.result()
 
-        flags = []
+        # '(CO_OPTIMIZED | CO_NEWLOCALS)' makes CPython create a new dict for "frame.f_locals".
+        # See https://github.com/cython/cython/pull/1836
+        flags = ['CO_OPTIMIZED', 'CO_NEWLOCALS']
         if func.star_arg:
             flags.append('CO_VARARGS')
         if func.starstar_arg:
@@ -10212,8 +10214,6 @@ class CodeObjectNode(ExprNode):
         elif func.is_generator:
             flags.append('CO_GENERATOR')
 
-        filename_idx = code.lookup_filename(self.pos[0])
-
         argcount = len(func.args) - func.num_kwonly_args
         num_posonly_args = func.num_posonly_args  # Py3.8+ only
         kwonly_argcount = func.num_kwonly_args
@@ -10221,19 +10221,22 @@ class CodeObjectNode(ExprNode):
         flags = '|'.join(flags) or '0'
         first_lineno = self.pos[1]
 
+        # See "generate_codeobject_constants()" in Code.py.
         code.putln(
-            f"{self.result_code} = __Pyx_PyCode_New("
-            f"{argcount}, "
-            f"{num_posonly_args}, "
-            f"{kwonly_argcount}, "
-            f"{nlocals}, "
-            f"{flags}, "
-            f"{filename_idx}, "
+            f"descr.argcount = {argcount}; "
+            f"descr.num_posonly_args = {num_posonly_args}; "
+            f"descr.num_kwonly_args = {kwonly_argcount}; "
+            f"descr.nlocals = {nlocals}; "
+            f"descr.flags = {flags}; "
+            f"descr.first_line = {first_lineno};"
+        )
+        code.putln(
+            f"{self.result_code} = __Pyx_PyCode_New(descr,"
             f"{varnames_tuple_cname}, "
-            f"{func_name_result}, "
-            f"{first_lineno}"
+            f"{file_path_result}, "
+            f"{func_name_result}"
             f"); "
-            f"if (unlikely(!{self.result_code})) return -1;"
+            f"if (unlikely(!{self.result_code})) goto bad;"
         )
 
 

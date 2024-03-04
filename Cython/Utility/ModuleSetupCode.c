@@ -2079,21 +2079,22 @@ static CYTHON_INLINE void __Pyx_pretend_to_initialize(void* ptr) { (void)ptr; }
 //////////////////// NewCodeObj.proto ////////////////////////
 
 static PyObject* __Pyx_PyCode_New(
-        int argcount,
-        int num_posonly_args,
-        int num_kwonly_args,
-        int nlocals,
+        //int argcount,
+        //int num_posonly_args,
+        //int num_kwonly_args,
+        //int nlocals,
         // int s,
-        int flags,
+        //int flags,
+        //int first_line,
+        __Pyx_PyCode_New_function_description descr,
         // PyObject *code,
         // PyObject *consts,
         // PyObject* n,
         PyObject *varnames_tuple,
         // PyObject *freevars,
         // PyObject *cellvars,
-        PyObject* filename,
-        PyObject *funcname,
-        int first_line
+        PyObject *filename,
+        PyObject *funcname
         // PyObject *lnotab
 );/*proto*/
 
@@ -2193,7 +2194,7 @@ static PyObject* __Pyx_PyCode_New(
         PyCode_NewWithPosOnlyArgs
       #endif
         (a, p, k, l, s, f, code, c, n, v, fv, cell, fn, name, name, fline, lnos, ${empty_bytes});
-    Py_DECREF(empty_bytes);
+    Py_DECREF(${empty_bytes});
     return result;
   }
 #elif PY_VERSION_HEX >= 0x030800B2 && !CYTHON_COMPILING_IN_PYPY
@@ -2208,12 +2209,14 @@ static PyObject* __Pyx_PyCode_New(
 // It only receives the arguments that differ between the Cython functions of the module.
 // This minimises the calling code in the module init function.
 static PyObject* __Pyx_PyCode_New(
-        int argcount,
-        int num_posonly_args,
-        int num_kwonly_args,
-        int nlocals,
+        //int argcount,
+        //int num_posonly_args,
+        //int num_kwonly_args,
+        //int nlocals,
         // int s,
-        int flags,
+        //int flags,
+        //int first_line,
+        __Pyx_PyCode_New_function_description descr,
         // PyObject *code,
         // PyObject *consts,
         // PyObject* n,
@@ -2221,20 +2224,17 @@ static PyObject* __Pyx_PyCode_New(
         // PyObject *freevars,
         // PyObject *cellvars,
         PyObject* filename,
-        PyObject *funcname,
-        int first_line
+        PyObject *funcname
         // PyObject *lnotab
     ) {
 
-    return (PyObject*) __Pyx__PyCode_New(
-        argcount,
-        num_posonly_args,
-        num_kwonly_args,
-        nlocals,
+    PyObject *code_obj = (PyObject*) __Pyx__PyCode_New(
+        (int) descr.argcount,
+        (int) descr.num_posonly_args,
+        (int) descr.num_kwonly_args,
+        (int) descr.nlocals,
         0,
-        // '(CO_OPTIMIZED | CO_NEWLOCALS)' makes CPython create a new dict for "frame.f_locals".
-        // See https://github.com/cython/cython/pull/1836
-        CO_OPTIMIZED | CO_NEWLOCALS | flags,
+        (int) descr.flags,
         ${empty_bytes},
         ${empty_tuple},
         ${empty_tuple},
@@ -2243,7 +2243,9 @@ static PyObject* __Pyx_PyCode_New(
         ${empty_tuple},
         filename,
         funcname,
-        first_line,
+        (int) descr.first_line,
         ${empty_bytes}
     );
+
+    return code_obj;
 }

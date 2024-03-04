@@ -1759,6 +1759,42 @@ class GlobalState:
             w.putln("}")
             return
 
+        # Create a downsized config struct and build code objects from it.
+        max_flags = 0x3ff  # to be adapted when we start using new flags
+        max_func_args = 1
+        max_kwonly_args = 1
+        max_posonly_args = 1
+        max_vars = 1
+        max_line = 1
+        for node in self.codeobject_constants:
+            def_node = node.def_node
+            max_func_args = max(max_func_args, len(def_node.args) - def_node.num_kwonly_args)
+            max_kwonly_args = max(max_kwonly_args, def_node.num_kwonly_args)
+            max_posonly_args = max(max_posonly_args, def_node.num_posonly_args)
+            max_vars = max(max_vars, len(node.varnames.args))
+            max_line = max(max_line, def_node.pos[1])
+
+        self.parts['utility_code_proto'].put(textwrap.dedent(f"""\
+        typedef struct {{
+            unsigned int argcount : {max_func_args.bit_length()};
+            unsigned int num_posonly_args : {max_posonly_args.bit_length()};
+            unsigned int num_kwonly_args : {max_kwonly_args.bit_length()};
+            unsigned int nlocals : {max_vars.bit_length()};
+            unsigned int flags : {max_flags.bit_length()};
+            unsigned int first_line : {max_line.bit_length()};
+        }} __Pyx_PyCode_New_function_description;
+        """))
+
+        w.putln("__Pyx_PyCode_New_function_description descr;")
+        for node in self.codeobject_constants:
+            node.generate_codeobj(w)
+
+        w.putln("return 0;")
+
+        w.putln("bad:")
+        w.putln("return -1;")
+        w.putln("}")
+
         self.use_utility_code(UtilityCode.load_cached("NewCodeObj", "ModuleSetupCode.c"))
 
         self.parts['module_state'].putln("PyObject *%s[%s];" % (
@@ -1778,12 +1814,6 @@ class GlobalState:
         self.parts['module_state_defines'].putln("#define %s %s->%s" % (
             Naming.codeobjtab_cname, Naming.modulestateglobal_cname, Naming.codeobjtab_cname
         ))
-
-        for node in self.codeobject_constants:
-            node.generate_codeobj(w)
-
-        w.putln("return 0;")
-        w.putln("}")
 
     def generate_num_constants(self):
         consts = [(c.py_type, c.value[0] == '-', len(c.value), c.value, c.value_code, c)
