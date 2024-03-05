@@ -2242,11 +2242,8 @@ static PyObject* __Pyx_PyCode_New(
         if (unlikely(__Pyx_PyTuple_SET_ITEM(varnames_tuple, i, varnames[i]) < 0)) goto done;
     }
 
-    varnames_tuple_dedup = PyDict_GetItem(tuple_dedup_map, varnames_tuple);
-    if (!varnames_tuple_dedup) {
-        if (unlikely(PyDict_SetItem(tuple_dedup_map, varnames_tuple, varnames_tuple) < 0)) goto done;
-        varnames_tuple_dedup = varnames_tuple;
-    }
+    varnames_tuple_dedup = PyDict_SetDefault(tuple_dedup_map, varnames_tuple, varnames_tuple);
+    if (unlikely(!varnames_tuple_dedup)) goto done;
     #if !CYTHON_COMPILING_IN_CPYTHON
     Py_INCREF(varnames_tuple_dedup);
     #endif
