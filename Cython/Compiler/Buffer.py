@@ -88,7 +88,7 @@ class IntroduceBufferAuxiliaryVars(CythonTransform):
 
             auxvars = ((PyrexTypes.c_pyx_buffer_nd_type, Naming.pybuffernd_prefix),
                        (PyrexTypes.c_pyx_buffer_type, Naming.pybufferstruct_prefix))
-            pybuffernd, rcbuffer = [decvar(type, prefix) for (type, prefix) in auxvars]
+            pybuffernd, rcbuffer = (decvar(type, prefix) for (type, prefix) in auxvars)
 
             entry.buffer_aux = Symtab.BufferAux(pybuffernd, rcbuffer)
 

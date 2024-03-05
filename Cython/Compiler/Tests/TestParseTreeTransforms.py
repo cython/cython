@@ -243,7 +243,7 @@ class TestDebugTransform(DebuggerTestCase):
                          'codefile.closure', 'codefile.inner')
             required_xml_attrs = 'name', 'cname', 'qualified_name'
             assert all(f in xml_funcs for f in funcnames)
-            spam, ham, eggs = [xml_funcs[funcname] for funcname in funcnames]
+            spam, ham, eggs = (xml_funcs[funcname] for funcname in funcnames)
 
             self.assertEqual(spam.attrib['name'], 'spam')
             self.assertNotEqual('spam', spam.attrib['cname'])

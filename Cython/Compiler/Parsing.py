@@ -1051,7 +1051,7 @@ def _append_escape_sequence(kind, builder, escape_sequence, s):
         builder.append(escape_sequence)
 
 
-_parse_escape_sequences_raw, _parse_escape_sequences = [re.compile((
+_parse_escape_sequences_raw, _parse_escape_sequences = (re.compile((
     # escape sequences:
     br'(\\(?:' +
     (br'\\?' if is_raw else (
@@ -1070,7 +1070,7 @@ _parse_escape_sequences_raw, _parse_escape_sequences = [re.compile((
     br'[^\\{}]+)'
     ).decode('us-ascii')).match
     for is_raw in (True, False)
-]
+)
 
 
 def _f_string_error_pos(pos, string, i):
