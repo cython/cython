@@ -1751,9 +1751,11 @@ class GlobalState:
     def generate_codeobject_constants(self):
         w = self.parts['init_codeobjects']
         w.putln("static CYTHON_SMALL_CODE int __Pyx_CreateCodeObjects(void) {")
+        w.enter_cfunc_scope()
 
         if not self.codeobject_constants:
             w.putln("return 0;")
+            w.exit_cfunc_scope()
             w.putln("}")
             return
 
@@ -1783,7 +1785,6 @@ class GlobalState:
         }} __Pyx_PyCode_New_function_description;
         """))
 
-        w.putln("__Pyx_PyCode_New_function_description descr;")
         w.putln("PyObject* tuple_dedup_map = PyDict_New();")
         w.putln("if (unlikely(!tuple_dedup_map)) return -1;")
 
@@ -1796,6 +1797,7 @@ class GlobalState:
         w.putln("bad:")
         w.putln("Py_DECREF(tuple_dedup_map);")
         w.putln("return -1;")
+        w.exit_cfunc_scope()
         w.putln("}")
 
         self.use_utility_code(UtilityCode.load_cached("NewCodeObj", "ModuleSetupCode.c"))

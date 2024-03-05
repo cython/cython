@@ -10220,12 +10220,14 @@ class CodeObjectNode(ExprNode):
         # See "generate_codeobject_constants()" in Code.py.
         code.putln("{")
         code.putln(
-            f"descr.argcount = {argcount}; "
-            f"descr.num_posonly_args = {num_posonly_args}; "
-            f"descr.num_kwonly_args = {kwonly_argcount}; "
-            f"descr.nlocals = {nlocals}; "
-            f"descr.flags = {flags}; "
-            f"descr.first_line = {first_lineno};"
+            "__Pyx_PyCode_New_function_description descr = {"
+            f"{argcount}, "
+            f"{num_posonly_args}, "
+            f"{kwonly_argcount}, "
+            f"{nlocals}, "
+            f"{flags}, "
+            f"{first_lineno}"
+            "};"
         )
 
         varnames = [var.py_result() for var in self.varnames] or ['0']
