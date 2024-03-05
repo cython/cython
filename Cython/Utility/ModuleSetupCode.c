@@ -2090,12 +2090,14 @@ static PyObject* __Pyx_PyCode_New(
         // PyObject *code,
         // PyObject *consts,
         // PyObject* n,
-        PyObject *varnames_tuple,
+        // PyObject *varnames_tuple,
+        PyObject **varnames,
         // PyObject *freevars,
         // PyObject *cellvars,
         PyObject *filename,
-        PyObject *funcname
-        // PyObject *lnotab
+        PyObject *funcname,
+        // PyObject *lnotab,
+        PyObject *tuple_dedup_map
 );/*proto*/
 
 //////////////////// NewCodeObj ////////////////////////
@@ -2220,15 +2222,36 @@ static PyObject* __Pyx_PyCode_New(
         // PyObject *code,
         // PyObject *consts,
         // PyObject* n,
-        PyObject *varnames_tuple,
+        // PyObject *varnames_tuple,
+        PyObject **varnames,
         // PyObject *freevars,
         // PyObject *cellvars,
         PyObject* filename,
-        PyObject *funcname
-        // PyObject *lnotab
-    ) {
+        PyObject *funcname,
+        // PyObject *lnotab,
+        PyObject *tuple_dedup_map
+) {
 
-    PyObject *code_obj = (PyObject*) __Pyx__PyCode_New(
+    PyObject *code_obj = NULL, *varnames_tuple_dedup = NULL;
+    Py_ssize_t var_count = (Py_ssize_t) descr.nlocals;
+
+    PyObject *varnames_tuple = PyTuple_New(var_count);
+    if (unlikely(!varnames_tuple)) return NULL;
+    for (Py_ssize_t i=0; i < var_count; i++) {
+        Py_INCREF(varnames[i]);
+        if (unlikely(__Pyx_PyTuple_SET_ITEM(varnames_tuple, i, varnames[i]) < 0)) goto done;
+    }
+
+    varnames_tuple_dedup = PyDict_GetItem(tuple_dedup_map, varnames_tuple);
+    if (!varnames_tuple_dedup) {
+        if (unlikely(PyDict_SetItem(tuple_dedup_map, varnames_tuple, varnames_tuple) < 0)) goto done;
+        varnames_tuple_dedup = varnames_tuple;
+    }
+    #if !CYTHON_COMPILING_IN_CPYTHON
+    Py_INCREF(varnames_tuple_dedup);
+    #endif
+
+    code_obj = (PyObject*) __Pyx__PyCode_New(
         (int) descr.argcount,
         (int) descr.num_posonly_args,
         (int) descr.num_kwonly_args,
@@ -2238,7 +2261,7 @@ static PyObject* __Pyx_PyCode_New(
         ${empty_bytes},
         ${empty_tuple},
         ${empty_tuple},
-        varnames_tuple,
+        varnames_tuple_dedup,
         ${empty_tuple},
         ${empty_tuple},
         filename,
@@ -2247,5 +2270,10 @@ static PyObject* __Pyx_PyCode_New(
         ${empty_bytes}
     );
 
+done:
+    #if !CYTHON_COMPILING_IN_CPYTHON
+    Py_XDECREF(varnames_tuple_dedup);
+    #endif
+    Py_DECREF(varnames_tuple);
     return code_obj;
 }

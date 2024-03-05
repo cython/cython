@@ -10158,8 +10158,8 @@ class InnerFunctionNode(PyCFunctionNode):
 class CodeObjectNode(ExprNode):
     # Create a PyCodeObject for a CyFunction instance.
     #
-    # def_node   DefNode    the Python function node
-    # varnames   TupleNode  a tuple with all local variable names
+    # def_node   DefNode        the Python function node
+    # varnames   [StringNode]   a list of all local variable names
 
     subexprs = ['varnames']
     is_temp = False
@@ -10170,12 +10170,10 @@ class CodeObjectNode(ExprNode):
         args = list(def_node.args)
         # if we have args/kwargs, then the first two in var_entries are those
         local_vars = [arg for arg in def_node.local_scope.var_entries if arg.name]
-        self.varnames = TupleNode(
-            def_node.pos,
-            args=[IdentifierStringNode(arg.pos, value=arg.name)
-                  for arg in args + local_vars],
-            is_temp=0,
-            is_literal=1)
+        self.varnames = [
+            IdentifierStringNode(arg.pos, value=arg.name)
+            for arg in args + local_vars
+        ]
 
     def may_be_none(self):
         return False
@@ -10198,8 +10196,6 @@ class CodeObjectNode(ExprNode):
         file_path = StringEncoding.bytes_literal(func.pos[0].get_filenametable_entry().encode('utf8'), 'utf8')
         file_path_result = code.get_py_string_const(file_path, identifier=False, is_str=True)
 
-        varnames_tuple_cname = self.varnames.result()
-
         # '(CO_OPTIMIZED | CO_NEWLOCALS)' makes CPython create a new dict for "frame.f_locals".
         # See https://github.com/cython/cython/pull/1836
         flags = ['CO_OPTIMIZED', 'CO_NEWLOCALS']
@@ -10217,11 +10213,12 @@ class CodeObjectNode(ExprNode):
         argcount = len(func.args) - func.num_kwonly_args
         num_posonly_args = func.num_posonly_args  # Py3.8+ only
         kwonly_argcount = func.num_kwonly_args
-        nlocals = len(self.varnames.args)
+        nlocals = len(self.varnames)
         flags = '|'.join(flags) or '0'
         first_lineno = self.pos[1]
 
         # See "generate_codeobject_constants()" in Code.py.
+        code.putln("{")
         code.putln(
             f"descr.argcount = {argcount}; "
             f"descr.num_posonly_args = {num_posonly_args}; "
@@ -10230,14 +10227,21 @@ class CodeObjectNode(ExprNode):
             f"descr.flags = {flags}; "
             f"descr.first_line = {first_lineno};"
         )
+
+        varnames = [var.py_result() for var in self.varnames] or ['0']
+        code.putln("PyObject* varnames[] = {%s};" % ', '.join(varnames))
+
         code.putln(
-            f"{self.result_code} = __Pyx_PyCode_New(descr,"
-            f"{varnames_tuple_cname}, "
+            f"{self.result_code} = __Pyx_PyCode_New("
+            f"descr, "
+            f"varnames, "
             f"{file_path_result}, "
-            f"{func_name_result}"
+            f"{func_name_result}, "
+            f"tuple_dedup_map"
             f"); "
             f"if (unlikely(!{self.result_code})) goto bad;"
         )
+        code.putln("}")
 
 
 class DefaultLiteralArgNode(ExprNode):

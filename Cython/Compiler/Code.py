@@ -1749,8 +1749,6 @@ class GlobalState:
                 init_constants.error_goto(self.module_pos)))
 
     def generate_codeobject_constants(self):
-        self.parts['decls'].putln("static int __Pyx_CreateCodeObjects(void); /*proto*/")
-
         w = self.parts['init_codeobjects']
         w.putln("static CYTHON_SMALL_CODE int __Pyx_CreateCodeObjects(void) {")
 
@@ -1771,7 +1769,7 @@ class GlobalState:
             max_func_args = max(max_func_args, len(def_node.args) - def_node.num_kwonly_args)
             max_kwonly_args = max(max_kwonly_args, def_node.num_kwonly_args)
             max_posonly_args = max(max_posonly_args, def_node.num_posonly_args)
-            max_vars = max(max_vars, len(node.varnames.args))
+            max_vars = max(max_vars, len(node.varnames))
             max_line = max(max_line, def_node.pos[1])
 
         self.parts['utility_code_proto'].put(textwrap.dedent(f"""\
@@ -1786,12 +1784,17 @@ class GlobalState:
         """))
 
         w.putln("__Pyx_PyCode_New_function_description descr;")
+        w.putln("PyObject* tuple_dedup_map = PyDict_New();")
+        w.putln("if (unlikely(!tuple_dedup_map)) return -1;")
+
         for node in self.codeobject_constants:
             node.generate_codeobj(w)
 
+        w.putln("Py_DECREF(tuple_dedup_map);")
         w.putln("return 0;")
 
         w.putln("bad:")
+        w.putln("Py_DECREF(tuple_dedup_map);")
         w.putln("return -1;")
         w.putln("}")
 
