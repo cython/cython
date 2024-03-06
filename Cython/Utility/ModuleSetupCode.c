@@ -1664,6 +1664,20 @@ static CYTHON_INLINE int __Pyx_Is_Little_Endian(void)
   #define CYTHON_REFNANNY 0
 #endif
 
+#ifndef _ModuleSetupDecRef
+#if CYTHON_COMPILING_IN_LIMITED_API
+#define _ModuleSetupDecRef(obj) Py_DecRef(obj);
+#define _ModuleSetupXDecRef(obj) Py_DecRef(obj);
+#define _ModuleSetupIncRef(obj) Py_IncRef(obj);
+#define _ModuleSetupXIncRef(obj) Py_IncRef(obj);
+#else
+#define _ModuleSetupDecRef(obj) Py_DECREF(obj);
+#define _ModuleSetupXDecRef(obj) Py_XDECREF(obj);
+#define _ModuleSetupIncRef(obj) Py_INCREF(obj);
+#define _ModuleSetupXIncRef(obj) Py_XINCREF(obj);
+#endif
+#endif
+
 #if CYTHON_REFNANNY
   typedef struct {
     void (*INCREF)(void*, PyObject*, Py_ssize_t);
@@ -1709,19 +1723,19 @@ static CYTHON_INLINE int __Pyx_Is_Little_Endian(void)
   #define __Pyx_RefNannySetupContext(name, acquire_gil)
   #define __Pyx_RefNannyFinishContextNogil()
   #define __Pyx_RefNannyFinishContext()
-  #define __Pyx_INCREF(r) Py_INCREF(r)
-  #define __Pyx_DECREF(r) Py_DECREF(r)
+  #define __Pyx_INCREF(r) _ModuleSetupIncRef(r)
+  #define __Pyx_DECREF(r) _ModuleSetupDecRef(r)
   #define __Pyx_GOTREF(r)
   #define __Pyx_GIVEREF(r)
-  #define __Pyx_XINCREF(r) Py_XINCREF(r)
-  #define __Pyx_XDECREF(r) Py_XDECREF(r)
+  #define __Pyx_XINCREF(r) _ModuleSetupXIncRef(r)
+  #define __Pyx_XDECREF(r) _ModuleSetupXDecRef(r)
   #define __Pyx_XGOTREF(r)
   #define __Pyx_XGIVEREF(r)
 #endif /* CYTHON_REFNANNY */
 
 #define __Pyx_Py_XDECREF_SET(r, v) do {                         \
         PyObject *tmp = (PyObject *) r;                         \
-        r = v; Py_XDECREF(tmp);                                 \
+        r = v; _ModuleSetupXDecRef(tmp);                        \
     } while (0)
 #define __Pyx_XDECREF_SET(r, v) do {                            \
         PyObject *tmp = (PyObject *) r;                         \

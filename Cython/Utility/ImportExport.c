@@ -3,8 +3,23 @@
 static PyObject *__Pyx_ImportDottedModule(PyObject *name, PyObject *parts_tuple); /*proto*/
 static PyObject *__Pyx_ImportDottedModule_WalkParts(PyObject *module, PyObject *name, PyObject *parts_tuple); /*proto*/
 
+
 /////////////// ImportDottedModule ///////////////
 //@requires: Import
+
+#ifndef _ImportDecRef
+#if CYTHON_COMPILING_IN_LIMITED_API
+#define _ImportDecRef(obj) Py_DecRef(obj);
+#define _ImportXDecRef(obj) Py_DecRef(obj);
+#define _ImportIncRef(obj) Py_IncRef(obj);
+#define _ImportXIncRef(obj) Py_IncRef(obj);
+#else
+#define _ImportDecRef(obj) Py_DECREF(obj);
+#define _ImportXDecRef(obj) Py_XDECREF(obj);
+#define _ImportIncRef(obj) Py_INCREF(obj);
+#define _ImportXIncRef(obj) Py_XINCREF(obj);
+#endif
+#endif
 
 static PyObject *__Pyx__ImportDottedModule_Error(PyObject *name, PyObject *parts_tuple, Py_ssize_t count) {
     PyObject *partial_name = NULL, *slice = NULL, *sep = NULL;
@@ -12,7 +27,7 @@ static PyObject *__Pyx__ImportDottedModule_Error(PyObject *name, PyObject *parts
     if (unlikely(PyErr_Occurred())) {
         PyErr_Clear();
     }
-#if CYTHON_ASSUME_SAFE_SIZE
+#if CYTHON_ASSUME_SAFE_SIZE && !CYTHON_COMPILING_IN_LIMITED_API
     size = PyTuple_GET_SIZE(parts_tuple);
 #else
     size = PyTuple_Size(parts_tuple);
@@ -35,9 +50,9 @@ static PyObject *__Pyx__ImportDottedModule_Error(PyObject *name, PyObject *parts
         "No module named '%U'", partial_name);
 
 bad:
-    Py_XDECREF(sep);
-    Py_XDECREF(slice);
-    Py_XDECREF(partial_name);
+    _ImportXDecRef(sep);
+    _ImportXDecRef(slice);
+    _ImportXDecRef(partial_name);
     return NULL;
 }
 
@@ -57,7 +72,7 @@ static PyObject *__Pyx__ImportDottedModule_Lookup(PyObject *name) {
 
 static PyObject *__Pyx_ImportDottedModule_WalkParts(PyObject *module, PyObject *name, PyObject *parts_tuple) {
     Py_ssize_t i, nparts;
-#if CYTHON_ASSUME_SAFE_SIZE
+#if CYTHON_ASSUME_SAFE_SIZE && !CYTHON_COMPILING_IN_LIMITED_API
     nparts = PyTuple_GET_SIZE(parts_tuple);
 #else
     nparts = PyTuple_Size(parts_tuple);
@@ -65,7 +80,7 @@ static PyObject *__Pyx_ImportDottedModule_WalkParts(PyObject *module, PyObject *
 #endif
     for (i=1; i < nparts && module; i++) {
         PyObject *part, *submodule;
-#if CYTHON_ASSUME_SAFE_MACROS && !CYTHON_AVOID_BORROWED_REFS
+#if CYTHON_ASSUME_SAFE_MACROS && !CYTHON_AVOID_BORROWED_REFS && !CYTHON_COMPILING_IN_LIMITED_API
         part = PyTuple_GET_ITEM(parts_tuple, i);
 #else
         part = __Pyx_PySequence_ITEM(parts_tuple, i);
@@ -74,9 +89,9 @@ static PyObject *__Pyx_ImportDottedModule_WalkParts(PyObject *module, PyObject *
         submodule = __Pyx_PyObject_GetAttrStrNoError(module, part);
         // We stop if the attribute isn't found, i.e. if submodule is NULL here.
 #if !(CYTHON_ASSUME_SAFE_MACROS && !CYTHON_AVOID_BORROWED_REFS)
-        Py_DECREF(part);
+        _ImportDecRef(part);
 #endif
-        Py_DECREF(module);
+        _ImportDecRef(module);
         module = submodule;
     }
     if (unlikely(!module)) {
@@ -94,7 +109,7 @@ static PyObject *__Pyx__ImportDottedModule(PyObject *name, PyObject *parts_tuple
     // Look up module in sys.modules, which is safer than the attribute lookups below.
     imported_module = __Pyx__ImportDottedModule_Lookup(name);
     if (likely(imported_module)) {
-        Py_DECREF(module);
+        _ImportDecRef(module);
         return imported_module;
     }
     PyErr_Clear();
@@ -111,18 +126,18 @@ static PyObject *__Pyx_ImportDottedModule(PyObject *name, PyObject *parts_tuple)
         if (likely(spec)) {
             PyObject *unsafe = __Pyx_PyObject_GetAttrStrNoError(spec, PYIDENT("_initializing"));
             if (likely(!unsafe || !__Pyx_PyObject_IsTrue(unsafe))) {
-                Py_DECREF(spec);
+                _ImportDecRef(spec);
                 spec = NULL;
             }
-            Py_XDECREF(unsafe);
+            _ImportXDecRef(module);
         }
         if (likely(!spec)) {
             // Not in initialisation phase => use modules as is.
             PyErr_Clear();
             return module;
         }
-        Py_DECREF(spec);
-        Py_DECREF(module);
+        _ImportDecRef(spec);
+        _ImportDecRef(module);
     } else if (PyErr_Occurred()) {
         PyErr_Clear();
     }
@@ -140,11 +155,25 @@ static PyObject *__Pyx_ImportDottedModuleRelFirst(PyObject *name, PyObject *part
 //@requires: ImportDottedModule
 //@requires: Import
 
+#ifndef _ImportDecRef
+#if CYTHON_COMPILING_IN_LIMITED_API
+#define _ImportDecRef(obj) Py_DecRef(obj);
+#define _ImportXDecRef(obj) Py_DecRef(obj);
+#define _ImportIncRef(obj) Py_IncRef(obj);
+#define _ImportXIncRef(obj) Py_IncRef(obj);
+#else
+#define _ImportDecRef(obj) Py_DECREF(obj);
+#define _ImportXDecRef(obj) Py_XDECREF(obj);
+#define _ImportIncRef(obj) Py_INCREF(obj);
+#define _ImportXIncRef(obj) Py_XINCREF(obj);
+#endif
+#endif
+
 static PyObject *__Pyx_ImportDottedModuleRelFirst(PyObject *name, PyObject *parts_tuple) {
     PyObject *module;
     PyObject *from_list = NULL;
     module = __Pyx_Import(name, from_list, -1);
-    Py_XDECREF(from_list);
+    _ImportXDecRef(from_list);
     if (module) {
         if (parts_tuple) {
             module = __Pyx_ImportDottedModule_WalkParts(module, name, parts_tuple);
@@ -167,6 +196,20 @@ static PyObject *__Pyx_Import(PyObject *name, PyObject *from_list, int level); /
 //@requires: ObjectHandling.c::PyObjectGetAttrStr
 //@requires:StringTools.c::IncludeStringH
 //@substitute: naming
+
+#ifndef _ImportDecRef
+#if CYTHON_COMPILING_IN_LIMITED_API
+#define _ImportDecRef(obj) Py_DecRef(obj);
+#define _ImportXDecRef(obj) Py_DecRef(obj);
+#define _ImportIncRef(obj) Py_IncRef(obj);
+#define _ImportXIncRef(obj) Py_IncRef(obj);
+#else
+#define _ImportDecRef(obj) Py_DECREF(obj);
+#define _ImportXDecRef(obj) Py_XDECREF(obj);
+#define _ImportIncRef(obj) Py_INCREF(obj);
+#define _ImportXIncRef(obj) Py_XINCREF(obj);
+#endif
+#endif
 
 static PyObject *__Pyx_Import(PyObject *name, PyObject *from_list, int level) {
     PyObject *module = 0;
@@ -193,8 +236,8 @@ static PyObject *__Pyx_Import(PyObject *name, PyObject *from_list, int level) {
             name, $moddict_cname, empty_dict, from_list, level);
     }
 bad:
-    Py_XDECREF(empty_dict);
-    Py_XDECREF(empty_list);
+    _ImportXDecRef(empty_dict);
+    _ImportXDecRef(empty_list);
     return module;
 }
 
@@ -205,6 +248,20 @@ static PyObject* __Pyx_ImportFrom(PyObject* module, PyObject* name); /*proto*/
 
 /////////////// ImportFrom ///////////////
 //@requires: ObjectHandling.c::PyObjectGetAttrStr
+
+#ifndef _ImportDecRef
+#if CYTHON_COMPILING_IN_LIMITED_API
+#define _ImportDecRef(obj) Py_DecRef(obj);
+#define _ImportXDecRef(obj) Py_DecRef(obj);
+#define _ImportIncRef(obj) Py_IncRef(obj);
+#define _ImportXIncRef(obj) Py_IncRef(obj);
+#else
+#define _ImportDecRef(obj) Py_DECREF(obj);
+#define _ImportXDecRef(obj) Py_XDECREF(obj);
+#define _ImportIncRef(obj) Py_INCREF(obj);
+#define _ImportXIncRef(obj) Py_XINCREF(obj);
+#endif
+#endif
 
 static PyObject* __Pyx_ImportFrom(PyObject* module, PyObject* name) {
     PyObject* value = __Pyx_PyObject_GetAttrStr(module, name);
@@ -237,9 +294,9 @@ static PyObject* __Pyx_ImportFrom(PyObject* module, PyObject* name) {
         #endif
 
       modbad:
-        Py_XDECREF(full_name);
-        Py_XDECREF(module_dot);
-        Py_XDECREF(module_name);
+        _ImportXDecRef(full_name);
+        _ImportXDecRef(module_dot);
+        _ImportXDecRef(module_name);
     }
     if (unlikely(!value)) {
         PyErr_Format(PyExc_ImportError, "cannot import name %S", name);
@@ -250,6 +307,20 @@ static PyObject* __Pyx_ImportFrom(PyObject* module, PyObject* name) {
 
 /////////////// ImportStar ///////////////
 //@substitute: naming
+
+#ifndef _ImportDecRef
+#if CYTHON_COMPILING_IN_LIMITED_API
+#define _ImportDecRef(obj) Py_DecRef(obj);
+#define _ImportXDecRef(obj) Py_DecRef(obj);
+#define _ImportIncRef(obj) Py_IncRef(obj);
+#define _ImportXIncRef(obj) Py_IncRef(obj);
+#else
+#define _ImportDecRef(obj) Py_DECREF(obj);
+#define _ImportXDecRef(obj) Py_XDECREF(obj);
+#define _ImportIncRef(obj) Py_INCREF(obj);
+#define _ImportXIncRef(obj) Py_XINCREF(obj);
+#endif
+#endif
 
 /* import_all_from is an unexposed function from ceval.c */
 
@@ -274,7 +345,7 @@ __Pyx_import_all_from(PyObject *locals, PyObject *v)
             return -1;
         }
         all = PyMapping_Keys(dict);
-        Py_DECREF(dict);
+        _ImportDecRef(dict);
         if (all == NULL)
             return -1;
         skip_leading_underscores = 1;
@@ -293,12 +364,12 @@ __Pyx_import_all_from(PyObject *locals, PyObject *v)
             Py_ssize_t length = __Pyx_PyUnicode_GET_LENGTH(name);
             #if !CYTHON_ASSUME_SAFE_SIZE
             if (unlikely(length < 0)) {
-                Py_DECREF(name);
+                _ImportDecRef(name);
                 return -1;
             }
             #endif
             if (likely(length) && __Pyx_PyUnicode_READ_CHAR(name, 0) == '_') {
-                Py_DECREF(name);
+                _ImportDecRef(name);
                 continue;
             }
         }
@@ -309,12 +380,12 @@ __Pyx_import_all_from(PyObject *locals, PyObject *v)
             err = PyDict_SetItem(locals, name, value);
         else
             err = PyObject_SetItem(locals, name, value);
-        Py_DECREF(name);
-        Py_XDECREF(value);
+        _ImportDecRef(name);
+        _ImportXDecRef(value);
         if (err != 0)
             break;
     }
-    Py_DECREF(all);
+    _ImportDecRef(all);
     return err;
 }
 
@@ -334,21 +405,32 @@ static int ${import_star}(PyObject* m) {
     if (__Pyx_import_all_from(locals, m) < 0) goto bad;
     list = PyDict_Items(locals);        if (!list) goto bad;
 
+#if CYTHON_COMPILING_IN_LIMITED_API
+    for(i=0; i<PyList_Size(list); i++) {
+        name = PyTuple_Get_Item(PyList_Get_Item(list, i), 0);
+        item = PyTuple_Get_Item(PyList_Get_Item(list, i), 1);
+#else
     for(i=0; i<PyList_GET_SIZE(list); i++) {
         name = PyTuple_GET_ITEM(PyList_GET_ITEM(list, i), 0);
         item = PyTuple_GET_ITEM(PyList_GET_ITEM(list, i), 1);
+#endif
+
         utf8_name = PyUnicode_AsUTF8String(name);
         if (!utf8_name) goto bad;
+#if CYTHON_COMPILING_IN_LIMITED_API
+        s = PyBytes_AsString(utf8_name);
+#else
         s = PyBytes_AS_STRING(utf8_name);
+#endif
         if (${import_star_set}(item, name, s) < 0) goto bad;
-        Py_DECREF(utf8_name); utf8_name = 0;
+        _ImportDecRef(utf8_name); utf8_name = 0;
     }
     ret = 0;
 
 bad:
-    Py_XDECREF(locals);
-    Py_XDECREF(list);
-    Py_XDECREF(utf8_name);
+    _ImportXDecRef(locals);
+    _ImportXDecRef(list);
+    _ImportXDecRef(utf8_name);
     return ret;
 }
 
@@ -364,6 +446,20 @@ static int __Pyx_SetPackagePathFromImportLib(PyObject *module_name);
 /////////////// SetPackagePathFromImportLib ///////////////
 //@substitute: naming
 
+#ifndef _ImportDecRef
+#if CYTHON_COMPILING_IN_LIMITED_API
+#define _ImportDecRef(obj) Py_DecRef(obj);
+#define _ImportXDecRef(obj) Py_DecRef(obj);
+#define _ImportIncRef(obj) Py_IncRef(obj);
+#define _ImportXIncRef(obj) Py_IncRef(obj);
+#else
+#define _ImportDecRef(obj) Py_DECREF(obj);
+#define _ImportXDecRef(obj) Py_XDECREF(obj);
+#define _ImportIncRef(obj) Py_INCREF(obj);
+#define _ImportXIncRef(obj) Py_XINCREF(obj);
+#endif
+#endif
+
 #if !CYTHON_PEP489_MULTI_PHASE_INIT
 static int __Pyx_SetPackagePathFromImportLib(PyObject *module_name) {
     PyObject *importlib, *osmod, *ossep, *parts, *package_path;
@@ -375,11 +471,11 @@ static int __Pyx_SetPackagePathFromImportLib(PyObject *module_name) {
     if (unlikely(!importlib))
         goto bad;
     spec = PyObject_CallMethod(importlib, "find_spec", "(O)", module_name);
-    Py_DECREF(importlib);
+    _ImportDecRef(importlib);
     if (unlikely(!spec))
         goto bad;
     file_path = PyObject_GetAttrString(spec, "origin");
-    Py_DECREF(spec);
+    _ImportDecRef(spec);
     if (unlikely(!file_path))
         goto bad;
 
@@ -390,23 +486,23 @@ static int __Pyx_SetPackagePathFromImportLib(PyObject *module_name) {
     if (unlikely(!osmod))
         goto bad;
     ossep = PyObject_GetAttrString(osmod, "sep");
-    Py_DECREF(osmod);
+    _ImportDecRef(osmod);
     if (unlikely(!ossep))
         goto bad;
     parts = PyObject_CallMethod(file_path, "rsplit", "(Oi)", ossep, 1);
-    Py_DECREF(file_path); file_path = NULL;
-    Py_DECREF(ossep);
+    _ImportDecRef(file_path); file_path = NULL;
+    _ImportDecRef(ossep);
     if (unlikely(!parts))
         goto bad;
     package_path = Py_BuildValue("[O]", PyList_GET_ITEM(parts, 0));
-    Py_DECREF(parts);
+    _ImportDecRef(parts);
     if (unlikely(!package_path))
         goto bad;
     goto set_path;
 
 bad:
     PyErr_WriteUnraisable(module_name);
-    Py_XDECREF(file_path);
+    _ImportXDecRef(file_path);
 
     // set an empty path list on failure
     PyErr_Clear();
@@ -416,7 +512,7 @@ bad:
 
 set_path:
     result = PyObject_SetAttrString($module_cname, "__path__", package_path);
-    Py_DECREF(package_path);
+    _ImportDecRef(package_path);
     return result;
 }
 #endif
@@ -452,6 +548,20 @@ static PyTypeObject *__Pyx_ImportType_$cyversion(PyObject* module, const char *m
 /////////////// TypeImport ///////////////
 //@substitute: naming
 
+#ifndef _ImportDecRef
+#if CYTHON_COMPILING_IN_LIMITED_API
+#define _ImportDecRef(obj) Py_DecRef(obj);
+#define _ImportXDecRef(obj) Py_DecRef(obj);
+#define _ImportIncRef(obj) Py_IncRef(obj);
+#define _ImportXIncRef(obj) Py_IncRef(obj);
+#else
+#define _ImportDecRef(obj) Py_DECREF(obj);
+#define _ImportXDecRef(obj) Py_XDECREF(obj);
+#define _ImportIncRef(obj) Py_INCREF(obj);
+#define _ImportXIncRef(obj) Py_XINCREF(obj);
+#endif
+#endif
+
 #ifndef __PYX_HAVE_RT_ImportType_$cyversion
 #define __PYX_HAVE_RT_ImportType_$cyversion
 static PyTypeObject *__Pyx_ImportType_$cyversion(PyObject *module, const char *module_name, const char *class_name,
@@ -483,7 +593,7 @@ static PyTypeObject *__Pyx_ImportType_$cyversion(PyObject *module, const char *m
     if (!py_basicsize)
         goto bad;
     basicsize = PyLong_AsSsize_t(py_basicsize);
-    Py_DECREF(py_basicsize);
+    _ImportDecRef(py_basicsize);
     py_basicsize = 0;
     if (basicsize == (Py_ssize_t)-1 && PyErr_Occurred())
         goto bad;
@@ -491,7 +601,7 @@ static PyTypeObject *__Pyx_ImportType_$cyversion(PyObject *module, const char *m
     if (!py_itemsize)
         goto bad;
     itemsize = PyLong_AsSsize_t(py_itemsize);
-    Py_DECREF(py_itemsize);
+    _ImportDecRef(py_itemsize);
     py_itemsize = 0;
     if (itemsize == (Py_ssize_t)-1 && PyErr_Occurred())
         goto bad;
@@ -535,7 +645,7 @@ static PyTypeObject *__Pyx_ImportType_$cyversion(PyObject *module, const char *m
     /* check_size == __Pyx_ImportType_CheckSize_Ignore does not warn nor error */
     return (PyTypeObject *)result;
 bad:
-    Py_XDECREF(result);
+    _ImportXDecRef(result);
     return NULL;
 }
 #endif
@@ -548,6 +658,20 @@ static int __Pyx_ImportFunction_$cyversion(PyObject *module, const char *funcnam
 /////////////// FunctionImport ///////////////
 //@substitute: naming
 //@requires: TypeConversion.c::CFuncPtrFromPy
+
+#ifndef _ImportDecRef
+#if CYTHON_COMPILING_IN_LIMITED_API
+#define _ImportDecRef(obj) Py_DecRef(obj);
+#define _ImportXDecRef(obj) Py_DecRef(obj);
+#define _ImportIncRef(obj) Py_IncRef(obj);
+#define _ImportXIncRef(obj) Py_IncRef(obj);
+#else
+#define _ImportDecRef(obj) Py_DECREF(obj);
+#define _ImportXDecRef(obj) Py_XDECREF(obj);
+#define _ImportIncRef(obj) Py_INCREF(obj);
+#define _ImportXIncRef(obj) Py_XINCREF(obj);
+#endif
+#endif
 
 #ifndef __PYX_HAVE_RT_ImportFunction_$cyversion
 #define __PYX_HAVE_RT_ImportFunction_$cyversion
@@ -574,10 +698,10 @@ static int __Pyx_ImportFunction_$cyversion(PyObject *module, const char *funcnam
     *f = __Pyx_capsule_to_c_func_ptr(cobj, sig);
     if (!(*f))
         goto bad;
-    Py_DECREF(d);
+    _ImportDecRef(d);
     return 0;
 bad:
-    Py_XDECREF(d);
+    _ImportXDecRef(d);
     return -1;
 }
 #endif
@@ -590,6 +714,20 @@ static int __Pyx_ExportFunction(const char *name, void (*f)(void), const char *s
 //@substitute: naming
 //@requires: TypeConversion.c::CFuncPtrToPy
 
+#ifndef _ImportDecRef
+#if CYTHON_COMPILING_IN_LIMITED_API
+#define _ImportDecRef(obj) Py_DecRef(obj);
+#define _ImportXDecRef(obj) Py_DecRef(obj);
+#define _ImportIncRef(obj) Py_IncRef(obj);
+#define _ImportXIncRef(obj) Py_IncRef(obj);
+#else
+#define _ImportDecRef(obj) Py_DECREF(obj);
+#define _ImportXDecRef(obj) Py_XDECREF(obj);
+#define _ImportIncRef(obj) Py_INCREF(obj);
+#define _ImportXIncRef(obj) Py_XINCREF(obj);
+#endif
+#endif
+
 static int __Pyx_ExportFunction(const char *name, void (*f)(void), const char *sig) {
     PyObject *d = 0;
     PyObject *cobj = 0;
@@ -600,7 +738,7 @@ static int __Pyx_ExportFunction(const char *name, void (*f)(void), const char *s
         d = PyDict_New();
         if (!d)
             goto bad;
-        Py_INCREF(d);
+        _ImportIncRef(d);
         if (PyModule_AddObject($module_cname, "$api_name", d) < 0)
             goto bad;
     }
@@ -609,12 +747,12 @@ static int __Pyx_ExportFunction(const char *name, void (*f)(void), const char *s
         goto bad;
     if (PyDict_SetItemString(d, name, cobj) < 0)
         goto bad;
-    Py_DECREF(cobj);
-    Py_DECREF(d);
+    _ImportDecRef(cobj);
+    _ImportDecRef(d);
     return 0;
 bad:
-    Py_XDECREF(cobj);
-    Py_XDECREF(d);
+    _ImportXDecRef(cobj);
+    _ImportXDecRef(d);
     return -1;
 }
 
@@ -625,6 +763,20 @@ static int __Pyx_ImportVoidPtr_$cyversion(PyObject *module, const char *name, vo
 
 /////////////// VoidPtrImport ///////////////
 //@substitute: naming
+
+#ifndef _ImportDecRef
+#if CYTHON_COMPILING_IN_LIMITED_API
+#define _ImportDecRef(obj) Py_DecRef(obj);
+#define _ImportXDecRef(obj) Py_DecRef(obj);
+#define _ImportIncRef(obj) Py_IncRef(obj);
+#define _ImportXIncRef(obj) Py_IncRef(obj);
+#else
+#define _ImportDecRef(obj) Py_DECREF(obj);
+#define _ImportXDecRef(obj) Py_XDECREF(obj);
+#define _ImportIncRef(obj) Py_INCREF(obj);
+#define _ImportXIncRef(obj) Py_XINCREF(obj);
+#endif
+#endif
 
 #ifndef __PYX_HAVE_RT_ImportVoidPtr_$cyversion
 #define __PYX_HAVE_RT_ImportVoidPtr_$cyversion
@@ -651,10 +803,10 @@ static int __Pyx_ImportVoidPtr_$cyversion(PyObject *module, const char *name, vo
     *p = PyCapsule_GetPointer(cobj, sig);
     if (!(*p))
         goto bad;
-    Py_DECREF(d);
+    _ImportDecRef(d);
     return 0;
 bad:
-    Py_XDECREF(d);
+    _ImportXDecRef(d);
     return -1;
 }
 #endif
@@ -666,6 +818,20 @@ static int __Pyx_ExportVoidPtr(PyObject *name, void *p, const char *sig); /*prot
 /////////////// VoidPtrExport ///////////////
 //@substitute: naming
 //@requires: ObjectHandling.c::PyObjectSetAttrStr
+
+#ifndef _ImportDecRef
+#if CYTHON_COMPILING_IN_LIMITED_API
+#define _ImportDecRef(obj) Py_DecRef(obj);
+#define _ImportXDecRef(obj) Py_DecRef(obj);
+#define _ImportIncRef(obj) Py_IncRef(obj);
+#define _ImportXIncRef(obj) Py_IncRef(obj);
+#else
+#define _ImportDecRef(obj) Py_DECREF(obj);
+#define _ImportXDecRef(obj) Py_XDECREF(obj);
+#define _ImportIncRef(obj) Py_INCREF(obj);
+#define _ImportXIncRef(obj) Py_XINCREF(obj);
+#endif
+#endif
 
 static int __Pyx_ExportVoidPtr(PyObject *name, void *p, const char *sig) {
     PyObject *d;
@@ -685,12 +851,12 @@ static int __Pyx_ExportVoidPtr(PyObject *name, void *p, const char *sig) {
         goto bad;
     if (PyDict_SetItem(d, name, cobj) < 0)
         goto bad;
-    Py_DECREF(cobj);
-    Py_DECREF(d);
+    _ImportDecRef(cobj);
+    _ImportDecRef(d);
     return 0;
 bad:
-    Py_XDECREF(cobj);
-    Py_XDECREF(d);
+    _ImportXDecRef(cobj);
+    _ImportXDecRef(d);
     return -1;
 }
 
@@ -700,6 +866,20 @@ bad:
 static int __Pyx_SetVtable(PyTypeObject* typeptr , void* vtable); /*proto*/
 
 /////////////// SetVTable ///////////////
+
+#ifndef _ImportDecRef
+#if CYTHON_COMPILING_IN_LIMITED_API
+#define _ImportDecRef(obj) Py_DecRef(obj);
+#define _ImportXDecRef(obj) Py_DecRef(obj);
+#define _ImportIncRef(obj) Py_IncRef(obj);
+#define _ImportXIncRef(obj) Py_IncRef(obj);
+#else
+#define _ImportDecRef(obj) Py_DECREF(obj);
+#define _ImportXDecRef(obj) Py_XDECREF(obj);
+#define _ImportIncRef(obj) Py_INCREF(obj);
+#define _ImportXIncRef(obj) Py_XINCREF(obj);
+#endif
+#endif
 
 static int __Pyx_SetVtable(PyTypeObject *type, void *vtable) {
     PyObject *ob = PyCapsule_New(vtable, 0, 0);
@@ -711,10 +891,10 @@ static int __Pyx_SetVtable(PyTypeObject *type, void *vtable) {
     if (unlikely(PyDict_SetItem(type->tp_dict, PYIDENT("__pyx_vtable__"), ob) < 0))
 #endif
         goto bad;
-    Py_DECREF(ob);
+    _ImportDecRef(ob);
     return 0;
 bad:
-    Py_XDECREF(ob);
+    _ImportXDecRef(ob);
     return -1;
 }
 
@@ -724,6 +904,20 @@ bad:
 static void* __Pyx_GetVtable(PyTypeObject *type); /*proto*/
 
 /////////////// GetVTable ///////////////
+
+#ifndef _ImportDecRef
+#if CYTHON_COMPILING_IN_LIMITED_API
+#define _ImportDecRef(obj) Py_DecRef(obj);
+#define _ImportXDecRef(obj) Py_DecRef(obj);
+#define _ImportIncRef(obj) Py_IncRef(obj);
+#define _ImportXIncRef(obj) Py_IncRef(obj);
+#else
+#define _ImportDecRef(obj) Py_DECREF(obj);
+#define _ImportXDecRef(obj) Py_XDECREF(obj);
+#define _ImportIncRef(obj) Py_INCREF(obj);
+#define _ImportXIncRef(obj) Py_XINCREF(obj);
+#endif
+#endif
 
 static void* __Pyx_GetVtable(PyTypeObject *type) {
     void* ptr;
@@ -737,10 +931,10 @@ static void* __Pyx_GetVtable(PyTypeObject *type) {
     ptr = PyCapsule_GetPointer(ob, 0);
     if (!ptr && !PyErr_Occurred())
         PyErr_SetString(PyExc_RuntimeError, "invalid vtable found for imported type");
-    Py_DECREF(ob);
+    _ImportDecRef(ob);
     return ptr;
 bad:
-    Py_XDECREF(ob);
+    _ImportXDecRef(ob);
     return NULL;
 }
 
@@ -751,6 +945,20 @@ bad:
 static int __Pyx_MergeVtables(PyTypeObject *type); /*proto*/
 
 /////////////// MergeVTables ///////////////
+
+#ifndef _ImportDecRef
+#if CYTHON_COMPILING_IN_LIMITED_API
+#define _ImportDecRef(obj) Py_DecRef(obj);
+#define _ImportXDecRef(obj) Py_DecRef(obj);
+#define _ImportIncRef(obj) Py_IncRef(obj);
+#define _ImportXIncRef(obj) Py_IncRef(obj);
+#else
+#define _ImportDecRef(obj) Py_DECREF(obj);
+#define _ImportXDecRef(obj) Py_XDECREF(obj);
+#define _ImportIncRef(obj) Py_INCREF(obj);
+#define _ImportXIncRef(obj) Py_XINCREF(obj);
+#endif
+#endif
 
 static int __Pyx_MergeVtables(PyTypeObject *type) {
     int i=0;
@@ -796,7 +1004,7 @@ static int __Pyx_MergeVtables(PyTypeObject *type) {
 #endif
         base_vtable = __Pyx_GetVtable((PyTypeObject*)basei);
 #if CYTHON_AVOID_BORROWED_REFS
-        Py_DECREF(basei);
+        _ImportDecRef(basei);
 #endif
         if (base_vtable != NULL) {
             int j;
@@ -835,7 +1043,7 @@ bad:
 #endif
         base_name = __Pyx_PyType_GetName(basei);
 #if CYTHON_AVOID_BORROWED_REFS
-        Py_DECREF(basei);
+        _ImportDecRef(basei);
 #endif
     }
     PyErr_Format(PyExc_TypeError,
@@ -865,20 +1073,34 @@ Py_CLEAR(__pyx_numpy_ndarray);
 /////////////// ImportNumPyArray ///////////////
 //@requires: ImportExport.c::Import
 
+#ifndef _ImportDecRef
+#if CYTHON_COMPILING_IN_LIMITED_API
+#define _ImportDecRef(obj) Py_DecRef(obj);
+#define _ImportXDecRef(obj) Py_DecRef(obj);
+#define _ImportIncRef(obj) Py_IncRef(obj);
+#define _ImportXIncRef(obj) Py_IncRef(obj);
+#else
+#define _ImportDecRef(obj) Py_DECREF(obj);
+#define _ImportXDecRef(obj) Py_XDECREF(obj);
+#define _ImportIncRef(obj) Py_INCREF(obj);
+#define _ImportXIncRef(obj) Py_XINCREF(obj);
+#endif
+#endif
+
 static PyObject* __Pyx__ImportNumPyArray(void) {
     PyObject *numpy_module, *ndarray_object = NULL;
     numpy_module = __Pyx_Import(PYIDENT("numpy"), NULL, 0);
     if (likely(numpy_module)) {
         ndarray_object = PyObject_GetAttrString(numpy_module, "ndarray");
-        Py_DECREF(numpy_module);
+        _ImportDecRef(numpy_module);
     }
     if (unlikely(!ndarray_object)) {
         // ImportError, AttributeError, ...
         PyErr_Clear();
     }
     if (unlikely(!ndarray_object || !PyObject_TypeCheck(ndarray_object, &PyType_Type))) {
-        Py_XDECREF(ndarray_object);
-        Py_INCREF(Py_None);
+        _ImportXDecRef(ndarray_object);
+        _ImportIncRef(Py_None);
         ndarray_object = Py_None;
     }
     return ndarray_object;
@@ -888,6 +1110,6 @@ static CYTHON_INLINE PyObject* __Pyx_ImportNumPyArrayTypeIfAvailable(void) {
     if (unlikely(!__pyx_numpy_ndarray)) {
         __pyx_numpy_ndarray = __Pyx__ImportNumPyArray();
     }
-    Py_INCREF(__pyx_numpy_ndarray);
+    _ImportIncRef(__pyx_numpy_ndarray);
     return __pyx_numpy_ndarray;
 }

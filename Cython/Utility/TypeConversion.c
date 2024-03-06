@@ -60,7 +60,7 @@ static CYTHON_INLINE PyObject* __Pyx_PyUnicode_FromString(const char*);
 #define __Pyx_PyStr_FromString        __Pyx_PyUnicode_FromString
 #define __Pyx_PyStr_FromStringAndSize __Pyx_PyUnicode_FromStringAndSize
 
-#if CYTHON_ASSUME_SAFE_MACROS
+#if CYTHON_ASSUME_SAFE_MACROS && !CYTHON_COMPILING_IN_LIMITED_API
     #define __Pyx_PyBytes_AsWritableString(s)     ((char*) PyBytes_AS_STRING(s))
     #define __Pyx_PyBytes_AsWritableSString(s)    ((signed char*) PyBytes_AS_STRING(s))
     #define __Pyx_PyBytes_AsWritableUString(s)    ((unsigned char*) PyBytes_AS_STRING(s))
