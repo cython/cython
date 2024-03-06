@@ -40,7 +40,7 @@ class TestBuiltinCompatibility(unittest.TestCase):
         runtime_builtins = frozenset(name for name in dir(builtins) if name[:1] != '_')
         if sys.version_info < KNOWN_PYTHON_BUILTINS_VERSION:
             missing_builtins = KNOWN_PYTHON_BUILTINS - runtime_builtins
-            if not missing_builtins:
-                self.skipTest('skipping test, older Python release found.')
-            self.skipTest(f'skipping test, older Python release found. Missing builtins: {", ".join(sorted(missing_builtins))}')
+            if missing_builtins:
+                self.skipTest(f'skipping test, older Python release found. Missing builtins: {", ".join(sorted(missing_builtins))}')
+            self.skipTest('skipping test, older Python release found.')
         self.assertSetEqual(runtime_builtins, KNOWN_PYTHON_BUILTINS)
