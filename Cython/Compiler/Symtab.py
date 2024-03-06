@@ -105,6 +105,7 @@ KNOWN_PYTHON_BUILTINS = frozenset([
     'UserWarning',
     'ValueError',
     'Warning',
+    'WindowsError',
     'ZeroDivisionError',
     '__build_class__',
     '__debug__',
