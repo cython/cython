@@ -3828,11 +3828,10 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         module_name = type.module_name
         type_name = type.name
         if module_name not in ('__builtin__', 'builtins'):
-            module_name = '"%s"' % module_name
+            module_name = f'"{module_name}"'
         elif type_name in Code.ctypedef_builtins_map:
             # Fast path for special builtins, don't actually import
-            c_type_name = Code.ctypedef_builtins_map[type_name]
-            code.putln('%s = %s;' % (type.typeptr_cname, c_type_name))
+            code.putln(f'{type.typeptr_cname} = {Code.ctypedef_builtins_map[type_name]};')
             return
         else:
             module_name = '__Pyx_BUILTIN_MODULE_NAME'
@@ -3847,26 +3846,23 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             error_code = code.error_goto(error_pos)
 
         module = import_generator.imported_module(module_name, error_code)
-        code.put(f'{type.typeptr_cname} = __Pyx_ImportType_{Naming.cyversion}({module}, {module_name},')
+        code.put(
+            f"{type.typeptr_cname} = __Pyx_ImportType_{Naming.cyversion}("
+            f"{module}, {module_name}, {type.name.as_c_string_literal()},"
+        )
 
-        c_type_name = type.name.as_c_string_literal()
-        code.put(f' {c_type_name}, ')
-
+        alignment_func = f"__PYX_GET_STRUCT_ALIGNMENT_{Naming.cyversion}"
         if sizeof_objstruct != objstruct:
             code.putln("")  # start in new line
             code.putln("#if defined(PYPY_VERSION_NUM) && PYPY_VERSION_NUM < 0x050B0000")
-            code.putln('sizeof(%s), __PYX_GET_STRUCT_ALIGNMENT_%s(%s),' % (
-                objstruct, Naming.cyversion, objstruct))
+            code.putln(f'sizeof({objstruct}), {alignment_func}({objstruct}),')
             code.putln("#elif CYTHON_COMPILING_IN_LIMITED_API")
-            code.putln('sizeof(%s), __PYX_GET_STRUCT_ALIGNMENT_%s(%s),' % (
-                objstruct, Naming.cyversion, objstruct))
+            code.putln(f'sizeof({objstruct}), {alignment_func}({objstruct}),')
             code.putln("#else")
-            code.putln('sizeof(%s), __PYX_GET_STRUCT_ALIGNMENT_%s(%s),' % (
-                sizeof_objstruct, Naming.cyversion, sizeof_objstruct))
+            code.putln(f'sizeof({sizeof_objstruct}), {alignment_func}({sizeof_objstruct}),')
             code.putln("#endif")
         else:
-            code.put('sizeof(%s), __PYX_GET_STRUCT_ALIGNMENT_%s(%s),' % (
-                objstruct, Naming.cyversion, objstruct))
+            code.put(f' sizeof({objstruct}), {alignment_func}({objstruct}),')
 
         # check_size
         if type.check_size and type.check_size in ('error', 'warn', 'ignore'):
