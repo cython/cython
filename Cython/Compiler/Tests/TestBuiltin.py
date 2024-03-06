@@ -36,7 +36,6 @@ class TestBuiltinReturnTypes(unittest.TestCase):
 
 class TestBuiltinCompatibility(unittest.TestCase):
     def test_python_builtin_compatibility(self):
-        import builtins
         runtime_builtins = frozenset(name for name in dir(builtins) if name[:1] != '_')
         if sys.version_info < KNOWN_PYTHON_BUILTINS_VERSION:
             missing_builtins = KNOWN_PYTHON_BUILTINS - runtime_builtins
