@@ -29,8 +29,8 @@ iso_c99_keywords = {
     '_Bool', '_Complex'', _Imaginary', 'inline', 'restrict',
 }
 
-# Builtins python 3.12.2
-KNOWN_PYTHON_BUILTINS_VERSION = (3, 12, 2, 'final', 0)
+# Builtins as of Python 3.12.0
+KNOWN_PYTHON_BUILTINS_VERSION = (3, 12, 0, 'final', 0)
 KNOWN_PYTHON_BUILTINS = frozenset([
     'ArithmeticError',
     'AssertionError',
@@ -188,7 +188,7 @@ KNOWN_PYTHON_BUILTINS = frozenset([
     'tuple',
     'type',
     'vars',
-    'zip'
+    'zip',
 ])
 
 def c_safe_identifier(cname):
