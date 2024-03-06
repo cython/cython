@@ -11500,11 +11500,19 @@ class CythonArrayNode(ExprNode):
         ))
         code.put_gotref(shapes_temp, py_object_type)
 
+        code.putln("#if CYTHON_COMPILING_IN_LIMITED_API")
+        code.putln('%s = __pyx_array_new(%s, %s, PyBytes_AsString(%s), "%s", (char *) %s); %s' % (
+            self.result(),
+            shapes_temp, itemsize, format_temp, self.mode, self.operand.result(),
+            code.error_goto_if_null(self.result(), self.pos),
+        ))
+        code.putln("#else")
         code.putln('%s = __pyx_array_new(%s, %s, PyBytes_AS_STRING(%s), "%s", (char *) %s); %s' % (
             self.result(),
             shapes_temp, itemsize, format_temp, self.mode, self.operand.result(),
             code.error_goto_if_null(self.result(), self.pos),
         ))
+        code.putln("#endif")
         self.generate_gotref(code)
 
         def dispose(temp):
