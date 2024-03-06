@@ -30,13 +30,12 @@ from .Scanning import SourceDescriptor
 from ..StringIOTree import StringIOTree
 
 
-non_portable_builtins_map = {
-    # builtins that have different names in different Python versions
-    'bytes'         : ('PY_MAJOR_VERSION < 3',  'str'),
-    'unicode'       : ('PY_MAJOR_VERSION >= 3', 'str'),
-    'basestring'    : ('PY_MAJOR_VERSION >= 3', 'str'),
-    'xrange'        : ('PY_MAJOR_VERSION >= 3', 'range'),
-    'raw_input'     : ('PY_MAJOR_VERSION >= 3', 'input'),
+renamed_py2_builtins_map = {
+    # builtins that had different names in Py2 code
+    'unicode'    : 'str',
+    'basestring' : 'str',
+    'xrange'     : 'range',
+    'raw_input'  : 'input',
 }
 
 ctypedef_builtins_map = {
@@ -1487,20 +1486,12 @@ class GlobalState:
         if entry.is_builtin and entry.is_const:
             if self.should_declare(entry.cname, entry):
                 self.put_pyobject_decl(entry)
-                w = self.parts['cached_builtins']
-                condition = None
-                if entry.name in non_portable_builtins_map:
-                    condition, replacement = non_portable_builtins_map[entry.name]
-                    w.putln('#if %s' % condition)
-                    self.put_cached_builtin_init(
-                        entry.pos, StringEncoding.EncodedString(replacement),
-                        entry.cname)
-                    w.putln('#else')
+                name = entry.name
+                if name in renamed_py2_builtins_map:
+                    name = renamed_py2_builtins_map[name]
                 self.put_cached_builtin_init(
-                    entry.pos, StringEncoding.EncodedString(entry.name),
+                    entry.pos, StringEncoding.EncodedString(name),
                     entry.cname)
-                if condition:
-                    w.putln('#endif')
 
     def put_cached_builtin_init(self, pos, name, cname):
         w = self.parts['cached_builtins']

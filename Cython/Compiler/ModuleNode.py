@@ -3824,24 +3824,20 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         env.types_imported.add(type)
 
     def generate_type_import_call(self, type, code, import_generator, error_code=None, error_pos=None):
-        if type.typedef_flag:
-            objstruct = type.objstruct_cname
-        else:
-            objstruct = "struct %s" % type.objstruct_cname
-        sizeof_objstruct = objstruct
+        sizeof_objstruct = objstruct = type.objstruct_cname if type.typedef_flag else f"struct {type.objstruct_cname}"
         module_name = type.module_name
-        condition = replacement = None
+        type_name = type.name
         if module_name not in ('__builtin__', 'builtins'):
             module_name = '"%s"' % module_name
-        elif type.name in Code.ctypedef_builtins_map:
+        elif type_name in Code.ctypedef_builtins_map:
             # Fast path for special builtins, don't actually import
-            ctypename = Code.ctypedef_builtins_map[type.name]
-            code.putln('%s = %s;' % (type.typeptr_cname, ctypename))
+            c_type_name = Code.ctypedef_builtins_map[type_name]
+            code.putln('%s = %s;' % (type.typeptr_cname, c_type_name))
             return
         else:
             module_name = '__Pyx_BUILTIN_MODULE_NAME'
-            if type.name in Code.non_portable_builtins_map:
-                condition, replacement = Code.non_portable_builtins_map[type.name]
+            if type_name in Code.renamed_py2_builtins_map:
+                type_name = Code.renamed_py2_builtins_map[type_name]
             if objstruct in Code.basicsize_builtins_map:
                 # Some builtin types have a tp_basicsize which differs from sizeof(...):
                 sizeof_objstruct = Code.basicsize_builtins_map[objstruct]
@@ -3851,27 +3847,13 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             error_code = code.error_goto(error_pos)
 
         module = import_generator.imported_module(module_name, error_code)
-        code.put('%s = __Pyx_ImportType_%s(%s, %s,' % (
-            type.typeptr_cname,
-            Naming.cyversion,
-            module,
-            module_name))
+        code.put(f'{type.typeptr_cname} = __Pyx_ImportType_{Naming.cyversion}({module}, {module_name},')
 
-        type_name = type.name.as_c_string_literal()
-
-        if condition and replacement:
-            code.putln("")  # start in new line
-            code.putln("#if %s" % condition)
-            code.putln('"%s",' % replacement)
-            code.putln("#else")
-            code.putln('%s,' % type_name)
-            code.putln("#endif")
-        else:
-            code.put(' %s, ' % type_name)
+        c_type_name = type.name.as_c_string_literal()
+        code.put(f' {c_type_name}, ')
 
         if sizeof_objstruct != objstruct:
-            if not condition:
-                code.putln("")  # start in new line
+            code.putln("")  # start in new line
             code.putln("#if defined(PYPY_VERSION_NUM) && PYPY_VERSION_NUM < 0x050B0000")
             code.putln('sizeof(%s), __PYX_GET_STRUCT_ALIGNMENT_%s(%s),' % (
                 objstruct, Naming.cyversion, objstruct))
@@ -3892,10 +3874,9 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         elif not type.is_external or type.is_subclassed:
             check_size = 'error'
         else:
-            raise RuntimeError("invalid value for check_size '%s' when compiling %s.%s" % (
-                type.check_size, module_name, type.name))
-        code.put('__Pyx_ImportType_CheckSize_%s_%s);' % (
-            check_size.title(), Naming.cyversion))
+            raise RuntimeError(
+                f"invalid value for check_size '{type.check_size}' when compiling {module_name}.{type.name}")
+        code.put(f'__Pyx_ImportType_CheckSize_{check_size.title()}_{Naming.cyversion});')
 
         code.putln(' if (!%s) %s' % (type.typeptr_cname, error_code))
 
