@@ -30,13 +30,12 @@ from .Scanning import SourceDescriptor
 from ..StringIOTree import StringIOTree
 
 
-non_portable_builtins_map = {
-    # builtins that have different names in different Python versions
-    'bytes'         : ('PY_MAJOR_VERSION < 3',  'str'),
-    'unicode'       : ('PY_MAJOR_VERSION >= 3', 'str'),
-    'basestring'    : ('PY_MAJOR_VERSION >= 3', 'str'),
-    'xrange'        : ('PY_MAJOR_VERSION >= 3', 'range'),
-    'raw_input'     : ('PY_MAJOR_VERSION >= 3', 'input'),
+renamed_py2_builtins_map = {
+    # builtins that had different names in Py2 code
+    'unicode'    : 'str',
+    'basestring' : 'str',
+    'xrange'     : 'range',
+    'raw_input'  : 'input',
 }
 
 ctypedef_builtins_map = {
@@ -57,34 +56,18 @@ basicsize_builtins_map = {
 uncachable_builtins = [
     # Global/builtin names that cannot be cached because they may or may not
     # be available at import time, for various reasons:
+    ## Python 3.13+
+    'IncompleteInputError',
+    'PythonFinalizationError',
+    ## Python 3.11+
+    'BaseExceptionGroup',
+    'ExceptionGroup',
+    ## - Py3.10+
+    'aiter',
+    'anext',
+    'EncodingWarning',
     ## - Py3.7+
     'breakpoint',  # might deserve an implementation in Cython
-    ## - Py3.4+
-    '__loader__',
-    '__spec__',
-    ## - Py3+
-    'BlockingIOError',
-    'BrokenPipeError',
-    'ChildProcessError',
-    'ConnectionAbortedError',
-    'ConnectionError',
-    'ConnectionRefusedError',
-    'ConnectionResetError',
-    'FileExistsError',
-    'FileNotFoundError',
-    'InterruptedError',
-    'IsADirectoryError',
-    'ModuleNotFoundError',
-    'NotADirectoryError',
-    'PermissionError',
-    'ProcessLookupError',
-    'RecursionError',
-    'ResourceWarning',
-    #'StopAsyncIteration',  # backported
-    'TimeoutError',
-    '__build_class__',
-    'ascii',  # might deserve an implementation in Cython
-    #'exec',  # implemented in Cython
     ## - platform specific
     'WindowsError',
     ## - others
@@ -1155,10 +1138,10 @@ class GlobalState:
         'module_state_defines',  # redefines names used in module_state/_clear/_traverse
         'module_code',  # user code goes here
         'pystring_table',
-        'pycodeobj_table',
         'cached_builtins',
         'cached_constants',
         'init_constants',
+        'init_codeobjects',
         'init_globals',  # (utility code called at init-time)
         'init_module',
         'cleanup_globals',
@@ -1503,20 +1486,12 @@ class GlobalState:
         if entry.is_builtin and entry.is_const:
             if self.should_declare(entry.cname, entry):
                 self.put_pyobject_decl(entry)
-                w = self.parts['cached_builtins']
-                condition = None
-                if entry.name in non_portable_builtins_map:
-                    condition, replacement = non_portable_builtins_map[entry.name]
-                    w.putln('#if %s' % condition)
-                    self.put_cached_builtin_init(
-                        entry.pos, StringEncoding.EncodedString(replacement),
-                        entry.cname)
-                    w.putln('#else')
+                name = entry.name
+                if name in renamed_py2_builtins_map:
+                    name = renamed_py2_builtins_map[name]
                 self.put_cached_builtin_init(
-                    entry.pos, StringEncoding.EncodedString(entry.name),
+                    entry.pos, StringEncoding.EncodedString(name),
                     entry.cname)
-                if condition:
-                    w.putln('#endif')
 
     def put_cached_builtin_init(self, pos, name, cname):
         w = self.parts['cached_builtins']
@@ -1749,23 +1724,58 @@ class GlobalState:
                 init_constants.error_goto(self.module_pos)))
 
     def generate_codeobject_constants(self):
-        # TODO:
-        # There will be a significant optimization here once we've got rid of the
-        # global "#define"s pointing into the module state. When this is done the
-        # references to constants in the code object table can be done using
-        # offsetof, and it can be defined as a C constant global.
-        # For now it must be defined as a function local.
-        self.parts['decls'].putln("static int __Pyx_CreateCodeObjectTabAndInitCode(void); /* proto */")
-
-        w = self.parts['pycodeobj_table']
-        w.putln("static int __Pyx_CreateCodeObjectTabAndInitCode(void) {")
+        w = self.parts['init_codeobjects']
+        w.putln("static CYTHON_SMALL_CODE int __Pyx_CreateCodeObjects(void) {")
+        w.enter_cfunc_scope()
 
         if not self.codeobject_constants:
             w.putln("return 0;")
+            w.exit_cfunc_scope()
             w.putln("}")
             return
 
-        self.use_utility_code(UtilityCode.load_cached("InitCodeObjs", "ModuleSetupCode.c"))
+        # Create a downsized config struct and build code objects from it.
+        max_flags = 0x3ff  # to be adapted when we start using new flags
+        max_func_args = 1
+        max_kwonly_args = 1
+        max_posonly_args = 1
+        max_vars = 1
+        max_line = 1
+        for node in self.codeobject_constants:
+            def_node = node.def_node
+            max_func_args = max(max_func_args, len(def_node.args) - def_node.num_kwonly_args)
+            max_kwonly_args = max(max_kwonly_args, def_node.num_kwonly_args)
+            max_posonly_args = max(max_posonly_args, def_node.num_posonly_args)
+            max_vars = max(max_vars, len(node.varnames))
+            max_line = max(max_line, def_node.pos[1])
+
+        self.parts['utility_code_proto'].put(textwrap.dedent(f"""\
+        typedef struct {{
+            unsigned int argcount : {max_func_args.bit_length()};
+            unsigned int num_posonly_args : {max_posonly_args.bit_length()};
+            unsigned int num_kwonly_args : {max_kwonly_args.bit_length()};
+            unsigned int nlocals : {max_vars.bit_length()};
+            unsigned int flags : {max_flags.bit_length()};
+            unsigned int first_line : {max_line.bit_length()};
+        }} __Pyx_PyCode_New_function_description;
+        """))
+
+        w.putln("PyObject* tuple_dedup_map = PyDict_New();")
+        w.putln("if (unlikely(!tuple_dedup_map)) return -1;")
+
+        for node in self.codeobject_constants:
+            node.generate_codeobj(w)
+
+        w.putln("Py_DECREF(tuple_dedup_map);")
+        w.putln("return 0;")
+
+        w.putln("bad:")
+        w.putln("Py_DECREF(tuple_dedup_map);")
+        w.putln("return -1;")
+        w.exit_cfunc_scope()
+        w.putln("}")
+
+        self.use_utility_code(UtilityCode.load_cached("NewCodeObj", "ModuleSetupCode.c"))
 
         self.parts['module_state'].putln("PyObject *%s[%s];" % (
                 Naming.codeobjtab_cname, len(self.codeobject_constants)))
@@ -1784,18 +1794,6 @@ class GlobalState:
         self.parts['module_state_defines'].putln("#define %s %s->%s" % (
             Naming.codeobjtab_cname, Naming.modulestateglobal_cname, Naming.codeobjtab_cname
         ))
-
-        w.putln("__Pyx_CodeObjectTabEntry tab[] = {")
-        for node in self.codeobject_constants:
-            node.generate_codeoj_tab_entry(w)
-        w.putln("{0}")  # blank entry at end so we don't have to think about commas
-        w.putln("};")
-
-        w.putln("return __Pyx_InitCodeObjects(tab, %s, %d);" % (
-            Naming.codeobjtab_cname,
-            len(self.codeobject_constants)
-        ))
-        w.putln("}")
 
     def generate_num_constants(self):
         consts = [(c.py_type, c.value[0] == '-', len(c.value), c.value, c.value_code, c)

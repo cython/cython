@@ -10158,8 +10158,8 @@ class InnerFunctionNode(PyCFunctionNode):
 class CodeObjectNode(ExprNode):
     # Create a PyCodeObject for a CyFunction instance.
     #
-    # def_node   DefNode    the Python function node
-    # varnames   TupleNode  a tuple with all local variable names
+    # def_node   DefNode        the Python function node
+    # varnames   [StringNode]   a list of all local variable names
 
     subexprs = ['varnames']
     is_temp = False
@@ -10170,12 +10170,10 @@ class CodeObjectNode(ExprNode):
         args = list(def_node.args)
         # if we have args/kwargs, then the first two in var_entries are those
         local_vars = [arg for arg in def_node.local_scope.var_entries if arg.name]
-        self.varnames = TupleNode(
-            def_node.pos,
-            args=[IdentifierStringNode(arg.pos, value=arg.name)
-                  for arg in args + local_vars],
-            is_temp=0,
-            is_literal=1)
+        self.varnames = [
+            IdentifierStringNode(arg.pos, value=arg.name)
+            for arg in args + local_vars
+        ]
 
     def may_be_none(self):
         return False
@@ -10189,7 +10187,7 @@ class CodeObjectNode(ExprNode):
         if self.result_code is None:
             self.result_code = code.get_py_codeobj_const(self)
 
-    def generate_codeoj_tab_entry(self, code):
+    def generate_codeobj(self, code):
         func = self.def_node
 
         func_name_result = code.get_py_string_const(
@@ -10198,11 +10196,9 @@ class CodeObjectNode(ExprNode):
         file_path = StringEncoding.bytes_literal(func.pos[0].get_filenametable_entry().encode('utf8'), 'utf8')
         file_path_result = code.get_py_string_const(file_path, identifier=False, is_str=True)
 
-        varnames_result = self.varnames.result()
-
-        # This combination makes CPython create a new dict for "frame.f_locals" (see GH #1836).
+        # '(CO_OPTIMIZED | CO_NEWLOCALS)' makes CPython create a new dict for "frame.f_locals".
+        # See https://github.com/cython/cython/pull/1836
         flags = ['CO_OPTIMIZED', 'CO_NEWLOCALS']
-
         if func.star_arg:
             flags.append('CO_VARARGS')
         if func.starstar_arg:
@@ -10214,18 +10210,40 @@ class CodeObjectNode(ExprNode):
         elif func.is_generator:
             flags.append('CO_GENERATOR')
 
-        filename_idx = code.lookup_filename(self.pos[0])
-
         argcount = len(func.args) - func.num_kwonly_args
         num_posonly_args = func.num_posonly_args  # Py3.8+ only
-        kwonlyargcount = func.num_kwonly_args
-        nlocals = len(self.varnames.args)
+        kwonly_argcount = func.num_kwonly_args
+        nlocals = len(self.varnames)
         flags = '|'.join(flags) or '0'
+        first_lineno = self.pos[1]
 
-        s = (f"{filename_idx}, {argcount}, {num_posonly_args}, {kwonlyargcount}, "
-             f"{nlocals}, {flags}, {varnames_result}, {file_path_result},"
-             f"{func_name_result}, {self.pos[1]}")
-        code.putln("{%s}, /* %s */" % (s, self.result_code))
+        # See "generate_codeobject_constants()" in Code.py.
+        code.putln("{")
+        code.putln(
+            "__Pyx_PyCode_New_function_description descr = {"
+            f"{argcount}, "
+            f"{num_posonly_args}, "
+            f"{kwonly_argcount}, "
+            f"{nlocals}, "
+            f"{flags}, "
+            f"{first_lineno}"
+            "};"
+        )
+
+        varnames = [var.py_result() for var in self.varnames] or ['0']
+        code.putln("PyObject* varnames[] = {%s};" % ', '.join(varnames))
+
+        code.putln(
+            f"{self.result_code} = __Pyx_PyCode_New("
+            f"descr, "
+            f"varnames, "
+            f"{file_path_result}, "
+            f"{func_name_result}, "
+            f"tuple_dedup_map"
+            f"); "
+            f"if (unlikely(!{self.result_code})) goto bad;"
+        )
+        code.putln("}")
 
 
 class DefaultLiteralArgNode(ExprNode):

@@ -98,7 +98,7 @@ Other changes
 * Includes all fixes as of Cython 3.0.9 (but generates C99 code in some places).
 
 
-3.0.9 (2024-02-28)
+3.0.9 (2024-03-05)
 ==================
 
 Features added
@@ -122,7 +122,13 @@ Features added
 Bugs fixed
 ----------
 
-* Unused variable warnings about clineno were fixed.
+* Cython generates incorrect (but harmless) self-casts when directly calling
+  final methods of subtypes.  Lacking a better solution, the errors that recent
+  gcc versions produce have been silenced for the time being.
+  Original patch by Michał Górny.  (Github issue :issue:`2747`)
+
+* Unused variable warnings about clineno were fixed when C lines in tracebacks are disabled.
+  (Github issue :issue:`6035`)
 
 * Subclass deallocation of extern classes could crash if the base class uses GC.
   Original patch by Jason Fried.  (Github issue :issue:`5971`)
