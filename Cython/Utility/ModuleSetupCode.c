@@ -2239,7 +2239,7 @@ static PyObject* __Pyx_PyCode_New(
     if (unlikely(!varnames_tuple)) return NULL;
     for (Py_ssize_t i=0; i < var_count; i++) {
         Py_INCREF(varnames[i]);
-        if (unlikely(__Pyx_PyTuple_SET_ITEM(varnames_tuple, i, varnames[i]) < 0)) goto done;
+        if (unlikely(__Pyx_PyTuple_SET_ITEM(varnames_tuple, i, varnames[i]))) goto done;
     }
 
     #if CYTHON_COMPILING_IN_LIMITED_API
