@@ -746,7 +746,7 @@ class CFuncDeclaratorNode(CDeclaratorNode):
                             self.exception_value = SpecializableExceptionValueNode(
                                 self.pos, value=None, type=return_type)
 
-            if self.exception_value:
+            if self.exception_value is not None:
                 if self.exception_check == '+':
                     self.exception_value = self.exception_value.analyse_const_expression(env)
                     exc_val_type = self.exception_value.type

@@ -400,14 +400,23 @@ class SpecializableExceptionValueNode(AtomicExprNode):
                 # objects instead of rejecting this? To make it easier to write universal functions
                 error(self.pos,  "Exception clause not allowed for function returning Python object")
             return None
-        exception_value = self.value or tp.exception_value
+        if self.value:
+            exception_value = self.value
+            constant_result = ExprNodes.constant_value_not_set
+        else:
+            exception_value = tp.exception_value
+            constant_result = tp.exception_value
         if not exception_value:
             return None
-        return ExprNodes.ConstNode.for_type(
+        result = ExprNodes.ConstNode.for_type(
             self.pos,
-            value = str(exception_value),
-            type = tp
-        ).analyse_types(env)
+            value=str(exception_value),
+            type=tp,
+            constant_result=constant_result
+        )
+        if constant_result == ExprNodes.constant_value_not_set:
+            result.calculate_constant_result()
+        return result.analyse_types(env)
 
     def analyse_types(self, env):
         from .PyrexTypes import get_specialized_types
