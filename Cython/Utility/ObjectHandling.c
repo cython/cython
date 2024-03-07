@@ -2059,7 +2059,7 @@ static CYTHON_INLINE PyObject* __Pyx_PyObject_FastCallDict(PyObject *func, PyObj
 CYTHON_UNUSED static int __Pyx_VectorcallBuilder_AddArg_Check(PyObject *key, PyObject *value, PyObject *builder, PyObject **args, int n); /* proto */
 
 #if CYTHON_VECTORCALL
-#if __Pyx > 0x03080000
+#if PY_VERSION_HEX >= 0x03090000
 #define __Pyx_Object_Vectorcall_CallFromBuilder PyObject_Vectorcall
 #else
 #define __Pyx_Object_Vectorcall_CallFromBuilder _PyObject_Vectorcall
@@ -2107,7 +2107,7 @@ static int __Pyx_VectorcallBuilder_AddArgStr(const char *key, PyObject *value, P
     return __Pyx_VectorcallBuilder_AddArg(pyKey, value, builder, args, n);
 }
 #else // CYTHON_VECTORCALL
-CYTHON_UNUSED static int __Pyx_VectorcallBuilder_AddArg_Check(PyObject *key, PyObject *value, PyObject *builder, PyObject **args, int n) {
+CYTHON_UNUSED static int __Pyx_VectorcallBuilder_AddArg_Check(PyObject *key, PyObject *value, PyObject *builder, PyObject **args, CYTHON_UNUSED int n) {
     if (unlikely(!PyUnicode_Check(key))) {
         PyErr_SetString(PyExc_TypeError, "keywords must be strings");
         return -1;
@@ -2901,4 +2901,31 @@ static CYTHON_INLINE void __Pyx_RaiseCppAttributeError(const char *varname); /*p
 /////////////// RaiseCppAttributeError //////////////////////////////
 static CYTHON_INLINE void __Pyx_RaiseCppAttributeError(const char *varname) {
     PyErr_Format(PyExc_AttributeError, "C++ attribute '%s' is not initialized", varname);
+}
+
+/////////////// ListPack.proto //////////////////////////////////////
+
+// Equivalent to PyTuple_Pack for sections where we want to reduce the code size
+static PyObject *__Pyx_PyList_Pack(Py_ssize_t n, ...); /* proto */
+
+/////////////// ListPack //////////////////////////////////////
+
+static PyObject *__Pyx_PyList_Pack(Py_ssize_t n, ...) {
+    va_list va;
+    PyObject *l = PyList_New(n);
+    va_start(va, n);
+    if (unlikely(!l)) goto end;
+
+    for (Py_ssize_t i=0; i<n; ++i) {
+        PyObject *arg = va_arg(va, PyObject*);
+        Py_INCREF(arg);
+        if (unlikely(__Pyx_PyList_SET_ITEM(l, i, arg))) {
+            Py_CLEAR(l);
+            goto end;
+        }
+    }
+
+    end:
+    va_end(va);
+    return l;
 }

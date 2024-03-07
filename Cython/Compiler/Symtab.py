@@ -1359,7 +1359,7 @@ class ModuleScope(Scope):
 
     def declare_builtin(self, name, pos):
         if not hasattr(builtins, name) \
-               and name not in Code.non_portable_builtins_map \
+               and name not in Code.renamed_py2_builtins_map \
                and name not in Code.uncachable_builtins:
             if self.has_import_star:
                 entry = self.declare_var(name, py_object_type, pos)

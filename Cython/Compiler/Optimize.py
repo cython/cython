@@ -5070,9 +5070,15 @@ class FinalOptimizePhase(Visitor.EnvTransform, Visitor.NodeRefCleanupMixin):
 
     def _check_optimize_method_calls(self, node):
         function = node.function
+        env = self.current_env()
+        in_global_scope = (
+            env.is_module_scope or
+            env.is_c_class_scope or
+            (env.is_py_class_scope and env.outer_scope.is_module_scope)
+        )
         return (node.is_temp and function.type.is_pyobject and self.current_directives.get(
                 "optimize.unpack_method_calls_in_pyinit"
-                if not self.in_loop and self.current_env().is_module_scope
+                if not self.in_loop and in_global_scope
                 else "optimize.unpack_method_calls"))
 
     def visit_SimpleCallNode(self, node):

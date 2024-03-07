@@ -421,6 +421,8 @@ static int __Pyx_setup_reduce(PyObject* type_obj);
 /////////////// SetupReduce ///////////////
 //@requires: ObjectHandling.c::PyObjectGetAttrStrNoError
 //@requires: ObjectHandling.c::PyObjectGetAttrStr
+//@requires: SetItemOnTypeDict
+//@requires: DelItemOnTypeDict
 //@substitute: naming
 
 static int __Pyx_setup_reduce_is_named(PyObject* meth, PyObject* name) {
@@ -641,4 +643,48 @@ static int __Pyx_validate_extern_base(PyTypeObject *base) {
         return -1;
     }
     return 0;
+}
+
+////////////////// SetItemOnTypeDict.proto //////////////////////////
+
+static int __Pyx__SetItemOnTypeDict(PyTypeObject *tp, PyObject *k, PyObject *v); /* proto */
+
+#define __Pyx_SetItemOnTypeDict(tp, k, v) __Pyx__SetItemOnTypeDict((PyTypeObject*)tp, k, v)
+
+////////////////// SetItemOnTypeDict //////////////////////////
+
+static int __Pyx__SetItemOnTypeDict(PyTypeObject *tp, PyObject *k, PyObject *v) {
+    int result;
+#if CYTHON_COMPILING_IN_LIMITED_API
+    // Using PyObject_GenericSetAttr to bypass types immutability protection feels
+    // a little hacky, but it does work in the limited API .
+    // (It doesn't work on PyPy but that probably isn't a bug.)
+    result = PyObject_GenericSetAttr((PyObject*)tp, k, v);
+#else
+    result = PyDict_SetItem(tp->tp_dict, k, v);
+#endif
+    if (likely(!result)) PyType_Modified(tp);
+    return result;
+}
+
+////////////////// DelItemOnTypeDict.proto //////////////////////////
+
+static int __Pyx__DelItemOnTypeDict(PyTypeObject *tp, PyObject *k); /* proto */
+
+#define __Pyx_DelItemOnTypeDict(tp, k) __Pyx__DelItemOnTypeDict((PyTypeObject*)tp, k)
+
+////////////////// DelItemOnTypeDict //////////////////////////
+
+static int __Pyx__DelItemOnTypeDict(PyTypeObject *tp, PyObject *k) {
+    int result;
+#if CYTHON_COMPILING_IN_LIMITED_API
+    // Using PyObject_GenericSetAttr to bypass types immutability protection feels
+    // a little hacky, but it does work in the limited API .
+    // (It doesn't work on PyPy but that probably isn't a bug.)
+    result = PyObject_GenericSetAttr((PyObject*)tp, k, NULL);
+#else
+    result = PyDict_DelItem(tp->tp_dict, k);
+#endif
+    if (likely(!result)) PyType_Modified(tp);
+    return result;
 }

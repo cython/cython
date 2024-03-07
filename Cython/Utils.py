@@ -305,7 +305,7 @@ def find_versioned_file(directory, filename, suffix,
     assert not suffix or suffix[:1] == '.'
     path_prefix = os.path.join(directory, filename)
 
-    matching_files = glob.glob(path_prefix + ".cython-*" + suffix)
+    matching_files = glob.glob(glob.escape(path_prefix) + ".cython-*" + suffix)
     path = path_prefix + suffix
     if not os.path.exists(path):
         path = None

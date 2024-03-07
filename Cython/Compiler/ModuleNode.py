@@ -520,7 +520,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             self.generate_import_star(env, code)
 
         # initialise the macro to reduce the code size of one-time functionality
-        code.putln(UtilityCode.load_as_string("SmallCodeConfig", "ModuleSetupCode.c")[0].strip())
+        globalstate['module_state'].putln(UtilityCode.load_as_string("SmallCodeConfig", "ModuleSetupCode.c")[0].strip())
 
         self.generate_module_state_start(env, globalstate['module_state'])
         self.generate_module_state_defines(env, globalstate['module_state_defines'])
@@ -810,16 +810,17 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         self._put_setup_code(code, "PythonCompatibility")
         self._put_setup_code(code, "MathInitCode")
 
-        # Using "(void)cname" to prevent "unused" warnings.
         if options.c_line_in_traceback:
-            cinfo = "%s = %s; (void)%s; " % (Naming.clineno_cname, Naming.line_c_macro, Naming.clineno_cname)
+            cinfo = "%s = %s; " % (Naming.clineno_cname, Naming.line_c_macro)
         else:
             cinfo = ""
         code.putln("#define __PYX_MARK_ERR_POS(f_index, lineno) \\")
-        code.putln("    { %s = %s[f_index]; (void)%s; %s = lineno; (void)%s; %s}" % (
+        # Using "(void)cname" to prevent "unused" warnings.
+        code.putln("    { %s = %s[f_index]; (void)%s; %s = lineno; (void)%s; %s (void)%s; }" % (
             Naming.filename_cname, Naming.filetable_cname, Naming.filename_cname,
             Naming.lineno_cname, Naming.lineno_cname,
-            cinfo
+            cinfo,
+            Naming.clineno_cname,
         ))
         code.putln("#define __PYX_ERR(f_index, lineno, Ln_error) \\")
         code.putln("    { __PYX_MARK_ERR_POS(f_index, lineno) goto Ln_error; }")
@@ -844,7 +845,6 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             code.putln("#define CYTHON_CCOMPLEX 1")
             code.putln("#endif")
             code.putln("")
-        code.put(UtilityCode.load_as_string("UtilityFunctionPredeclarations", "ModuleSetupCode.c")[0])
 
         c_string_type = env.directives['c_string_type']
         c_string_encoding = env.directives['c_string_encoding']
@@ -885,7 +885,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
         code.putln('static int %s;' % Naming.lineno_cname)
         code.putln('static int %s = 0;' % Naming.clineno_cname)
-        code.putln('static const char * %s = %s;' % (Naming.cfilenm_cname, Naming.file_c_macro))
+        code.putln('static const char * const %s = %s;' % (Naming.cfilenm_cname, Naming.file_c_macro))
         code.putln('static const char *%s;' % Naming.filename_cname)
 
         env.use_utility_code(UtilityCode.load_cached("FastTypeChecks", "ModuleSetupCode.c"))
@@ -934,7 +934,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
     def generate_filename_table(self, code):
         from os.path import isabs, basename
         code.putln("")
-        code.putln("static const char *%s[] = {" % Naming.filetable_cname)
+        code.putln("static const char* const %s[] = {" % Naming.filetable_cname)
         if code.globalstate.filename_list:
             for source_desc in code.globalstate.filename_list:
                 file_path = source_desc.get_filenametable_entry()
@@ -1770,22 +1770,24 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
         if base_type:
             base_cname = base_type.typeptr_cname
-            if needs_gc:
-                # The base class deallocator probably expects this to be tracked,
-                # so undo the untracking above.
-                if base_type.scope:
-                    # Assume that we know whether the base class uses GC or not.
-                    if base_type.scope.needs_gc():
-                        code.putln("PyObject_GC_Track(o);")
-                else:
-                    code.putln("if (PyType_IS_GC(%s)) PyObject_GC_Track(o);" % base_cname)
-
             tp_dealloc = TypeSlots.get_base_slot_function(scope, tp_slot)
             if tp_dealloc is not None:
+                if needs_gc and base_type.scope and base_type.scope.needs_gc():
+                    # We know that the base class uses GC, so probably expects it to be tracked.
+                    # Undo the untracking above.
+                    code.putln("PyObject_GC_Track(o);")
                 code.putln("%s(o);" % tp_dealloc)
             elif base_type.is_builtin_type:
+                if needs_gc and base_type.scope and base_type.scope.needs_gc():
+                    # We know that the base class uses GC, so probably expects it to be tracked.
+                    # Undo the untracking above.
+                    code.putln("PyObject_GC_Track(o);")
                 code.putln("__Pyx_PyType_GetSlot(%s, tp_dealloc, destructor)(o);" % base_cname)
             else:
+                if needs_gc:
+                    # We don't know if the base class uses GC or not, so must find out at runtime
+                    # whether we should undo the untracking above or not.
+                    code.putln("if (PyType_IS_GC(%s)) PyObject_GC_Track(o);" % base_cname)
                 # This is an externally defined type.  Calling through the
                 # cimported base type pointer directly interacts badly with
                 # the module cleanup, which may already have cleared it.
@@ -2933,7 +2935,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
     def generate_module_state_clear(self, env, code):
         code.putln("#if CYTHON_USE_MODULE_STATE")
-        code.putln("static int %s_clear(PyObject *m) {" % Naming.module_cname)
+        code.putln("static CYTHON_SMALL_CODE int %s_clear(PyObject *m) {" % Naming.module_cname)
         code.putln("%s *clear_module_state = %s(m);" % (
             Naming.modulestate_cname,
             Naming.modulestate_cname))
@@ -2961,7 +2963,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
     def generate_module_state_traverse(self, env, code):
         code.putln("#if CYTHON_USE_MODULE_STATE")
-        code.putln("static int %s_traverse(PyObject *m, visitproc visit, void *arg) {" % Naming.module_cname)
+        code.putln("static CYTHON_SMALL_CODE int %s_traverse(PyObject *m, visitproc visit, void *arg) {" % Naming.module_cname)
         code.putln("%s *traverse_module_state = %s(m);" % (
             Naming.modulestate_cname,
             Naming.modulestate_cname))
@@ -3112,7 +3114,6 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("stringtab_initialized = 1;")
         code.put_error_if_neg(self.pos, "__Pyx_InitGlobals()")  # calls any utility code
 
-
         code.putln("#if PY_MAJOR_VERSION < 3 && (__PYX_DEFAULT_STRING_ENCODING_IS_ASCII || "
                    "__PYX_DEFAULT_STRING_ENCODING_IS_DEFAULT)")
         code.put_error_if_neg(self.pos, "__Pyx_init_sys_getdefaultencoding_params()")
@@ -3134,6 +3135,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
         code.putln("/*--- Constants init code ---*/")
         code.put_error_if_neg(self.pos, "__Pyx_InitCachedConstants()")
+        # code objects come after the other globals (since they use strings and tuples)
+        code.put_error_if_neg(self.pos, "__Pyx_CreateCodeObjects()")
 
         code.putln("/*--- Global type/function init code ---*/")
 
@@ -3821,24 +3824,19 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         env.types_imported.add(type)
 
     def generate_type_import_call(self, type, code, import_generator, error_code=None, error_pos=None):
-        if type.typedef_flag:
-            objstruct = type.objstruct_cname
-        else:
-            objstruct = "struct %s" % type.objstruct_cname
-        sizeof_objstruct = objstruct
+        sizeof_objstruct = objstruct = type.objstruct_cname if type.typedef_flag else f"struct {type.objstruct_cname}"
         module_name = type.module_name
-        condition = replacement = None
+        type_name = type.name
         if module_name not in ('__builtin__', 'builtins'):
-            module_name = '"%s"' % module_name
-        elif type.name in Code.ctypedef_builtins_map:
+            module_name = f'"{module_name}"'
+        elif type_name in Code.ctypedef_builtins_map:
             # Fast path for special builtins, don't actually import
-            ctypename = Code.ctypedef_builtins_map[type.name]
-            code.putln('%s = %s;' % (type.typeptr_cname, ctypename))
+            code.putln(f'{type.typeptr_cname} = {Code.ctypedef_builtins_map[type_name]};')
             return
         else:
             module_name = '__Pyx_BUILTIN_MODULE_NAME'
-            if type.name in Code.non_portable_builtins_map:
-                condition, replacement = Code.non_portable_builtins_map[type.name]
+            if type_name in Code.renamed_py2_builtins_map:
+                type_name = Code.renamed_py2_builtins_map[type_name]
             if objstruct in Code.basicsize_builtins_map:
                 # Some builtin types have a tp_basicsize which differs from sizeof(...):
                 sizeof_objstruct = Code.basicsize_builtins_map[objstruct]
@@ -3848,40 +3846,23 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             error_code = code.error_goto(error_pos)
 
         module = import_generator.imported_module(module_name, error_code)
-        code.put('%s = __Pyx_ImportType_%s(%s, %s,' % (
-            type.typeptr_cname,
-            Naming.cyversion,
-            module,
-            module_name))
+        code.put(
+            f"{type.typeptr_cname} = __Pyx_ImportType_{Naming.cyversion}("
+            f"{module}, {module_name}, {type.name.as_c_string_literal()},"
+        )
 
-        type_name = type.name.as_c_string_literal()
-
-        if condition and replacement:
-            code.putln("")  # start in new line
-            code.putln("#if %s" % condition)
-            code.putln('"%s",' % replacement)
-            code.putln("#else")
-            code.putln('%s,' % type_name)
-            code.putln("#endif")
-        else:
-            code.put(' %s, ' % type_name)
-
+        alignment_func = f"__PYX_GET_STRUCT_ALIGNMENT_{Naming.cyversion}"
         if sizeof_objstruct != objstruct:
-            if not condition:
-                code.putln("")  # start in new line
+            code.putln("")  # start in new line
             code.putln("#if defined(PYPY_VERSION_NUM) && PYPY_VERSION_NUM < 0x050B0000")
-            code.putln('sizeof(%s), __PYX_GET_STRUCT_ALIGNMENT_%s(%s),' % (
-                objstruct, Naming.cyversion, objstruct))
+            code.putln(f'sizeof({objstruct}), {alignment_func}({objstruct}),')
             code.putln("#elif CYTHON_COMPILING_IN_LIMITED_API")
-            code.putln('sizeof(%s), __PYX_GET_STRUCT_ALIGNMENT_%s(%s),' % (
-                objstruct, Naming.cyversion, objstruct))
+            code.putln(f'sizeof({objstruct}), {alignment_func}({objstruct}),')
             code.putln("#else")
-            code.putln('sizeof(%s), __PYX_GET_STRUCT_ALIGNMENT_%s(%s),' % (
-                sizeof_objstruct, Naming.cyversion, sizeof_objstruct))
+            code.putln(f'sizeof({sizeof_objstruct}), {alignment_func}({sizeof_objstruct}),')
             code.putln("#endif")
         else:
-            code.put('sizeof(%s), __PYX_GET_STRUCT_ALIGNMENT_%s(%s),' % (
-                objstruct, Naming.cyversion, objstruct))
+            code.put(f' sizeof({objstruct}), {alignment_func}({objstruct}),')
 
         # check_size
         if type.check_size and type.check_size in ('error', 'warn', 'ignore'):
@@ -3889,10 +3870,9 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         elif not type.is_external or type.is_subclassed:
             check_size = 'error'
         else:
-            raise RuntimeError("invalid value for check_size '%s' when compiling %s.%s" % (
-                type.check_size, module_name, type.name))
-        code.put('__Pyx_ImportType_CheckSize_%s_%s);' % (
-            check_size.title(), Naming.cyversion))
+            raise RuntimeError(
+                f"invalid value for check_size '{type.check_size}' when compiling {module_name}.{type.name}")
+        code.put(f'__Pyx_ImportType_CheckSize_{check_size.title()}_{Naming.cyversion});')
 
         code.putln(' if (!%s) %s' % (type.typeptr_cname, error_code))
 

@@ -1811,7 +1811,7 @@ class UnicodeNode(ConstNode):
             if StringEncoding.string_contains_lone_surrogates(self.value):
                 # lone (unpaired) surrogates are not really portable and cannot be
                 # decoded by the UTF-8 codec in Py3.3+
-                self.result_code = code.get_py_const(py_object_type, 'ustring')
+                self.result_code = code.get_py_const('ustring')
                 data_cname = code.get_string_const(
                     StringEncoding.BytesLiteral(self.value.encode('unicode_escape')))
                 const_code = code.get_cached_constants_writer(self.result_code)
@@ -2556,6 +2556,8 @@ class NameNode(AtomicExprNode):
                 # if the entry is a member we have to cheat: SetAttr does not work
                 # on types, so we create a descriptor which is then added to tp_dict.
                 setter = '__Pyx_SetItemOnTypeDict'
+                code.globalstate.use_utility_code(
+                    UtilityCode.load_cached("SetItemOnTypeDict", "ExtensionTypes.c"))
             elif entry.scope.is_module_scope:
                 setter = 'PyDict_SetItem'
                 namespace = Naming.moddict_cname
@@ -2578,10 +2580,6 @@ class NameNode(AtomicExprNode):
                 print("...generating disposal code for %s" % rhs)
             rhs.generate_disposal_code(code)
             rhs.free_temps(code)
-            if entry.is_member:
-                # in Py2.6+, we need to invalidate the method cache
-                code.putln("PyType_Modified(%s);" %
-                           entry.scope.parent_type.typeptr_cname)
         else:
             if self.type.is_memoryviewslice:
                 self.generate_acquire_memoryviewslice(rhs, code)
@@ -5540,6 +5538,8 @@ class SliceIndexNode(ExprNode):
                         base_result,
                         start_code,
                         code.error_goto_if_null(result, self.pos)))
+                code.globalstate.use_utility_code(
+                    UtilityCode.load_cached("pyunicode_from_unicode", "StringTools.c"))
             else:
                 code.putln(
                     "%s = __Pyx_PyUnicode_FromUnicodeAndLength(%s + %s, %s - %s); %s" % (
@@ -5549,6 +5549,8 @@ class SliceIndexNode(ExprNode):
                         stop_code,
                         start_code,
                         code.error_goto_if_null(result, self.pos)))
+                code.globalstate.use_utility_code(
+                    UtilityCode.load_cached("pyunicode_from_unicode", "StringTools.c"))
 
         elif self.base.type is unicode_type:
             code.globalstate.use_utility_code(
@@ -5817,7 +5819,7 @@ class SliceNode(ExprNode):
     def generate_result_code(self, code):
         if self.is_literal:
             dedup_key = make_dedup_key(self.type, (self,))
-            self.result_code = code.get_py_const(py_object_type, 'slice', cleanup_level=2, dedup_key=dedup_key)
+            self.result_code = code.get_py_const('slice', dedup_key=dedup_key)
             code = code.get_cached_constants_writer(self.result_code)
             if code is None:
                 return  # already initialised
@@ -6535,7 +6537,18 @@ class SimpleCallNode(CallNode):
                         goto_error = code.error_goto_if(" && ".join(exc_checks), self.pos)
                     else:
                         goto_error = ""
+                    undo_gh2747_hack = False
+                    if (self.function.is_attribute and
+                            self.function.entry and self.function.entry.final_func_cname and
+                            not code.funcstate.scope.is_cpp()
+                            ):
+                        # Hack around https://github.com/cython/cython/issues/2747
+                        # Disable GCC warnings/errors for wrong self casts.
+                        code.putln('#pragma GCC diagnostic ignored "-Wincompatible-pointer-types"')
+                        undo_gh2747_hack = True
                     code.putln("%s%s; %s" % (lhs, rhs, goto_error))
+                    if undo_gh2747_hack:
+                        code.putln("#pragma GCC diagnostic pop")
                 if self.type.is_pyobject and self.result():
                     self.generate_gotref(code)
             if self.has_optional_args:
@@ -8089,6 +8102,10 @@ class SequenceNode(ExprNode):
     unpacked_items = None
     mult_factor = None
     slow = False  # trade speed for code size (e.g. use PyTuple_Pack())
+    needs_subexpr_disposal = False  # set to True in code-generation if we
+            # didn't steal references to our temps and thus need to dispose
+            # of them normally.
+
 
     def compile_time_value_list(self, denv):
         return [arg.compile_time_value(denv) for arg in self.args]
@@ -8123,6 +8140,10 @@ class SequenceNode(ExprNode):
                 mult_factor = mult_factor.coerce_to_pyobject(env)
             self.mult_factor = mult_factor.coerce_to_simple(env)
         self.is_temp = 1
+        if (env.is_module_scope or env.is_c_class_scope or
+                (env.is_py_class_scope and env.outer_scope.is_module_scope)):
+            # TODO - potentially behave differently in loops?
+            self.slow = True
         # not setting self.type here, subtypes do this
         return self
 
@@ -8216,14 +8237,26 @@ class SequenceNode(ExprNode):
                 else:
                     size_factor = ' * (%s)' % (c_mult,)
 
-        if self.type is tuple_type and (self.is_literal or self.slow) and not c_mult:
+        if ((self.type is tuple_type or self.type is list_type) and
+                (self.is_literal or self.slow) and
+                not c_mult and
+                len(self.args) > 0):
             # use PyTuple_Pack() to avoid generating huge amounts of one-time code
-            code.putln('%s = PyTuple_Pack(%d, %s); %s' % (
+            if self.type is list_type:
+                pack_name = '__Pyx_PyList_Pack'
+                code.globalstate.use_utility_code(
+                    UtilityCode.load_cached('ListPack', 'ObjectHandling.c')
+                )
+            else:
+                pack_name = 'PyTuple_Pack'
+            code.putln('%s = %s(%d, %s); %s' % (
                 target,
+                pack_name,
                 len(self.args),
                 ', '.join(arg.py_result() for arg in self.args),
                 code.error_goto_if_null(target, self.pos)))
             code.put_gotref(target, py_object_type)
+            self.needs_subexpr_disposal = True
         elif self.type.is_ctuple:
             for i, arg in enumerate(self.args):
                 code.putln("%s.f%s = %s;" % (
@@ -8257,6 +8290,7 @@ class SequenceNode(ExprNode):
                 code.putln('for (%s=0; %s < %s; %s++) {' % (
                     counter, counter, c_mult, counter
                     ))
+                self.needs_subexpr_disposal = True
             else:
                 offset = ''
 
@@ -8288,9 +8322,7 @@ class SequenceNode(ExprNode):
             code.putln('}')
 
     def generate_subexpr_disposal_code(self, code):
-        if self.mult_factor and self.mult_factor.type.is_int:
-            super().generate_subexpr_disposal_code(code)
-        elif self.type is tuple_type and (self.is_literal or self.slow):
+        if self.needs_subexpr_disposal:
             super().generate_subexpr_disposal_code(code)
         else:
             # We call generate_post_assignment_code here instead
@@ -8733,7 +8765,7 @@ class TupleNode(SequenceNode):
             # The "mult_factor" is part of the deduplication if it is also constant, i.e. when
             # we deduplicate the multiplied result.  Otherwise, only deduplicate the constant part.
             dedup_key = make_dedup_key(self.type, [self.mult_factor if self.is_literal else None] + self.args)
-            tuple_target = code.get_py_const(py_object_type, 'tuple', cleanup_level=2, dedup_key=dedup_key)
+            tuple_target = code.get_py_const('tuple', dedup_key=dedup_key)
             const_code = code.get_cached_constants_writer(tuple_target)
             if const_code is not None:
                 # constant is not yet initialised
@@ -10167,8 +10199,8 @@ class InnerFunctionNode(PyCFunctionNode):
 class CodeObjectNode(ExprNode):
     # Create a PyCodeObject for a CyFunction instance.
     #
-    # def_node   DefNode    the Python function node
-    # varnames   TupleNode  a tuple with all local variable names
+    # def_node   DefNode        the Python function node
+    # varnames   [StringNode]   a list of all local variable names
 
     subexprs = ['varnames']
     is_temp = False
@@ -10179,69 +10211,80 @@ class CodeObjectNode(ExprNode):
         args = list(def_node.args)
         # if we have args/kwargs, then the first two in var_entries are those
         local_vars = [arg for arg in def_node.local_scope.var_entries if arg.name]
-        self.varnames = TupleNode(
-            def_node.pos,
-            args=[IdentifierStringNode(arg.pos, value=arg.name)
-                  for arg in args + local_vars],
-            is_temp=0,
-            is_literal=1)
+        self.varnames = [
+            IdentifierStringNode(arg.pos, value=arg.name)
+            for arg in args + local_vars
+        ]
 
     def may_be_none(self):
         return False
 
     def calculate_result_code(self, code=None):
         if self.result_code is None:
-            self.result_code = code.get_py_const(py_object_type, 'codeobj', cleanup_level=2)
+            self.result_code = code.get_py_codeobj_const(self)
         return self.result_code
 
     def generate_result_code(self, code):
         if self.result_code is None:
-            self.result_code = code.get_py_const(py_object_type, 'codeobj', cleanup_level=2)
+            self.result_code = code.get_py_codeobj_const(self)
 
-        code = code.get_cached_constants_writer(self.result_code)
-        if code is None:
-            return  # already initialised
-        code.mark_pos(self.pos)
+    def generate_codeobj(self, code):
         func = self.def_node
-        func_name = code.get_py_string_const(
+
+        func_name_result = code.get_py_string_const(
             func.name, identifier=True, is_str=False, unicode_value=func.name)
         # FIXME: better way to get the module file path at module init time? Encoding to use?
         file_path = StringEncoding.bytes_literal(func.pos[0].get_filenametable_entry().encode('utf8'), 'utf8')
-        file_path_const = code.get_py_string_const(file_path, identifier=False, is_str=True)
+        file_path_result = code.get_py_string_const(file_path, identifier=False, is_str=True)
 
-        # This combination makes CPython create a new dict for "frame.f_locals" (see GH #1836).
+        # '(CO_OPTIMIZED | CO_NEWLOCALS)' makes CPython create a new dict for "frame.f_locals".
+        # See https://github.com/cython/cython/pull/1836
         flags = ['CO_OPTIMIZED', 'CO_NEWLOCALS']
-
-        if self.def_node.star_arg:
+        if func.star_arg:
             flags.append('CO_VARARGS')
-        if self.def_node.starstar_arg:
+        if func.starstar_arg:
             flags.append('CO_VARKEYWORDS')
-        if self.def_node.is_asyncgen:
+        if func.is_asyncgen:
             flags.append('CO_ASYNC_GENERATOR')
-        elif self.def_node.is_coroutine:
+        elif func.is_coroutine:
             flags.append('CO_COROUTINE')
-        elif self.def_node.is_generator:
+        elif func.is_generator:
             flags.append('CO_GENERATOR')
 
-        code.putln("%s = (PyObject*)__Pyx_PyCode_New(%d, %d, %d, %d, 0, %s, %s, %s, %s, %s, %s, %s, %s, %s, %d, %s); %s" % (
-            self.result_code,
-            len(func.args) - func.num_kwonly_args,  # argcount
-            func.num_posonly_args,     # posonlyargcount (Py3.8+ only)
-            func.num_kwonly_args,      # kwonlyargcount (Py3 only)
-            len(self.varnames.args),   # nlocals
-            '|'.join(flags) or '0',    # flags
-            Naming.empty_bytes,        # code
-            Naming.empty_tuple,        # consts
-            Naming.empty_tuple,        # names (FIXME)
-            self.varnames.result(),    # varnames
-            Naming.empty_tuple,        # freevars (FIXME)
-            Naming.empty_tuple,        # cellvars (FIXME)
-            file_path_const,           # filename
-            func_name,                 # name
-            self.pos[1],               # firstlineno
-            Naming.empty_bytes,        # lnotab
-            code.error_goto_if_null(self.result_code, self.pos),
-            ))
+        argcount = len(func.args) - func.num_kwonly_args
+        num_posonly_args = func.num_posonly_args  # Py3.8+ only
+        kwonly_argcount = func.num_kwonly_args
+        nlocals = len(self.varnames)
+        flags = '|'.join(flags) or '0'
+        first_lineno = self.pos[1]
+
+        # See "generate_codeobject_constants()" in Code.py.
+        code.putln("{")
+        code.putln(
+            "__Pyx_PyCode_New_function_description descr = {"
+            f"{argcount}, "
+            f"{num_posonly_args}, "
+            f"{kwonly_argcount}, "
+            f"{nlocals}, "
+            f"{flags}, "
+            f"{first_lineno}"
+            "};"
+        )
+
+        varnames = [var.py_result() for var in self.varnames] or ['0']
+        code.putln("PyObject* varnames[] = {%s};" % ', '.join(varnames))
+
+        code.putln(
+            f"{self.result_code} = __Pyx_PyCode_New("
+            f"descr, "
+            f"varnames, "
+            f"{file_path_result}, "
+            f"{func_name_result}, "
+            f"tuple_dedup_map"
+            f"); "
+            f"if (unlikely(!{self.result_code})) goto bad;"
+        )
+        code.putln("}")
 
 
 class DefaultLiteralArgNode(ExprNode):

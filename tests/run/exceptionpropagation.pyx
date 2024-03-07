@@ -134,7 +134,6 @@ def test_ptr_func2(int failure_mode):
     except RuntimeError:
         print("exception")
 
-
 cdef double return_double(double arg, bint fail):
     if fail:
         raise RuntimeError
@@ -211,7 +210,6 @@ def test_return_char(fail):
         return chr(return_char(fail))
     except RuntimeError:
         print("exception")
-
 
 
 cdef fused number_or_object:
