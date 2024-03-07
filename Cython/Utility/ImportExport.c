@@ -177,7 +177,7 @@ static PyObject *__Pyx_Import(PyObject *name, PyObject *from_list, int level) {
         goto bad;
     {
         if (level == -1) {
-            if (strchr(__Pyx_MODULE_NAME, '.') != NULL) {
+            if (strchr(__Pyx_MODULE_NAME, '.') != (NULL)) {
                 /* try package relative import first */
                 module = PyImport_ImportModuleLevelObject(
                     name, $moddict_cname, empty_dict, from_list, 1);
