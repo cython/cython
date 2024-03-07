@@ -36,12 +36,15 @@ class TestBuiltinReturnTypes(unittest.TestCase):
 
 class TestBuiltinCompatibility(unittest.TestCase):
     def test_python_builtin_compatibility(self):
+        expected_builtins = set(KNOWN_PYTHON_BUILTINS)
+        if sys.platform != 'win32':
+            expected_builtins.discard("WindowsError")
         runtime_builtins = frozenset(
             name for name in dir(builtins)
             if name not in ('__doc__', '__loader__', '__name__', '__package__', '__spec__'))
         if sys.version_info < KNOWN_PYTHON_BUILTINS_VERSION:
-            missing_builtins = KNOWN_PYTHON_BUILTINS - runtime_builtins
+            missing_builtins = expected_builtins - runtime_builtins
             if missing_builtins:
                 self.skipTest(f'skipping test, older Python release found. Missing builtins: {", ".join(sorted(missing_builtins))}')
             self.skipTest('skipping test, older Python release found.')
-        self.assertSetEqual(runtime_builtins, KNOWN_PYTHON_BUILTINS)
+        self.assertSetEqual(runtime_builtins, expected_builtins)
