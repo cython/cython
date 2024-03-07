@@ -3,9 +3,6 @@
 
 cimport cython
 
-import sys
-IS_PY2 = sys.version_info[0] == 2
-
 
 def assert_typeerror_no_keywords(func, *args, **kwds):
     # Python 3.9 produces an slightly different error message
@@ -82,7 +79,7 @@ cdef class A:
 
     >>> PyA().meth0()
     >>> PyA.meth0(PyA())
-    >>> if not IS_PY2: PyA.meth0(self=PyA())
+    >>> PyA.meth0(self=PyA())
     >>> try: PyA().meth0(self=PyA())
     ... except TypeError as exc: assert 'multiple' in str(exc), "Unexpected message: %s" % exc
     ... else: assert False, "No TypeError when passing 'self' argument twice"
@@ -90,7 +87,7 @@ cdef class A:
     >>> PyA().meth1(1)
     >>> PyA.meth1(PyA(), 1)
     >>> PyA.meth1(PyA(), arg=1)
-    >>> if not IS_PY2: PyA.meth1(self=PyA(), arg=1)
+    >>> PyA.meth1(self=PyA(), arg=1)
     """
 
     @cython.always_allow_keywords(False)
@@ -160,7 +157,7 @@ class B(object):
         """
         >>> B().meth0_nokw()
         >>> B().meth0_nokw(**{})
-        >>> if not IS_PY2: assert_typeerror_no_keywords(B.meth0_nokw, self=B())
+        >>> assert_typeerror_no_keywords(B.meth0_nokw, self=B())
         """
 
     @cython.always_allow_keywords(True)
@@ -169,7 +166,7 @@ class B(object):
         >>> B().meth0_kw()
         >>> B().meth0_kw(**{})
         >>> B.meth0_kw(B())
-        >>> if not IS_PY2: B.meth0_kw(self=B())
+        >>> B.meth0_kw(self=B())
         >>> try: B().meth0_kw(self=B())
         ... except TypeError as exc: assert 'multiple' in str(exc), "Unexpected message: %s" % exc
         ... else: assert False, "No TypeError when passing 'self' argument twice"
@@ -182,7 +179,7 @@ class B(object):
         >>> B().meth1(*[None])
         >>> B().meth1(arg=None)
         >>> B.meth1(B(), arg=None)
-        >>> if not IS_PY2: B.meth1(self=B(), arg=None)
+        >>> B.meth1(self=B(), arg=None)
         """
 
     @cython.always_allow_keywords(False)
@@ -191,7 +188,7 @@ class B(object):
         >>> B().meth2(None)
         >>> B().meth2(*[None])
         >>> B.meth2(B(), None)
-        >>> if not IS_PY2: B.meth2(self=B(), arg=None)
+        >>> B.meth2(self=B(), arg=None)
         >>> B().meth2(arg=None)  # assert_typeerror_no_keywords(B().meth2, arg=None)  -> not a cdef class!
         """
 

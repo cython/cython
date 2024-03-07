@@ -30,7 +30,6 @@ run.cdef_multiple_inheritance_errors
 run.cdivision_CEP_516
 run.cyfunction
 run.final_cdef_class
-run.index
 run.pyclass_special_methods
 run.reimport_from_package
 run.reimport_from_subinterpreter

@@ -53,13 +53,9 @@ static CYTHON_INLINE int __Pyx_ErrOccurredWithGIL(void); /* proto */
 /////////////// ErrOccurredWithGIL ///////////////
 static CYTHON_INLINE int __Pyx_ErrOccurredWithGIL(void) {
   int err;
-  #ifdef WITH_THREAD
   PyGILState_STATE _save = PyGILState_Ensure();
-  #endif
   err = !!PyErr_Occurred();
-  #ifdef WITH_THREAD
   PyGILState_Release(_save);
-  #endif
   return err;
 }
 
@@ -102,12 +98,10 @@ static CYTHON_INLINE int __Pyx_PyErr_ExceptionMatchesInState(PyThreadState* tsta
 static int __Pyx_PyErr_ExceptionMatchesTuple(PyObject *exc_type, PyObject *tuple) {
     Py_ssize_t i, n;
     n = PyTuple_GET_SIZE(tuple);
-#if PY_MAJOR_VERSION >= 3
     // the tighter subtype checking in Py3 allows faster out-of-order comparison
     for (i=0; i<n; i++) {
         if (exc_type == PyTuple_GET_ITEM(tuple, i)) return 1;
     }
-#endif
     for (i=0; i<n; i++) {
         if (__Pyx_PyErr_GivenExceptionMatches(exc_type, PyTuple_GET_ITEM(tuple, i))) return 1;
     }
@@ -179,7 +173,6 @@ static CYTHON_INLINE void __Pyx_ErrRestoreInState(PyThreadState *tstate, PyObjec
 #if PY_VERSION_HEX >= 0x030C00A6
     PyObject *tmp_value;
     assert(type == NULL || (value != NULL && type == (PyObject*) Py_TYPE(value)));
-    CYTHON_UNUSED_VAR(type);
     if (value) {
         #if CYTHON_COMPILING_IN_CPYTHON
         if (unlikely(((PyBaseExceptionObject*) value)->traceback != tb))
@@ -190,6 +183,8 @@ static CYTHON_INLINE void __Pyx_ErrRestoreInState(PyThreadState *tstate, PyObjec
     tmp_value = tstate->current_exception;
     tstate->current_exception = value;
     Py_XDECREF(tmp_value);
+    Py_XDECREF(type);
+    Py_XDECREF(tb);
 #else
     PyObject *tmp_type, *tmp_value, *tmp_tb;
     tmp_type = tstate->curexc_type;
@@ -244,69 +239,6 @@ static void __Pyx_Raise(PyObject *type, PyObject *value, PyObject *tb, PyObject 
 // The following function is based on do_raise() from ceval.c. There
 // are separate versions for Python2 and Python3 as exception handling
 // has changed quite a lot between the two versions.
-
-#if PY_MAJOR_VERSION < 3
-static void __Pyx_Raise(PyObject *type, PyObject *value, PyObject *tb, PyObject *cause) {
-    __Pyx_PyThreadState_declare
-    CYTHON_UNUSED_VAR(cause);
-    /* 'cause' is only used in Py3 */
-    Py_XINCREF(type);
-    if (!value || value == Py_None)
-        value = NULL;
-    else
-        Py_INCREF(value);
-
-    if (!tb || tb == Py_None)
-        tb = NULL;
-    else {
-        Py_INCREF(tb);
-        if (!PyTraceBack_Check(tb)) {
-            PyErr_SetString(PyExc_TypeError,
-                "raise: arg 3 must be a traceback or None");
-            goto raise_error;
-        }
-    }
-
-    if (PyType_Check(type)) {
-        /* instantiate the type now (we don't know when and how it will be caught) */
-#if CYTHON_COMPILING_IN_PYPY
-        /* PyPy can't handle value == NULL */
-        if (!value) {
-            Py_INCREF(Py_None);
-            value = Py_None;
-        }
-#endif
-        PyErr_NormalizeException(&type, &value, &tb);
-
-    } else {
-        /* Raising an instance.  The value should be a dummy. */
-        if (value) {
-            PyErr_SetString(PyExc_TypeError,
-                "instance exception may not have a separate value");
-            goto raise_error;
-        }
-        /* Normalize to raise <class>, <instance> */
-        value = type;
-        type = (PyObject*) Py_TYPE(type);
-        Py_INCREF(type);
-        if (!PyType_IsSubtype((PyTypeObject *)type, (PyTypeObject *)PyExc_BaseException)) {
-            PyErr_SetString(PyExc_TypeError,
-                "raise: exception class must be a subclass of BaseException");
-            goto raise_error;
-        }
-    }
-
-    __Pyx_PyThreadState_assign
-    __Pyx_ErrRestore(type, value, tb);
-    return;
-raise_error:
-    Py_XDECREF(value);
-    Py_XDECREF(type);
-    Py_XDECREF(tb);
-    return;
-}
-
-#else /* Python 3+ */
 
 static void __Pyx_Raise(PyObject *type, PyObject *value, PyObject *tb, PyObject *cause) {
     PyObject* owned_instance = NULL;
@@ -403,10 +335,10 @@ static void __Pyx_Raise(PyObject *type, PyObject *value, PyObject *tb, PyObject 
     PyErr_SetObject(type, value);
 
     if (tb) {
-      #if PY_VERSION_HEX >= 0x030C00A6
+#if PY_VERSION_HEX >= 0x030C00A6
         // If this fails, we just get a different exception, so ignore the return value.
         PyException_SetTraceback(value, tb);
-      #elif CYTHON_FAST_THREAD_STATE
+#elif CYTHON_FAST_THREAD_STATE
         PyThreadState *tstate = __Pyx_PyThreadState_Current;
         PyObject* tmp_tb = tstate->curexc_traceback;
         if (tb != tmp_tb) {
@@ -427,7 +359,6 @@ bad:
     Py_XDECREF(owned_instance);
     return;
 }
-#endif
 
 
 /////////////// GetTopmostException.proto ///////////////
@@ -506,12 +437,10 @@ static int __Pyx_GetException(PyObject **type, PyObject **value, PyObject **tb)
 #endif
         goto bad;
 
-    #if PY_MAJOR_VERSION >= 3
     if (local_tb) {
         if (unlikely(PyException_SetTraceback(local_value, local_tb) < 0))
             goto bad;
     }
-    #endif
 
     // traceback may be NULL for freshly raised exceptions
     Py_XINCREF(local_tb);
@@ -799,13 +728,11 @@ static void __Pyx_WriteUnraisable(const char *name, int clineno,
     PyObject *old_exc, *old_val, *old_tb;
     PyObject *ctx;
     __Pyx_PyThreadState_declare
-#ifdef WITH_THREAD
     PyGILState_STATE state;
     if (nogil)
         state = PyGILState_Ensure();
     /* arbitrary, to suppress warning */
     else state = (PyGILState_STATE)0;
-#endif
     CYTHON_UNUSED_VAR(clineno);
     CYTHON_UNUSED_VAR(lineno);
     CYTHON_UNUSED_VAR(filename);
@@ -820,11 +747,7 @@ static void __Pyx_WriteUnraisable(const char *name, int clineno,
         __Pyx_ErrRestore(old_exc, old_val, old_tb);
         PyErr_PrintEx(1);
     }
-    #if PY_MAJOR_VERSION < 3
-    ctx = PyString_FromString(name);
-    #else
     ctx = PyUnicode_FromString(name);
-    #endif
     __Pyx_ErrRestore(old_exc, old_val, old_tb);
     if (!ctx) {
         PyErr_WriteUnraisable(Py_None);
@@ -832,10 +755,8 @@ static void __Pyx_WriteUnraisable(const char *name, int clineno,
         PyErr_WriteUnraisable(ctx);
         Py_DECREF(ctx);
     }
-#ifdef WITH_THREAD
     if (nogil)
         PyGILState_Release(state);
-#endif
 }
 
 /////////////// CLineInTraceback.proto ///////////////
@@ -934,12 +855,12 @@ static PyObject *__Pyx_PyCode_Replace_For_AddTraceback(PyObject *code, PyObject 
         Py_DECREF(replace);
         return result;
     }
+    PyErr_Clear();
 
     #if __PYX_LIMITED_VERSION_HEX < 0x030780000
     // If we're here, we're probably on Python <=3.7 which doesn't have code.replace.
     // In this we take a lazy interpreted route (without regard to performance
     // since it's fairly old and this is mostly just to get something working)
-    PyErr_Clear();
     {
         PyObject *compiled = NULL, *result = NULL;
         if (unlikely(PyDict_SetItemString(scratch_dict, "code", code))) return NULL;
@@ -959,6 +880,8 @@ static PyObject *__Pyx_PyCode_Replace_For_AddTraceback(PyObject *code, PyObject 
         if (result) Py_INCREF(result);
         return result;
     }
+    #else
+    return NULL;
     #endif
 }
 
@@ -1033,60 +956,18 @@ static PyCodeObject* __Pyx_CreateCodeObjectForTraceback(
             int py_line, const char *filename) {
     PyCodeObject *py_code = NULL;
     PyObject *py_funcname = NULL;
-    #if PY_MAJOR_VERSION < 3
-    PyObject *py_srcfile = NULL;
-
-    py_srcfile = PyString_FromString(filename);
-    if (!py_srcfile) goto bad;
-    #endif
 
     if (c_line) {
-        #if PY_MAJOR_VERSION < 3
-        py_funcname = PyString_FromFormat( "%s (%s:%d)", funcname, $cfilenm_cname, c_line);
-        if (!py_funcname) goto bad;
-        #else
         py_funcname = PyUnicode_FromFormat( "%s (%s:%d)", funcname, $cfilenm_cname, c_line);
         if (!py_funcname) goto bad;
         funcname = PyUnicode_AsUTF8(py_funcname);
         if (!funcname) goto bad;
-        #endif
     }
-    else {
-        #if PY_MAJOR_VERSION < 3
-        py_funcname = PyString_FromString(funcname);
-        if (!py_funcname) goto bad;
-        #endif
-    }
-    #if PY_MAJOR_VERSION < 3
-    py_code = __Pyx_PyCode_New(
-        0,            /*int argcount,*/
-        0,            /*int posonlyargcount,*/
-        0,            /*int kwonlyargcount,*/
-        0,            /*int nlocals,*/
-        0,            /*int stacksize,*/
-        0,            /*int flags,*/
-        $empty_bytes, /*PyObject *code,*/
-        $empty_tuple, /*PyObject *consts,*/
-        $empty_tuple, /*PyObject *names,*/
-        $empty_tuple, /*PyObject *varnames,*/
-        $empty_tuple, /*PyObject *freevars,*/
-        $empty_tuple, /*PyObject *cellvars,*/
-        py_srcfile,   /*PyObject *filename,*/
-        py_funcname,  /*PyObject *name,*/
-        py_line,      /*int firstlineno,*/
-        $empty_bytes  /*PyObject *lnotab*/
-    );
-    Py_DECREF(py_srcfile);
-    #else
     py_code = PyCode_NewEmpty(filename, funcname, py_line);
-    #endif
-    Py_XDECREF(py_funcname);  // XDECREF since it's only set on Py3 if cline
+    Py_XDECREF(py_funcname);  /* XDECREF since it's only set on Py3 if cline */
     return py_code;
 bad:
     Py_XDECREF(py_funcname);
-    #if PY_MAJOR_VERSION < 3
-    Py_XDECREF(py_srcfile);
-    #endif
     return NULL;
 }
 

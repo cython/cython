@@ -1,5 +1,3 @@
-from __future__ import absolute_import
-
 import os
 import re
 import unittest
@@ -7,34 +5,34 @@ import shlex
 import sys
 import tempfile
 import textwrap
-from io import open
 from functools import partial
 
 from .Compiler import Errors
 from .CodeWriter import CodeWriter
-from .Compiler.TreeFragment import TreeFragment, strip_common_indent
+from .Compiler.TreeFragment import TreeFragment, strip_common_indent, StringParseContext
 from .Compiler.Visitor import TreeVisitor, VisitorTransform
 from .Compiler import TreePath
+from .Compiler.ParseTreeTransforms import PostParse
 
 
 class NodeTypeWriter(TreeVisitor):
     def __init__(self):
-        super(NodeTypeWriter, self).__init__()
+        super().__init__()
         self._indents = 0
         self.result = []
 
     def visit_Node(self, node):
         if not self.access_path:
-            name = u"(root)"
+            name = "(root)"
         else:
             tip = self.access_path[-1]
             if tip[2] is not None:
-                name = u"%s[%d]" % tip[1:3]
+                name = "%s[%d]" % tip[1:3]
             else:
                 name = tip[1]
 
-        self.result.append(u"  " * self._indents +
-                           u"%s: %s" % (name, node.__class__.__name__))
+        self.result.append("  " * self._indents +
+                           "%s: %s" % (name, node.__class__.__name__))
         self._indents += 1
         self.visitchildren(node)
         self._indents -= 1
@@ -47,7 +45,7 @@ def treetypes(root):
     cases look ok."""
     w = NodeTypeWriter()
     w.visit(root)
-    return u"\n".join([u""] + w.result + [u""])
+    return "\n".join([""] + w.result + [""])
 
 
 class CythonTest(unittest.TestCase):
@@ -61,14 +59,14 @@ class CythonTest(unittest.TestCase):
     def assertLines(self, expected, result):
         "Checks that the given strings or lists of strings are equal line by line"
         if not isinstance(expected, list):
-            expected = expected.split(u"\n")
+            expected = expected.split("\n")
         if not isinstance(result, list):
-            result = result.split(u"\n")
+            result = result.split("\n")
         for idx, (expected_line, result_line) in enumerate(zip(expected, result)):
             self.assertEqual(expected_line, result_line,
                              "Line %d:\nExp: %s\nGot: %s" % (idx, expected_line, result_line))
         self.assertEqual(len(expected), len(result),
-                         "Unmatched lines. Got:\n%s\nExpected:\n%s" % ("\n".join(expected), u"\n".join(result)))
+                         "Unmatched lines. Got:\n%s\nExpected:\n%s" % ("\n".join(expected), "\n".join(result)))
 
     def codeToLines(self, tree):
         writer = CodeWriter()
@@ -192,12 +190,25 @@ _strip_cython_code_from_html = partial(re.compile(
 ).sub, '')
 
 
+def _parse_pattern(pattern):
+    start = end = None
+    if pattern.startswith('/'):
+        start, pattern = re.split(r"(?<!\\)/", pattern[1:], maxsplit=1)
+        pattern = pattern.strip()
+    if pattern.startswith(':'):
+        pattern = pattern[1:].strip()
+        if pattern.startswith("/"):
+            end, pattern = re.split(r"(?<!\\)/", pattern[1:], maxsplit=1)
+            pattern = pattern.strip()
+    return start, end, pattern
+
+
 class TreeAssertVisitor(VisitorTransform):
     # actually, a TreeVisitor would be enough, but this needs to run
     # as part of the compiler pipeline
 
     def __init__(self):
-        super(TreeAssertVisitor, self).__init__()
+        super().__init__()
         self._module_pos = None
         self._c_patterns = []
         self._c_antipatterns = []
@@ -212,15 +223,34 @@ class TreeAssertVisitor(VisitorTransform):
                 file_path,
             ))
 
+        def extract_section(file_path, content, start, end):
+            if start:
+                split = re.search(start, content)
+                if split:
+                    content = content[split.end():]
+                else:
+                    fail(self._module_pos, start, found=False, file_path=file_path)
+            if end:
+                split = re.search(end, content)
+                if split:
+                    content = content[:split.start()]
+                else:
+                    fail(self._module_pos, end, found=False, file_path=file_path)
+            return content
+
         def validate_file_content(file_path, content):
             for pattern in patterns:
                 #print("Searching pattern '%s'" % pattern)
-                if not re.search(pattern, content):
+                start, end, pattern = _parse_pattern(pattern)
+                section = extract_section(file_path, content, start, end)
+                if not re.search(pattern, section):
                     fail(self._module_pos, pattern, found=False, file_path=file_path)
 
             for antipattern in antipatterns:
                 #print("Searching antipattern '%s'" % antipattern)
-                if re.search(antipattern, content):
+                start, end, antipattern = _parse_pattern(antipattern)
+                section = extract_section(file_path, content, start, end)
+                if re.search(antipattern, section):
                     fail(self._module_pos, antipattern, found=True, file_path=file_path)
 
         def validate_c_file(result):
@@ -364,3 +394,24 @@ def write_newer_file(file_path, newer_than, content, dedent=False, encoding=None
 
     while other_time is None or other_time >= os.path.getmtime(file_path):
         write_file(file_path, content, dedent=dedent, encoding=encoding)
+
+
+def py_parse_code(code):
+    """
+    Compiles code far enough to get errors from the parser and post-parse stage.
+
+    Is useful for checking for syntax errors, however it doesn't generate runable
+    code.
+    """
+    context = StringParseContext("test")
+    # all the errors we care about are in the parsing or postparse stage
+    try:
+        with Errors.local_errors() as errors:
+            result = TreeFragment(code, pipeline=[PostParse(context)])
+            result = result.substitute()
+        if errors:
+            raise errors[0]  # compile error, which should get caught below
+        else:
+            return result
+    except Errors.CompileError as e:
+        raise SyntaxError(e.message_only)

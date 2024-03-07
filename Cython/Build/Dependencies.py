@@ -1,5 +1,3 @@
-from __future__ import absolute_import, print_function
-
 import cython
 from .. import __version__
 
@@ -13,14 +11,9 @@ import re, sys, time
 from glob import iglob
 from io import open as io_open
 from os.path import relpath as _relpath
-from distutils.extension import Extension
-from distutils.util import strtobool
 import zipfile
 
-try:
-    from collections.abc import Iterable
-except ImportError:
-    from collections import Iterable
+from collections.abc import Iterable
 
 try:
     import gzip
@@ -52,20 +45,6 @@ from ..Compiler.Options import (CompilationOptions, default_options,
 join_path = cached_function(os.path.join)
 copy_once_if_newer = cached_function(copy_file_to_dir_if_newer)
 safe_makedirs_once = cached_function(safe_makedirs)
-
-if sys.version_info[0] < 3:
-    # stupid Py2 distutils enforces str type in list of sources
-    _fs_encoding = sys.getfilesystemencoding()
-    if _fs_encoding is None:
-        _fs_encoding = sys.getdefaultencoding()
-    def encode_filename_in_py2(filename):
-        if not isinstance(filename, bytes):
-            return filename.encode(_fs_encoding)
-        return filename
-else:
-    def encode_filename_in_py2(filename):
-        return filename
-    basestring = str
 
 
 def _make_relative(file_paths, base=None):
@@ -210,9 +189,27 @@ distutils_settings = {
 }
 
 
+def _legacy_strtobool(val):
+    # Used to be "distutils.util.strtobool", adapted for deprecation warnings.
+    if val == "True":
+        return True
+    elif val == "False":
+        return False
+
+    import warnings
+    warnings.warn("The 'np_python' option requires 'True' or 'False'", category=DeprecationWarning)
+    val = val.lower()
+    if val in ('y', 'yes', 't', 'true', 'on', '1'):
+        return True
+    elif val in ('n', 'no', 'f', 'false', 'off', '0'):
+        return False
+    else:
+        raise ValueError("invalid truth value %r" % (val,))
+
+
 @cython.locals(start=cython.Py_ssize_t, end=cython.Py_ssize_t)
 def line_iter(source):
-    if isinstance(source, basestring):
+    if isinstance(source, str):
         start = 0
         while True:
             end = source.find('\n', start)
@@ -222,11 +219,10 @@ def line_iter(source):
             yield source[start:end]
             start = end+1
     else:
-        for line in source:
-            yield line
+        yield from source
 
 
-class DistutilsInfo(object):
+class DistutilsInfo:
 
     def __init__(self, source=None, exn=None):
         self.values = {}
@@ -250,7 +246,7 @@ class DistutilsInfo(object):
                                      if '=' in macro else (macro, None)
                                      for macro in value]
                     if type is bool_or:
-                        value = strtobool(value)
+                        value = _legacy_strtobool(value)
                     self.values[key] = value
         elif exn is not None:
             for key in distutils_settings:
@@ -310,94 +306,131 @@ class DistutilsInfo(object):
             setattr(extension, key, value)
 
 
-@cython.locals(start=cython.Py_ssize_t, q=cython.Py_ssize_t,
-               single_q=cython.Py_ssize_t, double_q=cython.Py_ssize_t,
-               hash_mark=cython.Py_ssize_t, end=cython.Py_ssize_t,
-               k=cython.Py_ssize_t, counter=cython.Py_ssize_t, quote_len=cython.Py_ssize_t)
-def strip_string_literals(code, prefix='__Pyx_L'):
+_FIND_TOKEN = cython.declare(object, re.compile(r"""
+    (?P<comment> [#] ) |
+    (?P<brace> [{}] ) |
+    (?P<fstring> f )? (?P<quote> '+ | "+ )
+""", re.VERBOSE).search)
+
+_FIND_STRING_TOKEN = cython.declare(object, re.compile(r"""
+    (?P<escape> [\\]+ ) (?P<escaped_quote> ['"] ) |
+    (?P<fstring> f )? (?P<quote> '+ | "+ )
+""", re.VERBOSE).search)
+
+_FIND_FSTRING_TOKEN = cython.declare(object, re.compile(r"""
+    (?P<braces> [{]+ | [}]+ ) |
+    (?P<escape> [\\]+ ) (?P<escaped_quote> ['"] ) |
+    (?P<fstring> f )? (?P<quote> '+ | "+ )
+""", re.VERBOSE).search)
+
+
+def strip_string_literals(code: str, prefix: str = '__Pyx_L'):
     """
     Normalizes every string literal to be of the form '__Pyx_Lxxx',
     returning the normalized code and a mapping of labels to
     string literals.
     """
-    new_code = []
-    literals = {}
-    counter = 0
-    start = q = 0
-    in_quote = False
-    hash_mark = single_q = double_q = -1
-    code_len = len(code)
-    quote_type = None
-    quote_len = -1
+    new_code: list = []
+    literals: dict = {}
+    counter: cython.Py_ssize_t = 0
+    find_token = _FIND_TOKEN
 
-    while True:
-        if hash_mark < q:
-            hash_mark = code.find('#', q)
-        if single_q < q:
-            single_q = code.find("'", q)
-        if double_q < q:
-            double_q = code.find('"', q)
-        q = min(single_q, double_q)
-        if q == -1:
-            q = max(single_q, double_q)
+    def append_new_label(literal):
+        nonlocal counter
+        counter += 1
+        label = f"{prefix}{counter}_"
+        literals[label] = literal
+        new_code.append(label)
 
-        # We're done.
-        if q == -1 and hash_mark == -1:
-            new_code.append(code[start:])
-            break
+    def parse_string(quote_type: str, start: cython.Py_ssize_t, is_fstring: cython.bint) -> cython.Py_ssize_t:
+        charpos: cython.Py_ssize_t = start
 
-        # Try to close the quote.
-        elif in_quote:
-            if code[q-1] == u'\\':
-                k = 2
-                while q >= k and code[q-k] == u'\\':
-                    k += 1
-                if k % 2 == 0:
-                    q += 1
-                    continue
-            if code[q] == quote_type and (
-                    quote_len == 1 or (code_len > q + 2 and quote_type == code[q+1] == code[q+2])):
-                counter += 1
-                label = "%s%s_" % (prefix, counter)
-                literals[label] = code[start+quote_len:q]
-                full_quote = code[q:q+quote_len]
-                new_code.append(full_quote)
-                new_code.append(label)
-                new_code.append(full_quote)
-                q += quote_len
-                in_quote = False
-                start = q
-            else:
-                q += 1
+        find_token = _FIND_FSTRING_TOKEN if is_fstring else _FIND_STRING_TOKEN
 
-        # Process comment.
-        elif -1 != hash_mark and (hash_mark < q or q == -1):
-            new_code.append(code[start:hash_mark+1])
-            end = code.find('\n', hash_mark)
-            counter += 1
-            label = "%s%s_" % (prefix, counter)
-            if end == -1:
-                end_or_none = None
-            else:
-                end_or_none = end
-            literals[label] = code[hash_mark+1:end_or_none]
-            new_code.append(label)
-            if end == -1:
+        while charpos != -1:
+            token = find_token(code, charpos)
+            if token is None:
+                # This probably indicates an unclosed string literal, i.e. a broken file.
+                append_new_label(code[start:])
+                charpos = -1
                 break
-            start = q = end
+            charpos = token.end()
 
-        # Open the quote.
-        else:
-            if code_len >= q+3 and (code[q] == code[q+1] == code[q+2]):
-                quote_len = 3
-            else:
-                quote_len = 1
-            in_quote = True
-            quote_type = code[q]
-            new_code.append(code[start:q])
-            start = q
-            q += quote_len
+            if token['escape']:
+                if len(token['escape']) % 2 == 0 and token['escaped_quote'] == quote_type[0]:
+                    # Quote is not actually escaped and might be part of a terminator, look at it next.
+                    charpos -= 1
 
+            elif is_fstring and token['braces']:
+                # Formats or brace(s) in fstring.
+                if len(token['braces']) % 2 == 0:
+                    # Normal brace characters in string.
+                    continue
+                if token['braces'][-1] == '{':
+                    if start < charpos-1:
+                        append_new_label(code[start : charpos-1])
+                    new_code.append('{')
+                    start = charpos = parse_code(charpos, in_fstring=True)
+
+            elif token['quote'].startswith(quote_type):
+                # Closing quote found (potentially together with further, unrelated quotes).
+                charpos = token.start('quote')
+                if charpos > start:
+                    append_new_label(code[start : charpos])
+                new_code.append(quote_type)
+                charpos += len(quote_type)
+                break
+
+        return charpos
+
+    def parse_code(start: cython.Py_ssize_t, in_fstring: cython.bint = False) -> cython.Py_ssize_t:
+        charpos: cython.Py_ssize_t = start
+        end: cython.Py_ssize_t
+        quote: str
+
+        while charpos != -1:
+            token = find_token(code, charpos)
+            if token is None:
+                new_code.append(code[start:])
+                charpos = -1
+                break
+            charpos = end = token.end()
+
+            if token['quote']:
+                quote = token['quote']
+                if len(quote) >= 6:
+                    # Ignore empty tripple-quoted strings: '''''' or """"""
+                    quote = quote[:len(quote) % 6]
+                if quote and len(quote) != 2:
+                    if len(quote) > 3:
+                        end -= len(quote) - 3
+                        quote = quote[:3]
+                    new_code.append(code[start:end])
+                    start = charpos = parse_string(quote, end, is_fstring=token['fstring'])
+
+            elif token['comment']:
+                new_code.append(code[start:end])
+                charpos = code.find('\n', end)
+                append_new_label(code[end : charpos if charpos != -1 else None])
+                if charpos == -1:
+                    break  # EOF
+                start = charpos
+
+            elif in_fstring and token['brace']:
+                if token['brace'] == '}':
+                    # Closing '}' of f-string.
+                    charpos = end = token.start() + 1
+                    new_code.append(code[start:end])  # with '}'
+                    break
+                else:
+                    # Starting a calculated format modifier inside of an f-string format.
+                    end = token.start() + 1
+                    new_code.append(code[start:end])  # with '{'
+                    start = charpos = parse_code(end, in_fstring=True)
+
+        return charpos
+
+    parse_code(0)
     return "".join(new_code), literals
 
 
@@ -505,7 +538,7 @@ def parse_dependencies(source_filename):
             if m_after_from:
                 multiline, one_line = m_after_from.groups()
                 subimports = multiline or one_line
-                cimports.extend("{0}.{1}".format(cimport_from, s.strip())
+                cimports.extend("{}.{}".format(cimport_from, s.strip())
                                 for s in subimports.split(','))
 
         elif cimport_list:
@@ -517,7 +550,7 @@ def parse_dependencies(source_filename):
     return cimports, includes, externs, distutils_info
 
 
-class DependencyTree(object):
+class DependencyTree:
 
     def __init__(self, context, quiet=False):
         self.context = context
@@ -544,7 +577,7 @@ class DependencyTree(object):
                 all.add(include_path)
                 all.update(self.included_files(include_path))
             elif not self.quiet:
-                print(u"Unable to locate '%s' referenced from '%s'" % (filename, include))
+                print("Unable to locate '%s' referenced from '%s'" % (filename, include))
         return all
 
     @cached_method
@@ -662,7 +695,7 @@ class DependencyTree(object):
 
             m.update(compilation_options.get_fingerprint().encode('UTF-8'))
             return m.hexdigest()
-        except IOError:
+        except OSError:
             return None
 
     def distutils_info0(self, filename):
@@ -762,11 +795,23 @@ def create_extension_list(patterns, exclude=None, ctx=None, aliases=None, quiet=
         exclude = []
     if patterns is None:
         return [], {}
-    elif isinstance(patterns, basestring) or not isinstance(patterns, Iterable):
+    elif isinstance(patterns, str) or not isinstance(patterns, Iterable):
         patterns = [patterns]
-    explicit_modules = {m.name for m in patterns if isinstance(m, Extension)}
-    seen = set()
+
+    from distutils.extension import Extension
+    if 'setuptools' in sys.modules:
+        # Support setuptools Extension instances as well.
+        extension_classes = (
+            Extension,  # should normally be the same as 'setuptools.extension._Extension'
+            sys.modules['setuptools.extension']._Extension,
+            sys.modules['setuptools'].Extension,
+        )
+    else:
+        extension_classes = (Extension,)
+
+    explicit_modules = {m.name for m in patterns if isinstance(m, extension_classes)}
     deps = create_dependency_tree(ctx, quiet=quiet)
+
     to_exclude = set()
     if not isinstance(exclude, list):
         exclude = [exclude]
@@ -776,37 +821,27 @@ def create_extension_list(patterns, exclude=None, ctx=None, aliases=None, quiet=
     module_list = []
     module_metadata = {}
 
-    # workaround for setuptools
-    if 'setuptools' in sys.modules:
-        Extension_distutils = sys.modules['setuptools.extension']._Extension
-        Extension_setuptools = sys.modules['setuptools'].Extension
-    else:
-        # dummy class, in case we do not have setuptools
-        Extension_distutils = Extension
-        class Extension_setuptools(Extension): pass
-
     # if no create_extension() function is defined, use a simple
     # default function.
     create_extension = ctx.options.create_extension or default_create_extension
 
+    seen = set()
     for pattern in patterns:
-        if not isinstance(pattern, (Extension_distutils, Extension_setuptools)):
-            pattern = encode_filename_in_py2(pattern)
         if isinstance(pattern, str):
             filepattern = pattern
             template = Extension(pattern, [])  # Fake Extension without sources
             name = '*'
             base = None
             ext_language = language
-        elif isinstance(pattern, (Extension_distutils, Extension_setuptools)):
+        elif isinstance(pattern, extension_classes):
             cython_sources = [s for s in pattern.sources
                               if os.path.splitext(s)[1] in ('.py', '.pyx')]
             if cython_sources:
                 filepattern = cython_sources[0]
                 if len(cython_sources) > 1:
-                    print(u"Warning: Multiple cython sources found for extension '%s': %s\n"
-                          u"See https://cython.readthedocs.io/en/latest/src/userguide/sharing_declarations.html "
-                          u"for sharing declarations among Cython files." % (pattern.name, cython_sources))
+                    print("Warning: Multiple cython sources found for extension '%s': %s\n"
+                          "See https://cython.readthedocs.io/en/latest/src/userguide/sharing_declarations.html "
+                          "for sharing declarations among Cython files." % (pattern.name, cython_sources))
             else:
                 # ignore non-cython modules
                 module_list.append(pattern)
@@ -852,7 +887,6 @@ def create_extension_list(patterns, exclude=None, ctx=None, aliases=None, quiet=
                 if 'sources' in kwds:
                     # allow users to add .c files etc.
                     for source in kwds['sources']:
-                        source = encode_filename_in_py2(source)
                         if source not in sources:
                             sources.append(source)
                 kwds['sources'] = sources
@@ -880,7 +914,7 @@ def create_extension_list(patterns, exclude=None, ctx=None, aliases=None, quiet=
                         m.sources.remove(target_file)
                     except ValueError:
                         # never seen this in the wild, but probably better to warn about this unexpected case
-                        print(u"Warning: Cython source file not found in sources list, adding %s" % file)
+                        print("Warning: Cython source file not found in sources list, adding %s" % file)
                     m.sources.insert(0, file)
                 seen.add(name)
     return module_list, module_metadata
@@ -1073,9 +1107,9 @@ def cythonize(module_list, exclude=None, nthreads=0, aliases=None, quiet=False, 
                 if force or c_timestamp < dep_timestamp:
                     if not quiet and not force:
                         if source == dep:
-                            print(u"Compiling %s because it changed." % Utils.decode_filename(source))
+                            print("Compiling %s because it changed." % Utils.decode_filename(source))
                         else:
-                            print(u"Compiling %s because it depends on %s." % (
+                            print("Compiling %s because it depends on %s." % (
                                 Utils.decode_filename(source),
                                 Utils.decode_filename(dep),
                             ))
@@ -1149,7 +1183,7 @@ def cythonize(module_list, exclude=None, nthreads=0, aliases=None, quiet=False, 
         if failed_modules:
             for module in failed_modules:
                 module_list.remove(module)
-            print(u"Failed compilations: %s" % ', '.join(sorted([
+            print("Failed compilations: %s" % ', '.join(sorted([
                 module.name for module in failed_modules])))
 
     if options.cache:
@@ -1165,7 +1199,7 @@ def fix_windows_unicode_modules(module_list):
     # https://bugs.python.org/issue39432
     if sys.platform != "win32":
         return
-    if sys.version_info < (3, 5) or sys.version_info >= (3, 8, 2):
+    if sys.version_info >= (3, 8, 2):
         return
 
     def make_filtered_list(ignored_symbol, old_entries):
@@ -1183,12 +1217,8 @@ def fix_windows_unicode_modules(module_list):
         return filtered_list
 
     for m in module_list:
-        # TODO: use m.name.isascii() in Py3.7+
-        try:
-            m.name.encode("ascii")
+        if m.name.isascii():
             continue
-        except UnicodeEncodeError:
-            pass
         m.export_symbols = make_filtered_list(
             "PyInit_" + m.name.rsplit(".", 1)[-1],
             m.export_symbols,
@@ -1251,7 +1281,7 @@ def cythonize_one(pyx_file, c_file, fingerprint, quiet, options=None,
         zip_fingerprint_file = fingerprint_file_base + '.zip'
         if os.path.exists(gz_fingerprint_file) or os.path.exists(zip_fingerprint_file):
             if not quiet:
-                print(u"%sFound compiled %s in cache" % (progress, pyx_file))
+                print("%sFound compiled %s in cache" % (progress, pyx_file))
             if os.path.exists(gz_fingerprint_file):
                 os.utime(gz_fingerprint_file, None)
                 with contextlib.closing(gzip_open(gz_fingerprint_file, 'rb')) as g:
@@ -1265,7 +1295,7 @@ def cythonize_one(pyx_file, c_file, fingerprint, quiet, options=None,
                         z.extract(artifact, os.path.join(dirname, artifact))
             return
     if not quiet:
-        print(u"%sCythonizing %s" % (progress, Utils.decode_filename(pyx_file)))
+        print("%sCythonizing %s" % (progress, Utils.decode_filename(pyx_file)))
     if options is None:
         options = CompilationOptions(default_options)
     options.output_file = c_file
@@ -1280,7 +1310,7 @@ def cythonize_one(pyx_file, c_file, fingerprint, quiet, options=None,
         result = compile_single(pyx_file, options, full_module_name=full_module_name)
         if result.num_errors > 0:
             any_failures = 1
-    except (EnvironmentError, PyrexError) as e:
+    except (OSError, PyrexError) as e:
         sys.stderr.write('%s\n' % e)
         any_failures = 1
         # XXX

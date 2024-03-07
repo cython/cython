@@ -2,6 +2,298 @@
 Cython Changelog
 ================
 
+3.1.0 (2024-??-??)
+==================
+
+Features added
+--------------
+
+* Integer operations on known ``int`` types are faster.
+  (Github issues :issue:`5785`)
+
+* Many issues with the Limited C-API were resolved.
+  (Github issues :issue:`5697`, :issue:`5798`, :issue:`5845`, :issue:`5846`,
+  :issue:`5885`, :issue:`5886`, :issue:`5888`)
+
+* Dataclasses support the ``match_args`` option.
+  (Github issue :issue:`5381`)
+
+* Threading in parallel sections can now be disabled with a new ``use_threads_if`` condition.
+  (Github issue :issue:`5919`)
+
+* f-strings are slightly faster.
+  (Github issue :issue:`5866`)
+
+* ``dict.pop()`` is faster in some cases.
+  (Github issue :issue:`5911`)
+
+* Most builtin methods now provide their return type for type inference.
+  (Github issue :issue:`5865`)
+
+* ``.isprintable()`` is optimised for Unicode characters.
+  (Github issue :issue:`3277`)
+
+* The parser was updated for Unicode 15.1 (as provided by CPython 3.13a1).
+
+Bugs fixed
+----------
+
+* Dataclasses did not handle default fields without init value correctly.
+  (Github issue :issue:`5858`)
+
+* The ``-a`` option in the IPython magic no longer copies the complete HTML document
+  into the notebook but only a more reasonable content snippet.
+  Patch by Min RK.  (Github issue :issue:`5760`)
+
+* Uselessly referring to C enums (not enum values) as Python objects is now rejected.
+  Patch by Vyas Ramasubramani.  (Github issue :issue:`5638`)
+
+* Several C++ warnings about ``char*`` casts were resolved.
+  (Github issues :issue:`5515`, :issue:`5847`)
+
+Other changes
+-------------
+
+* Support for Python 2.7 - 3.6 was removed, along with large chunks of legacy code.
+  (Github issue :issue:`2800`)
+
+* ``language_level=3`` is now the default.
+  ``language_level=3str`` has become a legacy alias.
+  (Github issue :issue:`5827`)
+
+* The Python ``int`` type now maps directly to ``PyLong`` and is inferred accordingly.
+  (Github issue :issue:`4237`)
+
+* Usages of the outdated ``WITH_THREAD`` macro guard were removed.
+  (Github issue :issue:`5812`)
+
+* Includes all fixes as of Cython 3.0.8 (but generates C99 code in some places).
+
+
+3.0.8 (2024-01-10)
+==================
+
+Bugs fixed
+----------
+
+* Using ``const`` together with defined fused types could fail to compile.
+  (Github issue :issue:`5230`)
+
+* A "use after free" bug was fixed in parallel sections.
+  (Github issue :issue:`5922`)
+
+* Several types were not available as ``cython.*`` types in pure Python code.
+
+* The generated code is now correct C89 again, removing some C++ style ``//`` comments
+  and C99-style declaration-after-code code ordering.  This is still relevant for some
+  ols C compilers, specifically ones that match old Python 2.7 installations.
+
+
+3.0.7 (2023-12-19)
+==================
+
+Bugs fixed
+----------
+
+* In the iterator of generator expressions, ``await`` and ``yield`` were not correctly analysed.
+  (Github issue :issue:`5851`)
+
+* ``cpdef`` enums with the same name cimported from different modules could lead to
+  invalid C code.
+  (Github issue :issue:`5887`)
+
+* Some declarations in ``cpython.unicode`` were fixed and extended.
+  (Github issue :issue:`5902`)
+
+* Compiling fused types used in pxd files could crash Cython in Python 3.11+.
+  (Github issues :issue:`5894`,  :issue:`5588`)
+
+* Source files with non-ASCII file names could crash Cython.
+  (Github issue :issue:`5873`)
+
+* Includes all bug-fixes and features from the 0.29 maintenance branch
+  up to the :ref:`0.29.37` release.
+
+
+3.0.6 (2023-11-26)
+==================
+
+Features added
+--------------
+
+* Fused def function dispatch is a bit faster.
+
+* Declarations for the ``wchar`` PyUnicode API were added.
+  (Github issue :issue:`5836`)
+
+* The Python "nogil" fork is now also detected with the new ``Py_GIL_DISABLED`` macro.
+  Patch by Hugo van Kemenade.  (Github issue :issue:`5852`)
+
+Bugs fixed
+----------
+
+* Comparing dataclasses could give different results than Python.
+  (Github issue :issue:`5857`)
+
+* ``float(std::string)`` generated invalid C code.
+  (Github issue :issue:`5818`)
+
+* Using ``cpdef`` functions with ``cimport_from_pyx`` failed.
+  (Github issue :issue:`5795`)
+
+* A crash was fixed when string-formatting a Python value fails.
+  (Github issue :issue:`5787`)
+
+* On item access, Cython could try the sequence protocol before the mapping protocol
+  in some cases if an object supports both.
+  (Github issue :issue:`5776`)
+
+* A C compiler warning was resolved.
+  (Github issue :issue:`5794`)
+
+* Complex numbers failed to compile in MSVC with C11.
+  Patch by Lysandros Nikolaou.  (Github issue :issue:`5809`)
+
+* Some issues with the Limited API and with PyPy were resolved.
+  (Github issues :issue:`5695`, :issue:`5696`)
+
+* A C++ issue in Python 3.13 was resolved.
+  (Github issue :issue:`5790`)
+
+* Several directives are now also available (as no-ops) in Python code.
+  (Github issue :issue:`5803`)
+
+* An error message was corrected.
+  Patch by Mads Ynddal.  (Github issue :issue:`5805`)
+
+
+3.0.5 (2023-10-31)
+==================
+
+Features added
+--------------
+
+* Preliminary support for CPython 3.13a1 was added to allow early testing.
+  (Github issue :issue:`5767`)
+
+Bugs fixed
+----------
+
+* A compiler crash was fixed.
+  (Github issue :issue:`5771`)
+
+* A typo in the ``always_allow_keywords`` directive for Python code was fixed.
+  Patch by lk-1984.  (Github issue :issue:`5772`)
+
+* Some C compiler warnings were resolved.
+  Patch by Pierre Jolivet.  (Github issue :issue:`5780`)
+
+
+3.0.4 (2023-10-17)
+==================
+
+Features added
+--------------
+
+* A new compiler directive ``show_performance_hints`` was added to disable the
+  newly added performance hint output.
+  (Github issue :issue:`5748`)
+
+Bugs fixed
+----------
+
+* ```cythonize` required ``distutils`` even for operations that did not build binaries.
+  (Github issue :issue:`5751`)
+
+* A regression in 3.0.3 was fixed that prevented calling inline functions
+  from another inline function in ``.pxd`` files.
+  (Github issue :issue:`5748`)
+
+* Some C compiler warnings were resolved.
+  Patch by Pierre Jolivet.  (Github issue :issue:`5756`)
+
+
+3.0.3 (2023-10-05)
+==================
+
+Features added
+--------------
+
+* More warnings were added to help users migrate and avoid bugs.
+  (Github issue :issue:`5650`)
+
+* A warning-like category for performance hints was added that bypasses ``-Werror``.
+  (Github issue :issue:`5673`)
+
+* FastGIL now uses standard ``thread_local`` in C++.
+  (Github issue :issue:`5640`)
+
+* ``reference_wrapper`` was added to ``libcpp.functional``.
+  Patch by Vyas Ramasubramani.  (Github issue :issue:`5671`)
+
+* The ``cythonize`` command now supports the ``--cplus`` option known from the ``cython`` command.
+  (Github issue :issue:`5736`)
+
+Bugs fixed
+----------
+
+* Performance regressions where the GIL was needlessly acquired were fixed.
+  (Github issues :issue:`5670`, :issue:`5700`)
+
+* A reference leak for exceptions in Python 3.12 was resolved.
+  Patch by Eric Johnson.  (Github issue :issue:`5724`)
+
+* ``fastcall`` calls with keyword arguments generated incorrect C code.
+  (Github issue :issue:`5665`)
+
+* Assigning the type converted result of a conditional (if-else) expression
+  to ``int`` or ``bool`` variables could lead to incorrect C code.
+  (Github issue :issue:`5731`)
+
+* Early (unlikely) failures in Python function wrappers no longer set a
+  traceback in order to simplify the C code flow.  Being mostly memory
+  allocation errors, they probably would never have created a traceback anyway.
+  (Github issue :issue:`5681`)
+
+* Relative cimports from packages with ``__init__.py`` files could fail.
+  (Github issue :issue:`5715`)
+
+* Several issues with the Limited API support were resolved.
+  (Github issues :issue:`5641`, :issue:`5648`, :issue:`5689`)
+
+* The code generated for special-casing both Cython functions and PyCFunctions was cleaned up
+  to avoid calling C-API functions that were not meant for the other type respectively.
+  This could previously trigger assertions in CPython debug builds and now also plays better
+  with the Limited API.
+  (Github issues :issue:`4804`, :issue:`5739`)
+
+* Fix some C compiler warnings.
+  Patches by Ralf Gommers, Oleksandr Pavlyk, Sebastian Koslowski et al.
+  (Github issues :issue:`5651`, :issue:`5663`, :issue:`5668`, :issue:`5717`, :issue:`5726`, :issue:`5734`)
+
+* Generating gdb debugging information failed when using generator expressions.
+  Patch by Oleksandr Pavlyk.  (Github issue :issue:`5552`)
+
+* Passing a ``setuptools.Extension`` into ``cythonize()`` instead of a
+  ``distutils.Extension`` could make it miss the matching extensions.
+
+* ``cython -M`` needlessly required ``distutils``, which made it fail in Python 3.12.
+  (Github issue :issue:`5681`)
+
+Other changes
+-------------
+
+* The visible deprecation warning for ``DEF`` was removed again since it proved
+  difficult for some users to migrate away from it.  The statement is still
+  meant to be removed at some point (and thus, like ``IF``, should not be
+  used in new code), but the time for sunset is probably not around the corner.
+  (Github issue :issue:`4310`)
+
+* The ``np_pythran`` option raise a ``DeprecationWarning`` if it receives other values
+  than ``True`` and ``False``.  This will eventually be disallowed (in line with all
+  other boolean options).
+
+
 3.0.2 (2023-08-27)
 ==================
 
@@ -1894,7 +2186,7 @@ Features added
   both Python and C semantics of enums.
   (Github issue :issue:`2732`)
 
-* `PEP-614 <https://peps.python.org/pep-0614/>`_:
+* `PEP-614`_:
   decorators can now be arbitrary Python expressions.
   (Github issue :issue:`4570`)
 
@@ -3138,6 +3430,27 @@ Other changes
 .. _`PEP-3131`: https://www.python.org/dev/peps/pep-3131
 .. _`PEP-563`: https://www.python.org/dev/peps/pep-0563
 .. _`PEP-479`: https://www.python.org/dev/peps/pep-0479
+
+
+.. _0.29.37:
+
+0.29.37 (2023-12-18)
+====================
+
+Bugs fixed
+----------
+
+* Fix a potential crash while cleaning up subtypes of externally imported extension
+  types when terminating Python.  This was introduced in Cython 0.29.35.
+
+* Fix a ``complex`` related compile error on Windows.
+  (Github issue :issue:`5512`)
+
+* Compiling fused types used in pxd files could crash Cython in Python 3.11+.
+  (Github issues :issue:`5894`, :issue:`5588`)
+
+* ``cythonize`` failed to consider the ``CYTHON_FORCE_REGEN`` env variable.
+  Patch by Harmen Stoppels.  (Github issue :issue:`5712`)
 
 
 .. _0.29.36:

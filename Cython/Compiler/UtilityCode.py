@@ -1,5 +1,3 @@
-from __future__ import absolute_import
-
 from .TreeFragment import parse_from_strings, StringParseContext
 from . import Symtab
 from . import Naming
@@ -16,7 +14,7 @@ class NonManglingModuleScope(Symtab.ModuleScope):
 
     def add_imported_entry(self, name, entry, pos):
         entry.used = True
-        return super(NonManglingModuleScope, self).add_imported_entry(name, entry, pos)
+        return super().add_imported_entry(name, entry, pos)
 
     def mangle(self, prefix, name=None):
         if name:
@@ -124,7 +122,8 @@ class CythonUtilityCode(Code.UtilityCodeBase):
         context.cython_scope = cython_scope
         #context = StringParseContext(self.name)
         tree = parse_from_strings(
-            self.name, self.impl, context=context, allow_struct_enum_decorator=True)
+            self.name, self.impl, context=context, allow_struct_enum_decorator=True,
+            in_utility_code=True)
         pipeline = Pipeline.create_pipeline(context, 'pyx', exclude_classes=excludes)
 
         if entries_only:
