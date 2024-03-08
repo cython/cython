@@ -1,124 +1,41 @@
-PYTHON setup_on.py build_ext --inplace
-PYTHON setup_off.py build_ext --inplace
-PYTHON setup_runtime.py build_ext --inplace
-PYTHON setup_default.py build_ext --inplace
-PYTHON setup_options_on.py build_ext --inplace
-PYTHON setup_options_off.py build_ext --inplace
-PYTHON setup_options_off_overridden1.py build_ext --inplace
-PYTHON setup_options_off_overridden2.py build_ext --inplace
-PYTHON setup_options_on_overridden.py build_ext --inplace
-
+PYTHON setup.py build_ext --inplace
 PYTHON run_all_tests.py
 
 
-######## setup_on.py ########
+######## setup.py ########
 
 from Cython.Build.Dependencies import cythonize
 from setuptools import setup, Extension
 
-setup(
-    ext_modules = cythonize(
-        Extension("test_on", ["test_on.pyx"],
-            define_macros=[("CYTHON_CLINE_IN_TRACEBACK", 1)],
-    )))
-    
-######## setup_off.py ########
+setup(ext_modules = cythonize(
+    Extension("test_on", ["test_on.pyx"]),
+    Extension("test_off", ["test_off.pyx"]),
+    Extension("test_runtime", ["test_runtime.pyx"]),
+    Extension("test_default", ["test_default.pyx"]),
+    Extension("test_contradicting_macros", ["test_contradicting_macros.pyx"]),
+))
 
-from Cython.Build.Dependencies import cythonize
-from setuptools import setup, Extension
+setup(ext_modules = cythonize(
+    Extension("test_options_on", ["test_options_on.pyx"]),
+    Extension("test_options_on_overridden", ["test_options_on_overridden.pyx"]),
+    c_line_in_traceback = True,
+))
 
-setup(
-    ext_modules = cythonize(
-        Extension("test_off", ["test_off.pyx"],
-            define_macros=[("CYTHON_CLINE_IN_TRACEBACK", 0)],
-    )))
-
-######## setup_runtime.py ########
-
-from Cython.Build.Dependencies import cythonize
-from setuptools import setup, Extension
-
-setup(
-    ext_modules = cythonize(
-        Extension("test_runtime", ["test_runtime.pyx"],
-            define_macros=[("CYTHON_CLINE_IN_TRACEBACK_RUNTIME", 1)],
-    )))
-    
-######## setup_default.py ########
-
-from Cython.Build.Dependencies import cythonize
-from setuptools import setup, Extension
-
-setup(
-    ext_modules = cythonize(
-        Extension("test_default", ["test_default.pyx"]
-    )))
-    
-######## setup_options_on.py ########
-
-from Cython.Build.Dependencies import cythonize
-from setuptools import setup, Extension
-
-
-setup(
-    ext_modules = cythonize(
-        Extension("test_options_on", ["test_options_on.pyx"]),
-        c_line_in_traceback = True
-    ))
-    
-####### setup_options_off.py #########
-
-from Cython.Build.Dependencies import cythonize
-from setuptools import setup, Extension
-
-setup(
-    ext_modules = cythonize(
-        Extension("test_options_off", ["test_options_off.pyx"]),
-        c_line_in_traceback = False
-    ))
-    
-####### setup_options_off_overridden1.py #########
-
-# less important test, but macros should be the ultimate decider
-from Cython.Build.Dependencies import cythonize
-from setuptools import setup, Extension
-
-setup(
-    ext_modules = cythonize(
-        Extension("test_options_off_overridden1", ["test_options_off_overridden1.pyx"],
-        define_macros=[("CYTHON_CLINE_IN_TRACEBACK", 1)],
-    ), c_line_in_traceback=False))
-    
-####### setup_options_off_overridden2.py #########
-
-# less important test, but macros should be the ultimate decider
-from Cython.Build.Dependencies import cythonize
-from setuptools import setup, Extension
-
-setup(
-    ext_modules = cythonize(
-        Extension("test_options_off_overridden2", ["test_options_off_overridden2.pyx"],
-        define_macros=[("CYTHON_CLINE_IN_TRACEBACK_RUNTIME", 1)],
-    ), c_line_in_traceback = False))
- 
-####### setup_options_on_overridden.py #########
-
-# less important test, but macros should be the ultimate decider
-from Cython.Build.Dependencies import cythonize
-from setuptools import setup, Extension
-
-setup(
-    ext_modules = cythonize(
-        Extension("test_options_on_overridden", ["test_options_on_overridden.pyx"],
-        define_macros=[("CYTHON_CLINE_IN_TRACEBACK", 0)],
-    ), c_line_in_traceback = True))
+setup(ext_modules = cythonize(
+    Extension("test_options_off", ["test_options_off.pyx"]),
+    Extension("test_options_off_overridden1", ["test_options_off_overridden1.pyx"]),
+    Extension("test_options_off_overridden2", ["test_options_off_overridden2.pyx"]),
+    c_line_in_traceback = False,
+))
 
 
 ####### test_on.pyx ###############
+# distutils: define_macros=CYTHON_CLINE_IN_TRACEBACK=1
 
 include "should_be_on.pxi"
 
 ####### test_off.pyx ###############
+# distutils: define_macros=CYTHON_CLINE_IN_TRACEBACK=0
 
 include "should_be_off.pxi"
 
@@ -127,6 +44,7 @@ include "should_be_off.pxi"
 include "should_be_runtime.pxi"
 
 ####### test_runtime.pyx ##############
+# distutils: define_macros=CYTHON_CLINE_IN_TRACEBACK_RUNTIME=1
 
 include "should_be_runtime.pxi"
 
@@ -143,14 +61,23 @@ include "should_be_runtime.pxi"
 include "should_be_off.pxi"
 
 ####### test_options_off_overridden1.pyx #######
+# distutils: define_macros=CYTHON_CLINE_IN_TRACEBACK=1
 
 include "should_be_on.pxi"
 
 ####### test_options_off_overridden2.pyx #######
+# distutils: define_macros=CYTHON_CLINE_IN_TRACEBACK_RUNTIME=1
 
 include "should_be_runtime.pxi"
 
 ####### test_options_on_overridden.pyx #######
+# distutils: define_macros=CYTHON_CLINE_IN_TRACEBACK=0
+
+include "should_be_off.pxi"
+
+####### test_contradicting_macros.pyx #######
+# distutils: define_macros=CYTHON_CLINE_IN_TRACEBACK_RUNTIME=1
+# distutils: define_macros=CYTHON_CLINE_IN_TRACEBACK=0
 
 include "should_be_off.pxi"
 
@@ -198,6 +125,7 @@ def run():
     except Exception as e:
         helpers.validate_no_cline_in_traceback(e.__traceback__)
 
+
 ####### helpers.py ##############
 
 import traceback
@@ -213,6 +141,7 @@ def validate_no_cline_in_traceback(tb):
     formatted = traceback.format_tb(tb)
     assert not cline_re.search(formatted[0]), formatted
 
+
 ####### run_all_tests.py #########
 
 import test_on; test_on.run()
@@ -224,3 +153,4 @@ import test_options_off; test_options_off.run()
 import test_options_off_overridden1; test_options_off_overridden1.run()
 import test_options_off_overridden2; test_options_off_overridden2.run()
 import test_options_on_overridden; test_options_on_overridden.run()
+import test_contradicting_macros; test_contradicting_macros.run()
