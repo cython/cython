@@ -7,7 +7,7 @@ from ..Builtin import (
     builtin_scope,
 )
 
-from ..Symtab import (
+from ..Code import (
     KNOWN_PYTHON_BUILTINS_VERSION, KNOWN_PYTHON_BUILTINS,
 )
 
