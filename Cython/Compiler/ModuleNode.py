@@ -810,18 +810,47 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         self._put_setup_code(code, "PythonCompatibility")
         self._put_setup_code(code, "MathInitCode")
 
-        if options.c_line_in_traceback:
-            cinfo = "%s = %s; " % (Naming.clineno_cname, Naming.line_c_macro)
-        else:
-            cinfo = ""
-        code.putln("#define __PYX_MARK_ERR_POS(f_index, lineno) \\")
+        # Error handling and position macros.
         # Using "(void)cname" to prevent "unused" warnings.
-        code.putln("    { %s = %s[f_index]; (void)%s; %s = lineno; (void)%s; %s (void)%s; }" % (
-            Naming.filename_cname, Naming.filetable_cname, Naming.filename_cname,
-            Naming.lineno_cname, Naming.lineno_cname,
-            cinfo,
-            Naming.clineno_cname,
-        ))
+        mark_errpos_code = (
+            "#define __PYX_MARK_ERR_POS(f_index, lineno)  {"
+            f" {Naming.filename_cname} = {Naming.filetable_cname}[f_index];"
+            f" (void) {Naming.filename_cname};"
+            f" {Naming.lineno_cname} = lineno;"
+            f" (void) {Naming.lineno_cname};"
+            "%s"  # for C line info
+            f" (void) {Naming.clineno_cname}; "  # always suppress warnings
+            "}"
+        )
+        cline_info = f" {Naming.clineno_cname} = {Naming.line_c_macro};"
+
+        # Show the C code line in tracebacks or not? C macros take precedence over (deprecated) options.
+        # 1) "CYTHON_CLINE_IN_TRACEBACK=0"  always disables C lines in tracebacks
+        # 2) "CYTHON_CLINE_IN_TRACEBACK_RUNTIME=1" enables the feature + runtime configuration
+        # 2a) "options.c_line_in_traceback=True"   changes the default to CYTHON_CLINE_IN_TRACEBACK_RUNTIME=1
+        # 2b) "options.c_line_in_traceback=False"  changes the default to disable C lines
+        # 4) "CYTHON_CLINE_IN_TRACEBACK=1"         enables C lines without runtime configuration
+        # 5) if nothing is set, the default is to disable the feature
+
+        default_cline_runtime = 0
+        if options.c_line_in_traceback is not None:
+            # explicitly set by user
+            default_cline_runtime = int(options.c_line_in_traceback)
+
+        code.putln("#ifndef CYTHON_CLINE_IN_TRACEBACK_RUNTIME")
+        code.putln(f"#define CYTHON_CLINE_IN_TRACEBACK_RUNTIME {default_cline_runtime}")
+        code.putln("#endif")
+
+        code.putln("#ifndef CYTHON_CLINE_IN_TRACEBACK")
+        code.putln("#define CYTHON_CLINE_IN_TRACEBACK CYTHON_CLINE_IN_TRACEBACK_RUNTIME")
+        code.putln("#endif")
+
+        code.putln("#if CYTHON_CLINE_IN_TRACEBACK")
+        code.putln(mark_errpos_code % cline_info)
+        code.putln("#else")
+        code.putln(mark_errpos_code % "")
+        code.putln("#endif")
+
         code.putln("#define __PYX_ERR(f_index, lineno, Ln_error) \\")
         code.putln("    { __PYX_MARK_ERR_POS(f_index, lineno) goto Ln_error; }")
 
