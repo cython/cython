@@ -416,7 +416,7 @@ class UtilityCodeBase(object):
             code_string = replace_empty_lines('\n', code_string.strip()) + '\n\n'
         return code_string
 
-    def __str__(self):
+    def __repr__(self):
         return "<%s(%s)>" % (type(self).__name__, self.name)
 
     def get_tree(self, **kwargs):
@@ -470,9 +470,11 @@ class UtilityCode(UtilityCodeBase):
         if self_type is not other_type and not (isinstance(other, self_type) or isinstance(self, other_type)):
             return False
 
+        self_init = getattr(self, 'init', None)
+        other_init = getattr(other, 'init', None)
         self_proto = getattr(self, 'proto', None)
         other_proto = getattr(other, 'proto', None)
-        return (self_proto, self.impl) == (other_proto, other.impl)
+        return (self_init, self_proto, self.impl) == (other_init, other_proto, other.impl)
 
     def none_or_sub(self, s, context):
         """
