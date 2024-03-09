@@ -14,6 +14,9 @@ Features added
 * Function calls now use the PEP-590 Vectorcall protocol, even when passing keyword arguments.
   (Github issues :issue:`5804`)
 
+* The Python ``int`` type now maps directly to ``PyLong`` and is inferred accordingly.
+  (Github issue :issue:`4237`)
+
 * Integer operations on known ``int`` types are faster.
   (Github issue :issue:`5785`)
 
@@ -50,6 +53,13 @@ Bugs fixed
 * Dataclasses did not handle default fields without init value correctly.
   (Github issue :issue:`5858`)
 
+* Exception values were not always recognised as equal at compile time.
+  (Github issue :issue:`5709`)
+
+* Running Cython in different Python versions could generate slightly different C code
+  due to differences in the builtins.
+  (Github issue :issue:`5591`)
+
 * The ``-a`` option in the IPython magic no longer copies the complete HTML document
   into the notebook but only a more reasonable content snippet.
   Patch by Min RK.  (Github issue :issue:`5760`)
@@ -85,15 +95,24 @@ Other changes
   ``language_level=3str`` has become a legacy alias.
   (Github issue :issue:`5827`)
 
-* The Python ``int`` type now maps directly to ``PyLong`` and is inferred accordingly.
-  (Github issue :issue:`4237`)
-
 * The previously shipped NumPy C-API declarations (``cimport numpy``) were removed.
   NumPy has been providing version specific declarations for several versions now.
   (Github issue :issue:`5842`)
 
 * Usages of the outdated ``WITH_THREAD`` macro guard were removed.
   (Github issue :issue:`5812`)
+
+* The options for showing the C code line in Python exception stack traces were cleaned up.
+  Previously, disabling the option with the ``CYTHON_CLINE_IN_TRACEBACK`` macro did not
+  reduce the code overhead of the feature, and the ``c_line_in_traceback`` compile option
+  was partly redundant with the C macro switches and lead to warnings about unused code.
+  Since this is considered mostly a debug feature, the new default is that it is _disabled_
+  to avoid code and runtime overhead.  It can be enabled by setting the C macro to 1, and
+  a new macro ``CYTHON_CLINE_IN_TRACEBACK_RUNTIME`` was added that controls the runtime
+  configurable setting if the feature is enabled, which was previously only available
+  through the compile option.  The compile option is now deprecated (but still available),
+  and users should migrate to using the two C macros only.
+  (Github issue :issue:`6036`)
 
 * Includes all fixes as of Cython 3.0.9 (but generates C99 code in some places).
 
