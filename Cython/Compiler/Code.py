@@ -450,6 +450,9 @@ class UtilityCodeBase:
     def __str__(self):
         return "<%s(%s)>" % (type(self).__name__, self.name)
 
+    def __repr__(self):
+        return str(self)
+
     def get_tree(self, **kwargs):
         return None
 
@@ -501,9 +504,11 @@ class UtilityCode(UtilityCodeBase):
         if self_type is not other_type and not (isinstance(other, self_type) or isinstance(self, other_type)):
             return False
 
+        self_init = getattr(self, 'init', None)
+        other_init = getattr(other, 'init', None)
         self_proto = getattr(self, 'proto', None)
         other_proto = getattr(other, 'proto', None)
-        return (self_proto, self.impl) == (other_proto, other.impl)
+        return (self_init, self_proto, self.impl) == (other_init, other_proto, other.impl)
 
     def none_or_sub(self, s, context):
         """
