@@ -447,11 +447,8 @@ class UtilityCodeBase:
             code_string = replace_empty_lines('\n', code_string.strip()) + '\n\n'
         return code_string
 
-    def __str__(self):
-        return "<%s(%s)>" % (type(self).__name__, self.name)
-
     def __repr__(self):
-        return str(self)
+        return "<%s(%s)>" % (type(self).__name__, self.name)
 
     def get_tree(self, **kwargs):
         return None
