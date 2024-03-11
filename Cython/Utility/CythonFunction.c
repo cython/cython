@@ -1440,11 +1440,7 @@ __pyx_FusedFunction_getitem(__pyx_FusedFunctionObject *self, PyObject *idx)
             Py_DECREF(item);
 #endif
             if (unlikely(!string)) goto __pyx_err;
-#if CYTHON_COMPILING_IN_LIMITED_API
-            PyList_SetItem(list, i, string);
-#else
-            PyList_SET_ITEM(list, i, string);
-#endif
+	    if (__Pyx_PyList_SET_ITEM(list, i, string) < 0) goto __pyx_err;
         }
 
         signature = PyUnicode_Join(PYUNICODE("|"), list);
@@ -1524,11 +1520,7 @@ __pyx_FusedFunction_call(PyObject *func, PyObject *args, PyObject *kw)
         self = binding_func->self;
 
         Py_INCREF(self);
-#if CYTHON_COMPILING_IN_LIMITED_API
-        PyTuple_SetItem(new_args, 0, self);
-#else
-        PyTuple_SET_ITEM(new_args, 0, self);
-#endif
+        if (__Pyx_PyList_SET_ITEM(new_args, 0, self) < 0) goto __pyx_err;
         self = NULL;
 
         for (i = 0; i < argc; i++) {
@@ -1538,11 +1530,7 @@ __pyx_FusedFunction_call(PyObject *func, PyObject *args, PyObject *kw)
 #else
             PyObject *item = __Pyx_PySequence_ITEM(args, i);  if (unlikely(!item)) goto bad;
 #endif
-#if CYTHON_COMPILING_IN_LIMITED_API
-        PyTuple_SetItem(new_args, i + 1, item);
-#else
-        PyTuple_SET_ITEM(new_args, i + 1, item);
-#endif
+        if (__Pyx_PyList_SET_ITEM(new_args, i + 1, item) < 0) goto __pyx_err;
         }
 
         args = new_args;
