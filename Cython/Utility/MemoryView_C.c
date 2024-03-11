@@ -415,11 +415,7 @@ static int __Pyx_ValidateAndInit_memviewslice(
     goto no_fail;
 
 fail:
-#if CYTHON_COMPILING_IN_LIMITED_API
-    Py_DecRef((PyObject*)new_memview);
-#else
     Py_XDECREF((PyObject*)new_memview);
-#endif
     retval = -1;
 
 no_fail:

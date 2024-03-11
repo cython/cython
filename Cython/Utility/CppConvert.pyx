@@ -67,7 +67,7 @@ cdef extern from *:
         T& operator[](size_t)
 
 cdef extern from "Python.h":
-    void Py_IncRef(object)
+    void Py_INCREF(object)
     list PyList_New(Py_ssize_t size)
     void PyList_SetItem(object list, Py_ssize_t i, object o)
     const Py_ssize_t PY_SSIZE_T_MAX
@@ -85,7 +85,7 @@ cdef object {{cname}}(const vector[X]& v):
 
     for i in range(v_size_signed):
         item = v[i]
-        Py_IncRef(item)
+        Py_INCREF(item)
         PyList_SetItem(o, i, item)
 
     return o
@@ -119,7 +119,7 @@ cdef extern from *:
         size_t size()
 
 cdef extern from "Python.h":
-    void Py_IncRef(object)
+    void Py_INCREF(object)
     list PyList_New(Py_ssize_t size)
     void PyList_SetItem(object list, Py_ssize_t i, object o)
     cdef Py_ssize_t PY_SSIZE_T_MAX
@@ -137,7 +137,7 @@ cdef object {{cname}}(const cpp_list[X]& v):
 
     while iter != v.end():
         item = cython.operator.dereference(iter)
-        Py_IncRef(item)
+        Py_INCREF(item)
         PyList_SetItem(o, i, item)
         cython.operator.preincrement(iter)
         i += 1
