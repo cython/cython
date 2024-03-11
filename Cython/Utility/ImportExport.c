@@ -115,7 +115,7 @@ static PyObject *__Pyx_ImportDottedModule(PyObject *name, PyObject *parts_tuple)
                 Py_DECREF(spec);
                 spec = NULL;
             }
-            Py_XDECREF(module);
+            Py_XDECREF(unsafe);
         }
         if (likely(!spec)) {
             // Not in initialisation phase => use modules as is.
