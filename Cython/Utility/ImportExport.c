@@ -27,7 +27,7 @@ static PyObject *__Pyx__ImportDottedModule_Error(PyObject *name, PyObject *parts
     if (unlikely(PyErr_Occurred())) {
         PyErr_Clear();
     }
-#if CYTHON_ASSUME_SAFE_SIZE && !CYTHON_COMPILING_IN_LIMITED_API
+#if CYTHON_ASSUME_SAFE_SIZE
     size = PyTuple_GET_SIZE(parts_tuple);
 #else
     size = PyTuple_Size(parts_tuple);
@@ -72,7 +72,7 @@ static PyObject *__Pyx__ImportDottedModule_Lookup(PyObject *name) {
 
 static PyObject *__Pyx_ImportDottedModule_WalkParts(PyObject *module, PyObject *name, PyObject *parts_tuple) {
     Py_ssize_t i, nparts;
-#if CYTHON_ASSUME_SAFE_SIZE && !CYTHON_COMPILING_IN_LIMITED_API
+#if CYTHON_ASSUME_SAFE_SIZE
     nparts = PyTuple_GET_SIZE(parts_tuple);
 #else
     nparts = PyTuple_Size(parts_tuple);
@@ -80,7 +80,7 @@ static PyObject *__Pyx_ImportDottedModule_WalkParts(PyObject *module, PyObject *
 #endif
     for (i=1; i < nparts && module; i++) {
         PyObject *part, *submodule;
-#if CYTHON_ASSUME_SAFE_MACROS && !CYTHON_AVOID_BORROWED_REFS && !CYTHON_COMPILING_IN_LIMITED_API
+#if CYTHON_ASSUME_SAFE_MACROS && !CYTHON_AVOID_BORROWED_REFS
         part = PyTuple_GET_ITEM(parts_tuple, i);
 #else
         part = __Pyx_PySequence_ITEM(parts_tuple, i);
