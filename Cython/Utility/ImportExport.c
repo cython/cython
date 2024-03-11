@@ -337,8 +337,8 @@ static int ${import_star}(PyObject* m) {
 
 #if CYTHON_COMPILING_IN_LIMITED_API
     for(i=0; i<PyList_Size(list); i++) {
-        name = PyTuple_Get_Item(PyList_Get_Item(list, i), 0); if (!name) goto bad;
-        item = PyTuple_Get_Item(PyList_Get_Item(list, i), 1); if (!item) goto bad;
+        name = PyTuple_GetItem(PyList_GetItem(list, i), 0); if (!name) goto bad;
+        item = PyTuple_GetItem(PyList_GetItem(list, i), 1); if (!item) goto bad;
 #else
     for(i=0; i<PyList_GET_SIZE(list); i++) {
         name = PyTuple_GET_ITEM(PyList_GET_ITEM(list, i), 0);
