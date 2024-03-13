@@ -4348,7 +4348,8 @@ def p_cpp_class_attribute(s: PyrexScanner, ctx):
         return node
 
 
-def p_match_statement(s, ctx):
+@cython.cfunc
+def p_match_statement(s: PyrexScanner, ctx):
     assert s.sy == "IDENT" and s.systring == "match"
     pos = s.position()
     with tentatively_scan(s) as errors:
@@ -4381,7 +4382,8 @@ def p_match_statement(s, ctx):
     return MatchCaseNodes.MatchNode(pos, subject=subject, cases=cases)
 
 
-def p_case_block(s, ctx):
+@cython.cfunc
+def p_case_block(s: PyrexScanner, ctx):
     if not (s.sy == "IDENT" and s.systring == "case"):
         s.expected("case")
     s.next()
@@ -4396,7 +4398,8 @@ def p_case_block(s, ctx):
     return MatchCaseNodes.MatchCaseNode(pos, pattern=pattern, body=body, guard=guard)
 
 
-def p_patterns(s):
+@cython.cfunc
+def p_patterns(s: PyrexScanner):
     # note - in slight contrast to the name (which comes from the Python grammar),
     # returns a single pattern
     patterns = []
@@ -4427,7 +4430,8 @@ def p_patterns(s):
         return patterns[0]
 
 
-def p_maybe_star_pattern(s):
+@cython.cfunc
+def p_maybe_star_pattern(s: PyrexScanner):
     # For match case. Either star_pattern or pattern
     if s.sy == "*":
         # star pattern
@@ -4446,7 +4450,8 @@ def p_maybe_star_pattern(s):
         return pattern
 
 
-def p_pattern(s):
+@cython.cfunc
+def p_pattern(s: PyrexScanner):
     # try "as_pattern" then "or_pattern"
     # (but practically "as_pattern" starts with "or_pattern" too)
     patterns = []
@@ -4481,7 +4486,8 @@ def p_pattern(s):
     return pattern
 
 
-def p_closed_pattern(s):
+@cython.cfunc
+def p_closed_pattern(s: PyrexScanner):
     """
     The PEG parser specifies it as
     | literal_pattern
@@ -4530,7 +4536,8 @@ def p_closed_pattern(s):
     return p_class_pattern(s)
 
 
-def p_literal_pattern(s):
+@cython.cfunc
+def p_literal_pattern(s: PyrexScanner):
     # a lot of duplication in this function with "p_atom"
     next_must_be_a_number = False
     sign = ''
@@ -4596,14 +4603,16 @@ def p_literal_pattern(s):
     s.error("Failed to match literal")
 
 
-def p_capture_pattern(s):
+@cython.cfunc
+def p_capture_pattern(s: PyrexScanner):
     return MatchCaseNodes.MatchAndAssignPatternNode(
         s.position(),
         target=p_pattern_capture_target(s)
     )
 
 
-def p_value_pattern(s):
+@cython.cfunc
+def p_value_pattern(s: PyrexScanner):
     if s.sy != "IDENT":
         s.error("Expected identifier")
     pos = s.position()
@@ -4621,14 +4630,16 @@ def p_value_pattern(s):
     return MatchCaseNodes.MatchValuePatternNode(pos, value=res)
 
 
-def p_group_pattern(s):
+@cython.cfunc
+def p_group_pattern(s: PyrexScanner):
     s.expect("(")
     pattern = p_pattern(s)
     s.expect(")")
     return pattern
 
 
-def p_sequence_pattern(s):
+@cython.cfunc
+def p_sequence_pattern(s: PyrexScanner):
     opener = s.sy
     pos = s.position()
     if opener in ['[', '(']:
@@ -4650,7 +4661,8 @@ def p_sequence_pattern(s):
         s.error("Expected '[' or '('")
 
 
-def p_mapping_pattern(s):
+@cython.cfunc
+def p_mapping_pattern(s: PyrexScanner):
     pos = s.position()
     s.expect('{')
     if s.sy == '}':
@@ -4696,7 +4708,8 @@ def p_mapping_pattern(s):
     )
 
 
-def p_class_pattern(s):
+@cython.cfunc
+def p_class_pattern(s: PyrexScanner):
     # start by parsing the class as name_or_attr
     pos = s.position()
     res = p_name(s, s.systring)
@@ -4745,7 +4758,8 @@ def p_class_pattern(s):
     )
 
 
-def p_keyword_pattern(s):
+@cython.cfunc
+def p_keyword_pattern(s: PyrexScanner):
     if s.sy != "IDENT":
         s.error("Expected identifier")
     arg = p_name(s, s.systring)
@@ -4755,7 +4769,8 @@ def p_keyword_pattern(s):
     return arg, value
 
 
-def p_pattern_capture_target(s):
+@cython.cfunc
+def p_pattern_capture_target(s: PyrexScanner):
     # any name but '_', and with some constraints on what follows
     if s.sy != 'IDENT':
         s.error("Expected identifier")
