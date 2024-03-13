@@ -303,6 +303,21 @@ static PyObject *__Pyx_PyLong_AbsNeg(PyObject *n) {
 #define __Pyx_PyNumber_Power2(a, b) PyNumber_Power(a, b, Py_None)
 
 
+//////////////////// divmod_int.proto //////////////////
+
+static CYTHON_INLINE PyObject* __Pyx_divmod_int(int a, int b){
+    PyObject* result_tuple;
+    PyObject* args;
+    div_t res = div(a, b);
+    args = PyTuple_Pack(2, res.quot, res.rem);
+    if (unlikely(!args))
+        return NULL;
+    result_tuple = PyObject_Call((PyObject*)&PyTuple_Type, args, NULL);
+    Py_DECREF(args);
+    return result_tuple;
+}
+
+
 //////////////////// int_pyucs4.proto ////////////////////
 
 static CYTHON_INLINE int __Pyx_int_from_UCS4(Py_UCS4 uchar);
@@ -361,7 +376,7 @@ static long __Pyx__PyObject_Ord(PyObject* c) {
             return (unsigned char) data[0];
 #endif
         }
-#if !CYTHON_ASSUME_SAFE_SIZE        
+#if !CYTHON_ASSUME_SAFE_SIZE
         else if (unlikely(size < 0)) return -1;
 #endif
     } else if (PyByteArray_Check(c)) {

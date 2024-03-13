@@ -160,6 +160,9 @@ builtin_function_table = [
     #('compile',   "",     "",      ""), # PyObject* Py_CompileString(    char *str, char *filename, int start)
     BuiltinFunction('delattr',    "OO",   "r",     "PyObject_DelAttr"),
     BuiltinFunction('dir',        "O",    "O",     "PyObject_Dir"),
+    BuiltinFunction('divmod',     "ii",   "O",     "__Pyx_divmod_int",
+                    utility_code=UtilityCode.load("divmod_int", "Builtins.c"),
+                    is_strict_signature = True, nogil = True),
     BuiltinFunction('divmod',     "OO",   "O",     "PyNumber_Divmod"),
     BuiltinFunction('exec',       "O",    "O",     "__Pyx_PyExecGlobals",
                     utility_code = pyexec_globals_utility_code),

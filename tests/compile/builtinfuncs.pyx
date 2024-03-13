@@ -7,9 +7,11 @@ cdef int f() except -1:
     cdef int i
     cdef long lng
     cdef Py_ssize_t s
+    cdef int f = 0, g = 1
     x = abs(y)
     delattr(x, 'spam')
     x = dir(y)
+    x = divmod(f, g)
     x = divmod(y, z)
     x = getattr(y, 'spam')
     i = hasattr(y, 'spam')
