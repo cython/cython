@@ -606,8 +606,11 @@ class CythonPyCImporter:
     This allows using pxd file based cimports in compiled code that work with the
     corresponding Python modules (compiled or not compiled) when run by normal Python.
     """
-    @staticmethod
-    def find_spec(name, import_path, target_module):
+
+    import importlib.util as _importlib
+
+    @classmethod
+    def find_spec(cls, name: str, import_path, target_module):
         if not name.startswith('cython.cimports.'):
             return None
 
@@ -620,8 +623,7 @@ class CythonPyCImporter:
             sys.modules[name] = module
             return module.__spec__
 
-        from importlib.util import find_spec
-        spec = find_spec(module_name)
+        spec = cls._importlib.find_spec(module_name)
         return spec
 
 
