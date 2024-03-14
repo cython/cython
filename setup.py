@@ -20,6 +20,19 @@ if sys.platform == "darwin":
     # Don't create resource files on OS X tar.
     os.environ['COPY_EXTENDED_ATTRIBUTES_DISABLE'] = 'true'
     os.environ['COPYFILE_DISABLE'] = 'true'
+from setuptools import setup
+from Cython.Build import cythonize
+
+# List of Cython source files to compile
+source_files = ['your_file.pyx']
+
+# Set the cache option to True
+options = {'cache': True}
+
+# Specify other setup parameters as needed
+setup(
+    ext_modules = cythonize(source_files, compiler_directives=options)
+)
 
 setup_args = {}
 
