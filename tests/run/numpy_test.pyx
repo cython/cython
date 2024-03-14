@@ -254,7 +254,7 @@ def inc1_object(np.ndarray[object] arr):
     o += 1
     arr[1] = o # unfortunately, += segfaults for objects
 
-def inc1_int_t(np.ndarray[np.int_t] arr):               arr[1] += 1
+def inc1_int32_t(np.ndarray[np.int32_t] arr):           arr[1] += 1
 def inc1_longlong_t(np.ndarray[np.longlong_t] arr):     arr[1] += 1
 def inc1_float_t(np.ndarray[np.float_t] arr):           arr[1] += 1
 def inc1_double_t(np.ndarray[np.double_t] arr):         arr[1] += 1
