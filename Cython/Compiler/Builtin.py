@@ -162,7 +162,7 @@ builtin_function_table = [
     BuiltinFunction('dir',        "O",    "O",     "PyObject_Dir"),
     BuiltinFunction('divmod',     "ii",   "O",     "__Pyx_divmod_int",
                     utility_code=UtilityCode.load("divmod_int", "Builtins.c"),
-                    is_strict_signature = True, nogil = True),
+                    is_strict_signature = True),
     BuiltinFunction('divmod',     "OO",   "O",     "PyNumber_Divmod"),
     BuiltinFunction('exec',       "O",    "O",     "__Pyx_PyExecGlobals",
                     utility_code = pyexec_globals_utility_code),

@@ -305,15 +305,12 @@ static PyObject *__Pyx_PyLong_AbsNeg(PyObject *n) {
 
 //////////////////// divmod_int.proto //////////////////
 
-static CYTHON_INLINE PyObject* __Pyx_divmod_int(int a, int b){
+static CYTHON_INLINE PyObject* __Pyx_divmod_int(int a, int b) {
     PyObject* result_tuple;
-    PyObject* args;
     div_t res = div(a, b);
-    args = PyTuple_Pack(2, res.quot, res.rem);
-    if (unlikely(!args))
+    result_tuple = Py_BuildValue("(ii)", res.quot, res.rem);
+    if (unlikely(!result_tuple))
         return NULL;
-    result_tuple = PyObject_Call((PyObject*)&PyTuple_Type, args, NULL);
-    Py_DECREF(args);
     return result_tuple;
 }
 
