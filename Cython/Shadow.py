@@ -575,7 +575,6 @@ class CythonDotImportedFromElsewhere:
         sys.modules['cython.%s' % self.__name__] = mod
         return getattr(mod, attr)
 
-
 class CythonCImports:
     """
     Simplistic module mock to make cimports sort-of work in Python code.
@@ -603,35 +602,7 @@ class CythonCImports:
             raise ex
 
 
-class CythonPyCImporter:
-    """
-    A meta-path import hook to map 'cython.cimports.*' imports to plain Python module imports.
-
-    Maps 'import cython.cimports.mypackage.mymodule' to 'import mypackage.mymodule'.
-    This allows using pxd file based cimports in compiled code that work with the
-    corresponding Python modules (compiled or not compiled) when run by normal Python.
-    """
-    @staticmethod
-    def find_spec(name, import_path, target_module):
-        if not name.startswith('cython.cimports.'):
-            return None
-
-        # Try to import a Python module of the same name (without prefix) instead.
-        module_name = name[len('cython.cimports.'):]
-
-        import sys
-        if module_name in sys.modules:
-            module = sys.modules[module_name]
-            sys.modules[name] = module
-            return module.__spec__
-
-        from importlib.machinery import PathFinder
-        spec = PathFinder.find_spec(module_name, import_path, target_module)
-        return spec
-
-
 import math, sys
-
 sys.modules['cython.parallel'] = CythonDotParallel()
 sys.modules['cython.cimports.libc.math'] = math
 sys.modules['cython.cimports.libc'] = CythonCImports('cython.cimports.libc', math=math)
@@ -640,8 +611,4 @@ sys.modules['cython.cimports'] = CythonCImports('cython.cimports', libc=sys.modu
 # In pure Python mode @cython.dataclasses.dataclass and dataclass field should just
 # shadow the standard library ones (if they are available)
 dataclasses = sys.modules['cython.dataclasses'] = CythonDotImportedFromElsewhere('dataclasses')
-
-# Register a meta-path hook to map "cython.cimports.*" to plain Python module imports.
-sys.meta_path.append(CythonPyCImporter())
-
 del math, sys
