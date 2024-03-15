@@ -53,8 +53,8 @@ basicsize_builtins_map = {
     'PyTypeObject': 'PyHeapTypeObject',
 }
 
-# Builtins as of Python 3.12.0
-KNOWN_PYTHON_BUILTINS_VERSION = (3, 12, 0, 'final', 0)
+# Builtins as of Python version ...
+KNOWN_PYTHON_BUILTINS_VERSION = (3, 13, 0, 'alpha', 5)
 KNOWN_PYTHON_BUILTINS = frozenset([
     'ArithmeticError',
     'AssertionError',
@@ -86,6 +86,7 @@ KNOWN_PYTHON_BUILTINS = frozenset([
     'IOError',
     'ImportError',
     'ImportWarning',
+    'IncompleteInputError',
     'IndentationError',
     'IndexError',
     'InterruptedError',
@@ -105,6 +106,7 @@ KNOWN_PYTHON_BUILTINS = frozenset([
     'PendingDeprecationWarning',
     'PermissionError',
     'ProcessLookupError',
+    'PythonFinalizationError',
     'RecursionError',
     'ReferenceError',
     'ResourceWarning',
