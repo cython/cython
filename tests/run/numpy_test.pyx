@@ -254,7 +254,7 @@ def inc1_object(np.ndarray[object] arr):
     o += 1
     arr[1] = o # unfortunately, += segfaults for objects
 
-def inc1_int32_t(np.ndarray[np.int32_t] arr):           arr[1] += 1
+def inc1_int64_t(np.ndarray[np.int64_t] arr):           arr[1] += 1
 def inc1_longlong_t(np.ndarray[np.longlong_t] arr):     arr[1] += 1
 def inc1_float_t(np.ndarray[np.float_t] arr):           arr[1] += 1
 def inc1_double_t(np.ndarray[np.double_t] arr):         arr[1] += 1
@@ -263,7 +263,7 @@ def inc1_intp_t(np.ndarray[np.intp_t] arr):             arr[1] += 1
 def inc1_uintp_t(np.ndarray[np.uintp_t] arr):           arr[1] += 1
 
 # The tests below only work on platforms that has the given types
-def inc1_int32_t(np.ndarray[np.int32_t] arr):           arr[1] += 1
+def inc1_int64_t(np.ndarray[np.int64_t] arr):           arr[1] += 1
 def inc1_float64_t(np.ndarray[np.float64_t] arr):       arr[1] += 1
 
 
@@ -290,7 +290,7 @@ def test_dtype(dtype, inc1):
     >>> test_dtype('D', inc1_cdouble_struct)
     >>> test_dtype('G', inc1_clongdouble_struct)
 
-    >>> test_dtype(np.int_, inc1_int_t)
+    >>> test_dtype(np.int_, inc1_int64_t)
     >>> test_dtype(np.longlong, inc1_longlong_t)
     >>> test_dtype(np.float_, inc1_float_t)
     >>> test_dtype(np.double, inc1_double_t)
@@ -299,7 +299,7 @@ def test_dtype(dtype, inc1):
 
     >>> test_dtype(np.longdouble, inc1_longdouble_t)
 
-    >>> test_dtype(np.int32, inc1_int32_t)
+    >>> test_dtype(np.int64, inc1_int64_t)
     >>> test_dtype(np.float64, inc1_float64_t)
 
     Endian tests:
