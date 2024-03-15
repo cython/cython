@@ -137,7 +137,7 @@ def test_generator_to_vector():
     >>> test_generator_to_vector()
     [1, 2, 3]
     """
-    g = (x for x in [1,2,3])
+    g = (x for x in [1, 2, 3])
     return takes_vector(g)
 
 def test_string_vector(s):
