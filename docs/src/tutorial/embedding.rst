@@ -171,8 +171,9 @@ However, he considers it sufficiently hacky that it is only linked here,
 and not reproduced directly. It is an option though, if you're unable to
 use the inittab mechanism before initializing the interpreter.
 
+----------------------------------------
 Problems with multiprocessing and pickle
----------------------------------------
+----------------------------------------
 
 If you try to use ``multiprocessing`` while using a Cython module embedded into
 an executable it will likely fail with errors related to the pickle module.

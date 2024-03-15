@@ -83,22 +83,22 @@ match the C ones, and in some cases they shouldn't or can't. In particular:
        you can only do this inside a ``cdef extern from`` block; struct
        declarations anywhere else must be non-empty.
 
-#. If the header file uses ``typedef`` names such as :c:type:`word` to refer
+#. If the header file uses ``typedef`` names such as :c:type: `word` to refer
    to platform-dependent flavours of numeric types, you will need a
-   corresponding :keyword:`ctypedef` statement, but you don't need to match
+   corresponding :keyword: `ctypedef` statement, but you don't need to match
    the type exactly, just use something of the right general kind (int, float,
    etc). For example,::
 
        ctypedef int word
 
-   will work okay whatever the actual size of a :c:type:`word` is (provided the header
+   will work okay whatever the actual size of a :c:type: `word` is (provided the header
    file defines it correctly). Conversion to and from Python types, if any, will also
    be used for this new type.
 
 #. If the header file uses macros to define constants, translate them into a
    normal external variable declaration.  You can also declare them as an
-   :keyword:`enum` if they contain normal :c:type:`int` values.  Note that
-   Cython considers :keyword:`enum` to be equivalent to :c:type:`int`, so do
+   :keyword: `enum` if they contain normal :c:type: `int` values.  Note that
+   Cython considers :keyword: `enum` to be equivalent to :c:type: `int`, so do
    not do this for non-int values.
 
 #. If the header file defines a function using a macro, declare it as though
@@ -106,7 +106,7 @@ match the C ones, and in some cases they shouldn't or can't. In particular:
 
 #. For archaic reasons C uses the keyword ``void`` to declare a function
    taking no parameters. In Cython as in Python, simply declare such functions
-   as :meth:`foo()`.
+   as :meth: `foo()`.
 
 A few more tricks and tips:
 
@@ -179,7 +179,7 @@ header file, so that Cython can emit the right sort of references to the type
 in the code it generates. To make this possible, Cython provides two different
 syntaxes for declaring a struct, union or enum type. The style introduced
 above corresponds to the use of a tag name. To get the other style, you prefix
-the declaration with :keyword:`ctypedef`, as illustrated below.
+the declaration with :keyword: `ctypedef`, as illustrated below.
 
 The following table shows the various possible styles that can be found in a
 header file, and the corresponding Cython declaration that you should put in
@@ -219,9 +219,9 @@ same applies equally to union and enum declarations.
 |   } Foo;                |                                             |                                                                       |
 +-------------------------+---------------------------------------------+-----------------------------------------------------------------------+
 
-See also use of :ref:`external_extension_types`.
+See also use of :ref: `external_extension_types`.
 Note that in all the cases below, you refer to the type in Cython code simply
-as :c:type:`Foo`, not ``struct Foo``.
+as :c:type: `Foo`, not ``struct Foo``.
 
 Pointers
 --------
@@ -253,7 +253,7 @@ referencing its first element like you would in python ``my_pointer[0]``. For ex
 
 For a deeper introduction to pointers, you can read `this tutorial at tutorialspoint
 <https://www.tutorialspoint.com/cprogramming/c_pointers.htm>`_. For differences between
-Cython and C syntax for manipulating pointers, see :ref:`statements_and_expressions`.
+Cython and C syntax for manipulating pointers, see :ref: `statements_and_expressions`.
 
 Accessing Python/C API routines
 ---------------------------------
@@ -310,7 +310,7 @@ and provide the Python user with Python functions of the same names.
 Cython provides a couple of different ways of solving this problem.  The best
 way, especially if you have many C functions to wrap, is to put the extern
 C function declarations into a ``.pxd`` file and thus a different namespace,
-using the facilities described in :ref:`sharing declarations between Cython
+using the facilities described in :ref: `sharing declarations between Cython
 modules <sharing-declarations>`.  Writing them into a ``.pxd`` file allows
 their reuse across modules, avoids naming collisions in the normal Python way
 and even makes it easy to rename them on cimport.  For example, if your
@@ -340,7 +340,7 @@ For special cases where namespacing or renaming on import is not enough,
 e.g. when a name in C conflicts with a Python keyword, you can use a C name
 specification to give different Cython and C names to the C function at
 declaration time.  Suppose, for example, that you want to wrap an external
-C function called :func:`yield`.  If you declare it as::
+C function called :func: `yield`.  If you declare it as::
 
     cdef extern from "myheader.h":
         void c_yield "yield" (float speed)
@@ -427,7 +427,7 @@ declarations.
 
     You do not need to use either of these to make declarations from one
     Cython module available to another Cython module – you should use the
-    :keyword:`cimport` statement for that. Sharing Declarations Between Cython Modules.
+    :keyword: `cimport` statement for that. Sharing Declarations Between Cython Modules.
 
 .. _inittab_guide:
     
@@ -446,7 +446,7 @@ by declaring them with the public keyword::
     cdef public void grail(Bunny *)  # a public function declaration
 
 If there are any public declarations in a Cython module, a header file called
-:file:`modulename.h` file is generated containing equivalent C declarations for
+:file: `modulename.h` file is generated containing equivalent C declarations for
 inclusion in other C code.
 
 A typical use case for this is building an extension module from multiple
@@ -457,7 +457,7 @@ In this case, the file ``grail_helper.c`` just needs to add
 
 A more advanced use case is embedding Python in C using Cython.
 In this case, make sure to call Py_Initialize() and Py_Finalize().
-For example, in the following snippet that includes :file:`grail.h`:
+For example, in the following snippet that includes :file: `grail.h`:
 
 .. code-block:: c
 
@@ -489,7 +489,7 @@ to link Cython modules into a single shared library or program.
 
 If the Cython module resides within a package, then the name of the ``.h``
 file consists of the full dotted name of the module, e.g. a module called
-:mod:`foo.spam` would have a header file called :file:`foo.spam.h`.
+:mod: `foo.spam` would have a header file called :file: `foo.spam.h`.
 
 .. NOTE::
 
@@ -530,25 +530,25 @@ C API Declarations
 -------------------
 
 The other way of making declarations available to C code is to declare them
-with the :keyword:`api` keyword. You can use this keyword with C functions and
-extension types. A header file called :file:`modulename_api.h` is produced
+with the :keyword: `api` keyword. You can use this keyword with C functions and
+extension types. A header file called :file: `modulename_api.h` is produced
 containing declarations of the functions and extension types, and a function
-called :func:`import_modulename`.
+called :func: `import_modulename`.
 
 C code wanting to use these functions or extension types needs to include the
-header and call the :func:`import_modulename` function. The other functions
+header and call the :func: `import_modulename` function. The other functions
 can then be called and the extension types used as usual.
 
 If the C code wanting to use these functions is part of more than one shared
-library or executable, then :func:`import_modulename` function needs to be
+library or executable, then :func: `import_modulename` function needs to be
 called in each of the shared libraries which use these functions. If you
 crash with a segmentation fault (SIGSEGV on linux) when calling into one of
 these api calls, this is likely an indication that the shared library which
 contains the api call which is generating the segmentation fault does not call
-the :func:`import_modulename` function before the api call which crashes.
+the :func: `import_modulename` function before the api call which crashes.
 
 Any public C type or extension type declarations in the Cython module are also
-made available when you include :file:`modulename_api.h`.:
+made available when you include :file: `modulename_api.h`.:
 
 .. literalinclude:: ../../examples/userguide/external_C_code/delorean.pyx
 
@@ -562,22 +562,22 @@ made available when you include :file:`modulename_api.h`.:
     otherwise they won't be included in the generated header file, and you will
     get errors when you try to compile a C file that uses the header.
 
-Using the :keyword:`api` method does not require the C code using the
+Using the :keyword: `api` method does not require the C code using the
 declarations to be linked with the extension module in any way, as the Python
 import machinery is used to make the connection dynamically. However, only
 functions can be accessed this way, not variables. Note also that for the
 module import mechanism to be set up correctly, the user must call
 Py_Initialize() and Py_Finalize(); if you experience a segmentation fault in
-the call to :func:`import_modulename`, it is likely that this wasn't done.
+the call to :func: `import_modulename`, it is likely that this wasn't done.
 
-You can use both :keyword:`public` and :keyword:`api` on the same function to
+You can use both :keyword: `public` and :keyword: `api` on the same function to
 make it available by both methods, e.g.::
 
     cdef public api void belt_and_braces() except *:
         ...
 
-However, note that you should include either :file:`modulename.h` or
-:file:`modulename_api.h` in a given C file, not both, otherwise you may get
+However, note that you should include either :file: `modulename.h` or
+:file: `modulename_api.h` in a given C file, not both, otherwise you may get
 conflicting dual definitions.
 
 If the Cython module resides within a package, then:
@@ -586,15 +586,15 @@ If the Cython module resides within a package, then:
 * The name of the importing function contains the full name with dots replaced
   by double underscores.
 
-E.g. a module called :mod:`foo.spam` would have an API header file called
-:file:`foo.spam_api.h` and an importing function called
-:func:`import_foo__spam`.
+E.g. a module called :mod: `foo.spam` would have an API header file called
+:file: `foo.spam_api.h` and an importing function called
+:func: `import_foo__spam`.
 
 Multiple public and API declarations
 --------------------------------------
 
-You can declare a whole group of items as :keyword:`public` and/or
-:keyword:`api` all at once by enclosing them in a :keyword:`cdef` block, for
+You can declare a whole group of items as :keyword: `public` and/or
+:keyword: `api` all at once by enclosing them in a :keyword: `cdef` block, for
 example,::
 
     cdef public api:
@@ -602,14 +602,14 @@ example,::
         char *get_lunch(float tomato_size) except NULL
 
 This can be a useful thing to do in a ``.pxd`` file (see
-:ref:`sharing-declarations`) to make the module's public interface
+:ref: `sharing-declarations`) to make the module's public interface
 available by all three methods.
 
 Acquiring and Releasing the GIL
 ---------------------------------
 
 Cython provides facilities for acquiring and releasing the
-Global Interpreter Lock (GIL) (see :term:`our glossary<Global Interpreter Lock or GIL>` or `external documentation <https://docs.python.org/dev/glossary.html#term-global-interpreter-lock>`_).
+Global Interpreter Lock (GIL) (see :term: `our glossary<Global Interpreter Lock or GIL>` or `external documentation <https://docs.python.org/dev/glossary.html#term-global-interpreter-lock>`_).
 This may be useful when calling from multi-threaded code into
 (external C) code that may block, or when wanting to use Python
 from a (native) C thread callback.  Releasing the GIL should
@@ -662,7 +662,7 @@ header::
 If the callback may be called from another non-Python thread,
 care must be taken to initialize the GIL first, through a call to
 `PyEval_InitThreads() <https://docs.python.org/dev/c-api/init.html#c.PyEval_InitThreads>`_.
-If you're already using  :ref:`cython.parallel <parallel>` in your module, this will already have been taken care of.
+If you're already using  :ref: `cython.parallel <parallel>` in your module, this will already have been taken care of.
 
 The GIL may also be acquired through the ``with gil`` statement::
 
@@ -679,7 +679,7 @@ the difference is whether the GIL will be held or released.
 The condition must be constant (at compile time).
 
 This could be useful for profiling, debugging, performance testing, and
-for fused types (see :ref:`fused_gil_conditional`).::
+for fused types (see :ref: `fused_gil_conditional`).::
 
     DEF FREE_GIL = True
 
@@ -692,7 +692,7 @@ for fused types (see :ref:`fused_gil_conditional`).::
 Declaring a function as callable without the GIL
 --------------------------------------------------
 
-You can specify :keyword:`nogil` in a C function header or function type to
+You can specify :keyword: `nogil` in a C function header or function type to
 declare that it is safe to call without the GIL.::
 
     cdef void my_gil_free_func(int spam) nogil:
@@ -712,4 +712,4 @@ if it finds any Python interaction inside of a ``nogil`` code section.
           itself release the GIL if it is held by the caller.
 
 Declaring a function ``with gil`` (i.e. as acquiring the GIL on entry) also
-implicitly makes its signature :keyword:`nogil`.
+implicitly makes its signature :keyword: `nogil`.

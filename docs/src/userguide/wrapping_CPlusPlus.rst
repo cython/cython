@@ -11,8 +11,8 @@ Overview
 
 Cython has native support for most of the C++ language.  Specifically:
 
-* C++ objects can be :term:`dynamically allocated<Dynamic allocation or Heap allocation>` with ``new`` and ``del`` keywords.
-* C++ objects can be :term:`stack-allocated<Stack allocation>`.
+* C++ objects can be :term: `dynamically allocated<Dynamic allocation or Heap allocation>` with ``new`` and ``del`` keywords.
+* C++ objects can be :term: `stack-allocated<Stack allocation>`.
 * C++ classes can be declared with the new keyword ``cppclass``.
 * Templated classes and functions are supported.
 * Overloaded functions are supported.
@@ -22,7 +22,7 @@ Procedure Overview
 -------------------
 The general procedure for wrapping a C++ file can now be described as follows:
 
-* Specify C++ language in a :file:`setup.py` script or locally in a source file.
+* Specify C++ language in a :file: `setup.py` script or locally in a source file.
 * Create one or more ``.pxd`` files with ``cdef extern from`` blocks and
   (if existing) the C++ namespace name. In these blocks:
 
@@ -39,13 +39,13 @@ An example C++ API
 
 Here is a tiny C++ API which we will use as an example throughout this
 document. Let's assume it will be in a header file called
-:file:`Rectangle.h`:
+:file: `Rectangle.h`:
 
 .. literalinclude:: ../../examples/userguide/wrapping_CPlusPlus/Rectangle.h
     :language: c++
     :tab-width: 4
 
-and the implementation in the file called :file:`Rectangle.cpp`:
+and the implementation in the file called :file: `Rectangle.cpp`:
 
 .. literalinclude:: ../../examples/userguide/wrapping_CPlusPlus/Rectangle.cpp
     :language: c++
@@ -80,7 +80,7 @@ Add public attributes
 ^^^^^^^^^^^^^^^^^^^^^^
 
 We now need to declare the attributes and methods for use on Cython. We put those declarations
-in a file called :file:`Rectangle.pxd`. You can see it as a header file
+in a file called :file: `Rectangle.pxd`. You can see it as a header file
 which is readable by Cython:
 
 .. literalinclude:: ../../examples/userguide/wrapping_CPlusPlus/Rectangle.pxd
@@ -96,17 +96,17 @@ We use the lines::
     cdef extern from "Rectangle.cpp":
         pass
 
-to include the C++ code from :file:`Rectangle.cpp`. It is also possible to specify to
-setuptools that :file:`Rectangle.cpp` is a source. To do that, you can add this directive at the
+to include the C++ code from :file: `Rectangle.cpp`. It is also possible to specify to
+setuptools that :file: `Rectangle.cpp` is a source. To do that, you can add this directive at the
 top of the ``.pyx`` (not ``.pxd``) file::
 
     # distutils: sources = Rectangle.cpp
 
 Note that when you use ``cdef extern from``, the path that you specify is relative to the current
 file, but if you use the distutils directive, the path is relative to the
-:file:`setup.py`. If you want to discover the path of the sources when
-running the :file:`setup.py`, you can use the ``aliases`` argument
-of the :func:`cythonize` function.
+:file: `setup.py`. If you want to discover the path of the sources when
+running the :file: `setup.py`, you can use the ``aliases`` argument
+of the :func: `cythonize` function.
 
 Declare a var with the wrapped C++ class
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -114,7 +114,7 @@ Declare a var with the wrapped C++ class
 We'll create a ``.pyx`` file named ``rect.pyx`` to build our wrapper. We're
 using a name other than ``Rectangle``, but if you prefer giving the same name
 to the wrapper as the C++ class, see the section on 
-:ref:`resolving naming conflicts <resolve-conflicts>`.
+:ref: `resolving naming conflicts <resolve-conflicts>`.
 
 Within, we use cdef to declare a var of the class with the C++ ``new`` statement:
 
@@ -137,7 +137,7 @@ a "default" constructor::
         cdef Foo foo
         ...
         
-See the section on the :ref:`cpp_locals directive` for a way
+See the section on the :ref: `cpp_locals directive` for a way
 to avoid requiring a nullary/default constructor.
 
 Note that, like C++, if the class has only one constructor and it
@@ -166,7 +166,7 @@ attribute access, you could just implement some properties:
 Cython initializes C++ class attributes of a cdef class using the nullary constructor.
 If the class you're wrapping does not have a nullary constructor, you must store a pointer
 to the wrapped class and manually allocate and deallocate it.  Alternatively, the
-:ref:`cpp_locals directive` avoids the need for the pointer and only initializes the
+:ref: `cpp_locals directive` avoids the need for the pointer and only initializes the
 C++ class attribute when it is assigned to.
 A convenient and safe place to do so is in the `__cinit__` and `__dealloc__` methods
 which are guaranteed to be called exactly once upon creation and deletion of the Python
@@ -177,7 +177,7 @@ instance.
 Compilation and Importing
 =========================
 
-To compile a Cython module, it is necessary to have a :file:`setup.py` file:
+To compile a Cython module, it is necessary to have a :file: `setup.py` file:
 
 .. literalinclude:: ../../examples/userguide/wrapping_CPlusPlus/setup.py
 
@@ -365,7 +365,7 @@ automatically, which includes recursively converting containers
 inside of containers, e.g. a C++ vector of maps of strings.
 
 Be aware that the conversions do have some pitfalls, which are
-detailed in :ref:`the troubleshooting section <automatic_conversion_pitfalls>`.
+detailed in :ref: `the troubleshooting section <automatic_conversion_pitfalls>`.
 
 Iteration over stl containers (or indeed any class with ``begin()`` and
 ``end()`` methods returning an object supporting incrementing, dereferencing,
@@ -375,7 +375,7 @@ comprehensions).  For example, one can write:
 .. literalinclude:: ../../examples/userguide/wrapping_CPlusPlus/iterate.pyx
 
 If the loop target variable is unspecified, an assignment from type
-``*container.begin()`` is used for :ref:`type inference <compiler-directives>`.
+``*container.begin()`` is used for :ref: `type inference <compiler-directives>`.
 
 .. note::
 
@@ -522,7 +522,7 @@ created using the Python C API. ::
         def raise_exception(self):
             self.c_obj.raise_exception()
 
-The above example leverages Cython's ability to include :ref:`verbatim C code
+The above example leverages Cython's ability to include :ref: `verbatim C code
 <verbatim_c>` in pxd files to create a new Python exception type
 ``CustomLogicError`` and map it to the standard C++ ``std::logic_error`` using
 the ``custom_exception_handler`` function. There is nothing special about using
@@ -588,7 +588,7 @@ caller's syntax.
 Scoped Enumerations
 -------------------
 
-Cython supports scoped enumerations (:keyword:`enum class`) in C++ mode::
+Cython supports scoped enumerations (:keyword: `enum class`) in C++ mode::
 
     cdef enum class Cheese:
         cheddar = 1
@@ -611,7 +611,7 @@ with an underlying type::
 	    y = 20
 	    ...
 
-Declaring an enum class as ``cpdef`` will create a :pep:`435`-style Python wrapper.
+Declaring an enum class as ``cpdef`` will create a :pep: `435`-style Python wrapper.
 
 ``auto`` Keyword
 ----------------
@@ -619,7 +619,7 @@ Declaring an enum class as ``cpdef`` will create a :pep:`435`-style Python wrapp
 Though Cython does not have an ``auto`` keyword, Cython local variables
 not explicitly typed with ``cdef`` are deduced from the types of the right hand
 side of *all* their assignments (see the ``infer_types``
-:ref:`compiler directive <compiler-directives>`).  This is particularly handy
+:ref: `compiler directive <compiler-directives>`).  This is particularly handy
 when dealing with functions that return complicated, nested, templated types,
 e.g.::
 
@@ -655,7 +655,7 @@ Specify C++ language in setup.py
 ================================
 
 Instead of specifying the language and the sources in the source files, it is
-possible to declare them in the :file:`setup.py` file::
+possible to declare them in the :file: `setup.py` file::
 
    from setuptools import setup
    from Cython.Build import cythonize
@@ -666,12 +666,12 @@ possible to declare them in the :file:`setup.py` file::
               language="c++",             # generate C++ code
          ))
 
-Cython will generate and compile the :file:`rect.cpp` file (from
-:file:`rect.pyx`), then it will compile :file:`Rectangle.cpp`
+Cython will generate and compile the :file: `rect.cpp` file (from
+:file: `rect.pyx`), then it will compile :file: `Rectangle.cpp`
 (implementation of the ``Rectangle`` class) and link both object files
-together into :file:`rect.so` on Linux, or :file:`rect.pyd` on windows,
+together into :file: `rect.so` on Linux, or :file: `rect.pyd` on windows,
 which you can then import in Python using
-``import rect`` (if you forget to link the :file:`Rectangle.o`, you will
+``import rect`` (if you forget to link the :file: `Rectangle.o`, you will
 get missing symbols while importing the library in Python).
 
 Note that the ``language`` option has no effect on user provided Extension
@@ -680,7 +680,7 @@ found by file name (as in the example above).
 
 The ``cythonize()`` function in Cython versions up to 0.21 does not
 recognize the ``language`` option and it needs to be specified as an
-option to an :class:`Extension` that describes your extension and that
+option to an :class: `Extension` that describes your extension and that
 is then handled by ``cythonize()`` as follows::
 
    from setuptools import Extension, setup
@@ -708,7 +708,7 @@ version 0.17, Cython also allows passing external source files into the
 
 And in the .pyx source file, write this into the first comment block, before
 any source code, to compile it in C++ mode and link it statically against the
-:file:`Rectangle.cpp` code file::
+:file: `Rectangle.cpp` code file::
 
    # distutils: language = c++
    # distutils: sources = Rectangle.cpp
@@ -717,7 +717,7 @@ any source code, to compile it in C++ mode and link it statically against the
 
      When using distutils directives, the paths are relative to the working
      directory of the setuptools run (which is usually the project root where
-     the :file:`setup.py` resides).
+     the :file: `setup.py` resides).
 
 To compile manually (e.g. using ``make``), the ``cython`` command-line
 utility can be used to generate a C++ ``.cpp`` file, and then compile it
