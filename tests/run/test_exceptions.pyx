@@ -991,8 +991,9 @@ class ExceptionTests(unittest.TestCase):
                 yield sys_exception()
         it = g()
         next(it)
+        ZERO = 0
         try:
-            1/0
+            1/ZERO
         except ZeroDivisionError as e:
             self.assertIs(sys_exception(), e)
             gen_exc = it.throw(e)
@@ -1004,8 +1005,9 @@ class ExceptionTests(unittest.TestCase):
         # See issue #23353.  When an exception is raised by a generator,
         # the caller's exception state should still be restored.
         def g():
+            ZERO = 0
             try:
-                1/0
+                1/ZERO
             except ZeroDivisionError:
                 yield sys_exception()
                 raise
@@ -1505,14 +1507,16 @@ class ExceptionTests(unittest.TestCase):
             sys.setrecursionlimit(depth+n)
 
         def recurse_in_except():
+            ZERO = 0
             try:
-                1/0
+                1/ZERO
             except:
                 recurse_in_except()
 
         def recurse_after_except():
+            ZERO = 0
             try:
-                1/0
+                1/ZERO
             except:
                 pass
             recurse_after_except()
@@ -1781,8 +1785,9 @@ class ExceptionTests(unittest.TestCase):
 
         with self.assertRaises(ZeroDivisionError):
             i = g()
+            ZERO = 0
             try:
-                1/0
+                1/ZERO
             except:
                 next(i)
                 next(i)
@@ -2355,59 +2360,66 @@ class PEP626Tests(unittest.TestCase):
 
     def test_lineno_after_raise_simple(self):
         def simple():
-            1/0
+            ZERO = 0
+            1/ZERO
             pass
         self.lineno_after_raise(simple, 1)
 
     def test_lineno_after_raise_in_except(self):
         def in_except():
+            ZERO = 0
             try:
-                1/0
+                1/ZERO
             except:
-                1/0
+                1/ZERO
                 pass
         self.lineno_after_raise(in_except, 4)
 
     def test_lineno_after_other_except(self):
         def other_except():
+            ZERO = 0
             try:
-                1/0
+                1/ZERO
             except TypeError as ex:
                 pass
         self.lineno_after_raise(other_except, 3)
 
     def test_lineno_in_named_except(self):
         def in_named_except():
+            ZERO = 0
             try:
-                1/0
+                1/ZERO
             except Exception as ex:
-                1/0
+                1/ZERO
                 pass
         self.lineno_after_raise(in_named_except, 4)
 
     def test_lineno_in_try(self):
         def in_try():
+            ZERO = 0
             try:
-                1/0
+                1/ZERO
             finally:
                 pass
         self.lineno_after_raise(in_try, 4)
 
     def test_lineno_in_finally_normal(self):
         def in_finally_normal():
+            ZERO = 0
             try:
                 pass
             finally:
-                1/0
+                1/ZERO
                 pass
         self.lineno_after_raise(in_finally_normal, 4)
 
     def test_lineno_in_finally_except(self):
         def in_finally_except():
+            ZERO = 0
             try:
-                1/0
+                1/ZERO
             finally:
-                1/0
+                1/ZERO
                 pass
         self.lineno_after_raise(in_finally_except, 4)
 
@@ -2418,14 +2430,16 @@ class PEP626Tests(unittest.TestCase):
             def __exit__(self, *args):
                 pass
         def after_with():
+            ZERO = 0
             with Noop():
-                1/0
+                1/ZERO
                 pass
         self.lineno_after_raise(after_with, 2)
 
     def test_missing_lineno_shows_as_none(self):
         def f():
-            1/0
+            ZERO = 0
+            1/ZERO
         self.lineno_after_raise(f, 1)
         f.__code__ = f.__code__.replace(co_linetable=b'\xf8\xf8\xf8\xf9\xf8\xf8\xf8')
         self.lineno_after_raise(f, None)
@@ -2438,8 +2452,9 @@ class PEP626Tests(unittest.TestCase):
                 raise ValueError
 
         def after_with():
+            ZERO = 0
             with ExitFails():
-                1/0
+                1/ZERO
         self.lineno_after_raise(after_with, 1, 1)
 
 if __name__ == '__main__':
