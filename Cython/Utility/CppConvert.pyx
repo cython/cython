@@ -40,7 +40,7 @@ cdef inline object {{cname.replace("PyObject", py_type, 1)}}(const string& s):
 cdef extern from *:
     cdef cppclass vector "std::vector" [T]:
         void push_back(T&) except +
-        void reserve(size_t)
+        void reserve(size_t) except +
 
     cdef Py_ssize_t PyObject_LengthHint(object o, Py_ssize_t defaultval)
 
