@@ -140,6 +140,32 @@ def test_generator_to_vector():
     g = (x for x in [1, 2, 3])
     return takes_vector(g)
 
+class LengthlessIterable(object):
+    def __getitem__(self, pos):
+        if pos == 3:
+            raise StopIteration()
+        return pos+1
+
+class LengthlessIterableRaises(LengthlessIterable):
+    def __length_hint__():
+        raise Exception('__length_hint__ called')
+
+def test_iterable_to_vector():
+    """
+    >>> test_generator_to_vector()
+    [1, 2, 3]
+    """
+    i = LengthlessIterable()
+    return takes_vector(i)
+
+def test_iterable_raises_to_vector():
+    """
+    >>> test_generator_to_vector()
+    [1, 2, 3]
+    """
+    i = LengthlessIterableRaises()
+    return takes_vector(i)
+
 def test_string_vector(s):
     """
     >>> list(map(decode, test_string_vector('ab cd ef gh'.encode('ascii'))))
