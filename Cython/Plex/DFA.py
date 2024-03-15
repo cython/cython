@@ -10,8 +10,12 @@ from . import Machines
 from .Machines import LOWEST_PRIORITY
 from .Transitions import TransitionMap
 
-from cython.cimports.Cython.Plex.Machines import Node, FastMachine
-from cython.cimports.Cython.Plex.Transitions import TransitionMap as type_TransitionMap
+if cython.compiled:
+    from cython.cimports.Cython.Plex.Machines import Node, FastMachine
+    from cython.cimports.Cython.Plex.Transitions import TransitionMap as type_TransitionMap
+else:
+    from Cython.Plex.Machines import Node, FastMachine
+    from Cython.Plex.Transitions import TransitionMap as type_TransitionMap
 
 
 def nfa_to_dfa(old_machine, debug=None):
