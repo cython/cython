@@ -625,8 +625,8 @@ class CythonPyCImporter:
             sys.modules[name] = module
             return module.__spec__
 
-        from importlib.util import find_spec
-        spec = find_spec(module_name)
+        from importlib.machinery import PathFinder
+        spec = PathFinder.find_spec(module_name, import_path, target_module)
         return spec
 
 
