@@ -36,14 +36,14 @@ Defining external declarations
 You can download CAlg `here <https://codeload.github.com/fragglet/c-algorithms/zip/master>`_.
 
 The C API of the queue implementation, which is defined in the header
-file :file:`c-algorithms/src/queue.h`, essentially looks like this:
+file :file: `c-algorithms/src/queue.h`, essentially looks like this:
 
 .. literalinclude:: ../../examples/tutorial/clibraries/c-algorithms/src/queue.h
     :language: C
     :caption: queue.h
 
 To get started, the first step is to redefine the C API in a ``.pxd``
-file, say, :file:`cqueue.pxd`:
+file, say, :file: `cqueue.pxd`:
 
 .. literalinclude:: ../../examples/tutorial/clibraries/cqueue.pxd
     :caption: cqueue.pxd
@@ -105,14 +105,14 @@ Writing a wrapper class
 
 After declaring our C library's API, we can start to design the Queue
 class that should wrap the C queue.  It will live in a file called
-:file:`queue.pyx`/:file:`queue.py`. [#]_
+:file: `queue.pyx`/:file: `queue.py`. [#]_
 
 .. [#] Note that the name of the ``.pyx``/``.py`` file must be different from
-       the :file:`cqueue.pxd` file with declarations from the C library,
+       the :file: `cqueue.pxd` file with declarations from the C library,
        as both do not describe the same code.  A ``.pxd`` file next to
        a ``.pyx``/``.py`` file with the same name defines exported
        declarations for code in the ``.pyx``/``.py`` file.  As the
-       :file:`cqueue.pxd` file contains declarations of a regular C
+       :file: `cqueue.pxd` file contains declarations of a regular C
        library, there must not be a ``.pyx``/``.py`` file with the same name
        that Cython associates with it.
 
@@ -249,7 +249,7 @@ Here is the most basic script for compiling a Cython module
 
 To build against the external C library, we need to make sure Cython finds the necessary libraries.
 There are two ways to archive this. First we can tell setuptools where to find
-the c-source to compile the :file:`queue.c` implementation automatically. Alternatively,
+the c-source to compile the :file: `queue.c` implementation automatically. Alternatively,
 we can build and install C-Alg as system library and dynamically link it. The latter is useful
 if other applications also use C-Alg.
 
@@ -257,7 +257,7 @@ if other applications also use C-Alg.
 Static Linking
 ---------------
 
-To build the c-code automatically we need to include compiler directives in :file:`queue.pyx`/:file:`queue.py`
+To build the c-code automatically we need to include compiler directives in :file: `queue.pyx`/:file: `queue.py`
 
 .. tabs::
 
@@ -346,7 +346,7 @@ to install CAlg run:
 
     $ make install
 
-Afterwards the file :file:`/usr/local/lib/libcalg.so` should exist.
+Afterwards the file :file: `/usr/local/lib/libcalg.so` should exist.
 
 .. note::
 
@@ -626,7 +626,7 @@ exception when receiving this exact value.
 By default, the value ``-1`` is used as the exception return value.
 All other return values will be passed through almost
 without a penalty, thus again creating a fast path for 'normal'
-values. See :ref:`error_return_values` for more details.
+values. See :ref: `error_return_values` for more details.
 
 
 Now that the ``peek()`` method is implemented, the ``pop()`` method
@@ -668,7 +668,7 @@ code can use either name)::
 
 Note that this method returns either ``True`` or ``False`` as we
 declared the return type of the ``queue_is_empty()`` function as
-``bint`` in :file:`cqueue.pxd`.
+``bint`` in :file: `cqueue.pxd`.
 
 
 Testing the result
@@ -720,7 +720,7 @@ The following listing shows the complete implementation that uses
             :caption: queue.pyx
 
 Now we can test our Queue implementation using a python script,
-for example here :file:`test_queue.py`:
+for example here :file: `test_queue.py`:
 
 .. literalinclude:: ../../examples/tutorial/clibraries/test_queue.py
 
@@ -762,7 +762,7 @@ predicate.  The API could look as follows::
     int queue_pop_head_until(Queue *queue, predicate_func predicate,
                              void* user_context);
 
-It is normal for C callback functions to have a generic :c:type:`void*`
+It is normal for C callback functions to have a generic :c:type: `void*`
 argument that allows passing any kind of context or state through the
 C-API into the callback function.  We will use this to pass our Python
 predicate function.
@@ -837,9 +837,9 @@ function as follows:
                     raise RuntimeError("an error occurred")
 
 The usual pattern is to first cast the Python object reference into
-a :c:type:`void*` to pass it into the C-API function, and then cast
+a :c:type: `void*` to pass it into the C-API function, and then cast
 it back into a Python object in the C predicate callback function.
-The cast to :c:type:`void*` creates a borrowed reference.  On the cast
+The cast to :c:type: `void*` creates a borrowed reference.  On the cast
 to ``<object>``, Cython increments the reference count of the object
 and thus converts the borrowed reference back into an owned reference.
 At the end of the predicate function, the owned reference goes out

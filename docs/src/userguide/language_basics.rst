@@ -50,11 +50,11 @@ C variable and type definitions
 
 C variables can be declared by
 
-* using the Cython specific :keyword:`cdef` statement,
+* using the Cython specific :keyword: `cdef` statement,
 * using PEP-484/526 type annotations with C data types or
 * using the function ``cython.declare()``.
 
-The :keyword:`cdef` statement and ``declare()`` can define function-local and
+The :keyword: `cdef` statement and ``declare()`` can define function-local and
 module-level variables as well as attributes in classes, but type annotations only
 affect local variables and attributes and are ignored at the module level.
 This is because type annotations are not Cython specific, so Cython keeps
@@ -188,7 +188,7 @@ C array can be declared by adding ``[ARRAY_SIZE]`` to the type of variable:
         cdef int[4] arr1, arr2     # Java style array declaration
 
     Both of them generate the same C code, but the Java style is more
-    consistent with :ref:`memoryviews` and :ref:`fusedtypes`. The C style
+    consistent with :ref: `memoryviews` and :ref: `fusedtypes`. The C style
     declaration is soft-deprecated and it's recommended to use Java style
     declaration instead.
 
@@ -209,7 +209,7 @@ C array can be declared by adding ``[ARRAY_SIZE]`` to the type of variable:
 Structs, Unions, Enums
 ----------------------
 
-In addition to the basic types, C :keyword:`struct`, :keyword:`union` and :keyword:`enum`
+In addition to the basic types, C :keyword: `struct`, :keyword: `union` and :keyword: `enum`
 are supported:
 
 .. tabs::
@@ -234,7 +234,7 @@ the same effect as the C directive ``#pragma pack(1)``::
     space between members that C automatically to ensure that they're aligned in memory
     (see `Wikipedia article <https://en.wikipedia.org/wiki/Data_structure_alignment>`_ for more details).
     The main use is that numpy structured arrays store their data in packed form, so a ``cdef packed struct``
-    can be :ref:`used in a memoryview<using_memoryviews>` to match that.
+    can be :ref: `used in a memoryview<using_memoryviews>` to match that.
 
     Pure python mode does not support packed structs.
 
@@ -255,9 +255,9 @@ Enums are created by ``cdef enum`` statement:
 .. literalinclude:: ../../examples/userguide/language_basics/enum.pyx
 
 
-.. note:: Currently, Pure Python mode does not support enums. (GitHub issue :issue:`4252`)
+.. note:: Currently, Pure Python mode does not support enums. (GitHub issue :issue: `4252`)
 
-Declaring an enum as ``cpdef`` will create a :pep:`435`-style Python wrapper::
+Declaring an enum as ``cpdef`` will create a :pep: `435`-style Python wrapper::
 
     cpdef enum CheeseState:
         hard = 1
@@ -265,7 +265,7 @@ Declaring an enum as ``cpdef`` will create a :pep:`435`-style Python wrapper::
         runny = 3
 
 There is currently no special syntax for defining a constant, but you can use
-an anonymous :keyword:`enum` declaration for this purpose, for example,::
+an anonymous :keyword: `enum` declaration for this purpose, for example,::
 
     cdef enum:
         tons_of_spam = 3
@@ -365,7 +365,7 @@ Note that Cython uses array access for pointer dereferencing, as ``*x`` is not v
 whereas ``x[0]`` is.
 
 Also, the Python types ``list``, ``dict``, ``tuple``, etc. may be used for
-static typing, as well as any user defined :ref:`extension-types`.
+static typing, as well as any user defined :ref: `extension-types`.
 For example
 
 .. tabs::
@@ -456,7 +456,7 @@ Cython supports ``const`` and ``volatile`` `C type qualifiers <https://en.wikipe
 Extension Types
 ---------------
 
-It is also possible to declare :ref:`extension-types` (declared with ``cdef class`` or the ``@cclass`` decorator).
+It is also possible to declare :ref: `extension-types` (declared with ``cdef class`` or the ``@cclass`` decorator).
 Those will have a behaviour very close to python classes (e.g. creating subclasses),
 but access to their members is faster from Cython code. Typing a variable
 as extension type is mostly used to access ``cdef``/``@cfunc`` methods and attributes of the extension type.
@@ -475,14 +475,14 @@ Here is a simple example:
 
         .. literalinclude:: ../../examples/userguide/extension_types/shrubbery.pyx
 
-You can read more about them in :ref:`extension-types`.
+You can read more about them in :ref: `extension-types`.
 
 
 Grouping multiple C declarations
 --------------------------------
 
-If you have a series of declarations that all begin with :keyword:`cdef`, you
-can group them into a :keyword:`cdef` block like this:
+If you have a series of declarations that all begin with :keyword: `cdef`, you
+can group them into a :keyword: `cdef` block like this:
 
 .. note:: This is supported only in Cython's ``cdef`` syntax.
 
@@ -498,10 +498,10 @@ Python functions vs. C functions
 
 There are two kinds of function definition in Cython:
 
-Python functions are defined using the :keyword:`def` statement, as in Python. They take
-:term:`Python objects<Python object>` as parameters and return Python objects.
+Python functions are defined using the :keyword: `def` statement, as in Python. They take
+:term: `Python objects<Python object>` as parameters and return Python objects.
 
-C functions are defined using the :keyword:`cdef` statement in Cython syntax or with the ``@cfunc`` decorator. They take
+C functions are defined using the :keyword: `cdef` statement in Cython syntax or with the ``@cfunc`` decorator. They take
 either Python objects or C values as parameters, and can return either Python
 objects or C values.
 
@@ -509,7 +509,7 @@ Within a Cython module, Python functions and C functions can call each other
 freely, but only Python functions can be called from outside the module by
 interpreted Python code. So, any functions that you want to "export" from your
 Cython module must be declared as Python functions using ``def``.
-There is also a hybrid function, declared with :keyword:`cpdef` in ``.pyx``
+There is also a hybrid function, declared with :keyword: `cpdef` in ``.pyx``
 files or with the ``@ccall`` decorator.  These functions
 can be called from anywhere, but use the faster C calling convention
 when being called from other Cython code. They can also be overridden
@@ -601,14 +601,14 @@ with string attributes if they are to be used after the function returns.
 C functions, on the other hand, can have parameters of any type, since they're
 passed in directly using a normal C function call.
 
-C Functions declared using :keyword:`cdef` or the ``@cfunc`` decorator with a
-Python object return type, like Python functions, will return a :keyword:`None`
+C Functions declared using :keyword: `cdef` or the ``@cfunc`` decorator with a
+Python object return type, like Python functions, will return a :keyword: `None`
 value when execution leaves the function body without an explicit return value. This is in
 contrast to C/C++, which leaves the return value undefined.
-In the case of non-Python object return types, the equivalent of zero is returned, for example, 0 for ``int``, :keyword:`False` for ``bint`` and :keyword:`NULL` for pointer types.
+In the case of non-Python object return types, the equivalent of zero is returned, for example, 0 for ``int``, :keyword: `False` for ``bint`` and :keyword: `NULL` for pointer types.
 
 A more complete comparison of the pros and cons of these different method
-types can be found at :ref:`early-binding-for-speed`.
+types can be found at :ref: `early-binding-for-speed`.
 
 
 Python objects as parameters and return values
@@ -779,7 +779,7 @@ parameters and has two required keyword parameters.
 Function Pointers
 -----------------
 
-.. note:: Pointers to functions are currently not supported by pure Python mode. (GitHub issue :issue:`4279`)
+.. note:: Pointers to functions are currently not supported by pure Python mode. (GitHub issue :issue: `4279`)
 
 The following example shows declaring a ``ptr_add`` function pointer and assigning the ``add`` function to it:
 
@@ -790,7 +790,7 @@ Functions declared in a ``struct`` are automatically converted to function point
 .. literalinclude:: ../../examples/userguide/language_basics/function_pointer_struct.pyx
 
 For using error return values with function pointers, see the note at the bottom
-of :ref:`error_return_values`.
+of :ref: `error_return_values`.
 
 
 .. _error_return_values:
@@ -843,7 +843,7 @@ occurred and can now process or propagate it. Calling ``spam()`` is roughly tran
     if (ret_val == -1) goto error_handler;
 
 When you declare an exception value for a function, you should never explicitly
-or implicitly return that value.  This includes empty :keyword:`return`
+or implicitly return that value.  This includes empty :keyword: `return`
 statements, without a return value, for which Cython inserts the default return
 value (e.g. ``0`` for C number types).  In general, exception return values
 are best chosen from invalid or very unlikely return values of the function,
@@ -877,7 +877,7 @@ form of exception value declaration
 
         The ``?`` indicates that the value ``-1`` **may** signal an error.
 
-In this case, Cython generates a call to :c:func:`PyErr_Occurred` if the exception value
+In this case, Cython generates a call to :c:func: `PyErr_Occurred` if the exception value
 is returned, to make sure it really received an exception and not just a normal
 result. Calling ``spam()`` is roughly translated to the following C code:
 
@@ -907,7 +907,7 @@ There is also a third form of exception value declaration
             cdef void spam() except *:
                 ...
 
-This form causes Cython to generate a call to :c:func:`PyErr_Occurred` after
+This form causes Cython to generate a call to :c:func: `PyErr_Occurred` after
 *every* call to spam, regardless of what value it returns. Calling ``spam()`` is roughly translated to the following C code:
 
 .. code-block:: C
@@ -927,7 +927,7 @@ An external C++ function that may raise an exception can be declared with::
 
 .. note:: These declarations are not used in Python code, only in ``.pxd``  and ``.pyx`` files.
 
-See :ref:`wrapping-cplusplus` for more details.
+See :ref: `wrapping-cplusplus` for more details.
 
 Finally, if you are certain that your function should not raise an exception, (e.g., it
 does not use Python objects at all, or you plan to use it as a callback in C code that
@@ -978,10 +978,10 @@ Some things to note:
 
       int (*grail)(int, char*) except -1
 
-  .. note:: Pointers to functions are currently not supported by pure Python mode. (GitHub issue :issue:`4279`)
+  .. note:: Pointers to functions are currently not supported by pure Python mode. (GitHub issue :issue: `4279`)
 
 * If the returning type of a ``cdef`` function with ``except *`` or ``@cython.exceptval(check=True)`` is C integer,
-  enum, float or pointer type, Cython calls :c:func:`PyErr_Occurred` only when
+  enum, float or pointer type, Cython calls :c:func: `PyErr_Occurred` only when
   dedicated value is returned instead of checking after every call of the function.
 
 * You don't need to (and shouldn't) declare exception values for functions
@@ -1010,11 +1010,11 @@ something like::
 
     cdef extern FILE *fopen(char *filename, char *mode) except NULL # WRONG!
 
-and expect an exception to be automatically raised if a call to :func:`fopen`
+and expect an exception to be automatically raised if a call to :func: `fopen`
 returns ``NULL``. The except clause doesn't work that way; its only purpose is
 for propagating Python exceptions that have already been raised, either by a Cython
 function or a C function that calls Python/C API routines. To get an exception
-from a non-Python-aware function such as :func:`fopen`, you will have to check the
+from a non-Python-aware function such as :func: `fopen`, you will have to check the
 return value and raise it yourself, for example:
 
 .. tabs::
@@ -1109,7 +1109,7 @@ possibilities.
    
 .. [#4] The automatic conversion of a struct to a ``dict`` (and vice
    versa) does have some potential pitfalls detailed
-   :ref:`elsewhere in the documentation <automatic_conversion_pitfalls>`.
+   :ref: `elsewhere in the documentation <automatic_conversion_pitfalls>`.
 
 
 Caveats when using a Python string in a C context
@@ -1277,7 +1277,7 @@ or ``cast(MyExtensionType, x, typecheck=True)``.
 In this case, Cython will apply a runtime check that raises a ``TypeError``
 if ``x`` is not an instance of ``MyExtensionType``.
 This tests for the exact class for builtin types,
-but allows subclasses for :ref:`extension-types`.
+but allows subclasses for :ref: `extension-types`.
 
 
 .. _statements_and_expressions:
@@ -1406,8 +1406,8 @@ be made as a Python function call.
 | setattr(obj, name)           | void        | PyObject_SetAttr           |
 +------------------------------+-------------+----------------------------+
 
-Note 1: Pyrex originally provided a function :func:`getattr3(obj, name, default)`
-corresponding to the three-argument form of the Python builtin :func:`getattr()`.
+Note 1: Pyrex originally provided a function :func: `getattr3(obj, name, default)`
+corresponding to the three-argument form of the Python builtin :func: `getattr()`.
 Cython still supports this function, but the usage is deprecated in favour of
 the normal builtin, which Cython can optimise in both forms.
 
@@ -1429,13 +1429,13 @@ Cython recognises the usual Python for-in-range integer loop pattern::
     for i in range(n):
         ...
 
-If ``i`` is declared as a :keyword:`cdef` integer type, it will
+If ``i`` is declared as a :keyword: `cdef` integer type, it will
 optimise this into a pure C loop.  This restriction is required as
 otherwise the generated code wouldn't be correct due to potential
 integer overflows on the target architecture.  If you are worried that
 the loop is not being converted correctly, use the annotate feature of
 the cython commandline (``-a``) to easily see the generated C code.
-See :ref:`automatic-range-conversion`
+See :ref: `automatic-range-conversion`
 
 For backwards compatibility to Pyrex, Cython also supports a more verbose
 form of for-loop which you might find in legacy code::
@@ -1495,10 +1495,10 @@ Though, if one want to use the Cython syntax, using a ``.pyx`` file is necessary
 In addition to the Python syntax, the user can also
 leverage Cython syntax (such as ``cdef``) to use C variables, can
 declare functions as ``cdef`` or ``cpdef`` and can import C definitions
-with :keyword:`cimport`. Many other Cython features usable in implementation files
+with :keyword: `cimport`. Many other Cython features usable in implementation files
 can be found throughout this page and the rest of the Cython documentation.
 
-There are some restrictions on the implementation part of some :ref:`extension-types`
+There are some restrictions on the implementation part of some :ref: `extension-types`
 if the corresponding definition file also defines that type.
 
 .. note::
@@ -1508,7 +1508,7 @@ if the corresponding definition file also defines that type.
     a Cython ``.pyx`` file. You can put inside functions that will be used by
     other Cython modules. This allows different Cython modules to use functions
     and classes from each other without the Python overhead. To read more about
-    what how to do that, you can see :ref:`pxd_files`.
+    what how to do that, you can see :ref: `pxd_files`.
 
 .. _definition_file:
 
@@ -1521,21 +1521,21 @@ Any C declaration can be made, and it can be also a declaration of a C variable 
 function implemented in a C/C++ file. This can be done with ``cdef extern from``.
 Sometimes, ``.pxd`` files are used as a translation of C/C++ header files
 into a syntax that Cython can understand. This allows then the C/C++ variable and
-functions to be used directly in implementation files with :keyword:`cimport`.
-You can read more about it in :ref:`external-C-code` and :ref:`wrapping-cplusplus`.
+functions to be used directly in implementation files with :keyword: `cimport`.
+You can read more about it in :ref: `external-C-code` and :ref: `wrapping-cplusplus`.
 
 It can also contain the definition part of an extension type and the declarations
 of functions for an external library.
 
 It cannot contain the implementations of any C or Python functions, or any
 Python class definitions, or any executable statements. It is needed when one
-wants to  access :keyword:`cdef` attributes and methods, or to inherit from
-:keyword:`cdef` classes defined in this module.
+wants to  access :keyword: `cdef` attributes and methods, or to inherit from
+:keyword: `cdef` classes defined in this module.
 
 .. note::
 
     You don't need to (and shouldn't) declare anything in a declaration file
-    :keyword:`public` in order to make it available to other Cython modules; its mere
+    :keyword: `public` in order to make it available to other Cython modules; its mere
     presence in a definition file does that. You only need a public
     declaration if you want to make something available to external C code.
 
@@ -1546,7 +1546,7 @@ The include statement and include files
 
 .. warning::
     Historically the ``include`` statement was used for sharing declarations.
-    Use :ref:`sharing-declarations` instead.
+    Use :ref: `sharing-declarations` instead.
 
 A Cython source file can include material from other files using the include
 statement, for example,::
@@ -1566,7 +1566,7 @@ of functions or class bodies.
 
     There are other mechanisms available for splitting Cython code into
     separate parts that may be more appropriate in many cases. See
-    :ref:`sharing-declarations`.
+    :ref: `sharing-declarations`.
 
 
 .. _conditional_compilation:
@@ -1583,14 +1583,14 @@ constants within a Cython source file.
     It is very foreign to the Python language and also behaves
     differently from the C preprocessor.  It is often misunderstood by users.
     For the current deprecation status, see https://github.com/cython/cython/issues/4310.
-    For alternatives, see :ref:`deprecated_DEF_IF`.
+    For alternatives, see :ref: `deprecated_DEF_IF`.
 
 .. note::
 
     This feature has very little use cases.  Specifically, it is not a good
     way to adapt code to platform and environment.  Use runtime conditions,
     conditional Python imports, or C compile time adaptation for this.
-    See, for example, :ref:`verbatim_c` or :ref:`resolve-conflicts`.
+    See, for example, :ref: `verbatim_c` or :ref: `resolve-conflicts`.
 
 .. note::
 
@@ -1622,7 +1622,7 @@ statements, combined using any of the Python expression syntax.
     C values in different Python versions.
 
 The following compile-time names are predefined, corresponding to the values
-returned by :func:`os.uname`.  As noted above, they are not considered good ways
+returned by :func: `os.uname`.  As noted above, they are not considered good ways
 to adapt code to different platforms and are mostly provided for legacy reasons.
 
     UNAME_SYSNAME, UNAME_NODENAME, UNAME_RELEASE,

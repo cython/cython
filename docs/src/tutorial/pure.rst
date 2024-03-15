@@ -13,7 +13,7 @@ To go beyond that, Cython provides language constructs to add static typing
 and cythonic functionalities to a Python module to make it run much faster
 when compiled, while still allowing it to be interpreted.
 This is accomplished via an augmenting ``.pxd`` file, via Python
-type :ref:`pep484_type_annotations` (following
+type :ref: `pep484_type_annotations` (following
 `PEP 484 <https://www.python.org/dev/peps/pep-0484/>`_ and
 `PEP 526 <https://www.python.org/dev/peps/pep-0526/>`_), and/or
 via special functions and decorators available after importing the magic
@@ -22,7 +22,7 @@ projects would commonly decide on a specific way to keep the static type
 information easy to manage.
 
 Although it is not typically recommended over writing straight Cython code
-in a :file:`.pyx` file, there are legitimate reasons to do this - easier
+in a :file: `.pyx` file, there are legitimate reasons to do this - easier
 testing and debugging, collaboration with pure Python developers, etc.
 In pure mode, you are more or less restricted to code that can be expressed
 (or at least emulated) in Python, plus static type declarations. Anything
@@ -34,34 +34,34 @@ because it depends on features of the Cython compiler.
 Augmenting .pxd
 ---------------
 
-Using an augmenting :file:`.pxd` allows to let the original :file:`.py` file
+Using an augmenting :file: `.pxd` allows to let the original :file: `.py` file
 completely untouched.  On the other hand, one needs to maintain both the
-:file:`.pxd` and the :file:`.py` to keep them in sync.
+:file: `.pxd` and the :file: `.py` to keep them in sync.
 
-While declarations in a :file:`.pyx` file must correspond exactly with those
-of a :file:`.pxd` file with the same name (and any contradiction results in
-a compile time error, see :doc:`pxd_files`), the untyped definitions in a
-:file:`.py` file can be overridden and augmented with static types by the more
-specific ones present in a :file:`.pxd`.
+While declarations in a :file: `.pyx` file must correspond exactly with those
+of a :file: `.pxd` file with the same name (and any contradiction results in
+a compile time error, see :doc: `pxd_files`), the untyped definitions in a
+:file: `.py` file can be overridden and augmented with static types by the more
+specific ones present in a :file: `.pxd`.
 
-If a :file:`.pxd` file is found with the same name as the :file:`.py` file
-being compiled, it will be searched for :keyword:`cdef` classes and
-:keyword:`cdef`/:keyword:`cpdef` functions and methods.  The compiler will
-then convert the corresponding classes/functions/methods in the :file:`.py`
-file to be of the declared type.  Thus if one has a file :file:`A.py`:
+If a :file: `.pxd` file is found with the same name as the :file: `.py` file
+being compiled, it will be searched for :keyword: `cdef` classes and
+:keyword: `cdef`/:keyword: `cpdef` functions and methods.  The compiler will
+then convert the corresponding classes/functions/methods in the :file: `.py`
+file to be of the declared type.  Thus if one has a file :file: `A.py`:
 
 .. literalinclude:: ../../examples/tutorial/pure/A.py
 
-and adds :file:`A.pxd`:
+and adds :file: `A.pxd`:
 
 .. literalinclude:: ../../examples/tutorial/pure/A.pxd
 
-then Cython will compile the :file:`A.py` as if it had been written as follows:
+then Cython will compile the :file: `A.py` as if it had been written as follows:
 
 .. literalinclude:: ../../examples/tutorial/pure/A_equivalent.pyx
 
 Notice how in order to provide the Python wrappers to the definitions
-in the :file:`.pxd`, that is, to be accessible from Python,
+in the :file: `.pxd`, that is, to be accessible from Python,
 
 * Python visible function signatures must be declared as `cpdef` (with default
   arguments replaced by a `*` to avoid repetition)::
@@ -83,13 +83,13 @@ in the :file:`.pxd`, that is, to be accessible from Python,
 
 
 In the example above, the type of the local variable `a` in `myfunction()`
-is not fixed and will thus be a :term:`Python object`.  To statically type it, one
-can use Cython's ``@cython.locals`` decorator (see :ref:`magic_attributes`,
-and :ref:`magic_attributes_pxd`).
+is not fixed and will thus be a :term: `Python object`.  To statically type it, one
+can use Cython's ``@cython.locals`` decorator (see :ref: `magic_attributes`,
+and :ref: `magic_attributes_pxd`).
 
-Normal Python (:keyword:`def`) functions cannot be declared in :file:`.pxd`
+Normal Python (:keyword: `def`) functions cannot be declared in :file: `.pxd`
 files.  It is therefore currently impossible to override the types of plain
-Python functions in :file:`.pxd` files, e.g. to override types of their local
+Python functions in :file: `.pxd` files, e.g. to override types of their local
 variables.  In most cases, declaring them as `cpdef` will work as expected.
 
 
@@ -103,7 +103,7 @@ be used to add static typing within the Python file, while being ignored
 by the interpreter.
 
 This option adds the ``cython`` module dependency to the original code, but
-does not require to maintain a supplementary :file:`.pxd` file.  Cython
+does not require to maintain a supplementary :file: `.pxd` file.  Cython
 provides a fake version of this module as `Cython.Shadow`, which is available
 as `cython.py` when Cython is installed, but can be copied to be used by other
 modules when Cython is not installed.
@@ -118,7 +118,7 @@ modules when Cython is not installed.
   .. literalinclude:: ../../examples/tutorial/pure/compiled_switch.py
 
   will behave differently depending on whether or not the code is executed as a
-  compiled extension (:file:`.so`/:file:`.pyd`) module or a plain :file:`.py`
+  compiled extension (:file: `.so`/:file: `.pyd`) module or a plain :file: `.py`
   file.
 
 
@@ -126,7 +126,7 @@ Static typing
 ^^^^^^^^^^^^^
 
 * ``cython.declare`` declares a typed variable in the current scope, which can be
-  used in place of the :samp:`cdef type var [= value]` construct. This has two forms,
+  used in place of the :samp: `cdef type var [= value]` construct. This has two forms,
   the first as an assignment (useful as it creates a declaration in interpreted
   mode as well):
 
@@ -186,9 +186,9 @@ Extension types and cdef functions
 
 * The class decorator ``@cython.cclass`` creates a ``cdef class``.
 
-* The function/method decorator ``@cython.cfunc`` creates a :keyword:`cdef` function.
+* The function/method decorator ``@cython.cfunc`` creates a :keyword: `cdef` function.
 
-* ``@cython.ccall`` creates a :keyword:`cpdef` function, i.e. one that Cython code
+* ``@cython.ccall`` creates a :keyword: `cpdef` function, i.e. one that Cython code
   can call at the C level.
 
 * ``@cython.locals`` declares local variables (see above). It can also be used to
@@ -201,7 +201,7 @@ Extension types and cdef functions
   being used as a base class, or a method from being overridden in subtypes.
   This enables certain optimisations such as inlined method calls.
 
-Here is an example of a :keyword:`cdef` function::
+Here is an example of a :keyword: `cdef` function::
 
     @cython.cfunc
     @cython.returns(cython.bint)
@@ -213,7 +213,7 @@ Here is an example of a :keyword:`cdef` function::
 Managing the Global Interpreter Lock
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-* ``cython.nogil`` can be used as a context manager or as a decorator to replace the :keyword:`nogil` keyword::
+* ``cython.nogil`` can be used as a context manager or as a decorator to replace the :keyword: `nogil` keyword::
 
     with cython.nogil:
         # code block with the GIL released
@@ -224,9 +224,9 @@ Managing the Global Interpreter Lock
         # function that can be run with the GIL released
         
   Note that the two uses differ: the context manager releases the GIL while the decorator marks that a
-  function *can* be run without the GIL. See :ref:`<cython_and_gil>` for more details.
+  function *can* be run without the GIL. See :ref: `<cython_and_gil>` for more details.
 
-* ``cython.gil`` can be used as a context manager to replace the :keyword:`gil` keyword::
+* ``cython.gil`` can be used as a context manager to replace the :keyword: `gil` keyword::
 
     with cython.gil:
         # code block with the GIL acquired
@@ -251,7 +251,7 @@ releasing or acquiring the GIL. The condition must be constant (at compile time)
       # code block with the GIL acquired
 
 A common use case for conditionally acquiring and releasing the GIL are fused types
-that allow different GIL handling depending on the specific type (see :ref:`gil_conditional`).
+that allow different GIL handling depending on the specific type (see :ref: `gil_conditional`).
 
 .. py:module:: cython.cimports
 
@@ -338,16 +338,16 @@ Magic Attributes within the .pxd
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 The special `cython` module can also be imported and used within the augmenting
-:file:`.pxd` file. For example, the following Python file :file:`dostuff.py`:
+:file: `.pxd` file. For example, the following Python file :file: `dostuff.py`:
 
 .. literalinclude:: ../../examples/tutorial/pure/dostuff.py
 
-can be augmented with the following :file:`.pxd` file :file:`dostuff.pxd`:
+can be augmented with the following :file: `.pxd` file :file: `dostuff.pxd`:
 
 .. literalinclude:: ../../examples/tutorial/pure/dostuff.pxd
 
-The :func:`cython.declare()` function can be used to specify types for global
-variables in the augmenting :file:`.pxd` file.
+The :func: `cython.declare()` function can be used to specify types for global
+variables in the augmenting :file: `.pxd` file.
 
 .. _pep484_type_annotations:
 
@@ -396,7 +396,7 @@ Disabling annotations
 
 To avoid conflicts with other kinds of annotation
 usages, Cython's use of annotations to specify types can be disabled with the
-``annotation_typing`` :ref:`compiler directive<compiler-directives>`. From Cython 3
+``annotation_typing`` :ref: `compiler directive<compiler-directives>`. From Cython 3
 you can use this as a decorator or a with statement, as shown in the following example:
 
 .. literalinclude:: ../../examples/tutorial/pure/disabled_annotations.py
