@@ -143,16 +143,16 @@ def test_generator_to_vector():
 class LengthlessIterable(object):
     def __getitem__(self, pos):
         if pos == 3:
-            raise StopIteration()
+            raise StopIteration
         return pos+1
 
 class LengthlessIterableRaises(LengthlessIterable):
-    def __length_hint__():
+    def __length_hint__(self):
         raise Exception('__length_hint__ called')
 
 def test_iterable_to_vector():
     """
-    >>> test_generator_to_vector()
+    >>> test_iterable_to_vector()
     [1, 2, 3]
     """
     i = LengthlessIterable()
@@ -160,8 +160,10 @@ def test_iterable_to_vector():
 
 def test_iterable_raises_to_vector():
     """
-    >>> test_generator_to_vector()
-    [1, 2, 3]
+    >>> test_iterable_raises_to_vector()
+    Traceback (most recent call last):
+    ...
+    Exception: __length_hint__ called
     """
     i = LengthlessIterableRaises()
     return takes_vector(i)
