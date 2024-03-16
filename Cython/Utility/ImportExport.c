@@ -175,24 +175,22 @@ static PyObject *__Pyx_Import(PyObject *name, PyObject *from_list, int level) {
     empty_dict = PyDict_New();
     if (unlikely(!empty_dict))
         goto bad;
-    {
-        if (level == -1) {
-            if (strchr(__Pyx_MODULE_NAME, '.') != NULL) {
-                /* try package relative import first */
-                module = PyImport_ImportModuleLevelObject(
-                    name, $moddict_cname, empty_dict, from_list, 1);
-                if (unlikely(!module)) {
-                    if (unlikely(!PyErr_ExceptionMatches(PyExc_ImportError)))
-                        goto bad;
-                    PyErr_Clear();
-                }
-            }
-            level = 0; /* try absolute import on failure */
-        }
-        if (!module) {
+    if (level == -1) {
+        if (strchr(__Pyx_MODULE_NAME, '.') != (NULL)) {
+            /* try package relative import first */
             module = PyImport_ImportModuleLevelObject(
-                name, $moddict_cname, empty_dict, from_list, level);
+                name, $moddict_cname, empty_dict, from_list, 1);
+            if (unlikely(!module)) {
+                if (unlikely(!PyErr_ExceptionMatches(PyExc_ImportError)))
+                    goto bad;
+                PyErr_Clear();
+            }
         }
+        level = 0; /* try absolute import on failure */
+    }
+    if (!module) {
+        module = PyImport_ImportModuleLevelObject(
+            name, $moddict_cname, empty_dict, from_list, level);
     }
 bad:
     Py_XDECREF(empty_dict);

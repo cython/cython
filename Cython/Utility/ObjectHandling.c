@@ -2107,7 +2107,7 @@ static int __Pyx_VectorcallBuilder_AddArgStr(const char *key, PyObject *value, P
     return __Pyx_VectorcallBuilder_AddArg(pyKey, value, builder, args, n);
 }
 #else // CYTHON_VECTORCALL
-CYTHON_UNUSED static int __Pyx_VectorcallBuilder_AddArg_Check(PyObject *key, PyObject *value, PyObject *builder, PyObject **args, int n) {
+CYTHON_UNUSED static int __Pyx_VectorcallBuilder_AddArg_Check(PyObject *key, PyObject *value, PyObject *builder, PyObject **args, CYTHON_UNUSED int n) {
     if (unlikely(!PyUnicode_Check(key))) {
         PyErr_SetString(PyExc_TypeError, "keywords must be strings");
         return -1;

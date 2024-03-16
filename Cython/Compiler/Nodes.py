@@ -736,9 +736,10 @@ class CFuncDeclaratorNode(CDeclaratorNode):
                     #   for now.
                     if not env.is_c_class_scope and not isinstance(self.base, CPtrDeclaratorNode):
                         from .ExprNodes import ConstNode
-                        self.exception_value = ConstNode(
-                            self.pos, value=return_type.exception_value, type=return_type)
-            if self.exception_value:
+                        self.exception_value = ConstNode.for_type(
+                            self.pos, value=str(return_type.exception_value), type=return_type,
+                            constant_result=return_type.exception_value)
+            if self.exception_value is not None:
                 if self.exception_check == '+':
                     self.exception_value = self.exception_value.analyse_const_expression(env)
                     exc_val_type = self.exception_value.type
@@ -755,9 +756,7 @@ class CFuncDeclaratorNode(CDeclaratorNode):
                 else:
                     self.exception_value = self.exception_value.analyse_types(env).coerce_to(
                         return_type, env).analyse_const_expression(env)
-                    exc_val = self.exception_value.get_constant_c_result_code()
-                    if exc_val is None:
-                        error(self.exception_value.pos, "Exception value must be constant")
+                    exc_val = self.exception_value.as_exception_value(env)
                     if not return_type.assignable_from(self.exception_value.type):
                         error(self.exception_value.pos,
                               "Exception value incompatible with function return type")
@@ -2649,7 +2648,7 @@ class CFuncDefNode(FuncDefNode):
                   "Function with optional arguments may not be declared public or api")
 
         if typ.exception_check == '+' and self.visibility != 'extern':
-            if typ.exception_value and typ.exception_value.is_name:
+            if typ.exception_value is not None and typ.exception_value.is_name:
                 # it really is impossible to reason about what the user wants to happens
                 # if they've specified a C++ exception translation function. Therefore,
                 # raise an error.
@@ -3120,8 +3119,9 @@ class DefNode(FuncDefNode):
 
         if exception_value is None and cfunc_type.exception_value is not None:
             from .ExprNodes import ConstNode
-            exception_value = ConstNode(
-                self.pos, value=cfunc_type.exception_value, type=cfunc_type.return_type)
+            exception_value = ConstNode.for_type(
+                self.pos, value=str(cfunc_type.exception_value), type=cfunc_type.return_type,
+                constant_result=cfunc_type.exception_value)
         declarator = CFuncDeclaratorNode(self.pos,
                                          base=CNameDeclaratorNode(self.pos, name=self.name, cname=None),
                                          args=self.args,

@@ -7,6 +7,9 @@ from ..Builtin import (
     builtin_scope,
 )
 
+from ..Code import (
+    KNOWN_PYTHON_BUILTINS_VERSION, KNOWN_PYTHON_BUILTINS,
+)
 
 class TestBuiltinReturnTypes(unittest.TestCase):
     def test_find_return_type_of_builtin_method(self):
@@ -30,3 +33,18 @@ class TestBuiltinReturnTypes(unittest.TestCase):
                         self.assertTrue(hasattr(py_type, method_name), f"{type_name}.{method_name}")
                 else:
                     self.assertEqual(return_type.empty_declaration_code(pyrex=True), return_type_name)
+
+class TestBuiltinCompatibility(unittest.TestCase):
+    def test_python_builtin_compatibility(self):
+        expected_builtins = set(KNOWN_PYTHON_BUILTINS)
+        if sys.platform != 'win32':
+            expected_builtins.discard("WindowsError")
+        runtime_builtins = frozenset(
+            name for name in dir(builtins)
+            if name not in ('__doc__', '__loader__', '__name__', '__package__', '__spec__'))
+        if sys.version_info < KNOWN_PYTHON_BUILTINS_VERSION:
+            missing_builtins = expected_builtins - runtime_builtins
+            if missing_builtins:
+                self.skipTest(f'skipping test, older Python release found. Missing builtins: {", ".join(sorted(missing_builtins))}')
+            self.skipTest('skipping test, older Python release found.')
+        self.assertSetEqual(runtime_builtins, expected_builtins)

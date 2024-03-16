@@ -1110,6 +1110,43 @@ This will override the default directives as specified in the ``compiler_directi
 Note that explicit per-file or local directives as explained above take precedence over the
 values passed to ``cythonize``.
 
+.. _cline_in_traceback:
+
+C line numbers in tracebacks
+============================
+
+To provide more detailed debug information, Python tracebacks of Cython modules
+show the C line where the exception originated (or was propagated). This feature is not
+entirely for free and can visibly increase the C compile time as well as adding 0-5% to the
+size of the binary extension module. It is therefore disabled in Cython 3.1 and can be controlled using C macros.
+
+* ``CYTHON_CLINE_IN_TRACEBACK=1`` always shows the C line number in tracebacks,
+* ``CYTHON_CLINE_IN_TRACEBACK=0`` never shows the C line number in tracebacks,
+
+Unless the feature is disabled completely with this macro, there is also support for enabling and disabling
+the feature at runtime, at the before mentioned cost of longer C compile times and larger extension modules.
+This can be configured with the C macro
+
+``CYTHON_CLINE_IN_TRACEBACK_RUNTIME=1``
+  
+To then change the behaviour at runtime, you can import the special module ``cython_runtime``
+after loading a Cython module and set the attribute ``cline_in_traceback`` in that module
+to either true or false to control the behaviour as your Cython code is being run::
+
+    import cython_runtime
+    cython_runtime.cline_in_traceback = True
+    
+    raise ValueError(5)
+
+If both macros are *not* defined by the build setup or ``CFLAGS``, the feature is disabled.
+
+In Cython 3.0 and earlier, the Cython compiler option ``c_line_in_traceback`` (passed as
+an argument to ``cythonize`` in ``setup.py``) or the command
+line argument ``--no-c-in-traceback`` could also be used to disable this feature.
+From Cython 3.1, this is still possible, but should be migrated to using the C macros instead.
+Before Cython 3.1, the ``CYTHON_CLINE_IN_TRACEBACK`` macro already works as described
+but the Cython option is needed to remove the compile-time cost.
+
 C macro defines
 ===============
 
@@ -1154,6 +1191,10 @@ most important to least important:
 ``CYTHON_EXTERN_C``
     Slightly different to the other macros, this controls how ``cdef public``
     functions appear to C++ code. See :ref:`CYTHON_EXTERN_C` for full details.
+
+``CYTHON_CLINE_IN_TRACEBACK``
+    Controls whether C lines numbers appear in tracebacks.
+    See :ref:`cline_in_traceback` for a complete description.
     
 There is a further list of macros which turn off various optimizations or language
 features.  Under normal circumstance Cython enables these automatically based on the

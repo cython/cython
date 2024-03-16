@@ -604,7 +604,7 @@ class CTypedefType(BaseType):
 
     def error_condition(self, result_code):
         if self.typedef_is_external:
-            if self.exception_value:
+            if self.exception_value is not None:
                 condition = "(%s == %s)" % (
                     result_code, self.cast_code(self.exception_value))
                 if self.exception_check:
@@ -2928,7 +2928,7 @@ class CPtrType(CPointerBaseType):
             if self.base_type.pointer_assignable_from_resolved_type(copied_src_type):
                 # the only reason we can't assign is because of exception incompatibility
                 msg = " Exception values are incompatible."
-                if not self.base_type.exception_check and not self.base_type.exception_value:
+                if not self.base_type.exception_check and self.base_type.exception_value is None:
                     if src_name is None:
                         src_name = "the value being assigned"
                     else:
@@ -3091,7 +3091,7 @@ class CFuncType(CType):
         arg_reprs = list(map(repr, self.args))
         if self.has_varargs:
             arg_reprs.append("...")
-        if self.exception_value:
+        if self.exception_value is not None:
             except_clause = " %r" % self.exception_value
         else:
             except_clause = ""
@@ -3325,11 +3325,11 @@ class CFuncType(CType):
             arg_decl_code = "void"
         trailer = ""
         if (pyrex or for_display) and not self.return_type.is_pyobject:
-            if self.exception_value and self.exception_check:
+            if self.exception_value is not None and self.exception_check:
                 trailer = " except? %s" % self.exception_value
-            elif self.exception_value and not self.exception_check:
+            elif self.exception_value is not None and not self.exception_check:
                 trailer = " except %s" % self.exception_value
-            elif not self.exception_value and not self.exception_check:
+            elif self.exception_value is None and not self.exception_check:
                 trailer = " noexcept"
             elif self.exception_check == '+':
                 trailer = " except +"
@@ -3531,7 +3531,7 @@ class CFuncType(CType):
             except_clause = 'except *'
         elif self.return_type.is_pyobject:
             except_clause = ''
-        elif self.exception_value:
+        elif self.exception_value is not None:
             except_clause = ('except? %s' if self.exception_check else 'except %s') % self.exception_value
         else:
             except_clause = 'except *'

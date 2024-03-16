@@ -592,6 +592,21 @@ class ExprNode(Node):
         error(self.pos, "Error in compile-time expression: %s: %s" % (
             e.__class__.__name__, e))
 
+    def as_exception_value(self, env):
+        # Return the constant Python value if possible.
+        # This can be either a Python constant or a string
+        # for types that can't be represented by a Python constant
+        # (e.g. enums)
+        if self.has_constant_result():
+            return self.constant_result
+        # this isn't the preferred fallback because it can end up
+        # hard to distinguish between identical types, e.g. -1.0 vs -1
+        # for floats. However, it lets things like NULL and typecasts work
+        result = self.get_constant_c_result_code()
+        if result is not None:
+            return result
+        error(self.pos, "Exception value must be constant")
+
     # ------------- Declaration Analysis ----------------
 
     def analyse_target_declaration(self, env):
@@ -1294,6 +1309,32 @@ class ConstNode(AtomicExprNode):
     def generate_result_code(self, code):
         pass
 
+    @staticmethod
+    def for_type(pos, value, type, constant_result=constant_value_not_set):
+        cls = ConstNode
+        if type is PyrexTypes.c_null_ptr_type or (
+                (value == "NULL" or value == 0) and type.is_ptr):
+            return NullNode(pos)  # value and type are preset here
+        # char node is deliberately skipped and treated as IntNode
+        elif type.is_int or PyrexTypes.c_bint_type:
+            # use this instead of BoolNode for c_bint_type because
+            # BoolNode handles values differently to most other ConstNode
+            # derivatives (they aren't strings).
+            cls = IntNode
+        elif type.is_float:
+            cls = FloatNode
+        elif type is bytes_type:
+            cls = BytesNode
+        elif type is unicode_type:
+            cls = UnicodeNode
+
+        if cls.type is type:
+            result = cls(pos, value=value, constant_result=constant_result)
+        else:
+            result = cls(pos, value=value, type=type, constant_result=constant_result)
+
+        return result
+
 
 class BoolNode(ConstNode):
     type = PyrexTypes.c_bint_type
@@ -1770,7 +1811,7 @@ class UnicodeNode(ConstNode):
             if StringEncoding.string_contains_lone_surrogates(self.value):
                 # lone (unpaired) surrogates are not really portable and cannot be
                 # decoded by the UTF-8 codec in Py3.3+
-                self.result_code = code.get_py_const(py_object_type, 'ustring')
+                self.result_code = code.get_py_const('ustring')
                 data_cname = code.get_string_const(
                     StringEncoding.BytesLiteral(self.value.encode('unicode_escape')))
                 const_code = code.get_cached_constants_writer(self.result_code)
@@ -2515,6 +2556,8 @@ class NameNode(AtomicExprNode):
                 # if the entry is a member we have to cheat: SetAttr does not work
                 # on types, so we create a descriptor which is then added to tp_dict.
                 setter = '__Pyx_SetItemOnTypeDict'
+                code.globalstate.use_utility_code(
+                    UtilityCode.load_cached("SetItemOnTypeDict", "ExtensionTypes.c"))
             elif entry.scope.is_module_scope:
                 setter = 'PyDict_SetItem'
                 namespace = Naming.moddict_cname
@@ -2537,10 +2580,6 @@ class NameNode(AtomicExprNode):
                 print("...generating disposal code for %s" % rhs)
             rhs.generate_disposal_code(code)
             rhs.free_temps(code)
-            if entry.is_member:
-                # in Py2.6+, we need to invalidate the method cache
-                code.putln("PyType_Modified(%s);" %
-                           entry.scope.parent_type.typeptr_cname)
         else:
             if self.type.is_memoryviewslice:
                 self.generate_acquire_memoryviewslice(rhs, code)
@@ -5780,7 +5819,7 @@ class SliceNode(ExprNode):
     def generate_result_code(self, code):
         if self.is_literal:
             dedup_key = make_dedup_key(self.type, (self,))
-            self.result_code = code.get_py_const(py_object_type, 'slice', cleanup_level=2, dedup_key=dedup_key)
+            self.result_code = code.get_py_const('slice', dedup_key=dedup_key)
             code = code.get_cached_constants_writer(self.result_code)
             if code is None:
                 return  # already initialised
@@ -6363,7 +6402,7 @@ class SimpleCallNode(CallNode):
 
     def is_c_result_required(self):
         func_type = self.function_type()
-        if not func_type.exception_value or func_type.exception_check == '+':
+        if func_type.exception_value is None or func_type.exception_check == '+':
             return False  # skip allocation of unused result temp
         return True
 
@@ -6498,7 +6537,18 @@ class SimpleCallNode(CallNode):
                         goto_error = code.error_goto_if(" && ".join(exc_checks), self.pos)
                     else:
                         goto_error = ""
+                    undo_gh2747_hack = False
+                    if (self.function.is_attribute and
+                            self.function.entry and self.function.entry.final_func_cname and
+                            not code.funcstate.scope.is_cpp()
+                            ):
+                        # Hack around https://github.com/cython/cython/issues/2747
+                        # Disable GCC warnings/errors for wrong self casts.
+                        code.putln('#pragma GCC diagnostic ignored "-Wincompatible-pointer-types"')
+                        undo_gh2747_hack = True
                     code.putln("%s%s; %s" % (lhs, rhs, goto_error))
+                    if undo_gh2747_hack:
+                        code.putln("#pragma GCC diagnostic pop")
                 if self.type.is_pyobject and self.result():
                     self.generate_gotref(code)
             if self.has_optional_args:
@@ -8715,7 +8765,7 @@ class TupleNode(SequenceNode):
             # The "mult_factor" is part of the deduplication if it is also constant, i.e. when
             # we deduplicate the multiplied result.  Otherwise, only deduplicate the constant part.
             dedup_key = make_dedup_key(self.type, [self.mult_factor if self.is_literal else None] + self.args)
-            tuple_target = code.get_py_const(py_object_type, 'tuple', cleanup_level=2, dedup_key=dedup_key)
+            tuple_target = code.get_py_const('tuple', dedup_key=dedup_key)
             const_code = code.get_cached_constants_writer(tuple_target)
             if const_code is not None:
                 # constant is not yet initialised
@@ -10149,8 +10199,8 @@ class InnerFunctionNode(PyCFunctionNode):
 class CodeObjectNode(ExprNode):
     # Create a PyCodeObject for a CyFunction instance.
     #
-    # def_node   DefNode    the Python function node
-    # varnames   TupleNode  a tuple with all local variable names
+    # def_node   DefNode        the Python function node
+    # varnames   [StringNode]   a list of all local variable names
 
     subexprs = ['varnames']
     is_temp = False
@@ -10161,12 +10211,10 @@ class CodeObjectNode(ExprNode):
         args = list(def_node.args)
         # if we have args/kwargs, then the first two in var_entries are those
         local_vars = [arg for arg in def_node.local_scope.var_entries if arg.name]
-        self.varnames = TupleNode(
-            def_node.pos,
-            args=[IdentifierStringNode(arg.pos, value=arg.name)
-                  for arg in args + local_vars],
-            is_temp=0,
-            is_literal=1)
+        self.varnames = [
+            IdentifierStringNode(arg.pos, value=arg.name)
+            for arg in args + local_vars
+        ]
 
     def may_be_none(self):
         return False
@@ -10180,7 +10228,7 @@ class CodeObjectNode(ExprNode):
         if self.result_code is None:
             self.result_code = code.get_py_codeobj_const(self)
 
-    def generate_codeoj_tab_entry(self, code):
+    def generate_codeobj(self, code):
         func = self.def_node
 
         func_name_result = code.get_py_string_const(
@@ -10189,11 +10237,9 @@ class CodeObjectNode(ExprNode):
         file_path = StringEncoding.bytes_literal(func.pos[0].get_filenametable_entry().encode('utf8'), 'utf8')
         file_path_result = code.get_py_string_const(file_path, identifier=False, is_str=True)
 
-        varnames_result = self.varnames.result()
-
-        # This combination makes CPython create a new dict for "frame.f_locals" (see GH #1836).
+        # '(CO_OPTIMIZED | CO_NEWLOCALS)' makes CPython create a new dict for "frame.f_locals".
+        # See https://github.com/cython/cython/pull/1836
         flags = ['CO_OPTIMIZED', 'CO_NEWLOCALS']
-
         if func.star_arg:
             flags.append('CO_VARARGS')
         if func.starstar_arg:
@@ -10205,18 +10251,40 @@ class CodeObjectNode(ExprNode):
         elif func.is_generator:
             flags.append('CO_GENERATOR')
 
-        filename_idx = code.lookup_filename(self.pos[0])
-
         argcount = len(func.args) - func.num_kwonly_args
         num_posonly_args = func.num_posonly_args  # Py3.8+ only
-        kwonlyargcount = func.num_kwonly_args
-        nlocals = len(self.varnames.args)
+        kwonly_argcount = func.num_kwonly_args
+        nlocals = len(self.varnames)
         flags = '|'.join(flags) or '0'
+        first_lineno = self.pos[1]
 
-        s = (f"{filename_idx}, {argcount}, {num_posonly_args}, {kwonlyargcount}, "
-             f"{nlocals}, {flags}, {varnames_result}, {file_path_result},"
-             f"{func_name_result}, {self.pos[1]}")
-        code.putln("{%s}, /* %s */" % (s, self.result_code))
+        # See "generate_codeobject_constants()" in Code.py.
+        code.putln("{")
+        code.putln(
+            "__Pyx_PyCode_New_function_description descr = {"
+            f"{argcount}, "
+            f"{num_posonly_args}, "
+            f"{kwonly_argcount}, "
+            f"{nlocals}, "
+            f"{flags}, "
+            f"{first_lineno}"
+            "};"
+        )
+
+        varnames = [var.py_result() for var in self.varnames] or ['0']
+        code.putln("PyObject* varnames[] = {%s};" % ', '.join(varnames))
+
+        code.putln(
+            f"{self.result_code} = __Pyx_PyCode_New("
+            f"descr, "
+            f"varnames, "
+            f"{file_path_result}, "
+            f"{func_name_result}, "
+            f"tuple_dedup_map"
+            f"); "
+            f"if (unlikely(!{self.result_code})) goto bad;"
+        )
+        code.putln("}")
 
 
 class DefaultLiteralArgNode(ExprNode):

@@ -7,8 +7,6 @@ import re
 import copy
 import operator
 
-import builtins
-
 from ..Utils import try_finally_contextmanager
 from .Errors import warning, error, InternalError
 from .StringEncoding import EncodedString
@@ -1190,7 +1188,7 @@ class BuiltinScope(Scope):
         return Scope.lookup(self, name)
 
     def declare_builtin(self, name, pos):
-        if not hasattr(builtins, name):
+        if name not in Code.KNOWN_PYTHON_BUILTINS:
             if self.outer_scope is not None:
                 return self.outer_scope.declare_builtin(name, pos)
             else:
@@ -1358,8 +1356,8 @@ class ModuleScope(Scope):
         return entry
 
     def declare_builtin(self, name, pos):
-        if not hasattr(builtins, name) \
-               and name not in Code.non_portable_builtins_map \
+        if name not in Code.KNOWN_PYTHON_BUILTINS \
+               and name not in Code.renamed_py2_builtins_map \
                and name not in Code.uncachable_builtins:
             if self.has_import_star:
                 entry = self.declare_var(name, py_object_type, pos)
