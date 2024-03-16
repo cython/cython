@@ -22,6 +22,7 @@ from .StringEncoding import EncodedString
 from .Scanning import PyrexScanner, FileSourceDescriptor
 from .Errors import PyrexError, CompileError, error, warning
 from .Symtab import ModuleScope
+from .Cache import Cache
 from .. import Utils
 from . import Options
 from .Options import CompilationOptions, default_options
@@ -623,9 +624,22 @@ def compile_multiple(sources, options):
     cwd = os.getcwd()
     for source in sources:
         if source not in processed:
+            output_filename = get_output_filename(source, cwd, options)
             if context is None:
                 context = Context.from_options(options)
-            output_filename = get_output_filename(source, cwd, options)
+            cache = Cache(options.cache)
+            if cache.enabled:
+                from ..Build.Dependencies import create_dependency_tree
+                dependencies = create_dependency_tree(context)
+                fingerprint = cache.transitive_fingerprint(
+                        source, dependencies, options, 'c++' if options.cplus else None, np_pythran=options.np_pythran)
+                if cache.lookup_cache(output_filename, fingerprint):
+                    if verbose:
+                        sys.stderr.write(f'Found compiled {os.path.basename(output_filename)} in cache.\n')
+                    continue
+            else:
+                fingerprint = None
+
             out_of_date = context.c_file_out_of_date(source, output_filename)
             if (not timestamps) or out_of_date:
                 if verbose:
@@ -637,7 +651,12 @@ def compile_multiple(sources, options):
                 # Compiling multiple sources in one context doesn't quite
                 # work properly yet.
                 context = None
+
+                if fingerprint:
+                    cache.store_to_cache(fingerprint, output_filename, result)
             processed.add(source)
+    if cache.enabled:
+        cache.cleanup_cache()
     return results
 
 
@@ -653,8 +672,6 @@ def compile(source, options = None, full_module_name = None, **kwds):
     """
     options = CompilationOptions(defaults = options, **kwds)
     if isinstance(source, str):
-        if not options.timestamps:
-            return compile_single(source, options, full_module_name)
         source = [source]
     return compile_multiple(source, options)
 
