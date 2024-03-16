@@ -4562,6 +4562,8 @@ class CTupleType(CType):
 
     is_ctuple = True
 
+    subtypes = ['components']
+
     def __init__(self, cname, components):
         self.cname = cname
         self.components = components
@@ -4646,10 +4648,19 @@ class CTupleType(CType):
     def cast_code(self, expr_code):
         return expr_code
 
+    def specialize(self, values):
+        assert hasattr(self, "entry")
+        components = [c.specialize(values) for c in self.components]
+        new_entry = self.entry.scope.declare_tuple_type(self.entry.pos, components)
+        return new_entry.type
+
 
 def c_tuple_type(components):
     components = tuple(components)
-    cname = Naming.ctuple_type_prefix + type_list_identifier(components)
+    if any(c.is_fused for c in components):
+        cname = "<dummy fused ctuple>" # should never end up in code
+    else:
+        cname = Naming.ctuple_type_prefix + type_list_identifier(components)
     tuple_type = CTupleType(cname, components)
     return tuple_type
 
