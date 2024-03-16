@@ -111,7 +111,6 @@
 
 #endif
 
-  #ifdef WITH_THREAD
   #define __Pyx_TraceCall(funcname, srcfile, firstlineno, nogil, goto_error)             \
   if (nogil) {                                                                           \
       if (CYTHON_TRACE_NOGIL) {                                                          \
@@ -131,15 +130,6 @@
           if (unlikely(__Pyx_use_tracing < 0)) goto_error;                               \
       }                                                                                  \
   }
-  #else
-  #define __Pyx_TraceCall(funcname, srcfile, firstlineno, nogil, goto_error)             \
-  {   PyThreadState* tstate = PyThreadState_GET();                                       \
-      if (__Pyx_IsTracing(tstate, 1, 1)) {                                               \
-          __Pyx_use_tracing = __Pyx_TraceSetupAndCall(&$frame_code_cname, &$frame_cname, tstate, funcname, srcfile, firstlineno);  \
-          if (unlikely(__Pyx_use_tracing < 0)) goto_error;                               \
-      }                                                                                  \
-  }
-  #endif
 
   #define __Pyx_TraceException()                                                           \
   if (likely(!__Pyx_use_tracing)); else {                                                  \
@@ -172,7 +162,6 @@
       __Pyx_ErrRestoreInState(tstate, type, value, traceback);
   }
 
-  #ifdef WITH_THREAD
   #define __Pyx_TraceReturn(result, nogil)                                                \
   if (likely(!__Pyx_use_tracing)); else {                                                 \
       if (nogil) {                                                                        \
@@ -192,15 +181,6 @@
           }                                                                               \
       }                                                                                   \
   }
-  #else
-  #define __Pyx_TraceReturn(result, nogil)                                                \
-  if (likely(!__Pyx_use_tracing)); else {                                                 \
-      PyThreadState* tstate = __Pyx_PyThreadState_Current;                                \
-      if (__Pyx_IsTracing(tstate, 0, 0)) {                                                \
-          __Pyx_call_return_trace_func(tstate, $frame_cname, (PyObject*)result);          \
-      }                                                                                   \
-  }
-  #endif
 
   static PyCodeObject *__Pyx_createFrameCodeObject(const char *funcname, const char *srcfile, int firstlineno); /*proto*/
   static int __Pyx_TraceSetupAndCall(PyCodeObject** code, PyFrameObject** frame, PyThreadState* tstate, const char *funcname, const char *srcfile, int firstlineno); /*proto*/
@@ -238,7 +218,6 @@
       return ret;
   }
 
-  #ifdef WITH_THREAD
   #define __Pyx_TraceLine(lineno, nogil, goto_error)                                       \
   if (likely(!__Pyx_use_tracing)); else {                                                  \
       if (nogil) {                                                                         \
@@ -261,16 +240,6 @@
           }                                                                                \
       }                                                                                    \
   }
-  #else
-  #define __Pyx_TraceLine(lineno, nogil, goto_error)                                       \
-  if (likely(!__Pyx_use_tracing)); else {                                                  \
-      PyThreadState* tstate = __Pyx_PyThreadState_Current;                                 \
-      if (__Pyx_IsTracing(tstate, 0, 0) && tstate->c_tracefunc && $frame_cname->f_trace) { \
-          int ret = __Pyx_call_line_trace_func(tstate, $frame_cname, lineno);              \
-          if (unlikely(ret)) goto_error;                                                   \
-      }                                                                                    \
-  }
-  #endif
 #else
   // mark error label as used to avoid compiler warnings
   #define __Pyx_TraceLine(lineno, nogil, goto_error)   if ((1)); else goto_error;

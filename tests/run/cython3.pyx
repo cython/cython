@@ -671,3 +671,13 @@ async def async_def_annotations(x: 'int') -> 'float':
     'int'
     """
     return float(x)
+
+
+def const_str_index(int n):
+    """
+    >>> const_str_index(0)
+    '0'
+    >>> const_str_index(12)
+    '1'
+    """
+    return str(n)[0]
