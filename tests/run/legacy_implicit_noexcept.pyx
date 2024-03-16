@@ -142,6 +142,10 @@ def test_pure_noexcept():
     """
     func_pure_noexcept()
 
+# extern functions are implicit noexcept, without warning
+cdef extern int extern_fun()
+cdef extern int extern_fun_fun(int (*f)(int))
+
 _WARNINGS = """
 12:5: Unraisable exception in function 'legacy_implicit_noexcept.func_implicit'.
 12:22: Implicit noexcept declaration is deprecated. Function declaration should contain 'noexcept' keyword.
