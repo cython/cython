@@ -6,7 +6,7 @@ import re, sys, time
 from glob import iglob
 from io import open as io_open
 from os.path import relpath as _relpath
-from .Cache import Cache
+from ..Compiler.Cache import Cache
 
 from collections.abc import Iterable
 
