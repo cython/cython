@@ -88,6 +88,8 @@
   #define CYTHON_AVOID_BORROWED_REFS 1
   #undef CYTHON_ASSUME_SAFE_MACROS
   #define CYTHON_ASSUME_SAFE_MACROS 0
+  #undef CYTHON_ASSUME_SAFE_SIZE
+  #define CYTHON_ASSUME_SAFE_SIZE 0
   #undef CYTHON_UNPACK_METHODS
   #define CYTHON_UNPACK_METHODS 0
   #undef CYTHON_FAST_THREAD_STATE
@@ -114,6 +116,8 @@
   #ifndef CYTHON_UPDATE_DESCRIPTOR_DOC
     #define CYTHON_UPDATE_DESCRIPTOR_DOC 0
   #endif
+  #undef CYTHON_USE_FREELISTS
+  #define CYTHON_USE_FREELISTS 0
 
 #elif defined(PYPY_VERSION)
   #define CYTHON_COMPILING_IN_PYPY 1
@@ -144,6 +148,9 @@
   #define CYTHON_AVOID_BORROWED_REFS 1
   #undef CYTHON_ASSUME_SAFE_MACROS
   #define CYTHON_ASSUME_SAFE_MACROS 0
+  #ifndef CYTHON_ASSUME_SAFE_SIZE
+    #define CYTHON_ASSUME_SAFE_SIZE 1
+  #endif
   #undef CYTHON_UNPACK_METHODS
   #define CYTHON_UNPACK_METHODS 0
   #undef CYTHON_FAST_THREAD_STATE
@@ -175,6 +182,8 @@
   #ifndef CYTHON_UPDATE_DESCRIPTOR_DOC
     #define CYTHON_UPDATE_DESCRIPTOR_DOC 0
   #endif
+  #undef CYTHON_USE_FREELISTS
+  #define CYTHON_USE_FREELISTS 0
 
 #elif defined(CYTHON_LIMITED_API)
   // EXPERIMENTAL !!
@@ -214,6 +223,8 @@
   #endif
   #undef CYTHON_ASSUME_SAFE_MACROS
   #define CYTHON_ASSUME_SAFE_MACROS 0
+  #undef CYTHON_ASSUME_SAFE_SIZE
+  #define CYTHON_ASSUME_SAFE_SIZE 0
   #undef CYTHON_UNPACK_METHODS
   #define CYTHON_UNPACK_METHODS 0
   #undef CYTHON_FAST_THREAD_STATE
@@ -242,6 +253,8 @@
   #ifndef CYTHON_UPDATE_DESCRIPTOR_DOC
     #define CYTHON_UPDATE_DESCRIPTOR_DOC 0
   #endif
+  #undef CYTHON_USE_FREELISTS
+  #define CYTHON_USE_FREELISTS 0
 
 #elif defined(Py_GIL_DISABLED) || defined(Py_NOGIL)
   #define CYTHON_COMPILING_IN_PYPY 0
@@ -253,10 +266,16 @@
   #ifndef CYTHON_USE_TYPE_SLOTS
     #define CYTHON_USE_TYPE_SLOTS 1
   #endif
+  #ifndef CYTHON_USE_TYPE_SPECS
+    #define CYTHON_USE_TYPE_SPECS 0
+  #endif
   #undef CYTHON_USE_PYTYPE_LOOKUP
   #define CYTHON_USE_PYTYPE_LOOKUP 0
   #ifndef CYTHON_USE_ASYNC_SLOTS
     #define CYTHON_USE_ASYNC_SLOTS 1
+  #endif
+  #ifndef CYTHON_USE_PYLONG_INTERNALS
+    #define CYTHON_USE_PYLONG_INTERNALS 0
   #endif
   #undef CYTHON_USE_PYLIST_INTERNALS
   #define CYTHON_USE_PYLIST_INTERNALS 0
@@ -265,23 +284,35 @@
   #endif
   #undef CYTHON_USE_UNICODE_WRITER
   #define CYTHON_USE_UNICODE_WRITER 0
-  #undef CYTHON_USE_PYLONG_INTERNALS
-  #define CYTHON_USE_PYLONG_INTERNALS 0
   #ifndef CYTHON_AVOID_BORROWED_REFS
     #define CYTHON_AVOID_BORROWED_REFS 0
   #endif
   #ifndef CYTHON_ASSUME_SAFE_MACROS
     #define CYTHON_ASSUME_SAFE_MACROS 1
   #endif
+  #ifndef CYTHON_ASSUME_SAFE_SIZE
+    #define CYTHON_ASSUME_SAFE_SIZE 1
+  #endif
   #ifndef CYTHON_UNPACK_METHODS
     #define CYTHON_UNPACK_METHODS 1
   #endif
   #undef CYTHON_FAST_THREAD_STATE
   #define CYTHON_FAST_THREAD_STATE 0
+  #undef CYTHON_FAST_GIL
+  #define CYTHON_FAST_GIL 0
+  #ifndef CYTHON_METH_FASTCALL
+    #define CYTHON_METH_FASTCALL 0
+  #endif
   #undef CYTHON_FAST_PYCALL
   #define CYTHON_FAST_PYCALL 0
+  #ifndef CYTHON_PEP487_INIT_SUBCLASS
+    #define CYTHON_PEP487_INIT_SUBCLASS 1
+  #endif
   #ifndef CYTHON_PEP489_MULTI_PHASE_INIT
     #define CYTHON_PEP489_MULTI_PHASE_INIT 1
+  #endif
+  #ifndef CYTHON_USE_MODULE_STATE
+    #define CYTHON_USE_MODULE_STATE 0
   #endif
   #ifndef CYTHON_USE_TP_FINALIZE
     #define CYTHON_USE_TP_FINALIZE 1
@@ -290,6 +321,15 @@
   #define CYTHON_USE_DICT_VERSIONS 0
   #undef CYTHON_USE_EXC_INFO_STACK
   #define CYTHON_USE_EXC_INFO_STACK 0
+  #ifndef CYTHON_UPDATE_DESCRIPTOR_DOC
+    #define CYTHON_UPDATE_DESCRIPTOR_DOC 1
+  #endif
+  #ifndef CYTHON_USE_FREELISTS
+    // TODO - we could probably enable CYTHON_USE_FREELISTS by default in future since
+    // this is just a variant of cpython now, but we'd need to be very careful to make
+    // them thread safe. Since it will probably work, let the user decide.
+    #define CYTHON_USE_FREELISTS 0
+  #endif
 
 #else
   #define CYTHON_COMPILING_IN_PYPY 0
@@ -335,6 +375,10 @@
   #ifndef CYTHON_ASSUME_SAFE_MACROS
     #define CYTHON_ASSUME_SAFE_MACROS 1
   #endif
+  // CYTHON_ASSUME_SAFE_SIZE - Assume that Py*_GET_SIZE() calls do not fail and do not raise exceptions.
+  #ifndef CYTHON_ASSUME_SAFE_SIZE
+    #define CYTHON_ASSUME_SAFE_SIZE 1
+  #endif
   #ifndef CYTHON_UNPACK_METHODS
     #define CYTHON_UNPACK_METHODS 1
   #endif
@@ -378,6 +422,9 @@
   #ifndef CYTHON_UPDATE_DESCRIPTOR_DOC
     #define CYTHON_UPDATE_DESCRIPTOR_DOC 1
   #endif
+  #ifndef CYTHON_USE_FREELISTS
+    #define CYTHON_USE_FREELISTS 1
+  #endif
 #endif
 
 #ifndef CYTHON_FAST_PYCCALL
@@ -385,11 +432,26 @@
 #endif
 
 #ifndef CYTHON_VECTORCALL
+#if CYTHON_COMPILING_IN_LIMITED_API
+// Possibly needs a bit of clearing up, however:
+//  the limited API doesn't define CYTHON_FAST_PYCCALL (because that involves
+//  a lot of access to internals) but does define CYTHON_VECTORCALL because
+//  that's available cleanly from Python 3.12. Note that only VectorcallDict isn't
+//  available though.
+#define CYTHON_VECTORCALL  (__PYX_LIMITED_VERSION_HEX >= 0x030C0000)
+#else
 #define CYTHON_VECTORCALL  (CYTHON_FAST_PYCCALL && PY_VERSION_HEX >= 0x030800B1)
+#endif
 #endif
 
 /* Whether to use METH_FASTCALL with a fake backported implementation of vectorcall */
 #define CYTHON_BACKPORT_VECTORCALL (CYTHON_METH_FASTCALL && PY_VERSION_HEX < 0x030800B1)
+
+#if !defined(__Pyx_TEST_large_func_pointers)
+// This can be defined to force an alternate code-path for testing purposes
+// There's no other reason to use it
+#define __Pyx_TEST_large_func_pointers 0
+#endif
 
 #if CYTHON_USE_PYLONG_INTERNALS
   /* These short defines from the PyLong header can easily conflict with other code */
@@ -645,81 +707,6 @@ class __Pyx_FakeReference {
 #define __Pyx_DefaultClassType PyType_Type
 
 #if CYTHON_COMPILING_IN_LIMITED_API
-    // Note that the limited API doesn't know about PyCodeObject, so the type of this
-    // is PyObject (unlike for the main API)
-    static CYTHON_INLINE PyObject* __Pyx_PyCode_New(int a, int p, int k, int l, int s, int f,
-                                                    PyObject *code, PyObject *c, PyObject* n, PyObject *v,
-                                                    PyObject *fv, PyObject *cell, PyObject* fn,
-                                                    PyObject *name, int fline, PyObject *lnos) {
-        // Backout option for generating a code object.
-        // PyCode_NewEmpty isn't in the limited API. Therefore the two options are
-        //  1. Python call of the code type with a long list of positional args.
-        //  2. Generate a code object by compiling some trivial code, and customize.
-        // We use the second because it's less sensitive to changes in the code type
-        // constructor with version.
-        PyObject *exception_table = NULL;
-        PyObject *types_module=NULL, *code_type=NULL, *result=NULL;
-        #if __PYX_LIMITED_VERSION_HEX < 0x030B0000
-        PyObject *version_info; // borrowed
-        PyObject *py_minor_version = NULL;
-        #endif
-        long minor_version = 0;
-        PyObject *type, *value, *traceback;
-
-        // we must be able to call this while an exception is happening - thus clear then restore the state
-        PyErr_Fetch(&type, &value, &traceback);
-
-        #if __PYX_LIMITED_VERSION_HEX >= 0x030B0000
-        minor_version = 11; // we don't yet need to distinguish between versions > 11
-        // Note that from 3.13, when we do we can use Py_Version
-        #else
-        if (!(version_info = PySys_GetObject("version_info"))) goto end;
-        if (!(py_minor_version = PySequence_GetItem(version_info, 1))) goto end;
-        minor_version = PyLong_AsLong(py_minor_version);
-        Py_DECREF(py_minor_version);
-        if (minor_version == -1 && PyErr_Occurred()) goto end;
-        #endif
-
-        if (!(types_module = PyImport_ImportModule("types"))) goto end;
-        if (!(code_type = PyObject_GetAttrString(types_module, "CodeType"))) goto end;
-
-        if (minor_version <= 7) {
-            // 3.7:
-            // code(argcount, kwonlyargcount, nlocals, stacksize, flags, codestring,
-            //        constants, names, varnames, filename, name, firstlineno,
-            //        lnotab[, freevars[, cellvars]])
-            (void)p;
-            result = PyObject_CallFunction(code_type, "iiiiiOOOOOOiOO", a, k, l, s, f, code,
-                          c, n, v, fn, name, fline, lnos, fv, cell);
-        } else if (minor_version <= 10) {
-            // 3.8, 3.9, 3.10
-            // code(argcount, posonlyargcount, kwonlyargcount, nlocals, stacksize,
-            //    flags, codestring, constants, names, varnames, filename, name,
-            //    firstlineno, lnotab[, freevars[, cellvars]])
-            // 3.10 switches lnotab for linetable, but is otherwise the same
-            result = PyObject_CallFunction(code_type, "iiiiiiOOOOOOiOO", a,p, k, l, s, f, code,
-                          c, n, v, fn, name, fline, lnos, fv, cell);
-        } else {
-            // 3.11, 3.12
-            // code(argcount, posonlyargcount, kwonlyargcount, nlocals, stacksize,
-            //    flags, codestring, constants, names, varnames, filename, name,
-            //    qualname, firstlineno, linetable, exceptiontable, freevars=(), cellvars=(), /)
-            // We use name and qualname for simplicity
-            if (!(exception_table = PyBytes_FromStringAndSize(NULL, 0))) goto end;
-            result = PyObject_CallFunction(code_type, "iiiiiiOOOOOOOiOO", a,p, k, l, s, f, code,
-                          c, n, v, fn, name, name, fline, lnos, exception_table, fv, cell);
-        }
-
-    end:
-        Py_XDECREF(code_type);
-        Py_XDECREF(exception_table);
-        Py_XDECREF(types_module);
-        if (type) {
-            PyErr_Restore(type, value, traceback);
-        }
-        return result;
-    }
-
     // Cython uses these constants but they are not available in the limited API.
     // (it'd be nice if there was a more robust way of looking these up)
     #ifndef CO_OPTIMIZED
@@ -743,33 +730,6 @@ class __Pyx_FakeReference {
     #ifndef CO_COROUTINE
     #define CO_COROUTINE 0x0080
     #endif
-#elif PY_VERSION_HEX >= 0x030B0000
-  static CYTHON_INLINE PyCodeObject* __Pyx_PyCode_New(int a, int p, int k, int l, int s, int f,
-                                                    PyObject *code, PyObject *c, PyObject* n, PyObject *v,
-                                                    PyObject *fv, PyObject *cell, PyObject* fn,
-                                                    PyObject *name, int fline, PyObject *lnos) {
-    // As earlier versions, but
-    //  1. pass an empty bytes string as exception_table
-    //  2. pass name as qualname (TODO this might implementing properly in future)
-    PyCodeObject *result;
-    PyObject *empty_bytes = PyBytes_FromStringAndSize("", 0);  // we don't have access to __pyx_empty_bytes here
-    if (!empty_bytes) return NULL;
-    result =
-      #if PY_VERSION_HEX >= 0x030C0000
-        PyUnstable_Code_NewWithPosOnlyArgs
-      #else
-        PyCode_NewWithPosOnlyArgs
-      #endif
-        (a, p, k, l, s, f, code, c, n, v, fv, cell, fn, name, name, fline, lnos, empty_bytes);
-    Py_DECREF(empty_bytes);
-    return result;
-  }
-#elif PY_VERSION_HEX >= 0x030800B2 && !CYTHON_COMPILING_IN_PYPY
-  #define __Pyx_PyCode_New(a, p, k, l, s, f, code, c, n, v, fv, cell, fn, name, fline, lnos) \
-          PyCode_NewWithPosOnlyArgs(a, p, k, l, s, f, code, c, n, v, fv, cell, fn, name, fline, lnos)
-#else
-  #define __Pyx_PyCode_New(a, p, k, l, s, f, code, c, n, v, fv, cell, fn, name, fline, lnos) \
-          PyCode_New(a, k, l, s, f, code, c, n, v, fv, cell, fn, name, fline, lnos)
 #endif
 
 #if PY_VERSION_HEX >= 0x030900A4 || defined(Py_IS_TYPE)
@@ -851,8 +811,13 @@ class __Pyx_FakeReference {
   typedef PyObject *(*__Pyx_PyCFunctionFastWithKeywords) (PyObject *self, PyObject *const *args,
                                                           Py_ssize_t nargs, PyObject *kwnames);
 #else
-  #define __Pyx_PyCFunctionFast _PyCFunctionFast
-  #define __Pyx_PyCFunctionFastWithKeywords _PyCFunctionFastWithKeywords
+  #if PY_VERSION_HEX >= 0x030d00A4
+  #  define __Pyx_PyCFunctionFast PyCFunctionFast
+  #  define __Pyx_PyCFunctionFastWithKeywords PyCFunctionFastWithKeywords
+  #else
+  #  define __Pyx_PyCFunctionFast _PyCFunctionFast
+  #  define __Pyx_PyCFunctionFastWithKeywords _PyCFunctionFastWithKeywords
+  #endif
 #endif
 
 #if CYTHON_METH_FASTCALL
@@ -931,7 +896,7 @@ static CYTHON_INLINE int __Pyx__IsSameCFunction(PyObject *func, void *cfunc) {
 #endif
 
 #if CYTHON_COMPILING_IN_LIMITED_API
-  #define __Pyx_PyCode_HasFreeVars(co)  (PyCode_GetNumFree(co) > 0)
+  // __Pyx_PyCode_HasFreeVars isn't easily emulated in the limited API (but isn't really necessary)
   #define __Pyx_PyFrame_SetLineNumber(frame, lineno)
 #else
   #define __Pyx_PyCode_HasFreeVars(co)  (PyCode_GetNumFree(co) > 0)
@@ -948,7 +913,7 @@ static CYTHON_INLINE int __Pyx__IsSameCFunction(PyObject *func, void *cfunc) {
   #define __Pyx_PyThreadState_Current _PyThreadState_UncheckedGet()
 #endif
 
-#if CYTHON_COMPILING_IN_LIMITED_API
+#if CYTHON_USE_MODULE_STATE
 static CYTHON_INLINE void *__Pyx_PyModule_GetState(PyObject *op)
 {
     void *result;
@@ -1028,15 +993,6 @@ static CYTHON_INLINE PyObject * __Pyx_PyDict_GetItemStrWithError(PyObject *dict,
   #define __Pyx_PyObject_GetIterNextFunc(obj)  PyIter_Next
 #endif
 
-#if CYTHON_COMPILING_IN_LIMITED_API
-  // Using PyObject_GenericSetAttr to bypass types immutability protection feels
-  // a little hacky, but it does work in the limited API .
-  // (It doesn't work on PyPy but that probably isn't a bug.)
-  #define __Pyx_SetItemOnTypeDict(tp, k, v) PyObject_GenericSetAttr((PyObject*)tp, k, v)
-#else
-  #define __Pyx_SetItemOnTypeDict(tp, k, v) PyDict_SetItem(tp->tp_dict, k, v)
-#endif
-
 #if CYTHON_USE_TYPE_SPECS && PY_VERSION_HEX >= 0x03080000
 // In Py3.8+, instances of heap types need to decref their type on deallocation.
 // https://bugs.python.org/issue35810
@@ -1052,7 +1008,6 @@ static CYTHON_INLINE PyObject * __Pyx_PyDict_GetItemStrWithError(PyObject *dict,
 
 #if CYTHON_COMPILING_IN_LIMITED_API
   #define __Pyx_PyUnicode_READY(op)       (0)
-  #define __Pyx_PyUnicode_GET_LENGTH(u)   PyUnicode_GetLength(u)
   #define __Pyx_PyUnicode_READ_CHAR(u, i) PyUnicode_ReadChar(u, i)
   #define __Pyx_PyUnicode_MAX_CHAR_VALUE(u)   ((void)u, 1114111U)
   #define __Pyx_PyUnicode_KIND(u)         ((void)u, (0))
@@ -1070,7 +1025,6 @@ static CYTHON_INLINE PyObject * __Pyx_PyDict_GetItemStrWithError(PyObject *dict,
                                                 0 : _PyUnicode_Ready((PyObject *)(op)))
   #endif
 
-  #define __Pyx_PyUnicode_GET_LENGTH(u)   PyUnicode_GET_LENGTH(u)
   #define __Pyx_PyUnicode_READ_CHAR(u, i) PyUnicode_READ_CHAR(u, i)
   #define __Pyx_PyUnicode_MAX_CHAR_VALUE(u)   PyUnicode_MAX_CHAR_VALUE(u)
   #define __Pyx_PyUnicode_KIND(u)         ((int)PyUnicode_KIND(u))
@@ -1157,26 +1111,33 @@ static CYTHON_INLINE PyObject * __Pyx_PyDict_GetItemStrWithError(PyObject *dict,
   #define __Pyx_PySequence_SIZE(seq)  Py_SIZE(seq)
   #define __Pyx_PyTuple_SET_ITEM(o, i, v) (PyTuple_SET_ITEM(o, i, v), (0))
   #define __Pyx_PyList_SET_ITEM(o, i, v) (PyList_SET_ITEM(o, i, v), (0))
+#else
+  #define __Pyx_PySequence_ITEM(o, i) PySequence_GetItem(o, i)
+  // NOTE: might fail with exception => check for -1
+  #define __Pyx_PySequence_SIZE(seq)  PySequence_Size(seq)
+  // NOTE: this doesn't leak a reference to whatever is at o[i]
+  #define __Pyx_PyTuple_SET_ITEM(o, i, v) PyTuple_SetItem(o, i, v)
+  #define __Pyx_PyList_SET_ITEM(o, i, v) PyList_SetItem(o, i, v)
+#endif
+
+#if CYTHON_ASSUME_SAFE_SIZE
   #define __Pyx_PyTuple_GET_SIZE(o) PyTuple_GET_SIZE(o)
   #define __Pyx_PyList_GET_SIZE(o) PyList_GET_SIZE(o)
   #define __Pyx_PySet_GET_SIZE(o) PySet_GET_SIZE(o)
   #define __Pyx_PyBytes_GET_SIZE(o) PyBytes_GET_SIZE(o)
   #define __Pyx_PyByteArray_GET_SIZE(o) PyByteArray_GET_SIZE(o)
+  #define __Pyx_PyUnicode_GET_LENGTH(o) PyUnicode_GET_LENGTH(o)
 #else
-  #define __Pyx_PySequence_ITEM(o, i) PySequence_GetItem(o, i)
-  // NOTE: might fail with exception => check for -1
-  #define __Pyx_PySequence_SIZE(seq)  PySequence_Size(seq)
-  // Note that this doesn't leak a reference to whatever's at o[i]
-  #define __Pyx_PyTuple_SET_ITEM(o, i, v) PyTuple_SetItem(o, i, v)
-  #define __Pyx_PyList_SET_ITEM(o, i, v) PyList_SetItem(o, i, v)
+  // These all need exception checks for -1.
   #define __Pyx_PyTuple_GET_SIZE(o) PyTuple_Size(o)
   #define __Pyx_PyList_GET_SIZE(o) PyList_Size(o)
   #define __Pyx_PySet_GET_SIZE(o) PySet_Size(o)
   #define __Pyx_PyBytes_GET_SIZE(o) PyBytes_Size(o)
   #define __Pyx_PyByteArray_GET_SIZE(o) PyByteArray_Size(o)
+  #define __Pyx_PyUnicode_GET_LENGTH(o) PyUnicode_GetLength(o)
 #endif
 
-#if PY_VERSION_HEX >= 0x030d00A1
+#if __PYX_LIMITED_VERSION_HEX >= 0x030d00A1
   #define __Pyx_PyImport_AddModuleRef(name) PyImport_AddModuleRef(name)
 #else
   static CYTHON_INLINE PyObject *__Pyx_PyImport_AddModuleRef(const char *name) {
@@ -1413,13 +1374,6 @@ static CYTHON_INLINE float __PYX_NAN() {
 #else
 #define __Pyx_truncl truncl
 #endif
-
-
-/////////////// UtilityFunctionPredeclarations.proto ///////////////
-
-typedef struct {PyObject **p; const char *s; const Py_ssize_t n; const char* encoding;
-                const char is_unicode; const char is_str; const char intern; } __Pyx_StringTabEntry; /*proto*/
-
 
 /////////////// ForceInitThreads.proto ///////////////
 //@proto_block: utility_code_proto_before_types
@@ -2087,6 +2041,30 @@ static void __Pyx_FastGilFuncInit(void) {
 
 #endif
 
+///////////////////// PretendToInitialize ////////////////////////
+
+#ifdef __cplusplus
+// In C++ a variable must actually be initialized to make returning
+// it defined behaviour, and there doesn't seem to be a viable compiler trick to
+// avoid that.
+#include <type_traits>
+template <typename T>
+static void __Pyx_pretend_to_initialize(T* ptr) {
+    // In C++11 we have enough introspection to work out which types it's actually
+    // necessary to apply this to (non-trivial types will have been initialized by
+    // the definition). Below C++11 just initialize everything.
+#if __cplusplus > 201103L
+    if ((std::is_trivially_default_constructible<T>::value))
+#endif
+        *ptr = T();
+    (void)ptr;
+}
+#else
+// For C,  taking an address of a variable is enough to make returning it
+// defined behaviour.
+static CYTHON_INLINE void __Pyx_pretend_to_initialize(void* ptr) { (void)ptr; }
+#endif
+
 ///////////////////// UtilityCodePragmas /////////////////////////
 
 #ifdef _MSC_VER
@@ -2103,3 +2081,212 @@ static void __Pyx_FastGilFuncInit(void) {
 #ifdef _MSC_VER
 #pragma warning( pop )  /* undo whatever Cython has done to warnings */
 #endif
+
+
+//////////////////// NewCodeObj.proto ////////////////////////
+
+static PyObject* __Pyx_PyCode_New(
+        //int argcount,
+        //int num_posonly_args,
+        //int num_kwonly_args,
+        //int nlocals,
+        // int s,
+        //int flags,
+        //int first_line,
+        __Pyx_PyCode_New_function_description descr,
+        // PyObject *code,
+        // PyObject *consts,
+        // PyObject* n,
+        // PyObject *varnames_tuple,
+        PyObject **varnames,
+        // PyObject *freevars,
+        // PyObject *cellvars,
+        PyObject *filename,
+        PyObject *funcname,
+        // PyObject *lnotab,
+        PyObject *tuple_dedup_map
+);/*proto*/
+
+//////////////////// NewCodeObj ////////////////////////
+//@substitute: naming
+
+#if CYTHON_COMPILING_IN_LIMITED_API
+    // Note that the limited API doesn't know about PyCodeObject, so the type of this
+    // is PyObject (unlike for the main API)
+    static PyObject* __Pyx__PyCode_New(int a, int p, int k, int l, int s, int f,
+                                       PyObject *code, PyObject *c, PyObject* n, PyObject *v,
+                                       PyObject *fv, PyObject *cell, PyObject* fn,
+                                       PyObject *name, int fline, PyObject *lnos) {
+        // Backout option for generating a code object.
+        // PyCode_NewEmpty isn't in the limited API. Therefore the two options are
+        //  1. Python call of the code type with a long list of positional args.
+        //  2. Generate a code object by compiling some trivial code, and customize.
+        // We use the second because it's less sensitive to changes in the code type
+        // constructor with version.
+        PyObject *exception_table = NULL;
+        PyObject *types_module=NULL, *code_type=NULL, *result=NULL;
+        #if __PYX_LIMITED_VERSION_HEX < 0x030B0000
+        PyObject *version_info;  /* borrowed */
+        PyObject *py_minor_version = NULL;
+        #endif
+        long minor_version = 0;
+        PyObject *type, *value, *traceback;
+
+        // we must be able to call this while an exception is happening - thus clear then restore the state
+        PyErr_Fetch(&type, &value, &traceback);
+
+        #if __PYX_LIMITED_VERSION_HEX >= 0x030B0000
+        minor_version = 11;
+        // we don't yet need to distinguish between versions > 11
+        // Note that from 3.13, when we do, we can use Py_Version
+        #else
+        if (!(version_info = PySys_GetObject("version_info"))) goto end;
+        if (!(py_minor_version = PySequence_GetItem(version_info, 1))) goto end;
+        minor_version = PyLong_AsLong(py_minor_version);
+        Py_DECREF(py_minor_version);
+        if (minor_version == -1 && PyErr_Occurred()) goto end;
+        #endif
+
+        if (!(types_module = PyImport_ImportModule("types"))) goto end;
+        if (!(code_type = PyObject_GetAttrString(types_module, "CodeType"))) goto end;
+
+        if (minor_version <= 7) {
+            // 3.7:
+            // code(argcount, kwonlyargcount, nlocals, stacksize, flags, codestring,
+            //        constants, names, varnames, filename, name, firstlineno,
+            //        lnotab[, freevars[, cellvars]])
+            (void)p;
+            result = PyObject_CallFunction(code_type, "iiiiiOOOOOOiOO", a, k, l, s, f, code,
+                          c, n, v, fn, name, fline, lnos, fv, cell);
+        } else if (minor_version <= 10) {
+            // 3.8, 3.9, 3.10
+            // code(argcount, posonlyargcount, kwonlyargcount, nlocals, stacksize,
+            //    flags, codestring, constants, names, varnames, filename, name,
+            //    firstlineno, lnotab[, freevars[, cellvars]])
+            // 3.10 switches lnotab for linetable, but is otherwise the same
+            result = PyObject_CallFunction(code_type, "iiiiiiOOOOOOiOO", a,p, k, l, s, f, code,
+                          c, n, v, fn, name, fline, lnos, fv, cell);
+        } else {
+            // 3.11, 3.12
+            // code(argcount, posonlyargcount, kwonlyargcount, nlocals, stacksize,
+            //    flags, codestring, constants, names, varnames, filename, name,
+            //    qualname, firstlineno, linetable, exceptiontable, freevars=(), cellvars=(), /)
+            // We use name and qualname for simplicity
+            if (!(exception_table = PyBytes_FromStringAndSize(NULL, 0))) goto end;
+            result = PyObject_CallFunction(code_type, "iiiiiiOOOOOOOiOO", a,p, k, l, s, f, code,
+                          c, n, v, fn, name, name, fline, lnos, exception_table, fv, cell);
+        }
+
+    end:
+        Py_XDECREF(code_type);
+        Py_XDECREF(exception_table);
+        Py_XDECREF(types_module);
+        if (type) {
+            PyErr_Restore(type, value, traceback);
+        }
+        return result;
+    }
+
+#elif PY_VERSION_HEX >= 0x030B0000
+  static PyCodeObject* __Pyx__PyCode_New(int a, int p, int k, int l, int s, int f,
+                                         PyObject *code, PyObject *c, PyObject* n, PyObject *v,
+                                         PyObject *fv, PyObject *cell, PyObject* fn,
+                                         PyObject *name, int fline, PyObject *lnos) {
+    // As earlier versions, but
+    //  1. pass an empty bytes string as exception_table
+    //  2. pass name as qualname (TODO this might implementing properly in future)
+    PyCodeObject *result;
+    result =
+      #if PY_VERSION_HEX >= 0x030C0000
+        PyUnstable_Code_NewWithPosOnlyArgs
+      #else
+        PyCode_NewWithPosOnlyArgs
+      #endif
+        (a, p, k, l, s, f, code, c, n, v, fv, cell, fn, name, name, fline, lnos, ${empty_bytes});
+    Py_DECREF(${empty_bytes});
+    return result;
+  }
+#elif PY_VERSION_HEX >= 0x030800B2 && !CYTHON_COMPILING_IN_PYPY
+  #define __Pyx__PyCode_New(a, p, k, l, s, f, code, c, n, v, fv, cell, fn, name, fline, lnos) \
+          PyCode_NewWithPosOnlyArgs(a, p, k, l, s, f, code, c, n, v, fv, cell, fn, name, fline, lnos)
+#else
+  #define __Pyx__PyCode_New(a, p, k, l, s, f, code, c, n, v, fv, cell, fn, name, fline, lnos) \
+          PyCode_New(a, k, l, s, f, code, c, n, v, fv, cell, fn, name, fline, lnos)
+#endif
+
+// This is a specialised helper function for creating Cython's function code objects.
+// It only receives the arguments that differ between the Cython functions of the module.
+// This minimises the calling code in the module init function.
+static PyObject* __Pyx_PyCode_New(
+        //int argcount,
+        //int num_posonly_args,
+        //int num_kwonly_args,
+        //int nlocals,
+        // int s,
+        //int flags,
+        //int first_line,
+        __Pyx_PyCode_New_function_description descr,
+        // PyObject *code,
+        // PyObject *consts,
+        // PyObject* n,
+        // PyObject *varnames_tuple,
+        PyObject **varnames,
+        // PyObject *freevars,
+        // PyObject *cellvars,
+        PyObject* filename,
+        PyObject *funcname,
+        // PyObject *lnotab,
+        PyObject *tuple_dedup_map
+) {
+
+    PyObject *code_obj = NULL, *varnames_tuple_dedup = NULL;
+    Py_ssize_t var_count = (Py_ssize_t) descr.nlocals;
+
+    PyObject *varnames_tuple = PyTuple_New(var_count);
+    if (unlikely(!varnames_tuple)) return NULL;
+    for (Py_ssize_t i=0; i < var_count; i++) {
+        Py_INCREF(varnames[i]);
+        if (unlikely(__Pyx_PyTuple_SET_ITEM(varnames_tuple, i, varnames[i]))) goto done;
+    }
+
+    #if CYTHON_COMPILING_IN_LIMITED_API
+    varnames_tuple_dedup = PyDict_GetItem(tuple_dedup_map, varnames_tuple);
+    if (!varnames_tuple_dedup) {
+        if (unlikely(PyDict_SetItem(tuple_dedup_map, varnames_tuple, varnames_tuple) < 0)) goto done;
+        varnames_tuple_dedup = varnames_tuple;
+    }
+    #else
+    varnames_tuple_dedup = PyDict_SetDefault(tuple_dedup_map, varnames_tuple, varnames_tuple);
+    if (unlikely(!varnames_tuple_dedup)) goto done;
+    #endif
+
+    #if CYTHON_AVOID_BORROWED_REFS
+    Py_INCREF(varnames_tuple_dedup);
+    #endif
+
+    code_obj = (PyObject*) __Pyx__PyCode_New(
+        (int) descr.argcount,
+        (int) descr.num_posonly_args,
+        (int) descr.num_kwonly_args,
+        (int) descr.nlocals,
+        0,
+        (int) descr.flags,
+        ${empty_bytes},
+        ${empty_tuple},
+        ${empty_tuple},
+        varnames_tuple_dedup,
+        ${empty_tuple},
+        ${empty_tuple},
+        filename,
+        funcname,
+        (int) descr.first_line,
+        ${empty_bytes}
+    );
+
+done:
+    #if CYTHON_AVOID_BORROWED_REFS
+    Py_XDECREF(varnames_tuple_dedup);
+    #endif
+    Py_DECREF(varnames_tuple);
+    return code_obj;
+}

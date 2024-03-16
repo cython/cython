@@ -132,16 +132,6 @@ class EncodedString(str):
             s = bytes_literal(self.byteencode(), self.encoding)
         return s.as_c_string_literal()
 
-    if not hasattr(str, "isascii"):
-        def isascii(self):
-            # not defined for Python3.7+ since the class already has it
-            try:
-                self.encode("ascii")
-            except UnicodeEncodeError:
-                return False
-            else:
-                return True
-
 
 def string_contains_surrogates(ustring):
     """

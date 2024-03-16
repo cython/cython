@@ -133,3 +133,80 @@ def test_ptr_func2(int failure_mode):
             print("NULL")
     except RuntimeError:
         print("exception")
+
+cdef double return_double(double arg, bint fail):
+    if fail:
+        raise RuntimeError
+    return arg
+
+ctypedef double (*func_ptr1)(double, bint) except? -1
+
+def test_return_double(fail):
+    """
+    >>> test_return_double(False)
+    2.0
+    >>> test_return_double(True)
+    exception
+    """
+    # Test that we can assign to the function pointer we expect
+    # https://github.com/cython/cython/issues/5709 - representation of the "-1" was fragile
+    cdef func_ptr1 p1 = return_double
+    try:
+        return p1(2.0, fail)
+    except RuntimeError:
+        print("exception")
+
+cdef enum E:
+    E1
+    E2
+
+cdef E return_enum1(bint fail) except? E.E1:
+    if fail:
+        raise RuntimeError
+    return E.E2
+
+cdef E return_enum2(bint fail) except? E1:
+    if fail:
+        raise RuntimeError
+    return E.E2
+
+def test_enum1(fail):
+    """
+    >>> test_enum1(False)
+    True
+    >>> test_enum1(True)
+    exception
+    """
+    try:
+        return return_enum1(fail) == E2
+    except RuntimeError:
+        print("exception")
+
+def test_enum2(fail):
+    """
+    >>> test_enum2(False)
+    True
+    >>> test_enum2(True)
+    exception
+    """
+    try:
+        return return_enum2(fail) == E2
+    except RuntimeError:
+        print("exception")
+
+cdef char return_char(fail) except 'a':
+    if fail:
+        raise RuntimeError
+    return 'b'
+
+def test_return_char(fail):
+    """
+    >>> test_return_char(False)
+    'b'
+    >>> test_return_char(True)
+    exception
+    """
+    try:
+        return chr(return_char(fail))
+    except RuntimeError:
+        print("exception")

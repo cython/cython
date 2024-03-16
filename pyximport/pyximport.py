@@ -126,7 +126,7 @@ def handle_special_build(modname, pyxfilename):
             setup_args = make_setup_args()
             assert isinstance(setup_args,dict), ("make_setup_args in %s did not return a dict"
                                          % special_build)
-        assert set or setup_args, ("neither make_ext nor make_setup_args %s"
+        assert ext or setup_args, ("neither make_ext nor make_setup_args %s"
                                          % special_build)
         ext.sources = [os.path.join(os.path.dirname(special_build), source)
                        for source in ext.sources]
@@ -185,13 +185,13 @@ def build_module(name, pyxfilename, pyxbuild_dir=None, inplace=False, language_l
     from . import pyxbuild
     olddir = os.getcwd()
     common = ''
-    if pyxbuild_dir:
+    if pyxbuild_dir and sys.platform == 'win32':
         # Windows concatenates the pyxbuild_dir to the pyxfilename when
         # compiling, and then complains that the filename is too long
         common = os.path.commonprefix([pyxbuild_dir, pyxfilename])
     if len(common) > 30:
-        pyxfilename = os.path.relpath(pyxfilename)
-        pyxbuild_dir = os.path.relpath(pyxbuild_dir)
+        pyxfilename = os.path.relpath(pyxfilename, common)
+        pyxbuild_dir = os.path.relpath(pyxbuild_dir, common)
         os.chdir(common)
     try:
         so_path = pyxbuild.pyx_to_dll(pyxfilename, extension_mod,

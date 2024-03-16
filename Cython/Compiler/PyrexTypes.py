@@ -316,9 +316,10 @@ class PyrexType(BaseType):
     def assignable_from_resolved_type(self, src_type):
         return self.same_as(src_type)
 
-    def assignment_failure_extra_info(self, src_type):
-        """Override if you can useful provide extra
-        information about why an assignment didn't work."""
+    def assignment_failure_extra_info(self, src_type, src_name):
+        """Override if you can provide useful extra information about why an assignment didn't work.
+
+        src_name may be None if unavailable"""
         return ""
 
     def as_argument_type(self):
@@ -603,7 +604,7 @@ class CTypedefType(BaseType):
 
     def error_condition(self, result_code):
         if self.typedef_is_external:
-            if self.exception_value:
+            if self.exception_value is not None:
                 condition = "(%s == %s)" % (
                     result_code, self.cast_code(self.exception_value))
                 if self.exception_check:
@@ -826,7 +827,7 @@ class MemoryViewSliceType(PyrexType):
                 cfunctype = CFuncType(
                         return_type=c_bint_type,
                         args=[CFuncTypeArg("memviewslice", self, None)],
-                        exception_value="-1",
+                        exception_value=-1,
                 )
 
                 entry = scope.declare_cfunction(cython_name,
@@ -1243,7 +1244,7 @@ class PyObjectType(PyrexType):
     default_value = "0"
     declaration_value = "0"
     buffer_defaults = None
-    is_extern = False
+    is_external = False
     is_subclassed = False
     is_gc_simple = False
     builtin_trashcan = False  # builtin type using trashcan
@@ -1438,7 +1439,7 @@ class BuiltinObjectType(PyObjectType):
         return "%s object" % self.name
 
     def __repr__(self):
-        return "<%s>"% self.cname
+        return "<%s>"% self.typeptr_cname
 
     def default_coerced_ctype(self):
         if self.name in ('bytes', 'bytearray'):
@@ -1494,7 +1495,7 @@ class BuiltinObjectType(PyObjectType):
             type_check = "PyMemoryView_Check"
         else:
             type_check = 'Py%s_Check' % type_name.capitalize()
-        if exact and type_name not in ('bool', 'slice', 'Exception'):
+        if exact and type_name not in ('bool', 'slice', 'Exception', 'memoryview'):
             type_check += 'Exact'
         return type_check
 
@@ -1682,15 +1683,25 @@ class CType(PyrexType):
     #
 
     to_py_function = None
+    to_py_utility_code = None
     from_py_function = None
+    from_py_utility_code = None
     exception_value = None
     exception_check = 1
 
     def create_to_py_utility_code(self, env):
-        return self.to_py_function is not None
+        if self.to_py_function is not None:
+            if self.to_py_utility_code is not None:
+                env.use_utility_code(self.to_py_utility_code)
+            return True
+        return False
 
     def create_from_py_utility_code(self, env):
-        return self.from_py_function is not None
+        if self.from_py_function is not None:
+            if self.from_py_utility_code is not None:
+                env.use_utility_code(self.from_py_utility_code)
+            return True
+        return False
 
     def can_coerce_to_pyobject(self, env):
         return self.create_to_py_utility_code(env)
@@ -2377,7 +2388,7 @@ class CFloatType(CNumericType):
 
     is_float = 1
     to_py_function = "PyFloat_FromDouble"
-    from_py_function = "__pyx_PyFloat_AsDouble"
+    from_py_function = "__Pyx_PyFloat_AsDouble"
 
     exception_value = -1
 
@@ -2385,7 +2396,7 @@ class CFloatType(CNumericType):
         CNumericType.__init__(self, rank, 1)
         self.math_h_modifier = math_h_modifier
         if rank == RANK_FLOAT:
-            self.from_py_function = "__pyx_PyFloat_AsFloat"
+            self.from_py_function = "__Pyx_PyFloat_AsFloat"
 
     def assignable_from_resolved_type(self, src_type):
         return (src_type.is_numeric and not src_type.is_complex) or src_type is error_type
@@ -2678,6 +2689,8 @@ class CPointerBaseType(CType):
             self.exception_value = "NULL"
         elif self.is_pyunicode_ptr and not base_type.is_error:
             self.to_py_function = "__Pyx_PyUnicode_FromUnicode"
+            self.to_py_utility_code = UtilityCode.load_cached(
+                "pyunicode_from_unicode", "StringTools.c")
             if self.is_ptr:
                 self.from_py_function = "__Pyx_PyUnicode_AsUnicode"
             self.exception_value = "NULL"
@@ -2904,7 +2917,7 @@ class CPtrType(CPointerBaseType):
             return self.base_type.is_void or self.base_type.same_as(other_type.base_type)
         return 0
 
-    def assignment_failure_extra_info(self, src_type):
+    def assignment_failure_extra_info(self, src_type, src_name):
         if self.base_type.is_cfunction and src_type.is_ptr:
             src_type = src_type.base_type.resolve()
         if self.base_type.is_cfunction and src_type.is_cfunction:
@@ -2914,11 +2927,15 @@ class CPtrType(CPointerBaseType):
             copied_src_type.exception_value = self.base_type.exception_value
             if self.base_type.pointer_assignable_from_resolved_type(copied_src_type):
                 # the only reason we can't assign is because of exception incompatibility
-                msg = "Exception values are incompatible."
-                if not self.base_type.exception_check and not self.base_type.exception_value:
-                    msg += " Suggest adding 'noexcept' to type '{}'.".format(src_type)
+                msg = " Exception values are incompatible."
+                if not self.base_type.exception_check and self.base_type.exception_value is None:
+                    if src_name is None:
+                        src_name = "the value being assigned"
+                    else:
+                        src_name = "'{}'".format(src_name)
+                    msg += f" Suggest adding 'noexcept' to the type of {src_name}."
                 return msg
-        return super().assignment_failure_extra_info(src_type)
+        return super().assignment_failure_extra_info(src_type, src_name)
 
     def specialize(self, values):
         base_type = self.base_type.specialize(values)
@@ -3074,7 +3091,7 @@ class CFuncType(CType):
         arg_reprs = list(map(repr, self.args))
         if self.has_varargs:
             arg_reprs.append("...")
-        if self.exception_value:
+        if self.exception_value is not None:
             except_clause = " %r" % self.exception_value
         else:
             except_clause = ""
@@ -3158,7 +3175,8 @@ class CFuncType(CType):
         return 1
 
     def _same_exception_value(self, other_exc_value):
-        if self.exception_value == other_exc_value:
+        # Use fallback comparison as strings since we usually read exception values as strings.
+        if self.exception_value == other_exc_value or str(self.exception_value) == str(other_exc_value):
             return 1
         if self.exception_check != '+':
             return 0
@@ -3294,7 +3312,12 @@ class CFuncType(CType):
         if self.is_overridable:
             arg_decl_list.append("int %s" % Naming.skip_dispatch_cname)
         if self.optional_arg_count:
-            arg_decl_list.append(self.op_arg_struct.declaration_code(Naming.optional_args_cname))
+            if self.op_arg_struct:
+                arg_decl_list.append(self.op_arg_struct.declaration_code(Naming.optional_args_cname))
+            else:
+                # op_arg_struct may not be initialized at this point if this class is being used
+                # to prepare a Python error message or similar.  In this case, just omit the args.
+                assert for_display
         if self.has_varargs:
             arg_decl_list.append("...")
         arg_decl_code = ", ".join(arg_decl_list)
@@ -3302,11 +3325,11 @@ class CFuncType(CType):
             arg_decl_code = "void"
         trailer = ""
         if (pyrex or for_display) and not self.return_type.is_pyobject:
-            if self.exception_value and self.exception_check:
+            if self.exception_value is not None and self.exception_check:
                 trailer = " except? %s" % self.exception_value
-            elif self.exception_value and not self.exception_check:
+            elif self.exception_value is not None and not self.exception_check:
                 trailer = " except %s" % self.exception_value
-            elif not self.exception_value and not self.exception_check:
+            elif self.exception_value is None and not self.exception_check:
                 trailer = " noexcept"
             elif self.exception_check == '+':
                 trailer = " except +"
@@ -3508,7 +3531,7 @@ class CFuncType(CType):
             except_clause = 'except *'
         elif self.return_type.is_pyobject:
             except_clause = ''
-        elif self.exception_value:
+        elif self.exception_value is not None:
             except_clause = ('except? %s' if self.exception_check else 'except %s') % self.exception_value
         else:
             except_clause = 'except *'
@@ -3545,6 +3568,8 @@ def specialize_entry(entry, cname):
 
     if entry.func_cname:
         entry.func_cname = get_fused_cname(cname, entry.func_cname)
+    if entry.final_func_cname:
+        entry.final_func_cname = get_fused_cname(cname, entry.final_func_cname)
 
 def get_fused_cname(fused_cname, orig_cname):
     """
@@ -4297,7 +4322,7 @@ class EnumMixin:
 
     def create_enum_to_py_utility_code(self, env):
         from .UtilityCode import CythonUtilityCode
-        self.to_py_function = "__Pyx_Enum_%s_to_py" % self.name
+        self.to_py_function = "__Pyx_Enum_%s_to_py" % type_identifier(self)
         if self.entry.scope != env.global_scope():
             module_name = self.entry.scope.qualified_name
         else:
@@ -4646,8 +4671,8 @@ class ErrorType(PyrexType):
     # Used to prevent propagation of error messages.
 
     is_error = 1
-    exception_value = "0"
-    exception_check    = 0
+    exception_value = 0
+    exception_check = False
     to_py_function = "dummy"
     from_py_function = "dummy"
 
@@ -4858,6 +4883,17 @@ cython_memoryview_type = CStructOrUnionType("__pyx_memoryview_obj", "struct",
 memoryviewslice_type = CStructOrUnionType("memoryviewslice", "struct",
                                           None, 1, "__Pyx_memviewslice")
 
+fixed_sign_int_types = {
+    "bint":       (1, c_bint_type),
+    "Py_UNICODE": (0, c_py_unicode_type),
+    "Py_UCS4":    (0, c_py_ucs4_type),
+    "Py_hash_t":  (2, c_py_hash_t_type),
+    "Py_ssize_t": (2, c_py_ssize_t_type),
+    "ssize_t":    (2, c_ssize_t_type),
+    "size_t":     (0, c_size_t_type),
+    "ptrdiff_t":  (2, c_ptrdiff_t_type),
+}
+
 modifiers_and_name_to_type = {
     #(signed, longness, name) : type
     (0,  0, "char"): c_uchar_type,
@@ -4892,17 +4928,13 @@ modifiers_and_name_to_type = {
     (1,  0, "void"): c_void_type,
     (1,  0, "Py_tss_t"): c_pytss_t_type,
 
-    (1,  0, "bint"):       c_bint_type,
-    (0,  0, "Py_UNICODE"): c_py_unicode_type,
-    (0,  0, "Py_UCS4"):    c_py_ucs4_type,
-    (2,  0, "Py_hash_t"):  c_py_hash_t_type,
-    (2,  0, "Py_ssize_t"): c_py_ssize_t_type,
-    (2,  0, "ssize_t") :   c_ssize_t_type,
-    (0,  0, "size_t") :    c_size_t_type,
-    (2,  0, "ptrdiff_t") : c_ptrdiff_t_type,
-
     (1,  0, "object"): py_object_type,
 }
+
+modifiers_and_name_to_type.update({
+    (signed, 0, name): tp
+    for name, (signed, tp) in fixed_sign_int_types.items()
+})
 
 def is_promotion(src_type, dst_type):
     # It's hard to find a hard definition of promotion, but empirical
@@ -5320,41 +5352,34 @@ def parse_basic_type(name):
     if base:
         return CPtrType(base)
     #
+    if name in fixed_sign_int_types:
+        return fixed_sign_int_types[name][1]
     basic_type = simple_c_type(1, 0, name)
     if basic_type:
         return basic_type
     #
-    signed = 1
-    longness = 0
-    if name == 'Py_UNICODE':
+    if name.startswith('u'):
+        name = name[1:]
         signed = 0
-    elif name == 'Py_UCS4':
-        signed = 0
-    elif name == 'Py_hash_t':
+    elif (name.startswith('s') and
+          not name.startswith('short')):
+        name = name[1:]
         signed = 2
-    elif name == 'Py_ssize_t':
-        signed = 2
-    elif name == 'ssize_t':
-        signed = 2
-    elif name == 'size_t':
-        signed = 0
     else:
-        if name.startswith('u'):
-            name = name[1:]
-            signed = 0
-        elif (name.startswith('s') and
-              not name.startswith('short')):
-            name = name[1:]
-            signed = 2
-        longness = 0
-        while name.startswith('short'):
-            name = name.replace('short', '', 1).strip()
-            longness -= 1
-        while name.startswith('long'):
-            name = name.replace('long', '', 1).strip()
+        signed = 1
+
+    # We parse both (cy) 'long long' and (py) 'longlong' style names here.
+    longness = 0
+    while name.startswith(('long', 'short')):
+        if name.startswith('long'):
+            name = name[4:].lstrip()
             longness += 1
-        if longness != 0 and not name:
-            name = 'int'
+        else:
+            name = name[5:].lstrip()
+            longness -= 1
+    if longness != 0 and not name:
+        name = 'int'  # long/short [int]
+
     return simple_c_type(signed, longness, name)
 
 
@@ -5439,19 +5464,26 @@ _escape_special_type_characters = partial(re.compile(
 ).sub, lambda match: _special_type_characters[match.group(1)])
 
 def type_identifier(type, pyrex=False):
+    scope = None
     decl = type.empty_declaration_code(pyrex=pyrex)
-    return type_identifier_from_declaration(decl)
+    entry = getattr(type, "entry", None)
+    if entry and entry.scope:
+        scope = entry.scope
+    return type_identifier_from_declaration(decl, scope=scope)
 
 _type_identifier_cache = {}
-def type_identifier_from_declaration(decl):
-    safe = _type_identifier_cache.get(decl)
+def type_identifier_from_declaration(decl, scope = None):
+    key = (decl, scope)
+    safe = _type_identifier_cache.get(key)
     if safe is None:
         safe = decl
+        if scope:
+            safe = scope.mangle(prefix="", name=safe)
         safe = re.sub(' +', ' ', safe)
         safe = re.sub(' ?([^a-zA-Z0-9_]) ?', r'\1', safe)
         safe = _escape_special_type_characters(safe)
         safe = cap_length(re.sub('[^a-zA-Z0-9_]', lambda x: '__%X' % ord(x.group(0)), safe))
-        _type_identifier_cache[decl] = safe
+        _type_identifier_cache[key] = safe
     return safe
 
 def cap_length(s, max_prefix=63, max_len=1024):
@@ -5460,16 +5492,29 @@ def cap_length(s, max_prefix=63, max_len=1024):
     hash_prefix = hashlib.sha256(s.encode('ascii')).hexdigest()[:6]
     return '%s__%s__etc' % (hash_prefix, s[:max_len-17])
 
-def write_noexcept_performance_hint(pos, env, function_name=None, void_return=False):
-    on_what = "on '%s' " % function_name if function_name else ""
+def write_noexcept_performance_hint(pos, env, function_name=None, void_return=False, is_call=False):
+    if function_name:
+        # we need it escaped everywhere we use it
+        function_name = "'%s'" % function_name
+    if is_call:
+        on_what = "after calling %s " % (function_name or 'function')
+    elif function_name:
+        on_what = "on %s " % function_name
+    else:
+        on_what =''
     msg = (
         "Exception check %swill always require the GIL to be acquired."
     ) % on_what
-    solutions = ["Declare the function as 'noexcept' if you control the definition and "
-                                "you're sure you don't want the function to raise exceptions."]
+    the_function = function_name if function_name else "the function"
+    if is_call and not function_name:
+        the_function = the_function + " you are calling"
+    solutions = ["Declare %s as 'noexcept' if you control the definition and "
+                 "you're sure you don't want the function to raise exceptions."
+                                % the_function]
     if void_return:
         solutions.append(
-            "Use an 'int' return type on the function to allow an error code to be returned.")
+            "Use an 'int' return type on %s to allow an error code to be returned." %
+            the_function)
     if len(solutions) == 1:
         msg = "%s %s" % (msg, solutions[0])
     else:

@@ -226,7 +226,7 @@ builtin_function_table = [
     #('raw_input', "",     "",      ""),
     #('reduce',    "",     "",      ""),
     BuiltinFunction('reload',     "O",    "O",     "PyImport_ReloadModule"),
-    BuiltinFunction('repr',       "O",    "O",     "PyObject_Repr"),  # , builtin_return_type='str'),  # add in Cython 3.1
+    BuiltinFunction('repr',       "O",    "O",     "PyObject_Repr", builtin_return_type='unicode'),
     #('round',     "",     "",      ""),
     BuiltinFunction('setattr',    "OOO",  "r",     "PyObject_SetAttr"),
     #('sum',       "",     "",      ""),
@@ -376,21 +376,21 @@ builtin_types_table = [
         # __len__ can be accessed through a direct lookup of the buffer (but probably in Optimize.c)
         # error checking would ideally be limited api only
         BuiltinProperty("ndim", PyrexTypes.c_int_type, '__Pyx_PyMemoryView_Get_ndim',
-                        exception_value="-1", exception_check=True,
+                        exception_value=-1, exception_check=True,
                         utility_code=TempitaUtilityCode.load_cached(
                             "memoryview_get_from_buffer", "Builtins.c",
                             context=dict(name="ndim")
                         )
         ),
         BuiltinProperty("readonly", PyrexTypes.c_bint_type, '__Pyx_PyMemoryView_Get_readonly',
-                        exception_value="-1", exception_check=True,
+                        exception_value=-1, exception_check=True,
                         utility_code=TempitaUtilityCode.load_cached(
                             "memoryview_get_from_buffer", "Builtins.c",
                             context=dict(name="readonly")
                         )
         ),
         BuiltinProperty("itemsize", PyrexTypes.c_py_ssize_t_type, '__Pyx_PyMemoryView_Get_itemsize',
-                        exception_value="-1", exception_check=True,
+                        exception_value=-1, exception_check=True,
                         utility_code=TempitaUtilityCode.load_cached(
                             "memoryview_get_from_buffer", "Builtins.c",
                             context=dict(name="itemsize")

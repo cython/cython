@@ -658,6 +658,8 @@ definition, for example,::
         # attributes and methods
 
 
+.. _freelist:
+        
 Fast instantiation
 ===================
 
@@ -1033,8 +1035,6 @@ objects defined in the Python core or in a non-Cython extension module.
 
 Here is an example which will let you get at the C-level members of the
 built-in complex object::
-
-    from __future__ import print_function
 
     cdef extern from "complexobject.h":
 
