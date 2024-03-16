@@ -988,7 +988,11 @@ static CYTHON_INLINE {{TYPE}} {{FROM_PY_FUNCTION}}(PyObject *x) {
                 unsigned char *bytes = (unsigned char *)&val;
                 int ret = _PyLong_AsByteArray((PyLongObject *)v,
                                               bytes, sizeof(val),
-                                              is_little, !is_unsigned);
+                                              is_little, !is_unsigned
+#if PY_VERSION_HEX >= 0x030d00a4
+                                              , 1 // with_exceptions
+#endif              
+                                              );
                 Py_DECREF(v);
                 if (likely(!ret))
                     return val;
