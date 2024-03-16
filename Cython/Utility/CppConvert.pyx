@@ -42,7 +42,7 @@ cdef extern from *:
         void push_back(T&) except +
         void reserve(size_t) except +
 
-    cdef Py_ssize_t PyObject_LengthHint(object o, Py_ssize_t defaultval)
+    cdef Py_ssize_t PyObject_LengthHint(object o, Py_ssize_t defaultval) except -1
 
 @cname("{{cname}}")
 cdef vector[X] {{cname}}(object o) except *:
