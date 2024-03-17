@@ -139,7 +139,7 @@ class Cache:
             else:
                 os.utime(zip_fingerprint_file, None)
                 dirname = os.path.dirname(c_file)
-                with contextlib.closing(zipfile.ZipFile(zip_fingerprint_file)) as z:
+                with zipfile.ZipFile(zip_fingerprint_file) as z:
                     for artifact in z.namelist():
                         z.extract(artifact, os.path.join(dirname, artifact))
             return True
@@ -152,8 +152,8 @@ class Cache:
             for attr in ('c_file', 'h_file', 'api_file', 'i_file')]))
         if len(artifacts) == 1:
             fingerprint_file = self.gz_fingerprint_file(c_file, fingerprint)
-            with contextlib.closing(open(c_file, 'rb')) as f:
-                with contextlib.closing(gzip_open(fingerprint_file + '.tmp', 'wb')) as g:
+            with open(c_file, 'rb') as f:
+                with gzip_open(fingerprint_file + '.tmp', 'wb') as g:
                     shutil.copyfileobj(f, g)
         else:
             fingerprint_file = self.zip_fingerprint_file(c_file, fingerprint)
