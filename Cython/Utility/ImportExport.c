@@ -330,28 +330,20 @@ static int ${import_star}(PyObject* m) {
     PyObject *utf8_name = 0;
     PyObject *name;
     PyObject *item;
+    PyObject *import_obj;
 
     locals = PyDict_New();              if (!locals) goto bad;
     if (__Pyx_import_all_from(locals, m) < 0) goto bad;
     list = PyDict_Items(locals);        if (!list) goto bad;
 
-#if CYTHON_COMPILING_IN_LIMITED_API
     for(i=0; i<PyList_Size(list); i++) {
-        name = PyTuple_GetItem(PyList_GetItem(list, i), 0); if (!name) goto bad;
-        item = PyTuple_GetItem(PyList_GetItem(list, i), 1); if (!item) goto bad;
-#else
-    for(i=0; i<PyList_GET_SIZE(list); i++) {
-        name = PyTuple_GET_ITEM(PyList_GET_ITEM(list, i), 0);
-        item = PyTuple_GET_ITEM(PyList_GET_ITEM(list, i), 1);
-#endif
+        import_obj = __Pyx_PyList_GET_ITEM(list, i); if (!import_obj) goto bad;
+        name = __Pyx_PyTuple_GET_ITEM(import_obj, 0); if (!name) goto bad;
+        item = __Pyx_PyTuple_GET_ITEM(import_obj, 1); if (!item) goto bad;
 
         utf8_name = PyUnicode_AsUTF8String(name);
         if (!utf8_name) goto bad;
-#if CYTHON_COMPILING_IN_LIMITED_API
-        s = PyBytes_AsString(utf8_name); if (!s) goto bad;
-#else
-        s = PyBytes_AS_STRING(utf8_name);
-#endif
+        s = __Pyx_PyBytes_AsWritableString(utf8_name); if (!s) goto bad;
         if (${import_star_set}(item, name, s) < 0) goto bad;
         Py_DECREF(utf8_name); utf8_name = 0;
     }
