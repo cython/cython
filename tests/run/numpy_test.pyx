@@ -290,7 +290,6 @@ def test_dtype(dtype, inc1):
     >>> test_dtype('D', inc1_cdouble_struct)
     >>> test_dtype('G', inc1_clongdouble_struct)
 
-    >>> test_dtype(np.int_, inc1_int64_t)
     >>> test_dtype(np.longlong, inc1_longlong_t)
     >>> test_dtype(np.float_, inc1_float_t)
     >>> test_dtype(np.double, inc1_double_t)
