@@ -133,8 +133,8 @@ class Cache:
         if os.path.exists(gz_fingerprint_file) or os.path.exists(zip_fingerprint_file):
             if os.path.exists(gz_fingerprint_file):
                 os.utime(gz_fingerprint_file, None)
-                with contextlib.closing(gzip_open(gz_fingerprint_file, 'rb')) as g:
-                    with contextlib.closing(open(c_file, 'wb')) as f:
+                with gzip_open(gz_fingerprint_file, 'rb') as g:
+                    with open(c_file, 'wb') as f:
                         shutil.copyfileobj(g, f)
             else:
                 os.utime(zip_fingerprint_file, None)
