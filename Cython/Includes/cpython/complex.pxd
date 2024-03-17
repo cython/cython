@@ -1,3 +1,4 @@
+cimport cython as _cython
 
 cdef extern from "Python.h":
 
@@ -12,14 +13,20 @@ cdef extern from "Python.h":
     # PyComplexObject
     # This subtype of PyObject represents a Python complex number object.
 
-    ctypedef class __builtin__.complex [object PyComplexObject]:
+    # It actually isn't even opaque in the limited API - it just isn't present. However, "opaque"
+    # removes enough code that it isn't a compile error
+    ctypedef class __builtin__.complex [object PyComplexObject, check_size opaque_in_limited_api]:
         cdef Py_complex cval
 
+        # unavailable in limited API
         @property
+        @_cython.c_compile_guard("!CYTHON_COMPILING_IN_LIMITED_API")
         cdef inline double real(self):
             return self.cval.real
 
+        # unavailable in limited API
         @property
+        @_cython.c_compile_guard("!CYTHON_COMPILING_IN_LIMITED_API")
         cdef inline double imag(self):
             return self.cval.imag
 

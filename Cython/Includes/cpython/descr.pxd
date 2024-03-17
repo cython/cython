@@ -15,7 +15,7 @@ cdef extern from "Python.h":
 
     int PyWrapperFlag_KEYWORDS
 
-    ctypedef class __builtin__.wrapper_descriptor [object PyWrapperDescrObject]:
+    ctypedef class __builtin__.wrapper_descriptor [object PyWrapperDescrObject, check_size opaque_in_limited_api]:
         cdef type d_type
         cdef d_name
         cdef wrapperbase* d_base

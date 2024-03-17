@@ -464,6 +464,13 @@
   #endif
 #endif
 
+#if CYTHON_COMPILING_IN_LIMITED_API
+  // If we're in the limited API, make sure people can't access attributes of opaque types
+  #define __PYX_OPAQUE_IN_LIMITED_API(x)
+#else
+  #define __PYX_OPAQUE_IN_LIMITED_API(x) x
+#endif
+
 #ifndef __has_attribute
   #define __has_attribute(x) 0
 #endif

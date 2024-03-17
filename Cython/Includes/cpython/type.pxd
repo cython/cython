@@ -6,7 +6,7 @@ cdef extern from "Python.h":
     # 7.1.1 Type Objects
     ############################################################################
 
-    ctypedef class __builtin__.type [object PyTypeObject]:
+    ctypedef class __builtin__.type [object PyTypeObject, check_size opaque]:
         pass
 
     # PyObject* PyType_Type

@@ -3881,12 +3881,17 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         )
 
         alignment_func = f"__PYX_GET_STRUCT_ALIGNMENT_{Naming.cyversion}"
-        if sizeof_objstruct != objstruct:
+        if type.check_size == "opaque":
+            code.put('1, 1,')
+        elif sizeof_objstruct != objstruct or type.check_size == "opaque_in_limited_api":
             code.putln("")  # start in new line
             code.putln("#if defined(PYPY_VERSION_NUM) && PYPY_VERSION_NUM < 0x050B0000")
             code.putln(f'sizeof({objstruct}), {alignment_func}({objstruct}),')
             code.putln("#elif CYTHON_COMPILING_IN_LIMITED_API")
-            code.putln(f'sizeof({objstruct}), {alignment_func}({objstruct}),')
+            if type.check_size == "opaque_in_limited_api":
+                code.putln('1, 1,')
+            else:
+                code.putln(f'sizeof({objstruct}), {alignment_func}({objstruct}),')
             code.putln("#else")
             code.putln(f'sizeof({sizeof_objstruct}), {alignment_func}({sizeof_objstruct}),')
             code.putln("#endif")
@@ -3894,7 +3899,9 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             code.put(f' sizeof({objstruct}), {alignment_func}({objstruct}),')
 
         # check_size
-        if type.check_size and type.check_size in ('error', 'warn', 'ignore'):
+        if type.check_size in ('opaque', 'opaque_in_limited_api'):
+            check_size = 'ignore'
+        elif type.check_size and type.check_size in ('error', 'warn', 'ignore'):
             check_size = type.check_size
         elif not type.is_external or type.is_subclassed:
             check_size = 'error'
