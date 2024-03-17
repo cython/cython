@@ -918,7 +918,7 @@ static CYTHON_INLINE void *__Pyx_PyModule_GetState(PyObject *op)
 }
 #endif
 
-#define __Pyx_PyObject_GetSlot(obj, name, func_ctype)  __Pyx_PyType_GetSlot(Py_TYPE(obj), name, func_ctype)
+#define __Pyx_PyObject_GetSlot(obj, name, func_ctype)  __Pyx_PyType_GetSlot(Py_TYPE((PyObject *) obj), name, func_ctype)
 #if CYTHON_COMPILING_IN_LIMITED_API
   #define __Pyx_PyType_GetSlot(type, name, func_ctype)  ((func_ctype) PyType_GetSlot((type), Py_##name))
 #else
