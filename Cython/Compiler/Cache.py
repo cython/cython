@@ -2,7 +2,6 @@ import sys
 import os
 import hashlib
 import shutil
-import contextlib
 import subprocess
 from ..Utils import safe_makedirs, cached_function
 import zipfile
