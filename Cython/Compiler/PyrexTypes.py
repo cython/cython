@@ -4658,7 +4658,7 @@ class CTupleType(CType):
 def c_tuple_type(components):
     components = tuple(components)
     if any(c.is_fused for c in components):
-        cname = "<dummy fused ctuple>" # should never end up in code
+        cname = "<dummy fused ctuple>"  # should never end up in code
     else:
         cname = Naming.ctuple_type_prefix + type_list_identifier(components)
     tuple_type = CTupleType(cname, components)
