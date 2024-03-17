@@ -157,8 +157,8 @@ class Cache:
                     shutil.copyfileobj(f, g)
         else:
             fingerprint_file = self.zip_fingerprint_file(c_file, fingerprint)
-            with contextlib.closing(zipfile.ZipFile(
-                    fingerprint_file + '.tmp', 'w', zipfile_compression_mode)) as zip:
+            with zipfile.ZipFile(
+                    fingerprint_file + '.tmp', 'w', zipfile_compression_mode) as zip:
                 for artifact in artifacts:
                     zip.write(artifact, os.path.basename(artifact))
         os.rename(fingerprint_file + '.tmp', fingerprint_file)
