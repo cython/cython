@@ -607,7 +607,7 @@ def compile_multiple(sources, options):
     compile_multiple(sources, options)
 
     Compiles the given sequence of Pyrex implementation files and returns
-    a CompilationResultSet. Performs timestamp checking and/or recursion
+    a CompilationResultSet. Performs timestamp checking, caching and/or recursion
     if these are specified in the options.
     """
     if len(sources) > 1 and options.module_name:
@@ -671,9 +671,16 @@ def compile(source, options = None, full_module_name = None, **kwds):
     CompilationResultSet is returned.
     """
     options = CompilationOptions(defaults = options, **kwds)
-    if isinstance(source, str):
+    compile_single = isinstance(source, str) and not options.timestamps
+    if compile_single:
         source = [source]
-    return compile_multiple(source, options)
+    results = compile_multiple(source, options)
+    if compile_single:
+        if results:
+            return list(results.values())[0]
+        else:
+            return None
+    return results
 
 
 @Utils.cached_function
