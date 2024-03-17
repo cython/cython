@@ -380,6 +380,7 @@ static int __Pyx_SetPackagePathFromImportLib(PyObject *module_name);
 static int __Pyx_SetPackagePathFromImportLib(PyObject *module_name) {
     PyObject *importlib, *osmod, *ossep, *parts, *package_path;
     PyObject *file_path = NULL;
+    PyObject *item;
     int result;
     PyObject *spec;
     // package_path = [importlib.util.find_spec(module_name).origin.rsplit(os.sep, 1)[0]]
@@ -410,7 +411,14 @@ static int __Pyx_SetPackagePathFromImportLib(PyObject *module_name) {
     Py_DECREF(ossep);
     if (unlikely(!parts))
         goto bad;
+#if CYTHON_ASSUME_SAFE_MACROS
     package_path = Py_BuildValue("[O]", PyList_GET_ITEM(parts, 0));
+#else
+    item = PyList_GetItem(parts, 0);
+    if (unlikely(!item))
+        goto bad;
+    package_path = Py_BuildValue("[O]", item);
+#endif
     Py_DECREF(parts);
     if (unlikely(!package_path))
         goto bad;
