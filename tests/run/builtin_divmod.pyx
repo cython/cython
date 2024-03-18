@@ -67,3 +67,13 @@ def divmod_int_regular(int a, int b):
     (0, 0)
     """
     return divmod(a,b)
+
+
+@cython.test_fail_if_path_exists("//ReturnStatNode//NameNode[@entry.cname = '__Pyx_divmod_int']")
+def divmod_by_int_0(int a, int b):
+    """
+    >>> divmod_by_int_0(33,0) #doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    ZeroDivisionError: ...
+    """
+    return divmod(a,0)
