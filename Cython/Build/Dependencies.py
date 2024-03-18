@@ -997,6 +997,9 @@ def cythonize(module_list, exclude=None, nthreads=0, aliases=None, quiet=False, 
                                 See :ref:`compiler-directives`.
 
     :param depfile: produce depfiles for the sources if True.
+    :param cache: If ``True`` the cache enabled with default path. If the value is a path to a directory,
+                  then the directory is used to cache generated ``.c``/``.cpp`` files. By default cache is disabled.
+                  See :ref:`cython-cache`.
     """
     if exclude is None:
         exclude = []
