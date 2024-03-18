@@ -26,8 +26,13 @@ from Cython.Build import cythonize
 # List of Cython source files to compile
 source_files = ['your_file.pyx']
 
-# Set the cache option to True
-options = {'cache': True}
+# Check if the cache option is enabled via command-line argument or environment variable
+enable_cache = '--enable-cache' in sys.argv
+if not enable_cache:
+    enable_cache = os.environ.get('CYTHON_ENABLE_CACHE', '').lower() in ['true', '1']
+
+# Set the cache option accordingly
+options = {'cache': enable_cache}
 
 # Specify other setup parameters as needed
 setup(
