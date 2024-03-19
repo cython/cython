@@ -47,7 +47,8 @@ assert limited.cast_float("2.0") == 2.0
 assert limited.cast_float(bytearray(b"3")) == 3.0
 
 assert limited.add_one(2) == 3
-
+assert limited.float_equals(1.5)
+assert not limited.float_equals(2)
 
 ##################### limited.pyx #############################
 
@@ -93,6 +94,9 @@ def catches():
     
 def cast_float(object o):
     return float(o)
+
+def float_equals(o):
+    return o == 1.5
 
 class C:
     pass
