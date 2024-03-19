@@ -22,7 +22,6 @@ from .StringEncoding import EncodedString
 from .Scanning import PyrexScanner, FileSourceDescriptor
 from .Errors import PyrexError, CompileError, error, warning
 from .Symtab import ModuleScope
-from .Cache import Cache
 from .. import Utils
 from . import Options
 from .Options import CompilationOptions, default_options
@@ -627,9 +626,10 @@ def compile_multiple(sources, options):
             output_filename = get_output_filename(source, cwd, options)
             if context is None:
                 context = Context.from_options(options)
-            cache = Cache(options.cache)
-            if cache.enabled:
+            if options.cache:
                 from ..Build.Dependencies import create_dependency_tree
+                from ..Build.Cache import Cache
+                cache = Cache(options.cache)
                 dependencies = create_dependency_tree(context)
                 fingerprint = cache.transitive_fingerprint(
                         source, dependencies, options, 'c++' if options.cplus else None, np_pythran=options.np_pythran)
@@ -639,6 +639,7 @@ def compile_multiple(sources, options):
                     continue
             else:
                 fingerprint = None
+                cache = None
 
             out_of_date = context.c_file_out_of_date(source, output_filename)
             if (not timestamps) or out_of_date:
@@ -652,10 +653,10 @@ def compile_multiple(sources, options):
                 # work properly yet.
                 context = None
 
-                if fingerprint:
+                if fingerprint and cache:
                     cache.store_to_cache(fingerprint, output_filename, result)
             processed.add(source)
-    if cache.enabled:
+    if cache and cache.enabled:
         cache.cleanup_cache()
     return results
 
