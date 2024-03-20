@@ -16,8 +16,8 @@ from ..Compiler.Visitor import CythonTransform, EnvTransform
 from ..Compiler.ParseTreeTransforms import SkipDeclarations
 from ..Compiler.TreeFragment import parse_from_strings
 from .Dependencies import strip_string_literals, cythonize, cached_function
+from .Cache import get_cython_cache_dir
 from ..Compiler import Pipeline
-from ..Utils import get_cython_cache_dir
 import cython as cython_module
 
 import importlib.util
