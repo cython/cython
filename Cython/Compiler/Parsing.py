@@ -3141,9 +3141,7 @@ def p_exception_value_clause(s, is_extern):
                 exc_check = False
             # exc_val can be non-None even if exc_check is False, c.f. "except -1"
             exc_val = p_test(s)
-    if not is_extern and not exc_clause and s.context.legacy_implicit_noexcept:
-        exc_check = False
-        warning(s.position(), "Implicit noexcept declaration is deprecated. Function declaration should contain 'noexcept' keyword.", level=2)
+
     return exc_val, exc_check, exc_clause
 
 c_arg_list_terminators = cython.declare(frozenset, frozenset((
