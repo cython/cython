@@ -17,7 +17,7 @@ from libc.time cimport (
 )
 
 
-cdef inline double time() nogil:
+cdef inline double time() noexcept nogil:
     cdef:
         _PyTime_t tic
 
