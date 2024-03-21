@@ -2791,7 +2791,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         env.use_utility_code(UtilityCode.load_cached("CStringEquals", "StringTools.c"))
         code.putln()
         code.enter_cfunc_scope()  # as we need labels
-        code.putln("static int %s(PyObject *o, PyObject* py_name, char *name) {" % Naming.import_star_set)
+        code.putln("static int %s(PyObject *o, PyObject* py_name, const char *name) {" % Naming.import_star_set)
 
         code.putln("static const char* internal_type_names[] = {")
         for name, entry in sorted(env.entries.items()):
