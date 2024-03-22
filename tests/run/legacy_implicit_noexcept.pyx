@@ -51,46 +51,50 @@ def func_pure_implicit() -> cython.int:
 def func_pure_noexcept() -> cython.int:
     raise RuntimeError
 
-def print_stderr(func):
+def return_stderr(func):
     @functools.wraps(func)
     def testfunc():
-        from contextlib import redirect_stderr
-        with redirect_stderr(sys.stdout):
+        old_stderr = sys.stderr
+        stderr = sys.stderr = StringIO()
+        try:
             func()
+        finally:
+            sys.stderr = old_stderr
+        return stderr.getvalue().strip()
 
     return testfunc
 
-@print_stderr
+@return_stderr
 def test_noexcept():
     """
-    >>> test_noexcept()  # doctest: +ELLIPSIS
+    >>> print(test_noexcept())  # doctest: +ELLIPSIS
     RuntimeError
     Exception...ignored...
     """
     func_noexcept(3, 5)
 
-@print_stderr
+@return_stderr
 def test_ptr_noexcept():
     """
-    >>> test_ptr_noexcept()  # doctest: +ELLIPSIS
+    >>> print(test_ptr_noexcept())  # doctest: +ELLIPSIS
     RuntimeError
     Exception...ignored...
     """
     ptr_func_noexcept(3, 5)
 
-@print_stderr
+@return_stderr
 def test_implicit():
     """
-    >>> test_implicit()  # doctest: +ELLIPSIS
+    >>> print(test_implicit())  # doctest: +ELLIPSIS
     RuntimeError
     Exception...ignored...
     """
     func_implicit(1, 2)
 
-@print_stderr
+@return_stderr
 def test_ptr_implicit():
     """
-    >>> test_ptr_implicit()  # doctest: +ELLIPSIS
+    >>> print(test_ptr_implicit())  # doctest: +ELLIPSIS
     RuntimeError
     Exception...ignored...
     """
@@ -124,27 +128,23 @@ def test_return_obj_implicit():
     """
     func_return_obj_implicit(1, 2)
 
-@print_stderr
 def test_pure_implicit():
     """
-    >>> test_pure_implicit()  # doctest: +ELLIPSIS
+    >>> test_pure_implicit()
+    Traceback (most recent call last):
+    ...
     RuntimeError
-    Exception...ignored...
     """
     func_pure_implicit()
 
-@print_stderr
 def test_pure_noexcept():
     """
-    >>> test_pure_noexcept()  # doctest: +ELLIPSIS
+    >>> test_pure_noexcept()
+    Traceback (most recent call last):
+    ...
     RuntimeError
-    Exception...ignored...
     """
     func_pure_noexcept()
-
-# extern functions are implicit noexcept, without warning
-cdef extern int extern_fun()
-cdef extern int extern_fun_fun(int (*f)(int))
 
 _WARNINGS = """
 12:5: Unraisable exception in function 'legacy_implicit_noexcept.func_implicit'.
