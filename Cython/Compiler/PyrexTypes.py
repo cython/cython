@@ -5486,8 +5486,8 @@ def type_identifier_from_declaration(decl, scope = None):
         _type_identifier_cache[key] = safe
     return safe
 
-def cap_length(s, max_prefix=63, max_len=1024):
-    if len(s) <= max_prefix:
+def cap_length(s, max_len=63):
+    if len(s) <= max_len:
         return s
     hash_prefix = hashlib.sha256(s.encode('ascii')).hexdigest()[:6]
     return '%s__%s__etc' % (hash_prefix, s[:max_len-17])
