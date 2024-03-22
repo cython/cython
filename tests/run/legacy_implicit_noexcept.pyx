@@ -128,21 +128,23 @@ def test_return_obj_implicit():
     """
     func_return_obj_implicit(1, 2)
 
+@return_stderr
 def test_pure_implicit():
     """
-    >>> test_pure_implicit()
-    Traceback (most recent call last):
-    ...
+    >>> print(test_pure_implicit())  # doctest: +ELLIPSIS
     RuntimeError
+    Exception...ignored...
     """
     func_pure_implicit()
 
+@return_stderr
 def test_pure_noexcept():
     """
-    >>> test_pure_noexcept()
+    >>> print(test_pure_noexcept())  # doctest: +ELLIPSIS
+    RuntimeError
+    Exception...ignored...
     Traceback (most recent call last):
     ...
-    RuntimeError
     """
     func_pure_noexcept()
 
