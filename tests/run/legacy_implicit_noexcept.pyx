@@ -54,9 +54,13 @@ def func_pure_noexcept() -> cython.int:
 def print_stderr(func):
     @functools.wraps(func)
     def testfunc():
-        from contextlib import redirect_stderr
-        with redirect_stderr(sys.stdout):
+        old_stderr = sys.stderr
+        stderr = sys.stderr = StringIO()
+        try:
             func()
+        finally:
+            sys.stderr = old_stderr
+        print(stderr.getvalue())
 
     return testfunc
 
