@@ -512,17 +512,13 @@ class UtilityCodeBase:
                     continue
                 # only pass lists when we have to: most argument expect one value or None
                 if name == 'requires':
-                    def load_dep(dep):
-                        if cls.is_cython_utility and re.search("[.]c(pp)?::", dep):
-                            # Allow loading of C utility code from Cython utility code.
-                            # Note that we don't current propagate things like tempita context.
-                            return UtilityCode.load_cached(dep, from_file)
-                        if orig_kwargs:
-                            return cls.load(dep, from_file, **orig_kwargs)
-                        else:
-                            return cls.load_cached(dep, from_file)
-
-                    values = [load_dep(dep) for dep in sorted(values)]
+                    if orig_kwargs:
+                        values = [cls.load(dep, from_file, **orig_kwargs)
+                                  for dep in sorted(values)]
+                    else:
+                        # dependencies are rarely unique, so use load_cached() when we can
+                        values = [cls.load_cached(dep, from_file)
+                                  for dep in sorted(values)]
                 elif name == 'substitute':
                     # don't want to pass "naming" or "tempita" to the constructor
                     # since these will have been handled
