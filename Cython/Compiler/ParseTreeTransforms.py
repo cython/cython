@@ -182,12 +182,15 @@ class PostParse(ScopeTrackingTransform):
     if a more pure Abstract Syntax Tree is wanted.
 
     - Some invalid uses of := assignment expressions are detected
+
+    - Validate that return, continue and break aren't in except*
     """
     def __init__(self, context):
         super().__init__(context)
         self.specialattribute_handlers = {
             '__cythonbufferdefaults__' : self.handle_bufferdefaults
         }
+        self.except_star_validation_tracker = None
         self.in_pattern_node = False
 
     def visit_LambdaNode(self, node):
@@ -380,6 +383,42 @@ class PostParse(ScopeTrackingTransform):
             node.value = None
         self.visitchildren(node)
         return node
+
+    def _track_node_for_except_star_validation(self, node):
+        old_validation_tracker = self.except_star_validation_tracker
+        self.except_star_validation_tracker = node
+        self.visitchildren(node)
+        self.except_star_validation_tracker = old_validation_tracker
+        return node
+
+    def visit_LoopNode(self, node):
+        return self._track_node_for_except_star_validation(node)
+
+    def visit_FuncDefNode(self, node):
+        old_validation_tracker = self.except_star_validation_tracker
+        self.except_star_validation_tracker = node
+        node = super(PostParse, self).visit_FuncDefNode(node)
+        self.except_star_validation_tracker = old_validation_tracker
+        return node
+
+    def visit_ExceptStarChainNode(self, node):
+        return self._track_node_for_except_star_validation(node)
+
+    def _validate_break_return_continue_in_except_star(self, node):
+        if isinstance(self.except_star_validation_tracker, Nodes.ExceptStarChainNode):
+            # error message copied from Python 3.11
+            raise PostParseError(node.pos, "'break', 'continue' and 'return' cannot appear in an except* block")
+        self.visitchildren(node)
+        return node
+
+    def visit_ReturnStatNode(self, node):
+        return self._validate_break_return_continue_in_except_star(node)
+
+    def visit_BreakStatNode(self, node):
+        return self._validate_break_return_continue_in_except_star(node)
+
+    def visit_ContinueStatNode(self, node):
+        return self._validate_break_return_continue_in_except_star(node)
 
     def visit_ErrorNode(self, node):
         error(node.pos, node.what)

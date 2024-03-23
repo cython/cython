@@ -53,6 +53,7 @@ cdef class FunctionState:
     cdef public bint should_declare_error_indicator
     cdef public bint uses_error_indicator
     cdef public bint error_without_exception
+    cdef public bint has_except_star
 
     cdef public bint needs_refnanny
 
