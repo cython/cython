@@ -25,7 +25,14 @@ Features added
   :issue:`5885`, :issue:`5886`, :issue:`5888`)
 
 * Several issues with the gdb support were resolved.
-  Patches by Kent Slaney.  (Github issues :issue:`5955`,  :issue:`5948`)
+  Patches by Kent Slaney.  (Github issues :issue:`5955`, :issue:`5948`)
+
+* C++ classes implemented in Cython can now use method overloading.
+  Patch by samaingw.  (Github issue :issue:`3235`)
+
+* Assigning a Python container to a C++ vector now makes use of ``__length_hint__``
+  to avoid reallocations.
+  Patch by Denis Lukianov.  (Github issue :issue:`6077`)
 
 * Dataclasses support the ``match_args`` option.
   (Github issue :issue:`5381`)
@@ -114,7 +121,7 @@ Other changes
   and users should migrate to using the two C macros only.
   (Github issue :issue:`6036`)
 
-* Includes all fixes as of Cython 3.0.9 (but generates C99 code in some places).
+* Includes all fixes as of Cython 3.0.10 (but generates C99 code in some places).
 
 
 3.0.10 (2024-??-??)
