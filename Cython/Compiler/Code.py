@@ -77,6 +77,32 @@ uncachable_builtins = [
     'EncodingWarning',
     ## - Py3.7+
     'breakpoint',  # might deserve an implementation in Cython
+    ## - Py3.4+
+    '__loader__',
+    '__spec__',
+    ## - Py3+
+    'BlockingIOError',
+    'BrokenPipeError',
+    'ChildProcessError',
+    'ConnectionAbortedError',
+    'ConnectionError',
+    'ConnectionRefusedError',
+    'ConnectionResetError',
+    'FileExistsError',
+    'FileNotFoundError',
+    'InterruptedError',
+    'IsADirectoryError',
+    'ModuleNotFoundError',
+    'NotADirectoryError',
+    'PermissionError',
+    'ProcessLookupError',
+    'RecursionError',
+    'ResourceWarning',
+    #'StopAsyncIteration',  # backported
+    'TimeoutError',
+    '__build_class__',
+    'ascii',  # might deserve an implementation in Cython
+    #'exec',  # implemented in Cython
     ## - platform specific
     'WindowsError',
     ## - others
