@@ -59,28 +59,26 @@ def try_finally_contextmanager(gen_func):
     return make_gen
 
 
+try:
+    from functools import cache as _cache_function
+except ImportError:
+    from functools import lru_cache
+    _cache_function = lru_cache(maxsize=None)
+
+
 _function_caches = []
 
 
 def clear_function_caches():
     for cache in _function_caches:
-        cache.clear()
+        cache.cache_clear()
 
 
 def cached_function(f):
-    cache = {}
-    _function_caches.append(cache)
-    uncomputed = object()
+    cf = _cache_function(f)
+    _function_caches.append(cf)
+    return cf
 
-    @wraps(f)
-    def wrapper(*args):
-        res = cache.get(args, uncomputed)
-        if res is uncomputed:
-            res = cache[args] = f(*args)
-        return res
-
-    wrapper.uncached = f
-    return wrapper
 
 
 def _find_cache_attributes(obj):
