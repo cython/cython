@@ -1092,6 +1092,23 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 code.putln("  #pragma pack(pop)")
                 code.putln("#endif")
 
+    def generate_cpp_constructor_code(self, arg_decls, arg_names, is_implementing, py_attrs, constructor, type, code):
+        if is_implementing:
+            code.putln("%s(%s) {" % (type.cname, ", ".join(arg_decls)))
+            needs_gil = py_attrs or (constructor and not constructor.type.nogil)
+            if needs_gil:
+                code.put_ensure_gil()
+            if py_attrs:
+                for attr in py_attrs:
+                    code.put_init_var_to_py_none(attr, nanny=False)
+            if constructor:
+                code.putln("%s(%s);" % (constructor.cname, ", ".join(arg_names)))
+            if needs_gil:
+                code.put_release_ensured_gil()
+            code.putln("}")
+        else:
+            code.putln("%s(%s);" % (type.cname, ", ".join(arg_decls)))
+
     def generate_cpp_class_definition(self, entry, code):
         code.mark_pos(entry.pos)
         type = entry.type
@@ -1117,7 +1134,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 if attr.type.is_cfunction and attr.type.is_static_method:
                     code.put("static ")
                 elif attr.name == "<init>":
-                    constructor = attr
+                    constructor = scope.lookup_here("<init>")
                 elif attr.name == "<del>":
                     destructor = attr
                 elif attr.type.is_cfunction:
@@ -1125,35 +1142,28 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                     has_virtual_methods = True
                 code.putln("%s;" % attr.type.declaration_code(attr.cname))
             is_implementing = 'init_module' in code.globalstate.parts
+
             if constructor or py_attrs:
                 if constructor:
+                    for constructor_alternative in constructor.all_alternatives():
+                        arg_decls = []
+                        arg_names = []
+                        for arg in constructor_alternative.type.original_args[
+                                :len(constructor_alternative.type.args)-constructor_alternative.type.optional_arg_count]:
+                            arg_decls.append(arg.declaration_code())
+                            arg_names.append(arg.cname)
+                        if constructor_alternative.type.optional_arg_count:
+                            arg_decls.append(constructor_alternative.type.op_arg_struct.declaration_code(Naming.optional_args_cname))
+                            arg_names.append(Naming.optional_args_cname)
+                        if not arg_decls:
+                            default_constructor = True
+                            arg_decls = []
+                        self.generate_cpp_constructor_code(arg_decls, arg_names, is_implementing, py_attrs, constructor_alternative, type, code)
+                else:
                     arg_decls = []
                     arg_names = []
-                    for arg in constructor.type.original_args[
-                            :len(constructor.type.args)-constructor.type.optional_arg_count]:
-                        arg_decls.append(arg.declaration_code())
-                        arg_names.append(arg.cname)
-                    if constructor.type.optional_arg_count:
-                        arg_decls.append(constructor.type.op_arg_struct.declaration_code(Naming.optional_args_cname))
-                        arg_names.append(Naming.optional_args_cname)
-                    if not arg_decls:
-                        arg_decls = ["void"]
-                else:
-                    arg_decls = ["void"]
-                    arg_names = []
-                if is_implementing:
-                    code.putln("%s(%s) {" % (type.cname, ", ".join(arg_decls)))
-                    if py_attrs:
-                        code.put_ensure_gil()
-                        for attr in py_attrs:
-                            code.put_init_var_to_py_none(attr, nanny=False)
-                    if constructor:
-                        code.putln("%s(%s);" % (constructor.cname, ", ".join(arg_names)))
-                    if py_attrs:
-                        code.put_release_ensured_gil()
-                    code.putln("}")
-                else:
-                    code.putln("%s(%s);" % (type.cname, ", ".join(arg_decls)))
+                    self.generate_cpp_constructor_code(arg_decls, arg_names, is_implementing, py_attrs, constructor, type, code)
+
             if destructor or py_attrs or has_virtual_methods:
                 if has_virtual_methods:
                     code.put("virtual ")
