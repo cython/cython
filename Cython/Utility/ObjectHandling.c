@@ -2932,10 +2932,10 @@ static PyObject *__Pyx_PyList_Pack(Py_ssize_t n, ...) {
 
 /////////////// LengthHint.proto //////////////////////////////////////
 
-#if !CYTHON_COMPILING_IN_LIMITED_API
-#define __Pyx_PyObject_LengthHint(o, defaultval) PyObject_LengthHint(o, defaultval)
-#else
+#if CYTHON_COMPILING_IN_LIMITED_API
 // We could reimplement it fully, however since it's only an optimization
 // the simpler version is to make it the default.
-#define __Pyx_PyObject_LengthHint(o, defaultval) defaultval
+#define __Pyx_PyObject_LengthHint(o, defaultval)  (defaultval)
+#else
+#define __Pyx_PyObject_LengthHint(o, defaultval)  PyObject_LengthHint(o, defaultval)
 #endif
