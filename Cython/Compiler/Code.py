@@ -924,7 +924,7 @@ class FunctionState:
     # labels
 
     def new_label(self, name=None):
-        n = self.label_counter
+        n: cython.size_t = self.label_counter
         self.label_counter = n + 1
         label = "%s%d" % (Naming.label_prefix, n)
         if name is not None:
@@ -1174,12 +1174,12 @@ class StringConst:
             self.py_versions.append(version)
 
     def get_py_string_const(self, encoding, identifier=None,
-                            is_str=False, py3str_cstring=None):
-        py_strings = self.py_strings
+                            is_str: cython.bint = False, py3str_cstring=None):
         text = self.text
+        intern: cython.bint
 
         is_str = bool(identifier or is_str)
-        is_unicode = encoding is None and not is_str
+        is_unicode: cython.bint = encoding is None and not is_str
 
         if encoding is None:
             # unicode string
@@ -1194,11 +1194,11 @@ class StringConst:
                 encoding_key = ''.join(find_alphanums(encoding))
 
         key = (is_str, is_unicode, encoding_key, py3str_cstring)
-        if py_strings is None:
+        if self.py_strings is None:
             self.py_strings = {}
         else:
             try:
-                return py_strings[key]
+                return self.py_strings[key]
             except KeyError:
                 pass
 
