@@ -77,6 +77,7 @@ def clear_function_caches():
 def cached_function(f):
     cf = _cache_function(f)
     _function_caches.append(cf)
+    cf.uncached = f  # needed by coverage plugin
     return cf
 
 
