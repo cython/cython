@@ -6,10 +6,9 @@ Cython -- Things that don't belong anywhere else in particular
 import cython
 
 cython.declare(
-    basestring=object,
     os=object, sys=object, re=object, io=object, codecs=object, glob=object, shutil=object, tempfile=object,
-    cython_version=object,
-    _function_caches=list, _parse_file_version=object, _match_file_encoding=object,
+    wraps=object, cython_version=object,
+    _cache_function=object, _function_caches=list, _parse_file_version=object, _match_file_encoding=object,
 )
 
 import os
