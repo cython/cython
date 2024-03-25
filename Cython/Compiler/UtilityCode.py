@@ -3,6 +3,8 @@ from . import Symtab
 from . import Naming
 from . import Code
 
+import re
+
 
 class NonManglingModuleScope(Symtab.ModuleScope):
 
@@ -195,6 +197,14 @@ class CythonUtilityCode(Code.UtilityCodeBase):
 
     def put_code(self, output):
         pass
+
+    @classmethod
+    def load(cls, util_code_name, from_file, **kwargs):
+        if re.search("[.]c(pp)?::", util_code_name):
+            # We're trying to load a C/C++ utility code.
+            # For now, just handle the simple case with no tempita
+            return Code.UtilityCode.load_cached(util_code_name, from_file)
+        return super().load(util_code_name, from_file, **kwargs)
 
     @classmethod
     def load_as_string(cls, util_code_name, from_file=None, **kwargs):
