@@ -343,7 +343,7 @@ static int ${import_star}(PyObject* m) {
 
         utf8_name = PyUnicode_AsUTF8String(name);
         if (!utf8_name) goto bad;
-        s = __Pyx_PyBytes_AsWritableString(utf8_name); if (!s) goto bad;
+        s = __Pyx_PyBytes_AsString(utf8_name); if (!s) goto bad;
         if (${import_star_set}(item, name, s) < 0) goto bad;
         Py_DECREF(utf8_name); utf8_name = 0;
     }
