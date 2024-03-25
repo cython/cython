@@ -992,7 +992,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                     pass
                 elif type.is_struct_or_union or type.is_cpp_class:
                     self.generate_struct_union_predeclaration(entry, code)
-                elif type.is_ctuple and entry.used:
+                elif type.is_ctuple and not type.is_fused and entry.used:
                     self.generate_struct_union_predeclaration(entry.type.struct_entry, code)
                 elif type.is_extension_type:
                     self.generate_objstruct_predeclaration(type, code)
@@ -1007,7 +1007,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                     self.generate_enum_definition(entry, code)
                 elif type.is_struct_or_union:
                     self.generate_struct_union_definition(entry, code)
-                elif type.is_ctuple and entry.used:
+                elif type.is_ctuple and not type.is_fused and entry.used:
                     self.generate_struct_union_definition(entry.type.struct_entry, code)
                 elif type.is_cpp_class:
                     self.generate_cpp_class_definition(entry, code)

@@ -115,6 +115,21 @@ def test_plus_one():
     (1+1j)
     """
 
+@cython.ufunc
+cdef (cython.numeric, cython.numeric) plus_one_twice(cython.numeric x):
+    return x+1, x+1
+
+def test_plus_one_twice():
+    """
+    Test a function returning a fused ctuple
+    >>> plus_one_twice(int_arr_1d)  # doctest: +ELLIPSIS
+    (array([ 1,  5,  9, 13, 17]...), array([ 1,  5,  9, 13, 17]...))
+    >>> plus_one_twice(1.j)
+    ((1+1j), (1+1j))
+
+    2D variant skipped because it's hard to sensible doctest
+    """
+
 ###### Test flow-control ######
 # An initial implementation of ufunc did some odd restructuring of the code to
 # bring the functions completely inline at the Cython level. These tests were to
