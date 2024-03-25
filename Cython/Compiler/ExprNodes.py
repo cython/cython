@@ -10261,8 +10261,7 @@ class CodeObjectNode(ExprNode):
         # signed int but the flags are just #defined as bit flags, so the type (signed
         # or unsigned) should be contextually determined. I wonder if this is a function
         # of my compiler.
-        flags = [f"((unsigned int) {flag})" for flag in flags]
-        flags = '|'.join(flags) or '0'
+        flags = '(unsigned int)(%s)' % '|'.join(flags) or '0'
         first_lineno = self.pos[1]
 
         # See "generate_codeobject_constants()" in Code.py.
@@ -11533,7 +11532,7 @@ class CythonArrayNode(ExprNode):
 
         dispose(shapes_temp)
         dispose(format_temp)
-        dispose(format_ptr_temp)
+        code.funcstate.release_temp(format_ptr_temp)
 
     @classmethod
     def from_carray(cls, src_node, env):
