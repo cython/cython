@@ -10255,12 +10255,6 @@ class CodeObjectNode(ExprNode):
         num_posonly_args = func.num_posonly_args  # Py3.8+ only
         kwonly_argcount = func.num_kwonly_args
         nlocals = len(self.varnames)
-        # TODO: Not clear if something changed in Python make this typing change
-        # necessary, but I am seeing compiler warnings about narrowing. Looking in
-        # Include/cpython/code.h (in the cpython source), co_flags has always been a
-        # signed int but the flags are just #defined as bit flags, so the type (signed
-        # or unsigned) should be contextually determined. I wonder if this is a function
-        # of my compiler.
         flags = '(unsigned int)(%s)' % '|'.join(flags) or '0'
         first_lineno = self.pos[1]
 
