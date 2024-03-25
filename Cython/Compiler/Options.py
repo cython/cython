@@ -223,7 +223,8 @@ _directive_defaults = {
     'fast_gil': False,
     'cpp_locals': False,  # uses std::optional for C++ locals, so that they work more like Python locals
     'legacy_implicit_noexcept': False,
-
+    'write_stub_file': False,  # write a Python`.pyi` stub file with typing information
+    
     # set __file__ and/or __path__ to known source/target path at import time (instead of not having them available)
     'set_initial_path' : None,  # SOURCEFILE or "/full/path/to/module"
 

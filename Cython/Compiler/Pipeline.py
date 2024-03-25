@@ -163,7 +163,7 @@ def create_pipeline(context, mode, exclude_classes=()):
     from .Optimize import ConsolidateOverflowCheck
     from .Buffer import IntroduceBufferAuxiliaryVars
     from .ModuleNode import check_c_declarations, check_c_declarations_pxd
-
+    from .TypeStubGenerator import PyiWriter
 
     if mode == 'pxd':
         _check_c_declarations = check_c_declarations_pxd
@@ -186,6 +186,7 @@ def create_pipeline(context, mode, exclude_classes=()):
         _specific_post_parse,
         TrackNumpyAttributes(),
         InterpretCompilerDirectives(context, context.compiler_directives),
+        PyiWriter(context),
         ParallelRangeTransform(context),
         WithTransform(),
         AdjustDefByDirectives(context),
