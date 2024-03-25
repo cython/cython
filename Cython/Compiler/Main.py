@@ -606,7 +606,7 @@ def compile_multiple(sources, options):
     compile_multiple(sources, options)
 
     Compiles the given sequence of Pyrex implementation files and returns
-    a CompilationResultSet. Performs timestamp checking and/or recursion
+    a CompilationResultSet. Performs timestamp checking, caching and/or recursion
     if these are specified in the options.
     """
     if len(sources) > 1 and options.module_name:
@@ -623,9 +623,24 @@ def compile_multiple(sources, options):
     cwd = os.getcwd()
     for source in sources:
         if source not in processed:
+            output_filename = get_output_filename(source, cwd, options)
             if context is None:
                 context = Context.from_options(options)
-            output_filename = get_output_filename(source, cwd, options)
+            if options.cache:
+                from ..Build.Dependencies import create_dependency_tree
+                from ..Build.Cache import Cache
+                cache = Cache(options.cache)
+                dependencies = create_dependency_tree(context)
+                fingerprint = cache.transitive_fingerprint(
+                        source, dependencies, options, 'c++' if options.cplus else None, np_pythran=options.np_pythran)
+                if cache.lookup_cache(output_filename, fingerprint):
+                    if verbose:
+                        sys.stderr.write(f'Found compiled {os.path.basename(output_filename)} in cache.\n')
+                    continue
+            else:
+                fingerprint = None
+                cache = None
+
             out_of_date = context.c_file_out_of_date(source, output_filename)
             if (not timestamps) or out_of_date:
                 if verbose:
@@ -637,7 +652,12 @@ def compile_multiple(sources, options):
                 # Compiling multiple sources in one context doesn't quite
                 # work properly yet.
                 context = None
+
+                if fingerprint and cache:
+                    cache.store_to_cache(fingerprint, output_filename, result)
             processed.add(source)
+    if cache and cache.enabled:
+        cache.cleanup_cache()
     return results
 
 
@@ -652,11 +672,16 @@ def compile(source, options = None, full_module_name = None, **kwds):
     CompilationResultSet is returned.
     """
     options = CompilationOptions(defaults = options, **kwds)
-    if isinstance(source, str):
-        if not options.timestamps:
-            return compile_single(source, options, full_module_name)
+    compile_single = isinstance(source, str) and not options.timestamps
+    if compile_single:
         source = [source]
-    return compile_multiple(source, options)
+    results = compile_multiple(source, options)
+    if compile_single:
+        if results:
+            return list(results.values())[0]
+        else:
+            return None
+    return results
 
 
 @Utils.cached_function
