@@ -35,8 +35,10 @@ cdef class Scanner:
     cdef inline get_current_scan_pos(self)
     cdef inline tuple scan_a_token(self)
 
-    @cython.final
-    cdef tuple position(self)  # used frequently by Parsing.py
+    # This could be @final and @cfunc, but that would hide it from Parsing.py
+    # unless that's compiled as well (which it isn't with "minimal" compilation).
+    #@cython.final
+    cpdef tuple position(self)  # used frequently by Parsing.py
 
     @cython.final
     cdef run_machine_inlined(self)
