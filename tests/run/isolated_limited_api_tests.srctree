@@ -40,6 +40,9 @@ limited.C()
 limited.D()
 limited.E()
 
+assert limited.C.cm() == limited.C().cm() == limited.C
+assert limited.D.cm() == limited.D().cm() == limited.D
+
 assert limited.decode(b'a', bytearray(b'b')) == "ab"
 
 assert limited.cast_float(1) == 1.0
@@ -95,10 +98,14 @@ def cast_float(object o):
     return float(o)
 
 class C:
-    pass
+    @classmethod
+    def cm(cls):
+        return cls
 
 cdef class D:
-    pass
+    @classmethod
+    def cm(cls):
+        return cls
 
 cdef class E(D):
     pass

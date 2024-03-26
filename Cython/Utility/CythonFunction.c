@@ -1704,7 +1704,9 @@ static int __pyx_FusedFunction_init(PyObject *module) {
 
 //////////////////// ClassMethod.proto ////////////////////
 
+#if !CYTHON_COMPILING_IN_LIMITED_API
 #include "descrobject.h"
+#endif
 CYTHON_UNUSED static PyObject* __Pyx_Method_ClassMethod(PyObject *method); /*proto*/
 
 //////////////////// ClassMethod ////////////////////
@@ -1723,12 +1725,22 @@ static PyObject* __Pyx_Method_ClassMethod(PyObject *method) {
     if (__Pyx_TypeCheck(method, &PyMethodDescr_Type))
 #endif
     {
+#if !CYTHON_COMPILING_IN_LIMITED_API
         // cdef classes
         PyMethodDescrObject *descr = (PyMethodDescrObject *)method;
         PyTypeObject *d_type = descr->d_common.d_type;
         return PyDescr_NewClassMethod(d_type, descr->d_method);
+#else
+        return PyErr_Format(
+            PyExc_SystemError,
+            "Cython cannot yet handle classmethod on a MethodDescriptorType (%S) in limited API mode. "
+            "This is most likely a classmethod in a cdef class method with binding=False. "
+            "Try setting 'binding' to True.",
+            method);
+#endif
     }
 #endif
+#if !CYTHON_COMPILING_IN_LIMITED_API
     else if (PyMethod_Check(method)) {
         // python classes
         return PyClassMethod_New(PyMethod_GET_FUNCTION(method));
@@ -1736,4 +1748,36 @@ static PyObject* __Pyx_Method_ClassMethod(PyObject *method) {
     else {
         return PyClassMethod_New(method);
     }
+#else
+    {
+        PyObject *types_module, *method_type=NULL, *func=NULL;
+        PyObject *builtins, *classmethod, *result=NULL;
+        types_module = PyImport_ImportModule("types");
+        if (!types_module) {
+            return NULL;
+        }
+        method_type = PyObject_GetAttrString(types_module, "MethodType");
+        if (!method_type) goto bad;
+        if (__Pyx_TypeCheck(method, method_type)) {
+            func = PyObject_GetAttrString(method, "__func__");
+            if (!func) goto bad;
+        } else {
+            func = method;
+            Py_INCREF(func);
+        }
+        builtins = PyEval_GetBuiltins(); // borrowed
+        if (!builtins) goto bad;
+        classmethod = PyDict_GetItemString(builtins, "classmethod");
+        // classmethod is borrowed
+        if (!classmethod) goto bad;
+        result = PyObject_CallFunctionObjArgs(classmethod, func, NULL);
+
+        bad:
+        Py_XDECREF(func);
+        Py_XDECREF(method_type);
+        Py_DECREF(types_module);
+        return result;
+    }
+#endif
+
 }
