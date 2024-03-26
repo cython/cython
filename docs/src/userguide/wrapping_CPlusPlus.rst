@@ -657,14 +657,16 @@ Specify C++ language in setup.py
 Instead of specifying the language and the sources in the source files, it is
 possible to declare them in the :file:`setup.py` file::
 
-   from setuptools import setup
-   from Cython.Build import cythonize
+    from distutils.core import setup
 
-   setup(ext_modules = cythonize(
-              "rect.pyx",                 # our Cython source
-              sources=["Rectangle.cpp"],  # additional source file(s)
-              language="c++",             # generate C++ code
-         ))
+    from Cython.Build import cythonize
+
+    setup(
+        ext_modules=cythonize(
+            ["rect.pyx", "Rectangle.cpp"],  # our Cython source + additional source file(s)
+            language="c++",  # generate C++ code
+        )
+    )
 
 Cython will generate and compile the :file:`rect.cpp` file (from
 :file:`rect.pyx`), then it will compile :file:`Rectangle.cpp`
