@@ -74,4 +74,5 @@ cdef class GilCheck(VisitorTransform):
     cdef bint current_gilstat_node_knows_gil_state
 
 cdef class TransformBuiltinMethods(EnvTransform):
+    cdef dict def_node_body_insertions
     cdef visit_cython_attribute(self, node)
