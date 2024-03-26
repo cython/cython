@@ -1,1 +1,3 @@
-cdef unicode _text(s)
+# cython: language_level=3
+
+cdef str _text(s)

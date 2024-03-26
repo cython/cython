@@ -1,13 +1,18 @@
+# cython: language_level=3
+
 from libc.stdlib cimport free
 
-cdef unicode tounicode(char* s):
+
+cdef str tounicode(char* s):
     return s.decode('UTF-8', 'strict')
 
-cdef unicode tounicode_with_length(
+
+cdef str tounicode_with_length(
         char* s, size_t length):
     return s[:length].decode('UTF-8', 'strict')
 
-cdef unicode tounicode_with_length_and_free(
+
+cdef str tounicode_with_length_and_free(
         char* s, size_t length):
     try:
         return s[:length].decode('UTF-8', 'strict')
