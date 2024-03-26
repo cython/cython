@@ -2507,11 +2507,15 @@ class NameNode(AtomicExprNode):
                 # FIXME: is_pyglobal is also used for class namespace
                 code.globalstate.use_utility_code(
                     UtilityCode.load_cached("GetNameInClass", "ObjectHandling.c"))
+                may_be_special_name = 0
+                if entry.scope.is_c_class_scope and entry.name in entry.scope.special_class_names:
+                    may_be_special_name = 1
                 code.putln(
-                    '__Pyx_GetNameInClass(%s, %s, %s); %s' % (
+                    '__Pyx_GetNameInClass(%s, %s, %s, %s); %s' % (
                         self.result(),
                         entry.scope.namespace_cname,
                         interned_cname,
+                        may_be_special_name,
                         code.error_goto_if_null(self.result(), self.pos)))
             self.generate_gotref(code)
 

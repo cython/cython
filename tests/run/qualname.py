@@ -1,6 +1,6 @@
 # cython: binding=True
 # mode: run
-# tag: cyfunction, qualname, pure3.5
+# tag: cyfunction, qualname, pure3.6
 
 from __future__ import print_function
 
@@ -150,3 +150,33 @@ class CdefModifyNames:
     #    m_deleted = __module__
     #except NameError:
     #    pass
+
+@cython.cclass
+class CdefAttributes:
+    """
+    It should be possible to make __qualname__ and __module__ cdef attributes
+    that override the class-level definitions. It may not be a good idea of course!
+
+    >>> c1 = CdefAttributes("aaa", "111")
+    >>> c2 = CdefAttributes("bbb", "222")
+    >>> c1.get_module()
+    'aaa'
+    >>> c2.get_module()
+    'bbb'
+    >>> c1.get_qualname()
+    '111'
+    >>> c2.get_qualname()
+    '222'
+    """
+    __module__: object
+    __qualname__: object
+
+    def __init__(self, m, qn):
+        self.__module__ = m
+        self.__qualname__ = qn
+
+    def get_module(self):
+        return self.__module__
+
+    def get_qualname(self):
+        return self.__qualname__

@@ -1287,13 +1287,13 @@ static PyObject *__Pyx_GetBuiltinName(PyObject *name) {
 
 /////////////// GetNameInClass.proto ///////////////
 
-#define __Pyx_GetNameInClass(var, nmspace, name)  (var) = __Pyx__GetNameInClass(nmspace, name)
-static PyObject *__Pyx__GetNameInClass(PyObject *nmspace, PyObject *name); /*proto*/
+#define __Pyx_GetNameInClass(var, nmspace, name, may_be_special_name)  (var) = __Pyx__GetNameInClass(nmspace, name, may_be_special_name)
+static PyObject *__Pyx__GetNameInClass(PyObject *nmspace, PyObject *name, int may_be_special_name); /*proto*/
 
 /////////////// GetNameInClass ///////////////
 //@requires: GetModuleGlobalName
 
-static PyObject *__Pyx__GetNameInClass(PyObject *nmspace, PyObject *name) {
+static PyObject *__Pyx__GetNameInClass(PyObject *nmspace, PyObject *name, int may_be_special_name) {
     PyObject *result;
     PyObject *dict;
     assert(PyType_Check(nmspace));
@@ -1311,6 +1311,15 @@ static PyObject *__Pyx__GetNameInClass(PyObject *nmspace, PyObject *name) {
         }
     }
     PyErr_Clear();
+    if (may_be_special_name) {
+        // A few known names like __qualname__ and __module__ are not in the dictionary but properties of the namespace.
+        // In this case we want to do the normal lookup (but skip it for everything else to avoid needless work)
+        result = PyObject_GetAttr(nmspace, name);
+        if (result) {
+            return result;
+        }
+        PyErr_Clear();
+    }
     __Pyx_GetModuleGlobalNameUncached(result, name);
     return result;
 }
