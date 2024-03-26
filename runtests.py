@@ -1654,6 +1654,7 @@ class PureDoctestTestCase(unittest.TestCase):
                         self.module_path,
                         '--ignore-missing-imports',
                         '--follow-imports', 'skip',
+                        '--python-version', '3.10',
                     ])
                 if mypy_result[2]:
                     self.fail(mypy_result[0])
