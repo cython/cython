@@ -1481,8 +1481,19 @@ static {{c_ret_type}} {{cfunc_name}}(PyObject *op1, PyObject *op2, double floatv
                 default:
         #endif
         {{if op in ('Eq', 'Ne')}}
+                    {
+                        PyObject *res =
+                    #if CYTHON_USE_TYPE_SLOTS || __PYX_LIMITED_VERSION_HEX > 0x030A0000
+                            // PyType_GetSlot only works on non-heap types from Python 3.10
+                            __Pyx_PyType_GetSlot((&PyFloat_Type), tp_richcompare, richcmpfunc)
+                    #else
+                            PyObject_RichCompare
+                    #endif
+                        ({{'op1, op2' if order == 'CObj' else 'op2, op1'}},
+                         Py_{{op.upper()}});
                     return {{'' if ret_type.is_pyobject else '__Pyx_PyObject_IsTrueAndDecref'}}(
-                        PyFloat_Type.tp_richcompare({{'op1, op2' if order == 'CObj' else 'op2, op1'}}, Py_{{op.upper()}}));
+                        res);
+                    }
         {{else}}
                     {{fval}} = PyLong_AsDouble({{pyval}});
                     if (unlikely({{fval}} == -1.0 && PyErr_Occurred())) return NULL;
