@@ -1867,6 +1867,27 @@ def CConstType(base_type):
     return CConstOrVolatileType(base_type, is_const=1)
 
 
+class _FusedExceptionValuePlaceholderType(object):
+    def __repr__(self):
+        return "<Fused type exception value placeholder>"
+    def __deepcopy__(self, memo):
+        return self
+
+fused_type_exception_value_placeholder = _FusedExceptionValuePlaceholderType()
+
+class FusedExceptionTypeOptions(object):
+    """
+    constant_results is a dictionary mapping fused types to their
+    their specialized exception values. It's used when specializing
+    function types because it's easiest to work out all the
+    strings before the fused type is specialized
+    """
+    def __init__(self, constant_results):
+        self.constant_results = constant_results
+
+    def specialize(self, tp):
+        return self.constant_results[tp]
+
 class FusedType(CType):
     """
     Represents a Fused Type. All it needs to do is keep track of the types
@@ -1881,6 +1902,7 @@ class FusedType(CType):
 
     is_fused = 1
     exception_check = 0
+    exception_value = fused_type_exception_value_placeholder
 
     def __init__(self, types, name=None):
         # Use list rather than set to preserve order (list should be short).
@@ -3368,11 +3390,22 @@ class CFuncType(CType):
         return '(%s)' % s
 
     def specialize(self, values):
-        result = CFuncType(self.return_type.specialize(values),
+        return_type = self.return_type.specialize(values)
+        exception_value = self.exception_value
+        exception_check = self.exception_check
+        if isinstance(exception_value, FusedExceptionTypeOptions):
+            exception_value = exception_value.specialize(return_type)
+            if return_type.is_pyobject:
+                # PyObjects have an implicit exception check.
+                # (There's the slight possibility this is ignoring an
+                # explicit exception check that would cause an error in
+                # a non-fused function)
+                exception_check = False
+        result = CFuncType(return_type,
                            [arg.specialize(values) for arg in self.args],
                            has_varargs = self.has_varargs,
-                           exception_value = self.exception_value,
-                           exception_check = self.exception_check,
+                           exception_value = exception_value,
+                           exception_check = exception_check,
                            calling_convention = self.calling_convention,
                            nogil = self.nogil,
                            with_gil = self.with_gil,

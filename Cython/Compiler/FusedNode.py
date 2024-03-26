@@ -2,7 +2,7 @@ import copy
 
 from . import (ExprNodes, PyrexTypes, MemoryView,
                ParseTreeTransforms, StringEncoding, Errors,
-               Naming)
+               UtilNodes, Naming)
 from .ExprNodes import CloneNode, ProxyNode, TupleNode
 from .Nodes import FuncDefNode, CFuncDefNode, StatListNode, DefNode
 from ..Utils import OrderedSet
@@ -171,6 +171,14 @@ class FusedCFuncDefNode(StatListNode):
                           self.node.entry.defined_in_pxd or
                           env.is_c_class_scope or
                           entry.is_cmethod)
+
+            exception_value_node = copied_node.cfunc_declarator.exception_value
+            if (exception_value_node and
+                    isinstance(exception_value_node, UtilNodes.SpecializableExceptionValueNode)):
+                # Reset the declarator exception value and re-analyse to get the correct
+                # exception value for the specialized function.
+                exception_value_node = exception_value_node.specialize(fused_to_specific, env)
+                copied_node.cfunc_declarator.exception_value = exception_value_node
 
             if self.node.cfunc_declarator.optional_arg_count:
                 self.node.cfunc_declarator.declare_optional_arg_struct(

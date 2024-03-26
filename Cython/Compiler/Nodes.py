@@ -748,10 +748,17 @@ class CFuncDeclaratorNode(CDeclaratorNode):
                     #   however that is hard to do with the current implementation so it lives here
                     #   for now.
                     if not env.is_c_class_scope and not isinstance(self.base, CPtrDeclaratorNode):
-                        from .ExprNodes import ConstNode
-                        self.exception_value = ConstNode.for_type(
-                            self.pos, value=str(return_type.exception_value), type=return_type,
-                            constant_result=return_type.exception_value)
+                        fused_exception_value = return_type.exception_value is PyrexTypes.fused_type_exception_value_placeholder
+                        if not fused_exception_value:
+                            from .ExprNodes import ConstNode
+                            self.exception_value = ConstNode.for_type(
+                                self.pos, value=str(return_type.exception_value), type=return_type,
+                                constant_result=return_type.exception_value)
+                        else:
+                            from .UtilNodes import SpecializableExceptionValueNode
+                            self.exception_value = SpecializableExceptionValueNode(
+                                self.pos, value=None, type=return_type)
+
             if self.exception_value is not None:
                 if self.exception_check == '+':
                     self.exception_value = self.exception_value.analyse_const_expression(env)
@@ -767,7 +774,12 @@ class CFuncDeclaratorNode(CDeclaratorNode):
                               "Exception value must be a Python exception, or C++ function with no arguments, or *.")
                     exc_val = self.exception_value
                 else:
-                    self.exception_value = self.exception_value.analyse_types(env).coerce_to(
+                    self.exception_value = self.exception_value.analyse_types(env)
+                    if return_type.is_fused:
+                        from .UtilNodes import SpecializableExceptionValueNode
+                        self.exception_value = SpecializableExceptionValueNode(
+                            self.exception_value.pos, value = self.exception_value.value, type = return_type)
+                    self.exception_value = self.exception_value.coerce_to(
                         return_type, env).analyse_const_expression(env)
                     exc_val = self.exception_value.as_exception_value(env)
                     if not return_type.assignable_from(self.exception_value.type):
