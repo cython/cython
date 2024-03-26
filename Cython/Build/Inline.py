@@ -111,6 +111,60 @@ def _create_context(cython_include_dirs):
         options=CompilationOptions(default_options)
     )
 
+def cython_inline_module(code, lib_dir=os.path.join(get_cython_cache_dir(), 'inline'),
+                  cython_include_dirs=None, c_include_dirs=[], cflags = None, force=False, include_numpy = True, **kwds):
+    if cython_include_dirs is None:
+        cython_include_dirs = ['.']
+    code = to_unicode(code)
+    orig_code = code
+    code, literals = strip_string_literals(code)
+    code = strip_common_indent(code)
+    ctx = _create_context(tuple(cython_include_dirs))
+    key = orig_code, cflags, sys.version_info, sys.executable, Cython.__version__
+    module_name = "_cython_inline_module_" + hashlib.md5(_unicode(key).encode('utf-8')).hexdigest()
+
+    if module_name in sys.modules:
+        module = sys.modules[module_name]
+    else:
+        build_extension = None
+        #little weird to access/set so_ext from here, but nothing technically wrong with it
+        if cython_inline.so_ext is None:
+            # Figure out and cache current extension suffix
+            build_extension = _get_build_extension()
+            cython_inline.so_ext = build_extension.get_ext_filename('')
+
+        module_path = os.path.join(lib_dir, module_name + cython_inline.so_ext)
+
+        if not os.path.exists(lib_dir):
+            os.makedirs(lib_dir)
+        if force or not os.path.isfile(module_path):
+            qualified = re.compile(r'([.\w]+)[.]')
+            #assume everybody wants numpy
+            if include_numpy:
+                try:
+                    import numpy as np
+                    c_include_dirs = c_include_dirs + [np.get_include()]
+                except ImportError:
+                    pass
+            pyx_file = os.path.join(lib_dir, module_name + '.pyx')
+            fh = open(pyx_file, 'w')
+            try:
+                fh.write(code)
+            finally:
+                fh.close()
+            extension = Extension(
+                name = module_name,
+                sources = [pyx_file],
+                include_dirs = c_include_dirs,
+                extra_compile_args = cflags)
+            if build_extension is None:
+                build_extension = _get_build_extension()
+            build_extension.extensions = cythonize([extension], include_path=cython_include_dirs, **kwds)
+            build_extension.build_temp = os.path.dirname(pyx_file)
+            build_extension.build_lib  = lib_dir
+            build_extension.run()
+        module = imp.load_dynamic(module_name, module_path)
+    return module
 
 _cython_inline_cache = {}
 _cython_inline_default_context = _create_context(('.',))
