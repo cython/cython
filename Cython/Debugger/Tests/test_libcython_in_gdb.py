@@ -10,6 +10,8 @@ import os
 import re
 import sys
 import trace
+import pickle
+import random
 import inspect
 import warnings
 import unittest
@@ -137,6 +139,26 @@ class TestDebugInformationClasses(DebugTestCase):
         self.assertEqual(self.spam_func.lineno, expected_lineno)
         self.assertEqual(sorted(self.spam_func.locals), list('abcd'))
 
+class TestReprMethods(DebugTestCase):
+
+    def test_simple_repr(self):
+        test_class = libcython.CythonModule
+        num_args = len(inspect.signature(test_class).parameters)
+        lorem_ipsum = random.Random(0)
+        filler_args = (lorem_ipsum.randbytes(8) for _ in range(num_args))
+        instance = test_class(*filler_args)
+        recreated = eval("libcython." + repr(instance))
+        self.assertEqual(pickle.dumps(instance), pickle.dumps(recreated))
+
+
+    def test_frame_repr(self):
+        # check that frame_repr's function expansion is idempotent
+        beginline = 'import os'
+
+        self.break_and_run(beginline)
+        frame = gdb.selected_frame()
+        self.assertEqual(libcython.frame_repr(frame),
+                         libcython.frame_repr(frame))
 
 class TestParameters(unittest.TestCase):
 
