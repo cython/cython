@@ -303,6 +303,41 @@ static PyObject *__Pyx_PyLong_AbsNeg(PyObject *n) {
 #define __Pyx_PyNumber_Power2(a, b) PyNumber_Power(a, b, Py_None)
 
 
+//////////////////// divmod_int.proto //////////////////
+
+static CYTHON_INLINE PyObject* __Pyx_divmod_int(int a, int b); /*proto*/
+
+
+//////////////////// divmod_int //////////////////
+
+static CYTHON_INLINE PyObject* __Pyx_divmod_int(int a, int b) {
+    PyObject* result_tuple;
+    // Python and C/C++ use different algorithm in calculating quotients and remainders.
+    // This results in different answers between Python and C/C++
+    // when the dividend is negative and the divisor is positive and vice versa.
+    if ((a < 0 && b > 0) || (a > 0 && b < 0)) {
+        // see CMath.c :: DivInt and ModInt utility code
+        int q = a / b;
+        int r = a - q * b;
+        q -= ((r != 0) & ((r ^ b) < 0));
+        r += ((r != 0) & ((r ^ b) < 0)) * b;
+        result_tuple = PyTuple_Pack(2, PyLong_FromLong(q), PyLong_FromLong(r));
+        if (unlikely(!result_tuple))
+            return NULL;
+        return result_tuple;
+    }
+    else if (b == 0) {
+        PyErr_SetString(PyExc_ZeroDivisionError, "integer division or modulo by zero");
+        return NULL;
+    }
+    div_t res = div(a, b);
+    result_tuple = PyTuple_Pack(2, PyLong_FromLong(res.quot), PyLong_FromLong(res.rem));
+    if (unlikely(!result_tuple))
+        return NULL;
+    return result_tuple;
+}
+
+
 //////////////////// int_pyucs4.proto ////////////////////
 
 static CYTHON_INLINE int __Pyx_int_from_UCS4(Py_UCS4 uchar);
@@ -361,7 +396,7 @@ static long __Pyx__PyObject_Ord(PyObject* c) {
             return (unsigned char) data[0];
 #endif
         }
-#if !CYTHON_ASSUME_SAFE_SIZE        
+#if !CYTHON_ASSUME_SAFE_SIZE
         else if (unlikely(size < 0)) return -1;
 #endif
     } else if (PyByteArray_Check(c)) {
