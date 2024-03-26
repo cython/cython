@@ -757,9 +757,25 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             self.generate_cvariable_declarations(module, modulecode, defined_here)
             self.generate_cfunction_declarations(module, modulecode, defined_here)
 
-    @staticmethod
-    def _put_setup_code(code, name):
-        code.put(UtilityCode.load_as_string(name, "ModuleSetupCode.c")[1])
+    def _put_setup_code(self, code, name):
+        """
+        If the utility code is split into proto, impl, init then put
+        proto here, and impl and init into the relevant sections later.
+
+        If the utility code just contains impl (as is common for ModuleSetupCode)
+        then put impl here.
+        """
+        utility = UtilityCode.load(name, "ModuleSetupCode.c", proto_block="current_code")
+        if utility.proto or utility.init:
+            # add a temporary "current_code" part to the globalstate that just
+            # writes here
+            assert "current_code" not in code.globalstate.parts
+            code.globalstate.parts["current_code"] = code
+            code.globalstate.module_pos = self.pos
+            utility.put_code(code.globalstate)
+            del code.globalstate.parts["current_code"]
+        else:
+            code.put(utility.impl)
 
     def generate_module_preamble(self, env, options, cimported_modules, metadata, code):
         code.put_generated_by()
