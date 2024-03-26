@@ -84,13 +84,13 @@ below we calculate the ``sin`` of every element in an array:
 
 .. tabs::
 
-    .. group-tab:: Cython
-
-        .. literalinclude:: ../../examples/tutorial/parallelization/parallel_sin.pyx
-
     .. group-tab:: Pure Python
 
         .. literalinclude:: ../../examples/tutorial/parallelization/parallel_sin.py
+    
+    .. group-tab:: Cython
+
+        .. literalinclude:: ../../examples/tutorial/parallelization/parallel_sin.pyx
 
 We parallelize the outermost loop.  This is usually a good idea
 since there is some overhead to entering and leaving a parallel block.
@@ -166,13 +166,13 @@ array, such as in the calculation of a vector norm below:
 
 .. tabs::
 
-    .. group-tab:: Cython
-
-        .. literalinclude:: ../../examples/tutorial/parallelization/norm.pyx
-
     .. group-tab:: Pure Python
 
         .. literalinclude:: ../../examples/tutorial/parallelization/norm.py
+
+    .. group-tab:: Cython
+
+        .. literalinclude:: ../../examples/tutorial/parallelization/norm.pyx
 
 Cython is able to infer reductions for ``+=``, ``*=``, ``-=``,
 ``&=``, ``|=``, and ``^=``.  These only apply to C scalar variables
@@ -220,14 +220,14 @@ loop applies the norm to the vector, and we avoid jumping in and out of serial
 code in between.
 
 .. tabs::
-
-    .. group-tab:: Cython
-
-        .. literalinclude:: ../../examples/tutorial/parallelization/normalize.pyx
         
     .. group-tab:: Pure Python
 
         .. literalinclude:: ../../examples/tutorial/parallelization/normalize.py
+
+    .. group-tab:: Cython
+
+        .. literalinclude:: ../../examples/tutorial/parallelization/normalize.pyx
 
 The C code is approximately:
 
@@ -264,14 +264,14 @@ thread to use as scratch space, and work in that.  For efficiency
 the vector is allocated outside the ``prange`` loop.
 
 .. tabs::
-
-    .. group-tab:: Cython
-
-        .. literalinclude:: ../../examples/tutorial/parallelization/median.pyx
         
     .. group-tab:: Pure Python
 
         .. literalinclude:: ../../examples/tutorial/parallelization/median.py
+
+    .. group-tab:: Cython
+
+        .. literalinclude:: ../../examples/tutorial/parallelization/median.pyx
 
 .. note::
 
@@ -307,15 +307,15 @@ that the ``threading`` module is more suitable for what
 you're trying to do.  However it is an option.
 
 .. tabs::
-
-    .. group-tab:: Cython
-
-        .. literalinclude:: ../../examples/tutorial/parallelization/manual_work.pyx
-           :lines: 2-
         
     .. group-tab:: Pure Python
 
         .. literalinclude:: ../../examples/tutorial/parallelization/manual_work.py
+           :lines: 2-
+
+    .. group-tab:: Cython
+
+        .. literalinclude:: ../../examples/tutorial/parallelization/manual_work.pyx
            :lines: 2-
 
 The utility of this kind of block is limited by the fact that
