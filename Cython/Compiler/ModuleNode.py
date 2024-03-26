@@ -26,7 +26,7 @@ from . import TypeSlots
 from . import PyrexTypes
 from . import Pythran
 
-from .Errors import error, warning, CompileError
+from .Errors import error, warning, CompileError, format_position
 from .PyrexTypes import py_object_type
 from ..Utils import open_new_file, replace_suffix, decode_filename, build_hex_version, is_cython_generated_file
 from .Code import UtilityCode, IncludeCode, TempitaUtilityCode
@@ -2675,16 +2675,55 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             buffer_slot.generate_substructure(scope, code)
             code.putln("#endif")
 
-        code.putln("static PyType_Slot %s_slots[] = {" % ext_type.typeobj_cname)
-        for slot in TypeSlots.get_slot_table(code.globalstate.directives):
-            slot.generate_spec(scope, code)
-        code.putln("{0, 0},")
-        code.putln("};")
-
         if ext_type.typedef_flag:
             objstruct = ext_type.objstruct_cname
         else:
             objstruct = "struct %s" % ext_type.objstruct_cname
+
+        weakref_entry = scope.lookup_here("__weakref__") if not scope.is_closure_class_scope else None
+        if weakref_entry and weakref_entry.is_inherited:
+            weakref_entry = None  # only generate it for the defining class
+        generate_members = bool(weakref_entry)
+        if generate_members:
+            code.globalstate.use_utility_code(
+                UtilityCode.load_cached("IncludeStructmemberH", "ModuleSetupCode.c"))
+            code.putln("static PyMemberDef %s_members[] = {" % ext_type.typeobj_cname)
+            code.putln("#if !CYTHON_USE_TYPE_SLOTS")
+            if weakref_entry:
+                # Note that unlike the assignment of tp_weaklistoffset in the type-ready code
+                # used in the non-limited API case, this doesn't preserve the weaklistoffset
+                # from base classes.
+                # Practically that doesn't matter, but it isn't exactly the identical.
+                code.putln('{"__weaklistoffset__", T_PYSSIZET, offsetof(%s, %s), READONLY},'
+                           % (objstruct, weakref_entry.cname))
+            code.putln("#endif")
+            code.putln("{0, 0, 0, 0}")
+            code.putln("};")
+
+            if weakref_entry:
+                position = format_position(weakref_entry.pos)
+                weakref_warn_mesage = (
+                    f"{position}: __weakref__ is unsupported in the Limited API when "
+                    "running on Python <3.9.")
+                # Note: Limited API rather than USE_TYPE_SPECS - we work round the issue
+                # with USE_TYPE_SPECS outside the limited API
+                code.putln("#if CYTHON_COMPILING_IN_LIMITED_API && __PYX_LIMITED_VERSION_HEX < 0x03090000")
+                code.putln("#if defined(__GNUC__) || defined(__clang__)")
+                code.putln(f'#warning "{weakref_warn_mesage}"')
+                code.putln("#elif defined(_MSC_VER)")
+                code.putln(f'#pragma message("{weakref_warn_mesage}")')
+                code.putln("#endif")
+                code.putln("#endif")
+
+
+        code.putln("static PyType_Slot %s_slots[] = {" % ext_type.typeobj_cname)
+        for slot in TypeSlots.get_slot_table(code.globalstate.directives):
+            slot.generate_spec(scope, code)
+        if generate_members:
+            code.putln("{Py_tp_members, (void*)%s_members}," % ext_type.typeobj_cname)
+        code.putln("{0, 0},")
+        code.putln("};")
+
         classname = scope.class_name.as_c_string_literal()
         code.putln("static PyType_Spec %s_spec = {" % ext_type.typeobj_cname)
         code.putln('"%s.%s",' % (self.full_module_name, classname.replace('"', '')))
