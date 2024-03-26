@@ -216,6 +216,7 @@ if [[ $TEST_CODE_STYLE != "1" ]]; then
 fi
 
 export CFLAGS="$CFLAGS $EXTRA_CFLAGS"
+export LDFLAGS = "$LDFLAGS $EXTRA_LDFLAGS"
 python runtests.py \
   -vv $STYLE_ARGS \
   -x Debugger \

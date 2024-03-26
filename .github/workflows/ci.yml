@@ -68,12 +68,12 @@ jobs:
           - os: ubuntu-20.04
             python-version: "3.11"
             backend: c
-            env: { GCC_VERSION: 11, EXTRA_CFLAGS: "-std=c17" }
+            env: { GCC_VERSION: 11, EXTRA_CFLAGS: "-std=c17 -fsanitize=address -fsanitize=undefined", EXTRA_LDFLAGS: "-fsanitize=address -fsanitize=undefined" }
             extra_hash: "-gcc11"
           - os: ubuntu-20.04
             python-version: "3.11"
             backend: cpp
-            env: { GCC_VERSION: 11, EXTRA_CFLAGS: "-std=c++20" }
+            env: { GCC_VERSION: 11, EXTRA_CFLAGS: "-std=c++20 -fsanitize=address -fsanitize=undefined", EXTRA_LDFLAGS: "-fsanitize=address -fsanitize=undefined" }
             extra_hash: "-gcc11"
           # compile all modules
           - os: ubuntu-20.04
