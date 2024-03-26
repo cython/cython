@@ -230,7 +230,7 @@ class TreeFragment:
             name = "(tree fragment)"
 
         if isinstance(code, str):
-            def fmt(x): return u"\n".join(strip_common_indent(x.split(u"\n")))
+            def fmt(x): return "\n".join(strip_common_indent(x.split("\n")))
 
             fmt_code = fmt(code)
             fmt_pxds = {}

@@ -76,7 +76,7 @@ class PatternNode(Node):
     def __init__(self, pos, **kwds):
         if "as_targets" not in kwds:
             kwds["as_targets"] = []
-        super(PatternNode, self).__init__(pos, **kwds)
+        super().__init__(pos, **kwds)
 
     def is_irrefutable(self):
         return False
@@ -177,7 +177,7 @@ class OrPatternNode(PatternNode):
         return child_targets
 
     def validate_irrefutable(self):
-        super(OrPatternNode, self).validate_irrefutable()
+        super().validate_irrefutable()
         found_irrefutable_case = None
         for alternative in self.alternatives:
             if found_irrefutable_case:

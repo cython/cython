@@ -523,7 +523,7 @@ def parse_directive_list(s, relaxed_bool=False, ignore_unknown=False,
             continue
         if '=' not in item:
             raise ValueError('Expected "=" in option "%s"' % item)
-        name, value = [s.strip() for s in item.strip().split('=', 1)]
+        name, value = (s.strip() for s in item.strip().split('=', 1))
         if name not in _directive_defaults:
             found = False
             if name.endswith('.all'):
@@ -611,7 +611,7 @@ def parse_compile_time_env(s, current_settings=None):
             continue
         if '=' not in item:
             raise ValueError('Expected "=" in option "%s"' % item)
-        name, value = [s.strip() for s in item.split('=', 1)]
+        name, value = (s.strip() for s in item.split('=', 1))
         result[name] = parse_variable_value(value)
     return result
 
