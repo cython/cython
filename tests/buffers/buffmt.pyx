@@ -1,4 +1,3 @@
-from __future__ import unicode_literals
 import struct
 
 # Tests buffer format string parsing.

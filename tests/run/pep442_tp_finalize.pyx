@@ -1,7 +1,5 @@
 # mode: run
 
-from __future__ import print_function
-
 cimport cython
 
 import gc

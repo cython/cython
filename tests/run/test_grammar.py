@@ -10,10 +10,7 @@ from Cython.Build.Inline import cython_inline
 
 @contextlib.contextmanager
 def hidden_stderr():
-    try:
-        from StringIO import StringIO
-    except ImportError:
-        from io import StringIO
+    from io import StringIO
 
     old_stderr = sys.stderr
     try:

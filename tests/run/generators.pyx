@@ -1,18 +1,7 @@
 # mode: run
 # tag: generators, gh3265
 
-try:
-    import backports_abc
-except ImportError: pass
-else: backports_abc.patch()
-
-try:
-    from collections.abc import Generator
-except ImportError:
-    try:
-        from collections import Generator
-    except ImportError:
-        Generator = object  # easy win
+from collections.abc import Generator
 
 
 def very_simple():
@@ -488,13 +477,7 @@ def test_generator_abc():
     >>> isinstance(test_generator_abc(), Generator)
     True
 
-    >>> try:
-    ...     from collections.abc import Generator
-    ... except ImportError:
-    ...     try:
-    ...         from collections import Generator
-    ...     except ImportError:
-    ...         Generator = object  # easy win
+    >>> from collections.abc import Generator
 
     >>> isinstance(test_generator_abc(), Generator)
     True

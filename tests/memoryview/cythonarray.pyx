@@ -1,7 +1,5 @@
 # mode: run
 
-from __future__ import unicode_literals
-
 # these imports allow testing different ways to access [[cython.]view.]array()
 from cython.view cimport array
 from cython cimport view as v

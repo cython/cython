@@ -2,11 +2,7 @@
 # tag: pure, nogil
 
 import cython
-
-try:
-    from StringIO import StringIO
-except ImportError:
-    from io import StringIO
+from io import StringIO
 
 
 def test(x: cython.int):

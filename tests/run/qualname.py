@@ -2,8 +2,6 @@
 # mode: run
 # tag: cyfunction, qualname, pure3.5
 
-from __future__ import print_function
-
 import cython
 
 

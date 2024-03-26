@@ -307,15 +307,12 @@ creduce_pickle\n__pyx_unpickle_NoPyMembers\nq\x00\
 (K\x0bKyM3\x05eG?\xf8\x00\x00\x00\x00\x00\x00tq\x03tq\x04Rq\x05.\
 '''
 
-try:
-    from hashlib import md5
-except ImportError:
-    pass
-else:
-    def unpickle_old_0_29_28():
-        """
-        >>> import pickle
-        >>> b = pickle.loads(OLD_MD5_PICKLE)
-        >>> b == NoPyMembers(i=11, x=1.5) or b
-        True
-        """
+from hashlib import md5
+
+def unpickle_old_0_29_28():
+    """
+    >>> import pickle
+    >>> b = pickle.loads(OLD_MD5_PICKLE)
+    >>> b == NoPyMembers(i=11, x=1.5) or b
+    True
+    """

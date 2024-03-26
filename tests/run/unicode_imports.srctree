@@ -18,8 +18,6 @@ exit(val)
 
 # -*- coding: utf-8 -*-
 
-from __future__ import unicode_literals
-
 from Cython.Build import cythonize
 
 files = ["mymoð.pyx", "from_cy.pyx", "测试.py" ]

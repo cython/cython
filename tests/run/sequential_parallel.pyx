@@ -8,12 +8,8 @@ from libc.stdio cimport puts
 
 import os
 import sys
+from builtins import next
 
-try:
-    from builtins import next # Py3k
-except ImportError:
-    def next(it):
-        return it.next()
 
 #@cython.test_assert_path_exists(
 #    "//ParallelWithBlockNode//ParallelRangeNode[@schedule = 'dynamic']",

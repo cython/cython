@@ -1,8 +1,6 @@
 # mode: run
 # tag: cpp, werror, cpp11, no-cpp-locals
 
-from __future__ import print_function
-
 from libcpp cimport bool
 from libcpp.algorithm cimport is_partitioned, partition, partition_copy, stable_partition, partition_point
 from libcpp.algorithm cimport for_each, copy, reverse

@@ -1,9 +1,5 @@
 # mode: run
-# tag: generators, pure3.5
-
-from __future__ import generator_stop
-
-# "generator_stop" was only added in Py3.5.
+# tag: generators
 
 
 def with_outer_raising(*args):

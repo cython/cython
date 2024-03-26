@@ -1,8 +1,6 @@
 # mode: run
 # tag: exttype, tpnew
 
-from __future__ import print_function
-
 from cpython.object cimport PyTypeObject
 
 

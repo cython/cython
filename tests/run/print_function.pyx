@@ -1,7 +1,3 @@
-
-# Py2.6 and later only!
-from __future__ import print_function
-
 def print_to_stdout(a, b):
     """
     >>> print_to_stdout(1, 'test')
@@ -38,10 +34,7 @@ def print_assign(a, b):
     x(42, u"spam")
 
 
-try:
-    from StringIO import StringIO
-except ImportError:
-    from io import StringIO
+from io import StringIO
 
 def print_to_stringio(stream, a, b):
     """

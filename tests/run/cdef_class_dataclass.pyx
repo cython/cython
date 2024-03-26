@@ -3,13 +3,10 @@
 
 from cython cimport dataclasses
 from cython.dataclasses cimport dataclass, field
-try:
-    import typing
-    from typing import ClassVar
-    from dataclasses import InitVar
-    import dataclasses as py_dataclasses
-except ImportError:
-    pass
+import typing
+from typing import ClassVar
+from dataclasses import InitVar
+import dataclasses as py_dataclasses
 import cython
 from libc.stdlib cimport malloc, free
 

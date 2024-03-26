@@ -1,7 +1,5 @@
 # mode: run
 
-from __future__ import print_function
-
 import cython
 
 # https://github.com/cython/cython/issues/3954

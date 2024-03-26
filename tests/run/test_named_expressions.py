@@ -13,10 +13,7 @@ import re
 import sys
 
 if cython.compiled:
-    try:
-        from StringIO import StringIO
-    except ImportError:
-        from io import StringIO
+    from io import StringIO
 
     class StdErrHider:
         def __enter__(self):

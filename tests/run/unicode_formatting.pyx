@@ -1,8 +1,6 @@
 # mode: run
 # tag: stringformat
 
-from __future__ import unicode_literals
-
 
 def ascii_format(a, int b, list c):
     """

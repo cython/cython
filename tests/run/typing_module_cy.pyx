@@ -2,12 +2,10 @@
 
 import cython
 
-try:
-    import typing
-    from typing import List
-    from typing import Set as _SET_
-except ImportError:
-    pass  # this should allow Cython to interpret the directives even when the module doesn't exist
+import typing
+from typing import List
+from typing import Set as _SET_
+
 
 def test_subscripted_types():
     """

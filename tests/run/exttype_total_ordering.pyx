@@ -1,8 +1,6 @@
 # mode: run
 # tag: total_ordering
 
-from __future__ import print_function
-
 """
     >>> class PyTotalOrdering:
     ...     def __init__(self, value):

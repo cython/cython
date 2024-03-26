@@ -6,10 +6,7 @@ cimport cython
 from cython cimport typeof
 from cpython.ref cimport PyObject
 
-try:
-    from typing import Optional
-except ImportError:
-    pass
+from typing import Optional
 
 
 def old_dict_syntax(a: list, b: "int" = 2, c: {'ctype': 'long int'} = 3, d: {'type': 'long int'} = 4) -> list:

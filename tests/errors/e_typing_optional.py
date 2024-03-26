@@ -2,10 +2,7 @@
 
 import cython
 
-try:
-    from typing import Optional
-except ImportError:
-    pass
+from typing import Optional
 
 
 # not OK

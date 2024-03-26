@@ -3,10 +3,7 @@
 # ticket: 5643
 # cython: language_level=3
 
-try:
-    from typing import Optional
-except ImportError:
-    pass
+from typing import Optional
 
 
 # no crash

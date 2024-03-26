@@ -1,8 +1,6 @@
 # mode: run
 # tag: generators, pep479
 
-from __future__ import generator_stop
-
 # additionally test exception chaining
 __doc__ = u"""
 >>> g = test_raise_StopIteration_value()

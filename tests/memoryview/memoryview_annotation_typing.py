@@ -5,10 +5,7 @@
 from __future__ import annotations  # object[:] cannot be evaluated
 
 import cython
-try:
-    import typing
-except ImportError:
-    pass  # Workaround for python 2.7
+import typing
 import numpy
 
 COMPILED = cython.compiled

@@ -1,8 +1,6 @@
 # mode: run
 # tag: syntax
 
-from __future__ import absolute_import
-
 cimport cython
 from cython cimport typeof
 
