@@ -2944,6 +2944,7 @@ class PyxCodeWriter:
         self.original_level = indent_level
         self.context = context
         self.encoding = encoding
+        self._insertion_points = {}
 
     def indent(self, levels=1):
         self.level += levels
@@ -3000,7 +3001,10 @@ class PyxCodeWriter:
         self.level = self.original_level
 
     def named_insertion_point(self, name):
-        setattr(self, name, self.insertion_point())
+        self._insertion_points[name] = self.insertion_point()
+
+    def __getattr__(self, name):
+        return self._insertion_points[name]
 
 
 class ClosureTempAllocator:
