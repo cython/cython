@@ -21,13 +21,13 @@ cdef extern from "Python.h":
         # unavailable in limited API
         @property
         @_cython.c_compile_guard("!CYTHON_COMPILING_IN_LIMITED_API")
-        cdef inline double real(self):
+        cdef inline double real(self) noexcept
             return self.cval.real
 
         # unavailable in limited API
         @property
         @_cython.c_compile_guard("!CYTHON_COMPILING_IN_LIMITED_API")
-        cdef inline double imag(self):
+        cdef inline double imag(self) noexcept
             return self.cval.imag
 
     # PyTypeObject PyComplex_Type

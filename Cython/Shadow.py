@@ -581,17 +581,23 @@ class CythonCImports:
     """
     Simplistic module mock to make cimports sort-of work in Python code.
     """
-    def __init__(self, module):
+    def __init__(self, module, **attributes):
         self.__path__ = []
         self.__file__ = None
         self.__name__ = module
         self.__package__ = module
+        if attributes:
+            self.__dict__.update(attributes)
 
     def __getattr__(self, item):
         if item.startswith('__') and item.endswith('__'):
             raise AttributeError(item)
+
+        package = self.__package__[len('cython.cimports.'):]
+
+        from importlib import import_module
         try:
-            return __import__(item)
+            return import_module(item, package or None)
         except ImportError:
             ex = AttributeError(item)
             ex.__cause__ = None
@@ -600,9 +606,10 @@ class CythonCImports:
 
 import math, sys
 sys.modules['cython.parallel'] = CythonDotParallel()
-sys.modules['cython.cimports'] = CythonCImports('cython.cimports')
-sys.modules['cython.cimports.libc'] = CythonCImports('cython.cimports.libc')
 sys.modules['cython.cimports.libc.math'] = math
+sys.modules['cython.cimports.libc'] = CythonCImports('cython.cimports.libc', math=math)
+sys.modules['cython.cimports'] = CythonCImports('cython.cimports', libc=sys.modules['cython.cimports.libc'])
+
 # In pure Python mode @cython.dataclasses.dataclass and dataclass field should just
 # shadow the standard library ones (if they are available)
 dataclasses = sys.modules['cython.dataclasses'] = CythonDotImportedFromElsewhere('dataclasses')

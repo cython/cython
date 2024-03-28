@@ -72,38 +72,38 @@ cdef extern from "datetime.h":
     ctypedef extern class datetime.date[object PyDateTime_Date, check_size opaque]:
         @property
         @_cython.c_compile_guard("!CYTHON_COMPILING_IN_LIMITED_API")
-        cdef inline int year(self):
+        cdef inline int year(self) noexcept:
             return PyDateTime_GET_YEAR(self)
 
         @property
         @_cython.c_compile_guard("!CYTHON_COMPILING_IN_LIMITED_API")
-        cdef inline int month(self):
+        cdef inline int month(self) noexcept:
             return PyDateTime_GET_MONTH(self)
 
         @property
         @_cython.c_compile_guard("!CYTHON_COMPILING_IN_LIMITED_API")
-        cdef inline int day(self):
+        cdef inline int day(self) noexcept
             return PyDateTime_GET_DAY(self)
 
     ctypedef extern class datetime.time[object PyDateTime_Time, check_size opaque]:
         @property
         @_cython.c_compile_guard("!CYTHON_COMPILING_IN_LIMITED_API")
-        cdef inline int hour(self):
+        cdef inline int hour(self) noexcept:
             return PyDateTime_TIME_GET_HOUR(self)
 
         @property
         @_cython.c_compile_guard("!CYTHON_COMPILING_IN_LIMITED_API")
-        cdef inline int minute(self):
+        cdef inline int minute(self) noexcept:
             return PyDateTime_TIME_GET_MINUTE(self)
 
         @property
         @_cython.c_compile_guard("!CYTHON_COMPILING_IN_LIMITED_API")
-        cdef inline int second(self):
+        cdef inline int second(self) noexcept:
             return PyDateTime_TIME_GET_SECOND(self)
 
         @property
         @_cython.c_compile_guard("!CYTHON_COMPILING_IN_LIMITED_API")
-        cdef inline int microsecond(self):
+        cdef inline int microsecond(self) noexcept:
             return PyDateTime_TIME_GET_MICROSECOND(self)
 
         @property
@@ -113,44 +113,44 @@ cdef extern from "datetime.h":
 
         @property
         @_cython.c_compile_guard("!CYTHON_COMPILING_IN_LIMITED_API")
-        cdef inline int fold(self):
+        cdef inline int fold(self) noexcept:
             # For Python < 3.6 this returns 0 no matter what
             return PyDateTime_TIME_GET_FOLD(self)
 
     ctypedef extern class datetime.datetime[object PyDateTime_DateTime, check_size opaque]:
         @property
         @_cython.c_compile_guard("!CYTHON_COMPILING_IN_LIMITED_API")
-        cdef inline int year(self):
+        cdef inline int year(self) noexcept:
             return PyDateTime_GET_YEAR(self)
 
         @property
         @_cython.c_compile_guard("!CYTHON_COMPILING_IN_LIMITED_API")
-        cdef inline int month(self):
+        cdef inline int month(self) noexcept:
             return PyDateTime_GET_MONTH(self)
 
         @property
         @_cython.c_compile_guard("!CYTHON_COMPILING_IN_LIMITED_API")
-        cdef inline int day(self):
+        cdef inline int day(self) noexcept:
             return PyDateTime_GET_DAY(self)
 
         @property
         @_cython.c_compile_guard("!CYTHON_COMPILING_IN_LIMITED_API")
-        cdef inline int hour(self):
+        cdef inline int hour(self) noexcept:
             return PyDateTime_DATE_GET_HOUR(self)
 
         @property
         @_cython.c_compile_guard("!CYTHON_COMPILING_IN_LIMITED_API")
-        cdef inline int minute(self):
+        cdef inline int minute(self) noexcept:
             return PyDateTime_DATE_GET_MINUTE(self)
 
         @property
         @_cython.c_compile_guard("!CYTHON_COMPILING_IN_LIMITED_API")
-        cdef inline int second(self):
+        cdef inline int second(self) noexcept:
             return PyDateTime_DATE_GET_SECOND(self)
 
         @property
         @_cython.c_compile_guard("!CYTHON_COMPILING_IN_LIMITED_API")
-        cdef inline int microsecond(self):
+        cdef inline int microsecond(self) noexcept:
             return PyDateTime_DATE_GET_MICROSECOND(self)
 
         @property
@@ -160,24 +160,24 @@ cdef extern from "datetime.h":
 
         @property
         @_cython.c_compile_guard("!CYTHON_COMPILING_IN_LIMITED_API")
-        cdef inline int fold(self):
+        cdef inline int fold(self) noexcept:
             # For Python < 3.6 this returns 0 no matter what
             return PyDateTime_DATE_GET_FOLD(self)
 
     ctypedef extern class datetime.timedelta[object PyDateTime_Delta, check_size opaque]:
         @property
         @_cython.c_compile_guard("!CYTHON_COMPILING_IN_LIMITED_API")
-        cdef inline int day(self):
+        cdef inline int day(self) noexcept:
             return PyDateTime_DELTA_GET_DAYS(self)
 
         @property
         @_cython.c_compile_guard("!CYTHON_COMPILING_IN_LIMITED_API")
-        cdef inline int second(self):
+        cdef inline int second(self) noexcept:
             return PyDateTime_DELTA_GET_SECONDS(self)
 
         @property
         @_cython.c_compile_guard("!CYTHON_COMPILING_IN_LIMITED_API")
-        cdef inline int microsecond(self):
+        cdef inline int microsecond(self) noexcept:
             return PyDateTime_DELTA_GET_MICROSECONDS(self)
 
     ctypedef extern class datetime.tzinfo[object PyDateTime_TZInfo, check_size opaque]:
@@ -303,7 +303,7 @@ cdef extern from "datetime.h":
 # Datetime C API initialization function.
 # You have to call it before any usage of DateTime CAPI functions.
 @_cython.c_compile_guard("!CYTHON_COMPILING_IN_LIMITED_API")
-cdef inline void import_datetime():
+cdef inline void import_datetime() noexcept:
     PyDateTime_IMPORT
 
 # Create date object using DateTime CAPI factory function.
@@ -372,103 +372,103 @@ cdef inline object datetime_tzinfo(object o):
 
 # Get year of date
 @_cython.c_compile_guard("!CYTHON_COMPILING_IN_LIMITED_API")
-cdef inline int date_year(object o):
+cdef inline int date_year(object o) noexcept:
     return PyDateTime_GET_YEAR(o)
 
 # Get month of date
 @_cython.c_compile_guard("!CYTHON_COMPILING_IN_LIMITED_API")
-cdef inline int date_month(object o):
+cdef inline int date_month(object o) noexcept:
     return PyDateTime_GET_MONTH(o)
 
 # Get day of date
 @_cython.c_compile_guard("!CYTHON_COMPILING_IN_LIMITED_API")
-cdef inline int date_day(object o):
+cdef inline int date_day(object o) noexcept:
     return PyDateTime_GET_DAY(o)
 
 # Get year of datetime
 @_cython.c_compile_guard("!CYTHON_COMPILING_IN_LIMITED_API")
-cdef inline int datetime_year(object o):
+cdef inline int datetime_year(object o) noexcept:
     return PyDateTime_GET_YEAR(o)
 
 # Get month of datetime
 @_cython.c_compile_guard("!CYTHON_COMPILING_IN_LIMITED_API")
-cdef inline int datetime_month(object o):
+cdef inline int datetime_month(object o) noexcept:
     return PyDateTime_GET_MONTH(o)
 
 # Get day of datetime
 @_cython.c_compile_guard("!CYTHON_COMPILING_IN_LIMITED_API")
-cdef inline int datetime_day(object o):
+cdef inline int datetime_day(object o) noexcept:
     return PyDateTime_GET_DAY(o)
 
 # Get hour of time
 @_cython.c_compile_guard("!CYTHON_COMPILING_IN_LIMITED_API")
-cdef inline int time_hour(object o):
+cdef inline int time_hour(object o) noexcept:
     return PyDateTime_TIME_GET_HOUR(o)
 
 # Get minute of time
 @_cython.c_compile_guard("!CYTHON_COMPILING_IN_LIMITED_API")
-cdef inline int time_minute(object o):
+cdef inline int time_minute(object o) noexcept:
     return PyDateTime_TIME_GET_MINUTE(o)
 
 # Get second of time
 @_cython.c_compile_guard("!CYTHON_COMPILING_IN_LIMITED_API")
-cdef inline int time_second(object o):
+cdef inline int time_second(object o) noexcept:
     return PyDateTime_TIME_GET_SECOND(o)
 
 # Get microsecond of time
 @_cython.c_compile_guard("!CYTHON_COMPILING_IN_LIMITED_API")
-cdef inline int time_microsecond(object o):
+cdef inline int time_microsecond(object o) noexcept:
     return PyDateTime_TIME_GET_MICROSECOND(o)
 
 # Get fold of time
 @_cython.c_compile_guard("!CYTHON_COMPILING_IN_LIMITED_API")
-cdef inline int time_fold(object o):
+cdef inline int time_fold(object o) noexcept:
     # For Python < 3.6 this returns 0 no matter what
     return PyDateTime_TIME_GET_FOLD(o)
 
 # Get hour of datetime
 @_cython.c_compile_guard("!CYTHON_COMPILING_IN_LIMITED_API")
-cdef inline int datetime_hour(object o):
+cdef inline int datetime_hour(object o) noexcept:
     return PyDateTime_DATE_GET_HOUR(o)
 
 # Get minute of datetime
 @_cython.c_compile_guard("!CYTHON_COMPILING_IN_LIMITED_API")
-cdef inline int datetime_minute(object o):
+cdef inline int datetime_minute(object o) noexcept:
     return PyDateTime_DATE_GET_MINUTE(o)
 
 # Get second of datetime
 @_cython.c_compile_guard("!CYTHON_COMPILING_IN_LIMITED_API")
-cdef inline int datetime_second(object o):
+cdef inline int datetime_second(object o) noexcept:
     return PyDateTime_DATE_GET_SECOND(o)
 
 # Get microsecond of datetime
 @_cython.c_compile_guard("!CYTHON_COMPILING_IN_LIMITED_API")
-cdef inline int datetime_microsecond(object o):
+cdef inline int datetime_microsecond(object o) noexcept:
     return PyDateTime_DATE_GET_MICROSECOND(o)
 
 # Get fold of datetime
 @_cython.c_compile_guard("!CYTHON_COMPILING_IN_LIMITED_API")
-cdef inline int datetime_fold(object o):
+cdef inline int datetime_fold(object o) noexcept:
     # For Python < 3.6 this returns 0 no matter what
     return PyDateTime_DATE_GET_FOLD(o)
 
 # Get days of timedelta
 @_cython.c_compile_guard("!CYTHON_COMPILING_IN_LIMITED_API")
-cdef inline int timedelta_days(object o):
+cdef inline int timedelta_days(object o) noexcept:
     return (<PyDateTime_Delta*>o).days
 
 # Get seconds of timedelta
 @_cython.c_compile_guard("!CYTHON_COMPILING_IN_LIMITED_API")
-cdef inline int timedelta_seconds(object o):
+cdef inline int timedelta_seconds(object o) noexcept:
     return (<PyDateTime_Delta*>o).seconds
 
 # Get microseconds of timedelta
 @_cython.c_compile_guard("!CYTHON_COMPILING_IN_LIMITED_API")
-cdef inline int timedelta_microseconds(object o):
+cdef inline int timedelta_microseconds(object o) noexcept:
     return (<PyDateTime_Delta*>o).microseconds
 
 @_cython.c_compile_guard("!CYTHON_COMPILING_IN_LIMITED_API")
-cdef inline double total_seconds(timedelta obj):
+cdef inline double total_seconds(timedelta obj) noexcept:
     # Mirrors the "timedelta.total_seconds()" method.
     # Note that this implementation is not guaranteed to give *exactly* the same
     # result as the original method, due to potential differences in floating point rounding.

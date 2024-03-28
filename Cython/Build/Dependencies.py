@@ -1,33 +1,14 @@
 import cython
-from .. import __version__
 
 import collections
-import contextlib
-import hashlib
 import os
-import shutil
-import subprocess
 import re, sys, time
 from glob import iglob
-from io import open as io_open
+from io import StringIO
 from os.path import relpath as _relpath
-import zipfile
+from .Cache import Cache
 
 from collections.abc import Iterable
-
-try:
-    import gzip
-    gzip_open = gzip.open
-    gzip_ext = '.gz'
-except ImportError:
-    gzip_open = open
-    gzip_ext = ''
-
-try:
-    import zlib
-    zipfile_compression_mode = zipfile.ZIP_DEFLATED
-except ImportError:
-    zipfile_compression_mode = zipfile.ZIP_STORED
 
 try:
     import pythran
@@ -96,19 +77,6 @@ def nonempty(it, error_msg="expected non-empty iterator"):
         yield value
     if empty:
         raise ValueError(error_msg)
-
-
-@cached_function
-def file_hash(filename):
-    path = os.path.normpath(filename)
-    prefix = ('%d:%s' % (len(path), path)).encode("UTF-8")
-    m = hashlib.sha1(prefix)
-    with open(path, 'rb') as f:
-        data = f.read(65000)
-        while data:
-            m.update(data)
-            data = f.read(65000)
-    return m.hexdigest()
 
 
 def update_pythran_extension(ext):
@@ -207,27 +175,13 @@ def _legacy_strtobool(val):
         raise ValueError("invalid truth value %r" % (val,))
 
 
-@cython.locals(start=cython.Py_ssize_t, end=cython.Py_ssize_t)
-def line_iter(source):
-    if isinstance(source, str):
-        start = 0
-        while True:
-            end = source.find('\n', start)
-            if end == -1:
-                yield source[start:]
-                return
-            yield source[start:end]
-            start = end+1
-    else:
-        yield from source
-
-
 class DistutilsInfo:
 
     def __init__(self, source=None, exn=None):
         self.values = {}
         if source is not None:
-            for line in line_iter(source):
+            source_lines = StringIO(source) if isinstance(source, str) else source
+            for line in source_lines:
                 line = line.lstrip()
                 if not line:
                     continue
@@ -668,36 +622,6 @@ class DependencyTree:
     def newest_dependency(self, filename):
         return max([self.extract_timestamp(f) for f in self.all_dependencies(filename)])
 
-    def transitive_fingerprint(self, filename, module, compilation_options):
-        r"""
-        Return a fingerprint of a cython file that is about to be cythonized.
-
-        Fingerprints are looked up in future compilations. If the fingerprint
-        is found, the cythonization can be skipped. The fingerprint must
-        incorporate everything that has an influence on the generated code.
-        """
-        try:
-            m = hashlib.sha1(__version__.encode('UTF-8'))
-            m.update(file_hash(filename).encode('UTF-8'))
-            for x in sorted(self.all_dependencies(filename)):
-                if os.path.splitext(x)[1] not in ('.c', '.cpp', '.h'):
-                    m.update(file_hash(x).encode('UTF-8'))
-            # Include the module attributes that change the compilation result
-            # in the fingerprint. We do not iterate over module.__dict__ and
-            # include almost everything here as users might extend Extension
-            # with arbitrary (random) attributes that would lead to cache
-            # misses.
-            m.update(str((
-                module.language,
-                getattr(module, 'py_limited_api', False),
-                getattr(module, 'np_pythran', False)
-            )).encode('UTF-8'))
-
-            m.update(compilation_options.get_fingerprint().encode('UTF-8'))
-            return m.hexdigest()
-        except OSError:
-            return None
-
     def distutils_info0(self, filename):
         info = self.parse_dependencies(filename)[3]
         kwds = info.values
@@ -1034,6 +958,7 @@ def cythonize(module_list, exclude=None, nthreads=0, aliases=None, quiet=False, 
 
     deps = create_dependency_tree(ctx, quiet=quiet)
     build_dir = getattr(options, 'build_dir', None)
+    cache = Cache(options.cache, getattr(options, 'cache_size', None))
 
     def copy_to_build_dir(filepath, root=os.getcwd()):
         filepath_abs = os.path.abspath(filepath)
@@ -1113,12 +1038,14 @@ def cythonize(module_list, exclude=None, nthreads=0, aliases=None, quiet=False, 
                                 Utils.decode_filename(source),
                                 Utils.decode_filename(dep),
                             ))
-                    if not force and options.cache:
-                        fingerprint = deps.transitive_fingerprint(source, m, options)
+                    if not force and cache.enabled:
+                        fingerprint = cache.transitive_fingerprint(
+                                source, deps, options, m.language, getattr(m, 'py_limited_api', False), getattr(m, 'np_pythran', False)
+                        )
                     else:
                         fingerprint = None
                     to_compile.append((
-                        priority, source, c_file, fingerprint, quiet,
+                        priority, source, c_file, fingerprint, cache, quiet,
                         options, not exclude_failures, module_metadata.get(m.name),
                         full_module_name, show_all_warnings))
                 new_sources.append(c_file)
@@ -1129,9 +1056,6 @@ def cythonize(module_list, exclude=None, nthreads=0, aliases=None, quiet=False, 
                     copy_to_build_dir(source)
         m.sources = new_sources
 
-    if options.cache:
-        if not os.path.exists(options.cache):
-            os.makedirs(options.cache)
     to_compile.sort()
     # Drop "priority" component of "to_compile" entries and add a
     # simple progress indicator.
@@ -1173,7 +1097,7 @@ def cythonize(module_list, exclude=None, nthreads=0, aliases=None, quiet=False, 
             if not os.path.exists(c_file):
                 failed_modules.update(modules)
             elif os.path.getsize(c_file) < 200:
-                f = io_open(c_file, 'r', encoding='iso8859-1')
+                f = open(c_file, 'r', encoding='iso8859-1')
                 try:
                     if f.read(len('#error ')) == '#error ':
                         # dead compilation result
@@ -1186,8 +1110,9 @@ def cythonize(module_list, exclude=None, nthreads=0, aliases=None, quiet=False, 
             print("Failed compilations: %s" % ', '.join(sorted([
                 module.name for module in failed_modules])))
 
-    if options.cache:
-        cleanup_cache(options.cache, getattr(options, 'cache_size', 1024 * 1024 * 100))
+    if cache.enabled:
+        cache.cleanup_cache()
+
     # cythonize() is often followed by the (non-Python-buffered)
     # compiler output, flush now to avoid interleaving output.
     sys.stdout.flush()
@@ -1263,7 +1188,7 @@ else:
 
 # TODO: Share context? Issue: pyx processing leaks into pxd module
 @record_results
-def cythonize_one(pyx_file, c_file, fingerprint, quiet, options=None,
+def cythonize_one(pyx_file, c_file, fingerprint, cache, quiet, options=None,
                   raise_on_failure=True, embedded_metadata=None,
                   full_module_name=None, show_all_warnings=False,
                   progress=""):
@@ -1271,28 +1196,9 @@ def cythonize_one(pyx_file, c_file, fingerprint, quiet, options=None,
     from ..Compiler.Errors import CompileError, PyrexError
 
     if fingerprint:
-        if not os.path.exists(options.cache):
-            safe_makedirs(options.cache)
-        # Cython-generated c files are highly compressible.
-        # (E.g. a compression ratio of about 10 for Sage).
-        fingerprint_file_base = join_path(
-            options.cache, "%s-%s" % (os.path.basename(c_file), fingerprint))
-        gz_fingerprint_file = fingerprint_file_base + gzip_ext
-        zip_fingerprint_file = fingerprint_file_base + '.zip'
-        if os.path.exists(gz_fingerprint_file) or os.path.exists(zip_fingerprint_file):
+        if cache.lookup_cache(c_file, fingerprint):
             if not quiet:
                 print("%sFound compiled %s in cache" % (progress, pyx_file))
-            if os.path.exists(gz_fingerprint_file):
-                os.utime(gz_fingerprint_file, None)
-                with contextlib.closing(gzip_open(gz_fingerprint_file, 'rb')) as g:
-                    with contextlib.closing(open(c_file, 'wb')) as f:
-                        shutil.copyfileobj(g, f)
-            else:
-                os.utime(zip_fingerprint_file, None)
-                dirname = os.path.dirname(c_file)
-                with contextlib.closing(zipfile.ZipFile(zip_fingerprint_file)) as z:
-                    for artifact in z.namelist():
-                        z.extract(artifact, os.path.join(dirname, artifact))
             return
     if not quiet:
         print("%sCythonizing %s" % (progress, Utils.decode_filename(pyx_file)))
@@ -1332,21 +1238,7 @@ def cythonize_one(pyx_file, c_file, fingerprint, quiet, options=None,
         elif os.path.exists(c_file):
             os.remove(c_file)
     elif fingerprint:
-        artifacts = list(filter(None, [
-            getattr(result, attr, None)
-            for attr in ('c_file', 'h_file', 'api_file', 'i_file')]))
-        if len(artifacts) == 1:
-            fingerprint_file = gz_fingerprint_file
-            with contextlib.closing(open(c_file, 'rb')) as f:
-                with contextlib.closing(gzip_open(fingerprint_file + '.tmp', 'wb')) as g:
-                    shutil.copyfileobj(f, g)
-        else:
-            fingerprint_file = zip_fingerprint_file
-            with contextlib.closing(zipfile.ZipFile(
-                    fingerprint_file + '.tmp', 'w', zipfile_compression_mode)) as zip:
-                for artifact in artifacts:
-                    zip.write(artifact, os.path.basename(artifact))
-        os.rename(fingerprint_file + '.tmp', fingerprint_file)
+        cache.store_to_cache(fingerprint, c_file, result)
 
 
 def cythonize_one_helper(m):
@@ -1362,29 +1254,3 @@ def _init_multiprocessing_helper():
     # KeyboardInterrupt kills workers, so don't let them get it
     import signal
     signal.signal(signal.SIGINT, signal.SIG_IGN)
-
-
-def cleanup_cache(cache, target_size, ratio=.85):
-    try:
-        p = subprocess.Popen(['du', '-s', '-k', os.path.abspath(cache)], stdout=subprocess.PIPE)
-        stdout, _ = p.communicate()
-        res = p.wait()
-        if res == 0:
-            total_size = 1024 * int(stdout.strip().split()[0])
-            if total_size < target_size:
-                return
-    except (OSError, ValueError):
-        pass
-    total_size = 0
-    all = []
-    for file in os.listdir(cache):
-        path = join_path(cache, file)
-        s = os.stat(path)
-        total_size += s.st_size
-        all.append((s.st_atime, s.st_size, path))
-    if total_size > target_size:
-        for time, size, file in reversed(sorted(all)):
-            os.unlink(file)
-            total_size -= size
-            if total_size < target_size * ratio:
-                break

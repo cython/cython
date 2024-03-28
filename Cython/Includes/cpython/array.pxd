@@ -169,6 +169,6 @@ cdef inline int extend(array self, array other) except -1:
         PyErr_BadArgument()
     return extend_buffer(self, other.data.as_chars, Py_SIZE(other))
 
-cdef inline void zero(array self):
+cdef inline void zero(array self) noexcept:
     """ set all elements of array to zero. """
     memset(self.data.as_chars, 0, Py_SIZE(self) * self.ob_descr.itemsize)

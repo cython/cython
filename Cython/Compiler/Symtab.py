@@ -233,6 +233,7 @@ class Entry:
     known_standard_library_import = None
     pytyping_modifiers = None
     enum_int_value = None
+    vtable_type = None
 
     def __init__(self, name, cname, type, pos = None, init = None):
         self.name = name
@@ -499,6 +500,66 @@ class Scope:
         yield
         self.in_c_type_context = old_c_type_context
 
+    def handle_already_declared_name(self, name, cname, type, pos, visibility):
+        """
+        Returns an entry or None
+
+        If it returns an entry, it makes sense for "declare" to keep using that
+        entry and not to declare its own.
+
+        May be overridden (e.g. for builtin scope,
+        which always allows redeclarations)
+        """
+        entry = None
+        entries = self.entries
+        old_entry = entries[name]
+
+        # Reject redeclared C++ functions only if they have a compatible type signature.
+        cpp_override_allowed = False
+        if type.is_cfunction and old_entry.type.is_cfunction and self.is_cpp():
+            # If we redefine a C++ class method which is either inherited
+            # or automatically generated (base constructor), then it's fine.
+            # Otherwise, we shout.
+            for alt_entry in old_entry.all_alternatives():
+                if type.compatible_signature_with(alt_entry.type):
+                    if name == '<init>' and not type.args:
+                        # Cython pre-declares the no-args constructor - allow later user definitions.
+                        cpp_override_allowed = True
+                    elif alt_entry.is_inherited:
+                        # Note that we can override an inherited method with a compatible but not exactly equal signature, as in C++.
+                        cpp_override_allowed = True
+                    if cpp_override_allowed:
+                        # A compatible signature doesn't mean the exact same signature,
+                        # so we're taking the new signature for the entry.
+                        alt_entry.type = type
+                        alt_entry.is_inherited = False
+                        # Updating the entry attributes which can be modified in the method redefinition.
+                        alt_entry.cname = cname
+                        alt_entry.pos = pos
+                        entry = alt_entry
+                    break
+            else:
+                cpp_override_allowed = True
+
+        if cpp_override_allowed:
+            # C++ function/method overrides with different signatures are ok.
+            pass
+        elif entries[name].is_inherited:
+            # Likewise ignore inherited classes.
+            pass
+        else:
+            if visibility == 'extern':
+                # Silenced outside of "cdef extern" blocks, until we have a safe way to
+                # prevent pxd-defined cpdef functions from ending up here.
+                warning(pos, "'%s' redeclared " % name, 1 if self.in_cinclude else 0)
+            elif visibility != 'ignore':
+                error(pos, "'%s' redeclared " % name)
+                self.entries[name].already_declared_here()
+            return None
+
+        return entry
+
+
     def declare(self, name, cname, type, pos, visibility, shadow = 0, is_type = 0, create_wrapper = 0):
         # Create new entry, and add to dictionary if
         # name is not None. Reports a warning if already
@@ -510,45 +571,22 @@ class Scope:
             warning(pos, "'%s' is a reserved name in C." % cname, -1)
 
         entries = self.entries
-        if name and name in entries and not shadow and not self.is_builtin_scope:
-            old_entry = entries[name]
+        entry = None
+        if name and name in entries and not shadow:
+            entry = self.handle_already_declared_name(name, cname, type, pos, visibility)
 
-            # Reject redeclared C++ functions only if they have the same type signature.
-            cpp_override_allowed = False
-            if type.is_cfunction and old_entry.type.is_cfunction and self.is_cpp():
-                for alt_entry in old_entry.all_alternatives():
-                    if type == alt_entry.type:
-                        if name == '<init>' and not type.args:
-                            # Cython pre-declares the no-args constructor - allow later user definitions.
-                            cpp_override_allowed = True
-                        break
-                else:
-                    cpp_override_allowed = True
-
-            if cpp_override_allowed:
-                # C++ function/method overrides with different signatures are ok.
-                pass
-            elif self.is_cpp_class_scope and entries[name].is_inherited:
-                # Likewise ignore inherited classes.
-                pass
-            elif visibility == 'extern':
-                # Silenced outside of "cdef extern" blocks, until we have a safe way to
-                # prevent pxd-defined cpdef functions from ending up here.
-                warning(pos, "'%s' redeclared " % name, 1 if self.in_cinclude else 0)
-            elif visibility != 'ignore':
-                error(pos, "'%s' redeclared " % name)
-                entries[name].already_declared_here()
-        entry = Entry(name, cname, type, pos = pos)
-        entry.in_cinclude = self.in_cinclude
-        entry.create_wrapper = create_wrapper
-        if name:
-            entry.qualified_name = self.qualify_name(name)
-#            if name in entries and self.is_cpp():
-#                entries[name].overloaded_alternatives.append(entry)
-#            else:
-#                entries[name] = entry
-            if not shadow:
-                entries[name] = entry
+        if not entry:
+            entry = Entry(name, cname, type, pos = pos)
+            entry.in_cinclude = self.in_cinclude
+            entry.create_wrapper = create_wrapper
+            if name:
+                entry.qualified_name = self.qualify_name(name)
+                if not shadow:
+                    if name in entries and self.is_cpp() and type.is_cfunction and not entries[name].is_cmethod:
+                        # Which means: function or cppclass method is already present
+                        entries[name].overloaded_alternatives.append(entry)
+                    else:
+                        entries[name] = entry
 
         if type.is_memoryviewslice:
             entry.init = type.default_value
@@ -1250,6 +1288,10 @@ class BuiltinScope(Scope):
 
     def builtin_scope(self):
         return self
+
+    def handle_already_declared_name(self, name, cname, type, pos, visibility):
+        # Overriding is OK in the builtin scope
+        return None
 
 
 const_counter = 1  # As a temporary solution for compiling code in pxds
@@ -2557,6 +2599,9 @@ class CClassScope(ClassScope):
         if self.parent_type.is_final_type or entry.is_inline_cmethod or self.directives.get('final'):
             entry.is_final_cmethod = True
             entry.final_func_cname = entry.func_cname
+            if not type.is_fused:
+                entry.vtable_type = entry.type
+                entry.type = type
 
         return entry
 
@@ -2696,18 +2741,21 @@ class CppClassScope(Scope):
         self._reject_pytyping_modifiers(pos, pytyping_modifiers)
         entry = self.lookup_here(name)
         if defining and entry is not None:
-            if entry.type.same_as(type):
+            if type.is_cfunction:
+                entry = self.declare(name, cname, type, pos, visibility)
+            elif entry.type.same_as(type):
                 # Fix with_gil vs nogil.
                 entry.type = entry.type.with_with_gil(type.with_gil)
-            elif type.is_cfunction and type.compatible_signature_with(entry.type):
-                entry.type = type
             else:
                 error(pos, "Function signature does not match previous declaration")
         else:
             entry = self.declare(name, cname, type, pos, visibility)
+            if type.is_cfunction and not defining:
+                entry.is_inherited = 1
         entry.is_variable = 1
-        if type.is_cfunction and self.type:
-            if not self.type.get_fused_types():
+        if type.is_cfunction:
+            entry.is_cfunction = 1
+            if self.type and not self.type.get_fused_types():
                 entry.func_cname = "%s::%s" % (self.type.empty_declaration_code(), cname)
         if name != "this" and (defining or name != "<init>"):
             self.var_entries.append(entry)
@@ -2741,12 +2789,10 @@ class CppClassScope(Scope):
                 if base_entry and not base_entry.type.nogil:
                     error(pos, "Constructor cannot be called without GIL unless all base constructors can also be called without GIL")
                     error(base_entry.pos, "Base constructor defined here.")
-        prev_entry = self.lookup_here(name)
+        # The previous entries management is now done directly in Scope.declare
         entry = self.declare_var(name, type, pos,
                                  defining=defining,
                                  cname=cname, visibility=visibility)
-        if prev_entry and not defining:
-            entry.overloaded_alternatives = prev_entry.all_alternatives()
         entry.utility_code = utility_code
         type.entry = entry
         return entry
@@ -2774,6 +2820,9 @@ class CppClassScope(Scope):
                 base_entry.type, None, 'extern')
             entry.is_variable = 1
             entry.is_inherited = 1
+            if base_entry.is_cfunction:
+                entry.is_cfunction = 1
+                entry.func_cname = base_entry.func_cname
             self.inherited_var_entries.append(entry)
         for base_entry in base_scope.cfunc_entries:
             entry = self.declare_cfunction(base_entry.name, base_entry.type,
@@ -2814,6 +2863,13 @@ class CppClassScope(Scope):
                                   entry.visibility)
 
         return scope
+
+    def lookup_here(self, name):
+        if name == "__init__":
+            name = "<init>"
+        elif name == "__dealloc__":
+            name = "<del>"
+        return super(CppClassScope, self).lookup_here(name)
 
 
 class CppScopedEnumScope(Scope):

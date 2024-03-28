@@ -704,6 +704,19 @@ class CFuncDeclaratorNode(CDeclaratorNode):
 
         exc_val = None
         exc_check = 0
+
+        if (env.directives["legacy_implicit_noexcept"]
+                and not return_type.is_pyobject
+                and not self.has_explicit_exc_clause
+                and self.exception_check
+                and visibility != 'extern'):
+            # implicit noexcept, with a warning
+            self.exception_check = False
+            warning(self.pos,
+                    "Implicit noexcept declaration is deprecated."
+                    " Function declaration should contain 'noexcept' keyword.",
+                    level=2)
+
         if self.exception_check == '+':
             env.add_include_file('ios')         # for std::ios_base::failure
             env.add_include_file('new')         # for std::bad_alloc

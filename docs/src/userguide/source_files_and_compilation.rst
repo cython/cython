@@ -129,9 +129,9 @@ would be::
 
 If your build depends directly on Cython in this way,
 then you may also want to inform pip that :mod:`Cython` is required for
-:file:`setup.py` to execute, following `PEP 518
-<https://www.python.org/dev/peps/pep-0518/>`, creating a :file:`pyproject.toml`
-file containing, at least:
+:file:`setup.py` to execute, following
+`PEP 518 <https://www.python.org/dev/peps/pep-0518/>`_,
+creating a :file:`pyproject.toml` file containing, at least:
 
 .. code-block:: ini
 

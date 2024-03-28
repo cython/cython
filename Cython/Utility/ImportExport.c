@@ -323,7 +323,7 @@ static int ${import_star}(PyObject* m) {
 
     int i;
     int ret = -1;
-    char* s;
+    const char* s;
     PyObject *locals = 0;
     PyObject *list = 0;
     PyObject *utf8_name = 0;
@@ -837,7 +837,7 @@ bad:
 #if CYTHON_AVOID_BORROWED_REFS
         Py_DECREF(basei);
 #endif
-    }    
+    }
     PyErr_Format(PyExc_TypeError,
         "multiple bases have vtable conflict: '" __Pyx_FMT_TYPENAME "' and '" __Pyx_FMT_TYPENAME "'", tp_base_name, base_name);
 #if CYTHON_AVOID_BORROWED_REFS || !CYTHON_ASSUME_SAFE_MACROS

@@ -211,10 +211,15 @@ class ControlFlow:
             for child in root.children:
                 if child not in visited:
                     queue.add(child)
-        unreachable = self.blocks - visited
+
+        unreachable: set = self.blocks - visited
+        block: ControlBlock
         for block in unreachable:
             block.detach()
+
         visited.remove(self.entry_point)
+
+        parent: ControlBlock
         for block in visited:
             if block.empty():
                 for parent in block.parents:  # Re-parent
@@ -227,8 +232,10 @@ class ControlFlow:
     def initialize(self):
         """Set initial state, map assignments to bits."""
         self.assmts = {}
+        assmts: AssignmentList
+        block: ControlBlock
 
-        bit = 1
+        bit: int = 1
         for entry in self.entries:
             assmts = AssignmentList()
             assmts.mask = assmts.bit = bit
@@ -262,7 +269,7 @@ class ControlFlow:
 
     def map_one(self, istate, entry):
         ret = set()
-        assmts = self.assmts[entry]
+        assmts: AssignmentList = self.assmts[entry]
         if istate & assmts.bit:
             if self.is_statically_assigned(entry):
                 ret.add(StaticAssignment(entry))
@@ -270,6 +277,8 @@ class ControlFlow:
                 ret.add(Unknown)
             else:
                 ret.add(Uninitialized)
+
+        assmt: NameAssignment
         for assmt in assmts.stats:
             if istate & assmt.bit:
                 ret.add(assmt)
@@ -277,6 +286,9 @@ class ControlFlow:
 
     def reaching_definitions(self):
         """Per-block reaching definitions analysis."""
+        block: ControlBlock
+        parent: ControlBlock
+
         dirty = True
         while dirty:
             dirty = False
@@ -523,7 +535,8 @@ class MessageCollection:
                 warning(pos, message, 2)
 
 
-def check_definitions(flow, compiler_directives):
+@cython.cfunc
+def check_definitions(flow: ControlFlow, compiler_directives: dict):
     flow.initialize()
     flow.reaching_definitions()
 
@@ -533,6 +546,8 @@ def check_definitions(flow, compiler_directives):
     references = {}
     assmt_nodes = set()
 
+    block: ControlBlock
+    assmt: NameAssignment
     for block in flow.blocks:
         i_state = block.i_input
         for stat in block.stats:

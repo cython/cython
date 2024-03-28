@@ -617,7 +617,9 @@ def unpack_string_to_character_literals(literal):
         chars.append(stype(pos, value=cval, constant_result=cval))
     return chars
 
-def flatten_parallel_assignments(input, output):
+
+@cython.cfunc
+def flatten_parallel_assignments(input: list, output: list):
     #  The input is a list of expression nodes, representing the LHSs
     #  and RHS of one (possibly cascaded) assignment statement.  For
     #  sequence constructors, rearranges the matching parts of both
@@ -637,9 +639,12 @@ def flatten_parallel_assignments(input, output):
     elif rhs.is_string_literal:
         rhs_args = unpack_string_to_character_literals(rhs)
 
-    rhs_size = len(rhs_args)
+    starred_targets: cython.Py_ssize_t
+    lhs_size: cython.Py_ssize_t
+    rhs_size: cython.Py_ssize_t = len(rhs_args)
     lhs_targets = [[] for _ in range(rhs_size)]
     starred_assignments = []
+
     for lhs in input[:-1]:
         if not lhs.is_sequence_constructor:
             if lhs.is_starred:
@@ -647,7 +652,9 @@ def flatten_parallel_assignments(input, output):
             complete_assignments.append(lhs)
             continue
         lhs_size = len(lhs.args)
-        starred_targets = sum([1 for expr in lhs.args if expr.is_starred])
+        starred_targets = 0
+        for expr in lhs.args:
+            starred_targets += bool(expr.is_starred)
         if starred_targets > 1:
             error(lhs.pos, "more than 1 starred expression in assignment")
             output.append([lhs,rhs])
@@ -686,7 +693,9 @@ def flatten_parallel_assignments(input, output):
         else:
             output.append(cascade)
 
-def map_starred_assignment(lhs_targets, starred_assignments, lhs_args, rhs_args):
+
+@cython.cfunc
+def map_starred_assignment(lhs_targets: list, starred_assignments: list, lhs_args: list, rhs_args: list):
     # Appends the fixed-position LHS targets to the target list that
     # appear left and right of the starred argument.
     #
@@ -695,6 +704,9 @@ def map_starred_assignment(lhs_targets, starred_assignments, lhs_args, rhs_args)
     # (those that match the starred target) to a list.
 
     # left side of the starred target
+    i: cython.Py_ssize_t
+    starred: cython.Py_ssize_t
+    lhs_remaining: cython.Py_ssize_t
     for i, (targets, expr) in enumerate(zip(lhs_targets, lhs_args)):
         if expr.is_starred:
             starred = i

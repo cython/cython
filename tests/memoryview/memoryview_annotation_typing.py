@@ -20,7 +20,7 @@ def one_dim(a: cython.double[:]):
     (2.0, 1)
     """
     a[0] *= 2
-    return a[0], a.ndim
+    return float(a[0]), a.ndim
 
 
 def one_dim_ccontig(a: cython.double[::1]):
@@ -30,7 +30,7 @@ def one_dim_ccontig(a: cython.double[::1]):
     (2.0, 1)
     """
     a[0] *= 2
-    return a[0], a.ndim
+    return float(a[0]), a.ndim
 
 
 def two_dim(a: cython.double[:,:]):
@@ -40,7 +40,7 @@ def two_dim(a: cython.double[:,:]):
     (3.0, 1.0, 2)
     """
     a[0,0] *= 3
-    return a[0,0], a[0,1], a.ndim
+    return float(a[0,0]), float(a[0,1]), a.ndim
 
 
 def variable_annotation(a):
@@ -58,7 +58,7 @@ def variable_annotation(a):
     b = a
     b[1] += 1
     b[2] += 2
-    return b[1]
+    return float(b[1])
 
 
 def slice_none(m: cython.double[:]):
@@ -98,7 +98,7 @@ def slice_optional(m: typing.Optional[cython.double[:]]):
 @cython.cfunc
 def _one_dim_nogil_cfunc(a: cython.double[:]) -> cython.double:
     a[0] *= 2
-    return a[0]
+    return float(a[0])
 
 
 def one_dim_nogil_cfunc(a: cython.double[:]):
