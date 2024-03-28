@@ -2618,12 +2618,18 @@ class CCodeWriter:
             self.put_giveref('Py_None')
 
     def put_pymethoddef(self, entry, term, allow_skip=True, wrapper_code_writer=None):
-        is_reverse_number_slot = False
+        is_number_slot = False
         if entry.is_special or entry.name == '__getattribute__':
             from . import TypeSlots
-            is_reverse_number_slot = True
-            if entry.name not in special_py_methods and not TypeSlots.is_reverse_number_slot(entry.name):
-                if entry.name == '__getattr__' and not self.globalstate.directives['fast_getattr']:
+            if entry.name not in special_py_methods:
+                if TypeSlots.is_binop_number_slot(entry.name):
+                    # It's useful if numeric binops are created with meth coexist
+                    # so they can be called directly by looking up the name, skipping the
+                    # dispatch wrapper that enables the reverse slots.  This is most useful
+                    # when c_api_binop_methods is False, but there's no reason not to do it
+                    # all the time
+                    is_number_slot = True
+                elif entry.name == '__getattr__' and not self.globalstate.directives['fast_getattr']:
                     pass
                 # Python's typeobject.c will automatically fill in our slot
                 # in add_operators() (called by PyType_Ready) with a value
@@ -2642,8 +2648,8 @@ class CCodeWriter:
         if cast != 'PyCFunction':
             func_ptr = '(void*)(%s)%s' % (cast, func_ptr)
         entry_name = entry.name.as_c_string_literal()
-        if is_reverse_number_slot:
-            # Unlike most special functions, reverse number operator slots are actually generated here
+        if is_number_slot:
+            # Unlike most special functions, binop numeric operator slots are actually generated here
             # (to ensure that they can be looked up). However, they're sometimes guarded by the preprocessor
             # so a bit of extra logic is needed
             slot = TypeSlots.get_slot_table(self.globalstate.directives).get_slot_by_method_name(entry.name)
@@ -2657,7 +2663,7 @@ class CCodeWriter:
                 "|".join(method_flags),
                 entry.doc_cname if entry.doc else '0',
                 term))
-        if is_reverse_number_slot and preproc_guard:
+        if is_number_slot and preproc_guard:
             self.putln("#endif")
 
     def put_pymethoddef_wrapper(self, entry):
