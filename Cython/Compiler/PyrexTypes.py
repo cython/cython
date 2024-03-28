@@ -5496,7 +5496,9 @@ def cap_length(s, max_len=63):
     hash_prefix = hashlib.sha256(s.encode('ascii')).hexdigest()[:6]
     return '%s__%s__etc' % (hash_prefix, s[:max_len-17])
 
-def write_noexcept_performance_hint(pos, env, function_name=None, void_return=False, is_call=False):
+def write_noexcept_performance_hint(pos, env,
+                                    function_name=None, void_return=False, is_call=False,
+                                    is_from_pxd=False):
     if function_name:
         # we need it escaped everywhere we use it
         function_name = "'%s'" % function_name
@@ -5519,6 +5521,9 @@ def write_noexcept_performance_hint(pos, env, function_name=None, void_return=Fa
         solutions.append(
             "Use an 'int' return type on %s to allow an error code to be returned." %
             the_function)
+    if is_from_pxd and not void_return:
+        solutions.append(
+            "Declare any exception value explicitly for functions in pxd files.")
     if len(solutions) == 1:
         msg = "%s %s" % (msg, solutions[0])
     else:

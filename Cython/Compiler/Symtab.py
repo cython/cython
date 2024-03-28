@@ -8,7 +8,7 @@ import copy
 import operator
 
 from ..Utils import try_finally_contextmanager
-from .Errors import warning, error, InternalError
+from .Errors import warning, error, InternalError, performance_hint
 from .StringEncoding import EncodedString
 from . import Options, Naming
 from . import PyrexTypes
@@ -934,6 +934,17 @@ class Scope:
                 elif not in_pxd and entry.defined_in_pxd and type.compatible_signature_with(entry.type):
                     # TODO: check that this was done by a signature optimisation and not a user error.
                     #warning(pos, "Function signature does not match previous declaration", 1)
+
+                    # Cython can't assume anything about cimported functions declared without
+                    # an exception value. This is a performance problem mainly for nogil functions.
+                    if entry.type.nogil and entry.type.exception_value is None and type.exception_value:
+                        performance_hint(
+                            entry.pos,
+                            f"No exception value declared for '{entry.name}' in pxd file.\n"
+                            "Users cimporting this function and calling it without the gil "
+                            f"will always require an exception check.\n"
+                            "Suggest adding an explicit exception value.",
+                            self)
                     entry.type = type
                 else:
                     error(pos, "Function signature does not match previous declaration")
