@@ -6537,18 +6537,7 @@ class SimpleCallNode(CallNode):
                         goto_error = code.error_goto_if(" && ".join(exc_checks), self.pos)
                     else:
                         goto_error = ""
-                    undo_gh2747_hack = False
-                    if (self.function.is_attribute and
-                            self.function.entry and self.function.entry.final_func_cname and
-                            not code.funcstate.scope.is_cpp()
-                            ):
-                        # Hack around https://github.com/cython/cython/issues/2747
-                        # Disable GCC warnings/errors for wrong self casts.
-                        code.putln('#pragma GCC diagnostic ignored "-Wincompatible-pointer-types"')
-                        undo_gh2747_hack = True
                     code.putln("%s%s; %s" % (lhs, rhs, goto_error))
-                    if undo_gh2747_hack:
-                        code.putln("#pragma GCC diagnostic pop")
                 if self.type.is_pyobject and self.result():
                     self.generate_gotref(code)
             if self.has_optional_args:

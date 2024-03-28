@@ -130,6 +130,9 @@ Other changes
 Bugs fixed
 ----------
 
+* Cython generated incorrect self-casts when directly calling final methods of subtypes.
+  Patch by Lisandro Dalcin.  (Github issue :issue:`2747`)
+
 * The ``noexcept`` warnings could be misleading in some cases.
   Patch by Gonzalo Tornaría.  (Github issue :issue:`6087`)
 
