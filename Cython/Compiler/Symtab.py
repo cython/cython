@@ -242,6 +242,7 @@ class Entry(object):
     known_standard_library_import = None
     pytyping_modifiers = None
     enum_int_value = None
+    vtable_type = None
 
     def __init__(self, name, cname, type, pos = None, init = None):
         self.name = name
@@ -2551,6 +2552,9 @@ class CClassScope(ClassScope):
         if self.parent_type.is_final_type or entry.is_inline_cmethod or self.directives.get('final'):
             entry.is_final_cmethod = True
             entry.final_func_cname = entry.func_cname
+            if not type.is_fused:
+                entry.vtable_type = entry.type
+                entry.type = type
 
         return entry
 
