@@ -6495,7 +6495,8 @@ class SimpleCallNode(CallNode):
                             PyrexTypes.write_noexcept_performance_hint(
                                 self.pos, code.funcstate.scope,
                                 function_name=perf_hint_entry.name if perf_hint_entry else None,
-                                void_return=self.type.is_void, is_call=True)
+                                void_return=self.type.is_void, is_call=True,
+                                is_from_pxd=(perf_hint_entry and perf_hint_entry.defined_in_pxd))
                         code.globalstate.use_utility_code(
                             UtilityCode.load_cached("ErrOccurredWithGIL", "Exceptions.c"))
                         exc_checks.append("__Pyx_ErrOccurredWithGIL()")
