@@ -104,7 +104,7 @@ class Cache:
         try:
             m = hashlib.sha1(__version__.encode("UTF-8"))
             m.update(file_hash(filename).encode("UTF-8"))
-            for x in sorted(dependencies.all_dependencies(filename)):
+            for x in sorted(dependencies):
                 if os.path.splitext(x)[1] not in (".c", ".cpp", ".h"):
                     m.update(file_hash(x).encode("UTF-8"))
             # Include the module attributes that change the compilation result

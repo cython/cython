@@ -1047,7 +1047,8 @@ def cythonize(module_list, exclude=None, nthreads=0, aliases=None, quiet=False, 
                             ))
                     if not force and cache:
                         fingerprint = cache.transitive_fingerprint(
-                                source, deps, options, m.language, getattr(m, 'py_limited_api', False), getattr(m, 'np_pythran', False)
+                                source, deps.all_dependencies(source), options, m.language,
+                                getattr(m, 'py_limited_api', False), getattr(m, 'np_pythran', False)
                         )
                     else:
                         fingerprint = None
