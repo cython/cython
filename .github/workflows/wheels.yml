@@ -69,7 +69,7 @@ jobs:
         
       - name: Set up QEMU
         if: contains(matrix.buildplat[1], '_aarch64')
-        uses: docker/setup-qemu-action@v1
+        uses: docker/setup-qemu-action@v3
         with:
           platforms: all
       
