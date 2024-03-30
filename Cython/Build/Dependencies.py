@@ -958,7 +958,14 @@ def cythonize(module_list, exclude=None, nthreads=0, aliases=None, quiet=False, 
 
     deps = create_dependency_tree(ctx, quiet=quiet)
     build_dir = getattr(options, 'build_dir', None)
-    cache = Cache(options.cache, getattr(options, 'cache_size', None))
+    path = None if options.cache is True else options.cache
+    if options.cache:
+        # cache is enabled when:
+        # * options.cache is True (default path to the cache base dir is used)
+        # * options.cache is path to the cache base dir
+        cache = Cache(None if options.cache is True else options.cache, getattr(options, 'cache_size', None))
+    else:
+        cache = None
 
     def copy_to_build_dir(filepath, root=os.getcwd()):
         filepath_abs = os.path.abspath(filepath)
@@ -1038,7 +1045,7 @@ def cythonize(module_list, exclude=None, nthreads=0, aliases=None, quiet=False, 
                                 Utils.decode_filename(source),
                                 Utils.decode_filename(dep),
                             ))
-                    if not force and cache.enabled:
+                    if not force and cache:
                         fingerprint = cache.transitive_fingerprint(
                                 source, deps, options, m.language, getattr(m, 'py_limited_api', False), getattr(m, 'np_pythran', False)
                         )
@@ -1110,7 +1117,7 @@ def cythonize(module_list, exclude=None, nthreads=0, aliases=None, quiet=False, 
             print("Failed compilations: %s" % ', '.join(sorted([
                 module.name for module in failed_modules])))
 
-    if cache.enabled:
+    if cache:
         cache.cleanup_cache()
 
     # cythonize() is often followed by the (non-Python-buffered)
@@ -1195,10 +1202,12 @@ def cythonize_one(pyx_file, c_file, fingerprint, cache, quiet, options=None,
     from ..Compiler.Main import compile_single, default_options
     from ..Compiler.Errors import CompileError, PyrexError
 
-    if fingerprint:
-        if cache.lookup_cache(c_file, fingerprint):
+    if cache and fingerprint:
+        cached = cache.lookup_cache(c_file, fingerprint)
+        if cached:
             if not quiet:
                 print("%sFound compiled %s in cache" % (progress, pyx_file))
+            cache.load_from_cache(c_file, cached)
             return
     if not quiet:
         print("%sCythonizing %s" % (progress, Utils.decode_filename(pyx_file)))
@@ -1237,7 +1246,7 @@ def cythonize_one(pyx_file, c_file, fingerprint, cache, quiet, options=None,
             raise CompileError(None, pyx_file)
         elif os.path.exists(c_file):
             os.remove(c_file)
-    elif fingerprint:
+    elif cache and fingerprint:
         cache.store_to_cache(fingerprint, c_file, result)
 
 
