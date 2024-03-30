@@ -913,10 +913,10 @@ class Scope(object):
                     if entry.type.nogil and entry.type.exception_value is None and type.exception_value:
                         performance_hint(
                             entry.pos,
-                            f"No exception value declared for '{entry.name}' in pxd file.\n"
+                            "No exception value declared for '%s' in pxd file.\n"
                             "Users cimporting this function and calling it without the gil "
                             "will always require an exception check.\n"
-                            "Suggest adding an explicit exception value.",
+                            "Suggest adding an explicit exception value." % entry.name,
                             self)
                     entry.type = type
                 else:
