@@ -942,7 +942,7 @@ class Scope:
                             entry.pos,
                             f"No exception value declared for '{entry.name}' in pxd file.\n"
                             "Users cimporting this function and calling it without the gil "
-                            f"will always require an exception check.\n"
+                            "will always require an exception check.\n"
                             "Suggest adding an explicit exception value.",
                             self)
                     entry.type = type

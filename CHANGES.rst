@@ -124,8 +124,8 @@ Other changes
 * Includes all fixes as of Cython 3.0.10 (but generates C99 code in some places).
 
 
-3.0.10 (2024-??-??)
-==================
+3.0.10 (2024-03-30)
+===================
 
 Bugs fixed
 ----------
@@ -157,6 +157,9 @@ Bugs fixed
 * Some recently added builtins were unconditionally looked up at module import time
   (if used by user code) that weren't available on all Python versions and could thus
   fail the import.
+
+* A performance hint regarding exported pxd declarations was improved.
+  (Github issue :issue:`6001`)
 
 
 3.0.9 (2024-03-05)
