@@ -6,7 +6,7 @@ import re, sys, time
 from glob import iglob
 from io import StringIO
 from os.path import relpath as _relpath
-from .Cache import Cache
+from .Cache import Cache, FingerprintFlags
 
 from collections.abc import Iterable
 
@@ -1047,8 +1047,12 @@ def cythonize(module_list, exclude=None, nthreads=0, aliases=None, quiet=False, 
                             ))
                     if not force and cache:
                         fingerprint = cache.transitive_fingerprint(
-                                source, deps.all_dependencies(source), options, m.language,
-                                getattr(m, 'py_limited_api', False), getattr(m, 'np_pythran', False)
+                                source, deps.all_dependencies(source), options,
+                                FingerprintFlags(
+                                    m.language if m.language else 'c',
+                                    getattr(m, 'py_limited_api', False),
+                                    getattr(m, 'np_pythran', False)
+                                )
                         )
                     else:
                         fingerprint = None

@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 import sys
 import os
 import hashlib
@@ -73,6 +74,15 @@ def get_cython_cache_dir():
     # last fallback: ~/.cython
     return os.path.expanduser(join_path("~", ".cython"))
 
+@dataclass
+class FingerprintFlags:
+    language: str = 'c'
+    py_limited_api: bool = False
+    np_pythran: bool = False
+
+    def get_fingerprint(self):
+        return str((self.language, self.py_limited_api, self.np_pythran)).encode("UTF-8")
+
 
 class Cache:
 
@@ -90,9 +100,7 @@ class Cache:
         filename,
         dependencies,
         compilation_options,
-        language,
-        py_limited_api=False,
-        np_pythran=False,
+        flags=FingerprintFlags()
     ):
         r"""
         Return a fingerprint of a cython file that is about to be cythonized.
@@ -112,7 +120,7 @@ class Cache:
             # include almost everything here as users might extend Extension
             # with arbitrary (random) attributes that would lead to cache
             # misses.
-            m.update(str((language, py_limited_api, np_pythran)).encode("UTF-8"))
+            m.update(flags.get_fingerprint())
             m.update(compilation_options.get_fingerprint().encode("UTF-8"))
             return m.hexdigest()
         except OSError:
