@@ -9,8 +9,7 @@ from . import Nodes
 from . import ExprNodes
 from .Nodes import Node
 from .ExprNodes import AtomicExprNode
-from .PyrexTypes import c_ptr_type, c_bint_type, CType, FusedExceptionTypeOptions
-from .Errors import error
+from .PyrexTypes import c_ptr_type, c_bint_type
 
 
 class TempHandle:
@@ -386,61 +385,3 @@ class HasGilNode(AtomicExprNode):
 
     def calculate_result_code(self):
         return "1" if self.has_gil else "0"
-
-
-class SpecializableExceptionValueNode(AtomicExprNode):
-    """
-    Used as a temporary exception_value for a fused function
-    """
-    def make_const_node_for_type(self, tp, env):
-        if not isinstance(tp, CType):
-            # Python type or similar, that doesn't have an exception value
-            if self.value:
-                # It might be worth loosening this a bit, to ignore the exception value for Python
-                # objects instead of rejecting this? To make it easier to write universal functions
-                error(self.pos,  "Exception clause not allowed for function returning Python object")
-            return None
-        if self.value:
-            exception_value = self.value
-            constant_result = ExprNodes.constant_value_not_set
-        else:
-            exception_value = tp.exception_value
-            constant_result = tp.exception_value
-        if not exception_value:
-            return None
-        result = ExprNodes.ConstNode.for_type(
-            self.pos,
-            value=str(exception_value),
-            type=tp,
-            constant_result=constant_result
-        )
-        if constant_result == ExprNodes.constant_value_not_set:
-            result.calculate_constant_result()
-        return result.analyse_types(env)
-
-    def analyse_types(self, env):
-        from .PyrexTypes import get_specialized_types
-        self.const_nodes = {
-            tp: self.make_const_node_for_type(tp, env) for tp in get_specialized_types(self.type)
-        }
-        return self
-
-    def coerce_to(self, dst_type, env):
-        if dst_type == self.type:
-            return self  # nothing to do
-        # Otherwise, fall back to the base class (which we expect will fail)
-        return super(SpecializableExceptionValueNode, self).coerce_to(dst_type, env)
-
-    def check_const(self):
-        return True
-
-    def as_exception_value(self, env):
-        return FusedExceptionTypeOptions({
-            tp: const_node.as_exception_value(env) if const_node else None
-            for tp, const_node in self.const_nodes.items()
-        })
-
-    def specialize(self, fused_to_specific, env):
-        specialized_return_type = self.type.specialize(fused_to_specific)
-        specialized_node = self.const_nodes[specialized_return_type]
-        return specialized_node

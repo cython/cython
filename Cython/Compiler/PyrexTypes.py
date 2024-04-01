@@ -1875,18 +1875,6 @@ class _FusedExceptionValuePlaceholderType(object):
 
 fused_type_exception_value_placeholder = _FusedExceptionValuePlaceholderType()
 
-class FusedExceptionTypeOptions(object):
-    """
-    constant_results is a dictionary mapping fused types to their
-    their specialized exception values. It's used when specializing
-    function types because it's easiest to work out all the
-    strings before the fused type is specialized
-    """
-    def __init__(self, constant_results):
-        self.constant_results = constant_results
-
-    def specialize(self, tp):
-        return self.constant_results[tp]
 
 class FusedType(CType):
     """
@@ -3393,14 +3381,16 @@ class CFuncType(CType):
         return_type = self.return_type.specialize(values)
         exception_value = self.exception_value
         exception_check = self.exception_check
-        if isinstance(exception_value, FusedExceptionTypeOptions):
-            exception_value = exception_value.specialize(return_type)
+        if exception_value is fused_type_exception_value_placeholder:
             if return_type.is_pyobject:
                 # PyObjects have an implicit exception check.
                 # (There's the slight possibility this is ignoring an
                 # explicit exception check that would cause an error in
                 # a non-fused function)
                 exception_check = False
+                exception_value = None
+            else:
+                exception_value = return_type.exception_value
         result = CFuncType(return_type,
                            [arg.specialize(values) for arg in self.args],
                            has_varargs = self.has_varargs,

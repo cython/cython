@@ -229,7 +229,6 @@ ctypedef object (*fused_ptr3)(object, bint)
 def test_fused_number_or_object():
     """
     Make sure that fused functions default to the appropriate exception type
-
     >>> test_fused_number_or_object()
     1.0
     -1.0
