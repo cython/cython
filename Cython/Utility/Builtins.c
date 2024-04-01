@@ -361,7 +361,7 @@ static long __Pyx__PyObject_Ord(PyObject* c) {
             return (unsigned char) data[0];
 #endif
         }
-#if !CYTHON_ASSUME_SAFE_SIZE        
+#if !CYTHON_ASSUME_SAFE_SIZE
         else if (unlikely(size < 0)) return -1;
 #endif
     } else if (PyByteArray_Check(c)) {
