@@ -3523,8 +3523,12 @@ class CFuncType(CType):
         def arg_name_part(arg):
             return "%s%s" % (len(arg.name), punycodify_name(arg.name)) if arg.name else "0"
         arg_names = [ arg_name_part(arg) for arg in self.args ]
-        arg_names = "_".join(arg_names)
+        arg_names = cap_length("_".join(arg_names))
         safe_typename = type_identifier(self, pyrex=True)
+        # Note that the length here is slightly bigger than twice the default cap in
+        # "cap_length" (since the length is capped in both arg_names and the type_identifier)
+        # but since this is significantly shorter than compilers should be able to handle,
+        # that is acceptable.
         to_py_function = "__Pyx_CFunc_%s_to_py_%s" % (safe_typename, arg_names)
 
         for arg in self.args:
@@ -5519,13 +5523,15 @@ def type_identifier_from_declaration(decl, scope = None):
         _type_identifier_cache[key] = safe
     return safe
 
-def cap_length(s, max_prefix=63, max_len=1024):
-    if len(s) <= max_prefix:
+def cap_length(s, max_len=63):
+    if len(s) <= max_len:
         return s
     hash_prefix = hashlib.sha256(s.encode('ascii')).hexdigest()[:6]
     return '%s__%s__etc' % (hash_prefix, s[:max_len-17])
 
-def write_noexcept_performance_hint(pos, env, function_name=None, void_return=False, is_call=False):
+def write_noexcept_performance_hint(pos, env,
+                                    function_name=None, void_return=False, is_call=False,
+                                    is_from_pxd=False):
     if function_name:
         # we need it escaped everywhere we use it
         function_name = "'%s'" % function_name
@@ -5548,6 +5554,9 @@ def write_noexcept_performance_hint(pos, env, function_name=None, void_return=Fa
         solutions.append(
             "Use an 'int' return type on %s to allow an error code to be returned." %
             the_function)
+    if is_from_pxd and not void_return:
+        solutions.append(
+            "Declare any exception value explicitly for functions in pxd files.")
     if len(solutions) == 1:
         msg = "%s %s" % (msg, solutions[0])
     else:

@@ -14,6 +14,9 @@ Features added
 * Function calls now use the PEP-590 Vectorcall protocol, even when passing keyword arguments.
   (Github issues :issue:`5804`)
 
+* The Python ``int`` type now maps directly to ``PyLong`` and is inferred accordingly.
+  (Github issue :issue:`4237`)
+
 * Integer operations on known ``int`` types are faster.
   (Github issue :issue:`5785`)
 
@@ -22,7 +25,14 @@ Features added
   :issue:`5885`, :issue:`5886`, :issue:`5888`)
 
 * Several issues with the gdb support were resolved.
-  Patches by Kent Slaney.  (Github issues :issue:`5955`,  :issue:`5948`)
+  Patches by Kent Slaney.  (Github issues :issue:`5955`, :issue:`5948`)
+
+* C++ classes implemented in Cython can now use method overloading.
+  Patch by samaingw.  (Github issue :issue:`3235`)
+
+* Assigning a Python container to a C++ vector now makes use of ``__length_hint__``
+  to avoid reallocations.
+  Patch by Denis Lukianov.  (Github issue :issue:`6077`)
 
 * Dataclasses support the ``match_args`` option.
   (Github issue :issue:`5381`)
@@ -49,6 +59,13 @@ Bugs fixed
 
 * Dataclasses did not handle default fields without init value correctly.
   (Github issue :issue:`5858`)
+
+* Exception values were not always recognised as equal at compile time.
+  (Github issue :issue:`5709`)
+
+* Running Cython in different Python versions could generate slightly different C code
+  due to differences in the builtins.
+  (Github issue :issue:`5591`)
 
 * The ``-a`` option in the IPython magic no longer copies the complete HTML document
   into the notebook but only a more reasonable content snippet.
@@ -85,9 +102,6 @@ Other changes
   ``language_level=3str`` has become a legacy alias.
   (Github issue :issue:`5827`)
 
-* The Python ``int`` type now maps directly to ``PyLong`` and is inferred accordingly.
-  (Github issue :issue:`4237`)
-
 * The previously shipped NumPy C-API declarations (``cimport numpy``) were removed.
   NumPy has been providing version specific declarations for several versions now.
   (Github issue :issue:`5842`)
@@ -95,7 +109,57 @@ Other changes
 * Usages of the outdated ``WITH_THREAD`` macro guard were removed.
   (Github issue :issue:`5812`)
 
-* Includes all fixes as of Cython 3.0.9 (but generates C99 code in some places).
+* The options for showing the C code line in Python exception stack traces were cleaned up.
+  Previously, disabling the option with the ``CYTHON_CLINE_IN_TRACEBACK`` macro did not
+  reduce the code overhead of the feature, and the ``c_line_in_traceback`` compile option
+  was partly redundant with the C macro switches and lead to warnings about unused code.
+  Since this is considered mostly a debug feature, the new default is that it is _disabled_
+  to avoid code and runtime overhead.  It can be enabled by setting the C macro to 1, and
+  a new macro ``CYTHON_CLINE_IN_TRACEBACK_RUNTIME`` was added that controls the runtime
+  configurable setting if the feature is enabled, which was previously only available
+  through the compile option.  The compile option is now deprecated (but still available),
+  and users should migrate to using the two C macros only.
+  (Github issue :issue:`6036`)
+
+* Includes all fixes as of Cython 3.0.10 (but generates C99 code in some places).
+
+
+3.0.10 (2024-03-30)
+===================
+
+Bugs fixed
+----------
+
+* Cython generated incorrect self-casts when directly calling final methods of subtypes.
+  Patch by Lisandro Dalcin.  (Github issue :issue:`2747`)
+
+* Internal C names generated from C function signatures could become too long for MSVC.
+  (Github issue :issue:`6052`)
+
+* The ``noexcept`` warnings could be misleading in some cases.
+  Patch by Gonzalo Tornaría.  (Github issue :issue:`6087`)
+
+* The ``@cython.ufunc`` implementation could generate incomplete C code.
+  (Github issue :issue:`6064`)
+
+* The ``libcpp.complex`` declarations could result in incorrect C++ code.
+  Patch by Raffi Enficiaud.  (Github issue :issue:`6037`)
+
+* Several tests were adapted to work with both NumPy 1.x and 2.0.
+  Patch by Matti Picus.  (Github issues :issue:`6076`, :issue:`6100`)
+
+* C compiler warnings when the freelist implementation is disabled (e.g. on PyPy) were fixed.
+  It can now be disabled explicitly with the C macro guard ``CYTHON_USE_FREELISTS=0``.
+  (Github issue :issue:`6099`)
+
+* Some C macro guards for feature flags were missing from the NOGIL Python configuration.
+
+* Some recently added builtins were unconditionally looked up at module import time
+  (if used by user code) that weren't available on all Python versions and could thus
+  fail the import.
+
+* A performance hint regarding exported pxd declarations was improved.
+  (Github issue :issue:`6001`)
 
 
 3.0.9 (2024-03-05)

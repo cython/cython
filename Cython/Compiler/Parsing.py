@@ -41,11 +41,11 @@ class Ctx:
     #  Parsing context
     level = 'other'
     visibility = 'private'
-    cdef_flag = 0
-    typedef_flag = 0
-    api = 0
-    overridable = 0
-    nogil = 0
+    cdef_flag = False
+    typedef_flag = False
+    api = False
+    overridable = False
+    nogil = False
     namespace = None
     templates = None
     allow_struct_enum_decorator = False
@@ -61,7 +61,8 @@ class Ctx:
         return ctx
 
 
-def p_ident(s, message="Expected an identifier"):
+@cython.cfunc
+def p_ident(s: PyrexScanner, message="Expected an identifier"):
     if s.sy == 'IDENT':
         name = s.context.intern_ustring(s.systring)
         s.next()
@@ -69,7 +70,9 @@ def p_ident(s, message="Expected an identifier"):
     else:
         s.error(message)
 
-def p_ident_list(s):
+
+@cython.cfunc
+def p_ident_list(s: PyrexScanner):
     names = []
     while s.sy == 'IDENT':
         names.append(s.context.intern_ustring(s.systring))
@@ -85,13 +88,16 @@ def p_ident_list(s):
 #
 #------------------------------------------
 
-def p_binop_operator(s):
+@cython.cfunc
+def p_binop_operator(s: PyrexScanner) -> tuple:
     pos = s.position()
     op = s.sy
     s.next()
     return op, pos
 
-def p_binop_expr(s, ops, p_sub_expr):
+
+# signature is currently overridden in pxd file
+def p_binop_expr(s: PyrexScanner, ops, p_sub_expr):
     n1 = p_sub_expr(s)
     while s.sy in ops:
         op, pos = p_binop_operator(s)
@@ -104,9 +110,11 @@ def p_binop_expr(s, ops, p_sub_expr):
                 n1.truedivision = None  # unknown
     return n1
 
+
 #lambdef: 'lambda' [varargslist] ':' test
 
-def p_lambdef(s):
+@cython.cfunc
+def p_lambdef(s: PyrexScanner):
     # s.sy == 'lambda'
     pos = s.position()
     s.next()
@@ -123,9 +131,11 @@ def p_lambdef(s):
         star_arg = star_arg, starstar_arg = starstar_arg,
         result_expr = expr)
 
+
 #test: or_test ['if' or_test 'else' test] | lambdef
 
-def p_test(s):
+@cython.cfunc
+def p_test(s: PyrexScanner):
     # The check for a following ':=' is only for error reporting purposes.
     # It simply changes a
     #   expected ')', found ':='
@@ -137,7 +147,9 @@ def p_test(s):
         s.error("invalid syntax: assignment expression not allowed in this context")
     return expr
 
-def p_test_allow_walrus_after(s):
+
+@cython.cfunc
+def p_test_allow_walrus_after(s: PyrexScanner):
     if s.sy == 'lambda':
         return p_lambdef(s)
     pos = s.position()
@@ -151,7 +163,9 @@ def p_test_allow_walrus_after(s):
     else:
         return expr
 
-def p_namedexpr_test(s):
+
+@cython.cfunc
+def p_namedexpr_test(s: PyrexScanner):
     # defined in the LL parser as
     #  namedexpr_test: test [':=' test]
     # The requirement that the LHS is a name is not enforced in the grammar.
@@ -174,10 +188,13 @@ def p_namedexpr_test(s):
 
 COMMON_BINOP_MISTAKES = {'||': 'or', '&&': 'and'}
 
-def p_or_test(s):
+@cython.cfunc
+def p_or_test(s: PyrexScanner):
     return p_rassoc_binop_expr(s, 'or', p_and_test)
 
-def p_rassoc_binop_expr(s, op, p_subexpr):
+
+# signature is currently overridden in pxd file
+def p_rassoc_binop_expr(s: PyrexScanner, op, p_subexpr):
     n1 = p_subexpr(s)
     if s.sy == op:
         pos = s.position()
@@ -192,15 +209,19 @@ def p_rassoc_binop_expr(s, op, p_subexpr):
                 level=1)
     return n1
 
+
 #and_test: not_test ('and' not_test)*
 
-def p_and_test(s):
+@cython.cfunc
+def p_and_test(s: PyrexScanner):
     #return p_binop_expr(s, ('and',), p_not_test)
     return p_rassoc_binop_expr(s, 'and', p_not_test)
 
+
 #not_test: 'not' not_test | comparison
 
-def p_not_test(s):
+@cython.cfunc
+def p_not_test(s: PyrexScanner):
     if s.sy == 'not':
         pos = s.position()
         s.next()
@@ -208,10 +229,12 @@ def p_not_test(s):
     else:
         return p_comparison(s)
 
+
 #comparison: expr (comp_op expr)*
 #comp_op: '<'|'>'|'=='|'>='|'<='|'<>'|'!='|'in'|'not' 'in'|'is'|'is' 'not'
 
-def p_comparison(s):
+@cython.cfunc
+def p_comparison(s: PyrexScanner):
     n1 = p_starred_expr(s)
     if s.sy in comparison_ops:
         pos = s.position()
@@ -223,19 +246,25 @@ def p_comparison(s):
             n1.cascade = p_cascaded_cmp(s)
     return n1
 
-def p_test_or_starred_expr(s):
+
+@cython.cfunc
+def p_test_or_starred_expr(s: PyrexScanner):
     if s.sy == '*':
         return p_starred_expr(s)
     else:
         return p_test(s)
 
-def p_namedexpr_test_or_starred_expr(s):
+
+@cython.cfunc
+def p_namedexpr_test_or_starred_expr(s: PyrexScanner):
     if s.sy == '*':
         return p_starred_expr(s)
     else:
         return p_namedexpr_test(s)
 
-def p_starred_expr(s):
+
+@cython.cfunc
+def p_starred_expr(s: PyrexScanner):
     pos = s.position()
     if s.sy == '*':
         starred = True
@@ -247,7 +276,9 @@ def p_starred_expr(s):
         expr = ExprNodes.StarredUnpackingNode(pos, expr)
     return expr
 
-def p_cascaded_cmp(s):
+
+@cython.cfunc
+def p_cascaded_cmp(s: PyrexScanner):
     pos = s.position()
     op = p_cmp_op(s)
     n2 = p_starred_expr(s)
@@ -257,7 +288,9 @@ def p_cascaded_cmp(s):
         result.cascade = p_cascaded_cmp(s)
     return result
 
-def p_cmp_op(s):
+
+@cython.cfunc
+def p_cmp_op(s: PyrexScanner):
     if s.sy == 'not':
         s.next()
         s.expect('in')
@@ -276,48 +309,65 @@ def p_cmp_op(s):
         op = '!='
     return op
 
+
 comparison_ops = cython.declare(frozenset, frozenset((
     '<', '>', '==', '>=', '<=', '<>', '!=',
     'in', 'is', 'not'
 )))
 
+
 #expr: xor_expr ('|' xor_expr)*
 
-def p_bit_expr(s):
+@cython.cfunc
+def p_bit_expr(s: PyrexScanner):
     return p_binop_expr(s, ('|',), p_xor_expr)
+
 
 #xor_expr: and_expr ('^' and_expr)*
 
-def p_xor_expr(s):
+@cython.cfunc
+def p_xor_expr(s: PyrexScanner):
     return p_binop_expr(s, ('^',), p_and_expr)
+
 
 #and_expr: shift_expr ('&' shift_expr)*
 
-def p_and_expr(s):
+@cython.cfunc
+def p_and_expr(s: PyrexScanner):
     return p_binop_expr(s, ('&',), p_shift_expr)
+
 
 #shift_expr: arith_expr (('<<'|'>>') arith_expr)*
 
-def p_shift_expr(s):
+@cython.cfunc
+def p_shift_expr(s: PyrexScanner):
     return p_binop_expr(s, ('<<', '>>'), p_arith_expr)
+
 
 #arith_expr: term (('+'|'-') term)*
 
-def p_arith_expr(s):
+@cython.cfunc
+def p_arith_expr(s: PyrexScanner):
     return p_binop_expr(s, ('+', '-'), p_term)
+
 
 #term: factor (('*'|'@'|'/'|'%'|'//') factor)*
 
-def p_term(s):
+@cython.cfunc
+def p_term(s: PyrexScanner):
     return p_binop_expr(s, ('*', '@', '/', '%', '//'), p_factor)
+
 
 #factor: ('+'|'-'|'~'|'&'|typecast|sizeof) factor | power
 
-def p_factor(s):
+@cython.cfunc
+def p_factor(s: PyrexScanner):
     # little indirection for C-ification purposes
     return _p_factor(s)
 
-def _p_factor(s):
+
+@cython.cfunc
+def _p_factor(s: PyrexScanner):
     sy = s.sy
     if sy in ('+', '-', '~'):
         op = s.sy
@@ -336,7 +386,9 @@ def _p_factor(s):
             return p_sizeof(s)
     return p_power(s)
 
-def p_typecast(s):
+
+@cython.cfunc
+def p_typecast(s: PyrexScanner):
     # s.sy == "<"
     pos = s.position()
     s.next()
@@ -349,12 +401,12 @@ def p_typecast(s):
     ))
     if not (is_memslice or is_other_unnamed_type) and base_type.name is None:
         s.error("Unknown type")
-    declarator = p_c_declarator(s, empty = 1)
+    declarator = p_c_declarator(s, empty=True)
     if s.sy == '?':
         s.next()
-        typecheck = 1
+        typecheck = True
     else:
-        typecheck = 0
+        typecheck = False
     s.expect(">")
     operand = p_factor(s)
     if is_memslice:
@@ -366,7 +418,9 @@ def p_typecast(s):
         operand = operand,
         typecheck = typecheck)
 
-def p_sizeof(s):
+
+@cython.cfunc
+def p_sizeof(s: PyrexScanner):
     # s.sy == ident "sizeof"
     pos = s.position()
     s.next()
@@ -379,14 +433,15 @@ def p_sizeof(s):
         node = ExprNodes.SizeofVarNode(pos, operand = operand)
     else:
         base_type = p_c_base_type(s)
-        declarator = p_c_declarator(s, empty = 1)
+        declarator = p_c_declarator(s, empty=True)
         node = ExprNodes.SizeofTypeNode(pos,
             base_type = base_type, declarator = declarator)
     s.expect(')')
     return node
 
 
-def p_yield_expression(s):
+@cython.cfunc
+def p_yield_expression(s: PyrexScanner):
     # s.sy == "yield"
     pos = s.position()
     s.next()
@@ -408,13 +463,15 @@ def p_yield_expression(s):
         return ExprNodes.YieldExprNode(pos, arg=arg)
 
 
-def p_yield_statement(s):
+@cython.cfunc
+def p_yield_statement(s: PyrexScanner):
     # s.sy == "yield"
     yield_expr = p_yield_expression(s)
     return Nodes.ExprStatNode(yield_expr.pos, expr=yield_expr)
 
 
-def p_async_statement(s, ctx, decorators):
+@cython.cfunc
+def p_async_statement(s: PyrexScanner, ctx, decorators):
     # s.sy >> 'async' ...
     if s.sy == 'def':
         # 'async def' statements aren't allowed in pxd files
@@ -436,7 +493,8 @@ def p_async_statement(s, ctx, decorators):
 #power: atom_expr ('**' factor)*
 #atom_expr: ['await'] atom trailer*
 
-def p_power(s):
+@cython.cfunc
+def p_power(s: PyrexScanner):
     if s.systring == 'new' and s.peek()[0] == 'IDENT':
         return p_new_expr(s)
     await_pos = None
@@ -456,16 +514,19 @@ def p_power(s):
     return n1
 
 
-def p_new_expr(s):
+@cython.cfunc
+def p_new_expr(s: PyrexScanner):
     # s.systring == 'new'.
     pos = s.position()
     s.next()
     cppclass = p_c_base_type(s)
     return p_call(s, ExprNodes.NewExprNode(pos, cppclass = cppclass))
 
+
 #trailer: '(' [arglist] ')' | '[' subscriptlist ']' | '.' NAME
 
-def p_trailer(s, node1):
+@cython.cfunc
+def p_trailer(s: PyrexScanner, node1):
     pos = s.position()
     if s.sy == '(':
         return p_call(s, node1)
@@ -487,9 +548,9 @@ def p_trailer(s, node1):
 #             '**' expr |
 #             star_expr )
 
-def p_call_parse_args(s, allow_genexp=True):
+@cython.cfunc
+def p_call_parse_args(s: PyrexScanner, allow_genexp: cython.bint = True):
     # s.sy == '('
-    pos = s.position()
     s.next()
     positional_args = []
     keyword_args = []
@@ -530,7 +591,7 @@ def p_call_parse_args(s, allow_genexp=True):
             break
         s.next()
 
-    if s.sy in ('for', 'async'):
+    if s.sy in ('for', 'async') and allow_genexp:
         if not keyword_args and not last_was_tuple_unpack:
             if len(positional_args) == 1 and len(positional_args[0]) == 1:
                 positional_args = [[p_genexp(s, positional_args[0][0])]]
@@ -538,7 +599,8 @@ def p_call_parse_args(s, allow_genexp=True):
     return positional_args or [[]], keyword_args
 
 
-def p_call_build_packed_args(pos, positional_args, keyword_args):
+@cython.cfunc
+def p_call_build_packed_args(pos, positional_args, keyword_args) -> tuple:
     keyword_dict = None
 
     subtuples = [
@@ -580,7 +642,8 @@ def p_call_build_packed_args(pos, positional_args, keyword_args):
     return arg_tuple, keyword_dict
 
 
-def p_call(s, function):
+@cython.cfunc
+def p_call(s: PyrexScanner, function):
     # s.sy == '('
     pos = s.position()
     positional_args, keyword_args = p_call_parse_args(s)
@@ -597,7 +660,8 @@ def p_call(s, function):
 
 #subscriptlist: subscript (',' subscript)* [',']
 
-def p_index(s, base):
+@cython.cfunc
+def p_index(s: PyrexScanner, base):
     # s.sy == '['
     pos = s.position()
     s.next()
@@ -617,7 +681,9 @@ def p_index(s, base):
     s.expect(']')
     return result
 
-def p_subscript_list(s):
+
+@cython.cfunc
+def p_subscript_list(s: PyrexScanner) -> tuple:
     is_single_value = True
     items = [p_subscript(s)]
     while s.sy == ',':
@@ -628,13 +694,14 @@ def p_subscript_list(s):
         items.append(p_subscript(s))
     return items, is_single_value
 
+
 #subscript: '.' '.' '.' | test | [test] ':' [test] [':' [test]]
 
-def p_subscript(s):
+@cython.cfunc
+def p_subscript(s: PyrexScanner):
     # Parse a subscript and return a list of
     # 1, 2 or 3 ExprNodes, depending on how
     # many slice elements were encountered.
-    pos = s.position()
     start = p_slice_element(s, (':',))
     if s.sy != ':':
         return [start]
@@ -646,7 +713,9 @@ def p_subscript(s):
     step = p_slice_element(s, (':', ',', ']'))
     return [start, stop, step]
 
-def p_slice_element(s, follow_set):
+
+@cython.cfunc
+def p_slice_element(s: PyrexScanner, follow_set):
     # Simple expression which may be missing iff
     # it is followed by something in follow_set.
     if s.sy not in follow_set:
@@ -654,9 +723,13 @@ def p_slice_element(s, follow_set):
     else:
         return None
 
-def expect_ellipsis(s):
+
+@cython.cfunc
+def expect_ellipsis(s: PyrexScanner):
     s.expect('...')
 
+
+@cython.cfunc
 def make_slice_nodes(pos, subscripts):
     # Convert a list of subscripts as returned
     # by p_subscript_list into a list of ExprNodes,
@@ -670,6 +743,8 @@ def make_slice_nodes(pos, subscripts):
             result.append(make_slice_node(pos, *subscript))
     return result
 
+
+@cython.ccall
 def make_slice_node(pos, start, stop = None, step = None):
     if not start:
         start = ExprNodes.NoneNode(pos)
@@ -680,9 +755,11 @@ def make_slice_node(pos, start, stop = None, step = None):
     return ExprNodes.SliceNode(pos,
         start = start, stop = stop, step = step)
 
+
 #atom: '(' [yield_expr|testlist_comp] ')' | '[' [listmaker] ']' | '{' [dict_or_set_maker] '}' | '`' testlist '`' | NAME | NUMBER | STRING+
 
-def p_atom(s):
+@cython.cfunc
+def p_atom(s: PyrexScanner):
     pos = s.position()
     sy = s.sy
     if sy == '(':
@@ -726,7 +803,8 @@ def p_atom(s):
         s.error("Expected an identifier or literal")
 
 
-def p_atom_string(s):
+@cython.cfunc
+def p_atom_string(s: PyrexScanner):
     # s.sy == 'BEGIN_STRING'
     pos = s.position()
     kind, bytes_value, unicode_value = p_cat_string_literal(s)
@@ -744,7 +822,8 @@ def p_atom_string(s):
         s.error("invalid string kind '%s'" % kind)
 
 
-def p_atom_ident_constants(s):
+@cython.cfunc
+def p_atom_ident_constants(s: PyrexScanner):
     """
     Returns None if it isn't a special-cased named constant.
     Only calls s.next() if it successfully matches a named constant.
@@ -766,9 +845,10 @@ def p_atom_ident_constants(s):
     return result
 
 
-def p_int_literal(s):
+@cython.cfunc
+def p_int_literal(s: PyrexScanner):
     pos = s.position()
-    value = s.systring
+    value: str = cython.cast(str, s.systring)
     s.next()
     unsigned = ""
     longness = ""
@@ -798,7 +878,8 @@ def p_int_literal(s):
                              longness = longness)
 
 
-def p_name(s, name):
+@cython.cfunc
+def p_name(s: PyrexScanner, name):
     pos = s.position()
     if not s.compile_time_expr and name in s.compile_time_env:
         value = s.compile_time_env.lookup_here(name)
@@ -808,6 +889,7 @@ def p_name(s, name):
     return ExprNodes.NameNode(pos, name=name)
 
 
+@cython.cfunc
 def wrap_compile_time_constant(pos, value):
     if value is None:
         return ExprNodes.NoneNode(pos)
@@ -845,7 +927,8 @@ def wrap_compile_time_constant(pos, value):
     return None
 
 
-def p_cat_string_literal(s):
+@cython.cfunc
+def p_cat_string_literal(s: PyrexScanner) -> tuple:
     # A sequence of one or more adjacent string literals.
     # Returns (kind, bytes_value, unicode_value)
     # where kind in ('b', 'c', 'u', 'f', '')
@@ -889,7 +972,8 @@ def p_cat_string_literal(s):
     return kind, bytes_value, unicode_value
 
 
-def p_opt_string_literal(s, required_type='u'):
+@cython.cfunc
+def p_opt_string_literal(s: PyrexScanner, required_type: str = 'u'):
     if s.sy != 'BEGIN_STRING':
         return None
     pos = s.position()
@@ -904,14 +988,17 @@ def p_opt_string_literal(s, required_type='u'):
         s.error("internal parser configuration error")
 
 
-def check_for_non_ascii_characters(string):
-    for c in string:
+@cython.cfunc
+def check_for_non_ascii_characters(string) -> cython.bint:
+    s = cython.cast(str, string)  # EncodedString
+    for c in s:
         if c >= '\x80':
             return True
     return False
 
 
-def p_string_literal(s, kind_override=None):
+@cython.cfunc
+def p_string_literal(s: PyrexScanner, kind_override=None) -> tuple:
     # A single string or char literal.  Returns (kind, bvalue, uvalue)
     # where kind in ('b', 'c', 'u', 'f', '').  The 'bvalue' is the source
     # code byte sequence of the string literal, 'uvalue' is the
@@ -922,7 +1009,7 @@ def p_string_literal(s, kind_override=None):
 
     # s.sy == 'BEGIN_STRING'
     pos = s.position()
-    is_python3_source = s.context.language_level >= 3
+    is_python3_source: cython.bint = s.context.language_level >= 3
     has_non_ascii_literal_characters = False
     string_start_pos = (pos[0], pos[1], pos[2] + len(s.systring))
     kind_string = s.systring.rstrip('"\'').lower()
@@ -936,7 +1023,7 @@ def p_string_literal(s, kind_override=None):
         if 'u' in kind_string and 'f' in kind_string:
             error(pos, 'String prefixes u and f cannot be combined')
 
-    is_raw = 'r' in kind_string
+    is_raw: cython.bint = 'r' in kind_string
 
     if 'c' in kind_string:
         # this should never happen, since the lexer does not allow combining c
@@ -967,10 +1054,11 @@ def p_string_literal(s, kind_override=None):
         else:
             chars = StringEncoding.BytesLiteralBuilder(s.source_encoding)
 
+    systr: str
     while 1:
         s.next()
         sy = s.sy
-        systr = s.systring
+        systr = cython.cast(str, s.systring)
         # print "p_string_literal: sy =", sy, repr(s.systring) ###
         if sy == 'CHARS':
             chars.append(systr)
@@ -1013,7 +1101,8 @@ def p_string_literal(s, kind_override=None):
     return (kind, bytes_value, unicode_value)
 
 
-def _append_escape_sequence(kind, builder, escape_sequence, s):
+@cython.cfunc
+def _append_escape_sequence(kind, builder, escape_sequence: str, s: PyrexScanner):
     c = escape_sequence[1]
     if c in "01234567":
         builder.append_charval(int(escape_sequence[1:], 8))
@@ -1073,27 +1162,29 @@ _parse_escape_sequences_raw, _parse_escape_sequences = [re.compile((
 ]
 
 
-def _f_string_error_pos(pos, string, i):
+@cython.cfunc
+def _f_string_error_pos(pos: tuple, string, i: cython.Py_ssize_t) -> tuple:
     return (pos[0], pos[1], pos[2] + i + 1)  # FIXME: handle newlines in string
 
 
-def p_f_string(s, unicode_value, pos, is_raw):
+@cython.cfunc
+def p_f_string(s: PyrexScanner, unicode_value, pos, is_raw: cython.bint) -> list:
     # Parses a PEP 498 f-string literal into a list of nodes. Nodes are either UnicodeNodes
     # or FormattedValueNodes.
     values = []
-    next_start = 0
-    size = len(unicode_value)
+    next_start: cython.Py_ssize_t = 0
+    size: cython.Py_ssize_t = len(unicode_value)
     builder = StringEncoding.UnicodeLiteralBuilder()
     _parse_seq = _parse_escape_sequences_raw if is_raw else _parse_escape_sequences
 
     while next_start < size:
-        end = next_start
+        end: cython.Py_ssize_t = next_start
         match = _parse_seq(unicode_value, next_start)
         if match is None:
             error(_f_string_error_pos(pos, unicode_value, next_start), "Invalid escape sequence")
 
-        next_start = match.end()
-        part = match.group()
+        next_start: cython.Py_ssize_t = match.end()
+        part: str = match.group()
         c = part[0]
         if c == '\\':
             if not is_raw and len(part) > 1:
@@ -1124,21 +1215,24 @@ def p_f_string(s, unicode_value, pos, is_raw):
     return values
 
 
-def p_f_string_expr(s, unicode_value, pos, starting_index, is_raw):
+@cython.cfunc
+def p_f_string_expr(s: PyrexScanner, unicode_value, pos: tuple,
+                    starting_index: cython.Py_ssize_t, is_raw: cython.bint) -> tuple:
     # Parses a {}-delimited expression inside an f-string. Returns a list of nodes
     # [UnicodeNode?, FormattedValueNode] and the index in the string that follows
     # the expression.
     #
     # ? = Optional
-    i = starting_index
-    size = len(unicode_value)
+    i: cython.Py_ssize_t = starting_index
+    size: cython.Py_ssize_t = len(unicode_value)
     conversion_char = terminal_char = format_spec = None
     format_spec_str = None
     expr_text = None
-    NO_CHAR = 2**30
+    NO_CHAR: cython.Py_UCS4 = 2**30
 
-    nested_depth = 0
-    quote_char = NO_CHAR
+    nested_depth: cython.Py_ssize_t = 0
+    quote_char: cython.Py_UCS4 = NO_CHAR
+    c: cython.Py_UCS4
     in_triple_quotes = False
     backslash_reported = False
 
@@ -1278,7 +1372,8 @@ def p_f_string_expr(s, unicode_value, pos, starting_index, is_raw):
 # comp_for      ::=     ["async"] "for" expression_list "in" testlist [comp_iter]
 # comp_if       ::=     "if" test [comp_iter]
 
-def p_list_maker(s):
+@cython.cfunc
+def p_list_maker(s: PyrexScanner):
     # s.sy == '['
     pos = s.position()
     s.next()
@@ -1308,7 +1403,8 @@ def p_list_maker(s):
     return ExprNodes.ListNode(pos, args=exprs)
 
 
-def p_comp_iter(s, body):
+@cython.cfunc
+def p_comp_iter(s: PyrexScanner, body):
     if s.sy in ('for', 'async'):
         return p_comp_for(s, body)
     elif s.sy == 'if':
@@ -1317,7 +1413,9 @@ def p_comp_iter(s, body):
         # insert the 'append' operation into the loop
         return body
 
-def p_comp_for(s, body):
+
+@cython.cfunc
+def p_comp_for(s: PyrexScanner, body):
     pos = s.position()
     # [async] for ...
     is_async = False
@@ -1331,7 +1429,9 @@ def p_comp_for(s, body):
     kw.update(else_clause=None, body=p_comp_iter(s, body), is_async=is_async)
     return Nodes.ForStatNode(pos, **kw)
 
-def p_comp_if(s, body):
+
+@cython.cfunc
+def p_comp_if(s: PyrexScanner, body):
     # s.sy == 'if'
     pos = s.position()
     s.next()
@@ -1353,7 +1453,8 @@ def p_comp_if(s, body):
 #                  ((test | star_expr)
 #                   (comp_for | (',' (test | star_expr))* [','])) )
 
-def p_dict_or_set_maker(s):
+@cython.cfunc
+def p_dict_or_set_maker(s: PyrexScanner):
     # s.sy == '{'
     pos = s.position()
     s.next()
@@ -1362,7 +1463,7 @@ def p_dict_or_set_maker(s):
         return ExprNodes.DictNode(pos, key_value_pairs=[])
 
     parts = []
-    target_type = 0
+    target_type: cython.int = 0
     last_was_simple_item = False
     while True:
         if s.sy in ('*', '**'):
@@ -1463,7 +1564,8 @@ def p_dict_or_set_maker(s):
 
 
 # NOTE: no longer in Py3 :)
-def p_backquote_expr(s):
+@cython.cfunc
+def p_backquote_expr(s: PyrexScanner):
     # s.sy == '`'
     pos = s.position()
     s.next()
@@ -1478,8 +1580,10 @@ def p_backquote_expr(s):
         arg = ExprNodes.TupleNode(pos, args = args)
     return ExprNodes.BackquoteNode(pos, arg = arg)
 
-def p_simple_expr_list(s, expr=None):
-    exprs = expr is not None and [expr] or []
+
+@cython.cfunc
+def p_simple_expr_list(s: PyrexScanner, expr=None) -> list:
+    exprs: list = [expr] if expr is not None else []
     while s.sy not in expr_terminators:
         exprs.append( p_test(s) )
         if s.sy != ',':
@@ -1488,8 +1592,9 @@ def p_simple_expr_list(s, expr=None):
     return exprs
 
 
-def p_test_or_starred_expr_list(s, expr=None):
-    exprs = expr is not None and [expr] or []
+@cython.cfunc
+def p_test_or_starred_expr_list(s: PyrexScanner, expr=None) -> list:
+    exprs: list = [expr] if expr is not None else []
     while s.sy not in expr_terminators:
         exprs.append(p_test_or_starred_expr(s))
         if s.sy != ',':
@@ -1497,8 +1602,10 @@ def p_test_or_starred_expr_list(s, expr=None):
         s.next()
     return exprs
 
-def p_namedexpr_test_or_starred_expr_list(s, expr=None):
-    exprs = expr is not None and [expr] or []
+
+@cython.cfunc
+def p_namedexpr_test_or_starred_expr_list(s: PyrexScanner, expr=None) -> list:
+    exprs: list = [expr] if expr is not None else []
     while s.sy not in expr_terminators:
         exprs.append(p_namedexpr_test_or_starred_expr(s))
         if s.sy != ',':
@@ -1509,7 +1616,8 @@ def p_namedexpr_test_or_starred_expr_list(s, expr=None):
 
 #testlist: test (',' test)* [',']
 
-def p_testlist(s):
+@cython.cfunc
+def p_testlist(s: PyrexScanner):
     pos = s.position()
     expr = p_test(s)
     if s.sy == ',':
@@ -1519,9 +1627,11 @@ def p_testlist(s):
     else:
         return expr
 
+
 # testlist_star_expr: (test|star_expr) ( comp_for | (',' (test|star_expr))* [','] )
 
-def p_testlist_star_expr(s):
+@cython.cfunc
+def p_testlist_star_expr(s: PyrexScanner):
     pos = s.position()
     expr = p_test_or_starred_expr(s)
     if s.sy == ',':
@@ -1531,9 +1641,11 @@ def p_testlist_star_expr(s):
     else:
         return expr
 
+
 # testlist_comp: (test|star_expr) ( comp_for | (',' (test|star_expr))* [','] )
 
-def p_testlist_comp(s):
+@cython.cfunc
+def p_testlist_comp(s: PyrexScanner):
     pos = s.position()
     expr = p_namedexpr_test_or_starred_expr(s)
     if s.sy == ',':
@@ -1545,11 +1657,14 @@ def p_testlist_comp(s):
     else:
         return expr
 
-def p_genexp(s, expr):
+
+@cython.cfunc
+def p_genexp(s: PyrexScanner, expr):
     # s.sy == 'async' | 'for'
     loop = p_comp_for(s, Nodes.ExprStatNode(
         expr.pos, expr = ExprNodes.YieldExprNode(expr.pos, arg=expr)))
     return ExprNodes.GeneratorExpressionNode(expr.pos, loop=loop)
+
 
 expr_terminators = cython.declare(frozenset, frozenset((
     ')', ']', '}', ':', '=', 'NEWLINE')))
@@ -1561,7 +1676,8 @@ expr_terminators = cython.declare(frozenset, frozenset((
 #
 #-------------------------------------------------------
 
-def p_global_statement(s):
+@cython.cfunc
+def p_global_statement(s: PyrexScanner):
     # assume s.sy == 'global'
     pos = s.position()
     s.next()
@@ -1569,14 +1685,16 @@ def p_global_statement(s):
     return Nodes.GlobalNode(pos, names = names)
 
 
-def p_nonlocal_statement(s):
+@cython.cfunc
+def p_nonlocal_statement(s: PyrexScanner):
     pos = s.position()
     s.next()
     names = p_ident_list(s)
     return Nodes.NonlocalNode(pos, names = names)
 
 
-def p_expression_or_assignment(s):
+@cython.cfunc
+def p_expression_or_assignment(s: PyrexScanner):
     expr = p_testlist_star_expr(s)
     has_annotation = False
     if s.sy == ':' and (expr.is_name or expr.is_subscript or expr.is_attribute):
@@ -1627,10 +1745,11 @@ def p_expression_or_assignment(s):
         return Nodes.CascadedAssignmentNode(rhs.pos, lhs_list=expr_list[:-1], rhs=rhs)
 
 
-def p_print_statement(s):
+@cython.cfunc
+def p_print_statement(s: PyrexScanner):
     # s.sy == 'print'
     pos = s.position()
-    ends_with_comma = 0
+    ends_with_comma: cython.bint = False
     s.next()
     if s.sy == '>>':
         s.next()
@@ -1646,7 +1765,7 @@ def p_print_statement(s):
         while s.sy == ',':
             s.next()
             if s.sy in ('NEWLINE', 'EOF'):
-                ends_with_comma = 1
+                ends_with_comma = True
                 break
             args.append(p_test(s))
     arg_tuple = ExprNodes.TupleNode(pos, args=args)
@@ -1655,7 +1774,8 @@ def p_print_statement(s):
         append_newline=not ends_with_comma)
 
 
-def p_exec_statement(s):
+@cython.cfunc
+def p_exec_statement(s: PyrexScanner):
     # s.sy == 'exec'
     pos = s.position()
     s.next()
@@ -1682,7 +1802,9 @@ def p_exec_statement(s):
             args.append(p_test(s))
     return Nodes.ExecStatNode(pos, args=args)
 
-def p_del_statement(s):
+
+@cython.cfunc
+def p_del_statement(s: PyrexScanner):
     # s.sy == 'del'
     pos = s.position()
     s.next()
@@ -1690,26 +1812,34 @@ def p_del_statement(s):
     args = p_simple_expr_list(s)
     return Nodes.DelStatNode(pos, args = args)
 
-def p_pass_statement(s, with_newline = 0):
+
+@cython.cfunc
+def p_pass_statement(s: PyrexScanner, with_newline: cython.bint = False):
     pos = s.position()
     s.expect('pass')
     if with_newline:
         s.expect_newline("Expected a newline", ignore_semicolon=True)
     return Nodes.PassStatNode(pos)
 
-def p_break_statement(s):
+
+@cython.cfunc
+def p_break_statement(s: PyrexScanner):
     # s.sy == 'break'
     pos = s.position()
     s.next()
     return Nodes.BreakStatNode(pos)
 
-def p_continue_statement(s):
+
+@cython.cfunc
+def p_continue_statement(s: PyrexScanner):
     # s.sy == 'continue'
     pos = s.position()
     s.next()
     return Nodes.ContinueStatNode(pos)
 
-def p_return_statement(s):
+
+@cython.cfunc
+def p_return_statement(s: PyrexScanner):
     # s.sy == 'return'
     pos = s.position()
     s.next()
@@ -1719,7 +1849,9 @@ def p_return_statement(s):
         value = None
     return Nodes.ReturnStatNode(pos, value = value)
 
-def p_raise_statement(s):
+
+@cython.cfunc
+def p_raise_statement(s: PyrexScanner):
     # s.sy == 'raise'
     pos = s.position()
     s.next()
@@ -1748,15 +1880,16 @@ def p_raise_statement(s):
         return Nodes.ReraiseStatNode(pos)
 
 
-def p_import_statement(s):
+@cython.cfunc
+def p_import_statement(s: PyrexScanner):
     # s.sy in ('import', 'cimport')
     pos = s.position()
     kind = s.sy
     s.next()
-    items = [p_dotted_name(s, as_allowed=1)]
+    items = [p_dotted_name(s, as_allowed=True)]
     while s.sy == ',':
         s.next()
-        items.append(p_dotted_name(s, as_allowed=1))
+        items.append(p_dotted_name(s, as_allowed=True))
     stats = []
     is_absolute = Future.absolute_import in s.context.future_directives
     for pos, target_name, dotted_name, as_name in items:
@@ -1780,7 +1913,8 @@ def p_import_statement(s):
     return Nodes.StatListNode(pos, stats=stats)
 
 
-def p_from_import_statement(s, first_statement = 0):
+@cython.cfunc
+def p_from_import_statement(s: PyrexScanner, first_statement: cython.bint = 0):
     # s.sy == 'from'
     pos = s.position()
     s.next()
@@ -1861,14 +1995,16 @@ def p_from_import_statement(s, first_statement = 0):
             items = items)
 
 
-def p_imported_name(s):
+@cython.cfunc
+def p_imported_name(s: PyrexScanner):
     pos = s.position()
     name = p_ident(s)
     as_name = p_as_name(s)
     return (pos, name, as_name)
 
 
-def p_dotted_name(s, as_allowed):
+@cython.cfunc
+def p_dotted_name(s: PyrexScanner, as_allowed: cython.bint) -> tuple:
     pos = s.position()
     target_name = p_ident(s)
     as_name = None
@@ -1881,7 +2017,8 @@ def p_dotted_name(s, as_allowed):
     return (pos, target_name, s.context.intern_ustring('.'.join(names)), as_name)
 
 
-def p_as_name(s):
+@cython.cfunc
+def p_as_name(s: PyrexScanner):
     if s.sy == 'IDENT' and s.systring == 'as':
         s.next()
         return p_ident(s)
@@ -1889,7 +2026,8 @@ def p_as_name(s):
         return None
 
 
-def p_assert_statement(s):
+@cython.cfunc
+def p_assert_statement(s: PyrexScanner):
     # s.sy == 'assert'
     pos = s.position()
     s.next()
@@ -1905,7 +2043,9 @@ def p_assert_statement(s):
 statement_terminators = cython.declare(frozenset, frozenset((
     ';', 'NEWLINE', 'EOF')))
 
-def p_if_statement(s):
+
+@cython.cfunc
+def p_if_statement(s: PyrexScanner):
     # s.sy == 'if'
     pos = s.position()
     s.next()
@@ -1917,21 +2057,27 @@ def p_if_statement(s):
     return Nodes.IfStatNode(pos,
         if_clauses = if_clauses, else_clause = else_clause)
 
-def p_if_clause(s):
+
+@cython.cfunc
+def p_if_clause(s: PyrexScanner):
     pos = s.position()
     test = p_namedexpr_test(s)
     body = p_suite(s)
     return Nodes.IfClauseNode(pos,
         condition = test, body = body)
 
-def p_else_clause(s):
+
+@cython.cfunc
+def p_else_clause(s: PyrexScanner):
     if s.sy == 'else':
         s.next()
         return p_suite(s)
     else:
         return None
 
-def p_while_statement(s):
+
+@cython.cfunc
+def p_while_statement(s: PyrexScanner):
     # s.sy == 'while'
     pos = s.position()
     s.next()
@@ -1943,7 +2089,8 @@ def p_while_statement(s):
         else_clause = else_clause)
 
 
-def p_for_statement(s, is_async=False):
+@cython.cfunc
+def p_for_statement(s: PyrexScanner, is_async: cython.bint = False):
     # s.sy == 'for'
     pos = s.position()
     s.next()
@@ -1954,7 +2101,8 @@ def p_for_statement(s, is_async=False):
     return Nodes.ForStatNode(pos, **kw)
 
 
-def p_for_bounds(s, allow_testlist=True, is_async=False):
+@cython.cfunc
+def p_for_bounds(s: PyrexScanner, allow_testlist: cython.bint = True, is_async: cython.bint = False) -> dict:
     target = p_for_target(s)
     if s.sy == 'in':
         s.next()
@@ -1997,7 +2145,9 @@ def p_for_bounds(s, allow_testlist=True, is_async=False):
         s.expect('in')
         return {}
 
-def p_for_from_relation(s):
+
+@cython.cfunc
+def p_for_from_relation(s: PyrexScanner):
     if s.sy in inequality_relations:
         op = s.sy
         s.next()
@@ -2005,7 +2155,9 @@ def p_for_from_relation(s):
     else:
         s.error("Expected one of '<', '<=', '>' '>='")
 
-def p_for_from_step(s):
+
+@cython.cfunc
+def p_for_from_step(s: PyrexScanner):
     if s.sy == 'IDENT' and s.systring == 'by':
         s.next()
         step = p_bit_expr(s)
@@ -2013,10 +2165,13 @@ def p_for_from_step(s):
     else:
         return None
 
+
 inequality_relations = cython.declare(frozenset, frozenset((
     '<', '<=', '>', '>=')))
 
-def p_target(s, terminator):
+
+@cython.cfunc
+def p_target(s: PyrexScanner, terminator: str):
     pos = s.position()
     expr = p_starred_expr(s)
     if s.sy == ',':
@@ -2032,11 +2187,13 @@ def p_target(s, terminator):
         return expr
 
 
-def p_for_target(s):
+@cython.cfunc
+def p_for_target(s: PyrexScanner):
     return p_target(s, 'in')
 
 
-def p_for_iterator(s, allow_testlist=True, is_async=False):
+@cython.cfunc
+def p_for_iterator(s: PyrexScanner, allow_testlist: cython.bint = True, is_async: cython.bint = False):
     pos = s.position()
     if allow_testlist:
         expr = p_testlist(s)
@@ -2045,7 +2202,8 @@ def p_for_iterator(s, allow_testlist=True, is_async=False):
     return (ExprNodes.AsyncIteratorNode if is_async else ExprNodes.IteratorNode)(pos, sequence=expr)
 
 
-def p_try_statement(s):
+@cython.cfunc
+def p_try_statement(s: PyrexScanner):
     # s.sy == 'try'
     pos = s.position()
     s.next()
@@ -2072,7 +2230,9 @@ def p_try_statement(s):
     else:
         s.error("Expected 'except' or 'finally'")
 
-def p_except_clause(s):
+
+@cython.cfunc
+def p_except_clause(s: PyrexScanner):
     # s.sy == 'except'
     pos = s.position()
     s.next()
@@ -2102,7 +2262,9 @@ def p_except_clause(s):
         pattern = exc_type, target = exc_value,
         body = body, is_except_as=is_except_as)
 
-def p_include_statement(s, ctx):
+
+@cython.cfunc
+def p_include_statement(s: PyrexScanner, ctx):
     pos = s.position()
     s.next()  # 'include'
     unicode_include_file_name = p_string_literal(s, 'u')[2]
@@ -2123,7 +2285,8 @@ def p_include_statement(s, ctx):
         return Nodes.PassStatNode(pos)
 
 
-def p_with_statement(s):
+@cython.cfunc
+def p_with_statement(s: PyrexScanner):
     s.next()  # 'with'
     if s.systring == 'template' and not s.in_python_file:
         node = p_with_template(s)
@@ -2132,7 +2295,8 @@ def p_with_statement(s):
     return node
 
 
-def p_with_items(s, is_async=False):
+@cython.cfunc
+def p_with_items(s: PyrexScanner, is_async: cython.bint = False):
     """
     Copied from CPython:
     | 'with' '(' a[asdl_withitem_seq*]=','.with_item+ ','? ')' ':' b=block {
@@ -2164,7 +2328,8 @@ def p_with_items(s, is_async=False):
     return body
 
 
-def p_with_items_list(s, is_async):
+@cython.cfunc
+def p_with_items_list(s: PyrexScanner, is_async: cython.bint) -> list:
     items = []
     while True:
         items.append(p_with_item(s, is_async))
@@ -2177,7 +2342,8 @@ def p_with_items_list(s, is_async):
     return items
 
 
-def p_with_item(s, is_async):
+@cython.cfunc
+def p_with_item(s: PyrexScanner, is_async: cython.bint) -> tuple:
     # In contrast to most parsing functions, this returns a tuple of
     #  class, pos, kwd_dict
     # This is because GILStatNode does a reasonable amount of initialization in its
@@ -2206,7 +2372,8 @@ def p_with_item(s, is_async):
         return Nodes.WithStatNode, pos, {"manager": manager, "target": target, "is_async": is_async}
 
 
-def p_with_template(s):
+@cython.cfunc
+def p_with_template(s: PyrexScanner):
     pos = s.position()
     templates = []
     s.next()
@@ -2230,7 +2397,9 @@ def p_with_template(s):
     else:
         error(pos, "Syntax error in template function declaration")
 
-def p_simple_statement(s, first_statement = 0):
+
+@cython.cfunc
+def p_simple_statement(s: PyrexScanner, first_statement: cython.bint = 0):
     #print "p_simple_statement:", s.sy, s.systring ###
     if s.sy == 'global':
         node = p_global_statement(s)
@@ -2264,7 +2433,9 @@ def p_simple_statement(s, first_statement = 0):
         node = p_expression_or_assignment(s)
     return node
 
-def p_simple_statement_list(s, ctx, first_statement = 0):
+
+@cython.cfunc
+def p_simple_statement_list(s: PyrexScanner, ctx, first_statement: cython.bint = 0):
     # Parse a series of simple statements on one line
     # separated by semicolons.
     stat = p_simple_statement(s, first_statement = first_statement)
@@ -2299,14 +2470,18 @@ def p_simple_statement_list(s, ctx, first_statement = 0):
 
     return stat
 
-def p_compile_time_expr(s):
+
+@cython.cfunc
+def p_compile_time_expr(s: PyrexScanner):
     old = s.compile_time_expr
     s.compile_time_expr = 1
     expr = p_testlist(s)
     s.compile_time_expr = old
     return expr
 
-def p_DEF_statement(s):
+
+@cython.cfunc
+def p_DEF_statement(s: PyrexScanner):
     pos = s.position()
     denv = s.compile_time_env
     s.next()  # 'DEF'
@@ -2320,7 +2495,9 @@ def p_DEF_statement(s):
     s.expect_newline("Expected a newline", ignore_semicolon=True)
     return Nodes.PassStatNode(pos)
 
-def p_IF_statement(s, ctx):
+
+@cython.cfunc
+def p_IF_statement(s: PyrexScanner, ctx):
     pos = s.position()
     saved_eval = s.compile_time_eval
     current_eval = saved_eval
@@ -2347,7 +2524,9 @@ def p_IF_statement(s, ctx):
     s.compile_time_eval = saved_eval
     return result
 
-def p_statement(s, ctx, first_statement = 0):
+
+@cython.cfunc
+def p_statement(s: PyrexScanner, ctx, first_statement: cython.bint = 0):
     cdef_flag = ctx.cdef_flag
     decorators = None
     if s.sy == 'ctypedef':
@@ -2382,7 +2561,7 @@ def p_statement(s, ctx, first_statement = 0):
                 s.error("Decorators can only be followed by functions or classes")
     elif s.sy == 'pass' and cdef_flag:
         # empty cdef block
-        return p_pass_statement(s, with_newline=1)
+        return p_pass_statement(s, with_newline=True)
 
     overridable = 0
     if s.sy == 'cdef':
@@ -2465,7 +2644,8 @@ def p_statement(s, ctx, first_statement = 0):
                 return p_simple_statement_list(s, ctx, first_statement=first_statement)
 
 
-def p_statement_list(s, ctx, first_statement = 0):
+@cython.cfunc
+def p_statement_list(s: PyrexScanner, ctx, first_statement: cython.bint = 0):
     # Parse a series of statements separated by newlines.
     pos = s.position()
     stats = []
@@ -2483,11 +2663,13 @@ def p_statement_list(s, ctx, first_statement = 0):
         return Nodes.StatListNode(pos, stats = stats)
 
 
-def p_suite(s, ctx=Ctx()):
+@cython.cfunc
+def p_suite(s: PyrexScanner, ctx=Ctx()):
     return p_suite_with_docstring(s, ctx, with_doc_only=False)[1]
 
 
-def p_suite_with_docstring(s, ctx, with_doc_only=False):
+@cython.cfunc
+def p_suite_with_docstring(s: PyrexScanner, ctx, with_doc_only: cython.bint = False) -> tuple:
     s.expect(':')
     doc = None
     if s.sy == 'NEWLINE':
@@ -2510,7 +2692,8 @@ def p_suite_with_docstring(s, ctx, with_doc_only=False):
     return doc, body
 
 
-def p_positional_and_keyword_args(s, end_sy_set, templates = None):
+@cython.cfunc
+def p_positional_and_keyword_args(s: PyrexScanner, end_sy_set, templates = None):
     """
     Parses positional and keyword arguments. end_sy_set
     should contain any s.sy that terminate the argument list.
@@ -2535,7 +2718,7 @@ def p_positional_and_keyword_args(s, end_sy_set, templates = None):
                 arg = p_test(s)
             else:
                 base_type = p_c_base_type(s, templates = templates)
-                declarator = p_c_declarator(s, empty = 1)
+                declarator = p_c_declarator(s, empty=True)
                 arg = Nodes.CComplexBaseTypeNode(base_type.pos,
                     base_type = base_type, declarator = declarator)
                 parsed_type = True
@@ -2548,7 +2731,7 @@ def p_positional_and_keyword_args(s, end_sy_set, templates = None):
                 arg = p_test(s)
             else:
                 base_type = p_c_base_type(s, templates = templates)
-                declarator = p_c_declarator(s, empty = 1)
+                declarator = p_c_declarator(s, empty=True)
                 arg = Nodes.CComplexBaseTypeNode(base_type.pos,
                     base_type = base_type, declarator = declarator)
                 parsed_type = True
@@ -2566,26 +2749,31 @@ def p_positional_and_keyword_args(s, end_sy_set, templates = None):
         s.next()
     return positional_args, keyword_args
 
-def p_c_base_type(s, nonempty=False, templates=None):
+
+@cython.ccall
+def p_c_base_type(s: PyrexScanner, nonempty: cython.bint = False, templates=None):
     if s.sy == '(':
         return p_c_complex_base_type(s, templates = templates)
     else:
         return p_c_simple_base_type(s, nonempty=nonempty, templates=templates)
 
-def p_calling_convention(s):
+
+@cython.cfunc
+def p_calling_convention(s: PyrexScanner):
     if s.sy == 'IDENT' and s.systring in calling_convention_words:
         result = s.systring
         s.next()
         return result
     else:
-        return ""
+        return EncodedString("")
 
 
 calling_convention_words = cython.declare(frozenset, frozenset((
     "__stdcall", "__cdecl", "__fastcall")))
 
 
-def p_c_complex_base_type(s, templates = None):
+@cython.cfunc
+def p_c_complex_base_type(s: PyrexScanner, templates = None):
     # s.sy == '('
     pos = s.position()
     s.next()
@@ -2614,23 +2802,24 @@ def p_c_complex_base_type(s, templates = None):
     return type_node
 
 
-def p_c_simple_base_type(s, nonempty, templates=None):
-    is_basic = 0
+@cython.cfunc
+def p_c_simple_base_type(s: PyrexScanner, nonempty: cython.bint, templates=None):
+    is_basic = False
     signed = 1
     longness = 0
-    complex = 0
+    complex = False
     module_path = []
     pos = s.position()
 
     # Handle const/volatile
-    is_const = is_volatile = 0
+    is_const = is_volatile = False
     while s.sy == 'IDENT':
         if s.systring == 'const':
             if is_const: error(pos, "Duplicate 'const'")
-            is_const = 1
+            is_const = True
         elif s.systring == 'volatile':
             if is_volatile: error(pos, "Duplicate 'volatile'")
-            is_volatile = 1
+            is_volatile = True
         else:
             break
         s.next()
@@ -2648,7 +2837,7 @@ def p_c_simple_base_type(s, nonempty, templates=None):
         error(pos, "Expected an identifier, found '%s'" % s.sy)
     if looking_at_base_type(s):
         #print "p_c_simple_base_type: looking_at_base_type at", s.position()
-        is_basic = 1
+        is_basic = True
         if s.sy == 'IDENT' and s.systring in special_basic_c_types:
             signed, longness = special_basic_c_types[s.systring]
             name = s.systring
@@ -2661,7 +2850,7 @@ def p_c_simple_base_type(s, nonempty, templates=None):
             else:
                 name = 'int'  # long [int], short [int], long [int] complex, etc.
         if s.sy == 'IDENT' and s.systring == 'complex':
-            complex = 1
+            complex = True
             s.next()
     elif looking_at_dotted_name(s):
         #print "p_c_simple_base_type: looking_at_type_name at", s.position()
@@ -2711,7 +2900,9 @@ def p_c_simple_base_type(s, nonempty, templates=None):
 
     return type_node
 
-def p_buffer_or_template(s, base_type_node, templates):
+
+@cython.cfunc
+def p_buffer_or_template(s: PyrexScanner, base_type_node, templates):
     # s.sy == '['
     pos = s.position()
     s.next()
@@ -2736,7 +2927,9 @@ def p_buffer_or_template(s, base_type_node, templates):
         base_type_node = base_type_node)
     return result
 
-def p_bracketed_base_type(s, base_type_node, nonempty, empty):
+
+@cython.cfunc
+def p_bracketed_base_type(s: PyrexScanner, base_type_node, nonempty: cython.bint, empty: cython.bint):
     # s.sy == '['
     if empty and not nonempty:
         # sizeof-like thing.  Only anonymous C arrays allowed (int[SIZE]).
@@ -2757,7 +2950,9 @@ def p_bracketed_base_type(s, base_type_node, nonempty, empty):
         else:
             return base_type_node
 
-def is_memoryviewslice_access(s):
+
+@cython.cfunc
+def is_memoryviewslice_access(s: PyrexScanner) -> cython.bint:
     # s.sy == '['
     # a memoryview slice declaration is distinguishable from a buffer access
     # declaration by the first entry in the bracketed list.  The buffer will
@@ -2778,7 +2973,9 @@ def is_memoryviewslice_access(s):
 
     return retval
 
-def p_memoryviewslice_access(s, base_type_node):
+
+@cython.cfunc
+def p_memoryviewslice_access(s: PyrexScanner, base_type_node):
     # s.sy == '['
     pos = s.position()
     s.next()
@@ -2794,10 +2991,14 @@ def p_memoryviewslice_access(s, base_type_node):
             axes = indexes)
     return result
 
-def looking_at_name(s):
+
+@cython.cfunc
+def looking_at_name(s: PyrexScanner) -> cython.bint:
     return s.sy == 'IDENT' and s.systring not in calling_convention_words
 
-def looking_at_expr(s):
+
+@cython.cfunc
+def looking_at_expr(s: PyrexScanner) -> cython.bint:
     if s.systring in base_type_start_words:
         return False
     elif s.sy == 'IDENT':
@@ -2838,20 +3039,24 @@ def looking_at_expr(s):
     else:
         return True
 
-def looking_at_base_type(s):
+
+@cython.cfunc
+def looking_at_base_type(s: PyrexScanner) -> cython.bint:
     #print "looking_at_base_type?", s.sy, s.systring, s.position()
     return s.sy == 'IDENT' and s.systring in base_type_start_words
 
-def looking_at_dotted_name(s):
+
+@cython.cfunc
+def looking_at_dotted_name(s: PyrexScanner) -> cython.bint:
     if s.sy == 'IDENT':
         name = s.systring
         name_pos = s.position()
         s.next()
-        result = s.sy == '.'
+        result: cython.bint = s.sy == '.'
         s.put_back('IDENT', name, name_pos)
         return result
     else:
-        return 0
+        return False
 
 
 basic_c_type_names = cython.declare(frozenset, frozenset((
@@ -2881,7 +3086,9 @@ base_type_start_words = cython.declare(
 struct_enum_union = cython.declare(frozenset, frozenset((
     "struct", "union", "enum", "packed")))
 
-def p_sign_and_longness(s):
+
+@cython.cfunc
+def p_sign_and_longness(s: PyrexScanner) -> tuple:
     signed = 1
     longness = 0
     while s.sy == 'IDENT' and s.systring in sign_and_longness_words:
@@ -2896,7 +3103,9 @@ def p_sign_and_longness(s):
         s.next()
     return signed, longness
 
-def p_opt_cname(s):
+
+@cython.cfunc
+def p_opt_cname(s: PyrexScanner):
     literal = p_opt_string_literal(s, 'u')
     if literal is not None:
         cname = EncodedString(literal)
@@ -2905,9 +3114,12 @@ def p_opt_cname(s):
         cname = None
     return cname
 
-def p_c_declarator(s, ctx = Ctx(), empty = 0, is_type = 0, cmethod_flag = 0,
-                   assignable = 0, nonempty = 0,
-                   calling_convention_allowed = 0):
+
+@cython.ccall
+def p_c_declarator(s: PyrexScanner, ctx = Ctx(),
+                   empty: cython.bint = False, is_type: cython.bint = False, cmethod_flag: cython.bint = False,
+                   assignable: cython.bint = False, nonempty: cython.bint = False,
+                   calling_convention_allowed: cython.bint = False):
     # If empty is true, the declarator must be empty. If nonempty is true,
     # the declarator must be nonempty. Otherwise we don't care.
     # If cmethod_flag is true, then if this declarator declares
@@ -2922,7 +3134,7 @@ def p_c_declarator(s, ctx = Ctx(), empty = 0, is_type = 0, cmethod_flag = 0,
             result = p_c_declarator(s, ctx, empty = empty, is_type = is_type,
                                     cmethod_flag = cmethod_flag,
                                     nonempty = nonempty,
-                                    calling_convention_allowed = 1)
+                                    calling_convention_allowed = True)
             s.expect(')')
     else:
         result = p_c_simple_declarator(s, ctx, empty, is_type, cmethod_flag,
@@ -2940,7 +3152,9 @@ def p_c_declarator(s, ctx = Ctx(), empty = 0, is_type = 0, cmethod_flag = 0,
         cmethod_flag = 0
     return result
 
-def p_c_array_declarator(s, base):
+
+@cython.cfunc
+def p_c_array_declarator(s: PyrexScanner, base):
     pos = s.position()
     s.next()  # '['
     if s.sy != ']':
@@ -2950,7 +3164,9 @@ def p_c_array_declarator(s, base):
     s.expect(']')
     return Nodes.CArrayDeclaratorNode(pos, base = base, dimension = dim)
 
-def p_c_func_declarator(s, pos, ctx, base, cmethod_flag):
+
+@cython.cfunc
+def p_c_func_declarator(s: PyrexScanner, pos, ctx, base, cmethod_flag: cython.bint):
     # Opening paren has already been skipped
     args = p_c_arg_list(s, ctx, cmethod_flag = cmethod_flag,
                         nonempty_declarators = 0)
@@ -2974,6 +3190,7 @@ def p_c_func_declarator(s, pos, ctx, base, cmethod_flag):
         exception_value = exc_val, exception_check = exc_check,
         nogil = nogil or ctx.nogil or with_gil, with_gil = with_gil, has_explicit_exc_clause=exc_clause)
 
+
 supported_overloaded_operators = cython.declare(frozenset, frozenset((
     '+', '-', '*', '/', '%',
     '++', '--', '~', '|', '&', '^', '<<', '>>', ',',
@@ -2982,8 +3199,11 @@ supported_overloaded_operators = cython.declare(frozenset, frozenset((
     'bool',
 )))
 
-def p_c_simple_declarator(s, ctx, empty, is_type, cmethod_flag,
-                          assignable, nonempty):
+
+@cython.cfunc
+def p_c_simple_declarator(s: PyrexScanner, ctx,
+                          empty: cython.bint, is_type: cython.bint, cmethod_flag: cython.bint,
+                          assignable: cython.bint, nonempty: cython.bint):
     pos = s.position()
     calling_convention = p_calling_convention(s)
     if s.sy in ('*', '**'):
@@ -3062,22 +3282,28 @@ def p_c_simple_declarator(s, ctx, empty, is_type, cmethod_flag,
     result.calling_convention = calling_convention
     return result
 
-def p_nogil(s):
+
+@cython.cfunc
+def p_nogil(s: PyrexScanner) -> cython.bint:
     if s.sy == 'IDENT' and s.systring == 'nogil':
         s.next()
-        return 1
+        return True
     else:
-        return 0
+        return False
 
-def p_with_gil(s):
+
+@cython.cfunc
+def p_with_gil(s: PyrexScanner) -> cython.bint:
     if s.sy == 'with':
         s.next()
         s.expect_keyword('gil')
-        return 1
+        return True
     else:
-        return 0
+        return False
 
-def p_exception_value_clause(s, is_extern):
+
+@cython.cfunc
+def p_exception_value_clause(s: PyrexScanner, is_extern: cython.bint) -> tuple:
     """
     Parse exception value clause.
 
@@ -3102,7 +3328,7 @@ def p_exception_value_clause(s, is_extern):
     warning when `'except'` or `'noexcept'` is placed after the
     `'nogil'` keyword.
     """
-    exc_clause = False
+    exc_clause: cython.bint = False
     exc_val = None
     exc_check = False if is_extern else True
 
@@ -3141,16 +3367,19 @@ def p_exception_value_clause(s, is_extern):
                 exc_check = False
             # exc_val can be non-None even if exc_check is False, c.f. "except -1"
             exc_val = p_test(s)
-    if not is_extern and not exc_clause and s.context.legacy_implicit_noexcept:
-        exc_check = False
-        warning(s.position(), "Implicit noexcept declaration is deprecated. Function declaration should contain 'noexcept' keyword.", level=2)
+
     return exc_val, exc_check, exc_clause
+
 
 c_arg_list_terminators = cython.declare(frozenset, frozenset((
     '*', '**', '...', ')', ':', '/')))
 
-def p_c_arg_list(s, ctx = Ctx(), in_pyfunc = 0, cmethod_flag = 0,
-                 nonempty_declarators = 0, kw_only = 0, annotated = 1):
+
+@cython.ccall
+def p_c_arg_list(s: PyrexScanner, ctx = Ctx(),
+                 in_pyfunc: cython.bint = False, cmethod_flag: cython.bint = False,
+                 nonempty_declarators: cython.bint = False, kw_only: cython.bint = False,
+                 annotated: cython.bint = True) -> list:
     #  Comma-separated list of C argument declarations, possibly empty.
     #  May have a trailing comma.
     args = []
@@ -3165,25 +3394,30 @@ def p_c_arg_list(s, ctx = Ctx(), in_pyfunc = 0, cmethod_flag = 0,
         is_self_arg = 0
     return args
 
-def p_optional_ellipsis(s):
+
+@cython.cfunc
+def p_optional_ellipsis(s: PyrexScanner) -> cython.bint:
     if s.sy == '...':
         expect_ellipsis(s)
-        return 1
+        return True
     else:
-        return 0
+        return False
 
-def p_c_arg_decl(s, ctx, in_pyfunc, cmethod_flag = 0, nonempty = 0,
-                 kw_only = 0, annotated = 1):
+
+@cython.cfunc
+def p_c_arg_decl(s: PyrexScanner, ctx, in_pyfunc: cython.bint, cmethod_flag: cython.bint = False,
+                 nonempty: cython.bint = False,
+                 kw_only: cython.bint = False, annotated: cython.bint = True):
     pos = s.position()
-    not_none = or_none = 0
+    not_none = or_none = False
     default = None
     annotation = None
     if s.in_python_file:
         # empty type declaration
         base_type = Nodes.CSimpleBaseTypeNode(pos,
             name = None, module_path = [],
-            is_basic_c_type = 0, signed = 0,
-            complex = 0, longness = 0,
+            is_basic_c_type = False, signed = 0,
+            complex = False, longness = 0,
             is_self_arg = cmethod_flag, templates = None)
     else:
         base_type = p_c_base_type(s, nonempty=nonempty)
@@ -3224,14 +3458,31 @@ def p_c_arg_decl(s, ctx, in_pyfunc, cmethod_flag = 0, nonempty = 0,
         annotation = annotation,
         kw_only = kw_only)
 
-def p_api(s):
+
+@cython.cfunc
+def p_annotation(s: PyrexScanner):
+    """An annotation just has the "test" syntax, but also stores the string it came from
+
+    Note that the string is *allowed* to be changed/processed (although isn't here)
+    so may not exactly match the string generated by Python, and if it doesn't
+    then it is not a bug.
+    """
+    pos = s.position()
+    expr = p_test(s)
+    return ExprNodes.AnnotationNode(pos, expr=expr)
+
+
+@cython.cfunc
+def p_api(s: PyrexScanner) -> cython.bint:
     if s.sy == 'IDENT' and s.systring == 'api':
         s.next()
-        return 1
+        return True
     else:
-        return 0
+        return False
 
-def p_cdef_statement(s, ctx):
+
+@cython.cfunc
+def p_cdef_statement(s: PyrexScanner, ctx):
     pos = s.position()
     ctx.visibility = p_visibility(s, ctx.visibility)
     ctx.api = ctx.api or p_api(s)
@@ -3244,7 +3495,7 @@ def p_cdef_statement(s, ctx):
         s.next()
         return p_cdef_extern_block(s, pos, ctx)
     elif p_nogil(s):
-        ctx.nogil = 1
+        ctx.nogil = True
         if ctx.overridable:
             error(pos, "cdef blocks cannot be declared cpdef")
         return p_cdef_block(s, ctx)
@@ -3272,10 +3523,14 @@ def p_cdef_statement(s, ctx):
     else:
         return p_c_func_or_var_declaration(s, pos, ctx)
 
-def p_cdef_block(s, ctx):
-    return p_suite(s, ctx(cdef_flag = 1))
 
-def p_cdef_extern_block(s, pos, ctx):
+@cython.cfunc
+def p_cdef_block(s: PyrexScanner, ctx):
+    return p_suite(s, ctx(cdef_flag = True))
+
+
+@cython.cfunc
+def p_cdef_extern_block(s: PyrexScanner, pos, ctx):
     if ctx.overridable:
         error(pos, "cdef extern blocks cannot be declared cpdef")
     include_file = None
@@ -3284,12 +3539,12 @@ def p_cdef_extern_block(s, pos, ctx):
         s.next()
     else:
         include_file = p_string_literal(s, 'u')[2]
-    ctx = ctx(cdef_flag = 1, visibility = 'extern')
+    ctx = ctx(cdef_flag = True, visibility = 'extern')
     if s.systring == "namespace":
         s.next()
         ctx.namespace = p_string_literal(s, 'u')[2]
     if p_nogil(s):
-        ctx.nogil = 1
+        ctx.nogil = True
 
     # Use "docstring" as verbatim string to include
     verbatim_include, body = p_suite_with_docstring(s, ctx, True)
@@ -3300,7 +3555,9 @@ def p_cdef_extern_block(s, pos, ctx):
         body = body,
         namespace = ctx.namespace)
 
-def p_c_enum_definition(s, pos, ctx):
+
+@cython.cfunc
+def p_c_enum_definition(s: PyrexScanner, pos, ctx):
     # s.sy == ident 'enum'
     s.next()
 
@@ -3331,7 +3588,7 @@ def p_c_enum_definition(s, pos, ctx):
             module_path = [],
             is_basic_c_type = True,
             signed = 1,
-            complex = 0,
+            complex = False,
             longness = 0
         )
 
@@ -3362,7 +3619,9 @@ def p_c_enum_definition(s, pos, ctx):
         create_wrapper=ctx.overridable,
         api=ctx.api, in_pxd=ctx.level == 'module_pxd', doc=doc)
 
-def p_c_enum_line(s, ctx, items):
+
+@cython.cfunc
+def p_c_enum_line(s: PyrexScanner, ctx, items: list):
     if s.sy != 'pass':
         p_c_enum_item(s, ctx, items)
         while s.sy == ',':
@@ -3374,7 +3633,9 @@ def p_c_enum_line(s, ctx, items):
         s.next()
     s.expect_newline("Syntax error in enum item list")
 
-def p_c_enum_item(s, ctx, items):
+
+@cython.cfunc
+def p_c_enum_item(s: PyrexScanner, ctx, items: list):
     pos = s.position()
     name = p_ident(s)
     cname = p_opt_cname(s)
@@ -3387,7 +3648,9 @@ def p_c_enum_item(s, ctx, items):
     items.append(Nodes.CEnumDefItemNode(pos,
         name = name, cname = cname, value = value))
 
-def p_c_struct_or_union_definition(s, pos, ctx):
+
+@cython.cfunc
+def p_c_struct_or_union_definition(s: PyrexScanner, pos, ctx):
     packed = False
     if s.systring == 'packed':
         packed = True
@@ -3431,7 +3694,9 @@ def p_c_struct_or_union_definition(s, pos, ctx):
         typedef_flag = ctx.typedef_flag, visibility = ctx.visibility,
         api = ctx.api, in_pxd = ctx.level == 'module_pxd', packed = packed)
 
-def p_fused_definition(s, pos, ctx):
+
+@cython.cfunc
+def p_fused_definition(s: PyrexScanner, pos, ctx):
     """
     c(type)def fused my_fused_type:
         ...
@@ -3465,14 +3730,17 @@ def p_fused_definition(s, pos, ctx):
 
     return Nodes.FusedTypeNode(pos, name=name, types=types)
 
-def p_struct_enum(s, pos, ctx):
+
+@cython.cfunc
+def p_struct_enum(s: PyrexScanner, pos, ctx):
     if s.systring == 'enum':
         return p_c_enum_definition(s, pos, ctx)
     else:
         return p_c_struct_or_union_definition(s, pos, ctx)
 
-def p_visibility(s, prev_visibility):
-    pos = s.position()
+
+@cython.cfunc
+def p_visibility(s: PyrexScanner, prev_visibility):
     visibility = prev_visibility
     if s.sy == 'IDENT' and s.systring in ('extern', 'public', 'readonly'):
         visibility = s.systring
@@ -3482,25 +3750,31 @@ def p_visibility(s, prev_visibility):
         s.next()
     return visibility
 
-def p_c_modifiers(s):
+
+@cython.cfunc
+def p_c_modifiers(s: PyrexScanner) -> list:
     if s.sy == 'IDENT' and s.systring in ('inline',):
         modifier = s.systring
         s.next()
         return [modifier] + p_c_modifiers(s)
     return []
 
-def p_c_func_or_var_declaration(s, pos, ctx):
-    cmethod_flag = ctx.level in ('c_class', 'c_class_pxd')
+
+@cython.cfunc
+def p_c_func_or_var_declaration(s: PyrexScanner, pos, ctx):
+    cmethod_flag: cython.bint = ctx.level in ('c_class', 'c_class_pxd')
     modifiers = p_c_modifiers(s)
-    base_type = p_c_base_type(s, nonempty = 1, templates = ctx.templates)
+    base_type = p_c_base_type(s, nonempty=True, templates = ctx.templates)
     declarator = p_c_declarator(s, ctx(modifiers=modifiers), cmethod_flag = cmethod_flag,
-                                assignable = 1, nonempty = 1)
+                                assignable=True, nonempty =True)
     declarator.overridable = ctx.overridable
+
     if s.sy == 'IDENT' and s.systring == 'const' and ctx.level == 'cpp_class':
         s.next()
-        is_const_method = 1
+        is_const_method = True
     else:
-        is_const_method = 0
+        is_const_method = False
+
     if s.sy == '->':
         # Special enough to give a better error message and keep going.
         s.error(
@@ -3509,6 +3783,7 @@ def p_c_func_or_var_declaration(s, pos, ctx):
             fatal=False)
         s.next()
         p_test(s)  # Keep going, but ignore result.
+
     if s.sy == ':':
         if ctx.level not in ('module', 'c_class', 'module_pxd', 'c_class_pxd', 'cpp_class') and not ctx.templates:
             s.error("C function definition not allowed here")
@@ -3534,7 +3809,7 @@ def p_c_func_or_var_declaration(s, pos, ctx):
             if s.sy == 'NEWLINE':
                 break
             declarator = p_c_declarator(s, ctx, cmethod_flag = cmethod_flag,
-                                        assignable = 1, nonempty = 1)
+                                        assignable=True, nonempty=True)
             declarators.append(declarator)
         doc_line = s.start_line + 1
         s.expect_newline("Syntax error in C variable declaration", ignore_semicolon=True)
@@ -3553,15 +3828,17 @@ def p_c_func_or_var_declaration(s, pos, ctx):
             overridable = ctx.overridable)
     return result
 
-def p_ctypedef_statement(s, ctx):
+
+@cython.cfunc
+def p_ctypedef_statement(s: PyrexScanner, ctx):
     # s.sy == 'ctypedef'
     pos = s.position()
     s.next()
     visibility = p_visibility(s, ctx.visibility)
     api = p_api(s)
-    ctx = ctx(typedef_flag = 1, visibility = visibility)
+    ctx = ctx(typedef_flag=True, visibility = visibility)
     if api:
-        ctx.api = 1
+        ctx.api = True
     if s.sy == 'class':
         return p_c_class_definition(s, pos, ctx)
     elif s.sy == 'IDENT' and s.systring in struct_enum_union:
@@ -3569,8 +3846,8 @@ def p_ctypedef_statement(s, ctx):
     elif s.sy == 'IDENT' and s.systring == 'fused':
         return p_fused_definition(s, pos, ctx)
     else:
-        base_type = p_c_base_type(s, nonempty = 1)
-        declarator = p_c_declarator(s, ctx, is_type = 1, nonempty = 1)
+        base_type = p_c_base_type(s, nonempty=True)
+        declarator = p_c_declarator(s, ctx, is_type=True, nonempty=True)
         s.expect_newline("Syntax error in ctypedef statement", ignore_semicolon=True)
         return Nodes.CTypeDefNode(
             pos, base_type = base_type,
@@ -3578,7 +3855,9 @@ def p_ctypedef_statement(s, ctx):
             visibility = visibility, api = api,
             in_pxd = ctx.level == 'module_pxd')
 
-def p_decorators(s):
+
+@cython.cfunc
+def p_decorators(s: PyrexScanner) -> list:
     decorators = []
     while s.sy == '@':
         pos = s.position()
@@ -3589,7 +3868,8 @@ def p_decorators(s):
     return decorators
 
 
-def _reject_cdef_modifier_in_py(s, name):
+@cython.cfunc
+def _reject_cdef_modifier_in_py(s: PyrexScanner, name):
     """Step over incorrectly placed cdef modifiers (@see _CDEF_MODIFIERS) to provide a good error message for them.
     """
     if s.sy == 'IDENT' and name in _CDEF_MODIFIERS:
@@ -3599,7 +3879,8 @@ def _reject_cdef_modifier_in_py(s, name):
     return name
 
 
-def p_def_statement(s, decorators=None, is_async_def=False):
+@cython.cfunc
+def p_def_statement(s: PyrexScanner, decorators: list = None, is_async_def: cython.bint = False):
     # s.sy == 'def'
     pos = decorators[0].pos if decorators else s.position()
     # PEP 492 switches the async/await keywords on in "async def" functions
@@ -3631,8 +3912,9 @@ def p_def_statement(s, decorators=None, is_async_def=False):
         return_type_annotation=return_type_annotation)
 
 
-def p_varargslist(s, terminator=')', annotated=1):
-    args = p_c_arg_list(s, in_pyfunc = 1, nonempty_declarators = 1,
+@cython.cfunc
+def p_varargslist(s: PyrexScanner, terminator: cython.Py_UCS4 = ')', annotated: cython.bint = True) -> tuple:
+    args = p_c_arg_list(s, in_pyfunc=True, nonempty_declarators=True,
                         annotated = annotated)
     star_arg = None
     starstar_arg = None
@@ -3646,8 +3928,8 @@ def p_varargslist(s, terminator=')', annotated=1):
             arg.pos_only = 1
         if s.sy == ',':
             s.next()
-            args.extend(p_c_arg_list(s, in_pyfunc = 1,
-                nonempty_declarators = 1, annotated = annotated))
+            args.extend(p_c_arg_list(
+                s, in_pyfunc=True, nonempty_declarators=True, annotated = annotated))
         elif s.sy != terminator:
             s.error("Syntax error in Python function argument list")
     if s.sy == '*':
@@ -3656,8 +3938,8 @@ def p_varargslist(s, terminator=')', annotated=1):
             star_arg = p_py_arg_decl(s, annotated=annotated)
         if s.sy == ',':
             s.next()
-            args.extend(p_c_arg_list(s, in_pyfunc = 1,
-                nonempty_declarators = 1, kw_only = 1, annotated = annotated))
+            args.extend(p_c_arg_list(
+                s, in_pyfunc =True, nonempty_declarators=True, kw_only=True, annotated = annotated))
         elif s.sy != terminator:
             s.error("Syntax error in Python function argument list")
     if s.sy == '**':
@@ -3667,7 +3949,9 @@ def p_varargslist(s, terminator=')', annotated=1):
         s.next()
     return (args, star_arg, starstar_arg)
 
-def p_py_arg_decl(s, annotated = 1):
+
+@cython.cfunc
+def p_py_arg_decl(s: PyrexScanner, annotated: cython.bint = True):
     pos = s.position()
     name = p_ident(s)
     annotation = None
@@ -3677,7 +3961,8 @@ def p_py_arg_decl(s, annotated = 1):
     return Nodes.PyArgDeclNode(pos, name = name, annotation = annotation)
 
 
-def p_class_statement(s, decorators):
+@cython.cfunc
+def p_class_statement(s: PyrexScanner, decorators):
     # s.sy == 'class'
     pos = s.position()
     s.next()
@@ -3700,7 +3985,8 @@ def p_class_statement(s, decorators):
         force_py3_semantics=s.context.language_level >= 3)
 
 
-def p_c_class_definition(s, pos,  ctx):
+@cython.cfunc
+def p_c_class_definition(s: PyrexScanner, pos,  ctx):
     # s.sy == 'class'
     s.next()
     module_path = []
@@ -3776,7 +4062,8 @@ def p_c_class_definition(s, pos,  ctx):
         body = body)
 
 
-def p_c_class_options(s):
+@cython.cfunc
+def p_c_class_options(s: PyrexScanner) -> tuple:
     objstruct_name = None
     typeobj_name = None
     check_size = None
@@ -3802,7 +4089,8 @@ def p_c_class_options(s):
     return objstruct_name, typeobj_name, check_size
 
 
-def p_property_decl(s):
+@cython.cfunc
+def p_property_decl(s: PyrexScanner):
     pos = s.position()
     s.next()  # 'property'
     name = p_ident(s)
@@ -3811,7 +4099,8 @@ def p_property_decl(s):
     return Nodes.PropertyNode(pos, name=name, doc=doc, body=body)
 
 
-def p_ignorable_statement(s):
+@cython.cfunc
+def p_ignorable_statement(s: PyrexScanner):
     """
     Parses any kind of ignorable statement that is allowed in .pxd files.
     """
@@ -3823,7 +4112,8 @@ def p_ignorable_statement(s):
     return None
 
 
-def p_doc_string(s):
+@cython.cfunc
+def p_doc_string(s: PyrexScanner):
     if s.sy == 'BEGIN_STRING':
         pos = s.position()
         kind, bytes_result, unicode_result = p_cat_string_literal(s)
@@ -3836,7 +4126,8 @@ def p_doc_string(s):
         return None
 
 
-def _extract_docstring(node):
+@cython.cfunc
+def _extract_docstring(node) -> tuple:
     """
     Extract a docstring from a statement or from the first statement
     in a list.  Remove the statement if found.  Return a tuple
@@ -3871,8 +4162,9 @@ def _extract_docstring(node):
     return doc, node
 
 
-def p_code(s, level=None, ctx=Ctx):
-    body = p_statement_list(s, ctx(level = level), first_statement = 1)
+@cython.ccall
+def p_code(s: PyrexScanner, level=None, ctx=Ctx):
+    body = p_statement_list(s, ctx(level = level), first_statement=True)
     if s.sy != 'EOF':
         s.error("Syntax error in statement [%s,%s]" % (
             repr(s.sy), repr(s.systring)))
@@ -3883,7 +4175,8 @@ _match_compiler_directive_comment = cython.declare(object, re.compile(
     r"^#\s*cython\s*:\s*((\w|[.])+\s*=.*)$").match)
 
 
-def p_compiler_directive_comments(s):
+@cython.cfunc
+def p_compiler_directive_comments(s: PyrexScanner) -> dict:
     result = {}
     while s.sy == 'commentline':
         pos = s.position()
@@ -3922,7 +4215,8 @@ def p_compiler_directive_comments(s):
     return result
 
 
-def p_module(s, pxd, full_module_name, ctx=Ctx):
+@cython.ccall
+def p_module(s: PyrexScanner, pxd, full_module_name, ctx=Ctx):
     pos = s.position()
 
     directive_comments = p_compiler_directive_comments(s)
@@ -3941,7 +4235,7 @@ def p_module(s, pxd, full_module_name, ctx=Ctx):
 
     level = 'module_pxd' if pxd else 'module'
     doc = p_doc_string(s)
-    body = p_statement_list(s, ctx(level=level), first_statement = 1)
+    body = p_statement_list(s, ctx(level=level), first_statement=True)
     if s.sy != 'EOF':
         s.error("Syntax error in statement [%s,%s]" % (
             repr(s.sy), repr(s.systring)))
@@ -3949,7 +4243,9 @@ def p_module(s, pxd, full_module_name, ctx=Ctx):
                       full_module_name = full_module_name,
                       directive_comments = directive_comments)
 
-def p_template_definition(s):
+
+@cython.cfunc
+def p_template_definition(s: PyrexScanner) -> tuple:
     name = p_ident(s)
     if s.sy == '=':
         s.expect('=')
@@ -3959,7 +4255,9 @@ def p_template_definition(s):
         required = True
     return name, required
 
-def p_cpp_class_definition(s, pos,  ctx):
+
+@cython.cfunc
+def p_cpp_class_definition(s: PyrexScanner, pos,  ctx):
     # s.sy == 'cppclass'
     s.next()
     class_name = p_ident(s)
@@ -4021,7 +4319,9 @@ def p_cpp_class_definition(s, pos,  ctx):
         attributes = attributes,
         templates = templates)
 
-def p_cpp_class_attribute(s, ctx):
+
+@cython.cfunc
+def p_cpp_class_attribute(s: PyrexScanner, ctx):
     decorators = None
     if s.sy == '@':
         decorators = p_decorators(s)
@@ -4046,7 +4346,8 @@ def p_cpp_class_attribute(s, ctx):
         return node
 
 
-def p_match_statement(s, ctx):
+@cython.cfunc
+def p_match_statement(s: PyrexScanner, ctx):
     assert s.sy == "IDENT" and s.systring == "match"
     pos = s.position()
     with tentatively_scan(s) as errors:
@@ -4079,7 +4380,8 @@ def p_match_statement(s, ctx):
     return MatchCaseNodes.MatchNode(pos, subject=subject, cases=cases)
 
 
-def p_case_block(s, ctx):
+@cython.cfunc
+def p_case_block(s: PyrexScanner, ctx):
     if not (s.sy == "IDENT" and s.systring == "case"):
         s.expected("case")
     s.next()
@@ -4094,7 +4396,8 @@ def p_case_block(s, ctx):
     return MatchCaseNodes.MatchCaseNode(pos, pattern=pattern, body=body, guard=guard)
 
 
-def p_patterns(s):
+@cython.cfunc
+def p_patterns(s: PyrexScanner):
     # note - in slight contrast to the name (which comes from the Python grammar),
     # returns a single pattern
     patterns = []
@@ -4125,7 +4428,8 @@ def p_patterns(s):
         return patterns[0]
 
 
-def p_maybe_star_pattern(s):
+@cython.cfunc
+def p_maybe_star_pattern(s: PyrexScanner):
     # For match case. Either star_pattern or pattern
     if s.sy == "*":
         # star pattern
@@ -4144,7 +4448,8 @@ def p_maybe_star_pattern(s):
         return pattern
 
 
-def p_pattern(s):
+@cython.cfunc
+def p_pattern(s: PyrexScanner):
     # try "as_pattern" then "or_pattern"
     # (but practically "as_pattern" starts with "or_pattern" too)
     patterns = []
@@ -4179,7 +4484,8 @@ def p_pattern(s):
     return pattern
 
 
-def p_closed_pattern(s):
+@cython.cfunc
+def p_closed_pattern(s: PyrexScanner):
     """
     The PEG parser specifies it as
     | literal_pattern
@@ -4228,7 +4534,8 @@ def p_closed_pattern(s):
     return p_class_pattern(s)
 
 
-def p_literal_pattern(s):
+@cython.cfunc
+def p_literal_pattern(s: PyrexScanner):
     # a lot of duplication in this function with "p_atom"
     next_must_be_a_number = False
     sign = ''
@@ -4294,14 +4601,16 @@ def p_literal_pattern(s):
     s.error("Failed to match literal")
 
 
-def p_capture_pattern(s):
+@cython.cfunc
+def p_capture_pattern(s: PyrexScanner):
     return MatchCaseNodes.MatchAndAssignPatternNode(
         s.position(),
         target=p_pattern_capture_target(s)
     )
 
 
-def p_value_pattern(s):
+@cython.cfunc
+def p_value_pattern(s: PyrexScanner):
     if s.sy != "IDENT":
         s.error("Expected identifier")
     pos = s.position()
@@ -4319,14 +4628,16 @@ def p_value_pattern(s):
     return MatchCaseNodes.MatchValuePatternNode(pos, value=res)
 
 
-def p_group_pattern(s):
+@cython.cfunc
+def p_group_pattern(s: PyrexScanner):
     s.expect("(")
     pattern = p_pattern(s)
     s.expect(")")
     return pattern
 
 
-def p_sequence_pattern(s):
+@cython.cfunc
+def p_sequence_pattern(s: PyrexScanner):
     opener = s.sy
     pos = s.position()
     if opener in ['[', '(']:
@@ -4348,7 +4659,8 @@ def p_sequence_pattern(s):
         s.error("Expected '[' or '('")
 
 
-def p_mapping_pattern(s):
+@cython.cfunc
+def p_mapping_pattern(s: PyrexScanner):
     pos = s.position()
     s.expect('{')
     if s.sy == '}':
@@ -4394,7 +4706,8 @@ def p_mapping_pattern(s):
     )
 
 
-def p_class_pattern(s):
+@cython.cfunc
+def p_class_pattern(s: PyrexScanner):
     # start by parsing the class as name_or_attr
     pos = s.position()
     res = p_name(s, s.systring)
@@ -4443,7 +4756,8 @@ def p_class_pattern(s):
     )
 
 
-def p_keyword_pattern(s):
+@cython.cfunc
+def p_keyword_pattern(s: PyrexScanner):
     if s.sy != "IDENT":
         s.error("Expected identifier")
     arg = p_name(s, s.systring)
@@ -4453,7 +4767,8 @@ def p_keyword_pattern(s):
     return arg, value
 
 
-def p_pattern_capture_target(s):
+@cython.cfunc
+def p_pattern_capture_target(s: PyrexScanner):
     # any name but '_', and with some constraints on what follows
     if s.sy != 'IDENT':
         s.error("Expected identifier")
@@ -4473,44 +4788,32 @@ def p_pattern_capture_target(s):
 #
 #----------------------------------------------
 
-def print_parse_tree(f, node, level, key = None):
-    ind = "  " * level
-    if node:
-        f.write(ind)
-        if key:
-            f.write("%s: " % key)
-        t = type(node)
-        if t is tuple:
-            f.write("(%s @ %s\n" % (node[0], node[1]))
-            for i in range(2, len(node)):
-                print_parse_tree(f, node[i], level+1)
-            f.write("%s)\n" % ind)
-            return
-        elif isinstance(node, Nodes.Node):
-            try:
-                tag = node.tag
-            except AttributeError:
-                tag = node.__class__.__name__
-            f.write("%s @ %s\n" % (tag, node.pos))
-            for name, value in node.__dict__.items():
-                if name != 'tag' and name != 'pos':
-                    print_parse_tree(f, value, level+1, name)
-            return
-        elif t is list:
-            f.write("[\n")
-            for i in range(len(node)):
-                print_parse_tree(f, node[i], level+1)
-            f.write("%s]\n" % ind)
-            return
-    f.write("%s%s\n" % (ind, node))
-
-def p_annotation(s):
-    """An annotation just has the "test" syntax, but also stores the string it came from
-
-    Note that the string is *allowed* to be changed/processed (although isn't here)
-    so may not exactly match the string generated by Python, and if it doesn't
-    then it is not a bug.
-    """
-    pos = s.position()
-    expr = p_test(s)
-    return ExprNodes.AnnotationNode(pos, expr=expr)
+@cython.ccall
+def print_parse_tree(f, node, level: cython.long, key = None):
+    ind: str = "  " * level
+    f.write(ind)
+    if key:
+        f.write(f"{key}: ")
+    if not node:
+        f.write("None\n")
+    elif type(node) is tuple:
+        f.write(f"({node[0]} @ {node[1]}\n")
+        for item in node[2:]:
+            print_parse_tree(f, item, level+1)
+        f.write(f"{ind})\n")
+    elif isinstance(node, Nodes.Node):
+        try:
+            tag = node.tag
+        except AttributeError:
+            tag = node.__class__.__name__
+        f.write(f"{tag} @ {node.pos}\n")
+        for name, value in sorted(node.__dict__.items()):
+            if name != 'tag' and name != 'pos':
+                print_parse_tree(f, value, level+1, name)
+    elif type(node) is list:
+        f.write("[\n")
+        for item in node:
+            print_parse_tree(f, item, level+1)
+        f.write(f"{ind}]\n")
+    else:
+        f.write(f"{ind}{node}\n")

@@ -198,8 +198,26 @@ def test_performance_hint_nogil():
         voidexceptnogil_in_other_pxd()
 
 
+cdef int f_in_pxd1() nogil except -1:
+    return 0
+
+cdef int f_in_pxd2() nogil:  # implicit except -1?
+    return 0
+
+def test_declared_in_pxd():
+    """
+    >>> test_declared_in_pxd()
+    """
+    with nogil:
+        # no warnings here because we're in the same file as the declaration
+        f_in_pxd1()
+        f_in_pxd2()
+
+
 # Note that we're only able to check the first line of the performance hint
 _PERFORMANCE_HINTS = """
+5:18: No exception value declared for 'f_in_pxd1' in pxd file.
+6:18: No exception value declared for 'f_in_pxd2' in pxd file.
 20:9: Exception check after calling 'f' will always require the GIL to be acquired.
 24:5: Exception check on 'f' will always require the GIL to be acquired.
 34:5: Exception check on 'release_gil_in_nogil' will always require the GIL to be acquired.

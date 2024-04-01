@@ -53,6 +53,166 @@ basicsize_builtins_map = {
     'PyTypeObject': 'PyHeapTypeObject',
 }
 
+# Builtins as of Python version ...
+KNOWN_PYTHON_BUILTINS_VERSION = (3, 13, 0, 'alpha', 5)
+KNOWN_PYTHON_BUILTINS = frozenset([
+    'ArithmeticError',
+    'AssertionError',
+    'AttributeError',
+    'BaseException',
+    'BaseExceptionGroup',
+    'BlockingIOError',
+    'BrokenPipeError',
+    'BufferError',
+    'BytesWarning',
+    'ChildProcessError',
+    'ConnectionAbortedError',
+    'ConnectionError',
+    'ConnectionRefusedError',
+    'ConnectionResetError',
+    'DeprecationWarning',
+    'EOFError',
+    'Ellipsis',
+    'EncodingWarning',
+    'EnvironmentError',
+    'Exception',
+    'ExceptionGroup',
+    'False',
+    'FileExistsError',
+    'FileNotFoundError',
+    'FloatingPointError',
+    'FutureWarning',
+    'GeneratorExit',
+    'IOError',
+    'ImportError',
+    'ImportWarning',
+    'IncompleteInputError',
+    'IndentationError',
+    'IndexError',
+    'InterruptedError',
+    'IsADirectoryError',
+    'KeyError',
+    'KeyboardInterrupt',
+    'LookupError',
+    'MemoryError',
+    'ModuleNotFoundError',
+    'NameError',
+    'None',
+    'NotADirectoryError',
+    'NotImplemented',
+    'NotImplementedError',
+    'OSError',
+    'OverflowError',
+    'PendingDeprecationWarning',
+    'PermissionError',
+    'ProcessLookupError',
+    'PythonFinalizationError',
+    'RecursionError',
+    'ReferenceError',
+    'ResourceWarning',
+    'RuntimeError',
+    'RuntimeWarning',
+    'StopAsyncIteration',
+    'StopIteration',
+    'SyntaxError',
+    'SyntaxWarning',
+    'SystemError',
+    'SystemExit',
+    'TabError',
+    'TimeoutError',
+    'True',
+    'TypeError',
+    'UnboundLocalError',
+    'UnicodeDecodeError',
+    'UnicodeEncodeError',
+    'UnicodeError',
+    'UnicodeTranslateError',
+    'UnicodeWarning',
+    'UserWarning',
+    'ValueError',
+    'Warning',
+    'WindowsError',
+    'ZeroDivisionError',
+    '__build_class__',
+    '__debug__',
+    '__import__',
+    'abs',
+    'aiter',
+    'all',
+    'anext',
+    'any',
+    'ascii',
+    'bin',
+    'bool',
+    'breakpoint',
+    'bytearray',
+    'bytes',
+    'callable',
+    'chr',
+    'classmethod',
+    'compile',
+    'complex',
+    'copyright',
+    'credits',
+    'delattr',
+    'dict',
+    'dir',
+    'divmod',
+    'enumerate',
+    'eval',
+    'exec',
+    'exit',
+    'filter',
+    'float',
+    'format',
+    'frozenset',
+    'getattr',
+    'globals',
+    'hasattr',
+    'hash',
+    'help',
+    'hex',
+    'id',
+    'input',
+    'int',
+    'isinstance',
+    'issubclass',
+    'iter',
+    'len',
+    'license',
+    'list',
+    'locals',
+    'map',
+    'max',
+    'memoryview',
+    'min',
+    'next',
+    'object',
+    'oct',
+    'open',
+    'ord',
+    'pow',
+    'print',
+    'property',
+    'quit',
+    'range',
+    'repr',
+    'reversed',
+    'round',
+    'set',
+    'setattr',
+    'slice',
+    'sorted',
+    'staticmethod',
+    'str',
+    'sum',
+    'super',
+    'tuple',
+    'type',
+    'vars',
+    'zip',
+])
+
 uncachable_builtins = [
     # Global/builtin names that cannot be cached because they may or may not
     # be available at import time, for various reasons:
@@ -430,7 +590,7 @@ class UtilityCodeBase:
             code_string = replace_empty_lines('\n', code_string.strip()) + '\n\n'
         return code_string
 
-    def __str__(self):
+    def __repr__(self):
         return "<%s(%s)>" % (type(self).__name__, self.name)
 
     def get_tree(self, **kwargs):
@@ -484,9 +644,11 @@ class UtilityCode(UtilityCodeBase):
         if self_type is not other_type and not (isinstance(other, self_type) or isinstance(self, other_type)):
             return False
 
+        self_init = getattr(self, 'init', None)
+        other_init = getattr(other, 'init', None)
         self_proto = getattr(self, 'proto', None)
         other_proto = getattr(other, 'proto', None)
-        return (self_proto, self.impl) == (other_proto, other.impl)
+        return (self_init, self_proto, self.impl) == (other_init, other_proto, other.impl)
 
     def none_or_sub(self, s, context):
         """
@@ -762,7 +924,7 @@ class FunctionState:
     # labels
 
     def new_label(self, name=None):
-        n = self.label_counter
+        n: cython.size_t = self.label_counter
         self.label_counter = n + 1
         label = "%s%d" % (Naming.label_prefix, n)
         if name is not None:
@@ -1012,12 +1174,12 @@ class StringConst:
             self.py_versions.append(version)
 
     def get_py_string_const(self, encoding, identifier=None,
-                            is_str=False, py3str_cstring=None):
-        py_strings = self.py_strings
+                            is_str: cython.bint = False, py3str_cstring=None):
         text = self.text
+        intern: cython.bint
 
         is_str = bool(identifier or is_str)
-        is_unicode = encoding is None and not is_str
+        is_unicode: cython.bint = encoding is None and not is_str
 
         if encoding is None:
             # unicode string
@@ -1032,11 +1194,11 @@ class StringConst:
                 encoding_key = ''.join(find_alphanums(encoding))
 
         key = (is_str, is_unicode, encoding_key, py3str_cstring)
-        if py_strings is None:
+        if self.py_strings is None:
             self.py_strings = {}
         else:
             try:
-                return py_strings[key]
+                return self.py_strings[key]
             except KeyError:
                 pass
 

@@ -1225,6 +1225,7 @@ class CythonCompileTestCase(unittest.TestCase):
             generate_pxi = False,
             evaluate_tree_assertions = True,
             common_utility_include_dir = common_utility_include_dir,
+            c_line_in_traceback = True,
             **extra_compile_options
             )
         cython_compile(module_path, options=options, full_module_name=module)
@@ -1653,6 +1654,7 @@ class PureDoctestTestCase(unittest.TestCase):
                         self.module_path,
                         '--ignore-missing-imports',
                         '--follow-imports', 'skip',
+                        '--python-version', '3.10',
                     ])
                 if mypy_result[2]:
                     self.fail(mypy_result[0])

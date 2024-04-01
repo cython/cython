@@ -810,18 +810,47 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         self._put_setup_code(code, "PythonCompatibility")
         self._put_setup_code(code, "MathInitCode")
 
-        if options.c_line_in_traceback:
-            cinfo = "%s = %s; " % (Naming.clineno_cname, Naming.line_c_macro)
-        else:
-            cinfo = ""
-        code.putln("#define __PYX_MARK_ERR_POS(f_index, lineno) \\")
+        # Error handling and position macros.
         # Using "(void)cname" to prevent "unused" warnings.
-        code.putln("    { %s = %s[f_index]; (void)%s; %s = lineno; (void)%s; %s (void)%s; }" % (
-            Naming.filename_cname, Naming.filetable_cname, Naming.filename_cname,
-            Naming.lineno_cname, Naming.lineno_cname,
-            cinfo,
-            Naming.clineno_cname,
-        ))
+        mark_errpos_code = (
+            "#define __PYX_MARK_ERR_POS(f_index, lineno)  {"
+            f" {Naming.filename_cname} = {Naming.filetable_cname}[f_index];"
+            f" (void) {Naming.filename_cname};"
+            f" {Naming.lineno_cname} = lineno;"
+            f" (void) {Naming.lineno_cname};"
+            "%s"  # for C line info
+            f" (void) {Naming.clineno_cname}; "  # always suppress warnings
+            "}"
+        )
+        cline_info = f" {Naming.clineno_cname} = {Naming.line_c_macro};"
+
+        # Show the C code line in tracebacks or not? C macros take precedence over (deprecated) options.
+        # 1) "CYTHON_CLINE_IN_TRACEBACK=0"  always disables C lines in tracebacks
+        # 2) "CYTHON_CLINE_IN_TRACEBACK_RUNTIME=1" enables the feature + runtime configuration
+        # 2a) "options.c_line_in_traceback=True"   changes the default to CYTHON_CLINE_IN_TRACEBACK_RUNTIME=1
+        # 2b) "options.c_line_in_traceback=False"  changes the default to disable C lines
+        # 4) "CYTHON_CLINE_IN_TRACEBACK=1"         enables C lines without runtime configuration
+        # 5) if nothing is set, the default is to disable the feature
+
+        default_cline_runtime = 0
+        if options.c_line_in_traceback is not None:
+            # explicitly set by user
+            default_cline_runtime = int(options.c_line_in_traceback)
+
+        code.putln("#ifndef CYTHON_CLINE_IN_TRACEBACK_RUNTIME")
+        code.putln(f"#define CYTHON_CLINE_IN_TRACEBACK_RUNTIME {default_cline_runtime}")
+        code.putln("#endif")
+
+        code.putln("#ifndef CYTHON_CLINE_IN_TRACEBACK")
+        code.putln("#define CYTHON_CLINE_IN_TRACEBACK CYTHON_CLINE_IN_TRACEBACK_RUNTIME")
+        code.putln("#endif")
+
+        code.putln("#if CYTHON_CLINE_IN_TRACEBACK")
+        code.putln(mark_errpos_code % cline_info)
+        code.putln("#else")
+        code.putln(mark_errpos_code % "")
+        code.putln("#endif")
+
         code.putln("#define __PYX_ERR(f_index, lineno, Ln_error) \\")
         code.putln("    { __PYX_MARK_ERR_POS(f_index, lineno) goto Ln_error; }")
 
@@ -1063,6 +1092,23 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 code.putln("  #pragma pack(pop)")
                 code.putln("#endif")
 
+    def generate_cpp_constructor_code(self, arg_decls, arg_names, is_implementing, py_attrs, constructor, type, code):
+        if is_implementing:
+            code.putln("%s(%s) {" % (type.cname, ", ".join(arg_decls)))
+            needs_gil = py_attrs or (constructor and not constructor.type.nogil)
+            if needs_gil:
+                code.put_ensure_gil()
+            if py_attrs:
+                for attr in py_attrs:
+                    code.put_init_var_to_py_none(attr, nanny=False)
+            if constructor:
+                code.putln("%s(%s);" % (constructor.cname, ", ".join(arg_names)))
+            if needs_gil:
+                code.put_release_ensured_gil()
+            code.putln("}")
+        else:
+            code.putln("%s(%s);" % (type.cname, ", ".join(arg_decls)))
+
     def generate_cpp_class_definition(self, entry, code):
         code.mark_pos(entry.pos)
         type = entry.type
@@ -1088,7 +1134,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 if attr.type.is_cfunction and attr.type.is_static_method:
                     code.put("static ")
                 elif attr.name == "<init>":
-                    constructor = attr
+                    constructor = scope.lookup_here("<init>")
                 elif attr.name == "<del>":
                     destructor = attr
                 elif attr.type.is_cfunction:
@@ -1096,35 +1142,28 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                     has_virtual_methods = True
                 code.putln("%s;" % attr.type.declaration_code(attr.cname))
             is_implementing = 'init_module' in code.globalstate.parts
+
             if constructor or py_attrs:
                 if constructor:
+                    for constructor_alternative in constructor.all_alternatives():
+                        arg_decls = []
+                        arg_names = []
+                        for arg in constructor_alternative.type.original_args[
+                                :len(constructor_alternative.type.args)-constructor_alternative.type.optional_arg_count]:
+                            arg_decls.append(arg.declaration_code())
+                            arg_names.append(arg.cname)
+                        if constructor_alternative.type.optional_arg_count:
+                            arg_decls.append(constructor_alternative.type.op_arg_struct.declaration_code(Naming.optional_args_cname))
+                            arg_names.append(Naming.optional_args_cname)
+                        if not arg_decls:
+                            default_constructor = True
+                            arg_decls = []
+                        self.generate_cpp_constructor_code(arg_decls, arg_names, is_implementing, py_attrs, constructor_alternative, type, code)
+                else:
                     arg_decls = []
                     arg_names = []
-                    for arg in constructor.type.original_args[
-                            :len(constructor.type.args)-constructor.type.optional_arg_count]:
-                        arg_decls.append(arg.declaration_code())
-                        arg_names.append(arg.cname)
-                    if constructor.type.optional_arg_count:
-                        arg_decls.append(constructor.type.op_arg_struct.declaration_code(Naming.optional_args_cname))
-                        arg_names.append(Naming.optional_args_cname)
-                    if not arg_decls:
-                        arg_decls = ["void"]
-                else:
-                    arg_decls = ["void"]
-                    arg_names = []
-                if is_implementing:
-                    code.putln("%s(%s) {" % (type.cname, ", ".join(arg_decls)))
-                    if py_attrs:
-                        code.put_ensure_gil()
-                        for attr in py_attrs:
-                            code.put_init_var_to_py_none(attr, nanny=False)
-                    if constructor:
-                        code.putln("%s(%s);" % (constructor.cname, ", ".join(arg_names)))
-                    if py_attrs:
-                        code.put_release_ensured_gil()
-                    code.putln("}")
-                else:
-                    code.putln("%s(%s);" % (type.cname, ", ".join(arg_decls)))
+                    self.generate_cpp_constructor_code(arg_decls, arg_names, is_implementing, py_attrs, constructor, type, code)
+
             if destructor or py_attrs or has_virtual_methods:
                 if has_virtual_methods:
                     code.put("virtual ")
@@ -2762,7 +2801,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         env.use_utility_code(UtilityCode.load_cached("CStringEquals", "StringTools.c"))
         code.putln()
         code.enter_cfunc_scope()  # as we need labels
-        code.putln("static int %s(PyObject *o, PyObject* py_name, char *name) {" % Naming.import_star_set)
+        code.putln("static int %s(PyObject *o, PyObject* py_name, const char *name) {" % Naming.import_star_set)
 
         code.putln("static const char* internal_type_names[] = {")
         for name, entry in sorted(env.entries.items()):
@@ -3904,7 +3943,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 if entry.func_cname]
             if c_method_entries:
                 for meth_entry in c_method_entries:
-                    cast = meth_entry.type.signature_cast_string()
+                    vtable_type = meth_entry.vtable_type or meth_entry.type
+                    cast = vtable_type.signature_cast_string()
                     code.putln(
                         "%s.%s = %s%s;" % (
                             type.vtable_cname,
