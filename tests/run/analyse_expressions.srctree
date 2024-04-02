@@ -1,6 +1,7 @@
 # mode: run
 
 PYTHON setup.py build_ext --inplace
+PYTHON main.py
 
 ######## moda.pyx ########
 
@@ -37,7 +38,10 @@ setup(
             compiler_directives={'language_level': 3})
 )
 
+######## main.py ########
+
 import moda, modb
 
+assert moda.mod_name() == "I was overridden"
 assert moda.mod_name == modb.mod_name_override
 assert moda.ClassA.class_name != moda.ClassB.class_name
