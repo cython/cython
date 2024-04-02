@@ -1,5 +1,6 @@
 PYTHON setup.py build_ext --inplace
 PYTHON -c "import bar"
+PYTHON -c "import aa; assert aa.Klass().m() == 5"
 
 ######## setup.py ########
 
@@ -7,7 +8,7 @@ from Cython.Build.Dependencies import cythonize
 from distutils.core import setup
 
 setup(
-  ext_modules = cythonize("*.pyx", compiler_directives={'legacy_implicit_noexcept': True}),
+  ext_modules = cythonize(["*.pyx", "*.py"], compiler_directives={'legacy_implicit_noexcept': True}),
 )
 
 
@@ -31,3 +32,16 @@ except RuntimeError:
     pass
 else:
     assert False, 'Exception not raised'
+
+
+######## aa.pxd ########
+cdef class Klass:
+    cpdef int m(self) except? -1
+
+
+######## aa.py ########
+
+class Klass:
+
+    def m(self):
+        return 5
