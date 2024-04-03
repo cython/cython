@@ -9,7 +9,12 @@
 #if CYTHON_COMPILING_IN_PYPY || CYTHON_COMPILING_IN_PYSTON
   #define CYTHON_PROFILE 0
 #else
-  #define CYTHON_PROFILE 1
+  #if PY_VERSION_HEX < 0x030c0000
+    #define CYTHON_PROFILE 1
+  #else
+    // Profiling doesn't work on 3.12 and above: https://github.com/cython/cython/issues/5470
+    #define CYTHON_PROFILE 0
+  #endif
 #endif
 #endif
 
