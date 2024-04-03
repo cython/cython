@@ -6,15 +6,11 @@
 // but maybe some other profilers don't.
 
 #ifndef CYTHON_PROFILE
-#if CYTHON_COMPILING_IN_PYPY || CYTHON_COMPILING_IN_PYSTON
+#if CYTHON_COMPILING_IN_PYPY || CYTHON_COMPILING_IN_PYSTON || PY_VERSION_HEX >= 0x030c0000
+  // Note: profiling doesn't work on Python 3.12 and above: https://github.com/cython/cython/issues/5470
   #define CYTHON_PROFILE 0
 #else
-  #if PY_VERSION_HEX < 0x030c0000
-    #define CYTHON_PROFILE 1
-  #else
-    // Profiling doesn't work on 3.12 and above: https://github.com/cython/cython/issues/5470
-    #define CYTHON_PROFILE 0
-  #endif
+  #define CYTHON_PROFILE 1
 #endif
 #endif
 
