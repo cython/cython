@@ -1,6 +1,7 @@
 PYTHON setup.py build_ext --inplace
 PYTHON -c "import bar"
-PYTHON -c "import aa; assert aa.Klass().m() == 5"
+PYTHON -c "import run"
+PYTHON -c "import crun"
 
 ######## setup.py ########
 
@@ -8,9 +9,75 @@ from Cython.Build.Dependencies import cythonize
 from distutils.core import setup
 
 setup(
-  ext_modules = cythonize(["*.pyx", "*.py"], compiler_directives={'legacy_implicit_noexcept': True}),
+  ext_modules = cythonize(["*.pyx", "aa.py"], compiler_directives={'legacy_implicit_noexcept': True}),
 )
 
+######## run.py ########
+
+import aa
+
+klass = aa.Klass()
+
+assert klass.m1() == 1
+assert klass.m2() == 2
+assert klass.m3() == 3
+assert klass.m4() == 4
+assert klass.m5() == 5
+
+assert klass.n1() == 1
+assert klass.n2() == 2
+assert klass.n3() == 3
+
+klass.o1()
+klass.o2()
+klass.o3()
+
+assert aa.m1() == 1
+assert aa.m2() == 2
+assert aa.m3() == 3
+assert aa.m4() == 4
+assert aa.m5() == 5
+
+assert aa.n1() == 1
+assert aa.n2() == 2
+assert aa.n3() == 3
+
+aa.o1()
+aa.o2()
+aa.o3()
+
+######## crun.pyx ########
+
+cimport aa
+cdef aa.Klass klass = aa.Klass()
+
+assert klass.p1() == 1
+assert klass.p2() == 2
+assert klass.p3() == 3
+assert klass.p4() == 4
+assert klass.p5() == 5
+
+assert klass.q1() == 1
+assert klass.q2() == 2
+assert klass.q3() == 3
+
+klass.r1()
+klass.r2()
+klass.r3()
+
+assert aa.p1() == 1
+assert aa.p2() == 2
+assert aa.p3() == 3
+assert aa.p4() == 4
+assert aa.p5() == 5
+
+assert aa.q1() == 1
+assert aa.q2() == 2
+assert aa.q3() == 3
+
+aa.r1()
+aa.r2()
+aa.r3()
 
 ######## bar.pyx ########
 
@@ -36,12 +103,152 @@ else:
 
 ######## aa.pxd ########
 cdef class Klass:
-    cpdef int m(self) except? -1
+    cpdef int m1(self) except? -1
+    cpdef int m2(self)
+    cpdef int m3(self) noexcept
+    cpdef int m4(self) except *
+    cpdef int m5(self) except -1
+    cpdef object n1(self)
+    cpdef object n2(self) except *
+    cpdef object n3(self) noexcept  # will warn, but should work
+    cpdef void o1(self)
+    cpdef void o2(self) except*
+    cpdef void o3(self) noexcept
+    cdef int p1(self) except? -1
+    cdef int p2(self)
+    cdef int p3(self) noexcept
+    cdef int p4(self) except *
+    cdef int p5(self) except -1
+    cdef object q1(self)
+    cdef object q2(self) except *
+    cdef object q3(self) noexcept  # will warn, but should work
+    cdef void r1(self)
+    cdef void r2(self) except*
+    cdef void r3(self) noexcept
 
+cpdef int m1() except? -1
+cpdef int m2()
+cpdef int m3() noexcept
+cpdef int m4() except *
+cpdef int m5() except -1
+cpdef object n1()
+cpdef object n2() except *
+cpdef object n3() noexcept  # will warn, but should work
+cpdef void o1()
+cpdef void o2() except*
+cpdef void o3() noexcept
+cdef int p1() except? -1
+cdef int p2()
+cdef int p3() noexcept
+cdef int p4() except *
+cdef int p5() except -1
+cdef object q1()
+cdef object q2() except *
+cdef object q3() noexcept  # will warn, but should work
+cdef void r1()
+cdef void r2() except*
+cdef void r3() noexcept
 
 ######## aa.py ########
 
 class Klass:
 
-    def m(self):
+    def m1(self):
+        return 1
+    def m2(self):
+        return 2
+    def m3(self):
+        return 3
+    def m4(self):
+        return 4
+    def m5(self):
         return 5
+
+    def n1(self):
+        return 1
+    def n2(self):
+        return 2
+    def n3(self):
+        return 3
+
+    def o1(self):
+        return
+    def o2(self):
+        return
+    def o3(self):
+        return
+
+    def p1(self):
+        return 1
+    def p2(self):
+        return 2
+    def p3(self):
+        return 3
+    def p4(self):
+        return 4
+    def p5(self):
+        return 5
+
+    def q1(self):
+        return 1
+    def q2(self):
+        return 2
+    def q3(self):
+        return 3
+
+    def r1(self):
+        return
+    def r2(self):
+        return
+    def r3(self):
+        return
+
+def m1():
+    return 1
+def m2():
+    return 2
+def m3():
+    return 3
+def m4():
+    return 4
+def m5():
+    return 5
+
+def n1():
+    return 1
+def n2():
+    return 2
+def n3():
+    return 3
+
+def o1():
+    return
+def o2():
+    return
+def o3():
+    return
+
+def p1():
+    return 1
+def p2():
+    return 2
+def p3():
+    return 3
+def p4():
+    return 4
+def p5():
+    return 5
+
+def q1():
+    return 1
+def q2():
+    return 2
+def q3():
+    return 3
+
+def r1():
+    return
+def r2():
+    return
+def r3():
+    return
