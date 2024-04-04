@@ -46,6 +46,8 @@ assert limited.cast_float(1) == 1.0
 assert limited.cast_float("2.0") == 2.0
 assert limited.cast_float(bytearray(b"3")) == 3.0
 
+assert limited.add_one(2) == 3
+
 
 ##################### limited.pyx #############################
 
@@ -72,6 +74,9 @@ def lsum(values):
         for value in reversed(<tuple>values):
             result += value
     return result
+    
+def add_one(value):
+    return value + 1
 
 @cython.binding(False)
 def raises():

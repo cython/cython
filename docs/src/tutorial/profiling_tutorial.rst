@@ -15,6 +15,15 @@ with profiling pure Python code, you can only read the first section
 should also read the tutorial (:ref:`profiling_tutorial`) which takes you
 through a complete example step by step.
 
+Note that profiling and tracing are non-functional in CPython 3.12.  The changes
+for `PEP-669 <https://peps.python.org/pep-0669/>`_ were implemented in CPython such
+that the previous support for injecting trace events no longer works, but a replacement
+was not provided.
+
+Users of Python 3.12 who want to (Python-)profile their Cython code or analyse their
+test coverage must resort to Python 3.11.
+
+
 .. _profiling_basics:
 
 Cython Profiling Basics

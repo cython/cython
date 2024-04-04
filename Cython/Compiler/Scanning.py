@@ -1,9 +1,8 @@
-# cython: infer_types=True, language_level=3, auto_pickle=False
+# cython: infer_types=True
 #
 #   Cython Scanner
 #
 
-from __future__ import absolute_import
 
 import cython
 cython.declare(make_lexicon=object, lexicon=object,
@@ -55,7 +54,7 @@ pyx_reserved_words = py_reserved_words + [
 
 #------------------------------------------------------------------
 
-class CompileTimeScope(object):
+class CompileTimeScope:
 
     def __init__(self, outer=None):
         self.entries = {}
@@ -89,10 +88,7 @@ def initial_compile_time_env():
     names = ('UNAME_SYSNAME', 'UNAME_NODENAME', 'UNAME_RELEASE', 'UNAME_VERSION', 'UNAME_MACHINE')
     for name, value in zip(names, platform.uname()):
         benv.declare(name, value)
-    try:
-        import __builtin__ as builtins
-    except ImportError:
-        import builtins
+    import builtins
 
     names = (
         'False', 'True',
@@ -126,7 +122,7 @@ def initial_compile_time_env():
 
 #------------------------------------------------------------------
 
-class SourceDescriptor(object):
+class SourceDescriptor:
     """
     A SourceDescriptor should be considered immutable.
     """
@@ -340,7 +336,7 @@ class PyrexScanner(Scanner):
         self.source_encoding = source_encoding
         self.trace = trace_scanner
         self.indentation_stack = [0]
-        self.indentation_char = None
+        self.indentation_char = '\0'
         self.bracket_nesting_level = 0
 
         self.put_back_on_failure = None
@@ -350,9 +346,7 @@ class PyrexScanner(Scanner):
         self.next()
 
     def normalize_ident(self, text):
-        try:
-            text.encode('ascii')  # really just name.isascii but supports Python 2 and 3
-        except UnicodeEncodeError:
+        if not text.isascii():
             text = normalize('NFKC', text)
         self.produce(IDENT, text)
 
@@ -386,8 +380,8 @@ class PyrexScanner(Scanner):
         '"""': 'TDQ_STRING'
     }
 
-    def begin_string_action(self, text):
-        while text[:1] in any_string_prefix:
+    def begin_string_action(self, text: str):
+        while text and text[0] in any_string_prefix:
             text = text[1:]
         self.begin(self.string_states[text])
         self.produce('BEGIN_STRING')
@@ -400,7 +394,7 @@ class PyrexScanner(Scanner):
         self.end_string_action(text)
         self.error_at_scanpos("Unclosed string literal")
 
-    def indentation_action(self, text):
+    def indentation_action(self, text: str):
         self.begin('')
         # Indentation within brackets should be ignored.
         #if self.bracket_nesting_level > 0:
@@ -409,7 +403,7 @@ class PyrexScanner(Scanner):
         if text:
             c = text[0]
             #print "Scanner.indentation_action: indent with", repr(c) ###
-            if self.indentation_char is None:
+            if self.indentation_char == '\0':
                 self.indentation_char = c
                 #print "Scanner.indentation_action: setting indent_char to", repr(c)
             else:
@@ -418,8 +412,8 @@ class PyrexScanner(Scanner):
             if text.replace(c, "") != "":
                 self.error_at_scanpos("Mixed use of tabs and spaces")
         # Figure out how many indents/dedents to do
-        current_level = self.current_level()
-        new_level = len(text)
+        current_level: cython.Py_ssize_t = self.current_level()
+        new_level: cython.Py_ssize_t = len(text)
         #print "Changing indent level from", current_level, "to", new_level ###
         if new_level == current_level:
             return
@@ -450,9 +444,9 @@ class PyrexScanner(Scanner):
             return  # just a marker, error() always raises
         if sy == IDENT:
             if systring in self.keywords:
-                if systring == u'print' and print_function in self.context.future_directives:
+                if systring == 'print' and print_function in self.context.future_directives:
                     self.keywords.pop('print', None)
-                elif systring == u'exec' and self.context.language_level >= 3:
+                elif systring == 'exec' and self.context.language_level >= 3:
                     self.keywords.pop('exec', None)
                 else:
                     sy = self.keywords[systring]  # intern
@@ -528,7 +522,7 @@ class PyrexScanner(Scanner):
     def expect_dedent(self):
         self.expect('DEDENT', "Expected a decrease in indentation level")
 
-    def expect_newline(self, message="Expected a newline", ignore_semicolon=False):
+    def expect_newline(self, message="Expected a newline", ignore_semicolon: cython.bint = False):
         # Expect either a newline or end of file
         useless_trailing_semicolon = None
         if ignore_semicolon and self.sy == ';':
@@ -555,8 +549,7 @@ class PyrexScanner(Scanner):
                 self.sy, self.systring = IDENT, self.context.intern_ustring(self.sy)
 
 @contextmanager
-@cython.locals(scanner=Scanner)
-def tentatively_scan(scanner):
+def tentatively_scan(scanner: PyrexScanner):
     errors = hold_errors()
     try:
         put_back_on_failure = scanner.put_back_on_failure

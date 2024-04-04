@@ -1,7 +1,3 @@
-# cython: language_level=3str
-
-from __future__ import absolute_import
-
 import cython
 cython.declare(PyrexTypes=object, Naming=object, ExprNodes=object, Nodes=object,
                Options=object, UtilNodes=object, LetNode=object,
@@ -25,12 +21,11 @@ from .Visitor import VisitorTransform, TreeVisitor
 from .Visitor import CythonTransform, EnvTransform, ScopeTrackingTransform
 from .UtilNodes import LetNode, LetRefNode
 from .TreeFragment import TreeFragment
-from .StringEncoding import EncodedString, _unicode
+from .StringEncoding import EncodedString
 from .Errors import error, warning, CompileError, InternalError
-from .Code import UtilityCode
 
 
-class SkipDeclarations(object):
+class SkipDeclarations:
     """
     Variable and function declarations can often have a deep tree structure,
     and yet most transformations don't need to descend to this depth.
@@ -85,7 +80,7 @@ class NormalizeTree(CythonTransform):
     """
 
     def __init__(self, context):
-        super(NormalizeTree, self).__init__(context)
+        super().__init__(context)
         self.is_in_statlist = False
         self.is_in_expr = False
 
@@ -189,10 +184,11 @@ class PostParse(ScopeTrackingTransform):
     - Some invalid uses of := assignment expressions are detected
     """
     def __init__(self, context):
-        super(PostParse, self).__init__(context)
+        super().__init__(context)
         self.specialattribute_handlers = {
             '__cythonbufferdefaults__' : self.handle_bufferdefaults
         }
+        self.in_pattern_node = False
 
     def visit_LambdaNode(self, node):
         # unpack a lambda expression into the corresponding DefNode
@@ -215,7 +211,7 @@ class PostParse(ScopeTrackingTransform):
     def visit_GeneratorExpressionNode(self, node):
         # unpack a generator expression into the corresponding DefNode
         collector = YieldNodeCollector()
-        collector.visitchildren(node.loop)
+        collector.visitchildren(node.loop, attrs=None, exclude=["iterator"])
         node.def_node = Nodes.DefNode(
             node.pos, name=node.name, doc=None,
             args=[], star_arg=None, starstar_arg=None,
@@ -385,9 +381,36 @@ class PostParse(ScopeTrackingTransform):
         self.visitchildren(node)
         return node
 
+    def visit_ErrorNode(self, node):
+        error(node.pos, node.what)
+        return None
+
+    def visit_MatchCaseNode(self, node):
+        node.validate_targets()
+        self.visitchildren(node)
+        return node
+
+    def visit_MatchNode(self, node):
+        node.validate_irrefutable()
+        self.visitchildren(node)
+        return node
+
+    def visit_PatternNode(self, node):
+        in_pattern_node, self.in_pattern_node = self.in_pattern_node, True
+        self.visitchildren(node)
+        self.in_pattern_node = in_pattern_node
+        return node
+
+    def visit_JoinedStrNode(self, node):
+        if self.in_pattern_node:
+            error(node.pos, "f-strings are not accepted for pattern matching")
+        self.visitchildren(node)
+        return node
+
+
 class _AssignmentExpressionTargetNameFinder(TreeVisitor):
     def __init__(self):
-        super(_AssignmentExpressionTargetNameFinder, self).__init__()
+        super().__init__()
         self.target_names = {}
 
     def find_target_names(self, target):
@@ -420,7 +443,7 @@ class _AssignmentExpressionChecker(TreeVisitor):
     Enforces rules on AssignmentExpressions within generator expressions and comprehensions
     """
     def __init__(self, loop_node, scope_is_class):
-        super(_AssignmentExpressionChecker, self).__init__()
+        super().__init__()
 
         target_name_finder = _AssignmentExpressionTargetNameFinder()
         target_name_finder.visit(loop_node)
@@ -594,7 +617,9 @@ def unpack_string_to_character_literals(literal):
         chars.append(stype(pos, value=cval, constant_result=cval))
     return chars
 
-def flatten_parallel_assignments(input, output):
+
+@cython.cfunc
+def flatten_parallel_assignments(input: list, output: list):
     #  The input is a list of expression nodes, representing the LHSs
     #  and RHS of one (possibly cascaded) assignment statement.  For
     #  sequence constructors, rearranges the matching parts of both
@@ -614,9 +639,12 @@ def flatten_parallel_assignments(input, output):
     elif rhs.is_string_literal:
         rhs_args = unpack_string_to_character_literals(rhs)
 
-    rhs_size = len(rhs_args)
+    starred_targets: cython.Py_ssize_t
+    lhs_size: cython.Py_ssize_t
+    rhs_size: cython.Py_ssize_t = len(rhs_args)
     lhs_targets = [[] for _ in range(rhs_size)]
     starred_assignments = []
+
     for lhs in input[:-1]:
         if not lhs.is_sequence_constructor:
             if lhs.is_starred:
@@ -624,7 +652,9 @@ def flatten_parallel_assignments(input, output):
             complete_assignments.append(lhs)
             continue
         lhs_size = len(lhs.args)
-        starred_targets = sum([1 for expr in lhs.args if expr.is_starred])
+        starred_targets = 0
+        for expr in lhs.args:
+            starred_targets += bool(expr.is_starred)
         if starred_targets > 1:
             error(lhs.pos, "more than 1 starred expression in assignment")
             output.append([lhs,rhs])
@@ -663,7 +693,9 @@ def flatten_parallel_assignments(input, output):
         else:
             output.append(cascade)
 
-def map_starred_assignment(lhs_targets, starred_assignments, lhs_args, rhs_args):
+
+@cython.cfunc
+def map_starred_assignment(lhs_targets: list, starred_assignments: list, lhs_args: list, rhs_args: list):
     # Appends the fixed-position LHS targets to the target list that
     # appear left and right of the starred argument.
     #
@@ -672,6 +704,9 @@ def map_starred_assignment(lhs_targets, starred_assignments, lhs_args, rhs_args)
     # (those that match the starred target) to a list.
 
     # left side of the starred target
+    i: cython.Py_ssize_t
+    starred: cython.Py_ssize_t
+    lhs_remaining: cython.Py_ssize_t
     for i, (targets, expr) in enumerate(zip(lhs_targets, lhs_args)):
         if expr.is_starred:
             starred = i
@@ -718,7 +753,7 @@ class PxdPostParse(CythonTransform, SkipDeclarations):
 
     def __call__(self, node):
         self.scope_type = 'pxd'
-        return super(PxdPostParse, self).__call__(node)
+        return super().__call__(node)
 
     def visit_CClassDefNode(self, node):
         old = self.scope_type
@@ -737,7 +772,7 @@ class PxdPostParse(CythonTransform, SkipDeclarations):
             err = None  # allow these slots
 
         if isinstance(node, Nodes.CFuncDefNode):
-            if (u'inline' in node.modifiers and
+            if ('inline' in node.modifiers and
                     self.scope_type in ('pxd', 'cclass')):
                 node.inline_in_pxd = True
                 if node.visibility != 'private':
@@ -759,12 +794,12 @@ class PxdPostParse(CythonTransform, SkipDeclarations):
 class TrackNumpyAttributes(VisitorTransform, SkipDeclarations):
     # TODO: Make name handling as good as in InterpretCompilerDirectives() below - probably best to merge the two.
     def __init__(self):
-        super(TrackNumpyAttributes, self).__init__()
+        super().__init__()
         self.numpy_module_names = set()
 
     def visit_CImportStatNode(self, node):
-        if node.module_name == u"numpy":
-            self.numpy_module_names.add(node.as_name or u"numpy")
+        if node.module_name == "numpy":
+            self.numpy_module_names.add(node.as_name or "numpy")
         return node
 
     def visit_AttributeNode(self, node):
@@ -848,13 +883,13 @@ class InterpretCompilerDirectives(CythonTransform):
     }
 
     def __init__(self, context, compilation_directive_defaults):
-        super(InterpretCompilerDirectives, self).__init__(context)
+        super().__init__(context)
         self.cython_module_names = set()
         self.directive_names = {'staticmethod': 'staticmethod'}
         self.parallel_directives = {}
         directives = copy.deepcopy(Options.get_directive_defaults())
         for key, value in compilation_directive_defaults.items():
-            directives[_unicode(key)] = copy.deepcopy(value)
+            directives[str(key)] = copy.deepcopy(value)
         self.directives = directives
 
     def check_directive_scope(self, pos, directive, scope):
@@ -945,11 +980,11 @@ class InterpretCompilerDirectives(CythonTransform):
 
         if result:
             directive = full_name.split('.')
-            if full_name == u"cython.parallel":
-                self.parallel_directives[u"parallel"] = u"cython.parallel"
-            elif full_name == u"cython.parallel.*":
+            if full_name == "cython.parallel":
+                self.parallel_directives["parallel"] = "cython.parallel"
+            elif full_name == "cython.parallel.*":
                 for name in self.valid_parallel_directives:
-                    self.parallel_directives[name] = u"cython.parallel.%s" % name
+                    self.parallel_directives[name] = "cython.parallel.%s" % name
             elif (len(directive) != 3 or
                   directive[-1] not in self.valid_parallel_directives):
                 error(pos, "No such directive: %s" % full_name)
@@ -958,35 +993,35 @@ class InterpretCompilerDirectives(CythonTransform):
 
     def visit_CImportStatNode(self, node):
         module_name = node.module_name
-        if module_name == u"cython.cimports":
+        if module_name == "cython.cimports":
             error(node.pos, "Cannot cimport the 'cython.cimports' package directly, only submodules.")
-        if module_name.startswith(u"cython.cimports."):
-            if node.as_name and node.as_name != u'cython':
-                node.module_name = module_name[len(u"cython.cimports."):]
+        if module_name.startswith("cython.cimports."):
+            if node.as_name and node.as_name != 'cython':
+                node.module_name = module_name[len("cython.cimports."):]
                 return node
             error(node.pos,
                   "Python cimports must use 'from cython.cimports... import ...'"
                   " or 'import ... as ...', not just 'import ...'")
 
-        if module_name == u"cython":
-            self.cython_module_names.add(node.as_name or u"cython")
-        elif module_name.startswith(u"cython."):
-            if module_name.startswith(u"cython.parallel."):
+        if module_name == "cython":
+            self.cython_module_names.add(node.as_name or "cython")
+        elif module_name.startswith("cython."):
+            if module_name.startswith("cython.parallel."):
                 error(node.pos, node.module_name + " is not a module")
             else:
                 self._check_valid_cython_module(node.pos, module_name)
 
-            if module_name == u"cython.parallel":
-                if node.as_name and node.as_name != u"cython":
+            if module_name == "cython.parallel":
+                if node.as_name and node.as_name != "cython":
                     self.parallel_directives[node.as_name] = module_name
                 else:
-                    self.cython_module_names.add(u"cython")
+                    self.cython_module_names.add("cython")
                     self.parallel_directives[
-                                    u"cython.parallel"] = module_name
+                                    "cython.parallel"] = module_name
             elif node.as_name:
                 self.directive_names[node.as_name] = module_name[7:]
             else:
-                self.cython_module_names.add(u"cython")
+                self.cython_module_names.add("cython")
             # if this cimport was a compiler directive, we don't
             # want to leave the cimport node sitting in the tree
             return None
@@ -994,18 +1029,18 @@ class InterpretCompilerDirectives(CythonTransform):
 
     def visit_FromCImportStatNode(self, node):
         module_name = node.module_name
-        if module_name == u"cython.cimports" or module_name.startswith(u"cython.cimports."):
+        if module_name == "cython.cimports" or module_name.startswith("cython.cimports."):
             # only supported for convenience
             return self._create_cimport_from_import(
                 node.pos, module_name, node.relative_level, node.imported_names)
         elif not node.relative_level and (
-                module_name == u"cython" or module_name.startswith(u"cython.")):
+                module_name == "cython" or module_name.startswith("cython.")):
             self._check_valid_cython_module(node.pos, module_name)
-            submodule = (module_name + u".")[7:]
+            submodule = (module_name + ".")[7:]
             newimp = []
             for pos, name, as_name in node.imported_names:
                 full_name = submodule + name
-                qualified_name = u"cython." + full_name
+                qualified_name = "cython." + full_name
                 if self.is_parallel_directive(qualified_name, node.pos):
                     # from cython cimport parallel, or
                     # from cython.parallel cimport parallel, prange, ...
@@ -1028,20 +1063,20 @@ class InterpretCompilerDirectives(CythonTransform):
     def visit_FromImportStatNode(self, node):
         import_node = node.module
         module_name = import_node.module_name.value
-        if module_name == u"cython.cimports" or module_name.startswith(u"cython.cimports."):
+        if module_name == "cython.cimports" or module_name.startswith("cython.cimports."):
             imported_names = []
             for name, name_node in node.items:
                 imported_names.append(
                     (name_node.pos, name, None if name == name_node.name else name_node.name))
             return self._create_cimport_from_import(
                 node.pos, module_name, import_node.level, imported_names)
-        elif module_name == u"cython" or module_name.startswith(u"cython."):
+        elif module_name == "cython" or module_name.startswith("cython."):
             self._check_valid_cython_module(import_node.module_name.pos, module_name)
-            submodule = (module_name + u".")[7:]
+            submodule = (module_name + ".")[7:]
             newimp = []
             for name, name_node in node.items:
                 full_name = submodule + name
-                qualified_name = u"cython." + full_name
+                qualified_name = "cython." + full_name
                 if self.is_parallel_directive(qualified_name, node.pos):
                     self.parallel_directives[name_node.name] = qualified_name
                 elif self.is_cython_directive(full_name):
@@ -1054,8 +1089,8 @@ class InterpretCompilerDirectives(CythonTransform):
         return node
 
     def _create_cimport_from_import(self, node_pos, module_name, level, imported_names):
-        if module_name == u"cython.cimports" or module_name.startswith(u"cython.cimports."):
-            module_name = EncodedString(module_name[len(u"cython.cimports."):])  # may be empty
+        if module_name == "cython.cimports" or module_name.startswith("cython.cimports."):
+            module_name = EncodedString(module_name[len("cython.cimports."):])  # may be empty
 
         if module_name:
             # from cython.cimports.a.b import x, y, z  =>  from a.b cimport x, y, z
@@ -1077,7 +1112,7 @@ class InterpretCompilerDirectives(CythonTransform):
     def visit_SingleAssignmentNode(self, node):
         if isinstance(node.rhs, ExprNodes.ImportNode):
             module_name = node.rhs.module_name.value
-            if module_name != u"cython" and not module_name.startswith("cython."):
+            if module_name != "cython" and not module_name.startswith("cython."):
                 return node
 
             node = Nodes.CImportStatNode(node.pos, module_name=module_name, as_name=node.lhs.name)
@@ -1422,10 +1457,10 @@ class ParallelRangeTransform(CythonTransform, SkipDeclarations):
     state = None
 
     directive_to_node = {
-        u"cython.parallel.parallel": Nodes.ParallelWithBlockNode,
+        "cython.parallel.parallel": Nodes.ParallelWithBlockNode,
         # u"cython.parallel.threadsavailable": ExprNodes.ParallelThreadsAvailableNode,
-        u"cython.parallel.threadid": ExprNodes.ParallelThreadIdNode,
-        u"cython.parallel.prange": Nodes.ParallelRangeNode,
+        "cython.parallel.threadid": ExprNodes.ParallelThreadIdNode,
+        "cython.parallel.prange": Nodes.ParallelRangeNode,
     }
 
     def node_is_parallel_directive(self, node):
@@ -1567,7 +1602,7 @@ class ParallelRangeTransform(CythonTransform, SkipDeclarations):
     def visit(self, node):
         "Visit a node that may be None"
         if node is not None:
-            return super(ParallelRangeTransform, self).visit(node)
+            return super().visit(node)
 
 
 class WithTransform(VisitorTransform, SkipDeclarations):
@@ -1643,7 +1678,7 @@ class WithTransform(VisitorTransform, SkipDeclarations):
 class _GeneratorExpressionArgumentsMarker(TreeVisitor, SkipDeclarations):
     # called from "MarkClosureVisitor"
     def __init__(self, gen_expr):
-        super(_GeneratorExpressionArgumentsMarker, self).__init__()
+        super().__init__()
         self.gen_expr = gen_expr
 
     def visit_ExprNode(self, node):
@@ -1708,7 +1743,7 @@ class _HandleGeneratorArguments(VisitorTransform, SkipDeclarations):
             # but use it as a starting point
             name_source = self.tag_count
             self.tag_count += 1
-            name = EncodedString(".{0}".format(name_source))
+            name = EncodedString(".{}".format(name_source))
             def_node = self.gen_node.def_node
             if not def_node.local_scope.lookup_here(name):
                 from . import Symtab
@@ -1784,7 +1819,7 @@ class DecoratorTransform(ScopeTrackingTransform, SkipDeclarations):
         if self._properties is None:
             self._properties = []
         self._properties.append({})
-        node = super(DecoratorTransform, self).visit_CClassDefNode(node)
+        node = super().visit_CClassDefNode(node)
         self._properties.pop()
         return node
 
@@ -1981,8 +2016,7 @@ class CnameDirectivesTransform(CythonTransform, SkipDeclarations):
                     raise AssertionError(
                             "cname decorator takes exactly one argument")
 
-                if not (args[0].is_literal and
-                        args[0].type == Builtin.str_type):
+                if not (args[0].is_literal and args[0].type is Builtin.unicode_type):
                     raise AssertionError(
                             "argument to cname decorator must be a string literal")
 
@@ -2059,14 +2093,14 @@ class ForwardDeclareTypes(CythonTransform):
 
 class AnalyseDeclarationsTransform(EnvTransform):
 
-    basic_property = TreeFragment(u"""
+    basic_property = TreeFragment("""
 property NAME:
     def __get__(self):
         return ATTR
     def __set__(self, value):
         ATTR = value
     """, level='c_class', pipeline=[NormalizeTree(None)])
-    basic_pyobject_property = TreeFragment(u"""
+    basic_pyobject_property = TreeFragment("""
 property NAME:
     def __get__(self):
         return ATTR
@@ -2075,13 +2109,13 @@ property NAME:
     def __del__(self):
         ATTR = None
     """, level='c_class', pipeline=[NormalizeTree(None)])
-    basic_property_ro = TreeFragment(u"""
+    basic_property_ro = TreeFragment("""
 property NAME:
     def __get__(self):
         return ATTR
     """, level='c_class', pipeline=[NormalizeTree(None)])
 
-    struct_or_union_wrapper = TreeFragment(u"""
+    struct_or_union_wrapper = TreeFragment("""
 cdef class NAME:
     cdef TYPE value
     def __init__(self, MEMBER=None):
@@ -2096,7 +2130,7 @@ cdef class NAME:
         return REPR_FORMAT % MEMBER_TUPLE
     """, pipeline=[NormalizeTree(None)])
 
-    init_assignment = TreeFragment(u"""
+    init_assignment = TreeFragment("""
 if VALUE is not None:
     ATTR = VALUE
     count += 1
@@ -2109,7 +2143,7 @@ if VALUE is not None:
         # needed to determine if a cdef var is declared after it's used.
         self.seen_vars_stack = []
         self.fused_error_funcs = set()
-        super_class = super(AnalyseDeclarationsTransform, self)
+        super_class = super()
         self._super_visit_FuncDefNode = super_class.visit_FuncDefNode
         return super_class.__call__(root)
 
@@ -2203,7 +2237,7 @@ if VALUE is not None:
             if auto_pickle_forced:
                 error(node.pos, msg)
 
-            pickle_func = TreeFragment(u"""
+            pickle_func = TreeFragment("""
                 def __reduce_cython__(self):
                     raise TypeError, "%(msg)s"
                 def __setstate_cython__(self, __pyx_state):
@@ -2227,7 +2261,7 @@ if VALUE is not None:
 
             # TODO(robertwb): Move the state into the third argument
             # so it can be pickled *after* self is memoized.
-            unpickle_func = TreeFragment(u"""
+            unpickle_func = TreeFragment("""
                 def %(unpickle_func_name)s(__pyx_type, long __pyx_checksum, __pyx_state):
                     cdef object __pyx_PickleError
                     cdef object __pyx_result
@@ -2257,7 +2291,7 @@ if VALUE is not None:
             self.visit(unpickle_func)
             self.extra_module_declarations.append(unpickle_func)
 
-            pickle_func = TreeFragment(u"""
+            pickle_func = TreeFragment("""
                 def __reduce_cython__(self):
                     cdef tuple state
                     cdef object _dict
@@ -2472,7 +2506,7 @@ if VALUE is not None:
     def visit_func_outer_attrs(self, node):
         # any names in the outer attrs should not be looked up in the function "seen_vars_stack"
         stack = self.seen_vars_stack.pop()
-        super(AnalyseDeclarationsTransform, self).visit_func_outer_attrs(node)
+        super().visit_func_outer_attrs(node)
         self.seen_vars_stack.append(stack)
 
     def visit_ScopedExprNode(self, node):
@@ -2515,8 +2549,8 @@ if VALUE is not None:
 
         self_value = ExprNodes.AttributeNode(
             pos = node.pos,
-            obj = ExprNodes.NameNode(pos=node.pos, name=u"self"),
-            attribute = EncodedString(u"value"))
+            obj = ExprNodes.NameNode(pos=node.pos, name="self"),
+            attribute = EncodedString("value"))
         var_entries = node.entry.type.scope.var_entries
         attributes = []
         for entry in var_entries:
@@ -2528,18 +2562,18 @@ if VALUE is not None:
         for entry, attr in zip(var_entries, attributes):
             # TODO: branch on visibility
             init_assignments.append(self.init_assignment.substitute({
-                    u"VALUE": ExprNodes.NameNode(entry.pos, name = entry.name),
-                    u"ATTR": attr,
+                    "VALUE": ExprNodes.NameNode(entry.pos, name = entry.name),
+                    "ATTR": attr,
                 }, pos = entry.pos))
 
         # create the class
-        str_format = u"%s(%s)" % (node.entry.type.name, ("%s, " * len(attributes))[:-2])
+        str_format = "%s(%s)" % (node.entry.type.name, ("%s, " * len(attributes))[:-2])
         wrapper_class = self.struct_or_union_wrapper.substitute({
-            u"INIT_ASSIGNMENTS": Nodes.StatListNode(node.pos, stats = init_assignments),
-            u"IS_UNION": ExprNodes.BoolNode(node.pos, value = not node.entry.type.is_struct),
-            u"MEMBER_TUPLE": ExprNodes.TupleNode(node.pos, args=attributes),
-            u"STR_FORMAT": ExprNodes.StringNode(node.pos, value = EncodedString(str_format)),
-            u"REPR_FORMAT": ExprNodes.StringNode(node.pos, value = EncodedString(str_format.replace("%s", "%r"))),
+            "INIT_ASSIGNMENTS": Nodes.StatListNode(node.pos, stats = init_assignments),
+            "IS_UNION": ExprNodes.BoolNode(node.pos, value = not node.entry.type.is_struct),
+            "MEMBER_TUPLE": ExprNodes.TupleNode(node.pos, args=attributes),
+            "STR_FORMAT": ExprNodes.StringNode(node.pos, value = EncodedString(str_format)),
+            "REPR_FORMAT": ExprNodes.StringNode(node.pos, value = EncodedString(str_format.replace("%s", "%r"))),
         }, pos = node.pos).stats[0]
         wrapper_class.class_name = node.name
         wrapper_class.shadow = True
@@ -2569,7 +2603,7 @@ if VALUE is not None:
             else:
                 template = self.basic_property
             property = template.substitute({
-                    u"ATTR": attr,
+                    "ATTR": attr,
                 }, pos = entry.pos).stats[0]
             property.name = entry.name
             wrapper_class.body.stats.append(property)
@@ -2630,9 +2664,9 @@ if VALUE is not None:
         elif entry.visibility == 'readonly':
             template = self.basic_property_ro
         property = template.substitute({
-                u"ATTR": ExprNodes.AttributeNode(pos=entry.pos,
-                                                 obj=ExprNodes.NameNode(pos=entry.pos, name="self"),
-                                                 attribute=entry.name),
+                "ATTR": ExprNodes.AttributeNode(pos=entry.pos,
+                                                obj=ExprNodes.NameNode(pos=entry.pos, name="self"),
+                                                attribute=entry.name),
             }, pos=entry.pos).stats[0]
         property.name = entry.name
         property.doc = entry.doc
@@ -2673,7 +2707,7 @@ class CalculateQualifiedNamesTransform(EnvTransform):
     def visit_ModuleNode(self, node):
         self.module_name = self.global_scope().qualified_name
         self.qualified_name = []
-        _super = super(CalculateQualifiedNamesTransform, self)
+        _super = super()
         self._super_visit_FuncDefNode = _super.visit_FuncDefNode
         self._super_visit_ClassDefNode = _super.visit_ClassDefNode
         self.visitchildren(node)
@@ -2830,26 +2864,35 @@ class AnalyseExpressionsTransform(CythonTransform):
         return node
 
 
-class FindInvalidUseOfFusedTypes(CythonTransform):
+class FindInvalidUseOfFusedTypes(TreeVisitor):
+
+    def __call__(self, tree):
+        self._in_fused_function = False
+        self.visit(tree)
+        return tree
+
+    def visit_Node(self, node):
+        self.visitchildren(node)
 
     def visit_FuncDefNode(self, node):
-        # Errors related to use in functions with fused args will already
-        # have been detected
-        if not node.has_fused_arguments:
+        outer_status = self._in_fused_function
+        self._in_fused_function = node.has_fused_arguments
+
+        if not self._in_fused_function:
+            # Errors related to use in functions with fused args will already
+            # have been detected.
             if not node.is_generator_body and node.return_type.is_fused:
                 error(node.pos, "Return type is not specified as argument type")
-            else:
-                self.visitchildren(node)
 
-        return node
+        self.visitchildren(node)
+        self._in_fused_function = outer_status
 
     def visit_ExprNode(self, node):
-        if node.type and node.type.is_fused:
+        if not self._in_fused_function and node.type and node.type.is_fused:
             error(node.pos, "Invalid use of fused types, type cannot be specialized")
+            # Errors in subtrees are likely related, so do not recurse.
         else:
             self.visitchildren(node)
-
-        return node
 
 
 class ExpandInplaceOperators(EnvTransform):
@@ -2945,6 +2988,7 @@ class AdjustDefByDirectives(CythonTransform, SkipDeclarations):
         nogil = self.directives.get('nogil')
         with_gil = self.directives.get('with_gil')
         except_val = self.directives.get('exceptval')
+        has_explicit_exc_clause = False if except_val is None else True
         return_type_node = self.directives.get('returns')
         if return_type_node is None and self.directives['annotation_typing']:
             return_type_node = node.return_type_annotation
@@ -2961,7 +3005,7 @@ class AdjustDefByDirectives(CythonTransform, SkipDeclarations):
                 error(node.pos, "ccall functions cannot be declared 'with_gil'")
             node = node.as_cfunction(
                 overridable=True, modifiers=modifiers, nogil=nogil,
-                returns=return_type_node, except_val=except_val)
+                returns=return_type_node, except_val=except_val, has_explicit_exc_clause=has_explicit_exc_clause)
             return self.visit(node)
         if 'cfunc' in self.directives:
             if self.in_py_class:
@@ -2969,7 +3013,7 @@ class AdjustDefByDirectives(CythonTransform, SkipDeclarations):
             else:
                 node = node.as_cfunction(
                     overridable=False, modifiers=modifiers, nogil=nogil, with_gil=with_gil,
-                    returns=return_type_node, except_val=except_val)
+                    returns=return_type_node, except_val=except_val, has_explicit_exc_clause=has_explicit_exc_clause)
                 return self.visit(node)
         if 'inline' in modifiers:
             error(node.pos, "Python functions cannot be declared 'inline'")
@@ -3150,8 +3194,8 @@ class RemoveUnreachableCode(CythonTransform):
 
 class YieldNodeCollector(TreeVisitor):
 
-    def __init__(self):
-        super(YieldNodeCollector, self).__init__()
+    def __init__(self, excludes=[]):
+        super().__init__()
         self.yields = []
         self.returns = []
         self.finallys = []
@@ -3159,9 +3203,11 @@ class YieldNodeCollector(TreeVisitor):
         self.has_return_value = False
         self.has_yield = False
         self.has_await = False
+        self.excludes = excludes
 
     def visit_Node(self, node):
-        self.visitchildren(node)
+        if node not in self.excludes:
+            self.visitchildren(node)
 
     def visit_YieldExprNode(self, node):
         self.yields.append(node)
@@ -3197,7 +3243,11 @@ class YieldNodeCollector(TreeVisitor):
         pass
 
     def visit_GeneratorExpressionNode(self, node):
-        pass
+        # node.loop iterator is evaluated outside the generator expression
+        if isinstance(node.loop, Nodes._ForInStatNode):
+            # Possibly should handle ForFromStatNode
+            # but for now do nothing
+            self.visit(node.loop.iterator)
 
     def visit_CArgDeclNode(self, node):
         # do not look into annotations
@@ -3211,6 +3261,7 @@ class MarkClosureVisitor(CythonTransform):
 
     def visit_ModuleNode(self, node):
         self.needs_closure = False
+        self.excludes = []
         self.visitchildren(node)
         return node
 
@@ -3220,7 +3271,7 @@ class MarkClosureVisitor(CythonTransform):
         node.needs_closure = self.needs_closure
         self.needs_closure = True
 
-        collector = YieldNodeCollector()
+        collector = YieldNodeCollector(self.excludes)
         collector.visitchildren(node)
 
         if node.is_async_def:
@@ -3279,7 +3330,11 @@ class MarkClosureVisitor(CythonTransform):
         return node
 
     def visit_GeneratorExpressionNode(self, node):
+        excludes = self.excludes
+        if isinstance(node.loop, Nodes._ForInStatNode):
+            self.excludes = [node.loop.iterator]
         node = self.visit_LambdaNode(node)
+        self.excludes = excludes
         if not isinstance(node.loop, Nodes._ForInStatNode):
             # Possibly should handle ForFromStatNode
             # but for now do nothing
@@ -3297,7 +3352,7 @@ class CreateClosureClasses(CythonTransform):
     # that really need it.
 
     def __init__(self, context):
-        super(CreateClosureClasses, self).__init__(context)
+        super().__init__(context)
         self.path = []
         self.in_lambda = False
 
@@ -3513,7 +3568,7 @@ class GilCheck(VisitorTransform):
         self.nogil_declarator_only = False
 
         self.current_gilstat_node_knows_gil_state = False
-        return super(GilCheck, self).__call__(root)
+        return super().__call__(root)
 
     def _visit_scoped_children(self, node, gil_state):
         was_nogil = self.nogil
@@ -3700,12 +3755,12 @@ class TransformBuiltinMethods(EnvTransform):
     def visit_cython_attribute(self, node):
         attribute = node.as_cython_attribute()
         if attribute:
-            if attribute == u'__version__':
+            if attribute == '__version__':
                 from .. import __version__ as version
                 node = ExprNodes.StringNode(node.pos, value=EncodedString(version))
-            elif attribute == u'NULL':
+            elif attribute == 'NULL':
                 node = ExprNodes.NullNode(node.pos)
-            elif attribute in (u'set', u'frozenset', u'staticmethod'):
+            elif attribute in ('set', 'frozenset', 'staticmethod'):
                 node = ExprNodes.NameNode(node.pos, name=EncodedString(attribute),
                                           entry=self.current_env().builtin_scope().lookup_here(attribute))
             elif PyrexTypes.parse_basic_type(attribute):
@@ -3713,7 +3768,7 @@ class TransformBuiltinMethods(EnvTransform):
             elif self.context.cython_scope.lookup_qualified_name(attribute):
                 pass
             else:
-                error(node.pos, u"'%s' not a valid cython attribute or is being used incorrectly" % attribute)
+                error(node.pos, "'%s' not a valid cython attribute or is being used incorrectly" % attribute)
         return node
 
     def visit_ExecStatNode(self, node):
@@ -3826,20 +3881,20 @@ class TransformBuiltinMethods(EnvTransform):
         if function:
             if function in InterpretCompilerDirectives.unop_method_nodes:
                 if len(node.args) != 1:
-                    error(node.function.pos, u"%s() takes exactly one argument" % function)
+                    error(node.function.pos, "%s() takes exactly one argument" % function)
                 else:
                     node = InterpretCompilerDirectives.unop_method_nodes[function](
                         node.function.pos, operand=node.args[0])
             elif function in InterpretCompilerDirectives.binop_method_nodes:
                 if len(node.args) != 2:
-                    error(node.function.pos, u"%s() takes exactly two arguments" % function)
+                    error(node.function.pos, "%s() takes exactly two arguments" % function)
                 else:
                     node = InterpretCompilerDirectives.binop_method_nodes[function](
                         node.function.pos, operand1=node.args[0], operand2=node.args[1])
-            elif function == u'cast':
+            elif function == 'cast':
                 if len(node.args) != 2:
                     error(node.function.pos,
-                          u"cast() takes exactly two arguments and an optional typecheck keyword")
+                          "cast() takes exactly two arguments and an optional typecheck keyword")
                 else:
                     type = node.args[0].analyse_as_type(self.current_env())
                     if type:
@@ -3847,9 +3902,9 @@ class TransformBuiltinMethods(EnvTransform):
                             node.function.pos, type=type, operand=node.args[1], typecheck=False)
                     else:
                         error(node.args[0].pos, "Not a type")
-            elif function == u'sizeof':
+            elif function == 'sizeof':
                 if len(node.args) != 1:
-                    error(node.function.pos, u"sizeof() takes exactly one argument")
+                    error(node.function.pos, "sizeof() takes exactly one argument")
                 else:
                     type = node.args[0].analyse_as_type(self.current_env())
                     if type:
@@ -3858,25 +3913,25 @@ class TransformBuiltinMethods(EnvTransform):
                         node = ExprNodes.SizeofVarNode(node.function.pos, operand=node.args[0])
             elif function == 'cmod':
                 if len(node.args) != 2:
-                    error(node.function.pos, u"cmod() takes exactly two arguments")
+                    error(node.function.pos, "cmod() takes exactly two arguments")
                 else:
                     node = ExprNodes.binop_node(node.function.pos, '%', node.args[0], node.args[1])
                     node.cdivision = True
             elif function == 'cdiv':
                 if len(node.args) != 2:
-                    error(node.function.pos, u"cdiv() takes exactly two arguments")
+                    error(node.function.pos, "cdiv() takes exactly two arguments")
                 else:
                     node = ExprNodes.binop_node(node.function.pos, '/', node.args[0], node.args[1])
                     node.cdivision = True
-            elif function == u'set':
+            elif function == 'set':
                 node.function = ExprNodes.NameNode(node.pos, name=EncodedString('set'))
-            elif function == u'staticmethod':
+            elif function == 'staticmethod':
                 node.function = ExprNodes.NameNode(node.pos, name=EncodedString('staticmethod'))
             elif self.context.cython_scope.lookup_qualified_name(function):
                 pass
             else:
                 error(node.function.pos,
-                      u"'%s' not a valid cython language construct" % function)
+                      "'%s' not a valid cython language construct" % function)
 
         self.visitchildren(node)
 
@@ -3892,14 +3947,14 @@ class TransformBuiltinMethods(EnvTransform):
 
     def visit_GeneralCallNode(self, node):
         function = node.function.as_cython_attribute()
-        if function == u'cast':
+        if function == 'cast':
             # NOTE: assuming simple tuple/dict nodes for positional_args and keyword_args
             args = node.positional_args.args
             kwargs = node.keyword_args.compile_time_value(None)
             if (len(args) != 2 or len(kwargs) > 1 or
                     (len(kwargs) == 1 and 'typecheck' not in kwargs)):
                 error(node.function.pos,
-                      u"cast() takes exactly two arguments and an optional typecheck keyword")
+                      "cast() takes exactly two arguments and an optional typecheck keyword")
             else:
                 type = args[0].analyse_as_type(self.current_env())
                 if type:
@@ -3925,7 +3980,7 @@ class ReplaceFusedTypeChecks(VisitorTransform):
             ...
     """
     def __init__(self, local_scope):
-        super(ReplaceFusedTypeChecks, self).__init__()
+        super().__init__()
         self.local_scope = local_scope
         # defer the import until now to avoid circular import time dependencies
         from .Optimize import ConstantFolding
@@ -4014,7 +4069,7 @@ class DebugTransform(CythonTransform):
     """
 
     def __init__(self, context, options, result):
-        super(DebugTransform, self).__init__(context)
+        super().__init__(context)
         self.visited = set()
         # our treebuilder and debug output writer
         # (see Cython.Debugger.debug_output.CythonDebugWriter)

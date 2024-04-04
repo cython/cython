@@ -33,7 +33,7 @@ ctypedef char *string_t
 simple_t = cython.fused_type(int, float)
 less_simple_t = cython.fused_type(int, float, string_t)
 struct_t = cython.fused_type(mystruct_t, myunion_t, MyExt)
-builtin_t = cython.fused_type(str, unicode, bytes)
+builtin_t = cython.fused_type(str, bytes)
 
 ctypedef fused fusedbunch:
     int

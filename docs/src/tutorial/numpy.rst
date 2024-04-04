@@ -9,6 +9,11 @@ Working with NumPy
           below, have less overhead, and can be passed around without requiring the GIL.
           They should be preferred to the syntax presented in this page.
           See :ref:`Cython for NumPy users <numpy_tutorial>`.
+          
+.. NOTE:: There is currently no way to usefully specify Numpy arrays using
+          Python-style annotations and we do not currently plan to add one.
+          If you want to use annotation typing then we recommend using
+          typed memoryviews instead.
 
 You can use NumPy from Cython exactly the same as in regular Python, but by
 doing so you are losing potentially high speedups because Cython has support

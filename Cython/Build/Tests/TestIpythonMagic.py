@@ -1,9 +1,7 @@
-# -*- coding: utf-8 -*-
 # tag: ipython
 
 """Tests for the Cython magics extension."""
 
-from __future__ import absolute_import
 
 import os
 import io
@@ -27,7 +25,6 @@ else:
 
 # not using IPython's decorators here because they depend on "nose"
 skip_win32 = skipIf(sys.platform == 'win32', "Skip on Windows")
-skip_py27 = skipIf(sys.version_info[:2] == (2,7), "Disabled in Py2.7")
 
 try:
     # disable IPython history thread before it gets started to avoid having to clean it up
@@ -56,12 +53,12 @@ def capture_output():
             wrapper.close()
 
 
-code = u"""\
+code = """\
 def f(x):
     return 2*x
 """
 
-cython3_code = u"""\
+cython3_code = """\
 def f(int x):
     return 2 / x
 
@@ -69,13 +66,13 @@ def call(x):
     return f(*(x,))
 """
 
-pgo_cython3_code = cython3_code + u"""\
+pgo_cython3_code = cython3_code + """\
 def main():
     for _ in range(100): call(5)
 main()
 """
 
-compile_error_code = u'''\
+compile_error_code = '''\
 cdef extern from *:
     """
     xxx a=1;
@@ -85,7 +82,7 @@ def doit():
     return a
 '''
 
-compile_warning_code = u'''\
+compile_warning_code = '''\
 cdef extern from *:
     """
     #pragma message ( "CWarning" )
@@ -149,12 +146,8 @@ class TestIPythonMagic(CythonTest):
         ip = self._ip
         ip.run_cell_magic('cython', '', cython3_code)
         ip.ex('g = f(10); h = call(10)')
-        if sys.version_info[0] < 3:
-            self.assertEqual(ip.user_ns['g'], 2 // 10)
-            self.assertEqual(ip.user_ns['h'], 2 // 10)
-        else:
-            self.assertEqual(ip.user_ns['g'], 2.0 / 10.0)
-            self.assertEqual(ip.user_ns['h'], 2.0 / 10.0)
+        self.assertEqual(ip.user_ns['g'], 2.0 / 10.0)
+        self.assertEqual(ip.user_ns['h'], 2.0 / 10.0)
 
     def test_cython3(self):
         # The Cython cell defines the functions f() and call().
@@ -205,7 +198,6 @@ class TestIPythonMagic(CythonTest):
         # check that warning was printed to stdout even if build hasn't failed
         self.assertTrue("CWarning" in captured_out)
 
-    @skip_py27  # Not strictly broken in Py2.7 but currently fails in CI due to C compiler issues.
     @skip_win32
     def test_cython3_pgo(self):
         # The Cython cell defines the functions f() and call().
@@ -218,7 +210,7 @@ class TestIPythonMagic(CythonTest):
     @skip_win32
     def test_extlibs(self):
         ip = self._ip
-        code = u"""
+        code = """
 from libc.math cimport sin
 x = sin(0.0)
         """

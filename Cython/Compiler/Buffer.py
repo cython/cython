@@ -1,5 +1,3 @@
-from __future__ import absolute_import
-
 from .Visitor import CythonTransform
 from .ModuleNode import ModuleNode
 from .Errors import CompileError
@@ -32,7 +30,7 @@ class IntroduceBufferAuxiliaryVars(CythonTransform):
     def __call__(self, node):
         assert isinstance(node, ModuleNode)
         self.max_ndim = 0
-        result = super(IntroduceBufferAuxiliaryVars, self).__call__(node)
+        result = super().__call__(node)
         if self.buffers_exists:
             use_bufstruct_declare_code(node.scope)
 
@@ -192,7 +190,7 @@ def analyse_buffer_options(globalpos, env, posargs, dictargs, defaults=None, nee
 # Code generation
 #
 
-class BufferEntry(object):
+class BufferEntry:
     def __init__(self, entry):
         self.entry = entry
         self.type = entry.type

@@ -84,6 +84,9 @@ def from_bytes(s: bytes):
     >>> from_bytes(b"na_n")  # doctest: +ELLIPSIS
     Traceback (most recent call last):
     ValueError: ...na_n...
+    >>> from_bytes(b"_" * 10000)  # doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    ValueError: ...____...
     >>> from_bytes(None)  # doctest: +ELLIPSIS
     Traceback (most recent call last):
     TypeError...
@@ -201,6 +204,8 @@ def from_unicode(s: 'unicode'):
     1.2413112312318938e+47
     >>> from_unicode(u"123E100")
     1.23e+102
+    >>> from_unicode("೬")
+    6.0
     >>> from_unicode(u"123.23\\N{PUNCTUATION SPACE}")
     123.23
     >>> from_unicode(u"\\N{PUNCTUATION SPACE} 123.23 \\N{PUNCTUATION SPACE}")

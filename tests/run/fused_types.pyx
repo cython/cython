@@ -24,12 +24,20 @@ fused_type3 = cython.fused_type(int, double)
 fused_composite = cython.fused_type(fused_type2, fused_type3)
 just_float = cython.fused_type(float)
 
+ctypedef int inttypedef
+ctypedef double doubletypedef
+fused_with_typedef = cython.fused_type(inttypedef, doubletypedef)
+
+ctypedef float const_inttypedef  # misleading name
+fused_misleading_name = cython.fused_type(const_inttypedef, char)
+
+
 def test_pure():
     """
     >>> test_pure()
     10
     """
-    mytype = pure_cython.typedef(pure_cython.fused_type(int, long, complex))
+    mytype = pure_cython.typedef(pure_cython.fused_type(int, complex))
     print(mytype(10))
 
 
@@ -552,6 +560,26 @@ def convert_to_ptr(cython.floating x):
         return handle_float(&x)
     elif cython.floating is double:
         return handle_double(&x)
+
+def constfused_with_typedef(const fused_with_typedef[:] x):
+    """
+    >>> constfused_with_typedef(get_array(8, 'd'))
+    5.0
+    >>> constfused_with_typedef(get_intc_array())
+    5
+    """
+    return x[5]
+
+def constfused_typedef_name_clashes(const fused_with_typedef[:] x, fused_misleading_name[:] y):
+    """
+    This'll deliberately end up with two typedefs that generate the same name in dispatch code
+    (and thus one needs to end up numbered to make it work).
+    It's mainly a compile test and the runtime part is fairly token.
+
+    >>> constfused_typedef_name_clashes(get_intc_array(), get_array(4, 'f'))
+    (5, 5.0)
+    """
+    return x[5], y[5]
 
 cdef double get_double():
     return 1.0
