@@ -705,13 +705,13 @@ You can see them also by typing ```%%cython?`` in IPython or a Jupyter notebook.
 Cython cache
 ============
 
-Cython cache is used to store cythonized ``.c``/``.cpp`` files to avoid running cython compiler on the files which were cythonized before.
+The Cython cache is used to store cythonized ``.c``/``.cpp`` files to avoid running the Cython compiler on the files which were cythonized before.
 
 .. note::
 
-   Only ``.c``/``.cpp`` files are cached. The C compiler is run every time. To avoid executing C compiler ccache needs to be used.
+   Only ``.c``/``.cpp`` files are cached. The C compiler is run every time. To avoid executing C compiler a tool like ccache needs to be used.
 
-Cython cache is disabled by default but can be enabled by the ``cache`` parameter of :func:`cythonize`::
+The Cython cache is disabled by default but can be enabled by the ``cache`` parameter of :func:`cythonize`::
 
     from setuptools import setup, Extension
     from Cython.Build import cythonize
@@ -727,8 +727,8 @@ Cython cache is disabled by default but can be enabled by the ``cache`` paramete
 
 The cached files are searched in the following paths by default in the following order:
 
-1. path specified in ``CYTHON_CACHE_DIR`` environment variable,
-2. ``~/Library/Caches/Cython`` on MacOS and ``XDG_CACHE_HOME/cython`` on posix if ``XDG_CACHE_HOME`` environment variable is defined,
+1. path specified in the ``CYTHON_CACHE_DIR`` environment variable,
+2. ``~/Library/Caches/Cython`` on MacOS and ``XDG_CACHE_HOME/cython`` on posix if the ``XDG_CACHE_HOME`` environment variable is defined,
 3. otherwise ``~/.cython``.
 
 
