@@ -1414,25 +1414,26 @@ class ModuleScope(Scope):
         # returns an entry (for the c-class)
         components = tuple(components)
         try:
-            entry = self._cached_defaults_c_class_entries[components]
+            return self._cached_defaults_c_class_entries[components]
         except KeyError:
-            cname = self.next_id(Naming.defaults_struct_prefix)
-            cname = EncodedString(cname)
-            entry = self._cached_defaults_c_class_entries[components] = self.declare_c_class(
-                cname, pos, defining=True, implementing=True,
-                objstruct_cname=cname)
-            self.check_c_class(entry)
-            entry.type.is_final_type = True
-            scope = entry.type.scope
-            scope.is_internal = True
-            scope.is_defuults_class_scope = True
+            pass
 
-            # zero pad the argument number so they can be sorted
-            num_zeros = math.floor(math.log10(len(components)))
-            format_str = "arg{0:0%dd}" % num_zeros
-            for n, type_ in enumerate(components):
-                scope.declare_var(EncodedString(format_str.format(n)), type_, None,
-                                  is_cdef = True)
+        cname = self.next_id(Naming.defaults_struct_prefix)
+        cname = EncodedString(cname)
+        entry = self._cached_defaults_c_class_entries[components] = self.declare_c_class(
+            cname, pos, defining=True, implementing=True,
+            objstruct_cname=cname)
+        self.check_c_class(entry)
+        entry.type.is_final_type = True
+        scope = entry.type.scope
+        scope.is_internal = True
+        scope.is_defuults_class_scope = True
+
+        # zero pad the argument number so they can be sorted
+        num_zeros = math.floor(math.log10(len(components)))
+        format_str = "arg{0:0%dd}" % num_zeros
+        for n, type_ in enumerate(components):
+            scope.declare_var(EncodedString(format_str.format(n)), type_, None, is_cdef = True)
         return entry
 
     def declare_builtin(self, name, pos):
