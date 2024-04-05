@@ -81,7 +81,7 @@ class FingerprintFlags:
     np_pythran: bool = False
 
     def get_fingerprint(self):
-        return str((self.language, self.py_limited_api, self.np_pythran)).encode("UTF-8")
+        return str((self.language, self.py_limited_api, self.np_pythran))
 
 
 class Cache:
@@ -120,7 +120,7 @@ class Cache:
             # include almost everything here as users might extend Extension
             # with arbitrary (random) attributes that would lead to cache
             # misses.
-            m.update(flags.get_fingerprint())
+            m.update(flags.get_fingerprint().encode("UTF-8"))
             m.update(compilation_options.get_fingerprint().encode("UTF-8"))
             return m.hexdigest()
         except OSError:
