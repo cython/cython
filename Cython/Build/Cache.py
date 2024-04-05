@@ -165,7 +165,7 @@ class Cache:
         else:
             raise ValueError(f"Unsupported cache file extension: {ext}")
 
-    def store_to_cache(self, fingerprint, c_file, compilation_result):
+    def store_to_cache(self, c_file, fingerprint, compilation_result):
         artifacts = list(
             filter(
                 None,

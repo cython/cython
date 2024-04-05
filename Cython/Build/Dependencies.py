@@ -1252,7 +1252,7 @@ def cythonize_one(pyx_file, c_file, fingerprint, cache, quiet, options=None,
         elif os.path.exists(c_file):
             os.remove(c_file)
     elif cache and fingerprint:
-        cache.store_to_cache(fingerprint, c_file, result)
+        cache.store_to_cache(c_file, fingerprint, result)
 
 
 def cythonize_one_helper(m):
