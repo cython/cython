@@ -126,27 +126,20 @@ class Cache:
         except OSError:
             return None
 
-    def fingerprint_file_base(self, cfile, fingerprint):
-        return join_path(self.path, "%s-%s" % (os.path.basename(cfile), fingerprint))
-
-    def gz_fingerprint_file(self, cfile, fingerprint):
-        return self.fingerprint_file_base(cfile, fingerprint) + gzip_ext
-
-    def zip_fingerprint_file(self, cfile, fingerprint):
-        return self.fingerprint_file_base(cfile, fingerprint) + zip_ext
+    def fingerprint_file(self, cfile, fingerprint, ext):
+        return join_path(self.path, "%s-%s" % (os.path.basename(cfile), fingerprint)) + ext
 
     def lookup_cache(self, c_file, fingerprint):
         # Cython-generated c files are highly compressible.
         # (E.g. a compression ratio of about 10 for Sage).
         if not os.path.exists(self.path):
             safe_makedirs(self.path)
-        gz_fingerprint_file = self.gz_fingerprint_file(c_file, fingerprint)
-        zip_fingerprint_file = self.zip_fingerprint_file(c_file, fingerprint)
-        if os.path.exists(gz_fingerprint_file) or os.path.exists(zip_fingerprint_file):
-            if os.path.exists(gz_fingerprint_file):
-                return gz_fingerprint_file
-            else:
-                return zip_fingerprint_file
+        gz_fingerprint_file = self.fingerprint_file(c_file, fingerprint, gzip_ext)
+        if os.path.exists(gz_fingerprint_file):
+            return gz_fingerprint_file
+        zip_fingerprint_file = self.fingerprint_file(c_file, fingerprint, zip_ext)
+        if os.path.exists(zip_fingerprint_file):
+            return zip_fingerprint_file
         return None
 
     def load_from_cache(self, c_file, cached):
@@ -176,12 +169,12 @@ class Cache:
             )
         )
         if len(artifacts) == 1:
-            fingerprint_file = self.gz_fingerprint_file(c_file, fingerprint)
+            fingerprint_file = self.fingerprint_file(c_file, fingerprint, gzip_ext)
             with open(c_file, "rb") as f:
                 with gzip_open(fingerprint_file + ".tmp", "wb") as g:
                     shutil.copyfileobj(f, g)
         else:
-            fingerprint_file = self.zip_fingerprint_file(c_file, fingerprint)
+            fingerprint_file = self.fingerprint_file(c_file, fingerprint, zip_ext)
             with zipfile.ZipFile(
                 fingerprint_file + ".tmp", "w", zipfile_compression_mode
             ) as zip:
