@@ -958,11 +958,11 @@ def cythonize(module_list, exclude=None, nthreads=0, aliases=None, quiet=False, 
 
     deps = create_dependency_tree(ctx, quiet=quiet)
     build_dir = getattr(options, 'build_dir', None)
-    cache_path = None if options.cache is True else options.cache
     if options.cache:
         # cache is enabled when:
-        # * options.cache is True (default path to the cache base dir is used)
-        # * options.cache is path to the cache base dir
+        # * options.cache is True (the default path to the cache base dir is used)
+        # * options.cache is the explicit path to the cache base dir
+        cache_path = None if options.cache is True else options.cache
         cache = Cache(cache_path, getattr(options, 'cache_size', None))
     else:
         cache = None
@@ -1049,7 +1049,7 @@ def cythonize(module_list, exclude=None, nthreads=0, aliases=None, quiet=False, 
                         fingerprint = cache.transitive_fingerprint(
                                 source, deps.all_dependencies(source), options,
                                 FingerprintFlags(
-                                    m.language if m.language else 'c',
+                                    m.language or 'c',
                                     getattr(m, 'py_limited_api', False),
                                     getattr(m, 'np_pythran', False)
                                 )

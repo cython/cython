@@ -163,7 +163,7 @@ class Cache:
                 for artifact in z.namelist():
                     z.extract(artifact, join_path(dirname, artifact))
         else:
-            raise ValueError()
+            raise ValueError(f"Unsupported cache file extension: {ext}")
 
     def store_to_cache(self, fingerprint, c_file, compilation_result):
         artifacts = list(
