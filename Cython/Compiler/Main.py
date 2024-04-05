@@ -573,6 +573,12 @@ class CompilationResult:
         self.extension_file = None
         self.main_source_file = None
 
+    def get_generated_source_files(self):
+        return [
+            source_file for source_file in [self.c_file, self.h_file, self.i_file, self.api_file]
+            if source_file
+        ]
+
 
 class CompilationResultSet(dict):
     """

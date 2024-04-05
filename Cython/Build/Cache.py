@@ -159,15 +159,7 @@ class Cache:
             raise ValueError(f"Unsupported cache file extension: {ext}")
 
     def store_to_cache(self, c_file, fingerprint, compilation_result):
-        artifacts = list(
-            filter(
-                None,
-                [
-                    getattr(compilation_result, attr, None)
-                    for attr in ("c_file", "h_file", "api_file", "i_file")
-                ],
-            )
-        )
+        artifacts = compilation_result.get_generated_source_files()
         if len(artifacts) == 1:
             fingerprint_file = self.fingerprint_file(c_file, fingerprint, gzip_ext)
             with open(c_file, "rb") as f:
