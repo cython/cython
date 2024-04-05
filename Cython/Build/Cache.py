@@ -74,9 +74,10 @@ def get_cython_cache_dir():
     # last fallback: ~/.cython
     return os.path.expanduser(join_path("~", ".cython"))
 
+
 @dataclass
 class FingerprintFlags:
-    language: str = 'c'
+    language: str = "c"
     py_limited_api: bool = False
     np_pythran: bool = False
 
@@ -85,7 +86,6 @@ class FingerprintFlags:
 
 
 class Cache:
-
     def __init__(self, path, cache_size=None):
         if path is None:
             self.path = join_path(get_cython_cache_dir(), "compiler")
@@ -96,11 +96,7 @@ class Cache:
             os.makedirs(self.path)
 
     def transitive_fingerprint(
-        self,
-        filename,
-        dependencies,
-        compilation_options,
-        flags=FingerprintFlags()
+        self, filename, dependencies, compilation_options, flags=FingerprintFlags()
     ):
         r"""
         Return a fingerprint of a cython file that is about to be cythonized.
@@ -127,7 +123,9 @@ class Cache:
             return None
 
     def fingerprint_file(self, cfile, fingerprint, ext):
-        return join_path(self.path, "%s-%s" % (os.path.basename(cfile), fingerprint)) + ext
+        return (
+            join_path(self.path, "%s-%s" % (os.path.basename(cfile), fingerprint)) + ext
+        )
 
     def lookup_cache(self, c_file, fingerprint):
         # Cython-generated c files are highly compressible.
