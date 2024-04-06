@@ -331,12 +331,17 @@ static int ${import_star}(PyObject* m) {
     PyObject *name;
     PyObject *item;
     PyObject *import_obj;
+    Py_ssize_t size;
 
     locals = PyDict_New();              if (!locals) goto bad;
     if (__Pyx_import_all_from(locals, m) < 0) goto bad;
     list = PyDict_Items(locals);        if (!list) goto bad;
 
-    for(i=0; i<PyList_Size(list); i++) {
+    size = __Pyx_PyList_GET_SIZE(list);
+    #if !CYTHON_ASSUME_SAFE_SIZE
+    if (size < 0) goto bad;
+    #endif
+    for(i=0; i<size; i++) {
         import_obj = __Pyx_PyList_GET_ITEM(list, i); if (!import_obj) goto bad;
         name = __Pyx_PyTuple_GET_ITEM(import_obj, 0); if (!name) goto bad;
         item = __Pyx_PyTuple_GET_ITEM(import_obj, 1); if (!item) goto bad;
