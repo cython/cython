@@ -633,14 +633,21 @@ def compile_multiple(sources, options):
                 context = Context.from_options(options)
             if options.cache:
                 from ..Build.Dependencies import create_dependency_tree
-                from ..Build.Cache import Cache
+                from ..Build.Cache import Cache, FingerprintFlags
                 cache = Cache(options.cache)
                 dependencies = create_dependency_tree(context)
                 fingerprint = cache.transitive_fingerprint(
-                        source, dependencies, options, 'c++' if options.cplus else None, np_pythran=options.np_pythran)
-                if cache.lookup_cache(output_filename, fingerprint):
+                        source, dependencies.all_dependencies(source), options,
+                        FingerprintFlags(
+                            'c++' if options.cplus else 'c',
+                            np_pythran=options.np_pythran
+                        )
+                )
+                cached = cache.lookup_cache(output_filename, fingerprint)
+                if cached:
                     if verbose:
                         sys.stderr.write(f'Found compiled {os.path.basename(output_filename)} in cache.\n')
+                    cache.load_from_cache(output_filename, cached)
                     continue
             else:
                 fingerprint = None
@@ -659,9 +666,9 @@ def compile_multiple(sources, options):
                 context = None
 
                 if fingerprint and cache:
-                    cache.store_to_cache(fingerprint, output_filename, result)
+                    cache.store_to_cache(output_filename, fingerprint, result)
             processed.add(source)
-    if cache and cache.enabled:
+    if cache:
         cache.cleanup_cache()
     return results
 
