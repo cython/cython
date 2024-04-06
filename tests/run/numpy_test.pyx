@@ -236,12 +236,12 @@ def inc1_cdouble(np.ndarray[double complex] arr):          arr[1] = (arr[1] + 1)
 def inc1_clongdouble(np.ndarray[long double complex] arr): arr[1] = arr[1] + (1 + 1j)
 
 def inc1_cfloat_struct(np.ndarray[np.cfloat_t] arr):
-    arr[1].real += 1
-    arr[1].imag += 1
+    arr[1].real = arr[1].real + 1
+    arr[1].imag = arr[1].imag + 1
 
 def inc1_cdouble_struct(np.ndarray[np.cdouble_t] arr):
-    arr[1].real += 1
-    arr[1].imag += 1
+    arr[1].real = arr[1].real + 1
+    arr[1].imag = arr[1].imag + 1
 
 def inc1_clongdouble_struct(np.ndarray[np.clongdouble_t] arr):
     cdef long double x
@@ -291,7 +291,7 @@ def test_dtype(dtype, inc1):
     >>> test_dtype('G', inc1_clongdouble_struct)
 
     >>> test_dtype(np.longlong, inc1_longlong_t)
-    >>> test_dtype(np.float_, inc1_float_t)
+    >>> test_dtype(np.float64, inc1_float_t)
     >>> test_dtype(np.double, inc1_double_t)
     >>> test_dtype(np.intp, inc1_intp_t)
     >>> test_dtype(np.uintp, inc1_uintp_t)
@@ -450,7 +450,7 @@ def test_packed_align(np.ndarray[PackedStruct] arr):
     """
     arr[0].a = 22
     arr[0].b = 23
-    return list(arr)
+    return arr.tolist()
 
 
 def test_unpacked_align(np.ndarray[UnpackedStruct] arr):
@@ -476,7 +476,7 @@ def test_unpacked_align(np.ndarray[UnpackedStruct] arr):
     arr[0].a = 22
     arr[0].b = 23
     # return repr(arr).replace('<', '!').replace('>', '!')
-    return list(arr)
+    return arr.tolist()
 
 
 def test_partially_packed_align(np.ndarray[PartiallyPackedStruct] arr):
@@ -909,7 +909,7 @@ def test_copy_buffer(np.ndarray[double, ndim=1] a):
     10
     >>> print(a.dtype)
     float64
-    >>> a[0]
+    >>> float(a[0])
     1.0
     """
     a = a.copy()
@@ -925,24 +925,24 @@ def test_broadcast_comparison(np.ndarray[double, ndim=1] a):
     """
     >>> a = np.ones(10, dtype=np.double)
     >>> a0, obj0, a1, obj1 = test_broadcast_comparison(a)
-    >>> np.all(a0 == (a == 0)) or a0
+    >>> bool(np.all(a0 == (a == 0))) or a0
     True
-    >>> np.all(a1 == (a == 1)) or a1
+    >>> bool(np.all(a1 == (a == 1))) or a1
     True
-    >>> np.all(obj0 == (a == 0)) or obj0
+    >>> bool(np.all(obj0 == (a == 0))) or obj0
     True
-    >>> np.all(obj1 == (a == 1)) or obj1
+    >>> bool(np.all(obj1 == (a == 1))) or obj1
     True
 
     >>> a = np.zeros(10, dtype=np.double)
     >>> a0, obj0, a1, obj1 = test_broadcast_comparison(a)
-    >>> np.all(a0 == (a == 0)) or a0
+    >>> bool(np.all(a0 == (a == 0))) or a0
     True
-    >>> np.all(a1 == (a == 1)) or a1
+    >>> bool(np.all(a1 == (a == 1))) or a1
     True
-    >>> np.all(obj0 == (a == 0)) or obj0
+    >>> bool(np.all(obj0 == (a == 0))) or obj0
     True
-    >>> np.all(obj1 == (a == 1)) or obj1
+    >>> bool(np.all(obj1 == (a == 1))) or obj1
     True
     """
     cdef object obj = a
@@ -955,7 +955,7 @@ def test_c_api_searchsorted(np.ndarray arr, other):
     >>> arr = np.random.randn(10)
     >>> other = np.random.randn(5)
     >>> result, expected = test_c_api_searchsorted(arr, other)
-    >>> (result == expected).all()
+    >>> bool((result == expected).all())
     True
     """
     result = np.PyArray_SearchSorted(arr, other, np.NPY_SEARCHRIGHT, NULL)

@@ -194,7 +194,6 @@ class TreeVisitor:
         return self._visitchildren(parent, attrs, exclude)
 
     @cython.final
-    @cython.locals(idx=cython.Py_ssize_t)
     def _visitchildren(self, parent, attrs, exclude):
         # fast cdef entry point for calls from Cython subclasses
         """
@@ -206,6 +205,8 @@ class TreeVisitor:
         or a list of return values (in the case of multiple children
         in an attribute)).
         """
+        idx: cython.Py_ssize_t
+
         if parent is None: return None
         result = {}
         for attr in parent.child_attrs:

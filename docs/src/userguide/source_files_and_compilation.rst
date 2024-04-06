@@ -129,9 +129,9 @@ would be::
 
 If your build depends directly on Cython in this way,
 then you may also want to inform pip that :mod:`Cython` is required for
-:file:`setup.py` to execute, following `PEP 518
-<https://www.python.org/dev/peps/pep-0518/>`, creating a :file:`pyproject.toml`
-file containing, at least:
+:file:`setup.py` to execute, following
+`PEP 518 <https://www.python.org/dev/peps/pep-0518/>`_,
+creating a :file:`pyproject.toml` file containing, at least:
 
 .. code-block:: ini
 
@@ -700,10 +700,42 @@ You can see them also by typing ```%%cython?`` in IPython or a Jupyter notebook.
 ============================================  =======================================================================================================================================
 
 
+.. _cython-cache:
+
+Cython cache
+============
+
+The Cython cache is used to store cythonized ``.c``/``.cpp`` files to avoid running the Cython compiler on the files which were cythonized before.
+
+.. note::
+
+   Only ``.c``/``.cpp`` files are cached. The C compiler is run every time. To avoid executing C compiler a tool like ccache needs to be used.
+
+The Cython cache is disabled by default but can be enabled by the ``cache`` parameter of :func:`cythonize`::
+
+    from setuptools import setup, Extension
+    from Cython.Build import cythonize
+
+    extensions = [
+        Extension("*", ["lib.pyx"]),
+    ]
+
+    setup(
+        name="hello",
+        ext_modules=cythonize(extensions, cache=True)
+    )
+
+The cached files are searched in the following paths by default in the following order:
+
+1. path specified in the ``CYTHON_CACHE_DIR`` environment variable,
+2. ``~/Library/Caches/Cython`` on MacOS and ``XDG_CACHE_HOME/cython`` on posix if the ``XDG_CACHE_HOME`` environment variable is defined,
+3. otherwise ``~/.cython``.
+
+
 .. _compiler_options:
 
 Compiler options
-----------------
+================
 
 Compiler options can be set in the :file:`setup.py`, before calling :func:`cythonize`,
 like this::

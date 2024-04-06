@@ -1092,6 +1092,23 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 code.putln("  #pragma pack(pop)")
                 code.putln("#endif")
 
+    def generate_cpp_constructor_code(self, arg_decls, arg_names, is_implementing, py_attrs, constructor, type, code):
+        if is_implementing:
+            code.putln("%s(%s) {" % (type.cname, ", ".join(arg_decls)))
+            needs_gil = py_attrs or (constructor and not constructor.type.nogil)
+            if needs_gil:
+                code.put_ensure_gil()
+            if py_attrs:
+                for attr in py_attrs:
+                    code.put_init_var_to_py_none(attr, nanny=False)
+            if constructor:
+                code.putln("%s(%s);" % (constructor.cname, ", ".join(arg_names)))
+            if needs_gil:
+                code.put_release_ensured_gil()
+            code.putln("}")
+        else:
+            code.putln("%s(%s);" % (type.cname, ", ".join(arg_decls)))
+
     def generate_cpp_class_definition(self, entry, code):
         code.mark_pos(entry.pos)
         type = entry.type
@@ -1117,7 +1134,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 if attr.type.is_cfunction and attr.type.is_static_method:
                     code.put("static ")
                 elif attr.name == "<init>":
-                    constructor = attr
+                    constructor = scope.lookup_here("<init>")
                 elif attr.name == "<del>":
                     destructor = attr
                 elif attr.type.is_cfunction:
@@ -1125,35 +1142,28 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                     has_virtual_methods = True
                 code.putln("%s;" % attr.type.declaration_code(attr.cname))
             is_implementing = 'init_module' in code.globalstate.parts
+
             if constructor or py_attrs:
                 if constructor:
+                    for constructor_alternative in constructor.all_alternatives():
+                        arg_decls = []
+                        arg_names = []
+                        for arg in constructor_alternative.type.original_args[
+                                :len(constructor_alternative.type.args)-constructor_alternative.type.optional_arg_count]:
+                            arg_decls.append(arg.declaration_code())
+                            arg_names.append(arg.cname)
+                        if constructor_alternative.type.optional_arg_count:
+                            arg_decls.append(constructor_alternative.type.op_arg_struct.declaration_code(Naming.optional_args_cname))
+                            arg_names.append(Naming.optional_args_cname)
+                        if not arg_decls:
+                            default_constructor = True
+                            arg_decls = []
+                        self.generate_cpp_constructor_code(arg_decls, arg_names, is_implementing, py_attrs, constructor_alternative, type, code)
+                else:
                     arg_decls = []
                     arg_names = []
-                    for arg in constructor.type.original_args[
-                            :len(constructor.type.args)-constructor.type.optional_arg_count]:
-                        arg_decls.append(arg.declaration_code())
-                        arg_names.append(arg.cname)
-                    if constructor.type.optional_arg_count:
-                        arg_decls.append(constructor.type.op_arg_struct.declaration_code(Naming.optional_args_cname))
-                        arg_names.append(Naming.optional_args_cname)
-                    if not arg_decls:
-                        arg_decls = ["void"]
-                else:
-                    arg_decls = ["void"]
-                    arg_names = []
-                if is_implementing:
-                    code.putln("%s(%s) {" % (type.cname, ", ".join(arg_decls)))
-                    if py_attrs:
-                        code.put_ensure_gil()
-                        for attr in py_attrs:
-                            code.put_init_var_to_py_none(attr, nanny=False)
-                    if constructor:
-                        code.putln("%s(%s);" % (constructor.cname, ", ".join(arg_names)))
-                    if py_attrs:
-                        code.put_release_ensured_gil()
-                    code.putln("}")
-                else:
-                    code.putln("%s(%s);" % (type.cname, ", ".join(arg_decls)))
+                    self.generate_cpp_constructor_code(arg_decls, arg_names, is_implementing, py_attrs, constructor, type, code)
+
             if destructor or py_attrs or has_virtual_methods:
                 if has_virtual_methods:
                     code.put("virtual ")
@@ -1493,7 +1503,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                         self.generate_descr_get_function(scope, code)
                     if scope.defines_any_special(["__set__", "__delete__"]):
                         self.generate_descr_set_function(scope, code)
-                    if not scope.is_closure_class_scope and scope.defines_any(["__dict__"]):
+                    if not (scope.is_closure_class_scope or scope.is_defaults_class_scope) and scope.defines_any(["__dict__"]):
                         self.generate_dict_getter_function(scope, code)
 
                     if scope.defines_any_special(TypeSlots.richcmp_special_methods):
@@ -1731,11 +1741,11 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         needs_gc = scope.needs_gc()
         needs_trashcan = scope.needs_trashcan()
 
-        weakref_slot = scope.lookup_here("__weakref__") if not scope.is_closure_class_scope else None
+        weakref_slot = scope.lookup_here("__weakref__") if not (scope.is_closure_class_scope or scope.is_defaults_class_scope) else None
         if weakref_slot not in scope.var_entries:
             weakref_slot = None
 
-        dict_slot = scope.lookup_here("__dict__") if not scope.is_closure_class_scope else None
+        dict_slot = scope.lookup_here("__dict__") if not (scope.is_closure_class_scope or scope.is_defaults_class_scope) else None
         if dict_slot not in scope.var_entries:
             dict_slot = None
 
@@ -2791,7 +2801,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         env.use_utility_code(UtilityCode.load_cached("CStringEquals", "StringTools.c"))
         code.putln()
         code.enter_cfunc_scope()  # as we need labels
-        code.putln("static int %s(PyObject *o, PyObject* py_name, char *name) {" % Naming.import_star_set)
+        code.putln("static int %s(PyObject *o, PyObject* py_name, const char *name) {" % Naming.import_star_set)
 
         code.putln("static const char* internal_type_names[] = {")
         for name, entry in sorted(env.entries.items()):
@@ -3933,7 +3943,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 if entry.func_cname]
             if c_method_entries:
                 for meth_entry in c_method_entries:
-                    cast = meth_entry.type.signature_cast_string()
+                    vtable_type = meth_entry.vtable_type or meth_entry.type
+                    cast = vtable_type.signature_cast_string()
                     code.putln(
                         "%s.%s = %s%s;" % (
                             type.vtable_cname,

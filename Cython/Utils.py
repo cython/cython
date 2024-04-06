@@ -6,10 +6,9 @@ Cython -- Things that don't belong anywhere else in particular
 import cython
 
 cython.declare(
-    basestring=object,
     os=object, sys=object, re=object, io=object, codecs=object, glob=object, shutil=object, tempfile=object,
-    cython_version=object,
-    _function_caches=list, _parse_file_version=object, _match_file_encoding=object,
+    wraps=object, cython_version=object,
+    _cache_function=object, _function_caches=list, _parse_file_version=object, _match_file_encoding=object,
 )
 
 import os
@@ -59,28 +58,27 @@ def try_finally_contextmanager(gen_func):
     return make_gen
 
 
+try:
+    from functools import cache as _cache_function
+except ImportError:
+    from functools import lru_cache
+    _cache_function = lru_cache(maxsize=None)
+
+
 _function_caches = []
 
 
 def clear_function_caches():
     for cache in _function_caches:
-        cache.clear()
+        cache.cache_clear()
 
 
 def cached_function(f):
-    cache = {}
-    _function_caches.append(cache)
-    uncomputed = object()
+    cf = _cache_function(f)
+    _function_caches.append(cf)
+    cf.uncached = f  # needed by coverage plugin
+    return cf
 
-    @wraps(f)
-    def wrapper(*args):
-        res = cache.get(args, uncomputed)
-        if res is uncomputed:
-            res = cache[args] = f(*args)
-        return res
-
-    wrapper.uncached = f
-    return wrapper
 
 
 def _find_cache_attributes(obj):

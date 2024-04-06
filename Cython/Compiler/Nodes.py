@@ -704,6 +704,19 @@ class CFuncDeclaratorNode(CDeclaratorNode):
 
         exc_val = None
         exc_check = 0
+
+        if (env.directives["legacy_implicit_noexcept"]
+                and not return_type.is_pyobject
+                and not self.has_explicit_exc_clause
+                and self.exception_check
+                and visibility != 'extern'):
+            # implicit noexcept, with a warning
+            self.exception_check = False
+            warning(self.pos,
+                    "Implicit noexcept declaration is deprecated."
+                    " Function declaration should contain 'noexcept' keyword.",
+                    level=2)
+
         if self.exception_check == '+':
             env.add_include_file('ios')         # for std::ios_base::failure
             env.add_include_file('new')         # for std::bad_alloc
@@ -877,6 +890,7 @@ class CArgDeclNode(Node):
     #
     # name_cstring                         property that converts the name to a cstring taking care of unicode
     #                                      and quoting it
+    # defaults_class_key  None or string  Name used to lookup this arg in the defaults class
 
     child_attrs = ["base_type", "declarator", "default", "annotation"]
     outer_attrs = ["default", "annotation"]
@@ -894,6 +908,7 @@ class CArgDeclNode(Node):
     default_value = None
     annotation = None
     is_dynamic = 0
+    defaults_class_key = None
     type_from_annotation = False
 
     def declared_name(self):
@@ -4286,7 +4301,7 @@ class DefNodeWrapper(FuncDefNode):
             max_args, ','.join('0'*max_args)))
 
         if self.target.defaults_struct:
-            code.putln('%s *%s = __Pyx_CyFunction_Defaults(%s, %s);' % (
+            code.putln('struct %s *%s = __Pyx_CyFunction_Defaults(struct %s, %s);' % (
                 self.target.defaults_struct, Naming.dynamic_args_cname,
                 self.target.defaults_struct, Naming.self_cname))
 

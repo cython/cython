@@ -4,9 +4,9 @@ import collections
 import os
 import re, sys, time
 from glob import iglob
-from io import open as io_open
+from io import StringIO
 from os.path import relpath as _relpath
-from .Cache import Cache
+from .Cache import Cache, FingerprintFlags
 
 from collections.abc import Iterable
 
@@ -175,27 +175,13 @@ def _legacy_strtobool(val):
         raise ValueError("invalid truth value %r" % (val,))
 
 
-@cython.locals(start=cython.Py_ssize_t, end=cython.Py_ssize_t)
-def line_iter(source):
-    if isinstance(source, str):
-        start = 0
-        while True:
-            end = source.find('\n', start)
-            if end == -1:
-                yield source[start:]
-                return
-            yield source[start:end]
-            start = end+1
-    else:
-        yield from source
-
-
 class DistutilsInfo:
 
     def __init__(self, source=None, exn=None):
         self.values = {}
         if source is not None:
-            for line in line_iter(source):
+            source_lines = StringIO(source) if isinstance(source, str) else source
+            for line in source_lines:
                 line = line.lstrip()
                 if not line:
                     continue
@@ -935,6 +921,9 @@ def cythonize(module_list, exclude=None, nthreads=0, aliases=None, quiet=False, 
                                 See :ref:`compiler-directives`.
 
     :param depfile: produce depfiles for the sources if True.
+    :param cache: If ``True`` the cache enabled with default path. If the value is a path to a directory,
+                  then the directory is used to cache generated ``.c``/``.cpp`` files. By default cache is disabled.
+                  See :ref:`cython-cache`.
     """
     if exclude is None:
         exclude = []
@@ -972,7 +961,14 @@ def cythonize(module_list, exclude=None, nthreads=0, aliases=None, quiet=False, 
 
     deps = create_dependency_tree(ctx, quiet=quiet)
     build_dir = getattr(options, 'build_dir', None)
-    cache = Cache(options.cache, getattr(options, 'cache_size', None))
+    if options.cache:
+        # cache is enabled when:
+        # * options.cache is True (the default path to the cache base dir is used)
+        # * options.cache is the explicit path to the cache base dir
+        cache_path = None if options.cache is True else options.cache
+        cache = Cache(cache_path, getattr(options, 'cache_size', None))
+    else:
+        cache = None
 
     def copy_to_build_dir(filepath, root=os.getcwd()):
         filepath_abs = os.path.abspath(filepath)
@@ -1052,9 +1048,14 @@ def cythonize(module_list, exclude=None, nthreads=0, aliases=None, quiet=False, 
                                 Utils.decode_filename(source),
                                 Utils.decode_filename(dep),
                             ))
-                    if not force and cache.enabled:
+                    if not force and cache:
                         fingerprint = cache.transitive_fingerprint(
-                                source, deps, options, m.language, getattr(m, 'py_limited_api', False), getattr(m, 'np_pythran', False)
+                                source, deps.all_dependencies(source), options,
+                                FingerprintFlags(
+                                    m.language or 'c',
+                                    getattr(m, 'py_limited_api', False),
+                                    getattr(m, 'np_pythran', False)
+                                )
                         )
                     else:
                         fingerprint = None
@@ -1111,7 +1112,7 @@ def cythonize(module_list, exclude=None, nthreads=0, aliases=None, quiet=False, 
             if not os.path.exists(c_file):
                 failed_modules.update(modules)
             elif os.path.getsize(c_file) < 200:
-                f = io_open(c_file, 'r', encoding='iso8859-1')
+                f = open(c_file, 'r', encoding='iso8859-1')
                 try:
                     if f.read(len('#error ')) == '#error ':
                         # dead compilation result
@@ -1124,7 +1125,7 @@ def cythonize(module_list, exclude=None, nthreads=0, aliases=None, quiet=False, 
             print("Failed compilations: %s" % ', '.join(sorted([
                 module.name for module in failed_modules])))
 
-    if cache.enabled:
+    if cache:
         cache.cleanup_cache()
 
     # cythonize() is often followed by the (non-Python-buffered)
@@ -1209,10 +1210,12 @@ def cythonize_one(pyx_file, c_file, fingerprint, cache, quiet, options=None,
     from ..Compiler.Main import compile_single, default_options
     from ..Compiler.Errors import CompileError, PyrexError
 
-    if fingerprint:
-        if cache.lookup_cache(c_file, fingerprint):
+    if cache and fingerprint:
+        cached = cache.lookup_cache(c_file, fingerprint)
+        if cached:
             if not quiet:
                 print("%sFound compiled %s in cache" % (progress, pyx_file))
+            cache.load_from_cache(c_file, cached)
             return
     if not quiet:
         print("%sCythonizing %s" % (progress, Utils.decode_filename(pyx_file)))
@@ -1251,8 +1254,8 @@ def cythonize_one(pyx_file, c_file, fingerprint, cache, quiet, options=None,
             raise CompileError(None, pyx_file)
         elif os.path.exists(c_file):
             os.remove(c_file)
-    elif fingerprint:
-        cache.store_to_cache(fingerprint, c_file, result)
+    elif cache and fingerprint:
+        cache.store_to_cache(c_file, fingerprint, result)
 
 
 def cythonize_one_helper(m):
