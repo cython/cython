@@ -4058,6 +4058,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         defcode.putln('}')  # end of switch
 
         defcode.putln('__Pyx_XGIVEREF(out);')
+        for cname, type in defcode.funcstate.all_managed_temps():
+            defcode.put_xdecref(cname, type)
         defcode.put_finish_refcount_context()
         defcode.putln("return out;")
         defcode.putln("}")

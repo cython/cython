@@ -10219,11 +10219,6 @@ class PyCFunctionNode(ExprNode, ModuleNameMixin):
                 clone.defaults_kwdict.pos, name=defaults_kwdict_cname,
                 entry=entry, is_temp=False
             )
-        # annotations are surprisingly difficult to regenerate and therefore for the moment
-        # they are dropped from the recreated function
-        # TODO: fix this - it probably involves deep-copying the annotations_dict, and then
-        # doing through all its subexprs resolving result_code from temporary variables
-        #clone.annotations_dict = None
         return clone
 
 
