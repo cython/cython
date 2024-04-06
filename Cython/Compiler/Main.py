@@ -563,15 +563,14 @@ class CompilationResult:
     compilation_source CompilationSource
     """
 
-    def __init__(self):
-        self.c_file = None
-        self.h_file = None
-        self.i_file = None
-        self.api_file = None
-        self.listing_file = None
-        self.object_file = None
-        self.extension_file = None
-        self.main_source_file = None
+    c_file = None
+    h_file = None
+    i_file = None
+    api_file = None
+    listing_file = None
+    object_file = None
+    extension_file = None
+    main_source_file = None
 
     def get_generated_source_files(self):
         return [
