@@ -1,0 +1,28 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "Cython-shadow"
+version = "0.0.1"
+authors = [
+  { name="Robert Bradshaw, Stefan Behnel, David Woods, Greg Ewing, et al.", email="cython-devel@python.org" },
+]
+description = "Standalone pure-Python-mode imports for Cython"
+readme = "README.md"
+requires-python = ">=3.7"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: Apache Software License",
+    "Operating System :: OS Independent",
+]
+
+[project.urls]
+Homepage = "https://cython.org/"
+Issues = "https://github.com/cython/cython/issues"
+
+#[tool.setuptools.packages.find]
+#include = ["Cython", "cython.py"]
+[tool.setuptools]
+packages = ["Cython"]
+py-modules = ["cython"]
