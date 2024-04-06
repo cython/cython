@@ -2929,29 +2929,6 @@ def p_buffer_or_template(s: PyrexScanner, base_type_node, templates):
 
 
 @cython.cfunc
-def p_bracketed_base_type(s: PyrexScanner, base_type_node, nonempty: cython.bint, empty: cython.bint):
-    # s.sy == '['
-    if empty and not nonempty:
-        # sizeof-like thing.  Only anonymous C arrays allowed (int[SIZE]).
-        return base_type_node
-    elif not empty and nonempty:
-        # declaration of either memoryview slice or buffer.
-        if is_memoryviewslice_access(s):
-            return p_memoryviewslice_access(s, base_type_node)
-        else:
-            return p_buffer_or_template(s, base_type_node, None)
-            # return p_buffer_access(s, base_type_node)
-    elif not empty and not nonempty:
-        # only anonymous C arrays and memoryview slice arrays here.  We
-        # disallow buffer declarations for now, due to ambiguity with anonymous
-        # C arrays.
-        if is_memoryviewslice_access(s):
-            return p_memoryviewslice_access(s, base_type_node)
-        else:
-            return base_type_node
-
-
-@cython.cfunc
 def is_memoryviewslice_access(s: PyrexScanner) -> cython.bint:
     # s.sy == '['
     # a memoryview slice declaration is distinguishable from a buffer access
