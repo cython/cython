@@ -8,7 +8,7 @@
 import cython
 cython.declare(Nodes=object, ExprNodes=object, EncodedString=object,
                bytes_literal=object, StringEncoding=object,
-               FileSourceDescriptor=object, lookup_unicodechar=object, unicode_category=object,
+               FileSourceDescriptor=object, lookup_unicodechar=object,
                Future=object, Options=object, error=object, warning=object,
                Builtin=object, ModuleNode=object, Utils=object, _unicode=object, _bytes=object,
                re=object, _parse_escape_sequences=object, _parse_escape_sequences_raw=object,
@@ -17,7 +17,7 @@ cython.declare(Nodes=object, ExprNodes=object, EncodedString=object,
 
 from io import StringIO
 import re
-from unicodedata import lookup as lookup_unicodechar, category as unicode_category
+from unicodedata import lookup as lookup_unicodechar
 from functools import partial, reduce
 
 from .Scanning import PyrexScanner, FileSourceDescriptor, tentatively_scan
