@@ -3554,24 +3554,11 @@ class CreateClosureClasses(CythonTransform):
         instead of global def functions
         """
         global_scope = node.local_scope.global_scope()
-        cclass_scope.implemented = True  # necessary to generate pickle functions
-        cclass_scope.needs_pickleable_closure_constructor = True
-        class_node = Nodes.CClassDefNode(
-            node.pos,
-            visibility="private",
-            module_name=None,
-            class_name=cclass_scope.name,
-            bases=ExprNodes.TupleNode(node.pos, args=[]),
-            scope=cclass_scope,
-            entry=cclass_entry,
-            body=Nodes.StatListNode(node.pos, stats=[]), type_init_args=None)
-        # the class is already declared - we don't want to do it again
-        class_node.analyse_declarations = lambda env: cclass_entry
-        # crucially this gets the various auto_pickle options
-        class_node.directives = Options.copy_inherited_directives(
-            node.local_scope.directives,
-            binding=False,  # generates less code!
+
+        class_node = Nodes.CClassDefNode.generate_closure_class_for_pickling(
+            node.pos, cclass_scope, cclass_entry, node.local_scope.directives
         )
+        
         body = Nodes.StatListNode(node.pos, stats=[class_node])
         from .ModuleNode import ModuleNode
         mod = ModuleNode(node.pos, full_module_name="<cclass pickle>",
