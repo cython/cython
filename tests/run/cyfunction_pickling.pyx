@@ -112,8 +112,42 @@ def defaults_supported():
     return f, g
 
 def class_in_func(a):
-    # tests are in module docstring to skip them on Py2
-    # (because instancemethod objects simply aren't pickleable there)
+    """
+    This test case is a little odd - the class itself isn't pickleable so it's
+    of very little practical use, but worth testing the assumptions made
+    >>> C = class_in_func("hello")
+    >>> cinst = C()
+    >>> C_f_reloaded = pickle.loads(pickle.dumps(C.f))
+    >>> C_f_reloaded([])  # can be called with a different "self"
+    []
+
+    >>> pickle.dumps(cinst.f)  # doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    ...
+    AttributeError: Can't pickle local object ...
+
+    >>> C_f_closure_reloaded = pickle.loads(pickle.dumps(C.f_with_closure))
+    >>> C_f_closure_reloaded([])
+    [] hello
+
+    >>> pickle.dumps(cinst.f_with_closure)  # doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    ...
+    AttributeError: Can't pickle local object ...
+
+    >>> C_sm_reloaded = pickle.loads(pickle.dumps(C.sm))
+    >>> C_sm_reloaded()
+    C.sm
+
+    >>> C_sm_closure_reloaded = pickle.loads(pickle.dumps(C.sm_with_closure))
+    >>> C_sm_closure_reloaded()
+    C.sm_with_closure hello
+
+    >>> pickle.dumps(C.uses_super)  # doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    ...
+    AttributeError: ... Cannot currently pickle CyFunctions with class cells ...
+"""
     class C(object):
         # C().f is not pickleable because a C instance isn't
         # C.f is pickleable but not hugely useful without the class
@@ -138,46 +172,6 @@ def class_in_func(a):
         def uses_super(self):
             return super().some_func()
     return C
-
-if sys.version_info < (3, 5):
-    __doc__ = ""
-else:
-    __doc__ = """
-    This test case is a little odd - the class itself isn't pickleable so it's
-    of very little practical use, but worth testing the assumptions made
-    >>> C = class_in_func("hello")
-    >>> cinst = C()
-    >>> C_f_reloaded = pickle.loads(pickle.dumps(C.f))
-    >>> C_f_reloaded([])  # can be called with a different "self"
-    []
-
-    >>> pickle.dumps(cinst.f)  # doctest: +ELLIPSIS
-    Traceback (most recent call last):
-        ...
-    AttributeError: Can't pickle local object ...
-
-    >>> C_f_closure_reloaded = pickle.loads(pickle.dumps(C.f_with_closure))
-    >>> C_f_closure_reloaded([])
-    [] hello
-
-    >>> pickle.dumps(cinst.f_with_closure)  # doctest: +ELLIPSIS
-    Traceback (most recent call last):
-        ...
-    AttributeError: Can't pickle local object ...
-
-    >>> C_sm_reloaded = pickle.loads(pickle.dumps(C.sm))
-    >>> C_sm_reloaded()
-    C.sm
-
-    >>> C_sm_closure_reloaded = pickle.loads(pickle.dumps(C.sm_with_closure))
-    >>> C_sm_closure_reloaded()
-    C.sm_with_closure hello
-
-    >>> pickle.dumps(C.uses_super)  # doctest: +ELLIPSIS
-    Traceback (most recent call last):
-        ...
-    AttributeError: ... Cannot currently pickle CyFunctions with class cells ...
-    """
 
 def test_lambda(float a, use_closure):
     """
@@ -245,20 +239,12 @@ def global_fused(cython.floating x):
     return x
 
 class ClassFused:
-    __doc__ = """
-    Currently we can't pickle a bound function - just test the error works
-    >>> inst_f = ClassFused().f
-    >>> pickle.dumps(inst_f)
-    Traceback (most recent call last):
-        ...
-    AttributeError: Cannot yet pickle bound FusedFunction
-    """ + ("" if sys.version_info <= (3, 5) else
     """
     The unbound function works through the normal boring global name lookup
     >>> unbound_f_reloaded = pickle.loads(pickle.dumps(ClassFused.f))
     >>> unbound_f_reloaded(ClassFused(), 2.)
     2.0
-    """)  # I don't know why this fails on Py2, but it isn't too important
+    """
     def f(self, cython.floating x):
         return x
 
@@ -272,11 +258,11 @@ class ClassFused:
 #        return x
 #    return inner
 
-__doc__ += """
+__doc__ = """
 
 Abuse direct access to the unpickling function just to test error handling
 >>> __pyx_unpickle_cyfunction(b"Not a valid name!", None, None, None)  # doctest: +ELLIPSIS
 Traceback (most recent call last):
     ...
-{0}UnpicklingError: ...
-""".format("" if sys.version_info[0] == 2 else "_pickle.")
+_pickle.UnpicklingError: ...
+"""
