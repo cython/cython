@@ -171,7 +171,6 @@ def compile_cython_modules(profile=False, coverage=False, compile_minimal=False,
         binding=False,
         always_allow_keywords=False,
         autotestdict=False,
-        auto_pickle=False,
     )
     if profile:
         get_directive_defaults()['profile'] = True
