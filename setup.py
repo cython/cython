@@ -53,7 +53,7 @@ setup_args['package_data'] = {
     'Cython.Compiler' : ['*.pxd'],
     'Cython.Runtime'  : ['*.pyx', '*.pxd'],
     'Cython.Utility'  : ['*.pyx', '*.pxd', '*.c', '*.h', '*.cpp'],
-    'Cython'          : [ p[7:] for p in pxd_include_patterns ],
+    'Cython'          : [ p[7:] for p in pxd_include_patterns ] + ['py.typed', '__init__.pyi', 'Shadow.pyi'],
     'Cython.Debugger.Tests': ['codefile', 'cfuncs.c'],
 }
 
@@ -166,7 +166,8 @@ def compile_cython_modules(profile=False, coverage=False, compile_minimal=False,
     from Cython.Distutils.build_ext import build_ext
     from Cython.Compiler.Options import get_directive_defaults
     get_directive_defaults().update(
-        language_level=2,
+        language_level=3,
+        auto_pickle=False,
         binding=False,
         always_allow_keywords=False,
         autotestdict=False,
@@ -247,7 +248,7 @@ def run_build():
         name='Cython',
         version=version,
         url='https://cython.org/',
-        author='Robert Bradshaw, Stefan Behnel, Dag Seljebotn, Greg Ewing, et al.',
+        author='Robert Bradshaw, Stefan Behnel, David Woods, Greg Ewing, et al.',
         author_email='cython-devel@python.org',
         description="The Cython compiler for writing C extensions in the Python language.",
         long_description=textwrap.dedent("""\
@@ -265,12 +266,17 @@ def run_build():
         C/C++ libraries, and for fast C modules that speed up the execution of
         Python code.
 
+        The newest Cython release can always be downloaded from https://cython.org/.
+        Unpack the tarball or zip file, enter the directory, and then run::
+
+            pip install .
+
         Note that for one-time builds, e.g. for CI/testing, on platforms that are not
         covered by one of the wheel packages provided on PyPI *and* the pure Python wheel
         that we provide is not used, it is substantially faster than a full source build
         to install an uncompiled (slower) version of Cython with::
 
-            pip install Cython --install-option="--no-cython-compile"
+            NO_CYTHON_COMPILE=true pip install .
 
         .. _Pyrex: https://www.cosc.canterbury.ac.nz/greg.ewing/python/Pyrex/
         """),
@@ -294,7 +300,8 @@ def run_build():
             "Programming Language :: Cython",
             "Topic :: Software Development :: Code Generators",
             "Topic :: Software Development :: Compilers",
-            "Topic :: Software Development :: Libraries :: Python Modules"
+            "Topic :: Software Development :: Libraries :: Python Modules",
+            "Typing :: Typed"
         ],
         project_urls={
             "Documentation": "https://cython.readthedocs.io/",

@@ -407,6 +407,16 @@ def uchar_cast_to_float(Py_UCS4 uchar):
     return <double>uchar, <double>float(ustr_object[0]), <double>float(ustr_str[0]), <double>float(ustr_unicode[0]), <double>float(uchar)
 
 
+def const_str_index(int n):
+    """
+    >>> const_str_index(0)
+    '0'
+    >>> const_str_index(12)
+    '1'
+    """
+    return str(n)[0]
+
+
 _WARNINGS = """
 374:16: Item lookup of unicode character codes now always converts to a Unicode string. Use an explicit C integer cast to get back the previous integer lookup behaviour.
 """

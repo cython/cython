@@ -49,15 +49,21 @@ skip_tests = frozenset(
         ("TestKeywordArgs", "test_KW_ONLY_twice"),
         ("TestKeywordArgs", "test_defaults"),
         # uses local variable in class definition
+            # Also: difficulty lining up correct repr string when converting tests
         ("TestCase", "test_default_factory"),
+            # Also: Mock unassignable to list - legitimate for Cython to raise an error
         ("TestCase", "test_default_factory_with_no_init"),
+            # Also: attributes not available on class itself, only instances
         ("TestCase", "test_field_default"),
         ("TestCase", "test_function_annotations"),
         ("TestDescriptors", "test_lookup_on_instance"),
+            # Also: Mock unassignable to int - legitimate for Cython to raise an error
         ("TestCase", "test_default_factory_not_called_if_value_given"),
+            # Also: cdef classes never don't have the attribute
         ("TestCase", "test_class_attrs"),
         ("TestCase", "test_hash_field_rules"),
         ("TestStringAnnotations",),  # almost all the texts here use local variables
+        ("TestMatchArgs", "test_explicit_match_args"),
         # Currently unsupported
         # =====================
         (
@@ -68,7 +74,6 @@ skip_tests = frozenset(
         ("TestCase", "test_missing_default"),  # MISSING
         ("TestCase", "test_missing_repr"),  # MISSING
         ("TestSlots",),  # __slots__ isn't understood
-        ("TestMatchArgs",),
         ("TestKeywordArgs", "test_field_marked_as_kwonly"),
         ("TestKeywordArgs", "test_match_args"),
         ("TestKeywordArgs", "test_KW_ONLY"),
@@ -79,6 +84,7 @@ skip_tests = frozenset(
             "test_class_var_frozen",
         ),  # __annotations__ not present on cdef classes https://github.com/cython/cython/issues/4519
         ("TestCase", "test_dont_include_other_annotations"),  # __annotations__
+        ("TestCase", "test_class_marker"),  # __annotations__
         ("TestDocString",),  # don't think cython dataclasses currently set __doc__
         # either cython.dataclasses.field or cython.dataclasses.dataclass called directly as functions
         # (will probably never be supported)
@@ -149,8 +155,6 @@ skip_tests = frozenset(
             "TestCase",
             "test_dataclasses_qualnames",
         ),  # doesn't define __setattr__ and just relies on Cython to enforce readonly properties
-        ("TestCase", "test_compare_subclasses"),  # wrong comparison
-        ("TestCase", "test_simple_compare"),  # wrong comparison
         (
             "TestCase",
             "test_field_named_self",
@@ -164,8 +168,6 @@ skip_tests = frozenset(
         ("TestReplace", "test_initvar_with_default_value"),  # needs investigating
         # Maybe bugs?
         # ==========
-        # non-default argument 'z' follows default argument in dataclass __init__ - this message looks right to me!
-        ("TestCase", "test_class_marker"),
         # cython.dataclasses.field parameter 'metadata' must be a literal value - possibly not something we can support?
         ("TestCase", "test_field_metadata_custom_mapping"),
         (

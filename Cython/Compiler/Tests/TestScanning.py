@@ -1,5 +1,3 @@
-from __future__ import unicode_literals
-
 import unittest
 from io import StringIO
 import string
@@ -36,10 +34,10 @@ class TestScanning(unittest.TestCase):
         scanner.next()
         self.assertEqual(scanner.sy, "IDENT")
         self.assertEqual(scanner.systring, "a1")
-        a1pos = scanner.position()
+        a1pos = scanner.last_token_position_tuple
         self.assertEqual(a1pos[1:], (1, 3))
         a2peek = scanner.peek()  # shouldn't mess up the position
-        self.assertEqual(a1pos, scanner.position())
+        self.assertEqual(a1pos, scanner.last_token_position_tuple)
         scanner.next()
         self.assertEqual(a2peek, (scanner.sy, scanner.systring))
 
@@ -55,7 +53,7 @@ class TestScanning(unittest.TestCase):
         while scanner.sy != "NEWLINE":
             line_sy.append(scanner.sy)
             line_systring.append(scanner.systring)
-            line_pos.append(scanner.position())
+            line_pos.append(scanner.last_token_position_tuple)
             scanner.next()
 
         for sy, systring, pos in zip(
@@ -67,7 +65,7 @@ class TestScanning(unittest.TestCase):
         while scanner.sy != "NEWLINE":
             self.assertEqual(scanner.sy, line_sy[n])
             self.assertEqual(scanner.systring, line_systring[n])
-            self.assertEqual(scanner.position(), line_pos[n])
+            self.assertEqual(scanner.last_token_position_tuple, line_pos[n])
             scanner.next()
             n += 1
 
@@ -82,7 +80,7 @@ class TestScanning(unittest.TestCase):
 
         scanner.next()
         self.assertEqual(scanner.systring, "b0")
-        pos = scanner.position()
+        pos = scanner.last_token_position_tuple
         with Scanning.tentatively_scan(scanner) as errors:
             while scanner.sy != "NEWLINE":
                 scanner.next()
@@ -91,7 +89,7 @@ class TestScanning(unittest.TestCase):
                     break
         self.assertTrue(errors)
         self.assertEqual(scanner.systring, "b0")  # state has been restored
-        self.assertEqual(scanner.position(), pos)
+        self.assertEqual(scanner.last_token_position_tuple, pos)
         scanner.next()
         self.assertEqual(scanner.systring, "b1")  # and we can keep going again
         scanner.next()
@@ -105,11 +103,11 @@ class TestScanning(unittest.TestCase):
 
         # test a few combinations of nested scanning
         sy1, systring1 = scanner.sy, scanner.systring
-        pos1 = scanner.position()
+        pos1 = scanner.last_token_position_tuple
         with Scanning.tentatively_scan(scanner):
             scanner.next()
             sy2, systring2 = scanner.sy, scanner.systring
-            pos2 = scanner.position()
+            pos2 = scanner.last_token_position_tuple
             with Scanning.tentatively_scan(scanner):
                 with Scanning.tentatively_scan(scanner):
                     scanner.next()

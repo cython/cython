@@ -84,6 +84,38 @@ extension modules.  The default for gcc is ``-g2``, for example. Disabling them
 to produce stack traces on crashes (``CFLAGS=-g1`` for gcc), can visibly reduce
 the size of the binaries.
 
+Here are some more things to try:
+
+* If you don't need pickle support for your cdef classes, memoryviews or functions,
+  consider disabling auto-pickle support with a directive::
+
+    # cython: auto_pickle=False
+
+    # you can still enable or disable it locally for single class:
+    @cython.auto_pickle(True)
+    @cclass
+    class MyClass:
+        ...
+
+* If you do not need C line information in exception stack traces (i.e. Python/Cython
+  lines are enough, as for normal Python code), you can disable this feature with the
+  C macro ``CYTHON_CLINE_IN_TRACEBACK``:
+
+    ``-DCYTHON_CLINE_IN_TRACEBACK=0``
+
+  In Cython versions before 3.1, you also had to pass the option ``--no-c-in-traceback``
+  or set the option ``c_line_in_traceback=False`` to get the reduction in size.
+
+* If you do not need Cython implemented functions to look and behave like Python
+  functions when it comes to introspection (argument names, annotations, etc.),
+  you can turn off the ``binding`` directive, either globally, or locally for classes
+  or specific functions.  This will make Cython use the normal CPython implementation
+  for natively implemented functions, which does not expose such functionality.
+
+* If you do not need to expose the docstrings of Python functions and classes,
+  you can exclude them from the extension module with the option
+  :data:`Cython.Compiler.Options.docstrings`.
+
 ----------
 
 How well is Unicode supported?

@@ -2,14 +2,13 @@
 #  Cython - Compilation-wide options and pragma declarations
 #
 
-from __future__ import absolute_import
 
 import os
 
 from .. import Utils
 
 
-class ShouldBeFromDirective(object):
+class ShouldBeFromDirective:
 
     known_directives = []
 
@@ -621,7 +620,7 @@ def parse_compile_time_env(s, current_settings=None):
 # CompilationOptions are constructed from user input and are the `option`
 #  object passed throughout the compilation pipeline.
 
-class CompilationOptions(object):
+class CompilationOptions:
     r"""
     See default_options at the end of this module for a list of all possible
     options and CmdLine.usage and CmdLine.parse_command_line() for their
@@ -669,8 +668,6 @@ class CompilationOptions(object):
             options['language_level'] = directive_defaults.get('language_level')
         if 'formal_grammar' in directives and 'formal_grammar' not in kw:
             options['formal_grammar'] = directives['formal_grammar']
-        if options['cache'] is True:
-            options['cache'] = os.path.join(Utils.get_cython_cache_dir(), 'compiler')
 
         self.__dict__.update(options)
 
@@ -788,7 +785,7 @@ default_options = dict(
     evaluate_tree_assertions=False,
     emit_linenums=False,
     relative_path_in_code_position_comments=True,
-    c_line_in_traceback=True,
+    c_line_in_traceback=None,
     language_level=None,  # warn but default to 2
     formal_grammar=False,
     gdb_debug=False,

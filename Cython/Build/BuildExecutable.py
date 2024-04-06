@@ -7,7 +7,6 @@ Basic usage:
     python -m Cython.Build.BuildExecutable [ARGS] somefile.py
 """
 
-from __future__ import absolute_import
 
 DEBUG = True
 
@@ -16,7 +15,7 @@ import os
 if sys.version_info < (3, 9):
     from distutils import sysconfig as _sysconfig
 
-    class sysconfig(object):
+    class sysconfig:
 
         @staticmethod
         def get_path(name):

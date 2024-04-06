@@ -4,7 +4,6 @@
 # so it is convenient to have them in a separate module.
 #
 
-from __future__ import absolute_import
 
 from . import Nodes
 from . import ExprNodes
@@ -13,7 +12,7 @@ from .ExprNodes import AtomicExprNode
 from .PyrexTypes import c_ptr_type, c_bint_type
 
 
-class TempHandle(object):
+class TempHandle:
     # THIS IS DEPRECATED, USE LetRefNode instead
     temp = None
     needs_xdecref = False

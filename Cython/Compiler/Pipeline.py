@@ -1,5 +1,3 @@
-from __future__ import absolute_import
-
 import itertools
 from time import time
 
@@ -214,7 +212,7 @@ def create_pipeline(context, mode, exclude_classes=()):
         _check_c_declarations,
         InlineDefNodeCalls(context),
         AnalyseExpressionsTransform(context),
-        FindInvalidUseOfFusedTypes(context),
+        FindInvalidUseOfFusedTypes(),
         ExpandInplaceOperators(context),
         IterationTransform(context),
         SwitchTransform(context),
@@ -345,12 +343,10 @@ def insert_into_pipeline(pipeline, transform, before=None, after=None):
 # Running a pipeline
 #
 
-_pipeline_entry_points = {}
-
 try:
     from threading import local as _threadlocal
 except ImportError:
-    class _threadlocal(object): pass
+    class _threadlocal: pass
 
 threadlocal = _threadlocal()
 
@@ -362,10 +358,25 @@ def get_timings():
         return {}
 
 
+_pipeline_entry_points = {}
+
+def _make_debug_phase_runner(phase_name):
+    # Create a new wrapper for each step to show the name in profiles.
+    try:
+        return _pipeline_entry_points[phase_name]
+    except KeyError:
+        pass
+
+    def run(phase, data):
+        return phase(data)
+
+    run.__name__ = run.__qualname__ = phase_name
+    _pipeline_entry_points[phase_name] = run
+    return run
+
+
 def run_pipeline(pipeline, source, printtree=True):
     from .Visitor import PrintTree
-    exec_ns = globals().copy() if DebugFlags.debug_verbose_pipeline else None
-
     try:
         timings = threadlocal.cython_pipeline_timings
     except AttributeError:
@@ -387,12 +398,7 @@ def run_pipeline(pipeline, source, printtree=True):
                 phase_name = getattr(phase, '__name__', type(phase).__name__)
                 if DebugFlags.debug_verbose_pipeline:
                     print("Entering pipeline phase %r" % phase)
-                    # create a new wrapper for each step to show the name in profiles
-                    try:
-                        run = _pipeline_entry_points[phase_name]
-                    except KeyError:
-                        exec("def %s(phase, data): return phase(data)" % phase_name, exec_ns)
-                        run = _pipeline_entry_points[phase_name] = exec_ns[phase_name]
+                    run = _make_debug_phase_runner(phase_name)
 
                 t = time()
                 data = run(phase, data)

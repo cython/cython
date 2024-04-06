@@ -26,7 +26,7 @@ class TestMethodDispatcherTransform(TransformTest):
                 AnalyseDeclarationsTransform(context),
                 AnalyseExpressionsTransform(context),
             ]
-            self._tree = self.run_pipeline(pipeline, u"""
+            self._tree = self.run_pipeline(pipeline, """
                 cdef bytes s = b'asdfg'
                 cdef dict d = {1:2}
                 x = s * 3
