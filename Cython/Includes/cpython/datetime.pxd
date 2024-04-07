@@ -82,7 +82,7 @@ cdef extern from "datetime.h":
 
         @property
         @_cython.c_compile_guard("!CYTHON_COMPILING_IN_LIMITED_API")
-        cdef inline int day(self) noexcept
+        cdef inline int day(self) noexcept:
             return PyDateTime_GET_DAY(self)
 
     ctypedef extern class datetime.time[object PyDateTime_Time, check_size opaque]:
