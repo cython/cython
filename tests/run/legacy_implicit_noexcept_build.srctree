@@ -16,68 +16,168 @@ setup(
 
 import aa
 
+def check_exception_propagated(c, ret_expected):
+    assert c(False) == ret_expected
+    try:
+        c(True)
+    except ValueError:
+        pass
+    else:
+        assert False, "ValueError not raised"
+
+def check_exception_not_propagated(c, ret_expected):
+    assert c(False) == ret_expected
+    try:
+        c(True)
+    except ValueError:
+        assert False, "ValueError raised"
+    else:
+        pass
+
 klass = aa.Klass()
 
-assert klass.m1() == 1
-assert klass.m2() == 2
-assert klass.m3() == 3
-assert klass.m4() == 4
-assert klass.m5() == 5
+check_exception_propagated(klass.m1, 1)
+check_exception_not_propagated(klass.m2, 2)
+check_exception_not_propagated(klass.m3, 3)
+check_exception_propagated(klass.m4, 4)
+check_exception_propagated(klass.m5, 5)
 
-assert klass.n1() == 'n1'
-assert klass.n2() == 'n2'
-assert klass.n3() == 'n3'
+check_exception_propagated(klass.n1, "n1")
+check_exception_propagated(klass.n2, "n2")
+check_exception_propagated(klass.n3, "n3")
 
-klass.o1()
-klass.o2()
-klass.o3()
+check_exception_not_propagated(klass.o3, None)
+check_exception_propagated(klass.o2, None)
+check_exception_not_propagated(klass.o3, None)
 
-assert aa.m1() == 1
-assert aa.m2() == 2
-assert aa.m3() == 3
-assert aa.m4() == 4
-assert aa.m5() == 5
+check_exception_propagated(aa.m1, 1)
+check_exception_not_propagated(aa.m2, 2)
+check_exception_not_propagated(aa.m3, 3)
+check_exception_propagated(aa.m4, 4)
+check_exception_propagated(aa.m5, 5)
 
-assert aa.n1() == 'n1'
-assert aa.n2() == 'n2'
-assert aa.n3() == 'n3'
+check_exception_propagated(aa.n1, "n1")
+check_exception_propagated(aa.n2, "n2")
+check_exception_propagated(aa.n3, "n3")
 
-aa.o1()
-aa.o2()
-aa.o3()
+check_exception_not_propagated(aa.o3, None)
+check_exception_propagated(aa.o2, None)
+check_exception_not_propagated(aa.o3, None)
 
 ######## crun.pyx ########
 
 cimport aa
 cdef aa.Klass klass = aa.Klass()
 
-assert klass.p1() == 1
-assert klass.p2() == 2
-assert klass.p3() == 3
-assert klass.p4() == 4
-assert klass.p5() == 5
+assert klass.p1(False) == 1
+try:   klass.p1(True)
+except ValueError: pass
+else:              assert False, "ValueError not raised"
 
-assert klass.q1() == 'q1'
-assert klass.q2() == 'q2'
-assert klass.q3() == 'q3'
+assert klass.p2(False) == 2
+try:   klass.p2(True)
+except ValueError: assert False, "ValueError not raised"
+else:              pass
 
-klass.r1()
-klass.r2()
-klass.r3()
+assert klass.p3(False) == 3
+try:   klass.p3(True)
+except ValueError: assert False, "ValueError not raised"
+else:              pass
 
-assert aa.p1() == 1
-assert aa.p2() == 2
-assert aa.p3() == 3
-assert aa.p4() == 4
-assert aa.p5() == 5
+assert klass.p4(False) == 4
+try:   klass.p4(True)
+except ValueError: pass
+else:              assert False, "ValueError not raised"
 
-assert aa.q1() == 'q1'
-assert aa.q2() == 'q2'
-assert aa.q3() == 'q3'
+assert klass.p5(False) == 5
+try:   klass.p5(True)
+except ValueError: pass
+else:              assert False, "ValueError not raised"
 
-aa.r1()
-aa.r2()
-aa.r3()
+assert klass.q1(False) == 'q1'
+try:   klass.q1(True)
+except ValueError: pass
+else:              assert False, "ValueError not raised"
+
+assert klass.q2(False) == 'q2'
+try:   klass.q2(True)
+except ValueError: pass
+else:              assert False, "ValueError not raised"
+
+assert klass.q3(False) == 'q3'
+try:   klass.q3(True)
+except ValueError: pass
+else:              assert False, "ValueError not raised"
+
+klass.r1(False)
+try: klass.r1(True)
+except ValueError: assert False, "ValueError not raised"
+else:              pass
+
+klass.r2(False)
+try: klass.r2(True)
+except ValueError: pass
+else:              assert False, "ValueError not raised"
+
+klass.r3(False)
+try: klass.r3(True)
+except ValueError: assert False, "ValueError not raised"
+else:              pass
+
+assert aa.p1(False) == 1
+try: aa.p1(True)
+except ValueError: pass
+else:              assert False, "ValueError not raised"
+
+assert aa.p2(False) == 2
+try: aa.p2(True)
+except ValueError: assert False, "ValueError not raised"
+else:              pass
+
+assert aa.p3(False) == 3
+try: aa.p3(True)
+except ValueError: assert False, "ValueError not raised"
+else:              pass
+
+assert aa.p4(False) == 4
+try:   aa.p4(True)
+except ValueError: pass
+else:              assert False, "ValueError not raised"
+
+assert aa.p5(False) == 5
+try:   aa.p5(True)
+except ValueError: pass
+else:              assert False, "ValueError not raised"
+
+assert aa.q1(False) == 'q1'
+try:   aa.q1(True)
+except ValueError: pass
+else:              assert False, "ValueError not raised"
+
+assert aa.q2(False) == 'q2'
+try:   aa.q2(True)
+except ValueError: pass
+else:              assert False, "ValueError not raised"
+
+assert aa.q3(False) == 'q3'
+try:   aa.q3(True)
+except ValueError: pass
+else:              assert False, "ValueError not raised"
+
+aa.r1(False)
+try: aa.r1(True)
+except ValueError: assert False, "ValueError not raised"
+else:              pass
+
+aa.r2(False)
+try: aa.r2(True)
+except ValueError: pass
+else:              assert False, "ValueError not raised"
+
+aa.r3(False)
+try: aa.r3(True)
+except ValueError: assert False, "ValueError not raised"
+else:              pass
 
 ######## bar.pyx ########
 
@@ -103,152 +203,198 @@ else:
 
 ######## aa.pxd ########
 cdef class Klass:
-    cpdef int m1(self) except? -1
-    cpdef int m2(self)
-    cpdef int m3(self) noexcept
-    cpdef int m4(self) except *
-    cpdef int m5(self) except -1
-    cpdef object n1(self)
-    cpdef object n2(self) except *
-    cpdef object n3(self) noexcept  # will warn, but should work
-    cpdef void o1(self)
-    cpdef void o2(self) except*
-    cpdef void o3(self) noexcept
-    cdef int p1(self) except? -1
-    cdef int p2(self)
-    cdef int p3(self) noexcept
-    cdef int p4(self) except *
-    cdef int p5(self) except -1
-    cdef object q1(self)
-    cdef object q2(self) except *
-    cdef object q3(self) noexcept  # will warn, but should work
-    cdef void r1(self)
-    cdef void r2(self) except*
-    cdef void r3(self) noexcept
+    cpdef int m1(self, bint exc) except? -1
+    cpdef int m2(self, bint exc)
+    cpdef int m3(self, bint exc) noexcept
+    cpdef int m4(self, bint exc) except *
+    cpdef int m5(self, bint exc) except -1
+    cpdef object n1(self, bint exc)
+    cpdef object n2(self, bint exc) except *
+    cpdef object n3(self, bint exc) noexcept  # will warn, but should work
+    cpdef void o1(self, bint exc)
+    cpdef void o2(self, bint exc) except*
+    cpdef void o3(self, bint exc) noexcept
+    cdef int p1(self, bint exc) except? -1
+    cdef int p2(self, bint exc)
+    cdef int p3(self, bint exc) noexcept
+    cdef int p4(self, bint exc) except *
+    cdef int p5(self, bint exc) except -1
+    cdef object q1(self, bint exc)
+    cdef object q2(self, bint exc) except *
+    cdef object q3(self, bint exc) noexcept  # will warn, but should work
+    cdef void r1(self, bint exc)
+    cdef void r2(self, bint exc) except*
+    cdef void r3(self, bint exc) noexcept
 
-cpdef int m1() except? -1
-cpdef int m2()
-cpdef int m3() noexcept
-cpdef int m4() except *
-cpdef int m5() except -1
-cpdef object n1()
-cpdef object n2() except *
-cpdef object n3() noexcept  # will warn, but should work
-cpdef void o1()
-cpdef void o2() except*
-cpdef void o3() noexcept
-cdef int p1() except? -1
-cdef int p2()
-cdef int p3() noexcept
-cdef int p4() except *
-cdef int p5() except -1
-cdef object q1()
-cdef object q2() except *
-cdef object q3() noexcept  # will warn, but should work
-cdef void r1()
-cdef void r2() except*
-cdef void r3() noexcept
+cpdef int m1(bint exc) except? -1
+cpdef int m2(bint exc)
+cpdef int m3(bint exc) noexcept
+cpdef int m4(bint exc) except *
+cpdef int m5(bint exc) except -1
+cpdef object n1(bint exc)
+cpdef object n2(bint exc) except *
+cpdef object n3(bint exc) noexcept  # will warn, but should work
+cpdef void o1(bint exc)
+cpdef void o2(bint exc) except*
+cpdef void o3(bint exc) noexcept
+cdef int p1(bint exc) except? -1
+cdef int p2(bint exc)
+cdef int p3(bint exc) noexcept
+cdef int p4(bint exc) except *
+cdef int p5(bint exc) except -1
+cdef object q1(bint exc)
+cdef object q2(bint exc) except *
+cdef object q3(bint exc) noexcept  # will warn, but should work
+cdef void r1(bint exc)
+cdef void r2(bint exc) except*
+cdef void r3(bint exc) noexcept
 
 ######## aa.py ########
 
 class Klass:
 
-    def m1(self):
+    def m1(self, exc):
+        if exc: raise ValueError()
         return 1
-    def m2(self):
+    def m2(self, exc):
+        print('m2 1', exc)
+        if exc: raise ValueError()
+        print('m2 2', exc)
         return 2
-    def m3(self):
+    def m3(self, exc):
+        if exc: raise ValueError()
         return 3
-    def m4(self):
+    def m4(self, exc):
+        if exc: raise ValueError()
         return 4
-    def m5(self):
+    def m5(self, exc):
+        if exc: raise ValueError()
         return 5
 
-    def n1(self):
+    def n1(self, exc):
+        if exc: raise ValueError()
         return 'n1'
-    def n2(self):
+    def n2(self, exc):
+        if exc: raise ValueError()
         return 'n2'
-    def n3(self):
+    def n3(self, exc):
+        if exc: raise ValueError()
         return 'n3'
 
-    def o1(self):
+    def o1(self, exc):
+        if exc: raise ValueError()
         return
-    def o2(self):
+    def o2(self, exc):
+        if exc: raise ValueError()
         return
-    def o3(self):
+    def o3(self, exc):
+        if exc: raise ValueError()
         return
 
-    def p1(self):
+    def p1(self, exc):
+        if exc: raise ValueError()
         return 1
-    def p2(self):
+    def p2(self, exc):
+        if exc: raise ValueError()
         return 2
-    def p3(self):
+    def p3(self, exc):
+        if exc: raise ValueError()
         return 3
-    def p4(self):
+    def p4(self, exc):
+        if exc: raise ValueError()
         return 4
-    def p5(self):
+    def p5(self, exc):
+        if exc: raise ValueError()
         return 5
 
-    def q1(self):
+    def q1(self, exc):
+        if exc: raise ValueError()
         return 'q1'
-    def q2(self):
+    def q2(self, exc):
+        if exc: raise ValueError()
         return 'q2'
-    def q3(self):
+    def q3(self, exc):
+        if exc: raise ValueError()
         return 'q3'
 
-    def r1(self):
+    def r1(self, exc):
+        if exc: raise ValueError()
         return
-    def r2(self):
+    def r2(self, exc):
+        if exc: raise ValueError()
         return
-    def r3(self):
+    def r3(self, exc):
+        if exc: raise ValueError()
         return
 
-def m1():
+def m1(exc):
+    if exc: raise ValueError()
     return 1
-def m2():
+def m2(exc):
+    if exc: raise ValueError()
     return 2
-def m3():
+def m3(exc):
+    if exc: raise ValueError()
     return 3
-def m4():
+def m4(exc):
+    if exc: raise ValueError()
     return 4
-def m5():
+def m5(exc):
+    if exc: raise ValueError()
     return 5
 
-def n1():
+def n1(exc):
+    if exc: raise ValueError()
     return 'n1'
-def n2():
+def n2(exc):
+    if exc: raise ValueError()
     return 'n2'
-def n3():
+def n3(exc):
+    if exc: raise ValueError()
     return 'n3'
 
-def o1():
+def o1(exc):
+    if exc: raise ValueError()
     return
-def o2():
+def o2(exc):
+    if exc: raise ValueError()
     return
-def o3():
+def o3(exc):
+    if exc: raise ValueError()
     return
 
-def p1():
+def p1(exc):
+    if exc: raise ValueError()
     return 1
-def p2():
+def p2(exc):
+    if exc: raise ValueError()
     return 2
-def p3():
+def p3(exc):
+    if exc: raise ValueError()
     return 3
-def p4():
+def p4(exc):
+    if exc: raise ValueError()
     return 4
-def p5():
+def p5(exc):
+    if exc: raise ValueError()
     return 5
 
-def q1():
+def q1(exc):
+    if exc: raise ValueError()
     return 'q1'
-def q2():
+def q2(exc):
+    if exc: raise ValueError()
     return 'q2'
-def q3():
+def q3(exc):
+    if exc: raise ValueError()
     return 'q3'
 
-def r1():
+def r1(exc):
+    if exc: raise ValueError()
     return
-def r2():
+def r2(exc):
+    if exc: raise ValueError()
     return
-def r3():
+def r3(exc):
+    if exc: raise ValueError()
     return
