@@ -3558,7 +3558,7 @@ class CreateClosureClasses(CythonTransform):
         class_node = Nodes.CClassDefNode.generate_closure_class_for_pickling(
             node.pos, cclass_scope, cclass_entry, node.local_scope.directives
         )
-        
+
         body = Nodes.StatListNode(node.pos, stats=[class_node])
         from .ModuleNode import ModuleNode
         mod = ModuleNode(node.pos, full_module_name="<cclass pickle>",
