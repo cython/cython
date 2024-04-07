@@ -3,6 +3,7 @@
 static PyObject *__Pyx_ImportDottedModule(PyObject *name, PyObject *parts_tuple); /*proto*/
 static PyObject *__Pyx_ImportDottedModule_WalkParts(PyObject *module, PyObject *name, PyObject *parts_tuple); /*proto*/
 
+
 /////////////// ImportDottedModule ///////////////
 //@requires: Import
 
@@ -329,17 +330,25 @@ static int ${import_star}(PyObject* m) {
     PyObject *utf8_name = 0;
     PyObject *name;
     PyObject *item;
+    PyObject *import_obj;
+    Py_ssize_t size;
 
     locals = PyDict_New();              if (!locals) goto bad;
     if (__Pyx_import_all_from(locals, m) < 0) goto bad;
     list = PyDict_Items(locals);        if (!list) goto bad;
 
-    for(i=0; i<PyList_GET_SIZE(list); i++) {
-        name = PyTuple_GET_ITEM(PyList_GET_ITEM(list, i), 0);
-        item = PyTuple_GET_ITEM(PyList_GET_ITEM(list, i), 1);
+    size = __Pyx_PyList_GET_SIZE(list);
+    #if !CYTHON_ASSUME_SAFE_SIZE
+    if (size < 0) goto bad;
+    #endif
+    for(i=0; i<size; i++) {
+        import_obj = __Pyx_PyList_GET_ITEM(list, i); if (!import_obj) goto bad;
+        name = __Pyx_PyTuple_GET_ITEM(import_obj, 0); if (!name) goto bad;
+        item = __Pyx_PyTuple_GET_ITEM(import_obj, 1); if (!item) goto bad;
+
         utf8_name = PyUnicode_AsUTF8String(name);
         if (!utf8_name) goto bad;
-        s = PyBytes_AS_STRING(utf8_name);
+        s = __Pyx_PyBytes_AsString(utf8_name); if (!s) goto bad;
         if (${import_star_set}(item, name, s) < 0) goto bad;
         Py_DECREF(utf8_name); utf8_name = 0;
     }
@@ -368,6 +377,7 @@ static int __Pyx_SetPackagePathFromImportLib(PyObject *module_name);
 static int __Pyx_SetPackagePathFromImportLib(PyObject *module_name) {
     PyObject *importlib, *osmod, *ossep, *parts, *package_path;
     PyObject *file_path = NULL;
+    PyObject *item;
     int result;
     PyObject *spec;
     // package_path = [importlib.util.find_spec(module_name).origin.rsplit(os.sep, 1)[0]]
@@ -398,7 +408,14 @@ static int __Pyx_SetPackagePathFromImportLib(PyObject *module_name) {
     Py_DECREF(ossep);
     if (unlikely(!parts))
         goto bad;
+#if CYTHON_ASSUME_SAFE_MACROS
     package_path = Py_BuildValue("[O]", PyList_GET_ITEM(parts, 0));
+#else
+    item = PyList_GetItem(parts, 0);
+    if (unlikely(!item))
+        goto bad;
+    package_path = Py_BuildValue("[O]", item);
+#endif
     Py_DECREF(parts);
     if (unlikely(!package_path))
         goto bad;

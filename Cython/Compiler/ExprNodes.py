@@ -30,7 +30,7 @@ from . import Naming
 from . import Nodes
 from .Nodes import Node, SingleAssignmentNode
 from . import PyrexTypes
-from .PyrexTypes import py_object_type, typecast, error_type, \
+from .PyrexTypes import c_char_ptr_type, py_object_type, typecast, error_type, \
     unspecified_type
 from . import TypeSlots
 from .Builtin import (
@@ -10243,7 +10243,7 @@ class CodeObjectNode(ExprNode):
         num_posonly_args = func.num_posonly_args  # Py3.8+ only
         kwonly_argcount = func.num_kwonly_args
         nlocals = len(self.varnames)
-        flags = '|'.join(flags) or '0'
+        flags = '(unsigned int)(%s)' % '|'.join(flags) or '0'
         first_lineno = self.pos[1]
 
         # See "generate_codeobject_constants()" in Code.py.
@@ -11461,6 +11461,7 @@ class CythonArrayNode(ExprNode):
 
         shapes_temp = code.funcstate.allocate_temp(py_object_type, True)
         format_temp = code.funcstate.allocate_temp(py_object_type, True)
+        format_ptr_temp = code.funcstate.allocate_temp(c_char_ptr_type, True)
 
         itemsize = "sizeof(%s)" % dtype.empty_declaration_code()
         type_info = Buffer.get_type_information_cname(code, dtype)
@@ -11488,9 +11489,21 @@ class CythonArrayNode(ExprNode):
         ))
         code.put_gotref(shapes_temp, py_object_type)
 
-        code.putln('%s = __pyx_array_new(%s, %s, PyBytes_AS_STRING(%s), "%s", (char *) %s); %s' % (
+
+        code.putln("#if CYTHON_COMPILING_IN_LIMITED_API")
+        code.putln('%s = PyBytes_AsString(%s); %s' % (
+            format_ptr_temp, format_temp,
+            code.error_goto_if_null(format_ptr_temp, self.pos),
+        ))
+        code.putln("#else")
+        code.putln('%s = PyBytes_AS_STRING(%s);' % (
+            format_ptr_temp, format_temp,
+        ))
+        code.putln("#endif")
+
+        code.putln('%s = __pyx_array_new(%s, %s, %s, "%s", (char *) %s); %s' % (
             self.result(),
-            shapes_temp, itemsize, format_temp, self.mode, self.operand.result(),
+            shapes_temp, itemsize, format_ptr_temp, self.mode, self.operand.result(),
             code.error_goto_if_null(self.result(), self.pos),
         ))
         self.generate_gotref(code)
@@ -11501,6 +11514,7 @@ class CythonArrayNode(ExprNode):
 
         dispose(shapes_temp)
         dispose(format_temp)
+        code.funcstate.release_temp(format_ptr_temp)
 
     @classmethod
     def from_carray(cls, src_node, env):
