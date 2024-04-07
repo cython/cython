@@ -255,7 +255,7 @@ static CYTHON_INLINE const char* __Pyx_PyUnicode_AsStringAndSize(PyObject* o, Py
         if (unlikely(!is_ascii_o)) return NULL;
         is_ascii = PyObject_IsTrue(is_ascii_o);
         Py_DECREF(is_ascii_o);
-        if unlikely((is_ascii < 0)) {
+        if (unlikely(is_ascii < 0)) {
             return NULL;
         } else if (unlikely(is_ascii == 0)) {
             // raise the error
