@@ -33,10 +33,6 @@ jobs:
         env: [{}]
 
         include:
-          # Temporary - Allow failure on Python 3.12-dev jobs for Cython 0.29.x
-          - python-version: 3.12
-            allowed_failure: true
-
           # Ubuntu sub-jobs:
           # ================
           # GCC 11
