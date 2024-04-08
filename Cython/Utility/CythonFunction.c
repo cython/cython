@@ -1198,6 +1198,9 @@ static PyTypeObject __pyx_CyFunctionType_type = {
 #if PY_VERSION_HEX >= 0x030C0000
     0,                                  /*tp_watched*/
 #endif
+#if PY_VERSION_HEX >= 0x030d00A4
+    0,                                          /*tp_versions_used*/
+#endif
 #if CYTHON_COMPILING_IN_PYPY && PY_VERSION_HEX >= 0x03090000 && PY_VERSION_HEX < 0x030a0000
     0,                                          /*tp_pypy_flags*/
 #endif
@@ -1724,6 +1727,9 @@ static PyTypeObject __pyx_FusedFunctionType_type = {
 #endif
 #if PY_VERSION_HEX >= 0x030C0000
     0,                                  /*tp_watched*/
+#endif
+#if PY_VERSION_HEX >= 0x030d00A4
+    0,                                          /*tp_versions_used*/
 #endif
 #if CYTHON_COMPILING_IN_PYPY && PY_VERSION_HEX >= 0x03090000 && PY_VERSION_HEX < 0x030a0000
     0,                                          /*tp_pypy_flags*/
