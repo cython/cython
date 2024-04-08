@@ -3740,7 +3740,7 @@ class TransformBuiltinMethods(EnvTransform):
     that require introspection by the compiler.
     """
     def __init__(self, *args, **kwds):
-        super(TransformBuiltinMethods, self).__init__(*args, **kwds)
+        super().__init__(*args, **kwds)
         self.def_node_body_insertions = {}
 
     def visit_SingleAssignmentNode(self, node):
@@ -3954,12 +3954,12 @@ class TransformBuiltinMethods(EnvTransform):
                                                stats=[body_insertion, node.body])
 
     def visit_FuncDefNode(self, node):
-        node = super(TransformBuiltinMethods, self).visit_FuncDefNode(node)
+        node = super().visit_FuncDefNode(node)
         self._do_body_insertion(node)
         return node
 
     def visit_GeneratorBodyDefNode(self, node):
-        node = super(TransformBuiltinMethods, self).visit_GeneratorBodyDefNode(node)
+        node = super().visit_GeneratorBodyDefNode(node)
         self._do_body_insertion(node)
         return node
 
