@@ -1,4 +1,4 @@
-# cython: language_level=3str
+# cython: language_level=3
 # mode: run
 # tag: pep3135, pure3.0
 
@@ -18,9 +18,7 @@ class C(object):
     >>> list(obj.generator())
     ['C']
 
-    # Python 2 has some difference with binding methods that aren't worth working round for this test
-    >>> import sys
-    >>> C.l() == C if sys.version_info[0] > 2 else True
+    >>> C.l() == C
     True
     """
 
@@ -66,9 +64,7 @@ class CC(object):
     >>> list(obj.generator())
     ['CC']
 
-    # Python 2 has some difference with binding methods that aren't worth working round for this test
-    >>> import sys
-    >>> CC.l() == CC if sys.version_info[0] > 2 else True
+    >>> CC.l() == CC
     True
     """
 
