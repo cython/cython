@@ -256,90 +256,15 @@
   #undef CYTHON_USE_FREELISTS
   #define CYTHON_USE_FREELISTS 0
 
-#elif defined(Py_NOGIL)
-  #define CYTHON_COMPILING_IN_PYPY 0
-  #define CYTHON_COMPILING_IN_CPYTHON 0
-  #define CYTHON_COMPILING_IN_LIMITED_API 0
-  #define CYTHON_COMPILING_IN_GRAAL 0
-  #define CYTHON_COMPILING_IN_NOGIL 1
-
-  #ifndef CYTHON_USE_TYPE_SLOTS
-    #define CYTHON_USE_TYPE_SLOTS 1
-  #endif
-  #ifndef CYTHON_USE_TYPE_SPECS
-    #define CYTHON_USE_TYPE_SPECS 0
-  #endif
-  #undef CYTHON_USE_PYTYPE_LOOKUP
-  #define CYTHON_USE_PYTYPE_LOOKUP 0
-  #ifndef CYTHON_USE_ASYNC_SLOTS
-    #define CYTHON_USE_ASYNC_SLOTS 1
-  #endif
-  #ifndef CYTHON_USE_PYLONG_INTERNALS
-    #define CYTHON_USE_PYLONG_INTERNALS 0
-  #endif
-  #undef CYTHON_USE_PYLIST_INTERNALS
-  #define CYTHON_USE_PYLIST_INTERNALS 0
-  #ifndef CYTHON_USE_UNICODE_INTERNALS
-    #define CYTHON_USE_UNICODE_INTERNALS 1
-  #endif
-  #undef CYTHON_USE_UNICODE_WRITER
-  #define CYTHON_USE_UNICODE_WRITER 0
-  #ifndef CYTHON_AVOID_BORROWED_REFS
-    #define CYTHON_AVOID_BORROWED_REFS 0
-  #endif
-  #ifndef CYTHON_ASSUME_SAFE_MACROS
-    #define CYTHON_ASSUME_SAFE_MACROS 1
-  #endif
-  #ifndef CYTHON_ASSUME_SAFE_SIZE
-    #define CYTHON_ASSUME_SAFE_SIZE 1
-  #endif
-  #ifndef CYTHON_UNPACK_METHODS
-    #define CYTHON_UNPACK_METHODS 1
-  #endif
-  #undef CYTHON_FAST_THREAD_STATE
-  #define CYTHON_FAST_THREAD_STATE 0
-  #undef CYTHON_FAST_GIL
-  #define CYTHON_FAST_GIL 0
-  #ifndef CYTHON_METH_FASTCALL
-    #define CYTHON_METH_FASTCALL 0
-  #endif
-  #undef CYTHON_FAST_PYCALL
-  #define CYTHON_FAST_PYCALL 0
-  #ifndef CYTHON_PEP487_INIT_SUBCLASS
-    #define CYTHON_PEP487_INIT_SUBCLASS 1
-  #endif
-  #ifndef CYTHON_PEP489_MULTI_PHASE_INIT
-    #define CYTHON_PEP489_MULTI_PHASE_INIT 1
-  #endif
-  #ifndef CYTHON_USE_MODULE_STATE
-    #define CYTHON_USE_MODULE_STATE 0
-  #endif
-  #ifndef CYTHON_USE_TP_FINALIZE
-    #define CYTHON_USE_TP_FINALIZE 1
-  #endif
-  #undef CYTHON_USE_DICT_VERSIONS
-  #define CYTHON_USE_DICT_VERSIONS 0
-  #undef CYTHON_USE_EXC_INFO_STACK
-  #define CYTHON_USE_EXC_INFO_STACK 0
-  #ifndef CYTHON_UPDATE_DESCRIPTOR_DOC
-    #define CYTHON_UPDATE_DESCRIPTOR_DOC 1
-  #endif
-  #ifndef CYTHON_USE_FREELISTS
-    // TODO - we could probably enable CYTHON_USE_FREELISTS by default in future since
-    // this is just a variant of cpython now, but we'd need to be very careful to make
-    // them thread safe. Since it will probably work, let the user decide.
-    #define CYTHON_USE_FREELISTS 0
-  #endif
-
 #else
   #define CYTHON_COMPILING_IN_PYPY 0
   #define CYTHON_COMPILING_IN_CPYTHON 1
   #define CYTHON_COMPILING_IN_LIMITED_API 0
   #define CYTHON_COMPILING_IN_GRAAL 0
   #ifdef Py_GIL_DISABLED
-    #define CYTHON_COMPILING_IN_NOGIL 1
+    #define CYTHON_COMPILING_IN_CPYTHON_NOGIL 1
   #else
-    #define CYTHON_COMPILING_IN_NOGIL 0
+    #define CYTHON_COMPILING_IN_CPYTHON_NOGIL 0
   #endif
 
   #ifndef CYTHON_USE_TYPE_SLOTS
@@ -355,35 +280,24 @@
     #define CYTHON_USE_ASYNC_SLOTS 1
   #endif
   #ifndef CYTHON_USE_PYLONG_INTERNALS
-    #ifdef Py_GIL_DISABLED
-      #define CYTHON_USE_PYLONG_INTERNALS 0
-    #else
-      #define CYTHON_USE_PYLONG_INTERNALS 1
-    #endif
+    #define CYTHON_USE_PYLONG_INTERNALS (!CYTHON_COMPILING_IN_NOGIL)
   #endif
   #ifdef Py_GIL_DISABLED
     #undef CYTHON_USE_PYLIST_INTERNALS
     #define CYTHON_USE_PYLIST_INTERNALS 0
-  #else
-    #ifndef CYTHON_USE_PYLIST_INTERNALS
-      #define CYTHON_USE_PYLIST_INTERNALS 1
-    #endif
+  #elif !defined(CYTHON_USE_PYLIST_INTERNALS)
+    #define CYTHON_USE_PYLIST_INTERNALS 1
   #endif
   #ifndef CYTHON_USE_UNICODE_INTERNALS
     #define CYTHON_USE_UNICODE_INTERNALS 1
   #endif
-  #ifdef Py_GIL_DISABLED
+  #if defined(Py_GIL_DISABLED) || PY_VERSION_HEX >= 0x030B00A2
+    // Python 3.11a2 hid _PyLong_FormatAdvancedWriter and _PyFloat_FormatAdvancedWriter
+    // therefore disable unicode writer until a better alternative appears
     #undef CYTHON_USE_UNICODE_WRITER
     #define CYTHON_USE_UNICODE_WRITER 0
-  #else
-    #if PY_VERSION_HEX >= 0x030B00A2
-      // Python 3.11a2 hid _PyLong_FormatAdvancedWriter and _PyFloat_FormatAdvancedWriter
-      // therefore disable unicode writer until a better alternative appears
-      #undef CYTHON_USE_UNICODE_WRITER
-      #define CYTHON_USE_UNICODE_WRITER 0
-    #elif !defined(CYTHON_USE_UNICODE_WRITER)
-      #define CYTHON_USE_UNICODE_WRITER 1
-    #endif
+  #elif !defined(CYTHON_USE_UNICODE_WRITER)
+    #define CYTHON_USE_UNICODE_WRITER 1
   #endif
   // CYTHON_AVOID_BORROWED_REFS - Avoid borrowed references and always request owned references directly instead.
   #ifndef CYTHON_AVOID_BORROWED_REFS
@@ -403,39 +317,27 @@
   #ifdef Py_GIL_DISABLED
     #undef CYTHON_FAST_THREAD_STATE
     #define CYTHON_FAST_THREAD_STATE 0
-  #else
-    #ifndef CYTHON_FAST_THREAD_STATE
-      #define CYTHON_FAST_THREAD_STATE 1
-    #endif
+  #elif !defined(CYTHON_FAST_THREAD_STATE)
+    #define CYTHON_FAST_THREAD_STATE 1
   #endif
   #ifdef Py_GIL_DISABLED
     #undef CYTHON_FAST_GIL
     #define CYTHON_FAST_GIL 0
-  #else
-    #ifndef CYTHON_FAST_GIL
-      // FIXME: FastGIL can probably be supported also in CPython 3.12 but needs to be adapted.
-      // The gain is unclear, however, since the GIL handling itself became faster in recent CPython versions.
-      #define CYTHON_FAST_GIL (PY_VERSION_HEX < 0x030C00A6)
-    #endif
+  #elif !defined(CYTHON_FAST_GIL)
+    // FIXME: FastGIL can probably be supported also in CPython 3.12 but needs to be adapted.
+    // The gain is unclear, however, since the GIL handling itself became faster in recent CPython versions.
+    #define CYTHON_FAST_GIL (PY_VERSION_HEX < 0x030C00A6)
   #endif
   #ifndef CYTHON_METH_FASTCALL
     // CPython 3.6 introduced METH_FASTCALL but with slightly different
     // semantics. It became stable starting from CPython 3.7.
-    #ifdef Py_GIL_DISABLED
-      #define CYTHON_METH_FASTCALL 0
-    #else
-    #define CYTHON_METH_FASTCALL 1
-    #define CYTHON_METH_FASTCALL 1
-      #define CYTHON_METH_FASTCALL 1
-    #endif
+    #define CYTHON_METH_FASTCALL (!CYTHON_COMPILING_IN_CPYTHON_NOGIL)
   #endif
   #ifdef Py_GIL_DISABLED
     #undef CYTHON_FAST_PYCALL
     #define CYTHON_FAST_PYCALL 0
-  #else
-    #ifndef CYTHON_FAST_PYCALL
-      #define CYTHON_FAST_PYCALL 1
-    #endif
+  #elif !defined(CYTHON_FAST_PYCALL)
+    #define CYTHON_FAST_PYCALL 1
   #endif
   #ifndef CYTHON_PEP487_INIT_SUBCLASS
     #define CYTHON_PEP487_INIT_SUBCLASS 1
@@ -454,11 +356,9 @@
   #ifdef Py_GIL_DISABLED
     #undef CYTHON_USE_DICT_VERSIONS
     #define CYTHON_USE_DICT_VERSIONS 0
-  #else
-    #ifndef CYTHON_USE_DICT_VERSIONS
-      // Python 3.12a5 deprecated "ma_version_tag"
-      #define CYTHON_USE_DICT_VERSIONS  (PY_VERSION_HEX < 0x030C00A5)
-    #endif
+  #elif !defined(CYTHON_USE_DICT_VERSIONS)
+    // Python 3.12a5 deprecated "ma_version_tag"
+    #define CYTHON_USE_DICT_VERSIONS  (PY_VERSION_HEX < 0x030C00A5)
   #endif
   #ifndef CYTHON_USE_EXC_INFO_STACK
     #define CYTHON_USE_EXC_INFO_STACK 1
@@ -467,11 +367,7 @@
     #define CYTHON_UPDATE_DESCRIPTOR_DOC 1
   #endif
   #ifndef CYTHON_USE_FREELISTS
-    #ifdef Py_GIL_DISABLED
-      #define CYTHON_USE_FREELISTS 0
-    #else
-      #define CYTHON_USE_FREELISTS 1
-    #endif
+    #define CYTHON_USE_FREELISTS (!CYTHON_COMPILING_IN_CPYTHON_NOGIL)
   #endif
 #endif
 
