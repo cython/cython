@@ -1,6 +1,6 @@
 # mode: run
 
-cimport cython
+import cython
 
 def divmod_regular(a,b):
     """
@@ -41,7 +41,7 @@ def divmod_by_0(a,b):
 
 @cython.test_assert_path_exists("//ReturnStatNode//NameNode[@entry.name = 'divmod']",
                                 "//ReturnStatNode//NameNode[@entry.cname = '__Pyx_divmod_int']")
-def divmod_int_regular(int a, int b):
+def divmod_int_regular(a: cython.int, b: cython.int):
     """
     >>> divmod_int_regular(10,5)
     (2, 0)
@@ -70,7 +70,7 @@ def divmod_int_regular(int a, int b):
 
 
 @cython.test_fail_if_path_exists("//ReturnStatNode//NameNode[@entry.cname = '__Pyx_divmod_int']")
-def divmod_by_int_0(int a, int b):
+def divmod_by_int_0(a: cython.int, b: cython.int):
     """
     >>> divmod_by_int_0(33,0) #doctest: +ELLIPSIS
     Traceback (most recent call last):

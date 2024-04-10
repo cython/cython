@@ -311,29 +311,34 @@ static CYTHON_INLINE PyObject* __Pyx_divmod_int(int a, int b); /*proto*/
 //////////////////// divmod_int //////////////////
 
 static CYTHON_INLINE PyObject* __Pyx_divmod_int(int a, int b) {
-    PyObject* result_tuple;
+    PyObject *result_tuple = NULL, *quotient = NULL, *remainder = NULL;
     // Python and C/C++ use different algorithm in calculating quotients and remainders.
     // This results in different answers between Python and C/C++
     // when the dividend is negative and the divisor is positive and vice versa.
+    int q, r;
     if ((a < 0 && b > 0) || (a > 0 && b < 0)) {
         // see CMath.c :: DivInt and ModInt utility code
-        int q = a / b;
-        int r = a - q * b;
+        q = a / b;
+        r = a - q * b;
         q -= ((r != 0) & ((r ^ b) < 0));
         r += ((r != 0) & ((r ^ b) < 0)) * b;
-        result_tuple = PyTuple_Pack(2, PyLong_FromLong(q), PyLong_FromLong(r));
-        if (unlikely(!result_tuple))
-            return NULL;
-        return result_tuple;
     }
     else if (b == 0) {
         PyErr_SetString(PyExc_ZeroDivisionError, "integer division or modulo by zero");
         return NULL;
     }
-    div_t res = div(a, b);
-    result_tuple = PyTuple_Pack(2, PyLong_FromLong(res.quot), PyLong_FromLong(res.rem));
-    if (unlikely(!result_tuple))
+    else {
+        div_t res = div(a, b);
+        q = res.quot;
+        r = res.rem;
+    }
+    quotient = PyLong_FromLong(q);
+    if (unlikely(!quotient))
         return NULL;
+    remainder = PyLong_FromLong(r);
+    if (unlikely(!remainder))
+        return NULL;
+    result_tuple = PyTuple_Pack(2, quotient, remainder);
     return result_tuple;
 }
 
