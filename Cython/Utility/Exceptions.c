@@ -236,9 +236,7 @@ static void __Pyx_Raise(PyObject *type, PyObject *value, PyObject *tb, PyObject 
 //@requires: PyErrFetchRestore
 //@requires: PyThreadStateGet
 
-// The following function is based on do_raise() from ceval.c. There
-// are separate versions for Python2 and Python3 as exception handling
-// has changed quite a lot between the two versions.
+// The following function is based on do_raise() from ceval.c.
 
 static void __Pyx_Raise(PyObject *type, PyObject *value, PyObject *tb, PyObject *cause) {
     PyObject* owned_instance = NULL;
