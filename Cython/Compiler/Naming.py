@@ -130,6 +130,7 @@ cur_scope_cname  = pyrex_prefix + "cur_scope"
 enc_scope_cname  = pyrex_prefix + "enc_scope"
 frame_cname      = pyrex_prefix + "frame"
 frame_code_cname = pyrex_prefix + "frame_code"
+monitoring_states_cname = pyrex_prefix + "pymonitoring_state"
 error_without_exception_cname = pyrex_prefix + "error_without_exception"
 binding_cfunc    = pyrex_prefix + "binding_PyCFunctionType"
 fused_func_prefix = pyrex_prefix + 'fuse_'

@@ -322,6 +322,16 @@ class CompilerDirectivesNode(Node):
     #  body           Node
     child_attrs = ["body"]
 
+    @classmethod
+    def for_directives(cls, body, env, **directives):
+        new_directives = Options.copy_inherited_directives(env.directives, **directives)
+        return cls(body.pos, body=body, directives=new_directives)
+
+    @classmethod
+    def for_internal(cls, body, env):
+        new_directives = Options.copy_for_internal(env.directives)
+        return cls(body.pos, body=body, directives=new_directives)
+
     def analyse_declarations(self, env):
         old = env.directives
         env.directives = self.directives
@@ -2142,7 +2152,7 @@ class FuncDefNode(StatNode, BlockNode):
                     trace_name = self.entry.name + " (wrapper)"
                 else:
                     trace_name = self.entry.name
-                code.put_trace_call(
+                code.put_trace_start(
                     trace_name, self.pos, nogil=not code.funcstate.gil_owned)
             code.funcstate.can_trace = True
         # ----- Fetch arguments
@@ -2412,10 +2422,10 @@ class FuncDefNode(StatNode, BlockNode):
                 # generators are traced when iterated, not at creation
                 if return_type.is_pyobject:
                     code.put_trace_return(
-                        Naming.retval_cname, nogil=not gil_owned['success'])
+                        Naming.retval_cname, pos=self.pos, nogil=not gil_owned['success'])
                 else:
                     code.put_trace_return(
-                        "Py_None", nogil=not gil_owned['success'])
+                        "Py_None", pos=self.pos, nogil=not gil_owned['success'])
 
         if code.funcstate.needs_refnanny:
             refnanny_decl_code.put_declare_refcount_context()
@@ -3508,7 +3518,9 @@ class DefNode(FuncDefNode):
     def generate_function_definitions(self, env, code):
         if self.defaults_getter:
             # defaults getter must never live in class scopes, it's always a module function
-            self.defaults_getter.generate_function_definitions(env.global_scope(), code)
+            module_scope = env.global_scope()
+            directives_node = CompilerDirectivesNode.for_internal(self.defaults_getter, module_scope)
+            directives_node.generate_function_definitions(module_scope, code)
 
         # Before closure cnames are mangled
         if self.py_wrapper_required:
@@ -4788,7 +4800,7 @@ class GeneratorBodyDefNode(DefNode):
         profile = code.globalstate.directives['profile']
         linetrace = code.globalstate.directives['linetrace']
         if profile or linetrace:
-            tempvardecl_code.put_trace_declarations()
+            tempvardecl_code.put_trace_declarations(is_generator=True)
             code.funcstate.can_trace = True
             code_object = self.code_object.calculate_result_code(code) if self.code_object else None
             code.put_trace_frame_init(code_object)
@@ -4875,6 +4887,7 @@ class GeneratorBodyDefNode(DefNode):
         code.putln('__Pyx_Coroutine_clear((PyObject*)%s);' % Naming.generator_cname)
         if profile or linetrace:
             code.put_trace_return(Naming.retval_cname,
+                                  pos=self.pos,
                                   nogil=not code.funcstate.gil_owned)
         code.put_finish_refcount_context()
         code.putln("return %s;" % Naming.retval_cname)
@@ -4884,8 +4897,8 @@ class GeneratorBodyDefNode(DefNode):
         tempvardecl_code.put_temp_declarations(code.funcstate)
         # ----- Generator resume code
         if profile or linetrace:
-            resume_code.put_trace_call(self.entry.qualified_name, self.pos,
-                                       nogil=not code.funcstate.gil_owned)
+            resume_code.put_trace_start(
+                self.entry.qualified_name, self.pos, nogil=not code.funcstate.gil_owned)
         resume_code.putln("switch (%s->resume_label) {" % (
                        Naming.generator_cname))
 
@@ -4896,6 +4909,7 @@ class GeneratorBodyDefNode(DefNode):
         resume_code.putln("default: /* CPython raises the right error here */")
         if profile or linetrace:
             resume_code.put_trace_return("Py_None",
+                                         pos=self.pos,
                                          nogil=not code.funcstate.gil_owned)
         resume_code.put_finish_refcount_context()
         resume_code.putln("return NULL;")
@@ -6858,6 +6872,9 @@ class ReturnStatNode(StatNode):
                 error(self.value.pos, "Return with value in void function")
             else:
                 self.value = self.value.coerce_to(env.return_type, env)
+                if env.directives['profile'] or env.directives['linetrace']:
+                    if not return_type.is_pyobject and return_type.can_coerce_to_pyobject(env):
+                        return_type.create_to_py_utility_code(env)
         else:
             if (not return_type.is_void
                     and not return_type.is_pyobject
@@ -6910,6 +6927,13 @@ class ReturnStatNode(StatNode):
                     Naming.retval_cname,
                     value.result_as(self.return_type)))
                 value.generate_post_assignment_code(code)
+                if code.globalstate.directives['profile']:
+                    if self.return_type.is_pyobject:
+                        code.putln("__Pyx_TraceReturnValue(%s, %d, 0, %s);" % (
+                            Naming.retval_cname, self.pos[1], code.error_goto(self.pos)))
+                    elif self.return_type.to_py_function:
+                        code.putln("__Pyx_TraceReturnCValue(%s, %s, %d, %d, %s);" % (
+                            Naming.retval_cname, self.return_type.to_py_function, self.pos[1], not code.funcstate.gil_owned, code.error_goto(self.pos)))
             value.free_temps(code)
         else:
             if self.return_type.is_pyobject:
@@ -7045,6 +7069,10 @@ class RaiseStatNode(StatNode):
                 value_code,
                 tb_code,
                 cause_code))
+
+        #if self.exc_value:
+        #    code.putln("__Pyx_TraceException()")
+
         for obj in (self.exc_type, self.exc_value, self.exc_tb, self.cause):
             if obj:
                 obj.generate_disposal_code(code)

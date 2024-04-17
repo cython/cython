@@ -3208,7 +3208,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.mark_pos(None)
 
         if profile or linetrace:
-            code.put_trace_call(header3, self.pos, nogil=not code.funcstate.gil_owned)
+            code.put_trace_start(header3, self.pos, nogil=not code.funcstate.gil_owned)
             code.funcstate.can_trace = True
 
         code.mark_pos(None)
@@ -3217,7 +3217,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
         if profile or linetrace:
             code.funcstate.can_trace = False
-            code.put_trace_return("Py_None", nogil=not code.funcstate.gil_owned)
+            code.put_trace_return("Py_None", pos=self.pos, nogil=not code.funcstate.gil_owned)
 
         code.putln()
         code.putln("/*--- Wrapped vars code ---*/")

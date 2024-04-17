@@ -243,6 +243,12 @@ def exclude_extension_in_pyver(*versions):
     return check
 
 
+def extension_needs_pyver(version):
+    def check(ext):
+        return EXCLUDE_EXT if sys.version_info[:2] < version else ext
+    return check
+
+
 def exclude_extension_on_platform(*platforms):
     def check(ext):
         return EXCLUDE_EXT if sys.platform in platforms else ext
@@ -484,7 +490,7 @@ VER_DEP_MODULES = {
         'run.longintrepr',  # PyLongObject changed its structure
     ]),
     # Profiling is broken on Python 3.12/3.13alpha
-    (3,12): (operator.gt, lambda x: "pstats" in x),
+    #(3,12): (operator.gt, lambda x: "pstats" in x),
 }
 
 INCLUDE_DIRS = [ d for d in os.getenv('INCLUDE', '').split(os.pathsep) if d ]

@@ -10040,8 +10040,11 @@ class PyCFunctionNode(ExprNode, ModuleNameMixin):
                     name=StringEncoding.EncodedString("__defaults__"))
                 # defaults getter must never live in class scopes, it's always a module function
                 module_scope = env.global_scope()
-                defaults_getter.analyse_declarations(module_scope)
-                defaults_getter = defaults_getter.analyse_expressions(module_scope)
+                # FIXME: this seems even more hackish than before.
+                directives_node = Nodes.CompilerDirectivesNode.for_internal(defaults_getter, module_scope)
+                directives_node.analyse_declarations(module_scope)
+                directives_node = directives_node.analyse_expressions(module_scope)
+                defaults_getter = directives_node.body
                 defaults_getter.body = defaults_getter.body.analyse_expressions(
                     defaults_getter.local_scope)
                 defaults_getter.py_wrapper_required = False
@@ -10517,6 +10520,7 @@ class YieldExprNode(ExprNode):
         linetrace = code.globalstate.directives['linetrace']
         if profile or linetrace:
             code.put_trace_return(Naming.retval_cname,
+                                  pos=self.pos,
                                   nogil=not code.funcstate.gil_owned)
         code.put_finish_refcount_context()
 

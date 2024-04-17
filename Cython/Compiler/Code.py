@@ -2878,22 +2878,22 @@ class CCodeWriter:
         self.globalstate.use_utility_code(
             UtilityCode.load_cached("WriteUnraisableException", "Exceptions.c"))
 
-    def put_trace_declarations(self):
-        self.putln('__Pyx_TraceDeclarations')
+    def put_trace_declarations(self, is_generator=False):
+        self.putln('__Pyx_TraceDeclarations(%d)' % bool(is_generator))
 
     def put_trace_frame_init(self, codeobj=None):
         if codeobj:
             self.putln('__Pyx_TraceFrameInit(%s)' % codeobj)
 
-    def put_trace_call(self, name, pos, nogil=False):
-        self.putln('__Pyx_TraceCall("%s", %s[%s], %s, %d, %s);' % (
+    def put_trace_start(self, name, pos, nogil=False):
+        self.putln('__Pyx_TraceStart("%s", %s[%s], %s, %d, %s);' % (
             name, Naming.filetable_cname, self.lookup_filename(pos[0]), pos[1], nogil, self.error_goto(pos)))
 
     def put_trace_exception(self):
         self.putln("__Pyx_TraceException();")
 
-    def put_trace_return(self, retvalue_cname, nogil=False):
-        self.putln("__Pyx_TraceReturn(%s, %d);" % (retvalue_cname, nogil))
+    def put_trace_return(self, retvalue_cname, pos, nogil=False):
+        self.putln("__Pyx_TraceReturn(%s, %d, %d);" % (retvalue_cname, pos[1], nogil))
 
     def putln_openmp(self, string):
         self.putln("#ifdef _OPENMP")
