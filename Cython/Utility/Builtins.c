@@ -311,8 +311,8 @@ static CYTHON_INLINE PyObject* __Pyx_divmod_int(int a, int b); /*proto*/
 //////////////////// divmod_int //////////////////
 
 static CYTHON_INLINE PyObject* __Pyx_divmod_int(int a, int b) {
-    PyObject *result_tuple = NULL, *quotient = NULL, *remainder = NULL;
-    // Python and C/C++ use different algorithm in calculating quotients and remainders.
+    PyObject *result_tuple = NULL, *pyvalue = NULL;
+    // Python and C/C++ use different algorithms in calculating quotients and remainders.
     // This results in different answers between Python and C/C++
     // when the dividend is negative and the divisor is positive and vice versa.
     int q, r;
@@ -332,14 +332,19 @@ static CYTHON_INLINE PyObject* __Pyx_divmod_int(int a, int b) {
         q = res.quot;
         r = res.rem;
     }
-    quotient = PyLong_FromLong(q);
-    if (unlikely(!quotient))
-        return NULL;
-    remainder = PyLong_FromLong(r);
-    if (unlikely(!remainder))
-        return NULL;
-    result_tuple = PyTuple_Pack(2, quotient, remainder);
+    result_tuple = PyTuple_New(2);
+    if (unlikely(!result_tuple)) return NULL;
+    pyvalue = PyLong_FromLong(q);
+    if (unlikely(!pyvalue)) goto bad;
+    if (__Pyx_PyTuple_SET_ITEM(result_tuple, 0, pyvalue) != (0)) goto bad;
+    pyvalue = PyLong_FromLong(r);
+    if (unlikely(!pyvalue)) goto bad;
+    if (__Pyx_PyTuple_SET_ITEM(result_tuple, 1, pyvalue) != (0)) goto bad;
     return result_tuple;
+
+bad:
+    Py_DECREF(result_tuple);
+    return NULL;
 }
 
 
