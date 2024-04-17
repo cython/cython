@@ -36,7 +36,7 @@ def divmod_by_0(a,b):
     Traceback (most recent call last):
     ZeroDivisionError: ...
     """
-    return divmod(a,0)
+    return divmod(a,b)
 
 
 @cython.test_assert_path_exists("//ReturnStatNode//NameNode[@entry.name = 'divmod']",
@@ -76,4 +76,4 @@ def divmod_by_int_0(a: cython.int, b: cython.int):
     Traceback (most recent call last):
     ZeroDivisionError: ...
     """
-    return divmod(a,0)
+    return divmod(a,b)
