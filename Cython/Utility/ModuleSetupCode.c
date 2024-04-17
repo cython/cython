@@ -286,7 +286,7 @@
   #ifndef CYTHON_USE_PYLONG_INTERNALS
     #define CYTHON_USE_PYLONG_INTERNALS (!CYTHON_COMPILING_IN_CPYTHON_NOGIL)
   #endif
-  #ifdef Py_GIL_DISABLED
+  #if CYTHON_COMPILING_IN_CPYTHON_NOGIL
     #undef CYTHON_USE_PYLIST_INTERNALS
     #define CYTHON_USE_PYLIST_INTERNALS 0
   #elif !defined(CYTHON_USE_PYLIST_INTERNALS)
@@ -295,7 +295,7 @@
   #ifndef CYTHON_USE_UNICODE_INTERNALS
     #define CYTHON_USE_UNICODE_INTERNALS 1
   #endif
-  #if defined(Py_GIL_DISABLED) || PY_VERSION_HEX >= 0x030B00A2
+  #if CYTHON_COMPILING_IN_CPYTHON_NOGIL || PY_VERSION_HEX >= 0x030B00A2
     // Python 3.11a2 hid _PyLong_FormatAdvancedWriter and _PyFloat_FormatAdvancedWriter
     // therefore disable unicode writer until a better alternative appears
     #undef CYTHON_USE_UNICODE_WRITER
@@ -318,13 +318,13 @@
   #ifndef CYTHON_UNPACK_METHODS
     #define CYTHON_UNPACK_METHODS 1
   #endif
-  #ifdef Py_GIL_DISABLED
+  #if CYTHON_COMPILING_IN_CPYTHON_NOGIL
     #undef CYTHON_FAST_THREAD_STATE
     #define CYTHON_FAST_THREAD_STATE 0
   #elif !defined(CYTHON_FAST_THREAD_STATE)
     #define CYTHON_FAST_THREAD_STATE 1
   #endif
-  #ifdef Py_GIL_DISABLED
+  #if CYTHON_COMPILING_IN_CPYTHON_NOGIL
     #undef CYTHON_FAST_GIL
     #define CYTHON_FAST_GIL 0
   #elif !defined(CYTHON_FAST_GIL)
@@ -337,7 +337,7 @@
     // semantics. It became stable starting from CPython 3.7.
     #define CYTHON_METH_FASTCALL (!CYTHON_COMPILING_IN_CPYTHON_NOGIL)
   #endif
-  #ifdef Py_GIL_DISABLED
+  #if CYTHON_COMPILING_IN_CPYTHON_NOGIL
     #undef CYTHON_FAST_PYCALL
     #define CYTHON_FAST_PYCALL 0
   #elif !defined(CYTHON_FAST_PYCALL)
@@ -357,7 +357,7 @@
   #ifndef CYTHON_USE_TP_FINALIZE
     #define CYTHON_USE_TP_FINALIZE 1
   #endif
-  #ifdef Py_GIL_DISABLED
+  #if CYTHON_COMPILING_IN_CPYTHON_NOGIL
     #undef CYTHON_USE_DICT_VERSIONS
     #define CYTHON_USE_DICT_VERSIONS 0
   #elif !defined(CYTHON_USE_DICT_VERSIONS)
