@@ -26,13 +26,8 @@ def divmod_regular(a,b):
     (0, 0)
     >>> divmod_regular(0,-987654321)
     (0, 0)
-    """
-    return divmod(a,b)
 
-
-def divmod_by_0(a,b):
-    """
-    >>> divmod_by_0(33,0) #doctest: +ELLIPSIS
+    >>> divmod_regular(33,0)  #doctest: +ELLIPSIS
     Traceback (most recent call last):
     ZeroDivisionError: ...
     """
@@ -65,14 +60,8 @@ def divmod_int_regular(a: cython.int, b: cython.int):
     (0, 0)
     >>> divmod_int_regular(0,-987654321)
     (0, 0)
-    """
-    return divmod(a,b)
 
-
-@cython.test_fail_if_path_exists("//ReturnStatNode//NameNode[@entry.cname = '__Pyx_divmod_int']")
-def divmod_by_int_0(a: cython.int, b: cython.int):
-    """
-    >>> divmod_by_int_0(33,0) #doctest: +ELLIPSIS
+    >>> divmod_int_regular(33,0)  #doctest: +ELLIPSIS
     Traceback (most recent call last):
     ZeroDivisionError: ...
     """
