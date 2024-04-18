@@ -471,6 +471,7 @@ EXT_EXTRAS = {
     'tag:trace' : update_linetrace_extension,
     'tag:no-macos':  exclude_extension_on_platform('darwin'),
     'tag:cppexecpolicies': require_gcc("9.1"),
+    'tag:pstats': exclude_extension_in_pyver((3,12)),
 }
 
 # TODO: use tags
@@ -489,8 +490,6 @@ VER_DEP_MODULES = {
         'compile.pylong',  # PyLongObject changed its structure
         'run.longintrepr',  # PyLongObject changed its structure
     ]),
-    # Profiling is broken on Python 3.12/3.13alpha
-    #(3,12): (operator.gt, lambda x: "pstats" in x),
 }
 
 INCLUDE_DIRS = [ d for d in os.getenv('INCLUDE', '').split(os.pathsep) if d ]
