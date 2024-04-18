@@ -105,7 +105,7 @@
   }
 
   #define __Pyx_TraceStart(funcname, srcfile, firstlineno, nogil, goto_error) \
-  if (1 /* __Pyx_IsTracing(__Pyx_Monitoring_PY_START) */) {                                          \
+  if ((0) /* !__Pyx_IsTracing(__Pyx_Monitoring_PY_START) */); else {                         \
       int ret = 0;                                                                           \
       memset($monitoring_states_cname, 0, sizeof($monitoring_states_cname));                 \
       if (nogil) {                                                                           \
@@ -139,7 +139,7 @@
   }
 
   #define __Pyx_TraceException(lineno, goto_error) \
-  if (__Pyx_IsTracing(__Pyx_Monitoring_RAISE)) {                                             \
+  if (!__Pyx_IsTracing(__Pyx_Monitoring_RAISE)); else {                                      \
       if (unlikely(__Pyx__TraceException(&$monitoring_states_cname[__Pyx_Monitoring_RAISE], (PyObject*) $frame_code_cname, lineno) == -1)) goto_error; \
   }
 
@@ -148,7 +148,7 @@
 
   // We assume that we own a safe reference to the returned value, usually in `__pyx_r`.
   #define __Pyx_TraceReturnValue(result, lineno, nogil, goto_error) \
-  if (__Pyx_IsTracing(__Pyx_Monitoring_PY_RETURN)) {                                         \
+  if (!__Pyx_IsTracing(__Pyx_Monitoring_PY_RETURN)); else {                                  \
       int ret = 0;                                                                           \
       if (nogil) {                                                                           \
           if (CYTHON_TRACE_NOGIL) {                                                          \
@@ -163,7 +163,7 @@
   }
 
   #define __Pyx_TraceReturnCValue(cresult, convert_function, lineno, nogil, goto_error) \
-  if (__Pyx_IsTracing(__Pyx_Monitoring_PY_RETURN)) {                                         \
+  if (!__Pyx_IsTracing(__Pyx_Monitoring_PY_RETURN)); else {                                  \
       int ret = 0;                                                                           \
       if (nogil) {                                                                           \
           if (CYTHON_TRACE_NOGIL) {                                                          \
@@ -185,7 +185,7 @@
 
   #if CYTHON_TRACE
   #define __Pyx_TraceLine(lineno, nogil, goto_error) \
-  if (__Pyx_IsTracing(__Pyx_Monitoring_LINE)) {                                              \
+  if (!__Pyx_IsTracing(__Pyx_Monitoring_LINE)); else {                                       \
       int ret = 0;                                                                           \
       if (nogil) {                                                                           \
           if (CYTHON_TRACE_NOGIL) {                                                          \
