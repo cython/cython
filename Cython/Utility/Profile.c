@@ -318,7 +318,7 @@
       if ((1)); else goto_error;                                                           \
   }
 
-  static void __Pyx_call_return_trace_func(PyThreadState *tstate, PyFrameObject *frame, PyObject *result) {
+  CYTHON_UNUSED static void __Pyx_call_return_trace_func(PyThreadState *tstate, PyFrameObject *frame, PyObject *result) {
       PyObject *type, *value, *traceback;
       __Pyx_ErrFetchInState(tstate, &type, &value, &traceback);
       __Pyx_EnterTracing(tstate);
@@ -338,7 +338,7 @@
   #define __Pyx_TraceReturnCValue(cresult, convert_function, lineno, nogil, goto_error) \
       if ((1)); else { (void) convert_function; goto_error }
 
-  #define __Pyx_TraceReturn(result, nogil)                                                \
+  #define __Pyx_TraceReturn(result, lineno, nogil) \
   if (likely(!__Pyx_use_tracing)); else {                                                 \
       if (nogil) {                                                                        \
           if (CYTHON_TRACE_NOGIL) {                                                       \
@@ -370,7 +370,13 @@
   // mark error label as used to avoid compiler warnings
   #define __Pyx_TraceStart(funcname, srcfile, firstlineno, nogil, goto_error)   if ((1)); else goto_error;
   #define __Pyx_TraceException(lineno, goto_error)   if ((1)); else goto_error;
-  #define __Pyx_TraceReturn(result, nogil)
+  #define __Pyx_TraceReturn(result, lineno, nogil)
+
+  #define __Pyx_TraceReturnValue(result, lineno, nogil, goto_error) \
+      if ((1)); else goto_error;
+
+  #define __Pyx_TraceReturnCValue(cresult, convert_function, lineno, nogil, goto_error) \
+      if ((1)); else { (void) convert_function; goto_error }
 
 #endif /* CYTHON_PROFILE || CYTHON_TRACE */
 
