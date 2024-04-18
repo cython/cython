@@ -426,7 +426,7 @@
       if (unlikely(ret)) goto_error;                                                       \
   }
 
-#elif !CYTHON_TRACE
+#elif PY_VERSION_HEX < 0x030d00B1
   // mark error label as used to avoid compiler warnings
   #define __Pyx_TraceLine(lineno, nogil, goto_error)   if ((1)); else goto_error;
 #endif
