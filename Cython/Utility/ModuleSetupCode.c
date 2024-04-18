@@ -335,12 +335,9 @@
   #ifndef CYTHON_METH_FASTCALL
     // CPython 3.6 introduced METH_FASTCALL but with slightly different
     // semantics. It became stable starting from CPython 3.7.
-    #define CYTHON_METH_FASTCALL (!CYTHON_COMPILING_IN_CPYTHON_NOGIL)
+    #define CYTHON_METH_FASTCALL 1
   #endif
-  #if CYTHON_COMPILING_IN_CPYTHON_NOGIL
-    #undef CYTHON_FAST_PYCALL
-    #define CYTHON_FAST_PYCALL 0
-  #elif !defined(CYTHON_FAST_PYCALL)
+  #ifndef CYTHON_FAST_PYCALL
     #define CYTHON_FAST_PYCALL 1
   #endif
   #ifndef CYTHON_PEP487_INIT_SUBCLASS
