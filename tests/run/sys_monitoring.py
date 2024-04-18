@@ -53,7 +53,8 @@ else:
     ...         with monitored_events(events=event_set) as collected_events:
     ...             result = test_profile(10)
     ...         for func_name, line_counts in sorted(collected_events.items()):
-    ...             print(func_name, result, ', '.join(f"{names([event_id])} [{sum(counts.values())}]" for event_id, counts in sorted(line_counts.items())))
+    ...             print(func_name, result,
+    ...                    ', '.join(f"{names([event_id])} [{sum(counts.values())}]" for event_id, counts in sorted(line_counts.items())))
     ...         assert_events(event_set, collected_events['test_profile'])  # test_profile(10)
     -------
     f_cdef 720 PY_START [10]

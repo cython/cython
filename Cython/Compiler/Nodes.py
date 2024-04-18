@@ -6930,10 +6930,15 @@ class ReturnStatNode(StatNode):
                 if code.globalstate.directives['profile']:
                     if self.return_type.is_pyobject:
                         code.putln("__Pyx_TraceReturnValue(%s, %d, 0, %s);" % (
-                            Naming.retval_cname, self.pos[1], code.error_goto(self.pos)))
+                            Naming.retval_cname,
+                            self.pos[1],
+                            code.error_goto(self.pos)))
                     elif self.return_type.to_py_function:
                         code.putln("__Pyx_TraceReturnCValue(%s, %s, %d, %d, %s);" % (
-                            Naming.retval_cname, self.return_type.to_py_function, self.pos[1], not code.funcstate.gil_owned, code.error_goto(self.pos)))
+                            Naming.retval_cname, self.return_type.to_py_function,
+                            self.pos[1],
+                            not code.funcstate.gil_owned,
+                            code.error_goto(self.pos)))
             value.free_temps(code)
         else:
             if self.return_type.is_pyobject:
