@@ -295,6 +295,7 @@
   }
 
   #define __Pyx_TraceStartGen __Pyx_TraceStartFunc
+  #define __Pyx_TraceResumeGen(lineno, goto_error)
 
   #define __Pyx_TraceException(lineno, goto_error)                                         \
   if (likely(!__Pyx_use_tracing)); else {                                                  \
@@ -368,6 +369,7 @@
   // mark error label as used to avoid compiler warnings
   #define __Pyx_TraceStart(funcname, srcfile, firstlineno, nogil, goto_error)   if ((1)); else goto_error;
   #define __Pyx_TraceStartGen __Pyx_TraceStartFunc
+  #define __Pyx_TraceResumeGen(lineno, goto_error)
   #define __Pyx_TraceException(lineno, goto_error)   if ((1)); else goto_error;
   #define __Pyx_TraceReturn(result, lineno, nogil)
 
