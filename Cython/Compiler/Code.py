@@ -2879,15 +2879,25 @@ class CCodeWriter:
             UtilityCode.load_cached("WriteUnraisableException", "Exceptions.c"))
 
     def put_trace_declarations(self, is_generator=False):
-        self.putln('__Pyx_TraceDeclarations(%d)' % bool(is_generator))
+        self.putln('__Pyx_TraceDeclarationsGen' if is_generator else '__Pyx_TraceDeclarationsFunc')
 
     def put_trace_frame_init(self, codeobj=None):
         if codeobj:
             self.putln('__Pyx_TraceFrameInit(%s)' % codeobj)
 
-    def put_trace_start(self, name, pos, nogil=False):
-        self.putln('__Pyx_TraceStart("%s", %s[%s], %s, %d, %s);' % (
-            name, Naming.filetable_cname, self.lookup_filename(pos[0]), pos[1], nogil, self.error_goto(pos)))
+    def put_trace_start(self, name, pos, nogil=False, is_generator=False):
+        self.putln('%s("%s", %s[%s], %s, %d, %s);' % (
+            "__Pyx_TraceStartGen" if is_generator else "__Pyx_TraceStartFunc",
+            name,
+            Naming.filetable_cname,
+            self.lookup_filename(pos[0]),
+            pos[1],
+            nogil,
+            self.error_goto(pos),
+        ))
+
+    def put_trace_resume(self, pos):
+        self.putln(f'__Pyx_TraceResumeGen({pos[1]}, {self.error_goto(pos)});')
 
     def put_trace_exception(self):
         self.putln("__Pyx_TraceException();")

@@ -4811,6 +4811,10 @@ class GeneratorBodyDefNode(DefNode):
         first_run_label = code.new_label('first_run')
         code.use_label(first_run_label)
         code.put_label(first_run_label)
+        if profile or linetrace:
+            # TODO: report .throw() if 'sent_value' == NULL (?)
+            assert code.funcstate.gil_owned
+            code.put_trace_start(self.entry.qualified_name, self.pos, is_generator=True)
         code.putln('%s' %
                    (code.error_goto_if_null(Naming.sent_value_cname, self.pos)))
 
@@ -4896,9 +4900,6 @@ class GeneratorBodyDefNode(DefNode):
         # ----- Go back and insert temp variable declarations
         tempvardecl_code.put_temp_declarations(code.funcstate)
         # ----- Generator resume code
-        if profile or linetrace:
-            resume_code.put_trace_start(
-                self.entry.qualified_name, self.pos, nogil=not code.funcstate.gil_owned)
         resume_code.putln("switch (%s->resume_label) {" % (
                        Naming.generator_cname))
 

@@ -369,6 +369,14 @@ typedef struct __pyx_CoroutineObject {
     PyObject *gi_modulename;
     PyObject *gi_code;
     PyObject *gi_frame;
+#if CYTHON_USE_SYS_MONITORING && (CYTHON_PROFILE || CYTHON_TRACE)
+    PyMonitoringState $monitoring_states_cname[__Pyx_MonitoringEventTypes_CyGen_count];
+    #if SIZEOF_LONG == 8
+    unsigned long $monitoring_version_cname;
+    #else
+    unsigned long long $monitoring_version_cname;
+    #endif
+#endif
     int resume_label;
     // using T_BOOL for property below requires char value
     char is_running;

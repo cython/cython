@@ -33,9 +33,17 @@
   #define CYTHON_PROFILE_REUSE_FRAME 0
 #endif
 
+#if CYTHON_USE_SYS_MONITORING && (CYTHON_PROFILE || CYTHON_TRACE)
+  // Some types are shared across modules with an object struct layout that depends on monitoring support.
+  // We therefore use a different name for the different types.
+  #define __PYX_MONITORING_ABI_SUFFIX  "_mon"
+#else
+  #define __PYX_MONITORING_ABI_SUFFIX
+#endif
+
 #if CYTHON_PROFILE || CYTHON_TRACE
 
-#if PY_VERSION_HEX >= 0x030d00B1
+#if CYTHON_USE_SYS_MONITORING
 // Use the Py3.13 monitoring C-API: https://github.com/python/cpython/issues/111997
 
   // TODO: separate offset and lineno, calculate lineno and column
@@ -44,34 +52,19 @@
   typedef enum {
       __Pyx_Monitoring_PY_START = 0,
       __Pyx_Monitoring_PY_RETURN,
-      #if CYTHON_TRACE
+      //__Pyx_Monitoring_CALL,
       __Pyx_Monitoring_LINE,
-      #endif
       __Pyx_Monitoring_RAISE,
       __Pyx_Monitoring_PY_RESUME,
       __Pyx_Monitoring_PY_YIELD,
       __Pyx_Monitoring_STOP_ITERATION,
   } __Pyx_Monitoring_Event_Index;
 
-  static const unsigned char __Pyx_MonitoringEventTypes_CyFunc[] = {
+  static const unsigned char __Pyx_MonitoringEventTypes[] = {
       PY_MONITORING_EVENT_PY_START,
       PY_MONITORING_EVENT_PY_RETURN,
       //PY_MONITORING_EVENT_CALL,
-      #if CYTHON_TRACE
       PY_MONITORING_EVENT_LINE,
-      #endif
-      PY_MONITORING_EVENT_RAISE,
-  };
-
-  #define __Pyx_MonitoringEventTypes_CyFunc_count (sizeof(__Pyx_MonitoringEventTypes_CyFunc) - 1)
-
-  static const unsigned char __Pyx_MonitoringEventTypes_CyGen[] = {
-      PY_MONITORING_EVENT_PY_START,
-      PY_MONITORING_EVENT_PY_RETURN,
-      //PY_MONITORING_EVENT_CALL,
-      #if CYTHON_TRACE
-      PY_MONITORING_EVENT_LINE,
-      #endif
       PY_MONITORING_EVENT_RAISE,
       // generator specific:
       PY_MONITORING_EVENT_PY_RESUME,
@@ -79,32 +72,33 @@
       PY_MONITORING_EVENT_STOP_ITERATION,
   };
 
-  #define __Pyx_MonitoringEventTypes_CyGen_count (sizeof(__Pyx_MonitoringEventTypes_CyGen) - 1)
+  #if SIZEOF_LONG == 8
+  typedef unsigned long __pyx_monitoring_version_type;
+  #else
+  typedef unsigned long long __pyx_monitoring_version_type;
+  #endif
 
-  #define __Pyx_TraceDeclarations(is_gen)                                 \
-      static PyCodeObject *$frame_code_cname = NULL;                      \
-      PyMonitoringState $monitoring_states_cname[is_gen ? __Pyx_MonitoringEventTypes_CyGen_count : __Pyx_MonitoringEventTypes_CyFunc_count];
+  #define __Pyx_MonitoringEventTypes_CyFunc_count (sizeof(__Pyx_MonitoringEventTypes) - 3)
+  #define __Pyx_MonitoringEventTypes_CyGen_count (sizeof(__Pyx_MonitoringEventTypes))
+
+  #define __Pyx_TraceDeclarationsFunc \
+      static PyCodeObject *$frame_code_cname = NULL; \
+      PyMonitoringState $monitoring_states_cname[__Pyx_MonitoringEventTypes_CyFunc_count];
+
+  #define __Pyx_TraceDeclarationsGen \
+      PyObject *$frame_code_cname = $generator_cname->gi_code; \
+      PyMonitoringState* $monitoring_states_cname = $generator_cname->$monitoring_states_cname; \
+      __pyx_monitoring_version_type $monitoring_version_cname = $generator_cname->$monitoring_version_cname;
 
   #define __Pyx_IsTracing(event_id)  (($monitoring_states_cname[event_id]).active)
   #define __Pyx_TraceFrameInit(codeobj)
 
-  static PyCodeObject *__Pyx_createFrameCodeObject(const char *funcname, const char *srcfile, int firstlineno); /*proto*/
+  CYTHON_UNUSED static PyCodeObject *__Pyx_createFrameCodeObject(const char *funcname, const char *srcfile, int firstlineno); /*proto*/
+  CYTHON_UNUSED static int __Pyx__TraceStartFunc(PyMonitoringState *state_array, PyObject *code_obj, long firstlineno); /*proto*/
+  CYTHON_UNUSED static int __Pyx__TraceStartGen(PyMonitoringState *state_array, __pyx_monitoring_version_type *version, PyObject *code_obj, long firstlineno); /*proto*/
+  CYTHON_UNUSED static int __Pyx__TraceResumeGen(PyMonitoringState *state_array, __pyx_monitoring_version_type *version, PyObject *code_obj, long firstlineno); /*proto*/
 
-  CYTHON_UNUSED static int __Pyx__TraceStart(PyMonitoringState *state_array, PyObject *code_obj, long firstlineno, int is_generator) {
-      int ret;
-      #if SIZEOF_LONG == 8
-      unsigned long version = 0;
-      #else
-      unsigned long long version = 0;
-      #endif
-      ret = PyMonitoring_EnterScope(state_array, &version,
-          is_generator ? __Pyx_MonitoringEventTypes_CyGen : __Pyx_MonitoringEventTypes_CyFunc,
-          is_generator ? __Pyx_MonitoringEventTypes_CyGen_count : __Pyx_MonitoringEventTypes_CyFunc_count);
-      if (unlikely(ret == -1)) return -1;
-      return PyMonitoring_FirePyStartEvent(&state_array[__Pyx_Monitoring_PY_START], code_obj, firstlineno);
-  }
-
-  #define __Pyx_TraceStart(funcname, srcfile, firstlineno, nogil, goto_error) \
+  #define __Pyx_TraceStartFunc(funcname, srcfile, firstlineno, nogil, goto_error) \
   if ((0) /* !__Pyx_IsTracing(__Pyx_Monitoring_PY_START) */); else {                         \
       int ret = 0;                                                                           \
       memset($monitoring_states_cname, 0, sizeof($monitoring_states_cname));                 \
@@ -113,29 +107,28 @@
               PyGILState_STATE state = PyGILState_Ensure();                                  \
               if (unlikely(!$frame_code_cname)) $frame_code_cname = __Pyx_createFrameCodeObject(funcname, srcfile, firstlineno); \
               if (unlikely(!$frame_code_cname)) goto_error;                                  \
-              ret = __Pyx__TraceStart($monitoring_states_cname, (PyObject*) $frame_code_cname, firstlineno, 0); \
+              ret = __Pyx__TraceStartFunc($monitoring_states_cname, (PyObject*) $frame_code_cname, firstlineno); \
               PyGILState_Release(state);                                                     \
           }                                                                                  \
       } else {                                                                               \
           if (unlikely(!$frame_code_cname)) $frame_code_cname = __Pyx_createFrameCodeObject(funcname, srcfile, firstlineno); \
           if (unlikely(!$frame_code_cname)) goto_error;                                      \
-          ret = __Pyx__TraceStart($monitoring_states_cname, (PyObject*) $frame_code_cname, firstlineno, 0); \
+          ret = __Pyx__TraceStartFunc($monitoring_states_cname, (PyObject*) $frame_code_cname, firstlineno); \
       }                                                                                      \
       if (unlikely(ret == -1)) goto_error;                                                   \
   }
 
-  CYTHON_UNUSED static int __Pyx__TraceException(PyMonitoringState *monitoring_state, PyObject *code_obj, long offset) {
-      int ret;
-      PyObject *exc_value = PyErr_GetRaisedException();
-      if (unlikely(!exc_value)) return 0;
+  // 'nogil' is obviously unused
+  #define __Pyx_TraceStartGen(funcname, srcfile, firstlineno, nogil, goto_error) \
+  if ((0) /* !__Pyx_IsTracing(__Pyx_Monitoring_PY_START) */); else {                         \
+      int ret = __Pyx__TraceStartGen($monitoring_states_cname, &$monitoring_version_cname, $frame_code_cname, firstlineno); \
+      if (unlikely(ret == -1)) goto_error;                                                   \
+  }
 
-      ret = PyMonitoring_FireRaiseEvent(monitoring_state, code_obj, offset, exc_value);
-      if (unlikely(ret == -1)) {
-          Py_DECREF(exc_value);
-      } else {
-          PyErr_SetRaisedException(exc_value);
-      }
-      return ret;
+  #define __Pyx_TraceResumeGen(lineno, goto_error) \
+  if ((0) /* !__Pyx_IsTracing(__Pyx_Monitoring_PY_START) */); else {                         \
+      int ret = __Pyx__TraceResumeGen($monitoring_states_cname, &$monitoring_version_cname, $frame_code_cname, lineno); \
+      if (unlikely(ret == -1)) goto_error;                                                   \
   }
 
   #define __Pyx_TraceException(lineno, goto_error) \
@@ -221,10 +214,12 @@
     #define CYTHON_FRAME_DEL(frame) Py_CLEAR(frame)
   #endif
 
-  #define __Pyx_TraceDeclarations(is_gen)                                 \
+  #define __Pyx_TraceDeclarationsFunc \
       static PyCodeObject *$frame_code_cname = NULL;                      \
       CYTHON_FRAME_MODIFIER PyFrameObject *$frame_cname = NULL;           \
       int __Pyx_use_tracing = 0;
+  
+  #define __Pyx_TraceDeclarationsGen __Pyx_TraceDeclarationsFunc
 
   #define __Pyx_TraceFrameInit(codeobj)                                   \
       if (codeobj) $frame_code_cname = (PyCodeObject*) codeobj;
@@ -279,7 +274,7 @@
 
 #endif
 
-  #define __Pyx_TraceStart(funcname, srcfile, firstlineno, nogil, goto_error)             \
+  #define __Pyx_TraceStartFunc(funcname, srcfile, firstlineno, nogil, goto_error)        \
   if (nogil) {                                                                           \
       if (CYTHON_TRACE_NOGIL) {                                                          \
           PyThreadState *tstate;                                                         \
@@ -298,6 +293,8 @@
           if (unlikely(__Pyx_use_tracing < 0)) goto_error;                               \
       }                                                                                  \
   }
+
+  #define __Pyx_TraceStartGen __Pyx_TraceStartFunc
 
   #define __Pyx_TraceException(lineno, goto_error)                                         \
   if (likely(!__Pyx_use_tracing)); else {                                                  \
@@ -365,10 +362,12 @@
 
 #else
 
-  #define __Pyx_TraceDeclarations(is_gen)
+  #define __Pyx_TraceDeclarationsFunc
+  #define __Pyx_TraceDeclarationsGen
   #define __Pyx_TraceFrameInit(codeobj)
   // mark error label as used to avoid compiler warnings
   #define __Pyx_TraceStart(funcname, srcfile, firstlineno, nogil, goto_error)   if ((1)); else goto_error;
+  #define __Pyx_TraceStartGen __Pyx_TraceStartFunc
   #define __Pyx_TraceException(lineno, goto_error)   if ((1)); else goto_error;
   #define __Pyx_TraceReturn(result, lineno, nogil)
 
@@ -426,7 +425,7 @@
       if (unlikely(ret)) goto_error;                                                       \
   }
 
-#elif PY_VERSION_HEX < 0x030d00B1
+#elif !CYTHON_USE_SYS_MONITORING
   // mark error label as used to avoid compiler warnings
   #define __Pyx_TraceLine(lineno, nogil, goto_error)   if ((1)); else goto_error;
 #endif
@@ -434,9 +433,9 @@
 /////////////// Profile ///////////////
 //@substitute: naming
 
-#if CYTHON_PROFILE
+#if CYTHON_PROFILE || CYTHON_TRACE
 
-static PyCodeObject *__Pyx_createFrameCodeObject(const char *funcname, const char *srcfile, int firstlineno) {
+CYTHON_UNUSED static PyCodeObject *__Pyx_createFrameCodeObject(const char *funcname, const char *srcfile, int firstlineno) {
     PyCodeObject *py_code = PyCode_NewEmpty(srcfile, funcname, firstlineno);
     // make CPython use a fresh dict for "f_locals" at need (see GH #1836)
     if (likely(py_code)) {
@@ -445,7 +444,45 @@ static PyCodeObject *__Pyx_createFrameCodeObject(const char *funcname, const cha
     return py_code;
 }
 
-#if PY_VERSION_HEX < 0x030d00B1
+#if CYTHON_USE_SYS_MONITORING
+
+CYTHON_UNUSED static int __Pyx__TraceStartFunc(PyMonitoringState *state_array, PyObject *code_obj, long firstlineno) {
+    int ret;
+    __pyx_monitoring_version_type version = 0;
+    ret = PyMonitoring_EnterScope(state_array, &version, __Pyx_MonitoringEventTypes, __Pyx_MonitoringEventTypes_CyFunc_count);
+    if (unlikely(ret == -1)) return -1;
+    return PyMonitoring_FirePyStartEvent(&state_array[__Pyx_Monitoring_PY_START], code_obj, firstlineno);
+}
+
+CYTHON_UNUSED static int __Pyx__TraceStartGen(PyMonitoringState *state_array, __pyx_monitoring_version_type *version, PyObject *code_obj, long firstlineno) {
+    int ret;
+    ret = PyMonitoring_EnterScope(state_array, version, __Pyx_MonitoringEventTypes, __Pyx_MonitoringEventTypes_CyGen_count);
+    if (unlikely(ret == -1)) return -1;
+    return 0; //PyMonitoring_FirePyStartEvent(&state_array[__Pyx_Monitoring_PY_START], code_obj, firstlineno);
+}
+
+CYTHON_UNUSED static int __Pyx__TraceResumeGen(PyMonitoringState *state_array, __pyx_monitoring_version_type *version, PyObject *code_obj, long offset) {
+    int ret;
+    ret = PyMonitoring_EnterScope(state_array, version, __Pyx_MonitoringEventTypes, __Pyx_MonitoringEventTypes_CyGen_count);
+    if (unlikely(ret == -1)) return -1;
+    return 0; //PyMonitoring_FirePyResumeEvent(&state_array[__Pyx_Monitoring_PY_RESUME], code_obj, offset);
+}
+
+CYTHON_UNUSED static int __Pyx__TraceException(PyMonitoringState *monitoring_state, PyObject *code_obj, long offset) {
+    int ret;
+    PyObject *exc_value = PyErr_GetRaisedException();
+    if (unlikely(!exc_value)) return 0;
+
+    ret = PyMonitoring_FireRaiseEvent(monitoring_state, code_obj, offset, exc_value);
+    if (unlikely(ret == -1)) {
+        Py_DECREF(exc_value);
+    } else {
+        PyErr_SetRaisedException(exc_value);
+    }
+    return ret;
+}
+
+#else
 
 static int __Pyx_TraceSetupAndCall(PyCodeObject** code,
                                    PyFrameObject** frame,

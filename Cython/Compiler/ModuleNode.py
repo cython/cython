@@ -787,20 +787,13 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.globalstate["end"].putln("#endif /* Py_PYTHON_H */")
 
         from .. import __version__
-        code.putln('#if defined(CYTHON_LIMITED_API) && CYTHON_LIMITED_API')  # CYTHON_COMPILING_IN_LIMITED_API not yet defined
-        # The limited API makes some significant changes to data structures, so we don't
-        # want to shared implementation compiled with and without the limited API.
-        code.putln('#define __PYX_EXTRA_ABI_MODULE_NAME "limited"')
-        code.putln('#else')
-        code.putln('#define __PYX_EXTRA_ABI_MODULE_NAME ""')
-        code.putln('#endif')
-        code.putln('#define CYTHON_ABI "%s" __PYX_EXTRA_ABI_MODULE_NAME' %
-                   __version__.replace('.', '_'))
-        code.putln('#define __PYX_ABI_MODULE_NAME "_cython_" CYTHON_ABI')
-        code.putln('#define __PYX_TYPE_MODULE_PREFIX __PYX_ABI_MODULE_NAME "."')
+        code.putln(f'#define __PYX_ABI_VERSION "{__version__.replace(".", "_")}"')
         code.putln('#define CYTHON_HEX_VERSION %s' % build_hex_version(__version__))
         code.putln("#define CYTHON_FUTURE_DIVISION %d" % (
             Future.division in env.context.future_directives))
+
+        code.globalstate.use_utility_code(
+            UtilityCode.load("CythonABIVersion", "ModuleSetupCode.c"))
 
         self._put_setup_code(code, "CModulePreamble")
         if env.context.options.cplus:
@@ -3208,7 +3201,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.mark_pos(None)
 
         if profile or linetrace:
-            code.put_trace_start(header3, self.pos, nogil=not code.funcstate.gil_owned)
+            assert code.funcstate.gil_owned
+            code.put_trace_start(header3, self.pos)
             code.funcstate.can_trace = True
 
         code.mark_pos(None)
@@ -3217,7 +3211,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
         if profile or linetrace:
             code.funcstate.can_trace = False
-            code.put_trace_return("Py_None", pos=self.pos, nogil=not code.funcstate.gil_owned)
+            assert code.funcstate.gil_owned
+            code.put_trace_return("Py_None", pos=self.pos)
 
         code.putln()
         code.putln("/*--- Wrapped vars code ---*/")

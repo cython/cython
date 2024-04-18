@@ -10498,9 +10498,9 @@ class YieldExprNode(ExprNode):
         Generate the code to return the argument in 'Naming.retval_cname'
         and to continue at the yield label.
         """
-        label_num, label_name = code.new_yield_label(
+        label_num, resume_label = code.new_yield_label(
             self.expr_keyword.replace(' ', '_'))
-        code.use_label(label_name)
+        code.use_label(resume_label)
 
         saved = []
         code.funcstate.closure_temps.reset()
@@ -10542,7 +10542,11 @@ class YieldExprNode(ExprNode):
         else:
             code.putln("return %s;" % Naming.retval_cname)
 
-        code.put_label(label_name)
+        code.put_label(resume_label)
+
+        if code.globalstate.directives['profile'] or code.globalstate.directives['linetrace']:
+            code.put_trace_resume(self.pos)
+
         for cname, save_cname, type in saved:
             save_cname = "%s->%s" % (Naming.cur_scope_cname, save_cname)
             if type.is_cpp_class:
