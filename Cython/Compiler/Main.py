@@ -472,21 +472,9 @@ def create_default_resultobj(compilation_source, options):
     result.embedded_metadata = options.embedded_metadata
     return result
 
-
-def run_pipeline(source, options, full_module_name=None, context=None):
-    from . import Pipeline
-
-    source_ext = os.path.splitext(source)[1]
-    options.configure_language_defaults(source_ext[1:])  # py/pyx
-    if context is None:
-        context = Context.from_options(options)
-
-    # Set up source object
+def setup_source_object(source, source_ext, full_module_name, options):
     cwd = os.getcwd()
     abs_path = os.path.abspath(source)
-    full_module_name = full_module_name or context.extract_module_name(source, options)
-    full_module_name = EncodedString(full_module_name)
-
     Utils.raise_error_if_module_name_forbidden(full_module_name)
 
     if options.relative_path_in_code_position_comments:
@@ -496,8 +484,51 @@ def run_pipeline(source, options, full_module_name=None, context=None):
     else:
         rel_path = abs_path
     source_desc = FileSourceDescriptor(abs_path, rel_path)
-    source = CompilationSource(source_desc, full_module_name, cwd)
+    return CompilationSource(source_desc, full_module_name, cwd)
 
+def run_cached_pipeline(source, options, full_module_name=None, context=None, cache=None, fingerprint=None):
+
+    if context is None:
+        context = Context.from_options(options)
+    if cache and fingerprint:
+        cwd = os.getcwd()
+        output_filename = get_output_filename(source, cwd, options)
+        cached = cache.lookup_cache(output_filename, fingerprint)
+    else:
+        cached = False
+    # FIXME: Should we load from cache when Annotate is enabled
+    if cache and cached:
+        if options.verbose:
+            sys.stderr.write(f'Found compiled {os.path.basename(output_filename)} in cache.\n')
+        cache.load_from_cache(output_filename, cached)
+
+        source_ext = os.path.splitext(source)[1]
+        options.configure_language_defaults(source_ext[1:])  # py/pyx
+        full_module_name = full_module_name or context.extract_module_name(source, options)
+        full_module_name = EncodedString(full_module_name)
+        source = setup_source_object(source, source_ext, full_module_name, options)
+        # Set up result object
+        return create_default_resultobj(source, options)
+    else:
+        result = run_pipeline(source, options, full_module_name, context)
+        if cache and fingerprint:
+            cache.store_to_cache(output_filename, fingerprint, result)
+    return result
+
+
+
+def run_pipeline(source, options, full_module_name=None, context=None):
+    from . import Pipeline
+    if options.verbose:
+        sys.stderr.write("Compiling %s\n" % source)
+    source_ext = os.path.splitext(source)[1]
+    options.configure_language_defaults(source_ext[1:])  # py/pyx
+    if context is None:
+        context = Context.from_options(options)
+
+    full_module_name = full_module_name or context.extract_module_name(source, options)
+    full_module_name = EncodedString(full_module_name)
+    source = setup_source_object(source, source_ext, full_module_name, options)
     # Set up result object
     result = create_default_resultobj(source, options)
 
@@ -571,6 +602,7 @@ class CompilationResult:
     object_file = None
     extension_file = None
     main_source_file = None
+    num_errors = 0
 
     def get_generated_source_files(self):
         return [
@@ -594,19 +626,33 @@ class CompilationResultSet(dict):
         self[source] = result
         self.num_errors += result.num_errors
 
+def get_fingerprint(cache, source, options):
+        from ..Build.Dependencies import create_dependency_tree
+        from ..Build.Cache import FingerprintFlags
+        context = Context.from_options(options)
+        dependencies = create_dependency_tree(context)
+        return cache.transitive_fingerprint(
+                source, dependencies.all_dependencies(source), options,
+                FingerprintFlags(
+                    'c++' if options.cplus else 'c',
+                    np_pythran=options.np_pythran
+                )
+        )
 
-def compile_single(source, options, full_module_name = None):
+def compile_single(source, options, full_module_name = None, cache=None, fingerprint=None):
     """
-    compile_single(source, options, full_module_name)
+    compile_single(source, options, full_module_name, cache, fingerprint)
 
     Compile the given Pyrex implementation file and return a CompilationResult.
     Always compiles a single file; does not perform timestamp checking or
     recursion.
     """
-    return run_pipeline(source, options, full_module_name)
+    if cache and not fingerprint:
+        fingerprint = get_fingerprint(cache, source, options)
+    return run_cached_pipeline(source, options, full_module_name, cache=cache, fingerprint=fingerprint)
 
 
-def compile_multiple(sources, options):
+def compile_multiple(sources, options, cache=None):
     """
     compile_multiple(sources, options)
 
@@ -623,7 +669,6 @@ def compile_multiple(sources, options):
     processed = set()
     results = CompilationResultSet()
     timestamps = options.timestamps
-    verbose = options.verbose
     context = None
     cwd = os.getcwd()
     for source in sources:
@@ -631,42 +676,16 @@ def compile_multiple(sources, options):
             output_filename = get_output_filename(source, cwd, options)
             if context is None:
                 context = Context.from_options(options)
-            if options.cache:
-                from ..Build.Dependencies import create_dependency_tree
-                from ..Build.Cache import Cache, FingerprintFlags
-                cache = Cache(options.cache)
-                dependencies = create_dependency_tree(context)
-                fingerprint = cache.transitive_fingerprint(
-                        source, dependencies.all_dependencies(source), options,
-                        FingerprintFlags(
-                            'c++' if options.cplus else 'c',
-                            np_pythran=options.np_pythran
-                        )
-                )
-                cached = cache.lookup_cache(output_filename, fingerprint)
-                if cached:
-                    if verbose:
-                        sys.stderr.write(f'Found compiled {os.path.basename(output_filename)} in cache.\n')
-                    cache.load_from_cache(output_filename, cached)
-                    continue
-            else:
-                fingerprint = None
-                cache = None
-
             out_of_date = context.c_file_out_of_date(source, output_filename)
             if (not timestamps) or out_of_date:
-                if verbose:
-                    sys.stderr.write("Compiling %s\n" % source)
-                result = run_pipeline(source, options,
+                fingerprint = get_fingerprint(cache, source, options) if cache else None
+                result = run_cached_pipeline(source, options,
                                       full_module_name=options.module_name,
-                                      context=context)
+                                      context=context, cache=cache, fingerprint=fingerprint)
                 results.add(source, result)
                 # Compiling multiple sources in one context doesn't quite
                 # work properly yet.
                 context = None
-
-                if fingerprint and cache:
-                    cache.store_to_cache(output_filename, fingerprint, result)
             processed.add(source)
     if cache:
         cache.cleanup_cache()
@@ -683,17 +702,18 @@ def compile(source, options = None, full_module_name = None, **kwds):
     checking is requested, a CompilationResult is returned, otherwise a
     CompilationResultSet is returned.
     """
+    from ..Build.Cache import Cache
+
     options = CompilationOptions(defaults = options, **kwds)
-    compile_single = isinstance(source, str) and not options.timestamps
-    if compile_single:
+
+    cache_path = None if options.cache is True else options.cache
+    cache = Cache(cache_path) if options.cache else None
+
+    if isinstance(source, str):
+        if not options.timestamps:
+            return compile_single(source, options, full_module_name, cache)
         source = [source]
-    results = compile_multiple(source, options)
-    if compile_single:
-        if results:
-            return list(results.values())[0]
-        else:
-            return None
-    return results
+    return compile_multiple(source, options, cache)
 
 
 @Utils.cached_function

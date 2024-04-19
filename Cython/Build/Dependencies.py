@@ -1210,13 +1210,6 @@ def cythonize_one(pyx_file, c_file, fingerprint, cache, quiet, options=None,
     from ..Compiler.Main import compile_single, default_options
     from ..Compiler.Errors import CompileError, PyrexError
 
-    if cache and fingerprint:
-        cached = cache.lookup_cache(c_file, fingerprint)
-        if cached:
-            if not quiet:
-                print("%sFound compiled %s in cache" % (progress, pyx_file))
-            cache.load_from_cache(c_file, cached)
-            return
     if not quiet:
         print("%sCythonizing %s" % (progress, Utils.decode_filename(pyx_file)))
     if options is None:
@@ -1230,7 +1223,7 @@ def cythonize_one(pyx_file, c_file, fingerprint, cache, quiet, options=None,
 
     any_failures = 0
     try:
-        result = compile_single(pyx_file, options, full_module_name=full_module_name)
+        result = compile_single(pyx_file, options, full_module_name=full_module_name, cache=cache, fingerprint=fingerprint)
         if result.num_errors > 0:
             any_failures = 1
     except (OSError, PyrexError) as e:
@@ -1254,8 +1247,6 @@ def cythonize_one(pyx_file, c_file, fingerprint, cache, quiet, options=None,
             raise CompileError(None, pyx_file)
         elif os.path.exists(c_file):
             os.remove(c_file)
-    elif cache and fingerprint:
-        cache.store_to_cache(c_file, fingerprint, result)
 
 
 def cythonize_one_helper(m):
