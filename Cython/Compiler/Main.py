@@ -550,7 +550,7 @@ def run_pipeline(source, options, full_module_name=None, context=None):
     context.setup_errors(options, result)
 
     if '.' in full_module_name and '.' in os.path.splitext(os.path.basename(abs_path))[0]:
-        warning((source_desc, 1, 0),
+        warning((source.source_desc, 1, 0),
                 "Dotted filenames ('%s') are deprecated."
                 " Please use the normal Python package directory layout." % os.path.basename(abs_path), level=1)
 
