@@ -522,6 +522,7 @@ def run_pipeline(source, options, full_module_name=None, context=None):
     if options.verbose:
         sys.stderr.write("Compiling %s\n" % source)
     source_ext = os.path.splitext(source)[1]
+    abs_path = os.path.abspath(source)
     options.configure_language_defaults(source_ext[1:])  # py/pyx
     if context is None:
         context = Context.from_options(options)
