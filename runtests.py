@@ -122,6 +122,17 @@ def get_distutils_distro(_cache=[]):
     return distutils_distro
 
 
+def import_refnanny():
+    try:
+        # try test copy first
+        import refnanny
+        return refnanny
+    except ImportError:
+        pass
+    import Cython.Runtime.refnanny
+    return Cython.Runtime.refnanny
+
+
 EXT_DEP_MODULES = {
     'tag:numpy':     'numpy',
     'tag:pythran':  'pythran',
@@ -2684,12 +2695,17 @@ def runtests(options, cmd_args, coverage=None):
             sys.stderr.write("Disabling refnanny in PyPy\n")
             options.with_refnanny = False
 
+    refnanny = None
     if options.with_refnanny:
-        from pyximport.pyxbuild import pyx_to_dll
-        libpath = pyx_to_dll(os.path.join("Cython", "Runtime", "refnanny.pyx"),
-                             build_in_temp=True,
-                             pyxbuild_dir=os.path.join(WORKDIR, "support"))
-        sys.path.insert(0, os.path.split(libpath)[0])
+        try:
+            refnanny = import_refnanny()
+        except ImportError:
+            from pyximport.pyxbuild import pyx_to_dll
+            libpath = pyx_to_dll(os.path.join("Cython", "Runtime", "refnanny.pyx"),
+                                build_in_temp=True,
+                                pyxbuild_dir=os.path.join(WORKDIR, "support"))
+            sys.path.insert(0, os.path.split(libpath)[0])
+            refnanny = import_refnanny()
         CDEFS.append(('CYTHON_REFNANNY', '1'))
 
     if options.limited_api:
@@ -2921,8 +2937,7 @@ def runtests(options, cmd_args, coverage=None):
         for test in missing_dep_excluder.tests_missing_deps:
             sys.stderr.write("   %s\n" % test)
 
-    if options.with_refnanny:
-        import refnanny
+    if options.with_refnanny and refnanny is not None:
         sys.stderr.write("\n".join([repr(x) for x in refnanny.reflog]))
 
     result_code = 0 if options.exit_ok else not result.wasSuccessful()
