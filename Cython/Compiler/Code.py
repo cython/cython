@@ -2897,7 +2897,11 @@ class CCodeWriter:
         ))
 
     def put_trace_resume(self, pos):
-        self.putln(f'__Pyx_TraceResumeGen({pos[1]}, {self.error_goto(pos)});')
+        name = self.funcstate.scope.name.as_c_string_literal()
+        filename_index = self.lookup_filename(pos[0])
+        first_line = pos[1]  # FIXME: where can we find the first line of the coroutine function?
+        error_goto = self.error_goto(pos)
+        self.putln(f'__Pyx_TraceResumeGen({name}, {Naming.filetable_cname}[{filename_index}], {first_line}, {pos[1]}, {error_goto});')
 
     def put_trace_exception(self):
         self.putln("__Pyx_TraceException();")
