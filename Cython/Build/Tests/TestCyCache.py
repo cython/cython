@@ -110,6 +110,26 @@ class TestCyCache(CythonTest):
     def test_cycache_uses_cache_compile(self):
         self._test_cycache_uses_cache(self.fresh_compile)
 
+    def _test_cycache_annotation(self, compilation_method):
+        a_pyx = os.path.join(self.src_dir, 'a.pyx')
+        a_c = a_pyx[:-4] + '.c'
+        a_html = a_pyx[:-4] + '.html'
+        with open(a_pyx, 'w') as f:
+            f.write('pass')
+
+        compilation_method(a_pyx, cache=self.cache_dir, annotate='default')
+        self.assertTrue(os.path.exists(a_html), a_html)
+        os.unlink(a_html)
+        os.unlink(a_c)
+        compilation_method(a_pyx, cache=self.cache_dir, annotate='default')
+        self.assertTrue(os.path.exists(a_html), a_html)
+
+    def test_cycache_annotation_cythonize(self):
+        self._test_cycache_annotation(self.fresh_cythonize)
+
+    def test_cycache_annotation_compile(self):
+        self._test_cycache_annotation(self.fresh_compile)
+
     def _test_multi_file_output(self, compilation_method):
         a_pyx = os.path.join(self.src_dir, 'a.pyx')
         a_c = a_pyx[:-4] + '.c'
