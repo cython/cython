@@ -472,11 +472,14 @@ def create_default_resultobj(compilation_source, options):
     result.embedded_metadata = options.embedded_metadata
     return result
 
-def setup_source_object(source, source_ext, full_module_name, options):
+def setup_source_object(source, source_ext, full_module_name, options, context):
     cwd = os.getcwd()
     abs_path = os.path.abspath(source)
-    Utils.raise_error_if_module_name_forbidden(full_module_name)
 
+    full_module_name = full_module_name or context.extract_module_name(source, options)
+    full_module_name = EncodedString(full_module_name)
+
+    Utils.raise_error_if_module_name_forbidden(full_module_name)
     if options.relative_path_in_code_position_comments:
         rel_path = full_module_name.replace('.', os.sep) + source_ext
         if not abs_path.endswith(rel_path):
@@ -504,9 +507,8 @@ def run_cached_pipeline(source, options, full_module_name=None, context=None, ca
 
         source_ext = os.path.splitext(source)[1]
         options.configure_language_defaults(source_ext[1:])  # py/pyx
-        full_module_name = full_module_name or context.extract_module_name(source, options)
-        full_module_name = EncodedString(full_module_name)
-        source = setup_source_object(source, source_ext, full_module_name, options)
+
+        source = setup_source_object(source, source_ext, full_module_name, options, context)
         # Set up result object
         return create_default_resultobj(source, options)
     else:
@@ -527,9 +529,7 @@ def run_pipeline(source, options, full_module_name=None, context=None):
     if context is None:
         context = Context.from_options(options)
 
-    full_module_name = full_module_name or context.extract_module_name(source, options)
-    full_module_name = EncodedString(full_module_name)
-    source = setup_source_object(source, source_ext, full_module_name, options)
+    source = setup_source_object(source, source_ext, full_module_name, options, context)
     # Set up result object
     result = create_default_resultobj(source, options)
 
@@ -549,7 +549,7 @@ def run_pipeline(source, options, full_module_name=None, context=None):
 
     context.setup_errors(options, result)
 
-    if '.' in full_module_name and '.' in os.path.splitext(os.path.basename(abs_path))[0]:
+    if '.' in source.full_module_name and '.' in os.path.splitext(os.path.basename(abs_path))[0]:
         warning((source.source_desc, 1, 0),
                 "Dotted filenames ('%s') are deprecated."
                 " Please use the normal Python package directory layout." % os.path.basename(abs_path), level=1)
