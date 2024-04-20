@@ -493,13 +493,15 @@ def run_cached_pipeline(source, options, full_module_name=None, context=None, ca
 
     if context is None:
         context = Context.from_options(options)
-    if cache and fingerprint:
+
+    if cache:
+        if not fingerprint:
+            fingerprint = get_fingerprint(cache, source, options)
         cwd = os.getcwd()
         output_filename = get_output_filename(source, cwd, options)
         cached = cache.lookup_cache(output_filename, fingerprint)
     else:
         cached = False
-    # FIXME: Should we load from cache when Annotate is enabled
     if cache and cached:
         if options.verbose:
             sys.stderr.write(f'Found compiled {os.path.basename(output_filename)} in cache.\n')
@@ -648,8 +650,6 @@ def compile_single(source, options, full_module_name = None, cache=None, fingerp
     Always compiles a single file; does not perform timestamp checking or
     recursion.
     """
-    if cache and not fingerprint:
-        fingerprint = get_fingerprint(cache, source, options)
     return run_cached_pipeline(source, options, full_module_name, cache=cache, fingerprint=fingerprint)
 
 
@@ -707,8 +707,17 @@ def compile(source, options = None, full_module_name = None, **kwds):
 
     options = CompilationOptions(defaults = options, **kwds)
 
-    cache_path = None if options.cache is True else options.cache
-    cache = Cache(cache_path) if options.cache else None
+    # cache is enabled when:
+    # * options.cache is True (the default path to the cache base dir is used)
+    # * options.cache is the explicit path to the cache base dir
+    # * annotations are not generated
+    if options.cache:
+        cache_path = None if options.cache is True else options.cache
+        cache = Cache(cache_path) if not (options.annotate or Options.annotate) else None
+    else:
+        if (options.annotate or Options.annotate) and options.verbose:
+            sys.stderr.write(f'Cache is ignored when annotations are enabled.\n')
+        cache = None
 
     if isinstance(source, str):
         if not options.timestamps:

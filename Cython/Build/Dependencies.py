@@ -20,6 +20,7 @@ from ..Utils import (cached_function, cached_method, path_exists,
     safe_makedirs, copy_file_to_dir_if_newer, is_package_dir, write_depfile)
 from ..Compiler import Errors
 from ..Compiler.Main import Context
+from ..Compiler import Options
 from ..Compiler.Options import (CompilationOptions, default_options,
     get_directive_defaults)
 
@@ -961,10 +962,11 @@ def cythonize(module_list, exclude=None, nthreads=0, aliases=None, quiet=False, 
 
     deps = create_dependency_tree(ctx, quiet=quiet)
     build_dir = getattr(options, 'build_dir', None)
-    if options.cache:
+    if options.cache and not (options.annotate or Options.annotate):
         # cache is enabled when:
         # * options.cache is True (the default path to the cache base dir is used)
         # * options.cache is the explicit path to the cache base dir
+        # * annotations are not generated
         cache_path = None if options.cache is True else options.cache
         cache = Cache(cache_path, getattr(options, 'cache_size', None))
     else:
