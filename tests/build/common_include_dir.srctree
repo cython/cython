@@ -20,15 +20,15 @@ import os
 
 from distutils.core import setup
 
-# os x on CI specifically seems to crash with nthreads>0
-osx_on_ci = (sys.platform == "darwin" and os.getenv("CI"))
+# MacOS seems to crash with nthreads>0
+is_mac_os = sys.platform == "darwin"
 
 # Test concurrent safety if multiprocessing is available.
 # (In particular, CI providers like Travis and Github Actions do not support spawning processes from tests.)
 nthreads = 0
 if not (hasattr(sys, 'pypy_version_info') or 
         (hasattr(sys, 'implementation') and sys.implementation.name == 'graalpython') or
-        osx_on_ci):
+        is_mac_os):
     try:
         import multiprocessing
         multiprocessing.Pool(2).close()
