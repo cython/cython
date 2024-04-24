@@ -67,7 +67,7 @@ except ImportError:
         gc.collect()
         # PyPy needs to execute a bytecode to run the finalizers
         exec('', {}, {})
-        return Py_REFCNT(<PyObject*>obj)
+        return Py_REFCNT(obj)
 
 
 def no_pypy(f):

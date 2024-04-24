@@ -35,7 +35,7 @@ from cpython.ref cimport PyObject, Py_REFCNT
 @cython.binding(False)
 @cython.always_allow_keywords(False)
 def get_refcount(obj):
-    return Py_REFCNT(<PyObject*>obj)
+    return Py_REFCNT(obj)
 
 def test_no_exception():
     try:

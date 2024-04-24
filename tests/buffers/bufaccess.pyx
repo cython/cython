@@ -959,7 +959,7 @@ def decref(*args):
 @cython.binding(False)
 @cython.always_allow_keywords(False)
 def get_refcount(x):
-    return Py_REFCNT((<PyObject*>x))
+    return Py_REFCNT(x)
 
 @testcase
 def printbuf_object(object[object] buf, shape):
@@ -985,7 +985,7 @@ def printbuf_object(object[object] buf, shape):
     """
     cdef int i
     for i in range(shape[0]):
-        print repr(buf[i]), Py_REFCNT((<PyObject*>buf[i]))
+        print repr(buf[i]), Py_REFCNT(buf[i])
 
 @testcase
 def assign_to_object(object[object] buf, int idx, obj):

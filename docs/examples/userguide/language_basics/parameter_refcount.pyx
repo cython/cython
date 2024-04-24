@@ -1,4 +1,4 @@
-from cpython.ref cimport PyObject, Py_REFCNT
+from cpython.ref cimport PyObject, _Py_REFCNT
 
 import sys
 
@@ -12,7 +12,9 @@ cdef owned_reference(object obj):
 
 
 cdef borrowed_reference(PyObject * obj):
-    refcount = Py_REFCNT(obj)
+    # use _Py_REFCNT instead of Py_REFCNT to avoid creating a new owned
+    # reference just to get the reference count
+    refcount = _Py_REFCNT(obj)
     print('Inside borrowed_reference: {refcount}'.format(refcount=refcount))
 
 
