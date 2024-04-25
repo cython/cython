@@ -257,9 +257,7 @@ class Klass:
         if exc: raise ValueError()
         return 1
     def m2(self, exc):
-        print('m2 1', exc)
         if exc: raise ValueError()
-        print('m2 2', exc)
         return 2
     def m3(self, exc):
         if exc: raise ValueError()
