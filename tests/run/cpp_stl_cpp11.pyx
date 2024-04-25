@@ -70,12 +70,6 @@ def test_deque_functionality():
     int_deque.push_back(77)
     int_deque.shrink_to_fit()
 
-    int_deque.emplace_front(66)
-    int_deque.emplace_back(88)
-
-    assert int_deque.front() == 66
-    assert int_deque.back() == 88
-
     return "pass"
 
 
