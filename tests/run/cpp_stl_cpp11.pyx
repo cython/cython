@@ -57,6 +57,11 @@ def test_queue_functionality():
     int_queue.swap(int_queue2)
     assert int_queue.size() == 0
     assert int_queue2.size() == 1
+
+    int_deque.emplace_front(66)
+    int_deque.emplace_back(88)
+    assert int_deque.front() == 66
+    assert int_deque.back() == 88
     return "pass"
 
 
