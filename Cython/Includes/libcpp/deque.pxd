@@ -163,4 +163,3 @@ cdef extern from "<deque>" namespace "std" nogil:
         void shrink_to_fit() except +
         T& emplace_front(...) except +
         T& emplace_back(...) except +
-        
