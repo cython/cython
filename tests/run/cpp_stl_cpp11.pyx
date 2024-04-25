@@ -69,7 +69,6 @@ def test_deque_functionality():
         deque[int] int_deque = deque[int]()
     int_deque.push_back(77)
     int_deque.shrink_to_fit()
-
     return "pass"
 
 

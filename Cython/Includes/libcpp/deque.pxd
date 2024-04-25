@@ -161,5 +161,6 @@ cdef extern from "<deque>" namespace "std" nogil:
 
         # C++11 methods
         void shrink_to_fit() except +
-        cdef void emplace_front(...) except +
-        cdef void emplace_back(...) except +
+        T& emplace_front(...) except +
+        T& emplace_back(...) except +
+        
