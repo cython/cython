@@ -256,6 +256,9 @@ def exclude_extension_on_platform(*platforms):
 
 
 def update_linetrace_extension(ext):
+    if sys.version_info[:2] == (3, 12):
+        # tracing/profiling is unavailable in Py3.12.
+        return EXCLUDE_EXT
     ext.define_macros.append(('CYTHON_TRACE', 1))
     return ext
 
@@ -472,6 +475,7 @@ EXT_EXTRAS = {
     'tag:no-macos':  exclude_extension_on_platform('darwin'),
     'tag:cppexecpolicies': require_gcc("9.1"),
     'tag:pstats': exclude_extension_in_pyver((3,12)),
+    'tag:coverage': exclude_extension_in_pyver((3,12)),
 }
 
 # TODO: use tags
