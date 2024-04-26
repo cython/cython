@@ -369,7 +369,7 @@
   #define __Pyx_TraceDeclarationsGen
   #define __Pyx_TraceFrameInit(codeobj)
   // mark error label as used to avoid compiler warnings
-  #define __Pyx_TraceStart(funcname, srcfile, firstlineno, nogil, goto_error)   if ((1)); else goto_error;
+  #define __Pyx_TraceStartFunc(funcname, srcfile, firstlineno, nogil, goto_error)   if ((1)); else goto_error;
   #define __Pyx_TraceStartGen __Pyx_TraceStartFunc
   #define __Pyx_TraceResumeGen(funcname, srcfile, firstlineno, lineno, goto_error)
   #define __Pyx_TraceException(lineno, goto_error)   if ((1)); else goto_error;
