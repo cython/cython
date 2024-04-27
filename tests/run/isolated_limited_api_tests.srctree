@@ -61,7 +61,6 @@ import cython
 cimport cpython
 cimport cpython.bool
 cimport cpython.complex
-cimport cpython.datetime
 cimport cpython.descr
 cimport cpython.longintrepr
 cimport cpython.type

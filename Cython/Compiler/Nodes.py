@@ -5647,12 +5647,6 @@ class CClassDefNode(ClassDefNode):
             typespec_cname = "%s_spec" % type.typeobj_cname
             code.putln("#if CYTHON_USE_TYPE_SPECS")
             tuple_temp = None
-            if (scope.parent_type.base_type and  scope.parent_type.base_type.is_extension_type
-                    and scope.parent_type.base_type.check_size == "opaque_in_limited_api"):
-                code.putln("#if CYTHON_COMPILING_IN_LIMITED_API")
-                code.putln(f"#error(\"Type '{scope.parent_type.base_type.name}' is declared "
-                           "as 'opaque_in_limited_api' so cannot be used as a base class\")")
-                code.putln("#endif")
             if not bases_tuple_cname and scope.parent_type.base_type:
                 tuple_temp = code.funcstate.allocate_temp(py_object_type, manage_ref=True)
                 code.putln("%s = PyTuple_Pack(1, (PyObject *)%s); %s" % (

@@ -13,9 +13,7 @@ cdef extern from "Python.h":
     # PyComplexObject
     # This subtype of PyObject represents a Python complex number object.
 
-    # It actually isn't even opaque in the limited API - it just isn't present. However, "opaque"
-    # removes enough code that it isn't a compile error
-    ctypedef class __builtin__.complex [object PyComplexObject, check_size opaque_in_limited_api]:
+    ctypedef class __builtin__.complex [object PyComplexObject]:
         cdef Py_complex cval
 
         # unavailable in limited API

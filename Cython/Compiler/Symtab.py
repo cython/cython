@@ -2421,11 +2421,6 @@ class CClassScope(ClassScope):
 
         if is_cdef:
             # Add an entry for an attribute.
-            if (self.parent_type and self.parent_type.is_extension_type and
-                    self.parent_type.check_size == "opaque"):
-                # parent_type won't be set for special names defined in the Entry constructor
-                error(pos, "classes with check_size='opaque' cannot have declared members")
-
             if self.defined:
                 error(pos,
                     "C attributes cannot be added in implementation part of"

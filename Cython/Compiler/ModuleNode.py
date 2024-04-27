@@ -3866,7 +3866,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         sizeof_objstruct = objstruct = type.objstruct_cname if type.typedef_flag else f"struct {type.objstruct_cname}"
         module_name = type.module_name
         type_name = type.name
-        if module_name not in ('__builtin__', 'builtins'):
+        is_builtin = module_name in ('__builtin__', 'builtins')
+        if not is_builtin:
             module_name = f'"{module_name}"'
         elif type_name in Code.ctypedef_builtins_map:
             # Fast path for special builtins, don't actually import
@@ -3885,23 +3886,21 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             error_code = code.error_goto(error_pos)
 
         module = import_generator.imported_module(module_name, error_code)
+
+        if is_builtin:
+            # Don't check the sizes of builtin types in the Limited API.
+            # They're almost invariably defined as opaque typedefs.
+            code.putln("#if !CYTHON_COMPILING_IN_LIMITED_API")
         code.put(
             f"{type.typeptr_cname} = __Pyx_ImportType_{Naming.cyversion}("
             f"{module}, {module_name}, {type.name.as_c_string_literal()},"
         )
 
         alignment_func = f"__PYX_GET_STRUCT_ALIGNMENT_{Naming.cyversion}"
-        if type.check_size == "opaque":
-            code.put('1, 1,')
-        elif sizeof_objstruct != objstruct or type.check_size == "opaque_in_limited_api":
+        if sizeof_objstruct != objstruct:
             code.putln("")  # start in new line
             code.putln("#if defined(PYPY_VERSION_NUM) && PYPY_VERSION_NUM < 0x050B0000")
             code.putln(f'sizeof({objstruct}), {alignment_func}({objstruct}),')
-            code.putln("#elif CYTHON_COMPILING_IN_LIMITED_API")
-            if type.check_size == "opaque_in_limited_api":
-                code.putln('1, 1,')
-            else:
-                code.putln(f'sizeof({objstruct}), {alignment_func}({objstruct}),')
             code.putln("#else")
             code.putln(f'sizeof({sizeof_objstruct}), {alignment_func}({sizeof_objstruct}),')
             code.putln("#endif")
@@ -3909,9 +3908,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             code.put(f' sizeof({objstruct}), {alignment_func}({objstruct}),')
 
         # check_size
-        if type.check_size in ('opaque', 'opaque_in_limited_api'):
-            check_size = 'ignore'
-        elif type.check_size and type.check_size in ('error', 'warn', 'ignore'):
+        if type.check_size and type.check_size in ('error', 'warn', 'ignore'):
             check_size = type.check_size
         elif not type.is_external or type.is_subclassed:
             check_size = 'error'
@@ -3921,6 +3918,12 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.put(f'__Pyx_ImportType_CheckSize_{check_size.title()}_{Naming.cyversion});')
 
         code.putln(' if (!%s) %s' % (type.typeptr_cname, error_code))
+        if is_builtin:
+            code.putln("#else  // CYTHON_COMPILING_IN_LIMITED_API")
+            # silence some warnings
+            code.putln(f"CYTHON_UNUSED_VAR(__Pyx_ImportType_{Naming.cyversion});")
+            code.putln(f"if ((0)) {error_code}")
+            code.putln("#endif  // !CYTHON_COMPILING_IN_LIMITED_API")
 
     def generate_type_ready_code(self, entry, code):
         Nodes.CClassDefNode.generate_type_ready_code(entry, code)
