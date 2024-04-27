@@ -1,5 +1,5 @@
 # mode: run
-# tag: monitoring
+# tag: monitoring, trace
 # cython: language_level=3
 # cython: profile=True, linetrace=True
 # distutils: define_macros=CYTHON_TRACE=1 CYTHON_TRACE_NOGIL=1
