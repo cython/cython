@@ -21,6 +21,8 @@ setup(
 
 ##################### run.py ##################################
 
+import decimal
+
 import limited
 
 limited.fib(11)
@@ -49,6 +51,10 @@ assert limited.cast_float(bytearray(b"3")) == 3.0
 assert limited.add_one(2) == 3
 assert limited.float_equals(1.5)
 assert not limited.float_equals(2)
+assert not limited.float_equals(None)
+assert limited.float_equals(decimal.Decimal("1.5"))
+
+
 
 ##################### limited.pyx #############################
 
