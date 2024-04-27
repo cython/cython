@@ -126,8 +126,14 @@
   }
 
   #define __Pyx_TraceResumeGen(funcname, srcfile, firstlineno, lineno, goto_error) \
-  if ((0) /* !__Pyx_IsTracing(__Pyx_Monitoring_PY_START) */); else {                         \
+  if ((0) /* !__Pyx_IsTracing(__Pyx_Monitoring_PY_RESUME) */); else {                        \
       int ret = __Pyx__TraceResumeGen($monitoring_states_cname, &$monitoring_version_cname, $frame_code_cname, lineno); \
+      if (unlikely(ret == -1)) goto_error;                                                   \
+  }
+
+  #define __Pyx_TraceYield(result, lineno, goto_error) \
+  if (!__Pyx_IsTracing(__Pyx_Monitoring_PY_YIELD)); else {                                   \
+      int ret = PyMonitoring_FirePyYieldEvent(&$monitoring_states_cname[__Pyx_Monitoring_PY_RETURN], $frame_code_cname, lineno, result); \
       if (unlikely(ret == -1)) goto_error;                                                   \
   }
 
@@ -295,6 +301,7 @@
   }
 
   #define __Pyx_TraceStartGen __Pyx_TraceStartFunc
+  #define __Pyx_TraceYield(result, lineno, goto_error)
 
   #define __Pyx_TraceResumeGen(funcname, srcfile, firstlineno, lineno, goto_error) \
       __Pyx_TraceStartFunc(funcname, srcfile, firstlineno, 0, goto_error)
@@ -372,6 +379,7 @@
   #define __Pyx_TraceStartFunc(funcname, srcfile, firstlineno, nogil, goto_error)   if ((1)); else goto_error;
   #define __Pyx_TraceStartGen __Pyx_TraceStartFunc
   #define __Pyx_TraceResumeGen(funcname, srcfile, firstlineno, lineno, goto_error)
+  #define __Pyx_TraceYield(result, lineno, goto_error)
   #define __Pyx_TraceException(lineno, goto_error)   if ((1)); else goto_error;
   #define __Pyx_TraceReturn(result, lineno, nogil)
 
@@ -462,14 +470,14 @@ CYTHON_UNUSED static int __Pyx__TraceStartGen(PyMonitoringState *state_array, __
     int ret;
     ret = PyMonitoring_EnterScope(state_array, version, __Pyx_MonitoringEventTypes, __Pyx_MonitoringEventTypes_CyGen_count);
     if (unlikely(ret == -1)) return -1;
-    return 0; //PyMonitoring_FirePyStartEvent(&state_array[__Pyx_Monitoring_PY_START], code_obj, firstlineno);
+    return PyMonitoring_FirePyStartEvent(&state_array[__Pyx_Monitoring_PY_START], code_obj, firstlineno);
 }
 
 CYTHON_UNUSED static int __Pyx__TraceResumeGen(PyMonitoringState *state_array, __pyx_monitoring_version_type *version, PyObject *code_obj, long offset) {
     int ret;
     ret = PyMonitoring_EnterScope(state_array, version, __Pyx_MonitoringEventTypes, __Pyx_MonitoringEventTypes_CyGen_count);
     if (unlikely(ret == -1)) return -1;
-    return 0; //PyMonitoring_FirePyResumeEvent(&state_array[__Pyx_Monitoring_PY_RESUME], code_obj, offset);
+    return PyMonitoring_FirePyResumeEvent(&state_array[__Pyx_Monitoring_PY_RESUME], code_obj, offset);
 }
 
 CYTHON_UNUSED static int __Pyx__TraceException(PyMonitoringState *monitoring_state, PyObject *code_obj, long offset) {

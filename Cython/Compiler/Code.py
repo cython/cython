@@ -2896,6 +2896,10 @@ class CCodeWriter:
             self.error_goto(pos),
         ))
 
+    def put_trace_yield(self, retvalue_cname, pos):
+        error_goto = self.error_goto(pos)
+        self.putln(f"__Pyx_TraceYield({retvalue_cname}, {pos[1]}, {error_goto});")
+
     def put_trace_resume(self, pos):
         name = self.funcstate.scope.name.as_c_string_literal()
         filename_index = self.lookup_filename(pos[0])
@@ -2906,8 +2910,23 @@ class CCodeWriter:
     def put_trace_exception(self):
         self.putln("__Pyx_TraceException();")
 
-    def put_trace_return(self, retvalue_cname, pos, nogil=False):
-        self.putln("__Pyx_TraceReturn(%s, %d, %d);" % (retvalue_cname, pos[1], nogil))
+    def put_trace_return(self, retvalue_cname, pos, return_type=None, nogil=False, error_handling=None):
+        extra_arg = ""
+        trace_func = "__Pyx_TraceReturnValue"
+
+        if return_type is None or return_type.is_pyobject:
+            pass
+        elif return_type.is_void:
+            retvalue_cname = 'Py_None'
+        elif return_type.to_py_function:
+            trace_func = "__Pyx_TraceReturnCValue"
+            extra_arg = f", {return_type.to_py_function}"
+        else:
+            return
+
+        if error_handling is None:
+            error_handling = self.error_goto(pos)
+        self.putln(f"{trace_func}({retvalue_cname}{extra_arg}, {pos[1]}, {bool(nogil):d}, {error_handling});")
 
     def putln_openmp(self, string):
         self.putln("#ifdef _OPENMP")

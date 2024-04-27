@@ -10516,13 +10516,12 @@ class YieldExprNode(ExprNode):
                 code.put_xgiveref(cname, type)
             code.putln('%s->%s = %s;' % (Naming.cur_scope_cname, save_cname, cname))
 
-        code.put_xgiveref(Naming.retval_cname, py_object_type)
         profile = code.globalstate.directives['profile']
         linetrace = code.globalstate.directives['linetrace']
         if profile or linetrace:
-            code.put_trace_return(Naming.retval_cname,
-                                  pos=self.pos,
-                                  nogil=not code.funcstate.gil_owned)
+            code.put_trace_yield(Naming.retval_cname, pos=self.pos)
+
+        code.put_xgiveref(Naming.retval_cname, py_object_type)
         code.put_finish_refcount_context()
 
         if code.funcstate.current_except is not None:
@@ -10545,7 +10544,7 @@ class YieldExprNode(ExprNode):
 
         code.put_label(resume_label)
 
-        if code.globalstate.directives['profile'] or code.globalstate.directives['linetrace']:
+        if profile or linetrace:
             code.put_trace_resume(self.pos)
 
         for cname, save_cname, type in saved:
