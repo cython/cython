@@ -3414,6 +3414,15 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                    Naming.cleanup_cname)
         code.enter_cfunc_scope(env)
 
+        # TODO - this should go away when module-state has been refactored more and
+        # we are able to access the module state through "self". Currently the
+        # `#define` for each entry forces us to access it through PyState_FindModule
+        # which is sometime unreliable during destruction
+        # (e.g. during interpreter shutdown).
+        # In that case the safest thing is to give up.
+        code.putln(f"if (!PyState_FindModule(&{Naming.pymoduledef_cname}))")
+        code.putln("return;")
+
         if Options.generate_cleanup_code >= 2:
             code.putln("/*--- Global cleanup code ---*/")
             rev_entries = list(env.var_entries)

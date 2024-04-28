@@ -87,8 +87,14 @@ static CYTHON_INLINE int __Pyx_BytesContains(PyObject* bytes, char character); /
 //@requires: IncludeStringH
 
 static CYTHON_INLINE int __Pyx_BytesContains(PyObject* bytes, char character) {
-    const Py_ssize_t length = PyBytes_GET_SIZE(bytes);
-    char* char_start = PyBytes_AS_STRING(bytes);
+    const Py_ssize_t length = __Pyx_PyBytes_GET_SIZE(bytes);
+#if !CYTHON_ASSUME_SAFE_SIZE
+    if (length == -1) return -1;
+#endif
+    char* char_start = __Pyx_PyBytes_AsString(bytes);
+#if !CYTHON_ASSUME_SAFE_MACROS
+    if (char_start == 0) return -1;
+#endif
     return memchr(char_start, (unsigned char)character, (size_t)length) != NULL;
 }
 
@@ -296,13 +302,23 @@ static CYTHON_INLINE int __Pyx_GetItemInt_ByteArray_Fast(PyObject* string, Py_ss
         #endif
         if (wraparound & unlikely(i < 0)) i += length;
         if ((!boundscheck) || likely(__Pyx_is_valid_index(i, length))) {
+            #if !CYTHON_ASSUME_SAFE_MACROS
+            char *asString = PyByteArray_AS_STRING(string);
+            return likely(asString) ? asString[i] : -1;
+            #else
             return (unsigned char) (PyByteArray_AS_STRING(string)[i]);
+            #endif
         } else {
             PyErr_SetString(PyExc_IndexError, "bytearray index out of range");
             return -1;
         }
     } else {
+        #if !CYTHON_ASSUME_SAFE_MACROS
+        char *asString = PyByteArray_AS_STRING(string);
+        return likely(asString) ? asString[i] : -1;
+        #else
         return (unsigned char) (PyByteArray_AS_STRING(string)[i]);
+        #endif
     }
 }
 
@@ -329,14 +345,26 @@ static CYTHON_INLINE int __Pyx_SetItemInt_ByteArray_Fast(PyObject* string, Py_ss
         #endif
         if (wraparound & unlikely(i < 0)) i += length;
         if ((!boundscheck) || likely(__Pyx_is_valid_index(i, length))) {
+            #if !CYTHON_ASSUME_SAFE_MACROS
+            char *asString = PyByteArray_AsString(string);
+            if (unlikely(!asString)) return -1;
+            asString[i] = (char)v;
+            #else
             PyByteArray_AS_STRING(string)[i] = (char) v;
+            #endif
             return 0;
         } else {
             PyErr_SetString(PyExc_IndexError, "bytearray index out of range");
             return -1;
         }
     } else {
+        #if !CYTHON_ASSUME_SAFE_MACROS
+        char *asString = PyByteArray_AsString(string);
+        if (unlikely(!asString)) return -1;
+        asString[i] = (char)v;
+        #else
         PyByteArray_AS_STRING(string)[i] = (char) v;
+        #endif
         return 0;
     }
 }
@@ -665,30 +693,49 @@ static int __Pyx_PyBytes_Tailmatch(PyObject* self, PyObject* substr,
 
 static int __Pyx_PyBytes_SingleTailmatch(PyObject* self, PyObject* arg,
                                          Py_ssize_t start, Py_ssize_t end, int direction) {
-    const char* self_ptr = PyBytes_AS_STRING(self);
-    Py_ssize_t self_len = PyBytes_GET_SIZE(self);
-    const char* sub_ptr;
+    char* self_ptr;
+    Py_ssize_t self_len;
+    char* sub_ptr;
     Py_ssize_t sub_len;
     int retval;
 
+    #if CYTHON_COMPILING_IN_LIMITED_API && __PYX_LIMITED_VERSION_HEX < 0x030B0000
+    PyObject *converted_arg = NULL;
+    #else
     Py_buffer view;
     view.obj = NULL;
+    #endif
 
-    #if !CYTHON_ASSUME_SAFE_SIZE
-    if (unlikely(self_len < 0)) return -1;
+    #if !(CYTHON_ASSUME_SAFE_MACROS && CYTHON_ASSUME_SAFE_SIZE)
+    if (PyBytes_AsStringAndSize(self, &self_ptr, &self_len) == -1) return -1;
+    #else
+    self_ptr = PyBytes_AS_STRING(self);
+    self_len = PyBytes_GET_SIZE(self);
     #endif
 
     if (PyBytes_Check(arg)) {
+        #if !(CYTHON_ASSUME_SAFE_MACROS && CYTHON_ASSUME_SAFE_SIZE)
+        if (PyBytes_AsStringAndSize(arg, &sub_ptr, &sub_len) == -1) return -1;
+        #else
         sub_ptr = PyBytes_AS_STRING(arg);
         sub_len = PyBytes_GET_SIZE(arg);
-        #if !CYTHON_ASSUME_SAFE_SIZE
-        if (unlikely(sub_len < 0)) return -1;
         #endif
     } else {
-        if (unlikely(PyObject_GetBuffer(self, &view, PyBUF_SIMPLE) == -1))
+        #if CYTHON_COMPILING_IN_LIMITED_API && __PYX_LIMITED_VERSION_HEX < 0x030B0000
+        // Where buffer protocol is unavailable, just convert to bytes
+        // (which is probably inefficient, but does work)
+        converted_arg = PyBytes_FromObject(arg);
+        if (!converted_arg) return -1;
+        if (PyBytes_AsStringAndSize(converted_arg, &sub_ptr, &sub_len) == -1) {
+            Py_DECREF(converted_arg);
+            return -1;
+        }
+        #else
+        if (unlikely(PyObject_GetBuffer(arg, &view, PyBUF_SIMPLE) == -1))
             return -1;
         sub_ptr = (const char*) view.buf;
         sub_len = view.len;
+        #endif
     }
 
     if (end > self_len)
@@ -713,15 +760,19 @@ static int __Pyx_PyBytes_SingleTailmatch(PyObject* self, PyObject* arg,
     else
         retval = 0;
 
+    #if CYTHON_COMPILING_IN_LIMITED_API && __PYX_LIMITED_VERSION_HEX < 0x030B0000
+    Py_XDECREF(converted_arg);
+    #else
     if (view.obj)
         PyBuffer_Release(&view);
+    #endif
 
     return retval;
 }
 
 static int __Pyx_PyBytes_TailmatchTuple(PyObject* self, PyObject* substrings,
                                         Py_ssize_t start, Py_ssize_t end, int direction) {
-    Py_ssize_t i, count = PyTuple_GET_SIZE(substrings);
+    Py_ssize_t i, count = __Pyx_PyTuple_GET_SIZE(substrings);
     #if !CYTHON_ASSUME_SAFE_SIZE
     if (unlikely(count < 0)) return -1;
     #endif
@@ -797,7 +848,7 @@ static CYTHON_INLINE char __Pyx_PyBytes_GetItemInt(PyObject* bytes, Py_ssize_t i
             return (char) -1;
         }
     }
-    return PyBytes_AS_STRING(bytes)[index];
+    return __Pyx_PyBytes_AsString(bytes)[index];
 }
 
 
