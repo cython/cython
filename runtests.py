@@ -2765,13 +2765,21 @@ def runtests(options, cmd_args, coverage=None):
             ('limited_api_bugs.txt', options.limited_api),
             ('windows_bugs.txt', sys.platform == 'win32'),
             ('cygwin_bugs.txt', sys.platform == 'cygwin'),
-            ('windows_bugs_39.txt', sys.platform == 'win32' and sys.version_info[:2] == (3, 9))
+            ('windows_bugs_39.txt', sys.platform == 'win32' and sys.version_info[:2] == (3, 9)),
         ]
 
         exclude_selectors += [
             FileListExcluder(os.path.join(ROOTDIR, bugs_file_name),
                              verbose=verbose_excludes)
             for bugs_file_name, condition in bug_files if condition
+        ]
+
+    if sys.version_info < (3, 11) and options.limited_api:
+        # exclude everything with memoryviews in since this is a big
+        # missing feature from the limited API in these versions
+        exclude_selectors += [
+            TagsSelector('tag', 'memoryview'),
+            FileListExcluder(os.path.join(ROOTDIR, "memoryview_tests.txt")),
         ]
 
     global COMPILER
