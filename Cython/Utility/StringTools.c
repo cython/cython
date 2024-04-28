@@ -91,7 +91,7 @@ static CYTHON_INLINE int __Pyx_BytesContains(PyObject* bytes, char character) {
 #if !CYTHON_ASSUME_SAFE_SIZE
     if (length == -1) return -1;
 #endif
-    char* char_start = __Pyx_PyBytes_AsString(bytes);
+    const char* char_start = __Pyx_PyBytes_AsString(bytes);
 #if !CYTHON_ASSUME_SAFE_MACROS
     if (char_start == 0) return -1;
 #endif
