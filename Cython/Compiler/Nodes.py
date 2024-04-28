@@ -2792,21 +2792,18 @@ class CFuncDefNode(FuncDefNode):
         if is_module_scope:
             cfunc = ExprNodes.NameNode(self.pos, name=self.entry.name)
             call_arg_names = arg_names
-            skip_dispatch = Options.lookup_module_cpdef
         elif self.type.is_static_method:
             class_entry = self.entry.scope.parent_type.entry
             class_node = ExprNodes.NameNode(self.pos, name=class_entry.name)
             class_node.entry = class_entry
             cfunc = ExprNodes.AttributeNode(self.pos, obj=class_node, attribute=self.entry.name)
-            # Calling static c(p)def methods on an instance disallowed.
-            # TODO(robertwb): Support by passing self to check for override?
-            skip_dispatch = True
         else:
             type_entry = self.type.args[0].type.entry
             type_arg = ExprNodes.NameNode(self.pos, name=type_entry.name)
             type_arg.entry = type_entry
             cfunc = ExprNodes.AttributeNode(self.pos, obj=type_arg, attribute=self.entry.name)
-        skip_dispatch = not is_module_scope or Options.lookup_module_cpdef
+
+        skip_dispatch = not (is_module_scope and Options.lookup_module_cpdef)
         c_call = ExprNodes.SimpleCallNode(
             self.pos,
             function=cfunc,
