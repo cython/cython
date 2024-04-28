@@ -6922,7 +6922,7 @@ class ReturnStatNode(StatNode):
                     Naming.retval_cname,
                     value.result_as(self.return_type)))
                 value.generate_post_assignment_code(code)
-                if code.globalstate.directives['profile']:
+                if code.globalstate.directives['profile'] or code.globalstate.directives['linetrace']:
                     code.put_trace_return(
                         Naming.retval_cname,
                         self.pos,
