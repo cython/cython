@@ -7,7 +7,6 @@
 from collections import defaultdict
 from contextlib import contextmanager
 from functools import partial
-from itertools import combinations
 
 try:
     from sys import monitoring as smon
@@ -47,6 +46,7 @@ else:
     >>> list(collected_events.items())  # test_profile(2)
     []
 
+    >>> from itertools import combinations
     >>> for num_events in range(1, len(FUNC_EVENTS)+1):  # doctest: +REPORT_NDIFF
     ...     for event_set in combinations(FUNC_EVENTS, num_events):
     ...         print(f"--- {names(event_set)} ---")
