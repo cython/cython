@@ -907,7 +907,7 @@ static PyObject* __Pyx_PyUnicode_Join(PyObject** values, Py_ssize_t value_count,
         void *udata;
         PyObject *uval = values[i];
         #if !CYTHON_COMPILING_IN_LIMITED_API
-        if (unlikely(__Pyx_PyUnicode_READY(uval)))
+        if (__Pyx_PyUnicode_READY(uval) == (-1))
             goto bad;
         #endif
         ulength = __Pyx_PyUnicode_GET_LENGTH(uval);
@@ -953,7 +953,7 @@ bad:
     CYTHON_UNUSED_VAR(result_ulength);
 
     for (i=0; i<value_count; i++) {
-        if (unlikely(__Pyx_PyTuple_SET_ITEM(value_tuple, i, values[i]) < 0)) goto bad;
+        if (__Pyx_PyTuple_SET_ITEM(value_tuple, i, values[i]) != (0)) goto bad;
         Py_INCREF(values[i]);
     }
 

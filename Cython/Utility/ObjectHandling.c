@@ -1976,7 +1976,7 @@ static PyObject* __Pyx_PyObject_FastCall_fallback(PyObject *func, PyObject **arg
     if (unlikely(!argstuple)) return NULL;
     for (i = 0; i < nargs; i++) {
         Py_INCREF(args[i]);
-        if (__Pyx_PyTuple_SET_ITEM(argstuple, (Py_ssize_t)i, args[i]) < 0) goto bad;
+        if (__Pyx_PyTuple_SET_ITEM(argstuple, (Py_ssize_t)i, args[i]) != (0)) goto bad;
     }
     result = __Pyx_PyObject_Call(func, argstuple, kwargs);
   bad:
@@ -2086,7 +2086,7 @@ static int __Pyx_VectorcallBuilder_AddArgStr(const char *key, PyObject *value, P
 static int __Pyx_VectorcallBuilder_AddArg(PyObject *key, PyObject *value, PyObject *builder, PyObject **args, int n) {
     (void)__Pyx_PyObject_FastCallDict;
 
-    if (unlikely(__Pyx_PyTuple_SET_ITEM(builder, n, key))) return -1;
+    if (__Pyx_PyTuple_SET_ITEM(builder, n, key) != (0)) return -1;
     Py_INCREF(key);
     args[n] = value;
     return 0;
@@ -2919,7 +2919,7 @@ static PyObject *__Pyx_PyList_Pack(Py_ssize_t n, ...) {
     for (Py_ssize_t i=0; i<n; ++i) {
         PyObject *arg = va_arg(va, PyObject*);
         Py_INCREF(arg);
-        if (unlikely(__Pyx_PyList_SET_ITEM(l, i, arg))) {
+        if (__Pyx_PyList_SET_ITEM(l, i, arg) != (0)) {
             Py_CLEAR(l);
             goto end;
         }

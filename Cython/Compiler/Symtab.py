@@ -1427,7 +1427,7 @@ class ModuleScope(Scope):
         entry.type.is_final_type = True
         scope = entry.type.scope
         scope.is_internal = True
-        scope.is_defuults_class_scope = True
+        scope.is_defaults_class_scope = True
 
         # zero pad the argument number so they can be sorted
         num_zeros = math.floor(math.log10(len(components)))

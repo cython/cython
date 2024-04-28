@@ -1128,6 +1128,9 @@ static PyTypeObject __pyx_CyFunctionType_type = {
 #if PY_VERSION_HEX >= 0x030C0000
     0,                                  /*tp_watched*/
 #endif
+#if PY_VERSION_HEX >= 0x030d00A4
+    0,                                          /*tp_versions_used*/
+#endif
 #if CYTHON_COMPILING_IN_PYPY && PY_VERSION_HEX >= 0x03090000 && PY_VERSION_HEX < 0x030a0000
     0,                                          /*tp_pypy_flags*/
 #endif
@@ -1398,7 +1401,7 @@ __pyx_FusedFunction_getitem(__pyx_FusedFunctionObject *self, PyObject *idx)
             Py_DECREF(item);
 #endif
             if (unlikely(!string)) goto __pyx_err;
-            PyList_SET_ITEM(list, i, string);
+	    if (__Pyx_PyList_SET_ITEM(list, i, string) < 0) goto __pyx_err;
         }
 
         signature = PyUnicode_Join(PYUNICODE("|"), list);
@@ -1478,7 +1481,7 @@ __pyx_FusedFunction_call(PyObject *func, PyObject *args, PyObject *kw)
         self = binding_func->self;
 
         Py_INCREF(self);
-        PyTuple_SET_ITEM(new_args, 0, self);
+        if (__Pyx_PyTuple_SET_ITEM(new_args, 0, self)) goto bad;
         self = NULL;
 
         for (i = 0; i < argc; i++) {
@@ -1488,7 +1491,7 @@ __pyx_FusedFunction_call(PyObject *func, PyObject *args, PyObject *kw)
 #else
             PyObject *item = __Pyx_PySequence_ITEM(args, i);  if (unlikely(!item)) goto bad;
 #endif
-            PyTuple_SET_ITEM(new_args, i + 1, item);
+        if (__Pyx_PyTuple_SET_ITEM(new_args, i + 1, item)) goto bad;
         }
 
         args = new_args;
@@ -1633,6 +1636,9 @@ static PyTypeObject __pyx_FusedFunctionType_type = {
 #endif
 #if PY_VERSION_HEX >= 0x030C0000
     0,                                  /*tp_watched*/
+#endif
+#if PY_VERSION_HEX >= 0x030d00A4
+    0,                                          /*tp_versions_used*/
 #endif
 #if CYTHON_COMPILING_IN_PYPY && PY_VERSION_HEX >= 0x03090000 && PY_VERSION_HEX < 0x030a0000
     0,                                          /*tp_pypy_flags*/
