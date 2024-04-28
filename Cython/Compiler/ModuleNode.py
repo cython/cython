@@ -3213,6 +3213,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             code.funcstate.can_trace = False
             assert code.funcstate.gil_owned
             code.put_trace_return("Py_None", pos=self.pos)
+            code.put_trace_exit()
 
         code.putln()
         code.putln("/*--- Wrapped vars code ---*/")
@@ -3228,6 +3229,10 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.put_label(code.error_label)
         for cname, type in code.funcstate.all_managed_temps():
             code.put_xdecref(cname, type)
+
+        if profile or linetrace:
+            code.put_trace_exception(self.pos)
+
         code.putln('if (%s) {' % env.module_cname)
         code.putln('if (%s && stringtab_initialized) {' % env.module_dict_cname)
         # We can run into errors before the module or stringtab are initialized.

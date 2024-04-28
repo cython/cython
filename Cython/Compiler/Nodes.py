@@ -1995,13 +1995,16 @@ class FuncDefNode(StatNode, BlockNode):
 
         preprocessor_guard = self.get_preprocessor_guard()
 
-        profile = code.globalstate.directives['profile']
-        linetrace = code.globalstate.directives['linetrace']
-        if profile or linetrace:
-            if linetrace:
-                code.use_fast_gil_utility_code()
-            code.globalstate.use_utility_code(
-                UtilityCode.load_cached("Profile", "Profile.c"))
+        if self.is_generator:
+            # generators are traced when iterated, not at creation
+            tracing = False
+        else:
+            tracing = code.globalstate.directives['profile'] or code.globalstate.directives['linetrace']
+            if tracing:
+                code.globalstate.use_utility_code(
+                    UtilityCode.load_cached("Profile", "Profile.c"))
+                if code.globalstate.directives['linetrace']:
+                    code.use_fast_gil_utility_code()
 
         # Generate C code for header and body of function
         code.enter_cfunc_scope(lenv)
@@ -2084,12 +2087,10 @@ class FuncDefNode(StatNode, BlockNode):
         else:
             gilstate_decl = code.insertion_point()
 
-        if profile or linetrace:
-            if not self.is_generator:
-                # generators are traced when iterated, not at creation
-                tempvardecl_code.put_trace_declarations()
-                code_object = self.code_object.calculate_result_code(code) if self.code_object else None
-                code.put_trace_frame_init(code_object)
+        if tracing:
+            tempvardecl_code.put_trace_declarations()
+            code_object = self.code_object.calculate_result_code(code) if self.code_object else None
+            code.put_trace_frame_init(code_object)
 
         # ----- Special check for getbuffer
         if is_getbuffer_slot:
@@ -2143,17 +2144,15 @@ class FuncDefNode(StatNode, BlockNode):
                 code.put_incref(outer_scope_cname, cenv.scope_class.type)
                 code.put_giveref(outer_scope_cname, cenv.scope_class.type)
         # ----- Trace function call
-        if profile or linetrace:
+        if tracing:
             # this looks a bit late, but if we don't get here due to a
             # fatal error before hand, it's not really worth tracing
-            if not self.is_generator:
-                # generators are traced when iterated, not at creation
-                if self.is_wrapper:
-                    trace_name = self.entry.name + " (wrapper)"
-                else:
-                    trace_name = self.entry.name
-                code.put_trace_start(
-                    trace_name, self.pos, nogil=not code.funcstate.gil_owned)
+            if self.is_wrapper:
+                trace_name = self.entry.name + " (wrapper)"
+            else:
+                trace_name = self.entry.name
+            code.put_trace_start(
+                trace_name, self.pos, nogil=not code.funcstate.gil_owned)
             code.funcstate.can_trace = True
         # ----- Fetch arguments
         self.generate_argument_parsing_code(env, code)
@@ -2245,7 +2244,7 @@ class FuncDefNode(StatNode, BlockNode):
                 elif not return_type.is_void:
                     code.putln("__Pyx_pretend_to_initialize(&%s);" % Naming.retval_cname)
 
-            if profile or linetrace:
+            if tracing:
                 code.put_trace_return(
                     Naming.retval_cname, self.pos, return_type=return_type, nogil=not gil_owned['success'])
 
@@ -2281,12 +2280,12 @@ class FuncDefNode(StatNode, BlockNode):
             else:
                 err_val = self.error_value()
 
+            if tracing:
+                assure_gil('error')
+                code.put_trace_exception(self.pos)
+
             exc_check = self.caller_will_check_exceptions()
             if err_val is not None or exc_check:
-                # TODO: Fix exception tracing (though currently unused by cProfile).
-                # code.globalstate.use_utility_code(get_exception_tuple_utility_code)
-                # code.put_trace_exception()
-
                 assure_gil('error')
                 if code.funcstate.error_without_exception:
                     tempvardecl_code.putln(
@@ -2420,8 +2419,9 @@ class FuncDefNode(StatNode, BlockNode):
             code.putln("if (unlikely(%s == -1) && !PyErr_Occurred()) %s = -2;" % (
                 Naming.retval_cname, Naming.retval_cname))
 
-        if profile or linetrace:
+        if tracing:
             code.funcstate.can_trace = False
+            code.put_trace_exit()
 
         if code.funcstate.needs_refnanny:
             refnanny_decl_code.put_declare_refcount_context()
@@ -4866,6 +4866,7 @@ class GeneratorBodyDefNode(DefNode):
             code.put_label(code.error_label)
             if self.is_inlined and self.inlined_comprehension_type is not None:
                 code.put_xdecref_clear(Naming.retval_cname, py_object_type)
+
             if Future.generator_stop in env.global_scope().context.future_directives:
                 # PEP 479: turn accidental StopIteration exceptions into a RuntimeError
                 code.globalstate.use_utility_code(UtilityCode.load_cached("pep479", "Coroutine.c"))
@@ -4873,6 +4874,8 @@ class GeneratorBodyDefNode(DefNode):
             for cname, type in code.funcstate.all_managed_temps():
                 code.put_xdecref(cname, type)
             code.put_add_traceback(self.entry.qualified_name)
+            if profile or linetrace:
+                code.put_trace_exception(self.pos)
 
         # ----- Non-error return cleanup
         code.put_label(code.return_label)
@@ -4880,6 +4883,8 @@ class GeneratorBodyDefNode(DefNode):
             code.put_xgiveref(Naming.retval_cname, py_object_type)
         else:
             code.put_xdecref_clear(Naming.retval_cname, py_object_type)
+        if profile or linetrace:
+            code.put_trace_exit()
         # For Py3.7, clearing is already done below.
         code.putln("#if !CYTHON_USE_EXC_INFO_STACK")
         code.putln("__Pyx_Coroutine_ResetAndClearException(%s);" % Naming.generator_cname)
@@ -7063,8 +7068,8 @@ class RaiseStatNode(StatNode):
                 tb_code,
                 cause_code))
 
-        #if self.exc_value:
-        #    code.putln("__Pyx_TraceException()")
+        if code.globalstate.directives['profile'] or code.globalstate.directives['linetrace']:
+            code.put_trace_exception(self.pos, fresh=True)
 
         for obj in (self.exc_type, self.exc_value, self.exc_tb, self.cause):
             if obj:
@@ -7117,6 +7122,8 @@ class ReraiseStatNode(StatNode):
             code.putln("__Pyx_ErrRestoreWithState(%s, %s, %s);" % tuple(vars))
             for varname in vars:
                 code.put("%s = 0; " % varname)
+            if code.globalstate.directives['profile'] or code.globalstate.directives['linetrace']:
+                code.put_trace_exception(self.pos, reraise=True)
             code.putln()
             code.putln(code.error_goto(self.pos))
         else:
@@ -8354,13 +8361,19 @@ class ExceptClauseNode(Node):
         else:
             code.putln("/*except:*/ {")
 
+        tracing = code.globalstate.directives['profile'] or code.globalstate.directives['linetrace']
+
         if (not getattr(self.body, 'stats', True)
                 and self.excinfo_target is None
                 and self.target is None):
             # most simple case: no exception variable, empty body (pass)
             # => reset the exception state, done
+            if tracing:
+                code.put_trace_exception(self.pos)
             code.globalstate.use_utility_code(UtilityCode.load_cached("PyErrFetchRestore", "Exceptions.c"))
             code.putln("__Pyx_ErrRestore(0,0,0);")
+            if code.globalstate.directives['profile'] or code.globalstate.directives['linetrace']:
+                code.putln("__Pyx_TraceExceptionHandled();")
             code.put_goto(end_label)
             code.putln("}")
             return
@@ -8368,6 +8381,10 @@ class ExceptClauseNode(Node):
         exc_vars = [code.funcstate.allocate_temp(py_object_type, manage_ref=True)
                     for _ in range(3)]
         code.put_add_traceback(self.function_name)
+
+        if tracing:
+            code.put_trace_exception(self.pos)
+
         # We always have to fetch the exception value even if
         # there is no target, because this also normalises the
         # exception and stores it in the thread state.
@@ -8377,6 +8394,10 @@ class ExceptClauseNode(Node):
             exc_args, code.error_goto(self.pos)))
         for var in exc_vars:
             code.put_xgotref(var, py_object_type)
+
+        if code.globalstate.directives['profile'] or code.globalstate.directives['linetrace']:
+            code.putln("__Pyx_TraceExceptionHandled();")
+
         if self.target:
             self.exc_value.set_var(exc_vars[1])
             self.exc_value.generate_evaluation_code(code)
@@ -10450,33 +10471,3 @@ get_exception_utility_code = UtilityCode.load_cached("GetException", "Exceptions
 swap_exception_utility_code = UtilityCode.load_cached("SwapException", "Exceptions.c")
 reset_exception_utility_code = UtilityCode.load_cached("SaveResetException", "Exceptions.c")
 traceback_utility_code = UtilityCode.load_cached("AddTraceback", "Exceptions.c")
-
-#------------------------------------------------------------------------------------
-
-get_exception_tuple_utility_code = UtilityCode(
-    proto="""
-static PyObject *__Pyx_GetExceptionTuple(PyThreadState *__pyx_tstate); /*proto*/
-""",
-    # I doubt that calling __Pyx_GetException() here is correct as it moves
-    # the exception from tstate->curexc_* to tstate->exc_*, which prevents
-    # exception handlers later on from receiving it.
-    # NOTE: "__pyx_tstate" may be used by __Pyx_GetException() macro
-    impl = """
-static PyObject *__Pyx_GetExceptionTuple(CYTHON_UNUSED PyThreadState *__pyx_tstate) {
-    PyObject *type = NULL, *value = NULL, *tb = NULL;
-    if (__Pyx_GetException(&type, &value, &tb) == 0) {
-        PyObject* exc_info = PyTuple_New(3);
-        if (exc_info) {
-            Py_INCREF(type);
-            Py_INCREF(value);
-            Py_INCREF(tb);
-            PyTuple_SET_ITEM(exc_info, 0, type);
-            PyTuple_SET_ITEM(exc_info, 1, value);
-            PyTuple_SET_ITEM(exc_info, 2, tb);
-            return exc_info;
-        }
-    }
-    return NULL;
-}
-""",
-    requires=[get_exception_utility_code])

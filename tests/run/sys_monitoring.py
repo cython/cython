@@ -2,7 +2,7 @@
 # tag: monitoring, trace
 # cython: language_level=3
 # cython: profile=True, linetrace=True
-# distutils: define_macros=CYTHON_TRACE=1 CYTHON_TRACE_NOGIL=1
+# distutils: define_macros = CYTHON_TRACE_NOGIL=1
 
 from collections import defaultdict
 from contextlib import contextmanager
@@ -22,7 +22,7 @@ except ImportError:
     """
 else:
     TOOL_ID = smon.PROFILER_ID
-    FUNC_EVENTS = (E.PY_START, E.PY_RETURN)  # , E.LINE, E.RAISE)  # <- TODO: implement
+    FUNC_EVENTS = (E.PY_START, E.PY_RETURN, E.RAISE)  # , E.LINE)  # <- TODO: implement
     GEN_EVENTS = FUNC_EVENTS + (E.PY_RESUME, E.PY_YIELD, E.STOP_ITERATION)
     event_name = {1 << event_id: name for name, event_id in vars(E).items()}.get
 
@@ -47,15 +47,15 @@ else:
     >>> list(collected_events.items())  # test_profile(2)
     []
 
-    >>> for num_events in range(1, len(FUNC_EVENTS)+1):
+    >>> for num_events in range(1, len(FUNC_EVENTS)+1):  # doctest: +REPORT_NDIFF
     ...     for event_set in combinations(FUNC_EVENTS, num_events):
-    ...         print("-------")
-    ...         with monitored_events(events=event_set) as collected_events:
+    ...         print(f"--- {names(event_set)} ---")
+    ...         with monitored_events(events=event_set + (E.RERAISE,)) as collected_events:
     ...             result = test_profile(10)
     ...         print(result)
     ...         print_events(collected_events)
     ...         assert_events(event_set, collected_events['test_profile'])  # test_profile(10)
-    -------
+    --- PY_START ---
     720
     f_cdef PY_START [10]
     f_cpdef PY_START [20]
@@ -63,7 +63,8 @@ else:
     f_inline PY_START [10]
     f_inline_prof PY_START [10]
     f_nogil_prof PY_START [10]
-    f_raise PY_START [10]
+    f_raise PY_START [20]
+    f_reraise PY_START [10], RERAISE [10]
     f_return_default PY_START [10]
     f_return_none PY_START [10]
     f_withgil_prof PY_START [10]
@@ -71,7 +72,7 @@ else:
     m_cpdef PY_START [20]
     m_def PY_START [20]
     test_profile PY_START [1]
-    -------
+    --- PY_RETURN ---
     720
     f_cdef PY_RETURN [10]
     f_cpdef PY_RETURN [20]
@@ -79,6 +80,7 @@ else:
     f_inline PY_RETURN [10]
     f_inline_prof PY_RETURN [10]
     f_nogil_prof PY_RETURN [10]
+    f_reraise RERAISE [10]
     f_return_default PY_RETURN [10]
     f_return_none PY_RETURN [10]
     f_withgil_prof PY_RETURN [10]
@@ -86,7 +88,12 @@ else:
     m_cpdef PY_RETURN [20]
     m_def PY_RETURN [20]
     test_profile PY_RETURN [1]
-    -------
+    --- RAISE ---
+    720
+    f_raise RAISE [20]
+    f_reraise RAISE [10], RERAISE [10]
+    test_profile RAISE [20]
+    --- PY_START, PY_RETURN ---
     720
     f_cdef PY_START [10], PY_RETURN [10]
     f_cpdef PY_START [20], PY_RETURN [20]
@@ -94,7 +101,8 @@ else:
     f_inline PY_START [10], PY_RETURN [10]
     f_inline_prof PY_START [10], PY_RETURN [10]
     f_nogil_prof PY_START [10], PY_RETURN [10]
-    f_raise PY_START [10]
+    f_raise PY_START [20]
+    f_reraise PY_START [10], RERAISE [10]
     f_return_default PY_START [10], PY_RETURN [10]
     f_return_none PY_START [10], PY_RETURN [10]
     f_withgil_prof PY_START [10], PY_RETURN [10]
@@ -102,6 +110,57 @@ else:
     m_cpdef PY_START [20], PY_RETURN [20]
     m_def PY_START [20], PY_RETURN [20]
     test_profile PY_START [1], PY_RETURN [1]
+    --- PY_START, RAISE ---
+    720
+    f_cdef PY_START [10]
+    f_cpdef PY_START [20]
+    f_def PY_START [10]
+    f_inline PY_START [10]
+    f_inline_prof PY_START [10]
+    f_nogil_prof PY_START [10]
+    f_raise PY_START [20], RAISE [20]
+    f_reraise PY_START [10], RAISE [10], RERAISE [10]
+    f_return_default PY_START [10]
+    f_return_none PY_START [10]
+    f_withgil_prof PY_START [10]
+    m_cdef PY_START [10]
+    m_cpdef PY_START [20]
+    m_def PY_START [20]
+    test_profile PY_START [1], RAISE [20]
+    --- PY_RETURN, RAISE ---
+    720
+    f_cdef PY_RETURN [10]
+    f_cpdef PY_RETURN [20]
+    f_def PY_RETURN [10]
+    f_inline PY_RETURN [10]
+    f_inline_prof PY_RETURN [10]
+    f_nogil_prof PY_RETURN [10]
+    f_raise RAISE [20]
+    f_reraise RAISE [10], RERAISE [10]
+    f_return_default PY_RETURN [10]
+    f_return_none PY_RETURN [10]
+    f_withgil_prof PY_RETURN [10]
+    m_cdef PY_RETURN [10]
+    m_cpdef PY_RETURN [20]
+    m_def PY_RETURN [20]
+    test_profile PY_RETURN [1], RAISE [20]
+    --- PY_START, PY_RETURN, RAISE ---
+    720
+    f_cdef PY_START [10], PY_RETURN [10]
+    f_cpdef PY_START [20], PY_RETURN [20]
+    f_def PY_START [10], PY_RETURN [10]
+    f_inline PY_START [10], PY_RETURN [10]
+    f_inline_prof PY_START [10], PY_RETURN [10]
+    f_nogil_prof PY_START [10], PY_RETURN [10]
+    f_raise PY_START [20], RAISE [20]
+    f_reraise PY_START [10], RAISE [10], RERAISE [10]
+    f_return_default PY_START [10], PY_RETURN [10]
+    f_return_none PY_START [10], PY_RETURN [10]
+    f_withgil_prof PY_START [10], PY_RETURN [10]
+    m_cdef PY_START [10], PY_RETURN [10]
+    m_cpdef PY_START [20], PY_RETURN [20]
+    m_def PY_START [20], PY_RETURN [20]
+    test_profile PY_START [1], PY_RETURN [1], RAISE [20]
 
 
     >>> with monitored_events(events=GEN_EVENTS, function_name='f_generator') as collected_events:
@@ -125,9 +184,16 @@ def names(event_ids):
 
 
 def print_events(collected_events):
+    def event_sum(event_id, event_counts):
+        count = sum(event_counts)
+        if not cython.compiled and event_id == E.RERAISE and count == 20:
+            # CPython bug, see https://github.com/python/cpython/issues/118360
+            count //= 2
+        return count
+
     for func_name, line_counts in sorted(collected_events.items()):
         print(func_name,
-            ', '.join(f"{names([event_id])} [{sum(counts.values())}]" for event_id, counts in sorted(line_counts.items())))
+            ', '.join(f"{names([event_id])} [{event_sum(event_id, counts.values())}]" for event_id, counts in sorted(line_counts.items())))
 
 
 def assert_events(expected_events, collected_events, loops=10):
@@ -224,6 +290,10 @@ def test_profile(N: cython.long):
             n += f_raise(i+2)
         except RuntimeError:
             pass
+        try:
+            n += f_reraise(i+2)
+        except RuntimeError:
+            pass
     return n
 
 def f_def(a: cython.long):
@@ -258,6 +328,16 @@ def f_noprof(a: cython.long) -> cython.long:
 @cython.cfunc
 def f_raise(_: cython.long) -> cython.long:
     raise RuntimeError
+
+@cython.exceptval(-2)
+@cython.cfunc
+def f_reraise(a: cython.long) -> cython.long:
+    try:
+        f_raise(a)
+    except ValueError:
+        pass
+    except RuntimeError:
+        raise
 
 @cython.profile(False)
 @cython.linetrace(False)

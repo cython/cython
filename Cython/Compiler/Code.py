@@ -2896,6 +2896,9 @@ class CCodeWriter:
             self.error_goto(pos),
         ))
 
+    def put_trace_exit(self):
+        self.putln("__Pyx_PyMonitoring_ExitScope();")
+
     def put_trace_yield(self, retvalue_cname, pos):
         error_goto = self.error_goto(pos)
         self.putln(f"__Pyx_TraceYield({retvalue_cname}, {pos[1]}, {error_goto});")
@@ -2907,8 +2910,8 @@ class CCodeWriter:
         error_goto = self.error_goto(pos)
         self.putln(f'__Pyx_TraceResumeGen({name}, {Naming.filetable_cname}[{filename_index}], {first_line}, {pos[1]}, {error_goto});')
 
-    def put_trace_exception(self):
-        self.putln("__Pyx_TraceException();")
+    def put_trace_exception(self, pos, reraise=False, fresh=False):
+        self.putln(f"__Pyx_TraceException({pos[1]}, {bool(reraise):d}, {bool(fresh):d});")
 
     def put_trace_return(self, retvalue_cname, pos, return_type=None, nogil=False, error_handling=None):
         extra_arg = ""
