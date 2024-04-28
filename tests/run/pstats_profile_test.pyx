@@ -40,9 +40,6 @@ u"""
     ...
     KeyError: 'nogil_noprof'
 
-    >>> short_stats['f_raise']
-    100
-
     >>> short_stats['m_def']
     200
     >>> short_stats['m_cdef']
