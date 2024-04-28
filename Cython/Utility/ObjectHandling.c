@@ -217,13 +217,7 @@ static void __Pyx_PyIter_Next_ErrorNoIterator(PyObject *iterator) {
 static CYTHON_INLINE PyObject *__Pyx_PyIter_Next2(PyObject* iterator, PyObject* defval) {
     PyObject* next;
     // We always do a quick slot check because calling PyIter_Check() is so wasteful.
-    iternextfunc iternext = NULL;
-    if (!CYTHON_COMPILING_IN_LIMITED_API || __PYX_LIMITED_VERSION_HEX > 0x030A0000 ||
-            PyType_GetFlags(Py_TYPE(iterator)) & Py_TPFLAGS_HEAPTYPE) {
-        // Note than in the Python <3.10, PyObject_GetSlot only works for heap types.
-        // I've deliberately skipped a runtime version check, which could also apply here.
-        iternext = __Pyx_PyObject_GetSlot(iterator, tp_iternext, iternextfunc);
-    }
+    iternextfunc iternext = __Pyx_PyObject_GetSlot_StaticSafe(iterator, tp_iternext, iternextfunc);
     if (likely(iternext)) {
 #if CYTHON_USE_TYPE_SLOTS || CYTHON_COMPILING_IN_PYPY
         next = iternext(iterator);
