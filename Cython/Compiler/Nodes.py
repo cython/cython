@@ -2152,7 +2152,7 @@ class FuncDefNode(StatNode, BlockNode):
             else:
                 trace_name = self.entry.name
             code.put_trace_start(
-                trace_name, self.pos, nogil=not code.funcstate.gil_owned)
+                trace_name, self.pos, nogil=not code.funcstate.gil_owned, is_cpdef_func=self.py_func is not None)
             code.funcstate.can_trace = True
         # ----- Fetch arguments
         self.generate_argument_parsing_code(env, code)
@@ -2246,7 +2246,7 @@ class FuncDefNode(StatNode, BlockNode):
 
             if tracing:
                 code.put_trace_return(
-                    Naming.retval_cname, self.pos, return_type=return_type, nogil=not gil_owned['success'])
+                    Naming.retval_cname, self.pos, return_type=return_type, nogil=not gil_owned['success'], is_cpdef_func=self.py_func is not None)
 
         # ----- Error cleanup
         if code.label_used(code.error_label):
@@ -2421,7 +2421,7 @@ class FuncDefNode(StatNode, BlockNode):
 
         if tracing:
             code.funcstate.can_trace = False
-            code.put_trace_exit()
+            code.put_trace_exit(is_cpdef_func=self.py_func is not None)
 
         if code.funcstate.needs_refnanny:
             refnanny_decl_code.put_declare_refcount_context()
@@ -4795,8 +4795,8 @@ class GeneratorBodyDefNode(DefNode):
         if profile or linetrace:
             tempvardecl_code.put_trace_declarations(is_generator=True)
             code.funcstate.can_trace = True
-            code_object = self.code_object.calculate_result_code(code) if self.code_object else None
-            code.put_trace_frame_init(code_object)
+            #code_object = self.code_object.calculate_result_code(code) if self.code_object else None
+            #code.put_trace_frame_init(code_object)
 
         # ----- Resume switch point.
         code.funcstate.init_closure_temps(lenv.scope_class.type.scope)

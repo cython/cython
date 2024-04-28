@@ -2885,18 +2885,22 @@ class CCodeWriter:
         if codeobj:
             self.putln('__Pyx_TraceFrameInit(%s)' % codeobj)
 
-    def put_trace_start(self, name, pos, nogil=False, is_generator=False):
-        self.putln('%s("%s", %s[%s], %s, %d, %s);' % (
+    def put_trace_start(self, name, pos, nogil=False, is_generator=False, is_cpdef_func=False):
+        self.putln(
+            '%s("%s", %s[%s], %s, %d, %s, %s);' % (
             "__Pyx_TraceStartGen" if is_generator else "__Pyx_TraceStartFunc",
             name,
             Naming.filetable_cname,
             self.lookup_filename(pos[0]),
             pos[1],
             nogil,
+            Naming.skip_dispatch_cname if is_cpdef_func else '0',
             self.error_goto(pos),
         ))
 
-    def put_trace_exit(self):
+    def put_trace_exit(self, is_cpdef_func=False):
+        if is_cpdef_func:
+            self.put(f"if ({Naming.skip_dispatch_cname}); else ")
         self.putln("__Pyx_PyMonitoring_ExitScope();")
 
     def put_trace_yield(self, retvalue_cname, pos):
@@ -2913,7 +2917,7 @@ class CCodeWriter:
     def put_trace_exception(self, pos, reraise=False, fresh=False):
         self.putln(f"__Pyx_TraceException({pos[1]}, {bool(reraise):d}, {bool(fresh):d});")
 
-    def put_trace_return(self, retvalue_cname, pos, return_type=None, nogil=False, error_handling=None):
+    def put_trace_return(self, retvalue_cname, pos, return_type=None, nogil=False, is_cpdef_func=False):
         extra_arg = ""
         trace_func = "__Pyx_TraceReturnValue"
 
@@ -2927,8 +2931,9 @@ class CCodeWriter:
         else:
             return
 
-        if error_handling is None:
-            error_handling = self.error_goto(pos)
+        if is_cpdef_func:
+            self.put(f"if ({Naming.skip_dispatch_cname}); else ")
+        error_handling = self.error_goto(pos)
         self.putln(f"{trace_func}({retvalue_cname}{extra_arg}, {pos[1]}, {bool(nogil):d}, {error_handling});")
 
     def putln_openmp(self, string):
