@@ -2452,7 +2452,11 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
         """
         if len(pos_args) != 1:
             if len(pos_args) == 0:
-                return ExprNodes.StringNode(node.pos, value=EncodedString(), constant_result='')
+                if node.type is Builtin.unicode_type:
+                    node_type = ExprNodes.UnicodeNode
+                else:
+                    node_type = ExprNodes.BytesNode
+                return node_type(node.pos, value=EncodedString(), constant_result='')
             return node
         arg = pos_args[0]
 
@@ -2467,7 +2471,8 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
             utility_code = UtilityCode.load_cached('PyObject_Str', 'StringTools.c')
 
         return ExprNodes.PythonCapiCallNode(
-            node.pos, cname, self.PyObject_String_func_type,
+            node.pos, cname,
+            self.PyObject_Unicode_func_type if node.type is Builtin.unicode_type else self.PyObject_String_func_type,
             args=pos_args,
             is_temp=node.is_temp,
             utility_code=utility_code,
@@ -3516,7 +3521,8 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
         if not result:
             return node
         func_cname, utility_code, extra_args, num_type = result
-        args = list(args)+extra_args
+        assert all([arg.type.is_pyobject for arg in args])
+        args = list(args) + extra_args
 
         call_node = self._substitute_method_call(
             node, function,
