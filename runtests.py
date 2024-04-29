@@ -2047,18 +2047,12 @@ class EndToEndTest(unittest.TestCase):
         os.chdir(self.old_dir)
 
     def _try_decode(self, content):
-        if IS_PY2:
-            if isinstance(content, bytes):
-                return content
-            else:
-                content.encode(errors='replace')
-        else:
-            if not isinstance(content, bytes):
-                return content
-            try:
-                return content.decode()
-            except UnicodeDecodeError:
-                return content.decode('iso-8859-1', errors='replace')
+        if not isinstance(content, bytes):
+            return content
+        try:
+            return content.decode()
+        except UnicodeDecodeError:
+            return content.decode('iso-8859-1')
 
     def runTest(self):
         self.success = False
