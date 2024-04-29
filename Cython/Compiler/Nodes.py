@@ -325,12 +325,12 @@ class CompilerDirectivesNode(Node):
     @classmethod
     def for_directives(cls, body, env, **directives):
         new_directives = Options.copy_inherited_directives(env.directives, **directives)
-        return cls(body.pos, body=body, directives=new_directives)
+        return cls(body.pos, body=body, directives=new_directives, is_terminator=body.is_terminator)
 
     @classmethod
     def for_internal(cls, body, env):
         new_directives = Options.copy_for_internal(env.directives)
-        return cls(body.pos, body=body, directives=new_directives)
+        return cls(body.pos, body=body, directives=new_directives, is_terminator=body.is_terminator)
 
     def analyse_declarations(self, env):
         old = env.directives
@@ -2753,7 +2753,7 @@ class CFuncDefNode(FuncDefNode):
                                star_arg=None,
                                starstar_arg=None,
                                doc=self.doc,
-                               body=py_func_body,
+                               body=StatListNode(self.pos, stats=[py_func_body]),
                                decorators=decorators,
                                is_wrapper=1)
         self.py_func.is_module_scope = env.is_module_scope
