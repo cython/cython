@@ -3142,14 +3142,13 @@ class AutoCpdefFunctionDefinitions(CythonTransform):
 
 
 class RemoveUnreachableCode(CythonTransform):
-    is_in_statlist = False
 
     def visit_StatListNode(self, node):
         if not self.current_directives['remove_unreachable']:
             return node
-        self.is_in_statlist = True
         self.visitchildren(node)
-        self.is_in_statlist = False
+        if len(node.stats) == 1 and isinstance(node.stats[0], Nodes.StatListNode) and not node.stats[0].stats:
+            del node.stats[:]
         for idx, stat in enumerate(node.stats, 1):
             if stat.is_terminator:
                 if idx < len(node.stats):
@@ -3192,13 +3191,10 @@ class RemoveUnreachableCode(CythonTransform):
 
     def visit_PassStatNode(self, node):
         """Eliminate useless PassStatNode"""
-        if self.current_directives['linetrace']:
-            # 'pass' statements often appear in a separate line and must be traced.
-            return node
-        if not self.is_in_statlist:
-            return Nodes.StatListNode(pos=node.pos, stats=[])
-        else:
-            return []
+        # 'pass' statements often appear in a separate line and must be traced.
+        if not self.current_directives['linetrace']:
+            node = Nodes.StatListNode(pos=node.pos, stats=[])
+        return node
 
 
 class YieldNodeCollector(TreeVisitor):
