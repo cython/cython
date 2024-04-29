@@ -6796,7 +6796,8 @@ class PassStatNode(StatNode):
         return self
 
     def generate_execution_code(self, code):
-        pass
+        if code.globalstate.directives['linetrace']:
+            code.mark_pos(self.pos)
 
 
 class IndirectionNode(StatListNode):

@@ -83,8 +83,10 @@ class NormalizeTree(CythonTransform):
         super().__init__(context)
         self.is_in_statlist = False
         self.is_in_expr = False
+        self.module_directives = None
 
     def visit_ModuleNode(self, node):
+        self.module_directives = node.directives
         self.visitchildren(node)
         if not isinstance(node.body, Nodes.StatListNode):
             # This can happen when the body only consists of a single (unused) declaration and no statements.
@@ -123,17 +125,10 @@ class NormalizeTree(CythonTransform):
     def visit_CStructOrUnionDefNode(self, node):
         return self.visit_StatNode(node, True)
 
-    def visit_PassStatNode(self, node):
-        """Eliminate PassStatNode"""
-        if not self.is_in_statlist:
-            return Nodes.StatListNode(pos=node.pos, stats=[])
-        else:
-            return []
-
     def visit_ExprStatNode(self, node):
         """Eliminate useless string literals"""
         if node.expr.is_string_literal:
-            return self.visit_PassStatNode(node)
+            return Nodes.PassStatNode(node.expr.pos)
         else:
             return self.visit_StatNode(node)
 
@@ -3147,10 +3142,14 @@ class AutoCpdefFunctionDefinitions(CythonTransform):
 
 
 class RemoveUnreachableCode(CythonTransform):
+    is_in_statlist = False
+
     def visit_StatListNode(self, node):
         if not self.current_directives['remove_unreachable']:
             return node
+        self.is_in_statlist = True
         self.visitchildren(node)
+        self.is_in_statlist = False
         for idx, stat in enumerate(node.stats, 1):
             if stat.is_terminator:
                 if idx < len(node.stats):
@@ -3190,6 +3189,16 @@ class RemoveUnreachableCode(CythonTransform):
         if node.finally_clause.is_terminator:
             node.is_terminator = True
         return node
+
+    def visit_PassStatNode(self, node):
+        """Eliminate useless PassStatNode"""
+        if self.current_directives['linetrace']:
+            # 'pass' statements often appear in a separate line and must be traced.
+            return node
+        if not self.is_in_statlist:
+            return Nodes.StatListNode(pos=node.pos, stats=[])
+        else:
+            return []
 
 
 class YieldNodeCollector(TreeVisitor):
