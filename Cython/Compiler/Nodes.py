@@ -2246,7 +2246,7 @@ class FuncDefNode(StatNode, BlockNode):
 
             if tracing:
                 code.put_trace_return(
-                    Naming.retval_cname, self.pos, return_type=return_type, nogil=not gil_owned['success'], is_cpdef_func=self.py_func is not None)
+                    Naming.retval_cname, self.pos, return_type=return_type, nogil=not gil_owned['success'])
 
         # ----- Error cleanup
         if code.label_used(code.error_label):
@@ -2421,7 +2421,7 @@ class FuncDefNode(StatNode, BlockNode):
 
         if tracing:
             code.funcstate.can_trace = False
-            code.put_trace_exit(is_cpdef_func=self.py_func is not None)
+            code.put_trace_exit
 
         if code.funcstate.needs_refnanny:
             refnanny_decl_code.put_declare_refcount_context()
@@ -2735,14 +2735,18 @@ class CFuncDefNode(FuncDefNode):
             # TODO(robertwb): Finish this up, perhaps via more function refactoring.
             error(self.pos, "static cpdef methods not yet supported")
 
-        name = self.entry.name
         py_func_body = self.call_self_node(is_module_scope=env.is_module_scope)
+        py_func_body = CompilerDirectivesNode.for_directives(
+            py_func_body, env, profile=False, linetrace=False)
+
         if self.is_static_method:
             from .ExprNodes import NameNode
             decorators = [DecoratorNode(self.pos, decorator=NameNode(self.pos, name=EncodedString('staticmethod')))]
             decorators[0].decorator.analyse_types(env)
         else:
             decorators = []
+
+        name = self.entry.name
         self.py_func = DefNode(pos=self.pos,
                                name=self.entry.name,
                                args=self.args,
@@ -2809,7 +2813,7 @@ class CFuncDefNode(FuncDefNode):
             function=cfunc,
             args=[ExprNodes.NameNode(self.pos, name=n) for n in arg_names],
             wrapper_call=skip_dispatch)
-        return ReturnStatNode(pos=self.pos, return_type=PyrexTypes.py_object_type, value=c_call)
+        return ReturnStatNode(pos=self.pos, return_type=PyrexTypes.py_object_type, value=c_call) 
 
     def declare_arguments(self, env):
         for arg in self.type.args:

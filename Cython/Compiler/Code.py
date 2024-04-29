@@ -2898,9 +2898,7 @@ class CCodeWriter:
             self.error_goto(pos),
         ))
 
-    def put_trace_exit(self, is_cpdef_func=False):
-        if is_cpdef_func:
-            self.put(f"if ({Naming.skip_dispatch_cname}); else ")
+    def put_trace_exit(self):
         self.putln("__Pyx_PyMonitoring_ExitScope();")
 
     def put_trace_yield(self, retvalue_cname, pos):
@@ -2917,7 +2915,7 @@ class CCodeWriter:
     def put_trace_exception(self, pos, reraise=False, fresh=False):
         self.putln(f"__Pyx_TraceException({pos[1]}, {bool(reraise):d}, {bool(fresh):d});")
 
-    def put_trace_return(self, retvalue_cname, pos, return_type=None, nogil=False, is_cpdef_func=False):
+    def put_trace_return(self, retvalue_cname, pos, return_type=None, nogil=False):
         extra_arg = ""
         trace_func = "__Pyx_TraceReturnValue"
 
@@ -2931,8 +2929,6 @@ class CCodeWriter:
         else:
             return
 
-        if is_cpdef_func:
-            self.put(f"if ({Naming.skip_dispatch_cname}); else ")
         error_handling = self.error_goto(pos)
         self.putln(f"{trace_func}({retvalue_cname}{extra_arg}, {pos[1]}, {bool(nogil):d}, {error_handling});")
 
