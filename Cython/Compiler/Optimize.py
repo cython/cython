@@ -2450,13 +2450,12 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
     def _handle_simple_function_str(self, node, function, pos_args):
         """Optimize single argument calls to str().
         """
+        if node.type is Builtin.unicode_type:
+            # type already deduced as unicode (language_level=3)
+            return self._handle_simple_function_unicode(node, function, pos_args)
         if len(pos_args) != 1:
             if len(pos_args) == 0:
-                if node.type is Builtin.unicode_type:
-                    node_type = ExprNodes.UnicodeNode
-                else:
-                    node_type = ExprNodes.BytesNode
-                return node_type(node.pos, value=EncodedString(), constant_result='')
+                return ExprNodes.StringNode(node.pos, value=EncodedString(), constant_result='')
             return node
         arg = pos_args[0]
 
@@ -2472,7 +2471,7 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
 
         return ExprNodes.PythonCapiCallNode(
             node.pos, cname,
-            self.PyObject_Unicode_func_type if node.type is Builtin.unicode_type else self.PyObject_String_func_type,
+            self.PyObject_String_func_type,
             args=pos_args,
             is_temp=node.is_temp,
             utility_code=utility_code,
