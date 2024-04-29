@@ -101,8 +101,8 @@ cdef class CCodeWriter(object):
     cdef readonly object globalstate
     cdef readonly object funcstate
     cdef object code_config
-    cdef object last_pos
-    cdef object last_marked_pos
+    cdef tuple last_pos
+    cdef tuple last_marked_pos
     cdef Py_ssize_t level
     cdef public Py_ssize_t call_level  # debug-only, see Nodes.py
     cdef bint bol
@@ -114,6 +114,10 @@ cdef class CCodeWriter(object):
     cpdef put(self, code)
     cpdef put_safe(self, code)
     cpdef putln(self, code=*, bint safe=*)
+    @cython.final
+    cdef emit_marker(self)
+    @cython.final
+    cdef _build_marker(self, tuple pos)
     @cython.final
     cdef increase_indent(self)
     @cython.final

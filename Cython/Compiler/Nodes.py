@@ -7630,6 +7630,7 @@ class _ForInStatNode(LoopNode, StatNode):
         code.putln("for (;;) {")
         self.item.generate_evaluation_code(code)
         self.target.generate_assignment_code(self.item, code)
+        code.write_trace_line(self.pos)
         self.body.generate_execution_code(code)
         code.mark_pos(self.pos)
         code.put_label(code.continue_label)
@@ -7853,6 +7854,7 @@ class ForFromStatNode(LoopNode, StatNode):
             coerced_loopvar_node.generate_evaluation_code(code)
             self.target.generate_assignment_code(coerced_loopvar_node, code)
 
+        code.write_trace_line(self.pos)
         self.body.generate_execution_code(code)
         code.put_label(code.continue_label)
 

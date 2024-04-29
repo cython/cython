@@ -2327,10 +2327,13 @@ class CCodeWriter:
         if self.code_config.emit_code_comments:
             self.indent()
             self._write_lines("/* %s */\n" % self._build_marker(pos))
-        if trace and self.funcstate and self.funcstate.can_trace and self.globalstate.directives['linetrace']:
+        if trace:
+            self.write_trace_line(pos)
+
+    def write_trace_line(self, pos):
+        if self.funcstate and self.funcstate.can_trace and self.globalstate.directives['linetrace']:
             self.indent()
-            self._write_lines('__Pyx_TraceLine(%d,%d,%s)\n' % (
-                pos[1], not self.funcstate.gil_owned, self.error_goto(pos)))
+            self._write_lines(f'__Pyx_TraceLine({pos[1]:d},{not self.funcstate.gil_owned:d},{self.error_goto(pos)})\n')
 
     def _build_marker(self, pos):
         source_desc, line, col = pos

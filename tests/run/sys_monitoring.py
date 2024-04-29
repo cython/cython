@@ -21,11 +21,13 @@ except ImportError:
     """
 else:
     TOOL_ID = smon.PROFILER_ID
-    FUNC_EVENTS = (E.PY_START, E.PY_RETURN, E.RAISE)  # , E.LINE)  # <- TODO: implement
+    FUNC_EVENTS = (E.PY_START, E.PY_RETURN, E.RAISE)
     GEN_EVENTS = FUNC_EVENTS + (E.PY_RESUME, E.PY_YIELD, E.STOP_ITERATION)
     event_name = {1 << event_id: name for name, event_id in vars(E).items()}.get
 
     __doc__ = """
+    >>> from itertools import combinations
+
     >>> smon.use_tool_id(TOOL_ID, 'cython-test')
 
     >>> with monitored_events(events=()) as collected_events:
@@ -46,7 +48,9 @@ else:
     >>> list(collected_events.items())  # test_profile(2)
     []
 
-    >>> from itertools import combinations
+
+    ## Testing combinations of events:
+
     >>> for num_events in range(1, len(FUNC_EVENTS)+1):  # doctest: +REPORT_NDIFF
     ...     for event_set in combinations(FUNC_EVENTS, num_events):
     ...         print(f"--- {names(event_set)} ---")
@@ -172,6 +176,70 @@ else:
     f_generator PY_START [1], PY_RESUME [2], PY_RETURN [1], PY_YIELD [2]
 
 
+    ## Testing line events:
+
+    >>> events = (E.PY_START, E.PY_RETURN)
+    >>> for num_events in range(1, len(events)+1):  # doctest: +REPORT_NDIFF
+    ...     for event_set in combinations(events, num_events):
+    ...         event_set += (E.RAISE, E.LINE)
+    ...         print(f"--- {names(event_set)} ---")
+    ...         with monitored_events(events=event_set + (E.RERAISE,)) as (collected_events, collected_line_events):
+    ...             result = test_profile(10)
+    ...         print(result)
+    ...         print_events(collected_events)
+    ...         assert_events(event_set, collected_events['test_profile'])  # test_profile(10)
+    --- PY_START, LINE, RAISE ---
+    720
+    f_cdef PY_START [10], LINE [10]
+    f_cpdef PY_START [20], LINE [20]
+    f_def PY_START [10], LINE [10]
+    f_inline PY_START [10], LINE [10]
+    f_inline_prof PY_START [10], LINE [10]
+    f_nogil_prof PY_START [10], LINE [10]
+    f_raise PY_START [20], LINE [20], RAISE [20]
+    f_reraise PY_START [10], LINE [50], RAISE [10], RERAISE [10]
+    f_return_default PY_START [10], LINE [10]
+    f_return_none PY_START [10], LINE [10]
+    f_withgil_prof PY_START [10], LINE [10]
+    m_cdef PY_START [10], LINE [10]
+    m_cpdef PY_START [20], LINE [20]
+    m_def PY_START [20], LINE [20]
+    test_profile PY_START [1], LINE [314], RAISE [20]
+    --- PY_RETURN, LINE, RAISE ---
+    720
+    f_cdef PY_RETURN [10], LINE [10]
+    f_cpdef PY_RETURN [20], LINE [20]
+    f_def PY_RETURN [10], LINE [10]
+    f_inline PY_RETURN [10], LINE [10]
+    f_inline_prof PY_RETURN [10], LINE [10]
+    f_nogil_prof PY_RETURN [10], LINE [10]
+    f_raise LINE [20], RAISE [20]
+    f_reraise LINE [50], RAISE [10], RERAISE [10]
+    f_return_default PY_RETURN [10], LINE [10]
+    f_return_none PY_RETURN [10], LINE [10]
+    f_withgil_prof PY_RETURN [10], LINE [10]
+    m_cdef PY_RETURN [10], LINE [10]
+    m_cpdef PY_RETURN [20], LINE [20]
+    m_def PY_RETURN [20], LINE [20]
+    test_profile PY_RETURN [1], LINE [314], RAISE [20]
+    --- PY_START, PY_RETURN, LINE, RAISE ---
+    720
+    f_cdef PY_START [10], PY_RETURN [10], LINE [10]
+    f_cpdef PY_START [20], PY_RETURN [20], LINE [20]
+    f_def PY_START [10], PY_RETURN [10], LINE [10]
+    f_inline PY_START [10], PY_RETURN [10], LINE [10]
+    f_inline_prof PY_START [10], PY_RETURN [10], LINE [10]
+    f_nogil_prof PY_START [10], PY_RETURN [10], LINE [10]
+    f_raise PY_START [20], LINE [20], RAISE [20]
+    f_reraise PY_START [10], LINE [50], RAISE [10], RERAISE [10]
+    f_return_default PY_START [10], PY_RETURN [10], LINE [10]
+    f_return_none PY_START [10], PY_RETURN [10], LINE [10]
+    f_withgil_prof PY_START [10], PY_RETURN [10], LINE [10]
+    m_cdef PY_START [10], PY_RETURN [10], LINE [10]
+    m_cpdef PY_START [20], PY_RETURN [20], LINE [20]
+    m_def PY_START [20], PY_RETURN [20], LINE [20]
+    test_profile PY_START [1], PY_RETURN [1], LINE [314], RAISE [20]
+
     >>> smon.free_tool_id(TOOL_ID)
     """
 
@@ -225,6 +293,7 @@ def monitored_events(events=FUNC_EVENTS, function_name="test_profile"):
         event_set |= event
 
     collected_events = defaultdict(lambda: defaultdict(lambda: defaultdict(int)))
+    collected_line_events = defaultdict(int)
 
     @cython.profile(False)
     @cython.linetrace(False)
@@ -235,6 +304,8 @@ def monitored_events(events=FUNC_EVENTS, function_name="test_profile"):
             return  # ignore cpdef wrapper
         if not cython.compiled and 'noprof' in code_obj.co_name:
             return
+        if event == E.LINE:
+            collected_line_events[offset] += 1
         if event == E.PY_START:
             if function_name != 'f_generator':  # FIXME!
                 assert offset == (code_obj.co_firstlineno if cython.compiled else 0), f"{code_obj.co_name}: {offset} != {code_obj.co_firstlineno}"
@@ -244,7 +315,10 @@ def monitored_events(events=FUNC_EVENTS, function_name="test_profile"):
         for event in events:
             smon.register_callback(TOOL_ID, event, partial(count_event, event))
         smon.set_events(TOOL_ID, event_set)
-        yield collected_events
+        if event_set & E.LINE:
+            yield collected_events, collected_line_events
+        else:
+            yield collected_events
     finally:
         smon.set_events(TOOL_ID, event_set)
         for event in events:
