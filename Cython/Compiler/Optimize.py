@@ -2470,8 +2470,7 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
             utility_code = UtilityCode.load_cached('PyObject_Str', 'StringTools.c')
 
         return ExprNodes.PythonCapiCallNode(
-            node.pos, cname,
-            self.PyObject_String_func_type,
+            node.pos, cname, self.PyObject_String_func_type,
             args=pos_args,
             is_temp=node.is_temp,
             utility_code=utility_code,
