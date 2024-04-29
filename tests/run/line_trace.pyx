@@ -179,6 +179,12 @@ def py_add_with_nogil(a,b):
     return z
 
 def py_return(retval=123): return retval
+
+def py_try_except(func):
+    try:
+        return func()
+    except KeyError as exc:
+        raise AttributeError(exc.args[0])
 """, plain_python_functions)
 
 
@@ -257,7 +263,7 @@ def run_trace(func, *args, bint with_sys=False):
     return trace
 
 
-def run_trace_with_exception(func, bint with_sys=False, bint fail=False):
+def run_trace_with_exception(func, bint with_sys=False, bint fail=False, call_func=cy_try_except):
     """
     >>> py_return = plain_python_functions["py_return"]
     >>> run_trace_with_exception(py_return)
@@ -286,11 +292,22 @@ def run_trace_with_exception(func, bint with_sys=False, bint fail=False):
     ValueError('failing line trace!')
     [('call', 0)]
 
+    >>> py_try_except = plain_python_functions['py_try_except']
+    >>> run_trace_with_exception(py_raise_exc, call_func=py_try_except)
+    AttributeError('huhu')
+    [('call', 0), ('line', 1), ('line', 2), ('call', 0), ('line', 0), ('exception', 0), ('return', 0), ('exception', 2), ('line', 3), ('line', 4), ('exception', 4), ('return', 4)]
+    >>> run_trace_with_exception(py_raise_exc, with_sys=True, call_func=py_try_except)
+    AttributeError('huhu')
+    [('call', 0), ('line', 1), ('line', 2), ('call', 0), ('line', 0), ('exception', 0), ('return', 0), ('exception', 2), ('line', 3), ('line', 4), ('exception', 4), ('return', 4)]
+    >>> run_trace_with_exception(py_raise_exc, fail=True, call_func=py_try_except)
+    ValueError('failing line trace!')
+    [('call', 0)]
+
     #>>> run_trace_with_exception(raise_exc, with_sys=True, fail=True)
     #ValueError('huhu')
     #[('call', 0), ('line', 1), ('line', 2), ('call', 0), ('line', 0), ('exception', 0), ('return', 0), ('line', 3), ('line', 4), ('return', 4)]
     """
-    trace = ['cy_try_except' if fail else 'NO ERROR']
+    trace = [call_func.__name__ if fail else 'NO ERROR']
     trace_func = _create__failing_line_trace_func(trace) if fail else _create_trace_func(trace)
     with gc_off():
         if with_sys:
@@ -299,7 +316,7 @@ def run_trace_with_exception(func, bint with_sys=False, bint fail=False):
             PyEval_SetTrace(<Py_tracefunc>trace_trampoline, <PyObject*>trace_func)
         try:
             try:
-                retval = cy_try_except(func)
+                retval = call_func(func)
             except ValueError as exc:
                 print("%s(%r)" % (type(exc).__name__, str(exc)))
             except AttributeError as exc:
