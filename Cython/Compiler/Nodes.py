@@ -2283,6 +2283,9 @@ class FuncDefNode(StatNode, BlockNode):
             if tracing:
                 assure_gil('error')
                 code.put_trace_exception(self.pos)
+                code.putln("#if !CYTHON_USE_SYS_MONITORING")
+                code.put_trace_return("NULL", self.pos, nogil=not gil_owned['success'])
+                code.putln("#endif")
 
             exc_check = self.caller_will_check_exceptions()
             if err_val is not None or exc_check:
