@@ -83,10 +83,8 @@ class NormalizeTree(CythonTransform):
         super().__init__(context)
         self.is_in_statlist = False
         self.is_in_expr = False
-        self.module_directives = None
 
     def visit_ModuleNode(self, node):
-        self.module_directives = node.directives
         self.visitchildren(node)
         if not isinstance(node.body, Nodes.StatListNode):
             # This can happen when the body only consists of a single (unused) declaration and no statements.
