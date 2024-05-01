@@ -4846,7 +4846,7 @@ class GeneratorBodyDefNode(DefNode):
             # FIXME: this silences a potential "unused" warning => try to avoid unused closures in more cases
             code.putln("CYTHON_MAYBE_UNUSED_VAR(%s);" % Naming.cur_scope_cname)
 
-        if profile or linetrace:
+        if (profile or linetrace) and not self.body.is_terminator:
             code.funcstate.can_trace = False
             code.put_trace_return("Py_None", pos=self.pos)
             #code.put_trace_stop_iteration(pos=self.pos)
@@ -4911,8 +4911,8 @@ class GeneratorBodyDefNode(DefNode):
         for i, label in code.yield_labels:
             resume_code.putln("case %d: goto %s;" % (i, label))
         resume_code.putln("default: /* CPython raises the right error here */")
-        if profile or linetrace:
-            resume_code.put_trace_return("Py_None", pos=self.pos)
+        #if profile or linetrace:
+        #    resume_code.put_trace_return("Py_None", pos=self.pos)
         resume_code.put_finish_refcount_context()
         resume_code.putln("return NULL;")
         resume_code.putln("}")

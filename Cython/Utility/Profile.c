@@ -138,6 +138,7 @@
   #define __Pyx_TraceYield(result, lineno, goto_error) \
   if (!__Pyx_IsTracing(__Pyx_Monitoring_PY_YIELD)); else {                                   \
       int ret = PyMonitoring_FirePyYieldEvent(&$monitoring_states_cname[__Pyx_Monitoring_PY_RETURN], $frame_code_cname, lineno, result); \
+      PyMonitoring_ExitScope();                                                              \
       if (unlikely(ret == -1)) goto_error;                                                   \
   }
 
@@ -235,7 +236,10 @@
       CYTHON_FRAME_MODIFIER PyFrameObject *$frame_cname = NULL;           \
       int __Pyx_use_tracing = 0;
   
-  #define __Pyx_TraceDeclarationsGen __Pyx_TraceDeclarationsFunc
+  #define __Pyx_TraceDeclarationsGen \
+      PyObject *$frame_code_cname = $generator_cname->gi_code; \
+      CYTHON_FRAME_MODIFIER PyFrameObject *$frame_cname = NULL; \
+      int __Pyx_use_tracing = 0;
 
   #define __Pyx_TraceFrameInit(codeobj)                                   \
       if (codeobj) $frame_code_cname = (PyCodeObject*) codeobj;
