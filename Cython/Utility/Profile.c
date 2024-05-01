@@ -190,21 +190,20 @@
   }
 
   #if CYTHON_TRACE
+
+  CYTHON_UNUSED static int __Pyx__TraceLine(PyMonitoringState *monitoring_state, PyObject *code_obj, long lineno); /*proto*/
+
   #define __Pyx_TraceLine(lineno, nogil, goto_error) \
   if (!__Pyx_IsTracing(__Pyx_Monitoring_LINE)); else {                                       \
       int ret = 0;                                                                           \
       if (nogil) {                                                                           \
           if (CYTHON_TRACE_NOGIL) {                                                          \
               PyGILState_STATE state = PyGILState_Ensure();                                  \
-              PyObject *exc = PyErr_GetRaisedException();                                    \
-              ret = PyMonitoring_FireLineEvent(&$monitoring_states_cname[__Pyx_Monitoring_LINE], $frame_code_cname, lineno, lineno); \
-              if (exc) PyErr_SetRaisedException(exc);                                        \
+              ret = __Pyx__TraceLine(&$monitoring_states_cname[__Pyx_Monitoring_LINE], $frame_code_cname, lineno); \
               PyGILState_Release(state);                                                     \
           }                                                                                  \
       } else {                                                                               \
-          PyObject *exc = PyErr_GetRaisedException();                                        \
-          ret = PyMonitoring_FireLineEvent(&$monitoring_states_cname[__Pyx_Monitoring_LINE], $frame_code_cname, lineno, lineno); \
-          if (exc) PyErr_SetRaisedException(exc);                                            \
+          ret = __Pyx__TraceLine(&$monitoring_states_cname[__Pyx_Monitoring_LINE], $frame_code_cname, lineno); \
       }                                                                                      \
       if (unlikely(ret == -1)) goto_error;                                                   \
   }
@@ -504,7 +503,18 @@ CYTHON_UNUSED static void __Pyx__TraceException(PyMonitoringState *monitoring_st
     }
 }
 
+#if CYTHON_TRACE
+CYTHON_UNUSED static int __Pyx__TraceLine(PyMonitoringState *monitoring_state, PyObject *code_obj, long lineno) {
+    int ret;
+    PyObject *exc = PyErr_GetRaisedException();
+    ret = PyMonitoring_FireLineEvent(monitoring_state, code_obj, lineno, lineno);
+    if (exc) PyErr_SetRaisedException(exc);
+    return ret;
+}
+#endif
+
 #else
+// pre sys.monitoring
 
 static int __Pyx_TraceSetupAndCall(PyCodeObject** code,
                                    PyFrameObject** frame,
