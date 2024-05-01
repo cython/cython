@@ -54,9 +54,9 @@ u"""
     100
 
     >>> if COMPILED:
-    ...     assert (short_stats['m_cpdef'] - 100) in (200, 400)  # FIXME!
+    ...     assert (short_stats['m_cpdef'] - 100) in (200, 400), short_stats['m_cpdef']  # FIXME!
     ... else:
-    ...     assert short_stats['m_cpdef'] == 200
+    ...     assert short_stats['m_cpdef'] == 200, short_stats['m_cpdef']
 
     >>> try:
     ...    os.unlink(statsfile)
