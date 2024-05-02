@@ -1542,7 +1542,7 @@ static PyTypeObject __pyx_FusedFunctionType_type = {
     .tp_members = __pyx_FusedFunction_members,
     .tp_getset = __pyx_FusedFunction_getsets,
     // NOTE: tp_base may be changed later during module initialisation when importing CyFunction across modules.
-    .tp_base = __pyx_CyFunctionType_type,
+    .tp_base = &__pyx_CyFunctionType_type,
     .tp_descr_get = __pyx_FusedFunction_descr_get
 };
 #endif
