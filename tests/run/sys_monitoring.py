@@ -251,6 +251,15 @@ else:
     m_def PY_START [20], PY_RETURN [20], LINE [20]
     test_profile PY_START [1], PY_RETURN [1], LINE [314], RAISE [20]
 
+
+    ## Testing fused functions:
+
+    >>> with monitored_events(events=FUNC_EVENTS, function_name='call_fused_functions') as collected_events:
+    ...     call_fused_functions()
+    >>> print_events(collected_events)  # call_fused_functions()
+    call_fused_functions PY_START [1], PY_RETURN [1]
+
+
     >>> smon.free_tool_id(TOOL_ID)
     """
 
@@ -310,11 +319,11 @@ def monitored_events(events=FUNC_EVENTS, function_name="test_profile"):
     @cython.linetrace(False)
     def count_event(event, code_obj, offset, *args):
         if not (code_obj.co_name.startswith('f_') or code_obj.co_name.startswith('m_') or code_obj.co_name == function_name):
-            return smon.DISABLE
+            return smon.DISABLE if event != E.RAISE else None
         if ' (wrapper)' in code_obj.co_name:
             return  # ignore cpdef wrapper
         if not cython.compiled and 'noprof' in code_obj.co_name:
-            return smon.DISABLE
+            return smon.DISABLE if event != E.RAISE else None
         if event == E.LINE:
             collected_line_events[offset] += 1
         if event == E.PY_START:
@@ -473,6 +482,8 @@ class A:
         return a
 
 
+# Generators
+
 def test_generators():
     call_generator()
     call_generator_exception()
@@ -498,3 +509,35 @@ def f_generator_exception():
 def f_generator_expr():
     e = (x for x in range(10))
     return sum(e)
+
+
+# Fused functions
+
+def call_fused_functions():
+    if cython.compiled:
+        assert 5 == fused_func_def['short'](3)
+        assert 5 == fused_func_def['int'](3)
+        assert 5 == fused_func_def['double'](3)
+        assert 5 == fused_func_def['float'](3)
+        assert 5 == fused_func_def['long'](3)
+
+    assert 5.0 == fused_func_def(3.0)
+    assert 5 == fused_func_def(3)
+
+    if cython.compiled:
+        assert 5 == fused_func_cfunc[cython.short](3)
+        assert 5 == fused_func_cfunc[cython.int](3)
+        assert 5 == fused_func_cfunc[cython.double](3)
+        assert 5 == fused_func_cfunc[cython.float](3)
+        assert 5 == fused_func_cfunc[cython.long](3)
+
+    assert 5.0 == fused_func_cfunc(3.0)
+    assert 5 == fused_func_cfunc(3)
+
+
+def fused_func_def(x: cython.numeric) -> cython.numeric:
+    return x + 2
+
+@cython.cfunc
+def fused_func_cfunc(x: cython.numeric) -> cython.numeric:
+    return x + 2
