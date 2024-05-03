@@ -1015,8 +1015,9 @@ static CYTHON_INLINE {{TYPE}} {{FROM_PY_FUNCTION}}(PyObject *x) {
             PyObject *v = __Pyx_PyNumber_IntOrLong(x);
             if (likely(v)) {
                 int ret = -1;
-#if PY_VERSION_HEX >= 0x030d00A4 && !CYTHON_COMPILING_IN_LIMITED_API
-                Py_ssize_t bytes_copied = PyLong_AsNativeBytes(v, &val, sizeof(val), -1);
+#if PY_VERSION_HEX >= 0x030d00A6 && !CYTHON_COMPILING_IN_LIMITED_API
+                Py_ssize_t bytes_copied = PyLong_AsNativeBytes(
+                    v, &val, sizeof(val), Py_ASNATIVEBYTES_NATIVE_ENDIAN | (is_unsigned ? Py_ASNATIVEBYTES_UNSIGNED_BUFFER | Py_ASNATIVEBYTES_REJECT_NEGATIVE : 0));
                 if (unlikely(bytes_copied == -1)) {
                     // failed
                 } else if (unlikely(bytes_copied > sizeof(val))) {
