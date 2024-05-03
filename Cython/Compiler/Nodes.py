@@ -2618,6 +2618,7 @@ class CFuncDefNode(FuncDefNode):
     template_declaration = None
     is_const_method = False
     py_func_stat = None
+    _code_object = None
 
     def unqualified_name(self):
         return self.entry.name
@@ -2628,7 +2629,11 @@ class CFuncDefNode(FuncDefNode):
     @property
     def code_object(self):
         # share the CodeObject with the cpdef wrapper (if available)
-        return self.py_func.code_object if self.py_func else None
+        return self.py_func.code_object if self.py_func else self._code_object
+
+    @code_object.setter
+    def _set_code_object(self, code_object):
+        self._code_object = code_object
 
     def analyse_declarations(self, env):
         self.is_c_class_method = env.is_c_class_scope
@@ -4676,6 +4681,10 @@ class GeneratorDefNode(DefNode):
 
     child_attrs = DefNode.child_attrs + ["gbody"]
 
+    @property
+    def code_object(self):
+        return self.gbody.code_object
+
     def __init__(self, pos, **kwargs):
         # XXX: don't actually needs a body
         kwargs['body'] = StatListNode(pos, stats=[], is_terminator=True)
@@ -4692,13 +4701,22 @@ class GeneratorDefNode(DefNode):
         qualname = code.intern_identifier(self.qualname)
         module_name = code.intern_identifier(self.module_name)
 
+        self.gbody.code_object.generate_evaluation_code(code)
+        code_object = self.gbody.code_object.py_result()
+
         code.putln('{')
-        code.putln('__pyx_CoroutineObject *gen = __Pyx_%s_New('
-                   '(__pyx_coroutine_body_t) %s, %s, (PyObject *) %s, %s, %s, %s); %s' % (
-                       self.gen_type_name,
-                       body_cname, self.code_object.calculate_result_code(code) if self.code_object else 'NULL',
-                       Naming.cur_scope_cname, name, qualname, module_name,
-                       code.error_goto_if_null('gen', self.pos)))
+        code.putln(
+            f'__pyx_CoroutineObject *gen = __Pyx_{self.gen_type_name}_New('
+            f'(__pyx_coroutine_body_t) {body_cname},'
+            f' {code_object},'
+            f' (PyObject *) {Naming.cur_scope_cname},'
+            f' {name}, {qualname}, {module_name}'
+            f'); {code.error_goto_if_null("gen", self.pos)}'
+        )
+
+        self.gbody.code_object.generate_disposal_code(code)
+        self.gbody.code_object.free_temps(code)
+
         code.put_decref(Naming.cur_scope_cname, py_object_type)
         if self.requires_classobj:
             classobj_cname = 'gen->classobj'
@@ -4802,8 +4820,6 @@ class GeneratorBodyDefNode(DefNode):
         if profile or linetrace:
             tempvardecl_code.put_trace_declarations(is_generator=True)
             code.funcstate.can_trace = True
-            #code_object = self.code_object.calculate_result_code(code) if self.code_object else None
-            #code.put_trace_frame_init(code_object)
 
         # ----- Resume switch point.
         code.funcstate.init_closure_temps(lenv.scope_class.type.scope)
@@ -4911,8 +4927,9 @@ class GeneratorBodyDefNode(DefNode):
         for i, label in code.yield_labels:
             resume_code.putln("case %d: goto %s;" % (i, label))
         resume_code.putln("default: /* CPython raises the right error here */")
-        #if profile or linetrace:
-        #    resume_code.put_trace_return("Py_None", pos=self.pos)
+        if profile or linetrace:
+            resume_code.put_trace_start(self.entry.qualified_name, self.pos, is_generator=True)
+            resume_code.put_trace_return("Py_None", pos=self.pos)
         resume_code.put_finish_refcount_context()
         resume_code.putln("return NULL;")
         resume_code.putln("}")

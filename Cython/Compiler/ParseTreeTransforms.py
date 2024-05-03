@@ -2446,14 +2446,21 @@ if VALUE is not None:
 
     def visit_DefNode(self, node):
         node = self.visit_FuncDefNode(node)
+        if not isinstance(node, Nodes.DefNode):
+            return node
+        if node.fused_py_func:
+            return node
+        if node.code_object is None:
+            node.code_object = ExprNodes.CodeObjectNode(node)
+        if node.is_generator_body:
+            return node
         env = self.current_env()
-        if (not isinstance(node, Nodes.DefNode) or
-                node.fused_py_func or node.is_generator_body or
-                not node.needs_assignment_synthesis(env)):
+        if not node.needs_assignment_synthesis(env):
             return node
         return [node, self._synthesize_assignment(node, env)]
 
     def visit_GeneratorBodyDefNode(self, node):
+        node.code_object = ExprNodes.CodeObjectNode(node)
         return self.visit_FuncDefNode(node)
 
     def _synthesize_assignment(self, node, env):
@@ -2465,14 +2472,10 @@ if VALUE is not None:
         if genv.is_closure_scope:
             rhs = node.py_cfunc_node = ExprNodes.InnerFunctionNode(
                 node.pos, def_node=node,
-                pymethdef_cname=node.entry.pymethdef_cname,
-                code_object=ExprNodes.CodeObjectNode(node))
+                pymethdef_cname=node.entry.pymethdef_cname)
         else:
             binding = self.current_directives.get('binding')
             rhs = ExprNodes.PyCFunctionNode.from_defnode(node, binding)
-            node.code_object = rhs.code_object
-            if node.is_generator:
-                node.gbody.code_object = node.code_object
 
         if env.is_py_class_scope:
             rhs.binding = True

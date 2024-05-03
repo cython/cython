@@ -9893,12 +9893,9 @@ class PyCFunctionNode(ExprNode, ModuleNameMixin):
     #  binding           bool
     #  def_node          DefNode            the Python function node
     #  module_name       EncodedString      Name of defining module
-    #  code_object       CodeObjectNode     the PyCodeObject creator node
 
-    subexprs = ['code_object', 'defaults_tuple', 'defaults_kwdict',
-                'annotations_dict']
+    subexprs = ['defaults_tuple', 'defaults_kwdict', 'annotations_dict']
 
-    code_object = None
     binding = False
     def_node = None
     defaults = None
@@ -9915,12 +9912,17 @@ class PyCFunctionNode(ExprNode, ModuleNameMixin):
 
     @classmethod
     def from_defnode(cls, node, binding):
-        return cls(node.pos,
-                   def_node=node,
-                   pymethdef_cname=node.entry.pymethdef_cname,
-                   binding=binding or node.specialized_cpdefs,
-                   specialized_cpdefs=node.specialized_cpdefs,
-                   code_object=CodeObjectNode(node))
+        return cls(
+            node.pos,
+            def_node=node,
+            pymethdef_cname=node.entry.pymethdef_cname,
+            binding=binding or node.specialized_cpdefs,
+            specialized_cpdefs=node.specialized_cpdefs,
+        )
+
+    @property
+    def code_object(self):
+        return self.def_node.code_object
 
     def analyse_types(self, env):
         if self.binding:
@@ -10099,11 +10101,6 @@ class PyCFunctionNode(ExprNode, ModuleNameMixin):
                 UtilityCode.load_cached("CythonFunction", "CythonFunction.c"))
             constructor = "__Pyx_CyFunction_New"
 
-        if self.code_object:
-            code_object_result = self.code_object.py_result()
-        else:
-            code_object_result = 'NULL'
-
         flags = []
         if def_node.is_staticmethod:
             flags.append('__Pyx_CYFUNCTION_STATICMETHOD')
@@ -10121,6 +10118,8 @@ class PyCFunctionNode(ExprNode, ModuleNameMixin):
         else:
             flags = '0'
 
+        self.code_object.generate_evaluation_code(code)
+
         code.putln(
             '%s = %s(&%s, %s, %s, %s, %s, %s, %s); %s' % (
                 self.result(),
@@ -10131,10 +10130,13 @@ class PyCFunctionNode(ExprNode, ModuleNameMixin):
                 self.closure_result_code(),
                 self.get_py_mod_name(code),
                 Naming.moddict_cname,
-                code_object_result,
+                self.code_object.py_result(),
                 code.error_goto_if_null(self.result(), self.pos)))
 
         self.generate_gotref(code)
+
+        self.code_object.generate_disposal_code(code)
+        self.code_object.free_temps(code)
 
         if def_node.requires_classobj:
             assert code.pyclass_stack, "pyclass_stack is empty"
@@ -10393,7 +10395,6 @@ class LambdaNode(InnerFunctionNode):
 
     def analyse_types(self, env):
         self.def_node = self.def_node.analyse_expressions(env)
-        self.code_object = None if self.def_node.is_generator_expression else CodeObjectNode(self.def_node)
         return super().analyse_types(env)
 
     def generate_result_code(self, code):
