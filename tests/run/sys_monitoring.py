@@ -167,13 +167,24 @@ else:
     test_profile PY_START [1], PY_RETURN [1], RAISE [20]
 
 
+    ## Testing generators:
+
     >>> with monitored_events(events=GEN_EVENTS, function_name='f_generator') as collected_events:
     ...     gen = f_generator()
     ...     for i in gen: print(i)
     1
     2
-    >>> print_events(collected_events)
+    >>> print_events(collected_events)  # f_generator
     f_generator PY_START [1], PY_RESUME [2], PY_RETURN [1], PY_YIELD [2]
+
+
+    >>> with monitored_events(events=GEN_EVENTS, function_name='test_generators') as collected_events:
+    ...     test_generators()
+    >>> print_events(collected_events)  # test_generators()
+    f_generator PY_START [1], PY_RESUME [2], PY_RETURN [1], PY_YIELD [2]
+    f_generator_exception PY_START [1], PY_RESUME [1], PY_YIELD [1], RAISE [1]
+    f_generator_expr PY_START [1], PY_RETURN [1]
+    test_generators PY_START [1], PY_RETURN [1]
 
 
     ## Testing line events:
@@ -299,15 +310,15 @@ def monitored_events(events=FUNC_EVENTS, function_name="test_profile"):
     @cython.linetrace(False)
     def count_event(event, code_obj, offset, *args):
         if not (code_obj.co_name.startswith('f_') or code_obj.co_name.startswith('m_') or code_obj.co_name == function_name):
-            return
+            return smon.DISABLE
         if ' (wrapper)' in code_obj.co_name:
             return  # ignore cpdef wrapper
         if not cython.compiled and 'noprof' in code_obj.co_name:
-            return
+            return smon.DISABLE
         if event == E.LINE:
             collected_line_events[offset] += 1
         if event == E.PY_START:
-            if function_name != 'f_generator':  # FIXME!
+            if cython.compiled or 'generator' not in function_name:  # FIXME!
                 assert offset == (code_obj.co_firstlineno if cython.compiled else 0), f"{code_obj.co_name}: {offset} != {code_obj.co_firstlineno}"
         collected_events[code_obj.co_name][event][offset] += 1
 
