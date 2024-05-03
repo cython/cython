@@ -3120,7 +3120,7 @@ class IteratorNode(ScopedExprNode):
         else:
             inc_dec = '++'
         if test_name == 'List':
-            code.putln("#if CYTHON_ASSUME_SAFE_MACROS && !CYTHON_AVOID_BORROWED_REFS && !CYTHON_AVOID_UNSAFE_BORROWED_REFS")
+            code.putln("#if CYTHON_ASSUME_SAFE_MACROS && !CYTHON_AVOID_BORROWED_REFS && !CYTHON_AVOID_THREAD_UNSAFE_BORROWED_REFS")
             code.putln(
                 "%s = Py%s_GET_ITEM(%s, %s); __Pyx_INCREF(%s); %s%s; %s" % (
                     result_name,
@@ -8437,7 +8437,7 @@ class SequenceNode(ExprNode):
             code.putln("if (likely(Py%s_CheckExact(sequence))) {" % sequence_types[0])
         for i, item in enumerate(self.unpacked_items):
             if sequence_types[0] == "List":
-                code.putln("#if !CYTHON_AVOID_UNSAFE_BORROWED_REFS")
+                code.putln("#if !CYTHON_AVOID_THREAD_UNSAFE_BORROWED_REFS")
                 code.putln("%s = Py%s_GET_ITEM(sequence, %d); " % (
                     item.result(), sequence_types[0], i))
                 code.put_incref(item.result(), item.ctype())
@@ -8453,7 +8453,7 @@ class SequenceNode(ExprNode):
             code.putln("} else {")
             for i, item in enumerate(self.unpacked_items):
                 if sequence_types[1] == "List":
-                    code.putln("#if !CYTHON_AVOID_UNSAFE_BORROWED_REFS")
+                    code.putln("#if !CYTHON_AVOID_THREAD_UNSAFE_BORROWED_REFS")
                     code.putln("%s = Py%s_GET_ITEM(sequence, %d); " % (
                         item.result(), sequence_types[1], i))
                     code.put_incref(item.result(), item.ctype())
