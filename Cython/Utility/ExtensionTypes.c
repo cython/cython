@@ -663,7 +663,12 @@ static int __Pyx__SetItemOnTypeDict(PyTypeObject *tp, PyObject *k, PyObject *v) 
 #else
     result = PyDict_SetItem(tp->tp_dict, k, v);
 #endif
-    if (likely(!result)) PyType_Modified(tp);
+    if (likely(!result)) {
+        PyType_Modified(tp);
+        if (PyObject_HasAttrString(v, "__set_name__")) {
+            PyObject_CallMethod(v, "__set_name__", "OO", (PyObject *) tp, k);
+        }
+    }
     return result;
 }
 
