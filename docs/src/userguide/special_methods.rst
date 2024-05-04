@@ -485,10 +485,20 @@ Buffer interface [:PEP:`3118`] (no Python equivalents - see note 1)
 | __releasebuffer__     | self, Py_buffer `*view`               |             |                                                     |
 +-----------------------+---------------------------------------+-------------+-----------------------------------------------------+
 
+Customizing class creation
+^^^^^^^^^^^^^^^^^^^^^^^^^^
+https://docs.python.org/3/reference/datamodel.html#customizing-class-creation
+
++-----------------------+---------------------------------------+-------------+----------------------------------------------------------------------+
+| Name                  | Parameters                            | Return type |         Description                                                  |
++=======================+=======================================+=============+======================================================================+
+| __set_name__          | self, owner, name                     |             |  Automatically called at the time the owning class owner is created. |
++-----------------------+---------------------------------------+-------------+----------------------------------------------------------------------+
+
 Descriptor objects (see note 2)
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-https://docs.python.org/3/reference/datamodel.html#emulating-container-types
+https://docs.python.org/3/reference/datamodel.html#implementing-descriptors
 
 +-----------------------+---------------------------------------+-------------+-----------------------------------------------------+
 | Name 	                | Parameters                            | Return type | 	Description                                 |
