@@ -826,13 +826,20 @@ static CYTHON_INLINE PyObject* {{TO_PY_FUNCTION}}({{TYPE}} value) {
         }
     }
     {
-        int one = 1; int little = (int)*(unsigned char *)&one;
         unsigned char *bytes = (unsigned char *)&value;
-#if !CYTHON_COMPILING_IN_LIMITED_API && PY_VERSION_HEX < 0x030d0000
+#if !CYTHON_COMPILING_IN_LIMITED_API && PY_VERSION_HEX >= 0x030d00A4
+        if (is_unsigned) {
+            return PyLong_FromUnsignedNativeBytes(bytes, sizeof(value), -1);
+        } else {
+            return PyLong_FromNativeBytes(bytes, sizeof(value), -1);
+        }
+#elif !CYTHON_COMPILING_IN_LIMITED_API && PY_VERSION_HEX < 0x030d0000
+        int one = 1; int little = (int)*(unsigned char *)&one;
         return _PyLong_FromByteArray(bytes, sizeof({{TYPE}}),
                                      little, !is_unsigned);
 #else
         // call int.from_bytes()
+        int one = 1; int little = (int)*(unsigned char *)&one;
         PyObject *from_bytes, *result = NULL;
         PyObject *py_bytes = NULL, *arg_tuple = NULL, *kwds = NULL, *order_str = NULL;
         from_bytes = PyObject_GetAttrString((PyObject*)&PyLong_Type, "from_bytes");
@@ -1075,220 +1082,219 @@ static CYTHON_INLINE {{TYPE}} {{FROM_PY_FUNCTION}}(PyObject *x) {
             }
             return ({{TYPE}}) val;
         }
-    } else
-#endif
-    if (likely(PyLong_Check(x))) {
-        if (is_unsigned) {
-#if CYTHON_USE_PYLONG_INTERNALS
-            if (unlikely(__Pyx_PyLong_IsNeg(x))) {
-                goto raise_neg_overflow;
-            //} else if (__Pyx_PyLong_IsZero(x)) {
-            //    return ({{TYPE}}) 0;
-            } else if (__Pyx_PyLong_IsCompact(x)) {
-                __PYX_VERIFY_RETURN_INT({{TYPE}}, __Pyx_compact_upylong, __Pyx_PyLong_CompactValueUnsigned(x))
-            } else {
-                const digit* digits = __Pyx_PyLong_Digits(x);
-                assert(__Pyx_PyLong_DigitCount(x) > 1);
-                switch (__Pyx_PyLong_DigitCount(x)) {
-                    {{for _size in (2, 3, 4)}}
-                    case {{_size}}:
-                        if ((8 * sizeof({{TYPE}}) > {{_size-1}} * PyLong_SHIFT)) {
-                            if ((8 * sizeof(unsigned long) > {{_size}} * PyLong_SHIFT)) {
-                                __PYX_VERIFY_RETURN_INT({{TYPE}}, unsigned long, {{pylong_join(_size, 'digits')}})
-                            } else if ((8 * sizeof({{TYPE}}) >= {{_size}} * PyLong_SHIFT)) {
-                                return ({{TYPE}}) {{pylong_join(_size, 'digits', TYPE)}};
-                            }
-                        }
-                        break;
-                    {{endfor}}
-                }
-            }
-#endif
-#if CYTHON_COMPILING_IN_CPYTHON && PY_VERSION_HEX < 0x030C00A7
-            if (unlikely(Py_SIZE(x) < 0)) {
-                goto raise_neg_overflow;
-            }
-#else
-            {
-                // misuse Py_False as a quick way to compare to a '0' int object in PyPy
-                int result = PyObject_RichCompareBool(x, Py_False, Py_LT);
-                if (unlikely(result < 0))
-                    return ({{TYPE}}) -1;
-                if (unlikely(result == 1))
-                    goto raise_neg_overflow;
-            }
-#endif
-            if ((sizeof({{TYPE}}) <= sizeof(unsigned long))) {
-                __PYX_VERIFY_RETURN_INT_EXC({{TYPE}}, unsigned long, PyLong_AsUnsignedLong(x))
-#ifdef HAVE_LONG_LONG
-            } else if ((sizeof({{TYPE}}) <= sizeof(unsigned PY_LONG_LONG))) {
-                __PYX_VERIFY_RETURN_INT_EXC({{TYPE}}, unsigned PY_LONG_LONG, PyLong_AsUnsignedLongLong(x))
-#endif
-            }
-        } else {
-            // signed
-#if CYTHON_USE_PYLONG_INTERNALS
-            if (__Pyx_PyLong_IsCompact(x)) {
-                __PYX_VERIFY_RETURN_INT({{TYPE}}, __Pyx_compact_pylong, __Pyx_PyLong_CompactValue(x))
-            } else {
-                const digit* digits = __Pyx_PyLong_Digits(x);
-                assert(__Pyx_PyLong_DigitCount(x) > 1);
-                switch (__Pyx_PyLong_SignedDigitCount(x)) {
-                    {{for _size in (2, 3, 4)}}
-                    {{for _case in (-_size, _size)}}
-                    case {{_case}}:
-                        if ((8 * sizeof({{TYPE}}){{' - 1' if _case < 0 else ''}} > {{_size-1}} * PyLong_SHIFT)) {
-                            if ((8 * sizeof(unsigned long) > {{_size}} * PyLong_SHIFT)) {
-                                __PYX_VERIFY_RETURN_INT({{TYPE}}, {{'long' if _case < 0 else 'unsigned long'}}, {{'-(long) ' if _case < 0 else ''}}{{pylong_join(_size, 'digits')}})
-                            } else if ((8 * sizeof({{TYPE}}) - 1 > {{_size}} * PyLong_SHIFT)) {
-                                return ({{TYPE}}) ({{'((%s)-1)*' % TYPE if _case < 0 else ''}}{{pylong_join(_size, 'digits', TYPE)}});
-                            }
-                        }
-                        break;
-                    {{endfor}}
-                    {{endfor}}
-                }
-            }
-#endif
-            if ((sizeof({{TYPE}}) <= sizeof(long))) {
-                __PYX_VERIFY_RETURN_INT_EXC({{TYPE}}, long, PyLong_AsLong(x))
-#ifdef HAVE_LONG_LONG
-            } else if ((sizeof({{TYPE}}) <= sizeof(PY_LONG_LONG))) {
-                __PYX_VERIFY_RETURN_INT_EXC({{TYPE}}, PY_LONG_LONG, PyLong_AsLongLong(x))
-#endif
-            }
-        }
-
-        {{if IS_ENUM}}
-        PyErr_SetString(PyExc_RuntimeError,
-                        "_PyLong_AsByteArray() not available, cannot convert large enums");
-        return ({{TYPE}}) -1;
-        {{else}}
-        // large integer type and no access to PyLong internals => allow for a more expensive conversion
-        {
-            {{TYPE}} val;
-            PyObject *v = __Pyx_PyNumber_IntOrLong(x);
-#if PY_MAJOR_VERSION < 3
-            if (likely(v) && !PyLong_Check(v)) {
-                PyObject *tmp = v;
-                v = PyNumber_Long(tmp);
-                Py_DECREF(tmp);
-            }
-#endif
-            if (likely(v)) {
-                int ret = -1;
-#if PY_VERSION_HEX < 0x030d0000 && !(CYTHON_COMPILING_IN_PYPY || CYTHON_COMPILING_IN_LIMITED_API) || defined(_PyLong_AsByteArray)
-                int one = 1; int is_little = (int)*(unsigned char *)&one;
-                unsigned char *bytes = (unsigned char *)&val;
-                ret = _PyLong_AsByteArray((PyLongObject *)v,
-                                           bytes, sizeof(val),
-                                           is_little, !is_unsigned);
-#else
-// Inefficient copy of bit chunks through the C-API.  Probably still better than a "cannot do this" exception.
-// This is substantially faster in CPython (>30%) than calling "int.to_bytes()"
-                PyObject *stepval = NULL, *mask = NULL, *shift = NULL;
-                int bits, remaining_bits, is_negative = 0;
-                long idigit;
-                int chunk_size = (sizeof(long) < 8) ? 30 : 62;
-
-                // use exact PyLong to prevent user defined &&/<</etc. implementations
-                if (unlikely(!PyLong_CheckExact(v))) {
-                    PyObject *tmp = v;
-                    v = PyNumber_Long(v);
-                    assert(PyLong_CheckExact(v));
-                    Py_DECREF(tmp);
-                    if (unlikely(!v)) return ({{TYPE}}) -1;
-                }
-
-#if CYTHON_COMPILING_IN_LIMITED_API && PY_VERSION_HEX < 0x030B0000
-                if (Py_SIZE(x) == 0)
-                    return ({{TYPE}}) 0;
-                is_negative = Py_SIZE(x) < 0;
-#else
-                {
-                    // misuse Py_False as a quick way to compare to a '0' int object
-                    int result = PyObject_RichCompareBool(x, Py_False, Py_LT);
-                    if (unlikely(result < 0))
-                        return ({{TYPE}}) -1;
-                    is_negative = result == 1;
-                }
+    }
 #endif
 
-                if (is_unsigned && unlikely(is_negative)) {
-                    goto raise_neg_overflow;
-                } else if (is_negative) {
-                    // bit-invert to make sure we can safely convert it
-                    stepval = PyNumber_Invert(v);
-                    if (unlikely(!stepval))
-                        return ({{TYPE}}) -1;
-                } else {
-                    stepval = __Pyx_NewRef(v);
-                }
-
-                // unpack full chunks of bits
-                val = ({{TYPE}}) 0;
-                mask = PyLong_FromLong((1L << chunk_size) - 1); if (unlikely(!mask)) goto done;
-                shift = PyLong_FromLong(chunk_size); if (unlikely(!shift)) goto done;
-                for (bits = 0; bits < (int) sizeof({{TYPE}}) * 8 - chunk_size; bits += chunk_size) {
-                    PyObject *tmp, *digit;
-
-                    digit = PyNumber_And(stepval, mask);
-                    if (unlikely(!digit)) goto done;
-                    idigit = PyLong_AsLong(digit);
-                    Py_DECREF(digit);
-                    if (unlikely(idigit < 0)) goto done;
-
-                    tmp = PyNumber_Rshift(stepval, shift);
-                    if (unlikely(!tmp)) goto done;
-                    Py_DECREF(stepval); stepval = tmp;
-
-                    val |= (({{TYPE}}) idigit) << bits;
-
-                    #if CYTHON_COMPILING_IN_LIMITED_API && PY_VERSION_HEX < 0x030B0000
-                    if (Py_SIZE(stepval) == 0)
-                        goto unpacking_done;
-                    #endif
-                }
-
-                // detect overflow when adding the last bits
-                idigit = PyLong_AsLong(stepval);
-                if (unlikely(idigit < 0)) goto done;
-                remaining_bits = ((int) sizeof({{TYPE}}) * 8) - bits - (is_unsigned ? 0 : 1);
-                if (unlikely(idigit >= (1L << remaining_bits)))
-                    goto raise_overflow;
-                val |= (({{TYPE}}) idigit) << bits;
-
-            #if CYTHON_COMPILING_IN_LIMITED_API && PY_VERSION_HEX < 0x030B0000
-            unpacking_done:
-            #endif
-                // handle sign and overflow into sign bit
-                if (!is_unsigned) {
-                    // gcc warns about unsigned (val < 0) => test sign bit instead
-                    if (unlikely(val & ((({{TYPE}}) 1) << (sizeof({{TYPE}}) * 8 - 1))))
-                        goto raise_overflow;
-                    // undo the PyNumber_Invert() above
-                    if (is_negative)
-                        val = ~val;
-                }
-                ret = 0;
-            done:
-                Py_XDECREF(shift);
-                Py_XDECREF(mask);
-                Py_XDECREF(stepval);
-#endif
-                Py_DECREF(v);
-                if (likely(!ret))
-                    return val;
-            }
-            return ({{TYPE}}) -1;
-        }
-        {{endif}}
-    } else {
+    if (unlikely(!PyLong_Check(x))) {
         {{TYPE}} val;
         PyObject *tmp = __Pyx_PyNumber_IntOrLong(x);
         if (!tmp) return ({{TYPE}}) -1;
         val = {{FROM_PY_FUNCTION}}(tmp);
         Py_DECREF(tmp);
+        return val;
+    }
+
+    if (is_unsigned) {
+#if CYTHON_USE_PYLONG_INTERNALS
+        if (unlikely(__Pyx_PyLong_IsNeg(x))) {
+            goto raise_neg_overflow;
+        //} else if (__Pyx_PyLong_IsZero(x)) {
+        //    return ({{TYPE}}) 0;
+        } else if (__Pyx_PyLong_IsCompact(x)) {
+            __PYX_VERIFY_RETURN_INT({{TYPE}}, __Pyx_compact_upylong, __Pyx_PyLong_CompactValueUnsigned(x))
+        } else {
+            const digit* digits = __Pyx_PyLong_Digits(x);
+            assert(__Pyx_PyLong_DigitCount(x) > 1);
+            switch (__Pyx_PyLong_DigitCount(x)) {
+                {{for _size in (2, 3, 4)}}
+                case {{_size}}:
+                    if ((8 * sizeof({{TYPE}}) > {{_size-1}} * PyLong_SHIFT)) {
+                        if ((8 * sizeof(unsigned long) > {{_size}} * PyLong_SHIFT)) {
+                            __PYX_VERIFY_RETURN_INT({{TYPE}}, unsigned long, {{pylong_join(_size, 'digits')}})
+                        } else if ((8 * sizeof({{TYPE}}) >= {{_size}} * PyLong_SHIFT)) {
+                            return ({{TYPE}}) {{pylong_join(_size, 'digits', TYPE)}};
+                        }
+                    }
+                    break;
+                {{endfor}}
+            }
+        }
+#endif
+#if CYTHON_COMPILING_IN_CPYTHON && PY_VERSION_HEX < 0x030C00A7
+        if (unlikely(Py_SIZE(x) < 0)) {
+            goto raise_neg_overflow;
+        }
+#else
+        {
+            // misuse Py_False as a quick way to compare to a '0' int object in PyPy
+            int result = PyObject_RichCompareBool(x, Py_False, Py_LT);
+            if (unlikely(result < 0))
+                return ({{TYPE}}) -1;
+            if (unlikely(result == 1))
+                goto raise_neg_overflow;
+        }
+#endif
+        if ((sizeof({{TYPE}}) <= sizeof(unsigned long))) {
+            __PYX_VERIFY_RETURN_INT_EXC({{TYPE}}, unsigned long, PyLong_AsUnsignedLong(x))
+#ifdef HAVE_LONG_LONG
+        } else if ((sizeof({{TYPE}}) <= sizeof(unsigned PY_LONG_LONG))) {
+            __PYX_VERIFY_RETURN_INT_EXC({{TYPE}}, unsigned PY_LONG_LONG, PyLong_AsUnsignedLongLong(x))
+#endif
+        }
+
+    } else {
+        // signed
+#if CYTHON_USE_PYLONG_INTERNALS
+        if (__Pyx_PyLong_IsCompact(x)) {
+            __PYX_VERIFY_RETURN_INT({{TYPE}}, __Pyx_compact_pylong, __Pyx_PyLong_CompactValue(x))
+        } else {
+            const digit* digits = __Pyx_PyLong_Digits(x);
+            assert(__Pyx_PyLong_DigitCount(x) > 1);
+            switch (__Pyx_PyLong_SignedDigitCount(x)) {
+                {{for _size in (2, 3, 4)}}
+                {{for _case in (-_size, _size)}}
+                case {{_case}}:
+                    if ((8 * sizeof({{TYPE}}){{' - 1' if _case < 0 else ''}} > {{_size-1}} * PyLong_SHIFT)) {
+                        if ((8 * sizeof(unsigned long) > {{_size}} * PyLong_SHIFT)) {
+                            __PYX_VERIFY_RETURN_INT({{TYPE}}, {{'long' if _case < 0 else 'unsigned long'}}, {{'-(long) ' if _case < 0 else ''}}{{pylong_join(_size, 'digits')}})
+                        } else if ((8 * sizeof({{TYPE}}) - 1 > {{_size}} * PyLong_SHIFT)) {
+                            return ({{TYPE}}) ({{'((%s)-1)*' % TYPE if _case < 0 else ''}}{{pylong_join(_size, 'digits', TYPE)}});
+                        }
+                    }
+                    break;
+                {{endfor}}
+                {{endfor}}
+            }
+        }
+#endif
+        if ((sizeof({{TYPE}}) <= sizeof(long))) {
+            __PYX_VERIFY_RETURN_INT_EXC({{TYPE}}, long, PyLong_AsLong(x))
+#ifdef HAVE_LONG_LONG
+        } else if ((sizeof({{TYPE}}) <= sizeof(PY_LONG_LONG))) {
+            __PYX_VERIFY_RETURN_INT_EXC({{TYPE}}, PY_LONG_LONG, PyLong_AsLongLong(x))
+#endif
+        }
+    }
+
+    // large integer type and no access to PyLong internals => allow for a more expensive conversion
+    {
+        {{TYPE}} val;
+        int ret = -1;
+#if PY_VERSION_HEX >= 0x030d00A6 && !CYTHON_COMPILING_IN_LIMITED_API
+        Py_ssize_t bytes_copied = PyLong_AsNativeBytes(
+            x, &val, sizeof(val), Py_ASNATIVEBYTES_NATIVE_ENDIAN | (is_unsigned ? Py_ASNATIVEBYTES_UNSIGNED_BUFFER | Py_ASNATIVEBYTES_REJECT_NEGATIVE : 0));
+        if (unlikely(bytes_copied == -1)) {
+            // failed
+        } else if (unlikely(bytes_copied > (Py_ssize_t) sizeof(val))) {
+            goto raise_overflow;
+        } else {
+            ret = 0;
+        }
+#elif PY_VERSION_HEX < 0x030d0000 && !(CYTHON_COMPILING_IN_PYPY || CYTHON_COMPILING_IN_LIMITED_API) || defined(_PyLong_AsByteArray)
+        int one = 1; int is_little = (int)*(unsigned char *)&one;
+        unsigned char *bytes = (unsigned char *)&val;
+        ret = _PyLong_AsByteArray((PyLongObject *)x,
+                                    bytes, sizeof(val),
+                                    is_little, !is_unsigned);
+#else
+{{if IS_ENUM}}
+        // The fallback implementation uses math operations like shifting, which do not work well with enums.
+        PyErr_SetString(PyExc_RuntimeError,
+                        "_PyLong_AsByteArray() or PyLong_AsNativeBytes() not available, cannot convert large enums");
+        val = ({{TYPE}}) -1;
+{{else}}
+// Inefficient copy of bit chunks through the C-API.  Probably still better than a "cannot do this" exception.
+// This is substantially faster in CPython (>30%) than calling "int.to_bytes()" through the C-API.
+        PyObject *v;
+        PyObject *stepval = NULL, *mask = NULL, *shift = NULL;
+        int bits, remaining_bits, is_negative = 0;
+        int chunk_size = (sizeof(long) < 8) ? 30 : 62;
+
+        // Use exact PyLong to prevent user defined &&/<</etc. implementations (and make Py_SIZE() work below).
+        if (likely(PyLong_CheckExact(x))) {
+            v = __Pyx_NewRef(x);
+        } else {
+            v = PyNumber_Long(x);
+            if (unlikely(!v)) return ({{TYPE}}) -1;
+            assert(PyLong_CheckExact(v));
+        }
+
+        // Misuse Py_False as a quick way to compare to a '0' int object.
+        {
+            int result = PyObject_RichCompareBool(v, Py_False, Py_LT);
+            if (unlikely(result < 0)) {
+                Py_DECREF(v);
+                return ({{TYPE}}) -1;
+            }
+            is_negative = result == 1;
+        }
+
+        if (is_unsigned && unlikely(is_negative)) {
+            Py_DECREF(v);
+            goto raise_neg_overflow;
+        } else if (is_negative) {
+            // bit-invert to make sure we can safely convert it
+            stepval = PyNumber_Invert(v);
+            Py_DECREF(v);
+            if (unlikely(!stepval))
+                return ({{TYPE}}) -1;
+        } else {
+            stepval = v;
+        }
+        v = NULL;
+
+        // Unpack full chunks of bits.
+        val = ({{TYPE}}) 0;
+        mask = PyLong_FromLong((1L << chunk_size) - 1); if (unlikely(!mask)) goto done;
+        shift = PyLong_FromLong(chunk_size); if (unlikely(!shift)) goto done;
+        for (bits = 0; bits < (int) sizeof({{TYPE}}) * 8 - chunk_size; bits += chunk_size) {
+            PyObject *tmp, *digit;
+            long idigit;
+
+            digit = PyNumber_And(stepval, mask);
+            if (unlikely(!digit)) goto done;
+
+            idigit = PyLong_AsLong(digit);
+            Py_DECREF(digit);
+            if (unlikely(idigit < 0)) goto done;
+            val |= (({{TYPE}}) idigit) << bits;
+
+            tmp = PyNumber_Rshift(stepval, shift);
+            if (unlikely(!tmp)) goto done;
+            Py_DECREF(stepval); stepval = tmp;
+        }
+
+        Py_DECREF(shift); shift = NULL;
+        Py_DECREF(mask); mask = NULL;
+
+        // Add the last bits and detect overflow.
+        {
+            long idigit = PyLong_AsLong(stepval);
+            if (unlikely(idigit < 0)) goto done;
+            remaining_bits = ((int) sizeof({{TYPE}}) * 8) - bits - (is_unsigned ? 0 : 1);
+            if (unlikely(idigit >= (1L << remaining_bits)))
+                goto raise_overflow;
+            val |= (({{TYPE}}) idigit) << bits;
+        }
+
+        // Handle sign and overflow into sign bit.
+        if (!is_unsigned) {
+            // gcc warns about unsigned (val < 0) => test sign bit instead
+            if (unlikely(val & ((({{TYPE}}) 1) << (sizeof({{TYPE}}) * 8 - 1))))
+                goto raise_overflow;
+            // undo the PyNumber_Invert() above
+            if (is_negative)
+                val = ~val;
+        }
+        ret = 0;
+    done:
+        Py_XDECREF(shift);
+        Py_XDECREF(mask);
+        Py_XDECREF(stepval);
+{{endif}}
+#endif
+        if (unlikely(ret))
+            return ({{TYPE}}) -1;
         return val;
     }
 
