@@ -211,7 +211,7 @@ The following options are accepted when creating buffer types:
 * ``mode`` - a string from:
 
   * ``"c"`` - C contiguous array,
-  * ``"fortan"`` - Fortran contiguous array,
+  * ``"fortran"`` - Fortran contiguous array,
   * ``"strided"`` - non-contiguous lookup into a single block of memory,
   * ``"full"`` - any valid buffer, including indirect arrays.
 * ``negative_indices`` - boolean value specifying whether negative indexing is allowed, essentially
@@ -226,8 +226,8 @@ As an example of specifying the parameters::
 
     cdef cnp.ndarray[double, ndim=2, mode="c", cast=True] some_array
 
-``cast`` can be used to get a low-level view of an array with non-native endianess::
+``cast`` can be used to get a low-level view of an array with non-native endianness::
 
     cdef cnp.ndarray[cnp.uint32, cast=True] values = np.arange(10, dtype='>i4')
 
-although correctly interpretting the cast data is the user's responsibility.
+although correctly interpreting the cast data is the user's responsibility.
