@@ -1258,6 +1258,8 @@ Cython uses ``"<"`` and ``">"``.  In pure python mode, the ``cython.cast()`` fun
 
     .. group-tab:: Cython
 
+        .. literalinclude:: ../../examples/userguide/language_basics/casting_python.pxd
+            :caption: casting_python.pxd
         .. literalinclude:: ../../examples/userguide/language_basics/casting_python.pyx
             :caption: casting_python.pyx
 
