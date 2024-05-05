@@ -301,7 +301,7 @@ static void __Pyx_Generator_Replace_StopIteration(int in_async_gen); /*proto*/
 //@requires: Exceptions.c::GetException
 
 static void __Pyx_Generator_Replace_StopIteration(int in_async_gen) {
-    PyObject *exc, *val, *tb, *cur_exc;
+    PyObject *exc, *val, *tb, *cur_exc, *new_exc;
     __Pyx_PyThreadState_declare
     #ifdef __Pyx_StopAsyncIteration_USED
     int is_async_stopiteration = 0;
@@ -318,19 +318,23 @@ static void __Pyx_Generator_Replace_StopIteration(int in_async_gen) {
             return;
     }
 
+    // Explicitly chain the Stop(Async)Iteration exception to the RuntimeError
     __Pyx_PyThreadState_assign
-    // Chain exceptions by moving Stop(Async)Iteration to exc_info before creating the RuntimeError.
-    // In Py2.x, no chaining happens, but the exception still stays visible in exc_info.
     __Pyx_GetException(&exc, &val, &tb);
     Py_XDECREF(exc);
-    Py_XDECREF(val);
     Py_XDECREF(tb);
-    PyErr_SetString(PyExc_RuntimeError,
+    new_exc = PyObject_CallFunction(PyExc_RuntimeError, "s",
         #ifdef __Pyx_StopAsyncIteration_USED
         is_async_stopiteration ? "async generator raised StopAsyncIteration" :
         in_async_gen ? "async generator raised StopIteration" :
         #endif
         "generator raised StopIteration");
+    if (!new_exc) {
+        Py_XDECREF(val);
+        return;
+    }
+    PyException_SetCause(new_exc, val); // steals ref to val
+    PyErr_SetObject(PyExc_RuntimeError, new_exc);
 }
 
 
@@ -1595,6 +1599,9 @@ static PyTypeObject __pyx_CoroutineAwaitType_type = {
 #if PY_VERSION_HEX >= 0x030C0000
     0,                                  /*tp_watched*/
 #endif
+#if PY_VERSION_HEX >= 0x030d00A4
+    0,                                          /*tp_versions_used*/
+#endif
 #if CYTHON_COMPILING_IN_PYPY && PY_VERSION_HEX >= 0x03090000 && PY_VERSION_HEX < 0x030a0000
     0,                                          /*tp_pypy_flags*/
 #endif
@@ -1759,6 +1766,9 @@ static PyTypeObject __pyx_CoroutineType_type = {
 #if PY_VERSION_HEX >= 0x030C0000
     0,                                  /*tp_watched*/
 #endif
+#if PY_VERSION_HEX >= 0x030d00A4
+    0,                                          /*tp_versions_used*/
+#endif
 #if CYTHON_COMPILING_IN_PYPY && PY_VERSION_HEX >= 0x03090000 && PY_VERSION_HEX < 0x030a0000
     0,                                          /*tp_pypy_flags*/
 #endif
@@ -1900,6 +1910,9 @@ static PyTypeObject __pyx_IterableCoroutineType_type = {
 #endif
 #if PY_VERSION_HEX >= 0x030C0000
     0,                                  /*tp_watched*/
+#endif
+#if PY_VERSION_HEX >= 0x030d00A4
+    0,                                          /*tp_versions_used*/
 #endif
 #if CYTHON_COMPILING_IN_PYPY && PY_VERSION_HEX >= 0x03090000 && PY_VERSION_HEX < 0x030a0000
     0,                                          /*tp_pypy_flags*/
@@ -2048,6 +2061,9 @@ static PyTypeObject __pyx_GeneratorType_type = {
 #endif
 #if PY_VERSION_HEX >= 0x030C0000
     0,                                  /*tp_watched*/
+#endif
+#if PY_VERSION_HEX >= 0x030d00A4
+    0,                                          /*tp_versions_used*/
 #endif
 #if CYTHON_COMPILING_IN_PYPY && PY_VERSION_HEX >= 0x03090000 && PY_VERSION_HEX < 0x030a0000
     0,                                          /*tp_pypy_flags*/

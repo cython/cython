@@ -303,6 +303,51 @@ static PyObject *__Pyx_PyLong_AbsNeg(PyObject *n) {
 #define __Pyx_PyNumber_Power2(a, b) PyNumber_Power(a, b, Py_None)
 
 
+//////////////////// divmod_int.proto //////////////////
+
+static CYTHON_INLINE PyObject* __Pyx_divmod_int(int a, int b); /*proto*/
+
+
+//////////////////// divmod_int //////////////////
+
+static CYTHON_INLINE PyObject* __Pyx_divmod_int(int a, int b) {
+    PyObject *result_tuple = NULL, *pyvalue = NULL;
+    // Python and C/C++ use different algorithms in calculating quotients and remainders.
+    // This results in different answers between Python and C/C++
+    // when the dividend is negative and the divisor is positive and vice versa.
+    int q, r;
+    if ((a < 0 && b > 0) || (a > 0 && b < 0)) {
+        // see CMath.c :: DivInt and ModInt utility code
+        q = a / b;
+        r = a - q * b;
+        q -= ((r != 0) & ((r ^ b) < 0));
+        r += ((r != 0) & ((r ^ b) < 0)) * b;
+    }
+    else if (b == 0) {
+        PyErr_SetString(PyExc_ZeroDivisionError, "integer division or modulo by zero");
+        return NULL;
+    }
+    else {
+        div_t res = div(a, b);
+        q = res.quot;
+        r = res.rem;
+    }
+    result_tuple = PyTuple_New(2);
+    if (unlikely(!result_tuple)) return NULL;
+    pyvalue = PyLong_FromLong(q);
+    if (unlikely(!pyvalue)) goto bad;
+    if (__Pyx_PyTuple_SET_ITEM(result_tuple, 0, pyvalue) != (0)) goto bad;
+    pyvalue = PyLong_FromLong(r);
+    if (unlikely(!pyvalue)) goto bad;
+    if (__Pyx_PyTuple_SET_ITEM(result_tuple, 1, pyvalue) != (0)) goto bad;
+    return result_tuple;
+
+bad:
+    Py_DECREF(result_tuple);
+    return NULL;
+}
+
+
 //////////////////// int_pyucs4.proto ////////////////////
 
 static CYTHON_INLINE int __Pyx_int_from_UCS4(Py_UCS4 uchar);
@@ -361,7 +406,7 @@ static long __Pyx__PyObject_Ord(PyObject* c) {
             return (unsigned char) data[0];
 #endif
         }
-#if !CYTHON_ASSUME_SAFE_SIZE        
+#if !CYTHON_ASSUME_SAFE_SIZE
         else if (unlikely(size < 0)) return -1;
 #endif
     } else if (PyByteArray_Check(c)) {

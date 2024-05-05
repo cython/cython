@@ -188,6 +188,7 @@ class PostParse(ScopeTrackingTransform):
         self.specialattribute_handlers = {
             '__cythonbufferdefaults__' : self.handle_bufferdefaults
         }
+        self.in_pattern_node = False
 
     def visit_LambdaNode(self, node):
         # unpack a lambda expression into the corresponding DefNode
@@ -379,6 +380,41 @@ class PostParse(ScopeTrackingTransform):
             node.value = None
         self.visitchildren(node)
         return node
+
+    def visit_ErrorNode(self, node):
+        error(node.pos, node.what)
+        return None
+
+    def visit_MatchCaseNode(self, node):
+        node.validate_targets()
+        self.visitchildren(node)
+        return node
+
+    def visit_MatchNode(self, node):
+        node.validate_irrefutable()
+        self.visitchildren(node)
+        return node
+
+    def visit_PatternNode(self, node):
+        in_pattern_node, self.in_pattern_node = self.in_pattern_node, True
+        self.visitchildren(node)
+        self.in_pattern_node = in_pattern_node
+        return node
+
+    def visit_JoinedStrNode(self, node):
+        if self.in_pattern_node:
+            error(node.pos, "f-strings are not accepted for pattern matching")
+        self.visitchildren(node)
+        return node
+
+    def visit_DefNode(self, node):
+        if (self.scope_type == "cclass" and
+                node.name in ["__getreadbuffer__", "__getwritebuffer__", "__getsegcount__", "__getcharbuffer__"]):
+            warning(node.pos, f"'{node.name}' relates to the old Python 2 buffer protocol "
+                    "and is no longer used.", 2)
+            return None  # drop the node - the arguments are invalid for a def node
+        return self.visit_FuncDefNode(node)
+
 
 class _AssignmentExpressionTargetNameFinder(TreeVisitor):
     def __init__(self):
@@ -589,7 +625,9 @@ def unpack_string_to_character_literals(literal):
         chars.append(stype(pos, value=cval, constant_result=cval))
     return chars
 
-def flatten_parallel_assignments(input, output):
+
+@cython.cfunc
+def flatten_parallel_assignments(input: list, output: list):
     #  The input is a list of expression nodes, representing the LHSs
     #  and RHS of one (possibly cascaded) assignment statement.  For
     #  sequence constructors, rearranges the matching parts of both
@@ -609,9 +647,12 @@ def flatten_parallel_assignments(input, output):
     elif rhs.is_string_literal:
         rhs_args = unpack_string_to_character_literals(rhs)
 
-    rhs_size = len(rhs_args)
+    starred_targets: cython.Py_ssize_t
+    lhs_size: cython.Py_ssize_t
+    rhs_size: cython.Py_ssize_t = len(rhs_args)
     lhs_targets = [[] for _ in range(rhs_size)]
     starred_assignments = []
+
     for lhs in input[:-1]:
         if not lhs.is_sequence_constructor:
             if lhs.is_starred:
@@ -619,7 +660,9 @@ def flatten_parallel_assignments(input, output):
             complete_assignments.append(lhs)
             continue
         lhs_size = len(lhs.args)
-        starred_targets = sum([1 for expr in lhs.args if expr.is_starred])
+        starred_targets = 0
+        for expr in lhs.args:
+            starred_targets += bool(expr.is_starred)
         if starred_targets > 1:
             error(lhs.pos, "more than 1 starred expression in assignment")
             output.append([lhs,rhs])
@@ -658,7 +701,9 @@ def flatten_parallel_assignments(input, output):
         else:
             output.append(cascade)
 
-def map_starred_assignment(lhs_targets, starred_assignments, lhs_args, rhs_args):
+
+@cython.cfunc
+def map_starred_assignment(lhs_targets: list, starred_assignments: list, lhs_args: list, rhs_args: list):
     # Appends the fixed-position LHS targets to the target list that
     # appear left and right of the starred argument.
     #
@@ -667,6 +712,9 @@ def map_starred_assignment(lhs_targets, starred_assignments, lhs_args, rhs_args)
     # (those that match the starred target) to a list.
 
     # left side of the starred target
+    i: cython.Py_ssize_t
+    starred: cython.Py_ssize_t
+    lhs_remaining: cython.Py_ssize_t
     for i, (targets, expr) in enumerate(zip(lhs_targets, lhs_args)):
         if expr.is_starred:
             starred = i
@@ -2948,6 +2996,7 @@ class AdjustDefByDirectives(CythonTransform, SkipDeclarations):
         nogil = self.directives.get('nogil')
         with_gil = self.directives.get('with_gil')
         except_val = self.directives.get('exceptval')
+        has_explicit_exc_clause = False if except_val is None else True
         return_type_node = self.directives.get('returns')
         if return_type_node is None and self.directives['annotation_typing']:
             return_type_node = node.return_type_annotation
@@ -2964,7 +3013,7 @@ class AdjustDefByDirectives(CythonTransform, SkipDeclarations):
                 error(node.pos, "ccall functions cannot be declared 'with_gil'")
             node = node.as_cfunction(
                 overridable=True, modifiers=modifiers, nogil=nogil,
-                returns=return_type_node, except_val=except_val)
+                returns=return_type_node, except_val=except_val, has_explicit_exc_clause=has_explicit_exc_clause)
             return self.visit(node)
         if 'cfunc' in self.directives:
             if self.in_py_class:
@@ -2972,7 +3021,7 @@ class AdjustDefByDirectives(CythonTransform, SkipDeclarations):
             else:
                 node = node.as_cfunction(
                     overridable=False, modifiers=modifiers, nogil=nogil, with_gil=with_gil,
-                    returns=return_type_node, except_val=except_val)
+                    returns=return_type_node, except_val=except_val, has_explicit_exc_clause=has_explicit_exc_clause)
                 return self.visit(node)
         if 'inline' in modifiers:
             error(node.pos, "Python functions cannot be declared 'inline'")
@@ -3695,7 +3744,12 @@ class CoerceCppTemps(EnvTransform, SkipDeclarations):
 class TransformBuiltinMethods(EnvTransform):
     """
     Replace Cython's own cython.* builtins by the corresponding tree nodes.
+    Also handle some Python special builtin functions (e.g. super()/locals())
+    that require introspection by the compiler.
     """
+    def __init__(self, *args, **kwds):
+        super().__init__(*args, **kwds)
+        self.def_node_body_insertions = {}
 
     def visit_SingleAssignmentNode(self, node):
         if node.declaration_only:
@@ -3709,6 +3763,11 @@ class TransformBuiltinMethods(EnvTransform):
         return self.visit_cython_attribute(node)
 
     def visit_NameNode(self, node):
+        if node.name == u'__class__':
+            lenv = self.current_env()
+            entry = lenv.lookup_here(u'__class__')
+            if not entry:
+                node = self._inject_class(node)
         return self.visit_cython_attribute(node)
 
     def visit_cython_attribute(self, node):
@@ -3807,6 +3866,65 @@ class TransformBuiltinMethods(EnvTransform):
                     node.pos, self.current_scope_node(), lenv))
         return node
 
+    def _inject_class(self, node):
+        # bare __class__ reference inside function
+        current_def_node = self.current_scope_node()
+
+        if not isinstance(current_def_node, Nodes.FuncDefNode):
+            return node
+
+        # Go up the stack, find the first class node and its direct method (i.e. function).
+        fdef_node = class_node = generator_node = None
+        for stack_node, stack_scope in reversed(self.env_stack):
+            if isinstance(stack_node, Nodes.ClassDefNode):
+                class_node = stack_node
+                class_scope = stack_scope
+                break
+            elif isinstance(stack_node, Nodes.GeneratorDefNode):
+                generator_node = stack_node
+                fdef_node = stack_node.gbody
+                fdef_scope = stack_scope
+            elif isinstance(stack_node, Nodes.FuncDefNode):
+                fdef_node = stack_node
+                fdef_scope = stack_scope
+
+        if not fdef_node or not class_node:
+            # failed to find a class or function
+            return node
+
+        # now we arrange to inject:
+        #  __class__ = ... at the start of the def_node body
+        # The advantage of doing it like this is that it automatically appears in locals()
+        # and it can be captured by inner functions
+        if fdef_node not in self.def_node_body_insertions:
+            pos = fdef_node.body.pos
+            if class_scope.is_c_class_scope:
+                # c-classes can be resolved at compile-time, so they have a simpler
+                # implementation
+                rhs = ExprNodes.NameNode(
+                            pos, name=class_node.scope.name,
+                            entry=class_node.entry)
+            elif class_scope.is_py_class_scope:
+                rhs = ExprNodes.ClassCellNode(pos, is_generator=generator_node is not None)
+                if generator_node:
+                    generator_node.requires_classobj = True
+                else:
+                    fdef_node.requires_classobj = True
+                class_node.class_cell.is_active = True
+            else:
+                return node  # should never happen
+
+            assign_node = Nodes.SingleAssignmentNode(pos,
+                lhs=ExprNodes.NameNode(pos, name=EncodedString("__class__")),
+                rhs=rhs)
+
+            assign_node.analyse_declarations(fdef_scope)
+
+            assert fdef_node not in self.def_node_body_insertions
+            self.def_node_body_insertions[fdef_node] = assign_node
+
+        return node
+
     def _inject_super(self, node, func_name):
         lenv = self.current_env()
         entry = lenv.lookup_here(func_name)
@@ -3832,6 +3950,25 @@ class TransformBuiltinMethods(EnvTransform):
                     entry=class_node.entry),
                 ExprNodes.NameNode(node.pos, name=def_node.args[0].name)
                 ]
+        return node
+
+    def _do_body_insertion(self, node):
+        body_insertion = self.def_node_body_insertions.pop(node, None)
+        if body_insertion:
+            if isinstance(node.body, Nodes.StatListNode):
+                node.body.stats.insert(0, body_insertion)
+            else:
+                node.body = Nodes.StatListNode(node.body.pos,
+                                               stats=[body_insertion, node.body])
+
+    def visit_FuncDefNode(self, node):
+        node = super().visit_FuncDefNode(node)
+        self._do_body_insertion(node)
+        return node
+
+    def visit_GeneratorBodyDefNode(self, node):
+        node = super().visit_GeneratorBodyDefNode(node)
+        self._do_body_insertion(node)
         return node
 
     def visit_SimpleCallNode(self, node):

@@ -604,7 +604,7 @@ class CTypedefType(BaseType):
 
     def error_condition(self, result_code):
         if self.typedef_is_external:
-            if self.exception_value:
+            if self.exception_value is not None:
                 condition = "(%s == %s)" % (
                     result_code, self.cast_code(self.exception_value))
                 if self.exception_check:
@@ -827,7 +827,7 @@ class MemoryViewSliceType(PyrexType):
                 cfunctype = CFuncType(
                         return_type=c_bint_type,
                         args=[CFuncTypeArg("memviewslice", self, None)],
-                        exception_value="-1",
+                        exception_value=-1,
                 )
 
                 entry = scope.declare_cfunction(cython_name,
@@ -1244,7 +1244,7 @@ class PyObjectType(PyrexType):
     default_value = "0"
     declaration_value = "0"
     buffer_defaults = None
-    is_extern = False
+    is_external = False
     is_subclassed = False
     is_gc_simple = False
     builtin_trashcan = False  # builtin type using trashcan
@@ -1495,7 +1495,7 @@ class BuiltinObjectType(PyObjectType):
             type_check = "PyMemoryView_Check"
         else:
             type_check = 'Py%s_Check' % type_name.capitalize()
-        if exact and type_name not in ('bool', 'slice', 'Exception'):
+        if exact and type_name not in ('bool', 'slice', 'Exception', 'memoryview'):
             type_check += 'Exact'
         return type_check
 
@@ -1683,15 +1683,25 @@ class CType(PyrexType):
     #
 
     to_py_function = None
+    to_py_utility_code = None
     from_py_function = None
+    from_py_utility_code = None
     exception_value = None
     exception_check = 1
 
     def create_to_py_utility_code(self, env):
-        return self.to_py_function is not None
+        if self.to_py_function is not None:
+            if self.to_py_utility_code is not None:
+                env.use_utility_code(self.to_py_utility_code)
+            return True
+        return False
 
     def create_from_py_utility_code(self, env):
-        return self.from_py_function is not None
+        if self.from_py_function is not None:
+            if self.from_py_utility_code is not None:
+                env.use_utility_code(self.from_py_utility_code)
+            return True
+        return False
 
     def can_coerce_to_pyobject(self, env):
         return self.create_to_py_utility_code(env)
@@ -2679,6 +2689,8 @@ class CPointerBaseType(CType):
             self.exception_value = "NULL"
         elif self.is_pyunicode_ptr and not base_type.is_error:
             self.to_py_function = "__Pyx_PyUnicode_FromUnicode"
+            self.to_py_utility_code = UtilityCode.load_cached(
+                "pyunicode_from_unicode", "StringTools.c")
             if self.is_ptr:
                 self.from_py_function = "__Pyx_PyUnicode_AsUnicode"
             self.exception_value = "NULL"
@@ -2916,7 +2928,7 @@ class CPtrType(CPointerBaseType):
             if self.base_type.pointer_assignable_from_resolved_type(copied_src_type):
                 # the only reason we can't assign is because of exception incompatibility
                 msg = " Exception values are incompatible."
-                if not self.base_type.exception_check and not self.base_type.exception_value:
+                if not self.base_type.exception_check and self.base_type.exception_value is None:
                     if src_name is None:
                         src_name = "the value being assigned"
                     else:
@@ -3079,7 +3091,7 @@ class CFuncType(CType):
         arg_reprs = list(map(repr, self.args))
         if self.has_varargs:
             arg_reprs.append("...")
-        if self.exception_value:
+        if self.exception_value is not None:
             except_clause = " %r" % self.exception_value
         else:
             except_clause = ""
@@ -3163,7 +3175,8 @@ class CFuncType(CType):
         return 1
 
     def _same_exception_value(self, other_exc_value):
-        if self.exception_value == other_exc_value:
+        # Use fallback comparison as strings since we usually read exception values as strings.
+        if self.exception_value == other_exc_value or str(self.exception_value) == str(other_exc_value):
             return 1
         if self.exception_check != '+':
             return 0
@@ -3312,11 +3325,11 @@ class CFuncType(CType):
             arg_decl_code = "void"
         trailer = ""
         if (pyrex or for_display) and not self.return_type.is_pyobject:
-            if self.exception_value and self.exception_check:
+            if self.exception_value is not None and self.exception_check:
                 trailer = " except? %s" % self.exception_value
-            elif self.exception_value and not self.exception_check:
+            elif self.exception_value is not None and not self.exception_check:
                 trailer = " except %s" % self.exception_value
-            elif not self.exception_value and not self.exception_check:
+            elif self.exception_value is None and not self.exception_check:
                 trailer = " noexcept"
             elif self.exception_check == '+':
                 trailer = " except +"
@@ -3477,8 +3490,12 @@ class CFuncType(CType):
         def arg_name_part(arg):
             return "%s%s" % (len(arg.name), punycodify_name(arg.name)) if arg.name else "0"
         arg_names = [ arg_name_part(arg) for arg in self.args ]
-        arg_names = "_".join(arg_names)
+        arg_names = cap_length("_".join(arg_names))
         safe_typename = type_identifier(self, pyrex=True)
+        # Note that the length here is slightly bigger than twice the default cap in
+        # "cap_length" (since the length is capped in both arg_names and the type_identifier)
+        # but since this is significantly shorter than compilers should be able to handle,
+        # that is acceptable.
         to_py_function = "__Pyx_CFunc_%s_to_py_%s" % (safe_typename, arg_names)
 
         for arg in self.args:
@@ -3518,7 +3535,7 @@ class CFuncType(CType):
             except_clause = 'except *'
         elif self.return_type.is_pyobject:
             except_clause = ''
-        elif self.exception_value:
+        elif self.exception_value is not None:
             except_clause = ('except? %s' if self.exception_check else 'except %s') % self.exception_value
         else:
             except_clause = 'except *'
@@ -3555,6 +3572,8 @@ def specialize_entry(entry, cname):
 
     if entry.func_cname:
         entry.func_cname = get_fused_cname(cname, entry.func_cname)
+    if entry.final_func_cname:
+        entry.final_func_cname = get_fused_cname(cname, entry.final_func_cname)
 
 def get_fused_cname(fused_cname, orig_cname):
     """
@@ -4656,8 +4675,8 @@ class ErrorType(PyrexType):
     # Used to prevent propagation of error messages.
 
     is_error = 1
-    exception_value = "0"
-    exception_check    = 0
+    exception_value = 0
+    exception_check = False
     to_py_function = "dummy"
     from_py_function = "dummy"
 
@@ -5449,28 +5468,37 @@ _escape_special_type_characters = partial(re.compile(
 ).sub, lambda match: _special_type_characters[match.group(1)])
 
 def type_identifier(type, pyrex=False):
+    scope = None
     decl = type.empty_declaration_code(pyrex=pyrex)
-    return type_identifier_from_declaration(decl)
+    entry = getattr(type, "entry", None)
+    if entry and entry.scope:
+        scope = entry.scope
+    return type_identifier_from_declaration(decl, scope=scope)
 
 _type_identifier_cache = {}
-def type_identifier_from_declaration(decl):
-    safe = _type_identifier_cache.get(decl)
+def type_identifier_from_declaration(decl, scope = None):
+    key = (decl, scope)
+    safe = _type_identifier_cache.get(key)
     if safe is None:
         safe = decl
+        if scope:
+            safe = scope.mangle(prefix="", name=safe)
         safe = re.sub(' +', ' ', safe)
         safe = re.sub(' ?([^a-zA-Z0-9_]) ?', r'\1', safe)
         safe = _escape_special_type_characters(safe)
         safe = cap_length(re.sub('[^a-zA-Z0-9_]', lambda x: '__%X' % ord(x.group(0)), safe))
-        _type_identifier_cache[decl] = safe
+        _type_identifier_cache[key] = safe
     return safe
 
-def cap_length(s, max_prefix=63, max_len=1024):
-    if len(s) <= max_prefix:
+def cap_length(s, max_len=63):
+    if len(s) <= max_len:
         return s
     hash_prefix = hashlib.sha256(s.encode('ascii')).hexdigest()[:6]
     return '%s__%s__etc' % (hash_prefix, s[:max_len-17])
 
-def write_noexcept_performance_hint(pos, env, function_name=None, void_return=False, is_call=False):
+def write_noexcept_performance_hint(pos, env,
+                                    function_name=None, void_return=False, is_call=False,
+                                    is_from_pxd=False):
     if function_name:
         # we need it escaped everywhere we use it
         function_name = "'%s'" % function_name
@@ -5493,6 +5521,9 @@ def write_noexcept_performance_hint(pos, env, function_name=None, void_return=Fa
         solutions.append(
             "Use an 'int' return type on %s to allow an error code to be returned." %
             the_function)
+    if is_from_pxd and not void_return:
+        solutions.append(
+            "Declare any exception value explicitly for functions in pxd files.")
     if len(solutions) == 1:
         msg = "%s %s" % (msg, solutions[0])
     else:

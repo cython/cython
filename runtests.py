@@ -122,6 +122,17 @@ def get_distutils_distro(_cache=[]):
     return distutils_distro
 
 
+def import_refnanny():
+    try:
+        # try test copy first
+        import refnanny
+        return refnanny
+    except ImportError:
+        pass
+    import Cython.Runtime.refnanny
+    return Cython.Runtime.refnanny
+
+
 EXT_DEP_MODULES = {
     'tag:numpy':     'numpy',
     'tag:pythran':  'pythran',
@@ -472,10 +483,8 @@ VER_DEP_MODULES = {
         'compile.pylong',  # PyLongObject changed its structure
         'run.longintrepr',  # PyLongObject changed its structure
     ]),
-    # See https://github.com/python/cpython/issues/104614 - fixed in Py3.12.0b2, remove eventually.
-    (3,12,0,'beta',1): (operator.eq, lambda x: 'cdef_multiple_inheritance' in x or 'pep442' in x),
-    # Profiling is broken on Python 3.12
-    (3,12): ((lambda actual, v3_12: actual[:2]==v3_12), (lambda x: "pstats" in x)),
+    # Profiling is broken on Python 3.12/3.13alpha
+    (3,12): (operator.gt, lambda x: "pstats" in x),
 }
 
 INCLUDE_DIRS = [ d for d in os.getenv('INCLUDE', '').split(os.pathsep) if d ]
@@ -1227,6 +1236,7 @@ class CythonCompileTestCase(unittest.TestCase):
             generate_pxi = False,
             evaluate_tree_assertions = True,
             common_utility_include_dir = common_utility_include_dir,
+            c_line_in_traceback = True,
             **extra_compile_options
             )
         cython_compile(module_path, options=options, full_module_name=module)
@@ -1655,6 +1665,7 @@ class PureDoctestTestCase(unittest.TestCase):
                         self.module_path,
                         '--ignore-missing-imports',
                         '--follow-imports', 'skip',
+                        '--python-version', '3.10',
                     ])
                 if mypy_result[2]:
                     self.fail(mypy_result[0])
@@ -2684,12 +2695,17 @@ def runtests(options, cmd_args, coverage=None):
             sys.stderr.write("Disabling refnanny in PyPy\n")
             options.with_refnanny = False
 
+    refnanny = None
     if options.with_refnanny:
-        from pyximport.pyxbuild import pyx_to_dll
-        libpath = pyx_to_dll(os.path.join("Cython", "Runtime", "refnanny.pyx"),
-                             build_in_temp=True,
-                             pyxbuild_dir=os.path.join(WORKDIR, "support"))
-        sys.path.insert(0, os.path.split(libpath)[0])
+        try:
+            refnanny = import_refnanny()
+        except ImportError:
+            from pyximport.pyxbuild import pyx_to_dll
+            libpath = pyx_to_dll(os.path.join("Cython", "Runtime", "refnanny.pyx"),
+                                build_in_temp=True,
+                                pyxbuild_dir=os.path.join(WORKDIR, "support"))
+            sys.path.insert(0, os.path.split(libpath)[0])
+            refnanny = import_refnanny()
         CDEFS.append(('CYTHON_REFNANNY', '1'))
 
     if options.limited_api:
@@ -2829,10 +2845,11 @@ def runtests(options, cmd_args, coverage=None):
 
     if options.examples and languages:
         examples_workdir = os.path.join(WORKDIR, 'examples')
+        language_level = 3
         for subdirectory in glob.glob(os.path.join(options.examples_dir, "*/")):
             filetests = TestBuilder(subdirectory, examples_workdir, selectors, exclude_selectors,
                                     options, options.pyregr, languages, test_bugs,
-                                    options.language_level, common_utility_dir,
+                                    language_level, common_utility_dir,
                                     options.pythran_dir,
                                     default_mode='compile', stats=stats, add_cython_import=True)
             test_suite.addTest(filetests.build_suite())
@@ -2921,8 +2938,7 @@ def runtests(options, cmd_args, coverage=None):
         for test in missing_dep_excluder.tests_missing_deps:
             sys.stderr.write("   %s\n" % test)
 
-    if options.with_refnanny:
-        import refnanny
+    if options.with_refnanny and refnanny is not None:
         sys.stderr.write("\n".join([repr(x) for x in refnanny.reflog]))
 
     result_code = 0 if options.exit_ok else not result.wasSuccessful()

@@ -13,6 +13,7 @@
 static CYTHON_INLINE Py_ssize_t __Pyx_Py_UNICODE_ssize_strlen(const Py_UNICODE *u);/*proto*/
 
 //////////////////// ssize_pyunicode_strlen ////////////////////
+//@requires: pyunicode_strlen
 
 static CYTHON_INLINE Py_ssize_t __Pyx_Py_UNICODE_ssize_strlen(const Py_UNICODE *u) {
     size_t len = __Pyx_Py_UNICODE_strlen(u);
@@ -23,21 +24,43 @@ static CYTHON_INLINE Py_ssize_t __Pyx_Py_UNICODE_ssize_strlen(const Py_UNICODE *
     return (Py_ssize_t) len;
 }
 
+//////////////////// pyunicode_strlen.proto ///////////////
+
+// There used to be a Py_UNICODE_strlen() in CPython 3.x, but it is deprecated since Py3.3.
+static CYTHON_INLINE size_t __Pyx_Py_UNICODE_strlen(const Py_UNICODE *u); /* proto */
+
+//////////////////// pyunicode_strlen /////////////////////
+
+// Note: will not work in the limited API since Py_UNICODE is not available there.
+// May stop working at some point after Python 3.13 (deprecated)
+static CYTHON_INLINE size_t __Pyx_Py_UNICODE_strlen(const Py_UNICODE *u)
+{
+    const Py_UNICODE *u_end = u;
+    while (*u_end++) ;
+    return (size_t)(u_end - u - 1);
+}
+
+//////////////////// pyunicode_from_unicode.proto //////////////////////
+//@requires: pyunicode_strlen
+
+#define __Pyx_PyUnicode_FromUnicode(u)       PyUnicode_FromUnicode(u, __Pyx_Py_UNICODE_strlen(u))
+#define __Pyx_PyUnicode_FromUnicodeAndLength PyUnicode_FromUnicode
+
 
 //////////////////// InitStrings.proto ////////////////////
 
-static int __Pyx_InitStrings(__Pyx_StringTabEntry *t); /*proto*/
+static int __Pyx_InitStrings(__Pyx_StringTabEntry const *t, PyObject **target, const char* const* encoding_names); /*proto*/
 
 //////////////////// InitStrings ////////////////////
 
-static int __Pyx_InitStrings(__Pyx_StringTabEntry *t) {
-    while (t->p) {
+static int __Pyx_InitStrings(__Pyx_StringTabEntry const *t, PyObject **target, const char* const* encoding_names) {
+    while (t->s) {
         PyObject *str;
         if (t->is_unicode | t->is_str) {
             if (t->intern) {
                 str = PyUnicode_InternFromString(t->s);
             } else if (t->encoding) {
-                str = PyUnicode_Decode(t->s, t->n - 1, t->encoding, NULL);
+                str = PyUnicode_Decode(t->s, t->n - 1, encoding_names[t->encoding], NULL);
             } else {
                 str = PyUnicode_FromStringAndSize(t->s, t->n - 1);
             }
@@ -46,11 +69,12 @@ static int __Pyx_InitStrings(__Pyx_StringTabEntry *t) {
         }
         if (!str)
             return -1;
-        *t->p = str;
+        *target = str;
         // initialise cached hash value
         if (PyObject_Hash(str) == -1)
             return -1;
         ++t;
+        ++target;
     }
     return 0;
 }
@@ -661,7 +685,7 @@ static int __Pyx_PyBytes_SingleTailmatch(PyObject* self, PyObject* arg,
         if (unlikely(sub_len < 0)) return -1;
         #endif
     } else {
-        if (unlikely(PyObject_GetBuffer(self, &view, PyBUF_SIMPLE) == -1))
+        if (unlikely(PyObject_GetBuffer(arg, &view, PyBUF_SIMPLE) == -1))
             return -1;
         sub_ptr = (const char*) view.buf;
         sub_len = view.len;
@@ -832,7 +856,7 @@ static PyObject* __Pyx_PyUnicode_Join(PyObject** values, Py_ssize_t value_count,
         void *udata;
         PyObject *uval = values[i];
         #if !CYTHON_COMPILING_IN_LIMITED_API
-        if (unlikely(__Pyx_PyUnicode_READY(uval)))
+        if (__Pyx_PyUnicode_READY(uval) == (-1))
             goto bad;
         #endif
         ulength = __Pyx_PyUnicode_GET_LENGTH(uval);
@@ -878,7 +902,7 @@ bad:
     CYTHON_UNUSED_VAR(result_ulength);
 
     for (i=0; i<value_count; i++) {
-        if (unlikely(__Pyx_PyTuple_SET_ITEM(value_tuple, i, values[i]) < 0)) goto bad;
+        if (__Pyx_PyTuple_SET_ITEM(value_tuple, i, values[i]) != (0)) goto bad;
         Py_INCREF(values[i]);
     }
 
@@ -1161,3 +1185,4 @@ static CYTHON_INLINE PyObject* __Pyx_PyStr_Str(PyObject *obj) {
 
 #define __Pyx_PyObject_Str(obj) \
     (likely(PyString_CheckExact(obj)) ? __Pyx_NewRef(obj) : PyObject_Str(obj))
+

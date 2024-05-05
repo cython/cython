@@ -336,7 +336,7 @@ class PyrexScanner(Scanner):
         self.source_encoding = source_encoding
         self.trace = trace_scanner
         self.indentation_stack = [0]
-        self.indentation_char = None
+        self.indentation_char = '\0'
         self.bracket_nesting_level = 0
 
         self.put_back_on_failure = None
@@ -380,8 +380,8 @@ class PyrexScanner(Scanner):
         '"""': 'TDQ_STRING'
     }
 
-    def begin_string_action(self, text):
-        while text[:1] in any_string_prefix:
+    def begin_string_action(self, text: str):
+        while text and text[0] in any_string_prefix:
             text = text[1:]
         self.begin(self.string_states[text])
         self.produce('BEGIN_STRING')
@@ -394,7 +394,7 @@ class PyrexScanner(Scanner):
         self.end_string_action(text)
         self.error_at_scanpos("Unclosed string literal")
 
-    def indentation_action(self, text):
+    def indentation_action(self, text: str):
         self.begin('')
         # Indentation within brackets should be ignored.
         #if self.bracket_nesting_level > 0:
@@ -403,7 +403,7 @@ class PyrexScanner(Scanner):
         if text:
             c = text[0]
             #print "Scanner.indentation_action: indent with", repr(c) ###
-            if self.indentation_char is None:
+            if self.indentation_char == '\0':
                 self.indentation_char = c
                 #print "Scanner.indentation_action: setting indent_char to", repr(c)
             else:
@@ -412,8 +412,8 @@ class PyrexScanner(Scanner):
             if text.replace(c, "") != "":
                 self.error_at_scanpos("Mixed use of tabs and spaces")
         # Figure out how many indents/dedents to do
-        current_level = self.current_level()
-        new_level = len(text)
+        current_level: cython.Py_ssize_t = self.current_level()
+        new_level: cython.Py_ssize_t = len(text)
         #print "Changing indent level from", current_level, "to", new_level ###
         if new_level == current_level:
             return
@@ -522,7 +522,7 @@ class PyrexScanner(Scanner):
     def expect_dedent(self):
         self.expect('DEDENT', "Expected a decrease in indentation level")
 
-    def expect_newline(self, message="Expected a newline", ignore_semicolon=False):
+    def expect_newline(self, message="Expected a newline", ignore_semicolon: cython.bint = False):
         # Expect either a newline or end of file
         useless_trailing_semicolon = None
         if ignore_semicolon and self.sy == ';':
@@ -549,8 +549,7 @@ class PyrexScanner(Scanner):
                 self.sy, self.systring = IDENT, self.context.intern_ustring(self.sy)
 
 @contextmanager
-@cython.locals(scanner=Scanner)
-def tentatively_scan(scanner):
+def tentatively_scan(scanner: PyrexScanner):
     errors = hold_errors()
     try:
         put_back_on_failure = scanner.put_back_on_failure

@@ -1,4 +1,4 @@
-from cython.cimports.cpython.ref import PyObject
+from cython.cimports.cpython.ref import PyObject, _Py_REFCNT
 
 import sys
 
@@ -12,7 +12,9 @@ def owned_reference(obj: object):
 
 @cython.cfunc
 def borrowed_reference(obj: cython.pointer(PyObject)):
-    refcount = obj.ob_refcnt
+    # use _Py_REFCNT instead of Py_REFCNT to avoid creating a new owned
+    # reference just to get the reference count
+    refcount = _Py_REFCNT(obj)
     print('Inside borrowed_reference: {refcount}'.format(refcount=refcount))
 
 def main():
