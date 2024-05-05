@@ -655,7 +655,6 @@ static int __Pyx__SetItemOnTypeDict(PyTypeObject *tp, PyObject *k, PyObject *v);
 
 static int __Pyx__SetItemOnTypeDict(PyTypeObject *tp, PyObject *k, PyObject *v) {
     int result;
-    PyObject *setNameResult;
 #if CYTHON_COMPILING_IN_LIMITED_API
     // Using PyObject_GenericSetAttr to bypass types immutability protection feels
     // a little hacky, but it does work in the limited API .
@@ -667,7 +666,7 @@ static int __Pyx__SetItemOnTypeDict(PyTypeObject *tp, PyObject *k, PyObject *v) 
     if (likely(!result)) {
         PyType_Modified(tp);
         if (unlikely(PyObject_HasAttr(v, PYIDENT("__set_name__")))) {
-            setNameResult = PyObject_CallMethodObjArgs(v, PYIDENT("__set_name__"),  (PyObject *) tp, k, NULL);
+            PyObject *setNameResult = PyObject_CallMethodObjArgs(v, PYIDENT("__set_name__"),  (PyObject *) tp, k, NULL);
             if (!setNameResult) return -1;
             Py_DECREF(setNameResult);
         }
