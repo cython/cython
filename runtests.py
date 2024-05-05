@@ -1759,7 +1759,7 @@ class CythonPyregrTestCase(CythonRunTestCase):
         for cls in classes:
             if isinstance(cls, str):
                 if cls in sys.modules:
-                    suite.addTest(unittest.findTestCases(sys.modules[cls]))
+                    suite.addTest(unittest.TestLoader().loadTestsFromModule(sys.modules[cls]))
                 else:
                     raise ValueError("str arguments must be keys in sys.modules")
             elif isinstance(cls, valid_types):
