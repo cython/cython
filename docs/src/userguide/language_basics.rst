@@ -354,7 +354,7 @@ e.g. ``unsigned int`` (``cython.uint`` in Python code):
    Additional types are declared in the `stdint pxd file <https://github.com/cython/cython/blob/master/Cython/Includes/libc/stdint.pxd>`_.
 
 The special ``bint`` type is used for C boolean values (``int`` with 0/non-0
-values for False/True) and ``Py_ssize_t`` for (signed) sizes of Python
+values for False/True) and :c:type:`Py_ssize_t` for (signed) sizes of Python
 containers.
 
 Pointer types are constructed as in C when using Cython syntax, by appending a ``*`` to the base type
@@ -391,7 +391,7 @@ This requires an *exact* match of the class, it does not allow subclasses.
 This allows Cython to optimize code by accessing internals of the builtin class,
 which is the main reason for declaring builtin types in the first place.
 
-For declared builtin types, Cython uses internally a C variable of type ``PyObject*``.
+For declared builtin types, Cython uses internally a C variable of type :c:expr:`PyObject*`.
 
 .. note:: The Python types ``int``, ``long``, and ``float`` are not available for static
     typing in ``.pyx`` files and instead interpreted as C ``int``, ``long``, and ``float``
@@ -694,8 +694,8 @@ In the interests of clarity, it is probably a good idea to always be explicit
 about object parameters in C functions.
 
 
-To create a borrowed reference, specify the parameter type as ``PyObject*``.
-Cython won't perform automatic ``Py_INCREF``, or ``Py_DECREF``, e.g.:
+To create a borrowed reference, specify the parameter type as :c:expr:`PyObject*`.
+Cython won't perform automatic :c:func:`Py_INCREF`, or :c:func:`Py_DECREF`, e.g.:
 
 .. tabs::
 
@@ -1253,7 +1253,7 @@ Cython uses ``"<"`` and ``">"``.  In pure python mode, the ``cython.cast()`` fun
             :caption: casting_python.py
 
         Casting with ``cast(object, ...)`` creates an owned reference. Cython will automatically
-        perform a ``Py_INCREF`` and ``Py_DECREF`` operation. Casting to
+        perform a :c:func:`Py_INCREF` and :c:func:`Py_DECREF` operation. Casting to
         ``cast(pointer(PyObject), ...)`` creates a borrowed reference, leaving the refcount unchanged.
 
     .. group-tab:: Cython
@@ -1266,7 +1266,7 @@ Cython uses ``"<"`` and ``">"``.  In pure python mode, the ``cython.cast()`` fun
         The precedence of ``<...>`` is such that ``<type>a.b.c`` is interpreted as ``<type>(a.b.c)``.
 
         Casting to ``<object>`` creates an owned reference. Cython will automatically
-        perform a ``Py_INCREF`` and ``Py_DECREF`` operation. Casting to
+        perform a :c:func:`Py_INCREF` and :c:func:`Py_DECREF` operation. Casting to
         ``<PyObject *>`` creates a borrowed reference, leaving the refcount unchanged.
 
 

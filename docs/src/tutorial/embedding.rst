@@ -40,7 +40,7 @@ For details, see the documentation of the
 in CPython and `PEP 489 <https://www.python.org/dev/peps/pep-0489/>`_ regarding the module
 initialisation mechanism in CPython 3.5 and later.
 
-The `PyImport_AppendInittab() <https://docs.python.org/3/c-api/import.html#c.PyImport_AppendInittab>`_
+The :c:func:`PyImport_AppendInittab()`
 function in CPython allows registering statically (or dynamically) linked extension
 modules for later imports.  An example is given in the documentation of the module
 init function that is linked above.
