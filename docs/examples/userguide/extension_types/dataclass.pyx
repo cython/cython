@@ -10,7 +10,7 @@ except ImportError:
 cdef class MyDataclass:
     # fields can be declared using annotations
     a: cython.int = 0
-    b: double = dataclasses.field(default_factory = lambda: 10, repr=False)
+    b: cython.double = dataclasses.field(default_factory = lambda: 10, repr=False)
 
     # fields can also be declared using `cdef`:
     cdef str c

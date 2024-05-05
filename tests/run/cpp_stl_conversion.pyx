@@ -115,6 +115,7 @@ def test_int_vector(o):
     return v
 
 cdef vector[int] takes_vector(vector[int] x):
+    assert x[2] == 3
     return x
 
 def test_list_literal_to_vector():
@@ -130,6 +131,42 @@ def test_tuple_literal_to_vector():
     [1, 2, 3]
     """
     return takes_vector((1, 2, 3))
+
+def test_generator_to_vector():
+    """
+    >>> test_generator_to_vector()
+    [1, 2, 3]
+    """
+    g = (x for x in [1, 2, 3])
+    return takes_vector(g)
+
+class LengthlessIterable(object):
+    def __getitem__(self, pos):
+        if pos == 3:
+            raise StopIteration
+        return pos+1
+
+class LengthlessIterableRaises(LengthlessIterable):
+    def __length_hint__(self):
+        raise Exception('__length_hint__ called')
+
+def test_iterable_to_vector():
+    """
+    >>> test_iterable_to_vector()
+    [1, 2, 3]
+    """
+    i = LengthlessIterable()
+    return takes_vector(i)
+
+def test_iterable_raises_to_vector():
+    """
+    >>> test_iterable_raises_to_vector()
+    Traceback (most recent call last):
+    ...
+    Exception: __length_hint__ called
+    """
+    i = LengthlessIterableRaises()
+    return takes_vector(i)
 
 def test_string_vector(s):
     """

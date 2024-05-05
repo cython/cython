@@ -169,6 +169,8 @@ C array can be declared by adding ``[ARRAY_SIZE]`` to the type of variable:
             def func():
                 g: cython.float[42]
                 f: cython.int[5][5][5]
+                ptr_char_array: cython.pointer(cython.char[4])  # pointer to the array of 4 chars
+                array_ptr_char: cython.p_char[4]                # array of 4 char pointers
 
     .. group-tab:: Cython
 
@@ -177,6 +179,8 @@ C array can be declared by adding ``[ARRAY_SIZE]`` to the type of variable:
             def func():
                 cdef float[42] g
                 cdef int[5][5][5] f
+                cdef char[4] *ptr_char_array     # pointer to the array of 4 chars
+                cdef (char *)[4] array_ptr_char  # array of 4 char pointers
 
 .. note::
 
@@ -1254,6 +1258,8 @@ Cython uses ``"<"`` and ``">"``.  In pure python mode, the ``cython.cast()`` fun
 
     .. group-tab:: Cython
 
+        .. literalinclude:: ../../examples/userguide/language_basics/casting_python.pxd
+            :caption: casting_python.pxd
         .. literalinclude:: ../../examples/userguide/language_basics/casting_python.pyx
             :caption: casting_python.pyx
 

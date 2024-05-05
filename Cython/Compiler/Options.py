@@ -668,8 +668,6 @@ class CompilationOptions:
             options['language_level'] = directive_defaults.get('language_level')
         if 'formal_grammar' in directives and 'formal_grammar' not in kw:
             options['formal_grammar'] = directives['formal_grammar']
-        if options['cache'] is True:
-            options['cache'] = os.path.join(Utils.get_cython_cache_dir(), 'compiler')
 
         self.__dict__.update(options)
 
@@ -787,7 +785,7 @@ default_options = dict(
     evaluate_tree_assertions=False,
     emit_linenums=False,
     relative_path_in_code_position_comments=True,
-    c_line_in_traceback=True,
+    c_line_in_traceback=None,
     language_level=None,  # warn but default to 2
     formal_grammar=False,
     gdb_debug=False,

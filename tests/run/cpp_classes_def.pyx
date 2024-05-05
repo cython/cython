@@ -1,5 +1,5 @@
 # mode: run
-# tag: cpp, werror, cpp11, no-cpp-locals
+# tag: cpp, cpp11, warnings, no-cpp-locals
 # cython: experimental_cpp_class_def=True
 
 cdef double pi
@@ -269,3 +269,7 @@ def test_CppClassWithDocstring():
     cdef CppClassWithDocstring *c = new CppClassWithDocstring()
     del c
     print "OK"
+
+_WARNINGS="""
+24:4: Unraisable exception in function 'RegularPolygon.area'.
+"""

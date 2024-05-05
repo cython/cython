@@ -129,9 +129,9 @@ would be::
 
 If your build depends directly on Cython in this way,
 then you may also want to inform pip that :mod:`Cython` is required for
-:file:`setup.py` to execute, following `PEP 518
-<https://www.python.org/dev/peps/pep-0518/>`, creating a :file:`pyproject.toml`
-file containing, at least:
+:file:`setup.py` to execute, following
+`PEP 518 <https://www.python.org/dev/peps/pep-0518/>`_,
+creating a :file:`pyproject.toml` file containing, at least:
 
 .. code-block:: ini
 
@@ -700,10 +700,42 @@ You can see them also by typing ```%%cython?`` in IPython or a Jupyter notebook.
 ============================================  =======================================================================================================================================
 
 
+.. _cython-cache:
+
+Cython cache
+============
+
+The Cython cache is used to store cythonized ``.c``/``.cpp`` files to avoid running the Cython compiler on the files which were cythonized before.
+
+.. note::
+
+   Only ``.c``/``.cpp`` files are cached. The C compiler is run every time. To avoid executing C compiler a tool like ccache needs to be used.
+
+The Cython cache is disabled by default but can be enabled by the ``cache`` parameter of :func:`cythonize`::
+
+    from setuptools import setup, Extension
+    from Cython.Build import cythonize
+
+    extensions = [
+        Extension("*", ["lib.pyx"]),
+    ]
+
+    setup(
+        name="hello",
+        ext_modules=cythonize(extensions, cache=True)
+    )
+
+The cached files are searched in the following paths by default in the following order:
+
+1. path specified in the ``CYTHON_CACHE_DIR`` environment variable,
+2. ``~/Library/Caches/Cython`` on MacOS and ``XDG_CACHE_HOME/cython`` on posix if the ``XDG_CACHE_HOME`` environment variable is defined,
+3. otherwise ``~/.cython``.
+
+
 .. _compiler_options:
 
 Compiler options
-----------------
+================
 
 Compiler options can be set in the :file:`setup.py`, before calling :func:`cythonize`,
 like this::
@@ -1110,6 +1142,43 @@ This will override the default directives as specified in the ``compiler_directi
 Note that explicit per-file or local directives as explained above take precedence over the
 values passed to ``cythonize``.
 
+.. _cline_in_traceback:
+
+C line numbers in tracebacks
+============================
+
+To provide more detailed debug information, Python tracebacks of Cython modules
+show the C line where the exception originated (or was propagated). This feature is not
+entirely for free and can visibly increase the C compile time as well as adding 0-5% to the
+size of the binary extension module. It is therefore disabled in Cython 3.1 and can be controlled using C macros.
+
+* ``CYTHON_CLINE_IN_TRACEBACK=1`` always shows the C line number in tracebacks,
+* ``CYTHON_CLINE_IN_TRACEBACK=0`` never shows the C line number in tracebacks,
+
+Unless the feature is disabled completely with this macro, there is also support for enabling and disabling
+the feature at runtime, at the before mentioned cost of longer C compile times and larger extension modules.
+This can be configured with the C macro
+
+``CYTHON_CLINE_IN_TRACEBACK_RUNTIME=1``
+  
+To then change the behaviour at runtime, you can import the special module ``cython_runtime``
+after loading a Cython module and set the attribute ``cline_in_traceback`` in that module
+to either true or false to control the behaviour as your Cython code is being run::
+
+    import cython_runtime
+    cython_runtime.cline_in_traceback = True
+    
+    raise ValueError(5)
+
+If both macros are *not* defined by the build setup or ``CFLAGS``, the feature is disabled.
+
+In Cython 3.0 and earlier, the Cython compiler option ``c_line_in_traceback`` (passed as
+an argument to ``cythonize`` in ``setup.py``) or the command
+line argument ``--no-c-in-traceback`` could also be used to disable this feature.
+From Cython 3.1, this is still possible, but should be migrated to using the C macros instead.
+Before Cython 3.1, the ``CYTHON_CLINE_IN_TRACEBACK`` macro already works as described
+but the Cython option is needed to remove the compile-time cost.
+
 C macro defines
 ===============
 
@@ -1154,6 +1223,10 @@ most important to least important:
 ``CYTHON_EXTERN_C``
     Slightly different to the other macros, this controls how ``cdef public``
     functions appear to C++ code. See :ref:`CYTHON_EXTERN_C` for full details.
+
+``CYTHON_CLINE_IN_TRACEBACK``
+    Controls whether C lines numbers appear in tracebacks.
+    See :ref:`cline_in_traceback` for a complete description.
     
 There is a further list of macros which turn off various optimizations or language
 features.  Under normal circumstance Cython enables these automatically based on the
