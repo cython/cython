@@ -9,17 +9,107 @@ from cpython cimport time as ctime
 def test_time():
     """
     >>> tic1, tic2, tic3 = test_time()
-    >>> tic1 <= tic3  # sanity check
+    >>> tic1 <= tic3  or  (tic1, tic3)  # sanity check
     True
-    >>> tic1 <= tic2
+    >>> tic1 <= tic2  or  (tic1, tic2)
     True
-    >>> tic2 <= tic3
+    >>> tic2 <= tic3  or  (tic2, tic3)
     True
     """
-    # check that ctime.time() matches time.time() to within call-time tolerance
+    # check that C-API matches Py-API to within call-time tolerance
     tic1 = time.time()
     tic2 = ctime.time()
     tic3 = time.time()
+
+    return tic1, tic2, tic3
+
+
+def test_time_ns():
+    """
+    >>> tic1, tic2, tic3 = test_time_ns()
+    >>> tic1 <= tic3  or  (tic1, tic3)  # sanity check
+    True
+    >>> tic1 <= tic2  or  (tic1, tic2)
+    True
+    >>> tic2 <= tic3  or  (tic2, tic3)
+    True
+    """
+    # check that C-API matches Py-API to within call-time tolerance
+    tic1 = time.time_ns()
+    tic2 = ctime.time_ns()
+    tic3 = time.time_ns()
+
+    return tic1, tic2, tic3
+
+
+def test_perf_counter():
+    """
+    >>> tic1, tic2, tic3 = test_perf_counter()
+    >>> tic1 <= tic3  or  (tic1, tic3)  # sanity check
+    True
+    >>> tic1 <= tic2  or  (tic1, tic2)
+    True
+    >>> tic2 <= tic3  or  (tic2, tic3)
+    True
+    """
+    # check that C-API matches Py-API to within call-time tolerance
+    tic1 = time.perf_counter()
+    tic2 = ctime.perf_counter()
+    tic3 = time.perf_counter()
+
+    return tic1, tic2, tic3
+
+
+def test_perf_counter_ns():
+    """
+    >>> tic1, tic2, tic3 = test_perf_counter_ns()
+    >>> tic1 <= tic3  or  (tic1, tic3)  # sanity check
+    True
+    >>> tic1 <= tic2  or  (tic1, tic2)
+    True
+    >>> tic2 <= tic3  or  (tic2, tic3)
+    True
+    """
+    # check that C-API matches Py-API to within call-time tolerance
+    tic1 = time.perf_counter_ns()
+    tic2 = ctime.perf_counter_ns()
+    tic3 = time.perf_counter_ns()
+
+    return tic1, tic2, tic3
+
+
+def test_monotonic():
+    """
+    >>> tic1, tic2, tic3 = test_monotonic()
+    >>> tic1 <= tic3  or  (tic1, tic3)  # sanity check
+    True
+    >>> tic1 <= tic2  or  (tic1, tic2)
+    True
+    >>> tic2 <= tic3  or  (tic2, tic3)
+    True
+    """
+    # check that C-API matches Py-API to within call-time tolerance
+    tic1 = time.monotonic()
+    tic2 = ctime.monotonic()
+    tic3 = time.monotonic()
+
+    return tic1, tic2, tic3
+
+
+def test_monotonic_ns():
+    """
+    >>> tic1, tic2, tic3 = test_monotonic_ns()
+    >>> tic1 <= tic3  or  (tic1, tic3)  # sanity check
+    True
+    >>> tic1 <= tic2  or  (tic1, tic2)
+    True
+    >>> tic2 <= tic3  or  (tic2, tic3)
+    True
+    """
+    # check that C-API matches Py-API to within call-time tolerance
+    tic1 = time.monotonic_ns()
+    tic2 = ctime.monotonic_ns()
+    tic3 = time.monotonic_ns()
 
     return tic1, tic2, tic3
 
