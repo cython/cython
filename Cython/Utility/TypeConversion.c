@@ -88,7 +88,28 @@ static CYTHON_INLINE PyObject* __Pyx_PyUnicode_FromString(const char*);
 #define __Pyx_PyUnicode_FromOrdinal(o)       PyUnicode_FromOrdinal((int)o)
 #define __Pyx_PyUnicode_AsUnicode            PyUnicode_AsUnicode
 
-#define __Pyx_NewRef(obj) (Py_INCREF(obj), obj)
+#if CYTHON_COMPILING_IN_CPYTHON && PY_VERSION_HEX >= 0x030a00b1
+static CYTHON_INLINE PyObject *__Pyx_NewRef(PyObject *obj) {
+    return Py_NewRef(obj);
+}
+#else
+static CYTHON_INLINE PyObject *__Pyx_NewRef(PyObject *obj) {
+    Py_INCREF(obj);
+    return obj;
+}
+#endif
+
+#if CYTHON_COMPILING_IN_CPYTHON && PY_VERSION_HEX >= 0x030a00b1
+static CYTHON_INLINE PyObject *__Pyx_XNewRef(PyObject *obj) {
+    return Py_XNewRef(obj);
+}
+#else
+static CYTHON_INLINE PyObject *__Pyx_XNewRef(PyObject *obj) {
+    Py_XINCREF(obj);
+    return obj;
+}
+#endif
+
 #define __Pyx_Owned_Py_None(b) __Pyx_NewRef(Py_None)
 static CYTHON_INLINE PyObject * __Pyx_PyBool_FromLong(long b);
 static CYTHON_INLINE int __Pyx_PyObject_IsTrue(PyObject*);

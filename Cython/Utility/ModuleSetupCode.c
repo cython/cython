@@ -1056,6 +1056,16 @@ static CYTHON_INLINE PyObject * __Pyx_PyDict_GetItemStrWithError(PyObject *dict,
   #define __Pyx_SET_SIZE(obj, size) Py_SIZE(obj) = (size)
 #endif
 
+#if CYTHON_AVOID_THREAD_UNSAFE_BORROWED_REFS && PY_VERSION_HEX >= 0x030d00b1
+#define __Pyx_PyList_GetItemRef(o, i) PyList_GetItemRef(o, i)
+#define __Pyx_PyDict_GetItemRef(o, k, r) PyDict_GetItemRef(o, k, &(r))
+#define __Pyx__PyDict_GetItemRef_KnownHash(r, o, k, h) _PyDict_GetItemRef_KnownHash(o, k, h, &(r))
+#else
+#define __Pyx_PyList_GetItemRef(o, i) __Pyx_NewRef(PyList_GET_ITEM(o, i))
+#define __Pyx_PyDict_GetItemRef(o, k, r) r = __Pyx_XNewRef(PyDict_GetItem(o, k))
+#define __Pyx__PyDict_GetItemRef_KnownHash(r, o, k, h) r = __Pyx_XNewRef(_PyDict_GetItem_KnownHash(o, k, h))
+#endif
+
 #if CYTHON_ASSUME_SAFE_MACROS
   #define __Pyx_PySequence_ITEM(o, i) PySequence_ITEM(o, i)
   #define __Pyx_PySequence_SIZE(seq)  Py_SIZE(seq)
@@ -2204,20 +2214,20 @@ static PyObject* __Pyx_PyCode_New(
     }
 
     #if CYTHON_COMPILING_IN_LIMITED_API
-    #if !CYTHON_AVOID_UNSAFE_BORROWED_REFERENCES
-    varnames_tuple_dedup = PyDict_GetItem(tuple_dedup_map, varnames_tuple);
-    #else
+    #if CYTHON_AVOID_UNSAFE_BORROWED_REFERENCES && PY_VERSION_HEX > 0x030d00b1
     PyDict_GetItemRef(tuple_dedup_map, varnames_tuple, &varnames_tuple_dedup);
+    #else
+    varnames_tuple_dedup = PyDict_GetItem(tuple_dedup_map, varnames_tuple);
     #endif
     if (!varnames_tuple_dedup) {
         if (unlikely(PyDict_SetItem(tuple_dedup_map, varnames_tuple, varnames_tuple) < 0)) goto done;
         varnames_tuple_dedup = varnames_tuple;
     }
     #else
-    #if !CYTHON_AVOID_UNSAFE_BORROWED_REFERENCES
-    varnames_tuple_dedup = PyDict_SetDefault(tuple_dedup_map, varnames_tuple, varnames_tuple);
-    #else
+    #if CYTHON_AVOID_UNSAFE_BORROWED_REFERENCES && PY_VERSION_HEX > 0x030d00b1
     PyDict_SetDefaultRef(tuple_dedup_map, varnames_tuple, varnames_tuple, &varnames_tuple_dedup)
+    #else
+    varnames_tuple_dedup = PyDict_SetDefault(tuple_dedup_map, varnames_tuple, varnames_tuple);
     #endif
     if (unlikely(!varnames_tuple_dedup)) goto done;
     #endif
