@@ -3120,22 +3120,9 @@ class IteratorNode(ScopedExprNode):
         else:
             inc_dec = '++'
         if test_name == 'List':
-            code.putln("#if CYTHON_ASSUME_SAFE_MACROS && !CYTHON_AVOID_BORROWED_REFS && !CYTHON_AVOID_THREAD_UNSAFE_BORROWED_REFS")
+            code.putln("#if CYTHON_ASSUME_SAFE_MACROS && !CYTHON_AVOID_BORROWED_REFS")
             code.putln(
-                "%s = Py%s_GET_ITEM(%s, %s); __Pyx_INCREF(%s); %s%s; %s" % (
-                    result_name,
-                    test_name,
-                    self.py_result(),
-                    self.counter_cname,
-                    result_name,
-                    self.counter_cname,
-                    inc_dec,
-                    # use the error label to avoid C compiler warnings if we only use it below
-                    code.error_goto_if_neg('0', self.pos)
-                    ))
-            code.putln("#elif CYTHON_ASSUME_SAFE_MACROS && !CYTHON_AVOID_BORROWED_REFS && PY_VERSION_HEX >= 0x030d00b1")
-            code.putln(
-                "%s = Py%s_GetItemRef(%s, %s); __Pyx_GOTREF(%s); %s%s; %s" % (
+                "%s = __Pyx_Py%s_GetItemRef(%s, %s); __Pyx_GOTREF(%s); %s%s; %s" % (
                     result_name,
                     test_name,
                     self.py_result(),

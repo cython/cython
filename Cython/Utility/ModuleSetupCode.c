@@ -2214,7 +2214,7 @@ static PyObject* __Pyx_PyCode_New(
     }
 
     #if CYTHON_COMPILING_IN_LIMITED_API
-    #if CYTHON_AVOID_UNSAFE_BORROWED_REFERENCES && PY_VERSION_HEX > 0x030d00b1
+    #if CYTHON_AVOID_UNSAFE_BORROWED_REFERENCES && __PYX_LIMITED_VERSION_HEX >= 0x030d00b1
     PyDict_GetItemRef(tuple_dedup_map, varnames_tuple, &varnames_tuple_dedup);
     #else
     varnames_tuple_dedup = PyDict_GetItem(tuple_dedup_map, varnames_tuple);
