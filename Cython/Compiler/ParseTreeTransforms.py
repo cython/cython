@@ -2448,11 +2448,11 @@ if VALUE is not None:
         node = self.visit_FuncDefNode(node)
         if not isinstance(node, Nodes.DefNode):
             return node
+        env = self.current_env()
         if node.code_object is None:
-            node.code_object = ExprNodes.CodeObjectNode(node)
+            node.code_object = ExprNodes.CodeObjectNode(node).analyse_declarations(env)
         if node.fused_py_func or node.is_generator_body:
             return node
-        env = self.current_env()
         if not node.needs_assignment_synthesis(env):
             return node
         return [node, self._synthesize_assignment(node, env)]
