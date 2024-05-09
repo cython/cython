@@ -1266,7 +1266,13 @@ hidden by default since most users will be uninterested in changing them.
             a reference to objects it manipulates.  Most useful for
             non-reference-counted implementations of Python, like PyPy
             (where it is enabled by default).
-            
+
+        ``CYTHON_AVOID_THREAD_UNSAFE_BORROWED_REFS``
+            Avoid using APIs that return "borrowed references" and instead use
+            the equivalent APIs that return "strong references". Most useful for
+            the free-threaded build of CPython, where incrementing the reference
+            count of borrowed references might introduce thread safety issues.
+
         ``CYTHON_ASSUME_SAFE_MACROS``
             Use some C-API macros that increase performance by skipping error checking,
             which may not be safe on all Python implementations (e.g. PyPy).

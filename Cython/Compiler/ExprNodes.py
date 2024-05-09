@@ -8425,33 +8425,23 @@ class SequenceNode(ExprNode):
             code.putln("if (likely(Py%s_CheckExact(sequence))) {" % sequence_types[0])
         for i, item in enumerate(self.unpacked_items):
             if sequence_types[0] == "List":
-                code.putln("#if !CYTHON_AVOID_THREAD_UNSAFE_BORROWED_REFS")
-                code.putln("%s = Py%s_GET_ITEM(sequence, %d); " % (
-                    item.result(), sequence_types[0], i))
-                code.put_incref(item.result(), item.ctype())
-                code.putln("#else")
-                code.putln("%s = Py%s_GetItemRef(sequence, %d);" % (
-                    item.result(), sequence_types[0], i))
-                code.putln("#endif")
+                code.putln("%s = __Pyx_PyList_GetItemRef(sequence, %d); " % (
+                    item.result(), i))
+                code.put_xgotref(item.result(), item.ctype())
             else:  # Tuple
-                code.putln("%s = Py%s_GET_ITEM(sequence, %d); " % (
-                    item.result(), sequence_types[0], i))
+                code.putln("%s = PyTuple_GET_ITEM(sequence, %d); " % (
+                    item.result(), i))
                 code.put_incref(item.result(), item.ctype())
         if len(sequence_types) == 2:
             code.putln("} else {")
             for i, item in enumerate(self.unpacked_items):
                 if sequence_types[1] == "List":
-                    code.putln("#if !CYTHON_AVOID_THREAD_UNSAFE_BORROWED_REFS")
-                    code.putln("%s = Py%s_GET_ITEM(sequence, %d); " % (
-                        item.result(), sequence_types[1], i))
-                    code.put_incref(item.result(), item.ctype())
-                    code.putln("#else")
-                    code.putln("%s = Py%s_GetItemRef(sequence, %d);" % (
-                        item.result(), sequence_types[1], i))
-                    code.putln("#endif")
+                    code.putln("%s = __Pyx_PyList_GetItemRef(sequence, %d); " % (
+                        item.result(), i))
+                    code.put_xgotref(item.result(), item.ctype())
                 else:  # Tuple
-                    code.putln("%s = Py%s_GET_ITEM(sequence, %d); " % (
-                        item.result(), sequence_types[1], i))
+                    code.putln("%s = PyTuple_GET_ITEM(sequence, %d); " % (
+                        item.result(), i))
                     code.put_incref(item.result(), item.ctype())
             code.putln("}")
 

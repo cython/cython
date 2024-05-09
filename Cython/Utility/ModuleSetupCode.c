@@ -2214,7 +2214,7 @@ static PyObject* __Pyx_PyCode_New(
     }
 
     #if CYTHON_COMPILING_IN_LIMITED_API
-    #if CYTHON_AVOID_UNSAFE_BORROWED_REFERENCES && __PYX_LIMITED_VERSION_HEX >= 0x030d00b1
+    #if CYTHON_AVOID_THREAD_UNSAFE_BORROWED_REFS && __PYX_LIMITED_VERSION_HEX >= 0x030d00b1
     if (unlikely(PyDict_GetItemRef(tuple_dedup_map, varnames_tuple, &varnames_tuple_dedup) < 0)) goto done;
     #else
     varnames_tuple_dedup = PyDict_GetItem(tuple_dedup_map, varnames_tuple);
@@ -2224,7 +2224,7 @@ static PyObject* __Pyx_PyCode_New(
         varnames_tuple_dedup = varnames_tuple;
     }
     #else
-    #if CYTHON_AVOID_UNSAFE_BORROWED_REFERENCES && PY_VERSION_HEX > 0x030d00b1
+    #if CYTHON_AVOID_THREAD_UNSAFE_BORROWED_REFS && PY_VERSION_HEX > 0x030d00b1
     PyDict_SetDefaultRef(tuple_dedup_map, varnames_tuple, varnames_tuple, &varnames_tuple_dedup)
     #else
     varnames_tuple_dedup = PyDict_SetDefault(tuple_dedup_map, varnames_tuple, varnames_tuple);
@@ -2256,7 +2256,7 @@ static PyObject* __Pyx_PyCode_New(
     );
 
 done:
-    #if CYTHON_AVOID_BORROWED_REFS || CYTHON_AVOID_UNSAFE_BORROWED_REFERENCES
+    #if CYTHON_AVOID_BORROWED_REFS || CYTHON_AVOID_THREAD_UNSAFE_BORROWED_REFS
     Py_XDECREF(varnames_tuple_dedup);
     #endif
     Py_DECREF(varnames_tuple);
