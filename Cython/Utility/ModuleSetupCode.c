@@ -1058,11 +1058,11 @@ static CYTHON_INLINE PyObject * __Pyx_PyDict_GetItemStrWithError(PyObject *dict,
 
 #if CYTHON_AVOID_THREAD_UNSAFE_BORROWED_REFS && PY_VERSION_HEX >= 0x030d00b1
 #define __Pyx_PyList_GetItemRef(o, i) PyList_GetItemRef(o, i)
-#define __Pyx_PyDict_GetItemRef(o, k, r) PyDict_GetItemRef(o, k, &(r))
+#define __Pyx_PyDict_GetItemRef(r, o, k) PyDict_GetItemRef(o, k, &(r))
 #define __Pyx__PyDict_GetItemRef_KnownHash(r, o, k, h) _PyDict_GetItemRef_KnownHash(o, k, h, &(r))
 #else
 #define __Pyx_PyList_GetItemRef(o, i) __Pyx_NewRef(PyList_GET_ITEM(o, i))
-#define __Pyx_PyDict_GetItemRef(o, k, r) r = __Pyx_XNewRef(PyDict_GetItem(o, k))
+#define __Pyx_PyDict_GetItemRef(r, o, k) r = __Pyx_XNewRef(PyDict_GetItem(o, k))
 #define __Pyx__PyDict_GetItemRef_KnownHash(r, o, k, h) r = __Pyx_XNewRef(_PyDict_GetItem_KnownHash(o, k, h))
 #endif
 
