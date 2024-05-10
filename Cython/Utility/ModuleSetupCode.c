@@ -1058,12 +1058,30 @@ static CYTHON_INLINE PyObject * __Pyx_PyDict_GetItemStrWithError(PyObject *dict,
 
 #if CYTHON_AVOID_THREAD_UNSAFE_BORROWED_REFS && PY_VERSION_HEX >= 0x030d00b1
 #define __Pyx_PyList_GetItemRef(o, i) PyList_GetItemRef(o, i)
-#define __Pyx_PyDict_GetItemRef(r, o, k) PyDict_GetItemRef(o, k, &(r))
-#define __Pyx__PyDict_GetItemRef_KnownHash(r, o, k, h) _PyDict_GetItemRef_KnownHash(o, k, h, &(r))
+static CYTHON_INLINE int __Pyx_PyDict_GetItemRef(PyObject *dict, PyObject *key, PyObject **result) {
+  return PyDict_GetItemRef(dict, key, result);
+}
+static CYTHON_INLINE int __Pyx__PyDict_GetItemRef_KnownHash(PyObject *dict, PyObject *key, Py_hash_t hash, PyObject **result) {
+  return _PyDict_GetItemRef_KnownHash(dict, key, hash, result);
+}
 #else
 #define __Pyx_PyList_GetItemRef(o, i) __Pyx_NewRef(PyList_GET_ITEM(o, i))
-#define __Pyx_PyDict_GetItemRef(r, o, k) r = __Pyx_XNewRef(PyDict_GetItem(o, k))
-#define __Pyx__PyDict_GetItemRef_KnownHash(r, o, k, h) r = __Pyx_XNewRef(_PyDict_GetItem_KnownHash(o, k, h))
+static CYTHON_INLINE int __Pyx_PyDict_GetItemRef(PyObject *dict, PyObject *key, PyObject **result) {
+  *result = PyDict_GetItem(dict, key);
+  if (*result == NULL) {
+    return 0;
+  }
+  Py_INCREF(*result);
+  return 1;
+}
+static CYTHON_INLINE int __Pyx__PyDict_GetItemRef_KnownHash(PyObject *dict, PyObject *key, Py_hash_t hash, PyObject **result) {
+  *result = _PyDict_GetItem_KnownHash(dict, key, hash);
+  if (*result == NULL) {
+    return 0;
+  }
+  Py_INCREF(*result);
+  return 1;
+}
 #endif
 
 #if CYTHON_ASSUME_SAFE_MACROS
