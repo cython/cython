@@ -1422,12 +1422,12 @@ static CYTHON_INLINE PyObject *__Pyx__GetModuleGlobalName(PyObject *name)
     PyObject *result;
 // FIXME: clean up the macro guard order here: limited API first, then borrowed refs, then cpython
 #if !CYTHON_AVOID_BORROWED_REFS
-#if CYTHON_COMPILING_IN_CPYTHON
+#if CYTHON_COMPILING_IN_CPYTHON && !CYTHON_AVOID_THREAD_UNSAFE_BORROWED_REFS
     // Identifier names are always interned and have a pre-calculated hash value.
-    __Pyx__PyDict_GetItemRef_KnownHash($moddict_cname, name, ((PyASCIIObject *) name)->hash, &result);
+    result = _PyDict_GetItem_KnownHash($moddict_cname, name, ((PyASCIIObject *) name)->hash);
     __PYX_UPDATE_DICT_CACHE($moddict_cname, result, *dict_cached_value, *dict_version)
     if (likely(result)) {
-        return result;
+        return __Pyx_NewRef(result);
     } else if (unlikely(PyErr_Occurred())) {
         return NULL;
     }

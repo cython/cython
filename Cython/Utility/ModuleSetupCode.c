@@ -1061,11 +1061,6 @@ static CYTHON_INLINE PyObject * __Pyx_PyDict_GetItemStrWithError(PyObject *dict,
 static CYTHON_INLINE int __Pyx_PyDict_GetItemRef(PyObject *dict, PyObject *key, PyObject **result) {
   return PyDict_GetItemRef(dict, key, result);
 }
-#if CYTHON_COMPILING_IN_CPYTHON
-static CYTHON_INLINE int __Pyx__PyDict_GetItemRef_KnownHash(PyObject *dict, PyObject *key, Py_hash_t hash, PyObject **result) {
-  return _PyDict_GetItemRef_KnownHash(dict, key, hash, result);
-}
-#endif
 #else
 #define __Pyx_PyList_GetItemRef(o, i) __Pyx_NewRef(PyList_GET_ITEM(o, i))
 static CYTHON_INLINE int __Pyx_PyDict_GetItemRef(PyObject *dict, PyObject *key, PyObject **result) {
@@ -1076,16 +1071,6 @@ static CYTHON_INLINE int __Pyx_PyDict_GetItemRef(PyObject *dict, PyObject *key, 
   Py_INCREF(*result);
   return 1;
 }
-#if CYTHON_COMPILING_IN_CPYTHON
-static CYTHON_INLINE int __Pyx__PyDict_GetItemRef_KnownHash(PyObject *dict, PyObject *key, Py_hash_t hash, PyObject **result) {
-  *result = _PyDict_GetItem_KnownHash(dict, key, hash);
-  if (*result == NULL) {
-    return 0;
-  }
-  Py_INCREF(*result);
-  return 1;
-}
-#endif
 #endif
 
 #if CYTHON_ASSUME_SAFE_MACROS
@@ -2247,7 +2232,7 @@ static PyObject* __Pyx_PyCode_New(
     }
     #else
     #if CYTHON_AVOID_THREAD_UNSAFE_BORROWED_REFS && PY_VERSION_HEX >= 0x030d00b1
-    PyDict_SetDefaultRef(tuple_dedup_map, varnames_tuple, varnames_tuple, &varnames_tuple_dedup)
+    PyDict_SetDefaultRef(tuple_dedup_map, varnames_tuple, varnames_tuple, &varnames_tuple_dedup);
     #else
     varnames_tuple_dedup = PyDict_SetDefault(tuple_dedup_map, varnames_tuple, varnames_tuple);
     #endif
