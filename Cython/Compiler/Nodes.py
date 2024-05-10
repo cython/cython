@@ -1031,10 +1031,23 @@ class CArgDeclNode(Node):
         if self.default:
             self.default.annotate(code)
 
-    def generate_assignment_code(self, code, target=None, overloaded_assignment=False):
+    def generate_assignment_code(self, code, overloaded_assignment=False,
+                                 cyfunc_struct_target=None):
         default = self.default
-        if default is None or default.is_literal:
+        if default is None:
             return
+        if cyfunc_struct_target is not None:
+            if not self.is_dynamic:
+                # We've already determined that this *isn't* part of the default
+                # struct. Note that the argument may still be a literal though,
+                # if it's been optimized to be a literal after is_dynamic was
+                # calculated.
+                return
+        elif default.is_literal:
+            return
+        # Note that even if self.is_dynamic, default may be a literal if it's been
+        # optimized into a literal after analyse_expressions
+        target = cyfunc_struct_target
         if target is None:
             target = self.calculate_default_value_code(code)
         default.generate_evaluation_code(code)
