@@ -3122,9 +3122,8 @@ class IteratorNode(ScopedExprNode):
         if test_name == 'List':
             code.putln("#if CYTHON_ASSUME_SAFE_MACROS && !CYTHON_AVOID_BORROWED_REFS")
             code.putln(
-                "%s = __Pyx_Py%s_GetItemRef(%s, %s); __Pyx_GOTREF(%s); %s%s; %s" % (
+                "%s = __Pyx_PyList_GetItemRef(%s, %s); __Pyx_GOTREF(%s); %s%s; %s" % (
                     result_name,
-                    test_name,
                     self.py_result(),
                     self.counter_cname,
                     result_name,
@@ -3136,9 +3135,8 @@ class IteratorNode(ScopedExprNode):
         else:  # Tuple
             code.putln("#if CYTHON_ASSUME_SAFE_MACROS && !CYTHON_AVOID_BORROWED_REFS")
             code.putln(
-                "%s = Py%s_GET_ITEM(%s, %s); __Pyx_INCREF(%s); %s%s; %s" % (
+                "%s = PyTuple_GET_ITEM(%s, %s); __Pyx_INCREF(%s); %s%s; %s" % (
                     result_name,
-                    test_name,
                     self.py_result(),
                     self.counter_cname,
                     result_name,

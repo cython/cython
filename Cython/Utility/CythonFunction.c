@@ -1218,8 +1218,6 @@ static int __Pyx_CyFunction_InitClassCell(PyObject *cyfunctions, PyObject *class
         __pyx_CyFunctionObject *m = (__pyx_CyFunctionObject *)
 #if CYTHON_ASSUME_SAFE_MACROS && !CYTHON_AVOID_BORROWED_REFS && !CYTHON_AVOID_THREAD_UNSAFE_BORROWED_REFS
             PyList_GET_ITEM(cyfunctions, i);
-#elif CYTHON_ASSUME_SAFE_MACROS && !CYTHON_AVOID_BORROWED_REFS
-            PyList_GetItemRef(cyfunctions, i);
 #else
             __Pyx_PySequence_ITEM(cyfunctions, i);
         if (unlikely(!m))
