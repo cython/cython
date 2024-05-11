@@ -222,7 +222,7 @@ The following options are accepted when creating buffer types:
 
 In all cases these parameters must be compile-time constants.
 
-As an example of specifying the parameters::
+As an example of how to specify the parameters::
 
     cdef cnp.ndarray[double, ndim=2, mode="c", cast=True] some_array
 
