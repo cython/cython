@@ -710,8 +710,11 @@ Cython won't perform automatic :c:func:`Py_INCREF`, or :c:func:`Py_DECREF`, e.g.
 will display::
 
     Initial refcount: 2
-    Inside owned_reference: 3
-    Inside borrowed_reference: 2
+    Inside owned_reference initially: 2
+    Inside owned_reference after new ref: 3
+    Inside borrowed_reference initially: 2
+    Inside borrowed_reference after new pointer: 2
+    Inside borrowed_reference with temporary managed reference: 2
 
 
 .. _optional_arguments:
