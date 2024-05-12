@@ -187,6 +187,8 @@ def arithmetic():
     assert typeof(f) == "long", typeof(f)
     g = 4 // <int>2
     assert typeof(g) == "long", typeof(g)
+    h = int(2) / 3.0
+    assert typeof(h) == "double", typeof(h)
 
 cdef class some_class:
     pass
