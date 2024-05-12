@@ -7,36 +7,56 @@ from cpython.exc cimport PyErr_SetFromErrno
 
 cdef extern from *:
     """
-    #if PY_VERSION_HEX >= 0x030d00b1
-        static CYTHON_INLINE PyTime_t __Pyx_PyTime_TimeRaw(void) {
-            PyTime_t tic;
+    #if PY_VERSION_HEX >= 0x030d00b1 || defined(PyTime_t)
+        #define __Pyx_PyTime_t PyTime_t
+    #else
+        #define __Pyx_PyTime_t _PyTime_t
+    #endif
+
+    #if PY_VERSION_HEX >= 0x030d00b1 || defined(PyTime_TimeRaw)
+        static CYTHON_INLINE __Pyx_PyTime_t __Pyx_PyTime_TimeRaw(void) {
+            __Pyx_PyTime_t tic;
             (void) PyTime_TimeRaw(&tic);
             return tic;
         }
-        static CYTHON_INLINE PyTime_t __Pyx_PyTime_MonotonicRaw(void) {
-            PyTime_t tic;
+    #else
+        #define __Pyx_PyTime_TimeRaw()  _PyTime_GetSystemClock()
+    #endif
+
+    #if PY_VERSION_HEX >= 0x030d00b1 || defined(PyTime_MonotonicRaw)
+        static CYTHON_INLINE __Pyx_PyTime_t __Pyx_PyTime_MonotonicRaw(void) {
+            __Pyx_PyTime_t tic;
             (void) PyTime_MonotonicRaw(&tic);
             return tic;
         }
-        static CYTHON_INLINE PyTime_t __Pyx_PyTime_PerfCounterRaw(void) {
-            PyTime_t tic;
+    #elif CYTHON_COMPILING_IN_PYPY && !defined(_PyTime_GetMonotonicClock)
+        #define __Pyx_PyTime_MonotonicRaw()  _PyTime_GetSystemClock()
+    #else
+        #define __Pyx_PyTime_MonotonicRaw()  _PyTime_GetMonotonicClock()
+    #endif
+
+    #if PY_VERSION_HEX >= 0x030d00b1 || defined(PyTime_PerfCounterRaw)
+        static CYTHON_INLINE __Pyx_PyTime_t __Pyx_PyTime_PerfCounterRaw(void) {
+            __Pyx_PyTime_t tic;
             (void) PyTime_PerfCounterRaw(&tic);
             return tic;
         }
-        #define __Pyx_PyTime_AsSecondsDouble(t)  PyTime_AsSecondsDouble(t)
-        #define __Pyx_PyTime_t PyTime_t
+    #elif CYTHON_COMPILING_IN_PYPY && !defined(_PyTime_GetPerfCounter)
+        #define __Pyx_PyTime_PerfCounterRaw()  __Pyx_PyTime_MonotonicRaw()
     #else
-        #define __Pyx_PyTime_TimeRaw()            _PyTime_GetSystemClock()
-        #define __Pyx_PyTime_MonotonicRaw()       _PyTime_GetMonotonicClock()
-        #define __Pyx_PyTime_PerfCounterRaw()     _PyTime_GetPerfCounter()
-        #define __Pyx_PyTime_AsSecondsDouble(t)   _PyTime_AsSecondsDouble(t)
-        #define __Pyx_PyTime_t _PyTime_t
+        #define __Pyx_PyTime_PerfCounterRaw()  _PyTime_GetPerfCounter()
+    #endif
+
+    #if PY_VERSION_HEX >= 0x030d00b1 || defined(PyTime_AsSecondsDouble)
+        #define __Pyx_PyTime_AsSecondsDouble(t)  PyTime_AsSecondsDouble(t)
+    #else
+        #define __Pyx_PyTime_AsSecondsDouble(t)  _PyTime_AsSecondsDouble(t)
     #endif
     """
     ctypedef int64_t PyTime_t "__Pyx_PyTime_t"
 
     ctypedef PyTime_t _PyTime_t "__Pyx_PyTime_t"  # legacy, use "PyTime_t" instead
-    PyTime_t PyTime_TimeUnchecked "__Pyx_PyTime_TimeRaw" ()  # legacy, use "PyTime_TimeRaw" instead
+    PyTime_t PyTime_TimeUnchecked "__Pyx_PyTime_TimeRaw" () noexcept nogil  # legacy, use "PyTime_TimeRaw" instead
 
     PyTime_t PyTime_TimeRaw "__Pyx_PyTime_TimeRaw" () noexcept nogil
     PyTime_t PyTime_MonotonicRaw "__Pyx_PyTime_MonotonicRaw" () noexcept nogil
