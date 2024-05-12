@@ -16,6 +16,26 @@ large_int_arr_2d = np.arange(1500*600, dtype=int).reshape((1500, -1))
 large_double_arr_1d = large_int_arr_1d.astype(np.double)
 large_double_arr_2d = large_int_arr_2d.astype(np.double)
 
+ctypedef double mydouble
+ctypedef int myint
+ctypedef double complex mycdouble
+
+cdef extern from *:
+    """
+    typedef float someone_elses_float;
+    typedef short someone_elses_int;
+    typedef unsigned char someone_elses_unsigned_int;
+    typedef signed long long someone_elses_signed_int;
+    typedef signed int extern_actually_signed;
+    typedef unsigned int extern_actually_unsigned;
+    """
+    ctypedef double someone_elses_float
+    ctypedef int someone_elses_int
+    ctypedef unsigned int someone_elses_unsigned_int
+    ctypedef signed int someone_elses_signed_int
+    ctypedef int extern_actually_signed
+    ctypedef int extern_actually_unsigned
+
 # it's fairly hard to test that nogil results in the GIL actually
 # being released unfortunately
 @cython.ufunc
@@ -196,4 +216,40 @@ def test_can_throw():
     Traceback (most recent call last):
     ...
     RuntimeError
+    """
+
+@cython.ufunc
+cdef mydouble known_typedefs(myint x, mycdouble y):
+    return x*y.real*y.imag
+
+def test_known_typedefs():
+    """
+    >>> known_typedefs(np.int32(3), 4+5j)
+    60.0
+    """
+
+@cython.ufunc
+cdef someone_elses_float unknown_typedefs(someone_elses_int x, someone_elses_signed_int y, someone_elses_unsigned_int z):
+    return x+y+z
+
+def test_unknown_typedefs():
+    """
+    >>> unknown_typedefs(np.short(1), np.longlong(3), np.uint8(2))
+    6.0
+    """
+
+ctypedef fused two_int_types:
+    extern_actually_signed
+    extern_actually_unsigned
+
+@cython.ufunc
+cdef object disambiguate_signedness(two_int_types x):
+    return cython.typeof(x)
+
+def test_disambiguate_asignedness():
+    """
+    >>> disambiguate_signedness(np.int32(-5))
+    'extern_actually_signed'
+    >>> disambiguate_signedness(np.uint32(10))
+    'extern_actually_unsigned'
     """

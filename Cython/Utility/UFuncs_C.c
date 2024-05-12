@@ -14,6 +14,58 @@
 #define __PYX_PYUFUNCGENERICFUNCTION_CAST(x) (PyUFuncGenericFunction)x
 #endif
 
+/////////////////////// UFuncTypeHandling.proto //////////////
+
+#define __PYX_GET_NPY_COMPLEX_TYPE(tp) \
+    sizeof(tp) == sizeof(npy_cfloat) ? NPY_CFLOAT : \
+    sizeof(tp) == sizeof(npy_cdouble) ? NPY_CDOUBLE : \
+    sizeof(tp) == sizeof(npy_clongdouble) ? NPY_CLONGDOUBLE : NPY_NOTYPE
+
+#define __PYX_GET_NPY_FLOAT_TYPE(tp) \
+    sizeof(tp) == sizeof(npy_float) ? NPY_FLOAT : \
+    sizeof(tp) == sizeof(npy_double) ? NPY_DOUBLE : \
+    sizeof(tp) == sizeof(npy_longdouble) ? NPY_LONGDOUBLE : NPY_NOTYPE
+
+#define __PYX_GET_NPY_UINT_TYPE(tp) \
+    sizeof(tp) == 1 ? NPY_UINT8 : \
+    sizeof(tp) == 2 ? NPY_UINT16 : \
+    sizeof(tp) == 4 ? NPY_UINT32 : \
+    sizeof(tp) == 8 ? NPY_UINT64 : NPY_NOTYPE
+
+#define __PYX_GET_NPY_SINT_TYPE(tp) \
+    sizeof(tp) == 1 ? NPY_INT8 : \
+    sizeof(tp) == 2 ? NPY_INT16 : \
+    sizeof(tp) == 4 ? NPY_INT32 : \
+    sizeof(tp) == 8 ? NPY_INT64 : NPY_NOTYPE
+
+#define __PYX_GET_NPY_INT_TYPE(tp) \
+    (((tp)-1) < (tp)0) ? \
+        (__PYX_GET_NPY_SINT_TYPE(tp)) : \
+        (__PYX_GET_NPY_UINT_TYPE(tp))
+
+static int __Pyx_validate_ufunc_types(char *types, Py_ssize_t count, Py_ssize_t input_count);
+
+/////////////////////// UFuncTypeHandling ///////////////
+
+// DW - it's a bit of a shame that this has to be a runtime check since the C compiler does
+// know it. We could make this a compile-time error in C++, but not easily in C.
+static int __Pyx_validate_ufunc_types(char *types, Py_ssize_t count, Py_ssize_t input_count) {
+    Py_ssize_t i;
+    for (i=0; i<count; ++i) {
+        if (types[i] == NPY_NOTYPE) {
+            PyErr_Format(
+                PyExc_TypeError,
+                "Invalid type for %s argument %d to ufunc. "
+                "This is from an external typedef that Cython could not resolve.",
+                (i < input_count ? "input" : "output"),
+                (i < input_count ? i : i - input_count)
+            );
+            return -1;
+        }
+    }
+    return 0;
+}
+
 /////////////////////// UFuncConsts.proto ////////////////////
 
 // getter functions because we can't forward-declare arrays
