@@ -38,10 +38,10 @@
     sizeof(tp) == 4 ? NPY_INT32 : \
     sizeof(tp) == 8 ? NPY_INT64 : NPY_NOTYPE
 
-#define __PYX_GET_NPY_INT_TYPE(tp) \
-    (((tp)-1) < (tp)0) ? \
-        (__PYX_GET_NPY_SINT_TYPE(tp)) : \
-        (__PYX_GET_NPY_UINT_TYPE(tp))
+#define __PYX_GET_NPY_INT_TYPE(tp) ( \
+    (((tp)-1) > (tp)0) ? \
+        (__PYX_GET_NPY_UINT_TYPE(tp)) : \
+        (__PYX_GET_NPY_SINT_TYPE(tp)) )
 
 static int __Pyx_validate_ufunc_types(char *types, Py_ssize_t count, Py_ssize_t input_count);
 
