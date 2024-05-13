@@ -1268,10 +1268,12 @@ hidden by default since most users will be uninterested in changing them.
             (where it is enabled by default).
 
         ``CYTHON_AVOID_THREAD_UNSAFE_BORROWED_REFS``
-            Avoid using APIs that return "borrowed references" and instead use
+            Avoid using APIs that return unsafe "borrowed references" and instead use
             the equivalent APIs that return "strong references". Most useful for
             the free-threaded build of CPython, where incrementing the reference
-            count of borrowed references might introduce thread safety issues.
+            count of borrowed references to items in mutable containers might 
+            introduce thread safety issues. Borrowed references to items in immutable
+            containers are still allowed with this setting.
 
         ``CYTHON_ASSUME_SAFE_MACROS``
             Use some C-API macros that increase performance by skipping error checking,
