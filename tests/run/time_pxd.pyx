@@ -5,6 +5,9 @@ import time
 
 from cpython cimport time as ctime
 
+import sys
+cdef bint IS_PYPY = hasattr(sys, 'pypy_version_info')
+
 
 def test_time():
     """
@@ -53,9 +56,9 @@ def test_perf_counter():
     True
     """
     # check that C-API matches Py-API to within call-time tolerance
-    tic1 = time.perf_counter()
+    tic1 = time.perf_counter()  if not IS_PYPY else  ctime.perf_counter()
     tic2 = ctime.perf_counter()
-    tic3 = time.perf_counter()
+    tic3 = time.perf_counter()  if not IS_PYPY else  ctime.perf_counter()
 
     return tic1, tic2, tic3
 
@@ -71,9 +74,9 @@ def test_perf_counter_ns():
     True
     """
     # check that C-API matches Py-API to within call-time tolerance
-    tic1 = time.perf_counter_ns()
+    tic1 = time.perf_counter_ns()  if not IS_PYPY else  ctime.perf_counter_ns()
     tic2 = ctime.perf_counter_ns()
-    tic3 = time.perf_counter_ns()
+    tic3 = time.perf_counter_ns()  if not IS_PYPY else  ctime.perf_counter_ns()
 
     return tic1, tic2, tic3
 
@@ -89,9 +92,9 @@ def test_monotonic():
     True
     """
     # check that C-API matches Py-API to within call-time tolerance
-    tic1 = time.monotonic()
+    tic1 = time.monotonic()  if not IS_PYPY else  ctime.monotonic()
     tic2 = ctime.monotonic()
-    tic3 = time.monotonic()
+    tic3 = time.monotonic()  if not IS_PYPY else  ctime.monotonic()
 
     return tic1, tic2, tic3
 
@@ -107,9 +110,9 @@ def test_monotonic_ns():
     True
     """
     # check that C-API matches Py-API to within call-time tolerance
-    tic1 = time.monotonic_ns()
+    tic1 = time.monotonic_ns()  if not IS_PYPY else  ctime.monotonic_ns()
     tic2 = ctime.monotonic_ns()
-    tic3 = time.monotonic_ns()
+    tic3 = time.monotonic_ns()  if not IS_PYPY else  ctime.monotonic_ns()
 
     return tic1, tic2, tic3
 

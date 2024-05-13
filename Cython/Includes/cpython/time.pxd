@@ -1,5 +1,10 @@
 """
 Cython implementation of (parts of) the standard library time module.
+
+Note: On implementations that lack a C-API for monotonic/perfcounter clocks
+(like PyPy), the fallback code uses the system clock which may return absolute
+time values from a different value range, differing from those provided by
+Python's "time" module.
 """
 
 from libc.stdint cimport int64_t
