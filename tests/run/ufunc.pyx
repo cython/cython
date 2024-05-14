@@ -238,6 +238,21 @@ def test_unknown_typedefs():
     6.0
     """
 
+# really a compile-time test - should only generate one lot of utility code when working
+# out what the Numpy type is.
+@cython.ufunc
+cdef double use_an_unknown_type_twice(someone_elses_float x, someone_elses_float y):
+    return x * y
+
+def test_use_twice():
+    """
+    >>> use_an_unknown_type_twice(2.0, 3.0)  # doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    TypeError: ...
+    >>> use_an_unknown_type_twice(np.float32(2.0), np.float32(3.0))
+    6.0
+    """
+
 ctypedef fused two_int_types:
     extern_actually_signed
     extern_actually_unsigned

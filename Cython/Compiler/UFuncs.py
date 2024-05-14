@@ -36,44 +36,6 @@ numpy_numeric_types = (
 )
 
 
-def _get_type_constant(pos, type_):
-    while type_.is_typedef and not type_.typedef_is_external:
-        type_ = type_.typedef_base_type
-    if type_.is_typedef:
-        assert type_.typedef_is_external
-        if type_.is_complex:
-            return f"__PYX_GET_NPY_COMPLEX_TYPE({type_.empty_declaration_code()})"
-        elif type_.is_int:
-            signed = ""
-            if type_.signed == PyrexTypes.SIGNED:
-                signed = "S"
-            elif type_.signed == PyrexTypes.UNSIGNED:
-                signed = "U"
-            return f"__PYX_GET_NPY_{signed}INT_TYPE({type_.empty_declaration_code()})"
-        elif type_.is_float:
-            return f"__PYX_GET_NPY_FLOAT_TYPE({type_.empty_declaration_code()})"
-    if type_.is_complex:
-        # 'is' checks don't seem to work for complex types
-        if type_ == PyrexTypes.c_float_complex_type:
-            return "NPY_CFLOAT"
-        elif type_ == PyrexTypes.c_double_complex_type:
-            return "NPY_CDOUBLE"
-        elif type_ == PyrexTypes.c_longdouble_complex_type:
-            return "NPY_CLONGDOUBLE"
-        else:
-            return f"__PYX_NPY_GET_COMPLEX_TYPE({type_.empty_declaration_code()})"
-    elif type_.is_numeric:
-        postfix = type_.empty_declaration_code().upper().replace(" ", "")
-        typename = "NPY_%s" % postfix
-        if typename in numpy_numeric_types:
-            return typename
-    elif type_.is_pyobject:
-        return "NPY_OBJECT"
-    # TODO possible NPY_BOOL to bint but it needs a cast?
-    # TODO NPY_DATETIME, NPY_TIMEDELTA, NPY_STRING, NPY_UNICODE and maybe NPY_VOID might be handleable
-    error(pos, "Type '%s' cannot be used as a ufunc argument" % type_)
-
-
 class _FindCFuncDefNode(TreeVisitor):
     """
     Finds the CFuncDefNode in the tree
@@ -122,10 +84,71 @@ class UFuncConversion:
         self.in_definitions = self.get_in_type_info()
         self.out_definitions = self.get_out_type_info()
 
+    def _handle_typedef_type_constant(self, type_, macro_name):
+        decl = type_.empty_declaration_code()
+        substituted_cname = decl.strip().replace('_', '__').replace(' ', '_')
+        context = dict(
+            type_substituted_cname=substituted_cname,
+            macro_name=macro_name,
+            type_cname=decl,
+        )
+        self.global_scope.use_utility_code(
+            TempitaUtilityCode.load(
+                'UFuncTypedef',
+                'UFuncs_C.c',
+                context=context
+            ))
+        return f"__Pyx_typedef_ufunc_{substituted_cname}"
+
+    def _get_type_constant(self, pos, type_):
+        while type_.is_typedef and not type_.typedef_is_external:
+            type_ = type_.typedef_base_type
+        if type_.is_typedef:
+            assert type_.typedef_is_external
+            if type_.is_complex:
+                return self._handle_typedef_type_constant(
+                    type_,
+                    "__PYX_GET_NPY_COMPLEX_TYPE")
+            elif type_.is_int:
+                signed = ""
+                if type_.signed == PyrexTypes.SIGNED:
+                    signed = "S"
+                elif type_.signed == PyrexTypes.UNSIGNED:
+                    signed = "U"
+                return self._handle_typedef_type_constant(
+                    type_,
+                    f"__PYX_GET_NPY_{signed}INT_TYPE")
+            elif type_.is_float:
+                return self._handle_typedef_type_constant(
+                    type_,
+                    "__PYX_GET_NPY_FLOAT_TYPE")
+        if type_.is_complex:
+            # 'is' checks don't seem to work for complex types
+            if type_ == PyrexTypes.c_float_complex_type:
+                return "NPY_CFLOAT"
+            elif type_ == PyrexTypes.c_double_complex_type:
+                return "NPY_CDOUBLE"
+            elif type_ == PyrexTypes.c_longdouble_complex_type:
+                return "NPY_CLONGDOUBLE"
+            else:
+                return self._handle_typedef_type_constant(
+                    type_,
+                    "__PYX_NPY_GET_COMPLEX_TYPE")
+        elif type_.is_numeric:
+            postfix = type_.empty_declaration_code().upper().replace(" ", "")
+            typename = "NPY_%s" % postfix
+            if typename in numpy_numeric_types:
+                return typename
+        elif type_.is_pyobject:
+            return "NPY_OBJECT"
+        # TODO possible NPY_BOOL to bint but it needs a cast?
+        # TODO NPY_DATETIME, NPY_TIMEDELTA, NPY_STRING, NPY_UNICODE and maybe NPY_VOID might be handleable
+        error(pos, "Type '%s' cannot be used as a ufunc argument" % type_)
+
     def get_in_type_info(self):
         definitions = []
         for n, arg in enumerate(self.node.args):
-            type_const = _get_type_constant(self.node.pos, arg.type)
+            type_const = self._get_type_constant(self.node.pos, arg.type)
             definitions.append(_ArgumentInfo(arg.type, type_const))
         return definitions
 
@@ -137,7 +160,7 @@ class UFuncConversion:
         definitions = []
         for n, type in enumerate(components):
             definitions.append(
-                _ArgumentInfo(type, _get_type_constant(self.node.pos, type))
+                _ArgumentInfo(type, self._get_type_constant(self.node.pos, type))
             )
         return definitions
 
@@ -254,33 +277,6 @@ def generate_ufunc_initialization(converters, cfunc_nodes, original_node):
     func_name = original_node.entry.name
     docstr = original_node.doc
 
-    validation_call_node = ExprNodes.PythonCapiCallNode(
-        pos,
-        function_name="__Pyx_validate_ufunc_types",
-        func_type=PyrexTypes.CFuncType(
-            PyrexTypes.c_int_type,
-            [PyrexTypes.CFuncTypeArg("types", PyrexTypes.c_char_ptr_type, None),
-             PyrexTypes.CFuncTypeArg("arg_count", PyrexTypes.c_py_ssize_t_type, None),
-             PyrexTypes.CFuncTypeArg("input_arg_count", PyrexTypes.c_py_ssize_t_type, None)],
-            exception_value="-1"
-        ),
-        args = [
-            ExprNodes.ConstNode(
-                pos, type=PyrexTypes.c_char_ptr_type, value=f"{ufunc_types_name}()"
-            ),
-            ExprNodes.ConstNode(
-                pos, type=PyrexTypes.c_py_ssize_t_type, value=str(narg_in+narg_out)
-            ),
-            ExprNodes.ConstNode(
-                pos, type=PyrexTypes.c_py_ssize_t_type, value=str(narg_in)
-            ),
-        ]
-    )
-    validation_call_node = Nodes.ExprStatNode(
-        pos,
-        expr=validation_call_node
-    )
-
     args_to_func = '%s(), %s, %s(), %s, %s, %s, PyUFunc_None, "%s", %s, 0' % (
         ufunc_funcs_name,
         ufunc_data_name,
@@ -314,7 +310,7 @@ def generate_ufunc_initialization(converters, cfunc_nodes, original_node):
         ),
         rhs=call_node,
     )
-    return [validation_call_node, assgn_node]
+    return assgn_node
 
 
 def _generate_stats_from_converters(converters, node):
@@ -326,5 +322,5 @@ def _generate_stats_from_converters(converters, node):
         converter.global_scope.utility_code_list.extend(tree.scope.utility_code_list)
         stats.append(ufunc_node)
 
-    stats.extend(generate_ufunc_initialization(converters, stats, node))
+    stats.append(generate_ufunc_initialization(converters, stats, node))
     return stats

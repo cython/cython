@@ -43,28 +43,23 @@
         (__PYX_GET_NPY_UINT_TYPE(tp)) : \
         (__PYX_GET_NPY_SINT_TYPE(tp)) )
 
-static int __Pyx_validate_ufunc_types(char *types, Py_ssize_t count, Py_ssize_t input_count);
+/////////////////////// UFuncTypedef.proto ///////////////////
+//@requires: UFuncTypeHandling
 
-/////////////////////// UFuncTypeHandling ///////////////
+enum {
+    /*
+      Deduce what to tell Numpy about the extern typedef '{{type_cname}}'
+    */
+    __Pyx_typedef_ufunc_{{type_substituted_cname}} = {{macro_name}}({{type_cname}}),
 
-// DW - it's a bit of a shame that this has to be a runtime check since the C compiler does
-// know it. We could make this a compile-time error in C++, but not easily in C.
-static int __Pyx_validate_ufunc_types(char *types, Py_ssize_t count, Py_ssize_t input_count) {
-    Py_ssize_t i;
-    for (i=0; i<count; ++i) {
-        if (types[i] == NPY_NOTYPE) {
-            PyErr_Format(
-                PyExc_TypeError,
-                "Invalid type for %s argument %d to ufunc. "
-                "This is from an external typedef that Cython could not resolve.",
-                (i < input_count ? "input" : "output"),
-                (i < input_count ? i : i - input_count)
-            );
-            return -1;
-        }
-    }
-    return 0;
-}
+    /* Validation:
+       If the line below is failing then you are using the extern typedef
+       '{{type_cname}}' as a parameter in a ufunc and Cython can't work out
+       how to map the type to a Numpy type.
+    */
+    __Pyx_typedef_ufunc_validation_{{type_substituted_cname}} =
+        1 / (int)(__Pyx_typedef_ufunc_{{type_substituted_cname}} - NPY_NOTYPE)
+};
 
 /////////////////////// UFuncConsts.proto ////////////////////
 
