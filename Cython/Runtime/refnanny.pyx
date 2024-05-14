@@ -6,6 +6,47 @@ from cpython.pystate cimport PyThreadState_Get
 
 cimport cython
 
+cdef extern from *:
+    """
+    #if CYTHON_COMPILING_IN_CPYTHON_NOGIL
+    static CYTHON_INLINE int __Pyx_refnanny_init_lock(PyThread_type_lock* lock) {
+         *lock = PyThread_allocate_lock();
+         if (!*lock) {
+            PyErr_NoMemory();
+            return -1;
+         }
+         return 0;
+    }
+
+    static CYTHON_INLINE void __Pyx_refnanny_free_lock(PyThread_type_lock lock) {
+        PyThread_free_lock(lock);
+    }
+
+    static CYTHON_INLINE void __Pyx_refnanny_lock_acquire(PyThread_type_lock lock) {
+        while (!PyThread_acquire_lock_timed(lock, 100, 0) {
+            // If we can't get the lock, release and acquire the GIL to avoid
+            // deadlocking.
+            Py_BEGIN_ALLOW_THREADS
+            Py_END_ALLOW_THREADS
+        }
+    }
+
+    static CYTHON_INLINE void __Pyx_refnanny_lock_release(PyThread_type_lock lock) {
+        PyThread_release_lock(lock);
+    }
+    #else
+    #define __Pyx_refnanny_init_lock(lock) 0
+    #define __Pyx_refnanny_free_lock(lock)
+    #define __Pyx_refnanny_lock_acquire(lock)
+    #define __Pyx_refnanny_lock_release(lock)
+    #endif
+    """
+    ctypedef void *PyThread_type_lock
+    int __Pyx_refnanny_init_lock(PyThread_type_lock* lock) except -1
+    void __Pyx_refnanny_free_lock(PyThread_type_lock lock)
+    void __Pyx_refnanny_lock_acquire(PyThread_type_lock lock)
+    void __Pyx_refnanny_lock_release(PyThread_type_lock lock)
+
 loglevel = 0
 reflog = []
 
@@ -24,13 +65,24 @@ cdef class Context(object):
     cdef readonly dict refs
     cdef readonly list errors
     cdef readonly Py_ssize_t start
+    cdef PyThread_type_lock lock
 
     def __cinit__(self, name, line=0, filename=None):
+        __Pyx_refnanny_init_lock(&self.lock)
         self.name = name
         self.start = line
         self.filename = filename
         self.refs = {} # id -> (count, [lineno])
         self.errors = []
+
+    def __dealloc__(self):
+        __Pyx_refnanny_free_lock(self.lock)
+
+    cdef acquire_lock(self):
+        __Pyx_refnanny_lock_acquire(self.lock)
+
+    cdef release_lock(self):
+        __Pyx_refnanny_lock_release(self.lock)
 
     cdef regref(self, obj, Py_ssize_t lineno, bint is_null):
         log(LOG_ALL, u'regref', u"<NULL>" if is_null else obj, lineno)
@@ -103,6 +155,7 @@ cdef PyObject* SetupContext(char* funcname, Py_ssize_t lineno, char* filename) e
 cdef void GOTREF(PyObject* ctx, PyObject* p_obj, Py_ssize_t lineno):
     if ctx == NULL: return
     cdef (PyObject*) type = NULL, value = NULL, tb = NULL
+    (<Context>ctx).acquire_lock()
     PyErr_Fetch(&type, &value, &tb)
     try:
         (<Context>ctx).regref(
@@ -114,12 +167,14 @@ cdef void GOTREF(PyObject* ctx, PyObject* p_obj, Py_ssize_t lineno):
         report_unraisable((<Context>ctx).filename, lineno=(<Context>ctx).start)
     finally:
         PyErr_Restore(type, value, tb)
+        (<Context>ctx).release_lock()
         return  # swallow any exceptions
 
 cdef bint GIVEREF_and_report(PyObject* ctx, PyObject* p_obj, Py_ssize_t lineno):
     if ctx == NULL: return 1
     cdef (PyObject*) type = NULL, value = NULL, tb = NULL
     cdef bint decref_ok = False
+    (<Context>ctx).acquire_lock()
     PyErr_Fetch(&type, &value, &tb)
     try:
         decref_ok = (<Context>ctx).delref(
@@ -131,6 +186,7 @@ cdef bint GIVEREF_and_report(PyObject* ctx, PyObject* p_obj, Py_ssize_t lineno):
         report_unraisable((<Context>ctx).filename, lineno=(<Context>ctx).start)
     finally:
         PyErr_Restore(type, value, tb)
+        (<Context>ctx).release_lock()
         return decref_ok  # swallow any exceptions
 
 cdef void GIVEREF(PyObject* ctx, PyObject* p_obj, Py_ssize_t lineno):
