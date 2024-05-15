@@ -4758,14 +4758,16 @@ class SpecialPythonTypeConstructor(PyObjectType, PythonTypeConstructorMixin):
         return self
 
     def specialize_here(self, pos, env, template_values=None):
-        if len(template_values) != 1:
-            error(pos, "'%s' takes exactly one template argument." % self.name)
-            return error_type
-        if template_values[0] is None:
-            # FIXME: allowing unknown types for now since we don't recognise all Python types.
+        if len(template_values) == 1:
+            if template_values[0] is None:
+                # FIXME: allowing unknown types for now since we don't recognise all Python types.
+                return None
+            # Replace this type with the actual 'template' argument.
+            return template_values[0].resolve()
+        types = [tv.resolve() for tv in template_values if tv is not None]
+        if len(types) == 0:
             return None
-        # Replace this type with the actual 'template' argument.
-        return template_values[0].resolve()
+        return FusedType(types)
 
 
 rank_to_type_name = (
