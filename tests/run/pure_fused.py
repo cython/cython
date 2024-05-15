@@ -4,6 +4,7 @@
 #cython: annotation_typing=True
 
 import cython
+from typing import Union
 
 InPy = cython.fused_type(cython.int, cython.float)
 
@@ -61,4 +62,31 @@ class TestCls:
         'int'
         """
         loc = arg
+        return cython.typeof(arg)
+
+    def annotation(self, arg: Union[cython.int, cython.float]):
+        """
+        >>> TestCls().annotation(1.0)
+        'float'
+        >>> TestCls().annotation(2)
+        'int'
+        """
+        return cython.typeof(arg)
+
+    def annotation_return(self, arg: Union[cython.int, cython.float]) -> Union[cython.int, cython.float]:
+        """
+        >>> TestCls().annotation_return(1.0)
+        1.0
+        >>> TestCls().annotation_return(2)
+        2
+        """
+        return arg
+
+    def annotation_None_ignored(self, arg: Union[cython.int, cython.float, None]):
+        """
+        >>> TestCls().annotation_None_ignored(1.0)
+        'float'
+        >>> TestCls().annotation_None_ignored(2)
+        'int'
+        """
         return cython.typeof(arg)
