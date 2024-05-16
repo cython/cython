@@ -1249,6 +1249,10 @@ class TemplatedTypeNode(CBaseTypeNode):
 
         template_types = []
         for template_node in self.positional_args:
+
+            if base_type.python_type_constructor_name == 'typing.Union' and template_node.constant_result is None:
+                error(template_node.pos, "typing.Union does not support None parameter")
+                ttype = error_type
             # CBaseTypeNode -> allow C type declarations in a 'cdef' context again
             with env.new_c_type_context(in_c_type_context or isinstance(template_node, CBaseTypeNode)):
                 ttype = template_node.analyse_as_type(env)
@@ -1267,6 +1271,10 @@ class TemplatedTypeNode(CBaseTypeNode):
                     ))
                     ttype = error_type
             template_types.append(ttype)
+
+        if base_type.python_type_constructor_name == 'typing.Optional' and len(template_types) > 1:
+            error(template_node.pos, "typing.Optional requires one parameter")
+            return [error_type]
 
         return template_types
 

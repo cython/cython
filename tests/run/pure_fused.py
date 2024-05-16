@@ -81,12 +81,3 @@ class TestCls:
         2
         """
         return arg
-
-    def annotation_None_ignored(self, arg: Union[cython.int, cython.float, None]):
-        """
-        >>> TestCls().annotation_None_ignored(1.0)
-        'float'
-        >>> TestCls().annotation_None_ignored(2)
-        'int'
-        """
-        return cython.typeof(arg)

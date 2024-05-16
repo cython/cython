@@ -20,6 +20,8 @@ MyStruct = cython.struct(a=cython.int, b=cython.double)
 def optional_cstruct(x: Optional[MyStruct]):
     pass
 
+def optional_multiple_arguments(x: Optional[int, float]):
+    pass
 
 # OK
 
@@ -40,4 +42,5 @@ _ERRORS = """
 14:100: typing.Optional[...] cannot be applied to type long long
 
 20:33: typing.Optional[...] cannot be applied to type MyStruct
+23:49: typing.Optional requires one parameter
 """
