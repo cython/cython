@@ -1941,6 +1941,19 @@ class FusedType(CType):
             seen.add(self)
 
 
+class UnionType(FusedType):
+
+    def __init__(self, types):
+        type_list = ','.join([t.typeof_name() for t in sorted(types)])
+        super().__init__(sorted(types), f'Union[{type_list}]')
+
+    def __eq__(self, other):
+        return isinstance(other, UnionType) and self.types == other.types and self.name == other.name
+
+    def __hash__(self):
+        return hash((tuple(self.types), self.name))
+
+
 class CVoidType(CType):
     #
     #   C "void" type
@@ -4767,7 +4780,7 @@ class SpecialPythonTypeConstructor(PyObjectType, PythonTypeConstructorMixin):
         types = [tv.resolve() for tv in template_values if tv is not None]
         if len(types) == 0:
             return None
-        return FusedType(types)
+        return UnionType(types)
 
 
 rank_to_type_name = (
