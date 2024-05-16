@@ -563,15 +563,20 @@ class CompilationResult:
     compilation_source CompilationSource
     """
 
-    def __init__(self):
-        self.c_file = None
-        self.h_file = None
-        self.i_file = None
-        self.api_file = None
-        self.listing_file = None
-        self.object_file = None
-        self.extension_file = None
-        self.main_source_file = None
+    c_file = None
+    h_file = None
+    i_file = None
+    api_file = None
+    listing_file = None
+    object_file = None
+    extension_file = None
+    main_source_file = None
+
+    def get_generated_source_files(self):
+        return [
+            source_file for source_file in [self.c_file, self.h_file, self.i_file, self.api_file]
+            if source_file
+        ]
 
 
 class CompilationResultSet(dict):
@@ -746,12 +751,7 @@ def main(command_line = 0):
     if command_line:
         try:
             options, sources = parse_command_line(args)
-        except OSError as e:
-            # TODO: IOError can be replaced with FileNotFoundError in Cython 3.1
-            import errno
-            if errno.ENOENT != e.errno:
-                # Raised IOError is not caused by missing file.
-                raise
+        except FileNotFoundError as e:
             print("{}: No such file or directory: '{}'".format(sys.argv[0], e.filename), file=sys.stderr)
             sys.exit(1)
     else:

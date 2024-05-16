@@ -9,6 +9,11 @@ Working with NumPy
           below, have less overhead, and can be passed around without requiring the GIL.
           They should be preferred to the syntax presented in this page.
           See :ref:`Cython for NumPy users <numpy_tutorial>`.
+          
+.. NOTE:: There is currently no way to usefully specify Numpy arrays using
+          Python-style annotations and we do not currently plan to add one.
+          If you want to use annotation typing then we recommend using
+          typed memoryviews instead.
 
 You can use NumPy from Cython exactly the same as in regular Python, but by
 doing so you are losing potentially high speedups because Cython has support
@@ -196,3 +201,33 @@ There is some speed penalty to this though (as one makes more assumptions
 compile-time if the type is set to :obj:`cnp.ndarray`, specifically it is
 assumed that the data is stored in pure strided mode and not in indirect
 mode).
+
+Buffer options
+==============
+
+The following options are accepted when creating buffer types:
+
+* ``ndim`` - an integer number of dimensions.
+* ``mode`` - a string from:
+
+  * ``"c"`` - C contiguous array,
+  * ``"fortran"`` - Fortran contiguous array,
+  * ``"strided"`` - non-contiguous lookup into a single block of memory,
+  * ``"full"`` - any valid buffer, including indirect arrays.
+* ``negative_indices`` - boolean value specifying whether negative indexing is allowed, essentially
+  a per-variable version of the compiler directive ``cython.wraparound``.
+* ``cast`` - boolean value specifying whether to allow the user to view the array as a different
+  type. The sizes of the source and destination type must be the same. In C++ this would be
+  equivalent to ``reinterpret_cast``.
+
+In all cases these parameters must be compile-time constants.
+
+As an example of how to specify the parameters::
+
+    cdef cnp.ndarray[double, ndim=2, mode="c", cast=True] some_array
+
+``cast`` can be used to get a low-level view of an array with non-native endianness::
+
+    cdef cnp.ndarray[cnp.uint32, cast=True] values = np.arange(10, dtype='>i4')
+
+although correctly interpreting the cast data is the user's responsibility.

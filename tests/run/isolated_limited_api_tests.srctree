@@ -21,6 +21,8 @@ setup(
 
 ##################### run.py ##################################
 
+import decimal
+
 import limited
 import weakref
 import sys
@@ -48,11 +50,21 @@ if sys.version_info >= (3, 9):
     weakref.ref(limited.D())
     weakref.ref(limited.E())
 
+assert limited.C.cm() == limited.C().cm() == limited.C
+assert limited.D.cm() == limited.D().cm() == limited.D
+
 assert limited.decode(b'a', bytearray(b'b')) == "ab"
 
 assert limited.cast_float(1) == 1.0
 assert limited.cast_float("2.0") == 2.0
 assert limited.cast_float(bytearray(b"3")) == 3.0
+
+assert limited.add_one(2) == 3
+assert limited.float_equals(1.5)
+assert not limited.float_equals(2)
+assert not limited.float_equals(None)
+assert limited.float_equals(decimal.Decimal("1.5"))
+
 
 
 ##################### limited.pyx #############################
@@ -80,6 +92,9 @@ def lsum(values):
         for value in reversed(<tuple>values):
             result += value
     return result
+    
+def add_one(value):
+    return value + 1
 
 @cython.binding(False)
 def raises():
@@ -97,11 +112,20 @@ def catches():
 def cast_float(object o):
     return float(o)
 
+def float_equals(o):
+    return o == 1.5
+
 class C:
-    pass
+    @classmethod
+    def cm(cls):
+        return cls
 
 cdef class D:
     cdef object __weakref__
+
+    @classmethod
+    def cm(cls):
+        return cls
 
 cdef class E(D):
     pass

@@ -94,6 +94,8 @@ __doc__ = u"""
     >>> vs0_index = vs0.__index__
     >>> vs0_index()
     VS __index__ 0
+    >>> set_name = SetName()
+    >>> assert "SetName 'SetName' 'attr'" == set_name.attr, set_name.attr
 """
 
 cdef extern from *:
@@ -549,6 +551,20 @@ cdef class SetDelete:
 cdef class Long:
     def __long__(self):
         print "Long __long__"
+
+class _SetName:
+
+    def __init__(self):
+        self.set_name = None
+
+    def __set_name__(self, owner, name):
+        self.set_name = "SetName %r %r" % (owner.__name__, name)
+
+    def __get__(self, inst, own):
+        return self.set_name
+
+cdef class SetName:
+    attr = _SetName()
 
 cdef class GetAttrGetItemRedirect:
     """

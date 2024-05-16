@@ -1,5 +1,5 @@
 PACKAGENAME=Cython
-PYTHON?=python
+PYTHON?=python3
 TESTOPTS?=
 REPO = git://github.com/cython/cython.git
 VERSION?=$(shell sed -ne 's|^__version__\s*=\s*"\([^"]*\)".*|\1|p' Cython/Shadow.py)
@@ -33,11 +33,11 @@ sdist: dist/$(PACKAGENAME)-$(VERSION).tar.gz
 dist/$(PACKAGENAME)-$(VERSION).tar.gz:
 	$(PYTHON) setup.py sdist
 
-pywheel: dist/$(PACKAGENAME)-$(VERSION)-py2.py3-none-any.whl
+pywheel: dist/$(PACKAGENAME)-$(VERSION)-py3-none-any.whl
 
-dist/$(PACKAGENAME)-$(VERSION)-py2.py3-none-any.whl:
-	${PYTHON} setup.py bdist_wheel --no-cython-compile --universal
-	[ -f "$@" ]  # check that we generated the expected universal wheel
+dist/$(PACKAGENAME)-$(VERSION)-py3-none-any.whl:
+	${PYTHON} setup.py bdist_wheel --no-cython-compile
+	[ -f "$@" ]  # check that we generated the expected Py3-only wheel
 
 TMPDIR = .repo_tmp
 .git: .gitrev

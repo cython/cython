@@ -149,7 +149,6 @@ from cpython.mapping cimport *
 from cpython.iterator cimport *
 from cpython.type cimport *
 from cpython.number cimport *
-from cpython.int cimport *
 from cpython.bool cimport *
 from cpython.long cimport *
 from cpython.float cimport *
@@ -164,10 +163,6 @@ from cpython.weakref cimport *
 from cpython.getargs cimport *
 from cpython.pythread cimport *
 from cpython.pystate cimport *
-
-# Python <= 2.x
-from cpython.cobject cimport *
-from cpython.oldbuffer cimport *
 
 # Python >= 2.4
 from cpython.set cimport *

@@ -442,6 +442,8 @@ int_types = [
     'Py_hash_t',
     'Py_ssize_t',
     'size_t',
+    'ssize_t',
+    'ptrdiff_t',
 ]
 float_types = [
     'longdouble',
@@ -478,7 +480,7 @@ del builtins
 for name in int_types:
     reprname = to_repr(name, name)
     gs[name] = typedef(py_int, reprname)
-    if name not in ('Py_UNICODE', 'Py_UCS4') and not name.endswith('size_t'):
+    if name not in ('Py_UNICODE', 'Py_UCS4', 'Py_hash_t', 'ptrdiff_t') and not name.endswith('size_t'):
         gs['u'+name] = typedef(py_int, "unsigned " + reprname)
         gs['s'+name] = typedef(py_int, "signed " + reprname)
 
@@ -488,18 +490,40 @@ for name in float_types:
 for name in complex_types:
     gs[name] = typedef(py_complex, to_repr(name, name))
 
+del name, reprname
+
 bint = typedef(bool, "bint")
 void = typedef(None, "void")
 Py_tss_t = typedef(None, "Py_tss_t")
 
-for t in int_types + float_types + complex_types + other_types:
+for t in int_types:
+    for i in range(1, 4):
+        gs["%s_%s" % ('p'*i, t)] = gs[t]._pointer(i)
+        if 'u'+t in gs:
+            gs["%s_u%s" % ('p'*i, t)] = gs['u'+t]._pointer(i)
+            gs["%s_s%s" % ('p'*i, t)] = gs['s'+t]._pointer(i)
+
+for t in float_types + complex_types + other_types:
     for i in range(1, 4):
         gs["%s_%s" % ('p'*i, t)] = gs[t]._pointer(i)
 
+del t, i
+
 NULL = gs['p_void'](0)
 
-# looks like 'gs' has some users out there by now...
-#del gs
+del gs
+
+
+def __getattr__(name):
+    # looks like 'gs' has some users out there by now...
+    if name == 'gs':
+        import warnings
+        warnings.warn(
+            "'gs' is not a publicly exposed name in cython.*. Use vars() or globals() instead.",
+            DeprecationWarning)
+        return globals()
+    raise AttributeError(f"'cython' has no attribute {name!r}")
+
 
 integral = floating = numeric = _FusedType()
 
@@ -555,17 +579,23 @@ class CythonCImports:
     """
     Simplistic module mock to make cimports sort-of work in Python code.
     """
-    def __init__(self, module):
+    def __init__(self, module, **attributes):
         self.__path__ = []
         self.__file__ = None
         self.__name__ = module
         self.__package__ = module
+        if attributes:
+            self.__dict__.update(attributes)
 
     def __getattr__(self, item):
         if item.startswith('__') and item.endswith('__'):
             raise AttributeError(item)
+
+        package = self.__package__[len('cython.cimports.'):]
+
+        from importlib import import_module
         try:
-            return __import__(item)
+            return import_module(item, package or None)
         except ImportError:
             ex = AttributeError(item)
             ex.__cause__ = None
@@ -574,9 +604,10 @@ class CythonCImports:
 
 import math, sys
 sys.modules['cython.parallel'] = CythonDotParallel()
-sys.modules['cython.cimports'] = CythonCImports('cython.cimports')
-sys.modules['cython.cimports.libc'] = CythonCImports('cython.cimports.libc')
 sys.modules['cython.cimports.libc.math'] = math
+sys.modules['cython.cimports.libc'] = CythonCImports('cython.cimports.libc', math=math)
+sys.modules['cython.cimports'] = CythonCImports('cython.cimports', libc=sys.modules['cython.cimports.libc'])
+
 # In pure Python mode @cython.dataclasses.dataclass and dataclass field should just
 # shadow the standard library ones (if they are available)
 dataclasses = sys.modules['cython.dataclasses'] = CythonDotImportedFromElsewhere('dataclasses')

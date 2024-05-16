@@ -32,6 +32,10 @@ def bytes_startswith(bytes s, sub, start=None, stop=None):
     False
     >>> bytes_startswith(b_a, b_a, 0, 0)
     False
+    >>> bytes_startswith(b_a+b_b, bytearray(b_a))
+    True
+    >>> bytes_startswith(b_a+b_b, bytearray(b_b))
+    False
     """
 
     if start is None:
@@ -61,6 +65,10 @@ def bytes_endswith(bytes s, sub, start=None, stop=None):
     >>> bytes_endswith(b_a, b_a, 1)
     False
     >>> bytes_endswith(b_a, b_a, 0, 0)
+    False
+    >>> bytes_endswith(b_a+b_a, bytearray(b_a))
+    True
+    >>> bytes_endswith(b_a+b_a, bytearray(b_b))
     False
     """
 
@@ -259,7 +267,7 @@ def bytes_join(bytes s, *args):
     babab
     """
     result = s.join(args)
-    assert cython.typeof(result) == 'Python object', cython.typeof(result)
+    assert cython.typeof(result) == 'bytes object', cython.typeof(result)
     return result
 
 
@@ -275,7 +283,7 @@ def literal_join(*args):
     b|b|b|b
     """
     result = b'|'.join(args)
-    assert cython.typeof(result) == 'Python object', cython.typeof(result)
+    assert cython.typeof(result) == 'bytes object', cython.typeof(result)
     return result
 
 def fromhex(bytes b):

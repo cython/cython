@@ -1,7 +1,5 @@
 #!/usr/bin/env python
 
-from __future__ import print_function
-
 import atexit
 import base64
 import doctest
@@ -122,6 +120,17 @@ def get_distutils_distro(_cache=[]):
         distutils_distro.parse_config_files(cfgfiles)
     _cache.append(distutils_distro)
     return distutils_distro
+
+
+def import_refnanny():
+    try:
+        # try test copy first
+        import refnanny
+        return refnanny
+    except ImportError:
+        pass
+    import Cython.Runtime.refnanny
+    return Cython.Runtime.refnanny
 
 
 EXT_DEP_MODULES = {
@@ -474,10 +483,8 @@ VER_DEP_MODULES = {
         'compile.pylong',  # PyLongObject changed its structure
         'run.longintrepr',  # PyLongObject changed its structure
     ]),
-    # See https://github.com/python/cpython/issues/104614 - fixed in Py3.12.0b2, remove eventually.
-    (3,12,0,'beta',1): (operator.eq, lambda x: 'cdef_multiple_inheritance' in x or 'pep442' in x),
-    # Profiling is broken on Python 3.12
-    (3,12): ((lambda actual, v3_12: actual[:2]==v3_12), (lambda x: "pstats" in x)),
+    # Profiling is broken on Python 3.12/3.13alpha
+    (3,12): (operator.gt, lambda x: "pstats" in x),
 }
 
 INCLUDE_DIRS = [ d for d in os.getenv('INCLUDE', '').split(os.pathsep) if d ]
@@ -1229,6 +1236,7 @@ class CythonCompileTestCase(unittest.TestCase):
             generate_pxi = False,
             evaluate_tree_assertions = True,
             common_utility_include_dir = common_utility_include_dir,
+            c_line_in_traceback = True,
             **extra_compile_options
             )
         cython_compile(module_path, options=options, full_module_name=module)
@@ -1657,6 +1665,7 @@ class PureDoctestTestCase(unittest.TestCase):
                         self.module_path,
                         '--ignore-missing-imports',
                         '--follow-imports', 'skip',
+                        '--python-version', '3.10',
                     ])
                 if mypy_result[2]:
                     self.fail(mypy_result[0])
@@ -1750,7 +1759,7 @@ class CythonPyregrTestCase(CythonRunTestCase):
         for cls in classes:
             if isinstance(cls, str):
                 if cls in sys.modules:
-                    suite.addTest(unittest.findTestCases(sys.modules[cls]))
+                    suite.addTest(unittest.TestLoader().loadTestsFromModule(sys.modules[cls]))
                 else:
                     raise ValueError("str arguments must be keys in sys.modules")
             elif isinstance(cls, valid_types):
@@ -1869,6 +1878,7 @@ def collect_unittests(path, module_prefix, suite, selectors, exclude_selectors):
         return dirname == "Tests"
 
     loader = unittest.TestLoader()
+    from importlib import import_module
 
     if include_debugger:
         skipped_dirs = []
@@ -1895,9 +1905,7 @@ def collect_unittests(path, module_prefix, suite, selectors, exclude_selectors):
                         continue
                     if any(1 for match in exclude_selectors if match(modulename)):
                         continue
-                    module = __import__(modulename)
-                    for x in modulename.split('.')[1:]:
-                        module = getattr(module, x)
+                    module = import_module(modulename)
                     suite.addTests([loader.loadTestsFromModule(module)])
 
 
@@ -1906,6 +1914,7 @@ def collect_doctests(path, module_prefix, suite, selectors, exclude_selectors):
         if dirname == 'Debugger' and not include_debugger:
             return False
         return dirname not in ("Mac", "Distutils", "Plex", "Tempita")
+
     def file_matches(filename):
         filename, ext = os.path.splitext(filename)
         excludelist = ['libcython', 'libpython', 'test_libcython_in_gdb',
@@ -1915,7 +1924,10 @@ def collect_doctests(path, module_prefix, suite, selectors, exclude_selectors):
                 '#' in filename and not
                 filename.startswith('.') and not
                 filename in excludelist)
+
     import doctest
+    from importlib import import_module
+
     for dirpath, dirnames, filenames in os.walk(path):
         for dir in list(dirnames):
             if not package_matches(dir):
@@ -1934,9 +1946,7 @@ def collect_doctests(path, module_prefix, suite, selectors, exclude_selectors):
                 if 'in_gdb' in modulename:
                     # These should only be imported from gdb.
                     continue
-                module = __import__(modulename)
-                for x in modulename.split('.')[1:]:
-                    module = getattr(module, x)
+                module = import_module(modulename)
                 if hasattr(module, "__doc__") or hasattr(module, "__test__"):
                     try:
                         suite.addTest(doctest.DocTestSuite(module))
@@ -1990,30 +2000,20 @@ class EndToEndTest(unittest.TestCase):
                     break
         os.chdir(self.old_dir)
 
-    def _try_decode(self, content):
-        if not isinstance(content, bytes):
-            return content
-        try:
-            return content.decode()
-        except UnicodeDecodeError:
-            return content.decode('iso-8859-1')
-
     def runTest(self):
         self.success = False
         old_path = os.environ.get('PYTHONPATH')
-        env = dict(os.environ)
         new_path = self.cython_syspath
         if old_path:
             new_path = new_path + os.pathsep + self.workdir + os.pathsep + old_path
-        env['PYTHONPATH'] = new_path
-        if not env.get("PYTHONIOENCODING"):
-            env["PYTHONIOENCODING"] = sys.stdout.encoding or sys.getdefaultencoding()
+        env = dict(os.environ, PYTHONPATH=new_path, PYTHONIOENCODING='utf8')
         cmd = []
         out = []
         err = []
         for command_no, command in enumerate(self.commands, 1):
-            with self.stats.time('%s(%d)' % (self.name, command_no), 'c',
-                                 'etoe-build' if 'setup.py' in command else 'etoe-run'):
+            time_category = 'etoe-build' if (
+                'setup.py' in command or 'cythonize.py' in command or 'cython.py' in command) else 'etoe-run'
+            with self.stats.time('%s(%d)' % (self.name, command_no), 'c', time_category):
                 if self.capture:
                     p = subprocess.Popen(command, stderr=subprocess.PIPE, stdout=subprocess.PIPE, env=env)
                     _out, _err = p.communicate()
@@ -2023,21 +2023,21 @@ class EndToEndTest(unittest.TestCase):
                     _out, _err = b'', b''
                     res = p
             cmd.append(command)
-            out.append(_out)
-            err.append(_err)
+            out.append(_out.decode('utf-8'))
+            err.append(_err.decode('utf-8'))
 
             if res == 0 and b'REFNANNY: ' in _out:
                 res = -1
             if res != 0:
                 for c, o, e in zip(cmd, out, err):
                     sys.stderr.write("[%d] %s\n%s\n%s\n\n" % (
-                        self.shard_num, c, self._try_decode(o), self._try_decode(e)))
+                        self.shard_num, c, o, e))
                 sys.stderr.write("Final directory layout of '%s':\n%s\n\n" % (
                     self.name,
                     '\n'.join(os.path.join(dirpath, filename) for dirpath, dirs, files in os.walk(".") for filename in files),
                 ))
                 self.assertEqual(0, res, "non-zero exit status, last output was:\n%r\n-- stdout:%s\n-- stderr:%s\n" % (
-                    ' '.join(command), self._try_decode(out[-1]), self._try_decode(err[-1])))
+                    ' '.join(command), out[-1], err[-1]))
         self.success = True
 
 
@@ -2695,12 +2695,17 @@ def runtests(options, cmd_args, coverage=None):
             sys.stderr.write("Disabling refnanny in PyPy\n")
             options.with_refnanny = False
 
+    refnanny = None
     if options.with_refnanny:
-        from pyximport.pyxbuild import pyx_to_dll
-        libpath = pyx_to_dll(os.path.join("Cython", "Runtime", "refnanny.pyx"),
-                             build_in_temp=True,
-                             pyxbuild_dir=os.path.join(WORKDIR, "support"))
-        sys.path.insert(0, os.path.split(libpath)[0])
+        try:
+            refnanny = import_refnanny()
+        except ImportError:
+            from pyximport.pyxbuild import pyx_to_dll
+            libpath = pyx_to_dll(os.path.join("Cython", "Runtime", "refnanny.pyx"),
+                                build_in_temp=True,
+                                pyxbuild_dir=os.path.join(WORKDIR, "support"))
+            sys.path.insert(0, os.path.split(libpath)[0])
+            refnanny = import_refnanny()
         CDEFS.append(('CYTHON_REFNANNY', '1'))
 
     if options.limited_api:
@@ -2840,10 +2845,11 @@ def runtests(options, cmd_args, coverage=None):
 
     if options.examples and languages:
         examples_workdir = os.path.join(WORKDIR, 'examples')
+        language_level = 3
         for subdirectory in glob.glob(os.path.join(options.examples_dir, "*/")):
             filetests = TestBuilder(subdirectory, examples_workdir, selectors, exclude_selectors,
                                     options, options.pyregr, languages, test_bugs,
-                                    options.language_level, common_utility_dir,
+                                    language_level, common_utility_dir,
                                     options.pythran_dir,
                                     default_mode='compile', stats=stats, add_cython_import=True)
             test_suite.addTest(filetests.build_suite())
@@ -2932,8 +2938,7 @@ def runtests(options, cmd_args, coverage=None):
         for test in missing_dep_excluder.tests_missing_deps:
             sys.stderr.write("   %s\n" % test)
 
-    if options.with_refnanny:
-        import refnanny
+    if options.with_refnanny and refnanny is not None:
         sys.stderr.write("\n".join([repr(x) for x in refnanny.reflog]))
 
     result_code = 0 if options.exit_ok else not result.wasSuccessful()

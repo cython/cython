@@ -16,7 +16,7 @@ Cython has native support for most of the C++ language.  Specifically:
 * C++ classes can be declared with the new keyword ``cppclass``.
 * Templated classes and functions are supported.
 * Overloaded functions are supported.
-* Overloading of C++ operators (such as operator+, operator[],...) is supported.
+* Overloading of C++ operators (such as ``operator+``, ``operator[]``, ...) is supported.
 
 Procedure Overview
 -------------------
@@ -607,9 +607,9 @@ with an underlying type::
 
     cdef extern from "Foo.h":
         cdef enum class Spam(unsigned int):
-	    x = 10
-	    y = 20
-	    ...
+            x = 10
+            y = 20
+            ...
 
 Declaring an enum class as ``cpdef`` will create a :pep:`435`-style Python wrapper.
 

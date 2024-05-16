@@ -53,7 +53,7 @@ setup_args['package_data'] = {
     'Cython.Compiler' : ['*.pxd'],
     'Cython.Runtime'  : ['*.pyx', '*.pxd'],
     'Cython.Utility'  : ['*.pyx', '*.pxd', '*.c', '*.h', '*.cpp'],
-    'Cython'          : [ p[7:] for p in pxd_include_patterns ],
+    'Cython'          : [ p[7:] for p in pxd_include_patterns ] + ['py.typed', '__init__.pyi', 'Shadow.pyi'],
     'Cython.Debugger.Tests': ['codefile', 'cfuncs.c'],
 }
 
@@ -247,7 +247,7 @@ def run_build():
         name='Cython',
         version=version,
         url='https://cython.org/',
-        author='Robert Bradshaw, Stefan Behnel, Dag Seljebotn, Greg Ewing, et al.',
+        author='Robert Bradshaw, Stefan Behnel, David Woods, Greg Ewing, et al.',
         author_email='cython-devel@python.org',
         description="The Cython compiler for writing C extensions in the Python language.",
         long_description=textwrap.dedent("""\
@@ -264,12 +264,12 @@ def run_build():
         This makes Cython the ideal language for writing glue code for external
         C/C++ libraries, and for fast C modules that speed up the execution of
         Python code.
-        
-        The newest Cython release can always be downloaded from https://cython.org/. 
+
+        The newest Cython release can always be downloaded from https://cython.org/.
         Unpack the tarball or zip file, enter the directory, and then run::
-        
+
             pip install .
-            
+
         Note that for one-time builds, e.g. for CI/testing, on platforms that are not
         covered by one of the wheel packages provided on PyPI *and* the pure Python wheel
         that we provide is not used, it is substantially faster than a full source build
@@ -299,7 +299,8 @@ def run_build():
             "Programming Language :: Cython",
             "Topic :: Software Development :: Code Generators",
             "Topic :: Software Development :: Compilers",
-            "Topic :: Software Development :: Libraries :: Python Modules"
+            "Topic :: Software Development :: Libraries :: Python Modules",
+            "Typing :: Typed"
         ],
         project_urls={
             "Documentation": "https://cython.readthedocs.io/",

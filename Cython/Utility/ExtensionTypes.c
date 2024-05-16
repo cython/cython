@@ -113,11 +113,11 @@ static int __Pyx_validate_bases_tuple(const char *type_name, Py_ssize_t dictoffs
     // structure), we need to check that none of the base classes sets
     // it either.
     Py_ssize_t i, n;
-#if CYTHON_ASSUME_SAFE_MACROS
+#if CYTHON_ASSUME_SAFE_SIZE
     n = PyTuple_GET_SIZE(bases);
 #else
     n = PyTuple_Size(bases);
-    if (n < 0) return -1;
+    if (unlikely(n < 0)) return -1;
 #endif
     for (i = 1; i < n; i++)  /* Skip first base */
     {
@@ -416,16 +416,15 @@ static void __Pyx_call_next_tp_clear(PyObject* obj, inquiry current_tp_clear) {
 
 /////////////// SetupReduce.proto ///////////////
 
-#if !CYTHON_COMPILING_IN_LIMITED_API
 static int __Pyx_setup_reduce(PyObject* type_obj);
-#endif
 
 /////////////// SetupReduce ///////////////
 //@requires: ObjectHandling.c::PyObjectGetAttrStrNoError
 //@requires: ObjectHandling.c::PyObjectGetAttrStr
+//@requires: SetItemOnTypeDict
+//@requires: DelItemOnTypeDict
 //@substitute: naming
 
-#if !CYTHON_COMPILING_IN_LIMITED_API
 static int __Pyx_setup_reduce_is_named(PyObject* meth, PyObject* name) {
   int ret;
   PyObject *name_attr;
@@ -500,8 +499,8 @@ static int __Pyx_setup_reduce(PyObject* type_obj) {
         if (reduce == object_reduce || __Pyx_setup_reduce_is_named(reduce, PYIDENT("__reduce_cython__"))) {
             reduce_cython = __Pyx_PyObject_GetAttrStrNoError(type_obj, PYIDENT("__reduce_cython__"));
             if (likely(reduce_cython)) {
-                ret = PyDict_SetItem(((PyTypeObject*)type_obj)->tp_dict, PYIDENT("__reduce__"), reduce_cython); if (unlikely(ret < 0)) goto __PYX_BAD;
-                ret = PyDict_DelItem(((PyTypeObject*)type_obj)->tp_dict, PYIDENT("__reduce_cython__")); if (unlikely(ret < 0)) goto __PYX_BAD;
+                ret = __Pyx_SetItemOnTypeDict((PyTypeObject*)type_obj, PYIDENT("__reduce__"), reduce_cython); if (unlikely(ret < 0)) goto __PYX_BAD;
+                ret = __Pyx_DelItemOnTypeDict((PyTypeObject*)type_obj, PYIDENT("__reduce_cython__")); if (unlikely(ret < 0)) goto __PYX_BAD;
             } else if (reduce == object_reduce || PyErr_Occurred()) {
                 // Ignore if we're done, i.e. if 'reduce' already has the right name and the original is gone.
                 // Otherwise: error.
@@ -513,8 +512,8 @@ static int __Pyx_setup_reduce(PyObject* type_obj) {
             if (!setstate || __Pyx_setup_reduce_is_named(setstate, PYIDENT("__setstate_cython__"))) {
                 setstate_cython = __Pyx_PyObject_GetAttrStrNoError(type_obj, PYIDENT("__setstate_cython__"));
                 if (likely(setstate_cython)) {
-                    ret = PyDict_SetItem(((PyTypeObject*)type_obj)->tp_dict, PYIDENT("__setstate__"), setstate_cython); if (unlikely(ret < 0)) goto __PYX_BAD;
-                    ret = PyDict_DelItem(((PyTypeObject*)type_obj)->tp_dict, PYIDENT("__setstate_cython__")); if (unlikely(ret < 0)) goto __PYX_BAD;
+                    ret = __Pyx_SetItemOnTypeDict((PyTypeObject*)type_obj, PYIDENT("__setstate__"), setstate_cython); if (unlikely(ret < 0)) goto __PYX_BAD;
+                    ret = __Pyx_DelItemOnTypeDict((PyTypeObject*)type_obj, PYIDENT("__setstate_cython__")); if (unlikely(ret < 0)) goto __PYX_BAD;
                 } else if (!setstate || PyErr_Occurred()) {
                     // Ignore if we're done, i.e. if 'setstate' already has the right name and the original is gone.
                     // Otherwise: error.
@@ -549,7 +548,6 @@ __PYX_GOOD:
     Py_XDECREF(setstate_cython);
     return ret;
 }
-#endif
 
 
 /////////////// BinopSlot ///////////////
@@ -645,4 +643,55 @@ static int __Pyx_validate_extern_base(PyTypeObject *base) {
         return -1;
     }
     return 0;
+}
+
+////////////////// SetItemOnTypeDict.proto //////////////////////////
+
+static int __Pyx__SetItemOnTypeDict(PyTypeObject *tp, PyObject *k, PyObject *v); /* proto */
+
+#define __Pyx_SetItemOnTypeDict(tp, k, v) __Pyx__SetItemOnTypeDict((PyTypeObject*)tp, k, v)
+
+////////////////// SetItemOnTypeDict //////////////////////////
+
+static int __Pyx__SetItemOnTypeDict(PyTypeObject *tp, PyObject *k, PyObject *v) {
+    int result;
+#if CYTHON_COMPILING_IN_LIMITED_API
+    // Using PyObject_GenericSetAttr to bypass types immutability protection feels
+    // a little hacky, but it does work in the limited API .
+    // (It doesn't work on PyPy but that probably isn't a bug.)
+    result = PyObject_GenericSetAttr((PyObject*)tp, k, v);
+#else
+    result = PyDict_SetItem(tp->tp_dict, k, v);
+#endif
+    if (likely(!result)) {
+        PyType_Modified(tp);
+        if (unlikely(PyObject_HasAttr(v, PYIDENT("__set_name__")))) {
+            PyObject *setNameResult = PyObject_CallMethodObjArgs(v, PYIDENT("__set_name__"),  (PyObject *) tp, k, NULL);
+            if (!setNameResult) return -1;
+            Py_DECREF(setNameResult);
+        }
+    }
+    return result;
+}
+
+////////////////// DelItemOnTypeDict.proto //////////////////////////
+
+static int __Pyx__DelItemOnTypeDict(PyTypeObject *tp, PyObject *k); /* proto */
+
+#define __Pyx_DelItemOnTypeDict(tp, k) __Pyx__DelItemOnTypeDict((PyTypeObject*)tp, k)
+
+////////////////// DelItemOnTypeDict //////////////////////////
+
+static int __Pyx__DelItemOnTypeDict(PyTypeObject *tp, PyObject *k) {
+    int result;
+#if CYTHON_COMPILING_IN_LIMITED_API
+    // Using PyObject_GenericSetAttr to bypass types immutability protection feels
+    // a little hacky, but it does work in the limited API .
+    // (It doesn't work on PyPy but that probably isn't a bug.)
+    result = PyObject_GenericSetAttr((PyObject*)tp, k, NULL);
+#else
+    result = PyDict_DelItem(tp->tp_dict, k);
+#endif
+    if (likely(!result)) PyType_Modified(tp);
+    return result;
 }
