@@ -23,7 +23,7 @@ cdef extern from *:
     }
 
     static CYTHON_INLINE void __Pyx_refnanny_lock_acquire(PyThread_type_lock lock) {
-        while (!PyThread_acquire_lock_timed(lock, 100, 0) {
+        while (!PyThread_acquire_lock_timed(lock, 100, 0)) {
             // If we can't get the lock, release and acquire the GIL to avoid
             // deadlocking.
             Py_BEGIN_ALLOW_THREADS
