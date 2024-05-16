@@ -9773,7 +9773,7 @@ class ParallelStatNode(StatNode, ParallelNode):
             c.putln("const char *%s = NULL; int %s = 0, %s = 0;" % self.parallel_pos_info)
             c.putln("PyObject *%s = NULL, *%s = NULL, *%s = NULL;" % self.parallel_exc)
             c.putln("#if CYTHON_COMPILING_IN_CPYTHON_NOGIL")
-            c.putln(f"PyMutex {Naming.parallel_freethreading_mutex} = {0};")
+            c.putln(f"PyMutex {Naming.parallel_freethreading_mutex} = {{0}};")
             c.putln("#else")
             c.putln(f"int {Naming.parallel_freethreading_mutex}=0;")
             c.putln(f"(void){Naming.parallel_freethreading_mutex};")
