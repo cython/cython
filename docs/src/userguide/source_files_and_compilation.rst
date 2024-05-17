@@ -346,14 +346,15 @@ Distributing Cython modules
     and require Cython at build-time as defined in
     `PEP 518 <https://www.python.org/dev/peps/pep-0518/>`_
     and `PEP 621 <https://www.python.org/dev/peps/pep-0621/>`_.
+    See :ref:`basic_setup.py`.
 
-It is strongly recommended that you distribute the generated ``.c`` files as well
+It is possible to distribute the generated ``.c`` files as well
 as your Cython sources, so that users can install your module without needing
 to have Cython available.
 
-It is also recommended that Cython compilation not be enabled by default in the
-version you distribute. Even if the user has Cython installed, he/she probably
-doesn't want to use it just to install your module. Also, the installed version
+Doing so allows you to make Cython compilation optional in the
+version you distribute. Even if the user has Cython installed, they may not
+want to use it just to install your module. Also, the installed version
 may not be the same one you used, and may not compile your sources correctly.
 
 This simply means that the :file:`setup.py` file that you ship with will just
@@ -406,21 +407,6 @@ list in the Extensions when not using Cython::
                 sources.append(sfile)
             extension.sources[:] = sources
         return extensions
-
-Another option is to make Cython a setup dependency of your system and use
-Cython's build_ext module which runs ``cythonize`` as part of the build process::
-
-    setup(
-        extensions = [Extension("*", ["*.pyx"])],
-        cmdclass={'build_ext': Cython.Build.build_ext},
-        ...
-    )
-
-This depends on pip knowing that :mod:`Cython` is a setup dependency, by having
-a :file:`pyproject.toml` file::
-
-    [build-system]
-    requires = ["setuptools", "wheel", "Cython"]
 
 If you want to expose the C-level interface of your library for other
 libraries to cimport from, use package_data to install the ``.pxd`` files,
