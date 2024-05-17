@@ -2395,11 +2395,9 @@ if VALUE is not None:
 
     def _handle_fused(self, node):
         if node.is_generator and node.has_fused_arguments:
-            node.has_fused_arguments = False
             error(node.pos, "Fused generators not supported")
-            node.gbody = Nodes.StatListNode(node.pos,
-                                            stats=[],
-                                            body=Nodes.PassStatNode(node.pos))
+            node.has_fused_arguments = False
+            node.gbody.body = Nodes.StatListNode(node.pos, stats=[])
 
         return node.has_fused_arguments
 
