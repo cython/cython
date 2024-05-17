@@ -338,18 +338,15 @@ them through :func:`cythonize`::
 Distributing Cython modules
 ----------------------------
 
-.. note::
+Following recent improvements in the distribution toolchain, it is
+not recommended to include generated files in source distributions.
+Instead, `require` Cython at build-time to generate the C/C++ files,
+as defined in `PEP 518 <https://www.python.org/dev/peps/pep-0518/>`_
+and `PEP 621 <https://www.python.org/dev/peps/pep-0621/>`_.
+See :ref:`basic_setup.py`.
 
-    This section is historical and contains recommendations that outlived their
-    purpose. Following recent improvements in the distribution toolchain, it is
-    now recommended to *not* include generated files in distributions,
-    and require Cython at build-time as defined in
-    `PEP 518 <https://www.python.org/dev/peps/pep-0518/>`_
-    and `PEP 621 <https://www.python.org/dev/peps/pep-0621/>`_.
-    See :ref:`basic_setup.py`.
-
-It is possible to distribute the generated ``.c`` files as well
-as your Cython sources, so that users can install your module without needing
+It is, however, possible to distribute the generated ``.c`` files together with
+your Cython sources, so that users can install your module without needing
 to have Cython available.
 
 Doing so allows you to make Cython compilation optional in the
