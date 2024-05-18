@@ -49,12 +49,17 @@ static CYTHON_INLINE PyObject* __Pyx_PyExec2(PyObject* o, PyObject* globals) {
 
 static PyObject* __Pyx_PyExec3(PyObject* o, PyObject* globals, PyObject* locals) {
     PyObject* result;
+#if !CYTHON_COMPILING_IN_LIMITED_API
     PyObject* s = 0;
     char *code = 0;
+#endif
 
     if (!globals || globals == Py_None) {
         globals = $moddict_cname;
-    } else if (unlikely(!PyDict_Check(globals))) {
+    }
+#if !CYTHON_COMPILING_IN_LIMITED_API
+    // In Limited API we just use exec builtin which already has this
+    else if (unlikely(!PyDict_Check(globals))) {
         __Pyx_TypeName globals_type_name =
             __Pyx_PyType_GetName(Py_TYPE(globals));
         PyErr_Format(PyExc_TypeError,
@@ -63,10 +68,12 @@ static PyObject* __Pyx_PyExec3(PyObject* o, PyObject* globals, PyObject* locals)
         __Pyx_DECREF_TypeName(globals_type_name);
         goto bad;
     }
+#endif
     if (!locals || locals == Py_None) {
         locals = globals;
     }
 
+#if !CYTHON_COMPILING_IN_LIMITED_API
     if (__Pyx_PyDict_GetItemStr(globals, PYIDENT("__builtins__")) == NULL) {
         if (unlikely(PyDict_SetItem(globals, PYIDENT("__builtins__"), PyEval_GetBuiltins()) < 0))
             goto bad;
@@ -115,6 +122,19 @@ static PyObject* __Pyx_PyExec3(PyObject* o, PyObject* globals, PyObject* locals)
 bad:
     Py_XDECREF(s);
     return 0;
+#else // CYTHON_COMPILING_IN_LIMITED_API
+    {
+        // For the limited API we just defer to the actual builtin
+        // (after setting up globals and locals) - there's too much we can't do otherwise
+        PyObject *builtins, *exec;
+        builtins = PyEval_GetBuiltins();
+        if (!builtins) return NULL;
+        exec = PyDict_GetItemString(builtins, "exec");
+        if (!exec) return NULL;
+        result = PyObject_CallFunctionObjArgs(exec, o, globals, locals, NULL);
+        return result;
+    }
+#endif
 }
 
 //////////////////// GetAttr3.proto ////////////////////
@@ -283,6 +303,51 @@ static PyObject *__Pyx_PyLong_AbsNeg(PyObject *n) {
 #define __Pyx_PyNumber_Power2(a, b) PyNumber_Power(a, b, Py_None)
 
 
+//////////////////// divmod_int.proto //////////////////
+
+static CYTHON_INLINE PyObject* __Pyx_divmod_int(int a, int b); /*proto*/
+
+
+//////////////////// divmod_int //////////////////
+
+static CYTHON_INLINE PyObject* __Pyx_divmod_int(int a, int b) {
+    PyObject *result_tuple = NULL, *pyvalue = NULL;
+    // Python and C/C++ use different algorithms in calculating quotients and remainders.
+    // This results in different answers between Python and C/C++
+    // when the dividend is negative and the divisor is positive and vice versa.
+    int q, r;
+    if ((a < 0 && b > 0) || (a > 0 && b < 0)) {
+        // see CMath.c :: DivInt and ModInt utility code
+        q = a / b;
+        r = a - q * b;
+        q -= ((r != 0) & ((r ^ b) < 0));
+        r += ((r != 0) & ((r ^ b) < 0)) * b;
+    }
+    else if (b == 0) {
+        PyErr_SetString(PyExc_ZeroDivisionError, "integer division or modulo by zero");
+        return NULL;
+    }
+    else {
+        div_t res = div(a, b);
+        q = res.quot;
+        r = res.rem;
+    }
+    result_tuple = PyTuple_New(2);
+    if (unlikely(!result_tuple)) return NULL;
+    pyvalue = PyLong_FromLong(q);
+    if (unlikely(!pyvalue)) goto bad;
+    if (__Pyx_PyTuple_SET_ITEM(result_tuple, 0, pyvalue) != (0)) goto bad;
+    pyvalue = PyLong_FromLong(r);
+    if (unlikely(!pyvalue)) goto bad;
+    if (__Pyx_PyTuple_SET_ITEM(result_tuple, 1, pyvalue) != (0)) goto bad;
+    return result_tuple;
+
+bad:
+    Py_DECREF(result_tuple);
+    return NULL;
+}
+
+
 //////////////////// int_pyucs4.proto ////////////////////
 
 static CYTHON_INLINE int __Pyx_int_from_UCS4(Py_UCS4 uchar);
@@ -333,14 +398,30 @@ static long __Pyx__PyObject_Ord(PyObject* c) {
     if (PyBytes_Check(c)) {
         size = __Pyx_PyBytes_GET_SIZE(c);
         if (likely(size == 1)) {
+#if CYTHON_ASSUME_SAFE_MACROS
             return (unsigned char) PyBytes_AS_STRING(c)[0];
+#else
+            char *data = PyBytes_AsString(c);
+            if (unlikely(!data)) return -1;
+            return (unsigned char) data[0];
+#endif
         }
-#if (!CYTHON_COMPILING_IN_PYPY) || (defined(PyByteArray_AS_STRING) && defined(PyByteArray_GET_SIZE))
+#if !CYTHON_ASSUME_SAFE_SIZE
+        else if (unlikely(size < 0)) return -1;
+#endif
     } else if (PyByteArray_Check(c)) {
         size = __Pyx_PyByteArray_GET_SIZE(c);
         if (likely(size == 1)) {
+#if CYTHON_ASSUME_SAFE_MACROS
             return (unsigned char) PyByteArray_AS_STRING(c)[0];
+#else
+            char *data = PyByteArray_AsString(c);
+            if (unlikely(!data)) return -1;
+            return (unsigned char) data[0];
+#endif
         }
+#if !CYTHON_ASSUME_SAFE_SIZE
+        else if (unlikely(size < 0)) return -1;
 #endif
     } else {
         // FIXME: support character buffers - but CPython doesn't support them either
@@ -475,8 +556,23 @@ static CYTHON_INLINE PyObject* __Pyx_PyFrozenSet_New(PyObject* it) {
         result = PyFrozenSet_New(it);
         if (unlikely(!result))
             return NULL;
-        if ((PY_VERSION_HEX >= 0x030A00A1) || likely(__Pyx_PySet_GET_SIZE(result)))
+        if ((__PYX_LIMITED_VERSION_HEX >= 0x030A00A1)
+#if CYTHON_COMPILING_IN_LIMITED_API
+            || __Pyx_get_runtime_version() >= 0x030A00A1
+#endif
+            )
             return result;
+        {
+            Py_ssize_t size = __Pyx_PySet_GET_SIZE(result);
+            if (likely(size > 0))
+                return result;
+#if !CYTHON_ASSUME_SAFE_SIZE
+            if (unlikely(size < 0)) {
+                Py_DECREF(result);
+                return NULL;
+            }
+#endif
+        }
         // empty frozenset is a singleton (on Python <3.10)
         // seems wasteful, but CPython does the same
         Py_DECREF(result);
@@ -502,7 +598,7 @@ static CYTHON_INLINE int __Pyx_PySet_Update(PyObject* set, PyObject* it) {
     if (PyAnySet_Check(it)) {
         Py_ssize_t size = __Pyx_PySet_GET_SIZE(it);
         #if !CYTHON_ASSUME_SAFE_SIZE
-        if (unlikely(size == -1)) return -1;
+        if (unlikely(size < 0)) return -1;
         #endif
         if (size == 0)
             return 0;

@@ -399,7 +399,8 @@ class IterationTransform(Visitor.EnvTransform):
     PyBytes_GET_SIZE_func_type = PyrexTypes.CFuncType(
         PyrexTypes.c_py_ssize_t_type, [
             PyrexTypes.CFuncTypeArg("s", Builtin.bytes_type, None)
-            ], exception_value="-1")
+        ],
+        exception_value=-1)
 
     def _transform_bytes_iteration(self, node, slice_node, reversed=False):
         target_type = node.target.type
@@ -454,7 +455,7 @@ class IterationTransform(Visitor.EnvTransform):
             PyrexTypes.CFuncTypeArg("data", PyrexTypes.c_void_ptr_ptr_type, None),
             PyrexTypes.CFuncTypeArg("kind", PyrexTypes.c_int_ptr_type, None)
         ],
-        exception_value = '-1')
+        exception_value=-1)
 
     def _transform_unicode_iteration(self, node, slice_node, reversed=False):
         if slice_node.is_literal:
@@ -2328,13 +2329,13 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
         PyrexTypes.c_int_type, [
             PyrexTypes.CFuncTypeArg("arg", PyrexTypes.c_py_ucs4_type, None)
         ],
-        exception_value="-1")
+        exception_value=-1)
 
     pyucs4_double_func_type = PyrexTypes.CFuncType(
         PyrexTypes.c_double_type, [
             PyrexTypes.CFuncTypeArg("arg", PyrexTypes.c_py_ucs4_type, None)
         ],
-        exception_value="-1.0")
+        exception_value=-1.0)
 
     def _pyucs4_to_number(self, node, py_type_name, func_arg):
         assert py_type_name in ("int", "float")
@@ -2430,7 +2431,7 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
             node, function.obj, attr_name, arg_list)
 
     PyObject_String_func_type = PyrexTypes.CFuncType(
-        PyrexTypes.py_object_type, [  # Change this to Builtin.str_type when removing Py2 support.
+        Builtin.unicode_type, [
             PyrexTypes.CFuncTypeArg("obj", PyrexTypes.py_object_type, None)
             ])
 
@@ -2775,19 +2776,19 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
         PyrexTypes.c_py_ssize_t_type, [
             PyrexTypes.CFuncTypeArg("bytes", PyrexTypes.c_const_char_ptr_type, None)
         ],
-        exception_value="-1")
+        exception_value=-1)
 
     Pyx_Py_UNICODE_strlen_func_type = PyrexTypes.CFuncType(
         PyrexTypes.c_py_ssize_t_type, [
             PyrexTypes.CFuncTypeArg("unicode", PyrexTypes.c_const_py_unicode_ptr_type, None)
         ],
-        exception_value="-1")
+        exception_value=-1)
 
     PyObject_Size_func_type = PyrexTypes.CFuncType(
         PyrexTypes.c_py_ssize_t_type, [
             PyrexTypes.CFuncTypeArg("obj", PyrexTypes.py_object_type, None)
         ],
-        exception_value="-1")
+        exception_value=-1)
 
     _map_to_capi_len_function = {
         Builtin.unicode_type:    "__Pyx_PyUnicode_GET_LENGTH",
@@ -3074,7 +3075,7 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
             PyrexTypes.CFuncTypeArg("list", PyrexTypes.py_object_type, None),
             PyrexTypes.CFuncTypeArg("item", PyrexTypes.py_object_type, None),
             ],
-        exception_value="-1")
+        exception_value=-1)
 
     def _handle_simple_method_object_append(self, node, function, args, is_unbound_method):
         """Optimistic optimisation as X.append() is almost always
@@ -3160,14 +3161,14 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
             PyrexTypes.CFuncTypeArg("bytearray", PyrexTypes.py_object_type, None),
             PyrexTypes.CFuncTypeArg("value", PyrexTypes.c_int_type, None),
             ],
-        exception_value="-1")
+        exception_value=-1)
 
     PyByteArray_AppendObject_func_type = PyrexTypes.CFuncType(
         PyrexTypes.c_returncode_type, [
             PyrexTypes.CFuncTypeArg("bytearray", PyrexTypes.py_object_type, None),
             PyrexTypes.CFuncTypeArg("value", PyrexTypes.py_object_type, None),
             ],
-        exception_value="-1")
+        exception_value=-1)
 
     def _handle_simple_method_bytearray_append(self, node, function, args, is_unbound_method):
         if len(args) != 2:
@@ -3292,7 +3293,7 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
         PyrexTypes.c_returncode_type, [
             PyrexTypes.CFuncTypeArg("obj", PyrexTypes.py_object_type, None),
             ],
-        exception_value = "-1")
+        exception_value=-1)
 
     def _handle_simple_method_list_sort(self, node, function, args, is_unbound_method):
         """Call PyList_Sort() instead of the 0-argument l.sort().
@@ -3367,21 +3368,40 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
             PyrexTypes.CFuncTypeArg("default", PyrexTypes.py_object_type, None),
             ])
 
+    PyDict_Pop_ignore_func_type = PyrexTypes.CFuncType(
+        PyrexTypes.c_int_type, [
+            PyrexTypes.CFuncTypeArg("dict", PyrexTypes.py_object_type, None),
+            PyrexTypes.CFuncTypeArg("key", PyrexTypes.py_object_type, None),
+            PyrexTypes.CFuncTypeArg("default", PyrexTypes.py_object_type, None),
+            ],
+            exception_value=PyrexTypes.c_int_type.exception_value,
+    )
+
     def _handle_simple_method_dict_pop(self, node, function, args, is_unbound_method):
         """Replace dict.pop() by a call to _PyDict_Pop().
         """
+        capi_func = "__Pyx_PyDict_Pop"
+        utility_code_name = 'py_dict_pop'
+        func_type = self.PyDict_Pop_func_type
+
         if len(args) == 2:
             args.append(ExprNodes.NullNode(node.pos))
-        elif len(args) != 3:
+        elif len(args) == 3:
+            if not node.result_is_used:
+                # special case: we can ignore the default value
+                capi_func = "__Pyx_PyDict_Pop_ignore"
+                utility_code_name = 'py_dict_pop_ignore'
+                func_type = self.PyDict_Pop_ignore_func_type
+        else:
             self._error_wrong_arg_count('dict.pop', node, args, "2 or 3")
             return node
 
         return self._substitute_method_call(
             node, function,
-            "__Pyx_PyDict_Pop", self.PyDict_Pop_func_type,
+            capi_func, func_type,
             'pop', is_unbound_method, args,
             may_return_none=True,
-            utility_code=load_c_utility('py_dict_pop'))
+            utility_code=load_c_utility(utility_code_name))
 
     Pyx_BinopInt_func_types = {
         (ctype, ret_type): PyrexTypes.CFuncType(
@@ -3698,7 +3718,7 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
             PyrexTypes.CFuncTypeArg("end", PyrexTypes.c_py_ssize_t_type, None),
             PyrexTypes.CFuncTypeArg("direction", PyrexTypes.c_int_type, None),
             ],
-        exception_value = '-1')
+        exception_value=-1)
 
     def _handle_simple_method_unicode_endswith(self, node, function, args, is_unbound_method):
         return self._inject_tailmatch(
@@ -3741,7 +3761,7 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
             PyrexTypes.CFuncTypeArg("end", PyrexTypes.c_py_ssize_t_type, None),
             PyrexTypes.CFuncTypeArg("direction", PyrexTypes.c_int_type, None),
             ],
-        exception_value = '-2')
+        exception_value=-2)
 
     def _handle_simple_method_unicode_find(self, node, function, args, is_unbound_method):
         return self._inject_unicode_find(
@@ -3778,7 +3798,7 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
             PyrexTypes.CFuncTypeArg("start", PyrexTypes.c_py_ssize_t_type, None),
             PyrexTypes.CFuncTypeArg("end", PyrexTypes.c_py_ssize_t_type, None),
             ],
-        exception_value = '-1')
+        exception_value=-1)
 
     def _handle_simple_method_unicode_count(self, node, function, args, is_unbound_method):
         """Replace unicode.count(...) by a direct call to the
@@ -5048,6 +5068,19 @@ class FinalOptimizePhase(Visitor.EnvTransform, Visitor.NodeRefCleanupMixin):
             lhs.lhs_of_first_assignment = True
         return node
 
+    def _check_optimize_method_calls(self, node):
+        function = node.function
+        env = self.current_env()
+        in_global_scope = (
+            env.is_module_scope or
+            env.is_c_class_scope or
+            (env.is_py_class_scope and env.outer_scope.is_module_scope)
+        )
+        return (node.is_temp and function.type.is_pyobject and self.current_directives.get(
+                "optimize.unpack_method_calls_in_pyinit"
+                if not self.in_loop and in_global_scope
+                else "optimize.unpack_method_calls"))
+
     def visit_SimpleCallNode(self, node):
         """
         Replace generic calls to isinstance(x, type) by a more efficient type check.
@@ -5064,38 +5097,37 @@ class FinalOptimizePhase(Visitor.EnvTransform, Visitor.NodeRefCleanupMixin):
                     function.type = function.entry.type
                     PyTypeObjectPtr = PyrexTypes.CPtrType(cython_scope.lookup('PyTypeObject').type)
                     node.args[1] = ExprNodes.CastNode(node.args[1], PyTypeObjectPtr)
-        elif (node.is_temp and function.type.is_pyobject and self.current_directives.get(
-                "optimize.unpack_method_calls_in_pyinit"
-                if not self.in_loop and self.current_env().is_module_scope
-                else "optimize.unpack_method_calls")):
+        else:
             # optimise simple Python methods calls
-            if isinstance(node.arg_tuple, ExprNodes.TupleNode) and not (
-                    node.arg_tuple.mult_factor or (node.arg_tuple.is_literal and len(node.arg_tuple.args) > 1)):
+            if ExprNodes.PyMethodCallNode.can_be_used_for_posargs(node.arg_tuple, has_kwargs=False):
                 # simple call, now exclude calls to objects that are definitely not methods
-                may_be_a_method = True
-                if function.type is Builtin.type_type:
-                    may_be_a_method = False
-                elif function.is_attribute:
-                    if function.entry and function.entry.type.is_cfunction:
-                        # optimised builtin method
-                        may_be_a_method = False
-                elif function.is_name:
-                    entry = function.entry
-                    if entry.is_builtin or entry.type.is_cfunction:
-                        may_be_a_method = False
-                    elif entry.cf_assignments:
-                        # local functions/classes are definitely not methods
-                        non_method_nodes = (ExprNodes.PyCFunctionNode, ExprNodes.ClassNode, ExprNodes.Py3ClassNode)
-                        may_be_a_method = any(
-                            assignment.rhs and not isinstance(assignment.rhs, non_method_nodes)
-                            for assignment in entry.cf_assignments)
-                if may_be_a_method:
+                if ExprNodes.PyMethodCallNode.can_be_used_for_function(function):
                     if (node.self and function.is_attribute and
                             isinstance(function.obj, ExprNodes.CloneNode) and function.obj.arg is node.self):
                         # function self object was moved into a CloneNode => undo
                         function.obj = function.obj.arg
                     node = self.replace(node, ExprNodes.PyMethodCallNode.from_node(
-                        node, function=function, arg_tuple=node.arg_tuple, type=node.type))
+                        node, function=function, arg_tuple=node.arg_tuple, type=node.type,
+                        unpack=self._check_optimize_method_calls(node)))
+        return node
+
+    def visit_GeneralCallNode(self, node):
+        """
+        Replace likely Python method calls by a specialised PyMethodCallNode.
+        """
+        self.visitchildren(node)
+        has_kwargs = bool(node.keyword_args)
+        kwds_is_dict_node = isinstance(node.keyword_args, ExprNodes.DictNode)
+        if not ExprNodes.PyMethodCallNode.can_be_used_for_posargs(
+                node.positional_args, has_kwargs=has_kwargs, kwds_is_dict_node=kwds_is_dict_node):
+            return node
+        function = node.function
+        if not ExprNodes.PyMethodCallNode.can_be_used_for_function(function):
+            return node
+
+        node = self.replace(node, ExprNodes.PyMethodCallNode.from_node(
+            node, function=function, arg_tuple=node.positional_args, kwdict=node.keyword_args,
+            type=node.type, unpack=self._check_optimize_method_calls(node)))
         return node
 
     def visit_NumPyMethodCallNode(self, node):

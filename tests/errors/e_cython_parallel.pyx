@@ -149,6 +149,26 @@ with nogil, cython.parallel.parallel():
     with cython.parallel.parallel():
         pass
 
+cdef bint gil_function():
+    return True
+
+for i in prange(10, nogil=True, use_threads_if=gil_function()):
+    pass
+
+with nogil, parallel.parallel(use_threads_if=gil_function()):
+    pass
+
+def bar():
+
+    python_var = object()
+
+    cdef int i
+
+    for i in prange(10, nogil=True, use_threads_if=python_var):
+        pass
+
+    with nogil, parallel.parallel(use_threads_if=python_var):
+        pass
 
 _ERRORS = u"""
 3:8: cython.parallel.parallel is not a module
@@ -184,4 +204,8 @@ _ERRORS = u"""
 139:62: Chunksize not valid for the schedule runtime
 145:70: Calling gil-requiring function not allowed without gil
 149:33: Nested parallel with blocks are disallowed
+155:59: Calling gil-requiring function not allowed without gil
+158:57: Calling gil-requiring function not allowed without gil
+167:51: use_threads_if may not be a Python object as we don't have the GIL
+170:49: use_threads_if may not be a Python object as we don't have the GIL
 """

@@ -16,11 +16,11 @@ cdef extern from "Python.h":
         cdef Py_complex cval
 
         @property
-        cdef inline double real(self):
+        cdef inline double real(self) noexcept:
             return self.cval.real
 
         @property
-        cdef inline double imag(self):
+        cdef inline double imag(self) noexcept:
             return self.cval.imag
 
     # PyTypeObject PyComplex_Type

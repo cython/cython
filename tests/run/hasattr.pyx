@@ -31,10 +31,15 @@ def wrap_hasattr(obj, name):
     False
     >>> Foo().baz   #doctest: +ELLIPSIS
     Traceback (most recent call last):
-       ...
     ZeroDivisionError: ...
-    >>> wrap_hasattr(Foo(), "baz")
+    >>> import sys
+    >>> if sys.version_info < (3,13): wrap_hasattr(Foo(), "baz")  # doctest: +ELLIPSIS
+    ... else: print(False)
     False
+    >>> if sys.version_info >= (3,13): wrap_hasattr(Foo(), "baz")  # doctest: +ELLIPSIS
+    ... else: raise ZeroDivisionError
+    Traceback (most recent call last):
+    ZeroDivisionError...
     >>> hasattr(Foo(), None)   #doctest: +ELLIPSIS
     Traceback (most recent call last):
        ...

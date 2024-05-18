@@ -117,7 +117,7 @@ static int __Pyx_validate_bases_tuple(const char *type_name, Py_ssize_t dictoffs
     n = PyTuple_GET_SIZE(bases);
 #else
     n = PyTuple_Size(bases);
-    if (unlikely(n == -1)) return -1;
+    if (unlikely(n < 0)) return -1;
 #endif
     for (i = 1; i < n; i++)  /* Skip first base */
     {
@@ -421,6 +421,8 @@ static int __Pyx_setup_reduce(PyObject* type_obj);
 /////////////// SetupReduce ///////////////
 //@requires: ObjectHandling.c::PyObjectGetAttrStrNoError
 //@requires: ObjectHandling.c::PyObjectGetAttrStr
+//@requires: SetItemOnTypeDict
+//@requires: DelItemOnTypeDict
 //@substitute: naming
 
 static int __Pyx_setup_reduce_is_named(PyObject* meth, PyObject* name) {
@@ -677,3 +679,54 @@ static int __Pyx_call_type_traverse(PyObject *o, int always_call, visitproc visi
     return 0;
 }
 #endif
+
+////////////////// SetItemOnTypeDict.proto //////////////////////////
+
+static int __Pyx__SetItemOnTypeDict(PyTypeObject *tp, PyObject *k, PyObject *v); /* proto */
+
+#define __Pyx_SetItemOnTypeDict(tp, k, v) __Pyx__SetItemOnTypeDict((PyTypeObject*)tp, k, v)
+
+////////////////// SetItemOnTypeDict //////////////////////////
+
+static int __Pyx__SetItemOnTypeDict(PyTypeObject *tp, PyObject *k, PyObject *v) {
+    int result;
+#if CYTHON_COMPILING_IN_LIMITED_API
+    // Using PyObject_GenericSetAttr to bypass types immutability protection feels
+    // a little hacky, but it does work in the limited API .
+    // (It doesn't work on PyPy but that probably isn't a bug.)
+    result = PyObject_GenericSetAttr((PyObject*)tp, k, v);
+#else
+    result = PyDict_SetItem(tp->tp_dict, k, v);
+#endif
+    if (likely(!result)) {
+        PyType_Modified(tp);
+        if (unlikely(PyObject_HasAttr(v, PYIDENT("__set_name__")))) {
+            PyObject *setNameResult = PyObject_CallMethodObjArgs(v, PYIDENT("__set_name__"),  (PyObject *) tp, k, NULL);
+            if (!setNameResult) return -1;
+            Py_DECREF(setNameResult);
+        }
+    }
+    return result;
+}
+
+////////////////// DelItemOnTypeDict.proto //////////////////////////
+
+static int __Pyx__DelItemOnTypeDict(PyTypeObject *tp, PyObject *k); /* proto */
+
+#define __Pyx_DelItemOnTypeDict(tp, k) __Pyx__DelItemOnTypeDict((PyTypeObject*)tp, k)
+
+////////////////// DelItemOnTypeDict //////////////////////////
+
+static int __Pyx__DelItemOnTypeDict(PyTypeObject *tp, PyObject *k) {
+    int result;
+#if CYTHON_COMPILING_IN_LIMITED_API
+    // Using PyObject_GenericSetAttr to bypass types immutability protection feels
+    // a little hacky, but it does work in the limited API .
+    // (It doesn't work on PyPy but that probably isn't a bug.)
+    result = PyObject_GenericSetAttr((PyObject*)tp, k, NULL);
+#else
+    result = PyDict_DelItem(tp->tp_dict, k);
+#endif
+    if (likely(!result)) PyType_Modified(tp);
+    return result;
+}

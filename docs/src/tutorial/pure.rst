@@ -166,7 +166,7 @@ There are numerous types built into the Cython module.  It provides all the
 standard C types, namely ``char``, ``short``, ``int``, ``long``, ``longlong``
 as well as their unsigned versions ``uchar``, ``ushort``, ``uint``, ``ulong``,
 ``ulonglong``.  The special ``bint`` type is used for C boolean values and
-``Py_ssize_t`` for (signed) sizes of Python containers.
+:c:type:`Py_ssize_t` for (signed) sizes of Python containers.
 
 For each type, there are pointer types ``p_int``, ``pp_int``, etc., up to
 three levels deep in interpreted mode, and infinitely deep in compiled mode.
@@ -363,6 +363,11 @@ following example:
 Note the use of ``cython.int`` rather than ``int`` - Cython does not translate
 an ``int`` annotation to a C integer by default since the behaviour can be
 quite different with respect to overflow and division.
+
+Annotations on global variables are currently ignored.  This is because we expect
+annotation-typed code to be in majority written for Python, and global type annotations
+would turn the Python variable into an internal C variable, thus removing it from the
+module dict.  To declare global variables as typed C variables, use ``@cython.declare()``.
 
 Annotations can be combined with the ``@cython.exceptval()`` decorator for non-Python
 return types:

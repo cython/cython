@@ -670,13 +670,13 @@ __pyx_memoryview_copy_new_contig(const __Pyx_memviewslice *from_mvs,
     goto no_fail;
 
 fail:
-    __Pyx_XDECREF(new_mvs.memview);
+    __Pyx_XDECREF((PyObject *) new_mvs.memview);
     new_mvs.memview = NULL;
     new_mvs.data = NULL;
 no_fail:
     __Pyx_XDECREF(shape_tuple);
     __Pyx_XDECREF(temp_int);
-    __Pyx_XDECREF(array_obj);
+    __Pyx_XDECREF((PyObject *) array_obj);
     __Pyx_RefNannyFinishContext();
     return new_mvs;
 }

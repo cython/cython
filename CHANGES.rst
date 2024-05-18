@@ -2,13 +2,268 @@
 Cython Changelog
 ================
 
-3.1.0 (202?-??-??)
+3.1.0 (2024-??-??)
 ==================
+
+Features added
+--------------
+
+* Several improvements were made to reduce the size of the resulting extension modules.
+  (Github issue :issue:`4425`)
+
+* Function calls now use the PEP-590 Vectorcall protocol, even when passing keyword arguments.
+  (Github issues :issue:`5804`)
+
+* The Python ``int`` type now maps directly to ``PyLong`` and is inferred accordingly.
+  (Github issue :issue:`4237`)
+
+* Integer operations on known ``int`` types are faster.
+  (Github issue :issue:`5785`)
+
+* Many issues with the Limited C-API were resolved.
+  (Github issues :issue:`5697`, :issue:`5798`, :issue:`5845`, :issue:`5846`,
+  :issue:`5885`, :issue:`5886`, :issue:`5888`)
+
+* Several issues with the gdb support were resolved.
+  Patches by Kent Slaney.  (Github issues :issue:`5955`, :issue:`5948`)
+
+* C++ classes implemented in Cython can now use method overloading.
+  Patch by samaingw.  (Github issue :issue:`3235`)
+
+* Assigning a Python container to a C++ vector now makes use of ``__length_hint__``
+  to avoid reallocations.
+  Patch by Denis Lukianov.  (Github issue :issue:`6077`)
+
+* Dataclasses support the ``match_args`` option.
+  (Github issue :issue:`5381`)
+
+* Threading in parallel sections can now be disabled with a new ``use_threads_if`` condition.
+  (Github issue :issue:`5919`)
+
+* f-strings are slightly faster.
+  (Github issue :issue:`5866`)
+
+* ``dict.pop()`` is faster in some cases.
+  (Github issue :issue:`5911`)
+
+* Most builtin methods now provide their return type for type inference.
+  (Github issues :issue:`4829`, :issue:`5865`)
+
+* ``.isprintable()`` is optimised for Unicode characters.
+  (Github issue :issue:`3277`)
+
+* The parser was updated for Unicode 15.1 (as provided by CPython 3.13a4).
+
+Bugs fixed
+----------
+
+* Dataclasses did not handle default fields without init value correctly.
+  (Github issue :issue:`5858`)
+
+* Exception values were not always recognised as equal at compile time.
+  (Github issue :issue:`5709`)
+
+* Running Cython in different Python versions could generate slightly different C code
+  due to differences in the builtins.
+  (Github issue :issue:`5591`)
+
+* The ``-a`` option in the IPython magic no longer copies the complete HTML document
+  into the notebook but only a more reasonable content snippet.
+  Patch by Min RK.  (Github issue :issue:`5760`)
+
+* Uselessly referring to C enums (not enum values) as Python objects is now rejected.
+  Patch by Vyas Ramasubramani.  (Github issue :issue:`5638`)
+
+* Several C++ warnings about ``char*`` casts were resolved.
+  (Github issues :issue:`5515`, :issue:`5847`)
+
+* C++ undefined behaviour was fixed in an error handling case.
+  (Github issue :issue:`5278`)
+
+* The PEP-479 implementation could raise a visible ``RuntimeError`` without
+  a trace of the original ``StopIteration``.
+  (Github issue :issue:`5953`)
+
+* Unterminated string literals could lock up the build in an infinite loop.
+  (Github issue :issue:`5977`)
+
+* Exporting C functions uses better platform compatible code.
+  (Github issue :issue:`4683`)
 
 Other changes
 -------------
 
-* Support for Python 2.7 - 3.6 was removed.
+* Support for Python 2.7 - 3.6 was removed, along with large chunks of legacy code.
+  (Github issue :issue:`2800`)
+
+* The generated C code now requires a C99 compatible C compiler.
+
+* ``language_level=3`` is now the default.
+  ``language_level=3str`` has become a legacy alias.
+  (Github issue :issue:`5827`)
+
+* The previously shipped NumPy C-API declarations (``cimport numpy``) were removed.
+  NumPy has been providing version specific declarations for several versions now.
+  (Github issue :issue:`5842`)
+
+* Usages of the outdated ``WITH_THREAD`` macro guard were removed.
+  (Github issue :issue:`5812`)
+
+* The options for showing the C code line in Python exception stack traces were cleaned up.
+  Previously, disabling the option with the ``CYTHON_CLINE_IN_TRACEBACK`` macro did not
+  reduce the code overhead of the feature, and the ``c_line_in_traceback`` compile option
+  was partly redundant with the C macro switches and lead to warnings about unused code.
+  Since this is considered mostly a debug feature, the new default is that it is _disabled_
+  to avoid code and runtime overhead.  It can be enabled by setting the C macro to 1, and
+  a new macro ``CYTHON_CLINE_IN_TRACEBACK_RUNTIME`` was added that controls the runtime
+  configurable setting if the feature is enabled, which was previously only available
+  through the compile option.  The compile option is now deprecated (but still available),
+  and users should migrate to using the two C macros only.
+  (Github issue :issue:`6036`)
+
+* Includes all fixes as of Cython 3.0.10 (but generates C99 code in some places).
+
+
+3.0.10 (2024-03-30)
+===================
+
+Bugs fixed
+----------
+
+* Cython generated incorrect self-casts when directly calling final methods of subtypes.
+  Patch by Lisandro Dalcin.  (Github issue :issue:`2747`)
+
+* Internal C names generated from C function signatures could become too long for MSVC.
+  (Github issue :issue:`6052`)
+
+* The ``noexcept`` warnings could be misleading in some cases.
+  Patch by Gonzalo Tornaría.  (Github issue :issue:`6087`)
+
+* The ``@cython.ufunc`` implementation could generate incomplete C code.
+  (Github issue :issue:`6064`)
+
+* The ``libcpp.complex`` declarations could result in incorrect C++ code.
+  Patch by Raffi Enficiaud.  (Github issue :issue:`6037`)
+
+* Several tests were adapted to work with both NumPy 1.x and 2.0.
+  Patch by Matti Picus.  (Github issues :issue:`6076`, :issue:`6100`)
+
+* C compiler warnings when the freelist implementation is disabled (e.g. on PyPy) were fixed.
+  It can now be disabled explicitly with the C macro guard ``CYTHON_USE_FREELISTS=0``.
+  (Github issue :issue:`6099`)
+
+* Some C macro guards for feature flags were missing from the NOGIL Python configuration.
+
+* Some recently added builtins were unconditionally looked up at module import time
+  (if used by user code) that weren't available on all Python versions and could thus
+  fail the import.
+
+* A performance hint regarding exported pxd declarations was improved.
+  (Github issue :issue:`6001`)
+
+
+3.0.9 (2024-03-05)
+==================
+
+Features added
+--------------
+
+* Assigning ``const`` values to non-const variables now issues a warning.
+  (Github issue :issue:`5639`)
+
+* Using ``noexcept`` on a function returning Python objects now issues a warning.
+  (Github issue :issue:`5661`)
+
+* Some C-API usage was updated for the upcoming CPython 3.13.
+  Patches by Victor Stinner et al.  (Github issues :issue:`6003`, :issue:`6020`)
+
+* The deprecated ``Py_UNICODE`` type is no longer used, unless required by user code.
+  (Github issue :issue:`5982`)
+
+* ``std::string.replace()`` declarations were added to libcpp.string.
+  Patch by Kieran Geary.  (Github issue :issue:`6037`)
+
+Bugs fixed
+----------
+
+* Cython generates incorrect (but harmless) self-casts when directly calling
+  final methods of subtypes.  Lacking a better solution, the errors that recent
+  gcc versions produce have been silenced for the time being.
+  Original patch by Michał Górny.  (Github issue :issue:`2747`)
+
+* Unused variable warnings about clineno were fixed when C lines in tracebacks are disabled.
+  (Github issue :issue:`6035`)
+
+* Subclass deallocation of extern classes could crash if the base class uses GC.
+  Original patch by Jason Fried.  (Github issue :issue:`5971`)
+
+* Type checks for Python ``memoryview`` could use an invalid C function.
+  Patch by Xenia Lu.  (Github issue :issue:`5988`)
+
+* Calling final fused functions could generate invalid C code.
+  (Github issue :issue:`5989`)
+
+* Declaring extern enums multiple times could generate invalid C code.
+  (Github issue :issue:`5905`)
+
+* ``pyximport`` used relative paths incorrectly.
+  Patch by Stefano Rivera.  (Github issue :issue:`5957`)
+
+* Running Cython with globbing characters (``[]*?``) in the module search path could fail.
+  Patch by eewanco.  (Github issue :issue:`5942`)
+
+* Literal strings that include braces could change the C code indentation.
+
+Other changes
+-------------
+
+* The "enum class not importable" warning is now only issued once per enum type.
+  (Github issue :issue:`5941`)
+
+
+3.0.8 (2024-01-10)
+==================
+
+Bugs fixed
+----------
+
+* Using ``const`` together with defined fused types could fail to compile.
+  (Github issue :issue:`5230`)
+
+* A "use after free" bug was fixed in parallel sections.
+  (Github issue :issue:`5922`)
+
+* Several types were not available as ``cython.*`` types in pure Python code.
+
+* The generated code is now correct C89 again, removing some C++ style ``//`` comments
+  and C99-style declaration-after-code code ordering.  This is still relevant for some
+  ols C compilers, specifically ones that match old Python 2.7 installations.
+
+
+3.0.7 (2023-12-19)
+==================
+
+Bugs fixed
+----------
+
+* In the iterator of generator expressions, ``await`` and ``yield`` were not correctly analysed.
+  (Github issue :issue:`5851`)
+
+* ``cpdef`` enums with the same name cimported from different modules could lead to
+  invalid C code.
+  (Github issue :issue:`5887`)
+
+* Some declarations in ``cpython.unicode`` were fixed and extended.
+  (Github issue :issue:`5902`)
+
+* Compiling fused types used in pxd files could crash Cython in Python 3.11+.
+  (Github issues :issue:`5894`,  :issue:`5588`)
+
+* Source files with non-ASCII file names could crash Cython.
+  (Github issue :issue:`5873`)
+
+* Includes all bug-fixes and features from the 0.29 maintenance branch
+  up to the :ref:`0.29.37` release.
 
 
 3.0.6 (2023-11-26)
@@ -23,7 +278,7 @@ Features added
   (Github issue :issue:`5836`)
 
 * The Python "nogil" fork is now also detected with the new ``Py_GIL_DISABLED`` macro.
-  Patch by Hugo van Kemenade   (Github issue :issue:`583652`)
+  Patch by Hugo van Kemenade.  (Github issue :issue:`5852`)
 
 Bugs fixed
 ----------
@@ -2082,7 +2337,7 @@ Features added
   both Python and C semantics of enums.
   (Github issue :issue:`2732`)
 
-* `PEP-614 <https://peps.python.org/pep-0614/>`_:
+* `PEP-614`_:
   decorators can now be arbitrary Python expressions.
   (Github issue :issue:`4570`)
 
@@ -3326,6 +3581,27 @@ Other changes
 .. _`PEP-3131`: https://www.python.org/dev/peps/pep-3131
 .. _`PEP-563`: https://www.python.org/dev/peps/pep-0563
 .. _`PEP-479`: https://www.python.org/dev/peps/pep-0479
+
+
+.. _0.29.37:
+
+0.29.37 (2023-12-18)
+====================
+
+Bugs fixed
+----------
+
+* Fix a potential crash while cleaning up subtypes of externally imported extension
+  types when terminating Python.  This was introduced in Cython 0.29.35.
+
+* Fix a ``complex`` related compile error on Windows.
+  (Github issue :issue:`5512`)
+
+* Compiling fused types used in pxd files could crash Cython in Python 3.11+.
+  (Github issues :issue:`5894`, :issue:`5588`)
+
+* ``cythonize`` failed to consider the ``CYTHON_FORCE_REGEN`` env variable.
+  Patch by Harmen Stoppels.  (Github issue :issue:`5712`)
 
 
 .. _0.29.36:

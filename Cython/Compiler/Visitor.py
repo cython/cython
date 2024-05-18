@@ -194,7 +194,6 @@ class TreeVisitor:
         return self._visitchildren(parent, attrs, exclude)
 
     @cython.final
-    @cython.locals(idx=cython.Py_ssize_t)
     def _visitchildren(self, parent, attrs, exclude):
         # fast cdef entry point for calls from Cython subclasses
         """
@@ -206,6 +205,8 @@ class TreeVisitor:
         or a list of return values (in the case of multiple children
         in an attribute)).
         """
+        idx: cython.Py_ssize_t
+
         if parent is None: return None
         result = {}
         for attr in parent.child_attrs:
@@ -575,15 +576,8 @@ class MethodDispatcherTransform(EnvTransform):
     ### dispatch to specific handlers
 
     def _find_handler(self, match_name, has_kwargs):
-        try:
-            match_name.encode('ascii')
-        except UnicodeEncodeError:
-            # specifically when running the Cython compiler under Python 2
-            #  getattr can't take a unicode string.
-            #  Classes with unicode names won't have specific handlers and thus it
-            #  should be OK to return None.
-            # Doing the test here ensures that the same code gets run on
-            # Python 2 and 3
+        if not match_name.isascii():
+            # Classes with unicode names won't have specific handlers.
             return None
 
         call_type = 'general' if has_kwargs else 'simple'
