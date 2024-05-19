@@ -2433,7 +2433,7 @@ if VALUE is not None:
             node = self._create_fused_function(env, node)
         else:
             node.body.analyse_declarations(lenv)
-            self._super_visit_FuncDefNode(node)
+            node = self._super_visit_FuncDefNode(node)
 
         self.seen_vars_stack.pop()
 
@@ -2448,7 +2448,8 @@ if VALUE is not None:
             return node
         env = self.current_env()
         if node.code_object is None:
-            node.code_object = ExprNodes.CodeObjectNode(node).analyse_declarations(env)
+            node.code_object = ExprNodes.CodeObjectNode(node)
+            node.code_object.analyse_declarations(env)
         if node.fused_py_func or node.is_generator_body:
             return node
         if not node.needs_assignment_synthesis(env):
@@ -2465,16 +2466,11 @@ if VALUE is not None:
         while genv.is_py_class_scope or genv.is_c_class_scope:
             genv = genv.outer_scope
 
+        binding = env.is_py_class_scope or self.current_directives.get('binding')
         if genv.is_closure_scope:
-            rhs = node.py_cfunc_node = ExprNodes.InnerFunctionNode(
-                node.pos, def_node=node,
-                pymethdef_cname=node.entry.pymethdef_cname)
+            rhs = node.py_cfunc_node = ExprNodes.InnerFunctionNode.from_defnode(node, binding)
         else:
-            binding = self.current_directives.get('binding')
             rhs = ExprNodes.PyCFunctionNode.from_defnode(node, binding)
-
-        if env.is_py_class_scope:
-            rhs.binding = True
 
         node.is_cyfunction = rhs.binding
         return self._create_assignment(node, rhs, env)

@@ -2089,7 +2089,10 @@ class FuncDefNode(StatNode, BlockNode):
 
         if tracing:
             tempvardecl_code.put_trace_declarations()
-            code_object = self.code_object.calculate_result_code(code) if self.code_object else None
+            code_object = None
+            if self.code_object:
+                self.code_object.generate_result_code(code)
+                code_object = self.code_object.py_result()
             code.put_trace_frame_init(code_object)
 
         # ----- Special check for getbuffer
@@ -2632,7 +2635,7 @@ class CFuncDefNode(FuncDefNode):
         return self.py_func.code_object if self.py_func else self._code_object
 
     @code_object.setter
-    def _set_code_object(self, code_object):
+    def code_object(self, code_object):
         self._code_object = code_object
 
     def analyse_declarations(self, env):
@@ -4701,21 +4704,17 @@ class GeneratorDefNode(DefNode):
         qualname = code.intern_identifier(self.qualname)
         module_name = code.intern_identifier(self.module_name)
 
-        self.gbody.code_object.generate_evaluation_code(code)
-        code_object = self.gbody.code_object.py_result()
+        self.code_object.generate_result_code(code)
 
         code.putln('{')
         code.putln(
             f'__pyx_CoroutineObject *gen = __Pyx_{self.gen_type_name}_New('
             f'(__pyx_coroutine_body_t) {body_cname},'
-            f' {code_object},'
+            f' {self.code_object.py_result()},'
             f' (PyObject *) {Naming.cur_scope_cname},'
             f' {name}, {qualname}, {module_name}'
             f'); {code.error_goto_if_null("gen", self.pos)}'
         )
-
-        self.gbody.code_object.generate_disposal_code(code)
-        self.gbody.code_object.free_temps(code)
 
         code.put_decref(Naming.cur_scope_cname, py_object_type)
         if self.requires_classobj:

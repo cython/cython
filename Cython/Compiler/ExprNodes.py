@@ -10118,7 +10118,7 @@ class PyCFunctionNode(ExprNode, ModuleNameMixin):
         else:
             flags = '0'
 
-        self.code_object.generate_evaluation_code(code)
+        self.code_object.generate_result_code(code)
 
         code.putln(
             '%s = %s(&%s, %s, %s, %s, %s, %s, %s); %s' % (
@@ -10134,9 +10134,6 @@ class PyCFunctionNode(ExprNode, ModuleNameMixin):
                 code.error_goto_if_null(self.result(), self.pos)))
 
         self.generate_gotref(code)
-
-        self.code_object.generate_disposal_code(code)
-        self.code_object.free_temps(code)
 
         if def_node.requires_classobj:
             assert code.pyclass_stack, "pyclass_stack is empty"
@@ -10264,8 +10261,15 @@ class CodeObjectNode(ExprNode):
             "};"
         )
 
+        for var in self.varnames:
+            var.generate_evaluation_code(code)
+
         varnames = [var.py_result() for var in self.varnames] or ['0']
         code.putln("PyObject* varnames[] = {%s};" % ', '.join(varnames))
+
+        for var in self.varnames:
+            var.generate_disposal_code(code)
+            var.free_temps(code)
 
         code.putln(
             f"{self.result_code} = __Pyx_PyCode_New("

@@ -3,7 +3,7 @@ import copy
 from . import (ExprNodes, PyrexTypes, MemoryView,
                ParseTreeTransforms, StringEncoding, Errors,
                Naming)
-from .ExprNodes import CloneNode, ProxyNode, TupleNode
+from .ExprNodes import CloneNode, CodeObjectNode, ProxyNode, TupleNode
 from .Nodes import FuncDefNode, StatListNode, DefNode
 from ..Utils import OrderedSet
 from .Errors import error, CannotSpecialize
@@ -98,6 +98,7 @@ class FusedCFuncDefNode(StatListNode):
             self._specialize_function_args(copied_node.args, fused_to_specific)
             copied_node.return_type = self.node.return_type.specialize(
                                                     fused_to_specific)
+            copied_node.code_object = CodeObjectNode(copied_node)
             copied_node.analyse_declarations(env)
             # copied_node.is_staticmethod = self.node.is_staticmethod
             # copied_node.is_classmethod = self.node.is_classmethod
@@ -121,6 +122,7 @@ class FusedCFuncDefNode(StatListNode):
 
         self.orig_py_func = self.node
         self.py_func = self.make_fused_cpdef(self.node, env, is_def=True)
+        self.py_func.code_object = CodeObjectNode(copied_node)
 
     def copy_cdef(self, env):
         """
