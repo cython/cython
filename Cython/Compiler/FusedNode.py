@@ -122,7 +122,7 @@ class FusedCFuncDefNode(StatListNode):
 
         self.orig_py_func = self.node
         self.py_func = self.make_fused_cpdef(self.node, env, is_def=True)
-        self.py_func.code_object = CodeObjectNode(copied_node)
+        self.py_func.code_object = CodeObjectNode(self.py_func)
 
     def copy_cdef(self, env):
         """
