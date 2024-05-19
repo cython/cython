@@ -10186,6 +10186,26 @@ class InnerFunctionNode(PyCFunctionNode):
         return "NULL"
 
 
+class DefFuncLikeNode:
+    """
+    Adapter for CFuncDefNode to give it the same attributes as DefNode in CodeObjects.
+    """
+    is_generator = False
+    is_coroutine = False
+    is_asyncgen = False
+
+    num_posonly_args = 0
+    num_kwonly_args = 0
+    star_arg = None
+    starstar_arg = None
+
+    def __init__(self, cfuncdef_node):
+        self.name = cfuncdef_node.entry.name
+        self.local_scope = cfuncdef_node.entry.scope
+        self.args = cfuncdef_node.args
+        self.pos = cfuncdef_node.pos
+
+
 class CodeObjectNode(ExprNode):
     # Create a PyCodeObject for a CyFunction instance.
     #
@@ -10205,6 +10225,10 @@ class CodeObjectNode(ExprNode):
             IdentifierStringNode(arg.pos, value=arg.name)
             for arg in args + local_vars
         ]
+
+    @classmethod
+    def for_cfunc(cls, cfuncdef_node):
+        return cls(DefFuncLikeNode(cfuncdef_node))
 
     def may_be_none(self):
         return False

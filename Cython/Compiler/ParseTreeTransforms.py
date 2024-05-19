@@ -2456,8 +2456,14 @@ if VALUE is not None:
             return node
         return [node, self._synthesize_assignment(node, env)]
 
+    def visit_CFuncDefNode(self, node):
+        if node.code_object is None and node.py_func is None:
+            node.code_object = ExprNodes.CodeObjectNode.for_cfunc(node)
+        return self.visit_FuncDefNode(node)
+
     def visit_GeneratorBodyDefNode(self, node):
-        node.code_object = ExprNodes.CodeObjectNode(node)
+        if node.code_object is None:
+            node.code_object = ExprNodes.CodeObjectNode(node)
         return self.visit_FuncDefNode(node)
 
     def _synthesize_assignment(self, node, env):
