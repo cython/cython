@@ -2245,7 +2245,7 @@ done:
     gil_check_is_true = PyObject_IsTrue(gil_check_result);
     Py_DECREF(gil_check_result);
     if (gil_check_is_true == 0) {
-        PyErr_WarnEx(PyExc_UserWarning, "Module uses the Cython-feature `with gil:` block and is running in the "
+        PyErr_WarnEx(PyExc_UserWarning, "Module uses the Cython-feature `with gil:` block and is running in "
             "a Python \"free-threading\" build with the global interpreter lock disabled. "
             "Cython does not currently generate thread-safe code so this is unsupported and may "
             "lead to errors.", 2);
