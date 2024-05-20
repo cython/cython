@@ -2230,3 +2230,28 @@ done:
     Py_DECREF(varnames_tuple);
     return code_obj;
 }
+
+/////////////////////////// WarnFreethreadingWithGIL.init ////////////
+
+#if CYTHON_COMPILING_IN_CPYTHON_NOGIL && \
+    !(defined(CYTHON_DISABLE_THREAD_SAFETY_WARNING_AT_YOUR_OWN_RISK) && CYTHON_DISABLE_THREAD_SAFETY_WARNING_AT_YOUR_OWN_RISK)
+{
+    PyObject *gil_check_function, *gil_check_result;
+    int gil_check_is_true;
+    gil_check_function = PySys_GetObject("_is_gil_enabled");
+    if (unlikely(gil_check_function == NULL)) goto end_gil_check;
+    gil_check_result = PyObject_CallNoArgs(gil_check_function);
+    if (unlikely(gil_check_result == NULL)) goto end_gil_check;
+    gil_check_is_true = PyObject_IsTrue(gil_check_result);
+    Py_DECREF(gil_check_result);
+    if (gil_check_is_true == 0) {
+        PyErr_WarnEx(PyExc_UserWarning, "Module uses the Cython-feature `with gil:` block and is running in the "
+            "a Python \"free-threading\" build with the global interpreter lock disabled. "
+            "Cython does not currently generate thread-safe code so this is unsupported and may "
+            "lead to errors.", 2);
+    } else if (unlikely(gil_check_is_true == -1)) {
+end_gil_check:
+        PyErr_Clear();
+    }
+}
+#endif

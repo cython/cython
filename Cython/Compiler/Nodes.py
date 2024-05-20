@@ -8744,6 +8744,8 @@ class GILStatNode(NogilTryFinallyStatNode):
         env._in_with_gil_block = (self.state == 'gil')
         if self.state == 'gil':
             env.has_with_gil_block = True
+            env.use_utility_code(
+                UtilityCode.load_cached("WarnFreethreadingWithGIL", "ModuleSetupCode.c"))
 
         if self.condition is not None:
             self.condition.analyse_declarations(env)
