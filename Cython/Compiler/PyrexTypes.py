@@ -5057,7 +5057,7 @@ def best_match(arg_types, functions, pos=None, env=None, args=None):
     if len(candidates) == 1:
         return candidates[0][0]
     elif len(candidates) == 0:
-        if pos is not None:
+        if pos is not None and errors:
             func, errmsg = errors[0]
             if len(errors) == 1 or [1 for func, e in errors if e == errmsg]:
                 error(pos, errmsg)
