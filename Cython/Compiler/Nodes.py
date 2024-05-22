@@ -9460,6 +9460,11 @@ class ParallelStatNode(StatNode, ParallelNode):
                 shared_vars = [Naming.parallel_why]
                 if self.error_label_used:
                     shared_vars.extend(self.parallel_exc)
+                    c.globalstate.use_utility_code(
+                        UtilityCode.load_cached(
+                            "SharedInFreeThreading",
+                            "ModuleSetupCode.c"))
+                    c.put(f" __Pyx_shared_in_cpython_nogil({Naming.parallel_freethreading_mutex})")
                     c.put(" private(%s, %s, %s)" % self.pos_info)
 
                 c.put(" shared(%s)" % ', '.join(shared_vars))
@@ -9701,6 +9706,7 @@ class ParallelStatNode(StatNode, ParallelNode):
         """
         code.begin_block()
         code.put_ensure_gil(declare_gilstate=True)
+        code.put_acquire_freethreading_lock()
 
         code.putln_openmp("#pragma omp flush(%s)" % Naming.parallel_exc_type)
         code.putln(
@@ -9715,6 +9721,7 @@ class ParallelStatNode(StatNode, ParallelNode):
         code.putln(
             "}")
 
+        code.put_release_freethreading_lock()
         code.put_release_ensured_gil()
         code.end_block()
 
@@ -9722,12 +9729,14 @@ class ParallelStatNode(StatNode, ParallelNode):
         "Re-raise a parallel exception"
         code.begin_block()
         code.put_ensure_gil(declare_gilstate=True)
+        code.put_acquire_freethreading_lock()
 
         code.put_giveref(Naming.parallel_exc_type, py_object_type)
         code.putln("__Pyx_ErrRestoreWithState(%s, %s, %s);" % self.parallel_exc)
         pos_info = chain(*zip(self.pos_info, self.parallel_pos_info))
         code.putln("%s = %s; %s = %s; %s = %s;" % tuple(pos_info))
 
+        code.put_release_freethreading_lock()
         code.put_release_ensured_gil()
         code.end_block()
 
@@ -9767,6 +9776,9 @@ class ParallelStatNode(StatNode, ParallelNode):
         if self.error_label_used:
             c.putln("const char *%s = NULL; int %s = 0, %s = 0;" % self.parallel_pos_info)
             c.putln("PyObject *%s = NULL, *%s = NULL, *%s = NULL;" % self.parallel_exc)
+            c.putln("#if CYTHON_COMPILING_IN_CPYTHON_NOGIL")
+            c.putln(f"PyMutex {Naming.parallel_freethreading_mutex} = {{0}};")
+            c.putln("#endif")
 
             code.putln(
                 "if (%s) {" % Naming.parallel_exc_type)
@@ -9880,7 +9892,8 @@ class ParallelWithBlockNode(ParallelStatNode):
         if self.privates:
             privates = [e.cname for e in self.privates
                         if not e.type.is_pyobject]
-            code.put('private(%s)' % ', '.join(sorted(privates)))
+            if privates:
+                code.put('private(%s)' % ', '.join(sorted(privates)))
 
         self.privatization_insertion_point = code.insertion_point()
         self.put_num_threads(code)

@@ -2718,6 +2718,18 @@ class CCodeWriter:
             variable = '__pyx_gilstate_save'
         self.putln("__Pyx_PyGILState_Release(%s);" % variable)
 
+    def put_acquire_freethreading_lock(self):
+        self.globalstate.use_utility_code(
+            UtilityCode.load_cached("AccessPyMutexForFreeThreading", "ModuleSetupCode.c"))
+        self.putln("#if CYTHON_COMPILING_IN_CPYTHON_NOGIL")
+        self.putln(f"PyMutex_Lock(&{Naming.parallel_freethreading_mutex});")
+        self.putln("#endif")
+
+    def put_release_freethreading_lock(self):
+        self.putln("#if CYTHON_COMPILING_IN_CPYTHON_NOGIL")
+        self.putln(f"PyMutex_Unlock(&{Naming.parallel_freethreading_mutex});")
+        self.putln("#endif")
+
     def put_acquire_gil(self, variable=None, unknown_gil_state=True):
         """
         Acquire the GIL. The thread's thread state must have been initialized
