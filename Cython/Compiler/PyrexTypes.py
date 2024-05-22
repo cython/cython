@@ -5139,7 +5139,7 @@ def best_match(arg_types, functions, pos=None, env=None, args=None):
 
 
 def merge_template_deductions(a, b):
-    # Reduce lists of deduced template mappings into one mapping.
+    # Used to reduce lists of deduced template mappings into one mapping.
     if a is None or b is None:
         return None
     add_if_missing = a.setdefault
