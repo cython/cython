@@ -2245,10 +2245,14 @@ done:
     gil_check_is_true = PyObject_IsTrue(gil_check_result);
     Py_DECREF(gil_check_result);
     if (gil_check_is_true == 0) {
-        PyErr_WarnEx(PyExc_UserWarning, "Module uses the Cython-feature `with gil:` block and is running in "
+        PyErr_WarnEx(PyExc_UserWarning,
+            "Module uses the Cython-feature `with gil:` block and is running in "
             "a Python \"free-threading\" build with the global interpreter lock disabled. "
-            "Cython does not currently generate thread-safe code so this is unsupported and may "
-            "lead to errors.", 2);
+            "Cython does not currently generate thread-safe code. Likely issues are:\n"
+            " 1. If you were using `with gil` as a synchronization mechanism to ensure "
+            "that only one thread can access certain resources, this is no longer true.\n"
+            " 2. If multiple threads are accessing the same Python objects simultaneous then "
+            "it is likely the interpreter state will be corrupted.", 1);
     } else if (unlikely(gil_check_is_true == -1)) {
 end_gil_check:
         PyErr_Clear();
