@@ -5137,17 +5137,17 @@ def best_match(arg_types, functions, pos=None, env=None, args=None):
 
     return None
 
+
 def merge_template_deductions(a, b):
+    # Reduce lists of deduced template mappings into one mapping.
     if a is None or b is None:
         return None
-    all = a
+    add_if_missing = a.setdefault
     for param, value in b.items():
-        if param in all:
-            if a[param] != b[param]:
-                return None
-        else:
-            all[param] = value
-    return all
+        if add_if_missing(param, value) != value:
+            # Found mismatch, cannot merge.
+            return None
+    return a
 
 
 def widest_numeric_type(type1, type2):
