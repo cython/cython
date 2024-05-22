@@ -2240,3 +2240,11 @@ done:
 #endif
 #include "internal/pycore_lock.h"
 #endif
+
+////////////////////////// SharedInFreeThreading.proto //////////////////
+
+#if CYTHON_COMPILING_IN_CPYTHON_NOGIL
+#define __Pyx_shared_in_cpython_nogil(x) shared(x)
+#else
+#define __Pyx_shared_in_cpython_nogil(x)
+#endif

@@ -9460,7 +9460,11 @@ class ParallelStatNode(StatNode, ParallelNode):
                 shared_vars = [Naming.parallel_why]
                 if self.error_label_used:
                     shared_vars.extend(self.parallel_exc)
-                    shared_vars.append(Naming.parallel_freethreading_mutex)
+                    c.globalstate.use_utility_code(
+                        UtilityCode.load_cached(
+                            "SharedInFreeThreading",
+                            "ModuleSetupCode.c"))
+                    c.put(f" __Pyx_shared_in_cpython_nogil({Naming.parallel_freethreading_mutex})")
                     c.put(" private(%s, %s, %s)" % self.pos_info)
 
                 c.put(" shared(%s)" % ', '.join(shared_vars))
@@ -9774,9 +9778,6 @@ class ParallelStatNode(StatNode, ParallelNode):
             c.putln("PyObject *%s = NULL, *%s = NULL, *%s = NULL;" % self.parallel_exc)
             c.putln("#if CYTHON_COMPILING_IN_CPYTHON_NOGIL")
             c.putln(f"PyMutex {Naming.parallel_freethreading_mutex} = {{0}};")
-            c.putln("#else")
-            c.putln(f"int {Naming.parallel_freethreading_mutex}=0;")
-            c.putln(f"(void){Naming.parallel_freethreading_mutex};")
             c.putln("#endif")
 
             code.putln(
@@ -9891,7 +9892,8 @@ class ParallelWithBlockNode(ParallelStatNode):
         if self.privates:
             privates = [e.cname for e in self.privates
                         if not e.type.is_pyobject]
-            code.put('private(%s)' % ', '.join(sorted(privates)))
+            if privates:
+                code.put('private(%s)' % ', '.join(sorted(privates)))
 
         self.privatization_insertion_point = code.insertion_point()
         self.put_num_threads(code)
