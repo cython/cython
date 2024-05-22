@@ -164,7 +164,7 @@ exc_value_name  = pyrex_prefix + "exc_value"
 exc_tb_name     = pyrex_prefix + "exc_tb"
 exc_lineno_name = pyrex_prefix + "exc_lineno"
 
-parallel_freethreading_mutex = pyrex_prefix + "parallel_freethreading_mutex"
+parallel_nogil_mutex = pyrex_prefix + "parallel_nogil_mutex"
 parallel_exc_type = pyrex_prefix + "parallel_exc_type"
 parallel_exc_value = pyrex_prefix + "parallel_exc_value"
 parallel_exc_tb = pyrex_prefix + "parallel_exc_tb"

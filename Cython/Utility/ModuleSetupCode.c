@@ -2231,7 +2231,7 @@ done:
     return code_obj;
 }
 
-/////////////////////////// AccessPyMutexForFreeThreading.proto ////////////
+/////////////////////////// AccessPyMutexForNoGIL.proto ////////////
 
 #if CYTHON_COMPILING_IN_CPYTHON_NOGIL
 // TODO - this is likely to get exposed properly at some point
@@ -2241,7 +2241,7 @@ done:
 #include "internal/pycore_lock.h"
 #endif
 
-////////////////////////// SharedInFreeThreading.proto //////////////////
+////////////////////////// SharedInNoGIL.proto //////////////////
 
 #if CYTHON_COMPILING_IN_CPYTHON_NOGIL
 #define __Pyx_shared_in_cpython_nogil(x) shared(x)
