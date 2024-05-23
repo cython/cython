@@ -2233,7 +2233,7 @@ done:
 
 /////////////////////////// WarnFreethreadingWithGIL.init ////////////
 
-#if CYTHON_COMPILING_IN_CPYTHON_NOGIL && \
+#if CYTHON_COMPILING_IN_CPYTHON_FREETHREADING && \
     !(defined(CYTHON_DISABLE_THREAD_SAFETY_WARNING_AT_YOUR_OWN_RISK) && CYTHON_DISABLE_THREAD_SAFETY_WARNING_AT_YOUR_OWN_RISK)
 {
     PyObject *gil_check_function, *gil_check_result;
