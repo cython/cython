@@ -4684,10 +4684,6 @@ class GeneratorDefNode(DefNode):
 
     child_attrs = DefNode.child_attrs + ["gbody"]
 
-    @property
-    def code_object(self):
-        return self.gbody.code_object
-
     def __init__(self, pos, **kwargs):
         # XXX: don't actually needs a body
         kwargs['body'] = StatListNode(pos, stats=[], is_terminator=True)
@@ -4819,6 +4815,8 @@ class GeneratorBodyDefNode(DefNode):
         if profile or linetrace:
             tempvardecl_code.put_trace_declarations(is_generator=True)
             code.funcstate.can_trace = True
+
+        self.code_object.generate_result_code(code)
 
         # ----- Resume switch point.
         code.funcstate.init_closure_temps(lenv.scope_class.type.scope)

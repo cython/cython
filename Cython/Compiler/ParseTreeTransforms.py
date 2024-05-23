@@ -2459,12 +2459,18 @@ if VALUE is not None:
     def visit_CFuncDefNode(self, node):
         if node.code_object is None and node.py_func is None:
             node.code_object = ExprNodes.CodeObjectNode.for_cfunc(node)
+            node.code_object.analyse_declarations(self.current_env())
         return self.visit_FuncDefNode(node)
 
     def visit_GeneratorBodyDefNode(self, node):
-        if node.code_object is None:
-            node.code_object = ExprNodes.CodeObjectNode(node)
         return self.visit_FuncDefNode(node)
+
+    def visit_GeneratorDefNode(self, node):
+        # The generator body should use the same code object as the (user facing) generator function that creates it.
+        result = self.visit_DefNode(node)
+        # 'result' will usually be a list of statements, but we still have the original node.
+        node.gbody.code_object = node.code_object
+        return result
 
     def _synthesize_assignment(self, node, env):
         # Synthesize assignment node and put it right after defnode
