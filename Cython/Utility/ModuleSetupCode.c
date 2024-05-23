@@ -66,7 +66,7 @@
   #define CYTHON_COMPILING_IN_LIMITED_API 0
   #define CYTHON_COMPILING_IN_GRAAL 1
 
-  #define CYTHON_COMPILING_IN_CPYTHON_NOGIL 0
+  #define CYTHON_COMPILING_IN_CPYTHON_FREETHREADING 0
 
   #undef CYTHON_USE_TYPE_SLOTS
   #define CYTHON_USE_TYPE_SLOTS 0
@@ -126,7 +126,7 @@
   #define CYTHON_COMPILING_IN_LIMITED_API 0
   #define CYTHON_COMPILING_IN_GRAAL 0
 
-  #define CYTHON_COMPILING_IN_CPYTHON_NOGIL 0
+  #define CYTHON_COMPILING_IN_CPYTHON_FREETHREADING 0
 
   #undef CYTHON_USE_TYPE_SLOTS
   #define CYTHON_USE_TYPE_SLOTS 0
@@ -198,7 +198,7 @@
   #define CYTHON_COMPILING_IN_LIMITED_API 1
   #define CYTHON_COMPILING_IN_GRAAL 0
 
-  #define CYTHON_COMPILING_IN_CPYTHON_NOGIL 0
+  #define CYTHON_COMPILING_IN_CPYTHON_FREETHREADING 0
 
   // CYTHON_CLINE_IN_TRACEBACK is currently disabled for the Limited API
   #undef CYTHON_CLINE_IN_TRACEBACK
@@ -266,9 +266,9 @@
   #define CYTHON_COMPILING_IN_GRAAL 0
 
   #ifdef Py_GIL_DISABLED
-    #define CYTHON_COMPILING_IN_CPYTHON_NOGIL 1
+    #define CYTHON_COMPILING_IN_CPYTHON_FREETHREADING 1
   #else
-    #define CYTHON_COMPILING_IN_CPYTHON_NOGIL 0
+    #define CYTHON_COMPILING_IN_CPYTHON_FREETHREADING 0
   #endif
 
   #ifndef CYTHON_USE_TYPE_SLOTS
@@ -286,7 +286,7 @@
   #ifndef CYTHON_USE_PYLONG_INTERNALS
     #define CYTHON_USE_PYLONG_INTERNALS 1
   #endif
-  #if CYTHON_COMPILING_IN_CPYTHON_NOGIL
+  #if CYTHON_COMPILING_IN_CPYTHON_FREETHREADING
     #undef CYTHON_USE_PYLIST_INTERNALS
     // Use thread-safe CPython C API calls to manipulate list contents
     #define CYTHON_USE_PYLIST_INTERNALS 0
@@ -296,7 +296,7 @@
   #ifndef CYTHON_USE_UNICODE_INTERNALS
     #define CYTHON_USE_UNICODE_INTERNALS 1
   #endif
-  #if CYTHON_COMPILING_IN_CPYTHON_NOGIL || PY_VERSION_HEX >= 0x030B00A2
+  #if CYTHON_COMPILING_IN_CPYTHON_FREETHREADING || PY_VERSION_HEX >= 0x030B00A2
     // Python 3.11a2 hid _PyLong_FormatAdvancedWriter and _PyFloat_FormatAdvancedWriter
     // therefore disable unicode writer until a better alternative appears
     #undef CYTHON_USE_UNICODE_WRITER
@@ -322,7 +322,7 @@
   #ifndef CYTHON_FAST_THREAD_STATE
     #define CYTHON_FAST_THREAD_STATE 1
   #endif
-  #if CYTHON_COMPILING_IN_CPYTHON_NOGIL
+  #if CYTHON_COMPILING_IN_CPYTHON_FREETHREADING
     #undef CYTHON_FAST_GIL
     #define CYTHON_FAST_GIL 0
   #elif !defined(CYTHON_FAST_GIL)
@@ -352,7 +352,7 @@
   #ifndef CYTHON_USE_TP_FINALIZE
     #define CYTHON_USE_TP_FINALIZE 1
   #endif
-  #if CYTHON_COMPILING_IN_CPYTHON_NOGIL
+  #if CYTHON_COMPILING_IN_CPYTHON_FREETHREADING
     #undef CYTHON_USE_DICT_VERSIONS
     #define CYTHON_USE_DICT_VERSIONS 0
   #elif !defined(CYTHON_USE_DICT_VERSIONS)
@@ -366,7 +366,7 @@
     #define CYTHON_UPDATE_DESCRIPTOR_DOC 1
   #endif
   #ifndef CYTHON_USE_FREELISTS
-    #define CYTHON_USE_FREELISTS (!CYTHON_COMPILING_IN_CPYTHON_NOGIL)
+    #define CYTHON_USE_FREELISTS (!CYTHON_COMPILING_IN_CPYTHON_FREETHREADING)
   #endif
 #endif
 
@@ -2233,7 +2233,7 @@ done:
 
 /////////////////////////// AccessPyMutexForFreeThreading.proto ////////////
 
-#if CYTHON_COMPILING_IN_CPYTHON_NOGIL
+#if CYTHON_COMPILING_IN_CPYTHON_FREETHREADING
 // TODO - this is likely to get exposed properly at some point
 #ifndef Py_BUILD_CORE
 #define Py_BUILD_CORE 1
@@ -2243,8 +2243,8 @@ done:
 
 ////////////////////////// SharedInFreeThreading.proto //////////////////
 
-#if CYTHON_COMPILING_IN_CPYTHON_NOGIL
-#define __Pyx_shared_in_cpython_nogil(x) shared(x)
+#if CYTHON_COMPILING_IN_CPYTHON_FREETHREADING
+#define __Pyx_shared_in_cpython_freethreading(x) shared(x)
 #else
-#define __Pyx_shared_in_cpython_nogil(x)
+#define __Pyx_shared_in_cpython_freethreading(x)
 #endif

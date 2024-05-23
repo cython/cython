@@ -8,7 +8,7 @@ cimport cython
 
 cdef extern from *:
     """
-    #if CYTHON_COMPILING_IN_CPYTHON_NOGIL
+    #if CYTHON_COMPILING_IN_CPYTHON_FREETHREADING
     static CYTHON_INLINE int __Pyx_refnanny_init_lock(PyThread_type_lock* lock) {
          *lock = PyThread_allocate_lock();
          if (!*lock) {
