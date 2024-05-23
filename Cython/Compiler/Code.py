@@ -2721,12 +2721,12 @@ class CCodeWriter:
     def put_acquire_freethreading_lock(self):
         self.globalstate.use_utility_code(
             UtilityCode.load_cached("AccessPyMutexForFreeThreading", "ModuleSetupCode.c"))
-        self.putln("#if CYTHON_COMPILING_IN_CPYTHON_NOGIL")
+        self.putln("#if CYTHON_COMPILING_IN_CPYTHON_FREETHREADING")
         self.putln(f"PyMutex_Lock(&{Naming.parallel_freethreading_mutex});")
         self.putln("#endif")
 
     def put_release_freethreading_lock(self):
-        self.putln("#if CYTHON_COMPILING_IN_CPYTHON_NOGIL")
+        self.putln("#if CYTHON_COMPILING_IN_CPYTHON_FREETHREADING")
         self.putln(f"PyMutex_Unlock(&{Naming.parallel_freethreading_mutex});")
         self.putln("#endif")
 

@@ -9464,7 +9464,7 @@ class ParallelStatNode(StatNode, ParallelNode):
                         UtilityCode.load_cached(
                             "SharedInFreeThreading",
                             "ModuleSetupCode.c"))
-                    c.put(f" __Pyx_shared_in_cpython_nogil({Naming.parallel_freethreading_mutex})")
+                    c.put(f" __Pyx_shared_in_cpython_freethreading({Naming.parallel_freethreading_mutex})")
                     c.put(" private(%s, %s, %s)" % self.pos_info)
 
                 c.put(" shared(%s)" % ', '.join(shared_vars))
@@ -9776,7 +9776,7 @@ class ParallelStatNode(StatNode, ParallelNode):
         if self.error_label_used:
             c.putln("const char *%s = NULL; int %s = 0, %s = 0;" % self.parallel_pos_info)
             c.putln("PyObject *%s = NULL, *%s = NULL, *%s = NULL;" % self.parallel_exc)
-            c.putln("#if CYTHON_COMPILING_IN_CPYTHON_NOGIL")
+            c.putln("#if CYTHON_COMPILING_IN_CPYTHON_FREETHREADING")
             c.putln(f"PyMutex {Naming.parallel_freethreading_mutex} = {{0}};")
             c.putln("#endif")
 
