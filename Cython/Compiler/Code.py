@@ -2918,6 +2918,10 @@ class CCodeWriter:
     def put_trace_exception(self, pos, reraise=False, fresh=False):
         self.putln(f"__Pyx_TraceException({pos[1]}, {bool(reraise):d}, {bool(fresh):d});")
 
+    def put_trace_stopiteration(self, pos, value):
+        error_goto = self.error_goto(pos)
+        self.putln(f"__Pyx_TraceStopIteration({value}, {pos[1]}, {error_goto});")
+
     def put_trace_return(self, retvalue_cname, pos, return_type=None, nogil=False):
         extra_arg = ""
         trace_func = "__Pyx_TraceReturnValue"

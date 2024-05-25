@@ -142,6 +142,22 @@
       if (unlikely(ret == -1)) goto_error;                                                   \
   }
 
+//   #if PY_VERSION_HEX >= 0x030d00b2
+//   #define __Pyx_TraceStopIteration(value, lineno, goto_error) \
+//   if (!__Pyx_IsTracing(__Pyx_Monitoring_STOP_ITERATION)); else {                             \
+//       int ret = PyMonitoring_FireStopIterationEvent(&$monitoring_states_cname[__Pyx_Monitoring_STOP_ITERATION], $frame_code_cname, lineno, value); \
+//       if (unlikely(ret == -1)) goto_error;                                                   \
+//   }
+//   #else
+//   #define __Pyx_TraceStopIteration(value, lineno, goto_error) \
+//   if (!__Pyx_IsTracing(__Pyx_Monitoring_STOP_ITERATION)); else {                             \
+//       PyErr_SetObject(PyExc_StopIteration, value);                                           \
+//       int ret = PyMonitoring_FireStopIterationEvent(&$monitoring_states_cname[__Pyx_Monitoring_STOP_ITERATION], $frame_code_cname, lineno, value); \
+//       if (unlikely(ret == -1)) goto_error;                                                   \
+//       PyErr_SetRaisedException(NULL);                                                        \
+//   }
+//   #endif
+
   // No error handling here since the exception path will be taken either way.
   #define __Pyx_TraceException(lineno, reraised, fresh) \
   if (!__Pyx_IsTracing((reraised) ? __Pyx_Monitoring_RERAISE : __Pyx_Monitoring_RAISE)); else { \

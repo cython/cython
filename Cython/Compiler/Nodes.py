@@ -4874,6 +4874,8 @@ class GeneratorBodyDefNode(DefNode):
             if self.is_async_gen_body:
                 code.globalstate.use_utility_code(
                     UtilityCode.load_cached("StopAsyncIteration", "Coroutine.c"))
+            #if profile or linetrace:
+            #    code.put_trace_stopiteration(self.pos, "Py_None")
             code.putln('PyErr_SetNone(%s);' % (
                 '__Pyx_PyExc_StopAsyncIteration' if self.is_async_gen_body else 'PyExc_StopIteration'))
         # ----- Error cleanup

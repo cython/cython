@@ -22,7 +22,7 @@ except ImportError:
 else:
     TOOL_ID = smon.PROFILER_ID
     FUNC_EVENTS = (E.PY_START, E.PY_RETURN, E.RAISE)
-    GEN_EVENTS = FUNC_EVENTS + (E.PY_RESUME, E.PY_YIELD, E.STOP_ITERATION)
+    GEN_EVENTS = FUNC_EVENTS + (E.PY_RESUME, E.PY_YIELD)  # , E.STOP_ITERATION)
     event_name = {1 << event_id: name for name, event_id in vars(E).items()}.get
 
     __doc__ = """
