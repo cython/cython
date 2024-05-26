@@ -2535,11 +2535,13 @@ class CCodeWriter:
         type.generate_xdecref_clear(self, cname, clear_before_decref=clear_before_decref,
                               nanny=nanny, have_gil=have_gil)
 
-    def put_decref_set(self, cname, type, rhs_cname):
-        type.generate_decref_set(self, cname, rhs_cname)
+    def put_decref_set(self, cname, type, rhs_cname, atomic=False, nanny=True):
+        type.generate_decref_set(self, cname, rhs_cname,
+                                 atomic=atomic, nanny=nanny)
 
-    def put_xdecref_set(self, cname, type, rhs_cname):
-        type.generate_xdecref_set(self, cname, rhs_cname)
+    def put_xdecref_set(self, cname, type, rhs_cname, atomic=False):
+        type.generate_xdecref_set(self, cname, rhs_cname,
+                                  atomic=atomic)
 
     def put_incref_memoryviewslice(self, slice_cname, type, have_gil):
         # TODO ideally this would just be merged into "put_incref"

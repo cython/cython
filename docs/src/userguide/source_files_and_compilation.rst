@@ -845,6 +845,15 @@ Cython code.  Here is the list of currently supported directives:
     this may help or hurt performance.  A simple suite of benchmarks can be
     found in ``Demos/overflow_perf.pyx``.  Default is True.
 
+``threadsafe_reference_counting`` (True / False)
+    If set to true then reference counting of Python objects is thread-safe
+    which may be slightly slower.  This setting only makes a significant
+    difference to Python 3.13+ free-threading builds - if you are not using
+    this build then thread-safety is assured by the Global
+    Interpreter Lock and the code that Cython generates is close to
+    identical.  Default is True.  Note that thread-safety is
+    currently a work-in-progress.
+
 ``embedsignature`` (True / False)
     If set to True, Cython will embed a textual copy of the call
     signature in the docstring of all Python visible functions and

@@ -1358,13 +1358,19 @@ class PyObjectType(PyrexType):
         code.funcstate.needs_refnanny = True
         code.putln("__Pyx_XGIVEREF(%s);" % self.as_pyobject(cname))
 
-    def generate_decref_set(self, code, cname, rhs_cname):
-        code.funcstate.needs_refnanny = True
-        code.putln("__Pyx_DECREF_SET(%s, %s);" % (cname, rhs_cname))
+    def generate_decref_set(self, code, cname, rhs_cname, atomic=False, nanny=True):
+        if nanny:
+            code.funcstate.needs_refnanny = True
+        code.putln("__Pyx_%sDECREF_SET%s(%s, %s);" % (
+            "" if nanny else "Py_",
+            "_ATOMIC" if atomic else "",
+            cname, rhs_cname))
 
-    def generate_xdecref_set(self, code, cname, rhs_cname):
+    def generate_xdecref_set(self, code, cname, rhs_cname, atomic=False):
         code.funcstate.needs_refnanny = True
-        code.putln("__Pyx_XDECREF_SET(%s, %s);" % (cname, rhs_cname))
+        code.putln("__Pyx_XDECREF_SET%s(%s, %s);" % (
+            "_ATOMIC" if atomic else "",
+            cname, rhs_cname))
 
     def _generate_decref(self, code, cname, nanny, null_check=False,
                     clear=False, clear_before_decref=False):

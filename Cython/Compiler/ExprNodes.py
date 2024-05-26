@@ -302,6 +302,25 @@ def translate_double_cpp_exception(code, pos, lhs_type, lhs_code, rhs_code, lhs_
     code.putln('}')
 
 
+def calculate_node_needs_atomic_refcounting(node, env):
+    # variables in local scopes only need atomic assignment if they
+    # have assignment inside a parallel block.
+    # TODO: "has_with_gil_block" is slightly too broad a test
+    # and could be narrowed.
+    # needs_atomic only applies to decref_set and isn't needed
+    # for direct assignment
+    if not env.directives['threadsafe_reference_counting']:
+        # user has specifically asked for not it be turned off
+        return False
+    if not node.entry:
+        return False
+    if hasattr(node.entry, "scope") and not node.entry.scope.is_local_scope:
+        return True
+    if env.is_local_scope and env.has_with_gil_block:
+        return True
+    return False
+
+
 class ExprNode(Node):
     #  subexprs     [string]     Class var holding names of subexpr node attrs
     #  type         PyrexType    Type of the result
@@ -914,23 +933,26 @@ class ExprNode(Node):
 
     # ----Generation of small bits of reference counting --
 
-    def generate_decref_set(self, code, rhs):
-        code.put_decref_set(self.result(), self.ctype(), rhs)
+    def generate_decref_set(self, code, rhs, atomic):
+        code.put_decref_set(self.result(), self.ctype(), rhs, atomic=atomic)
 
-    def generate_xdecref_set(self, code, rhs):
-        code.put_xdecref_set(self.result(), self.ctype(), rhs)
+    def generate_xdecref_set(self, code, rhs, atomic):
+        code.put_xdecref_set(self.result(), self.ctype(), rhs, atomic=atomic)
 
     def generate_gotref(self, code, handle_null=False,
-                        maybe_null_extra_check=True):
+                        maybe_null_extra_check=True,
+                        name_override=None):
+        name = name_override or self.result()
         if not (handle_null and self.cf_is_null):
             if (handle_null and self.cf_maybe_null
                     and maybe_null_extra_check):
-                self.generate_xgotref(code)
+                self.generate_xgotref(code, name_override=name_override)
             else:
-                code.put_gotref(self.result(), self.ctype())
+                code.put_gotref(name, self.ctype())
 
-    def generate_xgotref(self, code):
-        code.put_xgotref(self.result(), self.ctype())
+    def generate_xgotref(self, code, name_override=None):
+        name = name_override or self.result()
+        code.put_xgotref(name, self.ctype())
 
     def generate_giveref(self, code):
         code.put_giveref(self.result(), self.ctype())
@@ -2009,6 +2031,7 @@ class NameNode(AtomicExprNode):
     #  cf_maybe_null   boolean   Maybe uninitialized before this node
     #  allow_null      boolean   Don't raise UnboundLocalError
     #  nogil           boolean   Whether it is used in a nogil context
+    #  needs_atomic_refcounting  boolean  Needs atomic reference counting (in freethreading interpreter)
 
     is_name = True
     is_cython_module = False
@@ -2022,6 +2045,7 @@ class NameNode(AtomicExprNode):
     allow_null = False
     nogil = False
     inferred_type = None
+    needs_atomic_refcounting = False
 
     def as_cython_attribute(self):
         return self.cython_attribute
@@ -2270,10 +2294,16 @@ class NameNode(AtomicExprNode):
             from . import Buffer
             Buffer.used_buffer_aux_vars(entry)
         self.analyse_rvalue_entry(env)
+        self.needs_atomic_refcounting = calculate_node_needs_atomic_refcounting(
+            self, env
+        )
         return self
 
     def analyse_target_types(self, env):
         self.analyse_entry(env, is_target=True)
+        self.needs_atomic_refcounting = calculate_node_needs_atomic_refcounting(
+            self, env
+        )
 
         entry = self.entry
         if entry.is_cfunction and entry.as_variable:
@@ -2606,13 +2636,16 @@ class NameNode(AtomicExprNode):
                         self.generate_gotref(code, handle_null=True)
                     assigned = True
                     if entry.is_cglobal:
-                        self.generate_decref_set(code, rhs.result_as(self.ctype()))
+                        self.generate_decref_set(code, rhs.result_as(self.ctype()),
+                                                 atomic=self.needs_atomic_refcounting)
                     else:
                         if not self.cf_is_null:
                             if self.cf_maybe_null:
-                                self.generate_xdecref_set(code, rhs.result_as(self.ctype()))
+                                self.generate_xdecref_set(code, rhs.result_as(self.ctype()),
+                                                          atomic=self.needs_atomic_refcounting)
                             else:
-                                self.generate_decref_set(code, rhs.result_as(self.ctype()))
+                                self.generate_decref_set(code, rhs.result_as(self.ctype()),
+                                                         atomic=self.needs_atomic_refcounting)
                         else:
                             assigned = False
                     if is_external_ref:
@@ -2715,19 +2748,29 @@ class NameNode(AtomicExprNode):
             else:
                 code.put_error_if_neg(self.pos, del_code)
         elif self.entry.type.is_pyobject or self.entry.type.is_memoryviewslice:
+            result = self.result()
+            if self.needs_atomic_refcounting:
+                code.putln("{")
+                code.putln(f"PyObject *{Naming.quick_temp_cname} = __Pyx_atomic_exchange_ptr(&{result}, NULL);")
+                result = Naming.quick_temp_cname
             if not self.cf_is_null:
                 if self.cf_maybe_null and not ignore_nonexisting:
-                    code.put_error_if_unbound(self.pos, self.entry)
+                    code.put_error_if_unbound(self.pos, self.entry, unbound_check_code=result)
 
                 if self.entry.in_closure:
                     # generator
-                    self.generate_gotref(code, handle_null=True, maybe_null_extra_check=ignore_nonexisting)
+                    self.generate_gotref(code, handle_null=True, maybe_null_extra_check=ignore_nonexisting,
+                                         name_override=result)
+                # In principle clear is unnecessary for the "atomic" version of this
+                # but left in to simplify the code.
                 if ignore_nonexisting and self.cf_maybe_null:
-                    code.put_xdecref_clear(self.result(), self.ctype(),
+                    code.put_xdecref_clear(result, self.ctype(),
                                         have_gil=not self.nogil)
                 else:
-                    code.put_decref_clear(self.result(), self.ctype(),
+                    code.put_decref_clear(result, self.ctype(),
                                           have_gil=not self.nogil)
+            if self.needs_atomic_refcounting:
+                code.putln("}")
         else:
             error(self.pos, "Deletion of C names not supported")
 
@@ -7409,6 +7452,7 @@ class AttributeNode(ExprNode):
     #  member               string    C name of struct member
     #  is_called            boolean   Function call is being done on result
     #  entry                Entry     Symbol table entry of attribute
+    #  needs_atomic_refcounting boolean  Needs atomic reference counting (in freethreading mode)
 
     is_attribute = 1
     subexprs = ['obj']
@@ -7419,6 +7463,7 @@ class AttributeNode(ExprNode):
     is_memslice_transpose = False
     is_special_lookup = False
     is_py_attr = 0
+    needs_atomic_refcounting = False
 
     def as_cython_attribute(self):
         if (isinstance(self.obj, NameNode) and
@@ -7543,6 +7588,9 @@ class AttributeNode(ExprNode):
         if (node.is_attribute or node.is_name) and node.entry:
             node.entry.used = True
         if node.is_attribute:
+            node.needs_atomic_refcounting = calculate_node_needs_atomic_refcounting(
+                node, env
+            )
             node.wrap_obj_in_nonecheck(env)
         return node
 
@@ -7970,17 +8018,27 @@ class AttributeNode(ExprNode):
             rhs.free_temps(code)
         else:
             select_code = self.result()
+            skip_assignment = False
             if self.type.is_pyobject and self.use_managed_ref:
                 rhs.make_owned_reference(code)
                 rhs.generate_giveref(code)
-                code.put_gotref(select_code, self.type)
-                code.put_decref(select_code, self.ctype())
+                if code.funcstate.scope.directives['threadsafe_reference_counting']:
+                    # Note that this skips refnanny of select_code. This is just because
+                    # it's hard to do atomically without adding new refcounting operations
+                    # to do swap then gotref/decref
+                    code.put_decref_set(select_code, self.ctype(), rhs.result_as(self.ctype()),
+                                        atomic=True, nanny=False)
+                    skip_assignment = True
+                else:
+                    code.put_gotref(select_code, self.type)
+                    code.put_decref(select_code, self.ctype())
             elif self.type.is_memoryviewslice:
                 from . import MemoryView
                 MemoryView.put_assign_to_memviewslice(
                         select_code, rhs, rhs.result(), self.type, code)
+                skip_assignment = True
 
-            if not self.type.is_memoryviewslice:
+            if not skip_assignment:
                 code.putln(
                     "%s = %s;" % (
                         select_code,

@@ -1674,13 +1674,48 @@ static CYTHON_INLINE int __Pyx_Is_Little_Endian(void)
         PyObject *tmp = (PyObject *) r;                         \
         r = v; __Pyx_XDECREF(tmp);                              \
     } while (0)
+#define __Pyx_Py_DECREF_SET(r, v) __Pyx_DECREF_SET(r, v)
 #define __Pyx_DECREF_SET(r, v) do {                             \
         PyObject *tmp = (PyObject *) r;                         \
         r = v; __Pyx_DECREF(tmp);                               \
     } while (0)
+#if CYTHON_COMPILING_IN_CPYTHON_FREETHREADING
+#define __Pyx_Py_XDECREF_SET_ATOMIC(r, v) do {                      \
+        PyObject *tmp = (PyObject*)_Py_atomic_exchange_ptr(&r, v);  \
+        Py_XDECREF(tmp);                                            \
+    } while (0)
+#define __Pyx_XDECREF_SET_ATOMIC(r, v) do {                                \
+        PyObject *tmp = (PyObject*)_Py_atomic_exchange_ptr(&r, v);  \
+        __Pyx_XDECREF(tmp);                                         \
+    } while (0)
+#define __Pyx_Py_DECREF_SET_ATOMIC(r, v) do {                      \
+        PyObject *tmp = (PyObject*)_Py_atomic_exchange_ptr(&r, v);  \
+        Py_DECREF(tmp);                                            \
+    } while (0)
+#define __Pyx_DECREF_SET_ATOMIC(r, v) do {                                 \
+        PyObject *tmp = (PyObject *)_Py_atomic_exchange_ptr(&r, v); \
+        __Pyx_DECREF(tmp);                                          \
+    } while (0)
+#else
+// with the gil atomic is irrelevant
+#define __Pyx_Py_XDECREF_SET_ATOMIC(r, v) __Pyx_Py_XDECREF_SET(r, v)
+#define __Pyx_XDECREF_SET_ATOMIC(r, v) __Pyx_XDECREF_SET(r, v)
+#define __Pyx_DECREF_SET_ATOMIC(r, v) __Pyx_DECREF_SET(r, v)
+#define __Pyx_Py_DECREF_SET_ATOMIC(r, v) __Pyx_Py_DECREF_SET(r, v)
+#endif
 
 #define __Pyx_CLEAR(r)    do { PyObject* tmp = ((PyObject*)(r)); r = NULL; __Pyx_DECREF(tmp);} while(0)
 #define __Pyx_XCLEAR(r)   do { if((r) != NULL) {PyObject* tmp = ((PyObject*)(r)); r = NULL; __Pyx_DECREF(tmp);}} while(0)
+
+#if CYTHON_COMPILING_IN_CPYTHON_FREETHREADING
+#define __Pyx_atomic_exchange_ptr(a, b) (PyObject*)_Py_atomic_exchange_ptr(a, b)
+#else
+static CYTHON_INLINE PyObject *__Pyx_atomic_exchange_ptr(PyObject **a, PyObject *b) {
+    PyObject *tmp = *a;
+    *a = b;
+    return tmp;
+}
+#endif
 
 /////////////// Refnanny ///////////////
 

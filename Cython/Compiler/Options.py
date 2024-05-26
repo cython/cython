@@ -181,6 +181,7 @@ _directive_defaults = {
     'boundscheck' : True,
     'nonecheck' : False,
     'initializedcheck' : True,
+    'threadsafe_reference_counting' : True,
     'embedsignature': False,
     'embedsignature.format': 'c',
     'auto_cpdef': False,

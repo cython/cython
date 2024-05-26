@@ -78,10 +78,10 @@ cdef class Context(object):
     def __dealloc__(self):
         __Pyx_refnanny_free_lock(self.lock)
 
-    cdef acquire_lock(self):
+    cdef acquire_lock(self) noexcept:
         __Pyx_refnanny_lock_acquire(self.lock)
 
-    cdef release_lock(self):
+    cdef release_lock(self) noexcept:
         __Pyx_refnanny_lock_release(self.lock)
 
     cdef regref(self, obj, Py_ssize_t lineno, bint is_null):
