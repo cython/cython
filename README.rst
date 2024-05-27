@@ -1,4 +1,4 @@
-Welcome to Cython!
+Welcome to Cython!!
 ==================
 
 Cython is a Python compiler that makes writing C extensions for
