@@ -2090,6 +2090,7 @@ class FuncDefNode(StatNode, BlockNode):
         # ----- set up refnanny
         refnanny_decl_code = tempvardecl_code.insertion_point()
         refnanny_setup_code = code.insertion_point()
+        refnanny_needs_gil = not code.funcstate.gil_owned
 
         # ----- Automatic lead-ins for certain special functions
         if is_getbuffer_slot:
@@ -2421,8 +2422,7 @@ class FuncDefNode(StatNode, BlockNode):
 
         if code.funcstate.needs_refnanny:
             refnanny_decl_code.put_declare_refcount_context()
-            refnanny_setup_code.put_setup_refcount_context(
-               self.entry.name, acquire_gil=not var_decls_need_gil)
+            refnanny_setup_code.put_setup_refcount_context(self.entry.name, acquire_gil=refnanny_needs_gil)
             code.put_finish_refcount_context(nogil=not gil_owned['success'])
 
         if acquire_gil or (lenv.nogil and gil_owned['success']):
