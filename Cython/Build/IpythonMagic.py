@@ -379,26 +379,11 @@ class CythonMagics(Magics):
         with open(pgo_wrapper_c_file, 'w', encoding='utf-8') as f:
             f.write(textwrap.dedent("""
             #include "Python.h"
-            #if PY_MAJOR_VERSION < 3
-            extern PyMODINIT_FUNC init%(module_name)s(void);
-            PyMODINIT_FUNC init%(pgo_module_name)s(void); /*proto*/
-            PyMODINIT_FUNC init%(pgo_module_name)s(void) {
-                PyObject *sys_modules;
-                init%(module_name)s();  if (PyErr_Occurred()) return;
-                sys_modules = PyImport_GetModuleDict();  /* borrowed, no exception, "never" fails */
-                if (sys_modules) {
-                    PyObject *module = PyDict_GetItemString(sys_modules, "%(module_name)s");  if (!module) return;
-                    PyDict_SetItemString(sys_modules, "%(pgo_module_name)s", module);
-                    Py_DECREF(module);
-                }
-            }
-            #else
             extern PyMODINIT_FUNC PyInit_%(module_name)s(void);
             PyMODINIT_FUNC PyInit_%(pgo_module_name)s(void); /*proto*/
             PyMODINIT_FUNC PyInit_%(pgo_module_name)s(void) {
                 return PyInit_%(module_name)s();
             }
-            #endif
             """ % {'module_name': module_name, 'pgo_module_name': pgo_module_name}))
 
         extension.sources = extension.sources + [pgo_wrapper_c_file]  # do not modify in place!
