@@ -1491,7 +1491,7 @@ class BuiltinObjectType(PyObjectType):
         elif type_name == 'int':
             type_check = 'PyLong_Check'
         elif type_name == "memoryview":
-            # captialize doesn't catch the 'V'
+            # capitalize doesn't catch the 'V'
             type_check = "PyMemoryView_Check"
         else:
             type_check = 'Py%s_Check' % type_name.capitalize()
