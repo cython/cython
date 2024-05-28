@@ -1832,6 +1832,9 @@ class TestCodeFormat(unittest.TestCase):
         paths = []
         for codedir in source_dirs:
             paths += glob.glob(os.path.join(self.cython_dir, codedir + "/**/*.py"), recursive=True)
+
+        # remove any files vendored from CPython
+        paths = [x for x in paths if not "vendored" in x]
         style = pycodestyle.StyleGuide(config_file=config_file)
         print("")  # Fix the first line of the report.
         result = style.check_files(paths)
