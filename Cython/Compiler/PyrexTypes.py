@@ -1947,11 +1947,11 @@ class UnionType(FusedType):
         type_list = ','.join([t.typeof_name() for t in sorted(types)])
         super().__init__(sorted(types), f'Union[{type_list}]')
 
-    def __eq__(self, other):
-        return isinstance(other, UnionType) and self.types == other.types and self.name == other.name
-
-    def __hash__(self):
-        return hash((tuple(self.types), self.name))
+    # This is commented to support passing multiple unions to other functions
+    # def __eq__(self, other):
+    #     return isinstance(other, UnionType) and self.types == other.types and self.name == other.name
+    # def __hash__(self):
+    #     return hash((tuple(self.types), self.name))
 
 
 class CVoidType(CType):
