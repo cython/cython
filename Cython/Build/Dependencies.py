@@ -781,16 +781,22 @@ def create_extension_list(patterns, exclude=None, ctx=None, aliases=None, quiet=
     elif isinstance(patterns, basestring) or not isinstance(patterns, Iterable):
         patterns = [patterns]
 
-    from distutils.extension import Extension
-    if 'setuptools' in sys.modules:
-        # Support setuptools Extension instances as well.
-        extension_classes = (
-            Extension,  # should normally be the same as 'setuptools.extension._Extension'
-            sys.modules['setuptools.extension']._Extension,
-            sys.modules['setuptools'].Extension,
-        )
-    else:
-        extension_classes = (Extension,)
+    from setuptools.extension import _Extension
+    from setuptools import Extension
+
+    # Support setuptools Extension instances as well.
+    _extension_classes = [
+        _Extension,
+        Extension,
+    ]
+    try:
+        from distutils.extension import Extension as DistutilsExtension
+
+        _extension_classes.append(DistutilsExtension)
+    except ImportError:  # python3.12 remove distutils
+        pass
+
+    extension_classes = tuple(_extension_classes)
 
     explicit_modules = {m.name for m in patterns if isinstance(m, extension_classes)}
     deps = create_dependency_tree(ctx, quiet=quiet)
