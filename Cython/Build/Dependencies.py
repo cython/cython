@@ -781,14 +781,20 @@ def create_extension_list(patterns, exclude=None, ctx=None, aliases=None, quiet=
     elif isinstance(patterns, basestring) or not isinstance(patterns, Iterable):
         patterns = [patterns]
 
-    from setuptools.extension import _Extension
     from setuptools import Extension
 
     # Support setuptools Extension instances as well.
     _extension_classes = [
-        _Extension,
         Extension,
     ]
+
+    try:
+        from setuptools.extension import _Extension
+
+        _extension_classes.append(_Extension)
+    except ImportError:  # python3.12 remove this class
+        pass
+
     try:
         from distutils.extension import Extension as DistutilsExtension
 
