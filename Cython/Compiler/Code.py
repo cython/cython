@@ -2698,8 +2698,9 @@ class CCodeWriter:
         self.putln(f"Py_END_CRITICAL_SECTION({cname});")
         self.putln("#endif")
 
-    def put_scope_pymutex_lock(self, cname):
-        self.funcstate.uses_scope_mutex = True
+    def put_scope_pymutex_lock(self, cname, is_local):
+        if is_local:
+            self.funcstate.uses_scope_mutex = True
         self.putln("#if CYTHON_COMPILING_IN_CPYTHON_FREETHREADING")
         self.putln(f"PyMutex_Lock(&{cname});")
         self.putln("#endif")

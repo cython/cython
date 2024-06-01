@@ -2741,7 +2741,9 @@ class NameNode(AtomicExprNode):
             scope_cname = self.entry.cname.rsplit('->', 1)[0]
             code.put_pyobject_lock(f"(PyObject*){scope_cname}")
         elif self.threadsafety_scope.is_module_scope or self.threadsafety_scope.is_local_scope:
-            code.put_scope_pymutex_lock(self.entry.scope.scope_mutex_cname)
+            code.put_scope_pymutex_lock(
+                self.entry.scope.scope_mutex_cname,
+                is_local=self.threadsafety_scope.is_local_scope)
         else:
             assert False, self.threadsafety_scope
 
@@ -8073,7 +8075,9 @@ class AttributeNode(ExprNode):
             scope_cname = self.entry.cname.rsplit('->', 1)[0]
             code.put_pyobject_lock(f"(PyObject*){scope_cname}")
         elif self.threadsafety_scope.is_local_scope or self.threadsafety_scope.is_module_scope:
-            code.put_scope_pymutex_lock(self.threadsafety_scope.scope_mutex_cname)
+            code.put_scope_pymutex_lock(
+                self.threadsafety_scope.scope_mutex_cname,
+                is_local=self.threadsafety_scope.is_local_scope)
         else:
             assert False, self.threadsafety_scope
 
