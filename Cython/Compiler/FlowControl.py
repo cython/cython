@@ -109,6 +109,7 @@ class ControlFlow:
        loops       list   stack for loop descriptors
        exceptions  list   stack for exception descriptors
        in_try_block  int  track if we're in a try...except or try...finally block
+       in_parallel   int  track if we're in a parallel/prange block
     """
 
     def __init__(self):
@@ -122,6 +123,7 @@ class ControlFlow:
         self.blocks.add(self.exit_point)
         self.block = self.entry_point
         self.in_try_block = 0
+        self.in_parallel = 0
 
     def newblock(self, parent=None):
         """Create floating block linked to `parent` if given.
@@ -172,7 +174,9 @@ class ControlFlow:
 
     def mark_assignment(self, lhs, rhs, entry, rhs_scope=None):
         if self.block and self.is_tracked(entry):
-            assignment = NameAssignment(lhs, rhs, entry, rhs_scope=rhs_scope)
+            assignment = NameAssignment(lhs, rhs, entry,
+                                        rhs_scope=rhs_scope,
+                                        in_parallel=self.in_parallel)
             self.block.stats.append(assignment)
             self.block.gen[entry] = assignment
             self.entries.add(entry)
@@ -186,7 +190,7 @@ class ControlFlow:
 
     def mark_deletion(self, node, entry):
         if self.block and self.is_tracked(entry):
-            assignment = NameDeletion(node, entry)
+            assignment = NameDeletion(node, entry, in_parallel=self.in_parallel)
             self.block.stats.append(assignment)
             self.block.gen[entry] = Uninitialized
             self.entries.add(entry)
@@ -325,7 +329,7 @@ class ExceptionDescr:
 
 
 class NameAssignment:
-    def __init__(self, lhs, rhs, entry, rhs_scope=None):
+    def __init__(self, lhs, rhs, entry, rhs_scope=None, in_parallel=False):
         if lhs.cf_state is None:
             lhs.cf_state = set()
         self.lhs = lhs
@@ -338,6 +342,7 @@ class NameAssignment:
         self.inferred_type = None
         # For generator expression targets, the rhs can have a different scope than the lhs.
         self.rhs_scope = rhs_scope
+        self.in_parallel = in_parallel
 
     def __repr__(self):
         return '%s(entry=%r)' % (self.__class__.__name__, self.entry)
@@ -381,8 +386,8 @@ class Argument(NameAssignment):
 
 
 class NameDeletion(NameAssignment):
-    def __init__(self, lhs, entry):
-        NameAssignment.__init__(self, lhs, lhs, entry)
+    def __init__(self, lhs, entry, in_parallel=False):
+        NameAssignment.__init__(self, lhs, lhs, entry, in_parallel=in_parallel)
         self.is_deletion = True
 
     def infer_type(self):
@@ -1114,7 +1119,9 @@ class ControlFlowAnalysis(CythonTransform):
                 if reduction:
                     self.reductions.add(private_node.entry)
 
+            self.flow.in_parallel += 1
             node = self.visit_ForInStatNode(node)
+            self.flow.in_parallel -= 1
 
         self.reductions = reductions
         return node
@@ -1124,7 +1131,9 @@ class ControlFlowAnalysis(CythonTransform):
             private_node.entry.error_on_uninitialized = True
 
         self._delete_privates(node)
+        self.flow.in_parallel += 1
         self.visitchildren(node)
+        self.flow.in_parallel -= 1
         self._delete_privates(node)
 
         return node

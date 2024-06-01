@@ -14,6 +14,7 @@ cython.declare(os=object, copy=object, chain=object,
 
 import copy
 from itertools import chain
+import enum
 
 from . import Builtin
 from .Errors import error, warning, InternalError, CompileError, CannotSpecialize
@@ -1845,7 +1846,7 @@ class FuncDefNode(StatNode, BlockNode):
     #  return_type     PyrexType
     #  #filename        string        C name of filename string const
     #  entry           Symtab.Entry
-    #  needs_closure   boolean        Whether or not this function has inner functions/classes/yield
+    #  needs_closure   FuncDefNode.NeedsClosure enum        Whether or not this function has inner functions/classes/yield
     #  needs_outer_scope boolean      Whether or not this function requires outer scope
     #  pymethdef_required boolean     Force Python method struct generation
     #  directive_locals { string : ExprNode } locals defined by cython.locals(...)
@@ -1860,8 +1861,13 @@ class FuncDefNode(StatNode, BlockNode):
     #       by AnalyseDeclarationsTransform, so it can replace CFuncDefNodes
     #       with fused argument types with a FusedCFuncDefNode
 
+    class NeedsClosure(enum.IntEnum):
+        NO_CLOSURE = 0
+        GENERATOR_ONLY = 1
+        FULL_CLOSURE = 2
+
     py_func = None
-    needs_closure = False
+    needs_closure = NeedsClosure.NO_CLOSURE
     needs_outer_scope = False
     pymethdef_required = False
     is_generator = False
@@ -1945,7 +1951,8 @@ class FuncDefNode(StatNode, BlockNode):
             lenv = cls(name=self.entry.name,
                                 outer_scope=genv,
                                 parent_scope=env,
-                                scope_name=self.entry.cname)
+                                scope_name=self.entry.cname,
+                                needs_threadsafe_lookup=self.needs_closure == self.NeedsClosure.FULL_CLOSURE)
         else:
             lenv = LocalScope(name=self.entry.name,
                               outer_scope=genv,
@@ -4662,7 +4669,7 @@ class GeneratorDefNode(DefNode):
     is_generator = True
     is_iterable_coroutine = False
     gen_type_name = 'Generator'
-    needs_closure = True
+    needs_closure = FuncDefNode.NeedsClosure.GENERATOR_ONLY
 
     child_attrs = DefNode.child_attrs + ["gbody"]
 
@@ -8741,6 +8748,7 @@ class GILStatNode(NogilTryFinallyStatNode):
         self.state_temp = ExprNodes.TempNode(pos, temp_type)
 
     def analyse_declarations(self, env):
+        was_in_with_gil_block = env._in_with_gil_block
         env._in_with_gil_block = (self.state == 'gil')
         if self.state == 'gil':
             env.has_with_gil_block = True
@@ -8748,7 +8756,10 @@ class GILStatNode(NogilTryFinallyStatNode):
         if self.condition is not None:
             self.condition.analyse_declarations(env)
 
-        return super().analyse_declarations(env)
+        res = super().analyse_declarations(env)
+
+        env._in_with_gil_block = was_in_with_gil_block
+        return res
 
     def analyse_expressions(self, env):
         env.use_utility_code(
@@ -9238,7 +9249,9 @@ class ParallelStatNode(StatNode, ParallelNode):
         if self.chunksize:
             self.chunksize = self.chunksize.analyse_expressions(env)
 
+        in_parallel_block, env._in_parallel_block = env._in_parallel_block, True
         self.body = self.body.analyse_expressions(env)
+        env._in_parallel_block = in_parallel_block
         self.analyse_sharing_attributes(env)
 
         if self.num_threads is not None:

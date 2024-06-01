@@ -368,6 +368,7 @@ class Scope:
     is_module_scope = 0
     is_c_dataclass_scope = False
     is_internal = 0
+    scope_needs_threadsafe_lookup = False
     scope_prefix = ""
     in_cinclude = 0
     nogil = 0
@@ -1976,6 +1977,8 @@ class LocalScope(Scope):
 
     # Transient attribute, used for symbol table variable declarations
     _in_with_gil_block = False
+    # Transient attribute in analyse expression, used to work out thread-safety
+    _in_parallel_block = False
 
     def __init__(self, name, outer_scope, parent_scope = None):
         if parent_scope is None:
@@ -2152,8 +2155,10 @@ class ClosureScope(LocalScope):
 
     is_closure_scope = True
 
-    def __init__(self, name, scope_name, outer_scope, parent_scope=None):
+    def __init__(self, name, scope_name, outer_scope, parent_scope=None,
+                 needs_threadsafe_lookup=False):
         LocalScope.__init__(self, name, outer_scope, parent_scope)
+        self.scope_needs_threadsafe_lookup = needs_threadsafe_lookup
         self.closure_cname = "%s%s" % (Naming.closure_scope_prefix, scope_name)
 
 #    def mangle_closure_cnames(self, scope_var):
@@ -2343,6 +2348,7 @@ class CClassScope(ClassScope):
     is_c_class_scope = 1
     is_closure_class_scope = False
     is_defaults_class_scope = False
+    scope_needs_threadsafe_lookup = True
 
     has_pyobject_attrs = False
     has_memoryview_attrs = False

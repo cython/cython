@@ -35,6 +35,7 @@ cdef class NameAssignment:
     cdef public object bit
     cdef public object inferred_type
     cdef public object rhs_scope
+    cdef public bint in_parallel
 
 cdef class AssignmentList:
     cdef public object bit
@@ -58,6 +59,7 @@ cdef class ControlFlow:
     cdef public dict assmts
 
     cdef public Py_ssize_t in_try_block
+    cdef public Py_ssize_t in_parallel
 
     cpdef newblock(self, ControlBlock parent=*)
     cpdef nextblock(self, ControlBlock parent=*)

@@ -181,6 +181,7 @@ _directive_defaults = {
     'boundscheck' : True,
     'nonecheck' : False,
     'initializedcheck' : True,
+    'threadsafe_variable_access': 'refcounted',
     'embedsignature': False,
     'embedsignature.format': 'c',
     'auto_cpdef': False,
@@ -350,6 +351,7 @@ directive_types = {
     'dataclasses.dataclass': DEFER_ANALYSIS_OF_ARGUMENTS,
     'dataclasses.field': DEFER_ANALYSIS_OF_ARGUMENTS,
     'embedsignature.format': one_of('c', 'clinic', 'python'),
+    'threadsafe_variable_access': one_of('off', 'refcounted', 'full'),
 }
 
 for key, val in _directive_defaults.items():
@@ -380,8 +382,8 @@ directive_scopes = {  # defaults to available everywhere
     'autotestdict.all' : ('module',),
     'autotestdict.cdef' : ('module',),
     'set_initial_path' : ('module',),
-    'test_assert_path_exists' : ('function', 'class', 'cclass'),
-    'test_fail_if_path_exists' : ('function', 'class', 'cclass'),
+    'test_assert_path_exists' : ('function', 'class', 'cclass', 'with statement'),
+    'test_fail_if_path_exists' : ('function', 'class', 'cclass', 'with statement'),
     'test_assert_c_code_has' : ('module',),
     'test_fail_if_c_code_has' : ('module',),
     'freelist': ('cclass',),

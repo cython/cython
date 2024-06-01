@@ -302,6 +302,46 @@ def translate_double_cpp_exception(code, pos, lhs_type, lhs_code, rhs_code, lhs_
     code.putln('}')
 
 
+def analyse_thread_safety(node, env):
+    if env.nogil:
+        return  # we only do thread safety with the GIL
+    directive = env.directives['threadsafe_variable_access']
+    if directive == 'off':
+        return  # the user has told us it doesn't need thread safety
+    if directive == 'refcounted' and not node.type.needs_refcounting:
+        return
+    entry = node.entry
+    if entry is None:
+        return
+    if entry.type.is_cfunction:
+        # C functions are immutable so can be special-cased out
+        return
+    if entry.scope.scope_needs_threadsafe_lookup:
+        node.needs_threadsafe_access = True
+        return
+    if entry.scope.is_module_scope and entry.is_cglobal:
+        node.needs_threadsafe_access = True
+        return
+    if entry.from_closure and entry.outer_entry.scope.scope_needs_threadsafe_lookup:
+        node.needs_threadsafe_access = True
+        return
+    if not entry.scope.is_local_scope:
+        # Local scope has complicated rules due to parallel blocks.
+        # Other scopes just don't need thread safety.
+        return
+    if not node.type.needs_refcounting:
+        # Non-refcounted types end up as thread-private anyway, so
+        # they're always safe in parallel blocks.
+        return
+    if node.cf_is_null:
+        # We know enough about it to know that no-one else has written to it
+        return
+    if not any(assignment.in_parallel for assignment in node.entry.cf_assignments):
+        return  # No assignments in a parallel region - nothing can change
+    if env._in_parallel_block:
+        node.needs_threadsafe_access = True
+
+
 class ExprNode(Node):
     #  subexprs     [string]     Class var holding names of subexpr node attrs
     #  type         PyrexType    Type of the result
@@ -2009,6 +2049,7 @@ class NameNode(AtomicExprNode):
     #  cf_maybe_null   boolean   Maybe uninitialized before this node
     #  allow_null      boolean   Don't raise UnboundLocalError
     #  nogil           boolean   Whether it is used in a nogil context
+    #  needs_threadsafe_access  boolean  Requires thread-safe locking in freethreading builds
 
     is_name = True
     is_cython_module = False
@@ -2022,6 +2063,7 @@ class NameNode(AtomicExprNode):
     allow_null = False
     nogil = False
     inferred_type = None
+    needs_threadsafe_access = False
 
     def as_cython_attribute(self):
         return self.cython_attribute
@@ -2270,6 +2312,7 @@ class NameNode(AtomicExprNode):
             from . import Buffer
             Buffer.used_buffer_aux_vars(entry)
         self.analyse_rvalue_entry(env)
+        analyse_thread_safety(self, env)
         return self
 
     def analyse_target_types(self, env):
@@ -2292,6 +2335,7 @@ class NameNode(AtomicExprNode):
         if entry.type.is_buffer:
             from . import Buffer
             Buffer.used_buffer_aux_vars(entry)
+        analyse_thread_safety(self, env)
         return self
 
     def analyse_rvalue_entry(self, env):
@@ -7409,6 +7453,7 @@ class AttributeNode(ExprNode):
     #  member               string    C name of struct member
     #  is_called            boolean   Function call is being done on result
     #  entry                Entry     Symbol table entry of attribute
+    #  needs_threadsafe_access  boolean  Requires thread-safe locking in freethreading builds
 
     is_attribute = 1
     subexprs = ['obj']
@@ -7419,6 +7464,7 @@ class AttributeNode(ExprNode):
     is_memslice_transpose = False
     is_special_lookup = False
     is_py_attr = 0
+    needs_threadsafe_access = False
 
     def as_cython_attribute(self):
         if (isinstance(self.obj, NameNode) and
@@ -7544,6 +7590,7 @@ class AttributeNode(ExprNode):
             node.entry.used = True
         if node.is_attribute:
             node.wrap_obj_in_nonecheck(env)
+        analyse_thread_safety(self, env)
         return node
 
     def analyse_as_cimported_attribute_node(self, env, target):
