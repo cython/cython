@@ -833,12 +833,12 @@ Cython code.  Here is the list of currently supported directives:
     appropriate exception is raised. This is off by default for
     performance reasons.  Default is False.
     
-``threadsafe_variable_access`` ("off" / "refcounted", "full")
+``threadsafe_variable_access`` (off / refcounted, full)
     Defines how Cython will try to ensure thread-safety in freethreading
-    Python builds.  If set to "off" (the fastest) then Cython will not
-    do anything to ensure thread-safety.  If set to "refcounted" then
+    Python builds.  If set to ``off`` (the fastest) then Cython will not
+    do anything to ensure thread-safety.  If set to ``refcounted`` then
     Cython will ensure the internal consistency of reference counting
-    for Python objects and typed memoryviews.  If set to "full" then
+    for Python objects and typed memoryviews.  If set to ``full`` then
     Cython will also guard access to C types (int, float, etc) so they
     should be read and written atomically.
     These guards are only enabled in places when Cython holds
@@ -847,7 +847,7 @@ Cython code.  Here is the list of currently supported directives:
     especially for attribute access of extension types.
     Therefore it may be worth disabling if you are only building for
     the regular non-freethreaded Python.
-    Default is "refcounted".
+    Default is ``refcounted``.
     
 
 ``overflowcheck`` (True / False)
