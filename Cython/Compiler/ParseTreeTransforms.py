@@ -3569,11 +3569,16 @@ class GilCheck(VisitorTransform):
 
     Additionally, raise exceptions for closely nested with gil or with nogil
     statements. The latter would abort Python.
+
+    Also does some coercions to temp for lookups that need thread safe access.
     """
 
     def __call__(self, root):
         self.env_stack = [root.scope]
         self.nogil = False
+        self.processing_target = False
+        self.was_coerce_to_temp = False
+        self.targets = None
 
         # True for 'cdef func() nogil:' functions, as the GIL may be held while
         # calling this function (thus contained 'nogil' blocks may be valid).
@@ -3707,16 +3712,60 @@ class GilCheck(VisitorTransform):
         self.visitchildren(node)
         return node
 
-    def visit_Node(self, node):
+    def visit_Node(self, node, coerce_to_temp_node=False):
         if self.env_stack and self.nogil and node.nogil_check:
             node.nogil_check(self.env_stack[-1])
+        if not coerce_to_temp_node:
+            self.was_coerce_to_temp = False
         if node.outer_attrs:
             self._visit_scoped_children(node, self.nogil)
         else:
             self.visitchildren(node)
         if self.nogil:
             node.in_nogil_context = True
+        self.was_coerce_to_temp = False
         return node
+
+    def visit_CoerceToTempNode(self, node):
+        self.was_coerce_to_temp = True
+        return self.visit_Node(node, coerce_to_temp_node=True)
+
+    def _visit_name_or_attribute(self, node):
+        # If the node needs threadsafe access then it must be in
+        # a temp (either directly or in a CoerceToTemp wrapper).
+        # Targets are handled separately
+        if (not node.is_target and
+                not self.was_coerce_to_temp and
+                node.needs_threadsafe_access and not node.is_temp):
+            # As far as I can tell, env isn't used in "coerce_to_temp"
+            node = node.coerce_to_temp(None)
+            return self.visit(node)
+        return self.visit_Node(node)
+
+    def visit_NameNode(self, node):
+        return self._visit_name_or_attribute(node)
+
+    def visit_AttributeNode(self, node):
+        if (node.is_target and
+                (node.obj.is_name or node.obj.is_attribute) and
+                node.obj.needs_threadsafe_access):
+            from .UtilNodes import LetRefNode
+            obj = self.visit(node.obj)
+            node.obj = LetRefNode(obj, is_temp=True)
+            self.targets.append(node.obj)
+            return node
+        return self._visit_name_or_attribute(node)
+
+    def visit_AssignmentNode(self, node):
+        targets = self.targets
+        self.targets = []
+        result = self.visit_Node(node)
+        if self.targets:
+            from .UtilNodes import LetNode
+            for target in reversed(self.targets):
+                result = LetNode(target, result)
+        self.targets = targets
+        return result
 
 
 class CoerceCppTemps(EnvTransform, SkipDeclarations):

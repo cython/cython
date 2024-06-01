@@ -2494,6 +2494,10 @@ class NameNode(AtomicExprNode):
             return  # There was an error earlier
         if entry.utility_code:
             code.globalstate.use_utility_code(entry.utility_code)
+        #if self.needs_threadsafe_access:
+            #code.putln(entry.scope.get_scope_locking_code())
+            #if entry.scope.scope_locking_utility_code:
+                #code.globalstate.use_utility_code()
         if entry.is_builtin and entry.is_const:
             return  # Lookup already cached
         elif entry.is_pyclass_attr:
