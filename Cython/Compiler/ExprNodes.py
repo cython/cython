@@ -366,12 +366,16 @@ def generate_threadsafe_unlock(node, code):
     assert node.is_name or node.is_attribute
     if not node.needs_threadsafe_access:
         return
-    code.putln("__pyx_critical_section_error = 0;")  # we've got here via the good path
-    code.put_label(code.error_label)
+    if code.label_used(code.error_label):
+        code.putln("__pyx_critical_section_error = 0;")  # we've got here via the good path
+        code.put_label(code.error_label)
+    else:
+        code.putln("CYTHON_UNUSED_VAR(__pyx_critical_section_error);")
     node.generate_threadsafe_unlock(code)
-    code.putln("if (__pyx_critical_section_error) {")
-    code.put_goto(node.threadsafe_lock_error_label)
-    code.putln("}")
+    if code.label_used(code.error_label):
+        code.putln("if (__pyx_critical_section_error) {")
+        code.put_goto(node.threadsafe_lock_error_label)
+        code.putln("}")
     code.putln("}")
     code.error_label = node.threadsafe_lock_error_label
 
