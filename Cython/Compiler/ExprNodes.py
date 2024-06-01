@@ -2734,7 +2734,7 @@ class NameNode(AtomicExprNode):
         # We don't have an obj so I don't see how we can lock
         assert not self.threadsafety_scope.is_c_class_scope
         if self.threadsafety_scope.is_closure_scope:
-            scope_cname = self.entry.cname.split('->', 1)[0]
+            scope_cname = self.entry.cname.rsplit('->', 1)[0]
             code.put_pyobject_lock(f"(PyObject*){scope_cname}")
         elif self.threadsafety_scope.is_module_scope or self.threadsafety_scope.is_local_scope:
             code.put_scope_pymutex_lock(self.entry.scope.scope_mutex_cname)
@@ -2747,7 +2747,7 @@ class NameNode(AtomicExprNode):
         # We don't have an obj so I don't see how we can lock
         assert not self.threadsafety_scope.is_c_class_scope
         if self.threadsafety_scope.is_closure_scope:
-            scope_cname = self.entry.cname.split('->', 1)[0]
+            scope_cname = self.entry.cname.rsplit('->', 1)[0]
             code.put_pyobject_unlock(f"(PyObject*){scope_cname}")
         elif self.threadsafety_scope.is_module_scope or self.threadsafety_scope.is_local_scope:
             code.put_scope_pymutex_unlock(self.entry.scope.scope_mutex_cname)
@@ -8066,7 +8066,7 @@ class AttributeNode(ExprNode):
         if self.threadsafety_scope.is_c_class_scope:
             code.put_pyobject_lock(self.obj.result_as(py_object_type))
         elif self.threadsafety_scope.is_closure_scope:
-            scope_cname = self.entry.cname.split('->', 1)[0]
+            scope_cname = self.entry.cname.rsplit('->', 1)[0]
             code.put_pyobject_lock(f"(PyObject*){scope_cname}")
         elif self.threadsafety_scope.is_local_scope or self.threadsafety_scope.is_module_scope:
             code.put_scope_pymutex_lock(self.threadsafety_scope.scope_mutex_cname)
@@ -8079,7 +8079,7 @@ class AttributeNode(ExprNode):
         if self.threadsafety_scope.is_c_class_scope:
             code.put_pyobject_unlock(self.obj.result_as(py_object_type))
         elif self.threadsafety_scope.is_closure_scope:
-            scope_cname = self.entry.cname.split('->', 1)[0]
+            scope_cname = self.entry.cname.rsplit('->', 1)[0]
             code.put_pyobject_unlock(f"(PyObject*){scope_cname}")
         elif self.threadsafety_scope.is_local_scope or self.threadsafety_scope.is_module_scope:
             code.put_scope_pymutex_lock(self.threadsafety_scope.scope_mutex_cname)
