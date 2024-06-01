@@ -1341,6 +1341,7 @@ class ModuleScope(Scope):
         '__builtins__', '__name__', '__file__', '__doc__', '__path__',
         '__spec__', '__loader__', '__package__', '__cached__',
     ]
+    scope_mutex_cname = Naming.scope_mutex_cname
 
     def __init__(self, name, parent_module, context, is_package=False):
         from . import Builtin
@@ -1971,6 +1972,8 @@ class ModuleScope(Scope):
 
 class LocalScope(Scope):
     is_local_scope = True
+    # append "local" just to distinuish from any global macro
+    scope_mutex_cname = Naming.scope_mutex_cname + "_local"
 
     # Does the function have a 'with gil:' block?
     has_with_gil_block = False

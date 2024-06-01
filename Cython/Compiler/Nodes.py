@@ -2432,6 +2432,11 @@ class FuncDefNode(StatNode, BlockNode):
             refnanny_setup_code.put_setup_refcount_context(self.entry.name, acquire_gil=refnanny_needs_gil)
             code.put_finish_refcount_context(nogil=not gil_owned['success'])
 
+        if code.funcstate.uses_scope_mutex:
+            tempvardecl_code.putln("#if CYTHON_COMPILING_IN_CPYTHON_FREETHREADING")
+            tempvardecl_code.putln(f"PyMutex {code.funcstate.scope.scope_mutex_cname} = {{0}};")
+            tempvardecl_code.putln("#endif")
+
         if acquire_gil or (lenv.nogil and gil_owned['success']):
             # release the GIL (note that with-gil blocks acquire it on exit in their EnsureGILNode)
             code.put_release_ensured_gil()

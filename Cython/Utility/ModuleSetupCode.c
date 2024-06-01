@@ -2241,6 +2241,18 @@ done:
 #include "internal/pycore_lock.h"
 #endif
 
+/////////////////////////// AccessCriticalSectionForFreeThreading.proto ////////////
+
+// Unfortunately we aren't yet in a position to use this fully because
+// critical sections aren't yet public API, and trying to include them from
+// the internal API ends up requring "mimalloc.h".
+// Therefore just simulate something so that code is ready for when it
+// is available
+#ifndef Py_BEGIN_CRITICAL_SECTION
+#define Py_BEGIN_CRITICAL_SECTION(x) { (void)x
+#define Py_END_CRITICAL_SECTION(x) (void)x; }
+#endif
+
 ////////////////////////// SharedInFreeThreading.proto //////////////////
 
 #if CYTHON_COMPILING_IN_CPYTHON_FREETHREADING

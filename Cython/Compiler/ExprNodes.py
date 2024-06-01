@@ -303,8 +303,16 @@ def translate_double_cpp_exception(code, pos, lhs_type, lhs_code, rhs_code, lhs_
 
 
 def analyse_thread_safety(node, env):
+    """
+    Either leaves "node.needs_threadsafe_access" or sets it
+    to the scope that it should be locked with.
+    """
     if env.nogil:
         return  # we only do thread safety with the GIL
+    if env.is_c_class_scope:
+        # evaluation of C class scope is assumed not to
+        # need guarding
+        return
     directive = env.directives['threadsafe_variable_access']
     if directive == 'off':
         return  # the user has told us it doesn't need thread safety
@@ -318,12 +326,15 @@ def analyse_thread_safety(node, env):
         return
     if entry.scope.scope_needs_threadsafe_lookup:
         node.needs_threadsafe_access = True
+        node.threadsafety_scope = entry.scope
         return
     if entry.scope.is_module_scope and entry.is_cglobal:
         node.needs_threadsafe_access = True
+        node.threadsafety_scope = entry.scope
         return
     if entry.from_closure and entry.outer_entry.scope.scope_needs_threadsafe_lookup:
         node.needs_threadsafe_access = True
+        node.threadsafety_scope = entry.outer_entry.scope
         return
     if not entry.scope.is_local_scope:
         # Local scope has complicated rules due to parallel blocks.
@@ -340,6 +351,29 @@ def analyse_thread_safety(node, env):
         return  # No assignments in a parallel region - nothing can change
     if env._in_parallel_block:
         node.needs_threadsafe_access = True
+        node.threadsafety_scope = entry.scope
+
+def generate_threadsafe_lock(node, code):
+    assert node.is_name or node.is_attribute
+    if not node.needs_threadsafe_access:
+        return
+    node.threadsafe_lock_error_label = code.new_error_label()
+    code.putln("{")
+    code.putln("int __pyx_critical_section_error = 1;")
+    node.generate_threadsafe_lock(code)
+
+def generate_threadsafe_unlock(node, code):
+    assert node.is_name or node.is_attribute
+    if not node.needs_threadsafe_access:
+        return
+    code.putln("__pyx_critical_section_error = 0;")  # we've got here via the good path
+    code.put_label(code.error_label)
+    node.generate_threadsafe_unlock(code)
+    code.putln("if (__pyx_critical_section_error) {")
+    code.put_goto(node.threadsafe_lock_error_label)
+    code.putln("}")
+    code.putln("}")
+    code.error_label = node.threadsafe_lock_error_label
 
 
 class ExprNode(Node):
@@ -2494,10 +2528,7 @@ class NameNode(AtomicExprNode):
             return  # There was an error earlier
         if entry.utility_code:
             code.globalstate.use_utility_code(entry.utility_code)
-        #if self.needs_threadsafe_access:
-            #code.putln(entry.scope.get_scope_locking_code())
-            #if entry.scope.scope_locking_utility_code:
-                #code.globalstate.use_utility_code()
+        generate_threadsafe_lock(self, code)
         if entry.is_builtin and entry.is_const:
             return  # Lookup already cached
         elif entry.is_pyclass_attr:
@@ -2593,6 +2624,8 @@ class NameNode(AtomicExprNode):
         if (self.entry.type.is_ptr and isinstance(rhs, ListNode)
                 and not self.lhs_of_first_assignment and not rhs.in_module_scope):
             error(self.pos, "Literal list must be assigned to pointer at time of declaration")
+
+        self.generate_threadsafe_lock(code)
 
         # is_pyglobal seems to be True for module level-globals only.
         # We use this to access class->tp_dict if necessary.
@@ -2693,6 +2726,35 @@ class NameNode(AtomicExprNode):
 
             rhs.free_temps(code)
 
+        self.generate_threadsafe_unlock(code)
+
+    def generate_threadsafe_lock(self, code):
+        if not self.needs_threadsafe_access:
+            return
+        # We don't have an obj so I don't see how we can lock
+        assert not self.threadsafety_scope.is_c_class_scope
+        if self.threadsafety_scope.is_closure_scope:
+            scope_cname = self.entry.cname.split('->', 1)[0]
+            code.put_pyobject_lock(f"(PyObject*){scope_cname}")
+        elif self.threadsafety_scope.is_module_scope or self.threadsafety_scope.is_local_scope:
+            code.put_scope_pymutex_lock(self.entry.scope.scope_mutex_cname)
+        else:
+            assert False, self.threadsafety_scope
+
+    def generate_threadsafe_unlock(self, code):
+        if not self.needs_threadsafe_access:
+            return
+        # We don't have an obj so I don't see how we can lock
+        assert not self.threadsafety_scope.is_c_class_scope
+        if self.threadsafety_scope.is_closure_scope:
+            scope_cname = self.entry.cname.split('->', 1)[0]
+            code.put_pyobject_unlock(f"(PyObject*){scope_cname}")
+        elif self.threadsafety_scope.is_module_scope or self.threadsafety_scope.is_local_scope:
+            code.put_scope_pymutex_unlock(self.entry.scope.scope_mutex_cname)
+        else:
+            assert False, self.threadsafety_scope
+        
+
     def generate_acquire_memoryviewslice(self, rhs, code):
         """
         Slices, coercions from objects, return values etc are new references.
@@ -2732,7 +2794,8 @@ class NameNode(AtomicExprNode):
     def generate_deletion_code(self, code, ignore_nonexisting=False):
         if self.entry is None:
             return  # There was an error earlier
-        elif self.entry.is_pyclass_attr:
+        generate_threadsafe_lock(self, code)
+        if self.entry.is_pyclass_attr:
             namespace = self.entry.scope.namespace_cname
             interned_cname = code.intern_identifier(self.entry.name)
             if ignore_nonexisting:
@@ -2778,6 +2841,11 @@ class NameNode(AtomicExprNode):
                                           have_gil=not self.nogil)
         else:
             error(self.pos, "Deletion of C names not supported")
+        generate_threadsafe_unlock(self, code)
+
+    def generate_disposal_code(self, code):
+        generate_threadsafe_unlock(self, code)
+        super().generate_disposal_code(code)
 
     def annotate(self, code):
         if getattr(self, 'is_called', False):
@@ -7935,6 +8003,7 @@ class AttributeNode(ExprNode):
             return "%s%s%s" % (obj_code, self.op, self.member)
 
     def generate_result_code(self, code):
+        generate_threadsafe_lock(self, code)
         if self.is_py_attr:
             if self.is_special_lookup:
                 code.globalstate.use_utility_code(
@@ -7991,16 +8060,45 @@ class AttributeNode(ExprNode):
                 # C method implemented as function call with utility code
                 code.globalstate.use_entry_utility_code(self.entry)
 
+    def generate_threadsafe_lock(self, code):
+        if not self.needs_threadsafe_access:
+            return
+        if self.threadsafety_scope.is_c_class_scope:
+            code.put_pyobject_lock(self.obj.result_as(py_object_type))
+        elif self.threadsafety_scope.is_closure_scope:
+            scope_cname = self.entry.cname.split('->', 1)[0]
+            code.put_pyobject_lock(f"(PyObject*){scope_cname}")
+        elif self.threadsafety_scope.is_local_scope or self.threadsafety_scope.is_module_scope:
+            code.put_scope_pymutex_lock(self.threadsafety_scope.scope_mutex_cname)
+        else:
+            assert False, self.threadsafety_scope
+
+    def generate_threadsafe_unlock(self, code):
+        if not self.needs_threadsafe_access:
+            return
+        if self.threadsafety_scope.is_c_class_scope:
+            code.put_pyobject_unlock(self.obj.result_as(py_object_type))
+        elif self.threadsafety_scope.is_closure_scope:
+            scope_cname = self.entry.cname.split('->', 1)[0]
+            code.put_pyobject_unlock(f"(PyObject*){scope_cname}")
+        elif self.threadsafety_scope.is_local_scope or self.threadsafety_scope.is_module_scope:
+            code.put_scope_pymutex_lock(self.threadsafety_scope.scope_mutex_cname)
+        else:
+            assert False, self.threadsafety_scope
+
     def generate_disposal_code(self, code):
         if self.is_temp and self.type.is_memoryviewslice and self.is_memslice_transpose:
             # mirror condition for putting the memview incref here:
             code.put_xdecref_clear(self.result(), self.type, have_gil=True)
+            generate_threadsafe_unlock(self, code)
         else:
+            generate_threadsafe_unlock(self, code)
             ExprNode.generate_disposal_code(self, code)
 
     def generate_assignment_code(self, rhs, code, overloaded_assignment=False,
                                  exception_check=None, exception_value=None):
         self.obj.generate_evaluation_code(code)
+        self.generate_threadsafe_lock(code)
         if self.is_py_attr:
             code.globalstate.use_utility_code(
                 UtilityCode.load_cached("PyObjectSetAttrStr", "ObjectHandling.c"))
@@ -8039,10 +8137,12 @@ class AttributeNode(ExprNode):
                         #rhs.result()))
             rhs.generate_post_assignment_code(code)
             rhs.free_temps(code)
+        self.generate_threadsafe_unlock(code)
         self.obj.generate_disposal_code(code)
         self.obj.free_temps(code)
 
     def generate_deletion_code(self, code, ignore_nonexisting=False):
+        assert not self.needs_threadsafe_access
         self.obj.generate_evaluation_code(code)
         if self.is_py_attr or (self.entry.scope.is_property_scope
                                and '__del__' in self.entry.scope.entries):

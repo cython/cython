@@ -905,6 +905,7 @@ class FunctionState:
         self.error_without_exception = False
 
         self.needs_refnanny = False
+        self.uses_scope_mutex = False
 
     # safety checks
 
@@ -2684,6 +2685,29 @@ class CCodeWriter:
                     self.putln("return %s;" % func_call)
                 self.putln("}")
         return func_cname
+
+    def put_pyobject_lock(self, cname):
+        self.globalstate.use_utility_code(
+            UtilityCode.load_cached("AccessCriticalSectionForFreeThreading", "ModuleSetupCode.c"))
+        self.putln("#if CYTHON_COMPILING_IN_CPYTHON_FREETHREADING")
+        self.putln(f"Py_BEGIN_CRITICAL_SECTION({cname});")
+        self.putln("#endif")
+
+    def put_pyobject_unlock(self, cname):
+        self.putln("#if CYTHON_COMPILING_IN_CPYTHON_FREETHREADING")
+        self.putln(f"Py_END_CRITICAL_SECTION({cname});")
+        self.putln("#endif")
+
+    def put_scope_pymutex_lock(self, cname):
+        self.funcstate.uses_scope_mutex = True
+        self.putln("#if CYTHON_COMPILING_IN_CPYTHON_FREETHREADING")
+        self.putln(f"PyMutex_Lock(&{cname});")
+        self.putln("#endif")
+
+    def put_scope_pymutex_unlock(self, cname):
+        self.putln("#if CYTHON_COMPILING_IN_CPYTHON_FREETHREADING")
+        self.putln(f"PyMutex_Unlock(&{cname});")
+        self.putln("#endif")
 
     # GIL methods
 

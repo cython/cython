@@ -55,6 +55,7 @@ cdef class FunctionState:
     cdef public bint error_without_exception
 
     cdef public bint needs_refnanny
+    cdef public bint uses_scope_mutex
 
     cpdef new_label(self, name=*)
     cpdef tuple get_loop_labels(self)

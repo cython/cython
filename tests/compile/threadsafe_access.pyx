@@ -173,7 +173,7 @@ def basic_generator():
     a = object()
     yield a
 
-def h(a):
+def func_with_inner_gen(a):
     # This generator has a closure variable, so can't reason about whether other threads can access it
     @cython.test_assert_path_exists("//NameNode[@name = 'a' and @needs_threadsafe_access=True]")
     @cython.test_fail_if_path_exists("//NameNode[@name = 'a' and @needs_threadsafe_access=False]")
@@ -183,10 +183,17 @@ def h(a):
 # This generator has a variable that's shared with a closure, so can't reason about whether other threads can access it
 @cython.test_assert_path_exists("//NameNode[@name = 'a' and @needs_threadsafe_access=True]")
 @cython.test_fail_if_path_exists("//NameNode[@name = 'a' and @needs_threadsafe_access=False]")
-def i(a):
+def gen_with_inner_func(a):
     @cython.test_assert_path_exists("//NameNode[@name = 'a' and @needs_threadsafe_access=True]")
     @cython.test_fail_if_path_exists("//NameNode[@name = 'a' and @needs_threadsafe_access=False]")
     def inner():
         nonlocal a
         a = 1
     yield a
+
+cdef class Nested:
+    cdef Nested attr
+
+def deep_lookup(Nested n1, Nested n2):
+    # Just test that this compiles sensibly, since they get factored out into temps
+    n1.attr.attr.attr.attr.attr = n2.attr.attr.attr

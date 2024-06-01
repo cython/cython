@@ -149,6 +149,8 @@ dataclass_field_default_cname = pyrex_prefix + "dataclass_dflt"
 global_code_object_cache_find = pyrex_prefix + 'find_code_object'
 global_code_object_cache_insert = pyrex_prefix + 'insert_code_object'
 
+scope_mutex_cname = pyrex_prefix + "scope_mutex"
+
 genexpr_id_ref = 'genexpr'
 freelist_name  = 'freelist'
 freecount_name = 'freecount'
