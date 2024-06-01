@@ -3767,6 +3767,12 @@ class GilCheck(VisitorTransform):
         self.targets = targets
         return result
 
+    def visit_LetNode(self, node):
+        # Treat like coerce to temp. This primarily affect in place arithmetic.
+        # The temp_expression is already a temp, so no need to coerce further
+        self.was_coerce_to_temp = True
+        return self.visit_Node(node, coerce_to_temp_node=True)
+
 
 class CoerceCppTemps(EnvTransform, SkipDeclarations):
     """
