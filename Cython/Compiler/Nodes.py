@@ -8753,7 +8753,8 @@ class GILStatNode(NogilTryFinallyStatNode):
         self.state_temp = ExprNodes.TempNode(pos, temp_type)
 
     def analyse_declarations(self, env):
-        was_in_with_gil_block = env._in_with_gil_block
+        if env.is_local_scope:
+            was_in_with_gil_block = env._in_with_gil_block
         env._in_with_gil_block = (self.state == 'gil')
         if self.state == 'gil':
             env.has_with_gil_block = True
@@ -8763,7 +8764,8 @@ class GILStatNode(NogilTryFinallyStatNode):
 
         res = super().analyse_declarations(env)
 
-        env._in_with_gil_block = was_in_with_gil_block
+        if env.is_local_scope:
+            env._in_with_gil_block = was_in_with_gil_block
         return res
 
     def analyse_expressions(self, env):
@@ -9254,9 +9256,11 @@ class ParallelStatNode(StatNode, ParallelNode):
         if self.chunksize:
             self.chunksize = self.chunksize.analyse_expressions(env)
 
-        in_parallel_block, env._in_parallel_block = env._in_parallel_block, True
+        if env.is_local_scope:
+            in_parallel_block, env._in_parallel_block = env._in_parallel_block, True
         self.body = self.body.analyse_expressions(env)
-        env._in_parallel_block = in_parallel_block
+        if env.is_local_scope:
+            env._in_parallel_block = in_parallel_block
         self.analyse_sharing_attributes(env)
 
         if self.num_threads is not None:
