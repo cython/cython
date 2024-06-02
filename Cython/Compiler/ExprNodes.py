@@ -329,7 +329,7 @@ def analyse_thread_safety(node, env):
         return  # the user has told us it doesn't need thread safety
     if directive == 'refcounted' and not (
             node.type.needs_refcounting or
-            (node.type.is_cpp_class and env.directives['cpplocals'])):
+            (node.type.is_cpp_class and env.directives['cpp_locals'])):
         # I think it makes sense to treat cpplocals as a pseudo-refcounted type
         # since Cython's essentially taking ownership of their behaviour
         return
