@@ -20,6 +20,7 @@ import sys
 import copy
 import os.path
 import operator
+import enum
 
 from .Errors import (
     error, warning, InternalError, CompileError, report_error, local_errors,
@@ -302,6 +303,16 @@ def translate_double_cpp_exception(code, pos, lhs_type, lhs_code, rhs_code, lhs_
     code.putln('}')
 
 
+class ThreadSafetyType(enum.IntEnum):
+    # This is also intended to be the sort order of the
+    # types where we want to lock in two places at once.
+    NONE = 0
+    MODULE = enum.auto()
+    LOCAL = enum.auto()
+    CLOSURE = enum.auto()
+    C_CLASS = enum.auto()
+
+
 def analyse_thread_safety(node, env):
     """
     Either leaves "node.needs_threadsafe_access" or sets it
@@ -324,20 +335,20 @@ def analyse_thread_safety(node, env):
     if entry.type.is_cfunction:
         # C functions are immutable so can be special-cased out
         return
-    if entry.scope.scope_needs_threadsafe_lookup:
-        node.needs_threadsafe_access = True
+    if entry.scope.is_c_class_scope:
+        node.needs_threadsafe_access = ThreadSafetyType.C_CLASS
         node.threadsafety_scope = entry.scope
         return
     if entry.scope.is_module_scope and entry.is_cglobal:
-        node.needs_threadsafe_access = True
+        node.needs_threadsafe_access = ThreadSafetyType.MODULE
         node.threadsafety_scope = entry.scope
         return
     if entry.from_closure and not entry.outer_entry.scope.is_pure_generator_scope:
-        node.needs_threadsafe_access = True
+        node.needs_threadsafe_access = ThreadSafetyType.CLOSURE
         node.threadsafety_scope = entry.outer_entry.scope
         return
     if entry.in_closure and not entry.scope.is_pure_generator_scope:
-        node.needs_threadsafe_access = True
+        node.needs_threadsafe_access = ThreadSafetyType.CLOSURE
         node.threadsafety_scope = entry.scope
         return
     if not entry.scope.is_local_scope:
@@ -354,7 +365,7 @@ def analyse_thread_safety(node, env):
     if not any(assignment.in_parallel for assignment in node.entry.cf_assignments):
         return  # No assignments in a parallel region - nothing can change
     if env._in_parallel_block:
-        node.needs_threadsafe_access = True
+        node.needs_threadsafe_access = ThreadSafetyType.LOCAL
         node.threadsafety_scope = entry.scope
 
 def generate_error_handled_threadsafe_lock(node, code):
@@ -2087,7 +2098,8 @@ class NameNode(AtomicExprNode):
     #  cf_maybe_null   boolean   Maybe uninitialized before this node
     #  allow_null      boolean   Don't raise UnboundLocalError
     #  nogil           boolean   Whether it is used in a nogil context
-    #  needs_threadsafe_access  boolean  Requires thread-safe locking in freethreading builds
+    #  needs_threadsafe_access  ThreadSafetyType  Requires thread-safe locking in freethreading builds
+    #  threadsafety_scope   None or Scope
 
     is_name = True
     is_cython_module = False
@@ -2101,7 +2113,8 @@ class NameNode(AtomicExprNode):
     allow_null = False
     nogil = False
     inferred_type = None
-    needs_threadsafe_access = False
+    needs_threadsafe_access = ThreadSafetyType.NONE
+    threadsafety_scope = None
 
     def as_cython_attribute(self):
         return self.cython_attribute
@@ -2736,29 +2749,31 @@ class NameNode(AtomicExprNode):
         if not self.needs_threadsafe_access:
             return
         # We don't have an obj so I don't see how we can lock
-        assert not self.threadsafety_scope.is_c_class_scope
-        if self.threadsafety_scope.is_closure_scope:
+        assert self.needs_threadsafe_access != ThreadSafetyType.C_CLASS
+        if self.needs_threadsafe_access == ThreadSafetyType.CLOSURE:
             scope_cname = self.entry.cname.rsplit('->', 1)[0]
             code.put_pyobject_lock(f"(PyObject*){scope_cname}")
-        elif self.threadsafety_scope.is_module_scope or self.threadsafety_scope.is_local_scope:
+        elif (self.needs_threadsafe_access == ThreadSafetyType.MODULE or
+                self.needs_threadsafe_access == ThreadSafetyType.LOCAL):
             code.put_scope_pymutex_lock(
-                self.entry.scope.scope_mutex_cname,
-                is_local=self.threadsafety_scope.is_local_scope)
+                self.threadsafety_scope.scope_mutex_cname,
+                is_local = self.needs_threadsafe_access == ThreadSafetyType.LOCAL)
         else:
-            assert False, self.threadsafety_scope
+            assert False, self.needs_threadsafe_access
 
     def generate_threadsafe_unlock(self, code):
         if not self.needs_threadsafe_access:
             return
         # We don't have an obj so I don't see how we can lock
-        assert not self.threadsafety_scope.is_c_class_scope
-        if self.threadsafety_scope.is_closure_scope:
+        assert self.needs_threadsafe_access != ThreadSafetyType.C_CLASS
+        if self.needs_threadsafe_access == ThreadSafetyType.CLOSURE:
             scope_cname = self.entry.cname.rsplit('->', 1)[0]
             code.put_pyobject_unlock(f"(PyObject*){scope_cname}")
-        elif self.threadsafety_scope.is_module_scope or self.threadsafety_scope.is_local_scope:
-            code.put_scope_pymutex_unlock(self.entry.scope.scope_mutex_cname)
+        elif (self.needs_threadsafe_access == ThreadSafetyType.MODULE or
+                self.needs_threadsafe_access == ThreadSafetyType.LOCAL):
+            code.put_scope_pymutex_unlock(self.threadsafety_scope.scope_mutex_cname)
         else:
-            assert False, self.threadsafety_scope
+            assert False, self.needs_threadsafe_access
         
 
     def generate_acquire_memoryviewslice(self, rhs, code):
@@ -7531,7 +7546,8 @@ class AttributeNode(ExprNode):
     #  member               string    C name of struct member
     #  is_called            boolean   Function call is being done on result
     #  entry                Entry     Symbol table entry of attribute
-    #  needs_threadsafe_access  boolean  Requires thread-safe locking in freethreading builds
+    #  needs_threadsafe_access  ThreadSafetyType  Requires thread-safe locking in freethreading builds
+    #  threadsafety_scope   None or Scope
 
     is_attribute = 1
     subexprs = ['obj']
@@ -7542,7 +7558,9 @@ class AttributeNode(ExprNode):
     is_memslice_transpose = False
     is_special_lookup = False
     is_py_attr = 0
-    needs_threadsafe_access = False
+    needs_threadsafe_access = ThreadSafetyType.NONE
+    threadsafety_scope = None
+
 
     def as_cython_attribute(self):
         if (isinstance(self.obj, NameNode) and
@@ -8069,30 +8087,32 @@ class AttributeNode(ExprNode):
     def generate_threadsafe_lock(self, code):
         if not self.needs_threadsafe_access:
             return
-        if self.threadsafety_scope.is_c_class_scope:
+        if self.needs_threadsafe_access == ThreadSafetyType.C_CLASS:
             code.put_pyobject_lock(self.obj.result_as(py_object_type))
-        elif self.threadsafety_scope.is_closure_scope:
+        elif self.needs_threadsafe_access == ThreadSafetyType.CLOSURE:
             scope_cname = self.entry.cname.rsplit('->', 1)[0]
             code.put_pyobject_lock(f"(PyObject*){scope_cname}")
-        elif self.threadsafety_scope.is_local_scope or self.threadsafety_scope.is_module_scope:
+        elif (self.needs_threadsafe_access == ThreadSafetyType.LOCAL or
+                self.needs_threadsafe_access == ThreadSafetyType.MODULE):
             code.put_scope_pymutex_lock(
                 self.threadsafety_scope.scope_mutex_cname,
-                is_local=self.threadsafety_scope.is_local_scope)
+                is_local = self.needs_threadsafe_access == ThreadSafetyType.MODULE)
         else:
-            assert False, self.threadsafety_scope
+            assert False, self.needs_threadsafe_access
 
     def generate_threadsafe_unlock(self, code):
         if not self.needs_threadsafe_access:
             return
-        if self.threadsafety_scope.is_c_class_scope:
+        if self.needs_threadsafe_access == ThreadSafetyType.C_CLASS:
             code.put_pyobject_unlock(self.obj.result_as(py_object_type))
-        elif self.threadsafety_scope.is_closure_scope:
+        elif self.needs_threadsafe_access == ThreadSafetyType.CLOSURE:
             scope_cname = self.entry.cname.rsplit('->', 1)[0]
             code.put_pyobject_unlock(f"(PyObject*){scope_cname}")
-        elif self.threadsafety_scope.is_local_scope or self.threadsafety_scope.is_module_scope:
+        elif (self.needs_threadsafe_access == ThreadSafetyType.LOCAL or
+                self.needs_threadsafe_access == ThreadSafetyType.MODULE):
             code.put_scope_pymutex_lock(self.threadsafety_scope.scope_mutex_cname)
         else:
-            assert False, self.threadsafety_scope
+            assert False, self.needs_threadsafe_access
 
     def generate_disposal_code(self, code):
         if self.is_temp and self.type.is_memoryviewslice and self.is_memslice_transpose:

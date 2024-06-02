@@ -368,7 +368,6 @@ class Scope:
     is_module_scope = 0
     is_c_dataclass_scope = False
     is_internal = 0
-    scope_needs_threadsafe_lookup = False
     scope_prefix = ""
     in_cinclude = 0
     nogil = 0
@@ -2352,7 +2351,6 @@ class CClassScope(ClassScope):
     is_c_class_scope = 1
     is_closure_class_scope = False
     is_defaults_class_scope = False
-    scope_needs_threadsafe_lookup = True
 
     has_pyobject_attrs = False
     has_memoryview_attrs = False
