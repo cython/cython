@@ -3,16 +3,16 @@
 import cython
 from cython.parallel import parallel
 
-@cython.test_assert_path_exists("//NameNode[@name = 'x' and @needs_threadsafe_access=True]")
-@cython.test_fail_if_path_exists("//NameNode[@name = 'x' and @needs_threadsafe_access=False]")
+@cython.test_assert_path_exists("//NameNode[@name = 'x' and @_needs_threadsafe_access_bool=True]")
+@cython.test_fail_if_path_exists("//NameNode[@name = 'x' and @_needs_threadsafe_access_bool=False]")
 def obj_in_parallel():
     with nogil, parallel():
         with gil:
             x = object()
 
 # In this case o is never assigned, so we don't need thread-safe access
-@cython.test_assert_path_exists("//NameNode[@name = 'o' and @needs_threadsafe_access=False]")
-@cython.test_fail_if_path_exists("//NameNode[@name = 'o' and @needs_threadsafe_access=True]")
+@cython.test_assert_path_exists("//NameNode[@name = 'o' and @_needs_threadsafe_access_bool=False]")
+@cython.test_fail_if_path_exists("//NameNode[@name = 'o' and @_needs_threadsafe_access_bool=True]")
 def no_assignment_in_parallel1(o):
     with nogil, parallel():
         with gil:
@@ -20,8 +20,8 @@ def no_assignment_in_parallel1(o):
 
 
 # In this case o is not assigned in the parallel block, so we don't need thread-safe access
-@cython.test_assert_path_exists("//NameNode[@name = 'o' and @needs_threadsafe_access=False]")
-@cython.test_fail_if_path_exists("//NameNode[@name = 'o' and @needs_threadsafe_access=True]")
+@cython.test_assert_path_exists("//NameNode[@name = 'o' and @_needs_threadsafe_access_bool=False]")
+@cython.test_fail_if_path_exists("//NameNode[@name = 'o' and @_needs_threadsafe_access_bool=True]")
 def no_assignment_in_parallel2():
     o = "String"
     with nogil, parallel():
@@ -29,15 +29,15 @@ def no_assignment_in_parallel2():
             print(o)
 
 # Deletion is an assignment
-@cython.test_assert_path_exists("//NameNode[@name = 'o' and @needs_threadsafe_access=True]")
-@cython.test_fail_if_path_exists("//NameNode[@name = 'o' and @needs_threadsafe_access=False]")
+@cython.test_assert_path_exists("//NameNode[@name = 'o' and @_needs_threadsafe_access_bool=True]")
+@cython.test_fail_if_path_exists("//NameNode[@name = 'o' and @_needs_threadsafe_access_bool=False]")
 def parallel_deletion(o):
     with nogil, parallel():
         with gil:
             del o
 
-@cython.test_assert_path_exists("//NameNode[@name = 'i' and @needs_threadsafe_access=False]")
-@cython.test_fail_if_path_exists("//NameNode[@name = 'i' and @needs_threadsafe_access=True]")
+@cython.test_assert_path_exists("//NameNode[@name = 'i' and @_needs_threadsafe_access_bool=False]")
+@cython.test_fail_if_path_exists("//NameNode[@name = 'i' and @_needs_threadsafe_access_bool=True]")
 @cython.threadsafe_variable_access("full")
 def c_type_in_parallel():
     # Even though we're on "full" mode, c types are already thread private, so don't need locking
@@ -49,31 +49,31 @@ cdef global_obj = object()
 cdef int global_int = 20
 not_cdef = 1.5
 
-@cython.test_assert_path_exists("//NameNode[@name = 'global_obj' and @needs_threadsafe_access=True]")
-@cython.test_assert_path_exists("//NameNode[@name = 'global_int' and @needs_threadsafe_access=False]")
-@cython.test_assert_path_exists("//NameNode[@name = 'not_cdef' and @needs_threadsafe_access=False]")
-@cython.test_fail_if_path_exists("//NameNode[@name = 'global_obj' and @needs_threadsafe_access=False]")
-@cython.test_fail_if_path_exists("//NameNode[@name = 'global_int' and @needs_threadsafe_access=True]")
-@cython.test_fail_if_path_exists("//NameNode[@name = 'not_cdef' and @needs_threadsafe_access=True]")
+@cython.test_assert_path_exists("//NameNode[@name = 'global_obj' and @_needs_threadsafe_access_bool=True]")
+@cython.test_assert_path_exists("//NameNode[@name = 'global_int' and @_needs_threadsafe_access_bool=False]")
+@cython.test_assert_path_exists("//NameNode[@name = 'not_cdef' and @_needs_threadsafe_access_bool=False]")
+@cython.test_fail_if_path_exists("//NameNode[@name = 'global_obj' and @_needs_threadsafe_access_bool=False]")
+@cython.test_fail_if_path_exists("//NameNode[@name = 'global_int' and @_needs_threadsafe_access_bool=True]")
+@cython.test_fail_if_path_exists("//NameNode[@name = 'not_cdef' and @_needs_threadsafe_access_bool=True]")
 def access_globals():
     print(global_obj, global_int, not_cdef)
 
-@cython.test_assert_path_exists("//NameNode[@name = 'global_obj' and @needs_threadsafe_access=True]")
-@cython.test_assert_path_exists("//NameNode[@name = 'global_int' and @needs_threadsafe_access=True]")
-@cython.test_assert_path_exists("//NameNode[@name = 'not_cdef' and @needs_threadsafe_access=False]")
-@cython.test_fail_if_path_exists("//NameNode[@name = 'global_obj' and @needs_threadsafe_access=False]")
-@cython.test_fail_if_path_exists("//NameNode[@name = 'global_int' and @needs_threadsafe_access=False]")
-@cython.test_fail_if_path_exists("//NameNode[@name = 'not_cdef' and @needs_threadsafe_access=True]")
+@cython.test_assert_path_exists("//NameNode[@name = 'global_obj' and @_needs_threadsafe_access_bool=True]")
+@cython.test_assert_path_exists("//NameNode[@name = 'global_int' and @_needs_threadsafe_access_bool=True]")
+@cython.test_assert_path_exists("//NameNode[@name = 'not_cdef' and @_needs_threadsafe_access_bool=False]")
+@cython.test_fail_if_path_exists("//NameNode[@name = 'global_obj' and @_needs_threadsafe_access_bool=False]")
+@cython.test_fail_if_path_exists("//NameNode[@name = 'global_int' and @_needs_threadsafe_access_bool=False]")
+@cython.test_fail_if_path_exists("//NameNode[@name = 'not_cdef' and @_needs_threadsafe_access_bool=True]")
 @cython.threadsafe_variable_access("full")
 def access_globals_full():
     print(global_obj, global_int, not_cdef)
 
-@cython.test_assert_path_exists("//NameNode[@name = 'global_obj' and @needs_threadsafe_access=False]")
-@cython.test_assert_path_exists("//NameNode[@name = 'global_int' and @needs_threadsafe_access=False]")
-@cython.test_assert_path_exists("//NameNode[@name = 'not_cdef' and @needs_threadsafe_access=False]")
-@cython.test_fail_if_path_exists("//NameNode[@name = 'global_obj' and @needs_threadsafe_access=True]")
-@cython.test_fail_if_path_exists("//NameNode[@name = 'global_int' and @needs_threadsafe_access=True]")
-@cython.test_fail_if_path_exists("//NameNode[@name = 'not_cdef' and @needs_threadsafe_access=True]")
+@cython.test_assert_path_exists("//NameNode[@name = 'global_obj' and @_needs_threadsafe_access_bool=False]")
+@cython.test_assert_path_exists("//NameNode[@name = 'global_int' and @_needs_threadsafe_access_bool=False]")
+@cython.test_assert_path_exists("//NameNode[@name = 'not_cdef' and @_needs_threadsafe_access_bool=False]")
+@cython.test_fail_if_path_exists("//NameNode[@name = 'global_obj' and @_needs_threadsafe_access_bool=True]")
+@cython.test_fail_if_path_exists("//NameNode[@name = 'global_int' and @_needs_threadsafe_access_bool=True]")
+@cython.test_fail_if_path_exists("//NameNode[@name = 'not_cdef' and @_needs_threadsafe_access_bool=True]")
 @cython.threadsafe_variable_access("off")
 def access_globals_off():
     print(global_obj, global_int, not_cdef)
@@ -84,8 +84,8 @@ cdef cfunc():
 cpdef cpfunc():
     pass
 
-@cython.test_fail_if_path_exists("//NameNode[@name = 'cfunc' and @needs_threadsafe_access=True]")
-@cython.test_fail_if_path_exists("//NameNode[@name = 'cpfunc' and @needs_threadsafe_access=True]")
+@cython.test_fail_if_path_exists("//NameNode[@name = 'cfunc' and @_needs_threadsafe_access_bool=True]")
+@cython.test_fail_if_path_exists("//NameNode[@name = 'cpfunc' and @_needs_threadsafe_access_bool=True]")
 def access_global_cfuncs():
     cfunc()
     cpfunc()
@@ -101,31 +101,31 @@ cdef class C:
         pass
 
 # C is a function local, so doesn't need threadsafe access
-@cython.test_assert_path_exists("//NameNode[@name = 'c' and @needs_threadsafe_access=False]")
-@cython.test_fail_if_path_exists("//NameNode[@name = 'c' and @needs_threadsafe_access=True]")
-@cython.test_assert_path_exists("//AttributeNode[@attribute = 'py_attr' and @needs_threadsafe_access=True]")
-@cython.test_assert_path_exists("//AttributeNode[@attribute = 'c_attr' and @needs_threadsafe_access=False]")
-@cython.test_fail_if_path_exists("//AttributeNode[@attribute = 'py_attr' and @needs_threadsafe_access=False]")
-@cython.test_fail_if_path_exists("//AttributeNode[@attribute = 'c_attr' and @needs_threadsafe_access=True]")
+@cython.test_assert_path_exists("//NameNode[@name = 'c' and @_needs_threadsafe_access_bool=False]")
+@cython.test_fail_if_path_exists("//NameNode[@name = 'c' and @_needs_threadsafe_access_bool=True]")
+@cython.test_assert_path_exists("//AttributeNode[@attribute = 'py_attr' and @_needs_threadsafe_access_bool=True]")
+@cython.test_assert_path_exists("//AttributeNode[@attribute = 'c_attr' and @_needs_threadsafe_access_bool=False]")
+@cython.test_fail_if_path_exists("//AttributeNode[@attribute = 'py_attr' and @_needs_threadsafe_access_bool=False]")
+@cython.test_fail_if_path_exists("//AttributeNode[@attribute = 'c_attr' and @_needs_threadsafe_access_bool=True]")
 def access_cclass(C c):
     print(c.py_attr, c.c_attr)
 
-@cython.test_assert_path_exists("//NameNode[@name = 'c' and @needs_threadsafe_access=False]")
-@cython.test_fail_if_path_exists("//NameNode[@name = 'c' and @needs_threadsafe_access=True]")
-@cython.test_assert_path_exists("//AttributeNode[@attribute = 'py_attr' and @needs_threadsafe_access=True]")
-@cython.test_assert_path_exists("//AttributeNode[@attribute = 'c_attr' and @needs_threadsafe_access=True]")
-@cython.test_fail_if_path_exists("//AttributeNode[@attribute = 'py_attr' and @needs_threadsafe_access=False]")
-@cython.test_fail_if_path_exists("//AttributeNode[@attribute = 'c_attr' and @needs_threadsafe_access=False]")
+@cython.test_assert_path_exists("//NameNode[@name = 'c' and @_needs_threadsafe_access_bool=False]")
+@cython.test_fail_if_path_exists("//NameNode[@name = 'c' and @_needs_threadsafe_access_bool=True]")
+@cython.test_assert_path_exists("//AttributeNode[@attribute = 'py_attr' and @_needs_threadsafe_access_bool=True]")
+@cython.test_assert_path_exists("//AttributeNode[@attribute = 'c_attr' and @_needs_threadsafe_access_bool=True]")
+@cython.test_fail_if_path_exists("//AttributeNode[@attribute = 'py_attr' and @_needs_threadsafe_access_bool=False]")
+@cython.test_fail_if_path_exists("//AttributeNode[@attribute = 'c_attr' and @_needs_threadsafe_access_bool=False]")
 @cython.threadsafe_variable_access("full")
 def access_cclass_full(C c):
     print(c.py_attr, c.c_attr)
 
-@cython.test_assert_path_exists("//NameNode[@name = 'c' and @needs_threadsafe_access=False]")
-@cython.test_fail_if_path_exists("//NameNode[@name = 'c' and @needs_threadsafe_access=True]")
-@cython.test_assert_path_exists("//AttributeNode[@attribute = 'py_attr' and @needs_threadsafe_access=False]")
-@cython.test_assert_path_exists("//AttributeNode[@attribute = 'c_attr' and @needs_threadsafe_access=False]")
-@cython.test_fail_if_path_exists("//AttributeNode[@attribute = 'py_attr' and @needs_threadsafe_access=True]")
-@cython.test_fail_if_path_exists("//AttributeNode[@attribute = 'c_attr' and @needs_threadsafe_access=True]")
+@cython.test_assert_path_exists("//NameNode[@name = 'c' and @_needs_threadsafe_access_bool=False]")
+@cython.test_fail_if_path_exists("//NameNode[@name = 'c' and @_needs_threadsafe_access_bool=True]")
+@cython.test_assert_path_exists("//AttributeNode[@attribute = 'py_attr' and @_needs_threadsafe_access_bool=False]")
+@cython.test_assert_path_exists("//AttributeNode[@attribute = 'c_attr' and @_needs_threadsafe_access_bool=False]")
+@cython.test_fail_if_path_exists("//AttributeNode[@attribute = 'py_attr' and @_needs_threadsafe_access_bool=True]")
+@cython.test_fail_if_path_exists("//AttributeNode[@attribute = 'c_attr' and @_needs_threadsafe_access_bool=True]")
 @cython.threadsafe_variable_access("off")
 def access_cclass_off(C c):
     print(c.py_attr, c.c_attr)
@@ -133,17 +133,17 @@ def access_cclass_off(C c):
 # access to C funcs doesn't need locking (because they're immutable).
 # access to py_funcs goes through a dictionary and this provides the thread safety rather than Cython.
 # They're transformed out anyway, so we can't directly check for the attribute nodes
-@cython.test_fail_if_path_exists("AttributeNode[@attribute = 'func' and @needs_threadsafe_access=True]")
-@cython.test_fail_if_path_exists("AttributeNode[@attribute = 'cp_func' and @needs_threadsafe_access=True]")
-@cython.test_fail_if_path_exists("AttributeNode[@attribute = 'py_func' and @needs_threadsafe_access=True]")
+@cython.test_fail_if_path_exists("AttributeNode[@attribute = 'func' and @_needs_threadsafe_access_bool=True]")
+@cython.test_fail_if_path_exists("AttributeNode[@attribute = 'cp_func' and @_needs_threadsafe_access_bool=True]")
+@cython.test_fail_if_path_exists("AttributeNode[@attribute = 'py_func' and @_needs_threadsafe_access_bool=True]")
 def access_cclass_func(C c):
     c.c_func()
     c.cp_func()
     c.py_func()
 
 # Python attributes go through a dictionary lookup so don't need special locking
-@cython.test_assert_path_exists("//AttributeNode[@attribute = 'some_attribute' and @needs_threadsafe_access=False]")
-@cython.test_fail_if_path_exists("//AttributeNode[@attribute = 'some_attribute' and @needs_threadsafe_access=True]")
+@cython.test_assert_path_exists("//AttributeNode[@attribute = 'some_attribute' and @_needs_threadsafe_access_bool=False]")
+@cython.test_fail_if_path_exists("//AttributeNode[@attribute = 'some_attribute' and @_needs_threadsafe_access_bool=True]")
 def access_pyclass(c):
     print(c.some_attribute)
 
@@ -154,38 +154,38 @@ def closure():
     o = object()
 
     # once it's in a closure, it does need thread safe access
-    @cython.test_assert_path_exists("//NameNode[@name = 'o' and @needs_threadsafe_access=True]")
-    @cython.test_fail_if_path_exists("//NameNode[@name = 'o' and @needs_threadsafe_access=False]")
+    @cython.test_assert_path_exists("//NameNode[@name = 'o' and @_needs_threadsafe_access_bool=True]")
+    @cython.test_fail_if_path_exists("//NameNode[@name = 'o' and @_needs_threadsafe_access_bool=False]")
     def inner():
         print(o)
 
     # hard to reason about the value here
-    with (cython.test_assert_path_exists("//NameNode[@name = 'o' and @needs_threadsafe_access=True]"),
-          cython.test_fail_if_path_exists("//NameNode[@name = 'o' and @needs_threadsafe_access=False]")):
+    with (cython.test_assert_path_exists("//NameNode[@name = 'o' and @_needs_threadsafe_access_bool=True]"),
+          cython.test_fail_if_path_exists("//NameNode[@name = 'o' and @_needs_threadsafe_access_bool=False]")):
         print(o)
 
 
 # Simple generators are guarded to make sure that they can't be called when they're already running
 # and thus don't need checks
-@cython.test_assert_path_exists("//NameNode[@name = 'a' and @needs_threadsafe_access=False]")
-@cython.test_fail_if_path_exists("//NameNode[@name = 'a' and @needs_threadsafe_access=True]")
+@cython.test_assert_path_exists("//NameNode[@name = 'a' and @_needs_threadsafe_access_bool=False]")
+@cython.test_fail_if_path_exists("//NameNode[@name = 'a' and @_needs_threadsafe_access_bool=True]")
 def basic_generator():
     a = object()
     yield a
 
 def func_with_inner_gen(a):
     # This generator has a closure variable, so can't reason about whether other threads can access it
-    @cython.test_assert_path_exists("//NameNode[@name = 'a' and @needs_threadsafe_access=True]")
-    @cython.test_fail_if_path_exists("//NameNode[@name = 'a' and @needs_threadsafe_access=False]")
+    @cython.test_assert_path_exists("//NameNode[@name = 'a' and @_needs_threadsafe_access_bool=True]")
+    @cython.test_fail_if_path_exists("//NameNode[@name = 'a' and @_needs_threadsafe_access_bool=False]")
     def inner_gen():
         yield a
 
 # This generator has a variable that's shared with a closure, so can't reason about whether other threads can access it
-@cython.test_assert_path_exists("//NameNode[@name = 'a' and @needs_threadsafe_access=True]")
-@cython.test_fail_if_path_exists("//NameNode[@name = 'a' and @needs_threadsafe_access=False]")
+@cython.test_assert_path_exists("//NameNode[@name = 'a' and @_needs_threadsafe_access_bool=True]")
+@cython.test_fail_if_path_exists("//NameNode[@name = 'a' and @_needs_threadsafe_access_bool=False]")
 def gen_with_inner_func(a):
-    @cython.test_assert_path_exists("//NameNode[@name = 'a' and @needs_threadsafe_access=True]")
-    @cython.test_fail_if_path_exists("//NameNode[@name = 'a' and @needs_threadsafe_access=False]")
+    @cython.test_assert_path_exists("//NameNode[@name = 'a' and @_needs_threadsafe_access_bool=True]")
+    @cython.test_fail_if_path_exists("//NameNode[@name = 'a' and @_needs_threadsafe_access_bool=False]")
     def inner():
         nonlocal a
         a = 1

@@ -2882,6 +2882,13 @@ class NameNode(AtomicExprNode):
             return self.entry.known_standard_library_import
         return None
 
+    @property
+    def _needs_threadsafe_access_bool(self):
+        """
+        For inspection in test_assert_path_exists in the test suite
+        """
+        return bool(self.needs_threadsafe_access)
+
 class BackquoteNode(ExprNode):
     #  `expr`
     #
@@ -8197,6 +8204,13 @@ class AttributeNode(ExprNode):
         if module_name:
             return StringEncoding.EncodedString("%s.%s" % (module_name, self.attribute))
         return None
+
+    @property
+    def _needs_threadsafe_access_bool(self):
+        """
+        For inspection in test_assert_path_exists in the test suite
+        """
+        return bool(self.needs_threadsafe_access)
 
 
 #-------------------------------------------------------------------
