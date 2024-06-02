@@ -36,6 +36,19 @@ def parallel_deletion(o):
         with gil:
             del o
 
+
+def locals_same_scope():
+    with nogil, parallel():
+        with gil:
+            a = object()
+            b = object()
+            with (cython.test_fail_if_path_exists("//SingleAssignmentNode//CoerceToTempNode"),
+                  cython.test_assert_path_exists("//SingleAssignmentNode//NameNode")):
+                # The rhs of the assignment is in the same scope so does not need its own threadsafe access
+                with (cython.test_assert_path_exists("//NameNode[@name = 'a' and @_needs_threadsafe_access_bool=True]"),
+                      cython.test_fail_if_path_exists("//NameNode[@name = 'b' and @_needs_threadsafe_access_bool=True]")):
+                    a = b
+
 @cython.test_assert_path_exists("//NameNode[@name = 'i' and @_needs_threadsafe_access_bool=False]")
 @cython.test_fail_if_path_exists("//NameNode[@name = 'i' and @_needs_threadsafe_access_bool=True]")
 @cython.threadsafe_variable_access("full")
@@ -46,6 +59,7 @@ def c_type_in_parallel():
         i = 10
 
 cdef global_obj = object()
+cdef global_obj_2 = object()
 cdef int global_int = 20
 not_cdef = 1.5
 
@@ -77,6 +91,16 @@ def access_globals_full():
 @cython.threadsafe_variable_access("off")
 def access_globals_off():
     print(global_obj, global_int, not_cdef)
+
+@cython.test_assert_path_exists("//NameNode[@name = 'global_obj' and @_needs_threadsafe_access_bool=True]")
+@cython.test_assert_path_exists("//NameNode[@name = 'global_obj_2' and @_needs_threadsafe_access_bool=False]")
+@cython.test_fail_if_path_exists("//NameNode[@name = 'global_obj' and @_needs_threadsafe_access_bool=False]")
+@cython.test_fail_if_path_exists("//NameNode[@name = 'global_obj_2' and @_needs_threadsafe_access_bool=True]")
+@cython.test_fail_if_path_exists("//SingleAssignmentNode//CoerceToTempNode")
+def globals_same_scope():
+    global global_obj
+    # shouldn't lock the rhs - since both variables share the same scope
+    global_obj = global_obj_2
 
 cdef cfunc():
     pass
@@ -197,3 +221,22 @@ cdef class Nested:
 def deep_lookup(Nested n1, Nested n2):
     # Just test that this compiles sensibly, since they get factored out into temps
     n1.attr.attr.attr.attr.attr = n2.attr.attr.attr
+
+cdef double[:] global_mview
+
+@cython.test_assert_path_exists("//NameNode[@name = 'global_mview' and @_needs_threadsafe_access_bool=True")
+@cython.test_fail_if_path_exists("//NameNode[@name = 'global_mview' and @_needs_threadsafe_access_bool=False")
+def test_global_memview():
+    global_mview[0] = global_mview[1]
+
+@cython.test_assert_path_exists("//NameNode[@name = 'mview' and @_needs_threadsafe_access_bool=False")
+@cython.test_fail_if_path_exists("//NameNode[@name = 'mview' and @_needs_threadsafe_access_bool=True")
+def test_local_memview(double[:] mview):
+    return mview[0]
+
+@cython.test_assert_path_exists("//NameNode[@name = 'mview' and @_needs_threadsafe_access_bool=False")
+@cython.test_fail_if_path_exists("//NameNode[@name = 'mview' and @_needs_threadsafe_access_bool=True")
+def test_parallel_local_memview(double[:] mview):
+    # common case that memoryview is never assignment to, so it needs no guards
+    with nogil, parallel():
+        mview[0] = 1.0

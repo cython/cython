@@ -336,20 +336,27 @@ def analyse_thread_safety(node, env):
         # C functions are immutable so can be special-cased out
         return
     if entry.scope.is_c_class_scope:
+        # TODO - I think that setting threadsafe_variable_access on
+        # the C class scope should also have an influence here. However
+        # it isn't completely clear what influence (given it might raise
+        # or lower the level).
         node.needs_threadsafe_access = ThreadSafetyType.C_CLASS
-        node.threadsafety_scope = entry.scope
+        if node.entry:
+            node.threadsafety_data = node.entry
+        else:
+            node.threadsafety_data = object()  # No entry, so "unique"
         return
     if entry.scope.is_module_scope and entry.is_cglobal:
         node.needs_threadsafe_access = ThreadSafetyType.MODULE
-        node.threadsafety_scope = entry.scope
+        node.threadsafety_data = entry.scope
         return
     if entry.from_closure and not entry.outer_entry.scope.is_pure_generator_scope:
         node.needs_threadsafe_access = ThreadSafetyType.CLOSURE
-        node.threadsafety_scope = entry.outer_entry.scope
+        node.threadsafety_data = entry.outer_entry.scope
         return
     if entry.in_closure and not entry.scope.is_pure_generator_scope:
         node.needs_threadsafe_access = ThreadSafetyType.CLOSURE
-        node.threadsafety_scope = entry.scope
+        node.threadsafety_data = entry.scope
         return
     if not entry.scope.is_local_scope:
         # Local scope has complicated rules due to parallel blocks.
@@ -366,7 +373,7 @@ def analyse_thread_safety(node, env):
         return  # No assignments in a parallel region - nothing can change
     if env._in_parallel_block:
         node.needs_threadsafe_access = ThreadSafetyType.LOCAL
-        node.threadsafety_scope = entry.scope
+        node.threadsafety_data = entry.scope
 
 def generate_error_handled_threadsafe_lock(node, code):
     assert node.is_name or node.is_attribute
@@ -2099,7 +2106,9 @@ class NameNode(AtomicExprNode):
     #  allow_null      boolean   Don't raise UnboundLocalError
     #  nogil           boolean   Whether it is used in a nogil context
     #  needs_threadsafe_access  ThreadSafetyType  Requires thread-safe locking in freethreading builds
-    #  threadsafety_scope   None or Scope
+    #  threadsafety_data   object  Depends on "needs_threadsafe_access" but at a minimum it should
+    #                              provide a unique identifier of the locked object (and so if that
+    #                              isn't known, object() is a good choice)
 
     is_name = True
     is_cython_module = False
@@ -2114,7 +2123,7 @@ class NameNode(AtomicExprNode):
     nogil = False
     inferred_type = None
     needs_threadsafe_access = ThreadSafetyType.NONE
-    threadsafety_scope = None
+    threadsafety_data = None
 
     def as_cython_attribute(self):
         return self.cython_attribute
@@ -2756,7 +2765,8 @@ class NameNode(AtomicExprNode):
         elif (self.needs_threadsafe_access == ThreadSafetyType.MODULE or
                 self.needs_threadsafe_access == ThreadSafetyType.LOCAL):
             code.put_scope_pymutex_lock(
-                self.threadsafety_scope.scope_mutex_cname,
+                # in this case threadsafety_data is the scope
+                self.threadsafety_data.scope_mutex_cname,
                 is_local = self.needs_threadsafe_access == ThreadSafetyType.LOCAL)
         else:
             assert False, self.needs_threadsafe_access
@@ -2771,7 +2781,7 @@ class NameNode(AtomicExprNode):
             code.put_pyobject_unlock(f"(PyObject*){scope_cname}")
         elif (self.needs_threadsafe_access == ThreadSafetyType.MODULE or
                 self.needs_threadsafe_access == ThreadSafetyType.LOCAL):
-            code.put_scope_pymutex_unlock(self.threadsafety_scope.scope_mutex_cname)
+            code.put_scope_pymutex_unlock(self.threadsafety_data.scope_mutex_cname)
         else:
             assert False, self.needs_threadsafe_access
         
@@ -7554,7 +7564,9 @@ class AttributeNode(ExprNode):
     #  is_called            boolean   Function call is being done on result
     #  entry                Entry     Symbol table entry of attribute
     #  needs_threadsafe_access  ThreadSafetyType  Requires thread-safe locking in freethreading builds
-    #  threadsafety_scope   None or Scope
+    #  threadsafety_data   object  Depends on "needs_threadsafe_access" but at a minimum it should
+    #                              provide a unique identifier of the locked object (and so if that
+    #                              isn't known, object() is a good choice)
 
     is_attribute = 1
     subexprs = ['obj']
@@ -7566,7 +7578,7 @@ class AttributeNode(ExprNode):
     is_special_lookup = False
     is_py_attr = 0
     needs_threadsafe_access = ThreadSafetyType.NONE
-    threadsafety_scope = None
+    threadsafety_data = None
 
 
     def as_cython_attribute(self):
@@ -8102,7 +8114,7 @@ class AttributeNode(ExprNode):
         elif (self.needs_threadsafe_access == ThreadSafetyType.LOCAL or
                 self.needs_threadsafe_access == ThreadSafetyType.MODULE):
             code.put_scope_pymutex_lock(
-                self.threadsafety_scope.scope_mutex_cname,
+                self.threadsafety_data.scope_mutex_cname,
                 is_local = self.needs_threadsafe_access == ThreadSafetyType.MODULE)
         else:
             assert False, self.needs_threadsafe_access
@@ -8117,7 +8129,7 @@ class AttributeNode(ExprNode):
             code.put_pyobject_unlock(f"(PyObject*){scope_cname}")
         elif (self.needs_threadsafe_access == ThreadSafetyType.LOCAL or
                 self.needs_threadsafe_access == ThreadSafetyType.MODULE):
-            code.put_scope_pymutex_lock(self.threadsafety_scope.scope_mutex_cname)
+            code.put_scope_pymutex_lock(self.threadsafety_data.scope_mutex_cname)
         else:
             assert False, self.needs_threadsafe_access
 

@@ -3562,6 +3562,88 @@ class InjectGilHandling(VisitorTransform, SkipDeclarations):
     visit_Node = VisitorTransform.recurse_to_children
 
 
+class _ThreadsafetyVisitAssignmentTargetNodes(TreeVisitor):
+    def __call__(self, root):
+        self.coerce_lhs_to_temps = False
+        self.target_info = set()
+        self.visitchildren(root)
+
+        # TODO - in principle lengths of 2 can also be optimized:
+        # with critical sections we can lock 2, and for global/local
+        # scope mutexes we could also lock 2 providing we define a
+        # fixed order.
+        # This potentially helps avoid a few temps.
+        if len(self.target_info) > 1:
+            self.coerce_lhs_to_temps = True
+
+    def visit_Node(self, node):
+        # only go to a depth of one
+        pass
+
+    def _visit_name_or_attribute_node(self, node):
+        if not node.is_target:
+            return
+        if not node.needs_threadsafe_access:
+            return
+        self.target_info.add((
+            node.needs_threadsafe_access, node.threadsafety_data
+        ))
+        if node.needs_threadsafe_access != ExprNodes.ThreadSafetyType.LOCAL:
+            # It's always safe to lock the local scope because it can't
+            # happen recursively.
+            # TODO - when we're properly using critical sections it should
+            # be safe to lock them here too.
+            self.coerce_lhs_to_temps = True
+
+    def visit_NameNode(self, node):
+        self._visit_name_or_attribute_node(node)
+
+    def visit_AttributeNode(self, node):
+        self._visit_name_or_attribute_node(node)
+
+
+class _ThreadsafetyVisitAssignmentNonTargetNodes(VisitorTransform):
+    def __init__(self, coerce_lhs_to_temps, target_info):
+        self.coerce_lhs_to_temps = coerce_lhs_to_temps
+        self.target_info = target_info
+        super().__init__()
+
+    def visit_AssignmentNode(self, node):
+        self.visitchildren(node)
+        return node
+
+    def visit_ExprNode(self, node):
+        # One level only - don't visit children
+        if getattr(self, "is_target", False):
+            return node
+        if not node.is_simple() and self.coerce_lhs_to_temps:
+            return node.coerce_to_temp(None)
+        return node
+
+    def _visit_name_or_attribute_node(self, node):
+        if node.is_target:
+            return node
+        if not node.is_simple() and self.coerce_lhs_to_temps:
+            return node.coerce_to_temp(None)
+        if not node.needs_threadsafe_access:
+            return node
+        target_info = (node.needs_threadsafe_access, node.threadsafety_data)
+        if target_info in self.target_info:
+            # This node is guarded by the same lock as the lhs
+            # so don't lock it separately
+            node.needs_threadsafe_access = ExprNodes.ThreadSafetyType.NONE
+            return node
+        if self.coerce_lhs_to_temps:
+            return node.coerce_to_temp(None)
+        return node
+
+    def visit_NameNode(self, node):
+        return self._visit_name_or_attribute_node(node)
+
+    def visit_AttributeNode(self, node):
+        return self._visit_name_or_attribute_node(node)
+
+
 class GilCheck(VisitorTransform):
     """
     Call `node.gil_check(env)` on each node to make sure we hold the
@@ -3579,7 +3661,6 @@ class GilCheck(VisitorTransform):
         self.nogil = False
         self.processing_target = False
         self.was_coerce_to_temp = False
-        self.targets = None
 
         # True for 'cdef func() nogil:' functions, as the GIL may be held while
         # calling this function (thus contained 'nogil' blocks may be valid).
@@ -3747,26 +3828,19 @@ class GilCheck(VisitorTransform):
         return self._visit_name_or_attribute(node)
 
     def visit_AttributeNode(self, node):
-        if (node.is_target and
-                (node.obj.is_name or node.obj.is_attribute) and
-                node.obj.needs_threadsafe_access):
-            from .UtilNodes import LetRefNode
-            obj = self.visit(node.obj)
-            node.obj = LetRefNode(obj, is_temp=True)
-            self.targets.append(node.obj)
-            return node
         return self._visit_name_or_attribute(node)
 
     def visit_AssignmentNode(self, node):
-        targets = self.targets
-        self.targets = []
-        result = self.visit_Node(node)
-        if self.targets:
-            from .UtilNodes import LetNode
-            for target in reversed(self.targets):
-                result = LetNode(target, result)
-        self.targets = targets
-        return result
+        target_visitor = _ThreadsafetyVisitAssignmentTargetNodes()
+        target_visitor(node)
+
+        nontarget_visitor = _ThreadsafetyVisitAssignmentNonTargetNodes(
+            target_visitor.coerce_lhs_to_temps,
+            target_visitor.target_info
+        )
+        nontarget_visitor(node)
+
+        return self.visit_Node(node)
 
     def visit_LetNode(self, node):
         # Treat like coerce to temp. This primarily affect in place arithmetic.
