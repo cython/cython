@@ -357,30 +357,26 @@ def analyse_thread_safety(node, env):
         node.needs_threadsafe_access = True
         node.threadsafety_scope = entry.scope
 
-def generate_threadsafe_lock(node, code):
+def generate_error_handled_threadsafe_lock(node, code):
     assert node.is_name or node.is_attribute
     if not node.needs_threadsafe_access:
         return
     node.threadsafe_lock_error_label = code.new_error_label()
-    code.putln("{")
-    code.putln("int __pyx_critical_section_error = 1;")
     node.generate_threadsafe_lock(code)
 
-def generate_threadsafe_unlock(node, code):
+def generate_error_handled_threadsafe_unlock(node, code):
     assert node.is_name or node.is_attribute
     if not node.needs_threadsafe_access:
         return
     if code.label_used(code.error_label):
-        code.putln("__pyx_critical_section_error = 0;")  # we've got here via the good path
+        code.putln("if ((0)) {")
         code.put_label(code.error_label)
-    else:
-        code.putln("CYTHON_UNUSED_VAR(__pyx_critical_section_error);")
-    node.generate_threadsafe_unlock(code)
-    if code.label_used(code.error_label):
-        code.putln("if (__pyx_critical_section_error) {")
+        code.putln("__Pyx_BEGIN_ERROR_HANDLING_DUMMY_SECTION;")
+        node.generate_threadsafe_unlock(code)
         code.put_goto(node.threadsafe_lock_error_label)
         code.putln("}")
-    code.putln("}")
+
+    node.generate_threadsafe_unlock(code)
     code.error_label = node.threadsafe_lock_error_label
 
 
@@ -2536,7 +2532,7 @@ class NameNode(AtomicExprNode):
             return  # There was an error earlier
         if entry.utility_code:
             code.globalstate.use_utility_code(entry.utility_code)
-        generate_threadsafe_lock(self, code)
+        generate_error_handled_threadsafe_lock(self, code)
         if entry.is_builtin and entry.is_const:
             return  # Lookup already cached
         elif entry.is_pyclass_attr:
@@ -2804,7 +2800,7 @@ class NameNode(AtomicExprNode):
     def generate_deletion_code(self, code, ignore_nonexisting=False):
         if self.entry is None:
             return  # There was an error earlier
-        generate_threadsafe_lock(self, code)
+        generate_error_handled_threadsafe_lock(self, code)
         if self.entry.is_pyclass_attr:
             namespace = self.entry.scope.namespace_cname
             interned_cname = code.intern_identifier(self.entry.name)
@@ -2851,10 +2847,10 @@ class NameNode(AtomicExprNode):
                                           have_gil=not self.nogil)
         else:
             error(self.pos, "Deletion of C names not supported")
-        generate_threadsafe_unlock(self, code)
+        generate_error_handled_threadsafe_unlock(self, code)
 
     def generate_disposal_code(self, code):
-        generate_threadsafe_unlock(self, code)
+        generate_error_handled_threadsafe_unlock(self, code)
         super().generate_disposal_code(code)
 
     def annotate(self, code):
@@ -8013,7 +8009,7 @@ class AttributeNode(ExprNode):
             return "%s%s%s" % (obj_code, self.op, self.member)
 
     def generate_result_code(self, code):
-        generate_threadsafe_lock(self, code)
+        generate_error_handled_threadsafe_lock(self, code)
         if self.is_py_attr:
             if self.is_special_lookup:
                 code.globalstate.use_utility_code(
@@ -8102,9 +8098,9 @@ class AttributeNode(ExprNode):
         if self.is_temp and self.type.is_memoryviewslice and self.is_memslice_transpose:
             # mirror condition for putting the memview incref here:
             code.put_xdecref_clear(self.result(), self.type, have_gil=True)
-            generate_threadsafe_unlock(self, code)
+            generate_error_handled_threadsafe_unlock(self, code)
         else:
-            generate_threadsafe_unlock(self, code)
+            generate_error_handled_threadsafe_unlock(self, code)
             ExprNode.generate_disposal_code(self, code)
 
     def generate_assignment_code(self, rhs, code, overloaded_assignment=False,
