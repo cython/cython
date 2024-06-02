@@ -332,9 +332,13 @@ def analyse_thread_safety(node, env):
         node.needs_threadsafe_access = True
         node.threadsafety_scope = entry.scope
         return
-    if entry.from_closure and entry.outer_entry.scope.scope_needs_threadsafe_lookup:
+    if entry.from_closure and not entry.outer_entry.scope.is_pure_generator_scope:
         node.needs_threadsafe_access = True
         node.threadsafety_scope = entry.outer_entry.scope
+        return
+    if entry.in_closure and not entry.scope.is_pure_generator_scope:
+        node.needs_threadsafe_access = True
+        node.threadsafety_scope = entry.scope
         return
     if not entry.scope.is_local_scope:
         # Local scope has complicated rules due to parallel blocks.

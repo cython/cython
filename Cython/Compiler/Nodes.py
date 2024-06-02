@@ -1952,7 +1952,7 @@ class FuncDefNode(StatNode, BlockNode):
                                 outer_scope=genv,
                                 parent_scope=env,
                                 scope_name=self.entry.cname,
-                                needs_threadsafe_lookup=self.needs_closure == self.NeedsClosure.FULL_CLOSURE)
+                                is_pure_generator_scope=self.needs_closure != self.NeedsClosure.FULL_CLOSURE)
         else:
             lenv = LocalScope(name=self.entry.name,
                               outer_scope=genv,

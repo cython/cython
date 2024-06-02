@@ -2157,11 +2157,12 @@ class ComprehensionScope(Scope):
 class ClosureScope(LocalScope):
 
     is_closure_scope = True
+    is_pure_generator_scope = False
 
     def __init__(self, name, scope_name, outer_scope, parent_scope=None,
-                 needs_threadsafe_lookup=False):
+                 is_pure_generator_scope=False):
         LocalScope.__init__(self, name, outer_scope, parent_scope)
-        self.scope_needs_threadsafe_lookup = needs_threadsafe_lookup
+        self.is_pure_generator_scope = is_pure_generator_scope
         self.closure_cname = "%s%s" % (Naming.closure_scope_prefix, scope_name)
 
 #    def mangle_closure_cnames(self, scope_var):

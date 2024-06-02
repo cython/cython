@@ -2246,11 +2246,14 @@ done:
 // Unfortunately we aren't yet in a position to use this fully because
 // critical sections aren't yet public API, and trying to include them from
 // the internal API ends up requring "mimalloc.h".
-// Therefore just simulate something so that code is ready for when it
-// is available
-#ifndef Py_BEGIN_CRITICAL_SECTION
-#define Py_BEGIN_CRITICAL_SECTION(x) { (void)x
-#define Py_END_CRITICAL_SECTION(x) (void)x; }
+// Therefore do the best we can to introduce some object-based locking
+// (even if it doesn't have the full properties of a critical section)
+#if !defined(Py_BEGIN_CRITICAL_SECTION) && CYTHON_COMPILING_IN_CPYTHON_FREETHREADING
+#define Py_BEGIN_CRITICAL_SECTION(x) { \
+  PyMutex_Lock(&((x)->ob_mutex));
+#define Py_END_CRITICAL_SECTION(x) \
+  PyMutex_Unlock(&((x)->ob_mutex)); \
+  }
 #endif
 
 ////////////////////////// SharedInFreeThreading.proto //////////////////
