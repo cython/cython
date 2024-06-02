@@ -354,11 +354,13 @@ def analyse_thread_safety(node, env):
         node.needs_threadsafe_access = ThreadSafetyType.MODULE
         node.threadsafety_data = entry.scope
         return
-    if entry.from_closure and not entry.outer_entry.scope.is_pure_generator_scope:
+    if (entry.from_closure and entry.outer_entry.scope.is_closure_scope and
+            not entry.outer_entry.scope.is_pure_generator_scope):
         node.needs_threadsafe_access = ThreadSafetyType.CLOSURE
         node.threadsafety_data = entry.outer_entry.scope
         return
-    if entry.in_closure and not entry.scope.is_pure_generator_scope:
+    if (entry.in_closure and entry.scope.is_closure_scope and
+            not entry.scope.is_pure_generator_scope):
         node.needs_threadsafe_access = ThreadSafetyType.CLOSURE
         node.threadsafety_data = entry.scope
         return
