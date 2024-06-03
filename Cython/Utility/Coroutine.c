@@ -507,7 +507,7 @@ static int __Pyx_PyGen__FetchStopIterationValue(PyThreadState *$local_tstate_cna
         }
         else if (likely(__Pyx_IS_TYPE(ev, (PyTypeObject*)PyExc_StopIteration))) {
             #if CYTHON_COMPILING_IN_LIMITED_API
-            value = PyObject_GetAttrString(ev, "value");
+            value = PyObject_GetAttr(ev, PYIDENT("value"));
             if (unlikely(!value)) goto limited_api_failure;
             #else
             value = ((PyStopIterationObject *)ev)->value;
@@ -572,6 +572,11 @@ static int __Pyx_PyGen__FetchStopIterationValue(PyThreadState *$local_tstate_cna
 #else
     value = ((PyStopIterationObject *)ev)->value;
     Py_INCREF(value);
+<<<<<<< HEAD
+=======
+#else
+    value = PyObject_GetAttr(ev, PYIDENT("value"));
+>>>>>>> 6d5c4834f (Review comments)
 #endif
     Py_DECREF(ev);
 #if CYTHON_COMPILING_IN_LIMITED_API
@@ -1436,11 +1441,7 @@ static __pyx_CoroutineObject *__Pyx__Coroutine_New(
     __pyx_CoroutineObject *gen = PyObject_GC_New(__pyx_CoroutineObject, type);
     if (unlikely(!gen))
         return NULL;
-    init_result = __Pyx__Coroutine_NewInit(gen, body, code, closure, name, qualname, module_name);
-    if (unlikely(!init_result)) {
-        Py_DECREF(gen);
-    }
-    return init_result;
+    return __Pyx__Coroutine_NewInit(gen, body, code, closure, name, qualname, module_name);
 }
 
 static __pyx_CoroutineObject *__Pyx__Coroutine_NewInit(
