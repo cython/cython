@@ -5842,11 +5842,13 @@ class CClassDefNode(ClassDefNode):
                         objstruct = type.objstruct_cname
                     else:
                         objstruct = "struct %s" % type.objstruct_cname
+                    code.putln("#if CYTHON_USE_TYPE_SLOTS")
                     code.putln("if (%s == 0) %s = offsetof(%s, %s);" % (
                         tp_weaklistoffset,
                         tp_weaklistoffset,
                         objstruct,
                         weakref_entry.cname))
+                    code.putln("#endif")
                 else:
                     error(weakref_entry.pos, "__weakref__ slot must be of type 'object'")
 
