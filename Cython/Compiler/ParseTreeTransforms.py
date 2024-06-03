@@ -3621,6 +3621,9 @@ class _ThreadsafetyVisitAssignmentNonTargetNodes(VisitorTransform):
             return node.coerce_to_temp(None)
         return node
 
+    def visit_ProxyNode(self, node):
+        return node  # don't mess with this
+
     def _visit_name_or_attribute_node(self, node):
         if node.is_target:
             return node
@@ -3848,6 +3851,9 @@ class GilCheck(VisitorTransform):
         # The temp_expression is already a temp, so no need to coerce further
         self.was_coerce_to_temp = True
         return self.visit_Node(node, coerce_to_temp_node=True)
+
+    def visit_ProxyNode(self, node):
+        return self.visit_Node(node)
 
 
 class CoerceCppTemps(EnvTransform, SkipDeclarations):
