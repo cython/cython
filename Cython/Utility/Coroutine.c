@@ -568,15 +568,10 @@ static int __Pyx_PyGen__FetchStopIterationValue(PyThreadState *$local_tstate_cna
     Py_XDECREF(tb);
     Py_DECREF(et);
 #if CYTHON_COMPILING_IN_LIMITED_API
-    value = PyObject_GetAttrString(ev, "value");
+    value = PyObject_GetAttr(ev, PYIDENT("value"));
 #else
     value = ((PyStopIterationObject *)ev)->value;
     Py_INCREF(value);
-<<<<<<< HEAD
-=======
-#else
-    value = PyObject_GetAttr(ev, PYIDENT("value"));
->>>>>>> 6d5c4834f (Review comments)
 #endif
     Py_DECREF(ev);
 #if CYTHON_COMPILING_IN_LIMITED_API
