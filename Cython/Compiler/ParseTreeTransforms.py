@@ -2787,7 +2787,8 @@ class CalculateQualifiedNamesTransform(EnvTransform):
         lhs = ExprNodes.NameNode(
             node.pos,
             name = EncodedString(name),
-            entry=entry)
+            entry=entry,
+            is_target=True)
         rhs = ExprNodes.StringNode(
             node.pos,
             value=value.as_utf8_string(),

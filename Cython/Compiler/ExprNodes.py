@@ -339,7 +339,7 @@ def analyse_thread_safety(node, env):
     if entry.type.is_cfunction:
         # C functions are immutable so can be special-cased out
         return
-    if entry.scope.is_c_class_scope:
+    if entry.scope.is_c_class_scope and node.is_attribute:
         # TODO - I think that setting threadsafe_variable_access on
         # the C class scope should also have an influence here. However
         # it isn't completely clear what influence (given it might raise
