@@ -3663,7 +3663,6 @@ class GilCheck(VisitorTransform):
     def __call__(self, root):
         self.env_stack = [root.scope]
         self.nogil = False
-        self.processing_target = False
         self.was_coerce_to_temp = False
 
         # True for 'cdef func() nogil:' functions, as the GIL may be held while
