@@ -2790,7 +2790,6 @@ class NameNode(AtomicExprNode):
             code.put_scope_pymutex_unlock(self.threadsafety_data.scope_mutex_cname)
         else:
             assert False, self.needs_threadsafe_access
-        
 
     def generate_acquire_memoryviewslice(self, rhs, code):
         """
