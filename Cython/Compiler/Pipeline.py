@@ -222,8 +222,8 @@ def create_pipeline(context, mode, exclude_classes=()):
         ConsolidateOverflowCheck(context),
         DropRefcountingTransform(),
         FinalOptimizePhase(context),
-        CoerceCppTemps(context),
         GilCheck(),
+        CoerceCppTemps(context),
         ]
     if exclude_classes:
         stages = [s for s in stages if s.__class__ not in exclude_classes]
