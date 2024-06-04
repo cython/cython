@@ -12,13 +12,16 @@ from cpython.ref cimport Py_INCREF, Py_DECREF, Py_CLEAR, Py_REFCNT
 cimport cython
 from cython cimport view
 from cython.view cimport array
+from cython.view cimport memoryview
 from cython.parallel cimport prange, parallel
-
 from functools import wraps
 import gc
 import sys
 
 import builtins
+
+cdef extern from "Python.h":
+    cdef int PyBUF_C_CONTIGUOUS
 
 try:
     from Cython.Tests.this_module_does_not_exist import *
@@ -2176,6 +2179,40 @@ cdef _test_slice_assignment_broadcast_strides(slice_1d src, slice_2d dst, slice_
     for i in range(10):
         for j in range(1, 3):
             assert dst[i, j] == dst_f[i, j] == j - 1, (dst[i, j], dst_f[i, j], j - 1)
+
+def test_slice_assignment_single_length_slice():
+    """
+    >>> test_slice_assignment_single_length_slice()
+    1
+    """
+    cdef char[1] src_buf
+    src_buf[0] = 0x01
+
+    dest_buf: bytearray = bytearray(1)
+
+    # construct a memory view of the destination buffer
+    view = memoryview(dest_buf, PyBUF_C_CONTIGUOUS)
+
+    # assign a slice of len = 1
+    view[0:1] = src_buf[0:1]
+    print(dest_buf[0])
+
+def test_slice_assignment_zero_length_slice():
+    """
+    >>> test_slice_assignment_zero_length_slice()
+    0
+    """
+    cdef char[1] src_buf
+    src_buf[0] = 0x01
+
+    dest_buf: bytearray = bytearray(1)
+
+    # construct a memory view of the destination buffer
+    view = memoryview(dest_buf, PyBUF_C_CONTIGUOUS)
+
+    # assign a empty slice — this should noop
+    view[0:0] = src_buf[0:0]
+    print(dest_buf[0])
 
 @testcase
 def test_borrowed_slice():
