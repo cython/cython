@@ -59,6 +59,24 @@ assert limited.cast_float(1) == 1.0
 assert limited.cast_float("2.0") == 2.0
 assert limited.cast_float(bytearray(b"3")) == 3.0
 
+gen = limited.my_generator(1)
+assert next(gen) == 1
+assert next(gen) == 1
+try:
+    next(gen)
+except StopIteration:
+    pass
+else:
+    assert False  # should have finished
+
+gen = limited.my_generator("raise")
+try:
+    next(gen)
+except RuntimeError:
+    pass
+else:
+    assert False  # should have raised
+
 assert limited.add_one(2) == 3
 assert limited.float_equals(1.5)
 assert not limited.float_equals(2)
@@ -129,3 +147,9 @@ cdef class D:
 
 cdef class E(D):
     pass
+
+def my_generator(x):
+    if x == "raise":
+        raise RuntimeError
+    yield x
+    yield x

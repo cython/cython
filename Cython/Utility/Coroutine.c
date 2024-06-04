@@ -470,6 +470,7 @@ static int __pyx_Generator_init(PyObject *module); /*proto*/
 //@requires: CommonStructures.c::FetchCommonType
 //@requires: ModuleSetupCode.c::IncludeStructmemberH
 
+#if !CYTHON_COMPILING_IN_LIMITED_API
 #include <frameobject.h>
 #if PY_VERSION_HEX >= 0x030b00a6
   #ifndef Py_BUILD_CORE
@@ -477,6 +478,7 @@ static int __pyx_Generator_init(PyObject *module); /*proto*/
   #endif
   #include "internal/pycore_frame.h"
 #endif
+#endif // CYTHON_COMPILING_IN_LIMITED_API
 
 #define __Pyx_Coroutine_Undelegate(gen) Py_CLEAR((gen)->yieldfrom)
 
@@ -508,8 +510,13 @@ static int __Pyx_PyGen__FetchStopIterationValue(PyThreadState *$local_tstate_cna
             value = Py_None;
         }
         else if (likely(__Pyx_IS_TYPE(ev, (PyTypeObject*)PyExc_StopIteration))) {
+            #if CYTHON_COMPILING_IN_LIMITED_API
+            value = PyObject_GetAttr(ev, PYIDENT("value"));
+            if (unlikely(!value)) goto limited_api_failure;
+            #else
             value = ((PyStopIterationObject *)ev)->value;
             Py_INCREF(value);
+            #endif
             Py_DECREF(ev);
         }
         // PyErr_SetObject() and friends put the value directly into ev
@@ -528,8 +535,11 @@ static int __Pyx_PyGen__FetchStopIterationValue(PyThreadState *$local_tstate_cna
 #if CYTHON_ASSUME_SAFE_MACROS && !CYTHON_AVOID_BORROWED_REFS
                 value = PyTuple_GET_ITEM(ev, 0);
                 Py_INCREF(value);
-#else
+#elif CYTHON_ASSUME_SAFE_MACROS
                 value = PySequence_ITEM(ev, 0);
+#else
+                value = PySequence_GetItem(ev, 0);
+                if (!value) goto limited_api_failure;
 #endif
             } else {
                 Py_INCREF(Py_None);
@@ -561,11 +571,26 @@ static int __Pyx_PyGen__FetchStopIterationValue(PyThreadState *$local_tstate_cna
     }
     Py_XDECREF(tb);
     Py_DECREF(et);
+#if CYTHON_COMPILING_IN_LIMITED_API
+    value = PyObject_GetAttr(ev, PYIDENT("value"));
+#else
     value = ((PyStopIterationObject *)ev)->value;
     Py_INCREF(value);
+#endif
     Py_DECREF(ev);
+#if CYTHON_COMPILING_IN_LIMITED_API
+    if (unlikely(!value)) return -1;
+#endif
     *pvalue = value;
     return 0;
+
+#if CYTHON_COMPILING_IN_LIMITED_API || !CYTHON_ASSUME_SAFE_MACROS
+  limited_api_failure:
+    Py_XDECREF(et);
+    Py_XDECREF(tb);
+    Py_XDECREF(ev);
+    return -1;
+#endif
 }
 
 static CYTHON_INLINE
@@ -690,10 +715,16 @@ PyObject *__Pyx_Coroutine_SendEx(__pyx_CoroutineObject *self, PyObject *value, i
     // - on exit, clear "f_back" of internal exception traceback
     // - do not touch external frames and tracebacks
 
+    // In the Limited API/PyPy
+    // - on entry, save external exception state in self->gi_exc_state, restore it on exit
+    // - on exit, keep internally generated exceptions in self->gi_exc_state, clear everything else
+    // - don't mess with f_back because we can't work out how to do that
+    // - do not touch external frames and tracebacks
+
     exc_state = &self->gi_exc_state;
     if (exc_state->exc_value) {
-        #if CYTHON_COMPILING_IN_PYPY
-        // FIXME: what to do in PyPy?
+        #if CYTHON_COMPILING_IN_LIMITED_API || CYTHON_COMPILING_IN_PYPY
+        // FIXME - it'd be nice to handle f_back
         #else
         // Generators always return to their most recent caller, not
         // necessarily their creator.
@@ -763,7 +794,7 @@ static CYTHON_INLINE void __Pyx_Coroutine_ResetFrameBackpointer(__Pyx_ExcInfoStr
     // Don't keep the reference to f_back any longer than necessary.  It
     // may keep a chain of frames alive or it could create a reference
     // cycle.
-#if CYTHON_COMPILING_IN_PYPY
+#if CYTHON_COMPILING_IN_PYPY || CYTHON_COMPILING_IN_LIMITED_API
     // FIXME: what to do in PyPy?
     CYTHON_UNUSED_VAR(exc_state);
 #else
@@ -865,6 +896,7 @@ static PyObject *__Pyx_Coroutine_Send(PyObject *self, PyObject *value) {
     PyObject *yf = gen->yieldfrom;
     if (unlikely(gen->is_running))
         return __Pyx_Coroutine_AlreadyRunningError(gen);
+
     if (yf) {
         PyObject *ret;
         // FIXME: does this really need an INCREF() ?
@@ -1188,7 +1220,10 @@ static void __Pyx_Coroutine_dealloc(PyObject *self) {
 #if CYTHON_USE_TP_FINALIZE
         if (unlikely(PyObject_CallFinalizerFromDealloc(self)))
 #else
-        Py_TYPE(gen)->tp_del(self);
+        {
+            destructor del = __Pyx_PyObject_GetSlot(gen, tp_del, destructor);
+            if (del) del(self);
+        }
         if (unlikely(Py_REFCNT(self) > 0))
 #endif
         {
@@ -1210,6 +1245,7 @@ static void __Pyx_Coroutine_dealloc(PyObject *self) {
     __Pyx_PyHeapTypeObject_GC_Del(gen);
 }
 
+#if !(CYTHON_USE_TYPE_SPECS && !CYTHON_USE_TP_FINALIZE)
 static void __Pyx_Coroutine_del(PyObject *self) {
     PyObject *error_type, *error_value, *error_traceback;
     __pyx_CoroutineObject *gen = (__pyx_CoroutineObject *) self;
@@ -1288,9 +1324,13 @@ static void __Pyx_Coroutine_del(PyObject *self) {
     // close() resurrected it!  Make it look like the original Py_DECREF
     // never happened.
     {
+#if !CYTHON_COMPILING_IN_LIMITED_API
         Py_ssize_t refcnt = Py_REFCNT(self);
         _Py_NewReference(self);
         __Pyx_SET_REFCNT(self, refcnt);
+#else
+        #error __Pyx_Coroutine_del with Limited API and without CYTHON_USE_TP_FINALIZE should never be compiled
+#endif
     }
 #if CYTHON_COMPILING_IN_CPYTHON
     assert(PyType_IS_GC(Py_TYPE(self)) &&
@@ -1311,6 +1351,7 @@ static void __Pyx_Coroutine_del(PyObject *self) {
 #endif
 #endif
 }
+#endif
 
 static PyObject *
 __Pyx_Coroutine_get_name(__pyx_CoroutineObject *self, void *context)
@@ -1365,6 +1406,7 @@ __Pyx_Coroutine_set_qualname(__pyx_CoroutineObject *self, PyObject *value, void 
 static PyObject *
 __Pyx_Coroutine_get_frame(__pyx_CoroutineObject *self, void *context)
 {
+#if !CYTHON_COMPILING_IN_LIMITED_API
     PyObject *frame = self->gi_frame;
     CYTHON_UNUSED_VAR(context);
     if (!frame) {
@@ -1385,11 +1427,16 @@ __Pyx_Coroutine_get_frame(__pyx_CoroutineObject *self, void *context)
     }
     Py_INCREF(frame);
     return frame;
+#else
+    // In the limited API there probably isn't much we can usefully do to get a frame
+    Py_RETURN_NONE;
+#endif
 }
 
 static __pyx_CoroutineObject *__Pyx__Coroutine_New(
             PyTypeObject* type, __pyx_coroutine_body_t body, PyObject *code, PyObject *closure,
             PyObject *name, PyObject *qualname, PyObject *module_name) {
+    __pyx_CoroutineObject *init_result;
     __pyx_CoroutineObject *gen = PyObject_GC_New(__pyx_CoroutineObject, type);
     if (unlikely(!gen))
         return NULL;
@@ -1406,7 +1453,7 @@ static __pyx_CoroutineObject *__Pyx__Coroutine_NewInit(
     gen->resume_label = 0;
     gen->classobj = NULL;
     gen->yieldfrom = NULL;
-    #if PY_VERSION_HEX >= 0x030B00a4
+    #if PY_VERSION_HEX >= 0x030B00a4 && CYTHON_COMPILING_IN_CPYTHON
     gen->gi_exc_state.exc_value = NULL;
     #else
     gen->gi_exc_state.exc_type = NULL;
@@ -1786,7 +1833,6 @@ static int __pyx_Coroutine_init(PyObject *module) {
 #endif
     if (unlikely(!__pyx_CoroutineType))
         return -1;
-
 #ifdef __Pyx_IterableCoroutine_USED
     if (unlikely(__pyx_IterableCoroutine_init(module) == -1))
         return -1;
