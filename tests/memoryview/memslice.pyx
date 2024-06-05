@@ -19,9 +19,6 @@ import sys
 
 import builtins
 
-cdef extern from "Python.h":
-    cdef int PyBUF_C_CONTIGUOUS
-
 try:
     from Cython.Tests.this_module_does_not_exist import *
 except ImportError:
