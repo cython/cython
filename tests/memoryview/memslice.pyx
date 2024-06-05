@@ -2180,6 +2180,7 @@ cdef _test_slice_assignment_broadcast_strides(slice_1d src, slice_2d dst, slice_
         for j in range(1, 3):
             assert dst[i, j] == dst_f[i, j] == j - 1, (dst[i, j], dst_f[i, j], j - 1)
 
+@testcase
 def test_slice_assignment_single_length_slice():
     """
     >>> test_slice_assignment_single_length_slice()
@@ -2195,8 +2196,9 @@ def test_slice_assignment_single_length_slice():
 
     # assign a slice of len = 1
     view[0:1] = src_buf[0:1]
-    print(dest_buf[0])
+    return dest_buf[0]
 
+@testcase
 def test_slice_assignment_zero_length_slice():
     """
     >>> test_slice_assignment_zero_length_slice()
@@ -2212,7 +2214,7 @@ def test_slice_assignment_zero_length_slice():
 
     # assign a empty slice — this should noop
     view[0:0] = src_buf[0:0]
-    print(dest_buf[0])
+    return dest_buf[0]
 
 @testcase
 def test_borrowed_slice():
