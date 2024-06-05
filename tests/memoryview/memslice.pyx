@@ -2188,7 +2188,7 @@ def test_slice_assignment_single_length_slice():
     dest_buf: bytearray = bytearray(1)
 
     # construct a memory view of the destination buffer
-    view = memoryview(dest_buf, PyBUF_C_CONTIGUOUS)
+    cdef char[::1] view = dest_buf
 
     # assign a slice of len = 1
     view[0:1] = src_buf[0:1]
