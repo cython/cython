@@ -12,7 +12,6 @@ from cpython.ref cimport Py_INCREF, Py_DECREF, Py_CLEAR, Py_REFCNT
 cimport cython
 from cython cimport view
 from cython.view cimport array
-from cython.view cimport memoryview
 from cython.parallel cimport prange, parallel
 from functools import wraps
 import gc
