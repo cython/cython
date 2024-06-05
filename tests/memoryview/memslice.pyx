@@ -2206,7 +2206,7 @@ def test_slice_assignment_zero_length_slice():
     dest_buf: bytearray = bytearray(1)
 
     # construct a memory view of the destination buffer
-    view = memoryview(dest_buf, PyBUF_C_CONTIGUOUS)
+    cdef char[::1] view = dest_buf
 
     # assign a empty slice — this should noop
     view[0:0] = src_buf[0:0]
