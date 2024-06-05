@@ -70,7 +70,7 @@ build_pure_wheel:
         # see https://github.com/marketplace/actions/setup-miniconda for why
         # `-el {0}` is required.
         env:
-          TOKEN: ${{ secrets.NUMPY_NIGHTLY_UPLOAD_TOKEN }}
+          TOKEN: ${{ secrets.CYTHON_NIGHTLY_UPLOAD_TOKEN }}
         run: |
           source Tools/upload-wheels.sh
           # trigger an upload to
