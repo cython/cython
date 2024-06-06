@@ -1212,15 +1212,11 @@ def test_assign_from_byteslike(byteslike):
     hello
     >>> print(test_assign_from_byteslike(bytearray(b'howdy')).decode())
     howdy
+    >>> print(test_assign_from_byteslike(pyarray.array('B', b'aloha')).decode())
+    aloha
+    >>> print(test_assign_from_byteslike(memoryview(b'bye!!')).decode())
+    bye!!
     """
-    # fails on Python 2.7- with
-    #   TypeError: an integer is required
-    # >>> print(test_assign_from_byteslike(pyarray.array('B', b'aloha')).decode())
-    # aloha
-    # fails on Python 2.6- with
-    #   NameError: name 'memoryview' is not defined
-    # >>> print(test_assign_from_byteslike(memoryview(b'bye!!')).decode())
-    # bye!!
 
     def assign(m):
         m[:] = byteslike
