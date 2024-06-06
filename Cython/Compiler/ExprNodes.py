@@ -4989,13 +4989,14 @@ class MemoryViewIndexNode(BufferIndexNode):
         self.original_indices = indices
         self.nogil = env.nogil
 
-        self.analyse_operation(env, getting, axes)
+        self = self.analyse_operation(env, getting, axes)
         self.wrap_in_nonecheck_node(env)
         return self
 
     def analyse_operation(self, env, getting, axes):
         self.none_error_message = "Cannot index None memoryview slice"
         self.analyse_buffer_index(env, getting)
+        return self
 
     def analyse_broadcast_operation(self, rhs):
         """
@@ -5049,7 +5050,7 @@ class MemoryViewSliceNode(MemoryViewIndexNode):
 
         self.analyse_ellipsis_noop(env, getting)
         if self.is_ellipsis_noop:
-            return
+            return self
 
         self.index = None
         self.is_temp = True
@@ -5057,12 +5058,13 @@ class MemoryViewSliceNode(MemoryViewIndexNode):
 
         if not MemoryView.validate_axes(self.pos, axes):
             self.type = error_type
-            return
+            return self
 
         self.type = PyrexTypes.MemoryViewSliceType(self.base.type.dtype, axes)
 
         if not (self.base.is_simple() or self.base.result_in_temp()):
             self.base = self.base.coerce_to_temp(env)
+        return self
 
     def analyse_assignment(self, rhs):
         if not rhs.type.is_memoryviewslice and (
