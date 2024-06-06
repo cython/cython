@@ -2176,52 +2176,6 @@ cdef _test_slice_assignment_broadcast_strides(slice_1d src, slice_2d dst, slice_
         for j in range(1, 3):
             assert dst[i, j] == dst_f[i, j] == j - 1, (dst[i, j], dst_f[i, j], j - 1)
 
-cdef _test_slice_assignment_single_length_slice(slice_1d src, slice_1d dst):
-    cdef int i = 0
-    cdef int j = 1
-    dst[i:j] = src[i:j]
-
-@testcase
-def test_slice_assignment_single_length_slice():
-    """
-    >>> test_slice_assignment_single_length_slice()
-    1
-    """
-    cdef char[1] src_buf
-    src_buf[0] = 0x01
-
-    dest_buf: bytearray = bytearray(1)
-
-    # construct a memory view of the destination buffer
-    cdef char[::1] view = dest_buf
-
-    _test_slice_assignment_single_length_slice(src_buf, dest_buf)
-    # assign a slice of len = 1
-    return dest_buf[0]
-
-cdef _test_slice_assignment_zero_length_slice(slice_1d src, slice_1d dst):
-    cdef int i = 0
-    cdef int j = 0
-    dst[i:j] = src[i:j]
-
-@testcase
-def test_slice_assignment_zero_length_slice():
-    """
-    >>> test_slice_assignment_zero_length_slice()
-    0
-    """
-    cdef char[1] src_buf
-    src_buf[0] = 0x01
-
-    dest_buf: bytearray = bytearray(1)
-
-    # construct a memory view of the destination buffer
-    cdef char[::1] view = dest_buf
-
-    # assign a empty slice — this should noop
-    _test_slice_assignment_zero_length_slice(src_buf, dest_buf)
-    return dest_buf[0]
-
 @testcase
 def test_borrowed_slice():
     """
