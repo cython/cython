@@ -117,8 +117,8 @@ def gdb_function_value_to_unicode(function):
 # Classes that represent the debug information
 # Don't rename the parameters of these classes, they come directly from the XML
 
-def simple_repr(self, renamed={}, skip=[], state=True):
-    """prints out all instance variables needed to recreate an object
+def simple_repr(self, renamed=None, skip=(), state=True):
+    """Prints out all instance variables needed to recreate an object.
 
     Following the python convention for __repr__, this function prints all the
     information stored in an instance as opposed to its class. The working
@@ -185,7 +185,7 @@ class CythonModule:
         self.functions = {}
 
     def __repr__(self):
-        return simple_repr(self, {"module_name": "name"}, state=False)
+        return simple_repr(self, renamed={"module_name": "name"}, state=False)
 
 
 class CythonVariable:
@@ -257,9 +257,9 @@ def frame_repr(frame):
 
         if type(value) in [gdb.Symtab_and_line, gdb.Symbol, gdb.Symtab]:
             # strip last line since it will get added on at the end of the loop
-            value = frame_repr(value).strip("\n").replace("\n", "\n\t")
+            value = frame_repr(value).rstrip("\n").replace("\n", "\n\t")
         res += attribute + ": "
-        if type(value) == int:
+        if isinstance(value, int):
             res += hex(value) + "\n"
         else:
             res += str(value) + "\n"

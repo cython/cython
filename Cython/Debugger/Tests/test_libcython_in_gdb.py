@@ -139,6 +139,7 @@ class TestDebugInformationClasses(DebugTestCase):
         self.assertEqual(self.spam_func.lineno, expected_lineno)
         self.assertEqual(sorted(self.spam_func.locals), list('abcd'))
 
+
 class TestReprMethods(DebugTestCase):
 
     def test_simple_repr(self):
@@ -150,7 +151,6 @@ class TestReprMethods(DebugTestCase):
         recreated = eval("libcython." + repr(instance))
         self.assertEqual(pickle.dumps(instance), pickle.dumps(recreated))
 
-
     def test_frame_repr(self):
         # check that frame_repr's function expansion is idempotent
         beginline = 'import os'
@@ -159,6 +159,7 @@ class TestReprMethods(DebugTestCase):
         frame = gdb.selected_frame()
         self.assertEqual(libcython.frame_repr(frame),
                          libcython.frame_repr(frame))
+
 
 class TestParameters(unittest.TestCase):
 
