@@ -420,7 +420,7 @@ cdef class memoryview:
 
         if have_slices:
             obj = self.is_slice(value)
-            if obj:
+            if obj is not None:
                 self.setitem_slice_assignment(self[index], obj)
             else:
                 self.setitem_slice_assign_scalar(self[index], value)
