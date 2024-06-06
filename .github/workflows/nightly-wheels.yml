@@ -27,7 +27,8 @@ concurrency:
 permissions:
   contents: read # to fetch code (actions/checkout)
 
-build_pure_wheel:
+jobs:
+  build_pure_wheel:
     name: Build pure wheel and upload to Anaconda's PyPI
     if: >-
       github.event_name == 'schedule' ||
