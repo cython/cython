@@ -151,7 +151,8 @@ def simple_repr(self, renamed=None, skip=(), state=True):
     """
     import inspect
     init_arg_names = tuple(inspect.signature(self.__init__).parameters)
-    init_attrs = tuple(renamed.get(arg, arg) for arg in init_arg_names)
+    init_attrs = tuple(renamed.get(arg, arg) for arg in init_arg_names) \
+            if renamed else init_arg_names
     state_repr = ()
     if state:
         instance_only = vars(self).keys()
@@ -226,8 +227,35 @@ class CythonFunction(CythonVariable):
 
 # General purpose classes
 
+# fail fast if the API changes
+frame_repr_whitelist = set(f.__qualname__ for f in [
+    gdb.Frame.is_valid,
+    gdb.Frame.name,
+    gdb.Frame.architecture,
+    gdb.Frame.type,
+    gdb.Frame.pc,
+    gdb.Frame.block,
+    gdb.Frame.function,
+    gdb.Frame.older,
+    gdb.Frame.newer,
+    gdb.Frame.find_sal,
+    gdb.Frame.select,
+    gdb.Frame.static_link,
+    gdb.Frame.level,
+    gdb.Frame.language,
+    gdb.Symbol.is_valid,
+    gdb.Symbol.value,
+    gdb.Symtab_and_line.is_valid,
+    gdb.Symtab.is_valid,
+    gdb.Symtab.fullname,
+    gdb.Symtab.global_block,
+    gdb.Symtab.static_block,
+    gdb.Symtab.linetable,
+])
+
 def frame_repr(frame):
     """Returns a string representing the internal state of a provided GDB frame
+    https://sourceware.org/gdb/current/onlinedocs/gdb.html/Frames-In-Python.html
 
     Created to serve as GDB.Frame.__repr__ for debugging purposes. GDB has many
     layers of abstraction separating the state of the debugger from the
@@ -235,11 +263,7 @@ def frame_repr(frame):
     expanding the values for Symtab_and_line, Symbol, and Symtab.
 
     Most of these properties require computation to determine, meaning much of
-    relevant info is behind a monad. Rather than list which properties are worth
-    printing, we assume that frames are mostly a read-only context and that any
-    function without an argument is idempotent. That is to say, every function
-    is called without arguments and any that don't throw an exception are added
-    to the output.
+    relevant info is behind a monad, a subset of which are evaluated.
 
     Arguments
     frame       The GDB.Frame instance to be represented as a string
@@ -249,17 +273,14 @@ def frame_repr(frame):
         if attribute.startswith("__"):
             continue
         value = getattr(frame, attribute)
-        if callable(value):
-            try:
-                value = value()
-            except Exception as e:
-                pass
+        if callable(value) and value.__qualname__ in frame_repr_whitelist:
+            value = value()
 
         if type(value) in [gdb.Symtab_and_line, gdb.Symbol, gdb.Symtab]:
             # strip last line since it will get added on at the end of the loop
             value = frame_repr(value).rstrip("\n").replace("\n", "\n\t")
         res += attribute + ": "
-        if isinstance(value, int):
+        if isinstance(value, int) and attribute != "line":
             res += hex(value) + "\n"
         else:
             res += str(value) + "\n"
