@@ -117,7 +117,7 @@ def gdb_function_value_to_unicode(function):
 # Classes that represent the debug information
 # Don't rename the parameters of these classes, they come directly from the XML
 
-def simple_repr(self, renamed=None, skip=(), state=True):
+def simple_repr(self, renamed=None, state=True):
     """Prints out all instance variables needed to recreate an object.
 
     Following the python convention for __repr__, this function prints all the
@@ -141,30 +141,22 @@ def simple_repr(self, renamed=None, skip=(), state=True):
     renamed     Dictionary of initialization arguments that are stored under a
                 different property name in the form { argument: property }
 
-    skip        List of instance variables not to be listed as properties.
-                Computed properties are already skipped.
-                Only changes behavior if `state` argument is True (default).
-
     state       Boolean representing whether properties outside the
                 initialization parameters should be printed (self.prop = ...).
                 Using `False` may make the class more amenable to recursive repr
     """
     import inspect
     init_arg_names = tuple(inspect.signature(self.__init__).parameters)
-    init_attrs = tuple(renamed.get(arg, arg) for arg in init_arg_names) \
-            if renamed else init_arg_names
+    init_attrs = [renamed.get(arg, arg) for arg in init_arg_names] if renamed else init_arg_names
     state_repr = ()
     if state:
-        instance_only = vars(self).keys()
-        state_only = (attr for attr in instance_only if attr not in init_attrs)
-        state_repr = tuple(sorted(state_only))
+        instance_attrs = sorted(vars(self).keys())
+        state_repr = [attr for attr in instance_attrs if attr not in init_attrs]
 
     def equals(prefix, attrs, args=None):
         for attr, arg in zip(attrs, args or attrs):
-            if attr in skip:
-                continue
             param = repr(getattr(self, attr))
-            yield prefix + arg + " = " + param.replace("\n", "\n\t\t")
+            yield f'{prefix}{arg} = {param.replace("\n", "\n\t\t")}'
 
     return "".join([
             self.__class__.__qualname__, "(",
@@ -268,7 +260,7 @@ def frame_repr(frame):
     Arguments
     frame       The GDB.Frame instance to be represented as a string
     """
-    res = str(frame) + "\n"
+    res = f"{frame}\n"
     for attribute in sorted(dir(frame)):
         if attribute.startswith("__"):
             continue
@@ -279,11 +271,7 @@ def frame_repr(frame):
         if type(value) in [gdb.Symtab_and_line, gdb.Symbol, gdb.Symtab]:
             # strip last line since it will get added on at the end of the loop
             value = frame_repr(value).rstrip("\n").replace("\n", "\n\t")
-        res += attribute + ": "
-        if isinstance(value, int) and attribute != "line":
-            res += hex(value) + "\n"
-        else:
-            res += str(value) + "\n"
+        res += f"{attribute}: " + (f"{value:x}\n" if isinstance(value, int) and attribute != "line" else f"{value}\n")
     return res
 
 class CythonBase:
