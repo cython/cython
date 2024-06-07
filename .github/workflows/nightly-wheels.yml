@@ -55,27 +55,9 @@ jobs:
           name: pure-wheel
           path: ./dist/*.whl
 
-      - uses: conda-incubator/setup-miniconda@v3.0.4
-        with:
-          # for installation of anaconda-client, required for upload to
-          # anaconda.org
-          # default (and activated) environment name is test
-          # Note that this step is *after* specific pythons have been used to
-          # build
-          auto-update-conda: true
-          python-version: "3.10"
-
       - name: Upload wheels to scientific-python-nightly-wheels
-        if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
-        shell: bash -el {0}
-        # see https://github.com/marketplace/actions/setup-miniconda for why
-        # `-el {0}` is required.
-        env:
-          TOKEN: ${{ secrets.CYTHON_NIGHTLY_UPLOAD_TOKEN }}
-        run: |
-          source Tools/upload-wheels.sh
-          # trigger an upload to
-          # https://anaconda.org/scientific-python-nightly-wheels/numpy
-          # for cron jobs or "Run workflow" (restricted to main branch).
-          # The tokens were originally generated at anaconda.org
-          upload_wheels
+        if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'          
+        uses: scientific-python/upload-nightly-action@b67d7fcc0396e1128a474d1ab2b48aa94680f9fc # 0.5.0
+        with:
+          artifacts_path: dist
+          anaconda_nightly_upload_token: ${{ secrets.CYTHON_NIGHTLY_UPLOAD_TOKEN }}
