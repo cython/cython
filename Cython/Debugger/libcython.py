@@ -147,21 +147,22 @@ def simple_repr(self, renamed=None, state=True):
     """
     import inspect
     init_arg_names = tuple(inspect.signature(self.__init__).parameters)
-    init_attrs = [renamed.get(arg, arg) for arg in init_arg_names] if renamed else init_arg_names
+    init_attrs = [renamed.get(arg, arg) for arg in init_arg_names] \
+            if renamed else init_arg_names
     state_repr = ()
     if state:
         instance_attrs = sorted(vars(self).keys())
         state_repr = [attr for attr in instance_attrs if attr not in init_attrs]
 
-    def equals(prefix, attrs, args=None):
+    def names_and_values(prefix, attrs, args=None):
         for attr, arg in zip(attrs, args or attrs):
-            param = repr(getattr(self, attr))
-            yield f'{prefix}{arg} = {param.replace("\n", "\n\t\t")}'
+            param = repr(getattr(self, attr)).replace("\n", "\n\t\t")
+            yield f'{prefix}{arg} = {param}'
 
     return "".join([
             self.__class__.__qualname__, "(",
-            ",".join(equals("\n\t\t", init_attrs, init_arg_names)), "\n\t)",
-            *equals("\nself.", state_repr)
+            ",".join(names_and_values("\n\t\t", init_attrs, init_arg_names)),
+            "\n\t)", *names_and_values("\nself.", state_repr)
         ])
 
 
@@ -271,7 +272,9 @@ def frame_repr(frame):
         if type(value) in [gdb.Symtab_and_line, gdb.Symbol, gdb.Symtab]:
             # strip last line since it will get added on at the end of the loop
             value = frame_repr(value).rstrip("\n").replace("\n", "\n\t")
-        res += f"{attribute}: " + (f"{value:x}\n" if isinstance(value, int) and attribute != "line" else f"{value}\n")
+        res += f"{attribute}: " + (
+                f"{value:x}\n" if isinstance(value, int) and attribute != "line"
+                else f"{value}\n")
     return res
 
 class CythonBase:
