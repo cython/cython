@@ -1619,7 +1619,7 @@ class CppClassNode(CStructOrUnionDefNode, BlockNode):
     def analyse_declarations(self, env):
         if not env.is_cpp():
             warning(self.pos,
-                    "Using 'cppclass' while Cython is not in C++ mode.",
+                    "Using 'cppclass' while Cython is not in c++ mode",
                     level=1)
         if self.templates is None:
             template_types = template_names = None
