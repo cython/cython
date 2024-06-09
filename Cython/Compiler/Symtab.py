@@ -2898,6 +2898,11 @@ class CppClassScope(Scope):
             name = "<del>"
         return super(CppClassScope, self).lookup_here(name)
 
+    def is_cpp(self):
+        # Whatever the global environment, always treat cppclass with C++ rules.
+        # (Cython will emit warnings elsewhere)
+        return True
+
 
 class CppScopedEnumScope(Scope):
     #  Namespace of a ScopedEnum
