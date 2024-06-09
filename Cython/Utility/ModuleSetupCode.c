@@ -2231,6 +2231,100 @@ done:
     return code_obj;
 }
 
+/////////////////////////// PyVersionSanityCheck.proto ///////////////////////
+
+static int __Pyx_VersionSanityCheck(void); /* proto */
+
+/////////////////////////// PyVersionSanityCheck ///////////////////////
+
+static int __Pyx_VersionSanityCheck(void) {
+  // Implementation notes:
+  //  The main thing I'm worried about in mixing up Py_GIL_DISABLED since this is incredibly
+  //  easy to do on Windows (where only a single pyconfig.h is provided, which is shared between
+  //  the freethreading and non-freethreading executables).  Getting this wrong instantly crashes.
+  //
+  //  The debug and trace-refs checks are just because they're easy to do at the same time.
+  //
+  //  In order to test it we cannot use any Python objects from C, since we potentially have
+  //  completely the wrong structure of PyObject.  Therefore we have to use an API that remains
+  //  the same between the different builds.  PyRun_SimpleString fits this.
+  //
+  //  Since that runs in the __main__ scope, we should be careful not to define variables.
+  //
+  //  PyRun_SimpleString prints and clears the exception information.  We raise therefore
+  //  raise the proper exception from C (I think the interface to PyErr_SetString should
+  //  be consistent enough between builds for this to be OK). This is fragile but the best
+  //  we can do.
+  //
+  #if CYTHON_COMPILING_IN_CPYTHON
+    if (PyRun_SimpleString(
+      "if 'd' "
+      #ifdef Py_DEBUG
+        "not "
+      #endif
+      "in __import__('sysconfig').get_config_var('EXT_SUFFIX').split('-')[1]:\n"
+      "  raise ImportError"
+    ) == -1) {
+      PyErr_SetString(PyExc_ImportError,
+      #ifdef Py_DEBUG
+        "Module was compiled with a debug version of Python but imported into a non-debug version."
+      #else
+        "Module was compiled with a non-debug version of Python but imported into a debug version."
+      #endif
+      );
+      return -1;
+    }
+    #if PY_VERSION_HEX >= 0x030d0000
+    if (PyRun_SimpleString(
+      "if 't' "
+      #ifdef Py_GIL_DISABLED
+        "not "
+      #endif
+      "in __import__('sysconfig').get_config_var('EXT_SUFFIX').split('-')[1]:\n"
+      "  raise ImportError"
+    ) == -1) {
+      PyErr_SetString(
+        PyExc_ImportError,
+      #ifdef Py_GIL_DISABLED
+        "Module was compiled with a freethreading build of Python but imported into a non-freethreading build."
+      #else
+        "Module was compiled with a non-freethreading build of Python but imported into a freethreading build."
+      #endif
+      );
+      return -1;
+    }
+    #endif // version hex 3.13+
+    if (PyRun_SimpleString(
+      "if "
+      #ifdef Py_TRACE_REFS
+      "not "
+      #endif
+      "hasattr(__import__('sys'), 'getobjects'): raise ImportError"
+    ) == -1) {
+      PyErr_SetString(
+        PyExc_ImportError,
+        #ifdef Py_TRACE_REFS
+          "Module was compiled with Py_TRACE_REFS but imported into a build of Python without."
+        #else
+          "Module was compiled without Py_TRACE_REFS but imported into a build of Python with."
+        #endif
+      );
+      return -1;
+    }
+    const char code[] = "if __import__('sys').getsizeof(object()) != %u: raise ImportError";
+    char formattedCode[sizeof(code)+50];
+    PyOS_snprintf(formattedCode, sizeof(formattedCode), code, (unsigned int)sizeof(PyObject));
+    if (PyRun_SimpleString(formattedCode) == -1) {
+      PyErr_SetString(
+        PyExc_ImportError,
+        "Runtime and compile-time PyObject size do not match."
+      );
+      return -1;
+    }
+  #endif
+    return 0;
+}
+
 /////////////////////////// AccessPyMutexForFreeThreading.proto ////////////
 
 #if CYTHON_COMPILING_IN_CPYTHON_FREETHREADING
