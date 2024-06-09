@@ -173,36 +173,6 @@ static CYTHON_INLINE Py_hash_t __Pyx_PyIndex_AsHash_t(PyObject*);
 #define __Pyx_PyUnicode_FromStringAndSize(c_str, size) PyUnicode_DecodeUTF8(c_str, size, NULL)
 #else
 #define __Pyx_PyUnicode_FromStringAndSize(c_str, size) PyUnicode_Decode(c_str, size, __PYX_DEFAULT_STRING_ENCODING, NULL)
-
-// __PYX_DEFAULT_STRING_ENCODING is either a user provided string constant
-// or we need to look it up here
-#if __PYX_DEFAULT_STRING_ENCODING_IS_DEFAULT
-#include <string.h>
-
-static char* __PYX_DEFAULT_STRING_ENCODING;
-
-static int __Pyx_init_sys_getdefaultencoding_params(void) {
-    PyObject* sys;
-    PyObject* default_encoding = NULL;
-    char* default_encoding_c;
-
-    sys = PyImport_ImportModule("sys");
-    if (!sys) goto bad;
-    default_encoding = PyObject_CallMethod(sys, "getdefaultencoding", NULL);
-    Py_DECREF(sys);
-    if (!default_encoding) goto bad;
-    default_encoding_c = PyBytes_AsString(default_encoding);
-    if (!default_encoding_c) goto bad;
-    __PYX_DEFAULT_STRING_ENCODING = (char*) malloc(strlen(default_encoding_c) + 1);
-    if (!__PYX_DEFAULT_STRING_ENCODING) goto bad;
-    strcpy(__PYX_DEFAULT_STRING_ENCODING, default_encoding_c);
-    Py_DECREF(default_encoding);
-    return 0;
-bad:
-    Py_XDECREF(default_encoding);
-    return -1;
-}
-#endif
 #endif
 
 /////////////// TypeConversions ///////////////
