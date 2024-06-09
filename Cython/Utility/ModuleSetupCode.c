@@ -2247,23 +2247,27 @@ static int __Pyx_VersionSanityCheck(void) {
   //
   //  In order to test it we cannot use any Python objects from C, since we potentially have
   //  completely the wrong structure of PyObject.  Therefore we have to use an API that remains
-  //  the same between the different builds.  PyRun_SimpleString fits this.
+  //  the same between the different builds.  PyRun_SimpleStringFlags fits this.
   //
   //  Since that runs in the __main__ scope, we should be careful not to define variables.
   //
-  //  PyRun_SimpleString prints and clears the exception information.  We raise therefore
-  //  raise the proper exception from C (I think the interface to PyErr_SetString should
-  //  be consistent enough between builds for this to be OK). This is fragile but the best
-  //  we can do.
+  //  We use PyRun_SimpleStringFlags instead of PyRun_SimpleString since SimpleString is
+  //  a macro, and MSVC doesn't like #ifdef within a macro expansion.
+  //
+  //  PyRun_SimpleStringFlags prints and clears the exception information.  We raise
+  //  therefore raise the proper exception from C (I think the interface to PyErr_SetString
+  //  should be consistent enough between builds for this to be OK). This is fragile but
+  //  the best we can do.
   //
   #if CYTHON_COMPILING_IN_CPYTHON
-    if (PyRun_SimpleString(
+    if (PyRun_SimpleStringFlags(
       "if 'd' "
       #ifdef Py_DEBUG
         "not "
       #endif
       "in __import__('sysconfig').get_config_var('EXT_SUFFIX').split('-')[1]:\n"
-      "  raise ImportError"
+      "  raise ImportError",
+      NULL
     ) == -1) {
       PyErr_SetString(PyExc_ImportError,
       #ifdef Py_DEBUG
@@ -2275,13 +2279,14 @@ static int __Pyx_VersionSanityCheck(void) {
       return -1;
     }
     #if PY_VERSION_HEX >= 0x030d0000
-    if (PyRun_SimpleString(
+    if (PyRun_SimpleStringFlags(
       "if 't' "
       #ifdef Py_GIL_DISABLED
         "not "
       #endif
       "in __import__('sysconfig').get_config_var('EXT_SUFFIX').split('-')[1]:\n"
-      "  raise ImportError"
+      "  raise ImportError",
+      NULL
     ) == -1) {
       PyErr_SetString(
         PyExc_ImportError,
@@ -2294,12 +2299,13 @@ static int __Pyx_VersionSanityCheck(void) {
       return -1;
     }
     #endif // version hex 3.13+
-    if (PyRun_SimpleString(
+    if (PyRun_SimpleStringFlags(
       "if "
       #ifdef Py_TRACE_REFS
       "not "
       #endif
-      "hasattr(__import__('sys'), 'getobjects'): raise ImportError"
+      "hasattr(__import__('sys'), 'getobjects'): raise ImportError",
+      NULL
     ) == -1) {
       PyErr_SetString(
         PyExc_ImportError,
@@ -2314,7 +2320,7 @@ static int __Pyx_VersionSanityCheck(void) {
     const char code[] = "if __import__('sys').getsizeof(object()) != %u: raise ImportError";
     char formattedCode[sizeof(code)+50];
     PyOS_snprintf(formattedCode, sizeof(formattedCode), code, (unsigned int)sizeof(PyObject));
-    if (PyRun_SimpleString(formattedCode) == -1) {
+    if (PyRun_SimpleStringFlags(formattedCode, NULL) == -1) {
       PyErr_SetString(
         PyExc_ImportError,
         "Runtime and compile-time PyObject size do not match."
