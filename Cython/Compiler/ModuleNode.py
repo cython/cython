@@ -3079,7 +3079,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
         # start of module init/exec function (pre/post PEP 489)
         code.putln("{")
-        
+
         code.putln("#if !CYTHON_PEP489_MULTI_PHASE_INIT")
         code.putln("if (__Pyx_VersionSanityCheck() < 0) return NULL;")
         code.putln("#endif")
