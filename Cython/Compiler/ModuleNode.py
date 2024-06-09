@@ -886,7 +886,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             code.putln('#define __PYX_DEFAULT_STRING_ENCODING_IS_DEFAULT 1')
         else:
             code.putln('#define __PYX_DEFAULT_STRING_ENCODING_IS_DEFAULT '
-                    '(PY_MAJOR_VERSION >= 3 && __PYX_DEFAULT_STRING_ENCODING_IS_UTF8)')
+                    '__PYX_DEFAULT_STRING_ENCODING_IS_UTF8')
             code.putln('#define __PYX_DEFAULT_STRING_ENCODING "%s"' % c_string_encoding)
         if c_string_type == 'bytearray':
             c_string_func_name = 'ByteArray'
@@ -3153,11 +3153,6 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("stringtab_initialized = 1;")
         code.put_error_if_neg(self.pos, "__Pyx_InitGlobals()")  # calls any utility code
 
-        code.putln("#if PY_MAJOR_VERSION < 3 && (__PYX_DEFAULT_STRING_ENCODING_IS_ASCII || "
-                   "__PYX_DEFAULT_STRING_ENCODING_IS_DEFAULT)")
-        code.put_error_if_neg(self.pos, "__Pyx_init_sys_getdefaultencoding_params()")
-        code.putln("#endif")
-
         code.putln("if (%s) {" % self.is_main_module_flag_cname())
         code.put_error_if_neg(self.pos, 'PyObject_SetAttr(%s, %s, %s)' % (
             env.module_cname,
@@ -3270,10 +3265,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
         code.putln("#if CYTHON_PEP489_MULTI_PHASE_INIT")
         code.putln("return (%s != NULL) ? 0 : -1;" % env.module_cname)
-        code.putln("#elif PY_MAJOR_VERSION >= 3")
-        code.putln("return %s;" % env.module_cname)
         code.putln("#else")
-        code.putln("return;")
+        code.putln("return %s;" % env.module_cname)
         code.putln("#endif")
         code.putln('}')
 
@@ -3395,7 +3388,6 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         if fq_module_name.endswith('.__init__'):
             fq_module_name = EncodedString(fq_module_name[:-len('.__init__')])
         fq_module_name_cstring = fq_module_name.as_c_string_literal()
-        code.putln("#if PY_MAJOR_VERSION >= 3")
         code.putln("{")
         code.putln("PyObject *modules = PyImport_GetModuleDict(); %s" %
                    code.error_goto_if_null("modules", self.pos))
@@ -3404,7 +3396,6 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             fq_module_name_cstring, env.module_cname), self.pos))
         code.putln("}")
         code.putln("}")
-        code.putln("#endif")
 
     def generate_module_cleanup_func(self, env, code):
         if not Options.generate_cleanup_code:
@@ -3537,7 +3528,6 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             cleanup_func = 'NULL'
 
         code.putln("")
-        code.putln("#if PY_MAJOR_VERSION >= 3")
         code.putln("#if CYTHON_PEP489_MULTI_PHASE_INIT")
         exec_func_cname = self.module_init_func_cname()
         code.putln("static PyObject* %s(PyObject *spec, PyModuleDef *def); /*proto*/" %
@@ -3592,7 +3582,6 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln('#ifdef __cplusplus')
         code.putln('} /* anonymous namespace */')
         code.putln('#endif')
-        code.putln("#endif")
 
     def generate_module_creation_code(self, env, code):
         # Generate code to create the module object and
@@ -3608,16 +3597,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             Naming.pymodinit_module_arg))
         code.put_incref(env.module_cname, py_object_type, nanny=False)
         code.putln("#else")
-        code.putln("#if PY_MAJOR_VERSION < 3")
-        code.putln(
-            '%s = Py_InitModule4(%s, %s, %s, 0, PYTHON_API_VERSION); Py_XINCREF(%s);' % (
-                env.module_cname,
-                env.module_name.as_c_string_literal(),
-                env.method_table_cname,
-                doc,
-                env.module_cname))
-        code.putln(code.error_goto_if_null(env.module_cname, self.pos))
-        code.putln("#elif CYTHON_USE_MODULE_STATE")
+        code.putln("#if CYTHON_USE_MODULE_STATE")
         # manage_ref is False (and refnanny calls are omitted) because refnanny isn't yet initialized
         module_temp = code.funcstate.allocate_temp(py_object_type, manage_ref=False)
         code.putln(
