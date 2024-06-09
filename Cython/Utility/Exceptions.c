@@ -236,9 +236,7 @@ static void __Pyx_Raise(PyObject *type, PyObject *value, PyObject *tb, PyObject 
 //@requires: PyErrFetchRestore
 //@requires: PyThreadStateGet
 
-// The following function is based on do_raise() from ceval.c. There
-// are separate versions for Python2 and Python3 as exception handling
-// has changed quite a lot between the two versions.
+// The following function is based on do_raise() from ceval.c.
 
 static void __Pyx_Raise(PyObject *type, PyObject *value, PyObject *tb, PyObject *cause) {
     PyObject* owned_instance = NULL;
@@ -745,7 +743,7 @@ static void __Pyx_WriteUnraisable(const char *name, int clineno,
         Py_XINCREF(old_val);
         Py_XINCREF(old_tb);
         __Pyx_ErrRestore(old_exc, old_val, old_tb);
-        PyErr_PrintEx(1);
+        PyErr_PrintEx(0);
     }
     ctx = PyUnicode_FromString(name);
     __Pyx_ErrRestore(old_exc, old_val, old_tb);

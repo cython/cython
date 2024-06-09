@@ -235,18 +235,9 @@ def double_proj(complex_class[double] a):
     >>> double_proj(5 + 4j)
     (5+4j)
     >>> double_proj(-float("infinity") + 4j)
-    (-inf+0j)
+    (inf+0j)
     >>> double_proj(5 - float("infinity")*1j)
-    (inf+0j)
-    """
-    return cppcomplex.proj(a)
-
-def double_proj(complex_class[double] a):
-    """
-    >>> double_proj(5 + 4j)
-    (5+4j)
-    >>> double_proj(5 + float("infinity")*1j)
-    (inf+0j)
+    (inf-0j)
     """
     return cppcomplex.proj(a)
 

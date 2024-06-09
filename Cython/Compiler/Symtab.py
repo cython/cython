@@ -6,9 +6,10 @@
 import re
 import copy
 import operator
+import math
 
 from ..Utils import try_finally_contextmanager
-from .Errors import warning, error, InternalError, local_errors
+from .Errors import warning, error, InternalError, local_errors, performance_hint
 from .StringEncoding import EncodedString
 from . import Options, Naming
 from . import PyrexTypes
@@ -233,6 +234,7 @@ class Entry:
     known_standard_library_import = None
     pytyping_modifiers = None
     enum_int_value = None
+    vtable_type = None
 
     def __init__(self, name, cname, type, pos = None, init = None):
         self.name = name
@@ -938,6 +940,17 @@ class Scope:
                 elif not in_pxd and entry.defined_in_pxd and type.compatible_signature_with(entry.type):
                     # TODO: check that this was done by a signature optimisation and not a user error.
                     #warning(pos, "Function signature does not match previous declaration", 1)
+
+                    # Cython can't assume anything about cimported functions declared without
+                    # an exception value. This is a performance problem mainly for nogil functions.
+                    if entry.type.nogil and entry.type.exception_value is None and type.exception_value:
+                        performance_hint(
+                            entry.pos,
+                            f"No exception value declared for '{entry.name}' in pxd file.\n"
+                            "Users cimporting this function and calling it without the gil "
+                            "will always require an exception check.\n"
+                            "Suggest adding an explicit exception value.",
+                            self)
                     entry.type = type
                 else:
                     error(pos, "Function signature does not match previous declaration")
@@ -1360,6 +1373,7 @@ class ModuleScope(Scope):
         self.undeclared_cached_builtins = []
         self.namespace_cname = self.module_cname
         self._cached_tuple_types = {}
+        self._cached_defaults_c_class_entries = {}
         self.process_include(Code.IncludeCode("Python.h", initial=True))
 
     def qualifying_scope(self):
@@ -1399,6 +1413,32 @@ class ModuleScope(Scope):
             ttype.struct_entry = struct_entry
             entry = self.declare_type(cname, ttype, pos, cname)
         ttype.entry = entry
+        return entry
+
+    def declare_defaults_c_class(self, pos, components):
+        # returns an entry (for the c-class)
+        components = tuple(components)
+        try:
+            return self._cached_defaults_c_class_entries[components]
+        except KeyError:
+            pass
+
+        cname = self.next_id(Naming.defaults_struct_prefix)
+        cname = EncodedString(cname)
+        entry = self._cached_defaults_c_class_entries[components] = self.declare_c_class(
+            cname, pos, defining=True, implementing=True,
+            objstruct_cname=cname)
+        self.check_c_class(entry)
+        entry.type.is_final_type = True
+        scope = entry.type.scope
+        scope.is_internal = True
+        scope.is_defaults_class_scope = True
+
+        # zero pad the argument number so they can be sorted
+        num_zeros = math.floor(math.log10(len(components)))
+        format_str = "arg{0:0%dd}" % num_zeros
+        for n, type_ in enumerate(components):
+            scope.declare_var(EncodedString(format_str.format(n)), type_, None, is_cdef = True)
         return entry
 
     def declare_builtin(self, name, pos):
@@ -2307,6 +2347,7 @@ class CClassScope(ClassScope):
 
     is_c_class_scope = 1
     is_closure_class_scope = False
+    is_defaults_class_scope = False
 
     has_pyobject_attrs = False
     has_memoryview_attrs = False
@@ -2590,6 +2631,9 @@ class CClassScope(ClassScope):
         if self.parent_type.is_final_type or entry.is_inline_cmethod or self.directives.get('final'):
             entry.is_final_cmethod = True
             entry.final_func_cname = entry.func_cname
+            if not type.is_fused:
+                entry.vtable_type = entry.type
+                entry.type = type
 
         return entry
 

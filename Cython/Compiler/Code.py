@@ -237,8 +237,7 @@ uncachable_builtins = [
 special_py_methods = cython.declare(frozenset, frozenset((
     '__cinit__', '__dealloc__', '__richcmp__', '__next__',
     '__await__', '__aiter__', '__anext__',
-    '__getreadbuffer__', '__getwritebuffer__', '__getsegcount__',
-    '__getcharbuffer__', '__getbuffer__', '__releasebuffer__',
+    '__getbuffer__', '__releasebuffer__',
 )))
 
 modifier_output_mapper = {
@@ -924,7 +923,7 @@ class FunctionState:
     # labels
 
     def new_label(self, name=None):
-        n = self.label_counter
+        n: cython.size_t = self.label_counter
         self.label_counter = n + 1
         label = "%s%d" % (Naming.label_prefix, n)
         if name is not None:
@@ -1174,12 +1173,12 @@ class StringConst:
             self.py_versions.append(version)
 
     def get_py_string_const(self, encoding, identifier=None,
-                            is_str=False, py3str_cstring=None):
-        py_strings = self.py_strings
+                            is_str: cython.bint = False, py3str_cstring=None):
         text = self.text
+        intern: cython.bint
 
         is_str = bool(identifier or is_str)
-        is_unicode = encoding is None and not is_str
+        is_unicode: cython.bint = encoding is None and not is_str
 
         if encoding is None:
             # unicode string
@@ -1194,11 +1193,11 @@ class StringConst:
                 encoding_key = ''.join(find_alphanums(encoding))
 
         key = (is_str, is_unicode, encoding_key, py3str_cstring)
-        if py_strings is None:
+        if self.py_strings is None:
             self.py_strings = {}
         else:
             try:
-                return py_strings[key]
+                return self.py_strings[key]
             except KeyError:
                 pass
 
@@ -2618,12 +2617,18 @@ class CCodeWriter:
             self.put_giveref('Py_None')
 
     def put_pymethoddef(self, entry, term, allow_skip=True, wrapper_code_writer=None):
-        is_reverse_number_slot = False
+        is_number_slot = False
         if entry.is_special or entry.name == '__getattribute__':
             from . import TypeSlots
-            is_reverse_number_slot = True
-            if entry.name not in special_py_methods and not TypeSlots.is_reverse_number_slot(entry.name):
-                if entry.name == '__getattr__' and not self.globalstate.directives['fast_getattr']:
+            if entry.name not in special_py_methods:
+                if TypeSlots.is_binop_number_slot(entry.name):
+                    # It's useful if numeric binops are created with meth coexist
+                    # so they can be called directly by looking up the name, skipping the
+                    # dispatch wrapper that enables the reverse slots.  This is most useful
+                    # when c_api_binop_methods is False, but there's no reason not to do it
+                    # all the time
+                    is_number_slot = True
+                elif entry.name == '__getattr__' and not self.globalstate.directives['fast_getattr']:
                     pass
                 # Python's typeobject.c will automatically fill in our slot
                 # in add_operators() (called by PyType_Ready) with a value
@@ -2642,8 +2647,8 @@ class CCodeWriter:
         if cast != 'PyCFunction':
             func_ptr = '(void*)(%s)%s' % (cast, func_ptr)
         entry_name = entry.name.as_c_string_literal()
-        if is_reverse_number_slot:
-            # Unlike most special functions, reverse number operator slots are actually generated here
+        if is_number_slot:
+            # Unlike most special functions, binop numeric operator slots are actually generated here
             # (to ensure that they can be looked up). However, they're sometimes guarded by the preprocessor
             # so a bit of extra logic is needed
             slot = TypeSlots.get_slot_table(self.globalstate.directives).get_slot_by_method_name(entry.name)
@@ -2657,7 +2662,7 @@ class CCodeWriter:
                 "|".join(method_flags),
                 entry.doc_cname if entry.doc else '0',
                 term))
-        if is_reverse_number_slot and preproc_guard:
+        if is_number_slot and preproc_guard:
             self.putln("#endif")
 
     def put_pymethoddef_wrapper(self, entry):
@@ -2712,6 +2717,18 @@ class CCodeWriter:
         if not variable:
             variable = '__pyx_gilstate_save'
         self.putln("__Pyx_PyGILState_Release(%s);" % variable)
+
+    def put_acquire_freethreading_lock(self):
+        self.globalstate.use_utility_code(
+            UtilityCode.load_cached("AccessPyMutexForFreeThreading", "ModuleSetupCode.c"))
+        self.putln("#if CYTHON_COMPILING_IN_CPYTHON_FREETHREADING")
+        self.putln(f"PyMutex_Lock(&{Naming.parallel_freethreading_mutex});")
+        self.putln("#endif")
+
+    def put_release_freethreading_lock(self):
+        self.putln("#if CYTHON_COMPILING_IN_CPYTHON_FREETHREADING")
+        self.putln(f"PyMutex_Unlock(&{Naming.parallel_freethreading_mutex});")
+        self.putln("#endif")
 
     def put_acquire_gil(self, variable=None, unknown_gil_state=True):
         """

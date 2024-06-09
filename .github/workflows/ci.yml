@@ -41,7 +41,7 @@ jobs:
         #
         # FIXME: 'cpp' tests seems to fail due to compilation errors (numpy_pythran_unit)
         # in all python versions and test failures (builtin_float) in 3.5<
-        os: [ubuntu-20.04, windows-2019, macos-11]
+        os: [ubuntu-20.04, windows-2019, macos-12]
         backend: [c, cpp]
         python-version:
           - "3.7"
@@ -161,6 +161,12 @@ jobs:
             python-version: pypy-3.10
             backend: c
             env: { NO_CYTHON_COMPILE: 1 }
+          # Free-threading
+          - os: ubuntu-20.04
+            python-version: 3.13-freethreading-dev
+            backend: "c,cpp"
+            env: {}
+            allowed_failure: true
 
     # This defaults to 360 minutes (6h) which is way too long and if a test gets stuck, it can block other pipelines.
     # From testing, the runs tend to take ~20 minutes for ubuntu / macos and ~40 for windows,
@@ -171,7 +177,7 @@ jobs:
     env:
       BACKEND: ${{ matrix.backend }}
       PYTHON_VERSION: ${{ matrix.python-version }}
-      MACOSX_DEPLOYMENT_TARGET: 10.15
+      MACOSX_DEPLOYMENT_TARGET: 11.0
       GCC_VERSION: 8
       USE_CCACHE: 1
       CCACHE_SLOPPINESS: "pch_defines,time_macros"
@@ -186,8 +192,16 @@ jobs:
 
       - name: Setup python
         uses: actions/setup-python@v5.0.0
+        if: "!endsWith(matrix.python-version, '-freethreading-dev')"
         with:
           python-version: ${{ matrix.python-version }}
+
+      - name: Setup python from deadsnakes
+        uses: deadsnakes/action@v3.1.0
+        if: "endsWith(matrix.python-version, '-freethreading-dev')"
+        with:
+          python-version: 3.13-dev
+          nogil: true
 
       - name: Compilation Cache
         uses: hendrikmuhs/ccache-action@v1.2.12

@@ -56,9 +56,7 @@ typedef struct {
     PyObject *func_classobj;
 #endif
     // Dynamic default args and annotations
-    void *defaults;
-    int defaults_pyobjects;
-    size_t defaults_size;  /* used by FusedFunction for copying defaults */
+    PyObject *defaults;
     int flags;
 
     // Defaults info
@@ -86,9 +84,8 @@ static PyObject *__Pyx_CyFunction_Init(__pyx_CyFunctionObject* op, PyMethodDef *
                                       PyObject* code);
 
 static CYTHON_INLINE void __Pyx__CyFunction_SetClassObj(__pyx_CyFunctionObject* f, PyObject* classobj);
-static CYTHON_INLINE void *__Pyx_CyFunction_InitDefaults(PyObject *m,
-                                                         size_t size,
-                                                         int pyobjects);
+static CYTHON_INLINE PyObject *__Pyx_CyFunction_InitDefaults(PyObject *func,
+                                                         PyTypeObject *defaults_type);
 static CYTHON_INLINE void __Pyx_CyFunction_SetDefaultsTuple(PyObject *m,
                                                             PyObject *tuple);
 static CYTHON_INLINE void __Pyx_CyFunction_SetDefaultsKwDict(PyObject *m,
@@ -602,8 +599,6 @@ static PyObject *__Pyx_CyFunction_Init(__pyx_CyFunctionObject *op, PyMethodDef *
     Py_XINCREF(code);
     op->func_code = code;
     // Dynamic Default args
-    op->defaults_pyobjects = 0;
-    op->defaults_size = 0;
     op->defaults = NULL;
     op->defaults_tuple = NULL;
     op->defaults_kwdict = NULL;
@@ -669,16 +664,7 @@ __Pyx_CyFunction_clear(__pyx_CyFunctionObject *m)
     Py_CLEAR(m->func_annotations);
     Py_CLEAR(m->func_is_coroutine);
 
-    if (m->defaults) {
-        PyObject **pydefaults = __Pyx_CyFunction_Defaults(PyObject *, m);
-        int i;
-
-        for (i = 0; i < m->defaults_pyobjects; i++)
-            Py_XDECREF(pydefaults[i]);
-
-        PyObject_Free(m->defaults);
-        m->defaults = NULL;
-    }
+    Py_CLEAR(m->defaults);
 
     return 0;
 }
@@ -717,14 +703,7 @@ static int __Pyx_CyFunction_traverse(__pyx_CyFunctionObject *m, visitproc visit,
     Py_VISIT(m->defaults_tuple);
     Py_VISIT(m->defaults_kwdict);
     Py_VISIT(m->func_is_coroutine);
-
-    if (m->defaults) {
-        PyObject **pydefaults = __Pyx_CyFunction_Defaults(PyObject *, m);
-        int i;
-
-        for (i = 0; i < m->defaults_pyobjects; i++)
-            Py_VISIT(pydefaults[i]);
-    }
+    Py_VISIT(m->defaults);
 
     return 0;
 }
@@ -1149,6 +1128,9 @@ static PyTypeObject __pyx_CyFunctionType_type = {
 #if PY_VERSION_HEX >= 0x030C0000
     0,                                  /*tp_watched*/
 #endif
+#if PY_VERSION_HEX >= 0x030d00A4
+    0,                                          /*tp_versions_used*/
+#endif
 #if CYTHON_COMPILING_IN_PYPY && PY_VERSION_HEX >= 0x03090000 && PY_VERSION_HEX < 0x030a0000
     0,                                          /*tp_pypy_flags*/
 #endif
@@ -1169,15 +1151,12 @@ static int __pyx_CyFunction_init(PyObject *module) {
     return 0;
 }
 
-static CYTHON_INLINE void *__Pyx_CyFunction_InitDefaults(PyObject *func, size_t size, int pyobjects) {
+static CYTHON_INLINE PyObject *__Pyx_CyFunction_InitDefaults(PyObject *func, PyTypeObject *defaults_type) {
     __pyx_CyFunctionObject *m = (__pyx_CyFunctionObject *) func;
 
-    m->defaults = PyObject_Malloc(size);
+    m->defaults = PyObject_CallObject((PyObject*)defaults_type, NULL); // _PyObject_New(defaults_type);
     if (unlikely(!m->defaults))
-        return PyErr_NoMemory();
-    memset(m->defaults, 0, size);
-    m->defaults_pyobjects = pyobjects;
-    m->defaults_size = size;
+        return NULL;
     return m->defaults;
 }
 
@@ -1358,26 +1337,8 @@ __pyx_FusedFunction_descr_get(PyObject *self, PyObject *obj, PyObject *type)
     if (unlikely(!meth))
         return NULL;
 
-    // defaults needs copying fully rather than just copying the pointer
-    // since otherwise it will be freed on destruction of meth despite
-    // belonging to func rather than meth
-    if (func->func.defaults) {
-        PyObject **pydefaults;
-        int i;
-
-        if (unlikely(!__Pyx_CyFunction_InitDefaults(
-                (PyObject*)meth,
-                func->func.defaults_size,
-                func->func.defaults_pyobjects))) {
-            Py_XDECREF((PyObject*)meth);
-            return NULL;
-        }
-        memcpy(meth->func.defaults, func->func.defaults, func->func.defaults_size);
-
-        pydefaults = __Pyx_CyFunction_Defaults(PyObject *, meth);
-        for (i = 0; i < meth->func.defaults_pyobjects; i++)
-            Py_XINCREF(pydefaults[i]);
-    }
+    Py_XINCREF(func->func.defaults);
+    meth->func.defaults = func->func.defaults;
 
     __Pyx_CyFunction_SetClassObj(meth, __Pyx_CyFunction_GetClassObj(func));
 
@@ -1440,7 +1401,7 @@ __pyx_FusedFunction_getitem(__pyx_FusedFunctionObject *self, PyObject *idx)
             Py_DECREF(item);
 #endif
             if (unlikely(!string)) goto __pyx_err;
-            PyList_SET_ITEM(list, i, string);
+	    if (__Pyx_PyList_SET_ITEM(list, i, string) < 0) goto __pyx_err;
         }
 
         signature = PyUnicode_Join(PYUNICODE("|"), list);
@@ -1520,7 +1481,7 @@ __pyx_FusedFunction_call(PyObject *func, PyObject *args, PyObject *kw)
         self = binding_func->self;
 
         Py_INCREF(self);
-        PyTuple_SET_ITEM(new_args, 0, self);
+        if (__Pyx_PyTuple_SET_ITEM(new_args, 0, self)) goto bad;
         self = NULL;
 
         for (i = 0; i < argc; i++) {
@@ -1530,7 +1491,7 @@ __pyx_FusedFunction_call(PyObject *func, PyObject *args, PyObject *kw)
 #else
             PyObject *item = __Pyx_PySequence_ITEM(args, i);  if (unlikely(!item)) goto bad;
 #endif
-            PyTuple_SET_ITEM(new_args, i + 1, item);
+        if (__Pyx_PyTuple_SET_ITEM(new_args, i + 1, item)) goto bad;
         }
 
         args = new_args;
@@ -1676,6 +1637,9 @@ static PyTypeObject __pyx_FusedFunctionType_type = {
 #if PY_VERSION_HEX >= 0x030C0000
     0,                                  /*tp_watched*/
 #endif
+#if PY_VERSION_HEX >= 0x030d00A4
+    0,                                          /*tp_versions_used*/
+#endif
 #if CYTHON_COMPILING_IN_PYPY && PY_VERSION_HEX >= 0x03090000 && PY_VERSION_HEX < 0x030a0000
     0,                                          /*tp_pypy_flags*/
 #endif
@@ -1704,7 +1668,9 @@ static int __pyx_FusedFunction_init(PyObject *module) {
 
 //////////////////// ClassMethod.proto ////////////////////
 
+#if !CYTHON_COMPILING_IN_LIMITED_API
 #include "descrobject.h"
+#endif
 CYTHON_UNUSED static PyObject* __Pyx_Method_ClassMethod(PyObject *method); /*proto*/
 
 //////////////////// ClassMethod ////////////////////
@@ -1723,12 +1689,22 @@ static PyObject* __Pyx_Method_ClassMethod(PyObject *method) {
     if (__Pyx_TypeCheck(method, &PyMethodDescr_Type))
 #endif
     {
+#if !CYTHON_COMPILING_IN_LIMITED_API
         // cdef classes
         PyMethodDescrObject *descr = (PyMethodDescrObject *)method;
         PyTypeObject *d_type = descr->d_common.d_type;
         return PyDescr_NewClassMethod(d_type, descr->d_method);
+#else
+        return PyErr_Format(
+            PyExc_SystemError,
+            "Cython cannot yet handle classmethod on a MethodDescriptorType (%S) in limited API mode. "
+            "This is most likely a classmethod in a cdef class method with binding=False. "
+            "Try setting 'binding' to True.",
+            method);
+#endif
     }
 #endif
+#if !CYTHON_COMPILING_IN_LIMITED_API
     else if (PyMethod_Check(method)) {
         // python classes
         return PyClassMethod_New(PyMethod_GET_FUNCTION(method));
@@ -1736,4 +1712,36 @@ static PyObject* __Pyx_Method_ClassMethod(PyObject *method) {
     else {
         return PyClassMethod_New(method);
     }
+#else
+    {
+        PyObject *types_module, *method_type=NULL, *func=NULL;
+        PyObject *builtins, *classmethod, *result=NULL;
+        types_module = PyImport_ImportModule("types");
+        if (!types_module) {
+            return NULL;
+        }
+        method_type = PyObject_GetAttrString(types_module, "MethodType");
+        if (!method_type) goto bad;
+        if (__Pyx_TypeCheck(method, method_type)) {
+            func = PyObject_GetAttrString(method, "__func__");
+            if (!func) goto bad;
+        } else {
+            func = method;
+            Py_INCREF(func);
+        }
+        builtins = PyEval_GetBuiltins(); // borrowed
+        if (!builtins) goto bad;
+        classmethod = PyDict_GetItemString(builtins, "classmethod");
+        // classmethod is borrowed
+        if (!classmethod) goto bad;
+        result = PyObject_CallFunctionObjArgs(classmethod, func, NULL);
+
+        bad:
+        Py_XDECREF(func);
+        Py_XDECREF(method_type);
+        Py_DECREF(types_module);
+        return result;
+    }
+#endif
+
 }
