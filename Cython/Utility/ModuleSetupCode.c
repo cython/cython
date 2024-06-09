@@ -2245,12 +2245,13 @@ static int __Pyx_VersionSanityCheck(void) {
   //
   //  The debug and trace-refs checks are just because they're easy to do at the same time.
   //
-  //  In order to test it we cannot use any Python objects from C, since we potentially have
-  //  completely the wrong structure of PyObject.  Therefore we have to use an API that remains
-  //  the same between the different builds.  PyRun_SimpleStringFlags fits this.
+  //  In order to test it we cannot use any internals of Python objects from C
+  //  (especially refcounting) since we potentially have completely the wrong structure
+  //  of PyObject.  PyRun_SimpleStringFlags and PySys_GetObject both look fairly safe to
+  //  use like this.
   //
-  //  Since that runs in the __main__ scope, we should be careful not to define variables.
-  //
+  //  Since PyRun_SimpleStringFlags runs in the __main__ scope, we should be careful not
+  //  to define variables inside it.
   //  We use PyRun_SimpleStringFlags instead of PyRun_SimpleString since SimpleString is
   //  a macro, and MSVC doesn't like #ifdef within a macro expansion.
   //
@@ -2260,62 +2261,60 @@ static int __Pyx_VersionSanityCheck(void) {
   //  the best we can do.
   //
   #if CYTHON_COMPILING_IN_CPYTHON
-    if (PyRun_SimpleStringFlags(
-      "if 'd' "
-      #ifdef Py_DEBUG
-        "not "
+    if (PySys_GetObject("gettotalrefcount")) {
+      #ifndef Py_DEBUG
+        PyErr_SetString(
+            PyExc_ImportError,
+            "Module was compiled with a non-debug version of Python but imported into a debug version."
+        );
+        return -1;
       #endif
-      "in __import__('sysconfig').get_config_var('EXT_SUFFIX').split('-')[1]:\n"
-      "  raise ImportError",
-      NULL
-    ) == -1) {
-      PyErr_SetString(PyExc_ImportError,
+    } else {
       #ifdef Py_DEBUG
-        "Module was compiled with a debug version of Python but imported into a non-debug version."
-      #else
-        "Module was compiled with a non-debug version of Python but imported into a debug version."
+        PyErr_SetString(
+            PyExc_ImportError,
+            "Module was compiled with a debug version of Python but imported into a non-debug version."
+        );
+        return -1;
       #endif
-      );
-      return -1;
     }
     #if PY_VERSION_HEX >= 0x030d0000
     if (PyRun_SimpleStringFlags(
-      "if 't' "
+      "if "
       #ifdef Py_GIL_DISABLED
         "not "
       #endif
-      "in __import__('sysconfig').get_config_var('EXT_SUFFIX').split('-')[1]:\n"
+      "__import__('sysconfig').get_config_var('Py_GIL_DISABLED'):\n"
       "  raise ImportError",
       NULL
     ) == -1) {
-      PyErr_SetString(
-        PyExc_ImportError,
+        PyErr_SetString(
+            PyExc_ImportError,
       #ifdef Py_GIL_DISABLED
-        "Module was compiled with a freethreading build of Python but imported into a non-freethreading build."
+            "Module was compiled with a freethreading build of Python but imported into a non-freethreading build."
       #else
-        "Module was compiled with a non-freethreading build of Python but imported into a freethreading build."
+            "Module was compiled with a non-freethreading build of Python but imported into a freethreading build."
       #endif
-      );
+        );
       return -1;
     }
     #endif // version hex 3.13+
-    if (PyRun_SimpleStringFlags(
-      "if "
-      #ifdef Py_TRACE_REFS
-      "not "
+    if (PySys_GetObject("getobjects")) {
+      #ifndef Py_TRACE_REFS
+        PyErr_SetString(
+            PyExc_ImportError,
+            "Module was compiled without Py_TRACE_REFS but imported into a build of Python with."
+        );
+        return -1;
       #endif
-      "hasattr(__import__('sys'), 'getobjects'): raise ImportError",
-      NULL
-    ) == -1) {
-      PyErr_SetString(
-        PyExc_ImportError,
-        #ifdef Py_TRACE_REFS
-          "Module was compiled with Py_TRACE_REFS but imported into a build of Python without."
-        #else
-          "Module was compiled without Py_TRACE_REFS but imported into a build of Python with."
-        #endif
-      );
-      return -1;
+    } else {
+      #ifdef Py_TRACE_REFS
+        PyErr_SetString(
+            PyExc_ImportError,
+            "Module was compiled with Py_TRACE_REFS but imported into a build of Python without."
+        );
+        return -1;
+      #endif
     }
     const char code[] = "if __import__('sys').getsizeof(object()) != %u: raise ImportError";
     char formattedCode[sizeof(code)+50];
