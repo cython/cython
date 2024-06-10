@@ -68,6 +68,12 @@ class TestCls:
 def _union(arg1: Union[cython.int, str], arg2: Union[cython.int, str]):
     return cython.typeof(arg1), cython.typeof(arg2)
 
+@cython.cfunc
+def return_union(t: cython.int) -> Union[cython.int, cython.float]:
+    if t == 1:
+        return 2
+    else:
+        return 1.0
 
 class TestUnion:
 
@@ -80,15 +86,26 @@ class TestUnion:
         """
         return cython.typeof(arg)
 
-    def annotation_return(self, arg: Union[cython.int, cython.float]) -> Union[cython.int, cython.float]:
-        # FIXME: Returning Union must be failing
-        """
-        >>> TestUnion().annotation_return(1.0)
-        1.0
-        >>> TestUnion().annotation_return(2)
-        2
-        """
-        return arg
+    if cython.compiled:
+        def annotation_return(self, arg):
+            """
+            >>> TestUnion().annotation_return(1)
+            (2, 'Python object')
+            >>> TestUnion().annotation_return(2)
+            (1.0, 'Python object')
+            """
+            ret = return_union(arg)
+            return ret, cython.typeof(ret)
+    else:
+        def annotation_return(self, arg):
+            """
+            >>> TestUnion().annotation_return(1)
+            (2, 'int')
+            >>> TestUnion().annotation_return(2)
+            (1.0, 'float')
+            """
+            ret = return_union(arg)
+            return ret, cython.typeof(ret)
 
     if cython.compiled:
         def annotation_multiple_args(self, arg1: Union[cython.int, str], arg2: Union[cython.int, str]):

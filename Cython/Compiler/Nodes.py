@@ -2641,6 +2641,9 @@ class CFuncDefNode(FuncDefNode):
             if base_type is None:
                 error(self.directive_returns.pos, "Not a type")
                 base_type = PyrexTypes.error_type
+            elif isinstance(base_type, PyrexTypes.UnionType):
+                # Function with annotation of Union return type must return python object
+                base_type = PyrexTypes.py_object_type
         else:
             base_type = self.base_type.analyse(env)
         self.is_static_method = 'staticmethod' in env.directives and not env.lookup_here('staticmethod')
