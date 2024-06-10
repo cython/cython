@@ -1924,7 +1924,7 @@ class FusedType(CType):
         raise Exception("This may never happen, please report a bug")
 
     def __repr__(self):
-        return 'FusedType(name=%r)' % self.name
+        return '%s(name=%r)' % (type(self).__name__, self.name)
 
     def specialize(self, values):
         if self in values:
