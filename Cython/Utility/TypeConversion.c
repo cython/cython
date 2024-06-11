@@ -1163,6 +1163,7 @@ static PyObject *__Pyx_c_func_ptr_to_capsule(__Pyx_generic_func_pointer_$cyversi
 
 /////////////// CFuncPtrToPy ///////////////
 //@requires: StringTools.c::IncludeStringH
+//@substitute: naming
 
 static void __Pyx_destroy_c_func_ptr_capsule(PyObject *capsule) {
     void* ptr = PyCapsule_GetPointer(capsule, PyCapsule_GetName(capsule));
