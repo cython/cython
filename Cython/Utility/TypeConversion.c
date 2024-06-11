@@ -1157,6 +1157,7 @@ typedef void (*__Pyx_generic_func_pointer_$cyversion)(void);
 
 /////////////// CFuncPtrToPy.proto ///////////////
 //@requires: CFuncPtrTypedef
+//@substitute: naming
 
 static PyObject *__Pyx_c_func_ptr_to_capsule(__Pyx_generic_func_pointer_$cyversion funcptr, const char* name); /* proto */
 
