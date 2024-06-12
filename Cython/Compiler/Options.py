@@ -409,6 +409,7 @@ directive_scopes = {  # defaults to available everywhere
     'legacy_implicit_noexcept': ('module', ),
     'control_flow.dot_output': ('module',),
     'control_flow.dot_annotate_defs': ('module',),
+    'freethreading_compatible': ('module',)
 }
 
 
