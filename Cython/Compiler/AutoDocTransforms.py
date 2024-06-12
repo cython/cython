@@ -1,4 +1,5 @@
 import inspect
+
 from .Visitor import CythonTransform
 from .StringEncoding import EncodedString
 from . import Options
