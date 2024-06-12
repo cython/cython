@@ -181,6 +181,7 @@ _directive_defaults = {
     'boundscheck' : True,
     'nonecheck' : False,
     'initializedcheck' : True,
+    'freethreading_compatible': False,
     'embedsignature': False,
     'embedsignature.format': 'c',
     'auto_cpdef': False,
@@ -350,6 +351,7 @@ directive_types = {
     'dataclasses.dataclass': DEFER_ANALYSIS_OF_ARGUMENTS,
     'dataclasses.field': DEFER_ANALYSIS_OF_ARGUMENTS,
     'embedsignature.format': one_of('c', 'clinic', 'python'),
+    'freethreading_compatible': bool,
 }
 
 for key, val in _directive_defaults.items():

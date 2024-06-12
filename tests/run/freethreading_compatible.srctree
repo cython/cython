@@ -1,0 +1,40 @@
+PYTHON setup.py build_ext --inplace
+PYTHON -c "import default; default.test()"
+PYTHON -c "import compatible; compatible.test()"
+PYTHON -c "import incompatible; incompatible.test()"
+
+######## setup.py ########
+
+from Cython.Build.Dependencies import cythonize
+from distutils.core import setup
+
+ext_modules = []
+
+# Test language_level specified in the cythonize() call
+ext_modules += cythonize("default.py")
+ext_modules += cythonize("compatible.py")
+ext_modules += cythonize("incompatible.py")
+
+setup(ext_modules=ext_modules)
+
+######## default.py ########
+
+def test():
+    import sys
+    assert sys._is_gil_enabled()
+
+######## compatible.py ########
+
+# cython: freethreading_compatible=True
+
+def test():
+    import sys
+    assert not sys._is_gil_enabled()
+
+######## incompatible.py ########
+
+# cython: freethreading_compatible=False
+
+def test():
+    import sys
+    assert sys._is_gil_enabled()
