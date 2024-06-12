@@ -21,6 +21,9 @@ setup(ext_modules=ext_modules)
 
 def test():
     import sys
+    import sysconfig
+    if not sysconfig.get_config_var("Py_GIL_DISABLED"):
+        return
     assert sys._is_gil_enabled()
 
 ######## compatible.py ########
@@ -29,6 +32,9 @@ def test():
 
 def test():
     import sys
+    import sysconfig
+    if not sysconfig.get_config_var("Py_GIL_DISABLED"):
+        return
     assert not sys._is_gil_enabled()
 
 ######## incompatible.py ########
@@ -37,4 +43,7 @@ def test():
 
 def test():
     import sys
+    import sysconfig
+    if not sysconfig.get_config_var("Py_GIL_DISABLED"):
+        return
     assert sys._is_gil_enabled()

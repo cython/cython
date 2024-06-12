@@ -839,7 +839,9 @@ Cython code.  Here is the list of currently supported directives:
     without an active GIL and prevent the GIL from being enabled
     when the module is imported. Otherwise the slot is set to
     ``Py_MOD_GIL_USED`` which will cause the GIL to be automatically
-    enabled. Default is False.
+    enabled. Setting this to True does not itself make the module safe
+    to run without the GIL; it merely confirms that you have checked
+    the logic and consider it safe to run. Default is False.
 
 ``overflowcheck`` (True / False)
     If set to True, raise errors on overflowing C integer arithmetic
