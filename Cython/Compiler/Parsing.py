@@ -2528,6 +2528,7 @@ def p_IF_statement(s: PyrexScanner, ctx):
 @cython.cfunc
 def p_statement(s: PyrexScanner, ctx, first_statement: cython.bint = 0):
     cdef_flag = ctx.cdef_flag
+    warn_deprecated_if = s.context.compiler_directives.get("warn.deprecated_if", False)
     decorators = None
     if s.sy == 'ctypedef':
         if ctx.level not in ('module', 'module_pxd'):
@@ -2544,10 +2545,11 @@ def p_statement(s: PyrexScanner, ctx, first_statement: cython.bint = 0):
         #         "See https://github.com/cython/cython/issues/4310", level=1)
         return p_DEF_statement(s)
     elif s.sy == 'IF':
-        warning(s.position(),
-                "The 'IF' statement is deprecated and will be removed in a future Cython version. "
-                "Consider using runtime conditions or C macros instead. "
-                "See https://github.com/cython/cython/issues/4310", level=1)
+        if warn_deprecated_if:
+            warning(s.position(),
+                    "The 'IF' statement is deprecated and will be removed in a future Cython version. "
+                    "Consider using runtime conditions or C macros instead. "
+                    "See https://github.com/cython/cython/issues/4310", level=1)
         return p_IF_statement(s, ctx)
     elif s.sy == '@':
         if ctx.level not in ('module', 'class', 'c_class', 'function', 'property', 'module_pxd', 'c_class_pxd', 'other'):
