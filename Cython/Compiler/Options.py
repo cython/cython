@@ -235,7 +235,8 @@ _directive_defaults = {
     'warn.unused_arg': False,
     'warn.unused_result': False,
     'warn.multiple_declarators': True,
-    'warn.deprecated_if': True,
+    # 'warn.deprecated.DEF': True,
+    'warn.deprecated.IF': True,
     'show_performance_hints': True,
 
 # optimizations
