@@ -2284,8 +2284,7 @@ static int __Pyx_VersionSanityCheck(void) {
       #ifdef Py_GIL_DISABLED
         "not "
       #endif
-      "__import__('sysconfig').get_config_var('Py_GIL_DISABLED'):\n"
-      "  raise ImportError",
+      "__import__('sysconfig').get_config_var('Py_GIL_DISABLED'): raise ImportError",
       NULL
     ) == -1) {
         PyErr_SetString(
