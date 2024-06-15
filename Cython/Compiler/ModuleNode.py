@@ -3566,8 +3566,6 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         else:
             cleanup_func = 'NULL'
 
-        freethreading_compatible = env.directives['freethreading_compatible']
-
         code.putln("")
         code.putln("#if CYTHON_PEP489_MULTI_PHASE_INIT")
         exec_func_cname = self.module_init_func_cname()
@@ -3579,10 +3577,10 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("{Py_mod_create, (void*)%s}," % Naming.pymodule_create_func_cname)
         code.putln("{Py_mod_exec, (void*)%s}," % exec_func_cname)
         code.putln("#if CYTHON_COMPILING_IN_CPYTHON_FREETHREADING")
-        if freethreading_compatible:
-            code.putln("{Py_mod_gil, Py_MOD_GIL_NOT_USED},")
-        else:
-            code.putln("{Py_mod_gil, Py_MOD_GIL_USED},")
+        code.putln("{Py_mod_gil, %s}," %
+                   "Py_MOD_GIL_NOT_USED"
+                   if env.directives["freethreading_compatible"]
+                   else "Py_MOD_GIL_USED")
         code.putln("#endif")
         code.putln("{0, NULL}")
         code.putln("};")
@@ -3638,8 +3636,6 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         else:
             doc = "0"
 
-        freethreading_compatible = env.directives['freethreading_compatible']
-
         code.putln("#if CYTHON_PEP489_MULTI_PHASE_INIT")
         code.putln("%s = %s;" % (
             env.module_cname,
@@ -3676,10 +3672,10 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln(code.error_goto_if_null(env.module_cname, self.pos))
         code.putln("#endif")  # CYTHON_USE_MODULE_STATE
         code.putln("#if CYTHON_COMPILING_IN_CPYTHON_FREETHREADING")
-        if freethreading_compatible:
-            code.putln("PyUnstable_Module_SetGIL(%s, Py_MOD_GIL_NOT_USED);" % env.module_cname)
-        else:
-            code.putln("PyUnstable_Module_SetGIL(%s, Py_MOD_GIL_USED);" % env.module_cname)
+        gil_option = ("Py_MOD_GIL_NOT_USED"
+                      if env.directives["freethreading_compatible"]
+                      else "Py_MOD_GIL_USED")
+        code.putln(f"PyUnstable_Module_SetGIL({env.module_cname}, {gil_option});")
         code.putln("#endif")
         code.putln("#endif")  # CYTHON_PEP489_MULTI_PHASE_INIT
         code.putln("CYTHON_UNUSED_VAR(%s);" % module_temp)  # only used in limited API
