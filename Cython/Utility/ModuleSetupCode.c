@@ -2261,6 +2261,8 @@ static int __Pyx_VersionSanityCheck(void) {
   //  the best we can do.
   //
   #if CYTHON_COMPILING_IN_CPYTHON
+  // from Python 3.8 debug and release builds are ABI compatible so skip the check
+  #if PY_VERSION_HEX < 0x03080000
     if (PySys_GetObject("gettotalrefcount")) {
       #ifndef Py_DEBUG
         PyErr_SetString(
@@ -2278,7 +2280,8 @@ static int __Pyx_VersionSanityCheck(void) {
         return -1;
       #endif
     }
-    #if PY_VERSION_HEX >= 0x030d0000
+  #endif // Py_VERSION_HEX < 0x03080000
+  #if PY_VERSION_HEX >= 0x030d0000
     if (PyRun_SimpleStringFlags(
       "if "
       #ifdef Py_GIL_DISABLED
@@ -2297,7 +2300,7 @@ static int __Pyx_VersionSanityCheck(void) {
         );
       return -1;
     }
-    #endif // version hex 3.13+
+  #endif // version hex 3.13+
     if (PySys_GetObject("getobjects")) {
       #ifndef Py_TRACE_REFS
         PyErr_SetString(
