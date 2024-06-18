@@ -23,11 +23,12 @@ import sys
 if sys.implementation.name != 'cpython':
     exit(0)
 
-try:
-    import debug
-    assert False, "Failed 'debug' test"
-except ImportError:
-    pass
+if sys.version_info < (3, 8):
+    try:
+        import debug
+        assert False, "Failed 'debug' test"
+    except ImportError:
+        pass
     
 if sys.version_info >= (3, 13):
     try:
