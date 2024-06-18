@@ -1062,9 +1062,9 @@ to turn the warning on / off.
    For example ``cdef double* a, b`` - which, as in C, declares ``a`` as a pointer, ``b`` as
    a value type, but could be mininterpreted as declaring two pointers.
 
-.. ``warn.deprecated.DEF`` (default True)
-..   Warns about use of the deprecated ``DEF`` statement in Cython code, see
-..  :ref:`conditional_compilation` and :ref:`deprecated_DEF_IF`.
+``warn.deprecated.DEF`` (default False)
+  Warns about use of the deprecated ``DEF`` statement in Cython code, see
+ :ref:`conditional_compilation` and :ref:`deprecated_DEF_IF`.
 
 ``warn.deprecated.IF`` (default True)
   Warns about use of the deprecated ``IF`` statement in Cython code, see
