@@ -1,4 +1,6 @@
-# http://pubs.opengroup.org/onlinepubs/009695399/basedefs/sys/mman.h.html
+# https://pubs.opengroup.org/onlinepubs/9699919799/basedefs/sys_mman.h.html
+# https://man7.org/linux/man-pages/man2/mmap.2.html
+# https://www.freebsd.org/cgi/man.cgi?query=mmap&sektion=2
 
 from posix.types cimport off_t, mode_t
 
@@ -24,6 +26,8 @@ cdef extern from "<sys/mman.h>" nogil:
     enum: MAP_NOCORE                #  Typically available only on BSD
     enum: MAP_NOSYNC
 
+    void *MAP_FAILED
+
     void *mmap(void *addr, size_t Len, int prot, int flags, int fd, off_t off)
     int   munmap(void *addr, size_t Len)
     int   mprotect(void *addr, size_t Len, int prot)
@@ -46,17 +50,34 @@ cdef extern from "<sys/mman.h>" nogil:
     int   munlock(const void *addr, size_t Len)
     int   mlockall(int flags)
     int   munlockall()
+    # Linux-specific
+    enum: MLOCK_ONFAULT
+    enum: MCL_ONFAULT
+    int   mlock2(const void *addr, size_t len, int flags)
 
     int shm_open(const char *name, int oflag, mode_t mode)
     int shm_unlink(const char *name)
 
     # often available
-    enum: MADV_REMOVE               # pre-POSIX advice flags; often available
+    enum: MADV_NORMAL               # pre-POSIX advice flags; should translate 1-1 to POSIX_*
+    enum: MADV_RANDOM               # but in practice it is not always the same.
+    enum: MADV_SEQUENTIAL
+    enum: MADV_WILLNEED
+    enum: MADV_DONTNEED
+    enum: MADV_REMOVE               # other pre-POSIX advice flags; often available
     enum: MADV_DONTFORK
     enum: MADV_DOFORK
     enum: MADV_HWPOISON
     enum: MADV_MERGEABLE,
     enum: MADV_UNMERGEABLE
+    enum: MADV_SOFT_OFFLINE
+    enum: MADV_HUGEPAGE
+    enum: MADV_NOHUGEPAGE
+    enum: MADV_DONTDUMP
+    enum: MADV_DODUMP
+    enum: MADV_FREE
+    enum: MADV_WIPEONFORK
+    enum: MADV_KEEPONFORK
     int   madvise(void *addr, size_t Len, int advice)
 
     # sometimes available

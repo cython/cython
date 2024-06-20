@@ -1,14 +1,15 @@
 cimport cython
 
 cdef object two = 2
-cdef int size_in_bits = sizeof(INT) * 8
 
+cdef int size_in_bits_ = sizeof(INT) * 8
 cdef bint is_signed_ = not ((<INT>-1) > 0)
-cdef INT max_value_ = <INT>(two ** (size_in_bits - is_signed_) - 1)
+cdef INT max_value_ = <INT>(two ** (size_in_bits_ - is_signed_) - 1)
 cdef INT min_value_ = ~max_value_
 cdef INT half_ = max_value_ // <INT>2
 
 # Python visible.
+size_in_bits = size_in_bits_
 is_signed = is_signed_
 max_value = max_value_
 min_value = min_value_
@@ -230,6 +231,17 @@ def test_lshift(INT a, int b):
     """
     >>> test_lshift(1, 10)
     1024
+    >>> test_lshift(1, size_in_bits - 2) == 1 << (size_in_bits - 2)
+    True
+    >>> test_lshift(0, size_in_bits - 1)
+    0
+    >>> test_lshift(1, size_in_bits - 1) == 1 << (size_in_bits - 1) if not is_signed else True
+    True
+    >>> if is_signed: expect_overflow(test_lshift, 1, size_in_bits - 1)
+    >>> expect_overflow(test_lshift, 0, size_in_bits)
+    >>> expect_overflow(test_lshift, 1, size_in_bits)
+    >>> expect_overflow(test_lshift, 0, size_in_bits + 1)
+    >>> expect_overflow(test_lshift, 1, size_in_bits + 1)
     >>> expect_overflow(test_lshift, 1, 100)
     >>> expect_overflow(test_lshift, max_value, 1)
     >>> test_lshift(max_value, 0) == max_value

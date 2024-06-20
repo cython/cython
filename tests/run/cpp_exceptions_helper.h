@@ -1,3 +1,4 @@
+#include <Python.h>
 #include <ios>
 #include <new>
 #include <stdexcept>
@@ -60,4 +61,20 @@ void raise_typeerror() {
 
 void raise_underflow() {
     throw std::underflow_error("underflow_error");
+}
+
+PyObject *raise_or_throw(int py) {
+    if (!py) {
+        throw std::runtime_error("oopsie");
+    }
+    PyErr_SetString(PyExc_ValueError, "oopsie");
+    return NULL;
+}
+
+int raise_or_throw_int(int py) {
+    if (!py) {
+        throw std::runtime_error("oopsie");
+    }
+    PyErr_SetString(PyExc_ValueError, "oopsie");
+    return -1;
 }

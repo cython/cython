@@ -53,7 +53,7 @@ class Integral {
         resize_signed_int(bytes, N, extended, len);
     }
     bool res = memcmp(extended, other, len);
-    delete extended;
+    delete [] extended;
     return res;
   }
   bool operator!=(const long long val) const

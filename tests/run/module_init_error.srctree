@@ -8,7 +8,7 @@ from Cython.Build.Dependencies import cythonize
 from distutils.core import setup
 
 setup(
-    ext_modules = cythonize("fail_in_init*.pyx")
+    ext_modules = cythonize("fail_in_*.pyx")
 )
 
 ######## test_fail_in_init.py ########
@@ -23,9 +23,7 @@ def try_import():
     else:
         raise RuntimeError("expected ValueError from import")
 
-    if (3, 3) <= sys.version_info < (3, 5):
-        assert 'fail_in_init' not in sys.modules
-    elif 'fail_in_init' in sys.modules:
+    if 'fail_in_init' in sys.modules:
         try:
             sys.modules['fail_in_init'].fail()
         except AttributeError:
@@ -34,6 +32,13 @@ def try_import():
             pass  # this is what we had expected
         else:
             raise RuntimeError("expected ValueError from call through sys.modules")
+
+    try:
+        import fail_in_set_name
+    except ValueError:
+        pass
+    else:
+        raise RuntimeError("expected ValueError from __set_name__")
 
 ######## fail_in_init.pyx ########
 
@@ -69,3 +74,13 @@ def fail():
     raise ValueError("holla!")
 
 fail()
+
+######## fail_in_set_name.pyx ########
+
+class SetName:
+
+    def __set_name__(self, owner, name):
+        raise ValueError()
+
+cdef class Klass:
+    attr = SetName()

@@ -1,6 +1,6 @@
 # mode: run
 # tag: list, set, builtins
-# ticket: 688
+# ticket: t688
 
 _set = set
 

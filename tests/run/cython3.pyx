@@ -1,6 +1,6 @@
-# cython: language_level=3, binding=True
+# cython: language_level=3, binding=True, annotation_typing=False
 # mode: run
-# tag: generators, python3, exceptions
+# tag: generators, python3, exceptions, gh2230, gh2811
 
 print(end='')  # test that language_level 3 applies immediately at the module start, for the first token.
 
@@ -12,21 +12,31 @@ __doc__ = """
 ...     print('%s = %r' % item)
 a = 1
 b = 2
-x = u'abc'
+x = 'abc'
 
 >>> except_as_deletes
 True
+
 >>> no_match_does_not_touch_target
 True
 """
 
-import sys
-if sys.version_info[0] >= 3:
-    __doc__ = __doc__.replace(" u'", " '")
 
 def locals_function(a, b=2):
     x = 'abc'
     return locals()
+
+
+### "new style" classes
+
+class T:
+    """
+    >>> t = T()
+    >>> isinstance(t, T)
+    True
+    >>> isinstance(T, type)  # not a Py2 old style class!
+    True
+    """
 
 
 ### true division
@@ -257,6 +267,32 @@ def except_as_deletes_target_in_gen(x, a):
         yield 6
 
 
+def nested_except_gh3666(a=False, b=False):
+    """
+    >>> print(nested_except_gh3666())
+    A
+    >>> print(nested_except_gh3666(a=True))
+    B-V
+    >>> print(nested_except_gh3666(a=True, b=True))
+    B-V-T
+    """
+    try:
+        if a:
+            raise ValueError
+        return "A"
+    except TypeError as exc:
+        return "A-T"
+    except ValueError as exc:
+        try:
+            if b:
+                raise TypeError
+            return "B-V"
+        except ValueError as exc:
+            return "B-V-V"
+        except TypeError as exc:
+            return "B-V-T"
+
+
 ### Py3 feature tests
 
 def print_function(*args):
@@ -310,6 +346,45 @@ def unicode_literals():
     """
     print(isinstance(ustring, unicode) or type(ustring))
     return ustring
+
+
+def non_ascii_unprefixed_str():
+    """
+    >>> s = non_ascii_unprefixed_str()
+    >>> isinstance(s, bytes)
+    False
+    >>> len(s)
+    3
+    """
+    s = 'ø\x20\u0020'
+    assert isinstance(s, unicode)
+    return s
+
+
+def non_ascii_raw_str():
+    """
+    >>> s = non_ascii_raw_str()
+    >>> isinstance(s, bytes)
+    False
+    >>> len(s)
+    11
+    """
+    s = r'ø\x20\u0020'
+    assert isinstance(s, unicode)
+    return s
+
+
+def non_ascii_raw_prefixed_unicode():
+    """
+    >>> s = non_ascii_raw_prefixed_unicode()
+    >>> isinstance(s, bytes)
+    False
+    >>> len(s)
+    11
+    """
+    s = ru'ø\x20\u0020'
+    assert isinstance(s, unicode)
+    return s
 
 
 def str_type_is_unicode():
@@ -538,16 +613,71 @@ def annotation_syntax(a: "test new test", b : "other" = 2, *args: "ARGS", **kwar
     >>> len(annotation_syntax.__annotations__)
     5
     >>> print(annotation_syntax.__annotations__['a'])
-    test new test
+    'test new test'
     >>> print(annotation_syntax.__annotations__['b'])
-    other
+    'other'
     >>> print(annotation_syntax.__annotations__['args'])
-    ARGS
+    'ARGS'
     >>> print(annotation_syntax.__annotations__['kwargs'])
-    KWARGS
+    'KWARGS'
     >>> print(annotation_syntax.__annotations__['return'])
-    ret
+    'ret'
     """
     result : int = a + b
 
     return result
+
+
+@cython.annotation_typing(False)
+def builtin_as_ignored_annotation(text: str):
+    # Used to crash the compiler when annotation typing is disabled.
+    # See https://github.com/cython/cython/issues/2811
+    """
+    >>> builtin_as_ignored_annotation("abc")
+    a
+    b
+    c
+    """
+    for c in text:
+        print(c)
+
+
+@cython.annotation_typing(True)
+def int_annotation(x: int) -> int:
+    """
+    >>> print(int_annotation(1))
+    2
+    >>> print(int_annotation(10))
+    1024
+    >>> print(int_annotation(100))
+    1267650600228229401496703205376
+    >>> print(int_annotation((10 * 1000 * 1000) // 1000 // 1000))  # 'long' arg in Py2
+    1024
+    >>> print(int_annotation((100 * 1000 * 1000) // 1000 // 1000))  # 'long' arg in Py2
+    1267650600228229401496703205376
+    """
+    return 2 ** x
+
+
+@cython.annotation_typing(True)
+async def async_def_annotations(x: 'int') -> 'float':
+    """
+    >>> ret, arg = sorted(async_def_annotations.__annotations__.items())
+    >>> print(ret[0]); print(ret[1])
+    return
+    'float'
+    >>> print(arg[0]); print(arg[1])
+    x
+    'int'
+    """
+    return float(x)
+
+
+def const_str_index(int n):
+    """
+    >>> const_str_index(0)
+    '0'
+    >>> const_str_index(12)
+    '1'
+    """
+    return str(n)[0]

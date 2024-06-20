@@ -1,20 +1,43 @@
-PYTHON?=python
+PACKAGENAME=Cython
+PYTHON?=python3
 TESTOPTS?=
 REPO = git://github.com/cython/cython.git
 VERSION?=$(shell sed -ne 's|^__version__\s*=\s*"\([^"]*\)".*|\1|p' Cython/Shadow.py)
+PARALLEL?=-j5
 
-MANYLINUX_IMAGE_X86_64=quay.io/pypa/manylinux1_x86_64
-MANYLINUX_IMAGE_686=quay.io/pypa/manylinux1_i686
+MANYLINUX_CFLAGS=-O3 -g0 -mtune=generic -pipe -fPIC
+MANYLINUX_LDFLAGS=
+MANYLINUX_IMAGES= \
+	manylinux2014_x86_64 \
+	manylinux2014_i686 \
+	musllinux_1_1_x86_64 \
+	musllinux_1_1_aarch64 \
+	manylinux_2_24_x86_64 \
+	manylinux_2_24_i686 \
+	manylinux_2_24_aarch64 \
+	manylinux_2_28_x86_64 \
+	manylinux_2_28_aarch64 \
+#	manylinux_2_24_ppc64le \
+#	manylinux_2_24_s390x
 
 all:    local
 
 local:
-	${PYTHON} setup.py build_ext --inplace
+	${PYTHON} setup.py build_ext --inplace $(PARALLEL)
 
-sdist: dist/Cython-$(VERSION).tar.gz
+plocal:
+	${PYTHON} setup.py build_ext --inplace --cython-profile $(PARALLEL)
 
-dist/Cython-$(VERSION).tar.gz:
+sdist: dist/$(PACKAGENAME)-$(VERSION).tar.gz
+
+dist/$(PACKAGENAME)-$(VERSION).tar.gz:
 	$(PYTHON) setup.py sdist
+
+pywheel: dist/$(PACKAGENAME)-$(VERSION)-py3-none-any.whl
+
+dist/$(PACKAGENAME)-$(VERSION)-py3-none-any.whl:
+	${PYTHON} setup.py bdist_wheel --no-cython-compile
+	[ -f "$@" ]  # check that we generated the expected Py3-only wheel
 
 TMPDIR = .repo_tmp
 .git: .gitrev
@@ -25,6 +48,7 @@ TMPDIR = .repo_tmp
 	rm -rf $(TMPDIR)
 	git ls-files -d | xargs git checkout --
 
+# Create a git repo from an unpacked source directory.
 repo: .git
 
 
@@ -36,6 +60,7 @@ clean:
 	@rm -f *.pyd */*.pyd */*/*.pyd
 	@rm -f *~ */*~ */*/*~
 	@rm -f core */core
+	@rm -f Cython/*.c
 	@rm -f Cython/Compiler/*.c
 	@rm -f Cython/Plex/*.c
 	@rm -f Cython/Tempita/*.c
@@ -48,22 +73,33 @@ testclean:
 test:	testclean
 	${PYTHON} runtests.py -vv ${TESTOPTS}
 
+checks:
+	${PYTHON} runtests.py -vv --no-unit --no-doctest --no-file --no-pyregr --no-examples
+
 s5:
 	$(MAKE) -C Doc/s5 slides
 
-wheel_manylinux: wheel_manylinux64 wheel_manylinux32
+qemu-user-static:
+	docker run --rm --privileged hypriot/qemu-register
 
-wheel_manylinux32 wheel_manylinux64: dist/Cython-$(VERSION).tar.gz
-	echo "Building wheels for Cython $(VERSION)"
+wheel_manylinux: sdist $(addprefix wheel_,$(MANYLINUX_IMAGES))
+$(addprefix wheel_,$(filter-out %_x86_64, $(filter-out %_i686, $(MANYLINUX_IMAGES)))): qemu-user-static
+
+wheel_%: dist/$(PACKAGENAME)-$(VERSION).tar.gz
+	echo "Building wheels for $(PACKAGENAME) $(VERSION)"
 	mkdir -p wheelhouse_$(subst wheel_,,$@)
 	time docker run --rm -t \
 		-v $(shell pwd):/io \
-		-e CFLAGS="-O3 -g0 -mtune=generic -pipe -fPIC" \
-		-e LDFLAGS="$(LDFLAGS) -fPIC" \
-		-e WHEELHOUSE=wheelhouse_$(subst wheel_,,$@) \
-		$(if $(patsubst %32,,$@),$(MANYLINUX_IMAGE_X86_64),$(MANYLINUX_IMAGE_686)) \
-		bash -c 'for PYBIN in /opt/python/*/bin; do \
+		-e CFLAGS="$(MANYLINUX_CFLAGS)" \
+		-e LDFLAGS="$(MANYLINUX_LDFLAGS) -fPIC" \
+		-e WHEELHOUSE=wheelhouse$(subst wheel_musllinux,,$(subst wheel_manylinux,,$@)) \
+		quay.io/pypa/$(subst wheel_,,$@) \
+		bash -c '\
+			rm -fr /opt/python/*pypy* ; \
+			rm -fr /opt/python/*{27*,3[456]*} ; \
+			ls /opt/python/ ; \
+			for PYBIN in /opt/python/cp*/bin; do \
 		    $$PYBIN/python -V; \
 		    { $$PYBIN/pip wheel -w /io/$$WHEELHOUSE /io/$< & } ; \
 		    done; wait; \
-		    for whl in /io/$$WHEELHOUSE/Cython-$(VERSION)-*-linux_*.whl; do auditwheel repair $$whl -w /io/$$WHEELHOUSE; done'
+		    for whl in /io/$$WHEELHOUSE/$(PACKAGENAME)-$(VERSION)-*-linux_*.whl; do auditwheel repair $$whl -w /io/$$WHEELHOUSE; done'

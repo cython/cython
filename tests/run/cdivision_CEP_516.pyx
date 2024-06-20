@@ -27,6 +27,9 @@ True
 >>> [test_cdiv_cmod(a, b) for a, b in v]
 [(1, 7), (-1, -7), (1, -7), (-1, 7)]
 
+>>> [test_cdiv_cmod(a, b) for a, b in [(4, -4), (4, -2), (4, -1)]]
+[(-1, 0), (-2, 0), (-4, 0)]
+
 >>> all([mod_int_py(a,b) == a % b for a in range(-10, 10) for b in range(-10, 10) if b != 0])
 True
 >>> all([div_int_py(a,b) == a // b for a in range(-10, 10) for b in range(-10, 10) if b != 0])
@@ -184,8 +187,7 @@ def py_div_long(long a, long b):
     >>> py_div_long(-5, -1)
     5
     >>> import sys
-    >>> maxint = getattr(sys, ((sys.version_info[0] >= 3) and 'maxsize' or 'maxint'))
-    >>> py_div_long(-maxint-1, -1) # doctest: +ELLIPSIS
+    >>> py_div_long(-sys.maxsize-1, -1) # doctest: +ELLIPSIS
     Traceback (most recent call last):
     ...
     OverflowError: ...

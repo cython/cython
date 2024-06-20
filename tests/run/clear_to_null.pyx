@@ -2,7 +2,7 @@
 Check that Cython generates a tp_clear function that actually clears object
 references to NULL instead of None.
 
-Discussed here: http://article.gmane.org/gmane.comp.python.cython.devel/14833
+Discussed here: https://article.gmane.org/gmane.comp.python.cython.devel/14833
 """
 
 from cpython.ref cimport PyObject, Py_TYPE

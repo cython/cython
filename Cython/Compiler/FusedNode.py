@@ -1,12 +1,12 @@
-from __future__ import absolute_import
-
 import copy
 
 from . import (ExprNodes, PyrexTypes, MemoryView,
-               ParseTreeTransforms, StringEncoding, Errors)
+               ParseTreeTransforms, StringEncoding, Errors,
+               Naming)
 from .ExprNodes import CloneNode, ProxyNode, TupleNode
 from .Nodes import FuncDefNode, CFuncDefNode, StatListNode, DefNode
 from ..Utils import OrderedSet
+from .Errors import error, CannotSpecialize
 
 
 class FusedCFuncDefNode(StatListNode):
@@ -48,7 +48,7 @@ class FusedCFuncDefNode(StatListNode):
         '__signatures__', 'resulting_fused_function', 'fused_func_assignment']
 
     def __init__(self, node, env):
-        super(FusedCFuncDefNode, self).__init__(node.pos)
+        super().__init__(node.pos)
 
         self.nodes = []
         self.node = node
@@ -141,18 +141,25 @@ class FusedCFuncDefNode(StatListNode):
             copied_node = copy.deepcopy(self.node)
 
             # Make the types in our CFuncType specific.
-            type = copied_node.type.specialize(fused_to_specific)
+            try:
+                type = copied_node.type.specialize(fused_to_specific)
+            except CannotSpecialize:
+                # unlike for the argument types, specializing the return type can fail
+                error(copied_node.pos, "Return type is a fused type that cannot "
+                      "be determined from the function arguments")
+                self.py_func = None  # this is just to let the compiler exit gracefully
+                return
             entry = copied_node.entry
             type.specialize_entry(entry, cname)
 
             # Reuse existing Entries (e.g. from .pxd files).
-            for i, orig_entry in enumerate(env.cfunc_entries):
+            for orig_entry in env.cfunc_entries:
                 if entry.cname == orig_entry.cname and type.same_as_resolved_type(orig_entry.type):
-                    copied_node.entry = env.cfunc_entries[i]
+                    copied_node.entry = orig_entry
                     if not copied_node.entry.func_cname:
                         copied_node.entry.func_cname = entry.func_cname
-                    entry = copied_node.entry
-                    type = entry.type
+                    entry = orig_entry
+                    type = orig_entry.type
                     break
             else:
                 new_cfunc_entries.append(entry)
@@ -190,12 +197,11 @@ class FusedCFuncDefNode(StatListNode):
                 break
 
         # replace old entry with new entries
-        try:
+        if self.node.entry in env.cfunc_entries:
             cindex = env.cfunc_entries.index(self.node.entry)
-        except ValueError:
-            env.cfunc_entries.extend(new_cfunc_entries)
-        else:
             env.cfunc_entries[cindex:cindex+1] = new_cfunc_entries
+        else:
+            env.cfunc_entries.extend(new_cfunc_entries)
 
         if orig_py_func:
             self.py_func = self.make_fused_cpdef(orig_py_func, env,
@@ -220,6 +226,10 @@ class FusedCFuncDefNode(StatListNode):
                 arg.type = arg.type.specialize(fused_to_specific)
                 if arg.type.is_memoryviewslice:
                     arg.type.validate_memslice_dtype(arg.pos)
+                if arg.annotation:
+                    # TODO might be nice if annotations were specialized instead?
+                    # (Or might be hard to do reliably)
+                    arg.annotation.untyped = True
 
     def create_new_local_scope(self, node, env, f2s):
         """
@@ -264,12 +274,12 @@ class FusedCFuncDefNode(StatListNode):
         Returns whether an error was issued and whether we should stop in
         in order to prevent a flood of errors.
         """
-        num_errors = Errors.num_errors
+        num_errors = Errors.get_errors_count()
         transform = ParseTreeTransforms.ReplaceFusedTypeChecks(
                                        copied_node.local_scope)
         transform(copied_node)
 
-        if Errors.num_errors > num_errors:
+        if Errors.get_errors_count() > num_errors:
             return False
 
         return True
@@ -281,20 +291,22 @@ class FusedCFuncDefNode(StatListNode):
         """
         for specialized_type in normal_types:
             # all_numeric = all_numeric and specialized_type.is_numeric
+            py_type_name = specialized_type.py_type_name()
             pyx_code.context.update(
-                py_type_name=specialized_type.py_type_name(),
+                py_type_name=py_type_name,
                 specialized_type_name=specialized_type.specialization_string,
             )
             pyx_code.put_chunk(
-                u"""
+                """
                     if isinstance(arg, {{py_type_name}}):
                         dest_sig[{{dest_sig_idx}}] = '{{specialized_type_name}}'; break
                 """)
 
     def _dtype_name(self, dtype):
+        name = str(dtype).replace('_', '__').replace(' ', '_')
         if dtype.is_typedef:
-            return '___pyx_%s' % dtype
-        return str(dtype).replace(' ', '_')
+            name = Naming.fused_dtype_prefix + name
+        return name
 
     def _dtype_type(self, dtype):
         if dtype.is_typedef:
@@ -309,25 +321,21 @@ class FusedCFuncDefNode(StatListNode):
 
     def _buffer_check_numpy_dtype_setup_cases(self, pyx_code):
         "Setup some common cases to match dtypes against specializations"
-        if pyx_code.indenter("if kind in b'iu':"):
+        with pyx_code.indenter("if kind in u'iu':"):
             pyx_code.putln("pass")
             pyx_code.named_insertion_point("dtype_int")
-            pyx_code.dedent()
 
-        if pyx_code.indenter("elif kind == b'f':"):
+        with pyx_code.indenter("elif kind == u'f':"):
             pyx_code.putln("pass")
             pyx_code.named_insertion_point("dtype_float")
-            pyx_code.dedent()
 
-        if pyx_code.indenter("elif kind == b'c':"):
+        with pyx_code.indenter("elif kind == u'c':"):
             pyx_code.putln("pass")
             pyx_code.named_insertion_point("dtype_complex")
-            pyx_code.dedent()
 
-        if pyx_code.indenter("elif kind == b'O':"):
+        with pyx_code.indenter("elif kind == u'O':"):
             pyx_code.putln("pass")
             pyx_code.named_insertion_point("dtype_object")
-            pyx_code.dedent()
 
     match = "dest_sig[{{dest_sig_idx}}] = '{{specialized_type_name}}'"
     no_match = "dest_sig[{{dest_sig_idx}}] = None"
@@ -355,20 +363,20 @@ class FusedCFuncDefNode(StatListNode):
             ]
 
             for dtype_category, codewriter in dtypes:
-                if dtype_category:
-                    cond = '{{itemsize_match}} and (<Py_ssize_t>arg.ndim) == %d' % (
-                                                    specialized_type.ndim,)
-                    if dtype.is_int:
-                        cond += ' and {{signed_match}}'
+                if not dtype_category:
+                    continue
+                cond = '{{itemsize_match}} and (<Py_ssize_t>arg.ndim) == %d' % (
+                                                specialized_type.ndim,)
+                if dtype.is_int:
+                    cond += ' and {{signed_match}}'
 
-                    if final_type.is_pythran_expr:
-                        cond += ' and arg_is_pythran_compatible'
+                if final_type.is_pythran_expr:
+                    cond += ' and arg_is_pythran_compatible'
 
-                    if codewriter.indenter("if %s:" % cond):
-                        #codewriter.putln("print 'buffer match found based on numpy dtype'")
-                        codewriter.putln(self.match)
-                        codewriter.putln("break")
-                        codewriter.dedent()
+                with codewriter.indenter("if %s:" % cond):
+                    #codewriter.putln("print 'buffer match found based on numpy dtype'")
+                    codewriter.putln(self.match)
+                    codewriter.putln("break")
 
     def _buffer_parse_format_string_check(self, pyx_code, decl_code,
                                           specialized_type, env):
@@ -394,15 +402,30 @@ class FusedCFuncDefNode(StatListNode):
 
         pyx_code.context.update(
             specialized_type_name=specialized_type.specialization_string,
-            sizeof_dtype=self._sizeof_dtype(dtype))
+            sizeof_dtype=self._sizeof_dtype(dtype),
+            ndim_dtype=specialized_type.ndim,
+            dtype_is_struct_obj=int(dtype.is_struct or dtype.is_pyobject))
 
+        # use the memoryview object to check itemsize and ndim.
+        # In principle it could check more, but these are the easiest to do quickly
         pyx_code.put_chunk(
-            u"""
+            """
                 # try {{dtype}}
-                if itemsize == -1 or itemsize == {{sizeof_dtype}}:
-                    memslice = {{coerce_from_py_func}}(arg, 0)
+                if (((itemsize == -1 and arg_as_memoryview.itemsize == {{sizeof_dtype}})
+                        or itemsize == {{sizeof_dtype}})
+                        and arg_as_memoryview.ndim == {{ndim_dtype}}):
+                    {{if dtype_is_struct_obj}}
+                    if __PYX_IS_PYPY2:
+                        # I wasn't able to diagnose why, but PyPy2 fails to convert a
+                        # memoryview to a Cython memoryview in this case
+                        memslice = {{coerce_from_py_func}}(arg, 0)
+                    else:
+                    {{else}}
+                    if True:
+                    {{endif}}
+                        memslice = {{coerce_from_py_func}}(arg_as_memoryview, 0)
                     if memslice.memview:
-                        __PYX_XDEC_MEMVIEW(&memslice, 1)
+                        __PYX_XCLEAR_MEMVIEW(&memslice, 1)
                         # print 'found a match for the buffer through format parsing'
                         %s
                         break
@@ -410,7 +433,7 @@ class FusedCFuncDefNode(StatListNode):
                         __pyx_PyErr_Clear()
             """ % self.match)
 
-    def _buffer_checks(self, buffer_types, pythran_types, pyx_code, decl_code, env):
+    def _buffer_checks(self, buffer_types, pythran_types, pyx_code, decl_code, accept_none, env):
         """
         Generate Cython code to match objects to buffer specializations.
         First try to get a numpy dtype object and match it against the individual
@@ -420,12 +443,12 @@ class FusedCFuncDefNode(StatListNode):
         """
         # The first thing to find a match in this loop breaks out of the loop
         pyx_code.put_chunk(
-            u"""
-                """ + (u"arg_is_pythran_compatible = False" if pythran_types else u"") + u"""
+            """
+                """ + ("arg_is_pythran_compatible = False" if pythran_types else "") + """
                 if ndarray is not None:
                     if isinstance(arg, ndarray):
                         dtype = arg.dtype
-                        """ + (u"arg_is_pythran_compatible = True" if pythran_types else u"") + u"""
+                        """ + ("arg_is_pythran_compatible = True" if pythran_types else "") + """
                     elif __pyx_memoryview_check(arg):
                         arg_base = arg.base
                         if isinstance(arg_base, ndarray):
@@ -439,12 +462,12 @@ class FusedCFuncDefNode(StatListNode):
                     if dtype is not None:
                         itemsize = dtype.itemsize
                         kind = ord(dtype.kind)
-                        dtype_signed = kind == 'i'
+                        dtype_signed = kind == u'i'
             """)
         pyx_code.indent(2)
         if pythran_types:
             pyx_code.put_chunk(
-                u"""
+                """
                         # Pythran only supports the endianness of the current compiler
                         byteorder = dtype.byteorder
                         if byteorder == "<" and not __Pyx_Is_Little_Endian():
@@ -467,9 +490,35 @@ class FusedCFuncDefNode(StatListNode):
         self._buffer_check_numpy_dtype(pyx_code, buffer_types, pythran_types)
         pyx_code.dedent(2)
 
-        for specialized_type in buffer_types:
-            self._buffer_parse_format_string_check(
-                    pyx_code, decl_code, specialized_type, env)
+        if accept_none:
+            # If None is acceptable, then Cython <3.0 matched None with the
+            # first type. This behaviour isn't ideal, but keep it for backwards
+            # compatibility. Better behaviour would be to see if subsequent
+            # arguments give a stronger match.
+            pyx_code.context.update(
+                specialized_type_name=buffer_types[0].specialization_string
+            )
+            pyx_code.put_chunk(
+                """
+                if arg is None:
+                    %s
+                    break
+                """ % self.match)
+
+        # creating a Cython memoryview from a Python memoryview avoids the
+        # need to get the buffer multiple times, and we can
+        # also use it to check itemsizes etc
+        pyx_code.put_chunk(
+            """
+            try:
+                arg_as_memoryview = memoryview(arg)
+            except (ValueError, TypeError):
+                pass
+            """)
+        with pyx_code.indenter("else:"):
+            for specialized_type in buffer_types:
+                self._buffer_parse_format_string_check(
+                        pyx_code, decl_code, specialized_type, env)
 
     def _buffer_declarations(self, pyx_code, decl_code, all_buffer_types, pythran_types):
         """
@@ -477,53 +526,62 @@ class FusedCFuncDefNode(StatListNode):
         declarations and imports.
         """
         decl_code.put_chunk(
-            u"""
+            """
                 ctypedef struct {{memviewslice_cname}}:
                     void *memview
 
-                void __PYX_XDEC_MEMVIEW({{memviewslice_cname}} *, int have_gil)
+                void __PYX_XCLEAR_MEMVIEW({{memviewslice_cname}} *, int have_gil)
                 bint __pyx_memoryview_check(object)
+                bint __PYX_IS_PYPY2 "(CYTHON_COMPILING_IN_PYPY && PY_MAJOR_VERSION == 2)"
             """)
 
         pyx_code.local_variable_declarations.put_chunk(
-            u"""
+            """
                 cdef {{memviewslice_cname}} memslice
                 cdef Py_ssize_t itemsize
                 cdef bint dtype_signed
-                cdef char kind
+                cdef Py_UCS4 kind
 
                 itemsize = -1
             """)
 
         if pythran_types:
-            pyx_code.local_variable_declarations.put_chunk(u"""
+            pyx_code.local_variable_declarations.put_chunk("""
                 cdef bint arg_is_pythran_compatible
                 cdef Py_ssize_t cur_stride
             """)
 
         pyx_code.imports.put_chunk(
-            u"""
+            """
                 cdef type ndarray
                 ndarray = __Pyx_ImportNumPyArrayTypeIfAvailable()
             """)
 
+        pyx_code.imports.put_chunk(
+            """
+                cdef memoryview arg_as_memoryview
+            """
+        )
+
+        seen_typedefs = set()
         seen_int_dtypes = set()
         for buffer_type in all_buffer_types:
             dtype = buffer_type.dtype
+            dtype_name = self._dtype_name(dtype)
             if dtype.is_typedef:
-                 #decl_code.putln("ctypedef %s %s" % (dtype.resolve(),
-                 #                                    self._dtype_name(dtype)))
-                decl_code.putln('ctypedef %s %s "%s"' % (dtype.resolve(),
-                                                         self._dtype_name(dtype),
-                                                         dtype.empty_declaration_code()))
+                if dtype_name not in seen_typedefs:
+                    seen_typedefs.add(dtype_name)
+                    decl_code.putln(
+                        'ctypedef %s %s "%s"' % (dtype.resolve(), dtype_name,
+                                                 dtype.empty_declaration_code()))
 
             if buffer_type.dtype.is_int:
                 if str(dtype) not in seen_int_dtypes:
                     seen_int_dtypes.add(str(dtype))
-                    pyx_code.context.update(dtype_name=self._dtype_name(dtype),
+                    pyx_code.context.update(dtype_name=dtype_name,
                                             dtype_type=self._dtype_type(dtype))
                     pyx_code.local_variable_declarations.put_chunk(
-                        u"""
+                        """
                             cdef bint {{dtype_name}}_is_signed
                             {{dtype_name}}_is_signed = not (<{{dtype_type}}> -1 > 0)
                         """)
@@ -559,7 +617,7 @@ class FusedCFuncDefNode(StatListNode):
 
     def _unpack_argument(self, pyx_code):
         pyx_code.put_chunk(
-            u"""
+            """
                 # PROCESSING ARGUMENT {{arg_tuple_idx}}
                 if {{arg_tuple_idx}} < len(<tuple>args):
                     arg = (<tuple>args)[{{arg_tuple_idx}}]
@@ -577,6 +635,26 @@ class FusedCFuncDefNode(StatListNode):
                     {{endif}}
                 {{endif}}
             """)
+
+    def _fused_signature_index(self, pyx_code):
+        """
+        Generate Cython code for constructing a persistent nested dictionary index of
+        fused type specialization signatures.
+        """
+        pyx_code.put_chunk(
+            """
+                if not _fused_sigindex:
+                    for sig in <dict> signatures:
+                        sigindex_node = <dict> _fused_sigindex
+                        *sig_series, last_type = sig.strip('()').split('|')
+                        for sig_type in sig_series:
+                            if sig_type not in sigindex_node:
+                                sigindex_node[sig_type] = sigindex_node = {}
+                            else:
+                                sigindex_node = <dict> sigindex_node[sig_type]
+                        sigindex_node[last_type] = sig
+            """
+        )
 
     def make_fused_cpdef(self, orig_py_func, env, is_def):
         """
@@ -604,7 +682,7 @@ class FusedCFuncDefNode(StatListNode):
         pyx_code = Code.PyxCodeWriter(context=context)
         decl_code = Code.PyxCodeWriter(context=context)
         decl_code.put_chunk(
-            u"""
+            """
                 cdef extern from *:
                     void __pyx_PyErr_Clear "PyErr_Clear" ()
                     type __Pyx_ImportNumPyArrayTypeIfAvailable()
@@ -613,10 +691,13 @@ class FusedCFuncDefNode(StatListNode):
         decl_code.indent()
 
         pyx_code.put_chunk(
-            u"""
-                def __pyx_fused_cpdef(signatures, args, kwargs, defaults):
+            """
+                def __pyx_fused_cpdef(signatures, args, kwargs, defaults, _fused_sigindex={}):
                     # FIXME: use a typed signature - currently fails badly because
                     #        default arguments inherit the types we specify here!
+
+                    cdef list search_list
+                    cdef dict sigindex_node
 
                     dest_sig = [None] * {{n_fused}}
 
@@ -628,7 +709,7 @@ class FusedCFuncDefNode(StatListNode):
                     # instance check body
             """)
 
-        pyx_code.indent() # indent following code to function body
+        pyx_code.indent()  # indent following code to function body
         pyx_code.named_insertion_point("imports")
         pyx_code.named_insertion_point("func_defs")
         pyx_code.named_insertion_point("local_variable_declarations")
@@ -659,19 +740,20 @@ class FusedCFuncDefNode(StatListNode):
                 self._unpack_argument(pyx_code)
 
                 # 'unrolled' loop, first match breaks out of it
-                if pyx_code.indenter("while 1:"):
+                with pyx_code.indenter("while 1:"):
                     if normal_types:
                         self._fused_instance_checks(normal_types, pyx_code, env)
                     if buffer_types or pythran_types:
                         env.use_utility_code(Code.UtilityCode.load_cached("IsLittleEndian", "ModuleSetupCode.c"))
-                        self._buffer_checks(buffer_types, pythran_types, pyx_code, decl_code, env)
+                        self._buffer_checks(
+                            buffer_types, pythran_types, pyx_code, decl_code,
+                            arg.accept_none, env)
                     if has_object_fallback:
                         pyx_code.context.update(specialized_type_name='object')
                         pyx_code.putln(self.match)
                     else:
                         pyx_code.putln(self.no_match)
                     pyx_code.putln("break")
-                    pyx_code.dedent()
 
                 fused_index += 1
                 all_buffer_types.update(buffer_types)
@@ -685,23 +767,37 @@ class FusedCFuncDefNode(StatListNode):
             env.use_utility_code(Code.UtilityCode.load_cached("Import", "ImportExport.c"))
             env.use_utility_code(Code.UtilityCode.load_cached("ImportNumPyArray", "ImportExport.c"))
 
-        pyx_code.put_chunk(
-            u"""
-                candidates = []
-                for sig in <dict>signatures:
-                    match_found = False
-                    src_sig = sig.strip('()').split('|')
-                    for i in range(len(dest_sig)):
-                        dst_type = dest_sig[i]
-                        if dst_type is not None:
-                            if src_sig[i] == dst_type:
-                                match_found = True
-                            else:
-                                match_found = False
-                                break
+        self._fused_signature_index(pyx_code)
 
-                    if match_found:
-                        candidates.append(sig)
+        pyx_code.put_chunk(
+            """
+                sigindex_matches = []
+                sigindex_candidates = [_fused_sigindex]
+
+                for dst_type in dest_sig:
+                    found_matches = []
+                    found_candidates = []
+                    # Make two separate lists: One for signature sub-trees
+                    #        with at least one definite match, and another for
+                    #        signature sub-trees with only ambiguous matches
+                    #        (where `dest_sig[i] is None`).
+                    if dst_type is None:
+                        for sn in sigindex_matches:
+                            found_matches.extend((<dict> sn).values())
+                        for sn in sigindex_candidates:
+                            found_candidates.extend((<dict> sn).values())
+                    else:
+                        for search_list in (sigindex_matches, sigindex_candidates):
+                            for sn in search_list:
+                                type_match = (<dict> sn).get(dst_type)
+                                if type_match is not None:
+                                    found_matches.append(type_match)
+                    sigindex_matches = found_matches
+                    sigindex_candidates = found_candidates
+                    if not (found_matches or found_candidates):
+                        break
+
+                candidates = sigindex_matches
 
                 if not candidates:
                     raise TypeError("No matching signature found")
@@ -790,16 +886,24 @@ class FusedCFuncDefNode(StatListNode):
         for arg in self.node.args:
             if arg.default:
                 arg.default = arg.default.analyse_expressions(env)
-                defaults.append(ProxyNode(arg.default))
+                if arg.default.is_literal:
+                    defaults.append(copy.copy(arg.default))
+                else:
+                    # coerce the argument to temp since CloneNode really requires a temp
+                    defaults.append(ProxyNode(arg.default.coerce_to_temp(env)))
             else:
                 defaults.append(None)
 
         for i, stat in enumerate(self.stats):
             stat = self.stats[i] = stat.analyse_expressions(env)
-            if isinstance(stat, FuncDefNode):
+            if isinstance(stat, FuncDefNode) and stat is not self.py_func:
+                # the dispatcher specifically doesn't want its defaults overriding
                 for arg, default in zip(stat.args, defaults):
                     if default is not None:
-                        arg.default = CloneNode(default).coerce_to(arg.type, env)
+                        if default.is_literal:
+                            arg.default = default.coerce_to(arg.type, env)
+                        else:
+                            arg.default = CloneNode(default).analyse_expressions(env).coerce_to(arg.type, env)
 
         if self.py_func:
             args = [CloneNode(default) for default in defaults if default]
@@ -827,6 +931,10 @@ class FusedCFuncDefNode(StatListNode):
         else:
             nodes = self.nodes
 
+        # For the moment, fused functions do not support METH_FASTCALL
+        for node in nodes:
+            node.entry.signature.use_fastcall = False
+
         signatures = [StringEncoding.EncodedString(node.specialized_signature_string)
                       for node in nodes]
         keys = [ExprNodes.StringNode(node.pos, value=sig)
@@ -845,8 +953,11 @@ class FusedCFuncDefNode(StatListNode):
             self.py_func.pymethdef_required = True
             self.fused_func_assignment.generate_function_definitions(env, code)
 
+        from . import Options
         for stat in self.stats:
-            if isinstance(stat, FuncDefNode) and stat.entry.used:
+            if isinstance(stat, FuncDefNode) and (
+                    stat.entry.used or
+                    (Options.cimport_from_pyx and not stat.entry.visibility == 'extern')):
                 code.mark_pos(stat.pos)
                 stat.generate_function_definitions(env, code)
 
@@ -875,18 +986,24 @@ class FusedCFuncDefNode(StatListNode):
                 "((__pyx_FusedFunctionObject *) %s)->__signatures__ = %s;" %
                                     (self.resulting_fused_function.result(),
                                      self.__signatures__.result()))
-            code.put_giveref(self.__signatures__.result())
+            self.__signatures__.generate_giveref(code)
+            self.__signatures__.generate_post_assignment_code(code)
+            self.__signatures__.free_temps(code)
 
             self.fused_func_assignment.generate_execution_code(code)
 
             # Dispose of results
             self.resulting_fused_function.generate_disposal_code(code)
+            self.resulting_fused_function.free_temps(code)
             self.defaults_tuple.generate_disposal_code(code)
+            self.defaults_tuple.free_temps(code)
             self.code_object.generate_disposal_code(code)
+            self.code_object.free_temps(code)
 
         for default in self.defaults:
             if default is not None:
                 default.generate_disposal_code(code)
+                default.free_temps(code)
 
     def annotate(self, code):
         for stat in self.stats:

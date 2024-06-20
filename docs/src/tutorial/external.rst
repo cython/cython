@@ -1,6 +1,9 @@
 Calling C functions
 ====================
 
+.. include::
+    ../two-syntax-variants-used
+
 This tutorial describes shortly what you need to know in order to call
 C library functions from Cython code.  For a longer and more
 comprehensive tutorial about using external C libraries, wrapping them
@@ -15,7 +18,17 @@ For example, let's say you need a low-level way to parse a number from
 a ``char*`` value.  You could use the ``atoi()`` function, as defined
 by the ``stdlib.h`` header file.  This can be done as follows:
 
-.. literalinclude:: ../../examples/tutorial/external/atoi.pyx
+.. tabs::
+
+    .. group-tab:: Pure Python
+
+        .. literalinclude:: ../../examples/tutorial/external/atoi.py
+            :caption: atoi.py
+
+    .. group-tab:: Cython
+
+        .. literalinclude:: ../../examples/tutorial/external/atoi.pyx
+            :caption: atoi.pyx
 
 You can find a complete list of these standard cimport files in
 Cython's source package
@@ -28,12 +41,33 @@ Cython also has a complete set of declarations for CPython's C-API.
 For example, to test at C compilation time which CPython version
 your code is being compiled with, you can do this:
 
-.. literalinclude:: ../../examples/tutorial/external/py_version_hex.pyx
+.. tabs::
+
+    .. group-tab:: Pure Python
+
+        .. literalinclude:: ../../examples/tutorial/external/py_version_hex.py
+            :caption: py_version_hex.py
+
+    .. group-tab:: Cython
+
+        .. literalinclude:: ../../examples/tutorial/external/py_version_hex.pyx
+            :caption: py_version_hex.pyx
+
+.. _libc.math:
 
 Cython also provides declarations for the C math library:
 
-.. literalinclude:: ../../examples/tutorial/external/libc_sin.pyx
+.. tabs::
 
+    .. group-tab:: Pure Python
+
+        .. literalinclude:: ../../examples/tutorial/external/libc_sin.py
+            :caption: libc_sin.py
+
+    .. group-tab:: Cython
+
+        .. literalinclude:: ../../examples/tutorial/external/libc_sin.pyx
+            :caption: libc_sin.pyx
 
 Dynamic linking
 ---------------
@@ -41,7 +75,7 @@ Dynamic linking
 The libc math library is special in that it is not linked by default
 on some Unix-like systems, such as Linux. In addition to cimporting the
 declarations, you must configure your build system to link against the
-shared library ``m``.  For distutils, it is enough to add it to the
+shared library ``m``.  For setuptools, it is enough to add it to the
 ``libraries`` parameter of the ``Extension()`` setup:
 
 .. literalinclude:: ../../examples/tutorial/external/setup.py
@@ -81,6 +115,9 @@ This allows the C declaration to be reused in other Cython modules,
 while still providing an automatically generated Python wrapper in
 this specific module.
 
+.. note:: External declarations must be placed in a ``.pxd`` file in Pure
+    Python mode.
+
 
 Naming parameters
 -----------------
@@ -101,7 +138,19 @@ You can now make it clear which of the two arguments does what in
 your call, thus avoiding any ambiguities and often making your code
 more readable:
 
-.. literalinclude:: ../../examples/tutorial/external/keyword_args_call.pyx
+.. tabs::
+
+    .. group-tab:: Pure Python
+
+        .. literalinclude:: ../../examples/tutorial/external/keyword_args_call.py
+            :caption: keyword_args_call.py
+        .. literalinclude:: ../../examples/tutorial/external/strstr.pxd
+            :caption: strstr.pxd
+
+    .. group-tab:: Cython
+
+        .. literalinclude:: ../../examples/tutorial/external/keyword_args_call.pyx
+            :caption: keyword_args_call.pyx
 
 Note that changing existing parameter names later is a backwards
 incompatible API modification, just as for Python code.  Thus, if

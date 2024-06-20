@@ -6,10 +6,6 @@ __doc__ = u"""
     >>> call4()
 """
 
-import sys, re
-if sys.version_info >= (2,6):
-    __doc__ = re.sub(u"Error: (.*)exactly(.*)", u"Error: \\1at most\\2", __doc__)
-
 # the calls:
 
 def call2():

@@ -1,4 +1,6 @@
-__doc__ = u"""
+# mode: run
+
+"""
 >>> class SampleException(Exception): pass
 
 >>> def assert_refcount(rc1, rc2, func):
@@ -27,10 +29,13 @@ __doc__ = u"""
 >>> run_test(50, test_finally)
 """
 
-from cpython.ref cimport PyObject
+cimport cython
+from cpython.ref cimport PyObject, Py_REFCNT
 
+@cython.binding(False)
+@cython.always_allow_keywords(False)
 def get_refcount(obj):
-    return (<PyObject*>obj).ob_refcnt
+    return Py_REFCNT(obj)
 
 def test_no_exception():
     try:

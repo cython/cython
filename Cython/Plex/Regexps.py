@@ -1,20 +1,14 @@
-#=======================================================================
-#
-#     Python Lexical Analyser
-#
-#     Regular Expressions
-#
-#=======================================================================
+"""
+Python Lexical Analyser
 
-from __future__ import absolute_import
+Regular Expressions
+"""
 
 import types
-try:
-    from sys import maxsize as maxint
-except ImportError:
-    from sys import maxint
 
 from . import Errors
+
+maxint = 2**31-1  # sentinel value
 
 #
 #     Constants
@@ -108,7 +102,7 @@ def CodeRange(code1, code2):
 #     Abstract classes
 #
 
-class RE(object):
+class RE:
     """RE is the base class for regular expression constructors.
     The following operators are defined on REs:
 
@@ -159,7 +153,7 @@ class RE(object):
             self.wrong_type(num, value, "Plex.RE instance")
 
     def check_string(self, num, value):
-        if type(value) != type(''):
+        if type(value) is not str:
             self.wrong_type(num, value, "string")
 
     def check_char(self, num, value):
@@ -185,37 +179,6 @@ class RE(object):
 #
 #     These are the basic REs from which all others are built.
 #
-
-## class Char(RE):
-##     """
-##     Char(c) is an RE which matches the character |c|.
-##     """
-
-##     nullable = 0
-
-##     def __init__(self, char):
-##         self.char = char
-##         self.match_nl = char == '\n'
-
-##     def build_machine(self, m, initial_state, final_state, match_bol, nocase):
-##         c = self.char
-##         if match_bol and c != BOL:
-##             s1 = self.build_opt(m, initial_state, BOL)
-##         else:
-##             s1 = initial_state
-##         if c == '\n' or c == EOF:
-##             s1 = self.build_opt(m, s1, EOL)
-##         if len(c) == 1:
-##             code = ord(self.char)
-##             s1.add_transition((code, code+1), final_state)
-##             if nocase and is_letter_code(code):
-##                 code2 = other_case_code(code)
-##                 s1.add_transition((code2, code2+1), final_state)
-##         else:
-##             s1.add_transition(c, final_state)
-
-##     def calc_str(self):
-##         return "Char(%s)" % repr(self.char)
 
 
 def Char(c):
@@ -428,6 +391,7 @@ class SwitchCase(RE):
             name = "Case"
         return "%s(%s)" % (name, self.re)
 
+
 #
 #     Composite RE constructors
 #     -------------------------
@@ -469,7 +433,6 @@ def Any(s):
     """
     Any(s) is an RE which matches any character in the string |s|.
     """
-    #result = apply(Alt, tuple(map(Char, s)))
     result = CodeRanges(chars_to_ranges(s))
     result.str = "Any(%s)" % repr(s)
     return result
@@ -549,6 +512,7 @@ def Case(re):
     """
     return SwitchCase(re, nocase=0)
 
+
 #
 #     RE Constants
 #
@@ -573,4 +537,3 @@ Eof.__doc__ = \
     Eof is an RE which matches the end of the file.
     """
 Eof.str = "Eof"
-

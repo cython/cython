@@ -1,0 +1,80 @@
+# -*- coding: utf-8 -*-
+# mode: run
+# tag: pure3.0, pep3131
+
+PYTHON build_tests.py
+# show behaviour in Python mode
+PYTHON -m doctest test0.py
+PYTHON -m doctest test1.py
+PYTHON -m doctest test2.py
+
+PYTHON setup.py build_ext --inplace
+# test in Cython mode
+PYTHON -c "import doctest; import test0 as m; exit(doctest.testmod(m)[0])"
+PYTHON -c "import doctest; import test1 as m; exit(doctest.testmod(m)[0])"
+PYTHON -c "import doctest; import test2 as m; exit(doctest.testmod(m)[0])"
+
+########## setup.py #########
+
+from Cython.Build.Dependencies import cythonize
+from distutils.core import setup
+
+setup(
+  ext_modules = cythonize("test*.py"),
+)
+
+######### build_tests.py ########
+# -*- coding: utf-8 -*-
+from __future__ import unicode_literals
+import unicodedata
+
+# a few pairs of unicode strings that should be equivalent after normalization
+string_pairs = [("ﬁ", "fi"), # ligature and two letters
+                ("a\u0301", '\u00e1'), # a with acute accent with combining character or as 1 character
+                ("α\u0334\u0362", "α\u0362\u0334") # alpha with a pair of combining characters
+                    # in a different order. No single character to normalize to
+                ]
+
+# Show that the pairs genuinely aren't equal before normalization
+for sp in string_pairs:
+    assert sp[0] != sp[1]
+    assert unicodedata.normalize('NFKC', sp[0]) == unicodedata.normalize('NFKC', sp[1])
+    
+# some code that accesses the identifiers through the two different names
+#  contains doctests
+example_code = [
+"""
+class C:
+    '''
+    >>> C().get()
+    True
+    '''
+    def __init__(self):
+        self.{0} = True
+    def get(self):
+        return self.{1}
+""", """
+def pass_through({0}):
+    '''
+    >>> pass_through(True)
+    True
+    '''
+    return {1}
+""", """
+import cython
+{0} = True
+def test():
+    '''
+    >>> test()
+    True
+    '''
+    return {1}
+"""]
+
+from io import open
+
+for idx, (code, strings) in enumerate(zip(example_code, string_pairs)):
+    with open("test{0}.py".format(idx), "w", encoding="utf8") as f:
+        code = code.format(*strings)
+        f.write("# -*- coding: utf-8 -*-\n")
+        f.write(code)

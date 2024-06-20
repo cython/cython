@@ -1,5 +1,3 @@
-from __future__ import absolute_import
-
 from .Errors import CompileError, error
 from . import ExprNodes
 from .ExprNodes import IntNode, NameNode, AttributeNode
@@ -20,10 +18,6 @@ EXPR_ERR = "no expressions allowed in axis spec, only names and literals."
 CF_ERR = "Invalid axis specification for a C/Fortran contiguous array."
 ERR_UNINITIALIZED = ("Cannot check if memoryview %s is initialized without the "
                      "GIL, consider using initializedcheck(False)")
-
-
-def concat_flags(*flags):
-    return "(%s)" % "|".join(flags)
 
 
 format_flag = "PyBUF_FORMAT"
@@ -62,10 +56,10 @@ _spec_to_abbrev = {
 
 memslice_entry_init = "{ 0, 0, { 0 }, { 0 }, { 0 } }"
 
-memview_name = u'memoryview'
+memview_name = 'memoryview'
 memview_typeptr_cname = '__pyx_memoryview_type'
 memview_objstruct_cname = '__pyx_memoryview_obj'
-memviewslice_cname = u'__Pyx_memviewslice'
+memviewslice_cname = '__Pyx_memviewslice'
 
 
 def put_init_entry(mv_cname, code):
@@ -100,8 +94,15 @@ def put_acquire_memoryviewslice(lhs_cname, lhs_type, lhs_pos, rhs, code,
 
 def put_assign_to_memviewslice(lhs_cname, rhs, rhs_cname, memviewslicetype, code,
                                have_gil=False, first_assignment=False):
+    if lhs_cname == rhs_cname:
+        # self assignment is tricky because memoryview xdecref clears the memoryview
+        # thus invalidating both sides of the assignment. Therefore make it actually do nothing
+        code.putln("/* memoryview self assignment no-op */")
+        return
+
     if not first_assignment:
-        code.put_xdecref_memoryviewslice(lhs_cname, have_gil=have_gil)
+        code.put_xdecref(lhs_cname, memviewslicetype,
+                         have_gil=have_gil)
 
     if not rhs.result_in_temp():
         rhs.make_owned_memoryviewslice(code)
@@ -167,7 +168,7 @@ def valid_memslice_dtype(dtype, i=0):
          valid_memslice_dtype(dtype.base_type, i + 1)) or
         dtype.is_numeric or
         dtype.is_pyobject or
-        dtype.is_fused or # accept this as it will be replaced by specializations later
+        dtype.is_fused or  # accept this as it will be replaced by specializations later
         (dtype.is_typedef and valid_memslice_dtype(dtype.typedef_base_type))
     )
 
@@ -248,7 +249,7 @@ class MemoryViewSliceBufferEntry(Buffer.BufferEntry):
 
         return bufp
 
-    def generate_buffer_slice_code(self, code, indices, dst, have_gil,
+    def generate_buffer_slice_code(self, code, indices, dst, dst_type, have_gil,
                                    have_slices, directives):
         """
         Slice a memoryviewslice.
@@ -265,7 +266,7 @@ class MemoryViewSliceBufferEntry(Buffer.BufferEntry):
 
         code.putln("%(dst)s.data = %(src)s.data;" % locals())
         code.putln("%(dst)s.memview = %(src)s.memview;" % locals())
-        code.put_incref_memoryviewslice(dst)
+        code.put_incref_memoryviewslice(dst, dst_type, have_gil=have_gil)
 
         all_dimensions_direct = all(access == 'direct' for access, packing in self.type.axes)
         suboffset_dim_temp = []
@@ -291,9 +292,8 @@ class MemoryViewSliceBufferEntry(Buffer.BufferEntry):
 
             dim += 1
             access, packing = self.type.axes[dim]
-            error_goto = code.error_goto(index.pos)
 
-            if isinstance(index, ExprNodes.SliceNode):
+            if index.is_slice:
                 # slice, unspecified dimension, or part of ellipsis
                 d = dict(locals())
                 for s in "start stop step".split():
@@ -308,6 +308,7 @@ class MemoryViewSliceBufferEntry(Buffer.BufferEntry):
                     util_name = "SimpleSlice"
                 else:
                     util_name = "ToughSlice"
+                    d['error_goto'] = code.error_goto(index.pos)
 
                 new_ndim += 1
             else:
@@ -325,8 +326,10 @@ class MemoryViewSliceBufferEntry(Buffer.BufferEntry):
                 d = dict(
                     locals(),
                     wraparound=int(directives['wraparound']),
-                    boundscheck=int(directives['boundscheck'])
+                    boundscheck=int(directives['boundscheck']),
                 )
+                if d['boundscheck']:
+                    d['error_goto'] = code.error_goto(index.pos)
                 util_name = "SliceIndex"
 
             _, impl = TempitaUtilityCode.load_as_string(util_name, "MemoryView_C.c", context=d)
@@ -402,14 +405,14 @@ def get_is_contig_utility(contig_type, ndim):
     return utility
 
 
-def slice_iter(slice_type, slice_result, ndim, code):
-    if slice_type.is_c_contig or slice_type.is_f_contig:
+def slice_iter(slice_type, slice_result, ndim, code, force_strided=False):
+    if (slice_type.is_c_contig or slice_type.is_f_contig) and not force_strided:
         return ContigSliceIter(slice_type, slice_result, ndim, code)
     else:
         return StridedSliceIter(slice_type, slice_result, ndim, code)
 
 
-class SliceIter(object):
+class SliceIter:
     def __init__(self, slice_type, slice_result, ndim, code):
         self.slice_type = slice_type
         self.slice_result = slice_result
@@ -487,7 +490,7 @@ def copy_c_or_fortran_cname(memview):
 
 def get_copy_new_utility(pos, from_memview, to_memview):
     if (from_memview.dtype != to_memview.dtype and
-            not (from_memview.dtype.is_const and from_memview.dtype.const_base_type == to_memview.dtype)):
+            not (from_memview.dtype.is_cv_qualified and from_memview.dtype.cv_base_type == to_memview.dtype)):
         error(pos, "dtypes must be the same!")
         return
     if len(from_memview.axes) != len(to_memview.axes):
@@ -505,7 +508,8 @@ def get_copy_new_utility(pos, from_memview, to_memview):
     if to_memview.is_c_contig:
         mode = 'c'
         contig_flag = memview_c_contiguous
-    elif to_memview.is_f_contig:
+    else:
+        assert to_memview.is_f_contig
         mode = 'fortran'
         contig_flag = memview_f_contiguous
 
@@ -652,13 +656,13 @@ def is_cf_contig(specs):
         is_c_contig = True
 
     elif (specs[-1] == ('direct','contig') and
-          all(axis == ('direct','follow') for axis in specs[:-1])):
+            all(axis == ('direct','follow') for axis in specs[:-1])):
         # c_contiguous: 'follow', 'follow', ..., 'follow', 'contig'
         is_c_contig = True
 
     elif (len(specs) > 1 and
-        specs[0] == ('direct','contig') and
-        all(axis == ('direct','follow') for axis in specs[1:])):
+            specs[0] == ('direct','contig') and
+            all(axis == ('direct','follow') for axis in specs[1:])):
         # f_contiguous: 'contig', 'follow', 'follow', ..., 'follow'
         is_f_contig = True
 
@@ -807,7 +811,8 @@ context = {
     'memview_struct_name': memview_objstruct_cname,
     'max_dims': Options.buffer_max_dims,
     'memviewslice_name': memviewslice_cname,
-    'memslice_init': memslice_entry_init,
+    'memslice_init': PyrexTypes.MemoryViewSliceType.default_value,
+    'THREAD_LOCKS_PREALLOCATED': 8,
 }
 memviewslice_declare_code = load_memview_c_utility(
         "MemviewSliceStruct",
@@ -833,22 +838,21 @@ overlapping_utility = load_memview_c_utility("OverlappingSlices", context)
 copy_contents_new_utility = load_memview_c_utility(
     "MemviewSliceCopyTemplate",
     context,
-    requires=[], # require cython_array_utility_code
+    requires=[],  # require cython_array_utility_code
 )
 
 view_utility_code = load_memview_cy_utility(
         "View.MemoryView",
         context=context,
-        requires=[Buffer.GetAndReleaseBufferUtilityCode(),
-                  Buffer.buffer_struct_declare_code,
+        requires=[Buffer.buffer_struct_declare_code,
                   Buffer.buffer_formats_declare_code,
                   memviewslice_init_code,
                   is_contig_utility,
                   overlapping_utility,
                   copy_contents_new_utility,
-                  ModuleNode.capsule_utility_code],
+                  ],
 )
-view_utility_whitelist = ('array', 'memoryview', 'array_cwrapper',
+view_utility_allowlist = ('array', 'memoryview', 'array_cwrapper',
                           'generic', 'strided', 'indirect', 'contiguous',
                           'indirect_contiguous')
 

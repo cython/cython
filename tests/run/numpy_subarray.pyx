@@ -21,7 +21,7 @@ def test_record_subarray():
 
     # Make sure the dtype looks like we expect
     assert descr.fields == {'a': (py_numpy.dtype('int32'), 0),
-                            'b': (py_numpy.dtype(('<f8', (3, 3))), 4)}, descr.fields
+                            'b': (py_numpy.dtype(('=f8', (3, 3))), 4)}, descr.fields
 
     # Make sure that HASSUBARRAY is working
     assert not np.PyDataType_HASSUBARRAY(descr)

@@ -22,24 +22,17 @@ class TestUtilityLoader(unittest.TestCase):
     cls = Code.UtilityCode
 
     def test_load_as_string(self):
-        got = strip_2tup(self.cls.load_as_string(self.name))
-        self.assertEqual(got, self.expected)
-
         got = strip_2tup(self.cls.load_as_string(self.name, self.filename))
         self.assertEqual(got, self.expected)
 
     def test_load(self):
-        utility = self.cls.load(self.name)
+        utility = self.cls.load(self.name, from_file=self.filename)
         got = strip_2tup((utility.proto, utility.impl))
         self.assertEqual(got, self.expected)
 
         required, = utility.requires
         got = strip_2tup((required.proto, required.impl))
         self.assertEqual(got, self.required)
-
-        utility = self.cls.load(self.name, from_file=self.filename)
-        got = strip_2tup((utility.proto, utility.impl))
-        self.assertEqual(got, self.expected)
 
         utility = self.cls.load_cached(self.name, from_file=self.filename)
         got = strip_2tup((utility.proto, utility.impl))
@@ -59,11 +52,11 @@ class TestTempitaUtilityLoader(TestUtilityLoader):
     cls = Code.TempitaUtilityCode
 
     def test_load_as_string(self):
-        got = strip_2tup(self.cls.load_as_string(self.name, context=self.context))
+        got = strip_2tup(self.cls.load_as_string(self.name, self.filename, context=self.context))
         self.assertEqual(got, self.expected_tempita)
 
     def test_load(self):
-        utility = self.cls.load(self.name, context=self.context)
+        utility = self.cls.load(self.name, self.filename, context=self.context)
         got = strip_2tup((utility.proto, utility.impl))
         self.assertEqual(got, self.expected_tempita)
 
@@ -99,3 +92,21 @@ class TestCythonUtilityLoader(TestTempitaUtilityLoader):
 
     test_load = TestUtilityLoader.test_load
     test_load_tempita = TestTempitaUtilityLoader.test_load
+
+
+class TestUtilityCode(unittest.TestCase):
+    def test_equality(self):
+        c1 = Code.UtilityCode.load("NumpyImportUFunc", "NumpyImportArray.c")
+        c2 = Code.UtilityCode.load("NumpyImportArray", "NumpyImportArray.c")
+        c3 = Code.UtilityCode.load("pyunicode_strlen", "StringTools.c")
+        c4 = Code.UtilityCode.load("pyunicode_from_unicode", "StringTools.c")
+        c5 = Code.UtilityCode.load("IncludeStringH", "StringTools.c")
+        c6 = Code.UtilityCode.load("IncludeCppStringH", "StringTools.c")
+
+        codes = [c1, c2, c3, c4, c5, c6]
+        for m in range(len(codes)):
+            for n in range(len(codes)):
+                if n == m:
+                    self.assertEqual(codes[m], codes[n])
+                else:
+                    self.assertNotEqual(codes[m], codes[n])

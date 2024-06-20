@@ -1,0 +1,18 @@
+# This file contains tests corresponding to unresolved bugs using CPython's
+# Limited API which will be skipped in the normal testing run.
+
+convolve2
+dict_animal
+not_none
+queue3
+test_queue
+
+# example in docs that use features unavailable in the limited API
+# (and it's a decision for the docs writers rather than a limitation
+# of Cython's support)
+embedded
+extension_types.c_property
+array.resize
+array.safe_usage
+array.unsafe_usage
+wrapping_CPlusPlus.python_to_cpp

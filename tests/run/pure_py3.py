@@ -7,7 +7,16 @@ is_compiled = cython.compiled
 
 MyUnion = cython.union(n=cython.int, x=cython.double)
 MyStruct = cython.struct(is_integral=cython.bint, data=MyUnion)
-MyStruct2 = cython.typedef(MyStruct[2])  # type: cython.StructType
+MyStruct2 = cython.typedef(MyStruct[2])
+
+
+@cython.annotation_typing(False)
+def test_annotation_typing(x: cython.int) -> cython.int:
+    """
+    >>> test_annotation_typing("Petits pains")
+    'Petits pains'
+    """
+    return x
 
 
 @cython.ccall  # cpdef => C return type
@@ -20,7 +29,9 @@ def test_return_type(n: cython.int) -> cython.double:
     return n if is_compiled else float(n)
 
 
-def test_struct(n: cython.int, x: cython.double) -> MyStruct2:
+# Using a variable (which MyStruct2 = cython.typedef(MyStruct[2]) becomes) as an annotation
+# is invalid but there is no other way of defining type definitions to Cython right now.
+def test_struct(n: cython.int, x: cython.double) -> MyStruct2:  # type: ignore
     """
     >>> test_struct(389, 1.64493)
     (389, 1.64493)
@@ -85,3 +96,19 @@ def call_cdef_inline(x):
     """
     ret = cdef_inline(x)
     return ret, cython.typeof(ret)
+
+@cython.cfunc
+def test_cdef_return_object(x: object) -> object:
+    """
+    Test support of python object in annotations
+    >>> test_cdef_return_object(3)
+    3
+    >>> test_cdef_return_object(None)
+    Traceback (most recent call last):
+        ...
+    RuntimeError
+    """
+    if x:
+        return x
+    else:
+        raise RuntimeError()

@@ -1,5 +1,5 @@
 # mode: run
-# ticket: 731
+# ticket: t731
 # tag: locals, vars, dir
 
 cimport cython
@@ -23,8 +23,8 @@ def test_class_locals_and_dir():
     >>> klass = test_class_locals_and_dir()
     >>> 'visible' in klass.locs and 'not_visible' not in klass.locs
     True
-    >>> klass.names
-    ['__module__', '__qualname__', 'visible']
+    >>> [n for n in klass.names if n not in {"__qualname__", "__annotations__"}]
+    ['__module__', 'visible']
     """
     not_visible = 1234
     class Foo:

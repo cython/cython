@@ -1,0 +1,27 @@
+PYTHON setup.py build_ext --inplace
+PYTHON -c "import fullc_annotated; fullc_annotated.check()"
+
+######## setup.py ########
+
+from Cython.Build.Dependencies import cythonize
+from Cython.Compiler import Options
+
+Options.annotate = 'fullc'
+
+from distutils.core import setup
+
+setup(
+  ext_modules = cythonize(["fullc_annotated.pyx"], language_level=3)
+)
+
+######## fullc_annotated.pyx ########
+# load html-site and check that the marker is there:
+
+def check():
+    from codecs import open
+    with open(__name__+'.html', 'r', 'utf8') as html_file:
+        html = html_file.read()
+
+    from Cython.Compiler.Annotate import AnnotationCCodeWriter
+    assert (AnnotationCCodeWriter.COMPLETE_CODE_TITLE in html)
+

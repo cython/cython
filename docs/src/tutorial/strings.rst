@@ -1,5 +1,7 @@
 .. highlight:: cython
 
+.. _string_tutorial:
+
 Unicode and passing strings
 ===========================
 
@@ -124,6 +126,9 @@ Python variable::
     from c_func cimport c_call_returning_a_c_string
 
     cdef char* c_string = c_call_returning_a_c_string()
+    if c_string is NULL:
+        ...  # handle error
+
     cdef bytes py_string = c_string
 
 A type cast to :obj:`object` or :obj:`bytes` will do the same thing::
@@ -220,14 +225,15 @@ object.  This can simply be done as follows:
 
 .. literalinclude:: ../../examples/tutorial/string/return_memview.pyx
 
-If the byte input is actually encoded text, and the further processing
-should happen at the Unicode level, then the right thing to do is to
-decode the input straight away.  This is almost only a problem in Python
-2.x, where Python code expects that it can pass a byte string (:obj:`str`)
-with encoded text into a text API.  Since this usually happens in more
-than one place in the module's API, a helper function is almost always the
-way to go, since it allows for easy adaptation of the input normalisation
-process later.
+For read-only buffers, like :obj:`bytes`, the memoryview item type should
+be declared as ``const`` (see :ref:`readonly_views`). If the byte input is
+actually encoded text, and the further processing should happen at the
+Unicode level, then the right thing to do is to decode the input straight
+away.  This is almost only a problem in Python 2.x, where Python code
+expects that it can pass a byte string (:obj:`str`) with encoded text into
+a text API.  Since this usually happens in more than one place in the
+module's API, a helper function is almost always the way to go, since it
+allows for easy adaptation of the input normalisation process later.
 
 This kind of input normalisation function will commonly look similar to
 the following:
@@ -440,7 +446,7 @@ characters and is compatible with plain ASCII encoded text that it
 encodes efficiently.  This makes it a very good choice for source code
 files which usually consist mostly of ASCII characters.
 
-.. _`UTF-8`: http://en.wikipedia.org/wiki/UTF-8
+.. _`UTF-8`: https://en.wikipedia.org/wiki/UTF-8
 
 As an example, putting the following line into a UTF-8 encoded source
 file will print ``5``, as UTF-8 encodes the letter ``'ö'`` in the two
@@ -553,7 +559,7 @@ above character.
 For more information on this topic, it is worth reading the `Wikipedia
 article about the UTF-16 encoding`_.
 
-.. _`Wikipedia article about the UTF-16 encoding`: http://en.wikipedia.org/wiki/UTF-16/UCS-2
+.. _`Wikipedia article about the UTF-16 encoding`: https://en.wikipedia.org/wiki/UTF-16/UCS-2
 
 The same properties apply to Cython code that gets compiled for a
 narrow CPython runtime environment.  In most cases, e.g. when
@@ -646,6 +652,18 @@ efficient character switching code, e.g. in unicode parsers.
 Windows and wide character APIs
 -------------------------------
 
+.. Warning::
+
+    The use of :c:type:`Py_UNICODE*` strings outside of Windows is
+    strongly discouraged. :c:type:`Py_UNICODE` is inherently not
+    portable between different platforms and Python versions.
+
+    Support for the ``Py_UNICODE`` C-API has been removed in CPython 3.12.
+    Code that uses it will no longer compile in recent CPython releases.
+    Since version 3.3, CPython provides a flexible internal representation of
+    unicode strings (:pep:`393`), that makes all :c:type:`Py_UNICODE` related
+    APIs deprecated and inefficient.
+
 Windows system APIs natively support Unicode in the form of
 zero-terminated UTF-16 encoded :c:type:`wchar_t*` strings, so called
 "wide strings".
@@ -679,16 +697,6 @@ Here is an example of how one would call a Unicode API on Windows::
 
     title = u"Windows Interop Demo - Python %d.%d.%d" % sys.version_info[:3]
     MessageBoxW(NULL, u"Hello Cython \u263a", title, 0)
-
-.. Warning::
-
-    The use of :c:type:`Py_UNICODE*` strings outside of Windows is
-    strongly discouraged. :c:type:`Py_UNICODE` is inherently not
-    portable between different platforms and Python versions.
-
-    CPython 3.3 has moved to a flexible internal representation of
-    unicode strings (:pep:`393`), making all :c:type:`Py_UNICODE` related
-    APIs deprecated and inefficient.
 
 One consequence of CPython 3.3 changes is that :py:func:`len` of
 :obj:`unicode` strings is always measured in *code points* ("characters"),

@@ -1,0 +1,71 @@
+# mode: run
+# tag: coverage,trace
+
+"""
+PYTHON setup.py build_ext -i
+PYTHON -c "import shutil; shutil.move('ext_src/ext_pkg', 'ext_pkg')"
+PYTHON -m coverage run coverage_test.py
+PYTHON -m coverage report
+"""
+
+######## setup.py ########
+from distutils.core import setup, Extension
+from Cython.Build import cythonize
+
+setup(ext_modules = cythonize([
+    'pkg/*.pyx',
+]))
+
+setup(
+    name='ext_pkg',
+    package_dir={'': 'ext_src'},
+    ext_modules = cythonize([
+        Extension('ext_pkg._mul', ['ext_src/ext_pkg/mul.py'])
+    ]),
+)
+
+
+######## .coveragerc ########
+[run]
+plugins = Cython.Coverage
+
+
+######## pkg/__init__.py ########
+from .test_ext_import import test_add
+
+
+######## pkg/test_ext_import.pyx ########
+# cython: linetrace=True
+# distutils: define_macros=CYTHON_TRACE=1
+
+import ext_pkg
+
+
+cpdef test_add(int a, int b):
+    return a + ext_pkg.test_mul(b, 2)
+
+
+######## ext_src/ext_pkg/__init__.py ########
+from .mul import test_mul
+
+
+######## ext_src/ext_pkg/mul.py ########
+from __future__ import absolute_import
+
+
+def test_mul(a, b):
+     return a * b
+
+
+try:
+    from ._mul import *
+except ImportError:
+    pass
+
+
+######## coverage_test.py ########
+
+from pkg import test_add
+
+
+assert 5 == test_add(1, 2)

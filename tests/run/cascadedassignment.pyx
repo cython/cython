@@ -56,3 +56,15 @@ def test_cascaded_assignment_evaluate_expr():
     """
     a = b = c = float(expr())
     return a, b, c
+
+
+def test_overwrite():
+    """
+    >>> test_overwrite()
+    {0: {1: {2: {}}}}
+    """
+    x = a = {}
+    for i in range(3):
+        a[i] = a = {}
+    assert a == {}
+    return x

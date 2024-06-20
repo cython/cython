@@ -1,5 +1,13 @@
 cimport cython
 
+cdef extern from *:
+    const Py_ssize_t PY_SSIZE_T_MIN
+    const Py_ssize_t PY_SSIZE_T_MAX
+
+SSIZE_T_MAX = PY_SSIZE_T_MAX
+SSIZE_T_MIN = PY_SSIZE_T_MIN
+
+
 b_a = b'a'
 b_b = b'b'
 
@@ -23,6 +31,10 @@ def bytes_startswith(bytes s, sub, start=None, stop=None):
     >>> bytes_startswith(b_a, b_a, 1)
     False
     >>> bytes_startswith(b_a, b_a, 0, 0)
+    False
+    >>> bytes_startswith(b_a+b_b, bytearray(b_a))
+    True
+    >>> bytes_startswith(b_a+b_b, bytearray(b_b))
     False
     """
 
@@ -53,6 +65,10 @@ def bytes_endswith(bytes s, sub, start=None, stop=None):
     >>> bytes_endswith(b_a, b_a, 1)
     False
     >>> bytes_endswith(b_a, b_a, 0, 0)
+    False
+    >>> bytes_endswith(b_a+b_a, bytearray(b_a))
+    True
+    >>> bytes_endswith(b_a+b_a, bytearray(b_b))
     False
     """
 
@@ -113,6 +129,14 @@ def bytes_decode(bytes s, start=None, stop=None):
     >>> print(bytes_decode(s, -300, -6))
     <BLANKLINE>
     >>> print(bytes_decode(s, -300, -500))
+    <BLANKLINE>
+    >>> print(bytes_decode(s, SSIZE_T_MIN, SSIZE_T_MIN))
+    <BLANKLINE>
+    >>> print(bytes_decode(s, SSIZE_T_MIN, SSIZE_T_MAX))
+    abaab
+    >>> print(bytes_decode(s, SSIZE_T_MAX, SSIZE_T_MIN))
+    <BLANKLINE>
+    >>> print(bytes_decode(s, SSIZE_T_MAX, SSIZE_T_MAX))
     <BLANKLINE>
 
     >>> s[:'test']                       # doctest: +ELLIPSIS
@@ -243,7 +267,7 @@ def bytes_join(bytes s, *args):
     babab
     """
     result = s.join(args)
-    assert cython.typeof(result) == 'Python object', cython.typeof(result)
+    assert cython.typeof(result) == 'bytes object', cython.typeof(result)
     return result
 
 
@@ -259,5 +283,13 @@ def literal_join(*args):
     b|b|b|b
     """
     result = b'|'.join(args)
-    assert cython.typeof(result) == 'Python object', cython.typeof(result)
+    assert cython.typeof(result) == 'bytes object', cython.typeof(result)
     return result
+
+def fromhex(bytes b):
+    """
+    https://github.com/cython/cython/issues/5051
+    Optimization of bound method calls was breaking classmethods
+    >>> fromhex(b"")
+    """
+    assert b.fromhex('2Ef0 F1f2  ') == b'.\xf0\xf1\xf2'

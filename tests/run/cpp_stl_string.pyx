@@ -3,7 +3,7 @@
 
 cimport cython
 
-from libcpp.string cimport string
+from libcpp.string cimport string, npos, to_string, stoi, stof
 
 b_asdf = b'asdf'
 b_asdg = b'asdg'
@@ -102,6 +102,15 @@ def test_push_back(char *a):
     s.push_back(<char>ord('s'))
     return s.c_str()
 
+def test_pop_back(char *a):
+    """
+    >>> test_pop_back(b'abc') == b'ab' or test_pop_back(b'abc')
+    True
+    """
+    cdef string s = string(a)
+    s.pop_back()
+    return s
+
 def test_insert(char *a, char *b, int i):
     """
     >>> test_insert('AAAA'.encode('ASCII'), 'BBBB'.encode('ASCII'), 2) == 'AABBBBAA'.encode('ASCII')
@@ -133,6 +142,17 @@ def test_find(char *a, char *b):
     cdef size_t i = s.find(t)
     return i
 
+def test_npos(char *a, char *b):
+    """
+    >>> test_npos(b'abc', b'x')
+    True
+    >>> test_npos(b'abc', b'a')
+    False
+    """
+    cdef string s = string(a)
+    cdef string st = string(b)
+    return s.find(st) == npos
+
 def test_clear():
     """
     >>> test_clear() == ''.encode('ASCII')
@@ -141,6 +161,18 @@ def test_clear():
     cdef string s = string(<char *>"asdf")
     s.clear()
     return s.c_str()
+
+def test_erase(char *a, size_t pos=0, size_t count=npos):
+    """
+    >>> test_erase(b'abc') == b'' or test_erase(b'abc')
+    True
+    >>> test_erase(b'abc', 1) == b'a' or test_erase(b'abc', 1)
+    True
+    >>> test_erase(b'abc', 1, 1) == b'ac' or test_erase(b'abc', 1, 1)
+    True
+    """
+    cdef string s = string(a)
+    return s.erase(pos, count)
 
 def test_assign(char *a):
     """
@@ -163,6 +195,19 @@ def test_substr(char *a):
     y = s.substr(1, 4)
     z = s.substr()
     return x.c_str(), y.c_str(), z.c_str()
+
+def test_replace(char *a, char *b, char* fill):
+    """
+    >>> test_replace(b_asdf, b_asdg, b_s)  == (b_asdg+b_asdf[2:], b_asdf[:-2]+b_asdg[-2:], (b_s*4)+b_asdg[2:])
+    True
+    """
+    cdef string s1 = string(a)
+    cdef string s2 = string(a)
+    cdef string s3 = string(b)
+    s1.replace(0, 2, s3)
+    s2.replace(s2.size()-2, 2, s3, s3.size()-2, 2)
+    s3.replace(0, 2, 4, fill[0])
+    return s1.c_str(), s2.c_str(), s3.c_str()
 
 def test_append(char *a, char *b):
     """
@@ -344,6 +389,91 @@ def test_iteration(string s):
     []
     """
     return [c for c in s]
+
+def test_to_string(x):
+    """
+    >>> print(test_to_string(5))
+    si=5 sl=5 ss=5 sss=5
+    >>> print(test_to_string(-5))
+    si=-5 sl=-5 ss=5 sss=-5
+    """
+    si = to_string(<int>x).decode('ascii')
+    sl = to_string(<long>x).decode('ascii')
+    ss = to_string(<size_t>abs(x)).decode('ascii')
+    sss = to_string(<ssize_t>x).decode('ascii')
+    return f"si={si} sl={sl} ss={ss} sss={sss}"
+
+def test_stoi(char *a):
+    """
+    >>> test_stoi(b'5')
+    5
+    """
+    cdef string s = string(a)
+    return stoi(s)
+
+def test_stof(char *a):
+    """
+    >>> test_stof(b'5.5')
+    5.5
+    """
+    cdef string s = string(a)
+    return stof(s)
+
+def test_to_string(x):
+    """
+    >>> print(test_to_string(5))
+    si=5 sl=5 ss=5 sss=5
+    >>> print(test_to_string(-5))
+    si=-5 sl=-5 ss=5 sss=-5
+    """
+    si = to_string(<int>x).decode('ascii')
+    sl = to_string(<long>x).decode('ascii')
+    ss = to_string(<size_t>abs(x)).decode('ascii')
+    sss = to_string(<ssize_t>x).decode('ascii')
+    return f"si={si} sl={sl} ss={ss} sss={sss}"
+
+
+def test_stoi(char *a):
+    """
+    >>> test_stoi(b'5')
+    5
+    """
+    cdef string s = string(a)
+    return stoi(s)
+
+
+def test_stof(char *a):
+    """
+    >>> test_stof(b'5.5')
+    5.5
+    """
+    cdef string s = string(a)
+    return stof(s)
+
+
+def test_swap():
+    """
+    >>> test_swap()
+    """
+    cdef string s1 = b_asdf, s_asdf = b_asdf
+    cdef string s2 = b_asdg, s_asdg = b_asdg
+    s1.swap(s2)
+    assert s1 == s_asdg and s2 == s_asdf
+
+
+def test_float_parsing(bstring):
+    """
+    >>> test_float_parsing(b'0.5')
+    0.5
+    >>> try: test_float_parsing(b'xxx')
+    ... except ValueError: pass
+    ... else: print("NOT RAISED!")
+    >>> try: test_float_parsing(b'')
+    ... except ValueError: pass
+    ... else: print("NOT RAISED!")
+    """
+    cdef string s = bstring
+    return float(s)
 
 
 _WARNINGS = """

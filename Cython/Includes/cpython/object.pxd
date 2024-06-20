@@ -5,7 +5,7 @@ cdef extern from "Python.h":
 
     ctypedef struct PyObject  # forward declaration
 
-    ctypedef object (*newfunc)(cpython.type.type, object, object)  # (type, args, kwargs)
+    ctypedef object (*newfunc)(cpython.type.type, PyObject*, PyObject*)  # (type, args|NULL, kwargs|NULL)
 
     ctypedef object (*unaryfunc)(object)
     ctypedef object (*binaryfunc)(object, object)
@@ -35,6 +35,14 @@ cdef extern from "Python.h":
     ctypedef object (*descrgetfunc)(object, object, object)
     ctypedef int (*descrsetfunc)(object, object, object) except -1
 
+    ctypedef object (*PyCFunction)(object, object)
+
+    ctypedef struct PyMethodDef:
+        const char* ml_name
+        PyCFunction ml_meth
+        int ml_flags
+        const char* ml_doc
+
     ctypedef struct PyTypeObject:
         const char* tp_name
         const char* tp_doc
@@ -45,6 +53,8 @@ cdef extern from "Python.h":
 
         newfunc tp_new
         destructor tp_dealloc
+        destructor tp_del
+        destructor tp_finalize
         traverseproc tp_traverse
         inquiry tp_clear
         freefunc tp_free
@@ -57,11 +67,15 @@ cdef extern from "Python.h":
         cmpfunc tp_compare
         richcmpfunc tp_richcompare
 
+        PyMethodDef* tp_methods
+
         PyTypeObject* tp_base
         PyObject* tp_dict
 
         descrgetfunc tp_descr_get
         descrsetfunc tp_descr_set
+
+        unsigned int tp_version_tag
 
     ctypedef struct PyObject:
         Py_ssize_t ob_refcnt
@@ -128,6 +142,17 @@ cdef extern from "Python.h":
     # failure. This is the equivalent of the Python statement "del
     # o.attr_name".
 
+    object PyObject_GenericGetDict(object o, void *context)
+    # Return value: New reference.
+    # A generic implementation for the getter of a __dict__ descriptor. It
+    # creates the dictionary if necessary.
+    # New in version 3.3.
+
+    int PyObject_GenericSetDict(object o, object value, void *context) except -1
+    # A generic implementation for the setter of a __dict__ descriptor. This
+    # implementation does not allow the dictionary to be deleted.
+    # New in version 3.3.
+
     int Py_LT, Py_LE, Py_EQ, Py_NE, Py_GT, Py_GE
 
     object PyObject_RichCompare(object o1, object o2, int opid)
@@ -176,6 +201,14 @@ cdef extern from "Python.h":
     # representation on success, NULL on failure. This is the
     # equivalent of the Python expression "str(o)". Called by the
     # str() built-in function and by the print statement.
+
+    object PyObject_Bytes(object o)
+    # Return value: New reference.
+    # Compute a bytes representation of object o. Return NULL on
+    # failure and a bytes object on success. This is equivalent to
+    # the Python expression bytes(o), when o is not an integer.
+    # Unlike bytes(o), a TypeError is raised when o is an integer
+    # instead of a zero-initialized bytes object.
 
     object PyObject_Unicode(object o)
     # Return value: New reference.
@@ -320,6 +353,13 @@ cdef extern from "Python.h":
     # returned. On error, -1 is returned. This is the equivalent to
     # the Python expression "len(o)".
 
+    Py_ssize_t PyObject_LengthHint(object o, Py_ssize_t default) except -1
+    # Return an estimated length for the object o. First try to return its
+    # actual length, then an estimate using __length_hint__(), and finally
+    # return the default value. On error, return -1. This is the equivalent to
+    # the Python expression "operator.length_hint(o, default)".
+    # New in version 3.4.
+
     object PyObject_GetItem(object o, object key)
     # Return value: New reference.
     # Return element of o corresponding to the object key or NULL on
@@ -397,3 +437,4 @@ cdef extern from "Python.h":
     long Py_TPFLAGS_DEFAULT_EXTERNAL
     long Py_TPFLAGS_DEFAULT_CORE
     long Py_TPFLAGS_DEFAULT
+    long Py_TPFLAGS_HAVE_FINALIZE

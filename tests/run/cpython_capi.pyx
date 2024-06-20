@@ -2,6 +2,7 @@
 # tag: c-api
 
 from cpython cimport mem
+from cpython.pystate cimport PyGILState_Ensure, PyGILState_Release, PyGILState_STATE
 
 
 def test_pymalloc():
@@ -24,26 +25,15 @@ def test_pymalloc():
         mem.PyMem_Free(m)
 
 
-def test_pymalloc_raw():
+def test_gilstate():
     """
-    >>> test_pymalloc_raw()
-    3
+    >>> test_gilstate()
+    'ok'
     """
-    cdef char* m
-    cdef char* m2 = NULL
-    with nogil:
-        m = <char*> mem.PyMem_RawMalloc(20)
-        if not m:
-            raise MemoryError()
-        try:
-            m[0] = 1
-            m[1] = 2
-            m[2] = 3
-            m2 = <char*> mem.PyMem_RawRealloc(m, 10)
-            if m2:
-                m = m2
-            retval = m[2]
-        finally:
-            mem.PyMem_RawFree(m)
-    assert m2
-    return retval
+
+    # cython used to have invalid definition for PyGILState_STATE, which was
+    # making the following code fail to compile
+    cdef PyGILState_STATE gstate = PyGILState_Ensure()
+    # TODO assert that GIL is taken
+    PyGILState_Release(gstate)
+    return 'ok'

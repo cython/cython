@@ -23,6 +23,11 @@ cdef extern from "Python.h":
     # of the standard type object. Return false in all other
     # cases.
 
+    void PyType_Modified(type type)
+    # Invalidate the internal lookup cache for the type and all of its
+    # subtypes. This function must be called after any manual modification
+    # of the attributes or base classes of the type.
+
     bint PyType_HasFeature(object o, int feature)
     # Return true if the type object o sets the feature feature. Type
     # features are denoted by single bit flags.

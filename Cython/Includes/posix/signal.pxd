@@ -68,6 +68,6 @@ cdef extern from "<signal.h>" nogil:
     int          sigdelset     (sigset_t *, int)
     int          sigemptyset   (sigset_t *)
     int          sigfillset    (sigset_t *)
-    int          sigismember   (const sigset_t *)
+    int          sigismember   (const sigset_t *, int)
 
     int sigaltstack(const stack_t *, stack_t *)

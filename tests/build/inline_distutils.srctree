@@ -38,4 +38,4 @@ namespace A {
 
 from my_lib cimport x
 
-print x
+print(x)

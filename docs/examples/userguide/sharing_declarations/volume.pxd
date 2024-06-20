@@ -1,1 +1,1 @@
-cdef float cube(float)
+cdef float cube(float x)

@@ -1,7 +1,5 @@
-# -*- coding: utf-8 -*-
 # tag: jedi
 
-from __future__ import absolute_import
 
 import sys
 import os.path
@@ -11,7 +9,7 @@ from contextlib import contextmanager
 from tempfile import NamedTemporaryFile
 
 from Cython.Compiler.ParseTreeTransforms import NormalizeTree, InterpretCompilerDirectives
-from Cython.Compiler import Main, Symtab, Visitor
+from Cython.Compiler import Main, Symtab, Visitor, Options
 from Cython.TestUtils import TransformTest
 
 TOOLS_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', 'Tools'))
@@ -69,7 +67,7 @@ class TestJediTyper(TransformTest):
         self.assertIn((None, (1, 0)), types)
         variables = types.pop((None, (1, 0)))
         self.assertFalse(types)
-        self.assertEqual({'a': set(['int']), 'i': set(['int'])}, variables)
+        self.assertEqual({'a': {'int'}, 'i': {'int'}}, variables)
 
     def test_typing_function_int_loop(self):
         code = '''\
@@ -82,7 +80,7 @@ class TestJediTyper(TransformTest):
         self.assertIn(('func', (1, 0)), types)
         variables = types.pop(('func', (1, 0)))
         self.assertFalse(types)
-        self.assertEqual({'a': set(['int']), 'i': set(['int'])}, variables)
+        self.assertEqual({'a': {'int'}, 'i': {'int'}}, variables)
 
     def test_conflicting_types_in_function(self):
         code = '''\
@@ -99,7 +97,7 @@ class TestJediTyper(TransformTest):
         self.assertIn(('func', (1, 0)), types)
         variables = types.pop(('func', (1, 0)))
         self.assertFalse(types)
-        self.assertEqual({'a': set(['float', 'int', 'str']), 'b': set(['int'])}, variables)
+        self.assertEqual({'a': {'float', 'int', 'str'}, 'b': {'int'}}, variables)
 
     def _test_typing_function_char_loop(self):
         code = '''\
@@ -115,7 +113,7 @@ class TestJediTyper(TransformTest):
         self.assertIn(('func', (1, 0)), types)
         variables = types.pop(('func', (1, 0)))
         self.assertFalse(types)
-        self.assertEqual({'a': set(['int']), 'i': set(['int'])}, variables)
+        self.assertEqual({'a': {'int'}, 'i': {'int'}}, variables)
 
     def test_typing_global_list(self):
         code = '''\
@@ -128,7 +126,7 @@ class TestJediTyper(TransformTest):
         self.assertIn((None, (1, 0)), types)
         variables = types.pop((None, (1, 0)))
         self.assertFalse(types)
-        self.assertEqual({'a': set(['list']), 'b': set(['list']), 'c': set(['list']), 'd': set(['list'])}, variables)
+        self.assertEqual({'a': {'list'}, 'b': {'list'}, 'c': {'list'}, 'd': {'list'}}, variables)
 
     def test_typing_function_list(self):
         code = '''\
@@ -143,7 +141,7 @@ class TestJediTyper(TransformTest):
         self.assertIn(('func', (1, 0)), types)
         variables = types.pop(('func', (1, 0)))
         self.assertFalse(types)
-        self.assertEqual({'a': set(['list']), 'b': set(['list']), 'c': set(['list']), 'x': set(['list'])}, variables)
+        self.assertEqual({'a': {'list'}, 'b': {'list'}, 'c': {'list'}, 'x': {'list'}}, variables)
 
     def test_typing_global_dict(self):
         code = '''\
@@ -155,7 +153,7 @@ class TestJediTyper(TransformTest):
         self.assertIn((None, (1, 0)), types)
         variables = types.pop((None, (1, 0)))
         self.assertFalse(types)
-        self.assertEqual({'a': set(['dict']), 'b': set(['dict']), 'c': set(['dict'])}, variables)
+        self.assertEqual({'a': {'dict'}, 'b': {'dict'}, 'c': {'dict'}}, variables)
 
     def test_typing_function_dict(self):
         code = '''\
@@ -170,7 +168,7 @@ class TestJediTyper(TransformTest):
         self.assertIn(('func', (1, 0)), types)
         variables = types.pop(('func', (1, 0)))
         self.assertFalse(types)
-        self.assertEqual({'a': set(['dict']), 'b': set(['dict']), 'c': set(['dict']), 'x': set(['dict'])}, variables)
+        self.assertEqual({'a': {'dict'}, 'b': {'dict'}, 'c': {'dict'}, 'x': {'dict'}}, variables)
 
 
     def test_typing_global_set(self):
@@ -185,7 +183,7 @@ class TestJediTyper(TransformTest):
         self.assertIn((None, (1, 0)), types)
         variables = types.pop((None, (1, 0)))
         self.assertFalse(types)
-        self.assertEqual({'a': set(['set']), 'c': set(['set']), 'd': set(['set']), 'e': set(['set'])}, variables)
+        self.assertEqual({'a': {'set'}, 'c': {'set'}, 'd': {'set'}, 'e': {'set'}}, variables)
 
     def test_typing_function_set(self):
         code = '''\
@@ -201,7 +199,7 @@ class TestJediTyper(TransformTest):
         self.assertIn(('func', (1, 0)), types)
         variables = types.pop(('func', (1, 0)))
         self.assertFalse(types)
-        self.assertEqual({'a': set(['set']), 'c': set(['set']), 'd': set(['set']), 'x': set(['set'])}, variables)
+        self.assertEqual({'a': {'set'}, 'c': {'set'}, 'd': {'set'}, 'x': {'set'}}, variables)
 
 
 class TestTypeInjection(TestJediTyper):
@@ -209,9 +207,9 @@ class TestTypeInjection(TestJediTyper):
     Subtype of TestJediTyper that additionally tests type injection and compilation.
     """
     def setUp(self):
-        super(TestTypeInjection, self).setUp()
-        compilation_options = Main.CompilationOptions(Main.default_options)
-        ctx = compilation_options.create_context()
+        super().setUp()
+        compilation_options = Options.CompilationOptions(Options.default_options)
+        ctx = Main.Context.from_options(compilation_options)
         transform = InterpretCompilerDirectives(ctx, ctx.compiler_directives)
         transform.module_scope = Symtab.ModuleScope('__main__', None, ctx)
         self.declarations_finder = DeclarationsFinder()

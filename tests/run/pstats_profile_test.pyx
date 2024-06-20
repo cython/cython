@@ -1,7 +1,7 @@
 # tag: pstats
 # cython: profile = True
 
-__doc__ = u"""
+u"""
     >>> import os, tempfile, cProfile as profile, pstats
     >>> statsfile = tempfile.mkstemp()[1]
     >>> profile.runctx("test_profile(100)", locals(), globals(), statsfile)
@@ -12,9 +12,7 @@ __doc__ = u"""
     >>> short_stats['f_cdef']
     100
     >>> short_stats['f_cpdef']
-    200
-    >>> short_stats['f_cpdef (wrapper)']
-    100
+    300
     >>> short_stats['f_inline']
     100
     >>> short_stats['f_inline_prof']
@@ -49,10 +47,8 @@ __doc__ = u"""
     200
     >>> short_stats['m_cdef']
     100
-    >>> short_stats['m_cpdef']
-    200
-    >>> short_stats['m_cpdef (wrapper)']
-    100
+    >>> short_stats['m_cpdef'] - (200 if CPDEF_METHODS_COUNT_TWICE else 0)  # FIXME!
+    300
 
     >>> try:
     ...    os.unlink(statsfile)
@@ -60,10 +56,10 @@ __doc__ = u"""
     ...    pass
 
     >>> sorted(callees(s, 'test_profile'))  #doctest: +NORMALIZE_WHITESPACE
-    ['f_cdef', 'f_cpdef', 'f_cpdef (wrapper)', 'f_def',
+    ['f_cdef', 'f_cpdef', 'f_def',
      'f_inline', 'f_inline_prof',
      'f_raise',
-     'm_cdef', 'm_cpdef', 'm_cpdef (wrapper)', 'm_def',
+     'm_cdef', 'm_cpdef', 'm_def',
      'withgil_prof']
 
     >>> profile.runctx("test_generators()", locals(), globals(), statsfile)
@@ -121,6 +117,15 @@ __doc__ = u"""
 
 cimport cython
 
+
+# FIXME: With type specs, cpdef methods are currently counted twice.
+# https://github.com/cython/cython/issues/2137
+cdef extern from *:
+    int CYTHON_USE_TYPE_SPECS
+
+CPDEF_METHODS_COUNT_TWICE = CYTHON_USE_TYPE_SPECS
+
+
 def callees(pstats, target_caller):
     pstats.calc_callees()
     for (_, _, caller), callees in pstats.all_callees.items():
@@ -129,10 +134,11 @@ def callees(pstats, target_caller):
             if 'pyx' in file:
                 yield callee
 
+
 def test_profile(long N):
     cdef long i, n = 0
     cdef A a = A()
-    for i from 0 <= i < N:
+    for i in range(N):
         n += f_def(i)
         n += f_cdef(i)
         n += f_cpdef(i)

@@ -1,5 +1,5 @@
 # mode: run
-# tag: coverage,trace,nogil
+# tag: coverage,trace,nogil,fastgil
 
 """
 PYTHON setup.py build_ext -i
@@ -21,23 +21,35 @@ setup(ext_modules = cythonize([
 plugins = Cython.Coverage
 
 
-######## coverage_test_nogil.pyx ########
-# cython: linetrace=True
+######## coverage_test_nogil_fastgil.pyx ########
+# cython: linetrace=True,fast_gil=True
 # distutils: define_macros=CYTHON_TRACE=1 CYTHON_TRACE_NOGIL=1
-
-cdef int func1(int a, int b) nogil:
-    cdef int x                   #  5
-    with gil:                    #  6
-        x = 1                    #  7
-    cdef int c = func2(a) + b    #  8
-    return x + c                 #  9
+include "_coverage_test_nogil.pxi"
 
 
-cdef int func2(int a) with gil:
+######## coverage_test_nogil_nofastgil.pyx ########
+# cython: linetrace=True,fast_gil=False
+# distutils: define_macros=CYTHON_TRACE=1 CYTHON_TRACE_NOGIL=1
+include "_coverage_test_nogil.pxi"
+
+
+######## _coverage_test_nogil.pxi ########
+#  1
+#  2
+#  3
+cdef int func1(int a, int b) nogil:  #  4
+    cdef int x                       #  5
+    with gil:                        #  6
+        x = 1                        #  7
+    cdef int c = func2(a) + b        #  8
+    return x + c                     #  9
+# 10
+# 11
+cdef int func2(int a) with gil:  # 12
     return a * 2                 # 13
-
-
-def call(int a, int b):
+# 14
+# 15
+def call(int a, int b):          # 16
     a, b = b, a                  # 17
     with nogil:                  # 18
         result = func1(b, a)     # 19
@@ -56,22 +68,20 @@ except ImportError:
 from coverage import coverage
 
 
-import coverage_test_nogil
-
-assert not any(coverage_test_nogil.__file__.endswith(ext)
-               for ext in '.py .pyc .pyo .pyw .pyx .pxi'.split()), \
-    coverage_test_nogil.__file__
-
-
-def run_coverage(module):
-    module_name = module.__name__
-    module_path = module_name + '.pyx'
-
+def run_coverage(module_name):
+    print("Testing module %s" % module_name)
     cov = coverage()
     cov.start()
-    assert module.call(1, 2) == (1 * 2) + 2 + 1
-    cov.stop()
 
+    module = __import__(module_name)
+    module_name = module.__name__
+    module_path = module_name + '.pyx'
+    assert not any(module.__file__.endswith(ext)
+                   for ext in '.py .pyc .pyo .pyw .pyx .pxi'.split()), \
+        module.__file__
+    assert module.call(1, 2) == (1 * 2) + 2 + 1
+
+    cov.stop()
     out = StringIO()
     cov.report(file=out)
     #cov.report([module], file=out)
@@ -79,15 +89,17 @@ def run_coverage(module):
     assert any(module_path in line for line in lines), \
         "'%s' not found in coverage report:\n\n%s" % (module_path, out.getvalue())
 
-    mod_file, exec_lines, excl_lines, missing_lines, _ = cov.analysis2(os.path.abspath(module_path))
-    assert module_path in mod_file
+    module_pxi = "_coverage_test_nogil.pxi"
+    mod_file, exec_lines, excl_lines, missing_lines, _ = cov.analysis2(os.path.abspath(module_pxi))
+    assert module_pxi in mod_file
 
     executed = set(exec_lines) - set(missing_lines)
-    # check that everything that runs with the gil owned was executed
+    # check that everything that runs with the gil owned was executed (missing due to pxi: 4, 12, 16)
     assert all(line in executed for line in [13, 17, 18, 20]), '%s / %s' % (exec_lines, missing_lines)
     # check that everything that runs in nogil sections was executed
     assert all(line in executed for line in [6, 7, 8, 9]), '%s / %s' % (exec_lines, missing_lines)
 
 
 if __name__ == '__main__':
-    run_coverage(coverage_test_nogil)
+    for module_name in ["coverage_test_nogil_fastgil", "coverage_test_nogil_nofastgil"]:
+        run_coverage(module_name)

@@ -28,6 +28,17 @@ with cfunc:
     def fwith2(a):
         return a*4
 
+    @cython.test_assert_path_exists(
+        '//CFuncDefNode',
+        '//LambdaNode',
+        '//GeneratorDefNode',
+        '//GeneratorBodyDefNode',
+    )
+    def f_with_genexpr(a):
+        f = lambda x: x+1
+        return (f(x) for x in a)
+
+
 with cclass:
     @cython.test_assert_path_exists('//CClassDefNode')
     class Egg(object):
@@ -81,7 +92,7 @@ def ccall_sqr(x):
     return x*x
 
 @cclass
-class Overidable(object):
+class Overridable(object):
     @ccall
     def meth(self):
         return 0
@@ -97,11 +108,11 @@ def test_ccall():
 
 def test_ccall_method(x):
     """
-    >>> test_ccall_method(Overidable())
+    >>> test_ccall_method(Overridable())
     0
-    >>> Overidable().meth()
+    >>> Overridable().meth()
     0
-    >>> class Foo(Overidable):
+    >>> class Foo(Overridable):
     ...    def meth(self):
     ...        return 1
     >>> test_ccall_method(Foo())
@@ -123,3 +134,14 @@ def test_typed_return():
     """
     x = cython.declare(int, 5)
     assert typed_return(cython.address(x))[0] is x
+
+
+def test_genexpr_in_cdef(l):
+    """
+    >>> gen = test_genexpr_in_cdef([1, 2, 3])
+    >>> list(gen)
+    [2, 3, 4]
+    >>> list(gen)
+    []
+    """
+    return f_with_genexpr(l)

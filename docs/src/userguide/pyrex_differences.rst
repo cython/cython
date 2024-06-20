@@ -310,7 +310,7 @@ Automatic ``typecheck``
 
 Rather than introducing a new keyword ``typecheck`` as explained in the
 `Pyrex docs
-<http://www.cosc.canterbury.ac.nz/greg.ewing/python/Pyrex/version/Doc/Manual/special_methods.html>`_,
+<https://www.cosc.canterbury.ac.nz/greg.ewing/python/Pyrex/version/Doc/Manual/special_methods.html>`_,
 Cython emits a (non-spoofable and faster) typecheck whenever
 :func:`isinstance` is used with an extension type as the second parameter.
 

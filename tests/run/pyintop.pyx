@@ -1,3 +1,4 @@
+# cython: language_level=3str
 # mode: run
 
 cimport cython
@@ -25,6 +26,8 @@ def or_obj(obj2, obj3):
 @cython.test_fail_if_path_exists('//IntBinopNode')
 def or_int(obj2):
     """
+    >>> or_int(0)
+    16
     >>> or_int(1)
     17
     >>> or_int(16)
@@ -47,6 +50,8 @@ def xor_obj(obj2, obj3):
 @cython.test_fail_if_path_exists('//IntBinopNode')
 def xor_int(obj2):
     """
+    >>> xor_int(0)
+    16
     >>> xor_int(2)
     18
     >>> xor_int(16)
@@ -69,9 +74,13 @@ def and_obj(obj2, obj3):
 @cython.test_fail_if_path_exists('//IntBinopNode')
 def and_int(obj2):
     """
+    >>> and_int(0)
+    0
     >>> and_int(1)
     0
     >>> and_int(18)
+    16
+    >>> and_int(-1)
     16
     """
     obj1 = obj2 & 0x10
@@ -98,9 +107,30 @@ def rshift_obj(obj2, obj3):
     return obj1
 
 
+@cython.test_assert_path_exists('//IntBinopNode')
+def rshift_int_obj(obj3):
+    """
+    >>> rshift_int_obj(3)
+    0
+    >>> rshift_int_obj(2)
+    0
+    >>> rshift_int_obj(1)
+    1
+    >>> rshift_int_obj(0)
+    2
+    >>> rshift_int_obj(-1)
+    Traceback (most recent call last):
+    ValueError: negative shift count
+    """
+    obj1 = 2 >> obj3
+    return obj1
+
+
 @cython.test_fail_if_path_exists('//IntBinopNode')
 def rshift_int(obj2):
     """
+    >>> rshift_int(0)
+    0
     >>> rshift_int(2)
     0
 
@@ -226,6 +256,8 @@ def mixed_obj(obj2, obj3):
 )
 def mixed_int(obj2):
     """
+    >>> mixed_int(0)
+    16
     >>> mixed_int(2)
     18
     >>> mixed_int(16)
@@ -476,3 +508,184 @@ def truthy(obj2):
         return True
     else:
         return False
+
+@cython.test_fail_if_path_exists("//CoerceToBooleanNode")
+@cython.test_fail_if_path_exists("//CoerceToPyTypeNode")
+def test_avoid_if_coercion(obj):
+    if obj == 1:  # this should not go through a Python intermediate
+        return True
+    else:
+        return False
+
+@cython.test_fail_if_path_exists('//AddNode')
+@cython.test_fail_if_path_exists('//NumBinopNode')
+@cython.test_fail_if_path_exists('//BinopNode')
+@cython.test_assert_path_exists('//PythonCapiFunctionNode')
+def pure_add_int(obj2: int):
+    """
+    >>> pure_add_int(1)
+    (2, 2)
+    """
+    res1 = obj2 + 1
+    res2 = 1 + obj2
+    return res1, res2
+
+@cython.test_fail_if_path_exists('//SubNode')
+@cython.test_fail_if_path_exists('//NumBinopNode')
+@cython.test_fail_if_path_exists('//BinopNode')
+@cython.test_assert_path_exists('//PythonCapiFunctionNode')
+def pure_sub_int(obj2: int):
+    """
+    >>> pure_sub_int(1)
+    (0, 0)
+    """
+    res1 = obj2 - 1
+    res2 = 1 - obj2
+    return res1, res2
+
+@cython.test_fail_if_path_exists('//MulNode')
+@cython.test_fail_if_path_exists('//NumBinopNode')
+@cython.test_fail_if_path_exists('//BinopNode')
+@cython.test_assert_path_exists('//PythonCapiFunctionNode')
+def pure_mul_int(obj2: int):
+    """
+    >>> pure_mul_int(2)
+    (4, 4)
+    """
+    res1 = obj2 * 2
+    res2 = 2 * obj2
+    return res1, res2
+
+@cython.test_fail_if_path_exists('//PrimaryCmpNode')
+@cython.test_assert_path_exists('//PythonCapiFunctionNode')
+def pure_eq_int(obj2: int):
+    """
+    >>> pure_eq_int(2)
+    (True, True)
+    >>> pure_eq_int(3)
+    (False, False)
+    """
+    res1 = obj2 == 2
+    res2 = 2 == obj2
+    return res1, res2
+
+@cython.test_fail_if_path_exists('//PrimaryCmpNode')
+@cython.test_assert_path_exists('//PythonCapiFunctionNode')
+def pure_ne_int(obj2: int):
+    """
+    >>> pure_ne_int(2)
+    (False, False)
+    >>> pure_ne_int(3)
+    (True, True)
+    """
+    res1 = obj2 != 2
+    res2 = 2 != obj2
+    return res1, res2
+
+@cython.test_fail_if_path_exists('//IntBinopNode')
+@cython.test_fail_if_path_exists('//NumBinopNode')
+@cython.test_fail_if_path_exists('//BinopNode')
+@cython.test_assert_path_exists('//PythonCapiFunctionNode')
+def pure_and_int(obj2: int):
+    """
+    >>> pure_and_int(1)
+    (0, 0)
+    >>> pure_and_int(3)
+    (2, 2)
+    """
+    res1 = obj2 & 2
+    res2 = 2 & obj2
+    return res1, res2
+
+@cython.test_fail_if_path_exists('//IntBinopNode')
+@cython.test_fail_if_path_exists('//NumBinopNode')
+@cython.test_fail_if_path_exists('//BinopNode')
+@cython.test_assert_path_exists('//PythonCapiFunctionNode')
+def pure_or_int(obj2: int):
+    """
+    >>> pure_or_int(1)
+    (3, 3)
+    >>> pure_or_int(0)
+    (2, 2)
+    """
+    res1 = obj2 | 2
+    res2 = 2 | obj2
+    return res1, res2
+
+@cython.test_fail_if_path_exists('//IntBinopNode')
+@cython.test_fail_if_path_exists('//NumBinopNode')
+@cython.test_fail_if_path_exists('//BinopNode')
+@cython.test_assert_path_exists('//PythonCapiFunctionNode')
+def pure_xor_int(obj2: int):
+    """
+    >>> pure_xor_int(1)
+    (3, 3)
+    >>> pure_xor_int(3)
+    (1, 1)
+    """
+    res1 = obj2 ^ 2
+    res2 = 2 ^ obj2
+    return res1, res2
+
+@cython.test_fail_if_path_exists('//IntBinopNode')
+@cython.test_fail_if_path_exists('//NumBinopNode')
+@cython.test_fail_if_path_exists('//BinopNode')
+@cython.test_assert_path_exists('//PythonCapiFunctionNode')
+def pure_rshift_int(obj2: int):
+    """
+    >>> pure_rshift_int(8)
+    4
+    """
+    res = obj2 >> 1
+    return res
+
+@cython.test_fail_if_path_exists('//IntBinopNode')
+@cython.test_fail_if_path_exists('//NumBinopNode')
+@cython.test_fail_if_path_exists('//BinopNode')
+@cython.test_assert_path_exists('//PythonCapiFunctionNode')
+def pure_lshift_int(obj2: int):
+    """
+    >>> pure_lshift_int(8)
+    16
+    """
+    res = obj2 << 1
+    return res
+
+@cython.test_fail_if_path_exists('//IntBinopNode')
+@cython.test_fail_if_path_exists('//NumBinopNode')
+@cython.test_fail_if_path_exists('//BinopNode')
+@cython.test_assert_path_exists('//PythonCapiFunctionNode')
+def pure_mod_int(obj2: int):
+    """
+    >>> pure_mod_int(3)
+    1
+    """
+    res = obj2 % 2
+    return res
+
+@cython.test_fail_if_path_exists('//DivNode')
+@cython.test_fail_if_path_exists('//NumBinopNode')
+@cython.test_fail_if_path_exists('//BinopNode')
+@cython.test_assert_path_exists('//PythonCapiFunctionNode')
+def pure_floordiv_int(obj2: int):
+    """
+    >>> pure_floordiv_int(3)
+    1
+    """
+    res = obj2 // 2
+    return res
+
+import sys
+
+
+@cython.test_fail_if_path_exists('//DivNode')
+@cython.test_fail_if_path_exists('//NumBinopNode')
+@cython.test_fail_if_path_exists('//BinopNode')
+@cython.test_assert_path_exists('//PythonCapiFunctionNode')
+def pure_truediv_int(obj2: int):
+    """
+    >>> pure_truediv_int(5)
+    2.5
+    """
+    res = obj2 / 2
+    return res

@@ -1,5 +1,5 @@
 # mode: run
-# ticket: 768
+# ticket: t768
 from cython cimport typeof
 
 def type_inference_del_int():

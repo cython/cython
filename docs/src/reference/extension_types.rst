@@ -1,3 +1,5 @@
+:orphan:
+
 .. highlight:: cython
 
 ***************
@@ -59,7 +61,7 @@ This section was moved to :ref:`arithmetic_methods`.
 Rich Comparisons
 ================
 
-This section was moved to :ref:`righ_comparisons`.
+This section was moved to :ref:`rich_comparisons`.
 
 The ``__next__()`` Method
 =========================

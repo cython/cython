@@ -1,9 +1,8 @@
-# cython: infer_types=True, language_level=3, py2_import=True, auto_pickle=False
+# cython: infer_types=True
 #
 #   Cython Scanner
 #
 
-from __future__ import absolute_import
 
 import cython
 cython.declare(make_lexicon=object, lexicon=object,
@@ -12,11 +11,13 @@ cython.declare(make_lexicon=object, lexicon=object,
 
 import os
 import platform
+from unicodedata import normalize
+from contextlib import contextmanager
 
 from .. import Utils
 from ..Plex.Scanners import Scanner
 from ..Plex.Errors import UnrecognizedInput
-from .Errors import error, warning
+from .Errors import error, warning, hold_errors, release_errors, CompileError
 from .Lexicon import any_string_prefix, make_lexicon, IDENT
 from .Future import print_function
 
@@ -41,8 +42,8 @@ py_reserved_words = [
     "global", "nonlocal", "def", "class", "print", "del", "pass", "break",
     "continue", "return", "raise", "import", "exec", "try",
     "except", "finally", "while", "if", "elif", "else", "for",
-    "in", "assert", "and", "or", "not", "is", "in", "lambda",
-    "from", "yield", "with", "nonlocal",
+    "in", "assert", "and", "or", "not", "is", "lambda",
+    "from", "yield", "with",
 ]
 
 pyx_reserved_words = py_reserved_words + [
@@ -51,28 +52,9 @@ pyx_reserved_words = py_reserved_words + [
 ]
 
 
-class Method(object):
-
-    def __init__(self, name, **kwargs):
-        self.name = name
-        self.kwargs = kwargs or None
-        self.__name__ = name  # for Plex tracing
-
-    def __call__(self, stream, text):
-        method = getattr(stream, self.name)
-        # self.kwargs is almost always unused => avoid call overhead
-        return method(text, **self.kwargs) if self.kwargs is not None else method(text)
-
-    def __copy__(self):
-        return self  # immutable, no need to copy
-
-    def __deepcopy__(self, memo):
-        return self  # immutable, no need to copy
-
-
 #------------------------------------------------------------------
 
-class CompileTimeScope(object):
+class CompileTimeScope:
 
     def __init__(self, outer=None):
         self.entries = {}
@@ -106,10 +88,7 @@ def initial_compile_time_env():
     names = ('UNAME_SYSNAME', 'UNAME_NODENAME', 'UNAME_RELEASE', 'UNAME_VERSION', 'UNAME_MACHINE')
     for name, value in zip(names, platform.uname()):
         benv.declare(name, value)
-    try:
-        import __builtin__ as builtins
-    except ImportError:
-        import builtins
+    import builtins
 
     names = (
         'False', 'True',
@@ -143,16 +122,19 @@ def initial_compile_time_env():
 
 #------------------------------------------------------------------
 
-class SourceDescriptor(object):
+class SourceDescriptor:
     """
     A SourceDescriptor should be considered immutable.
     """
+    filename = None
+    in_utility_code = False
+
     _file_type = 'pyx'
 
     _escaped_description = None
     _cmp_name = ''
     def __str__(self):
-        assert False # To catch all places where a descriptor is used directly as a filename
+        assert False  # To catch all places where a descriptor is used directly as a filename
 
     def set_file_type_from_name(self, filename):
         name, ext = os.path.splitext(filename)
@@ -274,8 +256,6 @@ class StringSourceDescriptor(SourceDescriptor):
     Instances of this class can be used instead of a filenames if the
     code originates from a string object.
     """
-    filename = None
-
     def __init__(self, name, code):
         self.name = name
         #self.set_file_type_from_name(name)
@@ -295,7 +275,7 @@ class StringSourceDescriptor(SourceDescriptor):
     get_error_description = get_description
 
     def get_filenametable_entry(self):
-        return "stringsource"
+        return "<stringsource>"
 
     def __hash__(self):
         return id(self)
@@ -318,16 +298,32 @@ class PyrexScanner(Scanner):
     #  compile_time_env   dict     Environment for conditional compilation
     #  compile_time_eval  boolean  In a true conditional compilation context
     #  compile_time_expr  boolean  In a compile-time expression context
+    #  put_back_on_failure  list or None  If set, this records states so the tentatively_scan
+    #                                       contextmanager can restore it
 
     def __init__(self, file, filename, parent_scanner=None,
                  scope=None, context=None, source_encoding=None, parse_comments=True, initial_pos=None):
         Scanner.__init__(self, get_lexicon(), file, filename, initial_pos)
+
+        if filename.is_python_file():
+            self.in_python_file = True
+            keywords = py_reserved_words
+        else:
+            self.in_python_file = False
+            keywords = pyx_reserved_words
+        self.keywords = {keyword: keyword for keyword in keywords}
+
+        self.async_enabled = 0
+
         if parent_scanner:
             self.context = parent_scanner.context
             self.included_files = parent_scanner.included_files
             self.compile_time_env = parent_scanner.compile_time_env
             self.compile_time_eval = parent_scanner.compile_time_eval
             self.compile_time_expr = parent_scanner.compile_time_expr
+
+            if parent_scanner.async_enabled:
+                self.enter_async()
         else:
             self.context = context
             self.included_files = scope.included_files
@@ -338,20 +334,21 @@ class PyrexScanner(Scanner):
                 self.compile_time_env.update(context.options.compile_time_env)
         self.parse_comments = parse_comments
         self.source_encoding = source_encoding
-        if filename.is_python_file():
-            self.in_python_file = True
-            self.keywords = set(py_reserved_words)
-        else:
-            self.in_python_file = False
-            self.keywords = set(pyx_reserved_words)
         self.trace = trace_scanner
         self.indentation_stack = [0]
-        self.indentation_char = None
+        self.indentation_char = '\0'
         self.bracket_nesting_level = 0
-        self.async_enabled = 0
+
+        self.put_back_on_failure = None
+
         self.begin('INDENT')
         self.sy = ''
         self.next()
+
+    def normalize_ident(self, text):
+        if not text.isascii():
+            text = normalize('NFKC', text)
+        self.produce(IDENT, text)
 
     def commentline(self, text):
         if self.parse_comments:
@@ -383,8 +380,8 @@ class PyrexScanner(Scanner):
         '"""': 'TDQ_STRING'
     }
 
-    def begin_string_action(self, text):
-        while text[:1] in any_string_prefix:
+    def begin_string_action(self, text: str):
+        while text and text[0] in any_string_prefix:
             text = text[1:]
         self.begin(self.string_states[text])
         self.produce('BEGIN_STRING')
@@ -395,9 +392,9 @@ class PyrexScanner(Scanner):
 
     def unclosed_string_action(self, text):
         self.end_string_action(text)
-        self.error("Unclosed string literal")
+        self.error_at_scanpos("Unclosed string literal")
 
-    def indentation_action(self, text):
+    def indentation_action(self, text: str):
         self.begin('')
         # Indentation within brackets should be ignored.
         #if self.bracket_nesting_level > 0:
@@ -406,17 +403,17 @@ class PyrexScanner(Scanner):
         if text:
             c = text[0]
             #print "Scanner.indentation_action: indent with", repr(c) ###
-            if self.indentation_char is None:
+            if self.indentation_char == '\0':
                 self.indentation_char = c
                 #print "Scanner.indentation_action: setting indent_char to", repr(c)
             else:
                 if self.indentation_char != c:
-                    self.error("Mixed use of tabs and spaces")
+                    self.error_at_scanpos("Mixed use of tabs and spaces")
             if text.replace(c, "") != "":
-                self.error("Mixed use of tabs and spaces")
+                self.error_at_scanpos("Mixed use of tabs and spaces")
         # Figure out how many indents/dedents to do
-        current_level = self.current_level()
-        new_level = len(text)
+        current_level: cython.Py_ssize_t = self.current_level()
+        new_level: cython.Py_ssize_t = len(text)
         #print "Changing indent level from", current_level, "to", new_level ###
         if new_level == current_level:
             return
@@ -431,7 +428,7 @@ class PyrexScanner(Scanner):
                 self.produce('DEDENT', '')
             #print "...current level now", self.current_level() ###
             if new_level != self.current_level():
-                self.error("Inconsistent indentation")
+                self.error_at_scanpos("Inconsistent indentation")
 
     def eof_action(self, text):
         while len(self.indentation_stack) > 1:
@@ -443,20 +440,22 @@ class PyrexScanner(Scanner):
         try:
             sy, systring = self.read()
         except UnrecognizedInput:
-            self.error("Unrecognized character")
+            self.error_at_scanpos("Unrecognized character")
             return  # just a marker, error() always raises
         if sy == IDENT:
             if systring in self.keywords:
-                if systring == u'print' and print_function in self.context.future_directives:
-                    self.keywords.discard('print')
-                elif systring == u'exec' and self.context.language_level >= 3:
-                    self.keywords.discard('exec')
+                if systring == 'print' and print_function in self.context.future_directives:
+                    self.keywords.pop('print', None)
+                elif systring == 'exec' and self.context.language_level >= 3:
+                    self.keywords.pop('exec', None)
                 else:
-                    sy = systring
+                    sy = self.keywords[systring]  # intern
             systring = self.context.intern_ustring(systring)
+        if self.put_back_on_failure is not None:
+            self.put_back_on_failure.append((sy, systring, self.position()))
         self.sy = sy
         self.systring = systring
-        if False: # debug_scanner:
+        if False:  # debug_scanner:
             _, line, col = self.position()
             if not self.systring or self.sy == self.systring:
                 t = self.sy
@@ -466,20 +465,20 @@ class PyrexScanner(Scanner):
 
     def peek(self):
         saved = self.sy, self.systring
+        saved_pos = self.position()
         self.next()
         next = self.sy, self.systring
-        self.unread(*next)
+        self.unread(self.sy, self.systring, self.position())
         self.sy, self.systring = saved
+        self.last_token_position_tuple = saved_pos
         return next
 
-    def put_back(self, sy, systring):
-        self.unread(self.sy, self.systring)
+    def put_back(self, sy, systring, pos):
+        self.unread(self.sy, self.systring, self.last_token_position_tuple)
         self.sy = sy
         self.systring = systring
+        self.last_token_position_tuple = pos
 
-    def unread(self, token, value):
-        # This method should be added to Plex
-        self.queue.insert(0, (token, value))
 
     def error(self, message, pos=None, fatal=True):
         if pos is None:
@@ -488,6 +487,12 @@ class PyrexScanner(Scanner):
             error(pos, "Possible inconsistent indentation")
         err = error(pos, message)
         if fatal: raise err
+
+    def error_at_scanpos(self, message):
+        # Like error(fatal=True), but gets the current scanning position rather than
+        # the position of the last token read.
+        pos = self.get_current_scan_pos()
+        self.error(message, pos, True)
 
     def expect(self, what, message=None):
         if self.sy == what:
@@ -517,7 +522,7 @@ class PyrexScanner(Scanner):
     def expect_dedent(self):
         self.expect('DEDENT', "Expected a decrease in indentation level")
 
-    def expect_newline(self, message="Expected a newline", ignore_semicolon=False):
+    def expect_newline(self, message="Expected a newline", ignore_semicolon: cython.bint = False):
         # Expect either a newline or end of file
         useless_trailing_semicolon = None
         if ignore_semicolon and self.sy == ';':
@@ -531,14 +536,40 @@ class PyrexScanner(Scanner):
     def enter_async(self):
         self.async_enabled += 1
         if self.async_enabled == 1:
-            self.keywords.add('async')
-            self.keywords.add('await')
+            self.keywords['async'] = 'async'
+            self.keywords['await'] = 'await'
 
     def exit_async(self):
         assert self.async_enabled > 0
         self.async_enabled -= 1
         if not self.async_enabled:
-            self.keywords.discard('await')
-            self.keywords.discard('async')
+            del self.keywords['await']
+            del self.keywords['async']
             if self.sy in ('async', 'await'):
                 self.sy, self.systring = IDENT, self.context.intern_ustring(self.sy)
+
+@contextmanager
+def tentatively_scan(scanner: PyrexScanner):
+    errors = hold_errors()
+    try:
+        put_back_on_failure = scanner.put_back_on_failure
+        scanner.put_back_on_failure = []
+        initial_state = (scanner.sy, scanner.systring, scanner.position())
+        try:
+            yield errors
+        except CompileError as e:
+            pass
+        finally:
+            if errors:
+                if scanner.put_back_on_failure:
+                    for put_back in reversed(scanner.put_back_on_failure[:-1]):
+                        scanner.put_back(*put_back)
+                    # we need to restore the initial state too
+                    scanner.put_back(*initial_state)
+            elif put_back_on_failure is not None:
+                # the outer "tentatively_scan" block that we're in might still
+                # want to undo this block
+                put_back_on_failure.extend(scanner.put_back_on_failure)
+            scanner.put_back_on_failure = put_back_on_failure
+    finally:
+        release_errors(ignore=True)

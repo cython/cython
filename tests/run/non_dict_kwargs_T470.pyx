@@ -1,5 +1,5 @@
 # mode: run
-# ticket: 470
+# ticket: t470
 
 
 def func(**kwargs):

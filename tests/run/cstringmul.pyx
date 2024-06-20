@@ -31,3 +31,15 @@ grail_long = 700 * "tomato"
 uspam = u"eggs" * 4
 ugrail = 7 * u"tomato"
 ugrail_long = 700 * u"tomato"
+
+cimport cython
+
+@cython.test_assert_path_exists("//StringNode[@value = '-----']")
+@cython.test_assert_path_exists("//StringNode[@unicode_value = '-----']")
+def gh3951():
+    """
+    Bug occurs with language_level=2 and affects StringNode.value
+    >>> gh3951()
+    '-----'
+    """
+    return "-"*5

@@ -21,16 +21,14 @@ def test(dict d, index):
     >>> try: d[(1,)]
     ... except KeyError:
     ...     args = sys.exc_info()[1].args
-    ...     if sys.version_info >= (2,5): print(args)
-    ...     else: print((args,))   # fake it for older CPython versions
+    ...     print(args)
     ((1,),)
 
     >>> import sys
     >>> try: test(d, (1,))
     ... except KeyError:
     ...     args = sys.exc_info()[1].args
-    ...     if sys.version_info >= (2,5): print(args)
-    ...     else: print((args,))   # fake it for older CPython versions
+    ...     print(args)
     ((1,),)
 
     >>> class Unhashable:
@@ -145,4 +143,18 @@ def getitem_not_none(dict d not None, key):
     Traceback (most recent call last):
     KeyError: (1, 2)
     """
+    return d[key]
+
+
+def getitem_int_key(d, int key):
+    """
+    >>> d = {-1: 10}
+    >>> getitem_int_key(d, -1)  # dict
+    10
+    >>> class D(dict): pass
+    >>> d = D({-1: 10})
+    >>> getitem_int_key(d, -1)  # D
+    10
+    """
+    # Based on GH-1807: must check Mapping protocol first, even for integer "index" keys.
     return d[key]

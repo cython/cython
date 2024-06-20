@@ -46,9 +46,13 @@ def compute(val):
 def a(in_k, x1, x2, x3, x4, x5):
     """
     >>> import sys
-    >>> sys.setrecursionlimit(1350)
+    >>> old_limit = sys.getrecursionlimit()
+    >>> sys.setrecursionlimit(1350 if not getattr(sys, 'pypy_version_info', None) else 2700)
+
     >>> a(10, 1, -1, -1, 1, 0)
     -67
+
+    >>> sys.setrecursionlimit(old_limit)
     """
     k = [in_k]
     def b():

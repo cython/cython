@@ -333,7 +333,7 @@ class WorkTask(Task):
         pkt.ident = dest
         pkt.datum = 0
 
-        for i in BUFSIZE_RANGE: # range(BUFSIZE)
+        for i in BUFSIZE_RANGE:  # range(BUFSIZE)
             w.count += 1
             if w.count > 26:
                 w.count = 1
@@ -382,9 +382,9 @@ class Richards(object):
             wkq = Packet(wkq , I_DEVB, K_DEV)
             HandlerTask(I_HANDLERB, 3000, wkq, TaskState().waitingWithPacket(), HandlerTaskRec())
 
-            wkq = None;
-            DeviceTask(I_DEVA, 4000, wkq, TaskState().waiting(), DeviceTaskRec());
-            DeviceTask(I_DEVB, 5000, wkq, TaskState().waiting(), DeviceTaskRec());
+            wkq = None
+            DeviceTask(I_DEVA, 4000, wkq, TaskState().waiting(), DeviceTaskRec())
+            DeviceTask(I_DEVB, 5000, wkq, TaskState().waiting(), DeviceTaskRec())
 
             schedule()
 

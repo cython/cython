@@ -1,13 +1,8 @@
-# -*- coding: UTF-8 -*-
-
 """
 Test libpython.py. This is already partly tested by test_libcython_in_gdb and
 Lib/test/test_gdb.py in the Python source. These tests are run in gdb and
 called from test_libcython_in_gdb.main()
 """
-
-import os
-import sys
 
 import gdb
 
@@ -15,7 +10,7 @@ from Cython.Debugger import libcython
 from Cython.Debugger import libpython
 
 from . import test_libcython_in_gdb
-from .test_libcython_in_gdb import _debug, inferior_python_version
+from .test_libcython_in_gdb import inferior_python_version
 
 
 class TestPrettyPrinters(test_libcython_in_gdb.DebugTestCase):
@@ -31,7 +26,7 @@ class TestPrettyPrinters(test_libcython_in_gdb.DebugTestCase):
     """
 
     def setUp(self):
-        super(TestPrettyPrinters, self).setUp()
+        super().setUp()
         self.break_and_run('b = c = d = 0')
 
     def get_pyobject(self, code):
@@ -86,9 +81,9 @@ class TestPrettyPrinters(test_libcython_in_gdb.DebugTestCase):
         self.assertEqual(self.get_repr(bytestring), expected)
 
     def test_unicode(self):
-        unicode_string = self.alloc_unicodestring(u"spam ἄλφα")
+        unicode_string = self.alloc_unicodestring("spam ἄλφα")
 
-        expected = u"'spam ἄλφα'"
+        expected = "'spam ἄλφα'"
         if inferior_python_version < (3, 0):
             expected = 'u' + expected
 

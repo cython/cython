@@ -1,4 +1,4 @@
-# http://pubs.opengroup.org/onlinepubs/009695399/basedefs/sys/wait.h.html
+# https://pubs.opengroup.org/onlinepubs/9699919799/basedefs/sys_wait.h.html
 
 from posix.types cimport pid_t, id_t
 from posix.signal cimport siginfo_t
