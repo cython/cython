@@ -4714,6 +4714,7 @@ class PythonTypeConstructorMixin:
     def specialize_here(self, pos, env, template_values=None):
         # for a lot of the typing classes it doesn't really matter what the template is
         # (i.e. typing.Dict[int] is really just a dict)
+        self.nested_type = self
         return self
 
     def __repr__(self):
@@ -4743,8 +4744,10 @@ class PythonTupleTypeConstructor(BuiltinTypeConstructorObjectType):
             entry = env.declare_tuple_type(pos, template_values)
             if entry:
                 entry.used = True
-                return entry.type
-        return super().specialize_here(pos, env, template_values)
+                self.nested_type = entry.type
+                return self
+        self.nested_type = super().specialize_here(pos, env, template_values)
+        return self
 
 
 class SpecialPythonTypeConstructor(PyObjectType, PythonTypeConstructorMixin):
@@ -4756,6 +4759,7 @@ class SpecialPythonTypeConstructor(PyObjectType, PythonTypeConstructorMixin):
         super().__init__()
         self.set_python_type_constructor_name(name)
         self.modifier_name = name
+        self.nested_type = None
 
     def __repr__(self):
         return self.name
@@ -4764,14 +4768,23 @@ class SpecialPythonTypeConstructor(PyObjectType, PythonTypeConstructorMixin):
         return self
 
     def specialize_here(self, pos, env, template_values=None):
-        if len(template_values) != 1:
-            error(pos, "'%s' takes exactly one template argument." % self.name)
-            return error_type
-        if template_values[0] is None:
+        # breakpoint()
+        if py_none_type in template_values and self.modifier_name == 'typing.Union':
+            self.modifier_name = 'typing.Optional'
+            template_values = [tv for tv in template_values if tv != py_none_type]
+        if len(template_values) > 1:
+            return py_object_type
+        if len(template_values) == 0:
             # FIXME: allowing unknown types for now since we don't recognise all Python types.
             return None
+        #     error(pos, "'%s' takes exactly one template argument." % self.name)
+        #     return error_type
+        # if template_values[0] is None:
+        #     # FIXME: allowing unknown types for now since we don't recognise all Python types.
+        #     return None
         # Replace this type with the actual 'template' argument.
-        return template_values[0].resolve()
+        self.nested_type = template_values[0].resolve()
+        return self
 
 
 rank_to_type_name = (
@@ -4793,6 +4806,8 @@ SIGNED = 2
 
 error_type =    ErrorType()
 unspecified_type = UnspecifiedType()
+
+py_none_type = BuiltinObjectType('None', None, [])
 
 py_object_type = PyObjectType()
 

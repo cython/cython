@@ -985,6 +985,7 @@ class CArgDeclNode(Node):
         if not annotation:
             return None
 
+        # breakpoint()
         modifiers, arg_type = annotation.analyse_type_annotation(env, assigned_value=self.default)
         if arg_type is not None:
             self.base_type = CAnalysedBaseTypeNode(
@@ -1248,6 +1249,7 @@ class TemplatedTypeNode(CBaseTypeNode):
         in_c_type_context = env.in_c_type_context and not require_python_types
 
         template_types = []
+        # breakpoint()
         for template_node in self.positional_args:
             # CBaseTypeNode -> allow C type declarations in a 'cdef' context again
             with env.new_c_type_context(in_c_type_context or isinstance(template_node, CBaseTypeNode)):
@@ -1285,6 +1287,7 @@ class TemplatedTypeNode(CBaseTypeNode):
                 return self.type
 
             template_types = self._analyse_template_types(env, base_type)
+            # breakpoint()
             self.type = base_type.specialize_here(self.pos, env, template_types)
 
         elif base_type.is_pyobject:
@@ -1334,6 +1337,7 @@ class TemplatedTypeNode(CBaseTypeNode):
     def analyse_pytyping_modifiers(self, env):
         # Check for declaration modifiers, e.g. "typing.Optional[...]" or "dataclasses.InitVar[...]"
         # TODO: somehow bring this together with IndexNode.analyse_pytyping_modifiers()
+        # breakpoint()
         modifiers = []
         modifier_node = self
         while modifier_node.is_templated_type_node and modifier_node.base_type_node and len(modifier_node.positional_args) == 1:

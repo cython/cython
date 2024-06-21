@@ -31,7 +31,7 @@ from . import Nodes
 from .Nodes import Node, SingleAssignmentNode
 from . import PyrexTypes
 from .PyrexTypes import c_char_ptr_type, py_object_type, typecast, error_type, \
-    unspecified_type
+    unspecified_type, py_none_type
 from . import TypeSlots
 from .Builtin import (
     list_type, tuple_type, set_type, dict_type, type_type,
@@ -1276,6 +1276,9 @@ class NoneNode(PyConstNode):
             # Catch this error early and loudly.
             error(self.pos, "Cannot assign None to %s" % dst_type)
         return super().coerce_to(dst_type, env)
+
+    def analyse_as_type(self, env):
+        return py_none_type
 
 
 class EllipsisNode(PyConstNode):
@@ -14823,6 +14826,7 @@ class AnnotationNode(ExprNode):
             return [], None
 
         with env.new_c_type_context(in_c_type_context=explicit_ctype):
+            # breakpoint()
             arg_type = annotation.analyse_as_type(env)
 
             if arg_type is None:
@@ -14841,9 +14845,12 @@ class AnnotationNode(ExprNode):
                 arg_type.create_declaration_utility_code(env)
 
             # Check for declaration modifiers, e.g. "typing.Optional[...]" or "dataclasses.InitVar[...]"
-            modifiers = annotation.analyse_pytyping_modifiers(env) if annotation.is_subscript else []
+            # modifiers = annotation.analyse_pytyping_modifiers(env) if annotation.is_subscript else []
 
-        return modifiers, arg_type
+        # return modifiers, arg_type
+        if hasattr(arg_type, 'nested_type'):
+            return [arg_type.modifier_name], arg_type.nested_type
+        return [], arg_type
 
 
 class AssignmentExpressionNode(ExprNode):
