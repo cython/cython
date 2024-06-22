@@ -1326,5 +1326,5 @@ def test_untyped_index(i):
 
 _PERFORMANCE_HINTS = """
 243:9: Use boundscheck(False) for faster access
-1329:21: Index should be typed for more efficient access
+1325:21: Index should be typed for more efficient access
 """
