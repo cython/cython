@@ -86,6 +86,14 @@ cdef void contents_unfindable1(cython.integral x):
     z: floating = 1  # note: cdef variables also fail with an error but not by the time this test aborts
     sz = sizeof(floating)
 
+cdef fused fused3:
+    Foo
+    cython.int
+
+cdef cython.integral func_with_fused_extension(fused3 foo):
+    return x
+
+func_with_fused_extension(5)
 
 _ERRORS = u"""
 11:15: fused_type does not take keyword arguments
@@ -112,4 +120,6 @@ _ERRORS = u"""
 87:16: Type cannot be specialized since it is not a fused argument to this function
 87:16: Type cannot be specialized since it is not a fused argument to this function
 87:16: Type cannot be specialized since it is not a fused argument to this function
+93:5: Return type is a fused type that cannot be determined from the function arguments
+96:0: Invalid use of fused types, type cannot be specialized
 """
