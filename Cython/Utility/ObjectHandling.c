@@ -2545,7 +2545,7 @@ static PyObject *__Pyx_PyVectorcall_FastCallDict_kw(PyObject *func, __pyx_vector
     pos = i = 0;
     keys_are_strings = Py_TPFLAGS_UNICODE_SUBCLASS;
     while (PyDict_Next(kw, &pos, &key, &value)) {
-        keys_are_strings &= 
+        keys_are_strings &=
         #if CYTHON_COMPILING_IN_LIMITED_API
             PyType_GetFlags(Py_TYPE(key));
         #else
@@ -2579,17 +2579,23 @@ cleanup:
 
 static CYTHON_INLINE PyObject *__Pyx_PyVectorcall_FastCallDict(PyObject *func, __pyx_vectorcallfunc vc, PyObject *const *args, size_t nargs, PyObject *kw)
 {
-    if (likely(kw == NULL)) {
-        #if !CYTHON_ASSUME_SAFE_SIZE
-        Py_ssize_t kw_size = PyDict_Size(kw);
-        if (unlikely(kw_size < 0)) return NULL;
-        #else
-        Py_ssize_t kw_size = PyDict_GET_SIZE(kw);
-        #endif
-        if (kw_size == 0) {
-            return vc(func, args, nargs, NULL);
-        }
+    Py_ssize_t kw_size =
+        likely(kw == NULL) ?
+        0 :
+#if !CYTHON_ASSUME_SAFE_SIZE
+        PyDict_Size(kw);
+#else
+        PyDict_GET_SIZE(kw);
+#endif
+
+    if (kw_size == 0) {
+        return vc(func, args, nargs, NULL);
     }
+#if !CYTHON_ASSUME_SAFE_SIZE
+    else if (unlikely(kw_size == -1)) {
+        return NULL;
+    }
+#endif
     return __Pyx_PyVectorcall_FastCallDict_kw(func, vc, args, nargs, kw);
 }
 #endif

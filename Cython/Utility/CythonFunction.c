@@ -890,7 +890,7 @@ static CYTHON_INLINE int __Pyx_CyFunction_Vectorcall_CheckArgs(__pyx_CyFunctionO
     int ret = 0;
     if ((cyfunc->flags & __Pyx_CYFUNCTION_CCLASS) && !(cyfunc->flags & __Pyx_CYFUNCTION_STATICMETHOD)) {
         if (unlikely(nargs < 1)) {
-            __Pyx_name_for_format name = __Pyx_CyFunction_get_name(cyfunc, NULL);
+            __Pyx_name_for_format name = __Pyx_CyFunction_get_name_for_format(cyfunc);
             if (unlikely(!name)) return -1;
             PyErr_Format(PyExc_TypeError, __Pyx_FORMAT_NAME "() needs an argument",
                         name);
