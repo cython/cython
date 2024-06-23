@@ -173,6 +173,11 @@ if [[ $NO_CYTHON_COMPILE != "1" && $PYTHON_VERSION != "pypy"* ]]; then
   if [[ $CYTHON_COMPILE_ALL == "1" ]]; then
     SETUP_ARGS="$SETUP_ARGS --cython-compile-all"
   fi
+  if [[ $LIMITED_API != "" && $NO_LIMITED_COMPILE != "1" ]]; then
+    # in the limited API tests, also build Cython in this mode (for more thorough 
+    # testing rather than performance since it's currently a pessimization)
+    SETUP_ARGS="$SETUP_ARGS --cython-limited-api"
+  fi
   # It looks like parallel build may be causing occasional link failures on Windows
   # "with exit code 1158". DW isn't completely sure of this, but has disabled it in 
   # the hope it helps
