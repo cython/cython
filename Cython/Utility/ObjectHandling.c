@@ -187,7 +187,7 @@ static CYTHON_INLINE PyObject *__Pyx_PyIter_Next2(PyObject *, PyObject *); /*pro
 //@requires: Exceptions.c::PyErrFetchRestore
 //@requires: GetBuiltinName
 
-#if CYTHON_COMPILING_IN_LIMITED_API || __PYX_LIMITED_VERSION_HEX < 0x03080000
+#if CYTHON_COMPILING_IN_LIMITED_API && __PYX_LIMITED_VERSION_HEX < 0x03080000
 // In limited API prior to 3.7, PyIter_Check is defined but as a macro that uses non-limited API features.
 // Therefore, just call builtin next
 static PyObject *__Pyx_PyIter_Next2(PyObject *o, PyObject *defval) {
