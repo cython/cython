@@ -1476,9 +1476,12 @@ bad:
 
 /////////////// CodeObjectCache.proto ///////////////
 
-#if !CYTHON_COMPILING_IN_LIMITED_API
 typedef struct {
+#if CYTHON_COMPILING_IN_LIMITED_API
+    PyObject* code_object;
+#else
     PyCodeObject* code_object;
+#endif
     int code_line;
 } __Pyx_CodeObjectCacheEntry;
 
@@ -1491,6 +1494,11 @@ struct __Pyx_CodeObjectCache {
 static struct __Pyx_CodeObjectCache __pyx_code_cache = {0,0,NULL};
 
 static int __pyx_bisect_code_objects(__Pyx_CodeObjectCacheEntry* entries, int count, int code_line);
+
+#if CYTHON_COMPILING_IN_LIMITED_API
+static PyObject *__pyx_find_code_object(int code_line);
+static void __pyx_insert_code_object(int code_line, PyObject* code_object);
+#else
 static PyCodeObject *__pyx_find_code_object(int code_line);
 static void __pyx_insert_code_object(int code_line, PyCodeObject* code_object);
 #endif
@@ -1499,7 +1507,6 @@ static void __pyx_insert_code_object(int code_line, PyCodeObject* code_object);
 // Note that errors are simply ignored in the code below.
 // This is just a cache, if a lookup or insertion fails - so what?
 
-#if !CYTHON_COMPILING_IN_LIMITED_API
 static int __pyx_bisect_code_objects(__Pyx_CodeObjectCacheEntry* entries, int count, int code_line) {
     int start = 0, mid = 0, end = count - 1;
     if (end >= 0 && code_line > entries[end].code_line) {
@@ -1522,8 +1529,13 @@ static int __pyx_bisect_code_objects(__Pyx_CodeObjectCacheEntry* entries, int co
     }
 }
 
+#if CYTHON_COMPILING_IN_LIMITED_API
+static PyObject *__pyx_find_code_object(int code_line) {
+    PyObject* code_object;
+#else
 static PyCodeObject *__pyx_find_code_object(int code_line) {
     PyCodeObject* code_object;
+#endif
     int pos;
     if (unlikely(!code_line) || unlikely(!__pyx_code_cache.entries)) {
         return NULL;
@@ -1537,7 +1549,12 @@ static PyCodeObject *__pyx_find_code_object(int code_line) {
     return code_object;
 }
 
-static void __pyx_insert_code_object(int code_line, PyCodeObject* code_object) {
+#if CYTHON_COMPILING_IN_LIMITED_API
+static void __pyx_insert_code_object(int code_line, PyObject* code_object)
+#else
+static void __pyx_insert_code_object(int code_line, PyCodeObject* code_object)
+#endif
+{
     int pos, i;
     __Pyx_CodeObjectCacheEntry* entries = __pyx_code_cache.entries;
     if (unlikely(!code_line)) {
@@ -1557,7 +1574,12 @@ static void __pyx_insert_code_object(int code_line, PyCodeObject* code_object) {
     }
     pos = __pyx_bisect_code_objects(__pyx_code_cache.entries, __pyx_code_cache.count, code_line);
     if ((pos < __pyx_code_cache.count) && unlikely(__pyx_code_cache.entries[pos].code_line == code_line)) {
-        PyCodeObject* tmp = entries[pos].code_object;
+#if CYTHON_COMPILING_IN_LIMITED_API
+        PyObject* tmp;
+#else
+        PyCodeObject* tmp;
+#endif
+        tmp = entries[pos].code_object;
         entries[pos].code_object = code_object;
         Py_DECREF(tmp);
         return;
@@ -1580,11 +1602,9 @@ static void __pyx_insert_code_object(int code_line, PyCodeObject* code_object) {
     __pyx_code_cache.count++;
     Py_INCREF(code_object);
 }
-#endif
 
 /////////////// CodeObjectCache.cleanup ///////////////
 
-  #if !CYTHON_COMPILING_IN_LIMITED_API
   if (__pyx_code_cache.entries) {
       __Pyx_CodeObjectCacheEntry* entries = __pyx_code_cache.entries;
       int i, count = __pyx_code_cache.count;
@@ -1596,7 +1616,6 @@ static void __pyx_insert_code_object(int code_line, PyCodeObject* code_object) {
       }
       PyMem_Free(entries);
   }
-  #endif
 
 /////////////// CheckBinaryVersion.proto ///////////////
 
