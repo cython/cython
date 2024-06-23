@@ -588,7 +588,7 @@ static int __Pyx_ImportFunction_$cyversion(PyObject *module, const char *funcnam
              PyModule_GetName(module), funcname, sig, PyCapsule_GetName(cobj));
         goto bad;
     }
-    *f = __Pyx_capsule_to_c_func_ptr(cobj, sig);
+    *f = __Pyx_capsule_to_c_func_ptr_$cyversion(cobj, sig);
     if (!(*f))
         goto bad;
     Py_DECREF(d);
