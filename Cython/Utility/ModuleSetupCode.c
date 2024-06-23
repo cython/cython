@@ -633,7 +633,7 @@ class __Pyx_FakeReference {
 };
 
 
-/////////////// PythonCompatibility ///////////////
+/////////////// PythonCompatibility.proto ///////////////
 
 #define __PYX_BUILD_PY_SSIZE_T "n"
 #define CYTHON_FORMAT_SSIZE_T "z"
@@ -644,29 +644,37 @@ class __Pyx_FakeReference {
 
 #if CYTHON_COMPILING_IN_LIMITED_API
     // Cython uses these constants but they are not available in the limited API.
-    // (it'd be nice if there was a more robust way of looking these up)
+    // Therefore define them as static variables and look them up at module init.
     #ifndef CO_OPTIMIZED
-    #define CO_OPTIMIZED 0x0001
+    static int CO_OPTIMIZED;
     #endif
     #ifndef CO_NEWLOCALS
-    #define CO_NEWLOCALS 0x0002
+    static int CO_NEWLOCALS;
     #endif
     #ifndef CO_VARARGS
-    #define CO_VARARGS 0x0004
+    static int CO_VARARGS;
     #endif
     #ifndef CO_VARKEYWORDS
-    #define CO_VARKEYWORDS 0x0008
+    static int CO_VARKEYWORDS;
     #endif
     #ifndef CO_ASYNC_GENERATOR
-    #define CO_ASYNC_GENERATOR 0x0200
+    static int CO_ASYNC_GENERATOR;
     #endif
     #ifndef CO_GENERATOR
-    #define CO_GENERATOR 0x0020
+    static int CO_GENERATOR;
     #endif
     #ifndef CO_COROUTINE
-    #define CO_COROUTINE 0x0080
+    static int CO_COROUTINE;
+    #endif
+#else
+    #ifndef CO_COROUTINE
+      #define CO_COROUTINE 0x80
+    #endif
+    #ifndef CO_ASYNC_GENERATOR
+      #define CO_ASYNC_GENERATOR 0x200
     #endif
 #endif
+static int __Pyx_init_co_variables(void); /* proto */
 
 #if PY_VERSION_HEX >= 0x030900A4 || defined(Py_IS_TYPE)
   #define __Pyx_IS_TYPE(ob, type) Py_IS_TYPE(ob, type)
@@ -700,13 +708,6 @@ class __Pyx_FakeReference {
   #define __Pyx_PyObject_GC_IsFinalized(o) PyObject_GC_IsFinalized(o)
 #else
   #define __Pyx_PyObject_GC_IsFinalized(o) _PyGC_FINALIZED(o)
-#endif
-
-#ifndef CO_COROUTINE
-  #define CO_COROUTINE 0x80
-#endif
-#ifndef CO_ASYNC_GENERATOR
-  #define CO_ASYNC_GENERATOR 0x200
 #endif
 
 #ifndef Py_TPFLAGS_CHECKTYPES
@@ -1127,6 +1128,63 @@ static CYTHON_INLINE PyObject * __Pyx_PyDict_GetItemStrWithError(PyObject *dict,
     #define __Pyx_PyType_AsAsync(obj) NULL
 #endif
 
+/////////////// PythonCompatibility.init ///////////////
+
+if (likely(__Pyx_init_co_variables() == 0)); else
+
+/////////////// PythonCompatibility ///////////////
+
+#if CYTHON_COMPILING_IN_LIMITED_API
+// returns 1 for success and 0 for failure to enable it to be chained in an &&
+static int __Pyx_init_co_variable(PyObject *inspect, const char* name, int *write_to) {
+    PyObject *py_value;
+    py_value = PyObject_GetAttrString(inspect, name);
+    if (!py_value) return 0;
+    // There's a small chance of overflow here, but it'd only happen if inspect
+    // was set up wrongly
+    *write_to = PyLong_AsLong(py_value);
+    Py_DECREF(py_value);
+    return *write_to != -1 || !PyErr_Occurred();
+}
+
+// Returns 0 on success and -1 on failure for normal error handling
+static int __Pyx_init_co_variables(void) {
+    PyObject *inspect;
+    int result;
+    inspect = PyImport_ImportModule("inspect");
+
+    result =
+#if !defined(CO_OPTIMIZED)
+        __Pyx_init_co_variable(inspect, "CO_OPTIMIZED", &CO_OPTIMIZED) &&
+#endif
+#if !defined(CO_NEWLOCALS)
+        __Pyx_init_co_variable(inspect, "CO_NEWLOCALS", &CO_NEWLOCALS) &&
+#endif
+#if !defined(CO_VARARGS)
+        __Pyx_init_co_variable(inspect, "CO_VARARGS", &CO_VARARGS) &&
+#endif
+#if !defined(CO_VARKEYWORDS)
+        __Pyx_init_co_variable(inspect, "CO_VARKEYWORDS", &CO_VARKEYWORDS) &&
+#endif
+#if !defined(CO_ASYNC_GENERATOR)
+        __Pyx_init_co_variable(inspect, "CO_ASYNC_GENERATOR", &CO_ASYNC_GENERATOR) &&
+#endif
+#if !defined(CO_GENERATOR)
+        __Pyx_init_co_variable(inspect, "CO_GENERATOR", &CO_GENERATOR) &&
+#endif
+#if !defined(CO_COROUTINE)
+        __Pyx_init_co_variable(inspect, "CO_COROUTINE", &CO_COROUTINE) &&
+#endif
+        1;
+
+    Py_DECREF(inspect);
+    return result ? 0 : -1;
+}
+#else
+static int __Pyx_init_co_variables(void) {
+    return 0;  // It's a limited API-only feature
+}
+#endif
 
 /////////////// IncludeStructmemberH.proto ///////////////
 //@proto_block: utility_code_proto_before_types
