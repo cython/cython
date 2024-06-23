@@ -2062,6 +2062,8 @@ static CYTHON_INLINE PyObject* __Pyx_PyObject_FastCallDict(PyObject *func, PyObj
             __pyx_vectorcallfunc f = __Pyx_CyFunction_func_vectorcall(func);
             if (f) return f(func, args, (size_t)nargs, NULL);
         }
+        #elif CYTHON_COMPILING_IN_LIMITED_API && CYTHON_VECTORCALL
+        return PyObject_Vectorcall(func, args, (size_t)nargs, NULL);
         #endif
     }
 
