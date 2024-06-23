@@ -133,6 +133,17 @@ static {{type}} __Pyx_PyComplex_As_{{type_name}}(PyObject*);
 /////////////// FromPy ///////////////
 
 static {{type}} __Pyx_PyComplex_As_{{type_name}}(PyObject* o) {
+#if CYTHON_COMPILING_IN_LIMITED_API
+    double real=-1.0, imag=-1.0;
+    real = PyComplex_RealAsDouble(o);
+    if (unlikely(real == -1.0 && PyErr_Occurred())) goto end;
+    imag = PyComplex_ImagAsDouble(o);
+    // No error check on imag since we do the same thing either way
+  end:
+    return {{type_name}}_from_parts(
+        real, imag
+    );
+#else
     Py_complex cval;
 #if !CYTHON_COMPILING_IN_PYPY
     if (PyComplex_CheckExact(o))
@@ -143,6 +154,7 @@ static {{type}} __Pyx_PyComplex_As_{{type_name}}(PyObject* o) {
     return {{type_name}}_from_parts(
                ({{real_type}})cval.real,
                ({{real_type}})cval.imag);
+#endif
 }
 
 
