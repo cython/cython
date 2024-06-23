@@ -1238,6 +1238,9 @@ typedef struct {
     __pyx_CyFunctionObject func;
     PyObject *__signatures__;
     PyObject *self;
+#if CYTHON_COMPILING_IN_LIMITED_API
+    PyMethodDef *ml;
+#endif
 } __pyx_FusedFunctionObject;
 
 static PyObject *__pyx_FusedFunction_New(PyMethodDef *ml, int flags,
@@ -1268,6 +1271,9 @@ __pyx_FusedFunction_New(PyMethodDef *ml, int flags,
         __pyx_FusedFunctionObject *fusedfunc = (__pyx_FusedFunctionObject *) op;
         fusedfunc->__signatures__ = NULL;
         fusedfunc->self = NULL;
+        #if CYTHON_COMPILING_IN_LIMITED_API
+        fusedfunc->ml = ml;
+        #endif
         PyObject_GC_Track(op);
     }
     return op;
@@ -1305,6 +1311,7 @@ static PyObject *
 __pyx_FusedFunction_descr_get(PyObject *self, PyObject *obj, PyObject *type)
 {
     __pyx_FusedFunctionObject *func, *meth;
+    PyObject *module;
 
     func = (__pyx_FusedFunctionObject *) self;
 
@@ -1326,14 +1333,28 @@ __pyx_FusedFunction_descr_get(PyObject *self, PyObject *obj, PyObject *type)
         return self;
     }
 
+    #if CYTHON_COMPILING_IN_LIMITED_API
+    module = __Pyx_CyFunction_get_module((__pyx_CyFunctionObject *) func, NULL);
+    if ((unlikely(!module))) return NULL;
+    #else
+    module = ((PyCFunctionObject *) func)->m_module;
+    #endif
+
     meth = (__pyx_FusedFunctionObject *) __pyx_FusedFunction_New(
+        #if CYTHON_COMPILING_IN_LIMITED_API
+                    func->ml,
+        #else
                     ((PyCFunctionObject *) func)->m_ml,
+        #endif
                     ((__pyx_CyFunctionObject *) func)->flags,
                     ((__pyx_CyFunctionObject *) func)->func_qualname,
                     ((__pyx_CyFunctionObject *) func)->func_closure,
-                    ((PyCFunctionObject *) func)->m_module,
+                    module,
                     ((__pyx_CyFunctionObject *) func)->func_globals,
                     ((__pyx_CyFunctionObject *) func)->func_code);
+    #if CYTHON_COMPILING_IN_LIMITED_API
+    Py_DECREF(module);
+    #endif
     if (unlikely(!meth))
         return NULL;
 
