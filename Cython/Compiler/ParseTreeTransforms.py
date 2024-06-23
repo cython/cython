@@ -3006,6 +3006,8 @@ class AdjustDefByDirectives(CythonTransform, SkipDeclarations):
         elif except_val is None:
             # backward compatible default: no exception check, unless there's also a "@returns" declaration
             except_val = (None, True if return_type_node else False)
+        if self.directives.get('c_compile_guard') and 'cfunc' not in self.directives:
+            error(node.pos, "c_compile_guard only allowed on C functions")
         if 'ccall' in self.directives:
             if 'cfunc' in self.directives:
                 error(node.pos, "cfunc and ccall directives cannot be combined")

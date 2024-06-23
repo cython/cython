@@ -2344,6 +2344,8 @@ class CClassScope(ClassScope):
     is_closure_class_scope = False
     is_defaults_class_scope = False
 
+    parent_type = None
+
     has_pyobject_attrs = False
     has_memoryview_attrs = False
     has_cpp_constructable_attrs = False
@@ -2473,6 +2475,12 @@ class CClassScope(ClassScope):
                 if visibility == 'private':
                     cname = c_safe_identifier(cname)
                 cname = punycodify_name(cname, Naming.unicode_structmember_prefix)
+            if (self.parent_type and self.parent_type.is_extension_type and
+                    self.parent_type.check_size == "opaque_in_limited_api"):
+                # We don't want people to abuse "opaque_in_limited-api" to get round
+                # our size checks, so this macro will ensure that attribute lookup
+                # genuinely can't work in the limited API
+                cname = f"__PYX_OPAQUE_IN_LIMITED_API({cname})"
             entry = self.declare(name, cname, type, pos, visibility)
             entry.is_variable = 1
             self.var_entries.append(entry)
