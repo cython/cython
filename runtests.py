@@ -1325,13 +1325,13 @@ class CythonCompileTestCase(unittest.TestCase):
             build_extension.build_lib  = workdir
 
             from Cython.Utils import captured_fd, prepare_captured
-            from distutils.errors import CompileError
+            from distutils.errors import CCompilerError
 
             error = None
             with captured_fd(2) as get_stderr:
                 try:
                     build_extension.run()
-                except CompileError as exc:
+                except CCompilerError as exc:
                     error = str(exc)
             stderr = get_stderr()
             if stderr and b"Command line warning D9025" in stderr:
@@ -1345,7 +1345,7 @@ class CythonCompileTestCase(unittest.TestCase):
                 output = b"Compiler output for module " + module.encode('utf-8') + b":\n" + stderr + b"\n"
                 sys.stdout.buffer.write(output)
             if error is not None:
-                raise CompileError(u"%s\nCompiler output:\n%s" % (error, prepare_captured(stderr)))
+                raise CCompilerError(u"%s\nCompiler output:\n%s" % (error, prepare_captured(stderr)))
         finally:
             os.chdir(cwd)
 
@@ -1426,7 +1426,7 @@ class CythonCompileTestCase(unittest.TestCase):
         so_path = None
         if not self.cython_only:
             from Cython.Utils import captured_fd, print_bytes
-            from distutils.errors import CompileError, LinkError
+            from distutils.errors import CCompilerError
             show_output = True
             get_stderr = get_stdout = None
             try:
@@ -1437,7 +1437,7 @@ class CythonCompileTestCase(unittest.TestCase):
             except Exception as exc:
                 if ('cerror' in self.tags['tag'] and
                     ((get_stderr and get_stderr()) or
-                     isinstance(exc, (CompileError, LinkError)))):
+                     isinstance(exc, CCompilerError))):
                     show_output = False  # expected C compiler failure
                 else:
                     raise
