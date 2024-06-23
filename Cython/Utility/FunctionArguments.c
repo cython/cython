@@ -475,7 +475,7 @@ bad:
 #define __Pyx_KwargsAsDict_VARARGS(kw, kwvalues) PyDict_Copy(kw)
 #if CYTHON_METH_FASTCALL
     #define __Pyx_Arg_FASTCALL(args, i) args[i]
-    #define __Pyx_NumKwargs_FASTCALL(kwds) PyTuple_GET_SIZE(kwds)
+    #define __Pyx_NumKwargs_FASTCALL(kwds) __Pyx_PyTuple_GET_SIZE(kwds)
     #define __Pyx_KwValues_FASTCALL(args, nargs) ((args) + (nargs))
     static CYTHON_INLINE PyObject * __Pyx_GetKwValue_FASTCALL(PyObject *kwnames, PyObject *const *kwvalues, PyObject *s);
   #if CYTHON_COMPILING_IN_CPYTHON && PY_VERSION_HEX >= 0x030d0000
@@ -498,10 +498,13 @@ bad:
 
 #if CYTHON_COMPILING_IN_CPYTHON && CYTHON_ASSUME_SAFE_MACROS && !CYTHON_AVOID_BORROWED_REFS
 #define __Pyx_ArgsSlice_VARARGS(args, start, stop) __Pyx_PyTuple_FromArray(&__Pyx_Arg_VARARGS(args, start), stop - start)
+#else
+#define __Pyx_ArgsSlice_VARARGS(args, start, stop) PyTuple_GetSlice(args, start, stop)
+#endif
+#if CYTHON_METH_FASTCALL || \
+    (CYTHON_COMPILING_IN_CPYTHON && CYTHON_ASSUME_SAFE_MACROS && !CYTHON_AVOID_BORROWED_REFS)
 #define __Pyx_ArgsSlice_FASTCALL(args, start, stop) __Pyx_PyTuple_FromArray(&__Pyx_Arg_FASTCALL(args, start), stop - start)
 #else
-/* Not CPython, so certainly no METH_FASTCALL support */
-#define __Pyx_ArgsSlice_VARARGS(args, start, stop) PyTuple_GetSlice(args, start, stop)
 #define __Pyx_ArgsSlice_FASTCALL(args, start, stop) PyTuple_GetSlice(args, start, stop)
 #endif
 
@@ -520,14 +523,25 @@ static CYTHON_INLINE PyObject * __Pyx_GetKwValue_FASTCALL(PyObject *kwnames, PyO
     // We do two loops: a first one to compare pointers (which will find a
     // match if the name in kwnames is interned, given that s is interned
     // by Cython). A second loop compares the actual strings.
-    Py_ssize_t i, n = PyTuple_GET_SIZE(kwnames);
+    Py_ssize_t i, n = __Pyx_PyTuple_GET_SIZE(kwnames);
+    #if !CYTHON_ASSUME_SAFE_SIZE
+    if (unlikely(n == -1)) return NULL;
+    #endif
     for (i = 0; i < n; i++)
     {
-        if (s == PyTuple_GET_ITEM(kwnames, i)) return kwvalues[i];
+        PyObject *namei = __Pyx_PyTuple_GET_ITEM(kwnames, i);
+        #if !CYTHON_ASSUME_SAFE_MACROS
+        if (unlikely(!namei)) return NULL;
+        #endif
+        if (s == namei) return kwvalues[i];
     }
     for (i = 0; i < n; i++)
     {
-        int eq = __Pyx_PyUnicode_Equals(s, PyTuple_GET_ITEM(kwnames, i), Py_EQ);
+        PyObject *namei = __Pyx_PyTuple_GET_ITEM(kwnames, i);
+        #if !CYTHON_ASSUME_SAFE_MACROS
+        if (unlikely(!namei)) return NULL;
+        #endif
+        int eq = __Pyx_PyUnicode_Equals(s, namei, Py_EQ);
         if (unlikely(eq != 0)) {
             if (unlikely(eq < 0)) return NULL;  /* error */
             return kwvalues[i];
