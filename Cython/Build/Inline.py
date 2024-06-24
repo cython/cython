@@ -126,9 +126,9 @@ def _populate_unbound(kwds, unbound_symbols, locals=None, globals=None):
                 if globals is None:
                     globals = calling_frame.f_globals
             if not isinstance(locals, dict):
-                # FrameLocalsProxy is stricted that dict on the definition of equality
-                # and this means "EncodedString" doesn't match the keys in locals. Therefore
-                # copy to a dict
+                # FrameLocalsProxy is stricter than dict on how it looks up keys
+                # and this means our "EncodedStrings" don't match the keys in locals.
+                # Therefore copy to a dict.
                 locals = dict(locals)
             if symbol in locals:
                 kwds[symbol] = locals[symbol]
