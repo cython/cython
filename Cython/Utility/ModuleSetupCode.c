@@ -243,8 +243,9 @@
   #endif
   #undef CYTHON_PEP489_MULTI_PHASE_INIT
   #define CYTHON_PEP489_MULTI_PHASE_INIT 0
-  #undef CYTHON_USE_MODULE_STATE
-  #define CYTHON_USE_MODULE_STATE 1
+  #ifndef CYTHON_USE_MODULE_STATE
+    #define CYTHON_USE_MODULE_STATE 1
+  #endif
   #ifndef CYTHON_USE_TP_FINALIZE
     // PyObject_CallFinalizerFromDealloc is missing and not easily replaced
     #define CYTHON_USE_TP_FINALIZE 0
