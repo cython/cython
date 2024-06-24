@@ -765,12 +765,6 @@ bad:
 /////////////// MergeVTables.proto ///////////////
 //@requires: GetVTable
 
-#ifdef __cplusplus
-#include <cstdlib>
-#else
-#include <stdlib.h>
-#endif
-
 static int __Pyx_MergeVtables(PyTypeObject *type); /*proto*/
 
 /////////////// MergeVTables ///////////////
