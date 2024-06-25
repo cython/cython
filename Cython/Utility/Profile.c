@@ -449,7 +449,7 @@
       if (unlikely(ret)) goto_error;                                                       \
   }
 
-#elif !CYTHON_USE_SYS_MONITORING
+#elif !(CYTHON_USE_SYS_MONITORING && CYTHON_TRACE)
   // mark error label as used to avoid compiler warnings
   #define __Pyx_TraceLine(lineno, nogil, goto_error)   if ((1)); else goto_error;
 #endif
