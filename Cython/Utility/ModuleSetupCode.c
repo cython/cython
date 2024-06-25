@@ -648,7 +648,7 @@ static CYTHON_INLINE void * PyThread_tss_get(Py_tss_t *key) {
 // PyThread_ReInitTLS() is a no-op
 #endif /* TSS (Thread Specific Storage) API */
 
-#if CYTHON_COMPILING_IN_CPYTHON || defined(_PyDict_NewPresized)
+#if CYTHON_COMPILING_IN_CPYTHON && PY_VERSION_HEX < 0x030d0000 || defined(_PyDict_NewPresized)
 #define __Pyx_PyDict_NewPresized(n)  ((n <= 8) ? PyDict_New() : _PyDict_NewPresized(n))
 #else
 #define __Pyx_PyDict_NewPresized(n)  PyDict_New()
@@ -662,7 +662,9 @@ static CYTHON_INLINE void * PyThread_tss_get(Py_tss_t *key) {
   #define __Pyx_PyNumber_InPlaceDivide(x,y)  PyNumber_InPlaceDivide(x,y)
 #endif
 
-#if CYTHON_COMPILING_IN_CPYTHON && PY_VERSION_HEX >= 0x030500A1 && CYTHON_USE_UNICODE_INTERNALS
+#if CYTHON_COMPILING_IN_CPYTHON && PY_VERSION_HEX >= 0x030500A1  && PY_VERSION_HEX < 0x030d0000 && CYTHON_USE_UNICODE_INTERNALS
+// _PyDict_GetItem_KnownHash() existed from CPython 3.5 to 3.12, but it was
+// dropping exceptions in 3.5. Since 3.6, exceptions are kept.
 #define __Pyx_PyDict_GetItemStr(dict, name)  _PyDict_GetItem_KnownHash(dict, name, ((PyASCIIObject *) name)->hash)
 #else
 #define __Pyx_PyDict_GetItemStr(dict, name)  PyDict_GetItem(dict, name)
