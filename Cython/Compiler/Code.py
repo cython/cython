@@ -1906,9 +1906,10 @@ class GlobalState:
         max_line = 1
         for node in self.codeobject_constants:
             def_node = node.def_node
-            max_func_args = max(max_func_args, len(def_node.args) - def_node.num_kwonly_args)
-            max_kwonly_args = max(max_kwonly_args, def_node.num_kwonly_args)
-            max_posonly_args = max(max_posonly_args, def_node.num_posonly_args)
+            if not def_node.is_generator_expression:
+                max_func_args = max(max_func_args, len(def_node.args) - def_node.num_kwonly_args)
+                max_kwonly_args = max(max_kwonly_args, def_node.num_kwonly_args)
+                max_posonly_args = max(max_posonly_args, def_node.num_posonly_args)
             max_vars = max(max_vars, len(node.varnames))
             max_line = max(max_line, def_node.pos[1])
 
