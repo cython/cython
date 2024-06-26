@@ -2434,7 +2434,7 @@ class FuncDefNode(StatNode, BlockNode):
 
         if tracing:
             code.funcstate.can_trace = False
-            code.put_trace_exit
+            code.put_trace_exit()
 
         if code.funcstate.needs_refnanny:
             refnanny_decl_code.put_declare_refcount_context()
