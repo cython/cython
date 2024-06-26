@@ -1,3 +1,5 @@
+import inspect
+
 from .Visitor import CythonTransform
 from .StringEncoding import EncodedString
 from . import Options
@@ -177,6 +179,7 @@ class EmbedSignature(CythonTransform):
                 docfmt = "%s\n--\n\n%s"
             else:
                 docfmt = "%s\n%s"
+            node_doc = inspect.cleandoc(node_doc)
             return docfmt % (signature, node_doc)
         else:
             if self.is_format_clinic:

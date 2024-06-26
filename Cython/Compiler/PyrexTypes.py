@@ -1491,7 +1491,7 @@ class BuiltinObjectType(PyObjectType):
         elif type_name == 'int':
             type_check = 'PyLong_Check'
         elif type_name == "memoryview":
-            # captialize doesn't catch the 'V'
+            # capitalize doesn't catch the 'V'
             type_check = "PyMemoryView_Check"
         else:
             type_check = 'Py%s_Check' % type_name.capitalize()
@@ -5025,7 +5025,7 @@ def best_match(arg_types, functions, pos=None, env=None, args=None):
                     func_type, ', '.join(map(str, arg_types_for_deduction)))))
             elif len(deductions) < len(func_type.templates):
                 errors.append((func, "Unable to deduce type parameter %s" % (
-                    ", ".join([param.name for param in set(func_type.templates) - set(deductions.keys())]))))
+                    ", ".join([param.name for param in func_type.templates if param not in deductions]))))
             else:
                 type_list = [deductions[param] for param in func_type.templates]
                 from .Symtab import Entry
@@ -5041,13 +5041,13 @@ def best_match(arg_types, functions, pos=None, env=None, args=None):
     # Optimize the most common case of no overloading...
     if len(candidates) == 1:
         return candidates[0][0]
-    elif len(candidates) == 0:
-        if pos is not None:
-            func, errmsg = errors[0]
-            if len(errors) == 1 or [1 for func, e in errors if e == errmsg]:
+    elif not candidates:
+        if pos is not None and errors:
+            if len(errors) == 1 or len({msg for _, msg in errors}) == 1:
+                _, errmsg = errors[0]
                 error(pos, errmsg)
             else:
-                error(pos, "no suitable method found")
+                error(pos, f"no suitable method found (candidates: {len(functions)})")
         return None
 
     possibilities = []
@@ -5137,17 +5137,17 @@ def best_match(arg_types, functions, pos=None, env=None, args=None):
 
     return None
 
+
 def merge_template_deductions(a, b):
+    # Used to reduce lists of deduced template mappings into one mapping.
     if a is None or b is None:
         return None
-    all = a
+    add_if_missing = a.setdefault
     for param, value in b.items():
-        if param in all:
-            if a[param] != b[param]:
-                return None
-        else:
-            all[param] = value
-    return all
+        if add_if_missing(param, value) != value:
+            # Found mismatch, cannot merge.
+            return None
+    return a
 
 
 def widest_numeric_type(type1, type2):

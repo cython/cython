@@ -65,7 +65,8 @@
   #define CYTHON_COMPILING_IN_CPYTHON 0
   #define CYTHON_COMPILING_IN_LIMITED_API 0
   #define CYTHON_COMPILING_IN_GRAAL 1
-  #define CYTHON_COMPILING_IN_NOGIL 0
+
+  #define CYTHON_COMPILING_IN_CPYTHON_FREETHREADING 0
 
   #undef CYTHON_USE_TYPE_SLOTS
   #define CYTHON_USE_TYPE_SLOTS 0
@@ -126,7 +127,8 @@
   #define CYTHON_COMPILING_IN_CPYTHON 0
   #define CYTHON_COMPILING_IN_LIMITED_API 0
   #define CYTHON_COMPILING_IN_GRAAL 0
-  #define CYTHON_COMPILING_IN_NOGIL 0
+
+  #define CYTHON_COMPILING_IN_CPYTHON_FREETHREADING 0
 
   #undef CYTHON_USE_TYPE_SLOTS
   #define CYTHON_USE_TYPE_SLOTS 0
@@ -199,7 +201,8 @@
   #define CYTHON_COMPILING_IN_CPYTHON 0
   #define CYTHON_COMPILING_IN_LIMITED_API 1
   #define CYTHON_COMPILING_IN_GRAAL 0
-  #define CYTHON_COMPILING_IN_NOGIL 0
+
+  #define CYTHON_COMPILING_IN_CPYTHON_FREETHREADING 0
 
   // CYTHON_CLINE_IN_TRACEBACK is currently disabled for the Limited API
   #undef CYTHON_CLINE_IN_TRACEBACK
@@ -244,8 +247,9 @@
   #endif
   #undef CYTHON_PEP489_MULTI_PHASE_INIT
   #define CYTHON_PEP489_MULTI_PHASE_INIT 0
-  #undef CYTHON_USE_MODULE_STATE
-  #define CYTHON_USE_MODULE_STATE 1
+  #ifndef CYTHON_USE_MODULE_STATE
+    #define CYTHON_USE_MODULE_STATE 1
+  #endif
   #undef CYTHON_USE_SYS_MONITORING
   #define CYTHON_USE_SYS_MONITORING 0
   #ifndef CYTHON_USE_TP_FINALIZE
@@ -262,87 +266,17 @@
   #undef CYTHON_USE_FREELISTS
   #define CYTHON_USE_FREELISTS 0
 
-#elif defined(Py_GIL_DISABLED) || defined(Py_NOGIL)
-  #define CYTHON_COMPILING_IN_PYPY 0
-  #define CYTHON_COMPILING_IN_CPYTHON 0
-  #define CYTHON_COMPILING_IN_LIMITED_API 0
-  #define CYTHON_COMPILING_IN_GRAAL 0
-  #define CYTHON_COMPILING_IN_NOGIL 1
-
-  #ifndef CYTHON_USE_TYPE_SLOTS
-    #define CYTHON_USE_TYPE_SLOTS 1
-  #endif
-  #ifndef CYTHON_USE_TYPE_SPECS
-    #define CYTHON_USE_TYPE_SPECS 0
-  #endif
-  #undef CYTHON_USE_PYTYPE_LOOKUP
-  #define CYTHON_USE_PYTYPE_LOOKUP 0
-  #ifndef CYTHON_USE_ASYNC_SLOTS
-    #define CYTHON_USE_ASYNC_SLOTS 1
-  #endif
-  #ifndef CYTHON_USE_PYLONG_INTERNALS
-    #define CYTHON_USE_PYLONG_INTERNALS 0
-  #endif
-  #undef CYTHON_USE_PYLIST_INTERNALS
-  #define CYTHON_USE_PYLIST_INTERNALS 0
-  #ifndef CYTHON_USE_UNICODE_INTERNALS
-    #define CYTHON_USE_UNICODE_INTERNALS 1
-  #endif
-  #undef CYTHON_USE_UNICODE_WRITER
-  #define CYTHON_USE_UNICODE_WRITER 0
-  #ifndef CYTHON_AVOID_BORROWED_REFS
-    #define CYTHON_AVOID_BORROWED_REFS 0
-  #endif
-  #ifndef CYTHON_ASSUME_SAFE_MACROS
-    #define CYTHON_ASSUME_SAFE_MACROS 1
-  #endif
-  #ifndef CYTHON_ASSUME_SAFE_SIZE
-    #define CYTHON_ASSUME_SAFE_SIZE 1
-  #endif
-  #ifndef CYTHON_UNPACK_METHODS
-    #define CYTHON_UNPACK_METHODS 1
-  #endif
-  #undef CYTHON_FAST_THREAD_STATE
-  #define CYTHON_FAST_THREAD_STATE 0
-  #undef CYTHON_FAST_GIL
-  #define CYTHON_FAST_GIL 0
-  #ifndef CYTHON_METH_FASTCALL
-    #define CYTHON_METH_FASTCALL 0
-  #endif
-  #undef CYTHON_FAST_PYCALL
-  #define CYTHON_FAST_PYCALL 0
-  #ifndef CYTHON_PEP487_INIT_SUBCLASS
-    #define CYTHON_PEP487_INIT_SUBCLASS 1
-  #endif
-  #ifndef CYTHON_PEP489_MULTI_PHASE_INIT
-    #define CYTHON_PEP489_MULTI_PHASE_INIT 1
-  #endif
-  #ifndef CYTHON_USE_MODULE_STATE
-    #define CYTHON_USE_MODULE_STATE 0
-  #endif
-  #ifndef CYTHON_USE_TP_FINALIZE
-    #define CYTHON_USE_TP_FINALIZE 1
-  #endif
-  #undef CYTHON_USE_DICT_VERSIONS
-  #define CYTHON_USE_DICT_VERSIONS 0
-  #undef CYTHON_USE_EXC_INFO_STACK
-  #define CYTHON_USE_EXC_INFO_STACK 0
-  #ifndef CYTHON_UPDATE_DESCRIPTOR_DOC
-    #define CYTHON_UPDATE_DESCRIPTOR_DOC 1
-  #endif
-  #ifndef CYTHON_USE_FREELISTS
-    // TODO - we could probably enable CYTHON_USE_FREELISTS by default in future since
-    // this is just a variant of cpython now, but we'd need to be very careful to make
-    // them thread safe. Since it will probably work, let the user decide.
-    #define CYTHON_USE_FREELISTS 0
-  #endif
-
 #else
   #define CYTHON_COMPILING_IN_PYPY 0
   #define CYTHON_COMPILING_IN_CPYTHON 1
   #define CYTHON_COMPILING_IN_LIMITED_API 0
   #define CYTHON_COMPILING_IN_GRAAL 0
-  #define CYTHON_COMPILING_IN_NOGIL 0
+
+  #ifdef Py_GIL_DISABLED
+    #define CYTHON_COMPILING_IN_CPYTHON_FREETHREADING 1
+  #else
+    #define CYTHON_COMPILING_IN_CPYTHON_FREETHREADING 0
+  #endif
 
   #ifndef CYTHON_USE_TYPE_SLOTS
     #define CYTHON_USE_TYPE_SLOTS 1
@@ -359,13 +293,17 @@
   #ifndef CYTHON_USE_PYLONG_INTERNALS
     #define CYTHON_USE_PYLONG_INTERNALS 1
   #endif
-  #ifndef CYTHON_USE_PYLIST_INTERNALS
+  #if CYTHON_COMPILING_IN_CPYTHON_FREETHREADING
+    #undef CYTHON_USE_PYLIST_INTERNALS
+    // Use thread-safe CPython C API calls to manipulate list contents
+    #define CYTHON_USE_PYLIST_INTERNALS 0
+  #elif !defined(CYTHON_USE_PYLIST_INTERNALS)
     #define CYTHON_USE_PYLIST_INTERNALS 1
   #endif
   #ifndef CYTHON_USE_UNICODE_INTERNALS
     #define CYTHON_USE_UNICODE_INTERNALS 1
   #endif
-  #if PY_VERSION_HEX >= 0x030B00A2
+  #if CYTHON_COMPILING_IN_CPYTHON_FREETHREADING || PY_VERSION_HEX >= 0x030B00A2
     // Python 3.11a2 hid _PyLong_FormatAdvancedWriter and _PyFloat_FormatAdvancedWriter
     // therefore disable unicode writer until a better alternative appears
     #undef CYTHON_USE_UNICODE_WRITER
@@ -391,7 +329,10 @@
   #ifndef CYTHON_FAST_THREAD_STATE
     #define CYTHON_FAST_THREAD_STATE 1
   #endif
-  #ifndef CYTHON_FAST_GIL
+  #if CYTHON_COMPILING_IN_CPYTHON_FREETHREADING
+    #undef CYTHON_FAST_GIL
+    #define CYTHON_FAST_GIL 0
+  #elif !defined(CYTHON_FAST_GIL)
     // FIXME: FastGIL can probably be supported also in CPython 3.12 but needs to be adapted.
     // The gain is unclear, however, since the GIL handling itself became faster in recent CPython versions.
     #define CYTHON_FAST_GIL (PY_VERSION_HEX < 0x030C00A6)
@@ -421,7 +362,10 @@
   #ifndef CYTHON_USE_TP_FINALIZE
     #define CYTHON_USE_TP_FINALIZE 1
   #endif
-  #ifndef CYTHON_USE_DICT_VERSIONS
+  #if CYTHON_COMPILING_IN_CPYTHON_FREETHREADING
+    #undef CYTHON_USE_DICT_VERSIONS
+    #define CYTHON_USE_DICT_VERSIONS 0
+  #elif !defined(CYTHON_USE_DICT_VERSIONS)
     // Python 3.12a5 deprecated "ma_version_tag"
     #define CYTHON_USE_DICT_VERSIONS  (PY_VERSION_HEX < 0x030C00A5)
   #endif
@@ -432,7 +376,7 @@
     #define CYTHON_UPDATE_DESCRIPTOR_DOC 1
   #endif
   #ifndef CYTHON_USE_FREELISTS
-    #define CYTHON_USE_FREELISTS 1
+    #define CYTHON_USE_FREELISTS (!CYTHON_COMPILING_IN_CPYTHON_FREETHREADING)
   #endif
 #endif
 
@@ -455,12 +399,6 @@
 
 /* Whether to use METH_FASTCALL with a fake backported implementation of vectorcall */
 #define CYTHON_BACKPORT_VECTORCALL (CYTHON_METH_FASTCALL && PY_VERSION_HEX < 0x030800B1)
-
-#if !defined(__Pyx_TEST_large_func_pointers)
-// This can be defined to force an alternate code-path for testing purposes
-// There's no other reason to use it
-#define __Pyx_TEST_large_func_pointers 0
-#endif
 
 #if CYTHON_USE_PYLONG_INTERNALS
   /* These short defines from the PyLong header can easily conflict with other code */
@@ -1217,6 +1155,7 @@ static CYTHON_INLINE PyObject * __Pyx_PyDict_GetItemStrWithError(PyObject *dict,
 
 
 /////////////// IncludeStructmemberH.proto ///////////////
+//@proto_block: utility_code_proto_before_types
 
 #include <structmember.h>
 
@@ -2318,3 +2257,21 @@ done:
     Py_DECREF(varnames_tuple);
     return code_obj;
 }
+
+/////////////////////////// AccessPyMutexForFreeThreading.proto ////////////
+
+#if CYTHON_COMPILING_IN_CPYTHON_FREETHREADING
+// TODO - this is likely to get exposed properly at some point
+#ifndef Py_BUILD_CORE
+#define Py_BUILD_CORE 1
+#endif
+#include "internal/pycore_lock.h"
+#endif
+
+////////////////////////// SharedInFreeThreading.proto //////////////////
+
+#if CYTHON_COMPILING_IN_CPYTHON_FREETHREADING
+#define __Pyx_shared_in_cpython_freethreading(x) shared(x)
+#else
+#define __Pyx_shared_in_cpython_freethreading(x)
+#endif

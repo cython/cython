@@ -743,7 +743,7 @@ static void __Pyx_WriteUnraisable(const char *name, int clineno,
         Py_XINCREF(old_val);
         Py_XINCREF(old_tb);
         __Pyx_ErrRestore(old_exc, old_val, old_tb);
-        PyErr_PrintEx(1);
+        PyErr_PrintEx(0);
     }
     ctx = PyUnicode_FromString(name);
     __Pyx_ErrRestore(old_exc, old_val, old_tb);

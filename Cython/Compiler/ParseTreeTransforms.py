@@ -400,6 +400,14 @@ class PostParse(ScopeTrackingTransform):
         self.visitchildren(node)
         return node
 
+    def visit_DefNode(self, node):
+        if (self.scope_type == "cclass" and
+                node.name in ["__getreadbuffer__", "__getwritebuffer__", "__getsegcount__", "__getcharbuffer__"]):
+            warning(node.pos, f"'{node.name}' relates to the old Python 2 buffer protocol "
+                    "and is no longer used.", 2)
+            return None  # drop the node - the arguments are invalid for a def node
+        return self.visit_FuncDefNode(node)
+
 
 class _AssignmentExpressionTargetNameFinder(TreeVisitor):
     def __init__(self):
