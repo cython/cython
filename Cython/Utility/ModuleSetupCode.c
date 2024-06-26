@@ -2267,21 +2267,8 @@ done:
     #endif
     #include "internal/pycore_critical_section.h"
   #endif
-  #ifndef Py_BEGIN_CRITICAL_SECTION
-    // temporary workaround because they aren't yet public API, and for beta1
-    // trying to include them from the internal API fails because it requires
-    // "mimalloc.h".
-    // This workaround should dropped as soon as possible, because it doesn't
-    // give us the nice deadlock avoidance of critical sections
-    #define __Pyx_BEGIN_CRITICAL_SECTION(x) { \
-      PyMutex_Lock(&((x)->ob_mutex));
-    #define __Pyx_END_CRITICAL_SECTION(x) \
-      PyMutex_Unlock(&((x)->ob_mutex)); \
-      }
-  #else
-    #define __Pyx_BEGIN_CRITICAL_SECTION(x) Py_BEGIN_CRITICAL_SECTION(x)
-    #define __Pyx_END_CRITICAL_SECTION(x) Py_BEGIN_CRITICAL_SECTION(x)
-  #endif
+  #define __Pyx_BEGIN_CRITICAL_SECTION(x) Py_BEGIN_CRITICAL_SECTION(x)
+  #define __Pyx_END_CRITICAL_SECTION(x) Py_END_CRITICAL_SECTION()
 #else // !FREETHREADING
   #define __Pyx_BEGIN_CRITICAL_SECTION(x)
   #define __Pyx_END_CRITICAL_SECTION(x)
