@@ -860,7 +860,7 @@ static CYTHON_INLINE char __Pyx_PyBytes_GetItemInt(PyObject* bytes, Py_ssize_t i
             return (char) -1;
         }
     }
-    asString = __Pyx_PyBytes_AsString(bytes)
+    asString = __Pyx_PyBytes_AsString(bytes);
     #if !CYTHON_ASSUME_SAFE_MACROS
     if (unlikely(!asString)) return (char)-1;
     #endif
