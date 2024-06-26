@@ -10193,6 +10193,7 @@ class DefFuncLikeNode:
     is_generator = False
     is_coroutine = False
     is_asyncgen = False
+    is_generator_expression = False
 
     num_posonly_args = 0
     num_kwonly_args = 0
@@ -10265,7 +10266,13 @@ class CodeObjectNode(ExprNode):
         elif func.is_generator:
             flags.append('CO_GENERATOR')
 
-        argcount = len(func.args) - func.num_kwonly_args
+        if func.is_generator_expression:
+            # Only generated arguments from the outermost iterable, nothing user visible.
+            # 'func.args' is constructed late for these, and they (rightfully) do not appear in 'varnames'.
+            argcount = 0
+        else:
+            argcount = len(func.args)
+
         num_posonly_args = func.num_posonly_args  # Py3.8+ only
         kwonly_argcount = func.num_kwonly_args
         nlocals = len(self.varnames)
@@ -10276,7 +10283,7 @@ class CodeObjectNode(ExprNode):
         code.putln("{")
         code.putln(
             "__Pyx_PyCode_New_function_description descr = {"
-            f"{argcount}, "
+            f"{argcount - kwonly_argcount}, "
             f"{num_posonly_args}, "
             f"{kwonly_argcount}, "
             f"{nlocals}, "
