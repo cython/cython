@@ -864,16 +864,16 @@ static CYTHON_INLINE void *__Pyx_PyModule_GetState(PyObject *op)
 // The "static safe" variants may return NULL on static types with the Limited API on earlier versions
 // so should be used for optimization rather than where a result is required.
 #define __Pyx_PyObject_GetSlot(obj, name, func_ctype)  __Pyx_PyType_GetSlot(Py_TYPE((PyObject *) obj), name, func_ctype)
-#define __Pyx_PyObject_GetSlot_StaticSafe(obj, name, func_ctype) __Pyx_PyType_GetSlot_StaticSafe(Py_TYPE(obj), name, func_ctype)
+#define __Pyx_PyObject_TryGetSlot(obj, name, func_ctype) __Pyx_PyType_TryGetSlot(Py_TYPE(obj), name, func_ctype)
 #if CYTHON_COMPILING_IN_LIMITED_API
   #define __Pyx_PyType_GetSlot(type, name, func_ctype)  ((func_ctype) PyType_GetSlot((type), Py_##name))
-  #define __Pyx_PyType_GetSlot_StaticSafe(type, name, func_ctype) \
+  #define __Pyx_PyType_TryGetSlot(type, name, func_ctype) \
     ((__PYX_LIMITED_VERSION_HEX >= 0x030A0000 || \
      (PyType_GetFlags(type) & Py_TPFLAGS_HEAPTYPE) || __Pyx_get_runtime_version() >= 0x030A0000) ? \
      __Pyx_PyType_GetSlot(type, name, func_ctype) : NULL)
 #else
   #define __Pyx_PyType_GetSlot(type, name, func_ctype)  ((type)->name)
-  #define __Pyx_PyType_GetSlot_StaticSafe(type, name, func_ctype) __Pyx_PyType_GetSlot(type, name, func_ctype)
+  #define __Pyx_PyType_TryGetSlot(type, name, func_ctype) __Pyx_PyType_GetSlot(type, name, func_ctype)
 #endif
 
 #if CYTHON_COMPILING_IN_CPYTHON && PY_VERSION_HEX < 0x030d0000 || defined(_PyDict_NewPresized)

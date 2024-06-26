@@ -720,8 +720,17 @@ static int __Pyx_PyBytes_SingleTailmatch(PyObject* self, PyObject* arg,
         sub_ptr = PyBytes_AS_STRING(arg);
         sub_len = PyBytes_GET_SIZE(arg);
         #endif
+    } 
+    #if CYTHON_COMPILING_IN_LIMITED_API && __PYX_LIMITED_VERSION_HEX < 0x030B0000
+    else if (PyByteArray_Check(arg)) {
+        // The Limited API fallback of converting to bytes is inefficient,
+        // so special-case bytearray to be a bit faster. Keep this to the Limited
+        // API only since the buffer protocol code is good enough otherwise.
+        sub_ptr = PyByteArray_AsString(arg);
+        if (unlikely(!sub_ptr)) return -1;
+        sub_len = PyByteArray_Size(arg);
+        if (unlikely(sub_len < 0)) return -1;
     } else {
-        #if CYTHON_COMPILING_IN_LIMITED_API && __PYX_LIMITED_VERSION_HEX < 0x030B0000
         // Where buffer protocol is unavailable, just convert to bytes
         // (which is probably inefficient, but does work)
         converted_arg = PyBytes_FromObject(arg);
@@ -730,13 +739,15 @@ static int __Pyx_PyBytes_SingleTailmatch(PyObject* self, PyObject* arg,
             Py_DECREF(converted_arg);
             return -1;
         }
-        #else
+    }
+    #else // LIMITED_API < 030B0000
+    else {
         if (unlikely(PyObject_GetBuffer(arg, &view, PyBUF_SIMPLE) == -1))
             return -1;
         sub_ptr = (char*) view.buf;
         sub_len = view.len;
-        #endif
     }
+    #endif
 
     if (end > self_len)
         end = self_len;
@@ -831,6 +842,7 @@ static CYTHON_INLINE char __Pyx_PyBytes_GetItemInt(PyObject* bytes, Py_ssize_t i
 /////////////// bytes_index ///////////////
 
 static CYTHON_INLINE char __Pyx_PyBytes_GetItemInt(PyObject* bytes, Py_ssize_t index, int check_bounds) {
+    const char *asString;
     if (index < 0) {
         Py_ssize_t size = __Pyx_PyBytes_GET_SIZE(bytes);
         #if !CYTHON_ASSUME_SAFE_SIZE
@@ -848,7 +860,11 @@ static CYTHON_INLINE char __Pyx_PyBytes_GetItemInt(PyObject* bytes, Py_ssize_t i
             return (char) -1;
         }
     }
-    return __Pyx_PyBytes_AsString(bytes)[index];
+    asString = __Pyx_PyBytes_AsString(bytes)
+    #if !CYTHON_ASSUME_SAFE_MACROS
+    if (unlikely(!asString)) return (char)-1;
+    #endif
+    return asString[index];
 }
 
 
