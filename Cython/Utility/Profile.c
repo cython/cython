@@ -410,6 +410,7 @@
   #define __Pyx_TraceDeclarationsGen
   #define __Pyx_TraceExceptionHandled()  {}
   #define __Pyx_TraceFrameInit(codeobj)  {}
+  #define __Pyx_PyMonitoring_ExitScope()  {}
   // mark error label as used to avoid compiler warnings
   #define __Pyx_TraceStartFunc(funcname, srcfile, firstlineno, nogil, skip_event, goto_error)   if ((1)); else goto_error;
   #define __Pyx_TraceStartGen __Pyx_TraceStartFunc
