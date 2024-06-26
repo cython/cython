@@ -304,7 +304,7 @@ static CYTHON_INLINE int __Pyx_GetItemInt_ByteArray_Fast(PyObject* string, Py_ss
         if ((!boundscheck) || likely(__Pyx_is_valid_index(i, length))) {
             #if !CYTHON_ASSUME_SAFE_MACROS
             char *asString = PyByteArray_AsString(string);
-            return (unsigned char)(likely(asString) ? asString[i] : -1);
+            return likely(asString) ? (unsigned char) asString[i] : -1;
             #else
             return (unsigned char) (PyByteArray_AS_STRING(string)[i]);
             #endif
@@ -315,7 +315,7 @@ static CYTHON_INLINE int __Pyx_GetItemInt_ByteArray_Fast(PyObject* string, Py_ss
     } else {
         #if !CYTHON_ASSUME_SAFE_MACROS
         char *asString = PyByteArray_AsString(string);
-        return (unsigned char)(likely(asString) ? asString[i] : -1);
+        return likely(asString) ? (unsigned char) asString[i] : -1;
         #else
         return (unsigned char) (PyByteArray_AS_STRING(string)[i]);
         #endif

@@ -3450,8 +3450,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         # which is sometime unreliable during destruction
         # (e.g. during interpreter shutdown).
         # In that case the safest thing is to give up.
-        code.putln(f"if (!PyState_FindModule(&{Naming.pymoduledef_cname}))")
-        code.putln("return;")
+        code.putln(f"if (!PyState_FindModule(&{Naming.pymoduledef_cname})) return;")
 
         if Options.generate_cleanup_code >= 2:
             code.putln("/*--- Global cleanup code ---*/")
