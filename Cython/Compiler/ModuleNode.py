@@ -513,7 +513,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         self.generate_variable_definitions(env, code)
         self.body.generate_function_definitions(env, code)
 
-        code.mark_pos(None)
+        # generate extension types and methods
+        code = globalstate['module_exttypes']
         self.generate_typeobj_definitions(env, code)
         self.generate_method_table(env, code)
         if env.has_import_star:
@@ -2838,9 +2839,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
     def generate_import_star(self, env, code):
         env.use_utility_code(UtilityCode.load_cached("CStringEquals", "StringTools.c"))
-        code.putln()
-        code.enter_cfunc_scope()  # as we need labels
-        code.putln("static int %s(PyObject *o, PyObject* py_name, const char *name) {" % Naming.import_star_set)
+        code.start_initcfunc("int %s(PyObject *o, PyObject* py_name, const char *name)" % Naming.import_star_set)
 
         code.putln("static const char* internal_type_names[] = {")
         for name, entry in sorted(env.entries.items()):
@@ -3322,10 +3321,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         The functions get inserted at the point where the context manager was created.
         The call gets inserted where the context manager is used (on entry).
         """
-        prototypes = orig_code.insertion_point()
-        prototypes.putln("")
         function_code = orig_code.insertion_point()
-        function_code.putln("")
 
         class ModInitSubfunction:
             def __init__(self, code_type):
@@ -3339,10 +3335,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             def __enter__(self):
                 self.call_code = orig_code.insertion_point()
                 code = function_code
-                code.enter_cfunc_scope(scope)
-                prototypes.putln("static CYTHON_SMALL_CODE int %s(void); /*proto*/" % self.cfunc_name)
-                code.putln("static int %s(void) {" % self.cfunc_name)
-                code.put_declare_refcount_context()
+                code.start_initcfunc("int %s(void)" % self.cfunc_name, scope, refnanny=True)
                 self.tempdecl_code = code.insertion_point()
                 code.put_setup_refcount_context(EncodedString(self.cfunc_name))
                 # Leave a grepable marker that makes it easy to find the generator source.
@@ -3366,7 +3359,6 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                     code.putln("return -1;")
                 code.putln("}")
                 code.exit_cfunc_scope()
-                code.putln("")
 
                 if needs_error_handling:
                     self.call_code.putln(

@@ -1298,13 +1298,15 @@ class GlobalState:
         'module_state_traverse',
         'module_state_defines',  # redefines names used in module_state/_clear/_traverse
         'module_code',  # user code goes here
+        'module_exttypes',
+        'initfunc_declarations',
+        'init_module',
         'pystring_table',
         'cached_builtins',
         'cached_constants',
         'init_constants',
         'init_codeobjects',
         'init_globals',  # (utility code called at init-time)
-        'init_module',
         'cleanup_globals',
         'cleanup_module',
         'main_method',
@@ -1361,33 +1363,23 @@ class GlobalState:
             del self.parts['cached_builtins']
         else:
             w = self.parts['cached_builtins']
-            w.enter_cfunc_scope()
-            w.putln("static CYTHON_SMALL_CODE int __Pyx_InitCachedBuiltins(void) {")
+            w.start_initcfunc("int __Pyx_InitCachedBuiltins(void)")
 
         w = self.parts['cached_constants']
-        w.enter_cfunc_scope()
-        w.putln("")
-        w.putln("static CYTHON_SMALL_CODE int __Pyx_InitCachedConstants(void) {")
-        w.put_declare_refcount_context()
+        w.start_initcfunc("int __Pyx_InitCachedConstants(void)", refnanny=True)
         w.put_setup_refcount_context(StringEncoding.EncodedString("__Pyx_InitCachedConstants"))
 
         w = self.parts['init_globals']
-        w.enter_cfunc_scope()
-        w.putln("")
-        w.putln("static CYTHON_SMALL_CODE int __Pyx_InitGlobals(void) {")
+        w.start_initcfunc("int __Pyx_InitGlobals(void)")
 
         w = self.parts['init_constants']
-        w.enter_cfunc_scope()
-        w.putln("")
-        w.putln("static CYTHON_SMALL_CODE int __Pyx_InitConstants(void) {")
+        w.start_initcfunc("int __Pyx_InitConstants(void)")
 
         if not Options.generate_cleanup_code:
             del self.parts['cleanup_globals']
         else:
             w = self.parts['cleanup_globals']
-            w.enter_cfunc_scope()
-            w.putln("")
-            w.putln("static CYTHON_SMALL_CODE void __Pyx_CleanupGlobals(void) {")
+            w.start_initcfunc("void __Pyx_CleanupGlobals(void)")
 
         code = self.parts['utility_code_proto']
         code.putln("")
@@ -1789,9 +1781,13 @@ class GlobalState:
 
         py_strings.sort()
 
+        w = self.parts['pystring_table']
+        w.putln("")
+
         # We use only type size macros from "pyport.h" here.
-        self.parts['utility_code_proto'].put(textwrap.dedent("""\
-        typedef struct {const char *s;
+        w.put(textwrap.dedent("""\
+        typedef struct {
+            const char *s;
         #if %(max_length)d <= 65535
             const unsigned short n;
         #elif %(max_length)d / 2 < INT_MAX
@@ -1813,15 +1809,11 @@ class GlobalState:
             const unsigned int is_unicode : 1;
             const unsigned int is_str : 1;
             const unsigned int intern : 1;
-        } __Pyx_StringTabEntry; /*proto*/
+        } __Pyx_StringTabEntry;
         """ % dict(
             max_length=longest_pystring,
             num_encodings=len(encodings),
         )))
-
-        self.use_utility_code(UtilityCode.load_cached("InitStrings", "StringTools.c"))
-        w = self.parts['pystring_table']
-        w.putln("")
 
         self.parts['module_state'].putln("PyObject *%s[%s];" % (
             Naming.stringtab_cname, len(py_strings)))
@@ -1875,6 +1867,8 @@ class GlobalState:
         w.putln("{0, 0, 0, 0, 0, 0}")
         w.putln("};")
 
+        self.use_utility_code(UtilityCode.load_cached("InitStrings", "StringTools.c"))
+
         init_constants = self.parts['init_constants']
         init_constants.putln(
             "if (__Pyx_InitStrings(%s, %s->%s, %s) < 0) %s;" % (
@@ -1886,8 +1880,7 @@ class GlobalState:
 
     def generate_codeobject_constants(self):
         w = self.parts['init_codeobjects']
-        w.putln("static CYTHON_SMALL_CODE int __Pyx_CreateCodeObjects(void) {")
-        w.enter_cfunc_scope()
+        w.start_initcfunc("int __Pyx_CreateCodeObjects(void)")
 
         if not self.codeobject_constants:
             w.putln("return 0;")
@@ -1911,6 +1904,7 @@ class GlobalState:
             max_line = max(max_line, def_node.pos[1])
 
         self.parts['utility_code_proto'].put(textwrap.dedent(f"""\
+        /* code object config struct */
         typedef struct {{
             unsigned int argcount : {max_func_args.bit_length()};
             unsigned int num_posonly_args : {max_posonly_args.bit_length()};
@@ -2257,6 +2251,19 @@ class CCodeWriter:
     def exit_cfunc_scope(self):
         self.funcstate.validate_exit()
         self.funcstate = None
+
+    def start_initcfunc(self, signature, scope=None, refnanny=False):
+        """
+        Init code helper function to start a cfunc scope and generate
+        the prototype and function header ("static SIG {") of the function.
+        """
+        proto = self.globalstate.parts['initfunc_declarations']
+        proto.putln(f"static CYTHON_SMALL_CODE {signature}; /*proto*/")
+        self.enter_cfunc_scope(scope)
+        self.putln("")
+        self.putln(f"static {signature} {{")
+        if refnanny:
+            self.put_declare_refcount_context()
 
     # constant handling
 
