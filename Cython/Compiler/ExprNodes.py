@@ -4989,9 +4989,9 @@ class MemoryViewIndexNode(BufferIndexNode):
         self.original_indices = indices
         self.nogil = env.nogil
 
-        self = self.analyse_operation(env, getting, axes)
-        self.wrap_in_nonecheck_node(env)
-        return self
+        node = self.analyse_operation(env, getting, axes)
+        node.wrap_in_nonecheck_node(env)
+        return node
 
     def analyse_operation(self, env, getting, axes):
         self.none_error_message = "Cannot index None memoryview slice"
