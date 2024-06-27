@@ -198,18 +198,6 @@ __Pyx_CyFunction_get_name(__pyx_CyFunctionObject *op, void *context)
     return op->func_name;
 }
 
-#if CYTHON_COMPILING_IN_LIMITED_API
-typedef PyObject* __Pyx_name_for_format;
-#define __Pyx_CyFunction_get_name_for_format(op) __Pyx_CyFunction_get_name((__pyx_CyFunctionObject*)op, NULL)
-#define __Pyx_DECREF_name_for_format(x) Py_DECREF(x)
-#define __Pyx_FORMAT_NAME "%.200S"
-#else
-typedef const char* __Pyx_name_for_format;
-#define __Pyx_CyFunction_get_name_for_format(op) ((PyCFunctionObject*)op)->m_ml->ml_name
-#define __Pyx_DECREF_name_for_format(x)
-#define __Pyx_FORMAT_NAME "%.200s"
-#endif
-
 static int
 __Pyx_CyFunction_set_name(__pyx_CyFunctionObject *op, PyObject *value, void *context)
 {
@@ -223,6 +211,26 @@ __Pyx_CyFunction_set_name(__pyx_CyFunctionObject *op, PyObject *value, void *con
     __Pyx_Py_XDECREF_SET(op->func_name, value);
     return 0;
 }
+
+#if CYTHON_COMPILING_IN_LIMITED_API
+#define __PYX_CYFUNCTION_FORMAT_TYPE_ERROR2(fmt_string, self, arg) \
+    {                                                              \
+        PyObject *name = __Pyx_CyFunction_get_name(                \
+            (__pyx_CyFunctionObject*)self, NULL);                  \
+        if (likely(name)) {                                        \
+            PyErr_Format(PyExc_TypeError,                          \
+                         "%.200S" fmt_string, name, arg);          \
+            Py_DECREF(name);                                       \
+        }                                                          \
+    }
+#else
+#define __PYX_CYFUNCTION_FORMAT_TYPE_ERROR2(fmt_string, self, arg) \
+    PyErr_Format(PyExc_TypeError, "%.200s" fmt_string,             \
+                 ((PyCFunctionObject*)self)->m_ml->ml_name,        \
+                 arg);
+#endif
+#define __PYX_CYFUNCTION_FORMAT_TYPE_ERROR(fmt_string, self)       \
+    __PYX_CYFUNCTION_FORMAT_TYPE_ERROR2(fmt_string "%s", self, "")
 
 static PyObject *
 __Pyx_CyFunction_get_qualname(__pyx_CyFunctionObject *op, void *context)
@@ -741,8 +749,6 @@ static PyObject * __Pyx_CyFunction_CallMethod(PyObject *func, PyObject *self, Py
     PyCFunction meth = f->m_ml->ml_meth;
     int flags = f->m_ml->ml_flags;
 #endif
-    __Pyx_name_for_format name;
-
     Py_ssize_t size;
 
     switch (flags & (METH_VARARGS | METH_KEYWORDS | METH_NOARGS | METH_O)) {
@@ -762,12 +768,9 @@ static PyObject * __Pyx_CyFunction_CallMethod(PyObject *func, PyObject *self, Py
 #endif
             if (likely(size == 0))
                 return (*meth)(self, NULL);
-            name = __Pyx_CyFunction_get_name_for_format(func);
-            if (unlikely(!name)) return NULL;
-            PyErr_Format(PyExc_TypeError,
-                __Pyx_FORMAT_NAME "() takes no arguments (%" CYTHON_FORMAT_SSIZE_T "d given)",
-                name, size);
-            __Pyx_DECREF_name_for_format(name);
+            __PYX_CYFUNCTION_FORMAT_TYPE_ERROR2(
+                "() takes no arguments (%" CYTHON_FORMAT_SSIZE_T "d given)",
+                func, size);
             return NULL;
         }
         break;
@@ -792,12 +795,9 @@ static PyObject * __Pyx_CyFunction_CallMethod(PyObject *func, PyObject *self, Py
                 #endif
                 return result;
             }
-            name = __Pyx_CyFunction_get_name_for_format(func);
-            if (unlikely(!name)) return NULL;
-            PyErr_Format(PyExc_TypeError,
-                __Pyx_FORMAT_NAME"() takes exactly one argument (%" CYTHON_FORMAT_SSIZE_T "d given)",
-                name, size);
-            __Pyx_DECREF_name_for_format(name);
+            __PYX_CYFUNCTION_FORMAT_TYPE_ERROR2(
+                "() takes exactly one argument (%" CYTHON_FORMAT_SSIZE_T "d given)",
+                func, size);
             return NULL;
         }
         break;
@@ -805,11 +805,8 @@ static PyObject * __Pyx_CyFunction_CallMethod(PyObject *func, PyObject *self, Py
         PyErr_SetString(PyExc_SystemError, "Bad call flags for CyFunction");
         return NULL;
     }
-    name = __Pyx_CyFunction_get_name_for_format(func);
-    if (unlikely(!name)) return NULL;
-    PyErr_Format(PyExc_TypeError, __Pyx_FORMAT_NAME "() takes no keyword arguments",
-                 name);
-    __Pyx_DECREF_name_for_format(name);
+    __PYX_CYFUNCTION_FORMAT_TYPE_ERROR(
+        "() takes no keyword arguments", func);
     return NULL;
 }
 
@@ -890,21 +887,15 @@ static CYTHON_INLINE int __Pyx_CyFunction_Vectorcall_CheckArgs(__pyx_CyFunctionO
     int ret = 0;
     if ((cyfunc->flags & __Pyx_CYFUNCTION_CCLASS) && !(cyfunc->flags & __Pyx_CYFUNCTION_STATICMETHOD)) {
         if (unlikely(nargs < 1)) {
-            __Pyx_name_for_format name = __Pyx_CyFunction_get_name_for_format(cyfunc);
-            if (unlikely(!name)) return -1;
-            PyErr_Format(PyExc_TypeError, __Pyx_FORMAT_NAME "() needs an argument",
-                        name);
-            __Pyx_DECREF_name_for_format(name);
+            __PYX_CYFUNCTION_FORMAT_TYPE_ERROR(
+                "() needs an argument", cyfunc);
             return -1;
         }
         ret = 1;
     }
     if (unlikely(kwnames) && unlikely(__Pyx_PyTuple_GET_SIZE(kwnames))) {
-        __Pyx_name_for_format name = __Pyx_CyFunction_get_name_for_format(cyfunc);
-        if (unlikely(!name)) return -1;
-        PyErr_Format(PyExc_TypeError,
-                     __Pyx_FORMAT_NAME "() takes no keyword arguments", name);
-        __Pyx_DECREF_name_for_format(name);
+        __PYX_CYFUNCTION_FORMAT_TYPE_ERROR(
+            "() takes no keyword arguments", cyfunc);
         return -1;
     }
     return ret;
@@ -946,12 +937,9 @@ static PyObject * __Pyx_CyFunction_Vectorcall_NOARGS(PyObject *func, PyObject *c
     }
 
     if (unlikely(nargs != 0)) {
-        __Pyx_name_for_format name = __Pyx_CyFunction_get_name_for_format(func);
-        if (unlikely(!name)) return NULL;
-        PyErr_Format(PyExc_TypeError,
-            __Pyx_FORMAT_NAME "() takes no arguments (%" CYTHON_FORMAT_SSIZE_T "d given)",
-            name, nargs);
-        __Pyx_DECREF_name_for_format(name);
+        __PYX_CYFUNCTION_FORMAT_TYPE_ERROR2(
+            "() takes no arguments (%" CYTHON_FORMAT_SSIZE_T "d given)",
+            func, nargs);
         return NULL;
     }
     return meth(self, NULL);
@@ -993,12 +981,9 @@ static PyObject * __Pyx_CyFunction_Vectorcall_O(PyObject *func, PyObject *const 
     }
 
     if (unlikely(nargs != 1)) {
-        __Pyx_name_for_format name = __Pyx_CyFunction_get_name_for_format(cyfunc);
-        if (unlikely(!name)) return NULL;
-        PyErr_Format(PyExc_TypeError,
-            __Pyx_FORMAT_NAME "() takes exactly one argument (%" CYTHON_FORMAT_SSIZE_T "d given)",
-            name, nargs);
-        __Pyx_DECREF_name_for_format(name);
+        __PYX_CYFUNCTION_FORMAT_TYPE_ERROR2(
+            "() takes exactly one argument (%" CYTHON_FORMAT_SSIZE_T "d given)",
+            cyfunc, nargs);
         return NULL;
     }
     return meth(self, args[0]);
