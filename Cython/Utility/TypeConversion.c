@@ -1118,27 +1118,39 @@ raise_neg_overflow:
 }
 
 /////////////// CFuncPtrTypedef.proto ///////////////
+//@substitute: naming
 
-typedef void (*__Pyx_generic_func_pointer)(void);
+#ifndef __PYX_HAVE_RT_CFuncPtrTypedef_$cyversion
+#define __PYX_HAVE_RT_CFuncPtrTypedef_$cyversion
+typedef void (*__Pyx_generic_func_pointer_$cyversion)(void);
+#endif
 
 /////////////// CFuncPtrToPy.proto ///////////////
 //@requires: CFuncPtrTypedef
+//@substitute: naming
 
-static PyObject *__Pyx_c_func_ptr_to_capsule(__Pyx_generic_func_pointer funcptr, const char* name); /* proto */
+static PyObject *__Pyx_c_func_ptr_to_capsule(__Pyx_generic_func_pointer_$cyversion funcptr, const char* name); /* proto */
 
 /////////////// CFuncPtrToPy ///////////////
 //@requires: StringTools.c::IncludeStringH
+//@substitute: naming
 
 static void __Pyx_destroy_c_func_ptr_capsule(PyObject *capsule) {
     void* ptr = PyCapsule_GetPointer(capsule, PyCapsule_GetName(capsule));
     PyMem_Free(ptr);
 }
 
-static PyObject *__Pyx_c_func_ptr_to_capsule(__Pyx_generic_func_pointer funcptr, const char* name) {
-    if (sizeof(funcptr) > sizeof(void*) || __Pyx_TEST_large_func_pointers) {
+static PyObject *__Pyx_c_func_ptr_to_capsule(__Pyx_generic_func_pointer_$cyversion funcptr, const char* name) {
+    // __Pyx_TEST_large_func_pointers exists just to force an alternative code-path in testing
+#if defined(__Pyx_TEST_large_func_pointers) && __Pyx_TEST_large_func_pointers
+    if ((1))
+#else
+    if (sizeof(funcptr) > sizeof(void*))
+#endif
+    {
         // The C standard does not guarantee that a function pointer fits inside a regular pointer
         // (and on some platforms it doesn't). On these, we need to allocate space to store the function pointer
-        __Pyx_generic_func_pointer *copy_into = (__Pyx_generic_func_pointer*) PyMem_Malloc(sizeof(funcptr));
+        __Pyx_generic_func_pointer_$cyversion *copy_into = (__Pyx_generic_func_pointer_$cyversion*) PyMem_Malloc(sizeof(funcptr));
         *copy_into = funcptr;
         return PyCapsule_New(copy_into, name, __Pyx_destroy_c_func_ptr_capsule);
     } else {
@@ -1155,17 +1167,26 @@ static PyObject *__Pyx_c_func_ptr_to_capsule(__Pyx_generic_func_pointer funcptr,
 /////////////// CFuncPtrFromPy.proto ///////////////
 //@requires: CFuncPtrTypedef
 
-static __Pyx_generic_func_pointer __Pyx_capsule_to_c_func_ptr(PyObject *capsule, const char* name); /* proto */
+static __Pyx_generic_func_pointer_$cyversion __Pyx_capsule_to_c_func_ptr_$cyversion(PyObject *capsule, const char* name); /* proto */
 
 /////////////// CFuncPtrFromPy.proto ///////////////
+//@substitute: naming
 
-static __Pyx_generic_func_pointer __Pyx_capsule_to_c_func_ptr(PyObject *capsule, const char* name) {
+#ifndef __PYX_HAVE_RT_CFuncPtrFromPy_$cyversion
+#define __PYX_HAVE_RT_CFuncPtrFromPy_$cyversion
+static __Pyx_generic_func_pointer_$cyversion __Pyx_capsule_to_c_func_ptr_$cyversion(PyObject *capsule, const char* name) {
     void *data = PyCapsule_GetPointer(capsule, name);
-    __Pyx_generic_func_pointer funcptr;
-    if (sizeof(funcptr) > sizeof(void*) || __Pyx_TEST_large_func_pointers) {
-        funcptr = *((__Pyx_generic_func_pointer*)data);
+    __Pyx_generic_func_pointer_$cyversion funcptr;
+#if defined(__Pyx_TEST_large_func_pointers) && __Pyx_TEST_large_func_pointers
+    if ((1))
+#else
+    if (sizeof(funcptr) > sizeof(void*))
+#endif
+    {
+        funcptr = *((__Pyx_generic_func_pointer_$cyversion*)data);
     } else {
         memcpy((void*)&funcptr, (void*)&data, sizeof(funcptr));
     }
     return funcptr;
 }
+#endif

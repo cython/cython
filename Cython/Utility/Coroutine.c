@@ -1436,7 +1436,6 @@ __Pyx_Coroutine_get_frame(__pyx_CoroutineObject *self, void *context)
 static __pyx_CoroutineObject *__Pyx__Coroutine_New(
             PyTypeObject* type, __pyx_coroutine_body_t body, PyObject *code, PyObject *closure,
             PyObject *name, PyObject *qualname, PyObject *module_name) {
-    __pyx_CoroutineObject *init_result;
     __pyx_CoroutineObject *gen = PyObject_GC_New(__pyx_CoroutineObject, type);
     if (unlikely(!gen))
         return NULL;

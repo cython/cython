@@ -588,7 +588,7 @@ static int __Pyx_ImportFunction_$cyversion(PyObject *module, const char *funcnam
              PyModule_GetName(module), funcname, sig, PyCapsule_GetName(cobj));
         goto bad;
     }
-    *f = __Pyx_capsule_to_c_func_ptr(cobj, sig);
+    *f = __Pyx_capsule_to_c_func_ptr_$cyversion(cobj, sig);
     if (!(*f))
         goto bad;
     Py_DECREF(d);
@@ -785,7 +785,7 @@ static int __Pyx_MergeVtables(PyTypeObject *type) {
             base = __Pyx_PyType_GetSlot(base, tp_base, PyTypeObject*);
         }
     }
-    base_vtables = (void**) malloc(sizeof(void*) * (size_t)(base_depth + 1));
+    base_vtables = (void**) PyMem_Malloc(sizeof(void*) * (size_t)(base_depth + 1));
     base_vtables[0] = unknown;
     // Could do MRO resolution of individual methods in the future, assuming
     // compatible vtables, but for now simply require a common vtable base.
@@ -834,7 +834,7 @@ static int __Pyx_MergeVtables(PyTypeObject *type) {
         }
     }
     PyErr_Clear();
-    free(base_vtables);
+    PyMem_Free(base_vtables);
     return 0;
 bad:
     {
@@ -865,7 +865,7 @@ really_bad: // bad has failed!
 #if CYTHON_COMPILING_IN_LIMITED_API || CYTHON_AVOID_BORROWED_REFS || !CYTHON_ASSUME_SAFE_MACROS
 other_failure:
 #endif
-    free(base_vtables);
+    PyMem_Free(base_vtables);
     return -1;
 }
 

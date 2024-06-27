@@ -243,8 +243,9 @@
   #endif
   #undef CYTHON_PEP489_MULTI_PHASE_INIT
   #define CYTHON_PEP489_MULTI_PHASE_INIT 0
-  #undef CYTHON_USE_MODULE_STATE
-  #define CYTHON_USE_MODULE_STATE 1
+  #ifndef CYTHON_USE_MODULE_STATE
+    #define CYTHON_USE_MODULE_STATE 1
+  #endif
   #ifndef CYTHON_USE_TP_FINALIZE
     // PyObject_CallFinalizerFromDealloc is missing and not easily replaced
     #define CYTHON_USE_TP_FINALIZE 0
@@ -389,12 +390,6 @@
 
 /* Whether to use METH_FASTCALL with a fake backported implementation of vectorcall */
 #define CYTHON_BACKPORT_VECTORCALL (CYTHON_METH_FASTCALL && PY_VERSION_HEX < 0x030800B1)
-
-#if !defined(__Pyx_TEST_large_func_pointers)
-// This can be defined to force an alternate code-path for testing purposes
-// There's no other reason to use it
-#define __Pyx_TEST_large_func_pointers 0
-#endif
 
 #if CYTHON_USE_PYLONG_INTERNALS
   /* These short defines from the PyLong header can easily conflict with other code */
