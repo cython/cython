@@ -1667,6 +1667,15 @@ class GlobalState:
         self.generate_string_constants()
         self.generate_num_constants()
 
+    def _generate_module_array_traverse_and_clear(self, struct_attr_cname, count):
+        counter_type = 'int' if count < 2**15 else 'Py_ssize_t'
+
+        writer = self.parts['module_state_traverse']
+        writer.putln(f"for ({counter_type} i=0; i<{count}; ++i) {{ Py_VISIT(traverse_module_state->{struct_attr_cname}[i]); }}")
+
+        writer = self.parts['module_state_clear']
+        writer.putln(f"for ({counter_type} i=0; i<{count}; ++i) {{ Py_CLEAR(clear_module_state->{struct_attr_cname}[i]); }}")
+
     def generate_object_constant_decls(self):
         consts = [(len(c.cname), c.cname, c)
                   for c in self.arg_default_constants]
@@ -1693,18 +1702,13 @@ class GlobalState:
             self.parts['module_state'].putln(f"PyObject *{struct_attr_cname}[{count}];")
             self.parts['module_state_defines'].putln(
                 f"#define {global_cname} {Naming.modulestateglobal_cname}->{struct_attr_cname}")
-            cleanup_details = [
-                ('module_state_clear', 'Py_CLEAR', f'clear_module_state->{struct_attr_cname}'),
-                ('module_state_traverse', 'Py_VISIT', f'traverse_module_state->{struct_attr_cname}')]
+
+            self._generate_module_array_traverse_and_clear(struct_attr_cname, count)
+
             cleanup_level = cleanup_level_for_type_prefix(prefix)
-            if (cleanup_level is not None and
-                    cleanup_level <= Options.generate_cleanup_code):
-                cleanup_details.append(('cleanup_globals', 'Py_CLEAR', global_cname))
-            for part_name, op, cname in cleanup_details:
-                part_writer = self.parts[part_name]
-                part_writer.putln(f"for (Py_ssize_t i=0; i<{count}; ++i) {{")
-                part_writer.putln(f"{op}({cname}[i]);")
-                part_writer.putln("}")
+            if cleanup_level is not None and cleanup_level <= Options.generate_cleanup_code:
+                part_writer = self.parts['cleanup_globals']
+                part_writer.putln(f"for (Py_ssize_t i=0; i<{count}; ++i) {{ Py_CLEAR({global_cname}[i]); }}")
 
     def generate_cached_methods_decls(self):
         if not self.cached_cmethods:
@@ -1815,17 +1819,9 @@ class GlobalState:
             num_encodings=len(encodings),
         )))
 
-        self.parts['module_state'].putln("PyObject *%s[%s];" % (
-            Naming.stringtab_cname, len(py_strings)))
-
-        self.parts['module_state_clear'].putln("for (int n=0; n<%s; ++n) {" % len(py_strings))
-        self.parts['module_state_clear'].putln("Py_CLEAR(clear_module_state->%s[n]);" %
-            Naming.stringtab_cname)
-        self.parts['module_state_clear'].putln("}")
-        self.parts['module_state_traverse'].putln("for (int n=0; n<%s; ++n) {" % len(py_strings))
-        self.parts['module_state_traverse'].putln("Py_VISIT(traverse_module_state->%s[n]);" %
-            Naming.stringtab_cname)
-        self.parts['module_state_traverse'].putln("}")
+        py_string_count = len(py_strings)
+        self.parts['module_state'].putln(f"PyObject *{Naming.stringtab_cname}[{py_string_count}];")
+        self._generate_module_array_traverse_and_clear(Naming.stringtab_cname, py_string_count)
 
         encodings = sorted(encodings)
         encodings.sort(key=len)  # stable sort to make sure '0' comes first, index 0
@@ -1934,19 +1930,9 @@ class GlobalState:
         w.exit_cfunc_scope()
         w.putln("}")
 
-        self.parts['module_state'].putln("PyObject *%s[%s];" % (
-                Naming.codeobjtab_cname, len(self.codeobject_constants)))
-
-        self.parts['module_state_clear'].putln("for (int n=0; n<%s; ++n) {" %
-                                               len(self.codeobject_constants))
-        self.parts['module_state_clear'].putln("Py_CLEAR(clear_module_state->%s[n]);" %
-            Naming.codeobjtab_cname)
-        self.parts['module_state_clear'].putln("}")
-        self.parts['module_state_traverse'].putln("for (int n=0; n<%s; ++n) {" %
-                                                  len(self.codeobject_constants))
-        self.parts['module_state_traverse'].putln("Py_VISIT(traverse_module_state->%s[n]);" %
-            Naming.codeobjtab_cname)
-        self.parts['module_state_traverse'].putln("}")
+        code_object_count = len(self.codeobject_constants)
+        self.parts['module_state'].putln(f"PyObject *{Naming.codeobjtab_cname}[{code_object_count}];")
+        self._generate_module_array_traverse_and_clear(Naming.codeobjtab_cname, code_object_count)
 
         self.parts['module_state_defines'].putln("#define %s %s->%s" % (
             Naming.codeobjtab_cname, Naming.modulestateglobal_cname, Naming.codeobjtab_cname

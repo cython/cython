@@ -2839,7 +2839,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
     def generate_import_star(self, env, code):
         env.use_utility_code(UtilityCode.load_cached("CStringEquals", "StringTools.c"))
-        code.start_initcfunc("int %s(PyObject *o, PyObject* py_name, const char *name)" % Naming.import_star_set)
+        code.start_initcfunc(f"int {Naming.import_star_set}(PyObject *o, PyObject* py_name, const char *name)")
 
         code.putln("static const char* internal_type_names[] = {")
         for name, entry in sorted(env.entries.items()):
@@ -3335,7 +3335,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             def __enter__(self):
                 self.call_code = orig_code.insertion_point()
                 code = function_code
-                code.start_initcfunc("int %s(void)" % self.cfunc_name, scope, refnanny=True)
+                code.start_initcfunc(f"int {self.cfunc_name}(void)", scope, refnanny=True)
                 self.tempdecl_code = code.insertion_point()
                 code.put_setup_refcount_context(EncodedString(self.cfunc_name))
                 # Leave a grepable marker that makes it easy to find the generator source.
