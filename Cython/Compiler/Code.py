@@ -1880,9 +1880,10 @@ class GlobalState:
 
     def generate_codeobject_constants(self):
         w = self.parts['init_codeobjects']
-        w.start_initcfunc("int __Pyx_CreateCodeObjects(void)")
+        init_function = "int __Pyx_CreateCodeObjects(void)"
 
         if not self.codeobject_constants:
+            w.start_initcfunc(init_function)
             w.putln("return 0;")
             w.exit_cfunc_scope()
             w.putln("}")
@@ -1903,8 +1904,7 @@ class GlobalState:
             max_vars = max(max_vars, len(node.varnames))
             max_line = max(max_line, def_node.pos[1])
 
-        self.parts['utility_code_proto'].put(textwrap.dedent(f"""\
-        /* code object config struct */
+        w.put(textwrap.dedent(f"""\
         typedef struct {{
             unsigned int argcount : {max_func_args.bit_length()};
             unsigned int num_posonly_args : {max_posonly_args.bit_length()};
@@ -1914,6 +1914,10 @@ class GlobalState:
             unsigned int first_line : {max_line.bit_length()};
         }} __Pyx_PyCode_New_function_description;
         """))
+
+        self.use_utility_code(UtilityCode.load_cached("NewCodeObj", "ModuleSetupCode.c"))
+
+        w.start_initcfunc(init_function)
 
         w.putln("PyObject* tuple_dedup_map = PyDict_New();")
         w.putln("if (unlikely(!tuple_dedup_map)) return -1;")
@@ -1929,8 +1933,6 @@ class GlobalState:
         w.putln("return -1;")
         w.exit_cfunc_scope()
         w.putln("}")
-
-        self.use_utility_code(UtilityCode.load_cached("NewCodeObj", "ModuleSetupCode.c"))
 
         self.parts['module_state'].putln("PyObject *%s[%s];" % (
                 Naming.codeobjtab_cname, len(self.codeobject_constants)))
