@@ -12420,6 +12420,13 @@ class DivNode(NumBinopNode):
     def analyse_operation(self, env):
         self._check_truedivision(env)
         result = NumBinopNode.analyse_operation(self, env)
+
+        # The assumption here is that result is either 'self' or a coercion
+        # node containing 'self'. Thus it is reasonable to keep manipulating
+        # 'self' even if it's been replaced as the eventual result.
+        from . import Visitor
+        assert Visitor.tree_contains(result, self)
+
         if self.is_cpp_operation():
             self.cdivision = True
         if not self.type.is_pyobject:
