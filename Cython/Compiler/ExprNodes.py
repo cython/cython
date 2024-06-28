@@ -11854,7 +11854,9 @@ class BinopNode(ExprNode):
             self.analyse_cpp_operation(env)
         else:
             self.analyse_c_operation(env)
-        return self
+        return self  # when modifying this function, remember that the
+            # DivNode and ModNode expect it to return either self, or something
+            # that wraps self - they relying on modifying self afterwards.
 
     def is_py_operation(self):
         return self.is_py_operation_types(self.operand1.type, self.operand2.type)
@@ -12424,8 +12426,6 @@ class DivNode(NumBinopNode):
         # The assumption here is that result is either 'self' or a coercion
         # node containing 'self'. Thus it is reasonable to keep manipulating
         # 'self' even if it's been replaced as the eventual result.
-        from . import Visitor
-        assert Visitor.tree_contains(result, self)
 
         if self.is_cpp_operation():
             self.cdivision = True
@@ -12438,7 +12438,7 @@ class DivNode(NumBinopNode):
                 # Need to check ahead of time to warn or raise zero division error
                 self.operand1 = self.operand1.coerce_to_simple(env)
                 self.operand2 = self.operand2.coerce_to_simple(env)
-        return result
+        return result  # should either be self, or wrap self
 
     def compute_c_result_type(self, type1, type2):
         if self.operator == '/' and self.ctruedivision and not type1.is_cpp_class and not type2.is_cpp_class:
@@ -12592,12 +12592,15 @@ class ModNode(DivNode):
 
     def analyse_operation(self, env):
         result = DivNode.analyse_operation(self, env)
+        # The assumption here is that result is either 'self' or a coercion
+        # node containing 'self'. Thus it is reasonable to keep manipulating
+        # 'self' even if it's been replaced as the eventual result.
         if not self.type.is_pyobject:
             if self.cdivision is None:
                 self.cdivision = env.directives['cdivision'] or not self.type.signed
             if not self.cdivision and not self.type.is_int and not self.type.is_float:
                 error(self.pos, "mod operator not supported for type '%s'" % self.type)
-        return result
+        return result  # should either be self, or wrap self
 
     def generate_evaluation_code(self, code):
         if not self.type.is_pyobject and not self.cdivision:
