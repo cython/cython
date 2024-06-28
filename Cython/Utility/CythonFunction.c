@@ -692,11 +692,12 @@ static int __Pyx_CyFunction_traverse(__pyx_CyFunctionObject *m, visitproc visit,
     Py_VISIT(((PyCFunctionObject*)m)->m_module);
 #endif
     Py_VISIT(m->func_dict);
-    Py_VISIT(m->func_name);
-    Py_VISIT(m->func_qualname);
+    __Pyx_VISIT_CONST(m->func_name);
+    __Pyx_VISIT_CONST(m->func_qualname);
     Py_VISIT(m->func_doc);
     Py_VISIT(m->func_globals);
-    Py_VISIT(m->func_code);
+    // The code objects that we generate only contain plain constants and can never participate in reference cycles.
+    __Pyx_VISIT_CONST(m->func_code);
 #if !CYTHON_COMPILING_IN_LIMITED_API
     Py_VISIT(__Pyx_CyFunction_GetClassObj(m));
 #endif
