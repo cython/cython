@@ -4989,13 +4989,14 @@ class MemoryViewIndexNode(BufferIndexNode):
         self.original_indices = indices
         self.nogil = env.nogil
 
-        self.analyse_operation(env, getting, axes)
-        self.wrap_in_nonecheck_node(env)
-        return self
+        node = self.analyse_operation(env, getting, axes)
+        node.wrap_in_nonecheck_node(env)
+        return node
 
     def analyse_operation(self, env, getting, axes):
         self.none_error_message = "Cannot index None memoryview slice"
         self.analyse_buffer_index(env, getting)
+        return self
 
     def analyse_broadcast_operation(self, rhs):
         """
@@ -5049,7 +5050,7 @@ class MemoryViewSliceNode(MemoryViewIndexNode):
 
         self.analyse_ellipsis_noop(env, getting)
         if self.is_ellipsis_noop:
-            return
+            return self
 
         self.index = None
         self.is_temp = True
@@ -5057,12 +5058,13 @@ class MemoryViewSliceNode(MemoryViewIndexNode):
 
         if not MemoryView.validate_axes(self.pos, axes):
             self.type = error_type
-            return
+            return self
 
         self.type = PyrexTypes.MemoryViewSliceType(self.base.type.dtype, axes)
 
         if not (self.base.is_simple() or self.base.result_in_temp()):
             self.base = self.base.coerce_to_temp(env)
+        return self
 
     def analyse_assignment(self, rhs):
         if not rhs.type.is_memoryviewslice and (
@@ -11830,8 +11832,7 @@ class BinopNode(ExprNode):
     def analyse_types(self, env):
         self.operand1 = self.operand1.analyse_types(env)
         self.operand2 = self.operand2.analyse_types(env)
-        self.analyse_operation(env)
-        return self
+        return self.analyse_operation(env)
 
     def analyse_operation(self, env):
         if self.is_pythran_operation(env):
@@ -11843,12 +11844,19 @@ class BinopNode(ExprNode):
             self.coerce_operands_to_pyobjects(env)
             self.type = self.result_type(self.operand1.type,
                                          self.operand2.type, env)
-            assert self.type.is_pyobject
             self.is_temp = 1
+            if not self.type.is_pyobject:
+                original_type, self.type = self.type, py_object_type
+                # Hopefully this can be optimized out in some cases
+                return self.coerce_to(original_type, env)
+
         elif self.is_cpp_operation():
             self.analyse_cpp_operation(env)
         else:
             self.analyse_c_operation(env)
+        return self  # when modifying this function, remember that the
+            # DivNode and ModNode expect it to return either self, or something
+            # that wraps self - they relying on modifying self afterwards.
 
     def is_py_operation(self):
         return self.is_py_operation_types(self.operand1.type, self.operand2.type)
@@ -12276,8 +12284,7 @@ class MulNode(NumBinopNode):
             elif operand2.type in builtin_sequence_types:
                 self.operand1 = operand1.coerce_to_index(env)
 
-        self.analyse_operation(env)
-        return self
+        return self.analyse_operation(env)
 
     @staticmethod
     def is_builtin_seqmul_type(type):
@@ -12414,7 +12421,12 @@ class DivNode(NumBinopNode):
 
     def analyse_operation(self, env):
         self._check_truedivision(env)
-        NumBinopNode.analyse_operation(self, env)
+        result = NumBinopNode.analyse_operation(self, env)
+
+        # The assumption here is that result is either 'self' or a coercion
+        # node containing 'self'. Thus it is reasonable to keep manipulating
+        # 'self' even if it's been replaced as the eventual result.
+
         if self.is_cpp_operation():
             self.cdivision = True
         if not self.type.is_pyobject:
@@ -12426,6 +12438,7 @@ class DivNode(NumBinopNode):
                 # Need to check ahead of time to warn or raise zero division error
                 self.operand1 = self.operand1.coerce_to_simple(env)
                 self.operand2 = self.operand2.coerce_to_simple(env)
+        return result  # should either be self, or wrap self
 
     def compute_c_result_type(self, type1, type2):
         if self.operator == '/' and self.ctruedivision and not type1.is_cpp_class and not type2.is_cpp_class:
@@ -12578,12 +12591,16 @@ class ModNode(DivNode):
             return "float divmod()"
 
     def analyse_operation(self, env):
-        DivNode.analyse_operation(self, env)
+        result = DivNode.analyse_operation(self, env)
+        # The assumption here is that result is either 'self' or a coercion
+        # node containing 'self'. Thus it is reasonable to keep manipulating
+        # 'self' even if it's been replaced as the eventual result.
         if not self.type.is_pyobject:
             if self.cdivision is None:
                 self.cdivision = env.directives['cdivision'] or not self.type.signed
             if not self.cdivision and not self.type.is_int and not self.type.is_float:
                 error(self.pos, "mod operator not supported for type '%s'" % self.type)
+        return result  # should either be self, or wrap self
 
     def generate_evaluation_code(self, code):
         if not self.type.is_pyobject and not self.cdivision:
