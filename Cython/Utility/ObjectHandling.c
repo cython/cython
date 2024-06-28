@@ -438,7 +438,7 @@ static CYTHON_INLINE PyObject *__Pyx_GetItemInt_{{type}}_Fast(PyObject *o, Py_ss
         Py_INCREF(r);
         return r;
     }
-    return __Pyx_GetItemInt_Generic(o, PyInt_FromSsize_t(i));
+    return __Pyx_GetItemInt_Generic(o, PyLong_FromSsize_t(i));
 #else
     return PySequence_GetItem(o, i);
 #endif
@@ -469,7 +469,7 @@ static CYTHON_INLINE PyObject *__Pyx_GetItemInt_Fast(PyObject *o, Py_ssize_t i, 
         PyMappingMethods *mm = Py_TYPE(o)->tp_as_mapping;
         PySequenceMethods *sm = Py_TYPE(o)->tp_as_sequence;
         if (mm && mm->mp_subscript) {
-            PyObject *r, *key = PyInt_FromSsize_t(i);
+            PyObject *r, *key = PyLong_FromSsize_t(i);
             if (unlikely(!key)) return NULL;
             r = mm->mp_subscript(o, key);
             Py_DECREF(key);
@@ -497,7 +497,7 @@ static CYTHON_INLINE PyObject *__Pyx_GetItemInt_Fast(PyObject *o, Py_ssize_t i, 
         return PySequence_GetItem(o, i);
     }
 #endif
-    return __Pyx_GetItemInt_Generic(o, PyInt_FromSsize_t(i));
+    return __Pyx_GetItemInt_Generic(o, PyLong_FromSsize_t(i));
 }
 
 /////////////// SetItemInt.proto ///////////////
@@ -540,7 +540,7 @@ static CYTHON_INLINE int __Pyx_SetItemInt_Fast(PyObject *o, Py_ssize_t i, PyObje
         PySequenceMethods *sm = Py_TYPE(o)->tp_as_sequence;
         if (mm && mm->mp_ass_subscript) {
             int r;
-            PyObject *key = PyInt_FromSsize_t(i);
+            PyObject *key = PyLong_FromSsize_t(i);
             if (unlikely(!key)) return -1;
             r = mm->mp_ass_subscript(o, key, v);
             Py_DECREF(key);
@@ -569,7 +569,7 @@ static CYTHON_INLINE int __Pyx_SetItemInt_Fast(PyObject *o, Py_ssize_t i, PyObje
         return PySequence_SetItem(o, i, v);
     }
 #endif
-    return __Pyx_SetItemInt_Generic(o, PyInt_FromSsize_t(i), v);
+    return __Pyx_SetItemInt_Generic(o, PyLong_FromSsize_t(i), v);
 }
 
 
@@ -608,7 +608,7 @@ static CYTHON_INLINE int __Pyx_DelItemInt_Fast(PyObject *o, Py_ssize_t i,
     PyMappingMethods *mm = Py_TYPE(o)->tp_as_mapping;
     PySequenceMethods *sm = Py_TYPE(o)->tp_as_sequence;
     if ((!is_list) && mm && mm->mp_ass_subscript) {
-        PyObject *key = PyInt_FromSsize_t(i);
+        PyObject *key = PyLong_FromSsize_t(i);
         return likely(key) ? mm->mp_ass_subscript(o, key, (PyObject *)NULL) : -1;
     }
     if (likely(sm && sm->sq_ass_item)) {
@@ -626,7 +626,7 @@ static CYTHON_INLINE int __Pyx_DelItemInt_Fast(PyObject *o, Py_ssize_t i,
         return sm->sq_ass_item(o, i, (PyObject *)NULL);
     }
 #endif
-    return __Pyx_DelItem_Generic(o, PyInt_FromSsize_t(i));
+    return __Pyx_DelItem_Generic(o, PyLong_FromSsize_t(i));
 }
 
 
@@ -681,7 +681,7 @@ static CYTHON_INLINE int __Pyx_PyObject_SetSlice(PyObject* obj, PyObject* value,
                 py_start = *_py_start;
             } else {
                 if (has_cstart) {
-                    owned_start = py_start = PyInt_FromSsize_t(cstart);
+                    owned_start = py_start = PyLong_FromSsize_t(cstart);
                     if (unlikely(!py_start)) goto bad;
                 } else
                     py_start = Py_None;
@@ -690,7 +690,7 @@ static CYTHON_INLINE int __Pyx_PyObject_SetSlice(PyObject* obj, PyObject* value,
                 py_stop = *_py_stop;
             } else {
                 if (has_cstop) {
-                    owned_stop = py_stop = PyInt_FromSsize_t(cstop);
+                    owned_stop = py_stop = PyLong_FromSsize_t(cstop);
                     if (unlikely(!py_stop)) {
                         Py_XDECREF(owned_start);
                         goto bad;
@@ -2780,7 +2780,7 @@ static CYTHON_INLINE PyObject* __Pyx_PySequence_Multiply(PyObject *seq, Py_ssize
 /////////////// PySequenceMultiply ///////////////
 
 static PyObject* __Pyx_PySequence_Multiply_Generic(PyObject *seq, Py_ssize_t mul) {
-    PyObject *result, *pymul = PyInt_FromSsize_t(mul);
+    PyObject *result, *pymul = PyLong_FromSsize_t(mul);
     if (unlikely(!pymul))
         return NULL;
     result = PyNumber_Multiply(seq, pymul);

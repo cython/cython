@@ -1104,9 +1104,8 @@ static CYTHON_INLINE PyObject * __Pyx_PyDict_GetItemStrWithError(PyObject *dict,
   #define PyUnicode_InternFromString(s) PyUnicode_FromString(s)
 #endif
 
-// TODO: remove this block
-#define __Pyx_PyInt_FromHash_t PyInt_FromSsize_t
-#define __Pyx_PyInt_AsHash_t   __Pyx_PyIndex_AsSsize_t
+#define __Pyx_PyLong_FromHash_t PyLong_FromSsize_t
+#define __Pyx_PyLong_AsHash_t   __Pyx_PyIndex_AsSsize_t
 
 // backport of PyAsyncMethods from Py3.5 to older Py3.x versions
 // (mis-)using the "tp_reserved" type slot which is re-activated as "tp_as_async" in Py3.5

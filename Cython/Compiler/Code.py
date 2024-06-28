@@ -1957,11 +1957,11 @@ class GlobalState:
             elif py_type == 'long':
                 function = 'PyLong_FromString("%s", 0, 0)'
             elif Utils.long_literal(value):
-                function = 'PyInt_FromString("%s", 0, 0)'
+                function = 'PyLong_FromString("%s", 0, 0)'
             elif len(value.lstrip('-')) > 4:
-                function = "PyInt_FromLong(%sL)"
+                function = "PyLong_FromLong(%sL)"
             else:
-                function = "PyInt_FromLong(%s)"
+                function = "PyLong_FromLong(%s)"
             init_constants.putln('%s = %s; %s' % (
                 cname, function % value_code,
                 init_constants.error_goto_if_null(cname, self.module_pos)))

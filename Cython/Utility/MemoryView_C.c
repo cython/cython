@@ -631,7 +631,7 @@ __pyx_memoryview_copy_new_contig(const __Pyx_memviewslice *from_mvs,
 
 
     for(i = 0; i < ndim; i++) {
-        temp_int = PyInt_FromSsize_t(from_mvs->shape[i]);
+        temp_int = PyLong_FromSsize_t(from_mvs->shape[i]);
         if(unlikely(!temp_int)) {
             goto fail;
         } else {
