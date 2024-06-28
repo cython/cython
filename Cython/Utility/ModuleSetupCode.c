@@ -2020,6 +2020,7 @@ static CYTHON_INLINE void __Pyx_pretend_to_initialize(void* ptr) { (void)ptr; }
 
 
 //////////////////// NewCodeObj.proto ////////////////////////
+//@proto_block: init_codeobjects
 
 static PyObject* __Pyx_PyCode_New(
         //int argcount,
