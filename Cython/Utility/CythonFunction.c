@@ -212,26 +212,6 @@ __Pyx_CyFunction_set_name(__pyx_CyFunctionObject *op, PyObject *value, void *con
     return 0;
 }
 
-#if CYTHON_COMPILING_IN_LIMITED_API
-#define __PYX_CYFUNCTION_FORMAT_TYPE_ERROR2(fmt_string, self, arg) \
-    {                                                              \
-        PyObject *name = __Pyx_CyFunction_get_name(                \
-            (__pyx_CyFunctionObject*)self, NULL);                  \
-        if (likely(name)) {                                        \
-            PyErr_Format(PyExc_TypeError,                          \
-                         "%.200S" fmt_string, name, arg);          \
-            Py_DECREF(name);                                       \
-        }                                                          \
-    }
-#else
-#define __PYX_CYFUNCTION_FORMAT_TYPE_ERROR2(fmt_string, self, arg) \
-    PyErr_Format(PyExc_TypeError, "%.200s" fmt_string,             \
-                 ((PyCFunctionObject*)self)->m_ml->ml_name,        \
-                 arg);
-#endif
-#define __PYX_CYFUNCTION_FORMAT_TYPE_ERROR(fmt_string, self)       \
-    __PYX_CYFUNCTION_FORMAT_TYPE_ERROR2(fmt_string "%s", self, "")
-
 static PyObject *
 __Pyx_CyFunction_get_qualname(__pyx_CyFunctionObject *op, void *context)
 {
@@ -495,6 +475,39 @@ ignore:
 //        PyErr_SetString(PyExc_AttributeError, "failed to calculate __signature__");
 //    return NULL;
 //}
+
+static void __Pyx_CyFunction_raise_argument_count_error(__pyx_CyFunctionObject *func, const char* message, Py_ssize_t size) {
+#if CYTHON_COMPILING_IN_LIMITED_API
+    PyObject *py_name = __Pyx_CyFunction_get_name(func, NULL);
+    if (!py_name) return;
+    PyErr_Format(PyExc_TypeError,
+        "%.200S() %s (%" CYTHON_FORMAT_SSIZE_T "d given)",
+        py_name, message, size);
+    Py_DECREF(py_name);
+#else
+    const char* name = ((PyCFunctionObject*)func)->m_ml->ml_name;
+    PyErr_Format(PyExc_TypeError,
+        "%.200s() %s (%" CYTHON_FORMAT_SSIZE_T "d given)",
+        name, message, size);
+#endif
+}
+
+static void __Pyx_CyFunction_raise_type_error(__pyx_CyFunctionObject *func, const char* message) {
+#if CYTHON_COMPILING_IN_LIMITED_API
+    PyObject *py_name = __Pyx_CyFunction_get_name(func, NULL);
+    if (!py_name) return;
+    PyErr_Format(PyExc_TypeError,
+        "%.200S() %s",
+        py_name, message);
+    Py_DECREF(py_name);
+#else
+    const char* name = ((PyCFunctionObject*)func)->m_ml->ml_name;
+    PyErr_Format(PyExc_TypeError,
+        "%.200s() %s",
+        name, message);
+#endif
+}
+
 
 #if CYTHON_COMPILING_IN_LIMITED_API
 static PyObject *
@@ -768,9 +781,9 @@ static PyObject * __Pyx_CyFunction_CallMethod(PyObject *func, PyObject *self, Py
 #endif
             if (likely(size == 0))
                 return (*meth)(self, NULL);
-            __PYX_CYFUNCTION_FORMAT_TYPE_ERROR2(
-                "() takes no arguments (%" CYTHON_FORMAT_SSIZE_T "d given)",
-                func, size);
+            __Pyx_CyFunction_raise_argument_count_error(
+                (__pyx_CyFunctionObject*)func,
+                "takes no arguments", size);
             return NULL;
         }
         break;
@@ -795,9 +808,9 @@ static PyObject * __Pyx_CyFunction_CallMethod(PyObject *func, PyObject *self, Py
                 #endif
                 return result;
             }
-            __PYX_CYFUNCTION_FORMAT_TYPE_ERROR2(
-                "() takes exactly one argument (%" CYTHON_FORMAT_SSIZE_T "d given)",
-                func, size);
+            __Pyx_CyFunction_raise_argument_count_error(
+                (__pyx_CyFunctionObject*)func,
+                "takes exactly one argument", size);
             return NULL;
         }
         break;
@@ -805,8 +818,8 @@ static PyObject * __Pyx_CyFunction_CallMethod(PyObject *func, PyObject *self, Py
         PyErr_SetString(PyExc_SystemError, "Bad call flags for CyFunction");
         return NULL;
     }
-    __PYX_CYFUNCTION_FORMAT_TYPE_ERROR(
-        "() takes no keyword arguments", func);
+    __Pyx_CyFunction_raise_type_error(
+        (__pyx_CyFunctionObject*)func, "takes no keyword arguments");
     return NULL;
 }
 
@@ -887,15 +900,15 @@ static CYTHON_INLINE int __Pyx_CyFunction_Vectorcall_CheckArgs(__pyx_CyFunctionO
     int ret = 0;
     if ((cyfunc->flags & __Pyx_CYFUNCTION_CCLASS) && !(cyfunc->flags & __Pyx_CYFUNCTION_STATICMETHOD)) {
         if (unlikely(nargs < 1)) {
-            __PYX_CYFUNCTION_FORMAT_TYPE_ERROR(
-                "() needs an argument", cyfunc);
+            __Pyx_CyFunction_raise_type_error(
+                cyfunc, "needs an argument");
             return -1;
         }
         ret = 1;
     }
     if (unlikely(kwnames) && unlikely(__Pyx_PyTuple_GET_SIZE(kwnames))) {
-        __PYX_CYFUNCTION_FORMAT_TYPE_ERROR(
-            "() takes no keyword arguments", cyfunc);
+        __Pyx_CyFunction_raise_type_error(
+            cyfunc, "takes no keyword arguments");
         return -1;
     }
     return ret;
@@ -937,9 +950,8 @@ static PyObject * __Pyx_CyFunction_Vectorcall_NOARGS(PyObject *func, PyObject *c
     }
 
     if (unlikely(nargs != 0)) {
-        __PYX_CYFUNCTION_FORMAT_TYPE_ERROR2(
-            "() takes no arguments (%" CYTHON_FORMAT_SSIZE_T "d given)",
-            func, nargs);
+        __Pyx_CyFunction_raise_argument_count_error(
+            cyfunc, "takes no arguments", nargs);
         return NULL;
     }
     return meth(self, NULL);
@@ -981,9 +993,8 @@ static PyObject * __Pyx_CyFunction_Vectorcall_O(PyObject *func, PyObject *const 
     }
 
     if (unlikely(nargs != 1)) {
-        __PYX_CYFUNCTION_FORMAT_TYPE_ERROR2(
-            "() takes exactly one argument (%" CYTHON_FORMAT_SSIZE_T "d given)",
-            cyfunc, nargs);
+        __Pyx_CyFunction_raise_argument_count_error(
+            cyfunc, "takes exactly one argument", nargs);
         return NULL;
     }
     return meth(self, args[0]);
