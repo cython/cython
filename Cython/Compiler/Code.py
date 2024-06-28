@@ -1714,7 +1714,8 @@ class GlobalState:
             self.parts['module_state_defines'].putln(
                 f"#define {global_cname} {Naming.modulestateglobal_cname}->{struct_attr_cname}")
 
-            self._generate_module_array_traverse_and_clear(struct_attr_cname, count)
+            # The constant tuples/slices that we create can never participate in reference cycles.
+            self._generate_module_array_traverse_and_clear(struct_attr_cname, count, may_have_refcycles=False)
 
             cleanup_level = cleanup_level_for_type_prefix(prefix)
             if cleanup_level is not None and cleanup_level <= Options.generate_cleanup_code:
