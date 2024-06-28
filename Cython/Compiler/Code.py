@@ -1689,6 +1689,14 @@ class GlobalState:
                 # which aren't necessarily PyObjects, so aren't appropriate
                 # to clear.
                 continue
+            if c.type.is_memoryviewslice:
+                self.parts['module_state_clear'].put_xdecref_clear(
+                    f"clear_module_state->{cname}",
+                    c.type,
+                    nanny=False,
+                )
+                continue
+
             self.parts['module_state_clear'].putln(
                 "Py_CLEAR(clear_module_state->%s);" % cname)
             self.parts['module_state_traverse'].putln(
