@@ -89,11 +89,11 @@ static CYTHON_INLINE int __Pyx_BytesContains(PyObject* bytes, char character); /
 static CYTHON_INLINE int __Pyx_BytesContains(PyObject* bytes, char character) {
     const Py_ssize_t length = __Pyx_PyBytes_GET_SIZE(bytes);
 #if !CYTHON_ASSUME_SAFE_SIZE
-    if (length == -1) return -1;
+    if (unlikely(length == -1)) return -1;
 #endif
     const char* char_start = __Pyx_PyBytes_AsString(bytes);
 #if !CYTHON_ASSUME_SAFE_MACROS
-    if (char_start == 0) return -1;
+    if (unlikely(!char_start)) return -1;
 #endif
     return memchr(char_start, (unsigned char)character, (size_t)length) != NULL;
 }
@@ -723,7 +723,7 @@ static int __Pyx_PyBytes_SingleTailmatch(PyObject* self, PyObject* arg,
     } 
     #if CYTHON_COMPILING_IN_LIMITED_API && __PYX_LIMITED_VERSION_HEX < 0x030B0000
     else if (PyByteArray_Check(arg)) {
-        // The Limited API fallback of converting to bytes is inefficient,
+        // The Limited API fallback is inefficient,
         // so special-case bytearray to be a bit faster. Keep this to the Limited
         // API only since the buffer protocol code is good enough otherwise.
         sub_ptr = PyByteArray_AsString(arg);
@@ -733,14 +733,20 @@ static int __Pyx_PyBytes_SingleTailmatch(PyObject* self, PyObject* arg,
     } else {
         // Where buffer protocol is unavailable, just convert to bytes
         // (which is probably inefficient, but does work)
+        // First check that the object is a buffer (since PyBytes_FromObject)
+        // is more flexible than what endswith accepts.
+        PyObject *as_memoryview = PyMemoryView_FromObject(arg);
+        if (!as_memoryview) return -1;
+        Py_DECREF(as_memoryview);
         converted_arg = PyBytes_FromObject(arg);
         if (!converted_arg) return -1;
         if (PyBytes_AsStringAndSize(converted_arg, &sub_ptr, &sub_len) == -1) {
             Py_DECREF(converted_arg);
             return -1;
         }
+
     }
-    #else // LIMITED_API < 030B0000
+    #else // LIMITED_API >= 030B0000 or !LIMITED_API
     else {
         if (unlikely(PyObject_GetBuffer(arg, &view, PyBUF_SIMPLE) == -1))
             return -1;
