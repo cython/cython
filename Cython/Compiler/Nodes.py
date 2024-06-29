@@ -4962,14 +4962,22 @@ class OverrideCheckNode(StatNode):
             code.putln("else {")
         else:
             code.putln("else if (")
-            code.putln("#if CYTHON_USE_TYPE_SLOTS || CYTHON_COMPILING_IN_PYPY")
-            code.putln(f"unlikely(Py_TYPE({self_arg})->tp_dictoffset != 0)")
+            code.putln("#if !(CYTHON_USE_TYPE_SLOTS || CYTHON_COMPILING_IN_PYPY)")
+            # If CYTHON_USE_TYPE_SPECS then all extension types are heap-types so the check below automatically
+            # passes and thus takes the slow route.
+            # Therefore we do a less thorough check - if they type hasn't changed then clearly it hasn't
+            # been overridden, and if the type isn't GC then it also won't have been overridden.
+            if self.py_func.entry.scope.lookup_here("__dict__"):
+                code.putln("(1)")
+            else:
+                code.putln(f"unlikely(Py_TYPE({self_arg}) != "
+                           f"{self.py_func.entry.scope.parent_type.typeptr_cname} &&")
+                code.putln(f"__Pyx_PyType_HasFeature(Py_TYPE({self_arg}), Py_TPFLAGS_HAVE_GC))")
             code.putln("#else")
-            dict_str_const = code.get_py_string_const(EncodedString("__dict__"))
-            code.putln(f'PyObject_HasAttr({self_arg}, {dict_str_const})')
+            code.putln(f"unlikely(Py_TYPE({self_arg})->tp_dictoffset != 0 || "
+                       f"__Pyx_PyType_HasFeature(Py_TYPE({self_arg}), (Py_TPFLAGS_IS_ABSTRACT | Py_TPFLAGS_HEAPTYPE)))")
             code.putln("#endif")
-            code.putln(" || unlikely(__Pyx_PyType_HasFeature(Py_TYPE(%s), (Py_TPFLAGS_IS_ABSTRACT | Py_TPFLAGS_HEAPTYPE)))) {" % (
-                self_arg))
+            code.putln(") {")
 
         code.putln("#if CYTHON_USE_DICT_VERSIONS && CYTHON_USE_PYTYPE_LOOKUP && CYTHON_USE_TYPE_SLOTS")
         code.globalstate.use_utility_code(
