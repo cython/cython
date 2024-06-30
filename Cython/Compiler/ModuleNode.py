@@ -2064,7 +2064,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln(
             "PyObject *r;")
         code.putln(
-            "PyObject *x = PyInt_FromSsize_t(i); if(!x) return 0;")
+            "PyObject *x = PyLong_FromSsize_t(i); if(!x) return 0;")
         # Note that PyType_GetSlot only works on heap-types before 3.10, so not using type slots
         # and defining cdef classes as non-heap types is probably impossible
         code.putln("#if CYTHON_USE_TYPE_SLOTS || (!CYTHON_USE_TYPE_SPECS && __PYX_LIMITED_VERSION_HEX < 0x030A0000)")

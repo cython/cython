@@ -2686,12 +2686,12 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
             py_name = "float")
 
     PyNumber_Int_func_type = PyrexTypes.CFuncType(
-        PyrexTypes.py_object_type, [
+        Builtin.int_type, [
             PyrexTypes.CFuncTypeArg("o", PyrexTypes.py_object_type, None)
             ])
 
-    PyInt_FromDouble_func_type = PyrexTypes.CFuncType(
-        PyrexTypes.py_object_type, [
+    PyLong_FromDouble_func_type = PyrexTypes.CFuncType(
+        Builtin.int_type, [
             PyrexTypes.CFuncTypeArg("value", PyrexTypes.c_double_type, None)
             ])
 
@@ -2700,16 +2700,16 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
         """
         if len(pos_args) == 0:
             return ExprNodes.IntNode(node.pos, value="0", constant_result=0,
-                                     type=PyrexTypes.py_object_type)
+                                     type=Builtin.int_type)
         elif len(pos_args) != 1:
             return node  # int(x, base)
         func_arg = pos_args[0]
         if isinstance(func_arg, ExprNodes.CoerceToPyTypeNode):
             if func_arg.arg.type.is_float:
                 return ExprNodes.PythonCapiCallNode(
-                    node.pos, "__Pyx_PyInt_FromDouble", self.PyInt_FromDouble_func_type,
+                    node.pos, "PyLong_FromDouble", self.PyLong_FromDouble_func_type,
                     args=[func_arg.arg], is_temp=True, py_name='int',
-                    utility_code=UtilityCode.load_cached("PyIntFromDouble", "TypeConversion.c"))
+                )
             else:
                 return node  # handled in visit_CoerceFromPyTypeNode()
         if func_arg.type.is_pyobject and node.type.is_pyobject:
@@ -4268,18 +4268,18 @@ def optimise_numeric_binop(operator, node, ret_type, arg0, arg1):
     inplace = node.inplace if isinstance(node, ExprNodes.NumBinopNode) else False
     extra_args.append(ExprNodes.BoolNode(node.pos, value=inplace, constant_result=inplace))
     if is_float or operator not in ('Eq', 'Ne'):
-        # "PyFloatBinop" and "PyIntBinop" take an additional "check for zero division" argument.
+        # "PyFloatBinop" and "PyLongBinop" take an additional "check for zero division" argument.
         zerodivision_check = arg_order == 'CObj' and (
             not node.cdivision if isinstance(node, ExprNodes.DivNode) else False)
         extra_args.append(ExprNodes.BoolNode(node.pos, value=zerodivision_check, constant_result=zerodivision_check))
 
     utility_code = TempitaUtilityCode.load_cached(
-        "PyFloatBinop" if is_float else "PyIntCompare" if operator in ('Eq', 'Ne') else "PyIntBinop",
+        "PyFloatBinop" if is_float else "PyLongCompare" if operator in ('Eq', 'Ne') else "PyLongBinop",
         "Optimize.c",
         context=dict(op=operator, order=arg_order, ret_type=ret_type))
 
     func_cname = "__Pyx_Py%s_%s%s%s" % (
-        'Float' if is_float else 'Int',
+        'Float' if is_float else 'Long',
         '' if ret_type.is_pyobject else 'Bool',
         operator,
         arg_order)

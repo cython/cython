@@ -3715,7 +3715,7 @@ class FormattedValueNode(ExprNode):
         's': 'PyObject_Unicode',
         'r': 'PyObject_Repr',
         'a': 'PyObject_ASCII',  # NOTE: mapped to PyObject_Repr() in Py2
-        'd': '__Pyx_PyNumber_IntOrLong',  # NOTE: internal mapping for '%d' formatting
+        'd': '__Pyx_PyNumber_Long',  # NOTE: internal mapping for '%d' formatting
     }.get
 
     def may_be_none(self):
