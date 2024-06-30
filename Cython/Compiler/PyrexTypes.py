@@ -503,7 +503,7 @@ class CTypedefType(BaseType):
             if not self.to_py_utility_code:
                 base_type = self.typedef_base_type
                 if type(base_type) is CIntType:
-                    self.to_py_function = "__Pyx_PyInt_From_" + self.specialization_name()
+                    self.to_py_function = "__Pyx_PyLong_From_" + self.specialization_name()
                     env.use_utility_code(TempitaUtilityCode.load_cached(
                         "CIntToPy", "TypeConversion.c",
                         context={"TYPE": self.empty_declaration_code(),
@@ -536,7 +536,7 @@ class CTypedefType(BaseType):
             if not self.from_py_utility_code:
                 base_type = self.typedef_base_type
                 if type(base_type) is CIntType:
-                    self.from_py_function = "__Pyx_PyInt_As_" + self.specialization_name()
+                    self.from_py_function = "__Pyx_PyLong_As_" + self.specialization_name()
                     env.use_utility_code(TempitaUtilityCode.load_cached(
                         "CIntFromPy", "TypeConversion.c",
                         context={
@@ -2076,7 +2076,7 @@ class CIntLike:
 
     def create_to_py_utility_code(self, env):
         if type(self).to_py_function is None:
-            self.to_py_function = "__Pyx_PyInt_From_" + self.specialization_name()
+            self.to_py_function = "__Pyx_PyLong_From_" + self.specialization_name()
             env.use_utility_code(TempitaUtilityCode.load_cached(
                 "CIntToPy", "TypeConversion.c",
                 context={"TYPE": self.empty_declaration_code(),
@@ -2085,7 +2085,7 @@ class CIntLike:
 
     def create_from_py_utility_code(self, env):
         if type(self).from_py_function is None:
-            self.from_py_function = "__Pyx_PyInt_As_" + self.specialization_name()
+            self.from_py_function = "__Pyx_PyLong_As_" + self.specialization_name()
             env.use_utility_code(TempitaUtilityCode.load_cached(
                 "CIntFromPy", "TypeConversion.c",
                 context={
@@ -2147,19 +2147,14 @@ class CIntType(CIntLike, CNumericType):
     def get_to_py_type_conversion(self):
         if self.rank < list(rank_to_type_name).index('int'):
             # This assumes sizeof(short) < sizeof(int)
-            return "PyInt_FromLong"
-        else:
-            # Py{Int|Long}_From[Unsigned]Long[Long]
-            Prefix = "Int"
-            SignWord = ""
-            TypeName = "Long"
-            if not self.signed:
-                Prefix = "Long"
-                SignWord = "Unsigned"
-            if self.rank >= list(rank_to_type_name).index('PY_LONG_LONG'):
-                Prefix = "Long"
-                TypeName = "LongLong"
-            return "Py%s_From%s%s" % (Prefix, SignWord, TypeName)
+            return "PyLong_FromLong"
+
+        # PyLong_From[Unsigned]Long[Long]
+        SignWord = "" if self.signed else "Unsigned"
+        TypeName = "Long"
+        if self.rank >= list(rank_to_type_name).index('PY_LONG_LONG'):
+            TypeName = "LongLong"
+        return f"PyLong_From{SignWord}{TypeName}"
 
     def assignable_from_resolved_type(self, src_type):
         return src_type.is_int or src_type.is_enum or src_type is error_type
@@ -2240,7 +2235,7 @@ class CReturnCodeType(CIntType):
     default_format_spec = ''
 
     def specialization_name(self):
-        # I don't think we should end up creating PyInt_As_int/PyInt_From_int functions
+        # I don't think we should end up creating PyLong_As_int/PyLong_From_int functions
         # for this type, but it's better they're distinct in case it happens.
         return super().specialization_name() + "return_code"
 
@@ -2349,15 +2344,15 @@ class CPyUnicodeIntType(CIntType):
 
 class CPyHashTType(CIntType):
 
-    to_py_function = "__Pyx_PyInt_FromHash_t"
-    from_py_function = "__Pyx_PyInt_AsHash_t"
+    to_py_function = "__Pyx_PyLong_FromHash_t"
+    from_py_function = "__Pyx_PyLong_AsHash_t"
 
     def sign_and_name(self):
         return "Py_hash_t"
 
 class CPySSizeTType(CIntType):
 
-    to_py_function = "PyInt_FromSsize_t"
+    to_py_function = "PyLong_FromSsize_t"
     from_py_function = "__Pyx_PyIndex_AsSsize_t"
 
     def sign_and_name(self):
@@ -2365,15 +2360,15 @@ class CPySSizeTType(CIntType):
 
 class CSSizeTType(CIntType):
 
-    to_py_function = "PyInt_FromSsize_t"
-    from_py_function = "PyInt_AsSsize_t"
+    to_py_function = "PyLong_FromSsize_t"
+    from_py_function = "PyLong_AsSsize_t"
 
     def sign_and_name(self):
         return "Py_ssize_t"
 
 class CSizeTType(CIntType):
 
-    to_py_function = "__Pyx_PyInt_FromSize_t"
+    to_py_function = "__Pyx_PyLong_FromSize_t"
 
     def sign_and_name(self):
         return "size_t"

@@ -1308,4 +1308,8 @@ hidden by default since most users will be uninterested in changing them.
             Enable the use of atomic reference counting (as opposed to locking then
             reference counting) in Cython typed memoryviews.
             
-            
+        ``CYTHON_DEBUG_VISIT_CONST``
+            Debug option for including constant (string/integer/code/…) objects in
+            [``gc.get_referents()``](https://docs.python.org/3/library/gc.html#gc.get_referents).
+            By default, Cython avoids GC traversing these objects because they can never participate
+            in reference cycles, and thus would uselessly waste time during garbage collection runs.

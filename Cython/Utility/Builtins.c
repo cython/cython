@@ -189,7 +189,7 @@ static CYTHON_INLINE int __Pyx_HasAttr(PyObject *, PyObject *); /*proto*/
 #endif
 
 //////////////////// HasAttr ////////////////////
-//@requires: ObjectHandling.c::GetAttr
+//@requires: ObjectHandling.c::PyObjectGetAttrStrNoError
 
 #if __PYX_LIMITED_VERSION_HEX < 0x030d00A1
 static CYTHON_INLINE int __Pyx_HasAttr(PyObject *o, PyObject *n) {
@@ -199,10 +199,9 @@ static CYTHON_INLINE int __Pyx_HasAttr(PyObject *o, PyObject *n) {
                         "hasattr(): attribute name must be string");
         return -1;
     }
-    r = __Pyx_GetAttr(o, n);
+    r = __Pyx_PyObject_GetAttrStrNoError(o, n);
     if (!r) {
-        PyErr_Clear();
-        return 0;
+        return (unlikely(PyErr_Occurred())) ? -1 : 0;
     } else {
         Py_DECREF(r);
         return 1;

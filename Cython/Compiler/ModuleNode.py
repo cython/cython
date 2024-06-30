@@ -513,7 +513,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         self.generate_variable_definitions(env, code)
         self.body.generate_function_definitions(env, code)
 
-        code.mark_pos(None)
+        # generate extension types and methods
+        code = globalstate['module_exttypes']
         self.generate_typeobj_definitions(env, code)
         self.generate_method_table(env, code)
         if env.has_import_star:
@@ -2056,7 +2057,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln(
             "PyObject *r;")
         code.putln(
-            "PyObject *x = PyInt_FromSsize_t(i); if(!x) return 0;")
+            "PyObject *x = PyLong_FromSsize_t(i); if(!x) return 0;")
         # Note that PyType_GetSlot only works on heap-types before 3.10, so not using type slots
         # and defining cdef classes as non-heap types is probably impossible
         code.putln("#if CYTHON_USE_TYPE_SLOTS || (!CYTHON_USE_TYPE_SPECS && __PYX_LIMITED_VERSION_HEX < 0x030A0000)")
@@ -2831,9 +2832,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
     def generate_import_star(self, env, code):
         env.use_utility_code(UtilityCode.load_cached("CStringEquals", "StringTools.c"))
-        code.putln()
-        code.enter_cfunc_scope()  # as we need labels
-        code.putln("static int %s(PyObject *o, PyObject* py_name, const char *name) {" % Naming.import_star_set)
+        code.start_initcfunc(f"int {Naming.import_star_set}(PyObject *o, PyObject* py_name, const char *name)")
 
         code.putln("static const char* internal_type_names[] = {")
         for name, entry in sorted(env.entries.items()):
@@ -3039,25 +3038,17 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             Naming.modulestate_cname,
             Naming.modulestate_cname))
         code.putln("if (!traverse_module_state) return 0;")
-        code.putln('Py_VISIT(traverse_module_state->%s);' %
-            env.module_dict_cname)
-        code.putln('Py_VISIT(traverse_module_state->%s);' %
-            Naming.builtins_cname)
-        code.putln('Py_VISIT(traverse_module_state->%s);' %
-            Naming.cython_runtime_cname)
-        code.putln('Py_VISIT(traverse_module_state->%s);' %
-            Naming.empty_tuple)
-        code.putln('Py_VISIT(traverse_module_state->%s);' %
-            Naming.empty_bytes)
-        code.putln('Py_VISIT(traverse_module_state->%s);' %
-            Naming.empty_unicode)
+        code.putln(f'Py_VISIT(traverse_module_state->{env.module_dict_cname});')
+        code.putln(f'Py_VISIT(traverse_module_state->{Naming.builtins_cname});')
+        code.putln(f'Py_VISIT(traverse_module_state->{Naming.cython_runtime_cname});')
+        code.putln(f'__Pyx_VISIT_CONST(traverse_module_state->{Naming.empty_tuple});')
+        code.putln(f'__Pyx_VISIT_CONST(traverse_module_state->{Naming.empty_bytes});')
+        code.putln(f'__Pyx_VISIT_CONST(traverse_module_state->{Naming.empty_unicode});')
         code.putln('#ifdef __Pyx_CyFunction_USED')
-        code.putln('Py_VISIT(traverse_module_state->%s);' %
-            Naming.cyfunction_type_cname)
+        code.putln(f'Py_VISIT(traverse_module_state->{Naming.cyfunction_type_cname});')
         code.putln('#endif')
         code.putln('#ifdef __Pyx_FusedFunction_USED')
-        code.putln('Py_VISIT(traverse_module_state->%s);' %
-            Naming.fusedfunction_type_cname)
+        code.putln(f'Py_VISIT(traverse_module_state->{Naming.fusedfunction_type_cname});')
         code.putln('#endif')
 
     def generate_module_init_func(self, imported_modules, env, code):
@@ -3322,10 +3313,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         The functions get inserted at the point where the context manager was created.
         The call gets inserted where the context manager is used (on entry).
         """
-        prototypes = orig_code.insertion_point()
-        prototypes.putln("")
         function_code = orig_code.insertion_point()
-        function_code.putln("")
 
         class ModInitSubfunction:
             def __init__(self, code_type):
@@ -3339,10 +3327,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             def __enter__(self):
                 self.call_code = orig_code.insertion_point()
                 code = function_code
-                code.enter_cfunc_scope(scope)
-                prototypes.putln("static CYTHON_SMALL_CODE int %s(void); /*proto*/" % self.cfunc_name)
-                code.putln("static int %s(void) {" % self.cfunc_name)
-                code.put_declare_refcount_context()
+                code.start_initcfunc(f"int {self.cfunc_name}(void)", scope, refnanny=True)
                 self.tempdecl_code = code.insertion_point()
                 code.put_setup_refcount_context(EncodedString(self.cfunc_name))
                 # Leave a grepable marker that makes it easy to find the generator source.
@@ -3366,7 +3351,6 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                     code.putln("return -1;")
                 code.putln("}")
                 code.exit_cfunc_scope()
-                code.putln("")
 
                 if needs_error_handling:
                     self.call_code.putln(
