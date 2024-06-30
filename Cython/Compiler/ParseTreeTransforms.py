@@ -1121,7 +1121,7 @@ class InterpretCompilerDirectives(CythonTransform):
 
     def _create_cimport_from_import(self, node_pos, rest_of_name, level, imported_names):
         if rest_of_name == ".cimports" or rest_of_name.startswith(".cimports."):
-            module_name = EncodedString(module_name[len(".cimports."):])  # may be empty
+            module_name = EncodedString(rest_of_name[len(".cimports."):])  # may be empty
         else:
             assert False, rest_of_name
 
