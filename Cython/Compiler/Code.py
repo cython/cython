@@ -1667,11 +1667,12 @@ class GlobalState:
         self.generate_string_constants()
         self.generate_num_constants()
 
-    def _generate_module_array_traverse_and_clear(self, struct_attr_cname, count):
+    def _generate_module_array_traverse_and_clear(self, struct_attr_cname, count, may_have_refcycles=True):
         counter_type = 'int' if count < 2**15 else 'Py_ssize_t'
+        visit_call = "Py_VISIT" if may_have_refcycles else "__Pyx_VISIT_CONST"
 
         writer = self.parts['module_state_traverse']
-        writer.putln(f"for ({counter_type} i=0; i<{count}; ++i) {{ Py_VISIT(traverse_module_state->{struct_attr_cname}[i]); }}")
+        writer.putln(f"for ({counter_type} i=0; i<{count}; ++i) {{ {visit_call}(traverse_module_state->{struct_attr_cname}[i]); }}")
 
         writer = self.parts['module_state_clear']
         writer.putln(f"for ({counter_type} i=0; i<{count}; ++i) {{ Py_CLEAR(clear_module_state->{struct_attr_cname}[i]); }}")
@@ -1713,7 +1714,8 @@ class GlobalState:
             self.parts['module_state_defines'].putln(
                 f"#define {global_cname} {Naming.modulestateglobal_cname}->{struct_attr_cname}")
 
-            self._generate_module_array_traverse_and_clear(struct_attr_cname, count)
+            # The constant tuples/slices that we create can never participate in reference cycles.
+            self._generate_module_array_traverse_and_clear(struct_attr_cname, count, may_have_refcycles=False)
 
             cleanup_level = cleanup_level_for_type_prefix(prefix)
             if cleanup_level is not None and cleanup_level <= Options.generate_cleanup_code:
@@ -1831,7 +1833,7 @@ class GlobalState:
 
         py_string_count = len(py_strings)
         self.parts['module_state'].putln(f"PyObject *{Naming.stringtab_cname}[{py_string_count}];")
-        self._generate_module_array_traverse_and_clear(Naming.stringtab_cname, py_string_count)
+        self._generate_module_array_traverse_and_clear(Naming.stringtab_cname, py_string_count, may_have_refcycles=False)
 
         encodings = sorted(encodings)
         encodings.sort(key=len)  # stable sort to make sure '0' comes first, index 0
@@ -1942,7 +1944,8 @@ class GlobalState:
 
         code_object_count = len(self.codeobject_constants)
         self.parts['module_state'].putln(f"PyObject *{Naming.codeobjtab_cname}[{code_object_count}];")
-        self._generate_module_array_traverse_and_clear(Naming.codeobjtab_cname, code_object_count)
+        # The code objects that we generate only contain plain constants and can never participate in reference cycles.
+        self._generate_module_array_traverse_and_clear(Naming.codeobjtab_cname, code_object_count, may_have_refcycles=False)
 
         self.parts['module_state_defines'].putln("#define %s %s->%s" % (
             Naming.codeobjtab_cname, Naming.modulestateglobal_cname, Naming.codeobjtab_cname
@@ -1961,7 +1964,7 @@ class GlobalState:
             self.parts['module_state_clear'].putln(
                 "Py_CLEAR(clear_module_state->%s);" % cname)
             self.parts['module_state_traverse'].putln(
-                "Py_VISIT(traverse_module_state->%s);" % cname)
+                "__Pyx_VISIT_CONST(traverse_module_state->%s);" % cname)
             if py_type == 'float':
                 function = 'PyFloat_FromDouble(%s)'
             elif py_type == 'long':
