@@ -216,6 +216,9 @@ if [[ $TEST_CODE_STYLE != "1" ]]; then
 fi
 
 export CFLAGS="$CFLAGS $EXTRA_CFLAGS"
+if [[ $PYTHON_VERSION == *"-freethreading-dev" ]]; then
+  export PYTHON_GIL=0
+fi
 python runtests.py \
   -vv $STYLE_ARGS \
   -x Debugger \

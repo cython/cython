@@ -237,8 +237,7 @@ uncachable_builtins = [
 special_py_methods = cython.declare(frozenset, frozenset((
     '__cinit__', '__dealloc__', '__richcmp__', '__next__',
     '__await__', '__aiter__', '__anext__',
-    '__getreadbuffer__', '__getwritebuffer__', '__getsegcount__',
-    '__getcharbuffer__', '__getbuffer__', '__releasebuffer__',
+    '__getbuffer__', '__releasebuffer__',
 )))
 
 modifier_output_mapper = {
@@ -1299,13 +1298,15 @@ class GlobalState:
         'module_state_traverse',
         'module_state_defines',  # redefines names used in module_state/_clear/_traverse
         'module_code',  # user code goes here
+        'module_exttypes',
+        'initfunc_declarations',
+        'init_module',
         'pystring_table',
         'cached_builtins',
         'cached_constants',
         'init_constants',
         'init_codeobjects',
         'init_globals',  # (utility code called at init-time)
-        'init_module',
         'cleanup_globals',
         'cleanup_module',
         'main_method',
@@ -1362,33 +1363,23 @@ class GlobalState:
             del self.parts['cached_builtins']
         else:
             w = self.parts['cached_builtins']
-            w.enter_cfunc_scope()
-            w.putln("static CYTHON_SMALL_CODE int __Pyx_InitCachedBuiltins(void) {")
+            w.start_initcfunc("int __Pyx_InitCachedBuiltins(void)")
 
         w = self.parts['cached_constants']
-        w.enter_cfunc_scope()
-        w.putln("")
-        w.putln("static CYTHON_SMALL_CODE int __Pyx_InitCachedConstants(void) {")
-        w.put_declare_refcount_context()
+        w.start_initcfunc("int __Pyx_InitCachedConstants(void)", refnanny=True)
         w.put_setup_refcount_context(StringEncoding.EncodedString("__Pyx_InitCachedConstants"))
 
         w = self.parts['init_globals']
-        w.enter_cfunc_scope()
-        w.putln("")
-        w.putln("static CYTHON_SMALL_CODE int __Pyx_InitGlobals(void) {")
+        w.start_initcfunc("int __Pyx_InitGlobals(void)")
 
         w = self.parts['init_constants']
-        w.enter_cfunc_scope()
-        w.putln("")
-        w.putln("static CYTHON_SMALL_CODE int __Pyx_InitConstants(void) {")
+        w.start_initcfunc("int __Pyx_InitConstants(void)")
 
         if not Options.generate_cleanup_code:
             del self.parts['cleanup_globals']
         else:
             w = self.parts['cleanup_globals']
-            w.enter_cfunc_scope()
-            w.putln("")
-            w.putln("static CYTHON_SMALL_CODE void __Pyx_CleanupGlobals(void) {")
+            w.start_initcfunc("void __Pyx_CleanupGlobals(void)")
 
         code = self.parts['utility_code_proto']
         code.putln("")
@@ -1676,6 +1667,16 @@ class GlobalState:
         self.generate_string_constants()
         self.generate_num_constants()
 
+    def _generate_module_array_traverse_and_clear(self, struct_attr_cname, count, may_have_refcycles=True):
+        counter_type = 'int' if count < 2**15 else 'Py_ssize_t'
+        visit_call = "Py_VISIT" if may_have_refcycles else "__Pyx_VISIT_CONST"
+
+        writer = self.parts['module_state_traverse']
+        writer.putln(f"for ({counter_type} i=0; i<{count}; ++i) {{ {visit_call}(traverse_module_state->{struct_attr_cname}[i]); }}")
+
+        writer = self.parts['module_state_clear']
+        writer.putln(f"for ({counter_type} i=0; i<{count}; ++i) {{ Py_CLEAR(clear_module_state->{struct_attr_cname}[i]); }}")
+
     def generate_object_constant_decls(self):
         consts = [(len(c.cname), c.cname, c)
                   for c in self.arg_default_constants]
@@ -1689,10 +1690,20 @@ class GlobalState:
                 # which aren't necessarily PyObjects, so aren't appropriate
                 # to clear.
                 continue
-            self.parts['module_state_clear'].putln(
-                "Py_CLEAR(clear_module_state->%s);" % cname)
+
+            self.parts['module_state_clear'].put_xdecref_clear(
+                f"clear_module_state->{cname}",
+                c.type,
+                clear_before_decref=True,
+                nanny=False,
+            )
+
+            if c.type.is_memoryviewslice:
+                # TODO: Implement specific to type like CodeWriter.put_xdecref_clear()
+                cname += "->memview"
+
             self.parts['module_state_traverse'].putln(
-                "Py_VISIT(traverse_module_state->%s);" % cname)
+                f"Py_VISIT(traverse_module_state->{cname});")
 
         for prefix, count in sorted(self.const_array_counters.items()):
             # name the struct attribute and the global "define" slightly differently
@@ -1702,18 +1713,14 @@ class GlobalState:
             self.parts['module_state'].putln(f"PyObject *{struct_attr_cname}[{count}];")
             self.parts['module_state_defines'].putln(
                 f"#define {global_cname} {Naming.modulestateglobal_cname}->{struct_attr_cname}")
-            cleanup_details = [
-                ('module_state_clear', 'Py_CLEAR', f'clear_module_state->{struct_attr_cname}'),
-                ('module_state_traverse', 'Py_VISIT', f'traverse_module_state->{struct_attr_cname}')]
+
+            # The constant tuples/slices that we create can never participate in reference cycles.
+            self._generate_module_array_traverse_and_clear(struct_attr_cname, count, may_have_refcycles=False)
+
             cleanup_level = cleanup_level_for_type_prefix(prefix)
-            if (cleanup_level is not None and
-                    cleanup_level <= Options.generate_cleanup_code):
-                cleanup_details.append(('cleanup_globals', 'Py_CLEAR', global_cname))
-            for part_name, op, cname in cleanup_details:
-                part_writer = self.parts[part_name]
-                part_writer.putln(f"for (Py_ssize_t i=0; i<{count}; ++i) {{")
-                part_writer.putln(f"{op}({cname}[i]);")
-                part_writer.putln("}")
+            if cleanup_level is not None and cleanup_level <= Options.generate_cleanup_code:
+                part_writer = self.parts['cleanup_globals']
+                part_writer.putln(f"for (Py_ssize_t i=0; i<{count}; ++i) {{ Py_CLEAR({global_cname}[i]); }}")
 
     def generate_cached_methods_decls(self):
         if not self.cached_cmethods:
@@ -1790,9 +1797,13 @@ class GlobalState:
 
         py_strings.sort()
 
+        w = self.parts['pystring_table']
+        w.putln("")
+
         # We use only type size macros from "pyport.h" here.
-        self.parts['utility_code_proto'].put(textwrap.dedent("""\
-        typedef struct {const char *s;
+        w.put(textwrap.dedent("""\
+        typedef struct {
+            const char *s;
         #if %(max_length)d <= 65535
             const unsigned short n;
         #elif %(max_length)d / 2 < INT_MAX
@@ -1814,27 +1825,15 @@ class GlobalState:
             const unsigned int is_unicode : 1;
             const unsigned int is_str : 1;
             const unsigned int intern : 1;
-        } __Pyx_StringTabEntry; /*proto*/
+        } __Pyx_StringTabEntry;
         """ % dict(
             max_length=longest_pystring,
             num_encodings=len(encodings),
         )))
 
-        self.use_utility_code(UtilityCode.load_cached("InitStrings", "StringTools.c"))
-        w = self.parts['pystring_table']
-        w.putln("")
-
-        self.parts['module_state'].putln("PyObject *%s[%s];" % (
-            Naming.stringtab_cname, len(py_strings)))
-
-        self.parts['module_state_clear'].putln("for (int n=0; n<%s; ++n) {" % len(py_strings))
-        self.parts['module_state_clear'].putln("Py_CLEAR(clear_module_state->%s[n]);" %
-            Naming.stringtab_cname)
-        self.parts['module_state_clear'].putln("}")
-        self.parts['module_state_traverse'].putln("for (int n=0; n<%s; ++n) {" % len(py_strings))
-        self.parts['module_state_traverse'].putln("Py_VISIT(traverse_module_state->%s[n]);" %
-            Naming.stringtab_cname)
-        self.parts['module_state_traverse'].putln("}")
+        py_string_count = len(py_strings)
+        self.parts['module_state'].putln(f"PyObject *{Naming.stringtab_cname}[{py_string_count}];")
+        self._generate_module_array_traverse_and_clear(Naming.stringtab_cname, py_string_count, may_have_refcycles=False)
 
         encodings = sorted(encodings)
         encodings.sort(key=len)  # stable sort to make sure '0' comes first, index 0
@@ -1876,6 +1875,8 @@ class GlobalState:
         w.putln("{0, 0, 0, 0, 0, 0}")
         w.putln("};")
 
+        self.use_utility_code(UtilityCode.load_cached("InitStrings", "StringTools.c"))
+
         init_constants = self.parts['init_constants']
         init_constants.putln(
             "if (__Pyx_InitStrings(%s, %s->%s, %s) < 0) %s;" % (
@@ -1887,10 +1888,10 @@ class GlobalState:
 
     def generate_codeobject_constants(self):
         w = self.parts['init_codeobjects']
-        w.putln("static CYTHON_SMALL_CODE int __Pyx_CreateCodeObjects(void) {")
-        w.enter_cfunc_scope()
+        init_function = "int __Pyx_CreateCodeObjects(void)"
 
         if not self.codeobject_constants:
+            w.start_initcfunc(init_function)
             w.putln("return 0;")
             w.exit_cfunc_scope()
             w.putln("}")
@@ -1911,7 +1912,7 @@ class GlobalState:
             max_vars = max(max_vars, len(node.varnames))
             max_line = max(max_line, def_node.pos[1])
 
-        self.parts['utility_code_proto'].put(textwrap.dedent(f"""\
+        w.put(textwrap.dedent(f"""\
         typedef struct {{
             unsigned int argcount : {max_func_args.bit_length()};
             unsigned int num_posonly_args : {max_posonly_args.bit_length()};
@@ -1921,6 +1922,10 @@ class GlobalState:
             unsigned int first_line : {max_line.bit_length()};
         }} __Pyx_PyCode_New_function_description;
         """))
+
+        self.use_utility_code(UtilityCode.load_cached("NewCodeObj", "ModuleSetupCode.c"))
+
+        w.start_initcfunc(init_function)
 
         w.putln("PyObject* tuple_dedup_map = PyDict_New();")
         w.putln("if (unlikely(!tuple_dedup_map)) return -1;")
@@ -1937,21 +1942,10 @@ class GlobalState:
         w.exit_cfunc_scope()
         w.putln("}")
 
-        self.use_utility_code(UtilityCode.load_cached("NewCodeObj", "ModuleSetupCode.c"))
-
-        self.parts['module_state'].putln("PyObject *%s[%s];" % (
-                Naming.codeobjtab_cname, len(self.codeobject_constants)))
-
-        self.parts['module_state_clear'].putln("for (int n=0; n<%s; ++n) {" %
-                                               len(self.codeobject_constants))
-        self.parts['module_state_clear'].putln("Py_CLEAR(clear_module_state->%s[n]);" %
-            Naming.codeobjtab_cname)
-        self.parts['module_state_clear'].putln("}")
-        self.parts['module_state_traverse'].putln("for (int n=0; n<%s; ++n) {" %
-                                                  len(self.codeobject_constants))
-        self.parts['module_state_traverse'].putln("Py_VISIT(traverse_module_state->%s[n]);" %
-            Naming.codeobjtab_cname)
-        self.parts['module_state_traverse'].putln("}")
+        code_object_count = len(self.codeobject_constants)
+        self.parts['module_state'].putln(f"PyObject *{Naming.codeobjtab_cname}[{code_object_count}];")
+        # The code objects that we generate only contain plain constants and can never participate in reference cycles.
+        self._generate_module_array_traverse_and_clear(Naming.codeobjtab_cname, code_object_count, may_have_refcycles=False)
 
         self.parts['module_state_defines'].putln("#define %s %s->%s" % (
             Naming.codeobjtab_cname, Naming.modulestateglobal_cname, Naming.codeobjtab_cname
@@ -1970,17 +1964,17 @@ class GlobalState:
             self.parts['module_state_clear'].putln(
                 "Py_CLEAR(clear_module_state->%s);" % cname)
             self.parts['module_state_traverse'].putln(
-                "Py_VISIT(traverse_module_state->%s);" % cname)
+                "__Pyx_VISIT_CONST(traverse_module_state->%s);" % cname)
             if py_type == 'float':
                 function = 'PyFloat_FromDouble(%s)'
             elif py_type == 'long':
                 function = 'PyLong_FromString("%s", 0, 0)'
             elif Utils.long_literal(value):
-                function = 'PyInt_FromString("%s", 0, 0)'
+                function = 'PyLong_FromString("%s", 0, 0)'
             elif len(value.lstrip('-')) > 4:
-                function = "PyInt_FromLong(%sL)"
+                function = "PyLong_FromLong(%sL)"
             else:
-                function = "PyInt_FromLong(%s)"
+                function = "PyLong_FromLong(%s)"
             init_constants.putln('%s = %s; %s' % (
                 cname, function % value_code,
                 init_constants.error_goto_if_null(cname, self.module_pos)))
@@ -2258,6 +2252,19 @@ class CCodeWriter:
     def exit_cfunc_scope(self):
         self.funcstate.validate_exit()
         self.funcstate = None
+
+    def start_initcfunc(self, signature, scope=None, refnanny=False):
+        """
+        Init code helper function to start a cfunc scope and generate
+        the prototype and function header ("static SIG {") of the function.
+        """
+        proto = self.globalstate.parts['initfunc_declarations']
+        proto.putln(f"static CYTHON_SMALL_CODE {signature}; /*proto*/")
+        self.enter_cfunc_scope(scope)
+        self.putln("")
+        self.putln(f"static {signature} {{")
+        if refnanny:
+            self.put_declare_refcount_context()
 
     # constant handling
 
@@ -2618,12 +2625,18 @@ class CCodeWriter:
             self.put_giveref('Py_None')
 
     def put_pymethoddef(self, entry, term, allow_skip=True, wrapper_code_writer=None):
-        is_reverse_number_slot = False
+        is_number_slot = False
         if entry.is_special or entry.name == '__getattribute__':
             from . import TypeSlots
-            is_reverse_number_slot = True
-            if entry.name not in special_py_methods and not TypeSlots.is_reverse_number_slot(entry.name):
-                if entry.name == '__getattr__' and not self.globalstate.directives['fast_getattr']:
+            if entry.name not in special_py_methods:
+                if TypeSlots.is_binop_number_slot(entry.name):
+                    # It's useful if numeric binops are created with meth coexist
+                    # so they can be called directly by looking up the name, skipping the
+                    # dispatch wrapper that enables the reverse slots.  This is most useful
+                    # when c_api_binop_methods is False, but there's no reason not to do it
+                    # all the time
+                    is_number_slot = True
+                elif entry.name == '__getattr__' and not self.globalstate.directives['fast_getattr']:
                     pass
                 # Python's typeobject.c will automatically fill in our slot
                 # in add_operators() (called by PyType_Ready) with a value
@@ -2642,8 +2655,8 @@ class CCodeWriter:
         if cast != 'PyCFunction':
             func_ptr = '(void*)(%s)%s' % (cast, func_ptr)
         entry_name = entry.name.as_c_string_literal()
-        if is_reverse_number_slot:
-            # Unlike most special functions, reverse number operator slots are actually generated here
+        if is_number_slot:
+            # Unlike most special functions, binop numeric operator slots are actually generated here
             # (to ensure that they can be looked up). However, they're sometimes guarded by the preprocessor
             # so a bit of extra logic is needed
             slot = TypeSlots.get_slot_table(self.globalstate.directives).get_slot_by_method_name(entry.name)
@@ -2657,7 +2670,7 @@ class CCodeWriter:
                 "|".join(method_flags),
                 entry.doc_cname if entry.doc else '0',
                 term))
-        if is_reverse_number_slot and preproc_guard:
+        if is_number_slot and preproc_guard:
             self.putln("#endif")
 
     def put_pymethoddef_wrapper(self, entry):
@@ -2712,6 +2725,18 @@ class CCodeWriter:
         if not variable:
             variable = '__pyx_gilstate_save'
         self.putln("__Pyx_PyGILState_Release(%s);" % variable)
+
+    def put_acquire_freethreading_lock(self):
+        self.globalstate.use_utility_code(
+            UtilityCode.load_cached("AccessPyMutexForFreeThreading", "ModuleSetupCode.c"))
+        self.putln("#if CYTHON_COMPILING_IN_CPYTHON_FREETHREADING")
+        self.putln(f"PyMutex_Lock(&{Naming.parallel_freethreading_mutex});")
+        self.putln("#endif")
+
+    def put_release_freethreading_lock(self):
+        self.putln("#if CYTHON_COMPILING_IN_CPYTHON_FREETHREADING")
+        self.putln(f"PyMutex_Unlock(&{Naming.parallel_freethreading_mutex});")
+        self.putln("#endif")
 
     def put_acquire_gil(self, variable=None, unknown_gil_state=True):
         """

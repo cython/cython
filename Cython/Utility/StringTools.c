@@ -48,6 +48,7 @@ static CYTHON_INLINE size_t __Pyx_Py_UNICODE_strlen(const Py_UNICODE *u)
 
 
 //////////////////// InitStrings.proto ////////////////////
+//@proto_block: pystring_table
 
 static int __Pyx_InitStrings(__Pyx_StringTabEntry const *t, PyObject **target, const char* const* encoding_names); /*proto*/
 
@@ -685,7 +686,7 @@ static int __Pyx_PyBytes_SingleTailmatch(PyObject* self, PyObject* arg,
         if (unlikely(sub_len < 0)) return -1;
         #endif
     } else {
-        if (unlikely(PyObject_GetBuffer(self, &view, PyBUF_SIMPLE) == -1))
+        if (unlikely(PyObject_GetBuffer(arg, &view, PyBUF_SIMPLE) == -1))
             return -1;
         sub_ptr = (const char*) view.buf;
         sub_len = view.len;
@@ -856,7 +857,7 @@ static PyObject* __Pyx_PyUnicode_Join(PyObject** values, Py_ssize_t value_count,
         void *udata;
         PyObject *uval = values[i];
         #if !CYTHON_COMPILING_IN_LIMITED_API
-        if (unlikely(__Pyx_PyUnicode_READY(uval)))
+        if (__Pyx_PyUnicode_READY(uval) == (-1))
             goto bad;
         #endif
         ulength = __Pyx_PyUnicode_GET_LENGTH(uval);
@@ -902,7 +903,7 @@ bad:
     CYTHON_UNUSED_VAR(result_ulength);
 
     for (i=0; i<value_count; i++) {
-        if (unlikely(__Pyx_PyTuple_SET_ITEM(value_tuple, i, values[i]) < 0)) goto bad;
+        if (__Pyx_PyTuple_SET_ITEM(value_tuple, i, values[i]) != (0)) goto bad;
         Py_INCREF(values[i]);
     }
 
@@ -959,7 +960,7 @@ static PyObject* __Pyx_PyUnicode_BuildFromAscii(Py_ssize_t ulength, char* chars,
                 padding = PyUnicode_FromOrdinal(padding_char);
                 if (likely(padding) && uoffset > prepend_sign + 1) {
                     PyObject *tmp;
-                    PyObject *repeat = PyInt_FromSsize_t(uoffset - prepend_sign);
+                    PyObject *repeat = PyLong_FromSsize_t(uoffset - prepend_sign);
                     if (unlikely(!repeat)) goto done_or_error;
                     tmp = PyNumber_Multiply(padding, repeat);
                     Py_DECREF(repeat);
@@ -1052,7 +1053,7 @@ static CYTHON_INLINE int __Pyx_PyByteArray_Append(PyObject* bytearray, int value
         return -1;
     }
 #endif
-    pyval = PyInt_FromLong(value);
+    pyval = PyLong_FromLong(value);
     if (unlikely(!pyval))
         return -1;
     retval = __Pyx_PyObject_CallMethod1(bytearray, PYIDENT("append"), pyval);

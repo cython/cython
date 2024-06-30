@@ -8,7 +8,7 @@
 import cython
 cython.declare(Nodes=object, ExprNodes=object, EncodedString=object,
                bytes_literal=object, StringEncoding=object,
-               FileSourceDescriptor=object, lookup_unicodechar=object, unicode_category=object,
+               FileSourceDescriptor=object, lookup_unicodechar=object,
                Future=object, Options=object, error=object, warning=object,
                Builtin=object, ModuleNode=object, Utils=object, _unicode=object, _bytes=object,
                re=object, _parse_escape_sequences=object, _parse_escape_sequences_raw=object,
@@ -17,7 +17,7 @@ cython.declare(Nodes=object, ExprNodes=object, EncodedString=object,
 
 from io import StringIO
 import re
-from unicodedata import lookup as lookup_unicodechar, category as unicode_category
+from unicodedata import lookup as lookup_unicodechar
 from functools import partial, reduce
 
 from .Scanning import PyrexScanner, FileSourceDescriptor, tentatively_scan
@@ -2926,29 +2926,6 @@ def p_buffer_or_template(s: PyrexScanner, base_type_node, templates):
         keyword_args = keyword_dict,
         base_type_node = base_type_node)
     return result
-
-
-@cython.cfunc
-def p_bracketed_base_type(s: PyrexScanner, base_type_node, nonempty: cython.bint, empty: cython.bint):
-    # s.sy == '['
-    if empty and not nonempty:
-        # sizeof-like thing.  Only anonymous C arrays allowed (int[SIZE]).
-        return base_type_node
-    elif not empty and nonempty:
-        # declaration of either memoryview slice or buffer.
-        if is_memoryviewslice_access(s):
-            return p_memoryviewslice_access(s, base_type_node)
-        else:
-            return p_buffer_or_template(s, base_type_node, None)
-            # return p_buffer_access(s, base_type_node)
-    elif not empty and not nonempty:
-        # only anonymous C arrays and memoryview slice arrays here.  We
-        # disallow buffer declarations for now, due to ambiguity with anonymous
-        # C arrays.
-        if is_memoryviewslice_access(s):
-            return p_memoryviewslice_access(s, base_type_node)
-        else:
-            return base_type_node
 
 
 @cython.cfunc

@@ -13,6 +13,12 @@ def simple_test():
     """
     cdef optional[int] o
     assert(not o.has_value())
+    try:
+        o.value()
+    except Exception as err:
+        pass
+    else:
+        assert False, "value() did not raise a catchable error"
     o = 5
     assert(o.has_value())
     assert(o.value()==5)

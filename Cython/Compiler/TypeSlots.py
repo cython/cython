@@ -791,18 +791,17 @@ def get_slot_code_by_name(scope, slot_name):
     slot = get_slot_by_name(slot_name, scope.directives)
     return slot.slot_code(scope)
 
-def is_reverse_number_slot(name):
+def is_binop_number_slot(name):
     """
-    Tries to identify __radd__ and friends (so the METH_COEXIST flag can be applied).
+    Tries to identify __add__/__radd__ and friends (so the METH_COEXIST flag can be applied).
 
     There's no great consequence if it inadvertently identifies a few other methods
     so just use a simple rule rather than an exact list.
     """
-    if name.startswith("__r") and name.endswith("__"):
-        forward_name = name.replace("r", "", 1)
-        for meth in get_slot_table(None).PyNumberMethods:
-            if hasattr(meth, "right_slot"):
-                return True
+    slot_table = get_slot_table(None)
+    for meth in get_slot_table(None).PyNumberMethods:
+        if meth.is_binop and name in meth.user_methods:
+            return True
     return False
 
 
@@ -1074,6 +1073,7 @@ class SlotTable:
             EmptySlot("tp_vectorcall", ifdef="PY_VERSION_HEX >= 0x030800b1 && (!CYTHON_COMPILING_IN_PYPY || PYPY_VERSION_NUM >= 0x07030800)"),
             EmptySlot("tp_print", ifdef="__PYX_NEED_TP_PRINT_SLOT == 1"),
             EmptySlot("tp_watched", ifdef="PY_VERSION_HEX >= 0x030C0000"),
+            EmptySlot("tp_versions_used", ifdef="PY_VERSION_HEX >= 0x030d00A4"),
             # PyPy specific extension - only here to avoid C compiler warnings.
             EmptySlot("tp_pypy_flags", ifdef="CYTHON_COMPILING_IN_PYPY && PY_VERSION_HEX >= 0x03090000 && PY_VERSION_HEX < 0x030a0000"),
         )

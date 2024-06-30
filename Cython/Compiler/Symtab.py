@@ -6,6 +6,7 @@
 import re
 import copy
 import operator
+import math
 
 from ..Utils import try_finally_contextmanager
 from .Errors import warning, error, InternalError, performance_hint
@@ -1367,6 +1368,7 @@ class ModuleScope(Scope):
         self.undeclared_cached_builtins = []
         self.namespace_cname = self.module_cname
         self._cached_tuple_types = {}
+        self._cached_defaults_c_class_entries = {}
         self.process_include(Code.IncludeCode("Python.h", initial=True))
 
     def qualifying_scope(self):
@@ -1406,6 +1408,32 @@ class ModuleScope(Scope):
             ttype.struct_entry = struct_entry
             entry = self.declare_type(cname, ttype, pos, cname)
         ttype.entry = entry
+        return entry
+
+    def declare_defaults_c_class(self, pos, components):
+        # returns an entry (for the c-class)
+        components = tuple(components)
+        try:
+            return self._cached_defaults_c_class_entries[components]
+        except KeyError:
+            pass
+
+        cname = self.next_id(Naming.defaults_struct_prefix)
+        cname = EncodedString(cname)
+        entry = self._cached_defaults_c_class_entries[components] = self.declare_c_class(
+            cname, pos, defining=True, implementing=True,
+            objstruct_cname=cname)
+        self.check_c_class(entry)
+        entry.type.is_final_type = True
+        scope = entry.type.scope
+        scope.is_internal = True
+        scope.is_defaults_class_scope = True
+
+        # zero pad the argument number so they can be sorted
+        num_zeros = math.floor(math.log10(len(components)))
+        format_str = "arg{0:0%dd}" % num_zeros
+        for n, type_ in enumerate(components):
+            scope.declare_var(EncodedString(format_str.format(n)), type_, None, is_cdef = True)
         return entry
 
     def declare_builtin(self, name, pos):
@@ -2314,6 +2342,7 @@ class CClassScope(ClassScope):
 
     is_c_class_scope = 1
     is_closure_class_scope = False
+    is_defaults_class_scope = False
 
     has_pyobject_attrs = False
     has_memoryview_attrs = False
@@ -2868,6 +2897,11 @@ class CppClassScope(Scope):
         elif name == "__dealloc__":
             name = "<del>"
         return super(CppClassScope, self).lookup_here(name)
+
+    def is_cpp(self):
+        # Whatever the global environment, always treat cppclass with C++ rules.
+        # (Cython will emit warnings elsewhere)
+        return True
 
 
 class CppScopedEnumScope(Scope):

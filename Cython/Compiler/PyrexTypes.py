@@ -503,7 +503,7 @@ class CTypedefType(BaseType):
             if not self.to_py_utility_code:
                 base_type = self.typedef_base_type
                 if type(base_type) is CIntType:
-                    self.to_py_function = "__Pyx_PyInt_From_" + self.specialization_name()
+                    self.to_py_function = "__Pyx_PyLong_From_" + self.specialization_name()
                     env.use_utility_code(TempitaUtilityCode.load_cached(
                         "CIntToPy", "TypeConversion.c",
                         context={"TYPE": self.empty_declaration_code(),
@@ -536,7 +536,7 @@ class CTypedefType(BaseType):
             if not self.from_py_utility_code:
                 base_type = self.typedef_base_type
                 if type(base_type) is CIntType:
-                    self.from_py_function = "__Pyx_PyInt_As_" + self.specialization_name()
+                    self.from_py_function = "__Pyx_PyLong_As_" + self.specialization_name()
                     env.use_utility_code(TempitaUtilityCode.load_cached(
                         "CIntFromPy", "TypeConversion.c",
                         context={
@@ -1491,7 +1491,7 @@ class BuiltinObjectType(PyObjectType):
         elif type_name == 'int':
             type_check = 'PyLong_Check'
         elif type_name == "memoryview":
-            # captialize doesn't catch the 'V'
+            # capitalize doesn't catch the 'V'
             type_check = "PyMemoryView_Check"
         else:
             type_check = 'Py%s_Check' % type_name.capitalize()
@@ -2076,7 +2076,7 @@ class CIntLike:
 
     def create_to_py_utility_code(self, env):
         if type(self).to_py_function is None:
-            self.to_py_function = "__Pyx_PyInt_From_" + self.specialization_name()
+            self.to_py_function = "__Pyx_PyLong_From_" + self.specialization_name()
             env.use_utility_code(TempitaUtilityCode.load_cached(
                 "CIntToPy", "TypeConversion.c",
                 context={"TYPE": self.empty_declaration_code(),
@@ -2085,7 +2085,7 @@ class CIntLike:
 
     def create_from_py_utility_code(self, env):
         if type(self).from_py_function is None:
-            self.from_py_function = "__Pyx_PyInt_As_" + self.specialization_name()
+            self.from_py_function = "__Pyx_PyLong_As_" + self.specialization_name()
             env.use_utility_code(TempitaUtilityCode.load_cached(
                 "CIntFromPy", "TypeConversion.c",
                 context={
@@ -2147,19 +2147,14 @@ class CIntType(CIntLike, CNumericType):
     def get_to_py_type_conversion(self):
         if self.rank < list(rank_to_type_name).index('int'):
             # This assumes sizeof(short) < sizeof(int)
-            return "PyInt_FromLong"
-        else:
-            # Py{Int|Long}_From[Unsigned]Long[Long]
-            Prefix = "Int"
-            SignWord = ""
-            TypeName = "Long"
-            if not self.signed:
-                Prefix = "Long"
-                SignWord = "Unsigned"
-            if self.rank >= list(rank_to_type_name).index('PY_LONG_LONG'):
-                Prefix = "Long"
-                TypeName = "LongLong"
-            return "Py%s_From%s%s" % (Prefix, SignWord, TypeName)
+            return "PyLong_FromLong"
+
+        # PyLong_From[Unsigned]Long[Long]
+        SignWord = "" if self.signed else "Unsigned"
+        TypeName = "Long"
+        if self.rank >= list(rank_to_type_name).index('PY_LONG_LONG'):
+            TypeName = "LongLong"
+        return f"PyLong_From{SignWord}{TypeName}"
 
     def assignable_from_resolved_type(self, src_type):
         return src_type.is_int or src_type.is_enum or src_type is error_type
@@ -2240,7 +2235,7 @@ class CReturnCodeType(CIntType):
     default_format_spec = ''
 
     def specialization_name(self):
-        # I don't think we should end up creating PyInt_As_int/PyInt_From_int functions
+        # I don't think we should end up creating PyLong_As_int/PyLong_From_int functions
         # for this type, but it's better they're distinct in case it happens.
         return super().specialization_name() + "return_code"
 
@@ -2349,15 +2344,15 @@ class CPyUnicodeIntType(CIntType):
 
 class CPyHashTType(CIntType):
 
-    to_py_function = "__Pyx_PyInt_FromHash_t"
-    from_py_function = "__Pyx_PyInt_AsHash_t"
+    to_py_function = "__Pyx_PyLong_FromHash_t"
+    from_py_function = "__Pyx_PyLong_AsHash_t"
 
     def sign_and_name(self):
         return "Py_hash_t"
 
 class CPySSizeTType(CIntType):
 
-    to_py_function = "PyInt_FromSsize_t"
+    to_py_function = "PyLong_FromSsize_t"
     from_py_function = "__Pyx_PyIndex_AsSsize_t"
 
     def sign_and_name(self):
@@ -2365,15 +2360,15 @@ class CPySSizeTType(CIntType):
 
 class CSSizeTType(CIntType):
 
-    to_py_function = "PyInt_FromSsize_t"
-    from_py_function = "PyInt_AsSsize_t"
+    to_py_function = "PyLong_FromSsize_t"
+    from_py_function = "PyLong_AsSsize_t"
 
     def sign_and_name(self):
         return "Py_ssize_t"
 
 class CSizeTType(CIntType):
 
-    to_py_function = "__Pyx_PyInt_FromSize_t"
+    to_py_function = "__Pyx_PyLong_FromSize_t"
 
     def sign_and_name(self):
         return "size_t"
@@ -5025,7 +5020,7 @@ def best_match(arg_types, functions, pos=None, env=None, args=None):
                     func_type, ', '.join(map(str, arg_types_for_deduction)))))
             elif len(deductions) < len(func_type.templates):
                 errors.append((func, "Unable to deduce type parameter %s" % (
-                    ", ".join([param.name for param in set(func_type.templates) - set(deductions.keys())]))))
+                    ", ".join([param.name for param in func_type.templates if param not in deductions]))))
             else:
                 type_list = [deductions[param] for param in func_type.templates]
                 from .Symtab import Entry
@@ -5041,13 +5036,13 @@ def best_match(arg_types, functions, pos=None, env=None, args=None):
     # Optimize the most common case of no overloading...
     if len(candidates) == 1:
         return candidates[0][0]
-    elif len(candidates) == 0:
-        if pos is not None:
-            func, errmsg = errors[0]
-            if len(errors) == 1 or [1 for func, e in errors if e == errmsg]:
+    elif not candidates:
+        if pos is not None and errors:
+            if len(errors) == 1 or len({msg for _, msg in errors}) == 1:
+                _, errmsg = errors[0]
                 error(pos, errmsg)
             else:
-                error(pos, "no suitable method found")
+                error(pos, f"no suitable method found (candidates: {len(functions)})")
         return None
 
     possibilities = []
@@ -5137,17 +5132,17 @@ def best_match(arg_types, functions, pos=None, env=None, args=None):
 
     return None
 
+
 def merge_template_deductions(a, b):
+    # Used to reduce lists of deduced template mappings into one mapping.
     if a is None or b is None:
         return None
-    all = a
+    add_if_missing = a.setdefault
     for param, value in b.items():
-        if param in all:
-            if a[param] != b[param]:
-                return None
-        else:
-            all[param] = value
-    return all
+        if add_if_missing(param, value) != value:
+            # Found mismatch, cannot merge.
+            return None
+    return a
 
 
 def widest_numeric_type(type1, type2):
