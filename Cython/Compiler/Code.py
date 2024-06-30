@@ -1544,7 +1544,7 @@ class GlobalState(object):
                 continue
 
             self.parts['module_state_clear'].put_xdecref_clear(
-                f"clear_module_state->{cname}",
+                "clear_module_state->%s" % cname,
                 c.type,
                 clear_before_decref=True,
                 nanny=False,
@@ -1555,7 +1555,7 @@ class GlobalState(object):
                 cname += "->memview"
 
             self.parts['module_state_traverse'].putln(
-                f"Py_VISIT(traverse_module_state->{cname});")
+                "Py_VISIT(traverse_module_state->%s);" % cname)
 
     def generate_cached_methods_decls(self):
         if not self.cached_cmethods:
