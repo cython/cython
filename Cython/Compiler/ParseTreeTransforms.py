@@ -979,28 +979,30 @@ class InterpretCompilerDirectives(CythonTransform):
                 name in self.special_methods or
                 PyrexTypes.parse_basic_type(name))
 
-    def is_parallel_directive(self, full_name, pos):
+    def is_parallel_directive(self, cython_name, name, pos):
         """
-        Checks to see if fullname (e.g. cython.parallel.prange) is a valid
+        Checks to see if name (e.g. parallel.prange) is a valid
         parallel directive. If it is a star import it also updates the
         parallel_directives.
         """
-        result = (full_name + ".").startswith("cython.parallel.")
+        result = (name + ".").startswith("parallel.")
 
         if result:
-            directive = full_name.split('.')
-            if full_name == "cython.parallel":
-                self.parallel_directives["parallel"] = "cython.parallel"
-            elif full_name == "cython.parallel.*":
+            directive = name.split('.')
+            if name == "parallel":
+                self.parallel_directives["parallel"] = f"cython.parallel"
+            elif name == "parallel.*":
                 for name in self.valid_parallel_directives:
-                    self.parallel_directives[name] = "cython.parallel.%s" % name
-            elif (len(directive) != 3 or
+                    self.parallel_directives[name] = f"cython.parallel.%s" % name
+            elif (len(directive) != 2 or
                   directive[-1] not in self.valid_parallel_directives):
-                error(pos, "No such directive: %s" % full_name)
+                error(pos, f"No such directive: {cython_name}.{name}")
 
         return result
 
-    _maybe_versioned_re = re.compile(r"^cython([.]cython_\d+_\d+)?")
+    # "cython", possibly followed by ".cython_<int>_<int>"
+    # not directly followed by a letter, number or underscore.
+    _maybe_versioned_re = re.compile(r"^cython([.]cython_\d+_\d+)?(?![a-zA-Z0-9_])")
 
     def _process_cython_module_name(self, name):
         m = re.match(self._maybe_versioned_re, name)
@@ -1036,11 +1038,11 @@ class InterpretCompilerDirectives(CythonTransform):
 
             if rest_of_name == ".parallel":
                 if node.as_name and node.as_name != "cython":
-                    self.parallel_directives[node.as_name] = node.module_name
+                    self.parallel_directives[node.as_name] = "cython.parallel"
                 else:
                     self.cython_module_names.add(cython_name)
                     self.parallel_directives[
-                                    f"{cython_name}.parallel"] = node.module_name
+                                    f"{cython_name}.parallel"] = "cython.parallel"
             elif node.as_name:
                 self.directive_names[node.as_name] = rest_of_name[1:]
             else:
@@ -1066,11 +1068,10 @@ class InterpretCompilerDirectives(CythonTransform):
             newimp = []
             for pos, name, as_name in node.imported_names:
                 full_name = submodule + name
-                qualified_name = cython_name + full_name
-                if self.is_parallel_directive(qualified_name, node.pos):
+                if self.is_parallel_directive(cython_name, full_name, node.pos):
                     # from cython cimport parallel, or
                     # from cython.parallel cimport parallel, prange, ...
-                    self.parallel_directives[as_name or name] = qualified_name
+                    self.parallel_directives[as_name or name] = f"cython.{full_name}"
                 elif self.is_cython_directive(full_name):
                     self.directive_names[as_name or name] = full_name
                 elif full_name in ['dataclasses', 'typing']:
@@ -1107,9 +1108,8 @@ class InterpretCompilerDirectives(CythonTransform):
             newimp = []
             for name, name_node in node.items:
                 full_name = submodule + name
-                qualified_name = cython_name + full_name
-                if self.is_parallel_directive(qualified_name, node.pos):
-                    self.parallel_directives[name_node.name] = qualified_name
+                if self.is_parallel_directive(cython_name, full_name, node.pos):
+                    self.parallel_directives[name_node.name] = f"cython.{full_name}"
                 elif self.is_cython_directive(full_name):
                     self.directive_names[name_node.name] = full_name
                 else:
