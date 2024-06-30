@@ -4707,6 +4707,10 @@ class PythonTypeConstructorMixin:
     """Used to help Cython interpret indexed types from the typing module (or similar)
     """
     modifier_name = None
+    nested_types = None
+
+    def is_optional(self):
+        return self.modifier_name == 'typing.Union' and self.nested_types and py_none_type in self.nested_types
 
     def set_python_type_constructor_name(self, name):
         self.python_type_constructor_name = name
@@ -4714,7 +4718,6 @@ class PythonTypeConstructorMixin:
     def specialize_here(self, pos, env, template_values=None):
         # for a lot of the typing classes it doesn't really matter what the template is
         # (i.e. typing.Dict[int] is really just a dict)
-        self.nested_type = self
         return self
 
     def __repr__(self):
@@ -4744,10 +4747,12 @@ class PythonTupleTypeConstructor(BuiltinTypeConstructorObjectType):
             entry = env.declare_tuple_type(pos, template_values)
             if entry:
                 entry.used = True
-                self.nested_type = entry.type
-                return self
-        self.nested_type = super().specialize_here(pos, env, template_values)
-        return self
+                return entry.type
+        return super().specialize_here(pos, env, template_values)
+#                 self.nested_type = entry.type
+#                 return self
+#         self.nested_type = super().specialize_here(pos, env, template_values)
+#         return self
 
 
 class SpecialPythonTypeConstructor(PyObjectType, PythonTypeConstructorMixin):
@@ -4759,7 +4764,7 @@ class SpecialPythonTypeConstructor(PyObjectType, PythonTypeConstructorMixin):
         super().__init__()
         self.set_python_type_constructor_name(name)
         self.modifier_name = name
-        self.nested_type = None
+        self.nested_types = []
 
     def __repr__(self):
         return self.name
@@ -4769,22 +4774,18 @@ class SpecialPythonTypeConstructor(PyObjectType, PythonTypeConstructorMixin):
 
     def specialize_here(self, pos, env, template_values=None):
         # breakpoint()
-        if py_none_type in template_values and self.modifier_name == 'typing.Union':
-            self.modifier_name = 'typing.Optional'
-            template_values = [tv for tv in template_values if tv != py_none_type]
-        if len(template_values) > 1:
-            return py_object_type
-        if len(template_values) == 0:
+        if py_none_type in template_values:
+            self.nested_types.append(py_none_type)
+        template_values = [tv for tv in template_values if tv != py_none_type]
+        if len(template_values) != 1:
+            error(pos, "'%s' takes exactly one template argument." % self.name)
+            return error_type
+        if template_values[0] is None:
             # FIXME: allowing unknown types for now since we don't recognise all Python types.
             return None
-        #     error(pos, "'%s' takes exactly one template argument." % self.name)
-        #     return error_type
-        # if template_values[0] is None:
-        #     # FIXME: allowing unknown types for now since we don't recognise all Python types.
-        #     return None
-        # Replace this type with the actual 'template' argument.
-        self.nested_type = template_values[0].resolve()
-        return self
+        n = template_values[0].resolve()
+        self.nested_types.append(n)
+        return n
 
 
 rank_to_type_name = (

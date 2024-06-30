@@ -3988,9 +3988,13 @@ class IndexNode(_IndexingBaseNode):
         modifier_node = self
         while modifier_node.is_subscript:
             modifier_type = modifier_node.base.analyse_as_type(env)
+            # breakpoint()
             if (modifier_type and modifier_type.python_type_constructor_name
                     and modifier_type.modifier_name):
-                modifiers.append(modifier_type.modifier_name)
+                if modifier_type.is_optional():
+                    modifiers.append('typing.Optional')
+                else:
+                    modifiers.append(modifier_type.modifier_name)
             modifier_node = modifier_node.index
         return modifiers
 
@@ -14826,8 +14830,8 @@ class AnnotationNode(ExprNode):
             return [], None
 
         with env.new_c_type_context(in_c_type_context=explicit_ctype):
-            # breakpoint()
             arg_type = annotation.analyse_as_type(env)
+            # breakpoint()
 
             if arg_type is None:
                 self._warn_on_unknown_annotation(env, annotation)
@@ -14845,12 +14849,12 @@ class AnnotationNode(ExprNode):
                 arg_type.create_declaration_utility_code(env)
 
             # Check for declaration modifiers, e.g. "typing.Optional[...]" or "dataclasses.InitVar[...]"
-            # modifiers = annotation.analyse_pytyping_modifiers(env) if annotation.is_subscript else []
+            modifiers = annotation.analyse_pytyping_modifiers(env) if annotation.is_subscript else []
 
-        # return modifiers, arg_type
-        if hasattr(arg_type, 'nested_type'):
-            return [arg_type.modifier_name], arg_type.nested_type
-        return [], arg_type
+        return modifiers, arg_type
+        # if hasattr(arg_type, 'nested_type'):
+        #     return [arg_type.modifier_name], arg_type.nested_type
+        # return [], arg_type
 
 
 class AssignmentExpressionNode(ExprNode):
