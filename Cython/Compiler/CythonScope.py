@@ -6,6 +6,7 @@ from .Scanning import StringSourceDescriptor
 from . import MemoryView
 from .StringEncoding import EncodedString
 
+import re
 
 class CythonScope(ModuleScope):
     is_cython_builtin = 1
@@ -49,7 +50,12 @@ class CythonScope(ModuleScope):
     def find_module(self, module_name, pos):
         error("cython.%s is not available" % module_name, pos)
 
+    _cython_versioned_re = re.compile("^cython_\d+_\d+$")
+
     def find_submodule(self, module_name, as_package=False):
+        if re.match(self._cython_versioned_re, module_name):
+            return self
+
         entry = self.entries.get(module_name, None)
         if not entry:
             self.load_cythonscope()
