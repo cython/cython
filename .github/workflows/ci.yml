@@ -231,9 +231,18 @@ jobs:
 
       - name: Setup python
         uses: actions/setup-python@v5.0.0
-        if: startsWith(matrix.python-version, '3.') || startsWith(matrix.python-version, 'pypy')
+        if: matrix.python-version != '3.5' && (startsWith(matrix.python-version, '3.') || startsWith(matrix.python-version, 'pypy'))
         with:
           python-version: ${{ matrix.python-version }}
+
+      - name: Setup python 3.5
+        uses: actions/setup-python@v5.0.0
+        if: matrix.python-version == '3.5'
+        with:
+          python-version: "3.5"
+        env:
+          PIP_CERT: "/etc/ssl/certs/ca-certificates.crt"
+          #PIP_TRUSTED_HOST: "pypi.python.org pypi.org files.pythonhosted.org"
 
       - name: Setup Python2 (Linux)
         if: matrix.python-version == '2.7' && startsWith(matrix.os, 'ubuntu')
