@@ -4787,6 +4787,13 @@ class SpecialPythonTypeConstructor(PyObjectType, PythonTypeConstructorMixin):
         self.nested_types.append(n)
         return n
 
+class PyNoneType(BuiltinObjectType):
+
+    def __init__(self):
+        super().__init__('None', None, [])
+
+    def __bool__(self):
+        return False
 
 rank_to_type_name = (
     "char",          # 0
@@ -4808,7 +4815,7 @@ SIGNED = 2
 error_type =    ErrorType()
 unspecified_type = UnspecifiedType()
 
-py_none_type = BuiltinObjectType('None', None, [])
+py_none_type = PyNoneType()
 
 py_object_type = PyObjectType()
 
