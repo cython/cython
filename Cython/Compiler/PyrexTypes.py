@@ -2893,24 +2893,25 @@ class CPtrType(CPointerBaseType):
 
     def assignable_from_resolved_type(self, other_type):
         if other_type is error_type:
-            return 1
+            return True
         if other_type.is_null_ptr:
-            return 1
-        if self.base_type.is_cv_qualified:
-            self = CPtrType(self.base_type.cv_base_type)
-        if self.base_type.is_cfunction:
+            return True
+        ptr_base_type = self.base_type
+        if ptr_base_type.is_cv_qualified:
+            ptr_base_type = ptr_base_type.cv_base_type
+        if ptr_base_type.is_cfunction:
             if other_type.is_ptr:
                 other_type = other_type.base_type.resolve()
             if other_type.is_cfunction:
-                return self.base_type.pointer_assignable_from_resolved_type(other_type)
+                return ptr_base_type.pointer_assignable_from_resolved_type(other_type)
             else:
-                return 0
-        if (self.base_type.is_cpp_class and other_type.is_ptr
-                and other_type.base_type.is_cpp_class and other_type.base_type.is_subclass(self.base_type)):
-            return 1
+                return False
+        if (ptr_base_type.is_cpp_class and other_type.is_ptr
+                and other_type.base_type.is_cpp_class and other_type.base_type.is_subclass(ptr_base_type)):
+            return True
         if other_type.is_array or other_type.is_ptr:
-            return self.base_type.is_void or self.base_type.same_as(other_type.base_type)
-        return 0
+            return ptr_base_type.is_void or ptr_base_type.same_as(other_type.base_type)
+        return False
 
     def assignment_failure_extra_info(self, src_type, src_name):
         if self.base_type.is_cfunction and src_type.is_ptr:
