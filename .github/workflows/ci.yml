@@ -241,8 +241,7 @@ jobs:
         with:
           python-version: "3.5"
         env:
-          PIP_CERT: "/etc/ssl/certs/ca-certificates.crt"
-          #PIP_TRUSTED_HOST: "pypi.python.org pypi.org files.pythonhosted.org"
+          PIP_TRUSTED_HOST: "pypi.python.org pypi.org files.pythonhosted.org"
 
       - name: Setup Python2 (Linux)
         if: matrix.python-version == '2.7' && startsWith(matrix.os, 'ubuntu')
