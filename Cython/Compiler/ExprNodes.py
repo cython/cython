@@ -115,10 +115,10 @@ def find_coercion_error(type_tuple, default, env):
                                             PyrexTypes.c_const_char_ptr_type, PyrexTypes.c_const_uchar_ptr_type))):
         if type_tuple[1].is_pyobject:
             return default
-        elif env.directives['c_string_encoding'] in ('ascii', 'default'):
+        elif env.directives['c_string_encoding'] in ('ascii', 'utf8'):
             return default
         else:
-            return "'%s' objects do not support coercion to C types with non-ascii or non-default c_string_encoding" % type_tuple[0].name
+            return "'%s' objects do not support coercion to C types with non-ascii or non-utf8 c_string_encoding" % type_tuple[0].name
     else:
         return err
 
@@ -127,7 +127,7 @@ def default_str_type(env):
     return {
         'bytes': bytes_type,
         'bytearray': bytearray_type,
-        'str': str_type,
+        'str': unicode_type,
         'unicode': unicode_type
     }.get(env.directives['c_string_type'])
 

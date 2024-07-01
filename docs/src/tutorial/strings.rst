@@ -381,15 +381,15 @@ return empty strings for out-of-bounds indices).
 Auto encoding and decoding
 --------------------------
 
-Cython 0.19 comes with two new directives: ``c_string_type`` and
+Automatic conversions is controlled by the directives ``c_string_type`` and
 ``c_string_encoding``.  They can be used to change the Python string
 types that C/C++ strings coerce from and to.  By default, they only
 coerce from and to the bytes type, and encoding or decoding must
 be done explicitly, as described above.
 
-There are two use cases where this is inconvenient.  First, if all
+This can be inconvenient if all
 C strings that are being processed (or the large majority) contain
-text, automatic encoding and decoding from and to Python unicode
+text, and automatic encoding and decoding from and to Python unicode
 objects can reduce the code overhead a little.  In this case, you
 can set the ``c_string_type`` directive in your module to :obj:`unicode`
 and the ``c_string_encoding`` to the encoding that your C code uses,
@@ -397,24 +397,14 @@ for example:
 
 .. literalinclude:: ../../examples/tutorial/string/auto_conversion_1.pyx
 
-The second use case is when all C strings that are being processed
-only contain ASCII encodable characters (e.g. numbers) and you want
-your code to use the native legacy string type in Python 2 for them,
-instead of always using Unicode. In this case, you can set the
-string type to :obj:`str`:
-
-.. literalinclude:: ../../examples/tutorial/string/auto_conversion_2.pyx
-
 The other direction, i.e. automatic encoding to C strings, is only
-supported for ASCII and the "default encoding", which is usually UTF-8
-in Python 3 and usually ASCII in Python 2.  CPython handles the memory
+supported for ASCII/UTF-8.  CPython handles the memory
 management in this case by keeping an encoded copy of the string alive
 together with the original unicode string.  Otherwise, there would be no
 way to limit the lifetime of the encoded string in any sensible way,
 thus rendering any attempt to extract a C string pointer from it a
 dangerous endeavour.  The following safely converts a Unicode string to
-ASCII (change ``c_string_encoding`` to ``default`` to use the default
-encoding instead):
+UTF-8 (change ``c_string_encoding`` to ``ASCII`` to limit it to that):
 
 .. literalinclude:: ../../examples/tutorial/string/auto_conversion_3.pyx
 
