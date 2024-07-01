@@ -381,7 +381,7 @@ return empty strings for out-of-bounds indices).
 Auto encoding and decoding
 --------------------------
 
-Automatic conversions is controlled by the directives ``c_string_type`` and
+Automatic conversions are controlled by the directives ``c_string_type`` and
 ``c_string_encoding``.  They can be used to change the Python string
 types that C/C++ strings coerce from and to.  By default, they only
 coerce from and to the bytes type, and encoding or decoding must
