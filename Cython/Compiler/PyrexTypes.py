@@ -1722,16 +1722,21 @@ class CType(PyrexType):
         else:
             return 0
 
+    _builtin_type_name_map = {
+        'bytearray': 'ByteArray',
+        'bytes': 'Bytes',
+        'str': 'Unicode',
+        'unicode': 'Unicode',
+    }
+
     def to_py_call_code(self, source_code, result_code, result_type, to_py_function=None):
         func = self.to_py_function if to_py_function is None else to_py_function
         assert func
         if self.is_string or self.is_cpp_string:
             if result_type.is_builtin_type:
-                result_type_name = result_type.name
-                if result_type_name in ('bytes', 'str', 'unicode'):
-                    func = func.replace("Object", result_type_name.title(), 1)
-                elif result_type_name == 'bytearray':
-                    func = func.replace("Object", "ByteArray", 1)
+                result_type_name = self._builtin_type_name_map.get(result_type.name)
+                if result_type_name:
+                    func = func.replace("Object", result_type_name, 1)
         return '%s = %s(%s)' % (
             result_code,
             func,
