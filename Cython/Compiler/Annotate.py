@@ -69,8 +69,8 @@ class AnnotationCCodeWriter(CCodeWriter):
         """css template will later allow to choose a colormap"""
         css = [self._css_template]
         for i in range(255):
-            color = "FFFF%02x" % int(255.0 // (1.0 + i/10.0))
-            css.append('.cython.score-%d {background-color: #%s;}' % (i, color))
+            color_shade = int(255.0 // (1.0 + i/10.0))
+            css.append(f'.cython.score-{i:d} {{background-color: #FFFF{color_shade:02x};}}')
         try:
             from pygments.formatters import HtmlFormatter
         except ImportError:
