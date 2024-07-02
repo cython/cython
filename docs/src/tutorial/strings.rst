@@ -324,6 +324,8 @@ the following:
         .. literalinclude:: ../../examples/tutorial/string/to_unicode.pyx
             :caption: to_unicode.pyx
 
+.. literalinclude:: ../../examples/tutorial/string/to_unicode.pxd
+    :caption: to_unicode.pxd
 
 And should then be used like this:
 

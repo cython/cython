@@ -1,8 +1,6 @@
-# cython: language_level=3
-
 from cython.cimports.cpython.version import PY_MAJOR_VERSION
 
-# this function is defined as a cdef function in the .pxd file, no need for @cython.cfunc
+@cython.cfunc
 def _text(s) -> str:
     if type(s) is str:
         # Fast path for most common case(s).
