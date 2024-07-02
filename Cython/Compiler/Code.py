@@ -789,18 +789,23 @@ class UtilityCode(UtilityCodeBase):
                 self.cleanup(writer, output.module_pos)
 
 
-def sub_tempita(s, context, file=None, name=None):
+def sub_tempita(s, context, file=None, name=None, __cache={}):
     "Run tempita on string s with given context."
     if not s:
         return None
 
     if file:
-        context['__name'] = "%s:%s" % (file, name)
-    elif name:
+        name = f"{file}:{name}"
+    if name:
         context['__name'] = name
 
-    from ..Tempita import sub
-    return sub(s, **context)
+    try:
+        template = __cache[s]
+    except KeyError:
+        from ..Tempita import Template
+        template = __cache[s] = Template(s, name=name)
+
+    return template.substitute(context)
 
 
 class TempitaUtilityCode(UtilityCode):
@@ -2389,14 +2394,6 @@ class CCodeWriter:
             self.level += dl
         elif fix_indent:
             self.level += 1
-
-    def putln_tempita(self, code, **context):
-        from ..Tempita import sub
-        self.putln(sub(code, **context))
-
-    def put_tempita(self, code, **context):
-        from ..Tempita import sub
-        self.put(sub(code, **context))
 
     def increase_indent(self):
         self.level += 1
