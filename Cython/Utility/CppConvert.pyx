@@ -25,7 +25,7 @@ cdef extern from *:
         char* data()
         size_t size()
 
-{{for py_type in ['PyObject', 'PyUnicode', 'PyStr', 'PyBytes', 'PyByteArray']}}
+{{for py_type in ['PyObject', 'PyUnicode', 'PyBytes', 'PyByteArray']}}
 cdef extern from *:
     cdef object __Pyx_{{py_type}}_FromStringAndSize(const char*, size_t)
 

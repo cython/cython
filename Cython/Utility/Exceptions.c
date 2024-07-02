@@ -903,20 +903,28 @@ static void __Pyx_AddTraceback(const char *funcname, int c_line,
 
     PyErr_Fetch(&exc_type, &exc_value, &exc_traceback);
 
-    code_object = Py_CompileString("_getframe()", filename, Py_eval_input);
-    if (unlikely(!code_object)) goto bad;
-    py_py_line = PyLong_FromLong(py_line);
-    if (unlikely(!py_py_line)) goto bad;
-    py_funcname = PyUnicode_FromString(funcname);
-    if (unlikely(!py_funcname)) goto bad;
-    dict = PyDict_New();
-    if (unlikely(!dict)) goto bad;
-    {
-        PyObject *old_code_object = code_object;
-        code_object = __Pyx_PyCode_Replace_For_AddTraceback(code_object, dict, py_py_line, py_funcname);
-        Py_DECREF(old_code_object);
+    code_object = $global_code_object_cache_find(c_line ? -c_line : py_line);
+    if (!code_object) {
+        code_object = Py_CompileString("_getframe()", filename, Py_eval_input);
+        if (unlikely(!code_object)) goto bad;
+        py_py_line = PyLong_FromLong(py_line);
+        if (unlikely(!py_py_line)) goto bad;
+        py_funcname = PyUnicode_FromString(funcname);
+        if (unlikely(!py_funcname)) goto bad;
+        dict = PyDict_New();
+        if (unlikely(!dict)) goto bad;
+        {
+            PyObject *old_code_object = code_object;
+            code_object = __Pyx_PyCode_Replace_For_AddTraceback(code_object, dict, py_py_line, py_funcname);
+            Py_DECREF(old_code_object);
+        }
+        if (unlikely(!code_object)) goto bad;
+
+        $global_code_object_cache_insert(c_line ? -c_line : py_line, code_object);
+    } else {
+        // The frame part still expects a dict
+        dict = PyDict_New();
     }
-    if (unlikely(!code_object)) goto bad;
 
     // Note that getframe is borrowed
     getframe = PySys_GetObject("_getframe");

@@ -505,8 +505,9 @@ limited_api_full_tests = None
 def memoize(f):
     uncomputed = object()
     f._cache = {}
+    get = f._cache.get
     def func(*args):
-        res = f._cache.get(args, uncomputed)
+        res = get(args, uncomputed)
         if res is uncomputed:
             res = f._cache[args] = f(*args)
         return res
@@ -519,23 +520,23 @@ def parse_tags(filepath):
     parse_tag = re.compile(r'#\s*(\w+)\s*:(.*)$').match
     with io_open(filepath, encoding='ISO-8859-1', errors='ignore') as f:
         for line in f:
-            # ignore BOM-like bytes and whitespace
-            line = line.lstrip(UTF8_BOM_BYTES).strip()
-            if not line:
-                if tags:
-                    break  # assume all tags are in one block
-                else:
-                    continue
             if line[0] != '#':
-                break
-            parsed = parse_tag(line)
-            if parsed:
-                tag, values = parsed.groups()
-                if tag in ('coding', 'encoding'):
+                # ignore BOM-like bytes and whitespace
+                line = line.lstrip(UTF8_BOM_BYTES).strip()
+                if not line:
+                    if tags:
+                        break  # assume all tags are in one block
                     continue
-                if tag == 'tags':
-                    raise RuntimeError("test tags use the 'tag' directive, not 'tags' (%s)" % filepath)
+                if line[0] != '#':
+                    break
+            parsed = parse_tag(line)
+            if parsed is not None:
+                tag, values = parsed.groups()
                 if tag not in ('mode', 'tag', 'ticket', 'cython', 'distutils', 'preparse'):
+                    if tag in ('coding', 'encoding'):
+                        continue
+                    if tag == 'tags':
+                        raise RuntimeError("test tags use the 'tag' directive, not 'tags' (%s)" % filepath)
                     print("WARNING: unknown test directive '%s' found (%s)" % (tag, filepath))
                 values = values.split(',')
                 tags[tag].extend(filter(None, [value.strip() for value in values]))
@@ -1325,13 +1326,13 @@ class CythonCompileTestCase(unittest.TestCase):
             build_extension.build_lib  = workdir
 
             from Cython.Utils import captured_fd, prepare_captured
-            from distutils.errors import CompileError
+            from distutils.errors import CCompilerError
 
             error = None
             with captured_fd(2) as get_stderr:
                 try:
                     build_extension.run()
-                except CompileError as exc:
+                except CCompilerError as exc:
                     error = str(exc)
             stderr = get_stderr()
             if stderr and b"Command line warning D9025" in stderr:
@@ -1345,7 +1346,7 @@ class CythonCompileTestCase(unittest.TestCase):
                 output = b"Compiler output for module " + module.encode('utf-8') + b":\n" + stderr + b"\n"
                 sys.stdout.buffer.write(output)
             if error is not None:
-                raise CompileError(u"%s\nCompiler output:\n%s" % (error, prepare_captured(stderr)))
+                raise CCompilerError(u"%s\nCompiler output:\n%s" % (error, prepare_captured(stderr)))
         finally:
             os.chdir(cwd)
 
@@ -1426,7 +1427,7 @@ class CythonCompileTestCase(unittest.TestCase):
         so_path = None
         if not self.cython_only:
             from Cython.Utils import captured_fd, print_bytes
-            from distutils.errors import CompileError, LinkError
+            from distutils.errors import CCompilerError
             show_output = True
             get_stderr = get_stdout = None
             try:
@@ -1437,7 +1438,7 @@ class CythonCompileTestCase(unittest.TestCase):
             except Exception as exc:
                 if ('cerror' in self.tags['tag'] and
                     ((get_stderr and get_stderr()) or
-                     isinstance(exc, (CompileError, LinkError)))):
+                     isinstance(exc, CCompilerError))):
                     show_output = False  # expected C compiler failure
                 else:
                     raise
