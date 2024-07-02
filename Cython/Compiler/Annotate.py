@@ -232,8 +232,7 @@ class AnnotationCCodeWriter(CCodeWriter):
         def annotate(match):
             group_name = match.lastgroup
             calls[group_name] += 1
-            return "<span class='%s'>%s</span>" % (
-                group_name, match.group(group_name))
+            return f"<span class='{group_name}'>{match.group(group_name)}</span>"
 
         lines = self._htmlify_code(cython_code, "cython").splitlines()
         lineno_width = len(str(len(lines)))
@@ -270,34 +269,24 @@ class AnnotationCCodeWriter(CCodeWriter):
                     covered = 'run' if hits else 'mis'
 
             outlist.append(
-                '<pre class="cython line score-{score}"{onclick}>'
+                f'<pre class="cython line score-{score}"{onclick}>'
                 # generate line number with expand symbol in front,
                 # and the right  number of digit
-                '{expandsymbol}<span class="{covered}">{line:0{lineno_width}d}</span>: {code}</pre>\n'.format(
-                    score=score,
-                    expandsymbol=expandsymbol,
-                    covered=covered,
-                    lineno_width=lineno_width,
-                    line=k,
-                    code=line.rstrip(),
-                    onclick=onclick,
-                ))
+                f'{expandsymbol}<span class="{covered}">{k:0{lineno_width}d}</span>: {line.rstrip()}</pre>\n'
+            )
             if c_code:
-                outlist.append("<pre class='cython code score-{score} {covered}'>{code}</pre>".format(
-                    score=score, covered=covered, code=c_code))
+                outlist.append(f"<pre class='cython code score-{score} {covered}'>{c_code}</pre>")
         outlist.append("</div>")
 
         # now the whole c-code if needed:
         if self.show_entire_c_code:
-            outlist.append('<p><div class="cython">')
-            onclick_title = "<pre class='cython line'{onclick}>+ {title}</pre>\n"
-            outlist.append(onclick_title.format(
-                              onclick=self._onclick_attr,
-                              title=AnnotationCCodeWriter.COMPLETE_CODE_TITLE,
-                           ))
             complete_code_as_html = self._htmlify_code(self.buffer.getvalue(), "c/cpp")
-            outlist.append("<pre class='cython code'>{code}</pre>".format(code=complete_code_as_html))
-            outlist.append("</div></p>")
+            outlist.append(
+                '<p><div class="cython">'
+                f"<pre class='cython line'{self._onclick_attr}>+ {AnnotationCCodeWriter.COMPLETE_CODE_TITLE}</pre>\n"
+                f"<pre class='cython code'>{complete_code_as_html}</pre>"
+                "</div></p>"
+            )
 
         return outlist
 
