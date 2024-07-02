@@ -10,15 +10,15 @@ def copy_fortran3(double[:, :, :] mat):
     """
     >>> a = np.ones((1, 1, 1), dtype=np.float64)
     >>> c = copy_fortran3(a)
-    >>> (a == c).all()
+    >>> bool((a == c).all())
     True
     >>> a = np.ones((4, 6, 8), dtype=np.float64, order='F')
     >>> c = copy_fortran3(a)
-    >>> (a == c).all()
+    >>> bool((a == c).all())
     True
     >>> a = np.ones((4, 6, 8), dtype=np.float64, order='C')
     >>> c = copy_fortran3(a)
-    >>> (a == c).all()
+    >>> bool((a == c).all())
     True
     """
     cdef int x, y, z
@@ -41,15 +41,15 @@ def copy_fortran2(double[:, :] mat):
     """
     >>> a = np.ones((1, 1), dtype=np.float64)
     >>> c = copy_fortran2(a)
-    >>> (a == c).all()
+    >>> bool((a == c).all())
     True
     >>> a = np.ones((4, 6), dtype=np.float64, order='F')
     >>> c = copy_fortran2(a)
-    >>> (a == c).all()
+    >>> bool((a == c).all())
     True
     >>> a = np.ones((4, 6), dtype=np.float64, order='C')
     >>> c = copy_fortran2(a)
-    >>> (a == c).all()
+    >>> bool((a == c).all())
     True
     """
     cdef int rows, cols

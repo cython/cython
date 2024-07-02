@@ -46,55 +46,51 @@ cdef test_noexcept_warning():
 def func_pure_implicit() -> cython.int:
     raise RuntimeError
 
-@cython.excetval(check=False)
+@cython.exceptval(check=False)
 @cython.cfunc
 def func_pure_noexcept() -> cython.int:
     raise RuntimeError
 
-def return_stderr(func):
+def print_stderr(func):
     @functools.wraps(func)
     def testfunc():
-        old_stderr = sys.stderr
-        stderr = sys.stderr = StringIO()
-        try:
+        from contextlib import redirect_stderr
+        with redirect_stderr(sys.stdout):
             func()
-        finally:
-            sys.stderr = old_stderr
-        return stderr.getvalue().strip()
 
     return testfunc
 
-@return_stderr
+@print_stderr
 def test_noexcept():
     """
-    >>> print(test_noexcept())  # doctest: +ELLIPSIS
+    >>> test_noexcept()  # doctest: +ELLIPSIS
     RuntimeError
     Exception...ignored...
     """
     func_noexcept(3, 5)
 
-@return_stderr
+@print_stderr
 def test_ptr_noexcept():
     """
-    >>> print(test_ptr_noexcept())  # doctest: +ELLIPSIS
+    >>> test_ptr_noexcept()  # doctest: +ELLIPSIS
     RuntimeError
     Exception...ignored...
     """
     ptr_func_noexcept(3, 5)
 
-@return_stderr
+@print_stderr
 def test_implicit():
     """
-    >>> print(test_implicit())  # doctest: +ELLIPSIS
+    >>> test_implicit()  # doctest: +ELLIPSIS
     RuntimeError
     Exception...ignored...
     """
     func_implicit(1, 2)
 
-@return_stderr
+@print_stderr
 def test_ptr_implicit():
     """
-    >>> print(test_ptr_implicit())  # doctest: +ELLIPSIS
+    >>> test_ptr_implicit()  # doctest: +ELLIPSIS
     RuntimeError
     Exception...ignored...
     """
@@ -128,31 +124,34 @@ def test_return_obj_implicit():
     """
     func_return_obj_implicit(1, 2)
 
+@print_stderr
 def test_pure_implicit():
     """
-    >>> test_pure_implicit()
-    Traceback (most recent call last):
-    ...
+    >>> test_pure_implicit()  # doctest: +ELLIPSIS
     RuntimeError
+    Exception...ignored...
     """
     func_pure_implicit()
 
+@print_stderr
 def test_pure_noexcept():
     """
-    >>> test_pure_noexcept()
-    Traceback (most recent call last):
-    ...
+    >>> test_pure_noexcept()  # doctest: +ELLIPSIS
     RuntimeError
+    Exception...ignored...
     """
     func_pure_noexcept()
 
+# extern functions are implicit noexcept, without warning
+cdef extern int extern_fun()
+cdef extern int extern_fun_fun(int (*f)(int))
+
 _WARNINGS = """
 12:5: Unraisable exception in function 'legacy_implicit_noexcept.func_implicit'.
-12:36: Implicit noexcept declaration is deprecated. Function declaration should contain 'noexcept' keyword.
+12:22: Implicit noexcept declaration is deprecated. Function declaration should contain 'noexcept' keyword.
 15:5: Unraisable exception in function 'legacy_implicit_noexcept.func_noexcept'.
-24:43: Implicit noexcept declaration is deprecated. Function declaration should contain 'noexcept' keyword.
-27:38: Implicit noexcept declaration is deprecated. Function declaration should contain 'noexcept' keyword.
-36:43: Implicit noexcept declaration is deprecated. Function declaration should contain 'noexcept' keyword.
-39:36: Implicit noexcept declaration is deprecated. Function declaration should contain 'noexcept' keyword.
-42:28: Implicit noexcept declaration is deprecated. Function declaration should contain 'noexcept' keyword.
+27:28: Implicit noexcept declaration is deprecated. Function declaration should contain 'noexcept' keyword.
+45:0: Implicit noexcept declaration is deprecated. Function declaration should contain 'noexcept' keyword.
+45:0: Unraisable exception in function 'legacy_implicit_noexcept.func_pure_implicit'.
+49:0: Unraisable exception in function 'legacy_implicit_noexcept.func_pure_noexcept'.
 """

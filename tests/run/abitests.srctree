@@ -1,0 +1,83 @@
+# These tests aren't perfect because they just mislead some of the Cython
+# code about the build environment - they don't actually manage to
+# simulate getting the environment wrong in the Python headers (which
+# is potentially a more dramatic problem).
+
+PYTHON setup.py build_ext --inplace
+PYTHON test.py
+
+##################### setup.py #########################
+
+
+from setuptools import setup
+from Cython.Build import cythonize
+
+setup(
+    ext_modules = cythonize("*.pyx")
+)
+
+##################### test.py ###########################
+
+import sys
+
+if sys.implementation.name != 'cpython':
+    exit(0)
+
+if sys.version_info < (3, 8):
+    try:
+        import debug
+        assert False, "Failed 'debug' test"
+    except ImportError:
+        pass
+    
+if sys.version_info >= (3, 13):
+    try:
+        import freethread
+        assert False, "Failed 'freethread' test"
+    except ImportError:
+        pass
+        
+try:
+    import trace
+    assert False, "Failed 'trace' test"
+except ImportError:
+    pass
+
+##################### debug.pyx #########################
+
+cdef extern from *:
+    """
+    #ifdef Py_DEBUG
+    #undef Py_DEBUG
+    #else
+    #define Py_DEBUG
+    #endif
+    """
+    
+something = 1
+
+##################### freethread.pyx ###################
+
+cdef extern from *:
+    """
+    #ifdef Py_GIL_DISABLED
+    #undef Py_GIL_DISABLED
+    #else
+    #define Py_GIL_DISABLED
+    #endif
+    """
+    
+something = 1
+
+#################### trace.pyx #########################
+
+cdef extern from *:
+    """
+    #ifdef Py_TRACE_REFS
+    #undef Py_TRACE_REFS
+    #else
+    #define Py_TRACE_REFS
+    #endif
+    """
+    
+something = 1
