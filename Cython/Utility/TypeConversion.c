@@ -56,10 +56,6 @@ static CYTHON_INLINE PyObject* __Pyx_PyByteArray_FromString(const char*);
 #define __Pyx_PyBytes_FromStringAndSize PyBytes_FromStringAndSize
 static CYTHON_INLINE PyObject* __Pyx_PyUnicode_FromString(const char*);
 
-// TODO: remove this block
-#define __Pyx_PyStr_FromString        __Pyx_PyUnicode_FromString
-#define __Pyx_PyStr_FromStringAndSize __Pyx_PyUnicode_FromStringAndSize
-
 #if CYTHON_ASSUME_SAFE_MACROS
     #define __Pyx_PyBytes_AsWritableString(s)     ((char*) PyBytes_AS_STRING(s))
     #define __Pyx_PyBytes_AsWritableSString(s)    ((signed char*) PyBytes_AS_STRING(s))
@@ -83,7 +79,6 @@ static CYTHON_INLINE PyObject* __Pyx_PyUnicode_FromString(const char*);
 #define __Pyx_PyObject_FromCString(s)  __Pyx_PyObject_FromString((const char*)s)
 #define __Pyx_PyBytes_FromCString(s)   __Pyx_PyBytes_FromString((const char*)s)
 #define __Pyx_PyByteArray_FromCString(s)   __Pyx_PyByteArray_FromString((const char*)s)
-#define __Pyx_PyStr_FromCString(s)     __Pyx_PyStr_FromString((const char*)s)
 #define __Pyx_PyUnicode_FromCString(s) __Pyx_PyUnicode_FromString((const char*)s)
 #define __Pyx_PyUnicode_FromOrdinal(o)       PyUnicode_FromOrdinal((int)o)
 #define __Pyx_PyUnicode_AsUnicode            PyUnicode_AsUnicode
@@ -170,10 +165,12 @@ static CYTHON_INLINE Py_hash_t __Pyx_PyIndex_AsHash_t(PyObject*);
   #endif
 #endif
 
-#if __PYX_DEFAULT_STRING_ENCODING_IS_DEFAULT
-#define __Pyx_PyUnicode_FromStringAndSize(c_str, size) PyUnicode_DecodeUTF8(c_str, size, NULL)
+#if __PYX_DEFAULT_STRING_ENCODING_IS_UTF8
+  #define __Pyx_PyUnicode_FromStringAndSize(c_str, size) PyUnicode_DecodeUTF8(c_str, size, NULL)
+#elif __PYX_DEFAULT_STRING_ENCODING_IS_ASCII
+  #define __Pyx_PyUnicode_FromStringAndSize(c_str, size) PyUnicode_DecodeASCII(c_str, size, NULL)
 #else
-#define __Pyx_PyUnicode_FromStringAndSize(c_str, size) PyUnicode_Decode(c_str, size, __PYX_DEFAULT_STRING_ENCODING, NULL)
+  #define __Pyx_PyUnicode_FromStringAndSize(c_str, size) PyUnicode_Decode(c_str, size, __PYX_DEFAULT_STRING_ENCODING, NULL)
 #endif
 
 /////////////// TypeConversions ///////////////
@@ -209,7 +206,7 @@ static CYTHON_INLINE const char* __Pyx_PyObject_AsString(PyObject* o) {
     return __Pyx_PyObject_AsStringAndSize(o, &ignore);
 }
 
-#if __PYX_DEFAULT_STRING_ENCODING_IS_ASCII || __PYX_DEFAULT_STRING_ENCODING_IS_DEFAULT
+#if __PYX_DEFAULT_STRING_ENCODING_IS_ASCII || __PYX_DEFAULT_STRING_ENCODING_IS_UTF8
 static CYTHON_INLINE const char* __Pyx_PyUnicode_AsStringAndSize(PyObject* o, Py_ssize_t *length) {
     if (unlikely(__Pyx_PyUnicode_READY(o) == -1)) return NULL;
 #if __PYX_DEFAULT_STRING_ENCODING_IS_ASCII
@@ -222,19 +219,19 @@ static CYTHON_INLINE const char* __Pyx_PyUnicode_AsStringAndSize(PyObject* o, Py
         PyUnicode_AsASCIIString(o);
         return NULL;
     }
-#else /* __PYX_DEFAULT_STRING_ENCODING_IS_ASCII */
+#else
     return PyUnicode_AsUTF8AndSize(o, length);
-#endif /* __PYX_DEFAULT_STRING_ENCODING_IS_ASCII */
+#endif
 }
 #endif
 
 // Py3.7 returns a "const char*" for unicode strings
 static CYTHON_INLINE const char* __Pyx_PyObject_AsStringAndSize(PyObject* o, Py_ssize_t *length) {
-#if __PYX_DEFAULT_STRING_ENCODING_IS_ASCII || __PYX_DEFAULT_STRING_ENCODING_IS_DEFAULT
+#if __PYX_DEFAULT_STRING_ENCODING_IS_ASCII || __PYX_DEFAULT_STRING_ENCODING_IS_UTF8
     if (PyUnicode_Check(o)) {
         return __Pyx_PyUnicode_AsStringAndSize(o, length);
     } else
-#endif /* __PYX_DEFAULT_STRING_ENCODING_IS_ASCII  || __PYX_DEFAULT_STRING_ENCODING_IS_DEFAULT */
+#endif
 
 #if (!CYTHON_COMPILING_IN_PYPY && !CYTHON_COMPILING_IN_LIMITED_API) || (defined(PyByteArray_AS_STRING) && defined(PyByteArray_GET_SIZE))
     if (PyByteArray_Check(o)) {
