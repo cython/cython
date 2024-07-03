@@ -1,9 +1,9 @@
 # define a global name for whatever char type is used in the module
-ctypedef unsigned char char_type
+char_type = cython.typedef(cython.uchar)
 
-
-cdef char_type[:] _chars(s):
+@cython.cfunc
+def _chars(s) -> char_type[:]:
     if isinstance(s, str):
         # encode to the specific encoding used inside of the module
-        s = (<str>s).encode('utf8')
+        s = cython.cast(str, s).encode('utf8')
     return s
