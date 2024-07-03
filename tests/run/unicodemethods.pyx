@@ -820,6 +820,25 @@ def multiply(unicode ustring, int mul):
     return ustring * mul
 
 
+@cython.test_fail_if_path_exists(
+    "//CoerceToPyTypeNode",
+)
+@cython.test_assert_path_exists(
+    "//MulNode[@is_sequence_mul = True]",
+)
+def multiply_call(ustring, int mul):
+    """
+    >>> astr = u"abc"
+    >>> ustr = u"abcüöä\\U0001F642"
+
+    >>> print(multiply_call(astr, 2))
+    abcabc
+    >>> print(multiply_call(ustr, 2))
+    abcüöä\U0001F642abcüöä\U0001F642
+    """
+    return unicode(ustring) * mul
+
+
 #@cython.test_fail_if_path_exists(
 #    "//CoerceToPyTypeNode",
 #    "//CastNode", "//TypecastNode")

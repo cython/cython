@@ -676,3 +676,31 @@ async def async_def_annotations(x: 'int') -> 'float':
     'int'
     """
     return float(x)
+
+
+@cython.test_fail_if_path_exists(
+    "//CoerceToPyTypeNode",
+)
+@cython.test_assert_path_exists(
+    "//MulNode[@is_sequence_mul = True]",
+)
+def string_multiply(str s, int N):
+    """
+    >>> print(string_multiply(u"abc", 3))
+    abcabcabc
+    """
+    return s * N
+
+
+@cython.test_fail_if_path_exists(
+    "//CoerceToPyTypeNode",
+)
+@cython.test_assert_path_exists(
+    "//MulNode[@is_sequence_mul = True]",
+)
+def string_multiply_call(s, int N):
+    """
+    >>> print(string_multiply_call(u"abc", 3))
+    abcabcabc
+    """
+    return str(s) * N
