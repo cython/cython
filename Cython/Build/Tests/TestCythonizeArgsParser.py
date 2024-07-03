@@ -105,6 +105,8 @@ class TestCythonizeArgsParser(TestCase):
             options, args =  self.parse_args(['-X', cmd])
             self.assertFalse(args)
             self.assertTrue(self.are_default(options, ['directives']), msg = "Error for option: "+cmd)
+            if value == 'str':
+                value = 'unicode'
             self.assertEqual(options.directives[key], value, msg = "Error for option: "+cmd)
 
     def test_directives_wrong(self):

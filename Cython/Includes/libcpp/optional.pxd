@@ -13,7 +13,7 @@ cdef extern from "<optional>" namespace "std" nogil:
         optional(optional&) except +
         optional(T&) except +
         bool has_value()
-        T& value()
+        T& value() except +
         T& value_or[U](U& default_value)
         void swap(optional&)
         void reset()

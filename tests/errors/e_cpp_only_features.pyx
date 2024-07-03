@@ -19,8 +19,10 @@ def use_del():
     del p
 
 _ERRORS = """
+4:9: Using 'cppclass' while Cython is not in c++ mode
 8:10: typeid operator only allowed in c++
 8:23: typeid operator only allowed in c++
+10:5: Using 'cppclass' while Cython is not in c++ mode
 14:16: Operation only allowed in c++
 19:4: Operation only allowed in c++
 """

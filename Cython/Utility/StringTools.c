@@ -48,6 +48,7 @@ static CYTHON_INLINE size_t __Pyx_Py_UNICODE_strlen(const Py_UNICODE *u)
 
 
 //////////////////// InitStrings.proto ////////////////////
+//@proto_block: pystring_table
 
 static int __Pyx_InitStrings(__Pyx_StringTabEntry const *t, PyObject **target, const char* const* encoding_names); /*proto*/
 
@@ -959,7 +960,7 @@ static PyObject* __Pyx_PyUnicode_BuildFromAscii(Py_ssize_t ulength, char* chars,
                 padding = PyUnicode_FromOrdinal(padding_char);
                 if (likely(padding) && uoffset > prepend_sign + 1) {
                     PyObject *tmp;
-                    PyObject *repeat = PyInt_FromSsize_t(uoffset - prepend_sign);
+                    PyObject *repeat = PyLong_FromSsize_t(uoffset - prepend_sign);
                     if (unlikely(!repeat)) goto done_or_error;
                     tmp = PyNumber_Multiply(padding, repeat);
                     Py_DECREF(repeat);
@@ -1052,7 +1053,7 @@ static CYTHON_INLINE int __Pyx_PyByteArray_Append(PyObject* bytearray, int value
         return -1;
     }
 #endif
-    pyval = PyInt_FromLong(value);
+    pyval = PyLong_FromLong(value);
     if (unlikely(!pyval))
         return -1;
     retval = __Pyx_PyObject_CallMethod1(bytearray, PYIDENT("append"), pyval);
