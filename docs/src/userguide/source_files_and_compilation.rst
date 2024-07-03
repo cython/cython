@@ -1063,7 +1063,15 @@ to turn the warning on / off.
    Warns about multiple variables declared on the same line with at least one pointer type.
    For example ``cdef double* a, b`` - which, as in C, declares ``a`` as a pointer, ``b`` as
    a value type, but could be mininterpreted as declaring two pointers.
-   
+
+``warn.deprecated.DEF`` (default False)
+  Warns about use of the deprecated ``DEF`` statement in Cython code, see
+ :ref:`conditional_compilation` and :ref:`deprecated_DEF_IF`.
+
+``warn.deprecated.IF`` (default True)
+  Warns about use of the deprecated ``IF`` statement in Cython code, see
+  :ref:`conditional_compilation` and :ref:`deprecated_DEF_IF`.
+
 ``show_performance_hints`` (default True)
   Show performance hints during compilation pointing to places in the code which can yield performance degradation.
   Note that performance hints are not warnings and hence the directives starting with ``warn.`` above do not affect them
