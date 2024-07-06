@@ -704,6 +704,21 @@ class CFuncDeclaratorNode(CDeclaratorNode):
 
         exc_val = None
         exc_check = 0
+
+        if (env.directives["legacy_implicit_noexcept"]
+                and not return_type.is_pyobject
+                and not self.has_explicit_exc_clause
+                and self.exception_check
+                and visibility != 'extern'):
+            # If function is already declared from pxd, the exception_check has already correct value.
+            if not (self.declared_name() in env.entries and not in_pxd):
+                self.exception_check = False
+            # implicit noexcept, with a warning
+            warning(self.pos,
+                    "Implicit noexcept declaration is deprecated."
+                    " Function declaration should contain 'noexcept' keyword.",
+                    level=2)
+
         if self.exception_check == '+':
             env.add_include_file('ios')         # for std::ios_base::failure
             env.add_include_file('new')         # for std::bad_alloc
@@ -877,6 +892,7 @@ class CArgDeclNode(Node):
     #
     # name_cstring                         property that converts the name to a cstring taking care of unicode
     #                                      and quoting it
+    # defaults_class_key  None or string  Name used to lookup this arg in the defaults class
 
     child_attrs = ["base_type", "declarator", "default", "annotation"]
     outer_attrs = ["default", "annotation"]
@@ -894,6 +910,7 @@ class CArgDeclNode(Node):
     default_value = None
     annotation = None
     is_dynamic = 0
+    defaults_class_key = None
     type_from_annotation = False
 
     def declared_name(self):
@@ -1600,6 +1617,10 @@ class CppClassNode(CStructOrUnionDefNode, BlockNode):
             base_classes=[], visibility=self.visibility, templates=template_types)
 
     def analyse_declarations(self, env):
+        if not env.is_cpp():
+            warning(self.pos,
+                    "Using 'cppclass' while Cython is not in c++ mode",
+                    level=1)
         if self.templates is None:
             template_types = template_names = None
         else:
@@ -1732,7 +1753,7 @@ class CEnumDefNode(StatNode):
             code.mark_pos(self.pos)
             temp = code.funcstate.allocate_temp(PyrexTypes.py_object_type, manage_ref=True)
             for item in self.entry.enum_values:
-                code.putln("%s = PyInt_FromLong(%s); %s" % (
+                code.putln("%s = PyLong_FromLong(%s); %s" % (
                     temp,
                     item.cname,
                     code.error_goto_if_null(temp, item.pos)))
@@ -2073,6 +2094,7 @@ class FuncDefNode(StatNode, BlockNode):
         # ----- set up refnanny
         refnanny_decl_code = tempvardecl_code.insertion_point()
         refnanny_setup_code = code.insertion_point()
+        refnanny_needs_gil = not code.funcstate.gil_owned
 
         # ----- Automatic lead-ins for certain special functions
         if is_getbuffer_slot:
@@ -2404,8 +2426,7 @@ class FuncDefNode(StatNode, BlockNode):
 
         if code.funcstate.needs_refnanny:
             refnanny_decl_code.put_declare_refcount_context()
-            refnanny_setup_code.put_setup_refcount_context(
-               self.entry.name, acquire_gil=not var_decls_need_gil)
+            refnanny_setup_code.put_setup_refcount_context(self.entry.name, acquire_gil=refnanny_needs_gil)
             code.put_finish_refcount_context(nogil=not gil_owned['success'])
 
         if acquire_gil or (lenv.nogil and gil_owned['success']):
@@ -4286,7 +4307,7 @@ class DefNodeWrapper(FuncDefNode):
             max_args, ','.join('0'*max_args)))
 
         if self.target.defaults_struct:
-            code.putln('%s *%s = __Pyx_CyFunction_Defaults(%s, %s);' % (
+            code.putln('struct %s *%s = __Pyx_CyFunction_Defaults(struct %s, %s);' % (
                 self.target.defaults_struct, Naming.dynamic_args_cname,
                 self.target.defaults_struct, Naming.self_cname))
 
@@ -5825,11 +5846,13 @@ class CClassDefNode(ClassDefNode):
                         objstruct = type.objstruct_cname
                     else:
                         objstruct = "struct %s" % type.objstruct_cname
+                    code.putln("#if CYTHON_USE_TYPE_SLOTS")
                     code.putln("if (%s == 0) %s = offsetof(%s, %s);" % (
                         tp_weaklistoffset,
                         tp_weaklistoffset,
                         objstruct,
                         weakref_entry.cname))
+                    code.putln("#endif")
                 else:
                     error(weakref_entry.pos, "__weakref__ slot must be of type 'object'")
 
@@ -9443,6 +9466,11 @@ class ParallelStatNode(StatNode, ParallelNode):
                 shared_vars = [Naming.parallel_why]
                 if self.error_label_used:
                     shared_vars.extend(self.parallel_exc)
+                    c.globalstate.use_utility_code(
+                        UtilityCode.load_cached(
+                            "SharedInFreeThreading",
+                            "ModuleSetupCode.c"))
+                    c.put(f" __Pyx_shared_in_cpython_freethreading({Naming.parallel_freethreading_mutex})")
                     c.put(" private(%s, %s, %s)" % self.pos_info)
 
                 c.put(" shared(%s)" % ', '.join(shared_vars))
@@ -9684,6 +9712,7 @@ class ParallelStatNode(StatNode, ParallelNode):
         """
         code.begin_block()
         code.put_ensure_gil(declare_gilstate=True)
+        code.put_acquire_freethreading_lock()
 
         code.putln_openmp("#pragma omp flush(%s)" % Naming.parallel_exc_type)
         code.putln(
@@ -9698,6 +9727,7 @@ class ParallelStatNode(StatNode, ParallelNode):
         code.putln(
             "}")
 
+        code.put_release_freethreading_lock()
         code.put_release_ensured_gil()
         code.end_block()
 
@@ -9705,12 +9735,14 @@ class ParallelStatNode(StatNode, ParallelNode):
         "Re-raise a parallel exception"
         code.begin_block()
         code.put_ensure_gil(declare_gilstate=True)
+        code.put_acquire_freethreading_lock()
 
         code.put_giveref(Naming.parallel_exc_type, py_object_type)
         code.putln("__Pyx_ErrRestoreWithState(%s, %s, %s);" % self.parallel_exc)
         pos_info = chain(*zip(self.pos_info, self.parallel_pos_info))
         code.putln("%s = %s; %s = %s; %s = %s;" % tuple(pos_info))
 
+        code.put_release_freethreading_lock()
         code.put_release_ensured_gil()
         code.end_block()
 
@@ -9750,6 +9782,9 @@ class ParallelStatNode(StatNode, ParallelNode):
         if self.error_label_used:
             c.putln("const char *%s = NULL; int %s = 0, %s = 0;" % self.parallel_pos_info)
             c.putln("PyObject *%s = NULL, *%s = NULL, *%s = NULL;" % self.parallel_exc)
+            c.putln("#if CYTHON_COMPILING_IN_CPYTHON_FREETHREADING")
+            c.putln(f"PyMutex {Naming.parallel_freethreading_mutex} = {{0}};")
+            c.putln("#endif")
 
             code.putln(
                 "if (%s) {" % Naming.parallel_exc_type)
@@ -9863,7 +9898,8 @@ class ParallelWithBlockNode(ParallelStatNode):
         if self.privates:
             privates = [e.cname for e in self.privates
                         if not e.type.is_pyobject]
-            code.put('private(%s)' % ', '.join(sorted(privates)))
+            if privates:
+                code.put('private(%s)' % ', '.join(sorted(privates)))
 
         self.privatization_insertion_point = code.insertion_point()
         self.put_num_threads(code)
