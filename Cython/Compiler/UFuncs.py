@@ -9,31 +9,7 @@ from . import PyrexTypes
 from .UtilityCode import CythonUtilityCode
 from .Code import TempitaUtilityCode, UtilityCode
 from .Visitor import TreeVisitor
-
-numpy_int_types = [
-    "NPY_BYTE",
-    "NPY_INT8",
-    "NPY_SHORT",
-    "NPY_INT16",
-    "NPY_INT",
-    "NPY_INT32",
-    "NPY_LONG",
-    "NPY_LONGLONG",
-    "NPY_INT64",
-]
-numpy_uint_types = [tp.replace("NPY_", "NPY_U") for tp in numpy_int_types]
-# note: half float type is deliberately omitted
-numpy_numeric_types = (
-    numpy_int_types
-    + numpy_uint_types
-    + [
-        "NPY_FLOAT",
-        "NPY_FLOAT32",
-        "NPY_DOUBLE",
-        "NPY_FLOAT64",
-        "NPY_LONGDOUBLE",
-    ]
-)
+from . import Symtab
 
 
 class _FindCFuncDefNode(TreeVisitor):
@@ -69,11 +45,14 @@ class _ArgumentInfo:
 
     type  - PyrexType
     type_constant  - str such as "NPY_INT8" representing numpy dtype constants
+    injected_typename - str representing a name that can be used to look up the type
+                        in Cython code
     """
 
-    def __init__(self, type, type_constant):
+    def __init__(self, type, type_constant, injected_typename):
         self.type = type
         self.type_constant = type_constant
+        self.injected_typename = injected_typename
 
 
 class UFuncConversion:
@@ -81,6 +60,10 @@ class UFuncConversion:
         self.node = node
         self.global_scope = node.local_scope.global_scope()
 
+        self.injected_typename = "ufunc_typename"
+        while self.node.entry.cname.startswith(self.injected_typename):
+            self.injected_typename += "_"
+        self.injected_types = []
         self.in_definitions = self.get_in_type_info()
         self.out_definitions = self.get_out_type_info()
 
@@ -101,44 +84,31 @@ class UFuncConversion:
         return f"__Pyx_typedef_ufunc_{substituted_cname}"
 
     def _get_type_constant(self, pos, type_):
-        while type_.is_typedef and not type_.typedef_is_external:
-            type_ = type_.typedef_base_type
-        if type_.is_typedef:
-            assert type_.typedef_is_external
-            if type_.is_complex:
-                return self._handle_typedef_type_constant(
+        base_type = type_
+        if base_type.is_typedef:
+            base_type = base_type.typedef_base_type
+        base_type = PyrexTypes.remove_cv_ref(base_type)
+        if base_type is PyrexTypes.c_bint_type:
+            # TODO - this would be nice but not obvious it works
+            error(pos, "Type '%s' cannot be used as a ufunc argument" % type_)
+            return
+        if type_.is_complex:
+            return self._handle_typedef_type_constant(
                     type_,
                     "__PYX_GET_NPY_COMPLEX_TYPE")
-            elif type_.is_int:
-                signed = ""
-                if type_.signed == PyrexTypes.SIGNED:
-                    signed = "S"
-                elif type_.signed == PyrexTypes.UNSIGNED:
-                    signed = "U"
-                return self._handle_typedef_type_constant(
-                    type_,
-                    f"__PYX_GET_NPY_{signed}INT_TYPE")
-            elif type_.is_float:
-                return self._handle_typedef_type_constant(
-                    type_,
-                    "__PYX_GET_NPY_FLOAT_TYPE")
-        if type_.is_complex:
-            # 'is' checks don't seem to work for complex types
-            if type_ == PyrexTypes.c_float_complex_type:
-                return "NPY_CFLOAT"
-            elif type_ == PyrexTypes.c_double_complex_type:
-                return "NPY_CDOUBLE"
-            elif type_ == PyrexTypes.c_longdouble_complex_type:
-                return "NPY_CLONGDOUBLE"
-            else:
-                return self._handle_typedef_type_constant(
-                    type_,
-                    "__PYX_NPY_GET_COMPLEX_TYPE")
-        elif type_.is_numeric:
-            postfix = type_.empty_declaration_code().upper().replace(" ", "")
-            typename = "NPY_%s" % postfix
-            if typename in numpy_numeric_types:
-                return typename
+        elif type_.is_int:
+            signed = ""
+            if type_.signed == PyrexTypes.SIGNED:
+                signed = "S"
+            elif type_.signed == PyrexTypes.UNSIGNED:
+                signed = "U"
+            return self._handle_typedef_type_constant(
+                type_,
+                f"__PYX_GET_NPY_{signed}INT_TYPE")
+        elif type_.is_float:
+            return self._handle_typedef_type_constant(
+                type_,
+                "__PYX_GET_NPY_FLOAT_TYPE")
         elif type_.is_pyobject:
             return "NPY_OBJECT"
         # TODO possible NPY_BOOL to bint but it needs a cast?
@@ -148,8 +118,10 @@ class UFuncConversion:
     def get_in_type_info(self):
         definitions = []
         for n, arg in enumerate(self.node.args):
+            injected_typename = f"{self.injected_typename}_in_{n}"
+            self.injected_types.append(injected_typename)
             type_const = self._get_type_constant(self.node.pos, arg.type)
-            definitions.append(_ArgumentInfo(arg.type, type_const))
+            definitions.append(_ArgumentInfo(arg.type, type_const, injected_typename))
         return definitions
 
     def get_out_type_info(self):
@@ -159,39 +131,52 @@ class UFuncConversion:
             components = [self.node.return_type]
         definitions = []
         for n, type in enumerate(components):
+            injected_typename = f"{self.injected_typename}_out_{n}"
+            self.injected_types.append(injected_typename)
+            type_const = self._get_type_constant(self.node.pos, type)
             definitions.append(
-                _ArgumentInfo(type, self._get_type_constant(self.node.pos, type))
+                _ArgumentInfo(type, type_const, injected_typename)
             )
         return definitions
 
     def generate_cy_utility_code(self):
-        arg_types = [a.type for a in self.in_definitions]
-        out_types = [a.type for a in self.out_definitions]
-        inline_func_decl = self.node.entry.type.declaration_code(
-            self.node.entry.cname, pyrex=True
-        )
+        arg_types = [(a.injected_typename, a.type) for a in self.in_definitions]
+        out_types = [(a.injected_typename, a.type) for a in self.out_definitions]
+        context_types = dict(arg_types + out_types)
         self.node.entry.used = True
 
         ufunc_cname = self.global_scope.next_id(self.node.entry.name + "_ufunc_def")
 
-        will_be_called_without_gil = not (any(t.is_pyobject for t in arg_types) or
-            any(t.is_pyobject for t in out_types))
+        will_be_called_without_gil = not (any(t.is_pyobject for _, t in arg_types) or
+            any(t.is_pyobject for _, t in out_types))
 
         context = dict(
             func_cname=ufunc_cname,
             in_types=arg_types,
             out_types=out_types,
             inline_func_call=self.node.entry.cname,
-            inline_func_declaration=inline_func_decl,
             nogil=self.node.entry.type.nogil,
             will_be_called_without_gil=will_be_called_without_gil,
+            **context_types
+        )
+
+        ufunc_global_scope = Symtab.ModuleScope(
+            "ufunc_module", None, self.global_scope.context
+        )
+        ufunc_global_scope.declare_cfunction(
+            name=self.node.entry.cname,
+            cname=self.node.entry.cname,
+            type=self.node.entry.type,
+            pos=self.node.pos,
+            visibility="extern",
         )
 
         code = CythonUtilityCode.load(
             "UFuncDefinition",
             "UFuncs.pyx",
             context=context,
-            outer_module_scope=self.global_scope,
+            from_scope = ufunc_global_scope,
+            #outer_module_scope=ufunc_global_scope,
         )
 
         tree = code.get_tree(entries_only=True)

@@ -2,6 +2,7 @@
 # tag: numpy
 
 cimport cython
+cimport numpy as cnp
 
 import numpy as np
 
@@ -267,4 +268,79 @@ def test_disambiguate_asignedness():
     'extern_actually_signed'
     >>> disambiguate_signedness(np.uint32(10))
     'extern_actually_unsigned'
+    """
+
+@cython.ufunc
+cdef int all_int_types(
+        # skip "char" because signedness is compiler-dependent
+        unsigned char a1, signed char a3,
+        unsigned short a4, short a5, signed short a6,
+        unsigned int a7, int a8, signed int a9,
+        unsigned long a10, long a11, signed long a12,
+        # parser appears to struggle with unsigned and signed long long
+        long long a14
+        ):
+    return 1
+
+def test_all_int_types():
+    """
+    >>> dtypes = [ np.ubyte, np.byte,
+    ...            np.ushort, np.short, np.short,
+    ...            np.dtype('I'), np.dtype('i'), np.dtype('i'),
+    ...            np.dtype('L'), np.dtype('l'), np.dtype('l'),
+    ...            np.longlong
+    ...          ]
+    >>> arrays = [ np.zeros((10,), dtype=dtype) for dtype in dtypes ]
+    >>> out = all_int_types(*arrays)
+    >>> out.shape
+    (10,)
+    """
+
+@cython.ufunc
+cdef int all_sized_int_types(
+        cnp.uint8_t a1, cnp.int8_t a2,
+        cnp.uint16_t a3, cnp.int16_t a4,
+        cnp.uint32_t a5, cnp.int32_t a6,
+        cnp.uint64_t a7, cnp.int64_t a8):
+    return 1
+
+def test_all_sized_int_types():
+    """
+    >>> dtypes = [ np.uint8, np.int8,
+    ...            np.uint16, np.int16,
+    ...            np.uint32, np.int32,
+    ...            np.uint64, np.int64,
+    ...          ]
+    >>> arrays = [ np.zeros((10,), dtype=dtype) for dtype in dtypes ]
+    >>> out = all_sized_int_types(*arrays)
+    >>> out.shape
+    (10,)
+    """
+
+@cython.ufunc
+cdef int all_float_types(
+        float a1, double a2, long double a3):
+    return 1
+
+def test_all_float_types():
+    """
+    >>> dtypes = [ np.dtype('f'), np.double, np.longdouble ]
+    >>> arrays = [ np.zeros((10,), dtype=dtype) for dtype in dtypes ]
+    >>> out = all_float_types(*arrays)
+    >>> out.shape
+    (10,)
+    """
+
+@cython.ufunc
+cdef int all_complex_types(
+        float complex a1, double complex a2, long double complex a3):
+    return 1
+
+def test_all_complex_types():
+    """
+    >>> dtypes = [ np.complex64, np.complex128, np.clongdouble ]
+    >>> arrays = [ np.zeros((10,), dtype=dtype) for dtype in dtypes ]
+    >>> out = all_complex_types(*arrays)
+    >>> out.shape
+    (10,)
     """
