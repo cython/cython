@@ -4710,7 +4710,10 @@ class PythonTypeConstructorMixin:
     nested_types = None
 
     def is_optional(self):
-        return self.modifier_name == 'typing.Union' and self.nested_types and py_none_type in self.nested_types
+        return (
+            self.modifier_name == 'typing.Optional' or (
+            self.modifier_name == 'typing.Union' and self.nested_types and py_none_type in self.nested_types)
+        )
 
     def set_python_type_constructor_name(self, name):
         self.python_type_constructor_name = name
@@ -4749,10 +4752,6 @@ class PythonTupleTypeConstructor(BuiltinTypeConstructorObjectType):
                 entry.used = True
                 return entry.type
         return super().specialize_here(pos, env, template_values)
-#                 self.nested_type = entry.type
-#                 return self
-#         self.nested_type = super().specialize_here(pos, env, template_values)
-#         return self
 
 
 class SpecialPythonTypeConstructor(PyObjectType, PythonTypeConstructorMixin):
@@ -4773,7 +4772,6 @@ class SpecialPythonTypeConstructor(PyObjectType, PythonTypeConstructorMixin):
         return self
 
     def specialize_here(self, pos, env, template_values=None):
-        # breakpoint()
         if py_none_type in template_values:
             self.nested_types.append(py_none_type)
         template_values = [tv for tv in template_values if tv != py_none_type]
@@ -4793,6 +4791,7 @@ class PyNoneType(BuiltinObjectType):
         super().__init__('None', None, [])
 
     def __bool__(self):
+        # We need to ensure that expression `if NoneType:` will be False.
         return False
 
 rank_to_type_name = (

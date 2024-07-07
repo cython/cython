@@ -2,7 +2,7 @@
 cimport cython
 try:
     import typing
-    from typing import Optional
+    from typing import Optional, Union
 except ImportError:
     pass  # Cython can still identify the use of "typing" even if the module doesn't exist
 
@@ -114,6 +114,18 @@ def ext_optional(x: typing.Optional[MyExtType], y: Optional[MyExtType]):
     >>> ext_optional(MyExtType(), None)
     444
     >>> ext_optional(None, MyExtType())
+    444
+    """
+    return attr(x) + attr(y)
+
+def ext_union(x: typing.Union[MyExtType, None], y: Union[None, MyExtType]):
+    """
+    Behaves the same as "or None"
+    >>> ext_union(MyExtType(), MyExtType())
+    246
+    >>> ext_union(MyExtType(), None)
+    444
+    >>> ext_union(None, MyExtType())
     444
     """
     return attr(x) + attr(y)

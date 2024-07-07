@@ -3983,18 +3983,15 @@ class IndexNode(_IndexingBaseNode):
 
     def analyse_pytyping_modifiers(self, env):
         # Check for declaration modifiers, e.g. "typing.Optional[...]" or "dataclasses.InitVar[...]"
+        # `typing.Optional` is used for all variants of modifiers representing Optional type (Optional[T], Union[T, None])
         # TODO: somehow bring this together with TemplatedTypeNode.analyse_pytyping_modifiers()
         modifiers = []
         modifier_node = self
         while modifier_node.is_subscript:
             modifier_type = modifier_node.base.analyse_as_type(env)
-            # breakpoint()
             if (modifier_type and modifier_type.python_type_constructor_name
                     and modifier_type.modifier_name):
-                if modifier_type.is_optional():
-                    modifiers.append('typing.Optional')
-                else:
-                    modifiers.append(modifier_type.modifier_name)
+                modifiers.append('typing.Optional' if modifier_type.is_optional() else modifier_type.modifier_name)
             modifier_node = modifier_node.index
         return modifiers
 
@@ -14831,7 +14828,6 @@ class AnnotationNode(ExprNode):
 
         with env.new_c_type_context(in_c_type_context=explicit_ctype):
             arg_type = annotation.analyse_as_type(env)
-            # breakpoint()
 
             if arg_type is None:
                 self._warn_on_unknown_annotation(env, annotation)
@@ -14852,9 +14848,6 @@ class AnnotationNode(ExprNode):
             modifiers = annotation.analyse_pytyping_modifiers(env) if annotation.is_subscript else []
 
         return modifiers, arg_type
-        # if hasattr(arg_type, 'nested_type'):
-        #     return [arg_type.modifier_name], arg_type.nested_type
-        # return [], arg_type
 
 
 class AssignmentExpressionNode(ExprNode):
