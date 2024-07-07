@@ -678,43 +678,107 @@ In Cython, the :c:type:`char` type behaves differently from the
 :c:type:`Py_UNICODE` and :c:type:`Py_UCS4` types when coercing
 to Python objects.  Similar to the behaviour of the bytes type in
 Python 3, the :c:type:`char` type coerces to a Python integer
-value by default, so that the following prints 65 and not ``A``::
+value by default, so that the following prints 65 and not ``A``:
 
-    # -*- coding: ASCII -*-
+.. tabs::
+    .. group-tab:: Pure Python
 
-    cdef char char_val = 'A'
-    assert char_val == 65   # ASCII encoded byte value of 'A'
-    print( char_val )
+        .. code-block:: python
+
+            # -*- coding: ASCII -*-
+
+            char_val = declare(cython.char, 'A')
+            assert char_val == 65   # ASCII encoded byte value of 'A'
+            print( char_val )
+
+    .. group-tab:: Cython
+
+        .. code-block:: cython
+
+            # -*- coding: ASCII -*-
+
+            cdef char char_val = 'A'
+            assert char_val == 65   # ASCII encoded byte value of 'A'
+            print( char_val )
+
 
 If you want a Python bytes string instead, you have to request it
 explicitly, and the following will print ``A`` (or ``b'A'`` in Python
-3)::
+3):
 
-    print( <bytes>char_val )
+.. tabs::
+    .. group-tab:: Pure Python
+
+        .. code-block:: python
+
+            print( cython.cast(bytes, char_val) )
+
+    .. group-tab:: Cython
+
+        .. code-block:: cython
+
+            print( <bytes>char_val )
 
 The explicit coercion works for any C integer type.  Values outside of
 the range of a :c:type:`char` or :c:type:`unsigned char` will raise an
 :obj:`OverflowError` at runtime.  Coercion will also happen automatically
-when assigning to a typed variable, e.g.::
+when assigning to a typed variable, e.g.:
 
-    cdef bytes py_byte_string
-    py_byte_string = char_val
+.. tabs::
+    .. group-tab:: Pure Python
+
+        .. code-block:: python
+
+            py_byte_string = cython.declare(bytes)
+            py_byte_string = char_val
+
+    .. group-tab:: Cython
+
+        .. code-block:: cython
+
+            cdef bytes py_byte_string
+            py_byte_string = char_val
 
 On the other hand, the :c:type:`Py_UNICODE` and :c:type:`Py_UCS4`
 types are rarely used outside of the context of a Python unicode string,
 so their default behaviour is to coerce to a Python unicode object.  The
 following will therefore print the character ``A``, as would the same
-code with the :c:type:`Py_UNICODE` type::
+code with the :c:type:`Py_UNICODE` type:
 
-    cdef Py_UCS4 uchar_val = u'A'
-    assert uchar_val == 65 # character point value of u'A'
-    print( uchar_val )
+.. tabs::
+    .. group-tab:: Pure Python
+
+        .. code-block:: python
+
+            uchar_val = cython.declare(cython.Py_UCS4, u'A')
+            assert uchar_val == 65 # character point value of u'A'
+            print( uchar_val )
+
+    .. group-tab:: Cython
+
+        .. code-block:: cython
+
+            cdef Py_UCS4 uchar_val = u'A'
+            assert uchar_val == 65 # character point value of u'A'
+            print( uchar_val )
 
 Again, explicit casting will allow users to override this behaviour.
-The following will print 65::
+The following will print 65:
 
-    cdef Py_UCS4 uchar_val = u'A'
-    print( <long>uchar_val )
+.. tabs::
+    .. group-tab:: Pure Python
+
+        .. code-block:: python
+
+            uchar_val = cython.declare(cython.Py_UCS4, u'A')
+            print( cython.cast(long, uchar_val) )
+
+    .. group-tab:: Cython
+
+        .. code-block:: cython
+
+            cdef Py_UCS4 uchar_val = u'A'
+            print( <long>uchar_val )
 
 Note that casting to a C :c:type:`long` (or :c:type:`unsigned long`) will work
 just fine, as the maximum code point value that a Unicode character
@@ -766,17 +830,41 @@ pair is always identifiable in a sequence of code points.
 
 As of version 0.15, Cython has extended support for surrogate pairs so
 that you can safely use an ``in`` test to search character values from
-the full :c:type:`Py_UCS4` range even on narrow platforms::
+the full :c:type:`Py_UCS4` range even on narrow platforms:
 
-    cdef Py_UCS4 uchar = 0x12345
-    print( uchar in some_unicode_string )
+.. tabs::
+    .. group-tab:: Pure Python
+
+        .. code-block:: python
+
+            uchar = cython.declare(cython.Py_UCS4, 0x12345)
+            print( uchar in some_unicode_string )
+
+    .. group-tab:: Cython
+
+        .. code-block:: cython
+
+            cdef Py_UCS4 uchar = 0x12345
+            print( uchar in some_unicode_string )
 
 Similarly, it can coerce a one character string with a high Unicode
 code point value to a Py_UCS4 value on both narrow and wide Unicode
-platforms::
+platforms:
 
-    cdef Py_UCS4 uchar = u'\U00012345'
-    assert uchar == 0x12345
+.. tabs::
+    .. group-tab:: Pure Python
+
+        .. code-block:: python
+
+            uchar = cython.declare(cython.Py_UCS4, u'\U00012345')
+            assert uchar == 0x12345
+
+    .. group-tab:: Cython
+
+        .. code-block:: cython
+
+            cdef Py_UCS4 uchar = u'\U00012345'
+            assert uchar == 0x12345
 
 In CPython 3.3 and later, the :c:type:`Py_UNICODE` type is an alias
 for the system specific :c:type:`wchar_t` type and is no longer tied
@@ -802,16 +890,28 @@ bytes and unicode strings, as long as the loop variable is
 appropriately typed. So the following will generate the expected
 C code:
 
-.. literalinclude:: ../../examples/tutorial/string/for_char.pyx
+.. tabs::
+    .. group-tab:: Pure Python
+        .. literalinclude:: ../../examples/tutorial/string/for_char.py
+    .. group-tab:: Cython
+        .. literalinclude:: ../../examples/tutorial/string/for_char.pyx
 
 The same applies to bytes objects:
 
-.. literalinclude:: ../../examples/tutorial/string/for_bytes.pyx
+.. tabs::
+    .. group-tab:: Pure Python
+        .. literalinclude:: ../../examples/tutorial/string/for_bytes.py
+    .. group-tab:: Cython
+        .. literalinclude:: ../../examples/tutorial/string/for_bytes.pyx
 
 For unicode objects, Cython will automatically infer the type of the
 loop variable as :c:type:`Py_UCS4`:
 
-.. literalinclude:: ../../examples/tutorial/string/for_unicode.pyx
+.. tabs::
+    .. group-tab:: Pure Python
+        .. literalinclude:: ../../examples/tutorial/string/for_unicode.py
+    .. group-tab:: Cython
+        .. literalinclude:: ../../examples/tutorial/string/for_unicode.pyx
 
 The automatic type inference usually leads to much more efficient code
 here.  However, note that some unicode operations still require the
@@ -826,7 +926,11 @@ it.
 There are also optimisations for ``in`` tests, so that the following
 code will run in plain C code, (actually using a switch statement):
 
-.. literalinclude:: ../../examples/tutorial/string/if_char_in.pyx
+.. tabs::
+    .. group-tab:: Pure Python
+        .. literalinclude:: ../../examples/tutorial/string/if_char_in.py
+    .. group-tab:: Cython
+        .. literalinclude:: ../../examples/tutorial/string/if_char_in.pyx
 
 Combined with the looping optimisation above, this can result in very
 efficient character switching code, e.g. in unicode parsers.
