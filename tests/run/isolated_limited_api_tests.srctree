@@ -21,7 +21,11 @@ setup(
 
 ##################### run.py ##################################
 
+import decimal
+
 import limited
+import weakref
+import sys
 
 limited.fib(11)
 
@@ -39,6 +43,15 @@ limited.catches()
 limited.C()
 limited.D()
 limited.E()
+if sys.version_info >= (3, 9):
+    # Weak-referenceable classes won't work in Python <3.9 because
+    # of an interpreter bug (https://github.com/python/cpython/issues/82321).
+    # This depends on the interpreter version, not the limited API version.
+    weakref.ref(limited.D())
+    weakref.ref(limited.E())
+
+assert limited.C.cm() == limited.C().cm() == limited.C
+assert limited.D.cm() == limited.D().cm() == limited.D
 
 assert limited.decode(b'a', bytearray(b'b')) == "ab"
 
@@ -46,7 +59,30 @@ assert limited.cast_float(1) == 1.0
 assert limited.cast_float("2.0") == 2.0
 assert limited.cast_float(bytearray(b"3")) == 3.0
 
+gen = limited.my_generator(1)
+assert next(gen) == 1
+assert next(gen) == 1
+try:
+    next(gen)
+except StopIteration:
+    pass
+else:
+    assert False  # should have finished
+
+gen = limited.my_generator("raise")
+try:
+    next(gen)
+except RuntimeError:
+    pass
+else:
+    assert False  # should have raised
+
 assert limited.add_one(2) == 3
+assert limited.float_equals(1.5)
+assert not limited.float_equals(2)
+assert not limited.float_equals(None)
+assert limited.float_equals(decimal.Decimal("1.5"))
+
 
 
 ##################### limited.pyx #############################
@@ -94,11 +130,26 @@ def catches():
 def cast_float(object o):
     return float(o)
 
+def float_equals(o):
+    return o == 1.5
+
 class C:
-    pass
+    @classmethod
+    def cm(cls):
+        return cls
 
 cdef class D:
-    pass
+    cdef object __weakref__
+
+    @classmethod
+    def cm(cls):
+        return cls
 
 cdef class E(D):
     pass
+
+def my_generator(x):
+    if x == "raise":
+        raise RuntimeError
+    yield x
+    yield x

@@ -235,6 +235,8 @@ _directive_defaults = {
     'warn.unused_arg': False,
     'warn.unused_result': False,
     'warn.multiple_declarators': True,
+    'warn.deprecated.DEF': False,
+    'warn.deprecated.IF': True,
     'show_performance_hints': True,
 
 # optimizations
@@ -267,14 +269,24 @@ extra_warnings = {
     'warn.unused': True,
 }
 
-def one_of(*args):
+def one_of(*args, map=None):
     def validate(name, value):
+        if map is not None:
+            value = map.get(value, value)
         if value not in args:
             raise ValueError("%s directive must be one of %s, got '%s'" % (
                 name, args, value))
-        else:
-            return value
+        return value
     return validate
+
+
+_normalise_common_encoding_name = {
+    'utf8': 'utf8',
+    'utf-8': 'utf8',
+    'default': 'utf8',
+    'ascii': 'ascii',
+    'us-ascii': 'ascii',
+}.get
 
 
 def normalise_encoding_name(option_name, encoding):
@@ -290,16 +302,18 @@ def normalise_encoding_name(option_name, encoding):
     >>> normalise_encoding_name('c_string_encoding', 'utF-8')
     'utf8'
     >>> normalise_encoding_name('c_string_encoding', 'deFAuLT')
-    'default'
+    'utf8'
     >>> normalise_encoding_name('c_string_encoding', 'default')
-    'default'
+    'utf8'
     >>> normalise_encoding_name('c_string_encoding', 'SeriousLyNoSuch--Encoding')
     'SeriousLyNoSuch--Encoding'
     """
     if not encoding:
         return ''
-    if encoding.lower() in ('default', 'ascii', 'utf8'):
-        return encoding.lower()
+    encoding_name = _normalise_common_encoding_name(encoding.lower())
+    if encoding_name is not None:
+        return encoding_name
+
     import codecs
     try:
         decoder = codecs.getdecoder(encoding)
@@ -343,7 +357,7 @@ directive_types = {
     'exceptval': type,  # actually (type, check=True/False), but has its own parser
     'set_initial_path': str,
     'freelist': int,
-    'c_string_type': one_of('bytes', 'bytearray', 'str', 'unicode'),
+    'c_string_type': one_of('bytes', 'bytearray', 'str', 'unicode', map={'str': 'unicode'}),
     'c_string_encoding': normalise_encoding_name,
     'trashcan': bool,
     'total_ordering': None,
@@ -441,7 +455,7 @@ def parse_directive_value(name, value, relaxed_bool=False):
     >>> parse_directive_value('c_string_encoding', 'us-ascii')
     'ascii'
     >>> parse_directive_value('c_string_type', 'str')
-    'str'
+    'unicode'
     >>> parse_directive_value('c_string_type', 'bytes')
     'bytes'
     >>> parse_directive_value('c_string_type', 'bytearray')

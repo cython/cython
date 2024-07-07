@@ -276,6 +276,8 @@ The default function (defined in ``Cython.Build.Dependencies``) is::
 
         t = template.__class__
         ext = t(**kwds)
+        if hasattr(template, "py_limited_api"):
+            ext.py_limited_api = template.py_limited_api
         metadata = dict(distutils=kwds, module_name=kwds['name'])
         return ext, metadata
 
@@ -338,13 +340,20 @@ them through :func:`cythonize`::
 Distributing Cython modules
 ----------------------------
 
-It is strongly recommended that you distribute the generated ``.c`` files as well
-as your Cython sources, so that users can install your module without needing
+Following recent improvements in the distribution toolchain, it is
+not recommended to include generated files in source distributions.
+Instead, `require` Cython at build-time to generate the C/C++ files,
+as defined in `PEP 518 <https://www.python.org/dev/peps/pep-0518/>`_
+and `PEP 621 <https://www.python.org/dev/peps/pep-0621/>`_.
+See :ref:`basic_setup.py`.
+
+It is, however, possible to distribute the generated ``.c`` files together with
+your Cython sources, so that users can install your module without needing
 to have Cython available.
 
-It is also recommended that Cython compilation not be enabled by default in the
-version you distribute. Even if the user has Cython installed, he/she probably
-doesn't want to use it just to install your module. Also, the installed version
+Doing so allows you to make Cython compilation optional in the
+version you distribute. Even if the user has Cython installed, they may not
+want to use it just to install your module. Also, the installed version
 may not be the same one you used, and may not compile your sources correctly.
 
 This simply means that the :file:`setup.py` file that you ship with will just
@@ -398,21 +407,6 @@ list in the Extensions when not using Cython::
             extension.sources[:] = sources
         return extensions
 
-Another option is to make Cython a setup dependency of your system and use
-Cython's build_ext module which runs ``cythonize`` as part of the build process::
-
-    setup(
-        extensions = [Extension("*", ["*.pyx"])],
-        cmdclass={'build_ext': Cython.Build.build_ext},
-        ...
-    )
-
-This depends on pip knowing that :mod:`Cython` is a setup dependency, by having
-a :file:`pyproject.toml` file::
-
-    [build-system]
-    requires = ["setuptools", "wheel", "Cython"]
-
 If you want to expose the C-level interface of your library for other
 libraries to cimport from, use package_data to install the ``.pxd`` files,
 e.g.::
@@ -462,8 +456,8 @@ to your generated module source file and look for a function name
 starting with ``PyInit_``.
 
 Next, before you start the Python runtime from your application code
-with ``Py_Initialize()``, you need to initialise the modules at runtime
-using the ``PyImport_AppendInittab()`` C-API function, again inserting
+with :c:func:`Py_Initialize()`, you need to initialise the modules at runtime
+using the :c:func:`PyImport_AppendInittab()` C-API function, again inserting
 the name of each of the modules::
 
     PyImport_AppendInittab("some_module_name", MODINIT(some_module_name));
@@ -1069,7 +1063,15 @@ to turn the warning on / off.
    Warns about multiple variables declared on the same line with at least one pointer type.
    For example ``cdef double* a, b`` - which, as in C, declares ``a`` as a pointer, ``b`` as
    a value type, but could be mininterpreted as declaring two pointers.
-   
+
+``warn.deprecated.DEF`` (default False)
+  Warns about use of the deprecated ``DEF`` statement in Cython code, see
+ :ref:`conditional_compilation` and :ref:`deprecated_DEF_IF`.
+
+``warn.deprecated.IF`` (default True)
+  Warns about use of the deprecated ``IF`` statement in Cython code, see
+  :ref:`conditional_compilation` and :ref:`deprecated_DEF_IF`.
+
 ``show_performance_hints`` (default True)
   Show performance hints during compilation pointing to places in the code which can yield performance degradation.
   Note that performance hints are not warnings and hence the directives starting with ``warn.`` above do not affect them
@@ -1314,4 +1316,8 @@ hidden by default since most users will be uninterested in changing them.
             Enable the use of atomic reference counting (as opposed to locking then
             reference counting) in Cython typed memoryviews.
             
-            
+        ``CYTHON_DEBUG_VISIT_CONST``
+            Debug option for including constant (string/integer/code/…) objects in
+            [``gc.get_referents()``](https://docs.python.org/3/library/gc.html#gc.get_referents).
+            By default, Cython avoids GC traversing these objects because they can never participate
+            in reference cycles, and thus would uselessly waste time during garbage collection runs.
