@@ -3,7 +3,7 @@
 import cython
 
 try:
-    from typing import Optional, ClassVar
+    from typing import Optional, ClassVar, Union
 except ImportError:
     pass
 
@@ -27,12 +27,16 @@ def optional_pytypes(Optional[int] i, Optional[float] f, Optional[complex] c, Op
 
 cdef ClassVar[list] x
 
+def union_pytypes(Union[int, None] i, Union[None, float] f, Union[complex, None] c, Union[long, None] l):
+    pass
 
 # OK
 
 def optional_memoryview(double[:] d, Optional[double[:]] o):
     pass
 
+def union_memoryview(double[:] d, Union[double[:], None] o):
+    pass
 
 cdef class Cls(object):
     cdef ClassVar[list] x
@@ -53,4 +57,7 @@ _ERRORS = """
 20:30: typing.Optional[...] cannot be applied to type MyStruct
 
 28:20: Modifier 'typing.ClassVar' is not allowed here.
+
+30:50: typing.Union[...] cannot be applied to type float
+30:90: typing.Union[...] cannot be applied to type long
 """
