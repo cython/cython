@@ -1,0 +1,208 @@
+# mode: run
+# tag: cpp, werror, no-cpp-locals
+# ticket: 3652
+
+PYTHON setup.py build_ext --inplace
+PYTHON -c "import doctest; import mydoctest as m; exit(doctest.testmod(m)[0])"
+
+######### setup.py #########
+
+from Cython.Build import cythonize
+from distutils.core import setup
+
+files = ["mydoctest.pyx"]
+setup(ext_modules = cythonize(files))
+
+######### containers.h #########
+
+#include <algorithm>
+#include <vector>
+#include <Python.h>
+
+template<class T>
+class MyContainer {
+
+  std::vector<T> data;
+
+public:
+  typedef typename std::vector<T>::const_iterator const_iterator;
+
+  explicit MyContainer() {}
+
+  void push(const T& t) {
+    data.push_back(t);
+  }
+
+  const_iterator begin() const { return data.begin(); }
+  const_iterator end() const { return data.end(); }
+};
+
+template<class T>
+class MyContainerFind : public MyContainer<T> {
+public:
+  typedef typename std::vector<T>::const_iterator const_iterator;
+
+  explicit MyContainerFind() {}
+
+  const_iterator find(const T& t) const {
+    PySys_WriteStdout("using MyContainerFind::find\n");
+    return std::find(this->begin(), this->end(), t);
+  }
+};
+
+template<class T>
+class MyContainerContains : public MyContainer<T> {
+public:
+  typedef typename std::vector<T>::const_iterator const_iterator;
+
+  explicit MyContainerContains() {}
+
+  bool contains(const T& t) const {
+    PySys_WriteStdout("using MyContainerContains::contains\n");
+    return std::find(this->begin(), this->end(), t) != this->end();
+  }
+};
+
+template<class T>
+class MyContainerContainsFind : public MyContainer<T> {
+public:
+  typedef typename std::vector<T>::const_iterator const_iterator;
+
+  explicit MyContainerContainsFind() {}
+
+  const_iterator find(const T& t) const {
+    PySys_WriteStdout("using MyContainerContainsFind::find\n");
+    return std::find(this->begin(), this->end(), t);
+  }
+
+  bool contains(const T& t) const {
+    PySys_WriteStdout("using MyContainerContainsFind::contains\n");
+    return std::find(this->begin(), this->end(), t) != this->end();
+  }
+};
+
+######### mydoctest.pyx #########
+# distutils: language = c++
+
+cdef extern from "containers.h" nogil:
+
+  cdef cppclass MyContainer[T]:
+    cppclass const_iterator:
+      T& operator*()
+    MyContainer() except +
+    void push(T&) except +
+    const_iterator begin() except +
+    const_iterator end() except +
+
+  cdef cppclass MyContainerFind[T]:
+    cppclass const_iterator:
+      T& operator*()
+    MyContainer() except +
+    void push(T&) except +
+    const_iterator begin() except +
+    const_iterator end() except +
+    const_iterator find(T&) except +
+
+  cdef cppclass MyContainerContains[T]:
+    cppclass const_iterator:
+      T& operator*()
+    MyContainer() except +
+    void push(T&) except +
+    const_iterator begin() except +
+    const_iterator end() except +
+    bint contains(T&) except +
+
+  cdef cppclass MyContainerContainsFind[T]:
+    cppclass const_iterator:
+      T& operator*()
+    MyContainer() except +
+    void push(T&) except +
+    const_iterator begin() except +
+    const_iterator end() except +
+    const_iterator find(T&) except +
+    bint contains(T&) except +
+
+from libcpp.deque cimport deque
+from libcpp.forward_list cimport forward_list
+from libcpp.list cimport list
+from libcpp.map cimport map
+from libcpp.unordered_map cimport unordered_map
+from libcpp.set cimport set
+from libcpp.unordered_set cimport unordered_set
+from libcpp.vector cimport vector
+
+def int_test(x, elems):
+    """
+    >>> int_test(0, [0,1,2])
+    using MyContainerFind::find
+    using MyContainerContains::contains
+    using MyContainerContainsFind::contains
+    using MyContainerFind::find
+    using MyContainerContains::contains
+    using MyContainerContainsFind::contains
+    True
+    >>> int_test(3, [0,1,2])
+    using MyContainerFind::find
+    using MyContainerContains::contains
+    using MyContainerContainsFind::contains
+    using MyContainerFind::find
+    using MyContainerContains::contains
+    using MyContainerContainsFind::contains
+    False
+    >>> int_test(0, [])
+    using MyContainerFind::find
+    using MyContainerContains::contains
+    using MyContainerContainsFind::contains
+    using MyContainerFind::find
+    using MyContainerContains::contains
+    using MyContainerContainsFind::contains
+    False
+    """
+    cdef deque[int]                     a
+    cdef forward_list[int]              b
+    cdef list[int]                      c = elems
+    cdef map[int,int]                   d = {z:z for z in elems}
+    cdef unordered_map[int,int]         e = {z:z for z in elems}
+    cdef set[int]                       f = elems
+    cdef unordered_set[int]             g = elems
+    cdef vector[int]                    h = elems
+    cdef MyContainer[int]               i
+    cdef MyContainerFind[int]           j
+    cdef MyContainerContains[int]       k
+    cdef MyContainerContainsFind[int]   l
+
+    for z in elems:
+        a.push_front(z)
+        b.push_front(z)
+        i.push(z)
+        j.push(z)
+        k.push(z)
+        l.push(z)
+
+    res = (x in a)
+    assert res == (x in a)
+    assert res == (x in b)
+    assert res == (x in c)
+    assert res == (x in d)
+    assert res == (x in e)
+    assert res == (x in f)
+    assert res == (x in g)
+    assert res == (x in h)
+    assert res == (x in i)
+    assert res == (x in j)
+    assert res == (x in k)
+    assert res == (x in l)
+    assert (not res) == (x not in a)
+    assert (not res) == (x not in b)
+    assert (not res) == (x not in c)
+    assert (not res) == (x not in d)
+    assert (not res) == (x not in e)
+    assert (not res) == (x not in f)
+    assert (not res) == (x not in g)
+    assert (not res) == (x not in h)
+    assert (not res) == (x not in i)
+    assert (not res) == (x not in j)
+    assert (not res) == (x not in k)
+    assert (not res) == (x not in l)
+    return res
+
