@@ -10,7 +10,7 @@ import cython
 
 # Don't add FrozenSet to this list - it's necessary for one of the tests
 # that it isn't a module global name
-from typing import Dict, List, TypeVar, Optional, Generic, Tuple
+from typing import Dict, List, TypeVar, Optional, Generic, Tuple, Union
 
 try:
     import typing
@@ -29,11 +29,13 @@ another_list: list[cython.int] = []
 t: Tuple[cython.int, ...] = (1, 2, 3)
 t2: tuple[cython.int, ...]
 body: Optional[List[str]]
+body2: Union[List[str], None]
 descr_only : "descriptions are allowed but ignored"
 
 
 some_number = 5
 body = None
+body2 = None
 
 
 def f():
@@ -48,6 +50,7 @@ def f():
     some_list: List[cython.int] = []  # variable with initial value
     t: Tuple[cython.int, ...] = (1, 2, 3)
     body: Optional[List[str]]
+    body2: Union[None, List[str]]
     descr_only: "descriptions are allowed but ignored"
 
     return var, fvar, some_list, t
@@ -265,6 +268,8 @@ def test_use_typing_attributes_as_non_annotations():
     typing.Tuple typing.Tuple[int]
     typing.Optional True
     typing.Optional True
+    typing.Union typing.FrozenSet
+    typing.Union typing.Dict
     """
     x1 = typing.Tuple
     x2 = typing.Tuple[int]
@@ -274,6 +279,10 @@ def test_use_typing_attributes_as_non_annotations():
     y2 = typing.Optional[typing.FrozenSet]
     z1 = Optional
     z2 = Optional[Dict]
+    q1 = typing.Union
+    q2 = typing.Union[typing.FrozenSet]
+    w1 = Union
+    w2 = Union[Dict]
     # The result of printing "Optional[type]" is slightly version-dependent
     # so accept both possible forms
     allowed_optional_frozenset_strings = [
@@ -287,6 +296,8 @@ def test_use_typing_attributes_as_non_annotations():
     print(x1, x2)
     print(y1, str(y2) in allowed_optional_frozenset_strings  or  str(y2))
     print(z1, str(z2) in allowed_optional_dict_strings  or  str(z2))
+    print(q1, str(q2) == "typing.Union[typing.FrozenSet, NoneType]" or str(q2))
+    print(w1, str(w2) == "typing.Union[typing.Dict, NoneType]" or str(w2))
 
 def test_optional_ctuple(x: typing.Optional[tuple[float]]):
     """
