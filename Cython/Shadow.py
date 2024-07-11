@@ -109,6 +109,7 @@ annotation_typing = returns = wraparound = boundscheck = initializedcheck = \
     auto_cpdef = c_api_binop_methods = \
     allow_none_for_extension_args = callspec = show_performance_hints = \
     cpp_locals = py2_import = iterable_coroutine = remove_unreachable = \
+    threadsafe_variable_access = \
         lambda _: _EmptyDecoratorAndManager()
 
 # Note that fast_getattr is untested and undocumented!

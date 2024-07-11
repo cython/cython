@@ -2787,7 +2787,8 @@ class CalculateQualifiedNamesTransform(EnvTransform):
         lhs = ExprNodes.NameNode(
             node.pos,
             name = EncodedString(name),
-            entry=entry)
+            entry=entry,
+            is_target=True)
         rhs = ExprNodes.StringNode(
             node.pos,
             value=value.as_utf8_string(),
@@ -2945,6 +2946,7 @@ class ExpandInplaceOperators(EnvTransform):
                                      operand2 = rhs,
                                      inplace=True)
         # Manually analyse types for new node.
+        lhs.is_target = True
         lhs = lhs.analyse_target_types(env)
         dup.analyse_types(env)  # FIXME: no need to reanalyse the copy, right?
         binop.analyse_operation(env)
@@ -3268,16 +3270,16 @@ class MarkClosureVisitor(CythonTransform):
     # generator iterable and marking them
 
     def visit_ModuleNode(self, node):
-        self.needs_closure = False
+        self.needs_closure = Nodes.FuncDefNode.NeedsClosure.NO_CLOSURE
         self.excludes = []
         self.visitchildren(node)
         return node
 
     def visit_FuncDefNode(self, node):
-        self.needs_closure = False
+        self.needs_closure = Nodes.FuncDefNode.NeedsClosure.NO_CLOSURE
         self.visitchildren(node)
         node.needs_closure = self.needs_closure
-        self.needs_closure = True
+        self.needs_closure = Nodes.FuncDefNode.NeedsClosure.FULL_CLOSURE
 
         collector = YieldNodeCollector(self.excludes)
         collector.visitchildren(node)
@@ -3314,27 +3316,31 @@ class MarkClosureVisitor(CythonTransform):
             gbody=gbody, lambda_name=node.lambda_name,
             return_type_annotation=node.return_type_annotation,
             is_generator_expression=node.is_generator_expression)
+        if node.needs_closure:
+            # We may have determined that we need a "full closure"
+            # so upgrade the coroutine to signal that
+            coroutine.needs_closure = node.needs_closure
         return coroutine
 
     def visit_CFuncDefNode(self, node):
-        self.needs_closure = False
+        self.needs_closure = Nodes.FuncDefNode.NeedsClosure.NO_CLOSURE
         self.visitchildren(node)
         node.needs_closure = self.needs_closure
-        self.needs_closure = True
+        self.needs_closure = Nodes.FuncDefNode.NeedsClosure.FULL_CLOSURE
         if node.needs_closure and node.overridable:
             error(node.pos, "closures inside cpdef functions not yet supported")
         return node
 
     def visit_LambdaNode(self, node):
-        self.needs_closure = False
+        self.needs_closure = Nodes.FuncDefNode.NeedsClosure.NO_CLOSURE
         self.visitchildren(node)
         node.needs_closure = self.needs_closure
-        self.needs_closure = True
+        self.needs_closure = Nodes.FuncDefNode.NeedsClosure.FULL_CLOSURE
         return node
 
     def visit_ClassDefNode(self, node):
         self.visitchildren(node)
-        self.needs_closure = True
+        self.needs_closure = Nodes.FuncDefNode.NeedsClosure.FULL_CLOSURE
         return node
 
     def visit_GeneratorExpressionNode(self, node):
@@ -3394,7 +3400,7 @@ class CreateClosureClasses(CythonTransform):
         in_closure.sort()
 
         # Now from the beginning
-        node.needs_closure = False
+        node.needs_closure = Nodes.FuncDefNode.NeedsClosure.NO_CLOSURE
         node.needs_outer_scope = False
 
         func_scope = node.local_scope
@@ -3460,7 +3466,7 @@ class CreateClosureClasses(CythonTransform):
                 is_cdef=True)
             if entry.is_declared_generic:
                 closure_entry.is_declared_generic = 1
-        node.needs_closure = True
+        node.needs_closure = Nodes.FuncDefNode.NeedsClosure.FULL_CLOSURE
         # Do it here because other classes are already checked
         target_module_scope.check_c_class(func_scope.scope_class)
 
@@ -3557,6 +3563,91 @@ class InjectGilHandling(VisitorTransform, SkipDeclarations):
     visit_Node = VisitorTransform.recurse_to_children
 
 
+class _ThreadsafetyVisitAssignmentTargetNodes(TreeVisitor):
+    def __call__(self, root):
+        self.coerce_lhs_to_temps = False
+        self.target_info = set()
+        self.visitchildren(root)
+
+        # TODO - in principle lengths of 2 can also be optimized:
+        # with critical sections we can lock 2, and for global/local
+        # scope mutexes we could also lock 2 providing we define a
+        # fixed order.
+        # This potentially helps avoid a few temps.
+        if len(self.target_info) > 1:
+            self.coerce_lhs_to_temps = True
+
+    def visit_Node(self, node):
+        # only go to a depth of one
+        pass
+
+    def _visit_name_or_attribute_node(self, node):
+        if not node.is_target:
+            return
+        if not node.needs_threadsafe_access:
+            return
+        self.target_info.add((
+            node.needs_threadsafe_access, node.threadsafety_data
+        ))
+        if node.needs_threadsafe_access != ExprNodes.ThreadSafetyType.LOCAL:
+            # It's always safe to lock the local scope because it can't
+            # happen recursively.
+            # TODO - when we're properly using critical sections it should
+            # be safe to lock them here too.
+            self.coerce_lhs_to_temps = True
+
+    def visit_NameNode(self, node):
+        self._visit_name_or_attribute_node(node)
+
+    def visit_AttributeNode(self, node):
+        self._visit_name_or_attribute_node(node)
+
+
+class _ThreadsafetyVisitAssignmentNonTargetNodes(VisitorTransform):
+    def __init__(self, coerce_lhs_to_temps, target_info):
+        self.coerce_lhs_to_temps = coerce_lhs_to_temps
+        self.target_info = target_info
+        super().__init__()
+
+    def visit_AssignmentNode(self, node):
+        self.visitchildren(node)
+        return node
+
+    def visit_ExprNode(self, node):
+        # One level only - don't visit children
+        if getattr(self, "is_target", False):
+            return node
+        if not node.is_simple() and self.coerce_lhs_to_temps:
+            return node.coerce_to_temp(None)
+        return node
+
+    def visit_ProxyNode(self, node):
+        return node  # don't mess with this
+
+    def _visit_name_or_attribute_node(self, node):
+        if node.is_target:
+            return node
+        if not node.is_simple() and self.coerce_lhs_to_temps:
+            return node.coerce_to_temp(None)
+        if not node.needs_threadsafe_access:
+            return node
+        target_info = (node.needs_threadsafe_access, node.threadsafety_data)
+        if target_info in self.target_info:
+            # This node is guarded by the same lock as the lhs
+            # so don't lock it separately
+            node.needs_threadsafe_access = ExprNodes.ThreadSafetyType.NONE
+            return node
+        if self.coerce_lhs_to_temps:
+            return node.coerce_to_temp(None)
+        return node
+
+    def visit_NameNode(self, node):
+        return self._visit_name_or_attribute_node(node)
+
+    def visit_AttributeNode(self, node):
+        return self._visit_name_or_attribute_node(node)
+
+
 class GilCheck(VisitorTransform):
     """
     Call `node.gil_check(env)` on each node to make sure we hold the
@@ -3565,11 +3656,14 @@ class GilCheck(VisitorTransform):
 
     Additionally, raise exceptions for closely nested with gil or with nogil
     statements. The latter would abort Python.
+
+    Also does some coercions to temp for lookups that need thread safe access.
     """
 
     def __call__(self, root):
         self.env_stack = [root.scope]
         self.nogil = False
+        self.was_coerce_to_temp = False
 
         # True for 'cdef func() nogil:' functions, as the GIL may be held while
         # calling this function (thus contained 'nogil' blocks may be valid).
@@ -3703,16 +3797,62 @@ class GilCheck(VisitorTransform):
         self.visitchildren(node)
         return node
 
-    def visit_Node(self, node):
+    def visit_Node(self, node, coerce_to_temp_node=False):
         if self.env_stack and self.nogil and node.nogil_check:
             node.nogil_check(self.env_stack[-1])
+        if not coerce_to_temp_node:
+            self.was_coerce_to_temp = False
         if node.outer_attrs:
             self._visit_scoped_children(node, self.nogil)
         else:
             self.visitchildren(node)
         if self.nogil:
             node.in_nogil_context = True
+        self.was_coerce_to_temp = False
         return node
+
+    def visit_CoerceToTempNode(self, node):
+        self.was_coerce_to_temp = True
+        return self.visit_Node(node, coerce_to_temp_node=True)
+
+    def _visit_name_or_attribute(self, node):
+        # If the node needs threadsafe access then it must be in
+        # a temp (either directly or in a CoerceToTemp wrapper).
+        # Targets are handled separately
+        if (not node.is_target and
+                not self.was_coerce_to_temp and
+                node.needs_threadsafe_access and not node.is_temp):
+            # As far as I can tell, env isn't used in "coerce_to_temp"
+            node = node.coerce_to_temp(None)
+            return self.visit(node)
+        return self.visit_Node(node)
+
+    def visit_NameNode(self, node):
+        return self._visit_name_or_attribute(node)
+
+    def visit_AttributeNode(self, node):
+        return self._visit_name_or_attribute(node)
+
+    def visit_AssignmentNode(self, node):
+        target_visitor = _ThreadsafetyVisitAssignmentTargetNodes()
+        target_visitor(node)
+
+        nontarget_visitor = _ThreadsafetyVisitAssignmentNonTargetNodes(
+            target_visitor.coerce_lhs_to_temps,
+            target_visitor.target_info
+        )
+        nontarget_visitor(node)
+
+        return self.visit_Node(node)
+
+    def visit_LetNode(self, node):
+        # Treat like coerce to temp. This primarily affect in place arithmetic.
+        # The temp_expression is already a temp, so no need to coerce further
+        self.was_coerce_to_temp = True
+        return self.visit_Node(node, coerce_to_temp_node=True)
+
+    def visit_ProxyNode(self, node):
+        return self.visit_Node(node)
 
 
 class CoerceCppTemps(EnvTransform, SkipDeclarations):

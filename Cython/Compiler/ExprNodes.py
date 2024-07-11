@@ -20,6 +20,7 @@ import sys
 import copy
 import os.path
 import operator
+import enum
 
 from .Errors import (
     error, warning, InternalError, CompileError, report_error, local_errors,
@@ -300,6 +301,107 @@ def translate_double_cpp_exception(code, pos, lhs_type, lhs_code, rhs_code, lhs_
         code.put_release_ensured_gil()
     code.putln(code.error_goto(pos))
     code.putln('}')
+
+
+class ThreadSafetyType(enum.IntEnum):
+    # This is also intended to be the sort order of the
+    # types where we want to lock in two places at once.
+    NONE = 0
+    MODULE = enum.auto()
+    LOCAL = enum.auto()
+    CLOSURE = enum.auto()
+    C_CLASS = enum.auto()
+
+
+def analyse_thread_safety(node, env):
+    """
+    Either leaves "node.needs_threadsafe_access" or sets it
+    to the scope that it should be locked with.
+    """
+    if env.nogil:
+        return  # we only do thread safety with the GIL
+    if env.is_c_class_scope:
+        # evaluation of C class scope is assumed not to
+        # need guarding
+        return
+    directive = env.directives['threadsafe_variable_access']
+    if directive == 'off':
+        return  # the user has told us it doesn't need thread safety
+    if directive == 'refcounted' and not (
+            node.type.needs_refcounting or
+            (node.type.is_cpp_class and env.directives['cpp_locals'])):
+        # I think it makes sense to treat cpplocals as a pseudo-refcounted type
+        # since Cython's essentially taking ownership of their behaviour
+        return
+    entry = node.entry
+    if entry is None:
+        return
+    if entry.type.is_cfunction:
+        # C functions are immutable so can be special-cased out
+        return
+    if entry.scope.is_c_class_scope and node.is_attribute:
+        # TODO - I think that setting threadsafe_variable_access on
+        # the C class scope should also have an influence here. However
+        # it isn't completely clear what influence (given it might raise
+        # or lower the level).
+        node.needs_threadsafe_access = ThreadSafetyType.C_CLASS
+        if node.entry:
+            node.threadsafety_data = node.entry
+        else:
+            node.threadsafety_data = object()  # No entry, so "unique"
+        return
+    if entry.scope.is_module_scope and entry.is_cglobal:
+        node.needs_threadsafe_access = ThreadSafetyType.MODULE
+        node.threadsafety_data = entry.scope
+        return
+    if (entry.from_closure and entry.outer_entry.scope.is_closure_scope and
+            not entry.outer_entry.scope.is_pure_generator_scope):
+        node.needs_threadsafe_access = ThreadSafetyType.CLOSURE
+        node.threadsafety_data = entry.outer_entry.scope
+        return
+    if (entry.in_closure and entry.scope.is_closure_scope and
+            not entry.scope.is_pure_generator_scope):
+        node.needs_threadsafe_access = ThreadSafetyType.CLOSURE
+        node.threadsafety_data = entry.scope
+        return
+    if not entry.scope.is_local_scope:
+        # Local scope has complicated rules due to parallel blocks.
+        # Other scopes just don't need thread safety.
+        return
+    if not node.type.needs_refcounting:
+        # Non-refcounted types end up as thread-private anyway, so
+        # they're always safe in parallel blocks.
+        return
+    if node.cf_is_null:
+        # We know enough about it to know that no-one else has written to it
+        return
+    if not any(assignment.in_parallel for assignment in node.entry.cf_assignments):
+        return  # No assignments in a parallel region - nothing can change
+    if env._in_parallel_block:
+        node.needs_threadsafe_access = ThreadSafetyType.LOCAL
+        node.threadsafety_data = entry.scope
+
+def generate_error_handled_threadsafe_lock(node, code):
+    assert node.is_name or node.is_attribute
+    if not node.needs_threadsafe_access:
+        return
+    node.threadsafe_lock_error_label = code.new_error_label()
+    node.generate_threadsafe_lock(code)
+
+def generate_error_handled_threadsafe_unlock(node, code):
+    assert node.is_name or node.is_attribute
+    if not node.needs_threadsafe_access:
+        return
+    if code.label_used(code.error_label):
+        code.putln("if ((0)) {")
+        code.put_label(code.error_label)
+        code.putln("__Pyx_BEGIN_ERROR_HANDLING_DUMMY_SECTION;")
+        node.generate_threadsafe_unlock(code)
+        code.put_goto(node.threadsafe_lock_error_label)
+        code.putln("}")
+
+    node.generate_threadsafe_unlock(code)
+    code.error_label = node.threadsafe_lock_error_label
 
 
 class ExprNode(Node):
@@ -2009,6 +2111,10 @@ class NameNode(AtomicExprNode):
     #  cf_maybe_null   boolean   Maybe uninitialized before this node
     #  allow_null      boolean   Don't raise UnboundLocalError
     #  nogil           boolean   Whether it is used in a nogil context
+    #  needs_threadsafe_access  ThreadSafetyType  Requires thread-safe locking in freethreading builds
+    #  threadsafety_data   object  Depends on "needs_threadsafe_access" but at a minimum it should
+    #                              provide a unique identifier of the locked object (and so if that
+    #                              isn't known, object() is a good choice)
 
     is_name = True
     is_cython_module = False
@@ -2022,6 +2128,8 @@ class NameNode(AtomicExprNode):
     allow_null = False
     nogil = False
     inferred_type = None
+    needs_threadsafe_access = ThreadSafetyType.NONE
+    threadsafety_data = None
 
     def as_cython_attribute(self):
         return self.cython_attribute
@@ -2270,6 +2378,7 @@ class NameNode(AtomicExprNode):
             from . import Buffer
             Buffer.used_buffer_aux_vars(entry)
         self.analyse_rvalue_entry(env)
+        analyse_thread_safety(self, env)
         return self
 
     def analyse_target_types(self, env):
@@ -2292,6 +2401,7 @@ class NameNode(AtomicExprNode):
         if entry.type.is_buffer:
             from . import Buffer
             Buffer.used_buffer_aux_vars(entry)
+        analyse_thread_safety(self, env)
         return self
 
     def analyse_rvalue_entry(self, env):
@@ -2450,6 +2560,7 @@ class NameNode(AtomicExprNode):
             return  # There was an error earlier
         if entry.utility_code:
             code.globalstate.use_utility_code(entry.utility_code)
+        generate_error_handled_threadsafe_lock(self, code)
         if entry.is_builtin and entry.is_const:
             return  # Lookup already cached
         elif entry.is_pyclass_attr:
@@ -2545,6 +2656,8 @@ class NameNode(AtomicExprNode):
         if (self.entry.type.is_ptr and isinstance(rhs, ListNode)
                 and not self.lhs_of_first_assignment and not rhs.in_module_scope):
             error(self.pos, "Literal list must be assigned to pointer at time of declaration")
+
+        self.generate_threadsafe_lock(code)
 
         # is_pyglobal seems to be True for module level-globals only.
         # We use this to access class->tp_dict if necessary.
@@ -2645,6 +2758,39 @@ class NameNode(AtomicExprNode):
 
             rhs.free_temps(code)
 
+        self.generate_threadsafe_unlock(code)
+
+    def generate_threadsafe_lock(self, code):
+        if not self.needs_threadsafe_access:
+            return
+        # We don't have an obj so I don't see how we can lock
+        assert self.needs_threadsafe_access != ThreadSafetyType.C_CLASS
+        if self.needs_threadsafe_access == ThreadSafetyType.CLOSURE:
+            scope_cname = self.entry.cname.rsplit('->', 1)[0]
+            code.put_pyobject_lock(f"(PyObject*){scope_cname}")
+        elif (self.needs_threadsafe_access == ThreadSafetyType.MODULE or
+                self.needs_threadsafe_access == ThreadSafetyType.LOCAL):
+            code.put_scope_pymutex_lock(
+                # in this case threadsafety_data is the scope
+                self.threadsafety_data.scope_mutex_cname,
+                is_local = self.needs_threadsafe_access == ThreadSafetyType.LOCAL)
+        else:
+            assert False, self.needs_threadsafe_access
+
+    def generate_threadsafe_unlock(self, code):
+        if not self.needs_threadsafe_access:
+            return
+        # We don't have an obj so I don't see how we can lock
+        assert self.needs_threadsafe_access != ThreadSafetyType.C_CLASS
+        if self.needs_threadsafe_access == ThreadSafetyType.CLOSURE:
+            scope_cname = self.entry.cname.rsplit('->', 1)[0]
+            code.put_pyobject_unlock(f"(PyObject*){scope_cname}")
+        elif (self.needs_threadsafe_access == ThreadSafetyType.MODULE or
+                self.needs_threadsafe_access == ThreadSafetyType.LOCAL):
+            code.put_scope_pymutex_unlock(self.threadsafety_data.scope_mutex_cname)
+        else:
+            assert False, self.needs_threadsafe_access
+
     def generate_acquire_memoryviewslice(self, rhs, code):
         """
         Slices, coercions from objects, return values etc are new references.
@@ -2684,7 +2830,8 @@ class NameNode(AtomicExprNode):
     def generate_deletion_code(self, code, ignore_nonexisting=False):
         if self.entry is None:
             return  # There was an error earlier
-        elif self.entry.is_pyclass_attr:
+        generate_error_handled_threadsafe_lock(self, code)
+        if self.entry.is_pyclass_attr:
             namespace = self.entry.scope.namespace_cname
             interned_cname = code.intern_identifier(self.entry.name)
             if ignore_nonexisting:
@@ -2730,6 +2877,11 @@ class NameNode(AtomicExprNode):
                                           have_gil=not self.nogil)
         else:
             error(self.pos, "Deletion of C names not supported")
+        generate_error_handled_threadsafe_unlock(self, code)
+
+    def generate_disposal_code(self, code):
+        generate_error_handled_threadsafe_unlock(self, code)
+        super().generate_disposal_code(code)
 
     def annotate(self, code):
         if getattr(self, 'is_called', False):
@@ -2744,6 +2896,13 @@ class NameNode(AtomicExprNode):
         if self.entry:
             return self.entry.known_standard_library_import
         return None
+
+    @property
+    def _needs_threadsafe_access_bool(self):
+        """
+        For inspection in test_assert_path_exists in the test suite
+        """
+        return bool(self.needs_threadsafe_access)
 
 class BackquoteNode(ExprNode):
     #  `expr`
@@ -7374,6 +7533,10 @@ class AttributeNode(ExprNode):
     #  member               string    C name of struct member
     #  is_called            boolean   Function call is being done on result
     #  entry                Entry     Symbol table entry of attribute
+    #  needs_threadsafe_access  ThreadSafetyType  Requires thread-safe locking in freethreading builds
+    #  threadsafety_data   object  Depends on "needs_threadsafe_access" but at a minimum it should
+    #                              provide a unique identifier of the locked object (and so if that
+    #                              isn't known, object() is a good choice)
 
     is_attribute = 1
     subexprs = ['obj']
@@ -7384,6 +7547,9 @@ class AttributeNode(ExprNode):
     is_memslice_transpose = False
     is_special_lookup = False
     is_py_attr = 0
+    needs_threadsafe_access = ThreadSafetyType.NONE
+    threadsafety_data = None
+
 
     def as_cython_attribute(self):
         if (isinstance(self.obj, NameNode) and
@@ -7509,6 +7675,7 @@ class AttributeNode(ExprNode):
             node.entry.used = True
         if node.is_attribute:
             node.wrap_obj_in_nonecheck(env)
+        analyse_thread_safety(self, env)
         return node
 
     def analyse_as_cimported_attribute_node(self, env, target):
@@ -7849,6 +8016,7 @@ class AttributeNode(ExprNode):
             return "%s%s%s" % (obj_code, self.op, self.member)
 
     def generate_result_code(self, code):
+        generate_error_handled_threadsafe_lock(self, code)
         if self.is_py_attr:
             if self.is_special_lookup:
                 code.globalstate.use_utility_code(
@@ -7905,16 +8073,49 @@ class AttributeNode(ExprNode):
                 # C method implemented as function call with utility code
                 code.globalstate.use_entry_utility_code(self.entry)
 
+    def generate_threadsafe_lock(self, code):
+        if not self.needs_threadsafe_access:
+            return
+        if self.needs_threadsafe_access == ThreadSafetyType.C_CLASS:
+            code.put_pyobject_lock(self.obj.result_as(py_object_type))
+        elif self.needs_threadsafe_access == ThreadSafetyType.CLOSURE:
+            scope_cname = self.entry.cname.rsplit('->', 1)[0]
+            code.put_pyobject_lock(f"(PyObject*){scope_cname}")
+        elif (self.needs_threadsafe_access == ThreadSafetyType.LOCAL or
+                self.needs_threadsafe_access == ThreadSafetyType.MODULE):
+            code.put_scope_pymutex_lock(
+                self.threadsafety_data.scope_mutex_cname,
+                is_local = self.needs_threadsafe_access == ThreadSafetyType.MODULE)
+        else:
+            assert False, self.needs_threadsafe_access
+
+    def generate_threadsafe_unlock(self, code):
+        if not self.needs_threadsafe_access:
+            return
+        if self.needs_threadsafe_access == ThreadSafetyType.C_CLASS:
+            code.put_pyobject_unlock(self.obj.result_as(py_object_type))
+        elif self.needs_threadsafe_access == ThreadSafetyType.CLOSURE:
+            scope_cname = self.entry.cname.rsplit('->', 1)[0]
+            code.put_pyobject_unlock(f"(PyObject*){scope_cname}")
+        elif (self.needs_threadsafe_access == ThreadSafetyType.LOCAL or
+                self.needs_threadsafe_access == ThreadSafetyType.MODULE):
+            code.put_scope_pymutex_lock(self.threadsafety_data.scope_mutex_cname)
+        else:
+            assert False, self.needs_threadsafe_access
+
     def generate_disposal_code(self, code):
         if self.is_temp and self.type.is_memoryviewslice and self.is_memslice_transpose:
             # mirror condition for putting the memview incref here:
             code.put_xdecref_clear(self.result(), self.type, have_gil=True)
+            generate_error_handled_threadsafe_unlock(self, code)
         else:
+            generate_error_handled_threadsafe_unlock(self, code)
             ExprNode.generate_disposal_code(self, code)
 
     def generate_assignment_code(self, rhs, code, overloaded_assignment=False,
                                  exception_check=None, exception_value=None):
         self.obj.generate_evaluation_code(code)
+        self.generate_threadsafe_lock(code)
         if self.is_py_attr:
             code.globalstate.use_utility_code(
                 UtilityCode.load_cached("PyObjectSetAttrStr", "ObjectHandling.c"))
@@ -7953,10 +8154,12 @@ class AttributeNode(ExprNode):
                         #rhs.result()))
             rhs.generate_post_assignment_code(code)
             rhs.free_temps(code)
+        self.generate_threadsafe_unlock(code)
         self.obj.generate_disposal_code(code)
         self.obj.free_temps(code)
 
     def generate_deletion_code(self, code, ignore_nonexisting=False):
+        assert not self.needs_threadsafe_access
         self.obj.generate_evaluation_code(code)
         if self.is_py_attr or (self.entry.scope.is_property_scope
                                and '__del__' in self.entry.scope.entries):
@@ -7983,6 +8186,13 @@ class AttributeNode(ExprNode):
         if module_name:
             return StringEncoding.EncodedString("%s.%s" % (module_name, self.attribute))
         return None
+
+    @property
+    def _needs_threadsafe_access_bool(self):
+        """
+        For inspection in test_assert_path_exists in the test suite
+        """
+        return bool(self.needs_threadsafe_access)
 
 
 #-------------------------------------------------------------------
@@ -14018,7 +14228,7 @@ class CastNode(CoercionNode):
         return self.arg.result_as(self.type)
 
     def generate_result_code(self, code):
-        self.arg.generate_result_code(code)
+        pass
 
 
 class PyTypeTestNode(CoercionNode):

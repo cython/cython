@@ -1340,6 +1340,7 @@ class ModuleScope(Scope):
         '__builtins__', '__name__', '__file__', '__doc__', '__path__',
         '__spec__', '__loader__', '__package__', '__cached__',
     ]
+    scope_mutex_cname = Naming.scope_mutex_cname
 
     def __init__(self, name, parent_module, context, is_package=False):
         from . import Builtin
@@ -1970,12 +1971,16 @@ class ModuleScope(Scope):
 
 class LocalScope(Scope):
     is_local_scope = True
+    # append "local" just to distinuish from any global macro
+    scope_mutex_cname = Naming.scope_mutex_cname + "_local"
 
     # Does the function have a 'with gil:' block?
     has_with_gil_block = False
 
     # Transient attribute, used for symbol table variable declarations
     _in_with_gil_block = False
+    # Transient attribute in analyse expression, used to work out thread-safety
+    _in_parallel_block = False
 
     def __init__(self, name, outer_scope, parent_scope = None):
         if parent_scope is None:
@@ -2151,9 +2156,12 @@ class ComprehensionScope(Scope):
 class ClosureScope(LocalScope):
 
     is_closure_scope = True
+    is_pure_generator_scope = False
 
-    def __init__(self, name, scope_name, outer_scope, parent_scope=None):
+    def __init__(self, name, scope_name, outer_scope, parent_scope=None,
+                 is_pure_generator_scope=False):
         LocalScope.__init__(self, name, outer_scope, parent_scope)
+        self.is_pure_generator_scope = is_pure_generator_scope
         self.closure_cname = "%s%s" % (Naming.closure_scope_prefix, scope_name)
 
 #    def mangle_closure_cnames(self, scope_var):

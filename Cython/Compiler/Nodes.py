@@ -14,6 +14,7 @@ cython.declare(os=object, copy=object, chain=object,
 
 import copy
 from itertools import chain
+import enum
 
 from . import Builtin
 from .Errors import error, warning, InternalError, CompileError, CannotSpecialize
@@ -1849,7 +1850,7 @@ class FuncDefNode(StatNode, BlockNode):
     #  return_type     PyrexType
     #  #filename        string        C name of filename string const
     #  entry           Symtab.Entry
-    #  needs_closure   boolean        Whether or not this function has inner functions/classes/yield
+    #  needs_closure   FuncDefNode.NeedsClosure enum        Whether or not this function has inner functions/classes/yield
     #  needs_outer_scope boolean      Whether or not this function requires outer scope
     #  pymethdef_required boolean     Force Python method struct generation
     #  directive_locals { string : ExprNode } locals defined by cython.locals(...)
@@ -1864,8 +1865,13 @@ class FuncDefNode(StatNode, BlockNode):
     #       by AnalyseDeclarationsTransform, so it can replace CFuncDefNodes
     #       with fused argument types with a FusedCFuncDefNode
 
+    class NeedsClosure(enum.IntEnum):
+        NO_CLOSURE = 0
+        GENERATOR_ONLY = 1
+        FULL_CLOSURE = 2
+
     py_func = None
-    needs_closure = False
+    needs_closure = NeedsClosure.NO_CLOSURE
     needs_outer_scope = False
     pymethdef_required = False
     is_generator = False
@@ -1949,7 +1955,8 @@ class FuncDefNode(StatNode, BlockNode):
             lenv = cls(name=self.entry.name,
                                 outer_scope=genv,
                                 parent_scope=env,
-                                scope_name=self.entry.cname)
+                                scope_name=self.entry.cname,
+                                is_pure_generator_scope=self.needs_closure != self.NeedsClosure.FULL_CLOSURE)
         else:
             lenv = LocalScope(name=self.entry.name,
                               outer_scope=genv,
@@ -2428,6 +2435,11 @@ class FuncDefNode(StatNode, BlockNode):
             refnanny_decl_code.put_declare_refcount_context()
             refnanny_setup_code.put_setup_refcount_context(self.entry.name, acquire_gil=refnanny_needs_gil)
             code.put_finish_refcount_context(nogil=not gil_owned['success'])
+
+        if code.funcstate.uses_scope_mutex:
+            tempvardecl_code.putln("#if CYTHON_COMPILING_IN_CPYTHON_FREETHREADING")
+            tempvardecl_code.putln(f"PyMutex {code.funcstate.scope.scope_mutex_cname} = {{0}};")
+            tempvardecl_code.putln("#endif")
 
         if acquire_gil or (lenv.nogil and gil_owned['success']):
             # release the GIL (note that with-gil blocks acquire it on exit in their EnsureGILNode)
@@ -4666,7 +4678,7 @@ class GeneratorDefNode(DefNode):
     is_generator = True
     is_iterable_coroutine = False
     gen_type_name = 'Generator'
-    needs_closure = True
+    needs_closure = FuncDefNode.NeedsClosure.GENERATOR_ONLY
 
     child_attrs = DefNode.child_attrs + ["gbody"]
 
@@ -8747,6 +8759,8 @@ class GILStatNode(NogilTryFinallyStatNode):
         self.state_temp = ExprNodes.TempNode(pos, temp_type)
 
     def analyse_declarations(self, env):
+        if env.is_local_scope:
+            was_in_with_gil_block = env._in_with_gil_block
         env._in_with_gil_block = (self.state == 'gil')
         if self.state == 'gil':
             env.has_with_gil_block = True
@@ -8754,7 +8768,11 @@ class GILStatNode(NogilTryFinallyStatNode):
         if self.condition is not None:
             self.condition.analyse_declarations(env)
 
-        return super().analyse_declarations(env)
+        res = super().analyse_declarations(env)
+
+        if env.is_local_scope:
+            env._in_with_gil_block = was_in_with_gil_block
+        return res
 
     def analyse_expressions(self, env):
         env.use_utility_code(
@@ -9244,7 +9262,11 @@ class ParallelStatNode(StatNode, ParallelNode):
         if self.chunksize:
             self.chunksize = self.chunksize.analyse_expressions(env)
 
+        if env.is_local_scope:
+            in_parallel_block, env._in_parallel_block = env._in_parallel_block, True
         self.body = self.body.analyse_expressions(env)
+        if env.is_local_scope:
+            env._in_parallel_block = in_parallel_block
         self.analyse_sharing_attributes(env)
 
         if self.num_threads is not None:

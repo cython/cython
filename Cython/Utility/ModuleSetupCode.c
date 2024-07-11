@@ -2348,6 +2348,55 @@ static int __Pyx_VersionSanityCheck(void) {
 #include "internal/pycore_lock.h"
 #endif
 
+/////////////////////////// ScopeLockingDummySection.proto /////////////////
+
+#if CYTHON_COMPILING_IN_CPYTHON_FREETHREADING
+// The bracket here is just so that we can use END_CRITICAL_SECTION twice,
+// once in the good path and once in the error handling path. It matches the
+// closing bracket in END_CRITICAL_SECTION
+#define __Pyx_BEGIN_ERROR_HANDLING_DUMMY_SECTION {
+#else
+#define __Pyx_BEGIN_ERROR_HANDLING_DUMMY_SECTION
+#endif
+
+/////////////////////////// AccessCriticalSectionForFreeThreading.proto ////////////
+//@requires: ScopeLockingDummySection
+
+// Unfortunately we aren't yet in a position to use this fully because
+// critical sections aren't yet public API, and trying to include them from
+// the internal API ends up requiring "mimalloc.h".
+// Therefore do the best we can to introduce some object-based locking
+// (even if it doesn't have the full properties of a critical section)
+#if CYTHON_COMPILING_IN_CPYTHON_FREETHREADING
+  #if PY_VERSION_HEX > 0x030d00b1
+    #ifndef Py_BUILD_CORE
+    #define Py_BUILD_CORE 1
+    #endif
+    #include "internal/pycore_critical_section.h"
+  #endif
+  #define __Pyx_BEGIN_CRITICAL_SECTION(x) Py_BEGIN_CRITICAL_SECTION(x)
+  #define __Pyx_END_CRITICAL_SECTION(x) Py_END_CRITICAL_SECTION()
+#else // !FREETHREADING
+  #define __Pyx_BEGIN_CRITICAL_SECTION(x)
+  #define __Pyx_END_CRITICAL_SECTION(x)
+#endif
+
+////////////////////////// PyMutexScopeLock.proto ///////////////////
+//@requires: AccessPyMutexForFreeThreading
+//@requires: ScopeLockingDummySection
+
+#if CYTHON_COMPILING_IN_CPYTHON_FREETHREADING
+// The brackets here are just to match "critical sections"
+// so they look roughly the same in the generated code.
+#define __Pyx_BEGIN_PYMUTEX_SECTION(x) { \
+  PyMutex_Lock(x)
+#define __Pyx_END_PYMUTEX_SECTION(x) PyMutex_Unlock(x); \
+  }
+#else
+#define __Pyx_BEGIN_PYMUTEX_SECTION(x) // no-op
+#define __Pyx_END_PYMUTEX_SECTION(x) // no-op
+#endif
+
 ////////////////////////// SharedInFreeThreading.proto //////////////////
 
 #if CYTHON_COMPILING_IN_CPYTHON_FREETHREADING
