@@ -3577,10 +3577,10 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("{Py_mod_create, (void*)%s}," % Naming.pymodule_create_func_cname)
         code.putln("{Py_mod_exec, (void*)%s}," % exec_func_cname)
         code.putln("#if CYTHON_COMPILING_IN_CPYTHON_FREETHREADING")
-        code.putln("{Py_mod_gil, %s}," %
-                   "Py_MOD_GIL_NOT_USED"
-                   if env.directives["freethreading_compatible"]
-                   else "Py_MOD_GIL_USED")
+        gil_option = ("Py_MOD_GIL_NOT_USED"
+                      if env.directives["freethreading_compatible"]
+                      else "Py_MOD_GIL_USED")
+        code.putln("{Py_mod_gil, %s}," % gil_option)
         code.putln("#endif")
         code.putln("{0, NULL}")
         code.putln("};")

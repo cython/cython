@@ -2,20 +2,31 @@ PYTHON setup.py build_ext --inplace
 PYTHON -c "import default; default.test()"
 PYTHON -c "import compatible; compatible.test()"
 PYTHON -c "import incompatible; incompatible.test()"
+PYTHON -c "import default_single; default_single.test()"
+PYTHON -c "import compatible_single; compatible_single.test()"
+PYTHON -c "import incompatible_single; incompatible_single.test()"
 
 ######## setup.py ########
 
-from Cython.Build.Dependencies import cythonize
-from distutils.core import setup
+from Cython.Build import cythonize
+from setuptools import setup, Extension
 
-ext_modules = []
+ext_modules = [
+    Extension('default', ['default.py']),
+    Extension('compatible', ['compatible.py']),
+    Extension('incompatible', ['incompatible.py']),
+    Extension('default_single',
+              ['default_single.py'],
+              define_macros=[('CYTHON_PEP489_MULTI_PHASE_INIT', '0')]),
+    Extension('compatible_single',
+              ['compatible_single.py'],
+              define_macros=[('CYTHON_PEP489_MULTI_PHASE_INIT', '0')]),
+    Extension('incompatible_single',
+              ['incompatible_single.py'],
+              define_macros=[('CYTHON_PEP489_MULTI_PHASE_INIT', '0')]),
+]
 
-# Test language_level specified in the cythonize() call
-ext_modules += cythonize("default.py")
-ext_modules += cythonize("compatible.py")
-ext_modules += cythonize("incompatible.py")
-
-setup(ext_modules=ext_modules)
+setup(ext_modules=cythonize(ext_modules))
 
 ######## default.py ########
 
@@ -38,6 +49,37 @@ def test():
     assert not sys._is_gil_enabled()
 
 ######## incompatible.py ########
+
+# cython: freethreading_compatible=False
+
+def test():
+    import sys
+    import sysconfig
+    if not sysconfig.get_config_var("Py_GIL_DISABLED"):
+        return
+    assert sys._is_gil_enabled()
+
+######## default_single.py ########
+
+def test():
+    import sys
+    import sysconfig
+    if not sysconfig.get_config_var("Py_GIL_DISABLED"):
+        return
+    assert sys._is_gil_enabled()
+
+######## compatible_single.py ########
+
+# cython: freethreading_compatible=True
+
+def test():
+    import sys
+    import sysconfig
+    if not sysconfig.get_config_var("Py_GIL_DISABLED"):
+        return
+    assert not sys._is_gil_enabled()
+
+######## incompatible_single.py ########
 
 # cython: freethreading_compatible=False
 

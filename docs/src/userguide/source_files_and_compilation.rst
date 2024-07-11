@@ -841,7 +841,9 @@ Cython code.  Here is the list of currently supported directives:
     ``Py_MOD_GIL_USED`` which will cause the GIL to be automatically
     enabled. Setting this to True does not itself make the module safe
     to run without the GIL; it merely confirms that you have checked
-    the logic and consider it safe to run. Default is False.
+    the logic and consider it safe to run. Since free-threading support
+    is still experimental itself, this is also an experimental directive that
+    might be changed or removed in future releases. Default is False.
 
 ``overflowcheck`` (True / False)
     If set to True, raise errors on overflowing C integer arithmetic
