@@ -3565,6 +3565,12 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("static PyModuleDef_Slot %s[] = {" % Naming.pymoduledef_slots_cname)
         code.putln("{Py_mod_create, (void*)%s}," % Naming.pymodule_create_func_cname)
         code.putln("{Py_mod_exec, (void*)%s}," % exec_func_cname)
+        code.putln("#if CYTHON_COMPILING_IN_CPYTHON_FREETHREADING")
+        gil_option = ("Py_MOD_GIL_NOT_USED"
+                      if env.directives["freethreading_compatible"]
+                      else "Py_MOD_GIL_USED")
+        code.putln("{Py_mod_gil, %s}," % gil_option)
+        code.putln("#endif")
         code.putln("{0, NULL}")
         code.putln("};")
         if not env.module_name.isascii():
@@ -3653,6 +3659,12 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 env.module_cname,
                 Naming.pymoduledef_cname))
         code.putln(code.error_goto_if_null(env.module_cname, self.pos))
+        code.putln("#endif")  # CYTHON_USE_MODULE_STATE
+        code.putln("#if CYTHON_COMPILING_IN_CPYTHON_FREETHREADING")
+        gil_option = ("Py_MOD_GIL_NOT_USED"
+                      if env.directives["freethreading_compatible"]
+                      else "Py_MOD_GIL_USED")
+        code.putln(f"PyUnstable_Module_SetGIL({env.module_cname}, {gil_option});")
         code.putln("#endif")
         code.putln("#endif")  # CYTHON_PEP489_MULTI_PHASE_INIT
         code.putln("CYTHON_UNUSED_VAR(%s);" % module_temp)  # only used in limited API

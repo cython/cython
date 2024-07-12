@@ -181,6 +181,7 @@ _directive_defaults = {
     'boundscheck' : True,
     'nonecheck' : False,
     'initializedcheck' : True,
+    'freethreading_compatible': False,
     'embedsignature': False,
     'embedsignature.format': 'c',
     'auto_cpdef': False,
@@ -421,6 +422,7 @@ directive_scopes = {  # defaults to available everywhere
     'legacy_implicit_noexcept': ('module', ),
     'control_flow.dot_output': ('module',),
     'control_flow.dot_annotate_defs': ('module',),
+    'freethreading_compatible': ('module',)
 }
 
 
