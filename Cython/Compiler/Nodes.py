@@ -162,6 +162,11 @@ class Node:
     # Subset of attributes that are evaluated in the outer scope (e.g. function default arguments).
     outer_attrs = None
 
+    # Not used in Cython itself, but provided for the benefit of external tools (e.g. linters)
+    # to tell them about attrs that we don't want to visit in our own transforms for
+    # internal code-generation reasons.
+    unvisited_child_attrs = None
+
     cf_state = None
 
     # This may be an additional (or 'actual') type that will be checked when
@@ -1386,6 +1391,7 @@ class FusedTypeNode(CBaseTypeNode):
     """
 
     child_attrs = []
+    unvisited_child_attrs = ["types"]
 
     def analyse_declarations(self, env):
         type = self.analyse(env)
@@ -5302,6 +5308,7 @@ class CClassDefNode(ClassDefNode):
     #  buffer_defaults_pos
 
     child_attrs = ["body"]
+    unvisited_child_attrs = ["bases", "decorators"]
     buffer_defaults_node = None
     buffer_defaults_pos = None
     typedef_flag = False
