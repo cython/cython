@@ -1419,16 +1419,25 @@ class FlattenInListTransform(Visitor.VisitorTransform, SkipDeclarations):
                                           ExprNodes.SetNode)):
             return node
 
+        lhs = node.operand1
         args = node.operand2.args
         if len(args) == 0:
             # note: lhs may have side effects
+            try:
+                # lhs.is_simple() might fail before type analysis, but that usually means it's not simple.
+                lhs_has_no_sideffects = lhs.is_simple()
+            except Exception:
+                lhs_has_no_sideffects = False
+            if lhs_has_no_sideffects:
+                constant_result = node.operator == 'not_in'
+                return ExprNodes.BoolNode(node.pos, value=constant_result, constant_result=constant_result)
             return node
 
         if any([arg.is_starred for arg in args]):
             # Starred arguments do not directly translate to comparisons or "in" tests.
             return node
 
-        lhs = UtilNodes.ResultRefNode(node.operand1)
+        lhs = UtilNodes.ResultRefNode(lhs)
 
         conds = []
         temps = []
