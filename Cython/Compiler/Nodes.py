@@ -4756,10 +4756,7 @@ class CClassDefNode(ClassDefNode):
                      base_type.is_final_type:
                 error(base.pos, "Base class '%s' of type '%s' is final" % (
                     base_type, self.class_name))
-            elif base_type.is_builtin_type and \
-                     base_type.name in ('tuple', 'str', 'bytes'):
-                error(base.pos, "inheritance from PyVarObject types like '%s' is not currently supported"
-                      % base_type.name)
+            # NOTE base being PyVarObject builtin type is checked in the end
             else:
                 self.base_type = base_type
             if env.directives.get('freelist', 0) > 0 and base_type != PyrexTypes.py_object_type:
@@ -4850,6 +4847,21 @@ class CClassDefNode(ClassDefNode):
 
         for thunk in self.entry.type.defered_declarations:
             thunk()
+
+        # reject cdef class that inherits from PyVarObject builtin and changes struct size
+        # do the verification in the end when we know whether vtable needed to be instantiated
+        # https://github.com/cython/cython/issues/711
+        if self.base_type and \
+           self.base_type.is_builtin_type and \
+           self.base_type.name in ('tuple', 'str', 'bytes'):
+            if self.entry.type.scope.var_entries:
+                error(base.pos, ("inheritance from PyVarObject types '%s' "
+                      "with C-level attributes is not currently supported")
+                      % self.base_type.name)
+            if self.entry.type.vtabslot_cname:
+                error(base.pos, ("inheritance from PyVarObject types '%s' "
+                      "with C-level vtable is not currently supported")
+                      % self.base_type.name)
 
     def analyse_expressions(self, env):
         if self.body:
