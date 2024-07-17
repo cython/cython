@@ -835,6 +835,18 @@ Cython code.  Here is the list of currently supported directives:
     appropriate exception is raised. This is off by default for
     performance reasons.  Default is False.
 
+``freethreading_compatible``  (True / False)
+    If set to True, Cython sets the ``Py_mod_gil`` slot to
+    ``Py_MOD_GIL_NOT_USED`` to signal that the module is safe to run
+    without an active GIL and prevent the GIL from being enabled
+    when the module is imported. Otherwise the slot is set to
+    ``Py_MOD_GIL_USED`` which will cause the GIL to be automatically
+    enabled. Setting this to True does not itself make the module safe
+    to run without the GIL; it merely confirms that you have checked
+    the logic and consider it safe to run. Since free-threading support
+    is still experimental itself, this is also an experimental directive that
+    might be changed or removed in future releases. Default is False.
+
 ``overflowcheck`` (True / False)
     If set to True, raise errors on overflowing C integer arithmetic
     operations.  Incurs a modest runtime penalty, but is much faster than
@@ -1063,7 +1075,15 @@ to turn the warning on / off.
    Warns about multiple variables declared on the same line with at least one pointer type.
    For example ``cdef double* a, b`` - which, as in C, declares ``a`` as a pointer, ``b`` as
    a value type, but could be mininterpreted as declaring two pointers.
-   
+
+``warn.deprecated.DEF`` (default False)
+  Warns about use of the deprecated ``DEF`` statement in Cython code, see
+ :ref:`conditional_compilation` and :ref:`deprecated_DEF_IF`.
+
+``warn.deprecated.IF`` (default True)
+  Warns about use of the deprecated ``IF`` statement in Cython code, see
+  :ref:`conditional_compilation` and :ref:`deprecated_DEF_IF`.
+
 ``show_performance_hints`` (default True)
   Show performance hints during compilation pointing to places in the code which can yield performance degradation.
   Note that performance hints are not warnings and hence the directives starting with ``warn.`` above do not affect them

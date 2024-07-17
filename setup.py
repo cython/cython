@@ -79,7 +79,8 @@ else:
         scripts = ["cython.py", "cythonize.py", "cygdb.py"]
 
 
-def compile_cython_modules(profile=False, coverage=False, compile_minimal=False, compile_more=False, cython_with_refnanny=False):
+def compile_cython_modules(profile=False, coverage=False, compile_minimal=False, compile_more=False, cython_with_refnanny=False,
+                           cython_limited_api=False):
     source_root = os.path.abspath(os.path.dirname(__file__))
     compiled_modules = [
         "Cython.Plex.Actions",
@@ -137,6 +138,14 @@ def compile_cython_modules(profile=False, coverage=False, compile_minimal=False,
             ])
 
     defines = []
+    extra_extension_args = {}
+    if cython_limited_api:
+        defines += [
+            ('CYTHON_LIMITED_API', 1),
+            ('Py_LIMITED_API', 0x03070000),
+        ]
+        extra_extension_args['py_limited_api'] = True
+
     if cython_with_refnanny:
         defines.append(('CYTHON_REFNANNY', '1'))
     if coverage:
@@ -153,17 +162,32 @@ def compile_cython_modules(profile=False, coverage=False, compile_minimal=False,
         if os.path.exists(source_file + '.pxd'):
             dep_files.append(source_file + '.pxd')
 
+        # Note that refnanny does not currently support being build in the limited API.
+        # This should eventually change when cpython is cimportable.
         extensions.append(Extension(
             module, sources=[pyx_source_file],
             define_macros=defines if '.refnanny' not in module else [],
-            depends=dep_files))
+            depends=dep_files,
+            **(extra_extension_args if '.refnanny' not in module else {})))
         # XXX hack around setuptools quirk for '*.pyx' sources
         extensions[-1].sources[0] = pyx_source_file
 
     # optimise build parallelism by starting with the largest modules
     extensions.sort(key=lambda ext: os.path.getsize(ext.sources[0]), reverse=True)
 
-    from Cython.Distutils.build_ext import build_ext
+    from Cython.Distutils.build_ext import build_ext as cy_build_ext
+    build_ext = None
+    try:
+        # Use the setuptools build_ext in preference, because it
+        # gets limited api filenames right, and should inherit itself from
+        # Cython's own build_ext. But failing that, use the Cython build_ext
+        # directly.
+        from setuptools.command.build_ext import build_ext
+        if cy_build_ext not in build_ext.__mro__:
+            build_ext = cy_build_ext
+    except ImportError:
+        build_ext = cy_build_ext
+
     from Cython.Compiler.Options import get_directive_defaults
     get_directive_defaults().update(
         language_level=3,
@@ -205,6 +229,13 @@ compile_cython_itself = not check_option('no-cython-compile')
 if compile_cython_itself:
     cython_compile_more = check_option('cython-compile-all')
     cython_compile_minimal = check_option('cython-compile-minimal')
+    cython_limited_api = check_option('cython-limited-api')
+    # TODO - enable this when refnanny can be compiled
+    if cython_limited_api and False:
+        setup_options = setup_args.setdefault('options', {})
+        bdist_wheel_options = setup_options.setdefault('bdist_wheel', {})
+        bdist_wheel_options['py_limited_api'] = 'cp37'
+
 
 setup_args.update(setuptools_extra_args)
 
@@ -240,7 +271,8 @@ packages = [
 
 def run_build():
     if compile_cython_itself and (is_cpython or cython_compile_more or cython_compile_minimal):
-        compile_cython_modules(cython_profile, cython_coverage, cython_compile_minimal, cython_compile_more, cython_with_refnanny)
+        compile_cython_modules(cython_profile, cython_coverage, cython_compile_minimal, cython_compile_more, cython_with_refnanny,
+                               cython_limited_api)
 
     from Cython import __version__ as version
     setup(

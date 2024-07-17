@@ -1722,16 +1722,21 @@ class CType(PyrexType):
         else:
             return 0
 
+    _builtin_type_name_map = {
+        'bytearray': 'ByteArray',
+        'bytes': 'Bytes',
+        'str': 'Unicode',
+        'unicode': 'Unicode',
+    }
+
     def to_py_call_code(self, source_code, result_code, result_type, to_py_function=None):
         func = self.to_py_function if to_py_function is None else to_py_function
         assert func
         if self.is_string or self.is_cpp_string:
             if result_type.is_builtin_type:
-                result_type_name = result_type.name
-                if result_type_name in ('bytes', 'str', 'unicode'):
-                    func = func.replace("Object", result_type_name.title(), 1)
-                elif result_type_name == 'bytearray':
-                    func = func.replace("Object", "ByteArray", 1)
+                result_type_name = self._builtin_type_name_map.get(result_type.name)
+                if result_type_name:
+                    func = func.replace("Object", result_type_name, 1)
         return '%s = %s(%s)' % (
             result_code,
             func,
@@ -2893,24 +2898,25 @@ class CPtrType(CPointerBaseType):
 
     def assignable_from_resolved_type(self, other_type):
         if other_type is error_type:
-            return 1
+            return True
         if other_type.is_null_ptr:
-            return 1
-        if self.base_type.is_cv_qualified:
-            self = CPtrType(self.base_type.cv_base_type)
-        if self.base_type.is_cfunction:
+            return True
+        ptr_base_type = self.base_type
+        if ptr_base_type.is_cv_qualified:
+            ptr_base_type = ptr_base_type.cv_base_type
+        if ptr_base_type.is_cfunction:
             if other_type.is_ptr:
                 other_type = other_type.base_type.resolve()
             if other_type.is_cfunction:
-                return self.base_type.pointer_assignable_from_resolved_type(other_type)
+                return ptr_base_type.pointer_assignable_from_resolved_type(other_type)
             else:
-                return 0
-        if (self.base_type.is_cpp_class and other_type.is_ptr
-                and other_type.base_type.is_cpp_class and other_type.base_type.is_subclass(self.base_type)):
-            return 1
+                return False
+        if (ptr_base_type.is_cpp_class and other_type.is_ptr
+                and other_type.base_type.is_cpp_class and other_type.base_type.is_subclass(ptr_base_type)):
+            return True
         if other_type.is_array or other_type.is_ptr:
-            return self.base_type.is_void or self.base_type.same_as(other_type.base_type)
-        return 0
+            return ptr_base_type.is_void or ptr_base_type.same_as(other_type.base_type)
+        return False
 
     def assignment_failure_extra_info(self, src_type, src_name):
         if self.base_type.is_cfunction and src_type.is_ptr:
@@ -4561,6 +4567,8 @@ class CTupleType(CType):
 
     is_ctuple = True
 
+    subtypes = ['components']
+
     def __init__(self, cname, components):
         self.cname = cname
         self.components = components
@@ -4645,10 +4653,19 @@ class CTupleType(CType):
     def cast_code(self, expr_code):
         return expr_code
 
+    def specialize(self, values):
+        assert hasattr(self, "entry")
+        components = [c.specialize(values) for c in self.components]
+        new_entry = self.entry.scope.declare_tuple_type(self.entry.pos, components)
+        return new_entry.type
+
 
 def c_tuple_type(components):
     components = tuple(components)
-    cname = Naming.ctuple_type_prefix + type_list_identifier(components)
+    if any(c.is_fused for c in components):
+        cname = "<dummy fused ctuple>"  # should never end up in code
+    else:
+        cname = Naming.ctuple_type_prefix + type_list_identifier(components)
     tuple_type = CTupleType(cname, components)
     return tuple_type
 
