@@ -1164,6 +1164,13 @@ class ExprNode(Node):
         #  reference, or temporary.
         return self.result_in_temp()
 
+    def try_is_simple(self):
+        # Allow ".is_simple()" to fail (e.g. before type analysis) and assume it's not simple.
+        try:
+            return self.is_simple()
+        except Exception:
+            return False
+
     def may_be_none(self):
         if self.type and not (self.type.is_pyobject or
                               self.type.is_memoryviewslice):
