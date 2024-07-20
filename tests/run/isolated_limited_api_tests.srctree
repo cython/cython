@@ -87,7 +87,7 @@ assert limited.float_equals(decimal.Decimal("1.5"))
 
 ##################### limited.pyx #############################
 
-# distutils: extra_compile_args = -DCYTHON_LIMITED_API=1 -DPy_LIMITED_API=0x030700f0
+# distutils: extra_compile_args = -DPy_LIMITED_API=0x030700f0
 
 import cython
 

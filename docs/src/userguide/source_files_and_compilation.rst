@@ -1207,13 +1207,16 @@ can happily ignore.  Not all combinations of macros are compatible or tested, an
 some change the default value of other macros.  They are listed below in rough order from
 most important to least important:
 
-``CYTHON_LIMITED_API``
+``Py_LIMITED_API``
     Turns on Cython's experimental Limited API support, meaning that one compiled module
     can be used by many Python interpreter versions (at the cost of some performance).
-    At this stage many features do not work in the Limited API.  If you use this macro
-    you should also set the macro ``Py_LIMITED_API`` to be the version hex for the
+    At this stage many features do not work in the Limited API.  You should set this
+    macro to be the version hex for the
     minimum Python version you want to support (>=3.7).  ``0x03070000`` will support
     Python 3.7 upwards.
+    Note that this is a `Python macro <https://docs.python.org/3/c-api/stable.html#c.Py_LIMITED_API>`_,
+    rather than just a Cython macro, and so it changes what parts of the Python headers
+    are visible too.
 
 ``CYTHON_PEP489_MULTI_PHASE_INIT``
     Uses multi-phase module initialization as described in PEP489.  This improves
