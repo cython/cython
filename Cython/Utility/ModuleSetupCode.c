@@ -1,15 +1,11 @@
 /////////////// InitLimitedAPI ///////////////
 
-#if defined(CYTHON_LIMITED_API) && 0  /* disabled: enabling Py_LIMITED_API needs more work */
-  #ifndef Py_LIMITED_API
-    #if CYTHON_LIMITED_API+0 > 0x03070000
-      #define Py_LIMITED_API CYTHON_LIMITED_API
-    #else
-      #define Py_LIMITED_API 0x03070000
-    #endif
-  #endif
+#if defined(Py_LIMITED_API) && !defined(CYTHON_LIMITED_API)
+  // Use Py_LIMITED_API as the main control for Cython's limited API mode.
+  // However it's still possible to define CYTHON_LIMITED_API alone to
+  // force Cython to use Limited-API code without enforcing it in Python.
+  #define CYTHON_LIMITED_API
 #endif
-
 
 /////////////// CModulePreamble ///////////////
 
