@@ -1010,7 +1010,7 @@ class SlotTable:
             EmptySlot("tp_getattr"),
             EmptySlot("tp_setattr"),
 
-            SuiteSlot(self. PyAsyncMethods, "__Pyx_PyAsyncMethodsStruct", "tp_as_async",
+            SuiteSlot(self. PyAsyncMethods, "PyAsyncMethods", "tp_as_async",
                       self.substructures),
 
             MethodSlot(reprfunc, "tp_repr", "__repr__", method_name_to_slot),
