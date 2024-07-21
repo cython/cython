@@ -469,6 +469,7 @@ static int __pyx_Generator_init(PyObject *module); /*proto*/
 //@requires: ObjectHandling.c::PyObjectGetAttrStrNoError
 //@requires: CommonStructures.c::FetchCommonType
 //@requires: ModuleSetupCode.c::IncludeStructmemberH
+//@requires: ExtensionTypes.c::CallTypeTraverse
 
 #if !CYTHON_COMPILING_IN_LIMITED_API
 #include <frameobject.h>
@@ -1181,6 +1182,10 @@ static CYTHON_INLINE int __Pyx_Coroutine_traverse_excstate(__Pyx_ExcInfoStruct *
 }
 
 static int __Pyx_Coroutine_traverse(__pyx_CoroutineObject *gen, visitproc visit, void *arg) {
+    {
+        int e = __Pyx_call_type_traverse((PyObject*)gen, 1, visit, arg);
+        if (e) return e;
+    }
     Py_VISIT(gen->closure);
     Py_VISIT(gen->classobj);
     Py_VISIT(gen->yieldfrom);
@@ -1481,6 +1486,7 @@ static __pyx_CoroutineObject *__Pyx__Coroutine_NewInit(
 //////////////////// Coroutine ////////////////////
 //@requires: CoroutineBase
 //@requires: ObjectHandling.c::PyObject_GenericGetAttrNoDict
+//@requires: ExtensionTypes.c::CallTypeTraverse
 
 static void __Pyx_CoroutineAwait_dealloc(PyObject *self) {
     PyObject_GC_UnTrack(self);
@@ -1489,6 +1495,10 @@ static void __Pyx_CoroutineAwait_dealloc(PyObject *self) {
 }
 
 static int __Pyx_CoroutineAwait_traverse(__pyx_CoroutineAwaitObject *self, visitproc visit, void *arg) {
+    {
+        int e = __Pyx_call_type_traverse((PyObject*)self, 1, visit, arg);
+        if (e) return e;
+    }
     Py_VISIT(self->coroutine);
     return 0;
 }
