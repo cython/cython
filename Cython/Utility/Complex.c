@@ -134,7 +134,7 @@ static {{type}} __Pyx_PyComplex_As_{{type_name}}(PyObject*);
 
 static {{type}} __Pyx_PyComplex_As_{{type_name}}(PyObject* o) {
     Py_complex cval;
-#if !CYTHON_COMPILING_IN_PYPY
+#if !CYTHON_COMPILING_IN_PYPY && !CYTHON_COMPILING_IN_GRAAL
     if (PyComplex_CheckExact(o))
         cval = ((PyComplexObject *)o)->cval;
     else
