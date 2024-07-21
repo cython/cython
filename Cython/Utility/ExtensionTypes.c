@@ -227,7 +227,8 @@ static int __Pyx_PyType_Ready(PyTypeObject *t) {
         // Call gc.disable() as a backwards compatible fallback, but only if needed.
         PyObject *ret, *py_status;
         PyObject *gc = NULL;
-        #if !CYTHON_COMPILING_IN_PYPY || PYPY_VERSION_NUM+0 >= 0x07030400
+        #if (!CYTHON_COMPILING_IN_PYPY || PYPY_VERSION_NUM+0 >= 0x07030400) && \
+                !CYTHON_COMPILING_IN_GRAAL
         // https://foss.heptapod.net/pypy/pypy/-/issues/3385
         gc = PyImport_GetModule(PYUNICODE("gc"));
         #endif
