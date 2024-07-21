@@ -1742,18 +1742,22 @@ static PyObject* __Pyx_Method_ClassMethod(PyObject *method) {
     if (__Pyx_TypeCheck(method, &PyMethodDescr_Type))
 #endif
     {
-#if !CYTHON_COMPILING_IN_LIMITED_API
-        // cdef classes
-        PyMethodDescrObject *descr = (PyMethodDescrObject *)method;
-        PyTypeObject *d_type = descr->d_common.d_type;
-        return PyDescr_NewClassMethod(d_type, descr->d_method);
-#else
+#if CYTHON_COMPILING_IN_LIMITED_API
         return PyErr_Format(
             PyExc_SystemError,
             "Cython cannot yet handle classmethod on a MethodDescriptorType (%S) in limited API mode. "
             "This is most likely a classmethod in a cdef class method with binding=False. "
             "Try setting 'binding' to True.",
             method);
+#elif CYTHON_COMPILING_IN_GRAAL
+        // cdef classes
+        PyTypeObject *d_type = PyDescrObject_GetType(method);
+        return PyDescr_NewClassMethod(d_type, PyMethodDescrObject_GetMethod(method));
+#else
+        // cdef classes
+        PyMethodDescrObject *descr = (PyMethodDescrObject *)method;
+        PyTypeObject *d_type = descr->d_common.d_type;
+        return PyDescr_NewClassMethod(d_type, descr->d_method);
 #endif
     }
 #endif
