@@ -1,6 +1,65 @@
-# This list is definitely not complete!
+# test fails
+asyncio_generators
+ass2global
+array_cimport
+buffers[.]buffer
+cline_in_traceback
+coverage_api
+error_pos
+extern_varobject_extensions
+module_init_error
+numpy_import_array_error
+pep442_tp_finalize_cimport
 
-cythonize_script_package  # runs forever, probably multiprocessing issues
-callingconvention  # gets stuck and runs forever
-different_package_names  # gets stuck and runs forever
-duplicate_utilitycode_from_pyx
+# probably just GC?
+double_dealloc_T796
+exttype_dealloc
+generators_py
+generator_frame_cycle
+
+# slightly different exception message
+encoding
+
+# function not implemented PyImport_GetModule
+#absolute_import
+auto_cpdef
+cythonize_with_annotate
+importas
+partial_circular_import
+
+# PyUnicode_CompareWithASCIIString not implemented
+cdef_class_dataclass
+
+# segfault
+async_iter_pep492
+cdef_members_T517
+cdef_members_binding_properties
+classkwonlyargs
+ctypedef_int_types_T333
+cyfunction$
+cyfunction_defaults
+cython3$
+decorators
+extmember
+for_in_iter
+funcexc_iter_T228
+funcexcept
+fused_bound_functions
+generators_pep479
+[.]if$
+[.]index$
+legacy_implicit_noexcept
+methodmangling_T5
+moduletryexcept
+[.]nogil$
+pep3135_class_cell
+pep448_test_extcall
+pep526_variable_annotations
+pinard7
+posonly
+[.]print
+pstats_profile_test
+pure_nogil_conditional
+
+# appears to run forever
+common_include_dir
