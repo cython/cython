@@ -861,7 +861,7 @@ static CYTHON_INLINE void *__Pyx_PyModule_GetState(PyObject *op)
 }
 #endif
 
-// The "static safe" variants may return NULL on static types with the Limited API on earlier versions
+// The "Try" variants may return NULL on static types with the Limited API on earlier versions
 // so should be used for optimization rather than where a result is required.
 #define __Pyx_PyObject_GetSlot(obj, name, func_ctype)  __Pyx_PyType_GetSlot(Py_TYPE((PyObject *) obj), name, func_ctype)
 #define __Pyx_PyObject_TryGetSlot(obj, name, func_ctype) __Pyx_PyType_TryGetSlot(Py_TYPE(obj), name, func_ctype)
@@ -1547,15 +1547,12 @@ static int __Pyx_check_binary_version(unsigned long ct_version, unsigned long rt
 
 /////////////// CheckBinaryVersion ///////////////
 
-#if __PYX_LIMITED_VERSION_HEX < 0x030B00A4
-static unsigned long __Pyx_cached_runtime_version = 0;
-#endif
-
 static unsigned long __Pyx_get_runtime_version(void) {
     // We will probably never need the alpha/beta status, so avoid the complexity to parse it.
 #if __PYX_LIMITED_VERSION_HEX >= 0x030B00A4
     return Py_Version & ~0xFFUL;
 #else
+    static unsigned long __Pyx_cached_runtime_version = 0;
     if (__Pyx_cached_runtime_version == 0) {
         const char* rt_version = Py_GetVersion();
         unsigned long version = 0;

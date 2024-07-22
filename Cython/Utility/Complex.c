@@ -141,7 +141,7 @@ static {{type}} __Pyx_PyComplex_As_{{type_name}}(PyObject* o) {
     // No error check on imag since we do the same thing either way
   end:
     return {{type_name}}_from_parts(
-        real, imag
+        ({{real_type}})real, ({{real_type}})imag
     );
 #else
     Py_complex cval;
