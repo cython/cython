@@ -207,12 +207,10 @@ static void __Pyx_Coroutine_AwaitableIterError(PyObject *source) {
 // adapted from genobject.c in Py3.5
 static PyObject *__Pyx__Coroutine_GetAwaitableIter(PyObject *obj) {
     PyObject *res;
-#if CYTHON_USE_ASYNC_SLOTS
     __Pyx_PyAsyncMethodsStruct* am = __Pyx_PyType_AsAsync(obj);
     if (likely(am && am->am_await)) {
         res = (*am->am_await)(obj);
     } else
-#endif
     if (PyCoro_CheckExact(obj)) {
         return __Pyx_NewRef(obj);
     } else
@@ -298,14 +296,10 @@ static CYTHON_INLINE PyObject *__Pyx_Coroutine_GetAsyncIter(PyObject *obj) {
         return __Pyx_NewRef(obj);
     }
 #endif
-#if CYTHON_USE_ASYNC_SLOTS
-    {
-        __Pyx_PyAsyncMethodsStruct* am = __Pyx_PyType_AsAsync(obj);
-        if (likely(am && am->am_aiter)) {
-            return (*am->am_aiter)(obj);
-        }
+    __Pyx_PyAsyncMethodsStruct* am = __Pyx_PyType_AsAsync(obj);
+    if (likely(am && am->am_aiter)) {
+        return (*am->am_aiter)(obj);
     }
-#endif
     return __Pyx_Coroutine_GetAsyncIter_Generic(obj);
 }
 
@@ -325,14 +319,10 @@ static CYTHON_INLINE PyObject *__Pyx_Coroutine_AsyncIterNext(PyObject *obj) {
         return __Pyx_async_gen_anext(obj);
     }
 #endif
-#if CYTHON_USE_ASYNC_SLOTS
-    {
-        __Pyx_PyAsyncMethodsStruct* am = __Pyx_PyType_AsAsync(obj);
-        if (likely(am && am->am_anext)) {
-            return (*am->am_anext)(obj);
-        }
+    __Pyx_PyAsyncMethodsStruct* am = __Pyx_PyType_AsAsync(obj);
+    if (likely(am && am->am_anext)) {
+        return (*am->am_anext)(obj);
     }
-#endif
     return __Pyx__Coroutine_AsyncIterNext(obj);
 }
 
@@ -1649,11 +1639,9 @@ static PyObject *__Pyx_CoroutineAwait_Send(__pyx_CoroutineAwaitObject *self, PyO
     return __Pyx_Coroutine_Send(self->coroutine, value);
 }
 
-#if CYTHON_USE_ASYNC_SLOTS
 static __Pyx_PySendResult __Pyx_CoroutineAwait_AmSend(PyObject *self, PyObject *value, PyObject **retval) {
     return __Pyx_Coroutine_AmSend(((__pyx_CoroutineAwaitObject*)self)->coroutine, value, retval);
 }
-#endif
 
 static PyObject *__Pyx_CoroutineAwait_Throw(__pyx_CoroutineAwaitObject *self, PyObject *args) {
     return __Pyx_Coroutine_Throw(self->coroutine, args);
@@ -1741,14 +1729,12 @@ static PyType_Spec __pyx_CoroutineAwaitType_spec = {
     __pyx_CoroutineAwaitType_slots
 };
 #else /* CYTHON_USE_TYPE_SPECS */
-#if CYTHON_USE_ASYNC_SLOTS
 static __Pyx_PyAsyncMethodsStruct __pyx_CoroutineAwait_as_async = {
     0,                              /*am_await*/
     0,                              /*am_aiter*/
     0,                              /*am_anext*/
     __Pyx_CoroutineAwait_AmSend,    /*am_send*/
 };
-#endif
 
 static PyTypeObject __pyx_CoroutineAwaitType_type = {
     PyVarObject_HEAD_INIT(0, 0)
@@ -1759,7 +1745,7 @@ static PyTypeObject __pyx_CoroutineAwaitType_type = {
     0,                                  /*tp_print*/
     0,                                  /*tp_getattr*/
     0,                                  /*tp_setattr*/
-    __Pyx_SlotTpAsAsync(__pyx_CoroutineAwait_as_async),    /*tp_as_async (tp_reserved) - Py3 only! */
+    __Pyx_SlotTpAsAsync(__pyx_CoroutineAwait_as_async),    /*tp_as_async*/
     0,                                  /*tp_repr*/
     0,                                  /*tp_as_number*/
     0,                                  /*tp_as_sequence*/
@@ -1774,12 +1760,7 @@ static PyTypeObject __pyx_CoroutineAwaitType_type = {
     PyDoc_STR("A wrapper object implementing __await__ for coroutines."), /*tp_doc*/
     (traverseproc) __Pyx_CoroutineAwait_traverse,   /*tp_traverse*/
     (inquiry) __Pyx_CoroutineAwait_clear,           /*tp_clear*/
-#if CYTHON_USE_ASYNC_SLOTS && CYTHON_COMPILING_IN_CPYTHON && PY_MAJOR_VERSION >= 3 && PY_VERSION_HEX < 0x030500B1
-    // in order to (mis-)use tp_reserved above, we must also implement tp_richcompare
-    __Pyx_Coroutine_compare,            /*tp_richcompare*/
-#else
     0,                                  /*tp_richcompare*/
-#endif
     0,                                  /*tp_weaklistoffset*/
     __Pyx_CoroutineAwait_self,          /*tp_iter*/
     (iternextfunc) __Pyx_CoroutineAwait_Next, /*tp_iternext*/
@@ -1826,7 +1807,6 @@ static PyTypeObject __pyx_CoroutineAwaitType_type = {
 };
 #endif  /* CYTHON_USE_TYPE_SPECS */
 
-#if defined(__Pyx_IterableCoroutine_USED) || CYTHON_USE_ASYNC_SLOTS
 static CYTHON_INLINE PyObject *__Pyx__Coroutine_await(PyObject *coroutine) {
     __pyx_CoroutineAwaitObject *await = PyObject_GC_New(__pyx_CoroutineAwaitObject, __pyx_CoroutineAwaitType);
     if (unlikely(!await)) return NULL;
@@ -1835,9 +1815,7 @@ static CYTHON_INLINE PyObject *__Pyx__Coroutine_await(PyObject *coroutine) {
     PyObject_GC_Track(await);
     return (PyObject*)await;
 }
-#endif
 
-#if defined(__Pyx_IterableCoroutine_USED) || CYTHON_USE_ASYNC_SLOTS
 static PyObject *__Pyx_Coroutine_await(PyObject *coroutine) {
     if (unlikely(!coroutine || !__Pyx_Coroutine_Check(coroutine))) {
         PyErr_SetString(PyExc_TypeError, "invalid input, expected coroutine");
@@ -1845,7 +1823,6 @@ static PyObject *__Pyx_Coroutine_await(PyObject *coroutine) {
     }
     return __Pyx__Coroutine_await(coroutine);
 }
-#endif
 
 static PyMethodDef __pyx_Coroutine_methods[] = {
     {"send", (PyCFunction) __Pyx_Coroutine_Send, METH_O,
@@ -1902,14 +1879,12 @@ static PyType_Spec __pyx_CoroutineType_spec = {
 };
 #else /* CYTHON_USE_TYPE_SPECS */
 
-#if CYTHON_USE_ASYNC_SLOTS
 static __Pyx_PyAsyncMethodsStruct __pyx_Coroutine_as_async = {
     __Pyx_Coroutine_await,  /*am_await*/
     0,                      /*am_aiter*/
     0,                      /*am_anext*/
     __Pyx_Coroutine_AmSend, /*am_send*/
 };
-#endif
 
 static PyTypeObject __pyx_CoroutineType_type = {
     PyVarObject_HEAD_INIT(0, 0)
@@ -1920,7 +1895,7 @@ static PyTypeObject __pyx_CoroutineType_type = {
     0,                                  /*tp_print*/
     0,                                  /*tp_getattr*/
     0,                                  /*tp_setattr*/
-    __Pyx_SlotTpAsAsync(__pyx_Coroutine_as_async),          /*tp_as_async (tp_reserved) - Py3 only! */
+    __Pyx_SlotTpAsAsync(__pyx_Coroutine_as_async),          /*tp_as_async*/
     0,                                  /*tp_repr*/
     0,                                  /*tp_as_number*/
     0,                                  /*tp_as_sequence*/
@@ -2202,14 +2177,12 @@ static PyType_Spec __pyx_GeneratorType_spec = {
     __pyx_GeneratorType_slots
 };
 #else /* CYTHON_USE_TYPE_SPECS */
-#if CYTHON_USE_ASYNC_SLOTS
 static __Pyx_PyAsyncMethodsStruct __pyx_Generator_as_async = {
     0,                          /*am_await*/
     0,                          /*am_aiter*/
     0,                          /*am_anext*/
     __Pyx_Coroutine_AmSend,     /*am_send*/
 };
-#endif
 
 static PyTypeObject __pyx_GeneratorType_type = {
     PyVarObject_HEAD_INIT(0, 0)
@@ -2220,7 +2193,7 @@ static PyTypeObject __pyx_GeneratorType_type = {
     0,                                  /*tp_print*/
     0,                                  /*tp_getattr*/
     0,                                  /*tp_setattr*/
-    __Pyx_SlotTpAsAsync(__pyx_Generator_as_async),   /*tp_compare / tp_as_async*/
+    __Pyx_SlotTpAsAsync(__pyx_Generator_as_async),   /*tp_as_async*/
     0,                                  /*tp_repr*/
     0,                                  /*tp_as_number*/
     0,                                  /*tp_as_sequence*/
@@ -2235,12 +2208,7 @@ static PyTypeObject __pyx_GeneratorType_type = {
     0,                                  /*tp_doc*/
     (traverseproc) __Pyx_Coroutine_traverse,   /*tp_traverse*/
     0,                                  /*tp_clear*/
-#if CYTHON_USE_ASYNC_SLOTS && CYTHON_COMPILING_IN_CPYTHON && PY_MAJOR_VERSION >= 3 && PY_VERSION_HEX < 0x030500B1
-    // in order to (mis-)use tp_reserved above, we must also implement tp_richcompare
-    __Pyx_Coroutine_compare,            /*tp_richcompare*/
-#else
     0,                                  /*tp_richcompare*/
-#endif
     offsetof(__pyx_CoroutineObject, gi_weakreflist), /*tp_weaklistoffset*/
     0,                                  /*tp_iter*/
     (iternextfunc) __Pyx_Generator_Next, /*tp_iternext*/

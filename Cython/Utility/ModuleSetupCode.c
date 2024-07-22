@@ -70,9 +70,6 @@
   #define CYTHON_USE_TYPE_SPECS 0
   #undef CYTHON_USE_PYTYPE_LOOKUP
   #define CYTHON_USE_PYTYPE_LOOKUP 0
-  #ifndef CYTHON_USE_ASYNC_SLOTS
-    #define CYTHON_USE_ASYNC_SLOTS 1
-  #endif
   #undef CYTHON_USE_PYLIST_INTERNALS
   #define CYTHON_USE_PYLIST_INTERNALS 0
   #undef CYTHON_USE_UNICODE_INTERNALS
@@ -131,9 +128,6 @@
   #endif
   #undef CYTHON_USE_PYTYPE_LOOKUP
   #define CYTHON_USE_PYTYPE_LOOKUP 0
-  #ifndef CYTHON_USE_ASYNC_SLOTS
-    #define CYTHON_USE_ASYNC_SLOTS 1
-  #endif
   #undef CYTHON_USE_PYLIST_INTERNALS
   #define CYTHON_USE_PYLIST_INTERNALS 0
   #undef CYTHON_USE_UNICODE_INTERNALS
@@ -206,8 +200,6 @@
   #define CYTHON_USE_TYPE_SPECS 1
   #undef CYTHON_USE_PYTYPE_LOOKUP
   #define CYTHON_USE_PYTYPE_LOOKUP 0
-  #undef CYTHON_USE_ASYNC_SLOTS
-  #define CYTHON_USE_ASYNC_SLOTS 0
   #undef CYTHON_USE_PYLIST_INTERNALS
   #define CYTHON_USE_PYLIST_INTERNALS 0
   #undef CYTHON_USE_UNICODE_INTERNALS
@@ -276,9 +268,6 @@
   #endif
   #ifndef CYTHON_USE_PYTYPE_LOOKUP
     #define CYTHON_USE_PYTYPE_LOOKUP 1
-  #endif
-  #ifndef CYTHON_USE_ASYNC_SLOTS
-    #define CYTHON_USE_ASYNC_SLOTS 1
   #endif
   #ifndef CYTHON_USE_PYLONG_INTERNALS
     #define CYTHON_USE_PYLONG_INTERNALS 1
@@ -1116,20 +1105,29 @@ static CYTHON_INLINE PyObject * __Pyx_PyDict_GetItemStrWithError(PyObject *dict,
 #define __Pyx_PyLong_AsHash_t   __Pyx_PyIndex_AsSsize_t
 
 // backport of PyAsyncMethods from Py3.10 to older Py3.x versions
-#if CYTHON_USE_ASYNC_SLOTS
-  // PyAsyncMethods in Py<3.10 lacks "am_send"
-  #if PY_VERSION_HEX >= 0x030A00A3
-      #define __Pyx_PyAsyncMethodsStruct PyAsyncMethods
-      #define __Pyx_SlotTpAsAsync(s) (&(s))
-      #define __Pyx_PySendResult PySendResult
-      #define __Pyx_pyiter_sendfunc sendfunc
-      #define __Pyx_PyType_AsAsync(obj) (Py_TYPE(obj)->tp_as_async)
-  #else
-      #define __Pyx_SlotTpAsAsync(s) ((PyAsyncMethods*)&(s))
-      #define __Pyx_PyType_AsAsync(obj) ((__Pyx_PyAsyncMethodsStruct*) (Py_TYPE(obj)->tp_as_async))
-  #endif
+#if PY_VERSION_HEX >= 0x030A00A3
+    // PyAsyncMethods in Py<3.10 lacks "am_send"
+    #define __Pyx_PyAsyncMethodsStruct PyAsyncMethods
+    #define __Pyx_SlotTpAsAsync(s) (&(s))
+    #define __Pyx_PySendResult PySendResult
+    #define __Pyx_pyiter_sendfunc sendfunc
+    #define __Pyx_PyType_AsAsync(obj) (Py_TYPE(obj)->tp_as_async)
 #else
-    #define __Pyx_SlotTpAsAsync(s)  0
+    #define __Pyx_SlotTpAsAsync(s) ((PyAsyncMethods*)&(s))
+    #define __Pyx_PyType_AsAsync(obj) ((__Pyx_PyAsyncMethodsStruct*) (Py_TYPE(obj)->tp_as_async))
+
+    typedef enum {
+        PYGEN_RETURN = 0,
+        PYGEN_ERROR = -1,
+        PYGEN_NEXT = 1,
+    } __Pyx_PySendResult;
+
+    typedef struct {
+        unaryfunc am_await;
+        unaryfunc am_aiter;
+        unaryfunc am_anext;
+        __Pyx_pyiter_sendfunc am_send;
+    } __Pyx_PyAsyncMethodsStruct;
     #define __Pyx_PyType_AsAsync(obj) NULL
 #endif
 
@@ -1139,24 +1137,8 @@ static CYTHON_INLINE PyObject * __Pyx_PyDict_GetItemStrWithError(PyObject *dict,
 #else
     #define __Pyx_TPFLAGS_HAVE_AM_SEND (0)
 #endif
-#ifndef __Pyx_PySendResult
-    typedef enum {
-        PYGEN_RETURN = 0,
-        PYGEN_ERROR = -1,
-        PYGEN_NEXT = 1,
-    } __Pyx_PySendResult;
-#endif
 #ifndef __Pyx_pyiter_sendfunc
     typedef __Pyx_PySendResult (*__Pyx_pyiter_sendfunc)(PyObject *iter, PyObject *value, PyObject **result);
-#endif
-#ifndef __Pyx_PyAsyncMethodsStruct
-    typedef struct {
-        unaryfunc am_await;
-        unaryfunc am_aiter;
-        unaryfunc am_anext;
-        __Pyx_pyiter_sendfunc am_send;
-    } __Pyx_PyAsyncMethodsStruct;
-    #define __Pyx_PyType_AsAsync(obj) NULL
 #endif
 
 

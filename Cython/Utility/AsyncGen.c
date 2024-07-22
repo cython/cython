@@ -344,14 +344,12 @@ static PyType_Spec __pyx_AsyncGenType_spec = {
 };
 #else /* CYTHON_USE_TYPE_SPECS */
 
-#if CYTHON_USE_ASYNC_SLOTS
-static __Pyx_PyAsyncMethodsStruct __Pyx_async_gen_as_async = {
+static PyAsyncMethods __Pyx_async_gen_as_async = {
     0,                                          /* am_await */
     PyObject_SelfIter,                          /* am_aiter */
     (unaryfunc)__Pyx_async_gen_anext,           /* am_anext */
     0,                                          /* am_send */
 };
-#endif
 
 static PyTypeObject __pyx_AsyncGenType_type = {
     PyVarObject_HEAD_INIT(0, 0)
@@ -666,14 +664,12 @@ static PyType_Spec __pyx__PyAsyncGenASendType_spec = {
 };
 #else /* CYTHON_USE_TYPE_SPECS */
 
-#if CYTHON_USE_ASYNC_SLOTS
 static __Pyx_PyAsyncMethodsStruct __Pyx_async_gen_asend_as_async = {
     PyObject_SelfIter,                          /* am_await */
     0,                                          /* am_aiter */
     0,                                          /* am_anext */
     __Pyx_async_gen_asend_am_send,              /* am_send */
 };
-#endif
 
 static PyTypeObject __pyx__PyAsyncGenASendType_type = {
     PyVarObject_HEAD_INIT(0, 0)
@@ -1148,14 +1144,12 @@ static PyType_Spec __pyx__PyAsyncGenAThrowType_spec = {
 };
 #else /* CYTHON_USE_TYPE_SPECS */
 
-#if CYTHON_USE_ASYNC_SLOTS
 static __Pyx_PyAsyncMethodsStruct __Pyx_async_gen_athrow_as_async = {
     PyObject_SelfIter,                          /* am_await */
     0,                                          /* am_aiter */
     0,                                          /* am_anext */
     0,                                          /* am_send */
 };
-#endif
 
 static PyTypeObject __pyx__PyAsyncGenAThrowType_type = {
     PyVarObject_HEAD_INIT(0, 0)
