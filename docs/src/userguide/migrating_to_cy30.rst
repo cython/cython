@@ -247,6 +247,11 @@ any Python object for ``x``), unless the language level is explicitly
 set to 2.  To mitigate the effect, Cython 3.0 still accepts both Python
 ``int`` and ``long`` values under Python 2.x.
 
+One potential issue you may encounter is that types like ``typing.List``
+are now understood in annotations (where previously they were ignored)
+and are interpreted to mean *exact* ``list``. This is stricter than
+the interpretation specified in PEP-484, which also allows subclasses.
+
 To make it easier to handle cases where your interpretation of type
 annotations differs from Cython's, Cython 3 now supports setting the
 ``annotation_typing`` :ref:`directive <compiler-directives>` on a
@@ -271,6 +276,8 @@ Public declarations in C++ mode are exported as C++ API in Cython 3, using ``ext
 This behaviour can be changed by setting the export keyword using the ``CYTHON_EXTERN_C`` macro
 to allow Cython modules to be implemented in C++ but callable from C.
 
+.. _power-operator:
+
 ``**`` power operator
 =====================
 
@@ -283,3 +290,32 @@ more like Python. The consequences are that
 
 The old behaviour can be restored by setting the ``cpow``
 :ref:`compiler directive <compiler-directives>` to ``True``.
+
+
+.. _deprecated_DEF_IF:
+
+Deprecation of ``DEF`` / ``IF``
+===============================
+
+The :ref:`conditional compilation feature <conditional_compilation>` has been
+deprecated and should no longer be used in new code.
+It is expected to get removed in some future release.
+
+Usages of ``DEF`` should be replaced by:
+
+- global cdef constants
+- global enums (C or Python)
+- C macros, e.g. defined in :ref:`verbatim C code <verbatim_c>`
+- the usual Python mechanisms for sharing values across modules and usages
+
+Usages of ``IF`` should be replaced by:
+
+- runtime conditions and conditional Python imports (i.e. the usual Python patterns)
+- leaving out unused C struct field names from a Cython extern struct definition
+  (which does not have to be complete)
+- redefining an extern struct type under different Cython names,
+  with different (e.g. version/platform dependent) attributes,
+  but with the :ref:`same cname string <resolve-conflicts>`.
+- separating out optional (non-trivial) functionality into optional Cython modules
+  and importing/using them at need (with regular runtime Python imports)
+- code generation, as a last resort

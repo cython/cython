@@ -117,18 +117,20 @@ the declaration in most cases:
                 f: cython.float = 2.5
                 g: cython.int[4] = [1, 2, 3, 4]
                 h: cython.p_float = cython.address(f)
+                c: cython.doublecomplex = 2 + 3j
 
     .. group-tab:: Cython
 
         .. code-block:: cython
 
-            cdef int a_global_variable
+            cdef int a_global_variable = 42
 
             def func():
                 cdef int i = 10, j, k
                 cdef float f = 2.5
                 cdef int[4] g = [1, 2, 3, 4]
                 cdef float *h = &f
+                cdef double complex c = 2 + 3j
 
 .. note::
 
@@ -167,6 +169,8 @@ C array can be declared by adding ``[ARRAY_SIZE]`` to the type of variable:
             def func():
                 g: cython.float[42]
                 f: cython.int[5][5][5]
+                ptr_char_array: cython.pointer(cython.char[4])  # pointer to the array of 4 chars
+                array_ptr_char: cython.p_char[4]                # array of 4 char pointers
 
     .. group-tab:: Cython
 
@@ -175,6 +179,8 @@ C array can be declared by adding ``[ARRAY_SIZE]`` to the type of variable:
             def func():
                 cdef float[42] g
                 cdef int[5][5][5] f
+                cdef char[4] *ptr_char_array     # pointer to the array of 4 chars
+                cdef (char *)[4] array_ptr_char  # array of 4 char pointers
 
 .. note::
 
@@ -289,9 +295,66 @@ Types
 The Cython language uses the normal C syntax for C types, including pointers.  It provides
 all the standard C types, namely ``char``, ``short``, ``int``, ``long``,
 ``long long`` as well as their ``unsigned`` versions,
-e.g. ``unsigned int`` (``cython.uint`` in Python code).
+e.g. ``unsigned int`` (``cython.uint`` in Python code):
+
+
+.. list-table:: Numeric Types
+   :widths: 25 25
+   :header-rows: 1
+
+   * - Cython type
+     - Pure Python type
+
+   * - ``bint``
+     - ``cython.bint``
+   * - ``char``
+     - ``cython.char``
+   * - ``signed char``
+     - ``cython.schar``
+   * - ``unsigned char``
+     - ``cython.uchar``
+   * - ``short``
+     - ``cython.short``
+   * - ``unsigned short``
+     - ``cython.ushort``
+   * - ``int``
+     - ``cython.int``
+   * - ``unsigned int``
+     - ``cython.uint``
+   * - ``long``
+     - ``cython.long``
+   * - ``unsigned long``
+     - ``cython.ulong``
+   * - ``long long``
+     - ``cython.longlong``
+   * - ``unsigned long long``
+     - ``cython.ulonglong``
+   * - ``float``
+     - ``cython.float``
+   * - ``double``
+     - ``cython.double``
+   * - ``long double``
+     - ``cython.longdouble``
+   * - ``float complex``
+     - ``cython.floatcomplex``
+   * - ``double complex``
+     - ``cython.doublecomplex``
+   * - ``long double complex``
+     - ``cython.longdoublecomplex``
+   * - ``size_t``
+     - ``cython.size_t``
+   * - ``Py_ssize_t``
+     - ``cython.Py_ssize_t``
+   * - ``Py_hash_t``
+     - ``cython.Py_hash_t``
+   * - ``Py_UCS4``
+     - ``cython.Py_UCS4``
+
+.. note::
+   Additional types are declared in the `stdint pxd file <https://github.com/cython/cython/blob/master/Cython/Includes/libc/stdint.pxd>`_.
+
 The special ``bint`` type is used for C boolean values (``int`` with 0/non-0
-values for False/True) and ``Py_ssize_t`` for (signed) sizes of Python
+values for False/True) and :c:type:`Py_ssize_t` for (signed) sizes of Python
 containers.
 
 Pointer types are constructed as in C when using Cython syntax, by appending a ``*`` to the base type
@@ -299,7 +362,6 @@ they point to, e.g. ``int**`` for a pointer to a pointer to a C int. In Pure pyt
 use a naming scheme with "p"s instead, separated from the type name with an underscore, e.g. ``cython.pp_int`` for a pointer to
 a pointer to a C int.  Further pointer types can be constructed with the ``cython.pointer()`` function,
 e.g. ``cython.pointer(cython.int)``.
-
 
 Arrays use the normal C array syntax, e.g. ``int[10]``, and the size must be known
 at compile time for stack allocated arrays. Cython doesn't support variable length arrays from C99.
@@ -329,7 +391,7 @@ This requires an *exact* match of the class, it does not allow subclasses.
 This allows Cython to optimize code by accessing internals of the builtin class,
 which is the main reason for declaring builtin types in the first place.
 
-For declared builtin types, Cython uses internally a C variable of type ``PyObject*``.
+For declared builtin types, Cython uses internally a C variable of type :c:expr:`PyObject*`.
 
 .. note:: The Python types ``int``, ``long``, and ``float`` are not available for static
     typing in ``.pyx`` files and instead interpreted as C ``int``, ``long``, and ``float``
@@ -632,8 +694,8 @@ In the interests of clarity, it is probably a good idea to always be explicit
 about object parameters in C functions.
 
 
-To create a borrowed reference, specify the parameter type as ``PyObject*``.
-Cython won't perform automatic ``Py_INCREF``, or ``Py_DECREF``, e.g.:
+To create a borrowed reference, specify the parameter type as :c:expr:`PyObject*`.
+Cython won't perform automatic :c:func:`Py_INCREF`, or :c:func:`Py_DECREF`, e.g.:
 
 .. tabs::
 
@@ -648,8 +710,11 @@ Cython won't perform automatic ``Py_INCREF``, or ``Py_DECREF``, e.g.:
 will display::
 
     Initial refcount: 2
-    Inside owned_reference: 3
-    Inside borrowed_reference: 2
+    Inside owned_reference initially: 2
+    Inside owned_reference after new ref: 3
+    Inside borrowed_reference initially: 2
+    Inside borrowed_reference after new pointer: 2
+    Inside borrowed_reference with temporary managed reference: 2
 
 
 .. _optional_arguments:
@@ -1033,7 +1098,7 @@ possibilities.
 +----------------------------+--------------------+------------------+
 | C array                    | iterable           | list [#2]_       |
 +----------------------------+--------------------+------------------+
-| struct,                    |                    | dict [#1]_       |
+| struct,                    |                    | dict [#1]_ [#4]_ |
 | union                      |                    |                  |
 +----------------------------+--------------------+------------------+
 
@@ -1048,6 +1113,10 @@ possibilities.
 .. [#2] Other than signed/unsigned char[].
    The conversion will fail if the length of C array is not known at compile time,
    and when using a slice of a C array.
+   
+.. [#4] The automatic conversion of a struct to a ``dict`` (and vice
+   versa) does have some potential pitfalls detailed
+   :ref:`elsewhere in the documentation <automatic_conversion_pitfalls>`.
 
 
 Caveats when using a Python string in a C context
@@ -1187,18 +1256,20 @@ Cython uses ``"<"`` and ``">"``.  In pure python mode, the ``cython.cast()`` fun
             :caption: casting_python.py
 
         Casting with ``cast(object, ...)`` creates an owned reference. Cython will automatically
-        perform a ``Py_INCREF`` and ``Py_DECREF`` operation. Casting to
+        perform a :c:func:`Py_INCREF` and :c:func:`Py_DECREF` operation. Casting to
         ``cast(pointer(PyObject), ...)`` creates a borrowed reference, leaving the refcount unchanged.
 
     .. group-tab:: Cython
 
+        .. literalinclude:: ../../examples/userguide/language_basics/casting_python.pxd
+            :caption: casting_python.pxd
         .. literalinclude:: ../../examples/userguide/language_basics/casting_python.pyx
             :caption: casting_python.pyx
 
         The precedence of ``<...>`` is such that ``<type>a.b.c`` is interpreted as ``<type>(a.b.c)``.
 
         Casting to ``<object>`` creates an owned reference. Cython will automatically
-        perform a ``Py_INCREF`` and ``Py_DECREF`` operation. Casting to
+        perform a :c:func:`Py_INCREF` and :c:func:`Py_DECREF` operation. Casting to
         ``<PyObject *>`` creates a borrowed reference, leaving the refcount unchanged.
 
 
@@ -1448,6 +1519,7 @@ if the corresponding definition file also defines that type.
     and classes from each other without the Python overhead. To read more about
     what how to do that, you can see :ref:`pxd_files`.
 
+.. _definition_file:
 
 The definition file
 -------------------
@@ -1476,6 +1548,7 @@ wants to  access :keyword:`cdef` attributes and methods, or to inherit from
     presence in a definition file does that. You only need a public
     declaration if you want to make something available to external C code.
 
+.. _include_statement:
 
 The include statement and include files
 ---------------------------------------
@@ -1510,15 +1583,23 @@ of functions or class bodies.
 Conditional Compilation
 =======================
 
-Some features are available for conditional compilation and compile-time
+Some language features are available for conditional compilation and compile-time
 constants within a Cython source file.
 
 .. note::
 
+    This feature has been deprecated and should not be used in new code.
+    It is very foreign to the Python language and also behaves
+    differently from the C preprocessor.  It is often misunderstood by users.
+    For the current deprecation status, see https://github.com/cython/cython/issues/4310.
+    For alternatives, see :ref:`deprecated_DEF_IF`.
+
+.. note::
+
     This feature has very little use cases.  Specifically, it is not a good
-    way to adapt code to platform and environment.  Use code generation or
-    (preferably) C compile time adaptation for this.  See, for example,
-    :ref:`verbatim_c`.
+    way to adapt code to platform and environment.  Use runtime conditions,
+    conditional Python imports, or C compile time adaptation for this.
+    See, for example, :ref:`verbatim_c` or :ref:`resolve-conflicts`.
 
 .. note::
 
@@ -1539,8 +1620,19 @@ The right-hand side of the ``DEF`` must be a valid compile-time expression.
 Such expressions are made up of literal values and names defined using ``DEF``
 statements, combined using any of the Python expression syntax.
 
+.. note::
+    Cython does not intend to copy literal compile-time values 1:1 into the generated code.
+    Instead, these values are internally represented and calculated as plain Python
+    values and use Python's ``repr()`` when a serialisation is needed.  This means
+    that values defined using ``DEF`` may lose precision or change their type
+    depending on the calculation rules of the Python environment where Cython parses and
+    translates the source code.  Specifically, using ``DEF`` to define high-precision
+    floating point constants may not give the intended result and may generate different
+    C values in different Python versions.
+
 The following compile-time names are predefined, corresponding to the values
-returned by :func:`os.uname`.
+returned by :func:`os.uname`.  As noted above, they are not considered good ways
+to adapt code to different platforms and are mostly provided for legacy reasons.
 
     UNAME_SYSNAME, UNAME_NODENAME, UNAME_RELEASE,
     UNAME_VERSION, UNAME_MACHINE
@@ -1570,16 +1662,16 @@ Conditional Statements
 
 The ``IF`` statement can be used to conditionally include or exclude sections
 of code at compile time. It works in a similar way to the ``#if`` preprocessor
-directive in C.::
+directive in C.
 
-    IF UNAME_SYSNAME == "Windows":
-        include "icky_definitions.pxi"
-    ELIF UNAME_SYSNAME == "Darwin":
-        include "nice_definitions.pxi"
-    ELIF UNAME_SYSNAME == "Linux":
-        include "penguin_definitions.pxi"
+::
+
+    IF ARRAY_SIZE > 64:
+        include "large_arrays.pxi"
+    ELIF ARRAY_SIZE > 16:
+        include "medium_arrays.pxi"
     ELSE:
-        include "other_definitions.pxi"
+        include "small_arrays.pxi"
 
 The ``ELIF`` and ``ELSE`` clauses are optional. An ``IF`` statement can appear
 anywhere that a normal statement or declaration can appear, and it can contain

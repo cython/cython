@@ -111,8 +111,23 @@ def test_plus_one():
     array([[57., 58.],
            [67., 68.],
            [77., 78.]])
-    >>> plus_one(1.j)
+    >>> complex(plus_one(1.j))
     (1+1j)
+    """
+
+@cython.ufunc
+cdef (cython.numeric, cython.numeric) plus_one_twice(cython.numeric x):
+    return x+1, x+1
+
+def test_plus_one_twice():
+    """
+    Test a function returning a fused ctuple
+    >>> plus_one_twice(int_arr_1d)  # doctest: +ELLIPSIS
+    (array([ 1,  5,  9, 13, 17]...), array([ 1,  5,  9, 13, 17]...))
+    >>> plus_one_twice(1.j)
+    ((1+1j), (1+1j))
+
+    2D variant skipped because it's hard to sensible doctest
     """
 
 ###### Test flow-control ######
@@ -146,13 +161,13 @@ def test_flow_control():
     """
     >>> np.allclose(return_stops_execution(double_arr_1d), double_arr_1d)
     True
-    >>> return_in_if(-1.)
+    >>> float(return_in_if(-1.))
     1.0
-    >>> return_in_if(2.0)
+    >>> float(return_in_if(2.0))
     2.0
-    >>> nested_loops(5.5)
+    >>> float(nested_loops(5.5))
     6.0
-    >>> nested_loops(105.)
+    >>> float(nested_loops(105.))
     -5.0
     """
 
@@ -166,7 +181,7 @@ def test_nested_function():
     """
     >>> np.allclose(nested_function(double_arr_1d), 2*double_arr_1d)
     True
-    >>> nested_function(-1.)
+    >>> float(nested_function(-1.))
     -2.0
     """
 

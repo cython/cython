@@ -1,4 +1,3 @@
-
 def pylong_join(count, digits_ptr='digits', join_type='unsigned long'):
     """
     Generate an unrolled shift-then-or loop over the first 'count' digits.

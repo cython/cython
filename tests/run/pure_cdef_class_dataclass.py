@@ -76,3 +76,14 @@ class NoInitFields:
             # and not initializing it will mess up repr
             assert not hasattr(self, "neither")
             self.neither = None
+
+
+@cython.dataclasses.dataclass
+class NonInitDefaultArgument:
+    """
+    >>> NonInitDefaultArgument(1.0, "hello")
+    NonInitDefaultArgument(x=1.0, y=10, z='hello')
+    """
+    x: float
+    y: int = cython.dataclasses.field(default=10, init=False)
+    z: str  # This is allowed despite following a default argument, because the default argument isn't in init

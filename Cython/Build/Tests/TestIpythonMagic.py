@@ -1,14 +1,14 @@
-# -*- coding: utf-8 -*-
 # tag: ipython
 
 """Tests for the Cython magics extension."""
 
-from __future__ import absolute_import
 
 import os
 import io
 import sys
 from contextlib import contextmanager
+from unittest import skipIf
+
 from Cython.Build import IpythonMagic
 from Cython.TestUtils import CythonTest
 from Cython.Compiler.Annotate import AnnotationCCodeWriter
@@ -22,6 +22,9 @@ except ImportError:
 else:
     def skip_if_not_installed(c):
         return c
+
+# not using IPython's decorators here because they depend on "nose"
+skip_win32 = skipIf(sys.platform == 'win32', "Skip on Windows")
 
 try:
     # disable IPython history thread before it gets started to avoid having to clean it up
@@ -50,12 +53,12 @@ def capture_output():
             wrapper.close()
 
 
-code = u"""\
+code = """\
 def f(x):
     return 2*x
 """
 
-cython3_code = u"""\
+cython3_code = """\
 def f(int x):
     return 2 / x
 
@@ -63,13 +66,13 @@ def call(x):
     return f(*(x,))
 """
 
-pgo_cython3_code = cython3_code + u"""\
+pgo_cython3_code = cython3_code + """\
 def main():
     for _ in range(100): call(5)
 main()
 """
 
-compile_error_code = u'''\
+compile_error_code = '''\
 cdef extern from *:
     """
     xxx a=1;
@@ -79,7 +82,7 @@ def doit():
     return a
 '''
 
-compile_warning_code = u'''\
+compile_warning_code = '''\
 cdef extern from *:
     """
     #pragma message ( "CWarning" )
@@ -89,25 +92,6 @@ cdef extern from *:
 def doit():
     return a
 '''
-
-
-if sys.platform == 'win32':
-    # not using IPython's decorators here because they depend on "nose"
-    try:
-        from unittest import skip as skip_win32
-    except ImportError:
-        # poor dev's silent @unittest.skip()
-        def skip_win32(dummy):
-            def _skip_win32(func):
-                return None
-            return _skip_win32
-else:
-    def skip_win32(dummy):
-        def _skip_win32(func):
-            def wrapper(*args, **kwargs):
-                func(*args, **kwargs)
-            return wrapper
-        return _skip_win32
 
 
 @skip_if_not_installed
@@ -128,7 +112,7 @@ class TestIPythonMagic(CythonTest):
         result = ip.run_cell_magic('cython_inline', '', 'return a+b')
         self.assertEqual(result, 30)
 
-    @skip_win32('Skip on Windows')
+    @skip_win32
     def test_cython_pyximport(self):
         ip = self._ip
         module_name = '_test_cython_pyximport'
@@ -162,12 +146,8 @@ class TestIPythonMagic(CythonTest):
         ip = self._ip
         ip.run_cell_magic('cython', '', cython3_code)
         ip.ex('g = f(10); h = call(10)')
-        if sys.version_info[0] < 3:
-            self.assertEqual(ip.user_ns['g'], 2 // 10)
-            self.assertEqual(ip.user_ns['h'], 2 // 10)
-        else:
-            self.assertEqual(ip.user_ns['g'], 2.0 / 10.0)
-            self.assertEqual(ip.user_ns['h'], 2.0 / 10.0)
+        self.assertEqual(ip.user_ns['g'], 2.0 / 10.0)
+        self.assertEqual(ip.user_ns['h'], 2.0 / 10.0)
 
     def test_cython3(self):
         # The Cython cell defines the functions f() and call().
@@ -218,7 +198,7 @@ class TestIPythonMagic(CythonTest):
         # check that warning was printed to stdout even if build hasn't failed
         self.assertTrue("CWarning" in captured_out)
 
-    @skip_win32('Skip on Windows')
+    @skip_win32
     def test_cython3_pgo(self):
         # The Cython cell defines the functions f() and call().
         ip = self._ip
@@ -227,10 +207,10 @@ class TestIPythonMagic(CythonTest):
         self.assertEqual(ip.user_ns['g'], 2.0 / 10.0)
         self.assertEqual(ip.user_ns['h'], 2.0 / 10.0)
 
-    @skip_win32('Skip on Windows')
+    @skip_win32
     def test_extlibs(self):
         ip = self._ip
-        code = u"""
+        code = """
 from libc.math cimport sin
 x = sin(0.0)
         """

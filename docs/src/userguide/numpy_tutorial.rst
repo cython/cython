@@ -6,6 +6,9 @@
 Cython for NumPy users
 **************************
 
+.. include::
+    ../two-syntax-variants-used
+
 This tutorial is aimed at NumPy users who have no experience with Cython at
 all. If you have some knowledge of Cython you may want to skip to the
 ''Efficient indexing'' section.
@@ -108,8 +111,13 @@ then execute :
 
 This will install the newest Cython into SAGE.
 
+.. _numpy_compilation:
+
+Compilation
+===========
+
 Manual compilation
-====================
+------------------
 
 As it is always important to know what is going on, I'll describe the manual
 method here. First Cython is run:
@@ -142,6 +150,60 @@ in your Cython code.
 
 This creates :file:`yourmod.so` in the same directory, which is importable by
 Python by using a normal ``import yourmod`` statement.
+
+
+Compilation using setuptools
+----------------------------
+
+Setuptools allows us to create setup.py file to automate compilation of both Cython files and generated C files.::
+
+    from setuptools import Extension, setup
+    from Cython.Build import cythonize
+    import numpy
+
+    extensions = [
+        Extension("*", ["*.pyx"],
+            include_dirs=[numpy.get_include()]),
+    ]
+    setup(
+        name="My hello app",
+        ext_modules=cythonize(extensions),
+    )
+
+The path to the NumPy headers is passed to the C compiler via the ``include_dirs=[numpy.get_include()]`` parameter.
+
+.. note::
+
+    Using memoryviews or importing NumPy with ``import numpy`` does not mean that
+    you have to add the path to NumPy include files. You need to add this path only
+    if you use ``cimport numpy``.
+
+Despite this, you may still get warnings like the following from the compiler,
+because Cython is not disabling the usage of the old deprecated Numpy API::
+
+   .../include/numpy/npy_1_7_deprecated_api.h:15:2: warning: #warning "Using deprecated NumPy API, disable it by " "#defining NPY_NO_DEPRECATED_API NPY_1_7_API_VERSION" [-Wcpp]
+
+In Cython 3.0, you can get rid of this warning by defining the C macro
+``NPY_NO_DEPRECATED_API`` as ``NPY_1_7_API_VERSION``
+in your build, e.g.::
+
+    # distutils: define_macros=NPY_NO_DEPRECATED_API=NPY_1_7_API_VERSION
+
+or (see below)::
+
+    Extension(
+        ...,
+        define_macros=[("NPY_NO_DEPRECATED_API", "NPY_1_7_API_VERSION")],
+    )
+
+With older Cython releases, setting this macro will fail the C compilation,
+because Cython generates code that uses this deprecated C-API.  However, the
+warning has no negative effects even in recent NumPy versions.
+You can ignore it until you (or your library's users) switch to a newer NumPy
+version that removes this long deprecated API, in which case you also need to
+use Cython 3.0 or later.  Thus, the earlier you switch to Cython 3.0, the
+better for your users.
+
 
 The first Cython program
 ==========================
@@ -212,11 +274,22 @@ Adding types
 =============
 
 To add types we use custom Cython syntax, so we are now breaking Python source
-compatibility. Here's :file:`compute_typed.pyx`. *Read the comments!*
+compatibility. *Read the comments!*
 
-.. literalinclude:: ../../examples/userguide/numpy_tutorial/compute_typed.pyx
+.. tabs::
 
-.. figure:: compute_typed_html.jpg
+    .. group-tab:: Pure Python
+
+        .. literalinclude:: ../../examples/userguide/numpy_tutorial/compute_typed.py
+            :caption: compute_typed.py
+        .. figure:: compute_typed_py_html.png
+
+    .. group-tab:: Cython
+
+        .. literalinclude:: ../../examples/userguide/numpy_tutorial/compute_typed.pyx
+            :caption: compute_typed.pyx
+        .. figure:: compute_typed_pyx_html.png
+
 
 At this point, have a look at the generated C code for :file:`compute_cy.pyx` and
 :file:`compute_typed.pyx`. Click on the lines to expand them and see corresponding C.
@@ -275,12 +348,27 @@ the NumPy array isn't contiguous in memory.
 They can be indexed by C integers, thus allowing fast access to the
 NumPy array data.
 
-Here is how to declare a memoryview of integers::
+Here is how to declare a memoryview of integers:
 
-    cdef int [:] foo         # 1D memoryview
-    cdef int [:, :] foo      # 2D memoryview
-    cdef int [:, :, :] foo   # 3D memoryview
-    ...                      # You get the idea.
+.. tabs::
+
+    .. group-tab:: Pure Python
+
+        .. code-block:: python
+
+            foo: cython.int [:]        # 1D memoryview
+            foo: cython.int [:, :]     # 2D memoryview
+            foo: cython.int [:, :, :]  # 3D memoryview
+            ...                      # You get the idea.
+
+    .. group-tab:: Cython
+
+        .. code-block:: cython
+
+            cdef int [:] foo         # 1D memoryview
+            cdef int [:, :] foo      # 2D memoryview
+            cdef int [:, :, :] foo   # 3D memoryview
+            ...                      # You get the idea.
 
 No data is copied from the NumPy array to the memoryview in our example.
 As the name implies, it is only a "view" of the memory. So we can use the
@@ -289,9 +377,18 @@ array ``result`` that holds the data that we operated on.
 
 Here is how to use them in our code:
 
-:file:`compute_memview.pyx`
 
-.. literalinclude:: ../../examples/userguide/numpy_tutorial/compute_memview.pyx
+.. tabs::
+
+    .. group-tab:: Pure Python
+
+        .. literalinclude:: ../../examples/userguide/numpy_tutorial/compute_memview.py
+            :caption: compute_memview.py
+
+    .. group-tab:: Cython
+
+        .. literalinclude:: ../../examples/userguide/numpy_tutorial/compute_memview.pyx
+            :caption: compute_memview.pyx
 
 Let's see how much faster accessing is now.
 
@@ -318,14 +415,32 @@ The array lookups are still slowed down by two factors:
    explicitly coded so that it doesn't use negative indices, and it
    (hopefully) always access within bounds.
 
-With decorators, we can deactivate those checks::
+With decorators, we can deactivate those checks:
 
-    ...
-    cimport cython
-    @cython.boundscheck(False)  # Deactivate bounds checking
-    @cython.wraparound(False)   # Deactivate negative indexing.
-    def compute(int[:, :] array_1, int[:, :] array_2, int a, int b, int c):
-    ...
+.. tabs::
+
+    .. group-tab:: Pure Python
+
+        .. code-block:: python
+
+            ...
+            import cython
+            @cython.boundscheck(False)  # Deactivate bounds checking
+            @cython.wraparound(False)   # Deactivate negative indexing.
+            def compute(array_1: cython.int[:, :], array_2: cython.int[:, :],
+                        a: cython.int, b: cython.int, c: cython.int):
+            ...
+
+    .. group-tab:: Cython
+
+        .. code-block:: cython
+
+            ...
+            cimport cython
+            @cython.boundscheck(False)  # Deactivate bounds checking
+            @cython.wraparound(False)   # Deactivate negative indexing.
+            def compute(int[:, :] array_1, int[:, :] array_2, int a, int b, int c):
+            ...
 
 Now bounds checking is not performed (and, as a side-effect, if you ''do''
 happen to access out of bounds you will in the best case crash your program
@@ -366,14 +481,38 @@ memoryview as contiguous.
 
 We give an example on an array that has 3 dimensions.
 If you want to give Cython the information that the data is C-contiguous
-you have to declare the memoryview like this::
+you have to declare the memoryview like this:
 
-    cdef int [:,:,::1] a
+.. tabs::
+
+    .. group-tab:: Pure Python
+
+        .. code-block:: python
+
+            a: cython.int[:,:,::1]
+
+    .. group-tab:: Cython
+
+        .. code-block:: cython
+
+            cdef int [:,:,::1] a
 
 If you want to give Cython the information that the data is Fortran-contiguous
-you have to declare the memoryview like this::
+you have to declare the memoryview like this:
 
-    cdef int [::1, :, :] a
+.. tabs::
+
+    .. group-tab:: Pure Python
+
+        .. code-block:: python
+
+            a: cython.int[::1, :, :]
+
+    .. group-tab:: Cython
+
+        .. code-block:: cython
+
+            cdef int [::1, :, :] a
 
 If all this makes no sense to you, you can skip this part, declaring
 arrays as contiguous constrains the usage of your functions as it rejects array slices as input.
@@ -409,7 +548,15 @@ our code. This is why, we must still declare manually the type of the
 And actually, manually giving the type of the ``tmp`` variable will
 be useful when using fused types.
 
-.. literalinclude:: ../../examples/userguide/numpy_tutorial/compute_infer_types.pyx
+.. tabs::
+
+    .. group-tab:: Pure Python
+
+        .. literalinclude:: ../../examples/userguide/numpy_tutorial/compute_infer_types.py
+
+    .. group-tab:: Cython
+
+        .. literalinclude:: ../../examples/userguide/numpy_tutorial/compute_infer_types.pyx
 
 We now do a speed test:
 
@@ -443,7 +590,15 @@ know what NumPy data type we should use for our output array.
 
 In this case, our function now works for ints, doubles and floats.
 
-.. literalinclude:: ../../examples/userguide/numpy_tutorial/compute_fused_types.pyx
+.. tabs::
+
+    .. group-tab:: Pure Python
+
+        .. literalinclude:: ../../examples/userguide/numpy_tutorial/compute_fused_types.py
+
+    .. group-tab:: Cython
+
+        .. literalinclude:: ../../examples/userguide/numpy_tutorial/compute_fused_types.pyx
 
 We can check that the output type is the right one::
 
@@ -479,10 +634,29 @@ you should use the cell magic like this:
     # distutils: extra_compile_args=-fopenmp
     # distutils: extra_link_args=-fopenmp
 
+For MSVC (on Windows) you should use ``/openmp`` instead of ``-fopenmp``.
 The GIL must be released (see :ref:`Releasing the GIL <nogil>`), so this is why we
 declare our :func:`clip` function ``nogil``.
 
-.. literalinclude:: ../../examples/userguide/numpy_tutorial/compute_prange.pyx
+.. tabs::
+
+    .. group-tab:: Pure Python
+
+        .. literalinclude:: ../../examples/userguide/numpy_tutorial/compute_prange.py
+            :lines: 3-
+
+    .. group-tab:: Cython
+
+        .. literalinclude:: ../../examples/userguide/numpy_tutorial/compute_prange.pyx
+            :lines: 3-
+
+.. note::
+
+    Currently, Cython is checking whether there was a raised exception after every call of the function ``clip()``.
+    Checking a raised exception requires the GIL to be held which causes overhead inside a `nogil` loop.
+    The need to check here is a bug with functions returning a fused type (see :issue:`5586` for the details).
+    To avoid acquiring the GIL, the function is declared as ``noexcept`` or ``@cython.exceptval(check=False)``. See the :ref:`error_return_values` section for more details.
+
 
 We can have substantial speed gains for minimal effort:
 

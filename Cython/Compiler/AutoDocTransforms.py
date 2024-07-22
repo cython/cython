@@ -1,4 +1,4 @@
-from __future__ import absolute_import, print_function
+import inspect
 
 from .Visitor import CythonTransform
 from .StringEncoding import EncodedString
@@ -22,11 +22,11 @@ class AnnotationWriter(ExpressionWriter):
         self.incomplete = False
 
     def visit_Node(self, node):
-        self.put(u"<???>")
+        self.put("<???>")
         self.incomplete = True
         if self.description:
             warning(node.pos,
-                    "Failed to convert code to string representation in {0}".format(
+                    "Failed to convert code to string representation in {}".format(
                         self.description), level=1)
 
     def visit_LambdaNode(self, node):
@@ -35,7 +35,7 @@ class AnnotationWriter(ExpressionWriter):
         self.incomplete = True
         if self.description:
             warning(node.pos,
-                    "Failed to convert lambda to string representation in {0}".format(
+                    "Failed to convert lambda to string representation in {}".format(
                         self.description), level=1)
 
     def visit_UnicodeNode(self, node):
@@ -50,7 +50,7 @@ class AnnotationWriter(ExpressionWriter):
 class EmbedSignature(CythonTransform):
 
     def __init__(self, context):
-        super(EmbedSignature, self).__init__(context)
+        super().__init__(context)
         self.class_name = None
         self.class_node = None
 
@@ -179,6 +179,7 @@ class EmbedSignature(CythonTransform):
                 docfmt = "%s\n--\n\n%s"
             else:
                 docfmt = "%s\n%s"
+            node_doc = inspect.cleandoc(node_doc)
             return docfmt % (signature, node_doc)
         else:
             if self.is_format_clinic:
@@ -191,7 +192,7 @@ class EmbedSignature(CythonTransform):
         if not Options.docstrings:
             return node
         else:
-            return super(EmbedSignature, self).__call__(node)
+            return super().__call__(node)
 
     def visit_ClassDefNode(self, node):
         oldname = self.class_name

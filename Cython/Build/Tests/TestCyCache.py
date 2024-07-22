@@ -2,7 +2,9 @@ import difflib
 import glob
 import gzip
 import os
+import sys
 import tempfile
+import unittest
 
 import Cython.Build.Dependencies
 import Cython.Utils
@@ -70,7 +72,8 @@ class TestCyCache(CythonTest):
             f.write('pass')
         self.fresh_cythonize(a_pyx, cache=self.cache_dir)
         a_cache = os.path.join(self.cache_dir, os.listdir(self.cache_dir)[0])
-        gzip.GzipFile(a_cache, 'wb').write('fake stuff'.encode('ascii'))
+        with gzip.GzipFile(a_cache, 'wb') as gzipfile:
+            gzipfile.write(b'fake stuff')
         os.unlink(a_c)
         self.fresh_cythonize(a_pyx, cache=self.cache_dir)
         with open(a_c) as f:

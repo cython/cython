@@ -1,5 +1,5 @@
 # mode: run
-# tag: cpp, werror, cpp11, no-cpp-locals
+# tag: cpp, cpp11, warnings, no-cpp-locals
 # cython: experimental_cpp_class_def=True
 
 cdef double pi
@@ -27,7 +27,7 @@ cdef cppclass RegularPolygon(Shape):
     void do_with() except *:
         # only a compile test - the file doesn't actually have to exist
         # "with" was broken by https://github.com/cython/cython/issues/4212
-        with open("doesnt matter") as f:
+        with open("does not matter") as f:
             return
 
 def test_Poly(int n, float radius=1):
@@ -269,3 +269,7 @@ def test_CppClassWithDocstring():
     cdef CppClassWithDocstring *c = new CppClassWithDocstring()
     del c
     print "OK"
+
+_WARNINGS="""
+24:4: Unraisable exception in function 'RegularPolygon.area'.
+"""

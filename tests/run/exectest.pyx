@@ -100,7 +100,6 @@ def test():
 """ % varref in d
     return d[u'test']
 
-import sys
 
 def test_encoding(d1, d2):
     u"""
@@ -109,10 +108,7 @@ def test_encoding(d1, d2):
     >>> print(d['b'])
     üöä
     """
-    if sys.version_info[0] >= 3:
-        s = "b = 'üöä'"
-    else:
-        s = "# -*- coding: utf-8 -*-" + "\n" + "b = u'üöä'"
+    s = "b = 'üöä'"
     exec s in d1, d2
 
 def test_encoding_unicode(d1, d2):
@@ -122,10 +118,7 @@ def test_encoding_unicode(d1, d2):
     >>> print(d['b'])
     üöä
     """
-    if sys.version_info[0] >= 3:
-        s = u"b = 'üöä'"
-    else:
-        s = u"b = u'üöä'"
+    s = u"b = 'üöä'"
     exec s in d1, d2
 
 def test_compile(d):
@@ -155,8 +148,7 @@ def exec_with_new_features(s, d):
     >>> d = {}
     >>> exec_with_new_features('print(123)', d)
     123
-    >>> if pyversion == (2, 7): exec_with_new_features('exec "123"', d)
-    >>> if pyversion >= (3, 6): exec_with_new_features('f = f"abc"', d)
+    >>> exec_with_new_features('f = f"abc"', d)
     >>> if pyversion >= (3, 8): exec_with_new_features('a = (b := 1)', d)
     """
     exec s in d
