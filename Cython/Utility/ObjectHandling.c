@@ -185,7 +185,21 @@ static CYTHON_INLINE PyObject *__Pyx_PyIter_Next2(PyObject *, PyObject *); /*pro
 /////////////// IterNext ///////////////
 //@requires: Exceptions.c::PyThreadStateGet
 //@requires: Exceptions.c::PyErrFetchRestore
+//@requires: GetBuiltinName
 
+#if CYTHON_COMPILING_IN_LIMITED_API && __PYX_LIMITED_VERSION_HEX < 0x03080000
+// In limited API for Py 3.7, PyIter_Check is defined but as a macro that uses 
+// non-limited API features and thus is unusable. Therefore, just call builtin next.
+static PyObject *__Pyx_PyIter_Next2(PyObject *o, PyObject *defval) {
+    PyObject *result;
+    PyObject *next = __Pyx_GetBuiltinName(PYIDENT("next"));
+    if (unlikely(!next)) return NULL;
+    // This works if defval is NULL or not
+    result = PyObject_CallFunctionObjArgs(next, o, defval, NULL);
+    Py_DECREF(next);
+    return result;
+}
+#else
 static PyObject *__Pyx_PyIter_Next2Default(PyObject* defval) {
     PyObject* exc_type;
     __Pyx_PyThreadState_declare
@@ -216,8 +230,9 @@ static void __Pyx_PyIter_Next_ErrorNoIterator(PyObject *iterator) {
 // originally copied from Py3's builtin_next()
 static CYTHON_INLINE PyObject *__Pyx_PyIter_Next2(PyObject* iterator, PyObject* defval) {
     PyObject* next;
+    (void)__Pyx_GetBuiltinName; // only for early limited API
     // We always do a quick slot check because calling PyIter_Check() is so wasteful.
-    iternextfunc iternext = __Pyx_PyObject_GetSlot(iterator, tp_iternext, iternextfunc);
+    iternextfunc iternext = __Pyx_PyObject_TryGetSlot(iterator, tp_iternext, iternextfunc);
     if (likely(iternext)) {
 #if CYTHON_USE_TYPE_SLOTS || CYTHON_COMPILING_IN_PYPY
         next = iternext(iterator);
@@ -250,6 +265,7 @@ static CYTHON_INLINE PyObject *__Pyx_PyIter_Next2(PyObject* iterator, PyObject* 
 #endif
     return __Pyx_PyIter_Next2Default(defval);
 }
+#endif
 
 /////////////// IterFinish.proto ///////////////
 

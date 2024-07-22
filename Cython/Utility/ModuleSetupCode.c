@@ -841,7 +841,7 @@ static CYTHON_INLINE void *__Pyx_PyModule_GetState(PyObject *op)
 }
 #endif
 
-// The "TryGetSlot" variants may return NULL on static types with the Limited API on earlier versions
+// The "Try" variants may return NULL on static types with the Limited API on earlier versions
 // so should be used for optimization rather than where a result is required.
 #define __Pyx_PyObject_GetSlot(obj, name, func_ctype)  __Pyx_PyType_GetSlot(Py_TYPE((PyObject *) obj), name, func_ctype)
 #define __Pyx_PyObject_TryGetSlot(obj, name, func_ctype) __Pyx_PyType_TryGetSlot(Py_TYPE(obj), name, func_ctype)
@@ -849,9 +849,9 @@ static CYTHON_INLINE void *__Pyx_PyModule_GetState(PyObject *op)
 #if CYTHON_COMPILING_IN_LIMITED_API
   #define __Pyx_PyType_GetSlot(type, name, func_ctype)  ((func_ctype) PyType_GetSlot((type), Py_##name))
   #define __Pyx_PyType_TryGetSlot(type, name, func_ctype) \
-  ((__PYX_LIMITED_VERSION_HEX >= 0x030A0000 || \
-    (PyType_GetFlags(type) & Py_TPFLAGS_HEAPTYPE) || __Pyx_get_runtime_version() >= 0x030A0000) ? \
-    __Pyx_PyType_GetSlot(type, name, func_ctype) : NULL)
+    ((__PYX_LIMITED_VERSION_HEX >= 0x030A0000 || \
+     (PyType_GetFlags(type) & Py_TPFLAGS_HEAPTYPE) || __Pyx_get_runtime_version() >= 0x030A0000) ? \
+     __Pyx_PyType_GetSlot(type, name, func_ctype) : NULL)
   #define __Pyx_PyType_TryGetSubSlot(obj, sub, name, func_ctype) __Pyx_PyType_TryGetSlot(obj, name, func_ctype)
 #else
   #define __Pyx_PyType_GetSlot(type, name, func_ctype)  ((type)->name)
@@ -1529,24 +1529,28 @@ static unsigned long __Pyx_get_runtime_version(void) {
 #if __PYX_LIMITED_VERSION_HEX >= 0x030B00A4
     return Py_Version & ~0xFFUL;
 #else
-    const char* rt_version = Py_GetVersion();
-    unsigned long version = 0;
-    unsigned long factor = 0x01000000UL;
-    unsigned int digit = 0;
-    int i = 0;
-    while (factor) {
-        while ('0' <= rt_version[i] && rt_version[i] <= '9') {
-            digit = digit * 10 + (unsigned int) (rt_version[i] - '0');
+    static unsigned long __Pyx_cached_runtime_version = 0;
+    if (__Pyx_cached_runtime_version == 0) {
+        const char* rt_version = Py_GetVersion();
+        unsigned long version = 0;
+        unsigned long factor = 0x01000000UL;
+        unsigned int digit = 0;
+        int i = 0;
+        while (factor) {
+            while ('0' <= rt_version[i] && rt_version[i] <= '9') {
+                digit = digit * 10 + (unsigned int) (rt_version[i] - '0');
+                ++i;
+            }
+            version += factor * digit;
+            if (rt_version[i] != '.')
+                break;
+            digit = 0;
+            factor >>= 8;
             ++i;
         }
-        version += factor * digit;
-        if (rt_version[i] != '.')
-            break;
-        digit = 0;
-        factor >>= 8;
-        ++i;
+        __Pyx_cached_runtime_version = version;
     }
-    return version;
+    return __Pyx_cached_runtime_version;
 #endif
 }
 
