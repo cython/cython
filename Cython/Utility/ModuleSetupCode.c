@@ -1111,6 +1111,23 @@ static CYTHON_INLINE PyObject * __Pyx_PyDict_GetItemStrWithError(PyObject *dict,
 #define __Pyx_PyLong_FromHash_t PyLong_FromSsize_t
 #define __Pyx_PyLong_AsHash_t   __Pyx_PyIndex_AsSsize_t
 
+#if !CYTHON_USE_TYPE_SPECS
+// backport of PyAsyncMethods from Py3.10 to older Py3.x versions
+#if PY_VERSION_HEX >= 0x030A0000
+    #define __Pyx_PyAsyncMethodsStruct PyAsyncMethods
+    #define __Pyx_pyiter_sendfunc sendfunc
+#else
+    // __Pyx_pyiter_sendfunc is currently unused and just in for future compatibility
+    typedef void (*__Pyx_pyiter_sendfunc)(void);
+    typedef struct {
+        unaryfunc am_await;
+        unaryfunc am_aiter;
+        unaryfunc am_anext;
+        __Pyx_pyiter_sendfunc am_send;
+    } __Pyx_PyAsyncMethodsStruct;
+#endif
+#endif
+
 /////////////// IncludeStructmemberH.proto ///////////////
 //@proto_block: utility_code_proto_before_types
 
