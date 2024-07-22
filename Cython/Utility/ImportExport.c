@@ -44,7 +44,8 @@ bad:
 
 static PyObject *__Pyx__ImportDottedModule_Lookup(PyObject *name) {
     PyObject *imported_module;
-#if CYTHON_COMPILING_IN_PYPY && PYPY_VERSION_NUM  < 0x07030400
+#if (CYTHON_COMPILING_IN_PYPY && PYPY_VERSION_NUM  < 0x07030400) || \
+        CYTHON_COMPILING_IN_GRAAL
     PyObject *modules = PyImport_GetModuleDict();
     if (unlikely(!modules))
         return NULL;
@@ -226,7 +227,8 @@ static PyObject* __Pyx_ImportFrom(PyObject* module, PyObject* name) {
         if (unlikely(!module_dot)) { goto modbad; }
         full_name = PyUnicode_Concat(module_dot, name);
         if (unlikely(!full_name)) { goto modbad; }
-        #if CYTHON_COMPILING_IN_PYPY && PYPY_VERSION_NUM  < 0x07030400
+        #if (CYTHON_COMPILING_IN_PYPY && PYPY_VERSION_NUM  < 0x07030400) || \
+                CYTHON_COMPILING_IN_GRAAL
         {
             PyObject *modules = PyImport_GetModuleDict();
             if (unlikely(!modules))
