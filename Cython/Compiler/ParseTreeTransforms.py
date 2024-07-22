@@ -1874,6 +1874,21 @@ class DecoratorTransform(ScopeTrackingTransform, SkipDeclarations):
         if decorator_node is not None:
             decorator = decorator_node.decorator
             if decorator.is_name:
+                # If there is a DefNode with the same name, that is probably a mistake like
+                # cdef class A:
+                #    def p(self):
+                #       return self.value
+                #
+                #    @property
+                #    def p(self):
+                #        return self.p()
+                #
+                # In a python class the later definition will override the earlier,
+                # leading to a RecursionError as the property calls itself.
+                if any(n is not node and getattr(n, 'name', '') == node.name
+                                for n in self.scope_node.body.stats):
+                    error(decorator_node.pos,
+                          "Property hides existing attribute '%s'" % node.name)
                 return self._add_property(node, node.name, decorator_node)
             else:
                 handler_name = self._map_property_attribute(decorator.attribute)
