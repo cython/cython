@@ -5,16 +5,18 @@ __Pyx_Coroutine_Set_Owned_Yield_From(__pyx_CoroutineObject *gen, PyObject *yf) {
     // NOTE: steals a reference to yf by transfering it to 'gen->yieldfrom' !
     assert (!gen->yieldfrom_am_send);
     assert (!gen->yieldfrom);
-#if PY_VERSION_HEX < 0x030A00F0
+#if !CYTHON_COMPILING_IN_LIMITED_API || __PYX_LIMITED_VERSION_HEX >= 0x030A0000
+    #if PY_VERSION_HEX < 0x030A00F0
     if (__Pyx_PyType_HasFeature(Py_TYPE(yf), __Pyx_TPFLAGS_HAVE_AM_SEND))
-#endif
+    #endif
     {
-        __Pyx_PyAsyncMethodsStruct* am = __Pyx_PyType_AsAsync(yf);
-        if (likely(am)) {
+        __Pyx_pyiter_sendfunc am_send = __Pyx_PyObject_TryGetSubSlot(yf, tp_as_async, am_send, __Pyx_pyiter_sendfunc);
+        if (likely(am_send)) {
             // Keep a direct reference to am->am_send, if provided.
-            gen->yieldfrom_am_send = am->am_send;
+            gen->yieldfrom_am_send = am_send;
         }
     }
+#endif
     gen->yieldfrom = yf;
 }
 
@@ -207,9 +209,10 @@ static void __Pyx_Coroutine_AwaitableIterError(PyObject *source) {
 // adapted from genobject.c in Py3.5
 static PyObject *__Pyx__Coroutine_GetAwaitableIter(PyObject *obj) {
     PyObject *res;
-    __Pyx_PyAsyncMethodsStruct* am = __Pyx_PyType_AsAsync(obj);
-    if (likely(am && am->am_await)) {
-        res = (*am->am_await)(obj);
+    unaryfunc am_await;
+    am_await = __Pyx_PyObject_TryGetSubSlot(obj, tp_as_async, am_await, unaryfunc);
+    if (likely(am_await)) {
+        res = (*am_await)(obj);
     } else
     if (PyCoro_CheckExact(obj)) {
         return __Pyx_NewRef(obj);
@@ -296,9 +299,11 @@ static CYTHON_INLINE PyObject *__Pyx_Coroutine_GetAsyncIter(PyObject *obj) {
         return __Pyx_NewRef(obj);
     }
 #endif
-    __Pyx_PyAsyncMethodsStruct* am = __Pyx_PyType_AsAsync(obj);
-    if (likely(am && am->am_aiter)) {
-        return (*am->am_aiter)(obj);
+    {
+        unaryfunc am_aiter = __Pyx_PyObject_TryGetSubSlot(obj, tp_as_async, am_aiter, unaryfunc);
+        if (likely(am_aiter)) {
+            return (*am_aiter)(obj);
+        }
     }
     return __Pyx_Coroutine_GetAsyncIter_Generic(obj);
 }
@@ -319,10 +324,14 @@ static CYTHON_INLINE PyObject *__Pyx_Coroutine_AsyncIterNext(PyObject *obj) {
         return __Pyx_async_gen_anext(obj);
     }
 #endif
-    __Pyx_PyAsyncMethodsStruct* am = __Pyx_PyType_AsAsync(obj);
-    if (likely(am && am->am_anext)) {
-        return (*am->am_anext)(obj);
+#if !CYTHON_COMPILING_IN_LIMITED_API
+    {
+        unaryfunc am_anext = __Pyx_PyObject_TryGetSubSlot(obj, tp_as_async, am_anext, unaryfunc);
+        if (likely(am_anext)) {
+            return (*am_anext)(obj);
+        }
     }
+#endif
     return __Pyx__Coroutine_AsyncIterNext(obj);
 }
 
@@ -469,7 +478,7 @@ typedef struct {
     PyObject *coroutine;
 } __pyx_CoroutineAwaitObject;
 
-static __Pyx_PySendResult __Pyx_CoroutineAwait_Close(__pyx_CoroutineAwaitObject *self, PyObject **retval); /*proto*/
+static __Pyx_PySendResult __Pyx_CoroutineAwait_Close(__pyx_CoroutineAwaitObject *self); /*proto*/
 
 
 //////////////////// Generator.proto ////////////////////
@@ -1066,7 +1075,7 @@ static int __Pyx_Coroutine_CloseIter(__pyx_CoroutineObject *gen, PyObject *yf) {
         result = __Pyx_Coroutine_Close(yf, &retval);
     } else
     if (__Pyx_CoroutineAwait_CheckExact(yf)) {
-        result = __Pyx_CoroutineAwait_Close((__pyx_CoroutineAwaitObject*)yf, &retval);
+        result = __Pyx_CoroutineAwait_Close((__pyx_CoroutineAwaitObject*)yf);
     } else
     #endif
     #ifdef __Pyx_AsyncGen_USED
@@ -1647,8 +1656,11 @@ static PyObject *__Pyx_CoroutineAwait_Throw(__pyx_CoroutineAwaitObject *self, Py
     return __Pyx_Coroutine_Throw(self->coroutine, args);
 }
 
-static __Pyx_PySendResult __Pyx_CoroutineAwait_Close(__pyx_CoroutineAwaitObject *self, PyObject **retval) {
-    return __Pyx_Coroutine_Close(self->coroutine, retval);
+static __Pyx_PySendResult __Pyx_CoroutineAwait_Close(__pyx_CoroutineAwaitObject *self) {
+    PyObject *retval = NULL;
+    __Pyx_PySendResult result = __Pyx_Coroutine_Close(self->coroutine, &retval);
+    Py_XDECREF(retval);
+    return result;
 }
 
 static PyObject *__Pyx_CoroutineAwait_Close_Method(__pyx_CoroutineAwaitObject *self, PyObject *arg) {
@@ -1698,7 +1710,7 @@ static PyMethodDef __pyx_CoroutineAwait_methods[] = {
      PyDoc_STR("send(arg) -> send 'arg' into coroutine,\nreturn next yielded value or raise StopIteration.")},
     {"throw", (PyCFunction) __Pyx_CoroutineAwait_Throw, METH_VARARGS,
      PyDoc_STR("throw(typ[,val[,tb]]) -> raise exception in coroutine,\nreturn next yielded value or raise StopIteration.")},
-    {"close", (PyCFunction) __Pyx_CoroutineAwait_Close, METH_NOARGS, PyDoc_STR("close() -> raise GeneratorExit inside coroutine.")},
+    {"close", (PyCFunction) __Pyx_CoroutineAwait_Close_Method, METH_NOARGS, PyDoc_STR("close() -> raise GeneratorExit inside coroutine.")},
 // only needed with type-specs, but included in all versions for clarity
 // #if CYTHON_USE_TYPE_SPECS
     {"__reduce_ex__", (PyCFunction) __Pyx_CoroutineAwait_reduce_ex, METH_O, 0},
@@ -1895,7 +1907,7 @@ static PyTypeObject __pyx_CoroutineType_type = {
     0,                                  /*tp_print*/
     0,                                  /*tp_getattr*/
     0,                                  /*tp_setattr*/
-    __Pyx_SlotTpAsAsync(__pyx_Coroutine_as_async),          /*tp_as_async*/
+    __Pyx_SlotTpAsAsync(__pyx_Coroutine_as_async),       /*tp_as_async*/
     0,                                  /*tp_repr*/
     0,                                  /*tp_as_number*/
     0,                                  /*tp_as_sequence*/
@@ -2041,7 +2053,7 @@ static PyTypeObject __pyx_IterableCoroutineType_type = {
     0,                                  /*tp_print*/
     0,                                  /*tp_getattr*/
     0,                                  /*tp_setattr*/
-    __Pyx_SlotTpAsAsync(__pyx_Coroutine_as_async),          /*tp_as_async (tp_reserved) - Py3 only! */
+    __Pyx_SlotTpAsAsync(__pyx_Coroutine_as_async),  /*tp_as_async*/
     0,                                  /*tp_repr*/
     0,                                  /*tp_as_number*/
     0,                                  /*tp_as_sequence*/
