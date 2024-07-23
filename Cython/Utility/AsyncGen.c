@@ -343,16 +343,12 @@ static PyType_Spec __pyx_AsyncGenType_spec = {
 };
 #else /* CYTHON_USE_TYPE_SPECS */
 
-#if CYTHON_USE_ASYNC_SLOTS
 static __Pyx_PyAsyncMethodsStruct __Pyx_async_gen_as_async = {
     0,                                          /* am_await */
     PyObject_SelfIter,                          /* am_aiter */
     (unaryfunc)__Pyx_async_gen_anext,           /* am_anext */
-#if PY_VERSION_HEX >= 0x030A00A3
     0, /*am_send*/
-#endif
 };
-#endif
 
 static PyTypeObject __pyx_AsyncGenType_type = {
     PyVarObject_HEAD_INIT(0, 0)
@@ -363,12 +359,8 @@ static PyTypeObject __pyx_AsyncGenType_type = {
     0,                                          /* tp_vectorcall_offset */
     0,                                          /* tp_getattr */
     0,                                          /* tp_setattr */
-#if CYTHON_USE_ASYNC_SLOTS
-    &__Pyx_async_gen_as_async,                        /* tp_as_async */
-#else
-    0,                                          /*tp_reserved*/
-#endif
-    (reprfunc)__Pyx_async_gen_repr,                   /* tp_repr */
+    (PyAsyncMethods*)&__Pyx_async_gen_as_async, /* tp_as_async */
+    (reprfunc)__Pyx_async_gen_repr,             /* tp_repr */
     0,                                          /* tp_as_number */
     0,                                          /* tp_as_sequence */
     0,                                          /* tp_as_mapping */
@@ -381,7 +373,7 @@ static PyTypeObject __pyx_AsyncGenType_type = {
     Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_GC |
         Py_TPFLAGS_HAVE_FINALIZE,               /* tp_flags */
     0,                                          /* tp_doc */
-    (traverseproc)__Pyx_async_gen_traverse,           /* tp_traverse */
+    (traverseproc)__Pyx_async_gen_traverse,     /* tp_traverse */
     0,                                          /* tp_clear */
     0,                                          /*tp_richcompare*/
     offsetof(__pyx_CoroutineObject, gi_weakreflist), /* tp_weaklistoffset */
@@ -626,16 +618,12 @@ static PyType_Spec __pyx__PyAsyncGenASendType_spec = {
 };
 #else /* CYTHON_USE_TYPE_SPECS */
 
-#if CYTHON_USE_ASYNC_SLOTS
 static __Pyx_PyAsyncMethodsStruct __Pyx_async_gen_asend_as_async = {
     PyObject_SelfIter,                          /* am_await */
     0,                                          /* am_aiter */
     0,                                          /* am_anext */
-#if PY_VERSION_HEX >= 0x030A00A3
     0, /*am_send*/
-#endif
 };
-#endif
 
 static PyTypeObject __pyx__PyAsyncGenASendType_type = {
     PyVarObject_HEAD_INIT(0, 0)
@@ -647,11 +635,7 @@ static PyTypeObject __pyx__PyAsyncGenASendType_type = {
     0,                                          /* tp_vectorcall_offset */
     0,                                          /* tp_getattr */
     0,                                          /* tp_setattr */
-#if CYTHON_USE_ASYNC_SLOTS
-    &__Pyx_async_gen_asend_as_async,                  /* tp_as_async */
-#else
-    0,                                          /*tp_reserved*/
-#endif
+    (PyAsyncMethods*)&__Pyx_async_gen_asend_as_async,  /* tp_as_async */
     0,                                          /* tp_repr */
     0,                                          /* tp_as_number */
     0,                                          /* tp_as_sequence */
@@ -1114,16 +1098,12 @@ static PyType_Spec __pyx__PyAsyncGenAThrowType_spec = {
 };
 #else /* CYTHON_USE_TYPE_SPECS */
 
-#if CYTHON_USE_ASYNC_SLOTS
 static __Pyx_PyAsyncMethodsStruct __Pyx_async_gen_athrow_as_async = {
     PyObject_SelfIter,                          /* am_await */
     0,                                          /* am_aiter */
     0,                                          /* am_anext */
-#if PY_VERSION_HEX >= 0x030A00A3
     0, /*am_send*/
-#endif
 };
-#endif
 
 static PyTypeObject __pyx__PyAsyncGenAThrowType_type = {
     PyVarObject_HEAD_INIT(0, 0)
@@ -1134,11 +1114,7 @@ static PyTypeObject __pyx__PyAsyncGenAThrowType_type = {
     0,                                          /* tp_vectorcall_offset */
     0,                                          /* tp_getattr */
     0,                                          /* tp_setattr */
-#if CYTHON_USE_ASYNC_SLOTS
-    &__Pyx_async_gen_athrow_as_async,                 /* tp_as_async */
-#else
-    0,                                          /*tp_reserved*/
-#endif
+    (PyAsyncMethods*)&__Pyx_async_gen_athrow_as_async,  /* tp_as_async */
     0,                                          /* tp_repr */
     0,                                          /* tp_as_number */
     0,                                          /* tp_as_sequence */

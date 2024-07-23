@@ -1267,9 +1267,6 @@ hidden by default since most users will be uninterested in changing them.
             Use the internal `_PyType_Lookup()` function for more efficient access
             to properties of C classes.
             
-        ``CYTHON_USE_ASYNC_SLOTS``
-            Support the ``tp_as_async`` attribute on type objects.
-            
         ``CYTHON_USE_PYLONG_INTERNALS``/``CYTHON_USE_PYLIST_INTERNALS``/``CYTHON_USE_UNICODE_INTERNALS``
             Enable optimizations based on direct access into the internals of Python
             ``int``/``list``/``unicode`` objects respectively.
