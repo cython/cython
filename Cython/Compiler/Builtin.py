@@ -372,6 +372,7 @@ builtin_types_table = [
                                     BuiltinMethod("add",     "TO", "r", "PySet_Add"),
                                     BuiltinMethod("pop",     "T",  "O", "PySet_Pop")]),
     ("frozenset", "&PyFrozenSet_Type", []),
+    ("BaseException", "((PyTypeObject*)PyExc_BaseException)", []),
     ("Exception", "((PyTypeObject*)PyExc_Exception)", []),
     ("StopAsyncIteration", "((PyTypeObject*)__Pyx_PyExc_StopAsyncIteration)", []),
     ("memoryview", "&PyMemoryView_Type", [
@@ -623,6 +624,8 @@ def init_builtin_types():
             objstruct_cname = 'PyByteArrayObject'
         elif name == 'bool':
             objstruct_cname = None
+        elif name == 'BaseException':
+            objstruct_cname = "PyBaseExceptionObject"
         elif name == 'Exception':
             objstruct_cname = "PyBaseExceptionObject"
         elif name == 'StopAsyncIteration':
