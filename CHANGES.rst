@@ -124,6 +124,31 @@ Other changes
 * Includes all fixes as of Cython 3.0.10 (but generates C99 code in some places).
 
 
+3.0.11 (2024-??-??)
+===================
+
+Bugs fixed
+----------
+
+* The exception check value of functions declared in pxd files was not always applied in 3.0.10.
+  (Github issue :issue:`6122`)
+
+* A crash on exception deallocations was fixed.
+  (Github issue :issue:`6022`)
+
+* ``bytes.startswith/endswith()`` failed for non-bytes substrings (e.g. ``bytearray``).
+  (Github issue :issue:`6168`)
+
+* A compiler crash was fixed when using extension types in fused types.
+  (Github issue :issue:`6204`)
+
+* The module cleanup code was incorrect for globally defined memory view slices.
+  (Github issue :issue:`6276`)
+
+* Some adaptations were made to enable compilation in Python 3.13.
+  (Github issues :issue:`5997`, :issue:`6182`, :issue:`6251`)
+
+
 3.0.10 (2024-03-30)
 ===================
 

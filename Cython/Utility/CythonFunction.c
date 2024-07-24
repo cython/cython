@@ -117,6 +117,7 @@ static PyObject * __Pyx_CyFunction_Vectorcall_FASTCALL_KEYWORDS_METHOD(PyObject 
 //@requires: ModuleSetupCode.c::IncludeStructmemberH
 //@requires: ObjectHandling.c::PyObjectGetAttrStr
 //@requires: ObjectHandling.c::CachedMethodType
+//@requires: ExtensionTypes.c::CallTypeTraverse
 
 #if CYTHON_COMPILING_IN_LIMITED_API
 static CYTHON_INLINE int __Pyx__IsSameCyOrCFunctionNoMethod(PyObject *func, void *cfunc) {
@@ -736,6 +737,10 @@ static void __Pyx_CyFunction_dealloc(__pyx_CyFunctionObject *m)
 
 static int __Pyx_CyFunction_traverse(__pyx_CyFunctionObject *m, visitproc visit, void *arg)
 {
+    {
+        int e = __Pyx_call_type_traverse((PyObject*)m, 1, visit, arg);
+        if (e) return e;
+    }
     Py_VISIT(m->func_closure);
 #if CYTHON_COMPILING_IN_LIMITED_API
     Py_VISIT(m->func);
@@ -743,11 +748,12 @@ static int __Pyx_CyFunction_traverse(__pyx_CyFunctionObject *m, visitproc visit,
     Py_VISIT(((PyCFunctionObject*)m)->m_module);
 #endif
     Py_VISIT(m->func_dict);
-    Py_VISIT(m->func_name);
-    Py_VISIT(m->func_qualname);
+    __Pyx_VISIT_CONST(m->func_name);
+    __Pyx_VISIT_CONST(m->func_qualname);
     Py_VISIT(m->func_doc);
     Py_VISIT(m->func_globals);
-    Py_VISIT(m->func_code);
+    // The code objects that we generate only contain plain constants and can never participate in reference cycles.
+    __Pyx_VISIT_CONST(m->func_code);
 #if !CYTHON_COMPILING_IN_LIMITED_API
     Py_VISIT(__Pyx_CyFunction_GetClassObj(m));
 #endif
@@ -1358,6 +1364,7 @@ __pyx_FusedFunction_traverse(__pyx_FusedFunctionObject *self,
                              visitproc visit,
                              void *arg)
 {
+    // Visiting the type is handled in the CyFunction traverse if needed
     Py_VISIT(self->self);
     Py_VISIT(self->__signatures__);
     return __Pyx_CyFunction_traverse((__pyx_CyFunctionObject *) self, visit, arg);

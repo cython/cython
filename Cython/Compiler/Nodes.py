@@ -1753,7 +1753,7 @@ class CEnumDefNode(StatNode):
             code.mark_pos(self.pos)
             temp = code.funcstate.allocate_temp(PyrexTypes.py_object_type, manage_ref=True)
             for item in self.entry.enum_values:
-                code.putln("%s = PyInt_FromLong(%s); %s" % (
+                code.putln("%s = PyLong_FromLong(%s); %s" % (
                     temp,
                     item.cname,
                     code.error_goto_if_null(temp, item.pos)))

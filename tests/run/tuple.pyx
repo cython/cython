@@ -1,3 +1,5 @@
+# mode: run
+# tag: builtins
 
 cimport cython
 
@@ -69,6 +71,19 @@ def l(obj1, obj2, obj3, obj4, obj5):
     obj1 = (obj2, obj3, obj4,)
     obj1 = 17, 42, 88
     return obj1
+
+
+def const_bool_tuple():
+    """
+    >>> const_bool_tuple()
+    ((True, False), (False, True), (True, False), (False, False, True), (False, True))
+    """
+    a = (True, False)
+    b = (False, True)
+    c = (True, False)  # same as a
+    d = (False, False, True)
+    e = (5+1 == 5, 5 == 5)  # same as b
+    return a, b, c, d, e
 
 
 def tuple_none():

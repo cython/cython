@@ -880,14 +880,9 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         c_string_encoding = env.directives['c_string_encoding']
         if c_string_type not in ('bytes', 'bytearray') and not c_string_encoding:
             error(self.pos, "a default encoding must be provided if c_string_type is not a byte type")
-        code.putln('#define __PYX_DEFAULT_STRING_ENCODING_IS_ASCII %s' % int(c_string_encoding == 'ascii'))
-        code.putln('#define __PYX_DEFAULT_STRING_ENCODING_IS_UTF8 %s' %
-                int(c_string_encoding.replace('-', '').lower() == 'utf8'))
-        if c_string_encoding == 'default':
-            code.putln('#define __PYX_DEFAULT_STRING_ENCODING_IS_DEFAULT 1')
-        else:
-            code.putln('#define __PYX_DEFAULT_STRING_ENCODING_IS_DEFAULT '
-                    '__PYX_DEFAULT_STRING_ENCODING_IS_UTF8')
+        code.putln(f"#define __PYX_DEFAULT_STRING_ENCODING_IS_ASCII {int(c_string_encoding == 'ascii')}")
+        code.putln(f"#define __PYX_DEFAULT_STRING_ENCODING_IS_UTF8 {int(c_string_encoding == 'utf8')}")
+        if c_string_encoding not in ('ascii', 'utf8'):
             code.putln('#define __PYX_DEFAULT_STRING_ENCODING "%s"' % c_string_encoding)
         if c_string_type == 'bytearray':
             c_string_func_name = 'ByteArray'
@@ -993,7 +988,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                     pass
                 elif type.is_struct_or_union or type.is_cpp_class:
                     self.generate_struct_union_predeclaration(entry, code)
-                elif type.is_ctuple and entry.used:
+                elif type.is_ctuple and not type.is_fused and entry.used:
                     self.generate_struct_union_predeclaration(entry.type.struct_entry, code)
                 elif type.is_extension_type:
                     self.generate_objstruct_predeclaration(type, code)
@@ -1008,7 +1003,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                     self.generate_enum_definition(entry, code)
                 elif type.is_struct_or_union:
                     self.generate_struct_union_definition(entry, code)
-                elif type.is_ctuple and entry.used:
+                elif type.is_ctuple and not type.is_fused and entry.used:
                     self.generate_struct_union_definition(entry.type.struct_entry, code)
                 elif type.is_cpp_class:
                     self.generate_cpp_class_definition(entry, code)
@@ -1915,8 +1910,11 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         have_entries, (py_attrs, py_buffers, memoryview_slices) = (
             scope.get_refcounted_entries(include_gc_simple=False))
 
-        if base_type or py_attrs:
-            code.putln("int e;")
+        needs_type_traverse = not base_type
+        # we don't know statically if we need to traverse the type
+        maybe_needs_type_traverse = False
+
+        code.putln("int e;")
 
         if py_attrs or py_buffers:
             self.generate_self_cast(scope, code)
@@ -1926,6 +1924,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             static_call = TypeSlots.get_base_slot_function(scope, tp_slot)
             if static_call:
                 code.putln("e = %s(o, v, a); if (e) return e;" % static_call)
+                # No need to call type traverse - base class will do it
             elif base_type.is_builtin_type:
                 base_cname = base_type.typeptr_cname
                 code.putln("{")
@@ -1933,6 +1932,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                     f"traverseproc traverse = __Pyx_PyType_GetSlot({base_cname}, tp_traverse, traverseproc);")
                 code.putln("if (!traverse); else { e = traverse(o,v,a); if (e) return e; }")
                 code.putln("}")
+                maybe_needs_type_traverse = True
             else:
                 # This is an externally defined type.  Calling through the
                 # cimported base type pointer directly interacts badly with
@@ -1955,6 +1955,14 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 code.putln("if (e) return e;")
                 code.globalstate.use_utility_code(
                     UtilityCode.load_cached("CallNextTpTraverse", "ExtensionTypes.c"))
+                maybe_needs_type_traverse = True
+        if needs_type_traverse or maybe_needs_type_traverse:
+            code.putln("{")
+            code.putln(f"e = __Pyx_call_type_traverse(o, {int(not maybe_needs_type_traverse)}, v, a);")
+            code.putln("if (e) return e;")
+            code.putln("}")
+            code.globalstate.use_utility_code(
+                UtilityCode.load_cached("CallTypeTraverse", "ExtensionTypes.c"))
 
         for entry in py_attrs:
             var_code = "p->%s" % entry.cname
@@ -2064,7 +2072,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln(
             "PyObject *r;")
         code.putln(
-            "PyObject *x = PyInt_FromSsize_t(i); if(!x) return 0;")
+            "PyObject *x = PyLong_FromSsize_t(i); if(!x) return 0;")
         # Note that PyType_GetSlot only works on heap-types before 3.10, so not using type slots
         # and defining cdef classes as non-heap types is probably impossible
         code.putln("#if CYTHON_USE_TYPE_SLOTS || (!CYTHON_USE_TYPE_SPECS && __PYX_LIMITED_VERSION_HEX < 0x030A0000)")
@@ -3045,25 +3053,17 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             Naming.modulestate_cname,
             Naming.modulestate_cname))
         code.putln("if (!traverse_module_state) return 0;")
-        code.putln('Py_VISIT(traverse_module_state->%s);' %
-            env.module_dict_cname)
-        code.putln('Py_VISIT(traverse_module_state->%s);' %
-            Naming.builtins_cname)
-        code.putln('Py_VISIT(traverse_module_state->%s);' %
-            Naming.cython_runtime_cname)
-        code.putln('Py_VISIT(traverse_module_state->%s);' %
-            Naming.empty_tuple)
-        code.putln('Py_VISIT(traverse_module_state->%s);' %
-            Naming.empty_bytes)
-        code.putln('Py_VISIT(traverse_module_state->%s);' %
-            Naming.empty_unicode)
+        code.putln(f'Py_VISIT(traverse_module_state->{env.module_dict_cname});')
+        code.putln(f'Py_VISIT(traverse_module_state->{Naming.builtins_cname});')
+        code.putln(f'Py_VISIT(traverse_module_state->{Naming.cython_runtime_cname});')
+        code.putln(f'__Pyx_VISIT_CONST(traverse_module_state->{Naming.empty_tuple});')
+        code.putln(f'__Pyx_VISIT_CONST(traverse_module_state->{Naming.empty_bytes});')
+        code.putln(f'__Pyx_VISIT_CONST(traverse_module_state->{Naming.empty_unicode});')
         code.putln('#ifdef __Pyx_CyFunction_USED')
-        code.putln('Py_VISIT(traverse_module_state->%s);' %
-            Naming.cyfunction_type_cname)
+        code.putln(f'Py_VISIT(traverse_module_state->{Naming.cyfunction_type_cname});')
         code.putln('#endif')
         code.putln('#ifdef __Pyx_FusedFunction_USED')
-        code.putln('Py_VISIT(traverse_module_state->%s);' %
-            Naming.fusedfunction_type_cname)
+        code.putln(f'Py_VISIT(traverse_module_state->{Naming.fusedfunction_type_cname});')
         code.putln('#endif')
 
     def generate_module_init_func(self, imported_modules, env, code):
@@ -3094,9 +3094,14 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             code.putln("#endif")
         code.putln(header3)
 
+        code.globalstate.use_utility_code(
+            UtilityCode.load("PyVersionSanityCheck", "ModuleSetupCode.c")
+        )
+
         # CPython 3.5+ supports multi-phase module initialisation (gives access to __spec__, __file__, etc.)
         code.putln("#if CYTHON_PEP489_MULTI_PHASE_INIT")
         code.putln("{")
+        code.putln("if (__Pyx_VersionSanityCheck() < 0) return NULL;")
         code.putln("return PyModuleDef_Init(&%s);" % Naming.pymoduledef_cname)
         code.putln("}")
 
@@ -3112,6 +3117,11 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
         # start of module init/exec function (pre/post PEP 489)
         code.putln("{")
+
+        code.putln("#if !CYTHON_PEP489_MULTI_PHASE_INIT")
+        code.putln("if (__Pyx_VersionSanityCheck() < 0) return NULL;")
+        code.putln("#endif")
+
         code.putln('int stringtab_initialized = 0;')
         code.putln("#if CYTHON_USE_MODULE_STATE")
         code.putln('int pystate_addmodule_run = 0;')
@@ -3436,6 +3446,14 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                    Naming.cleanup_cname)
         code.enter_cfunc_scope(env)
 
+        # TODO - this should go away when module-state has been refactored more and
+        # we are able to access the module state through "self". Currently the
+        # `#define` for each entry forces us to access it through PyState_FindModule
+        # which is sometime unreliable during destruction
+        # (e.g. during interpreter shutdown).
+        # In that case the safest thing is to give up.
+        code.putln(f"if (!PyState_FindModule(&{Naming.pymoduledef_cname})) return;")
+
         if Options.generate_cleanup_code >= 2:
             code.putln("/*--- Global cleanup code ---*/")
             rev_entries = list(env.var_entries)
@@ -3568,6 +3586,12 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("static PyModuleDef_Slot %s[] = {" % Naming.pymoduledef_slots_cname)
         code.putln("{Py_mod_create, (void*)%s}," % Naming.pymodule_create_func_cname)
         code.putln("{Py_mod_exec, (void*)%s}," % exec_func_cname)
+        code.putln("#if CYTHON_COMPILING_IN_CPYTHON_FREETHREADING")
+        gil_option = ("Py_MOD_GIL_NOT_USED"
+                      if env.directives["freethreading_compatible"]
+                      else "Py_MOD_GIL_USED")
+        code.putln("{Py_mod_gil, %s}," % gil_option)
+        code.putln("#endif")
         code.putln("{0, NULL}")
         code.putln("};")
         if not env.module_name.isascii():
@@ -3656,6 +3680,12 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 env.module_cname,
                 Naming.pymoduledef_cname))
         code.putln(code.error_goto_if_null(env.module_cname, self.pos))
+        code.putln("#endif")  # CYTHON_USE_MODULE_STATE
+        code.putln("#if CYTHON_COMPILING_IN_CPYTHON_FREETHREADING")
+        gil_option = ("Py_MOD_GIL_NOT_USED"
+                      if env.directives["freethreading_compatible"]
+                      else "Py_MOD_GIL_USED")
+        code.putln(f"PyUnstable_Module_SetGIL({env.module_cname}, {gil_option});")
         code.putln("#endif")
         code.putln("#endif")  # CYTHON_PEP489_MULTI_PHASE_INIT
         code.putln("CYTHON_UNUSED_VAR(%s);" % module_temp)  # only used in limited API

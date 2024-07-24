@@ -86,7 +86,7 @@ KNOWN_PYTHON_BUILTINS = frozenset([
     'IOError',
     'ImportError',
     'ImportWarning',
-    'IncompleteInputError',
+    '_IncompleteInputError',
     'IndentationError',
     'IndexError',
     'InterruptedError',
@@ -217,7 +217,7 @@ uncachable_builtins = [
     # Global/builtin names that cannot be cached because they may or may not
     # be available at import time, for various reasons:
     ## Python 3.13+
-    'IncompleteInputError',
+    '_IncompleteInputError',
     'PythonFinalizationError',
     ## Python 3.11+
     'BaseExceptionGroup',
@@ -789,18 +789,23 @@ class UtilityCode(UtilityCodeBase):
                 self.cleanup(writer, output.module_pos)
 
 
-def sub_tempita(s, context, file=None, name=None):
+def sub_tempita(s, context, file=None, name=None, __cache={}):
     "Run tempita on string s with given context."
     if not s:
         return None
 
     if file:
-        context['__name'] = "%s:%s" % (file, name)
-    elif name:
+        name = f"{file}:{name}"
+    if name:
         context['__name'] = name
 
-    from ..Tempita import sub
-    return sub(s, **context)
+    try:
+        template = __cache[s]
+    except KeyError:
+        from ..Tempita import Template
+        template = __cache[s] = Template(s, name=name)
+
+    return template.substitute(context)
 
 
 class TempitaUtilityCode(UtilityCode):
@@ -1667,11 +1672,12 @@ class GlobalState:
         self.generate_string_constants()
         self.generate_num_constants()
 
-    def _generate_module_array_traverse_and_clear(self, struct_attr_cname, count):
+    def _generate_module_array_traverse_and_clear(self, struct_attr_cname, count, may_have_refcycles=True):
         counter_type = 'int' if count < 2**15 else 'Py_ssize_t'
+        visit_call = "Py_VISIT" if may_have_refcycles else "__Pyx_VISIT_CONST"
 
         writer = self.parts['module_state_traverse']
-        writer.putln(f"for ({counter_type} i=0; i<{count}; ++i) {{ Py_VISIT(traverse_module_state->{struct_attr_cname}[i]); }}")
+        writer.putln(f"for ({counter_type} i=0; i<{count}; ++i) {{ {visit_call}(traverse_module_state->{struct_attr_cname}[i]); }}")
 
         writer = self.parts['module_state_clear']
         writer.putln(f"for ({counter_type} i=0; i<{count}; ++i) {{ Py_CLEAR(clear_module_state->{struct_attr_cname}[i]); }}")
@@ -1689,10 +1695,20 @@ class GlobalState:
                 # which aren't necessarily PyObjects, so aren't appropriate
                 # to clear.
                 continue
-            self.parts['module_state_clear'].putln(
-                "Py_CLEAR(clear_module_state->%s);" % cname)
+
+            self.parts['module_state_clear'].put_xdecref_clear(
+                f"clear_module_state->{cname}",
+                c.type,
+                clear_before_decref=True,
+                nanny=False,
+            )
+
+            if c.type.is_memoryviewslice:
+                # TODO: Implement specific to type like CodeWriter.put_xdecref_clear()
+                cname += "->memview"
+
             self.parts['module_state_traverse'].putln(
-                "Py_VISIT(traverse_module_state->%s);" % cname)
+                f"Py_VISIT(traverse_module_state->{cname});")
 
         for prefix, count in sorted(self.const_array_counters.items()):
             # name the struct attribute and the global "define" slightly differently
@@ -1703,7 +1719,8 @@ class GlobalState:
             self.parts['module_state_defines'].putln(
                 f"#define {global_cname} {Naming.modulestateglobal_cname}->{struct_attr_cname}")
 
-            self._generate_module_array_traverse_and_clear(struct_attr_cname, count)
+            # The constant tuples/slices that we create can never participate in reference cycles.
+            self._generate_module_array_traverse_and_clear(struct_attr_cname, count, may_have_refcycles=False)
 
             cleanup_level = cleanup_level_for_type_prefix(prefix)
             if cleanup_level is not None and cleanup_level <= Options.generate_cleanup_code:
@@ -1821,7 +1838,7 @@ class GlobalState:
 
         py_string_count = len(py_strings)
         self.parts['module_state'].putln(f"PyObject *{Naming.stringtab_cname}[{py_string_count}];")
-        self._generate_module_array_traverse_and_clear(Naming.stringtab_cname, py_string_count)
+        self._generate_module_array_traverse_and_clear(Naming.stringtab_cname, py_string_count, may_have_refcycles=False)
 
         encodings = sorted(encodings)
         encodings.sort(key=len)  # stable sort to make sure '0' comes first, index 0
@@ -1932,7 +1949,8 @@ class GlobalState:
 
         code_object_count = len(self.codeobject_constants)
         self.parts['module_state'].putln(f"PyObject *{Naming.codeobjtab_cname}[{code_object_count}];")
-        self._generate_module_array_traverse_and_clear(Naming.codeobjtab_cname, code_object_count)
+        # The code objects that we generate only contain plain constants and can never participate in reference cycles.
+        self._generate_module_array_traverse_and_clear(Naming.codeobjtab_cname, code_object_count, may_have_refcycles=False)
 
         self.parts['module_state_defines'].putln("#define %s %s->%s" % (
             Naming.codeobjtab_cname, Naming.modulestateglobal_cname, Naming.codeobjtab_cname
@@ -1951,17 +1969,17 @@ class GlobalState:
             self.parts['module_state_clear'].putln(
                 "Py_CLEAR(clear_module_state->%s);" % cname)
             self.parts['module_state_traverse'].putln(
-                "Py_VISIT(traverse_module_state->%s);" % cname)
+                "__Pyx_VISIT_CONST(traverse_module_state->%s);" % cname)
             if py_type == 'float':
                 function = 'PyFloat_FromDouble(%s)'
             elif py_type == 'long':
                 function = 'PyLong_FromString("%s", 0, 0)'
             elif Utils.long_literal(value):
-                function = 'PyInt_FromString("%s", 0, 0)'
+                function = 'PyLong_FromString("%s", 0, 0)'
             elif len(value.lstrip('-')) > 4:
-                function = "PyInt_FromLong(%sL)"
+                function = "PyLong_FromLong(%sL)"
             else:
-                function = "PyInt_FromLong(%s)"
+                function = "PyLong_FromLong(%s)"
             init_constants.putln('%s = %s; %s' % (
                 cname, function % value_code,
                 init_constants.error_goto_if_null(cname, self.module_pos)))
@@ -2376,14 +2394,6 @@ class CCodeWriter:
             self.level += dl
         elif fix_indent:
             self.level += 1
-
-    def putln_tempita(self, code, **context):
-        from ..Tempita import sub
-        self.putln(sub(code, **context))
-
-    def put_tempita(self, code, **context):
-        from ..Tempita import sub
-        self.put(sub(code, **context))
 
     def increase_indent(self):
         self.level += 1

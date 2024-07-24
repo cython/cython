@@ -505,8 +505,9 @@ limited_api_full_tests = None
 def memoize(f):
     uncomputed = object()
     f._cache = {}
+    get = f._cache.get
     def func(*args):
-        res = f._cache.get(args, uncomputed)
+        res = get(args, uncomputed)
         if res is uncomputed:
             res = f._cache[args] = f(*args)
         return res
@@ -519,23 +520,23 @@ def parse_tags(filepath):
     parse_tag = re.compile(r'#\s*(\w+)\s*:(.*)$').match
     with io_open(filepath, encoding='ISO-8859-1', errors='ignore') as f:
         for line in f:
-            # ignore BOM-like bytes and whitespace
-            line = line.lstrip(UTF8_BOM_BYTES).strip()
-            if not line:
-                if tags:
-                    break  # assume all tags are in one block
-                else:
-                    continue
             if line[0] != '#':
-                break
-            parsed = parse_tag(line)
-            if parsed:
-                tag, values = parsed.groups()
-                if tag in ('coding', 'encoding'):
+                # ignore BOM-like bytes and whitespace
+                line = line.lstrip(UTF8_BOM_BYTES).strip()
+                if not line:
+                    if tags:
+                        break  # assume all tags are in one block
                     continue
-                if tag == 'tags':
-                    raise RuntimeError("test tags use the 'tag' directive, not 'tags' (%s)" % filepath)
+                if line[0] != '#':
+                    break
+            parsed = parse_tag(line)
+            if parsed is not None:
+                tag, values = parsed.groups()
                 if tag not in ('mode', 'tag', 'ticket', 'cython', 'distutils', 'preparse'):
+                    if tag in ('coding', 'encoding'):
+                        continue
+                    if tag == 'tags':
+                        raise RuntimeError("test tags use the 'tag' directive, not 'tags' (%s)" % filepath)
                     print("WARNING: unknown test directive '%s' found (%s)" % (tag, filepath))
                 values = values.split(',')
                 tags[tag].extend(filter(None, [value.strip() for value in values]))

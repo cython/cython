@@ -115,10 +115,10 @@ def find_coercion_error(type_tuple, default, env):
                                             PyrexTypes.c_const_char_ptr_type, PyrexTypes.c_const_uchar_ptr_type))):
         if type_tuple[1].is_pyobject:
             return default
-        elif env.directives['c_string_encoding'] in ('ascii', 'default'):
+        elif env.directives['c_string_encoding'] in ('ascii', 'utf8'):
             return default
         else:
-            return "'%s' objects do not support coercion to C types with non-ascii or non-default c_string_encoding" % type_tuple[0].name
+            return "'%s' objects do not support coercion to C types with non-ascii or non-utf8 c_string_encoding" % type_tuple[0].name
     else:
         return err
 
@@ -127,7 +127,7 @@ def default_str_type(env):
     return {
         'bytes': bytes_type,
         'bytearray': bytearray_type,
-        'str': str_type,
+        'str': unicode_type,
         'unicode': unicode_type
     }.get(env.directives['c_string_type'])
 
@@ -1163,6 +1163,13 @@ class ExprNode(Node):
         #  a constant, local var, C global var, struct member
         #  reference, or temporary.
         return self.result_in_temp()
+
+    def try_is_simple(self):
+        # Allow ".is_simple()" to fail (e.g. before type analysis) and assume it's not simple.
+        try:
+            return self.is_simple()
+        except Exception:
+            return False
 
     def may_be_none(self):
         if self.type and not (self.type.is_pyobject or
@@ -3715,7 +3722,7 @@ class FormattedValueNode(ExprNode):
         's': 'PyObject_Unicode',
         'r': 'PyObject_Repr',
         'a': 'PyObject_ASCII',  # NOTE: mapped to PyObject_Repr() in Py2
-        'd': '__Pyx_PyNumber_IntOrLong',  # NOTE: internal mapping for '%d' formatting
+        'd': '__Pyx_PyNumber_Long',  # NOTE: internal mapping for '%d' formatting
     }.get
 
     def may_be_none(self):
@@ -5499,103 +5506,66 @@ class SliceIndexNode(ExprNode):
                   "Slicing is not currently supported for '%s'." % self.type)
             return
 
-        base_result = self.base.result()
+        base_type = self.base.type
         result = self.result()
         start_code = self.start_code()
         stop_code = self.stop_code()
-        if self.base.type.is_string:
-            base_result = self.base.result()
-            if self.base.type not in (PyrexTypes.c_char_ptr_type, PyrexTypes.c_const_char_ptr_type):
-                base_result = '((const char*)%s)' % base_result
+
+        if base_type.is_string:
+            base_result = self.base.result_as(PyrexTypes.c_const_char_ptr_type)
             if self.type is bytearray_type:
                 type_name = 'ByteArray'
+            elif self.type is str_type:
+                type_name = 'Unicode'
             else:
                 type_name = self.type.name.title()
-            if self.stop is None:
-                code.putln(
-                    "%s = __Pyx_Py%s_FromString(%s + %s); %s" % (
-                        result,
-                        type_name,
-                        base_result,
-                        start_code,
-                        code.error_goto_if_null(result, self.pos)))
-            else:
-                code.putln(
-                    "%s = __Pyx_Py%s_FromStringAndSize(%s + %s, %s - %s); %s" % (
-                        result,
-                        type_name,
-                        base_result,
-                        start_code,
-                        stop_code,
-                        start_code,
-                        code.error_goto_if_null(result, self.pos)))
-        elif self.base.type.is_pyunicode_ptr:
-            base_result = self.base.result()
-            if self.base.type != PyrexTypes.c_py_unicode_ptr_type:
-                base_result = '((const Py_UNICODE*)%s)' % base_result
-            if self.stop is None:
-                code.putln(
-                    "%s = __Pyx_PyUnicode_FromUnicode(%s + %s); %s" % (
-                        result,
-                        base_result,
-                        start_code,
-                        code.error_goto_if_null(result, self.pos)))
-                code.globalstate.use_utility_code(
-                    UtilityCode.load_cached("pyunicode_from_unicode", "StringTools.c"))
-            else:
-                code.putln(
-                    "%s = __Pyx_PyUnicode_FromUnicodeAndLength(%s + %s, %s - %s); %s" % (
-                        result,
-                        base_result,
-                        start_code,
-                        stop_code,
-                        start_code,
-                        code.error_goto_if_null(result, self.pos)))
-                code.globalstate.use_utility_code(
-                    UtilityCode.load_cached("pyunicode_from_unicode", "StringTools.c"))
 
-        elif self.base.type is unicode_type:
+            if self.stop is None:
+                call = f"__Pyx_Py{type_name}_FromString({base_result} + {start_code})"
+            else:
+                call = f"__Pyx_Py{type_name}_FromStringAndSize({base_result} + {start_code}, {stop_code} - {start_code})"
+
+        elif base_type.is_pyunicode_ptr:
+            base_result = self.base.result_as(PyrexTypes.c_const_py_unicode_ptr_type)
             code.globalstate.use_utility_code(
-                          UtilityCode.load_cached("PyUnicode_Substring", "StringTools.c"))
-            code.putln(
-                "%s = __Pyx_PyUnicode_Substring(%s, %s, %s); %s" % (
-                    result,
-                    base_result,
-                    start_code,
-                    stop_code,
-                    code.error_goto_if_null(result, self.pos)))
+                UtilityCode.load_cached("pyunicode_from_unicode", "StringTools.c"))
+            if self.stop is None:
+                call = f"__Pyx_PyUnicode_FromUnicode({base_result} + {start_code})"
+            else:
+                call = f"__Pyx_PyUnicode_FromUnicodeAndLength({base_result} + {start_code}, {stop_code} - {start_code})"
+
+        elif base_type is unicode_type:
+            base_result = self.base.result()
+            code.globalstate.use_utility_code(
+                UtilityCode.load_cached("PyUnicode_Substring", "StringTools.c"))
+            call = f"__Pyx_PyUnicode_Substring({base_result}, {start_code}, {stop_code})"
+
         elif self.type is py_object_type:
+            base_result = self.base.py_result()
+            has_c_start, has_c_stop, c_start, c_stop, py_start, py_stop, py_slice = self.get_slice_config()
+            wraparound = bool(code.globalstate.directives['wraparound'])
+
             code.globalstate.use_utility_code(self.get_slice_utility_code)
-            (has_c_start, has_c_stop, c_start, c_stop,
-             py_start, py_stop, py_slice) = self.get_slice_config()
-            code.putln(
-                "%s = __Pyx_PyObject_GetSlice(%s, %s, %s, %s, %s, %s, %d, %d, %d); %s" % (
-                    result,
-                    self.base.py_result(),
-                    c_start, c_stop,
-                    py_start, py_stop, py_slice,
-                    has_c_start, has_c_stop,
-                    bool(code.globalstate.directives['wraparound']),
-                    code.error_goto_if_null(result, self.pos)))
+            call = ("__Pyx_PyObject_GetSlice("
+                f"{base_result}, {c_start}, {c_stop}, {py_start}, {py_stop}, {py_slice}, "
+                f"{has_c_start:d}, {has_c_stop:d}, {wraparound:d})"
+            )
+
         else:
-            if self.base.type is list_type:
+            base_result = self.base.py_result()
+            if base_type is list_type:
                 code.globalstate.use_utility_code(
                     TempitaUtilityCode.load_cached("SliceTupleAndList", "ObjectHandling.c"))
                 cfunc = '__Pyx_PyList_GetSlice'
-            elif self.base.type is tuple_type:
+            elif base_type is tuple_type:
                 code.globalstate.use_utility_code(
                     TempitaUtilityCode.load_cached("SliceTupleAndList", "ObjectHandling.c"))
                 cfunc = '__Pyx_PyTuple_GetSlice'
             else:
                 cfunc = 'PySequence_GetSlice'
-            code.putln(
-                "%s = %s(%s, %s, %s); %s" % (
-                    result,
-                    cfunc,
-                    self.base.py_result(),
-                    start_code,
-                    stop_code,
-                    code.error_goto_if_null(result, self.pos)))
+            call = f"{cfunc}({base_result}, {start_code}, {stop_code})"
+
+        code.putln(f"{result} = {call}; {code.error_goto_if_null(result, self.pos)}")
         self.generate_gotref(code)
 
     def generate_assignment_code(self, rhs, code, overloaded_assignment=False,

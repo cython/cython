@@ -835,6 +835,18 @@ Cython code.  Here is the list of currently supported directives:
     appropriate exception is raised. This is off by default for
     performance reasons.  Default is False.
 
+``freethreading_compatible``  (True / False)
+    If set to True, Cython sets the ``Py_mod_gil`` slot to
+    ``Py_MOD_GIL_NOT_USED`` to signal that the module is safe to run
+    without an active GIL and prevent the GIL from being enabled
+    when the module is imported. Otherwise the slot is set to
+    ``Py_MOD_GIL_USED`` which will cause the GIL to be automatically
+    enabled. Setting this to True does not itself make the module safe
+    to run without the GIL; it merely confirms that you have checked
+    the logic and consider it safe to run. Since free-threading support
+    is still experimental itself, this is also an experimental directive that
+    might be changed or removed in future releases. Default is False.
+
 ``overflowcheck`` (True / False)
     If set to True, raise errors on overflowing C integer arithmetic
     operations.  Incurs a modest runtime penalty, but is much faster than
@@ -1063,7 +1075,15 @@ to turn the warning on / off.
    Warns about multiple variables declared on the same line with at least one pointer type.
    For example ``cdef double* a, b`` - which, as in C, declares ``a`` as a pointer, ``b`` as
    a value type, but could be mininterpreted as declaring two pointers.
-   
+
+``warn.deprecated.DEF`` (default False)
+  Warns about use of the deprecated ``DEF`` statement in Cython code, see
+ :ref:`conditional_compilation` and :ref:`deprecated_DEF_IF`.
+
+``warn.deprecated.IF`` (default True)
+  Warns about use of the deprecated ``IF`` statement in Cython code, see
+  :ref:`conditional_compilation` and :ref:`deprecated_DEF_IF`.
+
 ``show_performance_hints`` (default True)
   Show performance hints during compilation pointing to places in the code which can yield performance degradation.
   Note that performance hints are not warnings and hence the directives starting with ``warn.`` above do not affect them
@@ -1187,13 +1207,16 @@ can happily ignore.  Not all combinations of macros are compatible or tested, an
 some change the default value of other macros.  They are listed below in rough order from
 most important to least important:
 
-``CYTHON_LIMITED_API``
+``Py_LIMITED_API``
     Turns on Cython's experimental Limited API support, meaning that one compiled module
     can be used by many Python interpreter versions (at the cost of some performance).
-    At this stage many features do not work in the Limited API.  If you use this macro
-    you should also set the macro ``Py_LIMITED_API`` to be the version hex for the
+    At this stage many features do not work in the Limited API.  You should set this
+    macro to be the version hex for the
     minimum Python version you want to support (>=3.7).  ``0x03070000`` will support
     Python 3.7 upwards.
+    Note that this is a `Python macro <https://docs.python.org/3/c-api/stable.html#c.Py_LIMITED_API>`_,
+    rather than just a Cython macro, and so it changes what parts of the Python headers
+    are visible too.
 
 ``CYTHON_PEP489_MULTI_PHASE_INIT``
     Uses multi-phase module initialization as described in PEP489.  This improves
@@ -1243,9 +1266,6 @@ hidden by default since most users will be uninterested in changing them.
         ``CYTHON_USE_PYTYPE_LOOKUP``
             Use the internal `_PyType_Lookup()` function for more efficient access
             to properties of C classes.
-            
-        ``CYTHON_USE_ASYNC_SLOTS``
-            Support the ``tp_as_async`` attribute on type objects.
             
         ``CYTHON_USE_PYLONG_INTERNALS``/``CYTHON_USE_PYLIST_INTERNALS``/``CYTHON_USE_UNICODE_INTERNALS``
             Enable optimizations based on direct access into the internals of Python
@@ -1308,4 +1328,8 @@ hidden by default since most users will be uninterested in changing them.
             Enable the use of atomic reference counting (as opposed to locking then
             reference counting) in Cython typed memoryviews.
             
-            
+        ``CYTHON_DEBUG_VISIT_CONST``
+            Debug option for including constant (string/integer/code/…) objects in
+            [``gc.get_referents()``](https://docs.python.org/3/library/gc.html#gc.get_referents).
+            By default, Cython avoids GC traversing these objects because they can never participate
+            in reference cycles, and thus would uselessly waste time during garbage collection runs.

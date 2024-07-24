@@ -227,7 +227,8 @@ static int __Pyx_PyType_Ready(PyTypeObject *t) {
         // Call gc.disable() as a backwards compatible fallback, but only if needed.
         PyObject *ret, *py_status;
         PyObject *gc = NULL;
-        #if !CYTHON_COMPILING_IN_PYPY || PYPY_VERSION_NUM+0 >= 0x07030400
+        #if (!CYTHON_COMPILING_IN_PYPY || PYPY_VERSION_NUM+0 >= 0x07030400) && \
+                !CYTHON_COMPILING_IN_GRAAL
         // https://foss.heptapod.net/pypy/pypy/-/issues/3385
         gc = PyImport_GetModule(PYUNICODE("gc"));
         #endif
@@ -644,6 +645,41 @@ static int __Pyx_validate_extern_base(PyTypeObject *base) {
     }
     return 0;
 }
+
+/////////////// CallTypeTraverse.proto /////////////////////
+
+#if !CYTHON_USE_TYPE_SPECS || (!CYTHON_COMPILING_IN_LIMITED_API && PY_VERSION_HEX < 0x03090000)
+// Without type specs, we're never responsible for this.
+// If we *know* the Python version is less that 3.9 we're also not responsible
+#define __Pyx_call_type_traverse(o, always_call, visit, arg) 0
+#else
+static int __Pyx_call_type_traverse(PyObject *o, int always_call, visitproc visit, void *arg); /* proto */
+#endif
+
+/////////////// CallTypeTraverse ////////////////////////////
+
+#if !CYTHON_USE_TYPE_SPECS || (!CYTHON_COMPILING_IN_LIMITED_API && PY_VERSION_HEX < 0x03090000)
+// nothing to do
+#else
+static int __Pyx_call_type_traverse(PyObject *o, int always_call, visitproc visit, void *arg) {
+    #if CYTHON_COMPILING_IN_LIMITED_API && __PYX_LIMITED_VERSION_HEX < 0x03090000
+    // We have to work out whether to call traverse based on the runtime version.
+    // __Pyx_get_runtime_version is always available so no need to require it.
+    if (__Pyx_get_runtime_version() < 0x03090000) return 0;
+    #endif
+    if (!always_call) {
+        // Written with reference to https://docs.python.org/3/howto/isolating-extensions.html
+        PyTypeObject *base = __Pyx_PyObject_GetSlot(o, tp_base, PyTypeObject*);
+        unsigned long flags = PyType_GetFlags(base);
+        if (flags & Py_TPFLAGS_HEAPTYPE) {
+            // The base class should have handled it
+            return 0;
+        }
+    }
+    Py_VISIT((PyObject*)Py_TYPE(o));
+    return 0;
+}
+#endif
 
 ////////////////// SetItemOnTypeDict.proto //////////////////////////
 
