@@ -172,6 +172,32 @@ class FusedCFuncDefNode(StatListNode):
                           env.is_c_class_scope or
                           entry.is_cmethod)
 
+            exception_value_node = copied_node.cfunc_declarator.exception_value
+            if exception_value_node is not None and exception_value_node.type.is_fused:
+                # handle the case where the exception value isn't explicitly specified
+                # and should come from the specialized return type.
+                assert exception_value_node.constant_result is PyrexTypes.fused_type_exception_value_placeholder
+                exception_value = copied_node.type.exception_value
+                if exception_value is not None:
+                    exception_value_node = ExprNodes.ConstNode.for_type(
+                            exception_value_node.pos,
+                            value=str(exception_value), type=copied_node.type.return_type,
+                            constant_result=exception_value)
+                else:
+                    exception_value_node = None
+                del exception_value
+            if exception_value_node is not None:
+                # Handle the coercion and type checks for the exception value
+                # (applies to both the implicit value above, and cases where it are
+                # explicitly specified)
+                exception_value_node = exception_value_node.coerce_to(
+                    copied_node.type.return_type,
+                    env)
+                if not copied_node.type.return_type.assignable_from(exception_value_node.type):
+                    error(self.exception_value.pos,
+                            "Exception value incompatible with function return type")
+            copied_node.cfunc_declarator.exception_value = exception_value_node
+
             if self.node.cfunc_declarator.optional_arg_count:
                 self.node.cfunc_declarator.declare_optional_arg_struct(
                                            type, env, fused_cname=cname)
