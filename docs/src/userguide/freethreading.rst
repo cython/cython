@@ -1,6 +1,6 @@
-*************
+**************
 Free threading
-*************
+**************
 
 The free-threaded (sometimes known as "nogil") build of Python is an
 experimental mode available from Python 3.13 onwards. It aims to
@@ -9,7 +9,7 @@ run truly concurrently.
 
 Cython 3.1 and upwards has some basic support for this build of Python.
 Note that this support *is experimental* and is planned to remain experimental
-for at least as long as the Freethreading build is experimental in the
+for at least as long as the free-threaded build is experimental in the
 CPython interpreter.
 
 This section of documentation documents the extent of the support and the
@@ -20,8 +20,8 @@ Useful links
 
 * `PEP 703 <https://peps.python.org/pep-0703/>`_ - the initial proposal that lead
   to this feature existing in Python.
-* `Python documentation for freethreading extensions <https://docs.python.org/3.13/howto/free-threading-extensions.html>`_.
-* `Quansight labs' documentation of the status of freethreading <https://py-free-threading.github.io/>`_.
+* `Python documentation for free-threaded extensions <https://docs.python.org/3.13/howto/free-threading-extensions.html>`_.
+* `Quansight labs' documentation of the status of free-threading <https://py-free-threading.github.io/>`_.
 
 Status
 ======
@@ -34,10 +34,10 @@ Cython 3.1 is able to build extension modules that are compatible with Freethrea
 of Python.  However, by default these extension modules don't indicate their compatibility.
 Therefore, importing one of these extension modules will result in the interpreter
 re-enabling the GIL. The result is that the extension module will work, but you will lose
-the benefits of the freethreading interpreter!
+the benefits of the free-threaded interpreter!
 
 The module-level directive ``# cython: freethreading_compatible = True`` declares that the
-module is fully compatible with the freethreading interpreter.  When you specify this
+module is fully compatible with the free-threaded interpreter.  When you specify this
 directive, importing the module will not cause the interpreter to re-enable the GIL.
 The directive itself does
 not do anything to ensure compatibility - it is simply a way for you to indicate that you
@@ -57,7 +57,7 @@ Pitfalls
 Building on Windows
 -------------------
 
-As of the Python 3.13 beta releases, building a freethreading Cython extension module
+As of the Python 3.13 beta releases, building a free-threaded Cython extension module
 on Windows is tricky because Python provides a single header file shared between the
 Freethreading and regular builds.  You therefore need to manually define the C
 macro ``Py_GIL_DISABLED=1``.
@@ -93,8 +93,8 @@ What is likely to be extremely unsafe is code like::
         with gil:
             ...
 
-In regular non-freethreading builds only one thread will run the ``with gil`` block
-at once.  In freethreading builds multiple threads will be able to run simultaneously.
+In regular non-free-threaded builds only one thread will run the ``with gil`` block
+at once.  In free-threaded builds multiple threads will be able to run simultaneously.
 It is extremely likely that these multiple threads will be operating on the same
 data in unsafe ways.  We recommend against this kind of code in Freethreading builds
 at the moment (and even with future improvements in Cython, such code is likely
@@ -103,6 +103,6 @@ to require extreme care to make it work correctly).
 .. note::
 
    It is a common mistake to assume that a ``with gil`` block runs "atomically"
-   (i.e. all in one go, without switching to another thread) on non-freethreading builds.
+   (i.e. all in one go, without switching to another thread) on non-free-threaded builds.
    Many operations can cause the GIL to be released. Some more detail is in the section
    :ref:`gil_as_lock`.
