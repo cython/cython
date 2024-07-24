@@ -1,10 +1,10 @@
 *************
-Freethreading
+Free threading
 *************
 
-The Freethreading (sometimes known as "nogil") build of Python is an
+The free-threaded (sometimes known as "nogil") build of Python is an
 experimental mode available from Python 3.13 onwards. It aims to
-remove the "Global Interpreter Lock" and allow multiple Python threads to
+disable the "Global Interpreter Lock" and allow multiple Python threads to
 run truly concurrently.
 
 Cython 3.1 and upwards has some basic support for this build of Python.
