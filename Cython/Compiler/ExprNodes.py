@@ -10632,9 +10632,7 @@ class AwaitIterNextExprNode(AwaitExprNode):
 
     def propagate_exception(self, code):
         self._generate_break(code)
-        # FIXME: not sure which is right.
         super().propagate_exception(code)
-        #super().fetch_iteration_result(code)
 
     def generate_sent_value_handling_code(self, code, value_cname):
         assert code.break_label, "AwaitIterNextExprNode outside of 'async for' loop"
