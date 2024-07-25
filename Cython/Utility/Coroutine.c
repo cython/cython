@@ -1015,7 +1015,7 @@ __Pyx_Coroutine_AmSend(PyObject *self, PyObject *value, PyObject **retval) {
         PyObject *yf = gen->yieldfrom;
         PyObject *ret;
         gen->is_running = 1;
-        #if __PYX_LIMITED_VERSION_HEX < 0x030A0000
+      #if __PYX_LIMITED_VERSION_HEX < 0x030A0000
         // Py3.10 puts "am_send" into "gen->yieldfrom_am_send" instead of using these special cases.
         // See "__Pyx_Coroutine_Set_Owned_Yield_From()" above.
         #ifdef __Pyx_Generator_USED
@@ -1041,7 +1041,7 @@ __Pyx_Coroutine_AmSend(PyObject *self, PyObject *value, PyObject **retval) {
             ret = __Pyx_PyGen_Send((PyGenObject*)yf, value == Py_None ? NULL : value);
         } else
         #endif
-        #endif
+      #endif
         {
             if (value == Py_None)
                 ret = __Pyx_PyObject_GetIterNextFunc(yf)(yf);
