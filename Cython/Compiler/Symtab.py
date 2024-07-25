@@ -2711,13 +2711,6 @@ class CClassScope(ClassScope):
             entry.annotation = base_entry.annotation
             self.inherited_var_entries.append(entry)
 
-        # If the class defined in a pxd, specific entries have not been added.
-        # Ensure now that the parent (base) scope has specific entries
-        # Iterate over a copy as get_all_specialized_function_types() will mutate
-        for base_entry in base_scope.cfunc_entries[:]:
-            if base_entry.type.is_fused:
-                base_entry.type.get_all_specialized_function_types()
-
         for base_entry in base_scope.cfunc_entries:
             cname = base_entry.cname
             var_entry = base_entry.as_variable
@@ -2739,6 +2732,13 @@ class CClassScope(ClassScope):
                 entry.as_variable = var_entry
             if base_entry.utility_code:
                 entry.utility_code = base_entry.utility_code
+
+        # If the class defined in a pxd, specific entries have not been added.
+        # Ensure now that the parent (base) scope has specific entries
+        # Iterate over a copy as get_all_specialized_function_types() will mutate
+        for base_entry in base_scope.cfunc_entries[:]:
+            if base_entry.type.is_fused:
+                base_entry.type.get_all_specialized_function_types()
 
 
 class CppClassScope(Scope):

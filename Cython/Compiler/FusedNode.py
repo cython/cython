@@ -165,6 +165,8 @@ class FusedCFuncDefNode(StatListNode):
                 new_cfunc_entries.append(entry)
 
             copied_node.type = type
+            # if entry.is_cmethod:
+            #     type.args[0].type = entry.type.args[0].type
             entry.type, type.entry = type, entry
 
             entry.used = (entry.used or
