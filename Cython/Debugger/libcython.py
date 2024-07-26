@@ -205,16 +205,17 @@ class CythonBase:
         correspondence between the C and Cython code.
         """
         cyfunc = self.get_cython_function(frame)
-        return cyfunc.module.lineno_c2cy.get(self.get_c_lineno(frame), 0)
+        return cyfunc.module.lineno_c2cy.get(self.get_c_lineno(frame), (None, 0))
 
     @default_selected_gdb_frame()
     def get_source_desc(self, frame):
         filename = lineno = lexer = None
         if self.is_cython_function(frame):
-            filename = self.get_cython_function(frame).module.filename
             filename_and_lineno = self.get_cython_lineno(frame)
-            assert filename == filename_and_lineno[0]
-            lineno = filename_and_lineno[1]
+            filename, lineno = filename_and_lineno
+            if filename is None:
+                # No LineNumberMapping in place, try with module filename.
+                filename = self.get_cython_function(frame).module.filename
             if pygments:
                 lexer = pygments.lexers.CythonLexer(stripall=False)
         elif self.is_python_function(frame):
