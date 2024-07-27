@@ -1117,12 +1117,12 @@ static CYTHON_INLINE PyObject * __Pyx_PyDict_GetItemStrWithError(PyObject *dict,
 
 
 // backport of PyAsyncMethods from Py3.10 to older Py3.x versions
-#if PY_VERSION_HEX >= 0x030A00A3
+#if PY_VERSION_HEX >= 0x030A00A3 && !CYTHON_COMPILING_IN_LIMITED_API
   #if !CYTHON_USE_TYPE_SPECS
     #define __Pyx_PyAsyncMethodsStruct PyAsyncMethods
     #define __Pyx_SlotTpAsAsync(s) (&(s))
   #endif
-    
+
     #define __Pyx_PySendResult PySendResult
     #define __Pyx_pyiter_sendfunc sendfunc
 #else
