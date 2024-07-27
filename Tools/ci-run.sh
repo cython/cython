@@ -221,7 +221,7 @@ if [[ $TEST_CODE_STYLE != "1" ]]; then
     # [DW] - on my laptop graalpy is quite good at multithreading itself and using
     # lots of memory in the process. So restrict the parallelism for now.
     # Optimal number to be determined....
-    RUNTESTS_ARGS="$RUNTESTS_ARGS -j2"
+    RUNTESTS_ARGS="$RUNTESTS_ARGS -j3"
   else
     RUNTESTS_ARGS="$RUNTESTS_ARGS -j7"
   fi
