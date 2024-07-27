@@ -4467,12 +4467,6 @@ class TemplatePlaceholderType(CType):
     def __hash__(self):
         return hash(self.name)
 
-    def __cmp__(self, other):
-        if isinstance(other, TemplatePlaceholderType):
-            return cmp(self.name, other.name)
-        else:
-            return cmp(type(self), type(other))
-
     def __eq__(self, other):
         if isinstance(other, TemplatePlaceholderType):
             return self.name == other.name
