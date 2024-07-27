@@ -24,7 +24,7 @@
 
 static void
 __Pyx_Coroutine_Set_Owned_Yield_From(__pyx_CoroutineObject *gen, PyObject *yf) {
-    // NOTE: steals a reference to yf by transfering it to 'gen->yieldfrom' !
+    // NOTE: steals a reference to yf by transferring it to 'gen->yieldfrom' !
     assert (!gen->yieldfrom_am_send);
     assert (!gen->yieldfrom);
 #if !CYTHON_COMPILING_IN_LIMITED_API || __PYX_LIMITED_VERSION_HEX >= 0x030A0000
@@ -32,7 +32,13 @@ __Pyx_Coroutine_Set_Owned_Yield_From(__pyx_CoroutineObject *gen, PyObject *yf) {
     if (__Pyx_PyType_HasFeature(Py_TYPE(yf), __Pyx_TPFLAGS_HAVE_AM_SEND))
     #endif
     {
-        __Pyx_pyiter_sendfunc am_send = __Pyx_PyObject_TryGetSubSlot(yf, tp_as_async, am_send, __Pyx_pyiter_sendfunc);
+        __Pyx_pyiter_sendfunc am_send;
+        #if __PYX_LIMITED_VERSION_HEX >= 0x030A0000
+        am_send = __Pyx_PyObject_TryGetSubSlot(yf, tp_as_async, am_send, __Pyx_pyiter_sendfunc);
+        #else
+        __Pyx_PyAsyncMethodsStruct* tp_as_async = (__Pyx_PyAsyncMethodsStruct*) Py_TYPE(yf)->tp_as_async;
+        am_send = tp_as_async ? tp_as_async->am_send : NULL;
+        #endif
         if (likely(am_send)) {
             // Keep a direct reference to am->am_send, if provided.
             gen->yieldfrom_am_send = am_send;
@@ -987,7 +993,8 @@ __Pyx_Coroutine_SendToDelegate(__pyx_CoroutineObject *gen, __Pyx_pyiter_sendfunc
         *retval = ret;
         return PYGEN_NEXT;
     }
-    assert (result == PYGEN_ERROR ? ret == NULL : ret != NULL);
+    //assert (result == PYGEN_ERROR ? ret == NULL : ret != NULL);
+    assert (result != PYGEN_ERROR || ret == NULL);
     __Pyx_Coroutine_Undelegate(gen);
     return __Pyx_Coroutine_SendEx(gen, ret, retval, 0);
 }

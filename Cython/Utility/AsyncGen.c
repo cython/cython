@@ -28,6 +28,7 @@ static PyTypeObject *__pyx_AsyncGenType = 0;
 static PyObject *__Pyx_async_gen_anext(PyObject *o);
 static CYTHON_INLINE PyObject *__Pyx_async_gen_asend_iternext(PyObject *o);
 static __Pyx_PySendResult __Pyx_async_gen_asend_am_send(PyObject *o, PyObject *arg, PyObject **retval);
+static PyObject *__Pyx_async_gen_asend_send(PyObject *g, PyObject *arg);
 static PyObject *__Pyx_async_gen_asend_close(PyObject *o, PyObject *args);
 static PyObject *__Pyx_async_gen_athrow_close(PyObject *o, PyObject *args);
 
