@@ -1,5 +1,3 @@
-from __future__ import absolute_import
-
 import itertools
 from time import time
 
@@ -58,7 +56,7 @@ def generate_pyx_code_stage_factory(options, result):
 def inject_pxd_code_stage_factory(context):
     def inject_pxd_code_stage(module_node):
         for name, (statlistnode, scope) in context.pxds.items():
-            module_node.merge_in(statlistnode, scope)
+            module_node.merge_in(statlistnode, scope, stage="pxd")
         return module_node
     return inject_pxd_code_stage
 
@@ -130,7 +128,8 @@ def inject_utility_code_stage_factory(context):
             tree = utilcode.get_tree(cython_scope=context.cython_scope)
             if tree:
                 module_node.merge_in(tree.with_compiler_directives(),
-                                     tree.scope, merge_scope=True)
+                                     tree.scope, stage="utility",
+                                     merge_scope=True)
         return module_node
 
     return inject_utility_code_stage
@@ -213,7 +212,7 @@ def create_pipeline(context, mode, exclude_classes=()):
         _check_c_declarations,
         InlineDefNodeCalls(context),
         AnalyseExpressionsTransform(context),
-        FindInvalidUseOfFusedTypes(context),
+        FindInvalidUseOfFusedTypes(),
         ExpandInplaceOperators(context),
         IterationTransform(context),
         SwitchTransform(context),
@@ -231,14 +230,15 @@ def create_pipeline(context, mode, exclude_classes=()):
     return stages
 
 def create_pyx_pipeline(context, options, result, py=False, exclude_classes=()):
-    if py:
-        mode = 'py'
-    else:
-        mode = 'pyx'
+    mode = 'py' if py else 'pyx'
+
     test_support = []
+    ctest_support = []
     if options.evaluate_tree_assertions:
         from ..TestUtils import TreeAssertVisitor
-        test_support.append(TreeAssertVisitor())
+        test_validator = TreeAssertVisitor()
+        test_support.append(test_validator)
+        ctest_support.append(test_validator.create_c_file_validator())
 
     if options.gdb_debug:
         from ..Debugger import DebugWriter  # requires Py2.5+
@@ -257,7 +257,9 @@ def create_pyx_pipeline(context, options, result, py=False, exclude_classes=()):
          inject_utility_code_stage_factory(context),
          abort_on_errors],
         debug_transform,
-        [generate_pyx_code_stage_factory(options, result)]))
+        [generate_pyx_code_stage_factory(options, result)],
+        ctest_support,
+    ))
 
 def create_pxd_pipeline(context, scope, module_name):
     from .CodeGeneration import ExtractPxdCode
@@ -341,12 +343,10 @@ def insert_into_pipeline(pipeline, transform, before=None, after=None):
 # Running a pipeline
 #
 
-_pipeline_entry_points = {}
-
 try:
     from threading import local as _threadlocal
 except ImportError:
-    class _threadlocal(object): pass
+    class _threadlocal: pass
 
 threadlocal = _threadlocal()
 
@@ -358,10 +358,25 @@ def get_timings():
         return {}
 
 
+_pipeline_entry_points = {}
+
+def _make_debug_phase_runner(phase_name):
+    # Create a new wrapper for each step to show the name in profiles.
+    try:
+        return _pipeline_entry_points[phase_name]
+    except KeyError:
+        pass
+
+    def run(phase, data):
+        return phase(data)
+
+    run.__name__ = run.__qualname__ = phase_name
+    _pipeline_entry_points[phase_name] = run
+    return run
+
+
 def run_pipeline(pipeline, source, printtree=True):
     from .Visitor import PrintTree
-    exec_ns = globals().copy() if DebugFlags.debug_verbose_pipeline else None
-
     try:
         timings = threadlocal.cython_pipeline_timings
     except AttributeError:
@@ -383,12 +398,7 @@ def run_pipeline(pipeline, source, printtree=True):
                 phase_name = getattr(phase, '__name__', type(phase).__name__)
                 if DebugFlags.debug_verbose_pipeline:
                     print("Entering pipeline phase %r" % phase)
-                    # create a new wrapper for each step to show the name in profiles
-                    try:
-                        run = _pipeline_entry_points[phase_name]
-                    except KeyError:
-                        exec("def %s(phase, data): return phase(data)" % phase_name, exec_ns)
-                        run = _pipeline_entry_points[phase_name] = exec_ns[phase_name]
+                    run = _make_debug_phase_runner(phase_name)
 
                 t = time()
                 data = run(phase, data)

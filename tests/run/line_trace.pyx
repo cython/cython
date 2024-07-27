@@ -4,6 +4,8 @@
 # tag: trace
 
 import sys
+import gc
+from contextlib import contextmanager
 
 from cpython.ref cimport PyObject, Py_INCREF, Py_XDECREF
 
@@ -74,10 +76,6 @@ def _create_trace_func(trace):
     local_names = {}
 
     def _trace_func(frame, event, arg):
-        if sys.version_info < (3,) and 'line_trace' not in frame.f_code.co_filename:
-            # Prevent tracing into Py2 doctest functions.
-            return None
-
         trace.append((map_trace_types(event, event), frame.f_lineno - frame.f_code.co_firstlineno))
 
         lnames = frame.f_code.co_varnames
@@ -153,7 +151,7 @@ def global_name(global_name):
     return global_name + 321
 
 
-cdef int cy_add_nogil(int a, int b) nogil except -1:
+cdef int cy_add_nogil(int a, int b) except -1 nogil:
     x = a + b   # 1
     return x    # 2
 
@@ -165,19 +163,39 @@ def cy_try_except(func):
         raise AttributeError(exc.args[0])
 
 
+# CPython 3.11 has an issue when these Python functions are implemented inside of doctests and the trace function fails.
+# https://github.com/python/cpython/issues/94381
+plain_python_functions = {}
+exec("""
+def py_add(a,b):
+    x = a+b
+    return x
+
+def py_add_with_nogil(a,b):
+    x=a; y=b                     # 1
+    for _ in range(1):           # 2
+        z = 0                    # 3
+        z += py_add(x, y)        # 4
+    return z
+
+def py_return(retval=123): return retval
+""", plain_python_functions)
+
+
+@contextmanager
+def gc_off():
+    was_enabled = gc.isenabled()
+    gc.disable()
+    try:
+        yield
+    finally:
+        if was_enabled:
+            gc.enable()
+
+
 def run_trace(func, *args, bint with_sys=False):
     """
-    >>> def py_add(a,b):
-    ...     x = a+b
-    ...     return x
-
-    >>> def py_add_with_nogil(a,b):
-    ...     x=a; y=b                     # 1
-    ...     for _ in range(1):           # 2
-    ...         z = 0                    # 3
-    ...         z += py_add(x, y)        # 4
-    ...     return z                     # 5
-
+    >>> py_add = plain_python_functions['py_add']
     >>> run_trace(py_add, 1, 2)
     [('call', 0), ('line', 1), ('line', 2), ('return', 2)]
     >>> run_trace(cy_add, 1, 2)
@@ -204,6 +222,7 @@ def run_trace(func, *args, bint with_sys=False):
     >>> result[9:]  # sys
     [('line', 2), ('line', 5), ('return', 5)]
 
+    >>> py_add_with_nogil = plain_python_functions['py_add_with_nogil']
     >>> result = run_trace(py_add_with_nogil, 1, 2)
     >>> result[:5]  # py
     [('call', 0), ('line', 1), ('line', 2), ('line', 3), ('line', 4)]
@@ -223,23 +242,24 @@ def run_trace(func, *args, bint with_sys=False):
     """
     trace = []
     trace_func = _create_trace_func(trace)
-    if with_sys:
-        sys.settrace(trace_func)
-    else:
-        PyEval_SetTrace(<Py_tracefunc>trace_trampoline, <PyObject*>trace_func)
-    try:
-        func(*args)
-    finally:
+    with gc_off():
         if with_sys:
-            sys.settrace(None)
+            sys.settrace(trace_func)
         else:
-            PyEval_SetTrace(NULL, NULL)
+            PyEval_SetTrace(<Py_tracefunc>trace_trampoline, <PyObject*>trace_func)
+        try:
+            func(*args)
+        finally:
+            if with_sys:
+                sys.settrace(None)
+            else:
+                PyEval_SetTrace(NULL, NULL)
     return trace
 
 
 def run_trace_with_exception(func, bint with_sys=False, bint fail=False):
     """
-    >>> def py_return(retval=123): return retval
+    >>> py_return = plain_python_functions["py_return"]
     >>> run_trace_with_exception(py_return)
     OK: 123
     [('call', 0), ('line', 1), ('line', 2), ('call', 0), ('line', 0), ('return', 0), ('return', 2)]
@@ -272,33 +292,31 @@ def run_trace_with_exception(func, bint with_sys=False, bint fail=False):
     """
     trace = ['cy_try_except' if fail else 'NO ERROR']
     trace_func = _create__failing_line_trace_func(trace) if fail else _create_trace_func(trace)
-    if with_sys:
-        sys.settrace(trace_func)
-    else:
-        PyEval_SetTrace(<Py_tracefunc>trace_trampoline, <PyObject*>trace_func)
-    try:
-        try:
-            retval = cy_try_except(func)
-        except ValueError as exc:
-            print("%s(%r)" % (type(exc).__name__, str(exc)))
-        except AttributeError as exc:
-            print("%s(%r)" % (type(exc).__name__, str(exc)))
-        else:
-            print('OK: %r' % retval)
-    finally:
+    with gc_off():
         if with_sys:
-            sys.settrace(None)
+            sys.settrace(trace_func)
         else:
-            PyEval_SetTrace(NULL, NULL)
+            PyEval_SetTrace(<Py_tracefunc>trace_trampoline, <PyObject*>trace_func)
+        try:
+            try:
+                retval = cy_try_except(func)
+            except ValueError as exc:
+                print("%s(%r)" % (type(exc).__name__, str(exc)))
+            except AttributeError as exc:
+                print("%s(%r)" % (type(exc).__name__, str(exc)))
+            else:
+                print('OK: %r' % retval)
+        finally:
+            if with_sys:
+                sys.settrace(None)
+            else:
+                PyEval_SetTrace(NULL, NULL)
     return trace[1:]
 
 
 def fail_on_call_trace(func, *args):
     """
-    >>> def py_add(a,b):
-    ...     x = a+b
-    ...     return x
-
+    >>> py_add = plain_python_functions["py_add"]
     >>> fail_on_call_trace(py_add, 1, 2)
     Traceback (most recent call last):
     ValueError: failing call trace!
@@ -309,27 +327,17 @@ def fail_on_call_trace(func, *args):
     """
     trace = []
     trace_func = _create_failing_call_trace_func(trace)
-    PyEval_SetTrace(<Py_tracefunc>trace_trampoline, <PyObject*>trace_func)
-    try:
-        func(*args)
-    finally:
-        PyEval_SetTrace(NULL, NULL)
+    with gc_off():
+        PyEval_SetTrace(<Py_tracefunc>trace_trampoline, <PyObject*>trace_func)
+        try:
+            func(*args)
+        finally:
+            PyEval_SetTrace(NULL, NULL)
     assert not trace
 
 
 def fail_on_line_trace(fail_func, add_func, nogil_add_func):
     """
-    >>> def py_add(a,b):
-    ...     x = a+b       # 1
-    ...     return x      # 2
-
-    >>> def py_add_with_nogil(a,b):
-    ...     x=a; y=b                     # 1
-    ...     for _ in range(1):           # 2
-    ...         z = 0                    # 3
-    ...         z += py_add(x, y)        # 4
-    ...     return z                     # 5
-
     >>> result = fail_on_line_trace(None, cy_add, cy_add_with_nogil)
     >>> len(result)
     17
@@ -342,6 +350,8 @@ def fail_on_line_trace(fail_func, add_func, nogil_add_func):
     >>> result[14:]
     [('line', 2), ('line', 5), ('return', 5)]
 
+    >>> py_add = plain_python_functions["py_add"]
+    >>> py_add_with_nogil = plain_python_functions['py_add_with_nogil']
     >>> result = fail_on_line_trace(None, py_add, py_add_with_nogil)
     >>> len(result)
     17
@@ -382,20 +392,21 @@ def fail_on_line_trace(fail_func, add_func, nogil_add_func):
     trace = ['NO ERROR']
     exception = None
     trace_func = _create__failing_line_trace_func(trace)
-    PyEval_SetTrace(<Py_tracefunc>trace_trampoline, <PyObject*>trace_func)
-    try:
-        x += 1
-        add_func(1, 2)
-        x += 1
-        if fail_func:
-            trace[0] = fail_func  # trigger error on first line
-        x += 1
-        nogil_add_func(3, 4)
-        x += 1
-    except Exception as exc:
-        exception = str(exc)
-    finally:
-        PyEval_SetTrace(NULL, NULL)
+    with gc_off():
+        PyEval_SetTrace(<Py_tracefunc>trace_trampoline, <PyObject*>trace_func)
+        try:
+            x += 1
+            add_func(1, 2)
+            x += 1
+            if fail_func:
+                trace[0] = fail_func  # trigger error on first line
+            x += 1
+            nogil_add_func(3, 4)
+            x += 1
+        except Exception as exc:
+            exception = str(exc)
+        finally:
+            PyEval_SetTrace(NULL, NULL)
     if exception:
         print(exception)
     else:
@@ -405,9 +416,7 @@ def fail_on_line_trace(fail_func, add_func, nogil_add_func):
 
 def disable_trace(func, *args, bint with_sys=False):
     """
-    >>> def py_add(a,b):
-    ...     x = a+b
-    ...     return x
+    >>> py_add = plain_python_functions["py_add"]
     >>> disable_trace(py_add, 1, 2)
     [('call', 0), ('line', 1)]
     >>> disable_trace(py_add, 1, 2, with_sys=True)
@@ -425,15 +434,16 @@ def disable_trace(func, *args, bint with_sys=False):
     """
     trace = []
     trace_func = _create_disable_tracing(trace)
-    if with_sys:
-        sys.settrace(trace_func)
-    else:
-        PyEval_SetTrace(<Py_tracefunc>trace_trampoline, <PyObject*>trace_func)
-    try:
-        func(*args)
-    finally:
+    with gc_off():
         if with_sys:
-            sys.settrace(None)
+            sys.settrace(trace_func)
         else:
-            PyEval_SetTrace(NULL, NULL)
+            PyEval_SetTrace(<Py_tracefunc>trace_trampoline, <PyObject*>trace_func)
+        try:
+            func(*args)
+        finally:
+            if with_sys:
+                sys.settrace(None)
+            else:
+                PyEval_SetTrace(NULL, NULL)
     return trace

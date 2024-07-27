@@ -1,7 +1,7 @@
 # mode: run
 # tag: nogil, withgil, exceptions
 
-cdef void foo_nogil(int i) nogil except *:
+cdef void foo_nogil(int i) except * nogil:
     if i != 0: raise ValueError("huhu !")
 
 

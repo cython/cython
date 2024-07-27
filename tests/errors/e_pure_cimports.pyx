@@ -1,7 +1,7 @@
 # mode: error
 # tag: pure, import, cimport
 
-import cython.cimportsy     # FIXME: not currently an error?
+import cython.cimportsy
 
 import cython.cimports
 import cython.cimports.libc
@@ -20,6 +20,7 @@ from cython.cimports cimport libc
 
 
 _ERRORS = """
+4:7: 'cython.cimportsy' is not a valid cython.* module. Did you mean 'cython.cimports' ?
 6:7: Cannot cimport the 'cython.cimports' package directly, only submodules.
 7:7: Python cimports must use 'from cython.cimports... import ...' or 'import ... as ...', not just 'import ...'
 8:7: Cannot cimport the 'cython.cimports' package directly, only submodules.

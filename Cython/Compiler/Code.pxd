@@ -1,5 +1,3 @@
-# cython: language_level=3
-
 cimport cython
 from ..StringIOTree cimport StringIOTree
 
@@ -54,8 +52,10 @@ cdef class FunctionState:
     cdef public object closure_temps
     cdef public bint should_declare_error_indicator
     cdef public bint uses_error_indicator
+    cdef public bint error_without_exception
 
-    @cython.locals(n=size_t)
+    cdef public bint needs_refnanny
+
     cpdef new_label(self, name=*)
     cpdef tuple get_loop_labels(self)
     cpdef set_loop_labels(self, labels)
@@ -82,8 +82,7 @@ cdef class StringConst:
     cdef public dict py_strings
     cdef public list py_versions
 
-    @cython.locals(intern=bint, is_str=bint, is_unicode=bint)
-    cpdef get_py_string_const(self, encoding, identifier=*, is_str=*, py3str_cstring=*)
+    cpdef get_py_string_const(self, encoding, identifier=*, bint is_str=*, py3str_cstring=*)
 
 ## cdef class PyStringConst:
 ##     cdef public object cname
@@ -109,6 +108,9 @@ cdef class CCodeWriter(object):
     cdef bint bol
 
     cpdef write(self, s)
+    @cython.final
+    cdef _write_lines(self, s)
+    cpdef _write_to_buffer(self, s)
     cpdef put(self, code)
     cpdef put_safe(self, code)
     cpdef putln(self, code=*, bint safe=*)
@@ -116,6 +118,8 @@ cdef class CCodeWriter(object):
     cdef increase_indent(self)
     @cython.final
     cdef decrease_indent(self)
+    @cython.final
+    cdef indent(self)
 
 
 cdef class PyrexCodeWriter:

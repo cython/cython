@@ -187,8 +187,7 @@ def py_div_long(long a, long b):
     >>> py_div_long(-5, -1)
     5
     >>> import sys
-    >>> maxint = getattr(sys, ((sys.version_info[0] >= 3) and 'maxsize' or 'maxint'))
-    >>> py_div_long(-maxint-1, -1) # doctest: +ELLIPSIS
+    >>> py_div_long(-sys.maxsize-1, -1) # doctest: +ELLIPSIS
     Traceback (most recent call last):
     ...
     OverflowError: ...

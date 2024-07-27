@@ -22,9 +22,9 @@ cdef class getattr_boring(boring):
     getattr_boring
     >>> a.getattr_called
     1
-    >>> a.no_such_member
-    Traceback (most recent call last):
-    AttributeError
+    >>> try: a.no_such_member
+    ... except AttributeError: pass
+    ... else: print("FAILED!")
     >>> a.getattr_called
     2
     """
@@ -51,18 +51,18 @@ cdef class getattribute_boring(boring):
     >>> a = getattribute_boring()
     >>> a.getattribute_called
     1
-    >>> a.boring_member
-    Traceback (most recent call last):
-    AttributeError
+    >>> try: a.boring_member
+    ... except AttributeError: pass
+    ... else: print("FAILED!")
     >>> a.getattribute_called
     3
     >>> print(a.resolved_by)
     getattribute_boring
     >>> a.getattribute_called
     5
-    >>> a.no_such_member
-    Traceback (most recent call last):
-    AttributeError
+    >>> try: a.no_such_member
+    ... except AttributeError: pass
+    ... else: print("FAILED!")
     >>> a.getattribute_called
     7
     """
@@ -114,9 +114,9 @@ class getattr_py(_getattr):
     True
     >>> a.getattr_called
     2
-    >>> a.no_such_member
-    Traceback (most recent call last):
-    AttributeError
+    >>> try: a.no_such_member
+    ... except AttributeError: pass
+    ... else: print("FAILED!")
 
     # currently fails, see #1793
     #>>> a.getattr_called
@@ -153,9 +153,9 @@ class getattribute_py(_getattribute):
     True
     >>> a.getattribute_called
     5
-    >>> a.no_such_member
-    Traceback (most recent call last):
-    AttributeError
+    >>> try: a.no_such_member
+    ... except AttributeError: pass
+    ... else: print("FAILED!")
     >>> a.getattribute_called
     7
     """
@@ -171,23 +171,23 @@ cdef class boring_boring_getattribute(boring_getattribute):
     >>> a = boring_boring_getattribute()
     >>> a.getattribute_called
     1
-    >>> a.boring_getattribute_member
-    Traceback (most recent call last):
-    AttributeError
+    >>> try: a.boring_getattribute_member
+    ... except AttributeError: pass
+    ... else: print("FAILED!")
     >>> a.getattribute_called
     3
-    >>> a.boring_boring_getattribute_member
-    Traceback (most recent call last):
-    AttributeError
+    >>> try: a.boring_boring_getattribute_member
+    ... except AttributeError: pass
+    ... else: print("FAILED!")
     >>> a.getattribute_called
     5
     >>> print(a.resolved_by)
     _getattribute
     >>> a.getattribute_called
     7
-    >>> a.no_such_member
-    Traceback (most recent call last):
-    AttributeError
+    >>> try: a.no_such_member
+    ... except AttributeError: pass
+    ... else: print("FAILED!")
     >>> a.getattribute_called
     9
     """
@@ -225,9 +225,9 @@ cdef class getattribute_boring_boring_getattr(boring_boring_getattr):
     True
     >>> (a.getattr_called, a.getattribute_called)
     (5, 11)
-    >>> a.no_such_member
-    Traceback (most recent call last):
-    AttributeError
+    >>> try: a.no_such_member
+    ... except AttributeError: pass
+    ... else: print("FAILED!")
     >>> (a.getattr_called, a.getattribute_called)
     (7, 14)
     """
@@ -270,9 +270,9 @@ cdef class getattr_boring_boring_getattribute(boring_boring_getattribute):
     True
     >>> (a.getattr_called, a.getattribute_called)
     (5, 11)
-    >>> a.no_such_member
-    Traceback (most recent call last):
-    AttributeError
+    >>> try: a.no_such_member
+    ... except AttributeError: pass
+    ... else: print("FAILED!")
     >>> (a.getattr_called, a.getattribute_called)
     (7, 14)
     """

@@ -1,0 +1,180 @@
+# Workflow to build wheels for upload to PyPI.
+#
+# In an attempt to save CI resources, wheel builds do
+# not run on each push but only weekly and for releases.
+# Wheel builds can be triggered from the Actions page
+# (if you have the perms) on a commit to master.
+# 
+# Alternatively, if you would like to trigger wheel builds
+# on a pull request, the labels that trigger builds are:
+# - Build System
+
+name: Wheel Builder
+on:
+  release:
+    types: [created]
+  schedule:
+  #        ┌───────────── minute (0 - 59)
+  #        │  ┌───────────── hour (0 - 23)
+  #        │  │ ┌───────────── day of the month (1 - 31)
+  #        │  │ │ ┌───────────── month (1 - 12 or JAN-DEC)
+  #        │  │ │ │ ┌───────────── day of the week (0 - 6 or SUN-SAT)
+  #        │  │ │ │ │
+  - cron: "42 1 * * 4"
+  pull_request:
+      types: [labeled, opened, synchronize, reopened]
+      paths:
+        #- Cython/Build/**
+        - .github/workflows/wheels.yml
+        - pyproject.toml
+        - MANIFEST.in
+        - setup.*
+  push:
+      paths:
+        #- Cython/Build/**
+        - .github/workflows/wheels.yml
+        - pyproject.toml
+        - MANIFEST.in
+        - setup.*
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
+  cancel-in-progress: true
+
+permissions:
+  contents: write # to create GitHub release (softprops/action-gh-release)
+
+jobs:
+  generate-wheels-matrix:
+    # Create a matrix of all architectures & versions to build.
+    # This enables the next step to run cibuildwheel in parallel.
+    # From https://iscinumpy.dev/post/cibuildwheel-2-10-0/#only-210
+    name: Generate wheels matrix
+    if: >-
+      github.event_name == 'push' ||
+      github.event_name == 'release' ||
+      github.event_name == 'schedule' ||
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'pull_request' &&
+      contains(github.event.pull_request.labels.*.name, 'Build System'))
+    runs-on: ubuntu-latest
+    outputs:
+      include: ${{ steps.set-matrix.outputs.include }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install cibuildwheel
+        # Nb. keep cibuildwheel version pin consistent with job below
+        run: pipx install cibuildwheel==2.16.5
+      - id: set-matrix
+        run: |
+          MATRIX=$(
+            {
+              cibuildwheel --print-build-identifiers --prerelease-pythons --platform linux \
+              | jq -nRc '{"only": inputs, "os": "ubuntu-latest"}' \
+              && cibuildwheel --print-build-identifiers --prerelease-pythons --platform macos \
+              | jq -nRc '{"only": inputs, "os": "macos-latest"}' \
+              && cibuildwheel --print-build-identifiers --prerelease-pythons --platform windows \
+              | jq -nRc '{"only": inputs, "os": "windows-2019"}'
+            } | jq -sc
+          )
+          echo "$MATRIX"
+          echo "include=$MATRIX" >> $GITHUB_OUTPUT
+
+  build_wheels:
+    name: Wheel ${{ matrix.only }}
+    if: >-
+      github.event_name == 'push' ||
+      github.event_name == 'release' ||
+      github.event_name == 'schedule' ||
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'pull_request' &&
+      contains(github.event.pull_request.labels.*.name, 'Build System'))
+    needs: generate-wheels-matrix
+    runs-on: ${{ matrix.os }}
+
+    strategy:
+      # Ensure that a wheel builder finishes even if another fails
+      fail-fast: false
+      matrix:
+        include: ${{ fromJson(needs.generate-wheels-matrix.outputs.include) }}
+
+    steps:
+      - name: Checkout Cython
+        uses: actions/checkout@v4.1.1
+        
+      - name: Set up QEMU
+        if: runner.os == 'Linux' && !contains(matrix.only, 'x86') && !contains(matrix.only, 'i686')
+        uses: docker/setup-qemu-action@v3
+        with:
+          platforms: all
+
+      - name: Build wheels
+        # Nb. keep cibuildwheel version pin consistent with generate-matrix job above
+        uses: pypa/cibuildwheel@v2.16.5
+        with:
+          only: ${{ matrix.only }}
+        # TODO: Cython tests take a long time to complete
+        # consider running a subset in the future?
+        #CIBW_TEST_COMMAND: python {project}/runtests.py -vv
+
+      - name: Release
+        uses: softprops/action-gh-release@v2
+        if: startsWith(github.ref, 'refs/tags/')
+        with:
+          files: wheelhouse/*.whl
+          prerelease: >-
+            ${{ contains(github.ref_name, 'a') || contains(github.ref_name, 'b')
+              || contains(github.ref_name, 'rc') || contains(github.ref_name, 'dev') }}
+
+      - uses: actions/upload-artifact@v4.3.0
+        with:
+          name: ${{ matrix.only }}
+          path: ./wheelhouse/*.whl
+
+  build_sdist_pure_wheel:
+    name: Build sdist and pure wheel
+    if: >-
+      github.event_name == 'push' ||
+      github.event_name == 'release' ||
+      github.event_name == 'schedule' ||
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'pull_request' &&
+      contains(github.event.pull_request.labels.*.name, 'Build System'))
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Cython
+        uses: actions/checkout@v4.1.1
+
+      # Used to push the built wheels
+      - uses: actions/setup-python@v5.0.0
+        with:
+          # Build sdist on lowest supported Python
+          python-version: '3.8'
+
+      - name: Build sdist
+        run: |
+          pip install --upgrade wheel setuptools
+          python setup.py sdist
+          python setup.py bdist_wheel --no-cython-compile
+
+      - uses: actions/upload-artifact@v4.3.0
+        with:
+          name: sdist
+          path: ./dist/*.tar.gz
+
+      - uses: actions/upload-artifact@v4.3.0
+        with:
+          name: pure-wheel
+          path: ./dist/*.whl
+      
+      - name: Release
+        uses: softprops/action-gh-release@v2
+        if: startsWith(github.ref, 'refs/tags/')
+        with:
+          files: |
+            dist/*.tar.gz
+            dist/*-none-any.whl
+          prerelease: >-
+            ${{ contains(github.ref_name, 'a') || contains(github.ref_name, 'b')
+              || contains(github.ref_name, 'rc') || contains(github.ref_name, 'dev') }}

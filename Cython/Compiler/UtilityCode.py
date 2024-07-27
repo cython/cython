@@ -1,9 +1,9 @@
-from __future__ import absolute_import
-
 from .TreeFragment import parse_from_strings, StringParseContext
 from . import Symtab
 from . import Naming
 from . import Code
+
+import re
 
 
 class NonManglingModuleScope(Symtab.ModuleScope):
@@ -16,7 +16,7 @@ class NonManglingModuleScope(Symtab.ModuleScope):
 
     def add_imported_entry(self, name, entry, pos):
         entry.used = True
-        return super(NonManglingModuleScope, self).add_imported_entry(name, entry, pos)
+        return super().add_imported_entry(name, entry, pos)
 
     def mangle(self, prefix, name=None):
         if name:
@@ -32,8 +32,8 @@ class NonManglingModuleScope(Symtab.ModuleScope):
 class CythonUtilityCodeContext(StringParseContext):
     scope = None
 
-    def find_module(self, module_name, relative_to=None, pos=None, need_pxd=True, absolute_fallback=True):
-        if relative_to:
+    def find_module(self, module_name, from_module=None, pos=None, need_pxd=True, absolute_fallback=True, relative_import=False):
+        if from_module:
             raise AssertionError("Relative imports not supported in utility code.")
         if module_name != self.module_name:
             if module_name not in self.modules:
@@ -124,7 +124,8 @@ class CythonUtilityCode(Code.UtilityCodeBase):
         context.cython_scope = cython_scope
         #context = StringParseContext(self.name)
         tree = parse_from_strings(
-            self.name, self.impl, context=context, allow_struct_enum_decorator=True)
+            self.name, self.impl, context=context, allow_struct_enum_decorator=True,
+            in_utility_code=True)
         pipeline = Pipeline.create_pipeline(context, 'pyx', exclude_classes=excludes)
 
         if entries_only:
@@ -173,8 +174,15 @@ class CythonUtilityCode(Code.UtilityCodeBase):
         if self.context_types:
             # inject types into module scope
             def scope_transform(module_node):
+                dummy_entry = object()
                 for name, type in self.context_types.items():
+                    # Restore the old type entry after declaring the type.
+                    # We need to access types in the scope, but this shouldn't alter the entry
+                    # that is visible from everywhere else
+                    old_type_entry = getattr(type, "entry", dummy_entry)
                     entry = module_node.scope.declare_type(name, type, None, visibility='extern')
+                    if old_type_entry is not dummy_entry:
+                        type.entry = old_type_entry
                     entry.in_cinclude = True
                 return module_node
 
@@ -189,6 +197,14 @@ class CythonUtilityCode(Code.UtilityCodeBase):
 
     def put_code(self, output):
         pass
+
+    @classmethod
+    def load(cls, util_code_name, from_file, **kwargs):
+        if re.search("[.]c(pp)?::", util_code_name):
+            # We're trying to load a C/C++ utility code.
+            # For now, just handle the simple case with no tempita
+            return Code.UtilityCode.load_cached(util_code_name, from_file)
+        return super().load(util_code_name, from_file, **kwargs)
 
     @classmethod
     def load_as_string(cls, util_code_name, from_file=None, **kwargs):

@@ -1,6 +1,4 @@
 
-import sys
-
 def exception_creates_invalid_instance():
     """
     >>> print( exception_creates_invalid_instance() )
@@ -10,12 +8,7 @@ def exception_creates_invalid_instance():
         def __new__(cls, *args):
             return object()
 
-    if sys.version_info[0] >= 3:
-        expected_error = TypeError
-    else:
-        expected_error = MyException
-
     try:
         raise MyException
-    except expected_error:
+    except TypeError:
         return "OK"
