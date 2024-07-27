@@ -1127,8 +1127,6 @@ static CYTHON_INLINE PyObject * __Pyx_PyDict_GetItemStrWithError(PyObject *dict,
     #define __Pyx_pyiter_sendfunc sendfunc
 #else
     // PyAsyncMethods in Py<3.10 lacks "am_send"
-    typedef __Pyx_PySendResult (__Pyx_pyiter_sendfunc)(PyObject *iter, PyObject *value, PyObject **result);
-
   #if !CYTHON_USE_TYPE_SPECS
     #define __Pyx_SlotTpAsAsync(s) ((PyAsyncMethods*)&(s))
 
@@ -1145,6 +1143,8 @@ static CYTHON_INLINE PyObject * __Pyx_PyDict_GetItemStrWithError(PyObject *dict,
         PYGEN_ERROR = -1,
         PYGEN_NEXT = 1,
     } __Pyx_PySendResult;
+
+    typedef __Pyx_PySendResult (__Pyx_pyiter_sendfunc)(PyObject *iter, PyObject *value, PyObject **result);
 #endif
 
 // Use a flag in Py < 3.10 to mark coroutines that have the "am_send" field.
