@@ -14,6 +14,7 @@ embedsignature
 error_pos
 extern_varobject_extensions
 funcexceptchained
+funcexceptcypy
 funcexceptreplace
 function_self
 generators_pep479
@@ -24,7 +25,7 @@ pep442_tp_finalize_cimport
 pstats_profile_test
 [.]pure_pxd  # docstring
 pxd_syntax  # docstrings
-py35_asycio_async_def
+py35_asyncio_async_def
 pycontextvar
 r_docstrings
 special_method_docstrings

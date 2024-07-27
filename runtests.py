@@ -2501,6 +2501,7 @@ def main():
 
         pool.close()
         pool.join()
+        pool.terminate()  # graalpy seems happier if we terminate now rather than leaving it to the gc
 
         total_time = time.time() - total_time
         sys.stderr.write("Sharded tests run in %d seconds (%.1f minutes)\n" % (round(total_time), total_time / 60.))
