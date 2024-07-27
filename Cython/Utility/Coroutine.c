@@ -1,6 +1,5 @@
 // ### CPython revisions to investigate for potential changes:
 
-// b37181e6920 (bpo-43683: Handle generator entry in bytecode (GH-25138))
 // 2f180ce2cb6 (bpo-44530: Add co_qualname field to PyCodeObject (GH-26941))
 // a4760cc32d9 (bpo-42747: Remove Py_TPFLAGS_HAVE_AM_SEND and make Py_TPFLAGS_HAVE_VERSION_TAG no-op (GH-27260))
 // ae0a2b75625 (bpo-44590: Lazily allocate frame objects (GH-27077))
@@ -15,8 +14,10 @@
 // 11a2c6ce516 (gh-102192: Replace PyErr_Fetch/Restore etc by more efficient alternatives (in Objects/) (#102218))
 // ced13c96a4e (gh-79940: add introspection API for asynchronous generators to `inspect` module (#11590) -- ".ag_suspended")
 // d56c933992c (gh-104770: Let generator.close() return value (#104771))
-// e5c699280de (GH-117714: implement athrow().close() and asend().close() using throw (GH-117906))
 // 7fc542c88dc (GH-89091: raise `RuntimeWarning` for unawaited async generator methods (#104611))
+// 7d369d471cf (GH-117536: GH-117894: fix athrow().throw(...) unawaited warning (GH-117851))
+// fc7e1aa3c00 (GH-117881: fix athrow().throw()/asend().throw() concurrent access (GH-117882))
+// e5c699280de (GH-117714: implement athrow().close() and asend().close() using throw (GH-117906))
 
 
 //////////////////// CoroutineSetYieldFrom ////////////////////
@@ -716,24 +717,6 @@ static void __Pyx__Coroutine_AlreadyRunningError(__pyx_CoroutineObject *gen) {
     PyErr_SetString(PyExc_ValueError, msg);
 }
 
-static void __Pyx_Coroutine_NotStartedError(PyObject *gen) {
-    const char *msg;
-    CYTHON_MAYBE_UNUSED_VAR(gen);
-    if ((0)) {
-    #ifdef __Pyx_Coroutine_USED
-    } else if (__Pyx_Coroutine_Check(gen)) {
-        msg = "can't send non-None value to a just-started coroutine";
-    #endif
-    #ifdef __Pyx_AsyncGen_USED
-    } else if (__Pyx_AsyncGen_CheckExact(gen)) {
-        msg = "can't send non-None value to a just-started async generator";
-    #endif
-    } else {
-        msg = "can't send non-None value to a just-started generator";
-    }
-    PyErr_SetString(PyExc_TypeError, msg);
-}
-
 static void __Pyx_Coroutine_AlreadyTerminatedError(PyObject *gen, PyObject *value, int closing) {
     CYTHON_MAYBE_UNUSED_VAR(gen);
     CYTHON_MAYBE_UNUSED_VAR(closing);
@@ -765,13 +748,6 @@ __Pyx_PySendResult __Pyx_Coroutine_SendEx(__pyx_CoroutineObject *self, PyObject 
     PyObject *retval;
 
     assert(!self->is_running);
-
-    if (unlikely(self->resume_label == 0)) {
-        if (unlikely(value && value != Py_None)) {
-            __Pyx_Coroutine_NotStartedError((PyObject*)self);
-            return PYGEN_ERROR;
-        }
-    }
 
     if (unlikely(self->resume_label == -1)) {
         __Pyx_Coroutine_AlreadyTerminatedError((PyObject*)self, value, closing);

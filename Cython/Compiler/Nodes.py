@@ -4732,12 +4732,15 @@ class GeneratorBodyDefNode(DefNode):
 
     is_generator_body = True
     is_inlined = False
+    is_coroutine_body = False
     is_async_gen_body = False
     inlined_comprehension_type = None  # container type for inlined comprehensions
 
-    def __init__(self, pos=None, name=None, body=None, is_async_gen_body=False):
+    def __init__(self, pos=None, name=None, body=None, is_coroutine_body=False, is_async_gen_body=False):
         super().__init__(
-            pos=pos, body=body, name=name, is_async_gen_body=is_async_gen_body,
+            pos=pos, body=body, name=name,
+            is_coroutine_body=is_coroutine_body,
+            is_async_gen_body=is_async_gen_body,
             doc=None, args=[], star_arg=None, starstar_arg=None)
 
     def declare_generator_body(self, env):
@@ -4805,8 +4808,23 @@ class GeneratorBodyDefNode(DefNode):
         first_run_label = code.new_label('first_run')
         code.use_label(first_run_label)
         code.put_label(first_run_label)
-        code.putln('%s' %
-                   (code.error_goto_if_null(Naming.sent_value_cname, self.pos)))
+
+        if self.is_inlined:
+            code.putln(code.error_goto_if_null(Naming.sent_value_cname, self.pos))
+        else:
+            code.putln(f"if (unlikely({Naming.sent_value_cname} != Py_None)) {{")
+            if self.is_async_gen_body:
+                coro_type = "async generator"
+            elif self.is_coroutine_body:
+                coro_type = "coroutine"
+            else:
+                coro_type = "generator"
+            code.putln(
+                f"if (unlikely({Naming.sent_value_cname})) "
+                f'''PyErr_SetString(PyExc_TypeError, "can't send non-None value to a just-started {coro_type}");'''
+            )
+            code.putln(code.error_goto(self.pos))
+            code.putln("}")
 
         # ----- prepare target container for inlined comprehension
         if self.is_inlined and self.inlined_comprehension_type is not None:
