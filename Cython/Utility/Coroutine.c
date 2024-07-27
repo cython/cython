@@ -1,3 +1,24 @@
+// ### CPython revisions to investigate for potential changes:
+
+// b37181e6920 (bpo-43683: Handle generator entry in bytecode (GH-25138))
+// 2f180ce2cb6 (bpo-44530: Add co_qualname field to PyCodeObject (GH-26941))
+// a4760cc32d9 (bpo-42747: Remove Py_TPFLAGS_HAVE_AM_SEND and make Py_TPFLAGS_HAVE_VERSION_TAG no-op (GH-27260))
+// ae0a2b75625 (bpo-44590: Lazily allocate frame objects (GH-27077))
+// 69806b9516d (bpo-46009: Do not exhaust generator when send() method raises (GH-29986))
+// b04dfbbe4bd (bpo-46409: Make generators in bytecode (GH-30633) -- ".gi_suspended")
+// 304197b3820 (bpo-46944: use FASTCALL calling convention in generator.throw (GH-31723))
+// 8be7c2bc5ad (bpo-14911: Corrected generator.throw() documentation (GH-32207))
+// 5bfb3c372bd (GH-90997: Wrap yield from/await in a virtual try/except StopIteration (GH-96010))
+// 83a3de4e063 (gh-96348: Deprecate the 3-arg signature of coroutine.throw and generator.throw (GH-96428))
+// f4adb975061 (GH-96793: Implement PEP 479 in bytecode. (GH-99006))
+// f02fa64bf2d (GH-100762: Don't call `gen.throw()` in `gen.close()`, unless necessary. (GH-101013))
+// 11a2c6ce516 (gh-102192: Replace PyErr_Fetch/Restore etc by more efficient alternatives (in Objects/) (#102218))
+// ced13c96a4e (gh-79940: add introspection API for asynchronous generators to `inspect` module (#11590) -- ".ag_suspended")
+// d56c933992c (gh-104770: Let generator.close() return value (#104771))
+// e5c699280de (GH-117714: implement athrow().close() and asend().close() using throw (GH-117906))
+// 7fc542c88dc (GH-89091: raise `RuntimeWarning` for unawaited async generator methods (#104611))
+
+
 //////////////////// CoroutineSetYieldFrom ////////////////////
 
 static void
