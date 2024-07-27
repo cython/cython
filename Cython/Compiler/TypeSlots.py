@@ -898,6 +898,7 @@ sendfunc = PyrexTypes.CPtrType(PyrexTypes.CFuncType(
             PyrexTypes.CFuncTypeArg("result", PyrexTypes.CPtrType(PyrexTypes.py_objptr_type)),
         ],
         exception_value="PYGEN_ERROR",
+        exception_check=True,  # we allow returning PYGEN_ERROR without GeneratorExit / StopIteration
     ))
 
 

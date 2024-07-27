@@ -1204,11 +1204,13 @@ __Pyx_Coroutine_Close(PyObject *self, PyObject **retval) {
         PyErr_SetNone(PyExc_GeneratorExit);
     result = __Pyx_Coroutine_SendEx(gen, NULL, retval, 1);
     if (result == PYGEN_ERROR) {
+        // WARNING: *retval == NULL !
         __Pyx_PyThreadState_declare
         __Pyx_PyThreadState_assign
-        if (likely(__Pyx_PyErr_ExceptionMatches2(PyExc_GeneratorExit, PyExc_StopIteration))) {
+        if (!__Pyx_PyErr_Occurred()) {
+            return PYGEN_RETURN;
+        } else if (likely(__Pyx_PyErr_ExceptionMatches2(PyExc_GeneratorExit, PyExc_StopIteration))) {
             __Pyx_PyErr_Clear();
-            // WARNING: *retval == NULL !
             return PYGEN_RETURN;
         }
         return PYGEN_ERROR;
