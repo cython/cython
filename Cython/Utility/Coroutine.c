@@ -508,7 +508,7 @@ static int __Pyx_PyGen__FetchStopIterationValue(PyThreadState *$local_tstate_cna
             value = Py_None;
         }
         else if (likely(__Pyx_IS_TYPE(ev, (PyTypeObject*)PyExc_StopIteration))) {
-            #if CYTHON_COMPILING_IN_LIMITED_API
+            #if CYTHON_COMPILING_IN_LIMITED_API || CYTHON_COMPILING_IN_GRAAL
             value = PyObject_GetAttr(ev, PYIDENT("value"));
             if (unlikely(!value)) goto limited_api_failure;
             #else
@@ -582,7 +582,7 @@ static int __Pyx_PyGen__FetchStopIterationValue(PyThreadState *$local_tstate_cna
     *pvalue = value;
     return 0;
 
-#if CYTHON_COMPILING_IN_LIMITED_API || !CYTHON_ASSUME_SAFE_MACROS
+#if CYTHON_COMPILING_IN_LIMITED_API || CYTHON_COMPILING_IN_GRAAL || !CYTHON_ASSUME_SAFE_MACROS
   limited_api_failure:
     Py_XDECREF(et);
     Py_XDECREF(tb);
