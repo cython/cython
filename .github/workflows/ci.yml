@@ -61,7 +61,6 @@ jobs:
           # ================
           # graalpy is really slow, so put it first...
           - os: ubuntu-20.04
-            python-version: pypy-3.10
             python-version: graalpy24
             backend: c
             env: { NO_CYTHON_COMPILE: 1 }
