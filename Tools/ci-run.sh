@@ -217,7 +217,14 @@ if [[ $COVERAGE == "1" ]]; then
   RUNTESTS_ARGS="$RUNTESTS_ARGS --coverage --coverage-html --cython-only"
 fi
 if [[ $TEST_CODE_STYLE != "1" ]]; then
-  RUNTESTS_ARGS="$RUNTESTS_ARGS -j7"
+  if [[ $PYTHON_VERSION == "graalpy"* ]]; then
+    # [DW] - on my laptop graalpy is quite good at multithreading itself and using
+    # lots of memory in the process. So restrict the parallelism for now.
+    # Optimal number to be determined....
+    RUNTESTS_ARGS="$RUNTESTS_ARGS -j2"
+  else
+    RUNTESTS_ARGS="$RUNTESTS_ARGS -j7"
+  fi
 fi
 
 export CFLAGS="$CFLAGS $EXTRA_CFLAGS"

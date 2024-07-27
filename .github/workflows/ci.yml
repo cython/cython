@@ -161,6 +161,11 @@ jobs:
             python-version: pypy-3.10
             backend: c
             env: { NO_CYTHON_COMPILE: 1 }
+          # GraalPython
+          - os: ubuntu-20.04
+            python-version: graalpy
+            backend: c
+            env: { NO_CYTHON_COMPILE: 1 }
           # Free-threading
           - os: ubuntu-20.04
             python-version: 3.13-freethreading-dev
