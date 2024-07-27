@@ -591,10 +591,11 @@ class SuiteSlot(SlotDescriptor):
     #
     #  sub_slots   [SlotDescriptor]
 
-    def __init__(self, sub_slots, slot_type, slot_name, substructures, ifdef=None):
+    def __init__(self, sub_slots, slot_type, slot_name, substructures, ifdef=None, cast_cname=None):
         SlotDescriptor.__init__(self, slot_name, ifdef=ifdef)
         self.sub_slots = sub_slots
         self.slot_type = slot_type
+        self.cast_cname = cast_cname
         substructures.append(self)
 
     def is_empty(self, scope):
@@ -608,7 +609,10 @@ class SuiteSlot(SlotDescriptor):
 
     def slot_code(self, scope):
         if not self.is_empty(scope):
-            return "&%s" % self.substructure_cname(scope)
+            cast = ""
+            if self.cast_cname:
+                cast = f"({self.cast_cname}*)"
+            return f"{cast}&{self.substructure_cname(scope)}"
         return "0"
 
     def generate_substructure(self, scope, code):
@@ -1010,8 +1014,8 @@ class SlotTable:
             EmptySlot("tp_getattr"),
             EmptySlot("tp_setattr"),
 
-            SuiteSlot(self. PyAsyncMethods, "PyAsyncMethods", "tp_as_async",
-                      self.substructures),
+            SuiteSlot(self. PyAsyncMethods, "__Pyx_PyAsyncMethodsStruct", "tp_as_async",
+                      self.substructures, cast_cname="PyAsyncMethods"),
 
             MethodSlot(reprfunc, "tp_repr", "__repr__", method_name_to_slot),
 

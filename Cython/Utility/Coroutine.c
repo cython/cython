@@ -466,6 +466,7 @@ static int __pyx_Generator_init(PyObject *module); /*proto*/
 //@requires: ObjectHandling.c::PyObjectGetAttrStrNoError
 //@requires: CommonStructures.c::FetchCommonType
 //@requires: ModuleSetupCode.c::IncludeStructmemberH
+//@requires: ExtensionTypes.c::CallTypeTraverse
 
 #if !CYTHON_COMPILING_IN_LIMITED_API
 #include <frameobject.h>
@@ -1178,6 +1179,10 @@ static CYTHON_INLINE int __Pyx_Coroutine_traverse_excstate(__Pyx_ExcInfoStruct *
 }
 
 static int __Pyx_Coroutine_traverse(__pyx_CoroutineObject *gen, visitproc visit, void *arg) {
+    {
+        int e = __Pyx_call_type_traverse((PyObject*)gen, 1, visit, arg);
+        if (e) return e;
+    }
     Py_VISIT(gen->closure);
     Py_VISIT(gen->classobj);
     Py_VISIT(gen->yieldfrom);
@@ -1478,6 +1483,7 @@ static __pyx_CoroutineObject *__Pyx__Coroutine_NewInit(
 //////////////////// Coroutine ////////////////////
 //@requires: CoroutineBase
 //@requires: ObjectHandling.c::PyObject_GenericGetAttrNoDict
+//@requires: ExtensionTypes.c::CallTypeTraverse
 
 static void __Pyx_CoroutineAwait_dealloc(PyObject *self) {
     PyObject_GC_UnTrack(self);
@@ -1486,6 +1492,10 @@ static void __Pyx_CoroutineAwait_dealloc(PyObject *self) {
 }
 
 static int __Pyx_CoroutineAwait_traverse(__pyx_CoroutineAwaitObject *self, visitproc visit, void *arg) {
+    {
+        int e = __Pyx_call_type_traverse((PyObject*)self, 1, visit, arg);
+        if (e) return e;
+    }
     Py_VISIT(self->coroutine);
     return 0;
 }
@@ -1723,13 +1733,11 @@ static PyType_Spec __pyx_CoroutineType_spec = {
 };
 #else /* CYTHON_USE_TYPE_SPECS */
 
-static PyAsyncMethods __pyx_Coroutine_as_async = {
+static __Pyx_PyAsyncMethodsStruct __pyx_Coroutine_as_async = {
     __Pyx_Coroutine_await, /*am_await*/
     0, /*am_aiter*/
     0, /*am_anext*/
-#if PY_VERSION_HEX >= 0x030A00A3
     0, /*am_send*/
-#endif
 };
 
 static PyTypeObject __pyx_CoroutineType_type = {
@@ -1741,7 +1749,7 @@ static PyTypeObject __pyx_CoroutineType_type = {
     0,                                  /*tp_print*/
     0,                                  /*tp_getattr*/
     0,                                  /*tp_setattr*/
-    &__pyx_Coroutine_as_async,          /*tp_as_async*/
+    (PyAsyncMethods*)&__pyx_Coroutine_as_async,          /*tp_as_async*/
     0,                                  /*tp_repr*/
     0,                                  /*tp_as_number*/
     0,                                  /*tp_as_sequence*/
@@ -1887,7 +1895,7 @@ static PyTypeObject __pyx_IterableCoroutineType_type = {
     0,                                  /*tp_print*/
     0,                                  /*tp_getattr*/
     0,                                  /*tp_setattr*/
-    &__pyx_Coroutine_as_async,          /*tp_as_async*/
+    (PyAsyncMethods*)&__pyx_Coroutine_as_async,          /*tp_as_async*/
     0,                                  /*tp_repr*/
     0,                                  /*tp_as_number*/
     0,                                  /*tp_as_sequence*/
