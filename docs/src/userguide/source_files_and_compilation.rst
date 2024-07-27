@@ -1078,7 +1078,7 @@ to turn the warning on / off.
 
 ``warn.deprecated.DEF`` (default False)
   Warns about use of the deprecated ``DEF`` statement in Cython code, see
- :ref:`conditional_compilation` and :ref:`deprecated_DEF_IF`.
+  :ref:`conditional_compilation` and :ref:`deprecated_DEF_IF`.
 
 ``warn.deprecated.IF`` (default True)
   Warns about use of the deprecated ``IF`` statement in Cython code, see
@@ -1216,7 +1216,7 @@ most important to least important:
     Python 3.7 upwards.
     Note that this is a `Python macro <https://docs.python.org/3/c-api/stable.html#c.Py_LIMITED_API>`_,
     rather than just a Cython macro, and so it changes what parts of the Python headers
-    are visible too.
+    are visible too.  See :ref:`limited_api` for more details about this feature.
 
 ``CYTHON_PEP489_MULTI_PHASE_INIT``
     Uses multi-phase module initialization as described in PEP489.  This improves
@@ -1266,9 +1266,6 @@ hidden by default since most users will be uninterested in changing them.
         ``CYTHON_USE_PYTYPE_LOOKUP``
             Use the internal `_PyType_Lookup()` function for more efficient access
             to properties of C classes.
-            
-        ``CYTHON_USE_ASYNC_SLOTS``
-            Support the ``tp_as_async`` attribute on type objects.
             
         ``CYTHON_USE_PYLONG_INTERNALS``/``CYTHON_USE_PYLIST_INTERNALS``/``CYTHON_USE_UNICODE_INTERNALS``
             Enable optimizations based on direct access into the internals of Python
