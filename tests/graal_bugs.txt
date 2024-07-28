@@ -16,6 +16,7 @@ extern_varobject_extensions
 funcexceptchained
 funcexceptcypy
 funcexceptreplace
+funcexc_iter_T228
 function_self
 generators_pep479
 module_init_error
@@ -34,6 +35,7 @@ test_asyncgen
 test_coroutines_pep492  # although a large chunk works
 test_exceptions  # TypeError: __slots__ items must be strings, not str
 test_grammar
+test_named_expressions
 test_raisefrom
 userbuffer
 unicode_identifiers$
