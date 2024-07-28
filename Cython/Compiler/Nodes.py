@@ -4965,7 +4965,7 @@ class OverrideCheckNode(StatNode):
             code.putln("#if !(CYTHON_USE_TYPE_SLOTS || CYTHON_COMPILING_IN_PYPY)")
             # If CYTHON_USE_TYPE_SPECS then all extension types are heap-types so the check below automatically
             # passes and thus takes the slow route.
-            # Therefore we do a less thorough check - if they type hasn't changed then clearly it hasn't
+            # Therefore we do a less thorough check - if the type hasn't changed then clearly it hasn't
             # been overridden, and if the type isn't GC then it also won't have been overridden.
             if self.py_func.entry.scope.lookup_here("__dict__"):
                 code.putln("(1)")
