@@ -15,9 +15,11 @@
 // ced13c96a4e (gh-79940: add introspection API for asynchronous generators to `inspect` module (#11590) -- ".ag_suspended")
 // d56c933992c (gh-104770: Let generator.close() return value (#104771))
 // 7fc542c88dc (GH-89091: raise `RuntimeWarning` for unawaited async generator methods (#104611))
+// 0d30a5a4096 (GH-100964: Break cycles involving exception state when returning from generator (GH-107563))
 // 7d369d471cf (GH-117536: GH-117894: fix athrow().throw(...) unawaited warning (GH-117851))
 // fc7e1aa3c00 (GH-117881: fix athrow().throw()/asend().throw() concurrent access (GH-117882))
 // e5c699280de (GH-117714: implement athrow().close() and asend().close() using throw (GH-117906))
+// 2c7209a3bdf (gh-114091: Reword error message for unawaitable types (#114090))
 
 
 //////////////////// CoroutineSetYieldFrom ////////////////////
