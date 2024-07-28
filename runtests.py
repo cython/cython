@@ -728,7 +728,9 @@ class TestBuilder(object):
                     self.handle_directory(path, filename))
         if (sys.platform not in ['win32'] and self.add_embedded_test
                 # the embedding test is currently broken in Py3.8+ and Py2.7, except on Linux.
-                and ((3, 0) <= sys.version_info < (3, 8) or sys.platform != 'darwin')):
+                and ((3, 0) <= sys.version_info < (3, 8) or sys.platform != 'darwin')
+                # broken on graal too
+                and not IS_GRAAL):
             # Non-Windows makefile.
             if [1 for selector in self.selectors if selector("embedded")] \
                     and not [1 for selector in self.exclude_selectors if selector("embedded")]:
@@ -2499,6 +2501,7 @@ def main():
 
         pool.close()
         pool.join()
+        pool.terminate()  # graalpy seems happier if we terminate now rather than leaving it to the gc
 
         total_time = time.time() - total_time
         sys.stderr.write("Sharded tests run in %d seconds (%.1f minutes)\n" % (round(total_time), total_time / 60.))
