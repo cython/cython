@@ -2306,11 +2306,11 @@ static PyObject *__Pyx_Generator_GetInlinedResult(PyObject *self) {
 /////////////// ReturnWithStopIteration.proto ///////////////
 
 static CYTHON_INLINE void __Pyx_ReturnWithStopIteration(PyObject* value, int async); /*proto*/
-static void __Pyx__ReturnWithStopIteration(PyObject* value, int async); /*proto*/
 
 /////////////// ReturnWithStopIteration ///////////////
 //@requires: Exceptions.c::PyErrFetchRestore
 //@requires: Exceptions.c::PyThreadStateGet
+//@requires: ObjectHandling.c::PyObjectCallOneArg
 //@substitute: naming
 
 // 1) Instantiating an exception just to pass back a value is costly.
@@ -2318,6 +2318,8 @@ static void __Pyx__ReturnWithStopIteration(PyObject* value, int async); /*proto*
 // 3) Passing a tuple as value into PyErr_SetObject() passes its items on as arguments.
 // 4) Passing an exception as value will interpret it as an exception on unpacking and raise it (or unpack its value).
 // 5) If there is currently an exception being handled, we need to chain it.
+
+static void __Pyx__ReturnWithStopIteration(PyObject* value, int async); /*proto*/
 
 static CYTHON_INLINE void __Pyx_ReturnWithStopIteration(PyObject* value, int async) {
     if (value == Py_None) {
@@ -2336,13 +2338,8 @@ static void __Pyx__ReturnWithStopIteration(PyObject* value, int async) {
 #if CYTHON_COMPILING_IN_CPYTHON
     if (PY_VERSION_HEX >= 0x030C00A6
             || unlikely(PyTuple_Check(value) || PyExceptionInstance_Check(value))) {
-        args = PyTuple_New(1);
-        if (unlikely(!args)) return;
-        Py_INCREF(value);
-        PyTuple_SET_ITEM(args, 0, value);
-        exc = PyType_Type.tp_call(exc_type, args, NULL);
-        Py_DECREF(args);
-        if (!exc) return;
+        exc = __Pyx_PyObject_CallOneArg(exc_type, value);
+        if (unlikely(!exc)) return;
     } else {
         // it's safe to avoid instantiating the exception
         Py_INCREF(value);
@@ -2363,10 +2360,7 @@ static void __Pyx__ReturnWithStopIteration(PyObject* value, int async) {
     }
     #endif
 #else
-    args = PyTuple_Pack(1, value);
-    if (unlikely(!args)) return;
-    exc = PyObject_Call(exc_type, args, NULL);
-    Py_DECREF(args);
+    exc = __Pyx_PyObject_CallOneArg(exc_type, value);
     if (unlikely(!exc)) return;
 #endif
     PyErr_SetObject(exc_type, exc);
