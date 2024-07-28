@@ -4958,7 +4958,7 @@ class OverrideCheckNode(StatNode):
         code.putln("/* Check if called by wrapper */")
         code.putln("if (unlikely(%s)) ;" % Naming.skip_dispatch_cname)
         code.putln("/* Check if overridden in Python */")
-        if self.py_func.is_module_scope:
+        if self.py_func.is_module_scope or if self.py_func.entry.scope.lookup_here("__dict__"):
             code.putln("else {")
         else:
             code.putln("else if (")
@@ -4967,12 +4967,9 @@ class OverrideCheckNode(StatNode):
             # passes and thus takes the slow route.
             # Therefore we do a less thorough check - if the type hasn't changed then clearly it hasn't
             # been overridden, and if the type isn't GC then it also won't have been overridden.
-            if self.py_func.entry.scope.lookup_here("__dict__"):
-                code.putln("(1)")
-            else:
-                code.putln(f"unlikely(Py_TYPE({self_arg}) != "
-                           f"{self.py_func.entry.scope.parent_type.typeptr_cname} &&")
-                code.putln(f"__Pyx_PyType_HasFeature(Py_TYPE({self_arg}), Py_TPFLAGS_HAVE_GC))")
+            code.putln(f"unlikely(Py_TYPE({self_arg}) != "
+                        f"{self.py_func.entry.scope.parent_type.typeptr_cname} &&")
+            code.putln(f"__Pyx_PyType_HasFeature(Py_TYPE({self_arg}), Py_TPFLAGS_HAVE_GC))")
             code.putln("#else")
             code.putln(f"unlikely(Py_TYPE({self_arg})->tp_dictoffset != 0 || "
                        f"__Pyx_PyType_HasFeature(Py_TYPE({self_arg}), (Py_TPFLAGS_IS_ABSTRACT | Py_TPFLAGS_HEAPTYPE)))")
