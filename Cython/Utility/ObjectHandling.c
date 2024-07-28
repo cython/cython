@@ -188,7 +188,7 @@ static CYTHON_INLINE PyObject *__Pyx_PyIter_Next2(PyObject *, PyObject *); /*pro
 //@requires: GetBuiltinName
 
 #if CYTHON_COMPILING_IN_LIMITED_API && __PYX_LIMITED_VERSION_HEX < 0x03080000
-// In limited API for Py 3.7, PyIter_Check is defined but as a macro that uses 
+// In limited API for Py 3.7, PyIter_Check is defined but as a macro that uses
 // non-limited API features and thus is unusable. Therefore, just call builtin next.
 static PyObject *__Pyx_PyIter_Next2(PyObject *o, PyObject *defval) {
     PyObject *result;
@@ -2702,6 +2702,12 @@ static PyObject *__Pyx_CachedMethodType = NULL;
         Py_DECREF(typesModule);
     }
 } // error handling follows
+#endif
+
+/////////////// CachedMethodType.cleanup ////////////////
+
+#if CYTHON_COMPILING_IN_LIMITED_API
+Py_CLEAR(__Pyx_CachedMethodType);
 #endif
 
 /////////////// PyMethodNew.proto ///////////////
