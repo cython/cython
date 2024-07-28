@@ -1097,6 +1097,7 @@ static int __Pyx_Coroutine_CloseIter(__pyx_CoroutineObject *gen, PyObject *yf) {
     #endif
     {
         PyObject *meth;
+        result = PYGEN_RETURN;
         gen->is_running = 1;
         meth = __Pyx_PyObject_GetAttrStrNoError(yf, PYIDENT("close"));
         if (unlikely(!meth)) {
