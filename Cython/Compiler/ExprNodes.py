@@ -10621,11 +10621,10 @@ class AwaitIterNextExprNode(AwaitExprNode):
     # Breaks out of loop on StopAsyncIteration exception.
 
     def _generate_break(self, code):
-        code.globalstate.use_utility_code(UtilityCode.load_cached("StopAsyncIteration", "Coroutine.c"))
         code.putln("PyObject* exc_type = __Pyx_PyErr_CurrentExceptionType();")
-        code.putln("if (unlikely(exc_type && (exc_type == __Pyx_PyExc_StopAsyncIteration || ("
+        code.putln("if (unlikely(exc_type && (exc_type == PyExc_StopAsyncIteration || ("
                    " exc_type != PyExc_StopIteration && exc_type != PyExc_GeneratorExit &&"
-                   " __Pyx_PyErr_GivenExceptionMatches(exc_type, __Pyx_PyExc_StopAsyncIteration))))) {")
+                   " __Pyx_PyErr_GivenExceptionMatches(exc_type, PyExc_StopAsyncIteration))))) {")
         code.putln("PyErr_Clear();")
         code.putln("break;")
         code.putln("}")

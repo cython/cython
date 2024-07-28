@@ -374,20 +374,17 @@ static void __Pyx_Generator_Replace_StopIteration(int in_async_gen); /*proto*/
 static void __Pyx_Generator_Replace_StopIteration(int in_async_gen) {
     PyObject *exc, *val, *tb, *cur_exc, *new_exc;
     __Pyx_PyThreadState_declare
-    #ifdef __Pyx_StopAsyncIteration_USED
     int is_async_stopiteration = 0;
-    #endif
     CYTHON_MAYBE_UNUSED_VAR(in_async_gen);
 
     __Pyx_PyThreadState_assign
     cur_exc = __Pyx_PyErr_CurrentExceptionType();
     if (likely(!__Pyx_PyErr_GivenExceptionMatches(cur_exc, PyExc_StopIteration))) {
-        #ifdef __Pyx_StopAsyncIteration_USED
-        if (in_async_gen && unlikely(__Pyx_PyErr_GivenExceptionMatches(cur_exc, __Pyx_PyExc_StopAsyncIteration))) {
+        if (in_async_gen && unlikely(__Pyx_PyErr_GivenExceptionMatches(cur_exc, PyExc_StopAsyncIteration))) {
             is_async_stopiteration = 1;
-        } else
-        #endif
+        } else {
             return;
+        }
     }
 
     // Explicitly chain the Stop(Async)Iteration by moving it to exc_info before creating the RuntimeError.
@@ -395,10 +392,8 @@ static void __Pyx_Generator_Replace_StopIteration(int in_async_gen) {
     Py_XDECREF(exc);
     Py_XDECREF(tb);
     new_exc = PyObject_CallFunction(PyExc_RuntimeError, "s",
-        #ifdef __Pyx_StopAsyncIteration_USED
         is_async_stopiteration ? "async generator raised StopAsyncIteration" :
         in_async_gen ? "async generator raised StopIteration" :
-        #endif
         "generator raised StopIteration");
     if (!new_exc) {
         Py_XDECREF(val);
@@ -739,7 +734,7 @@ static void __Pyx_Coroutine_AlreadyTerminatedError(PyObject *gen, PyObject *valu
         // only set exception if called from send().
         #ifdef __Pyx_AsyncGen_USED
         if (__Pyx_AsyncGen_CheckExact(gen))
-            PyErr_SetNone(__Pyx_PyExc_StopAsyncIteration);
+            PyErr_SetNone(PyExc_StopAsyncIteration);
         else
         #endif
         PyErr_SetNone(PyExc_StopIteration);
@@ -899,11 +894,11 @@ PyObject *__Pyx_Coroutine_MethodReturn(PyObject* gen, PyObject *retval) {
         __Pyx_PyThreadState_assign
         if (!__Pyx_PyErr_Occurred()) {
             // method call must not terminate with NULL without setting an exception
-            PyObject *exc = PyExc_StopIteration;
-            #ifdef __Pyx_AsyncGen_USED
-            if (__Pyx_AsyncGen_CheckExact(gen))
-                exc = __Pyx_PyExc_StopAsyncIteration;
-            #endif
+            PyObject *exc =
+              #ifdef __Pyx_AsyncGen_USED
+                __Pyx_AsyncGen_CheckExact(gen) ? PyExc_StopAsyncIteration :
+              #endif
+                PyExc_StopIteration;
             __Pyx_PyErr_SetNone(exc);
         }
     }
@@ -982,7 +977,7 @@ __Pyx_Coroutine_FinishDelegation(__pyx_CoroutineObject *gen, PyObject** retval) 
 
 static __Pyx_PySendResult
 __Pyx_Coroutine_SendToDelegate(__pyx_CoroutineObject *gen, __Pyx_pyiter_sendfunc gen_am_send, PyObject *value, PyObject **retval) {
-    PyObject *ret;
+    PyObject *ret = NULL;
     __Pyx_PySendResult result;
     // we assume that gen->yieldfrom cannot change as long as 'gen->is_running' is set => no safety INCREF()
     gen->is_running = 1;
@@ -2324,16 +2319,7 @@ static void __Pyx__ReturnWithStopIteration(PyObject* value, int async); /*proto*
 
 static CYTHON_INLINE void __Pyx_ReturnWithStopIteration(PyObject* value, int async) {
     if (value == Py_None) {
-        PyObject *exc_type = PyExc_StopIteration;
-        #ifdef __Pyx_StopAsyncIteration_USED
-        if (async) {
-            exc_type = __Pyx_PyExc_StopAsyncIteration;
-        }
-        #else
-        CYTHON_MAYBE_UNUSED_VAR(async);
-        assert(!async);
-        #endif
-        PyErr_SetNone(exc_type);
+        PyErr_SetNone(async ? PyExc_StopAsyncIteration : PyExc_StopIteration);
         return;
     }
     return __Pyx__ReturnWithStopIteration(value, async);
@@ -2344,15 +2330,7 @@ static void __Pyx__ReturnWithStopIteration(PyObject* value, int async) {
     __Pyx_PyThreadState_declare
 #endif
     PyObject *exc, *args;
-    PyObject *exc_type = PyExc_StopIteration;
-    #ifdef __Pyx_StopAsyncIteration_USED
-    if (async) {
-        exc_type = __Pyx_PyExc_StopAsyncIteration;
-    }
-    #else
-    CYTHON_MAYBE_UNUSED_VAR(async);
-    assert(!async);
-    #endif
+    PyObject *exc_type = async ? PyExc_StopAsyncIteration : PyExc_StopIteration;
 #if CYTHON_COMPILING_IN_CPYTHON
     if (PY_VERSION_HEX >= 0x030C00A6
             || unlikely(PyTuple_Check(value) || PyExceptionInstance_Check(value))) {
@@ -2391,21 +2369,4 @@ static void __Pyx__ReturnWithStopIteration(PyObject* value, int async) {
 #endif
     PyErr_SetObject(exc_type, exc);
     Py_DECREF(exc);
-}
-
-
-//////////////////// StopAsyncIteration.proto ////////////////////
-
-// TODO: remove
-#define __Pyx_StopAsyncIteration_USED
-static PyObject *__Pyx_PyExc_StopAsyncIteration;
-static int __pyx_StopAsyncIteration_init(PyObject *module); /*proto*/
-
-//////////////////// StopAsyncIteration ////////////////////
-
-// TODO: remove
-static int __pyx_StopAsyncIteration_init(PyObject *module) {
-    CYTHON_UNUSED_VAR(module);
-    __Pyx_PyExc_StopAsyncIteration = PyExc_StopAsyncIteration;
-    return 0;
 }

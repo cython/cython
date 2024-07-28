@@ -58,7 +58,6 @@ __Pyx_PyAsyncGen_Fini();
 //////////////////// AsyncGenerator ////////////////////
 //@requires: Coroutine.c::Coroutine
 //@requires: Coroutine.c::ReturnWithStopIteration
-//@requires: Coroutine.c::StopAsyncIteration
 //@requires: ObjectHandling.c::PyObjectCall2Args
 //@requires: ObjectHandling.c::PyObject_GenericGetAttrNoDict
 //@requires: ExtensionTypes.c::CallTypeTraverse
@@ -464,9 +463,9 @@ __Pyx_async_gen_unwrap_value(__pyx_PyAsyncGenObject *gen, PyObject *result)
     if (result == NULL) {
         PyObject *exc_type = PyErr_Occurred();
         if (!exc_type) {
-            PyErr_SetNone(__Pyx_PyExc_StopAsyncIteration);
+            PyErr_SetNone(PyExc_StopAsyncIteration);
             gen->ag_closed = 1;
-        } else if (__Pyx_PyErr_GivenExceptionMatches2(exc_type, __Pyx_PyExc_StopAsyncIteration, PyExc_GeneratorExit)) {
+        } else if (__Pyx_PyErr_GivenExceptionMatches2(exc_type, PyExc_StopAsyncIteration, PyExc_GeneratorExit)) {
             gen->ag_closed = 1;
         }
 
@@ -492,9 +491,9 @@ __Pyx_async_gen_unwrap_result(__pyx_PyAsyncGenObject *gen, __Pyx_PySendResult re
     if (result == PYGEN_ERROR) {
         PyObject *exc_type = PyErr_Occurred();
         if (!exc_type) {
-            PyErr_SetNone(__Pyx_PyExc_StopAsyncIteration);
+            PyErr_SetNone(PyExc_StopAsyncIteration);
             gen->ag_closed = 1;
-        } else if (__Pyx_PyErr_GivenExceptionMatches2(exc_type, __Pyx_PyExc_StopAsyncIteration, PyExc_GeneratorExit)) {
+        } else if (__Pyx_PyErr_GivenExceptionMatches2(exc_type, PyExc_StopAsyncIteration, PyExc_GeneratorExit)) {
             gen->ag_closed = 1;
         }
 
@@ -971,7 +970,7 @@ __Pyx_async_gen_athrow_send(__pyx_PyAsyncGenAThrow *o, PyObject *arg)
 
         if (unlikely(o->agt_gen->ag_closed)) {
             o->agt_state = __PYX_AWAITABLE_STATE_CLOSED;
-            PyErr_SetNone(__Pyx_PyExc_StopAsyncIteration);
+            PyErr_SetNone(PyExc_StopAsyncIteration);
             return NULL;
         }
 
@@ -1047,7 +1046,7 @@ check_error:
     o->agt_gen->ag_running_async = 0;
     o->agt_state = __PYX_AWAITABLE_STATE_CLOSED;
     exc_type = PyErr_Occurred();
-    if (__Pyx_PyErr_GivenExceptionMatches2(exc_type, __Pyx_PyExc_StopAsyncIteration, PyExc_GeneratorExit)) {
+    if (__Pyx_PyErr_GivenExceptionMatches2(exc_type, PyExc_StopAsyncIteration, PyExc_GeneratorExit)) {
         if (o->agt_args == NULL) {
             // when aclose() is called we don't want to propagate
             // StopAsyncIteration or GeneratorExit; just raise
@@ -1085,7 +1084,7 @@ __Pyx_async_gen_athrow_throw(__pyx_PyAsyncGenAThrow *o, PyObject *args)
             return NULL;
         }
         exc_type = PyErr_Occurred();
-        if (__Pyx_PyErr_GivenExceptionMatches2(exc_type, __Pyx_PyExc_StopAsyncIteration, PyExc_GeneratorExit)) {
+        if (__Pyx_PyErr_GivenExceptionMatches2(exc_type, PyExc_StopAsyncIteration, PyExc_GeneratorExit)) {
             // when aclose() is called we don't want to propagate
             // StopAsyncIteration or GeneratorExit; just raise
             // StopIteration, signalling that this 'aclose()' await

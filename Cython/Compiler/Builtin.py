@@ -19,10 +19,6 @@ pyexec_utility_code = UtilityCode.load("PyExec", "Builtins.c")
 pyexec_globals_utility_code = UtilityCode.load("PyExecGlobals", "Builtins.c")
 globals_utility_code = UtilityCode.load("Globals", "Builtins.c")
 
-builtin_utility_code = {
-    'StopAsyncIteration': UtilityCode.load_cached("StopAsyncIteration", "Coroutine.c"),
-}
-
 
 # mapping from builtins to their C-level equivalents
 
@@ -374,7 +370,7 @@ builtin_types_table = [
     ("frozenset", "&PyFrozenSet_Type", []),
     ("BaseException", "((PyTypeObject*)PyExc_BaseException)", []),
     ("Exception", "((PyTypeObject*)PyExc_Exception)", []),
-    ("StopAsyncIteration", "((PyTypeObject*)__Pyx_PyExc_StopAsyncIteration)", []),
+    ("StopAsyncIteration", "((PyTypeObject*)PyExc_StopAsyncIteration)", []),
     ("memoryview", "&PyMemoryView_Type", [
         # TODO - format would be nice, but hard to get
         # __len__ can be accessed through a direct lookup of the buffer (but probably in Optimize.c)
@@ -617,7 +613,6 @@ builtin_types = {}
 def init_builtin_types():
     global builtin_types
     for name, cname, methods in builtin_types_table:
-        utility = builtin_utility_code.get(name)
         if name == 'frozenset':
             objstruct_cname = 'PySetObject'
         elif name == 'bytearray':
@@ -637,8 +632,8 @@ def init_builtin_types():
             type_class = PyrexTypes.BuiltinTypeConstructorObjectType
         elif name == 'tuple':
             type_class = PyrexTypes.PythonTupleTypeConstructor
-        the_type = builtin_scope.declare_builtin_type(name, cname, utility, objstruct_cname,
-                                                      type_class=type_class)
+        the_type = builtin_scope.declare_builtin_type(
+            name, cname, objstruct_cname=objstruct_cname, type_class=type_class)
         builtin_types[name] = the_type
         for method in methods:
             method.declare_in_type(the_type)
