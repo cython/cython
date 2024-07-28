@@ -228,7 +228,7 @@ class MarkParallelAssignments(EnvTransform):
             self.parallel_errors = True
 
         if node.is_prange:
-            self.visitchildren(node, attrs=['body', 'target', 'args'])
+            self.visitchildren(node, attrs=('body', 'target', 'args'))
 
             self.parallel_block_stack.pop()
             if node.else_clause:
