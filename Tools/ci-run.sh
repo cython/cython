@@ -217,14 +217,13 @@ if [[ $COVERAGE == "1" ]]; then
   RUNTESTS_ARGS="$RUNTESTS_ARGS --coverage --coverage-html --cython-only"
 fi
 if [[ $TEST_CODE_STYLE != "1" ]]; then
-  if [[ $PYTHON_VERSION == "graalpy"* ]]; then
-    # [DW] - on my laptop graalpy is quite good at multithreading itself and using
-    # lots of memory in the process. So restrict the parallelism for now.
-    # Optimal number to be determined....
-    RUNTESTS_ARGS="$RUNTESTS_ARGS -j3"
-  else
-    RUNTESTS_ARGS="$RUNTESTS_ARGS -j7"
-  fi
+  RUNTESTS_ARGS="$RUNTESTS_ARGS -j7"
+fi
+
+if [[ $PYTHON_VERSION == "graalpy"* ]]; then
+  # [DW] - the Graal JIT and Cython don't seem to get on too well. Disabling the
+  # JIT actually makes it faster! And reduces the number of cores each process uses.
+  export GRAAL_PYTHON_ARGS="--experimental-options --engine.Compilation=false"
 fi
 
 export CFLAGS="$CFLAGS $EXTRA_CFLAGS"
