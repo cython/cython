@@ -850,7 +850,7 @@ static CYTHON_INLINE void *__Pyx_PyModule_GetState(PyObject *op)
 #define __Pyx_PyObject_GetSlot(obj, name, func_ctype)  __Pyx_PyType_GetSlot(Py_TYPE((PyObject *) obj), name, func_ctype)
 #define __Pyx_PyObject_TryGetSlot(obj, name, func_ctype) __Pyx_PyType_TryGetSlot(Py_TYPE(obj), name, func_ctype)
 #define __Pyx_PyObject_TryGetSubSlot(obj, sub, name, func_ctype) __Pyx_PyType_TryGetSubSlot(Py_TYPE(obj), sub, name, func_ctype)
-#if CYTHON_COMPILING_IN_LIMITED_API
+#if CYTHON_COMPILING_IN_LIMITED_API || !CYTHON_USE_TYPE_SLOTS
   #define __Pyx_PyType_GetSlot(type, name, func_ctype)  ((func_ctype) PyType_GetSlot((type), Py_##name))
   #define __Pyx_PyType_TryGetSlot(type, name, func_ctype) \
     ((__PYX_LIMITED_VERSION_HEX >= 0x030A0000 || \
@@ -1117,33 +1117,36 @@ static CYTHON_INLINE PyObject * __Pyx_PyDict_GetItemStrWithError(PyObject *dict,
 
 
 // backport of PyAsyncMethods from Py3.10 to older Py3.x versions
-#if PY_VERSION_HEX >= 0x030A00A3 && !CYTHON_COMPILING_IN_LIMITED_API
-  #if !CYTHON_USE_TYPE_SPECS
-    #define __Pyx_PyAsyncMethodsStruct PyAsyncMethods
-    #define __Pyx_SlotTpAsAsync(s) (&(s))
-  #endif
-
+#if __PYX_LIMITED_VERSION_HEX >= 0x030A0000
     #define __Pyx_PySendResult PySendResult
-    #define __Pyx_pyiter_sendfunc sendfunc
 #else
-    // PyAsyncMethods in Py<3.10 lacks "am_send"
     typedef enum {
         PYGEN_RETURN = 0,
         PYGEN_ERROR = -1,
         PYGEN_NEXT = 1,
     } __Pyx_PySendResult;
+#endif
 
-    typedef __Pyx_PySendResult (*__Pyx_pyiter_sendfunc)(PyObject *iter, PyObject *value, PyObject **result);
+#if CYTHON_COMPILING_IN_LIMITED_API || PY_VERSION_HEX < 0x030A00A3
+  typedef __Pyx_PySendResult (*__Pyx_pyiter_sendfunc)(PyObject *iter, PyObject *value, PyObject **result);
+#else
+  #define __Pyx_pyiter_sendfunc sendfunc
+#endif
 
-  #if !CYTHON_USE_TYPE_SPECS
-    #define __Pyx_SlotTpAsAsync(s) ((PyAsyncMethods*)&(s))
-
+#if !CYTHON_USE_TYPE_SPECS
+  #if PY_VERSION_HEX >= 0x030A0000
+    #define __Pyx_PyAsyncMethodsStruct PyAsyncMethods
+    #define __Pyx_SlotTpAsAsync(s) (&(s))
+  #else
+    // PyAsyncMethods in Py<3.10 lacks "am_send"
     typedef struct {
         unaryfunc am_await;
         unaryfunc am_aiter;
         unaryfunc am_anext;
         __Pyx_pyiter_sendfunc am_send;
     } __Pyx_PyAsyncMethodsStruct;
+
+    #define __Pyx_SlotTpAsAsync(s) ((PyAsyncMethods*)&(s))
   #endif
 #endif
 

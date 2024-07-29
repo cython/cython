@@ -29,7 +29,7 @@ __Pyx_Coroutine_Set_Owned_Yield_From(__pyx_CoroutineObject *gen, PyObject *yf) {
     // NOTE: steals a reference to yf by transferring it to 'gen->yieldfrom' !
     assert (!gen->yieldfrom_am_send);
     assert (!gen->yieldfrom);
-#if !CYTHON_COMPILING_IN_LIMITED_API || __PYX_LIMITED_VERSION_HEX >= 0x030A0000
+#if CYTHON_USE_TYPE_SLOTS || __PYX_LIMITED_VERSION_HEX >= 0x030A0000
     #if PY_VERSION_HEX < 0x030A00F0
     if (__Pyx_PyType_HasFeature(Py_TYPE(yf), __Pyx_TPFLAGS_HAVE_AM_SEND))
     #endif
@@ -1570,6 +1570,8 @@ __Pyx_Coroutine_get_frame(__pyx_CoroutineObject *self, void *context)
     return frame;
 #else
     // In the limited API there probably isn't much we can usefully do to get a frame
+    CYTHON_UNUSED_VAR(self);
+    CYTHON_UNUSED_VAR(context);
     Py_RETURN_NONE;
 #endif
 }
