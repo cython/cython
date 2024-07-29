@@ -1278,10 +1278,10 @@ static PyObject *__Pyx__Coroutine_Throw(PyObject *self, PyObject *typ, PyObject 
         }
         gen->is_running = 0;
         Py_DECREF(yf);
-        result = PYGEN_RETURN;
-        if (!ret) {
-            result = __Pyx_Coroutine_FinishDelegation(gen, &ret);
-        }
+        if (ret)
+            return ret;
+
+        result = __Pyx_Coroutine_FinishDelegation(gen, &ret);
         return __Pyx_Coroutine_MethodReturnFromResult(self, result, ret);
     }
 throw_here:
