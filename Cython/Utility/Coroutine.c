@@ -1047,7 +1047,7 @@ __Pyx_Coroutine_AmSend(PyObject *self, PyObject *value, PyObject **retval) {
         #endif
       #endif
         {
-            if (value == Py_None)
+            if (value == Py_None && PyIter_Check(yf))
                 ret = __Pyx_PyObject_GetIterNextFunc(yf)(yf);
             else
                 ret = __Pyx_PyObject_CallMethod1(yf, PYIDENT("send"), value);
