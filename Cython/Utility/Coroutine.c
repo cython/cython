@@ -27,9 +27,9 @@
 static void
 __Pyx_Coroutine_Set_Owned_Yield_From(__pyx_CoroutineObject *gen, PyObject *yf) {
     // NOTE: steals a reference to yf by transferring it to 'gen->yieldfrom' !
-    assert (!gen->yieldfrom_am_send);
     assert (!gen->yieldfrom);
-#if CYTHON_USE_TYPE_SLOTS || __PYX_LIMITED_VERSION_HEX >= 0x030A0000
+#if CYTHON_USE_AM_SEND
+    assert (!gen->yieldfrom_am_send);
     #if PY_VERSION_HEX < 0x030A00F0
     if (__Pyx_PyType_HasFeature(Py_TYPE(yf), __Pyx_TPFLAGS_HAVE_AM_SEND))
     #endif
@@ -432,6 +432,7 @@ typedef struct __pyx_CoroutineObject {
     PyObject *gi_weakreflist;
     PyObject *classobj;
     PyObject *yieldfrom;
+    // "yieldfrom_am_send" is always included to avoid changing the struct layout.
     __Pyx_pyiter_sendfunc yieldfrom_am_send;
     PyObject *gi_name;
     PyObject *gi_qualname;
@@ -554,7 +555,9 @@ static CYTHON_INLINE PyObject *__Pyx_Generator_GetInlinedResult(PyObject *self);
 
 static CYTHON_INLINE void
 __Pyx_Coroutine_Undelegate(__pyx_CoroutineObject *gen) {
+#if CYTHON_USE_AM_SEND
     gen->yieldfrom_am_send = NULL;
+#endif
     Py_CLEAR(gen->yieldfrom);
 }
 
@@ -977,6 +980,7 @@ __Pyx_Coroutine_FinishDelegation(__pyx_CoroutineObject *gen, PyObject** retval) 
     return result;
 }
 
+#if CYTHON_USE_AM_SEND
 static __Pyx_PySendResult
 __Pyx_Coroutine_SendToDelegate(__pyx_CoroutineObject *gen, __Pyx_pyiter_sendfunc gen_am_send, PyObject *value, PyObject **retval) {
     PyObject *ret = NULL;
@@ -995,6 +999,7 @@ __Pyx_Coroutine_SendToDelegate(__pyx_CoroutineObject *gen, __Pyx_pyiter_sendfunc
     __Pyx_Coroutine_Undelegate(gen);
     return __Pyx_Coroutine_SendEx(gen, ret, retval, 0);
 }
+#endif
 
 static PyObject *__Pyx_Coroutine_Send(PyObject *self, PyObject *value) {
     PyObject *retval = NULL;
@@ -1010,7 +1015,7 @@ __Pyx_Coroutine_AmSend(PyObject *self, PyObject *value, PyObject **retval) {
         *retval = __Pyx_Coroutine_AlreadyRunningError(gen);
         return PYGEN_ERROR;
     }
-    #if CYTHON_USE_TYPE_SLOTS || __PYX_LIMITED_VERSION_HEX >= 0x030A0000
+    #if CYTHON_USE_AM_SEND
     if (gen->yieldfrom_am_send) {
         result = __Pyx_Coroutine_SendToDelegate(gen, gen->yieldfrom_am_send, value, retval);
     } else
@@ -1019,7 +1024,7 @@ __Pyx_Coroutine_AmSend(PyObject *self, PyObject *value, PyObject **retval) {
         PyObject *yf = gen->yieldfrom;
         PyObject *ret;
         gen->is_running = 1;
-      #if !(CYTHON_USE_TYPE_SLOTS || __PYX_LIMITED_VERSION_HEX >= 0x030A0000)
+      #if !CYTHON_USE_AM_SEND
         // Py3.10 puts "am_send" into "gen->yieldfrom_am_send" instead of using these special cases.
         // See "__Pyx_Coroutine_Set_Owned_Yield_From()" above.
         #ifdef __Pyx_Generator_USED
@@ -1124,7 +1129,7 @@ static PyObject *__Pyx_Generator_Next(PyObject *self) {
     if (unlikely(gen->is_running)) {
         return __Pyx_Coroutine_AlreadyRunningError(gen);
     }
-    #if CYTHON_USE_TYPE_SLOTS || __PYX_LIMITED_VERSION_HEX >= 0x030A0000
+    #if CYTHON_USE_AM_SEND
     if (gen->yieldfrom_am_send) {
         result = __Pyx_Coroutine_SendToDelegate(gen, gen->yieldfrom_am_send, Py_None, &retval);
     } else
@@ -1139,7 +1144,7 @@ static PyObject *__Pyx_Generator_Next(PyObject *self) {
             ret = __Pyx_Generator_Next(yf);
         } else
         #endif
-        #if CYTHON_COMPILING_IN_CPYTHON && PY_VERSION_HEX < 0x030A00A3
+        #if CYTHON_COMPILING_IN_CPYTHON && (PY_VERSION_HEX < 0x030A00A3 || !CYTHON_USE_AM_SEND)
         // _PyGen_Send() is not needed in 3.10+ due to "am_send"
         if (PyGen_CheckExact(yf)) {
             ret = __Pyx_PyGen_Send((PyGenObject*)yf, NULL);
@@ -1743,6 +1748,7 @@ static PyType_Slot __pyx_CoroutineAwaitType_slots[] = {
     {Py_tp_methods, (void *)__pyx_CoroutineAwait_methods},
     {Py_tp_iter, (void *)__Pyx_CoroutineAwait_self},
     {Py_tp_iternext, (void *)__Pyx_CoroutineAwait_Next},
+    __Pyx_TypeSlot_am_send(__Pyx_CoroutineAwait_AmSend)
     {0, 0},
 };
 
@@ -1892,6 +1898,7 @@ static PyType_Slot __pyx_CoroutineType_slots[] = {
 #if CYTHON_USE_TP_FINALIZE
     {Py_tp_finalize, (void *)__Pyx_Coroutine_del},
 #endif
+    __Pyx_TypeSlot_am_send(__Pyx_Coroutine_AmSend)
     {0, 0},
 };
 
@@ -2045,6 +2052,7 @@ static PyType_Slot __pyx_IterableCoroutineType_slots[] = {
 #if CYTHON_USE_TP_FINALIZE
     {Py_tp_finalize, (void *)__Pyx_Coroutine_del},
 #endif
+    __Pyx_TypeSlot_am_send(__Pyx_Coroutine_AmSend)
     {0, 0},
 };
 
@@ -2191,6 +2199,7 @@ static PyType_Slot __pyx_GeneratorType_slots[] = {
 #if CYTHON_USE_TP_FINALIZE
     {Py_tp_finalize, (void *)__Pyx_Coroutine_del},
 #endif
+    __Pyx_TypeSlot_am_send(__Pyx_Coroutine_AmSend)
     {0, 0},
 };
 

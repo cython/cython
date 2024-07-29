@@ -103,6 +103,8 @@
   #define CYTHON_USE_MODULE_STATE 0
   #undef CYTHON_USE_TP_FINALIZE
   #define CYTHON_USE_TP_FINALIZE 0
+  #undef CYTHON_USE_AM_SEND
+  #define CYTHON_USE_AM_SEND 0
   #undef CYTHON_USE_DICT_VERSIONS
   #define CYTHON_USE_DICT_VERSIONS 0
   #undef CYTHON_USE_EXC_INFO_STACK
@@ -167,6 +169,8 @@
   #ifndef CYTHON_USE_TP_FINALIZE
     #define CYTHON_USE_TP_FINALIZE (PYPY_VERSION_NUM >= 0x07030C00)
   #endif
+  #undef CYTHON_USE_AM_SEND
+  #define CYTHON_USE_AM_SEND 0
   #undef CYTHON_USE_DICT_VERSIONS
   #define CYTHON_USE_DICT_VERSIONS 0
   #undef CYTHON_USE_EXC_INFO_STACK
@@ -237,6 +241,9 @@
   #ifndef CYTHON_USE_TP_FINALIZE
     // PyObject_CallFinalizerFromDealloc is missing and not easily replaced
     #define CYTHON_USE_TP_FINALIZE 0
+  #endif
+  #ifndef CYTHON_USE_AM_SEND
+    #define CYTHON_USE_AM_SEND (__PYX_LIMITED_VERSION_HEX >= 0x030A0000)
   #endif
   #undef CYTHON_USE_DICT_VERSIONS
   #define CYTHON_USE_DICT_VERSIONS 0
@@ -337,6 +344,9 @@
   #endif
   #ifndef CYTHON_USE_TP_FINALIZE
     #define CYTHON_USE_TP_FINALIZE 1
+  #endif
+  #ifndef CYTHON_USE_AM_SEND
+    #define CYTHON_USE_AM_SEND 1
   #endif
   #if CYTHON_COMPILING_IN_CPYTHON_FREETHREADING
     #undef CYTHON_USE_DICT_VERSIONS
@@ -1133,11 +1143,16 @@ static CYTHON_INLINE PyObject * __Pyx_PyDict_GetItemStrWithError(PyObject *dict,
   #define __Pyx_pyiter_sendfunc sendfunc
 #endif
 
-#if !CYTHON_USE_TYPE_SPECS
-  #if PY_VERSION_HEX >= 0x030A0000
+#if CYTHON_USE_AM_SEND && CYTHON_USE_TYPE_SPECS && __PYX_LIMITED_VERSION_HEX >= 0x030A0000
+    #define __Pyx_TypeSlot_am_send(func)  {Py_am_send, (void *)func},
+#else
+    #define __Pyx_TypeSlot_am_send(func)
+#endif
+
+#if __PYX_LIMITED_VERSION_HEX >= 0x030A0000
     #define __Pyx_PyAsyncMethodsStruct PyAsyncMethods
     #define __Pyx_SlotTpAsAsync(s) (&(s))
-  #else
+#else
     // PyAsyncMethods in Py<3.10 lacks "am_send"
     typedef struct {
         unaryfunc am_await;
@@ -1147,11 +1162,10 @@ static CYTHON_INLINE PyObject * __Pyx_PyDict_GetItemStrWithError(PyObject *dict,
     } __Pyx_PyAsyncMethodsStruct;
 
     #define __Pyx_SlotTpAsAsync(s) ((PyAsyncMethods*)&(s))
-  #endif
 #endif
 
 // Use a flag in Py < 3.10 to mark coroutines that have the "am_send" field.
-#if PY_VERSION_HEX < 0x030A00F0
+#if CYTHON_USE_AM_SEND && PY_VERSION_HEX < 0x030A00F0
     #define __Pyx_TPFLAGS_HAVE_AM_SEND (1UL << 21)
 #else
     #define __Pyx_TPFLAGS_HAVE_AM_SEND (0)
