@@ -2333,7 +2333,7 @@ static void __Pyx__ReturnWithStopIteration(PyObject* value, int async) {
 #if CYTHON_COMPILING_IN_CPYTHON
     __Pyx_PyThreadState_declare
 #endif
-    PyObject *exc, *args;
+    PyObject *exc;
     PyObject *exc_type = async ? PyExc_StopAsyncIteration : PyExc_StopIteration;
 #if CYTHON_COMPILING_IN_CPYTHON
     if (PY_VERSION_HEX >= 0x030C00A6
