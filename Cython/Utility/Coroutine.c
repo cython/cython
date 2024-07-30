@@ -1147,6 +1147,12 @@ static PyObject *__Pyx_Generator_Next(PyObject *self) {
             ret = __Pyx_Generator_Next(yf);
         } else
         #endif
+        #ifdef __Pyx_Coroutine_USED
+        // See https://github.com/cython/cython/issues/1999
+        if (__Pyx_Coroutine_CheckExact(yf)) {
+            ret = __Pyx_Coroutine_Send(yf, Py_None);
+        } else
+        #endif
         #if CYTHON_COMPILING_IN_CPYTHON && (PY_VERSION_HEX < 0x030A00A3 || !CYTHON_USE_AM_SEND)
         // _PyGen_Send() is not needed in 3.10+ due to "am_send"
         if (PyGen_CheckExact(yf)) {
