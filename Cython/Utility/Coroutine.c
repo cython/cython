@@ -1669,9 +1669,11 @@ static PyObject *__Pyx_CoroutineAwait_Send(__pyx_CoroutineAwaitObject *self, PyO
     return __Pyx_Coroutine_Send(self->coroutine, value);
 }
 
+#if __PYX_HAS_PY_AM_SEND || !CYTHON_USE_TYPE_SPECS
 static __Pyx_PySendResult __Pyx_CoroutineAwait_AmSend(PyObject *self, PyObject *value, PyObject **retval) {
     return __Pyx_Coroutine_AmSend(((__pyx_CoroutineAwaitObject*)self)->coroutine, value, retval);
 }
+#endif
 
 static PyObject *__Pyx_CoroutineAwait_Throw(__pyx_CoroutineAwaitObject *self, PyObject *args) {
     return __Pyx_Coroutine_Throw(self->coroutine, args);
@@ -1751,7 +1753,9 @@ static PyType_Slot __pyx_CoroutineAwaitType_slots[] = {
     {Py_tp_methods, (void *)__pyx_CoroutineAwait_methods},
     {Py_tp_iter, (void *)__Pyx_CoroutineAwait_self},
     {Py_tp_iternext, (void *)__Pyx_CoroutineAwait_Next},
-    __Pyx_TypeSlot_am_send(__Pyx_CoroutineAwait_AmSend)
+#if __PYX_HAS_PY_AM_SEND
+    {Py_am_send, (void *)__Pyx_CoroutineAwait_AmSend},
+#endif
     {0, 0},
 };
 
@@ -1901,7 +1905,9 @@ static PyType_Slot __pyx_CoroutineType_slots[] = {
 #if CYTHON_USE_TP_FINALIZE
     {Py_tp_finalize, (void *)__Pyx_Coroutine_del},
 #endif
-    __Pyx_TypeSlot_am_send(__Pyx_Coroutine_AmSend)
+#if __PYX_HAS_PY_AM_SEND
+    {Py_am_send, (void *)__Pyx_Coroutine_AmSend},
+#endif
     {0, 0},
 };
 
@@ -2055,7 +2061,9 @@ static PyType_Slot __pyx_IterableCoroutineType_slots[] = {
 #if CYTHON_USE_TP_FINALIZE
     {Py_tp_finalize, (void *)__Pyx_Coroutine_del},
 #endif
-    __Pyx_TypeSlot_am_send(__Pyx_Coroutine_AmSend)
+#if __PYX_HAS_PY_AM_SEND
+    {Py_am_send, (void *)__Pyx_Coroutine_AmSend},
+#endif
     {0, 0},
 };
 
@@ -2202,7 +2210,9 @@ static PyType_Slot __pyx_GeneratorType_slots[] = {
 #if CYTHON_USE_TP_FINALIZE
     {Py_tp_finalize, (void *)__Pyx_Coroutine_del},
 #endif
-    __Pyx_TypeSlot_am_send(__Pyx_Coroutine_AmSend)
+#if __PYX_HAS_PY_AM_SEND
+    {Py_am_send, (void *)__Pyx_Coroutine_AmSend},
+#endif
     {0, 0},
 };
 

@@ -1143,11 +1143,8 @@ static CYTHON_INLINE PyObject * __Pyx_PyDict_GetItemStrWithError(PyObject *dict,
   #define __Pyx_pyiter_sendfunc sendfunc
 #endif
 
-#if CYTHON_USE_AM_SEND && CYTHON_USE_TYPE_SPECS && __PYX_LIMITED_VERSION_HEX >= 0x030A0000
-    #define __Pyx_TypeSlot_am_send(func)  {Py_am_send, (void *)func},
-#else
-    #define __Pyx_TypeSlot_am_send(func)
-#endif
+// "Py_am_send" requires Py3.10 when using type specs.
+#define __PYX_HAS_PY_AM_SEND  (!CYTHON_USE_TYPE_SPECS || CYTHON_USE_AM_SEND && __PYX_LIMITED_VERSION_HEX >= 0x030A0000)
 
 #if __PYX_LIMITED_VERSION_HEX >= 0x030A0000
     #define __Pyx_PyAsyncMethodsStruct PyAsyncMethods
