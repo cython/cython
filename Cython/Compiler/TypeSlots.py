@@ -1017,9 +1017,9 @@ class SlotTable:
             MethodSlot(unaryfunc, "am_await", "__await__", method_name_to_slot),
             MethodSlot(unaryfunc, "am_aiter", "__aiter__", method_name_to_slot),
             MethodSlot(unaryfunc, "am_anext", "__anext__", method_name_to_slot),
-            # TODO: need to generate an appropriate C wrapper function in order to map .send() to the async slot.
-            # TODO: should we really map any .send() method to an async slot?
-            MethodSlot(sendfunc, "am_send", "send", method_name_to_slot),
+            # We should not map arbitrary .send() methods to an async slot.
+            #MethodSlot(sendfunc, "am_send", "send", method_name_to_slot),
+            EmptySlot("am_send"),
         )
 
         self.slot_table = (
