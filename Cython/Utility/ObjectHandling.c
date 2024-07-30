@@ -188,7 +188,7 @@ static CYTHON_INLINE PyObject *__Pyx_PyIter_Next2(PyObject *, PyObject *); /*pro
 //@requires: GetBuiltinName
 
 #if CYTHON_COMPILING_IN_LIMITED_API && __PYX_LIMITED_VERSION_HEX < 0x03080000
-// In limited API for Py 3.7, PyIter_Check is defined but as a macro that uses 
+// In limited API for Py 3.7, PyIter_Check is defined but as a macro that uses
 // non-limited API features and thus is unusable. Therefore, just call builtin next.
 static PyObject *__Pyx_PyIter_Next2(PyObject *o, PyObject *defval) {
     PyObject *result;
@@ -2685,22 +2685,48 @@ static CYTHON_INLINE int __Pyx_object_dict_version_matches(PyObject* obj, PY_UIN
 }
 #endif
 
+////////////// CachedMethodType.proto //////////////
+
+#if CYTHON_COMPILING_IN_LIMITED_API
+static PyObject *__Pyx_CachedMethodType = NULL;
+#endif
+
+////////////// CachedMethodType.init //////////////
+
+#if CYTHON_COMPILING_IN_LIMITED_API
+{
+    PyObject *typesModule=NULL;
+    typesModule = PyImport_ImportModule("types");
+    if (typesModule) {
+        __Pyx_CachedMethodType = PyObject_GetAttrString(typesModule, "MethodType");
+        Py_DECREF(typesModule);
+    }
+} // error handling follows
+#endif
+
+/////////////// CachedMethodType.cleanup ////////////////
+
+#if CYTHON_COMPILING_IN_LIMITED_API
+Py_CLEAR(__Pyx_CachedMethodType);
+#endif
 
 /////////////// PyMethodNew.proto ///////////////
+//@requires: CachedMethodType
 
 #if CYTHON_COMPILING_IN_LIMITED_API
 static PyObject *__Pyx_PyMethod_New(PyObject *func, PyObject *self, PyObject *typ) {
-    PyObject *typesModule=NULL, *methodType=NULL, *result=NULL;
+    PyObject *result;
     CYTHON_UNUSED_VAR(typ);
     if (!self)
         return __Pyx_NewRef(func);
-    typesModule = PyImport_ImportModule("types");
-    if (!typesModule) return NULL;
-    methodType = PyObject_GetAttrString(typesModule, "MethodType");
-    Py_DECREF(typesModule);
-    if (!methodType) return NULL;
-    result = PyObject_CallFunctionObjArgs(methodType, func, self, NULL);
-    Py_DECREF(methodType);
+    #if __PYX_LIMITED_VERSION_HEX >= 0x030C0000
+    {
+        PyObject *args[] = {func, self};
+        result = PyObject_Vectorcall(__Pyx_CachedMethodType, args, 2, NULL);
+    }
+    #else
+    result = PyObject_CallFunctionObjArgs(__Pyx_CachedMethodType, func, self, NULL);
+    #endif
     return result;
 }
 #else
