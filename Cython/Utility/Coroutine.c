@@ -1052,9 +1052,12 @@ __Pyx_Coroutine_AmSend(PyObject *self, PyObject *value, PyObject **retval) {
         #endif
       #endif
         {
+            #if !CYTHON_COMPILING_IN_LIMITED_API || __PYX_LIMITED_VERSION_HEX >= 0x03080000
+            // PyIter_Check() is needed here but broken in the Py3.7 Limited API.
             if (value == Py_None && PyIter_Check(yf))
                 ret = __Pyx_PyObject_GetIterNextFunc(yf)(yf);
             else
+            #endif
                 ret = __Pyx_PyObject_CallMethod1(yf, PYIDENT("send"), value);
         }
         gen->is_running = 0;
