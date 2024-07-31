@@ -64,7 +64,7 @@ the C-API view on it alive.  Entries in a Python class dict will obviously
 not work either.
 
 One of the more visible places where this may happen is when accessing the
-:c:type:`char*` buffer of a byte string.  In PyPy, this will only work as
+:c:expr:`char*` buffer of a byte string.  In PyPy, this will only work as
 long as the Cython code holds a direct reference to the byte string object
 itself.
 
