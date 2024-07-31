@@ -229,7 +229,7 @@ class PyxImportMetaFinder(MetaPathFinder):
 
     def find_spec(self, fullname, path, target=None):
         if not path:
-            path = [os.getcwd()]  # top level import --
+            path = [os.getcwd()] + sys.path  # top level import --
         if "." in fullname:
             *parents, name = fullname.split(".")
         else:
