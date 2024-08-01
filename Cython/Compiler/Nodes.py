@@ -1242,7 +1242,7 @@ class TemplatedTypeNode(CBaseTypeNode):
     name = None
 
     def _analyse_template_types(self, env, base_type):
-        require_optional_types = base_type.is_optional()
+        require_optional_types = base_type.python_type_constructor_name and base_type.is_optional()
         require_python_types = base_type.python_type_constructor_name == 'dataclasses.ClassVar'
 
         in_c_type_context = env.in_c_type_context and not require_python_types
