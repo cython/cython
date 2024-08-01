@@ -354,14 +354,12 @@ static CYTHON_INLINE PyObject *__Pyx_Coroutine_AsyncIterNext(PyObject *obj) {
         return __Pyx_async_gen_anext(obj);
     }
 #endif
-#if !CYTHON_COMPILING_IN_LIMITED_API
     {
         unaryfunc am_anext = __Pyx_PyObject_TryGetSubSlot(obj, tp_as_async, am_anext, unaryfunc);
         if (likely(am_anext)) {
             return (*am_anext)(obj);
         }
     }
-#endif
     return __Pyx_Coroutine_AsyncIterNext_Fail(obj);
 }
 
