@@ -100,7 +100,7 @@ else
 
   if [[ $PYTHON_VERSION != *"-dev" || $COVERAGE == "1" ]]; then
     python -m pip install -r test-requirements.txt || exit 1
-    if [[ $PYTHON_VERSION != "pypy"* && $PYTHON_VERSION != "3."[1]* ]]; then
+    if [[ $PYTHON_VERSION != "pypy"* && $PYTHON_VERSION != "graalpy"* && $PYTHON_VERSION != "3."[1]* ]]; then
       python -m pip install -r test-requirements-cpython.txt || exit 1
     elif [[ $PYTHON_VERSION == "pypy-2.7" ]]; then
       python -m pip install -r test-requirements-pypy27.txt || exit 1
@@ -218,6 +218,12 @@ if [[ $COVERAGE == "1" ]]; then
 fi
 if [[ $TEST_CODE_STYLE != "1" ]]; then
   RUNTESTS_ARGS="$RUNTESTS_ARGS -j7"
+fi
+
+if [[ $PYTHON_VERSION == "graalpy"* ]]; then
+  # [DW] - the Graal JIT and Cython don't seem to get on too well. Disabling the
+  # JIT actually makes it faster! And reduces the number of cores each process uses.
+  export GRAAL_PYTHON_ARGS="--experimental-options --engine.Compilation=false"
 fi
 
 export CFLAGS="$CFLAGS $EXTRA_CFLAGS"

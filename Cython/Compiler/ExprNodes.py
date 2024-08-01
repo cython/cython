@@ -463,7 +463,12 @@ class ExprNode(Node):
 
     constant_result = constant_value_not_set
 
-    child_attrs = property(fget=operator.attrgetter('subexprs'))
+    if sys.implementation.name == "cpython":
+        child_attrs = property(fget=operator.attrgetter('subexprs'))
+    else:
+        @property
+        def child_attrs(self):
+            return self.subexprs
 
     def analyse_annotations(self, env):
         pass

@@ -59,6 +59,11 @@ jobs:
 
           # Ubuntu sub-jobs:
           # ================
+          # graalpy is really slow, so put it first...
+          - os: ubuntu-20.04
+            python-version: graalpy24
+            backend: c
+            env: { NO_CYTHON_COMPILE: 1 }
           # GCC 11 (with broad language standards)
           - os: ubuntu-20.04
             python-version: "3.9"

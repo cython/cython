@@ -3423,7 +3423,9 @@ class DefNode(FuncDefNode):
             if entry.is_final_cmethod and not env.parent_type.is_final_type:
                 error(self.pos, "Only final types can have final Python (def/cpdef) methods")
             if entry.type.is_cfunction and not entry.is_builtin_cmethod and not self.is_wrapper:
-                warning(self.pos, "Overriding cdef method with def method.", 5)
+                warning(self.pos, "Overriding a c(p)def method with a def method. "
+                        "This can lead to different methods being called depending on the "
+                        "call context. Consider using a cpdef method for both.", 5)
         entry = env.declare_pyfunction(name, self.pos, allow_redefine=not self.is_wrapper)
         self.entry = entry
         prefix = env.next_id(env.scope_prefix)
@@ -4971,18 +4973,23 @@ class OverrideCheckNode(StatNode):
         code.putln("/* Check if called by wrapper */")
         code.putln("if (unlikely(%s)) ;" % Naming.skip_dispatch_cname)
         code.putln("/* Check if overridden in Python */")
-        if self.py_func.is_module_scope:
+        if self.py_func.is_module_scope or self.py_func.entry.scope.lookup_here("__dict__"):
             code.putln("else {")
         else:
             code.putln("else if (")
-            code.putln("#if CYTHON_USE_TYPE_SLOTS || CYTHON_COMPILING_IN_PYPY")
-            code.putln(f"unlikely(Py_TYPE({self_arg})->tp_dictoffset != 0)")
+            code.putln("#if !(CYTHON_USE_TYPE_SLOTS || CYTHON_COMPILING_IN_PYPY)")
+            # If CYTHON_USE_TYPE_SPECS then all extension types are heap-types so the check below automatically
+            # passes and thus takes the slow route.
+            # Therefore we do a less thorough check - if the type hasn't changed then clearly it hasn't
+            # been overridden, and if the type isn't GC then it also won't have been overridden.
+            code.putln(f"unlikely(Py_TYPE({self_arg}) != "
+                        f"{self.py_func.entry.scope.parent_type.typeptr_cname} &&")
+            code.putln(f"__Pyx_PyType_HasFeature(Py_TYPE({self_arg}), Py_TPFLAGS_HAVE_GC))")
             code.putln("#else")
-            dict_str_const = code.get_py_string_const(EncodedString("__dict__"))
-            code.putln(f'PyObject_HasAttr({self_arg}, {dict_str_const})')
+            code.putln(f"unlikely(Py_TYPE({self_arg})->tp_dictoffset != 0 || "
+                       f"__Pyx_PyType_HasFeature(Py_TYPE({self_arg}), (Py_TPFLAGS_IS_ABSTRACT | Py_TPFLAGS_HEAPTYPE)))")
             code.putln("#endif")
-            code.putln(" || unlikely(__Pyx_PyType_HasFeature(Py_TYPE(%s), (Py_TPFLAGS_IS_ABSTRACT | Py_TPFLAGS_HEAPTYPE)))) {" % (
-                self_arg))
+            code.putln(") {")
 
         code.putln("#if CYTHON_USE_DICT_VERSIONS && CYTHON_USE_PYTYPE_LOOKUP && CYTHON_USE_TYPE_SLOTS")
         code.globalstate.use_utility_code(

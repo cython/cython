@@ -108,7 +108,7 @@
   #undef CYTHON_USE_DICT_VERSIONS
   #define CYTHON_USE_DICT_VERSIONS 0
   #undef CYTHON_USE_EXC_INFO_STACK
-  #define CYTHON_USE_EXC_INFO_STACK 0
+  #define CYTHON_USE_EXC_INFO_STACK 1
   #ifndef CYTHON_UPDATE_DESCRIPTOR_DOC
     #define CYTHON_UPDATE_DESCRIPTOR_DOC 0
   #endif
@@ -828,6 +828,9 @@ static CYTHON_INLINE int __Pyx__IsSameCFunction(PyObject *func, void *cfunc) {
 #if CYTHON_COMPILING_IN_LIMITED_API
   // __Pyx_PyCode_HasFreeVars isn't easily emulated in the limited API (but isn't really necessary)
   #define __Pyx_PyFrame_SetLineNumber(frame, lineno)
+#elif CYTHON_COMPILING_IN_GRAAL
+  #define __Pyx_PyCode_HasFreeVars(co)  (PyCode_GetNumFree(co) > 0)
+  #define __Pyx_PyFrame_SetLineNumber(frame, lineno) _PyFrame_SetLineNumber((frame), (lineno))
 #else
   #define __Pyx_PyCode_HasFreeVars(co)  (PyCode_GetNumFree(co) > 0)
   #define __Pyx_PyFrame_SetLineNumber(frame, lineno)  (frame)->f_lineno = (lineno)
@@ -1388,7 +1391,11 @@ static CYTHON_INLINE float __PYX_NAN() {
 //#if CYTHON_PEP489_MULTI_PHASE_INIT
 static CYTHON_SMALL_CODE int __Pyx_check_single_interpreter(void) {
     static PY_INT64_T main_interpreter_id = -1;
+#if CYTHON_COMPILING_IN_GRAAL
+    PY_INT64_T current_id = PyInterpreterState_GetIDFromThreadState(PyThreadState_Get());
+#else
     PY_INT64_T current_id = PyInterpreterState_GetID(PyThreadState_Get()->interp);
+#endif
     if (main_interpreter_id == -1) {
         main_interpreter_id = current_id;
         return (unlikely(current_id == -1)) ? -1 : 0;
