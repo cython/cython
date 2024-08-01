@@ -860,7 +860,7 @@ static CYTHON_INLINE void *__Pyx_PyModule_GetState(PyObject *op)
 #define __Pyx_PyObject_GetSlot(obj, name, func_ctype)  __Pyx_PyType_GetSlot(Py_TYPE((PyObject *) obj), name, func_ctype)
 #define __Pyx_PyObject_TryGetSlot(obj, name, func_ctype) __Pyx_PyType_TryGetSlot(Py_TYPE(obj), name, func_ctype)
 #define __Pyx_PyObject_TryGetSubSlot(obj, sub, name, func_ctype) __Pyx_PyType_TryGetSubSlot(Py_TYPE(obj), sub, name, func_ctype)
-#if CYTHON_COMPILING_IN_LIMITED_API // || !CYTHON_USE_TYPE_SLOTS
+#if CYTHON_COMPILING_IN_LIMITED_API
   #define __Pyx_PyType_GetSlot(type, name, func_ctype)  ((func_ctype) PyType_GetSlot((type), Py_##name))
   #define __Pyx_PyType_TryGetSlot(type, name, func_ctype) \
     ((__PYX_LIMITED_VERSION_HEX >= 0x030A0000 || \
