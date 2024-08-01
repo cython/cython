@@ -125,3 +125,15 @@ cdef class CCodeWriter(object):
 cdef class PyrexCodeWriter:
     cdef public object f
     cdef public Py_ssize_t level
+
+
+cdef class PyxCodeWriter:
+    cdef public StringIOTree buffer
+    cdef public object context
+    cdef object encoding
+    cdef Py_ssize_t level
+    cdef Py_ssize_t original_level
+    cdef dict _insertion_points
+
+    @cython.final
+    cdef int _putln(self, line) except -1
