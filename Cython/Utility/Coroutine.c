@@ -104,7 +104,7 @@ static CYTHON_INLINE __Pyx_PySendResult __Pyx_Generator_Yield_From(__pyx_Corouti
             }
         }
         // source_gen is now the iterator, make the first next() call
-        *retval = __Pyx_PyObject_GetIterNextFunc(source_gen)(source_gen);
+        *retval = __Pyx_PyIter_Next_Plain(source_gen);
         result = __Pyx_Coroutine_status_from_result(retval);
     }
     if (likely(result == PYGEN_NEXT)) {
@@ -156,7 +156,7 @@ static __Pyx_PySendResult __Pyx_Coroutine_Yield_From_Generic(__pyx_CoroutineObje
             return result;
         }
 
-        *retval = __Pyx_PyObject_GetIterNextFunc(source_gen)(source_gen);
+        *retval = __Pyx_PyIter_Next_Plain(source_gen);
         if (*retval) {
             __Pyx_Coroutine_Set_Owned_Yield_From(gen, source_gen);
             return PYGEN_NEXT;
@@ -1053,7 +1053,7 @@ __Pyx_Coroutine_AmSend(PyObject *self, PyObject *value, PyObject **retval) {
             #if !CYTHON_COMPILING_IN_LIMITED_API || __PYX_LIMITED_VERSION_HEX >= 0x03080000
             // PyIter_Check() is needed here but broken in the Py3.7 Limited API.
             if (value == Py_None && PyIter_Check(yf))
-                ret = __Pyx_PyObject_GetIterNextFunc(yf)(yf);
+                ret = __Pyx_PyIter_Next_Plain(yf);
             else
             #endif
                 ret = __Pyx_PyObject_CallMethod1(yf, PYIDENT("send"), value);
@@ -1157,7 +1157,7 @@ static PyObject *__Pyx_Generator_Next(PyObject *self) {
             ret = __Pyx_PyGen_Send((PyGenObject*)yf, NULL);
         } else
         #endif
-            ret = __Pyx_PyObject_GetIterNextFunc(yf)(yf);
+            ret = __Pyx_PyIter_Next_Plain(yf);
         gen->is_running = 0;
         if (likely(ret)) {
             return ret;

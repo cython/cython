@@ -927,12 +927,21 @@ static CYTHON_INLINE PyObject * __Pyx_PyDict_GetItemStrWithError(PyObject *dict,
 #if CYTHON_USE_TYPE_SLOTS
   #define __Pyx_PyType_GetFlags(tp)   (((PyTypeObject *)tp)->tp_flags)
   #define __Pyx_PyType_HasFeature(type, feature)  ((__Pyx_PyType_GetFlags(type) & (feature)) != 0)
-  #define __Pyx_PyObject_GetIterNextFunc(obj)  (Py_TYPE(obj)->tp_iternext)
 #else
   #define __Pyx_PyType_GetFlags(tp)   (PyType_GetFlags((PyTypeObject *)tp))
   #define __Pyx_PyType_HasFeature(type, feature)  PyType_HasFeature(type, feature)
-  #define __Pyx_PyObject_GetIterNextFunc(obj)  PyIter_Next
 #endif
+
+// There is no replacement for "Py_TYPE(obj)->iternext" in the C-API.
+// PyIter_Next() discards the StopIteration, unlike Python's "next()".
+// We could use "next()" as a somewhat expensive fallback, but let's wait until we really have to.
+#define __Pyx_PyObject_GetIterNextFunc(iterator)  __Pyx_PyObject_GetSlot(iterator, tp_iternext, iternextfunc)
+
+static CYTHON_INLINE PyObject *__Pyx_PyIter_Next_Plain(PyObject *iterator) {
+    iternextfunc iternext = __Pyx_PyObject_GetIterNextFunc(iterator);
+    assert(iternext);
+    return iternext(iterator);
+}
 
 #if CYTHON_USE_TYPE_SPECS && PY_VERSION_HEX >= 0x03080000
 // In Py3.8+, instances of heap types need to decref their type on deallocation.
