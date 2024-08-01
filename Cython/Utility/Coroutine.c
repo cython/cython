@@ -314,7 +314,7 @@ static CYTHON_INLINE PyObject *__Pyx_Coroutine_AsyncIterNext(PyObject *o); /*pro
 //////////////////// AsyncIter ////////////////////
 //@requires: GetAwaitIter
 
-static PyObject *__Pyx_Coroutine_GetAsyncIter_Generic(PyObject *obj) {
+static PyObject *__Pyx_Coroutine_GetAsyncIter_Fail(PyObject *obj) {
     __Pyx_TypeName obj_type_name = __Pyx_PyType_GetName(Py_TYPE(obj));
     PyErr_Format(PyExc_TypeError,
                  "'async for' requires an object with __aiter__ method, got " __Pyx_FMT_TYPENAME, obj_type_name);
@@ -335,11 +335,11 @@ static CYTHON_INLINE PyObject *__Pyx_Coroutine_GetAsyncIter(PyObject *obj) {
             return (*am_aiter)(obj);
         }
     }
-    return __Pyx_Coroutine_GetAsyncIter_Generic(obj);
+    return __Pyx_Coroutine_GetAsyncIter_Fail(obj);
 }
 
 
-static PyObject *__Pyx__Coroutine_AsyncIterNext(PyObject *obj) {
+static PyObject *__Pyx_Coroutine_AsyncIterNext_Fail(PyObject *obj) {
     __Pyx_TypeName obj_type_name = __Pyx_PyType_GetName(Py_TYPE(obj));
     PyErr_Format(PyExc_TypeError,
         "'async for' requires an object with __anext__ method, got " __Pyx_FMT_TYPENAME, obj_type_name);
@@ -362,7 +362,7 @@ static CYTHON_INLINE PyObject *__Pyx_Coroutine_AsyncIterNext(PyObject *obj) {
         }
     }
 #endif
-    return __Pyx__Coroutine_AsyncIterNext(obj);
+    return __Pyx_Coroutine_AsyncIterNext_Fail(obj);
 }
 
 
