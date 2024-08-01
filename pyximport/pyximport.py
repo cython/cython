@@ -280,7 +280,7 @@ class PyImportMetaFinder(MetaPathFinder):
         self.blocked_modules.append(fullname)
         name = fullname
         if not path:
-            path = [os.getcwd()] + sys.path # top level import --
+            path = [os.getcwd()] + sys.path  # top level import --
         try:
             for entry in path:
                 if os.path.isdir(os.path.join(entry, name)):
