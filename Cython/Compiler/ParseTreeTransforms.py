@@ -2709,9 +2709,6 @@ class CalculateQualifiedNamesTransform(EnvTransform):
     Calculate and store the '__qualname__' and the global
     module name on some nodes.
     """
-    needs_qualname_assignment = False
-    needs_module_assignment = False
-
     def visit_ModuleNode(self, node):
         self.module_name = self.global_scope().qualified_name
         self.qualified_name = []
@@ -2782,55 +2779,13 @@ class CalculateQualifiedNamesTransform(EnvTransform):
         self.qualified_name = orig_qualified_name
         return node
 
-    def generate_assignment(self, node, name, value):
-        entry = node.scope.lookup_here(name)
-        lhs = ExprNodes.NameNode(
-            node.pos,
-            name = EncodedString(name),
-            entry=entry)
-        rhs = ExprNodes.StringNode(
-            node.pos,
-            value=value.as_utf8_string(),
-            unicode_value=value)
-        node.body.stats.insert(0, Nodes.SingleAssignmentNode(
-            node.pos,
-            lhs=lhs,
-            rhs=rhs,
-        ).analyse_expressions(self.current_env()))
-
     def visit_ClassDefNode(self, node):
-        orig_needs_qualname_assignment = self.needs_qualname_assignment
-        self.needs_qualname_assignment = False
-        orig_needs_module_assignment = self.needs_module_assignment
-        self.needs_module_assignment = False
         orig_qualified_name = self.qualified_name[:]
         entry = (getattr(node, 'entry', None) or             # PyClass
                  self.current_env().lookup_here(node.target.name))  # CClass
         self._append_entry(entry)
         self._super_visit_ClassDefNode(node)
-        if self.needs_qualname_assignment:
-            self.generate_assignment(node, "__qualname__",
-                                     EncodedString(".".join(self.qualified_name)))
-        if self.needs_module_assignment:
-            self.generate_assignment(node, "__module__",
-                                     EncodedString(self.module_name))
         self.qualified_name = orig_qualified_name
-        self.needs_qualname_assignment = orig_needs_qualname_assignment
-        self.needs_module_assignment = orig_needs_module_assignment
-        return node
-
-    def visit_NameNode(self, node):
-        scope = self.current_env()
-        if scope.is_c_class_scope:
-            # unlike for a PyClass scope, these attributes aren't defined in the
-            # dictionary when the class definition is executed, therefore we ask
-            # the compiler to generate an assignment to them at the start of the
-            # body.
-            # NOTE: this doesn't put them in locals()
-            if node.name == "__qualname__":
-                self.needs_qualname_assignment = True
-            elif node.name == "__module__":
-                self.needs_module_assignment = True
         return node
 
 
