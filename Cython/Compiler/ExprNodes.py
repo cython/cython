@@ -3094,10 +3094,12 @@ class IteratorNode(ScopedExprNode):
 
             # PyObject_GetIter() fails if "tp_iternext" is not set, but the check below
             # makes it visible to the C compiler that the pointer really isn't NULL, so that
-            # it can distinguish between the special cases and the generic case
+            # it can distinguish between the special cases and the generic case.
+            code.putln("#if !CYTHON_COMPILING_IN_LIMITED_API")
             code.putln("%s = __Pyx_PyObject_GetIterNextFunc(%s); %s" % (
                 self.iter_func_ptr, self.py_result(),
                 code.error_goto_if_null(self.iter_func_ptr, self.pos)))
+            code.putln("}")
         if self.may_be_a_sequence:
             code.putln("}")
 
@@ -8459,8 +8461,10 @@ class SequenceNode(ExprNode):
         rhs.generate_disposal_code(code)
 
         iternext_func = code.funcstate.allocate_temp(self._func_iternext_type, manage_ref=False)
-        code.putln("%s = __Pyx_PyObject_GetIterNextFunc(%s);" % (
-            iternext_func, iterator_temp))
+        code.putln(
+            f"{iternext_func} = (CYTHON_COMPILING_IN_LIMITED_API) ? "
+            f"PyIter_Next : __Pyx_PyObject_GetIterNextFunc({iterator_temp});"
+        )
 
         unpacking_error_label = code.new_label('unpacking_failed')
         unpack_code = "%s(%s)" % (iternext_func, iterator_temp)

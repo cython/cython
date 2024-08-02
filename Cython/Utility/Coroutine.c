@@ -58,6 +58,7 @@ static CYTHON_INLINE __Pyx_PySendResult __Pyx_Generator_Yield_From(__pyx_Corouti
 //////////////////// GeneratorYieldFrom ////////////////////
 //@requires: Generator
 //@requires: CoroutineSetYieldFrom
+//@requires: ObjectHandling.c::IterNextPlain
 
 #if CYTHON_USE_TYPE_SLOTS
 static void __Pyx_PyIter_CheckErrorAndDecref(PyObject *source) {
@@ -130,6 +131,7 @@ static CYTHON_INLINE __Pyx_PySendResult __Pyx_Coroutine_Yield_From_Generic(__pyx
 //@requires: Coroutine
 //@requires: GetAwaitIter
 //@requires: CoroutineSetYieldFrom
+//@requires: ObjectHandling.c::IterNextPlain
 
 static __Pyx_PySendResult __Pyx_Coroutine_Yield_From_Generic(__pyx_CoroutineObject *gen, PyObject *source, PyObject **retval) {
     __Pyx_PySendResult result;
@@ -537,6 +539,7 @@ static CYTHON_INLINE PyObject *__Pyx_Generator_GetInlinedResult(PyObject *self);
 //@requires: ObjectHandling.c::PyObjectFastCall
 //@requires: ObjectHandling.c::PyObjectGetAttrStr
 //@requires: ObjectHandling.c::PyObjectGetAttrStrNoError
+//@requires: ObjectHandling.c::IterNextPlain
 //@requires: CommonStructures.c::FetchCommonType
 //@requires: ModuleSetupCode.c::IncludeStructmemberH
 //@requires: ExtensionTypes.c::CallTypeTraverse

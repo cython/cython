@@ -177,6 +177,45 @@ bad:
 }
 
 
+/////////////// IterNextPlain.proto ///////////////
+
+static CYTHON_INLINE PyObject *__Pyx_PyIter_Next_Plain(PyObject *iterator);
+#if CYTHON_COMPILING_IN_LIMITED_API && __PYX_LIMITED_VERSION_HEX < 0x030A0000
+static PyObject *__Pyx_GetBuiltinNext_LimitedAPI(void);
+#endif
+
+/////////////// IterNextPlain ///////////////
+//@requires: GetBuiltinName
+
+// There is no replacement for "Py_TYPE(obj)->iternext" in the C-API.
+// PyIter_Next() discards the StopIteration, unlike Python's "next()".
+// PyObject_GetSlot() rejects non-heap types in CPython < 3.10 (and PyPy).
+
+#if CYTHON_COMPILING_IN_LIMITED_API && __PYX_LIMITED_VERSION_HEX < 0x030A0000
+static PyObject *__Pyx_GetBuiltinNext_LimitedAPI(void) {
+    static PyObject *next = NULL;
+    if (unlikely(!next)) next = __Pyx_GetBuiltinName(PYIDENT("next"));
+    return next;
+}
+#endif
+
+static CYTHON_INLINE PyObject *__Pyx_PyIter_Next_Plain(PyObject *iterator) {
+#if CYTHON_COMPILING_IN_LIMITED_API && __PYX_LIMITED_VERSION_HEX < 0x030A0000
+    PyObject *result;
+    PyObject *next = __Pyx_GetBuiltinNext_LimitedAPI();
+    if (unlikely(!next)) return NULL;
+    result = PyObject_CallFunctionObjArgs(next, iterator, NULL);
+    Py_DECREF(next);
+    return result;
+#else
+    (void)__Pyx_GetBuiltinName; // only for early limited API
+    iternextfunc iternext = __Pyx_PyObject_GetIterNextFunc(iterator);
+    assert(iternext);
+    return iternext(iterator);
+#endif
+}
+
+
 /////////////// IterNext.proto ///////////////
 
 #define __Pyx_PyIter_Next(obj) __Pyx_PyIter_Next2(obj, NULL)
@@ -186,13 +225,14 @@ static CYTHON_INLINE PyObject *__Pyx_PyIter_Next2(PyObject *, PyObject *); /*pro
 //@requires: Exceptions.c::PyThreadStateGet
 //@requires: Exceptions.c::PyErrFetchRestore
 //@requires: GetBuiltinName
+//@requires: IterNextPlain
 
 #if CYTHON_COMPILING_IN_LIMITED_API && __PYX_LIMITED_VERSION_HEX < 0x03080000
 // In the Limited API for Py 3.7, PyIter_Check is defined but as a macro that uses
 // non-limited API features and thus is unusable. Therefore, just call builtin next.
 static PyObject *__Pyx_PyIter_Next2(PyObject *o, PyObject *defval) {
     PyObject *result;
-    PyObject *next = __Pyx_GetBuiltinName(PYIDENT("next"));
+    PyObject *next = __Pyx_GetBuiltinNext_LimitedAPI();
     if (unlikely(!next)) return NULL;
     // This works if defval is NULL or not
     result = PyObject_CallFunctionObjArgs(next, o, defval, NULL);
@@ -230,39 +270,34 @@ static void __Pyx_PyIter_Next_ErrorNoIterator(PyObject *iterator) {
 // originally copied from Py3's builtin_next()
 static CYTHON_INLINE PyObject *__Pyx_PyIter_Next2(PyObject* iterator, PyObject* defval) {
     PyObject* next;
-    (void)__Pyx_GetBuiltinName; // only for early limited API
+#if !CYTHON_COMPILING_IN_LIMITED_API
     // We always do a quick slot check because calling PyIter_Check() is so wasteful.
     iternextfunc iternext = __Pyx_PyObject_TryGetSlot(iterator, tp_iternext, iternextfunc);
     if (likely(iternext)) {
-#if CYTHON_USE_TYPE_SLOTS || CYTHON_COMPILING_IN_PYPY
         next = iternext(iterator);
         if (likely(next))
             return next;
-#if CYTHON_COMPILING_IN_CPYTHON && PY_VERSION_HEX < 0x030d0000
+    #if CYTHON_COMPILING_IN_CPYTHON && PY_VERSION_HEX < 0x030d0000
+        // If the reason for failure was "not implemented", we're done raising the appropriate exception.
         if (unlikely(iternext == &_PyObject_NextNotImplemented))
             return NULL;
-#endif
-#else
-        // Since the slot was set, assume that PyIter_Next() will likely succeed, and properly fail otherwise.
-        // Note: PyIter_Next() crashes in CPython if "tp_iternext" is NULL.
-        next = PyIter_Next(iterator);
-        if (likely(next))
-            return next;
-#endif
-    } else if (CYTHON_USE_TYPE_SLOTS || unlikely(!PyIter_Check(iterator))) {
-        // If CYTHON_USE_TYPE_SLOTS, then the slot was not set and we don't have an iterable.
-        // Otherwise, don't trust "tp_iternext" and rely on PyIter_Check().
+    #endif
+    } else if (CYTHON_USE_TYPE_SLOTS) {
+        // If CYTHON_USE_TYPE_SLOTS, then the slot was really not set and we don't have an iterable.
         __Pyx_PyIter_Next_ErrorNoIterator(iterator);
         return NULL;
-    }
-#if !CYTHON_USE_TYPE_SLOTS
-    else {
-        // We have an iterator with an empty "tp_iternext", but didn't call next() on it yet.
-        next = PyIter_Next(iterator);
+    } else
+    // Without CYTHON_USE_TYPE_SLOTS, don't trust "tp_iternext" and rely on PyIter_Check().
+#endif
+    if (unlikely(!PyIter_Check(iterator))) {
+        __Pyx_PyIter_Next_ErrorNoIterator(iterator);
+        return NULL;
+    } else {
+        // If we have a default value, we don't need the StopIteration and can use PyIter_Next().
+        next = defval ? PyIter_Next(iterator) : __Pyx_PyIter_Next_Plain(iterator);
         if (likely(next))
             return next;
     }
-#endif
     return __Pyx_PyIter_Next2Default(defval);
 }
 #endif
