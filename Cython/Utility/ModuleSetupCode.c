@@ -1054,14 +1054,31 @@ static CYTHON_INLINE PyObject * __Pyx_PyDict_GetItemStrWithError(PyObject *dict,
 #if CYTHON_AVOID_THREAD_UNSAFE_BORROWED_REFS && PY_VERSION_HEX >= 0x030d00b1
 #define __Pyx_PyList_GetItemRef(o, i) PyList_GetItemRef(o, i)
 #define __Pyx_PyDict_GetItemRef(dict, key, result) PyDict_GetItemRef(dict, key, result)
-#else
+#elif !CYTHON_AVOID_BORROWED_REFS
+
+#if CYTHON_ASSUME_SAFE_MACROS
 #define __Pyx_PyList_GetItemRef(o, i) __Pyx_NewRef(PyList_GET_ITEM(o, i))
+#else
+#define __Pyx_PyList_GetItemRef(o, i) __Pyx_NewRef(PyList_GetItem(o, i))
+#endif
+
 static CYTHON_INLINE int __Pyx_PyDict_GetItemRef(PyObject *dict, PyObject *key, PyObject **result) {
   *result = PyDict_GetItem(dict, key);
   if (*result == NULL) {
     return 0;
   }
   Py_INCREF(*result);
+  return 1;
+}
+#else
+#define __Pyx_PyList_GetItemRef(o, i) PySequence_GetItem(o, i)
+static CYTHON_INLINE int __Pyx_PyDict_GetItemRef(PyObject *dict, PyObject *key, PyObject **result) {
+  *result = PyObject_GetItem(dict, key);
+  if (PyErr_Occurred()) {
+    return -1;
+  } else if (*result == NULL) {
+    return 0;
+  }
   return 1;
 }
 #endif
@@ -2225,41 +2242,19 @@ static PyObject* __Pyx_PyCode_New(
     }
 
     #if CYTHON_COMPILING_IN_LIMITED_API
-
-    #if CYTHON_AVOID_THREAD_UNSAFE_BORROWED_REFS && __PYX_LIMITED_VERSION_HEX >= 0x030d00b1
-    if (unlikely(PyDict_GetItemRef(tuple_dedup_map, varnames_tuple, &varnames_tuple_dedup) < 0)) goto done;
-    #else // !(CYTHON_AVOID_THREAD_UNSAFE_BORROWED_REFS && __PYX_LIMITED_VERSION_HEX >= 0x030d00b1)
     varnames_tuple_dedup = PyDict_GetItem(tuple_dedup_map, varnames_tuple);
-    #if CYTHON_AVOID_BORROWED_REFS
-    Py_XINCREF(varnames_tuple_dedup);
-    #endif // CYTHON_AVOID_BORROWED_REFS
-    #endif // CYTHON_AVOID_THREAD_UNSAFE_BORROWED_REFS && __PYX_LIMITED_VERSION_HEX >= 0x030d00b1
     if (!varnames_tuple_dedup) {
         if (unlikely(PyDict_SetItem(tuple_dedup_map, varnames_tuple, varnames_tuple) < 0)) goto done;
         varnames_tuple_dedup = varnames_tuple;
     }
-
-    #if CYTHON_AVOID_BORROWED_REFS || (CYTHON_AVOID_THREAD_UNSAFE_BORROWED_REFS && __PYX_LIMITED_VERSION_HEX >= 0x030d00b1)
-    Py_XDECREF(varnames_tuple_dedup);
-    #endif
-
-    #else // !CYTHON_COMPILING_IN_LIMITED_API
-
-    #if CYTHON_AVOID_THREAD_UNSAFE_BORROWED_REFS && PY_VERSION_HEX >= 0x030d00b1
-    if (unlikely(PyDict_SetDefaultRef(tuple_dedup_map, varnames_tuple, varnames_tuple, &varnames_tuple_dedup) < 0)) goto done;
-    #else // !(CYTHON_AVOID_THREAD_UNSAFE_BORROWED_REFS && PY_VERSION_HEX >= 0x030d00b1)
+    #else
     varnames_tuple_dedup = PyDict_SetDefault(tuple_dedup_map, varnames_tuple, varnames_tuple);
     if (unlikely(!varnames_tuple_dedup)) goto done;
-    #if CYTHON_AVOID_BORROWED_REFS
-    Py_INCREF(varnames_tuple_dedup);
-    #endif // CYTHON_AVOID_BORROWED_REFS
-    #endif // CYTHON_AVOID_THREAD_UNSAFE_BORROWED_REFS && PY_VERSION_HEX >= 0x030d00b1
-
-    #if CYTHON_AVOID_BORROWED_REFS || (CYTHON_AVOID_THREAD_UNSAFE_BORROWED_REFS && PY_VERSION_HEX >= 0x030d00b1)
-    Py_XDECREF(varnames_tuple_dedup);
     #endif
 
-    #endif // CYTHON_COMPILING_IN_LIMITED_API
+    #if CYTHON_AVOID_BORROWED_REFS
+    Py_INCREF(varnames_tuple_dedup);
+    #endif
 
     code_obj = (PyObject*) __Pyx__PyCode_New(
         (int) descr.argcount,
@@ -2281,6 +2276,9 @@ static PyObject* __Pyx_PyCode_New(
     );
 
 done:
+    #if CYTHON_AVOID_BORROWED_REFS
+    Py_XDECREF(varnames_tuple_dedup);
+    #endif
     Py_DECREF(varnames_tuple);
     return code_obj;
 }
