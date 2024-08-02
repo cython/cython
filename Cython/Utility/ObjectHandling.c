@@ -188,7 +188,7 @@ static CYTHON_INLINE PyObject *__Pyx_PyIter_Next2(PyObject *, PyObject *); /*pro
 //@requires: GetBuiltinName
 
 #if CYTHON_COMPILING_IN_LIMITED_API && __PYX_LIMITED_VERSION_HEX < 0x03080000
-// In limited API for Py 3.7, PyIter_Check is defined but as a macro that uses 
+// In limited API for Py 3.7, PyIter_Check is defined but as a macro that uses
 // non-limited API features and thus is unusable. Therefore, just call builtin next.
 static PyObject *__Pyx_PyIter_Next2(PyObject *o, PyObject *defval) {
     PyObject *result;
@@ -234,15 +234,15 @@ static CYTHON_INLINE PyObject *__Pyx_PyIter_Next2(PyObject* iterator, PyObject* 
     // We always do a quick slot check because calling PyIter_Check() is so wasteful.
     iternextfunc iternext = __Pyx_PyObject_TryGetSlot(iterator, tp_iternext, iternextfunc);
     if (likely(iternext)) {
-#if CYTHON_USE_TYPE_SLOTS || CYTHON_COMPILING_IN_PYPY
-        next = iternext(iterator);
-        if (likely(next))
-            return next;
+#if CYTHON_USE_TYPE_SLOTS
 #if CYTHON_COMPILING_IN_CPYTHON && PY_VERSION_HEX < 0x030d0000
         if (unlikely(iternext == &_PyObject_NextNotImplemented))
             return NULL;
 #endif
-#else
+        next = iternext(iterator);
+        if (likely(next))
+            return next;
+#else  // CYTHON_USE_TYPE_SLOTS
         // Since the slot was set, assume that PyIter_Next() will likely succeed, and properly fail otherwise.
         // Note: PyIter_Next() crashes in CPython if "tp_iternext" is NULL.
         next = PyIter_Next(iterator);
