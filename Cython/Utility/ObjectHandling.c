@@ -235,14 +235,14 @@ static CYTHON_INLINE PyObject *__Pyx_PyIter_Next2(PyObject* iterator, PyObject* 
     iternextfunc iternext = __Pyx_PyObject_TryGetSlot(iterator, tp_iternext, iternextfunc);
     if (likely(iternext)) {
 #if CYTHON_USE_TYPE_SLOTS
+        next = iternext(iterator);
+        if (likely(next))
+            return next;
 #if CYTHON_COMPILING_IN_CPYTHON && PY_VERSION_HEX < 0x030d0000
         if (unlikely(iternext == &_PyObject_NextNotImplemented))
             return NULL;
 #endif
-        next = iternext(iterator);
-        if (likely(next))
-            return next;
-#else  // CYTHON_USE_TYPE_SLOTS
+#else
         // Since the slot was set, assume that PyIter_Next() will likely succeed, and properly fail otherwise.
         // Note: PyIter_Next() crashes in CPython if "tp_iternext" is NULL.
         next = PyIter_Next(iterator);
