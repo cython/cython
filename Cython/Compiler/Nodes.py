@@ -1177,7 +1177,17 @@ class MemoryViewSliceTypeNode(CBaseTypeNode):
 
     def analyse(self, env, could_be_name=False):
 
-        base_type = self.base_type_node.analyse(env)
+        if isinstance(self.base_type_node, CConstOrVolatileTypeNode):
+            # In this tree the 'const' qualifier of this memoryview is attached
+            # to the node of the base type, but its meaning is
+            # 'const memoryview'.  For non-PyObject types this doesn't make a
+            # difference, but for PyObject it does: The objects are not
+            # read-only (they cannot be!), but the memory locations in the view
+            # are read-only.  Hence we need tell the CConstOrVolatileTypeNode
+            # that it should simply ignore the 'const'.
+            base_type = self.base_type_node.analyse(env, allow_const_pyobject=True)
+        else:
+            base_type = self.base_type_node.analyse(env)
         if base_type.is_error: return base_type
 
         from . import MemoryView
@@ -1421,9 +1431,12 @@ class CConstOrVolatileTypeNode(CBaseTypeNode):
 
     child_attrs = ["base_type"]
 
-    def analyse(self, env, could_be_name=False):
+    def analyse(self, env, could_be_name=False, allow_const_pyobject=False):
+        # allow_const_pyobject: boolean
+        # Let caller force us to accept a 'const object'. Used for
+        # 'const object[:]'
         base = self.base_type.analyse(env, could_be_name)
-        if base.is_pyobject:
+        if base.is_pyobject and (self.is_volatile or not allow_const_pyobject):
             error(self.pos,
                   "Const/volatile base type cannot be a Python object")
         return PyrexTypes.c_const_or_volatile_type(base, self.is_const, self.is_volatile)
