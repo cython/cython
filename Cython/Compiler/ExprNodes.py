@@ -3095,11 +3095,11 @@ class IteratorNode(ScopedExprNode):
             # PyObject_GetIter() fails if "tp_iternext" is not set, but the check below
             # makes it visible to the C compiler that the pointer really isn't NULL, so that
             # it can distinguish between the special cases and the generic case.
-            code.putln("#if !CYTHON_COMPILING_IN_LIMITED_API")
-            code.putln("%s = __Pyx_PyObject_GetIterNextFunc(%s); %s" % (
-                self.iter_func_ptr, self.py_result(),
-                code.error_goto_if_null(self.iter_func_ptr, self.pos)))
-            code.putln("}")
+            code.put(
+                f"{self.iter_func_ptr} = (CYTHON_COMPILING_IN_LIMITED_API) ? "
+                f"PyIter_Next : __Pyx_PyObject_GetIterNextFunc({self.py_result()}); "
+            )
+            code.putln(code.error_goto_if_null(self.iter_func_ptr, self.pos))
         if self.may_be_a_sequence:
             code.putln("}")
 
