@@ -293,6 +293,7 @@ static CYTHON_INLINE PyObject *__Pyx_PyIter_Next2(PyObject* iterator, PyObject* 
         __Pyx_PyIter_Next_ErrorNoIterator(iterator);
         return NULL;
     } else {
+        // We'll probably only end up here in the Limited API, where we'd call Python's "next()" now.
         // If we have a default value, we don't need the StopIteration and can use PyIter_Next().
         next = defval ? PyIter_Next(iterator) : __Pyx_PyIter_Next_Plain(iterator);
         if (likely(next))
