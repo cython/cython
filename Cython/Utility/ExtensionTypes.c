@@ -685,7 +685,7 @@ static int __Pyx_call_type_traverse(PyObject *o, int always_call, visitproc visi
 
 #if CYTHON_COMPILING_IN_LIMITED_API
 // This is a little hacky - the Limited API works quite hard to stop us getting
-// the dict of a type object. But apparently not not hard enough...
+// the dict of a type object. But apparently not hard enough...
 //
 // In future we should prefer to work with mutable types, and then make them immutable
 // once we're done (pending C API support for this).
