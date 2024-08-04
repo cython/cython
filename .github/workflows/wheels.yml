@@ -28,6 +28,12 @@ on:
         - .github/workflows/wheels.yml
         - MANIFEST.in
         - setup.*
+  push:
+      paths:
+        #- Cython/Build/**
+        - .github/workflows/wheels.yml
+        - MANIFEST.in
+        - setup.*
   workflow_dispatch:
 
 concurrency:
