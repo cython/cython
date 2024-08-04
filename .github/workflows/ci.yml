@@ -62,22 +62,27 @@ jobs:
 
           # Ubuntu sub-jobs:
           # ================
-          # GCC 11 (with broad language standards)
+          # Recent GCC (with broad language standards)
           - os: ubuntu-20.04
             python-version: "3.6"
             backend: c
             env: { GCC_VERSION: 11, EXTRA_CFLAGS: "-std=c89" }
             extra_hash: "-gcc11-c89"
           - os: ubuntu-20.04
-            python-version: 3.9
+            python-version: "3.9"
             backend: c
             env: { GCC_VERSION: 11, EXTRA_CFLAGS: "-std=c17" }
             extra_hash: "-gcc11"
           - os: ubuntu-20.04
-            python-version: 3.9
+            python-version: "3.12"
+            backend: c
+            env: { GCC_VERSION: 12, EXTRA_CFLAGS: "-std=c17" }
+            extra_hash: "-gcc12"
+          - os: ubuntu-20.04
+            python-version: "3.12"
             backend: cpp
-            env: { GCC_VERSION: 11, EXTRA_CFLAGS: "-std=c++20" }
-            extra_hash: "-gcc11"
+            env: { GCC_VERSION: 12, EXTRA_CFLAGS: "-std=c++20" }
+            extra_hash: "-gcc12"
           # compile all modules
           - os: ubuntu-20.04
             python-version: 2.7
@@ -140,22 +145,27 @@ jobs:
             extra_hash: "-limited_api"
           # Type specs
           - os: ubuntu-20.04
-            python-version: 3.9
+            python-version: "3.10"
             backend: c
             env: { EXTRA_CFLAGS: "-DCYTHON_USE_TYPE_SPECS=1" }
             extra_hash: "-typespecs"
           - os: ubuntu-20.04
-            python-version: 3.8
+            python-version: "3.9"
             backend: c
             env: { EXTRA_CFLAGS: "-DCYTHON_USE_TYPE_SPECS=1" }
             extra_hash: "-typespecs"
           - os: ubuntu-20.04
-            python-version: 3.7
+            python-version: "3.8"
             backend: c
             env: { EXTRA_CFLAGS: "-DCYTHON_USE_TYPE_SPECS=1" }
             extra_hash: "-typespecs"
           - os: ubuntu-20.04
-            python-version: 3.6
+            python-version: "3.7"
+            backend: c
+            env: { EXTRA_CFLAGS: "-DCYTHON_USE_TYPE_SPECS=1" }
+            extra_hash: "-typespecs"
+          - os: ubuntu-20.04
+            python-version: "3.6"
             backend: c
             env: { EXTRA_CFLAGS: "-DCYTHON_USE_TYPE_SPECS=1" }
             extra_hash: "-typespecs"
