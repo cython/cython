@@ -762,6 +762,7 @@ static int __Pyx__DelItemOnTypeDict(PyTypeObject *tp, PyObject *k) {
     PyObject *tp_dict;
 #if CYTHON_COMPILING_IN_LIMITED_API
     tp_dict = __Pyx_GetTypeDict(tp);
+    if (unlikely(!tp_dict)) return NULL;
 #else
     result = PyDict_DelItem(tp->tp_dict, k);
 #endif
