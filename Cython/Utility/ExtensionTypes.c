@@ -681,7 +681,46 @@ static int __Pyx_call_type_traverse(PyObject *o, int always_call, visitproc visi
 }
 #endif
 
+////////////////// LimitedApiGetTypeDict.proto //////////////////////
+
+#if CYTHON_COMPILING_IN_LIMITED_API
+// This is a little hacky - the Limited API works quite hard to stop us getting
+// the dict of a type object. But apparently not not hard enough...
+//
+// In future we should prefer to work with mutable types, and then make them immutable
+// once we're done (pending C API support for this).
+static PyObject *__Pyx_GetTypeDict(PyTypeObject *tp); /* proto */
+#endif
+
+////////////////// LimitedApiGetTypeDict //////////////////////
+
+#if CYTHON_COMPILING_IN_LIMITED_API
+static Py_ssize_t __Pyx_GetTypeDictOffset(void) {
+    // TODO - if we ever support custom metatypes for extension types then
+    // we have to drop this caching.
+    static Py_ssize_t tp_dictoffset = 0;
+    if (tp_dictoffset == 0) {
+        PyObject *tp_dictoffset_o = NULL;
+        tp_dictoffset_o = PyObject_GetAttrString((PyObject*)(&PyType_Type), "__dictoffset__");
+        if (unlikely(!tp_dictoffset_o)) return -1;
+        tp_dictoffset = PyLong_AsSsize_t(tp_dictoffset_o);
+        if (unlikely(tp_dictoffset == -1 && PyErr_Occurred())) {
+            tp_dictoffset = 0; // try again next time
+            return -1;
+        }
+    }
+    return tp_dictoffset;
+}
+
+static PyObject *__Pyx_GetTypeDict(PyTypeObject *tp) {
+    Py_ssize_t tp_dictoffset = __Pyx_GetTypeDictOffset();
+    if (unlikely(tp_dictoffset == -1 && PyErr_Occurred())) return NULL;
+    return *(PyObject**)((char*)tp + tp_dictoffset);
+}
+#endif
+
 ////////////////// SetItemOnTypeDict.proto //////////////////////////
+//@requires: LimitedApiGetTypeDict
 
 static int __Pyx__SetItemOnTypeDict(PyTypeObject *tp, PyObject *k, PyObject *v); /* proto */
 
@@ -691,14 +730,13 @@ static int __Pyx__SetItemOnTypeDict(PyTypeObject *tp, PyObject *k, PyObject *v);
 
 static int __Pyx__SetItemOnTypeDict(PyTypeObject *tp, PyObject *k, PyObject *v) {
     int result;
+    PyObject *tp_dict;
 #if CYTHON_COMPILING_IN_LIMITED_API
-    // Using PyObject_GenericSetAttr to bypass types immutability protection feels
-    // a little hacky, but it does work in the limited API .
-    // (It doesn't work on PyPy but that probably isn't a bug.)
-    result = PyObject_GenericSetAttr((PyObject*)tp, k, v);
+    tp_dict = __Pyx_GetTypeDict(tp);
 #else
-    result = PyDict_SetItem(tp->tp_dict, k, v);
+    tp_dict = tp->tp_dict;
 #endif
+    result = PyDict_SetItem(tp_dict, k, v);
     if (likely(!result)) {
         PyType_Modified(tp);
         if (unlikely(PyObject_HasAttr(v, PYIDENT("__set_name__")))) {
@@ -717,14 +755,13 @@ static int __Pyx__DelItemOnTypeDict(PyTypeObject *tp, PyObject *k); /* proto */
 #define __Pyx_DelItemOnTypeDict(tp, k) __Pyx__DelItemOnTypeDict((PyTypeObject*)tp, k)
 
 ////////////////// DelItemOnTypeDict //////////////////////////
+//@requires: LimitedApiGetTypeDict
 
 static int __Pyx__DelItemOnTypeDict(PyTypeObject *tp, PyObject *k) {
     int result;
+    PyObject *tp_dict;
 #if CYTHON_COMPILING_IN_LIMITED_API
-    // Using PyObject_GenericSetAttr to bypass types immutability protection feels
-    // a little hacky, but it does work in the limited API .
-    // (It doesn't work on PyPy but that probably isn't a bug.)
-    result = PyObject_GenericSetAttr((PyObject*)tp, k, NULL);
+    tp_dict = __Pyx_GetTypeDict(tp);
 #else
     result = PyDict_DelItem(tp->tp_dict, k);
 #endif
