@@ -2649,7 +2649,11 @@ def runtests_callback(args):
     options.shard_num = shard_num
 
     # Make the shard number visible in faulthandler stack traces in the case of process crashes.
-    runtests.__code__ = runtests.__code__.replace(co_name=f"runtests_SHARD_{shard_num}")
+    try:
+        runtests.__code__ = runtests.__code__.replace(co_name=f"runtests_SHARD_{shard_num}")
+    except (AttributeError, TypeError):
+        # No .replace() in Py3.7, 'co_name' might not be replacible, whatever.
+        pass
 
     return runtests(options, cmd_args)
 
