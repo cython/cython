@@ -4,7 +4,7 @@
 # not run on each push but only weekly and for releases.
 # Wheel builds can be triggered from the Actions page
 # (if you have the perms) on a commit to master.
-# 
+#
 # Alternatively, if you would like to trigger wheel builds
 # on a pull request, the labels that trigger builds are:
 # - Build System
@@ -66,15 +66,15 @@ jobs:
     steps:
       - name: Checkout Cython
         uses: actions/checkout@v4.1.1
-        
+
       - name: Set up QEMU
         if: contains(matrix.buildplat[1], '_aarch64')
         uses: docker/setup-qemu-action@v3
         with:
           platforms: all
-      
+
       - name: Build wheels
-        uses: pypa/cibuildwheel@v2.16.5
+        uses: pypa/cibuildwheel@v2.20.0
         env:
           # TODO: Build Cython with the compile-all flag?
           CIBW_BUILD: ${{ matrix.python }}-${{ matrix.buildplat[1] }}
@@ -133,7 +133,7 @@ jobs:
         with:
           name: pure-wheel
           path: ./dist/*.whl
-      
+
       - name: Release
         uses: softprops/action-gh-release@v2
         if: startsWith(github.ref, 'refs/tags/')
