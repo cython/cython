@@ -733,6 +733,7 @@ static int __Pyx__SetItemOnTypeDict(PyTypeObject *tp, PyObject *k, PyObject *v) 
     PyObject *tp_dict;
 #if CYTHON_COMPILING_IN_LIMITED_API
     tp_dict = __Pyx_GetTypeDict(tp);
+    if (unlikely(!tp_dict)) return -1;
 #else
     tp_dict = tp->tp_dict;
 #endif
@@ -762,10 +763,11 @@ static int __Pyx__DelItemOnTypeDict(PyTypeObject *tp, PyObject *k) {
     PyObject *tp_dict;
 #if CYTHON_COMPILING_IN_LIMITED_API
     tp_dict = __Pyx_GetTypeDict(tp);
-    if (unlikely(!tp_dict)) return NULL;
+    if (unlikely(!tp_dict)) return -1;
 #else
-    result = PyDict_DelItem(tp->tp_dict, k);
+    tp_dict = tp->tp_dict;
 #endif
+    result = PyDict_DelItem(tp_dict, k);
     if (likely(!result)) PyType_Modified(tp);
     return result;
 }
