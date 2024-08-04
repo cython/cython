@@ -696,25 +696,46 @@ static PyObject *__Pyx_GetTypeDict(PyTypeObject *tp); /* proto */
 
 #if CYTHON_COMPILING_IN_LIMITED_API
 static Py_ssize_t __Pyx_GetTypeDictOffset(void) {
-    // TODO - if we ever support custom metatypes for extension types then
-    // we have to drop this caching.
-    static Py_ssize_t tp_dictoffset = 0;
-    if (tp_dictoffset == 0) {
-        PyObject *tp_dictoffset_o = NULL;
-        tp_dictoffset_o = PyObject_GetAttrString((PyObject*)(&PyType_Type), "__dictoffset__");
-        if (unlikely(!tp_dictoffset_o)) return -1;
-        tp_dictoffset = PyLong_AsSsize_t(tp_dictoffset_o);
-        if (unlikely(tp_dictoffset == -1 && PyErr_Occurred())) {
-            tp_dictoffset = 0; // try again next time
-            return -1;
-        }
-    }
-    return tp_dictoffset;
+    PyObject *tp_dictoffset_o;
+    Py_ssize_t result;
+    tp_dictoffset_o = PyObject_GetAttrString((PyObject*)(&PyType_Type), "__dictoffset__");
+    if (unlikely(!tp_dictoffset_o)) return -1;
+    result = PyLong_AsSsize_t(tp_dictoffset_o);
+    Py_DECREF(tp_dictoffset_o);
+    return result;
 }
 
 static PyObject *__Pyx_GetTypeDict(PyTypeObject *tp) {
-    Py_ssize_t tp_dictoffset = __Pyx_GetTypeDictOffset();
-    if (unlikely(tp_dictoffset == -1 && PyErr_Occurred())) return NULL;
+    // TODO - if we ever support custom metatypes for extension types then
+    // we have to modify this caching.
+    static Py_ssize_t tp_dictoffset = 0;
+    if (tp_dictoffset == 0) {
+        tp_dictoffset = __Pyx_GetTypeDictOffset();
+        // Note that negative dictoffsets are definitely allowed.
+        // A dictoffset of -1 seems unlikely but isn't obviously
+        // forbidden.
+        if (unlikely(tp_dictoffset == -1 && PyErr_Occurred())) {
+            tp_dictoffset = 0; // try again next time?
+            return NULL;
+        }
+    }
+    if (unlikely(tp_dictoffset == 0)) {
+        PyErr_SetString(
+            PyExc_TypeError,
+            "'type' doesn't have a dictoffset");
+        return NULL;
+    } else if (unlikely(tp_dictoffset < 0)) {
+        // This isn't completely future proof. dictoffset can be
+        // negative, but isn't in Python <=3.13 (current at time
+        // of writing).  It's awkward to calculate in the limited 
+        // API because we need to know the object size.  For now
+        // just raise an error and fix it if it every changes.
+        PyErr_SetString(
+            PyExc_TypeError,
+            "'type' has an unexpected negative dictoffset. "
+            "Report this as Cython bug");
+        return NULL;
+    }
     return *(PyObject**)((char*)tp + tp_dictoffset);
 }
 #endif
