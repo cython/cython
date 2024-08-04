@@ -66,7 +66,7 @@ uncachable_builtins = [
     # Global/builtin names that cannot be cached because they may or may not
     # be available at import time, for various reasons:
     ## Python 3.13+
-    'IncompleteInputError',
+    '_IncompleteInputError',
     'PythonFinalizationError',
     ## Python 3.11+
     'BaseExceptionGroup',
