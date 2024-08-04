@@ -5774,19 +5774,12 @@ class CClassDefNode(ClassDefNode):
             dictoffset_slot_func = TypeSlots.get_slot_code_by_name(scope, 'tp_dictoffset')
             if getattr_slot_func == '0' and dictoffset_slot_func == '0':
                 code.putln("#if !CYTHON_COMPILING_IN_LIMITED_API")  # FIXME
-                if type.is_final_type:
-                    py_cfunc = "__Pyx_PyObject_GenericGetAttrNoDict"  # grepable
-                    utility_func = "PyObject_GenericGetAttrNoDict"
-                else:
-                    py_cfunc = "__Pyx_PyObject_GenericGetAttr"
-                    utility_func = "PyObject_GenericGetAttr"
-                code.globalstate.use_utility_code(UtilityCode.load_cached(utility_func, "ObjectHandling.c"))
 
                 code.putln("if ((CYTHON_USE_TYPE_SLOTS && CYTHON_USE_PYTYPE_LOOKUP) &&"
                            " likely(!%s->tp_dictoffset && %s->tp_getattro == PyObject_GenericGetAttr)) {" % (
                     typeptr_cname, typeptr_cname))
-                code.putln("%s->tp_getattro = %s;" % (
-                    typeptr_cname, py_cfunc))
+                code.putln("%s->tp_getattro = PyObject_GenericGetAttr;" %
+                    typeptr_cname)
                 code.putln("}")
                 code.putln("#endif")  # if !CYTHON_COMPILING_IN_LIMITED_API
 

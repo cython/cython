@@ -1531,18 +1531,6 @@ static CYTHON_INLINE PyObject* __Pyx__PyObject_LookupSpecial(PyObject* obj, PyOb
 }
 #endif
 
-
-/////////////// PyObject_GenericGetAttrNoDict.proto ///////////////
-
-// TODO: remove
-#define __Pyx_PyObject_GenericGetAttrNoDict PyObject_GenericGetAttr
-
-/////////////// PyObject_GenericGetAttr.proto ///////////////
-
-// TODO: remove
-#define __Pyx_PyObject_GenericGetAttr PyObject_GenericGetAttr
-
-
 /////////////// PyObjectGetAttrStrNoError.proto ///////////////
 
 static CYTHON_INLINE PyObject* __Pyx_PyObject_GetAttrStrNoError(PyObject* obj, PyObject* attr_name);/*proto*/
