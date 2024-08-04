@@ -2693,6 +2693,10 @@ def save_coverage(coverage, options):
 def runtests_callback(args):
     options, cmd_args, shard_num = args
     options.shard_num = shard_num
+
+    # Make the shard number visible in faulthandler stack traces in the case of process crashes.
+    runtests.__code__ = runtests.__code__.replace(co_name=f"runtests_SHARD_{shard_num}")
+
     return runtests(options, cmd_args)
 
 
@@ -2975,12 +2979,13 @@ def runtests(options, cmd_args, coverage=None):
     # Run the collected tests.
     try:
         if options.shard_num > -1:
-            sys.stderr.write("Tests in shard %d/%d starting\n" % (options.shard_num, options.shard_count))
+            thread_id = f" (Thread ID 0x{threading.get_ident():x})" if threading is not None else ""
+            sys.stderr.write(f"Tests in shard ({options.shard_num}/{options.shard_count}) starting{thread_id}\n")
         result = test_runner.run(test_suite)
     except Exception as exc:
         # Make sure we print exceptions also from shards.
         if options.shard_num > -1:
-            sys.stderr.write("Tests in shard %d/%d crashed: %s\n" % (options.shard_num, options.shard_count, exc))
+            sys.stderr.write(f"Tests in shard ({options.shard_num}/{options.shard_count}) crashed: {exc}\n")
         import traceback
         traceback.print_exc()
         raise
