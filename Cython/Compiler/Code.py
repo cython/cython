@@ -647,7 +647,7 @@ def sub_tempita(s, context, file=None, name=None, __cache={}):
         return None
 
     if file:
-        name = f"{file}:{name}"
+        name = "%s:%s" % (file, name)
     if name:
         context['__name'] = name
 

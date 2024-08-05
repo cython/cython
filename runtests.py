@@ -2696,7 +2696,7 @@ def runtests_callback(args):
 
     # Make the shard number visible in faulthandler stack traces in the case of process crashes.
     try:
-        runtests.__code__ = runtests.__code__.replace(co_name=f"runtests_SHARD_{shard_num}")
+        runtests.__code__ = runtests.__code__.replace(co_name="runtests_SHARD_%d" % shard_num)
     except (AttributeError, TypeError):
         # No .replace() in Py3.7, 'co_name' might not be replacible, whatever.
         pass
@@ -2983,13 +2983,15 @@ def runtests(options, cmd_args, coverage=None):
     # Run the collected tests.
     try:
         if options.shard_num > -1:
-            thread_id = f" (Thread ID 0x{threading.get_ident():x})" if threading is not None else ""
-            sys.stderr.write(f"Tests in shard ({options.shard_num}/{options.shard_count}) starting{thread_id}\n")
+            thread_id = (" (Thread ID 0x%x)" % threading.get_ident()) if threading is not None else ""
+            sys.stderr.write("Tests in shard (%d/%d) starting%s\n" % (
+                options.shard_num, options.shard_count, thread_id))
         result = test_runner.run(test_suite)
     except Exception as exc:
         # Make sure we print exceptions also from shards.
         if options.shard_num > -1:
-            sys.stderr.write(f"Tests in shard ({options.shard_num}/{options.shard_count}) crashed: {exc}\n")
+            sys.stderr.write("Tests in shard (%d/%d) crashed: %s\n" % (
+                options.shard_num, options.shard_count, exc))
         import traceback
         traceback.print_exc()
         raise
