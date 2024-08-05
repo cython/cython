@@ -1084,17 +1084,18 @@ def test_dtype_object_scalar_assignment():
 def test_assign_to_slice(obj, start, end):
     """
     >>> test_assign_to_slice(b'abc', 0, 3)
-    b'abc'
+    'abc'
     >>> test_assign_to_slice(b'a', 0, 1)
-    b'a'
+    'a'
     >>> test_assign_to_slice(b'', 0, 0)
-    b''
+    ''
     >>> test_assign_to_slice(b'', 5, 5)
-    b''
+    ''
     """
-    view = memoryview(bytearray(len(obj)), PyBUF_C_CONTIGUOUS)
+    out = bytearray(len(obj))
+    view = memoryview(out, PyBUF_C_CONTIGUOUS)
     view[start:end] = obj[start:end]
-    return bytes(view)
+    return bytes(out).decode() if sys.version_info >= (3,) else bytes(out)
 
 
 def test_assignment_in_conditional_expression(bint left):
@@ -1331,5 +1332,5 @@ def test_untyped_index(i):
     return mview_arr[i]  # should generate a performance hint
 
 _PERFORMANCE_HINTS = """
-1331:21: Index should be typed for more efficient access
+1332:21: Index should be typed for more efficient access
 """
