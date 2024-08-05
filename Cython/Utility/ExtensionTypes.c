@@ -729,7 +729,7 @@ static PyObject *__Pyx_GetTypeDict(PyTypeObject *tp) {
     // TODO - if we ever support custom metatypes for extension types then
     // we have to modify this caching.
     static Py_ssize_t tp_dictoffset = 0;
-    if (tp_dictoffset == 0) {
+    if (unlikely(tp_dictoffset == 0)) {
         tp_dictoffset = __Pyx_GetTypeDictOffset();
         // Note that negative dictoffsets are definitely allowed.
         // A dictoffset of -1 seems unlikely but isn't obviously forbidden.
