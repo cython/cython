@@ -2984,7 +2984,7 @@ def runtests(options, cmd_args, coverage=None):
     try:
         if options.shard_num > -1:
             thread_ident = 0
-            if sys.version_info[] >= 3 and threading is not None:
+            if sys.version_info[0] >= 3 and threading is not None:
                 thread_ident = threading.get_ident()
             else:
                 try:
