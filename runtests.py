@@ -2983,7 +2983,16 @@ def runtests(options, cmd_args, coverage=None):
     # Run the collected tests.
     try:
         if options.shard_num > -1:
-            thread_id = (" (Thread ID 0x%x)" % threading.get_ident()) if threading is not None else ""
+            thread_ident = 0
+            if sys.version_info[] >= 3 and threading is not None:
+                thread_ident = threading.get_ident()
+            else:
+                try:
+                    import thread
+                    thread_ident = thread.get_ident()
+                except ImportError:
+                    pass
+            thread_id = (" (Thread ID 0x%x)" % thread_ident) if thread_ident else ""
             sys.stderr.write("Tests in shard (%d/%d) starting%s\n" % (
                 options.shard_num, options.shard_count, thread_id))
         result = test_runner.run(test_suite)
