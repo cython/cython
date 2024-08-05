@@ -32,7 +32,10 @@ cdef extern from *:
     ctypedef int64_t PyTime_t "__Pyx_PyTime_t"
     ctypedef int64_t _PyTime_t "__Pyx_PyTime_t"
 
+    _PyTime_t _PyTime_GetSystemClock "__Pyx_PyTime_TimeUnchecked" () nogil
     _PyTime_t PyTime_TimeUnchecked "__Pyx_PyTime_TimeUnchecked" () nogil
+
+    double _PyTime_AsSecondsDouble "__Pyx_PyTime_AsSecondsDouble" (_PyTime_t t) nogil
     double PyTime_AsSecondsDouble "__Pyx_PyTime_AsSecondsDouble" (_PyTime_t t) nogil
 
 from libc.time cimport (
