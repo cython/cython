@@ -5,6 +5,12 @@ Cython Changelog
 3.0.11 (2024-??-??)
 ===================
 
+Features added
+--------------
+
+* The C++11 ``emplace*`` methods were added to ``libcpp.deque``.
+  Patch by Somin An.  (Github issue :issue:`6159`)
+
 Bugs fixed
 ----------
 
@@ -13,6 +19,12 @@ Bugs fixed
 
 * A crash on exception deallocations was fixed.
   (Github issue :issue:`6022`)
+
+* A crash was fixed when assigning a zero-length slice to a memoryview.
+  Patch by Michael Man.  (Github issue :issue:`6227`)
+
+* ``libcpp.optional.value()`` could crash if it raised a C++ exception.
+  Patch by Alexander Condello.  (Github issue :issue:`6190`)
 
 * The return type of ``str()`` was mishandled, leading to crashes with ``language_level=3``.
   (Github issue :issue:`6166`)
