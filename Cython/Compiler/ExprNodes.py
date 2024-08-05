@@ -481,7 +481,7 @@ class ExprNode(Node):
 
     constant_result = constant_value_not_set
 
-    if sys.implementation.name == "cpython":
+    if getattr(getattr(sys, "implementation", None), "name", "cpython") == "cpython":
         child_attrs = property(fget=operator.attrgetter('subexprs'))
     else:
         @property
