@@ -1484,6 +1484,8 @@ class BuiltinObjectType(PyObjectType):
             type_check = '__Pyx_PyBaseString_Check'
         elif type_name == 'Exception':
             type_check = '__Pyx_PyException_Check'
+        elif type_name == 'BaseExceptionGroup':
+            type_check = '__Pyx_PyBaseExceptionGroup_Check'
         elif type_name == 'bytearray':
             type_check = 'PyByteArray_Check'
         elif type_name == 'frozenset':
@@ -1495,7 +1497,8 @@ class BuiltinObjectType(PyObjectType):
             type_check = "PyMemoryView_Check"
         else:
             type_check = 'Py%s_Check' % type_name.capitalize()
-        if exact and type_name not in ('bool', 'slice', 'Exception', 'memoryview'):
+        if exact and type_name not in (
+                'bool', 'slice', 'Exception', 'BaseExceptionGroup', 'memoryview'):
             type_check += 'Exact'
         return type_check
 

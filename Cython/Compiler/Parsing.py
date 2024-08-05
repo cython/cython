@@ -2216,6 +2216,21 @@ def p_try_statement(s: PyrexScanner):
         if s.sy == 'else':
             s.next()
             else_clause = p_suite(s)
+
+        for clause in except_clauses[1:]:
+            if clause.is_except_star != except_clauses[0].is_except_star:
+                s.error("cannot have both 'except' and 'except*' on the same 'try'", pos=clause.pos)
+                break
+
+        if except_clauses and except_clauses[0].is_except_star:
+            except_body = Nodes.ExceptStarChainNode(pos, except_clauses=except_clauses)
+            except_clauses = [
+                Nodes.ExceptClauseNode(
+                    pos,
+                    pattern=[],
+                    body=except_body, target=None)
+            ]
+
         body = Nodes.TryExceptStatNode(pos,
             body = body, except_clauses = except_clauses,
             else_clause = else_clause)
@@ -2233,9 +2248,13 @@ def p_try_statement(s: PyrexScanner):
 
 @cython.cfunc
 def p_except_clause(s: PyrexScanner):
+    # Share as much implementation as possible between except and except*
     # s.sy == 'except'
     pos = s.position()
     s.next()
+    is_except_star = s.sy == '*'
+    if is_except_star:
+        s.next()
     exc_type = None
     exc_value = None
     is_except_as = False
@@ -2246,8 +2265,10 @@ def p_except_clause(s: PyrexScanner):
             exc_type = exc_type.args
         else:
             exc_type = [exc_type]
-        if s.sy == ',' or (s.sy == 'IDENT' and s.systring == 'as'
-                           and s.context.language_level == 2):
+        # Don't allow old , syntax at all for except*
+        if not is_except_star and s.sy == ',' or (
+                s.sy == 'IDENT' and s.systring == 'as'
+                and s.context.language_level == 2):
             s.next()
             exc_value = p_test(s)
         elif s.sy == 'IDENT' and s.systring == 'as':
@@ -2257,10 +2278,13 @@ def p_except_clause(s: PyrexScanner):
             name = p_ident(s)
             exc_value = ExprNodes.NameNode(pos2, name = name)
             is_except_as = True
+    elif is_except_star:
+        s.error("Expected exception type after except*")
     body = p_suite(s)
     return Nodes.ExceptClauseNode(pos,
         pattern = exc_type, target = exc_value,
-        body = body, is_except_as=is_except_as)
+        body = body, is_except_as=is_except_as,
+        is_except_star = is_except_star)
 
 
 @cython.cfunc

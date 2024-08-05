@@ -396,21 +396,24 @@ def write_newer_file(file_path, newer_than, content, dedent=False, encoding=None
         write_file(file_path, content, dedent=dedent, encoding=encoding)
 
 
-def py_parse_code(code):
+def parse_python_code(code):
     """
     Compiles code far enough to get errors from the parser and post-parse stage.
-
     Is useful for checking for syntax errors, however it doesn't generate runable
     code.
     """
     context = StringParseContext("test")
+    class DummyModuleNode(object):
+        child_attrs = []
+    post_parse = PostParse(context)
+    post_parse.visit_ModuleNode(DummyModuleNode())  # just enough to get scope variables set up
     # all the errors we care about are in the parsing or postparse stage
     try:
         with Errors.local_errors() as errors:
-            result = TreeFragment(code, pipeline=[PostParse(context)])
+            result = TreeFragment(code, pipeline=[post_parse])
             result = result.substitute()
         if errors:
-            raise errors[0]  # compile error, which should get caught below
+            raise errors[0]  # compile error, which should get caught
         else:
             return result
     except Errors.CompileError as e:
