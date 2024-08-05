@@ -2456,7 +2456,6 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                     return lookup_here_or_base(n, tp.base_type)
             return r
 
-        has_instance_dict = lookup_here_or_base("__dict__", extern_return="extern")
         getattr_entry = lookup_here_or_base("__getattr__")
         getattribute_entry = lookup_here_or_base("__getattribute__")
         code.putln("")
@@ -2468,20 +2467,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 "PyObject *v = %s(o, n);" % (
                     getattribute_entry.func_cname))
         else:
-            if not has_instance_dict and scope.parent_type.is_final_type:
-                # Final with no dict => use faster type attribute lookup.
-                code.globalstate.use_utility_code(
-                    UtilityCode.load_cached("PyObject_GenericGetAttrNoDict", "ObjectHandling.c"))
-                generic_getattr_cfunc = "__Pyx_PyObject_GenericGetAttrNoDict"
-            elif not has_instance_dict or has_instance_dict == "extern":
-                # No dict in the known ancestors, but don't know about extern ancestors or subtypes.
-                code.globalstate.use_utility_code(
-                    UtilityCode.load_cached("PyObject_GenericGetAttr", "ObjectHandling.c"))
-                generic_getattr_cfunc = "__Pyx_PyObject_GenericGetAttr"
-            else:
-                generic_getattr_cfunc = "PyObject_GenericGetAttr"
             code.putln(
-                "PyObject *v = %s(o, n);" % generic_getattr_cfunc)
+                "PyObject *v = PyObject_GenericGetAttr(o, n);")
         if getattr_entry is not None:
             code.putln(
                 "if (!v && PyErr_ExceptionMatches(PyExc_AttributeError)) {")

@@ -534,6 +534,7 @@ static CYTHON_INLINE PyObject* __Pyx_PyFrozenSet_New(PyObject* it);
 
 //////////////////// pyfrozenset_new ////////////////////
 //@substitute: naming
+//@requires: ObjectHandling.c::PyObjectCallNoArg
 
 static CYTHON_INLINE PyObject* __Pyx_PyFrozenSet_New(PyObject* it) {
     if (it) {
@@ -577,11 +578,7 @@ static CYTHON_INLINE PyObject* __Pyx_PyFrozenSet_New(PyObject* it) {
         Py_DECREF(result);
 #endif
     }
-#if CYTHON_USE_TYPE_SLOTS
-    return PyFrozenSet_Type.tp_new(&PyFrozenSet_Type, $empty_tuple, NULL);
-#else
-    return PyObject_Call((PyObject*)&PyFrozenSet_Type, $empty_tuple, NULL);
-#endif
+    return __Pyx_PyObject_CallNoArg((PyObject*) &PyFrozenSet_Type);
 }
 
 
