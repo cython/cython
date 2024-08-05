@@ -7,15 +7,31 @@ from cpython.exc cimport PyErr_SetFromErrno
 
 cdef extern from *:
     """
-    #if PY_VERSION_HEX >= 0x030d00A4
-        #define __Pyx_PyTime_TimeUnchecked()     _PyTime_TimeUnchecked()
-        #define __Pyx_PyTime_AsSecondsDouble(t)  PyTime_AsSecondsDouble(t)
+    #if PY_VERSION_HEX >= 0x030d00b1 || defined(PyTime_t)
+        #define __Pyx_PyTime_t PyTime_t
+    #else
+        #define __Pyx_PyTime_t _PyTime_t
+    #endif
+
+    #if PY_VERSION_HEX >= 0x030d00b1 || defined(PyTime_TimeRaw)
+        static CYTHON_INLINE __Pyx_PyTime_t __Pyx_PyTime_TimeUnchecked(void) {
+            __Pyx_PyTime_t tic;
+            (void) PyTime_TimeRaw(&tic);
+            return tic;
+        }
     #else
         #define __Pyx_PyTime_TimeUnchecked()  _PyTime_GetSystemClock()
+    #endif
+
+    #if PY_VERSION_HEX >= 0x030d00b1 || defined(PyTime_AsSecondsDouble)
+        #define __Pyx_PyTime_AsSecondsDouble(t)  PyTime_AsSecondsDouble(t)
+    #else
         #define __Pyx_PyTime_AsSecondsDouble(t)  _PyTime_AsSecondsDouble(t)
     #endif
     """
-    ctypedef int64_t _PyTime_t
+    ctypedef int64_t PyTime_t "__Pyx_PyTime_t"
+    ctypedef int64_t _PyTime_t "__Pyx_PyTime_t"
+
     _PyTime_t PyTime_TimeUnchecked "__Pyx_PyTime_TimeUnchecked" () nogil
     double PyTime_AsSecondsDouble "__Pyx_PyTime_AsSecondsDouble" (_PyTime_t t) nogil
 
