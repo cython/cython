@@ -1059,7 +1059,7 @@ static CYTHON_INLINE PyObject * __Pyx_PyDict_GetItemStrWithError(PyObject *dict,
 #if CYTHON_ASSUME_SAFE_MACROS
 #define __Pyx_PyList_GetItemRef(o, i) __Pyx_NewRef(PyList_GET_ITEM(o, i))
 #else
-#define __Pyx_PyList_GetItemRef(o, i) __Pyx_NewRef(PyList_GetItem(o, i))
+#define __Pyx_PyList_GetItemRef(o, i) PySequence_GetItem(o, i)
 #endif
 
 static CYTHON_INLINE int __Pyx_PyDict_GetItemRef(PyObject *dict, PyObject *key, PyObject **result) {

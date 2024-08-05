@@ -3130,6 +3130,7 @@ class IteratorNode(ScopedExprNode):
             f"{result_name} = {getitem}({self.py_result()}, {self.counter_cname}); "
             f"{incref}({result_name}); "
             f"{self.counter_cname}{inc_dec}; "
+            # Use the error label to avoid C compiler warnings if we only use it below.
             f"{code.error_goto_if_neg('0', self.pos)}")
         code.putln("#else")
         code.putln(
