@@ -1317,7 +1317,7 @@ class ImportErrorTests(unittest.TestCase):
         self.assertEqual(exc.path, 'somepath')
 
         msg = ("'invalid' is an invalid keyword argument for ImportError"
-               if sys.version_info >= (3, 7) else ".*keyword argument.*")
+               if (3, 7) <= sys.version_info < (3, 13) else ".*keyword argument.*")
         with self.assertRaisesRegex(TypeError, msg):
             ImportError('test', invalid='keyword')
 
