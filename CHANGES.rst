@@ -187,8 +187,14 @@ Bugs fixed
 * A crash on exception deallocations was fixed.
   (Github issue :issue:`6022`)
 
+* The return type of ``str()`` was mishandled, leading to crashes with ``language_level=3``.
+  (Github issue :issue:`6166`)
+
 * ``bytes.startswith/endswith()`` failed for non-bytes substrings (e.g. ``bytearray``).
   (Github issue :issue:`6168`)
+
+* Fused ctuples crashed Cython.
+  (Github issue :issue:`6068`)
 
 * A compiler crash was fixed when using extension types in fused types.
   (Github issue :issue:`6204`)
