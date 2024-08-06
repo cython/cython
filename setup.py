@@ -141,7 +141,7 @@ def compile_cython_modules(profile=False, coverage=False, compile_minimal=False,
     extra_extension_args = {}
     if cython_limited_api:
         defines += [
-            ('Py_LIMITED_API', 0x03070000),
+            ('Py_LIMITED_API', '0x03070000'),
         ]
         extra_extension_args['py_limited_api'] = True
 
