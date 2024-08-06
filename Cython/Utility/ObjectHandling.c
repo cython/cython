@@ -195,6 +195,7 @@ static PyObject *__Pyx_GetBuiltinNext_LimitedAPI(void);
 static PyObject *__Pyx_GetBuiltinNext_LimitedAPI(void) {
     static PyObject *next = NULL;
     if (unlikely(!next)) next = __Pyx_GetBuiltinName(PYIDENT("next"));
+    // Returns the globally owned reference, not a new reference!
     return next;
 }
 #endif
