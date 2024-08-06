@@ -9870,12 +9870,9 @@ class PyCFunctionNode(ExprNode, ModuleNameMixin):
     #  binding           bool
     #  def_node          DefNode            the Python function node
     #  module_name       EncodedString      Name of defining module
-    #  code_object       CodeObjectNode     the PyCodeObject creator node
 
-    subexprs = ['code_object', 'defaults_tuple', 'defaults_kwdict',
-                'annotations_dict']
+    subexprs = ['defaults_tuple', 'defaults_kwdict', 'annotations_dict']
 
-    code_object = None
     binding = False
     def_node = None
     defaults = None
@@ -9892,12 +9889,17 @@ class PyCFunctionNode(ExprNode, ModuleNameMixin):
 
     @classmethod
     def from_defnode(cls, node, binding):
-        return cls(node.pos,
-                   def_node=node,
-                   pymethdef_cname=node.entry.pymethdef_cname,
-                   binding=binding or node.specialized_cpdefs,
-                   specialized_cpdefs=node.specialized_cpdefs,
-                   code_object=CodeObjectNode(node))
+        return cls(
+            node.pos,
+            def_node=node,
+            pymethdef_cname=node.entry.pymethdef_cname,
+            binding=binding or node.specialized_cpdefs,
+            specialized_cpdefs=node.specialized_cpdefs,
+        )
+
+    @property
+    def code_object(self):
+        return self.def_node.code_object
 
     def analyse_types(self, env):
         if self.binding:
@@ -10017,8 +10019,11 @@ class PyCFunctionNode(ExprNode, ModuleNameMixin):
                     name=StringEncoding.EncodedString("__defaults__"))
                 # defaults getter must never live in class scopes, it's always a module function
                 module_scope = env.global_scope()
-                defaults_getter.analyse_declarations(module_scope)
-                defaults_getter = defaults_getter.analyse_expressions(module_scope)
+                # FIXME: this seems even more hackish than before.
+                directives_node = Nodes.CompilerDirectivesNode.for_internal(defaults_getter, module_scope)
+                directives_node.analyse_declarations(module_scope)
+                directives_node = directives_node.analyse_expressions(module_scope)
+                defaults_getter = directives_node.body
                 defaults_getter.body = defaults_getter.body.analyse_expressions(
                     defaults_getter.local_scope)
                 defaults_getter.py_wrapper_required = False
@@ -10073,11 +10078,6 @@ class PyCFunctionNode(ExprNode, ModuleNameMixin):
                 UtilityCode.load_cached("CythonFunction", "CythonFunction.c"))
             constructor = "__Pyx_CyFunction_New"
 
-        if self.code_object:
-            code_object_result = self.code_object.py_result()
-        else:
-            code_object_result = 'NULL'
-
         flags = []
         if def_node.is_staticmethod:
             flags.append('__Pyx_CYFUNCTION_STATICMETHOD')
@@ -10095,6 +10095,8 @@ class PyCFunctionNode(ExprNode, ModuleNameMixin):
         else:
             flags = '0'
 
+        self.code_object.generate_result_code(code)
+
         code.putln(
             '%s = %s(&%s, %s, %s, %s, %s, %s, %s); %s' % (
                 self.result(),
@@ -10105,7 +10107,7 @@ class PyCFunctionNode(ExprNode, ModuleNameMixin):
                 self.closure_result_code(),
                 self.get_py_mod_name(code),
                 Naming.moddict_cname,
-                code_object_result,
+                self.code_object.py_result(),
                 code.error_goto_if_null(self.result(), self.pos)))
 
         self.generate_gotref(code)
@@ -10161,6 +10163,27 @@ class InnerFunctionNode(PyCFunctionNode):
         return "NULL"
 
 
+class DefFuncLikeNode:
+    """
+    Adapter for CFuncDefNode to give it the same attributes as DefNode in CodeObjects.
+    """
+    is_generator = False
+    is_coroutine = False
+    is_asyncgen = False
+    is_generator_expression = False
+
+    num_posonly_args = 0
+    num_kwonly_args = 0
+    star_arg = None
+    starstar_arg = None
+
+    def __init__(self, cfuncdef_node):
+        self.name = cfuncdef_node.entry.name
+        self.local_scope = cfuncdef_node.entry.scope
+        self.args = cfuncdef_node.args
+        self.pos = cfuncdef_node.pos
+
+
 class CodeObjectNode(ExprNode):
     # Create a PyCodeObject for a CyFunction instance.
     #
@@ -10180,6 +10203,10 @@ class CodeObjectNode(ExprNode):
             IdentifierStringNode(arg.pos, value=arg.name)
             for arg in args + local_vars
         ]
+
+    @classmethod
+    def for_cfunc(cls, cfuncdef_node):
+        return cls(DefFuncLikeNode(cfuncdef_node))
 
     def may_be_none(self):
         return False
@@ -10216,7 +10243,13 @@ class CodeObjectNode(ExprNode):
         elif func.is_generator:
             flags.append('CO_GENERATOR')
 
-        argcount = len(func.args) - func.num_kwonly_args
+        if func.is_generator_expression:
+            # Only generated arguments from the outermost iterable, nothing user visible.
+            # 'func.args' is constructed late for these, and they (rightfully) do not appear in 'varnames'.
+            argcount = 0
+        else:
+            argcount = len(func.args)
+
         num_posonly_args = func.num_posonly_args  # Py3.8+ only
         kwonly_argcount = func.num_kwonly_args
         nlocals = len(self.varnames)
@@ -10227,7 +10260,7 @@ class CodeObjectNode(ExprNode):
         code.putln("{")
         code.putln(
             "__Pyx_PyCode_New_function_description descr = {"
-            f"{argcount}, "
+            f"{argcount - kwonly_argcount}, "
             f"{num_posonly_args}, "
             f"{kwonly_argcount}, "
             f"{nlocals}, "
@@ -10236,8 +10269,15 @@ class CodeObjectNode(ExprNode):
             "};"
         )
 
+        for var in self.varnames:
+            var.generate_evaluation_code(code)
+
         varnames = [var.py_result() for var in self.varnames] or ['0']
         code.putln("PyObject* varnames[] = {%s};" % ', '.join(varnames))
+
+        for var in self.varnames:
+            var.generate_disposal_code(code)
+            var.free_temps(code)
 
         code.putln(
             f"{self.result_code} = __Pyx_PyCode_New("
@@ -10472,9 +10512,9 @@ class YieldExprNode(ExprNode):
         Generate the code to return the argument in 'Naming.retval_cname'
         and to continue at the yield label.
         """
-        label_num, label_name = code.new_yield_label(
+        label_num, resume_label = code.new_yield_label(
             self.expr_keyword.replace(' ', '_'))
-        code.use_label(label_name)
+        code.use_label(resume_label)
 
         saved = []
         code.funcstate.closure_temps.reset()
@@ -10489,12 +10529,12 @@ class YieldExprNode(ExprNode):
                 code.put_xgiveref(cname, type)
             code.putln('%s->%s = %s;' % (Naming.cur_scope_cname, save_cname, cname))
 
-        code.put_xgiveref(Naming.retval_cname, py_object_type)
         profile = code.globalstate.directives['profile']
         linetrace = code.globalstate.directives['linetrace']
         if profile or linetrace:
-            code.put_trace_return(Naming.retval_cname,
-                                  nogil=not code.funcstate.gil_owned)
+            code.put_trace_yield(Naming.retval_cname, pos=self.pos)
+
+        code.put_xgiveref(Naming.retval_cname, py_object_type)
         code.put_finish_refcount_context()
 
         if code.funcstate.current_except is not None:
@@ -10515,7 +10555,11 @@ class YieldExprNode(ExprNode):
         else:
             code.putln("return %s;" % Naming.retval_cname)
 
-        code.put_label(label_name)
+        code.put_label(resume_label)
+
+        if profile or linetrace:
+            code.put_trace_resume(self.pos)
+
         for cname, save_cname, type in saved:
             save_cname = "%s->%s" % (Naming.cur_scope_cname, save_cname)
             if type.is_cpp_class:

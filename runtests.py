@@ -243,6 +243,12 @@ def exclude_extension_in_pyver(*versions):
     return check
 
 
+def extension_needs_pyver(version):
+    def check(ext):
+        return EXCLUDE_EXT if sys.version_info[:2] < version else ext
+    return check
+
+
 def exclude_extension_on_platform(*platforms):
     def check(ext):
         return EXCLUDE_EXT if sys.platform in platforms else ext
@@ -250,6 +256,12 @@ def exclude_extension_on_platform(*platforms):
 
 
 def update_linetrace_extension(ext):
+    if sys.version_info[:2] == (3, 12):
+        # Tracing/profiling is generally unavailable in Py3.12.
+        return EXCLUDE_EXT
+    if not IS_CPYTHON and sys.version_info[:2] < (3, 13):
+        # Tracing/profiling requires PEP-669 monitoring or old CPython tracing.
+        return EXCLUDE_EXT
     ext.define_macros.append(('CYTHON_TRACE', 1))
     return ext
 
@@ -465,6 +477,8 @@ EXT_EXTRAS = {
     'tag:trace' : update_linetrace_extension,
     'tag:no-macos':  exclude_extension_on_platform('darwin'),
     'tag:cppexecpolicies': require_gcc("9.1"),
+    'tag:pstats': exclude_extension_in_pyver((3,12)),
+    'tag:coverage': exclude_extension_in_pyver((3,12)),
 }
 
 # TODO: use tags
@@ -478,13 +492,12 @@ VER_DEP_MODULES = {
 
     (3,8): (operator.lt, lambda x: x in ['run.special_methods_T561_py38',
                                          ]),
-    (3,11,999): (operator.gt, lambda x: x in [
+    (3,12): (operator.ge, lambda x: x in [
         'run.py_unicode_strings',  # Py_UNICODE was removed
         'compile.pylong',  # PyLongObject changed its structure
         'run.longintrepr',  # PyLongObject changed its structure
+        'run.line_trace',  # sys.monitoring broke sys.set_trace() line tracing
     ]),
-    # Profiling is broken on Python 3.12/3.13alpha
-    (3,12): (operator.gt, lambda x: "pstats" in x),
 }
 
 INCLUDE_DIRS = [ d for d in os.getenv('INCLUDE', '').split(os.pathsep) if d ]
@@ -1004,12 +1017,13 @@ class CythonCompileTestCase(unittest.TestCase):
         unittest.TestCase.__init__(self)
 
     def shortDescription(self):
-        return "[%d] compiling (%s%s%s) %s" % (
-            self.shard_num,
-            self.language,
-            "/cy2" if self.language_level == 2 else "/cy3" if self.language_level == 3 else "",
-            "/pythran" if self.pythran_dir is not None else "",
-            self.description_name()
+        return (
+            f"[{self.shard_num}] compiling ("
+            f"{self.language}"
+            f"{'/cy2' if self.language_level == 2 else '/cy3' if self.language_level == 3 else ''}"
+            f"{'/pythran' if self.pythran_dir is not None else ''}"
+            f"/{os.path.splitext(self.module_path)[1][1:]}"
+            f") {self.description_name()}"
         )
 
     def description_name(self):

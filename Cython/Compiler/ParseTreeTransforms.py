@@ -123,17 +123,10 @@ class NormalizeTree(CythonTransform):
     def visit_CStructOrUnionDefNode(self, node):
         return self.visit_StatNode(node, True)
 
-    def visit_PassStatNode(self, node):
-        """Eliminate PassStatNode"""
-        if not self.is_in_statlist:
-            return Nodes.StatListNode(pos=node.pos, stats=[])
-        else:
-            return []
-
     def visit_ExprStatNode(self, node):
         """Eliminate useless string literals"""
         if node.expr.is_string_literal:
-            return self.visit_PassStatNode(node)
+            return Nodes.PassStatNode(node.expr.pos)
         else:
             return self.visit_StatNode(node)
 
@@ -2410,11 +2403,9 @@ if VALUE is not None:
 
     def _handle_fused(self, node):
         if node.is_generator and node.has_fused_arguments:
-            node.has_fused_arguments = False
             error(node.pos, "Fused generators not supported")
-            node.gbody = Nodes.StatListNode(node.pos,
-                                            stats=[],
-                                            body=Nodes.PassStatNode(node.pos))
+            node.has_fused_arguments = False
+            node.gbody.body = Nodes.StatListNode(node.pos, stats=[])
 
         return node.has_fused_arguments
 
@@ -2450,7 +2441,7 @@ if VALUE is not None:
             node = self._create_fused_function(env, node)
         else:
             node.body.analyse_declarations(lenv)
-            self._super_visit_FuncDefNode(node)
+            node = self._super_visit_FuncDefNode(node)
 
         self.seen_vars_stack.pop()
 
@@ -2461,15 +2452,33 @@ if VALUE is not None:
 
     def visit_DefNode(self, node):
         node = self.visit_FuncDefNode(node)
+        if not isinstance(node, Nodes.DefNode):
+            return node
         env = self.current_env()
-        if (not isinstance(node, Nodes.DefNode) or
-                node.fused_py_func or node.is_generator_body or
-                not node.needs_assignment_synthesis(env)):
+        if node.code_object is None:
+            node.code_object = ExprNodes.CodeObjectNode(node)
+            node.code_object.analyse_declarations(env)
+        if node.fused_py_func or node.is_generator_body:
+            return node
+        if not node.needs_assignment_synthesis(env):
             return node
         return [node, self._synthesize_assignment(node, env)]
 
+    def visit_CFuncDefNode(self, node):
+        if node.code_object is None and node.py_func is None:
+            node.code_object = ExprNodes.CodeObjectNode.for_cfunc(node)
+            node.code_object.analyse_declarations(self.current_env())
+        return self.visit_FuncDefNode(node)
+
     def visit_GeneratorBodyDefNode(self, node):
         return self.visit_FuncDefNode(node)
+
+    def visit_GeneratorDefNode(self, node):
+        # The generator body should use the same code object as the (user facing) generator function that creates it.
+        result = self.visit_DefNode(node)
+        # 'result' will usually be a list of statements, but we still have the original node.
+        node.gbody.code_object = node.code_object
+        return result
 
     def _synthesize_assignment(self, node, env):
         # Synthesize assignment node and put it right after defnode
@@ -2477,20 +2486,11 @@ if VALUE is not None:
         while genv.is_py_class_scope or genv.is_c_class_scope:
             genv = genv.outer_scope
 
+        binding = env.is_py_class_scope or self.current_directives.get('binding')
         if genv.is_closure_scope:
-            rhs = node.py_cfunc_node = ExprNodes.InnerFunctionNode(
-                node.pos, def_node=node,
-                pymethdef_cname=node.entry.pymethdef_cname,
-                code_object=ExprNodes.CodeObjectNode(node))
+            rhs = node.py_cfunc_node = ExprNodes.InnerFunctionNode.from_defnode(node, binding)
         else:
-            binding = self.current_directives.get('binding')
             rhs = ExprNodes.PyCFunctionNode.from_defnode(node, binding)
-            node.code_object = rhs.code_object
-            if node.is_generator:
-                node.gbody.code_object = node.code_object
-
-        if env.is_py_class_scope:
-            rhs.binding = True
 
         node.is_cyfunction = rhs.binding
         return self._create_assignment(node, rhs, env)
@@ -3155,10 +3155,13 @@ class AutoCpdefFunctionDefinitions(CythonTransform):
 
 
 class RemoveUnreachableCode(CythonTransform):
+
     def visit_StatListNode(self, node):
         if not self.current_directives['remove_unreachable']:
             return node
         self.visitchildren(node)
+        if len(node.stats) == 1 and isinstance(node.stats[0], Nodes.StatListNode) and not node.stats[0].stats:
+            del node.stats[:]
         for idx, stat in enumerate(node.stats, 1):
             if stat.is_terminator:
                 if idx < len(node.stats):
@@ -3197,6 +3200,13 @@ class RemoveUnreachableCode(CythonTransform):
         self.visitchildren(node)
         if node.finally_clause.is_terminator:
             node.is_terminator = True
+        return node
+
+    def visit_PassStatNode(self, node):
+        """Eliminate useless PassStatNode"""
+        # 'pass' statements often appear in a separate line and must be traced.
+        if not self.current_directives['linetrace']:
+            node = Nodes.StatListNode(pos=node.pos, stats=[])
         return node
 
 

@@ -76,7 +76,7 @@ def _create_trace_func(trace):
     local_names = {}
 
     def _trace_func(frame, event, arg):
-        trace.append((map_trace_types(event, event), frame.f_lineno - frame.f_code.co_firstlineno))
+        trace.append((frame.f_code.co_name, map_trace_types(event, event), frame.f_lineno - frame.f_code.co_firstlineno))
 
         lnames = frame.f_code.co_varnames
         if frame.f_code.co_name in local_names:
@@ -179,6 +179,12 @@ def py_add_with_nogil(a,b):
     return z
 
 def py_return(retval=123): return retval
+
+def py_try_except(func):
+    try:
+        return func()
+    except KeyError as exc:
+        raise AttributeError(exc.args[0])
 """, plain_python_functions)
 
 
@@ -197,48 +203,48 @@ def run_trace(func, *args, bint with_sys=False):
     """
     >>> py_add = plain_python_functions['py_add']
     >>> run_trace(py_add, 1, 2)
-    [('call', 0), ('line', 1), ('line', 2), ('return', 2)]
+    [('py_add', 'call', 0), ('py_add', 'line', 1), ('py_add', 'line', 2), ('py_add', 'return', 2)]
     >>> run_trace(cy_add, 1, 2)
-    [('call', 0), ('line', 1), ('line', 2), ('return', 2)]
+    [('cy_add', 'call', 0), ('cy_add', 'line', 1), ('cy_add', 'line', 2), ('cy_add', 'return', 2)]
 
     >>> run_trace(py_add, 1, 2, with_sys=True)
-    [('call', 0), ('line', 1), ('line', 2), ('return', 2)]
+    [('py_add', 'call', 0), ('py_add', 'line', 1), ('py_add', 'line', 2), ('py_add', 'return', 2)]
     >>> run_trace(cy_add, 1, 2, with_sys=True)
-    [('call', 0), ('line', 1), ('line', 2), ('return', 2)]
+    [('cy_add', 'call', 0), ('cy_add', 'line', 1), ('cy_add', 'line', 2), ('cy_add', 'return', 2)]
 
     >>> result = run_trace(cy_add_with_nogil, 1, 2)
     >>> result[:5]
-    [('call', 0), ('line', 1), ('line', 2), ('line', 3), ('line', 4)]
+    [('cy_add_with_nogil', 'call', 0), ('cy_add_with_nogil', 'line', 1), ('cy_add_with_nogil', 'line', 2), ('cy_add_with_nogil', 'line', 3), ('cy_add_with_nogil', 'line', 4)]
     >>> result[5:9]
-    [('call', 0), ('line', 1), ('line', 2), ('return', 2)]
+    [('cy_add_nogil', 'call', 0), ('cy_add_nogil', 'line', 1), ('cy_add_nogil', 'line', 2), ('cy_add_nogil', 'return', 2)]
     >>> result[9:]
-    [('line', 2), ('line', 5), ('return', 5)]
+    [('cy_add_with_nogil', 'line', 2), ('cy_add_with_nogil', 'line', 5), ('cy_add_with_nogil', 'return', 5)]
 
     >>> result = run_trace(cy_add_with_nogil, 1, 2, with_sys=True)
     >>> result[:5]  # sys
-    [('call', 0), ('line', 1), ('line', 2), ('line', 3), ('line', 4)]
+    [('cy_add_with_nogil', 'call', 0), ('cy_add_with_nogil', 'line', 1), ('cy_add_with_nogil', 'line', 2), ('cy_add_with_nogil', 'line', 3), ('cy_add_with_nogil', 'line', 4)]
     >>> result[5:9]  # sys
-    [('call', 0), ('line', 1), ('line', 2), ('return', 2)]
+    [('cy_add_nogil', 'call', 0), ('cy_add_nogil', 'line', 1), ('cy_add_nogil', 'line', 2), ('cy_add_nogil', 'return', 2)]
     >>> result[9:]  # sys
-    [('line', 2), ('line', 5), ('return', 5)]
+    [('cy_add_with_nogil', 'line', 2), ('cy_add_with_nogil', 'line', 5), ('cy_add_with_nogil', 'return', 5)]
 
     >>> py_add_with_nogil = plain_python_functions['py_add_with_nogil']
     >>> result = run_trace(py_add_with_nogil, 1, 2)
     >>> result[:5]  # py
-    [('call', 0), ('line', 1), ('line', 2), ('line', 3), ('line', 4)]
+    [('py_add_with_nogil', 'call', 0), ('py_add_with_nogil', 'line', 1), ('py_add_with_nogil', 'line', 2), ('py_add_with_nogil', 'line', 3), ('py_add_with_nogil', 'line', 4)]
     >>> result[5:9]  # py
-    [('call', 0), ('line', 1), ('line', 2), ('return', 2)]
+    [('py_add', 'call', 0), ('py_add', 'line', 1), ('py_add', 'line', 2), ('py_add', 'return', 2)]
     >>> result[9:]  # py
-    [('line', 2), ('line', 5), ('return', 5)]
+    [('py_add_with_nogil', 'line', 2), ('py_add_with_nogil', 'line', 5), ('py_add_with_nogil', 'return', 5)]
 
     >>> run_trace(global_name, 123)
-    [('call', 0), ('line', 2), ('return', 2)]
+    [('global_name', 'call', 0), ('global_name', 'line', 2), ('global_name', 'return', 2)]
     >>> run_trace(global_name, 111)
-    [('call', 0), ('line', 2), ('return', 2)]
+    [('global_name', 'call', 0), ('global_name', 'line', 2), ('global_name', 'return', 2)]
     >>> run_trace(global_name, 111, with_sys=True)
-    [('call', 0), ('line', 2), ('return', 2)]
+    [('global_name', 'call', 0), ('global_name', 'line', 2), ('global_name', 'return', 2)]
     >>> run_trace(global_name, 111, with_sys=True)
-    [('call', 0), ('line', 2), ('return', 2)]
+    [('global_name', 'call', 0), ('global_name', 'line', 2), ('global_name', 'return', 2)]
     """
     trace = []
     trace_func = _create_trace_func(trace)
@@ -257,19 +263,19 @@ def run_trace(func, *args, bint with_sys=False):
     return trace
 
 
-def run_trace_with_exception(func, bint with_sys=False, bint fail=False):
+def run_trace_with_exception(func, bint with_sys=False, bint fail=False, call_func=cy_try_except):
     """
     >>> py_return = plain_python_functions["py_return"]
     >>> run_trace_with_exception(py_return)
     OK: 123
-    [('call', 0), ('line', 1), ('line', 2), ('call', 0), ('line', 0), ('return', 0), ('return', 2)]
+    [('cy_try_except', 'call', 0), ('cy_try_except', 'line', 1), ('cy_try_except', 'line', 2), ('py_return', 'call', 0), ('py_return', 'line', 0), ('py_return', 'return', 0), ('cy_try_except', 'return', 2)]
     >>> run_trace_with_exception(py_return, with_sys=True)
     OK: 123
-    [('call', 0), ('line', 1), ('line', 2), ('call', 0), ('line', 0), ('return', 0), ('return', 2)]
+    [('cy_try_except', 'call', 0), ('cy_try_except', 'line', 1), ('cy_try_except', 'line', 2), ('py_return', 'call', 0), ('py_return', 'line', 0), ('py_return', 'return', 0), ('cy_try_except', 'return', 2)]
 
     >>> run_trace_with_exception(py_return, fail=True)
     ValueError('failing line trace!')
-    [('call', 0)]
+    [('cy_try_except', 'call', 0)]
 
     #>>> run_trace_with_exception(lambda: 123, with_sys=True, fail=True)
     #ValueError('huhu')
@@ -278,19 +284,30 @@ def run_trace_with_exception(func, bint with_sys=False, bint fail=False):
     >>> def py_raise_exc(exc=KeyError('huhu')): raise exc
     >>> run_trace_with_exception(py_raise_exc)
     AttributeError('huhu')
-    [('call', 0), ('line', 1), ('line', 2), ('call', 0), ('line', 0), ('exception', 0), ('return', 0), ('line', 3), ('line', 4), ('return', 4)]
+    [('cy_try_except', 'call', 0), ('cy_try_except', 'line', 1), ('cy_try_except', 'line', 2), ('py_raise_exc', 'call', 0), ('py_raise_exc', 'line', 0), ('py_raise_exc', 'exception', 0), ('py_raise_exc', 'return', 0), ('cy_try_except', 'line', 3), ('cy_try_except', 'line', 4), ('cy_try_except', 'return', 4)]
     >>> run_trace_with_exception(py_raise_exc, with_sys=True)
     AttributeError('huhu')
-    [('call', 0), ('line', 1), ('line', 2), ('call', 0), ('line', 0), ('exception', 0), ('return', 0), ('line', 3), ('line', 4), ('return', 4)]
+    [('cy_try_except', 'call', 0), ('cy_try_except', 'line', 1), ('cy_try_except', 'line', 2), ('py_raise_exc', 'call', 0), ('py_raise_exc', 'line', 0), ('py_raise_exc', 'exception', 0), ('py_raise_exc', 'return', 0), ('cy_try_except', 'line', 3), ('cy_try_except', 'line', 4), ('cy_try_except', 'return', 4)]
     >>> run_trace_with_exception(py_raise_exc, fail=True)
     ValueError('failing line trace!')
-    [('call', 0)]
+    [('cy_try_except', 'call', 0)]
+
+    >>> py_try_except = plain_python_functions['py_try_except']
+    >>> run_trace_with_exception(py_raise_exc, call_func=py_try_except)
+    AttributeError('huhu')
+    [('py_try_except', 'call', 0), ('py_try_except', 'line', 1), ('py_try_except', 'line', 2), ('py_raise_exc', 'call', 0), ('py_raise_exc', 'line', 0), ('py_raise_exc', 'exception', 0), ('py_raise_exc', 'return', 0), ('py_try_except', 'exception', 2), ('py_try_except', 'line', 3), ('py_try_except', 'line', 4), ('py_try_except', 'exception', 4), ('py_try_except', 'return', 4)]
+    >>> run_trace_with_exception(py_raise_exc, with_sys=True, call_func=py_try_except)
+    AttributeError('huhu')
+    [('py_try_except', 'call', 0), ('py_try_except', 'line', 1), ('py_try_except', 'line', 2), ('py_raise_exc', 'call', 0), ('py_raise_exc', 'line', 0), ('py_raise_exc', 'exception', 0), ('py_raise_exc', 'return', 0), ('py_try_except', 'exception', 2), ('py_try_except', 'line', 3), ('py_try_except', 'line', 4), ('py_try_except', 'exception', 4), ('py_try_except', 'return', 4)]
+    >>> run_trace_with_exception(py_raise_exc, fail=True, call_func=py_try_except)
+    ValueError('failing line trace!')
+    [('py_try_except', 'call', 0)]
 
     #>>> run_trace_with_exception(raise_exc, with_sys=True, fail=True)
     #ValueError('huhu')
     #[('call', 0), ('line', 1), ('line', 2), ('call', 0), ('line', 0), ('exception', 0), ('return', 0), ('line', 3), ('line', 4), ('return', 4)]
     """
-    trace = ['cy_try_except' if fail else 'NO ERROR']
+    trace = [call_func.__name__ if fail else 'NO ERROR']
     trace_func = _create__failing_line_trace_func(trace) if fail else _create_trace_func(trace)
     with gc_off():
         if with_sys:
@@ -299,7 +316,7 @@ def run_trace_with_exception(func, bint with_sys=False, bint fail=False):
             PyEval_SetTrace(<Py_tracefunc>trace_trampoline, <PyObject*>trace_func)
         try:
             try:
-                retval = cy_try_except(func)
+                retval = call_func(func)
             except ValueError as exc:
                 print("%s(%r)" % (type(exc).__name__, str(exc)))
             except AttributeError as exc:
@@ -342,13 +359,13 @@ def fail_on_line_trace(fail_func, add_func, nogil_add_func):
     >>> len(result)
     17
     >>> result[:5]
-    ['NO ERROR', ('call', 0), ('line', 1), ('line', 2), ('return', 2)]
+    ['NO ERROR', ('cy_add', 'call', 0), ('cy_add', 'line', 1), ('cy_add', 'line', 2), ('cy_add', 'return', 2)]
     >>> result[5:10]
-    [('call', 0), ('line', 1), ('line', 2), ('line', 3), ('line', 4)]
+    [('cy_add_with_nogil', 'call', 0), ('cy_add_with_nogil', 'line', 1), ('cy_add_with_nogil', 'line', 2), ('cy_add_with_nogil', 'line', 3), ('cy_add_with_nogil', 'line', 4)]
     >>> result[10:14]
-    [('call', 0), ('line', 1), ('line', 2), ('return', 2)]
+    [('cy_add_nogil', 'call', 0), ('cy_add_nogil', 'line', 1), ('cy_add_nogil', 'line', 2), ('cy_add_nogil', 'return', 2)]
     >>> result[14:]
-    [('line', 2), ('line', 5), ('return', 5)]
+    [('cy_add_with_nogil', 'line', 2), ('cy_add_with_nogil', 'line', 5), ('cy_add_with_nogil', 'return', 5)]
 
     >>> py_add = plain_python_functions["py_add"]
     >>> py_add_with_nogil = plain_python_functions['py_add_with_nogil']
@@ -356,37 +373,37 @@ def fail_on_line_trace(fail_func, add_func, nogil_add_func):
     >>> len(result)
     17
     >>> result[:5]  # py
-    ['NO ERROR', ('call', 0), ('line', 1), ('line', 2), ('return', 2)]
+    ['NO ERROR', ('py_add', 'call', 0), ('py_add', 'line', 1), ('py_add', 'line', 2), ('py_add', 'return', 2)]
     >>> result[5:10]  # py
-    [('call', 0), ('line', 1), ('line', 2), ('line', 3), ('line', 4)]
+    [('py_add_with_nogil', 'call', 0), ('py_add_with_nogil', 'line', 1), ('py_add_with_nogil', 'line', 2), ('py_add_with_nogil', 'line', 3), ('py_add_with_nogil', 'line', 4)]
     >>> result[10:14]  # py
-    [('call', 0), ('line', 1), ('line', 2), ('return', 2)]
+    [('py_add', 'call', 0), ('py_add', 'line', 1), ('py_add', 'line', 2), ('py_add', 'return', 2)]
     >>> result[14:]  # py
-    [('line', 2), ('line', 5), ('return', 5)]
+    [('py_add_with_nogil', 'line', 2), ('py_add_with_nogil', 'line', 5), ('py_add_with_nogil', 'return', 5)]
 
     >>> result = fail_on_line_trace('cy_add_with_nogil', cy_add, cy_add_with_nogil)
     failing line trace!
     >>> result
-    ['cy_add_with_nogil', ('call', 0), ('line', 1), ('line', 2), ('return', 2), ('call', 0)]
+    ['cy_add_with_nogil', ('cy_add', 'call', 0), ('cy_add', 'line', 1), ('cy_add', 'line', 2), ('cy_add', 'return', 2), ('cy_add_with_nogil', 'call', 0)]
 
     >>> result = fail_on_line_trace('py_add_with_nogil', py_add, py_add_with_nogil)  # py
     failing line trace!
     >>> result  # py
-    ['py_add_with_nogil', ('call', 0), ('line', 1), ('line', 2), ('return', 2), ('call', 0)]
+    ['py_add_with_nogil', ('py_add', 'call', 0), ('py_add', 'line', 1), ('py_add', 'line', 2), ('py_add', 'return', 2), ('py_add_with_nogil', 'call', 0)]
 
     >>> result = fail_on_line_trace('cy_add_nogil', cy_add, cy_add_with_nogil)
     failing line trace!
     >>> result[:5]
-    ['cy_add_nogil', ('call', 0), ('line', 1), ('line', 2), ('return', 2)]
+    ['cy_add_nogil', ('cy_add', 'call', 0), ('cy_add', 'line', 1), ('cy_add', 'line', 2), ('cy_add', 'return', 2)]
     >>> result[5:]
-    [('call', 0), ('line', 1), ('line', 2), ('line', 3), ('line', 4), ('call', 0)]
+    [('cy_add_with_nogil', 'call', 0), ('cy_add_with_nogil', 'line', 1), ('cy_add_with_nogil', 'line', 2), ('cy_add_with_nogil', 'line', 3), ('cy_add_with_nogil', 'line', 4), ('cy_add_nogil', 'call', 0)]
 
     >>> result = fail_on_line_trace('py_add', py_add, py_add_with_nogil)  # py
     failing line trace!
     >>> result[:5]  # py
-    ['py_add', ('call', 0), ('line', 1), ('line', 2), ('return', 2)]
+    ['py_add', ('py_add', 'call', 0), ('py_add', 'line', 1), ('py_add', 'line', 2), ('py_add', 'return', 2)]
     >>> result[5:]  # py
-    [('call', 0), ('line', 1), ('line', 2), ('line', 3), ('line', 4), ('call', 0)]
+    [('py_add_with_nogil', 'call', 0), ('py_add_with_nogil', 'line', 1), ('py_add_with_nogil', 'line', 2), ('py_add_with_nogil', 'line', 3), ('py_add_with_nogil', 'line', 4), ('py_add', 'call', 0)]
     """
     cdef int x = 1
     trace = ['NO ERROR']
@@ -418,19 +435,19 @@ def disable_trace(func, *args, bint with_sys=False):
     """
     >>> py_add = plain_python_functions["py_add"]
     >>> disable_trace(py_add, 1, 2)
-    [('call', 0), ('line', 1)]
+    [('py_add', 'call', 0), ('py_add', 'line', 1)]
     >>> disable_trace(py_add, 1, 2, with_sys=True)
-    [('call', 0), ('line', 1)]
+    [('py_add', 'call', 0), ('py_add', 'line', 1)]
 
     >>> disable_trace(cy_add, 1, 2)
-    [('call', 0), ('line', 1)]
+    [('cy_add', 'call', 0), ('cy_add', 'line', 1)]
     >>> disable_trace(cy_add, 1, 2, with_sys=True)
-    [('call', 0), ('line', 1)]
+    [('cy_add', 'call', 0), ('cy_add', 'line', 1)]
 
     >>> disable_trace(cy_add_with_nogil, 1, 2)
-    [('call', 0), ('line', 1)]
+    [('cy_add_with_nogil', 'call', 0), ('cy_add_with_nogil', 'line', 1)]
     >>> disable_trace(cy_add_with_nogil, 1, 2, with_sys=True)
-    [('call', 0), ('line', 1)]
+    [('cy_add_with_nogil', 'call', 0), ('cy_add_with_nogil', 'line', 1)]
     """
     trace = []
     trace_func = _create_disable_tracing(trace)

@@ -175,6 +175,17 @@ def copy_inherited_directives(outer_directives, **new_directives):
     new_directives_out.update(new_directives)
     return new_directives_out
 
+
+def copy_for_internal(outer_directives):
+    # Reset some directives that users should not control for internal code.
+    return copy_inherited_directives(
+        outer_directives,
+        binding=False,
+        profile=False,
+        linetrace=False,
+    )
+
+
 # Declare compiler directives
 _directive_defaults = {
     'binding': True,  # was False before 3.0

@@ -101,6 +101,8 @@
   #define CYTHON_PEP489_MULTI_PHASE_INIT 1
   #undef CYTHON_USE_MODULE_STATE
   #define CYTHON_USE_MODULE_STATE 0
+  #undef CYTHON_USE_SYS_MONITORING
+  #define CYTHON_USE_SYS_MONITORING 0
   #undef CYTHON_USE_TP_FINALIZE
   #define CYTHON_USE_TP_FINALIZE 0
   #undef CYTHON_USE_DICT_VERSIONS
@@ -164,6 +166,8 @@
   #endif
   #undef CYTHON_USE_MODULE_STATE
   #define CYTHON_USE_MODULE_STATE 0
+  #undef CYTHON_USE_SYS_MONITORING
+  #define CYTHON_USE_SYS_MONITORING 0
   #ifndef CYTHON_USE_TP_FINALIZE
     #define CYTHON_USE_TP_FINALIZE (PYPY_VERSION_NUM >= 0x07030C00)
   #endif
@@ -234,6 +238,8 @@
   #ifndef CYTHON_USE_MODULE_STATE
     #define CYTHON_USE_MODULE_STATE 1
   #endif
+  #undef CYTHON_USE_SYS_MONITORING
+  #define CYTHON_USE_SYS_MONITORING 0
   #ifndef CYTHON_USE_TP_FINALIZE
     // PyObject_CallFinalizerFromDealloc is missing and not easily replaced
     #define CYTHON_USE_TP_FINALIZE 0
@@ -334,6 +340,9 @@
   #ifndef CYTHON_USE_MODULE_STATE
     // EXPERIMENTAL !!
     #define CYTHON_USE_MODULE_STATE 0
+  #endif
+  #ifndef CYTHON_USE_SYS_MONITORING
+    #define CYTHON_USE_SYS_MONITORING (PY_VERSION_HEX >= 0x030d00B1)
   #endif
   #ifndef CYTHON_USE_TP_FINALIZE
     #define CYTHON_USE_TP_FINALIZE 1
@@ -1130,6 +1139,28 @@ static CYTHON_INLINE PyObject * __Pyx_PyDict_GetItemStrWithError(PyObject *dict,
     } __Pyx_PyAsyncMethodsStruct;
 #endif
 #endif
+
+/////////////// CythonABIVersion.proto ///////////////
+//@proto_block: module_declarations
+// This needs to go after the utility code 'proto' section but before user code and utility impl.
+
+#if CYTHON_COMPILING_IN_LIMITED_API
+    // The limited API makes some significant changes to data structures, so we don't
+    // want to share the implementations compiled with and without the limited API.
+    #define __PYX_LIMITED_ABI_SUFFIX  "limited"
+#else
+    #define __PYX_LIMITED_ABI_SUFFIX
+#endif
+
+#ifndef __PYX_MONITORING_ABI_SUFFIX
+    #define __PYX_MONITORING_ABI_SUFFIX
+#endif
+
+#define CYTHON_ABI  __PYX_ABI_VERSION __PYX_LIMITED_ABI_SUFFIX __PYX_MONITORING_ABI_SUFFIX
+
+#define __PYX_ABI_MODULE_NAME "_cython_" CYTHON_ABI
+#define __PYX_TYPE_MODULE_PREFIX __PYX_ABI_MODULE_NAME "."
+
 
 /////////////// IncludeStructmemberH.proto ///////////////
 //@proto_block: utility_code_proto_before_types

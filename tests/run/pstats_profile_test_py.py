@@ -48,18 +48,15 @@ u"""
     ... else:
     ...     assert not COMPILED
 
-    >>> short_stats['f_raise']
-    100
-
     >>> short_stats['m_def']
     200
     >>> short_stats['m_cdef']
     100
 
     >>> if COMPILED:
-    ...     assert (short_stats['m_cpdef'] - 100) in (200, 400)  # FIXME!
+    ...     assert (short_stats['m_cpdef'] - 100) in (200, 400), short_stats['m_cpdef']  # FIXME!
     ... else:
-    ...     assert short_stats['m_cpdef'] == 200
+    ...     assert short_stats['m_cpdef'] == 200, short_stats['m_cpdef']
 
     >>> try:
     ...    os.unlink(statsfile)
@@ -111,7 +108,7 @@ u"""
     >>> cython_stats = pstats.Stats(statsfile)
     >>> cython_stats_dict = dict([(k[2], v[1]) for k,v in cython_stats.stats.items()])
 
-    >>> python_stats_dict['python_generator'] == cython_stats_dict['generator']
+    >>> python_stats_dict['python_generator'] == cython_stats_dict['generator']  or  (python_stats_dict['python_generator'], cython_stats_dict['generator'])
     True
 
     >>> try:

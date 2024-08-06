@@ -1911,9 +1911,10 @@ class GlobalState:
         max_line = 1
         for node in self.codeobject_constants:
             def_node = node.def_node
-            max_func_args = max(max_func_args, len(def_node.args) - def_node.num_kwonly_args)
-            max_kwonly_args = max(max_kwonly_args, def_node.num_kwonly_args)
-            max_posonly_args = max(max_posonly_args, def_node.num_posonly_args)
+            if not def_node.is_generator_expression:
+                max_func_args = max(max_func_args, len(def_node.args) - def_node.num_kwonly_args)
+                max_kwonly_args = max(max_kwonly_args, def_node.num_kwonly_args)
+                max_posonly_args = max(max_posonly_args, def_node.num_posonly_args)
             max_vars = max(max_vars, len(node.varnames))
             max_line = max(max_line, def_node.pos[1])
 
@@ -2339,10 +2340,13 @@ class CCodeWriter:
         if self.code_config.emit_code_comments:
             self.indent()
             self._write_lines("/* %s */\n" % self._build_marker(pos))
-        if trace and self.funcstate and self.funcstate.can_trace and self.globalstate.directives['linetrace']:
+        if trace:
+            self.write_trace_line(pos)
+
+    def write_trace_line(self, pos):
+        if self.funcstate and self.funcstate.can_trace and self.globalstate.directives['linetrace']:
             self.indent()
-            self._write_lines('__Pyx_TraceLine(%d,%d,%s)\n' % (
-                pos[1], not self.funcstate.gil_owned, self.error_goto(pos)))
+            self._write_lines(f'__Pyx_TraceLine({pos[1]:d},{not self.funcstate.gil_owned:d},{self.error_goto(pos)})\n')
 
     def _build_marker(self, pos):
         source_desc, line, col = pos
@@ -2894,22 +2898,63 @@ class CCodeWriter:
         self.globalstate.use_utility_code(
             UtilityCode.load_cached("WriteUnraisableException", "Exceptions.c"))
 
-    def put_trace_declarations(self):
-        self.putln('__Pyx_TraceDeclarations')
+    def put_trace_declarations(self, is_generator=False):
+        self.putln('__Pyx_TraceDeclarationsGen' if is_generator else '__Pyx_TraceDeclarationsFunc')
 
     def put_trace_frame_init(self, codeobj=None):
         if codeobj:
             self.putln('__Pyx_TraceFrameInit(%s)' % codeobj)
 
-    def put_trace_call(self, name, pos, nogil=False):
-        self.putln('__Pyx_TraceCall("%s", %s[%s], %s, %d, %s);' % (
-            name, Naming.filetable_cname, self.lookup_filename(pos[0]), pos[1], nogil, self.error_goto(pos)))
+    def put_trace_start(self, name, pos, nogil=False, is_generator=False, is_cpdef_func=False):
+        self.putln(
+            '%s("%s", %s[%s], %s, %d, %s, %s);' % (
+            "__Pyx_TraceStartGen" if is_generator else "__Pyx_TraceStartFunc",
+            name,
+            Naming.filetable_cname,
+            self.lookup_filename(pos[0]),
+            pos[1],
+            nogil,
+            Naming.skip_dispatch_cname if is_cpdef_func else '0',
+            self.error_goto(pos),
+        ))
 
-    def put_trace_exception(self):
-        self.putln("__Pyx_TraceException();")
+    def put_trace_exit(self):
+        self.putln("__Pyx_PyMonitoring_ExitScope();")
 
-    def put_trace_return(self, retvalue_cname, nogil=False):
-        self.putln("__Pyx_TraceReturn(%s, %d);" % (retvalue_cname, nogil))
+    def put_trace_yield(self, retvalue_cname, pos):
+        error_goto = self.error_goto(pos)
+        self.putln(f"__Pyx_TraceYield({retvalue_cname}, {pos[1]}, {error_goto});")
+
+    def put_trace_resume(self, pos):
+        name = self.funcstate.scope.name.as_c_string_literal()
+        filename_index = self.lookup_filename(pos[0])
+        first_line = pos[1]  # FIXME: where can we find the first line of the coroutine function?
+        error_goto = self.error_goto(pos)
+        self.putln(f'__Pyx_TraceResumeGen({name}, {Naming.filetable_cname}[{filename_index}], {first_line}, {pos[1]}, {error_goto});')
+
+    def put_trace_exception(self, pos, reraise=False, fresh=False):
+        self.putln(f"__Pyx_TraceException({pos[1]}, {bool(reraise):d}, {bool(fresh):d});")
+
+    def put_trace_stopiteration(self, pos, value):
+        error_goto = self.error_goto(pos)
+        self.putln(f"__Pyx_TraceStopIteration({value}, {pos[1]}, {error_goto});")
+
+    def put_trace_return(self, retvalue_cname, pos, return_type=None, nogil=False):
+        extra_arg = ""
+        trace_func = "__Pyx_TraceReturnValue"
+
+        if return_type is None or return_type.is_pyobject:
+            pass
+        elif return_type.is_void:
+            retvalue_cname = 'Py_None'
+        elif return_type.to_py_function:
+            trace_func = "__Pyx_TraceReturnCValue"
+            extra_arg = f", {return_type.to_py_function}"
+        else:
+            return
+
+        error_handling = self.error_goto(pos)
+        self.putln(f"{trace_func}({retvalue_cname}{extra_arg}, {pos[1]}, {bool(nogil):d}, {error_handling});")
 
     def putln_openmp(self, string):
         self.putln("#ifdef _OPENMP")

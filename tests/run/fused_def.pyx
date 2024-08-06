@@ -413,7 +413,7 @@ def test_code_object(cython.floating dummy = 2.0):
     """
     A test for default arguments is in cyfunction_defaults
 
-    >>> getcode(test_code_object) is getcode(test_code_object[float])
+    >>> test_code_object.__code__ is not test_code_object[float].__code__
     True
     """
 
