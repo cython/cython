@@ -205,7 +205,6 @@ static CYTHON_INLINE PyObject *__Pyx_PyIter_Next_Plain(PyObject *iterator) {
     PyObject *next = __Pyx_GetBuiltinNext_LimitedAPI();
     if (unlikely(!next)) return NULL;
     result = PyObject_CallFunctionObjArgs(next, iterator, NULL);
-    Py_DECREF(next);
     return result;
 #else
     (void)__Pyx_GetBuiltinName; // only for early limited API
@@ -236,7 +235,6 @@ static PyObject *__Pyx_PyIter_Next2(PyObject *o, PyObject *defval) {
     if (unlikely(!next)) return NULL;
     // This works if defval is NULL or not
     result = PyObject_CallFunctionObjArgs(next, o, defval, NULL);
-    Py_DECREF(next);
     return result;
 }
 #else
