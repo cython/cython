@@ -3237,17 +3237,42 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("/*--- Execution code ---*/")
         code.mark_pos(None)
 
+        orig_file = self.pos[0]
+        last_file = None
         if profile or linetrace:
-            code.put_trace_call(header3, self.pos, nogil=not code.funcstate.gil_owned)
             code.funcstate.can_trace = True
 
+        def generate_exe_code(node, code):
+            nonlocal last_file
+            if isinstance(node, Nodes.StatListNode):
+                for stat in node.stats:
+                    generate_exe_code(stat, code)
+                return
+            if profile or linetrace and last_file != node.pos[0]:
+                if last_file is not None:
+                    code.put_trace_return("Py_None", nogil=not code.funcstate.gil_owned)
+                    if last_file != orig_file:
+                        code.putln('}')
+                last_file = node.pos[0]
+                code.putln()
+                if last_file != orig_file:
+                    code.putln('{')
+                    code.put_trace_declarations()
+                    code.put_trace_frame_init()
+                code.put_trace_call(header3, (last_file, 1, 0), nogil=not code.funcstate.gil_owned)
+            code.mark_pos(node.pos)
+            node.generate_execution_code(code)
+
         code.mark_pos(None)
-        self.body.generate_execution_code(code)
+        generate_exe_code(self.body, code)
         code.mark_pos(None)
 
         if profile or linetrace:
             code.funcstate.can_trace = False
-            code.put_trace_return("Py_None", nogil=not code.funcstate.gil_owned)
+            if last_file is not None:
+                code.put_trace_return("Py_None", nogil=not code.funcstate.gil_owned)
+                if last_file != orig_file:
+                    code.putln('}')
 
         code.putln()
         code.putln("/*--- Wrapped vars code ---*/")
