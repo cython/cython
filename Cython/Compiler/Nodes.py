@@ -2673,8 +2673,16 @@ class CFuncDefNode(FuncDefNode):
                 # it really is impossible to reason about what the user wants to happens
                 # if they've specified a C++ exception translation function. Therefore,
                 # raise an error.
-                error(self.pos,
-                    "Only extern functions can throw C++ exceptions.")
+                warning(self.pos,
+                    "Only extern functions can throw C++ exceptions.\n"
+                    "Using exception translation functions for user-defined functions "
+                    "was never intended to work since Cython is not designed to allow C++ "
+                    "exceptions to propagate through its code. Specifically, if the function uses "
+                    "reference counted types (like Python objects) then these will likely "
+                    "be leaked on a C++ exception. Similarly 'try ... finally' and "
+                    "'with' statements will not be correctly executed. Use at your own risk "
+                    "be aware that any issues with this function will not be treated as a bug "
+                    "in Cython.", 3)
             else:
                 warning(self.pos,
                     "Only extern functions can throw C++ exceptions.", 2)
