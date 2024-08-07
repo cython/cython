@@ -103,6 +103,8 @@
   #define CYTHON_USE_MODULE_STATE 0
   #undef CYTHON_USE_TP_FINALIZE
   #define CYTHON_USE_TP_FINALIZE 0
+  #undef CYTHON_USE_AM_SEND
+  #define CYTHON_USE_AM_SEND 0
   #undef CYTHON_USE_DICT_VERSIONS
   #define CYTHON_USE_DICT_VERSIONS 0
   #undef CYTHON_USE_EXC_INFO_STACK
@@ -122,7 +124,7 @@
   #define CYTHON_COMPILING_IN_CPYTHON_FREETHREADING 0
 
   #undef CYTHON_USE_TYPE_SLOTS
-  #define CYTHON_USE_TYPE_SLOTS 0
+  #define CYTHON_USE_TYPE_SLOTS 1
   #ifndef CYTHON_USE_TYPE_SPECS
     #define CYTHON_USE_TYPE_SPECS 0
   #endif
@@ -167,6 +169,8 @@
   #ifndef CYTHON_USE_TP_FINALIZE
     #define CYTHON_USE_TP_FINALIZE (PYPY_VERSION_NUM >= 0x07030C00)
   #endif
+  #undef CYTHON_USE_AM_SEND
+  #define CYTHON_USE_AM_SEND 0
   #undef CYTHON_USE_DICT_VERSIONS
   #define CYTHON_USE_DICT_VERSIONS 0
   #undef CYTHON_USE_EXC_INFO_STACK
@@ -238,6 +242,9 @@
     // PyObject_CallFinalizerFromDealloc is missing and not easily replaced
     #define CYTHON_USE_TP_FINALIZE 0
   #endif
+  #ifndef CYTHON_USE_AM_SEND
+    #define CYTHON_USE_AM_SEND (__PYX_LIMITED_VERSION_HEX >= 0x030A0000)
+  #endif
   #undef CYTHON_USE_DICT_VERSIONS
   #define CYTHON_USE_DICT_VERSIONS 0
   #undef CYTHON_USE_EXC_INFO_STACK
@@ -260,7 +267,11 @@
     #define CYTHON_COMPILING_IN_CPYTHON_FREETHREADING 0
   #endif
 
-  #ifndef CYTHON_USE_TYPE_SLOTS
+  #if PY_VERSION_HEX < 0x030A0000
+    // Before Py3.10, PyObject_GetSlot() rejects static (non-heap) types.
+    #undef CYTHON_USE_TYPE_SLOTS
+    #define CYTHON_USE_TYPE_SLOTS 1
+  #elif !defined(CYTHON_USE_TYPE_SLOTS)
     #define CYTHON_USE_TYPE_SLOTS 1
   #endif
   #ifndef CYTHON_USE_TYPE_SPECS
@@ -337,6 +348,9 @@
   #endif
   #ifndef CYTHON_USE_TP_FINALIZE
     #define CYTHON_USE_TP_FINALIZE 1
+  #endif
+  #ifndef CYTHON_USE_AM_SEND
+    #define CYTHON_USE_AM_SEND 1
   #endif
   #if CYTHON_COMPILING_IN_CPYTHON_FREETHREADING
     #undef CYTHON_USE_DICT_VERSIONS
@@ -530,6 +544,10 @@
       #define CYTHON_FALLTHROUGH
     #endif
   #endif
+#endif
+
+#ifndef Py_UNREACHABLE
+  #define Py_UNREACHABLE()  assert(0); abort()
 #endif
 
 #ifdef __cplusplus
@@ -849,17 +867,17 @@ static CYTHON_INLINE void *__Pyx_PyModule_GetState(PyObject *op)
 #define __Pyx_PyObject_GetSlot(obj, name, func_ctype)  __Pyx_PyType_GetSlot(Py_TYPE((PyObject *) obj), name, func_ctype)
 #define __Pyx_PyObject_TryGetSlot(obj, name, func_ctype) __Pyx_PyType_TryGetSlot(Py_TYPE(obj), name, func_ctype)
 #define __Pyx_PyObject_TryGetSubSlot(obj, sub, name, func_ctype) __Pyx_PyType_TryGetSubSlot(Py_TYPE(obj), sub, name, func_ctype)
-#if CYTHON_COMPILING_IN_LIMITED_API
+#if CYTHON_USE_TYPE_SLOTS
+  #define __Pyx_PyType_GetSlot(type, name, func_ctype)  ((type)->name)
+  #define __Pyx_PyType_TryGetSlot(type, name, func_ctype) __Pyx_PyType_GetSlot(type, name, func_ctype)
+  #define __Pyx_PyType_TryGetSubSlot(type, sub, name, func_ctype) (((type)->sub) ? ((type)->sub->name) : NULL)
+#else
   #define __Pyx_PyType_GetSlot(type, name, func_ctype)  ((func_ctype) PyType_GetSlot((type), Py_##name))
   #define __Pyx_PyType_TryGetSlot(type, name, func_ctype) \
     ((__PYX_LIMITED_VERSION_HEX >= 0x030A0000 || \
      (PyType_GetFlags(type) & Py_TPFLAGS_HEAPTYPE) || __Pyx_get_runtime_version() >= 0x030A0000) ? \
      __Pyx_PyType_GetSlot(type, name, func_ctype) : NULL)
   #define __Pyx_PyType_TryGetSubSlot(obj, sub, name, func_ctype) __Pyx_PyType_TryGetSlot(obj, name, func_ctype)
-#else
-  #define __Pyx_PyType_GetSlot(type, name, func_ctype)  ((type)->name)
-  #define __Pyx_PyType_TryGetSlot(type, name, func_ctype) __Pyx_PyType_GetSlot(type, name, func_ctype)
-  #define __Pyx_PyType_TryGetSubSlot(type, sub, name, func_ctype) (((type)->sub) ? ((type)->sub->name) : NULL)
 #endif
 
 #if CYTHON_COMPILING_IN_CPYTHON && PY_VERSION_HEX < 0x030d0000 || defined(_PyDict_NewPresized)
@@ -916,12 +934,14 @@ static CYTHON_INLINE PyObject * __Pyx_PyDict_GetItemStrWithError(PyObject *dict,
 #if CYTHON_USE_TYPE_SLOTS
   #define __Pyx_PyType_GetFlags(tp)   (((PyTypeObject *)tp)->tp_flags)
   #define __Pyx_PyType_HasFeature(type, feature)  ((__Pyx_PyType_GetFlags(type) & (feature)) != 0)
-  #define __Pyx_PyObject_GetIterNextFunc(obj)  (Py_TYPE(obj)->tp_iternext)
 #else
   #define __Pyx_PyType_GetFlags(tp)   (PyType_GetFlags((PyTypeObject *)tp))
   #define __Pyx_PyType_HasFeature(type, feature)  PyType_HasFeature(type, feature)
-  #define __Pyx_PyObject_GetIterNextFunc(obj)  PyIter_Next
 #endif
+
+// There is no replacement for "Py_TYPE(obj)->iternext" in the C-API.
+// PyIter_Next() discards the StopIteration, unlike Python's "next()".
+#define __Pyx_PyObject_GetIterNextFunc(iterator)  __Pyx_PyObject_GetSlot(iterator, tp_iternext, iternextfunc)
 
 #if CYTHON_USE_TYPE_SPECS && PY_VERSION_HEX >= 0x03080000
 // In Py3.8+, instances of heap types need to decref their type on deallocation.
@@ -1114,22 +1134,49 @@ static CYTHON_INLINE PyObject * __Pyx_PyDict_GetItemStrWithError(PyObject *dict,
 #define __Pyx_PyLong_FromHash_t PyLong_FromSsize_t
 #define __Pyx_PyLong_AsHash_t   __Pyx_PyIndex_AsSsize_t
 
-#if !CYTHON_USE_TYPE_SPECS
+
 // backport of PyAsyncMethods from Py3.10 to older Py3.x versions
-#if PY_VERSION_HEX >= 0x030A0000
-    #define __Pyx_PyAsyncMethodsStruct PyAsyncMethods
-    #define __Pyx_pyiter_sendfunc sendfunc
+#if __PYX_LIMITED_VERSION_HEX >= 0x030A0000
+    #define __Pyx_PySendResult PySendResult
 #else
-    // __Pyx_pyiter_sendfunc is currently unused and just in for future compatibility
-    typedef void (*__Pyx_pyiter_sendfunc)(void);
+    typedef enum {
+        PYGEN_RETURN = 0,
+        PYGEN_ERROR = -1,
+        PYGEN_NEXT = 1,
+    } __Pyx_PySendResult;
+#endif
+
+#if CYTHON_COMPILING_IN_LIMITED_API || PY_VERSION_HEX < 0x030A00A3
+  typedef __Pyx_PySendResult (*__Pyx_pyiter_sendfunc)(PyObject *iter, PyObject *value, PyObject **result);
+#else
+  #define __Pyx_pyiter_sendfunc sendfunc
+#endif
+
+// "Py_am_send" requires Py3.10 when using type specs.
+#define __PYX_HAS_PY_AM_SEND  (!CYTHON_USE_TYPE_SPECS || CYTHON_USE_AM_SEND && __PYX_LIMITED_VERSION_HEX >= 0x030A0000)
+
+#if __PYX_LIMITED_VERSION_HEX >= 0x030A0000
+    #define __Pyx_PyAsyncMethodsStruct PyAsyncMethods
+    #define __Pyx_SlotTpAsAsync(s) (&(s))
+#else
+    // PyAsyncMethods in Py<3.10 lacks "am_send"
     typedef struct {
         unaryfunc am_await;
         unaryfunc am_aiter;
         unaryfunc am_anext;
         __Pyx_pyiter_sendfunc am_send;
     } __Pyx_PyAsyncMethodsStruct;
+
+    #define __Pyx_SlotTpAsAsync(s) ((PyAsyncMethods*)&(s))
 #endif
+
+// Use a flag in Py < 3.10 to mark coroutines that have the "am_send" field.
+#if CYTHON_USE_AM_SEND && PY_VERSION_HEX < 0x030A00F0
+    #define __Pyx_TPFLAGS_HAVE_AM_SEND (1UL << 21)
+#else
+    #define __Pyx_TPFLAGS_HAVE_AM_SEND (0)
 #endif
+
 
 /////////////// IncludeStructmemberH.proto ///////////////
 //@proto_block: utility_code_proto_before_types
@@ -1177,11 +1224,19 @@ static CYTHON_INLINE int __Pyx_PyErr_GivenExceptionMatches2(PyObject *err, PyObj
 #define __Pyx_TypeCheck(obj, type) PyObject_TypeCheck(obj, (PyTypeObject *)type)
 #define __Pyx_TypeCheck2(obj, type1, type2) (PyObject_TypeCheck(obj, (PyTypeObject *)type1) || PyObject_TypeCheck(obj, (PyTypeObject *)type2))
 #define __Pyx_PyErr_GivenExceptionMatches(err, type) PyErr_GivenExceptionMatches(err, type)
-#define __Pyx_PyErr_GivenExceptionMatches2(err, type1, type2) (PyErr_GivenExceptionMatches(err, type1) || PyErr_GivenExceptionMatches(err, type2))
+static CYTHON_INLINE int __Pyx_PyErr_GivenExceptionMatches2(PyObject *err, PyObject *type1, PyObject *type2) {
+    return PyErr_GivenExceptionMatches(err, type1) || PyErr_GivenExceptionMatches(err, type2);
+}
 #endif
 #define __Pyx_PyErr_ExceptionMatches2(err1, err2)  __Pyx_PyErr_GivenExceptionMatches2(__Pyx_PyErr_CurrentExceptionType(), err1, err2)
 
 #define __Pyx_PyException_Check(obj) __Pyx_TypeCheck(obj, PyExc_Exception)
+#ifdef PyExceptionInstance_Check
+  #define __Pyx_PyBaseException_Check(obj) PyExceptionInstance_Check(obj)
+#else
+  #define __Pyx_PyBaseException_Check(obj) __Pyx_TypeCheck(obj, PyExc_BaseException)
+#endif
+
 
 /////////////// FastTypeChecks ///////////////
 //@requires: Exceptions.c::PyThreadStateGet

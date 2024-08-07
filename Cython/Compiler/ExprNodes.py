@@ -3094,10 +3094,12 @@ class IteratorNode(ScopedExprNode):
 
             # PyObject_GetIter() fails if "tp_iternext" is not set, but the check below
             # makes it visible to the C compiler that the pointer really isn't NULL, so that
-            # it can distinguish between the special cases and the generic case
-            code.putln("%s = __Pyx_PyObject_GetIterNextFunc(%s); %s" % (
-                self.iter_func_ptr, self.py_result(),
-                code.error_goto_if_null(self.iter_func_ptr, self.pos)))
+            # it can distinguish between the special cases and the generic case.
+            code.put(
+                f"{self.iter_func_ptr} = (CYTHON_COMPILING_IN_LIMITED_API) ? "
+                f"PyIter_Next : __Pyx_PyObject_GetIterNextFunc({self.py_result()}); "
+            )
+            code.putln(code.error_goto_if_null(self.iter_func_ptr, self.pos))
         if self.may_be_a_sequence:
             code.putln("}")
 
@@ -8459,8 +8461,10 @@ class SequenceNode(ExprNode):
         rhs.generate_disposal_code(code)
 
         iternext_func = code.funcstate.allocate_temp(self._func_iternext_type, manage_ref=False)
-        code.putln("%s = __Pyx_PyObject_GetIterNextFunc(%s);" % (
-            iternext_func, iterator_temp))
+        code.putln(
+            f"{iternext_func} = (CYTHON_COMPILING_IN_LIMITED_API) ? "
+            f"PyIter_Next : __Pyx_PyObject_GetIterNextFunc({iterator_temp});"
+        )
 
         unpacking_error_label = code.new_label('unpacking_failed')
         unpack_code = "%s(%s)" % (iternext_func, iterator_temp)
@@ -9093,7 +9097,7 @@ class InlinedGeneratorExpressionNode(ExprNode):
         return self
 
     def generate_result_code(self, code):
-        code.putln("%s = __Pyx_Generator_Next(%s); %s" % (
+        code.putln("%s = __Pyx_Generator_GetInlinedResult(%s); %s" % (
             self.result(), self.gen.result(),
             code.error_goto_if_null(self.result(), self.pos)))
         self.generate_gotref(code)
@@ -10543,41 +10547,46 @@ class _YieldDelegationExprNode(YieldExprNode):
     def generate_evaluation_code(self, code, source_cname=None, decref_source=False):
         if source_cname is None:
             self.arg.generate_evaluation_code(code)
-        code.putln("%s = %s(%s, %s);" % (
-            Naming.retval_cname,
+        result_temp = code.funcstate.allocate_temp(PyrexTypes.PySendResult_type, manage_ref=False)
+        code.putln("%s = %s(%s, %s, &%s);" % (
+            result_temp,
             self.yield_from_func(code),
             Naming.generator_cname,
-            self.arg.py_result() if source_cname is None else source_cname))
+            self.arg.py_result() if source_cname is None else source_cname,
+            Naming.retval_cname))
+
         if source_cname is None:
             self.arg.generate_disposal_code(code)
             self.arg.free_temps(code)
         elif decref_source:
             code.put_decref_clear(source_cname, py_object_type)
-        code.put_xgotref(Naming.retval_cname, py_object_type)
 
-        code.putln("if (likely(%s)) {" % Naming.retval_cname)
+        code.putln("if (likely(%s == PYGEN_NEXT)) {" % result_temp)
+        code.put_gotref(Naming.retval_cname, py_object_type)
+        code.funcstate.release_temp(result_temp)  # before generating the yield code
         self.generate_yield_code(code)
-        code.putln("} else {")
-        # either error or sub-generator has normally terminated: return value => node result
+        code.putln("} else if (likely(%s == PYGEN_RETURN)) {" % result_temp)
+        code.put_gotref(Naming.retval_cname, py_object_type)
         if self.result_is_used:
             self.fetch_iteration_result(code)
         else:
-            self.handle_iteration_exception(code)
+            code.put_decref_clear(Naming.retval_cname, py_object_type)
+        code.putln("} else {")
+        self.propagate_exception(code)
         code.putln("}")
+
+    def propagate_exception(self, code):
+        # YieldExprNode has allocated the result temp for us
+        code.put_xgotref(Naming.retval_cname, py_object_type)
+        code.putln(code.error_goto(self.pos))
 
     def fetch_iteration_result(self, code):
         # YieldExprNode has allocated the result temp for us
-        code.putln("%s = NULL;" % self.result())
-        code.put_error_if_neg(self.pos, "__Pyx_PyGen_FetchStopIterationValue(&%s)" % self.result())
-        self.generate_gotref(code)
-
-    def handle_iteration_exception(self, code):
-        code.putln("PyObject* exc_type = __Pyx_PyErr_CurrentExceptionType();")
-        code.putln("if (exc_type) {")
-        code.putln("if (likely(exc_type == PyExc_StopIteration || (exc_type != PyExc_GeneratorExit &&"
-                   " __Pyx_PyErr_GivenExceptionMatches(exc_type, PyExc_StopIteration)))) PyErr_Clear();")
-        code.putln("else %s" % code.error_goto(self.pos))
-        code.putln("}")
+        code.putln("%s = %s; %s = NULL;" % (
+            self.result(),
+            Naming.retval_cname,
+            Naming.retval_cname,
+        ))
 
 
 class YieldFromExprNode(_YieldDelegationExprNode):
@@ -10621,19 +10630,17 @@ class AwaitIterNextExprNode(AwaitExprNode):
     # Breaks out of loop on StopAsyncIteration exception.
 
     def _generate_break(self, code):
-        code.globalstate.use_utility_code(UtilityCode.load_cached("StopAsyncIteration", "Coroutine.c"))
         code.putln("PyObject* exc_type = __Pyx_PyErr_CurrentExceptionType();")
-        code.putln("if (unlikely(exc_type && (exc_type == __Pyx_PyExc_StopAsyncIteration || ("
+        code.putln("if (unlikely(exc_type && (exc_type == PyExc_StopAsyncIteration || ("
                    " exc_type != PyExc_StopIteration && exc_type != PyExc_GeneratorExit &&"
-                   " __Pyx_PyErr_GivenExceptionMatches(exc_type, __Pyx_PyExc_StopAsyncIteration))))) {")
+                   " __Pyx_PyErr_GivenExceptionMatches(exc_type, PyExc_StopAsyncIteration))))) {")
         code.putln("PyErr_Clear();")
         code.putln("break;")
         code.putln("}")
 
-    def fetch_iteration_result(self, code):
-        assert code.break_label, "AwaitIterNextExprNode outside of 'async for' loop"
+    def propagate_exception(self, code):
         self._generate_break(code)
-        super().fetch_iteration_result(code)
+        super().propagate_exception(code)
 
     def generate_sent_value_handling_code(self, code, value_cname):
         assert code.break_label, "AwaitIterNextExprNode outside of 'async for' loop"

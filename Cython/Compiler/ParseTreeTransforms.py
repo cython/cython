@@ -3306,6 +3306,7 @@ class MarkClosureVisitor(CythonTransform):
 
         gbody = Nodes.GeneratorBodyDefNode(
             pos=node.pos, name=node.name, body=node.body,
+            is_coroutine_body=node.is_async_def,
             is_async_gen_body=node.is_async_def and collector.has_yield)
         coroutine = coroutine_type(
             pos=node.pos, name=node.name, args=node.args,
