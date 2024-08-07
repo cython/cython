@@ -4977,7 +4977,7 @@ class OverrideCheckNode(StatNode):
             code.putln("else {")
         else:
             code.putln("else if (")
-            code.putln("#if !(CYTHON_USE_TYPE_SLOTS || CYTHON_COMPILING_IN_PYPY)")
+            code.putln("#if !CYTHON_USE_TYPE_SLOTS")
             # If CYTHON_USE_TYPE_SPECS then all extension types are heap-types so the check below automatically
             # passes and thus takes the slow route.
             # Therefore we do a less thorough check - if the type hasn't changed then clearly it hasn't

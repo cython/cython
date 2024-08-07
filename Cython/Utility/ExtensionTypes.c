@@ -146,7 +146,7 @@ static int __Pyx_validate_bases_tuple(const char *type_name, Py_ssize_t dictoffs
         if (dictoffset == 0)
         {
             Py_ssize_t b_dictoffset = 0;
-#if CYTHON_USE_TYPE_SLOTS || CYTHON_COMPILING_IN_PYPY
+#if CYTHON_USE_TYPE_SLOTS
             b_dictoffset = b->tp_dictoffset;
 #else
             PyObject *py_b_dictoffset = PyObject_GetAttrString((PyObject*)b, "__dictoffset__");
@@ -166,7 +166,7 @@ static int __Pyx_validate_bases_tuple(const char *type_name, Py_ssize_t dictoffs
                         type_name, b_name);
                     __Pyx_DECREF_TypeName(b_name);
                 }
-#if !(CYTHON_USE_TYPE_SLOTS || CYTHON_COMPILING_IN_PYPY)
+#if !CYTHON_USE_TYPE_SLOTS
               dictoffset_return:
 #endif
 #if CYTHON_AVOID_BORROWED_REFS
@@ -555,7 +555,7 @@ __PYX_GOOD:
 
 static CYTHON_INLINE PyObject *{{func_name}}_maybe_call_slot(PyTypeObject* type, PyObject *left, PyObject *right {{extra_arg_decl}}) {
     {{slot_type}} slot;
-#if CYTHON_USE_TYPE_SLOTS || CYTHON_COMPILING_IN_PYPY
+#if CYTHON_USE_TYPE_SLOTS
     slot = type->tp_as_number ? type->tp_as_number->{{slot_name}} : NULL;
 #else
     slot = ({{slot_type}}) PyType_GetSlot(type, Py_{{slot_name}});
@@ -712,7 +712,7 @@ static Py_ssize_t __Pyx_GetTypeDictOffset(void) {
     } else if (unlikely(tp_dictoffset < 0)) {
         // This isn't completely future proof. dictoffset can be
         // negative, but isn't in Python <=3.13 (current at time
-        // of writing).  It's awkward to calculate in the limited 
+        // of writing).  It's awkward to calculate in the limited
         // API because we need to know the object size.  For now
         // just raise an error and fix it if it every changes.
         PyErr_SetString(
