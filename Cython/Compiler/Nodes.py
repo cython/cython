@@ -1265,6 +1265,8 @@ class TemplatedTypeNode(CBaseTypeNode):
             require_optional_types = False
 
         for i, ttype in enumerate(template_types):
+            if ttype is None:
+                continue
             if require_python_types and not ttype.is_pyobject or require_optional_types and not ttype.can_be_optional():
                 if ttype.equivalent_type and not template_node.as_cython_attribute():
                     template_types[i] = ttype.equivalent_type
