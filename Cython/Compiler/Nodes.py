@@ -1258,8 +1258,11 @@ class TemplatedTypeNode(CBaseTypeNode):
                 # For Python generics we can be a bit more flexible and allow None.
             template_types.append(ttype)
 
-        require_optional_types = base_type.python_type_constructor_name and (
-                base_type.modifier_name == 'typing.Optional' or (base_type.modifier_name == 'typing.Union' and PyrexTypes.py_none_type in template_types))
+        if base_type.python_type_constructor_name:
+            base_type.contains_none = PyrexTypes.py_none_type in template_types
+            require_optional_types = base_type.is_optional()
+        else:
+            require_optional_types = False
 
         for i, ttype in enumerate(template_types):
             if require_python_types and not ttype.is_pyobject or require_optional_types and not ttype.can_be_optional():

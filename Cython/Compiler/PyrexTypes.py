@@ -4707,12 +4707,12 @@ class PythonTypeConstructorMixin:
     """Used to help Cython interpret indexed types from the typing module (or similar)
     """
     modifier_name = None
-    nested_types = None
+    contains_none = False
 
     def is_optional(self):
         return (
             self.modifier_name == 'typing.Optional' or (
-            self.modifier_name == 'typing.Union' and self.nested_types and py_none_type in self.nested_types)
+            self.modifier_name == 'typing.Union' and self.contains_none)
         )
 
     def set_python_type_constructor_name(self, name):
@@ -4763,7 +4763,6 @@ class SpecialPythonTypeConstructor(PyObjectType, PythonTypeConstructorMixin):
         super().__init__()
         self.set_python_type_constructor_name(name)
         self.modifier_name = name
-        self.nested_types = []
 
     def __repr__(self):
         return self.name
@@ -4773,7 +4772,7 @@ class SpecialPythonTypeConstructor(PyObjectType, PythonTypeConstructorMixin):
 
     def specialize_here(self, pos, env, template_values=None):
         if py_none_type in template_values:
-            self.nested_types.append(py_none_type)
+            self.contains_none = True
         template_values = [tv for tv in template_values if tv != py_none_type]
         if len(template_values) != 1:
             error(pos, "'%s' takes exactly one template argument." % self.name)
@@ -4782,7 +4781,6 @@ class SpecialPythonTypeConstructor(PyObjectType, PythonTypeConstructorMixin):
             # FIXME: allowing unknown types for now since we don't recognise all Python types.
             return None
         n = template_values[0].resolve()
-        self.nested_types.append(n)
         return n
 
 class PyNoneType(BuiltinObjectType):

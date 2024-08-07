@@ -58,6 +58,7 @@ _ERRORS = """
 
 28:20: Modifier 'typing.ClassVar' is not allowed here.
 
+30:29: typing.Union[...] cannot be applied to type int
 30:50: typing.Union[...] cannot be applied to type float
-30:90: typing.Union[...] cannot be applied to type long
+30:96: typing.Union[...] cannot be applied to type long
 """
