@@ -3119,19 +3119,16 @@ class IteratorNode(ScopedExprNode):
             inc_dec = '--'
         else:
             inc_dec = '++'
-        if test_name == 'List':
-            getitem = "__Pyx_PyList_GetItemRef"
-            incref = "__Pyx_GOTREF"
-        else:  # Tuple
-            getitem = "PyTuple_GET_ITEM"
-            incref = "__Pyx_INCREF"
         code.putln("#if CYTHON_ASSUME_SAFE_MACROS && !CYTHON_AVOID_BORROWED_REFS")
-        code.putln(
-            f"{result_name} = {getitem}({self.py_result()}, {self.counter_cname}); "
-            f"{incref}({result_name}); "
-            f"{self.counter_cname}{inc_dec}; "
-            # Use the error label to avoid C compiler warnings if we only use it below.
-            f"{code.error_goto_if_neg('0', self.pos)}")
+        if test_name == 'List':
+            code.putln(f"{result_name} = __Pyx_PyList_GetItemRef({self.py_result()}, {self.counter_cname});")
+            code.putln(code.error_goto_if_null(result_name, self.pos))
+            code.putln(f"__Pyx_GOTREF({result_name})")
+        else:  # Tuple
+            code.putln(f"{result_name} = PyTuple_GET_ITEM({self.py_result()}, {self.counter_cname});")
+            code.putln(code.error_goto_if_neg('0', self.pos))  # Use the error label to avoid C compiler warnings if we only use it below.
+            code.putln(f"__Pyx_INCREF({result_name})")
+        code.putln(f"{self.counter_cname}{inc_dec};")
         code.putln("#else")
         code.putln(
             "%s = __Pyx_PySequence_ITEM(%s, %s); %s%s; %s" % (
@@ -8376,6 +8373,7 @@ class SequenceNode(ExprNode):
         for i, item in enumerate(self.unpacked_items):
             if sequence_types[0] == "List":
                 code.putln(f"{item.result()} = __Pyx_PyList_GetItemRef(sequence, {i});")
+                code.putln(code.error_goto_if_null(item.result(), self.pos))
                 code.put_xgotref(item.result(), item.ctype())
             else:  # Tuple
                 code.putln(f"{item.result()} = PyTuple_GET_ITEM(sequence, {i});")
@@ -8385,6 +8383,7 @@ class SequenceNode(ExprNode):
             for i, item in enumerate(self.unpacked_items):
                 if sequence_types[1] == "List":
                     code.putln(f"{item.result()} = __Pyx_PyList_GetItemRef(sequence, {i});")
+                    code.putln(code.error_goto_if_null(item.result(), self.pos))
                     code.put_xgotref(item.result(), item.ctype())
                 else:  # Tuple
                     code.putln(f"{item.result()} = PyTuple_GET_ITEM(sequence, {i});")
