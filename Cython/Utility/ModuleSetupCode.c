@@ -80,6 +80,8 @@
   #define CYTHON_USE_PYLONG_INTERNALS 0
   #undef CYTHON_AVOID_BORROWED_REFS
   #define CYTHON_AVOID_BORROWED_REFS 1
+  #undef CYTHON_AVOID_THREAD_UNSAFE_BORROWED_REFS
+  #define CYTHON_AVOID_THREAD_UNSAFE_BORROWED_REFS 1
   #undef CYTHON_ASSUME_SAFE_MACROS
   #define CYTHON_ASSUME_SAFE_MACROS 0
   #undef CYTHON_ASSUME_SAFE_SIZE
@@ -140,6 +142,8 @@
   #define CYTHON_USE_PYLONG_INTERNALS 0
   #undef CYTHON_AVOID_BORROWED_REFS
   #define CYTHON_AVOID_BORROWED_REFS 1
+  #undef CYTHON_AVOID_THREAD_UNSAFE_BORROWED_REFS
+  #define CYTHON_AVOID_THREAD_UNSAFE_BORROWED_REFS 1
   #undef CYTHON_ASSUME_SAFE_MACROS
   #define CYTHON_ASSUME_SAFE_MACROS 0
   #ifndef CYTHON_ASSUME_SAFE_SIZE
@@ -215,6 +219,9 @@
   #define CYTHON_USE_PYLONG_INTERNALS 0
   #ifndef CYTHON_AVOID_BORROWED_REFS
     #define CYTHON_AVOID_BORROWED_REFS 0
+  #endif
+  #ifndef CYTHON_AVOID_THREAD_UNSAFE_BORROWED_REFS
+    #define CYTHON_AVOID_THREAD_UNSAFE_BORROWED_REFS 0
   #endif
   #undef CYTHON_ASSUME_SAFE_MACROS
   #define CYTHON_ASSUME_SAFE_MACROS 0
@@ -304,6 +311,13 @@
   // CYTHON_AVOID_BORROWED_REFS - Avoid borrowed references and always request owned references directly instead.
   #ifndef CYTHON_AVOID_BORROWED_REFS
     #define CYTHON_AVOID_BORROWED_REFS 0
+  #endif
+  // CYTHON_AVOID_THREAD_UNSAFE_BORROWED_REFS - Avoid borrowed references that are not thread-safe in the free-threaded build of CPython.
+  #if CYTHON_COMPILING_IN_CPYTHON_FREETHREADING
+    #undef CYTHON_AVOID_THREAD_UNSAFE_BORROWED_REFS
+    #define CYTHON_AVOID_THREAD_UNSAFE_BORROWED_REFS 1
+  #elif !defined(CYTHON_AVOID_THREAD_UNSAFE_BORROWED_REFS)
+    #define CYTHON_AVOID_THREAD_UNSAFE_BORROWED_REFS 0
   #endif
   // CYTHON_ASSUME_SAFE_MACROS - Assume that macro calls do not fail and do not raise exceptions.
   #ifndef CYTHON_ASSUME_SAFE_MACROS
@@ -1054,6 +1068,38 @@ static CYTHON_INLINE PyObject * __Pyx_PyDict_GetItemStrWithError(PyObject *dict,
 #else
   #define __Pyx_SET_REFCNT(obj, refcnt) Py_REFCNT(obj) = (refcnt)
   #define __Pyx_SET_SIZE(obj, size) Py_SIZE(obj) = (size)
+#endif
+
+#if CYTHON_AVOID_THREAD_UNSAFE_BORROWED_REFS && PY_VERSION_HEX >= 0x030d00b1
+#define __Pyx_PyList_GetItemRef(o, i) PyList_GetItemRef(o, i)
+#define __Pyx_PyDict_GetItemRef(dict, key, result) PyDict_GetItemRef(dict, key, result)
+#elif !CYTHON_AVOID_BORROWED_REFS
+
+#if CYTHON_ASSUME_SAFE_MACROS
+#define __Pyx_PyList_GetItemRef(o, i) __Pyx_NewRef(PyList_GET_ITEM(o, i))
+#else
+#define __Pyx_PyList_GetItemRef(o, i) PySequence_GetItem(o, i)
+#endif
+
+static CYTHON_INLINE int __Pyx_PyDict_GetItemRef(PyObject *dict, PyObject *key, PyObject **result) {
+  *result = PyDict_GetItem(dict, key);
+  if (*result == NULL) {
+    return 0;
+  }
+  Py_INCREF(*result);
+  return 1;
+}
+#else
+#define __Pyx_PyList_GetItemRef(o, i) PySequence_GetItem(o, i)
+static CYTHON_INLINE int __Pyx_PyDict_GetItemRef(PyObject *dict, PyObject *key, PyObject **result) {
+  *result = PyObject_GetItem(dict, key);
+  if (PyErr_Occurred()) {
+    return -1;
+  } else if (*result == NULL) {
+    return 0;
+  }
+  return 1;
+}
 #endif
 
 // No-op macro for calling Py_VISIT() on known constants that can never participate in reference cycles.

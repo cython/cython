@@ -479,7 +479,7 @@ static PyObject *__Pyx_GetItemInt_Generic(PyObject *o, PyObject* j) {
 static CYTHON_INLINE PyObject *__Pyx_GetItemInt_{{type}}_Fast(PyObject *o, Py_ssize_t i,
                                                               CYTHON_NCP_UNUSED int wraparound,
                                                               CYTHON_NCP_UNUSED int boundscheck) {
-#if CYTHON_ASSUME_SAFE_MACROS && CYTHON_ASSUME_SAFE_SIZE && !CYTHON_AVOID_BORROWED_REFS
+#if CYTHON_ASSUME_SAFE_MACROS && CYTHON_ASSUME_SAFE_SIZE && !CYTHON_AVOID_BORROWED_REFS{{if type == 'List'}} && !CYTHON_AVOID_THREAD_UNSAFE_BORROWED_REFS{{endif}}
     Py_ssize_t wrapped_i = i;
     if (wraparound & unlikely(i < 0)) {
         wrapped_i += Py{{type}}_GET_SIZE(o);
@@ -503,9 +503,7 @@ static CYTHON_INLINE PyObject *__Pyx_GetItemInt_Fast(PyObject *o, Py_ssize_t i, 
     if (is_list || PyList_CheckExact(o)) {
         Py_ssize_t n = ((!wraparound) | likely(i >= 0)) ? i : i + PyList_GET_SIZE(o);
         if ((!boundscheck) || (likely(__Pyx_is_valid_index(n, PyList_GET_SIZE(o))))) {
-            PyObject *r = PyList_GET_ITEM(o, n);
-            Py_INCREF(r);
-            return r;
+            return __Pyx_PyList_GetItemRef(o, n);
         }
     }
     else if (PyTuple_CheckExact(o)) {
@@ -579,10 +577,14 @@ static CYTHON_INLINE int __Pyx_SetItemInt_Fast(PyObject *o, Py_ssize_t i, PyObje
     if (is_list || PyList_CheckExact(o)) {
         Py_ssize_t n = (!wraparound) ? i : ((likely(i >= 0)) ? i : i + PyList_GET_SIZE(o));
         if ((!boundscheck) || likely(__Pyx_is_valid_index(n, PyList_GET_SIZE(o)))) {
-            PyObject* old = PyList_GET_ITEM(o, n);
             Py_INCREF(v);
+#if CYTHON_AVOID_THREAD_UNSAFE_BORROWED_REFS
+            PyList_SetItem(o, n, v);
+#else
+            PyObject* old = PyList_GET_ITEM(o, n);
             PyList_SET_ITEM(o, n, v);
             Py_DECREF(old);
+#endif
             return 1;
         }
     } else {
@@ -1476,9 +1478,15 @@ static CYTHON_INLINE PyObject *__Pyx__GetModuleGlobalName(PyObject *name)
 #endif
 {
     PyObject *result;
-// FIXME: clean up the macro guard order here: limited API first, then borrowed refs, then cpython
-#if !CYTHON_AVOID_BORROWED_REFS
-#if CYTHON_COMPILING_IN_CPYTHON && PY_VERSION_HEX < 0x030d0000
+#if CYTHON_COMPILING_IN_LIMITED_API
+    if (unlikely(!$module_cname)) {
+        return NULL;
+    }
+    result = PyObject_GetAttr($module_cname, name);
+    if (likely(result)) {
+        return result;
+    }
+#elif !CYTHON_AVOID_BORROWED_REFS && !CYTHON_AVOID_THREAD_UNSAFE_BORROWED_REFS
     // Identifier names are always interned and have a pre-calculated hash value.
     result = _PyDict_GetItem_KnownHash($moddict_cname, name, ((PyASCIIObject *) name)->hash);
     __PYX_UPDATE_DICT_CACHE($moddict_cname, result, *dict_cached_value, *dict_version)
@@ -1487,21 +1495,12 @@ static CYTHON_INLINE PyObject *__Pyx__GetModuleGlobalName(PyObject *name)
     } else if (unlikely(PyErr_Occurred())) {
         return NULL;
     }
-#elif CYTHON_COMPILING_IN_LIMITED_API
-    if (unlikely(!$module_cname)) {
-        return NULL;
-    }
-    result = PyObject_GetAttr($module_cname, name);
+#elif !CYTHON_AVOID_BORROWED_REFS
+    if (unlikely(__Pyx_PyDict_GetItemRef($moddict_cname, name, &result) == -1)) PyErr_Clear();
+    __PYX_UPDATE_DICT_CACHE($moddict_cname, result, *dict_cached_value, *dict_version)
     if (likely(result)) {
         return result;
     }
-#else
-    result = PyDict_GetItem($moddict_cname, name);
-    __PYX_UPDATE_DICT_CACHE($moddict_cname, result, *dict_cached_value, *dict_version)
-    if (likely(result)) {
-        return __Pyx_NewRef(result);
-    }
-#endif
 #else
     result = PyObject_GetItem($moddict_cname, name);
     __PYX_UPDATE_DICT_CACHE($moddict_cname, result, *dict_cached_value, *dict_version)
