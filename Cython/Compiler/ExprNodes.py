@@ -3123,11 +3123,11 @@ class IteratorNode(ScopedExprNode):
         if test_name == 'List':
             code.putln(f"{result_name} = __Pyx_PyList_GetItemRef({self.py_result()}, {self.counter_cname});")
             code.putln(code.error_goto_if_null(result_name, self.pos))
-            code.putln(f"__Pyx_GOTREF({result_name})")
+            code.putln(f"__Pyx_GOTREF({result_name});")
         else:  # Tuple
             code.putln(f"{result_name} = PyTuple_GET_ITEM({self.py_result()}, {self.counter_cname});")
             code.putln(code.error_goto_if_neg('0', self.pos))  # Use the error label to avoid C compiler warnings if we only use it below.
-            code.putln(f"__Pyx_INCREF({result_name})")
+            code.putln(f"__Pyx_INCREF({result_name});")
         code.putln(f"{self.counter_cname}{inc_dec};")
         code.putln("#else")
         code.putln(
