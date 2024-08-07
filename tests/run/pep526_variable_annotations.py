@@ -307,6 +307,13 @@ def test_optional_ctuple(x: typing.Optional[tuple[float]]):
     """
     print(cython.typeof(x) + (" object" if not cython.compiled else ""))
 
+def test_union_ctuple(x: typing.Union[tuple[float], None]):
+    """
+    Should not be a C-tuple (because these can't be optional)
+    >>> test_union_ctuple((1.0,))
+    tuple object
+    """
+    print(cython.typeof(x) + (" object" if not cython.compiled else ""))
 
 try:
     import numpy.typing as npt

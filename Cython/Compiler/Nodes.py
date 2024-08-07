@@ -1242,7 +1242,6 @@ class TemplatedTypeNode(CBaseTypeNode):
     name = None
 
     def _analyse_template_types(self, env, base_type):
-        require_optional_types = base_type.python_type_constructor_name and base_type.is_optional()
         require_python_types = base_type.python_type_constructor_name == 'dataclasses.ClassVar'
 
         in_c_type_context = env.in_c_type_context and not require_python_types
@@ -1257,16 +1256,22 @@ class TemplatedTypeNode(CBaseTypeNode):
                     error(template_node.pos, "unknown type in template argument")
                     ttype = error_type
                 # For Python generics we can be a bit more flexible and allow None.
-            elif require_python_types and not ttype.is_pyobject or require_optional_types and not ttype.can_be_optional():
+            template_types.append(ttype)
+
+        require_optional_types = base_type.python_type_constructor_name and (
+                base_type.modifier_name == 'typing.Optional' or (base_type.modifier_name == 'typing.Union' and PyrexTypes.py_none_type in template_types))
+
+        for i, ttype in enumerate(template_types):
+            if require_python_types and not ttype.is_pyobject or require_optional_types and not ttype.can_be_optional():
                 if ttype.equivalent_type and not template_node.as_cython_attribute():
-                    ttype = ttype.equivalent_type
+                    template_types[i] = ttype.equivalent_type
                 else:
                     error(template_node.pos, "%s[...] cannot be applied to type %s" % (
                         base_type.python_type_constructor_name,
                         ttype,
                     ))
-                    ttype = error_type
-            template_types.append(ttype)
+                    template_types[i] = error_type
+
 
         return template_types
 
