@@ -41,3 +41,20 @@ from cython cimport warn as my_warn
 @my_warn(undeclared=True)
 def j():
     pass
+
+from cython.cython_3_1 cimport cfunc as cf
+@cf
+def my_cfunc():
+    pass
+
+cimport cython.cython_3_1
+
+@cython.cython_3_1.cfunc
+def my_second_cfunc():
+    pass
+
+cimport cython.cython_3_1 as other_cython
+
+@other_cython.cfunc
+def my_third_cfunc():
+    pass

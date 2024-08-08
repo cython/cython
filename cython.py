@@ -18,8 +18,16 @@ if not TYPE_CHECKING and __name__ == '__main__':
     cythonpath, _ = os.path.split(os.path.realpath(__file__))
     sys.path.insert(0, cythonpath)
 
-    from Cython.Compiler.Main import main
-    main(command_line = 1)
+    try:
+        from Cython.Compiler.Main import main
+    except ImportError:
+        print(
+            "Cython.Compiler.Main import failed. You likely only have the "
+            "standalone pure-Python imports from Cython_shadow installed",
+            file=sys.stderr)
+        exit(1)
+    else:
+        main(command_line = 1)
 
 else:
     # Void cython.* directives.
