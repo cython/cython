@@ -106,8 +106,8 @@ cdef extern from *:
     void Py_INCREF(object o)
     tuple PyTuple_New(Py_ssize_t size)
     list PyList_New(Py_ssize_t size)
-    void PyTuple_SET_ITEM(object  p, Py_ssize_t pos, object o)
-    void PyList_SET_ITEM(object  p, Py_ssize_t pos, object o)
+    int __Pyx_PyTuple_SET_ITEM(object  p, Py_ssize_t pos, object o) except -1
+    int __Pyx_PyList_SET_ITEM(object  p, Py_ssize_t pos, object o) except -1
 
 
 @cname("{{cname}}")
@@ -118,7 +118,7 @@ cdef inline list {{cname}}({{base_type}} *v, Py_ssize_t length):
     for i in range(<size_t>length):
         value = v[i]
         Py_INCREF(value)
-        PyList_SET_ITEM(l, i, value)
+        __Pyx_PyList_SET_ITEM(l, i, value)
     return l
 
 
@@ -130,5 +130,5 @@ cdef inline tuple {{to_tuple_cname}}({{base_type}} *v, Py_ssize_t length):
     for i in range(<size_t>length):
         value = v[i]
         Py_INCREF(value)
-        PyTuple_SET_ITEM(t, i, value)
+        __Pyx_PyTuple_SET_ITEM(t, i, value)
     return t
