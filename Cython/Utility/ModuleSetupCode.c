@@ -1155,22 +1155,7 @@ static CYTHON_INLINE int __Pyx_PyDict_GetItemRef(PyObject *dict, PyObject *key, 
   }
 #endif
 
-// TODO: remove this block
-#define PyIntObject                  PyLongObject
-#define PyInt_Type                   PyLong_Type
-#define PyInt_Check(op)              PyLong_Check(op)
-#define PyInt_CheckExact(op)         PyLong_CheckExact(op)
-#define PyInt_FromString             PyLong_FromString
-#define PyInt_FromUnicode            PyLong_FromUnicode
-#define PyInt_FromLong               PyLong_FromLong
-#define PyInt_FromSize_t             PyLong_FromSize_t
-#define PyInt_FromSsize_t            PyLong_FromSsize_t
-#define PyInt_AsLong                 PyLong_AsLong
-#define PyInt_AS_LONG                PyLong_AS_LONG
-#define PyInt_AsSsize_t              PyLong_AsSsize_t
-#define PyInt_AsUnsignedLongMask     PyLong_AsUnsignedLongMask
-#define PyInt_AsUnsignedLongLongMask PyLong_AsUnsignedLongLongMask
-#define PyNumber_Int                 PyNumber_Long
+// TODO: remove
 #define PyBoolObject                 PyLongObject
 
 #if CYTHON_COMPILING_IN_PYPY && !defined(PyUnicode_InternFromString)
