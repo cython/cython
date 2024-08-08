@@ -847,7 +847,8 @@ class PrintTree(TreeVisitor):
             elif isinstance(node, Nodes.DefNode):
                 result += "(name=\"%s\")" % node.name
             elif isinstance(node, Nodes.CFuncDefNode):
-                result += "(name=\"%s\")" % node.declared_name()
+                result += "(name=\"%s\", type=\"%s\")" % (
+                    node.declared_name(), getattr(node, "type", None))
             elif isinstance(node, ExprNodes.AttributeNode):
                 result += "(type=%s, attribute=\"%s\")" % (repr(node.type), node.attribute)
             elif isinstance(node, (ExprNodes.ConstNode, ExprNodes.PyConstNode)):
