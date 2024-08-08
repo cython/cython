@@ -29,6 +29,10 @@ Features added
 * Function calls now use the PEP-590 Vectorcall protocol, even when passing keyword arguments.
   (Github issues :issue:`5804`)
 
+* Coroutines now use the ``am_send`` slot function instead of going through a Python ``.send()`` call.
+  This has been backported for Python 3.7 - 3.9.
+  (Github issues :issue:`4585`)
+
 * ``__set_name__`` is called when assigning to class attributes.
   (Github issue :issue:`6179`)
 
@@ -140,6 +144,10 @@ Other changes
 
 * Support for Python 2.7 - 3.6 was removed, along with large chunks of legacy code.
   (Github issue :issue:`2800`)
+
+* The pxd files ``cpython.int``, ``cpython.cobject`` and ``cpython.oldbuffer`` were
+  removed as they refer to C-API declarations that are only in Python 2.x.
+  (Github issue :issue:`5870`)
 
 * The generated C code now requires a C99 compatible C compiler.
 
