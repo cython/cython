@@ -9,7 +9,7 @@ import operator
 import math
 
 from ..Utils import try_finally_contextmanager
-from .Errors import warning, error, InternalError, performance_hint
+from .Errors import warning, error, InternalError, local_errors, performance_hint
 from .StringEncoding import EncodedString
 from . import Options, Naming
 from . import PyrexTypes
@@ -521,24 +521,29 @@ class Scope:
             # If we redefine a C++ class method which is either inherited
             # or automatically generated (base constructor), then it's fine.
             # Otherwise, we shout.
-            for alt_entry in old_entry.all_alternatives():
-                if type.compatible_signature_with(alt_entry.type):
-                    if name == '<init>' and not type.args:
-                        # Cython pre-declares the no-args constructor - allow later user definitions.
-                        cpp_override_allowed = True
-                    elif alt_entry.is_inherited:
-                        # Note that we can override an inherited method with a compatible but not exactly equal signature, as in C++.
-                        cpp_override_allowed = True
-                    if cpp_override_allowed:
-                        # A compatible signature doesn't mean the exact same signature,
-                        # so we're taking the new signature for the entry.
-                        alt_entry.type = type
-                        alt_entry.is_inherited = False
-                        # Updating the entry attributes which can be modified in the method redefinition.
-                        alt_entry.cname = cname
-                        alt_entry.pos = pos
-                        entry = alt_entry
-                    break
+            alt_entry = None
+            arg_types = [arg.type for arg in old_entry.type.args]
+            with local_errors():
+                alt_entry = PyrexTypes.best_match(
+                    arg_types, old_entry.all_alternatives())
+            # best_match is a slightly looser check than compatible_signature_with
+            # so check both.
+            if alt_entry and type.compatible_signature_with(alt_entry.type):
+                if name == '<init>' and not type.args:
+                    # Cython pre-declares the no-args constructor - allow later user definitions.
+                    cpp_override_allowed = True
+                elif alt_entry.is_inherited:
+                    # Note that we can override an inherited method with a compatible but not exactly equal signature, as in C++.
+                    cpp_override_allowed = True
+                if cpp_override_allowed:
+                    # A compatible signature doesn't mean the exact same signature,
+                    # so we're taking the new signature for the entry.
+                    alt_entry.type = type
+                    alt_entry.is_inherited = False
+                    # Updating the entry attributes which can be modified in the method redefinition.
+                    alt_entry.cname = cname
+                    alt_entry.pos = pos
+                    entry = alt_entry
             else:
                 cpp_override_allowed = True
 
