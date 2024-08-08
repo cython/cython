@@ -514,15 +514,31 @@ NULL = gs['p_void'](0)
 del gs
 
 
+import functools
+@functools.lru_cache()
 def __getattr__(name):
-    # looks like 'gs' has some users out there by now...
+    """Allows dynamic attribute access at the module level in Python 3.7+.
+
+    Enables infinite pointer depth based on name
+    e.g. ``pppppppp_int`` (old limit is 3 levels deep e.g. ``ppp_int``).
+    """
     if name == 'gs':
+        # looks like 'gs' has some users out there by now...
         import warnings
         warnings.warn(
             "'gs' is not a publicly exposed name in cython.*. Use vars() or globals() instead.",
             DeprecationWarning)
         return globals()
+
+    import re
+    match = re.match('^(p+)_([a-zA-Z0-9_]+)$', name)
+    if match:
+        depth, type_name = match.groups()
+        if name_type in gs and name_type in int_types + float_types + complex_types + other_types:
+            return gs[type_name]._pointer(len(depth))
+
     raise AttributeError(f"'cython' has no attribute {name!r}")
+del functools
 
 
 integral = floating = numeric = _FusedType()
@@ -611,4 +627,4 @@ sys.modules['cython.cimports'] = CythonCImports('cython.cimports', libc=sys.modu
 # In pure Python mode @cython.dataclasses.dataclass and dataclass field should just
 # shadow the standard library ones (if they are available)
 dataclasses = sys.modules['cython.dataclasses'] = CythonDotImportedFromElsewhere('dataclasses')
-del math, sys
+del math, sy
