@@ -4780,8 +4780,8 @@ class SpecialPythonTypeConstructor(PyObjectType, PythonTypeConstructorMixin):
         if template_values[0] is None:
             # FIXME: allowing unknown types for now since we don't recognise all Python types.
             return None
-        n = template_values[0].resolve()
-        return n
+        # Replace this type with the actual 'template' argument.
+        return template_values[0].resolve()
 
 class PyNoneType(BuiltinObjectType):
 
