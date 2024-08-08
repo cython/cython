@@ -472,23 +472,14 @@ def create_default_resultobj(compilation_source, options):
     result.embedded_metadata = options.embedded_metadata
     return result
 
-
-def run_pipeline(source, options, full_module_name=None, context=None):
-    from . import Pipeline
-
-    source_ext = os.path.splitext(source)[1]
-    options.configure_language_defaults(source_ext[1:])  # py/pyx
-    if context is None:
-        context = Context.from_options(options)
-
-    # Set up source object
+def setup_source_object(source, source_ext, full_module_name, options, context):
     cwd = os.getcwd()
     abs_path = os.path.abspath(source)
+
     full_module_name = full_module_name or context.extract_module_name(source, options)
     full_module_name = EncodedString(full_module_name)
 
     Utils.raise_error_if_module_name_forbidden(full_module_name)
-
     if options.relative_path_in_code_position_comments:
         rel_path = full_module_name.replace('.', os.sep) + source_ext
         if not abs_path.endswith(rel_path):
@@ -496,8 +487,51 @@ def run_pipeline(source, options, full_module_name=None, context=None):
     else:
         rel_path = abs_path
     source_desc = FileSourceDescriptor(abs_path, rel_path)
-    source = CompilationSource(source_desc, full_module_name, cwd)
+    return CompilationSource(source_desc, full_module_name, cwd)
 
+def run_cached_pipeline(source, options, full_module_name=None, context=None, cache=None, fingerprint=None):
+
+    if context is None:
+        context = Context.from_options(options)
+
+    if cache:
+        if not fingerprint:
+            fingerprint = get_fingerprint(cache, source, options)
+        cwd = os.getcwd()
+        output_filename = get_output_filename(source, cwd, options)
+        cached = cache.lookup_cache(output_filename, fingerprint)
+    else:
+        cached = False
+    if cache and cached:
+        if options.verbose:
+            sys.stderr.write(f'Found compiled {os.path.basename(output_filename)} in cache.\n')
+        cache.load_from_cache(output_filename, cached)
+
+        source_ext = os.path.splitext(source)[1]
+        options.configure_language_defaults(source_ext[1:])  # py/pyx
+
+        source = setup_source_object(source, source_ext, full_module_name, options, context)
+        # Set up result object
+        return create_default_resultobj(source, options)
+    else:
+        result = run_pipeline(source, options, full_module_name, context)
+        if cache and fingerprint:
+            cache.store_to_cache(output_filename, fingerprint, result)
+    return result
+
+
+
+def run_pipeline(source, options, full_module_name=None, context=None):
+    from . import Pipeline
+    if options.verbose:
+        sys.stderr.write("Compiling %s\n" % source)
+    source_ext = os.path.splitext(source)[1]
+    abs_path = os.path.abspath(source)
+    options.configure_language_defaults(source_ext[1:])  # py/pyx
+    if context is None:
+        context = Context.from_options(options)
+
+    source = setup_source_object(source, source_ext, full_module_name, options, context)
     # Set up result object
     result = create_default_resultobj(source, options)
 
@@ -517,8 +551,8 @@ def run_pipeline(source, options, full_module_name=None, context=None):
 
     context.setup_errors(options, result)
 
-    if '.' in full_module_name and '.' in os.path.splitext(os.path.basename(abs_path))[0]:
-        warning((source_desc, 1, 0),
+    if '.' in source.full_module_name and '.' in os.path.splitext(os.path.basename(abs_path))[0]:
+        warning((source.source_desc, 1, 0),
                 "Dotted filenames ('%s') are deprecated."
                 " Please use the normal Python package directory layout." % os.path.basename(abs_path), level=1)
     if re.search("[.]c(pp|[+][+]|xx)$", result.c_file, re.RegexFlag.IGNORECASE) and not context.cpp:
@@ -575,6 +609,7 @@ class CompilationResult:
     object_file = None
     extension_file = None
     main_source_file = None
+    num_errors = 0
 
     def get_generated_source_files(self):
         return [
@@ -598,24 +633,36 @@ class CompilationResultSet(dict):
         self[source] = result
         self.num_errors += result.num_errors
 
+def get_fingerprint(cache, source, options):
+        from ..Build.Dependencies import create_dependency_tree
+        from ..Build.Cache import FingerprintFlags
+        context = Context.from_options(options)
+        dependencies = create_dependency_tree(context)
+        return cache.transitive_fingerprint(
+                source, dependencies.all_dependencies(source), options,
+                FingerprintFlags(
+                    'c++' if options.cplus else 'c',
+                    np_pythran=options.np_pythran
+                )
+        )
 
-def compile_single(source, options, full_module_name = None):
+def compile_single(source, options, full_module_name = None, cache=None, fingerprint=None):
     """
-    compile_single(source, options, full_module_name)
+    compile_single(source, options, full_module_name, cache, fingerprint)
 
     Compile the given Pyrex implementation file and return a CompilationResult.
     Always compiles a single file; does not perform timestamp checking or
     recursion.
     """
-    return run_pipeline(source, options, full_module_name)
+    return run_cached_pipeline(source, options, full_module_name, cache=cache, fingerprint=fingerprint)
 
 
-def compile_multiple(sources, options):
+def compile_multiple(sources, options, cache=None):
     """
     compile_multiple(sources, options)
 
     Compiles the given sequence of Pyrex implementation files and returns
-    a CompilationResultSet. Performs timestamp checking and/or recursion
+    a CompilationResultSet. Performs timestamp checking, caching and/or recursion
     if these are specified in the options.
     """
     if len(sources) > 1 and options.module_name:
@@ -627,26 +674,26 @@ def compile_multiple(sources, options):
     processed = set()
     results = CompilationResultSet()
     timestamps = options.timestamps
-    verbose = options.verbose
     context = None
     cwd = os.getcwd()
     for source in sources:
         if source not in processed:
+            output_filename = get_output_filename(source, cwd, options)
             if context is None:
                 context = Context.from_options(options)
-            output_filename = get_output_filename(source, cwd, options)
             out_of_date = context.c_file_out_of_date(source, output_filename)
             if (not timestamps) or out_of_date:
-                if verbose:
-                    sys.stderr.write("Compiling %s\n" % source)
-                result = run_pipeline(source, options,
+                fingerprint = get_fingerprint(cache, source, options) if cache else None
+                result = run_cached_pipeline(source, options,
                                       full_module_name=options.module_name,
-                                      context=context)
+                                      context=context, cache=cache, fingerprint=fingerprint)
                 results.add(source, result)
                 # Compiling multiple sources in one context doesn't quite
                 # work properly yet.
                 context = None
             processed.add(source)
+    if cache:
+        cache.cleanup_cache()
     return results
 
 
@@ -660,12 +707,27 @@ def compile(source, options = None, full_module_name = None, **kwds):
     checking is requested, a CompilationResult is returned, otherwise a
     CompilationResultSet is returned.
     """
+    from ..Build.Cache import Cache
+
     options = CompilationOptions(defaults = options, **kwds)
+
+    # cache is enabled when:
+    # * options.cache is True (the default path to the cache base dir is used)
+    # * options.cache is the explicit path to the cache base dir
+    # * annotations are not generated
+    if options.cache:
+        cache_path = None if options.cache is True else options.cache
+        cache = Cache(cache_path) if not (options.annotate or Options.annotate) else None
+    else:
+        if (options.annotate or Options.annotate) and options.verbose:
+            sys.stderr.write(f'Cache is ignored when annotations are enabled.\n')
+        cache = None
+
     if isinstance(source, str):
         if not options.timestamps:
-            return compile_single(source, options, full_module_name)
+            return compile_single(source, options, full_module_name, cache)
         source = [source]
-    return compile_multiple(source, options)
+    return compile_multiple(source, options, cache)
 
 
 @Utils.cached_function
