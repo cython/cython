@@ -31,7 +31,7 @@ from . import Nodes
 from .Nodes import Node, SingleAssignmentNode
 from . import PyrexTypes
 from .PyrexTypes import c_char_ptr_type, py_object_type, typecast, error_type, \
-    unspecified_type
+    unspecified_type, py_none_type
 from . import TypeSlots
 from .Builtin import (
     list_type, tuple_type, set_type, dict_type, type_type,
@@ -1276,6 +1276,9 @@ class NoneNode(PyConstNode):
             # Catch this error early and loudly.
             error(self.pos, "Cannot assign None to %s" % dst_type)
         return super().coerce_to(dst_type, env)
+
+    def analyse_as_type(self, env):
+        return py_none_type
 
 
 class EllipsisNode(PyConstNode):
@@ -3979,6 +3982,7 @@ class IndexNode(_IndexingBaseNode):
 
     def analyse_pytyping_modifiers(self, env):
         # Check for declaration modifiers, e.g. "typing.Optional[...]" or "dataclasses.InitVar[...]"
+        # `typing.Optional` is used for all variants of modifiers representing Optional type (Optional[T], Union[T, None])
         # TODO: somehow bring this together with TemplatedTypeNode.analyse_pytyping_modifiers()
         modifiers = []
         modifier_node = self
@@ -3986,7 +3990,7 @@ class IndexNode(_IndexingBaseNode):
             modifier_type = modifier_node.base.analyse_as_type(env)
             if (modifier_type and modifier_type.python_type_constructor_name
                     and modifier_type.modifier_name):
-                modifiers.append(modifier_type.modifier_name)
+                modifiers.append('typing.Optional' if modifier_type.is_optional() else modifier_type.modifier_name)
             modifier_node = modifier_node.index
         return modifiers
 

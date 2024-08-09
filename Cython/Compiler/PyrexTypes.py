@@ -4710,6 +4710,13 @@ class PythonTypeConstructorMixin:
     """Used to help Cython interpret indexed types from the typing module (or similar)
     """
     modifier_name = None
+    contains_none = False
+
+    def is_optional(self):
+        return (
+            self.modifier_name == 'typing.Optional' or (
+            self.modifier_name == 'typing.Union' and self.contains_none)
+        )
 
     def set_python_type_constructor_name(self, name):
         self.python_type_constructor_name = name
@@ -4767,6 +4774,9 @@ class SpecialPythonTypeConstructor(PyObjectType, PythonTypeConstructorMixin):
         return self
 
     def specialize_here(self, pos, env, template_values=None):
+        if py_none_type in template_values:
+            self.contains_none = True
+        template_values = [tv for tv in template_values if tv != py_none_type]
         if len(template_values) != 1:
             error(pos, "'%s' takes exactly one template argument." % self.name)
             return error_type
@@ -4776,6 +4786,14 @@ class SpecialPythonTypeConstructor(PyObjectType, PythonTypeConstructorMixin):
         # Replace this type with the actual 'template' argument.
         return template_values[0].resolve()
 
+class PyNoneType(BuiltinObjectType):
+
+    def __init__(self):
+        super().__init__('None', None, [])
+
+    def __bool__(self):
+        # We need to ensure that expression `if NoneType:` will be False.
+        return False
 
 rank_to_type_name = (
     "char",          # 0
@@ -4796,6 +4814,8 @@ SIGNED = 2
 
 error_type =    ErrorType()
 unspecified_type = UnspecifiedType()
+
+py_none_type = PyNoneType()
 
 py_object_type = PyObjectType()
 
