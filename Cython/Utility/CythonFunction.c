@@ -116,9 +116,11 @@ static PyObject * __Pyx_CyFunction_Vectorcall_FASTCALL_KEYWORDS_METHOD(PyObject 
 //@requires: ObjectHandling.c::PyVectorcallFastCallDict
 //@requires: ModuleSetupCode.c::IncludeStructmemberH
 //@requires: ObjectHandling.c::PyObjectGetAttrStr
+//@requires: ObjectHandling.c::CachedMethodType
+//@requires: ExtensionTypes.c::CallTypeTraverse
 
 #if CYTHON_COMPILING_IN_LIMITED_API
-static CYTHON_INLINE int __Pyx__IsSameCyOrCFunction(PyObject *func, void *cfunc) {
+static CYTHON_INLINE int __Pyx__IsSameCyOrCFunctionNoMethod(PyObject *func, void *cfunc) {
     if (__Pyx_CyFunction_Check(func)) {
         return PyCFunction_GetFunction(((__pyx_CyFunctionObject*)func)->func) == (PyCFunction) cfunc;
     } else if (PyCFunction_Check(func)) {
@@ -126,8 +128,26 @@ static CYTHON_INLINE int __Pyx__IsSameCyOrCFunction(PyObject *func, void *cfunc)
     }
     return 0;
 }
+
+static CYTHON_INLINE int __Pyx__IsSameCyOrCFunction(PyObject *func, void *cfunc) {
+    if ((PyObject*)Py_TYPE(func) == __Pyx_CachedMethodType) {
+        int result;
+        PyObject *newFunc = PyObject_GetAttr(func, PYIDENT("__func__"));
+        if (unlikely(!newFunc)) {
+            PyErr_Clear(); // It's only an optimization, so don't throw an error
+            return 0;
+        }
+        result = __Pyx__IsSameCyOrCFunctionNoMethod(newFunc, cfunc);
+        Py_DECREF(newFunc);
+        return result;
+    }
+    return __Pyx__IsSameCyOrCFunctionNoMethod(func, cfunc);
+}
 #else
 static CYTHON_INLINE int __Pyx__IsSameCyOrCFunction(PyObject *func, void *cfunc) {
+    if (PyMethod_Check(func)) {
+        func = PyMethod_GET_FUNCTION(func);
+    }
     return __Pyx_CyOrPyCFunction_Check(func) && __Pyx_CyOrPyCFunction_GET_FUNCTION(func) == (PyCFunction) cfunc;
 }
 #endif
@@ -717,6 +737,10 @@ static void __Pyx_CyFunction_dealloc(__pyx_CyFunctionObject *m)
 
 static int __Pyx_CyFunction_traverse(__pyx_CyFunctionObject *m, visitproc visit, void *arg)
 {
+    {
+        int e = __Pyx_call_type_traverse((PyObject*)m, 1, visit, arg);
+        if (e) return e;
+    }
     Py_VISIT(m->func_closure);
 #if CYTHON_COMPILING_IN_LIMITED_API
     Py_VISIT(m->func);
@@ -1269,7 +1293,7 @@ static int __Pyx_CyFunction_InitClassCell(PyObject *cyfunctions, PyObject *class
 
     for (i = 0; i < count; i++) {
         __pyx_CyFunctionObject *m = (__pyx_CyFunctionObject *)
-#if CYTHON_ASSUME_SAFE_MACROS && !CYTHON_AVOID_BORROWED_REFS
+#if CYTHON_ASSUME_SAFE_MACROS && !CYTHON_AVOID_BORROWED_REFS && !CYTHON_AVOID_THREAD_UNSAFE_BORROWED_REFS
             PyList_GET_ITEM(cyfunctions, i);
 #else
             __Pyx_PySequence_ITEM(cyfunctions, i);
@@ -1277,7 +1301,7 @@ static int __Pyx_CyFunction_InitClassCell(PyObject *cyfunctions, PyObject *class
             return -1;
 #endif
         __Pyx_CyFunction_SetClassObj(m, classobj);
-#if !(CYTHON_ASSUME_SAFE_MACROS && !CYTHON_AVOID_BORROWED_REFS)
+#if !(CYTHON_ASSUME_SAFE_MACROS && !CYTHON_AVOID_BORROWED_REFS && !CYTHON_AVOID_THREAD_UNSAFE_BORROWED_REFS)
         Py_DECREF((PyObject*)m);
 #endif
     }
@@ -1340,6 +1364,7 @@ __pyx_FusedFunction_traverse(__pyx_FusedFunctionObject *self,
                              visitproc visit,
                              void *arg)
 {
+    // Visiting the type is handled in the CyFunction traverse if needed
     Py_VISIT(self->self);
     Py_VISIT(self->__signatures__);
     return __Pyx_CyFunction_traverse((__pyx_CyFunctionObject *) self, visit, arg);
@@ -1742,18 +1767,22 @@ static PyObject* __Pyx_Method_ClassMethod(PyObject *method) {
     if (__Pyx_TypeCheck(method, &PyMethodDescr_Type))
 #endif
     {
-#if !CYTHON_COMPILING_IN_LIMITED_API
-        // cdef classes
-        PyMethodDescrObject *descr = (PyMethodDescrObject *)method;
-        PyTypeObject *d_type = descr->d_common.d_type;
-        return PyDescr_NewClassMethod(d_type, descr->d_method);
-#else
+#if CYTHON_COMPILING_IN_LIMITED_API
         return PyErr_Format(
             PyExc_SystemError,
             "Cython cannot yet handle classmethod on a MethodDescriptorType (%S) in limited API mode. "
             "This is most likely a classmethod in a cdef class method with binding=False. "
             "Try setting 'binding' to True.",
             method);
+#elif CYTHON_COMPILING_IN_GRAAL
+        // cdef classes
+        PyTypeObject *d_type = PyDescrObject_GetType(method);
+        return PyDescr_NewClassMethod(d_type, PyMethodDescrObject_GetMethod(method));
+#else
+        // cdef classes
+        PyMethodDescrObject *descr = (PyMethodDescrObject *)method;
+        PyTypeObject *d_type = descr->d_common.d_type;
+        return PyDescr_NewClassMethod(d_type, descr->d_method);
 #endif
     }
 #endif

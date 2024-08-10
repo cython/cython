@@ -1856,7 +1856,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 code.putln("} else")
                 code.putln("#endif")
                 code.putln("{")
-            code.putln("#if CYTHON_USE_TYPE_SLOTS || CYTHON_COMPILING_IN_PYPY")
+            code.putln("#if CYTHON_USE_TYPE_SLOTS")
             # Asking for PyType_GetSlot(..., Py_tp_free) seems to cause an error in pypy
             code.putln("(*Py_TYPE(o)->tp_free)(o);")
             code.putln("#else")
@@ -1903,8 +1903,11 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         have_entries, (py_attrs, py_buffers, memoryview_slices) = (
             scope.get_refcounted_entries(include_gc_simple=False))
 
-        if base_type or py_attrs:
-            code.putln("int e;")
+        needs_type_traverse = not base_type
+        # we don't know statically if we need to traverse the type
+        maybe_needs_type_traverse = False
+
+        code.putln("int e;")
 
         if py_attrs or py_buffers:
             self.generate_self_cast(scope, code)
@@ -1914,6 +1917,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             static_call = TypeSlots.get_base_slot_function(scope, tp_slot)
             if static_call:
                 code.putln("e = %s(o, v, a); if (e) return e;" % static_call)
+                # No need to call type traverse - base class will do it
             elif base_type.is_builtin_type:
                 base_cname = base_type.typeptr_cname
                 code.putln("{")
@@ -1921,6 +1925,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                     f"traverseproc traverse = __Pyx_PyType_GetSlot({base_cname}, tp_traverse, traverseproc);")
                 code.putln("if (!traverse); else { e = traverse(o,v,a); if (e) return e; }")
                 code.putln("}")
+                maybe_needs_type_traverse = True
             else:
                 # This is an externally defined type.  Calling through the
                 # cimported base type pointer directly interacts badly with
@@ -1943,6 +1948,14 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 code.putln("if (e) return e;")
                 code.globalstate.use_utility_code(
                     UtilityCode.load_cached("CallNextTpTraverse", "ExtensionTypes.c"))
+                maybe_needs_type_traverse = True
+        if needs_type_traverse or maybe_needs_type_traverse:
+            code.putln("{")
+            code.putln(f"e = __Pyx_call_type_traverse(o, {int(not maybe_needs_type_traverse)}, v, a);")
+            code.putln("if (e) return e;")
+            code.putln("}")
+            code.globalstate.use_utility_code(
+                UtilityCode.load_cached("CallTypeTraverse", "ExtensionTypes.c"))
 
         for entry in py_attrs:
             var_code = "p->%s" % entry.cname
@@ -2436,7 +2449,6 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                     return lookup_here_or_base(n, tp.base_type)
             return r
 
-        has_instance_dict = lookup_here_or_base("__dict__", extern_return="extern")
         getattr_entry = lookup_here_or_base("__getattr__")
         getattribute_entry = lookup_here_or_base("__getattribute__")
         code.putln("")
@@ -2448,20 +2460,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 "PyObject *v = %s(o, n);" % (
                     getattribute_entry.func_cname))
         else:
-            if not has_instance_dict and scope.parent_type.is_final_type:
-                # Final with no dict => use faster type attribute lookup.
-                code.globalstate.use_utility_code(
-                    UtilityCode.load_cached("PyObject_GenericGetAttrNoDict", "ObjectHandling.c"))
-                generic_getattr_cfunc = "__Pyx_PyObject_GenericGetAttrNoDict"
-            elif not has_instance_dict or has_instance_dict == "extern":
-                # No dict in the known ancestors, but don't know about extern ancestors or subtypes.
-                code.globalstate.use_utility_code(
-                    UtilityCode.load_cached("PyObject_GenericGetAttr", "ObjectHandling.c"))
-                generic_getattr_cfunc = "__Pyx_PyObject_GenericGetAttr"
-            else:
-                generic_getattr_cfunc = "PyObject_GenericGetAttr"
             code.putln(
-                "PyObject *v = %s(o, n);" % generic_getattr_cfunc)
+                "PyObject *v = PyObject_GenericGetAttr(o, n);")
         if getattr_entry is not None:
             code.putln(
                 "if (!v && PyErr_ExceptionMatches(PyExc_AttributeError)) {")
@@ -3167,7 +3167,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("%s = PyUnicode_FromStringAndSize(\"\", 0); %s" % (
             Naming.empty_unicode, code.error_goto_if_null(Naming.empty_unicode, self.pos)))
 
-        for ext_type in ('CyFunction', 'FusedFunction', 'Coroutine', 'Generator', 'AsyncGen', 'StopAsyncIteration'):
+        for ext_type in ('CyFunction', 'FusedFunction', 'Coroutine', 'Generator', 'AsyncGen'):
             code.putln("#ifdef __Pyx_%s_USED" % ext_type)
             code.put_error_if_neg(self.pos, "__pyx_%s_init(%s)" % (ext_type, env.module_cname))
             code.putln("#endif")
@@ -3433,6 +3433,14 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                    Naming.cleanup_cname)
         code.enter_cfunc_scope(env)
 
+        # TODO - this should go away when module-state has been refactored more and
+        # we are able to access the module state through "self". Currently the
+        # `#define` for each entry forces us to access it through PyState_FindModule
+        # which is sometime unreliable during destruction
+        # (e.g. during interpreter shutdown).
+        # In that case the safest thing is to give up.
+        code.putln(f"if (!PyState_FindModule(&{Naming.pymoduledef_cname})) return;")
+
         if Options.generate_cleanup_code >= 2:
             code.putln("/*--- Global cleanup code ---*/")
             rev_entries = list(env.var_entries)
@@ -3476,7 +3484,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 code.putln("while (%s > 0) {" % freecount_name)
                 code.putln("PyObject* o = (PyObject*)%s[--%s];" % (
                     freelist_name, freecount_name))
-                code.putln("#if CYTHON_USE_TYPE_SLOTS || CYTHON_COMPILING_IN_PYPY")
+                code.putln("#if CYTHON_USE_TYPE_SLOTS")
                 code.putln("(*Py_TYPE(o)->tp_free)(o);")
                 code.putln("#else")
                 # Asking for PyType_GetSlot(..., Py_tp_free) seems to cause an error in pypy

@@ -2830,7 +2830,7 @@ class CFuncDefNode(FuncDefNode):
             function=cfunc,
             args=[ExprNodes.NameNode(self.pos, name=n) for n in arg_names],
             wrapper_call=skip_dispatch)
-        return ReturnStatNode(pos=self.pos, return_type=PyrexTypes.py_object_type, value=c_call) 
+        return ReturnStatNode(pos=self.pos, return_type=PyrexTypes.py_object_type, value=c_call)
 
     def declare_arguments(self, env):
         for arg in self.type.args:
@@ -3441,7 +3441,9 @@ class DefNode(FuncDefNode):
             if entry.is_final_cmethod and not env.parent_type.is_final_type:
                 error(self.pos, "Only final types can have final Python (def/cpdef) methods")
             if entry.type.is_cfunction and not entry.is_builtin_cmethod and not self.is_wrapper:
-                warning(self.pos, "Overriding cdef method with def method.", 5)
+                warning(self.pos, "Overriding a c(p)def method with a def method. "
+                        "This can lead to different methods being called depending on the "
+                        "call context. Consider using a cpdef method for both.", 5)
         entry = env.declare_pyfunction(name, self.pos, allow_redefine=not self.is_wrapper)
         self.entry = entry
         prefix = env.next_id(env.scope_prefix)
@@ -4757,12 +4759,15 @@ class GeneratorBodyDefNode(DefNode):
 
     is_generator_body = True
     is_inlined = False
+    is_coroutine_body = False
     is_async_gen_body = False
     inlined_comprehension_type = None  # container type for inlined comprehensions
 
-    def __init__(self, pos=None, name=None, body=None, is_async_gen_body=False):
+    def __init__(self, pos=None, name=None, body=None, is_coroutine_body=False, is_async_gen_body=False):
         super().__init__(
-            pos=pos, body=body, name=name, is_async_gen_body=is_async_gen_body,
+            pos=pos, body=body, name=name,
+            is_coroutine_body=is_coroutine_body,
+            is_async_gen_body=is_async_gen_body,
             doc=None, args=[], star_arg=None, starstar_arg=None)
 
     def declare_generator_body(self, env):
@@ -4830,12 +4835,28 @@ class GeneratorBodyDefNode(DefNode):
         first_run_label = code.new_label('first_run')
         code.use_label(first_run_label)
         code.put_label(first_run_label)
+
         if profile or linetrace:
             # TODO: report .throw() if 'sent_value' == NULL (?)
             assert code.funcstate.gil_owned
             code.put_trace_start(self.entry.qualified_name, self.pos, is_generator=True)
-        code.putln('%s' %
-                   (code.error_goto_if_null(Naming.sent_value_cname, self.pos)))
+
+        if self.is_inlined:
+            code.putln(code.error_goto_if_null(Naming.sent_value_cname, self.pos))
+        else:
+            code.putln(f"if (unlikely({Naming.sent_value_cname} != Py_None)) {{")
+            if self.is_async_gen_body:
+                coro_type = "async generator"
+            elif self.is_coroutine_body:
+                coro_type = "coroutine"
+            else:
+                coro_type = "generator"
+            code.putln(
+                f"if (unlikely({Naming.sent_value_cname})) "
+                f'''PyErr_SetString(PyExc_TypeError, "can't send non-None value to a just-started {coro_type}");'''
+            )
+            code.putln(code.error_goto(self.pos))
+            code.putln("}")
 
         # ----- prepare target container for inlined comprehension
         if self.is_inlined and self.inlined_comprehension_type is not None:
@@ -4877,13 +4898,10 @@ class GeneratorBodyDefNode(DefNode):
         # on normal generator termination, we do not take the exception propagation
         # path: no traceback info is required and not creating it is much faster
         if not self.is_inlined and not self.body.is_terminator:
-            if self.is_async_gen_body:
-                code.globalstate.use_utility_code(
-                    UtilityCode.load_cached("StopAsyncIteration", "Coroutine.c"))
             #if profile or linetrace:
             #    code.put_trace_stopiteration(self.pos, "Py_None")
-            code.putln('PyErr_SetNone(%s);' % (
-                '__Pyx_PyExc_StopAsyncIteration' if self.is_async_gen_body else 'PyExc_StopIteration'))
+            code.put_init_to_py_none(Naming.retval_cname, py_object_type)
+
         # ----- Error cleanup
         if code.label_used(code.error_label):
             if not self.body.is_terminator:
@@ -4892,24 +4910,24 @@ class GeneratorBodyDefNode(DefNode):
             if self.is_inlined and self.inlined_comprehension_type is not None:
                 code.put_xdecref_clear(Naming.retval_cname, py_object_type)
 
+            for cname, type in code.funcstate.all_managed_temps():
+                code.put_xdecref(cname, type)
+            code.putln("if (__Pyx_PyErr_Occurred()) {")  # we allow exit without GeneratorExit / StopIteration
             if Future.generator_stop in env.global_scope().context.future_directives:
                 # PEP 479: turn accidental StopIteration exceptions into a RuntimeError
                 code.globalstate.use_utility_code(UtilityCode.load_cached("pep479", "Coroutine.c"))
                 code.putln("__Pyx_Generator_Replace_StopIteration(%d);" % bool(self.is_async_gen_body))
-            for cname, type in code.funcstate.all_managed_temps():
-                code.put_xdecref(cname, type)
             code.put_add_traceback(self.entry.qualified_name)
             if profile or linetrace:
                 code.put_trace_exception(self.pos)
+            code.putln("}")
 
         # ----- Non-error return cleanup
         code.put_label(code.return_label)
-        if self.is_inlined:
-            code.put_xgiveref(Naming.retval_cname, py_object_type)
-        else:
-            code.put_xdecref_clear(Naming.retval_cname, py_object_type)
+        code.put_xgiveref(Naming.retval_cname, py_object_type)
         if profile or linetrace:
             code.put_trace_exit()
+
         # For Py3.7, clearing is already done below.
         code.putln("#if !CYTHON_USE_EXC_INFO_STACK")
         code.putln("__Pyx_Coroutine_ResetAndClearException(%s);" % Naming.generator_cname)
@@ -4990,18 +5008,23 @@ class OverrideCheckNode(StatNode):
         code.putln("/* Check if called by wrapper */")
         code.putln("if (unlikely(%s)) ;" % Naming.skip_dispatch_cname)
         code.putln("/* Check if overridden in Python */")
-        if self.py_func.is_module_scope:
+        if self.py_func.is_module_scope or self.py_func.entry.scope.lookup_here("__dict__"):
             code.putln("else {")
         else:
             code.putln("else if (")
-            code.putln("#if CYTHON_USE_TYPE_SLOTS || CYTHON_COMPILING_IN_PYPY")
-            code.putln(f"unlikely(Py_TYPE({self_arg})->tp_dictoffset != 0)")
+            code.putln("#if !CYTHON_USE_TYPE_SLOTS")
+            # If CYTHON_USE_TYPE_SPECS then all extension types are heap-types so the check below automatically
+            # passes and thus takes the slow route.
+            # Therefore we do a less thorough check - if the type hasn't changed then clearly it hasn't
+            # been overridden, and if the type isn't GC then it also won't have been overridden.
+            code.putln(f"unlikely(Py_TYPE({self_arg}) != "
+                        f"{self.py_func.entry.scope.parent_type.typeptr_cname} &&")
+            code.putln(f"__Pyx_PyType_HasFeature(Py_TYPE({self_arg}), Py_TPFLAGS_HAVE_GC))")
             code.putln("#else")
-            dict_str_const = code.get_py_string_const(EncodedString("__dict__"))
-            code.putln(f'PyObject_HasAttr({self_arg}, {dict_str_const})')
+            code.putln(f"unlikely(Py_TYPE({self_arg})->tp_dictoffset != 0 || "
+                       f"__Pyx_PyType_HasFeature(Py_TYPE({self_arg}), (Py_TPFLAGS_IS_ABSTRACT | Py_TPFLAGS_HEAPTYPE)))")
             code.putln("#endif")
-            code.putln(" || unlikely(__Pyx_PyType_HasFeature(Py_TYPE(%s), (Py_TPFLAGS_IS_ABSTRACT | Py_TPFLAGS_HEAPTYPE)))) {" % (
-                self_arg))
+            code.putln(") {")
 
         code.putln("#if CYTHON_USE_DICT_VERSIONS && CYTHON_USE_PYTYPE_LOOKUP && CYTHON_USE_TYPE_SLOTS")
         code.globalstate.use_utility_code(
@@ -5799,19 +5822,12 @@ class CClassDefNode(ClassDefNode):
             dictoffset_slot_func = TypeSlots.get_slot_code_by_name(scope, 'tp_dictoffset')
             if getattr_slot_func == '0' and dictoffset_slot_func == '0':
                 code.putln("#if !CYTHON_COMPILING_IN_LIMITED_API")  # FIXME
-                if type.is_final_type:
-                    py_cfunc = "__Pyx_PyObject_GenericGetAttrNoDict"  # grepable
-                    utility_func = "PyObject_GenericGetAttrNoDict"
-                else:
-                    py_cfunc = "__Pyx_PyObject_GenericGetAttr"
-                    utility_func = "PyObject_GenericGetAttr"
-                code.globalstate.use_utility_code(UtilityCode.load_cached(utility_func, "ObjectHandling.c"))
 
                 code.putln("if ((CYTHON_USE_TYPE_SLOTS && CYTHON_USE_PYTYPE_LOOKUP) &&"
                            " likely(!%s->tp_dictoffset && %s->tp_getattro == PyObject_GenericGetAttr)) {" % (
                     typeptr_cname, typeptr_cname))
-                code.putln("%s->tp_getattro = %s;" % (
-                    typeptr_cname, py_cfunc))
+                code.putln("%s->tp_getattro = PyObject_GenericGetAttr;" %
+                    typeptr_cname)
                 code.putln("}")
                 code.putln("#endif")  # if !CYTHON_COMPILING_IN_LIMITED_API
 
@@ -6940,14 +6956,6 @@ class ReturnStatNode(StatNode):
                     code=code,
                     have_gil=self.in_nogil_context)
                 value.generate_post_assignment_code(code)
-            elif self.in_generator:
-                # return value == raise StopIteration(value), but uncatchable
-                code.globalstate.use_utility_code(
-                    UtilityCode.load_cached("ReturnWithStopIteration", "Coroutine.c"))
-                code.putln("%s = NULL; __Pyx_ReturnWithStopIteration(%s);" % (
-                    Naming.retval_cname,
-                    value.py_result()))
-                value.generate_disposal_code(code)
             else:
                 value.make_owned_reference(code)
                 code.putln("%s = %s;" % (
@@ -6964,14 +6972,7 @@ class ReturnStatNode(StatNode):
             value.free_temps(code)
         else:
             if self.return_type.is_pyobject:
-                if self.in_generator:
-                    if self.in_async_gen:
-                        code.globalstate.use_utility_code(
-                            UtilityCode.load_cached("StopAsyncIteration", "Coroutine.c"))
-                        code.put("PyErr_SetNone(__Pyx_PyExc_StopAsyncIteration); ")
-                    code.putln("%s = NULL;" % Naming.retval_cname)
-                else:
-                    code.put_init_to_py_none(Naming.retval_cname, self.return_type)
+                code.put_init_to_py_none(Naming.retval_cname, self.return_type)
             elif self.return_type.is_returncode:
                 self.put_return(code, self.return_type.default_value)
 
@@ -8633,12 +8634,6 @@ class TryFinallyStatNode(StatNode):
             code.putln('%s: {' % new_label)
             ret_temp = None
             if old_label == return_label:
-                # return actually raises an (uncatchable) exception in generators that we must preserve
-                if self.in_generator:
-                    exc_vars = tuple([
-                        code.funcstate.allocate_temp(py_object_type, manage_ref=False)
-                        for _ in range(6)])
-                    self.put_error_catcher(code, [], exc_vars)
                 if not self.finally_clause.is_terminator:
                     # store away return value for later reuse
                     if (self.func_return_type and
@@ -8658,10 +8653,6 @@ class TryFinallyStatNode(StatNode):
                     if self.func_return_type.is_pyobject:
                         code.putln("%s = 0;" % ret_temp)
                     code.funcstate.release_temp(ret_temp)
-                if self.in_generator:
-                    self.put_error_uncatcher(code, exc_vars)
-                    for cname in exc_vars:
-                        code.funcstate.release_temp(cname)
 
             if not self.finally_clause.is_terminator:
                 code.put_goto(old_label)

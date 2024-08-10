@@ -1419,29 +1419,26 @@ class FlattenInListTransform(Visitor.VisitorTransform, SkipDeclarations):
                                           ExprNodes.SetNode)):
             return node
 
+        lhs = node.operand1
         args = node.operand2.args
         if len(args) == 0:
-            # note: lhs may have side effects
+            # note: lhs may have side effects, but ".is_simple()" may not work yet before type analysis.
+            if lhs.try_is_simple():
+                constant_result = node.operator == 'not_in'
+                return ExprNodes.BoolNode(node.pos, value=constant_result, constant_result=constant_result)
             return node
 
         if any([arg.is_starred for arg in args]):
             # Starred arguments do not directly translate to comparisons or "in" tests.
             return node
 
-        lhs = UtilNodes.ResultRefNode(node.operand1)
+        lhs = UtilNodes.ResultRefNode(lhs)
 
         conds = []
         temps = []
         for arg in args:
-            try:
-                # Trial optimisation to avoid redundant temp
-                # assignments.  However, since is_simple() is meant to
-                # be called after type analysis, we ignore any errors
-                # and just play safe in that case.
-                is_simple_arg = arg.is_simple()
-            except Exception:
-                is_simple_arg = False
-            if not is_simple_arg:
+            # Trial optimisation to avoid redundant temp assignments.
+            if not arg.try_is_simple():
                 # must evaluate all non-simple RHS before doing the comparisons
                 arg = UtilNodes.LetRefNode(arg)
                 temps.append(arg)

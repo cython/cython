@@ -1078,7 +1078,7 @@ to turn the warning on / off.
 
 ``warn.deprecated.DEF`` (default False)
   Warns about use of the deprecated ``DEF`` statement in Cython code, see
- :ref:`conditional_compilation` and :ref:`deprecated_DEF_IF`.
+  :ref:`conditional_compilation` and :ref:`deprecated_DEF_IF`.
 
 ``warn.deprecated.IF`` (default True)
   Warns about use of the deprecated ``IF`` statement in Cython code, see
@@ -1207,13 +1207,16 @@ can happily ignore.  Not all combinations of macros are compatible or tested, an
 some change the default value of other macros.  They are listed below in rough order from
 most important to least important:
 
-``CYTHON_LIMITED_API``
+``Py_LIMITED_API``
     Turns on Cython's experimental Limited API support, meaning that one compiled module
     can be used by many Python interpreter versions (at the cost of some performance).
-    At this stage many features do not work in the Limited API.  If you use this macro
-    you should also set the macro ``Py_LIMITED_API`` to be the version hex for the
+    At this stage many features do not work in the Limited API.  You should set this
+    macro to be the version hex for the
     minimum Python version you want to support (>=3.7).  ``0x03070000`` will support
     Python 3.7 upwards.
+    Note that this is a `Python macro <https://docs.python.org/3/c-api/stable.html#c.Py_LIMITED_API>`_,
+    rather than just a Cython macro, and so it changes what parts of the Python headers
+    are visible too.  See :ref:`limited_api` for more details about this feature.
 
 ``CYTHON_PEP489_MULTI_PHASE_INIT``
     Uses multi-phase module initialization as described in PEP489.  This improves
@@ -1264,9 +1267,6 @@ hidden by default since most users will be uninterested in changing them.
             Use the internal `_PyType_Lookup()` function for more efficient access
             to properties of C classes.
             
-        ``CYTHON_USE_ASYNC_SLOTS``
-            Support the ``tp_as_async`` attribute on type objects.
-            
         ``CYTHON_USE_PYLONG_INTERNALS``/``CYTHON_USE_PYLIST_INTERNALS``/``CYTHON_USE_UNICODE_INTERNALS``
             Enable optimizations based on direct access into the internals of Python
             ``int``/``list``/``unicode`` objects respectively.
@@ -1280,7 +1280,15 @@ hidden by default since most users will be uninterested in changing them.
             a reference to objects it manipulates.  Most useful for
             non-reference-counted implementations of Python, like PyPy
             (where it is enabled by default).
-            
+
+        ``CYTHON_AVOID_THREAD_UNSAFE_BORROWED_REFS``
+            Avoid using APIs that return unsafe "borrowed references" and instead use
+            the equivalent APIs that return "strong references". Most useful for
+            the free-threaded build of CPython, where incrementing the reference
+            count of borrowed references to items in mutable containers might 
+            introduce thread safety issues. Borrowed references to items in immutable
+            containers are still allowed with this setting.
+
         ``CYTHON_ASSUME_SAFE_MACROS``
             Use some C-API macros that increase performance by skipping error checking,
             which may not be safe on all Python implementations (e.g. PyPy).

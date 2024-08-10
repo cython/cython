@@ -257,8 +257,9 @@ class SlotDescriptor:
             return
         preprocessor_guard = self.preprocessor_guard_code()
         if not preprocessor_guard:
-            if self.slot_name.startswith('bf_'):
-                # The buffer protocol requires Limited API 3.11, so check if the spec slots are available.
+            if self.slot_name.startswith(('bf_', 'am_')):
+                # The buffer protocol requires Limited API 3.11 and 'am_send' requires 3.10,
+                # so check if the spec slots are available.
                 preprocessor_guard = "#if defined(Py_%s)" % self.slot_name
         if preprocessor_guard:
             code.putln(preprocessor_guard)
@@ -591,10 +592,11 @@ class SuiteSlot(SlotDescriptor):
     #
     #  sub_slots   [SlotDescriptor]
 
-    def __init__(self, sub_slots, slot_type, slot_name, substructures, ifdef=None):
+    def __init__(self, sub_slots, slot_type, slot_name, substructures, ifdef=None, cast_cname=None):
         SlotDescriptor.__init__(self, slot_name, ifdef=ifdef)
         self.sub_slots = sub_slots
         self.slot_type = slot_type
+        self.cast_cname = cast_cname
         substructures.append(self)
 
     def is_empty(self, scope):
@@ -608,7 +610,10 @@ class SuiteSlot(SlotDescriptor):
 
     def slot_code(self, scope):
         if not self.is_empty(scope):
-            return "&%s" % self.substructure_cname(scope)
+            cast = ""
+            if self.cast_cname:
+                cast = f"({self.cast_cname}*)"
+            return f"{cast}&{self.substructure_cname(scope)}"
         return "0"
 
     def generate_substructure(self, scope, code):
@@ -884,6 +889,18 @@ initproc = Signature("T*", 'r')            # typedef int (*initproc)(PyObject *,
 getbufferproc = Signature("TBi", "r")      # typedef int (*getbufferproc)(PyObject *, Py_buffer *, int);
 releasebufferproc = Signature("TB", "v")   # typedef void (*releasebufferproc)(PyObject *, Py_buffer *);
 
+# typedef PySendResult (*sendfunc)(PyObject* iter, PyObject* value, PyObject** result);
+sendfunc = PyrexTypes.CPtrType(PyrexTypes.CFuncType(
+        return_type=PyrexTypes.PySendResult_type,
+        args=[
+            PyrexTypes.CFuncTypeArg("iter", PyrexTypes.py_object_type),
+            PyrexTypes.CFuncTypeArg("value", PyrexTypes.py_object_type),
+            PyrexTypes.CFuncTypeArg("result", PyrexTypes.CPtrType(PyrexTypes.py_objptr_type)),
+        ],
+        exception_value="PYGEN_ERROR",
+        exception_check=True,  # we allow returning PYGEN_ERROR without GeneratorExit / StopIteration
+    ))
+
 
 #------------------------------------------------------------------------------------------
 #
@@ -1000,7 +1017,9 @@ class SlotTable:
             MethodSlot(unaryfunc, "am_await", "__await__", method_name_to_slot),
             MethodSlot(unaryfunc, "am_aiter", "__aiter__", method_name_to_slot),
             MethodSlot(unaryfunc, "am_anext", "__anext__", method_name_to_slot),
-            EmptySlot("am_send", ifdef="PY_VERSION_HEX >= 0x030A00A3"),
+            # We should not map arbitrary .send() methods to an async slot.
+            #MethodSlot(sendfunc, "am_send", "send", method_name_to_slot),
+            EmptySlot("am_send"),
         )
 
         self.slot_table = (
@@ -1011,7 +1030,7 @@ class SlotTable:
             EmptySlot("tp_setattr"),
 
             SuiteSlot(self. PyAsyncMethods, "__Pyx_PyAsyncMethodsStruct", "tp_as_async",
-                      self.substructures),
+                      self.substructures, cast_cname="PyAsyncMethods"),
 
             MethodSlot(reprfunc, "tp_repr", "__repr__", method_name_to_slot),
 

@@ -741,7 +741,9 @@ class TestBuilder(object):
                     self.handle_directory(path, filename))
         if (sys.platform not in ['win32'] and self.add_embedded_test
                 # the embedding test is currently broken in Py3.8+ and Py2.7, except on Linux.
-                and ((3, 0) <= sys.version_info < (3, 8) or sys.platform != 'darwin')):
+                and ((3, 0) <= sys.version_info < (3, 8) or sys.platform != 'darwin')
+                # broken on graal too
+                and not IS_GRAAL):
             # Non-Windows makefile.
             if [1 for selector in self.selectors if selector("embedded")] \
                     and not [1 for selector in self.exclude_selectors if selector("embedded")]:
@@ -2026,6 +2028,13 @@ class EndToEndTest(unittest.TestCase):
         out = []
         err = []
         for command_no, command in enumerate(self.commands, 1):
+            if command[0] == "UNSET":
+                try:
+                    envvar = command[1]
+                except KeyError:
+                    envvar = None
+                env.pop(envvar, None)
+                continue
             time_category = 'etoe-build' if (
                 'setup.py' in command or 'cythonize.py' in command or 'cython.py' in command) else 'etoe-run'
             with self.stats.time('%s(%d)' % (self.name, command_no), 'c', time_category):
@@ -2513,6 +2522,7 @@ def main():
 
         pool.close()
         pool.join()
+        pool.terminate()  # graalpy seems happier if we terminate now rather than leaving it to the gc
 
         total_time = time.time() - total_time
         sys.stderr.write("Sharded tests run in %d seconds (%.1f minutes)\n" % (round(total_time), total_time / 60.))
@@ -2651,6 +2661,14 @@ def save_coverage(coverage, options):
 def runtests_callback(args):
     options, cmd_args, shard_num = args
     options.shard_num = shard_num
+
+    # Make the shard number visible in faulthandler stack traces in the case of process crashes.
+    try:
+        runtests.__code__ = runtests.__code__.replace(co_name=f"runtests_SHARD_{shard_num}")
+    except (AttributeError, TypeError):
+        # No .replace() in Py3.7, 'co_name' might not be replacible, whatever.
+        pass
+
     return runtests(options, cmd_args)
 
 
@@ -2937,12 +2955,13 @@ def runtests(options, cmd_args, coverage=None):
     # Run the collected tests.
     try:
         if options.shard_num > -1:
-            sys.stderr.write("Tests in shard %d/%d starting\n" % (options.shard_num, options.shard_count))
+            thread_id = f" (Thread ID 0x{threading.get_ident():x})" if threading is not None else ""
+            sys.stderr.write(f"Tests in shard ({options.shard_num}/{options.shard_count}) starting{thread_id}\n")
         result = test_runner.run(test_suite)
     except Exception as exc:
         # Make sure we print exceptions also from shards.
         if options.shard_num > -1:
-            sys.stderr.write("Tests in shard %d/%d crashed: %s\n" % (options.shard_num, options.shard_count, exc))
+            sys.stderr.write(f"Tests in shard ({options.shard_num}/{options.shard_count}) crashed: {exc}\n")
         import traceback
         traceback.print_exc()
         raise

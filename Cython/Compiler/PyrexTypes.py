@@ -1484,6 +1484,8 @@ class BuiltinObjectType(PyObjectType):
             type_check = '__Pyx_PyBaseString_Check'
         elif type_name == 'Exception':
             type_check = '__Pyx_PyException_Check'
+        elif type_name == 'BaseException':
+            type_check = '__Pyx_PyBaseException_Check'
         elif type_name == 'bytearray':
             type_check = 'PyByteArray_Check'
         elif type_name == 'frozenset':
@@ -3681,7 +3683,7 @@ class CFuncTypeArg(BaseType):
 
     subtypes = ['type']
 
-    def __init__(self, name, type, pos, cname=None, annotation=None):
+    def __init__(self, name, type, pos=None, cname=None, annotation=None):
         self.name = name
         if cname is not None:
             self.cname = cname
@@ -4468,12 +4470,6 @@ class TemplatePlaceholderType(CType):
     def __hash__(self):
         return hash(self.name)
 
-    def __cmp__(self, other):
-        if isinstance(other, TemplatePlaceholderType):
-            return cmp(self.name, other.name)
-        else:
-            return cmp(type(self), type(other))
-
     def __eq__(self, other):
         if isinstance(other, TemplatePlaceholderType):
             return self.name == other.name
@@ -4663,7 +4659,8 @@ class CTupleType(CType):
 def c_tuple_type(components):
     components = tuple(components)
     if any(c.is_fused for c in components):
-        cname = "<dummy fused ctuple>"  # should never end up in code
+        # should never end up in code but should be unique
+        cname = f"<dummy fused ctuple {components!r}>"
     else:
         cname = Naming.ctuple_type_prefix + type_list_identifier(components)
     tuple_type = CTupleType(cname, components)
@@ -4865,6 +4862,11 @@ c_threadstate_ptr_type = CPtrType(c_threadstate_type)
 
 # PEP-539 "Py_tss_t" type
 c_pytss_t_type = CPyTSSTType()
+
+# Py3.10+ "PySendResult" for "am_send" slot functions: ["PYGEN_RETURN", "PYGEN_ERROR", "PYGEN_NEXT"]
+PySendResult_type = CEnumType("PySendResult", "__Pyx_PySendResult", typedef_flag=True)
+py_objptr_type = CPtrType(CStructOrUnionType(
+    "PyObject", "struct", scope=None, typedef_flag=True, cname="PyObject"))
 
 # the Py_buffer type is defined in Builtin.py
 c_py_buffer_type = CStructOrUnionType("Py_buffer", "struct", None, 1, "Py_buffer")
