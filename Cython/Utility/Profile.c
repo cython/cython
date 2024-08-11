@@ -52,10 +52,12 @@
   typedef enum {
       __Pyx_Monitoring_PY_START = 0,
       __Pyx_Monitoring_PY_RETURN,
+      __Pyx_Monitoring_PY_UNWIND,
       //__Pyx_Monitoring_CALL,
       __Pyx_Monitoring_LINE,
       __Pyx_Monitoring_RAISE,
       __Pyx_Monitoring_RERAISE,
+      __Pyx_Monitoring_EXCEPTION_HANDLED,
       __Pyx_Monitoring_PY_RESUME,
       __Pyx_Monitoring_PY_YIELD,
       __Pyx_Monitoring_STOP_ITERATION,
@@ -64,10 +66,12 @@
   static const unsigned char __Pyx_MonitoringEventTypes[] = {
       PY_MONITORING_EVENT_PY_START,
       PY_MONITORING_EVENT_PY_RETURN,
+      PY_MONITORING_EVENT_PY_UNWIND,
       //PY_MONITORING_EVENT_CALL,
       PY_MONITORING_EVENT_LINE,
       PY_MONITORING_EVENT_RAISE,
       PY_MONITORING_EVENT_RERAISE,
+      PY_MONITORING_EVENT_EXCEPTION_HANDLED,
       // generator specific:
       PY_MONITORING_EVENT_PY_RESUME,
       PY_MONITORING_EVENT_PY_YIELD,
@@ -167,7 +171,14 @@
       __pyx_exception_already_reported = 1;                                                     \
   }
 
-  #define __Pyx_TraceExceptionHandled()  __pyx_exception_already_reported = 0
+  #define __Pyx_TraceExceptionDone()  __pyx_exception_already_reported = 0
+
+  // No error handling here since the exception path we'll catch the exception next.
+  #define __Pyx_TraceExceptionHandled(lineno) \
+  if (!__Pyx_IsTracing(__Pyx_Monitoring_EXCEPTION_HANDLED)); else {                          \
+      (void) PyMonitoring_FireExceptionHandledEvent(&$monitoring_states_cname[__Pyx_Monitoring_EXCEPTION_HANDLED], $frame_code_cname, lineno); \
+      __pyx_exception_already_reported = 0;                                                  \
+  }
 
   // We assume that we own a safe reference to the returned value, usually in `__pyx_r`.
   #define __Pyx_TraceReturnValue(result, lineno, nogil, goto_error) \
@@ -204,6 +215,20 @@
           Py_DECREF(pyvalue);                                                                \
       }                                                                                      \
       if (unlikely(ret == -1)) goto_error;                                                   \
+  }
+
+  // We don't need an exception goto in __Pyx_TraceExceptionUnwind() because we are propagating an exception either way.
+  #define __Pyx_TraceExceptionUnwind(lineno, nogil) \
+  if (!__Pyx_IsTracing(__Pyx_Monitoring_PY_UNWIND)); else {                                  \
+      if (nogil) {                                                                           \
+          if (CYTHON_TRACE_NOGIL) {                                                          \
+              PyGILState_STATE state = PyGILState_Ensure();                                  \
+              (void) PyMonitoring_FirePyUnwindEvent(&$monitoring_states_cname[__Pyx_Monitoring_PY_UNWIND], $frame_code_cname, lineno); \
+              PyGILState_Release(state);                                                     \
+          }                                                                                  \
+      } else {                                                                               \
+          (void) PyMonitoring_FirePyUnwindEvent(&$monitoring_states_cname[__Pyx_Monitoring_PY_UNWIND], $frame_code_cname, lineno); \
+      }                                                                                      \
   }
 
   #if CYTHON_TRACE
@@ -251,7 +276,7 @@
       static PyCodeObject *$frame_code_cname = NULL;                      \
       CYTHON_FRAME_MODIFIER PyFrameObject *$frame_cname = NULL;           \
       int __Pyx_use_tracing = 0;
-  
+
   #define __Pyx_TraceDeclarationsGen \
       PyObject *$frame_code_cname = $generator_cname->gi_code; \
       CYTHON_FRAME_MODIFIER PyFrameObject *$frame_cname = NULL; \
@@ -262,7 +287,7 @@
 
   #define __Pyx_PyMonitoring_ExitScope()  {}
   #define __Pyx_TraceException(lineno, reraised, fresh)  {}
-  #define __Pyx_TraceExceptionHandled()  {}
+  #define __Pyx_TraceExceptionDone()  {}
 
 #if PY_VERSION_HEX >= 0x030b00a2
   #if PY_VERSION_HEX >= 0x030C00b1
@@ -408,7 +433,7 @@
 
   #define __Pyx_TraceDeclarationsFunc
   #define __Pyx_TraceDeclarationsGen
-  #define __Pyx_TraceExceptionHandled()  {}
+  #define __Pyx_TraceExceptionDone()  {}
   #define __Pyx_TraceFrameInit(codeobj)  {}
   #define __Pyx_PyMonitoring_ExitScope()  {}
   // mark error label as used to avoid compiler warnings
@@ -417,6 +442,8 @@
   #define __Pyx_TraceResumeGen(funcname, srcfile, firstlineno, lineno, goto_error)   if ((1)); else goto_error;
   #define __Pyx_TraceYield(result, lineno, goto_error)   if ((1)); else goto_error;
   #define __Pyx_TraceException(lineno, reraised, fresh)  {}
+  #define __Pyx_TraceExceptionUnwind(lineno, nogil)  {}
+  #define __Pyx_TraceExceptionHandled(lineno)  {}
   #define __Pyx_TraceReturnValue(result, lineno, nogil, goto_error) \
       if ((1)); else goto_error;
   #define __Pyx_TraceReturnCValue(cresult, convert_function, lineno, nogil, goto_error) \

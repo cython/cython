@@ -2005,7 +2005,7 @@ class FuncDefNode(StatNode, BlockNode):
             # generators are traced when iterated, not at creation
             tracing = False
         else:
-            tracing = code.globalstate.directives['profile'] or code.globalstate.directives['linetrace']
+            tracing = code.is_tracing()
             if tracing:
                 code.globalstate.use_utility_code(
                     UtilityCode.load_cached("Profile", "Profile.c"))
@@ -2292,8 +2292,10 @@ class FuncDefNode(StatNode, BlockNode):
 
             if tracing:
                 assure_gil('error')
-                code.put_trace_exception(self.pos)
-                code.putln("#if !CYTHON_USE_SYS_MONITORING")
+                code.put_trace_exception_propagating()
+                code.putln("#if CYTHON_USE_SYS_MONITORING")
+                code.put_trace_unwind(self.pos)
+                code.putln("#else")
                 code.put_trace_return("NULL", self.pos, nogil=not gil_owned['success'])
                 code.putln("#endif")
 
@@ -4821,9 +4823,8 @@ class GeneratorBodyDefNode(DefNode):
         tempvardecl_code = code.insertion_point()
         code.put_declare_refcount_context()
         code.put_setup_refcount_context(self.entry.name or self.entry.qualified_name)
-        profile = code.globalstate.directives['profile']
-        linetrace = code.globalstate.directives['linetrace']
-        if profile or linetrace:
+        tracing = code.is_tracing()
+        if tracing:
             tempvardecl_code.put_trace_declarations(is_generator=True)
             code.funcstate.can_trace = True
 
@@ -4836,7 +4837,7 @@ class GeneratorBodyDefNode(DefNode):
         code.use_label(first_run_label)
         code.put_label(first_run_label)
 
-        if profile or linetrace:
+        if tracing:
             # TODO: report .throw() if 'sent_value' == NULL (?)
             assert code.funcstate.gil_owned
             code.put_trace_start(self.entry.qualified_name, self.pos, is_generator=True)
@@ -4886,7 +4887,7 @@ class GeneratorBodyDefNode(DefNode):
             # FIXME: this silences a potential "unused" warning => try to avoid unused closures in more cases
             code.putln("CYTHON_MAYBE_UNUSED_VAR(%s);" % Naming.cur_scope_cname)
 
-        if (profile or linetrace) and not self.body.is_terminator:
+        if tracing and not self.body.is_terminator:
             code.funcstate.can_trace = False
             code.put_trace_return("Py_None", pos=self.pos)
             #code.put_trace_stop_iteration(pos=self.pos)
@@ -4898,7 +4899,7 @@ class GeneratorBodyDefNode(DefNode):
         # on normal generator termination, we do not take the exception propagation
         # path: no traceback info is required and not creating it is much faster
         if not self.is_inlined and not self.body.is_terminator:
-            #if profile or linetrace:
+            #if tracing:
             #    code.put_trace_stopiteration(self.pos, "Py_None")
             code.put_init_to_py_none(Naming.retval_cname, py_object_type)
 
@@ -4913,19 +4914,21 @@ class GeneratorBodyDefNode(DefNode):
             for cname, type in code.funcstate.all_managed_temps():
                 code.put_xdecref(cname, type)
             code.putln("if (__Pyx_PyErr_Occurred()) {")  # we allow exit without GeneratorExit / StopIteration
+            if tracing:
+                code.put_trace_exception_propagating()
             if Future.generator_stop in env.global_scope().context.future_directives:
                 # PEP 479: turn accidental StopIteration exceptions into a RuntimeError
                 code.globalstate.use_utility_code(UtilityCode.load_cached("pep479", "Coroutine.c"))
                 code.putln("__Pyx_Generator_Replace_StopIteration(%d);" % bool(self.is_async_gen_body))
             code.put_add_traceback(self.entry.qualified_name)
-            if profile or linetrace:
-                code.put_trace_exception(self.pos)
+            if tracing:
+                code.put_trace_unwind(self.pos)
             code.putln("}")
 
         # ----- Non-error return cleanup
         code.put_label(code.return_label)
         code.put_xgiveref(Naming.retval_cname, py_object_type)
-        if profile or linetrace:
+        if tracing:
             code.put_trace_exit()
 
         # For Py3.7, clearing is already done below.
@@ -4950,7 +4953,7 @@ class GeneratorBodyDefNode(DefNode):
         for i, label in code.yield_labels:
             resume_code.putln("case %d: goto %s;" % (i, label))
         resume_code.putln("default: /* CPython raises the right error here */")
-        if profile or linetrace:
+        if tracing:
             resume_code.put_trace_start(self.entry.qualified_name, self.pos, is_generator=True)
             resume_code.put_trace_return("Py_None", pos=self.pos)
         resume_code.put_finish_refcount_context()
@@ -7098,9 +7101,6 @@ class RaiseStatNode(StatNode):
                 tb_code,
                 cause_code))
 
-        if code.globalstate.directives['profile'] or code.globalstate.directives['linetrace']:
-            code.put_trace_exception(self.pos, fresh=True)
-
         for obj in (self.exc_type, self.exc_value, self.exc_tb, self.cause):
             if obj:
                 obj.generate_disposal_code(code)
@@ -7150,16 +7150,14 @@ class ReraiseStatNode(StatNode):
             # fresh exceptions may not have a traceback yet (-> finally!)
             code.put_xgiveref(vars[2], py_object_type)
             code.putln("__Pyx_ErrRestoreWithState(%s, %s, %s);" % tuple(vars))
-            for varname in vars:
-                code.put("%s = 0; " % varname)
-            if code.globalstate.directives['profile'] or code.globalstate.directives['linetrace']:
-                code.put_trace_exception(self.pos, reraise=True)
-            code.putln()
-            code.putln(code.error_goto(self.pos))
+            code.putln(" ".join([f"{varname} = 0; " for varname in vars]))
         else:
             code.globalstate.use_utility_code(
                 UtilityCode.load_cached("ReRaiseException", "Exceptions.c"))
-            code.putln("__Pyx_ReraiseException(); %s" % code.error_goto(self.pos))
+            code.putln("__Pyx_ReraiseException();")
+        if code.is_tracing():
+            code.put_trace_exception(self.pos, reraise=True)
+        code.putln(code.error_goto(self.pos))
 
 
 class AssertStatNode(StatNode):
@@ -8226,6 +8224,9 @@ class TryExceptStatNode(StatNode):
             for temp_name, temp_type in temps_to_clean_up:
                 code.put_xdecref_clear(temp_name, temp_type)
 
+            if code.is_tracing():
+                code.put_trace_exception_propagating()
+
             outer_except = code.funcstate.current_except
             # Currently points to self, but the ExceptClauseNode would also be ok. Change if needed.
             code.funcstate.current_except = self
@@ -8393,7 +8394,7 @@ class ExceptClauseNode(Node):
         else:
             code.putln("/*except:*/ {")
 
-        tracing = code.globalstate.directives['profile'] or code.globalstate.directives['linetrace']
+        tracing = code.is_tracing()
 
         if (not getattr(self.body, 'stats', True)
                 and self.excinfo_target is None
@@ -8401,11 +8402,11 @@ class ExceptClauseNode(Node):
             # most simple case: no exception variable, empty body (pass)
             # => reset the exception state, done
             if tracing:
-                code.put_trace_exception(self.pos)
+                code.put_trace_exception_handled(self.pos)
             code.globalstate.use_utility_code(UtilityCode.load_cached("PyErrFetchRestore", "Exceptions.c"))
             code.putln("__Pyx_ErrRestore(0,0,0);")
-            if code.globalstate.directives['profile'] or code.globalstate.directives['linetrace']:
-                code.putln("__Pyx_TraceExceptionHandled();")
+            if tracing:
+                code.putln("__Pyx_TraceExceptionDone();")
             code.put_goto(end_label)
             code.putln("}")
             return
@@ -8415,7 +8416,7 @@ class ExceptClauseNode(Node):
         code.put_add_traceback(self.function_name)
 
         if tracing:
-            code.put_trace_exception(self.pos)
+            code.put_trace_exception_handled(self.pos)
 
         # We always have to fetch the exception value even if
         # there is no target, because this also normalises the
@@ -8427,8 +8428,8 @@ class ExceptClauseNode(Node):
         for var in exc_vars:
             code.put_xgotref(var, py_object_type)
 
-        if code.globalstate.directives['profile'] or code.globalstate.directives['linetrace']:
-            code.putln("__Pyx_TraceExceptionHandled();")
+        if tracing:
+            code.putln("__Pyx_TraceExceptionDone();")
 
         if self.target:
             self.exc_value.set_var(exc_vars[1])
@@ -8593,6 +8594,10 @@ class TryFinallyStatNode(StatNode):
             exc_vars = tuple([
                 code.funcstate.allocate_temp(py_object_type, manage_ref=False)
                 for _ in range(6)])
+
+            if code.is_tracing():
+                code.put_trace_exception_propagating()
+                code.put_trace_exception_handled(self.pos)
             self.put_error_catcher(
                 code, temps_to_clean_up, exc_vars, exc_lineno_cnames, exc_filename_cname)
             finally_old_labels = code.all_new_labels()
@@ -8611,6 +8616,8 @@ class TryFinallyStatNode(StatNode):
                         code.funcstate.release_temp(cname)
                 if exc_filename_cname:
                     code.funcstate.release_temp(exc_filename_cname)
+                if code.is_tracing():
+                    code.put_trace_exception(self.pos, reraise=True)
                 code.put_goto(old_error_label)
 
             for _ in code.label_interceptor(code.get_all_labels(), finally_old_labels):

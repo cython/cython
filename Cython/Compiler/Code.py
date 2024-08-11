@@ -2898,6 +2898,9 @@ class CCodeWriter:
         self.globalstate.use_utility_code(
             UtilityCode.load_cached("WriteUnraisableException", "Exceptions.c"))
 
+    def is_tracing(self):
+        return self.globalstate.directives['profile'] or self.globalstate.directives['linetrace']
+
     def put_trace_declarations(self, is_generator=False):
         self.putln('__Pyx_TraceDeclarationsGen' if is_generator else '__Pyx_TraceDeclarationsFunc')
 
@@ -2934,6 +2937,15 @@ class CCodeWriter:
 
     def put_trace_exception(self, pos, reraise=False, fresh=False):
         self.putln(f"__Pyx_TraceException({pos[1]}, {bool(reraise):d}, {bool(fresh):d});")
+
+    def put_trace_exception_propagating(self):
+        self.putln(f"__Pyx_TraceException({Naming.lineno_cname}, 0, 0);")
+
+    def put_trace_exception_handled(self, pos):
+        self.putln(f"__Pyx_TraceExceptionHandled({pos[1]});")
+
+    def put_trace_unwind(self, pos, nogil=False):
+        self.putln(f"__Pyx_TraceExceptionUnwind({pos[1]}, {bool(nogil):d});")
 
     def put_trace_stopiteration(self, pos, value):
         error_goto = self.error_goto(pos)

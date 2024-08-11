@@ -3261,7 +3261,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             code.put_xdecref(cname, type)
 
         if profile or linetrace:
-            code.put_trace_exception(self.pos)
+            code.put_trace_exception_propagating()
+            code.put_trace_unwind(self.pos)
 
         code.putln('if (%s) {' % env.module_cname)
         code.putln('if (%s && stringtab_initialized) {' % env.module_dict_cname)

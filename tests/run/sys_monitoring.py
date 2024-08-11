@@ -4,6 +4,7 @@
 # cython: profile=True, linetrace=True
 # distutils: define_macros = CYTHON_TRACE_NOGIL=1
 
+import operator
 from collections import defaultdict
 from contextlib import contextmanager
 from functools import partial
@@ -54,7 +55,7 @@ else:
     >>> for num_events in range(1, len(FUNC_EVENTS)+1):  # doctest: +REPORT_NDIFF
     ...     for event_set in combinations(FUNC_EVENTS, num_events):
     ...         print(f"--- {names(event_set)} ---")
-    ...         with monitored_events(events=event_set + (E.RERAISE,)) as collected_events:
+    ...         with monitored_events(events=event_set + (E.RERAISE, E.PY_UNWIND)) as collected_events:
     ...             result = test_profile(10)
     ...         print(result)
     ...         print_events(collected_events)
@@ -67,8 +68,8 @@ else:
     f_inline PY_START [10]
     f_inline_prof PY_START [10]
     f_nogil_prof PY_START [10]
-    f_raise PY_START [20]
-    f_reraise PY_START [10], RERAISE [10]
+    f_raise PY_START [20], PY_UNWIND [20]
+    f_reraise PY_START [10], PY_UNWIND [10], RERAISE [10]
     f_return_default PY_START [10]
     f_return_none PY_START [10]
     f_withgil_prof PY_START [10]
@@ -84,7 +85,8 @@ else:
     f_inline PY_RETURN [10]
     f_inline_prof PY_RETURN [10]
     f_nogil_prof PY_RETURN [10]
-    f_reraise RERAISE [10]
+    f_raise PY_UNWIND [20]
+    f_reraise PY_UNWIND [10], RERAISE [10]
     f_return_default PY_RETURN [10]
     f_return_none PY_RETURN [10]
     f_withgil_prof PY_RETURN [10]
@@ -94,8 +96,8 @@ else:
     test_profile PY_RETURN [1]
     --- RAISE ---
     720
-    f_raise RAISE [20]
-    f_reraise RAISE [10], RERAISE [10]
+    f_raise RAISE [20], PY_UNWIND [20]
+    f_reraise RAISE [10], PY_UNWIND [10], RERAISE [10]
     test_profile RAISE [20]
     --- PY_START, PY_RETURN ---
     720
@@ -105,8 +107,8 @@ else:
     f_inline PY_START [10], PY_RETURN [10]
     f_inline_prof PY_START [10], PY_RETURN [10]
     f_nogil_prof PY_START [10], PY_RETURN [10]
-    f_raise PY_START [20]
-    f_reraise PY_START [10], RERAISE [10]
+    f_raise PY_START [20], PY_UNWIND [20]
+    f_reraise PY_START [10], PY_UNWIND [10], RERAISE [10]
     f_return_default PY_START [10], PY_RETURN [10]
     f_return_none PY_START [10], PY_RETURN [10]
     f_withgil_prof PY_START [10], PY_RETURN [10]
@@ -122,8 +124,8 @@ else:
     f_inline PY_START [10]
     f_inline_prof PY_START [10]
     f_nogil_prof PY_START [10]
-    f_raise PY_START [20], RAISE [20]
-    f_reraise PY_START [10], RAISE [10], RERAISE [10]
+    f_raise PY_START [20], RAISE [20], PY_UNWIND [20]
+    f_reraise PY_START [10], RAISE [10], PY_UNWIND [10], RERAISE [10]
     f_return_default PY_START [10]
     f_return_none PY_START [10]
     f_withgil_prof PY_START [10]
@@ -139,8 +141,8 @@ else:
     f_inline PY_RETURN [10]
     f_inline_prof PY_RETURN [10]
     f_nogil_prof PY_RETURN [10]
-    f_raise RAISE [20]
-    f_reraise RAISE [10], RERAISE [10]
+    f_raise RAISE [20], PY_UNWIND [20]
+    f_reraise RAISE [10], PY_UNWIND [10], RERAISE [10]
     f_return_default PY_RETURN [10]
     f_return_none PY_RETURN [10]
     f_withgil_prof PY_RETURN [10]
@@ -156,8 +158,8 @@ else:
     f_inline PY_START [10], PY_RETURN [10]
     f_inline_prof PY_START [10], PY_RETURN [10]
     f_nogil_prof PY_START [10], PY_RETURN [10]
-    f_raise PY_START [20], RAISE [20]
-    f_reraise PY_START [10], RAISE [10], RERAISE [10]
+    f_raise PY_START [20], RAISE [20], PY_UNWIND [20]
+    f_reraise PY_START [10], RAISE [10], PY_UNWIND [10], RERAISE [10]
     f_return_default PY_START [10], PY_RETURN [10]
     f_return_none PY_START [10], PY_RETURN [10]
     f_withgil_prof PY_START [10], PY_RETURN [10]
@@ -194,7 +196,7 @@ else:
     ...     for event_set in combinations(events, num_events):
     ...         event_set += (E.RAISE, E.LINE)
     ...         print(f"--- {names(event_set)} ---")
-    ...         with monitored_events(events=event_set + (E.RERAISE,)) as (collected_events, collected_line_events):
+    ...         with monitored_events(events=event_set + (E.RERAISE, E.PY_UNWIND)) as (collected_events, collected_line_events):
     ...             result = test_profile(10)
     ...         print(result)
     ...         print_events(collected_events)
@@ -207,8 +209,8 @@ else:
     f_inline PY_START [10], LINE [10]
     f_inline_prof PY_START [10], LINE [10]
     f_nogil_prof PY_START [10], LINE [10]
-    f_raise PY_START [20], LINE [20], RAISE [20]
-    f_reraise PY_START [10], LINE [50], RAISE [10], RERAISE [10]
+    f_raise PY_START [20], LINE [20], RAISE [20], PY_UNWIND [20]
+    f_reraise PY_START [10], LINE [50], RAISE [10], PY_UNWIND [10], RERAISE [10]
     f_return_default PY_START [10], LINE [10]
     f_return_none PY_START [10], LINE [10]
     f_withgil_prof PY_START [10], LINE [10]
@@ -224,8 +226,8 @@ else:
     f_inline PY_RETURN [10], LINE [10]
     f_inline_prof PY_RETURN [10], LINE [10]
     f_nogil_prof PY_RETURN [10], LINE [10]
-    f_raise LINE [20], RAISE [20]
-    f_reraise LINE [50], RAISE [10], RERAISE [10]
+    f_raise LINE [20], RAISE [20], PY_UNWIND [20]
+    f_reraise LINE [50], RAISE [10], PY_UNWIND [10], RERAISE [10]
     f_return_default PY_RETURN [10], LINE [10]
     f_return_none PY_RETURN [10], LINE [10]
     f_withgil_prof PY_RETURN [10], LINE [10]
@@ -241,8 +243,8 @@ else:
     f_inline PY_START [10], PY_RETURN [10], LINE [10]
     f_inline_prof PY_START [10], PY_RETURN [10], LINE [10]
     f_nogil_prof PY_START [10], PY_RETURN [10], LINE [10]
-    f_raise PY_START [20], LINE [20], RAISE [20]
-    f_reraise PY_START [10], LINE [50], RAISE [10], RERAISE [10]
+    f_raise PY_START [20], LINE [20], RAISE [20], PY_UNWIND [20]
+    f_reraise PY_START [10], LINE [50], RAISE [10], PY_UNWIND [10], RERAISE [10]
     f_return_default PY_START [10], PY_RETURN [10], LINE [10]
     f_return_none PY_START [10], PY_RETURN [10], LINE [10]
     f_withgil_prof PY_START [10], PY_RETURN [10], LINE [10]
@@ -343,6 +345,42 @@ def monitored_events(events=FUNC_EVENTS, function_name="test_profile"):
         smon.set_events(TOOL_ID, event_set)
         for event in events:
             smon.register_callback(TOOL_ID, event, None)
+
+
+####### Debug helper
+
+ALL_EVENTS = sorted([(name, value) for (name, value) in vars(E).items() if value != 0], key=operator.itemgetter(1))
+
+def trace_events(func=None, events=ALL_EVENTS):
+    event_set = E.NO_EVENTS
+    for _, event in events:
+        event_set |= event
+
+    last_code_obj = [None]
+
+    @cython.profile(False)
+    @cython.linetrace(False)
+    def print_event(event, code_obj, offset, *args):
+        if last_code_obj[0] is not code_obj:
+            last_code_obj[0] = code_obj
+            print()
+        print(event, code_obj, offset, *args)
+
+    try:
+        smon.use_tool_id(TOOL_ID, 'cython-test')
+        for name, event in events:
+            smon.register_callback(TOOL_ID, event, partial(print_event, name))
+        smon.set_events(TOOL_ID, event_set)
+
+        result = func(1) if func is not None else test_profile(1)
+
+    finally:
+        smon.set_events(TOOL_ID, event_set)
+        for _, event in events:
+            smon.register_callback(TOOL_ID, event, None)
+        smon.free_tool_id(TOOL_ID)
+
+    return result
 
 
 ####### Traced code
