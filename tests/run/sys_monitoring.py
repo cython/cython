@@ -4,6 +4,8 @@
 # cython: profile=True, linetrace=True
 # distutils: define_macros = CYTHON_TRACE_NOGIL=1
 
+import cython
+
 import operator
 from collections import defaultdict
 from contextlib import contextmanager
@@ -25,6 +27,45 @@ else:
     FUNC_EVENTS = (E.PY_START, E.PY_RETURN, E.RAISE)
     GEN_EVENTS = FUNC_EVENTS + (E.PY_RESUME, E.PY_YIELD)  # , E.STOP_ITERATION)
     event_name = {1 << event_id: name for name, event_id in vars(E).items()}.get
+
+    ####### Debug helper
+
+    ALL_EVENTS = sorted([(name, value) for (name, value) in vars(E).items() if value != 0], key=operator.itemgetter(1))
+
+    @cython.profile(False)
+    @cython.linetrace(False)
+    def trace_events(func=None, events=ALL_EVENTS):
+        event_set = E.NO_EVENTS
+        for _, event in events:
+            event_set |= event
+
+        last_code_obj = [None]
+
+        @cython.profile(False)
+        @cython.linetrace(False)
+        def print_event(event, code_obj, offset, *args):
+            if last_code_obj[0] is not code_obj:
+                last_code_obj[0] = code_obj
+                print()
+            print(event, code_obj, offset, *args)
+
+        try:
+            smon.use_tool_id(TOOL_ID, 'cython-test')
+            for name, event in events:
+                smon.register_callback(TOOL_ID, event, partial(print_event, name))
+            smon.set_events(TOOL_ID, event_set)
+
+            result = func(1) if func is not None else test_profile(1)
+
+        finally:
+            smon.set_events(TOOL_ID, event_set)
+            for _, event in events:
+                smon.register_callback(TOOL_ID, event, None)
+            smon.free_tool_id(TOOL_ID)
+
+        return result
+
+    ####### Doctests
 
     __doc__ = """
     >>> from itertools import combinations
@@ -266,9 +307,6 @@ else:
     """
 
 
-import cython
-
-
 def names(event_ids):
     return ', '.join([event_name(1 << event_id) for event_id in sorted(event_ids)])
 
@@ -345,42 +383,6 @@ def monitored_events(events=FUNC_EVENTS, function_name="test_profile"):
         smon.set_events(TOOL_ID, event_set)
         for event in events:
             smon.register_callback(TOOL_ID, event, None)
-
-
-####### Debug helper
-
-ALL_EVENTS = sorted([(name, value) for (name, value) in vars(E).items() if value != 0], key=operator.itemgetter(1))
-
-def trace_events(func=None, events=ALL_EVENTS):
-    event_set = E.NO_EVENTS
-    for _, event in events:
-        event_set |= event
-
-    last_code_obj = [None]
-
-    @cython.profile(False)
-    @cython.linetrace(False)
-    def print_event(event, code_obj, offset, *args):
-        if last_code_obj[0] is not code_obj:
-            last_code_obj[0] = code_obj
-            print()
-        print(event, code_obj, offset, *args)
-
-    try:
-        smon.use_tool_id(TOOL_ID, 'cython-test')
-        for name, event in events:
-            smon.register_callback(TOOL_ID, event, partial(print_event, name))
-        smon.set_events(TOOL_ID, event_set)
-
-        result = func(1) if func is not None else test_profile(1)
-
-    finally:
-        smon.set_events(TOOL_ID, event_set)
-        for _, event in events:
-            smon.register_callback(TOOL_ID, event, None)
-        smon.free_tool_id(TOOL_ID)
-
-    return result
 
 
 ####### Traced code
