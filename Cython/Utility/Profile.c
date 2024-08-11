@@ -287,6 +287,8 @@
 
   #define __Pyx_PyMonitoring_ExitScope()  {}
   #define __Pyx_TraceException(lineno, reraised, fresh)  {}
+  #define __Pyx_TraceExceptionHandled(lineno)  {}
+  #define __Pyx_TraceExceptionUnwind(lineno, nogil)  {}
   #define __Pyx_TraceExceptionDone()  {}
 
 #if PY_VERSION_HEX >= 0x030b00a2
