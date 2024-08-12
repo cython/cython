@@ -47,7 +47,7 @@ else:
             if last_code_obj[0] is not code_obj:
                 last_code_obj[0] = code_obj
                 print()
-            print(event, code_obj, offset, *args)
+            print(f"{event}, {code_obj.co_name}:{code_obj.co_firstlineno}, {offset}{', ' if args else ''}", *args)
 
         try:
             smon.use_tool_id(TOOL_ID, 'cython-test')
