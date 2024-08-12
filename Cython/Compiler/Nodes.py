@@ -4890,7 +4890,7 @@ class GeneratorBodyDefNode(DefNode):
         if tracing and not self.body.is_terminator:
             code.funcstate.can_trace = False
             code.put_trace_return("Py_None", pos=self.pos)
-            #code.put_trace_stop_iteration(pos=self.pos)
+            #code.put_trace_stopiteration(self.pos, "Py_None")
 
         code.mark_pos(self.pos)
         code.putln("")
