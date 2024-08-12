@@ -288,7 +288,6 @@
   #define __Pyx_PyMonitoring_ExitScope()  {}
   #define __Pyx_TraceException(lineno, reraised, fresh)  {}
   #define __Pyx_TraceExceptionHandled(lineno)  {}
-  #define __Pyx_TraceExceptionUnwind(lineno, nogil)  {}
   #define __Pyx_TraceExceptionDone()  {}
 
 #if PY_VERSION_HEX >= 0x030b00a2
@@ -347,7 +346,7 @@
           PyGILState_STATE state = PyGILState_Ensure();                                  \
           tstate = __Pyx_PyThreadState_Current;                                          \
           if (__Pyx_IsTracing(tstate, 1, 1)) {                                           \
-              __Pyx_use_tracing = __Pyx_TraceSetupAndCall(&$frame_code_cname, &$frame_cname, tstate, funcname, srcfile, firstlineno, skip_event);  \
+              __Pyx_use_tracing = __Pyx_TraceSetupAndCall((PyCodeObject**)&$frame_code_cname, &$frame_cname, tstate, funcname, srcfile, firstlineno, skip_event);  \
           }                                                                              \
           PyGILState_Release(state);                                                     \
           if (unlikely(__Pyx_use_tracing < 0)) goto_error;                               \
@@ -355,7 +354,7 @@
   } else {                                                                               \
       PyThreadState* tstate = PyThreadState_GET();                                       \
       if (__Pyx_IsTracing(tstate, 1, 1)) {                                               \
-          __Pyx_use_tracing = __Pyx_TraceSetupAndCall(&$frame_code_cname, &$frame_cname, tstate, funcname, srcfile, firstlineno, skip_event);  \
+          __Pyx_use_tracing = __Pyx_TraceSetupAndCall((PyCodeObject**)&$frame_code_cname, &$frame_cname, tstate, funcname, srcfile, firstlineno, skip_event);  \
           if (unlikely(__Pyx_use_tracing < 0)) goto_error;                               \
       }                                                                                  \
   }
@@ -432,6 +431,26 @@
               if (unlikely(!pyvalue)) goto_error;                                         \
               __Pyx_call_return_trace_func(tstate, $frame_cname, pyvalue, 1);             \
               Py_DECREF(pyvalue);                                                         \
+          }                                                                               \
+      }                                                                                   \
+  }
+
+  #define __Pyx_TraceExceptionUnwind(lineno, nogil) \
+  if (likely(!__Pyx_use_tracing)); else {                                                 \
+      if (nogil) {                                                                        \
+          if (CYTHON_TRACE_NOGIL) {                                                       \
+              PyThreadState *tstate;                                                      \
+              PyGILState_STATE state = PyGILState_Ensure();                               \
+              tstate = __Pyx_PyThreadState_Current;                                       \
+              if (__Pyx_IsTracing(tstate, 0, 0)) {                                        \
+                  __Pyx_call_return_trace_func(tstate, $frame_cname, Py_None, 1);         \
+              }                                                                           \
+              PyGILState_Release(state);                                                  \
+          }                                                                               \
+      } else {                                                                            \
+          PyThreadState* tstate = __Pyx_PyThreadState_Current;                            \
+          if (__Pyx_IsTracing(tstate, 0, 0)) {                                            \
+              __Pyx_call_return_trace_func(tstate, $frame_cname, Py_None, 1);             \
           }                                                                               \
       }                                                                                   \
   }
