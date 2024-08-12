@@ -120,6 +120,38 @@ import cython
 COMPILED = cython.compiled
 
 
+def trace_events(func=None):
+    if func is None:
+        func = test_profile
+
+    last_code_obj = [None]
+
+    @cython.profile(False)
+    @cython.linetrace(False)
+    def trace_function(frame, event, arg):
+        try:
+            code_obj = frame.f_code
+            if last_code_obj[0] is not code_obj:
+                last_code_obj[0] = code_obj
+                print('')
+            print(f"{event:20}, {code_obj.co_name}:{code_obj.co_firstlineno}, {frame.f_lineno}, {arg}")
+        except Exception as exc:
+            print("EXC:", exc)
+            import traceback
+            traceback.print_stack()
+
+        return trace_function
+
+    import sys
+    try:
+        sys.settrace(trace_function)
+        sys.setprofile(trace_function)
+        func(1)
+    finally:
+        sys.setprofile(None)
+        sys.settrace(None)
+
+
 def callees(pstats, target_caller):
     pstats.calc_callees()
     for (_, _, caller), callees in pstats.all_callees.items():
@@ -227,7 +259,7 @@ class A(object):
         return a
 
 
-def test_generators():
+def test_generators(_=None):
     call_generator()
     call_generator_exception()
 
