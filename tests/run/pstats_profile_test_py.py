@@ -13,8 +13,8 @@ u"""
     100
     >>> short_stats['f_cdef']
     100
-    >>> short_stats['f_cpdef'] + (0 if COMPILED else 100)
-    300
+    >>> short_stats['f_cpdef']
+    200
     >>> short_stats['f_inline']
     100
     >>> short_stats['f_inline_prof']
@@ -53,10 +53,8 @@ u"""
     >>> short_stats['m_cdef']
     100
 
-    >>> if COMPILED:
-    ...     assert (short_stats['m_cpdef'] - 100) in (200, 400), short_stats['m_cpdef']  # FIXME!
-    ... else:
-    ...     assert short_stats['m_cpdef'] == 200, short_stats['m_cpdef']
+    >>> short_stats['m_cpdef']
+    200
 
     >>> try:
     ...    os.unlink(statsfile)
