@@ -12,7 +12,7 @@ u"""
     >>> short_stats['f_cdef']
     100
     >>> short_stats['f_cpdef']
-    300
+    200
     >>> short_stats['f_inline']
     100
     >>> short_stats['f_inline_prof']
@@ -45,7 +45,7 @@ u"""
     >>> short_stats['m_cdef']
     100
     >>> short_stats['m_cpdef']
-    300
+    200
 
     >>> try:
     ...    os.unlink(statsfile)
