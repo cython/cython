@@ -524,7 +524,7 @@ class A:
 
 # Generators
 
-def test_generators():
+def test_generators(_=None):
     call_generator()
     call_generator_exception()
     f_generator_expr()
