@@ -72,7 +72,11 @@ def get_requires_for_build_sdist(config_settings=None):
     return ["setuptools >= 38.2.5"]
 
 def get_requires_for_build_editable(config_settings=None):
-    return ["setuptools >= 63.0.0"]
+    return [
+        "setuptools >= 63.0.0",
+        "wheel"  # not really necessary for modern setuptools (>=70.0.1), 
+                 # but I don't think I can specify that detail.
+    ]
 
 def prepare_metadata_for_build_wheel(metadata_directory, config_settings=None):
     from setuptools.build_meta import prepare_metadata_for_build_wheel
