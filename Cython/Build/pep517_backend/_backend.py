@@ -3,6 +3,25 @@ from contextlib import contextmanager as _contextmanager
 from functools import lru_cache
 from pathlib import Path as _Path
 
+def _load_toml_file(filename: str) -> dict:
+    # I don't really want to be dealing with finding/vendoring replacement toml
+    # libraries for Python <3.11.  Therefore use setuptools if possible.
+    # Try a number of options for maximum chance of success.
+    try:
+        # pyprojecttoml is marked as private in setuptools
+        from setuptools.config.pyprojecttoml import load_file
+    except ImportError:
+        try:
+            # setuptools 69.1.0+
+            from setuptools.compat.py310 import tomllib
+        except ImportError:
+            import tomllib  # standard library from 3.11 onwards
+        def load_file(filename):
+            with open(filename, "rb") as f:
+                return tomllib.load(f)
+    return load_file(filename)
+
+
 def _prepare_ext_module(module_settings):
     from setuptools import Extension as _Extension
     name = module_settings['name']
@@ -15,13 +34,14 @@ def _prepare_ext_module(module_settings):
 
     return _Extension(name, sources)
 
-@lru_cache  # incase we go through multiple calls to this function
-def _prepare_ext_modules() -> list:
-    from setuptools.config.pyprojecttoml import load_file
+@lru_cache()  # incase we go through multiple calls to this function
+def _prepare_ext_modules(config_toml_path=None) -> list:
     from Cython.Build.Dependencies import cythonize
 
-    config_toml_path = (_Path.cwd().resolve() / 'pyproject.toml')
-    config_toml = load_file(config_toml_path)
+    if config_toml_path is None:
+        # config_toml_path is settable for testing purposes
+        config_toml_path = (_Path.cwd().resolve() / 'pyproject.toml')
+    config_toml = _load_toml_file(config_toml_path)
     cython_settings = config_toml['tool']['cython']
     module_list = cython_settings['module_list']
 
