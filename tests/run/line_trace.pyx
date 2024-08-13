@@ -292,13 +292,14 @@ def run_trace_with_exception(func, bint with_sys=False, bint fail=False, call_fu
     ValueError('failing line trace!')
     [('cy_try_except', 'call', 0)]
 
+    # Py3.9 (only) issues a spurious additional line event after raising the final exception.
     >>> py_try_except = plain_python_functions['py_try_except']
-    >>> run_trace_with_exception(py_raise_exc, call_func=py_try_except)
+    >>> run_trace_with_exception(py_raise_exc, call_func=py_try_except)  # doctest: +ELLIPSIS
     AttributeError('huhu')
-    [('py_try_except', 'call', 0), ('py_try_except', 'line', 1), ('py_try_except', 'line', 2), ('py_raise_exc', 'call', 0), ('py_raise_exc', 'line', 0), ('py_raise_exc', 'exception', 0), ('py_raise_exc', 'return', 0), ('py_try_except', 'exception', 2), ('py_try_except', 'line', 3), ('py_try_except', 'line', 4), ('py_try_except', 'exception', 4), ('py_try_except', 'return', 4)]
-    >>> run_trace_with_exception(py_raise_exc, with_sys=True, call_func=py_try_except)
+    [('py_try_except', 'call', 0), ('py_try_except', 'line', 1), ('py_try_except', 'line', 2), ('py_raise_exc', 'call', 0), ('py_raise_exc', 'line', 0), ('py_raise_exc', 'exception', 0), ('py_raise_exc', 'return', 0), ('py_try_except', 'exception', 2), ('py_try_except', 'line', 3), ('py_try_except', 'line', 4), ('py_try_except', 'exception', 4), ...('py_try_except', 'return', 4)]
+    >>> run_trace_with_exception(py_raise_exc, with_sys=True, call_func=py_try_except)  # doctest: +ELLIPSIS
     AttributeError('huhu')
-    [('py_try_except', 'call', 0), ('py_try_except', 'line', 1), ('py_try_except', 'line', 2), ('py_raise_exc', 'call', 0), ('py_raise_exc', 'line', 0), ('py_raise_exc', 'exception', 0), ('py_raise_exc', 'return', 0), ('py_try_except', 'exception', 2), ('py_try_except', 'line', 3), ('py_try_except', 'line', 4), ('py_try_except', 'exception', 4), ('py_try_except', 'return', 4)]
+    [('py_try_except', 'call', 0), ('py_try_except', 'line', 1), ('py_try_except', 'line', 2), ('py_raise_exc', 'call', 0), ('py_raise_exc', 'line', 0), ('py_raise_exc', 'exception', 0), ('py_raise_exc', 'return', 0), ('py_try_except', 'exception', 2), ('py_try_except', 'line', 3), ('py_try_except', 'line', 4), ('py_try_except', 'exception', 4), ...('py_try_except', 'return', 4)]
     >>> run_trace_with_exception(py_raise_exc, fail=True, call_func=py_try_except)
     ValueError('failing line trace!')
     [('py_try_except', 'call', 0)]
