@@ -237,22 +237,12 @@ def def_to_cdef(source):
     return '\n'.join(output)
 
 
-def exclude_extension_in_pyver(*versions):
-    def check(ext):
-        return EXCLUDE_EXT if sys.version_info[:2] in versions else ext
-    return check
+def exclude_test_in_pyver(*versions):
+    return sys.version_info[:2] in versions
 
 
-def extension_needs_pyver(version):
-    def check(ext):
-        return EXCLUDE_EXT if sys.version_info[:2] < version else ext
-    return check
-
-
-def exclude_extension_on_platform(*platforms):
-    def check(ext):
-        return EXCLUDE_EXT if sys.platform in platforms else ext
-    return check
+def exclude_test_on_platform(*platforms):
+    return sys.platform in platforms
 
 
 def update_linetrace_extension(ext):
@@ -475,11 +465,14 @@ EXT_EXTRAS = {
     'tag:cpp17': update_cpp_extension(17, min_gcc_version="5.0", min_macos_version="10.13"),
     'tag:cpp20': update_cpp_extension(20, min_gcc_version="11.0", min_clang_version="13.0", min_macos_version="10.13"),
     'tag:trace' : update_linetrace_extension,
-    'tag:no-macos':  exclude_extension_on_platform('darwin'),
     'tag:cppexecpolicies': require_gcc("9.1"),
-    'tag:pstats': exclude_extension_in_pyver((3,12)),
-    'tag:coverage': exclude_extension_in_pyver((3,12)),
 }
+
+TAG_EXCLUDERS = sorted({
+    'no-macos':  exclude_test_on_platform('darwin'),
+    'pstats': exclude_test_in_pyver((3,12)),
+    'coverage': exclude_test_in_pyver((3,12)),
+}.items())
 
 # TODO: use tags
 VER_DEP_MODULES = {
@@ -2830,6 +2823,8 @@ def runtests(options, cmd_args, coverage=None):
             TagsSelector('tag', 'memoryview'),
             FileListExcluder(os.path.join(ROOTDIR, "memoryview_tests.txt")),
         ]
+
+    exclude_selectors += [TagsSelector('tag', tag) for tag, exclude in TAG_EXCLUDERS if exclude]
 
     global COMPILER
     if options.compiler:
