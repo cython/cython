@@ -471,6 +471,7 @@ EXT_EXTRAS = {
 TAG_EXCLUDERS = sorted({
     'no-macos':  exclude_test_on_platform('darwin'),
     'pstats': exclude_test_in_pyver((3,12)),
+    'trace': not IS_CPYTHON,
 }.items())
 
 # TODO: use tags
