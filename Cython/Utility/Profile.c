@@ -101,37 +101,37 @@
       if (codeobj) $frame_code_cname = codeobj;
 
   CYTHON_UNUSED static PyCodeObject *__Pyx_createFrameCodeObject(const char *funcname, const char *srcfile, int firstlineno); /*proto*/
-  CYTHON_UNUSED static int __Pyx__TraceStartFunc(PyMonitoringState *state_array, PyObject *code_obj, int firstlineno, int skip_event); /*proto*/
-  CYTHON_UNUSED static int __Pyx__TraceStartGen(PyMonitoringState *state_array, __pyx_monitoring_version_type *version, PyObject *code_obj, int firstlineno); /*proto*/
-  CYTHON_UNUSED static int __Pyx__TraceResumeGen(PyMonitoringState *state_array, __pyx_monitoring_version_type *version, PyObject *code_obj, int firstlineno); /*proto*/
+  CYTHON_UNUSED static int __Pyx__TraceStartFunc(PyMonitoringState *state_array, PyObject *code_obj, int offset, int skip_event); /*proto*/
+  CYTHON_UNUSED static int __Pyx__TraceStartGen(PyMonitoringState *state_array, __pyx_monitoring_version_type *version, PyObject *code_obj, int offset); /*proto*/
+  CYTHON_UNUSED static int __Pyx__TraceResumeGen(PyMonitoringState *state_array, __pyx_monitoring_version_type *version, PyObject *code_obj, int offset); /*proto*/
   CYTHON_UNUSED static void __Pyx__TraceException(PyMonitoringState *monitoring_state, PyObject *code_obj, int offset, int reraised); /*proto*/
 
   #define __Pyx_PyMonitoring_ExitScope()  (PyMonitoring_ExitScope(), (void) __pyx_exception_already_reported)
 
-  #define __Pyx_TraceStartFunc(funcname, srcfile, firstlineno, nogil, skip_event, goto_error) \
+  #define __Pyx_TraceStartFunc(funcname, srcfile, offset, nogil, skip_event, goto_error) \
   if ((0) /* !__Pyx_IsTracing(__Pyx_Monitoring_PY_START) */); else {                         \
       int ret = 0;                                                                           \
       memset($monitoring_states_cname, 0, sizeof($monitoring_states_cname));                 \
       if (nogil) {                                                                           \
           if (CYTHON_TRACE_NOGIL) {                                                          \
               PyGILState_STATE state = PyGILState_Ensure();                                  \
-              if (unlikely(!$frame_code_cname)) $frame_code_cname = (PyObject*) __Pyx_createFrameCodeObject(funcname, srcfile, firstlineno); \
+              if (unlikely(!$frame_code_cname)) $frame_code_cname = (PyObject*) __Pyx_createFrameCodeObject(funcname, srcfile, __Pyx_offset_to_line(offset)); \
               if (unlikely(!$frame_code_cname)) goto_error;                                  \
-              ret = __Pyx__TraceStartFunc($monitoring_states_cname, $frame_code_cname, firstlineno, skip_event); \
+              ret = __Pyx__TraceStartFunc($monitoring_states_cname, $frame_code_cname, offset, skip_event); \
               PyGILState_Release(state);                                                     \
           }                                                                                  \
       } else {                                                                               \
-          if (unlikely(!$frame_code_cname)) $frame_code_cname = (PyObject*) __Pyx_createFrameCodeObject(funcname, srcfile, firstlineno); \
+          if (unlikely(!$frame_code_cname)) $frame_code_cname = (PyObject*) __Pyx_createFrameCodeObject(funcname, srcfile, __Pyx_offset_to_line(offset)); \
           if (unlikely(!$frame_code_cname)) goto_error;                                      \
-          ret = __Pyx__TraceStartFunc($monitoring_states_cname, $frame_code_cname, firstlineno, skip_event); \
+          ret = __Pyx__TraceStartFunc($monitoring_states_cname, $frame_code_cname, offset, skip_event); \
       }                                                                                      \
       if (unlikely(ret == -1)) goto_error;                                                   \
   }
 
   // 'nogil' is obviously unused
-  #define __Pyx_TraceStartGen(funcname, srcfile, firstlineno, nogil, skip_event, goto_error) \
+  #define __Pyx_TraceStartGen(funcname, srcfile, offset, nogil, skip_event, goto_error) \
   if ((0) /* !__Pyx_IsTracing(__Pyx_Monitoring_PY_START) */); else {                         \
-      int ret = __Pyx__TraceStartGen($monitoring_states_cname, &$monitoring_version_cname, $frame_code_cname, firstlineno); \
+      int ret = __Pyx__TraceStartGen($monitoring_states_cname, &$monitoring_version_cname, $frame_code_cname, offset); \
       if (unlikely(ret == -1)) goto_error;                                                   \
   }
 
