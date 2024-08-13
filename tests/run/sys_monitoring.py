@@ -368,7 +368,8 @@ def monitored_events(events=FUNC_EVENTS, function_name="test_profile"):
             collected_line_events[offset] += 1
         if event == E.PY_START:
             if cython.compiled or 'generator' not in function_name:  # FIXME!
-                assert offset >> 9 == (code_obj.co_firstlineno if cython.compiled else 0), f"{code_obj.co_name}: {offset >> 9} != {code_obj.co_firstlineno}"
+                assert offset >> 9 == (code_obj.co_firstlineno if cython.compiled else 0), \
+                    f"{code_obj.co_name}: line {offset >> 9} != {code_obj.co_firstlineno}"
         collected_events[code_obj.co_name][event][offset] += 1
 
     try:
