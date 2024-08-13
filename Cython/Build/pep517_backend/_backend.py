@@ -22,7 +22,6 @@ def _prepare_ext_modules() -> list:
 
     config_toml_path = (_Path.cwd().resolve() / 'pyproject.toml')
     config_toml = load_file(config_toml_path)
-    print("AAAAA", config_toml)
     cython_settings = config_toml['tool']['cython']
     module_list = cython_settings['module_list']
 
