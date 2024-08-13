@@ -107,7 +107,7 @@ u"""
     >>> cython_stats_dict = dict([(k[2], v[1]) for k,v in cython_stats.stats.items()])
 
     >>> python_stats_dict['python_generator'] == cython_stats_dict['generator']  \
-    ...     or  (python_stats_dict['python_generator'], cython_stats_dict['generator'])
+             or  (python_stats_dict['python_generator'], cython_stats_dict['generator'])
     True
 
     >>> try:
