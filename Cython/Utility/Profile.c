@@ -252,7 +252,7 @@
   #endif
 
 #else
-// Use pre-Py3.12 profiling/tracing "C-API".
+// No PyMonitoring C-API (Py3.13+), use pre-Py3.12 profiling/tracing "C-API".
 
   #include "compile.h"
   #include "frameobject.h"
@@ -461,20 +461,21 @@
 #endif
 
 #else
+// ! (CYTHON_TRACE || CYTHON_PROFILE)
 
   #define __Pyx_TraceDeclarationsFunc
   #define __Pyx_TraceDeclarationsGen
   #define __Pyx_TraceExceptionDone()  {}
   #define __Pyx_TraceFrameInit(codeobj)  {}
   #define __Pyx_PyMonitoring_ExitScope()  {}
+  #define __Pyx_TraceException(lineno, reraised, fresh)  {}
+  #define __Pyx_TraceExceptionUnwind(lineno, nogil)  {}
+  #define __Pyx_TraceExceptionHandled(lineno)  {}
   // mark error label as used to avoid compiler warnings
   #define __Pyx_TraceStartFunc(funcname, srcfile, firstlineno, nogil, skip_event, goto_error)   if ((1)); else goto_error;
   #define __Pyx_TraceStartGen __Pyx_TraceStartFunc
   #define __Pyx_TraceResumeGen(funcname, srcfile, firstlineno, lineno, goto_error)   if ((1)); else goto_error;
   #define __Pyx_TraceYield(result, lineno, goto_error)   if ((1)); else goto_error;
-  #define __Pyx_TraceException(lineno, reraised, fresh)  {}
-  #define __Pyx_TraceExceptionUnwind(lineno, nogil)  {}
-  #define __Pyx_TraceExceptionHandled(lineno)  {}
   #define __Pyx_TraceReturnValue(result, lineno, nogil, goto_error) \
       if ((1)); else goto_error;
   #define __Pyx_TraceReturnCValue(cresult, convert_function, lineno, nogil, goto_error) \
@@ -483,7 +484,8 @@
 #endif /* CYTHON_PROFILE || CYTHON_TRACE */
 
 
-#if CYTHON_TRACE && PY_VERSION_HEX < 0x030C0000
+#if !CYTHON_USE_SYS_MONITORING
+#if CYTHON_TRACE
   CYTHON_UNUSED static int __Pyx_call_line_trace_func(PyThreadState *tstate, PyFrameObject *frame, int lineno);/*proto*/
 
   #define __Pyx_TraceLine(lineno, nogil, goto_error)                                       \
@@ -508,9 +510,10 @@
       if (unlikely(ret)) goto_error;                                                       \
   }
 
-#elif !(CYTHON_USE_SYS_MONITORING && CYTHON_TRACE)
+#else
   // mark error label as used to avoid compiler warnings
   #define __Pyx_TraceLine(lineno, nogil, goto_error)   if ((1)); else goto_error;
+#endif
 #endif
 
 /////////////// Profile ///////////////
@@ -518,7 +521,7 @@
 
 #if CYTHON_PROFILE || CYTHON_TRACE
 
-#if CYTHON_TRACE && PY_VERSION_HEX < 0x030C0000
+#if CYTHON_TRACE && !CYTHON_USE_SYS_MONITORING
 static int __Pyx_call_line_trace_func(PyThreadState *tstate, PyFrameObject *frame, int lineno) {
     // see call_trace_protected() in CPython's ceval.c
     int ret;
