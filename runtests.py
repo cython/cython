@@ -470,9 +470,6 @@ EXT_EXTRAS = {
 
 TAG_EXCLUDERS = sorted({
     'no-macos':  exclude_test_on_platform('darwin'),
-    # coverage.py does not support sys.monitoring with the Cython plugin yet.
-    # See https://github.com/nedbat/coveragepy/issues/1790
-    'coverage': exclude_test_in_pyver((3,13)),
     'pstats': exclude_test_in_pyver((3,12)),
 }.items())
 
