@@ -247,7 +247,7 @@ def exclude_test_on_platform(*platforms):
 
 def update_linetrace_extension(ext):
     if sys.version_info[:2] == (3, 12):
-        # Tracing/profiling is generally unavailable in Py3.12.
+        # Line tracing is generally fragile in Py3.12.
         return EXCLUDE_EXT
     if not IS_CPYTHON and sys.version_info[:2] < (3, 13):
         # Tracing/profiling requires PEP-669 monitoring or old CPython tracing.
