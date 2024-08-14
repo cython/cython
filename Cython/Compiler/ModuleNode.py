@@ -3055,8 +3055,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("")
         code.putln(UtilityCode.load_as_string("PyModInitFuncType", "ModuleSetupCode.c")[0])
 
+        modinit_func_name = EncodedString(f"PyInit_{env.module_name}")
         header3 = "__Pyx_PyMODINIT_FUNC %s(void)" % self.mod_init_func_cname('PyInit', env)
-        header3 = EncodedString(header3)
         # Optimise for small code size as the module init function is only executed once.
         code.putln("%s CYTHON_SMALL_CODE; /*proto*/" % header3)
         if self.scope.is_package:
@@ -3148,7 +3148,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
         refnanny_import_code = UtilityCode.load_as_string("ImportRefnannyAPI", "ModuleSetupCode.c")[1]
         code.putln(refnanny_import_code.rstrip())
-        code.put_setup_refcount_context(header3)
+        code.put_setup_refcount_context(modinit_func_name)
 
         env.use_utility_code(UtilityCode.load("CheckBinaryVersion", "ModuleSetupCode.c"))
         code.put_error_if_neg(self.pos, "__Pyx_check_binary_version("
@@ -3232,7 +3232,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
         if profile or linetrace:
             assert code.funcstate.gil_owned
-            code.put_trace_start(header3, self.pos)
+            code.put_trace_start(modinit_func_name, self.pos)
             code.funcstate.can_trace = True
 
         code.mark_pos(None)

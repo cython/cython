@@ -2158,7 +2158,7 @@ class FuncDefNode(StatNode, BlockNode):
             # this looks a bit late, but if we don't get here due to a
             # fatal error before hand, it's not really worth tracing
             if self.is_wrapper:
-                trace_name = self.entry.name + " (wrapper)"
+                trace_name = EncodedString(self.entry.name + " (wrapper)")
             else:
                 trace_name = self.entry.name
             code.put_trace_start(

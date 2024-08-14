@@ -2930,17 +2930,17 @@ class CCodeWriter:
             self.putln('__Pyx_TraceFrameInit(%s)' % codeobj)
 
     def put_trace_start(self, name, pos, nogil=False, is_generator=False, is_cpdef_func=False):
+        trace_func = "__Pyx_TraceStartGen" if is_generator else "__Pyx_TraceStartFunc"
         self.putln(
-            '%s("%s", %s[%s], %s, %d, %s, %s);' % (
-            "__Pyx_TraceStartGen" if is_generator else "__Pyx_TraceStartFunc",
-            name,
-            Naming.filetable_cname,
-            self.lookup_filename(pos[0]),
-            pos_to_offset(pos),
-            nogil,
-            Naming.skip_dispatch_cname if is_cpdef_func else '0',
-            self.error_goto(pos),
-        ))
+            f'{trace_func}('
+            f'{name.as_c_string_literal()}, '
+            f'{Naming.filetable_cname}[{self.lookup_filename(pos[0])}], '
+            f'{pos_to_offset(pos):d}, '
+            f'{nogil:d}, '
+            f'{Naming.skip_dispatch_cname if is_cpdef_func else "0"}, '
+            f'{self.error_goto(pos)}'
+            ');'
+        )
 
     def put_trace_exit(self):
         self.putln("__Pyx_PyMonitoring_ExitScope();")
