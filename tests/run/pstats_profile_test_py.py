@@ -120,6 +120,19 @@ import cython
 
 COMPILED = cython.compiled
 
+####### Debug helper
+# Use like:
+#   python3 -c 'import pstats_profile_test_py as pp; pp.print_event_traces()' > pytrace.log
+# Then compile the module and run:
+#   python3 -c 'import pstats_profile_test_py as pp; pp.print_event_traces()' > cytrace.log
+# Compare the two logs.
+
+@cython.profile(False)
+@cython.linetrace(False)
+def print_event_traces():
+    trace_events(test_profile)
+    trace_events(test_generators)
+
 
 def trace_events(func=None):
     if func is None:
@@ -152,6 +165,8 @@ def trace_events(func=None):
         sys.setprofile(None)
         sys.settrace(None)
 
+
+####### Test code
 
 def callees(pstats, target_caller):
     pstats.calc_callees()

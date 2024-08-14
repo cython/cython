@@ -29,8 +29,19 @@ else:
     event_name = {1 << event_id: name for name, event_id in vars(E).items()}.get
 
     ####### Debug helper
+    # Use like:
+    #   python3 -c 'import sys_monitoring as sm; sm.print_event_traces()' > pytrace.log
+    # Then compile the module and run:
+    #   python3 -c 'import sys_monitoring as sm; sm.print_event_traces()' > cytrace.log
+    # Compare the two logs.
 
     ALL_EVENTS = sorted([(name, value) for (name, value) in vars(E).items() if value != 0], key=operator.itemgetter(1))
+
+    @cython.profile(False)
+    @cython.linetrace(False)
+    def print_event_traces():
+        trace_events(test_profile)
+        trace_events(test_generators)
 
     @cython.profile(False)
     @cython.linetrace(False)
