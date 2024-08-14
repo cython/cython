@@ -2950,9 +2950,11 @@ class CCodeWriter:
         self.putln(f"__Pyx_TraceYield({retvalue_cname}, {pos_to_offset(pos)}, {error_goto});")
 
     def put_trace_resume(self, pos):
-        name = self.funcstate.scope.name.as_c_string_literal()
+        scope = self.funcstate.scope
+        # pos[1] is probably not the first line, so try to find the first line of the generator function.
+        first_line = scope.scope_class.pos[1] if scope.scope_class else pos[1]
+        name = scope.name.as_c_string_literal()
         filename_index = self.lookup_filename(pos[0])
-        first_line = pos[1]  # FIXME: where can we find the first line of the coroutine function?
         error_goto = self.error_goto(pos)
         self.putln(f'__Pyx_TraceResumeGen({name}, {Naming.filetable_cname}[{filename_index}], {first_line}, {pos_to_offset(pos)}, {error_goto});')
 
