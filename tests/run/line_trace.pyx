@@ -292,7 +292,7 @@ def run_trace_with_exception(func, bint with_sys=False, bint fail=False, call_fu
     ValueError('failing line trace!')
     [('cy_try_except', 'call', 0)]
 
-    # Py3.9 (only) issues a spurious additional line event after raising the final exception.
+    # Py3.9 issues a spurious additional line event after raising the final exception, so use +ELLIPSIS.
     >>> py_try_except = plain_python_functions['py_try_except']
     >>> run_trace_with_exception(py_raise_exc, call_func=py_try_except)  # doctest: +ELLIPSIS
     AttributeError('huhu')
