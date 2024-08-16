@@ -964,9 +964,9 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             for source_desc in code.globalstate.filename_list:
                 file_path = source_desc.get_filenametable_entry()
                 if isabs(file_path):
-                    file_path = source_desc.get_description()  # never include absolute paths
-                escaped_filename = file_path.replace("\\", "\\\\").replace('"', r'\"')
-                escaped_filename = as_encoded_filename(escaped_filename)
+                    # never include absolute paths
+                    file_path = source_desc.get_description().replace('\\', '/')
+                escaped_filename = as_encoded_filename(file_path)
                 code.putln('%s,' % escaped_filename.as_c_string_literal())
         else:
             # Some C compilers don't like an empty array

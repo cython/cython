@@ -27,7 +27,7 @@ def cython(cmdstr, cwd=None):
 
 def grep(fname, pattern):
     with open(fname) as fin:
-        return [line.replace('\\', '/') for line in fin if pattern in line]
+        return [line for line in fin if pattern in line]
 
 cython('-3 src/foo/bar.pyx -o build/src/foo/bar1.pyx.c')
 cython('-3 ../src/foo/bar.pyx -o src/foo/bar2.pyx.c', cwd='build')
@@ -43,7 +43,7 @@ assert res1 == [
     '  /* "foo/bar.pyx":3\n',
     '  /* "foo/bar.pyx":2\n',
     '  /* "foo/bar.pyx":2\n'
-], str(res1)
+], '\n' + ''.join(res1)
 
 assert res2 == [
     # When not in CWD all paths are relative to sys.path.
@@ -53,4 +53,4 @@ assert res2 == [
     '  /* "foo/bar.pyx":3\n',
     '  /* "foo/bar.pyx":2\n',
     '  /* "foo/bar.pyx":2\n',
-], str(res2)
+], '\n' + ''.join(res2)

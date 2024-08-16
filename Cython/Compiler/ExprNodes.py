@@ -10210,7 +10210,7 @@ class CodeObjectNode(ExprNode):
         # FIXME: better way to get the module file path at module init time? Encoding to use?
         file_path = func.pos[0].get_filenametable_entry()
         if os.path.isabs(file_path):
-            file_path = func.pos[0].get_description()
+            file_path = func.pos[0].get_description().replace('\\', '/')
         file_path = StringEncoding.bytes_literal(file_path.encode('utf-8'), 'utf8')
         file_path_result = code.get_py_string_const(file_path, identifier=False, is_str=True)
 
