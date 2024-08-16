@@ -27,7 +27,7 @@ def cython(cmdstr, cwd=None):
 
 def grep(fname, pattern):
     with open(fname) as fin:
-        return [line for line in fin if pattern in line]
+        return [line.replace('\\', '/') for line in fin if pattern in line]
 
 cython('-3 src/foo/bar.pyx -o build/src/foo/bar1.pyx.c')
 cython('-3 ../src/foo/bar.pyx -o src/foo/bar2.pyx.c', cwd='build')
