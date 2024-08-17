@@ -2047,7 +2047,7 @@ class EndToEndTest(unittest.TestCase):
                         self.shard_num, c, o, e))
                 sys.stderr.write("Final directory layout of '%s':\n%s\n\n" % (
                     self.name,
-                    '\n'.join(os.path.join(dirpath, filename) for dirpath, dirs, files in os.walk(".") for filename in files),
+                    '\n'.join(os.path.join(dirpath, filename) for dirpath, dirs, files in os.walk(self.workdir) for filename in files),
                 ))
                 self.assertEqual(0, res, "non-zero exit status, last output was:\n%r\n-- stdout:%s\n-- stderr:%s\n" % (
                     ' '.join(command), out[-1], err[-1]))
