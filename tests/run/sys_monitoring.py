@@ -376,11 +376,9 @@ def monitored_events(events=FUNC_EVENTS, function_name="test_profile"):
         if not cython.compiled and 'noprof' in code_obj.co_name:
             return smon.DISABLE if event != E.RAISE else None
         if event == E.LINE:
+            # offset == line
             collected_line_events[offset] += 1
-        if event == E.PY_START:
-            if cython.compiled or 'generator' not in function_name:  # FIXME!
-                assert offset >> 9 == (code_obj.co_firstlineno if cython.compiled else 0), \
-                    f"{code_obj.co_name}: line {offset >> 9} != {code_obj.co_firstlineno}"
+            assert offset in (line for line, *_ in code_obj.co_positions()), f"{code_obj.co_name}: {offset} in {list(code_obj.co_positions())}"
         collected_events[code_obj.co_name][event][offset] += 1
 
     try:

@@ -1,7 +1,9 @@
+from Cython.Compiler.LineTable import build_line_table
 import cython
 cython.declare(PyrexTypes=object, Naming=object, ExprNodes=object, Nodes=object,
                Options=object, UtilNodes=object, LetNode=object,
                LetRefNode=object, TreeFragment=object, EncodedString=object,
+               build_line_table=object,
                error=object, warning=object, copy=object, hashlib=object, sys=object,
                _unicode=object)
 
@@ -2839,20 +2841,32 @@ class AnalyseExpressionsTransform(CythonTransform):
     def visit_ModuleNode(self, node):
         node.scope.infer_types()
         node.body = node.body.analyse_expressions(node.scope)
+        self.positions = [{node.pos}]
         self.visitchildren(node)
+        self._build_positions(node)
         return node
 
     def visit_FuncDefNode(self, node):
         node.local_scope.infer_types()
         node.body = node.body.analyse_expressions(node.local_scope)
+        self.positions[-1].add(node.pos)
+
+        if node.is_wrapper:
+            # Share positions between function and Python wrapper.
+            local_positions = self.positions[-1]
+        else:
+            local_positions = {node.pos}
+        self.positions.append(local_positions)
+
         self.visitchildren(node)
+        self._build_positions(node)
         return node
 
     def visit_ScopedExprNode(self, node):
         if node.has_local_scope:
             node.expr_scope.infer_types()
             node = node.analyse_scoped_expressions(node.expr_scope)
-        self.visitchildren(node)
+        self.visit_ExprNode(node)
         return node
 
     def visit_IndexNode(self, node):
@@ -2866,10 +2880,50 @@ class AnalyseExpressionsTransform(CythonTransform):
         function, or (usually) a Cython indexing operation, we need to
         re-analyse the types.
         """
-        self.visit_Node(node)
+        self.visit_ExprNode(node)
         if node.is_fused_index and not node.type.is_error:
             node = node.base
         return node
+
+    # Build the line table according to PEP-626.
+    # We mostly just do this here to avoid yet another transform traversal.
+
+    def visit_ExprNode(self, node):
+        self.positions[-1].add(node.pos)
+        self.visitchildren(node)
+        return node
+
+    def visit_StatNode(self, node):
+        self.positions[-1].add(node.pos)
+        self.visitchildren(node)
+        return node
+
+    def _build_positions(self, func_node):
+        """
+        Build the PEP-626 line table and "bytecode-to-position" mapping used for CodeObjects.
+        """
+        positions: list = sorted(self.positions.pop(), reverse=True)
+
+        ranges = []
+        line: cython.int
+        next_line: cython.int = -1
+        start_column: cython.int
+        end_column: cython.int
+        next_column: cython.int = 0
+
+        for _, line, start_column in positions:
+            end_column = next_column if line == next_line else start_column + 1
+            ranges.append((line, line, start_column, end_column))
+            next_line, next_column = line, start_column
+
+        ranges.reverse()
+        func_node.node_positions = ranges
+
+        i: cython.Py_ssize_t
+        func_node.local_scope.node_positions_to_offset = {
+            position: i
+            for i, position in enumerate(positions)
+        }
 
 
 class FindInvalidUseOfFusedTypes(TreeVisitor):

@@ -2082,27 +2082,6 @@ class CCodeConfig:
         self.c_line_in_traceback = c_line_in_traceback
 
 
-def pos_to_offset(pos):
-    """
-    Calculate a fake 'instruction offset' from a node position as 31 bit int (32 bit signed).
-
-    We use
-
-        offset = line << 9 | column
-
-    with truncation.
-
-    The formula is good for up to 4_194_303 lines and 511 columns, which seem reasonable limits.
-    """
-    _, line, column = pos
-    if column > (1 << 9) - 1:
-        column = (1 << 9) - 1  # 511
-    line <<= 9
-    if line > 0x7fff_ffff ^ ((1 << 9) - 1):
-        line = 0x7fff_ffff ^ ((1 << 9) - 1)  # 4_194_303
-    return line | column
-
-
 class CCodeWriter:
     """
     Utility class to output C code.
@@ -2367,7 +2346,8 @@ class CCodeWriter:
     def write_trace_line(self, pos):
         if self.funcstate and self.funcstate.can_trace and self.globalstate.directives['linetrace']:
             self.indent()
-            self._write_lines(f'__Pyx_TraceLine({pos_to_offset(pos):d},{not self.funcstate.gil_owned:d},{self.error_goto(pos)})\n')
+            self._write_lines(
+                f'__Pyx_TraceLine({pos[1]:d},{self.pos_to_offset(pos):d},{not self.funcstate.gil_owned:d},{self.error_goto(pos)})\n')
 
     def _build_marker(self, pos):
         source_desc, line, col = pos
@@ -2922,6 +2902,15 @@ class CCodeWriter:
     def is_tracing(self):
         return self.globalstate.directives['profile'] or self.globalstate.directives['linetrace']
 
+    def pos_to_offset(self, pos):
+        """
+        Calculate a fake 'instruction offset' from a node position as 31 bit int (32 bit signed).
+        """
+        scope = self.funcstate.scope
+        while scope and pos not in scope.node_positions_to_offset:
+            scope = scope.parent_scope
+        return scope.node_positions_to_offset[pos] if scope else 0
+
     def put_trace_declarations(self, is_generator=False):
         self.putln('__Pyx_TraceDeclarationsGen' if is_generator else '__Pyx_TraceDeclarationsFunc')
 
@@ -2935,7 +2924,7 @@ class CCodeWriter:
             f'{trace_func}('
             f'{name.as_c_string_literal()}, '
             f'{Naming.filetable_cname}[{self.lookup_filename(pos[0])}], '
-            f'{pos_to_offset(pos):d}, '
+            f'{self.pos_to_offset(pos):d}, '
             f'{nogil:d}, '
             f'{Naming.skip_dispatch_cname if is_cpdef_func else "0"}, '
             f'{self.error_goto(pos)}'
@@ -2947,7 +2936,7 @@ class CCodeWriter:
 
     def put_trace_yield(self, retvalue_cname, pos):
         error_goto = self.error_goto(pos)
-        self.putln(f"__Pyx_TraceYield({retvalue_cname}, {pos_to_offset(pos)}, {error_goto});")
+        self.putln(f"__Pyx_TraceYield({retvalue_cname}, {self.pos_to_offset(pos)}, {error_goto});")
 
     def put_trace_resume(self, pos):
         scope = self.funcstate.scope
@@ -2956,23 +2945,23 @@ class CCodeWriter:
         name = scope.name.as_c_string_literal()
         filename_index = self.lookup_filename(pos[0])
         error_goto = self.error_goto(pos)
-        self.putln(f'__Pyx_TraceResumeGen({name}, {Naming.filetable_cname}[{filename_index}], {first_line}, {pos_to_offset(pos)}, {error_goto});')
+        self.putln(f'__Pyx_TraceResumeGen({name}, {Naming.filetable_cname}[{filename_index}], {first_line}, {self.pos_to_offset(pos)}, {error_goto});')
 
     def put_trace_exception(self, pos, reraise=False, fresh=False):
-        self.putln(f"__Pyx_TraceException({pos_to_offset(pos)}, {bool(reraise):d}, {bool(fresh):d});")
+        self.putln(f"__Pyx_TraceException({self.pos_to_offset(pos)}, {bool(reraise):d}, {bool(fresh):d});")
 
     def put_trace_exception_propagating(self):
         self.putln(f"__Pyx_TraceException({Naming.lineno_cname}, 0, 0);")
 
     def put_trace_exception_handled(self, pos):
-        self.putln(f"__Pyx_TraceExceptionHandled({pos_to_offset(pos)});")
+        self.putln(f"__Pyx_TraceExceptionHandled({self.pos_to_offset(pos)});")
 
     def put_trace_unwind(self, pos, nogil=False):
-        self.putln(f"__Pyx_TraceExceptionUnwind({pos_to_offset(pos)}, {bool(nogil):d});")
+        self.putln(f"__Pyx_TraceExceptionUnwind({self.pos_to_offset(pos)}, {bool(nogil):d});")
 
     def put_trace_stopiteration(self, pos, value):
         error_goto = self.error_goto(pos)
-        self.putln(f"__Pyx_TraceStopIteration({value}, {pos_to_offset(pos)}, {error_goto});")
+        self.putln(f"__Pyx_TraceStopIteration({value}, {self.pos_to_offset(pos)}, {error_goto});")
 
     def put_trace_return(self, retvalue_cname, pos, return_type=None, nogil=False):
         extra_arg = ""
@@ -2989,7 +2978,7 @@ class CCodeWriter:
             return
 
         error_handling = self.error_goto(pos)
-        self.putln(f"{trace_func}({retvalue_cname}{extra_arg}, {pos_to_offset(pos)}, {bool(nogil):d}, {error_handling});")
+        self.putln(f"{trace_func}({retvalue_cname}{extra_arg}, {self.pos_to_offset(pos)}, {bool(nogil):d}, {error_handling});")
 
     def putln_openmp(self, string):
         self.putln("#ifdef _OPENMP")

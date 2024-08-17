@@ -13,7 +13,7 @@ cython.declare(error=object, warning=object, warn_once=object, InternalError=obj
                Builtin=object, Symtab=object, Utils=object, find_coercion_error=object,
                debug_disposal_code=object, debug_temp_alloc=object, debug_coercion=object,
                bytearray_type=object, slice_type=object, memoryview_type=object,
-               builtin_sequence_types=object)
+               builtin_sequence_types=object, build_line_table=object)
 
 import re
 import sys
@@ -25,6 +25,7 @@ from .Errors import (
     error, warning, InternalError, CompileError, report_error, local_errors,
     CannotSpecialize, performance_hint)
 from .Code import UtilityCode, TempitaUtilityCode
+from .LineTable import build_line_table
 from . import StringEncoding
 from . import Naming
 from . import Nodes
@@ -10191,6 +10192,15 @@ class DefFuncLikeNode:
         self.local_scope = cfuncdef_node.entry.scope
         self.args = cfuncdef_node.args
         self.pos = cfuncdef_node.pos
+        self._cfuncdef_node = cfuncdef_node
+
+    @property
+    def node_positions(self):
+        return self._cfuncdef_node.node_positions
+
+    @property
+    def node_positions_to_offset(self):
+        return self._cfuncdef_node.node_positions_to_offset
 
 
 class CodeObjectNode(ExprNode):
@@ -10231,12 +10241,19 @@ class CodeObjectNode(ExprNode):
 
     def generate_codeobj(self, code):
         func = self.def_node
+        first_lineno = self.pos[1]
 
         func_name_result = code.get_py_string_const(
             func.name, identifier=True, is_str=False, unicode_value=func.name)
         # FIXME: better way to get the module file path at module init time? Encoding to use?
         file_path = StringEncoding.bytes_literal(func.pos[0].get_filenametable_entry().encode('utf8'), 'utf8')
         file_path_result = code.get_py_string_const(file_path, identifier=False, is_str=True)
+
+        if func.node_positions:
+            line_table = StringEncoding.bytes_literal(build_line_table(func.node_positions, first_lineno).encode('iso8859-1'), 'iso8859-1')
+            line_table_result = code.get_py_string_const(line_table, identifier=False)
+        else:
+            line_table_result = Naming.empty_bytes
 
         # '(CO_OPTIMIZED | CO_NEWLOCALS)' makes CPython create a new dict for "frame.f_locals".
         # See https://github.com/cython/cython/pull/1836
@@ -10263,7 +10280,6 @@ class CodeObjectNode(ExprNode):
         kwonly_argcount = func.num_kwonly_args
         nlocals = len(self.varnames)
         flags = '(unsigned int)(%s)' % '|'.join(flags) or '0'
-        first_lineno = self.pos[1]
 
         # See "generate_codeobject_constants()" in Code.py.
         code.putln("{")
@@ -10294,6 +10310,7 @@ class CodeObjectNode(ExprNode):
             f"varnames, "
             f"{file_path_result}, "
             f"{func_name_result}, "
+            f"{line_table_result}, "
             f"tuple_dedup_map"
             f"); "
             f"if (unlikely(!{self.result_code})) goto bad;"

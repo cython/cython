@@ -2175,7 +2175,7 @@ static PyObject* __Pyx_PyCode_New(
         // PyObject *cellvars,
         PyObject *filename,
         PyObject *funcname,
-        // PyObject *lnotab,
+        PyObject *line_table,
         PyObject *tuple_dedup_map
 );/*proto*/
 
@@ -2307,11 +2307,12 @@ static PyObject* __Pyx_PyCode_New(
         // PyObject *cellvars,
         PyObject* filename,
         PyObject *funcname,
-        // PyObject *lnotab,
+        // line table replaced lnotab in Py3.11 (PEP-626)
+        PyObject *line_table,
         PyObject *tuple_dedup_map
 ) {
 
-    PyObject *code_obj = NULL, *varnames_tuple_dedup = NULL;
+    PyObject *code_obj = NULL, *varnames_tuple_dedup = NULL, *code_bytes = NULL;
     Py_ssize_t var_count = (Py_ssize_t) descr.nlocals;
 
     PyObject *varnames_tuple = PyTuple_New(var_count);
@@ -2336,6 +2337,13 @@ static PyObject* __Pyx_PyCode_New(
     Py_INCREF(varnames_tuple_dedup);
     #endif
 
+    if (__PYX_LIMITED_VERSION_HEX >= 0x030b0000 && line_table != NULL) {
+        // Allocate a "byte code" array (oversized) to match the addresses in the line table.
+        // Length and alignment must be a multiple of sizeof(_Py_CODEUNIT), which is CPython specific but currently 2.
+        code_bytes = PyBytes_FromStringAndSize(NULL, (PyBytes_GET_SIZE(line_table) * 2 + 4) & ~3);
+        if (unlikely(!code_bytes)) goto done;
+    }
+
     code_obj = (PyObject*) __Pyx__PyCode_New(
         (int) descr.argcount,
         (int) descr.num_posonly_args,
@@ -2343,7 +2351,7 @@ static PyObject* __Pyx_PyCode_New(
         (int) descr.nlocals,
         0,
         (int) descr.flags,
-        ${empty_bytes},
+        code_bytes ? code_bytes : ${empty_bytes},
         ${empty_tuple},
         ${empty_tuple},
         varnames_tuple_dedup,
@@ -2352,8 +2360,9 @@ static PyObject* __Pyx_PyCode_New(
         filename,
         funcname,
         (int) descr.first_line,
-        ${empty_bytes}
+        (__PYX_LIMITED_VERSION_HEX >= 0x030b0000) ? line_table : ${empty_bytes}
     );
+    Py_XDECREF(code_bytes);
 
 done:
     #if CYTHON_AVOID_BORROWED_REFS

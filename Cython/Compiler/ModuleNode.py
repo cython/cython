@@ -124,6 +124,10 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
     pxd_stats = None
     utility_code_stats = None
 
+    @property
+    def local_scope(self):
+        # Make the module node (and its init function) look like a FuncDefNode.
+        return self.scope
 
     def merge_in(self, tree, scope, stage, merge_scope=False):
         # Merges in the contents of another tree, and possibly scope. With the

@@ -20,7 +20,7 @@ and as a general human debugging helper, it always copies the current source cod
        *         z = 0                    # 3
        *         z += cy_add_nogil(x, y)  # 4
        */
-       __Pyx_TraceLine(14700,1,__PYX_ERR(0, 147, __pyx_L4_error))
+       __Pyx_TraceLine(147,6,1,__PYX_ERR(0, 147, __pyx_L4_error))
       [C code generated for file line_trace.pyx, line 147, follows here]
 
 The crux is that multiple source files can contribute code to a single C (or C++) file
@@ -287,7 +287,7 @@ class Plugin(CoveragePlugin):
         match_source_path_line = re.compile(r' */[*] +"(.*)":([0-9]+)$').match
         match_current_code_line = re.compile(r' *[*] (.*) # <<<<<<+$').match
         match_comment_end = re.compile(r' *[*]/$').match
-        match_trace_line = re.compile(r' *__Pyx_TraceLine\(([0-9]+),.*(?:__PYX_ERR\([0-9]+,\s*([0-9]+),)?').match
+        match_trace_line = re.compile(r' *__Pyx_TraceLine\(([0-9]+),').match
         not_executable = re.compile(
             r'\s*c(?:type)?def\s+'
             r'(?:(?:public|external)\s+)?'
@@ -313,10 +313,7 @@ class Plugin(CoveragePlugin):
                     if '__Pyx_TraceLine(' in line and current_filename is not None:
                         trace_line = match_trace_line(line)
                         if trace_line:
-                            # Prefer the plain error source line number
-                            # over calculating the line from the 'instruction offset'.
-                            err_line = trace_line.group(2)
-                            lineno = int(err_line) if err_line else _offset_to_line(int(trace_line.group(1)))
+                            lineno = int(trace_line.group(1))
                             executable_lines[current_filename].add(lineno)
                     continue
                 filename, lineno = match.groups()
