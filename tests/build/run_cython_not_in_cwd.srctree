@@ -1,18 +1,19 @@
 
 PYTHON check_paths_from_cython.py
 
-######## src/foo/__init__.py ########
+######## src/pkg/__init__.py ########
 
-# foo is a package and foo.bar is the module to build
+# __init__.py is needed because cython uses this to determine the
+# root of the package structure.
 
-######## src/foo/bar.pyx ########
+######## src/pkg/mod.pyx ########
 
 def func(x):
     return 2*x
 
-######## build/src/foo/placeholder.txt ########
+######## build/src/pkg/empty_build_output_directory.txt ########
 
-# Build outputs go in the build directory and cython is run from here.
+# Build outputs go in the "build/" directory and cython is run from there.
 
 ######## check_paths_from_cython.py ########
 
@@ -22,35 +23,24 @@ import subprocess
 python = sys.executable
 
 def cython(cmdstr, cwd=None):
-    argv = [sys.executable, '-m', 'cython'] + cmdstr.split()
+    argv = [python, '-m', 'cython'] + cmdstr.split()
     subprocess.run(argv, check=True, cwd=cwd)
 
-def grep(fname, pattern):
+def grep_paths(fname, pattern):
     with open(fname) as fin:
-        return [line for line in fin if pattern in line]
+        for line in fin:
+            if pattern in line:
+                [part] = [p for p in line.split() if pattern in p]
+                yield part.rstrip(',\n;:01234566789').strip('"')
 
-cython('-3 src/foo/bar.pyx -o build/src/foo/bar1.pyx.c')
-cython('-3 ../src/foo/bar.pyx -o src/foo/bar2.pyx.c', cwd='build')
+cython('-3 src/pkg/mod.pyx -o build/src/pkg/mod1.pyx.c')
+cython('-3 ../src/pkg/mod.pyx -o src/pkg/mod2.pyx.c', cwd='build')
 
-res1 = grep('build/src/foo/bar1.pyx.c', 'bar.pyx')
-res2 = grep('build/src/foo/bar2.pyx.c', 'bar.pyx')
+res1 = grep_paths('build/src/pkg/mod1.pyx.c', 'mod.pyx')
+res2 = grep_paths('build/src/pkg/mod2.pyx.c', 'mod.pyx')
 
-assert res1 == [
-    # Running cython on a file in CWD uses some paths relative to CWD.
-    '  "src/foo/bar.pyx",\n',
-    'static const char __pyx_k_src_foo_bar_pyx[] = "src/foo/bar.pyx";\n',
-    '/* "foo/bar.pyx":2\n',
-    '  /* "foo/bar.pyx":3\n',
-    '  /* "foo/bar.pyx":2\n',
-    '  /* "foo/bar.pyx":2\n'
-], '\n' + ''.join(res1)
+# Running cython on a file in CWD uses some paths relative to CWD.
+assert set(res1) == {"src/pkg/mod.pyx", "pkg/mod.pyx"}, str(res1)
 
-assert res2 == [
-    # When not in CWD all paths are relative to sys.path.
-    '  "foo/bar.pyx",\n',
-    'static const char __pyx_k_foo_bar_pyx[] = "foo/bar.pyx";\n',
-    '/* "foo/bar.pyx":2\n',
-    '  /* "foo/bar.pyx":3\n',
-    '  /* "foo/bar.pyx":2\n',
-    '  /* "foo/bar.pyx":2\n',
-], '\n' + ''.join(res2)
+# When not in CWD all paths are relative to sys.path.
+assert set(res2) == {"pkg/mod.pyx"}, str(res2)
