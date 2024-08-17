@@ -968,7 +968,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                     # never include absolute paths
                     file_path = source_desc.get_description()
                 # Always use / as separator
-                file_path = str(pathlib.Path(file_path).as_posix())
+                file_path = pathlib.Path(file_path).as_posix()
                 escaped_filename = as_encoded_filename(file_path)
                 code.putln('%s,' % escaped_filename.as_c_string_literal())
         else:

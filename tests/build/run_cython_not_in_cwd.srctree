@@ -36,11 +36,11 @@ def grep_paths(fname, pattern):
 cython('-3 src/pkg/mod.pyx -o build/src/pkg/mod1.pyx.c')
 cython('-3 ../src/pkg/mod.pyx -o src/pkg/mod2.pyx.c', cwd='build')
 
-res1 = grep_paths('build/src/pkg/mod1.pyx.c', 'mod.pyx')
-res2 = grep_paths('build/src/pkg/mod2.pyx.c', 'mod.pyx')
+res1 = set(grep_paths('build/src/pkg/mod1.pyx.c', 'mod.pyx'))
+res2 = set(grep_paths('build/src/pkg/mod2.pyx.c', 'mod.pyx'))
 
 # Running cython on a file in CWD uses some paths relative to CWD.
-assert set(res1) == {"src/pkg/mod.pyx", "pkg/mod.pyx"}, str(res1)
+assert res1 == {"src/pkg/mod.pyx", "pkg/mod.pyx"}, res1
 
 # When not in CWD all paths are relative to sys.path.
-assert set(res2) == {"pkg/mod.pyx"}, str(res2)
+assert res2 == {"pkg/mod.pyx"}, res2

@@ -10213,7 +10213,7 @@ class CodeObjectNode(ExprNode):
         if os.path.isabs(file_path):
             file_path = func.pos[0].get_description()
         # Always use / as separator
-        file_path = str(pathlib.Path(file_path).as_posix())
+        file_path = pathlib.Path(file_path).as_posix()
         file_path = StringEncoding.bytes_literal(file_path.encode('utf-8'), 'utf8')
         file_path_result = code.get_py_string_const(file_path, identifier=False, is_str=True)
 
