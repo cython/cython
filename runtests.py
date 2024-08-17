@@ -2020,6 +2020,9 @@ class EndToEndTest(unittest.TestCase):
                     envvar = None
                 env.pop(envvar, None)
                 continue
+            elif command[0] == 'CD':
+                os.chdir(command[1] if len(command) > 1 else self.workdir)
+                continue
             time_category = 'etoe-build' if (
                 'setup.py' in command or 'cythonize.py' in command or 'cython.py' in command) else 'etoe-run'
             with self.stats.time('%s(%d)' % (self.name, command_no), 'c', time_category):
