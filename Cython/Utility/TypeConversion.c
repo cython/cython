@@ -752,22 +752,25 @@ static const char DIGITS_HEX[2*16+1] = {
 };
 
 
-/////////////// CIntToPyUnicode.proto ///////////////
+/////////////// COrdinalToPyUnicode.proto ///////////////
 
-static CYTHON_INLINE PyObject* {{TO_PY_FUNCTION}}({{TYPE}} value, Py_ssize_t width, char padding_char, char format_char);
+static CYTHON_INLINE int __Pyx_CheckUnicodeValue(int value);
+static CYTHON_INLINE PyObject* __Pyx_PyUnicode_FromOrdinal_Padded(int value, Py_ssize_t width, char padding_char);
 
-/////////////// CIntToPyUnicode ///////////////
-//@requires: StringTools.c::IncludeStringH
+/////////////// COrdinalToPyUnicode ///////////////
 //@requires: StringTools.c::BuildPyUnicode
-//@requires: CIntToDigits
-//@requires: GCCDiagnostics
 
-static PyObject* __Pyx_PaddedOrdinal{{TO_PY_FUNCTION}}(int value, Py_ssize_t ulength, char padding_char) {
+static CYTHON_INLINE int __Pyx_CheckUnicodeValue(int value) {
+    return value <= 1114111;
+}
+
+
+static PyObject* __Pyx_PyUnicode_FromOrdinal_Padded(int value, Py_ssize_t ulength, char padding_char) {
     if (likely(ulength <= 250)) {
         // Encode to UTF-8 / Latin1 buffer, then decode.
         char chars[256];
 
-        if (sizeof({{TYPE}}) == 1 || value <= 255) {
+        if (value <= 255) {
             // Simple Latin1 result, fast to decode.
             memset(chars, padding_char, ulength - 1);
             chars[ulength-1] = (char) value;
@@ -775,11 +778,11 @@ static PyObject* __Pyx_PaddedOrdinal{{TO_PY_FUNCTION}}(int value, Py_ssize_t ule
         }
 
         char *cpos = chars + sizeof(chars);
-        if (sizeof({{TYPE}}) < 2 || value < 0x800) {
+        if (value < 0x800) {
             *--cpos = 0b10000000 | (value & 0x3f);
             value >>= 6;
             *--cpos = 0b11000000 | (value & 0x1f);
-        } else if (sizeof(value) <= 2 || value < 0x10000) {
+        } else if (value < 0x10000) {
             *--cpos = 0b10000000 | (value & 0x3f);
             value >>= 6;
             *--cpos = 0b10000000 | (value & 0x3f);
@@ -825,9 +828,16 @@ static PyObject* __Pyx_PaddedOrdinal{{TO_PY_FUNCTION}}(int value, Py_ssize_t ule
     }
 }
 
-static CYTHON_INLINE int __Pyx_CheckUnicodeValue{{TO_PY_FUNCTION}}(int value) {
-    return value <= 1114111;
-}
+/////////////// CIntToPyUnicode.proto ///////////////
+
+static CYTHON_INLINE PyObject* {{TO_PY_FUNCTION}}({{TYPE}} value, Py_ssize_t width, char padding_char, char format_char);
+
+/////////////// CIntToPyUnicode ///////////////
+//@requires: StringTools.c::IncludeStringH
+//@requires: StringTools.c::BuildPyUnicode
+//@requires: COrdinalToPyUnicode
+//@requires: CIntToDigits
+//@requires: GCCDiagnostics
 
 // NOTE: inlining because most arguments are constant, which collapses lots of code below
 
@@ -855,7 +865,7 @@ static CYTHON_INLINE PyObject* {{TO_PY_FUNCTION}}({{TYPE}} value, Py_ssize_t wid
         // This check is just an awful variation on "(0 <= value <= 1114111)",
         // but without C compiler complaints about compile time constant conditions depending on the signed/unsigned TYPE.
         if (unlikely(!(is_unsigned || value == 0 || value > 0) ||
-                     !(sizeof(value) <= 2 || value & ~ ({{TYPE}}) 0x01fffff || __Pyx_CheckUnicodeValue{{TO_PY_FUNCTION}}((int) value)))) {
+                     !(sizeof(value) <= 2 || value & ~ ({{TYPE}}) 0x01fffff || __Pyx_CheckUnicodeValue((int) value)))) {
             // PyUnicode_FromOrdinal() and chr() raise ValueError, f-strings raise OverflowError. :-/
             PyErr_SetString(PyExc_OverflowError, "%c arg not in range(0x110000)");
             return NULL;
@@ -863,7 +873,7 @@ static CYTHON_INLINE PyObject* {{TO_PY_FUNCTION}}({{TYPE}} value, Py_ssize_t wid
         if (width <= 1) {
             return PyUnicode_FromOrdinal(value);
         }
-        return __Pyx_PaddedOrdinal{{TO_PY_FUNCTION}}((int) value, width, padding_char);
+        return __Pyx_PyUnicode_FromOrdinal_Padded((int) value, width, padding_char);
     }
 
     if (format_char == 'X') {
