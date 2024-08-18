@@ -2340,7 +2340,9 @@ static PyObject* __Pyx_PyCode_New(
     if (__PYX_LIMITED_VERSION_HEX >= 0x030b0000 && line_table != NULL) {
         // Allocate a "byte code" array (oversized) to match the addresses in the line table.
         // Length and alignment must be a multiple of sizeof(_Py_CODEUNIT), which is CPython specific but currently 2.
-        code_bytes = PyBytes_FromStringAndSize(NULL, (PyBytes_GET_SIZE(line_table) * 2 + 4) & ~3);
+        Py_ssize_t table_length = __Pyx_PyBytes_GET_SIZE(line_table);
+        if (!CYTHON_ASSUME_SAFE_SIZE && unlikely(table_length == -1)) goto done;
+        code_bytes = PyBytes_FromStringAndSize(NULL, (table_length * 2 + 4) & ~3);
         if (unlikely(!code_bytes)) goto done;
     }
 
