@@ -1,4 +1,3 @@
-from Cython.Compiler.LineTable import build_line_table
 import cython
 cython.declare(PyrexTypes=object, Naming=object, ExprNodes=object, Nodes=object,
                Options=object, UtilNodes=object, LetNode=object,
@@ -19,6 +18,7 @@ from . import Options
 from . import Builtin
 from . import Errors
 
+from .LineTable import build_line_table
 from .Visitor import VisitorTransform, TreeVisitor
 from .Visitor import CythonTransform, EnvTransform, ScopeTrackingTransform
 from .UtilNodes import LetNode, LetRefNode
