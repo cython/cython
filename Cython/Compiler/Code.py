@@ -2924,6 +2924,7 @@ class CCodeWriter:
             f'{trace_func}('
             f'{name.as_c_string_literal()}, '
             f'{Naming.filetable_cname}[{self.lookup_filename(pos[0])}], '
+            f'{pos[1]}, '
             f'{self.pos_to_offset(pos):d}, '
             f'{nogil:d}, '
             f'{Naming.skip_dispatch_cname if is_cpdef_func else "0"}, '
