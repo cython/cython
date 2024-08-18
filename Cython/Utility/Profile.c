@@ -605,8 +605,6 @@ static int __Pyx_TraceSetupAndCall(PyCodeObject** code,
                                    const char *srcfile,
                                    int firstlineno,
                                    int skip_event) {
-    PyObject *type, *value, *traceback;
-    int retval;
     if (*frame == NULL || !CYTHON_PROFILE_REUSE_FRAME) {
         if (*code == NULL) {
             *code = __Pyx_createFrameCodeObject(funcname, srcfile, firstlineno);
@@ -627,9 +625,10 @@ static int __Pyx_TraceSetupAndCall(PyCodeObject** code,
     }
 
     if (!skip_event) {
+        PyObject *type, *value, *traceback;
+        int retval = 1;
         __Pyx_PyFrame_SetLineNumber(*frame, firstlineno);
 
-        retval = 1;
         __Pyx_EnterTracing(tstate);
         __Pyx_ErrFetchInState(tstate, &type, &value, &traceback);
 
