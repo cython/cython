@@ -747,23 +747,23 @@ static PyObject* __Pyx_PyUnicode_FromOrdinal_Padded(int value, Py_ssize_t ulengt
 
         char *cpos = chars + sizeof(chars);
         if (value < 0x800) {
-            *--cpos = 0b10000000 | (value & 0x3f);
+            *--cpos = 0b10000000 | (char) (value & 0x3f);
             value >>= 6;
-            *--cpos = 0b11000000 | (value & 0x1f);
+            *--cpos = 0b11000000 | (char) (value & 0x1f);
         } else if (value < 0x10000) {
-            *--cpos = 0b10000000 | (value & 0x3f);
+            *--cpos = 0b10000000 | (char) (value & 0x3f);
             value >>= 6;
-            *--cpos = 0b10000000 | (value & 0x3f);
+            *--cpos = 0b10000000 | (char) (value & 0x3f);
             value >>= 6;
-            *--cpos = 0b11100000 | (value & 0xf);
+            *--cpos = 0b11100000 | (char) (value & 0xf);
         } else {
-            *--cpos = 0b10000000 | (value & 0x3f);
+            *--cpos = 0b10000000 | (char) (value & 0x3f);
             value >>= 6;
-            *--cpos = 0b10000000 | (value & 0x3f);
+            *--cpos = 0b10000000 | (char) (value & 0x3f);
             value >>= 6;
-            *--cpos = 0b10000000 | (value & 0x3f);
+            *--cpos = 0b10000000 | (char) (value & 0x3f);
             value >>= 6;
-            *--cpos = 0b11110000 | (value & 0x7);
+            *--cpos = 0b11110000 | (char) (value & 0x7);
         }
         cpos -= ulength;
         memset(cpos, padding_char, ulength - 1);
@@ -776,23 +776,24 @@ static PyObject* __Pyx_PyUnicode_FromOrdinal_Padded(int value, Py_ssize_t ulengt
     }
 
     {
-        PyObject *uchar = PyUnicode_FromOrdinal(value);
-        if (unlikely(!uchar)) return NULL;
+        PyObject *uchar, *padding_uchar, *padding, *result;
 
-        PyObject *padding_uchar = PyUnicode_FromOrdinal(padding_char);
-        if (unlikely(!padding_uchar)) goto bad;
-        PyObject *padding = PySequence_Repeat(padding_uchar, ulength - 1);
+        padding_uchar = PyUnicode_FromOrdinal(padding_char);
+        if (unlikely(!padding_uchar)) return NULL;
+        padding = PySequence_Repeat(padding_uchar, ulength - 1);
         Py_DECREF(padding_uchar);
-        if (unlikely(!padding)) goto bad;
+        if (unlikely(!padding)) return NULL;
 
-        PyObject *result = PyUnicode_Concat(padding, uchar);
+        uchar = PyUnicode_FromOrdinal(value);
+        if (unlikely(!uchar)) {
+            Py_DECREF(padding);
+            return NULL;
+        }
+
+        result = PyUnicode_Concat(padding, uchar);
         Py_DECREF(padding);
         Py_DECREF(uchar);
         return result;
-
-    bad:
-        Py_DECREF(uchar);
-        return NULL;
     }
 }
 
@@ -871,7 +872,7 @@ static CYTHON_INLINE PyObject* {{TO_PY_FUNCTION}}({{TYPE}} value, Py_ssize_t wid
             return NULL;
         }
         if (width <= 1) {
-            return PyUnicode_FromOrdinal(value);
+            return PyUnicode_FromOrdinal((int) value);
         }
         return __Pyx_PyUnicode_FromOrdinal_Padded((int) value, width, padding_char);
     }
