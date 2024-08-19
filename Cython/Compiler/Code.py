@@ -1935,15 +1935,17 @@ class GlobalState:
 
         w.start_initcfunc(init_function)
 
-        w.putln("PyObject *tuple_dedup_map, *code_bytes;")
+        w.putln("PyObject *tuple_dedup_map, *code_bytes = NULL;")
         w.putln("tuple_dedup_map = PyDict_New();")
         w.putln("if (unlikely(!tuple_dedup_map)) return -1;")
 
         # Allocate a "byte code" array to match the addresses in the line table.
         # Length and alignment must be a multiple of sizeof(_Py_CODEUNIT),
         # which is CPython specific but currently 2, so we align it to 4 to be on the safe side.
+        w.putln("#if !CYTHON_COMPILING_IN_GRAAL")
         w.putln(f"code_bytes = PyBytes_FromStringAndSize(NULL, {(max_code_positions * 2 + 4) & ~0x3});")
         w.putln("if (unlikely(!code_bytes)) goto bad;")
+        w.putln("#endif")
 
         for node in self.codeobject_constants:
             node.generate_codeobj(w, "code_bytes", "bad")
