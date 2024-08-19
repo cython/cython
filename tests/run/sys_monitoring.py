@@ -346,14 +346,6 @@ def assert_events(expected_events, collected_events, loops=10):
 
     collected_events = {name: dict(values) for name, values in collected_events.items()}
 
-    return
-    if cython.compiled:
-        if E.PY_START in collected_events:
-            print("START", collected_events[E.PY_START])
-        if E.PY_RETURN in collected_events:
-            print("RETURN", collected_events[E.PY_RETURN])
-        print(collected_events)
-
 
 @contextmanager
 @cython.profile(False)
