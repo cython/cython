@@ -739,33 +739,33 @@ static PyObject* __Pyx_PyUnicode_FromOrdinal_Padded(int value, Py_ssize_t ulengt
 
         if (value <= 255) {
             // Simple Latin1 result, fast to decode.
-            memset(chars, padding_char, ulength - 1);
+            memset(chars, padding_char, (size_t) (ulength - 1));
             chars[ulength-1] = (char) value;
             return PyUnicode_DecodeLatin1(chars, ulength, NULL);
         }
 
         char *cpos = chars + sizeof(chars);
         if (value < 0x800) {
-            *--cpos = 0b10000000 | (char) (value & 0x3f);
+            *--cpos = (char) (0b10000000 | (value & 0x3f));
             value >>= 6;
-            *--cpos = 0b11000000 | (char) (value & 0x1f);
+            *--cpos = (char) (0b11000000 | (value & 0x1f));
         } else if (value < 0x10000) {
-            *--cpos = 0b10000000 | (char) (value & 0x3f);
+            *--cpos = (char) (0b10000000 | (char) (value & 0x3f));
             value >>= 6;
-            *--cpos = 0b10000000 | (char) (value & 0x3f);
+            *--cpos = (char) (0b10000000 | (char) (value & 0x3f));
             value >>= 6;
-            *--cpos = 0b11100000 | (char) (value & 0xf);
+            *--cpos = (char) (0b11100000 | (char) (value & 0xf));
         } else {
-            *--cpos = 0b10000000 | (char) (value & 0x3f);
+            *--cpos = (char) (0b10000000 | (char) (value & 0x3f));
             value >>= 6;
-            *--cpos = 0b10000000 | (char) (value & 0x3f);
+            *--cpos = (char) (0b10000000 | (char) (value & 0x3f));
             value >>= 6;
-            *--cpos = 0b10000000 | (char) (value & 0x3f);
+            *--cpos = (char) (0b10000000 | (char) (value & 0x3f));
             value >>= 6;
-            *--cpos = 0b11110000 | (char) (value & 0x7);
+            *--cpos = (char) (0b11110000 | (char) (value & 0x7));
         }
         cpos -= ulength;
-        memset(cpos, padding_char, ulength - 1);
+        memset(cpos, padding_char, (size_t) (ulength - 1));
         return PyUnicode_DecodeUTF8(cpos, chars + sizeof(chars) - cpos, NULL);
     }
 
