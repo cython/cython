@@ -732,7 +732,6 @@ static CYTHON_INLINE int __Pyx_CheckUnicodeValue(int value) {
     return value <= 1114111;
 }
 
-
 static PyObject* __Pyx_PyUnicode_FromOrdinal_Padded(int value, Py_ssize_t ulength, char padding_char) {
     if (likely(ulength <= 250)) {
         // Encode to UTF-8 / Latin1 buffer, then decode.
@@ -796,6 +795,7 @@ static PyObject* __Pyx_PyUnicode_FromOrdinal_Padded(int value, Py_ssize_t ulengt
         return result;
     }
 }
+
 
 /////////////// CIntToDigits ///////////////
 
