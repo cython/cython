@@ -2944,10 +2944,10 @@ def runtests(options, cmd_args, coverage=None):
     except ImportError:
         pass
     else:
+        os.environ['PYTHONFAULTHANDLER'] = "1"
         enable_faulthandler = not faulthandler.is_enabled()
         if enable_faulthandler:
             faulthandler.enable()
-            os.environ['PYTHONFAULTHANDLER'] = "1"
 
     # Run the collected tests.
     try:
@@ -2965,6 +2965,7 @@ def runtests(options, cmd_args, coverage=None):
     finally:
         if enable_faulthandler:
             faulthandler.disable()
+        if os.environ.get('PYTHONFAULTHANDLER') != old_faulhandler_envvar:
             if old_faulhandler_envvar is None:
                 del os.environ['PYTHONFAULTHANDLER']
             else:
