@@ -3214,16 +3214,28 @@ class RemoveUnreachableCode(CythonTransform):
         if not self.current_directives['remove_unreachable']:
             return node
         self.visitchildren(node)
-        if len(node.stats) == 1 and isinstance(node.stats[0], Nodes.StatListNode) and not node.stats[0].stats:
-            del node.stats[:]
-        for idx, stat in enumerate(node.stats, 1):
+
+        nested = None
+        for next_index, stat in enumerate(node.stats, 1):
+            if isinstance(stat, Nodes.StatListNode):
+                if nested is None:
+                    nested = []
+                nested.append(next_index - 1)
+
             if stat.is_terminator:
-                if idx < len(node.stats):
+                if next_index < len(node.stats):
                     if self.current_directives['warn.unreachable']:
-                        warning(node.stats[idx].pos, "Unreachable code", 2)
-                    node.stats = node.stats[:idx]
+                        warning(node.stats[next_index].pos, "Unreachable code", 2)
+                    node.stats = node.stats[:next_index]
                 node.is_terminator = True
                 break
+
+        if nested:
+            # We sometimes need a StatListNode in order to have a node at all, but we
+            # don't need nested ones, so replace nested stat list nodes with their content.
+            # This also eliminates redundant nodes added below in visit_PassStatNode().
+            for i in reversed(nested):
+                node.stats[i:i+1] = node.stats[i].stats
         return node
 
     def visit_IfClauseNode(self, node):
