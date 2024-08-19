@@ -722,7 +722,7 @@ static int __Pyx_PyBytes_SingleTailmatch(PyObject* self, PyObject* arg,
         sub_ptr = PyBytes_AS_STRING(arg);
         sub_len = PyBytes_GET_SIZE(arg);
         #endif
-    } 
+    }
     #if CYTHON_COMPILING_IN_LIMITED_API && __PYX_LIMITED_VERSION_HEX < 0x030B0000
     else if (PyByteArray_Check(arg)) {
         // The Limited API fallback is inefficient,
@@ -992,14 +992,14 @@ bad:
 
 /////////////// BuildPyUnicode.proto ///////////////
 
-static PyObject* __Pyx_PyUnicode_BuildFromAscii(Py_ssize_t ulength, char* chars, int clength,
+static PyObject* __Pyx_PyUnicode_BuildFromAscii(Py_ssize_t ulength, const char* chars, int clength,
                                                 int prepend_sign, char padding_char);
 
 /////////////// BuildPyUnicode ///////////////
 
 // Create a PyUnicode object from an ASCII char*, e.g. a formatted number.
 
-static PyObject* __Pyx_PyUnicode_BuildFromAscii(Py_ssize_t ulength, char* chars, int clength,
+static PyObject* __Pyx_PyUnicode_BuildFromAscii(Py_ssize_t ulength, const char* chars, int clength,
                                                 int prepend_sign, char padding_char) {
     PyObject *uval;
     Py_ssize_t uoffset = ulength - clength;
@@ -1033,11 +1033,7 @@ static PyObject* __Pyx_PyUnicode_BuildFromAscii(Py_ssize_t ulength, char* chars,
             if (uoffset > prepend_sign) {
                 padding = PyUnicode_FromOrdinal(padding_char);
                 if (likely(padding) && uoffset > prepend_sign + 1) {
-                    PyObject *tmp;
-                    PyObject *repeat = PyLong_FromSsize_t(uoffset - prepend_sign);
-                    if (unlikely(!repeat)) goto done_or_error;
-                    tmp = PyNumber_Multiply(padding, repeat);
-                    Py_DECREF(repeat);
+                    PyObject *tmp = PySequence_Repeat(padding, uoffset - prepend_sign);
                     Py_DECREF(padding);
                     padding = tmp;
                 }
@@ -1051,12 +1047,12 @@ static PyObject* __Pyx_PyUnicode_BuildFromAscii(Py_ssize_t ulength, char* chars,
 
         uval = PyUnicode_DecodeASCII(chars, clength, NULL);
         if (likely(uval) && padding) {
-            PyObject *tmp = PyNumber_Add(padding, uval);
+            PyObject *tmp = PyUnicode_Concat(padding, uval);
             Py_DECREF(uval);
             uval = tmp;
         }
         if (likely(uval) && sign) {
-            PyObject *tmp = PyNumber_Add(sign, uval);
+            PyObject *tmp = PyUnicode_Concat(sign, uval);
             Py_DECREF(uval);
             uval = tmp;
         }

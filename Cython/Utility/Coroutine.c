@@ -2365,7 +2365,7 @@ static CYTHON_INLINE void __Pyx_ReturnWithStopIteration(PyObject* value, int asy
         PyErr_SetNone(async ? PyExc_StopAsyncIteration : PyExc_StopIteration);
         return;
     }
-    return __Pyx__ReturnWithStopIteration(value, async);
+    __Pyx__ReturnWithStopIteration(value, async);
 }
 
 static void __Pyx__ReturnWithStopIteration(PyObject* value, int async) {
