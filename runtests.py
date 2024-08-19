@@ -2938,6 +2938,7 @@ def runtests(options, cmd_args, coverage=None):
         pass  # not available on PyPy
 
     enable_faulthandler = False
+    old_faulhandler_envvar = os.environ.get('PYTHONFAULTHANDLER')
     try:
         import faulthandler
     except ImportError:
@@ -2946,6 +2947,7 @@ def runtests(options, cmd_args, coverage=None):
         enable_faulthandler = not faulthandler.is_enabled()
         if enable_faulthandler:
             faulthandler.enable()
+            os.environ['PYTHONFAULTHANDLER'] = "1"
 
     # Run the collected tests.
     try:
@@ -2963,6 +2965,10 @@ def runtests(options, cmd_args, coverage=None):
     finally:
         if enable_faulthandler:
             faulthandler.disable()
+            if old_faulhandler_envvar is None:
+                del os.environ['PYTHONFAULTHANDLER']
+            else:
+                os.environ['PYTHONFAULTHANDLER'] = old_faulhandler_envvar
 
     if common_utility_dir and options.shard_num < 0 and options.cleanup_workdir:
         shutil.rmtree(common_utility_dir)
