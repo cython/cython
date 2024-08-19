@@ -105,6 +105,7 @@
 
   #define __Pyx_PyMonitoring_ExitScope()  (PyMonitoring_ExitScope(), (void) __pyx_exception_already_reported)
 
+  // We check "tstate->tracing" after clearing the monitoring state to prevent re-entry while a trace function is running.
   #define __Pyx_TraceStartFunc(funcname, srcfile, firstlineno, offset, nogil, skip_event, goto_error) \
   if ((0) /* !__Pyx_IsTracing(__Pyx_Monitoring_PY_START) */); else {                         \
       int ret = 0;                                                                           \
@@ -112,19 +113,24 @@
       if (nogil) {                                                                           \
           if (CYTHON_TRACE_NOGIL) {                                                          \
               PyGILState_STATE state = PyGILState_Ensure();                                  \
-              if (unlikely(!$frame_code_cname)) $frame_code_cname = (PyObject*) __Pyx_createFrameCodeObject(funcname, srcfile, firstlineno); \
-              if (unlikely(!$frame_code_cname)) goto_error;                                  \
-              ret = __Pyx__TraceStartFunc($monitoring_states_cname, $frame_code_cname, offset, skip_event); \
+              if (!__Pyx_PyThreadState_Current->tracing) {                                   \
+                  if (unlikely(!$frame_code_cname)) $frame_code_cname = (PyObject*) __Pyx_createFrameCodeObject(funcname, srcfile, firstlineno); \
+                  if (unlikely(!$frame_code_cname)) goto_error;                              \
+                  ret = __Pyx__TraceStartFunc($monitoring_states_cname, $frame_code_cname, offset, skip_event); \
+              }                                                                              \
               PyGILState_Release(state);                                                     \
           }                                                                                  \
       } else {                                                                               \
-          if (unlikely(!$frame_code_cname)) $frame_code_cname = (PyObject*) __Pyx_createFrameCodeObject(funcname, srcfile, firstlineno); \
-          if (unlikely(!$frame_code_cname)) goto_error;                                      \
-          ret = __Pyx__TraceStartFunc($monitoring_states_cname, $frame_code_cname, offset, skip_event); \
+          if (!__Pyx_PyThreadState_Current->tracing) {                                       \
+              if (unlikely(!$frame_code_cname)) $frame_code_cname = (PyObject*) __Pyx_createFrameCodeObject(funcname, srcfile, firstlineno); \
+              if (unlikely(!$frame_code_cname)) goto_error;                                  \
+              ret = __Pyx__TraceStartFunc($monitoring_states_cname, $frame_code_cname, offset, skip_event); \
+          }                                                                                  \
       }                                                                                      \
       if (unlikely(ret == -1)) goto_error;                                                   \
   }
 
+  // TODO: We should prevent tracing inside of trace functions (tstate->tracing > 0).
   // 'nogil' is obviously unused
   #define __Pyx_TraceStartGen(funcname, srcfile, firstlineno, offset, nogil, skip_event, goto_error) \
   if ((0) /* !__Pyx_IsTracing(__Pyx_Monitoring_PY_START) */); else {                         \
@@ -132,6 +138,7 @@
       if (unlikely(ret == -1)) goto_error;                                                   \
   }
 
+  // TODO: We should prevent tracing inside of trace functions (tstate->tracing > 0).
   #define __Pyx_TraceResumeGen(funcname, srcfile, firstlineno, offset, goto_error) \
   if ((0) /* !__Pyx_IsTracing(__Pyx_Monitoring_PY_RESUME) */); else {                        \
       int ret = __Pyx__TraceResumeGen($monitoring_states_cname, &$monitoring_version_cname, $frame_code_cname, offset); \
