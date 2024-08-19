@@ -1909,6 +1909,7 @@ class GlobalState:
         max_posonly_args = 1
         max_vars = 1
         max_line = 1
+        max_code_positions = 1
         for node in self.codeobject_constants:
             def_node = node.def_node
             if not def_node.is_generator_expression:
@@ -1917,6 +1918,7 @@ class GlobalState:
                 max_posonly_args = max(max_posonly_args, def_node.num_posonly_args)
             max_vars = max(max_vars, len(node.varnames))
             max_line = max(max_line, def_node.pos[1])
+            max_code_positions = max(max_code_positions, len(def_node.node_positions))
 
         w.put(textwrap.dedent(f"""\
         typedef struct {{
@@ -1933,16 +1935,25 @@ class GlobalState:
 
         w.start_initcfunc(init_function)
 
-        w.putln("PyObject* tuple_dedup_map = PyDict_New();")
+        w.putln("PyObject *tuple_dedup_map, *code_bytes;")
+        w.putln("tuple_dedup_map = PyDict_New();")
         w.putln("if (unlikely(!tuple_dedup_map)) return -1;")
 
-        for node in self.codeobject_constants:
-            node.generate_codeobj(w)
+        # Allocate a "byte code" array to match the addresses in the line table.
+        # Length and alignment must be a multiple of sizeof(_Py_CODEUNIT),
+        # which is CPython specific but currently 2, so we align it to 4 to be on the safe side.
+        w.putln(f"code_bytes = PyBytes_FromStringAndSize(NULL, {(max_code_positions * 2 + 4) & 0x3});")
+        w.putln("if (unlikely(!code_bytes)) goto bad;")
 
+        for node in self.codeobject_constants:
+            node.generate_codeobj(w, "code_bytes", "bad")
+
+        w.putln("Py_DECREF(code_bytes);")
         w.putln("Py_DECREF(tuple_dedup_map);")
         w.putln("return 0;")
 
         w.putln("bad:")
+        w.putln("Py_XDECREF(code_bytes);")
         w.putln("Py_DECREF(tuple_dedup_map);")
         w.putln("return -1;")
         w.exit_cfunc_scope()

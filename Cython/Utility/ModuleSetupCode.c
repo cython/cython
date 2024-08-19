@@ -2166,7 +2166,7 @@ static PyObject* __Pyx_PyCode_New(
         //int flags,
         //int first_line,
         __Pyx_PyCode_New_function_description descr,
-        // PyObject *code,
+        PyObject *code,
         // PyObject *consts,
         // PyObject* n,
         // PyObject *varnames_tuple,
@@ -2176,8 +2176,8 @@ static PyObject* __Pyx_PyCode_New(
         PyObject *filename,
         PyObject *funcname,
         const char *line_table,
-        Py_ssize_t line_table_length,
-        PyObject *tuple_dedup_map
+        PyObject *tuple_dedup_map,
+        Py_ssize_t line_table_length
 );/*proto*/
 
 //////////////////// NewCodeObj ////////////////////////
@@ -2299,7 +2299,7 @@ static PyObject* __Pyx_PyCode_New(
         //int flags,
         //int first_line,
         __Pyx_PyCode_New_function_description descr,
-        // PyObject *code,
+        PyObject *code,
         // PyObject *consts,
         // PyObject* n,
         // PyObject *varnames_tuple,
@@ -2310,11 +2310,11 @@ static PyObject* __Pyx_PyCode_New(
         PyObject *funcname,
         // line table replaced lnotab in Py3.11 (PEP-626)
         const char *line_table,
-        Py_ssize_t line_table_length,
-        PyObject *tuple_dedup_map
+        PyObject *tuple_dedup_map,
+        Py_ssize_t line_table_length
 ) {
 
-    PyObject *code_obj = NULL, *varnames_tuple_dedup = NULL, *code_bytes = NULL, *line_table_bytes = NULL;
+    PyObject *code_obj = NULL, *varnames_tuple_dedup = NULL, *line_table_bytes = NULL;
     Py_ssize_t var_count = (Py_ssize_t) descr.nlocals;
 
     PyObject *varnames_tuple = PyTuple_New(var_count);
@@ -2340,13 +2340,8 @@ static PyObject* __Pyx_PyCode_New(
     #endif
 
     if (__PYX_LIMITED_VERSION_HEX >= 0x030b0000 && line_table != NULL) {
-        // Allocate a "byte code" array (oversized) to match the addresses in the line table.
-        // Length and alignment must be a multiple of sizeof(_Py_CODEUNIT), which is CPython specific but currently 2.
-        // TODO: We really only need one byte code array, as long as it is large enough for all line tables.
         line_table_bytes = PyBytes_FromStringAndSize(line_table, line_table_length);
         if (unlikely(!line_table_bytes)) goto done;
-        code_bytes = PyBytes_FromStringAndSize(NULL, (line_table_length * 2 + 4) & ~3);
-        if (unlikely(!code_bytes)) goto done;
     }
 
     code_obj = (PyObject*) __Pyx__PyCode_New(
@@ -2356,7 +2351,7 @@ static PyObject* __Pyx_PyCode_New(
         (int) descr.nlocals,
         0,
         (int) descr.flags,
-        code_bytes ? code_bytes : ${empty_bytes},
+        code ? code : ${empty_bytes},
         ${empty_tuple},
         ${empty_tuple},
         varnames_tuple_dedup,
@@ -2367,7 +2362,6 @@ static PyObject* __Pyx_PyCode_New(
         (int) descr.first_line,
         (__PYX_LIMITED_VERSION_HEX >= 0x030b0000) ? line_table_bytes : ${empty_bytes}
     );
-    Py_XDECREF(code_bytes);
 
 done:
     Py_XDECREF(line_table_bytes);
