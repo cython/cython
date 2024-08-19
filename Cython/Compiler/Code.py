@@ -2976,7 +2976,9 @@ class CCodeWriter:
             trace_func = "__Pyx_TraceReturnCValue"
             extra_arg = f", {return_type.to_py_function}"
         else:
-            return
+            # We don't have a Python visible return value but we still need to report that we returned.
+            # 'None' may not be a misleading (it's false, for one), but it's hopefully better than nothing.
+            retvalue_cname = 'Py_None'
 
         error_handling = self.error_goto(pos)
         self.putln(f"{trace_func}({retvalue_cname}{extra_arg}, {self.pos_to_offset(pos)}, {bool(nogil):d}, {error_handling});")
