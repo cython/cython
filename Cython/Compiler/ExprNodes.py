@@ -10251,9 +10251,11 @@ class CodeObjectNode(ExprNode):
 
         if func.node_positions:
             line_table = StringEncoding.bytes_literal(build_line_table(func.node_positions, first_lineno).encode('iso8859-1'), 'iso8859-1')
-            line_table_result = code.get_py_string_const(line_table, identifier=False)
+            line_table_result = code.get_string_const(line_table)
+            line_table_length = len(line_table)
         else:
-            line_table_result = Naming.empty_bytes
+            line_table_result = "NULL"
+            line_table_length = 0
 
         # '(CO_OPTIMIZED | CO_NEWLOCALS)' makes CPython create a new dict for "frame.f_locals".
         # See https://github.com/cython/cython/pull/1836
@@ -10311,6 +10313,7 @@ class CodeObjectNode(ExprNode):
             f"{file_path_result}, "
             f"{func_name_result}, "
             f"{line_table_result}, "
+            f"{line_table_length}, "
             f"tuple_dedup_map"
             f"); "
             f"if (unlikely(!{self.result_code})) goto bad;"

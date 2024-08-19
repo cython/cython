@@ -2175,7 +2175,8 @@ static PyObject* __Pyx_PyCode_New(
         // PyObject *cellvars,
         PyObject *filename,
         PyObject *funcname,
-        PyObject *line_table,
+        const char *line_table,
+        Py_ssize_t line_table_length,
         PyObject *tuple_dedup_map
 );/*proto*/
 
@@ -2308,11 +2309,12 @@ static PyObject* __Pyx_PyCode_New(
         PyObject* filename,
         PyObject *funcname,
         // line table replaced lnotab in Py3.11 (PEP-626)
-        PyObject *line_table,
+        const char *line_table,
+        Py_ssize_t line_table_length,
         PyObject *tuple_dedup_map
 ) {
 
-    PyObject *code_obj = NULL, *varnames_tuple_dedup = NULL, *code_bytes = NULL;
+    PyObject *code_obj = NULL, *varnames_tuple_dedup = NULL, *code_bytes = NULL, *line_table_bytes = NULL;
     Py_ssize_t var_count = (Py_ssize_t) descr.nlocals;
 
     PyObject *varnames_tuple = PyTuple_New(var_count);
@@ -2341,9 +2343,9 @@ static PyObject* __Pyx_PyCode_New(
         // Allocate a "byte code" array (oversized) to match the addresses in the line table.
         // Length and alignment must be a multiple of sizeof(_Py_CODEUNIT), which is CPython specific but currently 2.
         // TODO: We really only need one byte code array, as long as it is large enough for all line tables.
-        Py_ssize_t table_length = __Pyx_PyBytes_GET_SIZE(line_table);
-        if (!CYTHON_ASSUME_SAFE_SIZE && unlikely(table_length == -1)) goto done;
-        code_bytes = PyBytes_FromStringAndSize(NULL, (table_length * 2 + 4) & ~3);
+        line_table_bytes = PyBytes_FromStringAndSize(line_table, line_table_length);
+        if (unlikely(!line_table_bytes)) goto done;
+        code_bytes = PyBytes_FromStringAndSize(NULL, (line_table_length * 2 + 4) & ~3);
         if (unlikely(!code_bytes)) goto done;
     }
 
@@ -2363,11 +2365,12 @@ static PyObject* __Pyx_PyCode_New(
         filename,
         funcname,
         (int) descr.first_line,
-        (__PYX_LIMITED_VERSION_HEX >= 0x030b0000) ? line_table : ${empty_bytes}
+        (__PYX_LIMITED_VERSION_HEX >= 0x030b0000) ? line_table_bytes : ${empty_bytes}
     );
     Py_XDECREF(code_bytes);
 
 done:
+    Py_XDECREF(line_table_bytes);
     #if CYTHON_AVOID_BORROWED_REFS
     Py_XDECREF(varnames_tuple_dedup);
     #endif
