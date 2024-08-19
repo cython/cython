@@ -2957,7 +2957,15 @@ class CCodeWriter:
         name = scope.name.as_c_string_literal()
         filename_index = self.lookup_filename(pos[0])
         error_goto = self.error_goto(pos)
-        self.putln(f'__Pyx_TraceResumeGen({name}, {Naming.filetable_cname}[{filename_index}], {first_line}, {self.pos_to_offset(pos)}, {error_goto});')
+        self.putln(
+            '__Pyx_TraceResumeGen('
+            f'{name}, '
+            f'{Naming.filetable_cname}[{filename_index}], '
+            f'{first_line}, '
+            f'{self.pos_to_offset(pos)}, '
+            f'{error_goto}'
+            ');'
+        )
 
     def put_trace_exception(self, pos, reraise=False, fresh=False):
         self.putln(f"__Pyx_TraceException({self.pos_to_offset(pos)}, {bool(reraise):d}, {bool(fresh):d});")
