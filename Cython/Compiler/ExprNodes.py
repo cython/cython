@@ -10239,7 +10239,7 @@ class CodeObjectNode(ExprNode):
         if self.result_code is None:
             self.result_code = code.get_py_codeobj_const(self)
 
-    def generate_codeobj(self, code, code_bytes_cname, error_label):
+    def generate_codeobj(self, code):
         func = self.def_node
         first_lineno = self.pos[1]
 
@@ -10309,15 +10309,14 @@ class CodeObjectNode(ExprNode):
         code.putln(
             f"{self.result_code} = __Pyx_PyCode_New("
             f"descr, "
-            f"{code_bytes_cname}, "
             f"varnames, "
             f"{file_path_result}, "
             f"{func_name_result}, "
             f"{line_table_result}, "
-            f"tuple_dedup_map, "
-            f"{line_table_length}"
+            f"{line_table_length}, "
+            f"tuple_dedup_map"
             f"); "
-            f"if (unlikely(!{self.result_code})) goto {error_label};"
+            f"if (unlikely(!{self.result_code})) goto bad;"
         )
         code.putln("}")
 
