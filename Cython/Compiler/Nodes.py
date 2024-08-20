@@ -4398,20 +4398,16 @@ class DefNodeWrapper(FuncDefNode):
                     last_required_arg = i
             if last_required_arg < max_positional_args:
                 last_required_arg = max_positional_args-1
-
             if max_positional_args > num_pos_only_args:
                 code.putln('switch (%s) {' % Naming.nargs_cname)
-
-            can_fall_through = False
             for i, arg in enumerate(all_args[num_pos_only_args:last_required_arg+1], num_pos_only_args):
                 if max_positional_args > num_pos_only_args and i <= max_positional_args:
-                    if i != num_pos_only_args and can_fall_through:
+                    if i != num_pos_only_args:
                         code.putln('CYTHON_FALLTHROUGH;')
                     if self.star_arg and i == max_positional_args:
                         code.putln('default:')
                     else:
                         code.putln('case %2d:' % i)
-                can_fall_through = True
                 pystring_cname = code.intern_identifier(arg.entry.name)
                 if arg.default:
                     if arg.kw_only:
@@ -4437,7 +4433,6 @@ class DefNodeWrapper(FuncDefNode):
                             # special case: we know arg 0 is missing
                             code.put('else ')
                             code.put_goto(argtuple_error_label)
-                            can_fall_through = False
                         else:
                             # print the correct number of values (args or
                             # kwargs) that were passed into positional
@@ -4450,7 +4445,6 @@ class DefNodeWrapper(FuncDefNode):
                                 min_positional_args, max_positional_args, i))
                             code.putln(code.error_goto(self.pos))
                             code.putln('}')
-                            can_fall_through = False
                     elif arg.kw_only:
                         code.putln('else {')
                         code.globalstate.use_utility_code(
@@ -4459,7 +4453,6 @@ class DefNodeWrapper(FuncDefNode):
                             self_name_csafe, pystring_cname))
                         code.putln(code.error_goto(self.pos))
                         code.putln('}')
-                        can_fall_through = False
             if max_positional_args > num_pos_only_args:
                 code.putln('}')
 
