@@ -2176,7 +2176,6 @@ static PyObject* __Pyx_PyCode_New(
         PyObject *filename,
         PyObject *funcname,
         const char *line_table,
-        Py_ssize_t line_table_length,
         PyObject *tuple_dedup_map
 );/*proto*/
 
@@ -2310,7 +2309,6 @@ static PyObject* __Pyx_PyCode_New(
         PyObject *funcname,
         // line table replaced lnotab in Py3.11 (PEP-626)
         const char *line_table,
-        Py_ssize_t line_table_length,
         PyObject *tuple_dedup_map
 ) {
 
@@ -2343,9 +2341,9 @@ static PyObject* __Pyx_PyCode_New(
         // Allocate a "byte code" array (oversized) to match the addresses in the line table.
         // Length and alignment must be a multiple of sizeof(_Py_CODEUNIT), which is CPython specific but currently 2.
         // TODO: We really only need one byte code array, as long as it is large enough for all line tables.
-        line_table_bytes = PyBytes_FromStringAndSize(line_table, line_table_length);
+        line_table_bytes = PyBytes_FromStringAndSize(line_table, descr.line_table_length);
         if (unlikely(!line_table_bytes)) goto done;
-        code_bytes = PyBytes_FromStringAndSize(NULL, (line_table_length * 2 + 4) & ~3);
+        code_bytes = PyBytes_FromStringAndSize(NULL, (descr.line_table_length * 2 + 4) & ~3);
         if (unlikely(!code_bytes)) goto done;
     }
 
