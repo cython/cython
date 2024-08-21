@@ -1934,6 +1934,7 @@ class GlobalState:
 
         if not self.codeobject_constants:
             w.start_initcfunc(init_function)
+            w.putln(f"CYTHON_UNUSED_VAR({Naming.modulestatevalue_cname});")
             w.putln("return 0;")
             w.exit_cfunc_scope()
             w.putln("}")
