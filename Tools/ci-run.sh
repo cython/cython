@@ -100,7 +100,7 @@ else
 
   if [[ $PYTHON_VERSION != *"-dev" || $COVERAGE == "1" ]]; then
     python -m pip install -r test-requirements.txt || exit 1
-    if [[ $PYTHON_VERSION != "pypy"* && $PYTHON_VERSION != "3."[1]* ]]; then
+    if [[ $PYTHON_VERSION != "pypy"* && $PYTHON_VERSION != "graalpy"* && $PYTHON_VERSION != "3."[1]* ]]; then
       python -m pip install -r test-requirements-cpython.txt || exit 1
     elif [[ $PYTHON_VERSION == "pypy-2.7" ]]; then
       python -m pip install -r test-requirements-pypy27.txt || exit 1
@@ -173,6 +173,11 @@ if [[ $NO_CYTHON_COMPILE != "1" && $PYTHON_VERSION != "pypy"* ]]; then
   if [[ $CYTHON_COMPILE_ALL == "1" ]]; then
     SETUP_ARGS="$SETUP_ARGS --cython-compile-all"
   fi
+  if [[ $LIMITED_API != "" && $NO_LIMITED_COMPILE != "1" ]]; then
+    # in the limited API tests, also build Cython in this mode (for more thorough 
+    # testing rather than performance since it's currently a pessimization)
+    SETUP_ARGS="$SETUP_ARGS --cython-limited-api"
+  fi
   # It looks like parallel build may be causing occasional link failures on Windows
   # "with exit code 1158". DW isn't completely sure of this, but has disabled it in 
   # the hope it helps
@@ -215,7 +220,16 @@ if [[ $TEST_CODE_STYLE != "1" ]]; then
   RUNTESTS_ARGS="$RUNTESTS_ARGS -j7"
 fi
 
+if [[ $PYTHON_VERSION == "graalpy"* ]]; then
+  # [DW] - the Graal JIT and Cython don't seem to get on too well. Disabling the
+  # JIT actually makes it faster! And reduces the number of cores each process uses.
+  export GRAAL_PYTHON_ARGS="--experimental-options --engine.Compilation=false"
+fi
+
 export CFLAGS="$CFLAGS $EXTRA_CFLAGS"
+if [[ $PYTHON_VERSION == *"-freethreading-dev" ]]; then
+  export PYTHON_GIL=0
+fi
 python runtests.py \
   -vv $STYLE_ARGS \
   -x Debugger \

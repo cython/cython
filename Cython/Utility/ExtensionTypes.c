@@ -146,7 +146,7 @@ static int __Pyx_validate_bases_tuple(const char *type_name, Py_ssize_t dictoffs
         if (dictoffset == 0)
         {
             Py_ssize_t b_dictoffset = 0;
-#if CYTHON_USE_TYPE_SLOTS || CYTHON_COMPILING_IN_PYPY
+#if CYTHON_USE_TYPE_SLOTS
             b_dictoffset = b->tp_dictoffset;
 #else
             PyObject *py_b_dictoffset = PyObject_GetAttrString((PyObject*)b, "__dictoffset__");
@@ -166,7 +166,7 @@ static int __Pyx_validate_bases_tuple(const char *type_name, Py_ssize_t dictoffs
                         type_name, b_name);
                     __Pyx_DECREF_TypeName(b_name);
                 }
-#if !(CYTHON_USE_TYPE_SLOTS || CYTHON_COMPILING_IN_PYPY)
+#if !CYTHON_USE_TYPE_SLOTS
               dictoffset_return:
 #endif
 #if CYTHON_AVOID_BORROWED_REFS
@@ -227,7 +227,8 @@ static int __Pyx_PyType_Ready(PyTypeObject *t) {
         // Call gc.disable() as a backwards compatible fallback, but only if needed.
         PyObject *ret, *py_status;
         PyObject *gc = NULL;
-        #if !CYTHON_COMPILING_IN_PYPY || PYPY_VERSION_NUM+0 >= 0x07030400
+        #if (!CYTHON_COMPILING_IN_PYPY || PYPY_VERSION_NUM+0 >= 0x07030400) && \
+                !CYTHON_COMPILING_IN_GRAAL
         // https://foss.heptapod.net/pypy/pypy/-/issues/3385
         gc = PyImport_GetModule(PYUNICODE("gc"));
         #endif
@@ -421,6 +422,8 @@ static int __Pyx_setup_reduce(PyObject* type_obj);
 /////////////// SetupReduce ///////////////
 //@requires: ObjectHandling.c::PyObjectGetAttrStrNoError
 //@requires: ObjectHandling.c::PyObjectGetAttrStr
+//@requires: SetItemOnTypeDict
+//@requires: DelItemOnTypeDict
 //@substitute: naming
 
 static int __Pyx_setup_reduce_is_named(PyObject* meth, PyObject* name) {
@@ -552,7 +555,7 @@ __PYX_GOOD:
 
 static CYTHON_INLINE PyObject *{{func_name}}_maybe_call_slot(PyTypeObject* type, PyObject *left, PyObject *right {{extra_arg_decl}}) {
     {{slot_type}} slot;
-#if CYTHON_USE_TYPE_SLOTS || CYTHON_COMPILING_IN_PYPY
+#if CYTHON_USE_TYPE_SLOTS
     slot = type->tp_as_number ? type->tp_as_number->{{slot_name}} : NULL;
 #else
     slot = ({{slot_type}}) PyType_GetSlot(type, Py_{{slot_name}});
@@ -641,4 +644,154 @@ static int __Pyx_validate_extern_base(PyTypeObject *base) {
         return -1;
     }
     return 0;
+}
+
+/////////////// CallTypeTraverse.proto /////////////////////
+
+#if !CYTHON_USE_TYPE_SPECS || (!CYTHON_COMPILING_IN_LIMITED_API && PY_VERSION_HEX < 0x03090000)
+// Without type specs, we're never responsible for this.
+// If we *know* the Python version is less that 3.9 we're also not responsible
+#define __Pyx_call_type_traverse(o, always_call, visit, arg) 0
+#else
+static int __Pyx_call_type_traverse(PyObject *o, int always_call, visitproc visit, void *arg); /* proto */
+#endif
+
+/////////////// CallTypeTraverse ////////////////////////////
+
+#if !CYTHON_USE_TYPE_SPECS || (!CYTHON_COMPILING_IN_LIMITED_API && PY_VERSION_HEX < 0x03090000)
+// nothing to do
+#else
+static int __Pyx_call_type_traverse(PyObject *o, int always_call, visitproc visit, void *arg) {
+    #if CYTHON_COMPILING_IN_LIMITED_API && __PYX_LIMITED_VERSION_HEX < 0x03090000
+    // We have to work out whether to call traverse based on the runtime version.
+    // __Pyx_get_runtime_version is always available so no need to require it.
+    if (__Pyx_get_runtime_version() < 0x03090000) return 0;
+    #endif
+    if (!always_call) {
+        // Written with reference to https://docs.python.org/3/howto/isolating-extensions.html
+        PyTypeObject *base = __Pyx_PyObject_GetSlot(o, tp_base, PyTypeObject*);
+        unsigned long flags = PyType_GetFlags(base);
+        if (flags & Py_TPFLAGS_HEAPTYPE) {
+            // The base class should have handled it
+            return 0;
+        }
+    }
+    Py_VISIT((PyObject*)Py_TYPE(o));
+    return 0;
+}
+#endif
+
+
+////////////////// LimitedApiGetTypeDict.proto //////////////////////
+
+#if CYTHON_COMPILING_IN_LIMITED_API
+// This is a little hacky - the Limited API works quite hard to stop us getting
+// the dict of a type object. But apparently not hard enough...
+//
+// In future we should prefer to work with mutable types, and then make them immutable
+// once we're done (pending C API support for this).
+static PyObject *__Pyx_GetTypeDict(PyTypeObject *tp); /* proto */
+#endif
+
+////////////////// LimitedApiGetTypeDict //////////////////////
+
+#if CYTHON_COMPILING_IN_LIMITED_API
+static Py_ssize_t __Pyx_GetTypeDictOffset(void) {
+    PyObject *tp_dictoffset_o;
+    Py_ssize_t tp_dictoffset;
+    tp_dictoffset_o = PyObject_GetAttrString((PyObject*)(&PyType_Type), "__dictoffset__");
+    if (unlikely(!tp_dictoffset_o)) return -1;
+    tp_dictoffset = PyLong_AsSsize_t(tp_dictoffset_o);
+    Py_DECREF(tp_dictoffset_o);
+
+    if (unlikely(tp_dictoffset == 0)) {
+        PyErr_SetString(
+            PyExc_TypeError,
+            "'type' doesn't have a dictoffset");
+        return -1;
+    } else if (unlikely(tp_dictoffset < 0)) {
+        // This isn't completely future proof. dictoffset can be
+        // negative, but isn't in Python <=3.13 (current at time
+        // of writing).  It's awkward to calculate in the limited
+        // API because we need to know the object size.  For now
+        // just raise an error and fix it if it every changes.
+        PyErr_SetString(
+            PyExc_TypeError,
+            "'type' has an unexpected negative dictoffset. "
+            "Please report this as Cython bug");
+        return -1;
+    }
+
+    return tp_dictoffset;
+}
+
+static PyObject *__Pyx_GetTypeDict(PyTypeObject *tp) {
+    // TODO - if we ever support custom metatypes for extension types then
+    // we have to modify this caching.
+    static Py_ssize_t tp_dictoffset = 0;
+    if (unlikely(tp_dictoffset == 0)) {
+        tp_dictoffset = __Pyx_GetTypeDictOffset();
+        // Note that negative dictoffsets are definitely allowed.
+        // A dictoffset of -1 seems unlikely but isn't obviously forbidden.
+        if (unlikely(tp_dictoffset == -1 && PyErr_Occurred())) {
+            tp_dictoffset = 0; // try again next time?
+            return NULL;
+        }
+    }
+    return *(PyObject**)((char*)tp + tp_dictoffset);
+}
+#endif
+
+
+////////////////// SetItemOnTypeDict.proto //////////////////////////
+//@requires: LimitedApiGetTypeDict
+
+static int __Pyx__SetItemOnTypeDict(PyTypeObject *tp, PyObject *k, PyObject *v); /* proto */
+
+#define __Pyx_SetItemOnTypeDict(tp, k, v) __Pyx__SetItemOnTypeDict((PyTypeObject*)tp, k, v)
+
+////////////////// SetItemOnTypeDict //////////////////////////
+
+static int __Pyx__SetItemOnTypeDict(PyTypeObject *tp, PyObject *k, PyObject *v) {
+    int result;
+    PyObject *tp_dict;
+#if CYTHON_COMPILING_IN_LIMITED_API
+    tp_dict = __Pyx_GetTypeDict(tp);
+    if (unlikely(!tp_dict)) return -1;
+#else
+    tp_dict = tp->tp_dict;
+#endif
+    result = PyDict_SetItem(tp_dict, k, v);
+    if (likely(!result)) {
+        PyType_Modified(tp);
+        if (unlikely(PyObject_HasAttr(v, PYIDENT("__set_name__")))) {
+            PyObject *setNameResult = PyObject_CallMethodObjArgs(v, PYIDENT("__set_name__"),  (PyObject *) tp, k, NULL);
+            if (!setNameResult) return -1;
+            Py_DECREF(setNameResult);
+        }
+    }
+    return result;
+}
+
+////////////////// DelItemOnTypeDict.proto //////////////////////////
+
+static int __Pyx__DelItemOnTypeDict(PyTypeObject *tp, PyObject *k); /* proto */
+
+#define __Pyx_DelItemOnTypeDict(tp, k) __Pyx__DelItemOnTypeDict((PyTypeObject*)tp, k)
+
+////////////////// DelItemOnTypeDict //////////////////////////
+//@requires: LimitedApiGetTypeDict
+
+static int __Pyx__DelItemOnTypeDict(PyTypeObject *tp, PyObject *k) {
+    int result;
+    PyObject *tp_dict;
+#if CYTHON_COMPILING_IN_LIMITED_API
+    tp_dict = __Pyx_GetTypeDict(tp);
+    if (unlikely(!tp_dict)) return -1;
+#else
+    tp_dict = tp->tp_dict;
+#endif
+    result = PyDict_DelItem(tp_dict, k);
+    if (likely(!result)) PyType_Modified(tp);
+    return result;
 }

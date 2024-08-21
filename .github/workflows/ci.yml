@@ -41,7 +41,7 @@ jobs:
         #
         # FIXME: 'cpp' tests seems to fail due to compilation errors (numpy_pythran_unit)
         # in all python versions and test failures (builtin_float) in 3.5<
-        os: [ubuntu-20.04, windows-2019, macos-11]
+        os: [ubuntu-20.04, windows-2019, macos-12]
         backend: [c, cpp]
         python-version:
           - "3.7"
@@ -59,6 +59,11 @@ jobs:
 
           # Ubuntu sub-jobs:
           # ================
+          # graalpy is really slow, so put it first...
+          - os: ubuntu-20.04
+            python-version: graalpy24
+            backend: c
+            env: { NO_CYTHON_COMPILE: 1 }
           # GCC 11 (with broad language standards)
           - os: ubuntu-20.04
             python-version: "3.9"
@@ -66,12 +71,17 @@ jobs:
             env: { GCC_VERSION: 11, EXTRA_CFLAGS: "-std=c99" }
             extra_hash: "-c99"
           - os: ubuntu-20.04
-            python-version: "3.11"
+            python-version: "3.10"
             backend: c
             env: { GCC_VERSION: 11, EXTRA_CFLAGS: "-std=c17" }
             extra_hash: "-gcc11"
           - os: ubuntu-20.04
-            python-version: "3.11"
+            python-version: "3.12"
+            backend: c
+            env: { GCC_VERSION: 11, EXTRA_CFLAGS: "-std=c17" }
+            extra_hash: "-gcc11"
+          - os: ubuntu-20.04
+            python-version: "3.12"
             backend: cpp
             env: { GCC_VERSION: 11, EXTRA_CFLAGS: "-std=c++20" }
             extra_hash: "-gcc11"
@@ -106,12 +116,12 @@ jobs:
           - os: ubuntu-20.04
             python-version: "3.7"
             backend: "c,cpp"
-            env: { LIMITED_API: "--limited-api", EXCLUDE: "--no-file" }
+            env: { LIMITED_API: "--limited-api", NO_LIMITED_COMPILE: 1, EXCLUDE: "--no-file" }
             extra_hash: "-limited_api"
           - os: ubuntu-20.04
             python-version: "3.8"
             backend: "c,cpp"
-            env: { LIMITED_API: "--limited-api", EXCLUDE: "--no-file" }
+            env: { LIMITED_API: "--limited-api", NO_LIMITED_COMPILE: 1, EXCLUDE: "--no-file" }
             extra_hash: "-limited_api"
           - os: ubuntu-20.04
             python-version: "3.11"
@@ -131,6 +141,11 @@ jobs:
             env: { LIMITED_API: "--limited-api", EXCLUDE: "--no-file" }
             extra_hash: "-limited_api"
           # Type specs
+          - os: ubuntu-20.04
+            python-version: "3.12"
+            backend: c
+            env: { EXTRA_CFLAGS: "-DCYTHON_USE_TYPE_SPECS=1" }
+            extra_hash: "-typespecs"
           - os: ubuntu-20.04
             python-version: "3.9"
             backend: c
@@ -161,6 +176,12 @@ jobs:
             python-version: pypy-3.10
             backend: c
             env: { NO_CYTHON_COMPILE: 1 }
+          # Free-threading
+          - os: ubuntu-20.04
+            python-version: 3.13-freethreading-dev
+            backend: "c,cpp"
+            env: {}
+            allowed_failure: true
 
     # This defaults to 360 minutes (6h) which is way too long and if a test gets stuck, it can block other pipelines.
     # From testing, the runs tend to take ~20 minutes for ubuntu / macos and ~40 for windows,
@@ -171,7 +192,7 @@ jobs:
     env:
       BACKEND: ${{ matrix.backend }}
       PYTHON_VERSION: ${{ matrix.python-version }}
-      MACOSX_DEPLOYMENT_TARGET: 10.15
+      MACOSX_DEPLOYMENT_TARGET: 11.0
       GCC_VERSION: 8
       USE_CCACHE: 1
       CCACHE_SLOPPINESS: "pch_defines,time_macros"
@@ -186,8 +207,16 @@ jobs:
 
       - name: Setup python
         uses: actions/setup-python@v5.0.0
+        if: "!endsWith(matrix.python-version, '-freethreading-dev')"
         with:
           python-version: ${{ matrix.python-version }}
+
+      - name: Setup python from deadsnakes
+        uses: deadsnakes/action@v3.1.0
+        if: "endsWith(matrix.python-version, '-freethreading-dev')"
+        with:
+          python-version: 3.13-dev
+          nogil: true
 
       - name: Compilation Cache
         uses: hendrikmuhs/ccache-action@v1.2.12

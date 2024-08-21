@@ -1,0 +1,25 @@
+# Tests that involve memoryviews and aren't caught by filename or
+# tag. These should be excluded from Limited API < 3.11
+
+# TODO these are mostly "array" rather than memoryview. Revisit if
+# they are separated.
+array.clone
+array.overhead
+array.resize
+array.safe_usage
+array.unsafe_usage
+
+parallelization.manual_work
+parallelization.median
+parallelization.norm.*
+parallelization.parallel_sin
+string.to_char
+numpy_tutorial.compute_fused_types
+numpy_tutorial.compute_infer_types
+numpy_tutorial.compute_prange
+
+# generic filters
+buffer
+memoryview
+memview
+mview

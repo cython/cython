@@ -122,6 +122,17 @@ def get_distutils_distro(_cache=[]):
     return distutils_distro
 
 
+def import_refnanny():
+    try:
+        # try test copy first
+        import refnanny
+        return refnanny
+    except ImportError:
+        pass
+    import Cython.Runtime.refnanny
+    return Cython.Runtime.refnanny
+
+
 EXT_DEP_MODULES = {
     'tag:numpy':     'numpy',
     'tag:pythran':  'pythran',
@@ -472,10 +483,8 @@ VER_DEP_MODULES = {
         'compile.pylong',  # PyLongObject changed its structure
         'run.longintrepr',  # PyLongObject changed its structure
     ]),
-    # See https://github.com/python/cpython/issues/104614 - fixed in Py3.12.0b2, remove eventually.
-    (3,12,0,'beta',1): (operator.eq, lambda x: 'cdef_multiple_inheritance' in x or 'pep442' in x),
-    # Profiling is broken on Python 3.12
-    (3,12): ((lambda actual, v3_12: actual[:2]==v3_12), (lambda x: "pstats" in x)),
+    # Profiling is broken on Python 3.12/3.13alpha
+    (3,12): (operator.gt, lambda x: "pstats" in x),
 }
 
 INCLUDE_DIRS = [ d for d in os.getenv('INCLUDE', '').split(os.pathsep) if d ]
@@ -496,8 +505,9 @@ limited_api_full_tests = None
 def memoize(f):
     uncomputed = object()
     f._cache = {}
+    get = f._cache.get
     def func(*args):
-        res = f._cache.get(args, uncomputed)
+        res = get(args, uncomputed)
         if res is uncomputed:
             res = f._cache[args] = f(*args)
         return res
@@ -510,23 +520,23 @@ def parse_tags(filepath):
     parse_tag = re.compile(r'#\s*(\w+)\s*:(.*)$').match
     with io_open(filepath, encoding='ISO-8859-1', errors='ignore') as f:
         for line in f:
-            # ignore BOM-like bytes and whitespace
-            line = line.lstrip(UTF8_BOM_BYTES).strip()
-            if not line:
-                if tags:
-                    break  # assume all tags are in one block
-                else:
-                    continue
             if line[0] != '#':
-                break
-            parsed = parse_tag(line)
-            if parsed:
-                tag, values = parsed.groups()
-                if tag in ('coding', 'encoding'):
+                # ignore BOM-like bytes and whitespace
+                line = line.lstrip(UTF8_BOM_BYTES).strip()
+                if not line:
+                    if tags:
+                        break  # assume all tags are in one block
                     continue
-                if tag == 'tags':
-                    raise RuntimeError("test tags use the 'tag' directive, not 'tags' (%s)" % filepath)
+                if line[0] != '#':
+                    break
+            parsed = parse_tag(line)
+            if parsed is not None:
+                tag, values = parsed.groups()
                 if tag not in ('mode', 'tag', 'ticket', 'cython', 'distutils', 'preparse'):
+                    if tag in ('coding', 'encoding'):
+                        continue
+                    if tag == 'tags':
+                        raise RuntimeError("test tags use the 'tag' directive, not 'tags' (%s)" % filepath)
                     print("WARNING: unknown test directive '%s' found (%s)" % (tag, filepath))
                 values = values.split(',')
                 tags[tag].extend(filter(None, [value.strip() for value in values]))
@@ -718,7 +728,9 @@ class TestBuilder(object):
                     self.handle_directory(path, filename))
         if (sys.platform not in ['win32'] and self.add_embedded_test
                 # the embedding test is currently broken in Py3.8+ and Py2.7, except on Linux.
-                and ((3, 0) <= sys.version_info < (3, 8) or sys.platform != 'darwin')):
+                and ((3, 0) <= sys.version_info < (3, 8) or sys.platform != 'darwin')
+                # broken on graal too
+                and not IS_GRAAL):
             # Non-Windows makefile.
             if [1 for selector in self.selectors if selector("embedded")] \
                     and not [1 for selector in self.exclude_selectors if selector("embedded")]:
@@ -1227,6 +1239,7 @@ class CythonCompileTestCase(unittest.TestCase):
             generate_pxi = False,
             evaluate_tree_assertions = True,
             common_utility_include_dir = common_utility_include_dir,
+            c_line_in_traceback = True,
             **extra_compile_options
             )
         cython_compile(module_path, options=options, full_module_name=module)
@@ -1315,13 +1328,13 @@ class CythonCompileTestCase(unittest.TestCase):
             build_extension.build_lib  = workdir
 
             from Cython.Utils import captured_fd, prepare_captured
-            from distutils.errors import CompileError
+            from distutils.errors import CCompilerError
 
             error = None
             with captured_fd(2) as get_stderr:
                 try:
                     build_extension.run()
-                except CompileError as exc:
+                except CCompilerError as exc:
                     error = str(exc)
             stderr = get_stderr()
             if stderr and b"Command line warning D9025" in stderr:
@@ -1335,7 +1348,7 @@ class CythonCompileTestCase(unittest.TestCase):
                 output = b"Compiler output for module " + module.encode('utf-8') + b":\n" + stderr + b"\n"
                 sys.stdout.buffer.write(output)
             if error is not None:
-                raise CompileError(u"%s\nCompiler output:\n%s" % (error, prepare_captured(stderr)))
+                raise CCompilerError(u"%s\nCompiler output:\n%s" % (error, prepare_captured(stderr)))
         finally:
             os.chdir(cwd)
 
@@ -1398,10 +1411,6 @@ class CythonCompileTestCase(unittest.TestCase):
                     self.fail('Nondeterministic file generation: %s' % ', '.join(diffs))
 
         tostderr = sys.__stderr__.write
-        if expected_warnings or (expect_warnings and warnings):
-            self._match_output(expected_warnings, warnings, tostderr)
-        if expected_perf_hints or (expect_perf_hints and perf_hints):
-            self._match_output(expected_perf_hints, perf_hints, tostderr)
         if 'cerror' in self.tags['tag']:
             if errors:
                 tostderr("\n=== Expected C compile error ===\n")
@@ -1412,11 +1421,15 @@ class CythonCompileTestCase(unittest.TestCase):
         elif errors or expected_errors:
             self._match_output(expected_errors, errors, tostderr)
             return None
+        if expected_warnings or (expect_warnings and warnings):
+            self._match_output(expected_warnings, warnings, tostderr)
+        if expected_perf_hints or (expect_perf_hints and perf_hints):
+            self._match_output(expected_perf_hints, perf_hints, tostderr)
 
         so_path = None
         if not self.cython_only:
             from Cython.Utils import captured_fd, print_bytes
-            from distutils.errors import CompileError, LinkError
+            from distutils.errors import CCompilerError
             show_output = True
             get_stderr = get_stdout = None
             try:
@@ -1427,7 +1440,7 @@ class CythonCompileTestCase(unittest.TestCase):
             except Exception as exc:
                 if ('cerror' in self.tags['tag'] and
                     ((get_stderr and get_stderr()) or
-                     isinstance(exc, (CompileError, LinkError)))):
+                     isinstance(exc, CCompilerError))):
                     show_output = False  # expected C compiler failure
                 else:
                     raise
@@ -1655,6 +1668,7 @@ class PureDoctestTestCase(unittest.TestCase):
                         self.module_path,
                         '--ignore-missing-imports',
                         '--follow-imports', 'skip',
+                        '--python-version', '3.10',
                     ])
                 if mypy_result[2]:
                     self.fail(mypy_result[0])
@@ -1748,7 +1762,7 @@ class CythonPyregrTestCase(CythonRunTestCase):
         for cls in classes:
             if isinstance(cls, str):
                 if cls in sys.modules:
-                    suite.addTest(unittest.findTestCases(sys.modules[cls]))
+                    suite.addTest(unittest.TestLoader().loadTestsFromModule(sys.modules[cls]))
                 else:
                     raise ValueError("str arguments must be keys in sys.modules")
             elif isinstance(cls, valid_types):
@@ -2000,6 +2014,13 @@ class EndToEndTest(unittest.TestCase):
         out = []
         err = []
         for command_no, command in enumerate(self.commands, 1):
+            if command[0] == "UNSET":
+                try:
+                    envvar = command[1]
+                except KeyError:
+                    envvar = None
+                env.pop(envvar, None)
+                continue
             time_category = 'etoe-build' if (
                 'setup.py' in command or 'cythonize.py' in command or 'cython.py' in command) else 'etoe-run'
             with self.stats.time('%s(%d)' % (self.name, command_no), 'c', time_category):
@@ -2487,6 +2508,7 @@ def main():
 
         pool.close()
         pool.join()
+        pool.terminate()  # graalpy seems happier if we terminate now rather than leaving it to the gc
 
         total_time = time.time() - total_time
         sys.stderr.write("Sharded tests run in %d seconds (%.1f minutes)\n" % (round(total_time), total_time / 60.))
@@ -2625,6 +2647,14 @@ def save_coverage(coverage, options):
 def runtests_callback(args):
     options, cmd_args, shard_num = args
     options.shard_num = shard_num
+
+    # Make the shard number visible in faulthandler stack traces in the case of process crashes.
+    try:
+        runtests.__code__ = runtests.__code__.replace(co_name=f"runtests_SHARD_{shard_num}")
+    except (AttributeError, TypeError):
+        # No .replace() in Py3.7, 'co_name' might not be replacible, whatever.
+        pass
+
     return runtests(options, cmd_args)
 
 
@@ -2684,12 +2714,17 @@ def runtests(options, cmd_args, coverage=None):
             sys.stderr.write("Disabling refnanny in PyPy\n")
             options.with_refnanny = False
 
+    refnanny = None
     if options.with_refnanny:
-        from pyximport.pyxbuild import pyx_to_dll
-        libpath = pyx_to_dll(os.path.join("Cython", "Runtime", "refnanny.pyx"),
-                             build_in_temp=True,
-                             pyxbuild_dir=os.path.join(WORKDIR, "support"))
-        sys.path.insert(0, os.path.split(libpath)[0])
+        try:
+            refnanny = import_refnanny()
+        except ImportError:
+            from pyximport.pyxbuild import pyx_to_dll
+            libpath = pyx_to_dll(os.path.join("Cython", "Runtime", "refnanny.pyx"),
+                                build_in_temp=True,
+                                pyxbuild_dir=os.path.join(WORKDIR, "support"))
+            sys.path.insert(0, os.path.split(libpath)[0])
+            refnanny = import_refnanny()
         CDEFS.append(('CYTHON_REFNANNY', '1'))
 
     if options.limited_api:
@@ -2765,13 +2800,21 @@ def runtests(options, cmd_args, coverage=None):
             ('limited_api_bugs.txt', options.limited_api),
             ('windows_bugs.txt', sys.platform == 'win32'),
             ('cygwin_bugs.txt', sys.platform == 'cygwin'),
-            ('windows_bugs_39.txt', sys.platform == 'win32' and sys.version_info[:2] == (3, 9))
+            ('windows_bugs_39.txt', sys.platform == 'win32' and sys.version_info[:2] == (3, 9)),
         ]
 
         exclude_selectors += [
             FileListExcluder(os.path.join(ROOTDIR, bugs_file_name),
                              verbose=verbose_excludes)
             for bugs_file_name, condition in bug_files if condition
+        ]
+
+    if sys.version_info < (3, 11) and options.limited_api:
+        # exclude everything with memoryviews in since this is a big
+        # missing feature from the limited API in these versions
+        exclude_selectors += [
+            TagsSelector('tag', 'memoryview'),
+            FileListExcluder(os.path.join(ROOTDIR, "memoryview_tests.txt")),
         ]
 
     global COMPILER
@@ -2829,10 +2872,11 @@ def runtests(options, cmd_args, coverage=None):
 
     if options.examples and languages:
         examples_workdir = os.path.join(WORKDIR, 'examples')
+        language_level = 3
         for subdirectory in glob.glob(os.path.join(options.examples_dir, "*/")):
             filetests = TestBuilder(subdirectory, examples_workdir, selectors, exclude_selectors,
                                     options, options.pyregr, languages, test_bugs,
-                                    options.language_level, common_utility_dir,
+                                    language_level, common_utility_dir,
                                     options.pythran_dir,
                                     default_mode='compile', stats=stats, add_cython_import=True)
             test_suite.addTest(filetests.build_suite())
@@ -2897,12 +2941,13 @@ def runtests(options, cmd_args, coverage=None):
     # Run the collected tests.
     try:
         if options.shard_num > -1:
-            sys.stderr.write("Tests in shard %d/%d starting\n" % (options.shard_num, options.shard_count))
+            thread_id = f" (Thread ID 0x{threading.get_ident():x})" if threading is not None else ""
+            sys.stderr.write(f"Tests in shard ({options.shard_num}/{options.shard_count}) starting{thread_id}\n")
         result = test_runner.run(test_suite)
     except Exception as exc:
         # Make sure we print exceptions also from shards.
         if options.shard_num > -1:
-            sys.stderr.write("Tests in shard %d/%d crashed: %s\n" % (options.shard_num, options.shard_count, exc))
+            sys.stderr.write(f"Tests in shard ({options.shard_num}/{options.shard_count}) crashed: {exc}\n")
         import traceback
         traceback.print_exc()
         raise
@@ -2921,8 +2966,7 @@ def runtests(options, cmd_args, coverage=None):
         for test in missing_dep_excluder.tests_missing_deps:
             sys.stderr.write("   %s\n" % test)
 
-    if options.with_refnanny:
-        import refnanny
+    if options.with_refnanny and refnanny is not None:
         sys.stderr.write("\n".join([repr(x) for x in refnanny.reflog]))
 
     result_code = 0 if options.exit_ok else not result.wasSuccessful()

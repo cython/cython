@@ -110,6 +110,10 @@ class build_ext(_build_ext):
         if self.get_extension_attr(ext, 'cython_cplus'):
             ext.language = 'c++'
 
+        if hasattr(ext, 'no_c_in_traceback'):
+            c_line_in_traceback = not ext.no_c_in_traceback
+        else:
+            c_line_in_traceback = None
         options = {
             'use_listing_file': self.get_extension_attr(ext, 'cython_create_listing'),
             'emit_linenums': self.get_extension_attr(ext, 'cython_line_directives'),
@@ -118,7 +122,7 @@ class build_ext(_build_ext):
             'build_dir': self.build_temp if self.get_extension_attr(ext, 'cython_c_in_temp') else None,
             'generate_pxi': self.get_extension_attr(ext, 'cython_gen_pxi'),
             'gdb_debug': self.get_extension_attr(ext, 'cython_gdb'),
-            'c_line_in_traceback': not getattr(ext, 'no_c_in_traceback', 0),
+            'c_line_in_traceback': c_line_in_traceback,
             'compile_time_env': self.get_extension_attr(ext, 'cython_compile_time_env', default=None),
         }
 

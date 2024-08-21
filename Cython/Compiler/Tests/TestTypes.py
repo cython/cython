@@ -59,9 +59,9 @@ class TestTypeIdentifiers(unittest.TestCase):
             ("const &&&std::vector", "const__fwref__refstd__in_vector"),
             ("const &&std::vector", "const__fwrefstd__in_vector"),
             ("void (*func)(int x, float y)",
-             "975d51__void__lParen__ptrfunc__rParen__lParenint__space_x__comma_float__space_y__rParen__etc"),
+             "975d51__void__lParen__ptrfunc__rParen__lParenint__spac__etc"),
             ("float ** (*func)(int x, int[:] y)",
-             "31883a__float__ptr__ptr__lParen__ptrfunc__rParen__lParenint__space_x__comma_int__lArr__D__rArry__rParen__etc"),
+             "31883a__float__ptr__ptr__lParen__ptrfunc__rParen__lPar__etc"),
         ]
         self._test_escape(function_name, test_data)
 
@@ -71,3 +71,5 @@ class TestTypeIdentifiers(unittest.TestCase):
             escaped_value = escape(declaration)
             self.assertEqual(escaped_value, expected, "%s('%s') == '%s' != '%s'" % (
                 func_name, declaration, escaped_value, expected))
+            # test that the length has been successfully capped
+            self.assertLessEqual(len(escaped_value), 64)

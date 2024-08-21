@@ -16,8 +16,8 @@ from ..Compiler.Visitor import CythonTransform, EnvTransform
 from ..Compiler.ParseTreeTransforms import SkipDeclarations
 from ..Compiler.TreeFragment import parse_from_strings
 from .Dependencies import strip_string_literals, cythonize, cached_function
+from .Cache import get_cython_cache_dir
 from ..Compiler import Pipeline
-from ..Utils import get_cython_cache_dir
 import cython as cython_module
 
 import importlib.util
@@ -125,6 +125,11 @@ def _populate_unbound(kwds, unbound_symbols, locals=None, globals=None):
                     locals = calling_frame.f_locals
                 if globals is None:
                     globals = calling_frame.f_globals
+            if not isinstance(locals, dict):
+                # FrameLocalsProxy is stricter than dict on how it looks up keys
+                # and this means our "EncodedStrings" don't match the keys in locals.
+                # Therefore copy to a dict.
+                locals = dict(locals)
             if symbol in locals:
                 kwds[symbol] = locals[symbol]
             elif symbol in globals:

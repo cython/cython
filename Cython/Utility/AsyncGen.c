@@ -27,7 +27,7 @@ static PyTypeObject *__pyx_AsyncGenType = 0;
 
 static PyObject *__Pyx_async_gen_anext(PyObject *o);
 static CYTHON_INLINE PyObject *__Pyx_async_gen_asend_iternext(PyObject *o);
-static PyObject *__Pyx_async_gen_asend_send(PyObject *o, PyObject *arg);
+static PyObject *__Pyx_async_gen_asend_send(PyObject *g, PyObject *arg);
 static PyObject *__Pyx_async_gen_asend_close(PyObject *o, PyObject *args);
 static PyObject *__Pyx_async_gen_athrow_close(PyObject *o, PyObject *args);
 
@@ -58,7 +58,7 @@ __Pyx_PyAsyncGen_Fini();
 //@requires: Coroutine.c::Coroutine
 //@requires: Coroutine.c::ReturnWithStopIteration
 //@requires: ObjectHandling.c::PyObjectCall2Args
-//@requires: ObjectHandling.c::PyObject_GenericGetAttrNoDict
+//@requires: ExtensionTypes.c::CallTypeTraverse
 
 PyDoc_STRVAR(__Pyx_async_gen_send_doc,
 "send(arg) -> send 'arg' into generator,\n\
@@ -140,6 +140,7 @@ static int __Pyx_ag_asend_freelist_free = 0;
 static int
 __Pyx_async_gen_traverse(__pyx_PyAsyncGenObject *gen, visitproc visit, void *arg)
 {
+    // visiting the type is handled in the base if needed
     Py_VISIT(gen->ag_finalizer);
     return __Pyx_Coroutine_traverse((__pyx_CoroutineObject*)gen, visit, arg);
 }
@@ -341,16 +342,12 @@ static PyType_Spec __pyx_AsyncGenType_spec = {
 };
 #else /* CYTHON_USE_TYPE_SPECS */
 
-#if CYTHON_USE_ASYNC_SLOTS
 static __Pyx_PyAsyncMethodsStruct __Pyx_async_gen_as_async = {
     0,                                          /* am_await */
     PyObject_SelfIter,                          /* am_aiter */
     (unaryfunc)__Pyx_async_gen_anext,           /* am_anext */
-#if PY_VERSION_HEX >= 0x030A00A3
-    0, /*am_send*/
-#endif
+    0,                                          /* am_send */
 };
-#endif
 
 static PyTypeObject __pyx_AsyncGenType_type = {
     PyVarObject_HEAD_INIT(0, 0)
@@ -361,12 +358,8 @@ static PyTypeObject __pyx_AsyncGenType_type = {
     0,                                          /* tp_vectorcall_offset */
     0,                                          /* tp_getattr */
     0,                                          /* tp_setattr */
-#if CYTHON_USE_ASYNC_SLOTS
-    &__Pyx_async_gen_as_async,                        /* tp_as_async */
-#else
-    0,                                          /*tp_reserved*/
-#endif
-    (reprfunc)__Pyx_async_gen_repr,                   /* tp_repr */
+    __Pyx_SlotTpAsAsync(__Pyx_async_gen_as_async),    /* tp_as_async */
+    (reprfunc)__Pyx_async_gen_repr,             /* tp_repr */
     0,                                          /* tp_as_number */
     0,                                          /* tp_as_sequence */
     0,                                          /* tp_as_mapping */
@@ -379,7 +372,7 @@ static PyTypeObject __pyx_AsyncGenType_type = {
     Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_GC |
         Py_TPFLAGS_HAVE_FINALIZE,               /* tp_flags */
     0,                                          /* tp_doc */
-    (traverseproc)__Pyx_async_gen_traverse,           /* tp_traverse */
+    (traverseproc)__Pyx_async_gen_traverse,     /* tp_traverse */
     0,                                          /* tp_clear */
     0,                                          /*tp_richcompare*/
     offsetof(__pyx_CoroutineObject, gi_weakreflist), /* tp_weaklistoffset */
@@ -423,6 +416,9 @@ static PyTypeObject __pyx_AsyncGenType_type = {
 #if PY_VERSION_HEX >= 0x030C0000
     0,                                          /*tp_watched*/
 #endif
+#if PY_VERSION_HEX >= 0x030d00A4
+    0,                                          /*tp_versions_used*/
+#endif
 #if CYTHON_COMPILING_IN_PYPY && PY_VERSION_HEX >= 0x03090000 && PY_VERSION_HEX < 0x030a0000
     0,                                          /*tp_pypy_flags*/
 #endif
@@ -465,9 +461,9 @@ __Pyx_async_gen_unwrap_value(__pyx_PyAsyncGenObject *gen, PyObject *result)
     if (result == NULL) {
         PyObject *exc_type = PyErr_Occurred();
         if (!exc_type) {
-            PyErr_SetNone(__Pyx_PyExc_StopAsyncIteration);
+            PyErr_SetNone(PyExc_StopAsyncIteration);
             gen->ag_closed = 1;
-        } else if (__Pyx_PyErr_GivenExceptionMatches2(exc_type, __Pyx_PyExc_StopAsyncIteration, PyExc_GeneratorExit)) {
+        } else if (__Pyx_PyErr_GivenExceptionMatches2(exc_type, PyExc_StopAsyncIteration, PyExc_GeneratorExit)) {
             gen->ag_closed = 1;
         }
 
@@ -477,7 +473,7 @@ __Pyx_async_gen_unwrap_value(__pyx_PyAsyncGenObject *gen, PyObject *result)
 
     if (__pyx__PyAsyncGenWrappedValue_CheckExact(result)) {
         /* async yield */
-        __Pyx_ReturnWithStopIteration(((__pyx__PyAsyncGenWrappedValue*)result)->agw_val);
+        __Pyx_ReturnWithStopIteration(((__pyx__PyAsyncGenWrappedValue*)result)->agw_val, 0);
         Py_DECREF(result);
         gen->ag_running_async = 0;
         return NULL;
@@ -507,6 +503,10 @@ __Pyx_async_gen_asend_dealloc(__pyx_PyAsyncGenASend *o)
 static int
 __Pyx_async_gen_asend_traverse(__pyx_PyAsyncGenASend *o, visitproc visit, void *arg)
 {
+    {
+        int e = __Pyx_call_type_traverse((PyObject*)o, 1, visit, arg);
+        if (e) return e;
+    }
     Py_VISIT(o->ags_gen);
     Py_VISIT(o->ags_sendval);
     return 0;
@@ -517,7 +517,7 @@ static PyObject *
 __Pyx_async_gen_asend_send(PyObject *g, PyObject *arg)
 {
     __pyx_PyAsyncGenASend *o = (__pyx_PyAsyncGenASend*) g;
-    PyObject *result;
+    PyObject *retval;
 
     if (unlikely(o->ags_state == __PYX_AWAITABLE_STATE_CLOSED)) {
         PyErr_SetString(PyExc_RuntimeError, __Pyx_ASYNC_GEN_CANNOT_REUSE_SEND_MSG);
@@ -539,14 +539,14 @@ __Pyx_async_gen_asend_send(PyObject *g, PyObject *arg)
     }
 
     o->ags_gen->ag_running_async = 1;
-    result = __Pyx_Coroutine_Send((PyObject*)o->ags_gen, arg);
-    result = __Pyx_async_gen_unwrap_value(o->ags_gen, result);
+    retval = __Pyx_Coroutine_Send((PyObject*)o->ags_gen, arg);
+    retval = __Pyx_async_gen_unwrap_value(o->ags_gen, retval);
 
-    if (result == NULL) {
+    if (!retval) {
         o->ags_state = __PYX_AWAITABLE_STATE_CLOSED;
     }
 
-    return result;
+    return retval;
 }
 
 
@@ -617,16 +617,12 @@ static PyType_Spec __pyx__PyAsyncGenASendType_spec = {
 };
 #else /* CYTHON_USE_TYPE_SPECS */
 
-#if CYTHON_USE_ASYNC_SLOTS
 static __Pyx_PyAsyncMethodsStruct __Pyx_async_gen_asend_as_async = {
     PyObject_SelfIter,                          /* am_await */
     0,                                          /* am_aiter */
     0,                                          /* am_anext */
-#if PY_VERSION_HEX >= 0x030A00A3
-    0, /*am_send*/
-#endif
+    0,                                          /* am_send */
 };
-#endif
 
 static PyTypeObject __pyx__PyAsyncGenASendType_type = {
     PyVarObject_HEAD_INIT(0, 0)
@@ -638,11 +634,7 @@ static PyTypeObject __pyx__PyAsyncGenASendType_type = {
     0,                                          /* tp_vectorcall_offset */
     0,                                          /* tp_getattr */
     0,                                          /* tp_setattr */
-#if CYTHON_USE_ASYNC_SLOTS
-    &__Pyx_async_gen_asend_as_async,                  /* tp_as_async */
-#else
-    0,                                          /*tp_reserved*/
-#endif
+    __Pyx_SlotTpAsAsync(__Pyx_async_gen_asend_as_async),   /* tp_as_async */
     0,                                          /* tp_repr */
     0,                                          /* tp_as_number */
     0,                                          /* tp_as_sequence */
@@ -690,6 +682,9 @@ static PyTypeObject __pyx__PyAsyncGenASendType_type = {
 #endif
 #if PY_VERSION_HEX >= 0x030C0000
     0,                                          /*tp_watched*/
+#endif
+#if PY_VERSION_HEX >= 0x030d00A4
+    0,                                          /*tp_versions_used*/
 #endif
 #if CYTHON_COMPILING_IN_PYPY && PY_VERSION_HEX >= 0x03090000 && PY_VERSION_HEX < 0x030a0000
     0,                                          /*tp_pypy_flags*/
@@ -747,6 +742,10 @@ static int
 __Pyx_async_gen_wrapped_val_traverse(__pyx__PyAsyncGenWrappedValue *o,
                                      visitproc visit, void *arg)
 {
+    {
+        int e = __Pyx_call_type_traverse((PyObject*)o, 1, visit, arg);
+        if (e) return e;
+    }
     Py_VISIT(o->agw_val);
     return 0;
 }
@@ -827,6 +826,9 @@ static PyTypeObject __pyx__PyAsyncGenWrappedValueType_type = {
 #if PY_VERSION_HEX >= 0x030C0000
     0,                                          /*tp_watched*/
 #endif
+#if PY_VERSION_HEX >= 0x030d00A4
+    0,                                          /*tp_versions_used*/
+#endif
 #if CYTHON_COMPILING_IN_PYPY && PY_VERSION_HEX >= 0x03090000 && PY_VERSION_HEX < 0x030a0000
     0,                                          /*tp_pypy_flags*/
 #endif
@@ -876,6 +878,10 @@ __Pyx_async_gen_athrow_dealloc(__pyx_PyAsyncGenAThrow *o)
 static int
 __Pyx_async_gen_athrow_traverse(__pyx_PyAsyncGenAThrow *o, visitproc visit, void *arg)
 {
+    {
+        int e = __Pyx_call_type_traverse((PyObject*)o, 1, visit, arg);
+        if (e) return e;
+    }
     Py_VISIT(o->agt_gen);
     Py_VISIT(o->agt_args);
     return 0;
@@ -917,7 +923,7 @@ __Pyx_async_gen_athrow_send(__pyx_PyAsyncGenAThrow *o, PyObject *arg)
 
         if (unlikely(o->agt_gen->ag_closed)) {
             o->agt_state = __PYX_AWAITABLE_STATE_CLOSED;
-            PyErr_SetNone(__Pyx_PyExc_StopAsyncIteration);
+            PyErr_SetNone(PyExc_StopAsyncIteration);
             return NULL;
         }
 
@@ -993,7 +999,7 @@ check_error:
     o->agt_gen->ag_running_async = 0;
     o->agt_state = __PYX_AWAITABLE_STATE_CLOSED;
     exc_type = PyErr_Occurred();
-    if (__Pyx_PyErr_GivenExceptionMatches2(exc_type, __Pyx_PyExc_StopAsyncIteration, PyExc_GeneratorExit)) {
+    if (__Pyx_PyErr_GivenExceptionMatches2(exc_type, PyExc_StopAsyncIteration, PyExc_GeneratorExit)) {
         if (o->agt_args == NULL) {
             // when aclose() is called we don't want to propagate
             // StopAsyncIteration or GeneratorExit; just raise
@@ -1031,7 +1037,7 @@ __Pyx_async_gen_athrow_throw(__pyx_PyAsyncGenAThrow *o, PyObject *args)
             return NULL;
         }
         exc_type = PyErr_Occurred();
-        if (__Pyx_PyErr_GivenExceptionMatches2(exc_type, __Pyx_PyExc_StopAsyncIteration, PyExc_GeneratorExit)) {
+        if (__Pyx_PyErr_GivenExceptionMatches2(exc_type, PyExc_StopAsyncIteration, PyExc_GeneratorExit)) {
             // when aclose() is called we don't want to propagate
             // StopAsyncIteration or GeneratorExit; just raise
             // StopIteration, signalling that this 'aclose()' await
@@ -1078,7 +1084,7 @@ static PyType_Slot __pyx__PyAsyncGenAThrowType_slots[] = {
     {Py_tp_iter, (void *)PyObject_SelfIter},
     {Py_tp_iternext, (void *)__Pyx_async_gen_athrow_iternext},
     {Py_tp_methods, (void *)__Pyx_async_gen_athrow_methods},
-    {Py_tp_getattro, (void *)__Pyx_PyObject_GenericGetAttrNoDict},
+    {Py_tp_getattro, (void *)PyObject_GenericGetAttr},
     {0, 0},
 };
 
@@ -1091,16 +1097,12 @@ static PyType_Spec __pyx__PyAsyncGenAThrowType_spec = {
 };
 #else /* CYTHON_USE_TYPE_SPECS */
 
-#if CYTHON_USE_ASYNC_SLOTS
 static __Pyx_PyAsyncMethodsStruct __Pyx_async_gen_athrow_as_async = {
     PyObject_SelfIter,                          /* am_await */
     0,                                          /* am_aiter */
     0,                                          /* am_anext */
-#if PY_VERSION_HEX >= 0x030A00A3
-    0, /*am_send*/
-#endif
+    0,                                          /* am_send */
 };
-#endif
 
 static PyTypeObject __pyx__PyAsyncGenAThrowType_type = {
     PyVarObject_HEAD_INIT(0, 0)
@@ -1111,11 +1113,7 @@ static PyTypeObject __pyx__PyAsyncGenAThrowType_type = {
     0,                                          /* tp_vectorcall_offset */
     0,                                          /* tp_getattr */
     0,                                          /* tp_setattr */
-#if CYTHON_USE_ASYNC_SLOTS
-    &__Pyx_async_gen_athrow_as_async,                 /* tp_as_async */
-#else
-    0,                                          /*tp_reserved*/
-#endif
+    __Pyx_SlotTpAsAsync(__Pyx_async_gen_athrow_as_async),   /* tp_as_async */
     0,                                          /* tp_repr */
     0,                                          /* tp_as_number */
     0,                                          /* tp_as_sequence */
@@ -1164,6 +1162,9 @@ static PyTypeObject __pyx__PyAsyncGenAThrowType_type = {
 #if PY_VERSION_HEX >= 0x030C0000
     0,                                          /*tp_watched*/
 #endif
+#if PY_VERSION_HEX >= 0x030d00A4
+    0,                                          /*tp_versions_used*/
+#endif
 #if CYTHON_COMPILING_IN_PYPY && PY_VERSION_HEX >= 0x03090000 && PY_VERSION_HEX < 0x030a0000
     0,                                          /*tp_pypy_flags*/
 #endif
@@ -1197,7 +1198,7 @@ static int __pyx_AsyncGen_init(PyObject *module) {
 #else
     CYTHON_MAYBE_UNUSED_VAR(module);
     // on Windows, C-API functions can't be used in slots statically
-    __pyx_AsyncGenType_type.tp_getattro = __Pyx_PyObject_GenericGetAttrNoDict;
+    __pyx_AsyncGenType_type.tp_getattro = PyObject_GenericGetAttr;
     __pyx_AsyncGenType = __Pyx_FetchCommonType(&__pyx_AsyncGenType_type);
 #endif
     if (unlikely(!__pyx_AsyncGenType))
@@ -1206,7 +1207,7 @@ static int __pyx_AsyncGen_init(PyObject *module) {
 #if CYTHON_USE_TYPE_SPECS
     __pyx__PyAsyncGenAThrowType = __Pyx_FetchCommonTypeFromSpec(module, &__pyx__PyAsyncGenAThrowType_spec, NULL);
 #else
-    __pyx__PyAsyncGenAThrowType_type.tp_getattro = __Pyx_PyObject_GenericGetAttrNoDict;
+    __pyx__PyAsyncGenAThrowType_type.tp_getattro = PyObject_GenericGetAttr;
     __pyx__PyAsyncGenAThrowType = __Pyx_FetchCommonType(&__pyx__PyAsyncGenAThrowType_type);
 #endif
     if (unlikely(!__pyx__PyAsyncGenAThrowType))
@@ -1215,7 +1216,7 @@ static int __pyx_AsyncGen_init(PyObject *module) {
 #if CYTHON_USE_TYPE_SPECS
     __pyx__PyAsyncGenWrappedValueType = __Pyx_FetchCommonTypeFromSpec(module, &__pyx__PyAsyncGenWrappedValueType_spec, NULL);
 #else
-    __pyx__PyAsyncGenWrappedValueType_type.tp_getattro = __Pyx_PyObject_GenericGetAttrNoDict;
+    __pyx__PyAsyncGenWrappedValueType_type.tp_getattro = PyObject_GenericGetAttr;
     __pyx__PyAsyncGenWrappedValueType = __Pyx_FetchCommonType(&__pyx__PyAsyncGenWrappedValueType_type);
 #endif
     if (unlikely(!__pyx__PyAsyncGenWrappedValueType))
@@ -1224,7 +1225,7 @@ static int __pyx_AsyncGen_init(PyObject *module) {
 #if CYTHON_USE_TYPE_SPECS
     __pyx__PyAsyncGenASendType = __Pyx_FetchCommonTypeFromSpec(module, &__pyx__PyAsyncGenASendType_spec, NULL);
 #else
-    __pyx__PyAsyncGenASendType_type.tp_getattro = __Pyx_PyObject_GenericGetAttrNoDict;
+    __pyx__PyAsyncGenASendType_type.tp_getattro = PyObject_GenericGetAttr;
     __pyx__PyAsyncGenASendType = __Pyx_FetchCommonType(&__pyx__PyAsyncGenASendType_type);
 #endif
     if (unlikely(!__pyx__PyAsyncGenASendType))

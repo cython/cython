@@ -47,7 +47,7 @@ u"""
     200
     >>> short_stats['m_cdef']
     100
-    >>> short_stats['m_cpdef'] - (200 if CPDEF_METHODS_COUNT_TWICE else 0)  # FIXME!
+    >>> short_stats['m_cpdef']
     300
 
     >>> try:
@@ -116,14 +116,6 @@ u"""
 """
 
 cimport cython
-
-
-# FIXME: With type specs, cpdef methods are currently counted twice.
-# https://github.com/cython/cython/issues/2137
-cdef extern from *:
-    int CYTHON_USE_TYPE_SPECS
-
-CPDEF_METHODS_COUNT_TWICE = CYTHON_USE_TYPE_SPECS
 
 
 def callees(pstats, target_caller):

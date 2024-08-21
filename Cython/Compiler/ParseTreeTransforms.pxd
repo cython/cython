@@ -20,12 +20,6 @@ cdef class PostParse(ScopeTrackingTransform):
     cdef _visit_assignment_node(self, node, list expr_list)
 
 
-#def eliminate_rhs_duplicates(list expr_list_list, list ref_node_sequence)
-#def sort_common_subsequences(list items)
-@cython.locals(starred_targets=Py_ssize_t, lhs_size=Py_ssize_t, rhs_size=Py_ssize_t)
-cdef flatten_parallel_assignments(list input, list output)
-cdef map_starred_assignment(list lhs_targets, list starred_assignments, list lhs_args, list rhs_args)
-
 #class PxdPostParse(CythonTransform, SkipDeclarations):
 #class InterpretCompilerDirectives(CythonTransform, SkipDeclarations):
 #class WithTransform(VisitorTransform, SkipDeclarations):
@@ -80,4 +74,5 @@ cdef class GilCheck(VisitorTransform):
     cdef bint current_gilstat_node_knows_gil_state
 
 cdef class TransformBuiltinMethods(EnvTransform):
+    cdef dict def_node_body_insertions
     cdef visit_cython_attribute(self, node)

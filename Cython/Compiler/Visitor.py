@@ -194,7 +194,6 @@ class TreeVisitor:
         return self._visitchildren(parent, attrs, exclude)
 
     @cython.final
-    @cython.locals(idx=cython.Py_ssize_t)
     def _visitchildren(self, parent, attrs, exclude):
         # fast cdef entry point for calls from Cython subclasses
         """
@@ -206,6 +205,8 @@ class TreeVisitor:
         or a list of return values (in the case of multiple children
         in an attribute)).
         """
+        idx: cython.Py_ssize_t
+
         if parent is None: return None
         result = {}
         for attr in parent.child_attrs:
@@ -832,7 +833,8 @@ class PrintTree(TreeVisitor):
             elif isinstance(node, Nodes.DefNode):
                 result += "(name=\"%s\")" % node.name
             elif isinstance(node, Nodes.CFuncDefNode):
-                result += "(name=\"%s\")" % node.declared_name()
+                result += "(name=\"%s\", type=\"%s\")" % (
+                    node.declared_name(), getattr(node, "type", None))
             elif isinstance(node, ExprNodes.AttributeNode):
                 result += "(type=%s, attribute=\"%s\")" % (repr(node.type), node.attribute)
             elif isinstance(node, (ExprNodes.ConstNode, ExprNodes.PyConstNode)):

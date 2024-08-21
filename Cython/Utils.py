@@ -6,10 +6,9 @@ Cython -- Things that don't belong anywhere else in particular
 import cython
 
 cython.declare(
-    basestring=object,
     os=object, sys=object, re=object, io=object, codecs=object, glob=object, shutil=object, tempfile=object,
-    cython_version=object,
-    _function_caches=list, _parse_file_version=object, _match_file_encoding=object,
+    update_wrapper=object, partial=object, wraps=object, cython_version=object,
+    _cache_function=object, _function_caches=list, _parse_file_version=object, _match_file_encoding=object,
 )
 
 import os
@@ -20,7 +19,30 @@ import codecs
 import glob
 import shutil
 import tempfile
-from functools import wraps
+
+
+
+if sys.version_info < (3, 9):
+    # Work around a limited API bug in these Python versions
+    # where it isn't possible to make __module__ of CyFunction
+    # writeable. This means that wraps fails when applied to
+    # cyfunctions.
+    # The objective here is just to make limited API builds
+    # testable.
+
+    from functools import update_wrapper, partial
+
+    def _update_wrapper(wrapper, wrapped):
+        try:
+            return update_wrapper(wrapper, wrapped)
+        except AttributeError:
+            return wrapper  # worse, but it still works
+
+    def wraps(wrapped):
+        return partial(_update_wrapper, wrapped=wrapped)
+else:
+    from functools import wraps
+
 
 from . import __version__ as cython_version
 
@@ -59,28 +81,27 @@ def try_finally_contextmanager(gen_func):
     return make_gen
 
 
+try:
+    from functools import cache as _cache_function
+except ImportError:
+    from functools import lru_cache
+    _cache_function = lru_cache(maxsize=None)
+
+
 _function_caches = []
 
 
 def clear_function_caches():
     for cache in _function_caches:
-        cache.clear()
+        cache.cache_clear()
 
 
 def cached_function(f):
-    cache = {}
-    _function_caches.append(cache)
-    uncomputed = object()
+    cf = _cache_function(f)
+    _function_caches.append(cf)
+    cf.uncached = f  # needed by coverage plugin
+    return cf
 
-    @wraps(f)
-    def wrapper(*args):
-        res = cache.get(args, uncomputed)
-        if res is uncomputed:
-            res = cache[args] = f(*args)
-        return res
-
-    wrapper.uncached = f
-    return wrapper
 
 
 def _find_cache_attributes(obj):
@@ -458,37 +479,6 @@ def long_literal(value):
     if isinstance(value, str):
         value = str_to_number(value)
     return not -2**31 <= value < 2**31
-
-
-@cached_function
-def get_cython_cache_dir():
-    r"""
-    Return the base directory containing Cython's caches.
-
-    Priority:
-
-    1. CYTHON_CACHE_DIR
-    2. (OS X): ~/Library/Caches/Cython
-       (posix not OS X): XDG_CACHE_HOME/cython if XDG_CACHE_HOME defined
-    3. ~/.cython
-
-    """
-    if 'CYTHON_CACHE_DIR' in os.environ:
-        return os.environ['CYTHON_CACHE_DIR']
-
-    parent = None
-    if os.name == 'posix':
-        if sys.platform == 'darwin':
-            parent = os.path.expanduser('~/Library/Caches')
-        else:
-            # this could fallback on ~/.cache
-            parent = os.environ.get('XDG_CACHE_HOME')
-
-    if parent and os.path.isdir(parent):
-        return os.path.join(parent, 'cython')
-
-    # last fallback: ~/.cython
-    return os.path.expanduser(os.path.join('~', '.cython'))
 
 
 @try_finally_contextmanager
