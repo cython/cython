@@ -2338,13 +2338,18 @@ static PyObject* __Pyx_PyCode_New(
     #endif
 
     if (__PYX_LIMITED_VERSION_HEX >= 0x030b0000 && line_table != NULL) {
-        // Allocate a "byte code" array (oversized) to match the addresses in the line table.
-        // Length and alignment must be a multiple of sizeof(_Py_CODEUNIT), which is CPython specific but currently 2.
-        // TODO: We really only need one byte code array, as long as it is large enough for all line tables.
         line_table_bytes = PyBytes_FromStringAndSize(line_table, descr.line_table_length);
         if (unlikely(!line_table_bytes)) goto done;
-        code_bytes = PyBytes_FromStringAndSize(NULL, (descr.line_table_length * 2 + 4) & ~3);
+
+        // Allocate a "byte code" array (oversized) to match the addresses in the line table.
+        // Length and alignment must be a multiple of sizeof(_Py_CODEUNIT), which is CPython specific but currently 2.
+        // CPython makes a copy of the code array internally, so make sure it's somewhat short (but not too short).
+        Py_ssize_t code_len = (descr.line_table_length * 2 + 4) & ~3;
+        code_bytes = PyBytes_FromStringAndSize(NULL, code_len);
         if (unlikely(!code_bytes)) goto done;
+        char* c_code_bytes = PyBytes_AsString(code_bytes);
+        if (unlikely(!c_code_bytes)) goto done;
+        memset(c_code_bytes, 0, (size_t) code_len);
     }
 
     code_obj = (PyObject*) __Pyx__PyCode_New(
@@ -2365,9 +2370,9 @@ static PyObject* __Pyx_PyCode_New(
         (int) descr.first_line,
         (__PYX_LIMITED_VERSION_HEX >= 0x030b0000) ? line_table_bytes : ${empty_bytes}
     );
-    Py_XDECREF(code_bytes);
 
 done:
+    Py_XDECREF(code_bytes);
     Py_XDECREF(line_table_bytes);
     #if CYTHON_AVOID_BORROWED_REFS
     Py_XDECREF(varnames_tuple_dedup);
