@@ -359,6 +359,7 @@ class Scope:
     # is_internal       boolean            Is only used internally (simpler setup)
     # scope_predefined_names  list of str   Class variable containing special names defined by
     #                                      this type of scope (e.g. __builtins__, __qualname__)
+    # node_positions_to_offset  {pos: offset}  Mapping from node positions to line table offsets
 
     is_builtin_scope = 0
     is_py_class_scope = 0
@@ -381,6 +382,7 @@ class Scope:
     scope_predefined_names = []
     # Do ambiguous type names like 'int' and 'float' refer to the C types? (Otherwise, Python types.)
     in_c_type_context = True
+    node_positions_to_offset = {}  # read-only fallback dict
 
     def __init__(self, name, outer_scope, parent_scope):
         # The outer_scope is the next scope in the lookup chain.

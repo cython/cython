@@ -2103,26 +2103,31 @@ class CIntLike:
 
     @staticmethod
     def _parse_format(format_spec):
+        # We currently only allow ' ' and '0' as padding, i.e. ASCII characters.
         padding = ' '
         if not format_spec:
             return ('d', 0, padding)
+
         format_type = format_spec[-1]
-        if format_type in ('o', 'd', 'x', 'X'):
+        if format_type in 'odxXc':
             prefix = format_spec[:-1]
         elif format_type.isdigit():
             format_type = 'd'
             prefix = format_spec
         else:
             return (None, 0, padding)
+
         if not prefix:
             return (format_type, 0, padding)
-        if prefix[0] == '-':
+
+        if prefix[0] in '>-':
             prefix = prefix[1:]
         if prefix and prefix[0] == '0':
             padding = '0'
             prefix = prefix.lstrip('0')
         if prefix.isdigit():
             return (format_type, int(prefix), padding)
+
         return (None, 0, padding)
 
     def can_coerce_to_pystring(self, env, format_spec=None):
@@ -2130,18 +2135,19 @@ class CIntLike:
         return format_type is not None and width <= 2**30
 
     def convert_to_pystring(self, cvalue, code, format_spec=None):
-        if self.to_pyunicode_utility is None:
-            utility_code_name = "__Pyx_PyUnicode_From_" + self.specialization_name()
+        if self.to_pyunicode_utility is not None:
+            conversion_func_cname, to_pyunicode_utility = self.to_pyunicode_utility
+        else:
+            conversion_func_cname = f"__Pyx_PyUnicode_From_{self.specialization_name()}"
             to_pyunicode_utility = TempitaUtilityCode.load_cached(
                 "CIntToPyUnicode", "TypeConversion.c",
                 context={"TYPE": self.empty_declaration_code(),
-                         "TO_PY_FUNCTION": utility_code_name})
-            self.to_pyunicode_utility = (utility_code_name, to_pyunicode_utility)
-        else:
-            utility_code_name, to_pyunicode_utility = self.to_pyunicode_utility
+                        "TO_PY_FUNCTION": conversion_func_cname})
+            self.to_pyunicode_utility = (conversion_func_cname, to_pyunicode_utility)
+
         code.globalstate.use_utility_code(to_pyunicode_utility)
         format_type, width, padding_char = self._parse_format(format_spec)
-        return "%s(%s, %d, '%s', '%s')" % (utility_code_name, cvalue, width, padding_char, format_type)
+        return "%s(%s, %d, '%s', '%s')" % (conversion_func_cname, cvalue, width, padding_char, format_type)
 
 
 class CIntType(CIntLike, CNumericType):
@@ -4659,7 +4665,7 @@ def c_tuple_type(components):
     components = tuple(components)
     if any(c.is_fused for c in components):
         # should never end up in code but should be unique
-        cname = f"<dummy fused ctuple {components:r}>
+        cname = f"<dummy fused ctuple {components!r}>"
     else:
         cname = Naming.ctuple_type_prefix + type_list_identifier(components)
     tuple_type = CTupleType(cname, components)

@@ -94,6 +94,9 @@ if [[ $PYTHON_VERSION == "3.1"[2-9]* ]]; then
   python -m pip install -U pip wheel setuptools || exit 1
   if [[ $PYTHON_VERSION == "3.12"* ]]; then
     python -m pip install --pre -r test-requirements-312.txt || exit 1
+  else
+    # Install packages one by one, allowing failures due to missing recent wheels.
+    cat test-requirements-312.txt | while read package; do python -m pip install --pre --only-binary ":all:" "$package" || true; done
   fi
 else
   python -m pip install -U pip "setuptools<60" wheel || exit 1
@@ -174,12 +177,12 @@ if [[ $NO_CYTHON_COMPILE != "1" && $PYTHON_VERSION != "pypy"* ]]; then
     SETUP_ARGS="$SETUP_ARGS --cython-compile-all"
   fi
   if [[ $LIMITED_API != "" && $NO_LIMITED_COMPILE != "1" ]]; then
-    # in the limited API tests, also build Cython in this mode (for more thorough 
+    # in the limited API tests, also build Cython in this mode (for more thorough
     # testing rather than performance since it's currently a pessimization)
     SETUP_ARGS="$SETUP_ARGS --cython-limited-api"
   fi
   # It looks like parallel build may be causing occasional link failures on Windows
-  # "with exit code 1158". DW isn't completely sure of this, but has disabled it in 
+  # "with exit code 1158". DW isn't completely sure of this, but has disabled it in
   # the hope it helps
   SETUP_ARGS="$SETUP_ARGS
     $(python -c 'import sys; print("-j5" if not sys.platform.startswith("win") else "")')"

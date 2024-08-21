@@ -439,6 +439,10 @@ typedef struct __pyx_CoroutineObject {
     PyObject *gi_modulename;
     PyObject *gi_code;
     PyObject *gi_frame;
+#if CYTHON_USE_SYS_MONITORING && (CYTHON_PROFILE || CYTHON_TRACE)
+    PyMonitoringState $monitoring_states_cname[__Pyx_MonitoringEventTypes_CyGen_count];
+    uint64_t $monitoring_version_cname;
+#endif
     int resume_label;
     // using T_BOOL for property below requires char value
     char is_running;
@@ -2371,7 +2375,7 @@ static CYTHON_INLINE void __Pyx_ReturnWithStopIteration(PyObject* value, int asy
         PyErr_SetNone(async ? PyExc_StopAsyncIteration : PyExc_StopIteration);
         return;
     }
-    return __Pyx__ReturnWithStopIteration(value, async);
+    __Pyx__ReturnWithStopIteration(value, async);
 }
 
 static void __Pyx__ReturnWithStopIteration(PyObject* value, int async) {

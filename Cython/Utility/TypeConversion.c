@@ -720,6 +720,83 @@ static CYTHON_INLINE PyObject* {{TO_PY_FUNCTION}}({{TYPE}} value) {
 }
 
 
+/////////////// COrdinalToPyUnicode.proto ///////////////
+
+static CYTHON_INLINE int __Pyx_CheckUnicodeValue(int value);
+static CYTHON_INLINE PyObject* __Pyx_PyUnicode_FromOrdinal_Padded(int value, Py_ssize_t width, char padding_char);
+
+/////////////// COrdinalToPyUnicode ///////////////
+//@requires: StringTools.c::BuildPyUnicode
+
+static CYTHON_INLINE int __Pyx_CheckUnicodeValue(int value) {
+    return value <= 1114111;
+}
+
+static PyObject* __Pyx_PyUnicode_FromOrdinal_Padded(int value, Py_ssize_t ulength, char padding_char) {
+    if (likely(ulength <= 250)) {
+        // Encode to UTF-8 / Latin1 buffer, then decode.
+        char chars[256];
+
+        if (value <= 255) {
+            // Simple Latin1 result, fast to decode.
+            memset(chars, padding_char, (size_t) (ulength - 1));
+            chars[ulength-1] = (char) value;
+            return PyUnicode_DecodeLatin1(chars, ulength, NULL);
+        }
+
+        char *cpos = chars + sizeof(chars);
+        if (value < 0x800) {
+            *--cpos = (char) (0b10000000 | (value & 0x3f));
+            value >>= 6;
+            *--cpos = (char) (0b11000000 | (value & 0x1f));
+        } else if (value < 0x10000) {
+            *--cpos = (char) (0b10000000 | (char) (value & 0x3f));
+            value >>= 6;
+            *--cpos = (char) (0b10000000 | (char) (value & 0x3f));
+            value >>= 6;
+            *--cpos = (char) (0b11100000 | (char) (value & 0xf));
+        } else {
+            *--cpos = (char) (0b10000000 | (char) (value & 0x3f));
+            value >>= 6;
+            *--cpos = (char) (0b10000000 | (char) (value & 0x3f));
+            value >>= 6;
+            *--cpos = (char) (0b10000000 | (char) (value & 0x3f));
+            value >>= 6;
+            *--cpos = (char) (0b11110000 | (char) (value & 0x7));
+        }
+        cpos -= ulength;
+        memset(cpos, padding_char, (size_t) (ulength - 1));
+        return PyUnicode_DecodeUTF8(cpos, chars + sizeof(chars) - cpos, NULL);
+    }
+
+    if (value <= 127 && CYTHON_USE_UNICODE_INTERNALS) {
+        const char chars[1] = {(char) value};
+        return __Pyx_PyUnicode_BuildFromAscii(ulength, chars, 1, 0, padding_char);
+    }
+
+    {
+        PyObject *uchar, *padding_uchar, *padding, *result;
+
+        padding_uchar = PyUnicode_FromOrdinal(padding_char);
+        if (unlikely(!padding_uchar)) return NULL;
+        padding = PySequence_Repeat(padding_uchar, ulength - 1);
+        Py_DECREF(padding_uchar);
+        if (unlikely(!padding)) return NULL;
+
+        uchar = PyUnicode_FromOrdinal(value);
+        if (unlikely(!uchar)) {
+            Py_DECREF(padding);
+            return NULL;
+        }
+
+        result = PyUnicode_Concat(padding, uchar);
+        Py_DECREF(padding);
+        Py_DECREF(uchar);
+        return result;
+    }
+}
+
+
 /////////////// CIntToDigits ///////////////
 
 static const char DIGIT_PAIRS_10[2*10*10+1] = {
@@ -759,6 +836,7 @@ static CYTHON_INLINE PyObject* {{TO_PY_FUNCTION}}({{TYPE}} value, Py_ssize_t wid
 /////////////// CIntToPyUnicode ///////////////
 //@requires: StringTools.c::IncludeStringH
 //@requires: StringTools.c::BuildPyUnicode
+//@requires: COrdinalToPyUnicode
 //@requires: CIntToDigits
 //@requires: GCCDiagnostics
 
@@ -782,6 +860,22 @@ static CYTHON_INLINE PyObject* {{TO_PY_FUNCTION}}({{TYPE}} value, Py_ssize_t wid
 #pragma GCC diagnostic pop
 #endif
     const int is_unsigned = neg_one > const_zero;
+
+    // Format 'c' (unicode character) is really a different thing but included for practical reasons.
+    if (format_char == 'c') {
+        // This check is just an awful variation on "(0 <= value <= 1114111)",
+        // but without C compiler complaints about compile time constant conditions depending on the signed/unsigned TYPE.
+        if (unlikely(!(is_unsigned || value == 0 || value > 0) ||
+                     !(sizeof(value) <= 2 || value & ~ ({{TYPE}}) 0x01fffff || __Pyx_CheckUnicodeValue((int) value)))) {
+            // PyUnicode_FromOrdinal() and chr() raise ValueError, f-strings raise OverflowError. :-/
+            PyErr_SetString(PyExc_OverflowError, "%c arg not in range(0x110000)");
+            return NULL;
+        }
+        if (width <= 1) {
+            return PyUnicode_FromOrdinal((int) value);
+        }
+        return __Pyx_PyUnicode_FromOrdinal_Padded((int) value, width, padding_char);
+    }
 
     if (format_char == 'X') {
         hex_digits += 16;

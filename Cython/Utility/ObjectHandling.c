@@ -1971,14 +1971,13 @@ static PyObject* __Pyx__CallUnboundCMethod2(__Pyx_CachedCFunction* cfunc, PyObje
         else
             result = (*cfunc->func)(self, args);
         Py_DECREF(args);
-    } else
+        return result;
+    }
 #endif
     {
         PyObject *args[4] = {NULL, self, arg1, arg2};
         return __Pyx_PyObject_FastCall(cfunc->method, args+1, 3 | __Pyx_PY_VECTORCALL_ARGUMENTS_OFFSET);
     }
-bad:
-    return result;
 }
 
 
