@@ -10148,7 +10148,8 @@ class PyCFunctionNode(ExprNode, ModuleNameMixin):
         if self.defaults:
             code.putln(
                 'if (!__Pyx_CyFunction_InitDefaults(%s, %s)) %s' % (
-                    self.result(), self.defaults_entry.type.typeptr_cname,
+                    self.result(),
+                    code.name_in_module_state(self.defaults_entry.type.typeptr_cname),
                     code.error_goto(self.pos)))
             defaults = '__Pyx_CyFunction_Defaults(struct %s, %s)' % (
                 self.defaults_entry.type.objstruct_cname, self.result())

@@ -3166,14 +3166,18 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
         if Options.cache_builtins:
             code.putln("/*--- Builtin init code ---*/")
-            code.put_error_if_neg(self.pos, "__Pyx_InitCachedBuiltins(%s)" %
-                                  Naming.modulestatevalue_cname)
+            code.put_error_if_neg(
+                self.pos,
+                f"__Pyx_InitCachedBuiltins({Naming.modulestatevalue_cname})")
 
         code.putln("/*--- Constants init code ---*/")
-        code.put_error_if_neg(self.pos, "__Pyx_InitCachedConstants(%s)" %
-            Naming.modulestatevalue_cname)
+        code.put_error_if_neg(
+            self.pos,
+            f"__Pyx_InitCachedConstants({Naming.modulestatevalue_cname})")
         # code objects come after the other globals (since they use strings and tuples)
-        code.put_error_if_neg(self.pos, "__Pyx_CreateCodeObjects()")
+        code.put_error_if_neg(
+            self.pos,
+            f"__Pyx_CreateCodeObjects({Naming.modulestatevalue_cname})")
 
         code.putln("/*--- Global type/function init code ---*/")
 

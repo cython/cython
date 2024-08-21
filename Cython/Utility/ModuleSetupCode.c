@@ -2274,8 +2274,7 @@ static PyObject* __Pyx_PyCode_New(
       #else
         PyCode_NewWithPosOnlyArgs
       #endif
-        (a, p, k, l, s, f, code, c, n, v, fv, cell, fn, name, name, fline, lnos, ${empty_bytes});
-    Py_DECREF(${empty_bytes});
+        (a, p, k, l, s, f, code, c, n, v, fv, cell, fn, name, name, fline, lnos, CGLOBAL(${empty_bytes}));
     return result;
   }
 #elif PY_VERSION_HEX >= 0x030800B2 && !CYTHON_COMPILING_IN_PYPY
@@ -2361,16 +2360,16 @@ static PyObject* __Pyx_PyCode_New(
         (int) descr.nlocals,
         0,
         (int) descr.flags,
-        code_bytes ? code_bytes : ${empty_bytes},
-        ${empty_tuple},
-        ${empty_tuple},
+        code_bytes ? code_bytes : CGLOBAL(${empty_bytes}),
+        CGLOBAL(${empty_tuple}),
+        CGLOBAL(${empty_tuple}),
         varnames_tuple_dedup,
-        ${empty_tuple},
-        ${empty_tuple},
+        CGLOBAL(${empty_tuple}),
+        CGLOBAL(${empty_tuple}),
         filename,
         funcname,
         (int) descr.first_line,
-        (__PYX_LIMITED_VERSION_HEX >= 0x030b0000) ? line_table_bytes : ${empty_bytes}
+        (__PYX_LIMITED_VERSION_HEX >= 0x030b0000) ? line_table_bytes : CGLOBAL(${empty_bytes})
     );
 
 done:

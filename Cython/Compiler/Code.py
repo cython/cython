@@ -1330,7 +1330,7 @@ class GlobalState:
         'decls',
         'late_includes',
         'module_state',
-        'string_constant_name_defines',
+        'constant_name_defines',
         'module_state_clear',
         'module_state_traverse',
         'module_code',  # user code goes here
@@ -1755,8 +1755,8 @@ class GlobalState:
             struct_attr_cname = f"{Naming.pyrex_prefix}_{prefix}"
             global_cname = f"{Naming.pyrex_prefix}{prefix}"
             self.parts['module_state'].putln(f"PyObject *{struct_attr_cname}[{count}];")
-            self.parts['module_state_defines'].putln(
-                f"#define {global_cname} {Naming.modulestateglobal_cname}->{struct_attr_cname}")
+            self.parts['constant_name_defines'].putln(
+                f"#define {global_cname} {struct_attr_cname}")
 
             # The constant tuples/slices that we create can never participate in reference cycles.
             self._generate_module_array_traverse_and_clear(struct_attr_cname, count, may_have_refcycles=False)
@@ -1901,7 +1901,7 @@ class GlobalState:
                 is_unicode = py_string.is_unicode
                 is_str = py_string.is_str
 
-            self.parts['string_constant_name_defines'].putln("#define %s %s[%s]" % (
+            self.parts['constant_name_defines'].putln("#define %s %s[%s]" % (
                 py_string.cname,
                 Naming.stringtab_cname,
                 n))
@@ -1931,7 +1931,9 @@ class GlobalState:
 
     def generate_codeobject_constants(self):
         w = self.parts['init_codeobjects']
-        init_function = "int __Pyx_CreateCodeObjects(void)"
+        init_function = (
+            f"int __Pyx_CreateCodeObjects({Naming.modulestatetype_cname} *{Naming.modulestatevalue_cname})"
+        )
 
         if not self.codeobject_constants:
             w.start_initcfunc(init_function)
@@ -1996,10 +1998,6 @@ class GlobalState:
         self.parts['module_state'].putln(f"PyObject *{Naming.codeobjtab_cname}[{code_object_count}];")
         # The code objects that we generate only contain plain constants and can never participate in reference cycles.
         self._generate_module_array_traverse_and_clear(Naming.codeobjtab_cname, code_object_count, may_have_refcycles=False)
-
-        self.parts['module_state_defines'].putln("#define %s %s->%s" % (
-            Naming.codeobjtab_cname, Naming.modulestateglobal_cname, Naming.codeobjtab_cname
-        ))
 
     def generate_num_constants(self):
         consts = [(c.py_type, c.value[0] == '-', len(c.value), c.value, c.value_code, c)
@@ -2345,7 +2343,7 @@ class CCodeWriter:
         return self.name_in_module_state(cname)
 
     def get_py_codeobj_const(self, node):
-        return self.globalstate.get_py_codeobj_const(node)
+        return self.name_in_module_state(self.globalstate.get_py_codeobj_const(node))
 
     def get_argument_default_const(self, type):
         return self.name_in_module_state(self.globalstate.get_argument_default_const(type).cname)
