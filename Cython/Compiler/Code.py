@@ -566,7 +566,7 @@ class UtilityCodeBase:
         util = cls.load(util_code_name, from_file, **kwargs)
 
         if not include_requires:
-            return (util.inject_cglobal(util.format_code(util.proto)), 
+            return (util.inject_cglobal(util.format_code(util.proto)),
                     util.inject_cglobal(util.format_code(util.impl)))
 
         protos, impls = [], []
