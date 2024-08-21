@@ -2349,6 +2349,8 @@ static PyObject* __Pyx_PyCode_New(
         if (unlikely(!code_bytes)) goto done;
         char* c_code_bytes = PyBytes_AsString(code_bytes);
         if (unlikely(!c_code_bytes)) goto done;
+        // We initialise the code array to '\0' even though a NOP would be more accurate,
+        // but NOP changes its byte code ID across Python versions/implementations.
         memset(c_code_bytes, 0, (size_t) code_len);
     }
 
