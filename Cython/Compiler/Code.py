@@ -1909,13 +1909,19 @@ class GlobalState:
         max_posonly_args = 1
         max_vars = 1
         max_line = 1
+        max_positions = 1
         for node in self.codeobject_constants:
             def_node = node.def_node
-            max_func_args = max(max_func_args, len(def_node.args) - def_node.num_kwonly_args)
-            max_kwonly_args = max(max_kwonly_args, def_node.num_kwonly_args)
-            max_posonly_args = max(max_posonly_args, def_node.num_posonly_args)
+            if not def_node.is_generator_expression:
+                max_func_args = max(max_func_args, len(def_node.args) - def_node.num_kwonly_args)
+                max_kwonly_args = max(max_kwonly_args, def_node.num_kwonly_args)
+                max_posonly_args = max(max_posonly_args, def_node.num_posonly_args)
             max_vars = max(max_vars, len(node.varnames))
             max_line = max(max_line, def_node.pos[1])
+            max_positions = max(max_positions, len(def_node.node_positions))
+
+        # Even for full 64-bit line/column values, one entry in the line table can never be larger than 45 bytes.
+        max_linetable_len = max_positions * 47
 
         w.put(textwrap.dedent(f"""\
         typedef struct {{
@@ -1925,6 +1931,7 @@ class GlobalState:
             unsigned int nlocals : {max_vars.bit_length()};
             unsigned int flags : {max_flags.bit_length()};
             unsigned int first_line : {max_line.bit_length()};
+            unsigned int line_table_length : {max_linetable_len.bit_length()};
         }} __Pyx_PyCode_New_function_description;
         """))
 
@@ -1936,7 +1943,7 @@ class GlobalState:
         w.putln("if (unlikely(!tuple_dedup_map)) return -1;")
 
         for node in self.codeobject_constants:
-            node.generate_codeobj(w)
+            node.generate_codeobj(w, "bad")
 
         w.putln("Py_DECREF(tuple_dedup_map);")
         w.putln("return 0;")
@@ -2339,10 +2346,14 @@ class CCodeWriter:
         if self.code_config.emit_code_comments:
             self.indent()
             self._write_lines("/* %s */\n" % self._build_marker(pos))
-        if trace and self.funcstate and self.funcstate.can_trace and self.globalstate.directives['linetrace']:
+        if trace:
+            self.write_trace_line(pos)
+
+    def write_trace_line(self, pos):
+        if self.funcstate and self.funcstate.can_trace and self.globalstate.directives['linetrace']:
             self.indent()
-            self._write_lines('__Pyx_TraceLine(%d,%d,%s)\n' % (
-                pos[1], not self.funcstate.gil_owned, self.error_goto(pos)))
+            self._write_lines(
+                f'__Pyx_TraceLine({pos[1]:d},{self.pos_to_offset(pos):d},{not self.funcstate.gil_owned:d},{self.error_goto(pos)})\n')
 
     def _build_marker(self, pos):
         source_desc, line, col = pos
@@ -2894,22 +2905,97 @@ class CCodeWriter:
         self.globalstate.use_utility_code(
             UtilityCode.load_cached("WriteUnraisableException", "Exceptions.c"))
 
-    def put_trace_declarations(self):
-        self.putln('__Pyx_TraceDeclarations')
+    def is_tracing(self):
+        return self.globalstate.directives['profile'] or self.globalstate.directives['linetrace']
+
+    def pos_to_offset(self, pos):
+        """
+        Calculate a fake 'instruction offset' from a node position as 31 bit int (32 bit signed).
+        """
+        scope = self.funcstate.scope
+        while scope and pos not in scope.node_positions_to_offset:
+            scope = scope.parent_scope
+        return scope.node_positions_to_offset[pos] if scope else 0
+
+    def put_trace_declarations(self, is_generator=False):
+        self.putln('__Pyx_TraceDeclarationsGen' if is_generator else '__Pyx_TraceDeclarationsFunc')
 
     def put_trace_frame_init(self, codeobj=None):
         if codeobj:
             self.putln('__Pyx_TraceFrameInit(%s)' % codeobj)
 
-    def put_trace_call(self, name, pos, nogil=False):
-        self.putln('__Pyx_TraceCall("%s", %s[%s], %s, %d, %s);' % (
-            name, Naming.filetable_cname, self.lookup_filename(pos[0]), pos[1], nogil, self.error_goto(pos)))
+    def put_trace_start(self, name, pos, nogil=False, is_generator=False, is_cpdef_func=False):
+        trace_func = "__Pyx_TraceStartGen" if is_generator else "__Pyx_TraceStartFunc"
+        self.putln(
+            f'{trace_func}('
+            f'{name.as_c_string_literal()}, '
+            f'{Naming.filetable_cname}[{self.lookup_filename(pos[0])}], '
+            f'{pos[1]}, '
+            f'{self.pos_to_offset(pos):d}, '
+            f'{nogil:d}, '
+            f'{Naming.skip_dispatch_cname if is_cpdef_func else "0"}, '
+            f'{self.error_goto(pos)}'
+            ');'
+        )
 
-    def put_trace_exception(self):
-        self.putln("__Pyx_TraceException();")
+    def put_trace_exit(self):
+        self.putln("__Pyx_PyMonitoring_ExitScope();")
 
-    def put_trace_return(self, retvalue_cname, nogil=False):
-        self.putln("__Pyx_TraceReturn(%s, %d);" % (retvalue_cname, nogil))
+    def put_trace_yield(self, retvalue_cname, pos):
+        error_goto = self.error_goto(pos)
+        self.putln(f"__Pyx_TraceYield({retvalue_cname}, {self.pos_to_offset(pos)}, {error_goto});")
+
+    def put_trace_resume(self, pos):
+        scope = self.funcstate.scope
+        # pos[1] is probably not the first line, so try to find the first line of the generator function.
+        first_line = scope.scope_class.pos[1] if scope.scope_class else pos[1]
+        name = scope.name.as_c_string_literal()
+        filename_index = self.lookup_filename(pos[0])
+        error_goto = self.error_goto(pos)
+        self.putln(
+            '__Pyx_TraceResumeGen('
+            f'{name}, '
+            f'{Naming.filetable_cname}[{filename_index}], '
+            f'{first_line}, '
+            f'{self.pos_to_offset(pos)}, '
+            f'{error_goto}'
+            ');'
+        )
+
+    def put_trace_exception(self, pos, reraise=False, fresh=False):
+        self.putln(f"__Pyx_TraceException({self.pos_to_offset(pos)}, {bool(reraise):d}, {bool(fresh):d});")
+
+    def put_trace_exception_propagating(self):
+        self.putln(f"__Pyx_TraceException({Naming.lineno_cname}, 0, 0);")
+
+    def put_trace_exception_handled(self, pos):
+        self.putln(f"__Pyx_TraceExceptionHandled({self.pos_to_offset(pos)});")
+
+    def put_trace_unwind(self, pos, nogil=False):
+        self.putln(f"__Pyx_TraceExceptionUnwind({self.pos_to_offset(pos)}, {bool(nogil):d});")
+
+    def put_trace_stopiteration(self, pos, value):
+        error_goto = self.error_goto(pos)
+        self.putln(f"__Pyx_TraceStopIteration({value}, {self.pos_to_offset(pos)}, {error_goto});")
+
+    def put_trace_return(self, retvalue_cname, pos, return_type=None, nogil=False):
+        extra_arg = ""
+        trace_func = "__Pyx_TraceReturnValue"
+
+        if return_type is None or return_type.is_pyobject:
+            pass
+        elif return_type.is_void:
+            retvalue_cname = 'Py_None'
+        elif return_type.to_py_function:
+            trace_func = "__Pyx_TraceReturnCValue"
+            extra_arg = f", {return_type.to_py_function}"
+        else:
+            # We don't have a Python visible return value but we still need to report that we returned.
+            # 'None' may not be a misleading (it's false, for one), but it's hopefully better than nothing.
+            retvalue_cname = 'Py_None'
+
+        error_handling = self.error_goto(pos)
+        self.putln(f"{trace_func}({retvalue_cname}{extra_arg}, {self.pos_to_offset(pos)}, {bool(nogil):d}, {error_handling});")
 
     def putln_openmp(self, string):
         self.putln("#ifdef _OPENMP")

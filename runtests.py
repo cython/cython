@@ -246,6 +246,12 @@ def exclude_test_on_platform(*platforms):
 
 
 def update_linetrace_extension(ext):
+    if sys.version_info[:2] == (3, 12):
+        # Line tracing is generally fragile in Py3.12.
+        return EXCLUDE_EXT
+    if not IS_CPYTHON and sys.version_info[:2] < (3, 13):
+        # Tracing/profiling requires PEP-669 monitoring or old CPython tracing.
+        return EXCLUDE_EXT
     ext.define_macros.append(('CYTHON_TRACE', 1))
     return ext
 
@@ -464,6 +470,8 @@ EXT_EXTRAS = {
 
 TAG_EXCLUDERS = sorted({
     'no-macos':  exclude_test_on_platform('darwin'),
+    'pstats': exclude_test_in_pyver((3,12)),
+    'trace': not IS_CPYTHON,
 }.items())
 
 # TODO: use tags
@@ -477,13 +485,12 @@ VER_DEP_MODULES = {
 
     (3,8): (operator.lt, lambda x: x in ['run.special_methods_T561_py38',
                                          ]),
-    (3,11,999): (operator.gt, lambda x: x in [
+    (3,12): (operator.ge, lambda x: x in [
         'run.py_unicode_strings',  # Py_UNICODE was removed
         'compile.pylong',  # PyLongObject changed its structure
         'run.longintrepr',  # PyLongObject changed its structure
+        'run.line_trace',  # sys.monitoring broke sys.set_trace() line tracing
     ]),
-    # Profiling is broken on Python 3.12/3.13alpha
-    (3,12): (operator.gt, lambda x: "pstats" in x),
 }
 
 INCLUDE_DIRS = [ d for d in os.getenv('INCLUDE', '').split(os.pathsep) if d ]
@@ -1003,12 +1010,13 @@ class CythonCompileTestCase(unittest.TestCase):
         unittest.TestCase.__init__(self)
 
     def shortDescription(self):
-        return "[%d] compiling (%s%s%s) %s" % (
-            self.shard_num,
-            self.language,
-            "/cy2" if self.language_level == 2 else "/cy3" if self.language_level == 3 else "",
-            "/pythran" if self.pythran_dir is not None else "",
-            self.description_name()
+        return (
+            f"[{self.shard_num}] compiling ("
+            f"{self.language}"
+            f"{'/cy2' if self.language_level == 2 else '/cy3' if self.language_level == 3 else ''}"
+            f"{'/pythran' if self.pythran_dir is not None else ''}"
+            f"/{os.path.splitext(self.module_path)[1][1:]}"
+            f") {self.description_name()}"
         )
 
     def description_name(self):
@@ -2930,11 +2938,13 @@ def runtests(options, cmd_args, coverage=None):
         pass  # not available on PyPy
 
     enable_faulthandler = False
+    old_faulhandler_envvar = os.environ.get('PYTHONFAULTHANDLER')
     try:
         import faulthandler
     except ImportError:
         pass
     else:
+        os.environ['PYTHONFAULTHANDLER'] = "1"
         enable_faulthandler = not faulthandler.is_enabled()
         if enable_faulthandler:
             faulthandler.enable()
@@ -2955,6 +2965,11 @@ def runtests(options, cmd_args, coverage=None):
     finally:
         if enable_faulthandler:
             faulthandler.disable()
+        if os.environ.get('PYTHONFAULTHANDLER') != old_faulhandler_envvar:
+            if old_faulhandler_envvar is None:
+                del os.environ['PYTHONFAULTHANDLER']
+            else:
+                os.environ['PYTHONFAULTHANDLER'] = old_faulhandler_envvar
 
     if common_utility_dir and options.shard_num < 0 and options.cleanup_workdir:
         shutil.rmtree(common_utility_dir)

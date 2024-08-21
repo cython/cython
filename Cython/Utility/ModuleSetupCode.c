@@ -103,6 +103,8 @@
   #define CYTHON_PEP489_MULTI_PHASE_INIT 1
   #undef CYTHON_USE_MODULE_STATE
   #define CYTHON_USE_MODULE_STATE 0
+  #undef CYTHON_USE_SYS_MONITORING
+  #define CYTHON_USE_SYS_MONITORING 0
   #undef CYTHON_USE_TP_FINALIZE
   #define CYTHON_USE_TP_FINALIZE 0
   #undef CYTHON_USE_AM_SEND
@@ -170,6 +172,8 @@
   #endif
   #undef CYTHON_USE_MODULE_STATE
   #define CYTHON_USE_MODULE_STATE 0
+  #undef CYTHON_USE_SYS_MONITORING
+  #define CYTHON_USE_SYS_MONITORING 0
   #ifndef CYTHON_USE_TP_FINALIZE
     #define CYTHON_USE_TP_FINALIZE (PYPY_VERSION_NUM >= 0x07030C00)
   #endif
@@ -245,6 +249,8 @@
   #ifndef CYTHON_USE_MODULE_STATE
     #define CYTHON_USE_MODULE_STATE 1
   #endif
+  #undef CYTHON_USE_SYS_MONITORING
+  #define CYTHON_USE_SYS_MONITORING 0
   #ifndef CYTHON_USE_TP_FINALIZE
     // PyObject_CallFinalizerFromDealloc is missing and not easily replaced
     #define CYTHON_USE_TP_FINALIZE 0
@@ -359,6 +365,9 @@
   #ifndef CYTHON_USE_MODULE_STATE
     // EXPERIMENTAL !!
     #define CYTHON_USE_MODULE_STATE 0
+  #endif
+  #ifndef CYTHON_USE_SYS_MONITORING
+    #define CYTHON_USE_SYS_MONITORING (PY_VERSION_HEX >= 0x030d00B1)
   #endif
   #ifndef CYTHON_USE_TP_FINALIZE
     #define CYTHON_USE_TP_FINALIZE 1
@@ -1207,6 +1216,28 @@ static CYTHON_INLINE int __Pyx_PyDict_GetItemRef(PyObject *dict, PyObject *key, 
 #else
     #define __Pyx_TPFLAGS_HAVE_AM_SEND (0)
 #endif
+
+
+/////////////// CythonABIVersion.proto ///////////////
+//@proto_block: module_declarations
+// This needs to go after the utility code 'proto' section but before user code and utility impl.
+
+#if CYTHON_COMPILING_IN_LIMITED_API
+    // The limited API makes some significant changes to data structures, so we don't
+    // want to share the implementations compiled with and without the limited API.
+    #define __PYX_LIMITED_ABI_SUFFIX  "limited"
+#else
+    #define __PYX_LIMITED_ABI_SUFFIX
+#endif
+
+#ifndef __PYX_MONITORING_ABI_SUFFIX
+    #define __PYX_MONITORING_ABI_SUFFIX
+#endif
+
+#define CYTHON_ABI  __PYX_ABI_VERSION __PYX_LIMITED_ABI_SUFFIX __PYX_MONITORING_ABI_SUFFIX
+
+#define __PYX_ABI_MODULE_NAME "_cython_" CYTHON_ABI
+#define __PYX_TYPE_MODULE_PREFIX __PYX_ABI_MODULE_NAME "."
 
 
 /////////////// IncludeStructmemberH.proto ///////////////
@@ -2144,7 +2175,7 @@ static PyObject* __Pyx_PyCode_New(
         // PyObject *cellvars,
         PyObject *filename,
         PyObject *funcname,
-        // PyObject *lnotab,
+        const char *line_table,
         PyObject *tuple_dedup_map
 );/*proto*/
 
@@ -2276,11 +2307,12 @@ static PyObject* __Pyx_PyCode_New(
         // PyObject *cellvars,
         PyObject* filename,
         PyObject *funcname,
-        // PyObject *lnotab,
+        // line table replaced lnotab in Py3.11 (PEP-626)
+        const char *line_table,
         PyObject *tuple_dedup_map
 ) {
 
-    PyObject *code_obj = NULL, *varnames_tuple_dedup = NULL;
+    PyObject *code_obj = NULL, *varnames_tuple_dedup = NULL, *code_bytes = NULL, *line_table_bytes = NULL;
     Py_ssize_t var_count = (Py_ssize_t) descr.nlocals;
 
     PyObject *varnames_tuple = PyTuple_New(var_count);
@@ -2305,6 +2337,23 @@ static PyObject* __Pyx_PyCode_New(
     Py_INCREF(varnames_tuple_dedup);
     #endif
 
+    if (__PYX_LIMITED_VERSION_HEX >= 0x030b0000 && line_table != NULL) {
+        line_table_bytes = PyBytes_FromStringAndSize(line_table, descr.line_table_length);
+        if (unlikely(!line_table_bytes)) goto done;
+
+        // Allocate a "byte code" array (oversized) to match the addresses in the line table.
+        // Length and alignment must be a multiple of sizeof(_Py_CODEUNIT), which is CPython specific but currently 2.
+        // CPython makes a copy of the code array internally, so make sure it's somewhat short (but not too short).
+        Py_ssize_t code_len = (descr.line_table_length * 2 + 4) & ~3;
+        code_bytes = PyBytes_FromStringAndSize(NULL, code_len);
+        if (unlikely(!code_bytes)) goto done;
+        char* c_code_bytes = PyBytes_AsString(code_bytes);
+        if (unlikely(!c_code_bytes)) goto done;
+        // We initialise the code array to '\0' even though a NOP would be more accurate,
+        // but NOP changes its byte code ID across Python versions/implementations.
+        memset(c_code_bytes, 0, (size_t) code_len);
+    }
+
     code_obj = (PyObject*) __Pyx__PyCode_New(
         (int) descr.argcount,
         (int) descr.num_posonly_args,
@@ -2312,7 +2361,7 @@ static PyObject* __Pyx_PyCode_New(
         (int) descr.nlocals,
         0,
         (int) descr.flags,
-        ${empty_bytes},
+        code_bytes ? code_bytes : ${empty_bytes},
         ${empty_tuple},
         ${empty_tuple},
         varnames_tuple_dedup,
@@ -2321,10 +2370,12 @@ static PyObject* __Pyx_PyCode_New(
         filename,
         funcname,
         (int) descr.first_line,
-        ${empty_bytes}
+        (__PYX_LIMITED_VERSION_HEX >= 0x030b0000) ? line_table_bytes : ${empty_bytes}
     );
 
 done:
+    Py_XDECREF(code_bytes);
+    Py_XDECREF(line_table_bytes);
     #if CYTHON_AVOID_BORROWED_REFS
     Py_XDECREF(varnames_tuple_dedup);
     #endif

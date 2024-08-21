@@ -20,7 +20,7 @@ and as a general human debugging helper, it always copies the current source cod
        *         z = 0                    # 3
        *         z += cy_add_nogil(x, y)  # 4
        */
-       __Pyx_TraceLine(147,1,__PYX_ERR(0, 147, __pyx_L4_error))
+       __Pyx_TraceLine(147,6,1,__PYX_ERR(0, 147, __pyx_L4_error))
       [C code generated for file line_trace.pyx, line 147, follows here]
 
 The crux is that multiple source files can contribute code to a single C (or C++) file
@@ -106,6 +106,10 @@ def _find_dep_file_path(main_file, file_path, relative_path_search=False):
             if os.path.exists(test_path):
                 return canonical_filename(test_path)
     return canonical_filename(abs_path)
+
+
+def _offset_to_line(offset):
+    return offset >> 9
 
 
 class Plugin(CoveragePlugin):
@@ -309,7 +313,8 @@ class Plugin(CoveragePlugin):
                     if '__Pyx_TraceLine(' in line and current_filename is not None:
                         trace_line = match_trace_line(line)
                         if trace_line:
-                            executable_lines[current_filename].add(int(trace_line.group(1)))
+                            lineno = int(trace_line.group(1))
+                            executable_lines[current_filename].add(lineno)
                     continue
                 filename, lineno = match.groups()
                 current_filename = filename
