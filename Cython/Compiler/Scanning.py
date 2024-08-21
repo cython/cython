@@ -148,11 +148,9 @@ class SourceDescriptor:
 
     def get_escaped_description(self):
         if self._escaped_description is None:
-            esc_desc = \
-                self.get_description().encode('ASCII', 'replace').decode("ASCII")
             # Use forward slashes on Windows since these paths
             # will be used in the #line directives in the C/C++ files.
-            self._escaped_description = esc_desc.replace('\\', '/')
+            self._escaped_description = self.get_description().replace('\\', '/')
         return self._escaped_description
 
     def __gt__(self, other):
@@ -193,8 +191,13 @@ class FileSourceDescriptor(SourceDescriptor):
     """
     def __init__(self, filename, path_description=None):
         filename = Utils.decode_filename(filename)
-        self.path_description = path_description or filename
         self.filename = filename
+        self.path_description = path_description or filename
+        try:
+            self._short_path_description = os.path.relpath(self.path_description)
+        except ValueError:
+            # path not under current directory => use complete file path
+            self._short_path_description = self.path_description
         # Prefer relative paths to current directory (which is most likely the project root) over absolute paths.
         workdir = os.path.abspath('.') + os.sep
         self.file_path = filename[len(workdir):] if filename.startswith(workdir) else filename
@@ -225,11 +228,7 @@ class FileSourceDescriptor(SourceDescriptor):
         return lines
 
     def get_description(self):
-        try:
-            return os.path.relpath(self.path_description)
-        except ValueError:
-            # path not under current directory => use complete file path
-            return self.path_description
+        return self._short_path_description
 
     def get_error_description(self):
         path = self.filename
