@@ -6,7 +6,7 @@ Cython -- Things that don't belong anywhere else in particular
 import cython
 
 cython.declare(
-    os=object, sys=object, re=object, io=object, codecs=object, glob=object, shutil=object, tempfile=object,
+    os=object, sys=object, re=object, io=object, glob=object, shutil=object, tempfile=object,
     update_wrapper=object, partial=object, wraps=object, cython_version=object,
     _cache_function=object, _function_caches=list, _parse_file_version=object, _match_file_encoding=object,
 )
@@ -15,7 +15,6 @@ import os
 import sys
 import re
 import io
-import codecs
 import glob
 import shutil
 import tempfile
@@ -158,8 +157,7 @@ def open_new_file(path):
     # Unicode, so we need a direct mapping from the first 256 Unicode
     # characters to a byte sequence, which ISO-8859-1 provides
 
-    # note: can't use io.open() in Py2 as we may be writing str objects
-    return codecs.open(path, "w", encoding="ISO-8859-1")
+    return open(path, "w", encoding="ISO-8859-1")
 
 
 def castrate_file(path, st):
