@@ -1649,12 +1649,8 @@ static __pyx_CoroutineObject *__Pyx__Coroutine_NewInit(
 
 //////////////////// Coroutine ////////////////////
 //@requires: CoroutineBase
-<<<<<<< HEAD
-//@requires: ObjectHandling.c::PyObject_GenericGetAttrNoDict
-//@substitute: naming
-=======
 //@requires: ExtensionTypes.c::CallTypeTraverse
->>>>>>> real_origin/master
+//@substitute: naming
 
 static void __Pyx_CoroutineAwait_dealloc(PyObject *self) {
     PyObject_GC_UnTrack(self);
