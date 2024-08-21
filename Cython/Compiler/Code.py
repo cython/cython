@@ -1750,13 +1750,8 @@ class GlobalState:
                 f"Py_VISIT(traverse_module_state->{cname});")
 
         for prefix, count in sorted(self.const_array_counters.items()):
-            # name the struct attribute and the global "define" slightly differently
-            # to avoid the global define getting in the way
-            struct_attr_cname = f"{Naming.pyrex_prefix}_{prefix}"
-            global_cname = f"{Naming.pyrex_prefix}{prefix}"
+            struct_attr_cname = f"{Naming.pyrex_prefix}{prefix}"
             self.parts['module_state'].putln(f"PyObject *{struct_attr_cname}[{count}];")
-            self.parts['constant_name_defines'].putln(
-                f"#define {global_cname} {struct_attr_cname}")
 
             # The constant tuples/slices that we create can never participate in reference cycles.
             self._generate_module_array_traverse_and_clear(struct_attr_cname, count, may_have_refcycles=False)
@@ -1764,7 +1759,9 @@ class GlobalState:
             cleanup_level = cleanup_level_for_type_prefix(prefix)
             if cleanup_level is not None and cleanup_level <= Options.generate_cleanup_code:
                 part_writer = self.parts['cleanup_globals']
-                part_writer.putln(f"for (Py_ssize_t i=0; i<{count}; ++i) {{ Py_CLEAR({global_cname}[i]); }}")
+                part_writer.putln(
+                    f"for (Py_ssize_t i=0; i<{count}; ++i) "
+                    f"{{ Py_CLEAR({Naming.modulestatevalue_cname}->{struct_attr_cname}[i]); }}")
 
     def generate_cached_methods_decls(self):
         if not self.cached_cmethods:
