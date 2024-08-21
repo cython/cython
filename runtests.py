@@ -237,19 +237,21 @@ def def_to_cdef(source):
     return '\n'.join(output)
 
 
-def exclude_extension_in_pyver(*versions):
-    def check(ext):
-        return EXCLUDE_EXT if sys.version_info[:2] in versions else ext
-    return check
+def exclude_test_in_pyver(*versions):
+    return sys.version_info[:2] in versions
 
 
-def exclude_extension_on_platform(*platforms):
-    def check(ext):
-        return EXCLUDE_EXT if sys.platform in platforms else ext
-    return check
+def exclude_test_on_platform(*platforms):
+    return sys.platform in platforms
 
 
 def update_linetrace_extension(ext):
+    if sys.version_info[:2] == (3, 12):
+        # Line tracing is generally fragile in Py3.12.
+        return EXCLUDE_EXT
+    if not IS_CPYTHON and sys.version_info[:2] < (3, 13):
+        # Tracing/profiling requires PEP-669 monitoring or old CPython tracing.
+        return EXCLUDE_EXT
     ext.define_macros.append(('CYTHON_TRACE', 1))
     return ext
 
@@ -463,9 +465,14 @@ EXT_EXTRAS = {
     'tag:cpp17': update_cpp_extension(17, min_gcc_version="5.0", min_macos_version="10.13"),
     'tag:cpp20': update_cpp_extension(20, min_gcc_version="11.0", min_clang_version="13.0", min_macos_version="10.13"),
     'tag:trace' : update_linetrace_extension,
-    'tag:no-macos':  exclude_extension_on_platform('darwin'),
     'tag:cppexecpolicies': require_gcc("9.1"),
 }
+
+TAG_EXCLUDERS = sorted({
+    'no-macos':  exclude_test_on_platform('darwin'),
+    'pstats': exclude_test_in_pyver((3,12)),
+    'trace': not IS_CPYTHON,
+}.items())
 
 # TODO: use tags
 VER_DEP_MODULES = {
@@ -478,13 +485,12 @@ VER_DEP_MODULES = {
 
     (3,8): (operator.lt, lambda x: x in ['run.special_methods_T561_py38',
                                          ]),
-    (3,11,999): (operator.gt, lambda x: x in [
+    (3,12): (operator.ge, lambda x: x in [
         'run.py_unicode_strings',  # Py_UNICODE was removed
         'compile.pylong',  # PyLongObject changed its structure
         'run.longintrepr',  # PyLongObject changed its structure
+        'run.line_trace',  # sys.monitoring broke sys.set_trace() line tracing
     ]),
-    # Profiling is broken on Python 3.12/3.13alpha
-    (3,12): (operator.gt, lambda x: "pstats" in x),
 }
 
 INCLUDE_DIRS = [ d for d in os.getenv('INCLUDE', '').split(os.pathsep) if d ]
@@ -1004,12 +1010,13 @@ class CythonCompileTestCase(unittest.TestCase):
         unittest.TestCase.__init__(self)
 
     def shortDescription(self):
-        return "[%d] compiling (%s%s%s) %s" % (
-            self.shard_num,
-            self.language,
-            "/cy2" if self.language_level == 2 else "/cy3" if self.language_level == 3 else "",
-            "/pythran" if self.pythran_dir is not None else "",
-            self.description_name()
+        return (
+            f"[{self.shard_num}] compiling ("
+            f"{self.language}"
+            f"{'/cy2' if self.language_level == 2 else '/cy3' if self.language_level == 3 else ''}"
+            f"{'/pythran' if self.pythran_dir is not None else ''}"
+            f"/{os.path.splitext(self.module_path)[1][1:]}"
+            f") {self.description_name()}"
         )
 
     def description_name(self):
@@ -2647,6 +2654,14 @@ def save_coverage(coverage, options):
 def runtests_callback(args):
     options, cmd_args, shard_num = args
     options.shard_num = shard_num
+
+    # Make the shard number visible in faulthandler stack traces in the case of process crashes.
+    try:
+        runtests.__code__ = runtests.__code__.replace(co_name=f"runtests_SHARD_{shard_num}")
+    except (AttributeError, TypeError):
+        # No .replace() in Py3.7, 'co_name' might not be replacible, whatever.
+        pass
+
     return runtests(options, cmd_args)
 
 
@@ -2809,6 +2824,8 @@ def runtests(options, cmd_args, coverage=None):
             FileListExcluder(os.path.join(ROOTDIR, "memoryview_tests.txt")),
         ]
 
+    exclude_selectors += [TagsSelector('tag', tag) for tag, exclude in TAG_EXCLUDERS if exclude]
+
     global COMPILER
     if options.compiler:
         COMPILER = options.compiler
@@ -2921,11 +2938,13 @@ def runtests(options, cmd_args, coverage=None):
         pass  # not available on PyPy
 
     enable_faulthandler = False
+    old_faulhandler_envvar = os.environ.get('PYTHONFAULTHANDLER')
     try:
         import faulthandler
     except ImportError:
         pass
     else:
+        os.environ['PYTHONFAULTHANDLER'] = "1"
         enable_faulthandler = not faulthandler.is_enabled()
         if enable_faulthandler:
             faulthandler.enable()
@@ -2933,18 +2952,24 @@ def runtests(options, cmd_args, coverage=None):
     # Run the collected tests.
     try:
         if options.shard_num > -1:
-            sys.stderr.write("Tests in shard %d/%d starting\n" % (options.shard_num, options.shard_count))
+            thread_id = f" (Thread ID 0x{threading.get_ident():x})" if threading is not None else ""
+            sys.stderr.write(f"Tests in shard ({options.shard_num}/{options.shard_count}) starting{thread_id}\n")
         result = test_runner.run(test_suite)
     except Exception as exc:
         # Make sure we print exceptions also from shards.
         if options.shard_num > -1:
-            sys.stderr.write("Tests in shard %d/%d crashed: %s\n" % (options.shard_num, options.shard_count, exc))
+            sys.stderr.write(f"Tests in shard ({options.shard_num}/{options.shard_count}) crashed: {exc}\n")
         import traceback
         traceback.print_exc()
         raise
     finally:
         if enable_faulthandler:
             faulthandler.disable()
+        if os.environ.get('PYTHONFAULTHANDLER') != old_faulhandler_envvar:
+            if old_faulhandler_envvar is None:
+                del os.environ['PYTHONFAULTHANDLER']
+            else:
+                os.environ['PYTHONFAULTHANDLER'] = old_faulhandler_envvar
 
     if common_utility_dir and options.shard_num < 0 and options.cleanup_workdir:
         shutil.rmtree(common_utility_dir)

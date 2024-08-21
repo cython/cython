@@ -257,8 +257,9 @@ class SlotDescriptor:
             return
         preprocessor_guard = self.preprocessor_guard_code()
         if not preprocessor_guard:
-            if self.slot_name.startswith('bf_'):
-                # The buffer protocol requires Limited API 3.11, so check if the spec slots are available.
+            if self.slot_name.startswith(('bf_', 'am_')):
+                # The buffer protocol requires Limited API 3.11 and 'am_send' requires 3.10,
+                # so check if the spec slots are available.
                 preprocessor_guard = "#if defined(Py_%s)" % self.slot_name
         if preprocessor_guard:
             code.putln(preprocessor_guard)
@@ -888,6 +889,18 @@ initproc = Signature("T*", 'r')            # typedef int (*initproc)(PyObject *,
 getbufferproc = Signature("TBi", "r")      # typedef int (*getbufferproc)(PyObject *, Py_buffer *, int);
 releasebufferproc = Signature("TB", "v")   # typedef void (*releasebufferproc)(PyObject *, Py_buffer *);
 
+# typedef PySendResult (*sendfunc)(PyObject* iter, PyObject* value, PyObject** result);
+sendfunc = PyrexTypes.CPtrType(PyrexTypes.CFuncType(
+        return_type=PyrexTypes.PySendResult_type,
+        args=[
+            PyrexTypes.CFuncTypeArg("iter", PyrexTypes.py_object_type),
+            PyrexTypes.CFuncTypeArg("value", PyrexTypes.py_object_type),
+            PyrexTypes.CFuncTypeArg("result", PyrexTypes.CPtrType(PyrexTypes.py_objptr_type)),
+        ],
+        exception_value="PYGEN_ERROR",
+        exception_check=True,  # we allow returning PYGEN_ERROR without GeneratorExit / StopIteration
+    ))
+
 
 #------------------------------------------------------------------------------------------
 #
@@ -1004,7 +1017,9 @@ class SlotTable:
             MethodSlot(unaryfunc, "am_await", "__await__", method_name_to_slot),
             MethodSlot(unaryfunc, "am_aiter", "__aiter__", method_name_to_slot),
             MethodSlot(unaryfunc, "am_anext", "__anext__", method_name_to_slot),
-            EmptySlot("am_send", ifdef="PY_VERSION_HEX >= 0x030A00A3"),
+            # We should not map arbitrary .send() methods to an async slot.
+            #MethodSlot(sendfunc, "am_send", "send", method_name_to_slot),
+            EmptySlot("am_send"),
         )
 
         self.slot_table = (

@@ -1484,6 +1484,8 @@ class BuiltinObjectType(PyObjectType):
             type_check = '__Pyx_PyBaseString_Check'
         elif type_name == 'Exception':
             type_check = '__Pyx_PyException_Check'
+        elif type_name == 'BaseException':
+            type_check = '__Pyx_PyBaseException_Check'
         elif type_name == 'bytearray':
             type_check = 'PyByteArray_Check'
         elif type_name == 'frozenset':
@@ -2102,26 +2104,31 @@ class CIntLike:
 
     @staticmethod
     def _parse_format(format_spec):
+        # We currently only allow ' ' and '0' as padding, i.e. ASCII characters.
         padding = ' '
         if not format_spec:
             return ('d', 0, padding)
+
         format_type = format_spec[-1]
-        if format_type in ('o', 'd', 'x', 'X'):
+        if format_type in 'odxXc':
             prefix = format_spec[:-1]
         elif format_type.isdigit():
             format_type = 'd'
             prefix = format_spec
         else:
             return (None, 0, padding)
+
         if not prefix:
             return (format_type, 0, padding)
-        if prefix[0] == '-':
+
+        if prefix[0] in '>-':
             prefix = prefix[1:]
         if prefix and prefix[0] == '0':
             padding = '0'
             prefix = prefix.lstrip('0')
         if prefix.isdigit():
             return (format_type, int(prefix), padding)
+
         return (None, 0, padding)
 
     def can_coerce_to_pystring(self, env, format_spec=None):
@@ -2129,18 +2136,19 @@ class CIntLike:
         return format_type is not None and width <= 2**30
 
     def convert_to_pystring(self, cvalue, code, format_spec=None):
-        if self.to_pyunicode_utility is None:
-            utility_code_name = "__Pyx_PyUnicode_From_" + self.specialization_name()
+        if self.to_pyunicode_utility is not None:
+            conversion_func_cname, to_pyunicode_utility = self.to_pyunicode_utility
+        else:
+            conversion_func_cname = f"__Pyx_PyUnicode_From_{self.specialization_name()}"
             to_pyunicode_utility = TempitaUtilityCode.load_cached(
                 "CIntToPyUnicode", "TypeConversion.c",
                 context={"TYPE": self.empty_declaration_code(),
-                         "TO_PY_FUNCTION": utility_code_name})
-            self.to_pyunicode_utility = (utility_code_name, to_pyunicode_utility)
-        else:
-            utility_code_name, to_pyunicode_utility = self.to_pyunicode_utility
+                        "TO_PY_FUNCTION": conversion_func_cname})
+            self.to_pyunicode_utility = (conversion_func_cname, to_pyunicode_utility)
+
         code.globalstate.use_utility_code(to_pyunicode_utility)
         format_type, width, padding_char = self._parse_format(format_spec)
-        return "%s(%s, %d, '%s', '%s')" % (utility_code_name, cvalue, width, padding_char, format_type)
+        return "%s(%s, %d, '%s', '%s')" % (conversion_func_cname, cvalue, width, padding_char, format_type)
 
 
 class CIntType(CIntLike, CNumericType):
@@ -3681,7 +3689,7 @@ class CFuncTypeArg(BaseType):
 
     subtypes = ['type']
 
-    def __init__(self, name, type, pos, cname=None, annotation=None):
+    def __init__(self, name, type, pos=None, cname=None, annotation=None):
         self.name = name
         if cname is not None:
             self.cname = cname
@@ -4657,7 +4665,8 @@ class CTupleType(CType):
 def c_tuple_type(components):
     components = tuple(components)
     if any(c.is_fused for c in components):
-        cname = "<dummy fused ctuple>"  # should never end up in code
+        # should never end up in code but should be unique
+        cname = f"<dummy fused ctuple {components!r}>"
     else:
         cname = Naming.ctuple_type_prefix + type_list_identifier(components)
     tuple_type = CTupleType(cname, components)
@@ -4879,6 +4888,11 @@ c_threadstate_ptr_type = CPtrType(c_threadstate_type)
 
 # PEP-539 "Py_tss_t" type
 c_pytss_t_type = CPyTSSTType()
+
+# Py3.10+ "PySendResult" for "am_send" slot functions: ["PYGEN_RETURN", "PYGEN_ERROR", "PYGEN_NEXT"]
+PySendResult_type = CEnumType("PySendResult", "__Pyx_PySendResult", typedef_flag=True)
+py_objptr_type = CPtrType(CStructOrUnionType(
+    "PyObject", "struct", scope=None, typedef_flag=True, cname="PyObject"))
 
 # the Py_buffer type is defined in Builtin.py
 c_py_buffer_type = CStructOrUnionType("Py_buffer", "struct", None, 1, "Py_buffer")

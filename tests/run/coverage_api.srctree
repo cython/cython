@@ -28,7 +28,7 @@ plugins = Cython.Coverage
 
 ######## pkg/coverage_test_py.py ########
 # cython: linetrace=True
-# distutils: define_macros=CYTHON_TRACE=1
+# distutils: define_macros=CYTHON_TRACE=1 CYTHON_USE_SYS_MONITORING=0
 
 def func1(a, b):
     x = 1               #  5
@@ -42,7 +42,7 @@ def func2(a):
 
 ######## pkg/coverage_test_pyx.pyx ########
 # cython: linetrace=True
-# distutils: define_macros=CYTHON_TRACE=1
+# distutils: define_macros=CYTHON_TRACE=1 CYTHON_USE_SYS_MONITORING=0
 
 def func1(int a, int b):
     cdef int x = 1      #  5
@@ -56,7 +56,7 @@ def func2(int a):
 
 ######## coverage_test_include_pyx.pyx ########
 # cython: linetrace=True
-# distutils: define_macros=CYTHON_TRACE=1
+# distutils: define_macros=CYTHON_TRACE=1 CYTHON_USE_SYS_MONITORING=0
 
 cdef int x = 5                                   #  4
 
@@ -74,7 +74,7 @@ def main_func(int x):                            # 11
 
 ######## Package2/CoverageTest_py.py ########
 # cython: linetrace=True
-# distutils: define_macros=CYTHON_TRACE=1
+# distutils: define_macros=CYTHON_TRACE=1 CYTHON_USE_SYS_MONITORING=0
 
 def func1(a, b):
     x = 1               #  5
@@ -88,7 +88,7 @@ def func2(a):
 
 ######## Package2/CoverageTest_pyx.pyx ########
 # cython: linetrace=True
-# distutils: define_macros=CYTHON_TRACE=1
+# distutils: define_macros=CYTHON_TRACE=1 CYTHON_USE_SYS_MONITORING=0
 
 def func1(int a, int b):
     cdef int x = 1      #  5
@@ -102,7 +102,7 @@ def func2(int a):
 
 ######## coverage_test_include_pyx.pyx ########
 # cython: linetrace=True
-# distutils: define_macros=CYTHON_TRACE=1
+# distutils: define_macros=CYTHON_TRACE=1 CYTHON_USE_SYS_MONITORING=0
 
 cdef int x = 5                                   #  4
 

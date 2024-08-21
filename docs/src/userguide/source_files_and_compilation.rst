@@ -789,7 +789,7 @@ Cython code.  Here is the list of currently supported directives:
     Default is True.
 
     .. versionchanged:: 3.0.0
-        Default changed from False to True 
+        Default changed from False to True
 
 ``boundscheck``  (True / False)
     If set to False, Cython is free to assume that indexing operations
@@ -819,9 +819,9 @@ Cython code.  Here is the list of currently supported directives:
 
 ``initializedcheck`` (True / False)
     If set to True, Cython checks that
-     - a memoryview is initialized whenever its elements are accessed 
+     - a memoryview is initialized whenever its elements are accessed
        or assigned to.
-     - a C++ class is initialized when it is accessed 
+     - a C++ class is initialized when it is accessed
        (only when ``cpp_locals`` is on)
 
     Setting this to False disables these checks.
@@ -899,17 +899,17 @@ Cython code.  Here is the list of currently supported directives:
     division is performed with negative operands.  See `CEP 516
     <https://github.com/cython/cython/wiki/enhancements-division>`_.  Default is
     False.
-    
+
 ``cpow`` (True / False)
     ``cpow`` modifies the return type of ``a**b``, as shown in the
     table below:
-    
+
         .. csv-table:: cpow behaviour
             :file: cpow_table.csv
             :header-rows: 1
             :class: longtable
             :widths: 1 1 3 3
-    
+
     The ``cpow==True`` behaviour largely keeps the result type the
     same as the operand types, while the ``cpow==False`` behaviour
     follows Python and returns a flexible type depending on the
@@ -1174,14 +1174,14 @@ the feature at runtime, at the before mentioned cost of longer C compile times a
 This can be configured with the C macro
 
 ``CYTHON_CLINE_IN_TRACEBACK_RUNTIME=1``
-  
+
 To then change the behaviour at runtime, you can import the special module ``cython_runtime``
 after loading a Cython module and set the attribute ``cline_in_traceback`` in that module
 to either true or false to control the behaviour as your Cython code is being run::
 
     import cython_runtime
     cython_runtime.cline_in_traceback = True
-    
+
     raise ValueError(5)
 
 If both macros are *not* defined by the build setup or ``CFLAGS``, the feature is disabled.
@@ -1236,7 +1236,11 @@ most important to least important:
     Defines ``cdef classes`` as `"heap types" <https://docs.python.org/3/c-api/typeobj.html#heap-types>`_
     rather than "static types".  Practically this does not change a lot from a user
     point of view, but it is needed to implement Limited API support.
-    
+
+``CYTHON_PROFILE``, ``CYTHON_TRACE``, ``CYTHON_TRACE_NOGIL``
+    These control the inclusion of profiling and line tracing calls in the module.
+    See the ``profile`` and ``linetrace`` :ref:`compiler-directives`.
+
 ``CYTHON_EXTERN_C``
     Slightly different to the other macros, this controls how ``cdef public``
     functions appear to C++ code. See :ref:`CYTHON_EXTERN_C` for full details.
@@ -1244,7 +1248,7 @@ most important to least important:
 ``CYTHON_CLINE_IN_TRACEBACK``
     Controls whether C lines numbers appear in tracebacks.
     See :ref:`cline_in_traceback` for a complete description.
-    
+
 There is a further list of macros which turn off various optimizations or language
 features.  Under normal circumstance Cython enables these automatically based on the
 version of Python you are compiling for so there is no need to use them
@@ -1256,70 +1260,78 @@ hidden by default since most users will be uninterested in changing them.
 
 .. tabs::
     .. tab:: Hide
-    
+
     .. tab:: Show
-        
+
         ``CYTHON_USE_TYPE_SLOTS``
             If enabled, Cython will directly access members of the ``PyTypeObject``
             struct.
-            
+
         ``CYTHON_USE_PYTYPE_LOOKUP``
             Use the internal `_PyType_Lookup()` function for more efficient access
             to properties of C classes.
-            
+
         ``CYTHON_USE_PYLONG_INTERNALS``/``CYTHON_USE_PYLIST_INTERNALS``/``CYTHON_USE_UNICODE_INTERNALS``
             Enable optimizations based on direct access into the internals of Python
             ``int``/``list``/``unicode`` objects respectively.
-            
+
         ``CYTHON_USE_UNICODE_WRITER``
             Use a faster (but internal) mechanism for building unicode strings, for
             example in f-strings.
-            
+
         ``CYTHON_AVOID_BORROWED_REFS``
             Avoid using "borrowed references" and ensure that Cython always holds
             a reference to objects it manipulates.  Most useful for
             non-reference-counted implementations of Python, like PyPy
             (where it is enabled by default).
-            
+
+        ``CYTHON_AVOID_THREAD_UNSAFE_BORROWED_REFS``
+            Avoid using APIs that return unsafe "borrowed references" and instead use
+            the equivalent APIs that return "strong references". Most useful for
+            the free-threaded build of CPython, where incrementing the reference
+            count of borrowed references to items in mutable containers might
+            introduce thread safety issues. Borrowed references to items in immutable
+            containers are still allowed with this setting.
+
         ``CYTHON_ASSUME_SAFE_MACROS``
             Use some C-API macros that increase performance by skipping error checking,
             which may not be safe on all Python implementations (e.g. PyPy).
-            
+
         ``CYTHON_ASSUME_SAFE_SIZE``
             Prefer the ``Py*_GET_SIZE()`` C-API macros / inline-functions for builtin types
             over their ``Py*_GetSize()`` counterparts if errors are not expected.
 
         ``CYTHON_FAST_GIL``
             On some Python versions this speeds up getting/releasing the GIL.
-            
+
         ``CYTHON_UNPACK_METHODS``
             Try to speed up method calls at the cost of code-size.  Linked to
             the ``optimize.unpack_method_calls`` compiler directive - this macro
             is used to selectively enable the compiler directive only on versions
             of Python that support it.
-            
+
         ``CYTHON_METH_FASTCALL``/``CYTHON_FAST_PYCALL``
             These are used internally to incrementally enable the vectorcall calling
             mechanism on older Python versions (<3.8).
-            
+
         ``CYTHON_PEP487_INIT_SUBCLASS``
             Enable `PEP-487 <https://peps.python.org/pep-0487/>`_ ``__init_subclass__`` behaviour.
-            
+
         ``CYTHON_USE_TP_FINALIZE``
             Use the ``tp_finalize`` type-slot instead of ``tp_dealloc``,
             as described in `PEP-442 <https://peps.python.org/pep-0442/>`_.
-            
+
         ``CYTHON_USE_DICT_VERSIONS``
             Try to optimize attribute lookup by using versioned dictionaries
             where supported.
-            
+
         ``CYTHON_USE_EXC_INFO_STACK``
             Use an internal structure to track exception state,
             used in CPython 3.7 and later.
-            
+
         ``CYTHON_UPDATE_DESCRIPTOR_DOC``
             Attempt to provide docstrings also for special (double underscore) methods.
-            
+
         ``CYTHON_USE_FREELISTS``
             Enable the use of freelists on extension types with
             :ref:`the @cython.freelist decorator<freelist>`.
@@ -1327,7 +1339,7 @@ hidden by default since most users will be uninterested in changing them.
         ``CYTHON_ATOMICS``
             Enable the use of atomic reference counting (as opposed to locking then
             reference counting) in Cython typed memoryviews.
-            
+
         ``CYTHON_DEBUG_VISIT_CONST``
             Debug option for including constant (string/integer/code/…) objects in
             [``gc.get_referents()``](https://docs.python.org/3/library/gc.html#gc.get_referents).
