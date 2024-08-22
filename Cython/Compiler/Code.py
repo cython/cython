@@ -746,7 +746,6 @@ def add_macro_processor(*macro_names, regex=None, is_module_specific=False, _las
             result_is_module_specific = False
             if last_processor is not None:
                 code_string, result_is_module_specific = last_processor(utility_code, output, code_string)
-            result_is_module_specific |= is_module_specific
 
             # Detect if we need to do something.
             if macro_names:
@@ -767,6 +766,7 @@ def add_macro_processor(*macro_names, regex=None, is_module_specific=False, _las
                 if macro in code_string:
                     raise RuntimeError(f"Left-over utility code macro '{macro}()' found in '{utility_code.name}'")
 
+            result_is_module_specific |= is_module_specific
             return code_string, result_is_module_specific
 
         _last_macro_processor[0] = process
