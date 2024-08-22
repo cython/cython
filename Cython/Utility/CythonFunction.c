@@ -1266,7 +1266,6 @@ static PyObject *__Pyx_CyFunction_New(PyMethodDef *ml,
                                       PyObject* code);
 
 //////////////////// CythonFunction ////////////////////
-//@substitute: naming
 //@requires: CythonFunctionShared
 
 static PyObject *__Pyx_CyFunction_New(PyMethodDef *ml, int flags, PyObject* qualname,

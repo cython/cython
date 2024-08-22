@@ -785,7 +785,7 @@ class UtilityCode(UtilityCodeBase):
             writer.putln("/* %s.proto */" % self.name)
             writer.put_or_include(
                 self.inject_cglobal(self.format_code(self.proto)),
-                '%s_proto' % self.name)
+                f'{self.name}_proto')
         if self.impl:
             impl = self.format_code(self.wrap_c_strings(self.impl))
             impl = self.inject_cglobal(impl)
@@ -1399,14 +1399,16 @@ class GlobalState:
             del self.parts['cached_builtins']
         else:
             w = self.parts['cached_builtins']
-            w.start_initcfunc("int __Pyx_InitCachedBuiltins(%s *%s)" % (
-                Naming.modulestatetype_cname, Naming.modulestatevalue_cname))
+            w.start_initcfunc(
+                "int __Pyx_InitCachedBuiltins("
+                f"{Naming.modulestatetype_cname} *{Naming.modulestatevalue_cname})")
             w.putln(f"CYTHON_UNUSED_VAR({Naming.modulestatevalue_cname});")
 
         w = self.parts['cached_constants']
-        w.start_initcfunc("int __Pyx_InitCachedConstants(%s *%s)" % (
-            Naming.modulestatetype_cname, Naming.modulestatevalue_cname
-        ), refnanny=True)
+        w.start_initcfunc(
+            "int __Pyx_InitCachedConstants("
+            f"{Naming.modulestatetype_cname} *{Naming.modulestatevalue_cname})",
+            refnanny=True)
         w.putln(f"CYTHON_UNUSED_VAR({Naming.modulestatevalue_cname});")
         w.put_setup_refcount_context(StringEncoding.EncodedString("__Pyx_InitCachedConstants"))
 
@@ -1414,16 +1416,18 @@ class GlobalState:
         w.start_initcfunc("int __Pyx_InitGlobals(void)")
 
         w = self.parts['init_constants']
-        w.start_initcfunc("int __Pyx_InitConstants(%s *%s)" % (
-            (Naming.modulestatetype_cname, Naming.modulestatevalue_cname)))
-        w.putln("CYTHON_UNUSED_VAR(%s);" % Naming.modulestatevalue_cname)
+        w.start_initcfunc(
+            "int __Pyx_InitConstants("
+            f"{Naming.modulestatetype_cname} *{Naming.modulestatevalue_cname})")
+        w.putln(f"CYTHON_UNUSED_VAR({Naming.modulestatevalue_cname});")
 
         if not Options.generate_cleanup_code:
             del self.parts['cleanup_globals']
         else:
             w = self.parts['cleanup_globals']
-            w.start_initcfunc("void __Pyx_CleanupGlobals(%s *%s)" % (
-                (Naming.modulestatetype_cname, Naming.modulestatevalue_cname)))
+            w.start_initcfunc(
+                "void __Pyx_CleanupGlobals("
+                f"{Naming.modulestatetype_cname} *{Naming.modulestatevalue_cname})")
             w.putln(f"CYTHON_UNUSED_VAR({Naming.modulestatevalue_cname});")
 
         code = self.parts['utility_code_proto']
@@ -1693,8 +1697,7 @@ class GlobalState:
 
     def put_cached_builtin_init(self, pos, name, cname):
         w = self.parts['cached_builtins']
-        interned_cname = "%s->%s" % (
-            Naming.modulestatevalue_cname, self.get_interned_identifier(name).cname)
+        interned_cname = f"{Naming.modulestatevalue_cname}->{self.get_interned_identifier(name).cname}"
         self.use_utility_code(
             UtilityCode.load_cached("GetBuiltinName", "ObjectHandling.c"))
         w.putln('%s = __Pyx_GetBuiltinName(%s); if (!%s) %s' % (
@@ -1760,7 +1763,7 @@ class GlobalState:
             if cleanup_level is not None and cleanup_level <= Options.generate_cleanup_code:
                 part_writer = self.parts['cleanup_globals']
                 part_writer.putln(
-                    f"for (Py_ssize_t i=0; i<{count}; ++i) "
+                    f"for (size_t i=0; i<{count}; ++i) "
                     f"{{ Py_CLEAR({Naming.modulestatevalue_cname}->{struct_attr_cname}[i]); }}")
 
     def generate_cached_methods_decls(self):
@@ -1779,8 +1782,7 @@ class GlobalState:
             init.putln('%s.type = (PyObject*)%s;' % (
                 cname, type_cname))
             # method name string isn't static in limited api
-            init.putln('%s.method_name = &%s->%s;' % (
-                cname, Naming.modulestatevalue_cname, method_name_cname))
+            init.putln(f'{cname}.method_name = &{Naming.modulestatevalue_cname}->{method_name_cname};')
 
         if Options.generate_cleanup_code:
             cleanup = self.parts['cleanup_globals']
@@ -2019,7 +2021,7 @@ class GlobalState:
                 function = "PyLong_FromLong(%sL)"
             else:
                 function = "PyLong_FromLong(%s)"
-            init_cname = "%s->%s" % (Naming.modulestatevalue_cname, cname)
+            init_cname = f"{Naming.modulestatevalue_cname}->{cname}"
             init_constants.putln('%s = %s; %s' % (
                 init_cname, function % value_code,
                 init_constants.error_goto_if_null(init_cname, self.module_pos)))
@@ -2365,7 +2367,7 @@ class CCodeWriter:
                 modulestate_name = Naming.modulestatevalue_cname
             # TODO - more choices depending on the type of env
 
-        return "%s->%s" % (modulestate_name, cname)
+        return f"{modulestate_name}->{cname}"
 
     def namespace_cname_in_module_state(self, scope):
         if scope.is_py_class_scope:

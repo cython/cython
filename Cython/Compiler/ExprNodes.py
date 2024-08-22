@@ -2593,7 +2593,7 @@ class NameNode(AtomicExprNode):
             else:
                 assert False, repr(entry)
             if namespace_is_type and not namespace_needs_type:
-                namespace = "((PyObject*)%s)" % namespace
+                namespace = f"((PyObject*){namespace})"
             # This combination shouldn't happen, and we don't know enough to cast
             assert not (namespace_needs_type and not namespace_is_type)
             code.put_error_if_neg(
