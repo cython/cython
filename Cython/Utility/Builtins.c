@@ -533,7 +533,6 @@ static CYTHON_INLINE PyObject* __Pyx_PyDict_ViewItems(PyObject* d) {
 static CYTHON_INLINE PyObject* __Pyx_PyFrozenSet_New(PyObject* it);
 
 //////////////////// pyfrozenset_new ////////////////////
-//@substitute: naming
 //@requires: ObjectHandling.c::PyObjectCallNoArg
 
 static CYTHON_INLINE PyObject* __Pyx_PyFrozenSet_New(PyObject* it) {

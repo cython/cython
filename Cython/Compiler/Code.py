@@ -398,17 +398,21 @@ class UtilityCodeBase:
     _utility_cache = {}
 
     @classmethod
-    def _add_utility(cls, utility, type, lines, begin_lineno, tags=None):
+    def _add_utility(cls, utility, name, type, lines, begin_lineno, tags=None):
         if utility is None:
             return
 
         code = '\n'.join(lines)
         if tags and 'substitute' in tags and 'naming' in tags['substitute']:
             try:
-                code = Template(code).substitute(vars(Naming))
+                new_code = Template(code).substitute(vars(Naming))
             except (KeyError, ValueError) as e:
-                raise RuntimeError("Error parsing templated utility code of type '%s' at line %d: %s" % (
-                    type, begin_lineno, e))
+                raise RuntimeError(
+                    f"Error parsing templated utility code '{name}.{type}' at line {begin_lineno:d}: {e}")
+            if new_code == code:
+                raise RuntimeError(
+                    f"Found useless 'substitute: naming' declaration without replacements. ({name}.{type}:{begin_lineno:d})")
+            code = new_code
 
         # remember correct line numbers at least until after templating
         code = '\n' * begin_lineno + code
@@ -452,14 +456,14 @@ class UtilityCodeBase:
         utilities = defaultdict(lambda: [None, None, {}])
         lines = []
         tags = defaultdict(set)
-        utility = type = None
+        utility = name = type = None
         begin_lineno = 0
 
         for lineno, line in enumerate(all_lines):
             m = match_special(line)
             if m:
                 if m.group('name'):
-                    cls._add_utility(utility, type, lines, begin_lineno, tags)
+                    cls._add_utility(utility, name, type, lines, begin_lineno, tags)
 
                     begin_lineno = lineno + 1
                     del lines[:]
@@ -482,7 +486,7 @@ class UtilityCodeBase:
             raise ValueError("Empty utility code file")
 
         # Don't forget to add the last utility code
-        cls._add_utility(utility, type, lines, begin_lineno, tags)
+        cls._add_utility(utility, name, type, lines, begin_lineno, tags)
 
         utilities = dict(utilities)  # un-defaultdict-ify
         cls._utility_cache[path] = utilities
