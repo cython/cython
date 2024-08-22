@@ -88,7 +88,6 @@ static PyObject* __Pyx_Load_{{cname}}_Module(void) {
 static PyObject* __Pyx_DataclassesCallHelper(PyObject *callable, PyObject *kwds); /* proto */
 
 //////////////////// DataclassesCallHelper ////////////////////////
-//@substitute: naming
 
 // The signature of a few of the dataclasses module functions has
 // been expanded over the years. Cython always passes the full set
