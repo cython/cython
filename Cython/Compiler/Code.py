@@ -690,113 +690,6 @@ class UtilityCode(UtilityCodeBase):
             self.specialize_list.append(s)
             return s
 
-    @staticmethod
-    def add_macro_processor(*macro_names, regex=None, is_module_specific=False, _last_macro_processor = [None]):
-        """Decorator to chain the code macro processors below.
-        """
-        last_processor = _last_macro_processor[0]
-
-        def build_processor(func):
-            @wraps(func)
-            def process(self, output, code_string):
-                # First, call the processing chain in FIFO function definition order.
-                result_is_module_specific = False
-                if last_processor is not None:
-                    code_string, result_is_module_specific = last_processor(self, output, code_string)
-                result_is_module_specific |= is_module_specific
-
-                # Detect if we need to do something.
-                if macro_names:
-                    for macro in macro_names:
-                        if macro in code_string:
-                            break
-                    else:
-                        return code_string, result_is_module_specific
-
-                # Process the code.
-                if regex is None:
-                    code_string = func(self, output, code_string)
-                else:
-                    code_string = re.sub(regex, partial(func, output), code_string)
-
-                # Make sure we found and replaced all macro occurrences.
-                for macro in macro_names:
-                    if macro in code_string:
-                        raise RuntimeError(f"Left-over utility code macro '{macro}()' found in '{self.name}'")
-
-                return code_string, result_is_module_specific
-
-            _last_macro_processor[0] = process
-            return process
-
-        return build_processor
-
-    @add_macro_processor(
-        'CSTRING',
-        regex=r'CSTRING\(\s*"""([^"]*(?:"[^"]+)*)"""\s*\)',
-    )
-    def _wrap_c_string(_, matchobj):
-        """Replace CSTRING('''xyz''') by a C compatible string, taking care of line breaks.
-        """
-        content = matchobj.group(1).replace('"', '\042')
-        return ''.join(
-            f'"{line}\\n"\n' if not line.endswith('\\') or line.endswith('\\\\') else f'"{line[:-1]}"\n'
-            for line in content.splitlines())
-
-    @add_macro_processor()
-    def _format_impl_code(self, _, impl):
-        return self.format_code(impl)
-
-    @add_macro_processor(
-        'CALL_UNBOUND_METHOD',
-        is_module_specific=True,
-        regex=(
-            r'CALL_UNBOUND_METHOD\('
-            r'([a-zA-Z_]+),'      # type cname
-            r'\s*"([^"]+)",'      # method name
-            r'\s*([^),]+)'        # object cname
-            r'((?:,[^),]+)*)'     # args*
-            r'\)'
-        ),
-    )
-    def _inject_unbound_method(output, matchobj):
-        """Replace 'UNBOUND_METHOD(type, "name")' by a constant Python identifier cname.
-        """
-        type_cname, method_name, obj_cname, args = matchobj.groups()
-        type_cname = '&%s' % type_cname
-        args = [arg.strip() for arg in args[1:].split(',')] if args else []
-        assert len(args) < 3, f"CALL_UNBOUND_METHOD() does not support {len(args):d} call arguments"
-        return output.cached_unbound_method_call_code(obj_cname, type_cname, method_name, args)
-
-    @add_macro_processor(
-        'PYIDENT', 'PYUNICODE',
-        is_module_specific=True,
-        regex=r'PY(IDENT|UNICODE)\("([^"]+)"\)',
-    )
-    def _inject_string_constant(output, matchobj):
-        """Replace 'PYIDENT("xyz")' by a constant Python identifier cname.
-        """
-        str_type, name = matchobj.groups()
-        return output.get_py_string_const(
-                StringEncoding.EncodedString(name), identifier=str_type == 'IDENT').cname
-
-    @add_macro_processor(
-        'EMPTY',
-        is_module_specific=True,
-        regex=r'EMPTY\((bytes|unicode|tuple)\)',
-    )
-    def _inject_empty_collection_constant(output, matchobj):
-        """Replace 'EMPTY(bytes|tuple|...)' by a constant Python identifier cname.
-        """
-        type_name = matchobj.group(1)
-        return getattr(Naming, f'empty_{type_name}')
-
-    @add_macro_processor()
-    def process_code(self, _, code_string):
-        """Entry point for code processors, must be defined last.
-        """
-        return code_string
-
     def put_code(self, output):
         if self.requires:
             for dependency in self.requires:
@@ -804,14 +697,14 @@ class UtilityCode(UtilityCodeBase):
         if self.proto:
             writer = output[self.proto_block]
             writer.putln(f"/* {self.name}.proto */")
-            proto, result_is_module_specific = self.process_code(output, self.proto)
+            proto, result_is_module_specific = process_utility_ccode(self, output, self.proto)
             if result_is_module_specific:
                 writer.put(proto)
             else:
                 # can be reused across modules
                 writer.put_or_include(proto, f'{self.name}_proto')
         if self.impl:
-            impl, result_is_module_specific = self.process_code(output, self.impl)
+            impl, result_is_module_specific = process_utility_ccode(self, output, self.impl)
             writer = output['utility_code_def']
             writer.putln(f"/* {self.name} */")
             if result_is_module_specific:
@@ -839,6 +732,119 @@ class UtilityCode(UtilityCodeBase):
                     f'{self.name}_cleanup')
             else:
                 self.cleanup(writer, output.module_pos)
+
+
+def add_macro_processor(*macro_names, regex=None, is_module_specific=False, _last_macro_processor = [None]):
+    """Decorator to chain the code macro processors below.
+    """
+    last_processor = _last_macro_processor[0]
+
+    def build_processor(func):
+        @wraps(func)
+        def process(utility_code: UtilityCode, output, code_string: str):
+            # First, call the processing chain in FIFO function definition order.
+            result_is_module_specific = False
+            if last_processor is not None:
+                code_string, result_is_module_specific = last_processor(utility_code, output, code_string)
+            result_is_module_specific |= is_module_specific
+
+            # Detect if we need to do something.
+            if macro_names:
+                for macro in macro_names:
+                    if macro in code_string:
+                        break
+                else:
+                    return code_string, result_is_module_specific
+
+            # Process the code.
+            if regex is None:
+                code_string = func(utility_code, output, code_string)
+            else:
+                code_string = re.sub(regex, partial(func, output), code_string)
+
+            # Make sure we found and replaced all macro occurrences.
+            for macro in macro_names:
+                if macro in code_string:
+                    raise RuntimeError(f"Left-over utility code macro '{macro}()' found in '{utility_code.name}'")
+
+            return code_string, result_is_module_specific
+
+        _last_macro_processor[0] = process
+        return process
+
+    return build_processor
+
+
+@add_macro_processor(
+    'CSTRING',
+    regex=r'CSTRING\(\s*"""([^"]*(?:"[^"]+)*)"""\s*\)',
+)
+def _wrap_c_string(_, matchobj):
+    """Replace CSTRING('''xyz''') by a C compatible string, taking care of line breaks.
+    """
+    content = matchobj.group(1).replace('"', '\042')
+    return ''.join(
+        f'"{line}\\n"\n' if not line.endswith('\\') or line.endswith('\\\\') else f'"{line[:-1]}"\n'
+        for line in content.splitlines())
+
+
+@add_macro_processor()
+def _format_impl_code(utility_code: UtilityCode, _, impl):
+    return utility_code.format_code(impl)
+
+
+@add_macro_processor(
+    'CALL_UNBOUND_METHOD',
+    is_module_specific=True,
+    regex=(
+        r'CALL_UNBOUND_METHOD\('
+        r'([a-zA-Z_]+),'      # type cname
+        r'\s*"([^"]+)",'      # method name
+        r'\s*([^),]+)'        # object cname
+        r'((?:,[^),]+)*)'     # args*
+        r'\)'
+    ),
+)
+def _inject_unbound_method(output, matchobj):
+    """Replace 'UNBOUND_METHOD(type, "name")' by a constant Python identifier cname.
+    """
+    type_cname, method_name, obj_cname, args = matchobj.groups()
+    type_cname = '&%s' % type_cname
+    args = [arg.strip() for arg in args[1:].split(',')] if args else []
+    assert len(args) < 3, f"CALL_UNBOUND_METHOD() does not support {len(args):d} call arguments"
+    return output.cached_unbound_method_call_code(obj_cname, type_cname, method_name, args)
+
+
+@add_macro_processor(
+    'PYIDENT', 'PYUNICODE',
+    is_module_specific=True,
+    regex=r'PY(IDENT|UNICODE)\("([^"]+)"\)',
+)
+def _inject_string_constant(output, matchobj):
+    """Replace 'PYIDENT("xyz")' by a constant Python identifier cname.
+    """
+    str_type, name = matchobj.groups()
+    return output.get_py_string_const(
+            StringEncoding.EncodedString(name), identifier=str_type == 'IDENT').cname
+
+
+@add_macro_processor(
+    'EMPTY',
+    is_module_specific=True,
+    regex=r'EMPTY\((bytes|unicode|tuple)\)',
+)
+def _inject_empty_collection_constant(output, matchobj):
+    """Replace 'EMPTY(bytes|tuple|...)' by a constant Python identifier cname.
+    """
+    type_name = matchobj.group(1)
+    return getattr(Naming, f'empty_{type_name}')
+
+
+@add_macro_processor()
+def process_utility_ccode(utility_code, _, code_string):
+    """Entry point for code processors, must be defined last.
+    """
+    return code_string
 
 
 def sub_tempita(s, context, file=None, name=None, __cache={}):
