@@ -781,8 +781,19 @@ class UtilityCode(UtilityCodeBase):
         return output.get_py_string_const(
                 StringEncoding.EncodedString(name), identifier=str_type == 'IDENT').cname
 
+    @add_macro_processor(
+        'EMPTY',
+        is_module_specific=True,
+        regex=r'EMPTY\((bytes|unicode|tuple)\)',
+    )
+    def _inject_empty_collection_constant(output, matchobj):
+        """Replace 'EMPTY(bytes|tuple|...)' by a constant Python identifier cname.
+        """
+        type_name = matchobj.group(1)
+        return getattr(Naming, f'empty_{type_name}')
+
     @add_macro_processor()
-    def process_impl_code(_, code_string):
+    def process_code(_, code_string):
         """Entry point for code processors, must be defined last.
         """
         return code_string
@@ -793,21 +804,25 @@ class UtilityCode(UtilityCodeBase):
                 output.use_utility_code(dependency)
         if self.proto:
             writer = output[self.proto_block]
-            writer.putln("/* %s.proto */" % self.name)
-            writer.put_or_include(
-                self.format_code(self.proto), '%s_proto' % self.name)
-        if self.impl:
-            impl, result_is_module_specific = self.process_impl_code(output, self.impl)
-            writer = output['utility_code_def']
-            writer.putln("/* %s */" % self.name)
-            if not result_is_module_specific:
-                # can be reused across modules
-                writer.put_or_include(impl, '%s_impl' % self.name)
+            writer.putln(f"/* {self.name}.proto */")
+            proto, result_is_module_specific = self.process_code(output, self.proto)
+            if result_is_module_specific:
+                writer.put(proto)
             else:
+                # can be reused across modules
+                writer.put_or_include(proto, f'{self.name}_proto')
+        if self.impl:
+            impl, result_is_module_specific = self.process_code(output, self.impl)
+            writer = output['utility_code_def']
+            writer.putln(f"/* {self.name} */")
+            if result_is_module_specific:
                 writer.put(impl)
+            else:
+                # can be reused across modules
+                writer.put_or_include(impl, f'{self.name}_impl')
         if self.init:
             writer = output['init_globals']
-            writer.putln("/* %s.init */" % self.name)
+            writer.putln(f"/* {self.name}.init */")
             if isinstance(self.init, str):
                 writer.put(self.format_code(self.init))
             else:
@@ -818,11 +833,11 @@ class UtilityCode(UtilityCodeBase):
             writer.putln()
         if self.cleanup and Options.generate_cleanup_code:
             writer = output['cleanup_globals']
-            writer.putln("/* %s.cleanup */" % self.name)
+            writer.putln(f"/* {self.name}.cleanup */")
             if isinstance(self.cleanup, str):
                 writer.put_or_include(
                     self.format_code(self.cleanup),
-                    '%s_cleanup' % self.name)
+                    f'{self.name}_cleanup')
             else:
                 self.cleanup(writer, output.module_pos)
 

@@ -167,7 +167,7 @@ static PyObject* __Pyx_DataclassesCallHelper(PyObject *callable, PyObject *kwds)
     // copy over only those arguments that are in the specification
     if (__Pyx_DataclassesCallHelper_FilterToDict(callable, kwds, new_kwds, args_list, 0) == -1) goto bad;
     if (__Pyx_DataclassesCallHelper_FilterToDict(callable, kwds, new_kwds, kwonly_args_list, 1) == -1) goto bad;
-    result = PyObject_Call(callable, $empty_tuple, new_kwds);
+    result = PyObject_Call(callable, EMPTY(tuple), new_kwds);
 bad:
     Py_XDECREF(getfullargspec_result);
     Py_XDECREF(args_list);
