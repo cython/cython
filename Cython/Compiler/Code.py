@@ -585,8 +585,7 @@ class UtilityCodeBase:
         prepend(util)
         return "".join(protos), "".join(impls)
 
-    @staticmethod
-    def format_code(code_string, replace_empty_lines=re.compile(r'\n\n+').sub):
+    def format_code(self, code_string, replace_empty_lines=re.compile(r'\n\n+').sub):
         """
         Format a code section for output.
         """
@@ -716,7 +715,7 @@ class UtilityCode(UtilityCodeBase):
 
                 # Process the code.
                 if regex is None:
-                    code_string = func(output, code_string)
+                    code_string = func(self, output, code_string)
                 else:
                     code_string = re.sub(regex, partial(func, output), code_string)
 
@@ -745,8 +744,8 @@ class UtilityCode(UtilityCodeBase):
             for line in content.splitlines())
 
     @add_macro_processor()
-    def _format_impl_code(_, impl):
-        return UtilityCodeBase.format_code(impl)
+    def _format_impl_code(self, _, impl):
+        return self.format_code(impl)
 
     @add_macro_processor(
         'CALL_UNBOUND_METHOD',
@@ -793,7 +792,7 @@ class UtilityCode(UtilityCodeBase):
         return getattr(Naming, f'empty_{type_name}')
 
     @add_macro_processor()
-    def process_code(_, code_string):
+    def process_code(self, _, code_string):
         """Entry point for code processors, must be defined last.
         """
         return code_string
