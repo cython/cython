@@ -217,7 +217,7 @@ class FileSourceDescriptor(SourceDescriptor):
             pass
 
         with Utils.open_source_file(self.filename, encoding=encoding, error_handling=error_handling) as f:
-            lines = list(f)
+            lines = f.readlines()
 
         if key in self._lines:
             self._lines[key] = lines
