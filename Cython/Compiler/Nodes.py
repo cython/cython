@@ -5021,8 +5021,9 @@ class OverrideCheckNode(StatNode):
             # passes and thus takes the slow route.
             # Therefore we do a less thorough check - if the type hasn't changed then clearly it hasn't
             # been overridden, and if the type isn't GC then it also won't have been overridden.
+            typeptr_cname = code.name_in_module_state(self.py_func.entry.scope.parent_type.typeptr_cname)
             code.putln(f"unlikely(Py_TYPE({self_arg}) != "
-                        f"{self.py_func.entry.scope.parent_type.typeptr_cname} &&")
+                        f"{typeptr_cname} &&")
             code.putln(f"__Pyx_PyType_HasFeature(Py_TYPE({self_arg}), Py_TPFLAGS_HAVE_GC))")
             code.putln("#else")
             code.putln(f"unlikely(Py_TYPE({self_arg})->tp_dictoffset != 0 || "
