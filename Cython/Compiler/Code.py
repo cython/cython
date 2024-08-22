@@ -8,7 +8,7 @@ cython.declare(os=object, re=object, operator=object, textwrap=object,
                Template=object, Naming=object, Options=object, StringEncoding=object,
                Utils=object, SourceDescriptor=object, StringIOTree=object,
                DebugFlags=object, basestring=object, defaultdict=object,
-               closing=object, partial=object)
+               closing=object, partial=object, wraps=object)
 
 import hashlib
 import operator
@@ -17,7 +17,7 @@ import re
 import shutil
 import textwrap
 from string import Template
-from functools import partial
+from functools import partial, wraps
 from contextlib import closing, contextmanager
 from collections import defaultdict
 
@@ -585,7 +585,8 @@ class UtilityCodeBase:
         prepend(util)
         return "".join(protos), "".join(impls)
 
-    def format_code(self, code_string, replace_empty_lines=re.compile(r'\n\n+').sub):
+    @staticmethod
+    def format_code(code_string, replace_empty_lines=re.compile(r'\n\n+').sub):
         """
         Format a code section for output.
         """
@@ -690,66 +691,101 @@ class UtilityCode(UtilityCodeBase):
             self.specialize_list.append(s)
             return s
 
-    def inject_string_constants(self, impl, output):
-        """Replace 'PYIDENT("xyz")' by a constant Python identifier cname.
+    @staticmethod
+    def add_macro_processor(*macro_names, regex=None, is_module_specific=False, _last_macro_processor = [None]):
+        """Decorator to chain the code macro processors below.
         """
-        if 'PYIDENT(' not in impl and 'PYUNICODE(' not in impl:
-            return False, impl
+        last_processor = _last_macro_processor[0]
 
-        replacements = {}
-        def externalise(matchobj):
-            key = matchobj.groups()
-            try:
-                cname = replacements[key]
-            except KeyError:
-                str_type, name = key
-                cname = replacements[key] = output.get_py_string_const(
-                        StringEncoding.EncodedString(name), identifier=str_type == 'IDENT').cname
-            return cname
+        def build_processor(func):
+            @wraps(func)
+            def process(self, output, code_string):
+                # First, call the processing chain in FIFO function definition order.
+                result_is_module_specific = False
+                if last_processor is not None:
+                    code_string, result_is_module_specific = last_processor(self, output, code_string)
+                result_is_module_specific |= is_module_specific
 
-        impl = re.sub(r'PY(IDENT|UNICODE)\("([^"]+)"\)', externalise, impl)
-        assert 'PYIDENT(' not in impl and 'PYUNICODE(' not in impl
-        return True, impl
+                # Detect if we need to do something.
+                if macro_names:
+                    for macro in macro_names:
+                        if macro in code_string:
+                            break
+                    else:
+                        return code_string, result_is_module_specific
 
-    def inject_unbound_methods(self, impl, output):
-        """Replace 'UNBOUND_METHOD(type, "name")' by a constant Python identifier cname.
+                # Process the code.
+                if regex is None:
+                    code_string = func(output, code_string)
+                else:
+                    code_string = re.sub(regex, partial(func, output), code_string)
+
+                # Make sure we found and replaced all macro occurrences.
+                for macro in macro_names:
+                    if macro in code_string:
+                        raise RuntimeError(f"Left-over utility code macro '{macro}()' found in '{self.name}'")
+
+                return code_string, result_is_module_specific
+
+            _last_macro_processor[0] = process
+            return process
+
+        return build_processor
+
+    @add_macro_processor(
+        'CSTRING',
+        regex=r'CSTRING\(\s*"""([^"]*(?:"[^"]+)*)"""\s*\)',
+    )
+    def _wrap_c_string(_, matchobj):
+        """Replace CSTRING('''xyz''') by a C compatible string, taking care of line breaks.
         """
-        if 'CALL_UNBOUND_METHOD(' not in impl:
-            return False, impl
+        content = matchobj.group(1).replace('"', '\042')
+        return ''.join(
+            f'"{line}\\n"\n' if not line.endswith('\\') or line.endswith('\\\\') else f'"{line[:-1]}"\n'
+            for line in content.splitlines())
 
-        def externalise(matchobj):
-            type_cname, method_name, obj_cname, args = matchobj.groups()
-            type_cname = '&%s' % type_cname
-            args = [arg.strip() for arg in args[1:].split(',')] if args else []
-            assert len(args) < 3, "CALL_UNBOUND_METHOD() does not support %d call arguments" % len(args)
-            return output.cached_unbound_method_call_code(obj_cname, type_cname, method_name, args)
+    @add_macro_processor()
+    def _format_impl_code(_, impl):
+        return UtilityCodeBase.format_code(impl)
 
-        impl = re.sub(
+    @add_macro_processor(
+        'CALL_UNBOUND_METHOD',
+        is_module_specific=True,
+        regex=(
             r'CALL_UNBOUND_METHOD\('
             r'([a-zA-Z_]+),'      # type cname
             r'\s*"([^"]+)",'      # method name
             r'\s*([^),]+)'        # object cname
             r'((?:,[^),]+)*)'     # args*
-            r'\)', externalise, impl)
-        assert 'CALL_UNBOUND_METHOD(' not in impl
-
-        return True, impl
-
-    def wrap_c_strings(self, impl):
-        """Replace CSTRING('''xyz''') by a C compatible string
+            r'\)'
+        ),
+    )
+    def _inject_unbound_method(output, matchobj):
+        """Replace 'UNBOUND_METHOD(type, "name")' by a constant Python identifier cname.
         """
-        if 'CSTRING(' not in impl:
-            return impl
+        type_cname, method_name, obj_cname, args = matchobj.groups()
+        type_cname = '&%s' % type_cname
+        args = [arg.strip() for arg in args[1:].split(',')] if args else []
+        assert len(args) < 3, f"CALL_UNBOUND_METHOD() does not support {len(args):d} call arguments"
+        return output.cached_unbound_method_call_code(obj_cname, type_cname, method_name, args)
 
-        def split_string(matchobj):
-            content = matchobj.group(1).replace('"', '\042')
-            return ''.join(
-                '"%s\\n"\n' % line if not line.endswith('\\') or line.endswith('\\\\') else '"%s"\n' % line[:-1]
-                for line in content.splitlines())
+    @add_macro_processor(
+        'PYIDENT', 'PYUNICODE',
+        is_module_specific=True,
+        regex=r'PY(IDENT|UNICODE)\("([^"]+)"\)',
+    )
+    def _inject_string_constant(output, matchobj):
+        """Replace 'PYIDENT("xyz")' by a constant Python identifier cname.
+        """
+        str_type, name = matchobj.groups()
+        return output.get_py_string_const(
+                StringEncoding.EncodedString(name), identifier=str_type == 'IDENT').cname
 
-        impl = re.sub(r'CSTRING\(\s*"""([^"]*(?:"[^"]+)*)"""\s*\)', split_string, impl)
-        assert 'CSTRING(' not in impl
-        return impl
+    @add_macro_processor()
+    def process_impl_code(_, code_string):
+        """Entry point for code processors, must be defined last.
+        """
+        return code_string
 
     def put_code(self, output):
         if self.requires:
@@ -761,13 +797,11 @@ class UtilityCode(UtilityCodeBase):
             writer.put_or_include(
                 self.format_code(self.proto), '%s_proto' % self.name)
         if self.impl:
-            impl = self.format_code(self.wrap_c_strings(self.impl))
-            is_specialised1, impl = self.inject_string_constants(impl, output)
-            is_specialised2, impl = self.inject_unbound_methods(impl, output)
+            impl, result_is_module_specific = self.process_impl_code(output, self.impl)
             writer = output['utility_code_def']
             writer.putln("/* %s */" % self.name)
-            if not (is_specialised1 or is_specialised2):
-                # no module specific adaptations => can be reused
+            if not result_is_module_specific:
+                # can be reused across modules
                 writer.put_or_include(impl, '%s_impl' % self.name)
             else:
                 writer.put(impl)
