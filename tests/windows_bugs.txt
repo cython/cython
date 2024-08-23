@@ -1,3 +1,4 @@
+common_include_dir
 cythonize_script
 cythonize_script_excludes
 cythonize_script_package
