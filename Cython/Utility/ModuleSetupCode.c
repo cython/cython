@@ -2336,7 +2336,7 @@ static PyObject* __Pyx_PyCode_New(
     Py_INCREF(varnames_tuple_dedup);
     #endif
 
-    if (__PYX_LIMITED_VERSION_HEX >= 0x030b0000 && line_table != NULL) {
+    if (__PYX_LIMITED_VERSION_HEX >= (0x030b0000) && line_table != NULL) {
         line_table_bytes = PyBytes_FromStringAndSize(line_table, descr.line_table_length);
         if (unlikely(!line_table_bytes)) goto done;
 
@@ -2369,7 +2369,7 @@ static PyObject* __Pyx_PyCode_New(
         filename,
         funcname,
         (int) descr.first_line,
-        (__PYX_LIMITED_VERSION_HEX >= 0x030b0000) ? line_table_bytes : ${empty_bytes}
+        (__PYX_LIMITED_VERSION_HEX >= (0x030b0000)) ? line_table_bytes : ${empty_bytes}
     );
 
 done:
