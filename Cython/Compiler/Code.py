@@ -2383,7 +2383,7 @@ class CCodeWriter:
                 shutil.move(tmp_path, path)
             # We use forward slashes in the include path to assure identical code generation
             # under Windows and Posix.  C/C++ compilers should still understand it.
-            c_path = path.replace(os.sep, '/')
+            c_path = path.replace('\\', '/')
             code = f'#include "{c_path}"\n'
         self.put(code)
 
