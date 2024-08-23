@@ -302,7 +302,7 @@ class CythonMagics(Magics):
         if args.name:
             module_name = str(args.name)  # no-op in Py3
         else:
-            module_name = "_cython_magic_" + hashlib.sha1(str(key).encode('utf-8')).hexdigest()
+            module_name = "_cython_magic_" + hashlib.sha256(str(key).encode('utf-8')).hexdigest()
         html_file = os.path.join(lib_dir, module_name + '.html')
         module_path = os.path.join(lib_dir, module_name + self.so_ext)
 

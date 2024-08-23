@@ -2373,15 +2373,15 @@ class CCodeWriter:
     def put_or_include(self, code, name):
         include_dir = self.globalstate.common_utility_include_dir
         if include_dir and len(code) > 1024:
-            include_file = "%s_%s.h" % (
-                name, hashlib.sha1(code.encode('utf8')).hexdigest())
+            hash = hashlib.sha256(code.encode('utf8')).hexdigest()
+            include_file = f"{name}_{hash}.h"
             path = os.path.join(include_dir, include_file)
             if not os.path.exists(path):
-                tmp_path = '%s.tmp%s' % (path, os.getpid())
-                with closing(Utils.open_new_file(tmp_path)) as f:
+                tmp_path = f'{path}.tmp{os.getpid()}'
+                with Utils.open_new_file(tmp_path) as f:
                     f.write(code)
                 shutil.move(tmp_path, path)
-            code = '#include "%s"\n' % path
+            code = f'#include "{path}"\n'
         self.put(code)
 
     def put(self, code):
