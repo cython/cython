@@ -3092,7 +3092,7 @@ class PyxCodeWriter:
         self._putln(line)
 
     def _putln(self, line):
-        self.buffer.write("%s%s\n" % (self.level * "    ", line))
+        self.buffer.write(f"{self.level * '    '}{line}\n")
 
     def put_chunk(self, chunk, context=None):
         context = context or self.context
