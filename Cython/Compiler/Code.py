@@ -2381,7 +2381,10 @@ class CCodeWriter:
                 with Utils.open_new_file(tmp_path) as f:
                     f.write(code)
                 shutil.move(tmp_path, path)
-            code = f'#include "{path}"\n'
+            # We use forward slashes in the include path to assure identical code generation
+            # under Windows and Posix.  C/C++ compilers should still understand it.
+            c_path = path.replace('\\', '/')
+            code = f'#include "{c_path}"\n'
         self.put(code)
 
     def put(self, code):
