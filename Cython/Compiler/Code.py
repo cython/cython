@@ -3115,7 +3115,7 @@ class PyxCodeWriter:
     def named_insertion_point(self, name):
         self._insertion_points[name] = self.insertion_point()
 
-    def __getattr__(self, name):
+    def __getitem__(self, name):
         return self._insertion_points[name]
 
 
