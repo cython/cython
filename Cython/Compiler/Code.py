@@ -2322,7 +2322,7 @@ class CCodeWriter:
             self.emit_marker()
         if self.code_config.emit_linenums and self.last_marked_pos:
             source_desc, line, _ = self.last_marked_pos
-            self._write_lines('\n#line %s "%s"\n' % (line, source_desc.get_escaped_description()))
+            self._write_lines(f'\n#line {line} "{source_desc.get_escaped_description()}"\n')
         if code:
             if safe:
                 self.put_safe(code)
@@ -2345,7 +2345,7 @@ class CCodeWriter:
         self._write_lines("\n")
         if self.code_config.emit_code_comments:
             self.indent()
-            self._write_lines("/* %s */\n" % self._build_marker(pos))
+            self._write_lines(self._build_marker(pos))
         if trace:
             self.write_trace_line(pos)
 
@@ -2362,7 +2362,8 @@ class CCodeWriter:
         lines = contents[max(0, line-3):line]  # line numbers start at 1
         lines[-1] += '             # <<<<<<<<<<<<<<'
         lines += contents[line:line+2]
-        return '"%s":%d\n%s\n' % (source_desc.get_escaped_description(), line, '\n'.join(lines))
+        code = "\n".join(lines)
+        return f'/* "{source_desc.get_escaped_description()}":{line:d}\n{code}\n*/\n'
 
     def put_safe(self, code):
         # put code, but ignore {}
