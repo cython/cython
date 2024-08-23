@@ -1,5 +1,3 @@
-from __future__ import absolute_import
-
 from .Errors import CompileError, error
 from . import ExprNodes
 from .ExprNodes import IntNode, NameNode, AttributeNode
@@ -58,10 +56,10 @@ _spec_to_abbrev = {
 
 memslice_entry_init = "{ 0, 0, { 0 }, { 0 }, { 0 } }"
 
-memview_name = u'memoryview'
+memview_name = 'memoryview'
 memview_typeptr_cname = '__pyx_memoryview_type'
 memview_objstruct_cname = '__pyx_memoryview_obj'
-memviewslice_cname = u'__Pyx_memviewslice'
+memviewslice_cname = '__Pyx_memviewslice'
 
 
 def put_init_entry(mv_cname, code):
@@ -414,7 +412,7 @@ def slice_iter(slice_type, slice_result, ndim, code, force_strided=False):
         return StridedSliceIter(slice_type, slice_result, ndim, code)
 
 
-class SliceIter(object):
+class SliceIter:
     def __init__(self, slice_type, slice_result, ndim, code):
         self.slice_type = slice_type
         self.slice_result = slice_result
@@ -846,8 +844,7 @@ copy_contents_new_utility = load_memview_c_utility(
 view_utility_code = load_memview_cy_utility(
         "View.MemoryView",
         context=context,
-        requires=[Buffer.GetAndReleaseBufferUtilityCode(),
-                  Buffer.buffer_struct_declare_code,
+        requires=[Buffer.buffer_struct_declare_code,
                   Buffer.buffer_formats_declare_code,
                   memviewslice_init_code,
                   is_contig_utility,

@@ -3,7 +3,6 @@ Python Lexical Analyser
 
 Lexical Analyser Specification
 """
-from __future__ import absolute_import
 
 from . import Actions
 from . import DFA
@@ -16,7 +15,7 @@ DUMP_NFA = 1
 DUMP_DFA = 2
 
 
-class State(object):
+class State:
     """
     This class is used as part of a Plex.Lexicon specification to
     introduce a user-defined state.
@@ -34,7 +33,7 @@ class State(object):
         self.tokens = tokens
 
 
-class Lexicon(object):
+class Lexicon:
     """
     Lexicon(specification) builds a lexical analyser from the given
     |specification|. The specification consists of a list of
@@ -62,7 +61,7 @@ class Lexicon(object):
     Actions
     -------
 
-    The |action| in a token specication may be one of three things:
+    The |action| in a token specification may be one of three things:
 
        1) A function, which is called as follows:
 

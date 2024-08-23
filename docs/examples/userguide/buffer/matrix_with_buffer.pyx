@@ -5,8 +5,8 @@ from libcpp.vector cimport vector
 
 cdef class Matrix:
     cdef Py_ssize_t ncols
-    cdef Py_ssize_t shape[2]
-    cdef Py_ssize_t strides[2]
+    cdef Py_ssize_t[2] shape
+    cdef Py_ssize_t[2] strides
     cdef vector[float] v
 
     def __cinit__(self, Py_ssize_t ncols):

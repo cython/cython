@@ -2,14 +2,13 @@
 #  Cython - Compilation-wide options and pragma declarations
 #
 
-from __future__ import absolute_import
 
 import os
 
-from Cython import Utils
+from .. import Utils
 
 
-class ShouldBeFromDirective(object):
+class ShouldBeFromDirective:
 
     known_directives = []
 
@@ -176,13 +175,26 @@ def copy_inherited_directives(outer_directives, **new_directives):
     new_directives_out.update(new_directives)
     return new_directives_out
 
+
+def copy_for_internal(outer_directives):
+    # Reset some directives that users should not control for internal code.
+    return copy_inherited_directives(
+        outer_directives,
+        binding=False,
+        profile=False,
+        linetrace=False,
+    )
+
+
 # Declare compiler directives
 _directive_defaults = {
     'binding': True,  # was False before 3.0
     'boundscheck' : True,
     'nonecheck' : False,
     'initializedcheck' : True,
-    'embedsignature' : False,
+    'freethreading_compatible': False,
+    'embedsignature': False,
+    'embedsignature.format': 'c',
     'auto_cpdef': False,
     'auto_pickle': None,
     'cdivision': False,  # was True before 0.12
@@ -198,6 +210,8 @@ _directive_defaults = {
     'ccomplex' : False,  # use C99/C++ for complex types and arith
     'callspec' : "",
     'nogil' : False,
+    'gil' : False,
+    'with_gil' : False,
     'profile': False,
     'linetrace': False,
     'emit_code_comments': True,  # copy original source code into C code comments
@@ -233,6 +247,9 @@ _directive_defaults = {
     'warn.unused_arg': False,
     'warn.unused_result': False,
     'warn.multiple_declarators': True,
+    'warn.deprecated.DEF': False,
+    'warn.deprecated.IF': True,
+    'show_performance_hints': True,
 
 # optimizations
     'optimize.inline_defnode_calls': True,
@@ -264,14 +281,24 @@ extra_warnings = {
     'warn.unused': True,
 }
 
-def one_of(*args):
+def one_of(*args, map=None):
     def validate(name, value):
+        if map is not None:
+            value = map.get(value, value)
         if value not in args:
             raise ValueError("%s directive must be one of %s, got '%s'" % (
                 name, args, value))
-        else:
-            return value
+        return value
     return validate
+
+
+_normalise_common_encoding_name = {
+    'utf8': 'utf8',
+    'utf-8': 'utf8',
+    'default': 'utf8',
+    'ascii': 'ascii',
+    'us-ascii': 'ascii',
+}.get
 
 
 def normalise_encoding_name(option_name, encoding):
@@ -287,16 +314,18 @@ def normalise_encoding_name(option_name, encoding):
     >>> normalise_encoding_name('c_string_encoding', 'utF-8')
     'utf8'
     >>> normalise_encoding_name('c_string_encoding', 'deFAuLT')
-    'default'
+    'utf8'
     >>> normalise_encoding_name('c_string_encoding', 'default')
-    'default'
+    'utf8'
     >>> normalise_encoding_name('c_string_encoding', 'SeriousLyNoSuch--Encoding')
     'SeriousLyNoSuch--Encoding'
     """
     if not encoding:
         return ''
-    if encoding.lower() in ('default', 'ascii', 'utf8'):
-        return encoding.lower()
+    encoding_name = _normalise_common_encoding_name(encoding.lower())
+    if encoding_name is not None:
+        return encoding_name
+
     import codecs
     try:
         decoder = codecs.getdecoder(encoding)
@@ -321,12 +350,15 @@ directive_types = {
     'locals': dict,
     'final' : bool,  # final cdef classes and methods
     'collection_type': one_of('sequence'),
-    'nogil' : bool,
+    'nogil' : DEFER_ANALYSIS_OF_ARGUMENTS,
+    'gil' : DEFER_ANALYSIS_OF_ARGUMENTS,
+    'with_gil' : None,
     'internal' : bool,  # cdef class visibility in the module dict
     'infer_types' : bool,  # values can be True/None/False
     'binding' : bool,
     'cfunc' : None,  # decorators do not take directive value
     'ccall' : None,
+    'ufunc': None,
     'cpow' : bool,
     'inline' : None,
     'staticmethod' : None,
@@ -337,12 +369,13 @@ directive_types = {
     'exceptval': type,  # actually (type, check=True/False), but has its own parser
     'set_initial_path': str,
     'freelist': int,
-    'c_string_type': one_of('bytes', 'bytearray', 'str', 'unicode'),
+    'c_string_type': one_of('bytes', 'bytearray', 'str', 'unicode', map={'str': 'unicode'}),
     'c_string_encoding': normalise_encoding_name,
     'trashcan': bool,
-    'total_ordering': bool,
+    'total_ordering': None,
     'dataclasses.dataclass': DEFER_ANALYSIS_OF_ARGUMENTS,
     'dataclasses.field': DEFER_ANALYSIS_OF_ARGUMENTS,
+    'embedsignature.format': one_of('c', 'clinic', 'python'),
 }
 
 for key, val in _directive_defaults.items():
@@ -353,8 +386,11 @@ directive_scopes = {  # defaults to available everywhere
     # 'module', 'function', 'class', 'with statement'
     'auto_pickle': ('module', 'cclass'),
     'final' : ('cclass', 'function'),
+    'ccomplex' : ('module',),
     'collection_type': ('cclass',),
     'nogil' : ('function', 'with statement'),
+    'gil' : ('with statement'),
+    'with_gil' : ('function',),
     'inline' : ('function',),
     'cfunc' : ('function', 'with statement'),
     'ccall' : ('function', 'with statement'),
@@ -375,6 +411,7 @@ directive_scopes = {  # defaults to available everywhere
     'test_assert_c_code_has' : ('module',),
     'test_fail_if_c_code_has' : ('module',),
     'freelist': ('cclass',),
+    'formal_grammar': ('module',),
     'emit_code_comments': ('module',),
     # Avoid scope-specific to/from_py_functions for c_string.
     'c_string_type': ('module',),
@@ -385,25 +422,30 @@ directive_scopes = {  # defaults to available everywhere
     # but that would complicate the implementation
     'old_style_globals': ('module',),
     'np_pythran': ('module',),
+    'preliminary_late_includes_cy28': ('module',),
     'fast_gil': ('module',),
     'iterable_coroutine': ('module', 'function'),
     'trashcan' : ('cclass',),
-    'total_ordering': ('cclass', ),
-    'dataclasses.dataclass' : ('class', 'cclass',),
+    'total_ordering': ('class', 'cclass'),
+    'dataclasses.dataclass' : ('class', 'cclass'),
     'cpp_locals': ('module', 'function', 'cclass'),  # I don't think they make sense in a with_statement
+    'ufunc': ('function',),
     'legacy_implicit_noexcept': ('module', ),
+    'control_flow.dot_output': ('module',),
+    'control_flow.dot_annotate_defs': ('module',),
+    'freethreading_compatible': ('module',)
 }
 
 
-# a list of directives that (when used as a decorator) are only applied to
+# A list of directives that (when used as a decorator) are only applied to
 # the object they decorate and not to its children.
 immediate_decorator_directives = {
-    'cfunc', 'ccall', 'cclass', 'dataclasses.dataclass',
+    'cfunc', 'ccall', 'cclass', 'dataclasses.dataclass', 'ufunc',
     # function signature directives
-    'inline', 'exceptval', 'returns',
+    'inline', 'exceptval', 'returns', 'with_gil',  # 'nogil',
     # class directives
     'freelist', 'no_gc', 'no_gc_clear', 'type_version_tag', 'final',
-    'auto_pickle', 'internal', 'collection_type',
+    'auto_pickle', 'internal', 'collection_type', 'total_ordering',
     # testing directives
     'test_fail_if_path_exists', 'test_assert_path_exists',
 }
@@ -426,7 +468,7 @@ def parse_directive_value(name, value, relaxed_bool=False):
     >>> parse_directive_value('c_string_encoding', 'us-ascii')
     'ascii'
     >>> parse_directive_value('c_string_type', 'str')
-    'str'
+    'unicode'
     >>> parse_directive_value('c_string_type', 'bytes')
     'bytes'
     >>> parse_directive_value('c_string_type', 'bytearray')
@@ -605,7 +647,7 @@ def parse_compile_time_env(s, current_settings=None):
 # CompilationOptions are constructed from user input and are the `option`
 #  object passed throughout the compilation pipeline.
 
-class CompilationOptions(object):
+class CompilationOptions:
     r"""
     See default_options at the end of this module for a list of all possible
     options and CmdLine.usage and CmdLine.parse_command_line() for their
@@ -647,14 +689,12 @@ class CompilationOptions(object):
             import warnings
             warnings.warn("C++ mode forced when in Pythran mode!")
             options['cplus'] = True
-        if 'language_level' in directives and 'language_level' not in kw:
+        if 'language_level' not in kw and directives.get('language_level'):
             options['language_level'] = directives['language_level']
         elif not options.get('language_level'):
             options['language_level'] = directive_defaults.get('language_level')
         if 'formal_grammar' in directives and 'formal_grammar' not in kw:
             options['formal_grammar'] = directives['formal_grammar']
-        if options['cache'] is True:
-            options['cache'] = os.path.join(Utils.get_cython_cache_dir(), 'compiler')
 
         self.__dict__.update(options)
 
@@ -772,7 +812,7 @@ default_options = dict(
     evaluate_tree_assertions=False,
     emit_linenums=False,
     relative_path_in_code_position_comments=True,
-    c_line_in_traceback=True,
+    c_line_in_traceback=None,
     language_level=None,  # warn but default to 2
     formal_grammar=False,
     gdb_debug=False,

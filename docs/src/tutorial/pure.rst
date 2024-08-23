@@ -166,7 +166,7 @@ There are numerous types built into the Cython module.  It provides all the
 standard C types, namely ``char``, ``short``, ``int``, ``long``, ``longlong``
 as well as their unsigned versions ``uchar``, ``ushort``, ``uint``, ``ulong``,
 ``ulonglong``.  The special ``bint`` type is used for C boolean values and
-``Py_ssize_t`` for (signed) sizes of Python containers.
+:c:type:`Py_ssize_t` for (signed) sizes of Python containers.
 
 For each type, there are pointer types ``p_int``, ``pp_int``, etc., up to
 three levels deep in interpreted mode, and infinitely deep in compiled mode.
@@ -221,7 +221,10 @@ Managing the Global Interpreter Lock
     @cython.nogil
     @cython.cfunc
     def func_released_gil() -> cython.int:
-        # function with the GIL released
+        # function that can be run with the GIL released
+        
+  Note that the two uses differ: the context manager releases the GIL while the decorator marks that a
+  function *can* be run without the GIL. See :ref:`<cython_and_gil>` for more details.
 
 * ``cython.gil`` can be used as a context manager to replace the :keyword:`gil` keyword::
 
@@ -361,6 +364,11 @@ Note the use of ``cython.int`` rather than ``int`` - Cython does not translate
 an ``int`` annotation to a C integer by default since the behaviour can be
 quite different with respect to overflow and division.
 
+Annotations on global variables are currently ignored.  This is because we expect
+annotation-typed code to be in majority written for Python, and global type annotations
+would turn the Python variable into an internal C variable, thus removing it from the
+module dict.  To declare global variables as typed C variables, use ``@cython.declare()``.
+
 Annotations can be combined with the ``@cython.exceptval()`` decorator for non-Python
 return types:
 
@@ -415,6 +423,19 @@ unsupported since these type hints are not relevant for the compilation to
 efficient C code. In other cases, however, where the generated C code could
 benefit from these type hints but does not currently, help is welcome to
 improve the type analysis in Cython.
+
+Reference table
+^^^^^^^^^^^^^^^
+
+The following reference table documents how type annotations are currently interpreted.
+Cython 0.29 behaviour is only shown where it differs from Cython 3.0 behaviour.
+The current limitations will likely be lifted at some point.
+
+.. csv-table:: Annotation typing rules
+   :file: annotation_typing_table.csv
+   :header-rows: 1
+   :class: longtable
+   :widths: 1 1 1
 
 Tips and Tricks
 ---------------

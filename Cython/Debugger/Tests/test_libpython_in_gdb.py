@@ -1,5 +1,3 @@
-# -*- coding: UTF-8 -*-
-
 """
 Test libpython.py. This is already partly tested by test_libcython_in_gdb and
 Lib/test/test_gdb.py in the Python source. These tests are run in gdb and
@@ -12,7 +10,6 @@ from Cython.Debugger import libcython
 from Cython.Debugger import libpython
 
 from . import test_libcython_in_gdb
-from .test_libcython_in_gdb import inferior_python_version
 
 
 class TestPrettyPrinters(test_libcython_in_gdb.DebugTestCase):
@@ -28,7 +25,7 @@ class TestPrettyPrinters(test_libcython_in_gdb.DebugTestCase):
     """
 
     def setUp(self):
-        super(TestPrettyPrinters, self).setUp()
+        super().setUp()
         self.break_and_run('b = c = d = 0')
 
     def get_pyobject(self, code):
@@ -48,15 +45,10 @@ class TestPrettyPrinters(test_libcython_in_gdb.DebugTestCase):
         return pyobject.get_truncated_repr(libpython.MAX_OUTPUT_LEN)
 
     def alloc_bytestring(self, string, gdbvar=None):
-        if inferior_python_version < (3, 0):
-            funcname = 'PyString_FromStringAndSize'
-        else:
-            funcname = 'PyBytes_FromStringAndSize'
-
         assert b'"' not in string
 
         # ensure double quotes
-        code = '(PyObject *) %s("%s", %d)' % (funcname, string.decode('iso8859-1'), len(string))
+        code = '(PyObject *) PyBytes_FromStringAndSize("%s", %d)' % (string.decode('iso8859-1'), len(string))
         return self.pyobject_fromcode(code, gdbvar=gdbvar)
 
     def alloc_unicodestring(self, string, gdbvar=None):
@@ -72,31 +64,17 @@ class TestPrettyPrinters(test_libcython_in_gdb.DebugTestCase):
     def test_bytestring(self):
         bytestring = self.alloc_bytestring(b"spam")
 
-        if inferior_python_version < (3, 0):
-            bytestring_class = libpython.PyStringObjectPtr
-            expected = repr(b"spam")
-        else:
-            bytestring_class = libpython.PyBytesObjectPtr
-            expected = "b'spam'"
+        bytestring_class = libpython.PyBytesObjectPtr
+        expected = "b'spam'"
 
         self.assertEqual(type(bytestring), bytestring_class)
         self.assertEqual(self.get_repr(bytestring), expected)
 
     def test_unicode(self):
-        unicode_string = self.alloc_unicodestring(u"spam ἄλφα")
-
-        expected = u"'spam ἄλφα'"
-        if inferior_python_version < (3, 0):
-            expected = 'u' + expected
+        unicode_string = self.alloc_unicodestring("spam ἄλφα")
 
         self.assertEqual(type(unicode_string), libpython.PyUnicodeObjectPtr)
-        self.assertEqual(self.get_repr(unicode_string), expected)
-
-    def test_int(self):
-        if inferior_python_version < (3, 0):
-            intval = self.pyobject_fromcode('PyInt_FromLong(100)')
-            self.assertEqual(type(intval), libpython.PyIntObjectPtr)
-            self.assertEqual(self.get_repr(intval), '100')
+        self.assertEqual(self.get_repr(unicode_string), "'spam ἄλφα'")
 
     def test_long(self):
         longval = self.pyobject_fromcode('PyLong_FromLong(200)',

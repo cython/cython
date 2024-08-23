@@ -135,6 +135,17 @@ def opt_func(fused_t obj, cython.floating myf = 1.2, cython.integral myi = 7,
     print cython.typeof(obj), cython.typeof(myf), cython.typeof(myi)
     print obj, "%.2f" % myf, myi, "%.2f" % f, i
 
+def non_fused_opt(fused_t obj, value=5):
+    """
+    PyObject constants as parts of fused functions weren't being created correctly
+    which would lead this to crash
+    >>> non_fused_opt(0)
+    5
+    >>> non_fused_opt("str", 10)
+    10
+    """
+    print value
+
 def run_cyfunction_check():
     """
     tp_base of the fused function was being set incorrectly meaning
@@ -402,7 +413,7 @@ def test_code_object(cython.floating dummy = 2.0):
     """
     A test for default arguments is in cyfunction_defaults
 
-    >>> getcode(test_code_object) is getcode(test_code_object[float])
+    >>> test_code_object.__code__ is not test_code_object[float].__code__
     True
     """
 

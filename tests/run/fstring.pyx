@@ -526,6 +526,22 @@ def format_decoded_bytes(bytes value):
 
 
 @cython.test_fail_if_path_exists(
+    "//CoerceToPyTypeNode",
+)
+def format_uchar(int x):
+    """
+    >>> format_uchar(0)
+    ('\\x00', '           \\x00', '       \\x00')
+    >>> format_uchar(13)
+    ('\\r', '           \\r', '       \\r')
+    >>> format_uchar(1114111 + 1)
+    Traceback (most recent call last):
+    OverflowError: %c arg not in range(0x110000)
+    """
+    return f"{x:c}", f"{x:12c}", f"{x:>8c}"
+
+
+@cython.test_fail_if_path_exists(
     "//AddNode",
     "//ModNode",
 )
@@ -571,9 +587,9 @@ def generated_fstring(int i, float f, unicode u not None, o):
 )
 def percent_s_unicode(u, int i):
     u"""
-    >>> u = u'x\u0194z'
+    >>> u = u'x\\u0194z'
     >>> print(percent_s_unicode(u, 12))
-    x\u0194z-12
+    x\\u0194z-12
     """
     return u"%s-%d" % (u, i)
 

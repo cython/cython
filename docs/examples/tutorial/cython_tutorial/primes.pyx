@@ -1,6 +1,6 @@
 def primes(int nb_primes):
     cdef int n, i, len_p
-    cdef int p[1000]
+    cdef int[1000] p
 
     if nb_primes > 1000:
         nb_primes = 1000

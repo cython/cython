@@ -5,13 +5,15 @@
 #   Prefixes for generating C names.
 #   Collected here to facilitate ensuring uniqueness.
 #
+from .. import __version__
 
 pyrex_prefix    = "__pyx_"
+cyversion = __version__.replace('.', '_')
 
 
 codewriter_temp_prefix = pyrex_prefix + "t_"
 
-temp_prefix       = u"__cyt_"
+temp_prefix       = "__cyt_"
 
 pyunicode_identifier_prefix = pyrex_prefix + 'U'
 
@@ -68,7 +70,6 @@ interned_prefixes = {
     'int': pyrex_prefix + "int_",
     'float': pyrex_prefix + "float_",
     'tuple': pyrex_prefix + "tuple_",
-    'codeobj': pyrex_prefix + "codeobj_",
     'slice': pyrex_prefix + "slice_",
     'ustring': pyrex_prefix + "ustring_",
     'umethod': pyrex_prefix + "umethod_",
@@ -104,6 +105,8 @@ retval_cname     = pyrex_prefix + "r"
 reqd_kwds_cname  = pyrex_prefix + "reqd_kwds"
 self_cname       = pyrex_prefix + "self"
 stringtab_cname  = pyrex_prefix + "string_tab"
+codeobjtab_cname = pyrex_prefix + "codeobj_tab"
+stringtab_encodings_cname  = pyrex_prefix + "string_tab_encodings"
 vtabslot_cname   = pyrex_prefix + "vtab"
 c_api_tab_cname  = pyrex_prefix + "c_api_tab"
 gilstate_cname   = pyrex_prefix + "state"
@@ -127,9 +130,12 @@ cur_scope_cname  = pyrex_prefix + "cur_scope"
 enc_scope_cname  = pyrex_prefix + "enc_scope"
 frame_cname      = pyrex_prefix + "frame"
 frame_code_cname = pyrex_prefix + "frame_code"
+monitoring_states_cname = pyrex_prefix + "pymonitoring_state"
+monitoring_version_cname = pyrex_prefix + "pymonitoring_version"
 error_without_exception_cname = pyrex_prefix + "error_without_exception"
 binding_cfunc    = pyrex_prefix + "binding_PyCFunctionType"
 fused_func_prefix = pyrex_prefix + 'fuse_'
+fused_dtype_prefix = pyrex_prefix + 'fused_dtype_'
 quick_temp_cname = pyrex_prefix + "temp"  # temp variable for quick'n'dirty temping
 tp_dict_version_temp = pyrex_prefix + "tp_dict_version"
 obj_dict_version_temp = pyrex_prefix + "obj_dict_version"
@@ -160,6 +166,7 @@ exc_value_name  = pyrex_prefix + "exc_value"
 exc_tb_name     = pyrex_prefix + "exc_tb"
 exc_lineno_name = pyrex_prefix + "exc_lineno"
 
+parallel_freethreading_mutex = pyrex_prefix + "parallel_freethreading_mutex"
 parallel_exc_type = pyrex_prefix + "parallel_exc_type"
 parallel_exc_value = pyrex_prefix + "parallel_exc_value"
 parallel_exc_tb = pyrex_prefix + "parallel_exc_tb"

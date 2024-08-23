@@ -1,13 +1,7 @@
-import sys
-
+# mode: run
 
 def typename(t):
     name = type(t).__name__
-    if sys.version_info < (2,5):
-        if name == 'classobj' and issubclass(t, MyException):
-            name = 'type'
-        elif name == 'instance' and isinstance(t, MyException):
-            name = 'MyException'
     return "<type '%s'>" % name
 
 
@@ -205,3 +199,23 @@ def manager_from_expression():
     g = GetManager()
     with g.get(2) as x:
         print(x)
+
+def manager_from_ternary(use_first):
+    """
+    >>> manager_from_ternary(True)
+    enter
+    exit <type 'type'> <type 'ValueError'> <type 'traceback'>
+    >>> manager_from_ternary(False)
+    enter
+    exit <type 'type'> <type 'ValueError'> <type 'traceback'>
+    In except
+    """
+    # This is mostly testing a parsing problem, hence the
+    # result of the ternary must be callable
+    cm1_getter = lambda: ContextManager("1", exit_ret=True)
+    cm2_getter = lambda: ContextManager("2")
+    try:
+        with (cm1_getter if use_first else cm2_getter)():
+            raise ValueError
+    except ValueError:
+        print("In except")

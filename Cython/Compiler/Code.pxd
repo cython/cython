@@ -1,5 +1,3 @@
-# cython: language_level=3
-
 cimport cython
 from ..StringIOTree cimport StringIOTree
 
@@ -56,7 +54,8 @@ cdef class FunctionState:
     cdef public bint uses_error_indicator
     cdef public bint error_without_exception
 
-    @cython.locals(n=size_t)
+    cdef public bint needs_refnanny
+
     cpdef new_label(self, name=*)
     cpdef tuple get_loop_labels(self)
     cpdef set_loop_labels(self, labels)
@@ -83,8 +82,7 @@ cdef class StringConst:
     cdef public dict py_strings
     cdef public list py_versions
 
-    @cython.locals(intern=bint, is_str=bint, is_unicode=bint)
-    cpdef get_py_string_const(self, encoding, identifier=*, is_str=*, py3str_cstring=*)
+    cpdef get_py_string_const(self, encoding, identifier=*, bint is_str=*, py3str_cstring=*)
 
 ## cdef class PyStringConst:
 ##     cdef public object cname
@@ -103,8 +101,8 @@ cdef class CCodeWriter(object):
     cdef readonly object globalstate
     cdef readonly object funcstate
     cdef object code_config
-    cdef object last_pos
-    cdef object last_marked_pos
+    cdef tuple last_pos
+    cdef tuple last_marked_pos
     cdef Py_ssize_t level
     cdef public Py_ssize_t call_level  # debug-only, see Nodes.py
     cdef bint bol
@@ -116,6 +114,10 @@ cdef class CCodeWriter(object):
     cpdef put(self, code)
     cpdef put_safe(self, code)
     cpdef putln(self, code=*, bint safe=*)
+    @cython.final
+    cdef emit_marker(self)
+    @cython.final
+    cdef _build_marker(self, tuple pos)
     @cython.final
     cdef increase_indent(self)
     @cython.final
