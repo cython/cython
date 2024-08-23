@@ -130,11 +130,11 @@ cdef class MockBuffer:
         if self.fail:
             raise ValueError("Failing on purpose")
 
-        self.received_flags = []
         cdef int value
-        for name, value in available_flags:
-            if (value & flags) == value:
-                self.received_flags.append(name)
+        self.received_flags = [
+            name for name, value in available_flags
+            if (value & flags) == value
+        ]
 
         if flags & cpython.buffer.PyBUF_WRITABLE and not self.writable:
             raise BufferError(f"Writable buffer requested from read-only mock: {' | '.join(self.received_flags)}")
