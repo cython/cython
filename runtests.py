@@ -2494,14 +2494,16 @@ def main():
         import multiprocessing
         pool = multiprocessing.Pool(options.shard_count)
         tasks = [(options, cmd_args, shard_num) for shard_num in range(options.shard_count)]
+        open_shards = list(range(options.shard_count))
         error_shards = []
         failure_outputs = []
         # NOTE: create process pool before time stamper thread to avoid forking issues.
         total_time = time.time()
         stats = Stats()
         merged_pipeline_stats = defaultdict(lambda: (0, 0))
-        with time_stamper_thread(interval=keep_alive_interval):
+        with time_stamper_thread(interval=keep_alive_interval, open_shards=open_shards):
             for shard_num, shard_stats, pipeline_stats, return_code, failure_output in pool.imap_unordered(runtests_callback, tasks):
+                open_shards.remove(shard_num)
                 if return_code != 0:
                     error_shards.append(shard_num)
                     failure_outputs.append(failure_output)
@@ -2569,7 +2571,7 @@ def main():
 
 
 @contextmanager
-def time_stamper_thread(interval=10):
+def time_stamper_thread(interval=10, open_shards=None):
     """
     Print regular time stamps into the build logs to find slow tests.
     @param interval: time interval in seconds
@@ -2579,16 +2581,11 @@ def time_stamper_thread(interval=10):
         yield
         return
 
-    try:
-        _xrange = xrange
-    except NameError:
-        _xrange = range
-
     import threading
     import datetime
     from time import sleep
 
-    interval = _xrange(interval * 4)
+    interval = range(interval * 4)
     now = datetime.datetime.now
     stop = False
 
@@ -2599,12 +2596,17 @@ def time_stamper_thread(interval=10):
         os.write(stderr, s if type(s) is bytes else s.encode('ascii'))
 
     def time_stamper():
+        waiting_for_shards = ""
         while True:
+            if stop:
+                return
             for _ in interval:
+                sleep(1./4)
                 if stop:
                     return
-                sleep(1./4)
-            write('\n#### %s\n' % now())
+            if open_shards is not None:
+                waiting_for_shards = f" - waiting for {open_shards}"
+            write(f'\n#### {now()}{waiting_for_shards}\n')
 
     thread = threading.Thread(target=time_stamper, name='time_stamper')
     thread.daemon = True
