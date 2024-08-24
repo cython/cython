@@ -2189,7 +2189,10 @@ class NameNode(AtomicExprNode):
         if self.cython_attribute:
             type = PyrexTypes.parse_basic_type(self.cython_attribute)
         elif env.in_c_type_context:
-            type = PyrexTypes.parse_basic_type(self.name)
+            type = PyrexTypes.simple_c_type(
+                1, # signedness not specified
+                0, # longness not specified
+                self.name)
         if type:
             return type
 
