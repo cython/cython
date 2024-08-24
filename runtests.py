@@ -1996,8 +1996,6 @@ class EndToEndTest(unittest.TestCase):
     def setUp(self):
         from Cython.TestUtils import unpack_source_tree
         _, self.commands = unpack_source_tree(self.treefile, self.workdir, self.cython_root)
-        self.old_dir = os.getcwd()
-        os.chdir(self.workdir)
 
     def tearDown(self):
         if self.cleanup_workdir:
@@ -2008,7 +2006,6 @@ class EndToEndTest(unittest.TestCase):
                     time.sleep(0.1)
                 else:
                     break
-        os.chdir(self.old_dir)
 
     def runTest(self):
         self.success = False
@@ -2020,6 +2017,7 @@ class EndToEndTest(unittest.TestCase):
         cmd = []
         out = []
         err = []
+        workdir = self.workdir
         for command_no, command in enumerate(self.commands, 1):
             if command[0] == "UNSET":
                 try:
@@ -2028,15 +2026,21 @@ class EndToEndTest(unittest.TestCase):
                     envvar = None
                 env.pop(envvar, None)
                 continue
+            elif command[0] == "CD":
+                if len(command) == 1:
+                    workdir = self.workdir
+                else:
+                    workdir = os.path.normpath(os.path.join(workdir, command[1]))
+                continue
             time_category = 'etoe-build' if (
                 'setup.py' in command or 'cythonize.py' in command or 'cython.py' in command) else 'etoe-run'
             with self.stats.time('%s(%d)' % (self.name, command_no), 'c', time_category):
                 if self.capture:
-                    p = subprocess.Popen(command, stderr=subprocess.PIPE, stdout=subprocess.PIPE, env=env)
+                    p = subprocess.Popen(command, stderr=subprocess.PIPE, stdout=subprocess.PIPE, env=env, cwd=workdir)
                     _out, _err = p.communicate()
                     res = p.returncode
                 else:
-                    p = subprocess.call(command, env=env)
+                    p = subprocess.call(command, env=env, cwd=workdir)
                     _out, _err = b'', b''
                     res = p
             cmd.append(command)
@@ -2051,7 +2055,7 @@ class EndToEndTest(unittest.TestCase):
                         self.shard_num, c, o, e))
                 sys.stderr.write("Final directory layout of '%s':\n%s\n\n" % (
                     self.name,
-                    '\n'.join(os.path.join(dirpath, filename) for dirpath, dirs, files in os.walk(".") for filename in files),
+                    '\n'.join(os.path.join(dirpath, filename) for dirpath, dirs, files in os.walk(self.workdir) for filename in files),
                 ))
                 self.assertEqual(0, res, "non-zero exit status, last output was:\n%r\n-- stdout:%s\n-- stderr:%s\n" % (
                     ' '.join(command), out[-1], err[-1]))
