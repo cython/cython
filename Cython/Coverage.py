@@ -305,7 +305,7 @@ class Plugin(CoveragePlugin):
         if self._excluded_lines_map is None:
             self._excluded_lines_map = defaultdict(set)
 
-        with open(c_file) as lines:
+        with open(c_file, encoding='utf8') as lines:
             lines = iter(lines)
             for line in lines:
                 match = match_source_path_line(line)

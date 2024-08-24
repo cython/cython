@@ -2388,7 +2388,7 @@ class CCodeWriter:
             self.emit_marker()
         if self.code_config.emit_linenums and self.last_marked_pos:
             source_desc, line, _ = self.last_marked_pos
-            self._write_lines('\n#line %s "%s"\n' % (line, source_desc.get_escaped_description()))
+            self._write_lines(f'\n#line {line} "{source_desc.get_escaped_description()}"\n')
         if code:
             if safe:
                 self.put_safe(code)
@@ -2411,7 +2411,7 @@ class CCodeWriter:
         self._write_lines("\n")
         if self.code_config.emit_code_comments:
             self.indent()
-            self._write_lines("/* %s */\n" % self._build_marker(pos))
+            self._write_lines(self._build_marker(pos))
         if trace:
             self.write_trace_line(pos)
 
@@ -2428,7 +2428,8 @@ class CCodeWriter:
         lines = contents[max(0, line-3):line]  # line numbers start at 1
         lines[-1] += '             # <<<<<<<<<<<<<<'
         lines += contents[line:line+2]
-        return '"%s":%d\n%s\n' % (source_desc.get_escaped_description(), line, '\n'.join(lines))
+        code = "\n".join(lines)
+        return f'/* "{source_desc.get_escaped_description()}":{line:d}\n{code}\n*/\n'
 
     def put_safe(self, code):
         # put code, but ignore {}
@@ -2438,15 +2439,18 @@ class CCodeWriter:
     def put_or_include(self, code, name):
         include_dir = self.globalstate.common_utility_include_dir
         if include_dir and len(code) > 1024:
-            include_file = "%s_%s.h" % (
-                name, hashlib.sha1(code.encode('utf8')).hexdigest())
+            hash = hashlib.sha256(code.encode('utf8')).hexdigest()
+            include_file = f"{name}_{hash}.h"
             path = os.path.join(include_dir, include_file)
             if not os.path.exists(path):
-                tmp_path = '%s.tmp%s' % (path, os.getpid())
-                with closing(Utils.open_new_file(tmp_path)) as f:
+                tmp_path = f'{path}.tmp{os.getpid()}'
+                with Utils.open_new_file(tmp_path) as f:
                     f.write(code)
                 shutil.move(tmp_path, path)
-            code = '#include "%s"\n' % path
+            # We use forward slashes in the include path to assure identical code generation
+            # under Windows and Posix.  C/C++ compilers should still understand it.
+            c_path = path.replace('\\', '/')
+            code = f'#include "{c_path}"\n'
         self.put(code)
 
     def put(self, code):
@@ -3118,6 +3122,7 @@ class PyxCodeWriter:
         self.original_level = indent_level
         self.context = context
         self.encoding = encoding
+        self._insertion_points = {}
 
     def indent(self, levels=1):
         self.level += levels
@@ -3153,7 +3158,7 @@ class PyxCodeWriter:
         self._putln(line)
 
     def _putln(self, line):
-        self.buffer.write("%s%s\n" % (self.level * "    ", line))
+        self.buffer.write(f"{self.level * '    '}{line}\n")
 
     def put_chunk(self, chunk, context=None):
         context = context or self.context
@@ -3174,7 +3179,10 @@ class PyxCodeWriter:
         self.level = self.original_level
 
     def named_insertion_point(self, name):
-        setattr(self, name, self.insertion_point())
+        self._insertion_points[name] = self.insertion_point()
+
+    def __getitem__(self, name):
+        return self._insertion_points[name]
 
 
 class ClosureTempAllocator:

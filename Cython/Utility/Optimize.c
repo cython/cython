@@ -265,7 +265,7 @@ static CYTHON_INLINE PyObject *__Pyx_PyDict_Pop(PyObject *d, PyObject *key, PyOb
 /////////////// py_dict_pop ///////////////
 
 static CYTHON_INLINE PyObject *__Pyx_PyDict_Pop(PyObject *d, PyObject *key, PyObject *default_value) {
-#if PY_VERSION_HEX >= 0x030d00A2
+#if CYTHON_COMPILING_IN_CPYTHON && PY_VERSION_HEX >= 0x030d00A2 || defined(PyDict_Pop)
     PyObject *value;
     if (PyDict_Pop(d, key, &value) == 0) {
         if (default_value) {
@@ -297,7 +297,7 @@ static CYTHON_INLINE int __Pyx_PyDict_Pop_ignore(PyObject *d, PyObject *key, PyO
 
 static CYTHON_INLINE int __Pyx_PyDict_Pop_ignore(PyObject *d, PyObject *key, PyObject *default_value) {
     // We take the "default_value" as argument to avoid "unused" warnings, but we ignore it here.
-#if PY_VERSION_HEX >= 0x030d00A2
+#if CYTHON_COMPILING_IN_CPYTHON && PY_VERSION_HEX >= 0x030d00A2 || defined(PyDict_Pop)
     int result = PyDict_Pop(d, key, NULL);
     CYTHON_UNUSED_VAR(default_value);
     return (unlikely(result == -1)) ? -1 : 0;
