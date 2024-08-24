@@ -1839,7 +1839,11 @@ class CTypeDefNode(StatNode):
         cname = name_declarator.cname
 
         test_name_node = NameNode(self.pos, name=name)
-        if test_name_node.analyse_as_type(env) is not None:
+        analysed_test_name_node = test_name_node.analyse_as_type(env)
+        if (analysed_test_name_node is not None and
+                # allow types to be redeclared if they definitely generate the same
+                # c code.
+                analysed_test_name_node.empty_declaration_code().strip() != name):
             extra = ''
             if self.visibility == "extern":
                 extra = ('; consider using the "cname" feature to use a different typename '
