@@ -1830,11 +1830,21 @@ class CTypeDefNode(StatNode):
     child_attrs = ["base_type", "declarator"]
 
     def analyse_declarations(self, env):
+        from .ExprNodes import NameNode
         base = self.base_type.analyse(env)
+
         name_declarator, type = self.declarator.analyse(
             base, env, visibility=self.visibility, in_pxd=self.in_pxd)
         name = name_declarator.name
         cname = name_declarator.cname
+
+        test_name_node = NameNode(self.pos, name=name)
+        if test_name_node.analyse_as_type(env) is not None:
+            extra = ''
+            if self.visibility == "extern":
+                extra = ('; consider using the "cname" feature to use a different typename '
+                         f'in C and Cython, e.g. `ctypedef ... {name}_ "{name}"`')
+            error(self.pos, f"ctypedef tries to overwrite existing type '{name}'{extra}")
 
         entry = env.declare_typedef(
             name, type, self.pos,
