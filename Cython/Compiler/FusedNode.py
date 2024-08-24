@@ -340,10 +340,6 @@ class FusedCFuncDefNode(StatListNode):
             pyx_code.putln("pass")
             pyx_code.named_insertion_point("dtype_complex")
 
-        with pyx_code.indenter("elif kind == u'O':"):
-            pyx_code.putln("pass")
-            pyx_code.named_insertion_point("dtype_object")
-
     match = "dest_sig[{{dest_sig_idx}}] = '{{specialized_type_name}}'"
     no_match = "dest_sig[{{dest_sig_idx}}] = None"
     def _buffer_check_numpy_dtype(self, pyx_code, specialized_buffer_types, pythran_types):
@@ -364,9 +360,9 @@ class FusedCFuncDefNode(StatListNode):
                 specialized_type_name=final_type.specialization_string)
 
             dtypes = [
-                (dtype.is_int, pyx_code.dtype_int),
-                (dtype.is_float, pyx_code.dtype_float),
-                (dtype.is_complex, pyx_code.dtype_complex)
+                (dtype.is_int, pyx_code['dtype_int']),
+                (dtype.is_float, pyx_code['dtype_float']),
+                (dtype.is_complex, pyx_code['dtype_complex'])
             ]
 
             for dtype_category, codewriter in dtypes:
@@ -493,7 +489,6 @@ class FusedCFuncDefNode(StatListNode):
                             else:
                                 arg_is_pythran_compatible = not (arg.flags.f_contiguous and (<Py_ssize_t>arg.ndim) > 1)
                 """)
-        pyx_code.named_insertion_point("numpy_dtype_checks")
         self._buffer_check_numpy_dtype(pyx_code, buffer_types, pythran_types)
         pyx_code.dedent(2)
 
@@ -542,7 +537,7 @@ class FusedCFuncDefNode(StatListNode):
                 bint __PYX_IS_PYPY2 "(CYTHON_COMPILING_IN_PYPY && PY_MAJOR_VERSION == 2)"
             """)
 
-        pyx_code.local_variable_declarations.put_chunk(
+        pyx_code['local_variable_declarations'].put_chunk(
             """
                 cdef {{memviewslice_cname}} memslice
                 cdef Py_ssize_t itemsize
@@ -553,18 +548,18 @@ class FusedCFuncDefNode(StatListNode):
             """)
 
         if pythran_types:
-            pyx_code.local_variable_declarations.put_chunk("""
+            pyx_code['local_variable_declarations'].put_chunk("""
                 cdef bint arg_is_pythran_compatible
                 cdef Py_ssize_t cur_stride
             """)
 
-        pyx_code.imports.put_chunk(
+        pyx_code['imports'].put_chunk(
             """
                 cdef type ndarray
                 ndarray = __Pyx_ImportNumPyArrayTypeIfAvailable()
             """)
 
-        pyx_code.imports.put_chunk(
+        pyx_code['imports'].put_chunk(
             """
                 cdef memoryview arg_as_memoryview
             """
@@ -587,7 +582,7 @@ class FusedCFuncDefNode(StatListNode):
                     seen_int_dtypes.add(str(dtype))
                     pyx_code.context.update(dtype_name=dtype_name,
                                             dtype_type=self._dtype_type(dtype))
-                    pyx_code.local_variable_declarations.put_chunk(
+                    pyx_code['local_variable_declarations'].put_chunk(
                         """
                             cdef bint {{dtype_name}}_is_signed
                             {{dtype_name}}_is_signed = not (<{{dtype_type}}> -1 > 0)
@@ -718,7 +713,6 @@ class FusedCFuncDefNode(StatListNode):
 
         pyx_code.indent()  # indent following code to function body
         pyx_code.named_insertion_point("imports")
-        pyx_code.named_insertion_point("func_defs")
         pyx_code.named_insertion_point("local_variable_declarations")
 
         fused_index = 0
