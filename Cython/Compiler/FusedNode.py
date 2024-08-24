@@ -340,10 +340,6 @@ class FusedCFuncDefNode(StatListNode):
             pyx_code.putln("pass")
             pyx_code.named_insertion_point("dtype_complex")
 
-        with pyx_code.indenter("elif kind == u'O':"):
-            pyx_code.putln("pass")
-            #pyx_code.named_insertion_point("dtype_object")  # FIXME: unused?
-
     match = "dest_sig[{{dest_sig_idx}}] = '{{specialized_type_name}}'"
     no_match = "dest_sig[{{dest_sig_idx}}] = None"
     def _buffer_check_numpy_dtype(self, pyx_code, specialized_buffer_types, pythran_types):
@@ -493,7 +489,6 @@ class FusedCFuncDefNode(StatListNode):
                             else:
                                 arg_is_pythran_compatible = not (arg.flags.f_contiguous and (<Py_ssize_t>arg.ndim) > 1)
                 """)
-        #pyx_code.named_insertion_point("numpy_dtype_checks")  # FIXME: unused?
         self._buffer_check_numpy_dtype(pyx_code, buffer_types, pythran_types)
         pyx_code.dedent(2)
 
@@ -718,7 +713,6 @@ class FusedCFuncDefNode(StatListNode):
 
         pyx_code.indent()  # indent following code to function body
         pyx_code.named_insertion_point("imports")
-        #pyx_code.named_insertion_point("func_defs")  # FIXME: unused?
         pyx_code.named_insertion_point("local_variable_declarations")
 
         fused_index = 0
