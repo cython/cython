@@ -875,15 +875,18 @@ static CYTHON_INLINE int __Pyx__IsSameCFunction(PyObject *func, void *cfunc) {
 #endif
 
 #if CYTHON_USE_MODULE_STATE
-static CYTHON_INLINE $modulestatetype_cname *__Pyx_PyModule_GetState(PyObject *op)
+static CYTHON_INLINE void *__Pyx__PyModule_GetState(PyObject *op)
 {
     void *result;
 
     result = PyModule_GetState(op);
     if (!result)
         Py_FatalError("Couldn't find the module state");
-    return ($modulestatetype_cname*)result;
+    return result;
 }
+// Define a macro with a cast because the modulestate type isn't known yet and
+// is a typedef struct so impossible to forward declare
+#define __Pyx_PyModule_GetState(o) ($modulestatetype_cname *)__Pyx__PyModule_GetState(o)
 #else
 #define __Pyx_PyModule_GetState(op) ((void)op,$modulestateglobal_cname)
 #endif

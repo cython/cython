@@ -2362,10 +2362,14 @@ class CCodeWriter:
 
         # default fallback option if we don't know better
         modulestate_name = Naming.modulestateglobal_cname
-        if self.funcstate.scope is None or self.funcstate.scope.is_module_scope:
-            modulestate_name = Naming.modulestatevalue_cname
-        # TODO - more choices depending on the type of env
-        # e.g. slot, function, method
+
+        # self.funcstate can be None in a few places, including ToPyStructUtilityCode.
+        # TODO - this will eventually need to be fixed.
+        if self.funcstate is not None:
+            if self.funcstate.scope is None or self.funcstate.scope.is_module_scope:
+                modulestate_name = Naming.modulestatevalue_cname
+            # TODO - more choices depending on the type of env
+            # e.g. slot, function, method
 
         return f"{modulestate_name}->{cname}"
 
