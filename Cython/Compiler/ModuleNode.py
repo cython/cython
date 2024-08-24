@@ -1580,7 +1580,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             tp_new = TypeSlots.get_base_slot_function(scope, tp_slot)
             base_type_typeptr_cname = base_type.typeptr_cname
             if not base_type.is_builtin_type:
-                base_type_typeptr_cname = code.name_in_module_state(base_type_typeptr_cname)
+                base_type_typeptr_cname = code.name_in_slot_module_state(base_type_typeptr_cname)
             if tp_new is None:
                 tp_new = f"__Pyx_PyType_GetSlot({base_type_typeptr_cname}, tp_new, newfunc)"
             code.putln("PyObject *o = %s(t, a, k);" % tp_new)
@@ -1795,7 +1795,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         if base_type:
             base_cname = base_type.typeptr_cname
             if not base_type.is_builtin_type:
-                base_cname = code.name_in_module_state(base_cname)
+                base_cname = code.name_in_slot_module_state(base_cname)
             tp_dealloc = TypeSlots.get_base_slot_function(scope, tp_slot)
             if tp_dealloc is not None:
                 if needs_gc and base_type.scope and base_type.scope.needs_gc():
@@ -1933,7 +1933,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 # type hierarchy, because our access to the module state may
                 # have been lost (at least for the limited API version of
                 # using module state).
-                base_cname = code.name_in_module_state(base_type.typeptr_cname, force_global=True)
+                base_cname = code.name_in_slot_module_state(base_type.typeptr_cname)
                 code.putln("#if !CYTHON_USE_MODULE_STATE")
                 code.putln("e = 0;")
                 code.putln("if (likely(%s)) {" % base_cname)
@@ -2019,7 +2019,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 # type hierarchy, because our access to the module state may
                 # have been lost (at least for the limited API version of
                 # using module state).
-                base_cname = code.name_in_module_state(base_type.typeptr_cname, force_global=True)
+                base_cname = code.name_in_slot_module_state(base_type.typeptr_cname)
                 code.putln("#if !CYTHON_USE_MODULE_STATE")
                 code.putln("if (likely(%s)) {" % base_cname)
                 code.putln(f"inquiry clear = __Pyx_PyType_GetSlot({base_cname}, tp_clear, inquiry);")

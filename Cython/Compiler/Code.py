@@ -2357,17 +2357,22 @@ class CCodeWriter:
     def get_cached_constants_writer(self, target=None):
         return self.globalstate.get_cached_constants_writer(target)
 
-    def name_in_module_state(self, cname, force_global=False):
+    def name_in_module_state(self, cname):
         # If we don't have a funcstate scope assume global scope for now
 
         # default fallback option if we don't know better
         modulestate_name = Naming.modulestateglobal_cname
-        if not force_global and self.funcstate:
-            if self.funcstate.scope is None or self.funcstate.scope.is_module_scope:
-                modulestate_name = Naming.modulestatevalue_cname
-            # TODO - more choices depending on the type of env
+        if self.funcstate.scope is None or self.funcstate.scope.is_module_scope:
+            modulestate_name = Naming.modulestatevalue_cname
+        # TODO - more choices depending on the type of env
+        # e.g. slot, function, method
 
         return f"{modulestate_name}->{cname}"
+
+    def name_in_slot_module_state(self, cname):
+        # TODO - eventually this will go through PyType_GetModuleByDef
+        # in cases where it's supported.
+        return f"{Naming.modulestateglobal_cname}->{cname}"
 
     def namespace_cname_in_module_state(self, scope):
         if scope.is_py_class_scope:
