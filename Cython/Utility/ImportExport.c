@@ -334,7 +334,7 @@ static int ${import_star}(PyObject* m) {
     PyObject *item;
     PyObject *import_obj;
     Py_ssize_t size;
-    ${modulestatetype_cname} *mstate = ${modulestategetter_cname}(m);
+    ${modulestatetype_cname} *mstate = __Pyx_PyModule_GetState(m);
 
     locals = PyDict_New();              if (!locals) goto bad;
     if (__Pyx_import_all_from(locals, m) < 0) goto bad;

@@ -655,6 +655,7 @@ class __Pyx_FakeReference {
 
 
 /////////////// PythonCompatibility ///////////////
+//@substitute: naming
 
 #define __PYX_BUILD_PY_SSIZE_T "n"
 #define CYTHON_FORMAT_SSIZE_T "z"
@@ -874,15 +875,17 @@ static CYTHON_INLINE int __Pyx__IsSameCFunction(PyObject *func, void *cfunc) {
 #endif
 
 #if CYTHON_USE_MODULE_STATE
-static CYTHON_INLINE void *__Pyx_PyModule_GetState(PyObject *op)
+static CYTHON_INLINE $modulestatetype_cname *__Pyx_PyModule_GetState(PyObject *op)
 {
     void *result;
 
     result = PyModule_GetState(op);
     if (!result)
         Py_FatalError("Couldn't find the module state");
-    return result;
+    return ($modulestatetype_cname*)result;
 }
+#else
+#define __Pyx_PyModule_GetState(op) ((void)op,$modulestateglobal_cname)
 #endif
 
 // The "Try" variants may return NULL on static types with the Limited API on earlier versions

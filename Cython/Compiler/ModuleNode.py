@@ -2926,13 +2926,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         module_state.putln('static struct PyModuleDef %s;' % Naming.pymoduledef_cname)
         module_state.putln('#endif')
         module_state.putln('')
-        module_state.putln('#define %s(o) ((%s *)__Pyx_PyModule_GetState(o))' % (
-            Naming.modulestategetter_cname,
-            Naming.modulestatetype_cname))
-        module_state.putln('')
-        module_state.putln('#define %s (%s(PyState_FindModule(&%s)))' % (
+        module_state.putln('#define %s (__Pyx_PyModule_GetState(PyState_FindModule(&%s)))' % (
             Naming.modulestateglobal_cname,
-            Naming.modulestategetter_cname,
             Naming.pymoduledef_cname))
         module_state.putln('')
         module_state.putln('#define %s (PyState_FindModule(&%s))' % (
@@ -2955,10 +2950,6 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             Naming.modulestateglobal_cname,
             Naming.modulestateglobal_cname
         ))
-        # Define the getter just to refer back to the global
-        module_state.putln("#define %s(o) ((void)o,%s)" % (
-            Naming.modulestategetter_cname,
-            Naming.modulestateglobal_cname))
         module_state.putln("#endif")
         module_state_clear.putln("return 0;")
         module_state_clear.putln("}")
@@ -2971,9 +2962,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
     def generate_module_state_clear(self, env, code):
         code.putln("#if CYTHON_USE_MODULE_STATE")
         code.putln("static CYTHON_SMALL_CODE int %s_clear(PyObject *m) {" % Naming.module_cname)
-        code.putln("%s *clear_module_state = %s(m);" % (
-            Naming.modulestatetype_cname,
-            Naming.modulestategetter_cname))
+        code.putln(f"{Naming.modulestatetype_cname} *clear_module_state = __Pyx_PyModule_GetState(m);")
         code.putln("if (!clear_module_state) return 0;")
         code.putln('Py_CLEAR(clear_module_state->%s);' %
             env.module_dict_cname)
@@ -2999,9 +2988,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
     def generate_module_state_traverse(self, env, code):
         code.putln("#if CYTHON_USE_MODULE_STATE")
         code.putln("static CYTHON_SMALL_CODE int %s_traverse(PyObject *m, visitproc visit, void *arg) {" % Naming.module_cname)
-        code.putln("%s *traverse_module_state = %s(m);" % (
-            Naming.modulestatetype_cname,
-            Naming.modulestategetter_cname))
+        code.putln(f"{Naming.modulestatetype_cname} *traverse_module_state = __Pyx_PyModule_GetState(m);")
         code.putln("if (!traverse_module_state) return 0;")
         code.putln(f'Py_VISIT(traverse_module_state->{env.module_dict_cname});')
         code.putln(f'Py_VISIT(traverse_module_state->{Naming.builtins_cname});')
@@ -3420,11 +3407,6 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                    Naming.cleanup_cname)
         code.enter_cfunc_scope(env)
         code.putln(f"{Naming.modulestatetype_cname} *{Naming.modulestatevalue_cname};")
-        code.putln("#if CYTHON_COMPILING_IN_LIMITED_API")
-        code.putln(f"{Naming.modulestatevalue_cname} = {Naming.modulestategetter_cname}(self);")
-        code.putln("#else")
-        code.putln(f"{Naming.modulestatevalue_cname} = {Naming.modulestateglobal_cname};")
-        code.putln("#endif")
 
         # TODO - this should go away when module-state has been refactored more and
         # we are able to access the module state through "self". Currently the
@@ -3433,6 +3415,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         # (e.g. during interpreter shutdown).
         # In that case the safest thing is to give up.
         code.putln(f"if (!PyState_FindModule(&{Naming.pymoduledef_cname})) return;")
+        code.putln(f"{Naming.modulestatevalue_cname} = __Pyx_PyModule_GetState(self);")
 
         if Options.generate_cleanup_code >= 2:
             code.putln("/*--- Global cleanup code ---*/")

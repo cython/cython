@@ -2018,7 +2018,7 @@ static int __pyx_Coroutine_init(PyObject *module) {
     $modulestatetype_cname *mstate;
     CYTHON_MAYBE_UNUSED_VAR(module);
     // on Windows, C-API functions can't be used in slots statically
-    mstate = $modulestategetter_cname(module);
+    mstate = __Pyx_PyModule_GetState(module);
 #if CYTHON_USE_TYPE_SPECS
     mstate->__pyx_CoroutineType = __Pyx_FetchCommonTypeFromSpec(module, &__pyx_CoroutineType_spec, NULL);
 #else
@@ -2162,7 +2162,7 @@ static PyTypeObject __pyx_IterableCoroutineType_type = {
 
 
 static int __pyx_IterableCoroutine_init(PyObject *module) {
-    $modulestatetype_cname *mstate = $modulestategetter_cname(module);
+    $modulestatetype_cname *mstate = __Pyx_PyModule_GetState(module);
 #if CYTHON_USE_TYPE_SPECS
     mstate->__pyx_IterableCoroutineType = __Pyx_FetchCommonTypeFromSpec(module, &__pyx_IterableCoroutineType_spec, NULL);
 #else
@@ -2322,7 +2322,7 @@ static PyTypeObject __pyx_GeneratorType_type = {
 #endif /* CYTHON_USE_TYPE_SPECS */
 
 static int __pyx_Generator_init(PyObject *module) {
-    $modulestatetype_cname *mstate = $modulestategetter_cname(module);
+    $modulestatetype_cname *mstate = __Pyx_PyModule_GetState(module);
 #if CYTHON_USE_TYPE_SPECS
     mstate->__pyx_GeneratorType = __Pyx_FetchCommonTypeFromSpec(module, &__pyx_GeneratorType_spec, NULL);
 #else

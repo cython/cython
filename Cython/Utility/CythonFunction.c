@@ -1217,7 +1217,7 @@ static PyTypeObject __pyx_CyFunctionType_type = {
 
 
 static int __pyx_CyFunction_init(PyObject *module) {
-    $modulestatetype_cname *mstate = $modulestategetter_cname(module);
+    $modulestatetype_cname *mstate = __Pyx_PyModule_GetState(module);
 #if CYTHON_USE_TYPE_SPECS
     mstate->__pyx_CyFunctionType = __Pyx_FetchCommonTypeFromSpec(module, &__pyx_CyFunctionType_spec, NULL);
 #else
@@ -1727,7 +1727,7 @@ static PyTypeObject __pyx_FusedFunctionType_type = {
 #endif
 
 static int __pyx_FusedFunction_init(PyObject *module) {
-    $modulestatetype_cname *mstate = $modulestategetter_cname(module);
+    $modulestatetype_cname *mstate = __Pyx_PyModule_GetState(module);
 #if CYTHON_USE_TYPE_SPECS
     PyObject *bases = PyTuple_Pack(1, mstate->__pyx_CyFunctionType);
     if (unlikely(!bases)) {
