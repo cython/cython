@@ -5482,10 +5482,10 @@ class CClassDefNode(ClassDefNode):
             base_type = base.analyse_as_type(env)
 
             # If we accidentally picked the C type of the same name, use the Python rather than the C variant.
-            if base_type in (PyrexTypes.c_int_type, PyrexTypes.c_long_type, PyrexTypes.c_float_type):
+            if base_type in (PyrexTypes.c_int_type, PyrexTypes.c_float_type):
                 base_type = env.lookup(base_type.sign_and_name()).type
             elif base_type is PyrexTypes.c_double_complex_type:
-                base_type = Builtin.builtin_scope.lookup('complex').type
+                base_type = env.lookup('complex').type
 
             if base_type is None:
                 error(base.pos, "First base of '%s' is not an extension type" % self.class_name)
