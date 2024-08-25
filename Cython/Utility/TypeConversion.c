@@ -548,30 +548,38 @@ static CYTHON_INLINE Py_UCS4 __Pyx_PyUnicode_AsPy_UCS4(PyObject*);
 
 /////////////// UnicodeAsUCS4 ///////////////
 
-static CYTHON_INLINE Py_UCS4 __Pyx_PyUnicode_AsPy_UCS4(PyObject* x) {
-    Py_ssize_t length = __Pyx_PyUnicode_GET_LENGTH(x);
-    if (likely(length == 1)) {
-        return __Pyx_PyUnicode_READ_CHAR(x, 0);
-    } else if (likely(length >= 0)) {
+static void __Pyx_PyUnicode_AsPy_UCS4_error(Py_ssize_t length) {
+    if (likely(length >= 0)) {
         // "length == -1" indicates an error already.
         PyErr_Format(PyExc_ValueError,
                      "only single character unicode strings can be converted to Py_UCS4, "
                      "got length %" CYTHON_FORMAT_SSIZE_T "d", length);
     }
-    return (Py_UCS4)-1;
+}
+
+static CYTHON_INLINE Py_UCS4 __Pyx_PyUnicode_AsPy_UCS4(PyObject* x) {
+    Py_ssize_t length = __Pyx_PyUnicode_GET_LENGTH(x);
+    if (unlikely(length != 1)) {
+        __Pyx_PyUnicode_AsPy_UCS4_error(length);
+        return (Py_UCS4)-1;
+    }
+    return __Pyx_PyUnicode_READ_CHAR(x, 0);
 }
 
 
 /////////////// ObjectAsUCS4.proto ///////////////
 //@requires: UnicodeAsUCS4
 
-#define __Pyx_PyObject_AsPy_UCS4(x) \
-    (likely(PyUnicode_Check(x)) ? __Pyx_PyUnicode_AsPy_UCS4(x) : __Pyx__PyObject_AsPy_UCS4(x))
 static Py_UCS4 __Pyx__PyObject_AsPy_UCS4(PyObject*);
+
+static CYTHON_INLINE Py_UCS4 __Pyx_PyObject_AsPy_UCS4(PyObject *x) {
+    return (likely(PyUnicode_Check(x)) ? __Pyx_PyUnicode_AsPy_UCS4(x) : __Pyx__PyObject_AsPy_UCS4(x));
+}
+
 
 /////////////// ObjectAsUCS4 ///////////////
 
-static Py_UCS4 __Pyx__PyObject_AsPy_UCS4_raise_error(long ival) {
+static void __Pyx__PyObject_AsPy_UCS4_raise_error(long ival) {
    if (ival < 0) {
        if (!PyErr_Occurred())
            PyErr_SetString(PyExc_OverflowError,
@@ -580,14 +588,14 @@ static Py_UCS4 __Pyx__PyObject_AsPy_UCS4_raise_error(long ival) {
        PyErr_SetString(PyExc_OverflowError,
                        "value too large to convert to Py_UCS4");
    }
-   return (Py_UCS4)-1;
 }
 
 static Py_UCS4 __Pyx__PyObject_AsPy_UCS4(PyObject* x) {
    long ival;
    ival = __Pyx_PyLong_As_long(x);
    if (unlikely(!__Pyx_is_valid_index(ival, 1114111 + 1))) {
-       return __Pyx__PyObject_AsPy_UCS4_raise_error(ival);
+       __Pyx__PyObject_AsPy_UCS4_raise_error(ival);
+       return (Py_UCS4)-1;
    }
    return (Py_UCS4)ival;
 }
