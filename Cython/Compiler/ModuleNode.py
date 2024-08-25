@@ -3157,6 +3157,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln(refnanny_import_code.rstrip())
         code.put_setup_refcount_context(modinit_func_name)
 
+        env.use_utility_code(UtilityCode.load("GetRuntimeVersion", "ModuleSetupCode.c"))
         env.use_utility_code(UtilityCode.load("CheckBinaryVersion", "ModuleSetupCode.c"))
         code.put_error_if_neg(self.pos, "__Pyx_check_binary_version("
                                         "__PYX_LIMITED_VERSION_HEX, "

@@ -2214,12 +2214,52 @@ static PyObject* __Pyx_PyObject_CallMethod1(PyObject* obj, PyObject* method_name
 
 
 /////////////// tp_new.proto ///////////////
+//@requires: ModuleSetupCode.c::GetRuntimeVersion
 
 #define __Pyx_tp_new(type_obj, args) __Pyx_tp_new_kwargs(type_obj, args, NULL)
+#if CYTHON_COMPILING_IN_LIMITED_API && __PYX_LIMITED_VERSION_HEX < 0x030A0000
+static PyObject* __Pyx_tp_new_fallback(PyObject* type_obj, PyObject* args, PyObject* kwargs); /*proto*/
+#endif
 static CYTHON_INLINE PyObject* __Pyx_tp_new_kwargs(PyObject* type_obj, PyObject* args, PyObject* kwargs) {
-    return (PyObject*) (((PyTypeObject*)type_obj)->tp_new((PyTypeObject*)type_obj, args, kwargs));
+    newfunc tp_new = __Pyx_PyType_TryGetSlot((PyTypeObject*)type_obj, tp_new, newfunc);
+#if CYTHON_COMPILING_IN_LIMITED_API && __PYX_LIMITED_VERSION_HEX < 0x030A0000
+    if (!tp_new) return __Pyx_tp_new_fallback(type_obj, args, kwargs);
+#else
+    assert(tp_new != NULL);
+#endif
+    return tp_new((PyTypeObject*)type_obj, args, kwargs);
 }
 
+/////////////// tp_new ///////////////
+
+#if CYTHON_COMPILING_IN_LIMITED_API && __PYX_LIMITED_VERSION_HEX < 0x030A0000
+static PyObject* __Pyx_tp_new_fallback(PyObject* type_obj, PyObject* args, PyObject* kwargs) {
+    PyObject *new_func = NULL, *new_args = NULL, *obj;
+    Py_ssize_t i, nargs = PyTuple_Size(args);
+
+    if (unlikely(nargs < 0)) goto bad;
+    new_args = PyTuple_New(nargs + 1);
+    if (unlikely(!new_args)) goto bad;
+    for (i = 0; i < nargs + 1; i++) {
+        PyObject *item = (i == 0) ? type_obj : PyTuple_GetItem(args, i - 1);
+        if (unlikely(!item)) goto bad;
+        Py_INCREF(item);
+        if (unlikely(PyTuple_SetItem(new_args, i, item)) < 0) goto bad;
+    }
+
+    new_func = PyObject_GetAttrString(type_obj, "__new__");
+    if (unlikely(!new_func)) goto bad;
+    obj = PyObject_Call(new_func, new_args, kwargs);
+    Py_DECREF(new_func);
+    Py_DECREF(new_args);
+    return obj;
+
+ bad:
+    Py_XDECREF(new_func);
+    Py_XDECREF(new_args);
+    return NULL;
+}
+#endif
 
 /////////////// PyObjectCall.proto ///////////////
 

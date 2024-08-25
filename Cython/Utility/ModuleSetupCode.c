@@ -1658,12 +1658,11 @@ static void __pyx_insert_code_object(int code_line, __Pyx_CachedCodeObjectType* 
       PyMem_Free(entries);
   }
 
-/////////////// CheckBinaryVersion.proto ///////////////
+/////////////// GetRuntimeVersion.proto ///////////////
 
 static unsigned long __Pyx_get_runtime_version(void);
-static int __Pyx_check_binary_version(unsigned long ct_version, unsigned long rt_version, int allow_newer);
 
-/////////////// CheckBinaryVersion ///////////////
+/////////////// GetRuntimeVersion ///////////////
 
 static unsigned long __Pyx_get_runtime_version(void) {
     // We will probably never need the alpha/beta status, so avoid the complexity to parse it.
@@ -1694,6 +1693,12 @@ static unsigned long __Pyx_get_runtime_version(void) {
     return __Pyx_cached_runtime_version;
 #endif
 }
+
+/////////////// CheckBinaryVersion.proto ///////////////
+
+static int __Pyx_check_binary_version(unsigned long ct_version, unsigned long rt_version, int allow_newer);
+
+/////////////// CheckBinaryVersion ///////////////
 
 static int __Pyx_check_binary_version(unsigned long ct_version, unsigned long rt_version, int allow_newer) {
     // runtime version is: -1 => older, 0 => equal, 1 => newer
