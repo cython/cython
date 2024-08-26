@@ -848,13 +848,7 @@ static PyObject *__Pyx_PyCode_Replace_For_AddTraceback(PyObject *code, PyObject 
 
     replace = PyObject_GetAttrString(code, "replace");
     if (likely(replace)) {
-        PyObject *result = NULL, *no_args;
-        // We don't use "EMPTY(tuple)" here to keep the code module agnostic.
-        no_args = PyTuple_New(0);
-        if (likely(no_args)) {
-            result = PyObject_Call(replace, no_args, scratch_dict);
-            Py_DECREF(no_args);
-        }
+        PyObject *result = PyObject_Call(replace, EMPTY(tuple), scratch_dict);
         Py_DECREF(replace);
         return result;
     }
