@@ -3145,22 +3145,23 @@ class PyxCodeWriter:
         return result
 
     def putln(self, line, context=None):
-        context = context or self.context
-        if context:
+        if context is None:
+            if self.context is not None:
+                context = self.context
+        if context is not None:
             line = sub_tempita(line, context)
-        self._putln(line)
-
-    def _putln(self, line):
-        self.buffer.write(f"{self.level * '    '}{line}\n")
+        # Avoid indenting empty lines.
+        self.buffer.write(f"{self.level * '    '}{line}\n" if line else "\n")
 
     def put_chunk(self, chunk, context=None):
-        context = context or self.context
-        if context:
+        if context is None:
+            if self.context is not None:
+                context = self.context
+        if context is not None:
             chunk = sub_tempita(chunk, context)
 
-        chunk = textwrap.dedent(chunk)
-        for line in chunk.splitlines():
-            self._putln(line)
+        chunk = _indent_chunk(chunk, self.level * 4)
+        self.buffer.write(chunk)
 
     def insertion_point(self):
         return type(self)(self.buffer.insertion_point(), self.level, self.context)
@@ -3176,6 +3177,66 @@ class PyxCodeWriter:
 
     def __getitem__(self, name):
         return self._insertion_points[name]
+
+
+@cython.final
+@cython.ccall
+def _indent_chunk(chunk: str, indentation_length: cython.int) -> str:
+    """Normalise leading space to the intended indentation and strip empty lines.
+    """
+    assert '\t' not in chunk
+    lines = chunk.splitlines(keepends=True)
+    if not lines:
+        return chunk
+    last_line = lines[-1].rstrip(' ')
+    if last_line:
+        lines[-1] = last_line
+    else:
+        del lines[-1]
+        if not lines:
+            return '\n'
+
+    # Count minimal (non-empty) indentation and strip empty lines.
+    min_indentation: cython.int = len(chunk) + 1
+    line_indentation: cython.int
+    line: str
+    i: cython.int
+    for i, line in enumerate(lines):
+        line_indentation = _count_indentation(line)
+        if line_indentation + 1 == len(line):
+            lines[i] = '\n'
+        elif line_indentation < min_indentation:
+            min_indentation = line_indentation
+
+    if min_indentation > len(chunk):
+        # All empty lines.
+        min_indentation = 0
+
+    if min_indentation < indentation_length:
+        add_indent = ' ' * (indentation_length - min_indentation)
+        lines = [
+            add_indent + line if line != '\n' else '\n'
+            for line in lines
+        ]
+    elif min_indentation > indentation_length:
+        start: cython.int = min_indentation - indentation_length
+        lines = [
+            line[start:] if line != '\n' else '\n'
+            for line in lines
+        ]
+
+    return ''.join(lines)
+
+
+@cython.exceptval(-1)
+@cython.cfunc
+def _count_indentation(s: str) -> cython.int:
+    i: cython.int = 0
+    ch: cython.Py_UCS4
+    for i, ch in enumerate(s):
+        if ch != ' ':
+            break
+    return i
 
 
 class ClosureTempAllocator:
