@@ -10,13 +10,12 @@
 static int __Pyx__ArgTypeTest(PyObject *obj, PyTypeObject *type, const char *name, int exact); /*proto*/
 
 //////////////////// ArgTypeTest ////////////////////
-//@substitute: naming
 
 static int __Pyx__ArgTypeTest(PyObject *obj, PyTypeObject *type, const char *name, int exact)
 {
     __Pyx_TypeName type_name;
     __Pyx_TypeName obj_type_name;
-    PyObject *extra_info = $empty_unicode;
+    PyObject *extra_info = EMPTY(unicode);
     int from_annotation_subclass = 0;
     if (unlikely(!type)) {
         PyErr_SetString(PyExc_SystemError, "Missing type object");

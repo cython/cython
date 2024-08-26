@@ -798,7 +798,6 @@ static CYTHON_INLINE PyObject* __Pyx_PyTuple_FromArray(PyObject *const *src, Py_
 
 
 /////////////// TupleAndListFromArray ///////////////
-//@substitute: naming
 
 #if !CYTHON_COMPILING_IN_CPYTHON && CYTHON_METH_FASTCALL
 static CYTHON_INLINE PyObject *
@@ -807,8 +806,7 @@ __Pyx_PyTuple_FromArray(PyObject *const *src, Py_ssize_t n)
     PyObject *res;
     Py_ssize_t i;
     if (n <= 0) {
-        Py_INCREF($empty_tuple);
-        return $empty_tuple;
+        return __Pyx_NewRef(EMPTY(tuple));
     }
     res = PyTuple_New(n);
     if (unlikely(res == NULL)) return NULL;
@@ -836,8 +834,7 @@ __Pyx_PyTuple_FromArray(PyObject *const *src, Py_ssize_t n)
 {
     PyObject *res;
     if (n <= 0) {
-        Py_INCREF($empty_tuple);
-        return $empty_tuple;
+        return __Pyx_NewRef(EMPTY(tuple));
     }
     res = PyTuple_New(n);
     if (unlikely(res == NULL)) return NULL;
@@ -1193,7 +1190,6 @@ static PyObject *__Pyx_Py3ClassCreate(PyObject *metaclass, PyObject *name, PyObj
                                       PyObject *mkw, int calculate_metaclass, int allow_py2_metaclass); /*proto*/
 
 /////////////// Py3ClassCreate ///////////////
-//@substitute: naming
 //@requires: PyObjectGetAttrStrNoError
 //@requires: CalculateMetaclass
 //@requires: PyObjectFastCall
@@ -1842,7 +1838,6 @@ static int __Pyx_TryUnpackUnboundCMethod(__Pyx_CachedCFunction* target) {
 
 
 /////////////// CallUnboundCMethod0.proto ///////////////
-//@substitute: naming
 
 CYTHON_UNUSED
 static PyObject* __Pyx__CallUnboundCMethod0(__Pyx_CachedCFunction* cfunc, PyObject* self); /*proto*/
@@ -1853,11 +1848,11 @@ static PyObject* __Pyx__CallUnboundCMethod0(__Pyx_CachedCFunction* cfunc, PyObje
     (likely((cfunc)->func) ? \
         (likely((cfunc)->flag == METH_NOARGS) ?  (*((cfunc)->func))(self, NULL) : \
          (likely((cfunc)->flag == METH_FASTCALL) ? \
-            (*(__Pyx_PyCFunctionFast)(void*)(PyCFunction)(cfunc)->func)(self, &$empty_tuple, 0) : \
+            (*(__Pyx_PyCFunctionFast)(void*)(PyCFunction)(cfunc)->func)(self, &EMPTY(tuple), 0) : \
           ((cfunc)->flag == (METH_FASTCALL | METH_KEYWORDS) ? \
-            (*(__Pyx_PyCFunctionFastWithKeywords)(void*)(PyCFunction)(cfunc)->func)(self, &$empty_tuple, 0, NULL) : \
-            (likely((cfunc)->flag == (METH_VARARGS | METH_KEYWORDS)) ?  ((*(PyCFunctionWithKeywords)(void*)(PyCFunction)(cfunc)->func)(self, $empty_tuple, NULL)) : \
-               ((cfunc)->flag == METH_VARARGS ?  (*((cfunc)->func))(self, $empty_tuple) : \
+            (*(__Pyx_PyCFunctionFastWithKeywords)(void*)(PyCFunction)(cfunc)->func)(self, &EMPTY(tuple), 0, NULL) : \
+            (likely((cfunc)->flag == (METH_VARARGS | METH_KEYWORDS)) ?  ((*(PyCFunctionWithKeywords)(void*)(PyCFunction)(cfunc)->func)(self, EMPTY(tuple), NULL)) : \
+               ((cfunc)->flag == METH_VARARGS ?  (*((cfunc)->func))(self, EMPTY(tuple)) : \
                __Pyx__CallUnboundCMethod0(cfunc, self)))))) : \
         __Pyx__CallUnboundCMethod0(cfunc, self))
 #else
@@ -1994,7 +1989,6 @@ static CYTHON_INLINE PyObject* __Pyx_PyObject_FastCallDict(PyObject *func, PyObj
 //@requires: PyObjectCall
 //@requires: PyFunctionFastCall
 //@requires: PyObjectCallMethO
-//@substitute: naming
 
 #if PY_VERSION_HEX < 0x03090000 || CYTHON_COMPILING_IN_LIMITED_API
 static PyObject* __Pyx_PyObject_FastCall_fallback(PyObject *func, PyObject **args, size_t nargs, PyObject *kwargs) {
@@ -2074,7 +2068,7 @@ static CYTHON_INLINE PyObject* __Pyx_PyObject_FastCallDict(PyObject *func, PyObj
     }
 
     if (nargs == 0) {
-        return __Pyx_PyObject_Call(func, $empty_tuple, kwargs);
+        return __Pyx_PyObject_Call(func, EMPTY(tuple), kwargs);
     }
     #if PY_VERSION_HEX >= 0x03090000 && !CYTHON_COMPILING_IN_LIMITED_API
     return PyObject_VectorcallDict(func, args, (size_t)nargs, kwargs);
@@ -2776,6 +2770,7 @@ static PyObject *__Pyx_PyMethod_New(PyObject *func, PyObject *self, PyObject *ty
 // Another wrapping of PyMethod_New that matches the Python3 signature
 #define __Pyx_PyMethod_New2Arg PyMethod_New
 
+
 /////////////// UnicodeConcatInPlace.proto ////////////////
 
 # if CYTHON_COMPILING_IN_CPYTHON
@@ -2802,7 +2797,6 @@ static PyObject *__Pyx_PyMethod_New(PyObject *func, PyObject *self, PyObject *ty
     PyNumber_InPlaceAdd(left, right) : __Pyx_PyUnicode_ConcatInPlace(left, right))
 
 /////////////// UnicodeConcatInPlace ////////////////
-//@substitute: naming
 
 # if CYTHON_COMPILING_IN_CPYTHON
 // copied directly from unicode_object.c "unicode_modifiable

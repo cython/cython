@@ -848,8 +848,7 @@ static PyObject *__Pyx_PyCode_Replace_For_AddTraceback(PyObject *code, PyObject 
 
     replace = PyObject_GetAttrString(code, "replace");
     if (likely(replace)) {
-        PyObject *result;
-        result = PyObject_Call(replace, $empty_tuple, scratch_dict);
+        PyObject *result = PyObject_Call(replace, EMPTY(tuple), scratch_dict);
         Py_DECREF(replace);
         return result;
     }
