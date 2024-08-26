@@ -830,7 +830,8 @@ def _inject_string_constant(output, matchobj):
 
 @add_macro_processor(
     'EMPTY',
-    is_module_specific=True,
+    # As long as we use the same C access macros for these names, they are not module specific.
+    # is_module_specific=True,
     regex=r'EMPTY\((bytes|unicode|tuple)\)',
 )
 def _inject_empty_collection_constant(output, matchobj):
