@@ -3,11 +3,12 @@ cython.declare(PyrexTypes=object, Naming=object, ExprNodes=object, Nodes=object,
                Options=object, UtilNodes=object, LetNode=object,
                LetRefNode=object, TreeFragment=object, EncodedString=object,
                error=object, warning=object, copy=object, hashlib=object, sys=object,
-               _unicode=object)
+               itemgetter=object)
 
 import copy
 import hashlib
 import sys
+from operator import itemgetter
 
 from . import PyrexTypes
 from . import Naming
@@ -2900,23 +2901,29 @@ class AnalyseExpressionsTransform(CythonTransform):
         """
         Build the PEP-626 line table and "bytecode-to-position" mapping used for CodeObjects.
         """
-        positions: list = sorted(self.positions.pop(), reverse=True)
+        # Code can originate from different source files and string code fragments, even within a single function.
+        # Thus, it's not completely correct to just ignore the source files when sorting the line numbers,
+        # but it also doesn't hurt much for the moment. Eventually, we might need different CodeObjects
+        # even within a single function if it uses code from different sources / line number ranges.
+        positions: list = sorted(
+            self.positions.pop(),
+            key=itemgetter(1, 2),  # (line, column)
+            # Build ranges backwards to know the end column before we see the start column in the same line.
+            reverse=True,
+        )
+
+        next_line = -1
+        next_column_in_line = 0
 
         ranges = []
-        line: cython.int
-        next_line: cython.int = -1
-        start_column: cython.int
-        end_column: cython.int
-        next_column: cython.int = 0
-
         for _, line, start_column in positions:
-            end_column = next_column if line == next_line else start_column + 1
-            ranges.append((line, line, start_column, end_column))
-            next_line, next_column = line, start_column
+            ranges.append((line, line, start_column, next_column_in_line if line == next_line else start_column + 1))
+            next_line, next_column_in_line = line, start_column
 
         ranges.reverse()
         func_node.node_positions = ranges
 
+        positions.reverse()
         i: cython.Py_ssize_t
         func_node.local_scope.node_positions_to_offset = {
             position: i
