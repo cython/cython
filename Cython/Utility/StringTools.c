@@ -443,7 +443,6 @@ static CYTHON_INLINE PyObject* __Pyx_decode_c_string(
 /////////////// decode_c_string ///////////////
 //@requires: IncludeStringH
 //@requires: decode_c_string_utf16
-//@substitute: naming
 
 /* duplicate code to avoid calling strlen() if start >= 0 and stop >= 0 */
 static CYTHON_INLINE PyObject* __Pyx_decode_c_string(
@@ -468,7 +467,7 @@ static CYTHON_INLINE PyObject* __Pyx_decode_c_string(
             stop += length;
     }
     if (unlikely(stop <= start))
-        return __Pyx_NewRef(CGLOBAL($empty_unicode));
+        return __Pyx_NewRef(EMPTY(unicode));
     length = stop - start;
     cstring += start;
     if (decode_func) {
@@ -487,7 +486,6 @@ static CYTHON_INLINE PyObject* __Pyx_decode_c_bytes(
 
 /////////////// decode_c_bytes ///////////////
 //@requires: decode_c_string_utf16
-//@substitute: naming
 
 static CYTHON_INLINE PyObject* __Pyx_decode_c_bytes(
          const char* cstring, Py_ssize_t length, Py_ssize_t start, Py_ssize_t stop,
@@ -505,7 +503,7 @@ static CYTHON_INLINE PyObject* __Pyx_decode_c_bytes(
     if (stop > length)
         stop = length;
     if (unlikely(stop <= start))
-        return __Pyx_NewRef(CGLOBAL($empty_unicode));
+        return __Pyx_NewRef(EMPTY(unicode));
     length = stop - start;
     cstring += start;
     if (decode_func) {
@@ -564,7 +562,6 @@ static CYTHON_INLINE PyObject* __Pyx_PyUnicode_Substring(
             PyObject* text, Py_ssize_t start, Py_ssize_t stop);
 
 /////////////// PyUnicode_Substring ///////////////
-//@substitute: naming
 
 static CYTHON_INLINE PyObject* __Pyx_PyUnicode_Substring(
             PyObject* text, Py_ssize_t start, Py_ssize_t stop) {
@@ -586,7 +583,7 @@ static CYTHON_INLINE PyObject* __Pyx_PyUnicode_Substring(
     else if (stop > length)
         stop = length;
     if (stop <= start)
-        return __Pyx_NewRef(CGLOBAL($empty_unicode));
+        return __Pyx_NewRef(EMPTY(unicode));
     if (start == 0 && stop == length)
         return __Pyx_NewRef(text);
 #if CYTHON_COMPILING_IN_LIMITED_API
@@ -903,7 +900,6 @@ static PyObject* __Pyx_PyUnicode_Join(PyObject** values, Py_ssize_t value_count,
 
 /////////////// JoinPyUnicode ///////////////
 //@requires: IncludeStringH
-//@substitute: naming
 
 static PyObject* __Pyx_PyUnicode_Join(PyObject** values, Py_ssize_t value_count, Py_ssize_t result_ulength,
                                       Py_UCS4 max_char) {
@@ -981,7 +977,7 @@ bad:
         Py_INCREF(values[i]);
     }
 
-    result = PyUnicode_Join(CGLOBAL($empty_unicode), value_tuple);
+    result = PyUnicode_Join(EMPTY(unicode), value_tuple);
 
 bad:
     Py_DECREF(value_tuple);
@@ -1256,4 +1252,3 @@ static CYTHON_INLINE PyObject* __Pyx_PyStr_Str(PyObject *obj) {
 
 #define __Pyx_PyObject_Str(obj) \
     (likely(PyString_CheckExact(obj)) ? __Pyx_NewRef(obj) : PyObject_Str(obj))
-

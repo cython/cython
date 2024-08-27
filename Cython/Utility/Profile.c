@@ -617,7 +617,7 @@ static int __Pyx_TraceSetupAndCall(PyCodeObject** code,
         *frame = PyFrame_New(
             tstate,                          /*PyThreadState *tstate*/
             *code,                           /*PyCodeObject *code*/
-            CGLOBAL($moddict_cname),         /*PyObject *globals*/
+            NAMED_CGLOBAL(moddict_cname),    /*PyObject *globals*/
             0                                /*PyObject *locals*/
         );
         if (*frame == NULL) return 0;

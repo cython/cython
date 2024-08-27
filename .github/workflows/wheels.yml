@@ -54,7 +54,7 @@ jobs:
     if: >-
       github.event_name == 'push' ||
       github.event_name == 'release' ||
-      github.event_name == 'schedule' ||
+      (github.event_name == 'schedule' && github.repository == 'cython/cython') ||
       github.event_name == 'workflow_dispatch' ||
       github.event_name == 'push' ||
       (github.event_name == 'pull_request' &&
@@ -87,7 +87,7 @@ jobs:
     if: >-
       github.event_name == 'push' ||
       github.event_name == 'release' ||
-      github.event_name == 'schedule' ||
+      (github.event_name == 'schedule' && github.repository == 'cython/cython') ||
       github.event_name == 'workflow_dispatch' ||
       (github.event_name == 'pull_request' &&
       contains(github.event.pull_request.labels.*.name, 'Build System'))
@@ -138,7 +138,7 @@ jobs:
     if: >-
       github.event_name == 'push' ||
       github.event_name == 'release' ||
-      github.event_name == 'schedule' ||
+      (github.event_name == 'schedule' && github.repository == 'cython/cython') ||
       github.event_name == 'workflow_dispatch' ||
       (github.event_name == 'pull_request' &&
       contains(github.event.pull_request.labels.*.name, 'Build System'))

@@ -806,8 +806,7 @@ __Pyx_PyTuple_FromArray(PyObject *const *src, Py_ssize_t n)
     PyObject *res;
     Py_ssize_t i;
     if (n <= 0) {
-        Py_INCREF($empty_tuple);
-        return $empty_tuple;
+        return __Pyx_NewRef(EMPTY(tuple));
     }
     res = PyTuple_New(n);
     if (unlikely(res == NULL)) return NULL;
@@ -835,8 +834,7 @@ __Pyx_PyTuple_FromArray(PyObject *const *src, Py_ssize_t n)
 {
     PyObject *res;
     if (n <= 0) {
-        Py_INCREF(CGLOBAL($empty_tuple));
-        return CGLOBAL($empty_tuple);
+        return __Pyx_NewRef(EMPTY(tuple));
     }
     res = PyTuple_New(n);
     if (unlikely(res == NULL)) return NULL;
@@ -1192,7 +1190,6 @@ static PyObject *__Pyx_Py3ClassCreate(PyObject *metaclass, PyObject *name, PyObj
                                       PyObject *mkw, int calculate_metaclass, int allow_py2_metaclass); /*proto*/
 
 /////////////// Py3ClassCreate ///////////////
-//@substitute: naming
 //@requires: PyObjectGetAttrStrNoError
 //@requires: CalculateMetaclass
 //@requires: PyObjectFastCall
@@ -1352,7 +1349,7 @@ static PyObject *__Pyx_GetBuiltinName(PyObject *name); /*proto*/
 //@requires: PyObjectGetAttrStrNoError
 
 static PyObject *__Pyx_GetBuiltinName(PyObject *name) {
-    PyObject* result = __Pyx_PyObject_GetAttrStrNoError(CGLOBAL($builtins_cname), name);
+    PyObject* result = __Pyx_PyObject_GetAttrStrNoError(NAMED_CGLOBAL(builtins_cname), name);
     if (unlikely(!result) && !PyErr_Occurred()) {
         PyErr_Format(PyExc_NameError,
             "name '%U' is not defined", name);
@@ -1422,10 +1419,13 @@ static int __Pyx_SetNewInClass(PyObject *ns, PyObject *name, PyObject *value) {
 #if !CYTHON_COMPILING_IN_LIMITED_API
         staticnew = PyStaticMethod_New(value);
 #else
-        PyObject *builtins, *staticmethod;
+        PyObject *builtins, *staticmethod_str, *staticmethod;
         builtins = PyEval_GetBuiltins(); // borrowed
         if (!builtins) return -1;
-        staticmethod = PyObject_GetAttrString(builtins, "staticmethod");
+        staticmethod_str = PyUnicode_FromStringAndSize("staticmethod", 12);
+        if (!staticmethod_str) return -1;
+        staticmethod = PyObject_GetItem(builtins, staticmethod_str);
+        Py_DECREF(staticmethod_str);
         if (!staticmethod) return -1;
         staticnew = PyObject_CallFunctionObjArgs(staticmethod, value, NULL);
         Py_DECREF(staticmethod);
@@ -1447,7 +1447,7 @@ static int __Pyx_SetNewInClass(PyObject *ns, PyObject *name, PyObject *value) {
 #define __Pyx_GetModuleGlobalName(var, name)  do { \
     static PY_UINT64_T __pyx_dict_version = 0; \
     static PyObject *__pyx_dict_cached_value = NULL; \
-    (var) = (likely(__pyx_dict_version == __PYX_GET_DICT_VERSION(CGLOBAL($moddict_cname)))) ? \
+    (var) = (likely(__pyx_dict_version == __PYX_GET_DICT_VERSION(NAMED_CGLOBAL(moddict_cname)))) ? \
         (likely(__pyx_dict_cached_value) ? __Pyx_NewRef(__pyx_dict_cached_value) : __Pyx_GetBuiltinName(name)) : \
         __Pyx__GetModuleGlobalName(name, &__pyx_dict_version, &__pyx_dict_cached_value); \
 } while(0)
@@ -1485,8 +1485,8 @@ static CYTHON_INLINE PyObject *__Pyx__GetModuleGlobalName(PyObject *name)
     }
 #elif !CYTHON_AVOID_BORROWED_REFS && !CYTHON_AVOID_THREAD_UNSAFE_BORROWED_REFS
     // Identifier names are always interned and have a pre-calculated hash value.
-    result = _PyDict_GetItem_KnownHash(CGLOBAL($moddict_cname), name, ((PyASCIIObject *) name)->hash);
-    __PYX_UPDATE_DICT_CACHE(CGLOBAL($moddict_cname), result, *dict_cached_value, *dict_version)
+    result = _PyDict_GetItem_KnownHash(NAMED_CGLOBAL(moddict_cname), name, ((PyASCIIObject *) name)->hash);
+    __PYX_UPDATE_DICT_CACHE(NAMED_CGLOBAL(moddict_cname), result, *dict_cached_value, *dict_version)
     if (likely(result)) {
         return __Pyx_NewRef(result);
     } else if (unlikely(PyErr_Occurred())) {
@@ -1499,8 +1499,8 @@ static CYTHON_INLINE PyObject *__Pyx__GetModuleGlobalName(PyObject *name)
         return result;
     }
 #else
-    result = PyObject_GetItem(CGLOBAL($moddict_cname), name);
-    __PYX_UPDATE_DICT_CACHE(CGLOBAL($moddict_cname), result, *dict_cached_value, *dict_version)
+    result = PyObject_GetItem(NAMED_CGLOBAL(moddict_cname), name);
+    __PYX_UPDATE_DICT_CACHE(NAMED_CGLOBAL(moddict_cname), result, *dict_cached_value, *dict_version)
     if (likely(result)) {
         return __Pyx_NewRef(result);
     }
@@ -1849,11 +1849,11 @@ static PyObject* __Pyx__CallUnboundCMethod0(__Pyx_CachedCFunction* cfunc, PyObje
     (likely((cfunc)->func) ? \
         (likely((cfunc)->flag == METH_NOARGS) ?  (*((cfunc)->func))(self, NULL) : \
          (likely((cfunc)->flag == METH_FASTCALL) ? \
-            (*(__Pyx_PyCFunctionFast)(void*)(PyCFunction)(cfunc)->func)(self, &CGLOBAL($empty_tuple), 0) : \
+            (*(__Pyx_PyCFunctionFast)(void*)(PyCFunction)(cfunc)->func)(self, &EMPTY(tuple), 0) : \
           ((cfunc)->flag == (METH_FASTCALL | METH_KEYWORDS) ? \
-            (*(__Pyx_PyCFunctionFastWithKeywords)(void*)(PyCFunction)(cfunc)->func)(self, &CGLOBAL($empty_tuple), 0, NULL) : \
-            (likely((cfunc)->flag == (METH_VARARGS | METH_KEYWORDS)) ?  ((*(PyCFunctionWithKeywords)(void*)(PyCFunction)(cfunc)->func)(self, CGLOBAL($empty_tuple), NULL)) : \
-               ((cfunc)->flag == METH_VARARGS ?  (*((cfunc)->func))(self, CGLOBAL($empty_tuple)) : \
+            (*(__Pyx_PyCFunctionFastWithKeywords)(void*)(PyCFunction)(cfunc)->func)(self, &EMPTY(tuple), 0, NULL) : \
+            (likely((cfunc)->flag == (METH_VARARGS | METH_KEYWORDS)) ?  ((*(PyCFunctionWithKeywords)(void*)(PyCFunction)(cfunc)->func)(self, EMPTY(tuple), NULL)) : \
+               ((cfunc)->flag == METH_VARARGS ?  (*((cfunc)->func))(self, EMPTY(tuple)) : \
                __Pyx__CallUnboundCMethod0(cfunc, self)))))) : \
         __Pyx__CallUnboundCMethod0(cfunc, self))
 #else
@@ -1990,7 +1990,6 @@ static CYTHON_INLINE PyObject* __Pyx_PyObject_FastCallDict(PyObject *func, PyObj
 //@requires: PyObjectCall
 //@requires: PyFunctionFastCall
 //@requires: PyObjectCallMethO
-//@substitute: naming
 
 #if PY_VERSION_HEX < 0x03090000 || CYTHON_COMPILING_IN_LIMITED_API
 static PyObject* __Pyx_PyObject_FastCall_fallback(PyObject *func, PyObject **args, size_t nargs, PyObject *kwargs) {
@@ -2070,7 +2069,7 @@ static CYTHON_INLINE PyObject* __Pyx_PyObject_FastCallDict(PyObject *func, PyObj
     }
 
     if (nargs == 0) {
-        return __Pyx_PyObject_Call(func, CGLOBAL($empty_tuple), kwargs);
+        return __Pyx_PyObject_Call(func, EMPTY(tuple), kwargs);
     }
     #if PY_VERSION_HEX >= 0x03090000 && !CYTHON_COMPILING_IN_LIMITED_API
     return PyObject_VectorcallDict(func, args, (size_t)nargs, kwargs);
@@ -2210,12 +2209,52 @@ static PyObject* __Pyx_PyObject_CallMethod1(PyObject* obj, PyObject* method_name
 
 
 /////////////// tp_new.proto ///////////////
+//@requires: ModuleSetupCode.c::GetRuntimeVersion
 
 #define __Pyx_tp_new(type_obj, args) __Pyx_tp_new_kwargs(type_obj, args, NULL)
+#if CYTHON_COMPILING_IN_LIMITED_API && __PYX_LIMITED_VERSION_HEX < 0x030A0000
+static PyObject* __Pyx_tp_new_fallback(PyObject* type_obj, PyObject* args, PyObject* kwargs); /*proto*/
+#endif
 static CYTHON_INLINE PyObject* __Pyx_tp_new_kwargs(PyObject* type_obj, PyObject* args, PyObject* kwargs) {
-    return (PyObject*) (((PyTypeObject*)type_obj)->tp_new((PyTypeObject*)type_obj, args, kwargs));
+    newfunc tp_new = __Pyx_PyType_TryGetSlot((PyTypeObject*)type_obj, tp_new, newfunc);
+#if CYTHON_COMPILING_IN_LIMITED_API && __PYX_LIMITED_VERSION_HEX < 0x030A0000
+    if (!tp_new) return __Pyx_tp_new_fallback(type_obj, args, kwargs);
+#else
+    assert(tp_new != NULL);
+#endif
+    return tp_new((PyTypeObject*)type_obj, args, kwargs);
 }
 
+/////////////// tp_new ///////////////
+
+#if CYTHON_COMPILING_IN_LIMITED_API && __PYX_LIMITED_VERSION_HEX < 0x030A0000
+static PyObject* __Pyx_tp_new_fallback(PyObject* type_obj, PyObject* args, PyObject* kwargs) {
+    PyObject *new_func = NULL, *new_args = NULL, *obj;
+    Py_ssize_t i, nargs = PyTuple_Size(args);
+
+    if (unlikely(nargs < 0)) goto bad;
+    new_args = PyTuple_New(nargs + 1);
+    if (unlikely(!new_args)) goto bad;
+    for (i = 0; i < nargs + 1; i++) {
+        PyObject *item = (i == 0) ? type_obj : PyTuple_GetItem(args, i - 1);
+        if (unlikely(!item)) goto bad;
+        Py_INCREF(item);
+        if (unlikely(PyTuple_SetItem(new_args, i, item)) < 0) goto bad;
+    }
+
+    new_func = PyObject_GetAttrString(type_obj, "__new__");
+    if (unlikely(!new_func)) goto bad;
+    obj = PyObject_Call(new_func, new_args, kwargs);
+    Py_DECREF(new_func);
+    Py_DECREF(new_args);
+    return obj;
+
+ bad:
+    Py_XDECREF(new_func);
+    Py_XDECREF(new_args);
+    return NULL;
+}
+#endif
 
 /////////////// PyObjectCall.proto ///////////////
 
@@ -2732,6 +2771,7 @@ static PyObject *__Pyx_PyMethod_New(PyObject *func, PyObject *self, PyObject *ty
 // Another wrapping of PyMethod_New that matches the Python3 signature
 #define __Pyx_PyMethod_New2Arg PyMethod_New
 
+
 /////////////// UnicodeConcatInPlace.proto ////////////////
 
 # if CYTHON_COMPILING_IN_CPYTHON
@@ -2758,7 +2798,6 @@ static PyObject *__Pyx_PyMethod_New(PyObject *func, PyObject *self, PyObject *ty
     PyNumber_InPlaceAdd(left, right) : __Pyx_PyUnicode_ConcatInPlace(left, right))
 
 /////////////// UnicodeConcatInPlace ////////////////
-//@substitute: naming
 
 # if CYTHON_COMPILING_IN_CPYTHON
 // copied directly from unicode_object.c "unicode_modifiable

@@ -1583,7 +1583,7 @@ __Pyx_Coroutine_get_frame(__pyx_CoroutineObject *self, void *context)
         frame = (PyObject *) PyFrame_New(
             PyThreadState_Get(),            /*PyThreadState *tstate,*/
             (PyCodeObject*) self->gi_code,  /*PyCodeObject *code,*/
-            CGLOBAL($moddict_cname),                 /*PyObject *globals,*/
+            NAMED_CGLOBAL(moddict_cname),   /*PyObject *globals,*/
             0                               /*PyObject *locals*/
         );
         if (unlikely(!frame))

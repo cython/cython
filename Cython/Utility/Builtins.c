@@ -19,7 +19,7 @@ static PyObject* __Pyx_Globals(void); /*proto*/
 // access requires a rewrite as a dedicated class.
 
 static PyObject* __Pyx_Globals(void) {
-    return __Pyx_NewRef(CGLOBAL($moddict_cname));
+    return __Pyx_NewRef(NAMED_CGLOBAL(moddict_cname));
 }
 
 //////////////////// PyExecGlobals.proto ////////////////////
@@ -30,7 +30,7 @@ static PyObject* __Pyx_PyExecGlobals(PyObject*);
 //@requires: PyExec
 
 static PyObject* __Pyx_PyExecGlobals(PyObject* code) {
-    return __Pyx_PyExec2(code, CGLOBAL($moddict_cname));
+    return __Pyx_PyExec2(code, NAMED_CGLOBAL(moddict_cname));
 }
 
 //////////////////// PyExec.proto ////////////////////
@@ -52,7 +52,7 @@ static PyObject* __Pyx_PyExec3(PyObject* o, PyObject* globals, PyObject* locals)
 #endif
 
     if (!globals || globals == Py_None) {
-        globals = CGLOBAL($moddict_cname);
+        globals = NAMED_CGLOBAL(moddict_cname);
     }
 #if !CYTHON_COMPILING_IN_LIMITED_API
     // In Limited API we just use exec builtin which already has this
@@ -615,7 +615,7 @@ static CYTHON_INLINE int __Pyx_PySet_Update(PyObject* set, PyObject* it) {
 ///////////////// memoryview_get_from_buffer.proto ////////////////////
 
 // buffer is in limited api from Py3.11
-#if !CYTHON_COMPILING_IN_LIMITED_API || CYTHON_LIMITED_API >= 0x030b0000
+#if !CYTHON_COMPILING_IN_LIMITED_API || __PYX_LIMITED_VERSION_HEX >= 0x030b0000
 #define __Pyx_PyMemoryView_Get_{{name}}(o) PyMemoryView_GET_BUFFER(o)->{{name}}
 #else
 {{py:
@@ -629,7 +629,7 @@ static {{out_type}} __Pyx_PyMemoryView_Get_{{name}}(PyObject *obj); /* proto */
 
 ////////////// memoryview_get_from_buffer /////////////////////////
 
-#if !CYTHON_COMPILING_IN_LIMITED_API || CYTHON_LIMITED_API >= 0x030b0000
+#if !CYTHON_COMPILING_IN_LIMITED_API || __PYX_LIMITED_VERSION_HEX >= 0x030b0000
 #else
 {{py:
 out_types = dict(

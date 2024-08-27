@@ -168,7 +168,6 @@ static PyObject *__Pyx_Import(PyObject *name, PyObject *from_list, int level); /
 /////////////// Import ///////////////
 //@requires: ObjectHandling.c::PyObjectGetAttrStr
 //@requires:StringTools.c::IncludeStringH
-//@substitute: naming
 
 static PyObject *__Pyx_Import(PyObject *name, PyObject *from_list, int level) {
     PyObject *module = 0;
@@ -181,7 +180,7 @@ static PyObject *__Pyx_Import(PyObject *name, PyObject *from_list, int level) {
         if (strchr(__Pyx_MODULE_NAME, '.') != (0)) {
             /* try package relative import first */
             module = PyImport_ImportModuleLevelObject(
-                name, CGLOBAL($moddict_cname), empty_dict, from_list, 1);
+                name, NAMED_CGLOBAL(moddict_cname), empty_dict, from_list, 1);
             if (unlikely(!module)) {
                 if (unlikely(!PyErr_ExceptionMatches(PyExc_ImportError)))
                     goto bad;
@@ -192,7 +191,7 @@ static PyObject *__Pyx_Import(PyObject *name, PyObject *from_list, int level) {
     }
     if (!module) {
         module = PyImport_ImportModuleLevelObject(
-            name, CGLOBAL($moddict_cname), empty_dict, from_list, level);
+            name, NAMED_CGLOBAL(moddict_cname), empty_dict, from_list, level);
     }
 bad:
     Py_XDECREF(empty_dict);
@@ -691,7 +690,7 @@ static int __Pyx_ExportVoidPtr(PyObject *name, void *p, const char *sig) {
     PyObject *d;
     PyObject *cobj = 0;
 
-    d = PyDict_GetItem(CGLOBAL($moddict_cname), PYIDENT("$api_name"));
+    d = PyDict_GetItem(NAMED_CGLOBAL(moddict_cname), PYIDENT("$api_name"));
     Py_XINCREF(d);
     if (!d) {
         d = PyDict_New();

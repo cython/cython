@@ -78,10 +78,10 @@ if sys.platform == 'win32':
     opt, pattern, file = sys.argv[1:]
     assert opt == '-c'
     count = 0
-    regex = re.compile(pattern)
+    matches = re.compile(pattern).search
     with open(file) as fid:
         for line in fid:
-            if regex.search(line):
+            if matches(line):
                 count += 1
     print(count)
     sys.exit(count == 0)
