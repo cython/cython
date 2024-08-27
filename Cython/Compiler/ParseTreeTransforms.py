@@ -9,6 +9,7 @@ cython.declare(PyrexTypes=object, Naming=object, ExprNodes=object, Nodes=object,
 import copy
 import hashlib
 import sys
+import re
 
 from . import PyrexTypes
 from . import Naming
@@ -906,10 +907,10 @@ class InterpretCompilerDirectives(CythonTransform):
                 error(pos, "Invalid directive: '%s'." % (directive,))
             return True
 
-    def _check_valid_cython_module(self, pos, module_name):
-        if not module_name.startswith("cython."):
+    def _check_valid_cython_module(self, pos, cython_name, rest_of_name):
+        if not rest_of_name.startswith("."):
             return
-        submodule = module_name.split('.', 2)[1]
+        submodule = rest_of_name.split('.', 2)[1]
         if submodule in self.valid_cython_submodules:
             return
 
@@ -925,8 +926,8 @@ class InterpretCompilerDirectives(CythonTransform):
             """.splitlines()[:-1]
         ]
         for wrong, correct in hints:
-            if module_name.startswith("cython." + wrong):
-                extra = "Did you mean 'cython.%s' ?" % correct
+            if rest_of_name.startswith("." + wrong):
+                extra = f"Did you mean '{cython_name}.{correct}' ?"
                 break
         if not extra:
             is_simple_cython_name = submodule in Options.directive_types
@@ -936,10 +937,10 @@ class InterpretCompilerDirectives(CythonTransform):
                 from .. import Shadow
                 is_simple_cython_name = hasattr(Shadow, submodule)
             if is_simple_cython_name:
-                extra = "Instead, use 'import cython' and then 'cython.%s'." % submodule
+                extra = f"Instead, use 'import {cython_name}' and then '{cython_name}.{submodule}'."
 
         error(pos, "'%s' is not a valid cython.* module%s%s" % (
-            module_name,
+            cython_name + rest_of_name,
             ". " if extra else "",
             extra,
         ))
@@ -973,81 +974,99 @@ class InterpretCompilerDirectives(CythonTransform):
                 name in self.special_methods or
                 PyrexTypes.parse_basic_type(name))
 
-    def is_parallel_directive(self, full_name, pos):
+    def is_parallel_directive(self, cython_name, name, pos):
         """
-        Checks to see if fullname (e.g. cython.parallel.prange) is a valid
+        Checks to see if name (e.g. parallel.prange) is a valid
         parallel directive. If it is a star import it also updates the
         parallel_directives.
         """
-        result = (full_name + ".").startswith("cython.parallel.")
+        result = (name + ".").startswith("parallel.")
 
         if result:
-            directive = full_name.split('.')
-            if full_name == "cython.parallel":
-                self.parallel_directives["parallel"] = "cython.parallel"
-            elif full_name == "cython.parallel.*":
+            directive = name.split('.')
+            if name == "parallel":
+                self.parallel_directives["parallel"] = f"cython.parallel"
+            elif name == "parallel.*":
                 for name in self.valid_parallel_directives:
-                    self.parallel_directives[name] = "cython.parallel.%s" % name
-            elif (len(directive) != 3 or
+                    self.parallel_directives[name] = f"cython.parallel.%s" % name
+            elif (len(directive) != 2 or
                   directive[-1] not in self.valid_parallel_directives):
-                error(pos, "No such directive: %s" % full_name)
+                error(pos, f"No such directive: {cython_name}.{name}")
 
         return result
 
+    # "cython", possibly followed by ".cython_<int>_<int>"
+    # not directly followed by a letter, number or underscore.
+    _maybe_versioned_re = re.compile(r"^cython([.]cython_\d+_\d+)?(?![a-zA-Z0-9_])")
+
+    def _process_cython_module_name(self, name):
+        m = re.match(self._maybe_versioned_re, name)
+        if not m:
+            return None
+        cython_name = m.group()
+        rest = name[m.end():]
+        return cython_name, rest
+
     def visit_CImportStatNode(self, node):
-        module_name = node.module_name
-        if module_name == "cython.cimports":
+        match = self._process_cython_module_name(node.module_name)
+        if match is None:
+            return node
+        cython_name, rest_of_name = match
+
+        if rest_of_name == ".cimports":
             error(node.pos, "Cannot cimport the 'cython.cimports' package directly, only submodules.")
-        if module_name.startswith("cython.cimports."):
+        if rest_of_name.startswith(".cimports."):
             if node.as_name and node.as_name != 'cython':
-                node.module_name = module_name[len("cython.cimports."):]
+                node.module_name = node.module_name[(len(cython_name)+len(".cimports.")):]
                 return node
             error(node.pos,
                   "Python cimports must use 'from cython.cimports... import ...'"
                   " or 'import ... as ...', not just 'import ...'")
 
-        if module_name == "cython":
-            self.cython_module_names.add(node.as_name or "cython")
-        elif module_name.startswith("cython."):
-            if module_name.startswith("cython.parallel."):
+        if not rest_of_name:
+            self.cython_module_names.add(node.as_name or cython_name)
+        elif rest_of_name.startswith("."):
+            if rest_of_name.startswith(".parallel."):
                 error(node.pos, node.module_name + " is not a module")
             else:
-                self._check_valid_cython_module(node.pos, module_name)
+                self._check_valid_cython_module(node.pos, cython_name, rest_of_name)
 
-            if module_name == "cython.parallel":
+            if rest_of_name == ".parallel":
                 if node.as_name and node.as_name != "cython":
-                    self.parallel_directives[node.as_name] = module_name
+                    self.parallel_directives[node.as_name] = "cython.parallel"
                 else:
-                    self.cython_module_names.add("cython")
+                    self.cython_module_names.add(cython_name)
                     self.parallel_directives[
-                                    "cython.parallel"] = module_name
+                                    f"{cython_name}.parallel"] = "cython.parallel"
             elif node.as_name:
-                self.directive_names[node.as_name] = module_name[7:]
+                self.directive_names[node.as_name] = rest_of_name[1:]
             else:
-                self.cython_module_names.add("cython")
+                self.cython_module_names.add(cython_name)
             # if this cimport was a compiler directive, we don't
             # want to leave the cimport node sitting in the tree
             return None
         return node
 
     def visit_FromCImportStatNode(self, node):
-        module_name = node.module_name
-        if module_name == "cython.cimports" or module_name.startswith("cython.cimports."):
+        match = self._process_cython_module_name(node.module_name)
+        if match is None:
+            return node
+        cython_name, rest_of_name = match
+
+        if rest_of_name == ".cimports" or rest_of_name.startswith(".cimports."):
             # only supported for convenience
             return self._create_cimport_from_import(
-                node.pos, module_name, node.relative_level, node.imported_names)
-        elif not node.relative_level and (
-                module_name == "cython" or module_name.startswith("cython.")):
-            self._check_valid_cython_module(node.pos, module_name)
-            submodule = (module_name + ".")[7:]
+                node.pos, rest_of_name, node.relative_level, node.imported_names)
+        elif not node.relative_level:
+            self._check_valid_cython_module(node.pos, cython_name, rest_of_name)
+            submodule = (rest_of_name + ".")[1:]
             newimp = []
             for pos, name, as_name in node.imported_names:
                 full_name = submodule + name
-                qualified_name = "cython." + full_name
-                if self.is_parallel_directive(qualified_name, node.pos):
+                if self.is_parallel_directive(cython_name, full_name, node.pos):
                     # from cython cimport parallel, or
                     # from cython.parallel cimport parallel, prange, ...
-                    self.parallel_directives[as_name or name] = qualified_name
+                    self.parallel_directives[as_name or name] = f"cython.{full_name}"
                 elif self.is_cython_directive(full_name):
                     self.directive_names[as_name or name] = full_name
                 elif full_name in ['dataclasses', 'typing']:
@@ -1065,23 +1084,27 @@ class InterpretCompilerDirectives(CythonTransform):
 
     def visit_FromImportStatNode(self, node):
         import_node = node.module
-        module_name = import_node.module_name.value
-        if module_name == "cython.cimports" or module_name.startswith("cython.cimports."):
+
+        match = self._process_cython_module_name(import_node.module_name.value)
+        if match is None:
+            return node
+        cython_name, rest_of_name = match
+
+        if rest_of_name == ".cimports" or rest_of_name.startswith(".cimports."):
             imported_names = []
             for name, name_node in node.items:
                 imported_names.append(
                     (name_node.pos, name, None if name == name_node.name else name_node.name))
             return self._create_cimport_from_import(
-                node.pos, module_name, import_node.level, imported_names)
-        elif module_name == "cython" or module_name.startswith("cython."):
-            self._check_valid_cython_module(import_node.module_name.pos, module_name)
-            submodule = (module_name + ".")[7:]
+                node.pos, rest_of_name, import_node.level, imported_names)
+        else:
+            self._check_valid_cython_module(import_node.module_name.pos, cython_name, rest_of_name)
+            submodule = (rest_of_name + ".")[1:]
             newimp = []
             for name, name_node in node.items:
                 full_name = submodule + name
-                qualified_name = "cython." + full_name
-                if self.is_parallel_directive(qualified_name, node.pos):
-                    self.parallel_directives[name_node.name] = qualified_name
+                if self.is_parallel_directive(cython_name, full_name, node.pos):
+                    self.parallel_directives[name_node.name] = f"cython.{full_name}"
                 elif self.is_cython_directive(full_name):
                     self.directive_names[name_node.name] = full_name
                 else:
@@ -1091,9 +1114,11 @@ class InterpretCompilerDirectives(CythonTransform):
             node.items = newimp
         return node
 
-    def _create_cimport_from_import(self, node_pos, module_name, level, imported_names):
-        if module_name == "cython.cimports" or module_name.startswith("cython.cimports."):
-            module_name = EncodedString(module_name[len("cython.cimports."):])  # may be empty
+    def _create_cimport_from_import(self, node_pos, rest_of_name, level, imported_names):
+        if rest_of_name == ".cimports" or rest_of_name.startswith(".cimports."):
+            module_name = EncodedString(rest_of_name[len(".cimports."):])  # may be empty
+        else:
+            assert False, rest_of_name
 
         if module_name:
             # from cython.cimports.a.b import x, y, z  =>  from a.b cimport x, y, z
@@ -1115,7 +1140,8 @@ class InterpretCompilerDirectives(CythonTransform):
     def visit_SingleAssignmentNode(self, node):
         if isinstance(node.rhs, ExprNodes.ImportNode):
             module_name = node.rhs.module_name.value
-            if module_name != "cython" and not module_name.startswith("cython."):
+            match = self._process_cython_module_name(module_name)
+            if match is None:
                 return node
 
             node = Nodes.CImportStatNode(node.pos, module_name=module_name, as_name=node.lhs.name)
@@ -1140,6 +1166,13 @@ class InterpretCompilerDirectives(CythonTransform):
         return node
 
     def visit_AttributeNode(self, node):
+        if node.obj.is_name:
+            full_name = f"{node.obj.name}.{node.attribute}"
+            if full_name in self.cython_module_names:
+                nn = ExprNodes.NameNode(node.pos, name=EncodedString(full_name))
+                self.visit(nn)
+                return nn
+
         self.visitchildren(node)
         if node.as_cython_attribute() == "compiled":
             return ExprNodes.BoolNode(node.pos, value=True)  # replace early so unused branches can be dropped

@@ -154,10 +154,14 @@ class TestInterpretCompilerDirectives(TransformTest):
         cimport cython.parallel as par
         from cython cimport parallel as par2
         from cython cimport parallel
+        from cython.cython_3_1 cimport parallel as par3
+        cimport cython.cython_3_1.parallel
+        cimport cython.cython_3_1.parallel as par4
 
         from cython.parallel cimport threadid as tid
         from cython.parallel cimport threadavailable as tavail
         from cython.parallel cimport prange
+        from cython.cython_3_1.parallel cimport prange as p_range
     """
 
     expected_directives_dict = {
@@ -165,10 +169,14 @@ class TestInterpretCompilerDirectives(TransformTest):
         'par': 'cython.parallel',
         'par2': 'cython.parallel',
         'parallel': 'cython.parallel',
+        'par3': 'cython.parallel',
+        'cython.cython_3_1.parallel': 'cython.parallel',
+        'par4': 'cython.parallel',
 
         "tid": "cython.parallel.threadid",
         "tavail": "cython.parallel.threadavailable",
         "prange": "cython.parallel.prange",
+        "p_range": "cython.parallel.prange",
     }
 
 
