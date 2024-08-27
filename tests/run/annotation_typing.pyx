@@ -434,7 +434,7 @@ _WARNINGS = """
 64:44: Found C type name 'long' in a Python annotation. Did you mean to use 'cython.long'?
 64:44: Unknown type declaration 'long' in annotation, ignoring
 # BUG:
-64:6: 'pytypes_cpdef' redeclared
+64:0: 'pytypes_cpdef' redeclared
 165:0: 'struct_io' redeclared
 200:0: 'struct_convert' redeclared
 219:0: 'exception_default' redeclared

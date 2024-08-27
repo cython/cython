@@ -95,6 +95,7 @@ cdef cython.integral func_with_fused_extension(fused3 foo):
 
 func_with_fused_extension(5)
 
+
 _ERRORS = u"""
 11:15: fused_type does not take keyword arguments
 16:33: Type specified multiple times
@@ -106,20 +107,20 @@ _ERRORS = u"""
 30:16: Call with wrong number of arguments (expected 2, got 3)
 37:6: Invalid base type for memoryview slice: int *
 40:0: Fused lambdas not allowed
-43:5: Fused types not allowed here
+43:0: Fused types not allowed here
 43:21: cdef variable 'x' declared after it is used
-46:9: Fused types not allowed here
+46:4: Fused types not allowed here
 61:0: Invalid use of fused types, type cannot be specialized
 61:29: ambiguous overloaded method
 # Possibly duplicates the errors more often than we want
-79:5: Return type is a fused type that cannot be determined from the function arguments
-82:6: Return type is a fused type that cannot be determined from the function arguments
+79:0: Return type is a fused type that cannot be determined from the function arguments
+82:0: Return type is a fused type that cannot be determined from the function arguments
 86:4: 'z' cannot be specialized since its type is not a fused argument to this function
 86:4: 'z' cannot be specialized since its type is not a fused argument to this function
 86:4: 'z' cannot be specialized since its type is not a fused argument to this function
 87:16: Type cannot be specialized since it is not a fused argument to this function
 87:16: Type cannot be specialized since it is not a fused argument to this function
 87:16: Type cannot be specialized since it is not a fused argument to this function
-93:5: Return type is a fused type that cannot be determined from the function arguments
+93:0: Return type is a fused type that cannot be determined from the function arguments
 96:0: Invalid use of fused types, type cannot be specialized
 """
