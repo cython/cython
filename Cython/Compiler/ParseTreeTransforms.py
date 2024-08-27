@@ -2,7 +2,6 @@ import cython
 cython.declare(PyrexTypes=object, Naming=object, ExprNodes=object, Nodes=object,
                Options=object, UtilNodes=object, LetNode=object,
                LetRefNode=object, TreeFragment=object, EncodedString=object,
-               build_line_table=object,
                error=object, warning=object, copy=object, hashlib=object, sys=object,
                _unicode=object)
 
@@ -18,7 +17,6 @@ from . import Options
 from . import Builtin
 from . import Errors
 
-from .LineTable import build_line_table
 from .Visitor import VisitorTransform, TreeVisitor
 from .Visitor import CythonTransform, EnvTransform, ScopeTrackingTransform
 from .UtilNodes import LetNode, LetRefNode
