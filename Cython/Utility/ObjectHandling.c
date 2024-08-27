@@ -1420,10 +1420,13 @@ static int __Pyx_SetNewInClass(PyObject *ns, PyObject *name, PyObject *value) {
 #if !CYTHON_COMPILING_IN_LIMITED_API
         staticnew = PyStaticMethod_New(value);
 #else
-        PyObject *builtins, *staticmethod;
+        PyObject *builtins, *staticmethod_str, *staticmethod;
         builtins = PyEval_GetBuiltins(); // borrowed
         if (!builtins) return -1;
-        staticmethod = PyObject_GetAttrString(builtins, "staticmethod");
+        staticmethod_str = PyUnicode_FromStringAndSize("staticmethod", 12);
+        if (!staticmethod_str) return -1;
+        staticmethod = PyObject_GetItem(builtins, staticmethod_str);
+        Py_DECREF(staticmethod_str);
         if (!staticmethod) return -1;
         staticnew = PyObject_CallFunctionObjArgs(staticmethod, value, NULL);
         Py_DECREF(staticmethod);
