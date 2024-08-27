@@ -797,7 +797,7 @@ static int __Pyx_CLineForTraceback(PyThreadState *tstate, int c_line) {
     } else
 #endif
     {
-      PyObject *use_cline_obj = __Pyx_PyObject_GetAttrStrNoError(NAMED_CGLOBAL({cython_runtime_cname}), PYIDENT("cline_in_traceback"));
+      PyObject *use_cline_obj = __Pyx_PyObject_GetAttrStrNoError(NAMED_CGLOBAL(cython_runtime_cname), PYIDENT("cline_in_traceback"));
       if (use_cline_obj) {
         use_cline = PyObject_Not(use_cline_obj) ? Py_False : Py_True;
         Py_DECREF(use_cline_obj);
@@ -809,7 +809,7 @@ static int __Pyx_CLineForTraceback(PyThreadState *tstate, int c_line) {
     if (!use_cline) {
         c_line = 0;
         // No need to handle errors here when we reset the exception state just afterwards.
-        (void) PyObject_SetAttr(NAMED_CGLOBAL({cython_runtime_cname}), PYIDENT("cline_in_traceback"), Py_False);
+        (void) PyObject_SetAttr(NAMED_CGLOBAL(cython_runtime_cname), PYIDENT("cline_in_traceback"), Py_False);
     }
     else if (use_cline == Py_False || (use_cline != Py_True && PyObject_Not(use_cline) != 0)) {
         c_line = 0;

@@ -825,8 +825,10 @@ def _inject_string_constant(output, matchobj):
     """Replace 'PYIDENT("xyz")' by a constant Python identifier cname.
     """
     str_type, name = matchobj.groups()
-    return output.get_py_string_const(
-            StringEncoding.EncodedString(name), identifier=str_type == 'IDENT').cname
+    return "%s->%s" % (
+        Naming.modulestateglobal_cname,
+        output.get_py_string_const(
+            StringEncoding.EncodedString(name), identifier=str_type == 'IDENT').cname)
 
 
 @add_macro_processor(
@@ -845,16 +847,6 @@ def _inject_empty_collection_constant(output, matchobj):
 
 
 @add_macro_processor(
-    'CGLOBAL',
-    is_module_specific=True,
-    regex=r'CGLOBAL\(([^)]+)\)'
-)
-def _inject_cglobal(output, matchobj):
-    name = matchobj.group(1).strip()
-    return f"{Naming.modulestateglobal_cname}, {name}"
-
-
-@add_macro_processor(
     'NAMED_CGLOBAL',
     is_module_specific=True,
     regex=r'NAMED_CGLOBAL\(([^)]+)\)'
@@ -864,6 +856,16 @@ def _inject_named_cglobal(output, matchobj):
     return "%s->%s" % (
         Naming.modulestateglobal_cname,
         getattr(Naming, name))
+
+
+@add_macro_processor(
+    'CGLOBAL',
+    is_module_specific=True,
+    regex=r'CGLOBAL\(([^)]+)\)'
+)
+def _inject_cglobal(output, matchobj):
+    name = matchobj.group(1).strip()
+    return f"{Naming.modulestateglobal_cname}->{name}"
 
 
 @add_macro_processor()
@@ -2547,7 +2549,7 @@ class CCodeWriter:
         # (and code_str is already formatted) so a simple replacement
         # class will work.
         code_str, _ = process_utility_ccode(DummyUtilityCode(), self, code_str)
-        self.put(code_str)
+        self.putln(code_str)
 
 
     def increase_indent(self):
