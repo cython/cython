@@ -2526,8 +2526,8 @@ def p_IF_statement(s: PyrexScanner, ctx):
 
 
 @cython.cfunc
-def p_statement(s: PyrexScanner, ctx, first_statement: cython.bint = 0):
-    cdef_flag = ctx.cdef_flag
+def p_statement(s: PyrexScanner, ctx, first_statement: cython.bint = False):
+    cdef_flag: cython.bint = ctx.cdef_flag
     decorators = None
     if s.sy == 'ctypedef':
         if ctx.level not in ('module', 'module_pxd'):
@@ -2565,13 +2565,13 @@ def p_statement(s: PyrexScanner, ctx, first_statement: cython.bint = 0):
         # empty cdef block
         return p_pass_statement(s, with_newline=True)
 
-    overridable = 0
+    overridable = False
     if s.sy == 'cdef':
-        cdef_flag = 1
+        cdef_flag = True
         s.next()
     elif s.sy == 'cpdef':
-        cdef_flag = 1
-        overridable = 1
+        cdef_flag = True
+        overridable = True
         s.next()
     if cdef_flag:
         if ctx.level not in ('module', 'module_pxd', 'function', 'c_class', 'c_class_pxd'):
