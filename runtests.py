@@ -920,6 +920,7 @@ class TestBuilder(object):
                           stats=self.stats,
                           add_cython_import=add_cython_import,
                           full_limited_api_mode=full_limited_api_mode,
+                          extra_directives=extra_directives,
                           )
 
 
@@ -979,8 +980,6 @@ class CythonCompileTestCase(unittest.TestCase):
                  test_determinism=False, shard_num=0,
                  common_utility_dir=None, pythran_dir=None, stats=None, add_cython_import=False,
                  extra_directives=None, full_limited_api_mode=False):
-        if extra_directives is None:
-            extra_directives = {}
         self.test_directory = test_directory
         self.tags = tags
         self.workdir = workdir
@@ -1005,7 +1004,7 @@ class CythonCompileTestCase(unittest.TestCase):
         self.pythran_dir = pythran_dir
         self.stats = stats
         self.add_cython_import = add_cython_import
-        self.extra_directives = extra_directives
+        self.extra_directives = extra_directives if extra_directives is not None else {}
         self.full_limited_api_mode = full_limited_api_mode
         unittest.TestCase.__init__(self)
 
@@ -1016,6 +1015,7 @@ class CythonCompileTestCase(unittest.TestCase):
             f"{'/cy2' if self.language_level == 2 else '/cy3' if self.language_level == 3 else ''}"
             f"{'/pythran' if self.pythran_dir is not None else ''}"
             f"/{os.path.splitext(self.module_path)[1][1:]}"
+            f"/{self.extra_directives}"
             f") {self.description_name()}"
         )
 
@@ -1037,7 +1037,8 @@ class CythonCompileTestCase(unittest.TestCase):
         self._saved_default_directives = list(Options.get_directive_defaults().items())
         Options.warning_errors = self.warning_errors
         Options._directive_defaults['autotestdict'] = False
-        Options._directive_defaults.update(self.extra_directives)
+        if self.extra_directives:
+            Options._directive_defaults.update(self.extra_directives)
 
         if not os.path.exists(self.workdir):
             os.makedirs(self.workdir)
@@ -1118,7 +1119,6 @@ class CythonCompileTestCase(unittest.TestCase):
 
         if cleanup_c_files and os.path.exists(self.workdir + '-again'):
             shutil.rmtree(self.workdir + '-again', ignore_errors=True)
-
 
     def runTest(self):
         self.success = False
