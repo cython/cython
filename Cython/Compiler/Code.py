@@ -566,6 +566,9 @@ class UtilityCodeBase:
 
         If 'include_requires=True', concatenates all requirements before the actually
         requested utility code, separately for proto and impl part.
+
+        In a lot of cases it may be better to use regular "load" and "CCodeWriter.put_code_here"
+        since that is able to apply the code transformations to the code too.
         """
         util = cls.load(util_code_name, from_file, **kwargs)
 
@@ -691,24 +694,24 @@ class UtilityCode(UtilityCodeBase):
             self.specialize_list.append(s)
             return s
 
-    def put_code(self, output):
+    def put_code(self, output, proto_writer=None, impl_writer=None):
         if self.requires:
             for dependency in self.requires:
                 output.use_utility_code(dependency)
         if self.proto:
-            writer = output[self.proto_block]
+            writer = proto_writer or output[self.proto_block]
             writer.putln(f"/* {self.name}.proto */")
             proto, result_is_module_specific = process_utility_ccode(self, output, self.proto)
-            if result_is_module_specific:
+            if result_is_module_specific or proto_writer:
                 writer.put(proto)
             else:
                 # can be reused across modules
                 writer.put_or_include(proto, f'{self.name}_proto')
         if self.impl:
             impl, result_is_module_specific = process_utility_ccode(self, output, self.impl)
-            writer = output['utility_code_def']
+            writer = impl_writer or output['utility_code_def']
             writer.putln(f"/* {self.name} */")
-            if result_is_module_specific:
+            if result_is_module_specific or impl_writer:
                 writer.put(impl)
             else:
                 # can be reused across modules
@@ -725,14 +728,13 @@ class UtilityCode(UtilityCodeBase):
         if self.cleanup and Options.generate_cleanup_code:
             writer = output['cleanup_globals']
             writer.putln(f"/* {self.name}.cleanup */")
-            cleanup, _ = process_utility_ccode(self, writer, self.cleanup)
-            writer.put(cleanup)
-            if isinstance(self.cleanup, str):
-                writer.put_or_include(
-                    self.format_code(self.cleanup),
-                    f'{self.name}_cleanup')
+            cleanup, result_is_module_specific = process_utility_ccode(self, writer, self.cleanup)
+            if result_is_module_specific:
+                writer.put(cleanup)
             else:
-                self.cleanup(writer, output.module_pos)
+                writer.put_or_include(
+                    self.format_code(cleanup),
+                    f'{self.name}_cleanup')
 
 
 def add_macro_processor(*macro_names, regex=None, is_module_specific=False, _last_macro_processor = [None]):
@@ -2540,17 +2542,12 @@ class CCodeWriter:
         elif fix_indent:
             self.level += 1
 
-    def put_and_process_code_here(self, code_str: str):
-        class DummyUtilityCode:
-            name = "<unamed>"
-            def format_code(self, code):
-                return code
-        # The utility code argument is used for very little
-        # (and code_str is already formatted) so a simple replacement
-        # class will work.
-        code_str, _ = process_utility_ccode(DummyUtilityCode(), self, code_str)
-        self.putln(code_str)
-
+    def put_code_here(self, utility, proto_here=True, impl_here=True):
+        # puts the impl section of the utility code directly to here
+        kwds = {}
+        if proto_here: kwds['proto_writer'] = self
+        if impl_here: kwds['impl_writer'] = self
+        utility.put_code(self.globalstate, **kwds)
 
     def increase_indent(self):
         self.level += 1

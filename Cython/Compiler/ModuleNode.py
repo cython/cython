@@ -377,9 +377,9 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         def put_utility_code(name, src_file, include_requires=True):
             proto, impl = UtilityCode.load_as_string(name, src_file, include_requires=include_requires)
             if proto:
-                h_code.put_and_process_code_here(proto)
+                h_code.put(proto)
             if impl:
-                h_code.put_and_process_code_here(impl)
+                h_code.put(impl)
 
         h_code.putln('#include "Python.h"')
         if result.h_file:
@@ -526,8 +526,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             self.generate_import_star(env, code)
 
         # initialise the macro to reduce the code size of one-time functionality
-        globalstate['module_state'].put_and_process_code_here(
-            UtilityCode.load_as_string("SmallCodeConfig", "ModuleSetupCode.c")[0].strip())
+        globalstate['module_state'].putln(UtilityCode.load_as_string("SmallCodeConfig", "ModuleSetupCode.c")[0].strip())
 
         self.generate_module_state_start(env, globalstate['module_state'])
         self.generate_module_state_clear(env, globalstate['module_state_clear'])
@@ -765,8 +764,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
     @staticmethod
     def _put_setup_code(code, name):
-        code.put_and_process_code_here(
-            UtilityCode.load_as_string(name, "ModuleSetupCode.c")[1])
+        code.put_code_here(UtilityCode.load(name, "ModuleSetupCode.c"))
 
     def generate_module_preamble(self, env, options, cimported_modules, metadata, code):
         code.put_generated_by()
@@ -889,7 +887,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             c_string_func_name = c_string_type.title()
         code.putln('#define __Pyx_PyObject_FromString __Pyx_Py%s_FromString' % c_string_func_name)
         code.putln('#define __Pyx_PyObject_FromStringAndSize __Pyx_Py%s_FromStringAndSize' % c_string_func_name)
-        code.put_and_process_code_here(UtilityCode.load_as_string("TypeConversions", "TypeConversion.c")[0])
+        code.put(UtilityCode.load_as_string("TypeConversions", "TypeConversion.c")[0])
         env.use_utility_code(UtilityCode.load_cached("FormatTypeName", "ObjectHandling.c"))
 
         # These utility functions are assumed to exist and used elsewhere.
@@ -2894,7 +2892,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("return -1;")
         code.putln("}")
         code.putln("")
-        code.put_and_process_code_here(UtilityCode.load_as_string("ImportStar", "ImportExport.c")[1])
+        code.put_code_here(UtilityCode.load("ImportStar", "ImportExport.c"))
         code.exit_cfunc_scope()  # done with labels
 
     def generate_module_state_start(self, env, code):
@@ -3012,7 +3010,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
         code.enter_cfunc_scope(self.scope)
         code.putln("")
-        code.put_and_process_code_here(UtilityCode.load_as_string("PyModInitFuncType", "ModuleSetupCode.c")[0])
+        code.put_code_here(UtilityCode.load("PyModInitFuncType", "ModuleSetupCode.c"))
 
         modinit_func_name = EncodedString(f"PyInit_{env.module_name}")
         header3 = "__Pyx_PyMODINIT_FUNC %s(void)" % self.mod_init_func_cname('PyInit', env)
@@ -3044,8 +3042,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("return PyModuleDef_Init(&%s);" % Naming.pymoduledef_cname)
         code.putln("}")
 
-        mod_create_func = UtilityCode.load_as_string("ModuleCreationPEP489", "ModuleSetupCode.c")[1]
-        code.put_and_process_code_here(mod_create_func)
+        mod_create_func = UtilityCode.load("ModuleCreationPEP489", "ModuleSetupCode.c")
+        code.put_code_here(mod_create_func)
 
         code.putln("")
         # main module init code lives in Py_mod_exec function, not in PyInit function
@@ -3106,8 +3104,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             tempdecl_code.put_trace_declarations()
             code.put_trace_frame_init()
 
-        refnanny_import_code = UtilityCode.load_as_string("ImportRefnannyAPI", "ModuleSetupCode.c")[1]
-        code.put_and_process_code_here(refnanny_import_code.rstrip())
+        refnanny_import_code = UtilityCode.load("ImportRefnannyAPI", "ModuleSetupCode.c")
+        code.put_code_here(refnanny_import_code)
         code.put_setup_refcount_context(modinit_func_name)
 
         env.use_utility_code(UtilityCode.load("GetRuntimeVersion", "ModuleSetupCode.c"))
