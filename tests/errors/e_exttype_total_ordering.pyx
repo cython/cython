@@ -156,23 +156,23 @@ cdef class ExtEqNe:
 
 
 _WARNINGS = """
-10:0: total_ordering directive used, but no comparison and equality methods defined
-14:0: total_ordering directive used, but no equality method defined
-19:0: total_ordering directive used, but no equality method defined
-24:0: total_ordering directive used, but no equality method defined
-32:0: total_ordering directive used, but no equality method defined
-37:0: total_ordering directive used, but no equality method defined
-45:0: total_ordering directive used, but no equality method defined
-53:0: total_ordering directive used, but no equality method defined
-64:0: total_ordering directive used, but no equality method defined
-69:0: total_ordering directive used, but no equality method defined
-77:0: total_ordering directive used, but no equality method defined
-85:0: total_ordering directive used, but no equality method defined
-96:0: total_ordering directive used, but no equality method defined
-104:0: total_ordering directive used, but no equality method defined
-115:0: total_ordering directive used, but no equality method defined
-126:0: total_ordering directive used, but no equality method defined
-140:0: total_ordering directive used, but no comparison methods defined
-145:0: total_ordering directive used, but no comparison methods defined
-150:0: total_ordering directive used, but no comparison methods defined
+9:0: total_ordering directive used, but no comparison and equality methods defined
+13:0: total_ordering directive used, but no equality method defined
+18:0: total_ordering directive used, but no equality method defined
+23:0: total_ordering directive used, but no equality method defined
+31:0: total_ordering directive used, but no equality method defined
+36:0: total_ordering directive used, but no equality method defined
+44:0: total_ordering directive used, but no equality method defined
+52:0: total_ordering directive used, but no equality method defined
+63:0: total_ordering directive used, but no equality method defined
+68:0: total_ordering directive used, but no equality method defined
+76:0: total_ordering directive used, but no equality method defined
+84:0: total_ordering directive used, but no equality method defined
+95:0: total_ordering directive used, but no equality method defined
+103:0: total_ordering directive used, but no equality method defined
+114:0: total_ordering directive used, but no equality method defined
+125:0: total_ordering directive used, but no equality method defined
+139:0: total_ordering directive used, but no comparison methods defined
+144:0: total_ordering directive used, but no comparison methods defined
+149:0: total_ordering directive used, but no comparison methods defined
 """
