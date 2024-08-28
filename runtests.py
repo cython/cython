@@ -1037,8 +1037,7 @@ class CythonCompileTestCase(unittest.TestCase):
         self._saved_default_directives = list(Options.get_directive_defaults().items())
         Options.warning_errors = self.warning_errors
         Options._directive_defaults['autotestdict'] = False
-        if self.extra_directives:
-            Options._directive_defaults.update(self.extra_directives)
+        Options._directive_defaults.update(self.extra_directives)
 
         if not os.path.exists(self.workdir):
             os.makedirs(self.workdir)
