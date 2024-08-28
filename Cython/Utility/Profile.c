@@ -521,7 +521,6 @@
 #endif
 
 /////////////// Profile ///////////////
-//@substitute: naming
 
 #if CYTHON_PROFILE || CYTHON_TRACE
 
