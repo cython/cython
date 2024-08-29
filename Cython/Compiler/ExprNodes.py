@@ -2216,6 +2216,16 @@ class NameNode(AtomicExprNode):
         # Try to give a helpful warning when users write plain C type names.
         if not env.in_c_type_context and PyrexTypes.parse_basic_type(self.name):
             warning(self.pos, "Found C type name '%s' in a Python annotation. Did you mean to use 'cython.%s'?" % (self.name, self.name))
+        if env.in_c_type_context:
+            type = PyrexTypes.parse_basic_type(self.name)
+            if type:
+                # we haven't matched a really simple C type, but have matched
+                # something like slong. Note that these aren't allowed in things like
+                # cdef statements, but only in `cython.declare()`.
+                # These should definitely have lower priority than an
+                # entry lookup. And should probably be discouraged.
+                error(self.pos, "TODO - change this to a warning. Just seeing what fails")
+                return type
 
         return None
 
