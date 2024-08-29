@@ -2,6 +2,19 @@
 Cython Changelog
 ================
 
+3.0.12 (2024-??-??)
+===================
+
+Bugs fixed
+----------
+
+* Fused ctuples with the same entry types but different sizes could fail to compile.
+  (Github issue :issue:`6328`)
+
+* In Py3, `pyximport` was not searching `sys.path` when looking for importable source files.
+  (Github issue :issue:`5615`)
+
+
 3.0.11 (2024-08-05)
 ===================
 
