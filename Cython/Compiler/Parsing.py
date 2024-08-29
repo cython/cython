@@ -2526,28 +2526,31 @@ def p_IF_statement(s: PyrexScanner, ctx):
 
 
 @cython.cfunc
-def p_statement(s: PyrexScanner, ctx, first_statement: cython.bint = 0):
-    cdef_flag = ctx.cdef_flag
+def p_statement(s: PyrexScanner, ctx, first_statement: cython.bint = False):
+    cdef_flag: cython.bint = ctx.cdef_flag
+    pos = s.position()
     decorators = None
     if s.sy == 'ctypedef':
         if ctx.level not in ('module', 'module_pxd'):
             s.error("ctypedef statement not allowed here")
         #if ctx.api:
-        #    error(s.position(), "'api' not allowed with 'ctypedef'")
+        #    error(pos, "'api' not allowed with 'ctypedef'")
         return p_ctypedef_statement(s, ctx)
     elif s.sy == 'DEF':
         # We used to dep-warn about this but removed the warning again since
         # we don't have a good answer yet for all use cases.
-        # warning(s.position(),
-        #         "The 'DEF' statement is deprecated and will be removed in a future Cython version. "
-        #         "Consider using global variables, constants, and in-place literals instead. "
-        #         "See https://github.com/cython/cython/issues/4310", level=1)
+        if s.context.compiler_directives.get("warn.deprecated.DEF", False):
+            warning(pos,
+                    "The 'DEF' statement  will be removed in a future Cython version. "
+                    "Consider using global variables, constants, and in-place literals instead. "
+                    "See https://github.com/cython/cython/issues/4310", level=1)
         return p_DEF_statement(s)
     elif s.sy == 'IF':
-        warning(s.position(),
-                "The 'IF' statement is deprecated and will be removed in a future Cython version. "
-                "Consider using runtime conditions or C macros instead. "
-                "See https://github.com/cython/cython/issues/4310", level=1)
+        if s.context.compiler_directives.get("warn.deprecated.IF", True):
+            warning(pos,
+                    "The 'IF' statement is deprecated and will be removed in a future Cython version. "
+                    "Consider using runtime conditions or C macros instead. "
+                    "See https://github.com/cython/cython/issues/4310", level=1)
         return p_IF_statement(s, ctx)
     elif s.sy == '@':
         if ctx.level not in ('module', 'class', 'c_class', 'function', 'property', 'module_pxd', 'c_class_pxd', 'other'):
@@ -2563,19 +2566,19 @@ def p_statement(s: PyrexScanner, ctx, first_statement: cython.bint = 0):
         # empty cdef block
         return p_pass_statement(s, with_newline=True)
 
-    overridable = 0
+    overridable = False
     if s.sy == 'cdef':
-        cdef_flag = 1
+        cdef_flag = True
         s.next()
     elif s.sy == 'cpdef':
-        cdef_flag = 1
-        overridable = 1
+        cdef_flag = True
+        overridable = True
         s.next()
     if cdef_flag:
         if ctx.level not in ('module', 'module_pxd', 'function', 'c_class', 'c_class_pxd'):
             s.error('cdef statement not allowed here')
         s.level = ctx.level
-        node = p_cdef_statement(s, ctx(overridable=overridable))
+        node = p_cdef_statement(s, pos, ctx(overridable=overridable))
         if decorators is not None:
             tup = (Nodes.CFuncDefNode, Nodes.CVarDefNode, Nodes.CClassDefNode)
             if ctx.allow_struct_enum_decorator:
@@ -3459,8 +3462,7 @@ def p_api(s: PyrexScanner) -> cython.bint:
 
 
 @cython.cfunc
-def p_cdef_statement(s: PyrexScanner, ctx):
-    pos = s.position()
+def p_cdef_statement(s: PyrexScanner, pos, ctx):
     ctx.visibility = p_visibility(s, ctx.visibility)
     ctx.api = ctx.api or p_api(s)
     if ctx.api:
@@ -4299,20 +4301,21 @@ def p_cpp_class_definition(s: PyrexScanner, pos,  ctx):
 
 @cython.cfunc
 def p_cpp_class_attribute(s: PyrexScanner, ctx):
+    pos = s.position()
     decorators = None
     if s.sy == '@':
         decorators = p_decorators(s)
     if s.systring == 'cppclass':
-        return p_cpp_class_definition(s, s.position(), ctx)
+        return p_cpp_class_definition(s, pos, ctx)
     elif s.systring == 'ctypedef':
         return p_ctypedef_statement(s, ctx)
     elif s.sy == 'IDENT' and s.systring in struct_enum_union:
         if s.systring != 'enum':
-            return p_cpp_class_definition(s, s.position(), ctx)
+            return p_cpp_class_definition(s, pos, ctx)
         else:
-            return p_struct_enum(s, s.position(), ctx)
+            return p_struct_enum(s, pos, ctx)
     else:
-        node = p_c_func_or_var_declaration(s, s.position(), ctx)
+        node = p_c_func_or_var_declaration(s, pos, ctx)
         if decorators is not None:
             tup = Nodes.CFuncDefNode, Nodes.CVarDefNode, Nodes.CClassDefNode
             if ctx.allow_struct_enum_decorator:

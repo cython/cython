@@ -28,7 +28,7 @@ cdef class PostParse(ScopeTrackingTransform):
 #class AnalyseDeclarationsTransform(EnvTransform):
 
 cdef class AnalyseExpressionsTransform(CythonTransform):
-    pass
+    cdef list positions
 
 cdef class ExpandInplaceOperators(EnvTransform):
     pass

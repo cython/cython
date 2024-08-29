@@ -706,6 +706,8 @@ def default_create_extension(template, kwds):
 
     t = template.__class__
     ext = t(**kwds)
+    if hasattr(template, "py_limited_api"):
+        ext.py_limited_api = template.py_limited_api
     metadata = dict(distutils=kwds, module_name=kwds['name'])
     return (ext, metadata)
 

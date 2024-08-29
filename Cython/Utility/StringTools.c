@@ -48,6 +48,7 @@ static CYTHON_INLINE size_t __Pyx_Py_UNICODE_strlen(const Py_UNICODE *u)
 
 
 //////////////////// InitStrings.proto ////////////////////
+//@proto_block: pystring_table
 
 static int __Pyx_InitStrings(__Pyx_StringTabEntry const *t, PyObject **target, const char* const* encoding_names); /*proto*/
 
@@ -87,8 +88,14 @@ static CYTHON_INLINE int __Pyx_BytesContains(PyObject* bytes, char character); /
 //@requires: IncludeStringH
 
 static CYTHON_INLINE int __Pyx_BytesContains(PyObject* bytes, char character) {
-    const Py_ssize_t length = PyBytes_GET_SIZE(bytes);
-    char* char_start = PyBytes_AS_STRING(bytes);
+    const Py_ssize_t length = __Pyx_PyBytes_GET_SIZE(bytes);
+#if !CYTHON_ASSUME_SAFE_SIZE
+    if (unlikely(length == -1)) return -1;
+#endif
+    const char* char_start = __Pyx_PyBytes_AsString(bytes);
+#if !CYTHON_ASSUME_SAFE_MACROS
+    if (unlikely(!char_start)) return -1;
+#endif
     return memchr(char_start, (unsigned char)character, (size_t)length) != NULL;
 }
 
@@ -144,7 +151,7 @@ static CYTHON_INLINE int __Pyx_PyUnicode_Equals(PyObject* s1, PyObject* s2, int 
 //@requires: BytesEquals
 
 static CYTHON_INLINE int __Pyx_PyUnicode_Equals(PyObject* s1, PyObject* s2, int equals) {
-#if CYTHON_COMPILING_IN_PYPY || CYTHON_COMPILING_IN_LIMITED_API
+#if CYTHON_COMPILING_IN_PYPY || CYTHON_COMPILING_IN_LIMITED_API || CYTHON_COMPILING_IN_GRAAL
     return PyObject_RichCompareBool(s1, s2, equals);
 #else
     int s1_is_unicode, s2_is_unicode;
@@ -227,7 +234,8 @@ static CYTHON_INLINE int __Pyx_PyBytes_Equals(PyObject* s1, PyObject* s2, int eq
 //@requires: IncludeStringH
 
 static CYTHON_INLINE int __Pyx_PyBytes_Equals(PyObject* s1, PyObject* s2, int equals) {
-#if CYTHON_COMPILING_IN_PYPY || CYTHON_COMPILING_IN_LIMITED_API || !(CYTHON_ASSUME_SAFE_SIZE && CYTHON_ASSUME_SAFE_MACROS)
+#if CYTHON_COMPILING_IN_PYPY || CYTHON_COMPILING_IN_LIMITED_API || CYTHON_COMPILING_IN_GRAAL || \
+        !(CYTHON_ASSUME_SAFE_SIZE && CYTHON_ASSUME_SAFE_MACROS)
     return PyObject_RichCompareBool(s1, s2, equals);
 #else
     if (s1 == s2) {
@@ -296,13 +304,23 @@ static CYTHON_INLINE int __Pyx_GetItemInt_ByteArray_Fast(PyObject* string, Py_ss
         #endif
         if (wraparound & unlikely(i < 0)) i += length;
         if ((!boundscheck) || likely(__Pyx_is_valid_index(i, length))) {
+            #if !CYTHON_ASSUME_SAFE_MACROS
+            char *asString = PyByteArray_AsString(string);
+            return likely(asString) ? (unsigned char) asString[i] : -1;
+            #else
             return (unsigned char) (PyByteArray_AS_STRING(string)[i]);
+            #endif
         } else {
             PyErr_SetString(PyExc_IndexError, "bytearray index out of range");
             return -1;
         }
     } else {
+        #if !CYTHON_ASSUME_SAFE_MACROS
+        char *asString = PyByteArray_AsString(string);
+        return likely(asString) ? (unsigned char) asString[i] : -1;
+        #else
         return (unsigned char) (PyByteArray_AS_STRING(string)[i]);
+        #endif
     }
 }
 
@@ -329,14 +347,26 @@ static CYTHON_INLINE int __Pyx_SetItemInt_ByteArray_Fast(PyObject* string, Py_ss
         #endif
         if (wraparound & unlikely(i < 0)) i += length;
         if ((!boundscheck) || likely(__Pyx_is_valid_index(i, length))) {
+            #if !CYTHON_ASSUME_SAFE_MACROS
+            char *asString = PyByteArray_AsString(string);
+            if (unlikely(!asString)) return -1;
+            asString[i] = (char)v;
+            #else
             PyByteArray_AS_STRING(string)[i] = (char) v;
+            #endif
             return 0;
         } else {
             PyErr_SetString(PyExc_IndexError, "bytearray index out of range");
             return -1;
         }
     } else {
+        #if !CYTHON_ASSUME_SAFE_MACROS
+        char *asString = PyByteArray_AsString(string);
+        if (unlikely(!asString)) return -1;
+        asString[i] = (char)v;
+        #else
         PyByteArray_AS_STRING(string)[i] = (char) v;
+        #endif
         return 0;
     }
 }
@@ -413,7 +443,6 @@ static CYTHON_INLINE PyObject* __Pyx_decode_c_string(
 /////////////// decode_c_string ///////////////
 //@requires: IncludeStringH
 //@requires: decode_c_string_utf16
-//@substitute: naming
 
 /* duplicate code to avoid calling strlen() if start >= 0 and stop >= 0 */
 static CYTHON_INLINE PyObject* __Pyx_decode_c_string(
@@ -438,7 +467,7 @@ static CYTHON_INLINE PyObject* __Pyx_decode_c_string(
             stop += length;
     }
     if (unlikely(stop <= start))
-        return __Pyx_NewRef($empty_unicode);
+        return __Pyx_NewRef(EMPTY(unicode));
     length = stop - start;
     cstring += start;
     if (decode_func) {
@@ -457,7 +486,6 @@ static CYTHON_INLINE PyObject* __Pyx_decode_c_bytes(
 
 /////////////// decode_c_bytes ///////////////
 //@requires: decode_c_string_utf16
-//@substitute: naming
 
 static CYTHON_INLINE PyObject* __Pyx_decode_c_bytes(
          const char* cstring, Py_ssize_t length, Py_ssize_t start, Py_ssize_t stop,
@@ -475,7 +503,7 @@ static CYTHON_INLINE PyObject* __Pyx_decode_c_bytes(
     if (stop > length)
         stop = length;
     if (unlikely(stop <= start))
-        return __Pyx_NewRef($empty_unicode);
+        return __Pyx_NewRef(EMPTY(unicode));
     length = stop - start;
     cstring += start;
     if (decode_func) {
@@ -534,7 +562,6 @@ static CYTHON_INLINE PyObject* __Pyx_PyUnicode_Substring(
             PyObject* text, Py_ssize_t start, Py_ssize_t stop);
 
 /////////////// PyUnicode_Substring ///////////////
-//@substitute: naming
 
 static CYTHON_INLINE PyObject* __Pyx_PyUnicode_Substring(
             PyObject* text, Py_ssize_t start, Py_ssize_t stop) {
@@ -556,7 +583,7 @@ static CYTHON_INLINE PyObject* __Pyx_PyUnicode_Substring(
     else if (stop > length)
         stop = length;
     if (stop <= start)
-        return __Pyx_NewRef($empty_unicode);
+        return __Pyx_NewRef(EMPTY(unicode));
     if (start == 0 && stop == length)
         return __Pyx_NewRef(text);
 #if CYTHON_COMPILING_IN_LIMITED_API
@@ -665,31 +692,67 @@ static int __Pyx_PyBytes_Tailmatch(PyObject* self, PyObject* substr,
 
 static int __Pyx_PyBytes_SingleTailmatch(PyObject* self, PyObject* arg,
                                          Py_ssize_t start, Py_ssize_t end, int direction) {
-    const char* self_ptr = PyBytes_AS_STRING(self);
-    Py_ssize_t self_len = PyBytes_GET_SIZE(self);
-    const char* sub_ptr;
+    char* self_ptr;
+    Py_ssize_t self_len;
+    char* sub_ptr;
     Py_ssize_t sub_len;
     int retval;
 
+    #if CYTHON_COMPILING_IN_LIMITED_API && __PYX_LIMITED_VERSION_HEX < 0x030B0000
+    PyObject *converted_arg = NULL;
+    #else
     Py_buffer view;
     view.obj = NULL;
+    #endif
 
-    #if !CYTHON_ASSUME_SAFE_SIZE
-    if (unlikely(self_len < 0)) return -1;
+    #if !(CYTHON_ASSUME_SAFE_MACROS && CYTHON_ASSUME_SAFE_SIZE)
+    if (PyBytes_AsStringAndSize(self, &self_ptr, &self_len) == -1) return -1;
+    #else
+    self_ptr = PyBytes_AS_STRING(self);
+    self_len = PyBytes_GET_SIZE(self);
     #endif
 
     if (PyBytes_Check(arg)) {
+        #if !(CYTHON_ASSUME_SAFE_MACROS && CYTHON_ASSUME_SAFE_SIZE)
+        if (PyBytes_AsStringAndSize(arg, &sub_ptr, &sub_len) == -1) return -1;
+        #else
         sub_ptr = PyBytes_AS_STRING(arg);
         sub_len = PyBytes_GET_SIZE(arg);
-        #if !CYTHON_ASSUME_SAFE_SIZE
-        if (unlikely(sub_len < 0)) return -1;
         #endif
+    }
+    #if CYTHON_COMPILING_IN_LIMITED_API && __PYX_LIMITED_VERSION_HEX < 0x030B0000
+    else if (PyByteArray_Check(arg)) {
+        // The Limited API fallback is inefficient,
+        // so special-case bytearray to be a bit faster. Keep this to the Limited
+        // API only since the buffer protocol code is good enough otherwise.
+        sub_ptr = PyByteArray_AsString(arg);
+        if (unlikely(!sub_ptr)) return -1;
+        sub_len = PyByteArray_Size(arg);
+        if (unlikely(sub_len < 0)) return -1;
     } else {
-        if (unlikely(PyObject_GetBuffer(self, &view, PyBUF_SIMPLE) == -1))
+        // Where buffer protocol is unavailable, just convert to bytes
+        // (which is probably inefficient, but does work)
+        // First check that the object is a buffer (since PyBytes_FromObject)
+        // is more flexible than what endswith accepts.
+        PyObject *as_memoryview = PyMemoryView_FromObject(arg);
+        if (!as_memoryview) return -1;
+        Py_DECREF(as_memoryview);
+        converted_arg = PyBytes_FromObject(arg);
+        if (!converted_arg) return -1;
+        if (PyBytes_AsStringAndSize(converted_arg, &sub_ptr, &sub_len) == -1) {
+            Py_DECREF(converted_arg);
             return -1;
-        sub_ptr = (const char*) view.buf;
+        }
+
+    }
+    #else // LIMITED_API >= 030B0000 or !LIMITED_API
+    else {
+        if (unlikely(PyObject_GetBuffer(arg, &view, PyBUF_SIMPLE) == -1))
+            return -1;
+        sub_ptr = (char*) view.buf;
         sub_len = view.len;
     }
+    #endif
 
     if (end > self_len)
         end = self_len;
@@ -713,15 +776,19 @@ static int __Pyx_PyBytes_SingleTailmatch(PyObject* self, PyObject* arg,
     else
         retval = 0;
 
+    #if CYTHON_COMPILING_IN_LIMITED_API && __PYX_LIMITED_VERSION_HEX < 0x030B0000
+    Py_XDECREF(converted_arg);
+    #else
     if (view.obj)
         PyBuffer_Release(&view);
+    #endif
 
     return retval;
 }
 
 static int __Pyx_PyBytes_TailmatchTuple(PyObject* self, PyObject* substrings,
                                         Py_ssize_t start, Py_ssize_t end, int direction) {
-    Py_ssize_t i, count = PyTuple_GET_SIZE(substrings);
+    Py_ssize_t i, count = __Pyx_PyTuple_GET_SIZE(substrings);
     #if !CYTHON_ASSUME_SAFE_SIZE
     if (unlikely(count < 0)) return -1;
     #endif
@@ -780,6 +847,7 @@ static CYTHON_INLINE char __Pyx_PyBytes_GetItemInt(PyObject* bytes, Py_ssize_t i
 /////////////// bytes_index ///////////////
 
 static CYTHON_INLINE char __Pyx_PyBytes_GetItemInt(PyObject* bytes, Py_ssize_t index, int check_bounds) {
+    const char *asString;
     if (index < 0) {
         Py_ssize_t size = __Pyx_PyBytes_GET_SIZE(bytes);
         #if !CYTHON_ASSUME_SAFE_SIZE
@@ -797,7 +865,11 @@ static CYTHON_INLINE char __Pyx_PyBytes_GetItemInt(PyObject* bytes, Py_ssize_t i
             return (char) -1;
         }
     }
-    return PyBytes_AS_STRING(bytes)[index];
+    asString = __Pyx_PyBytes_AsString(bytes);
+    #if !CYTHON_ASSUME_SAFE_MACROS
+    if (unlikely(!asString)) return (char)-1;
+    #endif
+    return asString[index];
 }
 
 
@@ -828,7 +900,6 @@ static PyObject* __Pyx_PyUnicode_Join(PyObject** values, Py_ssize_t value_count,
 
 /////////////// JoinPyUnicode ///////////////
 //@requires: IncludeStringH
-//@substitute: naming
 
 static PyObject* __Pyx_PyUnicode_Join(PyObject** values, Py_ssize_t value_count, Py_ssize_t result_ulength,
                                       Py_UCS4 max_char) {
@@ -906,7 +977,7 @@ bad:
         Py_INCREF(values[i]);
     }
 
-    result = PyUnicode_Join($empty_unicode, value_tuple);
+    result = PyUnicode_Join(EMPTY(unicode), value_tuple);
 
 bad:
     Py_DECREF(value_tuple);
@@ -917,14 +988,14 @@ bad:
 
 /////////////// BuildPyUnicode.proto ///////////////
 
-static PyObject* __Pyx_PyUnicode_BuildFromAscii(Py_ssize_t ulength, char* chars, int clength,
+static PyObject* __Pyx_PyUnicode_BuildFromAscii(Py_ssize_t ulength, const char* chars, int clength,
                                                 int prepend_sign, char padding_char);
 
 /////////////// BuildPyUnicode ///////////////
 
 // Create a PyUnicode object from an ASCII char*, e.g. a formatted number.
 
-static PyObject* __Pyx_PyUnicode_BuildFromAscii(Py_ssize_t ulength, char* chars, int clength,
+static PyObject* __Pyx_PyUnicode_BuildFromAscii(Py_ssize_t ulength, const char* chars, int clength,
                                                 int prepend_sign, char padding_char) {
     PyObject *uval;
     Py_ssize_t uoffset = ulength - clength;
@@ -958,11 +1029,7 @@ static PyObject* __Pyx_PyUnicode_BuildFromAscii(Py_ssize_t ulength, char* chars,
             if (uoffset > prepend_sign) {
                 padding = PyUnicode_FromOrdinal(padding_char);
                 if (likely(padding) && uoffset > prepend_sign + 1) {
-                    PyObject *tmp;
-                    PyObject *repeat = PyInt_FromSsize_t(uoffset - prepend_sign);
-                    if (unlikely(!repeat)) goto done_or_error;
-                    tmp = PyNumber_Multiply(padding, repeat);
-                    Py_DECREF(repeat);
+                    PyObject *tmp = PySequence_Repeat(padding, uoffset - prepend_sign);
                     Py_DECREF(padding);
                     padding = tmp;
                 }
@@ -976,12 +1043,12 @@ static PyObject* __Pyx_PyUnicode_BuildFromAscii(Py_ssize_t ulength, char* chars,
 
         uval = PyUnicode_DecodeASCII(chars, clength, NULL);
         if (likely(uval) && padding) {
-            PyObject *tmp = PyNumber_Add(padding, uval);
+            PyObject *tmp = PyUnicode_Concat(padding, uval);
             Py_DECREF(uval);
             uval = tmp;
         }
         if (likely(uval) && sign) {
-            PyObject *tmp = PyNumber_Add(sign, uval);
+            PyObject *tmp = PyUnicode_Concat(sign, uval);
             Py_DECREF(uval);
             uval = tmp;
         }
@@ -1052,7 +1119,7 @@ static CYTHON_INLINE int __Pyx_PyByteArray_Append(PyObject* bytearray, int value
         return -1;
     }
 #endif
-    pyval = PyInt_FromLong(value);
+    pyval = PyLong_FromLong(value);
     if (unlikely(!pyval))
         return -1;
     retval = __Pyx_PyObject_CallMethod1(bytearray, PYIDENT("append"), pyval);

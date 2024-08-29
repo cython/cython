@@ -11,11 +11,12 @@ cdef class C:
     def __hash__(self):
         pass
 
+
 _ERRORS = """
-6:5: Arguments passed to cython.dataclasses.dataclass must be True or False
-6:5: Cannot overwrite attribute __hash__ in class C
-6:5: cython.dataclasses.dataclass() got an unexpected keyword argument 'shouldnt_be_here'
-6:5: cython.dataclasses.dataclass takes no positional arguments
+5:0: Arguments passed to cython.dataclasses.dataclass must be True or False
+5:0: Cannot overwrite attribute __hash__ in class C
+5:0: cython.dataclasses.dataclass() got an unexpected keyword argument 'shouldnt_be_here'
+5:0: cython.dataclasses.dataclass takes no positional arguments
 7:14: mutable default <class 'list'> for field a is not allowed: use default_factory
 8:37: cannot specify both default and default_factory
 9:4: non-default argument 'c' follows default argument in dataclass __init__

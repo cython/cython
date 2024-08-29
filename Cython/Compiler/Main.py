@@ -555,6 +555,10 @@ def run_pipeline(source, options, full_module_name=None, context=None):
         warning((source.source_desc, 1, 0),
                 "Dotted filenames ('%s') are deprecated."
                 " Please use the normal Python package directory layout." % os.path.basename(abs_path), level=1)
+    if re.search("[.]c(pp|[+][+]|xx)$", result.c_file, re.RegexFlag.IGNORECASE) and not context.cpp:
+        warning((source_desc, 1, 0),
+                "Filename implies a c++ file but Cython is not in c++ mode.",
+                level=1)
 
     err, enddata = Pipeline.run_pipeline(pipeline, source)
     context.teardown_errors(err, options, result)
@@ -813,12 +817,7 @@ def main(command_line = 0):
     if command_line:
         try:
             options, sources = parse_command_line(args)
-        except OSError as e:
-            # TODO: IOError can be replaced with FileNotFoundError in Cython 3.1
-            import errno
-            if errno.ENOENT != e.errno:
-                # Raised IOError is not caused by missing file.
-                raise
+        except FileNotFoundError as e:
             print("{}: No such file or directory: '{}'".format(sys.argv[0], e.filename), file=sys.stderr)
             sys.exit(1)
     else:
