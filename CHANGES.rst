@@ -14,6 +14,11 @@ Features added
   https://github.com/cython/cython/issues?q=label%3A"nogil+CPython"
   Patches by Lysandros Nikolaou and Nathan Goldbaum.  (Github issue :issue:`6162`)
 
+* Support for monitoring Cython modules via `sys.monitoring` in CPython 3.13+ was added.
+  For coverage reporting, this needs to be disabled with `-DCYTHON_USE_SYS_MONITORING=0`
+  as long as `coverage.py` does not support `sys.monitoring` for coverage plugins.
+  (Github issue :issue:`6144`)
+
 * Many issues with the Limited C-API were resolved.
   It is now sufficient to define the macro ``Py_LIMITED_API`` to activate the support.
   https://github.com/cython/cython/issues?q=label%3A%22limited+api%22
@@ -46,7 +51,7 @@ Features added
   (Github issue :issue:`5785`)
 
 * f-strings are slightly faster.
-  (Github issue :issue:`5866`)
+  (Github issues :issue:`5866`, :issue:`6342`)
 
 * ``divmod()`` is faster on C integers.
   Patch by Tong He.  (Github issue :issue:`6073`)
@@ -91,6 +96,11 @@ Features added
 Bugs fixed
 ----------
 
+* C functions used different start lines and columns for error reporting and tracing
+  than Python functions.  They now use the line and column of their first decorator
+  or (if none) their definition line, as in Python.
+  (Github issue :issue:`6366`)
+
 * Dataclasses did not handle default fields without init value correctly.
   (Github issue :issue:`5858`)
 
@@ -99,6 +109,9 @@ Bugs fixed
 
 * The ``__class__`` cell variable in methods was not always working as in Python.
   Initial patch by Tom Keefe.  (Github issue :issue:`2912`)
+
+* Subtyping `complex` as extension type could fail.
+  (Github issue :issue:`6346`)
 
 * ``hasattr()`` now propagates exceptions that occur during lookup.
   (Github issue :issue:`6269`)
@@ -112,6 +125,13 @@ Bugs fixed
 * Running Cython in different Python versions could generate slightly different C code
   due to differences in the builtins.
   (Github issue :issue:`5591`)
+
+* The `common_include_dir` feature used different file paths in the C code on Windows and Posix.
+  It now uses forward slashes as directory separator consistently.
+  (Github issue :issue:`6355`)
+
+* File paths in the C code are now relative to the build directory.
+  Patch by Oscar Benjamin.  (Github issue :issue:`6341`)
 
 * The ``-a`` option in the IPython magic no longer copies the complete HTML document
   into the notebook but only a more reasonable content snippet.
@@ -138,6 +158,10 @@ Bugs fixed
 
 * Exporting C functions uses better platform compatible code.
   (Github issue :issue:`4683`)
+
+* Cython now uses `SHA-256` instead of `SHA-1` for caching etc. as the latter may not be
+  available on all Python installations.
+  (Github issue :issue:`6354`)
 
 Other changes
 -------------
