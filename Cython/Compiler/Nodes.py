@@ -1270,7 +1270,7 @@ class TemplatedTypeNode(CBaseTypeNode):
 
         if base_type.python_type_constructor_name:
             base_type.contains_none = PyrexTypes.py_none_type in template_types
-            require_optional_types = base_type.is_optional()
+            require_optional_types = base_type.allows_none()
         else:
             require_optional_types = False
 

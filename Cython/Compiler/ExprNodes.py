@@ -3992,7 +3992,7 @@ class IndexNode(_IndexingBaseNode):
             modifier_type = modifier_node.base.analyse_as_type(env)
             if (modifier_type and modifier_type.python_type_constructor_name
                     and modifier_type.modifier_name):
-                modifiers.append('typing.Optional' if modifier_type.is_optional() else modifier_type.modifier_name)
+                modifiers.append('typing.Optional' if modifier_type.allows_none() else modifier_type.modifier_name)
             modifier_node = modifier_node.index
         return modifiers
 

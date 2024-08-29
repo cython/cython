@@ -4718,7 +4718,7 @@ class PythonTypeConstructorMixin:
     modifier_name = None
     contains_none = False
 
-    def is_optional(self):
+    def allows_none(self):
         return (
             self.modifier_name == 'typing.Optional' or (
             self.modifier_name == 'typing.Union' and self.contains_none)
