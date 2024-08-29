@@ -1658,12 +1658,11 @@ static void __pyx_insert_code_object(int code_line, __Pyx_CachedCodeObjectType* 
       PyMem_Free(entries);
   }
 
-/////////////// CheckBinaryVersion.proto ///////////////
+/////////////// GetRuntimeVersion.proto ///////////////
 
 static unsigned long __Pyx_get_runtime_version(void);
-static int __Pyx_check_binary_version(unsigned long ct_version, unsigned long rt_version, int allow_newer);
 
-/////////////// CheckBinaryVersion ///////////////
+/////////////// GetRuntimeVersion ///////////////
 
 static unsigned long __Pyx_get_runtime_version(void) {
     // We will probably never need the alpha/beta status, so avoid the complexity to parse it.
@@ -1694,6 +1693,12 @@ static unsigned long __Pyx_get_runtime_version(void) {
     return __Pyx_cached_runtime_version;
 #endif
 }
+
+/////////////// CheckBinaryVersion.proto ///////////////
+
+static int __Pyx_check_binary_version(unsigned long ct_version, unsigned long rt_version, int allow_newer);
+
+/////////////// CheckBinaryVersion ///////////////
 
 static int __Pyx_check_binary_version(unsigned long ct_version, unsigned long rt_version, int allow_newer) {
     // runtime version is: -1 => older, 0 => equal, 1 => newer
@@ -2180,7 +2185,6 @@ static PyObject* __Pyx_PyCode_New(
 );/*proto*/
 
 //////////////////// NewCodeObj ////////////////////////
-//@substitute: naming
 
 #if CYTHON_COMPILING_IN_LIMITED_API
     // Note that the limited API doesn't know about PyCodeObject, so the type of this
@@ -2274,7 +2278,7 @@ static PyObject* __Pyx_PyCode_New(
       #else
         PyCode_NewWithPosOnlyArgs
       #endif
-        (a, p, k, l, s, f, code, c, n, v, fv, cell, fn, name, name, fline, lnos, ${empty_bytes});
+        (a, p, k, l, s, f, code, c, n, v, fv, cell, fn, name, name, fline, lnos, EMPTY(bytes));
     return result;
   }
 #elif PY_VERSION_HEX >= 0x030800B2 && !CYTHON_COMPILING_IN_PYPY
@@ -2336,7 +2340,7 @@ static PyObject* __Pyx_PyCode_New(
     Py_INCREF(varnames_tuple_dedup);
     #endif
 
-    if (__PYX_LIMITED_VERSION_HEX >= 0x030b0000 && line_table != NULL) {
+    if (__PYX_LIMITED_VERSION_HEX >= (0x030b0000) && line_table != NULL) {
         line_table_bytes = PyBytes_FromStringAndSize(line_table, descr.line_table_length);
         if (unlikely(!line_table_bytes)) goto done;
 
@@ -2360,16 +2364,16 @@ static PyObject* __Pyx_PyCode_New(
         (int) descr.nlocals,
         0,
         (int) descr.flags,
-        code_bytes ? code_bytes : ${empty_bytes},
-        ${empty_tuple},
-        ${empty_tuple},
+        code_bytes ? code_bytes : EMPTY(bytes),
+        EMPTY(tuple),
+        EMPTY(tuple),
         varnames_tuple_dedup,
-        ${empty_tuple},
-        ${empty_tuple},
+        EMPTY(tuple),
+        EMPTY(tuple),
         filename,
         funcname,
         (int) descr.first_line,
-        (__PYX_LIMITED_VERSION_HEX >= 0x030b0000) ? line_table_bytes : ${empty_bytes}
+        (__PYX_LIMITED_VERSION_HEX >= (0x030b0000)) ? line_table_bytes : EMPTY(bytes)
     );
 
 done:

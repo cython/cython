@@ -19,6 +19,7 @@ import re
 import sys
 import copy
 import os.path
+import pathlib
 import operator
 
 from .Errors import (
@@ -10250,7 +10251,12 @@ class CodeObjectNode(ExprNode):
         func_name_result = code.get_py_string_const(
             func.name, identifier=True, is_str=False, unicode_value=func.name)
         # FIXME: better way to get the module file path at module init time? Encoding to use?
-        file_path = StringEncoding.bytes_literal(func.pos[0].get_filenametable_entry().encode('utf8'), 'utf8')
+        file_path = func.pos[0].get_filenametable_entry()
+        if os.path.isabs(file_path):
+            file_path = func.pos[0].get_description()
+        # Always use / as separator
+        file_path = pathlib.Path(file_path).as_posix()
+        file_path = StringEncoding.bytes_literal(file_path.encode('utf-8'), 'utf8')
         file_path_result = code.get_py_string_const(file_path, identifier=False, is_str=True)
 
         if func.node_positions:

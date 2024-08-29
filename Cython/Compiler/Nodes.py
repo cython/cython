@@ -5490,12 +5490,19 @@ class CClassDefNode(ClassDefNode):
         if self.bases.args:
             base = self.bases.args[0]
             base_type = base.analyse_as_type(env)
-            if base_type in (PyrexTypes.c_int_type, PyrexTypes.c_long_type, PyrexTypes.c_float_type):
-                # Use the Python rather than C variant of these types.
-                base_type = env.lookup(base_type.sign_and_name()).type
+
+            # If we accidentally picked the C type of the same name, use the Python rather than the C variant.
+            # We need to go through a local lookup since the builtin names might be redefined by user code.
+            if base_type is PyrexTypes.c_int_type:
+                base_type = env.lookup('int').type
+            elif base_type is PyrexTypes.c_float_type:
+                base_type = env.lookup('float').type
+            elif base_type is PyrexTypes.c_double_complex_type:
+                base_type = env.lookup('complex').type
+
             if base_type is None:
                 error(base.pos, "First base of '%s' is not an extension type" % self.class_name)
-            elif base_type == PyrexTypes.py_object_type:
+            elif base_type is py_object_type:
                 base_class_scope = None
             elif not base_type.is_extension_type and \
                      not (base_type.is_builtin_type and base_type.objstruct_cname):
@@ -5509,11 +5516,11 @@ class CClassDefNode(ClassDefNode):
                     base_type, self.class_name))
             elif base_type.is_builtin_type and \
                      base_type.name in ('tuple', 'bytes'):
-                     # str in Py2 is also included in this, but now checked at run-time
                 error(base.pos, "inheritance from PyVarObject types like '%s' is not currently supported"
                       % base_type.name)
             else:
                 self.base_type = base_type
+
             if env.directives.get('freelist', 0) > 0 and base_type != PyrexTypes.py_object_type:
                 warning(self.pos, "freelists cannot be used on subtypes, only the base class can manage them", 1)
 

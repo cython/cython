@@ -415,6 +415,7 @@ static void __Pyx_call_next_tp_clear(PyObject* obj, inquiry current_tp_clear) {
         tp_clear(obj);
 }
 
+
 /////////////// SetupReduce.proto ///////////////
 
 static int __Pyx_setup_reduce(PyObject* type_obj);
@@ -424,7 +425,6 @@ static int __Pyx_setup_reduce(PyObject* type_obj);
 //@requires: ObjectHandling.c::PyObjectGetAttrStr
 //@requires: SetItemOnTypeDict
 //@requires: DelItemOnTypeDict
-//@substitute: naming
 
 static int __Pyx_setup_reduce_is_named(PyObject* meth, PyObject* name) {
   int ret;

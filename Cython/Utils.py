@@ -152,12 +152,9 @@ def open_new_file(path):
         # safely hard link the output files.
         os.unlink(path)
 
-    # we use the ISO-8859-1 encoding here because we only write pure
-    # ASCII strings or (e.g. for file names) byte encoded strings as
-    # Unicode, so we need a direct mapping from the first 256 Unicode
-    # characters to a byte sequence, which ISO-8859-1 provides
-
-    return open(path, "w", encoding="ISO-8859-1")
+    # We only write pure ASCII code strings, but need to write file paths in position comments.
+    # Those are encoded in UTF-8 so that tools can parse them out again.
+    return open(path, "w", encoding="UTF-8")
 
 
 def castrate_file(path, st):

@@ -20,5 +20,5 @@ cdef class ExtSubTypeFail(ExtType):
 
 
 _ERRORS = """
-18:5: freelists cannot be used on subtypes, only the base class can manage them
+17:0: freelists cannot be used on subtypes, only the base class can manage them
 """

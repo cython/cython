@@ -31,10 +31,12 @@ jobs:
   build_pure_wheel:
     name: Build pure wheel and upload to Anaconda's PyPI
     if: >-
-      github.event_name == 'schedule' ||
-      github.event_name == 'workflow_dispatch' ||
-      (github.event_name == 'pull_request' &&
-      contains(github.event.pull_request.labels.*.name, 'Build System'))
+      github.repository == 'cython/cython' && (
+        github.event_name == 'schedule' ||
+        github.event_name == 'workflow_dispatch' ||
+        (github.event_name == 'pull_request' &&
+        contains(github.event.pull_request.labels.*.name, 'Build System'))
+      )
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Cython
@@ -56,7 +58,7 @@ jobs:
           path: ./dist/*.whl
 
       - name: Upload wheels to scientific-python-nightly-wheels
-        if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'          
+        if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
         uses: scientific-python/upload-nightly-action@b67d7fcc0396e1128a474d1ab2b48aa94680f9fc # 0.5.0
         with:
           artifacts_path: dist

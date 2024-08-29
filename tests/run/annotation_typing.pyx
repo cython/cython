@@ -435,11 +435,11 @@ _WARNINGS = """
 160:13: Tuples cannot be declared as simple tuples of types. Use 'tuple[type1, type2, ...]'.
 295:44: Unknown type declaration in annotation, ignoring
 326:15: Annotation ignored since class-level attributes must be Python objects. Were you trying to set up an instance attribute?
--# DUPLICATE:
+# DUPLICATE:
 65:44: Found C type name 'long' in a Python annotation. Did you mean to use 'cython.long'?
 65:44: Unknown type declaration 'long' in annotation, ignoring
--# BUG:
-65:6: 'pytypes_cpdef' redeclared
+# BUG:
+65:0: 'pytypes_cpdef' redeclared
 167:0: 'struct_io' redeclared
 202:0: 'struct_convert' redeclared
 221:0: 'exception_default' redeclared

@@ -7,7 +7,8 @@ cdef enum class Spam:
 cdef enum class Spam:
     b
 
+
 _ERRORS="""
-7:5: 'Spam' redeclared
-4:5: Previous declaration is here
+7:0: 'Spam' redeclared
+4:0: Previous declaration is here
 """

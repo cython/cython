@@ -97,7 +97,7 @@ else:
 
     >>> with monitored_events(events=()) as collected_events:
     ...     print(test_profile(2))
-    16
+    22
     >>> list(collected_events.items())  # test_profile(2)
     []
 
@@ -113,7 +113,7 @@ else:
     ...         print_events(collected_events)
     ...         assert_events(event_set, collected_events['test_profile'])  # test_profile(10)
     --- PY_START ---
-    720
+    990
     f_cdef PY_START [10]
     f_cpdef PY_START [20]
     f_def PY_START [10]
@@ -126,11 +126,13 @@ else:
     f_return_none PY_START [10]
     f_withgil_prof PY_START [10]
     m_cdef PY_START [10]
+    m_classmethod PY_START [10]
     m_cpdef PY_START [20]
     m_def PY_START [20]
+    m_staticmethod PY_START [10]
     test_profile PY_START [1]
     --- PY_RETURN ---
-    720
+    990
     f_cdef PY_RETURN [10]
     f_cpdef PY_RETURN [20]
     f_def PY_RETURN [10]
@@ -143,16 +145,18 @@ else:
     f_return_none PY_RETURN [10]
     f_withgil_prof PY_RETURN [10]
     m_cdef PY_RETURN [10]
+    m_classmethod PY_RETURN [10]
     m_cpdef PY_RETURN [20]
     m_def PY_RETURN [20]
+    m_staticmethod PY_RETURN [10]
     test_profile PY_RETURN [1]
     --- RAISE ---
-    720
+    990
     f_raise RAISE [20], PY_UNWIND [20]
     f_reraise RAISE [10], PY_UNWIND [10], RERAISE [10]
     test_profile RAISE [20]
     --- PY_START, PY_RETURN ---
-    720
+    990
     f_cdef PY_START [10], PY_RETURN [10]
     f_cpdef PY_START [20], PY_RETURN [20]
     f_def PY_START [10], PY_RETURN [10]
@@ -165,11 +169,13 @@ else:
     f_return_none PY_START [10], PY_RETURN [10]
     f_withgil_prof PY_START [10], PY_RETURN [10]
     m_cdef PY_START [10], PY_RETURN [10]
+    m_classmethod PY_START [10], PY_RETURN [10]
     m_cpdef PY_START [20], PY_RETURN [20]
     m_def PY_START [20], PY_RETURN [20]
+    m_staticmethod PY_START [10], PY_RETURN [10]
     test_profile PY_START [1], PY_RETURN [1]
     --- PY_START, RAISE ---
-    720
+    990
     f_cdef PY_START [10]
     f_cpdef PY_START [20]
     f_def PY_START [10]
@@ -182,11 +188,13 @@ else:
     f_return_none PY_START [10]
     f_withgil_prof PY_START [10]
     m_cdef PY_START [10]
+    m_classmethod PY_START [10]
     m_cpdef PY_START [20]
     m_def PY_START [20]
+    m_staticmethod PY_START [10]
     test_profile PY_START [1], RAISE [20]
     --- PY_RETURN, RAISE ---
-    720
+    990
     f_cdef PY_RETURN [10]
     f_cpdef PY_RETURN [20]
     f_def PY_RETURN [10]
@@ -199,11 +207,13 @@ else:
     f_return_none PY_RETURN [10]
     f_withgil_prof PY_RETURN [10]
     m_cdef PY_RETURN [10]
+    m_classmethod PY_RETURN [10]
     m_cpdef PY_RETURN [20]
     m_def PY_RETURN [20]
+    m_staticmethod PY_RETURN [10]
     test_profile PY_RETURN [1], RAISE [20]
     --- PY_START, PY_RETURN, RAISE ---
-    720
+    990
     f_cdef PY_START [10], PY_RETURN [10]
     f_cpdef PY_START [20], PY_RETURN [20]
     f_def PY_START [10], PY_RETURN [10]
@@ -216,8 +226,10 @@ else:
     f_return_none PY_START [10], PY_RETURN [10]
     f_withgil_prof PY_START [10], PY_RETURN [10]
     m_cdef PY_START [10], PY_RETURN [10]
+    m_classmethod PY_START [10], PY_RETURN [10]
     m_cpdef PY_START [20], PY_RETURN [20]
     m_def PY_START [20], PY_RETURN [20]
+    m_staticmethod PY_START [10], PY_RETURN [10]
     test_profile PY_START [1], PY_RETURN [1], RAISE [20]
 
 
@@ -254,7 +266,7 @@ else:
     ...         print_events(collected_events)
     ...         assert_events(event_set, collected_events['test_profile'])  # test_profile(10)
     --- PY_START, LINE, RAISE ---
-    720
+    990
     f_cdef PY_START [10], LINE [10]
     f_cpdef PY_START [20], LINE [20]
     f_def PY_START [10], LINE [10]
@@ -267,11 +279,13 @@ else:
     f_return_none PY_START [10], LINE [10]
     f_withgil_prof PY_START [10], LINE [10]
     m_cdef PY_START [10], LINE [10]
+    m_classmethod PY_START [10], LINE [10]
     m_cpdef PY_START [20], LINE [20]
     m_def PY_START [20], LINE [20]
-    test_profile PY_START [1], LINE [314], RAISE [20]
+    m_staticmethod PY_START [10], LINE [10]
+    test_profile PY_START [1], LINE [385], RAISE [20]
     --- PY_RETURN, LINE, RAISE ---
-    720
+    990
     f_cdef PY_RETURN [10], LINE [10]
     f_cpdef PY_RETURN [20], LINE [20]
     f_def PY_RETURN [10], LINE [10]
@@ -284,11 +298,13 @@ else:
     f_return_none PY_RETURN [10], LINE [10]
     f_withgil_prof PY_RETURN [10], LINE [10]
     m_cdef PY_RETURN [10], LINE [10]
+    m_classmethod PY_RETURN [10], LINE [10]
     m_cpdef PY_RETURN [20], LINE [20]
     m_def PY_RETURN [20], LINE [20]
-    test_profile PY_RETURN [1], LINE [314], RAISE [20]
+    m_staticmethod PY_RETURN [10], LINE [10]
+    test_profile PY_RETURN [1], LINE [385], RAISE [20]
     --- PY_START, PY_RETURN, LINE, RAISE ---
-    720
+    990
     f_cdef PY_START [10], PY_RETURN [10], LINE [10]
     f_cpdef PY_START [20], PY_RETURN [20], LINE [20]
     f_def PY_START [10], PY_RETURN [10], LINE [10]
@@ -301,9 +317,11 @@ else:
     f_return_none PY_START [10], PY_RETURN [10], LINE [10]
     f_withgil_prof PY_START [10], PY_RETURN [10], LINE [10]
     m_cdef PY_START [10], PY_RETURN [10], LINE [10]
+    m_classmethod PY_START [10], PY_RETURN [10], LINE [10]
     m_cpdef PY_START [20], PY_RETURN [20], LINE [20]
     m_def PY_START [20], PY_RETURN [20], LINE [20]
-    test_profile PY_START [1], PY_RETURN [1], LINE [314], RAISE [20]
+    m_staticmethod PY_START [10], PY_RETURN [10], LINE [10]
+    test_profile PY_START [1], PY_RETURN [1], LINE [385], RAISE [20]
 
 
     ## Testing fused functions:
@@ -394,7 +412,8 @@ def test_profile(N: cython.long):
     i: cython.long
     n: cython.long = 0
     obj: object
-    a: A = A()
+    a: CyA = CyA()
+    py_a = PyA()
 
     for i in range(N):
         n += f_def(i)
@@ -422,6 +441,15 @@ def test_profile(N: cython.long):
         n += a.m_cpdef(i)
         n += obj.m_cpdef(i)
         n += a.m_cdef(i)
+        n += CyA.m_staticmethod(i)
+        n += a.m_classmethod(i)
+
+        n += py_a.pym_def(i)
+        obj = py_a
+        n += obj.pym_def(i)
+        n += py_a.pym_staticmethod(i)
+        n += py_a.pym_classmethod(i)
+
         try:
             n += f_raise(i+2)
         except RuntimeError:
@@ -511,7 +539,7 @@ def f_return_default(_: cython.long) -> cython.long:
 
 
 @cython.cclass
-class A:
+class CyA:
     def m_def(self, a: cython.long):
         return a
 
@@ -521,6 +549,29 @@ class A:
 
     @cython.cfunc
     def m_cdef(self, a: cython.long) -> cython.long:
+        return a
+
+    @classmethod
+    @cython.cfunc
+    def m_classmethod(cls, a: cython.long) -> cython.long:
+        return a
+
+    @staticmethod
+    @cython.cfunc
+    def m_staticmethod(a: cython.long) -> cython.long:
+        return a
+
+
+class PyA:
+    def pym_def(self, a: cython.long):
+        return a
+
+    @classmethod
+    def pym_classmethod(cls, a: cython.long) -> cython.long:
+        return a
+
+    @staticmethod
+    def pym_staticmethod(a: cython.long) -> cython.long:
         return a
 
 

@@ -617,6 +617,8 @@ def init_builtin_types():
             objstruct_cname = 'PySetObject'
         elif name == 'bytearray':
             objstruct_cname = 'PyByteArrayObject'
+        elif name == 'int':
+            objstruct_cname = 'PyLongObject'
         elif name == 'bool':
             objstruct_cname = None
         elif name == 'BaseException':

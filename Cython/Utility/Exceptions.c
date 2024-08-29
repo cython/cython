@@ -26,6 +26,7 @@ if (likely(__Pyx_init_assertions_enabled() == 0)); else
     int flag;
     builtins = PyEval_GetBuiltins();
     if (!builtins) goto bad;
+    // Not using PYIDENT() here because we probably don't need the string more than this once.
     debug_str = PyUnicode_FromStringAndSize("__debug__", 9);
     if (!debug_str) goto bad;
     debug = PyObject_GetItem(builtins, debug_str);
@@ -848,8 +849,7 @@ static PyObject *__Pyx_PyCode_Replace_For_AddTraceback(PyObject *code, PyObject 
 
     replace = PyObject_GetAttrString(code, "replace");
     if (likely(replace)) {
-        PyObject *result;
-        result = PyObject_Call(replace, $empty_tuple, scratch_dict);
+        PyObject *result = PyObject_Call(replace, EMPTY(tuple), scratch_dict);
         Py_DECREF(replace);
         return result;
     }

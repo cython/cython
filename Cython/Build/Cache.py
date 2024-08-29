@@ -35,7 +35,7 @@ join_path = cached_function(os.path.join)
 def file_hash(filename):
     path = os.path.normpath(filename)
     prefix = ("%d:%s" % (len(path), path)).encode("UTF-8")
-    m = hashlib.sha1(prefix)
+    m = hashlib.sha256(prefix)
     with open(path, "rb") as f:
         data = f.read(65000)
         while data:
@@ -106,7 +106,7 @@ class Cache:
         incorporate everything that has an influence on the generated code.
         """
         try:
-            m = hashlib.sha1(__version__.encode("UTF-8"))
+            m = hashlib.sha256(__version__.encode("UTF-8"))
             m.update(file_hash(filename).encode("UTF-8"))
             for x in sorted(dependencies):
                 if os.path.splitext(x)[1] not in (".c", ".cpp", ".h"):
