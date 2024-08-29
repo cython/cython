@@ -204,7 +204,7 @@ Other changes
   and users should migrate to using the two C macros only.
   (Github issue :issue:`6036`)
 
-* Includes all fixes as of Cython 3.0.11 (but generates C99 code in some places).
+* Includes all fixes as of Cython 3.0.12 (but generates C99 code in some places).
 
 
 3.0.12 (2024-??-??)
