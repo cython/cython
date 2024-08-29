@@ -4797,9 +4797,6 @@ class PyNoneType(BuiltinObjectType):
     def __init__(self):
         super().__init__('None', None, [])
 
-    def __bool__(self):
-        # We need to ensure that expression `if NoneType:` will be False.
-        return False
 
 rank_to_type_name = (
     "char",          # 0
