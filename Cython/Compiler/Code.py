@@ -850,7 +850,7 @@ def _inject_empty_collection_constant(output, matchobj):
 
 @add_macro_processor(
     'NAMED_CGLOBAL',
-    is_module_specific=True,
+    is_module_specific=False,
     regex=r'NAMED_CGLOBAL\(([^)]+)\)'
 )
 def _inject_named_cglobal(output, matchobj):
@@ -862,7 +862,7 @@ def _inject_named_cglobal(output, matchobj):
 
 @add_macro_processor(
     'CGLOBAL',
-    is_module_specific=True,
+    is_module_specific=False,
     regex=r'CGLOBAL\(([^)]+)\)'
 )
 def _inject_cglobal(output, matchobj):
