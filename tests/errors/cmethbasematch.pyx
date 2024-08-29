@@ -35,11 +35,11 @@ cdef class NarrowerReturn(Base):
 
 
 _ERRORS = u"""
-8: 9: Signature not compatible with previous declaration
-4: 9: Previous declaration is here
+8: 4: Signature not compatible with previous declaration
+4: 4: Previous declaration is here
 # TODO(robertwb): Re-enable these errors.
-#18:8: Compatible but non-identical C method 'f' not redeclared in definition part of extension type 'MissingRedeclaration'
-#2:9: Previous declaration is here
-#23:8: Compatible but non-identical C method 'f' not redeclared in definition part of extension type 'BadRedeclaration'
-#2:9: Previous declaration is here
+#18:4: Compatible but non-identical C method 'f' not redeclared in definition part of extension type 'MissingRedeclaration'
+#2:4: Previous declaration is here
+#23:4: Compatible but non-identical C method 'f' not redeclared in definition part of extension type 'BadRedeclaration'
+#2:4: Previous declaration is here
 """
