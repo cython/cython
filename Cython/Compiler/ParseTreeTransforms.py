@@ -608,6 +608,7 @@ def sort_common_subsequences(items):
                 items[i] = items[i-1]
             items[new_pos] = item
 
+
 def unpack_string_to_character_literals(literal):
     chars = []
     pos = literal.pos
@@ -616,7 +617,7 @@ def unpack_string_to_character_literals(literal):
     sval_type = sval.__class__
     for char in sval:
         cval = sval_type(char)
-        chars.append(stype(pos, value=cval, constant_result=cval))
+        chars.append(stype(pos, value=cval))
     return chars
 
 
