@@ -1758,8 +1758,9 @@ class UnicodeNode(ConstNode):
         elif dst_type.is_pyunicode_ptr:
             return UnicodeNode(self.pos, value=self.value, type=dst_type)
         elif not dst_type.is_pyobject:
-            if dst_type.is_string or dst_type.is_cpp_string or dst_type.is_int:
-                # Allow using '-3' enforced unicode literals in a C char/char* context.
+            if dst_type.is_string or dst_type.is_cpp_string or dst_type.is_int or (
+                    dst_type.is_ptr and dst_type.base_type.is_void):
+                # Allow using '-3' enforced unicode literals in a C char/char*/void* context.
                 if self.bytes_value is not None:
                     return BytesNode(self.pos, value=self.bytes_value).coerce_to(dst_type, env)
                 if env.directives['c_string_encoding']:
@@ -1774,8 +1775,8 @@ class UnicodeNode(ConstNode):
                                      ).coerce_to(dst_type, env)
             error(self.pos,
                   "Unicode literals do not support coercion to C types other "
-                  "than Py_UNICODE/Py_UCS4 (for characters) or Py_UNICODE* "
-                  "(for strings).")
+                  "than Py_UCS4/Py_UNICODE (for characters), Py_UNICODE* "
+                  "(for strings) or char*/void* (for auto-encoded strings).")
         elif dst_type is not py_object_type:
             self.check_for_coercion_error(dst_type, env, fail=True)
         return self

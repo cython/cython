@@ -74,8 +74,24 @@ print <str>c1[1:2]
 print <unicode>c1
 print <unicode>c1[1:2]
 
+cdef void* v_f1   = u"\N{SNOWMAN}"  # not bytes compatible
+
+
+# ok again:
+
+cdef void* v1 =  "abc"
+cdef void* v2 = b"abc"
+cdef void* v3 = u"abc"
+
+cdef voidptr_func(void* x): pass
+
+voidptr_func( "abc")
+voidptr_func(b"abc")
+voidptr_func(u"abc")
+
+
 _ERRORS = u"""
-36:20: Unicode literals do not support coercion to C types other than Py_UNICODE/Py_UCS4 (for characters) or Py_UNICODE* (for strings).
+36:20: Unicode literals do not support coercion to C types other than Py_UCS4/Py_UNICODE (for characters), Py_UNICODE* (for strings) or char*/void* (for auto-encoded strings).
 37:20: Unicode objects only support coercion to Py_UNICODE*.
 38:20: Unicode objects only support coercion to Py_UNICODE*.
 
@@ -106,4 +122,5 @@ _ERRORS = u"""
 73:13: default encoding required for conversion from 'char *' to 'str object'
 74:15: Cannot convert 'char*' to unicode implicitly, decoding required
 75:17: default encoding required for conversion from 'char *' to 'str object'
+77:20: Unicode literals do not support coercion to C types other than Py_UCS4/Py_UNICODE (for characters), Py_UNICODE* (for strings) or char*/void* (for auto-encoded strings).
 """
