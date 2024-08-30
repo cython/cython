@@ -513,10 +513,10 @@ class ExpressionWriter(TreeVisitor):
     # TODO: Remove redundancy below. Most constants serialise fine as just "repr(node.value)".
 
     def visit_IntNode(self, node):
-        self.put(repr(node.value))
+        self.put(node.value)
 
     def visit_FloatNode(self, node):
-        self.put(repr(node.value))
+        self.put(node.value)
 
     def visit_NoneNode(self, node):
         self.put("None")
@@ -528,13 +528,13 @@ class ExpressionWriter(TreeVisitor):
         self.put("...")
 
     def visit_BoolNode(self, node):
-        self.put(repr(node.value))
+        self.put(str(node.value))
 
     def visit_ConstNode(self, node):
-        self.put(repr(node.value))
+        self.put(str(node.value))
 
     def visit_ImagNode(self, node):
-        self.put(f"{node.value!r}j")
+        self.put(f"{node.value}j")
 
     def visit_BytesNode(self, node):
         self.put(repr(node.value))
