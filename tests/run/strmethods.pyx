@@ -5,9 +5,7 @@
 cimport cython
 
 # Also used by the language_level=2 tests in "strmethods_ll2.pyx"
-assert cython.typeof(1 / 2) in ('long', 'double')
-IS_LANGUAGE_LEVEL_3 = cython.typeof(1 / 2) == 'double'
-str_type = "unicode object" if IS_LANGUAGE_LEVEL_3 else "str object"
+str_type = "str object"
 
 
 @cython.test_assert_path_exists(

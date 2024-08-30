@@ -932,7 +932,7 @@ class FusedCFuncDefNode(StatListNode):
 
         signatures = [StringEncoding.EncodedString(node.specialized_signature_string)
                       for node in nodes]
-        keys = [ExprNodes.StringNode(node.pos, value=sig)
+        keys = [ExprNodes.UnicodeNode(node.pos, value=sig)
                 for node, sig in zip(nodes, signatures)]
         values = [ExprNodes.PyCFunctionNode.from_defnode(node, binding=True)
                   for node in nodes]

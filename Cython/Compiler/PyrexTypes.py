@@ -1392,7 +1392,7 @@ class PyObjectType(PyrexType):
 
 builtin_types_that_cannot_create_refcycles = frozenset({
     'object', 'bool', 'int', 'long', 'float', 'complex',
-    'bytearray', 'bytes', 'unicode', 'str', 'basestring',
+    'bytearray', 'bytes', 'str',
 })
 
 builtin_types_with_trashcan = frozenset({
@@ -1452,10 +1452,7 @@ class BuiltinObjectType(PyObjectType):
 
     def assignable_from(self, src_type):
         if isinstance(src_type, BuiltinObjectType):
-            if self.name == 'basestring':
-                return src_type.name in ('str', 'unicode', 'basestring')
-            else:
-                return src_type.name == self.name
+            return src_type.name == self.name
         elif src_type.is_extension_type:
             # FIXME: This is an ugly special case that we currently
             # keep supporting.  It allows users to specify builtin
@@ -1479,9 +1476,7 @@ class BuiltinObjectType(PyObjectType):
     def type_check_function(self, exact=True):
         type_name = self.name
         if type_name == 'str':
-            type_check = 'PyString_Check'
-        elif type_name == 'basestring':
-            type_check = '__Pyx_PyBaseString_Check'
+            type_check = 'PyUnicode_Check'
         elif type_name == 'Exception':
             type_check = '__Pyx_PyException_Check'
         elif type_name == 'BaseException':
@@ -1506,14 +1501,10 @@ class BuiltinObjectType(PyObjectType):
 
     def type_test_code(self, arg, notnone=False, exact=True):
         type_check = self.type_check_function(exact=exact)
-        check = 'likely(%s(%s))' % (type_check, arg)
+        check = f'likely({type_check}({arg}))'
         if not notnone:
-            check += '||((%s) == Py_None)' % arg
-        if self.name == 'basestring':
-            name = '(PY_MAJOR_VERSION < 3 ? "basestring" : "str")'
-        else:
-            name = '"%s"' % self.name
-        return check + ' || __Pyx_RaiseUnexpectedTypeError(%s, %s)' % (name, arg)
+            check += f'||(({arg}) == Py_None)'
+        return check + f' || __Pyx_RaiseUnexpectedTypeError("{self.name}", {arg})'
 
     def declaration_code(self, entity_code,
             for_display = 0, dll_linkage = None, pyrex = 0):

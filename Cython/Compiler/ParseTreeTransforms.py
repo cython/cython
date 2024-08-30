@@ -1235,8 +1235,7 @@ class InterpretCompilerDirectives(CythonTransform):
                     'The %s directive takes one compile-time integer argument' % optname)
             return (optname, int(args[0].value))
         elif directivetype is str:
-            if kwds is not None or len(args) != 1 or not isinstance(
-                    args[0], (ExprNodes.StringNode, ExprNodes.UnicodeNode)):
+            if kwds is not None or len(args) != 1 or not isinstance(args[0], ExprNodes.UnicodeNode):
                 raise PostParseError(pos,
                     'The %s directive takes one compile-time string argument' % optname)
             return (optname, str(args[0].value))
@@ -1256,8 +1255,7 @@ class InterpretCompilerDirectives(CythonTransform):
                     'The %s directive takes no keyword arguments' % optname)
             return optname, [ str(arg.value) for arg in args ]
         elif callable(directivetype):
-            if kwds is not None or len(args) != 1 or not isinstance(
-                    args[0], (ExprNodes.StringNode, ExprNodes.UnicodeNode)):
+            if kwds is not None or len(args) != 1 or not isinstance(args[0], ExprNodes.UnicodeNode):
                 raise PostParseError(pos,
                     'The %s directive takes one compile-time string argument' % optname)
             return (optname, directivetype(optname, str(args[0].value)))
@@ -2581,8 +2579,8 @@ if VALUE is not None:
             "INIT_ASSIGNMENTS": Nodes.StatListNode(node.pos, stats = init_assignments),
             "IS_UNION": ExprNodes.BoolNode(node.pos, value = not node.entry.type.is_struct),
             "MEMBER_TUPLE": ExprNodes.TupleNode(node.pos, args=attributes),
-            "STR_FORMAT": ExprNodes.StringNode(node.pos, value = EncodedString(str_format)),
-            "REPR_FORMAT": ExprNodes.StringNode(node.pos, value = EncodedString(str_format.replace("%s", "%r"))),
+            "STR_FORMAT": ExprNodes.UnicodeNode(node.pos, value = EncodedString(str_format)),
+            "REPR_FORMAT": ExprNodes.UnicodeNode(node.pos, value = EncodedString(str_format.replace("%s", "%r"))),
         }, pos = node.pos).stats[0]
         wrapper_class.class_name = node.name
         wrapper_class.shadow = True
@@ -2787,12 +2785,9 @@ class CalculateQualifiedNamesTransform(EnvTransform):
         entry = node.scope.lookup_here(name)
         lhs = ExprNodes.NameNode(
             node.pos,
-            name = EncodedString(name),
+            name=EncodedString(name),
             entry=entry)
-        rhs = ExprNodes.StringNode(
-            node.pos,
-            value=value.as_utf8_string(),
-            unicode_value=value)
+        rhs = ExprNodes.UnicodeNode(node.pos, value=value)
         node.body.stats.insert(0, Nodes.SingleAssignmentNode(
             node.pos,
             lhs=lhs,
@@ -3845,7 +3840,7 @@ class TransformBuiltinMethods(EnvTransform):
         if attribute:
             if attribute == '__version__':
                 from .. import __version__ as version
-                node = ExprNodes.StringNode(node.pos, value=EncodedString(version))
+                node = ExprNodes.UnicodeNode(node.pos, value=EncodedString(version))
             elif attribute == 'NULL':
                 node = ExprNodes.NullNode(node.pos)
             elif attribute in ('set', 'frozenset', 'staticmethod'):

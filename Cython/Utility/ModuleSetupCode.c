@@ -1042,23 +1042,7 @@ static CYTHON_INLINE PyObject * __Pyx_PyDict_GetItemStrWithError(PyObject *dict,
 #endif
 
 // ("..." % x)  must call PyNumber_Remainder() if x is a string subclass that implements "__rmod__()".
-#define __Pyx_PyString_FormatSafe(a, b)   ((unlikely((a) == Py_None || (PyString_Check(b) && !PyString_CheckExact(b)))) ? PyNumber_Remainder(a, b) : __Pyx_PyString_Format(a, b))
 #define __Pyx_PyUnicode_FormatSafe(a, b)  ((unlikely((a) == Py_None || (PyUnicode_Check(b) && !PyUnicode_CheckExact(b)))) ? PyNumber_Remainder(a, b) : PyUnicode_Format(a, b))
-#define __Pyx_PyString_Format(a, b)  PyUnicode_Format(a, b)
-
-// TODO: remove this block
-#define PyBaseString_Type            PyUnicode_Type
-#define PyStringObject               PyUnicodeObject
-#define PyString_Type                PyUnicode_Type
-#define PyString_Check               PyUnicode_Check
-#define PyString_CheckExact          PyUnicode_CheckExact
-// PyPy3 used to define "PyObject_Unicode"
-#ifndef PyObject_Unicode
-  #define PyObject_Unicode             PyObject_Str
-#endif
-
-#define __Pyx_PyBaseString_Check(obj) PyUnicode_Check(obj)
-#define __Pyx_PyBaseString_CheckExact(obj) PyUnicode_CheckExact(obj)
 
 #if CYTHON_COMPILING_IN_CPYTHON
   #define __Pyx_PySequence_ListKeepNew(obj) \
