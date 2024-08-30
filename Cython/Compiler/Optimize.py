@@ -3868,28 +3868,28 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
 
         string_node = args[0]
 
+        parameters = self._unpack_encoding_and_error_mode(node.pos, args)
+        if parameters is None:
+            return node
+        encoding, encoding_node, error_handling, error_handling_node = parameters
+
+        if string_node.has_constant_result():
+            # constant, so try to do the encoding at compile time
+            try:
+                value = string_node.constant_result.encode(encoding, error_handling)
+            except:
+                # well, looks like we can't
+                pass
+            else:
+                value = bytes_literal(value, encoding or 'UTF-8')
+                return ExprNodes.BytesNode(string_node.pos, value=value, type=Builtin.bytes_type)
+
         if len(args) == 1:
             null_node = ExprNodes.NullNode(node.pos)
             return self._substitute_method_call(
                 node, function, "PyUnicode_AsEncodedString",
                 self.PyUnicode_AsEncodedString_func_type,
                 'encode', is_unbound_method, [string_node, null_node, null_node])
-
-        parameters = self._unpack_encoding_and_error_mode(node.pos, args)
-        if parameters is None:
-            return node
-        encoding, encoding_node, error_handling, error_handling_node = parameters
-
-        if encoding and isinstance(string_node, ExprNodes.UnicodeNode):
-            # constant, so try to do the encoding at compile time
-            try:
-                value = string_node.value.encode(encoding, error_handling)
-            except:
-                # well, looks like we can't
-                pass
-            else:
-                value = bytes_literal(value, encoding)
-                return ExprNodes.BytesNode(string_node.pos, value=value, type=Builtin.bytes_type)
 
         if encoding and error_handling == 'strict':
             # try to find a specific encoder function
@@ -3944,6 +3944,20 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
             self._error_wrong_arg_count('bytes.decode', node, args, '1-3')
             return node
 
+        # Try to extract encoding parameters and attempt constant decode.
+        parameters = self._unpack_encoding_and_error_mode(node.pos, args)
+        if parameters is None:
+            return node
+        encoding, encoding_node, error_handling, error_handling_node = parameters
+
+        if args[0].has_constant_result():
+            try:
+                constant_result = args[0].constant_result.decode(encoding, error_handling)
+            except (AttributeError, ValueError, UnicodeDecodeError):
+                pass
+            else:
+                return UnicodeNode(args[0].pos, value=encoded_string(constant_result, encoding))
+
         # normalise input nodes
         string_node = args[0]
         start = stop = None
@@ -3970,11 +3984,6 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
         elif not string_type.is_string and not string_type.is_cpp_string:
             # nothing to optimise here
             return node
-
-        parameters = self._unpack_encoding_and_error_mode(node.pos, args)
-        if parameters is None:
-            return node
-        encoding, encoding_node, error_handling, error_handling_node = parameters
 
         if not start:
             start = ExprNodes.IntNode(node.pos, value='0', constant_result=0)
