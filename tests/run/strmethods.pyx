@@ -2,10 +2,9 @@
 
 # cython: language_level=3
 
-cimport cython
-
 # Also used by the language_level=2 tests in "strmethods_ll2.pyx"
-str_type = "str object"
+
+cimport cython
 
 
 @cython.test_assert_path_exists(
@@ -34,6 +33,7 @@ def str_startswith(str s, sub, start=None, stop=None):
       return s.startswith(sub, start)
     else:
       return s.startswith(sub, start, stop)
+
 
 @cython.test_assert_path_exists(
     "//PythonCapiCallNode")
@@ -93,7 +93,7 @@ def str_join(str s, args):
     babab
     """
     result = s.join(args)
-    assert cython.typeof(result) == str_type, (cython.typeof(result), str_type)
+    assert cython.typeof(result) == "str object", cython.typeof(result)
     return result
 
 
@@ -107,7 +107,7 @@ def literal_join(args):
     a|b|c|d|e|f|g
     """
     result = '|'.join(args)
-    assert cython.typeof(result) == str_type, (cython.typeof(result), str_type)
+    assert cython.typeof(result) == "str object", cython.typeof(result)
     return result
 
 
@@ -144,7 +144,7 @@ def mod_format_literal(values):
     >>> mod_format_literal(['sa']) == "abc['sa']def"  or  mod_format(format1, ['sa'])
     True
     """
-    assert cython.typeof('abc%sdef' % values) == str_type, (cython.typeof('abc%sdef' % values), str_type)
+    assert cython.typeof('abc%sdef' % values) == "str object", cython.typeof('abc%sdef' % values)
     return 'abc%sdef' % values
 
 
@@ -156,5 +156,5 @@ def mod_format_tuple(*values):
     Traceback (most recent call last):
     TypeError: not enough arguments for format string
     """
-    assert cython.typeof('abc%sdef' % values) == str_type, (cython.typeof('abc%sdef' % values), str_type)
+    assert cython.typeof('abc%sdef' % values) == "str object", cython.typeof('abc%sdef' % values)
     return 'abc%sdef' % values
