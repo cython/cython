@@ -1265,7 +1265,7 @@ static CYTHON_INLINE int __Pyx_PyDict_GetItemRef(PyObject *dict, PyObject *key, 
 #endif
 
 
-/////////////// PyModInitFuncType.proto ///////////////
+/////////////// PyModInitFuncType ///////////////
 
 #ifndef CYTHON_NO_PYINIT_EXPORT
   #define __Pyx_PyMODINIT_FUNC PyMODINIT_FUNC

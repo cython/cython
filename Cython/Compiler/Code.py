@@ -694,15 +694,15 @@ class UtilityCode(UtilityCodeBase):
             self.specialize_list.append(s)
             return s
 
-    def put_code(self, output, proto_writer=None, impl_writer=None):
+    def put_code(self, output, impl_writer=None):
         if self.requires:
             for dependency in self.requires:
                 output.use_utility_code(dependency)
         if self.proto:
-            writer = proto_writer or output[self.proto_block]
+            writer = output[self.proto_block]
             writer.putln(f"/* {self.name}.proto */")
             proto, result_is_module_specific = process_utility_ccode(self, output, self.proto)
-            if result_is_module_specific or proto_writer:
+            if result_is_module_specific:
                 writer.put(proto)
             else:
                 # can be reused across modules
@@ -1754,12 +1754,12 @@ class GlobalState:
 
     def put_cached_builtin_init(self, pos, name, cname):
         w = self.parts['cached_builtins']
-        interned_cname = f"{Naming.modulestatevalue_cname}->{self.get_interned_identifier(name).cname}"
+        cname_in_modulestate = f"{Naming.modulestatevalue_cname}->{self.get_interned_identifier(name).cname}"
         self.use_utility_code(
             UtilityCode.load_cached("GetBuiltinName", "ObjectHandling.c"))
         w.putln('%s = __Pyx_GetBuiltinName(%s); if (!%s) %s' % (
             cname,
-            interned_cname,
+            cname_in_modulestate,
             cname,
             w.error_goto(pos)))
 
@@ -2542,12 +2542,12 @@ class CCodeWriter:
         elif fix_indent:
             self.level += 1
 
-    def put_code_here(self, utility, proto_here=True, impl_here=True):
-        # puts the impl section of the utility code directly to here
-        kwds = {}
-        if proto_here: kwds['proto_writer'] = self
-        if impl_here: kwds['impl_writer'] = self
-        utility.put_code(self.globalstate, **kwds)
+    def put_code_here(self, utility):
+        # Puts the impl section of the utility code directly to the current position.
+        # Ensure we don't have a proto section (but do allow init and cleanup sections
+        # because they might be useful in future).
+        assert not utility.proto, utility.name
+        utility.put_code(self.globalstate, impl_writer=self)
 
     def increase_indent(self):
         self.level += 1
