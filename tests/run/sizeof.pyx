@@ -1,6 +1,12 @@
 cdef struct Spam:
     char *grail
 
+cdef extern from *:
+    """
+    typedef char ulong;
+    """
+    ctypedef int ulong
+
 def f():
     """
     >>> f()
@@ -16,3 +22,9 @@ def f():
     i = sizeof(Spam*)
     i = sizeof(Spam[5])
     i = sizeof(Spam (*)())
+
+def test_extern_typedef():
+
+    # Cython should generate the C code "sizeof(ulong)"
+    # rather than interpreting ulong as "unsigned long".
+    return sizeof(ulong)

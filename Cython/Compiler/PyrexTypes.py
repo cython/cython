@@ -5422,6 +5422,8 @@ def parse_really_basic_type(name):
         return basic_type
     if name == "long":
         return c_long_type
+    elif name == "short":
+        return c_short_type
     return None
 
 
