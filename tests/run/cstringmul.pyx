@@ -37,8 +37,11 @@ ugrail_long = 700 * u"tomato"
 
 cimport cython
 
-@cython.test_assert_path_exists("//UnicodeNode[@value = '-----']")
-@cython.test_assert_path_exists("//UnicodeNode[@bytes_value = b'-----']")
+@cython.test_assert_path_exists(
+    "//UnicodeNode[@value = '-----']",
+    "//UnicodeNode[@bytes_value = b'-----']",
+    "//BytesNode[@value = b'-----']",
+)
 def gh3951():
     """
     Bug occured with language_level=2 and affected StringNode.value
