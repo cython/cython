@@ -44,7 +44,7 @@ cimport cython
 )
 def gh3951():
     """
-    Bug occured with language_level=2 and affected StringNode.value
+    Bug occurred with language_level=2 and affected StringNode.value
     >>> gh3951()
     ('-----', b'-----')
     """
