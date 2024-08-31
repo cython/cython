@@ -41,8 +41,8 @@ cimport cython
 @cython.test_assert_path_exists("//UnicodeNode[@bytes_value = b'-----']")
 def gh3951():
     """
-    Bug occurs with language_level=2 and affects StringNode.value
+    Bug occured with language_level=2 and affected StringNode.value
     >>> gh3951()
-    '-----'
+    ('-----', b'-----')
     """
-    return "-"*5
+    return "-"*5, b"-"*5
