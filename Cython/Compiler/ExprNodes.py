@@ -2353,6 +2353,10 @@ class NameNode(AtomicExprNode):
             # assume that type inference is smarter than the static entry
             type = self.inferred_type
         self.type = type
+        if entry.scope.is_module_scope and (
+                entry.is_pyglobal or entry.is_cclass_var_entry):
+            # TODO - eventually this should apply to cglobals too
+            self.module_state_lookup = env.name_in_module_state("")
 
     def check_identifier_kind(self):
         # Check that this is an appropriate kind of name for use in an
@@ -2463,10 +2467,6 @@ class NameNode(AtomicExprNode):
         entry = self.entry
         if entry is None:
             return  # There was an error earlier
-        if entry.scope.is_module_scope and (
-                entry.is_pyglobal or entry.is_cclass_var_entry):
-            # TODO - eventually this should apply to cglobals too
-            self.module_state_lookup = code.name_in_module_state("")
         if entry.utility_code:
             code.globalstate.use_utility_code(entry.utility_code)
         if entry.is_builtin and entry.is_const:
@@ -14188,19 +14188,16 @@ class PyTypeTestNode(CoercionNode):
     def generate_result_code(self, code):
         if self.type.typeobj_is_available():
             if self.type.is_builtin_type:
-                type_test = self.type.type_test_code(
-                    code,
+                type_test, type_test_utility = self.type.type_test_code(
+                    code.funcstate.scope,
                     self.arg.py_result(),
                     self.notnone, exact=self.exact_builtin_type)
-                code.globalstate.use_utility_code(UtilityCode.load_cached(
-                    "RaiseUnexpectedTypeError", "ObjectHandling.c"))
             else:
-                type_test = self.type.type_test_code(
-                    code, self.arg.py_result(), self.notnone)
-                code.globalstate.use_utility_code(
-                    UtilityCode.load_cached("ExtTypeTest", "ObjectHandling.c"))
+                type_test, type_test_utility = self.type.type_test_code(
+                    code.funcstate.scope, self.arg.py_result(), self.notnone)
             code.putln("if (!(%s)) %s" % (
                 type_test, code.error_goto(self.pos)))
+            code.globalstate.use_utility_code(type_test_utility)
         else:
             error(self.pos, "Cannot test type of extern C class "
                 "without type object name specification")

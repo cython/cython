@@ -1504,16 +1504,20 @@ class BuiltinObjectType(PyObjectType):
     def isinstance_code(self, arg):
         return '%s(%s)' % (self.type_check_function(exact=False), arg)
 
-    def type_test_code(self, code, arg, notnone=False, exact=True):
+    def type_test_code(self, scope, arg, notnone=False, exact=True):
+        # returns code_str, utility_code
         type_check = self.type_check_function(exact=exact)
         check = 'likely(%s(%s))' % (type_check, arg)
+        utility_code = UtilityCode.load_cached(
+                    "RaiseUnexpectedTypeError", "ObjectHandling.c")
         if not notnone:
             check += '||((%s) == Py_None)' % arg
         if self.name == 'basestring':
             name = '(PY_MAJOR_VERSION < 3 ? "basestring" : "str")'
         else:
             name = '"%s"' % self.name
-        return check + ' || __Pyx_RaiseUnexpectedTypeError(%s, %s)' % (name, arg)
+        return (check + ' || __Pyx_RaiseUnexpectedTypeError(%s, %s)' % (name, arg),
+                utility_code)
 
     def declaration_code(self, entity_code,
             for_display = 0, dll_linkage = None, pyrex = 0):
@@ -1649,14 +1653,16 @@ class PyExtensionType(PyObjectType):
                 entity_code = "*%s" % entity_code
         return self.base_declaration_code(base_code, entity_code)
 
-    def type_test_code(self, code, py_arg, notnone=False):
+    def type_test_code(self, scope, py_arg, notnone=False):
+        # returns code_str, utility_code
         none_check = "((%s) == Py_None)" % py_arg
         type_check = "likely(__Pyx_TypeTest(%s, %s))" % (
-            py_arg, code.name_in_module_state(self.typeptr_cname))
+            py_arg, scope.name_in_module_state(self.typeptr_cname))
+        utility_code = UtilityCode.load_cached("ExtTypeTest", "ObjectHandling.c")
         if notnone:
-            return type_check
+            return type_check, utility_code
         else:
-            return "likely(%s || %s)" % (none_check, type_check)
+            return f"likely({none_check} || {type_check})", utility_code
 
     def attributes_known(self):
         return self.scope is not None
@@ -3740,6 +3746,7 @@ class ToPyStructUtilityCode:
         code = output['utility_code_def']
         proto = output['utility_code_proto']
 
+        code.enter_cfunc_scope(self.env.global_scope())
         code.putln("%s {" % self.header)
         code.putln("PyObject* res;")
         code.putln("PyObject* member;")
@@ -3757,6 +3764,7 @@ class ToPyStructUtilityCode:
         code.putln("Py_DECREF(res);")
         code.putln("return NULL;")
         code.putln("}")
+        code.exit_cfunc_scope()
 
         # This is a bit of a hack, we need a forward declaration
         # due to the way things are ordered in the module...

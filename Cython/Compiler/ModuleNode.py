@@ -2862,9 +2862,12 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 code.putln('else if (__Pyx_StrEq(name, "%s")) {' % name)
                 if entry.type.is_pyobject:
                     if entry.type.is_extension_type or entry.type.is_builtin_type:
+                        type_test, type_test_utility = entry.type.type_test_code(
+                            code.funcstate.scope, "o")
                         code.putln("if (!(%s)) %s;" % (
-                            entry.type.type_test_code(code, "o"),
+                            type_test,
                             code.error_goto(entry.pos)))
+                        code.globalstate.use_utility_code(type_test_utility)
                     code.putln("Py_INCREF(o);")
                     code.put_decref(entry.cname, entry.type, nanny=False)
                     code.putln("%s = %s;" % (

@@ -2350,7 +2350,7 @@ class CCodeWriter:
     def label_used(self, lbl):         return self.funcstate.label_used(lbl)
 
 
-    def enter_cfunc_scope(self, scope=None):
+    def enter_cfunc_scope(self, scope):
         self.funcstate = FunctionState(self, scope=scope)
 
     def exit_cfunc_scope(self):
@@ -2415,22 +2415,16 @@ class CCodeWriter:
         return self.globalstate.get_cached_constants_writer(target)
 
     def name_in_module_state(self, cname):
-        # If we don't have a funcstate scope assume global scope for now
+        if self.funcstate.scope is None:
+            return self.name_in_main_c_code_module_state(cname)
+        return self.funcstate.scope.name_in_module_state(cname)
 
-        # default fallback option if we don't know better
-        modulestate_name = Naming.modulestateglobal_cname
+    @staticmethod
+    def name_in_main_c_code_module_state(cname):
+        return f"{Naming.modulestateglobal_cname}->{cname}"
 
-        # self.funcstate can be None in a few places, including ToPyStructUtilityCode.
-        # TODO - this will eventually need to be fixed.
-        if self.funcstate is not None:
-            if self.funcstate.scope is None or self.funcstate.scope.is_module_scope:
-                modulestate_name = Naming.modulestatevalue_cname
-            # TODO - more choices depending on the type of env
-            # e.g. slot, function, method
-
-        return f"{modulestate_name}->{cname}"
-
-    def name_in_slot_module_state(self, cname):
+    @staticmethod
+    def name_in_slot_module_state(cname):
         # TODO - eventually this will go through PyType_GetModuleByDef
         # in cases where it's supported.
         return f"{Naming.modulestateglobal_cname}->{cname}"
