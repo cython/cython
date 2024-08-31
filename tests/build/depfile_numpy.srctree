@@ -25,10 +25,10 @@ with open("dep_np.c.dep", "r") as f:
 
 contents = contents.split()
 
-cy_prefix, _ = os.path.split(Cython.__file__)
+cy_prefix, _ = os.path.split(os.path.relpath(Cython.__file__, '.'))
 contents = [fname.replace(cy_prefix, "cy_prefix") for fname in contents]
 
-np_prefix, _ = os.path.split(np.__file__)
+np_prefix, _ = os.path.split(os.path.relpath(np.__file__, '.'))
 contents = [fname.replace(np_prefix, "np_prefix") for fname in contents]
 
 # filter out the version number from `np_prefix/__init__.cython-30.pxd`.
