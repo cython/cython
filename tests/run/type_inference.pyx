@@ -9,7 +9,6 @@ from cpython cimport bool
 
 assert typeof(1 / 2) in ('long', 'double')
 IS_LANGUAGE_LEVEL_3 = typeof(1 / 2) == 'double'
-str_type = "str object"
 
 ##################################################
 # type inference tests in 'full' mode (infer_types=True)
@@ -32,7 +31,7 @@ def simple():
     b = b"abc"
     assert typeof(b) == "bytes object", typeof(b)
     s = "abc"
-    assert typeof(s) == str_type, (typeof(s), str_type)
+    assert typeof(s) == "str object", typeof(s)
     u = u"xyz"
     assert typeof(u) == "str object", typeof(u)
     L = [1,2,3]
@@ -80,11 +79,11 @@ def slicing():
     assert typeof(u2) == "str object", typeof(u2)
 
     s = "xyz"
-    assert typeof(s) == str_type, (typeof(s), str_type)
+    assert typeof(s) == "str object", typeof(s)
     s1 = s[1:2]
-    assert typeof(s1) == str_type, (typeof(s1), str_type)
+    assert typeof(s1) == "str object", typeof(s1)
     s2 = s[1:2:2]
-    assert typeof(s2) == str_type, (typeof(s2), str_type)
+    assert typeof(s2) == "str object", typeof(s2)
 
     L = [1,2,3]
     assert typeof(L) == "list object", typeof(L)
@@ -108,7 +107,7 @@ def indexing():
     b = b"abc"
     assert typeof(b) == "bytes object", typeof(b)
     b1 = b[1]
-    assert typeof(b1) == "Python object", typeof(b1) # Py2: bytes, Py3: int
+    assert typeof(b1) == "Python object", typeof(b1)
 
     u = u"xyz"
     assert typeof(u) == "str object", typeof(u)
@@ -116,9 +115,9 @@ def indexing():
     assert typeof(u1) == "Py_UCS4", typeof(u1)
 
     s = "xyz"
-    assert typeof(s) == str_type, (typeof(s), str_type)
+    assert typeof(s) == "str object", typeof(s)
     s1 = s[1]
-    assert typeof(s1) == "Py_UCS4", (typeof(s1), str_type)
+    assert typeof(s1) == "Py_UCS4", typeof(s1)
 
     L = [1,2,3]
     assert typeof(L) == "list object", typeof(L)
@@ -133,15 +132,15 @@ def indexing():
     t2 = ('abc', 'def', 'ghi')
     assert typeof(t2) == "tuple object", typeof(t2)
     t2_1 = t2[1]
-    assert typeof(t2_1) == str_type, (typeof(t2_1), str_type)
+    assert typeof(t2_1) == "str object", typeof(t2_1)
     t2_2 = t2[t[0]-3]
-    assert typeof(t2_2) == str_type, (typeof(t2_2), str_type)
+    assert typeof(t2_2) == "str object", typeof(t2_2)
 
     t5 = (b'abc', 'def', u'ghi')
     t5_0 = t5[0]
     assert typeof(t5_0) == "bytes object", typeof(t5_0)
     t5_1 = t5[1]
-    assert typeof(t5_1) == str_type, (typeof(t5_1), str_type)
+    assert typeof(t5_1) == "str object", typeof(t5_1)
     t5_2 = t5[2]
     assert typeof(t5_2) == "str object", typeof(t5_2)
     t5_3 = t5[t[0]-3]
@@ -243,13 +242,13 @@ def builtin_type_operations():
 
     s1 = "abc %s" % "x"
     s1 = "abc %s" % 10
-    assert typeof(s1) == str_type, (typeof(s1), str_type)
+    assert typeof(s1) == "str object", (typeof(s1), "str object")
     s2 = "abc %s" + "x"
-    assert typeof(s2) == str_type, (typeof(s2), str_type)
+    assert typeof(s2) == "str object", (typeof(s2), "str object")
     s3 = "abc %s" * 10
     s3 = "abc %s" * 10 * 10
     s3 = 10 * "abc %s" * 10
-    assert typeof(s3) == str_type, (typeof(s3), str_type)
+    assert typeof(s3) == "str object", (typeof(s3), "str object")
 
     x: int = 15
     f1 = x / 3
@@ -584,9 +583,9 @@ def safe_only():
     assert typeof(div_res) == ("double" if IS_LANGUAGE_LEVEL_3 else "Python object"), typeof(div_res)
 
     s = "abc"
-    assert typeof(s) == str_type, (typeof(s), str_type)
+    assert typeof(s) == "str object", (typeof(s), "str object")
     cdef str t = "def"
-    assert typeof(t) == str_type, (typeof(t), str_type)
+    assert typeof(t) == "str object", (typeof(t), "str object")
 
     # potentially overflowing arithmetic
     e = 1
