@@ -3,9 +3,9 @@ cdef struct Spam:
 
 cdef extern from *:
     """
-    typedef char ulong;
+    typedef char p_ulong;
     """
-    ctypedef int ulong
+    ctypedef int p_ulong
 
 def f():
     """
@@ -25,6 +25,6 @@ def f():
 
 def test_extern_typedef():
 
-    # Cython should generate the C code "sizeof(ulong)"
-    # rather than interpreting ulong as "unsigned long".
-    return sizeof(ulong)
+    # Cython should generate the C code "sizeof(p_ulong)"
+    # rather than interpreting p_ulong as "unsigned long*".
+    return sizeof(p_ulong)
