@@ -694,14 +694,14 @@ class UtilityCode(UtilityCodeBase):
             self.specialize_list.append(s)
             return s
     
-    def _put_code_section(self, writer, code_type: str):
+    def _put_code_section(self, writer, output, code_type: str):
         code_string = getattr(self, code_type)
         if not code_string:
             return False
 
         can_be_reused = code_type in ('proto', 'impl')
 
-        code_string, result_is_module_specific = process_utility_ccode(self, writer, code_string)
+        code_string, result_is_module_specific = process_utility_ccode(self, output, code_string)
 
         code_type_name = code_type if code_type != 'impl' else ''
         writer.putln(f"/* {self.name}{'.' if code_type_name else ''}{code_type_name} */")
@@ -714,7 +714,7 @@ class UtilityCode(UtilityCodeBase):
         return True
     
     def _put_init_code_section(self, output):
-        if self._put_code_section(output['init_globals'], 'init'):
+        if self._put_code_section(output['init_globals'], output, 'init'):
             writer = output['init_globals']
             # 'init' code can end with an 'if' statement for an error condition like:
             # if (check_ok()) ; else
@@ -726,10 +726,10 @@ class UtilityCode(UtilityCodeBase):
             for dependency in self.requires:
                 output.use_utility_code(dependency)
 
-        self._put_code_section(output[self.proto_block], 'proto')
-        self._put_code_section(output['utility_code_def'], 'impl')
+        self._put_code_section(output[self.proto_block], output, 'proto')
+        self._put_code_section(output['utility_code_def'], output, 'impl')
         if Options.generate_cleanup_code:
-            self._put_code_section(output['cleanup_globals'], 'cleanup')
+            self._put_code_section(output['cleanup_globals'], output, 'cleanup')
 
         self._put_init_code_section(output)
 
@@ -826,7 +826,7 @@ def _inject_string_constant(output, matchobj):
     str_type, name = matchobj.groups()
     return "%s->%s" % (
         Naming.modulestateglobal_cname,
-        output.globalstate.get_py_string_const(
+        output.get_py_string_const(
             StringEncoding.EncodedString(name), identifier=str_type == 'IDENT').cname)
 
 
@@ -2506,10 +2506,11 @@ class CCodeWriter:
         # Ensure we don't have a proto section (but do allow init and cleanup sections
         # because they might be useful in future).
         assert not utility.proto, utility.name
-        utility._put_code_section(self, "impl")
+        utility._put_code_section(self, self.globalstate, "impl")
         utility._put_init_code_section(self.globalstate)
         if Options.generate_cleanup_code:
-            utility._put_code_section(self.globalstate['cleanup_globals'], "cleanup")
+            utility._put_code_section(
+                self.globalstate['cleanup_globals'], self.globalstate, "cleanup")
 
     def increase_indent(self):
         self.level += 1
