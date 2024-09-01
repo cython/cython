@@ -3956,7 +3956,7 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
             except (AttributeError, ValueError, UnicodeDecodeError):
                 pass
             else:
-                return UnicodeNode(args[0].pos, value=encoded_string(constant_result, encoding))
+                return ExprNodes.UnicodeNode(args[0].pos, value=EncodedString(constant_result))
 
         # normalise input nodes
         string_node = args[0]
