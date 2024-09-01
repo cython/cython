@@ -1282,6 +1282,7 @@ class NoneNode(PyConstNode):
     def analyse_as_type(self, env):
         if not env.in_c_type_context:
             return py_none_type
+        return None
 
 
 class EllipsisNode(PyConstNode):
