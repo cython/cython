@@ -728,7 +728,8 @@ class UtilityCode(UtilityCodeBase):
 
         self._put_code_section(output[self.proto_block], 'proto')
         self._put_code_section(output['utility_code_def'], 'impl')
-        self._put_code_section(output['cleanup_globals'], 'cleanup')
+        if Options.generate_cleanup_code:
+            self._put_code_section(output['cleanup_globals'], 'cleanup')
 
         self._put_init_code_section(output)
 
@@ -825,7 +826,7 @@ def _inject_string_constant(output, matchobj):
     str_type, name = matchobj.groups()
     return "%s->%s" % (
         Naming.modulestateglobal_cname,
-        output.get_py_string_const(
+        output.globalstate.get_py_string_const(
             StringEncoding.EncodedString(name), identifier=str_type == 'IDENT').cname)
 
 
@@ -2372,12 +2373,20 @@ class CCodeWriter:
 
     def name_in_module_state(self, cname):
         if self.funcstate.scope is None:
+            # This is a mess. For example, within the codeobj generation
+            # funcstate.scope is None while evaluating the strings, but not while
+            # evaluating the code objects themselves. Right now it doesn't matter
+            # because it all ends up going to the same place, but to actually turn
+            # it into something useful this mess will need to be fixed.
             return self.name_in_main_c_code_module_state(cname)
         return self.funcstate.scope.name_in_module_state(cname)
 
     @staticmethod
     def name_in_main_c_code_module_state(cname):
-        return f"{Naming.modulestateglobal_cname}->{cname}"
+        # The functions where this applies to have the modulestate passed
+        # as an argument to them and so it's better use that argument than
+        # to try to get it from a global variable.
+        return f"{Naming.modulestatevalue_cname}->{cname}"
 
     @staticmethod
     def name_in_slot_module_state(cname):
@@ -2498,8 +2507,9 @@ class CCodeWriter:
         # because they might be useful in future).
         assert not utility.proto, utility.name
         utility._put_code_section(self, "impl")
-        utility.put_init_code_section(self)
-        utility._put_code_section(self['cleanup_globals'], "cleanup")
+        utility._put_init_code_section(self.globalstate)
+        if Options.generate_cleanup_code:
+            utility._put_code_section(self.globalstate['cleanup_globals'], "cleanup")
 
     def increase_indent(self):
         self.level += 1
