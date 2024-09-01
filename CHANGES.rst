@@ -169,8 +169,8 @@ Other changes
 * Support for Python 2.7 - 3.6 was removed, along with large chunks of legacy code.
   (Github issue :issue:`2800`)
 
-* The pxd files ``cpython.int``, ``cpython.cobject`` and ``cpython.oldbuffer`` were
-  removed as they refer to C-API declarations that are only in Python 2.x.
+* The pxd files ``cpython.int``, ``cpython.cobject``, ``cpython.oldbuffer`` and ``cpython.string``
+  were removed as they refer to C-API declarations that are only in Python 2.x.
   (Github issue :issue:`5870`)
 
 * The generated C code now requires a C99 compatible C compiler.
@@ -178,6 +178,10 @@ Other changes
 * ``language_level=3`` is now the default.
   ``language_level=3str`` has become a legacy alias.
   (Github issue :issue:`5827`)
+
+* The Py2 types ``unicode`` and ``basestring`` are now deprecated and have become aliases
+  of the ``str`` type.
+  (Github issue :issue:`6374`)
 
 * Docstrings now strip their leading whitespace according to PEP-257.
   Patch by Lawrence Mitchell.  (Github issue :issue:`6241`)
