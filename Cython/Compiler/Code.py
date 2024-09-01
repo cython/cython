@@ -693,48 +693,44 @@ class UtilityCode(UtilityCodeBase):
 
             self.specialize_list.append(s)
             return s
+    
+    def _put_code_section(self, writer, code_type: str):
+        code_string = getattr(self, code_type)
+        if not code_string:
+            return False
 
-    def put_code(self, output, impl_writer=None):
-        if self.requires:
-            for dependency in self.requires:
-                output.use_utility_code(dependency)
-        if self.proto:
-            writer = output[self.proto_block]
-            writer.putln(f"/* {self.name}.proto */")
-            proto, result_is_module_specific = process_utility_ccode(self, output, self.proto)
-            if result_is_module_specific:
-                writer.put(proto)
-            else:
-                # can be reused across modules
-                writer.put_or_include(proto, f'{self.name}_proto')
-        if self.impl:
-            impl, result_is_module_specific = process_utility_ccode(self, output, self.impl)
-            writer = impl_writer or output['utility_code_def']
-            writer.putln(f"/* {self.name} */")
-            if result_is_module_specific or impl_writer:
-                writer.put(impl)
-            else:
-                # can be reused across modules
-                writer.put_or_include(impl, f'{self.name}_impl')
-        if self.init:
+        can_be_reused = code_type in ('proto', 'impl')
+
+        code_string, result_is_module_specific = process_utility_ccode(self, writer, code_string)
+
+        code_type_name = code_type if code_type != 'impl' else ''
+        writer.putln(f"/* {self.name}{'.' if code_type_name else ''}{code_type_name} */")
+
+        if can_be_reused and not result_is_module_specific:
+            # can be reused across modules
+            writer.put_or_include(code_string, f'{self.name}_{code_type}')
+        else:
+            writer.put(code_string)
+        return True
+    
+    def _put_init_code_section(self, output):
+        if self._put_code_section(output['init_globals'], 'init'):
             writer = output['init_globals']
-            writer.putln(f"/* {self.name}.init */")
-            init, _ = process_utility_ccode(self, writer, self.init)
-            writer.put(init)
             # 'init' code can end with an 'if' statement for an error condition like:
             # if (check_ok()) ; else
             writer.putln(writer.error_goto_if_PyErr(output.module_pos))
             writer.putln()
-        if self.cleanup and Options.generate_cleanup_code:
-            writer = output['cleanup_globals']
-            writer.putln(f"/* {self.name}.cleanup */")
-            cleanup, result_is_module_specific = process_utility_ccode(self, writer, self.cleanup)
-            if result_is_module_specific:
-                writer.put(cleanup)
-            else:
-                writer.put_or_include(
-                    self.format_code(cleanup),
-                    f'{self.name}_cleanup')
+
+    def put_code(self, output):
+        if self.requires:
+            for dependency in self.requires:
+                output.use_utility_code(dependency)
+
+        self._put_code_section(output[self.proto_block], 'proto')
+        self._put_code_section(output['utility_code_def'], 'impl')
+        self._put_code_section(output['cleanup_globals'], 'cleanup')
+
+        self._put_init_code_section(output)
 
 
 def add_macro_processor(*macro_names, regex=None, is_module_specific=False, _last_macro_processor = [None]):
@@ -2501,7 +2497,9 @@ class CCodeWriter:
         # Ensure we don't have a proto section (but do allow init and cleanup sections
         # because they might be useful in future).
         assert not utility.proto, utility.name
-        utility.put_code(self.globalstate, impl_writer=self)
+        utility._put_code_section(self, "impl")
+        utility.put_init_code_section(self)
+        utility._put_code_section(self['cleanup_globals'], "cleanup")
 
     def increase_indent(self):
         self.level += 1

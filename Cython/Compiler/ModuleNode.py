@@ -526,7 +526,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             self.generate_import_star(env, code)
 
         # initialise the macro to reduce the code size of one-time functionality
-        globalstate['module_state'].putln(UtilityCode.load_as_string("SmallCodeConfig", "ModuleSetupCode.c")[0].strip())
+        globalstate['module_state'].put_code_here(
+            UtilityCode.load("SmallCodeConfig", "ModuleSetupCode.c"))
 
         self.generate_module_state_start(env, globalstate['module_state'])
         self.generate_module_state_clear(env, globalstate['module_state_clear'])
@@ -2865,11 +2866,11 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 if entry.type.is_pyobject:
                     if entry.type.is_extension_type or entry.type.is_builtin_type:
                         type_test, type_test_utility = entry.type.type_test_code(
-                            code.funcstate.scope, "o")
+                            env, "o")
                         code.putln("if (!(%s)) %s;" % (
                             type_test,
                             code.error_goto(entry.pos)))
-                        code.globalstate.use_utility_code(type_test_utility)
+                        env.use_utility_code(type_test_utility)
                     code.putln("Py_INCREF(o);")
                     code.put_decref(entry.cname, entry.type, nanny=False)
                     code.putln("%s = %s;" % (
