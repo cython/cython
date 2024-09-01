@@ -49,8 +49,8 @@ class AutoTestDictTransform(ScopeTrackingTransform):
 
     def add_test(self, testpos, path, doctest):
         pos = self.testspos
-        keystr = '%s (line %d)' % (path, testpos[1])
-        key = UnicodeNode(pos, value=EncodedString(keystr))
+        keystr = EncodedString(f'{path} (line {testpos[1]:d})')
+        key = UnicodeNode(pos, value=keystr)
         value = UnicodeNode(pos, value=doctest)
         self.tests.append(DictItemNode(pos, key=key, value=value))
 

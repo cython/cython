@@ -5133,7 +5133,7 @@ class PyClassDefNode(ClassDefNode):
         from . import ExprNodes
         if self.doc and Options.docstrings:
             doc = embed_position(self.pos, self.doc)
-            doc_node = ExprNodes.StringNode(pos, value=doc)
+            doc_node = ExprNodes.UnicodeNode(pos, value=doc)
             self.doc_node = ExprNodes.NameNode(name=EncodedString('__doc__'), type=py_object_type, pos=pos)
         else:
             doc_node = None

@@ -56,7 +56,7 @@ def unicode_slicing2():
     return str0, str1, str2, str3
 
 
-@cython.test_assert_path_exists(
+@cython.test_fail_if_path_exists(
     "//SliceIndexNode",
     )
 def unicode_slicing_unsafe_surrogates2():
@@ -103,19 +103,15 @@ def for_in_empty_setcomp():
 @cython.test_fail_if_path_exists(
     "//ReturnStatNode//AddNode",
 )
-@cython.test_assert_path_exists(
-    "//ListNode//AddNode",
-)
 def add_strings():
     """
-    >>> u, b, rest = add_strings()
+    >>> s, u, b = add_strings()
+    >>> s == 'abcdef' or s
+    True
     >>> u == 'abcdef' or u
     True
     >>> b == b'abcdef' or b
     True
-    >>> rest
-    1
     """
-    a = ["abc" + "def"]  # not currently optimised
     # FIXME: test encodings and unicode escapes
-    return u"abc" + u"def", b"abc" + b"def", a[0] and 1
+    return "abc" + "def", u"abc" + u"def", b"abc" + b"def"

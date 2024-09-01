@@ -167,7 +167,7 @@ static CYTHON_INLINE PyObject *__Pyx_GetAttr3(PyObject *o, PyObject *n, PyObject
     return (res != 0) ? r : __Pyx_NewRef(d);
 #else
   #if CYTHON_USE_TYPE_SLOTS
-    if (likely(PyString_Check(n))) {
+    if (likely(PyUnicode_Check(n))) {
         r = __Pyx_PyObject_GetAttrStrNoError(o, n);
         if (unlikely(!r) && likely(!PyErr_Occurred())) {
             r = __Pyx_NewRef(d);
@@ -194,7 +194,7 @@ static CYTHON_INLINE int __Pyx_HasAttr(PyObject *, PyObject *); /*proto*/
 #if __PYX_LIMITED_VERSION_HEX < 0x030d00A1
 static CYTHON_INLINE int __Pyx_HasAttr(PyObject *o, PyObject *n) {
     PyObject *r;
-    if (unlikely(!__Pyx_PyBaseString_Check(n))) {
+    if (unlikely(!PyUnicode_Check(n))) {
         PyErr_SetString(PyExc_TypeError,
                         "hasattr(): attribute name must be string");
         return -1;
