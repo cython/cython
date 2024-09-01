@@ -23,7 +23,8 @@ def basestring_is_unicode_in_py3():
     >>> basestring_is_unicode_in_py3()
     True
     """
-    return basestring is unicode
+    object_type = basestring
+    return object_type is unicode
 
 
 def unicode_subtypes_basestring():
@@ -75,7 +76,7 @@ def basestring_typed_argument(basestring obj):
     return obj
 
 
-@cython.test_assert_path_exists(
+@cython.test_fail_if_path_exists(
     "//SimpleCallNode",
     "//SimpleCallNode//NoneCheckNode",
     "//SimpleCallNode//AttributeNode[@is_py_attr = false]")

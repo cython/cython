@@ -1441,7 +1441,7 @@ _obj_to_string(PyObject *obj)
     else if (PyType_Check(obj))
         return PyObject_GetAttr(obj, PYIDENT("__name__"));
     else
-        return PyObject_Unicode(obj);
+        return PyObject_Str(obj);
 }
 
 static PyObject *

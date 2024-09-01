@@ -112,7 +112,7 @@ def initial_compile_time_env():
     # Py2/3 adaptations
     from functools import reduce
     benv.declare('reduce', reduce)
-    benv.declare('unicode', getattr(builtins, 'unicode', getattr(builtins, 'str')))
+    benv.declare('unicode', str)
     benv.declare('long', getattr(builtins, 'long', getattr(builtins, 'int')))
     benv.declare('xrange', getattr(builtins, 'xrange', getattr(builtins, 'range')))
 

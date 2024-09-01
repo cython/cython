@@ -151,7 +151,7 @@ builtin_function_table = [
     #('bin',       "",     "",      ""),
     BuiltinFunction('callable',   "O",    "b",     "__Pyx_PyCallable_Check",
                     utility_code = UtilityCode.load("CallableCheck", "ObjectHandling.c")),
-    BuiltinFunction('chr',        "i",    "O",      "PyUnicode_FromOrdinal", builtin_return_type='unicode'),
+    BuiltinFunction('chr',        "i",    "O",      "PyUnicode_FromOrdinal", builtin_return_type='str'),
     #('cmp', "",   "",     "",      ""), # int PyObject_Cmp(PyObject *o1, PyObject *o2, int *result)
     #('compile',   "",     "",      ""), # PyObject* Py_CompileString(    char *str, char *filename, int start)
     BuiltinFunction('delattr',    "OO",   "r",     "PyObject_DelAttr"),
@@ -225,14 +225,13 @@ builtin_function_table = [
     #('raw_input', "",     "",      ""),
     #('reduce',    "",     "",      ""),
     BuiltinFunction('reload',     "O",    "O",     "PyImport_ReloadModule"),
-    BuiltinFunction('repr',       "O",    "O",     "PyObject_Repr", builtin_return_type='unicode'),
+    BuiltinFunction('repr',       "O",    "O",     "PyObject_Repr", builtin_return_type='str'),
     #('round',     "",     "",      ""),
     BuiltinFunction('setattr',    "OOO",  "r",     "PyObject_SetAttr"),
     #('sum',       "",     "",      ""),
     #('sorted',    "",     "",      ""),
     #('type',       "O",    "O",     "PyObject_Type"),
-    BuiltinFunction('unichr',     "i",    "O",      "PyUnicode_FromOrdinal", builtin_return_type='unicode'),
-    #('unicode',   "",     "",      ""),
+    BuiltinFunction('unichr',     "i",    "O",      "PyUnicode_FromOrdinal", builtin_return_type='str'),
     #('vars',      "",     "",      ""),
     #('zip',       "",     "",      ""),
     #  Can't do these easily until we have builtin type entries.
@@ -286,12 +285,6 @@ builtin_types_table = [
                                     BuiltinAttribute('imag', 'cval.imag', field_type = PyrexTypes.c_double_type),
                                     ]),
 
-    ("basestring", "&PyBaseString_Type", [
-                                    BuiltinMethod("join",  "TO",   "T", "__Pyx_PyBaseString_Join",
-                                                  utility_code=UtilityCode.load("StringJoin", "StringTools.c")),
-                                    BuiltinMethod("__mul__",  "Tz",   "T", "__Pyx_PySequence_Multiply",
-                                                  utility_code=UtilityCode.load("PySequenceMultiply", "ObjectHandling.c")),
-                                    ]),
     ("bytearray", "&PyByteArray_Type", [
                                     BuiltinMethod("__mul__",  "Tz",   "T", "__Pyx_PySequence_Multiply",
                                                   utility_code=UtilityCode.load("PySequenceMultiply", "ObjectHandling.c")),
@@ -301,12 +294,7 @@ builtin_types_table = [
                                     BuiltinMethod("__mul__",  "Tz",   "T", "__Pyx_PySequence_Multiply",
                                                   utility_code=UtilityCode.load("PySequenceMultiply", "ObjectHandling.c")),
                                     ]),
-    ("str",     "&PyString_Type",  [BuiltinMethod("join",  "TO",   "T", "__Pyx_PyString_Join",
-                                                  utility_code=UtilityCode.load("StringJoin", "StringTools.c")),
-                                    BuiltinMethod("__mul__",  "Tz",   "T", "__Pyx_PySequence_Multiply",
-                                                  utility_code=UtilityCode.load("PySequenceMultiply", "ObjectHandling.c")),
-                                    ]),
-    ("unicode", "&PyUnicode_Type", [BuiltinMethod("__contains__",  "TO",   "b", "PyUnicode_Contains"),
+    ("str",     "&PyUnicode_Type", [BuiltinMethod("__contains__",  "TO",   "b", "PyUnicode_Contains"),
                                     BuiltinMethod("join",  "TO",   "T", "PyUnicode_Join"),
                                     BuiltinMethod("__mul__",  "Tz",   "T", "__Pyx_PySequence_Multiply",
                                                   utility_code=UtilityCode.load("PySequenceMultiply", "ObjectHandling.c")),
@@ -425,14 +413,14 @@ inferred_method_return_types = {
     'float': dict(
         as_integer_ratio='tuple[int,int]',
         is_integer='bint',
-        hex='unicode',
+        hex='str',
         fromhex='T',  # classmethod
     ),
     'list': dict(
         index='Py_ssize_t',
         count='Py_ssize_t',
     ),
-    'unicode': dict(
+    'str': dict(
         capitalize='T',
         casefold='T',
         center='T',
@@ -482,12 +470,12 @@ inferred_method_return_types = {
         zfill='T',
     ),
     'bytes': dict(
-        hex='unicode',
+        hex='str',
         fromhex='T',  # classmethod
         count='Py_ssize_t',
         removeprefix='T',
         removesuffix='T',
-        decode='unicode',
+        decode='str',
         endswith='bint',
         find='Py_ssize_t',
         index='Py_ssize_t',
@@ -530,7 +518,7 @@ inferred_method_return_types = {
     ),
     'memoryview': dict(
         tobytes='bytes',
-        hex='unicode',
+        hex='str',
         tolist='list',
         toreadonly='T',
         cast='T',
@@ -555,7 +543,6 @@ inferred_method_return_types = {
 
 inferred_method_return_types['bytearray'].update(inferred_method_return_types['bytes'])
 inferred_method_return_types['frozenset'].update(inferred_method_return_types['set'])
-inferred_method_return_types['str'] = inferred_method_return_types['unicode']
 
 
 def find_return_type_of_builtin_method(builtin_type, method_name):
@@ -619,6 +606,8 @@ def init_builtin_types():
             objstruct_cname = 'PyByteArrayObject'
         elif name == 'int':
             objstruct_cname = 'PyLongObject'
+        elif name == 'str':
+            objstruct_cname = 'PyUnicodeObject'
         elif name == 'bool':
             objstruct_cname = None
         elif name == 'BaseException':
@@ -639,6 +628,7 @@ def init_builtin_types():
         builtin_types[name] = the_type
         for method in methods:
             method.declare_in_type(the_type)
+
 
 def init_builtin_structs():
     for name, cname, attribute_types in builtin_structs_table:
@@ -662,7 +652,7 @@ def init_builtins():
     entry.utility_code = UtilityCode.load_cached("AssertionsEnabled", "Exceptions.c")
 
     global type_type, list_type, tuple_type, dict_type, set_type, frozenset_type, slice_type
-    global bytes_type, str_type, unicode_type, basestring_type, bytearray_type
+    global bytes_type, unicode_type, bytearray_type
     global float_type, int_type, bool_type, complex_type
     global memoryview_type, py_buffer_type
     global sequence_types
@@ -675,9 +665,7 @@ def init_builtins():
     slice_type   = builtin_scope.lookup('slice').type
 
     bytes_type = builtin_scope.lookup('bytes').type
-    str_type   = builtin_scope.lookup('str').type
-    unicode_type = builtin_scope.lookup('unicode').type
-    basestring_type = builtin_scope.lookup('basestring').type
+    unicode_type = builtin_scope.lookup('str').type
     bytearray_type = builtin_scope.lookup('bytearray').type
     memoryview_type = builtin_scope.lookup('memoryview').type
 
@@ -690,9 +678,7 @@ def init_builtins():
         list_type,
         tuple_type,
         bytes_type,
-        str_type,
         unicode_type,
-        basestring_type,
         bytearray_type,
         memoryview_type,
     )

@@ -2880,18 +2880,6 @@ static CYTHON_INLINE PyObject *__Pyx_PyUnicode_ConcatInPlaceImpl(PyObject **p_le
   }
 #endif
 
-////////////// StrConcatInPlace.proto ///////////////////////
-//@requires: UnicodeConcatInPlace
-
-// allow access to the more efficient versions where we know str_type is unicode
-#define __Pyx_PyStr_Concat __Pyx_PyUnicode_Concat
-#define __Pyx_PyStr_ConcatInPlace __Pyx_PyUnicode_ConcatInPlace
-
-#define __Pyx_PyStr_ConcatSafe(a, b) ((unlikely((a) == Py_None) || unlikely((b) == Py_None)) ? \
-    PyNumber_Add(a, b) : __Pyx_PyStr_Concat(a, b))
-#define __Pyx_PyStr_ConcatInPlaceSafe(a, b) ((unlikely((a) == Py_None) || unlikely((b) == Py_None)) ? \
-    PyNumber_InPlaceAdd(a, b) : __Pyx_PyStr_ConcatInPlace(a, b))
-
 
 /////////////// PySequenceMultiply.proto ///////////////
 
@@ -2947,7 +2935,7 @@ __Pyx_PyType_GetName(PyTypeObject* tp)
     if (unlikely(name == NULL) || unlikely(!PyUnicode_Check(name))) {
         PyErr_Clear();
         Py_XDECREF(name);
-        name = __Pyx_NewRef(PYIDENT("?"));
+        name = __Pyx_NewRef(PYUNICODE("?"));
     }
     return name;
 }

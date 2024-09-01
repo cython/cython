@@ -1237,14 +1237,12 @@ class BuiltinScope(Scope):
         # which is apparently a special case because it conflicts with C++ bool
         self.declare_var("bool", py_object_type, None, "((PyObject*)&PyBool_Type)")
 
-    def lookup(self, name, language_level=None, str_is_str=None):
-        # 'language_level' and 'str_is_str' are passed by ModuleScope
-        if name == 'str':
-            if str_is_str is None:
-                str_is_str = language_level in (None, 2)
-            if not str_is_str:
-                name = 'unicode'
-        if name == 'long' and language_level == 2:
+    def lookup(self, name, language_level=None):
+        # 'language_level' is passed by ModuleScope
+        if name == 'unicode' or name == 'basestring':
+            # Keep recognising 'unicode' and 'basestring' in legacy code but map them to 'str'.
+            name = 'str'
+        elif name == 'long' and language_level == 2:
             # Keep recognising 'long' in legacy Py2 code but map it to 'int'.
             name = 'int'
         return Scope.lookup(self, name)
@@ -1390,18 +1388,14 @@ class ModuleScope(Scope):
     def global_scope(self):
         return self
 
-    def lookup(self, name, language_level=None, str_is_str=None):
+    def lookup(self, name, language_level=None):
         entry = self.lookup_here(name)
         if entry is not None:
             return entry
 
         if language_level is None:
             language_level = self.context.language_level if self.context is not None else 3
-        if str_is_str is None:
-            str_is_str = language_level == 2 or (
-                self.context is not None and Future.unicode_literals not in self.context.future_directives)
-
-        return self.outer_scope.lookup(name, language_level=language_level, str_is_str=str_is_str)
+        return self.outer_scope.lookup(name, language_level=language_level)
 
     def declare_tuple_type(self, pos, components):
         components = tuple(components)

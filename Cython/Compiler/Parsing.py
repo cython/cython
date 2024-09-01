@@ -808,18 +808,20 @@ def p_atom_string(s: PyrexScanner):
     # s.sy == 'BEGIN_STRING'
     pos = s.position()
     kind, bytes_value, unicode_value = p_cat_string_literal(s)
-    if kind == 'c':
-        return ExprNodes.CharNode(pos, value=bytes_value)
-    elif kind == 'u':
+    if not kind:
         return ExprNodes.UnicodeNode(pos, value=unicode_value, bytes_value=bytes_value)
-    elif kind == 'b':
+    kind_char: cython.Py_UCS4 = kind
+    if kind_char == 'c':
+        return ExprNodes.CharNode(pos, value=bytes_value)
+    elif kind_char == 'u':
+        return ExprNodes.UnicodeNode(pos, value=unicode_value, bytes_value=bytes_value)
+    elif kind_char == 'b':
         return ExprNodes.BytesNode(pos, value=bytes_value)
-    elif kind == 'f':
+    elif kind_char == 'f':
         return ExprNodes.JoinedStrNode(pos, values=unicode_value)
-    elif kind == '':
-        return ExprNodes.StringNode(pos, value=bytes_value, unicode_value=unicode_value)
     else:
-        s.error("invalid string kind '%s'" % kind)
+        # This is actually prevented by the scanner (Lexicon.py).
+        s.error(f"invalid string kind '{kind}'")
 
 
 @cython.cfunc
@@ -1359,7 +1361,7 @@ def p_f_string_expr(s: PyrexScanner, unicode_value, pos: tuple,
 
     nodes = []
     if expr_text:
-        nodes.append(ExprNodes.UnicodeNode(pos, value=StringEncoding.EncodedString(expr_text)))
+        nodes.append(ExprNodes.UnicodeNode(pos, value=EncodedString(expr_text)))
     nodes.append(ExprNodes.FormattedValueNode(pos, value=expr, conversion_char=conversion_char, format_spec=format_spec))
 
     return i + 1, nodes
@@ -4132,10 +4134,6 @@ def _extract_docstring(node) -> tuple:
         warning(node.pos,
                 "Python 3 requires docstrings to be unicode strings")
         doc = doc_node.value
-    elif isinstance(doc_node, ExprNodes.StringNode):
-        doc = doc_node.unicode_value
-        if doc is None:
-            doc = doc_node.value
     else:
         doc = doc_node.value
     return doc, node
