@@ -1760,7 +1760,7 @@ class CEnumDefNode(StatNode):
         if self.scoped:
             # Nothing to do here for C++ enums.
             return
-        if not self.api and (self.name or self.visibility != 'public'):
+        if not self.api and not (self.name or self.visibility == 'public'):
             # API enums need to be globally importable and we (currently) do that through global item names.
             # Named enums are namespaced and need no additional global setup.
             return
