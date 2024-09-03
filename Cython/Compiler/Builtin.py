@@ -420,6 +420,10 @@ inferred_method_return_types = {
         index='Py_ssize_t',
         count='Py_ssize_t',
     ),
+    'tuple': dict(
+        index='Py_ssize_t',
+        count='Py_ssize_t',
+    ),
     'str': dict(
         capitalize='T',
         casefold='T',
@@ -543,6 +547,158 @@ inferred_method_return_types = {
 
 inferred_method_return_types['bytearray'].update(inferred_method_return_types['bytes'])
 inferred_method_return_types['frozenset'].update(inferred_method_return_types['set'])
+
+
+safe_compile_time_methods = {
+    # We collect only types here that have a literal representation, allowing for constant folding.
+    'complex': {
+        'conjugate',
+    },
+    'int': {
+        'as_integer_ratio',
+        'bit_length',
+        'bit_count',
+        'is_integer',
+        # 'from_bytes',  # classmethod
+        'to_bytes',
+    },
+    'float': {
+        'as_integer_ratio',
+        'is_integer',
+        'hex',
+        # 'fromhex',  # classmethod
+    },
+    'list': {
+        'index',
+        'count',
+    },
+    'tuple': {
+        'index',
+        'count',
+    },
+    'str': {
+        'capitalize',
+        'casefold',
+        'center',
+        'count',
+        'encode',
+        'endswith',
+        'expandtabs',
+        'find',
+        'format_map',
+        'format',
+        'index',
+        'isalnum',
+        'isalpha',
+        'isascii',
+        'isdecimal',
+        'isdigit',
+        'isidentifier',
+        'islower',
+        'isnumeric',
+        'isprintable',
+        'isspace',
+        'istitle',
+        'isupper',
+        'join',
+        'ljust',
+        'lower',
+        'lstrip',
+        # 'maketrans',  # staticmethod
+        'partition',
+        'removeprefix',
+        'removesuffix',
+        'replace',
+        'rfind',
+        'rindex',
+        'rjust',
+        'rpartition',
+        'rsplit',
+        'rstrip',
+        'split',
+        'splitlines',
+        'startswith',
+        'strip',
+        'swapcase',
+        'title',
+        'translate',
+        'upper',
+        'zfill',
+    },
+    'bytes': {
+        'capitalize',
+        'center',
+        'count',
+        'decode',
+        'endswith',
+        'expandtabs'
+        'find',
+        # 'fromhex',  # classmethod
+        'hex',
+        'index',
+        'isalnum',
+        'isalpha',
+        'isascii',
+        'isdigit',
+        'islower',
+        'isspace',
+        'istitle',
+        'isupper',
+        'join',
+        'ljust',
+        'lower',
+        'lstrip',
+        # 'maketrans',  # staticmethod
+        'partition',
+        'removeprefix',
+        'removesuffix',
+        'replace',
+        'rfind',
+        'rindex',
+        'rjust',
+        'rpartition',
+        'rsplit',
+        'rstrip',
+        'split',
+        'splitlines',
+        'startswith',
+        'strip',
+        'swapcase',
+        'title',
+        'translate',
+        'upper',
+        'zfill',
+    },
+    # 'bytearray': {
+    #     # Inherited from 'bytes' below.
+    # },
+    # 'memoryview': {
+    #     'tobytes',
+    #     'hex',
+    #     'tolist',
+    #     'toreadonly',
+    #     'cast',
+    # },
+    'set': {
+        'isdisjoint',
+        'isubset',
+        'issuperset',
+        'union',
+        'intersection',
+        'difference',
+        'symmetric_difference',
+        # 'copy',
+    },
+    # 'frozenset': {
+    #     # Inherited from 'set' below.
+    # },
+    # 'dict': {
+    #     'copy',
+    # },
+}
+
+# safe_compile_time_methods['bytearray'].update(safe_compile_time_methods['bytes'])
+# safe_compile_time_methods['frozenset'].update(safe_compile_time_methods['set'])
 
 
 def find_return_type_of_builtin_method(builtin_type, method_name):

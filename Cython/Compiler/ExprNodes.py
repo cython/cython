@@ -13,14 +13,17 @@ cython.declare(error=object, warning=object, warn_once=object, InternalError=obj
                Builtin=object, Symtab=object, Utils=object, find_coercion_error=object,
                debug_disposal_code=object, debug_temp_alloc=object, debug_coercion=object,
                bytearray_type=object, slice_type=object, memoryview_type=object,
-               builtin_sequence_types=object, build_line_table=object)
+               builtin_sequence_types=object, build_line_table=object,
+               inspect=object, copy=object, os=object, pathlib=object, re=object, sys=object,
+)
 
-import re
-import sys
 import copy
+import inspect
+import operator
 import os.path
 import pathlib
-import operator
+import re
+import sys
 
 from .Errors import (
     error, warning, InternalError, CompileError, report_error, local_errors,
@@ -5975,6 +5978,20 @@ class SimpleCallNode(CallNode):
         except Exception as e:
             self.compile_time_value_error(e)
 
+    def calculate_constant_result(self):
+        if self.function.is_attribute and self.function.obj.is_literal:
+            method = self.function.constant_result
+            if inspect.isbuiltin(method):
+                method_name = method.__name__
+                # Prefer the actual builtin type over internal representations like "EncodedString".
+                object_type = self.function.obj.type
+                object_type_name = object_type.name if object_type else type(method.__self__).__name__
+
+                safe_methods = Builtin.safe_compile_time_methods.get(object_type_name)
+                if safe_methods and method_name in safe_methods:
+                    args = [arg.constant_result for arg in self.args]
+                    self.constant_result = method(*args)
+
     @classmethod
     def for_cproperty(cls, pos, obj, entry):
         # Create a call node for C property access.
@@ -6874,6 +6891,21 @@ class GeneralCallNode(CallNode):
             return function(*positional_args, **keyword_args)
         except Exception as e:
             self.compile_time_value_error(e)
+
+    def calculate_constant_result(self):
+        if self.function.is_attribute and self.function.obj.is_literal:
+            method = self.function.constant_result
+            if inspect.isbuiltin(method):
+                method_name = method.__name__
+                # Prefer the actual builtin type over internal representations like "EncodedString".
+                object_type = self.function.obj.type
+                object_type_name = object_type.name if object_type else type(method.__self__).__name__
+
+                safe_methods = Builtin.safe_compile_time_methods.get(object_type_name)
+                if safe_methods and method_name in safe_methods:
+                    args = self.positional_args.constant_result
+                    kwargs = self.keyword_args.constant_result
+                    self.constant_result = method(*args, **kwargs)
 
     def explicit_args_kwds(self):
         if (self.keyword_args and not self.keyword_args.is_dict_literal or

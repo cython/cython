@@ -1,4 +1,3 @@
-import string
 import cython
 cython.declare(UtilityCode=object, EncodedString=object, bytes_literal=object, encoded_string=object,
                Nodes=object, ExprNodes=object, PyrexTypes=object, Builtin=object,
@@ -4468,26 +4467,63 @@ class ConstantFolding(Visitor.VisitorTransform, SkipDeclarations):
 
     def visit_AddNode(self, node):
         self._calculate_const(node)
+        operand1, operand2 = node.operand1, node.operand2
+
+        # some people combine (f-)string literals with a '+'
+        if isinstance(operand1, ExprNodes.JoinedStrNode):
+            if isinstance(operand2, ExprNodes.JoinedStrNode):
+                operand1.values.extend(operand2.values)
+                operand1.constant_result = ExprNodes.constant_value_not_set
+                operand1 = self.visit_JoinedStrNode(operand1)
+                return operand1
+            if isinstance(operand2, ExprNodes.UnicodeNode):
+                if operand2.value:
+                    operand1.values.append(operand2)
+                    operand1.constant_result = ExprNodes.constant_value_not_set
+                    operand1 = self.visit_JoinedStrNode(operand1)
+                return operand1
+            if isinstance(operand2.constant_result, str):
+                if operand2.constant_result:
+                    operand1.values.append(ExprNodes.UnicodeNode(
+                        operand2.pos, value=operand2.constant_result))
+                    operand1.constant_result = ExprNodes.constant_value_not_set
+                    operand1 = self.visit_JoinedStrNode(operand1)
+                return operand1
+        elif isinstance(operand2, ExprNodes.JoinedStrNode):
+            if isinstance(operand1, ExprNodes.UnicodeNode):
+                if operand1.value:
+                    operand2.values.insert(0, operand1)
+                    operand2.constant_result = ExprNodes.constant_value_not_set
+                    operand2 = self.visit_JoinedStrNode(operand2)
+                return operand2
+            if isinstance(operand1.constant_result, str):
+                if operand1.constant_result:
+                    operand2.values.insert(0, ExprNodes.UnicodeNode(
+                        operand1.pos, value=operand1.constant_result))
+                    operand1.constant_result = ExprNodes.constant_value_not_set
+                    operand1 = self.visit_JoinedStrNode(operand1)
+                return operand1
+
         if node.constant_result is ExprNodes.not_a_constant:
             return node
-        if node.operand1.is_string_literal and node.operand2.is_string_literal:
-            # some people combine string literals with a '+'
-            str1, str2 = node.operand1, node.operand2
-            if isinstance(str1, ExprNodes.UnicodeNode) and isinstance(str2, ExprNodes.UnicodeNode):
+
+        if operand1.is_string_literal and operand2.is_string_literal:
+            if isinstance(operand1, ExprNodes.UnicodeNode) and isinstance(operand2, ExprNodes.UnicodeNode):
                 bytes_value = None
-                if str1.bytes_value is not None and str2.bytes_value is not None:
-                    if str1.bytes_value.encoding == str2.bytes_value.encoding:
+                if operand1.bytes_value is not None and operand2.bytes_value is not None:
+                    if operand1.bytes_value.encoding == operand2.bytes_value.encoding:
                         bytes_value = bytes_literal(
-                            str1.bytes_value + str2.bytes_value,
-                            str1.bytes_value.encoding)
+                            operand1.bytes_value + operand2.bytes_value,
+                            operand1.bytes_value.encoding)
                 string_value = EncodedString(node.constant_result)
-                return ExprNodes.UnicodeNode(str1.pos, value=string_value, bytes_value=bytes_value)
-            elif isinstance(str1, ExprNodes.BytesNode) and isinstance(str2, ExprNodes.BytesNode):
-                if str1.value.encoding == str2.value.encoding:
-                    bytes_value = bytes_literal(node.constant_result, str1.value.encoding)
-                    return ExprNodes.BytesNode(str1.pos, value=bytes_value, constant_result=node.constant_result)
-            # all other combinations are rather complicated
-            # to get right in Py2/3: encodings, unicode escapes, ...
+                return ExprNodes.UnicodeNode(operand1.pos, value=string_value, bytes_value=bytes_value)
+            elif isinstance(operand1, ExprNodes.BytesNode) and isinstance(operand2, ExprNodes.BytesNode):
+                if operand1.value.encoding == operand2.value.encoding:
+                    bytes_value = bytes_literal(node.constant_result, operand1.value.encoding)
+                    return ExprNodes.BytesNode(operand1.pos, value=bytes_value, constant_result=node.constant_result)
+        elif isinstance(operand1.constant_result, str) and isinstance(operand2.constant_result, str):
+            return ExprNodes.UnicodeNode(operand1.pos, value=operand1.constant_result + operand2.constant_result)
+
         return self.visit_BinopNode(node)
 
     def visit_MulNode(self, node):
@@ -4640,10 +4676,9 @@ class ConstantFolding(Visitor.VisitorTransform, SkipDeclarations):
         conversion_char = node.conversion_char or 's'
         if node.format_spec is not None and node.format_spec.is_string_literal and not node.format_spec.value:
             node.format_spec = None
-        if node.format_spec is None and isinstance(node.value, ExprNodes.IntNode):
-            value = EncodedString(node.value.value)
-            if value.isdigit():
-                return ExprNodes.UnicodeNode(node.value.pos, value=value)
+        if node.format_spec is None and node.value.has_constant_result() and isinstance(node.value.constant_result, int):
+            value = EncodedString(str(node.value.constant_result))
+            return ExprNodes.UnicodeNode(node.value.pos, value=value)
         if node.format_spec is None and conversion_char == 's':
             if node.value.is_string_literal:
                 return node.value
