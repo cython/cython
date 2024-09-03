@@ -778,7 +778,7 @@ Compiler directives
 Compiler directives are instructions which affect the behavior of
 Cython code.  Here is the list of currently supported directives:
 
-``binding`` (True / False)
+``binding`` (True / False), *default=True*
     Controls whether free functions behave more like Python's CFunctions
     (e.g. :func:`len`) or, when set to True, more like Python's functions.
     When enabled, functions will bind to an instance when looked up as a
@@ -786,21 +786,18 @@ Cython code.  Here is the list of currently supported directives:
     of Python functions, including introspections like argument names and
     annotations.
 
-    Default is True.
-
     .. versionchanged:: 3.0.0
         Default changed from False to True
 
-``boundscheck``  (True / False)
+``boundscheck``  (True / False), *default=True*
     If set to False, Cython is free to assume that indexing operations
     ([]-operator) in the code will not cause any IndexErrors to be
     raised. Lists, tuples, and strings are affected only if the index
     can be determined to be non-negative (or if ``wraparound`` is False).
     Conditions which would normally trigger an IndexError may instead cause
     segfaults or data corruption if this is set to False.
-    Default is True.
 
-``wraparound``  (True / False)
+``wraparound``  (True / False), *default=True*
     In Python, arrays and sequences can be indexed relative to the end.
     For example, A[-1] indexes the last value of a list.
     In C, negative indexing is not supported.
@@ -815,9 +812,8 @@ Cython code.  Here is the list of currently supported directives:
     wrap-around indices.
     It is therefore safest to apply this option only to code that does not
     process negative indices at all.
-    Default is True.
 
-``initializedcheck`` (True / False)
+``initializedcheck`` (True / False), *default=True*
     If set to True, Cython checks that
      - a memoryview is initialized whenever its elements are accessed
        or assigned to.
@@ -825,17 +821,16 @@ Cython code.  Here is the list of currently supported directives:
        (only when ``cpp_locals`` is on)
 
     Setting this to False disables these checks.
-    Default is True.
 
-``nonecheck``  (True / False)
+``nonecheck``  (True / False), *default=False*
     If set to False, Cython is free to assume that native field
     accesses on variables typed as an extension type, or buffer
     accesses on a buffer variable, never occurs when the variable is
     set to ``None``. Otherwise a check is inserted and the
     appropriate exception is raised. This is off by default for
-    performance reasons.  Default is False.
+    performance reasons.
 
-``freethreading_compatible``  (True / False)
+``freethreading_compatible``  (True / False), *default=False*
     If set to True, Cython sets the ``Py_mod_gil`` slot to
     ``Py_MOD_GIL_NOT_USED`` to signal that the module is safe to run
     without an active GIL and prevent the GIL from being enabled
@@ -845,28 +840,28 @@ Cython code.  Here is the list of currently supported directives:
     to run without the GIL; it merely confirms that you have checked
     the logic and consider it safe to run. Since free-threading support
     is still experimental itself, this is also an experimental directive that
-    might be changed or removed in future releases. Default is False.
+    might be changed or removed in future releases.
 
-``overflowcheck`` (True / False)
+``overflowcheck`` (True / False), *default=False*
     If set to True, raise errors on overflowing C integer arithmetic
     operations.  Incurs a modest runtime penalty, but is much faster than
-    using Python ints.  Default is False.
+    using Python ints.
 
-``overflowcheck.fold`` (True / False)
+``overflowcheck.fold`` (True / False), *default=True*
     If set to True, and overflowcheck is True, check the overflow bit for
     nested, side-effect-free arithmetic expressions once rather than at every
     step.  Depending on the compiler, architecture, and optimization settings,
     this may help or hurt performance.  A simple suite of benchmarks can be
-    found in ``Demos/overflow_perf.pyx``.  Default is True.
+    found in ``Demos/overflow_perf.pyx``.
 
-``embedsignature`` (True / False)
+``embedsignature`` (True / False), *default=False*
     If set to True, Cython will embed a textual copy of the call
     signature in the docstring of all Python visible functions and
     classes. Tools like IPython and epydoc can thus display the
     signature, which cannot otherwise be retrieved after
-    compilation.  Default is False.
+    compilation.
 
-``embedsignature.format`` (``c`` / ``python`` / ``clinic``)
+``embedsignature.format`` (``c`` / ``python`` / ``clinic``), *default="c"*
     If set to ``c``, Cython will generate signatures preserving
     C type declarations and Python type annotations.
     If set to ``python``, Cython will do a best attempt to use
@@ -883,24 +878,21 @@ Cython code.  Here is the list of currently supported directives:
     mainly useful when using ``binding=False``, since the Cython
     functions generated with ``binding=True`` do not have (nor need)
     a ``__text_signature__`` attribute.
-    Default is ``c``.
 
-``cdivision`` (True / False)
+``cdivision`` (True / False), *default=False*
     If set to False, Cython will adjust the remainder and quotient
     operators C types to match those of Python ints (which differ when
     the operands have opposite signs) and raise a
     ``ZeroDivisionError`` when the right operand is 0. This has up to
     a 35% speed penalty. If set to True, no checks are performed.  See
-    `CEP 516 <https://github.com/cython/cython/wiki/enhancements-division>`_.  Default
-    is False.
+    `CEP 516 <https://github.com/cython/cython/wiki/enhancements-division>`_.
 
-``cdivision_warnings`` (True / False)
+``cdivision_warnings`` (True / False), *default=False*
     If set to True, Cython will emit a runtime warning whenever
     division is performed with negative operands.  See `CEP 516
-    <https://github.com/cython/cython/wiki/enhancements-division>`_.  Default is
-    False.
+    <https://github.com/cython/cython/wiki/enhancements-division>`_.
 
-``cpow`` (True / False)
+``cpow`` (True / False), *default=False*
     ``cpow`` modifies the return type of ``a**b``, as shown in the
     table below:
 
@@ -918,34 +910,33 @@ Cython code.  Here is the list of currently supported directives:
     Introduced in Cython 3.0 with a default of False;
     before that, the behaviour matched the ``cpow=True`` version.
 
-``always_allow_keywords`` (True / False)
+``always_allow_keywords`` (True / False), *default=True*
     When disabled, uses the ``METH_NOARGS`` and ``METH_O`` signatures when
     constructing functions/methods which take zero or one arguments. Has no
     effect on special methods and functions with more than one argument. The
     ``METH_NOARGS`` and ``METH_O`` signatures provide slightly faster
     calling conventions but disallow the use of keywords.
 
-``c_api_binop_methods`` (True / False)
+``c_api_binop_methods`` (True / False), *default=False*
     When enabled, makes the special binary operator methods (``__add__``, etc.)
     behave according to the low-level C-API slot semantics, i.e. only a single
     method implements both the normal and reversed operator.  This used to be
     the default in Cython 0.x and was now replaced by Python semantics, i.e. the
     default in Cython 3.x and later is ``False``.
 
-``profile`` (True / False)
-    Write hooks for Python profilers into the compiled C code.  Default
-    is False.
+``profile`` (True / False), *default=False*
+    Write hooks for Python profilers into the compiled C code.
 
-``linetrace`` (True / False)
+``linetrace`` (True / False), *default=False*
     Write line tracing hooks for Python profilers or coverage reporting
-    into the compiled C code.  This also enables profiling.  Default is
-    False.  Note that the generated module will not actually use line
+    into the compiled C code.  This also enables profiling.
+    Note that the generated module will not actually use line
     tracing, unless you additionally pass the C macro definition
     ``CYTHON_TRACE=1`` to the C compiler (e.g. using the setuptools option
     ``define_macros``).  Define ``CYTHON_TRACE_NOGIL=1`` to also include
     ``nogil`` functions and sections.
 
-``infer_types`` (True / False)
+``infer_types`` (True / False), *default=None*
     Infer types of untyped variables in function bodies. Default is
     None, indicating that only safe (semantically-unchanging) inferences
     are allowed.
@@ -953,10 +944,10 @@ Cython code.  Here is the list of currently supported directives:
     expressions* is considered unsafe (due to possible overflow) and must be
     explicitly requested.
 
-``language_level`` (2/3/3str)
+``language_level`` (2/3/3str), *default=None*
     Globally set the Python language level to be used for module compilation.
-    Default is compatibility with Python 3 in Cython 3.x and with Python 2 in Cython 0.x.
-    To enable Python 3 source code semantics, set this to 3 (or 3str) at the start
+    Default is None, indicating compatibility with Python 3 in Cython 3.x and with Python 2
+    in Cython 0.x. To enable Python 3 source code semantics, set this to 3 (or 3str) at the start
     of a module or pass the "-3" or "--3str" command line options to the
     compiler.  For Python 2 semantics, use 2 and "-2" accordingly.
     Before Cython 3.1, the ``3str`` option enabled Python 3 semantics but did
@@ -968,16 +959,16 @@ Cython code.  Here is the list of currently supported directives:
     being compiled, unless they explicitly set their own language level.
     Included source files always inherit this setting.
 
-``c_string_type`` (bytes / str / unicode)
+``c_string_type`` (bytes / str / unicode), *default=bytes*
     Globally set the type of an implicit coercion from char* or std::string.
 
-``c_string_encoding`` (ascii, default, utf-8, etc.)
+``c_string_encoding`` (ascii, default, utf-8, etc.), *default=""`
     Globally set the encoding to use when implicitly coercing char* or std:string
     to a unicode object.  Coercion from a unicode object to C type is only allowed
     when set to ``ascii`` or ``default``, the latter being utf-8 in Python 3 and
     nearly-always ascii in Python 2.
 
-``type_version_tag`` (True / False)
+``type_version_tag`` (True / False), *default=True*
     Enables the attribute cache for extension types in CPython by setting the
     type flag ``Py_TPFLAGS_HAVE_VERSION_TAG``.  Default is True, meaning that
     the cache is enabled for Cython implemented types.  To disable it
@@ -985,10 +976,10 @@ Cython code.  Here is the list of currently supported directives:
     internally without paying attention to cache consistency, this option can
     be set to False.
 
-``unraisable_tracebacks`` (True / False)
+``unraisable_tracebacks`` (True / False), *default=False*
     Whether to print tracebacks when suppressing unraisable exceptions.
 
-``iterable_coroutine`` (True / False)
+``iterable_coroutine`` (True / False), *default=False*
     `PEP 492 <https://www.python.org/dev/peps/pep-0492/>`_ specifies that async-def
     coroutines must not be iterable, in order to prevent accidental misuse in
     non-async contexts.  However, this makes it difficult and inefficient to write
@@ -998,24 +989,24 @@ Cython code.  Here is the list of currently supported directives:
     selectively as decorator on an async-def coroutine to make the affected
     coroutine(s) iterable and thus directly interoperable with yield-from.
 
-``annotation_typing`` (True / False)
-    Uses function argument annotations to determine the type of variables. Default
-    is True, but can be disabled. Since Python does not enforce types given in
+``annotation_typing`` (True / False), *default=True*
+    Uses function argument annotations to determine the type of variables.
+    Since Python does not enforce types given in
     annotations, setting to False gives greater compatibility with Python code.
     From Cython 3.0, ``annotation_typing`` can be set on a per-function or
     per-class basis.
 
-``emit_code_comments`` (True / False)
+``emit_code_comments`` (True / False), *default=True*
     Copy the original source code line by line into C code comments in the generated
     code file to help with understanding the output.
     This is also required for coverage analysis.
 
-``cpp_locals`` (True / False)
+``cpp_locals`` (True / False), *default=False*
     Make C++ variables behave more like Python variables by allowing them to be
     "unbound" instead of always default-constructing them at the start of a
     function.  See :ref:`cpp_locals directive` for more detail.
 
-``legacy_implicit_noexcept`` (True / False)
+``legacy_implicit_noexcept`` (True / False), *default=False*
     When enabled, ``cdef`` functions will not propagate raised exceptions by default. Hence,
     the function will behave in the same way as if declared with `noexcept` keyword. See
     :ref:`error_return_values` for details. Setting this directive to ``True`` will
@@ -1028,20 +1019,20 @@ Cython code.  Here is the list of currently supported directives:
 Configurable optimisations
 --------------------------
 
-``optimize.use_switch`` (True / False)
+``optimize.use_switch`` (True / False), *default=True*
     Whether to expand chained if-else statements (including statements like
     ``if x == 1 or x == 2:``) into C switch statements.  This can have performance
     benefits if there are lots of values but cause compiler errors if there are any
     duplicate values (which may not be detectable at Cython compile time for all
-    C constants).  Default is True.
+    C constants).
 
-``optimize.unpack_method_calls`` (True / False)
+``optimize.unpack_method_calls`` (True / False), *default=True*
     Cython can generate code that optimistically checks for Python method objects
     at call time and unpacks the underlying function to call it directly.  This
     can substantially speed up method calls, especially for builtins, but may also
     have a slight negative performance impact in some cases where the guess goes
     completely wrong.
-    Disabling this option can also reduce the code size.  Default is True.
+    Disabling this option can also reduce the code size.
 
 
 .. _warnings:
