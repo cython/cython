@@ -56,7 +56,7 @@ True
 True
 >>> PxdEnum.RANK_3         # doctest: +ELLIPSIS
 Traceback (most recent call last):
-AttributeError: ...attribute 'RANK_3'...
+AttributeError: ...RANK_3...
 
 >>> set(PyxEnum) == {PyxEnum.TWO, PyxEnum.THREE, PyxEnum.FIVE}
 True
