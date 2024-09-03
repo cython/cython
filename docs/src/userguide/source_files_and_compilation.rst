@@ -1025,7 +1025,7 @@ Configurable optimisations
     duplicate values (which may not be detectable at Cython compile time for all
     C constants).
 
-``optimize.unpack_method_calls`` (True / False), *default=False*
+``optimize.unpack_method_calls`` (True / False), *default=True*
     Cython can generate code that optimistically checks for Python method objects
     at call time and unpacks the underlying function to call it directly.  This
     can substantially speed up method calls, especially for builtins, but may also
