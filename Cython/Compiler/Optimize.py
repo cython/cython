@@ -4467,42 +4467,38 @@ class ConstantFolding(Visitor.VisitorTransform, SkipDeclarations):
 
     def visit_AddNode(self, node):
         self._calculate_const(node)
+
+        if isinstance(node.constant_result, str):
+            return ExprNodes.UnicodeNode(
+                node.operand1.pos, value=EncodedString(node.constant_result))
+
         operand1, operand2 = node.operand1, node.operand2
 
-        # some people combine (f-)string literals with a '+'
+        # Some people combine (f-)string literals with a '+'  =>  join the format parts.
         if isinstance(operand1, ExprNodes.JoinedStrNode):
             if isinstance(operand2, ExprNodes.JoinedStrNode):
                 operand1.values.extend(operand2.values)
                 operand1.constant_result = ExprNodes.constant_value_not_set
-                operand1 = self.visit_JoinedStrNode(operand1)
-                return operand1
-            if isinstance(operand2, ExprNodes.UnicodeNode):
-                if operand2.value:
-                    operand1.values.append(operand2)
-                    operand1.constant_result = ExprNodes.constant_value_not_set
-                    operand1 = self.visit_JoinedStrNode(operand1)
-                return operand1
+                return self.simplify_JoinedStrNode(operand1)
             if isinstance(operand2.constant_result, str):
-                if operand2.constant_result:
-                    operand1.values.append(ExprNodes.UnicodeNode(
-                        operand2.pos, value=operand2.constant_result))
-                    operand1.constant_result = ExprNodes.constant_value_not_set
-                    operand1 = self.visit_JoinedStrNode(operand1)
-                return operand1
+                if not operand2.constant_result:
+                    return operand1
+                if not isinstance(operand2, ExprNodes.UnicodeNode):
+                    operand2 = ExprNodes.UnicodeNode(
+                        operand2.pos, value=operand2.constant_result)
+                operand1.values.append(operand2)
+                operand1.constant_result = ExprNodes.constant_value_not_set
+                return self.simplify_JoinedStrNode(operand1)
         elif isinstance(operand2, ExprNodes.JoinedStrNode):
-            if isinstance(operand1, ExprNodes.UnicodeNode):
-                if operand1.value:
-                    operand2.values.insert(0, operand1)
-                    operand2.constant_result = ExprNodes.constant_value_not_set
-                    operand2 = self.visit_JoinedStrNode(operand2)
-                return operand2
             if isinstance(operand1.constant_result, str):
-                if operand1.constant_result:
-                    operand2.values.insert(0, ExprNodes.UnicodeNode(
-                        operand1.pos, value=operand1.constant_result))
-                    operand1.constant_result = ExprNodes.constant_value_not_set
-                    operand1 = self.visit_JoinedStrNode(operand1)
-                return operand1
+                if not operand1.constant_result:
+                    return operand2
+                if not isinstance(operand1, ExprNodes.UnicodeNode):
+                    operand1 = ExprNodes.UnicodeNode(
+                        operand1.pos, value=operand1.constant_result)
+                operand2.values.insert(0, operand1)
+                operand2.constant_result = ExprNodes.constant_value_not_set
+                return self.simplify_JoinedStrNode(operand2)
 
         if node.constant_result is ExprNodes.not_a_constant:
             return node
@@ -4521,8 +4517,6 @@ class ConstantFolding(Visitor.VisitorTransform, SkipDeclarations):
                 if operand1.value.encoding == operand2.value.encoding:
                     bytes_value = bytes_literal(node.constant_result, operand1.value.encoding)
                     return ExprNodes.BytesNode(operand1.pos, value=bytes_value, constant_result=node.constant_result)
-        elif isinstance(operand1.constant_result, str) and isinstance(operand2.constant_result, str):
-            return ExprNodes.UnicodeNode(operand1.pos, value=operand1.constant_result + operand2.constant_result)
 
         return self.visit_BinopNode(node)
 
@@ -4685,13 +4679,15 @@ class ConstantFolding(Visitor.VisitorTransform, SkipDeclarations):
         return node
 
     def visit_JoinedStrNode(self, node):
+        self.visitchildren(node)
+        return self.simplify_JoinedStrNode(node)
+
+    def simplify_JoinedStrNode(self, node):
         """
         Clean up after the parser by discarding empty Unicode strings and merging
         substring sequences.  Empty or single-value join lists are not uncommon
         because f-string format specs are always parsed into JoinedStrNodes.
         """
-        self.visitchildren(node)
-
         values = []
         for is_unode_group, substrings in itertools.groupby(node.values, key=attrgetter('is_string_literal')):
             if is_unode_group:
