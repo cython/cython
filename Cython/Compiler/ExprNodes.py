@@ -3547,8 +3547,10 @@ class RawCNameExprNode(ExprNode):
 class JoinedStrNode(ExprNode):
     # F-strings
     #
-    # values   [UnicodeNode|FormattedValueNode]   Substrings of the f-string
+    # values   [UnicodeNode|FormattedValueNode|CloneNode]   Substrings of the f-string
     #
+    # CloneNodes for repeated substrings are only inserted right before the code generation phase.
+
     type = unicode_type
     is_temp = True
     gil_message = "String concatenation"
@@ -3576,21 +3578,31 @@ class JoinedStrNode(ExprNode):
             elif isinstance(node, FormattedValueNode) and node.value.type.is_numeric:
                 # formatted C numbers are always ASCII
                 pass
+            elif isinstance(node, CloneNode):
+                # we already know the result
+                pass
             else:
                 unknown_nodes.add(node)
 
         length_parts = []
+        counts = {}
         charval_parts = [str(max_char_value)]
         for node in self.values:
             node.generate_evaluation_code(code)
 
             if isinstance(node, UnicodeNode):
-                length_parts.append(str(len(node.value)))
+                length_part = str(len(node.value))
             else:
                 # TODO: add exception handling for these macro calls if not ASSUME_SAFE_SIZE/MACROS
-                length_parts.append("__Pyx_PyUnicode_GET_LENGTH(%s)" % node.py_result())
+                length_part = f"__Pyx_PyUnicode_GET_LENGTH({node.py_result()})"
                 if node in unknown_nodes:
-                    charval_parts.append("__Pyx_PyUnicode_MAX_CHAR_VALUE(%s)" % node.py_result())
+                    charval_parts.append(f"__Pyx_PyUnicode_MAX_CHAR_VALUE({node.py_result()})")
+
+            if length_part in counts:
+                counts[length_part] += 1
+            else:
+                length_parts.append(length_part)
+                counts[length_part] = 1
 
         if use_stack_memory:
             values_array = code.funcstate.allocate_temp(
@@ -3605,6 +3617,11 @@ class JoinedStrNode(ExprNode):
 
         for i, node in enumerate(self.values):
             code.putln('%s[%d] = %s;' % (values_array, i, node.py_result()))
+
+        length_parts = [
+            f"{part} * {counts[part]}" if counts[part] > 1 else part
+            for part in length_parts
+        ]
 
         code.mark_pos(self.pos)
         self.allocate_temp_result(code)

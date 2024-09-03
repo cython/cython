@@ -5027,6 +5027,7 @@ class FinalOptimizePhase(Visitor.EnvTransform, Visitor.NodeRefCleanupMixin):
         - eliminate useless string formatting steps
         - inject branch hints for unlikely if-cases that only raise exceptions
         - replace Python function calls that look like method calls by a faster PyMethodCallNode
+        - replace duplicate FormattedValueNodes in f-strings with CloneNodes
     """
     in_loop = False
 
@@ -5177,6 +5178,60 @@ class FinalOptimizePhase(Visitor.EnvTransform, Visitor.NodeRefCleanupMixin):
                     # Anything that unconditionally raises exceptions at the end should be considered unlikely.
                     clause.branch_hint = 'likely' if inverse else 'unlikely'
                 break
+
+    def visit_JoinedStrNode(self, node: ExprNodes.JoinedStrNode):
+        """
+        Deduplicate repeatedly formatted (C) values by replacing them with CloneNodes.
+        It's not uncommon for a formatting expression to appear multiple times in an f-string.
+
+        Note that this is somewhat handwavy since it's potentially possible even for simple
+        expressions to change their value while processing an f-string, e.g. by modifying the
+        world in a ".__format__" method.  However, this seems unlikely enough to appear in
+        real-world code that we ignore the case here.
+        """
+        FormattedValueNode = ExprNodes.FormattedValueNode
+        CoerceToPyTypeNode = ExprNodes.CoerceToPyTypeNode
+
+        seen = {}
+        values = node.values[:]
+        for i, fnode in enumerate(node.values):
+            if not isinstance(fnode, FormattedValueNode):
+                # Unicode string constants are deduplicated already.
+                continue
+            fnode_value_node = fnode.value
+            if isinstance(fnode.value, CoerceToPyTypeNode):
+                # Coerced C values are probably safe.
+                fnode_value_node = fnode_value_node.arg
+            elif fnode.c_format_spec is not None:
+                # Simple formatted C values are safe.
+                pass
+            elif fnode_value_node.type.is_builtin_type:
+                # Most builtin Python types are probably safe as well.
+                # FIXME: Except when a container type formats user defined values...
+                # Thus, we might want to be more specific and allow only simple Python types.
+                pass
+            else:
+                # Other Python objects are not safe as they can change their formatting on each acces.
+                continue
+
+            if not (fnode_value_node.is_name and fnode_value_node.is_simple()):
+                # Everything but simple (local) names risks changing on access.
+                # NOTE: Potentially, any non-trivial operation might re-assign values,
+                # e.g. with the walrus operator, but we ignore this here since it's really unusual.
+                # Otherwise, we'd have to stop with 'break' instead of allowing 'continue'.
+                continue
+
+            key = (fnode_value_node.name, fnode.c_format_spec, fnode.format_spec, fnode.conversion_char or 's')
+            seen_fnode = seen.setdefault(key, fnode)
+            if seen_fnode is fnode:
+                continue
+
+            dedup_fnode = ExprNodes.CloneNode(seen_fnode)
+            dedup_fnode.pos = fnode.pos
+            values[i] = dedup_fnode
+
+        node.values[:] = values
+        return node
 
 
 class ConsolidateOverflowCheck(Visitor.CythonTransform):
