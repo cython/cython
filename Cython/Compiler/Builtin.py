@@ -555,29 +555,31 @@ safe_compile_time_methods = {
         'conjugate',
     },
     'int': {
-        'as_integer_ratio',
+        # 'as_integer_ratio',  # Py3.8+
         'bit_length',
-        'bit_count',
-        'is_integer',
+        # 'bit_count',  # Py3.10+
+        'conjugate',
         # 'from_bytes',  # classmethod
-        'to_bytes',
+        # 'is_integer',  # Py3.12+
+        # 'to_bytes',  # changed in Py3.11
     },
     'float': {
         'as_integer_ratio',
-        'is_integer',
-        'hex',
+        'conjugate',
         # 'fromhex',  # classmethod
+        'hex',
+        'is_integer',
     },
     'list': {
-        'index',
         'count',
+        'index',
     },
     'tuple': {
-        'index',
         'count',
+        'index',
     },
     'str': {
-        'capitalize',
+        # 'capitalize',  # changed in Py3.8+
         'casefold',
         'center',
         'count',
@@ -606,8 +608,8 @@ safe_compile_time_methods = {
         'lstrip',
         # 'maketrans',  # staticmethod
         'partition',
-        'removeprefix',
-        'removesuffix',
+        # 'removeprefix',  # Py3.9+
+        # 'removesuffix',  # Py3.9+
         'replace',
         'rfind',
         'rindex',
@@ -634,7 +636,7 @@ safe_compile_time_methods = {
         'expandtabs'
         'find',
         # 'fromhex',  # classmethod
-        'hex',
+        # 'hex',  # changed in Py3.8+
         'index',
         'isalnum',
         'isalpha',
@@ -650,8 +652,8 @@ safe_compile_time_methods = {
         'lstrip',
         # 'maketrans',  # staticmethod
         'partition',
-        'removeprefix',
-        'removesuffix',
+        # 'removeprefix',  # Py3.9+
+        # 'removesuffix',  # Py3.9+
         'replace',
         'rfind',
         'rindex',
