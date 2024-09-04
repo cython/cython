@@ -5211,7 +5211,7 @@ class FinalOptimizePhase(Visitor.EnvTransform, Visitor.NodeRefCleanupMixin):
                 # Thus, we might want to be more specific and allow only simple Python types.
                 pass
             else:
-                # Other Python objects are not safe as they can change their formatting on each acces.
+                # Other Python objects are not safe as they can change their formatting on each access.
                 continue
 
             if not (fnode_value_node.is_name and fnode_value_node.is_simple()):
