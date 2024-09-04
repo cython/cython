@@ -6004,8 +6004,7 @@ class SimpleCallNode(CallNode):
                 object_type = self.function.obj.type
                 object_type_name = object_type.name if object_type else type(method.__self__).__name__
 
-                safe_methods = Builtin.safe_compile_time_methods.get(object_type_name)
-                if safe_methods and method_name in safe_methods:
+                if Builtin.is_safe_compile_time_method(object_type_name, method_name):
                     args = [arg.constant_result for arg in self.args]
                     self.constant_result = method(*args)
 
@@ -6918,8 +6917,7 @@ class GeneralCallNode(CallNode):
                 object_type = self.function.obj.type
                 object_type_name = object_type.name if object_type else type(method.__self__).__name__
 
-                safe_methods = Builtin.safe_compile_time_methods.get(object_type_name)
-                if safe_methods and method_name in safe_methods:
+                if Builtin.is_safe_compile_time_method(object_type_name, method_name):
                     args = self.positional_args.constant_result
                     kwargs = self.keyword_args.constant_result
                     self.constant_result = method(*args, **kwargs)

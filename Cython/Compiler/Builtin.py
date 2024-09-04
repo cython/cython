@@ -403,26 +403,28 @@ inferred_method_return_types = {
         conjugate='complex',
     ),
     'int': dict(
-        bit_length='T',
-        bit_count='T',
-        to_bytes='bytes',
-        from_bytes='T',  # classmethod
         as_integer_ratio='tuple[int,int]',
+        bit_count='T',
+        bit_length='T',
+        conjugate='T',
+        from_bytes='T',  # classmethod
         is_integer='bint',
+        to_bytes='bytes',
     ),
     'float': dict(
         as_integer_ratio='tuple[int,int]',
-        is_integer='bint',
-        hex='str',
+        conjugate='T',
         fromhex='T',  # classmethod
+        hex='str',
+        is_integer='bint',
     ),
     'list': dict(
-        index='Py_ssize_t',
         count='Py_ssize_t',
+        index='Py_ssize_t',
     ),
     'tuple': dict(
-        index='Py_ssize_t',
         count='Py_ssize_t',
+        index='Py_ssize_t',
     ),
     'str': dict(
         capitalize='T',
@@ -474,34 +476,16 @@ inferred_method_return_types = {
         zfill='T',
     ),
     'bytes': dict(
-        hex='str',
-        fromhex='T',  # classmethod
+        capitalize='T',
+        center='T',
         count='Py_ssize_t',
-        removeprefix='T',
-        removesuffix='T',
         decode='str',
         endswith='bint',
-        find='Py_ssize_t',
-        index='Py_ssize_t',
-        join='T',
-        maketrans='bytes',  # staticmethod
-        partition='tuple[T,T,T]',
-        replace='T',
-        rfind='Py_ssize_t',
-        rindex='Py_ssize_t',
-        rpartition='tuple[T,T,T]',
-        startswith='bint',
-        translate='T',
-        center='T',
-        ljust='T',
-        lstrip='T',
-        rjust='T',
-        rsplit='list[T]',
-        rstrip='T',
-        split='list[T]',
-        strip='T',
-        capitalize='T',
         expandtabs='T',
+        find='Py_ssize_t',
+        fromhex='T',  # classmethod
+        hex='str',
+        index='Py_ssize_t',
         isalnum='bint',
         isalpha='bint',
         isascii='bint',
@@ -510,10 +494,28 @@ inferred_method_return_types = {
         isspace='bint',
         istitle='bint',
         isupper='bint',
+        join='T',
+        ljust='T',
         lower='T',
+        lstrip='T',
+        maketrans='bytes',  # staticmethod
+        partition='tuple[T,T,T]',
+        removeprefix='T',
+        removesuffix='T',
+        replace='T',
+        rfind='Py_ssize_t',
+        rindex='Py_ssize_t',
+        rjust='T',
+        rpartition='tuple[T,T,T]',
+        rsplit='list[T]',
+        rstrip='T',
+        split='list[T]',
         splitlines='list[T]',
+        startswith='bint',
+        strip='T',
         swapcase='T',
         title='T',
+        translate='T',
         upper='T',
         zfill='T',
     ),
@@ -521,27 +523,29 @@ inferred_method_return_types = {
         # Inherited from 'bytes' below.
     ),
     'memoryview': dict(
-        tobytes='bytes',
+        cast='T',
         hex='str',
+        tobytes='bytes',
         tolist='list',
         toreadonly='T',
-        cast='T',
     ),
     'set': dict(
+        copy='T',
+        difference='T',
+        intersection='T',
         isdisjoint='bint',
         isubset='bint',
         issuperset='bint',
-        union='T',
-        intersection='T',
-        difference='T',
         symmetric_difference='T',
-        copy='T',
+        union='T',
     ),
     'frozenset': dict(
         # Inherited from 'set' below.
     ),
     'dict': dict(
         copy='T',
+        fromkeys='T',  # classmethod
+        popitem='tuple',
     ),
 }
 
@@ -549,8 +553,41 @@ inferred_method_return_types['bytearray'].update(inferred_method_return_types['b
 inferred_method_return_types['frozenset'].update(inferred_method_return_types['set'])
 
 
+def find_return_type_of_builtin_method(builtin_type, method_name):
+    type_name = builtin_type.name
+    if type_name in inferred_method_return_types:
+        methods = inferred_method_return_types[type_name]
+        if method_name in methods:
+            return_type_name = methods[method_name]
+            if '[' in return_type_name:
+                # TODO: Keep the "[...]" part when we add support for generics.
+                return_type_name = return_type_name.partition('[')[0]
+            if return_type_name == 'T':
+                return builtin_type
+            if 'T' in return_type_name:
+                return_type_name = return_type_name.replace('T', builtin_type.name)
+            if return_type_name == 'bint':
+                return PyrexTypes.c_bint_type
+            elif return_type_name == 'Py_ssize_t':
+                return PyrexTypes.c_py_ssize_t_type
+            return builtin_scope.lookup(return_type_name).type
+    return PyrexTypes.py_object_type
+
+
+"""
+# The literal below was created with:
+
+for tp in (complex, int, float, list, tuple, str, bytes, set):
+    print(f"    '{tp.__name__}': {{")
+    for attr, method in sorted(vars(tp).items()):
+        if not attr.startswith('_') and callable(method):
+            print(f"        '{attr}',")
+    print("    },")
+"""
+
+
+# We collect only types here that have a literal representation, allowing for constant folding.
 safe_compile_time_methods = {
-    # We collect only types here that have a literal representation, allowing for constant folding.
     'complex': {
         'conjugate',
     },
@@ -558,6 +595,7 @@ safe_compile_time_methods = {
         # 'as_integer_ratio',  # Py3.8+
         'bit_length',
         # 'bit_count',  # Py3.10+
+        'bit_length',
         'conjugate',
         # 'from_bytes',  # classmethod
         # 'is_integer',  # Py3.12+
@@ -571,8 +609,17 @@ safe_compile_time_methods = {
         'is_integer',
     },
     'list': {
+        # 'append',
+        # 'clear',
+        # 'copy',
         'count',
+        # 'extend',
         'index',
+        # 'insert',
+        # 'pop',
+        # 'remove',
+        # 'reverse',
+        # 'sort',
     },
     'tuple': {
         'count',
@@ -587,8 +634,8 @@ safe_compile_time_methods = {
         'endswith',
         'expandtabs',
         'find',
-        'format_map',
         'format',
+        'format_map',
         'index',
         'isalnum',
         'isalpha',
@@ -633,7 +680,7 @@ safe_compile_time_methods = {
         'count',
         'decode',
         'endswith',
-        'expandtabs'
+        'expandtabs',
         'find',
         # 'fromhex',  # classmethod
         # 'hex',  # changed in Py3.8+
@@ -671,57 +718,31 @@ safe_compile_time_methods = {
         'upper',
         'zfill',
     },
-    # 'bytearray': {
-    #     # Inherited from 'bytes' below.
-    # },
-    # 'memoryview': {
-    #     'tobytes',
-    #     'hex',
-    #     'tolist',
-    #     'toreadonly',
-    #     'cast',
-    # },
     'set': {
-        'isdisjoint',
-        'isubset',
-        'issuperset',
-        'union',
-        'intersection',
-        'difference',
-        'symmetric_difference',
+        # 'add',
+        # 'clear',
         # 'copy',
+        'difference',
+        # 'difference_update',
+        # 'discard',
+        'intersection',
+        # 'intersection_update',
+        'isdisjoint',
+        'issubset',
+        'issuperset',
+        # 'pop',
+        # 'remove',
+        'symmetric_difference',
+        # 'symmetric_difference_update',
+        'union',
+        # 'update',
     },
-    # 'frozenset': {
-    #     # Inherited from 'set' below.
-    # },
-    # 'dict': {
-    #     'copy',
-    # },
 }
 
-# safe_compile_time_methods['bytearray'].update(safe_compile_time_methods['bytes'])
-# safe_compile_time_methods['frozenset'].update(safe_compile_time_methods['set'])
 
-
-def find_return_type_of_builtin_method(builtin_type, method_name):
-    type_name = builtin_type.name
-    if type_name in inferred_method_return_types:
-        methods = inferred_method_return_types[type_name]
-        if method_name in methods:
-            return_type_name = methods[method_name]
-            if '[' in return_type_name:
-                # TODO: Keep the "[...]" part when we add support for generics.
-                return_type_name = return_type_name.partition('[')[0]
-            if return_type_name == 'T':
-                return builtin_type
-            if 'T' in return_type_name:
-                return_type_name = return_type_name.replace('T', builtin_type.name)
-            if return_type_name == 'bint':
-                return PyrexTypes.c_bint_type
-            elif return_type_name == 'Py_ssize_t':
-                return PyrexTypes.c_py_ssize_t_type
-            return builtin_scope.lookup(return_type_name).type
-    return PyrexTypes.py_object_type
+def is_safe_compile_time_method(builtin_type_name: str, method_name: str):
+    methods = safe_compile_time_methods.get(builtin_type_name)
+    return (method_name in methods) if methods is not None else False
 
 
 builtin_structs_table = [
