@@ -5998,7 +5998,7 @@ class SimpleCallNode(CallNode):
     def calculate_constant_result(self):
         if self.function.is_attribute and self.function.obj.is_literal:
             method = self.function.constant_result
-            if inspect.isbuiltin(method):
+            if inspect.isbuiltin(method) or inspect.ismethod(method):
                 method_name = method.__name__
                 # Prefer the actual builtin type over internal representations like "EncodedString".
                 object_type = self.function.obj.type
@@ -6912,7 +6912,7 @@ class GeneralCallNode(CallNode):
     def calculate_constant_result(self):
         if self.function.is_attribute and self.function.obj.is_literal:
             method = self.function.constant_result
-            if inspect.isbuiltin(method):
+            if inspect.isbuiltin(method) or inspect.ismethod(method):
                 method_name = method.__name__
                 # Prefer the actual builtin type over internal representations like "EncodedString".
                 object_type = self.function.obj.type
