@@ -1,4 +1,3 @@
-import string
 import cython
 cython.declare(UtilityCode=object, EncodedString=object, bytes_literal=object, encoded_string=object,
                Nodes=object, ExprNodes=object, PyrexTypes=object, Builtin=object,
@@ -4468,26 +4467,57 @@ class ConstantFolding(Visitor.VisitorTransform, SkipDeclarations):
 
     def visit_AddNode(self, node):
         self._calculate_const(node)
+
+        if isinstance(node.constant_result, str):
+            return ExprNodes.UnicodeNode(
+                node.operand1.pos, value=EncodedString(node.constant_result))
+
+        operand1, operand2 = node.operand1, node.operand2
+
+        # Some people combine (f-)string literals with a '+'  =>  join the format parts.
+        if isinstance(operand1, ExprNodes.JoinedStrNode):
+            if isinstance(operand2, ExprNodes.JoinedStrNode):
+                operand1.values.extend(operand2.values)
+                operand1.constant_result = ExprNodes.constant_value_not_set
+                return self.simplify_JoinedStrNode(operand1)
+            if isinstance(operand2.constant_result, str):
+                if not operand2.constant_result:
+                    return operand1
+                if not isinstance(operand2, ExprNodes.UnicodeNode):
+                    operand2 = ExprNodes.UnicodeNode(
+                        operand2.pos, value=operand2.constant_result)
+                operand1.values.append(operand2)
+                operand1.constant_result = ExprNodes.constant_value_not_set
+                return self.simplify_JoinedStrNode(operand1)
+        elif isinstance(operand2, ExprNodes.JoinedStrNode):
+            if isinstance(operand1.constant_result, str):
+                if not operand1.constant_result:
+                    return operand2
+                if not isinstance(operand1, ExprNodes.UnicodeNode):
+                    operand1 = ExprNodes.UnicodeNode(
+                        operand1.pos, value=operand1.constant_result)
+                operand2.values.insert(0, operand1)
+                operand2.constant_result = ExprNodes.constant_value_not_set
+                return self.simplify_JoinedStrNode(operand2)
+
         if node.constant_result is ExprNodes.not_a_constant:
             return node
-        if node.operand1.is_string_literal and node.operand2.is_string_literal:
-            # some people combine string literals with a '+'
-            str1, str2 = node.operand1, node.operand2
-            if isinstance(str1, ExprNodes.UnicodeNode) and isinstance(str2, ExprNodes.UnicodeNode):
+
+        if operand1.is_string_literal and operand2.is_string_literal:
+            if isinstance(operand1, ExprNodes.UnicodeNode) and isinstance(operand2, ExprNodes.UnicodeNode):
                 bytes_value = None
-                if str1.bytes_value is not None and str2.bytes_value is not None:
-                    if str1.bytes_value.encoding == str2.bytes_value.encoding:
+                if operand1.bytes_value is not None and operand2.bytes_value is not None:
+                    if operand1.bytes_value.encoding == operand2.bytes_value.encoding:
                         bytes_value = bytes_literal(
-                            str1.bytes_value + str2.bytes_value,
-                            str1.bytes_value.encoding)
+                            operand1.bytes_value + operand2.bytes_value,
+                            operand1.bytes_value.encoding)
                 string_value = EncodedString(node.constant_result)
-                return ExprNodes.UnicodeNode(str1.pos, value=string_value, bytes_value=bytes_value)
-            elif isinstance(str1, ExprNodes.BytesNode) and isinstance(str2, ExprNodes.BytesNode):
-                if str1.value.encoding == str2.value.encoding:
-                    bytes_value = bytes_literal(node.constant_result, str1.value.encoding)
-                    return ExprNodes.BytesNode(str1.pos, value=bytes_value, constant_result=node.constant_result)
-            # all other combinations are rather complicated
-            # to get right in Py2/3: encodings, unicode escapes, ...
+                return ExprNodes.UnicodeNode(operand1.pos, value=string_value, bytes_value=bytes_value)
+            elif isinstance(operand1, ExprNodes.BytesNode) and isinstance(operand2, ExprNodes.BytesNode):
+                if operand1.value.encoding == operand2.value.encoding:
+                    bytes_value = bytes_literal(node.constant_result, operand1.value.encoding)
+                    return ExprNodes.BytesNode(operand1.pos, value=bytes_value, constant_result=node.constant_result)
+
         return self.visit_BinopNode(node)
 
     def visit_MulNode(self, node):
@@ -4640,23 +4670,24 @@ class ConstantFolding(Visitor.VisitorTransform, SkipDeclarations):
         conversion_char = node.conversion_char or 's'
         if node.format_spec is not None and node.format_spec.is_string_literal and not node.format_spec.value:
             node.format_spec = None
-        if node.format_spec is None and isinstance(node.value, ExprNodes.IntNode):
-            value = EncodedString(node.value.value)
-            if value.isdigit():
-                return ExprNodes.UnicodeNode(node.value.pos, value=value)
+        if node.format_spec is None and node.value.has_constant_result() and isinstance(node.value.constant_result, int):
+            value = EncodedString(str(node.value.constant_result))
+            return ExprNodes.UnicodeNode(node.value.pos, value=value)
         if node.format_spec is None and conversion_char == 's':
             if node.value.is_string_literal:
                 return node.value
         return node
 
     def visit_JoinedStrNode(self, node):
+        self.visitchildren(node)
+        return self.simplify_JoinedStrNode(node)
+
+    def simplify_JoinedStrNode(self, node):
         """
         Clean up after the parser by discarding empty Unicode strings and merging
         substring sequences.  Empty or single-value join lists are not uncommon
         because f-string format specs are always parsed into JoinedStrNodes.
         """
-        self.visitchildren(node)
-
         values = []
         for is_unode_group, substrings in itertools.groupby(node.values, key=attrgetter('is_string_literal')):
             if is_unode_group:
@@ -4996,6 +5027,7 @@ class FinalOptimizePhase(Visitor.EnvTransform, Visitor.NodeRefCleanupMixin):
         - eliminate useless string formatting steps
         - inject branch hints for unlikely if-cases that only raise exceptions
         - replace Python function calls that look like method calls by a faster PyMethodCallNode
+        - replace duplicate FormattedValueNodes in f-strings with CloneNodes
     """
     in_loop = False
 
@@ -5146,6 +5178,60 @@ class FinalOptimizePhase(Visitor.EnvTransform, Visitor.NodeRefCleanupMixin):
                     # Anything that unconditionally raises exceptions at the end should be considered unlikely.
                     clause.branch_hint = 'likely' if inverse else 'unlikely'
                 break
+
+    def visit_JoinedStrNode(self, node: ExprNodes.JoinedStrNode):
+        """
+        Deduplicate repeatedly formatted (C) values by replacing them with CloneNodes.
+        It's not uncommon for a formatting expression to appear multiple times in an f-string.
+
+        Note that this is somewhat handwavy since it's potentially possible even for simple
+        expressions to change their value while processing an f-string, e.g. by modifying the
+        world in a ".__format__" method.  However, this seems unlikely enough to appear in
+        real-world code that we ignore the case here.
+        """
+        FormattedValueNode = ExprNodes.FormattedValueNode
+        CoerceToPyTypeNode = ExprNodes.CoerceToPyTypeNode
+
+        seen = {}
+        values = node.values[:]
+        for i, fnode in enumerate(node.values):
+            if not isinstance(fnode, FormattedValueNode):
+                # Unicode string constants are deduplicated already.
+                continue
+            fnode_value_node = fnode.value
+            if isinstance(fnode.value, CoerceToPyTypeNode):
+                # Coerced C values are probably safe.
+                fnode_value_node = fnode_value_node.arg
+            elif fnode.c_format_spec is not None:
+                # Simple formatted C values are safe.
+                pass
+            elif fnode_value_node.type.is_builtin_type:
+                # Most builtin Python types are probably safe as well.
+                # FIXME: Except when a container type formats user defined values...
+                # Thus, we might want to be more specific and allow only simple Python types.
+                pass
+            else:
+                # Other Python objects are not safe as they can change their formatting on each access.
+                continue
+
+            if not (fnode_value_node.is_name and fnode_value_node.is_simple()):
+                # Everything but simple (local) names risks changing on access.
+                # NOTE: Potentially, any non-trivial operation might re-assign values,
+                # e.g. with the walrus operator, but we ignore this here since it's really unusual.
+                # Otherwise, we'd have to stop with 'break' instead of allowing 'continue'.
+                continue
+
+            key = (fnode_value_node.name, fnode.c_format_spec, fnode.format_spec, fnode.conversion_char or 's')
+            seen_fnode = seen.setdefault(key, fnode)
+            if seen_fnode is fnode:
+                continue
+
+            dedup_fnode = ExprNodes.CloneNode(seen_fnode)
+            dedup_fnode.pos = fnode.pos
+            values[i] = dedup_fnode
+
+        node.values[:] = values
+        return node
 
 
 class ConsolidateOverflowCheck(Visitor.CythonTransform):
