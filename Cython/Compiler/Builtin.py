@@ -398,6 +398,8 @@ types_that_construct_their_instance = frozenset({
 })
 
 
+# When updating this mapping, also update "unsafe_compile_time_methods" below
+# if methods are added that are not safe to evaluate at compile time.
 inferred_method_return_types = {
     'complex': dict(
         conjugate='complex',
@@ -419,6 +421,7 @@ inferred_method_return_types = {
         is_integer='bint',
     ),
     'list': dict(
+        copy='T',
         count='Py_ssize_t',
         index='Py_ssize_t',
     ),
@@ -534,7 +537,7 @@ inferred_method_return_types = {
         difference='T',
         intersection='T',
         isdisjoint='bint',
-        isubset='bint',
+        issubset='bint',
         issuperset='bint',
         symmetric_difference='T',
         union='T',
@@ -574,175 +577,59 @@ def find_return_type_of_builtin_method(builtin_type, method_name):
     return PyrexTypes.py_object_type
 
 
-"""
-# The literal below was created with:
-
-for tp in (complex, int, float, list, tuple, str, bytes, set):
-    print(f"    '{tp.__name__}': {{")
-    for attr, method in sorted(vars(tp).items()):
-        if not attr.startswith('_') and callable(method):
-            print(f"        '{attr}',")
-    print("    },")
-"""
-
-
-# We collect only types here that have a literal representation, allowing for constant folding.
-safe_compile_time_methods = {
-    'complex': {
-        'conjugate',
-    },
+unsafe_compile_time_methods = {
+    # We name here only unsafe and non-portable methods if:
+    # - the type has a literal representation, allowing for constant folding.
+    # - the return type is not None (thus excluding modifier methods)
+    #   and is listed in 'inferred_method_return_types' above.
+    #
+    # See the consistency check in TestBuiltin.py.
+    #
+    'complex': set(),
     'int': {
-        # 'as_integer_ratio',  # Py3.8+
-        'bit_length',
-        # 'bit_count',  # Py3.10+
-        'bit_length',
-        'conjugate',
-        # 'from_bytes',  # classmethod
-        # 'is_integer',  # Py3.12+
-        # 'to_bytes',  # changed in Py3.11
+        'as_integer_ratio',  # Py3.8+
+        'bit_count',  # Py3.10+
+        'from_bytes',  # classmethod
+        'is_integer',  # Py3.12+
+        'to_bytes',  # changed in Py3.11
     },
     'float': {
-        'as_integer_ratio',
-        'conjugate',
-        # 'fromhex',  # classmethod
-        'hex',
-        'is_integer',
+        'fromhex',  # classmethod
     },
     'list': {
-        # 'append',
-        # 'clear',
-        # 'copy',
-        'count',
-        # 'extend',
-        'index',
-        # 'insert',
-        # 'pop',
-        # 'remove',
-        # 'reverse',
-        # 'sort',
+        'copy',
     },
-    'tuple': {
-        'count',
-        'index',
-    },
+    'tuple': set(),
     'str': {
-        # 'capitalize',  # changed in Py3.8+
-        'casefold',
-        'center',
-        'count',
-        'encode',
-        'endswith',
-        'expandtabs',
-        'find',
-        'format',
-        'format_map',
-        'index',
-        'isalnum',
-        'isalpha',
-        'isascii',
-        'isdecimal',
-        'isdigit',
-        'isidentifier',
-        'islower',
-        'isnumeric',
-        'isprintable',
-        'isspace',
-        'istitle',
-        'isupper',
-        'join',
-        'ljust',
-        'lower',
-        'lstrip',
-        # 'maketrans',  # staticmethod
-        'partition',
-        # 'removeprefix',  # Py3.9+
-        # 'removesuffix',  # Py3.9+
-        'replace',
-        'rfind',
-        'rindex',
-        'rjust',
-        'rpartition',
-        'rsplit',
-        'rstrip',
-        'split',
-        'splitlines',
-        'startswith',
-        'strip',
-        'swapcase',
-        'title',
-        'translate',
-        'upper',
-        'zfill',
+        'capitalize',  # changed in Py3.8+
+        'maketrans',  # staticmethod
+        'removeprefix',  # Py3.9+
+        'removesuffix',  # Py3.9+
     },
     'bytes': {
-        'capitalize',
-        'center',
-        'count',
-        'decode',
-        'endswith',
-        'expandtabs',
-        'find',
-        # 'fromhex',  # classmethod
-        # 'hex',  # changed in Py3.8+
-        'index',
-        'isalnum',
-        'isalpha',
-        'isascii',
-        'isdigit',
-        'islower',
-        'isspace',
-        'istitle',
-        'isupper',
-        'join',
-        'ljust',
-        'lower',
-        'lstrip',
-        # 'maketrans',  # staticmethod
-        'partition',
-        # 'removeprefix',  # Py3.9+
-        # 'removesuffix',  # Py3.9+
-        'replace',
-        'rfind',
-        'rindex',
-        'rjust',
-        'rpartition',
-        'rsplit',
-        'rstrip',
-        'split',
-        'splitlines',
-        'startswith',
-        'strip',
-        'swapcase',
-        'title',
-        'translate',
-        'upper',
-        'zfill',
+        'fromhex',  # classmethod
+        'hex',  # changed in Py3.8+
+        'maketrans',  # staticmethod
+        'removeprefix',  # Py3.9+
+        'removesuffix',  # Py3.9+
     },
-    'set': {
-        # 'add',
-        # 'clear',
-        # 'copy',
-        'difference',
-        # 'difference_update',
-        # 'discard',
-        'intersection',
-        # 'intersection_update',
-        'isdisjoint',
-        'issubset',
-        'issuperset',
-        # 'pop',
-        # 'remove',
-        'symmetric_difference',
-        # 'symmetric_difference_update',
-        'union',
-        # 'update',
-    },
+    'set': set(),
 }
 
 
 def is_safe_compile_time_method(builtin_type_name: str, method_name: str):
-    methods = safe_compile_time_methods.get(builtin_type_name)
-    return (method_name in methods) if methods is not None else False
+    unsafe_methods = unsafe_compile_time_methods.get(builtin_type_name)
+    if unsafe_methods is None:
+        # Not a literal type.
+        return False
+    if method_name in unsafe_methods:
+        # Not a safe method.
+        return False
+    known_methods = inferred_method_return_types.get(builtin_type_name)
+    if known_methods is None or method_name not in known_methods:
+        # Not a known method.
+        return False
+    return True
 
 
 builtin_structs_table = [
