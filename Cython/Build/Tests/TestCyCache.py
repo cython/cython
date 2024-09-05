@@ -187,8 +187,6 @@ class TestCyCache(CythonTest):
         compilation_method(hash_pyx, cache=self.cache_dir, cplus=False, show_version=True)
 
         self.assertEqual(2, len(self.cache_files('options.c*')))
-
-
     def test_options_invalidation_cythonize(self):
         self._test_options_invalidation(self.fresh_cythonize)
 

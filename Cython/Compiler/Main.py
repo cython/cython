@@ -513,10 +513,10 @@ def run_cached_pipeline(source, options, full_module_name=None, context=None, ca
         source = setup_source_object(source, source_ext, full_module_name, options, context)
         # Set up result object
         return create_default_resultobj(source, options)
-    else:
-        result = run_pipeline(source, options, full_module_name, context)
-        if cache and fingerprint:
-            cache.store_to_cache(output_filename, fingerprint, result)
+
+    result = run_pipeline(source, options, full_module_name, context)
+    if cache and fingerprint:
+        cache.store_to_cache(output_filename, fingerprint, result)
     return result
 
 
