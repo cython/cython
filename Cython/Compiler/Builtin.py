@@ -151,7 +151,7 @@ builtin_function_table = [
     #('bin',       "",     "",      ""),
     BuiltinFunction('callable',   "O",    "b",     "__Pyx_PyCallable_Check",
                     utility_code = UtilityCode.load("CallableCheck", "ObjectHandling.c")),
-    BuiltinFunction('chr',        "i",    "O",      "PyUnicode_FromOrdinal", builtin_return_type='unicode'),
+    BuiltinFunction('chr',        "i",    "O",      "PyUnicode_FromOrdinal", builtin_return_type='str'),
     #('cmp', "",   "",     "",      ""), # int PyObject_Cmp(PyObject *o1, PyObject *o2, int *result)
     #('compile',   "",     "",      ""), # PyObject* Py_CompileString(    char *str, char *filename, int start)
     BuiltinFunction('delattr',    "OO",   "r",     "PyObject_DelAttr"),
@@ -225,14 +225,13 @@ builtin_function_table = [
     #('raw_input', "",     "",      ""),
     #('reduce',    "",     "",      ""),
     BuiltinFunction('reload',     "O",    "O",     "PyImport_ReloadModule"),
-    BuiltinFunction('repr',       "O",    "O",     "PyObject_Repr", builtin_return_type='unicode'),
+    BuiltinFunction('repr',       "O",    "O",     "PyObject_Repr", builtin_return_type='str'),
     #('round',     "",     "",      ""),
     BuiltinFunction('setattr',    "OOO",  "r",     "PyObject_SetAttr"),
     #('sum',       "",     "",      ""),
     #('sorted',    "",     "",      ""),
     #('type',       "O",    "O",     "PyObject_Type"),
-    BuiltinFunction('unichr',     "i",    "O",      "PyUnicode_FromOrdinal", builtin_return_type='unicode'),
-    #('unicode',   "",     "",      ""),
+    BuiltinFunction('unichr',     "i",    "O",      "PyUnicode_FromOrdinal", builtin_return_type='str'),
     #('vars',      "",     "",      ""),
     #('zip',       "",     "",      ""),
     #  Can't do these easily until we have builtin type entries.
@@ -286,12 +285,6 @@ builtin_types_table = [
                                     BuiltinAttribute('imag', 'cval.imag', field_type = PyrexTypes.c_double_type),
                                     ]),
 
-    ("basestring", "&PyBaseString_Type", [
-                                    BuiltinMethod("join",  "TO",   "T", "__Pyx_PyBaseString_Join",
-                                                  utility_code=UtilityCode.load("StringJoin", "StringTools.c")),
-                                    BuiltinMethod("__mul__",  "Tz",   "T", "__Pyx_PySequence_Multiply",
-                                                  utility_code=UtilityCode.load("PySequenceMultiply", "ObjectHandling.c")),
-                                    ]),
     ("bytearray", "&PyByteArray_Type", [
                                     BuiltinMethod("__mul__",  "Tz",   "T", "__Pyx_PySequence_Multiply",
                                                   utility_code=UtilityCode.load("PySequenceMultiply", "ObjectHandling.c")),
@@ -301,12 +294,7 @@ builtin_types_table = [
                                     BuiltinMethod("__mul__",  "Tz",   "T", "__Pyx_PySequence_Multiply",
                                                   utility_code=UtilityCode.load("PySequenceMultiply", "ObjectHandling.c")),
                                     ]),
-    ("str",     "&PyString_Type",  [BuiltinMethod("join",  "TO",   "T", "__Pyx_PyString_Join",
-                                                  utility_code=UtilityCode.load("StringJoin", "StringTools.c")),
-                                    BuiltinMethod("__mul__",  "Tz",   "T", "__Pyx_PySequence_Multiply",
-                                                  utility_code=UtilityCode.load("PySequenceMultiply", "ObjectHandling.c")),
-                                    ]),
-    ("unicode", "&PyUnicode_Type", [BuiltinMethod("__contains__",  "TO",   "b", "PyUnicode_Contains"),
+    ("str",     "&PyUnicode_Type", [BuiltinMethod("__contains__",  "TO",   "b", "PyUnicode_Contains"),
                                     BuiltinMethod("join",  "TO",   "T", "PyUnicode_Join"),
                                     BuiltinMethod("__mul__",  "Tz",   "T", "__Pyx_PySequence_Multiply",
                                                   utility_code=UtilityCode.load("PySequenceMultiply", "ObjectHandling.c")),
@@ -410,29 +398,38 @@ types_that_construct_their_instance = frozenset({
 })
 
 
+# When updating this mapping, also update "unsafe_compile_time_methods" below
+# if methods are added that are not safe to evaluate at compile time.
 inferred_method_return_types = {
     'complex': dict(
         conjugate='complex',
     ),
     'int': dict(
-        bit_length='T',
-        bit_count='T',
-        to_bytes='bytes',
-        from_bytes='T',  # classmethod
         as_integer_ratio='tuple[int,int]',
+        bit_count='T',
+        bit_length='T',
+        conjugate='T',
+        from_bytes='T',  # classmethod
         is_integer='bint',
+        to_bytes='bytes',
     ),
     'float': dict(
         as_integer_ratio='tuple[int,int]',
-        is_integer='bint',
-        hex='unicode',
+        conjugate='T',
         fromhex='T',  # classmethod
+        hex='str',
+        is_integer='bint',
     ),
     'list': dict(
-        index='Py_ssize_t',
+        copy='T',
         count='Py_ssize_t',
+        index='Py_ssize_t',
     ),
-    'unicode': dict(
+    'tuple': dict(
+        count='Py_ssize_t',
+        index='Py_ssize_t',
+    ),
+    'str': dict(
         capitalize='T',
         casefold='T',
         center='T',
@@ -482,34 +479,16 @@ inferred_method_return_types = {
         zfill='T',
     ),
     'bytes': dict(
-        hex='unicode',
-        fromhex='T',  # classmethod
-        count='Py_ssize_t',
-        removeprefix='T',
-        removesuffix='T',
-        decode='unicode',
-        endswith='bint',
-        find='Py_ssize_t',
-        index='Py_ssize_t',
-        join='T',
-        maketrans='bytes',  # staticmethod
-        partition='tuple[T,T,T]',
-        replace='T',
-        rfind='Py_ssize_t',
-        rindex='Py_ssize_t',
-        rpartition='tuple[T,T,T]',
-        startswith='bint',
-        translate='T',
-        center='T',
-        ljust='T',
-        lstrip='T',
-        rjust='T',
-        rsplit='list[T]',
-        rstrip='T',
-        split='list[T]',
-        strip='T',
         capitalize='T',
+        center='T',
+        count='Py_ssize_t',
+        decode='str',
+        endswith='bint',
         expandtabs='T',
+        find='Py_ssize_t',
+        fromhex='T',  # classmethod
+        hex='str',
+        index='Py_ssize_t',
         isalnum='bint',
         isalpha='bint',
         isascii='bint',
@@ -518,10 +497,28 @@ inferred_method_return_types = {
         isspace='bint',
         istitle='bint',
         isupper='bint',
+        join='T',
+        ljust='T',
         lower='T',
+        lstrip='T',
+        maketrans='bytes',  # staticmethod
+        partition='tuple[T,T,T]',
+        removeprefix='T',
+        removesuffix='T',
+        replace='T',
+        rfind='Py_ssize_t',
+        rindex='Py_ssize_t',
+        rjust='T',
+        rpartition='tuple[T,T,T]',
+        rsplit='list[T]',
+        rstrip='T',
+        split='list[T]',
         splitlines='list[T]',
+        startswith='bint',
+        strip='T',
         swapcase='T',
         title='T',
+        translate='T',
         upper='T',
         zfill='T',
     ),
@@ -529,33 +526,34 @@ inferred_method_return_types = {
         # Inherited from 'bytes' below.
     ),
     'memoryview': dict(
+        cast='T',
+        hex='str',
         tobytes='bytes',
-        hex='unicode',
         tolist='list',
         toreadonly='T',
-        cast='T',
     ),
     'set': dict(
-        isdisjoint='bint',
-        isubset='bint',
-        issuperset='bint',
-        union='T',
-        intersection='T',
-        difference='T',
-        symmetric_difference='T',
         copy='T',
+        difference='T',
+        intersection='T',
+        isdisjoint='bint',
+        issubset='bint',
+        issuperset='bint',
+        symmetric_difference='T',
+        union='T',
     ),
     'frozenset': dict(
         # Inherited from 'set' below.
     ),
     'dict': dict(
         copy='T',
+        fromkeys='T',  # classmethod
+        popitem='tuple',
     ),
 }
 
 inferred_method_return_types['bytearray'].update(inferred_method_return_types['bytes'])
 inferred_method_return_types['frozenset'].update(inferred_method_return_types['set'])
-inferred_method_return_types['str'] = inferred_method_return_types['unicode']
 
 
 def find_return_type_of_builtin_method(builtin_type, method_name):
@@ -577,6 +575,61 @@ def find_return_type_of_builtin_method(builtin_type, method_name):
                 return PyrexTypes.c_py_ssize_t_type
             return builtin_scope.lookup(return_type_name).type
     return PyrexTypes.py_object_type
+
+
+unsafe_compile_time_methods = {
+    # We name here only unsafe and non-portable methods if:
+    # - the type has a literal representation, allowing for constant folding.
+    # - the return type is not None (thus excluding modifier methods)
+    #   and is listed in 'inferred_method_return_types' above.
+    #
+    # See the consistency check in TestBuiltin.py.
+    #
+    'complex': set(),
+    'int': {
+        'as_integer_ratio',  # Py3.8+
+        'bit_count',  # Py3.10+
+        'from_bytes',  # classmethod
+        'is_integer',  # Py3.12+
+        'to_bytes',  # changed in Py3.11
+    },
+    'float': {
+        'fromhex',  # classmethod
+    },
+    'list': {
+        'copy',
+    },
+    'tuple': set(),
+    'str': {
+        'capitalize',  # changed in Py3.8+
+        'maketrans',  # staticmethod
+        'removeprefix',  # Py3.9+
+        'removesuffix',  # Py3.9+
+    },
+    'bytes': {
+        'fromhex',  # classmethod
+        'hex',  # changed in Py3.8+
+        'maketrans',  # staticmethod
+        'removeprefix',  # Py3.9+
+        'removesuffix',  # Py3.9+
+    },
+    'set': set(),
+}
+
+
+def is_safe_compile_time_method(builtin_type_name: str, method_name: str):
+    unsafe_methods = unsafe_compile_time_methods.get(builtin_type_name)
+    if unsafe_methods is None:
+        # Not a literal type.
+        return False
+    if method_name in unsafe_methods:
+        # Not a safe method.
+        return False
+    known_methods = inferred_method_return_types.get(builtin_type_name)
+    if known_methods is None or method_name not in known_methods:
+        # Not a known method.
+        return False
+    return True
 
 
 builtin_structs_table = [
@@ -619,6 +672,8 @@ def init_builtin_types():
             objstruct_cname = 'PyByteArrayObject'
         elif name == 'int':
             objstruct_cname = 'PyLongObject'
+        elif name == 'str':
+            objstruct_cname = 'PyUnicodeObject'
         elif name == 'bool':
             objstruct_cname = None
         elif name == 'BaseException':
@@ -639,6 +694,7 @@ def init_builtin_types():
         builtin_types[name] = the_type
         for method in methods:
             method.declare_in_type(the_type)
+
 
 def init_builtin_structs():
     for name, cname, attribute_types in builtin_structs_table:
@@ -662,7 +718,7 @@ def init_builtins():
     entry.utility_code = UtilityCode.load_cached("AssertionsEnabled", "Exceptions.c")
 
     global type_type, list_type, tuple_type, dict_type, set_type, frozenset_type, slice_type
-    global bytes_type, str_type, unicode_type, basestring_type, bytearray_type
+    global bytes_type, unicode_type, bytearray_type
     global float_type, int_type, bool_type, complex_type
     global memoryview_type, py_buffer_type
     global sequence_types
@@ -675,9 +731,7 @@ def init_builtins():
     slice_type   = builtin_scope.lookup('slice').type
 
     bytes_type = builtin_scope.lookup('bytes').type
-    str_type   = builtin_scope.lookup('str').type
-    unicode_type = builtin_scope.lookup('unicode').type
-    basestring_type = builtin_scope.lookup('basestring').type
+    unicode_type = builtin_scope.lookup('str').type
     bytearray_type = builtin_scope.lookup('bytearray').type
     memoryview_type = builtin_scope.lookup('memoryview').type
 
@@ -690,9 +744,7 @@ def init_builtins():
         list_type,
         tuple_type,
         bytes_type,
-        str_type,
         unicode_type,
-        basestring_type,
         bytearray_type,
         memoryview_type,
     )
