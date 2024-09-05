@@ -489,20 +489,11 @@ def setup_source_object(source, source_ext, full_module_name, options, context):
     source_desc = FileSourceDescriptor(abs_path, rel_path)
     return CompilationSource(source_desc, full_module_name, cwd)
 
-def run_cached_pipeline(source, options, full_module_name=None, context=None, cache=None, fingerprint=None):
-
-    if context is None:
-        context = Context.from_options(options)
-
-    if cache:
-        if not fingerprint:
-            fingerprint = get_fingerprint(cache, source, options)
-        cwd = os.getcwd()
-        output_filename = get_output_filename(source, cwd, options)
-        cached = cache.lookup_cache(output_filename, fingerprint)
-    else:
-        cached = False
-    if cache and cached:
+def run_cached_pipeline(source, options, full_module_name, context, cache, fingerprint):
+    cwd = os.getcwd()
+    output_filename = get_output_filename(source, cwd, options)
+    cached = cache.lookup_cache(output_filename, fingerprint)
+    if cached:
         if options.verbose:
             sys.stderr.write(f'Found compiled {os.path.basename(output_filename)} in cache.\n')
         cache.load_from_cache(output_filename, cached)
@@ -515,21 +506,19 @@ def run_cached_pipeline(source, options, full_module_name=None, context=None, ca
         return create_default_resultobj(source, options)
 
     result = run_pipeline(source, options, full_module_name, context)
-    if cache and fingerprint:
+    if fingerprint:
         cache.store_to_cache(output_filename, fingerprint, result)
     return result
 
 
 
-def run_pipeline(source, options, full_module_name=None, context=None):
+def run_pipeline(source, options, full_module_name, context):
     from . import Pipeline
     if options.verbose:
         sys.stderr.write("Compiling %s\n" % source)
     source_ext = os.path.splitext(source)[1]
     abs_path = os.path.abspath(source)
     options.configure_language_defaults(source_ext[1:])  # py/pyx
-    if context is None:
-        context = Context.from_options(options)
 
     source = setup_source_object(source, source_ext, full_module_name, options, context)
     # Set up result object
@@ -646,20 +635,28 @@ def get_fingerprint(cache, source, options):
                 )
         )
 
-def compile_single(source, options, full_module_name = None, cache=None, fingerprint=None):
+def compile_single(source, options, full_module_name, cache=None, context=None, fingerprint=None):
     """
-    compile_single(source, options, full_module_name, cache, fingerprint)
+    compile_single(source, options, full_module_name, cache, context, fingerprint)
 
     Compile the given Pyrex implementation file and return a CompilationResult.
     Always compiles a single file; does not perform timestamp checking or
     recursion.
     """
-    return run_cached_pipeline(source, options, full_module_name, cache=cache, fingerprint=fingerprint)
+
+    if context is None:
+        context = Context.from_options(options)
+
+    if cache:
+        fingerprint = fingerprint if fingerprint else get_fingerprint(cache, source, options)
+        return run_cached_pipeline(source, options, full_module_name, context, cache, fingerprint)
+    else:
+        return run_pipeline(source, options, full_module_name, context)
 
 
 def compile_multiple(sources, options, cache=None):
     """
-    compile_multiple(sources, options)
+    compile_multiple(sources, options, cache)
 
     Compiles the given sequence of Pyrex implementation files and returns
     a CompilationResultSet. Performs timestamp checking, caching and/or recursion
@@ -683,10 +680,7 @@ def compile_multiple(sources, options, cache=None):
                 context = Context.from_options(options)
             out_of_date = context.c_file_out_of_date(source, output_filename)
             if (not timestamps) or out_of_date:
-                fingerprint = get_fingerprint(cache, source, options) if cache else None
-                result = run_cached_pipeline(source, options,
-                                      full_module_name=options.module_name,
-                                      context=context, cache=cache, fingerprint=fingerprint)
+                result = compile_single(source, options, full_module_name=options.module_name, cache=cache, context=context)
                 results.add(source, result)
                 # Compiling multiple sources in one context doesn't quite
                 # work properly yet.
