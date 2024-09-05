@@ -1381,3 +1381,45 @@ class ControlFlowAnalysis(CythonTransform):
             self.mark_assignment(node.operand, fake_rhs_expr)
         self.visitchildren(node)
         return node
+
+    def visit_BoolBinopNode(self, node):
+        # Note - I don't believe BoolBinopResultNode needs special handling beyond this
+        assert len(node.subexprs) == 2  # operand1 and operand2 only
+
+        next_block = self.flow.newblock()
+        parent = self.flow.block
+
+        self._visit(node.operand1)
+
+        self.flow.nextblock()
+        self._visit(node.operand2)
+        if self.flow.block:
+            self.flow.block.add_child(next_block)
+
+        parent.add_child(next_block)
+
+        if next_block.parents:
+            self.flow.block = next_block
+        else:
+            self.flow.block = None
+        return node
+
+    def visit_CondExprNode(self, node):
+        assert len(node.subexprs) == 3
+        self._visit(node.test)
+        parent = self.flow.block
+        next_block = self.flow.newblock()
+        self.flow.nextblock()
+        self._visit(node.true_val)
+        if self.flow.block:
+            self.flow.block.add_child(next_block)
+        self.flow.nextblock(parent=parent)
+        self._visit(node.false_val)
+        if self.flow.block:
+            self.flow.block.add_child(next_block)
+
+        if next_block.parents:
+            self.flow.block = next_block
+        else:
+            self.flow.block = None
+        return node
