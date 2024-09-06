@@ -14101,15 +14101,20 @@ class PyTypeTestNode(CoercionNode):
 
     def generate_result_code(self, code):
         if self.type.typeobj_is_available():
+            allow_none = not self.notnone
             if self.type.is_builtin_type:
                 type_test = self.type.type_test_code(
                     self.arg.py_result(),
-                    self.notnone, exact=self.exact_builtin_type)
+                    allow_none,
+                    exact=self.exact_builtin_type,
+                )
                 code.globalstate.use_utility_code(UtilityCode.load_cached(
                     "RaiseUnexpectedTypeError", "ObjectHandling.c"))
             else:
                 type_test = self.type.type_test_code(
-                    self.arg.py_result(), self.notnone)
+                    self.arg.py_result(),
+                    allow_none,
+                )
                 code.globalstate.use_utility_code(
                     UtilityCode.load_cached("ExtTypeTest", "ObjectHandling.c"))
             code.putln("if (!(%s)) %s" % (
