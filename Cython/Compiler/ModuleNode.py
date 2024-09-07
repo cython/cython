@@ -3124,13 +3124,13 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("#ifdef __Pxy_PyFrame_Initialize_Offsets")
         code.putln("__Pxy_PyFrame_Initialize_Offsets();")
         code.putln("#endif")
-        empty_tuple = f"{Naming.modulestatevalue_cname}->{Naming.empty_tuple}"
+        empty_tuple = code.name_in_main_c_code_module_state(Naming.empty_tuple)
         code.putln("%s = PyTuple_New(0); %s" % (
             empty_tuple, code.error_goto_if_null(empty_tuple, self.pos)))
-        empty_bytes = f"{Naming.modulestatevalue_cname}->{Naming.empty_bytes}"
+        empty_bytes = code.name_in_main_c_code_module_state(Naming.empty_bytes)
         code.putln("%s = PyBytes_FromStringAndSize(\"\", 0); %s" % (
             empty_bytes, code.error_goto_if_null(empty_bytes, self.pos)))
-        empty_unicode = f"{Naming.modulestatevalue_cname}->{Naming.empty_unicode}"
+        empty_unicode = code.name_in_main_c_code_module_state(Naming.empty_unicode)
         code.putln("%s = PyUnicode_FromStringAndSize(\"\", 0); %s" % (
             empty_unicode, code.error_goto_if_null(empty_unicode, self.pos)))
 
@@ -3238,8 +3238,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             code.put_trace_unwind(self.pos)
 
         code.putln('if (%s) {' % env.module_cname)
-        code.putln('if (%s->%s && stringtab_initialized) {' % (
-            Naming.modulestatevalue_cname, env.module_dict_cname))
+        code.putln(
+            f'if ({code.name_in_main_c_code_module_state(env.module_dict_cname)} && stringtab_initialized) {{')
         # We can run into errors before the module or stringtab are initialized.
         # In this case it is not safe to add a traceback (because it uses the stringtab)
         code.put_add_traceback(EncodedString("init %s" % env.qualified_name))
@@ -3443,7 +3443,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         if Options.generate_cleanup_code >= 3:
             code.putln("/*--- Type import cleanup code ---*/")
             for ext_type in sorted(env.types_imported, key=operator.attrgetter('typeptr_cname')):
-                typeptr_cname = f"{Naming.modulestatevalue_cname}->{ext_type.typeptr_cname}"
+                typeptr_cname = code.name_in_main_c_code_module_state(ext_type.typeptr_cname)
                 code.put_xdecref_clear(
                     typeptr_cname, ext_type,
                     clear_before_decref=True,
@@ -3456,7 +3456,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                     clear_before_decref=True,
                     nanny=False)
         code.putln("/*--- Intern cleanup code ---*/")
-        code.put_decref_clear(f"{Naming.modulestatevalue_cname}->{Naming.empty_tuple}",
+        code.put_decref_clear(f"{code.name_in_main_c_code_module_state(Naming.empty_tuple)}",
                               PyrexTypes.py_object_type,
                               clear_before_decref=True,
                               nanny=False)
@@ -3498,10 +3498,10 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             code.put_decref_clear(Naming.preimport_cname, py_object_type,
                                   nanny=False, clear_before_decref=True)
         for cname in [Naming.cython_runtime_cname, Naming.builtins_cname]:
-            cname = f"{Naming.modulestatevalue_cname}->{cname}"
+            cname = code.code.name_in_main_c_code_module_state(cname)
             code.put_decref_clear(cname, py_object_type, nanny=False, clear_before_decref=True)
         code.put_decref_clear(
-            f"{Naming.modulestatevalue_cname}->{env.module_dict_cname}",
+            code.name_in_main_c_code_module_state(env.module_dict_cname),
             py_object_type, nanny=False, clear_before_decref=True)
 
     def generate_main_method(self, env, code):
@@ -3669,19 +3669,19 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln(f"{Naming.modulestatevalue_cname} = {Naming.modulestateglobal_cname};")
         code.putln("CYTHON_UNUSED_VAR(%s);" % module_temp)  # only used in limited API
 
-        dict_cname = f"{Naming.modulestatevalue_cname}->{env.module_dict_cname}"
+        dict_cname = code.name_in_main_c_code_module_state(env.module_dict_cname)
         code.putln(
             "%s = PyModule_GetDict(%s); %s" % (
                 dict_cname, env.module_cname,
                 code.error_goto_if_null(dict_cname, self.pos)))
         code.put_incref(dict_cname, py_object_type, nanny=False)
 
-        builtins_cname = f"{Naming.modulestatevalue_cname}->{Naming.builtins_cname}"
+        builtins_cname = code.name_in_main_c_code_module_state(Naming.builtins_cname)
         code.putln(
             '%s = __Pyx_PyImport_AddModuleRef(__Pyx_BUILTIN_MODULE_NAME); %s' % (
                 builtins_cname,
                 code.error_goto_if_null(builtins_cname, self.pos)))
-        runtime_cname = f"{Naming.modulestatevalue_cname}->{Naming.cython_runtime_cname}"
+        runtime_cname = code.name_in_main_c_code_module_state(Naming.cython_runtime_cname)
         code.putln(
             '%s = __Pyx_PyImport_AddModuleRef("cython_runtime"); %s' % (
                 runtime_cname,
@@ -3878,11 +3878,10 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         if type.vtabptr_cname:
             code.globalstate.use_utility_code(
                 UtilityCode.load_cached('GetVTable', 'ImportExport.c'))
-            code.putln("%s = (struct %s*)__Pyx_GetVtable(%s->%s); %s" % (
+            code.putln("%s = (struct %s*)__Pyx_GetVtable(%s); %s" % (
                 type.vtabptr_cname,
                 type.vtabstruct_cname,
-                Naming.modulestatevalue_cname,
-                type.typeptr_cname,
+                code.name_in_main_c_code_module_state(type.typeptr_cname),
                 code.error_goto_if_null(type.vtabptr_cname, pos)))
         env.types_imported.add(type)
 
@@ -3912,7 +3911,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         module = import_generator.imported_module(module_name, error_code)
         typeptr_cname = type.typeptr_cname
         if not is_api:
-            typeptr_cname = f"{Naming.modulestatevalue_cname}->{typeptr_cname}"
+            typeptr_cname = code.name_in_main_c_code_module_state(typeptr_cname)
         code.put(
             f"{typeptr_cname} = __Pyx_ImportType_{Naming.cyversion}("
             f"{module}, {module_name}, {type.name.as_c_string_literal()},"
