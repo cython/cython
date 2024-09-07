@@ -846,24 +846,14 @@ def _inject_empty_collection_constant(output, matchobj):
 
 
 @add_macro_processor(
-    'NAMED_CGLOBAL',
+    'CGLOBAL',  # 'NAMED_CGLOBAL',  # first is part of second and thus not needed
     is_module_specific=False,
-    regex=r'NAMED_CGLOBAL\(([^)]+)\)'
-)
-def _inject_named_cglobal(output, matchobj):
-    name = matchobj.group(1).strip()
-    return "%s->%s" % (
-        Naming.modulestateglobal_cname,
-        getattr(Naming, name))
-
-
-@add_macro_processor(
-    'CGLOBAL',
-    is_module_specific=False,
-    regex=r'CGLOBAL\(([^)]+)\)'
+    regex=r'(NAMED_)?CGLOBAL\(([^)]+)\)',
 )
 def _inject_cglobal(output, matchobj):
-    name = matchobj.group(1).strip()
+    is_named, name = matchobj.groups()
+    if is_named:
+        name = getattr(Naming, name)
     return f"{Naming.modulestateglobal_cname}->{name}"
 
 
