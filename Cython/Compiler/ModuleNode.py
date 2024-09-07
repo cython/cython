@@ -3498,7 +3498,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             code.put_decref_clear(Naming.preimport_cname, py_object_type,
                                   nanny=False, clear_before_decref=True)
         for cname in [Naming.cython_runtime_cname, Naming.builtins_cname]:
-            cname = code.code.name_in_main_c_code_module_state(cname)
+            cname = code.name_in_main_c_code_module_state(cname)
             code.put_decref_clear(cname, py_object_type, nanny=False, clear_before_decref=True)
         code.put_decref_clear(
             code.name_in_main_c_code_module_state(env.module_dict_cname),
