@@ -1503,12 +1503,11 @@ class BuiltinObjectType(PyObjectType):
         # returns code_str, utility_code
         type_check = self.type_check_function(exact=exact)
         check = f'likely({type_check}({arg}))'
-        utility_code = UtilityCode.load_cached(
-                    "RaiseUnexpectedTypeError", "ObjectHandling.c")
+        scope.use_utility_code(UtilityCode.load_cached(
+                    "RaiseUnexpectedTypeError", "ObjectHandling.c"))
         if not notnone:
             check += f'||(({arg}) == Py_None)'
-        return (check + f' || __Pyx_RaiseUnexpectedTypeError("{self.name}", {arg})',
-                utility_code)
+        return check + f' || __Pyx_RaiseUnexpectedTypeError("{self.name}", {arg})'
 
     def declaration_code(self, entity_code,
             for_display = 0, dll_linkage = None, pyrex = 0):
@@ -1649,11 +1648,11 @@ class PyExtensionType(PyObjectType):
         none_check = "((%s) == Py_None)" % py_arg
         type_check = "likely(__Pyx_TypeTest(%s, %s))" % (
             py_arg, scope.name_in_module_state(self.typeptr_cname))
-        utility_code = UtilityCode.load_cached("ExtTypeTest", "ObjectHandling.c")
+        scope.use_utility_code(UtilityCode.load_cached("ExtTypeTest", "ObjectHandling.c"))
         if notnone:
-            return type_check, utility_code
+            return type_check
         else:
-            return f"likely({none_check} || {type_check})", utility_code
+            return f"likely({none_check} || {type_check})"
 
     def attributes_known(self):
         return self.scope is not None

@@ -14069,16 +14069,15 @@ class PyTypeTestNode(CoercionNode):
     def generate_result_code(self, code):
         if self.type.typeobj_is_available():
             if self.type.is_builtin_type:
-                type_test, type_test_utility = self.type.type_test_code(
+                type_test = self.type.type_test_code(
                     code.funcstate.scope,
                     self.arg.py_result(),
                     self.notnone, exact=self.exact_builtin_type)
             else:
-                type_test, type_test_utility = self.type.type_test_code(
+                type_test = self.type.type_test_code(
                     code.funcstate.scope, self.arg.py_result(), self.notnone)
             code.putln("if (!(%s)) %s" % (
                 type_test, code.error_goto(self.pos)))
-            code.globalstate.use_utility_code(type_test_utility)
         else:
             error(self.pos, "Cannot test type of extern C class "
                 "without type object name specification")
