@@ -694,7 +694,7 @@ class UtilityCode(UtilityCodeBase):
             self.specialize_list.append(s)
             return s
     
-    def _put_code_section(self, writer, output, code_type: str):
+    def _put_code_section(self, writer: "CCodeWriter", output: "GlobalState", code_type: str):
         code_string = getattr(self, code_type)
         if not code_string:
             return False
@@ -1718,7 +1718,8 @@ class GlobalState:
 
     def put_cached_builtin_init(self, pos, name, cname):
         w = self.parts['cached_builtins']
-        cname_in_modulestate = f"{Naming.modulestatevalue_cname}->{self.get_interned_identifier(name).cname}"
+        cname_in_modulestate = w.name_in_main_c_code_module_state(
+            self.get_interned_identifier(name).cname)
         self.use_utility_code(
             UtilityCode.load_cached("GetBuiltinName", "ObjectHandling.c"))
         w.putln('%s = __Pyx_GetBuiltinName(%s); if (!%s) %s' % (
@@ -1783,9 +1784,11 @@ class GlobalState:
             cleanup_level = cleanup_level_for_type_prefix(prefix)
             if cleanup_level is not None and cleanup_level <= Options.generate_cleanup_code:
                 part_writer = self.parts['cleanup_globals']
+                part_writer.put(f"for (size_t i=0; i<{count}; ++i) ")
                 part_writer.putln(
-                    f"for (size_t i=0; i<{count}; ++i) "
-                    f"{{ Py_CLEAR({Naming.modulestatevalue_cname}->{struct_attr_cname}[i]); }}")
+                    "{ Py_CLEAR(%s); }" %
+                        part_writer.name_in_main_c_code_module_state(f"{struct_attr_cname}[i]")
+                )
 
     def generate_cached_methods_decls(self):
         if not self.cached_cmethods:
@@ -1803,7 +1806,8 @@ class GlobalState:
             init.putln('%s.type = (PyObject*)%s;' % (
                 cname, type_cname))
             # method name string isn't static in limited api
-            init.putln(f'{cname}.method_name = &{Naming.modulestatevalue_cname}->{method_name_cname};')
+            init.putln(
+                f'{cname}.method_name = &{init.name_in_main_c_code_module_state(method_name_cname)};')
 
         if Options.generate_cleanup_code:
             cleanup = self.parts['cleanup_globals']
@@ -1926,10 +1930,9 @@ class GlobalState:
 
         init_constants = self.parts['init_constants']
         init_constants.putln(
-            "if (__Pyx_InitStrings(%s, %s->%s, %s) < 0) %s;" % (
+            "if (__Pyx_InitStrings(%s, %s, %s) < 0) %s;" % (
                 Naming.stringtab_cname,
-                Naming.modulestatevalue_cname,
-                Naming.stringtab_cname,
+                init_constants.name_in_main_c_code_module_state(Naming.stringtab_cname),
                 Naming.stringtab_encodings_cname,
                 init_constants.error_goto(self.module_pos)))
 
@@ -2026,7 +2029,7 @@ class GlobalState:
                 function = "PyLong_FromLong(%sL)"
             else:
                 function = "PyLong_FromLong(%s)"
-            init_cname = f"{Naming.modulestatevalue_cname}->{cname}"
+            init_cname = init_constants.name_in_main_c_code_module_state(cname)
             init_constants.putln('%s = %s; %s' % (
                 init_cname, function % value_code,
                 init_constants.error_goto_if_null(init_cname, self.module_pos)))
