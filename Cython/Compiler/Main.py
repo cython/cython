@@ -494,8 +494,6 @@ def run_cached_pipeline(source, options, full_module_name, context, cache, finge
     output_filename = get_output_filename(source, cwd, options)
     cached = cache.lookup_cache(output_filename, fingerprint)
     if cached:
-        if options.verbose:
-            sys.stderr.write(f'Found compiled {os.path.basename(output_filename)} in cache.\n')
         cache.load_from_cache(output_filename, cached)
 
         source_ext = os.path.splitext(source)[1]
