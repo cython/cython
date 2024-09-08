@@ -472,6 +472,7 @@ def create_default_resultobj(compilation_source, options):
     result.embedded_metadata = options.embedded_metadata
     return result
 
+
 def setup_source_object(source, source_ext, full_module_name, options, context):
     cwd = os.getcwd()
     abs_path = os.path.abspath(source)
@@ -488,6 +489,7 @@ def setup_source_object(source, source_ext, full_module_name, options, context):
         rel_path = abs_path
     source_desc = FileSourceDescriptor(abs_path, rel_path)
     return CompilationSource(source_desc, full_module_name, cwd)
+
 
 def run_cached_pipeline(source, options, full_module_name, context, cache, fingerprint):
     cwd = os.getcwd()
@@ -507,7 +509,6 @@ def run_cached_pipeline(source, options, full_module_name, context, cache, finge
     if fingerprint:
         cache.store_to_cache(output_filename, fingerprint, result)
     return result
-
 
 
 def run_pipeline(source, options, full_module_name, context):
@@ -620,6 +621,7 @@ class CompilationResultSet(dict):
         self[source] = result
         self.num_errors += result.num_errors
 
+
 def get_fingerprint(cache, source, options):
         from ..Build.Dependencies import create_dependency_tree
         from ..Build.Cache import FingerprintFlags
@@ -632,6 +634,7 @@ def get_fingerprint(cache, source, options):
                     np_pythran=options.np_pythran
                 )
         )
+
 
 def compile_single(source, options, full_module_name, cache=None, context=None, fingerprint=None):
     """
