@@ -44,14 +44,17 @@ Features added
 * Most builtin methods now provide their return type for type inference.
   (Github issues :issue:`4829`, :issue:`5865`)
 
+* Method calls on builtin literal values are evaluated at compile time, if applicable.
+  (Github issue :issue:`6383`)
+
 * The Python ``int`` type now maps directly to ``PyLong`` and is inferred accordingly.
   (Github issue :issue:`4237`)
 
 * Integer operations on known ``int`` types are faster.
   (Github issue :issue:`5785`)
 
-* f-strings are slightly faster.
-  (Github issues :issue:`5866`, :issue:`6342`)
+* f-strings are faster in some cases.
+  (Github issues :issue:`5866`, :issue:`6342`, :issue:`6383`)
 
 * ``divmod()`` is faster on C integers.
   Patch by Tong He.  (Github issue :issue:`6073`)
@@ -169,8 +172,8 @@ Other changes
 * Support for Python 2.7 - 3.6 was removed, along with large chunks of legacy code.
   (Github issue :issue:`2800`)
 
-* The pxd files ``cpython.int``, ``cpython.cobject`` and ``cpython.oldbuffer`` were
-  removed as they refer to C-API declarations that are only in Python 2.x.
+* The pxd files ``cpython.int``, ``cpython.cobject``, ``cpython.oldbuffer`` and ``cpython.string``
+  were removed as they refer to C-API declarations that are only in Python 2.x.
   (Github issue :issue:`5870`)
 
 * The generated C code now requires a C99 compatible C compiler.
@@ -178,6 +181,10 @@ Other changes
 * ``language_level=3`` is now the default.
   ``language_level=3str`` has become a legacy alias.
   (Github issue :issue:`5827`)
+
+* The Py2 types ``unicode`` and ``basestring`` are now deprecated and have become aliases
+  of the ``str`` type.
+  (Github issue :issue:`6374`)
 
 * Docstrings now strip their leading whitespace according to PEP-257.
   Patch by Lawrence Mitchell.  (Github issue :issue:`6241`)

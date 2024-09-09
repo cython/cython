@@ -1499,13 +1499,12 @@ class BuiltinObjectType(PyObjectType):
     def isinstance_code(self, arg):
         return '%s(%s)' % (self.type_check_function(exact=False), arg)
 
-    def type_test_code(self, scope, arg, notnone=False, exact=True):
-        # returns code_str, utility_code
+    def type_test_code(self, scope, arg, allow_none=True, exact=True):
         type_check = self.type_check_function(exact=exact)
         check = f'likely({type_check}({arg}))'
         scope.use_utility_code(UtilityCode.load_cached(
                     "RaiseUnexpectedTypeError", "ObjectHandling.c"))
-        if not notnone:
+        if allow_none:
             check += f'||(({arg}) == Py_None)'
         return check + f' || __Pyx_RaiseUnexpectedTypeError("{self.name}", {arg})'
 
@@ -1643,16 +1642,13 @@ class PyExtensionType(PyObjectType):
                 entity_code = "*%s" % entity_code
         return self.base_declaration_code(base_code, entity_code)
 
-    def type_test_code(self, scope, py_arg, notnone=False):
-        # returns code_str, utility_code
-        none_check = "((%s) == Py_None)" % py_arg
-        type_check = "likely(__Pyx_TypeTest(%s, %s))" % (
-            py_arg, scope.name_in_module_state(self.typeptr_cname))
+    def type_test_code(self, scope, py_arg, allow_none=True):
+        typeptr_cname = scope.name_in_module_state(self.typeptr_cname)
+        type_check = f"likely(__Pyx_TypeTest({py_arg}, {typeptr_cname}))"
         scope.use_utility_code(UtilityCode.load_cached("ExtTypeTest", "ObjectHandling.c"))
-        if notnone:
-            return type_check
-        else:
-            return f"likely({none_check} || {type_check})"
+        if allow_none:
+            type_check = f"likely((({py_arg}) == Py_None) || {type_check})"
+        return type_check
 
     def attributes_known(self):
         return self.scope is not None

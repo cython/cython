@@ -135,3 +135,167 @@ def in_lambda_in_generator_expression2():
     [(0, 1, 2, 3), (1, 2, 3, 4), (2, 3, 4, 5), (3, 4, 5, 6), (4, 5, 6, 7)]
     """
     return [ (lambda z: tuple((x := y) + z for y in range(4)))(x) for x in range(5) ]
+
+
+# A bunch of tests where assignment may/may not happen and flow control has to
+# be able to detect this to avoid crashing:
+
+def flow_control_binops1(test, value):
+    """
+    >>> flow_control_binops1(True, "value")
+    ('value', 'value')
+    >>> flow_control_binops1(False, "value")  # doctest: +IGNORE_EXCEPTION_DETAIL
+    Traceback (most recent call last):
+    ...
+    UnboundLocalError
+    """
+    res = test and (target := value)
+
+    return res, target
+
+def flow_control_binops2(test, value):
+    """
+    >>> flow_control_binops2(True, "value")  # doctest: +IGNORE_EXCEPTION_DETAIL
+    Traceback (most recent call last):
+    ...
+    UnboundLocalError
+    >>> flow_control_binops2(False, "value")
+    ('value', 'value')
+    """
+    res = test or (target := value)
+
+    return res, target
+
+def flow_control_binops3(test, value):
+    """
+    >>> flow_control_binops3(True, "value")
+    ('value', 'value')
+    >>> flow_control_binops3(False, "value")  # doctest: +IGNORE_EXCEPTION_DETAIL
+    Traceback (most recent call last):
+    ...
+    UnboundLocalError
+    """
+    # "True" may or may not be optimized out here
+    # but either way the assignment is uncertain
+    res = True and test and (target := value)
+
+    return res, target
+
+def flow_control_binops4(test1, test2, value):
+    """
+    >>> flow_control_binops4(True, True, "value")
+    ('value', 'value')
+    >>> flow_control_binops4(False, True, "value")  # doctest: +IGNORE_EXCEPTION_DETAIL
+    Traceback (most recent call last):
+    ...
+    UnboundLocalError
+    >>> flow_control_binops4(False, False, "value")  # doctest: +IGNORE_EXCEPTION_DETAIL
+    Traceback (most recent call last):
+    ...
+    UnboundLocalError
+    >>> flow_control_binops4(True, False, "value")  # doctest: +IGNORE_EXCEPTION_DETAIL
+    Traceback (most recent call last):
+    ...
+    UnboundLocalError
+    """
+    # "True" may or may not be optimized out here
+    # but either way the assignment is uncertain
+    res = test1 and test2 and (target := value)
+
+    return res, target
+
+def flow_control_cond_expr1(test, value):
+    """
+    >>> flow_control_cond_expr1(True, "value")
+    ('value', 'value')
+    >>> flow_control_cond_expr1(False, "value")  # doctest: +IGNORE_EXCEPTION_DETAIL
+    Traceback (most recent call last):
+    ...
+    UnboundLocalError
+    """
+    res = (target := value) if test else None
+    return res, target
+
+def flow_control_cond_expr2(test, value):
+    """
+    >>> flow_control_cond_expr2(True, "value")  # doctest: +IGNORE_EXCEPTION_DETAIL
+    Traceback (most recent call last):
+    ...
+    UnboundLocalError
+    >>> flow_control_cond_expr2(False, "value")
+    ('value', 'value')
+    """
+    res = None if test else (target := value)
+    return res, target
+
+def flow_control_cond_expr3(test, value1, value2):
+    """
+    >>> flow_control_cond_expr3(True, "value1", "value2")
+    ('value1', 'value1')
+    >>> flow_control_cond_expr3(False, "value1", "value2")
+    ('value2', 'value2')
+    """
+    res = (target := value1) if test else (target := value2)
+    # Not tested here (but I believe working) - Cython shouldn't need
+    # to generate an unbound local check for "target"
+    return res, target
+
+def flow_control_list_comp(it, value):
+    """
+    >>> flow_control_list_comp([1], "value")
+    'value'
+    >>> flow_control_list_comp([], "value")  # doctest: +IGNORE_EXCEPTION_DETAIL
+    Traceback (most recent call last):
+    ...
+    UnboundLocalError
+    """
+    [(target := value) for _ in it]
+    return target
+
+def flow_control_set_comp(it, value):
+    """
+    >>> flow_control_set_comp([1], "value")
+    'value'
+    >>> flow_control_set_comp([], "value")  # doctest: +IGNORE_EXCEPTION_DETAIL
+    Traceback (most recent call last):
+    ...
+    UnboundLocalError
+    """
+    {(target := value) for _ in it}
+    return target
+
+def flow_control_dict_comp1(it, value):
+    """
+    >>> flow_control_dict_comp1([1], "value")
+    'value'
+    >>> flow_control_dict_comp1([], "value")  # doctest: +IGNORE_EXCEPTION_DETAIL
+    Traceback (most recent call last):
+    ...
+    UnboundLocalError
+    """
+    {(target := value): x for x in it}
+    return target
+
+def flow_control_dict_comp2(it, value):
+    """
+    >>> flow_control_dict_comp2([1], "value")
+    'value'
+    >>> flow_control_dict_comp2([], "value")  # doctest: +IGNORE_EXCEPTION_DETAIL
+    Traceback (most recent call last):
+    ...
+    UnboundLocalError
+    """
+    {x: (target := value) for x in it}
+    return target
+
+def flow_control_genexp(it, value):
+    """
+    >>> flow_control_genexp([1], "value")
+    'value'
+    >>> flow_control_genexp([], "value")  # doctest: +IGNORE_EXCEPTION_DETAIL
+    Traceback (most recent call last):
+    ...
+    UnboundLocalError
+    """
+    all((target := value) for _ in it)
+    return target

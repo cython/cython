@@ -13,14 +13,17 @@ cython.declare(error=object, warning=object, warn_once=object, InternalError=obj
                Builtin=object, Symtab=object, Utils=object, find_coercion_error=object,
                debug_disposal_code=object, debug_temp_alloc=object, debug_coercion=object,
                bytearray_type=object, slice_type=object, memoryview_type=object,
-               builtin_sequence_types=object, build_line_table=object)
+               builtin_sequence_types=object, build_line_table=object,
+               inspect=object, copy=object, os=object, pathlib=object, re=object, sys=object,
+)
 
-import re
-import sys
 import copy
+import inspect
+import operator
 import os.path
 import pathlib
-import operator
+import re
+import sys
 
 from .Errors import (
     error, warning, InternalError, CompileError, report_error, local_errors,
@@ -3559,8 +3562,10 @@ class RawCNameExprNode(ExprNode):
 class JoinedStrNode(ExprNode):
     # F-strings
     #
-    # values   [UnicodeNode|FormattedValueNode]   Substrings of the f-string
+    # values   [UnicodeNode|FormattedValueNode|CloneNode]   Substrings of the f-string
     #
+    # CloneNodes for repeated substrings are only inserted right before the code generation phase.
+
     type = unicode_type
     is_temp = True
     gil_message = "String concatenation"
@@ -3588,21 +3593,31 @@ class JoinedStrNode(ExprNode):
             elif isinstance(node, FormattedValueNode) and node.value.type.is_numeric:
                 # formatted C numbers are always ASCII
                 pass
+            elif isinstance(node, CloneNode):
+                # we already know the result
+                pass
             else:
                 unknown_nodes.add(node)
 
         length_parts = []
+        counts = {}
         charval_parts = [str(max_char_value)]
         for node in self.values:
             node.generate_evaluation_code(code)
 
             if isinstance(node, UnicodeNode):
-                length_parts.append(str(len(node.value)))
+                length_part = str(len(node.value))
             else:
                 # TODO: add exception handling for these macro calls if not ASSUME_SAFE_SIZE/MACROS
-                length_parts.append("__Pyx_PyUnicode_GET_LENGTH(%s)" % node.py_result())
+                length_part = f"__Pyx_PyUnicode_GET_LENGTH({node.py_result()})"
                 if node in unknown_nodes:
-                    charval_parts.append("__Pyx_PyUnicode_MAX_CHAR_VALUE(%s)" % node.py_result())
+                    charval_parts.append(f"__Pyx_PyUnicode_MAX_CHAR_VALUE({node.py_result()})")
+
+            if length_part in counts:
+                counts[length_part] += 1
+            else:
+                length_parts.append(length_part)
+                counts[length_part] = 1
 
         if use_stack_memory:
             values_array = code.funcstate.allocate_temp(
@@ -3617,6 +3632,11 @@ class JoinedStrNode(ExprNode):
 
         for i, node in enumerate(self.values):
             code.putln('%s[%d] = %s;' % (values_array, i, node.py_result()))
+
+        length_parts = [
+            f"{part} * {counts[part]}" if counts[part] > 1 else part
+            for part in length_parts
+        ]
 
         code.mark_pos(self.pos)
         self.allocate_temp_result(code)
@@ -5990,6 +6010,19 @@ class SimpleCallNode(CallNode):
         except Exception as e:
             self.compile_time_value_error(e)
 
+    def calculate_constant_result(self):
+        if self.function.is_attribute and self.function.obj.is_literal:
+            method = self.function.constant_result
+            if inspect.isbuiltin(method) or inspect.ismethod(method):
+                method_name = method.__name__
+                # Prefer the actual builtin type over internal representations like "EncodedString".
+                object_type = self.function.obj.type
+                object_type_name = object_type.name if object_type else type(method.__self__).__name__
+
+                if Builtin.is_safe_compile_time_method(object_type_name, method_name):
+                    args = [arg.constant_result for arg in self.args]
+                    self.constant_result = method(*args)
+
     @classmethod
     def for_cproperty(cls, pos, obj, entry):
         # Create a call node for C property access.
@@ -6889,6 +6922,20 @@ class GeneralCallNode(CallNode):
             return function(*positional_args, **keyword_args)
         except Exception as e:
             self.compile_time_value_error(e)
+
+    def calculate_constant_result(self):
+        if self.function.is_attribute and self.function.obj.is_literal:
+            method = self.function.constant_result
+            if inspect.isbuiltin(method) or inspect.ismethod(method):
+                method_name = method.__name__
+                # Prefer the actual builtin type over internal representations like "EncodedString".
+                object_type = self.function.obj.type
+                object_type_name = object_type.name if object_type else type(method.__self__).__name__
+
+                if Builtin.is_safe_compile_time_method(object_type_name, method_name):
+                    args = self.positional_args.constant_result
+                    kwargs = self.keyword_args.constant_result
+                    self.constant_result = method(*args, **kwargs)
 
     def explicit_args_kwds(self):
         if (self.keyword_args and not self.keyword_args.is_dict_literal or
@@ -14068,14 +14115,24 @@ class PyTypeTestNode(CoercionNode):
 
     def generate_result_code(self, code):
         if self.type.typeobj_is_available():
+            allow_none = not self.notnone
             if self.type.is_builtin_type:
                 type_test = self.type.type_test_code(
                     code.funcstate.scope,
                     self.arg.py_result(),
-                    self.notnone, exact=self.exact_builtin_type)
+                    allow_none,
+                    exact=self.exact_builtin_type,
+                )
+                code.globalstate.use_utility_code(UtilityCode.load_cached(
+                    "RaiseUnexpectedTypeError", "ObjectHandling.c"))
             else:
                 type_test = self.type.type_test_code(
-                    code.funcstate.scope, self.arg.py_result(), self.notnone)
+                    code.funcstate.scope,
+                    self.arg.py_result(),
+                    allow_none,
+                )
+                code.globalstate.use_utility_code(
+                    UtilityCode.load_cached("ExtTypeTest", "ObjectHandling.c"))
             code.putln("if (!(%s)) %s" % (
                 type_test, code.error_goto(self.pos)))
         else:
