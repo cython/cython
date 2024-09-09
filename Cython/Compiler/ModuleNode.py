@@ -2372,11 +2372,6 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             code.putln('#define %s %s' % (func_name, slot.left_slot.slot_code(scope)))
             return
 
-        code.putln()
-        preprocessor_guard = slot.preprocessor_guard_code()
-        if preprocessor_guard:
-            code.putln(preprocessor_guard)
-
         if slot.left_slot.signature in (TypeSlots.binaryfunc, TypeSlots.ibinaryfunc):
             slot_type = 'binaryfunc'
             extra_arg = extra_arg_decl = ''
@@ -2413,6 +2408,12 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 slot.right_slot.method_name,
             ))
 
+        code.putln()
+        preprocessor_guard = slot.preprocessor_guard_code()
+        if preprocessor_guard:
+            code.putln(preprocessor_guard)
+        code.enter_cfunc_scope(scope)  # C class scope, not function scope
+
         overloads_left = int(bool(get_slot_method_cname(slot.left_slot.method_name)))
         overloads_right = int(bool(get_slot_method_cname(slot.right_slot.method_name)))
         code.putln(
@@ -2430,6 +2431,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                     "extra_arg": extra_arg,
                     "extra_arg_decl": extra_arg_decl,
                     })[1])
+
+        code.exit_cfunc_scope()
         if preprocessor_guard:
             code.putln("#endif")
 
