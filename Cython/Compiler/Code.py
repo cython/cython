@@ -2512,16 +2512,14 @@ class CCodeWriter:
         elif fix_indent:
             self.level += 1
 
-    def put_code_here(self, utility):
+    def put_code_here(self, utility: UtilityCode):
         # Puts the impl section of the utility code directly to the current position.
         # Ensure we don't have a proto section (but do allow init and cleanup sections
         # because they might be useful in future).
         assert not utility.proto, utility.name
-        if self.impl:
-            utility._put_code_section(self, self.globalstate, "impl")
-        if self.init:
-            utility._put_init_code_section(self.globalstate)
-        if self.cleanup and Options.generate_cleanup_code:
+        utility._put_code_section(self, self.globalstate, "impl")
+        utility._put_init_code_section(self.globalstate)
+        if utility.cleanup and Options.generate_cleanup_code:
             utility._put_code_section(
                 self.globalstate['cleanup_globals'], self.globalstate, "cleanup")
 
