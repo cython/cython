@@ -1572,21 +1572,18 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         freelist_name = scope.mangle_internal(Naming.freelist_name)
         freecount_name = scope.mangle_internal(Naming.freecount_name)
 
-        decls = code.globalstate['decls']
-        decls.putln("static PyObject *%s(PyTypeObject *t, PyObject *a, PyObject *k); /*proto*/" %
-                    slot_func)
-        code.putln("")
         if freelist_size:
+            code.putln("")
             code.putln("#if CYTHON_USE_FREELISTS")
             code.putln("static %s[%d];" % (
                 scope.parent_type.declaration_code(freelist_name),
                 freelist_size))
             code.putln("static int %s = 0;" % freecount_name)
             code.putln("#endif")
-            code.putln("")
-        code.putln(
-            "static PyObject *%s(PyTypeObject *t, %sPyObject *a, %sPyObject *k) {" % (
-                slot_func, unused_marker, unused_marker))
+
+        code.start_slotfunc(
+            scope, PyrexTypes.py_objptr_type, "tp_new",
+            f"PyTypeObject *t, {unused_marker}PyObject *a, {unused_marker}PyObject *k", needs_prototype=True)
 
         need_self_cast = (type.vtabslot_cname or
                           (py_buffers or memoryview_slices or py_attrs) or
@@ -1700,6 +1697,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             code.putln("return NULL;")
         code.putln(
             "}")
+        code.exit_cfunc_scope()
 
     def generate_del_function(self, scope, code):
         tp_slot = TypeSlots.get_slot_by_name("tp_finalize", scope.directives)
@@ -1714,12 +1712,15 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
         if tp_slot.used_ifdef:
             code.putln("#if %s" % tp_slot.used_ifdef)
-        code.putln("static void %s(PyObject *o) {" % slot_func_cname)
+
+        code.start_slotfunc(scope, PyrexTypes.c_void_type, "tp_finalize", "PyObject *o", needs_funcstate=False)
         code.putln("PyObject *etype, *eval, *etb;")
         code.putln("PyErr_Fetch(&etype, &eval, &etb);")
         code.putln("%s(o);" % entry.func_cname)
         code.putln("PyErr_Restore(etype, eval, etb);")
         code.putln("}")
+        code.exit_cfunc_scope()
+
         if tp_slot.used_ifdef:
             code.putln("#endif")
 
@@ -1731,9 +1732,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             return  # never used
 
         slot_func_cname = scope.mangle_internal("tp_dealloc")
-        code.putln("")
-        code.putln(
-            "static void %s(PyObject *o) {" % slot_func_cname)
+        code.start_slotfunc(scope, PyrexTypes.c_void_type, "tp_dealloc", "PyObject *o")
 
         is_final_type = scope.parent_type.is_final_type
         needs_gc = scope.needs_gc()
@@ -1882,6 +1881,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
         code.putln(
             "}")
+        code.exit_cfunc_scope()
 
     def generate_usr_dealloc_call(self, scope, code):
         entry = scope.lookup_here("__dealloc__")
@@ -1905,9 +1905,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         base_type = scope.parent_type.base_type
         if tp_slot.slot_code(scope) != slot_func:
             return  # never used
-        code.putln("")
-        code.putln(
-            "static int %s(PyObject *o, visitproc v, void *a) {" % slot_func)
+
+        code.start_slotfunc(scope, PyrexTypes.c_returncode_type, "tp_traverse", "PyObject *o, visitproc v, void *a")
 
         have_entries, (py_attrs, py_buffers, memoryview_slices) = (
             scope.get_refcounted_entries(include_gc_simple=False))
@@ -1985,6 +1984,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
         code.putln("return 0;")
         code.putln("}")
+        code.exit_cfunc_scope()
 
     def generate_clear_function(self, scope, code, cclass_entry):
         tp_slot = TypeSlots.get_slot_by_name("tp_clear", scope.directives)
@@ -2001,8 +2001,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         else:
             unused = 'CYTHON_UNUSED '
 
-        code.putln("")
-        code.putln("static int %s(%sPyObject *o) {" % (slot_func, unused))
+        code.start_slotfunc(scope, PyrexTypes.c_returncode_type, "tp_clear", f"{unused}PyObject *o")
 
         if py_attrs and Options.clear_to_none:
             code.putln("PyObject* tmp;")
@@ -2063,14 +2062,13 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
         code.putln("return 0;")
         code.putln("}")
+        code.exit_cfunc_scope()
 
     def generate_getitem_int_function(self, scope, code):
         # This function is put into the sq_item slot when
         # a __getitem__ method is present. It converts its
         # argument to a Python integer and calls mp_subscript.
-        code.putln(
-            "static PyObject *%s(PyObject *o, Py_ssize_t i) {" % (
-                scope.mangle_internal("sq_item")))
+        code.start_slotfunc(scope, PyrexTypes.py_objptr_type, "sq_item", "PyObject *o, Py_ssize_t i", needs_funcstate=False)
         code.putln(
             "PyObject *r;")
         code.putln(
@@ -2089,6 +2087,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             "return r;")
         code.putln(
             "}")
+        code.exit_cfunc_scope()
 
     def generate_ass_subscript_function(self, scope, code):
         # Setting and deleting an item are both done through
@@ -2097,10 +2096,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         base_type = scope.parent_type.base_type
         set_entry = scope.lookup_here("__setitem__")
         del_entry = scope.lookup_here("__delitem__")
-        code.putln("")
-        code.putln(
-            "static int %s(PyObject *o, PyObject *i, PyObject *v) {" % (
-                scope.mangle_internal("mp_ass_subscript")))
+        code.start_slotfunc(scope, PyrexTypes.c_returncode_type, "mp_ass_subscript", "PyObject *o, PyObject *i, PyObject *v")
         code.putln(
             "if (v) {")
         if set_entry:
@@ -2147,6 +2143,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             "}")
         code.putln(
             "}")
+        code.exit_cfunc_scope()
 
     def generate_guarded_basetype_call(
             self, base_type, substructure, slot, args, code):
@@ -2174,10 +2171,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         base_type = scope.parent_type.base_type
         set_entry = scope.lookup_here("__setslice__")
         del_entry = scope.lookup_here("__delslice__")
-        code.putln("")
-        code.putln(
-            "static int %s(PyObject *o, Py_ssize_t i, Py_ssize_t j, PyObject *v) {" % (
-                scope.mangle_internal("sq_ass_slice")))
+        code.start_slotfunc(scope, PyrexTypes.c_returncode_type, "sq_ass_slice", "PyObject *o, Py_ssize_t i, Py_ssize_t j, PyObject *v")
         code.putln(
             "if (v) {")
         if set_entry:
@@ -2226,15 +2220,14 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             "}")
         code.putln(
             "}")
+        code.exit_cfunc_scope()
 
     def generate_richcmp_function(self, scope, code):
         if scope.lookup_here("__richcmp__"):
             # user implemented, nothing to do
             return
         # otherwise, we have to generate it from the Python special methods
-        richcmp_cfunc = scope.mangle_internal("tp_richcompare")
-        code.putln("")
-        code.putln("static PyObject *%s(PyObject *o1, PyObject *o2, int op) {" % richcmp_cfunc)
+        code.start_slotfunc(scope, PyrexTypes.py_objptr_type, "tp_richcompare", "PyObject *o1, PyObject *o2, int op")
         code.putln("switch (op) {")
 
         class_scopes = []
@@ -2371,6 +2364,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
         code.putln("}")  # switch
         code.putln("}")
+        code.exit_cfunc_scope()
 
     def generate_binop_function(self, scope, slot, code, pos):
         func_name = scope.mangle_internal(slot.slot_name)
@@ -2460,10 +2454,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
         getattr_entry = lookup_here_or_base("__getattr__")
         getattribute_entry = lookup_here_or_base("__getattribute__")
-        code.putln("")
-        code.putln(
-            "static PyObject *%s(PyObject *o, PyObject *n) {" % (
-                scope.mangle_internal("tp_getattro")))
+
+        code.start_slotfunc(scope, PyrexTypes.py_objptr_type, "tp_getattro", "PyObject *o, PyObject *n", needs_funcstate=False)
         if getattribute_entry is not None:
             code.putln(
                 "PyObject *v = %s(o, n);" % (
@@ -2485,6 +2477,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             "return v;")
         code.putln(
             "}")
+        code.exit_cfunc_scope()
 
     def generate_setattro_function(self, scope, code):
         # Setting and deleting an attribute are both done through
@@ -2493,10 +2486,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         base_type = scope.parent_type.base_type
         set_entry = scope.lookup_here("__setattr__")
         del_entry = scope.lookup_here("__delattr__")
-        code.putln("")
-        code.putln(
-            "static int %s(PyObject *o, PyObject *n, PyObject *v) {" % (
-                scope.mangle_internal("tp_setattro")))
+
+        code.start_slotfunc(scope, PyrexTypes.c_returncode_type, "tp_setattro", "PyObject *o, PyObject *n, PyObject *v")
         code.putln(
             "if (v) {")
         if set_entry:
@@ -2525,6 +2516,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             "}")
         code.putln(
             "}")
+        code.exit_cfunc_scope()
 
     def generate_descr_get_function(self, scope, code):
         # The __get__ function of a descriptor object can be
@@ -2532,10 +2524,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         # under some circumstances, so we replace them with
         # None in that case.
         user_get_entry = scope.lookup_here("__get__")
-        code.putln("")
-        code.putln(
-            "static PyObject *%s(PyObject *o, PyObject *i, PyObject *c) {" % (
-                scope.mangle_internal("tp_descr_get")))
+
+        code.start_slotfunc(scope, PyrexTypes.py_objptr_type, "tp_descr_get", "PyObject *o, PyObject *i, PyObject *c", needs_funcstate=False)
         code.putln(
             "PyObject *r = 0;")
         code.putln(
@@ -2553,6 +2543,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             "return r;")
         code.putln(
             "}")
+        code.exit_cfunc_scope()
 
     def generate_descr_set_function(self, scope, code):
         # Setting and deleting are both done through the __set__
@@ -2561,10 +2552,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         base_type = scope.parent_type.base_type
         user_set_entry = scope.lookup_here("__set__")
         user_del_entry = scope.lookup_here("__delete__")
-        code.putln("")
-        code.putln(
-            "static int %s(PyObject *o, PyObject *i, PyObject *v) {" % (
-                scope.mangle_internal("tp_descr_set")))
+
+        code.start_slotfunc(scope, PyrexTypes.c_returncode_type, "tp_descr_set", "PyObject *o, PyObject *i, PyObject *v")
         code.putln(
             "if (v) {")
         if user_set_entry:
@@ -2597,6 +2586,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             "}")
         code.putln(
             "}")
+        code.exit_cfunc_scope()
 
     def generate_property_accessors(self, cclass_scope, code):
         for entry in cclass_scope.property_entries:
@@ -2611,6 +2601,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         property_entry.getter_cname = property_scope.parent_scope.mangle(
             Naming.prop_get_prefix, property_entry.name)
         get_entry = property_scope.lookup_here("__get__")
+
         code.putln("")
         code.putln(
             "static PyObject *%s(PyObject *o, CYTHON_UNUSED void *x) {" % (
@@ -2627,6 +2618,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             Naming.prop_set_prefix, property_entry.name)
         set_entry = property_scope.lookup_here("__set__")
         del_entry = property_scope.lookup_here("__del__")
+
         code.putln("")
         code.putln(
             "static int %s(PyObject *o, PyObject *v, CYTHON_UNUSED void *x) {" % (
@@ -2791,6 +2783,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             return
         func_name = scope.mangle_internal("__dict__getter")
         dict_name = dict_attr.cname
+
         code.putln("")
         code.putln("static PyObject *%s(PyObject *o, CYTHON_UNUSED void *x) {" % func_name)
         self.generate_self_cast(scope, code)

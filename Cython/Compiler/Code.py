@@ -2282,6 +2282,8 @@ class CCodeWriter:
         self.funcstate = FunctionState(self, scope=scope)
 
     def exit_cfunc_scope(self):
+        if self.funcstate is None:
+            return
         self.funcstate.validate_exit()
         self.funcstate = None
 
@@ -2297,6 +2299,18 @@ class CCodeWriter:
         self.putln(f"static {signature} {{")
         if refnanny:
             self.put_declare_refcount_context()
+
+    def start_slotfunc(self, class_scope, return_type, c_slot_name, args_signature, needs_funcstate=True, needs_prototype=False):
+        # Slot functions currently live in the class scope as they don't have direct access to the module state.
+        slotfunc_cname = class_scope.mangle_internal(c_slot_name)
+        declaration = f"static {return_type.declaration_code(slotfunc_cname)}({args_signature})"
+
+        if needs_prototype:
+            self.globalstate['decls'].putln(declaration.replace("CYTHON_UNUSED ", "") + "; /*proto*/")
+        if needs_funcstate:
+            self.enter_cfunc_scope(class_scope)
+        self.putln("")
+        self.putln(declaration + " {")
 
     # constant handling
 
