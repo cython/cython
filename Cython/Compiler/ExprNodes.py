@@ -1280,9 +1280,9 @@ class NoneNode(PyConstNode):
         return super().coerce_to(dst_type, env)
 
     def analyse_as_type(self, env):
-        if not env.in_c_type_context:
-            return py_none_type
-        return None
+        if env.in_c_type_context:
+            return None
+        return py_none_type
 
 
 class EllipsisNode(PyConstNode):

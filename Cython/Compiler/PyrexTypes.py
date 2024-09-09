@@ -4720,8 +4720,8 @@ class PythonTypeConstructorMixin:
 
     def allows_none(self):
         return (
-            self.modifier_name == 'typing.Optional' or (
-            self.modifier_name == 'typing.Union' and self.contains_none)
+            self.modifier_name == 'typing.Optional' or
+            self.modifier_name == 'typing.Union' and self.contains_none
         )
 
     def set_python_type_constructor_name(self, name):
