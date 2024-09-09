@@ -697,7 +697,7 @@ class UtilityCode(UtilityCodeBase):
     def _put_code_section(self, writer: "CCodeWriter", output: "GlobalState", code_type: str):
         code_string = getattr(self, code_type)
         if not code_string:
-            return False
+            return
 
         can_be_reused = code_type in ('proto', 'impl')
 
@@ -711,27 +711,31 @@ class UtilityCode(UtilityCodeBase):
             writer.put_or_include(code_string, f'{self.name}_{code_type}')
         else:
             writer.put(code_string)
-        return True
     
     def _put_init_code_section(self, output):
-        if self._put_code_section(output['init_globals'], output, 'init'):
-            writer = output['init_globals']
-            # 'init' code can end with an 'if' statement for an error condition like:
-            # if (check_ok()) ; else
-            writer.putln(writer.error_goto_if_PyErr(output.module_pos))
-            writer.putln()
+        if not self.init:
+            return
+        writer = output['init_globals']
+        self._put_code_section(writer, output, 'init')
+        # 'init' code can end with an 'if' statement for an error condition like:
+        # if (check_ok()) ; else
+        writer.putln(writer.error_goto_if_PyErr(output.module_pos))
+        writer.putln()
 
     def put_code(self, output):
         if self.requires:
             for dependency in self.requires:
                 output.use_utility_code(dependency)
 
-        self._put_code_section(output[self.proto_block], output, 'proto')
-        self._put_code_section(output['utility_code_def'], output, 'impl')
-        if Options.generate_cleanup_code:
+        if self.proto:
+            self._put_code_section(output[self.proto_block], output, 'proto')
+        if self.impl:
+            self._put_code_section(output['utility_code_def'], output, 'impl')
+        if self.cleanup and Options.generate_cleanup_code:
             self._put_code_section(output['cleanup_globals'], output, 'cleanup')
 
-        self._put_init_code_section(output)
+        if self.init:
+            self._put_init_code_section(output)
 
 
 def add_macro_processor(*macro_names, regex=None, is_module_specific=False, _last_macro_processor = [None]):
@@ -2513,9 +2517,11 @@ class CCodeWriter:
         # Ensure we don't have a proto section (but do allow init and cleanup sections
         # because they might be useful in future).
         assert not utility.proto, utility.name
-        utility._put_code_section(self, self.globalstate, "impl")
-        utility._put_init_code_section(self.globalstate)
-        if Options.generate_cleanup_code:
+        if self.impl:
+            utility._put_code_section(self, self.globalstate, "impl")
+        if self.init:
+            utility._put_init_code_section(self.globalstate)
+        if self.cleanup and Options.generate_cleanup_code:
             utility._put_code_section(
                 self.globalstate['cleanup_globals'], self.globalstate, "cleanup")
 
