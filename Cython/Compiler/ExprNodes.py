@@ -32,8 +32,10 @@ from . import Naming
 from . import Nodes
 from .Nodes import Node, SingleAssignmentNode
 from . import PyrexTypes
-from .PyrexTypes import c_char_ptr_type, py_object_type, typecast, error_type, \
-    unspecified_type, py_none_type
+from .PyrexTypes import (
+    c_char_ptr_type, py_object_type, typecast, error_type, unspecified_type,
+    py_none_type
+)
 from . import TypeSlots
 from .Builtin import (
     list_type, tuple_type, set_type, dict_type, type_type,
