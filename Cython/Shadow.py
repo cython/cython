@@ -472,10 +472,7 @@ to_repr = {
 
 gs = globals()
 
-import builtins
-
-gs['unicode'] = typedef(getattr(builtins, 'unicode', str), 'unicode')
-del builtins
+gs['unicode'] = typedef(str, 'unicode')
 
 for name in int_types:
     reprname = to_repr(name, name)

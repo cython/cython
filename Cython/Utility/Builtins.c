@@ -11,7 +11,6 @@
 static PyObject* __Pyx_Globals(void); /*proto*/
 
 //////////////////// Globals ////////////////////
-//@substitute: naming
 //@requires: ObjectHandling.c::GetAttr
 
 // This is a stub implementation until we have something more complete.
@@ -20,7 +19,7 @@ static PyObject* __Pyx_Globals(void); /*proto*/
 // access requires a rewrite as a dedicated class.
 
 static PyObject* __Pyx_Globals(void) {
-    return __Pyx_NewRef($moddict_cname);
+    return __Pyx_NewRef(NAMED_CGLOBAL(moddict_cname));
 }
 
 //////////////////// PyExecGlobals.proto ////////////////////
@@ -28,11 +27,10 @@ static PyObject* __Pyx_Globals(void) {
 static PyObject* __Pyx_PyExecGlobals(PyObject*);
 
 //////////////////// PyExecGlobals ////////////////////
-//@substitute: naming
 //@requires: PyExec
 
 static PyObject* __Pyx_PyExecGlobals(PyObject* code) {
-    return __Pyx_PyExec2(code, $moddict_cname);
+    return __Pyx_PyExec2(code, NAMED_CGLOBAL(moddict_cname));
 }
 
 //////////////////// PyExec.proto ////////////////////
@@ -41,7 +39,6 @@ static PyObject* __Pyx_PyExec3(PyObject*, PyObject*, PyObject*);
 static CYTHON_INLINE PyObject* __Pyx_PyExec2(PyObject*, PyObject*);
 
 //////////////////// PyExec ////////////////////
-//@substitute: naming
 
 static CYTHON_INLINE PyObject* __Pyx_PyExec2(PyObject* o, PyObject* globals) {
     return __Pyx_PyExec3(o, globals, NULL);
@@ -55,7 +52,7 @@ static PyObject* __Pyx_PyExec3(PyObject* o, PyObject* globals, PyObject* locals)
 #endif
 
     if (!globals || globals == Py_None) {
-        globals = $moddict_cname;
+        globals = NAMED_CGLOBAL(moddict_cname);
     }
 #if !CYTHON_COMPILING_IN_LIMITED_API
     // In Limited API we just use exec builtin which already has this
@@ -167,7 +164,7 @@ static CYTHON_INLINE PyObject *__Pyx_GetAttr3(PyObject *o, PyObject *n, PyObject
     return (res != 0) ? r : __Pyx_NewRef(d);
 #else
   #if CYTHON_USE_TYPE_SLOTS
-    if (likely(PyString_Check(n))) {
+    if (likely(PyUnicode_Check(n))) {
         r = __Pyx_PyObject_GetAttrStrNoError(o, n);
         if (unlikely(!r) && likely(!PyErr_Occurred())) {
             r = __Pyx_NewRef(d);
@@ -194,7 +191,7 @@ static CYTHON_INLINE int __Pyx_HasAttr(PyObject *, PyObject *); /*proto*/
 #if __PYX_LIMITED_VERSION_HEX < 0x030d00A1
 static CYTHON_INLINE int __Pyx_HasAttr(PyObject *o, PyObject *n) {
     PyObject *r;
-    if (unlikely(!__Pyx_PyBaseString_Check(n))) {
+    if (unlikely(!PyUnicode_Check(n))) {
         PyErr_SetString(PyExc_TypeError,
                         "hasattr(): attribute name must be string");
         return -1;

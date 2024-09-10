@@ -369,7 +369,7 @@ directive_types = {
     'exceptval': type,  # actually (type, check=True/False), but has its own parser
     'set_initial_path': str,
     'freelist': int,
-    'c_string_type': one_of('bytes', 'bytearray', 'str', 'unicode', map={'str': 'unicode'}),
+    'c_string_type': one_of('bytes', 'bytearray', 'str', 'unicode', map={'unicode': 'str'}),
     'c_string_encoding': normalise_encoding_name,
     'trashcan': bool,
     'total_ordering': None,
@@ -468,13 +468,13 @@ def parse_directive_value(name, value, relaxed_bool=False):
     >>> parse_directive_value('c_string_encoding', 'us-ascii')
     'ascii'
     >>> parse_directive_value('c_string_type', 'str')
-    'unicode'
+    'str'
     >>> parse_directive_value('c_string_type', 'bytes')
     'bytes'
     >>> parse_directive_value('c_string_type', 'bytearray')
     'bytearray'
     >>> parse_directive_value('c_string_type', 'unicode')
-    'unicode'
+    'str'
     >>> parse_directive_value('c_string_type', 'unnicode')
     Traceback (most recent call last):
     ValueError: c_string_type directive must be one of ('bytes', 'bytearray', 'str', 'unicode'), got 'unnicode'

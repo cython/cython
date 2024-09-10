@@ -8,6 +8,7 @@ from __future__ import print_function
 
 cdef extern from *:
     cdef object __pyx_test_dep(object)
+    ctypedef struct PyObject
 
 @cname('__pyx_TestClass')
 cdef class TestClass(object):
@@ -39,6 +40,10 @@ cdef class TestClass(object):
     @cname('def_cname')
     def def_cname_method(self, int value):
         print("Hello from def_cname_method", value)
+
+# For now cdef variables are outside the module scope,
+# so we can create a global cname that is easily accessible
+cdef PyObject* __pyx_TestClass_type = <PyObject*>TestClass
 
 @cname('__pyx_test_call_other_cy_util')
 cdef test_call(obj):

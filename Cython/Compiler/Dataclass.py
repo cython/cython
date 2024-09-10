@@ -709,7 +709,7 @@ def get_field_type(pos, entry):
         #)
         #return ExprNodes.IndexNode(
         #    pos, base=annotations,
-        #    index=ExprNodes.StringNode(pos, value=entry.name)
+        #    index=ExprNodes.UnicodeNode(pos, value=entry.name)
         #)
     else:
         # it's slightly unclear what the best option is here - we could
@@ -717,7 +717,7 @@ def get_field_type(pos, entry):
         # attributes defined with cdef so Cython is free to make it's own
         # decision
         s = EncodedString(entry.type.declaration_code("", for_display=1))
-        return ExprNodes.StringNode(pos, value=s)
+        return ExprNodes.UnicodeNode(pos, value=s)
 
 
 class FieldRecordNode(ExprNodes.ExprNode):
@@ -752,7 +752,7 @@ class FieldRecordNode(ExprNodes.ExprNode):
         from .AutoDocTransforms import AnnotationWriter
         writer = AnnotationWriter(description="Dataclass field")
         string = writer.write(self.arg)
-        return ExprNodes.StringNode(self.pos, value=EncodedString(string))
+        return ExprNodes.UnicodeNode(self.pos, value=EncodedString(string))
 
     def generate_evaluation_code(self, code):
         return self.arg.generate_evaluation_code(code)

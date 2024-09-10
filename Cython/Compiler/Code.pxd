@@ -19,6 +19,9 @@ cdef class UtilityCode(UtilityCodeBase):
     cdef public object file
 
     cpdef none_or_sub(self, s, context)
+    # TODO - Signature not compatible with previous declaration
+    #@cython.final
+    #cdef bint _put_code_section(self, writer, code_type: str) except -1
 
 
 cdef class FunctionState:
@@ -82,7 +85,7 @@ cdef class StringConst:
     cdef public dict py_strings
     cdef public list py_versions
 
-    cpdef get_py_string_const(self, encoding, identifier=*, bint is_str=*, py3str_cstring=*)
+    cpdef get_py_string_const(self, encoding, identifier=*)
 
 ## cdef class PyStringConst:
 ##     cdef public object cname

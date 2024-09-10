@@ -510,6 +510,8 @@ class ExpressionWriter(TreeVisitor):
     def visit_Node(self, node):
         raise AssertionError("Node not handled by serializer: %r" % node)
 
+    # TODO: Remove redundancy below. Most constants serialise fine as just "repr(node.value)".
+
     def visit_IntNode(self, node):
         self.put(node.value)
 
@@ -532,23 +534,13 @@ class ExpressionWriter(TreeVisitor):
         self.put(str(node.value))
 
     def visit_ImagNode(self, node):
-        self.put(node.value)
-        self.put("j")
-
-    def emit_string(self, node, prefix=""):
-        repr_val = repr(node.value)
-        if repr_val[0] in 'ub':
-            repr_val = repr_val[1:]
-        self.put("%s%s" % (prefix, repr_val))
+        self.put(f"{node.value}j")
 
     def visit_BytesNode(self, node):
-        self.emit_string(node, "b")
-
-    def visit_StringNode(self, node):
-        self.emit_string(node)
+        self.put(repr(node.value))
 
     def visit_UnicodeNode(self, node):
-        self.emit_string(node, "u")
+        self.put(repr(node.value))
 
     def emit_sequence(self, node, parens=("", "")):
         open_paren, close_paren = parens

@@ -9,18 +9,21 @@ cython.declare(error=object, warning=object, warn_once=object, InternalError=obj
                StringEncoding=object, operator=object, local_errors=object, report_error=object,
                Naming=object, Nodes=object, PyrexTypes=object, py_object_type=object,
                list_type=object, tuple_type=object, set_type=object, dict_type=object,
-               unicode_type=object, str_type=object, bytes_type=object, type_type=object,
+               unicode_type=object, bytes_type=object, type_type=object,
                Builtin=object, Symtab=object, Utils=object, find_coercion_error=object,
                debug_disposal_code=object, debug_temp_alloc=object, debug_coercion=object,
                bytearray_type=object, slice_type=object, memoryview_type=object,
-               builtin_sequence_types=object, build_line_table=object)
+               builtin_sequence_types=object, build_line_table=object,
+               inspect=object, copy=object, os=object, pathlib=object, re=object, sys=object,
+)
 
-import re
-import sys
 import copy
+import inspect
+import operator
 import os.path
 import pathlib
-import operator
+import re
+import sys
 
 from .Errors import (
     error, warning, InternalError, CompileError, report_error, local_errors,
@@ -39,7 +42,7 @@ from .PyrexTypes import (
 from . import TypeSlots
 from .Builtin import (
     list_type, tuple_type, set_type, dict_type, type_type,
-    unicode_type, str_type, bytes_type, bytearray_type, basestring_type,
+    unicode_type, bytes_type, bytearray_type,
     slice_type, sequence_types as builtin_sequence_types, memoryview_type,
 )
 from . import Builtin
@@ -77,31 +80,15 @@ constant_value_not_set = object()
 # error messages when coercing from key[0] to key[1]
 coercion_error_dict = {
     # string related errors
-    (unicode_type, str_type): ("Cannot convert Unicode string to 'str' implicitly."
-                               " This is not portable and requires explicit encoding."),
     (unicode_type, bytes_type): "Cannot convert Unicode string to 'bytes' implicitly, encoding required.",
     (unicode_type, PyrexTypes.c_char_ptr_type): "Unicode objects only support coercion to Py_UNICODE*.",
     (unicode_type, PyrexTypes.c_const_char_ptr_type): "Unicode objects only support coercion to Py_UNICODE*.",
     (unicode_type, PyrexTypes.c_uchar_ptr_type): "Unicode objects only support coercion to Py_UNICODE*.",
     (unicode_type, PyrexTypes.c_const_uchar_ptr_type): "Unicode objects only support coercion to Py_UNICODE*.",
-    (bytes_type, unicode_type): "Cannot convert 'bytes' object to unicode implicitly, decoding required",
-    (bytes_type, str_type): "Cannot convert 'bytes' object to str implicitly. This is not portable to Py3.",
-    (bytes_type, basestring_type): ("Cannot convert 'bytes' object to basestring implicitly."
-                                    " This is not portable to Py3."),
-    (bytes_type, PyrexTypes.c_py_unicode_ptr_type): "Cannot convert 'bytes' object to Py_UNICODE*, use 'unicode'.",
+    (bytes_type, unicode_type): "Cannot convert 'bytes' object to str implicitly, decoding required",
+    (bytes_type, PyrexTypes.c_py_unicode_ptr_type): "Cannot convert 'bytes' object to Py_UNICODE*, use 'str'.",
     (bytes_type, PyrexTypes.c_const_py_unicode_ptr_type): (
-        "Cannot convert 'bytes' object to Py_UNICODE*, use 'unicode'."),
-    (basestring_type, bytes_type): "Cannot convert 'basestring' object to bytes implicitly. This is not portable.",
-    (str_type, unicode_type): ("str objects do not support coercion to unicode,"
-                               " use a unicode string literal instead (u'')"),
-    (str_type, bytes_type): "Cannot convert 'str' to 'bytes' implicitly. This is not portable.",
-    (str_type, PyrexTypes.c_char_ptr_type): "'str' objects do not support coercion to C types (use 'bytes'?).",
-    (str_type, PyrexTypes.c_const_char_ptr_type): "'str' objects do not support coercion to C types (use 'bytes'?).",
-    (str_type, PyrexTypes.c_uchar_ptr_type): "'str' objects do not support coercion to C types (use 'bytes'?).",
-    (str_type, PyrexTypes.c_const_uchar_ptr_type): "'str' objects do not support coercion to C types (use 'bytes'?).",
-    (str_type, PyrexTypes.c_py_unicode_ptr_type): "'str' objects do not support coercion to C types (use 'unicode'?).",
-    (str_type, PyrexTypes.c_const_py_unicode_ptr_type): (
-        "'str' objects do not support coercion to C types (use 'unicode'?)."),
+        "Cannot convert 'bytes' object to Py_UNICODE*, use 'str'."),
     (PyrexTypes.c_char_ptr_type, unicode_type): "Cannot convert 'char*' to unicode implicitly, decoding required",
     (PyrexTypes.c_const_char_ptr_type, unicode_type): (
         "Cannot convert 'char*' to unicode implicitly, decoding required"),
@@ -196,11 +183,6 @@ def make_dedup_key(outer_type, item_nodes):
         # For constants, look at the Python value type if we don't know the concrete Cython type.
         else (node.type, node.constant_result,
               type(node.constant_result) if node.type is py_object_type else None) if node.has_constant_result()
-        # IdentifierStringNode doesn't usually have a "constant_result" set because:
-        #  1. it doesn't usually have unicode_value
-        #  2. it's often created later in the compilation process after ConstantFolding
-        # but should be cacheable
-        else (node.type, node.value, node.unicode_value, "IdentifierStringNode") if isinstance(node, IdentifierStringNode)
         else None  # something we cannot handle => short-circuit below
         for node in item_nodes
     ]
@@ -1736,15 +1718,24 @@ class BytesNode(ConstNode):
 
 
 class UnicodeNode(ConstNode):
-    # A Py_UNICODE* or unicode literal
+    # A unicode literal
     #
     # value        EncodedString
     # bytes_value  BytesLiteral    the literal parsed as bytes string
     #                              ('-3' unicode literals only)
+    # is_identifier  boolean
 
     is_string_literal = True
+    is_identifier = None
     bytes_value = None
     type = unicode_type
+
+    def __init__(self, pos, value, bytes_value=None, type=None):
+        super().__init__(pos, value=value, constant_result=value)
+        if bytes_value is not None:
+            self.bytes_value = bytes_value
+        if type is not None and type is not unicode_type:
+            self.type = type
 
     def calculate_constant_result(self):
         self.constant_result = self.value
@@ -1753,20 +1744,14 @@ class UnicodeNode(ConstNode):
         return _analyse_name_as_type(self.value, self.pos, env)
 
     def as_sliced_node(self, start, stop, step=None):
-        if StringEncoding.string_contains_surrogates(self.value[:stop]):
-            # this is unsafe as it may give different results
-            # in different runtimes
-            return None
-        value = StringEncoding.EncodedString(self.value[start:stop:step])
-        value.encoding = self.value.encoding
+        value = StringEncoding.encoded_string(
+            self.value[start:stop:step], self.value.encoding)
         if self.bytes_value is not None:
             bytes_value = StringEncoding.bytes_literal(
                 self.bytes_value[start:stop:step], self.bytes_value.encoding)
         else:
             bytes_value = None
-        return UnicodeNode(
-            self.pos, value=value, bytes_value=bytes_value,
-            constant_result=value)
+        return UnicodeNode(self.pos, value=value, bytes_value=bytes_value)
 
     def coerce_to(self, dst_type, env):
         if dst_type is self.type:
@@ -1783,8 +1768,9 @@ class UnicodeNode(ConstNode):
         elif dst_type.is_pyunicode_ptr:
             return UnicodeNode(self.pos, value=self.value, type=dst_type)
         elif not dst_type.is_pyobject:
-            if dst_type.is_string or dst_type.is_cpp_string or dst_type.is_int:
-                # Allow using '-3' enforced unicode literals in a C char/char* context.
+            if dst_type.is_string or dst_type.is_cpp_string or dst_type.is_int or (
+                    dst_type.is_ptr and dst_type.base_type.is_void):
+                # Allow using '-3' enforced unicode literals in a C char/char*/void* context.
                 if self.bytes_value is not None:
                     return BytesNode(self.pos, value=self.bytes_value).coerce_to(dst_type, env)
                 if env.directives['c_string_encoding']:
@@ -1799,9 +1785,9 @@ class UnicodeNode(ConstNode):
                                      ).coerce_to(dst_type, env)
             error(self.pos,
                   "Unicode literals do not support coercion to C types other "
-                  "than Py_UNICODE/Py_UCS4 (for characters) or Py_UNICODE* "
-                  "(for strings).")
-        elif dst_type not in (py_object_type, Builtin.basestring_type):
+                  "than Py_UCS4/Py_UNICODE (for characters), Py_UNICODE* "
+                  "(for strings) or char*/void* (for auto-encoded strings).")
+        elif dst_type is not py_object_type:
             self.check_for_coercion_error(dst_type, env, fail=True)
         return self
 
@@ -1847,6 +1833,8 @@ class UnicodeNode(ConstNode):
                         const_code.error_goto_if_null(self.result_code, self.pos)))
                 const_code.put_error_if_neg(
                     self.pos, "__Pyx_PyUnicode_READY(%s)" % self.result_code)
+            elif self.is_identifier:
+                self.result_code = code.intern_identifier(self.value)
             else:
                 self.result_code = code.get_py_string_const(self.value)
         else:
@@ -1855,82 +1843,12 @@ class UnicodeNode(ConstNode):
     def calculate_result_code(self):
         return self.result_code
 
-    def compile_time_value(self, env):
+    def compile_time_value(self, denv):
         return self.value
 
 
-class StringNode(PyConstNode):
-    # A Python str object, i.e. a byte string in Python 2.x and a
-    # unicode string in Python 3.x
-    #
-    # value          BytesLiteral (or EncodedString with ASCII content)
-    # unicode_value  EncodedString or None
-    # is_identifier  boolean
-
-    type = str_type
-    is_string_literal = True
-    is_identifier = None
-    unicode_value = None
-
-    def calculate_constant_result(self):
-        if self.unicode_value is not None:
-            # only the Unicode value is portable across Py2/3
-            self.constant_result = self.unicode_value
-
-    def analyse_as_type(self, env):
-        return _analyse_name_as_type(self.unicode_value or self.value.decode('ISO8859-1'), self.pos, env)
-
-    def as_sliced_node(self, start, stop, step=None):
-        value = type(self.value)(self.value[start:stop:step])
-        value.encoding = self.value.encoding
-        if self.unicode_value is not None:
-            if StringEncoding.string_contains_surrogates(self.unicode_value[:stop]):
-                # this is unsafe as it may give different results in different runtimes
-                return None
-            unicode_value = StringEncoding.EncodedString(
-                self.unicode_value[start:stop:step])
-        else:
-            unicode_value = None
-        return StringNode(
-            self.pos, value=value, unicode_value=unicode_value,
-            constant_result=value, is_identifier=self.is_identifier)
-
-    def coerce_to(self, dst_type, env):
-        if dst_type is not py_object_type and not str_type.subtype_of(dst_type):
-#            if dst_type is Builtin.bytes_type:
-#                # special case: bytes = 'str literal'
-#                return BytesNode(self.pos, value=self.value)
-            if not dst_type.is_pyobject:
-                return BytesNode(self.pos, value=self.value).coerce_to(dst_type, env)
-            if dst_type is not Builtin.basestring_type:
-                self.check_for_coercion_error(dst_type, env, fail=True)
-        return self
-
-    def can_coerce_to_char_literal(self):
-        return not self.is_identifier and len(self.value) == 1
-
-    def generate_evaluation_code(self, code):
-        self.result_code = code.get_py_string_const(
-            self.value, identifier=self.is_identifier, is_str=True,
-            unicode_value=self.unicode_value)
-
-    def get_constant_c_result_code(self):
-        return None
-
-    def calculate_result_code(self):
-        return self.result_code
-
-    def compile_time_value(self, env):
-        if self.value.is_unicode:
-            return self.value
-        if self.unicode_value is not None:
-            return self.unicode_value
-        return self.value.decode('iso8859-1')
-
-
-class IdentifierStringNode(StringNode):
-    # A special str value that represents an identifier (bytes in Py2,
-    # unicode in Py3).
+class IdentifierStringNode(UnicodeNode):
+    # A special str value that represents an identifier (a Unicode name).
     is_identifier = True
 
 
@@ -2043,6 +1961,7 @@ class NameNode(AtomicExprNode):
     allow_null = False
     nogil = False
     inferred_type = None
+    module_state_lookup = ""
 
     def as_cython_attribute(self):
         return self.cython_attribute
@@ -2058,6 +1977,7 @@ class NameNode(AtomicExprNode):
     def infer_type(self, env):
         if self.entry is None:
             self.entry = env.lookup(self.name)
+
         if self.entry is None or self.entry.type is unspecified_type:
             if self.inferred_type is not None:
                 return self.inferred_type
@@ -2066,6 +1986,9 @@ class NameNode(AtomicExprNode):
                 self.name == self.entry.type.name:
             # Unfortunately the type attribute of type objects
             # is used for the pointer to the type they represent.
+            return type_type
+        elif self.entry.type is unicode_type and self.name in ('unicode', 'basestring'):
+            # Keep recognising the old Py2 names for 'str' as type.
             return type_type
         elif self.entry.type.is_cfunction:
             if self.entry.scope.is_builtin_scope:
@@ -2359,6 +2282,10 @@ class NameNode(AtomicExprNode):
             # assume that type inference is smarter than the static entry
             type = self.inferred_type
         self.type = type
+        if entry.scope.is_module_scope and (
+                entry.is_pyglobal or entry.is_cclass_var_entry):
+            # TODO - eventually this should apply to cglobals too
+            self.module_state_lookup = env.name_in_module_state("")
 
     def check_identifier_kind(self):
         # Check that this is an appropriate kind of name for use in an
@@ -2463,7 +2390,7 @@ class NameNode(AtomicExprNode):
             return "<error>"  # There was an error earlier
         if self.entry.is_cpp_optional and not self.is_target:
             return "(*%s)" % entry.cname
-        return entry.cname
+        return self.module_state_lookup + entry.cname
 
     def generate_result_code(self, code):
         entry = self.entry
@@ -2525,13 +2452,16 @@ class NameNode(AtomicExprNode):
                         interned_cname,
                         code.error_goto_if_null(self.result(), self.pos)))
             else:
+                namespace_cname = code.namespace_cname_in_module_state(entry.scope)
+                namespace_cname_is_type = self.entry.scope.namespace_cname_is_type
                 # FIXME: is_pyglobal is also used for class namespace
                 code.globalstate.use_utility_code(
                     UtilityCode.load_cached("GetNameInClass", "ObjectHandling.c"))
                 code.putln(
-                    '__Pyx_GetNameInClass(%s, %s, %s); %s' % (
+                    '__Pyx_GetNameInClass(%s, %s%s, %s); %s' % (
                         self.result(),
-                        entry.scope.namespace_cname,
+                        "(PyObject*)" if namespace_cname_is_type else "",
+                        namespace_cname,
                         interned_cname,
                         code.error_goto_if_null(self.result(), self.pos)))
             self.generate_gotref(code)
@@ -2572,16 +2502,19 @@ class NameNode(AtomicExprNode):
         if entry.is_pyglobal:
             assert entry.type.is_pyobject, "Python global or builtin not a Python object"
             interned_cname = code.intern_identifier(self.entry.name)
-            namespace = self.entry.scope.namespace_cname
+            namespace = code.namespace_cname_in_module_state(self.entry.scope)
+            namespace_is_type = self.entry.scope.namespace_cname_is_type
+            namespace_needs_type = False
             if entry.is_member:
                 # if the entry is a member we have to cheat: SetAttr does not work
                 # on types, so we create a descriptor which is then added to tp_dict.
                 setter = '__Pyx_SetItemOnTypeDict'
+                namespace_needs_type = True
                 code.globalstate.use_utility_code(
                     UtilityCode.load_cached("SetItemOnTypeDict", "ExtensionTypes.c"))
             elif entry.scope.is_module_scope:
                 setter = 'PyDict_SetItem'
-                namespace = Naming.moddict_cname
+                namespace = code.name_in_module_state(Naming.moddict_cname)
             elif entry.is_pyclass_attr:
                 # Special-case setting __new__
                 n = "SetNewInClass" if self.name == "__new__" else "SetNameInClass"
@@ -2589,6 +2522,10 @@ class NameNode(AtomicExprNode):
                 setter = '__Pyx_' + n
             else:
                 assert False, repr(entry)
+            if namespace_is_type and not namespace_needs_type:
+                namespace = f"((PyObject*){namespace})"
+            # This combination shouldn't happen, and we don't know enough to cast
+            assert not (namespace_needs_type and not namespace_is_type)
             code.put_error_if_neg(
                 self.pos,
                 '%s(%s, %s, %s)' % (
@@ -2800,7 +2737,7 @@ class ImportNode(ExprNode):
     #  Implements result =
     #    __import__(module_name, globals(), None, name_list, level)
     #
-    #  module_name   StringNode            dotted name of module. Empty module
+    #  module_name   UnicodeNode            dotted name of module. Empty module
     #                       name means importing the parent package according
     #                       to level
     #  name_list     ListNode or None      list of names to be imported
@@ -2838,7 +2775,7 @@ class ImportNode(ExprNode):
             self.name_list = name_list.coerce_to_pyobject(env)
         elif '.' in self.module_name.value:
             self.module_names = TupleNode(self.module_name.pos, args=[
-                IdentifierStringNode(self.module_name.pos, value=part, constant_result=part)
+                IdentifierStringNode(self.module_name.pos, value=part)
                 for part in map(StringEncoding.EncodedString, self.module_name.value.split('.'))
             ]).analyse_types(env)
         return self
@@ -3632,8 +3569,10 @@ class RawCNameExprNode(ExprNode):
 class JoinedStrNode(ExprNode):
     # F-strings
     #
-    # values   [UnicodeNode|FormattedValueNode]   Substrings of the f-string
+    # values   [UnicodeNode|FormattedValueNode|CloneNode]   Substrings of the f-string
     #
+    # CloneNodes for repeated substrings are only inserted right before the code generation phase.
+
     type = unicode_type
     is_temp = True
     gil_message = "String concatenation"
@@ -3661,21 +3600,31 @@ class JoinedStrNode(ExprNode):
             elif isinstance(node, FormattedValueNode) and node.value.type.is_numeric:
                 # formatted C numbers are always ASCII
                 pass
+            elif isinstance(node, CloneNode):
+                # we already know the result
+                pass
             else:
                 unknown_nodes.add(node)
 
         length_parts = []
+        counts = {}
         charval_parts = [str(max_char_value)]
         for node in self.values:
             node.generate_evaluation_code(code)
 
             if isinstance(node, UnicodeNode):
-                length_parts.append(str(len(node.value)))
+                length_part = str(len(node.value))
             else:
                 # TODO: add exception handling for these macro calls if not ASSUME_SAFE_SIZE/MACROS
-                length_parts.append("__Pyx_PyUnicode_GET_LENGTH(%s)" % node.py_result())
+                length_part = f"__Pyx_PyUnicode_GET_LENGTH({node.py_result()})"
                 if node in unknown_nodes:
-                    charval_parts.append("__Pyx_PyUnicode_MAX_CHAR_VALUE(%s)" % node.py_result())
+                    charval_parts.append(f"__Pyx_PyUnicode_MAX_CHAR_VALUE({node.py_result()})")
+
+            if length_part in counts:
+                counts[length_part] += 1
+            else:
+                length_parts.append(length_part)
+                counts[length_part] = 1
 
         if use_stack_memory:
             values_array = code.funcstate.allocate_temp(
@@ -3690,6 +3639,11 @@ class JoinedStrNode(ExprNode):
 
         for i, node in enumerate(self.values):
             code.putln('%s[%d] = %s;' % (values_array, i, node.py_result()))
+
+        length_parts = [
+            f"{part} * {counts[part]}" if counts[part] > 1 else part
+            for part in length_parts
+        ]
 
         code.mark_pos(self.pos)
         self.allocate_temp_result(code)
@@ -3732,7 +3686,7 @@ class FormattedValueNode(ExprNode):
     gil_message = "String formatting"
 
     find_conversion_func = {
-        's': 'PyObject_Unicode',
+        's': 'PyObject_Str',
         'r': 'PyObject_Repr',
         'a': 'PyObject_ASCII',
         'd': '__Pyx_PyNumber_Long',  # NOTE: internal mapping for '%d' formatting
@@ -3779,7 +3733,7 @@ class FormattedValueNode(ExprNode):
             # common case: expect simple Unicode pass-through if no format spec
             format_func = '__Pyx_PyObject_FormatSimple'
             # passing a Unicode format string in Py2 forces PyObject_Format() to also return a Unicode string
-            format_spec = Naming.empty_unicode
+            format_spec = code.name_in_module_state(Naming.empty_unicode)
 
         conversion_char = self.conversion_char
         if conversion_char == 's' and value_is_unicode:
@@ -3883,7 +3837,7 @@ class _IndexingBaseNode(ExprNode):
         # in most cases, indexing will return a safe reference to an object in a container,
         # so we consider the result safe if the base object is
         return self.base.is_ephemeral() or self.base.type in (
-            basestring_type, str_type, bytes_type, bytearray_type, unicode_type)
+            unicode_type, bytes_type, bytearray_type)
 
     def check_const_addr(self):
         return self.base.check_const_addr() and self.index.check_const()
@@ -3941,7 +3895,7 @@ class IndexNode(_IndexingBaseNode):
         if base_type:
             if base_type.is_string:
                 return False
-            if base_type in (unicode_type, bytes_type, str_type, bytearray_type, basestring_type):
+            if base_type in (unicode_type, bytes_type, bytearray_type):
                 return False
             if isinstance(self.index, SliceNode):
                 # slicing!
@@ -4013,8 +3967,7 @@ class IndexNode(_IndexingBaseNode):
             elif base_type.is_pyunicode_ptr:
                 # sliced Py_UNICODE* strings must coerce to Python
                 return unicode_type
-            elif base_type in (unicode_type, bytes_type, str_type,
-                               bytearray_type, list_type, tuple_type):
+            elif base_type in (unicode_type, bytes_type, bytearray_type, list_type, tuple_type):
                 # slicing these returns the same type
                 return base_type
             elif base_type.is_memoryviewslice:
@@ -4035,17 +3988,8 @@ class IndexNode(_IndexingBaseNode):
                 # to receive it, throw it away, and potentially rebuild it
                 # on a subsequent PyObject coercion.
                 return PyrexTypes.c_py_ucs4_type
-            elif base_type is str_type:
-                # always returns str - Py2: bytes, Py3: unicode
-                return base_type
-            elif base_type is bytearray_type:
+            elif base_type is bytearray_type or self.base is bytes_type:
                 return PyrexTypes.c_uchar_type
-            elif isinstance(self.base, BytesNode):
-                #if env.global_scope().context.language_level >= 3:
-                #    # inferring 'char' can be made to work in Python 3 mode
-                #    return PyrexTypes.c_char_type
-                # Py2/3 return different types on indexing bytes objects
-                return py_object_type
             elif base_type in (tuple_type, list_type):
                 # if base is a literal, take a look at its values
                 item_type = infer_sequence_item_type(
@@ -4096,12 +4040,12 @@ class IndexNode(_IndexingBaseNode):
             return PythranExpr(pythran_indexing_type(base_type, [index_with_type]))
 
         # may be slicing or indexing, we don't know
-        if base_type in (unicode_type, str_type):
-            # these types always returns their own type on Python indexing/slicing
+        if base_type is unicode_type:
+            # always returns its own type on Python indexing/slicing
             return base_type
-        else:
-            # TODO: Handle buffers (hopefully without too much redundancy).
-            return py_object_type
+
+        # TODO: Handle buffers (hopefully without too much redundancy).
+        return py_object_type
 
     def analyse_types(self, env):
         return self.analyse_base_and_index_types(env, getting=True)
@@ -4223,7 +4167,7 @@ class IndexNode(_IndexingBaseNode):
             else:
                 # not using 'uchar' to enable fast and safe error reporting as '-1'
                 self.type = PyrexTypes.c_int_type
-        elif is_slice and base_type in (bytes_type, bytearray_type, str_type, unicode_type, list_type, tuple_type):
+        elif is_slice and base_type in (bytes_type, bytearray_type, unicode_type, list_type, tuple_type):
             self.type = base_type
         else:
             item_type = None
@@ -4551,7 +4495,7 @@ class IndexNode(_IndexingBaseNode):
                 if base_type is dict_type:
                     function = "__Pyx_PyDict_GetItem"
                     utility_code = UtilityCode.load_cached("DictGetItem", "ObjectHandling.c")
-                elif base_type is py_object_type and self.index.type in (str_type, unicode_type):
+                elif base_type is py_object_type and self.index.type is unicode_type:
                     # obj[str] is probably doing a dict lookup
                     function = "__Pyx_PyObject_Dict_GetItem"
                     utility_code = UtilityCode.load_cached("DictGetItem", "ObjectHandling.c")
@@ -5310,8 +5254,8 @@ class SliceIndexNode(ExprNode):
             return bytes_type
         elif base_type.is_pyunicode_ptr:
             return unicode_type
-        elif base_type in (bytes_type, bytearray_type, str_type, unicode_type,
-                           basestring_type, list_type, tuple_type):
+        elif base_type in (bytes_type, bytearray_type, unicode_type,
+                           list_type, tuple_type):
             return base_type
         elif base_type.is_ptr or base_type.is_array:
             return PyrexTypes.c_array_type(base_type.base_type, None)
@@ -5331,8 +5275,8 @@ class SliceIndexNode(ExprNode):
         if base_type:
             if base_type.is_string:
                 return False
-            if base_type in (bytes_type, str_type, unicode_type,
-                             basestring_type, list_type, tuple_type):
+            if base_type in (bytes_type, bytearray_type, unicode_type,
+                             list_type, tuple_type):
                 return False
         return ExprNode.may_be_none(self)
 
@@ -5500,9 +5444,8 @@ class SliceIndexNode(ExprNode):
 
     def coerce_to(self, dst_type, env):
         if ((self.base.type.is_string or self.base.type.is_cpp_string)
-                and dst_type in (bytes_type, bytearray_type, str_type, unicode_type)):
-            if (dst_type not in (bytes_type, bytearray_type)
-                    and not env.directives['c_string_encoding']):
+                and dst_type in (bytes_type, bytearray_type, unicode_type)):
+            if (dst_type is unicode_type and not env.directives['c_string_encoding']):
                 error(self.pos,
                     "default encoding required for conversion from '%s' to '%s'" %
                     (self.base.type, dst_type))
@@ -5529,7 +5472,7 @@ class SliceIndexNode(ExprNode):
             base_result = self.base.result_as(PyrexTypes.c_const_char_ptr_type)
             if self.type is bytearray_type:
                 type_name = 'ByteArray'
-            elif self.type is str_type:
+            elif self.type is unicode_type:
                 type_name = 'Unicode'
             else:
                 type_name = self.type.name.title()
@@ -5920,9 +5863,12 @@ class CallNode(ExprNode):
                 if result_type.is_extension_type:
                     return result_type
                 elif result_type.is_builtin_type:
-                    if function.entry.name == 'float':
+                    func_name = function.entry.name
+                    if func_name == 'float':
                         return PyrexTypes.c_double_type
-                    elif function.entry.name in Builtin.types_that_construct_their_instance:
+                    elif func_name == 'bool':
+                        return PyrexTypes.c_bint_type
+                    elif func_name in Builtin.types_that_construct_their_instance:
                         return result_type
         func_type = self.function.analyse_as_type(env)
         if func_type and (func_type.is_struct_or_union or func_type.is_cpp_class):
@@ -5996,7 +5942,7 @@ class CallNode(ExprNode):
             args, kwds = self.explicit_args_kwds()
             items = []
             for arg, member in zip(args, type.scope.var_entries):
-                items.append(DictItemNode(pos=arg.pos, key=StringNode(pos=arg.pos, value=member.name), value=arg))
+                items.append(DictItemNode(arg.pos, key=UnicodeNode(arg.pos, value=member.name), value=arg))
             if kwds:
                 items += kwds.key_value_pairs
             self.key_value_pairs = items
@@ -6071,6 +6017,19 @@ class SimpleCallNode(CallNode):
             return function(*args)
         except Exception as e:
             self.compile_time_value_error(e)
+
+    def calculate_constant_result(self):
+        if self.function.is_attribute and self.function.obj.is_literal:
+            method = self.function.constant_result
+            if inspect.isbuiltin(method) or inspect.ismethod(method):
+                method_name = method.__name__
+                # Prefer the actual builtin type over internal representations like "EncodedString".
+                object_type = self.function.obj.type
+                object_type_name = object_type.name if object_type else type(method.__self__).__name__
+
+                if Builtin.is_safe_compile_time_method(object_type_name, method_name):
+                    args = [arg.constant_result for arg in self.args]
+                    self.constant_result = method(*args)
 
     @classmethod
     def for_cproperty(cls, pos, obj, entry):
@@ -6281,7 +6240,8 @@ class SimpleCallNode(CallNode):
         for i in range(max_nargs, actual_nargs):
             arg = args[i]
             if arg.type.is_pyobject:
-                if arg.type is str_type:
+                if arg.type is unicode_type:
+                    # TODO: require "arg.type.bytes_value"?
                     arg_ctype = PyrexTypes.c_char_ptr_type
                 else:
                     arg_ctype = arg.type.default_coerced_ctype()
@@ -6681,10 +6641,7 @@ class PyMethodCallNode(CallNode):
         ))
         if kwargs_key_value_pairs:
             for n, keyvalue in enumerate(kwargs_key_value_pairs):
-                key_is_str = (
-                    (keyvalue.key.type is Builtin.str_type or keyvalue.key.type is Builtin.unicode_type)
-                    and not keyvalue.key.may_be_none()
-                )
+                key_is_str = keyvalue.key.type is Builtin.unicode_type and not keyvalue.key.may_be_none()
                 code.put_error_if_neg(
                     self.pos,
                     "__Pyx_VectorcallBuilder_AddArg%s(%s, %s, %s, __pyx_callargs+%d, %d)" % (
@@ -6973,6 +6930,20 @@ class GeneralCallNode(CallNode):
             return function(*positional_args, **keyword_args)
         except Exception as e:
             self.compile_time_value_error(e)
+
+    def calculate_constant_result(self):
+        if self.function.is_attribute and self.function.obj.is_literal:
+            method = self.function.constant_result
+            if inspect.isbuiltin(method) or inspect.ismethod(method):
+                method_name = method.__name__
+                # Prefer the actual builtin type over internal representations like "EncodedString".
+                object_type = self.function.obj.type
+                object_type_name = object_type.name if object_type else type(method.__self__).__name__
+
+                if Builtin.is_safe_compile_time_method(object_type_name, method_name):
+                    args = self.positional_args.constant_result
+                    kwargs = self.keyword_args.constant_result
+                    self.constant_result = method(*args, **kwargs)
 
     def explicit_args_kwds(self):
         if (self.keyword_args and not self.keyword_args.is_dict_literal or
@@ -8726,10 +8697,7 @@ class TupleNode(SequenceNode):
         return True
 
     def calculate_result_code(self):
-        if len(self.args) > 0:
-            return self.result_code
-        else:
-            return Naming.empty_tuple
+        return self.result_code
 
     def calculate_constant_result(self):
         self.constant_result = tuple([
@@ -8744,7 +8712,7 @@ class TupleNode(SequenceNode):
 
     def generate_operation_code(self, code):
         if len(self.args) == 0:
-            # result_code is Naming.empty_tuple
+            self.result_code = code.name_in_module_state(Naming.empty_tuple)
             return
 
         if self.is_literal or self.is_partly_literal:
@@ -9413,7 +9381,7 @@ class DictNode(ExprNode):
                     item.key = item.key.arg
                 if not item.key.is_string_literal:
                     error(item.key.pos, "Invalid struct field identifier")
-                    item.key = StringNode(item.key.pos, value="<error>")
+                    item.key = UnicodeNode(item.key.pos, value=StringEncoding.EncodedString("<error>"))
                 else:
                     key = str(item.key.value)  # converts string literals to unicode in Py3
                     member = dst_type.scope.lookup_here(key)
@@ -10114,6 +10082,7 @@ class PyCFunctionNode(ExprNode, ModuleNameMixin):
         else:
             flags = '0'
 
+        moddict_cname = code.name_in_module_state(Naming.moddict_cname)
         self.code_object.generate_result_code(code)
 
         code.putln(
@@ -10125,7 +10094,7 @@ class PyCFunctionNode(ExprNode, ModuleNameMixin):
                 self.get_py_qualified_name(code),
                 self.closure_result_code(),
                 self.get_py_mod_name(code),
-                Naming.moddict_cname,
+                moddict_cname,
                 self.code_object.py_result(),
                 code.error_goto_if_null(self.result(), self.pos)))
 
@@ -10144,7 +10113,8 @@ class PyCFunctionNode(ExprNode, ModuleNameMixin):
         if self.defaults:
             code.putln(
                 'if (!__Pyx_CyFunction_InitDefaults(%s, %s)) %s' % (
-                    self.result(), self.defaults_entry.type.typeptr_cname,
+                    self.result(),
+                    code.name_in_module_state(self.defaults_entry.type.typeptr_cname),
                     code.error_goto(self.pos)))
             defaults = '__Pyx_CyFunction_Defaults(struct %s, %s)' % (
                 self.defaults_entry.type.objstruct_cname, self.result())
@@ -10215,8 +10185,8 @@ class DefFuncLikeNode:
 class CodeObjectNode(ExprNode):
     # Create a PyCodeObject for a CyFunction instance.
     #
-    # def_node   DefNode        the Python function node
-    # varnames   [StringNode]   a list of all local variable names
+    # def_node   DefNode                  the Python function node
+    # varnames   [IdentifierStringNode]   a list of all local variable names
 
     subexprs = ['varnames']
     is_temp = False
@@ -10252,16 +10222,14 @@ class CodeObjectNode(ExprNode):
         func = self.def_node
         first_lineno = self.pos[1]
 
-        func_name_result = code.get_py_string_const(
-            func.name, identifier=True, is_str=False, unicode_value=func.name)
+        func_name_result = code.get_py_string_const(func.name, identifier=True)
         # FIXME: better way to get the module file path at module init time? Encoding to use?
         file_path = func.pos[0].get_filenametable_entry()
         if os.path.isabs(file_path):
             file_path = func.pos[0].get_description()
         # Always use / as separator
-        file_path = pathlib.Path(file_path).as_posix()
-        file_path = StringEncoding.bytes_literal(file_path.encode('utf-8'), 'utf8')
-        file_path_result = code.get_py_string_const(file_path, identifier=False, is_str=True)
+        file_path = StringEncoding.EncodedString(pathlib.Path(file_path).as_posix())
+        file_path_result = code.get_py_string_const(file_path)
 
         if func.node_positions:
             line_table = StringEncoding.bytes_literal(build_line_table(func.node_positions, first_lineno).encode('iso8859-1'), 'iso8859-1')
@@ -11780,7 +11748,7 @@ class TypeofNode(ExprNode):
     #  Compile-time type of an expression, as a string.
     #
     #  operand   ExprNode
-    #  literal   StringNode # internal
+    #  literal   UnicodeNode  # internal
 
     literal = None
     type = py_object_type
@@ -11790,7 +11758,7 @@ class TypeofNode(ExprNode):
     def analyse_types(self, env):
         self.operand = self.operand.analyse_types(env)
         value = StringEncoding.EncodedString(str(self.operand.type))  #self.operand.type.typeof_name())
-        literal = StringNode(self.pos, value=value)
+        literal = UnicodeNode(self.pos, value=value)
         literal = literal.analyse_types(env)
         self.literal = literal.coerce_to_pyobject(env)
         return self
@@ -12264,7 +12232,7 @@ class AddNode(NumBinopNode):
     def infer_builtin_types_operation(self, type1, type2):
         # b'abc' + 'abc' raises an exception in Py3,
         # so we can safely infer a mix here.
-        string_types = (bytes_type, bytearray_type, basestring_type, str_type, unicode_type)
+        string_types = (bytes_type, bytearray_type, unicode_type)
         if type1 in string_types and type2 in string_types:
             return string_types[max(string_types.index(type1),
                                     string_types.index(type2))]
@@ -12284,7 +12252,7 @@ class AddNode(NumBinopNode):
         type1, type2 = self.operand1.type, self.operand2.type
         func = None
         if type1 is unicode_type or type2 is unicode_type:
-            if type1 in (unicode_type, str_type) and type2 in (unicode_type, str_type):
+            if type1 is unicode_type and type2 is unicode_type:
                 is_unicode_concat = True
             elif isinstance(self.operand1, FormattedValueNode) or isinstance(self.operand2, FormattedValueNode):
                 # Assume that even if we don't know the second type, it's going to be a string.
@@ -12298,10 +12266,6 @@ class AddNode(NumBinopNode):
                     code.globalstate.use_utility_code(
                         UtilityCode.load_cached("UnicodeConcatInPlace", "ObjectHandling.c"))
                 func = '__Pyx_PyUnicode_Concat'
-        elif type1 is str_type and type2 is str_type:
-            code.globalstate.use_utility_code(
-                    UtilityCode.load_cached("StrConcatInPlace", "ObjectHandling.c"))
-            func = '__Pyx_PyStr_Concat'
 
         if func:
             # any necessary utility code will be got by "NumberAdd" in generate_evaluation_code
@@ -12642,8 +12606,7 @@ class ModNode(DivNode):
                 or NumBinopNode.is_py_operation_types(self, type1, type2))
 
     def infer_builtin_types_operation(self, type1, type2):
-        # b'%s' % xyz  raises an exception in Py3<3.5, so it's safe to infer the type for later Py3's.
-        if type1 in (unicode_type, bytes_type, str_type, basestring_type):
+        if type1 in (unicode_type, bytes_type, bytearray_type):
             # 'None % xyz' may be implemented by the RHS, but everything else will do string formatting.
             if type2.is_builtin_type or not type2.is_pyobject or not self.operand1.may_be_none():
                 return type1
@@ -12707,13 +12670,6 @@ class ModNode(DivNode):
                 return '__Pyx_PyUnicode_FormatSafe'
             else:
                 return 'PyUnicode_Format'
-        elif type1 is str_type:
-            if self.operand1.may_be_none() or (
-                    type2.is_extension_type and type2.subtype_of(type1) or
-                    type2 is py_object_type and not isinstance(self.operand2, CoerceToPyTypeNode)):
-                return '__Pyx_PyString_FormatSafe'
-            else:
-                return '__Pyx_PyString_Format'
         return super().py_operation_function(code)
 
 
@@ -13359,14 +13315,8 @@ class CmpNode:
 
         new_common_type = None
 
-        # catch general errors
-        if (type1 == str_type and (type2.is_string or type2 in (bytes_type, unicode_type)) or
-                type2 == str_type and (type1.is_string or type1 in (bytes_type, unicode_type))):
-            error(self.pos, "Comparisons between bytes/unicode and str are not portable to Python 3")
-            new_common_type = error_type
-
         # try to use numeric comparisons where possible
-        elif type1.is_complex or type2.is_complex:
+        if type1.is_complex or type2.is_complex:
             if (op not in ('==', '!=')
                     and (type1.is_complex or type1.is_numeric)
                     and (type2.is_complex or type2.is_numeric)):
@@ -13486,14 +13436,6 @@ class CmpNode:
                 elif type1 is Builtin.bytes_type or type2 is Builtin.bytes_type:
                     self.special_bool_cmp_utility_code = UtilityCode.load_cached("BytesEquals", "StringTools.c")
                     self.special_bool_cmp_function = "__Pyx_PyBytes_Equals"
-                    return True
-                elif type1 is Builtin.basestring_type or type2 is Builtin.basestring_type:
-                    self.special_bool_cmp_utility_code = UtilityCode.load_cached("UnicodeEquals", "StringTools.c")
-                    self.special_bool_cmp_function = "__Pyx_PyUnicode_Equals"
-                    return True
-                elif type1 is Builtin.str_type or type2 is Builtin.str_type:
-                    self.special_bool_cmp_utility_code = UtilityCode.load_cached("StrEquals", "StringTools.c")
-                    self.special_bool_cmp_function = "__Pyx_PyString_Equals"
                     return True
                 elif result_is_bool:
                     from .Optimize import optimise_numeric_binop
@@ -14181,15 +14123,22 @@ class PyTypeTestNode(CoercionNode):
 
     def generate_result_code(self, code):
         if self.type.typeobj_is_available():
+            allow_none = not self.notnone
             if self.type.is_builtin_type:
                 type_test = self.type.type_test_code(
+                    code.funcstate.scope,
                     self.arg.py_result(),
-                    self.notnone, exact=self.exact_builtin_type)
+                    allow_none,
+                    exact=self.exact_builtin_type,
+                )
                 code.globalstate.use_utility_code(UtilityCode.load_cached(
                     "RaiseUnexpectedTypeError", "ObjectHandling.c"))
             else:
                 type_test = self.type.type_test_code(
-                    self.arg.py_result(), self.notnone)
+                    code.funcstate.scope,
+                    self.arg.py_result(),
+                    allow_none,
+                )
                 code.globalstate.use_utility_code(
                     UtilityCode.load_cached("ExtTypeTest", "ObjectHandling.c"))
             code.putln("if (!(%s)) %s" % (
@@ -14821,6 +14770,7 @@ class DocstringRefNode(ExprNode):
             code.error_goto_if_null(self.result(), self.pos)))
         self.generate_gotref(code)
 
+
 class AnnotationNode(ExprNode):
     # Deals with the two possible uses of an annotation.
     # 1. The post PEP-563 use where an annotation is stored
@@ -14839,14 +14789,14 @@ class AnnotationNode(ExprNode):
     untyped = False
 
     def __init__(self, pos, expr, string=None):
-        """string is expected to already be a StringNode or None"""
+        """string is expected to already be a UnicodeNode or None"""
         ExprNode.__init__(self, pos)
         if string is None:
             # import doesn't work at top of file?
             from .AutoDocTransforms import AnnotationWriter
-            string = StringEncoding.EncodedString(
+            string_value = StringEncoding.EncodedString(
                 AnnotationWriter(description="annotation").write(expr))
-            string = StringNode(pos, unicode_value=string, value=string.as_utf8_string())
+            string = UnicodeNode(pos, value=string_value)
         self.string = string
         self.expr = expr
 

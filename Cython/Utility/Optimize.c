@@ -217,7 +217,7 @@ static PyObject* __Pyx_PyDict_GetItemDefault(PyObject* d, PyObject* key, PyObjec
     // avoid C compiler warning about unused utility functions
     if ((1));
 #else
-    if (PyString_CheckExact(key) || PyUnicode_CheckExact(key) || PyLong_CheckExact(key)) {
+    if (PyBytes_CheckExact(key) || PyUnicode_CheckExact(key) || PyLong_CheckExact(key)) {
         /* these presumably have safe hash functions */
         value = PyDict_GetItem(d, key);
         if (unlikely(!value)) {
@@ -702,15 +702,6 @@ static double __Pyx__PyObject_AsDouble(PyObject* obj) {
     }
 bad:
     return (double)-1;
-}
-
-
-/////////////// pystring_as_double.proto ///////////////
-//@requires: pyunicode_as_double
-
-// TODO: remove
-static CYTHON_INLINE double __Pyx_PyString_AsDouble(PyObject *obj) {
-    return __Pyx_PyUnicode_AsDouble(obj);
 }
 
 
