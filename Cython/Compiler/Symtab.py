@@ -98,6 +98,10 @@ class Entry:
     # is_anonymous     boolean    Is a anonymous pyfunction entry
     # is_type          boolean    Is a type definition
     # is_cclass        boolean    Is an extension class
+    # is_cclass_var_rentry  boolean Is a var entry of an extension type
+    #                              (Hack! Only needed because most C globals are
+    #                               static variables while these live in the module scope.
+    #                               Remove when fixed.)
     # is_cpp_class     boolean    Is a C++ class
     # is_const         boolean    Is a constant
     # is_property      boolean    Is a property of an extension type:
@@ -182,6 +186,7 @@ class Entry:
     is_anonymous = 0
     is_type = 0
     is_cclass = 0
+    is_cclass_var_entry = False  # Remove when other cglobals are in the module scope
     is_cpp_class = 0
     is_const = 0
     is_property = 0
@@ -1196,6 +1201,11 @@ class Scope:
     def add_include_file(self, filename, verbatim_include=None, late=False):
         self.outer_scope.add_include_file(filename, verbatim_include, late)
 
+    def name_in_module_state(self, cname):
+        # TODO - override to give more choices depending on the type of scope
+        # e.g. slot, function, method
+        return f"{Naming.modulestateglobal_cname}->{cname}"
+
 
 class PreImportScope(Scope):
 
@@ -1336,6 +1346,7 @@ class ModuleScope(Scope):
     has_import_star = 0
     is_cython_builtin = 0
     old_style_globals = 0
+    namespace_cname_is_type = False
     scope_predefined_names = [
         '__builtins__', '__name__', '__file__', '__doc__', '__path__',
         '__spec__', '__loader__', '__package__', '__cached__',
@@ -1953,6 +1964,7 @@ class ModuleScope(Scope):
         var_entry.is_variable = 1
         var_entry.is_cglobal = 1
         var_entry.is_readonly = 1
+        var_entry.is_cclass_var_entry = True
         var_entry.scope = entry.scope
         entry.as_variable = var_entry
 
@@ -2268,6 +2280,7 @@ class ClassScope(Scope):
             entry.utility_code_definition = Code.UtilityCode.load_cached("ClassMethod", "CythonFunction.c")
             self.use_entry_utility_code(entry)
             entry.is_cfunction = 1
+            entry.scope = self.builtin_scope()
         return entry
 
 
@@ -2277,6 +2290,7 @@ class PyClassScope(ClassScope):
     #  class_obj_cname     string   C variable holding class object
 
     is_py_class_scope = 1
+    namespace_cname_is_type = False
 
     def declare_var(self, name, type, pos,
                     cname=None, visibility='private',
@@ -2361,7 +2375,8 @@ class CClassScope(ClassScope):
         # isn't relevant.
         if ((parent_type.is_builtin_type or parent_type.is_extension_type)
                 and parent_type.typeptr_cname):
-            self.namespace_cname = "(PyObject *)%s" % parent_type.typeptr_cname
+            self.namespace_cname = self.parent_type.typeptr_cname
+            self.namespace_cname_is_type = True
 
     def needs_gc(self):
         # If the type or any of its base types have Python-valued

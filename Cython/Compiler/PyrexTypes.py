@@ -1499,9 +1499,11 @@ class BuiltinObjectType(PyObjectType):
     def isinstance_code(self, arg):
         return '%s(%s)' % (self.type_check_function(exact=False), arg)
 
-    def type_test_code(self, arg, allow_none=True, exact=True):
+    def type_test_code(self, scope, arg, allow_none=True, exact=True):
         type_check = self.type_check_function(exact=exact)
         check = f'likely({type_check}({arg}))'
+        scope.use_utility_code(UtilityCode.load_cached(
+                    "RaiseUnexpectedTypeError", "ObjectHandling.c"))
         if allow_none:
             check += f'||(({arg}) == Py_None)'
         return check + f' || __Pyx_RaiseUnexpectedTypeError("{self.name}", {arg})'
@@ -1640,8 +1642,10 @@ class PyExtensionType(PyObjectType):
                 entity_code = "*%s" % entity_code
         return self.base_declaration_code(base_code, entity_code)
 
-    def type_test_code(self, py_arg, allow_none=True):
-        type_check = f"likely(__Pyx_TypeTest({py_arg}, {self.typeptr_cname}))"
+    def type_test_code(self, scope, py_arg, allow_none=True):
+        typeptr_cname = scope.name_in_module_state(self.typeptr_cname)
+        type_check = f"likely(__Pyx_TypeTest({py_arg}, {typeptr_cname}))"
+        scope.use_utility_code(UtilityCode.load_cached("ExtTypeTest", "ObjectHandling.c"))
         if allow_none:
             type_check = f"likely((({py_arg}) == Py_None) || {type_check})"
         return type_check
@@ -2243,7 +2247,7 @@ class CReturnCodeType(CIntType):
         return not format_spec
 
     def convert_to_pystring(self, cvalue, code, format_spec=None):
-        return "__Pyx_NewRef(%s)" % code.globalstate.get_py_string_const(StringEncoding.EncodedString("None")).cname
+        return "__Pyx_NewRef(%s)" % code.get_py_string_const(StringEncoding.EncodedString("None"))
 
 
 class CBIntType(CIntType):
@@ -2263,8 +2267,8 @@ class CBIntType(CIntType):
         utility_code_name = "__Pyx_PyUnicode_FromBInt_" + self.specialization_name()
         to_pyunicode_utility = TempitaUtilityCode.load_cached(
             "CBIntToPyUnicode", "TypeConversion.c", context={
-                "TRUE_CONST":  code.globalstate.get_py_string_const(StringEncoding.EncodedString("True")).cname,
-                "FALSE_CONST": code.globalstate.get_py_string_const(StringEncoding.EncodedString("False")).cname,
+                "TRUE_CONST":  code.get_py_string_const(StringEncoding.EncodedString("True")),
+                "FALSE_CONST": code.get_py_string_const(StringEncoding.EncodedString("False")),
                 "TO_PY_FUNCTION": utility_code_name,
             })
         code.globalstate.use_utility_code(to_pyunicode_utility)
@@ -3728,6 +3732,7 @@ class ToPyStructUtilityCode:
         code = output['utility_code_def']
         proto = output['utility_code_proto']
 
+        code.enter_cfunc_scope(self.env.global_scope())
         code.putln("%s {" % self.header)
         code.putln("PyObject* res;")
         code.putln("PyObject* member;")
@@ -3745,6 +3750,7 @@ class ToPyStructUtilityCode:
         code.putln("Py_DECREF(res);")
         code.putln("return NULL;")
         code.putln("}")
+        code.exit_cfunc_scope()
 
         # This is a bit of a hack, we need a forward declaration
         # due to the way things are ordered in the module...
@@ -5041,6 +5047,7 @@ def best_match(arg_types, functions, pos=None, env=None, args=None):
                     cname = func.cname + "<%s>" % ",".join([t.empty_declaration_code() for t in type_list]),
                     type = func_type.specialize(deductions),
                     pos = func.pos)
+                specialization.scope = func.scope
                 candidates.append((specialization, specialization.type))
         else:
             candidates.append((func, func_type))

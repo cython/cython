@@ -19,6 +19,9 @@ cdef class UtilityCode(UtilityCodeBase):
     cdef public object file
 
     cpdef none_or_sub(self, s, context)
+    # TODO - Signature not compatible with previous declaration
+    #@cython.final
+    #cdef bint _put_code_section(self, writer, code_type: str) except -1
 
 
 cdef class FunctionState:
