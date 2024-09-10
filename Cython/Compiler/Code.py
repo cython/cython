@@ -693,7 +693,7 @@ class UtilityCode(UtilityCodeBase):
 
             self.specialize_list.append(s)
             return s
-    
+
     def _put_code_section(self, writer: "CCodeWriter", output: "GlobalState", code_type: str):
         code_string = getattr(self, code_type)
         if not code_string:
@@ -711,7 +711,7 @@ class UtilityCode(UtilityCodeBase):
             writer.put_or_include(code_string, f'{self.name}_{code_type}')
         else:
             writer.put(code_string)
-    
+
     def _put_init_code_section(self, output):
         if not self.init:
             return
