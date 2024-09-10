@@ -4795,7 +4795,7 @@ class SpecialPythonTypeConstructor(PyObjectType, PythonTypeConstructorMixin):
 class PyNoneType(BuiltinObjectType):
 
     def __init__(self):
-        super().__init__('None', None, [])
+        super().__init__('NoneType', cname=None)
 
 
 rank_to_type_name = (
