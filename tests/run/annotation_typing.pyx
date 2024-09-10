@@ -45,6 +45,12 @@ def pytypes_def(a: list, b: int = 2, c: long = 3, d: float = 4.0, n: list = None
     >>> pytypes_def([1], 3, 2, 1, [], None, None)
     ('list object', 'int object', 'Python object', 'double', 'list object', 'tuple object', 'tuple object')
     [1, 3, 2, 1.0, [], None, None]
+    >>> pytypes_def([1], 3, 2, 1, [], 'a', ())
+    Traceback (most recent call last):
+    TypeError: Argument 'o' has incorrect type (expected tuple, got str)
+    >>> pytypes_def([1], 3, 2, 1, [], (), 'a')
+    Traceback (most recent call last):
+    TypeError: Argument 'v' has incorrect type (expected tuple, got str)
     >>> pytypes_def(123)
     Traceback (most recent call last):
     TypeError: Argument 'a' has incorrect type (expected list, got int)
@@ -73,6 +79,12 @@ cpdef pytypes_cpdef(a: list, b: int = 2, c: long = 3, d: float = 4.0, n: list = 
     >>> pytypes_cpdef([1], 3, 2, 1, [], None, None)
     ('list object', 'int object', 'Python object', 'double', 'list object', 'tuple object', 'tuple object')
     [1, 3, 2, 1.0, [], None, None]
+    >>> pytypes_cpdef([1], 3, 2, 1, [], 'a', ())
+    Traceback (most recent call last):
+    TypeError: Argument 'o' has incorrect type (expected tuple, got str)
+    >>> pytypes_cpdef([1], 3, 2, 1, [], (), 'a')
+    Traceback (most recent call last):
+    TypeError: Argument 'v' has incorrect type (expected tuple, got str)
     >>> pytypes_cpdef(123)
     Traceback (most recent call last):
     TypeError: Argument 'a' has incorrect type (expected list, got int)
@@ -424,24 +436,24 @@ _WARNINGS = """
 37:40: Found C type name 'long' in a Python annotation. Did you mean to use 'cython.long'?
 37:40: Unknown type declaration 'long' in annotation, ignoring
 37:66: PEP-484 recommends 'typing.Optional[...]' for arguments that can be None.
-65:44: Found C type name 'long' in a Python annotation. Did you mean to use 'cython.long'?
-65:44: Unknown type declaration 'long' in annotation, ignoring
-65:70: PEP-484 recommends 'typing.Optional[...]' for arguments that can be None.
-93:44: Found C type name 'long' in a Python annotation. Did you mean to use 'cython.long'?
-93:44: Unknown type declaration 'long' in annotation, ignoring
-93:70: PEP-484 recommends 'typing.Optional[...]' for arguments that can be None.
-155:30: Tuples cannot be declared as simple tuples of types. Use 'tuple[type1, type2, ...]'.
-155:59: Tuples cannot be declared as simple tuples of types. Use 'tuple[type1, type2, ...]'.
-160:13: Tuples cannot be declared as simple tuples of types. Use 'tuple[type1, type2, ...]'.
-295:44: Unknown type declaration in annotation, ignoring
-326:15: Annotation ignored since class-level attributes must be Python objects. Were you trying to set up an instance attribute?
+71:44: Found C type name 'long' in a Python annotation. Did you mean to use 'cython.long'?
+71:44: Unknown type declaration 'long' in annotation, ignoring
+71:70: PEP-484 recommends 'typing.Optional[...]' for arguments that can be None.
+105:44: Found C type name 'long' in a Python annotation. Did you mean to use 'cython.long'?
+105:44: Unknown type declaration 'long' in annotation, ignoring
+105:70: PEP-484 recommends 'typing.Optional[...]' for arguments that can be None.
+167:30: Tuples cannot be declared as simple tuples of types. Use 'tuple[type1, type2, ...]'.
+167:59: Tuples cannot be declared as simple tuples of types. Use 'tuple[type1, type2, ...]'.
+172:13: Tuples cannot be declared as simple tuples of types. Use 'tuple[type1, type2, ...]'.
+307:44: Unknown type declaration in annotation, ignoring
+338:15: Annotation ignored since class-level attributes must be Python objects. Were you trying to set up an instance attribute?
 # DUPLICATE:
-65:44: Found C type name 'long' in a Python annotation. Did you mean to use 'cython.long'?
-65:44: Unknown type declaration 'long' in annotation, ignoring
+71:44: Found C type name 'long' in a Python annotation. Did you mean to use 'cython.long'?
+71:44: Unknown type declaration 'long' in annotation, ignoring
 # BUG:
-65:0: 'pytypes_cpdef' redeclared
-167:0: 'struct_io' redeclared
-202:0: 'struct_convert' redeclared
-221:0: 'exception_default' redeclared
-252:0: 'exception_default_uint' redeclared
+71:0: 'pytypes_cpdef' redeclared
+179:0: 'struct_io' redeclared
+214:0: 'struct_convert' redeclared
+233:0: 'exception_default' redeclared
+264:0: 'exception_default_uint' redeclared
 """

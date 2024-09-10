@@ -115,6 +115,12 @@ def ext_optional(x: typing.Optional[MyExtType], y: Optional[MyExtType]):
     444
     >>> ext_optional(None, MyExtType())
     444
+    >>> ext_optional([], MyExtType())
+    Traceback (most recent call last):
+    TypeError: Argument 'x' has incorrect type (expected ext_type_none_arg.MyExtType, got list)
+    >>> ext_optional(MyExtType(), [])
+    Traceback (most recent call last):
+    TypeError: Argument 'y' has incorrect type (expected ext_type_none_arg.MyExtType, got list)
     """
     return attr(x) + attr(y)
 
@@ -127,6 +133,12 @@ def ext_union(x: typing.Union[MyExtType, None], y: Union[None, MyExtType]):
     444
     >>> ext_union(None, MyExtType())
     444
+    >>> ext_union([], MyExtType())
+    Traceback (most recent call last):
+    TypeError: Argument 'x' has incorrect type (expected ext_type_none_arg.MyExtType, got list)
+    >>> ext_union(MyExtType(), [])
+    Traceback (most recent call last):
+    TypeError: Argument 'y' has incorrect type (expected ext_type_none_arg.MyExtType, got list)
     """
     return attr(x) + attr(y)
 
