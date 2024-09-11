@@ -1493,8 +1493,8 @@ static CYTHON_INLINE PyObject *__Pyx__GetModuleGlobalName(PyObject *name)
         return NULL;
     }
 #elif !CYTHON_AVOID_BORROWED_REFS
-    if (unlikely(__Pyx_PyDict_GetItemRef($moddict_cname, name, &result) == -1)) PyErr_Clear();
-    __PYX_UPDATE_DICT_CACHE($moddict_cname, result, *dict_cached_value, *dict_version)
+    if (unlikely(__Pyx_PyDict_GetItemRef(NAMED_CGLOBAL(moddict_cname), name, &result) == -1)) PyErr_Clear();
+    __PYX_UPDATE_DICT_CACHE(NAMED_CGLOBAL(moddict_cname), result, *dict_cached_value, *dict_version)
     if (likely(result)) {
         return result;
     }
