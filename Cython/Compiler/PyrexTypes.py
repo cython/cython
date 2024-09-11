@@ -4773,9 +4773,6 @@ class SpecialPythonTypeConstructor(PyObjectType, PythonTypeConstructorMixin):
         return self
 
     def specialize_here(self, pos, env, template_values=None):
-        if py_none_type in template_values:
-            self.contains_none = True
-        template_values = [tv for tv in template_values if tv != py_none_type]
         if len(template_values) != 1:
             error(pos, "'%s' takes exactly one template argument." % self.name)
             return error_type
@@ -4784,11 +4781,6 @@ class SpecialPythonTypeConstructor(PyObjectType, PythonTypeConstructorMixin):
             return None
         # Replace this type with the actual 'template' argument.
         return template_values[0].resolve()
-
-class PyNoneType(BuiltinObjectType):
-
-    def __init__(self):
-        super().__init__('NoneType', cname=None)
 
 
 rank_to_type_name = (
@@ -4810,8 +4802,6 @@ SIGNED = 2
 
 error_type =    ErrorType()
 unspecified_type = UnspecifiedType()
-
-py_none_type = PyNoneType()
 
 py_object_type = PyObjectType()
 

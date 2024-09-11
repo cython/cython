@@ -1258,6 +1258,8 @@ class TemplatedTypeNode(CBaseTypeNode):
 
         template_types = []
         for template_node in self.positional_args:
+            if template_node.is_none:
+                continue
             # CBaseTypeNode -> allow C type declarations in a 'cdef' context again
             with env.new_c_type_context(in_c_type_context or isinstance(template_node, CBaseTypeNode)):
                 ttype = template_node.analyse_as_type(env)
@@ -1270,7 +1272,7 @@ class TemplatedTypeNode(CBaseTypeNode):
 
         if base_type.python_type_constructor_name:
             if base_type.python_type_constructor_name == 'typing.Union':
-                base_type.contains_none = PyrexTypes.py_none_type in template_types
+                base_type.contains_none = any(x.is_none for x in self.positional_args)
             require_optional_types = base_type.allows_none()
         else:
             require_optional_types = False

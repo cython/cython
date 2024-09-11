@@ -58,9 +58,7 @@ _ERRORS = """
 
 28:20: Modifier 'typing.ClassVar' is not allowed here.
 
-30:23: 'object' takes exactly one template argument.
-30:43: 'object' takes exactly one template argument.
-30:65: 'object' takes exactly one template argument.
-30:89: 'object' takes exactly one template argument.
-38:39: 'object' takes exactly one template argument.
+30:29: typing.Union[...] cannot be applied to type int
+30:50: typing.Union[...] cannot be applied to type float
+30:96: typing.Union[...] cannot be applied to type long
 """

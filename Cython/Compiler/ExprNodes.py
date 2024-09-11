@@ -35,10 +35,8 @@ from . import Naming
 from . import Nodes
 from .Nodes import Node, SingleAssignmentNode
 from . import PyrexTypes
-from .PyrexTypes import (
-    c_char_ptr_type, py_object_type, typecast, error_type, unspecified_type,
-    py_none_type
-)
+from .PyrexTypes import c_char_ptr_type, py_object_type, typecast, error_type, \
+    unspecified_type
 from . import TypeSlots
 from .Builtin import (
     list_type, tuple_type, set_type, dict_type, type_type,
@@ -1262,11 +1260,6 @@ class NoneNode(PyConstNode):
             # Catch this error early and loudly.
             error(self.pos, "Cannot assign None to %s" % dst_type)
         return super().coerce_to(dst_type, env)
-
-    def analyse_as_type(self, env):
-        if env.in_c_type_context:
-            return None
-        return py_none_type
 
 
 class EllipsisNode(PyConstNode):
