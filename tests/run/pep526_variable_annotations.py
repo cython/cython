@@ -317,13 +317,15 @@ def test_union_ctuple(x: typing.Union[tuple[float], None]):
     """
     print(cython.typeof(x) + (" object" if not cython.compiled else ""))
 
-def test_bitwise_or_ctuple(x: tuple[float] | None):
+def test_bitwise_or_ctuple(x: tuple[float] | None, y: None | tuple[float]):
     """
     Should not be a C-tuple (because these can't be optional)
-    >>> test_bitwise_or_ctuple((1.0,))
+    >>> test_bitwise_or_ctuple((1.0,), (2.0,))
+    tuple object
     tuple object
     """
     print(cython.typeof(x) + (" object" if not cython.compiled else ""))
+    print(cython.typeof(y) + (" object" if not cython.compiled else ""))
 
 try:
     import numpy.typing as npt
