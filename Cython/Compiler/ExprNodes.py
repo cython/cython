@@ -12212,6 +12212,21 @@ class IntBinopNode(NumBinopNode):
         return (type1.is_int or type1.is_enum) \
             and (type2.is_int or type2.is_enum)
 
+    def analyse_pytyping_modifiers(self, env):
+        if self.operator == '|':
+            if self.operand1.is_none or self.operand2.is_none:
+                return ['typing.Optional']
+        return []
+
+    def analyse_as_type(self, env):
+        # Here we need to analyse annotation : <...> | None
+        if self.operator == '|':
+            if self.operand1.is_none:
+                return self.operand2.analyse_as_type(env)
+            elif self.operand2.is_none:
+                return self.operand1.analyse_as_type(env)
+        return None
+
 
 class AddNode(NumBinopNode):
     #  '+' operator.
@@ -14874,7 +14889,7 @@ class AnnotationNode(ExprNode):
                 arg_type.create_declaration_utility_code(env)
 
             # Check for declaration modifiers, e.g. "typing.Optional[...]" or "dataclasses.InitVar[...]"
-            modifiers = annotation.analyse_pytyping_modifiers(env) if annotation.is_subscript else []
+            modifiers = annotation.analyse_pytyping_modifiers(env) if annotation.is_subscript or isinstance(annotation, IntBinopNode) else []
 
         return modifiers, arg_type
 
