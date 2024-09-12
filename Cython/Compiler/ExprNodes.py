@@ -3935,6 +3935,7 @@ class IndexNode(_IndexingBaseNode):
 
     def analyse_pytyping_modifiers(self, env):
         # Check for declaration modifiers, e.g. "typing.Optional[...]" or "dataclasses.InitVar[...]"
+        # `typing.Optional` is used for all variants of modifiers representing Optional type (Optional[T], Union[T, None])
         # TODO: somehow bring this together with TemplatedTypeNode.analyse_pytyping_modifiers()
         modifiers = []
         modifier_node = self
@@ -3942,7 +3943,7 @@ class IndexNode(_IndexingBaseNode):
             modifier_type = modifier_node.base.analyse_as_type(env)
             if (modifier_type and modifier_type.python_type_constructor_name
                     and modifier_type.modifier_name):
-                modifiers.append(modifier_type.modifier_name)
+                modifiers.append('typing.Optional' if modifier_type.allows_none() else modifier_type.modifier_name)
             modifier_node = modifier_node.index
         return modifiers
 

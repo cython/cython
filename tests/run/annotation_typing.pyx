@@ -7,7 +7,7 @@ from cython cimport typeof
 from cpython.ref cimport PyObject
 
 try:
-    from typing import Optional
+    from typing import Optional, Union
 except ImportError:
     pass
 
@@ -34,17 +34,23 @@ def old_dict_syntax(a: list, b: "int" = 2, c: {'ctype': 'long int'} = 3, d: {'ty
     return a
 
 
-def pytypes_def(a: list, b: int = 2, c: long = 3, d: float = 4.0, n: list = None, o: Optional[tuple] = ()) -> list:
+def pytypes_def(a: list, b: int = 2, c: long = 3, d: float = 4.0, n: list = None, o: Optional[tuple] = (), v: Union[tuple, None]=()) -> list:
     """
     >>> pytypes_def([1])
-    ('list object', 'int object', 'Python object', 'double', 'list object', 'tuple object')
-    [1, 2, 3, 4.0, None, ()]
+    ('list object', 'int object', 'Python object', 'double', 'list object', 'tuple object', 'tuple object')
+    [1, 2, 3, 4.0, None, (), ()]
     >>> pytypes_def([1], 3)
-    ('list object', 'int object', 'Python object', 'double', 'list object', 'tuple object')
-    [1, 3, 3, 4.0, None, ()]
-    >>> pytypes_def([1], 3, 2, 1, [], None)
-    ('list object', 'int object', 'Python object', 'double', 'list object', 'tuple object')
-    [1, 3, 2, 1.0, [], None]
+    ('list object', 'int object', 'Python object', 'double', 'list object', 'tuple object', 'tuple object')
+    [1, 3, 3, 4.0, None, (), ()]
+    >>> pytypes_def([1], 3, 2, 1, [], None, None)
+    ('list object', 'int object', 'Python object', 'double', 'list object', 'tuple object', 'tuple object')
+    [1, 3, 2, 1.0, [], None, None]
+    >>> pytypes_def([1], 3, 2, 1, [], 'a', ())
+    Traceback (most recent call last):
+    TypeError: Argument 'o' has incorrect type (expected tuple, got str)
+    >>> pytypes_def([1], 3, 2, 1, [], (), 'a')
+    Traceback (most recent call last):
+    TypeError: Argument 'v' has incorrect type (expected tuple, got str)
     >>> pytypes_def(123)
     Traceback (most recent call last):
     TypeError: Argument 'a' has incorrect type (expected list, got int)
@@ -52,26 +58,33 @@ def pytypes_def(a: list, b: int = 2, c: long = 3, d: float = 4.0, n: list = None
     Traceback (most recent call last):
     TypeError: Argument 'a' has incorrect type (expected list, got NoneType)
     """
-    print((typeof(a), typeof(b), typeof(c), typeof(d), typeof(n), typeof(o)))
+    print((typeof(a), typeof(b), typeof(c), typeof(d), typeof(n), typeof(o), typeof(v)))
     a.append(b)
     a.append(c)
     a.append(d)
     a.append(n)
     a.append(o)
+    a.append(v)
     return a
 
 
-cpdef pytypes_cpdef(a: list, b: int = 2, c: long = 3, d: float = 4.0, n: list = None, o: Optional[tuple] = ()):
+cpdef pytypes_cpdef(a: list, b: int = 2, c: long = 3, d: float = 4.0, n: list = None, o: Optional[tuple] = (), v: Union[tuple, None]=()):
     """
     >>> pytypes_cpdef([1])
-    ('list object', 'int object', 'Python object', 'double', 'list object', 'tuple object')
-    [1, 2, 3, 4.0, None, ()]
+    ('list object', 'int object', 'Python object', 'double', 'list object', 'tuple object', 'tuple object')
+    [1, 2, 3, 4.0, None, (), ()]
     >>> pytypes_cpdef([1], 3)
-    ('list object', 'int object', 'Python object', 'double', 'list object', 'tuple object')
-    [1, 3, 3, 4.0, None, ()]
-    >>> pytypes_cpdef([1], 3, 2, 1, [], None)
-    ('list object', 'int object', 'Python object', 'double', 'list object', 'tuple object')
-    [1, 3, 2, 1.0, [], None]
+    ('list object', 'int object', 'Python object', 'double', 'list object', 'tuple object', 'tuple object')
+    [1, 3, 3, 4.0, None, (), ()]
+    >>> pytypes_cpdef([1], 3, 2, 1, [], None, None)
+    ('list object', 'int object', 'Python object', 'double', 'list object', 'tuple object', 'tuple object')
+    [1, 3, 2, 1.0, [], None, None]
+    >>> pytypes_cpdef([1], 3, 2, 1, [], 'a', ())
+    Traceback (most recent call last):
+    TypeError: Argument 'o' has incorrect type (expected tuple, got str)
+    >>> pytypes_cpdef([1], 3, 2, 1, [], (), 'a')
+    Traceback (most recent call last):
+    TypeError: Argument 'v' has incorrect type (expected tuple, got str)
     >>> pytypes_cpdef(123)
     Traceback (most recent call last):
     TypeError: Argument 'a' has incorrect type (expected list, got int)
@@ -79,12 +92,13 @@ cpdef pytypes_cpdef(a: list, b: int = 2, c: long = 3, d: float = 4.0, n: list = 
     Traceback (most recent call last):
     TypeError: Argument 'a' has incorrect type (expected list, got NoneType)
     """
-    print((typeof(a), typeof(b), typeof(c), typeof(d), typeof(n), typeof(o)))
+    print((typeof(a), typeof(b), typeof(c), typeof(d), typeof(n), typeof(o), typeof(v)))
     a.append(b)
     a.append(c)
     a.append(d)
     a.append(n)
     a.append(o)
+    a.append(v)
     return a
 
 
@@ -297,24 +311,27 @@ class LateClass(object):
     pass
 
 
-def py_float_default(price : Optional[float]=None, ndigits=4):
+def py_float_default(price : Optional[float]=None, bar: Union[float, None]=None, ndigits=4):
     """
     Python default arguments should prevent C type inference.
 
     >>> py_float_default()
-    (None, 4)
+    (None, None, 4)
     >>> py_float_default(None)
-    (None, 4)
+    (None, None, 4)
     >>> py_float_default(2)  # doctest: +ELLIPSIS
     Traceback (most recent call last):
     TypeError: ...float...
-    >>> py_float_default(2.0)
-    (2.0, 4)
-    >>> py_float_default(2, 3)  # doctest: +ELLIPSIS
+    >>> py_float_default(2.0, 3.0)
+    (2.0, 3.0, 4)
+    >>> py_float_default(2, None, 4)  # doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    TypeError: ...float...
+    >>> py_float_default(None, 2, 4)  # doctest: +ELLIPSIS
     Traceback (most recent call last):
     TypeError: ...float...
     """
-    return price, ndigits
+    return price, bar, ndigits
 
 
 cdef class ClassAttribute:
@@ -419,24 +436,24 @@ _WARNINGS = """
 37:40: Found C type name 'long' in a Python annotation. Did you mean to use 'cython.long'?
 37:40: Unknown type declaration 'long' in annotation, ignoring
 37:66: PEP-484 recommends 'typing.Optional[...]' for arguments that can be None.
-64:44: Found C type name 'long' in a Python annotation. Did you mean to use 'cython.long'?
-64:44: Unknown type declaration 'long' in annotation, ignoring
-64:70: PEP-484 recommends 'typing.Optional[...]' for arguments that can be None.
-91:44: Found C type name 'long' in a Python annotation. Did you mean to use 'cython.long'?
-91:44: Unknown type declaration 'long' in annotation, ignoring
-91:70: PEP-484 recommends 'typing.Optional[...]' for arguments that can be None.
-153:30: Tuples cannot be declared as simple tuples of types. Use 'tuple[type1, type2, ...]'.
-153:59: Tuples cannot be declared as simple tuples of types. Use 'tuple[type1, type2, ...]'.
-158:13: Tuples cannot be declared as simple tuples of types. Use 'tuple[type1, type2, ...]'.
-293:44: Unknown type declaration in annotation, ignoring
-321:15: Annotation ignored since class-level attributes must be Python objects. Were you trying to set up an instance attribute?
+71:44: Found C type name 'long' in a Python annotation. Did you mean to use 'cython.long'?
+71:44: Unknown type declaration 'long' in annotation, ignoring
+71:70: PEP-484 recommends 'typing.Optional[...]' for arguments that can be None.
+105:44: Found C type name 'long' in a Python annotation. Did you mean to use 'cython.long'?
+105:44: Unknown type declaration 'long' in annotation, ignoring
+105:70: PEP-484 recommends 'typing.Optional[...]' for arguments that can be None.
+167:30: Tuples cannot be declared as simple tuples of types. Use 'tuple[type1, type2, ...]'.
+167:59: Tuples cannot be declared as simple tuples of types. Use 'tuple[type1, type2, ...]'.
+172:13: Tuples cannot be declared as simple tuples of types. Use 'tuple[type1, type2, ...]'.
+307:44: Unknown type declaration in annotation, ignoring
+338:15: Annotation ignored since class-level attributes must be Python objects. Were you trying to set up an instance attribute?
 # DUPLICATE:
-64:44: Found C type name 'long' in a Python annotation. Did you mean to use 'cython.long'?
-64:44: Unknown type declaration 'long' in annotation, ignoring
+71:44: Found C type name 'long' in a Python annotation. Did you mean to use 'cython.long'?
+71:44: Unknown type declaration 'long' in annotation, ignoring
 # BUG:
-64:0: 'pytypes_cpdef' redeclared
-165:0: 'struct_io' redeclared
-200:0: 'struct_convert' redeclared
-219:0: 'exception_default' redeclared
-250:0: 'exception_default_uint' redeclared
+71:0: 'pytypes_cpdef' redeclared
+179:0: 'struct_io' redeclared
+214:0: 'struct_convert' redeclared
+233:0: 'exception_default' redeclared
+264:0: 'exception_default_uint' redeclared
 """

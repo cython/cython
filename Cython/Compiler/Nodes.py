@@ -1252,13 +1252,14 @@ class TemplatedTypeNode(CBaseTypeNode):
     name = None
 
     def _analyse_template_types(self, env, base_type):
-        require_optional_types = base_type.python_type_constructor_name == 'typing.Optional'
         require_python_types = base_type.python_type_constructor_name == 'dataclasses.ClassVar'
 
         in_c_type_context = env.in_c_type_context and not require_python_types
 
         template_types = []
         for template_node in self.positional_args:
+            if template_node.is_none:
+                continue
             # CBaseTypeNode -> allow C type declarations in a 'cdef' context again
             with env.new_c_type_context(in_c_type_context or isinstance(template_node, CBaseTypeNode)):
                 ttype = template_node.analyse_as_type(env)
@@ -1267,16 +1268,28 @@ class TemplatedTypeNode(CBaseTypeNode):
                     error(template_node.pos, "unknown type in template argument")
                     ttype = error_type
                 # For Python generics we can be a bit more flexible and allow None.
-            elif require_python_types and not ttype.is_pyobject or require_optional_types and not ttype.can_be_optional():
+            template_types.append(ttype)
+
+        if base_type.python_type_constructor_name:
+            if base_type.python_type_constructor_name == 'typing.Union':
+                base_type.contains_none = any(x.is_none for x in self.positional_args)
+            require_optional_types = base_type.allows_none()
+        else:
+            require_optional_types = False
+
+        for i, ttype in enumerate(template_types):
+            if ttype is None:
+                continue
+            if require_python_types and not ttype.is_pyobject or require_optional_types and not ttype.can_be_optional():
                 if ttype.equivalent_type and not template_node.as_cython_attribute():
-                    ttype = ttype.equivalent_type
+                    template_types[i] = ttype.equivalent_type
                 else:
                     error(template_node.pos, "%s[...] cannot be applied to type %s" % (
                         base_type.python_type_constructor_name,
                         ttype,
                     ))
-                    ttype = error_type
-            template_types.append(ttype)
+                    template_types[i] = error_type
+
 
         return template_types
 
