@@ -12222,9 +12222,15 @@ class IntBinopNode(NumBinopNode):
         # Here we need to analyse annotation : <...> | None
         if self.operator == '|':
             if self.operand1.is_none:
-                return self.operand2.analyse_as_type(env)
+                ttype = self.operand2.analyse_as_type(env)
+                if ttype.equivalent_type and not self.operand2.as_cython_attribute():
+                    return ttype.equivalent_type
+                return ttype
             elif self.operand2.is_none:
-                return self.operand1.analyse_as_type(env)
+                ttype = self.operand1.analyse_as_type(env)
+                if ttype.equivalent_type and not self.operand1.as_cython_attribute():
+                    return ttype.equivalent_type
+                return ttype
         return None
 
 

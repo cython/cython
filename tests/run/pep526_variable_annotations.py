@@ -30,6 +30,7 @@ t: Tuple[cython.int, ...] = (1, 2, 3)
 t2: tuple[cython.int, ...]
 body: Optional[List[str]]
 body2: Union[List[str], None]
+body3: List[str] | None
 descr_only : "descriptions are allowed but ignored"
 
 
@@ -51,6 +52,7 @@ def f():
     t: Tuple[cython.int, ...] = (1, 2, 3)
     body: Optional[List[str]]
     body2: Union[None, List[str]]
+    body3: None | List[str]
     descr_only: "descriptions are allowed but ignored"
 
     return var, fvar, some_list, t
@@ -311,6 +313,14 @@ def test_union_ctuple(x: typing.Union[tuple[float], None]):
     """
     Should not be a C-tuple (because these can't be optional)
     >>> test_union_ctuple((1.0,))
+    tuple object
+    """
+    print(cython.typeof(x) + (" object" if not cython.compiled else ""))
+
+def test_bitwise_or_ctuple(x: tuple[float] | None):
+    """
+    Should not be a C-tuple (because these can't be optional)
+    >>> test_bitwise_or_ctuple((1.0,))
     tuple object
     """
     print(cython.typeof(x) + (" object" if not cython.compiled else ""))
