@@ -411,6 +411,7 @@ complete. Cython 3 currently understands the following features from the
 ``typing`` module:
 
 * ``Optional[tp]``, which is interpreted as ``tp or None``;
+* ``Union[tp, None]`` or ``Union[None, tp]``, which is interpreted as ``tp or None``;
 * typed containers such as ``List[str]``, which is interpreted as ``list``. The
   hint that the elements are of type ``str`` is currently ignored;
 * ``Tuple[...]``, which is converted into a Cython C-tuple where possible
