@@ -12212,26 +12212,26 @@ class IntBinopNode(NumBinopNode):
         return (type1.is_int or type1.is_enum) \
             and (type2.is_int or type2.is_enum)
 
+
+class BitwiseOrNode(IntBinopNode):
+    #  '|' operator.
+
     def analyse_pytyping_modifiers(self, env):
-        if self.operator == '|':
-            if self.operand1.is_none or self.operand2.is_none:
-                return ['typing.Optional']
-        return []
+        if self.operand1.is_none or self.operand2.is_none:
+            return ['typing.Optional']
 
     def analyse_as_type(self, env):
         # Here we need to analyse annotation : <...> | None
-        if self.operator == '|':
-            if self.operand1.is_none:
-                ttype = self.operand2.analyse_as_type(env)
-                if ttype.equivalent_type and not self.operand2.as_cython_attribute():
-                    return ttype.equivalent_type
-                return ttype
-            elif self.operand2.is_none:
-                ttype = self.operand1.analyse_as_type(env)
-                if ttype.equivalent_type and not self.operand1.as_cython_attribute():
-                    return ttype.equivalent_type
-                return ttype
-        return None
+        if self.operand1.is_none:
+            ttype = self.operand2.analyse_as_type(env)
+            if ttype.equivalent_type and not self.operand2.as_cython_attribute():
+                return ttype.equivalent_type
+            return ttype
+        elif self.operand2.is_none:
+            ttype = self.operand1.analyse_as_type(env)
+            if ttype.equivalent_type and not self.operand1.as_cython_attribute():
+                return ttype.equivalent_type
+            return ttype
 
 
 class AddNode(NumBinopNode):
@@ -13969,7 +13969,7 @@ class CascadedCmpNode(Node, CmpNode):
 binop_node_classes = {
     "or":       BoolBinopNode,
     "and":      BoolBinopNode,
-    "|":        IntBinopNode,
+    "|":        BitwiseOrNode,
     "^":        IntBinopNode,
     "&":        IntBinopNode,
     "<<":       IntBinopNode,
