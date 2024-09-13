@@ -14895,7 +14895,7 @@ class AnnotationNode(ExprNode):
                 arg_type.create_declaration_utility_code(env)
 
             # Check for declaration modifiers, e.g. "typing.Optional[...]" or "dataclasses.InitVar[...]"
-            modifiers = annotation.analyse_pytyping_modifiers(env) if annotation.is_subscript or isinstance(annotation, IntBinopNode) else []
+            modifiers = annotation.analyse_pytyping_modifiers(env) if annotation.is_subscript or isinstance(annotation, BitwiseOrNode) else []
 
         return modifiers, arg_type
 
