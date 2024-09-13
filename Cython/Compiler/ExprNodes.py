@@ -12224,13 +12224,21 @@ class BitwiseOrNode(IntBinopNode):
         # Here we need to analyse annotation : <...> | None
         if self.operand1.is_none:
             ttype = self.operand2.analyse_as_type(env)
+            if not ttype:
+                return
             if ttype.equivalent_type and not self.operand2.as_cython_attribute():
                 return ttype.equivalent_type
+            else:
+                error(self.operand2.pos, f"None | [...] cannot be applied to type {ttype}")
             return ttype
         elif self.operand2.is_none:
             ttype = self.operand1.analyse_as_type(env)
+            if not ttype:
+                return
             if ttype.equivalent_type and not self.operand1.as_cython_attribute():
                 return ttype.equivalent_type
+            else:
+                error(self.operand2.pos, f"[...] | None cannot be applied to type {ttype}")
             return ttype
 
 
