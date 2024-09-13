@@ -319,27 +319,27 @@ class LateClass(object):
     pass
 
 
-def py_float_default(price : Optional[float]=None, bar: Union[float, None]=None, ndigits=4):
+def py_float_default(price : Optional[float]=None, bar: Union[float, None]=None, spam: float | None = None, ndigits=4):
     """
     Python default arguments should prevent C type inference.
 
     >>> py_float_default()
-    (None, None, 4)
+    (None, None, None, 4)
     >>> py_float_default(None)
-    (None, None, 4)
+    (None, None, None, 4)
     >>> py_float_default(2)  # doctest: +ELLIPSIS
     Traceback (most recent call last):
     TypeError: ...float...
-    >>> py_float_default(2.0, 3.0)
-    (2.0, 3.0, 4)
-    >>> py_float_default(2, None, 4)  # doctest: +ELLIPSIS
+    >>> py_float_default(2.0, 3.0, 4.0)
+    (2.0, 3.0, 4.0, 4)
+    >>> py_float_default(2, None, None, 4)  # doctest: +ELLIPSIS
     Traceback (most recent call last):
     TypeError: ...float...
-    >>> py_float_default(None, 2, 4)  # doctest: +ELLIPSIS
+    >>> py_float_default(None, 2, None, 4)  # doctest: +ELLIPSIS
     Traceback (most recent call last):
     TypeError: ...float...
     """
-    return price, bar, ndigits
+    return price, bar, spam, ndigits
 
 
 cdef class ClassAttribute:
