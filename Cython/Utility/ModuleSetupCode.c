@@ -655,6 +655,7 @@ class __Pyx_FakeReference {
 
 
 /////////////// PythonCompatibility ///////////////
+//@substitute: naming
 
 #define __PYX_BUILD_PY_SSIZE_T "n"
 #define CYTHON_FORMAT_SSIZE_T "z"
@@ -874,7 +875,7 @@ static CYTHON_INLINE int __Pyx__IsSameCFunction(PyObject *func, void *cfunc) {
 #endif
 
 #if CYTHON_USE_MODULE_STATE
-static CYTHON_INLINE void *__Pyx_PyModule_GetState(PyObject *op)
+static CYTHON_INLINE void *__Pyx__PyModule_GetState(PyObject *op)
 {
     void *result;
 
@@ -883,6 +884,11 @@ static CYTHON_INLINE void *__Pyx_PyModule_GetState(PyObject *op)
         Py_FatalError("Couldn't find the module state");
     return result;
 }
+// Define a macro with a cast because the modulestate type isn't known yet and
+// is a typedef struct so impossible to forward declare
+#define __Pyx_PyModule_GetState(o) ($modulestatetype_cname *)__Pyx__PyModule_GetState(o)
+#else
+#define __Pyx_PyModule_GetState(op) ((void)op,$modulestateglobal_cname)
 #endif
 
 // The "Try" variants may return NULL on static types with the Limited API on earlier versions
@@ -1042,23 +1048,7 @@ static CYTHON_INLINE PyObject * __Pyx_PyDict_GetItemStrWithError(PyObject *dict,
 #endif
 
 // ("..." % x)  must call PyNumber_Remainder() if x is a string subclass that implements "__rmod__()".
-#define __Pyx_PyString_FormatSafe(a, b)   ((unlikely((a) == Py_None || (PyString_Check(b) && !PyString_CheckExact(b)))) ? PyNumber_Remainder(a, b) : __Pyx_PyString_Format(a, b))
 #define __Pyx_PyUnicode_FormatSafe(a, b)  ((unlikely((a) == Py_None || (PyUnicode_Check(b) && !PyUnicode_CheckExact(b)))) ? PyNumber_Remainder(a, b) : PyUnicode_Format(a, b))
-#define __Pyx_PyString_Format(a, b)  PyUnicode_Format(a, b)
-
-// TODO: remove this block
-#define PyBaseString_Type            PyUnicode_Type
-#define PyStringObject               PyUnicodeObject
-#define PyString_Type                PyUnicode_Type
-#define PyString_Check               PyUnicode_Check
-#define PyString_CheckExact          PyUnicode_CheckExact
-// PyPy3 used to define "PyObject_Unicode"
-#ifndef PyObject_Unicode
-  #define PyObject_Unicode             PyObject_Str
-#endif
-
-#define __Pyx_PyBaseString_Check(obj) PyUnicode_Check(obj)
-#define __Pyx_PyBaseString_CheckExact(obj) PyUnicode_CheckExact(obj)
 
 #if CYTHON_COMPILING_IN_CPYTHON
   #define __Pyx_PySequence_ListKeepNew(obj) \
@@ -1246,7 +1236,7 @@ static CYTHON_INLINE int __Pyx_PyDict_GetItemRef(PyObject *dict, PyObject *key, 
 #include <structmember.h>
 
 
-/////////////// SmallCodeConfig.proto ///////////////
+/////////////// SmallCodeConfig ///////////////
 
 #ifndef CYTHON_SMALL_CODE
 #if defined(__clang__)
@@ -1259,7 +1249,7 @@ static CYTHON_INLINE int __Pyx_PyDict_GetItemRef(PyObject *dict, PyObject *key, 
 #endif
 
 
-/////////////// PyModInitFuncType.proto ///////////////
+/////////////// PyModInitFuncType ///////////////
 
 #ifndef CYTHON_NO_PYINIT_EXPORT
   #define __Pyx_PyMODINIT_FUNC PyMODINIT_FUNC

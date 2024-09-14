@@ -79,7 +79,7 @@ __doc__ = ur"""
     Existing string
 
     >>> print (Ext.m.__doc__)
-    Ext.m(self, a=u'spam', b='foo', c=b'bar')
+    Ext.m(self, a='spam', b='foo', c=b'bar')
 
     >>> print (Ext.n.__doc__)
     Ext.n(self, a: int, b: float = 1.0, *args: tuple, **kwargs: dict) -> (None, True)

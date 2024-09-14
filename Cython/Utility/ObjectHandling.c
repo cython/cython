@@ -1347,10 +1347,9 @@ static PyObject *__Pyx_GetBuiltinName(PyObject *name); /*proto*/
 
 /////////////// GetBuiltinName ///////////////
 //@requires: PyObjectGetAttrStrNoError
-//@substitute: naming
 
 static PyObject *__Pyx_GetBuiltinName(PyObject *name) {
-    PyObject* result = __Pyx_PyObject_GetAttrStrNoError($builtins_cname, name);
+    PyObject* result = __Pyx_PyObject_GetAttrStrNoError(NAMED_CGLOBAL(builtins_cname), name);
     if (unlikely(!result) && !PyErr_Occurred()) {
         PyErr_Format(PyExc_NameError,
             "name '%U' is not defined", name);
@@ -1443,13 +1442,12 @@ static int __Pyx_SetNewInClass(PyObject *ns, PyObject *name, PyObject *value) {
 
 /////////////// GetModuleGlobalName.proto ///////////////
 //@requires: PyDictVersioning
-//@substitute: naming
 
 #if CYTHON_USE_DICT_VERSIONS
 #define __Pyx_GetModuleGlobalName(var, name)  do { \
     static PY_UINT64_T __pyx_dict_version = 0; \
     static PyObject *__pyx_dict_cached_value = NULL; \
-    (var) = (likely(__pyx_dict_version == __PYX_GET_DICT_VERSION($moddict_cname))) ? \
+    (var) = (likely(__pyx_dict_version == __PYX_GET_DICT_VERSION(NAMED_CGLOBAL(moddict_cname)))) ? \
         (likely(__pyx_dict_cached_value) ? __Pyx_NewRef(__pyx_dict_cached_value) : __Pyx_GetBuiltinName(name)) : \
         __Pyx__GetModuleGlobalName(name, &__pyx_dict_version, &__pyx_dict_cached_value); \
 } while(0)
@@ -1487,22 +1485,22 @@ static CYTHON_INLINE PyObject *__Pyx__GetModuleGlobalName(PyObject *name)
     }
 #elif !CYTHON_AVOID_BORROWED_REFS && !CYTHON_AVOID_THREAD_UNSAFE_BORROWED_REFS
     // Identifier names are always interned and have a pre-calculated hash value.
-    result = _PyDict_GetItem_KnownHash($moddict_cname, name, ((PyASCIIObject *) name)->hash);
-    __PYX_UPDATE_DICT_CACHE($moddict_cname, result, *dict_cached_value, *dict_version)
+    result = _PyDict_GetItem_KnownHash(NAMED_CGLOBAL(moddict_cname), name, ((PyASCIIObject *) name)->hash);
+    __PYX_UPDATE_DICT_CACHE(NAMED_CGLOBAL(moddict_cname), result, *dict_cached_value, *dict_version)
     if (likely(result)) {
         return __Pyx_NewRef(result);
     } else if (unlikely(PyErr_Occurred())) {
         return NULL;
     }
 #elif !CYTHON_AVOID_BORROWED_REFS
-    if (unlikely(__Pyx_PyDict_GetItemRef($moddict_cname, name, &result) == -1)) PyErr_Clear();
-    __PYX_UPDATE_DICT_CACHE($moddict_cname, result, *dict_cached_value, *dict_version)
+    if (unlikely(__Pyx_PyDict_GetItemRef(NAMED_CGLOBAL(moddict_cname), name, &result) == -1)) PyErr_Clear();
+    __PYX_UPDATE_DICT_CACHE(NAMED_CGLOBAL(moddict_cname), result, *dict_cached_value, *dict_version)
     if (likely(result)) {
         return result;
     }
 #else
-    result = PyObject_GetItem($moddict_cname, name);
-    __PYX_UPDATE_DICT_CACHE($moddict_cname, result, *dict_cached_value, *dict_version)
+    result = PyObject_GetItem(NAMED_CGLOBAL(moddict_cname), name);
+    __PYX_UPDATE_DICT_CACHE(NAMED_CGLOBAL(moddict_cname), result, *dict_cached_value, *dict_version)
     if (likely(result)) {
         return __Pyx_NewRef(result);
     }
@@ -2882,18 +2880,6 @@ static CYTHON_INLINE PyObject *__Pyx_PyUnicode_ConcatInPlaceImpl(PyObject **p_le
   }
 #endif
 
-////////////// StrConcatInPlace.proto ///////////////////////
-//@requires: UnicodeConcatInPlace
-
-// allow access to the more efficient versions where we know str_type is unicode
-#define __Pyx_PyStr_Concat __Pyx_PyUnicode_Concat
-#define __Pyx_PyStr_ConcatInPlace __Pyx_PyUnicode_ConcatInPlace
-
-#define __Pyx_PyStr_ConcatSafe(a, b) ((unlikely((a) == Py_None) || unlikely((b) == Py_None)) ? \
-    PyNumber_Add(a, b) : __Pyx_PyStr_Concat(a, b))
-#define __Pyx_PyStr_ConcatInPlaceSafe(a, b) ((unlikely((a) == Py_None) || unlikely((b) == Py_None)) ? \
-    PyNumber_InPlaceAdd(a, b) : __Pyx_PyStr_ConcatInPlace(a, b))
-
 
 /////////////// PySequenceMultiply.proto ///////////////
 
@@ -2949,7 +2935,7 @@ __Pyx_PyType_GetName(PyTypeObject* tp)
     if (unlikely(name == NULL) || unlikely(!PyUnicode_Check(name))) {
         PyErr_Clear();
         Py_XDECREF(name);
-        name = __Pyx_NewRef(PYIDENT("?"));
+        name = __Pyx_NewRef(PYUNICODE("?"));
     }
     return name;
 }

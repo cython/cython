@@ -319,12 +319,21 @@ def update_cpp_extension(cpp_std, min_gcc_version=None, min_clang_version=None, 
         """
         Update cpp[cpp_std] extensions that will run on minimum versions of gcc / clang / macos.
         """
-        # If the extension provides a -std=... option, assume that whatever C compiler we use
-        # will probably be ok with it.
-        already_has_std = any(
-            ca for ca in ext.extra_compile_args
-            if "-std" in ca and "-stdlib" not in ca
-        ) if ext.extra_compile_args else False
+        # If the extension provides a -std=... option, and it's greater than the one
+        # we're about to give, assume that whatever C compiler we use will probably be ok with it.
+        extra_compile_args = []
+        already_has_std = False
+        if ext.extra_compile_args:
+            std_regex = re.compile(r"-std(?!lib).*(?P<number>[0-9]+)")
+            for ca in ext.extra_compile_args:
+                match = std_regex.search(ca)
+                if match:
+                    number = int(match.group("number"))
+                    if number < cpp_std:
+                        continue  # and drop the argument
+                    already_has_std = True
+                extra_compile_args.append(ca)
+            ext.extra_compile_args = extra_compile_args
 
         use_gcc = use_clang = already_has_std
 
