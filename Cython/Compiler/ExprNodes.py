@@ -12220,28 +12220,26 @@ class BitwiseOrNode(IntBinopNode):
         if self.operand1.is_none or self.operand2.is_none:
             return ['typing.Optional']
 
+    def _analyse_bitwise_or_none(self, env, operand_node, leftop_is_none):
+        """Analyse annotations in form `[...] | None` and `None | [...]`"""
+        ttype = operand_node.analyse_as_type(env)
+        if not ttype:
+            return
+        if not ttype.can_be_optional():
+            # If ttype cannot be optional we need to return equivalent type allowing None values. If
+            # such type does not exist we must error out.
+            if ttype.equivalent_type and not operand_node.as_cython_attribute():
+                return ttype.equivalent_type
+            else:
+                signature = "None | [...]" if leftop_is_none else "[...] | None"
+                error(operand_node.pos, f"{signature} cannot be applied to type {ttype}")
+        return ttype
+
     def analyse_as_type(self, env):
-        # Here we need to analyse annotation : <...> | None
         if self.operand1.is_none:
-            ttype = self.operand2.analyse_as_type(env)
-            if not ttype:
-                return
-            if not ttype.can_be_optional():
-                if ttype.equivalent_type and not self.operand2.as_cython_attribute():
-                    return ttype.equivalent_type
-                else:
-                    error(self.operand2.pos, f"None | [...] cannot be applied to type {ttype}")
-            return ttype
+            return self._analyse_bitwise_or_none(env, self.operand2, leftop_is_none=True)
         elif self.operand2.is_none:
-            ttype = self.operand1.analyse_as_type(env)
-            if not ttype:
-                return
-            if not ttype.can_be_optional():
-                if ttype.equivalent_type and not self.operand1.as_cython_attribute():
-                    return ttype.equivalent_type
-                else:
-                    error(self.operand2.pos, f"[...] | None cannot be applied to type {ttype}")
-            return ttype
+            return self._analyse_bitwise_or_none(env, self.operand1, leftop_is_none=False)
 
 
 class AddNode(NumBinopNode):
