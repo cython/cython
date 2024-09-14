@@ -14704,6 +14704,12 @@ class CppOptionalTempCoercion(CoercionNode):
     def generate_result_code(self, code):
         pass
 
+    def generate_bool_evaluation_code(self, *args, **kwds):
+        # This is enough of a corner-case that it probably isn't worth
+        # the corner-case of supporting it right now.
+        error(self.pos, "Using C++ classes in boolean binary operators with "
+                "the 'cpp_locals' directive is not currently supported.")
+
     def _make_move_result_rhs(self, result, optional=False):
         # this wouldn't normally get moved (because it isn't a temp), but force it to be because it
         # is a thin wrapper around a temp
