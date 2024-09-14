@@ -426,6 +426,22 @@ def test_inexact_types(d: dict):
     pass
 
 
+def pytypes_multi_union(a: Union[list, tuple, None]):
+    """
+    >>> pytypes_multi_union([1])
+    ('Python object',)
+    [[1]]
+    >>> pytypes_multi_union((1,))
+    ('Python object',)
+    [(1,)]
+    >>> pytypes_multi_union(1)
+    ('Python object',)
+    [1]
+    """
+    print((typeof(a),))
+    return [a]
+
+
 _WARNINGS = """
 15:32: Strings should no longer be used for type declarations. Use 'cython.int' etc. directly.
 15:47: Dicts should no longer be used as type annotations. Use 'cython.int' etc. directly.
@@ -447,6 +463,7 @@ _WARNINGS = """
 172:13: Tuples cannot be declared as simple tuples of types. Use 'tuple[type1, type2, ...]'.
 307:44: Unknown type declaration in annotation, ignoring
 338:15: Annotation ignored since class-level attributes must be Python objects. Were you trying to set up an instance attribute?
+429:32: Unknown type declaration in annotation, ignoring
 # DUPLICATE:
 71:44: Found C type name 'long' in a Python annotation. Did you mean to use 'cython.long'?
 71:44: Unknown type declaration 'long' in annotation, ignoring
