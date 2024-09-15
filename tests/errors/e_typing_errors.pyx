@@ -68,8 +68,8 @@ _ERRORS = """
 30:50: typing.Union[...] cannot be applied to type float
 30:96: typing.Union[...] cannot be applied to type long
 
-33:32: [...] | None cannot be applied to type int
-33:61: None | [...] cannot be applied to type float
-33:79: [...] | None cannot be applied to type double complex
-33:105: [...] | None cannot be applied to type long
+33:32: '[...] | None' cannot be applied to type int
+33:61: '[...] | None' cannot be applied to type float
+33:79: '[...] | None' cannot be applied to type double complex
+33:105: '[...] | None' cannot be applied to type long
 """

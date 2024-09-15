@@ -12220,7 +12220,7 @@ class BitwiseOrNode(IntBinopNode):
         if self.operand1.is_none or self.operand2.is_none:
             return ['typing.Optional']
 
-    def _analyse_bitwise_or_none(self, env, operand_node, leftop_is_none):
+    def _analyse_bitwise_or_none(self, env, operand_node):
         """Analyse annotations in form `[...] | None` and `None | [...]`"""
         ttype = operand_node.analyse_as_type(env)
         if not ttype:
@@ -12231,15 +12231,14 @@ class BitwiseOrNode(IntBinopNode):
             if ttype.equivalent_type and not operand_node.as_cython_attribute():
                 return ttype.equivalent_type
             else:
-                signature = "None | [...]" if leftop_is_none else "[...] | None"
-                error(operand_node.pos, f"{signature} cannot be applied to type {ttype}")
+                error(operand_node.pos, f"'[...] | None' cannot be applied to type {ttype}")
         return ttype
 
     def analyse_as_type(self, env):
         if self.operand1.is_none:
-            return self._analyse_bitwise_or_none(env, self.operand2, leftop_is_none=True)
+            return self._analyse_bitwise_or_none(env, self.operand2)
         elif self.operand2.is_none:
-            return self._analyse_bitwise_or_none(env, self.operand1, leftop_is_none=False)
+            return self._analyse_bitwise_or_none(env, self.operand1)
 
 
 class AddNode(NumBinopNode):
