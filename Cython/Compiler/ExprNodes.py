@@ -12226,8 +12226,8 @@ class BitwiseOrNode(IntBinopNode):
         if not ttype:
             return
         if not ttype.can_be_optional():
-            # If ttype cannot be optional we need to return equivalent type allowing None values. If
-            # such type does not exist we must error out.
+            # If ttype cannot be optional we need to return an equivalent Python type allowing None.
+            # If it cannot be mapped to a Python type, we must error out.
             if ttype.equivalent_type and not operand_node.as_cython_attribute():
                 return ttype.equivalent_type
             else:
