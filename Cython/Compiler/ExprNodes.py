@@ -12224,7 +12224,7 @@ class BitwiseOrNode(IntBinopNode):
         """Analyse annotations in form `[...] | None` and `None | [...]`"""
         ttype = operand_node.analyse_as_type(env)
         if not ttype:
-            return
+            return None
         if not ttype.can_be_optional():
             # If ttype cannot be optional we need to return an equivalent Python type allowing None.
             # If it cannot be mapped to a Python type, we must error out.
