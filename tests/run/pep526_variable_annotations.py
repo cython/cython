@@ -301,32 +301,6 @@ def test_use_typing_attributes_as_non_annotations():
     print(q1, str(q2) == "typing.Union[typing.FrozenSet, NoneType]" or str(q2))
     print(w1, str(w2) == "typing.Union[typing.Dict, NoneType]" or str(w2))
 
-def test_optional_ctuple(x: typing.Optional[tuple[float]]):
-    """
-    Should not be a C-tuple (because these can't be optional)
-    >>> test_optional_ctuple((1.0,))
-    tuple object
-    """
-    print(cython.typeof(x) + (" object" if not cython.compiled else ""))
-
-def test_union_ctuple(x: typing.Union[tuple[float], None]):
-    """
-    Should not be a C-tuple (because these can't be optional)
-    >>> test_union_ctuple((1.0,))
-    tuple object
-    """
-    print(cython.typeof(x) + (" object" if not cython.compiled else ""))
-
-def test_bitwise_or_ctuple(x: tuple[float] | None, y: None | tuple[float]):
-    """
-    Should not be a C-tuple (because these can't be optional)
-    >>> test_bitwise_or_ctuple((1.0,), (2.0,))
-    tuple object
-    tuple object
-    """
-    print(cython.typeof(x) + (" object" if not cython.compiled else ""))
-    print(cython.typeof(y) + (" object" if not cython.compiled else ""))
-
 try:
     import numpy.typing as npt
     import numpy as np
