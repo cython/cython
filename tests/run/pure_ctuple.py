@@ -2,6 +2,10 @@
 # mode: run
 # tag: pure3.7, pep484, warnings
 
+# for the benefit of the pure tests, don't require annotations
+# to be evaluated
+from __future__ import annotations
+
 import typing
 import cython
 
