@@ -142,6 +142,7 @@ def ext_union(x: typing.Union[MyExtType, None], y: Union[None, MyExtType]):
     """
     return attr(x) + attr(y)
 
+
 def ext_bitwise_or_none(x: MyExtType | None, y: None | MyExtType):
     """
     Behaves the same as "or None"
@@ -159,6 +160,7 @@ def ext_bitwise_or_none(x: MyExtType | None, y: None | MyExtType):
     TypeError: Argument 'y' has incorrect type (expected ext_type_none_arg.MyExtType, got list)
     """
     return attr(x) + attr(y)
+
 
 ### builtin types (using list)
 
