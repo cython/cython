@@ -255,6 +255,9 @@ class PointerType(CythonType):
         else:
             raise ValueError
 
+    def __class_getitem__(cls, item) -> type:
+        return pointer(item)
+
     def __getitem__(self, ix):
         if ix < 0:
             raise IndexError("negative indexing not allowed in C")
@@ -274,7 +277,8 @@ class PointerType(CythonType):
             return not self._items and not value._items
 
     def __repr__(self):
-        return "%s *" % (self._basetype,)
+        return f"{self._basetype} *"
+
 
 class ArrayType(PointerType):
 
@@ -283,6 +287,9 @@ class ArrayType(PointerType):
             self._items = [None] * self._n
         else:
             super().__init__(value)
+
+    def __class_getitem__(cls, item) -> type:
+        return array(*item) if isinstance(item, tuple) else array(item, None)
 
 
 class StructType(CythonType):
@@ -353,6 +360,7 @@ class UnionType(CythonType):
         else:
             raise AttributeError("Union has no member '%s'" % key)
 
+
 def pointer(basetype):
     class PointerInstance(PointerType):
         _basetype = basetype
@@ -378,6 +386,7 @@ def union(**members):
         setattr(UnionInstance, key, None)
     return UnionInstance
 
+
 class typedef(CythonType):
 
     def __init__(self, type, name=None):
@@ -392,6 +401,25 @@ class typedef(CythonType):
         return self.name or str(self._basetype)
 
     __getitem__ = index_type
+
+
+class const(typedef):
+    def __init__(self, type, name=None):
+        name = f"const {name or repr(type)}"
+        super().__init__(type, name)
+
+    def __class_getitem__(cls, base_type):
+        return const(base_type)
+
+
+class volatile(typedef):
+    def __init__(self, type, name=None):
+        name = f"volatile {name or repr(type)}"
+        super().__init__(type, name)
+
+    def __class_getitem__(cls, base_type):
+        return volatile(base_type)
+
 
 class _FusedType(CythonType):
     __getitem__ = index_type
@@ -493,18 +521,21 @@ bint = typedef(bool, "bint")
 void = typedef(None, "void")
 Py_tss_t = typedef(None, "Py_tss_t")
 
-for t in int_types:
-    for i in range(1, 4):
-        gs["%s_%s" % ('p'*i, t)] = gs[t]._pointer(i)
-        if 'u'+t in gs:
-            gs["%s_u%s" % ('p'*i, t)] = gs['u'+t]._pointer(i)
-            gs["%s_s%s" % ('p'*i, t)] = gs['s'+t]._pointer(i)
+# Generate pointer types: p_int, p_const_char, etc.
+for i in range(1, 4):
+    for const_ in ('', 'const_'):
+        for t in int_types:
+            for t in [t] + (['u'+t, 's'+t] if 'u'+t in gs else []):
+                gs[f"{'p'*i}_{const_}{t}"] = (const(gs[t], t) if const_ else gs[t])._pointer(i)
 
-for t in float_types + complex_types + other_types:
-    for i in range(1, 4):
-        gs["%s_%s" % ('p'*i, t)] = gs[t]._pointer(i)
+        for t in float_types + complex_types:
+            gs[f"{'p'*i}_{const_}{t}"] = (const(gs[t], t) if const_ else gs[t])._pointer(i)
 
-del t, i
+    gs[f"{'p'*i}_const_bint"] = const(bint, 'bint')._pointer(i)
+    for t in other_types:
+        gs[f"{'p'*i}_{t}"] = gs[t]._pointer(i)
+
+del t, const_, i
 
 NULL = gs['p_void'](0)
 

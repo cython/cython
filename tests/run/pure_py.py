@@ -1,4 +1,5 @@
 # mode: run
+# cython: language_level=3
 
 import cython
 from cython import sizeof
@@ -215,6 +216,24 @@ def test_declare_c_types(n):
     #z01 = cython.declare(cython.floatcomplex, n+1j)
     #z02 = cython.declare(cython.doublecomplex, n+1j)
     #z03 = cython.declare(cython.longdoublecomplex, n+1j)
+
+
+@cython.locals(c_string=cython.p_const_char)
+def test_const_volatile(c_string):
+    """
+    >>> test_const_volatile(b'xyz')
+    const char *
+    int
+    volatile int
+    b'xyz'
+    """
+    # Using 'int' since that looks the same in Python and Cython.
+    a: cython.int = 5
+    a_v: cython.volatile[cython.int] = 7
+    print(cython.typeof(c_string) if cython.compiled else "const char *")
+    print(cython.typeof(a))
+    print(cython.typeof(a_v) if cython.compiled else f"volatile {cython.typeof(a_v)}")
+    return c_string
 
 
 @cython.ccall
