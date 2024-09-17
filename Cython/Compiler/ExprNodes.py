@@ -12213,6 +12213,34 @@ class IntBinopNode(NumBinopNode):
             and (type2.is_int or type2.is_enum)
 
 
+class BitwiseOrNode(IntBinopNode):
+    #  '|' operator.
+
+    def analyse_pytyping_modifiers(self, env):
+        if self.operand1.is_none or self.operand2.is_none:
+            return ['typing.Optional']
+
+    def _analyse_bitwise_or_none(self, env, operand_node):
+        """Analyse annotations in form `[...] | None` and `None | [...]`"""
+        ttype = operand_node.analyse_as_type(env)
+        if not ttype:
+            return None
+        if not ttype.can_be_optional():
+            # If ttype cannot be optional we need to return an equivalent Python type allowing None.
+            # If it cannot be mapped to a Python type, we must error out.
+            if ttype.equivalent_type and not operand_node.as_cython_attribute():
+                return ttype.equivalent_type
+            else:
+                error(operand_node.pos, f"'[...] | None' cannot be applied to type {ttype}")
+        return ttype
+
+    def analyse_as_type(self, env):
+        if self.operand1.is_none:
+            return self._analyse_bitwise_or_none(env, self.operand2)
+        elif self.operand2.is_none:
+            return self._analyse_bitwise_or_none(env, self.operand1)
+
+
 class AddNode(NumBinopNode):
     #  '+' operator.
 
@@ -13948,7 +13976,7 @@ class CascadedCmpNode(Node, CmpNode):
 binop_node_classes = {
     "or":       BoolBinopNode,
     "and":      BoolBinopNode,
-    "|":        IntBinopNode,
+    "|":        BitwiseOrNode,
     "^":        IntBinopNode,
     "&":        IntBinopNode,
     "<<":       IntBinopNode,
@@ -14880,7 +14908,7 @@ class AnnotationNode(ExprNode):
                 arg_type.create_declaration_utility_code(env)
 
             # Check for declaration modifiers, e.g. "typing.Optional[...]" or "dataclasses.InitVar[...]"
-            modifiers = annotation.analyse_pytyping_modifiers(env) if annotation.is_subscript else []
+            modifiers = annotation.analyse_pytyping_modifiers(env) if annotation.is_subscript or isinstance(annotation, BitwiseOrNode) else []
 
         return modifiers, arg_type
 
