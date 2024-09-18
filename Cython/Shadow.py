@@ -521,19 +521,26 @@ bint = typedef(bool, "bint")
 void = typedef(None, "void")
 Py_tss_t = typedef(None, "Py_tss_t")
 
+# Generate const types.
+for t in int_types + float_types + complex_types + other_types:
+    for t in (t, f'u{t}', f's{t}'):
+        if t in gs:
+            gs[f"const_{t}"] = const(gs[t], t)
+
 # Generate pointer types: p_int, p_const_char, etc.
 for i in range(1, 4):
     for const_ in ('', 'const_'):
         for t in int_types:
-            for t in [t] + (['u'+t, 's'+t] if 'u'+t in gs else []):
-                gs[f"{'p'*i}_{const_}{t}"] = (const(gs[t], t) if const_ else gs[t])._pointer(i)
+            for t in (t, f'u{t}', f's{t}'):
+                if t in gs:
+                    gs[f"{'p'*i}_{const_}{t}"] = pointer(gs[f"{'p'*(i-1)}{'_' if i > 1 else ''}{const_}{t}"])
 
         for t in float_types + complex_types:
-            gs[f"{'p'*i}_{const_}{t}"] = (const(gs[t], t) if const_ else gs[t])._pointer(i)
+            gs[f"{'p'*i}_{const_}{t}"] = pointer(gs[f"{'p'*(i-1)}{'_' if i > 1 else ''}{const_}{t}"])
 
-    gs[f"{'p'*i}_const_bint"] = const(bint, 'bint')._pointer(i)
+    gs[f"{'p'*i}_const_bint"] = pointer(gs[f"{'p'*(i-1)}{'_' if i > 1 else ''}const_bint"])
     for t in other_types:
-        gs[f"{'p'*i}_{t}"] = gs[t]._pointer(i)
+        gs[f"{'p'*i}_{t}"] = pointer(gs[f"{'p'*(i-1)}{'_' if i > 1 else ''}{t}"])
 
 del t, const_, i
 
