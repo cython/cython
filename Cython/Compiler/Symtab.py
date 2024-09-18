@@ -30,12 +30,26 @@ iso_c99_keywords = {
     '_Bool', '_Complex'', _Imaginary', 'inline', 'restrict',
 }
 
+iso_cpp_keywords = {
+    'and', 'and_eq', 'asm', 'auto', 'bitand', 'bitor', 'bool', 'break', 'case',
+    'catch', 'char', 'class', 'compl', 'const', 'const_cast', 'continue',
+    'default', 'delete', 'do', 'double', 'dynamic_cast', 'else', 'enum',
+    'explicit', 'export', 'extern', 'false', 'float', 'for', 'friend', 'goto',
+    'if', 'inline', 'int', 'long', 'mutable', 'namespace', 'new', 'not',
+    'not_eq', 'operator', 'or', 'or_eq', 'private', 'protected', 'public',
+    'register', 'reinterpret_cast', 'return', 'short', 'signed', 'sizeof',
+    'static', 'static_cast', 'struct', 'switch', 'template', 'this', 'throw',
+    'true', 'try', 'typedef', 'typeid', 'typename', 'union', 'unsigned',
+    'using', 'virtual', 'void', 'volatile', 'wchar_t', 'while', 'xor', 'xor_eq',
+}
+
 
 def c_safe_identifier(cname):
     # There are some C limitations on struct entry names.
     if ((cname[:2] == '__' and not (cname.startswith(Naming.pyrex_prefix)
                                     or cname in ('__weakref__', '__dict__')))
-            or cname in iso_c99_keywords):
+            or cname in iso_c99_keywords
+            or cname in iso_cpp_keywords):
         cname = Naming.pyrex_prefix + cname
     return cname
 
