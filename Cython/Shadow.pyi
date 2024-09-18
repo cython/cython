@@ -152,8 +152,8 @@ def typeof(__obj: object) -> str: ...
 
 def address(__obj: object) -> PointerType: ...
 
-type const[T] = Annotated[T, "cython.const"]
-type volatile[T] = Annotated[T, "cython.volatile"]
+const: TypeAlias = Annotated[T, "cython.const"]
+volatile: TypeAlias = Annotated[T, "cython.volatile"]
 
 
 @overload
