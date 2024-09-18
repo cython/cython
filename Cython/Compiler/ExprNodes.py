@@ -3961,6 +3961,7 @@ class IndexNode(_IndexingBaseNode):
 
     def analyse_pytyping_modifiers(self, env):
         # Check for declaration modifiers, e.g. "typing.Optional[...]" or "dataclasses.InitVar[...]"
+        # `typing.Optional` is used for all variants of modifiers representing Optional type (Optional[T], Union[T, None])
         # TODO: somehow bring this together with TemplatedTypeNode.analyse_pytyping_modifiers()
         modifiers = []
         modifier_node = self
@@ -3968,7 +3969,7 @@ class IndexNode(_IndexingBaseNode):
             modifier_type = modifier_node.base.analyse_as_type(env)
             if (modifier_type and modifier_type.python_type_constructor_name
                     and modifier_type.modifier_name):
-                modifiers.append(modifier_type.modifier_name)
+                modifiers.append('typing.Optional' if modifier_type.allows_none() else modifier_type.modifier_name)
             modifier_node = modifier_node.index
         return modifiers
 
@@ -12238,6 +12239,34 @@ class IntBinopNode(NumBinopNode):
             and (type2.is_int or type2.is_enum)
 
 
+class BitwiseOrNode(IntBinopNode):
+    #  '|' operator.
+
+    def analyse_pytyping_modifiers(self, env):
+        if self.operand1.is_none or self.operand2.is_none:
+            return ['typing.Optional']
+
+    def _analyse_bitwise_or_none(self, env, operand_node):
+        """Analyse annotations in form `[...] | None` and `None | [...]`"""
+        ttype = operand_node.analyse_as_type(env)
+        if not ttype:
+            return None
+        if not ttype.can_be_optional():
+            # If ttype cannot be optional we need to return an equivalent Python type allowing None.
+            # If it cannot be mapped to a Python type, we must error out.
+            if ttype.equivalent_type and not operand_node.as_cython_attribute():
+                return ttype.equivalent_type
+            else:
+                error(operand_node.pos, f"'[...] | None' cannot be applied to type {ttype}")
+        return ttype
+
+    def analyse_as_type(self, env):
+        if self.operand1.is_none:
+            return self._analyse_bitwise_or_none(env, self.operand2)
+        elif self.operand2.is_none:
+            return self._analyse_bitwise_or_none(env, self.operand1)
+
+
 class AddNode(NumBinopNode):
     #  '+' operator.
 
@@ -13973,7 +14002,7 @@ class CascadedCmpNode(Node, CmpNode):
 binop_node_classes = {
     "or":       BoolBinopNode,
     "and":      BoolBinopNode,
-    "|":        IntBinopNode,
+    "|":        BitwiseOrNode,
     "^":        IntBinopNode,
     "&":        IntBinopNode,
     "<<":       IntBinopNode,
@@ -14729,6 +14758,12 @@ class CppOptionalTempCoercion(CoercionNode):
     def generate_result_code(self, code):
         pass
 
+    def generate_bool_evaluation_code(self, *args, **kwds):
+        # This is enough of a corner-case that it probably isn't worth
+        # the corner-case of supporting it right now.
+        error(self.pos, "Using C++ classes in boolean binary operators with "
+                "the 'cpp_locals' directive is not currently supported.")
+
     def _make_move_result_rhs(self, result, optional=False):
         # this wouldn't normally get moved (because it isn't a temp), but force it to be because it
         # is a thin wrapper around a temp
@@ -14899,7 +14934,7 @@ class AnnotationNode(ExprNode):
                 arg_type.create_declaration_utility_code(env)
 
             # Check for declaration modifiers, e.g. "typing.Optional[...]" or "dataclasses.InitVar[...]"
-            modifiers = annotation.analyse_pytyping_modifiers(env) if annotation.is_subscript else []
+            modifiers = annotation.analyse_pytyping_modifiers(env) if annotation.is_subscript or isinstance(annotation, BitwiseOrNode) else []
 
         return modifiers, arg_type
 

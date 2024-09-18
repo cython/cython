@@ -4711,6 +4711,13 @@ class PythonTypeConstructorMixin:
     """Used to help Cython interpret indexed types from the typing module (or similar)
     """
     modifier_name = None
+    contains_none = False
+
+    def allows_none(self):
+        return (
+            self.modifier_name == 'typing.Optional' or
+            self.modifier_name == 'typing.Union' and self.contains_none
+        )
 
     def set_python_type_constructor_name(self, name):
         self.python_type_constructor_name = name
