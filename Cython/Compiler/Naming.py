@@ -201,3 +201,169 @@ used_types_and_macros = [
     ('__pyx_CoroutineAwaitType', '__Pyx_Coroutine_USED'),
     ('__pyx_CoroutineType', '__Pyx_Coroutine_USED'),
 ]
+
+
+iso_c23_keywords = frozenset((
+    'alignas',  # (C23)
+    'alignof',  # (C23)
+    'auto',
+    'bool',  # (C23)
+    'break',
+    'case',
+    'char',
+    'const',
+    'constexpr',  # (C23)
+    'continue',
+    'default',
+    'do',
+    'double',
+    'else',
+    'enum',
+    'extern',
+    'false',  # (C23)
+    'float',
+    'for',
+    'goto',
+    'if',
+    'inline',  # (C99)
+    'int',
+    'long',
+    'nullptr',  # (C23)
+    'register',
+    'restrict',  # (C99)
+    'return',
+    'short',
+    'signed',
+    'sizeof',
+    'static',
+    'static_assert',  # (C23)
+    'struct',
+    'switch',
+    'thread_local',  # (C23)
+    'true',  # (C23)
+    'typedef',
+    'typeof',  # (C23)
+    'typeof_unqual',  # (C23)
+    'union',
+    'unsigned',
+    'void',
+    'volatile',
+    'while',
+    '_Alignas',  # (C11)
+    '_Alignof',  # (C11)
+    '_Atomic',  # (C11)
+    '_BitInt',  # (C23)
+    '_Bool',  # (C99)
+    '_Complex',  # (C99)
+    '_Decimal128',  # (C23)
+    '_Decimal32',  # (C23)
+    '_Decimal64',  # (C23)
+    '_Generic',  # (C11)
+    '_Imaginary',  # (C99)
+    '_Noreturn',  # (C11)
+    '_Static_assert',  # (C11)
+    '_Thread_local',  # (C11)
+))
+
+
+iso_cpp23_keywords = frozenset((
+    'alignas',  # (C++11)
+    'alignof',  # (C++11)
+    'and',
+    'and_eq',
+    'asm',
+    'atomic_cancel',  # (TM TS)
+    'atomic_commit',  # (TM TS)
+    'atomic_noexcept',  # (TM TS)
+    'auto',
+    'bitand',
+    'bitor',
+    'bool',
+    'break',
+    'case',
+    'catch',
+    'char',
+    'char8_t',  # (C++20)
+    'char16_t',  # (C++11)
+    'char32_t',  # (C++11)
+    'class',
+    'compl',
+    'concept',  # (C++20)
+    'const',
+    'consteval',  # (C++20)
+    'constexpr',  # (C++11)
+    'constinit',  # (C++20)
+    'const_cast',
+    'continue',
+    'co_await',  # (C++20)
+    'co_return',  # (C++20)
+    'co_yield',  # (C++20)
+    'decltype',  # (C++11)
+    'default',
+    'delete',
+    'do',
+    'double',
+    'dynamic_cast',
+    'else',
+    'enum',
+    'explicit',
+    'export',
+    'extern',
+    'false',
+    'float',
+    'for',
+    'friend',
+    'goto',
+    'if',
+    'inline',
+    'int',
+    'long',
+    'mutable',
+    'namespace',
+    'new',
+    'noexcept',  # (C++11)
+    'not',
+    'not_eq',
+    'nullptr',  # (C++11)
+    'operator',
+    'or',
+    'or_eq',
+    'private',
+    'protected',
+    'public',
+    'reflexpr',  # (reflection TS)
+    'register',
+    'reinterpret_cast',
+    'requires',  # (C++20)
+    'return',
+    'short',
+    'signed',
+    'sizeof',
+    'static',
+    'static_assert',  # (C++11)
+    'static_cast',
+    'struct',
+    'switch',
+    'synchronized',  # (TM TS)
+    'template',
+    'this',
+    'thread_local',  # (C++11)
+    'throw',
+    'true',
+    'try',
+    'typedef',
+    'typeid',
+    'typename',
+    'union',
+    'unsigned',
+    'using',
+    'virtual',
+    'void',
+    'volatile',
+    'wchar_t',
+    'while',
+    'xor',
+    'xor_eq',
+))
+
+reserved_cnames = iso_c23_keywords | iso_cpp23_keywords
