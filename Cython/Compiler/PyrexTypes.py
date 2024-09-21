@@ -4774,6 +4774,8 @@ class SpecialPythonTypeConstructor(PyObjectType, PythonTypeConstructorMixin):
 
     def specialize_here(self, pos, env, template_values=None):
         if len(template_values) != 1:
+            if self.modifier_name == "typing.Union":
+                return None
             error(pos, "'%s' takes exactly one template argument." % self.name)
             return error_type
         if template_values[0] is None:
