@@ -4776,9 +4776,8 @@ class SpecialPythonTypeConstructor(PyObjectType, PythonTypeConstructorMixin):
         if len(template_values) != 1:
             if self.modifier_name == "typing.Union":
                 return None
-            else:
-                error(pos, "'%s' takes exactly one template argument." % self.name)
-                return error_type
+            error(pos, "'%s' takes exactly one template argument." % self.name)
+            return error_type
         if template_values[0] is None:
             # FIXME: allowing unknown types for now since we don't recognise all Python types.
             return None
