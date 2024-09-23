@@ -2736,7 +2736,10 @@ class CArrayType(CPointerBaseType):
         from .Symtab import Entry
         if isinstance(self._size, Entry):
             return int(self._size.init)
-        return None if self._size is None else int(self._size)
+        try:
+            return None if self._size is None else int(self._size)
+        except ValueError:
+            return self._size
 
 
     def same_as_resolved_type(self, other_type):
