@@ -1668,7 +1668,7 @@ expression must evaluate to a Python value of type ``int``, ``long``,
 
 .. Note::
 
-   Compile-time constants are deprecated. The preffered way for declaring global
+   Compile-time constants are deprecated. The preferred way for declaring global
    constants is using global ``const`` variables. See :ref:`type_qualifiers`.
 
 
