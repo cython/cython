@@ -610,11 +610,12 @@ class CArrayDeclaratorNode(CDeclaratorNode):
             if not self.dimension.type.is_int:
                 error(self.dimension.pos, "Array dimension not integer")
             if self.dimension.type.is_const:
-                error(self.dimension.pos, "Array dimension cannot be const integer")
-            size = self.dimension.get_constant_c_result_code()
-            if size is not None:
+                size = self.dimension.entry
+                self.dimension.entry.array_size_initializer = True
+            else:
+                size = self.dimension.get_constant_c_result_code()
                 try:
-                    size = int(size)
+                    size = int(size) if size is not None else None
                 except ValueError:
                     # runtime constant?
                     pass
@@ -628,7 +629,6 @@ class CArrayDeclaratorNode(CDeclaratorNode):
             error(self.pos, "Array element cannot be a function")
         array_type = PyrexTypes.c_array_type(base_type, size)
         return self.base.analyse(array_type, env, nonempty=nonempty, visibility=visibility, in_pxd=in_pxd)
-
 
 class CFuncDeclaratorNode(CDeclaratorNode):
     # base                      CDeclaratorNode
@@ -6276,6 +6276,8 @@ class SingleAssignmentNode(AssignmentNode):
             if env.is_module_scope and self.lhs.entry.init is None and (self.rhs.is_literal or self.rhs.is_name and self.rhs.type.is_const):
                 if self.rhs.is_literal:
                     self.lhs.entry.init = self.rhs.value
+                elif self.lhs.entry.array_size_initializer:
+                    error(self.pos, 'Const variable used in array must be initialized with integer value!')
                 else:
                     self.lhs.entry.init = self.rhs.result()
             else:

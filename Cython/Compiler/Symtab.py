@@ -240,6 +240,7 @@ class Entry:
     pytyping_modifiers = None
     enum_int_value = None
     vtable_type = None
+    array_size_initializer = False
 
     def __init__(self, name, cname, type, pos = None, init = None):
         self.name = name

@@ -2718,7 +2718,7 @@ class CArrayType(CPointerBaseType):
 
     def __init__(self, base_type, size):
         super().__init__(base_type)
-        self.size = size
+        self._size = size
 
     def __eq__(self, other):
         if isinstance(other, CType) and other.is_array and self.size == other.size:
@@ -2730,6 +2730,14 @@ class CArrayType(CPointerBaseType):
 
     def __repr__(self):
         return "<CArrayType %s %s>" % (self.size, repr(self.base_type))
+
+    @property
+    def size(self):
+        from .Symtab import Entry
+        if isinstance(self._size, Entry):
+            return int(self._size.init)
+        return None if self._size is None else int(self._size)
+
 
     def same_as_resolved_type(self, other_type):
         return ((other_type.is_array and
@@ -2763,7 +2771,11 @@ class CArrayType(CPointerBaseType):
         return c_ptr_type(self.base_type)
 
     def is_complete(self):
-        return self.size is not None
+        from .Symtab import Entry
+        if isinstance(self._size, Entry):
+            return True
+        else:
+            return self._size is not None
 
     def specialize(self, values):
         base_type = self.base_type.specialize(values)
