@@ -6276,12 +6276,15 @@ class SingleAssignmentNode(AssignmentNode):
             if env.is_module_scope and self.lhs.entry.init is None and (self.rhs.is_literal or self.rhs.is_name and self.rhs.type.is_const):
                 if self.rhs.is_literal:
                     self.lhs.entry.init = self.rhs.value
+                elif self.rhs.entry.init:
+                    self.lhs.entry.init = self.rhs.entry.init
                 elif self.lhs.entry.array_size_initializer:
                     error(self.pos, 'Const variable used in array must be initialized with integer value!')
                 else:
-                    self.lhs.entry.init = self.rhs.result()
+                    # MSVC compiler does not allow initialize const variable with another const variable. Only value can be copied.
+                    error(self.pos, f"Cannot assign to const 'self.lhs.name'")
             else:
-                error(self.pos, "Assignment to const '%s'" % self.lhs.name)
+                error(self.pos, f"Assignment to const 'self.lhs.name'")
 
         unrolled_assignment = self.unroll_rhs(env)
         if unrolled_assignment:
