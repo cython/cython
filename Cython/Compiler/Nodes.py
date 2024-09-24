@@ -6278,13 +6278,11 @@ class SingleAssignmentNode(AssignmentNode):
                     self.lhs.entry.init = self.rhs.value
                 elif self.rhs.entry.init:
                     self.lhs.entry.init = self.rhs.entry.init
-                elif self.lhs.entry.array_size_initializer:
-                    error(self.pos, 'Const variable used in array must be initialized with integer value!')
                 else:
-                    # MSVC compiler does not allow initialize const variable with another const variable. Only value can be copied.
-                    error(self.pos, f"Cannot assign to const 'self.lhs.name'")
+                    # MSVC compiler does not allow initialize global const variable with another const variable. Only value can be copied.
+                    error(self.pos, f"Cannot assign to const '{self.lhs.name}'")
             else:
-                error(self.pos, f"Assignment to const 'self.lhs.name'")
+                error(self.pos, f"Assignment to const '{self.lhs.name}'")
 
         unrolled_assignment = self.unroll_rhs(env)
         if unrolled_assignment:

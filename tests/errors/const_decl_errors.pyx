@@ -1,25 +1,27 @@
 # mode: error
 # tag: warnings
-cdef const object o
+cdef const object o # nok
 
 cdef const int x = 10
 x = 20           # nok
 
 cdef const int y
+cdef const float yy = 5.0
 
 y = 20 # ok
 
 cdef const int xx = x
-cdef const int xy = x
 cdef const int *z
 
-cdef float a[x]  # ok
-cdef float aa[xx] # nok
+cdef float a[x]     # ok
+cdef float aa[xx]   # ok
+cdef float aaa[yy]  # nok
 
 cdef struct S:
     int member
-    int[x] member2 #ok
-    int[xy] member3 #nok
+    int[x] member2   # ok
+    int[xx] member3  # ok
+    int[yy] member4  # nok
 
 cdef func(const int a, const int* b, const (int*) c, const S s, int *const d, int **const e, int *const *f,
           const S *const t):
@@ -70,21 +72,21 @@ cdef func4():
 _ERRORS = """
 3:5: Const/volatile base type cannot be a Python object
 6:4: Assignment to const 'x'
-12:0: Const variable used in array must be initialized with integer value!
-13:0: Const variable used in array must be initialized with integer value!
-26:8: Assignment to const 'a'
-27:8: Assignment to const 'c'
-28:5: Assignment to const dereference
-29:5: Assignment to const attribute 'member'
-30:8: Assignment to const 'd'
-33:8: Assignment to const 'e'
-35:5: Assignment to const dereference
-37:8: Assignment to const 't'
-41:8: Assignment to const 'y'
-43:5: Assignment to const dereference
-50:5: Const/volatile base type cannot be a Python object
-67:14: Previous declaration is here
-68:14: 'a' redeclared
+18:15: Array dimension not integer
+24:8: Array dimension not integer
+28:8: Assignment to const 'a'
+29:8: Assignment to const 'c'
+30:5: Assignment to const dereference
+31:5: Assignment to const attribute 'member'
+32:8: Assignment to const 'd'
+35:8: Assignment to const 'e'
+37:5: Assignment to const dereference
+39:8: Assignment to const 't'
+43:8: Assignment to const 'y'
+45:5: Assignment to const dereference
+52:5: Const/volatile base type cannot be a Python object
+69:14: Previous declaration is here
+70:14: 'a' redeclared
 """
 
 _WARNINGS = """
