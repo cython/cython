@@ -2682,10 +2682,10 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 # used in the non-limited API case, this doesn't preserve the weaklistoffset
                 # from base classes.
                 # Practically that doesn't matter, but it isn't exactly the identical.
-                code.putln('{"__weaklistoffset__", T_PYSSIZET, offsetof(%s, %s), READONLY},'
+                code.putln('{"__weaklistoffset__", T_PYSSIZET, offsetof(%s, %s), READONLY, 0},'
                            % (objstruct, weakref_entry.cname))
             code.putln("#endif")
-            code.putln("{0, 0, 0, 0}")
+            code.putln("{0, 0, 0, 0, 0}")
             code.putln("};")
 
             if weakref_entry:
