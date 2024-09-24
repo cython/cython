@@ -84,9 +84,9 @@ def map_type(pytype):
     if isinstance(pytype, type) and issubclass(pytype, cython.PointerType):
         base_type = map_type(pytype._basetype)
         if issubclass(pytype, cython.ArrayType):
-            return f"ArrayType[{base_type}, {pytype._n}]"
+            return f"array[{base_type}, {pytype._n}]"
         else:
-            return f"PointerType[{base_type}]"
+            return f"pointer[{base_type}]"
 
     raise ValueError(f"Unmappable type '{pytype}({type(pytype).__mro__})")
 

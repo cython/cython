@@ -255,9 +255,6 @@ class PointerType(CythonType):
         else:
             raise ValueError
 
-    def __class_getitem__(cls, item) -> type:
-        return pointer(item)
-
     def __getitem__(self, ix):
         if ix < 0:
             raise IndexError("negative indexing not allowed in C")
@@ -287,9 +284,6 @@ class ArrayType(PointerType):
             self._items = [None] * self._n
         else:
             super().__init__(value)
-
-    def __class_getitem__(cls, item) -> type:
-        return array(*item) if isinstance(item, tuple) else array(item, None)
 
 
 class StructType(CythonType):
@@ -361,16 +355,29 @@ class UnionType(CythonType):
             raise AttributeError("Union has no member '%s'" % key)
 
 
-def pointer(basetype):
-    class PointerInstance(PointerType):
-        _basetype = basetype
-    return PointerInstance
+class pointer(PointerType):
+    # Implemented as class to support both 'pointer(int)' and 'pointer[int]'.
+    def __new__(cls, basetype):
+        class PointerInstance(PointerType):
+            _basetype = basetype
+        return PointerInstance
 
-def array(basetype, n):
-    class ArrayInstance(ArrayType):
-        _basetype = basetype
-        _n = n
-    return ArrayInstance
+    def __class_getitem__(cls, basetype):
+        return cls(basetype)
+
+
+class array(ArrayType):
+    # Implemented as class to support both 'array(int, 5)' and 'array[int, 5]'.
+    def __new__(cls, basetype, n):
+        class ArrayInstance(ArrayType):
+            _basetype = basetype
+            _n = n
+        return ArrayInstance
+
+    def __class_getitem__(cls, item):
+        basetype, n = item
+        return cls(basetype, item)
+
 
 def struct(**members):
     class StructInstance(StructType):
