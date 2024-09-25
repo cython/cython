@@ -361,7 +361,7 @@ Pointer types are constructed as in C when using Cython syntax, by appending a `
 they point to, e.g. ``int**`` for a pointer to a pointer to a C int. In Pure python mode, simple pointer types
 use a naming scheme with "p"s instead, separated from the type name with an underscore, e.g. ``cython.pp_int`` for a pointer to
 a pointer to a C int.  Further pointer types can be constructed with the ``cython.pointer[]`` type construct,
-e.g. ``cython.pointer[cython.int]``.
+e.g. ``cython.p_int`` is equivalent to ``cython.pointer[cython.int]``.
 
 Arrays use the normal C array syntax, e.g. ``int[10]``, and the size must be known
 at compile time for stack allocated arrays. Cython doesn't support variable length arrays from C99.
