@@ -433,25 +433,110 @@ type declaration and let them be objects.
 Type qualifiers
 ---------------
 
-Cython supports ``const`` and ``volatile`` `C type qualifiers <https://en.wikipedia.org/wiki/Type_qualifier>`_::
+Cython supports ``const`` and ``volatile`` `C type qualifiers <https://en.wikipedia.org/wiki/Type_qualifier>`_
 
-    cdef volatile int i = 5
+.. tabs::
 
-    cdef const int sum(const int a, const int b):
-        return a + b
+    .. group-tab:: Pure Python
 
-    cdef void print_const_pointer(const int *value):
-        print(value[0])
+        .. code-block:: python
 
-    cdef void print_pointer_to_const_value(int * const value):
-        print(value[0])
+            i: cython.volatile[cython.int] = 5
 
-    cdef void print_const_pointer_to_const_value(const int * const value):
-        print(value[0])
+            @cython.cfunc
+            def sum(a: cython.const[cython.int], b: cython.const[cython.int]) -> cython.const[cython.int]:
+                return a + b
+
+            @cython.cfunc
+            def pointer_to_const_int(value: cython.pointer[cython.const[cython.int]]) -> cython.void:
+                # Declares value as pointer to const int type. The value can be modified but
+                # the object pointed to by value cannot be modified.
+                print(value[0])
+
+            @cython.cfunc
+            def void const_pointer_to_int(value: cython.const[cython.pointer[cython.int]):
+                # Declares value as const pointer to int type. Value cannot be modified but
+                # the object pointed to by value can be modified.
+                print(value[0])
+
+            @cython.cfunc
+            def void const_pointer_to_const_int(value: cython.const[cython.pointer[cython.const[cython.int]]):
+                # Declares value as const pointer to const int type. Nor value and the object
+                # pointed to by valuecannot be modified.
+                print(value[0])
+
+
+    .. group-tab:: Cython
+
+        .. code-block:: cython
+
+            cdef volatile int i = 5
+
+            cdef const int sum(const int a, const int b):
+                return a + b
+
+            cdef void pointer_to_const_int(const int *value):
+                # Declares value as pointer to const int type. The value can be modified but
+                # the object pointed to by value cannot be modified.
+                cdef int new_value = 10
+                print(value[0])
+                value = &new_value
+                print(value[0])
+
+            cdef void const_pointer_to_int(int * const value):
+                # Declares value as const pointer to int type. Value cannot be modified but
+                # the object pointed to by value can be modified.
+                print(value[0])
+                value[0] = 10
+                print(value[0])
+
+            cdef void const_pointer_to_const_int(const int * const value):
+                # Declares value as const pointer to const int type. Nor value and the object
+                # pointed to by valuecannot be modified.
+                print(value[0])
+
+Similar to pointers Cython supports shortcut types that can be used in pure python mode. The following table shows several examples:
+
+.. list-table:: Type qualifiers shortcut types
+   :widths: 100 10 10
+   :header-rows: 1
+
+   * - Cython
+     - Full Annotation type
+     - Shortcut type
+   * - ``const float``
+     - ``cython.const[cython.float]``
+     - ``cython.const_float``
+
+   * - ``const void *``
+     - ``cython.pointer[cython.const[cython.void]]``
+     - ``cython.p_const_void``
+
+   * - ``const int *``
+     - ``cython.pointer[cython.const[cython.int]]``
+     - ``cython.p_const_int``
+   * - ``int * const``
+     - ``cython.const[cython.pointer[cython.int]]``
+     - ``cython.const_p_int``
+   * - ``const int * const``
+     - ``cython.const[cython.pointer[cython.const[cython.int]]``
+     - ``cython.const_p_const_int``
+
+   * - ``uchar const *``
+     - ``cython.pointer[cython.const[cython.uchar]]``
+     - ``cython.const_p_uchar``
+
+   * - ``long const **``
+     - ``cython.pointer[cython.pointer[cython.const[cython.long]]]``
+     - ``cython.pp_const_long``
+
+
+For full list of shortcut types see the ``Shadow.pyi`` file.
+
 
 .. Note::
 
-    Both type qualifiers are not supported by pure python mode.  Moreover, the ``const`` modifier is unusable
+    The ``const`` modifier is unusable
     in a lot of contexts since Cython needs to generate definitions and their assignments separately. Therefore
     we suggest using it mainly for function argument and pointer types where ``const`` is necessary to
     work with an existing C/C++ interface.
