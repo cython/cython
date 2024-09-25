@@ -25,5 +25,5 @@ cdef void const_pointer_to_int(int * const value):
 
 cdef void const_pointer_to_const_int(const int * const value):
     # Declares value as const pointer to const int type. Nor value and the object
-    # pointed to by valuecannot be modified.
+    # pointed to by value cannot be modified.
     print(value[0])

@@ -25,5 +25,5 @@ def const_pointer_to_int(value: cython.const[cython.pointer[cython.int]]) -> cyt
 @cython.cfunc
 def const_pointer_to_const_int(value: cython.const[cython.pointer[cython.const[cython.int]]]) -> cython.void:
     # Declares value as const pointer to const int type. Nor value and the object
-    # pointed to by valuecannot be modified.
+    # pointed to by value cannot be modified.
     print(value[0])
