@@ -922,7 +922,7 @@ the ``no_gc_clear`` directive:
             @cython.cclass
             class DBCursor:
                 conn: DBConnection
-                raw_cursor: cython.pointer(DBAPI_Cursor)
+                raw_cursor: cython.pointer[DBAPI_Cursor]
                 # ...
                 def __dealloc__(self):
                     DBAPI_close_cursor(self.conn.raw_conn, self.raw_cursor)

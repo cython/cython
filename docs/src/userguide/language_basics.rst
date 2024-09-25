@@ -169,7 +169,7 @@ C array can be declared by adding ``[ARRAY_SIZE]`` to the type of variable:
             def func():
                 g: cython.float[42]
                 f: cython.int[5][5][5]
-                ptr_char_array: cython.pointer(cython.char[4])  # pointer to the array of 4 chars
+                ptr_char_array: cython.pointer[cython.char[4]]  # pointer to the array of 4 chars
                 array_ptr_char: cython.p_char[4]                # array of 4 char pointers
 
     .. group-tab:: Cython
@@ -360,8 +360,8 @@ containers.
 Pointer types are constructed as in C when using Cython syntax, by appending a ``*`` to the base type
 they point to, e.g. ``int**`` for a pointer to a pointer to a C int. In Pure python mode, simple pointer types
 use a naming scheme with "p"s instead, separated from the type name with an underscore, e.g. ``cython.pp_int`` for a pointer to
-a pointer to a C int.  Further pointer types can be constructed with the ``cython.pointer()`` function,
-e.g. ``cython.pointer(cython.int)``.
+a pointer to a C int.  Further pointer types can be constructed with the ``cython.pointer[]`` type construct,
+e.g. ``cython.pointer[cython.int]``.
 
 Arrays use the normal C array syntax, e.g. ``int[10]``, and the size must be known
 at compile time for stack allocated arrays. Cython doesn't support variable length arrays from C99.
@@ -1215,7 +1215,7 @@ Cython uses ``"<"`` and ``">"``.  In pure python mode, the ``cython.cast()`` fun
          .. note:: Cython will not prevent a redundant cast, but emits a warning for it.
 
         To get the address of some Python object, use a cast to a pointer type
-        like ``cast(p_void, ...)`` or ``cast(pointer(PyObject), ...)``.
+        like ``cast(p_void, ...)`` or ``cast(pointer[PyObject], ...)``.
         You can also cast a C pointer back to a Python object reference
         with ``cast(object, ...)``, or to a more specific builtin or extension type
         (e.g. ``cast(MyExtType, ptr)``). This will increase the reference count of
@@ -1257,7 +1257,7 @@ Cython uses ``"<"`` and ``">"``.  In pure python mode, the ``cython.cast()`` fun
 
         Casting with ``cast(object, ...)`` creates an owned reference. Cython will automatically
         perform a :c:func:`Py_INCREF` and :c:func:`Py_DECREF` operation. Casting to
-        ``cast(pointer(PyObject), ...)`` creates a borrowed reference, leaving the refcount unchanged.
+        ``cast(pointer[PyObject], ...)`` creates a borrowed reference, leaving the refcount unchanged.
 
     .. group-tab:: Cython
 
