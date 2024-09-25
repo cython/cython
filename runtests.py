@@ -1683,8 +1683,8 @@ class PureDoctestTestCase(unittest.TestCase):
                 with self.stats.time(self.name, 'py', 'mypy'):
                     mypy_result = mypy_api.run([
                         self.module_path,
-                        '--ignore-missing-imports',
-                        '--follow-imports', 'skip',
+                        #'--ignore-missing-imports',
+                        #'--follow-imports', 'skip',
                         '--python-version', '3.10',
                     ])
                 if mypy_result[2]:
