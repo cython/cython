@@ -468,18 +468,8 @@ Similar to pointers Cython supports shortcut types that can be used in pure pyth
    * - ``const int *``
      - ``cython.pointer[cython.const[cython.int]]``
      - ``cython.p_const_int``
-   * - ``int * const``
-     - ``cython.const[cython.pointer[cython.int]]``
-     - ``cython.const_p_int``
-   * - ``const int * const``
-     - ``cython.const[cython.pointer[cython.const[cython.int]]``
-     - ``cython.const_p_const_int``
 
-   * - ``uchar const *``
-     - ``cython.pointer[cython.const[cython.uchar]]``
-     - ``cython.const_p_uchar``
-
-   * - ``long const **``
+   * - ``const long **``
      - ``cython.pointer[cython.pointer[cython.const[cython.long]]]``
      - ``cython.pp_const_long``
 
