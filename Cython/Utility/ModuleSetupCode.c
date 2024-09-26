@@ -118,6 +118,8 @@
   #endif
   #undef CYTHON_USE_FREELISTS
   #define CYTHON_USE_FREELISTS 0
+  #undef CYTHON_USE_FAKE_CODE_OBJECT
+  #define CYTHON_USE_FAKE_CODE_OBJECT 1
 
 #elif defined(PYPY_VERSION)
   #define CYTHON_COMPILING_IN_PYPY 1
@@ -188,6 +190,8 @@
   #endif
   #undef CYTHON_USE_FREELISTS
   #define CYTHON_USE_FREELISTS 0
+  #undef CYTHON_USE_FAKE_CODE_OBJECT
+  #define CYTHON_USE_FAKE_CODE_OBJECT 0
 
 #elif defined(CYTHON_LIMITED_API)
   // EXPERIMENTAL !!
@@ -267,6 +271,8 @@
   #endif
   #undef CYTHON_USE_FREELISTS
   #define CYTHON_USE_FREELISTS 0
+  #undef CYTHON_USE_FAKE_CODE_OBJECT
+  #define CYTHON_USE_FAKE_CODE_OBJECT 0
 
 #else
   #define CYTHON_COMPILING_IN_PYPY 0
@@ -391,6 +397,8 @@
   #ifndef CYTHON_USE_FREELISTS
     #define CYTHON_USE_FREELISTS (!CYTHON_COMPILING_IN_CPYTHON_FREETHREADING)
   #endif
+  #undef CYTHON_USE_FAKE_CODE_OBJECT
+  #define CYTHON_USE_FAKE_CODE_OBJECT 0
 #endif
 
 #ifndef CYTHON_FAST_PYCCALL
@@ -2176,7 +2184,42 @@ static PyObject* __Pyx_PyCode_New(
 
 //////////////////// NewCodeObj ////////////////////////
 
-#if CYTHON_COMPILING_IN_LIMITED_API
+#if CYTHON_USE_FAKE_CODE_OBJECT
+    static PyObject* __Pyx_GetFakeCodeObjectType(int minor_version) {
+        static PyObject *type = NULL;
+        if (!type) {
+            PyObject *collections, *namedtuple;
+            char *sig;
+            collections = PyImport_ImportModule("collections");
+            if (!collections) return NULL;
+            namedtuple = PyObject_GetAttrString(collections, "namedtuple");
+            Py_DECREF(collections);
+            if (!namedtuple) return NULL;
+            // use command separated syntax for ease of writing utility code
+            if (minor_version <= 7) {
+                sig = "co_argcount, co_kwonlyargcount, co_nlocals, co_stacksize, co_flags, co_code, "
+                "co_consts, co_names, co_varnames, co_filename, co_name, co_firstlineno, "
+                "co_lnotab, co_freevars, co_cellvars";
+            } else if (minor_version <= 10) {
+                sig = "co_argcount, co_posonlyargcount, co_kwonlyargcount, co_nlocals, co_stacksize, " "co_flags, co_code, co_consts, co_names, co_varnames, co_filename, co_name, "
+                "co_firstlineno, co_lnotab, co_freevars, co_cellvars";
+            } else {
+                sig = "co_argcount, co_posonlyargcount, co_kwonlyargcount, co_nlocals, co_stacksize, "
+                "co_flags, co_code, co_consts, co_names, co_varnames, co_filename, co_name, "
+                "co_qualname, co_firstlineno, co_lnotab, co_exceptiontable, co_freevars, co_cellvars";
+            }
+            type = PyObject_CallFunction(
+                namedtuple,
+                "ss",
+                "Code",
+                sig);
+            Py_DECREF(namedtuple);
+        }
+        return type;
+    }
+#endif
+
+#if CYTHON_COMPILING_IN_LIMITED_API || CYTHON_USE_FAKE_CODE_OBJECT
     // Note that the limited API doesn't know about PyCodeObject, so the type of this
     // is PyObject (unlike for the main API)
     static PyObject* __Pyx__PyCode_New(int a, int p, int k, int l, int s, int f,
@@ -2213,8 +2256,12 @@ static PyObject* __Pyx_PyCode_New(
         if (minor_version == -1 && PyErr_Occurred()) goto end;
         #endif
 
+        #if CYTHON_USE_FAKE_CODE_OBJECT
+        if (!(code_type = __Pyx_GetFakeCodeObjectType(minor_version))) goto end;
+        #else
         if (!(types_module = PyImport_ImportModule("types"))) goto end;
         if (!(code_type = PyObject_GetAttrString(types_module, "CodeType"))) goto end;
+        #endif
 
         if (minor_version <= 7) {
             // 3.7:
@@ -2222,7 +2269,7 @@ static PyObject* __Pyx_PyCode_New(
             //        constants, names, varnames, filename, name, firstlineno,
             //        lnotab[, freevars[, cellvars]])
             (void)p;
-            result = PyObject_CallFunction(code_type, "iiiiiOOOOOOiOO", a, k, l, s, f, code,
+            result = PyObject_CallFunction(code_type, "iiiiiOOOOOOiOOO", a, k, l, s, f, code,
                           c, n, v, fn, name, fline, lnos, fv, cell);
         } else if (minor_version <= 10) {
             // 3.8, 3.9, 3.10
@@ -2230,16 +2277,16 @@ static PyObject* __Pyx_PyCode_New(
             //    flags, codestring, constants, names, varnames, filename, name,
             //    firstlineno, lnotab[, freevars[, cellvars]])
             // 3.10 switches lnotab for linetable, but is otherwise the same
-            result = PyObject_CallFunction(code_type, "iiiiiiOOOOOOiOO", a,p, k, l, s, f, code,
+            result = PyObject_CallFunction(code_type, "iiiiiiOOOOOOiOOO", a,p, k, l, s, f, code,
                           c, n, v, fn, name, fline, lnos, fv, cell);
         } else {
             // 3.11, 3.12
             // code(argcount, posonlyargcount, kwonlyargcount, nlocals, stacksize,
             //    flags, codestring, constants, names, varnames, filename, name,
             //    qualname, firstlineno, linetable, exceptiontable, freevars=(), cellvars=(), /)
-            // We use name and qualname for simplicity
+            // We use name as qualname for simplicity
             if (!(exception_table = PyBytes_FromStringAndSize(NULL, 0))) goto end;
-            result = PyObject_CallFunction(code_type, "iiiiiiOOOOOOOiOO", a,p, k, l, s, f, code,
+            result = PyObject_CallFunction(code_type, "iiiiiiOOOOOOOiOOOO", a,p, k, l, s, f, code,
                           c, n, v, fn, name, name, fline, lnos, exception_table, fv, cell);
         }
 
