@@ -9442,6 +9442,9 @@ class DictNode(ExprNode):
                     len(self.key_value_pairs),
                     code.error_goto_if_null(self.result(), self.pos)))
             self.generate_gotref(code)
+            struct_scope = None
+        else:
+            struct_scope = self.type.scope
 
         keys_seen = set()
         key_type = None
@@ -9490,17 +9493,14 @@ class DictNode(ExprNode):
                 if self.exclude_null_values:
                     code.putln('}')
             else:
+                member = struct_scope.lookup_here(item.key.value)
+                assert member is not None, f"struct member {member} not found, error was not handled during coercion"
+                key_cname = member.cname
+                value_cname = item.value.result()
                 if item.value.type.is_array:
-                    code.putln("memcpy(%s.%s, %s, sizeof(%s));" % (
-                            self.result(),
-                            item.key.value,
-                            item.value.result(),
-                            item.value.result()))
+                    code.putln(f"memcpy({self.result()}.{key_cname}, {value_cname}, sizeof({value_cname}));")
                 else:
-                    code.putln("%s.%s = %s;" % (
-                            self.result(),
-                            item.key.value,
-                            item.value.result()))
+                    code.putln(f"{self.result()}.{key_cname} = {value_cname};")
             item.generate_disposal_code(code)
             item.free_temps(code)
 
