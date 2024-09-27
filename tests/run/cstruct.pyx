@@ -1,4 +1,8 @@
+# mode: run
+#tag: struct
+
 cdef struct Grail
+
 
 cdef struct Spam:
     int i
@@ -6,8 +10,15 @@ cdef struct Spam:
     float *p[42]
     Grail *g
 
+
 cdef struct Grail:
     Spam *s
+
+
+cdef struct ReservedNames:
+    int case
+    int do
+
 
 cdef Spam spam, ham
 
@@ -81,3 +92,14 @@ def assign_fields_in_loop():
 
     assert s.a == s.b
     return s.b
+
+
+def reserved_names():
+    """
+    >>> reserved_names()
+    (5, 9)
+    """
+    cdef ReservedNames s1 = ReservedNames(case=5, do=9)
+    cdef ReservedNames s2
+    s2.case, s2.do = s1.case, s1.do
+    return (s2.case, s2.do)
