@@ -9494,7 +9494,7 @@ class DictNode(ExprNode):
                     code.putln('}')
             else:
                 member = struct_scope.lookup_here(item.key.value)
-                assert member is not None, f"struct member {member} not found, error was not handled during coercion"
+                assert member is not None, f"struct member {item.key.value} not found, error was not handled during coercion"
                 key_cname = member.cname
                 value_cname = item.value.result()
                 if item.value.type.is_array:
