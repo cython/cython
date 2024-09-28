@@ -1861,8 +1861,10 @@ class CConstOrVolatileType(BaseType):
         return getattr(self.cv_base_type, name)
 
 
-def CConstType(base_type):
-    return CConstOrVolatileType(base_type, is_const=1)
+def c_const_type(base_type):
+    """Creates a C 'const ...' type but does not test for 'error_type'.
+    """
+    return CConstOrVolatileType(base_type, is_const=True)
 
 
 class FusedType(CType):
@@ -4789,6 +4791,8 @@ class SpecialPythonTypeConstructor(PyObjectType, PythonTypeConstructorMixin):
 
     def specialize_here(self, pos, env, template_values=None):
         if len(template_values) != 1:
+            if self.modifier_name == "typing.Union":
+                return None
             error(pos, "'%s' takes exactly one template argument." % self.name)
             return error_type
         if template_values[0] is None:
@@ -4865,13 +4869,13 @@ c_null_ptr_type =     CNullPtrType(c_void_type)
 c_void_ptr_type =     CPtrType(c_void_type)
 c_void_ptr_ptr_type = CPtrType(c_void_ptr_type)
 c_char_ptr_type =     CPtrType(c_char_type)
-c_const_char_ptr_type = CPtrType(CConstType(c_char_type))
+c_const_char_ptr_type = CPtrType(c_const_type(c_char_type))
 c_uchar_ptr_type =    CPtrType(c_uchar_type)
-c_const_uchar_ptr_type = CPtrType(CConstType(c_uchar_type))
+c_const_uchar_ptr_type = CPtrType(c_const_type(c_uchar_type))
 c_char_ptr_ptr_type = CPtrType(c_char_ptr_type)
 c_int_ptr_type =      CPtrType(c_int_type)
 c_py_unicode_ptr_type = CPtrType(c_py_unicode_type)
-c_const_py_unicode_ptr_type = CPtrType(CConstType(c_py_unicode_type))
+c_const_py_unicode_ptr_type = CPtrType(c_const_type(c_py_unicode_type))
 c_py_ssize_t_ptr_type =  CPtrType(c_py_ssize_t_type)
 c_ssize_t_ptr_type =  CPtrType(c_ssize_t_type)
 c_size_t_ptr_type =  CPtrType(c_size_t_type)
@@ -5381,7 +5385,7 @@ def simple_c_type(signed, longness, name):
     # Returns None if arguments don't make sense.
     return modifiers_and_name_to_type.get((signed, longness, name))
 
-def parse_basic_type(name):
+def parse_basic_type(name: str):
     base = None
     if name.startswith('p_'):
         base = parse_basic_type(name[2:])
@@ -5391,6 +5395,12 @@ def parse_basic_type(name):
         base = parse_basic_type(name[:-1])
     if base:
         return CPtrType(base)
+    if name.startswith(('const_', 'volatile_')):
+        modifier, _, base_name = name.partition('_')
+        base = parse_basic_type(base_name)
+        if base:
+            return CConstOrVolatileType(
+                base, is_const=modifier == 'const', is_volatile=modifier == 'volatile')
     #
     if name in fixed_sign_int_types:
         return fixed_sign_int_types[name][1]
@@ -5446,11 +5456,7 @@ def cpp_rvalue_ref_type(base_type):
     # Construct a C++ rvalue reference type
     return _construct_type_from_base(CppRvalueReferenceType, base_type)
 
-def c_const_type(base_type):
-    # Construct a C const type.
-    return _construct_type_from_base(CConstType, base_type)
-
-def c_const_or_volatile_type(base_type, is_const, is_volatile):
+def c_const_or_volatile_type(base_type, is_const=False, is_volatile=False):
     # Construct a C const/volatile type.
     return _construct_type_from_base(CConstOrVolatileType, base_type, is_const, is_volatile)
 

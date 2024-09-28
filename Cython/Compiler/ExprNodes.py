@@ -3903,8 +3903,39 @@ class IndexNode(_IndexingBaseNode):
         pass
 
     def analyse_as_type(self, env):
+        modifier = self.base.as_cython_attribute()
+
+        if modifier is not None and modifier in ('pointer', 'const', 'volatile'):
+            base_type = self.index.analyse_as_type(env)
+            if base_type is None:
+                error(self.base.pos, f"invalid use of '{modifier}', argument is not a type")
+                return None
+            if modifier == 'pointer':
+                # pointer[base_type]
+                return PyrexTypes.CPtrType(base_type)
+
+            # const[base_type] or volatile[base_type]
+            is_const = modifier == 'const'
+            is_volatile = not is_const
+            if base_type.is_cv_qualified:
+                if base_type.is_const:
+                    if is_const:
+                        error(self.base.pos, "Duplicate 'const'")
+                    is_const = True
+                if base_type.is_volatile:
+                    if is_volatile:
+                        error(self.base.pos, "Duplicate 'volatile'")
+                    is_volatile = True
+                base_type = base_type.cv_base_type
+            if base_type.is_memoryviewslice:
+                error(self.base.pos,
+                      f"Cannot declare memory view variable as '{modifier}'. Did you mean '{modifier}[item_type][:]' ?")
+            return PyrexTypes.c_const_or_volatile_type(
+                base_type, is_const=is_const, is_volatile=not is_const)
+
         base_type = self.base.analyse_as_type(env)
         if base_type:
+            # base_type[...]
             if base_type.is_cpp_class or base_type.python_type_constructor_name:
                 if self.index.is_sequence_constructor:
                     template_values = self.index.args
@@ -9412,6 +9443,9 @@ class DictNode(ExprNode):
                     len(self.key_value_pairs),
                     code.error_goto_if_null(self.result(), self.pos)))
             self.generate_gotref(code)
+            struct_scope = None
+        else:
+            struct_scope = self.type.scope
 
         keys_seen = set()
         key_type = None
@@ -9460,17 +9494,14 @@ class DictNode(ExprNode):
                 if self.exclude_null_values:
                     code.putln('}')
             else:
+                member = struct_scope.lookup_here(item.key.value)
+                assert member is not None, f"struct member {item.key.value} not found, error was not handled during coercion"
+                key_cname = member.cname
+                value_cname = item.value.result()
                 if item.value.type.is_array:
-                    code.putln("memcpy(%s.%s, %s, sizeof(%s));" % (
-                            self.result(),
-                            item.key.value,
-                            item.value.result(),
-                            item.value.result()))
+                    code.putln(f"memcpy({self.result()}.{key_cname}, {value_cname}, sizeof({value_cname}));")
                 else:
-                    code.putln("%s.%s = %s;" % (
-                            self.result(),
-                            item.key.value,
-                            item.value.result()))
+                    code.putln(f"{self.result()}.{key_cname} = {value_cname};")
             item.generate_disposal_code(code)
             item.free_temps(code)
 
@@ -11682,7 +11713,7 @@ class TypeidNode(ExprNode):
             env_module = env_module.outer_scope
         typeinfo_module = env_module.find_module('libcpp.typeinfo', self.pos)
         typeinfo_entry = typeinfo_module.lookup('type_info')
-        return PyrexTypes.CFakeReferenceType(PyrexTypes.c_const_type(typeinfo_entry.type))
+        return PyrexTypes.CFakeReferenceType(PyrexTypes.c_const_or_volatile_type(typeinfo_entry.type, is_const=True))
 
     cpp_message = 'typeid operator'
 
