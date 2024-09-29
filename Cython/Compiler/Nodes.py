@@ -6271,9 +6271,9 @@ class SingleAssignmentNode(AssignmentNode):
             # const variable can be initialised if:
             # * we are in module scope
             # * self.lhs was not assigned before
-            # * self.rhs is constant value
-            # * self.rhs is literal, const expression  or const variable
-            if env.is_module_scope and self.lhs.entry.init is None and (self.rhs.has_constant_result() or self.rhs.is_literal or self.rhs.is_name and self.rhs.type.is_const):
+            # * self.rhs is literal, const expression or const variable
+            if env.is_module_scope and self.lhs.entry.init is None and (
+                    self.rhs.has_constant_result() or self.rhs.is_literal or self.rhs.is_name and self.rhs.type.is_const):
                 if self.rhs.is_literal:
                     self.lhs.entry.init = self.rhs.constant_result
                 elif self.rhs.is_name and self.rhs.entry.init:
