@@ -10,6 +10,12 @@ cdef const int int_sum_constant2 = int_sum_constant
 # FIXME:
 # cdef const int int_sum_constant3 = 10 + int_constant
 
+
+cdef const char *string1 = "string1"
+# FIXME:
+# cdef char *const string2 = "string2"
+# cdef const char *const string3 = "string3"
+
 cdef const float float_constant = 50.5
 cdef const float float_sum_constant = 50.2 + 50.3
 # FIXME:
@@ -63,3 +69,10 @@ def test_array():
     """
     print(myarray2)
     print(myarray3)
+
+def test_string():
+    """
+    test_string()
+    b"string1"
+    """
+    print(string1)
