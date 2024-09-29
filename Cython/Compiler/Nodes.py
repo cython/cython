@@ -6272,15 +6272,12 @@ class SingleAssignmentNode(AssignmentNode):
             # * we are in module scope
             # * self.lhs was not assigned before
             # * self.rhs is constant value
-            # * self.rhs is literal or const variable
-            if env.is_module_scope and self.lhs.entry.init is None and (self.rhs.is_literal or self.rhs.is_name and self.rhs.type.is_const):
+            # * self.rhs is literal, const expression  or const variable
+            if env.is_module_scope and self.lhs.entry.init is None and (self.rhs.has_constant_result() or self.rhs.is_literal or self.rhs.is_name and self.rhs.type.is_const):
                 if self.rhs.is_literal:
-                    self.lhs.entry.init = self.rhs.value
-                elif self.rhs.entry.init:
+                    self.lhs.entry.init = self.rhs.constant_result
+                elif self.rhs.is_name and self.rhs.entry.init:
                     self.lhs.entry.init = self.rhs.entry.init
-                else:
-                    # MSVC compiler does not allow initialize global const variable with another const variable. Only value can be copied.
-                    error(self.pos, f"Cannot assign to const '{self.lhs.name}'")
             else:
                 error(self.pos, f"Assignment to const '{self.lhs.name}'")
 

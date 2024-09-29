@@ -11,8 +11,8 @@ cdef const int int_sum_constant2 = int_sum_constant
 # cdef const int int_sum_constant3 = 10 + int_constant
 
 cdef const float float_constant = 50.5
+cdef const float float_sum_constant = 50.2 + 50.3
 # FIXME:
-# cdef const float float_sum_constant = 50.2 + 50.3
 # cdef const float float_sum_constant2 = 50.2 + float_constant
 
 cdef int[int_constant2] myarray2 = [10, 11]
@@ -38,8 +38,10 @@ def test_constant_float_value():
     """
     >>> test_constant_float_value()
     50.5
+    100.5
     """
     print(float_constant)
+    print(float_sum_constant)
 
 
 def test_constant_pointer():

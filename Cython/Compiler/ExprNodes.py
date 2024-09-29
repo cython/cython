@@ -2545,6 +2545,8 @@ class NameNode(AtomicExprNode):
             assigned = False
             if self.type.is_const:
                 # Const variables are assigned when declared
+                if self.entry.init is None:
+                    self.entry.init = rhs.move_result_rhs_as(self.ctype())
                 assigned = True
             if self.type.is_pyobject:
                 #print "NameNode.generate_assignment_code: to", self.name ###
