@@ -71,7 +71,14 @@ unicodeliterals
 # PyThreadState_Swap not implemented
 reimport_from_subinterpreter
 
+# PyImport_ReloadModule
+reload_ext_module
+
 # segfault
+builtincomplex
+builtin_type_inheritance_T608
+datetime_members
+exectest
 cyfunction_defaults
 posonly
 r_extcomplex2
