@@ -46,6 +46,7 @@ double_dealloc_T796
 exttype_dealloc
 generators_py
 generator_frame_cycle
+generators_in_refcycles
 
 # refcounting
 capiimpl
@@ -76,9 +77,12 @@ reload_ext_module
 
 # segfault
 builtincomplex
+builtinslice
 builtin_type_inheritance_T608
 datetime_members
 exectest
+extern_builtin_
+run[.]generators
 cyfunction_defaults
 posonly
 r_extcomplex2
