@@ -81,7 +81,9 @@ builtinslice
 builtin_type_inheritance_T608
 datetime_members
 exectest
-extern_builtin_
+extern_builtins_T258
+memslice
+pyarray
 run[.]generators
 cyfunction_defaults
 posonly
