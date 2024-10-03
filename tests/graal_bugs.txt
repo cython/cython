@@ -86,6 +86,7 @@ memslice
 pyarray
 run[.]generators
 cyfunction_defaults
+pep526_variable_annotations_cy
 posonly
 r_extcomplex2
 
