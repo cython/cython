@@ -786,9 +786,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("#ifndef Py_PYTHON_H")
         code.putln("    #error Python headers needed to compile C extensions, "
                    "please install development version of Python.")
-        code.putln("#elif PY_VERSION_HEX < 0x02070000 || "
-                   "(0x03000000 <= PY_VERSION_HEX && PY_VERSION_HEX < 0x03030000)")
-        code.putln("    #error Cython requires Python 2.7+ or Python 3.3+.")
+        code.putln("#elif PY_VERSION_HEX < 0x03070000")
+        code.putln("    #error Cython requires Python 3.7+.")
         code.putln("#else")
         code.globalstate["end"].putln("#endif /* Py_PYTHON_H */")
 
