@@ -987,10 +987,8 @@ class SlotTable:
             MethodSlot(unaryfunc, "nb_index", "__index__", method_name_to_slot),
 
             # Added in release 3.5
-            BinopSlot(bf, "nb_matrix_multiply", "__matmul__", method_name_to_slot,
-                      ifdef="PY_VERSION_HEX >= 0x03050000"),
-            MethodSlot(ibinaryfunc, "nb_inplace_matrix_multiply", "__imatmul__", method_name_to_slot,
-                       ifdef="PY_VERSION_HEX >= 0x03050000"),
+            BinopSlot(bf, "nb_matrix_multiply", "__matmul__", method_name_to_slot),
+            MethodSlot(ibinaryfunc, "nb_inplace_matrix_multiply", "__imatmul__", method_name_to_slot),
         )
 
         self.PySequenceMethods = (
