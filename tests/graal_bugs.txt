@@ -83,6 +83,7 @@ datetime_members
 exectest
 extern_builtins_T258
 memslice
+ptr_warning_T714
 pyarray
 run[.]generators
 cyfunction_defaults
