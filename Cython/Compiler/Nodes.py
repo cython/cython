@@ -6277,6 +6277,9 @@ class SingleAssignmentNode(AssignmentNode):
                     self.lhs.entry.init = self.rhs.constant_result
                 elif self.rhs.is_name and self.rhs.entry.init:
                     self.lhs.entry.init = self.rhs.entry.init
+                else:
+                    # This should not happen.
+                    error(self.pos, f"Assignment to const '{self.lhs.name}'")
             else:
                 error(self.pos, f"Assignment to const '{self.lhs.name}'")
 
