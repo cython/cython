@@ -611,7 +611,6 @@ class CArrayDeclaratorNode(CDeclaratorNode):
                 error(self.dimension.pos, "Array dimension not integer")
             if self.dimension.type.is_const and self.dimension.entry.visibility != 'extern':
                 size = self.dimension.entry
-                self.dimension.entry.array_size_initializer = True
             else:
                 size = self.dimension.get_constant_c_result_code()
                 try:
