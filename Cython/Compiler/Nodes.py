@@ -6277,6 +6277,7 @@ class SingleAssignmentNode(AssignmentNode):
                     self.lhs.entry.init = self.rhs.constant_result
                 elif self.rhs.is_name and self.rhs.entry.init:
                     self.lhs.entry.init = self.rhs.entry.init
+                # the "else" case is used to evaluate `cdef const float my_var = 2.0 + 3.0`
             else:
                 error(self.pos, f"Assignment to const '{self.lhs.name}'")
 
