@@ -6267,12 +6267,16 @@ class SingleAssignmentNode(AssignmentNode):
         self.rhs = self.rhs.analyse_types(env)
 
         if self.lhs.is_name and self.lhs.entry.type.is_const:
-            # const variable can be initialised if:
-            # * we are in module scope
-            # * self.lhs was not assigned before
-            # * self.rhs is literal, const expression or const variable
-            if env.is_module_scope and self.lhs.entry.init is None and (
+            if self.lhs.entry.type.cv_base_type.is_ptr:
+                # Currently, `cdef TYPE *const ...` is not supported
+                error(self.pos, f"Assignment to const '{self.lhs.name}'")
+
+            elif env.is_module_scope and self.lhs.entry.init is None and (
                     self.rhs.has_constant_result() or self.rhs.is_literal or self.rhs.is_name and self.rhs.type.is_const):
+                # const variable can be initialised if:
+                # * we are in module scope
+                # * self.lhs was not assigned before
+                # * self.rhs is literal, const expression or const variable
                 if self.rhs.is_literal:
                     self.lhs.entry.init = self.rhs.constant_result
                 elif self.rhs.is_name and self.rhs.entry.init:

@@ -7,19 +7,11 @@ int_constant3 = 5
 cdef const int *pint_constant = &int_constant
 cdef const int int_sum_constant = 50 + 50
 cdef const int int_sum_constant2 = int_sum_constant
-# FIXME:
-# cdef const int int_sum_constant3 = 10 + int_constant
-
 
 cdef const char *string1 = "string1"
-# FIXME:
-# cdef char *const string2 = "string2"
-# cdef const char *const string3 = "string3"
 
 cdef const float float_constant = 50.5
 cdef const float float_sum_constant = 50.2 + 50.3
-# FIXME:
-# cdef const float float_sum_constant2 = 50.2 + float_constant
 
 cdef int[int_constant2] myarray2 = [10, 11]
 cdef int[int_constant3] myarray3 = [0, 1, 2, 3, 4]

@@ -69,6 +69,11 @@ cdef func4():
     cdef int a[x] # ok
     cdef int a[xx] # nok
 
+cdef const int int_sum_constant3 = 10 + x # nok
+cdef const float float_sum_constant2 = 50.2 + yy # nok
+cdef char *const string2 = "string2" # nok
+cdef const char *const string3 = "string3" #nok
+
 _ERRORS = """
 3:5: Const/volatile base type cannot be a Python object
 6:4: Assignment to const 'x'
@@ -87,6 +92,10 @@ _ERRORS = """
 52:5: Const/volatile base type cannot be a Python object
 69:14: Previous declaration is here
 70:14: 'a' redeclared
+72:0: Assignment to const 'int_sum_constant3'
+73:0: Assignment to const 'float_sum_constant2'
+74:0: Assignment to const 'string2'
+75:0: Assignment to const 'string3'
 """
 
 _WARNINGS = """
