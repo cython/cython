@@ -3099,8 +3099,10 @@ class CCodeWriter:
         extra_arg = ""
         trace_func = "__Pyx_TraceReturnValue"
 
-        if return_type is None or return_type.is_pyobject:
+        if return_type is None:
             pass
+        elif return_type.is_pyobject:
+            retvalue_cname = return_type.as_pyobject(retvalue_cname)
         elif return_type.is_void:
             retvalue_cname = 'Py_None'
         elif return_type.to_py_function:
