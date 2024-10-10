@@ -24,6 +24,7 @@ from collections import defaultdict
 from . import Naming
 from . import Options
 from . import DebugFlags
+from . import PyrexTypes
 from . import StringEncoding
 from .. import Utils
 from .Scanning import SourceDescriptor
@@ -3099,8 +3100,10 @@ class CCodeWriter:
         extra_arg = ""
         trace_func = "__Pyx_TraceReturnValue"
 
-        if return_type is None or return_type.is_pyobject:
+        if return_type is None:
             pass
+        elif return_type.is_pyobject:
+            retvalue_cname = return_type.as_pyobject(retvalue_cname)
         elif return_type.is_void:
             retvalue_cname = 'Py_None'
         elif return_type.to_py_function:
