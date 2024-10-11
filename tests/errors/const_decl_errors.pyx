@@ -7,8 +7,11 @@ x = 20           # nok
 
 cdef const int y
 cdef const float yy = 5.0
+cdef const int i = y # nok
 
 y = 20 # ok
+
+cdef const int ii = y # ok
 
 cdef const int xx = x
 cdef const int *z
@@ -77,25 +80,26 @@ cdef const char *const string3 = "string3" #nok
 _ERRORS = """
 3:5: Const/volatile base type cannot be a Python object
 6:4: Assignment to const 'x'
-18:15: Array dimension not integer
-24:8: Array dimension not integer
-28:8: Assignment to const 'a'
-29:8: Assignment to const 'c'
-30:5: Assignment to const dereference
-31:5: Assignment to const attribute 'member'
-32:8: Assignment to const 'd'
-35:8: Assignment to const 'e'
-37:5: Assignment to const dereference
-39:8: Assignment to const 't'
-43:8: Assignment to const 'y'
-45:5: Assignment to const dereference
-52:5: Const/volatile base type cannot be a Python object
-69:14: Previous declaration is here
-70:14: 'a' redeclared
-72:0: Assignment to const 'int_sum_constant3'
-73:0: Assignment to const 'float_sum_constant2'
-74:0: Assignment to const 'string2'
-75:0: Assignment to const 'string3'
+10:0: Assignment to const 'i'
+21:15: Array dimension not integer
+27:8: Array dimension not integer
+31:8: Assignment to const 'a'
+32:8: Assignment to const 'c'
+33:5: Assignment to const dereference
+34:5: Assignment to const attribute 'member'
+35:8: Assignment to const 'd'
+38:8: Assignment to const 'e'
+40:5: Assignment to const dereference
+42:8: Assignment to const 't'
+46:8: Assignment to const 'y'
+48:5: Assignment to const dereference
+55:5: Const/volatile base type cannot be a Python object
+72:14: Previous declaration is here
+73:14: 'a' redeclared
+75:0: Assignment to const 'int_sum_constant3'
+76:0: Assignment to const 'float_sum_constant2'
+77:0: Assignment to const 'string2'
+78:0: Assignment to const 'string3'
 """
 
 _WARNINGS = """

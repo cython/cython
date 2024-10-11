@@ -6278,10 +6278,17 @@ class SingleAssignmentNode(AssignmentNode):
                 # * self.lhs was not assigned before
                 # * self.rhs is literal, const expression or const variable
                 if self.rhs.is_literal:
+                    # case of assignment a value: `cdef const float my_var = 2.0`
                     self.lhs.entry.init = self.rhs.constant_result
-                elif self.rhs.is_name and self.rhs.entry.init:
-                    self.lhs.entry.init = self.rhs.entry.init
-                # the "else" case is used to evaluate `cdef const float my_var = 2.0 + 3.0`
+                elif self.rhs.is_name:
+                    # Assignment of const variable: `cdef const int aa = bb`
+                    if self.rhs.entry.init:
+                        # case when variable is initialized: `cdef const int bb = 5`
+                        self.lhs.entry.init = self.rhs.entry.init
+                    else:
+                        # case when variable is not initialized: `cdef const int bb`
+                        error(self.pos, f"Assignment to const '{self.lhs.name}'")
+                # case of assignment an expression: `cdef const float my_var = 2.0 + 3.0`
             else:
                 error(self.pos, f"Assignment to const '{self.lhs.name}'")
 
