@@ -1901,6 +1901,7 @@ class NewExprNode(AtomicExprNode):
     #
     # cppclass              node                 c++ class to create
 
+    unvisited_child_attrs = ['cppclass']
     type = None
 
     def infer_type(self, env):
@@ -10425,6 +10426,7 @@ class LambdaNode(InnerFunctionNode):
     # def_node      DefNode                the underlying function 'def' node
 
     child_attrs = ['def_node']
+    unvisited_child_attrs = ['args', 'result_expr']
 
     name = StringEncoding.EncodedString('<lambda>')
 
@@ -11218,6 +11220,7 @@ class TypecastNode(ExprNode):
     #  "type" directly and leave base_type and declarator to None
 
     subexprs = ['operand']
+    unvisited_child_attrs = ["base_type"]
     base_type = declarator = type = None
 
     def type_dependencies(self, env):
@@ -11385,6 +11388,7 @@ class CythonArrayNode(ExprNode):
     """
 
     subexprs = ['operand', 'shapes']
+    unvisited_child_attrs = ["base_type_node"]
 
     shapes = None
     is_temp = True
@@ -14840,6 +14844,7 @@ class AnnotationNode(ExprNode):
     # annotation is evaluated into a Python Object.
 
     subexprs = []
+    unvisited_child_attrs = ["expr"]
 
     # 'untyped' is set for fused specializations:
     # Once a fused function has been created we don't want
