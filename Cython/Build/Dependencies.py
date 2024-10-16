@@ -835,7 +835,7 @@ def create_extension_list(patterns, exclude=None, ctx=None, aliases=None, quiet=
 
                 if file not in m.sources:
                     # Old setuptools unconditionally replaces .pyx with .c/.cpp
-                    target_file = os.path.splitext(file)[0] + ('.cpp' if m.language == 'c++' else '.c')
+                    target_file = os.path.splitext(file)[0] + ('.cpp' if m.language.lower() == 'c++' else '.c')
                     try:
                         m.sources.remove(target_file)
                     except ValueError:
@@ -1006,7 +1006,7 @@ def cythonize(module_list, exclude=None, nthreads=0, aliases=None, quiet=False, 
                 if m.np_pythran:
                     c_file = base + '.cpp'
                     options = pythran_options
-                elif m.language == 'c++':
+                elif m.language and m.language.lower() == 'c++':
                     c_file = base + '.cpp'
                     options = cpp_options
                 else:
