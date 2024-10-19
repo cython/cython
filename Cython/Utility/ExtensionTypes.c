@@ -795,3 +795,31 @@ static int __Pyx__DelItemOnTypeDict(PyTypeObject *tp, PyObject *k) {
     if (likely(!result)) PyType_Modified(tp);
     return result;
 }
+
+///////////////// CallFinalizer.proto ///////////////////////
+
+#if CYTHON_CAN_CALL_FINALIZER
+    #define __Pyx_PyObject_CallFinalizerFromDealloc(x) PyObject_CallFinalizerFromDealloc(x)
+#else
+    static int __Pyx_PyObject_CallFinalizerFromDealloc(PyObject *o); /*proto*/
+#endif
+
+///////////////// CallFinalizer ///////////////////////
+
+#if !CYTHON_CAN_CALL_FINALIZER
+    static int __Pyx_PyObject_CallFinalizerFromDealloc(PyObject *o) {
+        // Just raise a warning about uncalled deallocator
+        PyObject *type, *val, *tb;
+        PyErr_Fetch(&type, &val, &tb);
+        __Pyx_TypeName o_type_name = __Pyx_PyType_GetName(Py_TYPE(o));
+        PyErr_WarnFormat(
+            PyExc_RuntimeWarning,
+            1,
+            "'__del__' not called for object of type "__Pyx_FMT_TYPENAME
+            " because the current Cython build configuration does not support it.",
+            o_type_name);
+        __Pyx_DECREF_TypeName(o_type_name);
+        PyErr_Restore(type, val, tb);
+        return 0; // always return 0 - it was never resurrected
+    }
+#endif
