@@ -373,6 +373,7 @@ you need to explicitly allow ``None`` values for them.
       translate directly to C pointer comparisons, whereas ``x == None`` and
       ``x != None``, or simply using ``x`` as a boolean value (as in ``if x: ...``)
       will invoke Python operations and therefore be much slower.
+    * ``typing.Union[tp, None]`` and ``tp | None`` can be used as alternatives to ``typing.Optional``
 
 Special methods
 ================
@@ -921,7 +922,7 @@ the ``no_gc_clear`` directive:
             @cython.cclass
             class DBCursor:
                 conn: DBConnection
-                raw_cursor: cython.pointer(DBAPI_Cursor)
+                raw_cursor: cython.pointer[DBAPI_Cursor]
                 # ...
                 def __dealloc__(self):
                     DBAPI_close_cursor(self.conn.raw_conn, self.raw_cursor)

@@ -333,10 +333,12 @@ class SlotDescriptor:
             return
 
         if scope.parent_type.typeptr_cname:
-            target = "%s->%s" % (scope.parent_type.typeptr_cname, self.slot_name)
+            target = "%s->%s" % (
+                code.typeptr_cname_in_module_state(scope.parent_type), self.slot_name)
         else:
             assert scope.parent_type.typeobj_cname
-            target = "%s.%s" % (scope.parent_type.typeobj_cname, self.slot_name)
+            target = "%s.%s" % (
+                code.name_in_module_state(scope.parent_type.typeobj_cname), self.slot_name)
 
         code.putln("%s = %s;" % (target, value))
 
@@ -494,9 +496,10 @@ class ConstructorSlot(InternalMethodSlot):
         # parent function statically, copy it dynamically.
         base_type = scope.parent_type.base_type
         if base_type.typeptr_cname:
-            src = '%s->%s' % (base_type.typeptr_cname, self.slot_name)
+            base_typeptr_cname = code.typeptr_cname_in_module_state(base_type)
+            src = '%s->%s' % (base_typeptr_cname, self.slot_name)
         elif base_type.is_extension_type and base_type.typeobj_cname:
-            src = '%s.%s' % (base_type.typeobj_cname, self.slot_name)
+            src = '%s.%s' % (code.typeptr_cname_in_module_state(base_type), self.slot_name)
         else:
             return
 
@@ -705,10 +708,11 @@ class BaseClassSlot(SlotDescriptor):
     def generate_dynamic_init_code(self, scope, code):
         base_type = scope.parent_type.base_type
         if base_type:
+            base_typeptr_cname = code.typeptr_cname_in_module_state(base_type)
             code.putln("%s->%s = %s;" % (
-                scope.parent_type.typeptr_cname,
+                code.typeptr_cname_in_module_state(scope.parent_type),
                 self.slot_name,
-                base_type.typeptr_cname))
+                base_typeptr_cname))
 
 
 class DictOffsetSlot(SlotDescriptor):
@@ -983,10 +987,8 @@ class SlotTable:
             MethodSlot(unaryfunc, "nb_index", "__index__", method_name_to_slot),
 
             # Added in release 3.5
-            BinopSlot(bf, "nb_matrix_multiply", "__matmul__", method_name_to_slot,
-                      ifdef="PY_VERSION_HEX >= 0x03050000"),
-            MethodSlot(ibinaryfunc, "nb_inplace_matrix_multiply", "__imatmul__", method_name_to_slot,
-                       ifdef="PY_VERSION_HEX >= 0x03050000"),
+            BinopSlot(bf, "nb_matrix_multiply", "__matmul__", method_name_to_slot),
+            MethodSlot(ibinaryfunc, "nb_inplace_matrix_multiply", "__imatmul__", method_name_to_slot),
         )
 
         self.PySequenceMethods = (

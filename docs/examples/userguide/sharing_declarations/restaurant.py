@@ -2,7 +2,7 @@ import cython
 from cython.cimports.dishes import spamdish, sausage
 
 @cython.cfunc
-def prepare(d: cython.pointer(spamdish)) -> cython.void:
+def prepare(d: cython.pointer[spamdish]) -> cython.void:
     d.oz_of_spam = 42
     d.filler = sausage
 

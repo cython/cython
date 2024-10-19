@@ -28,6 +28,16 @@ Features added
 * Several issues with the gdb support were resolved.
   Patches by Kent Slaney.  (Github issues :issue:`5955`, :issue:`5948`)
 
+* ``typing.Union[SomeType, None]`` and ``SomeType | None`` are now understood and mean
+  the same as ``typing.Optional[SomeType]``, allowing ``None`` in type checks.
+  (Github issue :issue:`6254`)
+
+* ``cython.const[]`` and ``cython.volatile[]`` are now available as type modifiers in Python code.
+  (Github issue :issue:`5728`)
+
+* ``cython.pointer[SomeCType]`` can now be used to define pointer types in Python type annotations.
+  (Github issue :issue:`5071`)
+
 * Several improvements were made to reduce the size of the resulting extension modules.
   (Github issue :issue:`4425`)
 
@@ -112,6 +122,9 @@ Bugs fixed
 
 * The ``__class__`` cell variable in methods was not always working as in Python.
   Initial patch by Tom Keefe.  (Github issue :issue:`2912`)
+
+* Lambda functions had no code objects. Their signature can now be introspected.
+  (Github issue :issue:`2983`)
 
 * Subtyping `complex` as extension type could fail.
   (Github issue :issue:`6346`)

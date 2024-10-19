@@ -792,7 +792,7 @@ def get_known_standard_library_module_scope(module_name):
             entry.as_variable = var_entry
             entry.known_standard_library_import = "%s.%s" % (module_name, name)
 
-        for name in ['ClassVar', 'Optional']:
+        for name in ['ClassVar', 'Optional', 'Union']:
             name = EncodedString(name)
             indexed_type = PyrexTypes.SpecialPythonTypeConstructor(EncodedString("typing."+name))
             entry = mod.declare_type(name, indexed_type, pos = None)

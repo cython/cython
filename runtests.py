@@ -1044,10 +1044,7 @@ class CythonCompileTestCase(unittest.TestCase):
                 # 'cache_builtins',  # not currently supported due to incorrect global caching
             )
         ]
-        self._saved_default_directives = list(Options.get_directive_defaults().items())
         Options.warning_errors = self.warning_errors
-        Options._directive_defaults['autotestdict'] = False
-        Options._directive_defaults.update(self.extra_directives)
 
         if not os.path.exists(self.workdir):
             os.makedirs(self.workdir)
@@ -1067,7 +1064,6 @@ class CythonCompileTestCase(unittest.TestCase):
         from Cython.Compiler import Options
         for name, value in self._saved_options:
             setattr(Options, name, value)
-        Options._directive_defaults = dict(self._saved_default_directives)
         unpatch_inspect_isfunction()
 
         try:
@@ -1244,6 +1240,10 @@ class CythonCompileTestCase(unittest.TestCase):
             from Cython.Compiler.Main import compile as cython_compile
         common_utility_include_dir = self.common_utility_dir
 
+        compiler_directives = {
+            'autotestdict': False,
+            **self.extra_directives,
+        }
         options = CompilationOptions(
             pyrex_default_options,
             include_path = include_dirs,
@@ -1257,6 +1257,7 @@ class CythonCompileTestCase(unittest.TestCase):
             evaluate_tree_assertions = True,
             common_utility_include_dir = common_utility_include_dir,
             c_line_in_traceback = True,
+            compiler_directives = compiler_directives,
             **extra_compile_options
             )
         cython_compile(module_path, options=options, full_module_name=module)
@@ -1683,8 +1684,8 @@ class PureDoctestTestCase(unittest.TestCase):
                 with self.stats.time(self.name, 'py', 'mypy'):
                     mypy_result = mypy_api.run([
                         self.module_path,
-                        '--ignore-missing-imports',
-                        '--follow-imports', 'skip',
+                        #'--ignore-missing-imports',
+                        #'--follow-imports', 'skip',
                         '--python-version', '3.10',
                     ])
                 if mypy_result[2]:

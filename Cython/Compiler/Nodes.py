@@ -1252,13 +1252,14 @@ class TemplatedTypeNode(CBaseTypeNode):
     name = None
 
     def _analyse_template_types(self, env, base_type):
-        require_optional_types = base_type.python_type_constructor_name == 'typing.Optional'
         require_python_types = base_type.python_type_constructor_name == 'dataclasses.ClassVar'
 
         in_c_type_context = env.in_c_type_context and not require_python_types
 
         template_types = []
         for template_node in self.positional_args:
+            if template_node.is_none:
+                continue
             # CBaseTypeNode -> allow C type declarations in a 'cdef' context again
             with env.new_c_type_context(in_c_type_context or isinstance(template_node, CBaseTypeNode)):
                 ttype = template_node.analyse_as_type(env)
@@ -1267,16 +1268,28 @@ class TemplatedTypeNode(CBaseTypeNode):
                     error(template_node.pos, "unknown type in template argument")
                     ttype = error_type
                 # For Python generics we can be a bit more flexible and allow None.
-            elif require_python_types and not ttype.is_pyobject or require_optional_types and not ttype.can_be_optional():
+            template_types.append(ttype)
+
+        if base_type.python_type_constructor_name:
+            if base_type.python_type_constructor_name == 'typing.Union':
+                base_type.contains_none = any(x.is_none for x in self.positional_args)
+            require_optional_types = base_type.allows_none()
+        else:
+            require_optional_types = False
+
+        for i, ttype in enumerate(template_types):
+            if ttype is None:
+                continue
+            if require_python_types and not ttype.is_pyobject or require_optional_types and not ttype.can_be_optional():
                 if ttype.equivalent_type and not template_node.as_cython_attribute():
-                    ttype = ttype.equivalent_type
+                    template_types[i] = ttype.equivalent_type
                 else:
                     error(template_node.pos, "%s[...] cannot be applied to type %s" % (
                         base_type.python_type_constructor_name,
                         ttype,
                     ))
-                    ttype = error_type
-            template_types.append(ttype)
+                    template_types[i] = error_type
+
 
         return template_types
 
@@ -1769,7 +1782,7 @@ class CEnumDefNode(StatNode):
                     code.error_goto_if_null(temp, item.pos)))
                 code.put_gotref(temp, PyrexTypes.py_object_type)
                 code.putln('if (PyDict_SetItemString(%s, "%s", %s) < 0) %s' % (
-                    Naming.moddict_cname,
+                    code.name_in_module_state(Naming.moddict_cname),
                     item.name,
                     temp,
                     code.error_goto(item.pos)))
@@ -2118,13 +2131,14 @@ class FuncDefNode(StatNode, BlockNode):
             tp_slot = TypeSlots.ConstructorSlot("tp_new", '__new__')
             slot_func_cname = TypeSlots.get_slot_function(lenv.scope_class.type.scope, tp_slot)
             if not slot_func_cname:
-                slot_func_cname = '%s->tp_new' % lenv.scope_class.type.typeptr_cname
+                slot_func_cname = '%s->tp_new' % (
+                    code.name_in_module_state(lenv.scope_class.type.typeptr_cname))
             code.putln("%s = (%s)%s(%s, %s, NULL);" % (
                 Naming.cur_scope_cname,
                 lenv.scope_class.type.empty_declaration_code(),
                 slot_func_cname,
-                lenv.scope_class.type.typeptr_cname,
-                Naming.empty_tuple))
+                code.name_in_module_state(lenv.scope_class.type.typeptr_cname),
+                code.name_in_module_state(Naming.empty_tuple)))
             code.putln("if (unlikely(!%s)) {" % Naming.cur_scope_cname)
             # Scope unconditionally DECREFed on return.
             code.putln("%s = %s;" % (
@@ -2480,7 +2494,7 @@ class FuncDefNode(StatNode, BlockNode):
         if arg.type.typeobj_is_available():
             code.globalstate.use_utility_code(
                 UtilityCode.load_cached("ArgTypeTest", "FunctionArguments.c"))
-            typeptr_cname = arg.type.typeptr_cname
+            typeptr_cname = code.typeptr_cname_in_module_state(arg.type)
             arg_code = "((PyObject *)%s)" % arg.entry.cname
             exact = 0
             if arg.type.is_builtin_type and arg.type.require_exact:
@@ -5020,8 +5034,9 @@ class OverrideCheckNode(StatNode):
             # passes and thus takes the slow route.
             # Therefore we do a less thorough check - if the type hasn't changed then clearly it hasn't
             # been overridden, and if the type isn't GC then it also won't have been overridden.
+            typeptr_cname = code.name_in_module_state(self.py_func.entry.scope.parent_type.typeptr_cname)
             code.putln(f"unlikely(Py_TYPE({self_arg}) != "
-                        f"{self.py_func.entry.scope.parent_type.typeptr_cname} &&")
+                        f"{typeptr_cname} &&")
             code.putln(f"__Pyx_PyType_HasFeature(Py_TYPE({self_arg}), Py_TPFLAGS_HAVE_GC))")
             code.putln("#else")
             code.putln(f"unlikely(Py_TYPE({self_arg})->tp_dictoffset != 0 || "
@@ -5682,7 +5697,7 @@ class CClassDefNode(ClassDefNode):
         # Generate a call to PyType_Ready for an extension
         # type defined in this module.
         type = entry.type
-        typeptr_cname = type.typeptr_cname
+        typeptr_cname = f"{Naming.modulestatevalue_cname}->{type.typeptr_cname}"
         scope = type.scope
         if not scope:  # could be None if there was an error
             return
@@ -5708,7 +5723,7 @@ class CClassDefNode(ClassDefNode):
                 tuple_temp = code.funcstate.allocate_temp(py_object_type, manage_ref=True)
                 code.putln("%s = PyTuple_Pack(1, (PyObject *)%s); %s" % (
                     tuple_temp,
-                    scope.parent_type.base_type.typeptr_cname,
+                    code.typeptr_cname_in_module_state(scope.parent_type.base_type),
                     code.error_goto_if_null(tuple_temp, entry.pos),
                 ))
                 code.put_gotref(tuple_temp, py_object_type)
@@ -5802,8 +5817,9 @@ class CClassDefNode(ClassDefNode):
                         "" if base_type.typedef_flag else "struct ", base_type.objstruct_cname))
                     code.globalstate.use_utility_code(
                         UtilityCode.load_cached("ValidateExternBase", "ExtensionTypes.c"))
+                    base_typeptr_cname = code.typeptr_cname_in_module_state(type.base_type)
                     code.put_error_if_neg(entry.pos, "__Pyx_validate_extern_base(%s)" % (
-                        type.base_type.typeptr_cname))
+                        base_typeptr_cname))
                     code.putln("}")
                     break
                 base_type = base_type.base_type
