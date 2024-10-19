@@ -130,7 +130,7 @@ static CYTHON_INLINE int __Pyx__IsSameCyOrCFunctionNoMethod(PyObject *func, void
 }
 
 static CYTHON_INLINE int __Pyx__IsSameCyOrCFunction(PyObject *func, void *cfunc) {
-    if ((PyObject*)Py_TYPE(func) == __Pyx_CachedMethodType) {
+    if ((PyObject*)Py_TYPE(func) == CGLOBAL(__Pyx_CachedMethodType)) {
         int result;
         PyObject *newFunc = PyObject_GetAttr(func, PYIDENT("__func__"));
         if (unlikely(!newFunc)) {
