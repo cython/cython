@@ -323,15 +323,12 @@ def update_cpp_extension(cpp_std, min_gcc_version=None, min_clang_version=None, 
         # we're about to give, assume that whatever C compiler we use will probably be ok with it.
         extra_compile_args = []
         already_has_std = False
-        print(f"XX {ext.extra_compile_args} {cpp_std}")
         if ext.extra_compile_args:
             std_regex = re.compile(r"-std(?!lib).*?(?P<number>[0-9]+)")
             for ca in ext.extra_compile_args:
                 match = std_regex.search(ca)
-                print(f"xx {ca} {match}")
                 if match:
                     number = int(match.group("number"))
-                    print(f"yy {number}")
                     if number < cpp_std:
                         continue  # and drop the argument
                     already_has_std = True
@@ -1302,7 +1299,6 @@ class CythonCompileTestCase(unittest.TestCase):
                 # Set the language now as the fixer might need it
                 extension.language = 'c++'
                 if self.extra_directives.get('cpp_locals'):
-                    print("HERE")
                     extension = update_cpp17_extension(extension)
                     if extension is EXCLUDE_EXT:
                         return
