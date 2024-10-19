@@ -2478,16 +2478,6 @@ static int __Pyx_VersionSanityCheck(void) {
     return 0;
 }
 
-/////////////////////////// AccessPyMutexForFreeThreading.proto ////////////
-
-#if CYTHON_COMPILING_IN_CPYTHON_FREETHREADING
-// TODO - this is likely to get exposed properly at some point
-#ifndef Py_BUILD_CORE
-#define Py_BUILD_CORE 1
-#endif
-#include "internal/pycore_lock.h"
-#endif
-
 ////////////////////////// SharedInFreeThreading.proto //////////////////
 
 #if CYTHON_COMPILING_IN_CPYTHON_FREETHREADING
