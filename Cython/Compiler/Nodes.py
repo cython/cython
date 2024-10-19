@@ -3126,7 +3126,6 @@ class DefNode(FuncDefNode):
             if scope is None:
                 scope = cfunc.scope
             cfunc_type = cfunc.type
-            has_explicit_exc_clause=True
             if len(self.args) != len(cfunc_type.args) or cfunc_type.has_varargs:
                 error(self.pos, "wrong number of arguments")
                 error(cfunc.pos, "previous declaration here")
