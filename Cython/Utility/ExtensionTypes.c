@@ -798,7 +798,7 @@ static int __Pyx__DelItemOnTypeDict(PyTypeObject *tp, PyObject *k) {
 
 ///////////////// CallFinalizer.proto ///////////////////////
 
-#if CYTHON_CAN_CALL_FINALIZER
+#if CYTHON_USE_TP_FINALIZE
     #define __Pyx_PyObject_CallFinalizerFromDealloc(x) PyObject_CallFinalizerFromDealloc(x)
 #else
     static int __Pyx_PyObject_CallFinalizerFromDealloc(PyObject *o); /*proto*/
@@ -806,7 +806,7 @@ static int __Pyx__DelItemOnTypeDict(PyTypeObject *tp, PyObject *k) {
 
 ///////////////// CallFinalizer ///////////////////////
 
-#if !CYTHON_CAN_CALL_FINALIZER
+#if !CYTHON_USE_TP_FINALIZE
     static int __Pyx_PyObject_CallFinalizerFromDealloc(PyObject *o) {
         // Just raise a warning about uncalled deallocator
         PyObject *type, *val, *tb;
@@ -815,7 +815,7 @@ static int __Pyx__DelItemOnTypeDict(PyTypeObject *tp, PyObject *k) {
         PyErr_WarnFormat(
             PyExc_RuntimeWarning,
             1,
-            "'__del__' not called for object of type "__Pyx_FMT_TYPENAME
+            "'__del__' not called for object of type " __Pyx_FMT_TYPENAME
             " because the current Cython build configuration does not support it.",
             o_type_name);
         __Pyx_DECREF_TypeName(o_type_name);
