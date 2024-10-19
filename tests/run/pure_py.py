@@ -1,4 +1,5 @@
 # mode: run
+# cython: language_level=3
 
 import cython
 from cython import sizeof
@@ -408,13 +409,15 @@ def ccall_except_check(x):
     return x+1
 
 
-@cython.test_fail_if_path_exists("//CFuncDeclaratorNode//IntNode[@base_10_value = '-1']")
 @cython.test_assert_path_exists("//CFuncDeclaratorNode")
 @cython.ccall
 @cython.returns(cython.long)
 @cython.exceptval(check=True)
 def ccall_except_check_always(x):
     """
+    Note that this actually takes the same shortcut as for a Cython-syntax cdef function
+    and does except ?-1
+
     >>> ccall_except_check_always(41)
     42
     >>> ccall_except_check_always(0)

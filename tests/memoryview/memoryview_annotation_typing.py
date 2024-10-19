@@ -20,7 +20,7 @@ def one_dim(a: cython.double[:]):
     (2.0, 1)
     """
     a[0] *= 2
-    return a[0], a.ndim
+    return float(a[0]), a.ndim
 
 
 def one_dim_ccontig(a: cython.double[::1]):
@@ -30,7 +30,7 @@ def one_dim_ccontig(a: cython.double[::1]):
     (2.0, 1)
     """
     a[0] *= 2
-    return a[0], a.ndim
+    return float(a[0]), a.ndim
 
 
 def two_dim(a: cython.double[:,:]):
@@ -40,7 +40,7 @@ def two_dim(a: cython.double[:,:]):
     (3.0, 1.0, 2)
     """
     a[0,0] *= 3
-    return a[0,0], a[0,1], a.ndim
+    return float(a[0,0]), float(a[0,1]), a.ndim
 
 
 def variable_annotation(a):
@@ -58,7 +58,7 @@ def variable_annotation(a):
     b = a
     b[1] += 1
     b[2] += 2
-    return b[1]
+    return float(b[1])
 
 
 def slice_none(m: cython.double[:]):
@@ -93,12 +93,54 @@ def slice_optional(m: typing.Optional[cython.double[:]]):
     """
     return 1 if m is None else 2
 
+def slice_union(m: typing.Union[cython.double[:], None]):
+    """
+    >>> slice_union(None)
+    1
+    >>> a = numpy.ones((10,), numpy.double)
+    >>> slice_union(a)
+    2
+
+    # Make sure that we actually evaluate the type and don't just accept everything.
+    >>> try:
+    ...     x = slice_union(123)
+    ... except TypeError as exc:
+    ...     if not COMPILED: raise
+    ... else:
+    ...     assert not COMPILED
+    """
+    return 1 if m is None else 2
+
+def slice_bitwise_or_none(m: cython.double[:] | None, n: None | cython.double[:]):
+    """
+    >>> slice_bitwise_or_none(None, None)
+    (1, 1)
+    >>> a = numpy.ones((10,), numpy.double)
+    >>> slice_bitwise_or_none(a, a)
+    (2, 2)
+
+    # Make sure that we actually evaluate the type and don't just accept everything.
+    >>> try:
+    ...     x = slice_bitwise_or_none(123, None)
+    ... except TypeError as exc:
+    ...     if not COMPILED: raise
+    ... else:
+    ...     assert not COMPILED
+
+    >>> try:
+    ...     x = slice_bitwise_or_none(None, 123)
+    ... except TypeError as exc:
+    ...     if not COMPILED: raise
+    ... else:
+    ...     assert not COMPILED
+    """
+    return (1 if m is None else 2, 1 if n is None else 2)
 
 @cython.nogil
 @cython.cfunc
 def _one_dim_nogil_cfunc(a: cython.double[:]) -> cython.double:
     a[0] *= 2
-    return a[0]
+    return float(a[0])
 
 
 def one_dim_nogil_cfunc(a: cython.double[:]):

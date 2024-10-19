@@ -11,7 +11,6 @@
 static PyObject* __Pyx_Globals(void); /*proto*/
 
 //////////////////// Globals ////////////////////
-//@substitute: naming
 //@requires: ObjectHandling.c::GetAttr
 
 // This is a stub implementation until we have something more complete.
@@ -20,7 +19,7 @@ static PyObject* __Pyx_Globals(void); /*proto*/
 // access requires a rewrite as a dedicated class.
 
 static PyObject* __Pyx_Globals(void) {
-    return __Pyx_NewRef($moddict_cname);
+    return __Pyx_NewRef(NAMED_CGLOBAL(moddict_cname));
 }
 
 //////////////////// PyExecGlobals.proto ////////////////////
@@ -28,11 +27,10 @@ static PyObject* __Pyx_Globals(void) {
 static PyObject* __Pyx_PyExecGlobals(PyObject*);
 
 //////////////////// PyExecGlobals ////////////////////
-//@substitute: naming
 //@requires: PyExec
 
 static PyObject* __Pyx_PyExecGlobals(PyObject* code) {
-    return __Pyx_PyExec2(code, $moddict_cname);
+    return __Pyx_PyExec2(code, NAMED_CGLOBAL(moddict_cname));
 }
 
 //////////////////// PyExec.proto ////////////////////
@@ -41,7 +39,6 @@ static PyObject* __Pyx_PyExec3(PyObject*, PyObject*, PyObject*);
 static CYTHON_INLINE PyObject* __Pyx_PyExec2(PyObject*, PyObject*);
 
 //////////////////// PyExec ////////////////////
-//@substitute: naming
 
 static CYTHON_INLINE PyObject* __Pyx_PyExec2(PyObject* o, PyObject* globals) {
     return __Pyx_PyExec3(o, globals, NULL);
@@ -55,7 +52,7 @@ static PyObject* __Pyx_PyExec3(PyObject* o, PyObject* globals, PyObject* locals)
 #endif
 
     if (!globals || globals == Py_None) {
-        globals = $moddict_cname;
+        globals = NAMED_CGLOBAL(moddict_cname);
     }
 #if !CYTHON_COMPILING_IN_LIMITED_API
     // In Limited API we just use exec builtin which already has this
@@ -167,7 +164,7 @@ static CYTHON_INLINE PyObject *__Pyx_GetAttr3(PyObject *o, PyObject *n, PyObject
     return (res != 0) ? r : __Pyx_NewRef(d);
 #else
   #if CYTHON_USE_TYPE_SLOTS
-    if (likely(PyString_Check(n))) {
+    if (likely(PyUnicode_Check(n))) {
         r = __Pyx_PyObject_GetAttrStrNoError(o, n);
         if (unlikely(!r) && likely(!PyErr_Occurred())) {
             r = __Pyx_NewRef(d);
@@ -189,20 +186,19 @@ static CYTHON_INLINE int __Pyx_HasAttr(PyObject *, PyObject *); /*proto*/
 #endif
 
 //////////////////// HasAttr ////////////////////
-//@requires: ObjectHandling.c::GetAttr
+//@requires: ObjectHandling.c::PyObjectGetAttrStrNoError
 
 #if __PYX_LIMITED_VERSION_HEX < 0x030d00A1
 static CYTHON_INLINE int __Pyx_HasAttr(PyObject *o, PyObject *n) {
     PyObject *r;
-    if (unlikely(!__Pyx_PyBaseString_Check(n))) {
+    if (unlikely(!PyUnicode_Check(n))) {
         PyErr_SetString(PyExc_TypeError,
                         "hasattr(): attribute name must be string");
         return -1;
     }
-    r = __Pyx_GetAttr(o, n);
+    r = __Pyx_PyObject_GetAttrStrNoError(o, n);
     if (!r) {
-        PyErr_Clear();
-        return 0;
+        return (unlikely(PyErr_Occurred())) ? -1 : 0;
     } else {
         Py_DECREF(r);
         return 1;
@@ -303,6 +299,51 @@ static PyObject *__Pyx_PyLong_AbsNeg(PyObject *n) {
 #define __Pyx_PyNumber_Power2(a, b) PyNumber_Power(a, b, Py_None)
 
 
+//////////////////// divmod_int.proto //////////////////
+
+static CYTHON_INLINE PyObject* __Pyx_divmod_int(int a, int b); /*proto*/
+
+
+//////////////////// divmod_int //////////////////
+
+static CYTHON_INLINE PyObject* __Pyx_divmod_int(int a, int b) {
+    PyObject *result_tuple = NULL, *pyvalue = NULL;
+    // Python and C/C++ use different algorithms in calculating quotients and remainders.
+    // This results in different answers between Python and C/C++
+    // when the dividend is negative and the divisor is positive and vice versa.
+    int q, r;
+    if ((a < 0 && b > 0) || (a > 0 && b < 0)) {
+        // see CMath.c :: DivInt and ModInt utility code
+        q = a / b;
+        r = a - q * b;
+        q -= ((r != 0) & ((r ^ b) < 0));
+        r += ((r != 0) & ((r ^ b) < 0)) * b;
+    }
+    else if (b == 0) {
+        PyErr_SetString(PyExc_ZeroDivisionError, "integer division or modulo by zero");
+        return NULL;
+    }
+    else {
+        div_t res = div(a, b);
+        q = res.quot;
+        r = res.rem;
+    }
+    result_tuple = PyTuple_New(2);
+    if (unlikely(!result_tuple)) return NULL;
+    pyvalue = PyLong_FromLong(q);
+    if (unlikely(!pyvalue)) goto bad;
+    if (__Pyx_PyTuple_SET_ITEM(result_tuple, 0, pyvalue) != (0)) goto bad;
+    pyvalue = PyLong_FromLong(r);
+    if (unlikely(!pyvalue)) goto bad;
+    if (__Pyx_PyTuple_SET_ITEM(result_tuple, 1, pyvalue) != (0)) goto bad;
+    return result_tuple;
+
+bad:
+    Py_DECREF(result_tuple);
+    return NULL;
+}
+
+
 //////////////////// int_pyucs4.proto ////////////////////
 
 static CYTHON_INLINE int __Pyx_int_from_UCS4(Py_UCS4 uchar);
@@ -361,7 +402,7 @@ static long __Pyx__PyObject_Ord(PyObject* c) {
             return (unsigned char) data[0];
 #endif
         }
-#if !CYTHON_ASSUME_SAFE_SIZE        
+#if !CYTHON_ASSUME_SAFE_SIZE
         else if (unlikely(size < 0)) return -1;
 #endif
     } else if (PyByteArray_Check(c)) {
@@ -489,7 +530,7 @@ static CYTHON_INLINE PyObject* __Pyx_PyDict_ViewItems(PyObject* d) {
 static CYTHON_INLINE PyObject* __Pyx_PyFrozenSet_New(PyObject* it);
 
 //////////////////// pyfrozenset_new ////////////////////
-//@substitute: naming
+//@requires: ObjectHandling.c::PyObjectCallNoArg
 
 static CYTHON_INLINE PyObject* __Pyx_PyFrozenSet_New(PyObject* it) {
     if (it) {
@@ -533,11 +574,7 @@ static CYTHON_INLINE PyObject* __Pyx_PyFrozenSet_New(PyObject* it) {
         Py_DECREF(result);
 #endif
     }
-#if CYTHON_USE_TYPE_SLOTS
-    return PyFrozenSet_Type.tp_new(&PyFrozenSet_Type, $empty_tuple, NULL);
-#else
-    return PyObject_Call((PyObject*)&PyFrozenSet_Type, $empty_tuple, NULL);
-#endif
+    return __Pyx_PyObject_CallNoArg((PyObject*) &PyFrozenSet_Type);
 }
 
 
@@ -578,7 +615,7 @@ static CYTHON_INLINE int __Pyx_PySet_Update(PyObject* set, PyObject* it) {
 ///////////////// memoryview_get_from_buffer.proto ////////////////////
 
 // buffer is in limited api from Py3.11
-#if !CYTHON_COMPILING_IN_LIMITED_API || CYTHON_LIMITED_API >= 0x030b0000
+#if !CYTHON_COMPILING_IN_LIMITED_API || __PYX_LIMITED_VERSION_HEX >= 0x030b0000
 #define __Pyx_PyMemoryView_Get_{{name}}(o) PyMemoryView_GET_BUFFER(o)->{{name}}
 #else
 {{py:
@@ -592,7 +629,7 @@ static {{out_type}} __Pyx_PyMemoryView_Get_{{name}}(PyObject *obj); /* proto */
 
 ////////////// memoryview_get_from_buffer /////////////////////////
 
-#if !CYTHON_COMPILING_IN_LIMITED_API || CYTHON_LIMITED_API >= 0x030b0000
+#if !CYTHON_COMPILING_IN_LIMITED_API || __PYX_LIMITED_VERSION_HEX >= 0x030b0000
 #else
 {{py:
 out_types = dict(

@@ -70,7 +70,6 @@ interned_prefixes = {
     'int': pyrex_prefix + "int_",
     'float': pyrex_prefix + "float_",
     'tuple': pyrex_prefix + "tuple_",
-    'codeobj': pyrex_prefix + "codeobj_",
     'slice': pyrex_prefix + "slice_",
     'ustring': pyrex_prefix + "ustring_",
     'umethod': pyrex_prefix + "umethod_",
@@ -98,7 +97,8 @@ clineno_cname    = pyrex_prefix + "clineno"
 cfilenm_cname    = pyrex_prefix + "cfilenm"
 local_tstate_cname = pyrex_prefix + "tstate"
 module_cname     = pyrex_prefix + "m"
-modulestate_cname = pyrex_prefix + "mstate"
+modulestatetype_cname = pyrex_prefix + "mstatetype"
+modulestatevalue_cname = pyrex_prefix + "mstate"
 modulestateglobal_cname = pyrex_prefix + "mstate_global"
 moddoc_cname     = pyrex_prefix + "mdoc"
 methtable_cname  = pyrex_prefix + "methods"
@@ -106,6 +106,8 @@ retval_cname     = pyrex_prefix + "r"
 reqd_kwds_cname  = pyrex_prefix + "reqd_kwds"
 self_cname       = pyrex_prefix + "self"
 stringtab_cname  = pyrex_prefix + "string_tab"
+codeobjtab_cname = pyrex_prefix + "codeobj_tab"
+stringtab_encodings_cname  = pyrex_prefix + "string_tab_encodings"
 vtabslot_cname   = pyrex_prefix + "vtab"
 c_api_tab_cname  = pyrex_prefix + "c_api_tab"
 gilstate_cname   = pyrex_prefix + "state"
@@ -129,6 +131,8 @@ cur_scope_cname  = pyrex_prefix + "cur_scope"
 enc_scope_cname  = pyrex_prefix + "enc_scope"
 frame_cname      = pyrex_prefix + "frame"
 frame_code_cname = pyrex_prefix + "frame_code"
+monitoring_states_cname = pyrex_prefix + "pymonitoring_state"
+monitoring_version_cname = pyrex_prefix + "pymonitoring_version"
 error_without_exception_cname = pyrex_prefix + "error_without_exception"
 binding_cfunc    = pyrex_prefix + "binding_PyCFunctionType"
 fused_func_prefix = pyrex_prefix + 'fuse_'
@@ -163,6 +167,7 @@ exc_value_name  = pyrex_prefix + "exc_value"
 exc_tb_name     = pyrex_prefix + "exc_tb"
 exc_lineno_name = pyrex_prefix + "exc_lineno"
 
+parallel_freethreading_mutex = pyrex_prefix + "parallel_freethreading_mutex"
 parallel_exc_type = pyrex_prefix + "parallel_exc_type"
 parallel_exc_value = pyrex_prefix + "parallel_exc_value"
 parallel_exc_tb = pyrex_prefix + "parallel_exc_tb"
@@ -196,3 +201,169 @@ used_types_and_macros = [
     ('__pyx_CoroutineAwaitType', '__Pyx_Coroutine_USED'),
     ('__pyx_CoroutineType', '__Pyx_Coroutine_USED'),
 ]
+
+
+iso_c23_keywords = frozenset((
+    'alignas',  # (C23)
+    'alignof',  # (C23)
+    'auto',
+    'bool',  # (C23)
+    'break',
+    'case',
+    'char',
+    'const',
+    'constexpr',  # (C23)
+    'continue',
+    'default',
+    'do',
+    'double',
+    'else',
+    'enum',
+    'extern',
+    'false',  # (C23)
+    'float',
+    'for',
+    'goto',
+    'if',
+    'inline',  # (C99)
+    'int',
+    'long',
+    'nullptr',  # (C23)
+    'register',
+    'restrict',  # (C99)
+    'return',
+    'short',
+    'signed',
+    'sizeof',
+    'static',
+    'static_assert',  # (C23)
+    'struct',
+    'switch',
+    'thread_local',  # (C23)
+    'true',  # (C23)
+    'typedef',
+    'typeof',  # (C23)
+    'typeof_unqual',  # (C23)
+    'union',
+    'unsigned',
+    'void',
+    'volatile',
+    'while',
+    '_Alignas',  # (C11)
+    '_Alignof',  # (C11)
+    '_Atomic',  # (C11)
+    '_BitInt',  # (C23)
+    '_Bool',  # (C99)
+    '_Complex',  # (C99)
+    '_Decimal128',  # (C23)
+    '_Decimal32',  # (C23)
+    '_Decimal64',  # (C23)
+    '_Generic',  # (C11)
+    '_Imaginary',  # (C99)
+    '_Noreturn',  # (C11)
+    '_Static_assert',  # (C11)
+    '_Thread_local',  # (C11)
+))
+
+
+iso_cpp23_keywords = frozenset((
+    'alignas',  # (C++11)
+    'alignof',  # (C++11)
+    'and',
+    'and_eq',
+    'asm',
+    'atomic_cancel',  # (TM TS)
+    'atomic_commit',  # (TM TS)
+    'atomic_noexcept',  # (TM TS)
+    'auto',
+    'bitand',
+    'bitor',
+    'bool',
+    'break',
+    'case',
+    'catch',
+    'char',
+    'char8_t',  # (C++20)
+    'char16_t',  # (C++11)
+    'char32_t',  # (C++11)
+    'class',
+    'compl',
+    'concept',  # (C++20)
+    'const',
+    'consteval',  # (C++20)
+    'constexpr',  # (C++11)
+    'constinit',  # (C++20)
+    'const_cast',
+    'continue',
+    'co_await',  # (C++20)
+    'co_return',  # (C++20)
+    'co_yield',  # (C++20)
+    'decltype',  # (C++11)
+    'default',
+    'delete',
+    'do',
+    'double',
+    'dynamic_cast',
+    'else',
+    'enum',
+    'explicit',
+    'export',
+    'extern',
+    'false',
+    'float',
+    'for',
+    'friend',
+    'goto',
+    'if',
+    'inline',
+    'int',
+    'long',
+    'mutable',
+    'namespace',
+    'new',
+    'noexcept',  # (C++11)
+    'not',
+    'not_eq',
+    'nullptr',  # (C++11)
+    'operator',
+    'or',
+    'or_eq',
+    'private',
+    'protected',
+    'public',
+    'reflexpr',  # (reflection TS)
+    'register',
+    'reinterpret_cast',
+    'requires',  # (C++20)
+    'return',
+    'short',
+    'signed',
+    'sizeof',
+    'static',
+    'static_assert',  # (C++11)
+    'static_cast',
+    'struct',
+    'switch',
+    'synchronized',  # (TM TS)
+    'template',
+    'this',
+    'thread_local',  # (C++11)
+    'throw',
+    'true',
+    'try',
+    'typedef',
+    'typeid',
+    'typename',
+    'union',
+    'unsigned',
+    'using',
+    'virtual',
+    'void',
+    'volatile',
+    'wchar_t',
+    'while',
+    'xor',
+    'xor_eq',
+))
+
+reserved_cnames = iso_c23_keywords | iso_cpp23_keywords

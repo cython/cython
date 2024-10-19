@@ -196,6 +196,19 @@ def test_substr(char *a):
     z = s.substr()
     return x.c_str(), y.c_str(), z.c_str()
 
+def test_replace(char *a, char *b, char* fill):
+    """
+    >>> test_replace(b_asdf, b_asdg, b_s)  == (b_asdg+b_asdf[2:], b_asdf[:-2]+b_asdg[-2:], (b_s*4)+b_asdg[2:])
+    True
+    """
+    cdef string s1 = string(a)
+    cdef string s2 = string(a)
+    cdef string s3 = string(b)
+    s1.replace(0, 2, s3)
+    s2.replace(s2.size()-2, 2, s3, s3.size()-2, 2)
+    s3.replace(0, 2, 4, fill[0])
+    return s1.c_str(), s2.c_str(), s3.c_str()
+
 def test_append(char *a, char *b):
     """
     >>> test_append(b_asdf, '1234'.encode('ASCII')) == b_asdf + '1234'.encode('ASCII')
@@ -377,34 +390,6 @@ def test_iteration(string s):
     """
     return [c for c in s]
 
-def test_to_string(x):
-    """
-    >>> print(test_to_string(5))
-    si=5 sl=5 ss=5 sss=5
-    >>> print(test_to_string(-5))
-    si=-5 sl=-5 ss=5 sss=-5
-    """
-    si = to_string(<int>x).decode('ascii')
-    sl = to_string(<long>x).decode('ascii')
-    ss = to_string(<size_t>abs(x)).decode('ascii')
-    sss = to_string(<ssize_t>x).decode('ascii')
-    return f"si={si} sl={sl} ss={ss} sss={sss}"
-
-def test_stoi(char *a):
-    """
-    >>> test_stoi(b'5')
-    5
-    """
-    cdef string s = string(a)
-    return stoi(s)
-
-def test_stof(char *a):
-    """
-    >>> test_stof(b'5.5')
-    5.5
-    """
-    cdef string s = string(a)
-    return stof(s)
 
 def test_to_string(x):
     """

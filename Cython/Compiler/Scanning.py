@@ -112,7 +112,7 @@ def initial_compile_time_env():
     # Py2/3 adaptations
     from functools import reduce
     benv.declare('reduce', reduce)
-    benv.declare('unicode', getattr(builtins, 'unicode', getattr(builtins, 'str')))
+    benv.declare('unicode', str)
     benv.declare('long', getattr(builtins, 'long', getattr(builtins, 'int')))
     benv.declare('xrange', getattr(builtins, 'xrange', getattr(builtins, 'range')))
 
@@ -148,11 +148,9 @@ class SourceDescriptor:
 
     def get_escaped_description(self):
         if self._escaped_description is None:
-            esc_desc = \
-                self.get_description().encode('ASCII', 'replace').decode("ASCII")
             # Use forward slashes on Windows since these paths
             # will be used in the #line directives in the C/C++ files.
-            self._escaped_description = esc_desc.replace('\\', '/')
+            self._escaped_description = self.get_description().replace('\\', '/')
         return self._escaped_description
 
     def __gt__(self, other):
@@ -193,8 +191,13 @@ class FileSourceDescriptor(SourceDescriptor):
     """
     def __init__(self, filename, path_description=None):
         filename = Utils.decode_filename(filename)
-        self.path_description = path_description or filename
         self.filename = filename
+        self.path_description = path_description or filename
+        try:
+            self._short_path_description = os.path.relpath(self.path_description)
+        except ValueError:
+            # path not under current directory => use complete file path
+            self._short_path_description = self.path_description
         # Prefer relative paths to current directory (which is most likely the project root) over absolute paths.
         workdir = os.path.abspath('.') + os.sep
         self.file_path = filename[len(workdir):] if filename.startswith(workdir) else filename
@@ -214,7 +217,7 @@ class FileSourceDescriptor(SourceDescriptor):
             pass
 
         with Utils.open_source_file(self.filename, encoding=encoding, error_handling=error_handling) as f:
-            lines = list(f)
+            lines = f.readlines()
 
         if key in self._lines:
             self._lines[key] = lines
@@ -225,11 +228,7 @@ class FileSourceDescriptor(SourceDescriptor):
         return lines
 
     def get_description(self):
-        try:
-            return os.path.relpath(self.path_description)
-        except ValueError:
-            # path not under current directory => use complete file path
-            return self.path_description
+        return self._short_path_description
 
     def get_error_description(self):
         path = self.filename
@@ -336,7 +335,7 @@ class PyrexScanner(Scanner):
         self.source_encoding = source_encoding
         self.trace = trace_scanner
         self.indentation_stack = [0]
-        self.indentation_char = None
+        self.indentation_char = '\0'
         self.bracket_nesting_level = 0
 
         self.put_back_on_failure = None
@@ -380,8 +379,8 @@ class PyrexScanner(Scanner):
         '"""': 'TDQ_STRING'
     }
 
-    def begin_string_action(self, text):
-        while text[:1] in any_string_prefix:
+    def begin_string_action(self, text: str):
+        while text and text[0] in any_string_prefix:
             text = text[1:]
         self.begin(self.string_states[text])
         self.produce('BEGIN_STRING')
@@ -394,7 +393,7 @@ class PyrexScanner(Scanner):
         self.end_string_action(text)
         self.error_at_scanpos("Unclosed string literal")
 
-    def indentation_action(self, text):
+    def indentation_action(self, text: str):
         self.begin('')
         # Indentation within brackets should be ignored.
         #if self.bracket_nesting_level > 0:
@@ -403,7 +402,7 @@ class PyrexScanner(Scanner):
         if text:
             c = text[0]
             #print "Scanner.indentation_action: indent with", repr(c) ###
-            if self.indentation_char is None:
+            if self.indentation_char == '\0':
                 self.indentation_char = c
                 #print "Scanner.indentation_action: setting indent_char to", repr(c)
             else:
@@ -412,8 +411,8 @@ class PyrexScanner(Scanner):
             if text.replace(c, "") != "":
                 self.error_at_scanpos("Mixed use of tabs and spaces")
         # Figure out how many indents/dedents to do
-        current_level = self.current_level()
-        new_level = len(text)
+        current_level: cython.Py_ssize_t = self.current_level()
+        new_level: cython.Py_ssize_t = len(text)
         #print "Changing indent level from", current_level, "to", new_level ###
         if new_level == current_level:
             return
@@ -522,7 +521,7 @@ class PyrexScanner(Scanner):
     def expect_dedent(self):
         self.expect('DEDENT', "Expected a decrease in indentation level")
 
-    def expect_newline(self, message="Expected a newline", ignore_semicolon=False):
+    def expect_newline(self, message="Expected a newline", ignore_semicolon: cython.bint = False):
         # Expect either a newline or end of file
         useless_trailing_semicolon = None
         if ignore_semicolon and self.sy == ';':
@@ -549,8 +548,7 @@ class PyrexScanner(Scanner):
                 self.sy, self.systring = IDENT, self.context.intern_ustring(self.sy)
 
 @contextmanager
-@cython.locals(scanner=Scanner)
-def tentatively_scan(scanner):
+def tentatively_scan(scanner: PyrexScanner):
     errors = hold_errors()
     try:
         put_back_on_failure = scanner.put_back_on_failure
