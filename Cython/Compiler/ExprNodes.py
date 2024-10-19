@@ -6924,6 +6924,7 @@ class CachedBuiltinMethodCallNode(CallNode):
         obj_cname = self.obj.py_result()
         args = [arg.py_result() for arg in self.args]
         call_code = code.globalstate.cached_unbound_method_call_code(
+            code.name_in_module_state(""),
             obj_cname, type_cname, self.method_name, args)
         code.putln("%s = %s; %s" % (
             self.result(), call_code,

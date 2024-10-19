@@ -380,7 +380,8 @@
     #define CYTHON_USE_DICT_VERSIONS 0
   #elif !defined(CYTHON_USE_DICT_VERSIONS)
     // Python 3.12a5 deprecated "ma_version_tag"
-    #define CYTHON_USE_DICT_VERSIONS  (PY_VERSION_HEX < 0x030C00A5)
+    // and we use static variables with dict versions so it's incompatible with module state
+    #define CYTHON_USE_DICT_VERSIONS  (PY_VERSION_HEX < 0x030C00A5 && !CYTHON_USE_MODULE_STATE)
   #endif
   #ifndef CYTHON_USE_EXC_INFO_STACK
     #define CYTHON_USE_EXC_INFO_STACK 1

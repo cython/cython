@@ -1558,13 +1558,14 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         freecount_name = scope.mangle_internal(Naming.freecount_name)
 
         if freelist_size:
-            code.putln("")
-            code.putln("#if CYTHON_USE_FREELISTS")
-            code.putln("static %s[%d];" % (
+            module_state = code.globalstate['module_state_contents']
+            module_state.putln("")
+            module_state.putln("#if CYTHON_USE_FREELISTS")
+            module_state.putln("%s[%d];" % (
                 scope.parent_type.declaration_code(freelist_name),
                 freelist_size))
-            code.putln("static int %s = 0;" % freecount_name)
-            code.putln("#endif")
+            module_state.putln("int %s;" % freecount_name)
+            module_state.putln("#endif")
 
         code.start_slotfunc(
             scope, PyrexTypes.py_objptr_type, "tp_new",
@@ -1600,9 +1601,10 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 code.putln("#if CYTHON_USE_FREELISTS")
                 code.putln(
                     "if (likely((int)(%s > 0) & (int)(t->tp_basicsize == sizeof(%s))%s)) {" % (
-                        freecount_name, obj_struct, type_safety_check))
+                        code.name_in_slot_module_state(freecount_name), obj_struct, type_safety_check))
                 code.putln("o = (PyObject*)%s[--%s];" % (
-                    freelist_name, freecount_name))
+                    code.name_in_slot_module_state(freelist_name),
+                    code.name_in_slot_module_state(freecount_name)))
                 code.putln("memset(o, 0, sizeof(%s));" % obj_struct)
                 code.putln("(void) PyObject_INIT(o, t);")
                 if scope.needs_gc():
@@ -1846,12 +1848,14 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 code.putln("#if CYTHON_USE_FREELISTS")
                 code.putln(
                     "if (((int)(%s < %d) & (int)(Py_TYPE(o)->tp_basicsize == sizeof(%s))%s)) {" % (
-                        freecount_name,
+                        code.name_in_slot_module_state(freecount_name),
                         freelist_size,
                         type.declaration_code("", deref=True),
                         type_safety_check))
                 code.putln("%s[%s++] = %s;" % (
-                    freelist_name, freecount_name, type.cast_code("o")))
+                    code.name_in_slot_module_state(freelist_name),
+                    code.name_in_slot_module_state(freecount_name),
+                    type.cast_code("o")))
                 code.putln("} else")
                 code.putln("#endif")
                 code.putln("{")
@@ -2912,7 +2916,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             code.putln('#endif')
 
     def generate_module_state_end(self, env, modules, globalstate):
-        module_state = globalstate['module_state']
+        module_state = globalstate['module_state_end']
         module_state_clear = globalstate['module_state_clear']
         module_state_traverse = globalstate['module_state_traverse']
         module_state.putln('} %s;' % Naming.modulestatetype_cname)
@@ -3461,8 +3465,10 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 continue
             if cclass_type.scope.directives.get('freelist', 0):
                 scope = cclass_type.scope
-                freelist_name = scope.mangle_internal(Naming.freelist_name)
-                freecount_name = scope.mangle_internal(Naming.freecount_name)
+                freelist_name = code.name_in_main_c_code_module_state(
+                    scope.mangle_internal(Naming.freelist_name))
+                freecount_name = code.name_in_main_c_code_module_state(
+                    scope.mangle_internal(Naming.freecount_name))
                 code.putln('#if CYTHON_USE_FREELISTS')
                 code.putln("while (%s > 0) {" % freecount_name)
                 code.putln("PyObject* o = (PyObject*)%s[--%s];" % (
