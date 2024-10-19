@@ -46,7 +46,6 @@ double_dealloc_T796
 exttype_dealloc
 generators_py
 generator_frame_cycle
-generators_in_refcycles
 
 # refcounting
 capiimpl
@@ -72,22 +71,8 @@ unicodeliterals
 # PyThreadState_Swap not implemented
 reimport_from_subinterpreter
 
-# PyImport_ReloadModule
-reload_ext_module
-
 # segfault
-builtincomplex
-builtinslice
-builtin_type_inheritance_T608
-datetime_members
-exectest
-extern_builtins_T258
-memslice
-ptr_warning_T714
-pyarray
-run[.]generators
 cyfunction_defaults
-pep526_variable_annotations_cy
 posonly
 r_extcomplex2
 
