@@ -16,7 +16,7 @@ def owned_reference(obj: object):
     print(f'Inside owned_reference after new ref: {refcount2}')
 
 @cython.cfunc
-def borrowed_reference(obj: cython.pointer(PyObject)):
+def borrowed_reference(obj: cython.pointer[PyObject]):
     refcount1 = _Py_REFCNT(obj)
     print(f'Inside borrowed_reference initially: {refcount1}')
     another_ptr_to_object = obj
@@ -31,4 +31,4 @@ def borrowed_reference(obj: cython.pointer(PyObject)):
 
 print(f'Initial refcount: {python_dict_refcount}')
 owned_reference(python_dict)
-borrowed_reference(cython.cast(cython.pointer(PyObject), python_dict))
+borrowed_reference(cython.cast(cython.pointer[PyObject], python_dict))

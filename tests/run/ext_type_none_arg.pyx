@@ -142,6 +142,26 @@ def ext_union(x: typing.Union[MyExtType, None], y: Union[None, MyExtType]):
     """
     return attr(x) + attr(y)
 
+
+def ext_bitwise_or_none(x: MyExtType | None, y: None | MyExtType):
+    """
+    Behaves the same as "or None"
+    >>> ext_bitwise_or_none(MyExtType(), MyExtType())
+    246
+    >>> ext_bitwise_or_none(MyExtType(), None)
+    444
+    >>> ext_bitwise_or_none(None, MyExtType())
+    444
+    >>> ext_bitwise_or_none([], MyExtType())
+    Traceback (most recent call last):
+    TypeError: Argument 'x' has incorrect type (expected ext_type_none_arg.MyExtType, got list)
+    >>> ext_bitwise_or_none(MyExtType(), [])
+    Traceback (most recent call last):
+    TypeError: Argument 'y' has incorrect type (expected ext_type_none_arg.MyExtType, got list)
+    """
+    return attr(x) + attr(y)
+
+
 ### builtin types (using list)
 
 cdef litem(list L, int item):

@@ -1621,7 +1621,7 @@ static __pyx_CoroutineObject *__Pyx__Coroutine_NewInit(
     gen->classobj = NULL;
     gen->yieldfrom = NULL;
     gen->yieldfrom_am_send = NULL;
-    #if PY_VERSION_HEX >= 0x030B00a4 && CYTHON_COMPILING_IN_CPYTHON
+    #if PY_VERSION_HEX >= 0x030B00a4 && !CYTHON_COMPILING_IN_LIMITED_API
     gen->gi_exc_state.exc_value = NULL;
     #else
     gen->gi_exc_state.exc_type = NULL;

@@ -223,7 +223,7 @@ and typed views of memory however.  Indeed, one may write:
             # and
 
             @cython.cfunc
-            cdef otherfunc(x: cython.pointer(A)):
+            cdef otherfunc(x: cython.pointer[A]):
                 ...
 
 
@@ -345,7 +345,7 @@ not the full argument type:
         .. code-block:: python
 
             @cython.cfunc
-            def myfunc(x: cython.pointer(A)):
+            def myfunc(x: cython.pointer[A]):
                 ...
 
             # Specialize using int, not int *

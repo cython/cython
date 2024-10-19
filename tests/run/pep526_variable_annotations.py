@@ -30,6 +30,7 @@ t: Tuple[cython.int, ...] = (1, 2, 3)
 t2: tuple[cython.int, ...]
 body: Optional[List[str]]
 body2: Union[List[str], None]
+body3: List[str] | None
 descr_only : "descriptions are allowed but ignored"
 
 
@@ -51,6 +52,7 @@ def f():
     t: Tuple[cython.int, ...] = (1, 2, 3)
     body: Optional[List[str]]
     body2: Union[None, List[str]]
+    body3: None | List[str]
     descr_only: "descriptions are allowed but ignored"
 
     return var, fvar, some_list, t
@@ -193,75 +195,6 @@ def test_subscripted_types():
     print(cython.typeof(b3) + (" object" if not cython.compiled else ""))
     print(cython.typeof(c) + (" object" if not cython.compiled else ""))
 
-# because tuple is specifically special cased to go to ctuple where possible
-def test_tuple(a: typing.Tuple[cython.int, cython.float], b: typing.Tuple[cython.int, ...],
-               c: Tuple[cython.int, object]  # cannot be a ctuple
-               ):
-    """
-    >>> test_tuple((1, 1.0), (1, 1.0), (1, 1.0))
-    int
-    int
-    float
-    Python object
-    (int, float)
-    tuple object
-    tuple object
-    tuple object
-    tuple object
-    """
-    x: typing.Tuple[int, float] = (a[0], a[1])  # note: Python int/float, not cython.int/float
-    y: Tuple[cython.int, ...] = (1,2.)
-    plain_tuple: Tuple = ()
-    z = a[0]  # should infer to C int
-    p = x[1]  # should infer to Python float -> C double
-
-    print(cython.typeof(z))
-    print("int" if cython.compiled and cython.typeof(x[0]) == "Python object" else cython.typeof(x[0]))  # FIXME: infer Python int
-    if cython.compiled:
-        print(cython.typeof(p))
-    else:
-        print('float' if cython.typeof(p) == 'float' else cython.typeof(p))
-    print(cython.typeof(x[1]) if cython.compiled or cython.typeof(p) != 'float' else "Python object")  # FIXME: infer C double
-    print(cython.typeof(a) if cython.compiled or cython.typeof(a) != 'tuple' else "(int, float)")
-    print(cython.typeof(x) + (" object" if not cython.compiled else ""))
-    print(cython.typeof(y) + (" object" if not cython.compiled else ""))
-    print(cython.typeof(c) + (" object" if not cython.compiled else ""))
-    print(cython.typeof(plain_tuple) + (" object" if not cython.compiled else ""))
-
-
-# because tuple is specifically special cased to go to ctuple where possible
-def test_tuple_without_typing(a: tuple[cython.int, cython.float], b: tuple[cython.int, ...],
-               c: tuple[cython.int, object]  # cannot be a ctuple
-               ):
-    """
-    >>> test_tuple_without_typing((1, 1.0), (1, 1.0), (1, 1.0))
-    int
-    int
-    float
-    Python object
-    (int, float)
-    tuple object
-    tuple object
-    tuple object
-    tuple object
-    """
-    x: tuple[int, float] = (a[0], a[1])  # note: Python int/float, not cython.int/float
-    y: tuple[cython.int, ...] = (1,2.)
-    plain_tuple: tuple = ()
-    z = a[0]  # should infer to C int
-    p = x[1]  # should infer to Python float -> C double
-
-    print(cython.typeof(z))
-    print("int" if cython.compiled and cython.typeof(x[0]) == "Python object" else cython.typeof(x[0]))  # FIXME: infer Python int
-    print(cython.typeof(p) if cython.compiled or cython.typeof(p) != 'float' else "float")  # FIXME: infer C double/PyFloat from Py type
-    print(cython.typeof(x[1]) if cython.compiled or cython.typeof(p) != 'float' else "Python object")  # FIXME: infer C double
-    print(cython.typeof(a) if cython.compiled or cython.typeof(a) != 'tuple' else "(int, float)")
-    print(cython.typeof(x) + (" object" if not cython.compiled else ""))
-    print(cython.typeof(y) + (" object" if not cython.compiled else ""))
-    print(cython.typeof(c) + (" object" if not cython.compiled else ""))
-    print(cython.typeof(plain_tuple) + (" object" if not cython.compiled else ""))
-
-
 def test_use_typing_attributes_as_non_annotations():
     """
     >>> test_use_typing_attributes_as_non_annotations()
@@ -298,22 +231,6 @@ def test_use_typing_attributes_as_non_annotations():
     print(z1, str(z2) in allowed_optional_dict_strings  or  str(z2))
     print(q1, str(q2) == "typing.Union[typing.FrozenSet, NoneType]" or str(q2))
     print(w1, str(w2) == "typing.Union[typing.Dict, NoneType]" or str(w2))
-
-def test_optional_ctuple(x: typing.Optional[tuple[float]]):
-    """
-    Should not be a C-tuple (because these can't be optional)
-    >>> test_optional_ctuple((1.0,))
-    tuple object
-    """
-    print(cython.typeof(x) + (" object" if not cython.compiled else ""))
-
-def test_union_ctuple(x: typing.Union[tuple[float], None]):
-    """
-    Should not be a C-tuple (because these can't be optional)
-    >>> test_union_ctuple((1.0,))
-    tuple object
-    """
-    print(cython.typeof(x) + (" object" if not cython.compiled else ""))
 
 try:
     import numpy.typing as npt

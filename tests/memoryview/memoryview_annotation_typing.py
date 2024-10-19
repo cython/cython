@@ -111,6 +111,31 @@ def slice_union(m: typing.Union[cython.double[:], None]):
     """
     return 1 if m is None else 2
 
+def slice_bitwise_or_none(m: cython.double[:] | None, n: None | cython.double[:]):
+    """
+    >>> slice_bitwise_or_none(None, None)
+    (1, 1)
+    >>> a = numpy.ones((10,), numpy.double)
+    >>> slice_bitwise_or_none(a, a)
+    (2, 2)
+
+    # Make sure that we actually evaluate the type and don't just accept everything.
+    >>> try:
+    ...     x = slice_bitwise_or_none(123, None)
+    ... except TypeError as exc:
+    ...     if not COMPILED: raise
+    ... else:
+    ...     assert not COMPILED
+
+    >>> try:
+    ...     x = slice_bitwise_or_none(None, 123)
+    ... except TypeError as exc:
+    ...     if not COMPILED: raise
+    ... else:
+    ...     assert not COMPILED
+    """
+    return (1 if m is None else 2, 1 if n is None else 2)
+
 @cython.nogil
 @cython.cfunc
 def _one_dim_nogil_cfunc(a: cython.double[:]) -> cython.double:

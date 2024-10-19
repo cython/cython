@@ -21,23 +21,15 @@ from . import Future
 
 from . import Code
 
-iso_c99_keywords = {
-    'auto', 'break', 'case', 'char', 'const', 'continue', 'default', 'do',
-    'double', 'else', 'enum', 'extern', 'float', 'for', 'goto', 'if',
-    'int', 'long', 'register', 'return', 'short', 'signed', 'sizeof',
-    'static', 'struct', 'switch', 'typedef', 'union', 'unsigned', 'void',
-    'volatile', 'while',
-    '_Bool', '_Complex'', _Imaginary', 'inline', 'restrict',
-}
-
 
 def c_safe_identifier(cname):
     # There are some C limitations on struct entry names.
     if ((cname[:2] == '__' and not (cname.startswith(Naming.pyrex_prefix)
                                     or cname in ('__weakref__', '__dict__')))
-            or cname in iso_c99_keywords):
+            or cname in Naming.reserved_cnames):
         cname = Naming.pyrex_prefix + cname
     return cname
+
 
 def punycodify_name(cname, mangle_with=None):
     # if passed the mangle_with should be a byte string

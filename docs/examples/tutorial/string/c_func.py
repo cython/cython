@@ -17,7 +17,7 @@ def c_call_returning_a_c_string() -> cython.p_char:
 
 @cython.cfunc
 def get_a_c_string(c_string_ptr: cython.pp_char,
-                   length: cython.pointer(cython.Py_ssize_t)) -> cython.int:
+                   length: cython.p_Py_ssize_t) -> cython.int:
     c_string_ptr[0] = cython.cast(cython.p_char, malloc(
         (n + 1) * cython.sizeof(cython.char)))
 
