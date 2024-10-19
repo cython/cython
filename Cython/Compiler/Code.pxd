@@ -13,6 +13,7 @@ cdef class UtilityCode(UtilityCodeBase):
     cdef public object init
     cdef public object cleanup
     cdef public object proto_block
+    cdef public object module_state_decls
     cdef public object requires
     cdef public dict _cache
     cdef public list specialize_list
