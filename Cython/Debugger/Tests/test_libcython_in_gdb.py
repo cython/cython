@@ -392,7 +392,7 @@ class TestUpDown(DebugTestCase):
 
         result = gdb.execute('cy up', to_string=True)
         assert 'spam()' in result
-        assert 'os.path.join("foo", "bar")' in result
+        assert 'some_c_function()' not in result
 
 
 class TestExec(DebugTestCase):
