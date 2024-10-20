@@ -93,6 +93,7 @@ cdef class ControlFlowAnalysis(CythonTransform):
     cdef ControlFlow flow
     cdef object object_expr
     cdef bint in_inplace_assignment
+    cdef bint in_assignment_expression
 
     cpdef mark_assignment(self, lhs, rhs=*, rhs_scope=*)
     cpdef mark_position(self, node)
