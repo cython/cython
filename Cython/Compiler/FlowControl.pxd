@@ -35,6 +35,7 @@ cdef class NameAssignment:
     cdef public object bit
     cdef public object inferred_type
     cdef public object rhs_scope
+    cdef public object assignment_type
 
 cdef class AssignmentList:
     cdef public object bit
