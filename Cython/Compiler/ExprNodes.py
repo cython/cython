@@ -5017,6 +5017,7 @@ class MemoryViewSliceNode(MemoryViewIndexNode):
     is_memview_scalar_assignment = False
     is_memview_index = False
     is_memview_broadcast = False
+    use_borrowed_ref = False
 
     def analyse_ellipsis_noop(self, env, getting):
         """Slicing operations needing no evaluation, i.e. m[...] or m[:, :]"""
@@ -5133,7 +5134,7 @@ class MemoryViewSliceNode(MemoryViewIndexNode):
             code, self.original_indices, self.result(), self.type,
             have_gil=have_gil, have_slices=have_slices,
             directives=code.globalstate.directives,
-            drop_temp_refcounting=not self.use_managed_ref)
+            drop_temp_refcounting=self.use_borrowed_ref)
 
     def generate_assignment_code(self, rhs, code, overloaded_assignment=False):
         if self.is_ellipsis_noop:
@@ -5153,6 +5154,16 @@ class MemoryViewSliceNode(MemoryViewIndexNode):
 
         rhs.generate_disposal_code(code)
         rhs.free_temps(code)
+
+    def generate_disposal_code(self, code):
+        if self.is_temp and self.use_borrowed_ref:
+            # temporarily hide the temp code to stop our borrowed ref
+            # being cleaned up.
+            old_temp_code, self.temp_code = self.temp_code, None
+        super().generate_disposal_code(code)
+        if self.is_temp and self.use_borrowed_ref:
+            self.temp_code = old_temp_code
+            
 
 
 class MemoryCopyNode(ExprNode):

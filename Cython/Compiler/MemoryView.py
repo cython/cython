@@ -78,7 +78,7 @@ def put_acquire_memoryviewslice(lhs_cname, lhs_type, lhs_pos, rhs, code,
 
     rhs_is_borrowed_temp = False
     if isinstance(rhs, MemoryViewSliceNode):
-        rhs_is_borrowed_temp = not rhs.use_managed_ref
+        rhs_is_borrowed_temp = rhs.use_borrowed_ref
 
     pretty_rhs = rhs.result_in_temp() or rhs.is_simple()
     if pretty_rhs:
