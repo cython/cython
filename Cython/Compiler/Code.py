@@ -644,11 +644,11 @@ class UtilityCode(UtilityCodeBase):
         self.name = name
         self.file = file
 
-    def _parts_tuple(self):
-        return tuple(getattr(self, part, None) for part in self.code_parts)
+        # cached for use in hash and eq
+        self._parts_tuple = tuple(getattr(self, part, None) for part in self.code_parts)
 
     def __hash__(self):
-        return hash(self._parts_tuple())
+        return hash(self._parts_tuple)
 
     def __eq__(self, other):
         if self is other:
@@ -657,7 +657,7 @@ class UtilityCode(UtilityCodeBase):
         if self_type is not other_type and not (isinstance(other, self_type) or isinstance(self, other_type)):
             return False
 
-        return self._parts_tuple() == other._parts_tuple()
+        return self._parts_tuple == other._parts_tuple
 
     def none_or_sub(self, s, context):
         """
@@ -1863,10 +1863,10 @@ class GlobalState:
             if utf16_array:
                 # Narrow and wide representations differ
                 decls_writer.putln("#ifdef Py_UNICODE_WIDE")
-            decls_writer.putln("static const Py_UNICODE %s[] = { %s };" % (cname, utf32_array))
+            decls_writer.putln("static Py_UNICODE %s[] = { %s };" % (cname, utf32_array))
             if utf16_array:
                 decls_writer.putln("#else")
-                decls_writer.putln("static const Py_UNICODE %s[] = { %s };" % (cname, utf16_array))
+                decls_writer.putln("static Py_UNICODE %s[] = { %s };" % (cname, utf16_array))
                 decls_writer.putln("#endif")
 
         if not py_strings:
