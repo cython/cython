@@ -51,7 +51,7 @@ cdef class YieldNodeCollector(TreeVisitor):
 
 @cython.final
 cdef class MarkClosureVisitor(CythonTransform):
-    cdef bint needs_closure
+    cdef int needs_closure  # actually enum
     cdef list excludes
 
 @cython.final
