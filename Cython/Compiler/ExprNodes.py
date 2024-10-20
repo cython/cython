@@ -15013,6 +15013,13 @@ class AssignmentExpressionNode(ExprNode):
         # for self.rhs.arg.is_temp: an incref/decref pair can be removed
         # (but needs a general mechanism to do that)
         self.assignment = self.assignment.analyse_types(env)
+
+        if self.type.is_memoryviewslice and isinstance(self.assignment.rhs, CloneNode):
+            # In "put_assign_to_memviewslice", memoryviews don't generate reference
+            # counting on assignment from temp. That effectly lack of reference counting
+            # essentially happens twice (since we use the temp twice), which we want to
+            # avoid. Therefore, present the clone node as "not a temp".
+            self.assignment.rhs.is_temp = False
         return self
 
     def coerce_to(self, dst_type, env):
