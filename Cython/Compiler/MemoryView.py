@@ -1,6 +1,6 @@
 from .Errors import CompileError, error
 from . import ExprNodes
-from .ExprNodes import IntNode, NameNode, AttributeNode
+from .ExprNodes import IntNode, NameNode, AttributeNode, MemoryViewSliceNode
 from . import Options
 from .Code import UtilityCode, TempitaUtilityCode
 from .UtilityCode import CythonUtilityCode
@@ -76,6 +76,10 @@ def put_acquire_memoryviewslice(lhs_cname, lhs_type, lhs_pos, rhs, code,
     "We can avoid decreffing the lhs if we know it is the first assignment"
     assert rhs.type.is_memoryviewslice
 
+    rhs_is_borrowed_temp = False
+    if isinstance(rhs, MemoryViewSliceNode):
+        rhs_is_borrowed_temp = not rhs.use_managed_ref
+
     pretty_rhs = rhs.result_in_temp() or rhs.is_simple()
     if pretty_rhs:
         rhstmp = rhs.result()
@@ -86,23 +90,34 @@ def put_acquire_memoryviewslice(lhs_cname, lhs_type, lhs_pos, rhs, code,
     # Allow uninitialized assignment
     #code.putln(code.put_error_if_unbound(lhs_pos, rhs.entry))
     put_assign_to_memviewslice(lhs_cname, rhs, rhstmp, lhs_type, code,
-                               have_gil=have_gil, first_assignment=first_assignment)
+                               have_gil=have_gil, first_assignment=first_assignment,
+                               rhs_is_borrowed_temp=rhs_is_borrowed_temp)
 
     if not pretty_rhs:
         code.funcstate.release_temp(rhstmp)
 
 
 def put_assign_to_memviewslice(lhs_cname, rhs, rhs_cname, memviewslicetype, code,
-                               have_gil=False, first_assignment=False):
+                               have_gil=False, first_assignment=False,
+                               rhs_is_borrowed_temp=False):
     if lhs_cname == rhs_cname:
         # self assignment is tricky because memoryview xdecref clears the memoryview
         # thus invalidating both sides of the assignment. Therefore make it actually do nothing
         code.putln("/* memoryview self assignment no-op */")
         return
 
+    if rhs_is_borrowed_temp and not first_assignment:
+        # Here we can skip the reference counting in the fairly
+        # likely case that the lhs and rhs are equal (e.g. repeated slicing in a
+        # loop).
+        code.putln(f"if ({lhs_cname}.memview != {rhs_cname}.memview) ""{")
     if not first_assignment:
         code.put_xdecref(lhs_cname, memviewslicetype,
                          have_gil=have_gil)
+    if rhs_is_borrowed_temp:
+        code.put_incref_memoryviewslice(rhs_cname, memviewslicetype, have_gil=have_gil)
+        if not first_assignment:
+            code.putln("}")
 
     if not rhs.result_in_temp():
         rhs.make_owned_memoryviewslice(code)
@@ -250,7 +265,7 @@ class MemoryViewSliceBufferEntry(Buffer.BufferEntry):
         return bufp
 
     def generate_buffer_slice_code(self, code, indices, dst, dst_type, have_gil,
-                                   have_slices, directives):
+                                   have_slices, directives, drop_temp_refcounting):
         """
         Slice a memoryviewslice.
 
@@ -266,7 +281,8 @@ class MemoryViewSliceBufferEntry(Buffer.BufferEntry):
 
         code.putln("%(dst)s.data = %(src)s.data;" % locals())
         code.putln("%(dst)s.memview = %(src)s.memview;" % locals())
-        code.put_incref_memoryviewslice(dst, dst_type, have_gil=have_gil)
+        if not drop_temp_refcounting:
+            code.put_incref_memoryviewslice(dst, dst_type, have_gil=have_gil)
 
         all_dimensions_direct = all(access == 'direct' for access, packing in self.type.axes)
         suboffset_dim_temp = []

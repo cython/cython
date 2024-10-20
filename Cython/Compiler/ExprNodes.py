@@ -5132,7 +5132,8 @@ class MemoryViewSliceNode(MemoryViewIndexNode):
         buffer_entry.generate_buffer_slice_code(
             code, self.original_indices, self.result(), self.type,
             have_gil=have_gil, have_slices=have_slices,
-            directives=code.globalstate.directives)
+            directives=code.globalstate.directives,
+            drop_temp_refcounting=not self.use_managed_ref)
 
     def generate_assignment_code(self, rhs, code, overloaded_assignment=False):
         if self.is_ellipsis_noop:

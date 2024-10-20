@@ -1476,6 +1476,11 @@ class DropRefcountingTransform(Visitor.VisitorTransform):
     """
     visit_Node = Visitor.VisitorTransform.recurse_to_children
 
+    def __call__(self, node):
+        self.in_return_or_yield = False
+        self.in_parallel = False
+        return super().__call__(node)
+
     def visit_ParallelAssignmentNode(self, node):
         """
         Parallel swap assignments like 'a,b = b,a' are safe.
@@ -1585,6 +1590,61 @@ class DropRefcountingTransform(Visitor.VisitorTransform):
         else:
             return None
         return (base.name, index_val)
+
+    def visit_ReturnStatNode(self, node):
+        in_return_or_yield, self.in_return_or_yield = self.in_return_or_yield, True
+        result = self.visit_Node(node)
+        self.in_return_or_yield = in_return_or_yield
+        return result
+
+    def visit_YieldExprNode(self, node):
+        return self.visit_ReturnStatNode(node)
+
+    def visit_ParallelStatNode(self, node):
+        in_parallel, self.in_parallel = self.in_parallel, True
+        result = self.visit_Node(node)
+        self.in_parallel = in_parallel
+        return result
+
+    def visit_MemoryViewSliceNode(self, node):
+        result = self.visit_Node(node)
+        if not node.type.is_memoryviewslice or not node.is_temp:
+            return result
+        if self.in_return_or_yield:
+            return result
+        # What we're trying to work out is whether we can drop
+        # the reference counting for the temp.
+        # We should be fairly conservative here.
+        # We require a local variable name node (so that
+        # we know what nothing external can reassign it while
+        # we're working)
+        if not node.base.is_name:
+            return result
+        entry = node.base.entry
+        if not entry or entry.scope.is_module_scope:
+            return result
+
+        # We then exclude any rhs that has a parallel or
+        # a name expression assignment or the basis that they might
+        # be reassigned while the temp is still active.
+        # TODO - this can be more sophisticated and use
+        # the same logic as in https://github.com/cython/cython/pull/4607.
+        # In that case we can probably drop AssignemntType from
+        # NameAssignment (since it was added just to help with this)
+        from .FlowControl import NameAssignment
+        for assignment in entry.cf_assignments:
+            if (isinstance(assignment, NameAssignment) and
+                    (assignment.assignment_type in (
+                        NameAssignment.AssignmentType.Parallel,
+                        NameAssignment.AssignmentType.AssignmentExpression
+                    ))):
+                return result
+            if self.in_parallel:
+                # If we're in a parallel block, take the view that
+                # we can't reason about any assignment to the rhs.
+                return result
+        node.use_managed_ref = False
+        return result
 
 
 class EarlyReplaceBuiltinCalls(Visitor.EnvTransform):
