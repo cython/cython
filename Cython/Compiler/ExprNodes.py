@@ -5163,7 +5163,6 @@ class MemoryViewSliceNode(MemoryViewIndexNode):
         super().generate_disposal_code(code)
         if self.is_temp and self.use_borrowed_ref:
             self.temp_code = old_temp_code
-            
 
 
 class MemoryCopyNode(ExprNode):
