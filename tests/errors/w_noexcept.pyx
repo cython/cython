@@ -10,6 +10,12 @@ ctypedef fused double_or_object:
 cdef object test_return_object_noexcept(x) noexcept: # Err
     return x
 
+cdef object test_return_object_noexcept_in_pxd(x) noexcept: # Err
+    return x
+
+cdef object test_return_object_in_pxd(x): # OK
+    return x
+
 cdef str test_return_str_noexcept() noexcept: # Err
     return 'a'
 
@@ -70,9 +76,13 @@ def test_pure_return_fused_noexcept(x: double_or_object) -> double_or_object: # 
 
 _ERRORS = """
 10:39: noexcept clause is ignored for function returning Python object
-13:33: noexcept clause is ignored for function returning Python object
-16:18: noexcept clause is ignored for function returning Python object
-38:0: noexcept clause is ignored for function returning Python object
-43:0: noexcept clause is ignored for function returning Python object
-48:0: noexcept clause is ignored for function returning Python object
+13:46: noexcept clause is ignored for function returning Python object
+19:33: noexcept clause is ignored for function returning Python object
+22:18: noexcept clause is ignored for function returning Python object
+44:0: noexcept clause is ignored for function returning Python object
+49:0: noexcept clause is ignored for function returning Python object
+54:0: noexcept clause is ignored for function returning Python object
+
+# from pxd
+1:46: noexcept clause is ignored for function returning Python object
 """

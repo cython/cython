@@ -717,10 +717,8 @@ class CFuncDeclaratorNode(CDeclaratorNode):
                 and not self.has_explicit_exc_clause
                 and self.exception_check
                 and visibility != 'extern'):
-            # If function is already declared from pxd, the exception_check has already correct value.
-            if not (self.declared_name() in env.entries and not in_pxd):
-                self.exception_check = False
             # implicit noexcept, with a warning
+            self.exception_check = False
             warning(self.pos,
                     "Implicit noexcept declaration is deprecated."
                     " Function declaration should contain 'noexcept' keyword.",
@@ -3128,6 +3126,11 @@ class DefNode(FuncDefNode):
             if scope is None:
                 scope = cfunc.scope
             cfunc_type = cfunc.type
+            if cfunc_type.exception_check:
+                # this ensures `legacy_implicit_noexcept` does not trigger
+                # as it would result in a mismatch
+                # (declaration with except, definition with implicit noexcept)
+                has_explicit_exc_clause = True
             if len(self.args) != len(cfunc_type.args) or cfunc_type.has_varargs:
                 error(self.pos, "wrong number of arguments")
                 error(cfunc.pos, "previous declaration here")
