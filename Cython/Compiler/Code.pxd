@@ -19,6 +19,9 @@ cdef class UtilityCode(UtilityCodeBase):
     cdef public object file
 
     cpdef none_or_sub(self, s, context)
+    # TODO - Signature not compatible with previous declaration
+    #@cython.final
+    #cdef bint _put_code_section(self, writer, code_type: str) except -1
 
 
 cdef class FunctionState:
@@ -82,7 +85,7 @@ cdef class StringConst:
     cdef public dict py_strings
     cdef public list py_versions
 
-    cpdef get_py_string_const(self, encoding, identifier=*, bint is_str=*, py3str_cstring=*)
+    cpdef get_py_string_const(self, encoding, identifier=*)
 
 ## cdef class PyStringConst:
 ##     cdef public object cname
@@ -101,8 +104,8 @@ cdef class CCodeWriter(object):
     cdef readonly object globalstate
     cdef readonly object funcstate
     cdef object code_config
-    cdef object last_pos
-    cdef object last_marked_pos
+    cdef tuple last_pos
+    cdef tuple last_marked_pos
     cdef Py_ssize_t level
     cdef public Py_ssize_t call_level  # debug-only, see Nodes.py
     cdef bint bol
@@ -115,6 +118,10 @@ cdef class CCodeWriter(object):
     cpdef put_safe(self, code)
     cpdef putln(self, code=*, bint safe=*)
     @cython.final
+    cdef emit_marker(self)
+    @cython.final
+    cdef _build_marker(self, tuple pos)
+    @cython.final
     cdef increase_indent(self)
     @cython.final
     cdef decrease_indent(self)
@@ -125,3 +132,12 @@ cdef class CCodeWriter(object):
 cdef class PyrexCodeWriter:
     cdef public object f
     cdef public Py_ssize_t level
+
+
+cdef class PyxCodeWriter:
+    cdef public StringIOTree buffer
+    cdef public object context
+    cdef object encoding
+    cdef Py_ssize_t level
+    cdef Py_ssize_t original_level
+    cdef dict _insertion_points

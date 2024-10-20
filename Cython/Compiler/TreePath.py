@@ -13,7 +13,7 @@ import sys
 
 path_tokenizer = re.compile(
     r"("
-    r"'[^']*'|\"[^\"]*\"|"
+    r"b?'[^']*'|b?\"[^\"]*\"|"
     r"//?|"
     r"\(\)|"
     r"==?|"
@@ -176,7 +176,11 @@ def parse_path_value(next):
     value = token[0]
     if value:
         if value[:1] == "'" or value[:1] == '"':
+            assert value[-1] == value[0]
             return value[1:-1]
+        if value[:2] == "b'" or value[:2] == 'b"':
+            assert value[-1] == value[1]
+            return value[2:-1].encode('UTF-8')
         try:
             return int(value)
         except ValueError:
@@ -189,7 +193,7 @@ def parse_path_value(next):
             return True
         elif name == 'false':
             return False
-    raise ValueError("Invalid attribute predicate: '%s'" % value)
+    raise ValueError(f"Invalid attribute predicate: '{value}'")
 
 def handle_predicate(next, token):
     token = next()

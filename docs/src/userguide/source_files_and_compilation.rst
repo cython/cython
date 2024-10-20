@@ -276,6 +276,8 @@ The default function (defined in ``Cython.Build.Dependencies``) is::
 
         t = template.__class__
         ext = t(**kwds)
+        if hasattr(template, "py_limited_api"):
+            ext.py_limited_api = template.py_limited_api
         metadata = dict(distutils=kwds, module_name=kwds['name'])
         return ext, metadata
 
@@ -338,13 +340,20 @@ them through :func:`cythonize`::
 Distributing Cython modules
 ----------------------------
 
-It is strongly recommended that you distribute the generated ``.c`` files as well
-as your Cython sources, so that users can install your module without needing
+Following recent improvements in the distribution toolchain, it is
+not recommended to include generated files in source distributions.
+Instead, `require` Cython at build-time to generate the C/C++ files,
+as defined in `PEP 518 <https://www.python.org/dev/peps/pep-0518/>`_
+and `PEP 621 <https://www.python.org/dev/peps/pep-0621/>`_.
+See :ref:`basic_setup.py`.
+
+It is, however, possible to distribute the generated ``.c`` files together with
+your Cython sources, so that users can install your module without needing
 to have Cython available.
 
-It is also recommended that Cython compilation not be enabled by default in the
-version you distribute. Even if the user has Cython installed, he/she probably
-doesn't want to use it just to install your module. Also, the installed version
+Doing so allows you to make Cython compilation optional in the
+version you distribute. Even if the user has Cython installed, they may not
+want to use it just to install your module. Also, the installed version
 may not be the same one you used, and may not compile your sources correctly.
 
 This simply means that the :file:`setup.py` file that you ship with will just
@@ -398,21 +407,6 @@ list in the Extensions when not using Cython::
             extension.sources[:] = sources
         return extensions
 
-Another option is to make Cython a setup dependency of your system and use
-Cython's build_ext module which runs ``cythonize`` as part of the build process::
-
-    setup(
-        extensions = [Extension("*", ["*.pyx"])],
-        cmdclass={'build_ext': Cython.Build.build_ext},
-        ...
-    )
-
-This depends on pip knowing that :mod:`Cython` is a setup dependency, by having
-a :file:`pyproject.toml` file::
-
-    [build-system]
-    requires = ["setuptools", "wheel", "Cython"]
-
 If you want to expose the C-level interface of your library for other
 libraries to cimport from, use package_data to install the ``.pxd`` files,
 e.g.::
@@ -462,8 +456,8 @@ to your generated module source file and look for a function name
 starting with ``PyInit_``.
 
 Next, before you start the Python runtime from your application code
-with ``Py_Initialize()``, you need to initialise the modules at runtime
-using the ``PyImport_AppendInittab()`` C-API function, again inserting
+with :c:func:`Py_Initialize()`, you need to initialise the modules at runtime
+using the :c:func:`PyImport_AppendInittab()` C-API function, again inserting
 the name of each of the modules::
 
     PyImport_AppendInittab("some_module_name", MODINIT(some_module_name));
@@ -784,7 +778,7 @@ Compiler directives
 Compiler directives are instructions which affect the behavior of
 Cython code.  Here is the list of currently supported directives:
 
-``binding`` (True / False)
+``binding`` (True / False), *default=True*
     Controls whether free functions behave more like Python's CFunctions
     (e.g. :func:`len`) or, when set to True, more like Python's functions.
     When enabled, functions will bind to an instance when looked up as a
@@ -792,21 +786,18 @@ Cython code.  Here is the list of currently supported directives:
     of Python functions, including introspections like argument names and
     annotations.
 
-    Default is True.
-
     .. versionchanged:: 3.0.0
-        Default changed from False to True 
+        Default changed from False to True
 
-``boundscheck``  (True / False)
+``boundscheck``  (True / False), *default=True*
     If set to False, Cython is free to assume that indexing operations
     ([]-operator) in the code will not cause any IndexErrors to be
     raised. Lists, tuples, and strings are affected only if the index
     can be determined to be non-negative (or if ``wraparound`` is False).
     Conditions which would normally trigger an IndexError may instead cause
     segfaults or data corruption if this is set to False.
-    Default is True.
 
-``wraparound``  (True / False)
+``wraparound``  (True / False), *default=True*
     In Python, arrays and sequences can be indexed relative to the end.
     For example, A[-1] indexes the last value of a list.
     In C, negative indexing is not supported.
@@ -821,46 +812,56 @@ Cython code.  Here is the list of currently supported directives:
     wrap-around indices.
     It is therefore safest to apply this option only to code that does not
     process negative indices at all.
-    Default is True.
 
-``initializedcheck`` (True / False)
+``initializedcheck`` (True / False), *default=True*
     If set to True, Cython checks that
-     - a memoryview is initialized whenever its elements are accessed 
+     - a memoryview is initialized whenever its elements are accessed
        or assigned to.
-     - a C++ class is initialized when it is accessed 
+     - a C++ class is initialized when it is accessed
        (only when ``cpp_locals`` is on)
 
     Setting this to False disables these checks.
-    Default is True.
 
-``nonecheck``  (True / False)
+``nonecheck``  (True / False), *default=False*
     If set to False, Cython is free to assume that native field
     accesses on variables typed as an extension type, or buffer
     accesses on a buffer variable, never occurs when the variable is
     set to ``None``. Otherwise a check is inserted and the
     appropriate exception is raised. This is off by default for
-    performance reasons.  Default is False.
+    performance reasons.
 
-``overflowcheck`` (True / False)
+``freethreading_compatible``  (True / False), *default=False*
+    If set to True, Cython sets the ``Py_mod_gil`` slot to
+    ``Py_MOD_GIL_NOT_USED`` to signal that the module is safe to run
+    without an active GIL and prevent the GIL from being enabled
+    when the module is imported. Otherwise the slot is set to
+    ``Py_MOD_GIL_USED`` which will cause the GIL to be automatically
+    enabled. Setting this to True does not itself make the module safe
+    to run without the GIL; it merely confirms that you have checked
+    the logic and consider it safe to run. Since free-threading support
+    is still experimental itself, this is also an experimental directive that
+    might be changed or removed in future releases.
+
+``overflowcheck`` (True / False), *default=False*
     If set to True, raise errors on overflowing C integer arithmetic
     operations.  Incurs a modest runtime penalty, but is much faster than
-    using Python ints.  Default is False.
+    using Python ints.
 
-``overflowcheck.fold`` (True / False)
+``overflowcheck.fold`` (True / False), *default=True*
     If set to True, and overflowcheck is True, check the overflow bit for
     nested, side-effect-free arithmetic expressions once rather than at every
     step.  Depending on the compiler, architecture, and optimization settings,
     this may help or hurt performance.  A simple suite of benchmarks can be
-    found in ``Demos/overflow_perf.pyx``.  Default is True.
+    found in ``Demos/overflow_perf.pyx``.
 
-``embedsignature`` (True / False)
+``embedsignature`` (True / False), *default=False*
     If set to True, Cython will embed a textual copy of the call
     signature in the docstring of all Python visible functions and
     classes. Tools like IPython and epydoc can thus display the
     signature, which cannot otherwise be retrieved after
-    compilation.  Default is False.
+    compilation.
 
-``embedsignature.format`` (``c`` / ``python`` / ``clinic``)
+``embedsignature.format`` (``c`` / ``python`` / ``clinic``), *default="c"*
     If set to ``c``, Cython will generate signatures preserving
     C type declarations and Python type annotations.
     If set to ``python``, Cython will do a best attempt to use
@@ -877,33 +878,30 @@ Cython code.  Here is the list of currently supported directives:
     mainly useful when using ``binding=False``, since the Cython
     functions generated with ``binding=True`` do not have (nor need)
     a ``__text_signature__`` attribute.
-    Default is ``c``.
 
-``cdivision`` (True / False)
+``cdivision`` (True / False), *default=False*
     If set to False, Cython will adjust the remainder and quotient
     operators C types to match those of Python ints (which differ when
     the operands have opposite signs) and raise a
     ``ZeroDivisionError`` when the right operand is 0. This has up to
     a 35% speed penalty. If set to True, no checks are performed.  See
-    `CEP 516 <https://github.com/cython/cython/wiki/enhancements-division>`_.  Default
-    is False.
+    `CEP 516 <https://github.com/cython/cython/wiki/enhancements-division>`_.
 
-``cdivision_warnings`` (True / False)
+``cdivision_warnings`` (True / False), *default=False*
     If set to True, Cython will emit a runtime warning whenever
     division is performed with negative operands.  See `CEP 516
-    <https://github.com/cython/cython/wiki/enhancements-division>`_.  Default is
-    False.
-    
-``cpow`` (True / False)
+    <https://github.com/cython/cython/wiki/enhancements-division>`_.
+
+``cpow`` (True / False), *default=False*
     ``cpow`` modifies the return type of ``a**b``, as shown in the
     table below:
-    
+
         .. csv-table:: cpow behaviour
             :file: cpow_table.csv
             :header-rows: 1
             :class: longtable
             :widths: 1 1 3 3
-    
+
     The ``cpow==True`` behaviour largely keeps the result type the
     same as the operand types, while the ``cpow==False`` behaviour
     follows Python and returns a flexible type depending on the
@@ -912,34 +910,33 @@ Cython code.  Here is the list of currently supported directives:
     Introduced in Cython 3.0 with a default of False;
     before that, the behaviour matched the ``cpow=True`` version.
 
-``always_allow_keywords`` (True / False)
+``always_allow_keywords`` (True / False), *default=True*
     When disabled, uses the ``METH_NOARGS`` and ``METH_O`` signatures when
     constructing functions/methods which take zero or one arguments. Has no
     effect on special methods and functions with more than one argument. The
     ``METH_NOARGS`` and ``METH_O`` signatures provide slightly faster
     calling conventions but disallow the use of keywords.
 
-``c_api_binop_methods`` (True / False)
+``c_api_binop_methods`` (True / False), *default=False*
     When enabled, makes the special binary operator methods (``__add__``, etc.)
     behave according to the low-level C-API slot semantics, i.e. only a single
     method implements both the normal and reversed operator.  This used to be
     the default in Cython 0.x and was now replaced by Python semantics, i.e. the
     default in Cython 3.x and later is ``False``.
 
-``profile`` (True / False)
-    Write hooks for Python profilers into the compiled C code.  Default
-    is False.
+``profile`` (True / False), *default=False*
+    Write hooks for Python profilers into the compiled C code.
 
-``linetrace`` (True / False)
+``linetrace`` (True / False), *default=False*
     Write line tracing hooks for Python profilers or coverage reporting
-    into the compiled C code.  This also enables profiling.  Default is
-    False.  Note that the generated module will not actually use line
+    into the compiled C code.  This also enables profiling.
+    Note that the generated module will not actually use line
     tracing, unless you additionally pass the C macro definition
     ``CYTHON_TRACE=1`` to the C compiler (e.g. using the setuptools option
     ``define_macros``).  Define ``CYTHON_TRACE_NOGIL=1`` to also include
     ``nogil`` functions and sections.
 
-``infer_types`` (True / False)
+``infer_types`` (True / False), *default=None*
     Infer types of untyped variables in function bodies. Default is
     None, indicating that only safe (semantically-unchanging) inferences
     are allowed.
@@ -947,30 +944,31 @@ Cython code.  Here is the list of currently supported directives:
     expressions* is considered unsafe (due to possible overflow) and must be
     explicitly requested.
 
-``language_level`` (2/3/3str)
+``language_level`` (2/3/3str), *default=None*
     Globally set the Python language level to be used for module compilation.
-    Default is compatibility with Python 3 in Cython 3.x and with Python 2 in Cython 0.x.
-    To enable Python 3 source code semantics, set this to 3 (or 3str) at the start
+    Default is None, indicating compatibility with Python 3 in Cython 3.x and with Python 2
+    in Cython 0.x. To enable Python 3 source code semantics, set this to 3 (or 3str) at the start
     of a module or pass the "-3" or "--3str" command line options to the
-    compiler.  For Python 2 semantics, use 2 and "-2" accordingly.  The ``3str``
-    option enables Python 3 semantics but does
+    compiler.  For Python 2 semantics, use 2 and "-2" accordingly.
+    Before Cython 3.1, the ``3str`` option enabled Python 3 semantics but did
     not change the ``str`` type and unprefixed string literals to
     ``unicode`` when the compiled code runs in Python 2.x.
+    In Cython 3.1, ``3str`` is an alias for ``3``.
     Language level 2 ignores ``x: int`` type annotations due to the int/long ambiguity.
     Note that cimported files inherit this setting from the module
     being compiled, unless they explicitly set their own language level.
     Included source files always inherit this setting.
 
-``c_string_type`` (bytes / str / unicode)
+``c_string_type`` (bytes / str / unicode), *default=bytes*
     Globally set the type of an implicit coercion from char* or std::string.
 
-``c_string_encoding`` (ascii, default, utf-8, etc.)
+``c_string_encoding`` (ascii, default, utf-8, etc.), *default=""`
     Globally set the encoding to use when implicitly coercing char* or std:string
     to a unicode object.  Coercion from a unicode object to C type is only allowed
     when set to ``ascii`` or ``default``, the latter being utf-8 in Python 3 and
     nearly-always ascii in Python 2.
 
-``type_version_tag`` (True / False)
+``type_version_tag`` (True / False), *default=True*
     Enables the attribute cache for extension types in CPython by setting the
     type flag ``Py_TPFLAGS_HAVE_VERSION_TAG``.  Default is True, meaning that
     the cache is enabled for Cython implemented types.  To disable it
@@ -978,10 +976,10 @@ Cython code.  Here is the list of currently supported directives:
     internally without paying attention to cache consistency, this option can
     be set to False.
 
-``unraisable_tracebacks`` (True / False)
+``unraisable_tracebacks`` (True / False), *default=False*
     Whether to print tracebacks when suppressing unraisable exceptions.
 
-``iterable_coroutine`` (True / False)
+``iterable_coroutine`` (True / False), *default=False*
     `PEP 492 <https://www.python.org/dev/peps/pep-0492/>`_ specifies that async-def
     coroutines must not be iterable, in order to prevent accidental misuse in
     non-async contexts.  However, this makes it difficult and inefficient to write
@@ -991,24 +989,24 @@ Cython code.  Here is the list of currently supported directives:
     selectively as decorator on an async-def coroutine to make the affected
     coroutine(s) iterable and thus directly interoperable with yield-from.
 
-``annotation_typing`` (True / False)
-    Uses function argument annotations to determine the type of variables. Default
-    is True, but can be disabled. Since Python does not enforce types given in
+``annotation_typing`` (True / False), *default=True*
+    Uses function argument annotations to determine the type of variables.
+    Since Python does not enforce types given in
     annotations, setting to False gives greater compatibility with Python code.
     From Cython 3.0, ``annotation_typing`` can be set on a per-function or
     per-class basis.
 
-``emit_code_comments`` (True / False)
+``emit_code_comments`` (True / False), *default=True*
     Copy the original source code line by line into C code comments in the generated
     code file to help with understanding the output.
     This is also required for coverage analysis.
 
-``cpp_locals`` (True / False)
+``cpp_locals`` (True / False), *default=False*
     Make C++ variables behave more like Python variables by allowing them to be
     "unbound" instead of always default-constructing them at the start of a
     function.  See :ref:`cpp_locals directive` for more detail.
 
-``legacy_implicit_noexcept`` (True / False)
+``legacy_implicit_noexcept`` (True / False), *default=False*
     When enabled, ``cdef`` functions will not propagate raised exceptions by default. Hence,
     the function will behave in the same way as if declared with `noexcept` keyword. See
     :ref:`error_return_values` for details. Setting this directive to ``True`` will
@@ -1021,20 +1019,20 @@ Cython code.  Here is the list of currently supported directives:
 Configurable optimisations
 --------------------------
 
-``optimize.use_switch`` (True / False)
+``optimize.use_switch`` (True / False), *default=True*
     Whether to expand chained if-else statements (including statements like
     ``if x == 1 or x == 2:``) into C switch statements.  This can have performance
     benefits if there are lots of values but cause compiler errors if there are any
     duplicate values (which may not be detectable at Cython compile time for all
-    C constants).  Default is True.
+    C constants).
 
-``optimize.unpack_method_calls`` (True / False)
+``optimize.unpack_method_calls`` (True / False), *default=True*
     Cython can generate code that optimistically checks for Python method objects
     at call time and unpacks the underlying function to call it directly.  This
     can substantially speed up method calls, especially for builtins, but may also
     have a slight negative performance impact in some cases where the guess goes
     completely wrong.
-    Disabling this option can also reduce the code size.  Default is True.
+    Disabling this option can also reduce the code size.
 
 
 .. _warnings:
@@ -1069,7 +1067,15 @@ to turn the warning on / off.
    Warns about multiple variables declared on the same line with at least one pointer type.
    For example ``cdef double* a, b`` - which, as in C, declares ``a`` as a pointer, ``b`` as
    a value type, but could be mininterpreted as declaring two pointers.
-   
+
+``warn.deprecated.DEF`` (default False)
+  Warns about use of the deprecated ``DEF`` statement in Cython code, see
+  :ref:`conditional_compilation` and :ref:`deprecated_DEF_IF`.
+
+``warn.deprecated.IF`` (default True)
+  Warns about use of the deprecated ``IF`` statement in Cython code, see
+  :ref:`conditional_compilation` and :ref:`deprecated_DEF_IF`.
+
 ``show_performance_hints`` (default True)
   Show performance hints during compilation pointing to places in the code which can yield performance degradation.
   Note that performance hints are not warnings and hence the directives starting with ``warn.`` above do not affect them
@@ -1160,14 +1166,14 @@ the feature at runtime, at the before mentioned cost of longer C compile times a
 This can be configured with the C macro
 
 ``CYTHON_CLINE_IN_TRACEBACK_RUNTIME=1``
-  
+
 To then change the behaviour at runtime, you can import the special module ``cython_runtime``
 after loading a Cython module and set the attribute ``cline_in_traceback`` in that module
 to either true or false to control the behaviour as your Cython code is being run::
 
     import cython_runtime
     cython_runtime.cline_in_traceback = True
-    
+
     raise ValueError(5)
 
 If both macros are *not* defined by the build setup or ``CFLAGS``, the feature is disabled.
@@ -1193,13 +1199,16 @@ can happily ignore.  Not all combinations of macros are compatible or tested, an
 some change the default value of other macros.  They are listed below in rough order from
 most important to least important:
 
-``CYTHON_LIMITED_API``
+``Py_LIMITED_API``
     Turns on Cython's experimental Limited API support, meaning that one compiled module
     can be used by many Python interpreter versions (at the cost of some performance).
-    At this stage many features do not work in the Limited API.  If you use this macro
-    you should also set the macro ``Py_LIMITED_API`` to be the version hex for the
+    At this stage many features do not work in the Limited API.  You should set this
+    macro to be the version hex for the
     minimum Python version you want to support (>=3.7).  ``0x03070000`` will support
     Python 3.7 upwards.
+    Note that this is a `Python macro <https://docs.python.org/3/c-api/stable.html#c.Py_LIMITED_API>`_,
+    rather than just a Cython macro, and so it changes what parts of the Python headers
+    are visible too.  See :ref:`limited_api` for more details about this feature.
 
 ``CYTHON_PEP489_MULTI_PHASE_INIT``
     Uses multi-phase module initialization as described in PEP489.  This improves
@@ -1219,7 +1228,11 @@ most important to least important:
     Defines ``cdef classes`` as `"heap types" <https://docs.python.org/3/c-api/typeobj.html#heap-types>`_
     rather than "static types".  Practically this does not change a lot from a user
     point of view, but it is needed to implement Limited API support.
-    
+
+``CYTHON_PROFILE``, ``CYTHON_TRACE``, ``CYTHON_TRACE_NOGIL``
+    These control the inclusion of profiling and line tracing calls in the module.
+    See the ``profile`` and ``linetrace`` :ref:`compiler-directives`.
+
 ``CYTHON_EXTERN_C``
     Slightly different to the other macros, this controls how ``cdef public``
     functions appear to C++ code. See :ref:`CYTHON_EXTERN_C` for full details.
@@ -1227,7 +1240,7 @@ most important to least important:
 ``CYTHON_CLINE_IN_TRACEBACK``
     Controls whether C lines numbers appear in tracebacks.
     See :ref:`cline_in_traceback` for a complete description.
-    
+
 There is a further list of macros which turn off various optimizations or language
 features.  Under normal circumstance Cython enables these automatically based on the
 version of Python you are compiling for so there is no need to use them
@@ -1239,73 +1252,78 @@ hidden by default since most users will be uninterested in changing them.
 
 .. tabs::
     .. tab:: Hide
-    
+
     .. tab:: Show
-        
+
         ``CYTHON_USE_TYPE_SLOTS``
             If enabled, Cython will directly access members of the ``PyTypeObject``
             struct.
-            
+
         ``CYTHON_USE_PYTYPE_LOOKUP``
             Use the internal `_PyType_Lookup()` function for more efficient access
             to properties of C classes.
-            
-        ``CYTHON_USE_ASYNC_SLOTS``
-            Support the ``tp_as_async`` attribute on type objects.
-            
+
         ``CYTHON_USE_PYLONG_INTERNALS``/``CYTHON_USE_PYLIST_INTERNALS``/``CYTHON_USE_UNICODE_INTERNALS``
             Enable optimizations based on direct access into the internals of Python
             ``int``/``list``/``unicode`` objects respectively.
-            
+
         ``CYTHON_USE_UNICODE_WRITER``
             Use a faster (but internal) mechanism for building unicode strings, for
             example in f-strings.
-            
+
         ``CYTHON_AVOID_BORROWED_REFS``
             Avoid using "borrowed references" and ensure that Cython always holds
             a reference to objects it manipulates.  Most useful for
             non-reference-counted implementations of Python, like PyPy
             (where it is enabled by default).
-            
+
+        ``CYTHON_AVOID_THREAD_UNSAFE_BORROWED_REFS``
+            Avoid using APIs that return unsafe "borrowed references" and instead use
+            the equivalent APIs that return "strong references". Most useful for
+            the free-threaded build of CPython, where incrementing the reference
+            count of borrowed references to items in mutable containers might
+            introduce thread safety issues. Borrowed references to items in immutable
+            containers are still allowed with this setting.
+
         ``CYTHON_ASSUME_SAFE_MACROS``
             Use some C-API macros that increase performance by skipping error checking,
             which may not be safe on all Python implementations (e.g. PyPy).
-            
+
         ``CYTHON_ASSUME_SAFE_SIZE``
             Prefer the ``Py*_GET_SIZE()`` C-API macros / inline-functions for builtin types
             over their ``Py*_GetSize()`` counterparts if errors are not expected.
 
         ``CYTHON_FAST_GIL``
             On some Python versions this speeds up getting/releasing the GIL.
-            
+
         ``CYTHON_UNPACK_METHODS``
             Try to speed up method calls at the cost of code-size.  Linked to
             the ``optimize.unpack_method_calls`` compiler directive - this macro
             is used to selectively enable the compiler directive only on versions
             of Python that support it.
-            
+
         ``CYTHON_METH_FASTCALL``/``CYTHON_FAST_PYCALL``
             These are used internally to incrementally enable the vectorcall calling
             mechanism on older Python versions (<3.8).
-            
+
         ``CYTHON_PEP487_INIT_SUBCLASS``
             Enable `PEP-487 <https://peps.python.org/pep-0487/>`_ ``__init_subclass__`` behaviour.
-            
+
         ``CYTHON_USE_TP_FINALIZE``
             Use the ``tp_finalize`` type-slot instead of ``tp_dealloc``,
             as described in `PEP-442 <https://peps.python.org/pep-0442/>`_.
-            
+
         ``CYTHON_USE_DICT_VERSIONS``
             Try to optimize attribute lookup by using versioned dictionaries
             where supported.
-            
+
         ``CYTHON_USE_EXC_INFO_STACK``
             Use an internal structure to track exception state,
             used in CPython 3.7 and later.
-            
+
         ``CYTHON_UPDATE_DESCRIPTOR_DOC``
             Attempt to provide docstrings also for special (double underscore) methods.
-            
+
         ``CYTHON_USE_FREELISTS``
             Enable the use of freelists on extension types with
             :ref:`the @cython.freelist decorator<freelist>`.
@@ -1313,5 +1331,9 @@ hidden by default since most users will be uninterested in changing them.
         ``CYTHON_ATOMICS``
             Enable the use of atomic reference counting (as opposed to locking then
             reference counting) in Cython typed memoryviews.
-            
-            
+
+        ``CYTHON_DEBUG_VISIT_CONST``
+            Debug option for including constant (string/integer/code/…) objects in
+            [``gc.get_referents()``](https://docs.python.org/3/library/gc.html#gc.get_referents).
+            By default, Cython avoids GC traversing these objects because they can never participate
+            in reference cycles, and thus would uselessly waste time during garbage collection runs.

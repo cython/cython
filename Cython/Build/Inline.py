@@ -125,6 +125,11 @@ def _populate_unbound(kwds, unbound_symbols, locals=None, globals=None):
                     locals = calling_frame.f_locals
                 if globals is None:
                     globals = calling_frame.f_globals
+            if not isinstance(locals, dict):
+                # FrameLocalsProxy is stricter than dict on how it looks up keys
+                # and this means our "EncodedStrings" don't match the keys in locals.
+                # Therefore copy to a dict.
+                locals = dict(locals)
             if symbol in locals:
                 kwds[symbol] = locals[symbol]
             elif symbol in globals:
@@ -135,7 +140,7 @@ def _populate_unbound(kwds, unbound_symbols, locals=None, globals=None):
 
 def _inline_key(orig_code, arg_sigs, language_level):
     key = orig_code, arg_sigs, sys.version_info, sys.executable, language_level, Cython.__version__
-    return hashlib.sha1(str(key).encode('utf-8')).hexdigest()
+    return hashlib.sha256(str(key).encode('utf-8')).hexdigest()
 
 
 def cython_inline(code, get_type=unsafe_type,

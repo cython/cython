@@ -1,3 +1,5 @@
+import inspect
+
 from .Visitor import CythonTransform
 from .StringEncoding import EncodedString
 from . import Options
@@ -36,13 +38,8 @@ class AnnotationWriter(ExpressionWriter):
                     "Failed to convert lambda to string representation in {}".format(
                         self.description), level=1)
 
-    def visit_UnicodeNode(self, node):
-        # Discard Unicode prefix in annotations. Any tool looking at them
-        # would probably expect Py3 string semantics.
-        self.emit_string(node, "")
-
     def visit_AnnotationNode(self, node):
-        self.put(node.string.unicode_value)
+        self.put(node.string.value)
 
 
 class EmbedSignature(CythonTransform):
@@ -177,6 +174,7 @@ class EmbedSignature(CythonTransform):
                 docfmt = "%s\n--\n\n%s"
             else:
                 docfmt = "%s\n%s"
+            node_doc = inspect.cleandoc(node_doc)
             return docfmt % (signature, node_doc)
         else:
             if self.is_format_clinic:

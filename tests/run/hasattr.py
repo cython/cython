@@ -1,4 +1,5 @@
 # mode: run
+# tag: pure
 
 class Foo:
     @property
@@ -32,12 +33,7 @@ def wrap_hasattr(obj, name):
     >>> Foo().baz   #doctest: +ELLIPSIS
     Traceback (most recent call last):
     ZeroDivisionError: ...
-    >>> import sys
-    >>> if sys.version_info < (3,13): wrap_hasattr(Foo(), "baz")  # doctest: +ELLIPSIS
-    ... else: print(False)
-    False
-    >>> if sys.version_info >= (3,13): wrap_hasattr(Foo(), "baz")  # doctest: +ELLIPSIS
-    ... else: raise ZeroDivisionError
+    >>> wrap_hasattr(Foo(), "baz")  # doctest: +ELLIPSIS
     Traceback (most recent call last):
     ZeroDivisionError...
     >>> hasattr(Foo(), None)   #doctest: +ELLIPSIS

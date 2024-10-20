@@ -12,7 +12,7 @@ u"""
     >>> short_stats['f_cdef']
     100
     >>> short_stats['f_cpdef']
-    300
+    200
     >>> short_stats['f_inline']
     100
     >>> short_stats['f_inline_prof']
@@ -40,15 +40,12 @@ u"""
     ...
     KeyError: 'nogil_noprof'
 
-    >>> short_stats['f_raise']
-    100
-
     >>> short_stats['m_def']
     200
     >>> short_stats['m_cdef']
     100
-    >>> short_stats['m_cpdef'] - (200 if CPDEF_METHODS_COUNT_TWICE else 0)  # FIXME!
-    300
+    >>> short_stats['m_cpdef']
+    200
 
     >>> try:
     ...    os.unlink(statsfile)
@@ -106,7 +103,8 @@ u"""
     >>> cython_stats = pstats.Stats(statsfile)
     >>> cython_stats_dict = dict([(k[2], v[1]) for k,v in cython_stats.stats.items()])
 
-    >>> python_stats_dict['python_generator'] == cython_stats_dict['generator']
+    >>> python_stats_dict['python_generator'] == cython_stats_dict['generator']  \
+            or  (python_stats_dict['python_generator'], cython_stats_dict['generator'])
     True
 
     >>> try:
@@ -116,14 +114,6 @@ u"""
 """
 
 cimport cython
-
-
-# FIXME: With type specs, cpdef methods are currently counted twice.
-# https://github.com/cython/cython/issues/2137
-cdef extern from *:
-    int CYTHON_USE_TYPE_SPECS
-
-CPDEF_METHODS_COUNT_TWICE = CYTHON_USE_TYPE_SPECS
 
 
 def callees(pstats, target_caller):

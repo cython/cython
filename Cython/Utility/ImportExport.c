@@ -44,7 +44,8 @@ bad:
 
 static PyObject *__Pyx__ImportDottedModule_Lookup(PyObject *name) {
     PyObject *imported_module;
-#if CYTHON_COMPILING_IN_PYPY && PYPY_VERSION_NUM  < 0x07030400
+#if (CYTHON_COMPILING_IN_PYPY && PYPY_VERSION_NUM  < 0x07030400) || \
+        CYTHON_COMPILING_IN_GRAAL
     PyObject *modules = PyImport_GetModuleDict();
     if (unlikely(!modules))
         return NULL;
@@ -167,7 +168,6 @@ static PyObject *__Pyx_Import(PyObject *name, PyObject *from_list, int level); /
 /////////////// Import ///////////////
 //@requires: ObjectHandling.c::PyObjectGetAttrStr
 //@requires:StringTools.c::IncludeStringH
-//@substitute: naming
 
 static PyObject *__Pyx_Import(PyObject *name, PyObject *from_list, int level) {
     PyObject *module = 0;
@@ -180,7 +180,7 @@ static PyObject *__Pyx_Import(PyObject *name, PyObject *from_list, int level) {
         if (strchr(__Pyx_MODULE_NAME, '.') != (0)) {
             /* try package relative import first */
             module = PyImport_ImportModuleLevelObject(
-                name, $moddict_cname, empty_dict, from_list, 1);
+                name, NAMED_CGLOBAL(moddict_cname), empty_dict, from_list, 1);
             if (unlikely(!module)) {
                 if (unlikely(!PyErr_ExceptionMatches(PyExc_ImportError)))
                     goto bad;
@@ -191,7 +191,7 @@ static PyObject *__Pyx_Import(PyObject *name, PyObject *from_list, int level) {
     }
     if (!module) {
         module = PyImport_ImportModuleLevelObject(
-            name, $moddict_cname, empty_dict, from_list, level);
+            name, NAMED_CGLOBAL(moddict_cname), empty_dict, from_list, level);
     }
 bad:
     Py_XDECREF(empty_dict);
@@ -226,7 +226,8 @@ static PyObject* __Pyx_ImportFrom(PyObject* module, PyObject* name) {
         if (unlikely(!module_dot)) { goto modbad; }
         full_name = PyUnicode_Concat(module_dot, name);
         if (unlikely(!full_name)) { goto modbad; }
-        #if CYTHON_COMPILING_IN_PYPY && PYPY_VERSION_NUM  < 0x07030400
+        #if (CYTHON_COMPILING_IN_PYPY && PYPY_VERSION_NUM  < 0x07030400) || \
+                CYTHON_COMPILING_IN_GRAAL
         {
             PyObject *modules = PyImport_GetModuleDict();
             if (unlikely(!modules))
@@ -332,6 +333,7 @@ static int ${import_star}(PyObject* m) {
     PyObject *item;
     PyObject *import_obj;
     Py_ssize_t size;
+    ${modulestatetype_cname} *mstate = __Pyx_PyModule_GetState(m);
 
     locals = PyDict_New();              if (!locals) goto bad;
     if (__Pyx_import_all_from(locals, m) < 0) goto bad;
@@ -349,7 +351,7 @@ static int ${import_star}(PyObject* m) {
         utf8_name = PyUnicode_AsUTF8String(name);
         if (!utf8_name) goto bad;
         s = __Pyx_PyBytes_AsString(utf8_name); if (!s) goto bad;
-        if (${import_star_set}(item, name, s) < 0) goto bad;
+        if (${import_star_set}(mstate, item, name, s) < 0) goto bad;
         Py_DECREF(utf8_name); utf8_name = 0;
     }
     ret = 0;
@@ -588,7 +590,7 @@ static int __Pyx_ImportFunction_$cyversion(PyObject *module, const char *funcnam
              PyModule_GetName(module), funcname, sig, PyCapsule_GetName(cobj));
         goto bad;
     }
-    *f = __Pyx_capsule_to_c_func_ptr(cobj, sig);
+    *f = __Pyx_capsule_to_c_func_ptr_$cyversion(cobj, sig);
     if (!(*f))
         goto bad;
     Py_DECREF(d);
@@ -688,7 +690,7 @@ static int __Pyx_ExportVoidPtr(PyObject *name, void *p, const char *sig) {
     PyObject *d;
     PyObject *cobj = 0;
 
-    d = PyDict_GetItem($moddict_cname, PYIDENT("$api_name"));
+    d = PyDict_GetItem(NAMED_CGLOBAL(moddict_cname), PYIDENT("$api_name"));
     Py_XINCREF(d);
     if (!d) {
         d = PyDict_New();
@@ -785,7 +787,7 @@ static int __Pyx_MergeVtables(PyTypeObject *type) {
             base = __Pyx_PyType_GetSlot(base, tp_base, PyTypeObject*);
         }
     }
-    base_vtables = (void**) malloc(sizeof(void*) * (size_t)(base_depth + 1));
+    base_vtables = (void**) PyMem_Malloc(sizeof(void*) * (size_t)(base_depth + 1));
     base_vtables[0] = unknown;
     // Could do MRO resolution of individual methods in the future, assuming
     // compatible vtables, but for now simply require a common vtable base.
@@ -834,7 +836,7 @@ static int __Pyx_MergeVtables(PyTypeObject *type) {
         }
     }
     PyErr_Clear();
-    free(base_vtables);
+    PyMem_Free(base_vtables);
     return 0;
 bad:
     {
@@ -865,7 +867,7 @@ really_bad: // bad has failed!
 #if CYTHON_COMPILING_IN_LIMITED_API || CYTHON_AVOID_BORROWED_REFS || !CYTHON_ASSUME_SAFE_MACROS
 other_failure:
 #endif
-    free(base_vtables);
+    PyMem_Free(base_vtables);
     return -1;
 }
 
