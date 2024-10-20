@@ -1646,12 +1646,12 @@ class DropRefcountingTransform(Visitor.VisitorTransform):
         # the same logic as in https://github.com/cython/cython/pull/4607.
         # In that case we can probably drop AssignemntType from
         # NameAssignment (since it was added just to help with this)
-        from .FlowControl import NameAssignment, Argument
+        from .FlowControl import NameAssignment, Argument, AssignmentType
         for assignment in entry.cf_assignments:
             if (isinstance(assignment, NameAssignment) and
                     (assignment.assignment_type in (
-                        NameAssignment.AssignmentType.Parallel,
-                        NameAssignment.AssignmentType.AssignmentExpression
+                        AssignmentType.Parallel,
+                        AssignmentType.AssignmentExpression
                     ))):
                 return result
             if self.in_parallel and not isinstance(assignment, Argument):

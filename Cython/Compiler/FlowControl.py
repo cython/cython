@@ -175,7 +175,7 @@ class ControlFlow:
     def mark_assignment(self, lhs, rhs, entry, rhs_scope=None, assignment_type=None):
         if self.block and self.is_tracked(entry):
             if assignment_type is None:
-                assignment_type=NameAssignment.AssignmentType.Other
+                assignment_type = AssignmentType.Other
             assignment = NameAssignment(
                 lhs, rhs, entry, rhs_scope=rhs_scope,
                 assignment_type=assignment_type)
@@ -330,12 +330,13 @@ class ExceptionDescr:
         self.finally_exit = finally_exit
 
 
-class NameAssignment:
-    class AssignmentType(enum.IntEnum):
+class AssignmentType(enum.IntEnum):
         Other = 0
         Parallel = 1
         AssignmentExpression = 2
 
+
+class NameAssignment:
     def __init__(self, lhs, rhs, entry, rhs_scope=None, assignment_type=AssignmentType.Other):
         if lhs.cf_state is None:
             lhs.cf_state = set()
@@ -860,7 +861,7 @@ class ControlFlowAnalysis(CythonTransform):
         self._visit(node.rhs)
         self.mark_assignment(
             node.lhs, node.rhs,
-            assignment_type=NameAssignment.AssignmentType.AssignmentExpression
+            assignment_type=AssignmentType.AssignmentExpression
                 if self.in_assignment_expression else None)
         return node
 
@@ -876,7 +877,7 @@ class ControlFlowAnalysis(CythonTransform):
         for lhs, rhs in collector.assignments:
             self._visit(rhs)
         for lhs, rhs in collector.assignments:
-            self.mark_assignment(lhs, rhs, assignment_type=NameAssignment.AssignmentType.Parallel)
+            self.mark_assignment(lhs, rhs, assignment_type=AssignmentType.Parallel)
         return node
 
     def visit_InPlaceAssignmentNode(self, node):
