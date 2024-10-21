@@ -13,10 +13,12 @@ cdef class UtilityCode(UtilityCodeBase):
     cdef public object init
     cdef public object cleanup
     cdef public object proto_block
+    cdef public object module_state_decls
     cdef public object requires
     cdef public dict _cache
     cdef public list specialize_list
     cdef public object file
+    cdef public tuple _parts_tuple
 
     cpdef none_or_sub(self, s, context)
     # TODO - Signature not compatible with previous declaration
