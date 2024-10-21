@@ -14,6 +14,7 @@ cython.declare(os=object, copy=object, chain=object,
 
 import copy
 from itertools import chain
+import enum
 
 from . import Builtin
 from .Errors import error, warning, InternalError, CompileError, CannotSpecialize
@@ -1872,7 +1873,7 @@ class FuncDefNode(StatNode, BlockNode):
     #  return_type     PyrexType
     #  #filename        string        C name of filename string const
     #  entry           Symtab.Entry
-    #  needs_closure   boolean        Whether or not this function has inner functions/classes/yield
+    #  needs_closure   FuncDefNode.NeedsClosure enum        Whether or not this function has inner functions/classes/yield
     #  needs_outer_scope boolean      Whether or not this function requires outer scope
     #  pymethdef_required boolean     Force Python method struct generation
     #  directive_locals { string : ExprNode } locals defined by cython.locals(...)
@@ -1887,8 +1888,13 @@ class FuncDefNode(StatNode, BlockNode):
     #       by AnalyseDeclarationsTransform, so it can replace CFuncDefNodes
     #       with fused argument types with a FusedCFuncDefNode
 
+    class NeedsClosure(enum.IntEnum):
+        NO_CLOSURE = 0
+        GENERATOR_ONLY = 1
+        FULL_CLOSURE = 2
+
     py_func = None
-    needs_closure = False
+    needs_closure = NeedsClosure.NO_CLOSURE
     needs_outer_scope = False
     pymethdef_required = False
     is_generator = False
@@ -1972,7 +1978,8 @@ class FuncDefNode(StatNode, BlockNode):
             lenv = cls(name=self.entry.name,
                                 outer_scope=genv,
                                 parent_scope=env,
-                                scope_name=self.entry.cname)
+                                scope_name=self.entry.cname,
+                                is_pure_generator_scope=self.needs_closure != self.NeedsClosure.FULL_CLOSURE)
         else:
             lenv = LocalScope(name=self.entry.name,
                               outer_scope=genv,
