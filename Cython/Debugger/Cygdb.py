@@ -17,7 +17,7 @@ import glob
 import tempfile
 import textwrap
 import subprocess
-import optparse
+import argparse
 import logging
 
 logger = logging.getLogger(__name__)
@@ -32,8 +32,8 @@ def make_command_file(path_to_debug_info, prefix_code='',
         debug_files = glob.glob(pattern)
 
         if not debug_files:
-            sys.exit('%s.\nNo debug files were found in %s. Aborting.' % (
-                                   usage, os.path.abspath(path_to_debug_info)))
+            sys.exit('No cython debug files were found in %s. Aborting.' % (
+                                   os.path.abspath(path_to_debug_info)))
 
     fd, tempfilename = tempfile.mkstemp()
     f = os.fdopen(fd, 'w')
@@ -103,42 +103,36 @@ def make_command_file(path_to_debug_info, prefix_code='',
 
     return tempfilename
 
-usage = "Usage: cygdb [options] [PATH [-- GDB_ARGUMENTS]]"
 
-def main(path_to_debug_info=None, gdb_argv=None, no_import=False):
+def main():
     """
     Start the Cython debugger. This tells gdb to import the Cython and Python
     extensions (libcython.py and libpython.py) and it enables gdb's pending
     breakpoints.
-
-    path_to_debug_info is the path to the Cython build directory
-    gdb_argv is the list of options to gdb
-    no_import tells cygdb whether it should import debug information
     """
-    parser = optparse.OptionParser(usage=usage)
-    parser.add_option("--gdb-executable",
+    parser = argparse.ArgumentParser(
+        prog="cygdb",
+        description="Cython debugger",
+    )
+    parser.add_argument("gdb_argv", nargs="*",
+                        help="Arguments to forward to gdb; specified after --")
+    parser.add_argument("--build-dir", dest="build_dir", default=None,
+                        help="Directory containing cython_build/ files")
+    parser.add_argument("--gdb-executable",
         dest="gdb", default='gdb',
         help="gdb executable to use [default: gdb]")
-    parser.add_option("--verbose", "-v",
+    parser.add_argument("--verbose", "-v",
         dest="verbosity", action="count", default=0,
         help="Verbose mode. Multiple -v options increase the verbosity")
-    parser.add_option("--skip-interpreter",
+    parser.add_argument("--skip-interpreter",
                       dest="skip_interpreter", default=False, action="store_true",
                       help="Do not automatically point GDB to the same interpreter "
                            "used to generate debugging information")
 
-    (options, args) = parser.parse_args()
-    if path_to_debug_info is None:
-        if len(args) > 1:
-            path_to_debug_info = args[0]
-        else:
-            path_to_debug_info = os.curdir
-
-    if gdb_argv is None:
-        gdb_argv = args[1:]
-
-    if path_to_debug_info == '--':
-        no_import = True
+    options = parser.parse_args()
+    path_to_debug_info = options.build_dir
+    gdb_argv = options.gdb_argv
+    no_import = path_to_debug_info is None
 
     logging_level = logging.WARN
     if options.verbosity == 1:
@@ -149,11 +143,7 @@ def main(path_to_debug_info=None, gdb_argv=None, no_import=False):
 
     skip_interpreter = options.skip_interpreter
 
-    logger.info("verbosity = %r", options.verbosity)
-    logger.debug("options = %r; args = %r", options, args)
-    logger.debug("Done parsing command-line options. path_to_debug_info = %r, gdb_argv = %r",
-        path_to_debug_info, gdb_argv)
-
+    logger.debug("options = %r", options)
     tempfilename = make_command_file(path_to_debug_info,
                                      no_import=no_import,
                                      skip_interpreter=skip_interpreter)
