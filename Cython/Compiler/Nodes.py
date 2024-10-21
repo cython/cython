@@ -609,10 +609,12 @@ class CArrayDeclaratorNode(CDeclaratorNode):
             self.dimension = self.dimension.analyse_const_expression(env)
             if not self.dimension.type.is_int:
                 error(self.dimension.pos, "Array dimension not integer")
-            size = self.dimension.get_constant_c_result_code()
-            if size is not None:
+            if self.dimension.type.is_const and self.dimension.entry.visibility != 'extern':
+                size = self.dimension.entry
+            else:
+                size = self.dimension.get_constant_c_result_code()
                 try:
-                    size = int(size)
+                    size = int(size) if size is not None else None
                 except ValueError:
                     # runtime constant?
                     pass
@@ -626,7 +628,6 @@ class CArrayDeclaratorNode(CDeclaratorNode):
             error(self.pos, "Array element cannot be a function")
         array_type = PyrexTypes.c_array_type(base_type, size)
         return self.base.analyse(array_type, env, nonempty=nonempty, visibility=visibility, in_pxd=in_pxd)
-
 
 class CFuncDeclaratorNode(CDeclaratorNode):
     # base                      CDeclaratorNode
@@ -6265,6 +6266,32 @@ class SingleAssignmentNode(AssignmentNode):
         from . import ExprNodes
 
         self.rhs = self.rhs.analyse_types(env)
+
+        if self.lhs.is_name and self.lhs.entry.type.is_const:
+            if self.lhs.entry.type.cv_base_type.is_ptr:
+                # Currently, `cdef TYPE *const ...` is not supported
+                error(self.pos, f"Assignment to const '{self.lhs.name}'")
+
+            elif env.is_module_scope and self.lhs.entry.init is None and (
+                    self.rhs.has_constant_result() or self.rhs.is_literal or self.rhs.is_name and self.rhs.type.is_const):
+                # const variable can be initialised if:
+                # * we are in module scope
+                # * self.lhs was not assigned before
+                # * self.rhs is literal, const expression or const variable
+                if self.rhs.is_literal:
+                    # case of assignment a value: `cdef const float my_var = 2.0`
+                    self.lhs.entry.init = self.rhs.constant_result
+                elif self.rhs.is_name:
+                    # Assignment of const variable: `cdef const int aa = bb`
+                    if self.rhs.entry.init:
+                        # case when variable is initialized: `cdef const int bb = 5`
+                        self.lhs.entry.init = self.rhs.entry.init
+                    else:
+                        # case when variable is not initialized: `cdef const int bb`
+                        error(self.pos, f"Assignment to const '{self.lhs.name}'")
+                # case of assignment an expression: `cdef const float my_var = 2.0 + 3.0`
+            else:
+                error(self.pos, f"Assignment to const '{self.lhs.name}'")
 
         unrolled_assignment = self.unroll_rhs(env)
         if unrolled_assignment:
