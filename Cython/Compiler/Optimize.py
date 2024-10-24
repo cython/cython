@@ -2815,6 +2815,7 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
                 if isinstance(arg2, ExprNodes.CoerceToPyTypeNode):
                     arg2 = arg2.arg
 
+
                 if not arg2.try_is_simple():
                     new_node = UtilNodes.EvalWithTempExprNode(UtilNodes.LetRefNode(arg2), new_node)
         elif arg.type.is_pyobject:

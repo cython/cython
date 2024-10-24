@@ -4513,6 +4513,7 @@ class IndexNode(_IndexingBaseNode):
             return ""
 
     def generate_result_code(self, code):
+        print(self)
         if not self.is_temp and not self.base.type.is_ctuple:
             # all handled in self.calculate_result_code()
             return
@@ -4755,9 +4756,6 @@ class IndexNode(_IndexingBaseNode):
             self.pos))
         self.generate_subexpr_disposal_code(code)
         self.free_subexpr_temps(code)
-
-    def is_literal(self):
-        return self.base.is_literal and self.index.is_literal
 
 
 class BufferIndexNode(_IndexingBaseNode):
