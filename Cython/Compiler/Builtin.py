@@ -226,7 +226,16 @@ builtin_function_table = [
     #('reduce',    "",     "",      ""),
     BuiltinFunction('reload',     "O",    "O",     "PyImport_ReloadModule"),
     BuiltinFunction('repr',       "O",    "O",     "PyObject_Repr", builtin_return_type='str'),
-    #('round',     "",     "",      ""),
+    BuiltinFunction('round',        "f",    "f",     "roundf",
+                    is_strict_signature=True, nogil=True),
+    BuiltinFunction('round',        "d",    "d",     "round",
+                    is_strict_signature=True, nogil=True),
+    BuiltinFunction('round',        "ld",    "ld",     "roundl",
+                func_type = PyrexTypes.CFuncType(
+                    PyrexTypes.c_longdouble_type, [
+                        PyrexTypes.CFuncTypeArg("arg", PyrexTypes.c_longdouble_type, None)
+                        ],
+                    is_strict_signature = True, nogil=True)),
     BuiltinFunction('setattr',    "OOO",  "r",     "PyObject_SetAttr"),
     #('sum',       "",     "",      ""),
     #('sorted',    "",     "",      ""),
