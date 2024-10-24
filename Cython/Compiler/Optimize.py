@@ -2763,9 +2763,9 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
     _ext_types_with_pysize = {"cpython.array.array"}
 
     def _handle_simple_function_len(self, node, function, pos_args):
-        """Replace len(char*) by the equivalent call to strlen(),
-        len(Py_UNICODE) by the equivalent Py_UNICODE_strlen() and
-        len(known_builtin_type) by an equivalent C-API call.
+        """Replace len(char*) with the equivalent call to strlen(),
+        len(Py_UNICODE) with the equivalent Py_UNICODE_strlen() and
+        len(known_builtin_type) with an equivalent C-API call.
         """
         if len(pos_args) != 1:
             self._error_wrong_arg_count('len', node, pos_args, 1)
@@ -2792,6 +2792,31 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
             new_node = ExprNodes.PythonCapiCallNode(
                 node.pos, "__Pyx_MemoryView_Len", func_type,
                 args=[arg], is_temp=node.is_temp)
+        elif arg.type.is_unicode_char:
+            new_node = ExprNodes.IntNode(node.pos, value='1', constant_result=1,
+                                     type=node.type)
+        elif arg.type.is_ctuple:
+            new_node = ExprNodes.IntNode(node.pos, value=str(arg.type.size), constant_result=1,
+                                     type=node.type)
+
+            # TODO: This might fail if the source of the ctuple has side effects and isn't a sequence constructor
+            if isinstance(arg, ExprNodes.TypecastNode) and arg.operand.is_sequence_constructor:
+                for arg2 in arg.operand.args:
+                    if isinstance(arg2, ExprNodes.CoerceToPyTypeNode):
+                        arg2 = arg2.arg
+    
+                    if not arg2.try_is_simple():
+                        new_node = UtilNodes.EvalWithTempExprNode(UtilNodes.LetRefNode(arg2), new_node)
+        elif arg.is_sequence_constructor and not arg.is_starred:
+            new_node = ExprNodes.IntNode(node.pos, value=str(len(arg.args)), constant_result=1,
+                                     type=node.type)
+
+            for arg2 in arg.args:
+                if isinstance(arg2, ExprNodes.CoerceToPyTypeNode):
+                    arg2 = arg2.arg
+
+                if not arg2.try_is_simple():
+                    new_node = UtilNodes.EvalWithTempExprNode(UtilNodes.LetRefNode(arg2), new_node)
         elif arg.type.is_pyobject:
             cfunc_name = self._map_to_capi_len_function(arg.type)
             if cfunc_name is None:
@@ -2806,9 +2831,6 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
             new_node = ExprNodes.PythonCapiCallNode(
                 node.pos, cfunc_name, self.PyObject_Size_func_type,
                 args=[arg], is_temp=node.is_temp)
-        elif arg.type.is_unicode_char:
-            return ExprNodes.IntNode(node.pos, value='1', constant_result=1,
-                                     type=node.type)
         else:
             return node
         if node.type not in (PyrexTypes.c_size_t_type, PyrexTypes.c_py_ssize_t_type):
