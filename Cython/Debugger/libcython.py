@@ -117,6 +117,55 @@ def gdb_function_value_to_unicode(function):
 # Classes that represent the debug information
 # Don't rename the parameters of these classes, they come directly from the XML
 
+def simple_repr(self, renamed=None, state=True):
+    """Prints out all instance variables needed to recreate an object.
+
+    Following the python convention for __repr__, this function prints all the
+    information stored in an instance as opposed to its class. The working
+    assumption is that most initialization arguments are stored as a property
+    using the same name.
+
+    The object contents are displayed as the initialization call followed by,
+    optionally, the value of each of the instance's properties in the form:
+    ```
+    ClassName(
+            init_arg_1 = "repr of some example str",
+            ...
+        )
+    self.state_based_property = ...
+    ```
+
+    Function arguments:
+    self        Instance to be represented
+
+    renamed     Dictionary of initialization arguments that are stored under a
+                different property name in the form { argument: property }
+
+    state       Boolean representing whether properties outside the
+                initialization parameters should be printed (self.prop = ...).
+                Using `False` may make the class more amenable to recursive repr
+    """
+    import inspect
+    init_arg_names = tuple(inspect.signature(self.__init__).parameters)
+    init_attrs = [renamed.get(arg, arg) for arg in init_arg_names] \
+            if renamed else init_arg_names
+    state_repr = ()
+    if state:
+        instance_attrs = sorted(vars(self).keys())
+        state_repr = [attr for attr in instance_attrs if attr not in init_attrs]
+
+    def names_and_values(prefix, attrs, args=None):
+        for attr, arg in zip(attrs, args or attrs):
+            param = repr(getattr(self, attr)).replace("\n", "\n\t\t")
+            yield f'{prefix}{arg} = {param}'
+
+    return "".join([
+            self.__class__.__qualname__, "(",
+            ",".join(names_and_values("\n\t\t", init_attrs, init_arg_names)),
+            "\n\t)", *names_and_values("\nself.", state_repr)
+        ])
+
+
 class CythonModule:
     def __init__(self, module_name, filename, c_filename):
         self.name = module_name
@@ -129,6 +178,9 @@ class CythonModule:
         self.lineno_c2cy = {}
         self.functions = {}
 
+    def __repr__(self):
+        return simple_repr(self, renamed={"module_name": "name"}, state=False)
+
 
 class CythonVariable:
 
@@ -138,6 +190,9 @@ class CythonVariable:
         self.qualified_name = qualified_name
         self.type = type
         self.lineno = int(lineno)
+
+    def __repr__(self):
+        return simple_repr(self)
 
 
 class CythonFunction(CythonVariable):
@@ -164,6 +219,63 @@ class CythonFunction(CythonVariable):
 
 
 # General purpose classes
+
+# fail fast if the API changes
+frame_repr_whitelist = set(f.__qualname__ for f in [
+    gdb.Frame.is_valid,
+    gdb.Frame.name,
+    gdb.Frame.architecture,
+    gdb.Frame.type,
+    gdb.Frame.pc,
+    gdb.Frame.block,
+    gdb.Frame.function,
+    gdb.Frame.older,
+    gdb.Frame.newer,
+    gdb.Frame.find_sal,
+    gdb.Frame.select,
+    gdb.Frame.static_link,
+    gdb.Frame.level,
+    gdb.Frame.language,
+    gdb.Symbol.is_valid,
+    gdb.Symbol.value,
+    gdb.Symtab_and_line.is_valid,
+    gdb.Symtab.is_valid,
+    gdb.Symtab.fullname,
+    gdb.Symtab.global_block,
+    gdb.Symtab.static_block,
+    gdb.Symtab.linetable,
+])
+
+def frame_repr(frame):
+    """Returns a string representing the internal state of a provided GDB frame
+    https://sourceware.org/gdb/current/onlinedocs/gdb.html/Frames-In-Python.html
+
+    Created to serve as GDB.Frame.__repr__ for debugging purposes. GDB has many
+    layers of abstraction separating the state of the debugger from the
+    corresponding source code. This prints a tree of instance properties,
+    expanding the values for Symtab_and_line, Symbol, and Symtab.
+
+    Most of these properties require computation to determine, meaning much of
+    relevant info is behind a monad, a subset of which are evaluated.
+
+    Arguments
+    frame       The GDB.Frame instance to be represented as a string
+    """
+    res = f"{frame}\n"
+    for attribute in sorted(dir(frame)):
+        if attribute.startswith("__"):
+            continue
+        value = getattr(frame, attribute)
+        if callable(value) and value.__qualname__ in frame_repr_whitelist:
+            value = value()
+
+        if type(value) in [gdb.Symtab_and_line, gdb.Symbol, gdb.Symtab]:
+            # strip last line since it will get added on at the end of the loop
+            value = frame_repr(value).rstrip("\n").replace("\n", "\n\t")
+        res += f"{attribute}: " + (
+                f"{value:x}\n" if isinstance(value, int) and attribute != "line"
+                else f"{value}\n")
+    return res
 
 class CythonBase:
 
