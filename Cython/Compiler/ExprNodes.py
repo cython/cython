@@ -4513,7 +4513,6 @@ class IndexNode(_IndexingBaseNode):
             return ""
 
     def generate_result_code(self, code):
-        print(self)
         if not self.is_temp and not self.base.type.is_ctuple:
             # all handled in self.calculate_result_code()
             return
