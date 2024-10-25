@@ -61,3 +61,17 @@ def test_long_double(value):
     -2
     """
     return int(round_long_double(value))
+
+
+def test_float_ndigits(value: cython.float, ndigits: cython.int):
+    """
+    >>> test_float_ndigits(1.25, 0)
+   1.0
+    >>> test_float_ndigits(1.25, 1)
+   1.2 
+    >>> test_float_ndigits(1.25, 2)
+    1.25
+    >>> test_float_ndigits(1.25, 3)
+    1.25
+    """
+    return round(value, ndigits)
