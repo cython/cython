@@ -131,12 +131,3 @@ assert test_index_ctuple_const_const_index() == 1
 assert test_index_tuple_const(2) == 3
 
 assert test_index_tuple_const_const_index() == 1
-
-
-# BUG: These should fail on compile
-
-cdef int *SHOULD_FAIL_test_index_ctuple_const_addrof():
-    return &(<(int, int, int)>(<int>1, <int>2, <int>3))[0]
-
-cdef long *SHOULD_FAIL_test_index_tuple_const_addrof():
-    return &(1, 2, 3)[0]

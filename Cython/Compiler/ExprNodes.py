@@ -4479,12 +4479,13 @@ class IndexNode(_IndexingBaseNode):
                 self.base.result(),
                 ",".join([param.empty_declaration_code() for param in self.type_indices]))
         elif self.base.type.is_ctuple:
-            if self.index.is_literal:
+            if isinstance(self.index, IntNode) and self.index.has_constant_result():
                 # TODO: Constant index folding should probably be in Optimize.py
 
                 index = self.index.constant_result
                 if index < 0:
                     index += self.base.type.size
+
                 return "%s.f%s" % (self.base.result() % len(self.base.type.components), index)
             else:
                 return "(*%s)" % self.ctuple_var
@@ -4573,7 +4574,7 @@ class IndexNode(_IndexingBaseNode):
                 self.result() if self.type.is_pyobject else None,
                 self.exception_value, self.in_nogil_context)
         elif self.base.type.is_ctuple:
-            if not self.index.is_literal:
+            if not (isinstance(self.index, IntNode) and self.index.has_constant_result()):
                 base_code = self.base.result()
                 self.ctuple_var = code.funcstate.allocate_temp(PyrexTypes.CPtrType(self.type), manage_ref=False)
     
@@ -4601,7 +4602,7 @@ class IndexNode(_IndexingBaseNode):
             self.generate_gotref(code)
 
     def free_temps(self, code):
-        if self.base.type.is_ctuple and not self.index.is_literal:
+        if self.base.type.is_ctuple and not (isinstance(self.index, IntNode) and self.index.has_constant_result()):
             code.funcstate.release_temp(self.ctuple_var)
 
         ExprNode.free_temps(self, code)
