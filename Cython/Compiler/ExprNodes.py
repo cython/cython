@@ -4579,11 +4579,7 @@ class IndexNode(_IndexingBaseNode):
                 code.putln("switch (%s) {" % index_code)
     
                 for itr in range(-len(self.base.type.components) if code.globalstate.directives['wraparound'] else 0, len(self.base.type.components)):
-                    code.putln("case %i:" % itr)
-                    code.increase_indent()
-                    code.putln("%s = &%s.f%i;" % (self.ctuple_var, self.base.result(), itr % len(self.base.type.components)))
-                    code.putln("break;")
-                    code.decrease_indent()
+                    code.putln(f"case {itr}: {self.ctuple_var} = &{self.base.result()}.f{itr % len(self.base.type.components)}; break")
     
                 if code.globalstate.directives['boundscheck']:
                     code.putln("default:")
