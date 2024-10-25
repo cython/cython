@@ -2,20 +2,24 @@
 
 import cython
 
+
 @cython.cfunc
 @cython.returns(cython.float)
 def round_float(value: cython.float):
     return round(value)
+
 
 @cython.cfunc
 @cython.returns(cython.double)
 def round_double(value: cython.double):
     return round(value)
 
+
 @cython.cfunc
 @cython.returns(cython.longdouble)
 def round_long_double(value: cython.longdouble):
     return round(value)
+
 
 def test_round_float(value):
     """
@@ -32,6 +36,7 @@ def test_round_float(value):
     """
     return int(round_float(value))
 
+
 def test_round_double(value):
     """
     >>> test_round_double(3.14)
@@ -46,6 +51,7 @@ def test_round_double(value):
     -2
     """
     return int(round_double(value))
+
 
 def test_long_double(value):
     """
