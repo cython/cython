@@ -13776,7 +13776,7 @@ class PrimaryCmpNode(ExprNode, CmpNode):
             self.type = PyrexTypes.c_bint_type
         self.unify_cascade_type()
         if self.is_pycmp or self.cascade or self.special_bool_cmp_function or type1.is_struct_or_union:
-            # 1) owned reference, 2) reused value, 3) potential function error return value
+            # 1) owned reference, 2) reused value, 3) potential function error return value 4) struct comparisons
             self.is_temp = 1
         return self
 
