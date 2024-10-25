@@ -4576,7 +4576,7 @@ class IndexNode(_IndexingBaseNode):
         elif self.base.type.is_ctuple:
             if not (isinstance(self.index, IntNode) and self.index.has_constant_result()):
                 base_code = self.base.result()
-                self.ctuple_var = code.funcstate.allocate_temp(PyrexTypes.CPtrType(self.type), manage_ref=False)
+                self.ctuple_var = code.funcstate.allocate_temp(PyrexTypes.CPtrType(self.type))
     
                 code.putln("switch (%s) {" % index_code)
     
