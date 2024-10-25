@@ -4480,7 +4480,7 @@ class IndexNode(_IndexingBaseNode):
                 ",".join([param.empty_declaration_code() for param in self.type_indices]))
         elif self.base.type.is_ctuple:
             if self.index.is_literal:
-                # TODO: Constant index folding should probably be in Optimize.py, also see IndexNode.is_literal()
+                # TODO: Constant index folding should probably be in Optimize.py
 
                 index = self.index.constant_result
                 if index < 0:
