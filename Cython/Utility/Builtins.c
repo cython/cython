@@ -369,9 +369,9 @@ static CYTHON_INLINE double __Pyx_round_double(double x) {
     return result;
 }
 
-//////////////////// round_long_double.proto ////////////////////
+//////////////////// round_longdouble.proto ////////////////////
 
-static CYTHON_INLINE long double __Pyx_round_double(long double x) {
+static CYTHON_INLINE long double __Pyx_round_longdouble(long double x) {
     long double result = roundl(x);
 
     if (fabsl(x - result) == 0.5l) {

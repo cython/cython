@@ -239,7 +239,6 @@ builtin_function_table = [
                         PyrexTypes.CFuncTypeArg("arg", PyrexTypes.c_longdouble_type, None)
                         ],
                     is_strict_signature = True, nogil=True)),
-    
     BuiltinFunction('setattr',    "OOO",  "r",     "PyObject_SetAttr"),
     #('sum',       "",     "",      ""),
     #('sorted',    "",     "",      ""),
