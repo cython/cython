@@ -13603,7 +13603,7 @@ class CmpNode:
 
             self.operand1_temp = code.funcstate.allocate_temp(operand1.type, manage_ref=False)
             self.operand2_temp = code.funcstate.allocate_temp(operand2.type, manage_ref=False)
-            code.putln(f"{self.operand1_temp} = {operand1.result()}; {self.operand2_temp} = {operand2.result()}, {result_code} = {self.generate_strut_code(self.operand1_temp, self.operand2_temp, operand1.type, op)};")
+            code.putln(f"{self.operand1_temp} = {operand1.result()}; {self.operand2_temp} = {operand2.result()}, {result_code} = {self.generate_struct_code(self.operand1_temp, self.operand2_temp, operand1.type, op)};")
 
             code.funcstate.release_temp(self.operand1_temp)
             code.funcstate.release_temp(self.operand2_temp)
@@ -13636,8 +13636,8 @@ class CmpNode:
             else:
                 code.putln(statement)
 
-    def generate_strut_code(self, operand1, operand2, type_, op):
-        return "(" + (" && " if op == "==" else " || ").join([self.generate_strut_code(operand1 + "." + member.name, operand2 + "." + member.name, member.type, op) if member.type.is_struct_or_union and (member.type.kind == "struct" or error(self.pos, "cannot compare unions")) else f"{operand1}.{member.name} {op} {operand2}.{member.name}" for member in type_.scope.var_entries]) + ")"
+    def generate_struct_code(self, operand1, operand2, type_, op):
+        return "(" + (" && " if op == "==" else " || ").join([self.generate_struct_code(operand1 + "." + member.name, operand2 + "." + member.name, member.type, op) if member.type.is_struct_or_union and (member.type.kind == "struct" or error(self.pos, "cannot compare unions")) else f"{operand1}.{member.name} {op} {operand2}.{member.name}" for member in type_.scope.var_entries]) + ")"
 
     def c_operator(self, op):
         if op == 'is':
