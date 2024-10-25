@@ -13589,7 +13589,24 @@ class CmpNode:
                 operand1.type.unary_op('eq'),
                 operand1.result(),
                 operand2.result()))
+        elif operand1.type.is_struct_or_union:
+            assert op in ("==", "!=")
 
+            if operand1.type.kind == 'union' or (operand2.type.is_struct_or_union and operand2.type.kind == 'union'):
+                error(self.pos, "cannot compare unions")
+
+            if not operand2.type.is_struct_or_union:
+                error(self.pos, "cannot compare struct to non-struct")
+
+            if operand1.type != operand2.type:
+                error(self.pos, "cannot compare structs of different types")
+
+            self.operand1_temp = code.funcstate.allocate_temp(operand1.type, manage_ref=False)
+            self.operand2_temp = code.funcstate.allocate_temp(operand2.type, manage_ref=False)
+            code.putln(f"{self.operand1_temp} = {operand1.result()}; {self.operand2_temp} = {operand2.result()}, {result_code} = {self.generate_strut_code(self.operand1_temp, self.operand2_temp, operand1.type, op)};")
+
+            code.funcstate.release_temp(self.operand1_temp)
+            code.funcstate.release_temp(self.operand2_temp)
         else:
             type1 = operand1.type
             type2 = operand2.type
@@ -13618,6 +13635,9 @@ class CmpNode:
                     self.in_nogil_context)
             else:
                 code.putln(statement)
+
+    def generate_strut_code(self, operand1, operand2, type_, op):
+        return "(" + (" && " if op == "==" else " || ").join([self.generate_strut_code(operand1 + "." + member.name, operand2 + "." + member.name, member.type, op) if member.type.is_struct_or_union and (member.type.kind == "struct" or error(self.pos, "cannot compare unions")) else f"{operand1}.{member.name} {op} {operand2}.{member.name}" for member in type_.scope.var_entries]) + ")"
 
     def c_operator(self, op):
         if op == 'is':
@@ -13706,12 +13726,12 @@ class PrimaryCmpNode(ExprNode, CmpNode):
                 if self.cascade:
                     error(self.pos, "Cascading comparison not yet supported for 'int_val in string'.")
                     return self
-                if self.operand2.type is unicode_type:
+                if type2 is unicode_type:
                     env.use_utility_code(UtilityCode.load_cached("PyUCS4InUnicode", "StringTools.c"))
                 else:
-                    if self.operand1.type is PyrexTypes.c_uchar_type:
+                    if type1 is PyrexTypes.c_uchar_type:
                         self.operand1 = self.operand1.coerce_to(PyrexTypes.c_char_type, env)
-                    if self.operand2.type is not bytes_type:
+                    if type2 is not bytes_type:
                         self.operand2 = self.operand2.coerce_to(bytes_type, env)
                     env.use_utility_code(UtilityCode.load_cached("BytesContains", "StringTools.c"))
                 self.operand2 = self.operand2.as_none_safe_node(
@@ -13723,7 +13743,7 @@ class PrimaryCmpNode(ExprNode, CmpNode):
                 # Will be transformed by IterationTransform
                 return self
             elif self.find_special_bool_compare_function(env, self.operand1):
-                if not self.operand1.type.is_pyobject:
+                if not type1.is_pyobject:
                     self.operand1 = self.operand1.coerce_to_pyobject(env)
                 common_type = None  # if coercion needed, the method call above has already done it
                 self.is_pycmp = False  # result is bint
@@ -13731,7 +13751,7 @@ class PrimaryCmpNode(ExprNode, CmpNode):
                 common_type = py_object_type
                 self.is_pycmp = True
         elif self.find_special_bool_compare_function(env, self.operand1):
-            if not self.operand1.type.is_pyobject:
+            if not type1.is_pyobject:
                 self.operand1 = self.operand1.coerce_to_pyobject(env)
             common_type = None  # if coercion needed, the method call above has already done it
             self.is_pycmp = False  # result is bint
@@ -13740,7 +13760,7 @@ class PrimaryCmpNode(ExprNode, CmpNode):
             self.is_pycmp = common_type.is_pyobject
 
         if common_type is not None and not common_type.is_error:
-            if self.operand1.type != common_type:
+            if type1 != common_type:
                 self.operand1 = self.operand1.coerce_to(common_type, env)
             self.coerce_operands_to(common_type, env)
 
@@ -13755,7 +13775,7 @@ class PrimaryCmpNode(ExprNode, CmpNode):
         else:
             self.type = PyrexTypes.c_bint_type
         self.unify_cascade_type()
-        if self.is_pycmp or self.cascade or self.special_bool_cmp_function:
+        if self.is_pycmp or self.cascade or self.special_bool_cmp_function or type1.is_struct_or_union:
             # 1) owned reference, 2) reused value, 3) potential function error return value
             self.is_temp = 1
         return self
@@ -13819,8 +13839,7 @@ class PrimaryCmpNode(ExprNode, CmpNode):
         return ExprNode.coerce_to_boolean(self, env)
 
     def has_python_operands(self):
-        return (self.operand1.type.is_pyobject
-            or self.operand2.type.is_pyobject)
+        return self.operand1.type.is_pyobject or self.operand2.type.is_pyobject
 
     def check_const(self):
         if self.cascade:
