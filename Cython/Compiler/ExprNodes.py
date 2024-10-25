@@ -4486,7 +4486,7 @@ class IndexNode(_IndexingBaseNode):
                 if index < 0:
                     index += self.base.type.size
 
-                return "%s.f%s" % (self.base.result(), index)
+                return "%s.f%i" % (self.base.result(), index)
             else:
                 return "(*%s)" % self.ctuple_var
         else:
