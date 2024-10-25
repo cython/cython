@@ -118,7 +118,7 @@ builtin_function_table = [
                     is_strict_signature=True, nogil=True),
     BuiltinFunction('abs',        "l",    "l",     "labs",
                     is_strict_signature=True, nogil=True),
-    BuiltinFunction('abs',        None,    None,   "__Pyx_abs_longlong",
+    BuiltinFunction('abs',        None,   None,    "__Pyx_abs_longlong",
                 utility_code = UtilityCode.load("abs_longlong", "Builtins.c"),
                 func_type = PyrexTypes.CFuncType(
                     PyrexTypes.c_longlong_type, [
@@ -199,19 +199,19 @@ builtin_function_table = [
     #('oct',       "",     "",      ""),
     #('open',       "ss",   "O",     "PyFile_FromString"),   # not in Py3
 ] + [
-    BuiltinFunction('ord',        None,    None,   "__Pyx_long_cast",
+    BuiltinFunction('ord',        None,   None,    "__Pyx_long_cast",
                     func_type=PyrexTypes.CFuncType(
                         PyrexTypes.c_long_type, [PyrexTypes.CFuncTypeArg("c", c_type, None)],
                         is_strict_signature=True))
     for c_type in [PyrexTypes.c_py_ucs4_type, PyrexTypes.c_py_unicode_type]
 ] + [
-    BuiltinFunction('ord',        None,    None,   "__Pyx_uchar_cast",
+    BuiltinFunction('ord',        None,   None,    "__Pyx_uchar_cast",
                     func_type=PyrexTypes.CFuncType(
                         PyrexTypes.c_uchar_type, [PyrexTypes.CFuncTypeArg("c", c_type, None)],
                         is_strict_signature=True))
     for c_type in [PyrexTypes.c_char_type, PyrexTypes.c_schar_type, PyrexTypes.c_uchar_type]
 ] + [
-    BuiltinFunction('ord',        None,    None,   "__Pyx_PyObject_Ord",
+    BuiltinFunction('ord',        None,   None,    "__Pyx_PyObject_Ord",
                     utility_code=UtilityCode.load_cached("object_ord", "Builtins.c"),
                     func_type=PyrexTypes.CFuncType(
                         PyrexTypes.c_long_type, [
@@ -226,16 +226,20 @@ builtin_function_table = [
     #('reduce',    "",     "",      ""),
     BuiltinFunction('reload',     "O",    "O",     "PyImport_ReloadModule"),
     BuiltinFunction('repr',       "O",    "O",     "PyObject_Repr", builtin_return_type='str'),
-    BuiltinFunction('round',        "f",    "f",     "roundf",
+    BuiltinFunction('round',      None,   None,    "__Pyx_round_float",
+                    utility_code = UtilityCode.load("round_float", "Builtins.c"),
                     is_strict_signature=True, nogil=True),
-    BuiltinFunction('round',        "d",    "d",     "round",
+    BuiltinFunction('round',      None,   None,    "__Pyx_round_double",
+                    utility_code = UtilityCode.load("round_double", "Builtins.c"),
                     is_strict_signature=True, nogil=True),
-    BuiltinFunction('round',        "ld",    "ld",     "roundl",
+    BuiltinFunction('round',      None,   None,    "__Pyx_round_longdouble",
+                    utility_code = UtilityCode.load("round_longdouble", "Builtins.c"),
                 func_type = PyrexTypes.CFuncType(
                     PyrexTypes.c_longdouble_type, [
                         PyrexTypes.CFuncTypeArg("arg", PyrexTypes.c_longdouble_type, None)
                         ],
                     is_strict_signature = True, nogil=True)),
+    
     BuiltinFunction('setattr',    "OOO",  "r",     "PyObject_SetAttr"),
     #('sum',       "",     "",      ""),
     #('sorted',    "",     "",      ""),
