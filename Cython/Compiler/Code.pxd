@@ -123,9 +123,12 @@ cdef class CCodeWriter(object):
     cdef emit_marker(self)
     @cython.final
     cdef _build_marker(self, tuple pos)
-    cpdef increase_indent(self)
-    cpdef decrease_indent(self)
-    cpdef indent(self)
+    @cython.final
+    cdef increase_indent(self)
+    @cython.final
+    cdef decrease_indent(self)
+    @cython.final
+    cdef indent(self)
 
 
 cdef class PyrexCodeWriter:
