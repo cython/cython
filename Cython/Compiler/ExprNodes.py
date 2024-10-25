@@ -843,7 +843,7 @@ class ExprNode(Node):
                 # postponed from self.generate_evaluation_code()
                 self.generate_subexpr_disposal_code(code)
                 self.free_subexpr_temps(code)
-            if self.result():
+            if self.result() and self.manage_ref:
                 code.put_decref_clear(self.result(), self.ctype(),
                                         have_gil=not self.in_nogil_context)
         else:
@@ -6336,6 +6336,9 @@ class SimpleCallNode(CallNode):
                 env.use_utility_code(UtilityCode.load_cached("CppExceptionConversion", "CppSupport.cpp"))
 
         self.overflowcheck = env.directives['overflowcheck']
+
+        if self.function.result() in ("Py_INCREF", "Py_XINCREF", "Py_DECREF", "Py_XDECREF", "Py_CLEAR"):
+            self.args[0].use_managed_ref = False
 
     def calculate_result_code(self):
         return self.c_call_code()
