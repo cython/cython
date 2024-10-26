@@ -3423,7 +3423,9 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         # which is sometime unreliable during destruction
         # (e.g. during interpreter shutdown).
         # In that case the safest thing is to give up.
+        code.putln("#if CYTHON_USE_MODULE_STATE")
         code.putln(f"if (!__Pyx_State_FindModule(&{Naming.pymoduledef_cname})) return;")
+        code.putln("#endif")
         code.putln(f"{Naming.modulestatevalue_cname} = __Pyx_PyModule_GetState(self);")
 
         if Options.generate_cleanup_code >= 2:
