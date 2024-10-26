@@ -1220,9 +1220,8 @@ most important to least important:
     Stores module data on a struct associated with the module object rather than as
     C global variables.  The advantage is that it should be possible to import the
     same module more than once (e.g. in different sub-interpreters).  At the moment
-    this is experimental and not all data has been moved.  It also requires that
-    ``CYTHON_PEP489_MULTI_PHASE_INIT`` is off - we plan to remove this limitation
-    in the future.
+    this is experimental and not all data has been moved.  Specifically ``cdef``
+    globals have not been moved.
 
 ``CYTHON_USE_TYPE_SPECS``
     Defines ``cdef classes`` as `"heap types" <https://docs.python.org/3/c-api/typeobj.html#heap-types>`_
@@ -1337,3 +1336,11 @@ hidden by default since most users will be uninterested in changing them.
             [``gc.get_referents()``](https://docs.python.org/3/library/gc.html#gc.get_referents).
             By default, Cython avoids GC traversing these objects because they can never participate
             in reference cycles, and thus would uselessly waste time during garbage collection runs.
+            
+        ``CYTHON_MODULE_STATE_LOOKUP_THREAD_SAFE``
+            Makes module state lookup thread-safe (when ``CYTHON_USE_MODULE_STATE`` and
+            ``CYTHON_PEP489_MULTI_PHASE_INIT`` are both enabled).  This is on by default
+            where it would be helpful, however it can be disabled if you are sure that
+            one interpreter will not be importing your module at the same time as another
+            is using it.  Values greater than 1 can be used to select a specific implementation
+            for debugging purposes.

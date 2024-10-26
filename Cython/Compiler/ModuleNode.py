@@ -2917,6 +2917,9 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         module_state_traverse = globalstate['module_state_traverse']
         module_state.putln('} %s;' % Naming.modulestatetype_cname)
         module_state.putln('')
+        globalstate.use_utility_code(
+            UtilityCode.load("MultiPhaseInitModuleState", "ModuleSetupCode.c")
+        )
         module_state.putln("#if CYTHON_USE_MODULE_STATE")
         module_state.putln('#ifdef __cplusplus')
         module_state.putln('namespace {')
@@ -2926,11 +2929,11 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         module_state.putln('static struct PyModuleDef %s;' % Naming.pymoduledef_cname)
         module_state.putln('#endif')
         module_state.putln('')
-        module_state.putln('#define %s (__Pyx_PyModule_GetState(PyState_FindModule(&%s)))' % (
+        module_state.putln('#define %s (__Pyx_PyModule_GetState(__Pyx_State_FindModule(&%s)))' % (
             Naming.modulestateglobal_cname,
             Naming.pymoduledef_cname))
         module_state.putln('')
-        module_state.putln('#define %s (PyState_FindModule(&%s))' % (
+        module_state.putln('#define %s (__Pyx_State_FindModule(&%s))' % (
             env.module_cname,
             Naming.pymoduledef_cname))
         module_state.putln("#else")
@@ -2984,6 +2987,11 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln('Py_CLEAR(clear_module_state->%s);' %
             Naming.fusedfunction_type_cname)
         code.putln('#endif')
+        code.putln("#if CYTHON_PEP489_MULTI_PHASE_INIT")
+        # In this case we have to remove the module from our lookup table ourself
+        # because Python isn't going to do it
+        code.putln("__Pyx_State_RemoveModule(NULL);")
+        code.putln("#endif")
 
     def generate_module_state_traverse(self, env, code):
         code.putln("#if CYTHON_USE_MODULE_STATE")
@@ -3252,7 +3260,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         # decrement that
         code.put_decref(env.module_cname, py_object_type, nanny=False)
         # Also remove the failed module from the module state lookup
-        # fetch/restore the error indicator because PyState_RemvoeModule might fail itself
+        # fetch/restore the error indicator because PyState_RemoveModule might fail itself
         code.putln("if (pystate_addmodule_run) {")
         code.putln("PyObject *tp, *value, *tb;")
         code.putln("PyErr_Fetch(&tp, &value, &tb);")
@@ -3415,7 +3423,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         # which is sometime unreliable during destruction
         # (e.g. during interpreter shutdown).
         # In that case the safest thing is to give up.
-        code.putln(f"if (!PyState_FindModule(&{Naming.pymoduledef_cname})) return;")
+        code.putln(f"if (!__Pyx_State_FindModule(&{Naming.pymoduledef_cname})) return;")
         code.putln(f"{Naming.modulestatevalue_cname} = __Pyx_PyModule_GetState(self);")
 
         if Options.generate_cleanup_code >= 2:
@@ -3584,12 +3592,10 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("  PyModuleDef_HEAD_INIT,")
         code.putln('  %s,' % env.module_name.as_c_string_literal())
         code.putln("  %s, /* m_doc */" % doc)
-        code.putln("#if CYTHON_PEP489_MULTI_PHASE_INIT")
-        code.putln("  0, /* m_size */")
-        code.putln("#elif CYTHON_USE_MODULE_STATE")  # FIXME: should allow combination with PEP-489
+        code.putln("#if CYTHON_USE_MODULE_STATE")
         code.putln(f"  sizeof({Naming.modulestatetype_cname}), /* m_size */")
         code.putln("#else")
-        code.putln("  -1, /* m_size */")
+        code.putln("  CYTHON_PEP489_MULTI_PHASE_INIT ? 0 :-1, /* m_size */")
         code.putln("#endif")
         code.putln("  %s /* m_methods */," % env.method_table_cname)
         code.putln("#if CYTHON_PEP489_MULTI_PHASE_INIT")
@@ -3619,23 +3625,25 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         else:
             doc = "0"
 
-        code.putln("#if CYTHON_PEP489_MULTI_PHASE_INIT")
-        code.putln("%s = %s;" % (
-            env.module_cname,
-            Naming.pymodinit_module_arg))
-        code.put_incref(env.module_cname, py_object_type, nanny=False)
-        code.putln("#else")
-        code.putln("#if CYTHON_USE_MODULE_STATE")
         # manage_ref is False (and refnanny calls are omitted) because refnanny isn't yet initialized
         module_temp = code.funcstate.allocate_temp(py_object_type, manage_ref=False)
+        code.putln("#if CYTHON_PEP489_MULTI_PHASE_INIT")
+        code.putln("%s = %s;" % (
+            module_temp,
+            Naming.pymodinit_module_arg))
+        code.put_incref(module_temp, py_object_type, nanny=False)
+        code.putln("#else")
         code.putln(
             "%s = PyModule_Create(&%s); %s" % (
                 module_temp,
                 Naming.pymoduledef_cname,
                 code.error_goto_if_null(module_temp, self.pos)))
+        code.putln("#endif")
+
+        code.putln("#if CYTHON_USE_MODULE_STATE")
         code.putln("{")
         # So that PyState_FindModule works in the init function:
-        code.putln("int add_module_result = PyState_AddModule(%s, &%s);" % (
+        code.putln("int add_module_result = __Pyx_State_AddModule(%s, &%s);" % (
             module_temp, Naming.pymoduledef_cname))
         code.putln("%s = 0; /* transfer ownership from %s to %s pseudovariable */" % (
             module_temp, module_temp, env.module_name.as_c_string_literal()
@@ -3646,21 +3654,19 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln(code.error_goto_if_neg("add_module_result", self.pos))
         code.putln("pystate_addmodule_run = 1;")
         code.putln("}")
-        code.funcstate.release_temp(module_temp)
-        code.putln('#else')
-        code.putln(
-            "%s = PyModule_Create(&%s);" % (
-                env.module_cname,
-                Naming.pymoduledef_cname))
-        code.putln(code.error_goto_if_null(env.module_cname, self.pos))
-        code.putln("#endif")  # CYTHON_USE_MODULE_STATE
+
         code.putln("#if CYTHON_COMPILING_IN_CPYTHON_FREETHREADING")
         gil_option = ("Py_MOD_GIL_NOT_USED"
                       if env.directives["freethreading_compatible"]
                       else "Py_MOD_GIL_USED")
         code.putln(f"PyUnstable_Module_SetGIL({env.module_cname}, {gil_option});")
         code.putln("#endif")
-        code.putln("#endif")  # CYTHON_PEP489_MULTI_PHASE_INIT
+
+        code.putln('#else')  # !CYTHON_USE_MODULE_STATE
+        code.putln(f"{env.module_cname} = {module_temp};")
+        code.putln("#endif")
+        code.funcstate.release_temp(module_temp)
+
         code.putln(f"{Naming.modulestatevalue_cname} = {Naming.modulestateglobal_cname};")
         code.putln("CYTHON_UNUSED_VAR(%s);" % module_temp)  # only used in limited API
 
