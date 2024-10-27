@@ -13591,9 +13591,6 @@ class CmpNode:
         elif operand1.type.is_struct_or_union or operand2.type.is_struct_or_union:
             assert op in ('==', '!=')
 
-            if not operand1.type.is_struct_or_union or not operand2.type.is_struct_or_union:
-                error(self.pos, "cannot compare struct to non-struct")
-
             if (operand1.type.is_struct_or_union and operand1.type.kind == 'union') or (operand2.type.is_struct_or_union and operand2.type.kind == 'union'):
                 error(self.pos, "cannot compare unions, compare a specific field instead")
 
@@ -13857,7 +13854,7 @@ class PrimaryCmpNode(ExprNode, CmpNode):
         else:
             self.type = PyrexTypes.c_bint_type
         self.unify_cascade_type()
-        if self.is_pycmp or self.cascade or self.special_bool_cmp_function or (type1.is_struct_or_union or type2.is_struct_or_union) or (type1.is_ctuple or type2.is_ctuple):
+        if self.is_pycmp or self.cascade or self.special_bool_cmp_function or (type1.is_struct_or_union and type2.is_struct_or_union) or (type1.is_ctuple or type2.is_ctuple):
             # 1) owned reference, 2) reused value, 3) potential function error return value 4) struct comparisons 5) ctuple comparisons
             self.is_temp = 1
         return self
