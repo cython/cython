@@ -2770,9 +2770,11 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
         if len(pos_args) != 1:
             self._error_wrong_arg_count('len', node, pos_args, 1)
             return node
+
         arg = pos_args[0]
         if isinstance(arg, ExprNodes.CoerceToPyTypeNode):
             arg = arg.arg
+
         if arg.type.is_string:
             new_node = ExprNodes.PythonCapiCallNode(
                 node.pos, "__Pyx_ssize_strlen", self.Pyx_ssize_strlen_func_type,
@@ -2833,6 +2835,7 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
                 args=[arg], is_temp=node.is_temp)
         else:
             return node
+
         if node.type not in (PyrexTypes.c_size_t_type, PyrexTypes.c_py_ssize_t_type):
             new_node = new_node.coerce_to(node.type, self.current_env())
         return new_node
