@@ -1398,7 +1398,7 @@ class SwitchTransform(Visitor.EnvTransform):
     visit_Node = Visitor.VisitorTransform.recurse_to_children
 
 
-class FlattenInListTransform(Visitor.VisitorTransform, SkipDeclarations):
+class FlattenInListTransform(Visitor.EnvTransform, SkipDeclarations):
     """
     This transformation flattens "x in [val1, ..., valn]" into a sequential list
     of comparisons.
@@ -1428,7 +1428,7 @@ class FlattenInListTransform(Visitor.VisitorTransform, SkipDeclarations):
             # note: lhs may have side effects, but ".is_simple()" may not work yet before type analysis.
             if lhs.try_is_simple():
                 constant_result = node.operator == 'not_in'
-                return ExprNodes.BoolNode(node.pos, value=constant_result, constant_result=constant_result)
+                return ExprNodes.BoolNode(node.pos, value=constant_result, constant_result=constant_result).analyse_types(self.current_env())
             return node
 
         if any([arg.is_starred for arg in args]):
@@ -1440,6 +1440,9 @@ class FlattenInListTransform(Visitor.VisitorTransform, SkipDeclarations):
         conds = []
         temps = []
         for arg in args:
+            if node.operand2.type.is_ctuple and not node.operand1.type.assignable_from(arg.type):
+                continue
+
             # Trial optimisation to avoid redundant temp assignments.
             if not arg.try_is_simple():
                 # must evaluate all non-simple RHS before doing the comparisons
@@ -1460,15 +1463,15 @@ class FlattenInListTransform(Visitor.VisitorTransform, SkipDeclarations):
                                 pos = node.pos,
                                 operator = conjunction,
                                 operand1 = left,
-                                operand2 = right)
+                                operand2 = right).analyse_types(self.current_env())
 
         condition = reduce(concat, conds)
         new_node = UtilNodes.EvalWithTempExprNode(lhs, condition)
         for temp in temps[::-1]:
             new_node = UtilNodes.EvalWithTempExprNode(temp, new_node)
-        return new_node
+        return new_node.analyse_types(self.current_env())
 
-    visit_Node = Visitor.VisitorTransform.recurse_to_children
+    visit_Node = Visitor.EnvTransform.recurse_to_children
 
 
 class DropRefcountingTransform(Visitor.VisitorTransform):
@@ -2807,7 +2810,7 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
                 node.pos, cfunc_name, self.PyObject_Size_func_type,
                 args=[arg], is_temp=node.is_temp)
         elif arg.type.is_unicode_char:
-            return ExprNodes.IntNode(node.pos, value='1', constant_result=1,
+            new_node = ExprNodes.IntNode(node.pos, value='1', constant_result=1,
                                      type=node.type)
         else:
             return node
