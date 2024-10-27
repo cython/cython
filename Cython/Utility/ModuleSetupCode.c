@@ -1207,6 +1207,12 @@ static CYTHON_INLINE int __Pyx_PyDict_GetItemRef(PyObject *dict, PyObject *key, 
     #define __Pyx_TPFLAGS_HAVE_AM_SEND (0)
 #endif
 
+#if Py_VERSION_HEX >= 0x03090000
+#define __Pyx_PyInterpreterState_Get() PyInterpreterState_Get()
+#else
+#define __Pyx_PyInterpreterState_Get() PyThreadState_Get()->interp
+#endif
+
 
 /////////////// CythonABIVersion.proto ///////////////
 //@proto_block: module_declarations
@@ -2651,7 +2657,7 @@ static __Pyx_InterpreterIdAndModule* __Pyx_State_FindModuleStateLookupTableLower
 }
 
 static PyObject *__Pyx_State_FindModule(CYTHON_UNUSED void* dummy) {
-    int64_t interpreter_id = PyInterpreterState_GetID(PyInterpreterState_Get());
+    int64_t interpreter_id = PyInterpreterState_GetID(__Pyx_PyInterpreterState_Get());
     if (interpreter_id == -1) return NULL;
 
     // There's one "already imported" check that'll hit this
@@ -2726,7 +2732,7 @@ static void __Pyx_State_ConvertFromReallySmall() {
 }
 
 static int __Pyx_State_AddModule(PyObject* module, CYTHON_UNUSED void* dummy) {
-    int64_t interpreter_id = PyInterpreterState_GetID(PyInterpreterState_Get());
+    int64_t interpreter_id = PyInterpreterState_GetID(__Pyx_PyInterpreterState_Get());
     if (interpreter_id == -1) return -1;
 
     __Pyx_ModuleStateLookup_LockForWrite();
@@ -2790,7 +2796,7 @@ static int __Pyx_State_AddModule(PyObject* module, CYTHON_UNUSED void* dummy) {
 }
 
 static int __Pyx_State_RemoveModule(CYTHON_UNUSED void* dummy) {
-    int64_t interpreter_id = PyInterpreterState_GetID(PyInterpreterState_Get());
+    int64_t interpreter_id = PyInterpreterState_GetID(__Pyx_PyInterpreterState_Get());
     if (interpreter_id == -1) return -1;
 
     __Pyx_ModuleStateLookup_LockForWrite();
