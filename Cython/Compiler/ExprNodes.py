@@ -13605,7 +13605,7 @@ class CmpNode:
             code.putln(f"{operand2_temp} = {coercion_node.result()};")
             coercion_node.generate_disposal_code(code)
             coercion_node.free_temps(code)
-            struct_code = self.generate_struct_code(operand1_temp, operand2_temp, operand1.type, operand1.type, op, code)
+            struct_code = self.generate_struct_code(operand1_temp, operand2_temp, operand1.type, op, code)
             code.putln(f"{result_code} = {struct_code};")
 
             code.funcstate.release_temp(operand1_temp)
@@ -13656,9 +13656,9 @@ class CmpNode:
             else:
                 code.putln(statement)
 
-    def generate_struct_code(self, operand1_name, operand2_name, operand1_type, operand2_type, op, code):
+    def generate_struct_code(self, operand1_name, operand2_name, struct_type, op, code):
         comps = list()
-        for member in operand2_type.scope.var_entries:
+        for member in struct_type.scope.var_entries:
             comps.append(self.generate_ctype_code(operand1_name + '.' + member.name, operand2_name + '.' + member.name, member.type, member.type, op, code))
 
         return '(' + (' && ' if op == '==' else ' || ').join(comps) + ')'
@@ -13705,7 +13705,7 @@ class CmpNode:
             error(self.pos, "cannot compare unions, compare a specific field instead")
 
         if operand2_type.is_struct_or_union:
-            return self.generate_struct_code(operand1_name, operand2_name, operand1_type, operand2_type, op, code)
+            return self.generate_struct_code(operand1_name, operand2_name, operand2_type, op, code)
         elif operand2_type.is_ctuple:
             return self.generate_ctuple_code(operand1_name, operand2_name, operand1_type, operand2_type, op, code)
         else:
