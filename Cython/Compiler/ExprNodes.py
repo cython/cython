@@ -13694,7 +13694,7 @@ class CmpNode:
         for node in temps:
             node.generate_disposal_code(code)
             node.free_temps(code)
- 
+
         return '(' + ((' || ' if op == 'in' else ' && ') if op in ('in', 'not_in') else (' && ' if op == '==' else ' || ')).join(statements) + ')'
 
     def generate_ctype_code(self, operand1_name, operand2_name, operand1_type, operand2_type, op, code):
