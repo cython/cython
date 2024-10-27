@@ -2494,10 +2494,11 @@ static int __Pyx_VersionSanityCheck(void) {
 #if CYTHON_PEP489_MULTI_PHASE_INIT && CYTHON_USE_MODULE_STATE
 // This defines an ad-hoc, single module version of PyState_FindModule that
 // works for multi-phase init modules. It's intended to be the last option
-// when all the other official ways of getting the module are unavailble.
+// when all the other official ways of getting the module are unavailable.
 static PyObject *__Pyx_State_FindModule(void*); /* proto */
 static int __Pyx_State_AddModule(PyObject* module, void*); /* proto */
 static int __Pyx_State_RemoveModule(void*); /* proto */
+
 #elif CYTHON_USE_MODULE_STATE
 #define __Pyx_State_FindModule PyState_FindModule
 #define __Pyx_State_AddModule PyState_AddModule
@@ -2505,6 +2506,9 @@ static int __Pyx_State_RemoveModule(void*); /* proto */
 #endif
 
 ////////////////////////// MultiPhaseInitModuleState /////////////
+
+// Code to maintain a mapping between (sub)interpreters and the module instance that they imported.
+// This is used to find the correct module state for the current interpreter.
 
 #if CYTHON_PEP489_MULTI_PHASE_INIT && CYTHON_USE_MODULE_STATE
 
@@ -2591,7 +2595,7 @@ static void __Pyx_ModuleStateLookup_initialize_mutex(void) {
   mtx_lock(&__Pyx_ModuleStateLookup_mutex)
 #define __Pyx_ModuleStateLookup_UnlockForWrite() mtx_unlock(&__Pyx_ModuleStateLookup_mutex)
 #else
-#error "No suitable thread safety primatives are available for CYTHON_MODULE_STATE_LOOKUP_THREAD_SAFE. " \
+#error "No suitable thread safety primitives are available for CYTHON_MODULE_STATE_LOOKUP_THREAD_SAFE. " \
   "Requires C standard >= C11, or C++ standard >= C++11, " \
   "or pthreads, or the Windows 32 API, or Python >= 3.13."
 #endif
@@ -2604,7 +2608,7 @@ typedef struct {
 
 static Py_ssize_t __Pyx_ModuleStateLookup_count = 0;
 static Py_ssize_t __Pyx_ModuleStateLookup_allocated = 0;
-// A sorted list of interpreter IDs and the module they correspond to.
+// A sorted list of (sub)interpreter IDs and the module that was imported into that interpreter.
 // For now look this up via binary search.
 static __Pyx_InterpreterIdAndModule* __Pyx_ModuleStateLookup_table = NULL;
 

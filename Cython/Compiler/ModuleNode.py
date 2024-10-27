@@ -2989,7 +2989,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln('#endif')
         code.putln("#if CYTHON_PEP489_MULTI_PHASE_INIT")
         # In this case we have to remove the module from our lookup table ourself
-        # because Python isn't going to do it
+        # because Python isn't going to do it.
         code.putln("__Pyx_State_RemoveModule(NULL);")
         code.putln("#endif")
 
@@ -3627,7 +3627,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         else:
             doc = "0"
 
-        # manage_ref is False (and refnanny calls are omitted) because refnanny isn't yet initialized
+        # manage_ref is False (and refnanny calls are omitted) because refnanny isn't yet initialized.
         module_temp = code.funcstate.allocate_temp(py_object_type, manage_ref=False)
         code.putln("#if CYTHON_PEP489_MULTI_PHASE_INIT")
         code.putln("%s = %s;" % (
