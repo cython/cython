@@ -445,6 +445,9 @@ class ExprNode(Node):
     is_target = False
     is_starred = False
 
+    # https://github.com/cython/cython/pull/6460
+    omit_decref = False
+
     constant_result = constant_value_not_set
 
     if sys.implementation.name == "cpython":
@@ -843,7 +846,7 @@ class ExprNode(Node):
                 # postponed from self.generate_evaluation_code()
                 self.generate_subexpr_disposal_code(code)
                 self.free_subexpr_temps(code)
-            if self.result() and self.manage_ref:
+            if self.result() and not self.omit_decref:
                 code.put_decref_clear(self.result(), self.ctype(),
                                         have_gil=not self.in_nogil_context)
         else:
@@ -6339,6 +6342,7 @@ class SimpleCallNode(CallNode):
 
         if self.function.result() in ("Py_INCREF", "Py_XINCREF", "Py_DECREF", "Py_XDECREF", "Py_CLEAR"):
             self.args[0].use_managed_ref = False
+            self.args[0].omit_decref = True
 
     def calculate_result_code(self):
         return self.c_call_code()
