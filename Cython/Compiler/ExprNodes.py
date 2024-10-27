@@ -13595,7 +13595,7 @@ class CmpNode:
                 error(self.pos, "cannot compare struct to non-struct")
 
             if (operand1.type.is_struct_or_union and operand1.type.kind == 'union') or (operand2.type.is_struct_or_union and operand2.type.kind == 'union'):
-                error(self.pos, "cannot compare unions")
+                error(self.pos, "cannot compare unions, compare a specific field instead")
 
             if not operand1.type.assignable_from(operand2.type):
                 error(self.pos, "cannot compare structs of different types")
@@ -13699,7 +13699,7 @@ class CmpNode:
 
     def generate_ctype_code(self, operand1_name, operand2_name, operand1_type, operand2_type, op, code):
         if (operand1_type.is_struct_or_union and operand1_type.kind == 'union') or (operand2_type.is_struct_or_union and operand2_type.kind == 'union'):
-            error(self.pos, "cannot compare unions")
+            error(self.pos, "cannot compare unions, compare a specific field instead")
 
         if operand2_type.is_struct_or_union:
             return self.generate_struct_code(operand1_name, operand2_name, operand1_type, operand2_type, op, code)
