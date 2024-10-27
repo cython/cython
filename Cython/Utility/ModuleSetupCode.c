@@ -2626,35 +2626,28 @@ static __Pyx_InterpreterIdAndModule* __Pyx_State_FindModuleStateLookupTableLower
     __Pyx_InterpreterIdAndModule* begin = table;
     __Pyx_InterpreterIdAndModule* end = begin + count;
 
-    if (count < __PYX_MODULE_STATE_LOOKUP_SMALL_SIZE) {
-        // sequential lookup is probably faster for small arrays.
-        for (; begin<end; ++begin) {
-            if (begin->id >= interpreterId) return begin;
-        }
-        return NULL;
-    }
-
     // fairly likely - e.g. single interpreter
     if (begin->id == interpreterId) {
         return begin;
     }
 
-    while (begin < end-1) {
+    while ((end-begin) > __PYX_MODULE_STATE_LOOKUP_SMALL_SIZE) {
         __Pyx_InterpreterIdAndModule* halfway = begin + (end - begin)/2;
         if (halfway->id == interpreterId) {
             return halfway;
         }
         if (halfway->id < interpreterId) {
-            end = halfway;
-        } else {
             begin = halfway;
+        } else {
+            end = halfway;
         }
     }
-    if ((end-1)->id == interpreterId) {
-        return end-1;
-    } else {
-        return begin;
+
+    // Assume that for small ranges, it's quicker to do a linear search
+    for (; begin<end; ++begin) {
+        if (begin->id >= interpreterId) return begin;
     }
+    return begin;
 }
 
 static PyObject *__Pyx_State_FindModule(void*) {
@@ -2711,24 +2704,24 @@ static int __Pyx_State_AddModuleReallySmall(PyObject* module, int64_t interprete
 }
 
 static void __Pyx_State_ConvertFromReallySmall() {
-    __Pyx_InterpreterIdAndModule *begin_read = __Pyx_ModuleStateLookup_table;
-    __Pyx_InterpreterIdAndModule *begin_write = begin_read;
-    __Pyx_InterpreterIdAndModule *end = begin_read + __Pyx_ModuleStateLookup_count;
+    __Pyx_InterpreterIdAndModule *read = __Pyx_ModuleStateLookup_table;
+    __Pyx_InterpreterIdAndModule *write = read;
+    __Pyx_InterpreterIdAndModule *end = read + __Pyx_ModuleStateLookup_count;
 
-    for (; begin_read<end; ++begin_read) {
-        if (begin_read->module) {
-            begin_write->id = begin_read->id;
-            begin_write->module = begin_read->module;
-            ++begin_write;
+    for (; read<end; ++read) {
+        if (read->module) {
+            write->id = read->id;
+            write->module = read->module;
+            ++write;
         }
         // Otherwise empty; don't copy
     }
-    for (; begin_write<end; ++begin_write) {
+    __Pyx_ModuleStateLookup_count = write - __Pyx_ModuleStateLookup_table;
+    for (; write<end; ++write) {
         // clear rest of array
-        begin_write->id = 0;
-        begin_write->module = NULL;
+        write->id = 0;
+        write->module = NULL;
     }
-    __Pyx_ModuleStateLookup_count = begin_write - __Pyx_ModuleStateLookup_table;
     __Pyx_ModuleStateLookup_really_small = 0;
 }
 
@@ -2737,6 +2730,7 @@ static int __Pyx_State_AddModule(PyObject* module, void*) {
     if (interpreter_id == -1) return -1;
 
     __Pyx_ModuleStateLookup_LockForWrite();
+
     if (__Pyx_ModuleStateLookup_really_small) {
         if (interpreter_id < __PYX_MODULE_STATE_LOOKUP_SMALL_SIZE) {
             int res = __Pyx_State_AddModuleReallySmall(module, interpreter_id);
@@ -2751,12 +2745,15 @@ static int __Pyx_State_AddModule(PyObject* module, void*) {
         __Pyx_InterpreterIdAndModule* lower_bound = __Pyx_State_FindModuleStateLookupTableLowerBound(
             __Pyx_ModuleStateLookup_table, __Pyx_ModuleStateLookup_count, interpreter_id);
 
+        assert(lower_bound);
 
-        if (unlikely(lower_bound && lower_bound->id == interpreter_id)) {
+        insert_at = lower_bound - __Pyx_ModuleStateLookup_table;
+
+        if (unlikely(insert_at < __Pyx_ModuleStateLookup_count && lower_bound->id == interpreter_id)) {
             __Pyx_ModuleStateLookup_UnlockForWrite();
             return 0;  // already in table, nothing more to do
         }
-        insert_at = __Pyx_ModuleStateLookup_table - lower_bound + 1;
+
     }
     
     if (__Pyx_ModuleStateLookup_count+1 >= __Pyx_ModuleStateLookup_allocated) {
@@ -2788,7 +2785,6 @@ static int __Pyx_State_AddModule(PyObject* module, void*) {
         __Pyx_ModuleStateLookup_table[i].module = last_module;
         last_module = current_module;
     }
-
     __Pyx_ModuleStateLookup_UnlockForWrite();
     return 0;
 }
