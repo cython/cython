@@ -13600,36 +13600,36 @@ class CmpNode:
             if not operand1.type.assignable_from(operand2.type):
                 error(self.pos, "cannot compare structs of different types")
 
-            self.operand1_temp = code.funcstate.allocate_temp(operand1.type, manage_ref=False)
-            self.operand2_temp = code.funcstate.allocate_temp(operand1.type, manage_ref=False)
-            code.putln(f"{self.operand1_temp} = {operand1.result()};")
+            operand1_temp = code.funcstate.allocate_temp(operand1.type, manage_ref=False)
+            operand2_temp = code.funcstate.allocate_temp(operand1.type, manage_ref=False)
+            code.putln(f"{operand1_temp} = {operand1.result()};")
             coercion_node = operand2.coerce_to(operand1.type, code.funcstate.scope)
             coercion_node.generate_result_code(code)
-            code.putln(f"{self.operand2_temp} = {coercion_node.result()};")
+            code.putln(f"{operand2_temp} = {coercion_node.result()};")
             coercion_node.generate_disposal_code(code)
             coercion_node.free_temps(code)
-            struct_code = self.generate_struct_code(self.operand1_temp, self.operand2_temp, operand1.type, operand2.type, op, code)
+            struct_code = self.generate_struct_code(operand1_temp, operand2_temp, operand1.type, operand2.type, op, code)
             code.putln(f"{result_code} = {struct_code};")
 
-            code.funcstate.release_temp(self.operand1_temp)
-            code.funcstate.release_temp(self.operand2_temp)
+            code.funcstate.release_temp(operand1_temp)
+            code.funcstate.release_temp(operand2_temp)
         elif (operand1.type.is_ctuple and operand2.type.is_ctuple) or (op in ("in", "not_in") and operand2.type.is_ctuple and any([operand1.type.assignable_from(type_) for type_ in operand2.type.components])):
-            self.operand1_temp = code.funcstate.allocate_temp(operand1.type, manage_ref=False)
-            self.operand2_temp = code.funcstate.allocate_temp(operand2.type, manage_ref=False)
-            code.putln(f"{self.operand1_temp} = {operand1.result()};")
+            operand1_temp = code.funcstate.allocate_temp(operand1.type, manage_ref=False)
+            operand2_temp = code.funcstate.allocate_temp(operand2.type, manage_ref=False)
+            code.putln(f"{operand1_temp} = {operand1.result()};")
             if op in ("in", "not_in"):
-                code.putln(f"{self.operand2_temp} = {operand2.result()};")
+                code.putln(f"{operand2_temp} = {operand2.result()};")
             else:
                 coercion_node = operand2.coerce_to(operand1.type, code.funcstate.scope)
                 coercion_node.generate_result_code(code)
-                code.putln(f"{self.operand2_temp} = {coercion_node.result()};")
+                code.putln(f"{operand2_temp} = {coercion_node.result()};")
                 coercion_node.generate_disposal_code(code)
                 coercion_node.free_temps(code)
-            ctuple_code = self.generate_ctuple_code(self.operand1_temp, self.operand2_temp, operand1.type, operand2.type, op, code)
+            ctuple_code = self.generate_ctuple_code(operand1_temp, operand2_temp, operand1.type, operand2.type, op, code)
             code.putln(f"{result_code} = {ctuple_code};")
 
-            code.funcstate.release_temp(self.operand1_temp)
-            code.funcstate.release_temp(self.operand2_temp)
+            code.funcstate.release_temp(operand1_temp)
+            code.funcstate.release_temp(operand2_temp)
         else:
             type1 = operand1.type
             type2 = operand2.type
