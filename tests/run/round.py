@@ -74,7 +74,7 @@ def test_round_float_ndigits(value: cython.float, ndigits: cython.int):
     >>> test_round_float_ndigits(1.25, 0)
     1.0
     >>> test_round_float_ndigits(1.25, 1)
-    1.2 
+    1.2
     >>> test_round_float_ndigits(1.25, 2)
     1.25
     >>> test_round_float_ndigits(1.25, 3)

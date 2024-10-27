@@ -1673,7 +1673,7 @@ class EarlyReplaceBuiltinCalls(Visitor.EnvTransform):
         if len(pos_args) > 1:
             self._error_wrong_arg_count('float', node, pos_args, 1)
         arg_type = getattr(pos_args[0], 'type', None)
-        if arg_type in (PyrexTypes.c_double_type, Builtin.float_type):
+        if arg_type in (PyrexTypes.c_longdouble_type, PyrexTypes.c_double_type, Builtin.float_type):
             return pos_args[0]
         return node
 
@@ -2062,6 +2062,62 @@ class EarlyReplaceBuiltinCalls(Visitor.EnvTransform):
         if not isinstance(kwargs, ExprNodes.DictNode):
             return node
         return kwargs
+
+    def _handle_simple_function_round(self, node, pos_args):
+        arg = pos_args[0]
+        if isinstance(arg, ExprNodes.CoerceToPyTypeNode):
+            arg = arg.arg
+
+        arg.analyse_types(self.current_env())
+
+        if len(pos_args) > 1 or arg.type.is_pyobject:
+            return node
+
+        input_types = (PyrexTypes.c_longdouble_type, PyrexTypes.c_double_type, PyrexTypes.c_float_type)
+
+        if arg.type not in input_types:
+            for type_ in input_types:
+                if type_.assignable_from(arg.type):
+                    arg = arg.coerce_to(type_, self.current_env())
+                    break
+            else:
+                return node
+
+        if arg.type is PyrexTypes.c_float_type:
+            new_node = ExprNodes.PythonCapiCallNode(
+                node.pos, "__Pyx_round_float",
+                func_type = PyrexTypes.CFuncType(
+                    PyrexTypes.c_float_type, [
+                        PyrexTypes.CFuncTypeArg("arg", PyrexTypes.c_float_type, None)
+                        ],
+                    is_strict_signature=True, nogil=True),
+                utility_code = UtilityCode.load_cached("round_float", "Builtins.c"),
+                args = [arg],
+                is_temp = node.is_temp)
+        elif arg.type is PyrexTypes.c_double_type:
+            new_node = ExprNodes.PythonCapiCallNode(
+                node.pos, "__Pyx_round_double",
+                func_type = PyrexTypes.CFuncType(
+                    PyrexTypes.c_double_type, [
+                        PyrexTypes.CFuncTypeArg("arg", PyrexTypes.c_double_type, None)
+                        ],
+                    is_strict_signature=True, nogil=True),
+                utility_code = UtilityCode.load_cached("round_double", "Builtins.c"),
+                args = [arg],
+                is_temp = node.is_temp)
+        elif arg.type is PyrexTypes.c_longdouble_type:
+            new_node = ExprNodes.PythonCapiCallNode(
+                node.pos, "__Pyx_round_longdouble",
+                func_type = PyrexTypes.CFuncType(
+                    PyrexTypes.c_longdouble_type, [
+                        PyrexTypes.CFuncTypeArg("arg", PyrexTypes.c_longdouble_type, None)
+                        ],
+                    is_strict_signature=True, nogil=True),
+                utility_code = UtilityCode.load_cached("round_longdouble", "Builtins.c"),
+                args = [arg],
+                is_temp = node.is_temp)
+
+        return new_node
 
 
 class InlineDefNodeCalls(Visitor.NodeRefCleanupMixin, Visitor.EnvTransform):

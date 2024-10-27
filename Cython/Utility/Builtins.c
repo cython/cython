@@ -382,39 +382,6 @@ static CYTHON_INLINE long double __Pyx_round_longdouble(long double x) {
     return result;
 }
 
-//////////////////// PyFloat_round.proto ////////////////////
-//@requires: ObjectHandling.c::PyObjectCallOneArg
-
-static CYTHON_INLINE PyObject *__Pyx_PyFloat_round(PyObject *x) {
-    return __Pyx_PyObject_CallOneArg(__pyx_builtin_round, x);
-}
-
-//////////////////// PyFloat_round2.proto ////////////////////
-//@requires: ObjectHandling.c::PyObjectCall
-
-static CYTHON_INLINE PyObject *__Pyx_PyFloat_round2(PyObject *x, PyObject *ndigits) {
-    PyObject *args = PyTuple_New(2);
-    if (unlikely(!args)) return NULL;
-
-    if (__Pyx_PyTuple_SET_ITEM(args, 0, x) != (0)) goto fail;
-    if (__Pyx_PyTuple_SET_ITEM(args, 1, ndigits) != (0)) goto fail;
-
-    PyObject *builtins, *round_py;
-    builtins = PyEval_GetBuiltins();
-    if (unlikely(!builtins)) return NULL;
-    round_py = PyDict_GetItemString(builtins, "round");
-    if (unlikely(!round_py)) return NULL;
-
-    PyObject *result = __Pyx_PyObject_Call(round_py, args, NULL);
-
-    Py_DECREF(args);
-    return result;
-
-    fail:
-        Py_DECREF(args);
-        return NULL;
-}
-
 //////////////////// int_pyucs4.proto ////////////////////
 
 static CYTHON_INLINE int __Pyx_int_from_UCS4(Py_UCS4 uchar);
