@@ -13608,7 +13608,8 @@ class CmpNode:
             code.putln(f"{self.operand2_temp} = {coercion_node.result()};")
             coercion_node.generate_disposal_code(code)
             coercion_node.free_temps(code)
-            code.putln(f"{result_code} = {self.generate_struct_code(self.operand1_temp, self.operand2_temp, operand1.type, operand2.type, op, code)};")
+            struct_code = self.generate_struct_code(self.operand1_temp, self.operand2_temp, operand1.type, operand2.type, op, code)
+            code.putln(f"{result_code} = {struct_code};")
 
             code.funcstate.release_temp(self.operand1_temp)
             code.funcstate.release_temp(self.operand2_temp)
@@ -13624,7 +13625,8 @@ class CmpNode:
                 code.putln(f"{self.operand2_temp} = {coercion_node.result()};")
                 coercion_node.generate_disposal_code(code)
                 coercion_node.free_temps(code)
-            code.putln(f"{result_code} = {self.generate_ctuple_code(self.operand1_temp, self.operand2_temp, operand1.type, operand2.type, op, code)};")
+            ctuple_code = self.generate_ctuple_code(self.operand1_temp, self.operand2_temp, operand1.type, operand2.type, op, code)
+            code.putln(f"{result_code} = {ctuple_code};")
 
             code.funcstate.release_temp(self.operand1_temp)
             code.funcstate.release_temp(self.operand2_temp)
