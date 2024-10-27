@@ -13594,7 +13594,7 @@ class CmpNode:
             if (operand1.type.is_struct_or_union and operand1.type.kind == 'union') or (operand2.type.is_struct_or_union and operand2.type.kind == 'union'):
                 error(self.pos, "cannot compare unions, compare a specific field instead")
 
-            if not operand1.type.assignable_from(operand2.type):
+            if operand1 != operand2.type:
                 error(self.pos, "cannot compare structs of different types")
 
             operand1_temp = code.funcstate.allocate_temp(operand1.type, manage_ref=False)
