@@ -2602,6 +2602,12 @@ typedef struct {
     PyObject *module;
 } __Pyx_InterpreterIdAndModule;
 
+#define __PYX_MODULE_STATE_LOOKUP_SMALL_SIZE 32
+// Really small means "the maximum interpreter ID ever seen is smaller than
+// __PYX_MODULE_STATE_LOOKUP_SMALL_SIZE and thus they're stored in an array
+// where the index corresponds to interpreter ID, and __Pyx_ModuleStateLookup_count
+// is the size of the array.
+static char __Pyx_ModuleStateLookup_really_small = 1;
 static Py_ssize_t __Pyx_ModuleStateLookup_count = 0;
 static Py_ssize_t __Pyx_ModuleStateLookup_allocated = 0;
 // A sorted list of interpreter IDs and the module they correspond to.
@@ -2615,19 +2621,24 @@ static __Pyx_InterpreterIdAndModule* __Pyx_State_FindModuleStateLookupTableLower
         int64_t interpreterId) {
     __Pyx_InterpreterIdAndModule* begin = table;
     __Pyx_InterpreterIdAndModule* end = begin + count;
-    __Pyx_InterpreterIdAndModule* found = NULL;
+
+    if (count < __PYX_MODULE_STATE_LOOKUP_SMALL_SIZE) {
+        // sequential lookup is probably faster for small arrays.
+        for (; begin<end; ++begin) {
+            if (begin->id >= interpreterId) return begin;
+        }
+        return NULL;
+    }
 
     // fairly likely - e.g. single interpreter
     if (begin->id == interpreterId) {
-        found = begin;
-        goto done;
+        return begin;
     }
 
     while (begin < end-1) {
         __Pyx_InterpreterIdAndModule* halfway = begin + (end - begin)/2;
         if (halfway->id == interpreterId) {
-            found = halfway;
-            goto done;
+            return halfway;
         }
         if (halfway->id < interpreterId) {
             end = halfway;
@@ -2636,12 +2647,10 @@ static __Pyx_InterpreterIdAndModule* __Pyx_State_FindModuleStateLookupTableLower
         }
     }
     if ((end-1)->id == interpreterId) {
-        found = end;
+        return end-1;
     } else {
-        found = begin;
+        return begin;
     }
-  done:
-    return found;
 }
 
 static PyObject *__Pyx_State_FindModule(void*) {
@@ -2652,8 +2661,15 @@ static PyObject *__Pyx_State_FindModule(void*) {
     if (unlikely(!__Pyx_ModuleStateLookup_table)) return NULL;
 
     __Pyx_ModuleStateLookup_LockForRead();
-    __Pyx_InterpreterIdAndModule* found = __Pyx_State_FindModuleStateLookupTableLowerBound(
-        __Pyx_ModuleStateLookup_table, __Pyx_ModuleStateLookup_count, interpreter_id);
+    __Pyx_InterpreterIdAndModule* found = NULL;
+    if (__Pyx_ModuleStateLookup_really_small) {
+        if (interpreter_id < __Pyx_ModuleStateLookup_count) {
+            found = __Pyx_ModuleStateLookup_table+interpreter_id;
+        }
+    } else {
+        found = __Pyx_State_FindModuleStateLookupTableLowerBound(
+            __Pyx_ModuleStateLookup_table, __Pyx_ModuleStateLookup_count, interpreter_id);
+    }
     __Pyx_ModuleStateLookup_UnlockForRead();
     if (found && found->id == interpreter_id) {
         return found->module;
@@ -2661,15 +2677,76 @@ static PyObject *__Pyx_State_FindModule(void*) {
     return NULL;
 }
 
+static int __Pyx_State_AddModuleReallySmall(PyObject* module, int64_t interpreter_id) {
+    Py_ssize_t to_allocate = __Pyx_ModuleStateLookup_allocated;
+    while (to_allocate <= interpreter_id) {
+        if (to_allocate == 0) to_allocate = 1;
+        else to_allocate *= 2;
+    }
+    if (to_allocate != __Pyx_ModuleStateLookup_allocated) {
+        __Pyx_InterpreterIdAndModule *new_table = (__Pyx_InterpreterIdAndModule*)realloc(
+            __Pyx_ModuleStateLookup_table,
+            sizeof(__Pyx_InterpreterIdAndModule)*to_allocate);
+        if (!new_table) {
+            PyErr_NoMemory();
+            return -1;
+        }
+        for (Py_ssize_t i = __Pyx_ModuleStateLookup_allocated; i < to_allocate; ++i) {
+            new_table[i].id = i;
+            new_table[i].module = NULL;
+        }
+        __Pyx_ModuleStateLookup_allocated = to_allocate;
+        __Pyx_ModuleStateLookup_table = new_table;
+
+    }
+    __Pyx_ModuleStateLookup_table[interpreter_id].module = module;
+    if (__Pyx_ModuleStateLookup_count < interpreter_id+1) {
+        __Pyx_ModuleStateLookup_count = interpreter_id+1;
+    }
+    return 0;
+}
+
+static void __Pyx_State_ConvertFromReallySmall() {
+    __Pyx_InterpreterIdAndModule *begin_read = __Pyx_ModuleStateLookup_table;
+    __Pyx_InterpreterIdAndModule *begin_write = begin_read;
+    __Pyx_InterpreterIdAndModule *end = begin_read + __Pyx_ModuleStateLookup_count;
+
+    for (; begin_read<end; ++begin_read) {
+        if (begin_read->module) {
+            begin_write->id = begin_read->id;
+            begin_write->module = begin_read->module;
+            ++begin_write;
+        }
+        // Otherwise empty; don't copy
+    }
+    for (; begin_write<end; ++begin_write) {
+        // clear rest of array
+        begin_write->id = 0;
+        begin_write->module = NULL;
+    }
+    __Pyx_ModuleStateLookup_count = begin_write - __Pyx_ModuleStateLookup_table;
+    __Pyx_ModuleStateLookup_really_small = 0;
+}
+
 static int __Pyx_State_AddModule(PyObject* module, void*) {
     int64_t interpreter_id = PyInterpreterState_GetID(PyInterpreterState_Get());
     if (interpreter_id == -1) return -1;
 
     __Pyx_ModuleStateLookup_LockForWrite();
+    if (__Pyx_ModuleStateLookup_really_small) {
+        if (interpreter_id < __PYX_MODULE_STATE_LOOKUP_SMALL_SIZE) {
+            int res = __Pyx_State_AddModuleReallySmall(module, interpreter_id);
+            __Pyx_ModuleStateLookup_UnlockForWrite();
+            return res;
+        }
+        // otherwise we have to convert then proceed with a normal insertion
+        __Pyx_State_ConvertFromReallySmall();
+    }
     Py_ssize_t insert_at = 0;
     if (__Pyx_ModuleStateLookup_table) {
         __Pyx_InterpreterIdAndModule* lower_bound = __Pyx_State_FindModuleStateLookupTableLowerBound(
             __Pyx_ModuleStateLookup_table, __Pyx_ModuleStateLookup_count, interpreter_id);
+
 
         if (unlikely(lower_bound && lower_bound->id == interpreter_id)) {
             __Pyx_ModuleStateLookup_UnlockForWrite();
@@ -2717,6 +2794,14 @@ static int __Pyx_State_RemoveModule(void*) {
     if (interpreter_id == -1) return -1;
 
     __Pyx_ModuleStateLookup_LockForWrite();
+
+    if (__Pyx_ModuleStateLookup_really_small) {
+        if (interpreter_id < __Pyx_ModuleStateLookup_count) {
+            __Pyx_ModuleStateLookup_table[interpreter_id].module = NULL;
+        }
+        goto done;
+    }
+
     __Pyx_InterpreterIdAndModule* lower_bound = __Pyx_State_FindModuleStateLookupTableLowerBound(
         __Pyx_ModuleStateLookup_table, __Pyx_ModuleStateLookup_count, interpreter_id);
 
