@@ -13585,7 +13585,7 @@ class CmpNode:
                 operand1.type.unary_op('eq'),
                 operand1.result(),
                 operand2.result()))
-        elif operand1.type.is_struct_or_union or operand2.type.is_struct_or_union:
+        elif operand1.type.is_struct_or_union and operand2.type.is_struct_or_union and not (operand1.type.in_cpp or operand2.type.in_cpp):
             assert op in ('==', '!=')
 
             if (operand1.type.is_struct_or_union and operand1.type.kind == 'union') or (operand2.type.is_struct_or_union and operand2.type.kind == 'union'):
@@ -13603,7 +13603,7 @@ class CmpNode:
 
             code.funcstate.release_temp(operand1_temp)
             code.funcstate.release_temp(operand2_temp)
-        elif (operand1.type.is_ctuple and operand2.type.is_ctuple) or (op in ("in", "not_in") and operand2.type.is_ctuple and any([operand1.type.assignable_from(type_) for type_ in operand2.type.components])):
+        elif operand1.type.is_ctuple and operand2.type.is_ctuple:
             operand1_temp = code.funcstate.allocate_temp(operand1.type, manage_ref=False)
             operand2_temp = code.funcstate.allocate_temp(operand2.type, manage_ref=False)
             code.putln(f"{operand1_temp} = {operand1.result()};")
