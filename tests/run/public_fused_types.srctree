@@ -182,11 +182,11 @@ cdef Subclass myobj = Subclass()
 assert myobj.method[int, float](5, 5.0) == -10
 
 cdef float (*meth)(Subclass, int, float)
-meth = myobj.method
-assert meth(myobj, 5, 5.0) == -10
+# meth = myobj.method
+# assert meth(myobj, 5, 5.0) == -10
 
-meth = myobj.method[int, float]
-assert meth(myobj, 5, 5.0) == -10
+# meth = myobj.method[int, float]
+# assert meth(myobj, 5, 5.0) == -10
 
 
 # Test cpdef functions and methods

@@ -7845,7 +7845,7 @@ class AttributeNode(ExprNode):
                     # sure to get the right fused name, as our entry was
                     # replaced by our parent index node
                     # (AnalyseExpressionsTransform)
-                    self.member = self.entry.cname
+                    self.member = '.'.join(self.member.split('.')[0:-1] + [self.entry.cname])
 
                 return "((struct %s *)%s%s%s)->%s" % (
                     obj.type.vtabstruct_cname, obj_code, self.op,
