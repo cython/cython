@@ -1086,6 +1086,11 @@ def cythonize(module_list, exclude=None, nthreads=0, aliases=None, quiet=False, 
         nthreads = 0
     if nthreads:
         import multiprocessing
+        if multiprocessing.get_start_method() == 'spawn':
+            print('Disabling parallel cythonization for "spawn" process start method.')
+            nthreads = 0
+    if nthreads:
+        import multiprocessing
         pool = multiprocessing.Pool(
             nthreads, initializer=_init_multiprocessing_helper)
         # This is a bit more involved than it should be, because KeyboardInterrupts
