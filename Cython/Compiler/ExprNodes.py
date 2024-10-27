@@ -13657,7 +13657,11 @@ class CmpNode:
                 code.putln(statement)
 
     def generate_struct_code(self, operand1_name, operand2_name, operand1_type, operand2_type, op, code):
-        return '(' + (' && ' if op == '==' else ' || ').join([self.generate_ctype_code(operand1_name + '.' + member.name, operand2_name + '.' + member.name, member.type, member.type, op, code) for member in operand2_type.scope.var_entries]) + ')'
+        comps = list()
+        for member in operand2_type.scope.var_entries:
+            comps.append(self.generate_ctype_code(operand1_name + '.' + member.name, operand2_name + '.' + member.name, member.type, member.type, op, code))
+
+        return '(' + (' && ' if op == '==' else ' || ').join(comps) + ')'
 
     def generate_ctuple_code(self, operand1_name, operand2_name, operand1_type, operand2_type, op, code):
         if not operand1_type.assignable_from(operand2_type) and not (op in ('in', 'not_in') and any([operand1_type.assignable_from(type_) for type_ in operand2_type.components])):
