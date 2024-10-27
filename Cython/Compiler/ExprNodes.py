@@ -13388,10 +13388,7 @@ class CmpNode:
 
         if new_common_type is None:
             # fall back to generic type compatibility tests
-            if type1.is_ctuple or type2.is_ctuple:
-                if type1.is_ctuple and type2.is_ctuple and type1.assignable_from(type2):
-                    new_common_type = type1
-            elif type1 == type2:
+            if (type1.is_ctuple or type2.is_ctuple) or type1 == type2:
                 new_common_type = type1
             elif type1.is_pyobject or type2.is_pyobject:
                 if type2.is_numeric or type2.is_string:
@@ -13594,17 +13591,13 @@ class CmpNode:
             if (operand1.type.is_struct_or_union and operand1.type.kind == 'union') or (operand2.type.is_struct_or_union and operand2.type.kind == 'union'):
                 error(self.pos, "cannot compare unions, compare a specific field instead")
 
-            if operand1 != operand2.type:
+            if operand1.type != operand2.type:
                 error(self.pos, "cannot compare structs of different types")
 
             operand1_temp = code.funcstate.allocate_temp(operand1.type, manage_ref=False)
             operand2_temp = code.funcstate.allocate_temp(operand1.type, manage_ref=False)
             code.putln(f"{operand1_temp} = {operand1.result()};")
-            coercion_node = operand2.coerce_to(operand1.type, code.funcstate.scope)
-            coercion_node.generate_result_code(code)
-            code.putln(f"{operand2_temp} = {coercion_node.result()};")
-            coercion_node.generate_disposal_code(code)
-            coercion_node.free_temps(code)
+            code.putln(f"{operand2_temp} = {operand2.result()};")
             struct_code = self.generate_struct_code(operand1_temp, operand2_temp, operand1.type, op, code)
             code.putln(f"{result_code} = {struct_code};")
 
@@ -13614,14 +13607,7 @@ class CmpNode:
             operand1_temp = code.funcstate.allocate_temp(operand1.type, manage_ref=False)
             operand2_temp = code.funcstate.allocate_temp(operand2.type, manage_ref=False)
             code.putln(f"{operand1_temp} = {operand1.result()};")
-            if op in ("in", "not_in"):
-                code.putln(f"{operand2_temp} = {operand2.result()};")
-            else:
-                coercion_node = operand2.coerce_to(operand1.type, code.funcstate.scope)
-                coercion_node.generate_result_code(code)
-                code.putln(f"{operand2_temp} = {coercion_node.result()};")
-                coercion_node.generate_disposal_code(code)
-                coercion_node.free_temps(code)
+            code.putln(f"{operand2_temp} = {operand2.result()};")
             ctuple_code = self.generate_ctuple_code(operand1_temp, operand2_temp, operand1.type, operand2.type if op in ("in", "not_in") else operand1.type, op, code)
             code.putln(f"{result_code} = {ctuple_code};")
 
@@ -13664,41 +13650,11 @@ class CmpNode:
         return '(' + (' && ' if op == '==' else ' || ').join(comps) + ')'
 
     def generate_ctuple_code(self, operand1_name, operand2_name, operand1_type, operand2_type, op, code):
-        if not operand1_type.assignable_from(operand2_type) and not (op in ('in', 'not_in') and any([operand1_type.assignable_from(type_) for type_ in operand2_type.components])):
-            error(self.pos, "cannot compare ctuples of incompatible types")
-
-        temps = list()
-
-        nodes = dict()
+        comps = list()
         for itr in range(len(operand2_type.components)):
-            if op in ('in', 'not_in') and not operand1_type.assignable_from(operand2_type.components[itr]):
-                continue
+            comps.append(self.generate_ctype_code(operand1_name + ".f" + str(itr), operand2_name + ".f" + str(itr), operand1_type.components[itr], operand2_type.components[itr], op, code))
 
-            node = IndexNode(self.pos, base=RawCNameExprNode(self.pos, cname=operand2_name, type=operand2_type), index=IntNode(self.pos, value=str(itr), constant_result=itr, type=PyrexTypes.c_py_ssize_t_type))
-            node.analyse_types(code.funcstate.scope)
-            if op in ('in', 'not_in'):
-                node = node.coerce_to(operand1_type, code.funcstate.scope)
-                node.generate_result_code(code)
-
-            nodes[itr] = node
-            temps.append(node)
-
-        statements = list()
-        for index, node in nodes.items():
-            if op in ('in', 'not_in'):
-                statements.append(self.generate_ctype_code(operand1_name, node.result(), operand1_type, operand2_type.components[index], '==' if op == 'in' else '!=', code))
-            else:
-                member_node = IndexNode(self.pos, base=RawCNameExprNode(self.pos, cname=operand1_name, type=operand1_type), index=IntNode(self.pos, value=str(index), constant_result=index, type=PyrexTypes.c_py_ssize_t_type))
-                member_node.analyse_types(code.funcstate.scope)
-                temps.append(member_node)
-
-                statements.append(self.generate_ctype_code(member_node.result(), node.result(), operand1_type.components[index], operand2_type.components[index], op, code))
-
-        for node in temps:
-            node.generate_disposal_code(code)
-            node.free_temps(code)
-
-        return '(' + ((' || ' if op == 'in' else ' && ') if op in ('in', 'not_in') else (' && ' if op == '==' else ' || ')).join(statements) + ')'
+        return '(' + (' && ' if op == '==' else ' || ').join(comps) + ')'
 
     def generate_ctype_code(self, operand1_name, operand2_name, operand1_type, operand2_type, op, code):
         if (operand1_type.is_struct_or_union and operand1_type.kind == 'union') or (operand2_type.is_struct_or_union and operand2_type.kind == 'union'):
