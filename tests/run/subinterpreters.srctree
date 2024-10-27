@@ -49,13 +49,14 @@ include "shared.pxi"
 #################### runtest.py #############################
 
 import sys
-# TODO - in Py3.14 this'll probably be in the standard library
-from interpreters_backport import interpreters
 
 if sys.version_info < (3, 13):
     # No chance of this working I think.
     # (Although there probably is a test that would...)
     exit(0)
+
+# TODO - in Py3.14 this'll probably be in the standard library
+from interpreters_backport import interpreters
 
 SKIP_FIRST = "skip_first="
 CYTHON_MODULE = "cython_module="

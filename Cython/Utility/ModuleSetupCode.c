@@ -2650,7 +2650,7 @@ static __Pyx_InterpreterIdAndModule* __Pyx_State_FindModuleStateLookupTableLower
     return begin;
 }
 
-static PyObject *__Pyx_State_FindModule(void*) {
+static PyObject *__Pyx_State_FindModule(CYTHON_UNUSED void* dummy) {
     int64_t interpreter_id = PyInterpreterState_GetID(PyInterpreterState_Get());
     if (interpreter_id == -1) return NULL;
 
@@ -2725,7 +2725,7 @@ static void __Pyx_State_ConvertFromReallySmall() {
     __Pyx_ModuleStateLookup_really_small = 0;
 }
 
-static int __Pyx_State_AddModule(PyObject* module, void*) {
+static int __Pyx_State_AddModule(PyObject* module, CYTHON_UNUSED void* dummy) {
     int64_t interpreter_id = PyInterpreterState_GetID(PyInterpreterState_Get());
     if (interpreter_id == -1) return -1;
 
@@ -2789,7 +2789,7 @@ static int __Pyx_State_AddModule(PyObject* module, void*) {
     return 0;
 }
 
-static int __Pyx_State_RemoveModule(void*) {
+static int __Pyx_State_RemoveModule(CYTHON_UNUSED void* dummy) {
     int64_t interpreter_id = PyInterpreterState_GetID(PyInterpreterState_Get());
     if (interpreter_id == -1) return -1;
 
