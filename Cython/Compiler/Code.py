@@ -809,7 +809,7 @@ def _format_impl_code(utility_code: UtilityCode, _, impl):
         r'CALL_UNBOUND_METHOD\('
         r'([a-zA-Z_]+),\s*'   # type cname
         r'"([^"]+)",\s*'      # method name
-        r'([^),]+)'           # object cname
+        r'([^),\s]+)'         # object cname
         r'((?:,[^),]+)*)'     # args*
         r'\)'
     ),
