@@ -1425,7 +1425,7 @@ class FlattenInListTransform(Visitor.EnvTransform, SkipDeclarations):
         lhs = node.operand1
 
         if node.operand2.type.is_ctuple and not isinstance(node.operand2, ExprNodes.TupleNode):
-            args = [ExprNodes.IndexNode(node.pos, base=node.operand2, index=ExprNodes.IntNode(node.pos, value=str(index), constant_result=index, type=PyrexTypes.c_py_ssize_t_type)).analyse_types(self.current_env()).coerce_to(node.operand1.type, self.current_env()) for index, type_ in enumerate(node.operand2.type.components) if node.operand1.type.assignable_from(type_)]
+            args = [ExprNodes.IndexNode(node.pos, base=node.operand2, index=ExprNodes.IntNode(node.pos, value=str(index), constant_result=index, type=PyrexTypes.c_py_ssize_t_type)).analyse_types(self.current_env()).coerce_to(node.operand1.type, self.current_env()) for index, type_ in enumerate(node.operand2.type.components) if node.operand1.type.assignable_from(type_) or ((node.operand1.type.is_pyobject and PyrexNodes.py_object_type.assignable_from(type_)) or (type_.is_pyobject and PyrexNodes.py_object_type.assignable_from(node.operand1.type)))]
         else:
             args = node.operand2.args
 
@@ -1445,7 +1445,7 @@ class FlattenInListTransform(Visitor.EnvTransform, SkipDeclarations):
         conds = []
         temps = []
         for arg in args:
-            if node.operand2.type.is_ctuple and not node.operand1.type.assignable_from(arg.type):
+            if node.operand2.type.is_ctuple and not node.operand1.type.assignable_from(arg.type) and not ((node.operand1.type.is_pyobject and PyrexNodes.py_object_type.assignable_from(arg.type)) or (arg.type.is_pyobject and PyrexNodes.py_object_type.assignable_from(node.operand1.type))):
                 continue
 
             # Trial optimisation to avoid redundant temp assignments.
