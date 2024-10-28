@@ -807,9 +807,9 @@ def _format_impl_code(utility_code: UtilityCode, _, impl):
     is_module_specific=True,
     regex=(
         r'CALL_UNBOUND_METHOD\('
-        r'([a-zA-Z_]+),'      # type cname
-        r'\s*"([^"]+)",'      # method name
-        r'\s*([^),]+)'        # object cname
+        r'([a-zA-Z_]+),\s*'   # type cname
+        r'"([^"]+)",\s*'      # method name
+        r'([^),]+)'           # object cname
         r'((?:,[^),]+)*)'     # args*
         r'\)'
     ),
