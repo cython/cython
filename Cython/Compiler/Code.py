@@ -791,7 +791,7 @@ def add_macro_processor(*macro_names, regex=None, is_module_specific=False, _las
 def _wrap_c_string(_, matchobj):
     """Replace CSTRING('''xyz''') by a C compatible string, taking care of line breaks.
     """
-    content = matchobj.group(1).replace('"', '\042')
+    content = matchobj.group(1).replace('"', r'\042')
     return ''.join(
         f'"{line}\\n"\n' if not line.endswith('\\') or line.endswith('\\\\') else f'"{line[:-1]}"\n'
         for line in content.splitlines())
