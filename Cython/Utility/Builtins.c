@@ -671,12 +671,12 @@ static CYTHON_INLINE int __Pyx_PyInt_bit_count(PyObject *x) {
     long long result;
     int overflow;
 
-    unsigned long long value;
-
     result = PyLong_AsLongLongAndOverflow(x, &overflow);
     if (overflow) {
         return (int)PyLong_AsLong(CALL_UNBOUND_METHOD(PyLong_Type, "bit_count", x));
     } else {
+        unsigned long long value;
+
         if (result < 0) {
             value = -result;
         } else {
