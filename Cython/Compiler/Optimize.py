@@ -1427,7 +1427,7 @@ class FlattenInListTransform(Visitor.EnvTransform, SkipDeclarations):
         if node.operand2.type.is_ctuple and not isinstance(node.operand2, ExprNodes.TupleNode):
             args = [ExprNodes.IndexNode(node.pos, base=node.operand2, index=ExprNodes.IntNode(node.pos, value=str(index), constant_result=index, type=PyrexTypes.c_py_ssize_t_type)).analyse_types(self.current_env()).coerce_to(node.operand1.type, self.current_env()) for index, type_ in enumerate(node.operand2.type.components) if node.operand1.type.assignable_from(type_)]
         else:
-            args = node.operand2
+            args = node.operand2.args
 
         if len(args) == 0:
             # note: lhs may have side effects, but ".is_simple()" may not work yet before type analysis.
