@@ -2563,7 +2563,7 @@ static pthread_rwlock_t __Pyx_ModuleStateLookup_mutex = PTHREAD_RWLOCK_INITIALIZ
 #elif (CYTHON_MODULE_STATE_LOOKUP_THREAD_SAFE==1 && defined(_WIN32)) || \
     CYTHON_MODULE_STATE_LOOKUP_THREAD_SAFE==4
 #include <Windows.h>  // synchapi.h on its own doesn't work
-static SRWLock __Pyx_ModuleStateLookup_mutex = SRWLOCK_INIT;
+static SRWLOCK __Pyx_ModuleStateLookup_mutex = SRWLOCK_INIT;
 #define __Pyx_ModuleStateLookup_LockForRead() AcquireSRWLockExclusive(&__Pyx_ModuleStateLookup_mutex)
 #define __Pyx_ModuleStateLookup_UnlockForRead() pthread_rwlock_unlock(&__Pyx_ModuleStateLookup_mutex)
 #define __Pyx_ModuleStateLookup_LockForWrite() AcquireSRWLockExclusive(&__Pyx_ModuleStateLookup_mutex)
