@@ -4224,6 +4224,7 @@ class DefNodeWrapper(FuncDefNode):
                 # parse the exact number of positional arguments from
                 # the args tuple
                 for i, arg in enumerate(positional_args):
+                    # no default for this arg so no need to decref values[i]
                     code.putln("values[%d] = __Pyx_Arg_%s(%s, %d);" % (
                             i, self.signature.fastvar, Naming.args_cname, i))
             else:
@@ -4237,7 +4238,10 @@ class DefNodeWrapper(FuncDefNode):
                     if i >= min_positional_args-1:
                         if i != reversed_args[0][0]:
                             code.putln('CYTHON_FALLTHROUGH;')
-                        code.put('case %2d: ' % (i+1))
+                        code.putln('case %2d:' % (i+1))
+                    if arg.default:
+                        code.putln('__Pyx_Arg_XDECREF_%s(values[%d]);' % (
+                            self.signature.fastvar, i))
                     code.putln("values[%d] = __Pyx_Arg_%s(%s, %d);" % (
                             i, self.signature.fastvar, Naming.args_cname, i))
                 if min_positional_args == 0:
@@ -4389,13 +4393,17 @@ class DefNodeWrapper(FuncDefNode):
             code.putln('default:')
 
         for i in range(max_positional_args-1, num_required_posonly_args-1, -1):
-            code.put('case %2d: ' % (i+1))
+            code.putln('case %2d:' % (i+1))
+            if all_args[i].default:
+                code.putln("__Pyx_Arg_XDECREF_%s(values[%d]);" % (
+                    self.signature.fastvar, i))
             code.putln("values[%d] = __Pyx_Arg_%s(%s, %d);" % (
                 i, self.signature.fastvar, Naming.args_cname, i))
             code.putln('CYTHON_FALLTHROUGH;')
         if num_required_posonly_args > 0:
             code.put('case %2d: ' % num_required_posonly_args)
             for i in range(num_required_posonly_args-1, -1, -1):
+                # These are required so never need reference counting
                 code.putln("values[%d] = __Pyx_Arg_%s(%s, %d);" % (
                     i, self.signature.fastvar, Naming.args_cname, i))
             code.putln('break;')
@@ -4453,11 +4461,16 @@ class DefNodeWrapper(FuncDefNode):
                     # don't overwrite default argument
                     code.putln('PyObject* value = __Pyx_GetKwValue_%s(%s, %s, %s);' % (
                         self.signature.fastvar, Naming.kwds_cname, Naming.kwvalues_cname, pystring_cname))
-                    code.putln('if (value) { values[%d] = __Pyx_Arg_NewRef_%s(value); kw_args--; }' % (
+                    code.putln('if (value) {')
+                    code.putln('__Pyx_Arg_XDECREF_%s(values[%d]);' % (
+                        self.signature.fastvar, i))
+                    code.putln('values[%d] = __Pyx_Arg_NewRef_%s(value); kw_args--;' % (
                         i, self.signature.fastvar))
+                    code.putln('}')
                     code.putln('else if (unlikely(PyErr_Occurred())) %s' % code.error_goto(self.pos))
                     code.putln('}')
                 else:
+                    # no arg default - no need to decref values[%d]
                     code.putln('if (likely((values[%d] = __Pyx_GetKwValue_%s(%s, %s, %s)) != 0)) {' % (
                         i, self.signature.fastvar, Naming.kwds_cname, Naming.kwvalues_cname, pystring_cname))
                     code.putln('(void)__Pyx_Arg_NewRef_%s(values[%d]);' % (self.signature.fastvar, i))
@@ -4589,8 +4602,11 @@ class DefNodeWrapper(FuncDefNode):
                 Naming.kwvalues_cname,
                 Naming.pykwdlist_cname,
                 posonly_correction))
-            code.putln('if (value) { values[index] = __Pyx_Arg_NewRef_%s(value); kw_args--; }' %
+            code.putln('if (value) {')
+            code.putln('__Pyx_Arg_XDECREF_%s(values[index]);' % self.signature.fastvar)
+            code.putln('values[index] = __Pyx_Arg_NewRef_%s(value); kw_args--;' %
                        self.signature.fastvar)
+            code.putln('}')
             code.putln('else if (unlikely(PyErr_Occurred())) %s' % code.error_goto(self.pos))
             if len(optional_args) > 1:
                 code.putln('}')
