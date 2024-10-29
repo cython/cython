@@ -106,7 +106,7 @@ typedef struct {
     #include <intrin.h>
     #undef __pyx_atomic_int_type
     #define __pyx_atomic_int_type long
-    #define __pyx_atomic_ptr_type void*;
+    #define __pyx_atomic_ptr_type void*
     #undef __pyx_nonatomic_int_type
     #define __pyx_nonatomic_int_type long
     #pragma intrinsic (_InterlockedExchangeAdd)
