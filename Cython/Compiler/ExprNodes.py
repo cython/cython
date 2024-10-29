@@ -9349,13 +9349,14 @@ class DictNode(ExprNode):
             else:
                 key = str(item.key.value)
                 member = struct_scope.lookup_here(key)
-                assert member is not None, f"struct member {key} not found, error was not handled during coercion"
+                assert member is not None, "struct member %s not found, error was not handled during coercion" % key
                 key_cname = member.cname
                 value_cname = item.value.result()
                 if item.value.type.is_array:
-                    code.putln(f"memcpy({self.result()}.{key_cname}, {value_cname}, sizeof({value_cname}));")
+                    code.putln("memcpy(%s.%s, %s, sizeof(%s));" % (
+                        self.result(), key_cname, value_cname, value_cname))
                 else:
-                    code.putln(f"{self.result()}.{key_cname} = {value_cname};")
+                    code.putln("%s.%s = %s;" % (self.result(), key_cname, value_cname))
             item.generate_disposal_code(code)
             item.free_temps(code)
 
