@@ -19,6 +19,9 @@ The __init__.py file must be in your srcs list so that Cython can resolve
 cimports using the package layout.
 """
 
+load("@rules_cc//cc:defs.bzl", "cc_binary")
+load("@rules_python//python:defs.bzl", "py_library")
+
 def pyx_library(
         name,
         cc_deps = [],
@@ -77,7 +80,7 @@ def pyx_library(
     for src in pyx_srcs:
         stem = src.split(".")[0]
         shared_object_name = stem + ".so"
-        native.cc_binary(
+        cc_binary(
             name = shared_object_name,
             srcs = [stem + ".cpp"],
             deps = cc_deps + [
@@ -93,7 +96,7 @@ def pyx_library(
 
     # Now create a py_library with these shared objects as data.
     data = shared_objects + kwargs.pop("data", [])
-    native.py_library(
+    py_library(
         name = name,
         srcs = py_srcs,
         deps = py_deps,
