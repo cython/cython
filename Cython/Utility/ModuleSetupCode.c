@@ -2690,7 +2690,7 @@ static PyObject *__Pyx_State_FindModule(CYTHON_UNUSED void* dummy) {
         data = (__Pyx_ModuleStateLookupData*)__pyx_atomic_pointer_load_relaxed(&__Pyx_ModuleStateLookup_data);
         __Pyx_ModuleStateLookup_Unlock();
     }
-  read_finished:
+  read_finished:;
 
 #else
     __Pyx_ModuleStateLookupData* data = __Pyx_ModuleStateLookup_data;
