@@ -7,25 +7,41 @@
 # better tested
 
 PYTHON setup.py build_ext --inplace
-PYTHON run.py
+PYTHON run.py limited_single_phase
+PYTHON run.py limited_single_phase_modstate
+PYTHON run.py limited_multi_phase
 
 
 ##################### setup.py ################################
 
+import sys
 from setuptools import setup
 from Cython.Build import cythonize
 
+modules = [
+    "limited_single_phase.pyx",
+    "limited_single_phase_modstate.pyx",
+    "limited_multi_phase.pyx"
+]
+
 setup(
-    ext_modules = cythonize("limited.pyx"),
+    ext_modules = cythonize(modules),
 )
 
 ##################### run.py ##################################
 
 import decimal
 
-import limited
 import weakref
 import sys
+
+module_name = sys.argv[1]
+
+if sys.version_info < (3, 8) and module_name == "limited_multi_phase":
+    print("Skipping multi-phase because it work work on this Python version")
+    exit(0)
+
+limited = __import__(module_name)
 
 limited.fib(11)
 
@@ -84,10 +100,25 @@ assert not limited.float_equals(None)
 assert limited.float_equals(decimal.Decimal("1.5"))
 
 
+##################### limited_single_phase.pyx ################
 
-##################### limited.pyx #############################
+# distutils: extra_compile_args = -DPy_LIMITED_API=0x03070000 -DCYTHON_PEP489_MULTI_PHASE_INIT=0
 
-# distutils: extra_compile_args = -DPy_LIMITED_API=0x030700f0
+include 'limited.pxi'
+
+##################### limited_multi_phase.pyx ################
+
+# distutils: extra_compile_args = -DPy_LIMITED_API=0x03070000 -DCYTHON_PEP489_MULTI_PHASE_INIT=1
+
+include 'limited.pxi'
+
+##################### limited_single_phase_modstate.pyx ################
+
+# distutils: extra_compile_args = -DPy_LIMITED_API=0x03070000 -DCYTHON_PEP489_MULTI_PHASE_INIT=0 -DCYTHON_USE_MODULE_STATE=1
+
+include 'limited.pxi'
+
+##################### limited.pxi #############################
 
 import cython
 
