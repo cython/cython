@@ -14114,7 +14114,7 @@ class CastNode(CoercionNode):
         return self.arg.result_as(self.type)
 
     def generate_result_code(self, code):
-        self.arg.generate_result_code(code)
+        pass
 
 
 class PyTypeTestNode(CoercionNode):
