@@ -299,3 +299,11 @@ def flow_control_genexp(it, value):
     """
     all((target := value) for _ in it)
     return target
+
+def memoryview_walrus(x: cython.uchar[:]):
+    """
+    >>> memoryview_walrus(bytearray(b"123"))
+    '1'
+    """
+    (y := x)
+    return chr(y[0])

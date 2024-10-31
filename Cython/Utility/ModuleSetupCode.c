@@ -380,7 +380,8 @@
     #define CYTHON_USE_DICT_VERSIONS 0
   #elif !defined(CYTHON_USE_DICT_VERSIONS)
     // Python 3.12a5 deprecated "ma_version_tag"
-    #define CYTHON_USE_DICT_VERSIONS  (PY_VERSION_HEX < 0x030C00A5)
+    // and we use static variables with dict versions so it's incompatible with module state
+    #define CYTHON_USE_DICT_VERSIONS  (PY_VERSION_HEX < 0x030C00A5 && !CYTHON_USE_MODULE_STATE)
   #endif
   #ifndef CYTHON_USE_EXC_INFO_STACK
     #define CYTHON_USE_EXC_INFO_STACK 1
@@ -1224,7 +1225,21 @@ static CYTHON_INLINE int __Pyx_PyDict_GetItemRef(PyObject *dict, PyObject *key, 
     #define __PYX_MONITORING_ABI_SUFFIX
 #endif
 
-#define CYTHON_ABI  __PYX_ABI_VERSION __PYX_LIMITED_ABI_SUFFIX __PYX_MONITORING_ABI_SUFFIX
+#if CYTHON_USE_TP_FINALIZE
+    #define __PYX_TP_FINALIZE_ABI_SUFFIX
+#else
+    // affects destruction of async generator/coroutines
+    #define __PYX_TP_FINALIZE_ABI_SUFFIX "nofinalize"
+#endif
+
+#if CYTHON_USE_FREELISTS || !defined(__Pyx_AsyncGen_USED)
+    #define __PYX_FREELISTS_ABI_SUFFIX
+#else
+    // affects allocation/deallocation of async generator objects.
+    #define __PYX_FREELISTS_ABI_SUFFIX "nofreelists"
+#endif
+
+#define CYTHON_ABI  __PYX_ABI_VERSION __PYX_LIMITED_ABI_SUFFIX __PYX_MONITORING_ABI_SUFFIX __PYX_TP_FINALIZE_ABI_SUFFIX __PYX_FREELISTS_ABI_SUFFIX
 
 #define __PYX_ABI_MODULE_NAME "_cython_" CYTHON_ABI
 #define __PYX_TYPE_MODULE_PREFIX __PYX_ABI_MODULE_NAME "."
@@ -2476,16 +2491,6 @@ static int __Pyx_VersionSanityCheck(void) {
   #endif
     return 0;
 }
-
-/////////////////////////// AccessPyMutexForFreeThreading.proto ////////////
-
-#if CYTHON_COMPILING_IN_CPYTHON_FREETHREADING
-// TODO - this is likely to get exposed properly at some point
-#ifndef Py_BUILD_CORE
-#define Py_BUILD_CORE 1
-#endif
-#include "internal/pycore_lock.h"
-#endif
 
 ////////////////////////// SharedInFreeThreading.proto //////////////////
 

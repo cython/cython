@@ -226,6 +226,33 @@ static CYTHON_INLINE const char* __Pyx_PyObject_AsString(PyObject* o) {
 #if __PYX_DEFAULT_STRING_ENCODING_IS_ASCII || __PYX_DEFAULT_STRING_ENCODING_IS_UTF8
 static CYTHON_INLINE const char* __Pyx_PyUnicode_AsStringAndSize(PyObject* o, Py_ssize_t *length) {
     if (unlikely(__Pyx_PyUnicode_READY(o) == -1)) return NULL;
+#if CYTHON_COMPILING_IN_LIMITED_API
+    {
+        const char* result;
+        Py_ssize_t unicode_length;
+        CYTHON_MAYBE_UNUSED_VAR(unicode_length); // only for __PYX_DEFAULT_STRING_ENCODING_IS_ASCII
+        #if __PYX_LIMITED_VERSION_HEX < 0x030A0000
+        if (unlikely(PyArg_Parse(o, "s#", &result, length) < 0)) return NULL;
+        #else
+        result = PyUnicode_AsUTF8AndSize(o, length);
+        #endif
+        #if __PYX_DEFAULT_STRING_ENCODING_IS_ASCII
+        // Pre-checking "isascii" the Limited API involves making Python function calls.
+        // Therefore we do a post-check instead that the lengths of the encoded and unicode
+        // strings are the same (which is only true for ascii strings).
+        // If this isn't true then we've already done the encoding so it's a potential
+        // performance loss, but it should be better in the successful case.
+        unicode_length = PyUnicode_GetLength(o);
+        if (unlikely(unicode_length < 0)) return NULL;
+        if (unlikely(unicode_length != *length)) {
+            // raise the error
+            PyUnicode_AsASCIIString(o);
+            return NULL;
+        }
+        #endif
+        return result;
+    }
+#else /* CYTHON_COMPILING_IN_LIMITED_API */
 #if __PYX_DEFAULT_STRING_ENCODING_IS_ASCII
     if (likely(PyUnicode_IS_ASCII(o))) {
         // cached for the lifetime of the object
@@ -238,7 +265,8 @@ static CYTHON_INLINE const char* __Pyx_PyUnicode_AsStringAndSize(PyObject* o, Py
     }
 #else
     return PyUnicode_AsUTF8AndSize(o, length);
-#endif
+#endif /* __PYX_DEFAULT_STRING_ENCODING_IS_ASCII */
+#endif /* !CYTHON_COMPILING_IN_LIMITED_API */
 }
 #endif
 
