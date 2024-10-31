@@ -2741,7 +2741,6 @@ class CArrayType(CPointerBaseType):
 
     @property
     def size(self):
-        from .Symtab import Entry
         if self._size_entry:
             return int(self._size_entry.init)
         return self._size

@@ -629,6 +629,7 @@ class CArrayDeclaratorNode(CDeclaratorNode):
         array_type = PyrexTypes.c_array_type(base_type, size)
         return self.base.analyse(array_type, env, nonempty=nonempty, visibility=visibility, in_pxd=in_pxd)
 
+
 class CFuncDeclaratorNode(CDeclaratorNode):
     # base                      CDeclaratorNode
     # args                      [CArgDeclNode]
@@ -6287,7 +6288,7 @@ class SingleAssignmentNode(AssignmentNode):
                         self.lhs.entry.init = self.rhs.entry.init
                     else:
                         # case when variable is not initialized: `cdef const int bb`
-                        error(self.pos, f"Assignment to const '{self.lhs.name}'")
+                        error(self.pos, f"Const variable '{self.lhs.name}' is not initialized")
                 # case of assignment an expression: `cdef const float my_var = 2.0 + 3.0`
             else:
                 error(self.pos, f"Assignment to const '{self.lhs.name}'")
