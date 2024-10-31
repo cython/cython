@@ -80,7 +80,7 @@ cdef const char *const string3 = "string3" #nok
 _ERRORS = """
 3:5: Const/volatile base type cannot be a Python object
 6:4: Assignment to const 'x'
-10:0: Assignment to const 'i'
+10:0: Const variable 'i' is not initialized
 21:15: Array dimension not integer
 27:8: Array dimension not integer
 31:8: Assignment to const 'a'
