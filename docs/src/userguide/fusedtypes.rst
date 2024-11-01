@@ -374,7 +374,7 @@ For memoryview indexing from python space we can do the following:
             def func(array: my_fused_type):
                 print("func called:", cython.typeof(array))
 
-            my_fused_type[cython.int[:, ::1]](myarray)
+            func[cython.int[:, ::1]](myarray)
 
     .. group-tab:: Cython
 
@@ -387,7 +387,7 @@ For memoryview indexing from python space we can do the following:
             def func(my_fused_type array):
                 print("func called:", cython.typeof(array))
 
-            my_fused_type[cython.int[:, ::1]](myarray)
+            func[int[:, ::1]](myarray)
 
 The same goes for when using e.g. ``cython.numeric[:, :]``.
 
