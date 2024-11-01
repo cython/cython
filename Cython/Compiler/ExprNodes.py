@@ -4514,7 +4514,7 @@ class IndexNode(_IndexingBaseNode):
             return ""
 
     def generate_result_code(self, code):
-        if not self.is_temp and (not self.base.type.is_ctuple or (isinstance(self.index, IntNode) and self.index.has_constant_result())):
+        if not self.is_temp or (self.base.type.is_ctuple and isinstance(self.index, IntNode) and self.index.has_constant_result()):
             # all handled in self.calculate_result_code()
             return
 
@@ -4574,7 +4574,7 @@ class IndexNode(_IndexingBaseNode):
                 self.result() if self.type.is_pyobject else None,
                 self.exception_value, self.in_nogil_context)
         elif self.base.type.is_ctuple:
-            if not isinstance(self.index, IntNode) and self.index.has_constant_result():
+            if not (isinstance(self.index, IntNode) and self.index.has_constant_result()):
                 base_code = self.base.result()
                 self.ctuple_var = code.funcstate.allocate_temp(PyrexTypes.CPtrType(self.type), manage_ref=False)
     
