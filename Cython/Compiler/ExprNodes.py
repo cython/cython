@@ -4574,20 +4574,19 @@ class IndexNode(_IndexingBaseNode):
                 self.result() if self.type.is_pyobject else None,
                 self.exception_value, self.in_nogil_context)
         elif self.base.type.is_ctuple:
-            if not (isinstance(self.index, IntNode) and self.index.has_constant_result()):
-                base_code = self.base.result()
-                self.ctuple_var = code.funcstate.allocate_temp(PyrexTypes.CPtrType(self.type), manage_ref=False)
-    
-                code.putln("switch (%s) {" % index_code)
-    
-                for itr in range(-len(self.base.type.components) if code.globalstate.directives['wraparound'] else 0, len(self.base.type.components)):
-                    index = itr % len(self.base.type.components)
-                    code.putln(f"case {itr}: {self.ctuple_var} = &{base_code}.f{index}; break;")
-    
-                if code.globalstate.directives['boundscheck']:
-                    code.putln("default: PyErr_SetString(PyExc_IndexError, \"ctuple index out of range\"); " + code.error_goto(self.pos))
-    
-                code.putln("}")
+            base_code = self.base.result()
+            self.ctuple_var = code.funcstate.allocate_temp(PyrexTypes.CPtrType(self.type), manage_ref=False)
+
+            code.putln("switch (%s) {" % index_code)
+
+            for itr in range(-len(self.base.type.components) if code.globalstate.directives['wraparound'] else 0, len(self.base.type.components)):
+                index = itr % len(self.base.type.components)
+                code.putln(f"case {itr}: {self.ctuple_var} = &{base_code}.f{index}; break;")
+
+            if code.globalstate.directives['boundscheck']:
+                code.putln("default: PyErr_SetString(PyExc_IndexError, \"ctuple index out of range\"); " + code.error_goto(self.pos))
+
+            code.putln("}")
         else:
             error_check = '!%s' if error_value == 'NULL' else '%%s == %s' % error_value
             code.putln(
