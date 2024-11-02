@@ -7182,7 +7182,9 @@ class SimpleRoundNode(CallNode):
                     self.type = type_
                     break
             else:
-                return SimpleCallNode(self.pos, function=NameNode(self.pos, name="round", entry=Builtin.builtin_scope.lookup("round")), args=[self.arg.coerce_to(py_object_type, self.current_env())]).analyse_types(env)
+                return SimpleCallNode(self.pos,
+                    function=NameNode(self.pos, name="round", entry=Builtin.builtin_scope.lookup("round")),
+                    args=[self.arg.coerce_to(py_object_type, self.current_env())]).analyse_types(env)
         else:
             self.type = self.arg.type
 
