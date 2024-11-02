@@ -52,8 +52,9 @@ typedef struct {
     #define __pyx_atomic_int_type atomic_int
     #define __pyx_atomic_ptr_type atomic_uintptr_t
     #define __pyx_nonatomic_ptr_type uintptr_t
-    #define __pyx_atomic_incr_aligned(value) atomic_fetch_add_explicit(value, 1, memory_order_relaxed)
-    #define __pyx_atomic_decr_aligned(value) atomic_fetch_sub_explicit(value, 1, memory_order_acq_rel)
+    #define __pyx_atomic_incr_relaxed(value) atomic_fetch_add_explicit(value, 1, memory_order_relaxed)
+    #define __pyx_atomic_incr_acq_rel(value) atomic_fetch_add_explicit(value, 1, memory_order_acq_rel)
+    #define __pyx_atomic_decr_acq_rel(value) atomic_fetch_sub_explicit(value, 1, memory_order_acq_rel)
     #define __pyx_atomic_load(value) atomic_load(value)
     #define __pyx_atomic_pointer_load_relaxed(value) atomic_load_explicit(value, memory_order_relaxed)
     #define __pyx_atomic_pointer_load_acquire(value) atomic_load_explicit(value, memory_order_acquire)
@@ -73,8 +74,9 @@ typedef struct {
     #define __pyx_atomic_int_type std::atomic_int
     #define __pyx_atomic_ptr_type std::atomic_uintptr_t
     #define __pyx_nonatomic_ptr_type uintptr_t
-    #define __pyx_atomic_incr_aligned(value) std::atomic_fetch_add_explicit(value, 1, std::memory_order_relaxed)
-    #define __pyx_atomic_decr_aligned(value) std::atomic_fetch_sub_explicit(value, 1, std::memory_order_acq_rel)
+    #define __pyx_atomic_incr_relaxed(value) std::atomic_fetch_add_explicit(value, 1, std::memory_order_relaxed)
+    #define __pyx_atomic_incr_acq_rel(value) std::atomic_fetch_add_explicit(value, 1, std::memory_order_acq_rel)
+    #define __pyx_atomic_decr_acq_rel(value) std::atomic_fetch_sub_explicit(value, 1, std::memory_order_acq_rel)
     #define __pyx_atomic_load(value) std::atomic_load(value)
     #define __pyx_atomic_pointer_load_relaxed(value) std::atomic_load_explicit(value, std::memory_order_relaxed)
     #define __pyx_atomic_pointer_load_acquire(value) std::atomic_load_explicit(value, std::memory_order_acquire)
@@ -90,8 +92,9 @@ typedef struct {
                     (__GNUC_MINOR__ == 1 && __GNUC_PATCHLEVEL__ >= 2))))
     /* gcc >= 4.1.2 */
     #define __pyx_atomic_ptr_type void*
-    #define __pyx_atomic_incr_aligned(value) __sync_fetch_and_add(value, 1)
-    #define __pyx_atomic_decr_aligned(value) __sync_fetch_and_sub(value, 1)
+    #define __pyx_atomic_incr_relaxed(value) __sync_fetch_and_add(value, 1)
+    #define __pyx_atomic_incr_acq_rel(value) __sync_fetch_and_add(value, 1)
+    #define __pyx_atomic_decr_acq_rel(value) __sync_fetch_and_sub(value, 1)
     // the legacy gcc sync builtins don't seem to have plain "load" or "store".
     #define __pyx_atomic_load(value) __sync_fetch_and_add(value, 0)
     #define __pyx_atomic_pointer_load_relaxed(value) __sync_fetch_and_add(value, 0)
@@ -110,8 +113,9 @@ typedef struct {
     #undef __pyx_nonatomic_int_type
     #define __pyx_nonatomic_int_type long
     #pragma intrinsic (_InterlockedExchangeAdd)
-    #define __pyx_atomic_incr_aligned(value) _InterlockedExchangeAdd(value, 1)
-    #define __pyx_atomic_decr_aligned(value) _InterlockedExchangeAdd(value, -1)
+    #define __pyx_atomic_incr_relaxed(value) _InterlockedExchangeAdd(value, 1)
+    #define __pyx_atomic_incr_acq_rel(value) _InterlockedExchangeAdd(value, 1)
+    #define __pyx_atomic_decr_acq_rel(value) _InterlockedExchangeAdd(value, -1)
     #define __pyx_atomic_load(value) _InterlockedExchangeAdd(value, 0)
     // Microsoft says that simple reads are guaranteed to be atomic.
     // https://learn.microsoft.com/en-gb/windows/win32/sync/interlocked-variable-access?redirectedfrom=MSDN
@@ -135,9 +139,9 @@ typedef struct {
 
 #if CYTHON_ATOMICS
     #define __pyx_add_acquisition_count(memview) \
-             __pyx_atomic_incr_aligned(__pyx_get_slice_count_pointer(memview))
+             __pyx_atomic_incr_relaxed(__pyx_get_slice_count_pointer(memview))
     #define __pyx_sub_acquisition_count(memview) \
-            __pyx_atomic_decr_aligned(__pyx_get_slice_count_pointer(memview))
+            __pyx_atomic_decr_acq_rel(__pyx_get_slice_count_pointer(memview))
 #else
     #define __pyx_add_acquisition_count(memview) \
             __pyx_add_acquisition_count_locked(__pyx_get_slice_count_pointer(memview), memview->lock)

@@ -2669,12 +2669,13 @@ static PyObject *__Pyx_State_FindModule(CYTHON_UNUSED void* dummy) {
 #if CYTHON_MODULE_STATE_LOOKUP_THREAD_SAFE
     __Pyx_ModuleStateLookupData* data = (__Pyx_ModuleStateLookupData*)__pyx_atomic_pointer_load_relaxed(&__Pyx_ModuleStateLookup_data);
     {
-        __pyx_atomic_incr_aligned(&__Pyx_ModuleStateLookup_read_counter);
+        // Thread sanitizer says that this is OK relaxed, but I think it needs to be acquire-release
+        __pyx_atomic_incr_acq_rel(&__Pyx_ModuleStateLookup_read_counter);
         // data == NULL can either mean we're writing, or it's uninitialized.
         // Uninitialized only happens infrequently on the first few calls, so it's fine
         // to be on the slow path.
         if (likely(data)) {
-            __Pyx_ModuleStateLookupData* new_data = (__Pyx_ModuleStateLookupData*)__pyx_atomic_pointer_load_relaxed(&__Pyx_ModuleStateLookup_data);
+            __Pyx_ModuleStateLookupData* new_data = (__Pyx_ModuleStateLookupData*)__pyx_atomic_pointer_load_acquire(&__Pyx_ModuleStateLookup_data);
             if (likely(data == new_data)) {
                 // Nothing has written the data between incrementing the read counter and loading the pointer.
                 goto read_finished;
@@ -2683,10 +2684,10 @@ static PyObject *__Pyx_State_FindModule(CYTHON_UNUSED void* dummy) {
         // In principle DW believes this could be "relaxed", but it's on the unlikely slow path anyway
         // so let's not add more macros.
         // Undo our addition to the read counter.
-        __pyx_atomic_decr_aligned(&__Pyx_ModuleStateLookup_read_counter);
+        __pyx_atomic_decr_acq_rel(&__Pyx_ModuleStateLookup_read_counter);
         // Wait for the write to finish and try again
         __Pyx_ModuleStateLookup_Lock();
-        __pyx_atomic_incr_aligned(&__Pyx_ModuleStateLookup_read_counter);
+        __pyx_atomic_incr_relaxed(&__Pyx_ModuleStateLookup_read_counter);
         data = (__Pyx_ModuleStateLookupData*)__pyx_atomic_pointer_load_relaxed(&__Pyx_ModuleStateLookup_data);
         __Pyx_ModuleStateLookup_Unlock();
     }
@@ -2712,7 +2713,7 @@ static PyObject *__Pyx_State_FindModule(CYTHON_UNUSED void* dummy) {
 
   end:
 #if CYTHON_MODULE_STATE_LOOKUP_THREAD_SAFE
-    __pyx_atomic_decr_aligned(&__Pyx_ModuleStateLookup_read_counter);
+    __pyx_atomic_decr_acq_rel(&__Pyx_ModuleStateLookup_read_counter);
 #endif
 
     if (found && found->id == interpreter_id) {
