@@ -122,7 +122,7 @@ typedef struct {
     // The volatile cast is what CPython does.
     #define __pyx_atomic_pointer_load_relaxed(value) *(void * volatile *)value
     // compare/exchange is probably overkill nonsense, but plain "load" intrinsics are hard to get.
-    #define __pyx_atomic_pointer_load_acquire(value) _InterlockedCompareExchangePointer_acq(value, 0, 0)
+    #define __pyx_atomic_pointer_load_acquire(value) _InterlockedCompareExchangePointer(value, 0, 0)
     #define __pyx_atomic_pointer_exchange(value, new_value) _InterlockedExchangePointer(value, (__pyx_atomic_ptr_type)new_value)
 
     #ifdef __PYX_DEBUG_ATOMICS
