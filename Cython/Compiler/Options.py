@@ -377,7 +377,6 @@ directive_types = {
     'dataclasses.dataclass': DEFER_ANALYSIS_OF_ARGUMENTS,
     'dataclasses.field': DEFER_ANALYSIS_OF_ARGUMENTS,
     'embedsignature.format': one_of('c', 'clinic', 'python'),
-    'c_compile_guard': str,
 }
 
 for key, val in _directive_defaults.items():
