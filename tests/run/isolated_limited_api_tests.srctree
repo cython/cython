@@ -91,6 +91,15 @@ assert limited.float_equals(decimal.Decimal("1.5"))
 
 import cython
 
+# Cimporting from cpython imports a range of types with their internals exposed.
+# These can't necessarily be used in the limited API but simply cimporting them
+# shouldn't break compilation.
+# Although at this stage cimporting the full cpython import is still broken.
+cimport cpython.bool
+cimport cpython.descr
+cimport cpython.longintrepr
+cimport cpython.type
+
 @cython.binding(False)
 def fib(int n):
     cdef int a, b
