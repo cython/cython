@@ -6,9 +6,10 @@
 import re
 import copy
 import operator
+import math
 
 from ..Utils import try_finally_contextmanager
-from .Errors import warning, error, InternalError
+from .Errors import warning, error, InternalError, performance_hint
 from .StringEncoding import EncodedString
 from . import Options, Naming
 from . import PyrexTypes
@@ -20,23 +21,15 @@ from . import Future
 
 from . import Code
 
-iso_c99_keywords = {
-    'auto', 'break', 'case', 'char', 'const', 'continue', 'default', 'do',
-    'double', 'else', 'enum', 'extern', 'float', 'for', 'goto', 'if',
-    'int', 'long', 'register', 'return', 'short', 'signed', 'sizeof',
-    'static', 'struct', 'switch', 'typedef', 'union', 'unsigned', 'void',
-    'volatile', 'while',
-    '_Bool', '_Complex'', _Imaginary', 'inline', 'restrict',
-}
-
 
 def c_safe_identifier(cname):
     # There are some C limitations on struct entry names.
     if ((cname[:2] == '__' and not (cname.startswith(Naming.pyrex_prefix)
                                     or cname in ('__weakref__', '__dict__')))
-            or cname in iso_c99_keywords):
+            or cname in Naming.reserved_cnames):
         cname = Naming.pyrex_prefix + cname
     return cname
+
 
 def punycodify_name(cname, mangle_with=None):
     # if passed the mangle_with should be a byte string
@@ -97,6 +90,10 @@ class Entry:
     # is_anonymous     boolean    Is a anonymous pyfunction entry
     # is_type          boolean    Is a type definition
     # is_cclass        boolean    Is an extension class
+    # is_cclass_var_rentry  boolean Is a var entry of an extension type
+    #                              (Hack! Only needed because most C globals are
+    #                               static variables while these live in the module scope.
+    #                               Remove when fixed.)
     # is_cpp_class     boolean    Is a C++ class
     # is_const         boolean    Is a constant
     # is_property      boolean    Is a property of an extension type:
@@ -181,6 +178,7 @@ class Entry:
     is_anonymous = 0
     is_type = 0
     is_cclass = 0
+    is_cclass_var_entry = False  # Remove when other cglobals are in the module scope
     is_cpp_class = 0
     is_const = 0
     is_property = 0
@@ -353,6 +351,7 @@ class Scope:
     # is_internal       boolean            Is only used internally (simpler setup)
     # scope_predefined_names  list of str   Class variable containing special names defined by
     #                                      this type of scope (e.g. __builtins__, __qualname__)
+    # node_positions_to_offset  {pos: offset}  Mapping from node positions to line table offsets
 
     is_builtin_scope = 0
     is_py_class_scope = 0
@@ -375,6 +374,7 @@ class Scope:
     scope_predefined_names = []
     # Do ambiguous type names like 'int' and 'float' refer to the C types? (Otherwise, Python types.)
     in_c_type_context = True
+    node_positions_to_offset = {}  # read-only fallback dict
 
     def __init__(self, name, outer_scope, parent_scope):
         # The outer_scope is the next scope in the lookup chain.
@@ -934,6 +934,17 @@ class Scope:
                 elif not in_pxd and entry.defined_in_pxd and type.compatible_signature_with(entry.type):
                     # TODO: check that this was done by a signature optimisation and not a user error.
                     #warning(pos, "Function signature does not match previous declaration", 1)
+
+                    # Cython can't assume anything about cimported functions declared without
+                    # an exception value. This is a performance problem mainly for nogil functions.
+                    if entry.type.nogil and entry.type.exception_value is None and type.exception_value:
+                        performance_hint(
+                            entry.pos,
+                            f"No exception value declared for '{entry.name}' in pxd file.\n"
+                            "Users cimporting this function and calling it without the gil "
+                            "will always require an exception check.\n"
+                            "Suggest adding an explicit exception value.",
+                            self)
                     entry.type = type
                 else:
                     error(pos, "Function signature does not match previous declaration")
@@ -1182,6 +1193,11 @@ class Scope:
     def add_include_file(self, filename, verbatim_include=None, late=False):
         self.outer_scope.add_include_file(filename, verbatim_include, late)
 
+    def name_in_module_state(self, cname):
+        # TODO - override to give more choices depending on the type of scope
+        # e.g. slot, function, method
+        return f"{Naming.modulestateglobal_cname}->{cname}"
+
 
 class PreImportScope(Scope):
 
@@ -1213,14 +1229,12 @@ class BuiltinScope(Scope):
         # which is apparently a special case because it conflicts with C++ bool
         self.declare_var("bool", py_object_type, None, "((PyObject*)&PyBool_Type)")
 
-    def lookup(self, name, language_level=None, str_is_str=None):
-        # 'language_level' and 'str_is_str' are passed by ModuleScope
-        if name == 'str':
-            if str_is_str is None:
-                str_is_str = language_level in (None, 2)
-            if not str_is_str:
-                name = 'unicode'
-        if name == 'long' and language_level == 2:
+    def lookup(self, name, language_level=None):
+        # 'language_level' is passed by ModuleScope
+        if name == 'unicode' or name == 'basestring':
+            # Keep recognising 'unicode' and 'basestring' in legacy code but map them to 'str'.
+            name = 'str'
+        elif name == 'long' and language_level == 2:
             # Keep recognising 'long' in legacy Py2 code but map it to 'int'.
             name = 'int'
         return Scope.lookup(self, name)
@@ -1324,6 +1338,7 @@ class ModuleScope(Scope):
     has_import_star = 0
     is_cython_builtin = 0
     old_style_globals = 0
+    namespace_cname_is_type = False
     scope_predefined_names = [
         '__builtins__', '__name__', '__file__', '__doc__', '__path__',
         '__spec__', '__loader__', '__package__', '__cached__',
@@ -1356,6 +1371,7 @@ class ModuleScope(Scope):
         self.undeclared_cached_builtins = []
         self.namespace_cname = self.module_cname
         self._cached_tuple_types = {}
+        self._cached_defaults_c_class_entries = {}
         self.process_include(Code.IncludeCode("Python.h", initial=True))
 
     def qualifying_scope(self):
@@ -1364,18 +1380,14 @@ class ModuleScope(Scope):
     def global_scope(self):
         return self
 
-    def lookup(self, name, language_level=None, str_is_str=None):
+    def lookup(self, name, language_level=None):
         entry = self.lookup_here(name)
         if entry is not None:
             return entry
 
         if language_level is None:
             language_level = self.context.language_level if self.context is not None else 3
-        if str_is_str is None:
-            str_is_str = language_level == 2 or (
-                self.context is not None and Future.unicode_literals not in self.context.future_directives)
-
-        return self.outer_scope.lookup(name, language_level=language_level, str_is_str=str_is_str)
+        return self.outer_scope.lookup(name, language_level=language_level)
 
     def declare_tuple_type(self, pos, components):
         components = tuple(components)
@@ -1395,6 +1407,32 @@ class ModuleScope(Scope):
             ttype.struct_entry = struct_entry
             entry = self.declare_type(cname, ttype, pos, cname)
         ttype.entry = entry
+        return entry
+
+    def declare_defaults_c_class(self, pos, components):
+        # returns an entry (for the c-class)
+        components = tuple(components)
+        try:
+            return self._cached_defaults_c_class_entries[components]
+        except KeyError:
+            pass
+
+        cname = self.next_id(Naming.defaults_struct_prefix)
+        cname = EncodedString(cname)
+        entry = self._cached_defaults_c_class_entries[components] = self.declare_c_class(
+            cname, pos, defining=True, implementing=True,
+            objstruct_cname=cname)
+        self.check_c_class(entry)
+        entry.type.is_final_type = True
+        scope = entry.type.scope
+        scope.is_internal = True
+        scope.is_defaults_class_scope = True
+
+        # zero pad the argument number so they can be sorted
+        num_zeros = math.floor(math.log10(len(components)))
+        format_str = "arg{0:0%dd}" % num_zeros
+        for n, type_ in enumerate(components):
+            scope.declare_var(EncodedString(format_str.format(n)), type_, None, is_cdef = True)
         return entry
 
     def declare_builtin(self, name, pos):
@@ -1918,6 +1956,7 @@ class ModuleScope(Scope):
         var_entry.is_variable = 1
         var_entry.is_cglobal = 1
         var_entry.is_readonly = 1
+        var_entry.is_cclass_var_entry = True
         var_entry.scope = entry.scope
         entry.as_variable = var_entry
 
@@ -2233,6 +2272,7 @@ class ClassScope(Scope):
             entry.utility_code_definition = Code.UtilityCode.load_cached("ClassMethod", "CythonFunction.c")
             self.use_entry_utility_code(entry)
             entry.is_cfunction = 1
+            entry.scope = self.builtin_scope()
         return entry
 
 
@@ -2242,6 +2282,7 @@ class PyClassScope(ClassScope):
     #  class_obj_cname     string   C variable holding class object
 
     is_py_class_scope = 1
+    namespace_cname_is_type = False
 
     def declare_var(self, name, type, pos,
                     cname=None, visibility='private',
@@ -2303,6 +2344,7 @@ class CClassScope(ClassScope):
 
     is_c_class_scope = 1
     is_closure_class_scope = False
+    is_defaults_class_scope = False
 
     parent_type = None
 
@@ -2327,7 +2369,8 @@ class CClassScope(ClassScope):
         # isn't relevant.
         if ((parent_type.is_builtin_type or parent_type.is_extension_type)
                 and parent_type.typeptr_cname):
-            self.namespace_cname = "(PyObject *)%s" % parent_type.typeptr_cname
+            self.namespace_cname = self.parent_type.typeptr_cname
+            self.namespace_cname_is_type = True
 
     def needs_gc(self):
         # If the type or any of its base types have Python-valued
@@ -2865,6 +2908,11 @@ class CppClassScope(Scope):
         elif name == "__dealloc__":
             name = "<del>"
         return super(CppClassScope, self).lookup_here(name)
+
+    def is_cpp(self):
+        # Whatever the global environment, always treat cppclass with C++ rules.
+        # (Cython will emit warnings elsewhere)
+        return True
 
 
 class CppScopedEnumScope(Scope):

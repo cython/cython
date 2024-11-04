@@ -13,7 +13,7 @@ def bigints(x):
     print(str(x).replace('L', ''))
 
 
-@cython.test_assert_path_exists('//IntBinopNode')
+@cython.test_assert_path_exists('//BitwiseOrNode')
 def or_obj(obj2, obj3):
     """
     >>> or_obj(2, 3)
@@ -23,7 +23,7 @@ def or_obj(obj2, obj3):
     return obj1
 
 
-@cython.test_fail_if_path_exists('//IntBinopNode')
+@cython.test_fail_if_path_exists('//BitwiseOrNode')
 def or_int(obj2):
     """
     >>> or_int(0)
@@ -236,7 +236,7 @@ def lshift_int(obj):
 
 @cython.test_assert_path_exists(
     '//IntBinopNode',
-    '//IntBinopNode//IntBinopNode',
+    '//BitwiseOrNode//IntBinopNode',
 )
 def mixed_obj(obj2, obj3):
     """
@@ -248,8 +248,8 @@ def mixed_obj(obj2, obj3):
 
 
 @cython.test_assert_path_exists(
-    '//IntBinopNode',
-    '//IntBinopNode//PythonCapiCallNode',
+    '//BitwiseOrNode',
+    '//BitwiseOrNode//PythonCapiCallNode',
 )
 @cython.test_fail_if_path_exists(
     '//IntBinopNode//IntBinopNode',

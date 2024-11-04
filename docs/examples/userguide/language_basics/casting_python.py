@@ -12,7 +12,7 @@ def main():
     adress_in_c = cython.cast(Py_intptr_t, ptr)
     address_from_void = adress_in_c        # address_from_void is a python int
 
-    ptr2 = cython.cast(cython.pointer(PyObject), python_string)
+    ptr2 = cython.cast(cython.pointer[PyObject], python_string)
     address_in_c2 = cython.cast(Py_intptr_t, ptr2)
     address_from_PyObject = address_in_c2  # address_from_PyObject is a python int
 

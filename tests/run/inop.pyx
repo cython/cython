@@ -344,16 +344,36 @@ def s(a):
     cdef int result = a in [1,2,3,4] in [[1,2,3],[2,3,4],[1,2,3,4]]
     return result
 
-#@cython.test_assert_path_exists("//ReturnStatNode//BoolNode")
-#@cython.test_fail_if_path_exists("//SwitchStatNode")
+
+@cython.test_assert_path_exists("//ReturnStatNode//BoolNode")
+@cython.test_fail_if_path_exists(
+    "//SwitchStatNode",
+    "//PrimaryCmpNode",
+)
 def constant_empty_sequence(a):
     """
     >>> constant_empty_sequence(1)
-    False
+    (False, True)
     >>> constant_empty_sequence(5)
-    False
+    (False, True)
     """
-    return a in ()
+    return (a in ()), (a not in ())  # 'a' is simple, so this has a constant (False) result
+
+
+@cython.test_assert_path_exists("//ReturnStatNode//BoolNode")
+@cython.test_fail_if_path_exists(
+    "//SwitchStatNode",
+    "//PrimaryCmpNode",
+)
+def constant_empty_sequence_cint(int a):
+    """
+    >>> constant_empty_sequence_cint(1)
+    (False, True)
+    >>> constant_empty_sequence_cint(5)
+    (False, True)
+    """
+    return (a in ()), (a not in ())  # 'a' is simple, so this has a constant result
+
 
 @cython.test_fail_if_path_exists("//ReturnStatNode//BoolNode")
 @cython.test_assert_path_exists("//PrimaryCmpNode")

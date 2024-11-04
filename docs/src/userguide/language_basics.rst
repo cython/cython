@@ -169,6 +169,8 @@ C array can be declared by adding ``[ARRAY_SIZE]`` to the type of variable:
             def func():
                 g: cython.float[42]
                 f: cython.int[5][5][5]
+                ptr_char_array: cython.pointer[cython.char[4]]  # pointer to the array of 4 chars
+                array_ptr_char: cython.p_char[4]                # array of 4 char pointers
 
     .. group-tab:: Cython
 
@@ -177,6 +179,8 @@ C array can be declared by adding ``[ARRAY_SIZE]`` to the type of variable:
             def func():
                 cdef float[42] g
                 cdef int[5][5][5] f
+                cdef char[4] *ptr_char_array     # pointer to the array of 4 chars
+                cdef (char *)[4] array_ptr_char  # array of 4 char pointers
 
 .. note::
 
@@ -350,14 +354,14 @@ e.g. ``unsigned int`` (``cython.uint`` in Python code):
    Additional types are declared in the `stdint pxd file <https://github.com/cython/cython/blob/master/Cython/Includes/libc/stdint.pxd>`_.
 
 The special ``bint`` type is used for C boolean values (``int`` with 0/non-0
-values for False/True) and ``Py_ssize_t`` for (signed) sizes of Python
+values for False/True) and :c:type:`Py_ssize_t` for (signed) sizes of Python
 containers.
 
 Pointer types are constructed as in C when using Cython syntax, by appending a ``*`` to the base type
 they point to, e.g. ``int**`` for a pointer to a pointer to a C int. In Pure python mode, simple pointer types
 use a naming scheme with "p"s instead, separated from the type name with an underscore, e.g. ``cython.pp_int`` for a pointer to
-a pointer to a C int.  Further pointer types can be constructed with the ``cython.pointer()`` function,
-e.g. ``cython.pointer(cython.int)``.
+a pointer to a C int.  Further pointer types can be constructed with the ``cython.pointer[]`` type construct,
+e.g. ``cython.p_int`` is equivalent to ``cython.pointer[cython.int]``.
 
 Arrays use the normal C array syntax, e.g. ``int[10]``, and the size must be known
 at compile time for stack allocated arrays. Cython doesn't support variable length arrays from C99.
@@ -387,7 +391,7 @@ This requires an *exact* match of the class, it does not allow subclasses.
 This allows Cython to optimize code by accessing internals of the builtin class,
 which is the main reason for declaring builtin types in the first place.
 
-For declared builtin types, Cython uses internally a C variable of type ``PyObject*``.
+For declared builtin types, Cython uses internally a C variable of type :c:expr:`PyObject*`.
 
 .. note:: The Python types ``int``, ``long``, and ``float`` are not available for static
     typing in ``.pyx`` files and instead interpreted as C ``int``, ``long``, and ``float``
@@ -429,25 +433,53 @@ type declaration and let them be objects.
 Type qualifiers
 ---------------
 
-Cython supports ``const`` and ``volatile`` `C type qualifiers <https://en.wikipedia.org/wiki/Type_qualifier>`_::
+Cython supports ``const`` and ``volatile`` `C type qualifiers <https://en.wikipedia.org/wiki/Type_qualifier>`_
 
-    cdef volatile int i = 5
+.. tabs::
 
-    cdef const int sum(const int a, const int b):
-        return a + b
+    .. group-tab:: Pure Python
 
-    cdef void print_const_pointer(const int *value):
-        print(value[0])
+        .. literalinclude:: ../../examples/userguide/language_basics/type_qualifiers.py
 
-    cdef void print_pointer_to_const_value(int * const value):
-        print(value[0])
 
-    cdef void print_const_pointer_to_const_value(const int * const value):
-        print(value[0])
+
+    .. group-tab:: Cython
+
+        .. literalinclude:: ../../examples/userguide/language_basics/type_qualifiers.pyx
+
+
+Similar to pointers Cython supports shortcut types that can be used in pure python mode. The following table shows several examples:
+
+.. list-table:: Type qualifiers shortcut types
+   :widths: 100 10 10
+   :header-rows: 1
+
+   * - Cython
+     - Full Annotation type
+     - Shortcut type
+   * - ``const float``
+     - ``cython.const[cython.float]``
+     - ``cython.const_float``
+
+   * - ``const void *``
+     - ``cython.pointer[cython.const[cython.void]]``
+     - ``cython.p_const_void``
+
+   * - ``const int *``
+     - ``cython.pointer[cython.const[cython.int]]``
+     - ``cython.p_const_int``
+
+   * - ``const long **``
+     - ``cython.pointer[cython.pointer[cython.const[cython.long]]]``
+     - ``cython.pp_const_long``
+
+
+For full list of shortcut types see the ``Shadow.pyi`` file.
+
 
 .. Note::
 
-    Both type qualifiers are not supported by pure python mode.  Moreover, the ``const`` modifier is unusable
+    The ``const`` modifier is unusable
     in a lot of contexts since Cython needs to generate definitions and their assignments separately. Therefore
     we suggest using it mainly for function argument and pointer types where ``const`` is necessary to
     work with an existing C/C++ interface.
@@ -602,10 +634,10 @@ C functions, on the other hand, can have parameters of any type, since they're
 passed in directly using a normal C function call.
 
 C Functions declared using :keyword:`cdef` or the ``@cfunc`` decorator with a
-Python object return type, like Python functions, will return a :keyword:`None`
+Python object return type, like Python functions, will return a ``None``
 value when execution leaves the function body without an explicit return value. This is in
 contrast to C/C++, which leaves the return value undefined.
-In the case of non-Python object return types, the equivalent of zero is returned, for example, 0 for ``int``, :keyword:`False` for ``bint`` and :keyword:`NULL` for pointer types.
+In the case of non-Python object return types, the equivalent of zero is returned, for example, 0 for ``int``, ``False`` for ``bint`` and ``NULL`` for pointer types.
 
 A more complete comparison of the pros and cons of these different method
 types can be found at :ref:`early-binding-for-speed`.
@@ -690,8 +722,8 @@ In the interests of clarity, it is probably a good idea to always be explicit
 about object parameters in C functions.
 
 
-To create a borrowed reference, specify the parameter type as ``PyObject*``.
-Cython won't perform automatic ``Py_INCREF``, or ``Py_DECREF``, e.g.:
+To create a borrowed reference, specify the parameter type as :c:expr:`PyObject*`.
+Cython won't perform automatic :c:func:`Py_INCREF`, or :c:func:`Py_DECREF`, e.g.:
 
 .. tabs::
 
@@ -706,8 +738,11 @@ Cython won't perform automatic ``Py_INCREF``, or ``Py_DECREF``, e.g.:
 will display::
 
     Initial refcount: 2
-    Inside owned_reference: 3
-    Inside borrowed_reference: 2
+    Inside owned_reference initially: 2
+    Inside owned_reference after new ref: 3
+    Inside borrowed_reference initially: 2
+    Inside borrowed_reference after new pointer: 2
+    Inside borrowed_reference with temporary managed reference: 2
 
 
 .. _optional_arguments:
@@ -1208,7 +1243,7 @@ Cython uses ``"<"`` and ``">"``.  In pure python mode, the ``cython.cast()`` fun
          .. note:: Cython will not prevent a redundant cast, but emits a warning for it.
 
         To get the address of some Python object, use a cast to a pointer type
-        like ``cast(p_void, ...)`` or ``cast(pointer(PyObject), ...)``.
+        like ``cast(p_void, ...)`` or ``cast(pointer[PyObject], ...)``.
         You can also cast a C pointer back to a Python object reference
         with ``cast(object, ...)``, or to a more specific builtin or extension type
         (e.g. ``cast(MyExtType, ptr)``). This will increase the reference count of
@@ -1249,18 +1284,20 @@ Cython uses ``"<"`` and ``">"``.  In pure python mode, the ``cython.cast()`` fun
             :caption: casting_python.py
 
         Casting with ``cast(object, ...)`` creates an owned reference. Cython will automatically
-        perform a ``Py_INCREF`` and ``Py_DECREF`` operation. Casting to
-        ``cast(pointer(PyObject), ...)`` creates a borrowed reference, leaving the refcount unchanged.
+        perform a :c:func:`Py_INCREF` and :c:func:`Py_DECREF` operation. Casting to
+        ``cast(pointer[PyObject], ...)`` creates a borrowed reference, leaving the refcount unchanged.
 
     .. group-tab:: Cython
 
+        .. literalinclude:: ../../examples/userguide/language_basics/casting_python.pxd
+            :caption: casting_python.pxd
         .. literalinclude:: ../../examples/userguide/language_basics/casting_python.pyx
             :caption: casting_python.pyx
 
         The precedence of ``<...>`` is such that ``<type>a.b.c`` is interpreted as ``<type>(a.b.c)``.
 
         Casting to ``<object>`` creates an owned reference. Cython will automatically
-        perform a ``Py_INCREF`` and ``Py_DECREF`` operation. Casting to
+        perform a :c:func:`Py_INCREF` and :c:func:`Py_DECREF` operation. Casting to
         ``<PyObject *>`` creates a borrowed reference, leaving the refcount unchanged.
 
 

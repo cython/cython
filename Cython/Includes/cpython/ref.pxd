@@ -48,3 +48,20 @@ cdef extern from "Python.h":
     # It is a good idea to use this macro whenever decrementing the
     # value of a variable that might be traversed during garbage
     # collection.
+
+    Py_ssize_t Py_REFCNT(object o)
+    # Get the reference count of the Python object o.
+
+    # Note that the returned value may not actually reflect how many
+    # references to the object are actually held. For example, some
+    # objects are “immortal” and have a very high refcount that does not
+    # reflect the actual number of references. Consequently, do not rely
+    # on the returned value to be accurate, other than a value of 0 or
+    # 1.
+
+    Py_ssize_t _Py_REFCNT "Py_REFCNT" (PyObject *ptr)
+    # Get the reference count for the PyObject pointer ptr.
+
+    # This is useful when it would be awkward to create an owned reference just
+    # to get the reference count. See the note for Py_REFCNT above about the
+    # accuracy of reference counts.

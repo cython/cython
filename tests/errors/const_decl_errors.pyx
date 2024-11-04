@@ -41,9 +41,10 @@ cdef const_ok(const int *b, const int *c):
     y, z = b, c
     z = y = b
 
+
 _ERRORS = """
 3:5: Const/volatile base type cannot be a Python object
-8:5: Assignment to const 'x'
+8:0: Assignment to const 'x'
 15:4: Assignment to const 'a'
 16:4: Assignment to const 'c'
 17:5: Assignment to const dereference
@@ -56,7 +57,7 @@ _ERRORS = """
 """
 
 _WARNINGS = """
-31:9: Assigning to 'int *' from 'const int *' discards const qualifier
+31:4: Assigning to 'int *' from 'const int *' discards const qualifier
 34:11: Assigning to 'int *' from 'const int *' discards const qualifier
 34:14: Assigning to 'int *' from 'const int *' discards const qualifier
 35:12: Assigning to 'int *' from 'const int *' discards const qualifier
