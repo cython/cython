@@ -70,7 +70,7 @@ class Context(object):
     language_level = None  # warn when not set but default to Py2
 
     def __init__(self, include_directories, compiler_directives, cpp=False,
-                 language_level=None, options=None):
+                 language_level=None, prefix_map=None, options=None):
         # cython_scope is a hack, set to False by subclasses, in order to break
         # an infinite loop.
         # Better code organization would fix it.
@@ -83,6 +83,7 @@ class Context(object):
         self.future_directives = set()
         self.compiler_directives = compiler_directives
         self.cpp = cpp
+        self.prefix_map = prefix_map or {}
         self.options = options
 
         self.pxds = {}  # full name -> node tree
@@ -98,7 +99,7 @@ class Context(object):
     @classmethod
     def from_options(cls, options):
         return cls(options.include_path, options.compiler_directives,
-                   options.cplus, options.language_level, options=options)
+                   options.cplus, options.language_level, prefix_map=options.prefix_map, options=options)
 
     def set_language_level(self, level):
         from .Future import print_function, unicode_literals, absolute_import, division, generator_stop
@@ -259,7 +260,7 @@ class Context(object):
                     rel_path = module_name.replace('.', os.sep) + os.path.splitext(pxd_pathname)[1]
                     if not pxd_pathname.endswith(rel_path):
                         rel_path = pxd_pathname  # safety measure to prevent printing incorrect paths
-                    source_desc = FileSourceDescriptor(pxd_pathname, rel_path)
+                    source_desc = FileSourceDescriptor(pxd_pathname, rel_path, prefix_map=self.prefix_map)
                     err, result = self.process_pxd(source_desc, scope, qualified_name)
                     if err:
                         raise err
@@ -509,7 +510,7 @@ def run_pipeline(source, options, full_module_name=None, context=None):
             rel_path = source  # safety measure to prevent printing incorrect paths
     else:
         rel_path = abs_path
-    source_desc = FileSourceDescriptor(abs_path, rel_path)
+    source_desc = FileSourceDescriptor(abs_path, rel_path, prefix_map=context.prefix_map)
     source = CompilationSource(source_desc, full_module_name, cwd)
 
     # Set up result object

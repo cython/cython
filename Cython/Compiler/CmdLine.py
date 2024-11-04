@@ -74,6 +74,12 @@ class SetAnnotateCoverageAction(Action):
         namespace.annotate = True
         namespace.annotate_coverage_xml = values
 
+class SetPrefixMapAction(Action):
+    def __call__(self, parser, namespace, values, option_string=None):
+        mappings = getattr(namespace, self.dest, {})
+        k, v = values.split("=", 1)
+        mappings[k] = v
+        setattr(namespace, self.dest, mappings)
 
 def create_cython_argparser():
     description = "Cython (https://cython.org/) is a compiler for code written in the "\
@@ -157,6 +163,7 @@ def create_cython_argparser():
                            'deduced from the import path if source file is in '
                            'a package, or equals the filename otherwise.')
     parser.add_argument('-M', '--depfile', action='store_true', help='produce depfiles for the sources')
+    parser.add_argument("--prefix-map", action=SetPrefixMapAction, help='Map build paths in generated files', metavar="OLDPATH=NEWPATH")
     parser.add_argument('sources', nargs='*', default=[])
 
     # TODO: add help

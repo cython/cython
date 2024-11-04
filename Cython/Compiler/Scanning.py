@@ -195,7 +195,7 @@ class FileSourceDescriptor(SourceDescriptor):
     optional name argument and will be passed back when asking for
     the position()-tuple.
     """
-    def __init__(self, filename, path_description=None):
+    def __init__(self, filename, path_description=None, prefix_map={}):
         filename = Utils.decode_filename(filename)
         self.path_description = path_description or filename
         self.filename = filename
@@ -205,6 +205,7 @@ class FileSourceDescriptor(SourceDescriptor):
         self.set_file_type_from_name(filename)
         self._cmp_name = filename
         self._lines = {}
+        self.prefix_map = prefix_map
 
     def get_lines(self, encoding=None, error_handling=None):
         # we cache the lines only the second time this is called, in
@@ -243,7 +244,11 @@ class FileSourceDescriptor(SourceDescriptor):
         return path
 
     def get_filenametable_entry(self):
-        return self.file_path
+        entry = self.file_path
+        for old in self.prefix_map:
+            if entry.startswith(old):
+                entry = entry.replace(old, self.prefix_map[old], 1)
+        return entry
 
     def __eq__(self, other):
         return isinstance(other, FileSourceDescriptor) and self.filename == other.filename
