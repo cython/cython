@@ -2381,7 +2381,7 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
             args = node.arg_tuple.args
 
         if attr_name == "bit_count":
-            arg = unwrap_coerced_node(function.obj.arg)
+            arg = unwrap_coerced_node(function.obj)
             print(arg.type, arg.type is PyrexTypes.c_uint_type, arg.type is PyrexTypes.c_int_type, arg.type is PyrexTypes.c_sint_type)
             if arg.type is PyrexTypes.c_uchar_type:
                 return ExprNodes.PythonCapiCallNode(

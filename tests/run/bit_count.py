@@ -4,54 +4,54 @@ import cython
 
 
 @cython.cfunc
-@cython.returns(cython.unsigned_char)
-def bit_count_unsigned_char(value: cython.unsigned_char):
+@cython.returns(cython.uchar)
+def bit_count_uchar(value: cython.uchar):
     return value.bit_count()
 
 
 @cython.cfunc
 @cython.returns(cython.short)
-def bit_count_unsigned_short(value: cython.unsigned_short):
+def bit_count_ushort(value: cython.ushort):
     return value.bit_count()
 
 @cython.cfunc
 @cython.returns(cython.int)
-def bit_count_unsigned_int(value: cython.unsigned_int):
+def bit_count_uint(value: cython.uint):
     return value.bit_count()
 
 @cython.cfunc
 @cython.returns(cython.int)
-def bit_count_unsigned_long(value: cython.unsigned_long):
+def bit_count_ulong(value: cython.ulong):
     return value.bit_count()
 
 @cython.cfunc
 @cython.returns(cython.int)
-def bit_count_unsigned_longlong(value: cython.unsigned_longlong):
+def bit_count_ulonglong(value: cython.ulonglong):
     return value.bit_count()
 
 @cython.cfunc
-@cython.returns(cython.unsigned_char)
-def bit_count_signed_char(value: cython.signed_char):
+@cython.returns(cython.uchar)
+def bit_count_schar(value: cython.schar):
     return value.bit_count()
 
 @cython.cfunc
 @cython.returns(cython.short)
-def bit_count_signed_short(value: cython.signed_short):
+def bit_count_sshort(value: cython.sshort):
     return value.bit_count()
 
 @cython.cfunc
 @cython.returns(cython.int)
-def bit_count_signed_int(value: cython.signed_int):
+def bit_count_sint(value: cython.sint):
     return value.bit_count()
 
 @cython.cfunc
 @cython.returns(cython.int)
-def bit_count_signed_long(value: cython.signed_long):
+def bit_count_slong(value: cython.slong):
     return value.bit_count()
 
 @cython.cfunc
 @cython.returns(cython.int)
-def bit_count_signed_longlong(value: cython.signed_longlong):
+def bit_count_slonglong(value: cython.slonglong):
     return value.bit_count()
 
 @cython.cfunc
@@ -64,85 +64,85 @@ def bit_count_py_int_py(value):
     return value.bit_count()
 
 
-def test_bit_count_unsigned_char(value):
+def test_bit_count_uchar(value):
     """
-    >>> test_bit_count_unsigned_char(129)
+    >>> test_bit_count_uchar(129)
     2
     """
-    return bit_count_unsigned_char(value)
+    return bit_count_uchar(value)
 
-def test_bit_count_unsigned_short(value):
+def test_bit_count_ushort(value):
     """
-    >>> test_bit_count_unsigned_short(32769)
+    >>> test_bit_count_ushort(32769)
     2
     """
-    return bit_count_unsigned_short(value)
+    return bit_count_ushort(value)
 
-def test_bit_count_unsigned_int(value):
+def test_bit_count_uint(value):
     """
-    >>> test_bit_count_unsigned_int(32769)
+    >>> test_bit_count_uint(32769)
     2
     """
-    return bit_count_unsigned_int(value)
+    return bit_count_uint(value)
 
-def test_bit_count_unsigned_long(value):
+def test_bit_count_ulong(value):
     """
-    >>> test_bit_count_unsigned_long(2147483649)
+    >>> test_bit_count_ulong(2147483649)
     2
     """
-    return bit_count_unsigned_long(value)
+    return bit_count_ulong(value)
 
-def test_bit_count_unsigned_longlong(value):
+def test_bit_count_ulonglong(value):
     """
-    >>> test_bit_count_unsigned_longlong(9223372036854775809)
+    >>> test_bit_count_ulonglong(9223372036854775809)
     2
     """
-    return bit_count_unsigned_longlong(value)
+    return bit_count_ulonglong(value)
 
-def test_bit_count_signed_char(value):
+def test_bit_count_schar(value):
     """
-    >>> test_bit_count_signed_char(-127)
+    >>> test_bit_count_schar(-127)
     7
-    >>> test_bit_count_signed_char(-128)
+    >>> test_bit_count_schar(-128)
     1
     """
-    return bit_count_signed_char(value)
+    return bit_count_schar(value)
 
-def test_bit_count_signed_short(value):
+def test_bit_count_sshort(value):
     """
-    >>> test_bit_count_signed_short(-32767)
+    >>> test_bit_count_sshort(-32767)
     15
-    >>> test_bit_count_signed_short(-32768)
+    >>> test_bit_count_sshort(-32768)
     1
     """
-    return bit_count_signed_short(value)
+    return bit_count_sshort(value)
 
-def test_bit_count_signed_int(value):
+def test_bit_count_sint(value):
     """
-    >>> test_bit_count_signed_int(-32767)
+    >>> test_bit_count_sint(-32767)
     15
-    >>> test_bit_count_signed_int(-32768)
+    >>> test_bit_count_sint(-32768)
     1
     """
-    return bit_count_signed_int(value)
+    return bit_count_sint(value)
 
-def test_bit_count_signed_long(value):
+def test_bit_count_slong(value):
     """
-    >>> test_bit_count_signed_long(-2147483647)
+    >>> test_bit_count_slong(-2147483647)
     31
-    >>> test_bit_count_signed_long(-2147483648)
+    >>> test_bit_count_slong(-2147483648)
     1
     """
-    return bit_count_signed_long(value)
+    return bit_count_slong(value)
 
-def test_bit_count_signed_longlong(value):
+def test_bit_count_slonglong(value):
     """
-    >>> test_bit_count_signed_longlong(-9223372036854775807)
+    >>> test_bit_count_slonglong(-9223372036854775807)
     63
-    >>> test_bit_count_signed_longlong(-9223372036854775808)
+    >>> test_bit_count_slonglong(-9223372036854775808)
     1
     """
-    return bit_count_signed_longlong(value)
+    return bit_count_slonglong(value)
 
 def test_bit_count_py_int(value):
     """
