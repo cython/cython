@@ -822,14 +822,7 @@ static CYTHON_INLINE char __Pyx_char_bit_count(char x);
 //@requires: unsigned_char_bit_count
 
 static CYTHON_INLINE char __Pyx_char_bit_count(char x) {
-    unsigned char value;
-
-    if (x < 0) {
-        value = -x;
-    } else {
-        value = x;
-    }
-
+    unsigned char value = (x < 0) ? -x : x;
     return __Pyx_unsigned_char_bit_count(value);
 }
 
@@ -841,14 +834,7 @@ static CYTHON_INLINE char __Pyx_signed_char_bit_count(signed char x);
 //@requires: unsigned_char_bit_count
 
 static CYTHON_INLINE char __Pyx_signed_char_bit_count(signed char x) {
-    unsigned char value;
-
-    if (x < 0) {
-        value = -x;
-    } else {
-        value = x;
-    }
-
+    unsigned char value = (x < 0) ? -x : x;
     return (char)__Pyx_unsigned_char_bit_count(value);
 }
 
@@ -860,14 +846,7 @@ static CYTHON_INLINE short __Pyx_signed_short_bit_count(signed short x);
 //@requires: unsigned_short_bit_count
 
 static CYTHON_INLINE short __Pyx_signed_short_bit_count(signed short x) {
-    unsigned short value;
-
-    if (x < 0) {
-        value = -x;
-    } else {
-        value = x;
-    }
-
+    unsigned short value = (x < 0) ? -x : x;
     return __Pyx_unsigned_short_bit_count(value);
 }
 
@@ -879,14 +858,7 @@ int __Pyx_signed_int_bit_count(signed int x);
 //@requires: unsigned_int_bit_count
 
 int __Pyx_signed_int_bit_count(signed int x) {
-    unsigned int value;
-
-    if (x < 0) {
-        value = -x;
-    } else {
-        value = x;
-    }
-
+    unsigned int value = (x < 0) ? -x : x;
     return __Pyx_unsigned_int_bit_count(value);
 }
 
@@ -898,14 +870,7 @@ static CYTHON_INLINE int __Pyx_signed_long_bit_count(signed long x);
 //@requires: unsigned_long_bit_count
 
 static CYTHON_INLINE int __Pyx_signed_long_bit_count(signed long x) {
-    unsigned long value;
-
-    if (x < 0) {
-        value = -x;
-    } else {
-        value = x;
-    }
-
+    unsigned long value = (x < 0) ? -x : x;
     return __Pyx_unsigned_long_bit_count(value);
 }
 
@@ -917,13 +882,6 @@ static CYTHON_INLINE int __Pyx_signed_longlong_bit_count(signed long long x);
 //@requires: unsigned_longlong_bit_count
 
 static CYTHON_INLINE int __Pyx_signed_longlong_bit_count(signed long long x) {
-    unsigned long long value;
-
-    if (x < 0) {
-        value = -x;
-    } else {
-        value = x;
-    }
-
+    unsigned long long value = (x < 0) ? -x : x;
     return __Pyx_unsigned_longlong_bit_count(value);
 }
