@@ -666,8 +666,7 @@ static CYTHON_INLINE int __Pyx_PyInt_bit_count(PyObject *x); /*proto*/
 //////////////////// PyInt_bit_count ////////////////////
 
 static CYTHON_INLINE int __Pyx_PyInt_bit_count(PyObject *x) {
-#ifdef __has_builtin
-#if __has_builtin(__builtin_popcountll)
+#if defined(__has_builtin) && __has_builtin(__builtin_popcountll)
     long long result;
     int overflow;
 
@@ -686,13 +685,6 @@ static CYTHON_INLINE int __Pyx_PyInt_bit_count(PyObject *x) {
         return __builtin_popcountll(value);
     };
 #else
-#define _FALLBACK
-#endif
-#else
-#define _FALLBACK
-#endif
-#ifdef _FALLBACK
-#undef _FALLBACK
     return (int)PyLong_AsLong(CALL_UNBOUND_METHOD(PyLong_Type, "bit_count", x));
 #endif
 }
