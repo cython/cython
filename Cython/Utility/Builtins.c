@@ -816,26 +816,26 @@ static CYTHON_INLINE int __Pyx_unsigned_longlong_bit_count(unsigned long long x)
 
 //////////////////// char_bit_count.proto ////////////////////
 
-static CYTHON_INLINE char __Pyx_char_bit_count(char x);
+static CYTHON_INLINE unsigned char __Pyx_char_bit_count(char x);
 
 //////////////////// char_bit_count ////////////////////
 //@requires: unsigned_char_bit_count
 
-static CYTHON_INLINE char __Pyx_char_bit_count(char x) {
+static CYTHON_INLINE unsigned char __Pyx_char_bit_count(char x) {
     unsigned char value = (x < 0) ? -x : x;
     return __Pyx_unsigned_char_bit_count(value);
 }
 
 //////////////////// signed_char_bit_count.proto ////////////////////
 
-static CYTHON_INLINE char __Pyx_signed_char_bit_count(signed char x);
+static CYTHON_INLINE unsigned char __Pyx_signed_char_bit_count(signed char x);
 
 //////////////////// signed_char_bit_count ////////////////////
 //@requires: unsigned_char_bit_count
 
-static CYTHON_INLINE char __Pyx_signed_char_bit_count(signed char x) {
+static CYTHON_INLINE unsigned char __Pyx_signed_char_bit_count(signed char x) {
     unsigned char value = (x < 0) ? -x : x;
-    return (char)__Pyx_unsigned_char_bit_count(value);
+    return __Pyx_unsigned_char_bit_count(value);
 }
 
 //////////////////// signed_short_bit_count.proto ////////////////////

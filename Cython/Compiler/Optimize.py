@@ -2437,7 +2437,7 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
                 return ExprNodes.PythonCapiCallNode(
                     node.pos, "__Pyx_char_bit_count",
                     func_type = PyrexTypes.CFuncType(
-                        PyrexTypes.c_char_type, [
+                        PyrexTypes.c_uchar_type, [
                             PyrexTypes.CFuncTypeArg("x", PyrexTypes.c_char_type, None)
                         ]),
                     args = [arg],
@@ -2487,7 +2487,7 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
                 return ExprNodes.PythonCapiCallNode(
                     node.pos, "__Pyx_signed_char_bit_count",
                     func_type = PyrexTypes.CFuncType(
-                        PyrexTypes.c_char_type, [
+                        PyrexTypes.c_uchar_type, [
                             PyrexTypes.CFuncTypeArg("x", PyrexTypes.c_schar_type, None)
                         ]),
                     args = [arg],
