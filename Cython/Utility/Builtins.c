@@ -739,7 +739,7 @@ static CYTHON_INLINE {{type_.sign_and_name()}} __Pyx_{{type_.specialization_name
 //////////////////// bit_count.proto ////////////////////
 //@requires: bit_count_base
 
-static CYTHON_INLINE {{ type_.sign_and_name()}} __Pyx_{{type_.specialization_name()}}_bit_count({{type_.sign_and_name()}} {{'x' if type_.signed else 'value'}}) {
+static CYTHON_INLINE {{type_.sign_and_name()}} __Pyx_{{type_.specialization_name()}}_bit_count({{type_.sign_and_name()}} {{'x' if type_.signed else 'value'}}) {
 {{if type_.signed}}
     if (x == CHAR_MIN) return 1;
     unsigned {{type_.rank_name()}} value = (x < 0) ? -x : x;
