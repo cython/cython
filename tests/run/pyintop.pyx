@@ -86,6 +86,20 @@ def and_int(obj2):
     return obj1
 
 
+@cython.test_fail_if_path_exists('//IntBinopNode')
+def and_int2(obj2):
+    # On Python 3.10 and earlier, from_bytes produces a non-canonical
+    # 0 that caused trouble when &ing with a constant.
+    """
+    >>> and_int2(1337)
+    57
+    >>> and_int2(int.from_bytes(b'\\x00', 'big'))
+    0
+    """
+    obj1 = obj2 & 0xff
+    return obj1
+
+
 @cython.test_assert_path_exists('//IntBinopNode')
 def lshift_obj(obj2, obj3):
     """
