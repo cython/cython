@@ -3580,20 +3580,6 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
     def _handle_simple_method_object___div__(self, node, function, args, is_unbound_method):
         return self._optimise_num_div('Divide', node, function, args, is_unbound_method)
 
-    def _handle_simple_method_int_bit_count(self, node, function, args, is_unbound_method):
-        if len(args) > 1:
-            return node
-
-        return ExprNodes.PythonCapiCallNode(
-            node.pos, "__Pyx_PyInt_bit_count",
-            func_type = PyrexTypes.CFuncType(
-                PyrexTypes.c_int_type, [
-                    PyrexTypes.CFuncTypeArg("x", Builtin.int_type, None)
-                ]),
-            args = [args[0]],
-            is_temp = node.is_temp,
-            utility_code = UtilityCode.load_cached("PyInt_bit_count", "Builtins.c")).coerce_to(Builtin.int_type, self.current_env())
-
     _handle_simple_method_int___add__ = _handle_simple_method_object___add__
     _handle_simple_method_int___sub__ = _handle_simple_method_object___sub__
     _handle_simple_method_int___mul__ = _handle_simple_method_object___mul__
@@ -4278,6 +4264,20 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
             node, function, args, is_unbound_method, 'bytearray', 'startswith',
             bytes_tailmatch_utility_code, -1)
     '''
+
+    def _handle_simple_method_int_bit_count(self, node, function, args, is_unbound_method):
+        if len(args) > 1:
+            return node
+
+        return ExprNodes.PythonCapiCallNode(
+            node.pos, "__Pyx_PyInt_bit_count",
+            func_type = PyrexTypes.CFuncType(
+                PyrexTypes.c_int_type, [
+                    PyrexTypes.CFuncTypeArg("x", Builtin.int_type, None)
+                ]),
+            args = [args[0]],
+            is_temp = node.is_temp,
+            utility_code = UtilityCode.load_cached("PyInt_bit_count", "Builtins.c")).coerce_to(Builtin.int_type, self.current_env())
 
     ### helpers
 
