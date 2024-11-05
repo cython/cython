@@ -2385,7 +2385,7 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
                 arg = unwrap_coerced_node(function.obj)
                 if arg.type.is_int:
                     return ExprNodes.PythonCapiCallNode(
-                        node.pos, f"__Pyx_{arg.type.sign_and_name()}_bit_count",
+                        node.pos, f"__Pyx_{arg.type.specialization_name()}_bit_count",
                         func_type = PyrexTypes.CFuncType(
                             PyrexTypes.c_int_type, [
                                 PyrexTypes.CFuncTypeArg("x", arg.type, None)
