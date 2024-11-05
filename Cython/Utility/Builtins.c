@@ -674,14 +674,7 @@ static CYTHON_INLINE int __Pyx_PyInt_bit_count(PyObject *x) {
     if (overflow) {
         return (int)PyLong_AsLong(CALL_UNBOUND_METHOD(PyLong_Type, "bit_count", x));
     } else {
-        unsigned long long value;
-
-        if (result < 0) {
-            value = -result;
-        } else {
-            value = result;
-        }
-
+        unsigned long long value = (result < 0) ? -result : result;
         return __builtin_popcountll(value);
     };
 #else
