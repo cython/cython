@@ -4511,7 +4511,7 @@ class IndexNode(_IndexingBaseNode):
             return ""
 
     def generate_result_code(self, code):
-        if not self.is_temp or (self.base.type.is_ctuple and isinstance(self.index, IntNode) and self.index.has_constant_result()):
+        if not self.is_temp and (not self.base.type.is_ctuple or (isinstance(self.index, IntNode) and self.index.has_constant_result())):
             # all handled in self.calculate_result_code()
             return
 
