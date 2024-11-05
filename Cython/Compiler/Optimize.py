@@ -2376,163 +2376,163 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
         if not function or not function.is_attribute:
             return node
 
-        args = node.args
-        if args is None and node.arg_tuple:
-            args = node.arg_tuple.args
-
-        if attr_name == "bit_count":
-            arg = unwrap_coerced_node(function.obj)
-            print(arg.type, arg.type is PyrexTypes.c_uint_type, arg.type is PyrexTypes.c_int_type, arg.type is PyrexTypes.c_sint_type)
-            if arg.type is PyrexTypes.c_uchar_type:
-                return ExprNodes.PythonCapiCallNode(
-                    node.pos, "__Pyx_unsigned_char_bit_count",
-                    func_type = PyrexTypes.CFuncType(
-                        PyrexTypes.c_uchar_type, [
-                            PyrexTypes.CFuncTypeArg("x", PyrexTypes.c_uchar_type, None)
-                        ]),
-                    args = [arg],
-                    is_temp = node.is_temp,
-                    utility_code = UtilityCode.load_cached("unsigned_char_bit_count", "Builtins.c"))
-            elif arg.type is PyrexTypes.c_ushort_type:
-                return ExprNodes.PythonCapiCallNode(
-                    node.pos, "__Pyx_unsigned_short_bit_count",
-                    func_type = PyrexTypes.CFuncType(
-                        PyrexTypes.c_short_type, [
-                            PyrexTypes.CFuncTypeArg("x", PyrexTypes.c_ushort_type, None)
-                        ]),
-                    args = [arg],
-                    is_temp = node.is_temp,
-                    utility_code = UtilityCode.load_cached("unsigned_short_bit_count", "Builtins.c"))
-            elif arg.type is PyrexTypes.c_uint_type:
-                return ExprNodes.PythonCapiCallNode(
-                    node.pos, "__Pyx_unsigned_int_bit_count",
-                    func_type = PyrexTypes.CFuncType(
-                        PyrexTypes.c_int_type, [
-                            PyrexTypes.CFuncTypeArg("x", PyrexTypes.c_uint_type, None)
-                        ]),
-                    args = [arg],
-                    is_temp = node.is_temp,
-                    utility_code = UtilityCode.load_cached("unsigned_int_bit_count", "Builtins.c"))
-            elif arg.type is PyrexTypes.c_ulong_type:
-                return ExprNodes.PythonCapiCallNode(
-                    node.pos, "__Pyx_unsigned_long_bit_count",
-                    func_type = PyrexTypes.CFuncType(
-                        PyrexTypes.c_int_type, [
-                            PyrexTypes.CFuncTypeArg("x", PyrexTypes.c_ulong_type, None)
-                        ]),
-                    args = [arg],
-                    is_temp = node.is_temp,
-                    utility_code = UtilityCode.load_cached("unsigned_long_bit_count", "Builtins.c"))
-            elif arg.type is PyrexTypes.c_ulonglong_type:
-                return ExprNodes.PythonCapiCallNode(
-                    node.pos, "__Pyx_unsigned_longlong_bit_count",
-                    func_type = PyrexTypes.CFuncType(
-                        PyrexTypes.c_int_type, [
-                            PyrexTypes.CFuncTypeArg("x", PyrexTypes.c_ulonglong_type, None)
-                        ]),
-                    args = [arg],
-                    is_temp = node.is_temp,
-                    utility_code = UtilityCode.load_cached("unsigned_longlong_bit_count", "Builtins.c"))
-            elif arg.type is PyrexTypes.c_char_type:
-                return ExprNodes.PythonCapiCallNode(
-                    node.pos, "__Pyx_char_bit_count",
-                    func_type = PyrexTypes.CFuncType(
-                        PyrexTypes.c_uchar_type, [
-                            PyrexTypes.CFuncTypeArg("x", PyrexTypes.c_char_type, None)
-                        ]),
-                    args = [arg],
-                    is_temp = node.is_temp,
-                    utility_code = UtilityCode.load_cached("char_bit_count", "Builtins.c"))
-            elif arg.type is PyrexTypes.c_short_type:
-                return ExprNodes.PythonCapiCallNode(
-                    node.pos, "__Pyx_signed_short_bit_count",
-                    func_type = PyrexTypes.CFuncType(
-                        PyrexTypes.c_short_type, [
-                            PyrexTypes.CFuncTypeArg("x", PyrexTypes.c_short_type, None)
-                        ]),
-                    args = [arg],
-                    is_temp = node.is_temp,
-                    utility_code = UtilityCode.load_cached("signed_short_bit_count", "Builtins.c"))
-            elif arg.type is PyrexTypes.c_int_type:
-                return ExprNodes.PythonCapiCallNode(
-                    node.pos, "__Pyx_signed_int_bit_count",
-                    func_type = PyrexTypes.CFuncType(
-                        PyrexTypes.c_int_type, [
-                            PyrexTypes.CFuncTypeArg("x", PyrexTypes.c_int_type, None)
-                        ]),
-                    args = [arg],
-                    is_temp = node.is_temp,
-                    utility_code = UtilityCode.load_cached("signed_int_bit_count", "Builtins.c"))
-            elif arg.type is PyrexTypes.c_long_type:
-                return ExprNodes.PythonCapiCallNode(
-                    node.pos, "__Pyx_signed_long_bit_count",
-                    func_type = PyrexTypes.CFuncType(
-                        PyrexTypes.c_int_type, [
-                            PyrexTypes.CFuncTypeArg("x", PyrexTypes.c_long_type, None)
-                        ]),
-                    args = [arg],
-                    is_temp = node.is_temp,
-                    utility_code = UtilityCode.load_cached("signed_long_bit_count", "Builtins.c"))
-            elif arg.type is PyrexTypes.c_longlong_type:
-                return ExprNodes.PythonCapiCallNode(
-                    node.pos, "__Pyx_signed_longlong_bit_count",
-                    func_type = PyrexTypes.CFuncType(
-                        PyrexTypes.c_int_type, [
-                            PyrexTypes.CFuncTypeArg("x", PyrexTypes.c_longlong_type, None)
-                        ]),
-                    args = [arg],
-                    is_temp = node.is_temp,
-                    utility_code = UtilityCode.load_cached("signed_longlong_bit_count", "Builtins.c"))
-            elif arg.type is PyrexTypes.c_schar_type:
-                return ExprNodes.PythonCapiCallNode(
-                    node.pos, "__Pyx_signed_char_bit_count",
-                    func_type = PyrexTypes.CFuncType(
-                        PyrexTypes.c_uchar_type, [
-                            PyrexTypes.CFuncTypeArg("x", PyrexTypes.c_schar_type, None)
-                        ]),
-                    args = [arg],
-                    is_temp = node.is_temp,
-                    utility_code = UtilityCode.load_cached("signed_char_bit_count", "Builtins.c"))
-            elif arg.type is PyrexTypes.c_sshort_type:
-                return ExprNodes.PythonCapiCallNode(
-                    node.pos, "__Pyx_signed_short_bit_count",
-                    func_type = PyrexTypes.CFuncType(
-                        PyrexTypes.c_short_type, [
-                            PyrexTypes.CFuncTypeArg("x", PyrexTypes.c_sshort_type, None)
-                        ]),
-                    args = [arg],
-                    is_temp = node.is_temp,
-                    utility_code = UtilityCode.load_cached("signed_short_bit_count", "Builtins.c"))
-            elif arg.type is PyrexTypes.c_sint_type:
-                return ExprNodes.PythonCapiCallNode(
-                    node.pos, "__Pyx_signed_int_bit_count",
-                    func_type = PyrexTypes.CFuncType(
-                        PyrexTypes.c_int_type, [
-                            PyrexTypes.CFuncTypeArg("x", PyrexTypes.c_sint_type, None)
-                        ]),
-                    args = [arg],
-                    is_temp = node.is_temp,
-                    utility_code = UtilityCode.load_cached("signed_int_bit_count", "Builtins.c"))
-            elif arg.type is PyrexTypes.c_slong_type:
-                return ExprNodes.PythonCapiCallNode(
-                    node.pos, "__Pyx_signed_long_bit_count",
-                    func_type = PyrexTypes.CFuncType(
-                        PyrexTypes.c_int_type, [
-                            PyrexTypes.CFuncTypeArg("x", PyrexTypes.c_slong_type, None)
-                        ]),
-                    args = [arg],
-                    is_temp = node.is_temp,
-                    utility_code = UtilityCode.load_cached("signed_long_bit_count", "Builtins.c"))
-            elif arg.type is PyrexTypes.c_slonglong_type:
-                return ExprNodes.PythonCapiCallNode(
-                    node.pos, "__Pyx_signed_longlong_bit_count",
-                    func_type = PyrexTypes.CFuncType(
-                        PyrexTypes.c_int_type, [
-                            PyrexTypes.CFuncTypeArg("x", PyrexTypes.c_slonglong_type, None)
-                        ]),
-                    args = [arg],
-                    is_temp = node.is_temp,
-                    utility_code = UtilityCode.load_cached("signed_longlong_bit_count", "Builtins.c"))
+        if hasattr(node, "args"):
+            args = node.args
+            if args is None and node.arg_tuple:
+                args = node.arg_tuple.args
+    
+            if attr_name == "bit_count":
+                arg = unwrap_coerced_node(function.obj)
+                if arg.type is PyrexTypes.c_uchar_type:
+                    return ExprNodes.PythonCapiCallNode(
+                        node.pos, "__Pyx_unsigned_char_bit_count",
+                        func_type = PyrexTypes.CFuncType(
+                            PyrexTypes.c_uchar_type, [
+                                PyrexTypes.CFuncTypeArg("x", PyrexTypes.c_uchar_type, None)
+                            ]),
+                        args = [arg],
+                        is_temp = node.is_temp,
+                        utility_code = UtilityCode.load_cached("unsigned_char_bit_count", "Builtins.c"))
+                elif arg.type is PyrexTypes.c_ushort_type:
+                    return ExprNodes.PythonCapiCallNode(
+                        node.pos, "__Pyx_unsigned_short_bit_count",
+                        func_type = PyrexTypes.CFuncType(
+                            PyrexTypes.c_short_type, [
+                                PyrexTypes.CFuncTypeArg("x", PyrexTypes.c_ushort_type, None)
+                            ]),
+                        args = [arg],
+                        is_temp = node.is_temp,
+                        utility_code = UtilityCode.load_cached("unsigned_short_bit_count", "Builtins.c"))
+                elif arg.type is PyrexTypes.c_uint_type:
+                    return ExprNodes.PythonCapiCallNode(
+                        node.pos, "__Pyx_unsigned_int_bit_count",
+                        func_type = PyrexTypes.CFuncType(
+                            PyrexTypes.c_int_type, [
+                                PyrexTypes.CFuncTypeArg("x", PyrexTypes.c_uint_type, None)
+                            ]),
+                        args = [arg],
+                        is_temp = node.is_temp,
+                        utility_code = UtilityCode.load_cached("unsigned_int_bit_count", "Builtins.c"))
+                elif arg.type is PyrexTypes.c_ulong_type:
+                    return ExprNodes.PythonCapiCallNode(
+                        node.pos, "__Pyx_unsigned_long_bit_count",
+                        func_type = PyrexTypes.CFuncType(
+                            PyrexTypes.c_int_type, [
+                                PyrexTypes.CFuncTypeArg("x", PyrexTypes.c_ulong_type, None)
+                            ]),
+                        args = [arg],
+                        is_temp = node.is_temp,
+                        utility_code = UtilityCode.load_cached("unsigned_long_bit_count", "Builtins.c"))
+                elif arg.type is PyrexTypes.c_ulonglong_type:
+                    return ExprNodes.PythonCapiCallNode(
+                        node.pos, "__Pyx_unsigned_longlong_bit_count",
+                        func_type = PyrexTypes.CFuncType(
+                            PyrexTypes.c_int_type, [
+                                PyrexTypes.CFuncTypeArg("x", PyrexTypes.c_ulonglong_type, None)
+                            ]),
+                        args = [arg],
+                        is_temp = node.is_temp,
+                        utility_code = UtilityCode.load_cached("unsigned_longlong_bit_count", "Builtins.c"))
+                elif arg.type is PyrexTypes.c_char_type:
+                    return ExprNodes.PythonCapiCallNode(
+                        node.pos, "__Pyx_char_bit_count",
+                        func_type = PyrexTypes.CFuncType(
+                            PyrexTypes.c_uchar_type, [
+                                PyrexTypes.CFuncTypeArg("x", PyrexTypes.c_char_type, None)
+                            ]),
+                        args = [arg],
+                        is_temp = node.is_temp,
+                        utility_code = UtilityCode.load_cached("char_bit_count", "Builtins.c"))
+                elif arg.type is PyrexTypes.c_short_type:
+                    return ExprNodes.PythonCapiCallNode(
+                        node.pos, "__Pyx_signed_short_bit_count",
+                        func_type = PyrexTypes.CFuncType(
+                            PyrexTypes.c_short_type, [
+                                PyrexTypes.CFuncTypeArg("x", PyrexTypes.c_short_type, None)
+                            ]),
+                        args = [arg],
+                        is_temp = node.is_temp,
+                        utility_code = UtilityCode.load_cached("signed_short_bit_count", "Builtins.c"))
+                elif arg.type is PyrexTypes.c_int_type:
+                    return ExprNodes.PythonCapiCallNode(
+                        node.pos, "__Pyx_signed_int_bit_count",
+                        func_type = PyrexTypes.CFuncType(
+                            PyrexTypes.c_int_type, [
+                                PyrexTypes.CFuncTypeArg("x", PyrexTypes.c_int_type, None)
+                            ]),
+                        args = [arg],
+                        is_temp = node.is_temp,
+                        utility_code = UtilityCode.load_cached("signed_int_bit_count", "Builtins.c"))
+                elif arg.type is PyrexTypes.c_long_type:
+                    return ExprNodes.PythonCapiCallNode(
+                        node.pos, "__Pyx_signed_long_bit_count",
+                        func_type = PyrexTypes.CFuncType(
+                            PyrexTypes.c_int_type, [
+                                PyrexTypes.CFuncTypeArg("x", PyrexTypes.c_long_type, None)
+                            ]),
+                        args = [arg],
+                        is_temp = node.is_temp,
+                        utility_code = UtilityCode.load_cached("signed_long_bit_count", "Builtins.c"))
+                elif arg.type is PyrexTypes.c_longlong_type:
+                    return ExprNodes.PythonCapiCallNode(
+                        node.pos, "__Pyx_signed_longlong_bit_count",
+                        func_type = PyrexTypes.CFuncType(
+                            PyrexTypes.c_int_type, [
+                                PyrexTypes.CFuncTypeArg("x", PyrexTypes.c_longlong_type, None)
+                            ]),
+                        args = [arg],
+                        is_temp = node.is_temp,
+                        utility_code = UtilityCode.load_cached("signed_longlong_bit_count", "Builtins.c"))
+                elif arg.type is PyrexTypes.c_schar_type:
+                    return ExprNodes.PythonCapiCallNode(
+                        node.pos, "__Pyx_signed_char_bit_count",
+                        func_type = PyrexTypes.CFuncType(
+                            PyrexTypes.c_uchar_type, [
+                                PyrexTypes.CFuncTypeArg("x", PyrexTypes.c_schar_type, None)
+                            ]),
+                        args = [arg],
+                        is_temp = node.is_temp,
+                        utility_code = UtilityCode.load_cached("signed_char_bit_count", "Builtins.c"))
+                elif arg.type is PyrexTypes.c_sshort_type:
+                    return ExprNodes.PythonCapiCallNode(
+                        node.pos, "__Pyx_signed_short_bit_count",
+                        func_type = PyrexTypes.CFuncType(
+                            PyrexTypes.c_short_type, [
+                                PyrexTypes.CFuncTypeArg("x", PyrexTypes.c_sshort_type, None)
+                            ]),
+                        args = [arg],
+                        is_temp = node.is_temp,
+                        utility_code = UtilityCode.load_cached("signed_short_bit_count", "Builtins.c"))
+                elif arg.type is PyrexTypes.c_sint_type:
+                    return ExprNodes.PythonCapiCallNode(
+                        node.pos, "__Pyx_signed_int_bit_count",
+                        func_type = PyrexTypes.CFuncType(
+                            PyrexTypes.c_int_type, [
+                                PyrexTypes.CFuncTypeArg("x", PyrexTypes.c_sint_type, None)
+                            ]),
+                        args = [arg],
+                        is_temp = node.is_temp,
+                        utility_code = UtilityCode.load_cached("signed_int_bit_count", "Builtins.c"))
+                elif arg.type is PyrexTypes.c_slong_type:
+                    return ExprNodes.PythonCapiCallNode(
+                        node.pos, "__Pyx_signed_long_bit_count",
+                        func_type = PyrexTypes.CFuncType(
+                            PyrexTypes.c_int_type, [
+                                PyrexTypes.CFuncTypeArg("x", PyrexTypes.c_slong_type, None)
+                            ]),
+                        args = [arg],
+                        is_temp = node.is_temp,
+                        utility_code = UtilityCode.load_cached("signed_long_bit_count", "Builtins.c"))
+                elif arg.type is PyrexTypes.c_slonglong_type:
+                    return ExprNodes.PythonCapiCallNode(
+                        node.pos, "__Pyx_signed_longlong_bit_count",
+                        func_type = PyrexTypes.CFuncType(
+                            PyrexTypes.c_int_type, [
+                                PyrexTypes.CFuncTypeArg("x", PyrexTypes.c_slonglong_type, None)
+                            ]),
+                        args = [arg],
+                        is_temp = node.is_temp,
+                        utility_code = UtilityCode.load_cached("signed_longlong_bit_count", "Builtins.c"))
 
         if not function.obj.is_name:
             # cannot track unbound method calls over more than one indirection as
@@ -2554,9 +2554,6 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
         if method is None:
             return self._optimise_generic_builtin_method_call(
                 node, attr_name, function, arg_list, is_unbound_method)
-        args = node.args
-        if args is None and node.arg_tuple:
-            args = node.arg_tuple.args
         call_node = ExprNodes.SimpleCallNode(
             node.pos,
             function=method,
