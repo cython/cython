@@ -501,7 +501,7 @@ static int __pyx_Generator_init(PyObject *module); /*proto*/
 //@requires: ModuleSetupCode.c::IncludeStructmemberH
 
 #include <frameobject.h>
-#if PY_VERSION_HEX >= 0x030b00a6
+#if PY_VERSION_HEX >= 0x030b00a6 && !defined(PYPY_VERSION)
   #ifndef Py_BUILD_CORE
     #define Py_BUILD_CORE 1
   #endif
