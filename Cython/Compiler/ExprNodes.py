@@ -13604,6 +13604,8 @@ class CmpNode:
             code.funcstate.release_temp(operand1_temp)
             code.funcstate.release_temp(operand2_temp)
         elif operand1.type.is_ctuple and operand2.type.is_ctuple:
+            assert op in ('==', '!=')
+
             operand1_temp = code.funcstate.allocate_temp(operand1.type, manage_ref=False)
             operand2_temp = code.funcstate.allocate_temp(operand2.type, manage_ref=False)
             code.putln(f"{operand1_temp} = {operand1.result()};")
