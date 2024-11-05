@@ -4292,7 +4292,7 @@ class IndexNode(_IndexingBaseNode):
                 self.type = PyrexTypes.error_type
             return self
         elif len(set(self.base.type.components)) == 1:
-            self.type = self.base.type.components[0]
+            self.type = base_type.components[0]
             self.index = self.index.coerce_to_index(env)
             return self
         else:
