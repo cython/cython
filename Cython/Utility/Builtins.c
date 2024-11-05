@@ -19,7 +19,7 @@ static PyObject* __Pyx_Globals(void); /*proto*/
 // access requires a rewrite as a dedicated class.
 
 static PyObject* __Pyx_Globals(void) {
-    return __Pyx_NewRef(NAMED_CGLOBAL(moddict_sign_and_name()));
+    return __Pyx_NewRef(NAMED_CGLOBAL(moddict_cname));
 }
 
 //////////////////// PyExecGlobals.proto ////////////////////
@@ -30,7 +30,7 @@ static PyObject* __Pyx_PyExecGlobals(PyObject*);
 //@requires: PyExec
 
 static PyObject* __Pyx_PyExecGlobals(PyObject* code) {
-    return __Pyx_PyExec2(code, NAMED_CGLOBAL(moddict_sign_and_name()));
+    return __Pyx_PyExec2(code, NAMED_CGLOBAL(moddict_cname));
 }
 
 //////////////////// PyExec.proto ////////////////////
@@ -52,7 +52,7 @@ static PyObject* __Pyx_PyExec3(PyObject* o, PyObject* globals, PyObject* locals)
 #endif
 
     if (!globals || globals == Py_None) {
-        globals = NAMED_CGLOBAL(moddict_sign_and_name());
+        globals = NAMED_CGLOBAL(moddict_cname);
     }
 #if !CYTHON_COMPILING_IN_LIMITED_API
     // In Limited API we just use exec builtin which already has this
