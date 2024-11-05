@@ -686,7 +686,7 @@ static CYTHON_INLINE int __Pyx_PyInt_bit_count(PyObject *x) {
 
 #include <limits.h>
 
-static inline int bit_count_base(unsigned long long x, int size) {
+static inline int __Pyx_bit_count_base(unsigned PY_LONG_LONG x, int size) {
     if (size * CHAR_BIT == 8) {
         uint8_t tmp = (uint8_t)x;
         tmp -= (tmp >> 1) & 0x55;
@@ -732,161 +732,22 @@ static inline int bit_count_base(unsigned long long x, int size) {
 #endif
 }
 
-//////////////////// unsigned_char_bit_count.proto ////////////////////
+//////////////////// bit_count.proto ////////////////////
 
-static CYTHON_INLINE unsigned char __Pyx_unsigned_char_bit_count(unsigned char x);
+static CYTHON_INLINE {{py: type_.cname}} __Pyx_{{type_}}_bit_count({{py: type_.cname}} x);
 
-//////////////////// unsigned_char_bit_count ////////////////////
+//////////////////// bit_count.proto ////////////////////
 //@requires: bit_count_base
 
-static CYTHON_INLINE unsigned char __Pyx_unsigned_char_bit_count(unsigned char x) {
-#if defined(__has_builtin) && __has_builtin(__builtin_popcount)
-    return (unsigned char)__builtin_popcount((unsigned int)x);
-#else
-    return (unsigned char)bit_count_base((unsigned long long)x, sizeof(unsigned char));
-#endif
-}
-
-//////////////////// unsigned_short_bit_count.proto ////////////////////
-
-static CYTHON_INLINE short __Pyx_unsigned_short_bit_count(unsigned short x);
-
-//////////////////// unsigned_short_bit_count ////////////////////
-//@requires: bit_count_base
-
-static CYTHON_INLINE short __Pyx_unsigned_short_bit_count(unsigned short x) {
-#if defined(__has_builtin) && __has_builtin(__builtin_popcount)
-    return (short)__builtin_popcount((unsigned int)x);
-#else
-    return (short)bit_count_base((unsigned long long)x, sizeof(unsigned short));
-#endif
-}
-
-//////////////////// unsigned_int_bit_count.proto ////////////////////
-
-static CYTHON_INLINE int __Pyx_unsigned_int_bit_count(unsigned int x);
-
-//////////////////// unsigned_int_bit_count ////////////////////
-//@requires: bit_count_base
-
-static CYTHON_INLINE int __Pyx_unsigned_int_bit_count(unsigned int x) {
-#if defined(__has_builtin) && __has_builtin(__builtin_popcount)
-    return __builtin_popcount(x);
-#else
-    return bit_count_base((unsigned long long)x, sizeof(unsigned int));
-#endif
-}
-
-//////////////////// unsigned_long_bit_count.proto ////////////////////
-
-static CYTHON_INLINE int __Pyx_unsigned_long_bit_count(unsigned long x);
-
-//////////////////// unsigned_long_bit_count ////////////////////
-//@requires: bit_count_base
-
-static CYTHON_INLINE int __Pyx_unsigned_long_bit_count(unsigned long x) {
-#if defined(__has_builtin) && __has_builtin(__builtin_popcountl)
-    return __builtin_popcountl(x);
-#else
-    return bit_count_base((unsigned long long)x, sizeof(unsigned long));
-#endif
-}
-
-/////////////////// unsigned_longlong_bit_count.proto ////////////////////
-
-static CYTHON_INLINE int __Pyx_unsigned_longlong_bit_count(unsigned long long x);
-
-//////////////////// unsigned_longlong_bit_count ////////////////////
-//@requires: bit_count_base
-
-static CYTHON_INLINE int __Pyx_unsigned_longlong_bit_count(unsigned long long x) {
-#if defined(__has_builtin) && __has_builtin(__builtin_popcountll)
-    return __builtin_popcountll(x);
-#else
-    return bit_count_base(x, sizeof(unsigned long long));
-#endif
-}
-
-//////////////////// char_bit_count.proto ////////////////////
-
-static CYTHON_INLINE unsigned char __Pyx_char_bit_count(char x);
-
-//////////////////// char_bit_count ////////////////////
-//@requires: unsigned_char_bit_count
-
-static CYTHON_INLINE unsigned char __Pyx_char_bit_count(char x) {
+static CYTHON_INLINE {{py: type_.cname}} __Pyx_{{type_}}_bit_count({{py: type_.cname}} {{py: 'x' if type_.signed else 'value'}}) {
+{{if type_.signed}}
     if (x == CHAR_MIN) return 1;
+    unsigned {{py: type_.rank_name()}} value = (x < 0) ? -x : x;
+{{endif}}
 
-    unsigned char value = (x < 0) ? -x : x;
-    return __Pyx_unsigned_char_bit_count(value);
-}
-
-//////////////////// signed_char_bit_count.proto ////////////////////
-
-static CYTHON_INLINE unsigned char __Pyx_signed_char_bit_count(signed char x);
-
-//////////////////// signed_char_bit_count ////////////////////
-//@requires: unsigned_char_bit_count
-
-static CYTHON_INLINE unsigned char __Pyx_signed_char_bit_count(signed char x) {
-    if (x == SCHAR_MIN) return 1;
-
-    unsigned char value = (x < 0) ? -x : x;
-    return __Pyx_unsigned_char_bit_count(value);
-}
-
-//////////////////// signed_short_bit_count.proto ////////////////////
-
-static CYTHON_INLINE short __Pyx_signed_short_bit_count(signed short x);
-
-//////////////////// signed_short_bit_count ////////////////////
-//@requires: unsigned_short_bit_count
-
-static CYTHON_INLINE short __Pyx_signed_short_bit_count(signed short x) {
-    if (x == SHRT_MIN) return 1;
-
-    unsigned short value = (x < 0) ? -x : x;
-    return __Pyx_unsigned_short_bit_count(value);
-}
-
-//////////////////// signed_int_bit_count.proto ////////////////////
-
-static int __Pyx_signed_int_bit_count(signed int x);
-
-//////////////////// signed_int_bit_count ////////////////////
-//@requires: unsigned_int_bit_count
-
-static int __Pyx_signed_int_bit_count(signed int x) {
-    if (x == INT_MIN) return 1;
-
-    unsigned int value = (x < 0) ? -x : x;
-    return __Pyx_unsigned_int_bit_count(value);
-}
-
-//////////////////// signed_long_bit_count.proto ////////////////////
-
-static CYTHON_INLINE int __Pyx_signed_long_bit_count(signed long x);
-
-//////////////////// signed_long_bit_count ////////////////////
-//@requires: unsigned_long_bit_count
-
-static CYTHON_INLINE int __Pyx_signed_long_bit_count(signed long x) {
-    if (x == LONG_MIN) return 1;
-
-    unsigned long value = (x < 0) ? -x : x;
-    return __Pyx_unsigned_long_bit_count(value);
-}
-
-//////////////////// signed_longlong_bit_count.proto ////////////////////
-
-static CYTHON_INLINE int __Pyx_signed_longlong_bit_count(signed long long x);
-
-//////////////////// signed_longlong_bit_count ////////////////////
-//@requires: unsigned_longlong_bit_count
-
-static CYTHON_INLINE int __Pyx_signed_longlong_bit_count(signed long long x) {
-    if (x == LLONG_MIN) return 1;
-
-    unsigned long long value = (x < 0) ? -x : x;
-    return __Pyx_unsigned_longlong_bit_count(value);
+#if defined(__has_builtin) && __has_builtin(__builtin_popcount)
+    return __builtin_popcount{{py: str() if type_.rank <= 2 else ('l' type_.rank == 3 else 'll')}}((unsigned {{py: 'int' if type_.rank <= 2 else type_.rank_name()}})value);
+#else
+    return __Pyx_bit_count_base((unsigned PY_LONG_LONG)value, sizeof(py: type_.cname));
+#endif
 }

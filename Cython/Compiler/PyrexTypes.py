@@ -2005,6 +2005,9 @@ class CNumericType(CType):
         n = rank_to_type_name[self.rank]
         return s + n
 
+    def rank_name(self):
+        return rank_to_type_name[self.rank]
+
     def is_simple_buffer_dtype(self):
         return True
 
