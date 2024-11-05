@@ -170,7 +170,8 @@ as well as their unsigned versions ``uchar``, ``ushort``, ``uint``, ``ulong``,
 
 For each type, there are pointer types ``p_int``, ``pp_int``, etc., up to
 three levels deep in interpreted mode, and infinitely deep in compiled mode.
-Further pointer types can be constructed with ``cython.pointer(cython.int)``,
+Further pointer types can be constructed with ``cython.pointer[cython.int]``
+(or ``cython.pointer(cython.int)`` for compatibility with Cython versions before 3.1),
 and arrays as ``cython.int[10]``. A limited attempt is made to emulate these
 more complex types, but only so much can be done from the Python language.
 
@@ -222,9 +223,9 @@ Managing the Global Interpreter Lock
     @cython.cfunc
     def func_released_gil() -> cython.int:
         # function that can be run with the GIL released
-        
+
   Note that the two uses differ: the context manager releases the GIL while the decorator marks that a
-  function *can* be run without the GIL. See :ref:`<cython_and_gil>` for more details.
+  function *can* be run without the GIL. See :ref:`cython_and_gil` for more details.
 
 * ``cython.gil`` can be used as a context manager to replace the :keyword:`gil` keyword::
 
@@ -411,6 +412,7 @@ complete. Cython 3 currently understands the following features from the
 ``typing`` module:
 
 * ``Optional[tp]``, which is interpreted as ``tp or None``;
+* ``Union[tp, None]`` or ``Union[None, tp]``, which is interpreted as ``tp or None``;
 * typed containers such as ``List[str]``, which is interpreted as ``list``. The
   hint that the elements are of type ``str`` is currently ignored;
 * ``Tuple[...]``, which is converted into a Cython C-tuple where possible

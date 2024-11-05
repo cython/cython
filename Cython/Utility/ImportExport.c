@@ -168,7 +168,6 @@ static PyObject *__Pyx_Import(PyObject *name, PyObject *from_list, int level); /
 /////////////// Import ///////////////
 //@requires: ObjectHandling.c::PyObjectGetAttrStr
 //@requires:StringTools.c::IncludeStringH
-//@substitute: naming
 
 static PyObject *__Pyx_Import(PyObject *name, PyObject *from_list, int level) {
     PyObject *module = 0;
@@ -181,7 +180,7 @@ static PyObject *__Pyx_Import(PyObject *name, PyObject *from_list, int level) {
         if (strchr(__Pyx_MODULE_NAME, '.') != (0)) {
             /* try package relative import first */
             module = PyImport_ImportModuleLevelObject(
-                name, $moddict_cname, empty_dict, from_list, 1);
+                name, NAMED_CGLOBAL(moddict_cname), empty_dict, from_list, 1);
             if (unlikely(!module)) {
                 if (unlikely(!PyErr_ExceptionMatches(PyExc_ImportError)))
                     goto bad;
@@ -192,7 +191,7 @@ static PyObject *__Pyx_Import(PyObject *name, PyObject *from_list, int level) {
     }
     if (!module) {
         module = PyImport_ImportModuleLevelObject(
-            name, $moddict_cname, empty_dict, from_list, level);
+            name, NAMED_CGLOBAL(moddict_cname), empty_dict, from_list, level);
     }
 bad:
     Py_XDECREF(empty_dict);
@@ -334,6 +333,7 @@ static int ${import_star}(PyObject* m) {
     PyObject *item;
     PyObject *import_obj;
     Py_ssize_t size;
+    ${modulestatetype_cname} *mstate = __Pyx_PyModule_GetState(m);
 
     locals = PyDict_New();              if (!locals) goto bad;
     if (__Pyx_import_all_from(locals, m) < 0) goto bad;
@@ -351,7 +351,7 @@ static int ${import_star}(PyObject* m) {
         utf8_name = PyUnicode_AsUTF8String(name);
         if (!utf8_name) goto bad;
         s = __Pyx_PyBytes_AsString(utf8_name); if (!s) goto bad;
-        if (${import_star_set}(item, name, s) < 0) goto bad;
+        if (${import_star_set}(mstate, item, name, s) < 0) goto bad;
         Py_DECREF(utf8_name); utf8_name = 0;
     }
     ret = 0;
@@ -690,7 +690,7 @@ static int __Pyx_ExportVoidPtr(PyObject *name, void *p, const char *sig) {
     PyObject *d;
     PyObject *cobj = 0;
 
-    d = PyDict_GetItem($moddict_cname, PYIDENT("$api_name"));
+    d = PyDict_GetItem(NAMED_CGLOBAL(moddict_cname), PYIDENT("$api_name"));
     Py_XINCREF(d);
     if (!d) {
         d = PyDict_New();

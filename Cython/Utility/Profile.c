@@ -263,7 +263,7 @@
   #include "compile.h"
   #include "frameobject.h"
   #include "traceback.h"
-#if PY_VERSION_HEX >= 0x030b00a6
+#if PY_VERSION_HEX >= 0x030b00a6 && !defined(PYPY_VERSION)
   #ifndef Py_BUILD_CORE
     #define Py_BUILD_CORE 1
   #endif
@@ -521,7 +521,6 @@
 #endif
 
 /////////////// Profile ///////////////
-//@substitute: naming
 
 #if CYTHON_PROFILE || CYTHON_TRACE
 
@@ -617,7 +616,7 @@ static int __Pyx_TraceSetupAndCall(PyCodeObject** code,
         *frame = PyFrame_New(
             tstate,                          /*PyThreadState *tstate*/
             *code,                           /*PyCodeObject *code*/
-            $moddict_cname,                  /*PyObject *globals*/
+            NAMED_CGLOBAL(moddict_cname),    /*PyObject *globals*/
             0                                /*PyObject *locals*/
         );
         if (*frame == NULL) return 0;

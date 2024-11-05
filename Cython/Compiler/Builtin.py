@@ -398,27 +398,36 @@ types_that_construct_their_instance = frozenset({
 })
 
 
+# When updating this mapping, also update "unsafe_compile_time_methods" below
+# if methods are added that are not safe to evaluate at compile time.
 inferred_method_return_types = {
     'complex': dict(
         conjugate='complex',
     ),
     'int': dict(
-        bit_length='T',
-        bit_count='T',
-        to_bytes='bytes',
-        from_bytes='T',  # classmethod
         as_integer_ratio='tuple[int,int]',
+        bit_count='T',
+        bit_length='T',
+        conjugate='T',
+        from_bytes='T',  # classmethod
         is_integer='bint',
+        to_bytes='bytes',
     ),
     'float': dict(
         as_integer_ratio='tuple[int,int]',
-        is_integer='bint',
-        hex='str',
+        conjugate='T',
         fromhex='T',  # classmethod
+        hex='str',
+        is_integer='bint',
     ),
     'list': dict(
-        index='Py_ssize_t',
+        copy='T',
         count='Py_ssize_t',
+        index='Py_ssize_t',
+    ),
+    'tuple': dict(
+        count='Py_ssize_t',
+        index='Py_ssize_t',
     ),
     'str': dict(
         capitalize='T',
@@ -470,34 +479,16 @@ inferred_method_return_types = {
         zfill='T',
     ),
     'bytes': dict(
-        hex='str',
-        fromhex='T',  # classmethod
+        capitalize='T',
+        center='T',
         count='Py_ssize_t',
-        removeprefix='T',
-        removesuffix='T',
         decode='str',
         endswith='bint',
-        find='Py_ssize_t',
-        index='Py_ssize_t',
-        join='T',
-        maketrans='bytes',  # staticmethod
-        partition='tuple[T,T,T]',
-        replace='T',
-        rfind='Py_ssize_t',
-        rindex='Py_ssize_t',
-        rpartition='tuple[T,T,T]',
-        startswith='bint',
-        translate='T',
-        center='T',
-        ljust='T',
-        lstrip='T',
-        rjust='T',
-        rsplit='list[T]',
-        rstrip='T',
-        split='list[T]',
-        strip='T',
-        capitalize='T',
         expandtabs='T',
+        find='Py_ssize_t',
+        fromhex='T',  # classmethod
+        hex='str',
+        index='Py_ssize_t',
         isalnum='bint',
         isalpha='bint',
         isascii='bint',
@@ -506,10 +497,28 @@ inferred_method_return_types = {
         isspace='bint',
         istitle='bint',
         isupper='bint',
+        join='T',
+        ljust='T',
         lower='T',
+        lstrip='T',
+        maketrans='bytes',  # staticmethod
+        partition='tuple[T,T,T]',
+        removeprefix='T',
+        removesuffix='T',
+        replace='T',
+        rfind='Py_ssize_t',
+        rindex='Py_ssize_t',
+        rjust='T',
+        rpartition='tuple[T,T,T]',
+        rsplit='list[T]',
+        rstrip='T',
+        split='list[T]',
         splitlines='list[T]',
+        startswith='bint',
+        strip='T',
         swapcase='T',
         title='T',
+        translate='T',
         upper='T',
         zfill='T',
     ),
@@ -517,27 +526,29 @@ inferred_method_return_types = {
         # Inherited from 'bytes' below.
     ),
     'memoryview': dict(
-        tobytes='bytes',
+        cast='T',
         hex='str',
+        tobytes='bytes',
         tolist='list',
         toreadonly='T',
-        cast='T',
     ),
     'set': dict(
-        isdisjoint='bint',
-        isubset='bint',
-        issuperset='bint',
-        union='T',
-        intersection='T',
-        difference='T',
-        symmetric_difference='T',
         copy='T',
+        difference='T',
+        intersection='T',
+        isdisjoint='bint',
+        issubset='bint',
+        issuperset='bint',
+        symmetric_difference='T',
+        union='T',
     ),
     'frozenset': dict(
         # Inherited from 'set' below.
     ),
     'dict': dict(
         copy='T',
+        fromkeys='T',  # classmethod
+        popitem='tuple',
     ),
 }
 
@@ -564,6 +575,61 @@ def find_return_type_of_builtin_method(builtin_type, method_name):
                 return PyrexTypes.c_py_ssize_t_type
             return builtin_scope.lookup(return_type_name).type
     return PyrexTypes.py_object_type
+
+
+unsafe_compile_time_methods = {
+    # We name here only unsafe and non-portable methods if:
+    # - the type has a literal representation, allowing for constant folding.
+    # - the return type is not None (thus excluding modifier methods)
+    #   and is listed in 'inferred_method_return_types' above.
+    #
+    # See the consistency check in TestBuiltin.py.
+    #
+    'complex': set(),
+    'int': {
+        'as_integer_ratio',  # Py3.8+
+        'bit_count',  # Py3.10+
+        'from_bytes',  # classmethod
+        'is_integer',  # Py3.12+
+        'to_bytes',  # changed in Py3.11
+    },
+    'float': {
+        'fromhex',  # classmethod
+    },
+    'list': {
+        'copy',
+    },
+    'tuple': set(),
+    'str': {
+        'capitalize',  # changed in Py3.8+
+        'maketrans',  # staticmethod
+        'removeprefix',  # Py3.9+
+        'removesuffix',  # Py3.9+
+    },
+    'bytes': {
+        'fromhex',  # classmethod
+        'hex',  # changed in Py3.8+
+        'maketrans',  # staticmethod
+        'removeprefix',  # Py3.9+
+        'removesuffix',  # Py3.9+
+    },
+    'set': set(),
+}
+
+
+def is_safe_compile_time_method(builtin_type_name: str, method_name: str):
+    unsafe_methods = unsafe_compile_time_methods.get(builtin_type_name)
+    if unsafe_methods is None:
+        # Not a literal type.
+        return False
+    if method_name in unsafe_methods:
+        # Not a safe method.
+        return False
+    known_methods = inferred_method_return_types.get(builtin_type_name)
+    if known_methods is None or method_name not in known_methods:
+        # Not a known method.
+        return False
+    return True
 
 
 builtin_structs_table = [
@@ -726,7 +792,7 @@ def get_known_standard_library_module_scope(module_name):
             entry.as_variable = var_entry
             entry.known_standard_library_import = "%s.%s" % (module_name, name)
 
-        for name in ['ClassVar', 'Optional']:
+        for name in ['ClassVar', 'Optional', 'Union']:
             name = EncodedString(name)
             indexed_type = PyrexTypes.SpecialPythonTypeConstructor(EncodedString("typing."+name))
             entry = mod.declare_type(name, indexed_type, pos = None)

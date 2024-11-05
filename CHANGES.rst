@@ -28,6 +28,16 @@ Features added
 * Several issues with the gdb support were resolved.
   Patches by Kent Slaney.  (Github issues :issue:`5955`, :issue:`5948`)
 
+* ``typing.Union[SomeType, None]`` and ``SomeType | None`` are now understood and mean
+  the same as ``typing.Optional[SomeType]``, allowing ``None`` in type checks.
+  (Github issue :issue:`6254`)
+
+* ``cython.const[]`` and ``cython.volatile[]`` are now available as type modifiers in Python code.
+  (Github issue :issue:`5728`)
+
+* ``cython.pointer[SomeCType]`` can now be used to define pointer types in Python type annotations.
+  (Github issue :issue:`5071`)
+
 * Several improvements were made to reduce the size of the resulting extension modules.
   (Github issue :issue:`4425`)
 
@@ -44,14 +54,17 @@ Features added
 * Most builtin methods now provide their return type for type inference.
   (Github issues :issue:`4829`, :issue:`5865`)
 
+* Method calls on builtin literal values are evaluated at compile time, if applicable.
+  (Github issue :issue:`6383`)
+
 * The Python ``int`` type now maps directly to ``PyLong`` and is inferred accordingly.
   (Github issue :issue:`4237`)
 
 * Integer operations on known ``int`` types are faster.
   (Github issue :issue:`5785`)
 
-* f-strings are slightly faster.
-  (Github issues :issue:`5866`, :issue:`6342`)
+* f-strings are faster in some cases.
+  (Github issues :issue:`5866`, :issue:`6342`, :issue:`6383`)
 
 * ``divmod()`` is faster on C integers.
   Patch by Tong He.  (Github issue :issue:`6073`)
@@ -109,6 +122,9 @@ Bugs fixed
 
 * The ``__class__`` cell variable in methods was not always working as in Python.
   Initial patch by Tom Keefe.  (Github issue :issue:`2912`)
+
+* Lambda functions had no code objects. Their signature can now be introspected.
+  (Github issue :issue:`2983`)
 
 * Subtyping `complex` as extension type could fail.
   (Github issue :issue:`6346`)
@@ -169,8 +185,8 @@ Other changes
 * Support for Python 2.7 - 3.6 was removed, along with large chunks of legacy code.
   (Github issue :issue:`2800`)
 
-* The pxd files ``cpython.int``, ``cpython.cobject`` and ``cpython.oldbuffer`` were
-  removed as they refer to C-API declarations that are only in Python 2.x.
+* The pxd files ``cpython.int``, ``cpython.cobject``, ``cpython.oldbuffer`` and ``cpython.string``
+  were removed as they refer to C-API declarations that are only in Python 2.x.
   (Github issue :issue:`5870`)
 
 * The generated C code now requires a C99 compatible C compiler.
@@ -178,6 +194,10 @@ Other changes
 * ``language_level=3`` is now the default.
   ``language_level=3str`` has become a legacy alias.
   (Github issue :issue:`5827`)
+
+* The Py2 types ``unicode`` and ``basestring`` are now deprecated and have become aliases
+  of the ``str`` type.
+  (Github issue :issue:`6374`)
 
 * Docstrings now strip their leading whitespace according to PEP-257.
   Patch by Lawrence Mitchell.  (Github issue :issue:`6241`)
