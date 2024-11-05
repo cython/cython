@@ -729,14 +729,17 @@ static inline int bit_count_base (unsigned long long x, int size) {
         tmp = (((tmp + (tmp >> 4)) & 0x0F0F0F0FULL) * 0x01010101ULL) >> 56;
 
         return (int)tmp;
-    } else if (size == 128) {
-        uint128_t tmp = (uint128_t)x;
+    }
+#ifdef __SIZEOF_INT128__
+    else if (size == 128) {
+        __uint128_t tmp = (__uint128_t)x;
         tmp -= (tmp >> 1) & 0x55555555ULL;
         tmp = (tmp & 0x33333333ULL) + ((tmp >> 2) & 0x33333333ULL);
         tmp = (((tmp + (tmp >> 4)) & 0x0F0F0F0FULL) * 0x01010101ULL) >> 120;
 
         return (int)tmp;
     }
+#endif
 }
 
 //////////////////// unsigned_char_bit_count.proto ////////////////////
