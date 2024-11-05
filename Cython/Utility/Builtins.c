@@ -852,12 +852,12 @@ static CYTHON_INLINE short __Pyx_signed_short_bit_count(signed short x) {
 
 //////////////////// signed_int_bit_count.proto ////////////////////
 
-int __Pyx_signed_int_bit_count(signed int x);
+static int __Pyx_signed_int_bit_count(signed int x);
 
 //////////////////// signed_int_bit_count ////////////////////
 //@requires: unsigned_int_bit_count
 
-int __Pyx_signed_int_bit_count(signed int x) {
+static int __Pyx_signed_int_bit_count(signed int x) {
     unsigned int value = (x < 0) ? -x : x;
     return __Pyx_unsigned_int_bit_count(value);
 }
