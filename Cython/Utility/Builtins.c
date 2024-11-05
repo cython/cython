@@ -686,33 +686,36 @@ static CYTHON_INLINE int __Pyx_PyInt_bit_count(PyObject *x) {
 
 #include <limits.h>
 
-static inline int bit_count_base (unsigned long long x, int size) {
+static inline int bit_count_base(unsigned long long x, int size) {
     if (size * CHAR_BIT == 8) {
         uint8_t tmp = (uint8_t)x;
         tmp -= (tmp >> 1) & 0x55;
         tmp = (tmp & 0x33) + ((tmp >> 2) & 0x33);
-        tmp = ((tmp + (tmp >> 4)) & 0x0F) * 0x01;
+        tmp = (tmp + (tmp >> 4)) & 0x0F;
 
         return (int)tmp;
     } else if (size * CHAR_BIT == 16) {
         uint16_t tmp = (uint16_t)x;
         tmp -= (tmp >> 1) & 0x5555U;
         tmp = (tmp & 0x3333U) + ((tmp >> 2) & 0x3333U);
-        tmp = (((tmp + (tmp >> 4)) & 0x0F0FU) * 0x0101U) >> 8;
+        tmp = ((tmp + (tmp >> 4)) & 0x0F0FU) * 0x0101U;
+        tmp >>= 8;
 
         return (int)tmp;
     } else if (size * CHAR_BIT == 32) {
         uint32_t tmp = (uint32_t)x;
         tmp -= (tmp >> 1) & 0x55555555UL;
         tmp = (tmp & 0x33333333UL) + ((tmp >> 2) & 0x33333333UL);
-        tmp = (((tmp + (tmp >> 4)) & 0x0F0F0F0FUL) * 0x01010101UL) >> 24;
+        tmp = ((tmp + (tmp >> 4)) & 0x0F0F0F0FUL) * 0x01010101UL;
+        tmp >>= 24;
 
         return (int)tmp;
     } else if (size * CHAR_BIT == 64) {
         uint64_t tmp = (uint64_t)x;
         tmp -= (tmp >> 1) & 0x55555555ULL;
         tmp = (tmp & 0x33333333ULL) + ((tmp >> 2) & 0x33333333ULL);
-        tmp = (((tmp + (tmp >> 4)) & 0x0F0F0F0FULL) * 0x01010101ULL) >> 56;
+        tmp = ((tmp + (tmp >> 4)) & 0x0F0F0F0FULL) * 0x01010101ULL;
+        tmp >>= 56;
 
         return (int)tmp;
     }
@@ -721,7 +724,8 @@ static inline int bit_count_base (unsigned long long x, int size) {
         __uint128_t tmp = (__uint128_t)x;
         tmp -= (tmp >> 1) & 0x55555555ULL;
         tmp = (tmp & 0x33333333ULL) + ((tmp >> 2) & 0x33333333ULL);
-        tmp = (((tmp + (tmp >> 4)) & 0x0F0F0F0FULL) * 0x01010101ULL) >> 120;
+        tmp = ((tmp + (tmp >> 4)) & 0x0F0F0F0FULL) * 0x01010101ULL;
+        tmp >>= 120;
 
         return (int)tmp;
     }
