@@ -19,7 +19,7 @@ static PyObject* __Pyx_Globals(void); /*proto*/
 // access requires a rewrite as a dedicated class.
 
 static PyObject* __Pyx_Globals(void) {
-    return __Pyx_NewRef(NAMED_CGLOBAL(moddict_cname));
+    return __Pyx_NewRef(NAMED_CGLOBAL(moddict_sign_and_name()));
 }
 
 //////////////////// PyExecGlobals.proto ////////////////////
@@ -30,7 +30,7 @@ static PyObject* __Pyx_PyExecGlobals(PyObject*);
 //@requires: PyExec
 
 static PyObject* __Pyx_PyExecGlobals(PyObject* code) {
-    return __Pyx_PyExec2(code, NAMED_CGLOBAL(moddict_cname));
+    return __Pyx_PyExec2(code, NAMED_CGLOBAL(moddict_sign_and_name()));
 }
 
 //////////////////// PyExec.proto ////////////////////
@@ -52,7 +52,7 @@ static PyObject* __Pyx_PyExec3(PyObject* o, PyObject* globals, PyObject* locals)
 #endif
 
     if (!globals || globals == Py_None) {
-        globals = NAMED_CGLOBAL(moddict_cname);
+        globals = NAMED_CGLOBAL(moddict_sign_and_name());
     }
 #if !CYTHON_COMPILING_IN_LIMITED_API
     // In Limited API we just use exec builtin which already has this
@@ -734,12 +734,12 @@ static inline int __Pyx_bit_count_base(unsigned PY_LONG_LONG x, int size) {
 
 //////////////////// bit_count.proto ////////////////////
 
-static CYTHON_INLINE {{py: type_.cname}} __Pyx_{{type_}}_bit_count({{py: type_.cname}} x);
+static CYTHON_INLINE {{py: type_.sign_and_name()}} __Pyx_{{type_}}_bit_count({{py: type_.sign_and_name()}} x);
 
 //////////////////// bit_count.proto ////////////////////
 //@requires: bit_count_base
 
-static CYTHON_INLINE {{py: type_.cname}} __Pyx_{{type_}}_bit_count({{py: type_.cname}} {{py: 'x' if type_.signed else 'value'}}) {
+static CYTHON_INLINE {{py: type_.sign_and_name()}} __Pyx_{{type_}}_bit_count({{py: type_.sign_and_name()}} {{py: 'x' if type_.signed else 'value'}}) {
 {{if type_.signed}}
     if (x == CHAR_MIN) return 1;
     unsigned {{py: type_.rank_name()}} value = (x < 0) ? -x : x;
@@ -748,6 +748,6 @@ static CYTHON_INLINE {{py: type_.cname}} __Pyx_{{type_}}_bit_count({{py: type_.c
 #if defined(__has_builtin) && __has_builtin(__builtin_popcount)
     return __builtin_popcount{{py: str() if type_.rank <= 2 else ('l' type_.rank == 3 else 'll')}}((unsigned {{py: 'int' if type_.rank <= 2 else type_.rank_name()}})value);
 #else
-    return __Pyx_bit_count_base((unsigned PY_LONG_LONG)value, sizeof(py: type_.cname));
+    return __Pyx_bit_count_base((unsigned PY_LONG_LONG)value, sizeof(py: type_.sign_and_name()));
 #endif
 }
