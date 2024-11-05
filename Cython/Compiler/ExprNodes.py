@@ -4120,10 +4120,7 @@ class IndexNode(_IndexingBaseNode):
         self.nogil = env.nogil
         base = self.base
 
-        if analyse_base and isinstance(base, CoerceToPyTypeNode):
-            base = base.arg
-
-        base_type = base.type
+        base_type = self.base.type
 
         if not base_type.is_cfunction:
             self.index = self.index.analyse_types(env)
@@ -4291,7 +4288,7 @@ class IndexNode(_IndexingBaseNode):
                       (index, base_type))
                 self.type = PyrexTypes.error_type
             return self
-        elif len(set(self.base.type.components)) == 1:
+        elif len(set(base_type.components)) == 1:
             self.type = base_type.components[0]
             self.index = self.index.coerce_to_index(env)
             return self
