@@ -821,7 +821,11 @@ static CYTHON_INLINE unsigned char __Pyx_char_bit_count(char x);
 //////////////////// char_bit_count ////////////////////
 //@requires: unsigned_char_bit_count
 
+#include <limits.h>
+
 static CYTHON_INLINE unsigned char __Pyx_char_bit_count(char x) {
+    if (x == CHAR_MIN) return 1;
+
     unsigned char value = (x < 0) ? -x : x;
     return __Pyx_unsigned_char_bit_count(value);
 }
@@ -833,7 +837,11 @@ static CYTHON_INLINE unsigned char __Pyx_signed_char_bit_count(signed char x);
 //////////////////// signed_char_bit_count ////////////////////
 //@requires: unsigned_char_bit_count
 
+#include <limits.h>
+
 static CYTHON_INLINE unsigned char __Pyx_signed_char_bit_count(signed char x) {
+    if (x == SCHAR_MIN) return 1;
+
     unsigned char value = (x < 0) ? -x : x;
     return __Pyx_unsigned_char_bit_count(value);
 }
@@ -845,7 +853,11 @@ static CYTHON_INLINE short __Pyx_signed_short_bit_count(signed short x);
 //////////////////// signed_short_bit_count ////////////////////
 //@requires: unsigned_short_bit_count
 
+#include <limits.h>
+
 static CYTHON_INLINE short __Pyx_signed_short_bit_count(signed short x) {
+    if (x == SHRT_MIN) return 1;
+
     unsigned short value = (x < 0) ? -x : x;
     return __Pyx_unsigned_short_bit_count(value);
 }
@@ -857,7 +869,11 @@ static int __Pyx_signed_int_bit_count(signed int x);
 //////////////////// signed_int_bit_count ////////////////////
 //@requires: unsigned_int_bit_count
 
+#include <limits.h>
+
 static int __Pyx_signed_int_bit_count(signed int x) {
+    if (x == INT_MIN) return 1;
+
     unsigned int value = (x < 0) ? -x : x;
     return __Pyx_unsigned_int_bit_count(value);
 }
@@ -869,7 +885,11 @@ static CYTHON_INLINE int __Pyx_signed_long_bit_count(signed long x);
 //////////////////// signed_long_bit_count ////////////////////
 //@requires: unsigned_long_bit_count
 
+#include <limits.h>
+
 static CYTHON_INLINE int __Pyx_signed_long_bit_count(signed long x) {
+    if (x == LONG_MIN) return 1;
+
     unsigned long value = (x < 0) ? -x : x;
     return __Pyx_unsigned_long_bit_count(value);
 }
@@ -881,7 +901,11 @@ static CYTHON_INLINE int __Pyx_signed_longlong_bit_count(signed long long x);
 //////////////////// signed_longlong_bit_count ////////////////////
 //@requires: unsigned_longlong_bit_count
 
+#include <limits.h>
+
 static CYTHON_INLINE int __Pyx_signed_longlong_bit_count(signed long long x) {
+    if (x == LLONG_MIN) return 1;
+
     unsigned long long value = (x < 0) ? -x : x;
     return __Pyx_unsigned_longlong_bit_count(value);
 }
