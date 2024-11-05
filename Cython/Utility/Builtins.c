@@ -734,20 +734,20 @@ static inline int __Pyx_bit_count_base(unsigned PY_LONG_LONG x, int size) {
 
 //////////////////// bit_count.proto ////////////////////
 
-static CYTHON_INLINE {{py: type_.sign_and_name()}} __Pyx_{{type_}}_bit_count({{py: type_.sign_and_name()}} x);
+static CYTHON_INLINE {{type_.sign_and_name()}} __Pyx_{{type_}}_bit_count({{type_.sign_and_name()}} x);
 
 //////////////////// bit_count.proto ////////////////////
 //@requires: bit_count_base
 
-static CYTHON_INLINE {{py: type_.sign_and_name()}} __Pyx_{{type_}}_bit_count({{py: type_.sign_and_name()}} {{py: 'x' if type_.signed else 'value'}}) {
+static CYTHON_INLINE {{ type_.sign_and_name()}} __Pyx_{{type_}}_bit_count({{type_.sign_and_name()}} {{'x' if type_.signed else 'value'}}) {
 {{if type_.signed}}
     if (x == CHAR_MIN) return 1;
-    unsigned {{py: type_.rank_name()}} value = (x < 0) ? -x : x;
+    unsigned {{type_.rank_name()}} value = (x < 0) ? -x : x;
 {{endif}}
 
 #if defined(__has_builtin) && __has_builtin(__builtin_popcount)
-    return __builtin_popcount{{py: str() if type_.rank <= 2 else ('l' type_.rank == 3 else 'll')}}((unsigned {{py: 'int' if type_.rank <= 2 else type_.rank_name()}})value);
+    return __builtin_popcount{{str() if type_.rank <= 2 else ('l' type_.rank == 3 else 'll')}}((unsigned {{'int' if type_.rank <= 2 else type_.rank_name()}})value);
 #else
-    return __Pyx_bit_count_base((unsigned PY_LONG_LONG)value, sizeof(py: type_.sign_and_name()));
+    return __Pyx_bit_count_base((unsigned PY_LONG_LONG)value, sizeof({{type_.sign_and_name()}}));
 #endif
 }
