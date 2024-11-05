@@ -686,6 +686,7 @@ static CYTHON_INLINE int __Pyx_PyInt_bit_count(PyObject *x) {
 
 #include <limits.h>
 
+#if !(defined(__has_builtin) && __has_builtin(__builtin_popcountll))
 static inline int __Pyx_bit_count_base(unsigned PY_LONG_LONG x, int size) {
     if (size * CHAR_BIT == 8) {
         uint8_t tmp = (uint8_t)x;
@@ -719,7 +720,7 @@ static inline int __Pyx_bit_count_base(unsigned PY_LONG_LONG x, int size) {
 
         return (int)tmp;
     }
-#ifdef __SIZEOF_INT128__
+  #ifdef __SIZEOF_INT128__
     else if (size * CHAR_BIT == 128) {
         __uint128_t tmp = (__uint128_t)x;
         tmp -= (tmp >> 1) & 0x55555555ULL;
@@ -729,8 +730,9 @@ static inline int __Pyx_bit_count_base(unsigned PY_LONG_LONG x, int size) {
 
         return (int)tmp;
     }
-#endif
+  #endif
 }
+#endif
 
 //////////////////// bit_count.proto ////////////////////
 
