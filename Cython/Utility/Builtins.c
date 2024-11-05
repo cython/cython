@@ -699,45 +699,45 @@ static CYTHON_INLINE int __Pyx_PyInt_bit_count(PyObject *x) {
 
 //////////////////// bit_count_base ////////////////////
 
-#define BIT_COUNT_BASE \
-    static inline int bit_count_base (unsigned long long x, int size) {\
-        if (size == 8) {\
-            uint8_t tmp = (uint8_t)x;\
-            tmp -= (tmp >> 1) & 0x55;\
-            tmp = (tmp & 0x33) + ((tmp >> 2) & 0x33);\
-            tmp = ((tmp + (tmp >> 4)) & 0x0F) * 0x01;\
-    \
-            return (unsigned long long)tmp;\
-        } else if (size == 16) {\
-            uint16_t tmp = (uint16_t)x;\
-            tmp -= (tmp >> 1) & 0x5555U;\
-            tmp = (tmp & 0x3333U) + ((tmp >> 2) & 0x3333U);\
-            tmp = (((tmp + (tmp >> 4)) & 0x0F0FU) * 0x0101U) >> 8;\
-    \
-            return (unsigned long long)tmp;\
-        } else if (size == 32) {\
-            uint32_t tmp = (uint32_t)x;\
-            tmp -= (tmp >> 1) & 0x55555555UL;\
-            tmp = (tmp & 0x33333333UL) + ((tmp >> 2) & 0x33333333UL);\
-            tmp = (((tmp + (tmp >> 4)) & 0x0F0F0F0FUL) * 0x01010101UL) >> 24;\
-    \
-            return (unsigned long long)tmp;\
-        } else if (size == 64) {\
-            uint64_t tmp = (uint64_t)x;\
-            tmp -= (tmp >> 1) & 0x55555555ULL;\
-            tmp = (tmp & 0x33333333ULL) + ((tmp >> 2) & 0x33333333ULL);\
-            tmp = (((tmp + (tmp >> 4)) & 0x0F0F0F0FULL) * 0x01010101ULL) >> 56;\
-    \
-            return (unsigned long long)tmp;\
-        } else if (size == 128) {\
-            uint128_t tmp = (uint128_t)x;\
-            tmp -= (tmp >> 1) & 0x55555555ULL;\
-            tmp = (tmp & 0x33333333ULL) + ((tmp >> 2) & 0x33333333ULL);\
-            tmp = (((tmp + (tmp >> 4)) & 0x0F0F0F0FULL) * 0x01010101ULL) >> 120;\
-    \
-            return (unsigned long long)tmp;\
-        }\
+
+static inline int bit_count_base (unsigned long long x, int size) {
+    if (size == 8) {
+        uint8_t tmp = (uint8_t)x;
+        tmp -= (tmp >> 1) & 0x55;
+        tmp = (tmp & 0x33) + ((tmp >> 2) & 0x33);
+        tmp = ((tmp + (tmp >> 4)) & 0x0F) * 0x01;
+
+        return (unsigned long long)tmp;
+    } else if (size == 16) {
+        uint16_t tmp = (uint16_t)x;
+        tmp -= (tmp >> 1) & 0x5555U;
+        tmp = (tmp & 0x3333U) + ((tmp >> 2) & 0x3333U);
+        tmp = (((tmp + (tmp >> 4)) & 0x0F0FU) * 0x0101U) >> 8;
+
+        return (unsigned long long)tmp;
+    } else if (size == 32) {
+        uint32_t tmp = (uint32_t)x;
+        tmp -= (tmp >> 1) & 0x55555555UL;
+        tmp = (tmp & 0x33333333UL) + ((tmp >> 2) & 0x33333333UL);
+        tmp = (((tmp + (tmp >> 4)) & 0x0F0F0F0FUL) * 0x01010101UL) >> 24;
+
+        return (unsigned long long)tmp;
+    } else if (size == 64) {
+        uint64_t tmp = (uint64_t)x;
+        tmp -= (tmp >> 1) & 0x55555555ULL;
+        tmp = (tmp & 0x33333333ULL) + ((tmp >> 2) & 0x33333333ULL);
+        tmp = (((tmp + (tmp >> 4)) & 0x0F0F0F0FULL) * 0x01010101ULL) >> 56;
+
+        return (unsigned long long)tmp;
+    } else if (size == 128) {
+        uint128_t tmp = (uint128_t)x;
+        tmp -= (tmp >> 1) & 0x55555555ULL;
+        tmp = (tmp & 0x33333333ULL) + ((tmp >> 2) & 0x33333333ULL);
+        tmp = (((tmp + (tmp >> 4)) & 0x0F0F0F0FULL) * 0x01010101ULL) >> 120;
+
+        return (unsigned long long)tmp;
     }
+}
 
 //////////////////// unsigned_char_bit_count.proto ////////////////////
 
@@ -747,17 +747,9 @@ static CYTHON_INLINE unsigned char __Pyx_unsigned_char_bit_count(unsigned char x
 //@requires: bit_count_base
 
 static CYTHON_INLINE unsigned char __Pyx_unsigned_char_bit_count(unsigned char x) {
-#ifdef __has_builtin
-#if __has_builtin(__builtin_popcount)
+#if defined(__has_builtin) && __has_builtin(__builtin_popcount)
     return (unsigned char)__builtin_popcount((unsigned int)x);
 #else
-#define _FALLBACK
-#endif
-#else
-#define _FALLBACK
-#endif
-#ifdef _FALLBACK
-#undef _FALLBACK
     return (unsigned char)bit_count_base((unsigned long long)x, sizeof(unsigned char));
 #endif
 }
@@ -770,17 +762,9 @@ static CYTHON_INLINE short __Pyx_unsigned_short_bit_count(unsigned short x);
 //@requires: bit_count_base
 
 static CYTHON_INLINE short __Pyx_unsigned_short_bit_count(unsigned short x) {
-#ifdef __has_builtin
-#if __has_builtin(__builtin_popcount)
+#if defined(__has_builtin) && __has_builtin(__builtin_popcount)
     return (short)__builtin_popcount((unsigned int)x);
 #else
-#define _FALLBACK
-#endif
-#else
-#define _FALLBACK
-#endif
-#ifdef _FALLBACK
-#undef _FALLBACK
     return (short)bit_count_base((unsigned long long)x, sizeof(unsigned short));
 #endif
 }
@@ -793,17 +777,9 @@ static CYTHON_INLINE int __Pyx_unsigned_int_bit_count(unsigned int x);
 //@requires: bit_count_base
 
 static CYTHON_INLINE int __Pyx_unsigned_int_bit_count(unsigned int x) {
-#ifdef __has_builtin
-#if __has_builtin(__builtin_popcount)
+#if defined(__has_builtin) && __has_builtin(__builtin_popcount)
     return __builtin_popcount(x);
 #else
-#define _FALLBACK
-#endif
-#else
-#define _FALLBACK
-#endif
-#ifdef _FALLBACK
-#undef _FALLBACK
     return bit_count_base((unsigned long long)x, sizeof(unsigned int));
 #endif
 }
@@ -816,17 +792,9 @@ static CYTHON_INLINE int __Pyx_unsigned_long_bit_count(unsigned long x);
 //@requires: bit_count_base
 
 static CYTHON_INLINE int __Pyx_unsigned_long_bit_count(unsigned long x) {
-#ifdef __has_builtin
-#if __has_builtin(__builtin_popcountl)
+#if defined(__has_builtin) && __has_builtin(__builtin_popcountl)
     return __builtin_popcountl(x);
 #else
-#define _FALLBACK
-#endif
-#else
-#define _FALLBACK
-#endif
-#ifdef _FALLBACK
-#undef _FALLBACK
     return bit_count_base((unsigned long long)x, sizeof(unsigned long));
 #endif
 }
@@ -839,17 +807,9 @@ static CYTHON_INLINE int __Pyx_unsigned_longlong_bit_count(unsigned long long x)
 //@requires: bit_count_base
 
 static CYTHON_INLINE int __Pyx_unsigned_longlong_bit_count(unsigned long long x) {
-#ifdef __has_builtin
-#if __has_builtin(__builtin_popcountll)
+#if defined(__has_builtin) && __has_builtin(__builtin_popcountll)
     return __builtin_popcountll(x);
 #else
-#define _FALLBACK
-#endif
-#else
-#define _FALLBACK
-#endif
-#ifdef _FALLBACK
-#undef _FALLBACK
     return bit_count_base(x, sizeof(unsigned long long));
 #endif
 }
