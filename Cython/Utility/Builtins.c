@@ -707,35 +707,35 @@ static inline int bit_count_base (unsigned long long x, int size) {
         tmp = (tmp & 0x33) + ((tmp >> 2) & 0x33);
         tmp = ((tmp + (tmp >> 4)) & 0x0F) * 0x01;
 
-        return (unsigned long long)tmp;
+        return (int)tmp;
     } else if (size == 16) {
         uint16_t tmp = (uint16_t)x;
         tmp -= (tmp >> 1) & 0x5555U;
         tmp = (tmp & 0x3333U) + ((tmp >> 2) & 0x3333U);
         tmp = (((tmp + (tmp >> 4)) & 0x0F0FU) * 0x0101U) >> 8;
 
-        return (unsigned long long)tmp;
+        return (int)tmp;
     } else if (size == 32) {
         uint32_t tmp = (uint32_t)x;
         tmp -= (tmp >> 1) & 0x55555555UL;
         tmp = (tmp & 0x33333333UL) + ((tmp >> 2) & 0x33333333UL);
         tmp = (((tmp + (tmp >> 4)) & 0x0F0F0F0FUL) * 0x01010101UL) >> 24;
 
-        return (unsigned long long)tmp;
+        return (int)tmp;
     } else if (size == 64) {
         uint64_t tmp = (uint64_t)x;
         tmp -= (tmp >> 1) & 0x55555555ULL;
         tmp = (tmp & 0x33333333ULL) + ((tmp >> 2) & 0x33333333ULL);
         tmp = (((tmp + (tmp >> 4)) & 0x0F0F0F0FULL) * 0x01010101ULL) >> 56;
 
-        return (unsigned long long)tmp;
+        return (int)tmp;
     } else if (size == 128) {
         uint128_t tmp = (uint128_t)x;
         tmp -= (tmp >> 1) & 0x55555555ULL;
         tmp = (tmp & 0x33333333ULL) + ((tmp >> 2) & 0x33333333ULL);
         tmp = (((tmp + (tmp >> 4)) & 0x0F0F0F0FULL) * 0x01010101ULL) >> 120;
 
-        return (unsigned long long)tmp;
+        return (int)tmp;
     }
 }
 
