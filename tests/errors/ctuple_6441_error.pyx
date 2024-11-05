@@ -5,7 +5,7 @@ cdef int ctuple_static_index_out_of_range((int, int, int) v):
 
 
 _ERRORS = u"""
-4:12: ctuple index out of range
+4:12: Index 3 out of bounds for '(int, int, int)'
 """
 
 # BUG: These should fail on compile
