@@ -181,18 +181,27 @@ jobs:
           # Free-threading
           - os: ubuntu-22.04
             python-version: 3.13t
-            backend: "c,cpp"
-            env: {}
+            backend: "c"
+            allowed_failure: true
+          - os: ubuntu-22.04
+            python-version: 3.13t
+            backend: "cpp"
             allowed_failure: true
           - os: windows-2019
             python-version: 3.13t
-            backend: "c,cpp"
-            env: {}
+            backend: "c"
+            allowed_failure: true
+          - os: windows-2019
+            python-version: 3.13t
+            backend: "cpp"
             allowed_failure: true
           - os: macos-13
             python-version: 3.13t
-            backend: "c,cpp"
-            env: {}
+            backend: "c"
+            allowed_failure: true
+          - os: macos-13
+            python-version: 3.13t
+            backend: "cpp"
             allowed_failure: true
 
     # This defaults to 360 minutes (6h) which is way too long and if a test gets stuck, it can block other pipelines.
