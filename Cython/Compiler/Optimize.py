@@ -1441,7 +1441,7 @@ class FlattenInListTransform(Visitor.EnvTransform, SkipDeclarations):
             # Starred arguments do not directly translate to comparisons or "in" tests.
             return node
 
-        #lhs = UtilNodes.ResultRefNode(lhs)
+        lhs = UtilNodes.ResultRefNode(lhs)
 
         conds = []
         temps = []
@@ -1472,8 +1472,7 @@ class FlattenInListTransform(Visitor.EnvTransform, SkipDeclarations):
                                 operand2 = right).analyse_types(self.current_env())
 
         condition = reduce(concat, conds)
-        #new_node = UtilNodes.EvalWithTempExprNode(lhs, condition)
-        new_node = lhs
+        new_node = UtilNodes.EvalWithTempExprNode(lhs, condition)
         if node.operand2.type.is_ctuple and not isinstance(node.operand2, ExprNodes.TupleNode):
             new_node = UtilNodes.EvalWithTempExprNode(rhs, new_node)
         for temp in temps[::-1]:
