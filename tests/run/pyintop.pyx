@@ -92,8 +92,10 @@ def and_int2(obj2):
     # On Python 3.10 and earlier, from_bytes produces a non-canonical
     # 0 that caused trouble when &ing with a constant.
     """
-    >>> and_int2(1337) if sys.version_info[0] >= 3 else 57
+    >>> and_int2(1337)
     57
+    >>> and_int2(0)
+    0
     >>> and_int2(int.from_bytes(b'\\x00', 'big')) if sys.version_info[0] >= 3 else 0
     0
     """
