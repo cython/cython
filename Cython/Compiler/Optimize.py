@@ -1425,13 +1425,13 @@ class FlattenInListTransform(Visitor.EnvTransform, SkipDeclarations):
         lhs = node.operand1
 
         if node.operand2.type.is_ctuple and not isinstance(node.operand2, ExprNodes.TupleNode):
-            args = [ExprNodes.IndexNode(node.pos, base=node.operand2, index=ExprNodes.IntNode(node.pos, value=str(index), constant_result=index, type=PyrexTypes.c_py_ssize_t_type)).analyse_types(self.current_env()).coerce_to(node.operand1.type, self.current_env()) for index, type_ in enumerate(node.operand2.type.components) if node.operand1.type.assignable_from(type_) or ((node.operand1.type.is_pyobject and PyrexTypes.py_object_type.assignable_from(type_)) or (type_.is_pyobject and PyrexTypes.py_object_type.assignable_from(node.operand1.type)))]
+            rhs = UtilNodes.ResultRefNode(node.operand2)
+            args = [ExprNodes.IndexNode(node.pos, base=rhs, index=ExprNodes.IntNode(node.pos, value=str(index), constant_result=index, type=PyrexTypes.c_py_ssize_t_type)).analyse_types(self.current_env()).coerce_to(node.operand1.type, self.current_env()) for index, type_ in enumerate(rhs.type.components) if node.operand1.type.assignable_from(type_) or ((node.operand1.type.is_pyobject and PyrexTypes.py_object_type.assignable_from(type_)) or (type_.is_pyobject and PyrexTypes.py_object_type.assignable_from(node.operand1.type)))]
         else:
             args = node.operand2.args
 
         if len(args) == 0:
-            # note: lhs may have side effects, but ".is_simple()" may not work yet before type analysis.
-            if lhs.try_is_simple():
+            if lhs.is_simple():
                 constant_result = node.operator == 'not_in'
                 return ExprNodes.BoolNode(node.pos, value=constant_result, constant_result=constant_result).analyse_types(self.current_env())
             return node
@@ -1449,7 +1449,7 @@ class FlattenInListTransform(Visitor.EnvTransform, SkipDeclarations):
                 continue
 
             # Trial optimisation to avoid redundant temp assignments.
-            if not arg.try_is_simple():
+            if not arg.is_simple():
                 # must evaluate all non-simple RHS before doing the comparisons
                 arg = UtilNodes.LetRefNode(arg)
                 temps.append(arg)
@@ -1472,6 +1472,8 @@ class FlattenInListTransform(Visitor.EnvTransform, SkipDeclarations):
 
         condition = reduce(concat, conds)
         new_node = UtilNodes.EvalWithTempExprNode(lhs, condition)
+        if node.operand2.type.is_ctuple and not isinstance(node.operand2, ExprNodes.TupleNode):
+            new_node = UtilNodes.EvalWithTempExprNode(rhs, new_node)
         for temp in temps[::-1]:
             new_node = UtilNodes.EvalWithTempExprNode(temp, new_node)
         return new_node.analyse_types(self.current_env())

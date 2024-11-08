@@ -1153,13 +1153,6 @@ class ExprNode(Node):
         #  reference, or temporary.
         return self.result_in_temp()
 
-    def try_is_simple(self):
-        # Allow ".is_simple()" to fail (e.g. before type analysis) and assume it's not simple.
-        try:
-            return self.is_simple()
-        except Exception:
-            return False
-
     def may_be_none(self):
         if self.type and not (self.type.is_pyobject or
                               self.type.is_memoryviewslice):
@@ -13388,7 +13381,8 @@ class CmpNode:
 
         if new_common_type is None:
             # fall back to generic type compatibility tests
-            if (type1.is_ctuple or type2.is_ctuple) or type1 == type2:
+            if type1 == type2 or (type1.is_ctuple and type2.is_ctuple and type1.assignable_from(type2)):
+                print(operand1, op, operand1.type, operand2.type)
                 new_common_type = type1
             elif type1.is_pyobject or type2.is_pyobject:
                 if type2.is_numeric or type2.is_string:
@@ -13585,7 +13579,7 @@ class CmpNode:
                 operand1.type.unary_op('eq'),
                 operand1.result(),
                 operand2.result()))
-        elif operand1.type.is_struct_or_union and operand2.type.is_struct_or_union and not (operand1.type.in_cpp or operand2.type.in_cpp):
+        elif operand1.type.is_struct_or_union and operand2.type.is_struct_or_union and not (operand1.type.needs_cpp_construction or operand2.type.needs_cpp_construction):
             assert op in ('==', '!=')
 
             if (operand1.type.is_struct_or_union and operand1.type.kind == 'union') or (operand2.type.is_struct_or_union and operand2.type.kind == 'union'):
@@ -13595,7 +13589,7 @@ class CmpNode:
                 error(self.pos, "cannot compare structs of different types")
 
             operand1_temp = code.funcstate.allocate_temp(operand1.type, manage_ref=False)
-            operand2_temp = code.funcstate.allocate_temp(operand1.type, manage_ref=False)
+            operand2_temp = code.funcstate.allocate_temp(operand2.type, manage_ref=False)
             code.putln(f"{operand1_temp} = {operand1.result()};")
             code.putln(f"{operand2_temp} = {operand2.result()};")
             struct_code = self.generate_struct_code(operand1_temp, operand2_temp, operand1.type, op, code)
