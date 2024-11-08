@@ -1426,6 +1426,7 @@ class FlattenInListTransform(Visitor.EnvTransform, SkipDeclarations):
 
         if node.operand2.type.is_ctuple and not isinstance(node.operand2, ExprNodes.TupleNode):
             rhs = UtilNodes.ResultRefNode(node.operand2)
+            print(rhs)
             args = [ExprNodes.IndexNode(node.pos, base=rhs, index=ExprNodes.IntNode(node.pos, value=str(index), constant_result=index, type=PyrexTypes.c_py_ssize_t_type)).analyse_types(self.current_env()).coerce_to(node.operand1.type, self.current_env()) for index, type_ in enumerate(rhs.type.components) if node.operand1.type.assignable_from(type_) or ((node.operand1.type.is_pyobject and PyrexTypes.py_object_type.assignable_from(type_)) or (type_.is_pyobject and PyrexTypes.py_object_type.assignable_from(node.operand1.type)))]
         else:
             args = node.operand2.args
@@ -1440,7 +1441,7 @@ class FlattenInListTransform(Visitor.EnvTransform, SkipDeclarations):
             # Starred arguments do not directly translate to comparisons or "in" tests.
             return node
 
-        lhs = UtilNodes.ResultRefNode(lhs)
+        #lhs = UtilNodes.ResultRefNode(lhs)
 
         conds = []
         temps = []
@@ -1471,7 +1472,8 @@ class FlattenInListTransform(Visitor.EnvTransform, SkipDeclarations):
                                 operand2 = right).analyse_types(self.current_env())
 
         condition = reduce(concat, conds)
-        new_node = UtilNodes.EvalWithTempExprNode(lhs, condition)
+        #new_node = UtilNodes.EvalWithTempExprNode(lhs, condition)
+        new_node = lhs
         if node.operand2.type.is_ctuple and not isinstance(node.operand2, ExprNodes.TupleNode):
             new_node = UtilNodes.EvalWithTempExprNode(rhs, new_node)
         for temp in temps[::-1]:
