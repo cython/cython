@@ -2,8 +2,8 @@
 Cython Changelog
 ================
 
-3.1.0 (2024-??-??)
-==================
+3.1.0 alpha 1 (2024-11-08)
+==========================
 
 Features added
 --------------
@@ -52,7 +52,7 @@ Features added
   (Github issue :issue:`6179`)
 
 * Most builtin methods now provide their return type for type inference.
-  (Github issues :issue:`4829`, :issue:`5865`)
+  (Github issues :issue:`4829`, :issue:`5865`, :issue:`6412`)
 
 * Method calls on builtin literal values are evaluated at compile time, if applicable.
   (Github issue :issue:`6383`)
@@ -104,6 +104,12 @@ Features added
 * New options ``warn.deprecated.DEF`` and ``warn.deprecated.IF`` can silence the deprecation warnings.
   Patch by Eric Larson.  (Github issue :issue:`6243`)
 
+* ``cygdb`` shows more helpful output for some objects.
+  Patch by Kent Slaney.  (Github issue :issue:`5958`)
+
+* Bazel build support for improved.
+  Patch by mering.  (Github issue :issue:`6452`)
+
 * The parser was updated for Unicode 15.1 (as provided by CPython 3.13b4).
 
 Bugs fixed
@@ -135,6 +141,9 @@ Bugs fixed
 * The base type of extension heap types is now traversed during GC runs in Py3.9+.
   (Github issue :issue:`4193`)
 
+* The Python ``&`` operator could touch invalid memory with certain ``0`` values in Python <= 3.10.
+  Patch by Michael J. Sullivan.  (Github issue :issue:`4193`)
+
 * Exception values were not always recognised as equal at compile time.
   (Github issue :issue:`5709`)
 
@@ -149,6 +158,9 @@ Bugs fixed
 * File paths in the C code are now relative to the build directory.
   Patch by Oscar Benjamin.  (Github issue :issue:`6341`)
 
+* depfiles now use relative paths whenever possible.
+  Patch by Loïc Estève.  (Github issue :issue:`6345`)
+
 * The ``-a`` option in the IPython magic no longer copies the complete HTML document
   into the notebook but only a more reasonable content snippet.
   Patch by Min RK.  (Github issue :issue:`5760`)
@@ -156,11 +168,16 @@ Bugs fixed
 * Uselessly referring to C enums (not enum values) as Python objects is now rejected.
   Patch by Vyas Ramasubramani.  (Github issue :issue:`5638`)
 
+* Cython no longer acquires the GIL during in-place assignments to C attributes in nogil sections.
+  Patch by Mads Ynddal.  (Github issue :issue:`6407`)
+
 * Several C++ warnings about ``char*`` casts were resolved.
   (Github issues :issue:`5515`, :issue:`5847`)
 
 * C++ undefined behaviour was fixed in an error handling case.
   (Github issue :issue:`5278`)
+
+* Dict assignments to struct members with reserved C/C++ names could generate invalid C code.
 
 * The PEP-479 implementation could raise a visible ``RuntimeError`` without
   a trace of the original ``StopIteration``.
@@ -169,11 +186,17 @@ Bugs fixed
 * A crash was fixed when assigning a zero-length slice to a memoryview.
   Patch by Michael Man.  (Github issue :issue:`6227`)
 
+* Conditionally assigning to variables with the walrus operator could crash.
+  (Github issue :issue:`6094`)
+
 * Unterminated string literals could lock up the build in an infinite loop.
   (Github issue :issue:`5977`)
 
 * Exporting C functions uses better platform compatible code.
   (Github issue :issue:`4683`)
+
+* The shebang in ``libpython.py`` was incorrect.
+  Patch by Luke Hamburg.  (Github issue :issue:`6439`)
 
 * Cython now uses `SHA-256` instead of `SHA-1` for caching etc. as the latter may not be
   available on all Python installations.
@@ -182,7 +205,7 @@ Bugs fixed
 Other changes
 -------------
 
-* Support for Python 2.7 - 3.6 was removed, along with large chunks of legacy code.
+* Support for Python 2.7 - 3.7 was removed, along with large chunks of legacy code.
   (Github issue :issue:`2800`)
 
 * The pxd files ``cpython.int``, ``cpython.cobject``, ``cpython.oldbuffer`` and ``cpython.string``
