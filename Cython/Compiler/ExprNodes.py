@@ -1018,7 +1018,8 @@ class ExprNode(Node):
                         tup = src.type.dtype, dst_type.dtype
 
                     error(self.pos, msg % tup)
-
+        elif dst_type.is_ctuple and src_type.is_ctuple and dst_type.assignable_from(src_type):
+            src = CTupleCastNode(src, dst_type, env)
         elif dst_type.is_pyobject:
             # We never need a type check when assigning None to a Python object type.
             if src.is_none:
@@ -14153,6 +14154,33 @@ class CoerceToMemViewSliceNode(CoercionNode):
             self.pos,
             code
         ))
+
+
+class CTupleCastNode(CoercionNode):
+    """
+    Coerce between different CTuple types or struct types.
+    """
+
+    def __init__(self, arg, dst_type, env):
+        assert dst_type.is_ctuple
+        assert arg.type.is_ctuple
+        CoercionNode.__init__(self, arg)
+        self.type = dst_type
+        self.is_temp = 1
+        self.arg = arg
+
+    def generate_result_code(self, code):
+        self.assign_ctuple(self.arg.result(), self.temp_code, self.arg.type, self.type, code)
+
+    def assign_ctuple(self, src, dest, src_type, dest_type, code):
+        for index, (member_src_type, member_dest_type) in enumerate(zip(src_type.components, dest_type.components)):
+            member_src = src + '.f' + str(index)
+            member_dest = dest + '.f' + str(index)
+
+            if member_dest_type.is_ctuple:
+                self.assign_ctuple(member_src, member_dest, member_src_type, member_dest_type, code)
+            else:
+                code.putln(f"{member_dest} = {typecast(member_src_type, member_dest_type, member_src) if member_src_type != member_dest_type else member_src};")
 
 
 class CastNode(CoercionNode):
