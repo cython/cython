@@ -11,7 +11,9 @@ Features added
 * Support for freethreading builds of CPython 3.13 was added.
   It comes with a new directive ``freethreading_compatible=True`` to mark modules as
   free-threading compatible (``Py_mod_gil``).
-  https://github.com/cython/cython/issues?q=label%3A"nogil+CPython"
+
+  https://github.com/cython/cython/issues?q=label%3A%22nogil+CPython%22
+
   Patches by Lysandros Nikolaou and Nathan Goldbaum.  (Github issue :issue:`6162`)
 
 * Support for monitoring Cython modules via `sys.monitoring` in CPython 3.13+ was added.
@@ -21,6 +23,7 @@ Features added
 
 * Many issues with the Limited C-API were resolved.
   It is now sufficient to define the macro ``Py_LIMITED_API`` to activate the support.
+
   https://github.com/cython/cython/issues?q=label%3A%22limited+api%22
 
 * Support for GraalPython was improved (but is still incomplete).
