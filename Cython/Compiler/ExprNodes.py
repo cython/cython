@@ -14116,17 +14116,17 @@ class CTupleCastNode(CoercionNode):
         self.arg = arg
 
     def generate_result_code(self, code):
-        self.assign_ctuple(self.arg.result(), self.temp_code, self.arg.type, self.type, code)
+        self.recursive_assign(self.arg.result(), self.temp_code, self.arg.type, self.type, code)
 
-    def assign_ctuple(self, src, dest, src_type, dest_type, code):
-        for index, (member_src_type, member_dest_type) in enumerate(zip(src_type.components, dest_type.components)):
-            member_src = src + '.f' + str(index)
-            member_dest = dest + '.f' + str(index)
+    def recursive_assign(self, src, dest, src_type, dest_type, code):
+        if dest_type.is_ctuple and dest_type != src_type:
+            for index, (member_src_type, member_dest_type) in enumerate(zip(src_type.components, dest_type.components)):
+                member_src = src + '.f' + str(index)
+                member_dest = dest + '.f' + str(index)
 
-            if member_dest_type.is_ctuple:
-                self.assign_ctuple(member_src, member_dest, member_src_type, member_dest_type, code)
-            else:
-                code.putln(f"{member_dest} = {typecast(member_src_type, member_dest_type, member_src) if member_src_type != member_dest_type else member_src};")
+                self.recursive_assign(member_src, member_dest, member_src_type, member_dest_type, code)
+        else:
+            code.putln(f"{dest} = {typecast(src_type, dest_type, src) if src_type != dest_type else src};")
 
 
 class CastNode(CoercionNode):
