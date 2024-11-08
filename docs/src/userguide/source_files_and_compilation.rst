@@ -118,7 +118,10 @@ directly to the ``Extension`` constructor in your setup file.
 
 If you have a single Cython file that you want to turn into a compiled
 extension, say with filename :file:`example.pyx` the associated :file:`setup.py`
-would be::
+would be:
+
+.. code-block:: ini
+    :caption: setup.py
 
     from setuptools import setup
     from Cython.Build import cythonize
@@ -134,7 +137,7 @@ then you may also want to inform pip that :mod:`Cython` is required for
 creating a :file:`pyproject.toml` file containing, at least:
 
 .. code-block:: ini
-
+    :caption: pyproject.toml
 
     [build-system]
     requires = ["setuptools", "wheel", "Cython"]
@@ -146,6 +149,31 @@ documentation`_. To compile the extension for use in the current directory use:
 
     $ python setup.py build_ext --inplace
 
+.. note::
+
+    setuptools 74.1.0 adds experimental support of the extensions in :file:`pyproject.toml`:
+
+    .. code-block:: ini
+        :caption: pyproject.toml
+
+        [build-system]
+        requires = ["setuptools", "cython"]
+        build-backend = "setuptools.build_meta"
+
+        [project]
+        name = "mylib-foo"
+        version = "0.42"
+
+        [tool.setuptools]
+        ext-modules = [
+          {name = "example", sources = ["example.pyx"]}
+        ]
+
+    In this case, you can use any build frontend - e.g. `build <https://pypi.org/project/build/>`_
+
+    .. code-block:: text
+
+        $ python -m build
 
 Configuring the C-Build
 ------------------------
