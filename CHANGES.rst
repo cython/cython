@@ -8,6 +8,14 @@ Cython Changelog
 Bugs fixed
 ----------
 
+* Release 3.0.11 introduced some incorrect ``noexcept`` warnings.
+  (Github issue :issue:`6335`)
+
+* Conditional assignments to variables using the walrus operator could crash.
+  (Github issue :issue:`6094`)
+
+* Dict assignments to struct members with reserved C names could generate invalid C code.
+
 * Fused ctuples with the same entry types but different sizes could fail to compile.
   (Github issue :issue:`6328`)
 
