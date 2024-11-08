@@ -41,7 +41,7 @@ jobs:
         #
         # FIXME: 'cpp' tests seems to fail due to compilation errors (numpy_pythran_unit)
         # in all python versions and test failures (builtin_float) in 3.5<
-        os: [ubuntu-20.04, windows-2019, macos-12]
+        os: [ubuntu-20.04, windows-2019, macos-13]
         backend: [c, cpp]
         python-version:
           - "2.7"
@@ -53,11 +53,12 @@ jobs:
           - "3.10"
           - "3.11"
           - "3.12"
-          - "3.13-dev"
+          - "3.13"
+          - "3.14-dev"
         env: [{}]
 
         include:
-          - python-version: "3.13-dev"
+          - python-version: "3.14-dev"
             allowed_failure: true
 
           # Ubuntu sub-jobs:
