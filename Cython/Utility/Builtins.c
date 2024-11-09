@@ -754,7 +754,8 @@ static CYTHON_INLINE int __Pyx_{{type_.specialization_name()}}_bit_count({{type_
 {{endif}}
 
 #if defined(__has_builtin) && __has_builtin(__builtin_popcount)
-    return __builtin_popcount{{str() if type_.rank <= 2 else ('l' if type_.rank == 3 else 'll')}}((unsigned {{'int' if type_.rank <= 2 else type_.rank_name()}})value);
+    return {{'__builtin_popcount' if type_.rank <= 2 else ('__builtin_popcountl' if type_.rank == 3 else '__builtin_popcountll')}}\
+        ({{'(unsigned int)' if type_.rank < 2 else ''}}value);
 #else
     return __Pyx_bit_count_base((unsigned PY_LONG_LONG)value, sizeof({{type_.sign_and_name()}}));
 #endif
