@@ -9368,7 +9368,7 @@ class DictNode(ExprNode):
     def analyse_types(self, env):
         with local_errors(ignore=True) as errors:
             self.key_value_pairs = [
-                item.analyse_types(env)
+                item.analyse_types(self.type.is_pyobject, env)
                 for item in self.key_value_pairs
             ]
         self.obj_conversion_errors = errors
@@ -9526,11 +9526,12 @@ class DictItemNode(ExprNode):
         self.constant_result = (
             self.key.constant_result, self.value.constant_result)
 
-    def analyse_types(self, env):
+    def analyse_types(self, is_dict, env):
         self.key = self.key.analyse_types(env)
         self.value = self.value.analyse_types(env)
-        self.key = self.key.coerce_to_pyobject(env)
-        self.value = self.value.coerce_to_pyobject(env)
+        if is_dict:
+            self.key = self.key.coerce_to_pyobject(env)
+            self.value = self.value.coerce_to_pyobject(env)
         return self
 
     def generate_evaluation_code(self, code):
