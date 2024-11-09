@@ -13384,7 +13384,6 @@ class CmpNode:
         if new_common_type is None:
             # fall back to generic type compatibility tests
             if type1 == type2 or (type1.is_ctuple and type2.is_ctuple and type1.assignable_from(type2)):
-                print(operand1, operand2, op, operand1.type, operand2.type)
                 new_common_type = type1
             elif type1.is_pyobject or type2.is_pyobject:
                 if type2.is_numeric or type2.is_string:
