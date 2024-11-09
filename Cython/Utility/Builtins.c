@@ -667,14 +667,14 @@ static CYTHON_INLINE int __Pyx_PyInt_bit_count(PyObject *x); /*proto*/
 
 static CYTHON_INLINE int __Pyx_PyInt_bit_count(PyObject *x) {
 #if defined(__has_builtin) && __has_builtin(__builtin_popcountll)
-    long long result;
+    PY_LONG_LONG result;
     int overflow;
 
     result = PyLong_AsLongLongAndOverflow(x, &overflow);
     if (overflow) {
         return (int)PyLong_AsLong(CALL_UNBOUND_METHOD(PyLong_Type, "bit_count", x));
     } else {
-        unsigned long long value = (result < 0) ? -result : result;
+        unsigned PY_LONG_LONG value = (result < 0) ? -<unsigned PY_LONG_LONG>result : <unsigned PY_LONG_LONG>result;
         return __builtin_popcountll(value);
     };
 #else
@@ -750,7 +750,7 @@ static CYTHON_INLINE int __Pyx_{{type_.specialization_name()}}_bit_count({{type_
 static CYTHON_INLINE int __Pyx_{{type_.specialization_name()}}_bit_count({{type_.sign_and_name()}} {{'x' if type_.signed else 'value'}}) {
 {{if type_.signed}}
     if (x == {{type_.min}}) return 1;
-    unsigned {{type_.rank_name()}} value = (x < 0) ? -x : x;
+    unsigned {{type_.rank_name()}} value = (x < 0) ? -<unsigned {{type_.rank_name()}}>x : <unsigned {{type_.rank_name()}}>x;
 {{endif}}
 
 #if defined(__has_builtin) && __has_builtin(__builtin_popcount)
