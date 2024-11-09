@@ -7,7 +7,7 @@ ctypedef fused ab:
 cdef int test(ab x):
     return 1
 
-ctypedef (float, float) c
+ctypedef (long, long) c
 ctypedef (int, int) d
 
 cdef d test2(c x):
