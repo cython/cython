@@ -13652,9 +13652,6 @@ class CmpNode:
         return '(' + (' && ' if op == '==' else ' || ').join(comps) + ')'
 
     def generate_ctype_code(self, operand1_name, operand2_name, operand1_type, operand2_type, op, code):
-        if (operand1_type.is_struct_or_union and operand1_type.kind == 'union') or (operand2_type.is_struct_or_union and operand2_type.kind == 'union'):
-            error(self.pos, "cannot compare unions, compare a specific field instead")
-
         if operand2_type.is_struct_or_union:
             if (operand1_type.is_struct_or_union and operand1_type.kind == 'union') or (operand2_type.is_struct_or_union and operand2_type.kind == 'union'):
                 error(self.pos, "cannot compare unions, compare a specific field instead")
