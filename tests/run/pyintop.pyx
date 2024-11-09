@@ -1,5 +1,6 @@
 # mode: run
 
+import sys
 cimport cython
 
 
@@ -83,6 +84,22 @@ def and_int(obj2):
     16
     """
     obj1 = obj2 & 0x10
+    return obj1
+
+
+@cython.test_fail_if_path_exists('//IntBinopNode')
+def and_int2(obj2):
+    # On Python 3.10 and earlier, from_bytes produces a non-canonical
+    # 0 that caused trouble when &ing with a constant.
+    """
+    >>> and_int2(1337)
+    57
+    >>> and_int2(0)
+    0
+    >>> and_int2(int.from_bytes(b'\\x00', 'big')) if sys.version_info[0] >= 3 else 0
+    0
+    """
+    obj1 = obj2 & 0xff
     return obj1
 
 

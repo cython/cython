@@ -1281,15 +1281,6 @@ static {{c_ret_type}} {{cfunc_name}}(PyObject *op1, PyObject *op2, long intval, 
         PY_LONG_LONG ll{{ival}}, llx;
 #endif
         {{endif}}
-        {{if c_op == '&'}}
-        // special case for &-ing arbitrarily large numbers with known single digit operands
-        if ((intval & PyLong_MASK) == intval) {
-            // Calling PyLong_CompactValue() requires the PyLong value to be compact, we only need the last digit.
-            long last_digit = (long) __Pyx_PyLong_Digits({{pyval}})[0];
-            long result = intval & (likely(__Pyx_PyLong_IsPos({{pyval}})) ? last_digit : (PyLong_MASK - last_digit + 1));
-            return PyLong_FromLong(result);
-        }
-        {{endif}}
         // special cases for 0: + - * % / // | ^ & >> <<
         if (unlikely(__Pyx_PyLong_IsZero({{pyval}}))) {
             {{if order == 'CObj' and c_op in '%/'}}
@@ -1312,6 +1303,15 @@ static {{c_ret_type}} {{cfunc_name}}(PyObject *op1, PyObject *op2, long intval, 
             return __Pyx_NewRef(op1);
             {{endif}}
         }
+        {{if c_op == '&'}}
+        // special case for &-ing arbitrarily large numbers with known single digit operands
+        if ((intval & PyLong_MASK) == intval) {
+            // Calling PyLong_CompactValue() requires the PyLong value to be compact, we only need the last digit.
+            long last_digit = (long) __Pyx_PyLong_Digits({{pyval}})[0];
+            long result = intval & (likely(__Pyx_PyLong_IsPos({{pyval}})) ? last_digit : (PyLong_MASK - last_digit + 1));
+            return PyLong_FromLong(result);
+        }
+        {{endif}}
         // handle most common case first to avoid indirect branch and optimise branch prediction
         if (likely(__Pyx_PyLong_IsCompact({{pyval}}))) {
             {{ival}} = __Pyx_PyLong_CompactValue({{pyval}});
