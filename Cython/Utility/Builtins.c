@@ -749,7 +749,7 @@ static CYTHON_INLINE int __Pyx_{{type_.specialization_name()}}_bit_count({{type_
 
 static CYTHON_INLINE int __Pyx_{{type_.specialization_name()}}_bit_count({{type_.sign_and_name()}} {{'x' if type_.signed else 'value'}}) {
 {{if type_.signed}}
-    if (x == {{'CHAR_MIN' if type_.rank == 0 and type_.signed == 1 else ('SCHAR_MIN', 'SHRT_MIN', 'INT_MIN', 'LONG_MIN', 'LLONG_MIN')[type_.rank]}}) return 1;
+    if (x == {{type_.min}}) return 1;
     unsigned {{type_.rank_name()}} value = (x < 0) ? -x : x;
 {{endif}}
 
