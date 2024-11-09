@@ -14179,8 +14179,8 @@ class CTupleCastNode(CoercionNode):
     def recursive_assign(self, src, dest, src_type, dest_type, code):
         if dest_type.is_ctuple and dest_type != src_type:
             for index, (member_src_type, member_dest_type) in enumerate(zip(src_type.components, dest_type.components)):
-                member_src = src + '.f' + str(index)
-                member_dest = dest + '.f' + str(index)
+                member_src = src_type.index_code(src, index)
+                member_dest = dest_type.index_code(dest, index)
 
                 self.recursive_assign(member_src, member_dest, member_src_type, member_dest_type, code)
         else:
