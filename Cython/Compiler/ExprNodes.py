@@ -13587,12 +13587,6 @@ class CmpNode:
         elif operand1.type.is_struct_or_union and operand2.type.is_struct_or_union and not (operand1.type.needs_cpp_construction or operand2.type.needs_cpp_construction):
             assert op in ('==', '!=')
 
-            if (operand1.type.is_struct_or_union and operand1.type.kind == 'union') or (operand2.type.is_struct_or_union and operand2.type.kind == 'union'):
-                error(self.pos, "cannot compare unions, compare a specific field instead")
-
-            if operand1.type != operand2.type:
-                error(self.pos, "cannot compare structs of different types")
-
             operand1_temp = code.funcstate.allocate_temp(operand1.type, manage_ref=False)
             operand2_temp = code.funcstate.allocate_temp(operand2.type, manage_ref=False)
             code.putln(f"{operand1_temp} = {operand1.result()};")
@@ -13602,14 +13596,14 @@ class CmpNode:
 
             code.funcstate.release_temp(operand1_temp)
             code.funcstate.release_temp(operand2_temp)
-        elif operand1.type.is_ctuple and operand2.type.is_ctuple:
+        elif operand1.type.is_ctuple and operand2.type.is_ctuple and operand1.type.assignable_from(operand2.type):
             assert op in ('==', '!=')
 
             operand1_temp = code.funcstate.allocate_temp(operand1.type, manage_ref=False)
             operand2_temp = code.funcstate.allocate_temp(operand2.type, manage_ref=False)
             code.putln(f"{operand1_temp} = {operand1.result()};")
             code.putln(f"{operand2_temp} = {operand2.result()};")
-            ctuple_code = self.generate_ctuple_code(operand1_temp, operand2_temp, operand1.type, operand2.type if op in ("in", "not_in") else operand1.type, op, code)
+            ctuple_code = self.generate_ctuple_code(operand1_temp, operand2_temp, operand1.type, operand2.type, op, code)
             code.putln(f"{result_code} = {ctuple_code};")
 
             code.funcstate.release_temp(operand1_temp)
@@ -13662,6 +13656,12 @@ class CmpNode:
             error(self.pos, "cannot compare unions, compare a specific field instead")
 
         if operand2_type.is_struct_or_union:
+            if (operand1_type.is_struct_or_union and operand1_type.kind == 'union') or (operand2_type.is_struct_or_union and operand2_type.kind == 'union'):
+                error(self.pos, "cannot compare unions, compare a specific field instead")
+    
+            if operand1_type != operand2_type:
+                error(self.pos, "cannot compare structs of different types")
+
             return self.generate_struct_code(operand1_name, operand2_name, operand2_type, op, code)
         elif operand2_type.is_ctuple:
             return self.generate_ctuple_code(operand1_name, operand2_name, operand1_type, operand2_type, op, code)
