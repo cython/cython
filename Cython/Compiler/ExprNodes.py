@@ -4483,7 +4483,7 @@ class IndexNode(_IndexingBaseNode):
                 if index < 0:
                     index += self.base.type.size
 
-                return "%s.f%i" % (self.base.result(), index)
+                return self.base.type.index_code(self.base.result(), index)
             else:
                 return "(*%s)" % self.ctuple_var
         else:
@@ -4578,7 +4578,7 @@ class IndexNode(_IndexingBaseNode):
 
             for itr in range(-len(self.base.type.components) if code.globalstate.directives['wraparound'] else 0, len(self.base.type.components)):
                 index = itr % len(self.base.type.components)
-                code.putln(f"case {itr}: {self.ctuple_var} = &{base_code}.f{index}; break;")
+                code.putln(f"case {itr}: {self.ctuple_var} = &{self.base.type.index_code(base_code, index)}; break;")
 
             if code.globalstate.directives['boundscheck']:
                 code.putln("default: PyErr_SetString(PyExc_IndexError, \"ctuple index out of range\"); " + code.error_goto(self.pos))
@@ -4668,7 +4668,7 @@ class IndexNode(_IndexingBaseNode):
 
             for itr in range(-len(self.base.type.components) if code.globalstate.directives['wraparound'] else 0, len(self.base.type.components)):
                 index = itr % len(self.base.type.components)
-                code.putln(f"case {itr}: {base_code}.f{index} = {rvalue_code}; break;")
+                code.putln(f"case {itr}: {self.base.type.index_code(base_code, index)} = {rvalue_code}; break;")
 
             if code.globalstate.directives['boundscheck']:
                 code.putln("default: PyErr_SetString(PyExc_IndexError, \"ctuple index out of range\"); " + code.error_goto(self.pos))
