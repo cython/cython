@@ -1,4 +1,5 @@
 # mode: run
+# tag: c, no-cpp
 
 cdef struct b:
     unsigned char m1
