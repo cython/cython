@@ -682,6 +682,12 @@ static CYTHON_INLINE int __Pyx_PyInt_bit_count(PyObject *x) {
 #endif
 }
 
+//////////////////// bit_count_base.proto ////////////////////
+
+#if !(defined(__has_builtin) && __has_builtin(__builtin_popcountll))
+static inline int __Pyx_bit_count_base(unsigned PY_LONG_LONG x, int size);
+#endif
+
 //////////////////// bit_count_base ////////////////////
 
 #include <limits.h>
