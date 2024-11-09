@@ -9368,7 +9368,7 @@ class DictNode(ExprNode):
     def analyse_types(self, env):
         with local_errors(ignore=True) as errors:
             self.key_value_pairs = [
-                item.analyse_types(self.type.is_pyobject, env)
+                item.analyse_types(env)
                 for item in self.key_value_pairs
             ]
         self.obj_conversion_errors = errors
@@ -9491,7 +9491,10 @@ class DictNode(ExprNode):
                 member = struct_scope.lookup_here(item.key.value)
                 assert member is not None, f"struct member {item.key.value} not found, error was not handled during coercion"
                 key_cname = member.cname
-                value_cname = item.value.result()
+                value = item.value
+                if isinstance(value, CoerceToPyTypeNode):
+                    value = value.arg
+                value_cname = value.result()
                 if item.value.type.is_array:
                     code.putln(f"memcpy({self.result()}.{key_cname}, {value_cname}, sizeof({value_cname}));")
                 else:
@@ -9526,12 +9529,13 @@ class DictItemNode(ExprNode):
         self.constant_result = (
             self.key.constant_result, self.value.constant_result)
 
-    def analyse_types(self, is_dict, env):
+    def analyse_types(self, env):
         self.key = self.key.analyse_types(env)
         self.value = self.value.analyse_types(env)
-        if is_dict:
-            self.key = self.key.coerce_to_pyobject(env)
-            self.value = self.value.coerce_to_pyobject(env)
+        if not self.key.type.is_pyobject:
+            self.key = CoerceToPyTypeNode(self.key, env)
+        if not self.value.type.is_pyobject:
+            self.value = CoerceToPyTypeNode(self.value, env)
         return self
 
     def generate_evaluation_code(self, code):
@@ -10748,7 +10752,7 @@ class LocalsDictItemNode(DictItemNode):
         self.value = self.value.analyse_types(env)
         self.key = self.key.coerce_to_pyobject(env)
         if self.value.type.can_coerce_to_pyobject(env):
-            self.value = self.value.coerce_to_pyobject(env)
+            self.value = CoerceToPyTypeNode(self.value, env)
         else:
             self.value = None
         return self
