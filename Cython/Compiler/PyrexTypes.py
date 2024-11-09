@@ -4656,6 +4656,9 @@ class CTupleType(CType):
         new_entry = self.entry.scope.declare_tuple_type(self.entry.pos, components)
         return new_entry.type
 
+    def index_code(self, expr_code, index):
+        return "%s.f%i" % (expr_code, index)
+
     def assignable_from(self, src_type):
         return src_type.is_ctuple and len(src_type.components) == len(self.components) and \
             all([dest.assignable_from(src) for src, dest in zip(src_type.components, self.components)])
