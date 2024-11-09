@@ -2392,7 +2392,7 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
                             ]),
                         args=[arg],
                         is_temp=node.is_temp,
-                        utility_code=TempitaUtilityCode.load_cached("bit_count", "Builtins.c", context=dict(type_=arg.type)))
+                        utility_code=TempitaUtilityCode.load_cached("bit_count", "Builtins.c", context=dict(type_=arg.type))).coerce_to(node.type, self.current_env())
 
         if not function.obj.is_name:
             # cannot track unbound method calls over more than one indirection as
