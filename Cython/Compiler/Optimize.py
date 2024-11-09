@@ -2386,13 +2386,13 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
                 if arg.type.is_int:
                     return ExprNodes.PythonCapiCallNode(
                         node.pos, f"__Pyx_{arg.type.specialization_name()}_bit_count",
-                        func_type = PyrexTypes.CFuncType(
+                        func_type=PyrexTypes.CFuncType(
                             PyrexTypes.c_int_type, [
                                 PyrexTypes.CFuncTypeArg("x", arg.type, None)
                             ]),
-                        args = [arg],
-                        is_temp = node.is_temp,
-                        utility_code = TempitaUtilityCode.load_cached("bit_count", "Builtins.c", context=dict(type_=arg.type)))
+                        args=[arg],
+                        is_temp=node.is_temp,
+                        utility_code=TempitaUtilityCode.load_cached("bit_count", "Builtins.c", context=dict(type_=arg.type)))
 
         if not function.obj.is_name:
             # cannot track unbound method calls over more than one indirection as
