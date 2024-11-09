@@ -82,7 +82,7 @@ def test_bit_count_slonglong(value: cython.slonglong) -> cython.int:
     """
     return value.bit_count()
 
-def test_bit_count_py_int(value) -> cython.int:
+def test_bit_count_py_int(value: int) -> cython.int:
     """
     >>> test_bit_count_py_int(5)
     2
@@ -91,11 +91,15 @@ def test_bit_count_py_int(value) -> cython.int:
     """
     return value.bit_count()
 
-def test_bit_count_py_int_py(value):
+def test_bit_count_py_int_py(value: int):
     """
     >>> test_bit_count_py_int_py(5)
     2
     >>> test_bit_count_py_int_py(-9223372036854775807)
     63
+    >>> test_bit_count_py_int_py(18446744073709551617)
+    2
+    >>> test_bit_count_py_int_py(-18446744073709551617)
+    2
     """
     return value.bit_count()
