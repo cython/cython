@@ -3942,6 +3942,10 @@ class CStructOrUnionType(CType):
             return expr_code
         return super().cast_code(expr_code)
 
+    def member(self, expr_code, member):
+        return "%s.%s" % (expr_code, member)
+
+
 cpp_string_conversions = ("std::string",)
 
 builtin_cpp_conversions = {

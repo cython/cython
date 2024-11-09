@@ -13640,14 +13640,14 @@ class CmpNode:
     def generate_struct_code(self, operand1_name, operand2_name, struct_type, op, code):
         comps = list()
         for member in struct_type.scope.var_entries:
-            comps.append(self.generate_ctype_code(operand1_name + '.' + member.name, operand2_name + '.' + member.name, member.type, member.type, op, code))
+            comps.append(self.generate_ctype_code(struct_type.member_code(operand1_name, member.name), struct_type.member_code(operand2_name, member.name), member.type, member.type, op, code))
 
         return '(' + (' && ' if op == '==' else ' || ').join(comps) + ')'
 
     def generate_ctuple_code(self, operand1_name, operand2_name, operand1_type, operand2_type, op, code):
         comps = list()
         for itr in range(len(operand2_type.components)):
-            comps.append(self.generate_ctype_code(operand1_name + ".f" + str(itr), operand2_name + ".f" + str(itr), operand1_type.components[itr], operand2_type.components[itr], op, code))
+            comps.append(self.generate_ctype_code(operand1_type.index_code(operand1_name, itr), operand2_type.index_code(operand2_name, itr), operand1_type.components[itr], operand2_type.components[itr], op, code))
 
         return '(' + (' && ' if op == '==' else ' || ').join(comps) + ')'
 
