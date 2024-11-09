@@ -14158,7 +14158,7 @@ class CoerceToMemViewSliceNode(CoercionNode):
 
 class CTupleCastNode(CoercionNode):
     """
-    Coerce between different CTuple types or struct types.
+    Coerce between different CTuple types.
     """
 
     def __init__(self, arg, dst_type, env):
