@@ -14318,7 +14318,7 @@ class CoerceToPyTypeNode(CoercionNode):
     is_temp = 1
 
     def __init__(self, arg, env, type=py_object_type):
-        if not arg.type.create_to_py_utility_code(env):
+        if not arg.type.can_coerce_to_pyobject(env):
             error(arg.pos, "Cannot convert '%s' to Python object" % arg.type)
         elif arg.type.is_complex:
             # special case: complex coercion is so complex that it
@@ -14368,6 +14368,8 @@ class CoerceToPyTypeNode(CoercionNode):
         return self
 
     def generate_result_code(self, code):
+        self.arg.type.create_to_py_utility_code(code.funcstate.scope)
+
         code.putln('%s; %s' % (
             self.arg.type.to_py_call_code(
                 self.arg.result(),
@@ -14429,7 +14431,7 @@ class CoerceFromPyTypeNode(CoercionNode):
         CoercionNode.__init__(self, arg)
         self.type = result_type
         self.is_temp = 1
-        if not result_type.create_from_py_utility_code(env):
+        if not result_type.can_coerce_from_pyobject(env):
             error(arg.pos,
                   "Cannot convert Python object to '%s'" % result_type)
         if self.type.is_string or self.type.is_pyunicode_ptr:
@@ -14453,6 +14455,8 @@ class CoerceFromPyTypeNode(CoercionNode):
         return (self.type.is_ptr and not self.type.is_array) and self.arg.is_ephemeral()
 
     def generate_result_code(self, code):
+        self.arg.type.create_from_py_utility_code(code.funcstate.scope)
+
         from_py_function = None
         # for certain source types, we can do better than the generic coercion
         if self.type.is_string and self.arg.type is bytes_type:
