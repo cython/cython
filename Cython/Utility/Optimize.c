@@ -1188,9 +1188,8 @@ def zerodiv_check(operand, optype='integer', _is_mod=op == 'Remainder', _needs_c
 }}
 
 static {{c_ret_type}} __Pyx_Fallback_{{cfunc_name}}(PyObject *op1, PyObject *op2, int inplace) {
-    CYTHON_MAYBE_UNUSED_VAR(inplace);
-
     {{if op in ('Eq', 'Ne')}}
+    CYTHON_UNUSED_VAR(inplace);
     return {{'' if ret_type.is_pyobject else '__Pyx_PyObject_IsTrueAndDecref'}}(
         PyObject_RichCompare(op1, op2, Py_{{op.upper()}}));
     {{else}}
@@ -1200,6 +1199,7 @@ static {{c_ret_type}} __Pyx_Fallback_{{cfunc_name}}(PyObject *op1, PyObject *op2
 
 #if CYTHON_USE_PYLONG_INTERNALS
 static {{c_ret_type}} __Pyx_Unpacked_{{cfunc_name}}(PyObject *op1, PyObject *op2, long intval, int inplace, int zerodivision_check) {
+    CYTHON_MAYBE_UNUSED_VAR(inplace);
     CYTHON_UNUSED_VAR(zerodivision_check);
 
     const long {{'a' if order == 'CObj' else 'b'}} = intval;
@@ -1368,11 +1368,11 @@ static {{c_ret_type}} __Pyx_Unpacked_{{cfunc_name}}(PyObject *op1, PyObject *op2
 #endif
 
 {{if c_op in '+-*' or op in ('TrueDivide', 'Eq', 'Ne')}}
-static {{c_ret_type}} __Pyx_Float_{{cfunc_name}}(PyObject *op1, PyObject *op2, long intval, int zerodivision_check) {
+static {{c_ret_type}} __Pyx_Float_{{cfunc_name}}(PyObject *float_val, long intval, int zerodivision_check) {
     CYTHON_UNUSED_VAR(zerodivision_check);
 
     const long {{'a' if order == 'CObj' else 'b'}} = intval;
-    double {{ival}} = __Pyx_PyFloat_AS_DOUBLE({{pyval}});
+    double {{ival}} = __Pyx_PyFloat_AS_DOUBLE(float_val);
     {{if op in ('Eq', 'Ne')}}
         if ((double)a {{c_op}} (double)b) {
             {{return_true}};
@@ -1390,7 +1390,6 @@ static {{c_ret_type}} __Pyx_Float_{{cfunc_name}}(PyObject *op1, PyObject *op2, l
 
 static CYTHON_INLINE {{c_ret_type}} {{cfunc_name}}(PyObject *op1, PyObject *op2, long intval, int inplace, int zerodivision_check) {
     CYTHON_MAYBE_UNUSED_VAR(intval);
-    CYTHON_MAYBE_UNUSED_VAR(inplace);
     CYTHON_UNUSED_VAR(zerodivision_check);
 
     {{if op in ('Eq', 'Ne')}}
@@ -1407,7 +1406,7 @@ static CYTHON_INLINE {{c_ret_type}} {{cfunc_name}}(PyObject *op1, PyObject *op2,
 
     {{if c_op in '+-*' or op in ('TrueDivide', 'Eq', 'Ne')}}
     if (PyFloat_CheckExact({{pyval}})) {
-        return __Pyx_Float_{{cfunc_name}}(op1, op2, intval, zerodivision_check);
+        return __Pyx_Float_{{cfunc_name}}({{pyval}}, intval, zerodivision_check);
     }
     {{endif}}
 
