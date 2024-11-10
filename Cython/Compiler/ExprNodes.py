@@ -14318,6 +14318,7 @@ class CoerceToPyTypeNode(CoercionNode):
     is_temp = 1
 
     def __init__(self, arg, env, type=py_object_type):
+        self.origin_type = arg.type
         if not arg.type.can_coerce_to_pyobject(env):
             error(arg.pos, "Cannot convert '%s' to Python object" % arg.type)
         elif arg.type.is_complex:
@@ -14368,7 +14369,7 @@ class CoerceToPyTypeNode(CoercionNode):
         return self
 
     def generate_result_code(self, code):
-        self.arg.type.create_to_py_utility_code(code.funcstate.scope)
+        self.origin_type.create_to_py_utility_code(code.funcstate.scope)
 
         code.putln('%s; %s' % (
             self.arg.type.to_py_call_code(
