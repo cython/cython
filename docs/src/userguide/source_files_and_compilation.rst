@@ -151,7 +151,7 @@ documentation`_. To compile the extension for use in the current directory use:
 
 .. note::
 
-    setuptools 74.1.0 adds experimental support of the extensions in :file:`pyproject.toml`:
+    setuptools 74.1.0 adds experimental support for extensions in :file:`pyproject.toml` (instead of :file:`setup.py`):
 
     .. code-block:: ini
         :caption: pyproject.toml
