@@ -120,8 +120,7 @@ else
   # Install more requirements
   if [[ $PYTHON_VERSION != *"-dev" ]]; then
     if [[ $BACKEND == *"cpp"* ]]; then
-      echo "WARNING: Currently not installing pythran due to compatibility issues"
-      # python -m pip install pythran==0.9.5 || exit 1
+      python -m pip install pythran || exit 1
     fi
 
     if [[ $BACKEND != "cpp" && $PYTHON_VERSION != "pypy"* ]]; then
