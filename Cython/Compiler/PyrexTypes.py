@@ -4668,7 +4668,7 @@ class CTupleType(CType):
             all([dest.assignable_from(src) for src, dest in zip(src_type.components, self.components)])
 
     def __eq__(self, other):
-        return other.is_ctuple and len(other.components) == len(self.components) and \
+        return isinstance(other, CTupleType) and len(other.components) == len(self.components) and \
             all([member_self == member_other for member_self, member_other in zip(self.components, other.components)])
 
     def __hash__(self):
