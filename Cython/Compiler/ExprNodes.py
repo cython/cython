@@ -10750,8 +10750,11 @@ class LocalsDictItemNode(DictItemNode):
     def analyse_types(self, env):
         self.key = self.key.analyse_types(env)
         self.value = self.value.analyse_types(env)
-        self.key = self.key.coerce_to_pyobject(env)
-        if self.value.type.can_coerce_to_pyobject(env):
+        if not self.key.type.is_pyobject:
+            self.key = self.key.coerce_to_pyobject(env)
+        if self.value.type.is_pyobject:
+            pass
+        elif self.value.type.can_coerce_to_pyobject(env):
             self.value = CoerceToPyTypeNode(self.value, env)
         else:
             self.value = None
