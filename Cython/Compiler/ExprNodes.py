@@ -14456,7 +14456,7 @@ class CoerceFromPyTypeNode(CoercionNode):
         return (self.type.is_ptr and not self.type.is_array) and self.arg.is_ephemeral()
 
     def generate_result_code(self, code):
-        self.arg.type.create_from_py_utility_code(code.funcstate.scope)
+        self.type.create_from_py_utility_code(code.funcstate.scope)
 
         from_py_function = None
         # for certain source types, we can do better than the generic coercion
