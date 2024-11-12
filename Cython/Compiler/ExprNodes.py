@@ -1206,6 +1206,63 @@ class ExprNode(Node):
         return None
 
 
+class _TempModifierNode(ExprNode):
+    """Base class for nodes that inherit the result of their temp argument and can modify it.
+    """
+    subexprs = ['arg']
+    is_temp = False
+
+    def __init__(self, pos, arg):
+        super().__init__(pos, arg=arg)
+
+    @property
+    def type(self):
+        return self.arg.type
+
+    def infer_type(self, env):
+        return self.arg.infer_type(env)
+
+    def analyse_types(self, env):
+        self.arg = self.arg.analyse_types(env)
+        return self
+
+    def calculate_constant_result(self):
+        return self.arg.calculate_constant_result()
+
+    def may_be_none(self):
+        return self.arg.may_be_none()
+
+    def is_simple(self):
+        return self.arg.is_simple()
+
+    def result_in_temp(self):
+        return self.arg.result_in_temp()
+
+    def nonlocally_immutable(self):
+        return self.arg.nonlocally_immutable()
+
+    def calculate_result_code(self):
+        return self.arg.result()
+
+    def generate_result_code(self, code):
+        pass
+
+    def generate_post_assignment_code(self, code):
+        self.arg.generate_post_assignment_code(code)
+
+    def allocate_temp_result(self, code):
+        return self.arg.allocate_temp_result(code)
+
+    def free_temps(self, code):
+        self.arg.free_temps(code)
+
+
+#-------------------------------------------------------------------
+#
+#  Constants
+#
+#-------------------------------------------------------------------
+
 class AtomicExprNode(ExprNode):
     #  Abstract base class for expression nodes which have
     #  no sub-expressions.
@@ -1217,6 +1274,7 @@ class AtomicExprNode(ExprNode):
         pass
     def generate_subexpr_disposal_code(self, code):
         pass
+
 
 class PyConstNode(AtomicExprNode):
     #  Abstract base class for constant Python values.
@@ -1894,6 +1952,12 @@ class ImagNode(AtomicExprNode):
                     code.error_goto_if_null(self.result(), self.pos)))
             self.generate_gotref(code)
 
+
+#-------------------------------------------------------------------
+#
+#  Simple expressions
+#
+#-------------------------------------------------------------------
 
 class NewExprNode(AtomicExprNode):
 
@@ -2696,6 +2760,7 @@ class NameNode(AtomicExprNode):
             return self.entry.known_standard_library_import
         return None
 
+
 class BackquoteNode(ExprNode):
     #  `expr`
     #
@@ -2724,6 +2789,12 @@ class BackquoteNode(ExprNode):
                 code.error_goto_if_null(self.result(), self.pos)))
         self.generate_gotref(code)
 
+
+#-------------------------------------------------------------------
+#
+#  Control-flow related expressions
+#
+#-------------------------------------------------------------------
 
 class ImportNode(ExprNode):
     #  Used as part of import statement implementation.
@@ -9601,6 +9672,15 @@ class SortedDictKeysNode(ExprNode):
             self.pos, 'PyList_Sort(%s)' % self.py_result())
 
 
+class SortedListNode(_TempModifierNode):
+    """Sorts a newly created Python list in place.
+    """
+    type = list_type
+
+    def generate_result_code(self, code):
+        code.putln(code.error_goto_if_neg(f"PyList_Sort({self.arg.result()})", self.pos))
+
+
 class ModuleNameMixin:
     def get_py_mod_name(self, code):
         return code.get_py_string_const(
@@ -14216,16 +14296,17 @@ class PyTypeTestNode(CoercionNode):
         self.arg.free_subexpr_temps(code)
 
 
-class NoneCheckNode(CoercionNode):
+class NoneCheckNode(_TempModifierNode):
     # This node is used to check that a Python object is not None and
     # raises an appropriate exception (as specified by the creating
     # transform).
 
     is_nonecheck = True
+    type = None
 
     def __init__(self, arg, exception_type_cname, exception_message,
                  exception_format_args=()):
-        CoercionNode.__init__(self, arg)
+        super().__init__(arg.pos, arg)
         self.type = arg.type
         self.result_ctype = arg.ctype()
         self.exception_type_cname = exception_type_cname
@@ -14234,23 +14315,8 @@ class NoneCheckNode(CoercionNode):
 
     nogil_check = None  # this node only guards an operation that would fail already
 
-    def analyse_types(self, env):
-        return self
-
     def may_be_none(self):
         return False
-
-    def is_simple(self):
-        return self.arg.is_simple()
-
-    def result_in_temp(self):
-        return self.arg.result_in_temp()
-
-    def nonlocally_immutable(self):
-        return self.arg.nonlocally_immutable()
-
-    def calculate_result_code(self):
-        return self.arg.result()
 
     def condition(self):
         if self.type.is_pyobject:
@@ -14301,12 +14367,6 @@ class NoneCheckNode(CoercionNode):
 
     def generate_result_code(self, code):
         self.put_nonecheck(code)
-
-    def generate_post_assignment_code(self, code):
-        self.arg.generate_post_assignment_code(code)
-
-    def free_temps(self, code):
-        self.arg.free_temps(code)
 
 
 class CoerceToPyTypeNode(CoercionNode):
