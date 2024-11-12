@@ -119,7 +119,7 @@ def compile_cython_modules(profile=False, coverage=False, compile_minimal=False,
     from shutil import which
     from sysconfig import get_path
     pgen = which(
-        'pgen', os.pathsep.join([os.environ['PATH'], os.path.join(get_path('include'), '..', 'Parser')]))
+        'pgen', path=os.pathsep.join([os.environ['PATH'], os.path.join(get_path('include'), '..', 'Parser')]))
     if not pgen:
         sys.stderr.write("Unable to find pgen, not compiling formal grammar.\n")
     else:
