@@ -119,7 +119,7 @@ else
 
   # Install more requirements
   if [[ $PYTHON_VERSION != *"-dev" ]]; then
-    if [[ $BACKEND == *"cpp"* && $OSTYPE != "msys"]]; then
+    if [[ $BACKEND == *"cpp"* && $OSTYPE != "msys" ]]; then
       python -m pip install pythran || exit 1
     fi
 
