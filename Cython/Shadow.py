@@ -1,7 +1,7 @@
 # cython.* namespace for pure mode.
 
 # Possible version formats: "3.1.0", "3.1.0a1", "3.1.0a1.dev0"
-__version__ = "3.1.0a0"
+__version__ = "3.1.0a1"
 
 
 # BEGIN shameless copy from Cython/minivect/minitypes.py
@@ -274,7 +274,8 @@ class PointerType(CythonType):
             return not self._items and not value._items
 
     def __repr__(self):
-        return "%s *" % (self._basetype,)
+        return f"{self._basetype} *"
+
 
 class ArrayType(PointerType):
 
@@ -353,16 +354,30 @@ class UnionType(CythonType):
         else:
             raise AttributeError("Union has no member '%s'" % key)
 
-def pointer(basetype):
-    class PointerInstance(PointerType):
-        _basetype = basetype
-    return PointerInstance
 
-def array(basetype, n):
-    class ArrayInstance(ArrayType):
-        _basetype = basetype
-        _n = n
-    return ArrayInstance
+class pointer(PointerType):
+    # Implemented as class to support both 'pointer(int)' and 'pointer[int]'.
+    def __new__(cls, basetype):
+        class PointerInstance(PointerType):
+            _basetype = basetype
+        return PointerInstance
+
+    def __class_getitem__(cls, basetype):
+        return cls(basetype)
+
+
+class array(ArrayType):
+    # Implemented as class to support both 'array(int, 5)' and 'array[int, 5]'.
+    def __new__(cls, basetype, n):
+        class ArrayInstance(ArrayType):
+            _basetype = basetype
+            _n = n
+        return ArrayInstance
+
+    def __class_getitem__(cls, item):
+        basetype, n = item
+        return cls(basetype, item)
+
 
 def struct(**members):
     class StructInstance(StructType):
@@ -378,6 +393,7 @@ def union(**members):
         setattr(UnionInstance, key, None)
     return UnionInstance
 
+
 class typedef(CythonType):
 
     def __init__(self, type, name=None):
@@ -392,6 +408,25 @@ class typedef(CythonType):
         return self.name or str(self._basetype)
 
     __getitem__ = index_type
+
+
+class const(typedef):
+    def __init__(self, type, name=None):
+        name = f"const {name or repr(type)}"
+        super().__init__(type, name)
+
+    def __class_getitem__(cls, base_type):
+        return const(base_type)
+
+
+class volatile(typedef):
+    def __init__(self, type, name=None):
+        name = f"volatile {name or repr(type)}"
+        super().__init__(type, name)
+
+    def __class_getitem__(cls, base_type):
+        return volatile(base_type)
+
 
 class _FusedType(CythonType):
     __getitem__ = index_type
@@ -493,18 +528,28 @@ bint = typedef(bool, "bint")
 void = typedef(None, "void")
 Py_tss_t = typedef(None, "Py_tss_t")
 
-for t in int_types:
-    for i in range(1, 4):
-        gs["%s_%s" % ('p'*i, t)] = gs[t]._pointer(i)
-        if 'u'+t in gs:
-            gs["%s_u%s" % ('p'*i, t)] = gs['u'+t]._pointer(i)
-            gs["%s_s%s" % ('p'*i, t)] = gs['s'+t]._pointer(i)
+# Generate const types.
+for t in int_types + float_types + complex_types + other_types:
+    for t in (t, f'u{t}', f's{t}'):
+        if t in gs:
+            gs[f"const_{t}"] = const(gs[t], t)
 
-for t in float_types + complex_types + other_types:
-    for i in range(1, 4):
-        gs["%s_%s" % ('p'*i, t)] = gs[t]._pointer(i)
+# Generate pointer types: p_int, p_const_char, etc.
+for i in range(1, 4):
+    for const_ in ('', 'const_'):
+        for t in int_types:
+            for t in (t, f'u{t}', f's{t}'):
+                if t in gs:
+                    gs[f"{'p'*i}_{const_}{t}"] = pointer(gs[f"{'p'*(i-1)}{'_' if i > 1 else ''}{const_}{t}"])
 
-del t, i
+        for t in float_types + complex_types:
+            gs[f"{'p'*i}_{const_}{t}"] = pointer(gs[f"{'p'*(i-1)}{'_' if i > 1 else ''}{const_}{t}"])
+
+    gs[f"{'p'*i}_const_bint"] = pointer(gs[f"{'p'*(i-1)}{'_' if i > 1 else ''}const_bint"])
+    for t in other_types:
+        gs[f"{'p'*i}_{t}"] = pointer(gs[f"{'p'*(i-1)}{'_' if i > 1 else ''}{t}"])
+
+del t, const_, i
 
 NULL = gs['p_void'](0)
 

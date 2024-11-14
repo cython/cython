@@ -2787,7 +2787,8 @@ class CalculateQualifiedNamesTransform(EnvTransform):
         lhs = ExprNodes.NameNode(
             node.pos,
             name=EncodedString(name),
-            entry=entry)
+            entry=entry,
+            is_target=True)
         rhs = ExprNodes.UnicodeNode(node.pos, value=value)
         node.body.stats.insert(0, Nodes.SingleAssignmentNode(
             node.pos,
@@ -2982,7 +2983,7 @@ class ExpandInplaceOperators(EnvTransform):
                 index = LetRefNode(node.index)
                 return ExprNodes.IndexNode(node.pos, base=base, index=index), temps + [index]
             elif node.is_attribute:
-                obj, temps = side_effect_free_reference(node.obj)
+                obj, temps = side_effect_free_reference(node.obj, setting=setting)
                 return ExprNodes.AttributeNode(node.pos, obj=obj, attribute=node.attribute), temps
             elif isinstance(node, ExprNodes.BufferIndexNode):
                 raise ValueError("Don't allow things like attributes of buffer indexing operations")
@@ -3000,6 +3001,7 @@ class ExpandInplaceOperators(EnvTransform):
                                      operand2 = rhs,
                                      inplace=True)
         # Manually analyse types for new node.
+        lhs.is_target = True
         lhs = lhs.analyse_target_types(env)
         dup.analyse_types(env)  # FIXME: no need to reanalyse the copy, right?
         binop.analyse_operation(env)
@@ -3804,6 +3806,11 @@ class CoerceCppTemps(EnvTransform, SkipDeclarations):
                 not node.type.is_fake_reference):
             node = ExprNodes.CppOptionalTempCoercion(node)
 
+        return node
+
+    def visit_ExprStatNode(self, node):
+        # Deliberately skip `expr` in ExprStatNode - we don't need to access it.
+        self.visitchildren(node.expr)
         return node
 
 

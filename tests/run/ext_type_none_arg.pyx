@@ -2,7 +2,7 @@
 cimport cython
 try:
     import typing
-    from typing import Optional
+    from typing import Optional, Union
 except ImportError:
     pass  # Cython can still identify the use of "typing" even if the module doesn't exist
 
@@ -115,8 +115,52 @@ def ext_optional(x: typing.Optional[MyExtType], y: Optional[MyExtType]):
     444
     >>> ext_optional(None, MyExtType())
     444
+    >>> ext_optional([], MyExtType())
+    Traceback (most recent call last):
+    TypeError: Argument 'x' has incorrect type (expected ext_type_none_arg.MyExtType, got list)
+    >>> ext_optional(MyExtType(), [])
+    Traceback (most recent call last):
+    TypeError: Argument 'y' has incorrect type (expected ext_type_none_arg.MyExtType, got list)
     """
     return attr(x) + attr(y)
+
+def ext_union(x: typing.Union[MyExtType, None], y: Union[None, MyExtType]):
+    """
+    Behaves the same as "or None"
+    >>> ext_union(MyExtType(), MyExtType())
+    246
+    >>> ext_union(MyExtType(), None)
+    444
+    >>> ext_union(None, MyExtType())
+    444
+    >>> ext_union([], MyExtType())
+    Traceback (most recent call last):
+    TypeError: Argument 'x' has incorrect type (expected ext_type_none_arg.MyExtType, got list)
+    >>> ext_union(MyExtType(), [])
+    Traceback (most recent call last):
+    TypeError: Argument 'y' has incorrect type (expected ext_type_none_arg.MyExtType, got list)
+    """
+    return attr(x) + attr(y)
+
+
+def ext_bitwise_or_none(x: MyExtType | None, y: None | MyExtType):
+    """
+    Behaves the same as "or None"
+    >>> ext_bitwise_or_none(MyExtType(), MyExtType())
+    246
+    >>> ext_bitwise_or_none(MyExtType(), None)
+    444
+    >>> ext_bitwise_or_none(None, MyExtType())
+    444
+    >>> ext_bitwise_or_none([], MyExtType())
+    Traceback (most recent call last):
+    TypeError: Argument 'x' has incorrect type (expected ext_type_none_arg.MyExtType, got list)
+    >>> ext_bitwise_or_none(MyExtType(), [])
+    Traceback (most recent call last):
+    TypeError: Argument 'y' has incorrect type (expected ext_type_none_arg.MyExtType, got list)
+    """
+    return attr(x) + attr(y)
+
 
 ### builtin types (using list)
 

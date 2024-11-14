@@ -13,10 +13,7 @@ if (likely(__Pyx_init_assertions_enabled() == 0)); else
 
 /////////////// AssertionsEnabled.proto ///////////////
 
-#if CYTHON_COMPILING_IN_PYPY && PY_VERSION_HEX < 0x02070600 && !defined(Py_OptimizeFlag)
-  #define __Pyx_init_assertions_enabled()  (0)
-  #define __pyx_assertions_enabled()  (1)
-#elif CYTHON_COMPILING_IN_LIMITED_API  ||  (CYTHON_COMPILING_IN_CPYTHON && PY_VERSION_HEX >= 0x030C0000)
+#if CYTHON_COMPILING_IN_LIMITED_API  ||  (CYTHON_COMPILING_IN_CPYTHON && PY_VERSION_HEX >= 0x030C0000)
   // Py_OptimizeFlag is deprecated in Py3.12+ and not available in the Limited API.
   static int __pyx_assertions_enabled_flag;
   #define __pyx_assertions_enabled() (__pyx_assertions_enabled_flag)
@@ -770,7 +767,6 @@ static int __Pyx_CLineForTraceback(PyThreadState *tstate, int c_line);/*proto*/
 //@requires: ObjectHandling.c::PyObjectGetAttrStrNoError
 //@requires: ObjectHandling.c::PyDictVersioning
 //@requires: PyErrFetchRestore
-//@substitute: naming
 
 #if CYTHON_CLINE_IN_TRACEBACK && CYTHON_CLINE_IN_TRACEBACK_RUNTIME
 static int __Pyx_CLineForTraceback(PyThreadState *tstate, int c_line) {
@@ -782,7 +778,7 @@ static int __Pyx_CLineForTraceback(PyThreadState *tstate, int c_line) {
 
     CYTHON_MAYBE_UNUSED_VAR(tstate);
 
-    if (unlikely(!${cython_runtime_cname})) {
+    if (unlikely(!NAMED_CGLOBAL(cython_runtime_cname))) {
         // Very early error where the runtime module is not set up yet.
         return c_line;
     }
@@ -790,7 +786,7 @@ static int __Pyx_CLineForTraceback(PyThreadState *tstate, int c_line) {
     __Pyx_ErrFetchInState(tstate, &ptype, &pvalue, &ptraceback);
 
 #if CYTHON_COMPILING_IN_CPYTHON
-    cython_runtime_dict = _PyObject_GetDictPtr(${cython_runtime_cname});
+    cython_runtime_dict = _PyObject_GetDictPtr(NAMED_CGLOBAL(cython_runtime_cname));
     if (likely(cython_runtime_dict)) {
         __PYX_PY_DICT_LOOKUP_IF_MODIFIED(
             use_cline, *cython_runtime_dict,
@@ -798,7 +794,7 @@ static int __Pyx_CLineForTraceback(PyThreadState *tstate, int c_line) {
     } else
 #endif
     {
-      PyObject *use_cline_obj = __Pyx_PyObject_GetAttrStrNoError(${cython_runtime_cname}, PYIDENT("cline_in_traceback"));
+      PyObject *use_cline_obj = __Pyx_PyObject_GetAttrStrNoError(NAMED_CGLOBAL(cython_runtime_cname), PYIDENT("cline_in_traceback"));
       if (use_cline_obj) {
         use_cline = PyObject_Not(use_cline_obj) ? Py_False : Py_True;
         Py_DECREF(use_cline_obj);
@@ -810,7 +806,7 @@ static int __Pyx_CLineForTraceback(PyThreadState *tstate, int c_line) {
     if (!use_cline) {
         c_line = 0;
         // No need to handle errors here when we reset the exception state just afterwards.
-        (void) PyObject_SetAttr(${cython_runtime_cname}, PYIDENT("cline_in_traceback"), Py_False);
+        (void) PyObject_SetAttr(NAMED_CGLOBAL(cython_runtime_cname), PYIDENT("cline_in_traceback"), Py_False);
     }
     else if (use_cline == Py_False || (use_cline != Py_True && PyObject_Not(use_cline) != 0)) {
         c_line = 0;
@@ -833,7 +829,7 @@ static void __Pyx_AddTraceback(const char *funcname, int c_line,
 #include "compile.h"
 #include "frameobject.h"
 #include "traceback.h"
-#if PY_VERSION_HEX >= 0x030b00a6 && !CYTHON_COMPILING_IN_LIMITED_API
+#if PY_VERSION_HEX >= 0x030b00a6 && !CYTHON_COMPILING_IN_LIMITED_API && !defined(PYPY_VERSION)
   #ifndef Py_BUILD_CORE
     #define Py_BUILD_CORE 1
   #endif
@@ -1008,7 +1004,7 @@ static void __Pyx_AddTraceback(const char *funcname, int c_line,
     py_frame = PyFrame_New(
         tstate,            /*PyThreadState *tstate,*/
         py_code,           /*PyCodeObject *code,*/
-        $moddict_cname,    /*PyObject *globals,*/
+        NAMED_CGLOBAL(moddict_cname),    /*PyObject *globals,*/
         0                  /*PyObject *locals*/
     );
     if (!py_frame) goto bad;
