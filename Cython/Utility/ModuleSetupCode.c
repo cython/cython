@@ -2535,8 +2535,8 @@ static int __Pyx_State_RemoveModule(void*); /* proto */
 #endif
 
 #if CYTHON_MODULE_STATE_LOOKUP_THREAD_SAFE && !CYTHON_ATOMICS
-  #error "Module state with PEP489 requires atomics. Currently that's one of " \
-    "C11, C++11, gcc atomic intrinsics or MSVC atomic intrinsics"
+#error "Module state with PEP489 requires atomics. Currently that's one of\
+ C11, C++11, gcc atomic intrinsics or MSVC atomic intrinsics"
 #endif
 
 // We also need a lock. In order of preference:
@@ -2712,19 +2712,22 @@ static PyObject *__Pyx_State_FindModule(CYTHON_UNUSED void* dummy) {
     }
 
   end:
-#if CYTHON_MODULE_STATE_LOOKUP_THREAD_SAFE
-    __pyx_atomic_decr_acq_rel(&__Pyx_ModuleStateLookup_read_counter);
-#endif
+    {
+        PyObject *result=NULL;
 
-    if (found && found->id == interpreter_id) {
-        return found->module;
+        if (found && found->id == interpreter_id) {
+            result = found->module;
+        }
+#if CYTHON_MODULE_STATE_LOOKUP_THREAD_SAFE
+        __pyx_atomic_decr_acq_rel(&__Pyx_ModuleStateLookup_read_counter);
+#endif
+        return result;
     }
-    return NULL;
 }
 
 #if CYTHON_MODULE_STATE_LOOKUP_THREAD_SAFE
-void __Pyx_ModuleStateLookup_wait_until_no_readers(void) {
-    // Wait for any readers will working on the old data. Spin-lock is
+static void __Pyx_ModuleStateLookup_wait_until_no_readers(void) {
+    // Wait for any readers still working on the old data. Spin-lock is
     // fine because readers should be much faster than memory allocation.
     while (__pyx_atomic_load(&__Pyx_ModuleStateLookup_read_counter) != 0);
 }
@@ -2732,7 +2735,7 @@ void __Pyx_ModuleStateLookup_wait_until_no_readers(void) {
 #define __Pyx_ModuleStateLookup_wait_until_no_readers()
 #endif
 
-static int __Pyx_State_AddModuleReallySmall(__Pyx_ModuleStateLookupData **old_data, PyObject* module, int64_t interpreter_id) {
+static int __Pyx_State_AddModuleInterpIdAsIndex(__Pyx_ModuleStateLookupData **old_data, PyObject* module, int64_t interpreter_id) {
     Py_ssize_t to_allocate = (*old_data)->allocated;
     while (to_allocate <= interpreter_id) {
         if (to_allocate == 0) to_allocate = 1;
@@ -2740,7 +2743,6 @@ static int __Pyx_State_AddModuleReallySmall(__Pyx_ModuleStateLookupData **old_da
     }
     __Pyx_ModuleStateLookupData *new_data = *old_data;
     if (to_allocate != (*old_data)->allocated) {
-        __Pyx_ModuleStateLookup_wait_until_no_readers();
          new_data = (__Pyx_ModuleStateLookupData *)realloc(
             *old_data,
             sizeof(__Pyx_ModuleStateLookupData)+(to_allocate-1)*sizeof(__Pyx_InterpreterIdAndModule));
@@ -2762,8 +2764,7 @@ static int __Pyx_State_AddModuleReallySmall(__Pyx_ModuleStateLookupData **old_da
     return 0;
 }
 
-static void __Pyx_State_ConvertFromReallySmall(__Pyx_ModuleStateLookupData *data) {
-    __Pyx_ModuleStateLookup_wait_until_no_readers();
+static void __Pyx_State_ConvertFromInterpIdAsIndex(__Pyx_ModuleStateLookupData *data) {
     __Pyx_InterpreterIdAndModule *read = data->table;
     __Pyx_InterpreterIdAndModule *write = data->table;
     __Pyx_InterpreterIdAndModule *end = read + data->count;
@@ -2807,17 +2808,25 @@ static int __Pyx_State_AddModule(PyObject* module, CYTHON_UNUSED void* dummy) {
     if (!new_data) {
         // If we don't yet have anything, initialize
         new_data = (__Pyx_ModuleStateLookupData *)calloc(1, sizeof(__Pyx_ModuleStateLookupData));
+        if (!new_data) {
+            result = -1;
+            PyErr_NoMemory();
+            goto end;
+        }
         new_data->allocated = 1;
         new_data->interpreter_id_as_index = 1;
     }
 
+    // Pretty much everything from here modifies the data, and so requires us to wait
+    // until all existing readers have finished in order to be thread-safe.
+    __Pyx_ModuleStateLookup_wait_until_no_readers();
     if (new_data->interpreter_id_as_index) {
         if (interpreter_id < __PYX_MODULE_STATE_LOOKUP_SMALL_SIZE) {
-            result = __Pyx_State_AddModuleReallySmall(&new_data, module, interpreter_id);
+            result = __Pyx_State_AddModuleInterpIdAsIndex(&new_data, module, interpreter_id);
             goto end;
         }
         // otherwise we have to convert then proceed with a normal insertion
-        __Pyx_State_ConvertFromReallySmall(new_data);
+        __Pyx_State_ConvertFromInterpIdAsIndex(new_data);
     }
     {
         Py_ssize_t insert_at = 0;
@@ -2837,9 +2846,8 @@ static int __Pyx_State_AddModule(PyObject* module, CYTHON_UNUSED void* dummy) {
         }
 
         if (new_data->count+1 >= new_data->allocated) {
-            // Use C remalloc. PyMem_RawMalloc is added to the limited API fairly late (3.13)
+            // Use C realloc. PyMem_RawMalloc is added to the limited API fairly late (3.13)
             // and we want allocation independent of the interpreter which I think excludes PyMem_Malloc.
-            __Pyx_ModuleStateLookup_wait_until_no_readers();
             Py_ssize_t to_allocate = (new_data->count+1)*2;
             new_data =
                 (__Pyx_ModuleStateLookupData*)realloc(
