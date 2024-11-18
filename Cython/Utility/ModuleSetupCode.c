@@ -2594,9 +2594,9 @@ static SRWLOCK __Pyx_ModuleStateLookup_mutex = SRWLOCK_INIT;
 #define __Pyx_ModuleStateLookup_Unlock() ReleaseSRWLockExclusive(&__Pyx_ModuleStateLookup_mutex)
 
 #else
-#error "No suitable lock available for CYTHON_MODULE_STATE_LOOKUP_THREAD_SAFE. " \
-  "Requires C standard >= C11, or C++ standard >= C++11, " \
-  "or pthreads, or the Windows 32 API, or Python >= 3.13."
+#error "No suitable lock available for CYTHON_MODULE_STATE_LOOKUP_THREAD_SAFE.\
+ Requires C standard >= C11, or C++ standard >= C++11,\
+ or pthreads, or the Windows 32 API, or Python >= 3.13."
 #endif
 
 
@@ -2606,14 +2606,14 @@ typedef struct {
 } __Pyx_InterpreterIdAndModule;
 
 typedef struct {
-    char really_small;
+    char interpreter_id_as_index;
     Py_ssize_t count;
     Py_ssize_t allocated;
     __Pyx_InterpreterIdAndModule table[1];
 } __Pyx_ModuleStateLookupData;
 
 #define __PYX_MODULE_STATE_LOOKUP_SMALL_SIZE 32
-// "Really small" above means "the maximum interpreter ID ever seen is smaller than
+// "interpreter_id_as_index" above means "the maximum interpreter ID ever seen is smaller than
 // __PYX_MODULE_STATE_LOOKUP_SMALL_SIZE and thus they're stored in an array
 // where the index corresponds to interpreter ID, and __Pyx_ModuleStateLookup_count
 // is the size of the array.
@@ -2702,7 +2702,7 @@ static PyObject *__Pyx_State_FindModule(CYTHON_UNUSED void* dummy) {
     // There's one "already imported" check that'll hit this
     if (unlikely(!data)) goto end;
 
-    if (data->really_small) {
+    if (data->interpreter_id_as_index) {
         if (interpreter_id < data->count) {
             found = data->table+interpreter_id;
         }
@@ -2782,7 +2782,7 @@ static void __Pyx_State_ConvertFromReallySmall(__Pyx_ModuleStateLookupData *data
         write->id = 0;
         write->module = NULL;
     }
-    data->really_small = 0;
+    data->interpreter_id_as_index = 0;
 }
 
 static int __Pyx_State_AddModule(PyObject* module, CYTHON_UNUSED void* dummy) {
@@ -2808,10 +2808,10 @@ static int __Pyx_State_AddModule(PyObject* module, CYTHON_UNUSED void* dummy) {
         // If we don't yet have anything, initialize
         new_data = (__Pyx_ModuleStateLookupData *)calloc(1, sizeof(__Pyx_ModuleStateLookupData));
         new_data->allocated = 1;
-        new_data->really_small = 1;
+        new_data->interpreter_id_as_index = 1;
     }
 
-    if (new_data->really_small) {
+    if (new_data->interpreter_id_as_index) {
         if (interpreter_id < __PYX_MODULE_STATE_LOOKUP_SMALL_SIZE) {
             result = __Pyx_State_AddModuleReallySmall(&new_data, module, interpreter_id);
             goto end;
@@ -2893,7 +2893,7 @@ static int __Pyx_State_RemoveModule(CYTHON_UNUSED void* dummy) {
     __Pyx_ModuleStateLookupData *data = __Pyx_ModuleStateLookup_data;
 #endif
 
-    if (data->really_small) {
+    if (data->interpreter_id_as_index) {
         if (interpreter_id < data->count) {
             data->table[interpreter_id].module = NULL;
         }
