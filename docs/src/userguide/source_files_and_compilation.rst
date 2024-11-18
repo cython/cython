@@ -1220,7 +1220,7 @@ most important to least important:
     Stores module data on a struct associated with the module object rather than as
     C global variables.  The advantage is that it should be possible to import the
     same module more than once (e.g. in different sub-interpreters).  At the moment
-    this is experimental and not all data has been moved.  Specifically ``cdef``
+    this is experimental and not all data has been moved.  Specifically, ``cdef``
     globals have not been moved.
 
 ``CYTHON_USE_TYPE_SPECS``

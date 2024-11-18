@@ -2613,7 +2613,7 @@ typedef struct {
 } __Pyx_ModuleStateLookupData;
 
 #define __PYX_MODULE_STATE_LOOKUP_SMALL_SIZE 32
-// Really small means "the maximum interpreter ID ever seen is smaller than
+// "Really small" above means "the maximum interpreter ID ever seen is smaller than
 // __PYX_MODULE_STATE_LOOKUP_SMALL_SIZE and thus they're stored in an array
 // where the index corresponds to interpreter ID, and __Pyx_ModuleStateLookup_count
 // is the size of the array.
@@ -2643,7 +2643,7 @@ static __Pyx_InterpreterIdAndModule* __Pyx_State_FindModuleStateLookupTableLower
         return begin;
     }
 
-    while ((end-begin) > __PYX_MODULE_STATE_LOOKUP_SMALL_SIZE) {
+    while ((end - begin) > __PYX_MODULE_STATE_LOOKUP_SMALL_SIZE) {
         __Pyx_InterpreterIdAndModule* halfway = begin + (end - begin)/2;
         if (halfway->id == interpreterId) {
             return halfway;
@@ -2656,7 +2656,7 @@ static __Pyx_InterpreterIdAndModule* __Pyx_State_FindModuleStateLookupTableLower
     }
 
     // Assume that for small ranges, it's quicker to do a linear search
-    for (; begin<end; ++begin) {
+    for (; begin < end; ++begin) {
         if (begin->id >= interpreterId) return begin;
     }
     return begin;
@@ -2725,7 +2725,7 @@ static PyObject *__Pyx_State_FindModule(CYTHON_UNUSED void* dummy) {
 #if CYTHON_MODULE_STATE_LOOKUP_THREAD_SAFE
 void __Pyx_ModuleStateLookup_wait_until_no_readers(void) {
     // Wait for any readers will working on the old data. Spin-lock is
-    // fine because readers should be much faster that memory allocation.
+    // fine because readers should be much faster than memory allocation.
     while (__pyx_atomic_load(&__Pyx_ModuleStateLookup_read_counter) != 0);
 }
 #else

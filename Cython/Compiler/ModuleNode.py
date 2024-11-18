@@ -3597,7 +3597,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("#if CYTHON_USE_MODULE_STATE")
         code.putln(f"  sizeof({Naming.modulestatetype_cname}), /* m_size */")
         code.putln("#else")
-        code.putln("  CYTHON_PEP489_MULTI_PHASE_INIT ? 0 :-1, /* m_size */")
+        code.putln("  (CYTHON_PEP489_MULTI_PHASE_INIT) ? 0 : -1, /* m_size */")
         code.putln("#endif")
         code.putln("  %s /* m_methods */," % env.method_table_cname)
         code.putln("#if CYTHON_PEP489_MULTI_PHASE_INIT")
