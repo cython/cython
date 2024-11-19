@@ -1464,16 +1464,15 @@ static PY_INT64_T __Pyx_GetCurrentInterpreterId(void) {
     }
     PyObject *current = PyObject_CallMethod(module, "get_current", NULL);
     Py_DECREF(module);
+    if (!current) return -1;
     if (PyTuple_Check(current)) {
         // I think 3.13+ returns a tuple of (ID, whence),
-        // but it's obvious a private module so the API changes a bit.
-        PyObject *new_current = PyTuple_GetItem(current, 0);
+        // but it's obviously a private module so the API changes a bit.
+        PyObject *new_current = PyObject_GetItem(current, 0);
         Py_DECREF(current);
-        if (!new_current) return -1;
-        Py_INCREF(new_current);
         current = new_current;
+        if (!new_current) return -1;
     }
-    if (!current) return -1;
     long long as_c_int = PyLong_AsLongLong(current);
     Py_DECREF(current);
     return as_c_int;
