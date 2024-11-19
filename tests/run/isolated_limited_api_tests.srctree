@@ -37,10 +37,6 @@ import sys
 
 module_name = sys.argv[1]
 
-if sys.version_info < (3, 8) and module_name == "limited_multi_phase":
-    print("Skipping multi-phase because it work work on this Python version")
-    exit(0)
-
 limited = __import__(module_name)
 
 limited.fib(11)
@@ -53,7 +49,7 @@ try:
     limited.raises()
 except RuntimeError:
     pass
-    
+
 limited.catches()
 
 limited.C()
@@ -141,7 +137,7 @@ def lsum(values):
         for value in reversed(<tuple>values):
             result += value
     return result
-    
+
 def add_one(value):
     return value + 1
 
@@ -151,13 +147,13 @@ def raises():
 
 def decode(bytes b, bytearray ba):
     return b.decode("utf-8") + ba.decode("utf-8")
-    
+
 def catches():
     try:
         raises()
     except Exception:
         pass
-    
+
 def cast_float(object o):
     return float(o)
 
