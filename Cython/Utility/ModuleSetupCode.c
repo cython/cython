@@ -1468,7 +1468,7 @@ static PY_INT64_T __Pyx_GetCurrentInterpreterId(void) {
     if (PyTuple_Check(current)) {
         // I think 3.13+ returns a tuple of (ID, whence),
         // but it's obviously a private module so the API changes a bit.
-        PyObject *new_current = PyObject_GetItem(current, 0);
+        PyObject *new_current = PySequence_GetItem(current, 0);
         Py_DECREF(current);
         current = new_current;
         if (!new_current) return -1;
