@@ -145,6 +145,9 @@ def inline(f, *args, **kwds):
         assert len(args) == len(kwds) == 0
         return f
 
+def inline_module(code, *args, **kwds):
+    from Cython.Build.Inline import cython_inline_module
+    return cython_inline_module(code, *args, **kwds)
 
 def compile(f):
     from Cython.Build.Inline import RuntimeCompiledFunction
