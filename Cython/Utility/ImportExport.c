@@ -891,8 +891,10 @@ static PyObject* __Pyx_ImportNumPyArrayTypeIfAvailable(void); /*proto*/
 // I'm not actually worried about thread-safety in the cleanup function.
 // The CYTHON_ATOMICS code is only for the type-casting.
 #if CYTHON_COMPILING_IN_CPYTHON_FREETHREADING && CYTHON_ATOMICS
-Py_XDECREF((PyObject*)__pyx_atomic_pointer_load_acquire(&CGLOBAL(__pyx_numpy_ndarray)));
-__pyx_atomic_pointer_exchange(&CGLOBAL(__pyx_numpy_ndarray), NULL);
+{
+    PyObject* old = (PyObject*)__pyx_atomic_pointer_exchange(&CGLOBAL(__pyx_numpy_ndarray), NULL);
+    Py_XDECREF(old);
+}
 #else
 Py_CLEAR(CGLOBAL(__pyx_numpy_ndarray));
 #endif
@@ -930,7 +932,7 @@ static CYTHON_INLINE PyObject* __Pyx__ImportNumPyArrayTypeIfAvailable(void) {
         PyMutex_Lock(&ndarray_mutex);
         // Now we've got the lock and know that no-one else is modifying it, check again
         // that it hasn't already been set.
-        result = __pyx_atomic_pointer_load_acquire(&CGLOBAL(__pyx_numpy_ndarray));
+        result = (PyObject*)__pyx_atomic_pointer_load_acquire(&CGLOBAL(__pyx_numpy_ndarray));
         if (!result) {
             result = __Pyx__ImportNumPyArray();
             __pyx_atomic_pointer_exchange(&CGLOBAL(__pyx_numpy_ndarray), result);
