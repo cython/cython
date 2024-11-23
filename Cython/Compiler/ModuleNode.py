@@ -3662,6 +3662,10 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln(code.error_goto_if_neg("add_module_result", self.pos))
         code.putln("pystate_addmodule_run = 1;")
         code.putln("}")
+        code.putln('#else')  # !CYTHON_USE_MODULE_STATE
+        code.putln(f"{env.module_cname} = {module_temp};")
+        code.putln("#endif")
+        code.funcstate.release_temp(module_temp)
 
         code.putln("#if CYTHON_COMPILING_IN_CPYTHON_FREETHREADING")
         gil_option = ("Py_MOD_GIL_NOT_USED"
@@ -3669,11 +3673,6 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                       else "Py_MOD_GIL_USED")
         code.putln(f"PyUnstable_Module_SetGIL({env.module_cname}, {gil_option});")
         code.putln("#endif")
-
-        code.putln('#else')  # !CYTHON_USE_MODULE_STATE
-        code.putln(f"{env.module_cname} = {module_temp};")
-        code.putln("#endif")
-        code.funcstate.release_temp(module_temp)
 
         code.putln(f"{Naming.modulestatevalue_cname} = {Naming.modulestateglobal_cname};")
         code.putln("CYTHON_UNUSED_VAR(%s);" % module_temp)  # only used in limited API
