@@ -98,6 +98,9 @@ if [[ $PYTHON_VERSION == "3.1"[2-9]* ]]; then
     # Install packages one by one, allowing failures due to missing recent wheels.
     cat test-requirements-312.txt | while read package; do python -m pip install --pre --only-binary ":all:" "$package" || true; done
   fi
+  if [[ $PYTHON_VERSION == "3.13"* ]]; then
+    python -m pip install --pre -r test-requirements-313.txt || exit 1
+  fi
 else
   python -m pip install -U pip "setuptools<60" wheel || exit 1
 
