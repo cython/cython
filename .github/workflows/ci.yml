@@ -54,6 +54,14 @@ jobs:
           - "3.13t"
         env: [{}]
 
+        exclude:
+          # Windows and free-threading is difficult to build right now
+          - os: windows-2019
+            python-version: 3.13t
+            backend: "c"
+          - os: windows-2019
+            python-version: 3.13t
+            backend: "cpp"
         include:
           #- python-version: "3.13"
           #  allowed_failure: true
