@@ -930,7 +930,8 @@ static CYTHON_INLINE PyObject* __Pyx__ImportNumPyArrayTypeIfAvailable(void) {
         PyMutex_Lock(&ndarray_mutex);
         // Now we've got the lock and know that no-one else is modifying it, check again
         // that it hasn't already been set.
-        if (!__pyx_atomic_pointer_load_acquire(&CGLOBAL(__pyx_numpy_ndarray))) {
+        result = __pyx_atomic_pointer_load_acquire(&CGLOBAL(__pyx_numpy_ndarray));
+        if (!result) {
             result = __Pyx__ImportNumPyArray();
             __pyx_atomic_pointer_exchange(&CGLOBAL(__pyx_numpy_ndarray), result);
         }
