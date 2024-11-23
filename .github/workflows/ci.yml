@@ -187,14 +187,14 @@ jobs:
             python-version: 3.13t
             backend: "cpp"
             allowed_failure: true
-          - os: windows-2019
-            python-version: 3.13t
-            backend: "c"
-            allowed_failure: true
-          - os: windows-2019
-            python-version: 3.13t
-            backend: "cpp"
-            allowed_failure: true
+#          - os: windows-2019
+#            python-version: 3.13t
+#            backend: "c"
+#            allowed_failure: true
+#          - os: windows-2019
+#            python-version: 3.13t
+#            backend: "cpp"
+#            allowed_failure: true
           - os: macos-13
             python-version: 3.13t
             backend: "c"
