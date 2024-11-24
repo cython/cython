@@ -449,7 +449,7 @@ class UtilityCodeBase:
             (r'^%(C)s{5,30}\s*(?P<name>(?:\w|\.)+)\s*%(C)s{5,30}|'
              r'^%(C)s+@(?P<tag>\w+)\s*:\s*(?P<value>(?:\w|[.:])+)') %
             {'C': comment}).match
-        match_type = re.compile(r'(.+)[.](proto(?:[.]\S+)?|impl|init|cleanup)$').match
+        match_type = re.compile(r'(.+)[.](proto(?:[.]\S+)?|impl|init|cleanup|module_state_decls)$').match
 
         all_lines = read_utilities_hook(path)
 
@@ -626,14 +626,17 @@ class UtilityCode(UtilityCodeBase):
     file            filename of the utility code file this utility was loaded
                     from (or None)
     """
+    code_parts = ["proto", "impl", "init", "cleanup", "module_state_decls"]
 
-    def __init__(self, proto=None, impl=None, init=None, cleanup=None, requires=None,
+    def __init__(self, proto=None, impl=None, init=None, cleanup=None,
+                 module_state_decls=None, requires=None,
                  proto_block='utility_code_proto', name=None, file=None):
         # proto_block: Which code block to dump prototype in. See GlobalState.
         self.proto = proto
         self.impl = impl
         self.init = init
         self.cleanup = cleanup
+        self.module_state_decls = module_state_decls
         self.requires = requires
         self._cache = {}
         self.specialize_list = []
@@ -641,8 +644,11 @@ class UtilityCode(UtilityCodeBase):
         self.name = name
         self.file = file
 
+        # cached for use in hash and eq
+        self._parts_tuple = tuple(getattr(self, part, None) for part in self.code_parts)
+
     def __hash__(self):
-        return hash((self.proto, self.impl))
+        return hash(self._parts_tuple)
 
     def __eq__(self, other):
         if self is other:
@@ -651,11 +657,7 @@ class UtilityCode(UtilityCodeBase):
         if self_type is not other_type and not (isinstance(other, self_type) or isinstance(self, other_type)):
             return False
 
-        self_init = getattr(self, 'init', None)
-        other_init = getattr(other, 'init', None)
-        self_proto = getattr(self, 'proto', None)
-        other_proto = getattr(other, 'proto', None)
-        return (self_init, self_proto, self.impl) == (other_init, other_proto, other.impl)
+        return self._parts_tuple == other._parts_tuple
 
     def none_or_sub(self, s, context):
         """
@@ -686,6 +688,7 @@ class UtilityCode(UtilityCodeBase):
                 self.none_or_sub(self.impl, data),
                 self.none_or_sub(self.init, data),
                 self.none_or_sub(self.cleanup, data),
+                self.none_or_sub(self.module_state_decls, data),
                 requires,
                 self.proto_block,
                 name,
@@ -733,6 +736,8 @@ class UtilityCode(UtilityCodeBase):
             self._put_code_section(output['utility_code_def'], output, 'impl')
         if self.cleanup and Options.generate_cleanup_code:
             self._put_code_section(output['cleanup_globals'], output, 'cleanup')
+        if self.module_state_decls:
+            self._put_code_section(output['module_state_contents'], output, 'module_state_decls')
 
         if self.init:
             self._put_init_code_section(output)
@@ -786,7 +791,7 @@ def add_macro_processor(*macro_names, regex=None, is_module_specific=False, _las
 def _wrap_c_string(_, matchobj):
     """Replace CSTRING('''xyz''') by a C compatible string, taking care of line breaks.
     """
-    content = matchobj.group(1).replace('"', '\042')
+    content = matchobj.group(1).replace('"', r'\042')
     return ''.join(
         f'"{line}\\n"\n' if not line.endswith('\\') or line.endswith('\\\\') else f'"{line[:-1]}"\n'
         for line in content.splitlines())
@@ -802,9 +807,9 @@ def _format_impl_code(utility_code: UtilityCode, _, impl):
     is_module_specific=True,
     regex=(
         r'CALL_UNBOUND_METHOD\('
-        r'([a-zA-Z_]+),'      # type cname
-        r'\s*"([^"]+)",'      # method name
-        r'\s*([^),]+)'        # object cname
+        r'([a-zA-Z_]+),\s*'   # type cname
+        r'"([^"]+)",\s*'      # method name
+        r'([^),\s]+)'         # object cname
         r'((?:,[^),]+)*)'     # args*
         r'\)'
     ),
@@ -816,7 +821,9 @@ def _inject_unbound_method(output, matchobj):
     type_cname = '&%s' % type_cname
     args = [arg.strip() for arg in args[1:].split(',')] if args else []
     assert len(args) < 3, f"CALL_UNBOUND_METHOD() does not support {len(args):d} call arguments"
-    return output.cached_unbound_method_call_code(obj_cname, type_cname, method_name, args)
+    return output.cached_unbound_method_call_code(
+        f"{Naming.modulestateglobal_cname}->",
+        obj_cname, type_cname, method_name, args)
 
 
 @add_macro_processor(
@@ -1364,6 +1371,8 @@ class GlobalState:
         'decls',
         'late_includes',
         'module_state',
+        'module_state_contents',  # can be used to inject declarations into the modulestate struct
+        'module_state_end',
         'constant_name_defines',
         'module_state_clear',
         'module_state_traverse',
@@ -1697,14 +1706,15 @@ class GlobalState:
                 'umethod', '%s_%s' % (type_cname, method_name))
         return cname
 
-    def cached_unbound_method_call_code(self, obj_cname, type_cname, method_name, arg_cnames):
+    def cached_unbound_method_call_code(self, modulestate_cname, obj_cname, type_cname, method_name, arg_cnames):
         # admittedly, not the best place to put this method, but it is reused by UtilityCode and ExprNodes ...
         utility_code_name = "CallUnboundCMethod%d" % len(arg_cnames)
         self.use_utility_code(UtilityCode.load_cached(utility_code_name, "ObjectHandling.c"))
         cache_cname = self.get_cached_unbound_method(type_cname, method_name)
         args = [obj_cname] + arg_cnames
-        return "__Pyx_%s(&%s, %s)" % (
+        return "__Pyx_%s(&%s%s, %s)" % (
             utility_code_name,
+            modulestate_cname,
             cache_cname,
             ', '.join(args),
         )
@@ -1798,25 +1808,26 @@ class GlobalState:
         if not self.cached_cmethods:
             return
 
-        decl = self.parts['decls']
+        decl = self.parts['module_state']
         init = self.parts['init_constants']
         cnames = []
         for (type_cname, method_name), cname in sorted(self.cached_cmethods.items()):
             cnames.append(cname)
             method_name_cname = self.get_interned_identifier(StringEncoding.EncodedString(method_name)).cname
-            decl.putln('static __Pyx_CachedCFunction %s = {0, 0, 0, 0, 0};' % (
+            decl.putln('__Pyx_CachedCFunction %s;' % (
                 cname))
             # split type reference storage as it might not be static
             init.putln('%s.type = (PyObject*)%s;' % (
-                cname, type_cname))
+                init.name_in_main_c_code_module_state(cname), type_cname))
             # method name string isn't static in limited api
             init.putln(
-                f'{cname}.method_name = &{init.name_in_main_c_code_module_state(method_name_cname)};')
+                f'{init.name_in_main_c_code_module_state(cname)}.method_name = '
+                f'&{init.name_in_main_c_code_module_state(method_name_cname)};')
 
         if Options.generate_cleanup_code:
             cleanup = self.parts['cleanup_globals']
             for cname in cnames:
-                cleanup.putln("Py_CLEAR(%s.method);" % cname)
+                cleanup.putln(f"Py_CLEAR({init.name_in_main_c_code_module_state(cname)}.method);")
 
     def generate_string_constants(self):
         c_consts = [(len(c.cname), c.cname, c) for c in self.string_const_index.values()]

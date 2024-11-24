@@ -184,6 +184,12 @@ static CYTHON_INLINE PyObject *__Pyx_PyIter_Next_Plain(PyObject *iterator);
 static PyObject *__Pyx_GetBuiltinNext_LimitedAPI(void);
 #endif
 
+/////////////// IterNextPlain.module_state_decls ///////////////
+
+#if CYTHON_COMPILING_IN_LIMITED_API && __PYX_LIMITED_VERSION_HEX < 0x030A0000
+PyObject *__Pyx_GetBuiltinNext_LimitedAPI_cache;
+#endif
+
 /////////////// IterNextPlain ///////////////
 //@requires: GetBuiltinName
 
@@ -193,10 +199,10 @@ static PyObject *__Pyx_GetBuiltinNext_LimitedAPI(void);
 
 #if CYTHON_COMPILING_IN_LIMITED_API && __PYX_LIMITED_VERSION_HEX < 0x030A0000
 static PyObject *__Pyx_GetBuiltinNext_LimitedAPI(void) {
-    static PyObject *next = NULL;
-    if (unlikely(!next)) next = __Pyx_GetBuiltinName(PYIDENT("next"));
+    if (unlikely(!CGLOBAL(__Pyx_GetBuiltinNext_LimitedAPI_cache)))
+        CGLOBAL(__Pyx_GetBuiltinNext_LimitedAPI_cache) = __Pyx_GetBuiltinName(PYIDENT("next"));
     // Returns the globally owned reference, not a new reference!
-    return next;
+    return CGLOBAL(__Pyx_GetBuiltinNext_LimitedAPI_cache);
 }
 #endif
 
@@ -2710,10 +2716,10 @@ static CYTHON_INLINE int __Pyx_object_dict_version_matches(PyObject* obj, PY_UIN
 }
 #endif
 
-////////////// CachedMethodType.proto //////////////
+////////////// CachedMethodType.module_state_decls ////////////
 
 #if CYTHON_COMPILING_IN_LIMITED_API
-static PyObject *__Pyx_CachedMethodType = NULL;
+PyObject *__Pyx_CachedMethodType;
 #endif
 
 ////////////// CachedMethodType.init //////////////
@@ -2723,7 +2729,7 @@ static PyObject *__Pyx_CachedMethodType = NULL;
     PyObject *typesModule=NULL;
     typesModule = PyImport_ImportModule("types");
     if (typesModule) {
-        __Pyx_CachedMethodType = PyObject_GetAttrString(typesModule, "MethodType");
+        CGLOBAL(__Pyx_CachedMethodType) = PyObject_GetAttrString(typesModule, "MethodType");
         Py_DECREF(typesModule);
     }
 } // error handling follows
@@ -2732,10 +2738,14 @@ static PyObject *__Pyx_CachedMethodType = NULL;
 /////////////// CachedMethodType.cleanup ////////////////
 
 #if CYTHON_COMPILING_IN_LIMITED_API
-Py_CLEAR(__Pyx_CachedMethodType);
+Py_CLEAR(CGLOBAL(__Pyx_CachedMethodType));
 #endif
 
 /////////////// PyMethodNew.proto ///////////////
+
+static PyObject *__Pyx_PyMethod_New(PyObject *func, PyObject *self, PyObject *typ); /* proto */
+
+/////////////// PyMethodNew ///////////////
 //@requires: CachedMethodType
 
 #if CYTHON_COMPILING_IN_LIMITED_API
@@ -2747,10 +2757,10 @@ static PyObject *__Pyx_PyMethod_New(PyObject *func, PyObject *self, PyObject *ty
     #if __PYX_LIMITED_VERSION_HEX >= 0x030C0000
     {
         PyObject *args[] = {func, self};
-        result = PyObject_Vectorcall(__Pyx_CachedMethodType, args, 2, NULL);
+        result = PyObject_Vectorcall(CGLOBAL(__Pyx_CachedMethodType), args, 2, NULL);
     }
     #else
-    result = PyObject_CallFunctionObjArgs(__Pyx_CachedMethodType, func, self, NULL);
+    result = PyObject_CallFunctionObjArgs(CGLOBAL(__Pyx_CachedMethodType), func, self, NULL);
     #endif
     return result;
 }

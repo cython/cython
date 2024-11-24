@@ -118,7 +118,10 @@ directly to the ``Extension`` constructor in your setup file.
 
 If you have a single Cython file that you want to turn into a compiled
 extension, say with filename :file:`example.pyx` the associated :file:`setup.py`
-would be::
+would be:
+
+.. code-block:: ini
+    :caption: setup.py
 
     from setuptools import setup
     from Cython.Build import cythonize
@@ -134,7 +137,7 @@ then you may also want to inform pip that :mod:`Cython` is required for
 creating a :file:`pyproject.toml` file containing, at least:
 
 .. code-block:: ini
-
+    :caption: pyproject.toml
 
     [build-system]
     requires = ["setuptools", "wheel", "Cython"]
@@ -146,6 +149,31 @@ documentation`_. To compile the extension for use in the current directory use:
 
     $ python setup.py build_ext --inplace
 
+.. note::
+
+    setuptools 74.1.0 adds experimental support for extensions in :file:`pyproject.toml` (instead of :file:`setup.py`):
+
+    .. code-block:: ini
+        :caption: pyproject.toml
+
+        [build-system]
+        requires = ["setuptools", "cython"]
+        build-backend = "setuptools.build_meta"
+
+        [project]
+        name = "mylib-foo"
+        version = "0.42"
+
+        [tool.setuptools]
+        ext-modules = [
+          {name = "example", sources = ["example.pyx"]}
+        ]
+
+    In this case, you can use any build frontend - e.g. `build <https://pypi.org/project/build/>`_
+
+    .. code-block:: text
+
+        $ python -m build
 
 Configuring the C-Build
 ------------------------
@@ -1220,9 +1248,8 @@ most important to least important:
     Stores module data on a struct associated with the module object rather than as
     C global variables.  The advantage is that it should be possible to import the
     same module more than once (e.g. in different sub-interpreters).  At the moment
-    this is experimental and not all data has been moved.  It also requires that
-    ``CYTHON_PEP489_MULTI_PHASE_INIT`` is off - we plan to remove this limitation
-    in the future.
+    this is experimental and not all data has been moved.  Specifically, ``cdef``
+    globals have not been moved.
 
 ``CYTHON_USE_TYPE_SPECS``
     Defines ``cdef classes`` as `"heap types" <https://docs.python.org/3/c-api/typeobj.html#heap-types>`_
@@ -1337,3 +1364,11 @@ hidden by default since most users will be uninterested in changing them.
             [``gc.get_referents()``](https://docs.python.org/3/library/gc.html#gc.get_referents).
             By default, Cython avoids GC traversing these objects because they can never participate
             in reference cycles, and thus would uselessly waste time during garbage collection runs.
+            
+        ``CYTHON_MODULE_STATE_LOOKUP_THREAD_SAFE``
+            Makes module state lookup thread-safe (when ``CYTHON_USE_MODULE_STATE`` and
+            ``CYTHON_PEP489_MULTI_PHASE_INIT`` are both enabled).  This is on by default
+            where it would be helpful, however it can be disabled if you are sure that
+            one interpreter will not be importing your module at the same time as another
+            is using it.  Values greater than 1 can be used to select a specific implementation
+            for debugging purposes.
