@@ -227,6 +227,15 @@ with_gil = _nogil()  # Actually not a context manager, but compilation will give
 del _nogil
 
 
+class critical_section:
+    def __init__(self, *args):
+        pass
+    def __enter__(self):
+        pass
+    def __exit__(self, exc_class, exc, tb):
+        return exc_class is None
+
+
 # Emulated types
 
 class CythonMetaType(type):
