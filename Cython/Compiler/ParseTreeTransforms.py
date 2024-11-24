@@ -1424,6 +1424,16 @@ class InterpretCompilerDirectives(CythonTransform):
                                 PostParseError(node.pos, "Compiler directive %s accepts one positional argument." % name))
                         node = Nodes.GILStatNode(node.pos, state=name, body=node.body, condition=condition)
                         return self.visit_Node(node)
+                    if name == "critical_section":
+                        args, kwds = value
+                        if len(args) < 1 or len(args) > 2 or kwds:
+                            self.context.nonfatal_error(
+                                PostParseError(node.pos, "critical_section directive accepts one or two positional arguments")
+                            )
+                        node = Nodes.CriticalSectionStatNode(
+                            node.pos, args=args, body=node.body
+                        )
+                        return self.visit_Node(node)
                     if self.check_directive_scope(node.pos, name, 'with statement'):
                         directive_dict[name] = value
         if directive_dict:
@@ -3757,7 +3767,9 @@ class GilCheck(VisitorTransform):
         """
         Take care of try/finally statements in nogil code sections.
         """
-        if not self.nogil or isinstance(node, Nodes.GILStatNode):
+        if (not self.nogil or
+                isinstance(node, Nodes.GILStatNode) or
+                isinstance(node, Nodes.CriticalSectionStatNode)):
             return self.visit_Node(node)
 
         node.nogil_check = None

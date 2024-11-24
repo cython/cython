@@ -8937,6 +8937,129 @@ class EnsureGILNode(GILExitNode):
         code.put_ensure_gil(declare_gilstate=False)
 
 
+class CriticalSectionStatNode(TryFinallyStatNode):
+    """
+    Represents a freethreading Python critical section.
+    In non-freethreading Python, this is a no-op.
+
+    args    list of ExprNode    1 or 2 elements, must be object
+    """
+
+    child_attrs = ["args"] + TryFinallyStatNode.child_attrs
+
+    # loosely follow the naming convention that Python itself follows
+    DEFAULT_VARIABLE_NAME = "__pyx_cs"
+
+    var_type = None
+    state_temp = None
+
+    def __init__(self, pos, /, args, body, **kwds):
+        if len(args) > 1:
+            self.var_type = PyrexTypes.c_py_critical_section2_type
+        else:
+            self.var_type = PyrexTypes.c_py_critical_section_type
+
+        self.create_state_temp_if_needed(pos, args, body)
+
+        TryFinallyStatNode.__init__(
+            self, pos,
+            args=args,
+            body=body,
+            **kwds,
+            finally_clause=CriticalSectionExitNode(
+                pos, len=len(args), state_temp=self.state_temp))
+
+    def create_state_temp_if_needed(self, pos, args, body):
+        from .ParseTreeTransforms import YieldNodeCollector
+        collector = YieldNodeCollector()
+        collector.visitchildren(body)
+        if not collector.yields:
+            return
+        
+        from . import ExprNodes
+        self.state_temp = ExprNodes.TempNode(pos, self.var_type)
+
+    def analyse_declarations(self, env):
+        for arg in self.args:
+            arg.analyse_declarations(env)
+        return super().analyse_declarations(env)
+
+    def analyse_expressions(self, env):
+        env.use_utility_code(
+            UtilityCode.load_cached("CriticalSections", "ModuleSetupCode.c"))
+
+        for n in range(len(self.args)):
+            # Coerce to temp because it's a bit of a disaster if the argument is destroyed
+            # while we're working on it, and the Python critical section implementation
+            # doesn't ensure this.
+            # TODO - we could potentially be a bit smarter about this, and avoid
+            # it for local variables that we know are never re-assigned.
+            self.args[n] = self.args[n].analyse_expressions(env).coerce_to_temp(env)
+            # Note - deliberately no coercion to Python object.
+            # Critical sections only really make sense on a specific known Python object,
+            # so using them on coerced Python objects is very unlikely to make sense.
+            if not self.args[n].type.is_pyobject:
+                error(
+                    self.pos,
+                    "Arguments to cython.critical_section must be Python objects."
+                )
+        return super().analyse_expressions(env)
+    
+    def generate_execution_code(self, code):
+        code.mark_pos(self.pos)
+        code.begin_block()
+        if self.state_temp:
+            self.state_temp.allocate(code)
+            variable = self.state_temp.result()
+        else:
+            variable = self.DEFAULT_VARIABLE_NAME
+            code.putln(f"{self.var_type.declaration_code(variable)};")
+
+        for arg in self.args:
+            arg.generate_evaluation_code(code)
+        args = [ f"(PyObject*){arg.result()}" for arg in self.args ]
+        code.putln(
+            f"__Pyx_PyCriticalSection_Begin{len(args)}(&{variable}, {', '.join(args)});"
+        )
+
+        TryFinallyStatNode.generate_execution_code(self, code)
+
+        for arg in self.args:
+            arg.generate_disposal_code(code)
+            arg.free_temps(code)
+
+        if self.state_temp:
+            self.state_temp.release(code)
+
+        code.end_block()
+
+    def nogil_check(self, env):
+        error(self.pos, "Critical sections require the GIL")
+        
+
+class CriticalSectionExitNode(StatNode):
+    child_attrs = []
+    
+    def __deepcopy__(self, memo):
+        # I have no idea how GILExitNode manages to deepcopy but still
+        # have an initialized state_temp. However, here we just avoid
+        # copying so that finally_clause and finally_except_clause are
+        # the same object
+        return self
+
+    def analyse_expressions(self, env):
+        return self
+
+    def generate_execution_code(self, code):
+        if self.state_temp:
+            variable_name = self.state_temp.result()
+        else:
+            variable_name =  CriticalSectionStatNode.DEFAULT_VARIABLE_NAME
+        code.putln(
+            f"__Pyx_PyCriticalSection_End{self.len}(&{variable_name});"
+        )
+
+
 def cython_view_utility_code():
     from . import MemoryView
     return MemoryView.view_utility_code
@@ -9275,6 +9398,8 @@ class ParallelStatNode(StatNode, ParallelNode):
         Naming.clineno_cname,
     )
 
+    # Note that this refers to openmp critical sections, not freethreading
+    # Python critical sections
     critical_section_counter = 0
 
     def __init__(self, pos, **kwargs):
