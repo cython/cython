@@ -8975,7 +8975,7 @@ class CriticalSectionStatNode(TryFinallyStatNode):
         collector.visitchildren(body)
         if not collector.yields:
             return
-        
+
         from . import ExprNodes
         self.state_temp = ExprNodes.TempNode(pos, self.var_type)
 
@@ -9004,7 +9004,7 @@ class CriticalSectionStatNode(TryFinallyStatNode):
                     "Arguments to cython.critical_section must be Python objects."
                 )
         return super().analyse_expressions(env)
-    
+
     def generate_execution_code(self, code):
         code.mark_pos(self.pos)
         code.begin_block()
@@ -9035,11 +9035,11 @@ class CriticalSectionStatNode(TryFinallyStatNode):
 
     def nogil_check(self, env):
         error(self.pos, "Critical sections require the GIL")
-        
+
 
 class CriticalSectionExitNode(StatNode):
     child_attrs = []
-    
+
     def __deepcopy__(self, memo):
         # I have no idea how GILExitNode manages to deepcopy but still
         # have an initialized state_temp. However, here we just avoid
