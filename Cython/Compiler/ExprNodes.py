@@ -14315,6 +14315,11 @@ class NoneCheckNode(_TempModifierNode):
 
     nogil_check = None  # this node only guards an operation that would fail already
 
+    def analyse_types(self, env):
+        # Always already analysed.
+        # FIXME: We should rather avoid calling analyse_types() again after the first analysis.
+        return self
+
     def may_be_none(self):
         return False
 
