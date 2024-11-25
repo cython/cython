@@ -5000,7 +5000,7 @@ class MemoryViewIndexNode(BufferIndexNode):
             return self
 
         axis_idx = 0
-        for i, index in enumerate(indices[:]):
+        for i, index in enumerate(indices):
             index = index.analyse_types(env)
             if index.is_none:
                 self.is_memview_slice = True
