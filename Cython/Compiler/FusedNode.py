@@ -632,11 +632,25 @@ class FusedCFuncDefNode(StatListNode):
         Generate Cython code for constructing a persistent nested dictionary index of
         fused type specialization signatures.
         """
+        # Note on thread-safety:
+        # Filling in "fused_sigindex" should only happen once. However, in a multi-threaded
+        # environment it's possible that multiple threads can all start to fill it in
+        # independently (especially on freehtreading builds).
+        # Therefore:
+        # * "_fused_sigindex_ref" is a list of length 1 where the first element is either None,
+        #   or a dictionary of signatures to lookup.
+        # * We rely on being able to get/set list elements atomically (which is true on
+        #   freethreading and regular Python).
+        # * It doesn't really matter if multiple threads start generating their own version
+        #   of this - the contents will end up the same. The main point is that no thread
+        #   sees a half filled-in sigindex
         pyx_code.put_chunk(
             """
-                if not _fused_sigindex:
+                fused_sigindex = <dict> _fused_sigindex_ref[0]
+                if fused_sigindex is None:
+                    fused_sigindex = {}
                     for sig in <dict> signatures:
-                        sigindex_node = <dict> _fused_sigindex
+                        sigindex_node = fused_sigindex
                         *sig_series, last_type = sig.strip('()').split('|')
                         for sig_type in sig_series:
                             if sig_type not in sigindex_node:
@@ -644,6 +658,7 @@ class FusedCFuncDefNode(StatListNode):
                             else:
                                 sigindex_node = <dict> sigindex_node[sig_type]
                         sigindex_node[last_type] = sig
+                    _fused_sigindex_ref[0] = fused_sigindex
             """
         )
 
@@ -683,7 +698,7 @@ class FusedCFuncDefNode(StatListNode):
 
         pyx_code.put_chunk(
             """
-                def __pyx_fused_cpdef(signatures, args, kwargs, defaults, _fused_sigindex={}):
+                def __pyx_fused_cpdef(signatures, args, kwargs, defaults, _fused_sigindex_ref=[None]):
                     # FIXME: use a typed signature - currently fails badly because
                     #        default arguments inherit the types we specify here!
 
@@ -762,7 +777,7 @@ class FusedCFuncDefNode(StatListNode):
         pyx_code.put_chunk(
             """
                 sigindex_matches = []
-                sigindex_candidates = [_fused_sigindex]
+                sigindex_candidates = [fused_sigindex]
 
                 for dst_type in dest_sig:
                     found_matches = []
