@@ -644,11 +644,11 @@ class FusedCFuncDefNode(StatListNode):
         fused type specialization signatures.
         """
         # Note on thread-safety:
-        # Filling in _fused_sigindex should only happen once. However, in a multi-threaded
+        # Filling in "fused_sigindex" should only happen once. However, in a multi-threaded
         # environment it's possible that multiple threads can all start to fill it in
         # independently (especially on freehtreading builds).
         # Therefore:
-        # * _fused_sigindex is a list of length 1 where the first element is either None,
+        # * "_fused_sigindex_ref" is a list of length 1 where the first element is either None,
         #   or a dictionary of signatures to lookup.
         # * We rely on being able to get/set list elements atomically (which is true on
         #   freethreading and regular Python).
