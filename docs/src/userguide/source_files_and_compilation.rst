@@ -1268,6 +1268,14 @@ most important to least important:
     Controls whether C lines numbers appear in tracebacks.
     See :ref:`cline_in_traceback` for a complete description.
 
+``CYTHON_CCOMPLEX``
+    Passes complex numbers using the C or C++ language standard library types
+    instead of an internal type defined by Cython.  Turning it on
+    maximizes compatibility with external libraries.  However, MSVC
+    has poor standards support (especially in C mode) and so struggles to
+    use the standard library types.  It is on by default on platforms
+    where we think it's likely to work.
+
 There is a further list of macros which turn off various optimizations or language
 features.  Under normal circumstance Cython enables these automatically based on the
 version of Python you are compiling for so there is no need to use them
