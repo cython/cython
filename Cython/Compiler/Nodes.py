@@ -8948,7 +8948,7 @@ class CriticalSectionStatNode(TryFinallyStatNode):
     child_attrs = ["args"] + TryFinallyStatNode.child_attrs
 
     # loosely follow the naming convention that Python itself follows
-    DEFAULT_VARIABLE_NAME = "__pyx_cs"
+    DEFAULT_VARIABLE_NAME = Naming.pyrex_prefix + "cs"
 
     var_type = None
     state_temp = None
@@ -8959,18 +8959,18 @@ class CriticalSectionStatNode(TryFinallyStatNode):
         else:
             self.var_type = PyrexTypes.c_py_critical_section_type
 
-        self.create_state_temp_if_needed(pos, args, body)
+        self.create_state_temp_if_needed(pos, body)
 
         super().__init__(
             pos,
             args=args,
             body=body,
             finally_clause=CriticalSectionExitNode(
-                pos, len=len(args), state_temp=self.state_temp),
+                pos, len=len(args), parent_node=self),
             **kwds,
         )
 
-    def create_state_temp_if_needed(self, pos, args, body):
+    def create_state_temp_if_needed(self, pos, body):
         from .ParseTreeTransforms import YieldNodeCollector
         collector = YieldNodeCollector()
         collector.visitchildren(body)
@@ -8986,9 +8986,6 @@ class CriticalSectionStatNode(TryFinallyStatNode):
         return super().analyse_declarations(env)
 
     def analyse_expressions(self, env):
-        env.use_utility_code(
-            UtilityCode.load_cached("CriticalSections", "ModuleSetupCode.c"))
-
         for i, arg in enumerate(self.args):
             # Coerce to temp because it's a bit of a disaster if the argument is destroyed
             # while we're working on it, and the Python critical section implementation
@@ -9008,6 +9005,9 @@ class CriticalSectionStatNode(TryFinallyStatNode):
         return super().analyse_expressions(env)
 
     def generate_execution_code(self, code):
+        code.globalstate.use_utility_code(
+            UtilityCode.load_cached("CriticalSections", "ModuleSetupCode.c"))
+
         code.mark_pos(self.pos)
         code.begin_block()
         if self.state_temp:
@@ -9040,21 +9040,24 @@ class CriticalSectionStatNode(TryFinallyStatNode):
 
 
 class CriticalSectionExitNode(StatNode):
+    """
+    parent_node - the CriticalSectionStatNode that owns this
+    """
     child_attrs = []
 
     def __deepcopy__(self, memo):
-        # I have no idea how GILExitNode manages to deepcopy but still
-        # have an initialized state_temp. However, here we just avoid
-        # copying so that finally_clause and finally_except_clause are
-        # the same object
+        # This gets deepcopied when generating finally_clause and
+        # finally_except_clause. In this case the node has essentially
+        # no state, except for a reference to its parent.
+        # We definitely don't want to let that reference be copied.
         return self
 
     def analyse_expressions(self, env):
         return self
 
     def generate_execution_code(self, code):
-        if self.state_temp:
-            variable_name = self.state_temp.result()
+        if self.parent_node.state_temp:
+            variable_name = self.parent_node.state_temp.result()
         else:
             variable_name =  CriticalSectionStatNode.DEFAULT_VARIABLE_NAME
         code.putln(

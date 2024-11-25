@@ -22,8 +22,8 @@ _ERRORS = """
 7:9: critical_section directive accepts one or two positional arguments
 9:9: critical_section directive accepts one or two positional arguments
 11:9: critical_section directive accepts one or two positional arguments
-13:9: Arguments to cython.critical_section must be Python objects.
-15:9: Arguments to cython.critical_section must be Python objects.
+13:33: Arguments to cython.critical_section must be Python objects.
+15:33: Arguments to cython.critical_section must be Python objects.
 18:13: Critical sections require the GIL
 # slightly extraneous, but no real harm
 18:37: Creating temporary Python reference not allowed without gil

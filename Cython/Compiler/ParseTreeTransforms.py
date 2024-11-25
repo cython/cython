@@ -3767,15 +3767,17 @@ class GilCheck(VisitorTransform):
         """
         Take care of try/finally statements in nogil code sections.
         """
-        if (not self.nogil or
-                isinstance(node, Nodes.GILStatNode) or
-                isinstance(node, Nodes.CriticalSectionStatNode)):
+        if not self.nogil:
             return self.visit_Node(node)
 
         node.nogil_check = None
         node.is_try_finally_in_nogil = True
         self.visitchildren(node)
         return node
+
+    def visit_CriticalSectionStatNode(self, node):
+        # skip normal "try/finally node" handling
+        return self.visit_Node(node)
 
     def visit_GILExitNode(self, node):
         if not self.current_gilstat_node_knows_gil_state:
