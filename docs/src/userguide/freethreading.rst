@@ -77,8 +77,8 @@ a useful thing to do).
 
 We suggest reading the Python documentation to understand how critical sections work.
 
-* You can guarantee that the lock will be held when executing code within the 
-  critical section, however you can not guarantee that the lock will be executed
+* It is guaranteed that the lock will be held when executing code within the 
+  critical section. However, there is no guarantee that the code block will be executed
   in one atomic action.  This is very similar to the guarantee provided by
   a ``with gil`` block.
 * Operations on another Python object may end up temporarily releasing the

@@ -1424,7 +1424,7 @@ class InterpretCompilerDirectives(CythonTransform):
                                 PostParseError(node.pos, "Compiler directive %s accepts one positional argument." % name))
                         node = Nodes.GILStatNode(node.pos, state=name, body=node.body, condition=condition)
                         return self.visit_Node(node)
-                    if name == "critical_section":
+                    elif name == "critical_section":
                         args, kwds = value
                         if len(args) < 1 or len(args) > 2 or kwds:
                             self.context.nonfatal_error(

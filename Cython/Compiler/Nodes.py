@@ -8961,13 +8961,14 @@ class CriticalSectionStatNode(TryFinallyStatNode):
 
         self.create_state_temp_if_needed(pos, args, body)
 
-        TryFinallyStatNode.__init__(
-            self, pos,
+        super().__init__(
+            pos,
             args=args,
             body=body,
-            **kwds,
             finally_clause=CriticalSectionExitNode(
-                pos, len=len(args), state_temp=self.state_temp))
+                pos, len=len(args), state_temp=self.state_temp),
+            **kwds,
+        )
 
     def create_state_temp_if_needed(self, pos, args, body):
         from .ParseTreeTransforms import YieldNodeCollector
@@ -8988,21 +8989,22 @@ class CriticalSectionStatNode(TryFinallyStatNode):
         env.use_utility_code(
             UtilityCode.load_cached("CriticalSections", "ModuleSetupCode.c"))
 
-        for n in range(len(self.args)):
+        for i, arg in enumerate(self.args):
             # Coerce to temp because it's a bit of a disaster if the argument is destroyed
             # while we're working on it, and the Python critical section implementation
             # doesn't ensure this.
             # TODO - we could potentially be a bit smarter about this, and avoid
             # it for local variables that we know are never re-assigned.
-            self.args[n] = self.args[n].analyse_expressions(env).coerce_to_temp(env)
+            arg = arg.analyse_expressions(env).coerce_to_temp(env)
             # Note - deliberately no coercion to Python object.
             # Critical sections only really make sense on a specific known Python object,
             # so using them on coerced Python objects is very unlikely to make sense.
-            if not self.args[n].type.is_pyobject:
+            if not arg.type.is_pyobject:
                 error(
-                    self.pos,
+                    arg.pos,
                     "Arguments to cython.critical_section must be Python objects."
                 )
+            self.args[i] = arg
         return super().analyse_expressions(env)
 
     def generate_execution_code(self, code):
@@ -9399,7 +9401,7 @@ class ParallelStatNode(StatNode, ParallelNode):
     )
 
     # Note that this refers to openmp critical sections, not freethreading
-    # Python critical sections
+    # Python critical sections.
     critical_section_counter = 0
 
     def __init__(self, pos, **kwargs):

@@ -233,7 +233,7 @@ class critical_section:
     def __enter__(self):
         pass
     def __exit__(self, exc_class, exc, tb):
-        return exc_class is None
+        return False
 
 
 # Emulated types
