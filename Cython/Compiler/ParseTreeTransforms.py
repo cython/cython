@@ -1400,6 +1400,32 @@ class InterpretCompilerDirectives(CythonTransform):
                 contents_optdict[name] = value
         return optdict, contents_optdict
 
+    def _transform_with_gil(self, name, node):
+        # special case: in pure mode, "with nogil" spells "with cython.nogil"
+        condition = None
+        if isinstance(node.manager, ExprNodes.SimpleCallNode) and len(node.manager.args) > 0:
+            if len(node.manager.args) == 1:
+                condition = node.manager.args[0]
+            else:
+                self.context.nonfatal_error(
+                    PostParseError(node.pos, "Compiler directive %s accepts one positional argument." % name))
+        elif isinstance(node.manager, ExprNodes.GeneralCallNode):
+            self.context.nonfatal_error(
+                PostParseError(node.pos, "Compiler directive %s accepts one positional argument." % name))
+        node = Nodes.GILStatNode(node.pos, state=name, body=node.body, condition=condition)
+        return self.visit_Node(node)
+
+    def _transform_critical_section(self, value, node):
+        args, kwds = value
+        if len(args) < 1 or len(args) > 2 or kwds:
+            self.context.nonfatal_error(
+                PostParseError(node.pos, "critical_section directive accepts one or two positional arguments")
+            )
+        node = Nodes.CriticalSectionStatNode(
+            node.pos, args=args, body=node.body
+        )
+        return self.visit_Node(node)
+
     # Handle with-statements
     def visit_WithStatNode(self, node):
         directive_dict = {}
@@ -1411,29 +1437,9 @@ class InterpretCompilerDirectives(CythonTransform):
                 else:
                     name, value = directive
                     if name in ('nogil', 'gil'):
-                        # special case: in pure mode, "with nogil" spells "with cython.nogil"
-                        condition = None
-                        if isinstance(node.manager, ExprNodes.SimpleCallNode) and len(node.manager.args) > 0:
-                            if len(node.manager.args) == 1:
-                                condition = node.manager.args[0]
-                            else:
-                                self.context.nonfatal_error(
-                                    PostParseError(node.pos, "Compiler directive %s accepts one positional argument." % name))
-                        elif isinstance(node.manager, ExprNodes.GeneralCallNode):
-                            self.context.nonfatal_error(
-                                PostParseError(node.pos, "Compiler directive %s accepts one positional argument." % name))
-                        node = Nodes.GILStatNode(node.pos, state=name, body=node.body, condition=condition)
-                        return self.visit_Node(node)
+                        return self._transform_with_gil(name, node)
                     elif name == "critical_section":
-                        args, kwds = value
-                        if len(args) < 1 or len(args) > 2 or kwds:
-                            self.context.nonfatal_error(
-                                PostParseError(node.pos, "critical_section directive accepts one or two positional arguments")
-                            )
-                        node = Nodes.CriticalSectionStatNode(
-                            node.pos, args=args, body=node.body
-                        )
-                        return self.visit_Node(node)
+                        return self._transform_critical_section(value, node)
                     if self.check_directive_scope(node.pos, name, 'with statement'):
                         directive_dict[name] = value
         if directive_dict:
