@@ -127,9 +127,7 @@ def check_negative_indices(*nodes):
     Used to find (potential) bugs inside of "wraparound=False" sections.
     """
     for node in nodes:
-        if node is None or (
-                not isinstance(node.constant_result, int) and
-                not isinstance(node.constant_result, float)):
+        if node is None or not isinstance(node.constant_result, (int, float)):
             continue
         if node.constant_result < 0:
             warning(node.pos,
