@@ -8947,9 +8947,6 @@ class CriticalSectionStatNode(TryFinallyStatNode):
 
     child_attrs = ["args"] + TryFinallyStatNode.child_attrs
 
-    # loosely follow the naming convention that Python itself follows
-    DEFAULT_VARIABLE_NAME = Naming.pyrex_prefix + "cs"
-
     var_type = None
     state_temp = None
 
@@ -8966,7 +8963,7 @@ class CriticalSectionStatNode(TryFinallyStatNode):
             args=args,
             body=body,
             finally_clause=CriticalSectionExitNode(
-                pos, len=len(args), parent_node=self),
+                pos, len=len(args), critical_section=self),
             **kwds,
         )
 
@@ -9014,7 +9011,7 @@ class CriticalSectionStatNode(TryFinallyStatNode):
             self.state_temp.allocate(code)
             variable = self.state_temp.result()
         else:
-            variable = self.DEFAULT_VARIABLE_NAME
+            variable = Naming.critical_section_variable
             code.putln(f"{self.var_type.declaration_code(variable)};")
 
         for arg in self.args:
@@ -9041,7 +9038,7 @@ class CriticalSectionStatNode(TryFinallyStatNode):
 
 class CriticalSectionExitNode(StatNode):
     """
-    parent_node - the CriticalSectionStatNode that owns this
+    critical_section - the CriticalSectionStatNode that owns this
     """
     child_attrs = []
 
@@ -9056,10 +9053,10 @@ class CriticalSectionExitNode(StatNode):
         return self
 
     def generate_execution_code(self, code):
-        if self.parent_node.state_temp:
-            variable_name = self.parent_node.state_temp.result()
+        if self.critical_section.state_temp:
+            variable_name = self.critical_section.state_temp.result()
         else:
-            variable_name =  CriticalSectionStatNode.DEFAULT_VARIABLE_NAME
+            variable_name =  Naming.critical_section_variable
         code.putln(
             f"__Pyx_PyCriticalSection_End{self.len}(&{variable_name});"
         )
