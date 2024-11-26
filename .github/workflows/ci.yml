@@ -50,8 +50,17 @@ jobs:
           - "3.11"
           - "3.12"
           - "3.13"
+          - "3.13t"
         env: [{}]
 
+        exclude:
+          # Windows and free-threading is difficult to build right now
+          - os: windows-2019
+            python-version: 3.13t
+            backend: "c"
+          - os: windows-2019
+            python-version: 3.13t
+            backend: "cpp"
         include:
           #- python-version: "3.13"
           #  allowed_failure: true
@@ -168,9 +177,28 @@ jobs:
             env: { NO_CYTHON_COMPILE: 1 }
           # Free-threading
           - os: ubuntu-22.04
-            python-version: 3.13-freethreading
-            backend: "c,cpp"
-            env: {}
+            python-version: 3.13t
+            backend: "c"
+            allowed_failure: true
+          - os: ubuntu-22.04
+            python-version: 3.13t
+            backend: "cpp"
+            allowed_failure: true
+#          - os: windows-2019
+#            python-version: 3.13t
+#            backend: "c"
+#            allowed_failure: true
+#          - os: windows-2019
+#            python-version: 3.13t
+#            backend: "cpp"
+#            allowed_failure: true
+          - os: macos-13
+            python-version: 3.13t
+            backend: "c"
+            allowed_failure: true
+          - os: macos-13
+            python-version: 3.13t
+            backend: "cpp"
             allowed_failure: true
 
     # This defaults to 360 minutes (6h) which is way too long and if a test gets stuck, it can block other pipelines.
@@ -196,17 +224,9 @@ jobs:
           fetch-depth: 1
 
       - name: Setup python
-        uses: actions/setup-python@v5.0.0
-        if: "!endsWith(matrix.python-version, '-freethreading')"
+        uses: Quansight-Labs/setup-python@v5.3.1
         with:
           python-version: ${{ matrix.python-version }}
-
-      - name: Setup python from deadsnakes
-        uses: deadsnakes/action@v3.1.0
-        if: "endsWith(matrix.python-version, '-freethreading')"
-        with:
-          python-version: "3.13"
-          nogil: true
 
       - name: Compilation Cache
         uses: hendrikmuhs/ccache-action@v1.2.12

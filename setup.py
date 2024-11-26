@@ -6,6 +6,7 @@ except ImportError:
 import os
 import stat
 import subprocess
+import sysconfig
 import textwrap
 import sys
 
@@ -115,10 +116,10 @@ def compile_cython_modules(profile=False, coverage=False, compile_minimal=False,
             "Cython.Compiler.Optimize",
             ])
 
-    from distutils.spawn import find_executable
-    from distutils.sysconfig import get_python_inc
-    pgen = find_executable(
-        'pgen', os.pathsep.join([os.environ['PATH'], os.path.join(get_python_inc(), '..', 'Parser')]))
+    from shutil import which
+    from sysconfig import get_path
+    pgen = which(
+        'pgen', path=os.pathsep.join([os.environ['PATH'], os.path.join(get_path('include'), '..', 'Parser')]))
     if not pgen:
         sys.stderr.write("Unable to find pgen, not compiling formal grammar.\n")
     else:
@@ -145,6 +146,9 @@ def compile_cython_modules(profile=False, coverage=False, compile_minimal=False,
             ('Py_LIMITED_API', '0x03070000'),
         ]
         extra_extension_args['py_limited_api'] = True
+
+    if sysconfig.get_config_var('Py_GIL_DISABLED') and platform.system() == "Windows":
+        defines.append(('Py_GIL_DISABLED', 1))
 
     if cython_with_refnanny:
         defines.append(('CYTHON_REFNANNY', '1'))

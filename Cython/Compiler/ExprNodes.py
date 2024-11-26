@@ -127,9 +127,7 @@ def check_negative_indices(*nodes):
     Used to find (potential) bugs inside of "wraparound=False" sections.
     """
     for node in nodes:
-        if node is None or (
-                not isinstance(node.constant_result, int) and
-                not isinstance(node.constant_result, float)):
+        if node is None or not isinstance(node.constant_result, (int, float)):
             continue
         if node.constant_result < 0:
             warning(node.pos,
@@ -5000,7 +4998,7 @@ class MemoryViewIndexNode(BufferIndexNode):
             return self
 
         axis_idx = 0
-        for i, index in enumerate(indices[:]):
+        for i, index in enumerate(indices):
             index = index.analyse_types(env)
             if index.is_none:
                 self.is_memview_slice = True
@@ -14314,6 +14312,11 @@ class NoneCheckNode(_TempModifierNode):
         self.exception_format_args = tuple(exception_format_args or ())
 
     nogil_check = None  # this node only guards an operation that would fail already
+
+    def analyse_types(self, env):
+        # Always already analysed.
+        # FIXME: We should rather avoid calling analyse_types() again after the first analysis.
+        return self
 
     def may_be_none(self):
         return False
