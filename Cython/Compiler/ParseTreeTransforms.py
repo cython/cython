@@ -1406,30 +1406,35 @@ class InterpretCompilerDirectives(CythonTransform):
     def visit_WithStatNode(self, node):
         directive_dict = {}
         for directive in self.try_to_parse_directives(node.manager) or []:
-            if directive is not None:
-                if node.target is not None:
-                    self.context.nonfatal_error(
-                        PostParseError(node.pos, "Compiler directive with statements cannot contain 'as'"))
-                else:
-                    name, value = directive
-                    if name in ('nogil', 'gil'):
-                        # special case: in pure mode, "with nogil" spells "with cython.nogil"
-                        condition = None
-                        if isinstance(node.manager, ExprNodes.SimpleCallNode) and len(node.manager.args) > 0:
-                            if len(node.manager.args) == 1:
-                                condition = node.manager.args[0]
-                            else:
-                                self.context.nonfatal_error(
-                                    PostParseError(node.pos, "Compiler directive %s accepts one positional argument." % name))
-                        elif isinstance(node.manager, ExprNodes.GeneralCallNode):
-                            self.context.nonfatal_error(
-                                PostParseError(node.pos, "Compiler directive %s accepts one positional argument." % name))
-                        node = Nodes.GILStatNode(node.pos, state=name, body=node.body, condition=condition)
-                        return self.visit_Node(node)
-                    if self.check_directive_scope(node.pos, name, 'with statement'):
-                        directive_dict[name] = value
+            if directive is None:
+                continue
+            if node.target is not None:
+                self.context.nonfatal_error(
+                    PostParseError(node.pos, "Compiler directive with statements cannot contain 'as'"))
+                continue
+            name, value = directive
+            if name in ('nogil', 'gil'):
+                # special case: in pure mode, "with nogil" spells "with cython.nogil"
+                return self._transform_with_gil(name, node)
+            elif self.check_directive_scope(node.pos, name, 'with statement'):
+                directive_dict[name] = value
         if directive_dict:
             return self.visit_with_directives(node.body, directive_dict, contents_directives=None)
+        return self.visit_Node(node)
+
+    def _transform_with_gil(self, state, node):
+        assert state in ('gil', 'nogil')
+        manager = node.manager
+        condition = None
+        if isinstance(manager, ExprNodes.SimpleCallNode) and manager.args:
+            if len(manager.args) > 1:
+                self.context.nonfatal_error(
+                    PostParseError(node.pos, "Compiler directive %s accepts one positional argument." % state))
+            condition = manager.args[0]
+        elif isinstance(manager, ExprNodes.GeneralCallNode):
+            self.context.nonfatal_error(
+                PostParseError(node.pos, "Compiler directive %s accepts one positional argument." % state))
+        node = Nodes.GILStatNode(node.pos, state=state, body=node.body, condition=condition)
         return self.visit_Node(node)
 
 
