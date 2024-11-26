@@ -1299,11 +1299,13 @@ class InterpretCompilerDirectives(CythonTransform):
         retbody = self.visit_Node(node)
         self.directives = old_directives
 
+        if isinstance(retbody, Nodes.CompilerDirectivesNode):
+            new_directives.update(retbody.directives)
+            retbody = retbody.body
         if not isinstance(retbody, Nodes.StatListNode):
             retbody = Nodes.StatListNode(node.pos, stats=[retbody])
         return Nodes.CompilerDirectivesNode(
-            pos=retbody.pos, body=retbody, directives=new_directives)
-
+            retbody.pos, body=retbody, directives=new_directives, is_terminator=retbody.is_terminator)
 
     # Handle decorators
     def visit_FuncDefNode(self, node):
