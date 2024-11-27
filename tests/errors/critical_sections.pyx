@@ -18,6 +18,7 @@ def f():
         with cython.critical_section(o):  # critical sections require the GIL
             pass
 
+
 _ERRORS = """
 7:9: critical_section directive accepts one or two positional arguments
 9:9: critical_section directive accepts one or two positional arguments
