@@ -3125,10 +3125,13 @@ class CCodeWriter:
         error_handling = self.error_goto(pos)
         self.putln(f"{trace_func}({retvalue_cname}{extra_arg}, {self.pos_to_offset(pos)}, {bool(nogil):d}, {error_handling});")
 
-    def putln_openmp(self, string):
-        self.putln("#ifdef _OPENMP")
+    def putln_openmp(self, string, additional_tests=None):
+        test = "defined(_OPENMP)"
+        if additional_tests:
+            test = f"{test} && {additional_tests}"
+        self.putln(f"#if {test}")
         self.putln(string)
-        self.putln("#endif /* _OPENMP */")
+        self.putln(f"#endif /* {test} */")
 
     def undef_builtin_expect(self, cond):
         """
