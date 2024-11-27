@@ -1415,14 +1415,17 @@ class InterpretCompilerDirectives(CythonTransform):
             name, value = directive
             if name in ('nogil', 'gil'):
                 # special case: in pure mode, "with nogil" spells "with cython.nogil"
-                return self._transform_with_gil(name, node)
+                return self._transform_with_gil(node, name)
+            elif name == "critical_section":
+                args, kwds = value
+                return self._transform_critical_section(node, args, kwds)
             elif self.check_directive_scope(node.pos, name, 'with statement'):
                 directive_dict[name] = value
         if directive_dict:
             return self.visit_with_directives(node.body, directive_dict, contents_directives=None)
         return self.visit_Node(node)
 
-    def _transform_with_gil(self, state, node):
+    def _transform_with_gil(self, node, state):
         assert state in ('gil', 'nogil')
         manager = node.manager
         condition = None
@@ -1435,6 +1438,16 @@ class InterpretCompilerDirectives(CythonTransform):
             self.context.nonfatal_error(
                 PostParseError(node.pos, "Compiler directive %s accepts one positional argument." % state))
         node = Nodes.GILStatNode(node.pos, state=state, body=node.body, condition=condition)
+        return self.visit_Node(node)
+
+    def _transform_critical_section(self, node, args, kwds):
+        if len(args) < 1 or len(args) > 2 or kwds:
+            self.context.nonfatal_error(
+                PostParseError(node.pos, "critical_section directive accepts one or two positional arguments")
+            )
+        node = Nodes.CriticalSectionStatNode(
+            node.pos, args=args, body=node.body
+        )
         return self.visit_Node(node)
 
 
@@ -3764,13 +3777,17 @@ class GilCheck(VisitorTransform):
         """
         Take care of try/finally statements in nogil code sections.
         """
-        if not self.nogil or isinstance(node, Nodes.GILStatNode):
+        if not self.nogil:
             return self.visit_Node(node)
 
         node.nogil_check = None
         node.is_try_finally_in_nogil = True
         self.visitchildren(node)
         return node
+
+    def visit_CriticalSectionStatNode(self, node):
+        # skip normal "try/finally node" handling
+        return self.visit_Node(node)
 
     def visit_GILExitNode(self, node):
         if not self.current_gilstat_node_knows_gil_state:
