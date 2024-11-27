@@ -392,7 +392,7 @@ directive_scopes = {  # defaults to available everywhere
     'nogil' : ('function', 'with statement'),
     'gil' : ('with statement'),
     'with_gil' : ('function',),
-    'critical_section': ('with statement'),
+    'critical_section': ('with statement',),
     'inline' : ('function',),
     'cfunc' : ('function', 'with statement'),
     'ccall' : ('function', 'with statement'),
