@@ -33,6 +33,19 @@ def parse_stage_factory(context):
         tree.compilation_source = compsrc
         tree.scope = scope
         tree.is_pxd = False
+
+        if Options.cyshared:
+            ############## INJECTING cyshared #################
+            import Cython
+            import os.path
+            context.include_directories.append(os.path.join(os.path.split(Cython.__file__)[0], 'Utility'))
+            scope = context.find_module('MemoryView')
+            # for e in scope.cfunc_entries:
+            #     e.cname = e.name
+            #     e.used = 1
+            tree.scope.cimported_modules.append(scope)
+            ############## INJECTING cyshared #################
+
         return tree
     return parse
 

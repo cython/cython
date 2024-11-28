@@ -130,7 +130,12 @@ class Context:
             pipeline = Pipeline.create_pyx_as_pxd_pipeline(self, result_sink)
             result = Pipeline.run_pipeline(pipeline, source)
         else:
+            from . import ParseTreeTransforms
+            transform = ParseTreeTransforms.CnameDirectivesTransform(self)
+            before = ParseTreeTransforms.InterpretCompilerDirectives
             pipeline = Pipeline.create_pxd_pipeline(self, scope, module_name)
+            pipeline = Pipeline.insert_into_pipeline(pipeline, transform,
+                                                     before=before)
             result = Pipeline.run_pipeline(pipeline, source_desc)
         return result
 

@@ -841,17 +841,38 @@ copy_contents_new_utility = load_memview_c_utility(
     requires=[],  # require cython_array_utility_code
 )
 
-view_utility_code = load_memview_cy_utility(
-        "View.MemoryView",
-        context=context,
-        requires=[Buffer.buffer_struct_declare_code,
-                  Buffer.buffer_formats_declare_code,
-                  memviewslice_init_code,
-                  is_contig_utility,
-                  overlapping_utility,
-                  copy_contents_new_utility,
-                  ],
-)
+if Options.cyshared:
+
+    view_utility_code = load_memview_cy_utility(
+            "View.MemoryView",
+            context=context,
+            requires=[
+                      Buffer.buffer_struct_declare_code,
+                      Buffer.buffer_formats_declare_code,
+                      memviewslice_init_code,
+                      is_contig_utility,
+                      overlapping_utility,
+                      copy_contents_new_utility,
+                      ],
+    )
+
+else:
+    assert False
+    view_utility_code = load_memview_cy_utility(
+            "View.MemoryView.shared",
+            context=context,
+            requires=[
+                      common_view_utility_code,
+                      Buffer.buffer_struct_declare_code,
+                      Buffer.buffer_formats_declare_code,
+                      memviewslice_init_code,
+                      is_contig_utility,
+                      overlapping_utility,
+                      copy_contents_new_utility,
+                      ],
+    )
+
+
 view_utility_allowlist = ('array', 'memoryview', 'array_cwrapper',
                           'generic', 'strided', 'indirect', 'contiguous',
                           'indirect_contiguous')
