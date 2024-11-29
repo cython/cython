@@ -661,9 +661,9 @@ cdef memoryview_cwrapper(object o, int flags, bint dtype_is_object, __Pyx_TypeIn
     result.typeinfo = typeinfo
     return result
 
-@cname('__pyx_memoryview_check')
-cdef inline bint memoryview_check(object o) noexcept:
-    return isinstance(o, memoryview)
+# @cname('__pyx_memoryview_check')
+# cdef inline bint memoryview_check(object o) noexcept:
+#     return isinstance(o, memoryview)
 
 cdef tuple _unellipsify(object index, int ndim):
     """

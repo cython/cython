@@ -21,6 +21,45 @@ def abort_on_errors(node):
         raise AbortError("pipeline break")
     return node
 
+def create_dummy_pipeline(context, scope, options, result):
+
+    def parse_dummy_stage_factory(context):
+        def parse(compsrc):
+            from .Code import TempitaUtilityCode
+            from .UtilityCode import CythonUtilityCode
+            from . import MemoryView
+            import os.path
+            import Cython
+            source_desc = compsrc.source_desc
+            full_module_name = compsrc.full_module_name
+
+            tree = context.dummy_parse(source_desc, scope, pxd=False, full_module_name=full_module_name)
+            tree.is_pxd = False
+
+            tree.compilation_source = compsrc
+            tree.scope = scope
+
+            scope.use_utility_code(MemoryView.memviewslice_init_code)
+            scope.use_utility_code(MemoryView.typeinfo_to_format_code)
+            scope.use_utility_code(MemoryView.shared_view_utility_code)
+            context.include_directories.append(os.path.join(os.path.split(Cython.__file__)[0], 'Utility'))
+            s = context.find_module('MemoryView')
+            scope.cfunc_entries = s.cfunc_entries
+            return tree
+
+        return parse
+
+    return list(
+        itertools.chain(
+            [parse_dummy_stage_factory(context)],
+            create_pipeline(context, 'pyx', exclude_classes=()),
+            [inject_pxd_code_stage_factory(context),
+            inject_utility_code_stage_factory(context),
+            abort_on_errors],
+            [generate_pyx_code_stage_factory(options, result)],
+        )
+    )
+
 def parse_stage_factory(context):
     def parse(compsrc):
         source_desc = compsrc.source_desc
