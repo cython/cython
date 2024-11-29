@@ -18,6 +18,10 @@ import sys
 from setuptools import setup
 from Cython.Build import cythonize
 
+if hasattr(sys, "_is_gil_enabled"):
+    print("Skipping isolated_limited_api tests on free-threading build")
+    exit(0)  # At least for 3.13, freethreading and limited API don't mix
+
 modules = [
     "limited_single_phase.pyx",
     "limited_single_phase_modstate.pyx",
@@ -34,6 +38,10 @@ import decimal
 
 import weakref
 import sys
+
+if hasattr(sys, "_is_gil_enabled"):
+    print("Skipping isolated_limited_api tests on free-threading build")
+    exit(0)  # At least for 3.13, freethreading and limited API don't mix
 
 module_name = sys.argv[1]
 

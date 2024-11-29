@@ -68,6 +68,9 @@ def f():
 import sys
 if sys.version_info < (3, 13):
     exit(0)  # test won't work
+if hasattr(sys, "_is_gil_enabled"):
+    # we aren't allowed to do _imp._override_multi_interp_extensions_check(-1) on freethreading
+    exit(0)
 
 # TODO - in Py3.14 this'll probably be in the standard library
 from interpreters_backport import interpreters

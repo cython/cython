@@ -57,6 +57,9 @@ if sys.version_info < (3, 13):
     # No chance of this working I think.
     # (Although there probably is a test that would...)
     exit(0)
+if hasattr(sys, "_is_gil_enabled"):
+    # _override_multi_interp_extensions_check is banned on free-threading builds
+    exit(0)
 
 # TODO - in Py3.14 this'll probably be in the standard library
 from interpreters_backport import interpreters

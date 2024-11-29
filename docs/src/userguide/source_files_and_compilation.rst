@@ -1001,7 +1001,7 @@ Cython code.  Here is the list of currently supported directives:
 ``c_string_type`` (bytes / str / unicode), *default=bytes*
     Globally set the type of an implicit coercion from char* or std::string.
 
-``c_string_encoding`` (ascii, default, utf-8, etc.), *default=""`
+``c_string_encoding`` (ascii, default, utf-8, etc.), *default=""*
     Globally set the encoding to use when implicitly coercing char* or std:string
     to a unicode object.  Coercion from a unicode object to C type is only allowed
     when set to ``ascii`` or ``default``, the latter being utf-8 in Python 3 and
@@ -1278,6 +1278,14 @@ most important to least important:
 ``CYTHON_CLINE_IN_TRACEBACK``
     Controls whether C lines numbers appear in tracebacks.
     See :ref:`cline_in_traceback` for a complete description.
+
+``CYTHON_CCOMPLEX``
+    Passes complex numbers using the C or C++ language standard library types
+    instead of an internal type defined by Cython.  Turning it on
+    maximizes compatibility with external libraries.  However, MSVC
+    has poor standards support (especially in C mode) and so struggles to
+    use the standard library types.  It is on by default on platforms
+    where we think it's likely to work.
 
 There is a further list of macros which turn off various optimizations or language
 features.  Under normal circumstance Cython enables these automatically based on the

@@ -232,7 +232,7 @@ if [[ $PYTHON_VERSION == "graalpy"* ]]; then
 fi
 
 export CFLAGS="$CFLAGS $EXTRA_CFLAGS"
-if [[ $PYTHON_VERSION == *"-freethreading-dev" ]]; then
+if [[ $PYTHON_VERSION == "3.13t" ]]; then
   export PYTHON_GIL=0
 fi
 python runtests.py \
