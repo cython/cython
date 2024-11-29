@@ -8,6 +8,7 @@ from Cython.Compiler.StringEncoding import EncodedString
 from Cython.Compiler.Scanning import StringSourceDescriptor, FileSourceDescriptor
 
 Errors.init_thread()
+Errors.open_listing_file(None)
 Options.generate_cyshared = True
 
 options = Options.CompilationOptions()
