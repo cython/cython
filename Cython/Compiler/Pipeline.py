@@ -30,21 +30,28 @@ def create_dummy_pipeline(context, scope, options, result):
             from . import MemoryView
             import os.path
             import Cython
+
+            # Force to generate __Pyx_ExportFunction
+            Options.cimport_from_pyx = True
+
             source_desc = compsrc.source_desc
             full_module_name = compsrc.full_module_name
 
-            tree = context.dummy_parse(source_desc, scope, pxd=False, full_module_name=full_module_name)
-            tree.is_pxd = False
 
+            initial_pos = (source_desc, 1, 0)
+            scope = context.find_module(full_module_name, pos = initial_pos, need_pxd = 0)
+
+            tree = context.dummy_parse(source_desc, scope, pxd=False, full_module_name=full_module_name)
+
+            tree.is_pxd = False
             tree.compilation_source = compsrc
             tree.scope = scope
 
+            scope.use_utility_code(MemoryView.shared_view_utility_code)
+
             scope.use_utility_code(MemoryView.memviewslice_init_code)
             scope.use_utility_code(MemoryView.typeinfo_to_format_code)
-            scope.use_utility_code(MemoryView.shared_view_utility_code)
             context.include_directories.append(os.path.join(os.path.split(Cython.__file__)[0], 'Utility'))
-            s = context.find_module('MemoryView')
-            scope.cfunc_entries = s.cfunc_entries
             return tree
 
         return parse
