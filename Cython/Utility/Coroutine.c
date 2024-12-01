@@ -1193,13 +1193,14 @@ static __Pyx_PySendResult
 __Pyx_Coroutine_Close(PyObject *self, PyObject **retval) {
     __pyx_CoroutineObject *gen = (__pyx_CoroutineObject *) self;
     __Pyx_PySendResult result;
-    PyObject *yf = gen->yieldfrom;
+    PyObject *yf;
     int err = 0;
 
     if (unlikely(__Pyx_Coroutine_test_and_set_is_running(gen))) {
         *retval = __Pyx_Coroutine_AlreadyRunningError(gen);
         return PYGEN_ERROR;
     }
+    yf = gen->yieldfrom;
 
     if (yf) {
         Py_INCREF(yf);
@@ -1250,11 +1251,12 @@ __Pyx_Coroutine_Close(PyObject *self, PyObject **retval) {
 static PyObject *__Pyx__Coroutine_Throw(PyObject *self, PyObject *typ, PyObject *val, PyObject *tb,
                                         PyObject *args, int close_on_genexit) {
     __pyx_CoroutineObject *gen = (__pyx_CoroutineObject *) self;
-    PyObject *yf = gen->yieldfrom;
+    PyObject *yf;
 
     if (unlikely(__Pyx_Coroutine_test_and_set_is_running(gen)))
         return __Pyx_Coroutine_AlreadyRunningError(gen);
 
+    yf = gen->yieldfrom;
     if (yf) {
         __Pyx_PySendResult result;
         PyObject *ret;
