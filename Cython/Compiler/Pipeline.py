@@ -21,6 +21,52 @@ def abort_on_errors(node):
         raise AbortError("pipeline break")
     return node
 
+def create_shared_library_pipeline(context, scope, options, result):
+
+    def generate_tree_factory(context):
+        def generate_tree(compsrc):
+            from .Code import TempitaUtilityCode
+            from .UtilityCode import CythonUtilityCode
+            from . import MemoryView
+            import os.path
+            import Cython
+
+            # Force to generate __Pyx_ExportFunction
+            Options.cimport_from_pyx = True
+
+            source_desc = compsrc.source_desc
+            full_module_name = compsrc.full_module_name
+
+
+            initial_pos = (source_desc, 1, 0)
+            scope = context.find_module(full_module_name, pos = initial_pos, need_pxd = 0)
+
+            tree = context.get_empty_tree(source_desc, scope, pxd=False, full_module_name=full_module_name)
+
+            tree.is_pxd = False
+            tree.compilation_source = compsrc
+            tree.scope = scope
+
+            scope.use_utility_code(MemoryView.shared_view_utility_code)
+
+            scope.use_utility_code(MemoryView.memviewslice_init_code)
+            scope.use_utility_code(MemoryView.typeinfo_to_format_code)
+            context.include_directories.append(os.path.join(os.path.split(Cython.__file__)[0], 'Utility'))
+            return tree
+
+        return generate_tree
+
+    return list(
+        itertools.chain(
+            [generate_tree_factory(context)],
+            create_pipeline(context, 'pyx', exclude_classes=()),
+            [inject_pxd_code_stage_factory(context),
+            inject_utility_code_stage_factory(context),
+            abort_on_errors],
+            [generate_pyx_code_stage_factory(options, result)],
+        )
+    )
+
 def parse_stage_factory(context):
     def parse(compsrc):
         source_desc = compsrc.source_desc
@@ -33,6 +79,16 @@ def parse_stage_factory(context):
         tree.compilation_source = compsrc
         tree.scope = scope
         tree.is_pxd = False
+
+        if Options.cyshared:
+            ############## INJECTING cyshared #################
+            import Cython
+            import os.path
+            context.include_directories.append(os.path.join(os.path.split(Cython.__file__)[0], 'Utility'))
+            scope = context.find_module('MemoryView')
+            tree.scope.cimported_modules.append(scope)
+            ############## INJECTING cyshared #################
+
         return tree
     return parse
 

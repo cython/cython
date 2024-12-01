@@ -130,7 +130,12 @@ class Context:
             pipeline = Pipeline.create_pyx_as_pxd_pipeline(self, result_sink)
             result = Pipeline.run_pipeline(pipeline, source)
         else:
+            from . import ParseTreeTransforms
+            transform = ParseTreeTransforms.CnameDirectivesTransform(self)
+            before = ParseTreeTransforms.InterpretCompilerDirectives
             pipeline = Pipeline.create_pxd_pipeline(self, scope, module_name)
+            pipeline = Pipeline.insert_into_pipeline(pipeline, transform,
+                                                     before=before)
             result = Pipeline.run_pipeline(pipeline, source_desc)
         return result
 
@@ -357,6 +362,14 @@ class Context:
                 parent_module = None, context = self, is_package=as_package)
             self.modules[name] = scope
         return scope
+
+    def get_empty_tree(self, source_desc, scope, pxd, full_module_name):
+        from . import Parsing
+        scope.cpp = self.cpp
+        s = PyrexScanner(io.StringIO(''.join(source_desc.get_lines())), source_desc, source_encoding = 'utf8',
+                         scope = scope, context = self)
+        tree = Parsing.p_module(s, pxd, full_module_name)
+        return tree
 
     def parse(self, source_desc, scope, pxd, full_module_name):
         if not isinstance(source_desc, FileSourceDescriptor):
@@ -680,8 +693,8 @@ def search_include_directories(dirs, qualified_name, suffix="", pos=None, includ
     """
     if pos and not source_file_path:
         file_desc = pos[0]
-        if not isinstance(file_desc, FileSourceDescriptor):
-            raise RuntimeError("Only file sources for code supported")
+        # if not isinstance(file_desc, FileSourceDescriptor):
+        #     raise RuntimeError("Only file sources for code supported")
         source_file_path = file_desc.filename
     if source_file_path:
         if include:
