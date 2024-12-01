@@ -1660,33 +1660,33 @@ static char __Pyx_Coroutine_test_and_set_is_running(__pyx_CoroutineObject *gen) 
     // 2. They aren't *ultra* high performance, and so critical sections (locking) is appropriate
     //    instead of atomics.
     char result;
-    #if PY_VERSION_HEX >= 0x030d0000
+    #if PY_VERSION_HEX >= 0x030d0000 && !CYTHON_COMPILING_IN_LIMITED_API
     Py_BEGIN_CRITICAL_SECTION(gen);
     #endif
     result = gen->is_running;
     gen->is_running = 1;
-    #if PY_VERSION_HEX >= 0x030d0000
+    #if PY_VERSION_HEX >= 0x030d0000 && !CYTHON_COMPILING_IN_LIMITED_API
     Py_END_CRITICAL_SECTION();
     #endif
     return result;
 }
 static void __Pyx_Coroutine_unset_is_running(__pyx_CoroutineObject *gen) {
-    #if PY_VERSION_HEX >= 0x030d0000
+    #if PY_VERSION_HEX >= 0x030d0000 && !CYTHON_COMPILING_IN_LIMITED_API
     Py_BEGIN_CRITICAL_SECTION(gen);
     #endif
     assert(gen->is_running);
     gen->is_running = 0;
-    #if PY_VERSION_HEX >= 0x030d0000
+    #if PY_VERSION_HEX >= 0x030d0000 && !CYTHON_COMPILING_IN_LIMITED_API
     Py_END_CRITICAL_SECTION();
     #endif
 }
 CYTHON_UNUSED static char __Pyx_Coroutine_get_is_running(__pyx_CoroutineObject *gen) {
     char result;
-    #if PY_VERSION_HEX >= 0x030d0000
+    #if PY_VERSION_HEX >= 0x030d0000 && !CYTHON_COMPILING_IN_LIMITED_API
     Py_BEGIN_CRITICAL_SECTION(gen);
     #endif
     result = gen->is_running;
-    #if PY_VERSION_HEX >= 0x030d0000
+    #if PY_VERSION_HEX >= 0x030d0000 && !CYTHON_COMPILING_IN_LIMITED_API
     Py_END_CRITICAL_SECTION();
     #endif
     return result;

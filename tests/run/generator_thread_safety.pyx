@@ -152,9 +152,9 @@ def test_value_into_generator(n_threads, n_loops):
 class MyError(Exception):
     pass
 
-def test_value_into_generator(n_threads, n_loops):
+def test_throw_into_generator(n_threads, n_loops):
     """
-    >>> test_value_into_generator(4, 500)
+    >>> test_throw_into_generator(4, 500)
     """
     barrier = threading.Barrier(n_threads)
     done = threading.Event()
