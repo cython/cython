@@ -363,7 +363,7 @@ class Context:
             self.modules[name] = scope
         return scope
 
-    def dummy_parse(self, source_desc, scope, pxd, full_module_name):
+    def get_empty_tree(self, source_desc, scope, pxd, full_module_name):
         from . import Parsing
         scope.cpp = self.cpp
         s = PyrexScanner(io.StringIO(''.join(source_desc.get_lines())), source_desc, source_encoding = 'utf8',

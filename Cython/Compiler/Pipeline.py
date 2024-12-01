@@ -21,10 +21,10 @@ def abort_on_errors(node):
         raise AbortError("pipeline break")
     return node
 
-def create_dummy_pipeline(context, scope, options, result):
+def create_shared_ligrary_pipeline(context, scope, options, result):
 
-    def parse_dummy_stage_factory(context):
-        def parse(compsrc):
+    def generate_tree_factory(context):
+        def generate_tree(compsrc):
             from .Code import TempitaUtilityCode
             from .UtilityCode import CythonUtilityCode
             from . import MemoryView
@@ -41,7 +41,7 @@ def create_dummy_pipeline(context, scope, options, result):
             initial_pos = (source_desc, 1, 0)
             scope = context.find_module(full_module_name, pos = initial_pos, need_pxd = 0)
 
-            tree = context.dummy_parse(source_desc, scope, pxd=False, full_module_name=full_module_name)
+            tree = context.get_empty_tree(source_desc, scope, pxd=False, full_module_name=full_module_name)
 
             tree.is_pxd = False
             tree.compilation_source = compsrc
@@ -54,11 +54,11 @@ def create_dummy_pipeline(context, scope, options, result):
             context.include_directories.append(os.path.join(os.path.split(Cython.__file__)[0], 'Utility'))
             return tree
 
-        return parse
+        return generate_tree
 
     return list(
         itertools.chain(
-            [parse_dummy_stage_factory(context)],
+            [generate_tree_factory(context)],
             create_pipeline(context, 'pyx', exclude_classes=()),
             [inject_pxd_code_stage_factory(context),
             inject_utility_code_stage_factory(context),
@@ -86,9 +86,6 @@ def parse_stage_factory(context):
             import os.path
             context.include_directories.append(os.path.join(os.path.split(Cython.__file__)[0], 'Utility'))
             scope = context.find_module('MemoryView')
-            # for e in scope.cfunc_entries:
-            #     e.cname = e.name
-            #     e.used = 1
             tree.scope.cimported_modules.append(scope)
             ############## INJECTING cyshared #################
 

@@ -21,6 +21,6 @@ source.filename = 'MemoryView.pyx'
 comp_src = Main.CompilationSource(source, EncodedString('MemoryView'), '.')
 result = Main.create_default_resultobj(comp_src, options)
 
-pipeline = Pipeline.create_dummy_pipeline(context, scope, options, result)
+pipeline = Pipeline.create_shared_ligrary_pipeline(context, scope, options, result)
 result = Pipeline.run_pipeline(pipeline, comp_src)
 print(result)

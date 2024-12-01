@@ -29,7 +29,6 @@ cdef extern from "<string.h>":
     void *memset(void *b, int c, size_t len)
 
 cdef extern from *:
-
     bint __PYX_CYTHON_ATOMICS_ENABLED()
     int PyObject_GetBuffer(object, Py_buffer *, int) except -1
     void PyBuffer_Release(Py_buffer *)
@@ -277,7 +276,6 @@ cdef array array_cwrapper(tuple shape, Py_ssize_t itemsize, char *format, const 
         result.data = buf
 
     return result
-
 
 
 #
@@ -660,10 +658,6 @@ cdef memoryview_cwrapper(object o, int flags, bint dtype_is_object, __Pyx_TypeIn
     cdef memoryview result = memoryview(o, flags, dtype_is_object)
     result.typeinfo = typeinfo
     return result
-
-# @cname('__pyx_memoryview_check')
-# cdef inline bint memoryview_check(object o) noexcept:
-#     return isinstance(o, memoryview)
 
 cdef tuple _unellipsify(object index, int ndim):
     """
@@ -1391,6 +1385,7 @@ cdef void slice_assign_scalar({{memviewslice_name}} *dst, int ndim,
     refcount_copying(dst, dtype_is_object, ndim, inc=False)
     _slice_assign_scalar(dst.data, dst.shape, dst.strides, ndim, itemsize, item)
     refcount_copying(dst, dtype_is_object, ndim, inc=True)
+
 
 @cname('__pyx_memoryview__slice_assign_scalar')
 cdef void _slice_assign_scalar(char *data, Py_ssize_t *shape,
