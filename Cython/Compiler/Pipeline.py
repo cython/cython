@@ -21,7 +21,7 @@ def abort_on_errors(node):
         raise AbortError("pipeline break")
     return node
 
-def create_shared_ligrary_pipeline(context, scope, options, result):
+def create_shared_library_pipeline(context, scope, options, result):
 
     def generate_tree_factory(context):
         def generate_tree(compsrc):
