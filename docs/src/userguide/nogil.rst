@@ -42,7 +42,7 @@ You can mark a whole function (either a Cython function or an :ref:`external fun
 .. tabs::
 
     .. group-tab:: Pure Python
-    
+
         .. code-block:: python
 
             @cython.nogil
@@ -52,9 +52,9 @@ You can mark a whole function (either a Cython function or an :ref:`external fun
             ...
 
     .. group-tab:: Cython
-    
+
         .. code-block:: cython
-    
+
             cdef void some_func() noexcept nogil:
                 ....
 
@@ -77,37 +77,63 @@ To actually release the GIL you can use context managers
 .. tabs::
 
     .. group-tab:: Pure Python
-    
+
         .. code-block:: python
-        
+
             with cython.nogil:
-                ...  # some code that runs without the GIL
+                ...              # some code that runs without the GIL
                 with cython.gil:
-                    ...  # some code that runs with the GIL
-                ...  # some more code without the GIL
-            
+                    ...          # some code that runs with the GIL
+                ...              # some more code without the GIL
+
     .. group-tab:: Cython
-    
+
         .. code-block:: cython
-    
+
             with nogil:
-                ...  # some code that runs without the GIL
+                ...      # some code that runs without the GIL
                 with gil:
                     ...  # some code that runs with the GIL
-                ...  # some more code without the GIL
-            
+                ...      # some more code without the GIL
+
 The ``with gil`` block is a useful trick to allow a small
 chunk of Python code or Python object processing inside a non-GIL block. Try not to use it
 too much since there is a cost to waiting for and acquiring the GIL, and because these
 blocks cannot run in parallel since all executions require the same lock.
 
-A function may be marked as ``with gil`` to ensure that the
-GIL is acquired immediately then calling it. This is currently a Cython-only
-feature (no equivalent syntax exists in pure-Python mode)::
+A function may be marked as ``with gil`` or decorated with ``@cython.with_gil``  to ensure that the
+GIL is acquired immediately when calling it.
 
-  cdef int some_func() with gil:
-      ...
-      
+.. tabs::
+
+    .. group-tab:: Pure Python
+
+        .. code-block:: python
+
+            @cython.with_gil
+            @cython.cfunc
+            def some_func() -> cython.int
+                ...
+
+            with cython.nogil:
+                ...          # some code that runs without the GIL
+                some_func()  # some_func() will internally acquire the GIL
+                ...          # some code that runs without the GIL
+            some_func()      # GIL is already held hence the function does not need to acquire the GIL
+
+    .. group-tab:: Cython
+
+        .. code-block:: cython
+
+            cdef int some_func() with gil:
+                ...
+
+            with nogil:
+                ...          # some code that runs without the GIL
+                some_func()  # some_func() will internally acquire the GIL
+                ...          # some code that runs without the GIL
+            some_func()      # GIL is already held hence the function does not need to acquire the GIL
+
 Conditionally acquiring the GIL
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
@@ -117,19 +143,19 @@ This is most often used when working with :ref:`fusedtypes`
 .. tabs::
 
     .. group-tab:: Pure Python
-    
+
         .. code-block:: python
-    
+
             with cython.nogil(some_type is not object):
                 ...  # some code that runs without the GIL, unless we're processing objects
-            
+
     .. group-tab:: Cython
-    
+
         .. code-block:: cython
-    
+
             with nogil(some_type is not object):
                 ...  # some code that runs without the GIL, unless we're processing objects
-      
+
 Exceptions and the GIL
 ----------------------
 
@@ -144,6 +170,8 @@ function's exception specification to check for an error, and then
 acquire the GIL only if needed, but ``except *`` functions are
 less efficient since Cython must always re-acquire the GIL.
 
+.. _gil_as_lock:
+
 Don't use the GIL as a lock
 ---------------------------
 
@@ -155,14 +183,13 @@ The GIL is only for the benefit of the interpreter, not for you.
 There are two issues here: 
 
 #. that future improvements in the Python interpreter may destroy 
-your "locking".
-
+   your "locking".
 #. Second, that the GIL can be released if any Python code is
-executed. The easiest way to run arbitrary Python code is to
-destroy a Python object that has a ``__del__`` function, but
-there are numerous other creative ways to do so, and it is
-almost impossible to know that you aren't going to trigger one
-of these.
+   executed. The easiest way to run arbitrary Python code is to
+   destroy a Python object that has a ``__del__`` function, but
+   there are numerous other creative ways to do so, and it is
+   almost impossible to know that you aren't going to trigger one
+   of these.
 
 If you want a reliable lock then use the tools in the standard library's
 ``threading`` module.

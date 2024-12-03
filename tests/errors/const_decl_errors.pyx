@@ -1,5 +1,5 @@
 # mode: error
-
+# tag: warnings
 cdef const object o
 
 # TODO: This requires making the assignment at declaration time.
@@ -27,10 +27,24 @@ cdef func(const int a, const int* b, const (int*) c, const S s, int *const d, in
 
 cdef volatile object v
 
+cdef const_warn(const int *b, const int *c):
+    cdef int *x = b
+    cdef int *y
+    cdef int *z
+    y, z = b, c
+    z = y = b
+
+cdef const_ok(const int *b, const int *c):
+    cdef const int *x = b
+    cdef const int *y
+    cdef const int *z
+    y, z = b, c
+    z = y = b
+
 
 _ERRORS = """
 3:5: Const/volatile base type cannot be a Python object
-8:5: Assignment to const 'x'
+8:0: Assignment to const 'x'
 15:4: Assignment to const 'a'
 16:4: Assignment to const 'c'
 17:5: Assignment to const dereference
@@ -40,4 +54,12 @@ _ERRORS = """
 24:5: Assignment to const dereference
 26:4: Assignment to const 't'
 28:5: Const/volatile base type cannot be a Python object
+"""
+
+_WARNINGS = """
+31:4: Assigning to 'int *' from 'const int *' discards const qualifier
+34:11: Assigning to 'int *' from 'const int *' discards const qualifier
+34:14: Assigning to 'int *' from 'const int *' discards const qualifier
+35:12: Assigning to 'int *' from 'const int *' discards const qualifier
+35:12: Assigning to 'int *' from 'const int *' discards const qualifier
 """

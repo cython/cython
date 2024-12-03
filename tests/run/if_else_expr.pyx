@@ -113,3 +113,17 @@ def performance_gh5197(patternsList):
                                                                                                                                     else patternsList[_].split('|b')[-1].split('/b')[-1] + 'pattr2' + patternsList[_].split('/')[-1].split('//')[-1]  )
         except Exception as e:
             matched.append('Error at Indx:%s-%s' %(_, patternsList[_]))
+
+cdef accept_int(int x):
+    return x
+
+def test_mixed_int_bool_coercion(x):
+    """
+    https://github.com/cython/cython/issues/5731
+
+    >>> test_mixed_int_bool_coercion(None)
+    0
+    >>> test_mixed_int_bool_coercion(5)
+    5
+    """
+    return accept_int(False if x is None else x)

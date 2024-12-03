@@ -196,6 +196,16 @@ cdef extern from "<string>" namespace "std" nogil:
         void insert(iterator p, size_t n, char c) except +
         iterator insert(iterator p, char c) except +
 
+        string& replace(size_t pos, size_t len, const string& str) except +
+        string& replace(iterator i1, iterator i2, const string& str) except +
+        string& replace(size_t pos, size_t len, const string& str, size_t subpos, size_t sublen) except +
+        string& replace(size_t pos, size_t len, const char* s) except +
+        string& replace(iterator i1, iterator i2, const char* s) except +
+        string& replace(size_t pos, size_t len, const char* s, size_t n) except +
+        string& replace(iterator i1, iterator i2, const char* s, size_t n) except +
+        string& replace(size_t pos, size_t len, size_t n, char c) except +
+        string& replace(iterator i1, iterator i2, size_t n, char c) except +
+
         size_t copy(char* s, size_t len, size_t pos) except +
         size_t copy(char* s, size_t len) except +
 

@@ -97,8 +97,8 @@ match the C ones, and in some cases they shouldn't or can't. In particular:
 
 #. If the header file uses macros to define constants, translate them into a
    normal external variable declaration.  You can also declare them as an
-   :keyword:`enum` if they contain normal :c:type:`int` values.  Note that
-   Cython considers :keyword:`enum` to be equivalent to :c:type:`int`, so do
+   :keyword:`enum` if they contain normal :c:expr:`int` values.  Note that
+   Cython considers :keyword:`enum` to be equivalent to :c:expr:`int`, so do
    not do this for non-int values.
 
 #. If the header file defines a function using a macro, declare it as though
@@ -280,7 +280,7 @@ there.
 Special Types
 --------------
 
-Cython predefines the name ``Py_ssize_t`` for use with Python/C API routines. To
+Cython predefines the name :c:type:`Py_ssize_t` for use with Python/C API routines. To
 make your extensions compatible with 64-bit systems, you should always use
 this type where it is specified in the documentation of Python/C API routines.
 
@@ -456,7 +456,7 @@ In this case, the file ``grail_helper.c`` just needs to add
 ``#include "grail.h"`` in order to access the public Cython variables.
 
 A more advanced use case is embedding Python in C using Cython.
-In this case, make sure to call Py_Initialize() and Py_Finalize().
+In this case, make sure to call :c:func:`Py_Initialize()` and :c:func:`Py_Finalize()`.
 For example, in the following snippet that includes :file:`grail.h`:
 
 .. code-block:: c
@@ -498,6 +498,8 @@ file consists of the full dotted name of the module, e.g. a module called
     the resulting ``.so`` file like a dynamic library.
     Beware that this is not portable, so it should be avoided.
 
+.. _CYTHON_EXTERN_C:
+    
 C++ public declarations
 ^^^^^^^^^^^^^^^^^^^^^^^
 
@@ -565,7 +567,7 @@ declarations to be linked with the extension module in any way, as the Python
 import machinery is used to make the connection dynamically. However, only
 functions can be accessed this way, not variables. Note also that for the
 module import mechanism to be set up correctly, the user must call
-Py_Initialize() and Py_Finalize(); if you experience a segmentation fault in
+:c:func:`Py_Initialize()` and :c:func:`Py_Finalize()`; if you experience a segmentation fault in
 the call to :func:`import_modulename`, it is likely that this wasn't done.
 
 You can use both :keyword:`public` and :keyword:`api` on the same function to

@@ -1,11 +1,11 @@
 from cpython.object cimport PyObject
 from cpython.ref cimport Py_XDECREF
 
-cdef extern from "Python.h":
+cdef extern from *:
     # Defining PyContextVar_Get() below to always return the default value for Py<3.7 and PyPy<7.3.6
     # to make the inline functions sort-of work.
     """
-    #if (PY_VERSION_HEX < 0x030700b1 || (CYTHON_COMPILING_IN_PYPY && PYPY_VERSION_NUM < 0x07030600)) && !defined(PyContextVar_Get)
+    #if (CYTHON_COMPILING_IN_PYPY && PYPY_VERSION_NUM < 0x07030600) && !defined(PyContextVar_Get)
     #define PyContextVar_Get(var, d, v) \
         ((d) ? \
             ((void)(var), Py_INCREF(d), (v)[0] = (d), 0) : \
@@ -14,6 +14,7 @@ cdef extern from "Python.h":
     #endif
     """
 
+cdef extern from "Python.h":
     ############################################################################
     # Context Variables Objects
     ############################################################################

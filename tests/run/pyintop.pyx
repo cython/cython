@@ -1,3 +1,4 @@
+# cython: language_level=3str
 # mode: run
 
 cimport cython
@@ -12,7 +13,7 @@ def bigints(x):
     print(str(x).replace('L', ''))
 
 
-@cython.test_assert_path_exists('//IntBinopNode')
+@cython.test_assert_path_exists('//BitwiseOrNode')
 def or_obj(obj2, obj3):
     """
     >>> or_obj(2, 3)
@@ -22,7 +23,7 @@ def or_obj(obj2, obj3):
     return obj1
 
 
-@cython.test_fail_if_path_exists('//IntBinopNode')
+@cython.test_fail_if_path_exists('//BitwiseOrNode')
 def or_int(obj2):
     """
     >>> or_int(0)
@@ -83,6 +84,20 @@ def and_int(obj2):
     16
     """
     obj1 = obj2 & 0x10
+    return obj1
+
+
+@cython.test_fail_if_path_exists('//IntBinopNode')
+def and_int2(obj2):
+    # On Python 3.10 and earlier, from_bytes produces a non-canonical
+    # 0 that caused trouble when &ing with a constant.
+    """
+    >>> and_int2(1337)
+    57
+    >>> and_int2(int.from_bytes(b'\\x00', 'big'))
+    0
+    """
+    obj1 = obj2 & 0xff
     return obj1
 
 
@@ -235,7 +250,7 @@ def lshift_int(obj):
 
 @cython.test_assert_path_exists(
     '//IntBinopNode',
-    '//IntBinopNode//IntBinopNode',
+    '//BitwiseOrNode//IntBinopNode',
 )
 def mixed_obj(obj2, obj3):
     """
@@ -247,8 +262,8 @@ def mixed_obj(obj2, obj3):
 
 
 @cython.test_assert_path_exists(
-    '//IntBinopNode',
-    '//IntBinopNode//PythonCapiCallNode',
+    '//BitwiseOrNode',
+    '//BitwiseOrNode//PythonCapiCallNode',
 )
 @cython.test_fail_if_path_exists(
     '//IntBinopNode//IntBinopNode',
@@ -515,3 +530,176 @@ def test_avoid_if_coercion(obj):
         return True
     else:
         return False
+
+@cython.test_fail_if_path_exists('//AddNode')
+@cython.test_fail_if_path_exists('//NumBinopNode')
+@cython.test_fail_if_path_exists('//BinopNode')
+@cython.test_assert_path_exists('//PythonCapiFunctionNode')
+def pure_add_int(obj2: int):
+    """
+    >>> pure_add_int(1)
+    (2, 2)
+    """
+    res1 = obj2 + 1
+    res2 = 1 + obj2
+    return res1, res2
+
+@cython.test_fail_if_path_exists('//SubNode')
+@cython.test_fail_if_path_exists('//NumBinopNode')
+@cython.test_fail_if_path_exists('//BinopNode')
+@cython.test_assert_path_exists('//PythonCapiFunctionNode')
+def pure_sub_int(obj2: int):
+    """
+    >>> pure_sub_int(1)
+    (0, 0)
+    """
+    res1 = obj2 - 1
+    res2 = 1 - obj2
+    return res1, res2
+
+@cython.test_fail_if_path_exists('//MulNode')
+@cython.test_fail_if_path_exists('//NumBinopNode')
+@cython.test_fail_if_path_exists('//BinopNode')
+@cython.test_assert_path_exists('//PythonCapiFunctionNode')
+def pure_mul_int(obj2: int):
+    """
+    >>> pure_mul_int(2)
+    (4, 4)
+    """
+    res1 = obj2 * 2
+    res2 = 2 * obj2
+    return res1, res2
+
+@cython.test_fail_if_path_exists('//PrimaryCmpNode')
+@cython.test_assert_path_exists('//PythonCapiFunctionNode')
+def pure_eq_int(obj2: int):
+    """
+    >>> pure_eq_int(2)
+    (True, True)
+    >>> pure_eq_int(3)
+    (False, False)
+    """
+    res1 = obj2 == 2
+    res2 = 2 == obj2
+    return res1, res2
+
+@cython.test_fail_if_path_exists('//PrimaryCmpNode')
+@cython.test_assert_path_exists('//PythonCapiFunctionNode')
+def pure_ne_int(obj2: int):
+    """
+    >>> pure_ne_int(2)
+    (False, False)
+    >>> pure_ne_int(3)
+    (True, True)
+    """
+    res1 = obj2 != 2
+    res2 = 2 != obj2
+    return res1, res2
+
+@cython.test_fail_if_path_exists('//IntBinopNode')
+@cython.test_fail_if_path_exists('//NumBinopNode')
+@cython.test_fail_if_path_exists('//BinopNode')
+@cython.test_assert_path_exists('//PythonCapiFunctionNode')
+def pure_and_int(obj2: int):
+    """
+    >>> pure_and_int(1)
+    (0, 0)
+    >>> pure_and_int(3)
+    (2, 2)
+    """
+    res1 = obj2 & 2
+    res2 = 2 & obj2
+    return res1, res2
+
+@cython.test_fail_if_path_exists('//IntBinopNode')
+@cython.test_fail_if_path_exists('//NumBinopNode')
+@cython.test_fail_if_path_exists('//BinopNode')
+@cython.test_assert_path_exists('//PythonCapiFunctionNode')
+def pure_or_int(obj2: int):
+    """
+    >>> pure_or_int(1)
+    (3, 3)
+    >>> pure_or_int(0)
+    (2, 2)
+    """
+    res1 = obj2 | 2
+    res2 = 2 | obj2
+    return res1, res2
+
+@cython.test_fail_if_path_exists('//IntBinopNode')
+@cython.test_fail_if_path_exists('//NumBinopNode')
+@cython.test_fail_if_path_exists('//BinopNode')
+@cython.test_assert_path_exists('//PythonCapiFunctionNode')
+def pure_xor_int(obj2: int):
+    """
+    >>> pure_xor_int(1)
+    (3, 3)
+    >>> pure_xor_int(3)
+    (1, 1)
+    """
+    res1 = obj2 ^ 2
+    res2 = 2 ^ obj2
+    return res1, res2
+
+@cython.test_fail_if_path_exists('//IntBinopNode')
+@cython.test_fail_if_path_exists('//NumBinopNode')
+@cython.test_fail_if_path_exists('//BinopNode')
+@cython.test_assert_path_exists('//PythonCapiFunctionNode')
+def pure_rshift_int(obj2: int):
+    """
+    >>> pure_rshift_int(8)
+    4
+    """
+    res = obj2 >> 1
+    return res
+
+@cython.test_fail_if_path_exists('//IntBinopNode')
+@cython.test_fail_if_path_exists('//NumBinopNode')
+@cython.test_fail_if_path_exists('//BinopNode')
+@cython.test_assert_path_exists('//PythonCapiFunctionNode')
+def pure_lshift_int(obj2: int):
+    """
+    >>> pure_lshift_int(8)
+    16
+    """
+    res = obj2 << 1
+    return res
+
+@cython.test_fail_if_path_exists('//IntBinopNode')
+@cython.test_fail_if_path_exists('//NumBinopNode')
+@cython.test_fail_if_path_exists('//BinopNode')
+@cython.test_assert_path_exists('//PythonCapiFunctionNode')
+def pure_mod_int(obj2: int):
+    """
+    >>> pure_mod_int(3)
+    1
+    """
+    res = obj2 % 2
+    return res
+
+@cython.test_fail_if_path_exists('//DivNode')
+@cython.test_fail_if_path_exists('//NumBinopNode')
+@cython.test_fail_if_path_exists('//BinopNode')
+@cython.test_assert_path_exists('//PythonCapiFunctionNode')
+def pure_floordiv_int(obj2: int):
+    """
+    >>> pure_floordiv_int(3)
+    1
+    """
+    res = obj2 // 2
+    return res
+
+import sys
+
+
+@cython.test_fail_if_path_exists('//DivNode')
+@cython.test_fail_if_path_exists('//NumBinopNode')
+@cython.test_fail_if_path_exists('//BinopNode')
+@cython.test_assert_path_exists('//PythonCapiFunctionNode')
+def pure_truediv_int(obj2: int):
+    """
+    >>> pure_truediv_int(5)
+    2.5
+    """
+    res = obj2 / 2
+    return res

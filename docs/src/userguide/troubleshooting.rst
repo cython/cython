@@ -86,7 +86,7 @@ essentially disables all type-inference. Therefore it doesn't know the type of `
 Writing into extension types
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-``AttributeError``s can also happen when writing into a ``cdef class``, commonly in ``__init__``::
+``AttributeErrors`` can also happen when writing into a ``cdef class``, commonly in ``__init__``::
 
     cdef class Company:
         def __init__(self, staff):
@@ -171,7 +171,7 @@ First we should look at what conversions Cython generates:
   a ``def`` function with an argument typed as ``std::vector``. This will be auto-converted
   from a Python list::
   
-    from libcpp vector cimport vector
+    from libcpp.vector cimport vector
   
     def print_list(vector[int] x):
         for xi in x:

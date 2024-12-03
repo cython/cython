@@ -2,7 +2,7 @@
 
 set -x
 
-GCC_VERSION=${GCC_VERSION:=8}
+GCC_VERSION=${GCC_VERSION:=10}
 
 # Set up compilers
 if [[ $TEST_CODE_STYLE == "1" ]]; then
@@ -31,6 +31,11 @@ elif [[ $OSTYPE == "darwin"* ]]; then
   echo "Setting up macos compiler"
   export CC="clang -Wno-deprecated-declarations"
   export CXX="clang++ -stdlib=libc++ -Wno-deprecated-declarations"
+
+  if [[ $PYTHON_VERSION == "3."[78]* ]]; then
+    # see https://trac.macports.org/ticket/62757
+    unset MACOSX_DEPLOYMENT_TARGET
+  fi
 else
   echo "Skipping compiler setup: No setup specified for $OSTYPE"
 fi
@@ -45,7 +50,7 @@ else
 
   echo "/usr/lib/ccache" >> $GITHUB_PATH  # export ccache to path
 
-  echo "Make a soft symlinks to ccache"
+  echo "Set up symlinks to ccache"
   cp ccache /usr/local/bin/
   ln -s ccache /usr/local/bin/gcc
   ln -s ccache /usr/local/bin/g++
@@ -85,25 +90,26 @@ echo "===================="
 
 # Install python requirements
 echo "Installing requirements [python]"
-if [[ $PYTHON_VERSION == "2.7"* ]]; then
-  pip install wheel || exit 1
-  pip install -r test-requirements-27.txt || exit 1
-elif [[ $PYTHON_VERSION == "3."[45]* ]]; then
-  python -m pip install wheel || exit 1
-  python -m pip install -r test-requirements-34.txt || exit 1
-elif [[ $PYTHON_VERSION == "pypy-2.7" ]]; then
-  pip install wheel || exit 1
-  pip install -r test-requirements-pypy27.txt || exit 1
-elif [[ $PYTHON_VERSION == "3.1"[2-9]* ]]; then
-  python -m pip install wheel || exit 1
-  python -m pip install -r test-requirements-312.txt || exit 1
+if [[ $PYTHON_VERSION == "3.1"[2-9]* ]]; then
+  python -m pip install -U pip wheel setuptools || exit 1
+  if [[ $PYTHON_VERSION == "3.12"* ]]; then
+    python -m pip install --pre -r test-requirements-312.txt || exit 1
+  else
+    # Install packages one by one, allowing failures due to missing recent wheels.
+    cat test-requirements-312.txt | while read package; do python -m pip install --pre --only-binary ":all:" "$package" || true; done
+  fi
+  if [[ $PYTHON_VERSION == "3.13"* ]]; then
+    python -m pip install --pre -r test-requirements-313.txt || exit 1
+  fi
 else
   python -m pip install -U pip "setuptools<60" wheel || exit 1
 
   if [[ $PYTHON_VERSION != *"-dev" || $COVERAGE == "1" ]]; then
     python -m pip install -r test-requirements.txt || exit 1
-    if [[ $PYTHON_VERSION != "pypy"* && $PYTHON_VERSION != "3."[1]* ]]; then
+    if [[ $PYTHON_VERSION != "pypy"* && $PYTHON_VERSION != "graalpy"* && $PYTHON_VERSION != "3."[1]* ]]; then
       python -m pip install -r test-requirements-cpython.txt || exit 1
+    elif [[ $PYTHON_VERSION == "pypy-2.7" ]]; then
+      python -m pip install -r test-requirements-pypy27.txt || exit 1
     fi
   fi
 fi
@@ -116,13 +122,11 @@ else
 
   # Install more requirements
   if [[ $PYTHON_VERSION != *"-dev" ]]; then
-    if [[ $BACKEND == *"cpp"* ]]; then
-      echo "WARNING: Currently not installing pythran due to compatibility issues"
-      # python -m pip install pythran==0.9.5 || exit 1
+    if [[ $BACKEND == *"cpp"* && $OSTYPE != "msys" ]]; then
+      python -m pip install pythran || exit 1
     fi
 
-    if [[ $BACKEND != "cpp" && $PYTHON_VERSION != "pypy"* &&
-          $PYTHON_VERSION != "2"* && $PYTHON_VERSION != "3.4"* ]]; then
+    if [[ $BACKEND != "cpp" && $PYTHON_VERSION != "pypy"* ]]; then
       python -m pip install mypy || exit 1
     fi
   fi
@@ -174,11 +178,16 @@ if [[ $NO_CYTHON_COMPILE != "1" && $PYTHON_VERSION != "pypy"* ]]; then
   if [[ $CYTHON_COMPILE_ALL == "1" ]]; then
     SETUP_ARGS="$SETUP_ARGS --cython-compile-all"
   fi
+  if [[ $LIMITED_API != "" && $NO_LIMITED_COMPILE != "1" ]]; then
+    # in the limited API tests, also build Cython in this mode (for more thorough
+    # testing rather than performance since it's currently a pessimization)
+    SETUP_ARGS="$SETUP_ARGS --cython-limited-api"
+  fi
   # It looks like parallel build may be causing occasional link failures on Windows
-  # "with exit code 1158". DW isn't completely sure of this, but has disabled it in 
+  # "with exit code 1158". DW isn't completely sure of this, but has disabled it in
   # the hope it helps
   SETUP_ARGS="$SETUP_ARGS
-    $(python -c 'import sys; print("-j5" if sys.version_info >= (3,5) and not sys.platform.startswith("win") else "")')"
+    $(python -c 'import sys; print("-j5" if not sys.platform.startswith("win") else "")')"
 
   CFLAGS=$BUILD_CFLAGS \
     python setup.py build_ext -i $SETUP_ARGS || exit 1
@@ -216,7 +225,16 @@ if [[ $TEST_CODE_STYLE != "1" ]]; then
   RUNTESTS_ARGS="$RUNTESTS_ARGS -j7"
 fi
 
+if [[ $PYTHON_VERSION == "graalpy"* ]]; then
+  # [DW] - the Graal JIT and Cython don't seem to get on too well. Disabling the
+  # JIT actually makes it faster! And reduces the number of cores each process uses.
+  export GRAAL_PYTHON_ARGS="--experimental-options --engine.Compilation=false"
+fi
+
 export CFLAGS="$CFLAGS $EXTRA_CFLAGS"
+if [[ $PYTHON_VERSION == "3.13t" ]]; then
+  export PYTHON_GIL=0
+fi
 python runtests.py \
   -vv $STYLE_ARGS \
   -x Debugger \

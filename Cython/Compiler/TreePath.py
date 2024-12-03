@@ -6,20 +6,14 @@ function selects a part of the expression, e.g. a child node, a
 specific descendant or a node that holds an attribute.
 """
 
-from __future__ import absolute_import
 
 import re
 import operator
 import sys
 
-if sys.version_info[0] >= 3:
-    _unicode = str
-else:
-    _unicode = unicode
-
 path_tokenizer = re.compile(
     r"("
-    r"'[^']*'|\"[^\"]*\"|"
+    r"b?'[^']*'|b?\"[^\"]*\"|"
     r"//?|"
     r"\(\)|"
     r"==?|"
@@ -97,8 +91,7 @@ def handle_star(next, token):
     def select(result):
         for node in result:
             for name in node.child_attrs:
-                for child in iterchildren(node, name):
-                    yield child
+                yield from iterchildren(node, name)
     return select
 
 def handle_dot(next, token):
@@ -119,8 +112,7 @@ def handle_descendants(next, token):
             for name in node.child_attrs:
                 for child in iterchildren(node, name):
                     yield child
-                    for c in iter_recursive(child):
-                        yield c
+                    yield from iter_recursive(child)
     elif not token[0]:
         node_name = token[1]
         def iter_recursive(node):
@@ -128,15 +120,13 @@ def handle_descendants(next, token):
                 for child in iterchildren(node, name):
                     if type_name(child) == node_name:
                         yield child
-                    for c in iter_recursive(child):
-                        yield c
+                    yield from iter_recursive(child)
     else:
         raise ValueError("Expected node name after '//'")
 
     def select(result):
         for node in result:
-            for child in iter_recursive(node):
-                yield child
+            yield from iter_recursive(node)
 
     return select
 
@@ -173,7 +163,7 @@ def handle_attribute(next, token):
                     continue
                 if attr_value == value:
                     yield attr_value
-                elif (isinstance(attr_value, bytes) and isinstance(value, _unicode) and
+                elif (isinstance(attr_value, bytes) and isinstance(value, str) and
                         attr_value == value.encode()):
                     # allow a bytes-to-string comparison too
                     yield attr_value
@@ -186,7 +176,11 @@ def parse_path_value(next):
     value = token[0]
     if value:
         if value[:1] == "'" or value[:1] == '"':
+            assert value[-1] == value[0]
             return value[1:-1]
+        if value[:2] == "b'" or value[:2] == 'b"':
+            assert value[-1] == value[1]
+            return value[2:-1].encode('UTF-8')
         try:
             return int(value)
         except ValueError:
@@ -199,7 +193,7 @@ def parse_path_value(next):
             return True
         elif name == 'false':
             return False
-    raise ValueError("Invalid attribute predicate: '%s'" % value)
+    raise ValueError(f"Invalid attribute predicate: '{value}'")
 
 def handle_predicate(next, token):
     token = next()

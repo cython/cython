@@ -14,44 +14,59 @@ static PyObject* __Pyx_LoadInternalModule(const char* name, const char* fallback
     // store them
 
     PyObject *shared_abi_module = 0, *module = 0;
+#if __PYX_LIMITED_VERSION_HEX >= 0x030d00A1
+    PyObject *result;
+#endif
 
     shared_abi_module = __Pyx_FetchSharedCythonABIModule();
     if (!shared_abi_module) return NULL;
 
+#if __PYX_LIMITED_VERSION_HEX >= 0x030d00A1
+     if (PyObject_GetOptionalAttrString(shared_abi_module, name, &result) != 0) {
+        Py_DECREF(shared_abi_module);
+        return result;
+     }
+#else
     if (PyObject_HasAttrString(shared_abi_module, name)) {
         PyObject* result = PyObject_GetAttrString(shared_abi_module, name);
         Py_DECREF(shared_abi_module);
         return result;
     }
+#endif
 
     // the best and simplest case is simply to defer to the standard library (if available)
     module = PyImport_ImportModule(name);
     if (!module) {
         PyObject *localDict, *runValue, *builtins, *modulename;
         if (!PyErr_ExceptionMatches(PyExc_ImportError)) goto bad;
-        PyErr_Clear();  // this is reasonably likely (especially on older versions of Python)
-#if PY_MAJOR_VERSION < 3
-        modulename = PyBytes_FromFormat("_cython_" CYTHON_ABI ".%s", name);
-#else
+        PyErr_Clear();  /* this is reasonably likely (especially on older versions of Python) */
         modulename = PyUnicode_FromFormat("_cython_" CYTHON_ABI ".%s", name);
-#endif
         if (!modulename) goto bad;
-#if PY_MAJOR_VERSION >= 3 && CYTHON_COMPILING_IN_CPYTHON
-        module = PyImport_AddModuleObject(modulename); // borrowed
+#if CYTHON_COMPILING_IN_CPYTHON
+        module = PyImport_AddModuleObject(modulename);  /* borrowed */
 #else
-        module = PyImport_AddModule(PyBytes_AsString(modulename)); // borrowed
+        module = PyImport_AddModule(PyBytes_AsString(modulename));  /* borrowed */
 #endif
         Py_DECREF(modulename);
         if (!module) goto bad;
         Py_INCREF(module);
         if (PyObject_SetAttrString(shared_abi_module, name, module) < 0) goto bad;
-        localDict = PyModule_GetDict(module); // borrowed
+        localDict = PyModule_GetDict(module);  /* borrowed */
         if (!localDict) goto bad;
-        builtins = PyEval_GetBuiltins(); // borrowed
+        builtins = PyEval_GetBuiltins();  /* borrowed */
         if (!builtins) goto bad;
         if (PyDict_SetItemString(localDict, "__builtins__", builtins) <0) goto bad;
 
+#if CYTHON_COMPILING_IN_LIMITED_API
+        {
+            PyObject *compiled = Py_CompileString(fallback_code, "<dataclass fallback code>", Py_file_input);
+            if (!compiled) goto bad;
+            runValue = PyEval_EvalCode(compiled, localDict, localDict);
+            Py_DECREF(compiled);
+        }
+#else
         runValue = PyRun_String(fallback_code, Py_file_input, localDict, localDict);
+#endif
         if (!runValue) goto bad;
         Py_DECREF(runValue);
     }
@@ -82,18 +97,16 @@ static PyObject* __Pyx_Load_{{cname}}_Module(void) {
 static PyObject* __Pyx_DataclassesCallHelper(PyObject *callable, PyObject *kwds); /* proto */
 
 //////////////////// DataclassesCallHelper ////////////////////////
-//@substitute: naming
 
 // The signature of a few of the dataclasses module functions has
 // been expanded over the years. Cython always passes the full set
 // of arguments from the most recent version we know of, so needs
 // to remove any arguments that don't exist on earlier versions.
 
-#if PY_MAJOR_VERSION >= 3
 static int __Pyx_DataclassesCallHelper_FilterToDict(PyObject *callable, PyObject *kwds, PyObject *new_kwds, PyObject *args_list, int is_kwonly) {
     Py_ssize_t size, i;
     size = PySequence_Size(args_list);
-    if (size == -1) return -1;
+    if (unlikely(size < 0)) return -1;
 
     for (i=0; i<size; ++i) {
         PyObject *key, *value;
@@ -137,13 +150,8 @@ static int __Pyx_DataclassesCallHelper_FilterToDict(PyObject *callable, PyObject
     }
     return 0;
 }
-#endif
 
 static PyObject* __Pyx_DataclassesCallHelper(PyObject *callable, PyObject *kwds) {
-#if PY_MAJOR_VERSION < 3
-    // We're falling back to our full replacement anyway
-    return PyObject_Call(callable, $empty_tuple, kwds);
-#else
     PyObject *new_kwds=NULL, *result=NULL;
     PyObject *inspect;
     PyObject *args_list=NULL, *kwonly_args_list=NULL, *getfullargspec_result=NULL;
@@ -167,12 +175,11 @@ static PyObject* __Pyx_DataclassesCallHelper(PyObject *callable, PyObject *kwds)
     // copy over only those arguments that are in the specification
     if (__Pyx_DataclassesCallHelper_FilterToDict(callable, kwds, new_kwds, args_list, 0) == -1) goto bad;
     if (__Pyx_DataclassesCallHelper_FilterToDict(callable, kwds, new_kwds, kwonly_args_list, 1) == -1) goto bad;
-    result = PyObject_Call(callable, $empty_tuple, new_kwds);
+    result = PyObject_Call(callable, EMPTY(tuple), new_kwds);
 bad:
     Py_XDECREF(getfullargspec_result);
     Py_XDECREF(args_list);
     Py_XDECREF(kwonly_args_list);
     Py_XDECREF(new_kwds);
     return result;
-#endif
 }

@@ -7,6 +7,7 @@ from libcpp.map cimport map as stdmap
 from libcpp.set cimport set as stdset
 from libcpp.string cimport string
 from libcpp.vector cimport vector
+from libcpp.memory cimport shared_ptr, make_shared
 from cython.operator cimport dereference as deref
 
 cdef extern from "cpp_iterators_simple.h":
@@ -272,6 +273,26 @@ def test_iteration_over_attribute_of_call():
     for i in get_object_with_iterable_attribute().vec:
         print(i)
 
+cdef extern from *:
+    # TODO: support make_shared[const int]
+    shared_ptr[const int] make_shared_const_int "std::make_shared<const int>"(int)
+
+def test_iteration_over_shared_const_ptr_vector(py_v):
+    """
+    >>> test_iteration_over_shared_const_ptr_vector([2, 4, 6])
+    2
+    4
+    6
+    """
+    cdef vector[shared_ptr[const int]] s
+    cdef int i
+    for i in py_v:
+        s.push_back(make_shared_const_int(i))
+
+    cdef shared_ptr[const int] a
+    for a in s:
+        print(deref(a))
+
 def test_iteration_over_reversed_list(py_v):
     """
     >>> test_iteration_over_reversed_list([2, 4, 6])
@@ -355,3 +376,34 @@ def test_non_built_in_reversed_function(py_v):
         vint.push_back(e)
     for e in reversed(vint):
         print(e)
+
+
+# Not strictly a C++ iterator test, but an issue with generator
+# expressions and iteration from c++ const attributes so in this
+# file as a related issue.  Mainly a test that it compiles.
+# GH-5558
+cdef extern from *:
+    """
+    struct ConstNumberHolder {
+        const int num;
+
+        explicit ConstNumberHolder(int num) :
+            num(num)
+        {}
+    };
+    """
+    cppclass ConstNumberHolder:
+        ConstNumberHolder(int num)
+
+        const int num
+
+def test_iteration_from_const_member(int num):
+    """
+    >>> tuple(test_iteration_from_const_member(5))
+    (0, 1, 2, 3, 4)
+    """
+    num_holder = new ConstNumberHolder(num)
+    try:
+        return (i for i in range(num_holder.num))
+    finally:
+        del num_holder

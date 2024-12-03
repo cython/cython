@@ -12,7 +12,6 @@ cimport cpython.bytearray
 cimport cpython.bytes
 cimport cpython.cellobject
 cimport cpython.ceval
-cimport cpython.cobject
 cimport cpython.codecs
 cimport cpython.complex
 cimport cpython.contextvars
@@ -26,7 +25,6 @@ cimport cpython.function
 cimport cpython.genobject
 cimport cpython.getargs
 cimport cpython.instance
-cimport cpython.int
 cimport cpython.iterator
 cimport cpython.iterobject
 cimport cpython.list
@@ -40,7 +38,6 @@ cimport cpython.method
 cimport cpython.module
 cimport cpython.number
 cimport cpython.object
-cimport cpython.oldbuffer
 cimport cpython.pycapsule
 cimport cpython.pylifecycle
 cimport cpython.pystate
@@ -49,7 +46,6 @@ cimport cpython.ref
 cimport cpython.sequence
 cimport cpython.set
 cimport cpython.slice
-cimport cpython.string
 cimport cpython.tuple
 cimport cpython.type
 cimport cpython.unicode
