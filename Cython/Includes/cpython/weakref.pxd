@@ -6,13 +6,7 @@ cdef extern from *:
     #if PY_VERSION_HEX < 0x030d0000
     static CYTHON_INLINE int __Pyx_PyWeakref_GetRef(PyObject *ref, PyObject **pobj)
     {
-        PyObject *obj;
-        if (ref != NULL && !PyWeakref_Check(ref)) {
-            *pobj = NULL;
-            PyErr_SetString(PyExc_TypeError, "expected a weakref");
-            return -1;
-        }
-        obj = PyWeakref_GetObject(ref);
+        PyObject *obj = PyWeakref_GetObject(ref);
         if (obj == NULL) {
             // SystemError if ref is NULL
             *pobj = NULL;
@@ -22,8 +16,9 @@ cdef extern from *:
             *pobj = NULL;
             return 0;
         }
-        *pobj = Py_NewRef(obj);
-        return (*pobj != NULL);
+        Py_INCREF(obj);
+        *pobj = obj;
+        return 1;
     }
     #else
     #define __Pyx_PyWeakref_GetRef PyWeakref_GetRef
