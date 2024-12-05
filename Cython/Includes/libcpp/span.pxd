@@ -63,8 +63,8 @@ cdef extern from "<span>" namespace "std" nogil:
         # const_iterator was added in C++23, so leaving it out for now
 
         span()
-        span(T*, size_type)  # span[It](It, size_type)
-        span(T*, T*)  # span[It, End](It, End)
+        span(T*, size_type) except +  # span[It](It, size_type)
+        span(T*, T*) except +  # span[It, End](It, End)
         span(vector&)  # span[U, N](array[T, N]& arr)
         span(span&)
 
