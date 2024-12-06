@@ -1,5 +1,8 @@
 # tag: run
 
+# This file is also included from "parallel.pyx" to run the same tests
+# but with OpenMP enabled.
+
 cimport cython.parallel
 from cython.parallel import prange, threadid
 from cython.view cimport array
@@ -14,6 +17,13 @@ try:
 except ImportError:
     def next(it):
         return it.next()
+
+def skip_in_freethreading(f):
+    # defined in parallel.pyx
+    if "OPENMP_PARALLEL" in globals():
+        if hasattr(sys, "_is_gil_enabled"):
+            return None
+    return f
 
 #@cython.test_assert_path_exists(
 #    "//ParallelWithBlockNode//ParallelRangeNode[@schedule = 'dynamic']",
@@ -604,6 +614,7 @@ def parallel_exceptions2():
                     continue
                     return
 
+@skip_in_freethreading  # Reassignment of 'obj'
 def test_parallel_with_gil_return():
     """
     >>> test_parallel_with_gil_return()
@@ -730,6 +741,8 @@ def test_clean_temps():
     try:
         for i in prange(100, nogil=True, num_threads=1):
             with gil:
+                # freethreading - if we actually assigned to x this would currently be dodgy
+                # but the test doesn't get that far.
                 x = PrintOnDealloc() + error()
     except Exception, e:
         print e.args[0]
@@ -752,6 +765,7 @@ def test_pointer_temps(double x):
     return f[0]
 
 
+@skip_in_freethreading  #  "+=" on a Python object isn't atomic
 def test_prange_in_with(int x, ctx):
     """
     >>> from contextlib import contextmanager

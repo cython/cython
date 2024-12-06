@@ -7,25 +7,45 @@
 # better tested
 
 PYTHON setup.py build_ext --inplace
-PYTHON run.py
+PYTHON run.py limited_single_phase
+PYTHON run.py limited_single_phase_modstate
+PYTHON run.py limited_multi_phase
 
 
 ##################### setup.py ################################
 
+import sys
 from setuptools import setup
 from Cython.Build import cythonize
 
+if hasattr(sys, "_is_gil_enabled"):
+    print("Skipping isolated_limited_api tests on free-threading build")
+    exit(0)  # At least for 3.13, freethreading and limited API don't mix
+
+modules = [
+    "limited_single_phase.pyx",
+    "limited_single_phase_modstate.pyx",
+    "limited_multi_phase.pyx"
+]
+
 setup(
-    ext_modules = cythonize("limited.pyx"),
+    ext_modules = cythonize(modules),
 )
 
 ##################### run.py ##################################
 
 import decimal
 
-import limited
 import weakref
 import sys
+
+if hasattr(sys, "_is_gil_enabled"):
+    print("Skipping isolated_limited_api tests on free-threading build")
+    exit(0)  # At least for 3.13, freethreading and limited API don't mix
+
+module_name = sys.argv[1]
+
+limited = __import__(module_name)
 
 limited.fib(11)
 
@@ -37,7 +57,7 @@ try:
     limited.raises()
 except RuntimeError:
     pass
-    
+
 limited.catches()
 
 limited.C()
@@ -84,10 +104,25 @@ assert not limited.float_equals(None)
 assert limited.float_equals(decimal.Decimal("1.5"))
 
 
+##################### limited_single_phase.pyx ################
 
-##################### limited.pyx #############################
+# distutils: extra_compile_args = -DPy_LIMITED_API=0x03070000 -DCYTHON_PEP489_MULTI_PHASE_INIT=0
 
-# distutils: extra_compile_args = -DPy_LIMITED_API=0x030700f0
+include 'limited.pxi'
+
+##################### limited_multi_phase.pyx ################
+
+# distutils: extra_compile_args = -DPy_LIMITED_API=0x03070000 -DCYTHON_PEP489_MULTI_PHASE_INIT=1
+
+include 'limited.pxi'
+
+##################### limited_single_phase_modstate.pyx ################
+
+# distutils: extra_compile_args = -DPy_LIMITED_API=0x03070000 -DCYTHON_PEP489_MULTI_PHASE_INIT=0 -DCYTHON_USE_MODULE_STATE=1
+
+include 'limited.pxi'
+
+##################### limited.pxi #############################
 
 import cython
 
@@ -110,7 +145,7 @@ def lsum(values):
         for value in reversed(<tuple>values):
             result += value
     return result
-    
+
 def add_one(value):
     return value + 1
 
@@ -120,13 +155,13 @@ def raises():
 
 def decode(bytes b, bytearray ba):
     return b.decode("utf-8") + ba.decode("utf-8")
-    
+
 def catches():
     try:
         raises()
     except Exception:
         pass
-    
+
 def cast_float(object o):
     return float(o)
 
