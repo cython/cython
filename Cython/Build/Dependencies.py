@@ -1214,10 +1214,11 @@ def cythonize_one(pyx_file, c_file, fingerprint, cache, quiet, options=None,
     from ..Compiler.Main import compile_single, default_options
     from ..Compiler.Errors import CompileError, PyrexError
 
-    if cache and fingerprint and cache.lookup_cache(c_file, fingerprint) and not quiet:
-        print("%sFound compiled %s in cache" % (progress, pyx_file))
-    elif not quiet:
-        print("%sCythonizing %s" % (progress, Utils.decode_filename(pyx_file)))
+    if not quiet:
+        if cache and fingerprint and cache.lookup_cache(c_file, fingerprint):
+            print(f"{progress}Found compiled {pyx_file} in cache")
+        else:
+            print(f"{progress}Cythonizing {Utils.decode_filename(pyx_file)}")
     if options is None:
         options = CompilationOptions(default_options)
     options.output_file = c_file
