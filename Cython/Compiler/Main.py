@@ -707,15 +707,16 @@ def compile(source, options = None, full_module_name = None, **kwds):
     # cache is enabled when:
     # * options.cache is True (the default path to the cache base dir is used)
     # * options.cache is the explicit path to the cache base dir
-    # * annotations are not generated
+    # unless annotations are generated
+    cache = None
     if options.cache:
-        from ..Build.Cache import Cache
-        cache_path = None if options.cache is True else options.cache
-        cache = Cache(cache_path) if not (options.annotate or Options.annotate) else None
-    else:
-        if (options.annotate or Options.annotate) and options.verbose:
-            sys.stderr.write(f'Cache is ignored when annotations are enabled.\n')
-        cache = None
+        if options.annotate or Options.annotate:
+            if options.verbose:
+                sys.stderr.write('Cache is ignored when annotations are enabled.\n')
+        else:
+            from ..Build.Cache import Cache
+            cache_path = None if options.cache is True else options.cache
+            cache = Cache(cache_path)
 
     if isinstance(source, str):
         if not options.timestamps:
