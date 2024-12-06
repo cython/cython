@@ -649,7 +649,7 @@ def compile_single(source, options, full_module_name, cache=None, context=None, 
         context = Context.from_options(options)
 
     if cache:
-        fingerprint = fingerprint if fingerprint else get_fingerprint(cache, source, options)
+        fingerprint = fingerprint or get_fingerprint(cache, source, options)
         return run_cached_pipeline(source, options, full_module_name, context, cache, fingerprint)
     else:
         return run_pipeline(source, options, full_module_name, context)
