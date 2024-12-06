@@ -361,36 +361,6 @@ not the full argument type:
             # Specialize using int, not int *
             myfunc[int](myint)
 
-For memoryview indexing from python space we can do the following:
-
-.. tabs::
-
-    .. group-tab:: Pure Python
-
-        .. code-block:: python
-
-            my_fused_type = cython.fused_type(cython.int[:, ::1], cython.float[:, ::1])
-
-            def func(array: my_fused_type):
-                print("func called:", cython.typeof(array))
-
-            my_fused_type[cython.int[:, ::1]](myarray)
-
-    .. group-tab:: Cython
-
-        .. code-block:: cython
-
-            ctypedef fused my_fused_type:
-                int[:, ::1]
-                float[:, ::1]
-
-            def func(my_fused_type array):
-                print("func called:", cython.typeof(array))
-
-            my_fused_type[cython.int[:, ::1]](myarray)
-
-The same goes for when using e.g. ``cython.numeric[:, :]``.
-
 Calling
 -------
 
