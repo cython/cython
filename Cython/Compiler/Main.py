@@ -702,8 +702,6 @@ def compile(source, options = None, full_module_name = None, **kwds):
     checking is requested, a CompilationResult is returned, otherwise a
     CompilationResultSet is returned.
     """
-    from ..Build.Cache import Cache
-
     options = CompilationOptions(defaults = options, **kwds)
 
     # cache is enabled when:
@@ -711,6 +709,7 @@ def compile(source, options = None, full_module_name = None, **kwds):
     # * options.cache is the explicit path to the cache base dir
     # * annotations are not generated
     if options.cache:
+        from ..Build.Cache import Cache
         cache_path = None if options.cache is True else options.cache
         cache = Cache(cache_path) if not (options.annotate or Options.annotate) else None
     else:
