@@ -145,8 +145,8 @@ def test_plus_one_twice():
     Test a function returning a fused ctuple
     >>> plus_one_twice(int_arr_1d)  # doctest: +ELLIPSIS
     (array([ 1,  5,  9, 13, 17]...), array([ 1,  5,  9, 13, 17]...))
-    >>> plus_one_twice(1.j)
-    ((1+1j), (1+1j))
+    >>> print(*plus_one_twice(1.j))
+    (1+1j) (1+1j)
 
     2D variant skipped because it's hard to sensible doctest
     """
@@ -240,7 +240,7 @@ cdef mydouble known_typedefs(myint x, mycdouble y):
 
 def test_known_typedefs():
     """
-    >>> known_typedefs(np.int32(3), 4+5j)
+    >>> print(known_typedefs(np.int32(3), 4+5j))
     60.0
     """
 
@@ -250,7 +250,7 @@ cdef someone_elses_float unknown_typedefs(someone_elses_int x, someone_elses_sig
 
 def test_unknown_typedefs():
     """
-    >>> unknown_typedefs(np.short(1), np.longlong(3), np.uint8(2))
+    >>> print(unknown_typedefs(np.short(1), np.longlong(3), np.uint8(2)))
     6.0
     """
 
@@ -265,7 +265,7 @@ def test_use_twice():
     >>> use_an_unknown_type_twice(2.0, 3.0)  # doctest: +ELLIPSIS
     Traceback (most recent call last):
     TypeError: ...
-    >>> use_an_unknown_type_twice(np.float32(2.0), np.float32(3.0))
+    >>> print(use_an_unknown_type_twice(np.float32(2.0), np.float32(3.0)))
     6.0
     """
 

@@ -4884,6 +4884,12 @@ c_gilstate_type = CEnumType("PyGILState_STATE", "PyGILState_STATE", True)
 c_threadstate_type = CStructOrUnionType("PyThreadState", "struct", None, 1, "PyThreadState")
 c_threadstate_ptr_type = CPtrType(c_threadstate_type)
 
+# Critical section
+c_py_critical_section_type = CStructOrUnionType(
+    "__Pyx_PyCriticalSection", "struct", None, 1, "__Pyx_PyCriticalSection")
+c_py_critical_section2_type = CStructOrUnionType(
+    "__Pyx_PyCriticalSection2", "struct", None, 1, "__Pyx_PyCriticalSection2")
+
 # PEP-539 "Py_tss_t" type
 c_pytss_t_type = CPyTSSTType()
 
