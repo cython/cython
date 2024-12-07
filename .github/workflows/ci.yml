@@ -125,24 +125,24 @@ jobs:
           - os: ubuntu-22.04
             python-version: "3.8"
             backend: "c,cpp"
-            env: { LIMITED_API: "--limited-api", NO_LIMITED_COMPILE: 1, EXCLUDE: "--no-file" }
+            env: { LIMITED_API: "--limited-api", NO_LIMITED_COMPILE: 1 }
             extra_hash: "-limited_api"
           - os: ubuntu-22.04
             python-version: "3.11"
             backend: "c,cpp"
-            env: { LIMITED_API: "--limited-api", EXCLUDE: "--no-file" }
+            env: { LIMITED_API: "--limited-api" }
             extra_hash: "-limited_api"
           - os: ubuntu-22.04
             python-version: "3.12"
             allowed_failure: true
             backend: "c,cpp"
-            env: { LIMITED_API: "--limited-api", EXCLUDE: "--no-file" }
+            env: { LIMITED_API: "--limited-api" }
             extra_hash: "-limited_api"
           - os: ubuntu-22.04
             python-version: "3.13"
             allowed_failure: true
             backend: "c,cpp"
-            env: { LIMITED_API: "--limited-api", EXCLUDE: "--no-file" }
+            env: { LIMITED_API: "--limited-api" }
             extra_hash: "-limited_api"
           # Type specs
           - os: ubuntu-22.04

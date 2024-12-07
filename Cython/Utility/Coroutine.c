@@ -1733,8 +1733,11 @@ static PyObject *__Pyx_CoroutineAwait_no_new(PyTypeObject *type, PyObject *args,
 // #if CYTHON_USE_TYPE_SPECS
 static PyObject *__Pyx_CoroutineAwait_reduce_ex(__pyx_CoroutineAwaitObject *self, PyObject *arg) {
     CYTHON_UNUSED_VAR(arg);
-    PyErr_Format(PyExc_TypeError, "cannot pickle '%.200s' object",
-                         Py_TYPE(self)->tp_name);
+
+    __Pyx_TypeName self_type_name = __Pyx_PyType_GetName(Py_TYPE((PyObject*)self));
+    PyErr_Format(PyExc_TypeError, "cannot pickle '" __Pyx_FMT_TYPENAME "' object",
+                         self_type_name);
+    __Pyx_DECREF_TypeName(self_type_name);
     return NULL;
 }
 // #endif

@@ -3005,3 +3005,7 @@ static int __Pyx_State_RemoveModule(CYTHON_UNUSED void* dummy) {
 #define __Pyx_PyCriticalSection_End1 PyCriticalSection_End
 #define __Pyx_PyCriticalSection_End2 PyCriticalSection2_End
 #endif
+
+////////////////////// IncludeStdlibH.proto //////////////////////
+
+#include <stdlib.h>
