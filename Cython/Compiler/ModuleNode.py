@@ -2102,7 +2102,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             self.generate_guarded_basetype_call(
                 base_type, "tp_as_mapping", "mp_ass_subscript", "o, i, v", code)
             code.putln(
-                "o_type_name = __Pyx_PyType_GetName(Py_TYPE(o));")
+                "o_type_name = __Pyx_PyType_GetFullyQualifiedName(Py_TYPE(o));")
             code.putln(
                 "PyErr_Format(PyExc_NotImplementedError,")
             code.putln(
@@ -2125,7 +2125,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             self.generate_guarded_basetype_call(
                 base_type, "tp_as_mapping", "mp_ass_subscript", "o, i, v", code)
             code.putln(
-                "o_type_name = __Pyx_PyType_GetName(Py_TYPE(o));")
+                "o_type_name = __Pyx_PyType_GetFullyQualifiedName(Py_TYPE(o));")
             code.putln(
                 "PyErr_Format(PyExc_NotImplementedError,")
             code.putln(
@@ -2179,7 +2179,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             self.generate_guarded_basetype_call(
                 base_type, "tp_as_sequence", "sq_ass_slice", "o, i, j, v", code)
             code.putln(
-                "o_type_name = __Pyx_PyType_GetName(Py_TYPE(o));")
+                "o_type_name = __Pyx_PyType_GetFullyQualifiedName(Py_TYPE(o));")
             code.putln(
                 "PyErr_Format(PyExc_NotImplementedError,")
             code.putln(
@@ -2202,7 +2202,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             self.generate_guarded_basetype_call(
                 base_type, "tp_as_sequence", "sq_ass_slice", "o, i, j, v", code)
             code.putln(
-                "o_type_name = __Pyx_PyType_GetName(Py_TYPE(o));")
+                "o_type_name = __Pyx_PyType_GetFullyQualifiedName(Py_TYPE(o));")
             code.putln(
                 "PyErr_Format(PyExc_NotImplementedError,")
             code.putln(
