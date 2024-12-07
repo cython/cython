@@ -2659,6 +2659,7 @@ class CFuncDefNode(FuncDefNode):
         self._code_object = code_object
 
     def analyse_declarations(self, env):
+        self.c_compile_guard = env.directives['c_compile_guard']
         self.is_c_class_method = env.is_c_class_scope
         if self.directive_locals is None:
             self.directive_locals = {}
@@ -2924,8 +2925,13 @@ class CFuncDefNode(FuncDefNode):
                 code.globalstate.parts['module_declarations'].putln(self.template_declaration)
             code.putln(self.template_declaration)
         if needs_proto:
+            preprocessor_guard = self.get_preprocessor_guard()
+            if preprocessor_guard:
+                code.globalstate.parts['module_declarations'].putln(preprocessor_guard)
             code.globalstate.parts['module_declarations'].putln(
                 "%s%s%s; /* proto*/" % (storage_class, modifiers, header))
+            if preprocessor_guard:
+                code.globalstate.parts['module_declarations'].putln("#endif")
         code.putln("%s%s%s {" % (storage_class, modifiers, header))
 
     def generate_argument_declarations(self, env, code):
@@ -3038,6 +3044,13 @@ class CFuncDefNode(FuncDefNode):
                 arglist.append('NULL')
             code.putln('%s(%s);' % (self.entry.func_cname, ', '.join(arglist)))
             code.putln('}')
+
+    def get_preprocessor_guard(self):
+        super_guard = super().get_preprocessor_guard()
+        if self.c_compile_guard:
+            assert not super_guard  # Don't currently know how to combine
+            return f"#if {self.c_compile_guard}"
+        return super_guard
 
 
 class PyArgDeclNode(Node):
@@ -5542,6 +5555,9 @@ class CClassDefNode(ClassDefNode):
                      base_type.name in ('tuple', 'bytes'):
                 error(base.pos, "inheritance from PyVarObject types like '%s' is not currently supported"
                       % base_type.name)
+            elif base_type.is_extension_type and base_type.check_size == "opaque":
+                error(base.pos, f"Base class '{base_type.name}' of type '{self.class_name}' "
+                                 "is opaque.")
             else:
                 self.base_type = base_type
 
