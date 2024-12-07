@@ -2282,8 +2282,6 @@ class NameNode(AtomicExprNode):
                 entry = self.entry = entry.as_variable
                 self.type = entry.type
 
-        if self.type.is_const:
-            error(self.pos, "Assignment to const '%s'" % self.name)
         if not self.is_lvalue():
             error(self.pos, "Assignment to non-lvalue '%s'" % self.name)
             self.type = PyrexTypes.error_type
@@ -2607,6 +2605,11 @@ class NameNode(AtomicExprNode):
                 # per entry and coupled with it.
                 self.generate_acquire_buffer(rhs, code)
             assigned = False
+            if self.type.is_const:
+                # Const variables are assigned when declared
+                if self.entry.init is None:
+                    self.entry.init = rhs.move_result_rhs_as(self.ctype())
+                assigned = True
             if self.type.is_pyobject:
                 #print "NameNode.generate_assignment_code: to", self.name ###
                 #print "...from", rhs ###
