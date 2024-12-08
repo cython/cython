@@ -122,6 +122,9 @@ class CollectVisitor(TreeVisitor):
         if node is None:
             return
 
+        if isinstance(node, (ModuleNode, Nodes.ReraiseStatNode, Nodes.CArgDeclNode)):
+            return
+
         # not executable python code, strip
         if isinstance(node, Nodes.FromCImportStatNode):
             self.c_imports_lines.update(range(node.pos[1], node.end_pos()[1] + 1))
@@ -140,12 +143,27 @@ class CollectVisitor(TreeVisitor):
             self.extra_excludes.add(lino)
             return
 
-        if isinstance(node, (Nodes.CFuncDefNode, Nodes.FuncDefNode)):
-            declarator = getattr(node, 'declarator', None)
-            if declarator is None:
-                return
+        if isinstance(node, Nodes.FuncDefNode):
+            for attr in [
+                'args',
+                'star_arg',
+                'starstar_arg',
+                'decorators',
+                'return_type_annotation',
+                'declarator',
+            ]:
+                child = getattr(node, attr, None)
+                if child is None:
+                    continue
+                if isinstance(child, list):
+                    children = child
+                else:
+                    children = [child]
 
-            self.func_def.update(range(declarator.pos[1], declarator.end_pos()[1] + 1))
+                for child in children:
+                    self.func_def.update(range(child.pos[1], child.end_pos()[1] + 1))
+
+            self.func_def.discard(lino)
             return
 
         if isinstance(node, Nodes.CVarDefNode):
