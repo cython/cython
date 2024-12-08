@@ -336,7 +336,8 @@ class NameAssignment:
         self.is_arg = False
         self.is_deletion = False
         self.inferred_type = None
-        # For generator expression targets, the rhs can have a different scope than the lhs.
+        # For generator expression targets in comprehensions (and possibly other things),
+        # the rhs can have a different scope than the lhs.
         self.rhs_scope = rhs_scope
 
     def __repr__(self):
@@ -786,7 +787,7 @@ class ControlFlowAnalysis(CythonTransform):
     def visit_CTypeDefNode(self, node):
         return node
 
-    def mark_assignment(self, lhs, rhs=None, rhs_scope=None):
+    def mark_assignment(self, lhs, rhs=None):
         if not self.flow.block:
             return
         if self.flow.exceptions:
@@ -803,7 +804,7 @@ class ControlFlowAnalysis(CythonTransform):
                 entry = self.env.lookup(lhs.name)
             if entry is None:  # TODO: This shouldn't happen...
                 return
-            self.flow.mark_assignment(lhs, rhs, entry, rhs_scope=rhs_scope)
+            self.flow.mark_assignment(lhs, rhs, entry, rhs_scope=self.env)
         elif lhs.is_sequence_constructor:
             for i, arg in enumerate(lhs.args):
                 if arg.is_starred:
@@ -1018,8 +1019,7 @@ class ControlFlowAnalysis(CythonTransform):
                                     self.mark_assignment(
                                         target.args[0],
                                         ExprNodes.IntNode(target.pos, value='PY_SSIZE_T_MAX',
-                                                          type=PyrexTypes.c_py_ssize_t_type),
-                                        rhs_scope=node.iterator.expr_scope)
+                                                          type=PyrexTypes.c_py_ssize_t_type))
                                     target = target.args[1]
                                     sequence = sequence.args[0]
         if isinstance(sequence, ExprNodes.SimpleCallNode):
@@ -1030,14 +1030,13 @@ class ControlFlowAnalysis(CythonTransform):
                     if function.name in ('range', 'xrange'):
                         is_special = True
                         for arg in sequence.args[:2]:
-                            self.mark_assignment(target, arg, rhs_scope=node.iterator.expr_scope)
+                            self.mark_assignment(target, arg)
                         if len(sequence.args) > 2:
                             self.mark_assignment(target, self.constant_folder(
                                 ExprNodes.binop_node(node.pos,
                                                      '+',
                                                      sequence.args[0],
-                                                     sequence.args[2])),
-                                                rhs_scope=node.iterator.expr_scope)
+                                                     sequence.args[2])))
 
         if not is_special:
             # A for-loop basically translates to subsequent calls to
@@ -1046,7 +1045,7 @@ class ControlFlowAnalysis(CythonTransform):
             # Python strings, etc., while correctly falling back to an
             # object type when the base type cannot be handled.
 
-            self.mark_assignment(target, node.item, rhs_scope=node.iterator.expr_scope)
+            self.mark_assignment(target, node.item)
 
     def visit_AsyncForStatNode(self, node):
         return self.visit_ForInStatNode(node)
