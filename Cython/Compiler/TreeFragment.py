@@ -38,7 +38,7 @@ class StringParseContext(Main.Context):
 
 def parse_from_strings(name, code, pxds=None, level=None, initial_pos=None,
                        context=None, allow_struct_enum_decorator=False,
-                       in_utility_code=False):
+                       in_utility_code=False, is_pxd=False):
     """
     Utility method to parse a (unicode) string of code. This is mostly
     used for internal Cython compiler purposes (creating code snippets
@@ -49,6 +49,7 @@ def parse_from_strings(name, code, pxds=None, level=None, initial_pos=None,
     in_utility_code - used to suppress some messages from utility code. False by default
                       because some generated code snippets like properties and dataclasses
                       probably want to see those messages.
+    is_pxd - parse code as pxd file
 
     RETURNS
 
@@ -80,9 +81,9 @@ def parse_from_strings(name, code, pxds=None, level=None, initial_pos=None,
     ctx = Parsing.Ctx(allow_struct_enum_decorator=allow_struct_enum_decorator)
 
     if level is None:
-        tree = Parsing.p_module(scanner, 0, module_name, ctx=ctx)
+        tree = Parsing.p_module(scanner, is_pxd, module_name, ctx=ctx)
         tree.scope = scope
-        tree.is_pxd = False
+        tree.is_pxd = is_pxd
     else:
         tree = Parsing.p_code(scanner, level=level, ctx=ctx)
 

@@ -127,15 +127,11 @@ class CollectVisitor(TreeVisitor):
 
         # not executable python code, strip
         if isinstance(node, Nodes.FromCImportStatNode):
-            self.c_imports_lines.update(
-                range(node.pos[1], node.end_pos()[1] + 1)
-            )
+            self.c_imports_lines.update(range(node.pos[1], node.end_pos()[1] + 1))
             return
 
         if isinstance(node, Nodes.CStructOrUnionDefNode):
-            self.c_struct_lines.update(
-                range(node.pos[1], node.end_pos()[1] + 1)
-            )
+            self.c_struct_lines.update(range(node.pos[1], node.end_pos()[1] + 1))
             return
 
         lino = node.pos[1]
@@ -165,9 +161,7 @@ class CollectVisitor(TreeVisitor):
                     children = [child]
 
                 for child in children:
-                    self.func_def.update(
-                        range(child.pos[1], child.end_pos()[1] + 1)
-                    )
+                    self.func_def.update(range(child.pos[1], child.end_pos()[1] + 1))
 
             self.func_def.discard(lino)
             return
@@ -177,9 +171,7 @@ class CollectVisitor(TreeVisitor):
             return
 
         if isinstance(node, (ExprNodes.SimpleCallNode, Nodes.CDefExternNode)):
-            self.extra_excludes.update(
-                range(node.pos[1] + 1, node.end_pos()[1] + 1)
-            )
+            self.extra_excludes.update(range(node.pos[1] + 1, node.end_pos()[1] + 1))
             return
 
         self.collector.append((node, node.pos[1:]))
@@ -303,8 +295,10 @@ class Plugin(CoveragePlugin):
         else:
             c_file, _ = self._find_source_files(filename)
             if not c_file:
-                if filename.endswith('.pyx'):
+                if filename.endswith(".pyx"):
                     return PyxReporter(filename)
+                if filename.endswith(".pxd"):
+                    return PyxTracer(filename)
                 return None  # unknown file
             rel_file_path, code = self._read_source_lines(c_file, filename)
             if code is None:
@@ -487,6 +481,46 @@ class PyxTracer(FileTracer):
         Determine source file path.  Called by the function call tracer.
         """
         return self.module_file
+
+
+class PxdReporter(FileReporter):
+    """Provide detailed trace information for one source file to coverage.py."""
+
+    def __init__(self, source_file):
+        super().__init__(source_file)
+
+    def lines(self):
+        """Return set of line numbers that are possibly executable."""
+        v = CollectVisitor(self.filename)
+        v.visit(self.__source)
+        lines = {lino for _, (lino, pos) in v.collector} - v.exclude_lines
+        return lines
+
+    def excluded_lines(self):
+        """Return set of line numbers that are excluded from coverage."""
+        return []
+
+    @cached_property
+    def __source_text(self):
+        with open_source_file(self.filename) as f:
+            return f.read()
+
+    @cached_property
+    def __source(self) -> ModuleNode:
+        tree: ModuleNode = TreeFragment.parse_from_strings(
+            Path(self.filename).stem, self.__source_text, is_pxd=True
+        )
+
+        return tree
+
+    def source(self):
+        """Return the source code of the file as a string."""
+        return self.__source_text
+
+    def source_token_lines(self):
+        """Iterate over the source code tokens."""
+        for line in self.__source_text.splitlines():
+            yield [("txt", line)]
 
 
 class PyxReporter(FileReporter):
