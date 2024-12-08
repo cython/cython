@@ -201,7 +201,7 @@ class Plugin(CoveragePlugin):
     def configure(self, config):
         # Entry point for coverage "configurer".
         # Read the regular expressions from the coverage config that match lines to be excluded from coverage.
-        self._excluded_line_patterns = config.get_option('report:exclude_lines')
+        self._excluded_line_patterns = config.get_option("report:exclude_lines")
 
     def file_tracer(self, filename):
         """
