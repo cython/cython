@@ -1215,6 +1215,17 @@ static CYTHON_INLINE int __Pyx_PyDict_GetItemRef(PyObject *dict, PyObject *key, 
 #define __Pyx_PyInterpreterState_Get() PyThreadState_Get()->interp
 #endif
 
+#if CYTHON_COMPILING_IN_LIMITED_API && PY_VERSION_HEX < 0x030A0000
+// PyMem_Calloc *is* in the Stable ABI in all the Limited API versions we care about.
+// However, it is omitted from the Python headers which means that C incorrectly
+// assumes it returns an int (and generates dubious code on based on that assumption).
+// Therefore, copy the prototype.
+#ifdef __cplusplus
+extern "C"
+#endif
+PyAPI_FUNC(void *) PyMem_Calloc(size_t nelem, size_t elsize); /* proto */
+#endif
+
 
 /////////////// CythonABIVersion.proto ///////////////
 //@proto_block: module_declarations
