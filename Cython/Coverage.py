@@ -46,19 +46,67 @@ declarative code lines that do not contribute executable code, and such (missing
 can then be marked as excluded from coverage analysis.
 """
 
-
 import re
 import os.path
 import sys
 from collections import defaultdict
+from pathlib import Path
+from functools import cached_property
 
 from coverage.plugin import CoveragePlugin, FileTracer, FileReporter  # requires coverage.py 4.0+
 from coverage.files import canonical_filename
 
-from .Utils import find_root_package_dir, is_package_dir, is_cython_generated_file, open_source_file
-
-
+from .Utils import find_root_package_dir, is_package_dir, is_cython_generated_file, \
+    open_source_file
+from Cython.Compiler import TreeFragment
+from Cython.Compiler.ModuleNode import ModuleNode
+from Cython.Compiler.Visitor import TreeVisitor
+from .Compiler import Nodes
 from . import __version__
+
+
+class CollectVisitor(TreeVisitor):
+    """Prints a representation of the tree to standard output.
+    Subclass and override collect to provide more information
+    about nodes. """
+    def __init__(self):
+        super().__init__()
+        self.collector = []
+        self.c_imports_lines = set()
+
+    def __call__(self, tree, phase=None):
+        self.visit(tree)
+        return tree
+
+    # Don't do anything about process_list, the defaults gives
+    # nice-looking name[idx] nodes which will visually appear
+    # under the parent-node, not displaying the list itself in
+    # the hierarchy.
+    def visit_Node(self, node):
+        if node is None:
+            return node
+        self.collect(node)
+        # self.indent()
+        self.visitchildren(node)
+        # self.unindent()
+        return node
+
+    def visit_CloneNode(self, node):
+        self.collect(node)
+        self.collect(node.arg)
+        self.visitchildren(node.arg)
+        return node
+
+    def collect(self, node: Nodes.Node):
+        if node is None:
+            return
+
+        # not executable python code, strip
+        if isinstance(node, Nodes.FromCImportStatNode):
+            self.c_imports_lines.update(range(node.pos[1], node.end_pos()[1] + 1))
+            return
+
+        self.collector.append((node, node.pos[1:]))
 
 
 C_FILE_EXTENSIONS = ['.c', '.cpp', '.cc', '.cxx']
@@ -90,7 +138,8 @@ def _find_dep_file_path(main_file, file_path, relative_path_search=False):
         # this will match the pairs: module-module and pkg-pkg. After which there is nothing left to zip.
         abs_no_ext = os.path.normpath(abs_no_ext)
         file_no_ext = os.path.normpath(file_no_ext)
-        matching_paths = zip(reversed(abs_no_ext.split(os.sep)), reversed(file_no_ext.split(os.sep)))
+        matching_paths = zip(reversed(abs_no_ext.split(os.sep)),
+                             reversed(file_no_ext.split(os.sep)))
         for one, other in matching_paths:
             if one != other:
                 break
@@ -110,7 +159,6 @@ def _find_dep_file_path(main_file, file_path, relative_path_search=False):
 
 def _offset_to_line(offset):
     return offset >> 9
-
 
 class Plugin(CoveragePlugin):
     # map from traced file paths to absolute file paths
@@ -146,6 +194,10 @@ class Plugin(CoveragePlugin):
         if c_file is None:
             c_file, py_file = self._find_source_files(filename)
             if not c_file:
+                if filename.endswith('.pyx'):
+                    # for tools like cmake or meson they do not have c/c++ files alone side with pyx file.
+                    # so we just trace as standalone
+                    return PyxTracer(filename)
                 return None  # unknown file
 
             # parse all source file paths and lines from C file
@@ -164,8 +216,8 @@ class Plugin(CoveragePlugin):
 
     def file_reporter(self, filename):
         # TODO: let coverage.py handle .py files itself
-        #ext = os.path.splitext(filename)[1].lower()
-        #if ext == '.py':
+        # ext = os.path.splitext(filename)[1].lower()
+        # if ext == '.py':
         #    from coverage.python import PythonFileReporter
         #    return PythonFileReporter(filename)
 
@@ -175,6 +227,8 @@ class Plugin(CoveragePlugin):
         else:
             c_file, _ = self._find_source_files(filename)
             if not c_file:
+                if filename.endswith('.pyx'):
+                    return PyxReporter(filename)
                 return None  # unknown file
             rel_file_path, code = self._read_source_lines(c_file, filename)
             if code is None:
@@ -295,7 +349,8 @@ class Plugin(CoveragePlugin):
             r'(\s+[^:]+|)\s*:'
         ).match
         if self._excluded_line_patterns:
-            line_is_excluded = re.compile("|".join(["(?:%s)" % regex for regex in self._excluded_line_patterns])).search
+            line_is_excluded = re.compile(
+                "|".join(["(?:%s)" % regex for regex in self._excluded_line_patterns])).search
         else:
             line_is_excluded = lambda line: False
 
@@ -340,6 +395,77 @@ class Plugin(CoveragePlugin):
             for lineno in dead_lines:
                 del lines[lineno]
         return code_lines
+
+
+class PyxTracer(FileTracer):
+    """
+    Find the Python/Cython source file for a Cython module.
+    """
+    def __init__(self, module_file):
+        super().__init__()
+        self.module_file = module_file
+
+    def has_dynamic_source_filename(self):
+        return True
+
+    def dynamic_source_filename(self, filename, frame):
+        """
+        Determine source file path.  Called by the function call tracer.
+        """
+        return self.module_file
+
+
+class PyxReporter(FileReporter):
+    """
+    Provide detailed trace information for one source file to coverage.py.
+    """
+    def __init__(self, source_file):
+        super().__init__(source_file)
+
+    def lines(self):
+        """
+        Return set of line numbers that are possibly executable.
+        """
+
+        v = CollectVisitor()
+        v.visit(self.__source)
+        lines = {lino for _, (lino, pos) in v.collector} - v.c_imports_lines
+        return lines
+
+    def excluded_lines(self):
+        """
+        Return set of line numbers that are excluded from coverage.
+        """
+        return []
+
+    @cached_property
+    def __source_text(self):
+        with open_source_file(self.filename) as f:
+            return f.read()
+
+    @cached_property
+    def __source(self):
+        with open_source_file(self.filename) as f:
+            tree: ModuleNode = TreeFragment.parse_from_strings(
+                Path(self.filename).stem,
+                self.__source_text
+            )
+
+        return tree
+
+
+    def source(self):
+        """
+        Return the source code of the file as a string.
+        """
+        return self.__source_text
+
+    def source_token_lines(self):
+        """
+        Iterate over the source code tokens.
+        """
+        for line in self.__source_text.splitlines():
+            yield [('txt', line)]
 
 
 class CythonModuleTracer(FileTracer):
