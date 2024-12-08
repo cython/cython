@@ -140,7 +140,7 @@ creating a :file:`pyproject.toml` file containing, at least:
     :caption: pyproject.toml
 
     [build-system]
-    requires = ["setuptools", "wheel", "Cython"]
+    requires = ["setuptools", "Cython"]
 
 To understand the :file:`setup.py` more fully look at the official `setuptools
 documentation`_. To compile the extension for use in the current directory use:
