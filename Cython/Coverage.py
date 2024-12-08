@@ -69,7 +69,7 @@ from Cython.Utils import (
 from Cython.Compiler import TreeFragment
 from Cython.Compiler.ModuleNode import ModuleNode
 from Cython.Compiler.Visitor import TreeVisitor
-from Cython.Compiler import Nodes
+from Cython.Compiler import Nodes, ExprNodes
 from Cython import __version__
 
 
@@ -83,6 +83,8 @@ class CollectVisitor(TreeVisitor):
         self.collector = []
         self.c_imports_lines = set()
         self.c_struct_lines = set()
+        self.func_def = set()
+        self.extra_excludes = set()
 
     def __call__(self, tree, phase=None):
         self.visit(tree)
@@ -109,7 +111,12 @@ class CollectVisitor(TreeVisitor):
 
     @property
     def exclude_lines(self):
-        return self.c_imports_lines | self.c_struct_lines
+        return (
+            self.c_imports_lines
+            | self.c_struct_lines
+            | self.func_def
+            | self.extra_excludes
+        )
 
     def collect(self, node: Nodes.Node):
         if node is None:
@@ -126,8 +133,28 @@ class CollectVisitor(TreeVisitor):
 
         lino = node.pos[1]
 
-        if 86 <= lino <= 90:
-            print(lino, node)
+        if isinstance(
+            node,
+            (Nodes.CClassDefNode, Nodes.ClassDefNode, Nodes.PyClassDefNode),
+        ):
+            self.extra_excludes.add(lino)
+            return
+
+        if isinstance(node, (Nodes.CFuncDefNode, Nodes.FuncDefNode)):
+            declarator = getattr(node, 'declarator', None)
+            if declarator is None:
+                return
+
+            self.func_def.update(range(declarator.pos[1], declarator.end_pos()[1] + 1))
+            return
+
+        if isinstance(node, Nodes.CVarDefNode):
+            self.extra_excludes.add(lino)
+            return
+
+        if isinstance(node, ExprNodes.SimpleCallNode):
+            self.extra_excludes.update(range(node.pos[1] + 1, node.end_pos()[1] + 1))
+            return
 
         self.collector.append((node, node.pos[1:]))
 
