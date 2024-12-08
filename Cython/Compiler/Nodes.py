@@ -609,7 +609,8 @@ class CArrayDeclaratorNode(CDeclaratorNode):
             self.dimension = self.dimension.analyse_const_expression(env)
             if not self.dimension.type.is_int:
                 error(self.dimension.pos, "Array dimension not integer")
-            if self.dimension.type.is_const:
+            if self.dimension.type.is_const and self.dimension.entry.visibility != 'extern':
+                # extern const variables declaring C constants are allowed
                 error(self.dimension.pos, "Array dimension cannot be const variable")
             size = self.dimension.get_constant_c_result_code()
             if size is not None:
