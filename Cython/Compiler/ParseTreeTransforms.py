@@ -244,7 +244,7 @@ class PostParse(ScopeTrackingTransform):
             newdecls = []
             for decl in node.declarators:
                 declbase = decl
-                while isinstance(declbase, Nodes.CPtrDeclaratorNode):
+                while isinstance(declbase, (Nodes.CPtrDeclaratorNode, Nodes.CConstDeclaratorNode)):
                     declbase = declbase.base
                 if isinstance(declbase, Nodes.CNameDeclaratorNode):
                     if declbase.default is not None:
