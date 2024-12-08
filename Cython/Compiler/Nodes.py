@@ -4068,7 +4068,7 @@ class DefNodeWrapper(FuncDefNode):
             code.put_var_gotref(self.star_arg.entry)
             code.put_incref(Naming.self_cname, py_object_type)
             code.put_giveref(Naming.self_cname, py_object_type)
-            code.error_goto_if_neg("__Pyx_PyTuple_SET_ITEM(%s, 0, %s);" % (
+            code.error_goto_if_neg("__Pyx_PyTuple_SET_ITEM(%s, 0, %s)" % (
                 self.star_arg.entry.cname, Naming.self_cname), self.pos)
             temp = code.funcstate.allocate_temp(PyrexTypes.c_py_ssize_t_type, manage_ref=False)
             code.putln("for (%s=0; %s < %s; %s++) {" % (
@@ -4080,7 +4080,7 @@ class DefNodeWrapper(FuncDefNode):
             code.putln("#endif")
             code.put_incref("item", py_object_type)
             code.put_giveref("item", py_object_type)
-            code.error_goto_if_neg("__Pyx_PyTuple_SET_ITEM(%s, %s+1, item);" % (
+            code.error_goto_if_neg("__Pyx_PyTuple_SET_ITEM(%s, %s+1, item)" % (
                 self.star_arg.entry.cname, temp), self.pos)
             code.putln("}")
             code.funcstate.release_temp(temp)
