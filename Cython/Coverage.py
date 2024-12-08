@@ -114,16 +114,28 @@ class CollectVisitor(TreeVisitor):
         if node is None:
             return
 
-        if isinstance(node, (ModuleNode, Nodes.ReraiseStatNode, Nodes.CArgDeclNode)):
+        if isinstance(
+            node,
+            (
+                ModuleNode,
+                Nodes.ReraiseStatNode,
+                Nodes.CArgDeclNode,
+                Nodes.StatListNode,
+            ),
+        ):
             return
 
         # not executable python code, strip
         if isinstance(node, Nodes.FromCImportStatNode):
-            self.c_imports_lines.update(range(node.pos[1], node.end_pos()[1] + 1))
+            self.c_imports_lines.update(
+                range(node.pos[1], node.end_pos()[1] + 1)
+            )
             return
 
         if isinstance(node, Nodes.CStructOrUnionDefNode):
-            self.c_struct_lines.update(range(node.pos[1], node.end_pos()[1] + 1))
+            self.c_struct_lines.update(
+                range(node.pos[1], node.end_pos()[1] + 1)
+            )
             return
 
         lino = node.pos[1]
@@ -137,12 +149,12 @@ class CollectVisitor(TreeVisitor):
 
         if isinstance(node, Nodes.FuncDefNode):
             for attr in [
-                'args',
-                'star_arg',
-                'starstar_arg',
-                'decorators',
-                'return_type_annotation',
-                'declarator',
+                "args",
+                "star_arg",
+                "starstar_arg",
+                "decorators",
+                "return_type_annotation",
+                "declarator",
             ]:
                 child = getattr(node, attr, None)
                 if child is None:
@@ -153,7 +165,9 @@ class CollectVisitor(TreeVisitor):
                     children = [child]
 
                 for child in children:
-                    self.func_def.update(range(child.pos[1], child.end_pos()[1] + 1))
+                    self.func_def.update(
+                        range(child.pos[1], child.end_pos()[1] + 1)
+                    )
 
             self.func_def.discard(lino)
             return
@@ -162,8 +176,10 @@ class CollectVisitor(TreeVisitor):
             self.extra_excludes.add(lino)
             return
 
-        if isinstance(node, ExprNodes.SimpleCallNode):
-            self.extra_excludes.update(range(node.pos[1] + 1, node.end_pos()[1] + 1))
+        if isinstance(node, (ExprNodes.SimpleCallNode, Nodes.CDefExternNode)):
+            self.extra_excludes.update(
+                range(node.pos[1] + 1, node.end_pos()[1] + 1)
+            )
             return
 
         self.collector.append((node, node.pos[1:]))
