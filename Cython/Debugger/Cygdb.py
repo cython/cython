@@ -135,6 +135,12 @@ def main():
     gdb_argv = options.gdb_argv
     no_import = path_to_debug_info is None
 
+    if options.build_dir is None and gdb_argv and os.path.exists(gdb_argv[0]):
+        import warnings
+        gdb_argv = options.gdb_argv[1:]
+        path_to_debug_info = options.gdb_argv[0]
+        warnings.warn(f'Using deprecated positional parameter PATH. Use "--build-dir {path_to_debug_info}" argument instead.')
+
     logging_level = logging.WARN
     if options.verbosity == 1:
         logging_level = logging.INFO
