@@ -147,9 +147,8 @@ def _find_c_source(base_path):
 
 def _find_dep_file_path(main_file, file_path, relative_path_search=False):
     abs_path = os.path.abspath(file_path)
-    if not os.path.exists(abs_path) and (
-        file_path.endswith('.pxi') or relative_path_search
-    ):
+    if not os.path.exists(abs_path) and (file_path.endswith('.pxi') or
+                                         relative_path_search):
         # files are looked up relative to the main source file
         rel_file_path = os.path.join(os.path.dirname(main_file), file_path)
         if os.path.exists(rel_file_path):
@@ -162,9 +161,7 @@ def _find_dep_file_path(main_file, file_path, relative_path_search=False):
         # this will match the pairs: module-module and pkg-pkg. After which there is nothing left to zip.
         abs_no_ext = os.path.normpath(abs_no_ext)
         file_no_ext = os.path.normpath(file_no_ext)
-        matching_paths = zip(
-            reversed(abs_no_ext.split(os.sep)), reversed(file_no_ext.split(os.sep))
-        )
+        matching_paths = zip(reversed(abs_no_ext.split(os.sep)), reversed(file_no_ext.split(os.sep)))
         for one, other in matching_paths:
             if one != other:
                 break
@@ -238,14 +235,12 @@ class Plugin(CoveragePlugin):
 
         if self._file_path_map is None:
             self._file_path_map = {}
-        return CythonModuleTracer(
-            filename, py_file, c_file, self._c_files_map, self._file_path_map
-        )
+        return CythonModuleTracer(filename, py_file, c_file, self._c_files_map, self._file_path_map)
 
     def file_reporter(self, filename):
         # TODO: let coverage.py handle .py files itself
-        # ext = os.path.splitext(filename)[1].lower()
-        # if ext == '.py':
+        #ext = os.path.splitext(filename)[1].lower()
+        #if ext == '.py':
         #    from coverage.python import PythonFileReporter
         #    return PythonFileReporter(filename)
 
@@ -266,7 +261,7 @@ class Plugin(CoveragePlugin):
             filename,
             rel_file_path,
             code,
-            self._excluded_lines_map.get(rel_file_path, frozenset()),
+            self._excluded_lines_map.get(rel_file_path, frozenset())
         )
 
     def _find_source_files(self, filename):
@@ -278,14 +273,12 @@ class Plugin(CoveragePlugin):
             # Windows extension module
             platform_suffix = re.search(r'[.]cp[0-9]+-win[_a-z0-9]*$', basename, re.I)
             if platform_suffix:
-                basename = basename[: platform_suffix.start()]
+                basename = basename[:platform_suffix.start()]
         elif ext == '.so':
             # Linux/Unix/Mac extension module
-            platform_suffix = re.search(
-                r'[.](?:cpython|pypy)-[0-9]+[-_a-z0-9]*$', basename, re.I
-            )
+            platform_suffix = re.search(r'[.](?:cpython|pypy)-[0-9]+[-_a-z0-9]*$', basename, re.I)
             if platform_suffix:
-                basename = basename[: platform_suffix.start()]
+                basename = basename[:platform_suffix.start()]
         elif ext == '.pxi':
             # if we get here, it means that the first traced line of a Cython module was
             # not in the main module but in an include file, so try a little harder to
@@ -303,9 +296,7 @@ class Plugin(CoveragePlugin):
             package_root = find_root_package_dir.uncached(filename)
             package_path = os.path.relpath(basename, package_root).split(os.path.sep)
             if len(package_path) > 1:
-                test_basepath = os.path.join(
-                    os.path.dirname(filename), '.'.join(package_path)
-                )
+                test_basepath = os.path.join(os.path.dirname(filename), '.'.join(package_path))
                 c_file = _find_c_source(test_basepath)
 
         py_source_file = None
@@ -358,7 +349,8 @@ class Plugin(CoveragePlugin):
             self._c_files_map = {}
 
         for filename, code in code_lines.items():
-            abs_path = _find_dep_file_path(c_file, filename, relative_path_search=True)
+            abs_path = _find_dep_file_path(c_file, filename,
+                                           relative_path_search=True)
             self._c_files_map[abs_path] = (c_file, filename, code)
 
         if sourcefile not in self._c_files_map:
@@ -380,9 +372,7 @@ class Plugin(CoveragePlugin):
             r'(\s+[^:]+|)\s*:'
         ).match
         if self._excluded_line_patterns:
-            line_is_excluded = re.compile(
-                '|'.join(['(?:%s)' % regex for regex in self._excluded_line_patterns])
-            ).search
+            line_is_excluded = re.compile("|".join(["(?:%s)" % regex for regex in self._excluded_line_patterns])).search
         else:
             line_is_excluded = lambda line: False
 
@@ -503,7 +493,6 @@ class CythonModuleTracer(FileTracer):
     """
     Find the Python/Cython source file for a Cython module.
     """
-
     def __init__(self, module_file, py_file, c_file, c_files_map, file_path_map):
         super().__init__()
         self.module_file = module_file
@@ -542,7 +531,6 @@ class CythonModuleReporter(FileReporter):
     """
     Provide detailed trace information for one source file to coverage.py.
     """
-
     def __init__(self, c_file, source_file, rel_file_path, code, excluded_lines):
         super().__init__(source_file)
         self.name = rel_file_path
@@ -581,8 +569,7 @@ class CythonModuleReporter(FileReporter):
         else:
             return '\n'.join(
                 (tokens[0][1] if tokens else '')
-                for tokens in self._iter_source_tokens()
-            )
+                for tokens in self._iter_source_tokens())
 
     def source_token_lines(self):
         """
