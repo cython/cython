@@ -842,7 +842,7 @@ bad:
     {
         PyTypeObject* basei = NULL;
         PyTypeObject* tp_base = __Pyx_PyType_GetSlot(type, tp_base, PyTypeObject*);
-        tp_base_name = __Pyx_PyType_GetName(tp_base);
+        tp_base_name = __Pyx_PyType_GetFullyQualifiedName(tp_base);
 #if CYTHON_AVOID_BORROWED_REFS
         basei = (PyTypeObject*)PySequence_GetItem(bases, i);
         if (unlikely(!basei)) goto really_bad;
@@ -852,7 +852,7 @@ bad:
 #else
         basei = (PyTypeObject*)PyTuple_GET_ITEM(bases, i);
 #endif
-        base_name = __Pyx_PyType_GetName(basei);
+        base_name = __Pyx_PyType_GetFullyQualifiedName(basei);
 #if CYTHON_AVOID_BORROWED_REFS
         Py_DECREF(basei);
 #endif
