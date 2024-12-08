@@ -74,9 +74,7 @@ from Cython import __version__
 
 
 class CollectVisitor(TreeVisitor):
-    """Prints a representation of the tree to standard output.
-    Subclass and override collect to provide more information
-    about nodes."""
+    """Visit all node get get tracked lines"""
 
     def __init__(self):
         super().__init__()
@@ -90,17 +88,11 @@ class CollectVisitor(TreeVisitor):
         self.visit(tree)
         return tree
 
-    # Don't do anything about process_list, the defaults gives
-    # nice-looking name[idx] nodes which will visually appear
-    # under the parent-node, not displaying the list itself in
-    # the hierarchy.
     def visit_Node(self, node):
         if node is None:
             return node
         self.collect(node)
-        # self.indent()
         self.visitchildren(node)
-        # self.unindent()
         return node
 
     def visit_CloneNode(self, node):
@@ -465,9 +457,7 @@ class Plugin(CoveragePlugin):
 
 
 class PyxTracer(FileTracer):
-    """
-    Find the Python/Cython source file for a Cython module.
-    """
+    """A FileTracer based on pyx file syntax instead of generated c files."""
 
     def __init__(self, module_file):
         super().__init__()
@@ -484,9 +474,7 @@ class PyxTracer(FileTracer):
 
 
 class PyxReporter(FileReporter):
-    """
-    Provide detailed trace information for one source file to coverage.py.
-    """
+    """A reporter based on pyx file syntax instead of generated c files."""
 
     def __init__(self, source_file):
         super().__init__(source_file)
