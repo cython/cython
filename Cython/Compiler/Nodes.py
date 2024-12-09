@@ -10557,7 +10557,7 @@ class CnameDecoratorNode(StatNode):
         if isinstance(node, CompilerDirectivesNode):
             node = node.body.stats[0]
 
-        self.is_function = isinstance(node, FuncDefNode)
+        self.is_function = isinstance(node, (FuncDefNode, CVarDefNode))
         is_struct_or_enum = isinstance(node, (CStructOrUnionDefNode, CEnumDefNode))
         e = node.entry
 
