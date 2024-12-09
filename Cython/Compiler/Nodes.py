@@ -2155,7 +2155,7 @@ class FuncDefNode(StatNode, BlockNode):
                     cenv.scope_class.type.empty_declaration_code(),
                     Naming.self_cname))
             else:
-                code.putln("%s = (%s) PyCFunction_GetSelf(%s);" % (
+                code.putln("%s = (%s) %s;" % (
                     outer_scope_cname,
                     cenv.scope_class.type.empty_declaration_code(),
                     Naming.self_cname))
