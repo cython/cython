@@ -68,6 +68,12 @@ cdef extern from "cpp_operators_helper.h" nogil:
         const_char* operator>(int)
         const_char* operator<(int)
 
+        const char* operator+=(int)
+        const char* operator-=(int)
+        const char* operator*=(int)
+        const char* operator/=(int)
+        const char* operator%=(int)
+
         const_char* operator[](int) except +
         const_char* operator()(int) except +
 
@@ -133,6 +139,12 @@ cdef extern from "cpp_operators_helper.h" nogil:
         int& operator>(int) except +
         int& operator<(int) except +
 
+        int& operator+=(int) except +
+        int& operator-=(int) except +
+        int& operator*=(int) except +
+        int& operator/=(int) except +
+        int& operator%=(int) except +
+
         int& operator[](int) except +
         int& operator()(int) except +
 
@@ -197,6 +209,11 @@ def test_binop():
     binary ^ [const_char *]
     binary << [const_char *]
     binary >> [const_char *]
+    binary += [const char *]
+    binary -= [const char *]
+    binary *= [const char *]
+    binary /= [const char *]
+    binary %= [const char *]
     binary COMMA [const_char *]
     """
     cdef TestOps* t = new TestOps()
@@ -212,6 +229,12 @@ def test_binop():
 
     out(t[0] << 1, typeof(t[0] << 1))
     out(t[0] >> 1, typeof(t[0] >> 1))
+
+    out(t[0] += 1, typeop(t[0] += 1))
+    out(t[0] -= 1, typeop(t[0] -= 1))
+    out(t[0] *= 1, typeop(t[0] *= 1))
+    out(t[0] /= 1, typeop(t[0] /= 1))
+    out(t[0] %= 1, typeop(t[0] %= 1))
 
     x = cython.operator.comma(t[0], 1)
     out(x, typeof(x))
@@ -239,6 +262,11 @@ def test_nonmember_binop():
     nonmember binary2 ^ [const_char *]
     nonmember binary2 << [const_char *]
     nonmember binary2 >> [const_char *]
+    nonmember binary2 += [const_char *]
+    nonmember binary2 -= [const_char *]
+    nonmember binary2 *= [const_char *]
+    nonmember binary2 /= [const_char *]
+    nonmember binary2 %= [const_char *]
     nonmember binary2 COMMA [const_char *]
     """
 
@@ -253,6 +281,11 @@ def test_nonmember_binop():
     out(1 ^ t[0], typeof(1 ^ t[0]))
     out(1 << t[0], typeof(1 << t[0]))
     out(1 >> t[0], typeof(1 >> t[0]))
+    out(1 += t[0], typeof(1 += t[0]))
+    out(1 -= t[0], typeof(1 -= t[0]))
+    out(1 *= t[0], typeof(1 *= t[0]))
+    out(1 /= t[0], typeof(1 /= t[0]))
+    out(1 %= t[0], typeof(1 %= t[0]))
 
     x = cython.operator.comma(1, t[0])
     out(x, typeof(x))
