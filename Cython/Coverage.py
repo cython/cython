@@ -46,19 +46,135 @@ declarative code lines that do not contribute executable code, and such (missing
 can then be marked as excluded from coverage analysis.
 """
 
-
 import re
 import os.path
 import sys
 from collections import defaultdict
+from pathlib import Path
+from functools import cached_property
 
-from coverage.plugin import CoveragePlugin, FileTracer, FileReporter  # requires coverage.py 4.0+
+from coverage.plugin import (
+    CoveragePlugin,
+    FileTracer,
+    FileReporter,
+)  # requires coverage.py 4.0+
 from coverage.files import canonical_filename
 
-from .Utils import find_root_package_dir, is_package_dir, is_cython_generated_file, open_source_file
+from Cython.Utils import (
+    find_root_package_dir,
+    is_package_dir,
+    is_cython_generated_file,
+    open_source_file,
+)
+from Cython.Compiler import TreeFragment
+from Cython.Compiler.ModuleNode import ModuleNode
+from Cython.Compiler.Visitor import TreeVisitor
+from Cython.Compiler import Nodes, ExprNodes
+from Cython import __version__
 
 
-from . import __version__
+class CollectVisitor(TreeVisitor):
+    """Visit all node get get tracked lines"""
+
+    def __init__(self):
+        super().__init__()
+        self.collector = []
+        self.c_imports_lines = set()
+        self.c_struct_lines = set()
+        self.func_def = set()
+        self.extra_excludes = set()
+
+    def __call__(self, tree, phase=None):
+        self.visit(tree)
+        return tree
+
+    def visit_Node(self, node):
+        if node is None:
+            return node
+        self.collect(node)
+        self.visitchildren(node)
+        return node
+
+    def visit_CloneNode(self, node):
+        self.collect(node)
+        self.collect(node.arg)
+        self.visitchildren(node.arg)
+        return node
+
+    @property
+    def exclude_lines(self):
+        return (
+            self.c_imports_lines
+            | self.c_struct_lines
+            | self.func_def
+            | self.extra_excludes
+        )
+
+    def collect(self, node: Nodes.Node):
+        if node is None:
+            return
+
+        if isinstance(
+            node,
+            (
+                ModuleNode,
+                Nodes.ReraiseStatNode,
+                Nodes.CArgDeclNode,
+                Nodes.StatListNode,
+            ),
+        ):
+            return
+
+        # not executable python code, strip
+        if isinstance(node, Nodes.FromCImportStatNode):
+            self.c_imports_lines.update(range(node.pos[1], node.end_pos()[1] + 1))
+            return
+
+        if isinstance(node, Nodes.CStructOrUnionDefNode):
+            self.c_struct_lines.update(range(node.pos[1], node.end_pos()[1] + 1))
+            return
+
+        lino = node.pos[1]
+
+        if isinstance(
+            node,
+            (Nodes.CClassDefNode, Nodes.ClassDefNode, Nodes.PyClassDefNode),
+        ):
+            self.extra_excludes.add(lino)
+            return
+
+        if isinstance(node, Nodes.FuncDefNode):
+            for attr in [
+                "args",
+                "star_arg",
+                "starstar_arg",
+                "decorators",
+                "return_type_annotation",
+                "declarator",
+            ]:
+                child = getattr(node, attr, None)
+                if child is None:
+                    continue
+                if isinstance(child, list):
+                    children = child
+                else:
+                    children = [child]
+
+                for child in children:
+                    self.func_def.update(range(child.pos[1], child.end_pos()[1] + 1))
+
+            self.func_def.discard(lino)
+            return
+
+        if isinstance(node, Nodes.CVarDefNode):
+            self.extra_excludes.add(lino)
+            return
+
+        if isinstance(node, (ExprNodes.SimpleCallNode, Nodes.CDefExternNode)):
+            self.extra_excludes.update(range(node.pos[1] + 1, node.end_pos()[1] + 1))
+            return
+
+        self.collector.append((node, node.pos[1:]))
 
 
 C_FILE_EXTENSIONS = ['.c', '.cpp', '.cc', '.cxx']
@@ -146,6 +262,10 @@ class Plugin(CoveragePlugin):
         if c_file is None:
             c_file, py_file = self._find_source_files(filename)
             if not c_file:
+                if filename.endswith('.pyx'):
+                    # for tools like cmake or meson they do not have c/c++ files alone side with pyx file.
+                    # so we just trace as standalone
+                    return PyxTracer(filename)
                 return None  # unknown file
 
             # parse all source file paths and lines from C file
@@ -175,6 +295,10 @@ class Plugin(CoveragePlugin):
         else:
             c_file, _ = self._find_source_files(filename)
             if not c_file:
+                if filename.endswith(".pyx"):
+                    return PyxReporter(filename)
+                if filename.endswith(".pxd"):
+                    return PyxTracer(filename)
                 return None  # unknown file
             rel_file_path, code = self._read_source_lines(c_file, filename)
             if code is None:
@@ -340,6 +464,112 @@ class Plugin(CoveragePlugin):
             for lineno in dead_lines:
                 del lines[lineno]
         return code_lines
+
+
+class PyxTracer(FileTracer):
+    """A FileTracer based on pyx file syntax instead of generated c files."""
+
+    def __init__(self, module_file):
+        super().__init__()
+        self.module_file = module_file
+
+    def has_dynamic_source_filename(self):
+        return True
+
+    def dynamic_source_filename(self, filename, frame):
+        """
+        Determine source file path.  Called by the function call tracer.
+        """
+        return self.module_file
+
+
+class PxdReporter(FileReporter):
+    """Provide detailed trace information for one source file to coverage.py."""
+
+    def __init__(self, source_file):
+        super().__init__(source_file)
+
+    def lines(self):
+        """Return set of line numbers that are possibly executable."""
+        v = CollectVisitor(self.filename)
+        v.visit(self.__source)
+        lines = {lino for _, (lino, pos) in v.collector} - v.exclude_lines
+        return lines
+
+    def excluded_lines(self):
+        """Return set of line numbers that are excluded from coverage."""
+        return []
+
+    @cached_property
+    def __source_text(self):
+        with open_source_file(self.filename) as f:
+            return f.read()
+
+    @cached_property
+    def __source(self) -> ModuleNode:
+        tree: ModuleNode = TreeFragment.parse_from_strings(
+            Path(self.filename).stem, self.__source_text, is_pxd=True
+        )
+
+        return tree
+
+    def source(self):
+        """Return the source code of the file as a string."""
+        return self.__source_text
+
+    def source_token_lines(self):
+        """Iterate over the source code tokens."""
+        for line in self.__source_text.splitlines():
+            yield [("txt", line)]
+
+
+class PyxReporter(FileReporter):
+    """A reporter based on pyx file syntax instead of generated c files."""
+
+    def __init__(self, source_file):
+        super().__init__(source_file)
+
+    def lines(self):
+        """
+        Return set of line numbers that are possibly executable.
+        """
+
+        v = CollectVisitor()
+        v.visit(self.__source)
+        lines = {lino for _, (lino, pos) in v.collector} - v.exclude_lines
+        return lines
+
+    def excluded_lines(self):
+        """
+        Return set of line numbers that are excluded from coverage.
+        """
+        return []
+
+    @cached_property
+    def __source_text(self):
+        with open_source_file(self.filename) as f:
+            return f.read()
+
+    @cached_property
+    def __source(self):
+        tree: ModuleNode = TreeFragment.parse_from_strings(
+            Path(self.filename).stem, self.__source_text
+        )
+
+        return tree
+
+    def source(self):
+        """
+        Return the source code of the file as a string.
+        """
+        return self.__source_text
+
+    def source_token_lines(self):
+        """
+        Iterate over the source code tokens.
+        """
+        for line in self.__source_text.splitlines():
+            yield [('txt', line)]
 
 
 class CythonModuleTracer(FileTracer):
