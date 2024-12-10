@@ -429,6 +429,7 @@ and is typically what one wants).
 If you want to use these numeric Python types simply omit the
 type declaration and let them be objects.
 
+.. _type_qualifiers:
 
 Type qualifiers
 ---------------
@@ -476,6 +477,13 @@ Similar to pointers Cython supports shortcut types that can be used in pure pyth
 
 For full list of shortcut types see the ``Shadow.pyi`` file.
 
+``const`` qualifier supports declaration of global constants::
+
+    cdef const int i = 5
+
+    # constant pointers are defined as pointer to constant value.
+    cdef const char *msg = "Dummy string"
+    msg = "Another dummy string"
 
 .. Note::
 
@@ -1683,6 +1691,11 @@ expression must evaluate to a Python value of type ``int``, ``long``,
 ``float``, ``bytes`` or ``unicode`` (``str`` in Py3).
 
 .. literalinclude:: ../../examples/userguide/language_basics/compile_time.pyx
+
+.. Note::
+
+   Compile-time constants are deprecated. The preferred way for declaring global
+   constants is using global ``const`` variables. See :ref:`type_qualifiers`.
 
 
 Conditional Statements
