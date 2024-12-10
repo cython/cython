@@ -35,21 +35,21 @@ Compiling from the command line
 
 There are two ways of compiling from the command line.
 
-* The ``cython`` command takes a ``.py`` or ``.pyx`` file and
+* The :program:`cython` command takes a ``.py`` or ``.pyx`` file and
   compiles it into a C/C++ file.
 
-* The ``cythonize`` command takes a ``.py`` or ``.pyx`` file and
+* The :program:`cythonize` command takes a ``.py`` or ``.pyx`` file and
   compiles it into a C/C++ file.  It then compiles the C/C++ file into
   an extension module which is directly importable from Python.
 
 
-Compiling with the ``cython`` command
--------------------------------------
+Compiling with the :program:`cython` command
+--------------------------------------------
 
 One way is to compile it manually with the Cython
 compiler, e.g.:
 
-.. code-block:: text
+.. code-block:: console
 
     $ cython primes.pyx
 
@@ -63,64 +63,65 @@ provided with Cython. The benefit of this method is that it will give the
 platform specific compilation options, acting like a stripped down autotools.
 
 
-Compiling with the ``cythonize`` command
-----------------------------------------
+Compiling with the :program:`cythonize` command
+-----------------------------------------------
 
-Run the ``cythonize`` compiler command with your options and list of
+Run the :program:`cythonize` compiler command with your options and list of
 ``.pyx`` files to generate an extension module.  For example:
 
-.. code-block:: bash
+.. code-block:: console
 
     $ cythonize -a -i yourmod.pyx
 
-This creates a ``yourmod.c`` file (or ``yourmod.cpp`` in C++ mode), compiles it,
+This creates a :file:`yourmod.c` file (or :file:`yourmod.cpp` in C++ mode), compiles it,
 and puts the resulting extension module (``.so`` or ``.pyd``, depending on your
 platform) next to the source file for direct import (``-i`` builds "in place").
 The ``-a`` switch additionally produces an annotated html file of the source code.
 
-The ``cythonize`` command accepts multiple source files and glob patterns like
+The :program:`cythonize` command accepts multiple source files and glob patterns like
 ``**/*.pyx`` as argument and also understands the common ``-j`` option for
 running multiple parallel build jobs.  When called without further options, it
 will only translate the source files to ``.c`` or ``.cpp`` files.  Pass the
 ``-h`` flag for a complete list of supported options.
 
-There simpler command line tool ``cython`` only invokes the source code translator.
+There simpler command line tool :program:`cython` only invokes the source code translator.
 
 In the case of manual compilation, how to compile your ``.c`` files will vary
 depending on your operating system and compiler.  The Python documentation for
 writing extension modules should have some details for your system.  On a Linux
 system, for example, it might look similar to this:
 
-.. code-block:: bash
+.. code-block:: console
 
     $ gcc -shared -pthread -fPIC -fwrapv -O2 -Wall -fno-strict-aliasing \
           -I/usr/include/python3.5 -o yourmod.so yourmod.c
 
-(``gcc`` will need to have paths to your included header files and paths
+(:program:`gcc` will need to have paths to your included header files and paths
 to libraries you want to link with.)
 
-After compilation, a ``yourmod.so`` (:file:`yourmod.pyd` for Windows)
+After compilation, a :file:`yourmod.so` (:file:`yourmod.pyd` for Windows)
 file is written into the target directory
 and your module, ``yourmod``, is available for you to import as with any other
-Python module.  Note that if you are not relying on ``cythonize`` or setuptools,
+Python module.  Note that if you are not relying on :program:`cythonize` or :mod:`setuptools`,
 you will not automatically benefit from the platform specific file extension
 that CPython generates for disambiguation, such as
-``yourmod.cpython-35m-x86_64-linux-gnu.so`` on a regular 64bit Linux installation
+:file:`yourmod.cpython-35m-x86_64-linux-gnu.so` on a regular 64bit Linux installation
 of CPython 3.5.
 
 
 .. _basic_setup.py:
 
-Basic setup.py
-===============
+Basic :file:`setup.py`
+======================
+
 The setuptools extension provided with Cython allows you to pass ``.pyx`` files
-directly to the ``Extension`` constructor in your setup file.
+directly to the :class:`~setuptools.Extension` constructor in your setup file.
 
 If you have a single Cython file that you want to turn into a compiled
 extension, say with filename :file:`example.pyx` the associated :file:`setup.py`
 would be:
 
-.. code-block:: ini
+.. code-block:: python
     :caption: setup.py
 
     from setuptools import setup
@@ -132,11 +133,10 @@ would be:
 
 If your build depends directly on Cython in this way,
 then you may also want to inform pip that :mod:`Cython` is required for
-:file:`setup.py` to execute, following
-`PEP 518 <https://www.python.org/dev/peps/pep-0518/>`_,
+:file:`setup.py` to execute, following :pep:`518`,
 creating a :file:`pyproject.toml` file containing, at least:
 
-.. code-block:: ini
+.. code-block:: toml
     :caption: pyproject.toml
 
     [build-system]
@@ -145,7 +145,7 @@ creating a :file:`pyproject.toml` file containing, at least:
 To understand the :file:`setup.py` more fully look at the official `setuptools
 documentation`_. To compile the extension for use in the current directory use:
 
-.. code-block:: text
+.. code-block:: console
 
     $ python setup.py build_ext --inplace
 
@@ -153,7 +153,7 @@ documentation`_. To compile the extension for use in the current directory use:
 
     setuptools 74.1.0 adds experimental support for extensions in :file:`pyproject.toml` (instead of :file:`setup.py`):
 
-    .. code-block:: ini
+    .. code-block:: toml
         :caption: pyproject.toml
 
         [build-system]
@@ -171,7 +171,7 @@ documentation`_. To compile the extension for use in the current directory use:
 
     In this case, you can use any build frontend - e.g. `build <https://pypi.org/project/build/>`_
 
-    .. code-block:: text
+    .. code-block:: console
 
         $ python -m build
 
@@ -194,7 +194,7 @@ If you have :ref:`Cython include files <include_statement>` or :ref:`Cython defi
     )
 
 If you need to specify compiler options, libraries to link with or other
-linker options you will need to create ``Extension`` instances manually
+linker options you will need to create :class:`~setuptools.Extension` instances manually
 (note that glob syntax can still be used to specify multiple extensions
 in one line)::
 
@@ -243,7 +243,7 @@ the necessary C header files::
 
 If your options are static (for example you do not need to call a tool like
 ``pkg-config`` to determine them) you can also provide them directly in your
-.pyx or .pxd source file using a special comment block at the start of the file::
+``.pyx`` or ``.pxd`` source file using a special comment block at the start of the file::
 
     # distutils: libraries = spam eggs
     # distutils: include_dirs = /opt/food/include
@@ -273,24 +273,22 @@ as follows::
         ext_modules=cythonize(extensions)
     )
 
-The :class:`Extension` class takes many options, and a fuller explanation can
-be found in the `setuptools documentation`_.
-
-.. _setuptools documentation: https://setuptools.readthedocs.io/
+The :class:`~setuptools.Extension` class takes many options, and a fuller explanation can
+be found in the :external+setuptools:doc:`setuptools documentation <index>`.
 
 Sometimes this is not enough and you need finer customization of the
-setuptools :class:`Extension`.
+setuptools :class:`~setuptools.Extension`.
 To do this, you can provide a custom function ``create_extension``
-to create the final :class:`Extension` object after Cython has processed
+to create the final :class:`~setuptools.Extension` object after Cython has processed
 the sources, dependencies and ``# distutils`` directives but before the
 file is actually Cythonized.
 This function takes 2 arguments ``template`` and ``kwds``, where
-``template`` is the :class:`Extension` object given as input to Cython
+``template`` is the :class:`~setuptools.Extension` object given as input to Cython
 and ``kwds`` is a :class:`dict` with all keywords which should be used
-to create the :class:`Extension`.
+to create the :class:`~setuptools.Extension`.
 The function ``create_extension`` must return a 2-tuple
 ``(extension, metadata)``, where ``extension`` is the created
-:class:`Extension` and ``metadata`` is metadata which will be written
+:class:`~setuptools.Extension` and ``metadata`` is metadata which will be written
 as JSON at the top of the generated C files. This metadata is only used
 for debugging purposes, so you can put whatever you want in there
 (as long as it can be converted to JSON).
@@ -309,8 +307,8 @@ The default function (defined in ``Cython.Build.Dependencies``) is::
         metadata = dict(distutils=kwds, module_name=kwds['name'])
         return ext, metadata
 
-In case that you pass a string instead of an :class:`Extension` to
-``cythonize()``, the ``template`` will be an :class:`Extension` without
+In case that you pass a string instead of an :class:`~setuptools.Extension` to
+``cythonize()``, the ``template`` will be an :class:`~setuptools.Extension` without
 sources. For example, if you do ``cythonize("*.pyx")``,
 the ``template`` will be ``Extension(name="*.pyx", sources=[])``.
 
@@ -353,7 +351,7 @@ explicitly, you can use glob patterns::
         ext_modules = cythonize("package/*.pyx")
     )
 
-You can also use glob patterns in :class:`Extension` objects if you pass
+You can also use glob patterns in :class:`~setuptools.Extension` objects if you pass
 them through :func:`cythonize`::
 
     extensions = [Extension("*", ["*.pyx"])]
@@ -371,9 +369,7 @@ Distributing Cython modules
 Following recent improvements in the distribution toolchain, it is
 not recommended to include generated files in source distributions.
 Instead, `require` Cython at build-time to generate the C/C++ files,
-as defined in `PEP 518 <https://www.python.org/dev/peps/pep-0518/>`_
-and `PEP 621 <https://www.python.org/dev/peps/pep-0621/>`_.
-See :ref:`basic_setup.py`.
+as defined in :pep:`518` and :pep:`621`. See :ref:`basic_setup.py`.
 
 It is, however, possible to distribute the generated ``.c`` files together with
 your Cython sources, so that users can install your module without needing
@@ -416,7 +412,7 @@ of the extension module sources::
 If you have many extensions and want to avoid the additional complexity in the
 declarations, you can declare them with their normal Cython sources and then
 call the following function instead of ``cythonize()`` to adapt the sources
-list in the Extensions when not using Cython::
+list in the :class:`~setuptools.Extension`\ s when not using Cython::
 
     import os.path
 
@@ -462,7 +458,9 @@ Python in another application.  This can be done through the inittab
 import mechanism of CPython.
 
 Create a new C file to integrate the extension modules and add this
-macro to it::
+macro to it:
+
+.. code-block:: c
 
     #if PY_MAJOR_VERSION < 3
     # define MODINIT(name)  init ## name
@@ -473,7 +471,9 @@ macro to it::
 If you are only targeting Python 3.x, just use ``PyInit_`` as prefix.
 
 Then, for each of the modules, declare its module init function
-as follows, replacing ``some_module_name`` with the name of the module::
+as follows, replacing ``some_module_name`` with the name of the module:
+
+.. code-block:: c
 
     PyMODINIT_FUNC  MODINIT(some_module_name) (void);
 
@@ -486,7 +486,9 @@ starting with ``PyInit_``.
 Next, before you start the Python runtime from your application code
 with :c:func:`Py_Initialize()`, you need to initialise the modules at runtime
 using the :c:func:`PyImport_AppendInittab()` C-API function, again inserting
-the name of each of the modules::
+the name of each of the modules:
+
+.. code-block:: c
 
     PyImport_AppendInittab("some_module_name", MODINIT(some_module_name));
 
@@ -509,7 +511,9 @@ Compiling with :mod:`pyximport`
 ===============================
 
 For building Cython modules during development without explicitly
-running ``setup.py`` after each change, you can use :mod:`pyximport`::
+running :file:`setup.py` after each change, you can use :mod:`pyximport`:
+
+.. code-block:: pycon
 
     >>> import pyximport; pyximport.install()
     >>> import helloworld
@@ -522,7 +526,9 @@ is needed.
 
 It is also possible to compile new ``.py`` modules that are being
 imported (including the standard library and installed packages).  For
-using this feature, just tell that to :mod:`pyximport`::
+using this feature, just tell that to :mod:`pyximport`:
+
+.. code-block:: pycon
 
     >>> pyximport.install(pyimport=True)
 
@@ -532,13 +538,13 @@ will fall back to loading the source modules instead.
 Note that it is not recommended to let :mod:`pyximport` build code
 on end user side as it hooks into their import system.  The best way
 to cater for end users is to provide pre-built binary packages in the
-`wheel <https://wheel.readthedocs.io/>`_ packaging format.
+:external+wheel:doc:`index` packaging format.
 
 
 Arguments
 ---------
 
-The function ``pyximport.install()`` can take several arguments to
+The function :py:func:`pyximport.install` can take several arguments to
 influence the compilation of Cython or Python files.
 
 .. autofunction:: pyximport.install
@@ -584,7 +590,7 @@ Basic module reloading support is available with the option ``reload_support=Tru
 Note that this will generate a new module filename for each build and thus
 end up loading multiple shared libraries into memory over time. CPython has limited
 support for reloading shared libraries as such,
-see `PEP 489 <https://www.python.org/dev/peps/pep-0489/>`_.
+see :pep:`489`.
 
 Pyximport puts both your ``.c`` file and the platform-specific binary into
 a separate build directory, usually ``$HOME/.pyxblx/``.  To copy it back
@@ -598,7 +604,9 @@ Compiling with ``cython.inline``
 =================================
 
 One can also compile Cython in a fashion similar to SciPy's ``weave.inline``.
-For example::
+For example:
+
+.. code-block:: pycon
 
     >>> import cython
     >>> def f(a):
@@ -749,9 +757,9 @@ The Cython cache is disabled by default but can be enabled by the ``cache`` para
 
 The cached files are searched in the following paths by default in the following order:
 
-1. path specified in the ``CYTHON_CACHE_DIR`` environment variable,
-2. ``~/Library/Caches/Cython`` on MacOS and ``XDG_CACHE_HOME/cython`` on posix if the ``XDG_CACHE_HOME`` environment variable is defined,
-3. otherwise ``~/.cython``.
+1. path specified in the :envvar:`CYTHON_CACHE_DIR` environment variable,
+2. :file:`~/Library/Caches/Cython` on MacOS and :file:`${XDG_CACHE_HOME}/cython` on POSIX if the :envvar:`XDG_CACHE_HOME` environment variable is defined,
+3. otherwise :file:`~/.cython`.
 
 
 .. _compiler_options:
@@ -1008,7 +1016,7 @@ Cython code.  Here is the list of currently supported directives:
     Whether to print tracebacks when suppressing unraisable exceptions.
 
 ``iterable_coroutine`` (True / False), *default=False*
-    `PEP 492 <https://www.python.org/dev/peps/pep-0492/>`_ specifies that async-def
+    :pep:`492` specifies that async-def
     coroutines must not be iterable, in order to prevent accidental misuse in
     non-async contexts.  However, this makes it difficult and inefficient to write
     backwards compatible code that uses async-def coroutines in Cython but needs to
@@ -1127,7 +1135,7 @@ comments or whitespace).
 
 One can also pass a directive on the command line by using the -X switch:
 
-.. code-block:: bash
+.. code-block:: console
 
     $ cython -X boundscheck=True ...
 
@@ -1234,12 +1242,12 @@ most important to least important:
     macro to be the version hex for the
     minimum Python version you want to support (>=3.7).  ``0x03070000`` will support
     Python 3.7 upwards.
-    Note that this is a `Python macro <https://docs.python.org/3/c-api/stable.html#c.Py_LIMITED_API>`_,
+    Note that this is a :external+python:c:macro:`Python macro <Py_LIMITED_API>`_,
     rather than just a Cython macro, and so it changes what parts of the Python headers
     are visible too.  See :ref:`limited_api` for more details about this feature.
 
 ``CYTHON_PEP489_MULTI_PHASE_INIT``
-    Uses multi-phase module initialization as described in PEP489.  This improves
+    Uses multi-phase module initialization as described in :pep:`489`.  This improves
     Python compatibility, especially when running the initial import of the code when it
     makes attributes such as ``__file__`` available.  It is therefore on by default
     where supported.
@@ -1252,8 +1260,8 @@ most important to least important:
     globals have not been moved.
 
 ``CYTHON_USE_TYPE_SPECS``
-    Defines ``cdef classes`` as `"heap types" <https://docs.python.org/3/c-api/typeobj.html#heap-types>`_
-    rather than "static types".  Practically this does not change a lot from a user
+    Defines ``cdef class``\ es as :external+python:ref:`heap-types` rather than
+    "static types".  Practically this does not change a lot from a user
     point of view, but it is needed to implement Limited API support.
 
 ``CYTHON_PROFILE``, ``CYTHON_TRACE``, ``CYTHON_TRACE_NOGIL``
@@ -1342,11 +1350,11 @@ hidden by default since most users will be uninterested in changing them.
             mechanism on older Python versions (<3.8).
 
         ``CYTHON_PEP487_INIT_SUBCLASS``
-            Enable `PEP-487 <https://peps.python.org/pep-0487/>`_ ``__init_subclass__`` behaviour.
+            Enable :pep:`487` ``__init_subclass__`` behaviour.
 
         ``CYTHON_USE_TP_FINALIZE``
             Use the ``tp_finalize`` type-slot instead of ``tp_dealloc``,
-            as described in `PEP-442 <https://peps.python.org/pep-0442/>`_.
+            as described in :pep:`442`.
 
         ``CYTHON_USE_DICT_VERSIONS``
             Try to optimize attribute lookup by using versioned dictionaries
@@ -1369,7 +1377,7 @@ hidden by default since most users will be uninterested in changing them.
 
         ``CYTHON_DEBUG_VISIT_CONST``
             Debug option for including constant (string/integer/code/…) objects in
-            [``gc.get_referents()``](https://docs.python.org/3/library/gc.html#gc.get_referents).
+            :external+python:py:func:`gc.get_referents`.
             By default, Cython avoids GC traversing these objects because they can never participate
             in reference cycles, and thus would uselessly waste time during garbage collection runs.
             
