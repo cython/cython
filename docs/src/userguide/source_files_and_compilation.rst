@@ -458,7 +458,7 @@ Python in another application.  This can be done through the inittab
 import mechanism of CPython.
 
 Create a new C file to integrate the extension modules and add this
-macro to it::
+macro to it:
 
 .. code-block:: c
 
@@ -471,7 +471,7 @@ macro to it::
 If you are only targeting Python 3.x, just use ``PyInit_`` as prefix.
 
 Then, for each of the modules, declare its module init function
-as follows, replacing ``some_module_name`` with the name of the module::
+as follows, replacing ``some_module_name`` with the name of the module:
 
 .. code-block:: c
 
@@ -486,7 +486,7 @@ starting with ``PyInit_``.
 Next, before you start the Python runtime from your application code
 with :c:func:`Py_Initialize()`, you need to initialise the modules at runtime
 using the :c:func:`PyImport_AppendInittab()` C-API function, again inserting
-the name of each of the modules::
+the name of each of the modules:
 
 .. code-block:: c
 
