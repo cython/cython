@@ -63,3 +63,12 @@ def complex_conjugate_nonsimple():
     """
     x = float_result().conjugate()
     return x
+
+
+def complex_builtin_function(a, b):
+    """
+    >>> two = complex_builtin_function(1.0, 0.5)
+    >>> two == (2+0j)  or  two
+    True
+    """
+    return complex(a) / complex(b)
