@@ -484,7 +484,14 @@ static PyObject* {{funcname}}({{struct_type_decl}} value) {
         {{py:attr = "value.f%s" % ix}}
         item = {{component.to_py_function}}({{attr}});
         if (!item) goto bad;
+        #if !CYTHON_ASSUME_SAFE_MACROS
+        if (unlikely(PyTuple_SetItem(result, {{ix}}, item) < 0)) {
+            item = NULL; // stolen
+            goto bad;
+        }
+        #else
         PyTuple_SET_ITEM(result, {{ix}}, item);
+        #endif
     {{endfor}}
 
     return result;
@@ -872,6 +879,7 @@ static CYTHON_INLINE PyObject* {{TO_PY_FUNCTION}}({{TYPE}} value, Py_ssize_t wid
 /////////////// CIntToPyUnicode ///////////////
 //@requires: StringTools.c::IncludeStringH
 //@requires: StringTools.c::BuildPyUnicode
+//@requires: ModuleSetupCode.c::IncludeStdlibH
 //@requires: COrdinalToPyUnicode
 //@requires: CIntToDigits
 //@requires: GCCDiagnostics
@@ -1308,6 +1316,7 @@ static __Pyx_generic_func_pointer_$cyversion __Pyx_capsule_to_c_func_ptr_$cyvers
 
 /////////////// CFuncPtrFromPy.proto ///////////////
 //@substitute: naming
+//@requires: StringTools.c::IncludeStringH
 
 #ifndef __PYX_HAVE_RT_CFuncPtrFromPy_$cyversion
 #define __PYX_HAVE_RT_CFuncPtrFromPy_$cyversion

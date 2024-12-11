@@ -4525,10 +4525,11 @@ class IndexNode(_IndexingBaseNode):
 
     def calculate_result_code(self):
         if self.base.type in (list_type, tuple_type, bytearray_type):
+            # Note - possibility of missing an error if not ASSUME_SAFE_MACROS
             if self.base.type is list_type:
-                index_code = "PyList_GET_ITEM(%s, %s)"
+                index_code = "__Pyx_PyList_GET_ITEM(%s, %s)"
             elif self.base.type is tuple_type:
-                index_code = "PyTuple_GET_ITEM(%s, %s)"
+                index_code = "__Pyx_PyTuple_GET_ITEM(%s, %s)"
             elif self.base.type is bytearray_type:
                 index_code = "((unsigned char)(PyByteArray_AS_STRING(%s)[%s]))"
             else:
@@ -9568,6 +9569,7 @@ class DictNode(ExprNode):
                 key_cname = member.cname
                 value_cname = item.value.result()
                 if item.value.type.is_array:
+                    code.globalstate.use_utility_code(UtilityCode.load_cached("IncludeStringH", "StringTools.c"))
                     code.putln(f"memcpy({self.result()}.{key_cname}, {value_cname}, sizeof({value_cname}));")
                 else:
                     code.putln(f"{self.result()}.{key_cname} = {value_cname};")
