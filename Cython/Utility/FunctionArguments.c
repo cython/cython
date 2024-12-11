@@ -30,8 +30,8 @@ static int __Pyx__ArgTypeTest(PyObject *obj, PyTypeObject *type, const char *nam
             extra_info = PYUNICODE("Note that Cython is deliberately stricter than PEP-484 and rejects subclasses of builtin types. If you need to pass subclasses then set the 'annotation_typing' directive to False.");
         }
     }
-    type_name = __Pyx_PyType_GetName(type);
-    obj_type_name = __Pyx_PyType_GetName(Py_TYPE(obj));
+    type_name = __Pyx_PyType_GetFullyQualifiedName(type);
+    obj_type_name = __Pyx_PyType_GetFullyQualifiedName(Py_TYPE(obj));
     PyErr_Format(PyExc_TypeError,
         "Argument '%.200s' has incorrect type (expected " __Pyx_FMT_TYPENAME
         ", got " __Pyx_FMT_TYPENAME ")"
@@ -134,7 +134,7 @@ static void __Pyx_RaiseMappingExpectedError(PyObject* arg); /*proto*/
 //////////////////// RaiseMappingExpected ////////////////////
 
 static void __Pyx_RaiseMappingExpectedError(PyObject* arg) {
-    __Pyx_TypeName arg_type_name = __Pyx_PyType_GetName(Py_TYPE(arg));
+    __Pyx_TypeName arg_type_name = __Pyx_PyType_GetFullyQualifiedName(Py_TYPE(arg));
     PyErr_Format(PyExc_TypeError,
         "'" __Pyx_FMT_TYPENAME "' object is not a mapping", arg_type_name);
     __Pyx_DECREF_TypeName(arg_type_name);
