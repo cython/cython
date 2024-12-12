@@ -1734,7 +1734,7 @@ static PyObject *__Pyx_CoroutineAwait_no_new(PyTypeObject *type, PyObject *args,
 static PyObject *__Pyx_CoroutineAwait_reduce_ex(__pyx_CoroutineAwaitObject *self, PyObject *arg) {
     CYTHON_UNUSED_VAR(arg);
 
-    __Pyx_TypeName self_type_name = __Pyx_PyType_GetName(Py_TYPE((PyObject*)self));
+    __Pyx_TypeName self_type_name = __Pyx_PyType_GetFullyQualifiedName(Py_TYPE((PyObject*)self));
     PyErr_Format(PyExc_TypeError, "cannot pickle '" __Pyx_FMT_TYPENAME "' object",
                          self_type_name);
     __Pyx_DECREF_TypeName(self_type_name);
