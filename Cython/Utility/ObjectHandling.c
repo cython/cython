@@ -2947,19 +2947,15 @@ __Pyx_PyType_GetFullyQualifiedName(PyTypeObject* tp)
 {
     PyObject *module = NULL, *name = NULL, *result = NULL;
 
-    #if __PYX_LIMITED__VERSION_HEX < 0x030B0000
+    #if __PYX_LIMITED_VERSION_HEX < 0x030B0000
     name = __Pyx_PyObject_GetAttrStr((PyObject *)tp,
                                                PYIDENT("__qualname__"));
     #else
     name = PyType_GetQualName(tp);
     #endif
     if (unlikely(name == NULL) || unlikely(!PyUnicode_Check(name))) goto bad;
-    #if __PYX_LIMITED__VERSION_HEX < 0x030B0000
     module = __Pyx_PyObject_GetAttrStr((PyObject *)tp,
                                                PYIDENT("__module__"));
-    #else
-    module = PyType_GetModuleName(tp);
-    #endif
     if (unlikely(module == NULL) || unlikely(!PyUnicode_Check(module))) goto bad;
 
     if (PyUnicode_CompareWithASCIIString(module, "builtins") == 0) {
