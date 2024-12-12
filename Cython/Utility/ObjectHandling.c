@@ -266,7 +266,7 @@ static PyObject *__Pyx_PyIter_Next2Default(PyObject* defval) {
 }
 
 static void __Pyx_PyIter_Next_ErrorNoIterator(PyObject *iterator) {
-    __Pyx_TypeName iterator_type_name = __Pyx_PyType_GetName(Py_TYPE(iterator));
+    __Pyx_TypeName iterator_type_name = __Pyx_PyType_GetFullyQualifiedName(Py_TYPE(iterator));
     PyErr_Format(PyExc_TypeError,
         __Pyx_FMT_TYPENAME " object is not an iterator", iterator_type_name);
     __Pyx_DECREF_TypeName(iterator_type_name);
@@ -360,7 +360,7 @@ static PyObject *__Pyx_PyObject_GetIndex(PyObject *obj, PyObject *index) {
 
     // Error handling code -- only manage OverflowError differently.
     if (PyErr_GivenExceptionMatches(runerr, PyExc_OverflowError)) {
-        __Pyx_TypeName index_type_name = __Pyx_PyType_GetName(Py_TYPE(index));
+        __Pyx_TypeName index_type_name = __Pyx_PyType_GetFullyQualifiedName(Py_TYPE(index));
         PyErr_Clear();
         PyErr_Format(PyExc_IndexError,
             "cannot fit '" __Pyx_FMT_TYPENAME "' into an index-sized integer", index_type_name);
@@ -383,7 +383,7 @@ static PyObject *__Pyx_PyObject_GetItem_Slow(PyObject *obj, PyObject *key) {
         }
     }
 
-    obj_type_name = __Pyx_PyType_GetName(Py_TYPE(obj));
+    obj_type_name = __Pyx_PyType_GetFullyQualifiedName(Py_TYPE(obj));
     PyErr_Format(PyExc_TypeError,
         "'" __Pyx_FMT_TYPENAME "' object is not subscriptable", obj_type_name);
     __Pyx_DECREF_TypeName(obj_type_name);
@@ -778,7 +778,7 @@ static CYTHON_INLINE int __Pyx_PyObject_SetSlice(PyObject* obj, PyObject* value,
         }
         return result;
     }
-    obj_type_name = __Pyx_PyType_GetName(Py_TYPE(obj));
+    obj_type_name = __Pyx_PyType_GetFullyQualifiedName(Py_TYPE(obj));
     PyErr_Format(PyExc_TypeError,
 {{if access == 'Get'}}
         "'" __Pyx_FMT_TYPENAME "' object is unsliceable", obj_type_name);
@@ -1278,8 +1278,8 @@ static CYTHON_INLINE int __Pyx_TypeTest(PyObject *obj, PyTypeObject *type) {
     }
     if (likely(__Pyx_TypeCheck(obj, type)))
         return 1;
-    obj_type_name = __Pyx_PyType_GetName(Py_TYPE(obj));
-    type_name = __Pyx_PyType_GetName(type);
+    obj_type_name = __Pyx_PyType_GetFullyQualifiedName(Py_TYPE(obj));
+    type_name = __Pyx_PyType_GetFullyQualifiedName(type);
     PyErr_Format(PyExc_TypeError,
                  "Cannot convert " __Pyx_FMT_TYPENAME " to " __Pyx_FMT_TYPENAME,
                  obj_type_name, type_name);
@@ -1734,7 +1734,7 @@ static int __Pyx_PyObject_GetMethod(PyObject *obj, PyObject *name, PyObject **me
         return 0;
     }
 
-    type_name = __Pyx_PyType_GetName(tp);
+    type_name = __Pyx_PyType_GetFullyQualifiedName(tp);
     PyErr_Format(PyExc_AttributeError,
                  "'" __Pyx_FMT_TYPENAME "' object has no attribute '%U'",
                  type_name, name);
@@ -2925,29 +2925,63 @@ static CYTHON_INLINE PyObject* __Pyx_PySequence_Multiply(PyObject *seq, Py_ssize
 #if CYTHON_COMPILING_IN_LIMITED_API
 typedef PyObject *__Pyx_TypeName;
 #define __Pyx_FMT_TYPENAME "%U"
-static __Pyx_TypeName __Pyx_PyType_GetName(PyTypeObject* tp); /*proto*/
 #define __Pyx_DECREF_TypeName(obj) Py_XDECREF(obj)
+
+#if __PYX_LIMITED_VERSION_HEX >= 0x030d0000
+#define __Pyx_PyType_GetFullyQualifiedName PyType_GetFullyQualifiedName
 #else
+static __Pyx_TypeName __Pyx_PyType_GetFullyQualifiedName(PyTypeObject* tp); /*proto*/
+#endif
+#else  // !LIMITED_API
 typedef const char *__Pyx_TypeName;
 #define __Pyx_FMT_TYPENAME "%.200s"
-#define __Pyx_PyType_GetName(tp) ((tp)->tp_name)
+#define __Pyx_PyType_GetFullyQualifiedName(tp) ((tp)->tp_name)
 #define __Pyx_DECREF_TypeName(obj)
 #endif
 
 /////////////// FormatTypeName ///////////////
 
-#if CYTHON_COMPILING_IN_LIMITED_API
+#if CYTHON_COMPILING_IN_LIMITED_API && __PYX_LIMITED_VERSION_HEX < 0x030d0000
 static __Pyx_TypeName
-__Pyx_PyType_GetName(PyTypeObject* tp)
+__Pyx_PyType_GetFullyQualifiedName(PyTypeObject* tp)
 {
-    PyObject *name = __Pyx_PyObject_GetAttrStr((PyObject *)tp,
-                                               PYIDENT("__name__"));
-    if (unlikely(name == NULL) || unlikely(!PyUnicode_Check(name))) {
-        PyErr_Clear();
-        Py_XDECREF(name);
-        name = __Pyx_NewRef(PYUNICODE("?"));
+    PyObject *module = NULL, *name = NULL, *result = NULL;
+
+    #if __PYX_LIMITED_VERSION_HEX < 0x030B0000
+    name = __Pyx_PyObject_GetAttrStr((PyObject *)tp,
+                                               PYIDENT("__qualname__"));
+    #else
+    name = PyType_GetQualName(tp);
+    #endif
+    if (unlikely(name == NULL) || unlikely(!PyUnicode_Check(name))) goto bad;
+    module = __Pyx_PyObject_GetAttrStr((PyObject *)tp,
+                                               PYIDENT("__module__"));
+    if (unlikely(module == NULL) || unlikely(!PyUnicode_Check(module))) goto bad;
+
+    if (PyUnicode_CompareWithASCIIString(module, "builtins") == 0) {
+        result = name;
+        name = NULL;
+        goto done;
     }
-    return name;
+
+    result = PyUnicode_FromFormat("%U.%U", module, name);
+    if (unlikely(result == NULL)) goto bad;
+
+  done:
+    Py_XDECREF(name);
+    Py_XDECREF(module);
+    return result;
+
+  bad:
+    PyErr_Clear();
+    if (name) {
+        // Use this as second-best fallback
+        result = name;
+        name = NULL;
+    } else {
+        result = __Pyx_NewRef(PYUNICODE("?"));
+    }
+    goto done;
 }
 #endif
 
@@ -2961,7 +2995,7 @@ static int __Pyx_RaiseUnexpectedTypeError(const char *expected, PyObject *obj); 
 static int
 __Pyx_RaiseUnexpectedTypeError(const char *expected, PyObject *obj)
 {
-    __Pyx_TypeName obj_type_name = __Pyx_PyType_GetName(Py_TYPE(obj));
+    __Pyx_TypeName obj_type_name = __Pyx_PyType_GetFullyQualifiedName(Py_TYPE(obj));
     PyErr_Format(PyExc_TypeError, "Expected %s, got " __Pyx_FMT_TYPENAME,
                  expected, obj_type_name);
     __Pyx_DECREF_TypeName(obj_type_name);

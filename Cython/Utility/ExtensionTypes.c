@@ -134,7 +134,7 @@ static int __Pyx_validate_bases_tuple(const char *type_name, Py_ssize_t dictoffs
         b = (PyTypeObject*) b0;
         if (!__Pyx_PyType_HasFeature(b, Py_TPFLAGS_HEAPTYPE))
         {
-            __Pyx_TypeName b_name = __Pyx_PyType_GetName(b);
+            __Pyx_TypeName b_name = __Pyx_PyType_GetFullyQualifiedName(b);
             PyErr_Format(PyExc_TypeError,
                 "base class '" __Pyx_FMT_TYPENAME "' is not a heap type", b_name);
             __Pyx_DECREF_TypeName(b_name);
@@ -157,7 +157,7 @@ static int __Pyx_validate_bases_tuple(const char *type_name, Py_ssize_t dictoffs
 #endif
             if (b_dictoffset) {
                 {
-                    __Pyx_TypeName b_name = __Pyx_PyType_GetName(b);
+                    __Pyx_TypeName b_name = __Pyx_PyType_GetFullyQualifiedName(b);
                     PyErr_Format(PyExc_TypeError,
                         "extension type '%.200s' has no __dict__ slot, "
                         "but base type '" __Pyx_FMT_TYPENAME "' has: "
@@ -529,7 +529,7 @@ static int __Pyx_setup_reduce(PyObject* type_obj) {
 __PYX_BAD:
     if (!PyErr_Occurred()) {
         __Pyx_TypeName type_obj_name =
-            __Pyx_PyType_GetName((PyTypeObject*)type_obj);
+            __Pyx_PyType_GetFullyQualifiedName((PyTypeObject*)type_obj);
         PyErr_Format(PyExc_RuntimeError,
             "Unable to initialize pickling for " __Pyx_FMT_TYPENAME, type_obj_name);
         __Pyx_DECREF_TypeName(type_obj_name);
@@ -637,7 +637,7 @@ static int __Pyx_validate_extern_base(PyTypeObject *base) {
         return -1;
 #endif
     if (itemsize) {
-        __Pyx_TypeName b_name = __Pyx_PyType_GetName(base);
+        __Pyx_TypeName b_name = __Pyx_PyType_GetFullyQualifiedName(base);
         PyErr_Format(PyExc_TypeError,
                 "inheritance from PyVarObject types like '" __Pyx_FMT_TYPENAME "' not currently supported", b_name);
         __Pyx_DECREF_TypeName(b_name);
