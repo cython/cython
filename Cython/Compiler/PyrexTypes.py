@@ -5247,7 +5247,7 @@ def result_type_of_builtin_operation(builtin_type, type2):
         elif type2.is_builtin_type and type2.name == 'complex':
             return type2
     elif builtin_type.name == 'complex':
-        if type2 == builtin_type or type2.is_complex:
+        if type2.is_complex:
             return CComplexType(widest_numeric_type(c_double_type, type2.real_type))
         elif type2.is_numeric:
             return CComplexType(widest_numeric_type(c_double_type, type2))

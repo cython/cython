@@ -311,7 +311,7 @@ static CYTHON_INLINE int __Pyx_PyObject_IsTrueAndDecref(PyObject* x) {
 }
 
 static PyObject* __Pyx_PyNumber_LongWrongResultType(PyObject* result) {
-    __Pyx_TypeName result_type_name = __Pyx_PyType_GetName(Py_TYPE(result));
+    __Pyx_TypeName result_type_name = __Pyx_PyType_GetFullyQualifiedName(Py_TYPE(result));
     if (PyLong_Check(result)) {
         // CPython issue #17576: warn if 'result' not of exact type int.
         if (PyErr_WarnFormat(PyExc_DeprecationWarning, 1,
@@ -533,7 +533,7 @@ bad:
 
 static void __Pyx_seq_{{funcname}}(PyObject * o, {{struct_type_decl}} *result) {
     if (unlikely(!PySequence_Check(o))) {
-        __Pyx_TypeName o_type_name = __Pyx_PyType_GetName(Py_TYPE(o));
+        __Pyx_TypeName o_type_name = __Pyx_PyType_GetFullyQualifiedName(Py_TYPE(o));
         PyErr_Format(PyExc_TypeError,
                      "Expected a sequence of size %zd, got " __Pyx_FMT_TYPENAME, (Py_ssize_t) {{size}}, o_type_name);
         __Pyx_DECREF_TypeName(o_type_name);

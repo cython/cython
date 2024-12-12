@@ -3114,6 +3114,9 @@ class CCodeWriter:
             retvalue_cname = return_type.as_pyobject(retvalue_cname)
         elif return_type.is_void:
             retvalue_cname = 'Py_None'
+        elif return_type.is_string:
+            # We don't know if the C string is 0-terminated, but we cannot convert if it's not.
+            retvalue_cname = 'Py_None'
         elif return_type.to_py_function:
             trace_func = "__Pyx_TraceReturnCValue"
             extra_arg = f", {return_type.to_py_function}"

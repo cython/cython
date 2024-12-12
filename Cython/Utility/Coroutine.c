@@ -62,7 +62,7 @@ static CYTHON_INLINE __Pyx_PySendResult __Pyx_Generator_Yield_From(__pyx_Corouti
 
 #if CYTHON_USE_TYPE_SLOTS
 static void __Pyx_PyIter_CheckErrorAndDecref(PyObject *source) {
-    __Pyx_TypeName source_type_name = __Pyx_PyType_GetName(Py_TYPE(source));
+    __Pyx_TypeName source_type_name = __Pyx_PyType_GetFullyQualifiedName(Py_TYPE(source));
     PyErr_Format(PyExc_TypeError,
         "iter() returned non-iterator of type '" __Pyx_FMT_TYPENAME "'", source_type_name);
     __Pyx_DECREF_TypeName(source_type_name);
@@ -209,13 +209,13 @@ static CYTHON_INLINE PyObject *__Pyx_Coroutine_GetAwaitableIter(PyObject *o) {
 
 static void __Pyx_Coroutine_AwaitableIterError(PyObject *source) {
 #if PY_VERSION_HEX < 0x030d0000 || defined(_PyErr_FormatFromCause)
-    __Pyx_TypeName source_type_name = __Pyx_PyType_GetName(Py_TYPE(source));
+    __Pyx_TypeName source_type_name = __Pyx_PyType_GetFullyQualifiedName(Py_TYPE(source));
     _PyErr_FormatFromCause(PyExc_TypeError,
         "'async for' received an invalid object from __anext__: " __Pyx_FMT_TYPENAME, source_type_name);
     __Pyx_DECREF_TypeName(source_type_name);
 #else
     PyObject *exc, *val, *val2, *tb;
-    __Pyx_TypeName source_type_name = __Pyx_PyType_GetName(Py_TYPE(source));
+    __Pyx_TypeName source_type_name = __Pyx_PyType_GetFullyQualifiedName(Py_TYPE(source));
     assert(PyErr_Occurred());
     PyErr_Fetch(&exc, &val, &tb);
     PyErr_NormalizeException(&exc, &val, &tb);
@@ -276,7 +276,7 @@ static PyObject *__Pyx__Coroutine_GetAwaitableIter(PyObject *obj) {
         goto bad;
     }
     if (unlikely(!PyIter_Check(res))) {
-        __Pyx_TypeName res_type_name = __Pyx_PyType_GetName(Py_TYPE(res));
+        __Pyx_TypeName res_type_name = __Pyx_PyType_GetFullyQualifiedName(Py_TYPE(res));
         PyErr_Format(PyExc_TypeError,
             "__await__() returned non-iterator of type '" __Pyx_FMT_TYPENAME "'", res_type_name);
         __Pyx_DECREF_TypeName(res_type_name);
@@ -298,7 +298,7 @@ static PyObject *__Pyx__Coroutine_GetAwaitableIter(PyObject *obj) {
     return res;
 slot_error:
     {
-        __Pyx_TypeName obj_type_name = __Pyx_PyType_GetName(Py_TYPE(obj));
+        __Pyx_TypeName obj_type_name = __Pyx_PyType_GetFullyQualifiedName(Py_TYPE(obj));
         PyErr_Format(PyExc_TypeError,
             "object " __Pyx_FMT_TYPENAME " can't be used in 'await' expression", obj_type_name);
         __Pyx_DECREF_TypeName(obj_type_name);
@@ -317,7 +317,7 @@ static CYTHON_INLINE PyObject *__Pyx_Coroutine_AsyncIterNext(PyObject *o); /*pro
 //@requires: GetAwaitIter
 
 static PyObject *__Pyx_Coroutine_GetAsyncIter_Fail(PyObject *obj) {
-    __Pyx_TypeName obj_type_name = __Pyx_PyType_GetName(Py_TYPE(obj));
+    __Pyx_TypeName obj_type_name = __Pyx_PyType_GetFullyQualifiedName(Py_TYPE(obj));
     PyErr_Format(PyExc_TypeError,
                  "'async for' requires an object with __aiter__ method, got " __Pyx_FMT_TYPENAME, obj_type_name);
     __Pyx_DECREF_TypeName(obj_type_name);
@@ -342,7 +342,7 @@ static CYTHON_INLINE PyObject *__Pyx_Coroutine_GetAsyncIter(PyObject *obj) {
 
 
 static PyObject *__Pyx_Coroutine_AsyncIterNext_Fail(PyObject *obj) {
-    __Pyx_TypeName obj_type_name = __Pyx_PyType_GetName(Py_TYPE(obj));
+    __Pyx_TypeName obj_type_name = __Pyx_PyType_GetFullyQualifiedName(Py_TYPE(obj));
     PyErr_Format(PyExc_TypeError,
         "'async for' requires an object with __anext__ method, got " __Pyx_FMT_TYPENAME, obj_type_name);
     __Pyx_DECREF_TypeName(obj_type_name);

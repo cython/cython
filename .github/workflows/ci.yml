@@ -62,8 +62,6 @@ jobs:
             python-version: 3.13t
             backend: "cpp"
         include:
-          #- python-version: "3.13"
-          #  allowed_failure: true
 
           # Ubuntu sub-jobs:
           # ================
@@ -134,13 +132,11 @@ jobs:
             extra_hash: "-limited_api"
           - os: ubuntu-22.04
             python-version: "3.12"
-            allowed_failure: true
             backend: "c,cpp"
             env: { LIMITED_API: "--limited-api" }
             extra_hash: "-limited_api"
           - os: ubuntu-22.04
             python-version: "3.13"
-            allowed_failure: true
             backend: "c,cpp"
             env: { LIMITED_API: "--limited-api" }
             extra_hash: "-limited_api"
@@ -179,11 +175,9 @@ jobs:
           - os: ubuntu-22.04
             python-version: 3.13t
             backend: "c"
-            allowed_failure: true
           - os: ubuntu-22.04
             python-version: 3.13t
             backend: "cpp"
-            allowed_failure: true
 #          - os: windows-2019
 #            python-version: 3.13t
 #            backend: "c"
@@ -195,11 +189,9 @@ jobs:
           - os: macos-13
             python-version: 3.13t
             backend: "c"
-            allowed_failure: true
           - os: macos-13
             python-version: 3.13t
             backend: "cpp"
-            allowed_failure: true
 
     # This defaults to 360 minutes (6h) which is way too long and if a test gets stuck, it can block other pipelines.
     # From testing, the runs tend to take ~20 minutes for ubuntu / macos and ~40 for windows,
