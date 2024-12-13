@@ -10524,7 +10524,7 @@ class ParallelRangeNode(ParallelStatNode):
             # That nasty edge-case is warned about in the docs.
             with_gil_deadlock_avoidance_point.putln(
                 "int __pyx_parallel_is_freethreaded = __Pyx_IsTrueFreethreading();")
-            # error goto is difficult here (because the label jumps accross OpenMP and the
+            # error goto is difficult here (because the label jumps across OpenMP and the
             # compiler doesn't like it. Therefore clear the error and switch to non-freethreaded
             # mode (which is a safe fallback anyway))
             with_gil_deadlock_avoidance_point.putln(
