@@ -58,7 +58,7 @@ static PyObject* __Pyx_PyExec3(PyObject* o, PyObject* globals, PyObject* locals)
     // In Limited API we just use exec builtin which already has this
     else if (unlikely(!PyDict_Check(globals))) {
         __Pyx_TypeName globals_type_name =
-            __Pyx_PyType_GetName(Py_TYPE(globals));
+            __Pyx_PyType_GetFullyQualifiedName(Py_TYPE(globals));
         PyErr_Format(PyExc_TypeError,
                      "exec() arg 2 must be a dict, not " __Pyx_FMT_TYPENAME,
                      globals_type_name);
@@ -99,7 +99,7 @@ static PyObject* __Pyx_PyExec3(PyObject* o, PyObject* globals, PyObject* locals)
             if (unlikely(!s)) goto bad;
             o = s;
         } else if (unlikely(!PyBytes_Check(o))) {
-            __Pyx_TypeName o_type_name = __Pyx_PyType_GetName(Py_TYPE(o));
+            __Pyx_TypeName o_type_name = __Pyx_PyType_GetFullyQualifiedName(Py_TYPE(o));
             PyErr_Format(PyExc_TypeError,
                 "exec: arg 1 must be string, bytes or code object, got " __Pyx_FMT_TYPENAME,
                 o_type_name);
@@ -421,7 +421,7 @@ static long __Pyx__PyObject_Ord(PyObject* c) {
 #endif
     } else {
         // FIXME: support character buffers - but CPython doesn't support them either
-        __Pyx_TypeName c_type_name = __Pyx_PyType_GetName(Py_TYPE(c));
+        __Pyx_TypeName c_type_name = __Pyx_PyType_GetFullyQualifiedName(Py_TYPE(c));
         PyErr_Format(PyExc_TypeError,
             "ord() expected string of length 1, but " __Pyx_FMT_TYPENAME " found",
             c_type_name);
