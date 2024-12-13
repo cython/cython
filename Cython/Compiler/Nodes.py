@@ -609,6 +609,9 @@ class CArrayDeclaratorNode(CDeclaratorNode):
             self.dimension = self.dimension.analyse_const_expression(env)
             if not self.dimension.type.is_int:
                 error(self.dimension.pos, "Array dimension not integer")
+            if self.dimension.type.is_const and self.dimension.entry.visibility != 'extern':
+                # extern const variables declaring C constants are allowed
+                error(self.dimension.pos, "Array dimension cannot be const variable")
             size = self.dimension.get_constant_c_result_code()
             if size is not None:
                 try:
@@ -6287,6 +6290,12 @@ class SingleAssignmentNode(AssignmentNode):
         from . import ExprNodes
 
         self.rhs = self.rhs.analyse_types(env)
+
+        if self.lhs.is_name and self.lhs.entry.type.is_const:
+            if env.is_module_scope and self.lhs.entry.init is None and self.rhs.has_constant_result():
+                self.lhs.entry.init = self.rhs.constant_result
+            else:
+                error(self.pos, f"Assignment to const '{self.lhs.name}'")
 
         unrolled_assignment = self.unroll_rhs(env)
         if unrolled_assignment:
