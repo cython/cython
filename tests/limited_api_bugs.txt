@@ -1,11 +1,30 @@
 # This file contains tests corresponding to unresolved bugs using CPython's
 # Limited API which will be skipped in the normal testing run.
 
+min_async
+pep492_badsyntax_async4
+extinheritset
+extinheritdel
+
+# Something to do with complex
+view_count
+matrix_with_buffer
+
+# cimport cpython
+extension_type_memoryview
+memslice
+memoryviewattrs
+clone
+overhead
+open_file
+cython_array
+# unfortunately this excludes a few working tests too - I can't get the pattern specific enough
+memoryview[.]memoryview$
+numpy_memoryview
+memoryview_inplace_division
 convolve2
-dict_animal
-not_none
-queue3
-test_queue
+casting_python
+parameter_refcount
 
 # example in docs that use features unavailable in the limited API
 # (and it's a decision for the docs writers rather than a limitation
@@ -16,3 +35,10 @@ array.resize
 array.safe_usage
 array.unsafe_usage
 wrapping_CPlusPlus.python_to_cpp
+
+# Tests explicitly use internals
+compile[.]pylong
+
+# Excluded for now - to be enabled incrementally
+run[.]
+buffers[.]

@@ -18,6 +18,11 @@ numpy_tutorial.compute_fused_types
 numpy_tutorial.compute_infer_types
 numpy_tutorial.compute_prange
 
+compile.fused_redeclare_T3111
+compile.c_directives
+compile.cpp_structs
+compile.ctuple_unused_T3543
+
 # generic filters
 buffer
 memoryview

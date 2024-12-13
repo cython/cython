@@ -1215,6 +1215,17 @@ static CYTHON_INLINE int __Pyx_PyDict_GetItemRef(PyObject *dict, PyObject *key, 
 #define __Pyx_PyInterpreterState_Get() PyThreadState_Get()->interp
 #endif
 
+#if CYTHON_COMPILING_IN_LIMITED_API && PY_VERSION_HEX < 0x030A0000
+// PyMem_Calloc *is* in the Stable ABI in all the Limited API versions we care about.
+// However, it is omitted from the Python headers which means that C incorrectly
+// assumes it returns an int (and generates dubious code on based on that assumption).
+// Therefore, copy the prototype.
+#ifdef __cplusplus
+extern "C"
+#endif
+PyAPI_FUNC(void *) PyMem_Calloc(size_t nelem, size_t elsize); /* proto */
+#endif
+
 
 /////////////// CythonABIVersion.proto ///////////////
 //@proto_block: module_declarations
@@ -1223,7 +1234,11 @@ static CYTHON_INLINE int __Pyx_PyDict_GetItemRef(PyObject *dict, PyObject *key, 
 #if CYTHON_COMPILING_IN_LIMITED_API
     // The limited API makes some significant changes to data structures, so we don't
     // want to share the implementations compiled with and without the limited API.
-    #define __PYX_LIMITED_ABI_SUFFIX  "limited"
+    #if CYTHON_METH_FASTCALL
+        #define __PYX_LIMITED_ABI_SUFFIX  "limited_fastcall"
+    #else
+        #define __PYX_LIMITED_ABI_SUFFIX  "limited"
+    #endif
 #else
     #define __PYX_LIMITED_ABI_SUFFIX
 #endif
@@ -3005,3 +3020,7 @@ static int __Pyx_State_RemoveModule(CYTHON_UNUSED void* dummy) {
 #define __Pyx_PyCriticalSection_End1 PyCriticalSection_End
 #define __Pyx_PyCriticalSection_End2 PyCriticalSection2_End
 #endif
+
+////////////////////// IncludeStdlibH.proto //////////////////////
+
+#include <stdlib.h>
