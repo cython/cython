@@ -79,16 +79,6 @@ def parse_stage_factory(context):
         tree.compilation_source = compsrc
         tree.scope = scope
         tree.is_pxd = False
-
-        if Options.cyshared:
-            ############## INJECTING cyshared #################
-            import Cython
-            import os.path
-            context.include_directories.append(os.path.join(os.path.split(Cython.__file__)[0], 'Utility'))
-            scope = context.find_module('MemoryView')
-            tree.scope.cimported_modules.append(scope)
-            ############## INJECTING cyshared #################
-
         return tree
     return parse
 
@@ -186,6 +176,8 @@ def inject_utility_code_stage_factory(context):
                 module_node.merge_in(tree.with_compiler_directives(),
                                      tree.scope, stage="utility",
                                      merge_scope=True)
+            elif hasattr(utilcode, 'pxd_scope'):
+                module_node.scope.cimported_modules.append(utilcode.pxd_scope)
         return module_node
 
     return inject_utility_code_stage

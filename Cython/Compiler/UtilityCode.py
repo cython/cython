@@ -265,6 +265,35 @@ class CythonUtilityCode(Code.UtilityCodeBase):
         return utility_code_directives
 
 
+class CythonSharedUtilityCode:
+    def __init__(self, module_name, context, requires):
+        self._module_name = module_name
+        self.context = context
+        self.requires = requires
+
+    def declare_in_scope(self, dest_scope, used=False, cython_scope=None,
+                         allowlist=None):
+        import Cython
+        import os.path
+        cython_scope.context.include_directories.append(
+                os.path.join(os.path.split(Cython.__file__)[0], 'Utility')
+        )
+        scope = cython_scope.context.find_module(self._module_name)
+        self.pxd_scope = scope
+        # cython_scope.cimported_modules.append(scope)
+
+        for dep in self.requires:
+            if dep.is_cython_utility:
+                dep.declare_in_scope(scope, cython_scope=cython_scope)
+        return scope
+
+    def put_code(self, output):
+        pass
+
+    def get_tree(self, entries_only=False, cython_scope=None):
+        pass
+
+
 def declare_declarations_in_scope(declaration_string, env, private_type=True,
                                   *args, **kwargs):
     """
