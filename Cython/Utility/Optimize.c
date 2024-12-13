@@ -682,7 +682,7 @@ static double __Pyx__PyObject_AsDouble(PyObject* obj) {
         if (likely(nb) && likely(nb->nb_float)) {
             float_value = nb->nb_float(obj);
             if (likely(float_value) && unlikely(!PyFloat_Check(float_value))) {
-                __Pyx_TypeName float_value_type_name = __Pyx_PyType_GetName(Py_TYPE(float_value));
+                __Pyx_TypeName float_value_type_name = __Pyx_PyType_GetFullyQualifiedName(Py_TYPE(float_value));
                 PyErr_Format(PyExc_TypeError,
                     "__float__ returned non-float (type " __Pyx_FMT_TYPENAME ")",
                     float_value_type_name);

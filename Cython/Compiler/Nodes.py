@@ -609,6 +609,9 @@ class CArrayDeclaratorNode(CDeclaratorNode):
             self.dimension = self.dimension.analyse_const_expression(env)
             if not self.dimension.type.is_int:
                 error(self.dimension.pos, "Array dimension not integer")
+            if self.dimension.type.is_const and self.dimension.entry.visibility != 'extern':
+                # extern const variables declaring C constants are allowed
+                error(self.dimension.pos, "Array dimension cannot be const variable")
             size = self.dimension.get_constant_c_result_code()
             if size is not None:
                 try:
@@ -4068,17 +4071,20 @@ class DefNodeWrapper(FuncDefNode):
             code.put_var_gotref(self.star_arg.entry)
             code.put_incref(Naming.self_cname, py_object_type)
             code.put_giveref(Naming.self_cname, py_object_type)
-            code.putln("PyTuple_SET_ITEM(%s, 0, %s);" % (
-                self.star_arg.entry.cname, Naming.self_cname))
+            code.putln(code.error_goto_if_neg("__Pyx_PyTuple_SET_ITEM(%s, 0, %s)" % (
+                self.star_arg.entry.cname, Naming.self_cname), self.pos))
             temp = code.funcstate.allocate_temp(PyrexTypes.c_py_ssize_t_type, manage_ref=False)
             code.putln("for (%s=0; %s < %s; %s++) {" % (
                 temp, temp, Naming.nargs_cname, temp))
-            code.putln("PyObject* item = PyTuple_GET_ITEM(%s, %s);" % (
+            code.putln("PyObject* item = __Pyx_PyTuple_GET_ITEM(%s, %s);" % (
                 Naming.args_cname, temp))
+            code.putln("#if !CYTHON_ASSUME_SAFE_MACROS")
+            code.putln(code.error_goto_if_null("item", self.pos))
+            code.putln("#endif")
             code.put_incref("item", py_object_type)
             code.put_giveref("item", py_object_type)
-            code.putln("PyTuple_SET_ITEM(%s, %s+1, item);" % (
-                self.star_arg.entry.cname, temp))
+            code.putln(code.error_goto_if_neg("__Pyx_PyTuple_SET_ITEM(%s, %s+1, item)" % (
+                self.star_arg.entry.cname, temp), self.pos))
             code.putln("}")
             code.funcstate.release_temp(temp)
             self.star_arg.entry.xdecref_cleanup = 0
@@ -5686,8 +5692,8 @@ class CClassDefNode(ClassDefNode):
                 code.putln("if (__Pyx_PyType_GetSlot((PyTypeObject*) %s, tp_base, PyTypeObject*) != %s) {" % (
                     trial_type, first_base))
                 trial_type_base = "__Pyx_PyType_GetSlot((PyTypeObject*) %s, tp_base, PyTypeObject*)" % trial_type
-                code.putln("__Pyx_TypeName base_name = __Pyx_PyType_GetName(%s);" % trial_type_base)
-                code.putln("__Pyx_TypeName type_name = __Pyx_PyType_GetName(%s);" % first_base)
+                code.putln("__Pyx_TypeName base_name = __Pyx_PyType_GetFullyQualifiedName(%s);" % trial_type_base)
+                code.putln("__Pyx_TypeName type_name = __Pyx_PyType_GetFullyQualifiedName(%s);" % first_base)
                 code.putln("PyErr_Format(PyExc_TypeError, "
                     "\"best base '\" __Pyx_FMT_TYPENAME \"' must be equal to first base '\" __Pyx_FMT_TYPENAME \"'\",")
                 code.putln("             base_name, type_name);")
@@ -6284,6 +6290,12 @@ class SingleAssignmentNode(AssignmentNode):
         from . import ExprNodes
 
         self.rhs = self.rhs.analyse_types(env)
+
+        if self.lhs.is_name and self.lhs.entry.type.is_const:
+            if env.is_module_scope and self.lhs.entry.init is None and self.rhs.has_constant_result():
+                self.lhs.entry.init = self.rhs.constant_result
+            else:
+                error(self.pos, f"Assignment to const '{self.lhs.name}'")
 
         unrolled_assignment = self.unroll_rhs(env)
         if unrolled_assignment:
@@ -10425,6 +10437,7 @@ class ParallelRangeNode(ParallelStatNode):
         self.setup_parallel_control_flow_block(code)  # parallel control flow block
 
         # Note: nsteps is private in an outer scope if present
+        code.globalstate.use_utility_code(UtilityCode.load_cached("IncludeStdlibH", "ModuleSetupCode.c"))
         code.putln("%(nsteps)s = (%(stop)s - %(start)s + %(step)s - %(step)s/abs(%(step)s)) / %(step)s;" % fmt_dict)
 
         # The target iteration variable might not be initialized, do it only if

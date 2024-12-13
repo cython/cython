@@ -2282,8 +2282,6 @@ class NameNode(AtomicExprNode):
                 entry = self.entry = entry.as_variable
                 self.type = entry.type
 
-        if self.type.is_const:
-            error(self.pos, "Assignment to const '%s'" % self.name)
         if not self.is_lvalue():
             error(self.pos, "Assignment to non-lvalue '%s'" % self.name)
             self.type = PyrexTypes.error_type
@@ -2607,6 +2605,9 @@ class NameNode(AtomicExprNode):
                 # per entry and coupled with it.
                 self.generate_acquire_buffer(rhs, code)
             assigned = False
+            if self.type.is_const:
+                # Const variables are assigned when declared
+                assigned = True
             if self.type.is_pyobject:
                 #print "NameNode.generate_assignment_code: to", self.name ###
                 #print "...from", rhs ###
@@ -4525,10 +4526,11 @@ class IndexNode(_IndexingBaseNode):
 
     def calculate_result_code(self):
         if self.base.type in (list_type, tuple_type, bytearray_type):
+            # Note - possibility of missing an error if not ASSUME_SAFE_MACROS
             if self.base.type is list_type:
-                index_code = "PyList_GET_ITEM(%s, %s)"
+                index_code = "__Pyx_PyList_GET_ITEM(%s, %s)"
             elif self.base.type is tuple_type:
-                index_code = "PyTuple_GET_ITEM(%s, %s)"
+                index_code = "__Pyx_PyTuple_GET_ITEM(%s, %s)"
             elif self.base.type is bytearray_type:
                 index_code = "((unsigned char)(PyByteArray_AS_STRING(%s)[%s]))"
             else:
@@ -9568,6 +9570,7 @@ class DictNode(ExprNode):
                 key_cname = member.cname
                 value_cname = item.value.result()
                 if item.value.type.is_array:
+                    code.globalstate.use_utility_code(UtilityCode.load_cached("IncludeStringH", "StringTools.c"))
                     code.putln(f"memcpy({self.result()}.{key_cname}, {value_cname}, sizeof({value_cname}));")
                 else:
                     code.putln(f"{self.result()}.{key_cname} = {value_cname};")
