@@ -693,8 +693,8 @@ def search_include_directories(dirs, qualified_name, suffix="", pos=None, includ
     """
     if pos and not source_file_path:
         file_desc = pos[0]
-        # if not isinstance(file_desc, FileSourceDescriptor):
-        #     raise RuntimeError("Only file sources for code supported")
+        if not isinstance(file_desc, FileSourceDescriptor):
+            raise RuntimeError("Only file sources for code supported")
         source_file_path = file_desc.filename
     if source_file_path:
         if include:

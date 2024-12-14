@@ -15,11 +15,19 @@ options = Options.CompilationOptions()
 context = Main.Context.from_options(options)
 scope = Symtab.ModuleScope('MemoryView', parent_module = None, context = context, is_package=False)
 
-source = StringSourceDescriptor("MemoryView", '')
-source.filename = 'MemoryView.pyx'
-comp_src = Main.CompilationSource(source, EncodedString('MemoryView'), '.')
-result = Main.create_default_resultobj(comp_src, options)
+import tempfile
+import os
+import shutil
+with tempfile.TemporaryDirectory() as tmpdirname:
+    pyx_file = os.path.join(tmpdirname, 'MemoryView.pyx')
+    c_file = os.path.join(tmpdirname, 'MemoryView.c')
+    with open(pyx_file, 'w'):
+        pass
+    source_desc = FileSourceDescriptor(pyx_file)
+    comp_src = Main.CompilationSource(source_desc, EncodedString('MemoryView'), os.getcwd())
+    result = Main.create_default_resultobj(comp_src, options)
 
-pipeline = Pipeline.create_shared_library_pipeline(context, scope, options, result)
-result = Pipeline.run_pipeline(pipeline, comp_src)
-print(result)
+    pipeline = Pipeline.create_shared_library_pipeline(context, scope, options, result)
+    result = Pipeline.run_pipeline(pipeline, comp_src)
+    shutil.copy(c_file, os.getcwd())
+    print(result)
