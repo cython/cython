@@ -844,32 +844,33 @@ copy_contents_new_utility = load_memview_c_utility(
     requires=[],  # require cython_array_utility_code
 )
 
-if Options.cyshared:
-    view_utility_code = load_memview_cy_shared_utility(
-            "MemoryView",
-            context=context,
-            requires=[
-                      Buffer.buffer_struct_declare_code,
-                      Buffer.buffer_formats_declare_code,
-                      memviewslice_init_code,
-                      is_contig_utility,
-                      overlapping_utility,
-                      copy_contents_new_utility,
-                      ],
-    )
-else:
-    view_utility_code = load_memview_cy_utility(
-            "View.MemoryView",
-            context=context,
-            requires=[
-                      Buffer.buffer_struct_declare_code,
-                      Buffer.buffer_formats_declare_code,
-                      memviewslice_init_code,
-                      is_contig_utility,
-                      overlapping_utility,
-                      copy_contents_new_utility,
-                      ],
-    )
+memoryview_utility_code = load_memview_cy_utility(
+        "View.MemoryView",
+        context=context,
+        requires=[
+                  Buffer.buffer_struct_declare_code,
+                  Buffer.buffer_formats_declare_code,
+                  memviewslice_init_code,
+                  is_contig_utility,
+                  overlapping_utility,
+                  copy_contents_new_utility,
+                  ],
+)
+
+shared_utility_code = load_memview_cy_shared_utility(
+        "MemoryView",
+        context=context,
+        requires=[
+                  Buffer.buffer_struct_declare_code,
+                  Buffer.buffer_formats_declare_code,
+                  memviewslice_init_code,
+                  is_contig_utility,
+                  overlapping_utility,
+                  copy_contents_new_utility,
+                  ],
+)
+
+view_utility_code = shared_utility_code if Options.cyshared else memoryview_utility_code
 
 view_utility_allowlist = ('array', 'memoryview', 'array_cwrapper',
                           'generic', 'strided', 'indirect', 'contiguous',

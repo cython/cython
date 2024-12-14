@@ -47,7 +47,7 @@ def create_shared_library_pipeline(context, scope, options, result):
             tree.compilation_source = compsrc
             tree.scope = scope
 
-            scope.use_utility_code(MemoryView.shared_view_utility_code)
+            scope.use_utility_code(MemoryView.memoryview_utility_code)
 
             scope.use_utility_code(MemoryView.memviewslice_init_code)
             scope.use_utility_code(MemoryView.typeinfo_to_format_code)

@@ -5,9 +5,6 @@
 
 # This utility provides cython.array and cython.view.memoryview
 
-
-#################### View.MemoryView.shared ####################
-
 from __future__ import absolute_import
 
 cimport cython
