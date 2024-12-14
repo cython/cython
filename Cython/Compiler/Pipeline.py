@@ -55,16 +55,14 @@ def create_shared_library_pipeline(context, scope, options, result):
 
         return generate_tree
 
-    return list(
-        itertools.chain(
-            [generate_tree_factory(context)],
-            create_pipeline(context, 'pyx', exclude_classes=()),
-            [inject_pxd_code_stage_factory(context),
-            inject_utility_code_stage_factory(context),
-            abort_on_errors],
-            [generate_pyx_code_stage_factory(options, result)],
-        )
-    )
+    return [
+        generate_tree_factory(context),
+        *create_pipeline(context, 'pyx', exclude_classes=()),
+        inject_pxd_code_stage_factory(context),
+        inject_utility_code_stage_factory(context),
+        abort_on_errors,
+        generate_pyx_code_stage_factory(options, result),
+    ]
 
 def parse_stage_factory(context):
     def parse(compsrc):
