@@ -280,7 +280,6 @@ class CythonSharedUtilityCode:
         )
         scope = cython_scope.context.find_module(self._module_name)
         self.pxd_scope = scope
-        # cython_scope.cimported_modules.append(scope)
 
         for dep in self.requires:
             if dep.is_cython_utility:
