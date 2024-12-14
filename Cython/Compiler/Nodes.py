@@ -10519,7 +10519,7 @@ class ParallelRangeNode(ParallelStatNode):
             # a barrier in some implementations). So the safe thing to do is
             # not to hold the GIL while going round the loop.
             # If the GIL doesn't exist then the above doesn't apply.
-            # Unless it gets turned on during the loop because the user 
+            # Unless it gets turned on during the loop because the user
             # imports a module that causes the interpreter to enable the GIL
             # That nasty edge-case is warned about in the docs.
             with_gil_deadlock_avoidance_point.putln(
