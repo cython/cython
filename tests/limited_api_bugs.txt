@@ -80,7 +80,6 @@ builtin_ord
 
 # Segfault
 cfunc_convert
-dict_setdefault
 duplicate_keyword_in_call
 
 # Excluded for now - to be enabled incrementally

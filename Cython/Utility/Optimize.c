@@ -246,9 +246,13 @@ static CYTHON_INLINE PyObject *__Pyx_PyDict_SetDefault(PyObject *d, PyObject *ke
                                                        int is_safe_type) {
     PyObject* value;
     CYTHON_MAYBE_UNUSED_VAR(is_safe_type);
+#if CYTHON_COMPILING_IN_LIMITED_API
+    value = PyObject_CallMethod(d, "setdefault", "OO", key, default_value);
+#else
     value = PyDict_SetDefault(d, key, default_value);
     if (unlikely(!value)) return NULL;
     Py_INCREF(value);
+#endif
     return value;
 }
 
