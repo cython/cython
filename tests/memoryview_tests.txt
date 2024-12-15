@@ -23,6 +23,9 @@ compile.c_directives
 compile.cpp_structs
 compile.ctuple_unused_T3543
 
+run[.]cdef_class_dataclass
+run[.]cyfunction_defaults
+
 # generic filters
 buffer
 memoryview
