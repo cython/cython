@@ -38,6 +38,8 @@ run[.]nogil
 run[.]no_gc
 run[.]numpy
 line_trace
+# Possibly only on early versions of Python?
+fused_def
 
 # Something to do with complex
 view_count
