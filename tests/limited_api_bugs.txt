@@ -37,7 +37,7 @@ importfrom
 run[.]nogil
 run[.]no_gc
 run[.]numpy
-linetrace
+line_trace
 
 # Something to do with complex
 view_count
