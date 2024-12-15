@@ -183,7 +183,7 @@ cdef void refcount_objects_in_slice(char *data, Py_ssize_t *shape,
 cdef void slice_assign_scalar(__Pyx_memviewslice *dst, int ndim,
                               size_t itemsize, void *item,
                               bint dtype_is_object) noexcept nogil
- 
+
 @cname('__pyx_memoryview__slice_assign_scalar')
 cdef void _slice_assign_scalar(char *data, Py_ssize_t *shape,
                               Py_ssize_t *strides, int ndim,
