@@ -43,6 +43,7 @@ longintrepr
 # Possibly only on early versions of Python?
 fused_def
 legacy_implicit_noexcept
+method_module_name_T422
 
 # Something to do with complex
 view_count
