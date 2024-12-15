@@ -4,7 +4,7 @@
 
 
 import os
-from argparse import ArgumentParser, Action, SUPPRESS
+from argparse import ArgumentParser, Action, SUPPRESS, RawDescriptionHelpFormatter
 from . import Options
 
 
@@ -72,7 +72,14 @@ def create_cython_argparser():
     description = "Cython (https://cython.org/) is a compiler for code written in the "\
                   "Cython language.  Cython is based on Pyrex by Greg Ewing."
 
-    parser = ArgumentParser(description=description, argument_default=SUPPRESS)
+    parser = ArgumentParser(
+        description=description,
+        argument_default=SUPPRESS,
+        formatter_class=RawDescriptionHelpFormatter,
+        epilog="""\
+Environment variables:
+  CYTHON_CACHE_DIR: the base directory containing Cython's caches."""
+    )
 
     parser.add_argument("-V", "--version", dest='show_version', action='store_const', const=1,
                       help='Display version number of cython compiler')
@@ -95,6 +102,8 @@ def create_cython_argparser():
     parser.add_argument("--cleanup", dest='generate_cleanup_code', action='store', type=int,
                       help='Release interned objects on python exit, for memory debugging. '
                            'Level indicates aggressiveness, default 0 releases nothing.')
+    parser.add_argument("--cache", dest='cache', action='store_true',
+                      help='Enables Cython compilation cache.')
     parser.add_argument("-w", "--working", dest='working_path', action='store', type=str,
                       help='Sets the working directory for Cython (the directory modules are searched from)')
     parser.add_argument("--gdb", action=SetGDBDebugAction, nargs=0,
