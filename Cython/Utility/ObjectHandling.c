@@ -1962,10 +1962,10 @@ static CYTHON_INLINE PyObject *__Pyx_CallUnboundCMethod2(__Pyx_CachedCFunction *
 #endif
 
 static PyObject* __Pyx__CallUnboundCMethod2(__Pyx_CachedCFunction* cfunc, PyObject* self, PyObject* arg1, PyObject* arg2){
-    PyObject *result = NULL;
     if (unlikely(!cfunc->func && !cfunc->method) && unlikely(__Pyx_TryUnpackUnboundCMethod(cfunc) < 0)) return NULL;
 #if CYTHON_COMPILING_IN_CPYTHON
     if (cfunc->func && (cfunc->flag & METH_VARARGS)) {
+        PyObject *result = NULL;
         PyObject *args = PyTuple_New(2);
         if (unlikely(!args)) return NULL;
         Py_INCREF(arg1);
