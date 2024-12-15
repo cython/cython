@@ -28,6 +28,7 @@ run[.]cyfunction_defaults
 run[.]embedsignatures
 run[.]extra_walrus
 run[.]nonecheck
+run[.]locals
 
 # generic filters
 buffer
