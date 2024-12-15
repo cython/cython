@@ -870,7 +870,7 @@ shared_utility_code = load_memview_cy_shared_utility(
                   ],
 )
 
-view_utility_code = shared_utility_code if Options.cyshared else memoryview_utility_code
+view_utility_code = shared_utility_code if Options.use_shared_utility else memoryview_utility_code
 
 view_utility_allowlist = ('array', 'memoryview', 'array_cwrapper',
                           'generic', 'strided', 'indirect', 'contiguous',

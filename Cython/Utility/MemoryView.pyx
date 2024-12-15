@@ -275,6 +275,11 @@ cdef array array_cwrapper(tuple shape, Py_ssize_t itemsize, char *format, const 
     return result
 
 
+@cname('__pyx_memoryview_check')
+cdef inline bint memoryview_check(object o) noexcept:
+    return isinstance(o, memoryview)
+
+
 #
 ### Memoryview constants and cython.view.memoryview class
 #
