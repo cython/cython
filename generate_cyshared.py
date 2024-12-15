@@ -9,7 +9,7 @@ from Cython.Compiler.Scanning import StringSourceDescriptor, FileSourceDescripto
 
 Errors.init_thread()
 Errors.open_listing_file(None)
-Options.generate_cyshared = True
+Options.use_shared_utility = True
 
 options = Options.CompilationOptions()
 context = Main.Context.from_options(options)
