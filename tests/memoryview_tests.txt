@@ -25,6 +25,10 @@ compile.ctuple_unused_T3543
 
 run[.]cdef_class_dataclass
 run[.]cyfunction_defaults
+run[.]embedsignatures
+run[.]extra_walrus
+run[.]nonecheck
+run[.]locals
 
 # generic filters
 buffer

@@ -24,10 +24,31 @@ run[.]any
 async_iter_pep492
 async_def
 run[.]all
+embedsignatures_python
+embedsignatures_clinic
+extern_builtins_T258
+ext_attribute_cache
+fastcall
+run[.]generators$
+run[.]generators_py
+generator_frame_cycle
+# probably just an exact error message
+importfrom
+run[.]nogil
+run[.]no_gc
+run[.]numpy
+line_trace
+longintrepr
+
+# Possibly only on early versions of Python?
+fused_def
+legacy_implicit_noexcept
+method_module_name_T422
 
 # Something to do with complex
 view_count
 matrix_with_buffer
+fused_types
 
 # cimport cpython
 extension_type_memoryview
@@ -57,6 +78,9 @@ annotation_typing
 datetime_cimport
 datetime_pxd
 datetime_members
+run[.]exttype
+exceptionrefcount
+isinstance
 
 # example in docs that use features unavailable in the limited API
 # (and it's a decision for the docs writers rather than a limitation
@@ -74,14 +98,19 @@ compile[.]pylong
 # Inherit builtin type: PEP697
 bytearraymethods
 cdef_subclass_builtin
+ext_auto_richcmp
 
 # Py_UNICODE
 builtin_ord
+for_in_string
+fstring
+run[.]inop
+run[.]notinop
 
 # Segfault
 cfunc_convert
 duplicate_keyword_in_call
 
 # Excluded for now - to be enabled incrementally
-run[.][^abcd]
+run[.][^a-o]
 buffers[.]
