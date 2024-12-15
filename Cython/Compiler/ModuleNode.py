@@ -177,7 +177,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             # Ensure that we don't generate import code for these entries!
             for entry in scope.c_class_entries:
                 entry.type.module_name = self.full_module_name
-                entry.type.scope.directives["internal"] = False
+                entry.type.scope.directives["internal"] = False if Options.use_shared_utility else True
 
             self.scope.merge_in(scope)
 
