@@ -275,11 +275,6 @@ cdef array array_cwrapper(tuple shape, Py_ssize_t itemsize, char *format, const 
     return result
 
 
-@cname('__pyx_memoryview_check')
-cdef inline bint memoryview_check(object o) noexcept:
-    return isinstance(o, memoryview)
-
-
 #
 ### Memoryview constants and cython.view.memoryview class
 #
@@ -660,6 +655,10 @@ cdef memoryview_cwrapper(object o, int flags, bint dtype_is_object, __Pyx_TypeIn
     cdef memoryview result = memoryview(o, flags, dtype_is_object)
     result.typeinfo = typeinfo
     return result
+
+@cname('__pyx_memoryview_check')
+cdef inline bint memoryview_check(object o) noexcept:
+    return isinstance(o, memoryview)
 
 cdef tuple _unellipsify(object index, int ndim):
     """
