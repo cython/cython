@@ -565,6 +565,10 @@ static PyGetSetDef __pyx_CyFunction_getsets[] = {
 //    {"__signature__", (getter)__Pyx_CyFunction_get_signature, 0, 0, 0},
 #if CYTHON_COMPILING_IN_LIMITED_API
     {"__module__", (getter)__Pyx_CyFunction_get_module, (setter)__Pyx_CyFunction_set_module, 0, 0},
+#if __PYX_LIMITED_VERSION_HEX < 0x03090000
+    // Python messes up module by overwriting it and this gives us a way to fix it up
+    {"__cy_module__", (getter)__Pyx_CyFunction_get_module, (setter)__Pyx_CyFunction_set_module, 0, 0},
+#endif
 #endif
     {0, 0, 0, 0, 0}
 };
@@ -1219,6 +1223,20 @@ static int __pyx_CyFunction_init(PyObject *module) {
     $modulestatetype_cname *mstate = __Pyx_PyModule_GetState(module);
 #if CYTHON_USE_TYPE_SPECS
     mstate->__pyx_CyFunctionType = __Pyx_FetchCommonTypeFromSpec(module, &__pyx_CyFunctionType_spec, NULL);
+#if CYTHON_COMPILING_IN_LIMITED_API && __PYX_LIMITED_VERSION_HEX < 0x03090000
+    // Fixup __module__ attribute if necessary.
+    // This is worth a hacky workaround because it makes functions pickleable
+    if (mstate->__pyx_CyFunctionType) {
+        PyObject *cymodule = PyObject_GetAttrString((PyObject*)mstate->__pyx_CyFunctionType, "__cy_module__");
+        if (cymodule) {
+            int set_result = PyObject_SetAttrString((PyObject*)mstate->__pyx_CyFunctionType, "__module__", cymodule);
+            Py_DECREF(cymodule);
+            if (set_result < 0) PyErr_Clear();
+        } else {
+            PyErr_Clear();
+        }
+    }
+#endif
 #else
     mstate->__pyx_CyFunctionType = __Pyx_FetchCommonType(&__pyx_CyFunctionType_type);
 #endif
@@ -1755,6 +1773,20 @@ static int __pyx_FusedFunction_init(PyObject *module) {
     }
     mstate->__pyx_FusedFunctionType = __Pyx_FetchCommonTypeFromSpec(module, &__pyx_FusedFunctionType_spec, bases);
     Py_DECREF(bases);
+#if CYTHON_COMPILING_IN_LIMITED_API && __PYX_LIMITED_VERSION_HEX < 0x03090000
+    // Fixup __module__ attribute if necessary.
+    // This is worth a hacky workaround because it makes functions pickleable
+    if (mstate->__pyx_CyFunctionType) {
+        PyObject *cymodule = PyObject_GetAttrString((PyObject*)mstate->__pyx_FusedFunctionType, "__cy_module__");
+        if (cymodule) {
+            int set_result = PyObject_SetAttrString((PyObject*)mstate->__pyx_FusedFunctionType, "__module__", cymodule);
+            Py_DECREF(cymodule);
+            if (set_result < 0) PyErr_Clear();
+        } else {
+            PyErr_Clear();
+        }
+    }
+#endif
 #else
     // Set base from __Pyx_FetchCommonTypeFromSpec, in case it's different from the local static value.
     __pyx_FusedFunctionType_type.tp_base = mstate->__pyx_CyFunctionType;

@@ -39,6 +39,18 @@ run[.]no_gc
 run[.]numpy
 line_trace
 longintrepr
+pstats_profile_test
+py35_pep492_interop
+py_ucs4_type
+pep442_tp_finalize
+test_asyncgen
+tracebacks
+test_grammar
+tuple_constants
+tss
+run[.]tryfinally
+running_with_gil
+run[.]with_gil
 
 # Possibly only on early versions of Python?
 fused_def
@@ -49,6 +61,8 @@ method_module_name_T422
 view_count
 matrix_with_buffer
 fused_types
+pycapsule
+r_extcomplex2
 
 # cimport cpython
 extension_type_memoryview
@@ -81,6 +95,17 @@ datetime_members
 run[.]exttype
 exceptionrefcount
 isinstance
+pycontextvar
+run[.]pytype
+run[.]pyarray
+pyclass_scope_T671
+pyclass_special_methods
+run[.]parallel
+pep448_extended_unpacking
+r_pythonapi
+refcount_in_meth
+time_pxd
+run[.]type_inference
 
 # example in docs that use features unavailable in the limited API
 # (and it's a decision for the docs writers rather than a limitation
@@ -99,6 +124,11 @@ compile[.]pylong
 bytearraymethods
 cdef_subclass_builtin
 ext_auto_richcmp
+pylistsubtype
+r_hordijk1
+trashcan
+unbound_special_methods
+unicode_formatting
 
 # Py_UNICODE
 builtin_ord
@@ -106,11 +136,13 @@ for_in_string
 fstring
 run[.]inop
 run[.]notinop
+py_unicode_strings
+py_unicode_type
+unicode_indexing
 
-# Segfault
-cfunc_convert
-duplicate_keyword_in_call
+# Only on specific versions
+# (TODO) be more specific here
+weakfail
 
 # Excluded for now - to be enabled incrementally
-run[.][^a-o]
 buffers[.]

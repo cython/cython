@@ -29,6 +29,8 @@ run[.]embedsignatures
 run[.]extra_walrus
 run[.]nonecheck
 run[.]locals
+run[.]parallel
+run[.]pyarray
 
 # generic filters
 buffer
