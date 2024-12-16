@@ -1,3 +1,4 @@
+import os.path
 import itertools
 from time import time
 
@@ -25,10 +26,7 @@ def create_shared_library_pipeline(context, scope, options, result):
 
     def generate_tree_factory(context):
         def generate_tree(compsrc):
-            from .Code import TempitaUtilityCode
-            from .UtilityCode import CythonUtilityCode
             from . import MemoryView
-            import os.path
             import Cython
 
             # Force to generate __Pyx_ExportFunction

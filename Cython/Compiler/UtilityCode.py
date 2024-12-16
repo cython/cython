@@ -3,6 +3,7 @@ from . import Symtab
 from . import Naming
 from . import Code
 
+import os.path
 import re
 
 
@@ -274,7 +275,6 @@ class CythonSharedUtilityCode:
     def declare_in_scope(self, dest_scope, used=False, cython_scope=None,
                          allowlist=None):
         import Cython
-        import os.path
         cython_scope.context.include_directories.append(
                 os.path.join(os.path.split(Cython.__file__)[0], 'Utility')
         )
