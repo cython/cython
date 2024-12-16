@@ -70,14 +70,15 @@ if 'setuptools' in sys.modules:
             'cython = Cython.Compiler.Main:setuptools_main',
             'cythonize = Cython.Build.Cythonize:main',
             'cygdb = Cython.Debugger.Cygdb:main',
+            'cython_shared_module = Cython.Build.SharedModule:main',
         ]
     }
     scripts = []
 else:
     if os.name == "posix":
-        scripts = ["bin/cython", "bin/cythonize", "bin/cygdb"]
+        scripts = ["bin/cython", "bin/cythonize", "bin/cygdb", "bin/cython_shared_module"]
     else:
-        scripts = ["cython.py", "cythonize.py", "cygdb.py"]
+        scripts = ["cython.py", "cythonize.py", "cygdb.py", "cython_shared_module.py"]
 
 
 def compile_cython_modules(profile=False, coverage=False, compile_minimal=False, compile_more=False, cython_with_refnanny=False,
