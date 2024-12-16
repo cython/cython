@@ -317,7 +317,7 @@ class CythonBase:
         correspondence between the C and Cython code.
         """
         cyfunc = self.get_cython_function(frame)
-        return cyfunc.module.lineno_c2cy.get(self.get_c_lineno(frame), 0)
+        return cyfunc.module.lineno_c2cy.get(self.get_c_lineno(frame), ("<no filename>", 0))
 
     @default_selected_gdb_frame()
     def get_source_desc(self, frame):
