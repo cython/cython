@@ -31,6 +31,7 @@ run[.]nonecheck
 run[.]locals
 run[.]parallel
 run[.]pyarray
+run[.]sequential_parallel
 
 # generic filters
 buffer

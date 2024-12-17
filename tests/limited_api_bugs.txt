@@ -51,6 +51,8 @@ tss
 run[.]tryfinally
 running_with_gil
 run[.]with_gil
+sys_monitoring
+sequential_parallel
 
 # Possibly only on early versions of Python?
 fused_def
@@ -143,6 +145,7 @@ unicode_indexing
 # Only on specific versions
 # (TODO) be more specific here
 weakfail
+reduce_pickle
 
 # Excluded for now - to be enabled incrementally
 buffers[.]
