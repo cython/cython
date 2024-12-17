@@ -2100,7 +2100,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             code.putln(
                 "__Pyx_TypeName o_type_name;")
             self.generate_guarded_basetype_call(
-                base_type, "tp_as_mapping", "mp_ass_subscript", "o, i, v", code)
+                base_type, "tp_as_mapping", "mp_ass_subscript", "objobjargproc", "o, i, v", code)
             code.putln(
                 "o_type_name = __Pyx_PyType_GetFullyQualifiedName(Py_TYPE(o));")
             code.putln(
@@ -2123,7 +2123,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             code.putln(
                 "__Pyx_TypeName o_type_name;")
             self.generate_guarded_basetype_call(
-                base_type, "tp_as_mapping", "mp_ass_subscript", "o, i, v", code)
+                base_type, "tp_as_mapping", "mp_ass_subscript", "objobjargproc", "o, i, v", code)
             code.putln(
                 "o_type_name = __Pyx_PyType_GetFullyQualifiedName(Py_TYPE(o));")
             code.putln(
@@ -2141,81 +2141,19 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.exit_cfunc_scope()
 
     def generate_guarded_basetype_call(
-            self, base_type, substructure, slot, args, code):
+            self, base_type, substructure, slot, functype, args, code):
         if base_type:
             base_tpname = code.typeptr_cname_in_module_state(base_type)
+            # Note that the limited API versions will only work for non-heaptypes on Python3.10+.
+            # I think that's unavoidable and the best we can do.
             if substructure:
                 code.putln(
-                    "if (%s->%s && %s->%s->%s)" % (
-                        base_tpname, substructure, base_tpname, substructure, slot))
-                code.putln(
-                    "  return %s->%s->%s(%s);" % (
-                        base_tpname, substructure, slot, args))
+                    f"{functype} f = __Pyx_PyType_TryGetSubSlot({base_tpname}, {substructure}, {slot}, {functype});")
             else:
                 code.putln(
-                    "if (%s->%s)" % (
-                        base_tpname, slot))
-                code.putln(
-                    "  return %s->%s(%s);" % (
-                        base_tpname, slot, args))
-
-    def generate_ass_slice_function(self, scope, code):
-        # Setting and deleting a slice are both done through
-        # the ass_slice method, so we dispatch to user's __setslice__
-        # or __delslice__, or raise an exception.
-        base_type = scope.parent_type.base_type
-        set_entry = scope.lookup_here("__setslice__")
-        del_entry = scope.lookup_here("__delslice__")
-        code.start_slotfunc(scope, PyrexTypes.c_returncode_type, "sq_ass_slice", "PyObject *o, Py_ssize_t i, Py_ssize_t j, PyObject *v")
-        code.putln(
-            "if (v) {")
-        if set_entry:
-            code.putln(
-                "return %s(o, i, j, v);" % (
-                    set_entry.func_cname))
-        else:
-            code.putln(
-                "__Pyx_TypeName o_type_name;")
-            self.generate_guarded_basetype_call(
-                base_type, "tp_as_sequence", "sq_ass_slice", "o, i, j, v", code)
-            code.putln(
-                "o_type_name = __Pyx_PyType_GetFullyQualifiedName(Py_TYPE(o));")
-            code.putln(
-                "PyErr_Format(PyExc_NotImplementedError,")
-            code.putln(
-                '  "2-element slice assignment not supported by " __Pyx_FMT_TYPENAME, o_type_name);')
-            code.putln(
-                "__Pyx_DECREF_TypeName(o_type_name);")
-            code.putln(
-                "return -1;")
-        code.putln(
-            "}")
-        code.putln(
-            "else {")
-        if del_entry:
-            code.putln(
-                "return %s(o, i, j);" % (
-                    del_entry.func_cname))
-        else:
-            code.putln(
-                "__Pyx_TypeName o_type_name;")
-            self.generate_guarded_basetype_call(
-                base_type, "tp_as_sequence", "sq_ass_slice", "o, i, j, v", code)
-            code.putln(
-                "o_type_name = __Pyx_PyType_GetFullyQualifiedName(Py_TYPE(o));")
-            code.putln(
-                "PyErr_Format(PyExc_NotImplementedError,")
-            code.putln(
-                '  "2-element slice deletion not supported by " __Pyx_FMT_TYPENAME, o_type_name);')
-            code.putln(
-                "__Pyx_DECREF_TypeName(o_type_name);")
-            code.putln(
-                "return -1;")
-        code.putln(
-            "}")
-        code.putln(
-            "}")
-        code.exit_cfunc_scope()
+                    f"{functype} f = __Pyx_PyType_TryGetSlot({base_tpname}, {slot}, {functype});")
+            code.putln("if (f)")
+            code.putln(f"return f({args});")
 
     def generate_richcmp_function(self, scope, code):
         if scope.lookup_here("__richcmp__"):
@@ -2497,7 +2435,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                     set_entry.func_cname))
         else:
             self.generate_guarded_basetype_call(
-                base_type, None, "tp_setattro", "o, n, v", code)
+                base_type, None, "tp_setattro", "setattrofunc", "o, n, v", code)
             code.putln(
                 "return PyObject_GenericSetAttr(o, n, v);")
         code.putln(
@@ -2510,7 +2448,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                     del_entry.func_cname))
         else:
             self.generate_guarded_basetype_call(
-                base_type, None, "tp_setattro", "o, n, v", code)
+                base_type, None, "tp_setattro", "setattrofunc", "o, n, v", code)
             code.putln(
                 "return PyObject_GenericSetAttr(o, n, 0);")
         code.putln(
@@ -2563,7 +2501,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                     user_set_entry.func_cname))
         else:
             self.generate_guarded_basetype_call(
-                base_type, None, "tp_descr_set", "o, i, v", code)
+                base_type, None, "tp_descr_set", "descrsetfunc", "o, i, v", code)
             code.putln(
                 'PyErr_SetString(PyExc_NotImplementedError, "__set__");')
             code.putln(
@@ -2578,7 +2516,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                     user_del_entry.func_cname))
         else:
             self.generate_guarded_basetype_call(
-                base_type, None, "tp_descr_set", "o, i, v", code)
+                base_type, None, "tp_descr_set", "descrsetfunc", "o, i, v", code)
             code.putln(
                 'PyErr_SetString(PyExc_NotImplementedError, "__delete__");')
             code.putln(

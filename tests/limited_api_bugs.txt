@@ -3,8 +3,6 @@
 
 min_async
 pep492_badsyntax_async4
-extinheritset
-extinheritdel
 builtin_pycomplex
 builtin_subtype_methods_T653
 builtin_type_inheritance_T608
