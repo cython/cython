@@ -56,6 +56,7 @@ sequential_parallel
 special_method_docstrings
 run[.]ufunc
 slice2b
+verbatiminclude
 
 # Possibly only on early versions of Python?
 fused_def
@@ -152,6 +153,8 @@ unicode_indexing
 weakfail
 reduce_pickle
 test_dataclasses
+test_class_getitem_errors_2
+yield_from_pep380
 
 # Excluded for now - to be enabled incrementally
 buffers[.]
