@@ -53,6 +53,9 @@ running_with_gil
 run[.]with_gil
 sys_monitoring
 sequential_parallel
+special_method_docstrings
+run[.]ufunc
+slice2b
 
 # Possibly only on early versions of Python?
 fused_def
@@ -108,6 +111,8 @@ r_pythonapi
 refcount_in_meth
 time_pxd
 run[.]type_inference
+special_methods_T561
+run[.]slice_ptr
 
 # example in docs that use features unavailable in the limited API
 # (and it's a decision for the docs writers rather than a limitation
@@ -146,6 +151,7 @@ unicode_indexing
 # (TODO) be more specific here
 weakfail
 reduce_pickle
+test_dataclasses
 
 # Excluded for now - to be enabled incrementally
 buffers[.]
