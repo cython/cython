@@ -153,6 +153,7 @@ unicode_indexing
 weakfail
 reduce_pickle
 test_dataclasses
+test_genericclass_exttype
 test_class_getitem_errors_2
 yield_from_pep380
 
