@@ -2776,11 +2776,33 @@ static PyObject *__Pyx_PyMethod_New(PyObject *func, PyObject *self, PyObject *ty
 #endif
 
 ///////////// PyMethodNew2Arg.proto /////////////
+//@requires: CachedMethodType
 
 // TODO: remove
 // Another wrapping of PyMethod_New that matches the Python3 signature
+#if CYTHON_COMPILING_IN_LIMITED_API
+static PyObject *__Pyx_PyMethod_New2Arg(PyObject *func, PyObject *self); /* proto */
+#else
 #define __Pyx_PyMethod_New2Arg PyMethod_New
+#endif
 
+///////////// PyMethodNew2Arg /////////////
+//@requires: CachedMethodType
+
+#if CYTHON_COMPILING_IN_LIMITED_API
+static PyObject *__Pyx_PyMethod_New2Arg(PyObject *func, PyObject *self) {
+    PyObject *result;
+    #if __PYX_LIMITED_VERSION_HEX >= 0x030C0000
+    {
+        PyObject *args[] = {func, self};
+        result = PyObject_Vectorcall(CGLOBAL(__Pyx_CachedMethodType), args, 2, NULL);
+    }
+    #else
+    result = PyObject_CallFunctionObjArgs(CGLOBAL(__Pyx_CachedMethodType), func, self, NULL);
+    #endif
+    return result;
+}
+#endif
 
 /////////////// UnicodeConcatInPlace.proto ////////////////
 
