@@ -247,9 +247,6 @@ static PyObject *__Pyx__Coroutine_GetAwaitableIter(PyObject *obj) {
     if (likely(am_await)) {
         res = (*am_await)(obj);
     } else
-    if (__Pyx_PyCoro_CheckExact(obj)) {
-        return __Pyx_NewRef(obj);
-    } else
 #if CYTHON_COMPILING_IN_CPYTHON && defined(CO_ITERABLE_COROUTINE)
 #if PY_VERSION_HEX >= 0x030C00A6
     if (PyGen_CheckExact(obj) && (PyGen_GetCode((PyGenObject*)obj)->co_flags & CO_ITERABLE_COROUTINE)) {
@@ -548,7 +545,6 @@ static CYTHON_INLINE PyObject *__Pyx_Generator_GetInlinedResult(PyObject *self);
 //@requires: CommonStructures.c::FetchCommonType
 //@requires: ModuleSetupCode.c::IncludeStructmemberH
 //@requires: ExtensionTypes.c::CallTypeTraverse
-//@requires: Coro_CheckExact
 
 #if !CYTHON_COMPILING_IN_LIMITED_API
 #include <frameobject.h>
@@ -1053,7 +1049,7 @@ __Pyx_Coroutine_AmSend(PyObject *self, PyObject *value, PyObject **retval) {
         if (PyGen_CheckExact(yf)) {
             ret = __Pyx_PyGen_Send((PyGenObject*)yf, value == Py_None ? NULL : value);
         } else
-        if (__Pyx_PyCoro_CheckExact(yf)) {
+        if (PyCoro_CheckExact(yf)) {
             ret = __Pyx_PyGen_Send((PyGenObject*)yf, value == Py_None ? NULL : value);
         } else
         #endif
