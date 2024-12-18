@@ -2,6 +2,7 @@ from .TreeFragment import parse_from_strings, StringParseContext
 from . import Symtab
 from . import Naming
 from . import Code
+from . import Options
 
 import os.path
 import re
@@ -272,13 +273,36 @@ class CythonSharedUtilityCode:
         self.context = context
         self.requires = requires
 
+    def find_module(self, context):
+        import Cython
+        from .Scanning import FileSourceDescriptor
+        from .Errors import CompileError
+        qualified_name = '.'.join([Options.use_shared_utility, self._module_name])
+        scope = context
+        for name, is_package in scope._split_qualified_name(qualified_name, relative_import=False):
+            scope = scope.find_submodule(name, as_package=is_package)
+
+        pxd_pathname = os.path.join(
+            os.path.split(Cython.__file__)[0],
+            'Utility',
+            self._module_name + '.pxd'
+        )
+        try:
+            rel_path = qualified_name.replace('.', os.sep) + os.path.splitext(pxd_pathname)[1]
+            source_desc = FileSourceDescriptor(pxd_pathname, rel_path)
+            err, result = context.process_pxd(source_desc, scope, qualified_name)
+            (pxd_codenodes, pxd_scope) = result
+            context.pxds[qualified_name] = (pxd_codenodes, pxd_scope)
+            scope.pxd_file_loaded = True
+            if err:
+                raise err
+        except CompileError:
+            pass
+        return scope
+
     def declare_in_scope(self, dest_scope, used=False, cython_scope=None,
                          allowlist=None):
-        import Cython
-        cython_scope.context.include_directories.append(
-                os.path.join(os.path.split(Cython.__file__)[0], 'Utility')
-        )
-        scope = cython_scope.context.find_module(self._module_name)
+        scope = self.find_module(cython_scope.context)
         self.pxd_scope = scope
 
         for dep in self.requires:
