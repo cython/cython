@@ -1,5 +1,4 @@
 # from cpython cimport ...
-from __future__ import absolute_import
 
 cimport cython
 cdef extern from "Python.h":
