@@ -10,7 +10,6 @@ builtinslice
 bytearray_coercion
 bytearray_iter
 builtin_divmod
-coroutines
 clear_to_null
 cdivision_CEP_516
 cpp_stl_conversion
@@ -19,15 +18,12 @@ cdef_multiple_inheritance_nodict
 cdef_multiple_inheritance
 cythonscope
 run[.]any
-async_iter_pep492
-async_def
 run[.]all
 embedsignatures_python
 embedsignatures_clinic
 extern_builtins_T258
 ext_attribute_cache
 fastcall
-run[.]generators$
 run[.]generators_py
 generator_frame_cycle
 # probably just an exact error message
@@ -43,7 +39,6 @@ py_ucs4_type
 pep442_tp_finalize
 test_asyncgen
 tracebacks
-test_grammar
 tuple_constants
 tss
 run[.]tryfinally
@@ -55,6 +50,7 @@ special_method_docstrings
 run[.]ufunc
 slice2b
 verbatiminclude
+test_coroutines_pep492
 
 # Possibly only on early versions of Python?
 fused_def

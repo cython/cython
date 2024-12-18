@@ -1774,6 +1774,7 @@ static int __pyx_FusedFunction_init(PyObject *module) {
 CYTHON_UNUSED static PyObject* __Pyx_Method_ClassMethod(PyObject *method); /*proto*/
 
 //////////////////// ClassMethod ////////////////////
+//@requires: ObjectHandling.c::CachedMethodType
 
 static PyObject* __Pyx_Method_ClassMethod(PyObject *method) {
 #if CYTHON_COMPILING_IN_PYPY && PYPY_VERSION_NUM <= 0x05080000
@@ -1818,15 +1819,9 @@ static PyObject* __Pyx_Method_ClassMethod(PyObject *method) {
     }
 #else
     {
-        PyObject *types_module, *method_type=NULL, *func=NULL;
+        PyObject *func=NULL;
         PyObject *builtins, *classmethod, *result=NULL;
-        types_module = PyImport_ImportModule("types");
-        if (!types_module) {
-            return NULL;
-        }
-        method_type = PyObject_GetAttrString(types_module, "MethodType");
-        if (!method_type) goto bad;
-        if (__Pyx_TypeCheck(method, method_type)) {
+        if (__Pyx_TypeCheck(method, CGLOBAL(__Pyx_CachedMethodType))) {
             func = PyObject_GetAttrString(method, "__func__");
             if (!func) goto bad;
         } else {
@@ -1842,8 +1837,6 @@ static PyObject* __Pyx_Method_ClassMethod(PyObject *method) {
 
         bad:
         Py_XDECREF(func);
-        Py_XDECREF(method_type);
-        Py_DECREF(types_module);
         return result;
     }
 #endif
