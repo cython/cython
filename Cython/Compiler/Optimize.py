@@ -2351,12 +2351,35 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
         can additionally resolve bound and unbound methods here that were
         assigned to variables ahead of time.
         """
+
         if kwargs:
             return node
-        if not function or not function.is_attribute or not function.obj.is_name:
+        if not function or not function.is_attribute:
+            return node
+
+        if hasattr(node, "args"):
+            args = node.args
+            if args is None and node.arg_tuple:
+                args = node.arg_tuple.args
+    
+            if attr_name == "bit_count":
+                arg = unwrap_coerced_node(function.obj)
+                if arg.type.is_int:
+                    return ExprNodes.PythonCapiCallNode(
+                        node.pos, f"__Pyx_{arg.type.specialization_name()}_bit_count",
+                        func_type=PyrexTypes.CFuncType(
+                            PyrexTypes.c_int_type, [
+                                PyrexTypes.CFuncTypeArg("x", arg.type, None)
+                            ]),
+                        args=[arg],
+                        is_temp=node.is_temp,
+                        utility_code=TempitaUtilityCode.load_cached("bit_count", "Builtins.c", context=dict(type_=arg.type))).coerce_to(node.type, self.current_env())
+
+        if not function.obj.is_name:
             # cannot track unbound method calls over more than one indirection as
             # the names might have been reassigned in the meantime
             return node
+
         type_entry = self.current_env().lookup(type_name)
         if not type_entry:
             return node
@@ -2372,9 +2395,6 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
         if method is None:
             return self._optimise_generic_builtin_method_call(
                 node, attr_name, function, arg_list, is_unbound_method)
-        args = node.args
-        if args is None and node.arg_tuple:
-            args = node.arg_tuple.args
         call_node = ExprNodes.SimpleCallNode(
             node.pos,
             function=method,
@@ -4082,6 +4102,20 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
             node, function, args, is_unbound_method, 'bytearray', 'startswith',
             bytes_tailmatch_utility_code, -1)
     '''
+
+    def _handle_simple_method_int_bit_count(self, node, function, args, is_unbound_method):
+        if len(args) > 1:
+            return node
+
+        return ExprNodes.PythonCapiCallNode(
+            node.pos, "__Pyx_PyInt_bit_count",
+            func_type = PyrexTypes.CFuncType(
+                PyrexTypes.c_int_type, [
+                    PyrexTypes.CFuncTypeArg("x", Builtin.int_type, None)
+                ]),
+            args = [args[0]],
+            is_temp = node.is_temp,
+            utility_code = UtilityCode.load_cached("PyInt_bit_count", "Builtins.c")).coerce_to(Builtin.int_type, self.current_env())
 
     ### helpers
 
