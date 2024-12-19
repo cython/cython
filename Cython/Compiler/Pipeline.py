@@ -194,7 +194,6 @@ def create_pipeline(context, mode, exclude_classes=()):
         AutoCpdefFunctionDefinitions(context),
         RemoveUnreachableCode(context),
         ConstantFolding(),
-        FlattenInListTransform(),
         DecoratorTransform(context),
         ForwardDeclareTypes(context),
         InjectGilHandling(),
@@ -215,6 +214,7 @@ def create_pipeline(context, mode, exclude_classes=()):
         FindInvalidUseOfFusedTypes(),
         ExpandInplaceOperators(context),
         IterationTransform(context),
+        FlattenInListTransform(context),
         SwitchTransform(context),
         OptimizeBuiltinCalls(context),  ## Necessary?
         CreateClosureClasses(context),  ## After all lookups and type inference

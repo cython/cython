@@ -1398,7 +1398,7 @@ class SwitchTransform(Visitor.EnvTransform):
     visit_Node = Visitor.VisitorTransform.recurse_to_children
 
 
-class FlattenInListTransform(Visitor.VisitorTransform, SkipDeclarations):
+class FlattenInListTransform(Visitor.EnvTransform, SkipDeclarations):
     """
     This transformation flattens "x in [val1, ..., valn]" into a sequential list
     of comparisons.
@@ -1417,18 +1417,33 @@ class FlattenInListTransform(Visitor.VisitorTransform, SkipDeclarations):
         else:
             return node
 
-        if not isinstance(node.operand2, (ExprNodes.TupleNode,
+        if not (isinstance(node.operand2, (ExprNodes.TupleNode,
                                           ExprNodes.ListNode,
-                                          ExprNodes.SetNode)):
+                                          ExprNodes.SetNode)) or node.operand2.type.is_ctuple):
             return node
 
         lhs = node.operand1
-        args = node.operand2.args
+
+        if node.operand2.type.is_ctuple and not isinstance(node.operand2, ExprNodes.TupleNode):
+            rhs = UtilNodes.ResultRefNode(node.operand2)
+            args = [ExprNodes.IndexNode(node.pos,
+                        base=rhs,
+                        index=ExprNodes.IntNode(node.pos,
+                            value=str(index),
+                            constant_result=index,
+                            type=PyrexTypes.c_py_ssize_t_type)
+                        ).analyse_types(self.current_env()).coerce_to(node.operand1.type, self.current_env())
+                    for index, type_ in enumerate(rhs.type.components)
+                        if node.operand1.type.assignable_from(type_) or \
+                            ((node.operand1.type.is_pyobject and PyrexTypes.py_object_type.assignable_from(type_)) or \
+                             (type_.is_pyobject and PyrexTypes.py_object_type.assignable_from(node.operand1.type)))]
+        else:
+            args = node.operand2.args
+
         if len(args) == 0:
-            # note: lhs may have side effects, but ".is_simple()" may not work yet before type analysis.
-            if lhs.try_is_simple():
+            if lhs.is_simple():
                 constant_result = node.operator == 'not_in'
-                return ExprNodes.BoolNode(node.pos, value=constant_result, constant_result=constant_result)
+                return ExprNodes.BoolNode(node.pos, value=constant_result, constant_result=constant_result).analyse_types(self.current_env())
             return node
 
         if any([arg.is_starred for arg in args]):
@@ -1440,8 +1455,11 @@ class FlattenInListTransform(Visitor.VisitorTransform, SkipDeclarations):
         conds = []
         temps = []
         for arg in args:
+            if node.operand2.type.is_ctuple and not node.operand1.type.assignable_from(arg.type) and not ((node.operand1.type.is_pyobject and PyrexTypes.py_object_type.assignable_from(arg.type)) or (arg.type.is_pyobject and PyrexTypes.py_object_type.assignable_from(node.operand1.type))):
+                continue
+
             # Trial optimisation to avoid redundant temp assignments.
-            if not arg.try_is_simple():
+            if not arg.is_simple():
                 # must evaluate all non-simple RHS before doing the comparisons
                 arg = UtilNodes.LetRefNode(arg)
                 temps.append(arg)
@@ -1460,15 +1478,17 @@ class FlattenInListTransform(Visitor.VisitorTransform, SkipDeclarations):
                                 pos = node.pos,
                                 operator = conjunction,
                                 operand1 = left,
-                                operand2 = right)
+                                operand2 = right).analyse_types(self.current_env())
 
         condition = reduce(concat, conds)
         new_node = UtilNodes.EvalWithTempExprNode(lhs, condition)
+        if node.operand2.type.is_ctuple and not isinstance(node.operand2, ExprNodes.TupleNode):
+            new_node = UtilNodes.EvalWithTempExprNode(rhs, new_node)
         for temp in temps[::-1]:
             new_node = UtilNodes.EvalWithTempExprNode(temp, new_node)
-        return new_node
+        return new_node.analyse_types(self.current_env())
 
-    visit_Node = Visitor.VisitorTransform.recurse_to_children
+    visit_Node = Visitor.EnvTransform.recurse_to_children
 
 
 class DropRefcountingTransform(Visitor.VisitorTransform):
@@ -2788,7 +2808,7 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
                 node.pos, cfunc_name, self.PyObject_Size_func_type,
                 args=[arg], is_temp=node.is_temp)
         elif arg.type.is_unicode_char:
-            return ExprNodes.IntNode(node.pos, value='1', constant_result=1,
+            new_node = ExprNodes.IntNode(node.pos, value='1', constant_result=1,
                                      type=node.type)
         else:
             return node
