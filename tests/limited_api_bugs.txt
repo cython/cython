@@ -7,8 +7,6 @@ builtin_pycomplex
 builtin_subtype_methods_T653
 builtin_type_inheritance_T608
 builtinslice
-bytearray_coercion
-bytearray_iter
 builtin_divmod
 coroutines
 clear_to_null
