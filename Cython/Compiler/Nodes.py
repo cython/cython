@@ -5679,10 +5679,14 @@ class CClassDefNode(ClassDefNode):
                 bases = code.funcstate.allocate_temp(PyrexTypes.py_object_type, manage_ref=True)
 
                 self.type_init_args.generate_evaluation_code(code)
-                code.putln("%s = PyTuple_GET_ITEM(%s, 1);" % (bases, self.type_init_args.result()))
+                code.putln("%s = __Pyx_PyTuple_GET_ITEM(%s, 1);" % (bases, self.type_init_args.result()))
+                code.putln(code.error_goto_if(f"!CYTHON_ASSUME_SAFE_MACROS && !{bases}", self.pos))
                 code.put_incref(bases, PyrexTypes.py_object_type)
 
-                first_base = "((PyTypeObject*)PyTuple_GET_ITEM(%s, 0))" % bases
+                first_base = code.funcstate.allocate_temp(Builtin.type_type, manage_ref=False)
+                code.putln(f"{first_base} = ((PyTypeObject*)__Pyx_PyTuple_GET_ITEM({bases}, 0));")
+                code.putln(code.error_goto_if(f"!CYTHON_ASSUME_SAFE_MACROS && !{first_base}", self.pos))
+
                 # Let Python do the base types compatibility checking.
                 trial_type = code.funcstate.allocate_temp(PyrexTypes.py_object_type, manage_ref=True)
                 code.putln("%s = __Pyx_PyType_GetSlot(&PyType_Type, tp_new, newfunc)(&PyType_Type, %s, NULL);" % (
@@ -5701,6 +5705,9 @@ class CClassDefNode(ClassDefNode):
                 code.putln("__Pyx_DECREF_TypeName(type_name);")
                 code.putln(code.error_goto(self.pos))
                 code.putln("}")
+
+                code.putln(f"{first_base} = NULL;")
+                code.funcstate.release_temp(first_base)
 
                 code.put_decref_clear(trial_type, PyrexTypes.py_object_type)
                 code.funcstate.release_temp(trial_type)
