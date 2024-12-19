@@ -125,9 +125,9 @@ bad:
         // (after setting up globals and locals) - there's too much we can't do otherwise
         PyObject *builtins, *exec;
         builtins = PyEval_GetBuiltins();
-        if (!builtins) return NULL;
+        if (unlikely(!builtins)) return NULL;
         exec = PyDict_GetItemString(builtins, "exec");
-        if (!exec) return NULL;
+        if (unlikely(!exec)) return NULL;
         result = PyObject_CallFunctionObjArgs(exec, o, globals, locals, NULL);
         return result;
     }
@@ -343,6 +343,44 @@ bad:
     return NULL;
 }
 
+//////////////////// round_float.proto ////////////////////
+
+static CYTHON_INLINE float __Pyx_round_float(float x) {
+    float result = roundf(x);
+
+    if (fabsf(x - result) == 0.5f) {
+        /* halfway case: round to even */
+        return roundf(x / 2.0f) * 2.0f;
+    }
+
+    return result;
+}
+
+//////////////////// round_double.proto ////////////////////
+
+static CYTHON_INLINE double __Pyx_round_double(double x) {
+    double result = round(x);
+
+    if (fabs(x - result) == 0.5) {
+        /* halfway case: round to even */
+        return round(x / 2.0) * 2.0;
+    }
+
+    return result;
+}
+
+//////////////////// round_longdouble.proto ////////////////////
+
+static CYTHON_INLINE long double __Pyx_round_longdouble(long double x) {
+    long double result = roundl(x);
+
+    if (fabsl(x - result) == 0.5l) {
+        /* halfway case: round to even */
+        return roundl(x / 2.0l) * 2.0l;
+    }
+
+    return result;
+}
 
 //////////////////// int_pyucs4.proto ////////////////////
 
@@ -639,7 +677,7 @@ out_types = dict(
 static {{out_type}} __Pyx_PyMemoryView_Get_{{name}}(PyObject *obj) {
     {{out_type}} result;
     PyObject *attr = PyObject_GetAttr(obj, PYIDENT("{{name}}"));
-    if (!attr) {
+    if (unlikely(!attr)) {
         goto bad;
     }
 {{if out_type == 'int'}}
