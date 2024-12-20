@@ -5689,12 +5689,34 @@ class CClassDefNode(ClassDefNode):
 
                 # Let Python do the base types compatibility checking.
                 trial_type = code.funcstate.allocate_temp(PyrexTypes.py_object_type, manage_ref=True)
+                # __Pyx_PyType_GetSlot doesn't work on heap types in Limited API < 3.10 so awful manual fallback:
+                code.putln("#if CYTHON_COMPILING_IN_LIMITED_API && __PYX_LIMITED_VERSION_HEX < 0x030A0000")
+                code.putln("if (__Pyx_get_runtime_version() < 0x030A0000) {")
+                type_new = code.funcstate.allocate_temp(PyrexTypes.py_object_type, manage_ref=True)
+                code.putln(f'{type_new} = PyObject_GetAttrString((PyObject*)&PyType_Type, "__new__");')
+                code.putln(code.error_goto_if_null(type_new, self.pos))
+                code.put_gotref(type_new, py_object_type)
+                type_tuple = code.funcstate.allocate_temp(PyrexTypes.py_object_type, manage_ref=True)
+                code.putln(f"{type_tuple} = PyTuple_Pack(1, (PyObject*)&PyType_Type);")
+                code.putln(code.error_goto_if_null(type_tuple, self.pos))
+                code.put_gotref(type_tuple, py_object_type)
+                args_tuple = code.funcstate.allocate_temp(PyrexTypes.py_object_type, manage_ref=True)
+                code.putln(f"{args_tuple} = PyNumber_Add({type_tuple}, {self.type_init_args.result()});")
+                code.putln(code.error_goto_if_null(args_tuple, self.pos))
+                code.put_gotref(args_tuple, py_object_type)
+                code.putln(f'{trial_type} = PyObject_Call({type_new}, {args_tuple}, NULL);')
+                for temp in [type_new, type_tuple, args_tuple]:
+                    code.put_decref_clear(temp, PyrexTypes.py_object_type)
+                    code.funcstate.release_temp(temp)
+                code.putln("} else")
+                code.putln("#endif")
                 code.putln("%s = __Pyx_PyType_GetSlot(&PyType_Type, tp_new, newfunc)(&PyType_Type, %s, NULL);" % (
                     trial_type, self.type_init_args.result()))
                 code.putln(code.error_goto_if_null(trial_type, self.pos))
                 code.put_gotref(trial_type, py_object_type)
                 code.putln("if (__Pyx_PyType_GetSlot((PyTypeObject*) %s, tp_base, PyTypeObject*) != %s) {" % (
                     trial_type, first_base))
+                # trial_type is a heaptype so GetSlot works in all versions of the limited API
                 trial_type_base = "__Pyx_PyType_GetSlot((PyTypeObject*) %s, tp_base, PyTypeObject*)" % trial_type
                 code.putln("__Pyx_TypeName base_name = __Pyx_PyType_GetFullyQualifiedName(%s);" % trial_type_base)
                 code.putln("__Pyx_TypeName type_name = __Pyx_PyType_GetFullyQualifiedName(%s);" % first_base)
@@ -5706,7 +5728,7 @@ class CClassDefNode(ClassDefNode):
                 code.putln(code.error_goto(self.pos))
                 code.putln("}")
 
-                code.putln(f"{first_base} = NULL;")
+                code.putln(f"{first_base} = NULL;")  # borrowed to no decref
                 code.funcstate.release_temp(first_base)
 
                 code.put_decref_clear(trial_type, PyrexTypes.py_object_type)
