@@ -46,7 +46,6 @@ tracebacks
 test_grammar
 tuple_constants
 tss
-run[.]tryfinally
 running_with_gil
 run[.]with_gil
 sys_monitoring
