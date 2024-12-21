@@ -25,6 +25,9 @@ class CythonScope(ModuleScope):
                                          cname='<error>')
             entry.in_cinclude = True
 
+        entry = self.declare_typedef("lock_type", cy_lock_type, None)
+        entry.in_cinclude
+
     def is_cpp(self):
         # Allow C++ utility code in C++ contexts.
         return self.context.cpp

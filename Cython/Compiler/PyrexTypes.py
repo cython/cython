@@ -199,7 +199,6 @@ class PyrexType(BaseType):
     #  is_pythran_expr       boolean     Is Pythran expr
     #  is_numpy_buffer       boolean     Is Numpy array buffer
     #  has_attributes        boolean     Has C dot-selectable attributes
-    #  needs_cpp_construction  boolean     Needs C++ constructor and destructor when used in a cdef class
     #  needs_refcounting     boolean     Needs code to be generated similar to incref/gotref/decref.
     #                                    Largely used internally.
     #  refcounting_needs_gil boolean     Reference counting needs GIL to be acquired.
@@ -274,7 +273,6 @@ class PyrexType(BaseType):
     is_pythran_expr = 0
     is_numpy_buffer = 0
     has_attributes = 0
-    needs_cpp_construction = 0
     needs_refcounting = 0
     refcounting_needs_gil = True
     equivalent_type = None
@@ -398,6 +396,12 @@ class PyrexType(BaseType):
         # declares an std::optional c++ variable
         raise NotImplementedError(
             "cpp_optional_declaration_code only implemented for c++ classes and not type %s" % self)
+
+    def needs_explicit_construction(self, scope):
+        return False
+
+    def needs_explicit_destruction(self, scope):
+        return False
 
 
 def public_decl(base_code, dll_linkage):
@@ -3777,6 +3781,7 @@ class CStructOrUnionType(CType):
     is_struct_or_union = 1
     has_attributes = 1
     exception_check = True
+    _needs_cpp_construction = False
 
     def __init__(self, name, kind, scope, typedef_flag, cname, packed=False, in_cpp=False):
         self.name = name
@@ -3793,7 +3798,7 @@ class CStructOrUnionType(CType):
         self._convert_to_py_code = None
         self._convert_from_py_code = None
         self.packed = packed
-        self.needs_cpp_construction = self.is_struct and in_cpp
+        self._needs_cpp_construction = self.is_struct and in_cpp
 
     def can_coerce_to_pyobject(self, env):
         if self._convert_to_py_code is False:
@@ -3941,6 +3946,22 @@ class CStructOrUnionType(CType):
         if self.is_struct:
             return expr_code
         return super().cast_code(expr_code)
+    
+    def needs_explicit_construction(self, scope):
+        if self._needs_cpp_construction and scope.is_class_scope:
+            return True
+        return False
+    
+    def needs_explicit_destruction(self, scope):
+        return self.needs_explicit_construction(scope)  # same rules
+    
+    def generate_explicit_construction(self, code, cname, is_cpp_optional=False):
+        # defer to CppClassType since its implementation will be the same
+        CppClassType.generate_explicit_construction(self, code, cname, is_cpp_optional)
+
+    def generate_explicit_destruction(self, code, cname):
+        # defer to CppClassType since its implementation will be the same
+        CppClassType.generate_explicit_destruction(self, code, cname)
 
 cpp_string_conversions = ("std::string",)
 
@@ -3964,7 +3985,6 @@ class CppClassType(CType):
 
     is_cpp_class = 1
     has_attributes = 1
-    needs_cpp_construction = 1
     exception_check = True
     namespace = None
 
@@ -4321,6 +4341,24 @@ class CppClassType(CType):
     def cpp_optional_check_for_null_code(self, cname):
         # only applies to c++ classes that are being declared as std::optional
         return "(%s.has_value())" % cname
+
+    def needs_explicit_construction(self, scope):
+        return scope.is_class_scope
+
+    def needs_explicit_destruction(self, scope):
+        return self.needs_explicit_construction(scope)  # same rules
+    
+    def generate_explicit_destruction(self, code, cname):
+        code.putln(f"__Pyx_call_destructor({cname});")
+    
+    def generate_explicit_construction(self, code, cname, is_cpp_optional=False):
+        from . import Code
+        code.globalstate.use_utility_code(Code.UtilityCode("#include <new>"))
+        if is_cpp_optional:
+            decl_code = self.cpp_optional_declaration_code("")
+        else:
+            decl_code = self.empty_declaration_code()
+        code.putln(f"new((void*)&({cname})) {decl_code}();")
 
 
 class EnumMixin:
@@ -4787,6 +4825,31 @@ class SpecialPythonTypeConstructor(PyObjectType, PythonTypeConstructorMixin):
         return template_values[0].resolve()
 
 
+class CythonLockType(PyrexType):
+    """
+    A C lock type that can be used in with statements
+    (within Cython - it can't be returned to Python) and
+    safely acquired while holding the GIL.
+    """
+    def __init__(self):
+        # TODO set up scope?
+        pass
+
+    def assignable_from(self, src_type):
+        # cannot be copied
+        return False
+    
+    def needs_explicit_construction(self, scope):
+        # Where possible we use mutex types that don't require
+        # explicit construction (e.g. PyMutex). However, on older
+        # versions this isn't possible, and we fall back to types
+        # that do need non-static initialization.
+        return True
+    
+    def needs_explicit_destruction(self, scope):
+        return True
+
+
 rank_to_type_name = (
     "char",          # 0
     "short",         # 1
@@ -4916,6 +4979,8 @@ cython_memoryview_type = CStructOrUnionType("__pyx_memoryview_obj", "struct",
 
 memoryviewslice_type = CStructOrUnionType("memoryviewslice", "struct",
                                           None, 1, "__Pyx_memviewslice")
+
+cy_lock_type = CythonLockType()
 
 fixed_sign_int_types = {
     "bint":       (1, c_bint_type),

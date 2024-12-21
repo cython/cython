@@ -1539,7 +1539,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         if scope.is_internal:
             # internal classes (should) never need None inits, normal zeroing will do
             py_attrs = []
-        cpp_constructable_attrs = [entry for entry in scope.var_entries if entry.type.needs_cpp_construction]
+        explicitly_constructable_attrs = [
+            entry for entry in scope.var_entries if entry.type.needs_explicit_construction]
 
         cinit_func_entry = scope.lookup_here("__cinit__")
         if cinit_func_entry and not cinit_func_entry.is_special:
@@ -1573,7 +1574,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
         need_self_cast = (type.vtabslot_cname or
                           (py_buffers or memoryview_slices or py_attrs) or
-                          cpp_constructable_attrs)
+                          explicitly_constructable_attrs)
         if need_self_cast:
             code.putln("%s;" % scope.parent_type.declaration_code("p"))
         if base_type:
@@ -1645,13 +1646,11 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 type.vtabslot_cname,
                 struct_type_cast, type.vtabptr_cname))
 
-        for entry in cpp_constructable_attrs:
-            if entry.is_cpp_optional:
-                decl_code = entry.type.cpp_optional_declaration_code("")
-            else:
-                decl_code = entry.type.empty_declaration_code()
-            code.putln("new((void*)&(p->%s)) %s();" % (
-                entry.cname, decl_code))
+        for entry in explicitly_constructable_attrs:
+            entry.type.generate_explicit_construction(
+                code, f"p->{entry.cname}",
+                is_cpp_optional=entry.is_cpp_optional
+            )
 
         for entry in py_attrs:
             if entry.name == "__dict__":
@@ -1738,10 +1737,10 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             dict_slot = None
 
         _, (py_attrs, _, memoryview_slices) = scope.get_refcounted_entries()
-        cpp_destructable_attrs = [entry for entry in scope.var_entries
-                           if entry.type.needs_cpp_construction]
+        explicitly_destructable_attrs = [entry for entry in scope.var_entries
+                           if entry.type.needs_explicit_destruction]
 
-        if py_attrs or cpp_destructable_attrs or memoryview_slices or weakref_slot or dict_slot:
+        if py_attrs or explicitly_destructable_attrs or memoryview_slices or weakref_slot or dict_slot:
             self.generate_self_cast(scope, code)
 
         if not is_final_type or scope.may_have_finalize():
@@ -1788,8 +1787,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         if dict_slot:
             code.putln("if (p->__dict__) PyDict_Clear(p->__dict__);")
 
-        for entry in cpp_destructable_attrs:
-            code.putln("__Pyx_call_destructor(p->%s);" % entry.cname)
+        for entry in explicitly_destructable_attrs:
+            entry.type.generate_explicit_destruction(code, f"p->{entry.cname}")
 
         for entry in (py_attrs + memoryview_slices):
             code.put_xdecref_clear("p->%s" % entry.cname, entry.type, nanny=False,
