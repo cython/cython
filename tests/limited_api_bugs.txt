@@ -107,6 +107,8 @@ time_pxd
 run[.]type_inference
 special_methods_T561
 run[.]slice_ptr
+running_with_gil
+run[.]with_gil
 
 # example in docs that use features unavailable in the limited API
 # (and it's a decision for the docs writers rather than a limitation
