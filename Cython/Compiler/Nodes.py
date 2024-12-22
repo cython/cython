@@ -8071,6 +8071,7 @@ class WithStatNode(StatNode):
     def analyse_expressions(self, env):
         self.manager = self.manager.analyse_types(env)
         self.enter_call = self.enter_call.analyse_types(env)
+        if self.enter_call.type.is_ptr and s
         if self.target:
             # set up target_temp before descending into body (which uses it)
             from .ExprNodes import TempNode
@@ -9011,6 +9012,115 @@ class CriticalSectionStatNode(TryFinallyStatNode):
                     "Arguments to cython.critical_section must be Python objects."
                 )
             self.args[i] = arg
+        return super().analyse_expressions(env)
+
+    def generate_execution_code(self, code):
+        code.globalstate.use_utility_code(
+            UtilityCode.load_cached("CriticalSections", "ModuleSetupCode.c"))
+
+        code.mark_pos(self.pos)
+        code.begin_block()
+        if self.state_temp:
+            self.state_temp.allocate(code)
+            variable = self.state_temp.result()
+        else:
+            variable = Naming.critical_section_variable
+            code.putln(f"{self.var_type.declaration_code(variable)};")
+
+        for arg in self.args:
+            arg.generate_evaluation_code(code)
+        args = [ f"(PyObject*){arg.result()}" for arg in self.args ]
+        code.putln(
+            f"__Pyx_PyCriticalSection_Begin{len(args)}(&{variable}, {', '.join(args)});"
+        )
+
+        TryFinallyStatNode.generate_execution_code(self, code)
+
+        for arg in self.args:
+            arg.generate_disposal_code(code)
+            arg.free_temps(code)
+
+        if self.state_temp:
+            self.state_temp.release(code)
+
+        code.end_block()
+
+    def nogil_check(self, env):
+        error(self.pos, "Critical sections require the GIL")
+
+
+class CriticalSectionExitNode(StatNode):
+    """
+    critical_section - the CriticalSectionStatNode that owns this
+    """
+    child_attrs = []
+
+    def __deepcopy__(self, memo):
+        # This gets deepcopied when generating finally_clause and
+        # finally_except_clause. In this case the node has essentially
+        # no state, except for a reference to its parent.
+        # We definitely don't want to let that reference be copied.
+        return self
+
+    def analyse_expressions(self, env):
+        return self
+
+    def generate_execution_code(self, code):
+        if self.critical_section.state_temp:
+            variable_name = self.critical_section.state_temp.result()
+        else:
+            variable_name =  Naming.critical_section_variable
+        code.putln(
+            f"__Pyx_PyCriticalSection_End{self.len}(&{variable_name});"
+        )
+
+class CythonLockStatNode(TryFinallyStatNode):
+    """
+    Represents
+        with l:
+            ...
+    where l in a cython.lock_type.
+
+    arg    ExprNode    
+    """
+
+    child_attrs = ["arg"] + TryFinallyStatNode.child_attrs
+
+    var_type = PyrexTypes.cy_lock_type
+
+    def __init__(self, pos, /, arg, body, **kwds):
+        self.check_for_yields(pos, body)
+
+        super().__init__(
+            pos,
+            arg=arg,
+            body=body,
+            finally_clause=CythonLockExitNode(
+                pos, critical_section=self),
+            **kwds,
+        )
+
+    def check_for_yields(self, pos, body):
+        from .ParseTreeTransforms import YieldNodeCollector
+        collector = YieldNodeCollector()
+        collector.visitchildren(body)
+        if collector.yields:
+            # DW - I've disallowed this because it seems like a deadlock disaster waiting to happen.
+            # I'm sure it's technically possible, and we can revise it if people have legitimate
+            # uses.
+            error(
+                pos,
+                "Cannot use a 'with' statement with a 'cython.lock_type' in a generator. "
+                "If you really want to do this (and you are confident that there are no deadlocks) "
+                "then use try-finally."
+            )
+
+    def analyse_declarations(self, env):
+        self.arg.analyse_declarations(env)
+        return super().analyse_declarations(env)
+
+    def analyse_expressions(self, env):
+        self.arg = self.arg.analyse_expressions(env)
         return super().analyse_expressions(env)
 
     def generate_execution_code(self, code):

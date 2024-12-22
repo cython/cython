@@ -663,3 +663,20 @@ sys.modules['cython.cimports'] = CythonCImports('cython.cimports', libc=sys.modu
 # shadow the standard library ones (if they are available)
 dataclasses = sys.modules['cython.dataclasses'] = CythonDotImportedFromElsewhere('dataclasses')
 del math, sys
+
+class lock_type:
+    def __init__(self):
+        import threading
+        self._l = threading.Lock()
+
+    def acquire(self):
+        return self._l.acquire()
+    
+    def release(self):
+        return self._l.release()
+    
+    def __enter__(self):
+        return self._l.__enter__()
+    
+    def __exit__(self, exc_type, exc_value, traceback):
+        return self._l.__exit__(exc_type, exc_value, traceback)

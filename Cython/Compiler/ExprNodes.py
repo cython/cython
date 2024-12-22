@@ -7840,6 +7840,7 @@ class AttributeNode(ExprNode):
                 if not immutable_obj:
                     self.obj = self.obj.coerce_to_pyobject(env)
             else:
+                breakpoint()
                 error(self.pos,
                       "Object of type '%s' has no attribute '%s'" %
                       (obj_type, self.attribute))

@@ -4881,19 +4881,35 @@ class CythonLockType(PyrexType):
             scope.directives = {}
             self._appease_assignable_from = True
             scope.declare_cfunction(
-                    "lock",
+                    "acquire",
                     CFuncType(c_int_type, [CFuncTypeArg("self", self, None)], 
                               nogil=True, exception_value=-1),
                     pos=None,
                     defining=1,
                     cname="__Pyx_LockCythonLock")
             scope.declare_cfunction(
-                    "unlock",
+                    "release",
                     CFuncType(c_int_type, [CFuncTypeArg("self", self, None)],
-                              nogil=True,  exception_value=-1),
+                              nogil=True, exception_value=-1),
                     pos=None,
                     defining=1,
                     cname="__Pyx_UnlockCythonLock")
+            scope.declare_cfunction(
+                    "__enter__",
+                    CFuncType(CPtrType(self), [CFuncTypeArg("self", self, None)],
+                              nogil=True, exception_value="NULL"),
+                    pos=None,
+                    defining=1,
+                    cname="__Pyx_EnterCythonLock")
+            scope.declare_cfunction(
+                    "__exit__",
+                    CFuncType(c_int_type, [CFuncTypeArg("self", self, None)],
+                              nogil=True, exception_value=-1),
+                    pos=None,
+                    defining=1,
+                    cname="__Pyx_ExitCythonLock")
+            # Don't define a "locked" function because we can't do this with Py_Mutex
+            # (which is the preferred implementation)
             # TODO - versions with explicit GIL handling
             self._appease_assignable_from = False
 
