@@ -4831,12 +4831,21 @@ class CythonLockType(PyrexType):
     (within Cython - it can't be returned to Python) and
     safely acquired while holding the GIL.
     """
-    def __init__(self):
-        # TODO set up scope?
-        pass
+    has_attributes = True
+    _appease_assignable_from = False
+
+    scope = None
+
+    def declaration_code(self, entity_code,
+            for_display = 0, dll_linkage = None, pyrex = 0):
+        if for_display or pyrex:
+            return "cython.lock_type"
+        return f"__Pyx_CythonLockType {entity_code}"
 
     def assignable_from(self, src_type):
-        # cannot be copied
+        # cannot be copied. But we need a way to turn off the check when declaring lock/unlock
+        if self._appease_assignable_from:
+            return self is src_type
         return False
     
     def needs_explicit_construction(self, scope):
@@ -4848,6 +4857,48 @@ class CythonLockType(PyrexType):
     
     def needs_explicit_destruction(self, scope):
         return True
+    
+    def generate_explicit_construction(self, code, cname, is_cpp_optional=False):
+        assert not is_cpp_optional
+        code.globalstate.use_utility_code(
+            UtilityCode.load_cached("CythonLockType", "Lock.c")
+        )
+        code.putln(f"__Pyx_InitCythonLock({cname});")
+
+    def generate_explicit_destruction(self, code, cname):
+        code.putln(f"__Pyx_DeleteCythonLock({cname});")
+
+    def attributes_known(self):
+        if self.scope is None:
+            from . import Symtab
+
+            self.scope = scope = Symtab.CClassScope(
+                    'cython.lock_type',
+                    None,
+                    visibility='extern',
+                    parent_type=self)
+
+            scope.directives = {}
+            self._appease_assignable_from = True
+            scope.declare_cfunction(
+                    "lock",
+                    CFuncType(c_int_type, [CFuncTypeArg("self", self, None)], 
+                              nogil=True, exception_value=-1),
+                    pos=None,
+                    defining=1,
+                    cname="__Pyx_LockCythonLock")
+            scope.declare_cfunction(
+                    "unlock",
+                    CFuncType(c_int_type, [CFuncTypeArg("self", self, None)],
+                              nogil=True,  exception_value=-1),
+                    pos=None,
+                    defining=1,
+                    cname="__Pyx_UnlockCythonLock")
+            # TODO - versions with explicit GIL handling
+            self._appease_assignable_from = False
+
+        return True
+
 
 
 rank_to_type_name = (

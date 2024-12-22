@@ -1074,6 +1074,7 @@ class ExprNode(Node):
         src_resolved = f" (alias of '{self.type.resolve()}')" if self.type.is_typedef else ""
         dst_resolved = f" (alias of '{dst_type.resolve()}')" if dst_type.is_typedef else ""
         extra_diagnostics = dst_type.assignment_failure_extra_info(self.type, src_name)
+        breakpoint()
         error(self.pos,
               f"Cannot assign type '{self.type}'{src_resolved}"
               f" to '{dst_type}'{dst_resolved}"

@@ -25,7 +25,9 @@ class CythonScope(ModuleScope):
                                          cname='<error>')
             entry.in_cinclude = True
 
-        entry = self.declare_typedef("lock_type", cy_lock_type, None)
+        entry = self.declare_type(
+            "lock_type", cy_lock_type, None,
+            cname="__Pyx_CythonLockType")
         entry.in_cinclude
 
     def is_cpp(self):
