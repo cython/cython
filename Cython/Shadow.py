@@ -680,3 +680,5 @@ class lock_type:
     
     def __exit__(self, exc_type, exc_value, traceback):
         return self._l.__exit__(exc_type, exc_value, traceback)
+
+compatible_lock_type = lock_type

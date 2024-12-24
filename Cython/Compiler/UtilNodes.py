@@ -382,5 +382,8 @@ class HasNoGilNode(AtomicExprNode):
     def analyse_types(self, env):
         return self
 
+    def generate_result_code(self, code):
+        pass
+
     def calculate_result_code(self):
-        return int(self.in_nogil_context)
+        return str(int(self.in_nogil_context))
