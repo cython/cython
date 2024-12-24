@@ -3049,6 +3049,7 @@ class AdjustDefByDirectives(CythonTransform, SkipDeclarations):
     @cython.ccall
     @cython.inline
     @cython.nogil
+    @cython.critical_section
     """
     # list of directives that cause conversion to cclass
     converts_to_cclass = ('cclass', 'total_ordering', 'dataclasses.dataclass')
@@ -3107,6 +3108,20 @@ class AdjustDefByDirectives(CythonTransform, SkipDeclarations):
             error(node.pos, "Python functions cannot be declared 'nogil'")
         if with_gil:
             error(node.pos, "Python functions cannot be declared 'with_gil'")
+        self.visit_FuncDefNode(node)
+        return node
+
+    def visit_FuncDefNode(self, node):
+        if "critical_section" in self.directives:
+            value = self.directives["critical_section"]
+            if value is not None:
+                error(node.pos, "critical_section decorator does not take arguments")
+            new_body = Nodes.CriticalSectionStatNode(
+                node.pos,
+                args=[ExprNodes.FirstArgumentForCriticalSectionNode(node.pos, func_node=node)],
+                body=node.body
+            )
+            node.body = new_body
         self.visitchildren(node)
         return node
 

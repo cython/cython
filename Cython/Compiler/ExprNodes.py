@@ -15115,3 +15115,31 @@ class AssignmentExpressionNode(ExprNode):
     def generate_result_code(self, code):
         # we have to do this manually because it isn't a subexpression
         self.assignment.generate_execution_code(code)
+
+
+class FirstArgumentForCriticalSectionNode(ExprNode):
+    # This class exists to pass the first argument of a function
+    # to a critical_section.  Mostly just to defer analysis since
+    # func.args isn't available for cdef functions until the
+    # analyse_declarations stage
+    #
+    #  func_node - FuncDefNode
+
+    subexprs = ['name_node']
+
+    name_node = None
+    type = PyrexTypes.py_object_type
+
+    def analyse_declarations(self, env):
+        if len(self.func_node.args) < 1:
+            error(self.pos, "critical_section directive can only be applied to a function with one or more positional arguments")
+            return
+        self.name_node = NameNode(self.pos, name=self.func_node.args[0].declared_name())
+        self.name_node.analyse_declarations(env)
+        self.type = self.name_node.type
+
+    def analyse_expressions(self, env):
+        # At this stage, just substitute the name node
+        if self.name_node:
+            return self.name_node.analyse_expressions(env)
+        return self  # error earlier
