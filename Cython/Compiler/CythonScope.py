@@ -28,6 +28,9 @@ class CythonScope(ModuleScope):
         entry = self.declare_type(
             "lock_type", cy_lock_type, None,
             cname="__Pyx_CythonLockType")
+        entry = self.declare_type(
+            "compatible_lock_type", cy_compatible_lock_type, None,
+            cname="__Pyx_CythonCompatibleLockType")
         entry.in_cinclude
 
     def is_cpp(self):

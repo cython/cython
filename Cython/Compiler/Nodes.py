@@ -2203,6 +2203,8 @@ class FuncDefNode(StatNode, BlockNode):
                     code.put_var_xincref(entry)
                 else:
                     code.put_var_incref(entry)
+            if entry.type.needs_explicit_construction(lenv):
+                entry.type.generate_explicit_construction(code, entry.cname)
 
         # ----- Initialise local buffer auxiliary variables
         for entry in lenv.var_entries + lenv.arg_entries:
@@ -2409,6 +2411,8 @@ class FuncDefNode(StatNode, BlockNode):
                     continue
                 if entry.type.refcounting_needs_gil:
                     assure_gil('success')
+            elif entry.type.needs_explicit_destruction(lenv):
+                entry.type.generate_explicit_destruction(code, entry.cname)
             # FIXME ideally use entry.xdecref_cleanup but this currently isn't reliable
             code.put_var_xdecref(entry, have_gil=gil_owned['success'])
 
@@ -8070,7 +8074,7 @@ class WithStatNode(StatNode):
 
     def analyse_expressions(self, env):
         self.manager = self.manager.analyse_types(env)
-        if isinstance(self.manager.type, PyrexTypes.CythonLockType):
+        if self.manager.type.is_cython_lock_type:
             return CythonLockStatNode.make_from_withstat(self).analyse_expressions(env)
         self.enter_call = self.enter_call.analyse_types(env)
         if self.target:
@@ -9085,15 +9089,16 @@ class CythonLockStatNode(TryFinallyStatNode):
     arg    ExprNode    
     """
 
-    child_attrs = ["arg", "enter_call"] + TryFinallyStatNode.child_attrs
+    child_attrs = ["arg"] + TryFinallyStatNode.child_attrs
 
-    var_type = PyrexTypes.cy_lock_type
+    lock_temp = None
+
+    nogil_check = None
 
     @classmethod
     def make_from_withstat(cls, node):
         from . import ExprNodes
 
-        assert isinstance(node.manager, ExprNodes.ProxyNode)
         assert isinstance(node.body, TryFinallyStatNode)
         assert isinstance(node.body.body, TryExceptStatNode)
         result = cls(
@@ -9102,9 +9107,10 @@ class CythonLockStatNode(TryFinallyStatNode):
             body=node.body.body.body,
             finally_clause = CythonLockExitNode(
                 node.pos
-            )
+            ),
+            lock_temp = ExprNodes.TempNode(node.pos, PyrexTypes.CPtrType(node.manager.type))
         )
-        # No deep copy
+        result.finally_clause.lock_stat_node = result
         result.finally_except_clause = result.finally_clause
         return result
 
@@ -9130,30 +9136,42 @@ class CythonLockStatNode(TryFinallyStatNode):
     def analyse_expressions(self, env):
         self.arg = self.arg.analyse_expressions(env)
         self.check_for_yields()
+        body = self.body
+        if isinstance(body, StatListNode) and len(body.stats) >= 1:
+            body = body.stats[0]
+        if isinstance(body, GILStatNode) and body.state == "gil":
+            # Only warn about the initial and most obvious mistake (directly nesting the loops)
+            warning(
+                body.pos,
+                "Acquiring the GIL inside a cython.lock_type lock. To avoid potential deadlocks acquire the GIL first.",
+                2)
         return super().analyse_expressions(env)
 
     def generate_execution_code(self, code):
+        from .ParseTreeTransforms import NoGilState
         code.mark_pos(self.pos)
         code.begin_block()
-        
-        #variable = Naming.critical_section_variable
-        #    code.putln(f"{self.var_type.declaration_code(variable)};")
 
-        t = code.funcstate.allocate_temp(PyrexTypes.CPtrType(self.arg.type), manage_ref=False)
+        self.lock_temp.allocate(code)
+        temp_name = self.lock_temp.result()
         self.arg.generate_evaluation_code(code)
-        code.putln(f"{t} = &{self.arg.result()};")
-        code.putln(self.arg.type.scope.)
-        #args = [ f"(PyObject*){arg.result()}" for arg in self.args ]
-        #code.putln(
-        #    f"__Pyx_PyCriticalSection_Begin{len(args)}(&{variable}, {', '.join(args)});"
-        #)
+        code.putln(f"{temp_name} = &{self.arg.result()};")
+        compatible_str = "Compatible" if self.arg.type.compatible_type else ""
+        if self.in_nogil_context == NoGilState.NoGil:
+            gil_str = "_Nogil"
+        elif self.in_nogil_context == NoGilState.NoGilScope:
+            gil_str = ""
+        else:
+            gil_str = "_Gil"
+
+        code.putln(f"__Pyx_LockCython{compatible_str}Lock{gil_str}(*{temp_name});")
 
         TryFinallyStatNode.generate_execution_code(self, code)
 
         self.arg.generate_disposal_code(code)
         self.arg.free_temps(code)
         
-        code.funcstate.release_temp(t)
+        self.lock_temp.release(code)
 
         code.end_block()
 
@@ -9168,14 +9186,9 @@ class CythonLockExitNode(StatNode):
         return self
 
     def generate_execution_code(self, code):
-        return
-        if self.critical_section.state_temp:
-            variable_name = self.critical_section.state_temp.result()
-        else:
-            variable_name =  Naming.critical_section_variable
-        code.putln(
-            f"__Pyx_PyCriticalSection_End{self.len}(&{variable_name});"
-        )
+        compatible_str = "Compatible" if self.lock_stat_node.arg.type.compatible_type else ""
+        code.putln(f"__Pyx_UnlockCython{compatible_str}Lock(*{self.lock_stat_node.lock_temp.result()});")
+        
 
 
 def cython_view_utility_code():

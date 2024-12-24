@@ -198,6 +198,7 @@ class PyrexType(BaseType):
     #  is_buffer             boolean     Is buffer access type
     #  is_pythran_expr       boolean     Is Pythran expr
     #  is_numpy_buffer       boolean     Is Numpy array buffer
+    #  is_cython_lock_type   boolean     Is a Cython lock
     #  has_attributes        boolean     Has C dot-selectable attributes
     #  needs_refcounting     boolean     Needs code to be generated similar to incref/gotref/decref.
     #                                    Largely used internally.
@@ -272,6 +273,7 @@ class PyrexType(BaseType):
     is_memoryviewslice = 0
     is_pythran_expr = 0
     is_numpy_buffer = 0
+    is_cython_lock_type = False
     has_attributes = 0
     needs_refcounting = 0
     refcounting_needs_gil = True
@@ -4831,21 +4833,28 @@ class CythonLockType(PyrexType):
     (within Cython - it can't be returned to Python) and
     safely acquired while holding the GIL.
     """
+    is_cython_lock_type = True
     has_attributes = True
-    _appease_assignable_from = False
+    exception_value = None
 
     scope = None
+
+    @property
+    def declaration_value(self):
+        if not self.compatible_type:
+            return "__Pyx_CYTHON_LOCK_TYPE_DECL"
+
+    def __init__(self, compatible_type):
+        self.compatible_type = compatible_type
 
     def declaration_code(self, entity_code,
             for_display = 0, dll_linkage = None, pyrex = 0):
         if for_display or pyrex:
-            return "cython.lock_type"
-        return f"__Pyx_CythonLockType {entity_code}"
+            return f"cython.{'compatible_' if self.compatible_type else ''}lock_type"
+        return f"__Pyx_Cython{'Compatible' if self.compatible_type else ''}LockType {entity_code}"
 
     def assignable_from(self, src_type):
-        # cannot be copied. But we need a way to turn off the check when declaring lock/unlock
-        if self._appease_assignable_from:
-            return self is src_type
+        # cannot be copied.
         return False
     
     def needs_explicit_construction(self, scope):
@@ -4860,61 +4869,54 @@ class CythonLockType(PyrexType):
     
     def generate_explicit_construction(self, code, cname, is_cpp_optional=False):
         assert not is_cpp_optional
+        compatible_string = 'Compatible' if self.compatible_type else ''
         code.globalstate.use_utility_code(
-            UtilityCode.load_cached("CythonLockType", "Lock.c")
+            UtilityCode.load_cached(f"Cython{compatible_string}LockType", "Lock.c")
         )
-        code.putln(f"__Pyx_InitCythonLock({cname});")
+        code.putln(f"__Pyx_InitCython{compatible_string}Lock({cname});")
 
     def generate_explicit_destruction(self, code, cname):
-        code.putln(f"__Pyx_DeleteCythonLock({cname});")
+        code.putln(f"__Pyx_DeleteCython{'Compatible' if self.compatible_type else ''}Lock({cname});")
 
     def attributes_known(self):
         if self.scope is None:
             from . import Symtab
 
             self.scope = scope = Symtab.CClassScope(
-                    'cython.lock_type',
+                    f'cython.{"compatible_" if self.compatible_type else ""}lock_type',
                     None,
                     visibility='extern',
                     parent_type=self)
 
             scope.directives = {}
             self._appease_assignable_from = True
+            compatible_string = "Compatible" if self.compatible_type else ""
+            # The functions don't really take a reference, but saying they do passes the "assignable_from" check
             scope.declare_cfunction(
                     "acquire",
-                    CFuncType(c_int_type, [CFuncTypeArg("self", self, None)], 
-                              nogil=True, exception_value=-1),
+                    CFuncType(c_void_type, [CFuncTypeArg("self", CReferenceType(self), None)], 
+                              nogil=True),
                     pos=None,
                     defining=1,
-                    cname="__Pyx_LockCythonLock")
+                    cname=f"__Pyx_LockCython{compatible_string}Lock")
             scope.declare_cfunction(
                     "release",
-                    CFuncType(c_int_type, [CFuncTypeArg("self", self, None)],
-                              nogil=True, exception_value=-1),
+                    CFuncType(c_void_type, [CFuncTypeArg("self", CReferenceType(self), None)],
+                              nogil=True),
                     pos=None,
                     defining=1,
-                    cname="__Pyx_UnlockCythonLock")
-            """scope.declare_cfunction(
-                    "__enter__",
-                    CFuncType(CPtrType(self), [CFuncTypeArg("self", self, None)],
-                              nogil=True, exception_value="NULL"),
-                    pos=None,
-                    defining=1,
-                    cname="__Pyx_EnterCythonLock")
-            scope.declare_cfunction(
-                    "__exit__",
-                    CFuncType(c_int_type, [CFuncTypeArg("self", self, None)],
-                              nogil=True, exception_value=-1),
-                    pos=None,
-                    defining=1,
-                    cname="__Pyx_ExitCythonLock")"""
+                    cname=f"__Pyx_UnlockCython{compatible_string}Lock")
             # Don't define a "locked" function because we can't do this with Py_Mutex
             # (which is the preferred implementation)
             # TODO - versions with explicit GIL handling
-            self._appease_assignable_from = False
 
         return True
-
+    
+    def create_to_py_utility_code(self, env):
+        return False
+    
+    def create_from_py_utility_code(self, env):
+        return False
 
 
 rank_to_type_name = (
@@ -5047,7 +5049,8 @@ cython_memoryview_type = CStructOrUnionType("__pyx_memoryview_obj", "struct",
 memoryviewslice_type = CStructOrUnionType("memoryviewslice", "struct",
                                           None, 1, "__Pyx_memviewslice")
 
-cy_lock_type = CythonLockType()
+cy_lock_type = CythonLockType(False)
+cy_compatible_lock_type = CythonLockType(True)
 
 fixed_sign_int_types = {
     "bint":       (1, c_bint_type),

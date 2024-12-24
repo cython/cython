@@ -87,6 +87,41 @@ We suggest reading the Python documentation to understand how critical sections 
 On non-freethreading builds ``cython.critical_section`` does nothing - you get the
 same guarantees simply from the fact you hold the GIL.
 
+Locks
+-----
+
+Cython provides ``cython.lock_type`` as a more robust lock type.  Unlike
+``cython.critical_section`` this will never release the lock unless you explicitly
+ask it to (at the cost of losing ``critical_section``'s inbuilt robustness against
+deadlocks).
+
+``cython.lock_type`` supports two operations: ``acquire`` and ``release``.
+``cython.lock_type`` can also be used in a ``with`` statement::
+
+  cdef cython.lock_type l
+  with l:
+      ...  # perform operations with the lock
+  
+  # or manually
+  l.acquire()
+  ...  # perform operations with the lock
+  l.release()
+
+``acquire`` will avoid deadlocks if the GIL is held (only relevant in 
+non-freethreading versions of Python).  However, you are at risk of deadlock
+if you attempt to acquire the GIL while holding a ``cython.lock_type`` lock.
+Be aware that it is also possible for Cython to acquire the GIL implicitly
+(for example by raising an exception) and this is also a deadlock risk.
+
+On Python 3.13+ ``cython.lock_type`` is just a `PyMutex <https://docs.python.org/3.13/c-api/init.html#synchronization-primitives>`_
+and so is very low-cost. On earlier versions of Python it uses the
+(undocumented) ``PyThread_type_lock``.
+
+``cython.compatible_lock_type`` exposes the same interface but always
+uses ``PyThread_type_lock``.  It is intended for sharing locks between
+modules with the Limited API (since ``PyMutex`` is unavailble in the
+Limited API).
+
 Pitfalls
 ========
 

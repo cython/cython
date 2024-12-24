@@ -93,6 +93,10 @@ coercion_error_dict = {
     (PyrexTypes.c_uchar_ptr_type, unicode_type): "Cannot convert 'char*' to unicode implicitly, decoding required",
     (PyrexTypes.c_const_uchar_ptr_type, unicode_type): (
         "Cannot convert 'char*' to unicode implicitly, decoding required"),
+    (PyrexTypes.cy_lock_type, PyrexTypes.cy_lock_type): (
+        "cython.lock_type cannot be copied"),
+    (PyrexTypes.cy_compatible_lock_type, PyrexTypes.cy_compatible_lock_type): (
+        "cython.cy_compatible_lock_type cannot be copied"),
 }
 
 def find_coercion_error(type_tuple, default, env):
@@ -1074,7 +1078,6 @@ class ExprNode(Node):
         src_resolved = f" (alias of '{self.type.resolve()}')" if self.type.is_typedef else ""
         dst_resolved = f" (alias of '{dst_type.resolve()}')" if dst_type.is_typedef else ""
         extra_diagnostics = dst_type.assignment_failure_extra_info(self.type, src_name)
-        breakpoint()
         error(self.pos,
               f"Cannot assign type '{self.type}'{src_resolved}"
               f" to '{dst_type}'{dst_resolved}"
@@ -3486,7 +3489,6 @@ class WithExitCallNode(ExprNode):
         return self
 
     def generate_evaluation_code(self, code):
-        breakpoint()
         if self.test_if_run:
             # call only if it was not already called (and decref-cleared)
             code.putln("if (%s) {" % self.with_stat.exit_var)
@@ -7841,7 +7843,6 @@ class AttributeNode(ExprNode):
                 if not immutable_obj:
                     self.obj = self.obj.coerce_to_pyobject(env)
             else:
-                breakpoint()
                 error(self.pos,
                       "Object of type '%s' has no attribute '%s'" %
                       (obj_type, self.attribute))
@@ -14628,7 +14629,7 @@ class CoerceToComplexNode(CoercionNode):
 
 
 def coerce_from_soft_complex(arg, dst_type, env):
-    from .UtilNodes import HasGilNode
+    from .UtilNodes import HasNoGilNode
     cfunc_type = PyrexTypes.CFuncType(
         PyrexTypes.c_double_type,
         [ PyrexTypes.CFuncTypeArg("value", PyrexTypes.soft_complex_type, None),
@@ -14642,7 +14643,7 @@ def coerce_from_soft_complex(arg, dst_type, env):
         "__Pyx_SoftComplexToDouble",
         cfunc_type,
         utility_code = UtilityCode.load_cached("SoftComplexToDouble", "Complex.c"),
-        args = [arg, HasGilNode(arg.pos)],
+        args = [arg, HasNoGilNode(arg.pos)],
     )
     call = call.analyse_types(env)
     if call.type != dst_type:
