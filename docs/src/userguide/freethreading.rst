@@ -119,7 +119,7 @@ and so is very low-cost. On earlier versions of Python it uses the
 
 ``cython.compatible_lock_type`` exposes the same interface but always
 uses ``PyThread_type_lock``.  It is intended for sharing locks between
-modules with the Limited API (since ``PyMutex`` is unavailble in the
+modules with the Limited API (since ``PyMutex`` is unavailable in the
 Limited API).
 
 Pitfalls

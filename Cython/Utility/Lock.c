@@ -1,7 +1,7 @@
 ////////////////////// CythonCompatibleLockType.proto //////////
 //@proto_block: utility_code_proto_before_types
 
-// This lock type aways uses PyThread_type_lock. The main reason
+// This lock type always uses PyThread_type_lock. The main reason
 // to use it is if you are using the Limited API and want to
 // share locks between modules.
 
