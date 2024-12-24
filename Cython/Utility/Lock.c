@@ -7,8 +7,8 @@
 
 #define __Pyx_CythonCompatibleLockType PyThread_type_lock
 #define __Pyx_InitCythonCompatibleLock(l) l = PyThread_allocate_lock()
-#define __Pyx_DeleteCythonCompatibleLock(l) = PyThread_free_lock()
-#define __Pyx_LockCythonCompatibleLock_NoGil(l) (void)PyThread_acquire_lock(l, WAIT_LOCK)
+#define __Pyx_DeleteCythonCompatibleLock(l) PyThread_free_lock(l)
+#define __Pyx_LockCythonCompatibleLock_Nogil(l) (void)PyThread_acquire_lock(l, WAIT_LOCK)
 #define __Pyx_UnlockCythonCompatibleLock(l) PyThread_release_lock(l)
 static void __Pyx__LockCythonCompatibleLock(__Pyx_CythonCompatibleLockType lock); /* proto */
 static void __Pyx__LockCythonCompatibleLock_Gil(__Pyx_CythonCompatibleLockType lock); /* proto */
@@ -21,7 +21,7 @@ static CYTHON_INLINE void __Pyx_LockCythonCompatibleLock_Gil(__Pyx_CythonCompati
 }
 #define __Pyx_LockCythonCompatibleLock_WithState(l, nogil_state) \
     nogil_state == 0 ? __Pyx_LockCythonCompatibleLock_Gil(l) : \
-    (nogil_state == 1 ? __Pyx_LockCythonCompatibleLock_NoGil(l) : __Pyx_LockCythonCompatibleLock(l)) 
+    (nogil_state == 1 ? __Pyx_LockCythonCompatibleLock_Nogil(l) : __Pyx_LockCythonCompatibleLock(l)) 
 
 ////////////////////// CythonCompatibleLockType ////////////////
 
@@ -53,14 +53,14 @@ static void __Pyx__LockCythonCompatibleLock(__Pyx_CythonCompatibleLockType lock)
     // We can't tell if we have the GIL. Therefore make sure we do have it
     // and then restore whatever state was there before.
     PyGILState_STATE state = PyGILState_Ensure();
-    int result = __Pyx_LockCythonCompatibleLock_Gil(lock);
+    __Pyx_LockCythonCompatibleLock_Gil(lock);
     PyGILState_Release(state);
-    return result;
 #else
     if (PyGILState_Check()) {
-        return __Pyx_LockCythonCompatibleLock_Gil(lock);
+        __Pyx_LockCythonCompatibleLock_Gil(lock);
+    } else {
+        __Pyx_LockCythonCompatibleLock_Nogil(lock);
     }
-    return __Pyx_LockCythonCompatibleLock_NoGil(lock);
 #endif
 }
 
@@ -118,7 +118,7 @@ static void __Pyx__LockCythonCompatibleLock(__Pyx_CythonCompatibleLockType lock)
  * breaks.  Whatever you do, the Limited API version always uses the "compatible" lock
  * type anyway, so you're only saving yourself a few extra characters typing.
  */
-#if CYTHON_COMPILING_IN_LIMIITED_API && !CYTHON_UNSAFE_IGNORE_LOCK_TYPE_ABI_COMPATIBILITY
+#if CYTHON_COMPILING_IN_LIMITED_API && !CYTHON_UNSAFE_IGNORE_LOCK_TYPE_ABI_COMPATIBILITY
 #error cython.lock_type is shared between multiple modules in the Limited API.\
  This is intentionally disabled because it is not possible for regular API and Limited API\
  modules to be compatible with each other.  Use cython.compatible_lock_type for a safe\

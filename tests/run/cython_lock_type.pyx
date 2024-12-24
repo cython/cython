@@ -56,7 +56,8 @@ def lock_in_closure():
     """
     cdef int count = 0
     cdef int i
-    cdef cython.lock_type lock
+    # compatible_lock_type and lock_type should behave basically the same. So test them both
+    cdef cython.compatible_lock_type lock
 
     def inner():
         with lock:

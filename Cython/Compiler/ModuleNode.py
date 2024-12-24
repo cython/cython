@@ -28,7 +28,7 @@ from . import PyrexTypes
 from . import Pythran
 
 from .Errors import error, warning, CompileError, format_position
-from .PyrexTypes import py_object_type
+from .PyrexTypes import py_object_type, get_all_subtypes
 from ..Utils import open_new_file, replace_suffix, decode_filename, build_hex_version, is_cython_generated_file
 from .Code import UtilityCode, IncludeCode, TempitaUtilityCode
 from .StringEncoding import EncodedString, encoded_string_or_bytes_literal
@@ -192,7 +192,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         for entry in env.entries.values():
             if not (include_all_attrs or entry.defined_in_pxd or entry.visibility == "public" or entry.api):
                 continue
-            entry_subtypes = _get_all_subtypes(entry.type)
+            entry_subtypes = get_all_subtypes(entry.type)
             if any(sub_tp is PyrexTypes.cy_lock_type for sub_tp in entry_subtypes):
                 return True
             if hasattr(entry.type, "scope") and entry.type.scope is not None:
@@ -4014,23 +4014,6 @@ def generate_cfunction_declaration(entry, env, code, definition):
             storage_class,
             modifiers,
             header))
-
-
-def _get_all_subtypes(tp, seen=None):
-    if seen is None:
-        seen = set()
-    if tp in seen:
-        return
-    seen.add(tp)
-    for attr in tp.subtypes:
-        list_or_subtype = getattr(tp, attr)
-        if list_or_subtype:
-            if isinstance(list_or_subtype, PyrexTypes.BaseType):
-                _get_all_subtypes(list_or_subtype, seen)
-            else:
-                for sub_tp in list_or_subtype:
-                    _get_all_subtypes(sub_tp, seen)
-    return list(seen)
 
 #------------------------------------------------------------------------------------
 #

@@ -4866,6 +4866,11 @@ class CythonLockType(PyrexType):
             return True
         return False
     
+    def get_utility_code(self):
+        # It doesn't seem like a good way to associate utility code with a type actually exists
+        # so we just have to do it in as many places as possible.
+        return UtilityCode.load_cached(f"Cython{'Compatible' if self.compatible_type else ''}LockType", "Lock.c")
+    
     def needs_explicit_construction(self, scope):
         # Where possible we use mutex types that don't require
         # explicit construction (e.g. PyMutex). However, on older
@@ -4879,7 +4884,7 @@ class CythonLockType(PyrexType):
     def generate_explicit_construction(self, code, entry, extra_access_code=""):
         compatible_string = 'Compatible' if self.compatible_type else ''
         code.globalstate.use_utility_code(
-            UtilityCode.load_cached(f"Cython{compatible_string}LockType", "Lock.c")
+            self.get_utility_code()
         )
         code.putln(f"__Pyx_InitCython{compatible_string}Lock({extra_access_code}{entry.cname});")
 
@@ -4907,14 +4912,16 @@ class CythonLockType(PyrexType):
                               nogil=True),
                     pos=None,
                     defining=1,
-                    cname=f"__Pyx_LockCython{compatible_string}Lock")
+                    cname=f"__Pyx_LockCython{compatible_string}Lock",
+                    utility_code=self.get_utility_code())
             scope.declare_cfunction(
                     "release",
                     CFuncType(c_void_type, [CFuncTypeArg("self", self_type, None)],
                               nogil=True),
                     pos=None,
                     defining=1,
-                    cname=f"__Pyx_UnlockCython{compatible_string}Lock")
+                    cname=f"__Pyx_UnlockCython{compatible_string}Lock",
+                    utility_code=self.get_utility_code())
             # Don't define a "locked" function because we can't do this with Py_Mutex
             # (which is the preferred implementation)
 
@@ -5719,3 +5726,19 @@ def remove_cv_ref(tp, remove_fakeref=False):
         if tp.is_reference and (not tp.is_fake_reference or remove_fakeref):
             tp = tp.ref_base_type
     return tp
+
+def get_all_subtypes(tp, seen=None):
+    if seen is None:
+        seen = set()
+    if tp in seen:
+        return
+    seen.add(tp)
+    for attr in tp.subtypes:
+        list_or_subtype = getattr(tp, attr)
+        if list_or_subtype:
+            if isinstance(list_or_subtype, BaseType):
+                get_all_subtypes(list_or_subtype, seen)
+            else:
+                for sub_tp in list_or_subtype:
+                    get_all_subtypes(sub_tp, seen)
+    return list(seen)
