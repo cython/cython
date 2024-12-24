@@ -2222,8 +2222,6 @@ class CCodeWriter:
         return self.buffer.getvalue()
 
     def write(self, s):
-        if "__Pyx_PyObject_Call(__pyx_t_1" in s:
-            breakpoint()
         if '\n' in s:
             self._write_lines(s)
         else:

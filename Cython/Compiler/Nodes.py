@@ -2204,7 +2204,7 @@ class FuncDefNode(StatNode, BlockNode):
                 else:
                     code.put_var_incref(entry)
             if entry.type.needs_explicit_construction(lenv):
-                entry.type.generate_explicit_construction(code, entry.cname)
+                entry.type.generate_explicit_construction(code, entry)
 
         # ----- Initialise local buffer auxiliary variables
         for entry in lenv.var_entries + lenv.arg_entries:
@@ -2412,7 +2412,7 @@ class FuncDefNode(StatNode, BlockNode):
                 if entry.type.refcounting_needs_gil:
                     assure_gil('success')
             elif entry.type.needs_explicit_destruction(lenv):
-                entry.type.generate_explicit_destruction(code, entry.cname)
+                entry.type.generate_explicit_destruction(code, entry)
             # FIXME ideally use entry.xdecref_cleanup but this currently isn't reliable
             code.put_var_xdecref(entry, have_gil=gil_owned['success'])
 

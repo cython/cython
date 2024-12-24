@@ -1540,7 +1540,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             # internal classes (should) never need None inits, normal zeroing will do
             py_attrs = []
         explicitly_constructable_attrs = [
-            entry for entry in scope.var_entries if entry.type.needs_explicit_construction]
+            entry for entry in scope.var_entries if entry.type.needs_explicit_construction(scope)]
 
         cinit_func_entry = scope.lookup_here("__cinit__")
         if cinit_func_entry and not cinit_func_entry.is_special:
@@ -1648,9 +1648,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
         for entry in explicitly_constructable_attrs:
             entry.type.generate_explicit_construction(
-                code, f"p->{entry.cname}",
-                is_cpp_optional=entry.is_cpp_optional
-            )
+                code, entry, extra_access_code="p->")
 
         for entry in py_attrs:
             if entry.name == "__dict__":
@@ -1738,7 +1736,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
         _, (py_attrs, _, memoryview_slices) = scope.get_refcounted_entries()
         explicitly_destructable_attrs = [entry for entry in scope.var_entries
-                           if entry.type.needs_explicit_destruction]
+                           if entry.type.needs_explicit_destruction(scope)]
 
         if py_attrs or explicitly_destructable_attrs or memoryview_slices or weakref_slot or dict_slot:
             self.generate_self_cast(scope, code)
@@ -1788,7 +1786,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             code.putln("if (p->__dict__) PyDict_Clear(p->__dict__);")
 
         for entry in explicitly_destructable_attrs:
-            entry.type.generate_explicit_destruction(code, f"p->{entry.cname}")
+            entry.type.generate_explicit_destruction(code, entry, extra_access_code="p->")
 
         for entry in (py_attrs + memoryview_slices):
             code.put_xdecref_clear("p->%s" % entry.cname, entry.type, nanny=False,
@@ -3385,6 +3383,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                             entry_cname, entry.type,
                             clear_before_decref=True,
                             nanny=False)
+                    if entry.type.needs_explicit_destruction(env):
+                        entry.type.generate_explicit_destruction(code, entry)
         code.putln(f"__Pyx_CleanupGlobals({Naming.modulestatevalue_cname});")
         if Options.generate_cleanup_code >= 3:
             code.putln("/*--- Type import cleanup code ---*/")
@@ -3650,6 +3650,9 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             if entry.visibility != 'extern':
                 if entry.used:
                     entry.type.global_init_code(entry, code)
+                if entry.type.needs_explicit_construction(env):
+                    # TODO - this is slightly redundant with global_init_code
+                    entry.type.generate_explicit_construction(code, entry)
 
     def generate_wrapped_entries_code(self, env, code):
         for name, entry in sorted(env.entries.items()):

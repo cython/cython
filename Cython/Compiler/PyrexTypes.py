@@ -3957,13 +3957,13 @@ class CStructOrUnionType(CType):
     def needs_explicit_destruction(self, scope):
         return self.needs_explicit_construction(scope)  # same rules
     
-    def generate_explicit_construction(self, code, cname, is_cpp_optional=False):
+    def generate_explicit_construction(self, code, entry, extra_access_code=""):
         # defer to CppClassType since its implementation will be the same
-        CppClassType.generate_explicit_construction(self, code, cname, is_cpp_optional)
+        CppClassType.generate_explicit_construction(self, code, entry, extra_access_code=extra_access_code)
 
-    def generate_explicit_destruction(self, code, cname):
+    def generate_explicit_destruction(self, code, entry, extra_access_code=""):
         # defer to CppClassType since its implementation will be the same
-        CppClassType.generate_explicit_destruction(self, code, cname)
+        CppClassType.generate_explicit_destruction(self, code, entry, extra_access_code="")
 
 cpp_string_conversions = ("std::string",)
 
@@ -4350,17 +4350,17 @@ class CppClassType(CType):
     def needs_explicit_destruction(self, scope):
         return self.needs_explicit_construction(scope)  # same rules
     
-    def generate_explicit_destruction(self, code, cname):
-        code.putln(f"__Pyx_call_destructor({cname});")
+    def generate_explicit_destruction(self, code, entry, extra_access_code=""):
+        code.putln(f"__Pyx_call_destructor({extra_access_code}{entry.cname});")
     
-    def generate_explicit_construction(self, code, cname, is_cpp_optional=False):
+    def generate_explicit_construction(self, code, entry, extra_access_code=""):
         from . import Code
         code.globalstate.use_utility_code(Code.UtilityCode("#include <new>"))
-        if is_cpp_optional:
+        if entry.is_cpp_optional:
             decl_code = self.cpp_optional_declaration_code("")
         else:
             decl_code = self.empty_declaration_code()
-        code.putln(f"new((void*)&({cname})) {decl_code}();")
+        code.putln(f"new((void*)&({extra_access_code}{entry.cname})) {decl_code}();")
 
 
 class EnumMixin:
@@ -4847,6 +4847,13 @@ class CythonLockType(PyrexType):
     def __init__(self, compatible_type):
         self.compatible_type = compatible_type
 
+        # Create a reference type that we can use in the definitions of acquire and release
+        # to override the general prohibition of assigning anything to this
+        class SpecialAssignableReferenceType(CReferenceType):
+            def assignable_from(self, src_type):
+                return src_type is self.ref_base_type
+        self._special_assignable_reference_type = SpecialAssignableReferenceType(self)
+
     def declaration_code(self, entity_code,
             for_display = 0, dll_linkage = None, pyrex = 0):
         if for_display or pyrex:
@@ -4855,6 +4862,8 @@ class CythonLockType(PyrexType):
 
     def assignable_from(self, src_type):
         # cannot be copied.
+        if src_type is self._special_assignable_reference_type:
+            return True
         return False
     
     def needs_explicit_construction(self, scope):
@@ -4867,16 +4876,16 @@ class CythonLockType(PyrexType):
     def needs_explicit_destruction(self, scope):
         return True
     
-    def generate_explicit_construction(self, code, cname, is_cpp_optional=False):
-        assert not is_cpp_optional
+    def generate_explicit_construction(self, code, entry, extra_access_code=""):
         compatible_string = 'Compatible' if self.compatible_type else ''
         code.globalstate.use_utility_code(
             UtilityCode.load_cached(f"Cython{compatible_string}LockType", "Lock.c")
         )
-        code.putln(f"__Pyx_InitCython{compatible_string}Lock({cname});")
+        code.putln(f"__Pyx_InitCython{compatible_string}Lock({extra_access_code}{entry.cname});")
 
-    def generate_explicit_destruction(self, code, cname):
-        code.putln(f"__Pyx_DeleteCython{'Compatible' if self.compatible_type else ''}Lock({cname});")
+    def generate_explicit_destruction(self, code, entry, extra_access_code=""):
+        code.putln(
+            f"__Pyx_DeleteCython{'Compatible' if self.compatible_type else ''}Lock({extra_access_code}{entry.cname});")
 
     def attributes_known(self):
         if self.scope is None:
@@ -4889,26 +4898,25 @@ class CythonLockType(PyrexType):
                     parent_type=self)
 
             scope.directives = {}
-            self._appease_assignable_from = True
             compatible_string = "Compatible" if self.compatible_type else ""
             # The functions don't really take a reference, but saying they do passes the "assignable_from" check
+            self_type = self._special_assignable_reference_type
             scope.declare_cfunction(
                     "acquire",
-                    CFuncType(c_void_type, [CFuncTypeArg("self", CReferenceType(self), None)], 
+                    CFuncType(c_void_type, [CFuncTypeArg("self", self_type, None)], 
                               nogil=True),
                     pos=None,
                     defining=1,
                     cname=f"__Pyx_LockCython{compatible_string}Lock")
             scope.declare_cfunction(
                     "release",
-                    CFuncType(c_void_type, [CFuncTypeArg("self", CReferenceType(self), None)],
+                    CFuncType(c_void_type, [CFuncTypeArg("self", self_type, None)],
                               nogil=True),
                     pos=None,
                     defining=1,
                     cname=f"__Pyx_UnlockCython{compatible_string}Lock")
             # Don't define a "locked" function because we can't do this with Py_Mutex
             # (which is the preferred implementation)
-            # TODO - versions with explicit GIL handling
 
         return True
     
