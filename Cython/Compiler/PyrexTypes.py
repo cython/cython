@@ -4345,7 +4345,7 @@ class CppClassType(CType):
         return "(%s.has_value())" % cname
 
     def needs_explicit_construction(self, scope):
-        return scope.is_class_scope
+        return scope.is_c_class_scope
 
     def needs_explicit_destruction(self, scope):
         return self.needs_explicit_construction(scope)  # same rules

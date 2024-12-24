@@ -3667,8 +3667,6 @@ class GilCheck(VisitorTransform):
     def __call__(self, root):
         self.env_stack = [root.scope]
         self.nogil_state = NoGilState.HasGil
-        
-        self.nogil_declarator_only = False
 
         self.nogil_state_at_current_gilstatnode = NoGilState.HasGil
         return super().__call__(root)
