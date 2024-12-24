@@ -110,7 +110,7 @@ static void __Pyx__LockCythonCompatibleLock(__Pyx_CythonCompatibleLockType lock)
 //////////////////////////// CythonLockTypePublicCheck ///////////////////////////////////
 
 #ifndef CYTHON_UNSAFE_IGNORE_LOCK_TYPE_ABI_COMPATIBILITY
-#define CYTHON_UNSAFE_IGNORE_LOCK_TYPE_ABI_COMPATIBILITY 1
+#define CYTHON_UNSAFE_IGNORE_LOCK_TYPE_ABI_COMPATIBILITY 0
 #endif
 
 /* CYTHON_UNSAFE_IGNORE_LOCK_TYPE_ABI_COMPATIBILITY is left for an advanced user who
@@ -119,8 +119,8 @@ static void __Pyx__LockCythonCompatibleLock(__Pyx_CythonCompatibleLockType lock)
  * type anyway, so you're only saving yourself a few extra characters typing.
  */
 #if CYTHON_COMPILING_IN_LIMIITED_API && !CYTHON_UNSAFE_IGNORE_LOCK_TYPE_ABI_COMPATIBILITY
-#error cython.lock_type is shared between multiple modules in the Limited API. \
-This is intentionally disabled because it is not possible for regular API and Limited API \
-modules to be compatible with each other.  Use cython.compatible_lock_type for a safe \
-alternative lock type instead.
+#error cython.lock_type is shared between multiple modules in the Limited API.\
+ This is intentionally disabled because it is not possible for regular API and Limited API\
+ modules to be compatible with each other.  Use cython.compatible_lock_type for a safe\
+ alternative lock type instead.
 #endif

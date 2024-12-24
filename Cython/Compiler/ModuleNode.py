@@ -188,6 +188,18 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         body = Nodes.CompilerDirectivesNode(self.pos, directives=self.directives, body=self.body)
         return body
 
+    def find_shared_cy_lock_type(self, env, include_all_attrs=False):
+        for entry in env.entries.values():
+            if not (include_all_attrs or entry.defined_in_pxd or entry.visibility == "public" or entry.api):
+                continue
+            entry_subtypes = _get_all_subtypes(entry.type)
+            if any(sub_tp is PyrexTypes.cy_lock_type for sub_tp in entry_subtypes):
+                return True
+            if hasattr(entry.type, "scope") and entry.type.scope is not None:
+                if self.find_shared_cy_lock_type(entry.type.scope, include_all_attrs=True):
+                    return True
+        return False
+
     def analyse_declarations(self, env):
         if has_np_pythran(env):
             Pythran.include_pythran_generic(env)
@@ -205,6 +217,14 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         env.directives = self.directives
 
         self.body.analyse_declarations(env)
+
+        if self.find_shared_cy_lock_type(env):
+            # Be very suspicious of cython locks that are shared.
+            # They have the potential cause ABI issues.
+            self.scope.use_utility_code(
+                UtilityCode.load_cached(
+                    "CythonLockTypePublicCheck", "Lock.c"
+                ))
 
     def prepare_utility_code(self):
         # prepare any utility code that must be created before code generation
@@ -3994,6 +4014,23 @@ def generate_cfunction_declaration(entry, env, code, definition):
             storage_class,
             modifiers,
             header))
+
+
+def _get_all_subtypes(tp, seen=None):
+    if seen is None:
+        seen = set()
+    if tp in seen:
+        return
+    seen.add(tp)
+    for attr in tp.subtypes:
+        list_or_subtype = getattr(tp, attr)
+        if list_or_subtype:
+            if isinstance(list_or_subtype, PyrexTypes.BaseType):
+                _get_all_subtypes(list_or_subtype, seen)
+            else:
+                for sub_tp in list_or_subtype:
+                    _get_all_subtypes(sub_tp, seen)
+    return list(seen)
 
 #------------------------------------------------------------------------------------
 #

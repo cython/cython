@@ -2349,7 +2349,7 @@ class CClassScope(ClassScope):
 
     has_pyobject_attrs = False
     has_memoryview_attrs = False
-    has_cpp_constructable_attrs = False
+    has_explicitly_constructable_attrs = False
     has_cyclic_pyobject_attrs = False
     defined = False
     implemented = False
