@@ -8070,8 +8070,9 @@ class WithStatNode(StatNode):
 
     def analyse_expressions(self, env):
         self.manager = self.manager.analyse_types(env)
+        if isinstance(self.manager.type, PyrexTypes.CythonLockType):
+            return CythonLockStatNode.make_from_withstat(self).analyse_expressions(env)
         self.enter_call = self.enter_call.analyse_types(env)
-        if self.enter_call.type.is_ptr and s
         if self.target:
             # set up target_temp before descending into body (which uses it)
             from .ExprNodes import TempNode
@@ -9084,32 +9085,39 @@ class CythonLockStatNode(TryFinallyStatNode):
     arg    ExprNode    
     """
 
-    child_attrs = ["arg"] + TryFinallyStatNode.child_attrs
+    child_attrs = ["arg", "enter_call"] + TryFinallyStatNode.child_attrs
 
     var_type = PyrexTypes.cy_lock_type
 
-    def __init__(self, pos, /, arg, body, **kwds):
-        self.check_for_yields(pos, body)
+    @classmethod
+    def make_from_withstat(cls, node):
+        from . import ExprNodes
 
-        super().__init__(
-            pos,
-            arg=arg,
-            body=body,
-            finally_clause=CythonLockExitNode(
-                pos, critical_section=self),
-            **kwds,
+        assert isinstance(node.manager, ExprNodes.ProxyNode)
+        assert isinstance(node.body, TryFinallyStatNode)
+        assert isinstance(node.body.body, TryExceptStatNode)
+        result = cls(
+            node.pos,
+            arg=node.manager,
+            body=node.body.body.body,
+            finally_clause = CythonLockExitNode(
+                node.pos
+            )
         )
+        # No deep copy
+        result.finally_except_clause = result.finally_clause
+        return result
 
-    def check_for_yields(self, pos, body):
+    def check_for_yields(self):
         from .ParseTreeTransforms import YieldNodeCollector
         collector = YieldNodeCollector()
-        collector.visitchildren(body)
+        collector.visitchildren(self.body)
         if collector.yields:
             # DW - I've disallowed this because it seems like a deadlock disaster waiting to happen.
             # I'm sure it's technically possible, and we can revise it if people have legitimate
             # uses.
             error(
-                pos,
+                self.pos,
                 "Cannot use a 'with' statement with a 'cython.lock_type' in a generator. "
                 "If you really want to do this (and you are confident that there are no deadlocks) "
                 "then use try-finally."
@@ -9121,60 +9129,46 @@ class CythonLockStatNode(TryFinallyStatNode):
 
     def analyse_expressions(self, env):
         self.arg = self.arg.analyse_expressions(env)
+        self.check_for_yields()
         return super().analyse_expressions(env)
 
     def generate_execution_code(self, code):
-        code.globalstate.use_utility_code(
-            UtilityCode.load_cached("CriticalSections", "ModuleSetupCode.c"))
-
         code.mark_pos(self.pos)
         code.begin_block()
-        if self.state_temp:
-            self.state_temp.allocate(code)
-            variable = self.state_temp.result()
-        else:
-            variable = Naming.critical_section_variable
-            code.putln(f"{self.var_type.declaration_code(variable)};")
+        
+        #variable = Naming.critical_section_variable
+        #    code.putln(f"{self.var_type.declaration_code(variable)};")
 
-        for arg in self.args:
-            arg.generate_evaluation_code(code)
-        args = [ f"(PyObject*){arg.result()}" for arg in self.args ]
-        code.putln(
-            f"__Pyx_PyCriticalSection_Begin{len(args)}(&{variable}, {', '.join(args)});"
-        )
+        t = code.funcstate.allocate_temp(PyrexTypes.CPtrType(self.arg.type), manage_ref=False)
+        self.arg.generate_evaluation_code(code)
+        code.putln(f"{t} = &{self.arg.result()};")
+        code.putln(self.arg.type.scope.)
+        #args = [ f"(PyObject*){arg.result()}" for arg in self.args ]
+        #code.putln(
+        #    f"__Pyx_PyCriticalSection_Begin{len(args)}(&{variable}, {', '.join(args)});"
+        #)
 
         TryFinallyStatNode.generate_execution_code(self, code)
 
-        for arg in self.args:
-            arg.generate_disposal_code(code)
-            arg.free_temps(code)
-
-        if self.state_temp:
-            self.state_temp.release(code)
+        self.arg.generate_disposal_code(code)
+        self.arg.free_temps(code)
+        
+        code.funcstate.release_temp(t)
 
         code.end_block()
 
-    def nogil_check(self, env):
-        error(self.pos, "Critical sections require the GIL")
 
-
-class CriticalSectionExitNode(StatNode):
+class CythonLockExitNode(StatNode):
     """
-    critical_section - the CriticalSectionStatNode that owns this
+    
     """
     child_attrs = []
-
-    def __deepcopy__(self, memo):
-        # This gets deepcopied when generating finally_clause and
-        # finally_except_clause. In this case the node has essentially
-        # no state, except for a reference to its parent.
-        # We definitely don't want to let that reference be copied.
-        return self
 
     def analyse_expressions(self, env):
         return self
 
     def generate_execution_code(self, code):
+        return
         if self.critical_section.state_temp:
             variable_name = self.critical_section.state_temp.result()
         else:

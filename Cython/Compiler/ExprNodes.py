@@ -3486,6 +3486,7 @@ class WithExitCallNode(ExprNode):
         return self
 
     def generate_evaluation_code(self, code):
+        breakpoint()
         if self.test_if_run:
             # call only if it was not already called (and decref-cleared)
             code.putln("if (%s) {" % self.with_stat.exit_var)

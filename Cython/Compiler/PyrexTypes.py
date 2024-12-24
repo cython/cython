@@ -4894,7 +4894,7 @@ class CythonLockType(PyrexType):
                     pos=None,
                     defining=1,
                     cname="__Pyx_UnlockCythonLock")
-            scope.declare_cfunction(
+            """scope.declare_cfunction(
                     "__enter__",
                     CFuncType(CPtrType(self), [CFuncTypeArg("self", self, None)],
                               nogil=True, exception_value="NULL"),
@@ -4907,7 +4907,7 @@ class CythonLockType(PyrexType):
                               nogil=True, exception_value=-1),
                     pos=None,
                     defining=1,
-                    cname="__Pyx_ExitCythonLock")
+                    cname="__Pyx_ExitCythonLock")"""
             # Don't define a "locked" function because we can't do this with Py_Mutex
             # (which is the preferred implementation)
             # TODO - versions with explicit GIL handling

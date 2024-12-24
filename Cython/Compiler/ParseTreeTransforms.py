@@ -1628,7 +1628,7 @@ class ParallelRangeTransform(CythonTransform, SkipDeclarations):
 
 class WithTransform(VisitorTransform, SkipDeclarations):
     def visit_WithStatNode(self, node):
-        self.visitchildren(node, 'body')
+        self.visitchildren(node, ['body'])
         pos = node.pos
         is_async = node.is_async
         body, target, manager = node.body, node.target, node.manager
