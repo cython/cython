@@ -2985,6 +2985,7 @@ class IteratorNode(ScopedExprNode):
     reversed = False      # currently only used for list/tuple types (see Optimize.py)
     is_async = False
     has_local_scope = False
+    has_custom_for_loop = False
 
     subexprs = ['sequence']
 
@@ -3218,6 +3219,7 @@ class CppIteratorNode(ExprNode):
     extra_dereference = ""
     is_temp = True
     reversed = False
+    has_custom_for_loop = True
 
     subexprs = ['sequence']
 
@@ -3274,7 +3276,7 @@ class CppIteratorNode(ExprNode):
 
     def generate_result_code(self, code):
         sequence_type = self.sequence.type
-        begin_name, _ = self.get_iterator_func_names()
+        begin_name, end_name = self.get_iterator_func_names()
         # essentially 3 options:
         if self.sequence.is_simple():
             # 1) Sequence can be accessed directly, like a name;
@@ -3308,21 +3310,24 @@ class CppIteratorNode(ExprNode):
                     self.cpp_attribute_op,
                     begin_name))
 
-    def generate_iter_next_result_code(self, result_name, code):
         # end call isn't cached to support containers that allow adding while iterating
         # (much as this is usually a bad idea)
-        _, end_name = self.get_iterator_func_names()
-        code.putln("if (!(%s%s != %s%s%s())) break;" % (
+
+        code.putln("for (; %s%s != %s%s%s(); ++%s%s) {" % (
                         self.extra_dereference,
                         self.result(),
                         self.cpp_sequence_cname or self.sequence.result(),
                         self.cpp_attribute_op,
-                        end_name))
+                        end_name,
+                        self.extra_dereference,
+                        self.result()
+        ))
+
+    def generate_iter_next_result_code(self, result_name, code):
         code.putln("%s = *%s%s;" % (
                         result_name,
                         self.extra_dereference,
                         self.result()))
-        code.putln("++%s%s;" % (self.extra_dereference, self.result()))
 
     def generate_subexpr_disposal_code(self, code):
         if not self.cpp_sequence_cname:
@@ -3412,6 +3417,7 @@ class AsyncIteratorNode(ScopedExprNode):
     type = py_object_type
     is_temp = 1
     has_local_scope = False
+    has_custom_for_loop = True
 
     def infer_type(self, env):
         return py_object_type

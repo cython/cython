@@ -7707,7 +7707,8 @@ class _ForInStatNode(LoopNode, StatNode):
         code.mark_pos(self.pos)
         old_loop_labels = code.new_loop_labels()
         self.iterator.generate_evaluation_code(code)
-        code.putln("for (;;) {")
+        if not self.iterator.has_custom_for_loop:
+            code.putln("for (;;) {")
         self.item.generate_evaluation_code(code)
         self.target.generate_assignment_code(self.item, code)
         code.write_trace_line(self.pos)
