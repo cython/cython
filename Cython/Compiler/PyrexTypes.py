@@ -3948,22 +3948,22 @@ class CStructOrUnionType(CType):
         if self.is_struct:
             return expr_code
         return super().cast_code(expr_code)
-    
+
     def needs_explicit_construction(self, scope):
         if self._needs_cpp_construction and scope.is_c_class_scope:
             return True
         return False
-    
+
     def needs_explicit_destruction(self, scope):
         return self.needs_explicit_construction(scope)  # same rules
-    
+
     def generate_explicit_construction(self, code, entry, extra_access_code=""):
         # defer to CppClassType since its implementation will be the same
         CppClassType.generate_explicit_construction(self, code, entry, extra_access_code=extra_access_code)
 
     def generate_explicit_destruction(self, code, entry, extra_access_code=""):
         # defer to CppClassType since its implementation will be the same
-        CppClassType.generate_explicit_destruction(self, code, entry, extra_access_code="")
+        CppClassType.generate_explicit_destruction(self, code, entry, extra_access_code=extra_access_code)
 
 cpp_string_conversions = ("std::string",)
 
@@ -4349,10 +4349,10 @@ class CppClassType(CType):
 
     def needs_explicit_destruction(self, scope):
         return self.needs_explicit_construction(scope)  # same rules
-    
+
     def generate_explicit_destruction(self, code, entry, extra_access_code=""):
         code.putln(f"__Pyx_call_destructor({extra_access_code}{entry.cname});")
-    
+
     def generate_explicit_construction(self, code, entry, extra_access_code=""):
         from . import Code
         code.globalstate.use_utility_code(Code.UtilityCode("#include <new>"))
@@ -4865,22 +4865,22 @@ class CythonLockType(PyrexType):
         if src_type is self._special_assignable_reference_type:
             return True
         return False
-    
+
     def get_utility_code(self):
         # It doesn't seem like a good way to associate utility code with a type actually exists
         # so we just have to do it in as many places as possible.
         return UtilityCode.load_cached(f"Cython{'Compatible' if self.compatible_type else ''}LockType", "Lock.c")
-    
+
     def needs_explicit_construction(self, scope):
         # Where possible we use mutex types that don't require
         # explicit construction (e.g. PyMutex). However, on older
         # versions this isn't possible, and we fall back to types
         # that do need non-static initialization.
         return True
-    
+
     def needs_explicit_destruction(self, scope):
         return True
-    
+
     def generate_explicit_construction(self, code, entry, extra_access_code=""):
         compatible_string = 'Compatible' if self.compatible_type else ''
         code.globalstate.use_utility_code(
@@ -4908,7 +4908,7 @@ class CythonLockType(PyrexType):
             self_type = self._special_assignable_reference_type
             scope.declare_cfunction(
                     "acquire",
-                    CFuncType(c_void_type, [CFuncTypeArg("self", self_type, None)], 
+                    CFuncType(c_void_type, [CFuncTypeArg("self", self_type, None)],
                               nogil=True),
                     pos=None,
                     defining=1,
@@ -4926,10 +4926,10 @@ class CythonLockType(PyrexType):
             # (which is the preferred implementation)
 
         return True
-    
+
     def create_to_py_utility_code(self, env):
         return False
-    
+
     def create_from_py_utility_code(self, env):
         return False
 

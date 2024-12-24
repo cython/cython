@@ -3730,11 +3730,11 @@ class GilCheck(VisitorTransform):
             # which is wrapped in a StatListNode. Just unpack that.
             node.finally_clause, = node.finally_clause.stats
 
-        nogilstate_at_current_gilstatnode = self.nogil_state_at_current_gilstatnode
+        nogil_state_at_current_gilstatnode = self.nogil_state_at_current_gilstatnode
         self.nogil_state_at_current_gilstatnode = self.nogil_state
         nogil_state = NoGilState.NoGil if is_nogil else NoGilState.HasGil
         self._visit_scoped_children(node, nogil_state)
-        self.nogilstate_at_current_gilstatnode = nogilstate_at_current_gilstatnode
+        self.nogil_state_at_current_gilstatnode = nogil_state_at_current_gilstatnode
         return node
 
     def visit_ParallelRangeNode(self, node):
@@ -3791,7 +3791,7 @@ class GilCheck(VisitorTransform):
     def visit_CriticalSectionStatNode(self, node):
         # skip normal "try/finally node" handling
         return self.visit_Node(node)
-    
+
     def visit_CythonLockStatNode(self, node):
         # skip normal "try/finally node" handling
         return self.visit_Node(node)
@@ -3812,7 +3812,7 @@ class GilCheck(VisitorTransform):
         if self.nogil_state:
             node.in_nogil_context = self.nogil_state
         return node
-    
+
     def visit_SimpleCallNode(self, node):
         if (node.self and node.self.type.is_cython_lock_type and
                 node.function.is_attribute and node.function.attribute == "acquire" and
@@ -3828,7 +3828,7 @@ class GilCheck(VisitorTransform):
             if suffix:
                 node = ExprNodes.PythonCapiCallNode(
                     node.pos,
-                    node.function.entry.cname + suffix, 
+                    node.function.entry.cname + suffix,
                     node.function.type,
                     args=[node.self],
                 )

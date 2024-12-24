@@ -9086,7 +9086,7 @@ class CythonLockStatNode(TryFinallyStatNode):
             ...
     where l in a cython.lock_type.
 
-    arg    ExprNode    
+    arg    ExprNode
     """
 
     child_attrs = ["arg"] + TryFinallyStatNode.child_attrs
@@ -9173,7 +9173,7 @@ class CythonLockStatNode(TryFinallyStatNode):
 
         self.arg.generate_disposal_code(code)
         self.arg.free_temps(code)
-        
+
         self.lock_temp.release(code)
 
         code.end_block()
@@ -9181,7 +9181,7 @@ class CythonLockStatNode(TryFinallyStatNode):
 
 class CythonLockExitNode(StatNode):
     """
-    
+
     """
     child_attrs = []
 
@@ -9191,7 +9191,7 @@ class CythonLockExitNode(StatNode):
     def generate_execution_code(self, code):
         compatible_str = "Compatible" if self.lock_stat_node.arg.type.compatible_type else ""
         code.putln(f"__Pyx_UnlockCython{compatible_str}Lock(*{self.lock_stat_node.lock_temp.result()});")
-        
+
 
 
 def cython_view_utility_code():

@@ -372,7 +372,7 @@ class TempResultFromStatNode(ExprNodes.ExprNode):
 
 class HasNoGilNode(AtomicExprNode):
     """
-    Simple node that evaluates to 
+    Simple node that evaluates to
     * 0 if gil
     * 1 if nogil
     * 2 if maybe gil

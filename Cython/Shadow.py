@@ -671,13 +671,13 @@ class lock_type:
 
     def acquire(self):
         return self._l.acquire()
-    
+
     def release(self):
         return self._l.release()
-    
+
     def __enter__(self):
         return self._l.__enter__()
-    
+
     def __exit__(self, exc_type, exc_value, traceback):
         return self._l.__exit__(exc_type, exc_value, traceback)
 

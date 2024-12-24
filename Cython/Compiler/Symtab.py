@@ -2335,7 +2335,7 @@ class CClassScope(ClassScope):
     #  getset_table_cname    string
     #  has_pyobject_attrs    boolean  Any PyObject attributes?
     #  has_memoryview_attrs  boolean  Any memory view attributes?
-    #  has_explicitly_constructable_class_attrs   boolean  Any attributes that 
+    #  has_explicitly_constructable_class_attrs   boolean  Any attributes that
     #                               need an explicit constructor (e.g. C++ class non-pointers)?
     #  has_cyclic_pyobject_attrs    boolean  Any PyObject attributes that may need GC?
     #  property_entries      [Entry]
