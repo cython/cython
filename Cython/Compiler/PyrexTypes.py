@@ -3950,7 +3950,7 @@ class CStructOrUnionType(CType):
         return super().cast_code(expr_code)
     
     def needs_explicit_construction(self, scope):
-        if self._needs_cpp_construction and scope.is_class_scope:
+        if self._needs_cpp_construction and scope.is_c_class_scope:
             return True
         return False
     
