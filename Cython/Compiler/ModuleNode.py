@@ -188,7 +188,9 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         body = Nodes.CompilerDirectivesNode(self.pos, directives=self.directives, body=self.body)
         return body
 
-    def find_shared_cy_lock_type(self, env, include_all_attrs=False):
+    def find_shared_cy_lock_type(self, env, include_all_attrs=False, seen_scopes=None):
+        if seen_scopes is None:
+            seen_scopes = set()
         for entry in env.entries.values():
             if not (include_all_attrs or entry.defined_in_pxd or entry.visibility == "public" or entry.api):
                 continue
@@ -196,7 +198,10 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             if any(sub_tp is PyrexTypes.cy_lock_type for sub_tp in entry_subtypes):
                 return True
             if hasattr(entry.type, "scope") and entry.type.scope is not None:
-                if self.find_shared_cy_lock_type(entry.type.scope, include_all_attrs=True):
+                if entry.type.scope in seen_scopes:
+                    continue
+                seen_scopes.add(entry.type.scope)
+                if self.find_shared_cy_lock_type(entry.type.scope, include_all_attrs=True, seen_scopes=seen_scopes):
                     return True
         return False
 
