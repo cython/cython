@@ -3312,10 +3312,9 @@ class CppIteratorNode(ExprNode):
                     begin_name))
 
     def generate_for_loop_header(self, code):
-        _, end_name = self.get_iterator_func_names()
-
         # end call isn't cached to support containers that allow adding while iterating
         # (much as this is usually a bad idea)
+        _, end_name = self.get_iterator_func_names()
         code.put("; %s%s != %s%s%s(); ++%s%s" % (
             self.extra_dereference,
             self.result(),
