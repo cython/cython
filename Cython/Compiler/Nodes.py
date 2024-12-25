@@ -7709,7 +7709,7 @@ class _ForInStatNode(LoopNode, StatNode):
         self.iterator.generate_evaluation_code(code)
         code.put("for (")
         self.iterator.generate_for_loop_header(code)
-        code.put(") {")
+        code.putln(") {")
         self.item.generate_evaluation_code(code)
         self.target.generate_assignment_code(self.item, code)
         code.write_trace_line(self.pos)
