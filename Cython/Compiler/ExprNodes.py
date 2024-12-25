@@ -3417,7 +3417,7 @@ class AsyncIteratorNode(ScopedExprNode):
     type = py_object_type
     is_temp = 1
     has_local_scope = False
-    has_custom_for_loop = True
+    has_custom_for_loop = False
 
     def infer_type(self, env):
         return py_object_type
