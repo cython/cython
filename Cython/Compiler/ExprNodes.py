@@ -2985,7 +2985,6 @@ class IteratorNode(ScopedExprNode):
     reversed = False      # currently only used for list/tuple types (see Optimize.py)
     is_async = False
     has_local_scope = False
-    has_custom_for_loop = False
 
     subexprs = ['sequence']
 
@@ -3113,6 +3112,9 @@ class IteratorNode(ScopedExprNode):
         if self.may_be_a_sequence:
             code.putln("}")
 
+    def generate_for_loop_header(self, code):
+        code.put(";;")
+
     def generate_next_sequence_item(self, test_name, result_name, code):
         assert self.counter_cname, "internal error: counter_cname temp not prepared"
         assert test_name in ('List', 'Tuple')
@@ -3219,7 +3221,6 @@ class CppIteratorNode(ExprNode):
     extra_dereference = ""
     is_temp = True
     reversed = False
-    has_custom_for_loop = True
 
     subexprs = ['sequence']
 
@@ -3276,7 +3277,7 @@ class CppIteratorNode(ExprNode):
 
     def generate_result_code(self, code):
         sequence_type = self.sequence.type
-        begin_name, end_name = self.get_iterator_func_names()
+        begin_name, _ = self.get_iterator_func_names()
         # essentially 3 options:
         if self.sequence.is_simple():
             # 1) Sequence can be accessed directly, like a name;
@@ -3310,18 +3311,19 @@ class CppIteratorNode(ExprNode):
                     self.cpp_attribute_op,
                     begin_name))
 
+    def generate_for_loop_header(self, code):
+        _, end_name = self.get_iterator_func_names()
+
         # end call isn't cached to support containers that allow adding while iterating
         # (much as this is usually a bad idea)
-
-        code.putln("for (; %s%s != %s%s%s(); ++%s%s) {" % (
+        code.putln("; %s%s != %s%s%s(); ++%s%s" % (
                         self.extra_dereference,
                         self.result(),
                         self.cpp_sequence_cname or self.sequence.result(),
                         self.cpp_attribute_op,
                         end_name,
                         self.extra_dereference,
-                        self.result()
-        ))
+                        self.result()))
 
     def generate_iter_next_result_code(self, result_name, code):
         code.putln("%s = *%s%s;" % (
@@ -3417,7 +3419,6 @@ class AsyncIteratorNode(ScopedExprNode):
     type = py_object_type
     is_temp = 1
     has_local_scope = False
-    has_custom_for_loop = False
 
     def infer_type(self, env):
         return py_object_type
@@ -3438,6 +3439,9 @@ class AsyncIteratorNode(ScopedExprNode):
             self.sequence.py_result(),
             code.error_goto_if_null(self.result(), self.pos)))
         self.generate_gotref(code)
+
+    def generate_for_loop_header(self, code):
+        code.put(";;")
 
 
 class AsyncNextNode(AtomicExprNode):
