@@ -3316,14 +3316,14 @@ class CppIteratorNode(ExprNode):
 
         # end call isn't cached to support containers that allow adding while iterating
         # (much as this is usually a bad idea)
-        code.putln("; %s%s != %s%s%s(); ++%s%s" % (
-                        self.extra_dereference,
-                        self.result(),
-                        self.cpp_sequence_cname or self.sequence.result(),
-                        self.cpp_attribute_op,
-                        end_name,
-                        self.extra_dereference,
-                        self.result()))
+        code.put("; %s%s != %s%s%s(); ++%s%s" % (
+            self.extra_dereference,
+            self.result(),
+            self.cpp_sequence_cname or self.sequence.result(),
+            self.cpp_attribute_op,
+            end_name,
+            self.extra_dereference,
+            self.result()))
 
     def generate_iter_next_result_code(self, result_name, code):
         code.putln("%s = *%s%s;" % (
