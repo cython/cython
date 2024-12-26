@@ -2117,23 +2117,29 @@ class AnalyseDeclarationsTransform(EnvTransform):
     basic_property = TreeFragment("""
 property NAME:
     def __get__(self):
-        return ATTR
+        with CRITICAL_SECTION(self):
+            return ATTR
     def __set__(self, value):
-        ATTR = value
+        with CRITICAL_SECTION(self):
+            ATTR = value
     """, level='c_class', pipeline=[NormalizeTree(None)])
     basic_pyobject_property = TreeFragment("""
 property NAME:
     def __get__(self):
-        return ATTR
+        with CRITICAL_SECTION(self):
+            return ATTR
     def __set__(self, value):
-        ATTR = value
+        with CRITICAL_SECTION(self):
+            ATTR = value
     def __del__(self):
-        ATTR = None
+        with CRITICAL_SECTION(self):
+            ATTR = None
     """, level='c_class', pipeline=[NormalizeTree(None)])
     basic_property_ro = TreeFragment("""
 property NAME:
     def __get__(self):
-        return ATTR
+        with CRITICAL_SECTION(self):
+            return ATTR
     """, level='c_class', pipeline=[NormalizeTree(None)])
 
     struct_or_union_wrapper = TreeFragment("""
@@ -2316,14 +2322,18 @@ if VALUE is not None:
                 def __reduce_cython__(self):
                     cdef tuple state
                     cdef object _dict
-                    cdef bint use_setstate
-                    state = (%(members)s)
-                    _dict = getattr(self, '__dict__', None)
+                    cdef bint use_setstate = False
+                    with CRITICAL_SECTION(self):
+                        _dict = getattr(self, '__dict__', None)
+                        state = (%(members)s)
                     if _dict is not None:
                         state += (_dict,)
                         use_setstate = True
                     else:
-                        use_setstate = %(any_notnone_members)s
+                        for idx in [%(pyobject_indices)s]:
+                            if state[idx] is not None:
+                                use_setstate = True
+                                break
                     if use_setstate:
                         return %(unpickle_func_name)s, (type(self), %(checksum)s, None), state
                     else:
@@ -2336,9 +2346,12 @@ if VALUE is not None:
                     'checksum': checksums[0],
                     'members': ', '.join('self.%s' % v for v in all_members_names) + (',' if len(all_members_names) == 1 else ''),
                     # Even better, we could check PyType_IS_GC.
-                    'any_notnone_members' : ' or '.join(['self.%s is not None' % e.name for e in all_members if e.type.is_pyobject] or ['False']),
+                    'pyobject_indices' : repr(tuple(n for n, e in enumerate(all_members) if e.type.is_pyobject )),
                 },
-                level='c_class', pipeline=[NormalizeTree(None)]).substitute({})
+                level='c_class', pipeline=[NormalizeTree(None)]).substitute(
+                    {'CRITICAL_SECTION': ExprNodes.NameNode(node.pos, name="critical_section", cython_attribute="critical_section")
+                })
+            pickle_func = InterpretCompilerDirectives(None, {})(pickle_func)
             pickle_func.analyse_declarations(node.scope)
             self.enter_scope(node, node.scope)  # functions should be visited in the class scope
             self.visit(pickle_func)
@@ -2695,7 +2708,11 @@ if VALUE is not None:
                 "ATTR": ExprNodes.AttributeNode(pos=entry.pos,
                                                 obj=ExprNodes.NameNode(pos=entry.pos, name="self"),
                                                 attribute=entry.name),
+                "CRITICAL_SECTION": ExprNodes.NameNode(pos=entry.pos,
+                                                       name="critical_section",
+                                                       cython_attribute="critical_section")
             }, pos=entry.pos).stats[0]
+        property = InterpretCompilerDirectives(None, {})(property)
         property.name = entry.name
         property.doc = entry.doc
         return property
