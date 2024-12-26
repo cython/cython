@@ -3822,9 +3822,9 @@ class GilCheck(VisitorTransform):
             # it doesn't matter)
             suffix = None
             if self.nogil_state == NoGilState.NoGil:
-                suffix = "_Nogil"
+                suffix = "Nogil"
             elif self.nogil_state == NoGilState.HasGil:
-                suffix = "_Gil"
+                suffix = "Gil"
             if suffix:
                 node = ExprNodes.PythonCapiCallNode(
                     node.pos,

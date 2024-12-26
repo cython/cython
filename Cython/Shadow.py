@@ -664,7 +664,7 @@ sys.modules['cython.cimports'] = CythonCImports('cython.cimports', libc=sys.modu
 dataclasses = sys.modules['cython.dataclasses'] = CythonDotImportedFromElsewhere('dataclasses')
 del math, sys
 
-class lock_type:
+class pymutex:
     def __init__(self):
         import threading
         self._l = threading.Lock()
@@ -681,4 +681,4 @@ class lock_type:
     def __exit__(self, exc_type, exc_value, traceback):
         return self._l.__exit__(exc_type, exc_value, traceback)
 
-compatible_lock_type = lock_type
+pythread_type_lock = pymutex

@@ -1,31 +1,29 @@
-////////////////////// CythonCompatibleLockType.proto //////////
+////////////////////// PyThreadTypeLock.proto //////////
 //@proto_block: utility_code_proto_before_types
 
 // This lock type always uses PyThread_type_lock. The main reason
 // to use it is if you are using the Limited API and want to
 // share locks between modules.
 
-#define __Pyx_CythonCompatibleLockType PyThread_type_lock
-#define __Pyx_InitCythonCompatibleLock(l) l = PyThread_allocate_lock()
-#define __Pyx_DeleteCythonCompatibleLock(l) PyThread_free_lock(l)
-#define __Pyx_LockCythonCompatibleLock_Nogil(l) (void)PyThread_acquire_lock(l, WAIT_LOCK)
-#define __Pyx_UnlockCythonCompatibleLock(l) PyThread_release_lock(l)
-static void __Pyx__LockCythonCompatibleLock(__Pyx_CythonCompatibleLockType lock); /* proto */
-static void __Pyx__LockCythonCompatibleLock_Gil(__Pyx_CythonCompatibleLockType lock); /* proto */
+#define __Pyx_Locks_PyThreadTypeLock PyThread_type_lock
+#define __Pyx_Locks_PyThreadTypeLock_DECL NULL
+#define __Pyx_Locks_PyThreadTypeLock_Init(l) l = PyThread_allocate_lock()
+#define __Pyx_Locks_PyThreadTypeLock_Delete(l) PyThread_free_lock(l)
+#define __Pyx_Locks_PyThreadTypeLock_LockNogil(l) (void)PyThread_acquire_lock(l, WAIT_LOCK)
+#define __Pyx_Locks_PyThreadTypeLock_Unlock(l) PyThread_release_lock(l)
+static void __Pyx__Locks_PyThreadTypeLock_Lock(__Pyx_Locks_PyThreadTypeLock lock); /* proto */
+static void __Pyx__Locks_PyThreadTypeLock_LockGil(__Pyx_Locks_PyThreadTypeLock lock); /* proto */
 // CYTHON_INLINE because these may be unused
-static CYTHON_INLINE void __Pyx_LockCythonCompatibleLock(__Pyx_CythonCompatibleLockType lock) {
-    __Pyx__LockCythonCompatibleLock(lock);
+static CYTHON_INLINE void __Pyx_Locks_PyThreadTypeLock_Lock(__Pyx_Locks_PyThreadTypeLock lock) {
+    __Pyx__Locks_PyThreadTypeLock_Lock(lock);
 }
-static CYTHON_INLINE void __Pyx_LockCythonCompatibleLock_Gil(__Pyx_CythonCompatibleLockType lock) {
-    __Pyx__LockCythonCompatibleLock_Gil(lock);
+static CYTHON_INLINE void __Pyx_Locks_PyThreadTypeLock_LockGil(__Pyx_Locks_PyThreadTypeLock lock) {
+    __Pyx__Locks_PyThreadTypeLock_LockGil(lock);
 }
-#define __Pyx_LockCythonCompatibleLock_WithState(l, nogil_state) \
-    nogil_state == 0 ? __Pyx_LockCythonCompatibleLock_Gil(l) : \
-    (nogil_state == 1 ? __Pyx_LockCythonCompatibleLock_Nogil(l) : __Pyx_LockCythonCompatibleLock(l)) 
 
-////////////////////// CythonCompatibleLockType ////////////////
+////////////////////// PyThreadTypeLock ////////////////
 
-static void __Pyx__LockCythonCompatibleLock_Gil(__Pyx_CythonCompatibleLockType lock) {
+static void __Pyx__Locks_PyThreadTypeLock_LockGil(__Pyx_Locks_PyThreadTypeLock lock) {
     int spin_count = 0;
     while (1) {
         if (likely(PyThread_acquire_lock_timed(lock, 0, 0) == PY_LOCK_ACQUIRED)) {
@@ -48,25 +46,25 @@ static void __Pyx__LockCythonCompatibleLock_Gil(__Pyx_CythonCompatibleLockType l
     }
 }
 
-static void __Pyx__LockCythonCompatibleLock(__Pyx_CythonCompatibleLockType lock) {
+static void __Pyx__Locks_PyThreadTypeLock_Lock(__Pyx_Locks_PyThreadTypeLock lock) {
 #if CYTHON_COMPILING_IN_LIMITED_API
     // We can't tell if we have the GIL. Therefore make sure we do have it
     // and then restore whatever state was there before.
     PyGILState_STATE state = PyGILState_Ensure();
-    __Pyx_LockCythonCompatibleLock_Gil(lock);
+    __Pyx_Locks_PyThreadTypeLock_LockNogil(lock);
     PyGILState_Release(state);
 #else
     if (PyGILState_Check()) {
-        __Pyx_LockCythonCompatibleLock_Gil(lock);
+        __Pyx_Locks_PyThreadTypeLock_LockGil(lock);
     } else {
-        __Pyx_LockCythonCompatibleLock_Nogil(lock);
+        __Pyx_Locks_PyThreadTypeLock_LockNogil(lock);
     }
 #endif
 }
 
-////////////////////// CythonLockType.proto ////////////////////
+////////////////////// PyMutex.proto ////////////////////
 //@proto_block: utility_code_proto_before_types
-//@requires: CythonCompatibleLockType
+//@requires: PyThreadTypeLock
 
 // We support two implementations - a Py3.13+ version using PyMutex and
 // an older version using PyThread_type_lock.
@@ -82,45 +80,43 @@ static void __Pyx__LockCythonCompatibleLock(__Pyx_CythonCompatibleLockType lock)
 // CythonCompatibleLockType which will always be PyThread_type_lock.
 
 #if PY_VERSION_HEX > 0x030d0000 && !CYTHON_COMPILING_IN_LIMITED_API
-#define __Pyx_CythonLockType PyMutex
-#define __Pyx_CYTHON_LOCK_TYPE_DECL {0}
-#define __Pyx_InitCythonLock(l) (void)(l)
-#define __Pyx_DeleteCythonLock(l) (void)(l)
+#define __Pyx_Locks_PyMutex PyMutex
+#define __Pyx_Locks_PyMutex_DECL {0}
+#define __Pyx_Locks_PyMutex_Init(l) (void)(l)
+#define __Pyx_Locks_PyMutex_Delete(l) (void)(l)
 // Py_Mutex takes care of all GIL handling itself
-#define __Pyx_LockCythonLock(l) PyMutex_Lock(&l)
-#define __Pyx_UnlockCythonLock(l) PyMutex_Unlock(&l)
-#define __Pyx_LockCythonLock_Gil(l) PyMutex_Lock(&l)
-#define  __Pyx_LockCythonLock_Nogil(l) PyMutex_Lock(&l)
-#define __Pyx_LockCythonLock_WithState(l, ignore) PyMutex_Lock(&l)
+#define __Pyx_Locks_PyMutex_Lock(l) PyMutex_Lock(&l)
+#define __Pyx_Locks_PyMutex_Unlock(l) PyMutex_Unlock(&l)
+#define __Pyx_Locks_PyMutex_LockGil(l) PyMutex_Lock(&l)
+#define  __Pyx_Locks_PyMutex_LockNogil(l) PyMutex_Lock(&l)
 
 #else
 
-#define __Pyx_CythonLockType __Pyx_CythonCompatibleLockType
-#define __Pyx_CYTHON_LOCK_TYPE_DECL NULL
-#define __Pyx_InitCythonLock(l) __Pyx_InitCythonCompatibleLock(l)
-#define __Pyx_DeleteCythonLock(l) __Pyx_DeleteCythonCompatibleLock(l)
-#define __Pyx_LockCythonLock(l) __Pyx_LockCythonCompatibleLock(l)
-#define __Pyx_UnlockCythonLock(l) __Pyx_UnlockCythonCompatibleLock(l)
-#define __Pyx_LockCythonLock_Gil(l) __Pyx_LockCythonCompatibleLock_Gil(l)
-#define __Pyx_LockCythonLock_Nogil(l) __Pyx_LockCythonCompatibleLock_Nogil(l)
-#define __Pyx_LockCythonLock_WithState(l, nogil_state) __Pyx_LockCythonCompatibleLock_WithState(l, nogil_state)
+#define __Pyx_Locks_PyMutex __Pyx_Locks_PyThreadTypeLock
+#define __Pyx_Locks_PyMutex_DECL __Pyx_LOCKS_PyThreadTypeLock_DECL
+#define __Pyx_Locks_PyMutex_Init(l) __Pyx_Locks_PyThreadTypeLock_Init(l)
+#define __Pyx_Locks_PyMutex_Delete(l) __Pyx_Locks_PyThreadTypeLock_Delete(l)
+#define __Pyx_Locks_PyMutex_Lock(l) __Pyx_Locks_PyThreadTypeLock_Lock(l)
+#define __Pyx_Locks_PyMutex_Unlock(l) __Pyx_Locks_PyThreadTypeLock_Unlock(l)
+#define __Pyx_Locks_PyMutex_LockGil(l) __Pyx_Locks_PyThreadTypeLock_LockGil(l)
+#define __Pyx_Locks_PyMutex_LockNogil(l) __Pyx_Locks_PyThreadTypeLock_LockNogil(l)
 
 #endif
 
-//////////////////////////// CythonLockTypePublicCheck ///////////////////////////////////
+//////////////////////////// CythonPyMutexPublicCheck ///////////////////////////////////
 
-#ifndef CYTHON_UNSAFE_IGNORE_LOCK_TYPE_ABI_COMPATIBILITY
-#define CYTHON_UNSAFE_IGNORE_LOCK_TYPE_ABI_COMPATIBILITY 0
+#ifndef CYTHON_UNSAFE_IGNORE_PYMUTEX_ABI_COMPATIBILITY
+#define CYTHON_UNSAFE_IGNORE_PYMUTEX_ABI_COMPATIBILITY 0
 #endif
 
-/* CYTHON_UNSAFE_IGNORE_LOCK_TYPE_ABI_COMPATIBILITY is left for an advanced user who
+/* CYTHON_UNSAFE_IGNORE_PYMUTEX_ABI_COMPATIBILITY is left for an advanced user who
  * wants to disable this error.  However, please don't complain to us when your code
  * breaks.  Whatever you do, the Limited API version always uses the "compatible" lock
  * type anyway, so you're only saving yourself a few extra characters typing.
  */
-#if CYTHON_COMPILING_IN_LIMITED_API && !CYTHON_UNSAFE_IGNORE_LOCK_TYPE_ABI_COMPATIBILITY
-#error cython.lock_type is shared between multiple modules in the Limited API.\
+#if CYTHON_COMPILING_IN_LIMITED_API && !CYTHON_UNSAFE_IGNORE_PYMUTEX_ABI_COMPATIBILITY
+#error cython.pymutex is shared between multiple modules in the Limited API.\
  This is intentionally disabled because it is not possible for regular API and Limited API\
- modules to be compatible with each other.  Use cython.compatible_lock_type for a safe\
+ modules to be compatible with each other.  Use cython.pythread_type_lock for a safe\
  alternative lock type instead.
 #endif

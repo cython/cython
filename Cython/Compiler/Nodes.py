@@ -9084,7 +9084,7 @@ class CythonLockStatNode(TryFinallyStatNode):
     Represents
         with l:
             ...
-    where l in a cython.lock_type.
+    where l in a cython.pymutex or cython.pythread_type_lock.
 
     arg    ExprNode
     """
@@ -9122,9 +9122,10 @@ class CythonLockStatNode(TryFinallyStatNode):
             # DW - I've disallowed this because it seems like a deadlock disaster waiting to happen.
             # I'm sure it's technically possible, and we can revise it if people have legitimate
             # uses.
+            typename = self.arg.type.empty_declaration_code(pyrex=True).strip()
             error(
                 self.pos,
-                "Cannot use a 'with' statement with a 'cython.lock_type' in a generator. "
+                f"Cannot use a 'with' statement with a '{typename}' in a generator. "
                 "If you really want to do this (and you are confident that there are no deadlocks) "
                 "then use try-finally."
             )
@@ -9141,9 +9142,11 @@ class CythonLockStatNode(TryFinallyStatNode):
             body = body.stats[0]
         if isinstance(body, GILStatNode) and body.state == "gil":
             # Only warn about the initial and most obvious mistake (directly nesting the loops)
+            type_name = self.arg.type.empty_declaration_code(pyrex=True).strip()
             warning(
                 body.pos,
-                "Acquiring the GIL inside a cython.lock_type lock. To avoid potential deadlocks acquire the GIL first.",
+                f"Acquiring the GIL inside a {type_name} lock. "
+                "To avoid potential deadlocks acquire the GIL first.",
                 2)
         return super().analyse_expressions(env)
 
@@ -9159,15 +9162,14 @@ class CythonLockStatNode(TryFinallyStatNode):
         temp_name = self.lock_temp.result()
         self.arg.generate_evaluation_code(code)
         code.putln(f"{temp_name} = &{self.arg.result()};")
-        compatible_str = "Compatible" if self.arg.type.compatible_type else ""
         if self.in_nogil_context == NoGilState.NoGil:
-            gil_str = "_Nogil"
+            gil_str = "Nogil"
         elif self.in_nogil_context == NoGilState.NoGilScope:
             gil_str = ""
         else:
-            gil_str = "_Gil"
+            gil_str = "Gil"
 
-        code.putln(f"__Pyx_LockCython{compatible_str}Lock{gil_str}(*{temp_name});")
+        code.putln(f"__Pyx_Locks_{self.arg.type.cname_part}_Lock{gil_str}(*{temp_name});")
 
         TryFinallyStatNode.generate_execution_code(self, code)
 
@@ -9189,8 +9191,8 @@ class CythonLockExitNode(StatNode):
         return self
 
     def generate_execution_code(self, code):
-        compatible_str = "Compatible" if self.lock_stat_node.arg.type.compatible_type else ""
-        code.putln(f"__Pyx_UnlockCython{compatible_str}Lock(*{self.lock_stat_node.lock_temp.result()});")
+        cname_part = self.lock_stat_node.arg.type.cname_part
+        code.putln(f"__Pyx_Locks_{cname_part}_Unlock(*{self.lock_stat_node.lock_temp.result()});")
 
 
 

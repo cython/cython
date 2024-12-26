@@ -188,20 +188,20 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         body = Nodes.CompilerDirectivesNode(self.pos, directives=self.directives, body=self.body)
         return body
 
-    def find_shared_cy_lock_type(self, env, include_all_attrs=False, seen_scopes=None):
+    def find_shared_cy_pymutexes(self, env, include_all_attrs=False, seen_scopes=None):
         if seen_scopes is None:
             seen_scopes = set()
         for entry in env.entries.values():
             if not (include_all_attrs or entry.defined_in_pxd or entry.visibility == "public" or entry.api):
                 continue
             entry_subtypes = get_all_subtypes(entry.type)
-            if any(sub_tp is PyrexTypes.cy_lock_type for sub_tp in entry_subtypes):
+            if any(sub_tp is PyrexTypes.cy_pymutex_type for sub_tp in entry_subtypes):
                 return True
             if hasattr(entry.type, "scope") and entry.type.scope is not None:
                 if entry.type.scope in seen_scopes:
                     continue
                 seen_scopes.add(entry.type.scope)
-                if self.find_shared_cy_lock_type(entry.type.scope, include_all_attrs=True, seen_scopes=seen_scopes):
+                if self.find_shared_cy_pymutexes(entry.type.scope, include_all_attrs=True, seen_scopes=seen_scopes):
                     return True
         return False
 
@@ -223,12 +223,12 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
         self.body.analyse_declarations(env)
 
-        if self.find_shared_cy_lock_type(env):
+        if self.find_shared_cy_pymutexes(env):
             # Be very suspicious of cython locks that are shared.
             # They have the potential cause ABI issues.
             self.scope.use_utility_code(
                 UtilityCode.load_cached(
-                    "CythonLockTypePublicCheck", "Lock.c"
+                    "CythonPyMutexPublicCheck", "Lock.c"
                 ))
 
     def prepare_utility_code(self):

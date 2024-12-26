@@ -4841,11 +4841,10 @@ class CythonLockType(PyrexType):
 
     @property
     def declaration_value(self):
-        if not self.compatible_type:
-            return "__Pyx_CYTHON_LOCK_TYPE_DECL"
+        return f"__Pyx_Locks_{self.cname_part}_DECL"
 
-    def __init__(self, compatible_type):
-        self.compatible_type = compatible_type
+    def __init__(self, cname_part):
+        self.cname_part = cname_part
 
         # Create a reference type that we can use in the definitions of acquire and release
         # to override the general prohibition of assigning anything to this
@@ -4857,8 +4856,11 @@ class CythonLockType(PyrexType):
     def declaration_code(self, entity_code,
             for_display = 0, dll_linkage = None, pyrex = 0):
         if for_display or pyrex:
-            return f"cython.{'compatible_' if self.compatible_type else ''}lock_type"
-        return f"__Pyx_Cython{'Compatible' if self.compatible_type else ''}LockType {entity_code}"
+            if self.cname_part == "PyThreadTypeLock":
+                return "cython.pythread_type_lock"
+            else:
+                return "cython.pymutex"
+        return f"__Pyx_Locks_{self.cname_part} {entity_code}"
 
     def assignable_from(self, src_type):
         # cannot be copied.
@@ -4869,7 +4871,7 @@ class CythonLockType(PyrexType):
     def get_utility_code(self):
         # It doesn't seem like a good way to associate utility code with a type actually exists
         # so we just have to do it in as many places as possible.
-        return UtilityCode.load_cached(f"Cython{'Compatible' if self.compatible_type else ''}LockType", "Lock.c")
+        return UtilityCode.load_cached(self.cname_part, "Lock.c")
 
     def needs_explicit_construction(self, scope):
         # Where possible we use mutex types that don't require
@@ -4882,28 +4884,26 @@ class CythonLockType(PyrexType):
         return True
 
     def generate_explicit_construction(self, code, entry, extra_access_code=""):
-        compatible_string = 'Compatible' if self.compatible_type else ''
         code.globalstate.use_utility_code(
             self.get_utility_code()
         )
-        code.putln(f"__Pyx_InitCython{compatible_string}Lock({extra_access_code}{entry.cname});")
+        code.putln(f"__Pyx_Locks_{self.cname_part}_Init({extra_access_code}{entry.cname});")
 
     def generate_explicit_destruction(self, code, entry, extra_access_code=""):
         code.putln(
-            f"__Pyx_DeleteCython{'Compatible' if self.compatible_type else ''}Lock({extra_access_code}{entry.cname});")
+            f"__Pyx_Locks_{self.cname_part}_Delete({extra_access_code}{entry.cname});")
 
     def attributes_known(self):
         if self.scope is None:
             from . import Symtab
 
             self.scope = scope = Symtab.CClassScope(
-                    f'cython.{"compatible_" if self.compatible_type else ""}lock_type',
+                    self.empty_declaration_code(pyrex=True),
                     None,
                     visibility='extern',
                     parent_type=self)
 
             scope.directives = {}
-            compatible_string = "Compatible" if self.compatible_type else ""
             # The functions don't really take a reference, but saying they do passes the "assignable_from" check
             self_type = self._special_assignable_reference_type
             scope.declare_cfunction(
@@ -4912,7 +4912,7 @@ class CythonLockType(PyrexType):
                               nogil=True),
                     pos=None,
                     defining=1,
-                    cname=f"__Pyx_LockCython{compatible_string}Lock",
+                    cname=f"__Pyx_Locks_{self.cname_part}_Lock",
                     utility_code=self.get_utility_code())
             scope.declare_cfunction(
                     "release",
@@ -4920,7 +4920,7 @@ class CythonLockType(PyrexType):
                               nogil=True),
                     pos=None,
                     defining=1,
-                    cname=f"__Pyx_UnlockCython{compatible_string}Lock",
+                    cname=f"__Pyx_Locks_{self.cname_part}_Unlock",
                     utility_code=self.get_utility_code())
             # Don't define a "locked" function because we can't do this with Py_Mutex
             # (which is the preferred implementation)
@@ -5064,8 +5064,8 @@ cython_memoryview_type = CStructOrUnionType("__pyx_memoryview_obj", "struct",
 memoryviewslice_type = CStructOrUnionType("memoryviewslice", "struct",
                                           None, 1, "__Pyx_memviewslice")
 
-cy_lock_type = CythonLockType(False)
-cy_compatible_lock_type = CythonLockType(True)
+cy_pymutex_type = CythonLockType("PyMutex")
+cy_pythread_type_lock_type = CythonLockType("PyThreadTypeLock")
 
 fixed_sign_int_types = {
     "bint":       (1, c_bint_type),

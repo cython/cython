@@ -93,10 +93,10 @@ coercion_error_dict = {
     (PyrexTypes.c_uchar_ptr_type, unicode_type): "Cannot convert 'char*' to unicode implicitly, decoding required",
     (PyrexTypes.c_const_uchar_ptr_type, unicode_type): (
         "Cannot convert 'char*' to unicode implicitly, decoding required"),
-    (PyrexTypes.cy_lock_type, PyrexTypes.cy_lock_type): (
-        "cython.lock_type cannot be copied"),
-    (PyrexTypes.cy_compatible_lock_type, PyrexTypes.cy_compatible_lock_type): (
-        "cython.cy_compatible_lock_type cannot be copied"),
+    (PyrexTypes.cy_pymutex_type, PyrexTypes.cy_pymutex_type): (
+        "cython.pymutex cannot be copied"),
+    (PyrexTypes.cy_pythread_type_lock_type, PyrexTypes.cy_pythread_type_lock_type): (
+        "cython.pythread_type_lock cannot be copied"),
 }
 
 def find_coercion_error(type_tuple, default, env):

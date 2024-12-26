@@ -4,7 +4,7 @@
 cimport cython
 cimport cython.parallel
 
-cdef cython.lock_type global_lock
+cdef cython.pymutex global_lock
 
 cdef void hide_the_reduction(int *x) noexcept nogil:
     x[0] = x[0] + 1
@@ -28,14 +28,14 @@ def local_lock_with_prange():
     """
     cdef int count = 0
     cdef int i
-    cdef cython.lock_type lock
+    cdef cython.pymutex lock
     for i in cython.parallel.prange(5000, nogil=True):
         with lock:
             hide_the_reduction(&count)
     return count
 
 cdef class HasLockAttribute:
-    cdef cython.lock_type lock
+    cdef cython.pymutex lock
 
 def lock_on_attribute(HasLockAttribute has_lock):
     """
@@ -56,8 +56,8 @@ def lock_in_closure():
     """
     cdef int count = 0
     cdef int i
-    # compatible_lock_type and lock_type should behave basically the same. So test them both
-    cdef cython.compatible_lock_type lock
+    # pythread_type_lock and pymutex should behave basically the same. So test them both
+    cdef cython.pythread_type_lock lock
 
     def inner():
         with lock:
@@ -76,7 +76,7 @@ def manual_acquire_release():
     """
     cdef int count = 0
     cdef int i
-    cdef cython.lock_type lock
+    cdef cython.pymutex lock
 
     for i in cython.parallel.prange(5000, nogil=True):
         # Test it both with and without the GIL
@@ -92,7 +92,7 @@ def manual_acquire_release():
     return count
 
 # Although forbidden to pass a copy of the lock, pointers are fine
-cdef void acquire_and_hide(cython.lock_type* l, int* i) nogil noexcept:
+cdef void acquire_and_hide(cython.pymutex* l, int* i) nogil noexcept:
     with l[0]:
         hide_the_reduction(i)
 
@@ -103,7 +103,7 @@ def pass_as_pointer():
     """
     cdef int count = 0
     cdef int i
-    cdef cython.lock_type lock
+    cdef cython.pymutex lock
     for i in cython.parallel.prange(5000, nogil=True):
         acquire_and_hide(&lock, &count)
     return count
