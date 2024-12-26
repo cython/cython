@@ -3112,6 +3112,9 @@ class IteratorNode(ScopedExprNode):
         if self.may_be_a_sequence:
             code.putln("}")
 
+    def generate_for_loop_header(self, code):
+        code.put(";;")
+
     def generate_next_sequence_item(self, test_name, result_name, code):
         assert self.counter_cname, "internal error: counter_cname temp not prepared"
         assert test_name in ('List', 'Tuple')
@@ -3308,21 +3311,24 @@ class CppIteratorNode(ExprNode):
                     self.cpp_attribute_op,
                     begin_name))
 
-    def generate_iter_next_result_code(self, result_name, code):
+    def generate_for_loop_header(self, code):
         # end call isn't cached to support containers that allow adding while iterating
         # (much as this is usually a bad idea)
         _, end_name = self.get_iterator_func_names()
-        code.putln("if (!(%s%s != %s%s%s())) break;" % (
-                        self.extra_dereference,
-                        self.result(),
-                        self.cpp_sequence_cname or self.sequence.result(),
-                        self.cpp_attribute_op,
-                        end_name))
+        code.put("; %s%s != %s%s%s(); ++%s%s" % (
+            self.extra_dereference,
+            self.result(),
+            self.cpp_sequence_cname or self.sequence.result(),
+            self.cpp_attribute_op,
+            end_name,
+            self.extra_dereference,
+            self.result()))
+
+    def generate_iter_next_result_code(self, result_name, code):
         code.putln("%s = *%s%s;" % (
                         result_name,
                         self.extra_dereference,
                         self.result()))
-        code.putln("++%s%s;" % (self.extra_dereference, self.result()))
 
     def generate_subexpr_disposal_code(self, code):
         if not self.cpp_sequence_cname:
@@ -3432,6 +3438,9 @@ class AsyncIteratorNode(ScopedExprNode):
             self.sequence.py_result(),
             code.error_goto_if_null(self.result(), self.pos)))
         self.generate_gotref(code)
+
+    def generate_for_loop_header(self, code):
+        code.put(";;")
 
 
 class AsyncNextNode(AtomicExprNode):
