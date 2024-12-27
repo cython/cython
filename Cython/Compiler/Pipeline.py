@@ -171,7 +171,7 @@ def inject_utility_code_stage_factory(context):
                 module_node.merge_in(tree.with_compiler_directives(),
                                      tree.scope, stage="utility",
                                      merge_scope=True)
-            elif hasattr(utilcode, 'pxd_scope'):
+            elif hasattr(utilcode, 'pxd_scope') and utilcode.pxd_scope:
                 module_node.scope.cimported_modules.append(utilcode.pxd_scope)
         return module_node
 

@@ -272,6 +272,7 @@ class CythonSharedUtilityCode:
         self._module_name = module_name
         self.context = context
         self.requires = requires
+        self.pxd_scope = None
 
     def find_module(self, context):
         import Cython
@@ -314,7 +315,9 @@ class CythonSharedUtilityCode:
         pass
 
     def get_tree(self, entries_only=False, cython_scope=None):
-        pass
+        if isinstance(Options.use_shared_utility, str) and not self.pxd_scope:
+            # Utility was loaded as dependency and hence declare_in_scope was not called.
+            self.pxd_scope = self.find_module(cython_scope.context)
 
 
 def declare_declarations_in_scope(declaration_string, env, private_type=True,
