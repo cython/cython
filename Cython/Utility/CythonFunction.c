@@ -190,7 +190,7 @@ __Pyx_CyFunction_get_doc(__pyx_CyFunctionObject *op, void *closure)
     }
     Py_INCREF(op->func_doc);
     result = op->func_doc;
-  end:
+  end:;
     __Pyx_END_CRITICAL_SECTION();
     return result;
 }
@@ -227,7 +227,7 @@ __Pyx_CyFunction_get_name(__pyx_CyFunctionObject *op, void *context)
     }
     Py_INCREF(op->func_name);
     result = op->func_name;
-  end:
+  end:;
     __Pyx_END_CRITICAL_SECTION();
     return result;
 }
@@ -289,7 +289,7 @@ __Pyx_CyFunction_get_dict(__pyx_CyFunctionObject *op, void *context)
     }
     Py_INCREF(op->func_dict);
     result = op->func_dict;
-  end:
+  end:;
     __Pyx_END_CRITICAL_SECTION();
     return result;
 }
@@ -520,7 +520,7 @@ ignore:
 
     op->func_is_coroutine = __Pyx_PyBool_FromLong(is_coroutine);
     result = __Pyx_NewRef(op->func_is_coroutine);
-  end:
+  end:;
     __Pyx_END_CRITICAL_SECTION();
     return result;
 }
@@ -1512,7 +1512,7 @@ __pyx_FusedFunction_descr_get(PyObject *self, PyObject *obj, PyObject *type)
 
     Py_XINCREF(obj);
     meth->self = obj;
-  end_of_critical_section:
+  end_of_critical_section:;
     __Pyx_END_CRITICAL_SECTION()
 
     return (PyObject *) meth;
