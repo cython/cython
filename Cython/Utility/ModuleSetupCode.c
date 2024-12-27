@@ -3024,6 +3024,14 @@ static int __Pyx_State_RemoveModule(CYTHON_UNUSED void* dummy) {
 #define __Pyx_PyCriticalSection_End2 PyCriticalSection2_End
 #endif
 
+#if PY_VERSION_HEX < 0x030d0000 || CYTHON_COMPILING_IN_LIMITED_API
+#define __Pyx_BEGIN_CRITICAL_SECTION(o)
+#define __Pyx_END_CRITICAL_SECTION()
+#else
+#define __Pyx_BEGIN_CRITICAL_SECTION Py_BEGIN_CRITICAL_SECTION
+#define __Pyx_END_CRITICAL_SECTION Py_END_CRITICAL_SECTION
+#endif
+
 ////////////////////// IncludeStdlibH.proto //////////////////////
 
 #include <stdlib.h>

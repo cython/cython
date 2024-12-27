@@ -117,6 +117,7 @@ static PyObject * __Pyx_CyFunction_Vectorcall_FASTCALL_KEYWORDS_METHOD(PyObject 
 //@requires: ObjectHandling.c::PyObjectGetAttrStr
 //@requires: ObjectHandling.c::CachedMethodType
 //@requires: ExtensionTypes.c::CallTypeTraverse
+//@requires: ModuleSetupCode.c::CriticalSections
 //@substitute: naming
 
 #if CYTHON_COMPILING_IN_LIMITED_API
@@ -168,24 +169,30 @@ static CYTHON_INLINE void __Pyx__CyFunction_SetClassObj(__pyx_CyFunctionObject* 
 static PyObject *
 __Pyx_CyFunction_get_doc(__pyx_CyFunctionObject *op, void *closure)
 {
+    PyObject *result = NULL;
     CYTHON_UNUSED_VAR(closure);
+    __Pyx_BEGIN_CRITICAL_SECTION(op);
     if (unlikely(op->func_doc == NULL)) {
 #if CYTHON_COMPILING_IN_LIMITED_API
         op->func_doc = PyObject_GetAttrString(op->func, "__doc__");
-        if (unlikely(!op->func_doc)) return NULL;
+        if (unlikely(!op->func_doc)) goto end;
 #else
         if (((PyCFunctionObject*)op)->m_ml->ml_doc) {
             op->func_doc = PyUnicode_FromString(((PyCFunctionObject*)op)->m_ml->ml_doc);
             if (unlikely(op->func_doc == NULL))
-                return NULL;
+                goto end;
         } else {
             Py_INCREF(Py_None);
-            return Py_None;
+            result = Py_None;
+            goto end;
         }
 #endif   /* CYTHON_COMPILING_IN_LIMITED_API */
     }
     Py_INCREF(op->func_doc);
-    return op->func_doc;
+    result = op->func_doc;
+  end:
+    __Pyx_END_CRITICAL_SECTION();
+    return result;
 }
 
 static int
@@ -197,14 +204,18 @@ __Pyx_CyFunction_set_doc(__pyx_CyFunctionObject *op, PyObject *value, void *cont
         value = Py_None;
     }
     Py_INCREF(value);
+    __Pyx_BEGIN_CRITICAL_SECTION(op);
     __Pyx_Py_XDECREF_SET(op->func_doc, value);
+    __Pyx_END_CRITICAL_SECTION();
     return 0;
 }
 
 static PyObject *
 __Pyx_CyFunction_get_name(__pyx_CyFunctionObject *op, void *context)
 {
+    PyObject *result = NULL;
     CYTHON_UNUSED_VAR(context);
+    __Pyx_BEGIN_CRITICAL_SECTION(op);
     if (unlikely(op->func_name == NULL)) {
 #if CYTHON_COMPILING_IN_LIMITED_API
         op->func_name = PyObject_GetAttrString(op->func, "__name__");
@@ -212,10 +223,13 @@ __Pyx_CyFunction_get_name(__pyx_CyFunctionObject *op, void *context)
         op->func_name = PyUnicode_InternFromString(((PyCFunctionObject*)op)->m_ml->ml_name);
 #endif  /* CYTHON_COMPILING_IN_LIMITED_API */
         if (unlikely(op->func_name == NULL))
-            return NULL;
+            goto end;
     }
     Py_INCREF(op->func_name);
-    return op->func_name;
+    result = op->func_name;
+  end:
+    __Pyx_END_CRITICAL_SECTION();
+    return result;
 }
 
 static int
@@ -228,7 +242,9 @@ __Pyx_CyFunction_set_name(__pyx_CyFunctionObject *op, PyObject *value, void *con
         return -1;
     }
     Py_INCREF(value);
+    __Pyx_BEGIN_CRITICAL_SECTION(op);
     __Pyx_Py_XDECREF_SET(op->func_name, value);
+    __Pyx_END_CRITICAL_SECTION();
     return 0;
 }
 
@@ -236,8 +252,12 @@ static PyObject *
 __Pyx_CyFunction_get_qualname(__pyx_CyFunctionObject *op, void *context)
 {
     CYTHON_UNUSED_VAR(context);
+    PyObject *result;
+    __Pyx_BEGIN_CRITICAL_SECTION(op);
     Py_INCREF(op->func_qualname);
-    return op->func_qualname;
+    result = op->func_qualname;
+    __Pyx_END_CRITICAL_SECTION();
+    return result;
 }
 
 static int
@@ -250,7 +270,9 @@ __Pyx_CyFunction_set_qualname(__pyx_CyFunctionObject *op, PyObject *value, void 
         return -1;
     }
     Py_INCREF(value);
+    __Pyx_BEGIN_CRITICAL_SECTION(op);
     __Pyx_Py_XDECREF_SET(op->func_qualname, value);
+    __Pyx_END_CRITICAL_SECTION();
     return 0;
 }
 
@@ -258,13 +280,18 @@ static PyObject *
 __Pyx_CyFunction_get_dict(__pyx_CyFunctionObject *op, void *context)
 {
     CYTHON_UNUSED_VAR(context);
+    PyObject *result = NULL;
+    __Pyx_BEGIN_CRITICAL_SECTION(op);
     if (unlikely(op->func_dict == NULL)) {
         op->func_dict = PyDict_New();
         if (unlikely(op->func_dict == NULL))
-            return NULL;
+            goto end;
     }
     Py_INCREF(op->func_dict);
-    return op->func_dict;
+    result = op->func_dict;
+  end:
+    __Pyx_END_CRITICAL_SECTION();
+    return result;
 }
 
 static int
@@ -282,7 +309,9 @@ __Pyx_CyFunction_set_dict(__pyx_CyFunctionObject *op, PyObject *value, void *con
         return -1;
     }
     Py_INCREF(value);
+    __Pyx_BEGIN_CRITICAL_SECTION(op);
     __Pyx_Py_XDECREF_SET(op->func_dict, value);
+    __Pyx_END_CRITICAL_SECTION();
     return 0;
 }
 
@@ -290,6 +319,7 @@ static PyObject *
 __Pyx_CyFunction_get_globals(__pyx_CyFunctionObject *op, void *context)
 {
     CYTHON_UNUSED_VAR(context);
+    // Globals is read-only so no critical sections
     Py_INCREF(op->func_globals);
     return op->func_globals;
 }
@@ -306,6 +336,7 @@ __Pyx_CyFunction_get_closure(__pyx_CyFunctionObject *op, void *context)
 static PyObject *
 __Pyx_CyFunction_get_code(__pyx_CyFunctionObject *op, void *context)
 {
+    // code is read-only so no critical sections
     PyObject* result = (op->func_code) ? op->func_code : Py_None;
     CYTHON_UNUSED_VAR(context);
     Py_INCREF(result);
@@ -351,13 +382,17 @@ __Pyx_CyFunction_set_defaults(__pyx_CyFunctionObject *op, PyObject* value, void 
     PyErr_WarnEx(PyExc_RuntimeWarning, "changes to cyfunction.__defaults__ will not "
                  "currently affect the values used in function calls", 1);
     Py_INCREF(value);
+    __Pyx_BEGIN_CRITICAL_SECTION(op);
     __Pyx_Py_XDECREF_SET(op->defaults_tuple, value);
+    __Pyx_END_CRITICAL_SECTION();
     return 0;
 }
 
 static PyObject *
 __Pyx_CyFunction_get_defaults(__pyx_CyFunctionObject *op, void *context) {
-    PyObject* result = op->defaults_tuple;
+    PyObject* result = NULL;
+    __Pyx_BEGIN_CRITICAL_SECTION(op);
+    result = op->defaults_tuple;
     CYTHON_UNUSED_VAR(context);
     if (unlikely(!result)) {
         if (op->defaults_getter) {
@@ -368,6 +403,7 @@ __Pyx_CyFunction_get_defaults(__pyx_CyFunctionObject *op, void *context) {
         }
     }
     Py_INCREF(result);
+    __Pyx_END_CRITICAL_SECTION();
     return result;
 }
 
@@ -385,14 +421,18 @@ __Pyx_CyFunction_set_kwdefaults(__pyx_CyFunctionObject *op, PyObject* value, voi
     PyErr_WarnEx(PyExc_RuntimeWarning, "changes to cyfunction.__kwdefaults__ will not "
                  "currently affect the values used in function calls", 1);
     Py_INCREF(value);
+    __Pyx_BEGIN_CRITICAL_SECTION(op);
     __Pyx_Py_XDECREF_SET(op->defaults_kwdict, value);
+    __Pyx_END_CRITICAL_SECTION();
     return 0;
 }
 
 static PyObject *
 __Pyx_CyFunction_get_kwdefaults(__pyx_CyFunctionObject *op, void *context) {
-    PyObject* result = op->defaults_kwdict;
+    PyObject* result = NULL;
     CYTHON_UNUSED_VAR(context);
+    __Pyx_BEGIN_CRITICAL_SECTION(op);
+    result = op->defaults_kwdict;
     if (unlikely(!result)) {
         if (op->defaults_getter) {
             if (unlikely(__Pyx_CyFunction_init_defaults(op) < 0)) return NULL;
@@ -402,6 +442,7 @@ __Pyx_CyFunction_get_kwdefaults(__pyx_CyFunctionObject *op, void *context) {
         }
     }
     Py_INCREF(result);
+    __Pyx_END_CRITICAL_SECTION();
     return result;
 }
 
@@ -416,36 +457,44 @@ __Pyx_CyFunction_set_annotations(__pyx_CyFunctionObject *op, PyObject* value, vo
         return -1;
     }
     Py_XINCREF(value);
+    __Pyx_BEGIN_CRITICAL_SECTION(op);
     __Pyx_Py_XDECREF_SET(op->func_annotations, value);
+    __Pyx_END_CRITICAL_SECTION();
     return 0;
 }
 
 static PyObject *
 __Pyx_CyFunction_get_annotations(__pyx_CyFunctionObject *op, void *context) {
-    PyObject* result = op->func_annotations;
+    PyObject* result = NULL;
     CYTHON_UNUSED_VAR(context);
+    __Pyx_BEGIN_CRITICAL_SECTION(op);
+    result = op->func_annotations;
     if (unlikely(!result)) {
         result = PyDict_New();
         if (unlikely(!result)) return NULL;
         op->func_annotations = result;
     }
     Py_INCREF(result);
+    __Pyx_END_CRITICAL_SECTION();
     return result;
 }
 
 static PyObject *
 __Pyx_CyFunction_get_is_coroutine(__pyx_CyFunctionObject *op, void *context) {
     int is_coroutine;
+    PyObject *result = NULL;
     CYTHON_UNUSED_VAR(context);
+    __Pyx_BEGIN_CRITICAL_SECTION(op);
     if (op->func_is_coroutine) {
-        return __Pyx_NewRef(op->func_is_coroutine);
+        result = __Pyx_NewRef(op->func_is_coroutine);
+        goto end;
     }
 
     is_coroutine = op->flags & __Pyx_CYFUNCTION_COROUTINE;
     if (is_coroutine) {
         PyObject *module, *fromlist, *marker = PYIDENT("_is_coroutine");
         fromlist = PyList_New(1);
-        if (unlikely(!fromlist)) return NULL;
+        if (unlikely(!fromlist)) goto end;
         Py_INCREF(marker);
 #if CYTHON_ASSUME_SAFE_MACROS
         PyList_SET_ITEM(fromlist, 0, marker);
@@ -453,7 +502,7 @@ __Pyx_CyFunction_get_is_coroutine(__pyx_CyFunctionObject *op, void *context) {
         if (unlikely(PyList_SetItem(fromlist, 0, marker) < 0)) {
             Py_DECREF(marker);
             Py_DECREF(fromlist);
-            return NULL;
+            goto end;
         }
 #endif
         module = PyImport_ImportModuleLevelObject(PYIDENT("asyncio.coroutines"), NULL, NULL, fromlist, 0);
@@ -462,14 +511,18 @@ __Pyx_CyFunction_get_is_coroutine(__pyx_CyFunctionObject *op, void *context) {
         op->func_is_coroutine = __Pyx_PyObject_GetAttrStr(module, marker);
         Py_DECREF(module);
         if (likely(op->func_is_coroutine)) {
-            return __Pyx_NewRef(op->func_is_coroutine);
+            result = __Pyx_NewRef(op->func_is_coroutine);
+            goto end;
         }
 ignore:
         PyErr_Clear();
     }
 
     op->func_is_coroutine = __Pyx_PyBool_FromLong(is_coroutine);
-    return __Pyx_NewRef(op->func_is_coroutine);
+    result = __Pyx_NewRef(op->func_is_coroutine);
+  end:
+    __Pyx_END_CRITICAL_SECTION();
+    return result;
 }
 
 //static PyObject *
@@ -594,9 +647,13 @@ static PyMemberDef __pyx_CyFunction_members[] = {
 static PyObject *
 __Pyx_CyFunction_reduce(__pyx_CyFunctionObject *m, PyObject *args)
 {
+    PyObject *result = NULL;
     CYTHON_UNUSED_VAR(args);
+    __Pyx_BEGIN_CRITICAL_SECTION(m);
     Py_INCREF(m->func_qualname);
-    return m->func_qualname;
+    result = m->func_qualname;
+    __Pyx_END_CRITICAL_SECTION();
+    return result;
 }
 
 static PyMethodDef __pyx_CyFunction_methods[] = {
@@ -768,8 +825,12 @@ static int __Pyx_CyFunction_traverse(__pyx_CyFunctionObject *m, visitproc visit,
 static PyObject*
 __Pyx_CyFunction_repr(__pyx_CyFunctionObject *op)
 {
-    return PyUnicode_FromFormat("<cyfunction %U at %p>",
+    PyObject *result;
+    __Pyx_BEGIN_CRITICAL_SECTION(op);
+    result = PyUnicode_FromFormat("<cyfunction %U at %p>",
                                 op->func_qualname, (void *)op);
+    __Pyx_END_CRITICAL_SECTION();
+    return result;
 }
 
 static PyObject * __Pyx_CyFunction_CallMethod(PyObject *func, PyObject *self, PyObject *arg, PyObject *kw) {
@@ -1389,7 +1450,7 @@ __pyx_FusedFunction_clear(__pyx_FusedFunctionObject *self)
 static PyObject *
 __pyx_FusedFunction_descr_get(PyObject *self, PyObject *obj, PyObject *type)
 {
-    __pyx_FusedFunctionObject *func, *meth;
+    __pyx_FusedFunctionObject *func, *meth = NULL;;
     PyObject *module;
 
     func = (__pyx_FusedFunctionObject *) self;
@@ -1412,9 +1473,10 @@ __pyx_FusedFunction_descr_get(PyObject *self, PyObject *obj, PyObject *type)
         return self;
     }
 
+    __Pyx_BEGIN_CRITICAL_SECTION(func);
     #if CYTHON_COMPILING_IN_LIMITED_API
     module = __Pyx_CyFunction_get_module((__pyx_CyFunctionObject *) func, NULL);
-    if ((unlikely(!module))) return NULL;
+    if ((unlikely(!module))) goto end_of_critical_section;
     #else
     module = ((PyCFunctionObject *) func)->m_module;
     #endif
@@ -1435,7 +1497,7 @@ __pyx_FusedFunction_descr_get(PyObject *self, PyObject *obj, PyObject *type)
     Py_DECREF(module);
     #endif
     if (unlikely(!meth))
-        return NULL;
+        goto end_of_critical_section;
 
     Py_XINCREF(func->func.defaults);
     meth->func.defaults = func->func.defaults;
@@ -1450,6 +1512,8 @@ __pyx_FusedFunction_descr_get(PyObject *self, PyObject *obj, PyObject *type)
 
     Py_XINCREF(obj);
     meth->self = obj;
+  end_of_critical_section:
+    __Pyx_END_CRITICAL_SECTION()
 
     return (PyObject *) meth;
 }
