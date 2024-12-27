@@ -98,6 +98,9 @@ if [[ $PYTHON_VERSION == "3.1"[2-9]* ]]; then
     # Install packages one by one, allowing failures due to missing recent wheels.
     cat test-requirements-312.txt | while read package; do python -m pip install --pre --only-binary ":all:" "$package" || true; done
   fi
+  if [[ $PYTHON_VERSION == "3.13"* ]]; then
+    python -m pip install --pre -r test-requirements-313.txt || exit 1
+  fi
 else
   python -m pip install -U pip "setuptools<60" wheel || exit 1
 
@@ -119,9 +122,8 @@ else
 
   # Install more requirements
   if [[ $PYTHON_VERSION != *"-dev" ]]; then
-    if [[ $BACKEND == *"cpp"* ]]; then
-      echo "WARNING: Currently not installing pythran due to compatibility issues"
-      # python -m pip install pythran==0.9.5 || exit 1
+    if [[ $BACKEND == *"cpp"* && $OSTYPE != "msys" ]]; then
+      python -m pip install pythran || exit 1
     fi
 
     if [[ $BACKEND != "cpp" && $PYTHON_VERSION != "pypy"* ]]; then
@@ -230,7 +232,7 @@ if [[ $PYTHON_VERSION == "graalpy"* ]]; then
 fi
 
 export CFLAGS="$CFLAGS $EXTRA_CFLAGS"
-if [[ $PYTHON_VERSION == *"-freethreading-dev" ]]; then
+if [[ $PYTHON_VERSION == "3.13t" ]]; then
   export PYTHON_GIL=0
 fi
 python runtests.py \

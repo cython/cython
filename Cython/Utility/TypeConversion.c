@@ -311,7 +311,7 @@ static CYTHON_INLINE int __Pyx_PyObject_IsTrueAndDecref(PyObject* x) {
 }
 
 static PyObject* __Pyx_PyNumber_LongWrongResultType(PyObject* result) {
-    __Pyx_TypeName result_type_name = __Pyx_PyType_GetName(Py_TYPE(result));
+    __Pyx_TypeName result_type_name = __Pyx_PyType_GetFullyQualifiedName(Py_TYPE(result));
     if (PyLong_Check(result)) {
         // CPython issue #17576: warn if 'result' not of exact type int.
         if (PyErr_WarnFormat(PyExc_DeprecationWarning, 1,
@@ -484,7 +484,14 @@ static PyObject* {{funcname}}({{struct_type_decl}} value) {
         {{py:attr = "value.f%s" % ix}}
         item = {{component.to_py_function}}({{attr}});
         if (!item) goto bad;
+        #if !CYTHON_ASSUME_SAFE_MACROS
+        if (unlikely(PyTuple_SetItem(result, {{ix}}, item) < 0)) {
+            item = NULL; // stolen
+            goto bad;
+        }
+        #else
         PyTuple_SET_ITEM(result, {{ix}}, item);
+        #endif
     {{endfor}}
 
     return result;
@@ -526,7 +533,7 @@ bad:
 
 static void __Pyx_seq_{{funcname}}(PyObject * o, {{struct_type_decl}} *result) {
     if (unlikely(!PySequence_Check(o))) {
-        __Pyx_TypeName o_type_name = __Pyx_PyType_GetName(Py_TYPE(o));
+        __Pyx_TypeName o_type_name = __Pyx_PyType_GetFullyQualifiedName(Py_TYPE(o));
         PyErr_Format(PyExc_TypeError,
                      "Expected a sequence of size %zd, got " __Pyx_FMT_TYPENAME, (Py_ssize_t) {{size}}, o_type_name);
         __Pyx_DECREF_TypeName(o_type_name);
@@ -872,6 +879,7 @@ static CYTHON_INLINE PyObject* {{TO_PY_FUNCTION}}({{TYPE}} value, Py_ssize_t wid
 /////////////// CIntToPyUnicode ///////////////
 //@requires: StringTools.c::IncludeStringH
 //@requires: StringTools.c::BuildPyUnicode
+//@requires: ModuleSetupCode.c::IncludeStdlibH
 //@requires: COrdinalToPyUnicode
 //@requires: CIntToDigits
 //@requires: GCCDiagnostics
@@ -1308,6 +1316,7 @@ static __Pyx_generic_func_pointer_$cyversion __Pyx_capsule_to_c_func_ptr_$cyvers
 
 /////////////// CFuncPtrFromPy.proto ///////////////
 //@substitute: naming
+//@requires: StringTools.c::IncludeStringH
 
 #ifndef __PYX_HAVE_RT_CFuncPtrFromPy_$cyversion
 #define __PYX_HAVE_RT_CFuncPtrFromPy_$cyversion
