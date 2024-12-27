@@ -806,9 +806,10 @@ def load_memview_c_utility(util_code_name, context=None, **kwargs):
                                        context=context, **kwargs)
 
 def use_cython_array_utility_code(env):
-    cython_scope = env.global_scope().context.cython_scope
-    cython_scope.load_cythonscope()
-    cython_scope.viewscope.lookup('array_cwrapper').used = True
+    if not Options.use_shared_utility:
+        cython_scope = env.global_scope().context.cython_scope
+        cython_scope.load_cythonscope()
+        cython_scope.viewscope.lookup('array_cwrapper').used = True
 
 context = {
     'memview_struct_name': memview_objstruct_cname,
