@@ -4650,11 +4650,11 @@ class IndexNode(_IndexingBaseNode):
                     self.base.py_result(),
                     index_code,
                     self.extra_index_params(code)))
-        if self.skip_temp_error_check_non_freethreading:
-            code.putln("#if CYTHON_COMPILING_IN_CPYTHON_FREETHREADING")
-        code.putln(code.error_goto_if(error_check % self.result(), self.pos))
-        if self.skip_temp_error_check_non_freethreading:
-            code.putln("#endif")
+            if self.skip_temp_error_check_non_freethreading:
+                code.putln("#if CYTHON_COMPILING_IN_CPYTHON_FREETHREADING")
+            code.putln(code.error_goto_if(error_check % self.result(), self.pos))
+            if self.skip_temp_error_check_non_freethreading:
+                code.putln("#endif")
         if self.type.is_pyobject:
             self.generate_gotref(code)
 
