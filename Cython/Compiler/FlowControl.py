@@ -1046,7 +1046,7 @@ class ControlFlowAnalysis(CythonTransform):
             # Python strings, etc., while correctly falling back to an
             # object type when the base type cannot be handled.
 
-            self.mark_assignment(target, node.item)
+            self.mark_assignment(target, node.item, rhs_scope=node.iterator.expr_scope)
 
     def mark_parallel_forloop_assignment(self, node):
         target = node.target
