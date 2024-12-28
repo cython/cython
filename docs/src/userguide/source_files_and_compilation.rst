@@ -1050,6 +1050,20 @@ Cython code.  Here is the list of currently supported directives:
     cause Cython 3.0 to have the same semantics as Cython 0.x. This directive was solely added
     to help migrate legacy code written before Cython 3. It will be removed in a future release.
 
+.. _thread_safety:
+
+Thread-safety
+-------------
+
+The following directives control thread-safety in free-threading builds of Python.
+They should make little to no difference in regular builds.
+
+``thread_safety.container_access`` (True / False), *default=True*
+    Controls whether indexing into mutable containers (like ``list`` and ``bytearray``)
+    is thread-safe.  In free-threading builds setting this to ``True`` has the effect
+    of re-enabling ``boundscheck`` when using these containers.  Disable this
+    directive only when you know the container will not be being accessed from another
+    thread.
 
 .. _configurable_optimisations:
 

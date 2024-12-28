@@ -3936,6 +3936,7 @@ class IndexNode(_IndexingBaseNode):
 
     is_subscript = True
     is_fused_index = False
+    skip_temp_error_check_non_freethreading = False
 
     def calculate_constant_result(self):
         self.constant_result = self.base.constant_result[self.index.constant_result]
@@ -4234,16 +4235,23 @@ class IndexNode(_IndexingBaseNode):
             self.index = self.index.coerce_to_pyobject(env)
             self.is_temp = 1
         elif self.index.type.is_int and base_type is not dict_type:
-            if (getting
+            direct_access = (getting
                     and not env.directives['boundscheck']
-                    and (base_type in (list_type, tuple_type, bytearray_type))
+                    and base_type in (tuple_type, list_type, bytearray_type)
                     and (not self.index.type.signed
                          or not env.directives['wraparound']
                          or (isinstance(self.index, IntNode) and
                              self.index.has_constant_result() and self.index.constant_result >= 0))
-                    ):
+            )
+            if (direct_access and
+                    not (base_type in (list_type, bytearray_type) and env.directives['thread_safety.container_access'])):
                 self.is_temp = 0
             else:
+                if direct_access:
+                    # Prior to free-threading this would be error-check free.
+                    # It not needs error-checks for thread safety reasons, but keep the
+                    # lack of error-checks if possible.
+                    self.skip_temp_error_check_non_freethreading = True
                 self.is_temp = 1
             self.index = self.index.coerce_to(PyrexTypes.c_py_ssize_t_type, env).coerce_to_simple(env)
             self.original_index_type.create_to_py_utility_code(env)
@@ -4559,12 +4567,17 @@ class IndexNode(_IndexingBaseNode):
                 self.original_index_type.signed and
                 not (isinstance(self.index.constant_result, int)
                      and self.index.constant_result >= 0))
-            boundscheck = bool(code.globalstate.directives['boundscheck'])
-            return ", %s, %d, %s, %d, %d, %d" % (
+            # Bytearrays (and possibly some other types) can be accessed without the GIL.
+            # However, we definitely can't start doing any checks that'd raise an exception.
+            # And we can't make access thread safe because it needs a critical section.
+            # TODO - this feels especially dubious in the Limited API.
+            boundscheck = bool(code.globalstate.directives['boundscheck'] and not self.in_nogil_context)
+            thread_safety = bool(code.globalstate.directives['thread_safety.container_access'] and not self.in_nogil_context)
+            return ", %s, %d, %s, %d, %d, %d, %d" % (
                 self.original_index_type.empty_declaration_code(),
                 self.original_index_type.signed and 1 or 0,
                 self.original_index_type.to_py_function,
-                is_list, wraparound, boundscheck)
+                is_list, wraparound, boundscheck, thread_safety)
         else:
             return ""
 
@@ -4631,13 +4644,17 @@ class IndexNode(_IndexingBaseNode):
         else:
             error_check = '!%s' if error_value == 'NULL' else '%%s == %s' % error_value
             code.putln(
-                "%s = %s(%s, %s%s); %s" % (
+                "%s = %s(%s, %s%s);" % (
                     self.result(),
                     function,
                     self.base.py_result(),
                     index_code,
-                    self.extra_index_params(code),
-                    code.error_goto_if(error_check % self.result(), self.pos)))
+                    self.extra_index_params(code)))
+        if self.skip_temp_error_check_non_freethreading:
+            code.putln("#if CYTHON_COMPILING_IN_CPYTHON_FREETHREADING")
+        code.putln(code.error_goto_if(error_check % self.result(), self.pos))
+        if self.skip_temp_error_check_non_freethreading:
+            code.putln("#endif")
         if self.type.is_pyobject:
             self.generate_gotref(code)
 

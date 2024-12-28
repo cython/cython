@@ -41,3 +41,7 @@ from cython cimport warn as my_warn
 @my_warn(undeclared=True)
 def j():
     pass
+
+@cy.thread_safety.container_access(False):
+def k(list l):
+    l[2] = l[1]
