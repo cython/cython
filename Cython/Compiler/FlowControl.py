@@ -1046,7 +1046,21 @@ class ControlFlowAnalysis(CythonTransform):
             # Python strings, etc., while correctly falling back to an
             # object type when the base type cannot be handled.
 
-            self.mark_assignment(target, node.item, rhs_scope=node.iterator.expr_scope)
+            self.mark_assignment(target, node.item)
+
+    def mark_parallel_forloop_assignment(self, node):
+        target = node.target
+        for arg in node.args[:2]:
+            self.mark_assignment(target, arg)
+        if len(node.args) > 2:
+            self.mark_assignment(target, self.constant_folder(
+                ExprNodes.binop_node(node.pos,
+                                        '+',
+                                        node.args[0],
+                                        node.args[2])))
+        if not node.args:
+            # Almost certainly an error
+            self.mark_assignment(target)
 
     def visit_AsyncForStatNode(self, node):
         return self.visit_ForInStatNode(node)
@@ -1065,8 +1079,10 @@ class ControlFlowAnalysis(CythonTransform):
         elif isinstance(node, Nodes.AsyncForStatNode):
             # not entirely correct, but good enough for now
             self.mark_assignment(node.target, node.item)
-        else:  # Parallel
-            self.mark_assignment(node.target)
+        elif isinstance(node, Nodes.ParallelRangeNode):  # Parallel
+            self.mark_parallel_forloop_assignment(node)
+        else:
+            assert False, type(node)
 
         # Body block
         if isinstance(node, Nodes.ParallelRangeNode):
