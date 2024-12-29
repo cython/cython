@@ -789,7 +789,7 @@ static int __Pyx_CLineForTraceback(PyThreadState *tstate, int c_line) {
     cython_runtime_dict = _PyObject_GetDictPtr(NAMED_CGLOBAL(cython_runtime_cname));
     if (likely(cython_runtime_dict)) {
 #if PY_VERSION_HEX >= 0x030d0000
-        Py_BEGIN_CRITICAL_SECTION(cython_runtime_dict);
+        Py_BEGIN_CRITICAL_SECTION(*cython_runtime_dict);
 #endif
         __PYX_PY_DICT_LOOKUP_IF_MODIFIED(
             use_cline, *cython_runtime_dict,
