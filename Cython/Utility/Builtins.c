@@ -126,7 +126,7 @@ bad:
         PyObject *builtins, *exec, *exec_str;
         builtins = PyEval_GetBuiltins();
         if (!builtins) return NULL;
-        PyObject *exec_str = PyUnicode_FromStringAndSize("exec", 4);
+        exec_str = PyUnicode_FromStringAndSize("exec", 4);
         if (!exec_str) return NULL;
         exec = PyObject_GetItem(builtins, exec_str);
         Py_DECREF(exec_str);
