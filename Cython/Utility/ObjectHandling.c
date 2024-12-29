@@ -917,7 +917,7 @@ static CYTHON_INLINE PyObject* __Pyx_Py{{type}}_GetSlice(
     result = __Pyx_Py{{type}}_FromArray(((Py{{type}}Object*)src)->ob_item + start, length);
 {{if type=='List'}}
 #if PY_VERSION_HEX >= 0x030d0000
-    Py_BEGIN_CRITICAL_SECTION(src);
+    Py_END_CRITICAL_SECTION();
 #endif
   end_critical_section:
 {{endif}}
