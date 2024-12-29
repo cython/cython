@@ -1212,7 +1212,7 @@ static CYTHON_INLINE int __Pyx_PyDict_GetItemRef(PyObject *dict, PyObject *key, 
     #define __Pyx_TPFLAGS_HAVE_AM_SEND (0)
 #endif
 
-#if Py_VERSION_HEX >= 0x03090000
+#if PY_VERSION_HEX >= 0x03090000
 #define __Pyx_PyInterpreterState_Get() PyInterpreterState_Get()
 #else
 #define __Pyx_PyInterpreterState_Get() PyThreadState_Get()->interp
@@ -2500,7 +2500,7 @@ static int __Pyx_VersionSanityCheck(void) {
         return -1;
       #endif
     }
-  #endif // Py_VERSION_HEX < 0x03080000
+  #endif // PY_VERSION_HEX < 0x03080000
   #if PY_VERSION_HEX >= 0x030d0000
     if (PyRun_SimpleStringFlags(
       "if "

@@ -248,6 +248,8 @@ static CYTHON_INLINE PyObject *__Pyx_PyDict_SetDefault(PyObject *d, PyObject *ke
     CYTHON_MAYBE_UNUSED_VAR(is_safe_type);
 #if CYTHON_COMPILING_IN_LIMITED_API
     value = PyObject_CallMethod(d, "setdefault", "OO", key, default_value);
+#elif PY_VERSION_HEX >= 0x030d0000
+    PyDict_SetDefaultRef(d, key, default_value, &value);
 #else
     value = PyDict_SetDefault(d, key, default_value);
     if (unlikely(!value)) return NULL;
