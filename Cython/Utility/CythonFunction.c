@@ -1819,7 +1819,7 @@ static PyObject* __Pyx_Method_ClassMethod(PyObject *method) {
 #else
     {
         PyObject *types_module, *method_type=NULL, *func=NULL;
-        PyObject *builtins, *classmethod, *result=NULL;
+        PyObject *builtins, *classmethod, *classmethod_str, *result=NULL;
         types_module = PyImport_ImportModule("types");
         if (!types_module) {
             return NULL;
