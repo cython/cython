@@ -251,6 +251,9 @@ _directive_defaults = {
     'warn.deprecated.IF': True,
     'show_performance_hints': True,
 
+# thread safety (mostly only applies to freethreading)
+    'thread_safety.container_access': True,
+
 # optimizations
     'optimize.inline_defnode_calls': True,
     'optimize.unpack_method_calls': True,  # increases code size when True

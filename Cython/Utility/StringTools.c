@@ -277,17 +277,17 @@ static CYTHON_INLINE int __Pyx_PyBytes_Equals(PyObject* s1, PyObject* s2, int eq
 
 //////////////////// GetItemIntByteArray.proto ////////////////////
 
-#define __Pyx_GetItemInt_ByteArray(o, i, type, is_signed, to_py_func, is_list, wraparound, boundscheck) \
+#define __Pyx_GetItemInt_ByteArray(o, i, type, is_signed, to_py_func, is_list, wraparound, boundscheck, thread_safety) \
     (__Pyx_fits_Py_ssize_t(i, type, is_signed) ? \
-    __Pyx_GetItemInt_ByteArray_Fast(o, (Py_ssize_t)i, wraparound, boundscheck) : \
+    __Pyx_GetItemInt_ByteArray_Fast(o, (Py_ssize_t)i, wraparound, boundscheck, thread_safety) : \
     (PyErr_SetString(PyExc_IndexError, "bytearray index out of range"), -1))
 
 static CYTHON_INLINE int __Pyx_GetItemInt_ByteArray_Fast(PyObject* string, Py_ssize_t i,
-                                                         int wraparound, int boundscheck);
+                                                         int wraparound, int boundscheck, int thread_safety);
 
 //////////////////// GetItemIntByteArray ////////////////////
 
-static CYTHON_INLINE int __Pyx_GetItemInt_ByteArray_Fast(PyObject* string, Py_ssize_t i,
+static CYTHON_INLINE int __Pyx__GetItemInt_ByteArray_Fast(PyObject* string, Py_ssize_t i,
                                                          int wraparound, int boundscheck) {
     Py_ssize_t length;
     if (wraparound | boundscheck) {
@@ -317,20 +317,36 @@ static CYTHON_INLINE int __Pyx_GetItemInt_ByteArray_Fast(PyObject* string, Py_ss
     }
 }
 
+static CYTHON_INLINE int __Pyx_GetItemInt_ByteArray_Fast(PyObject* string, Py_ssize_t i,
+                                                         int wraparound, int boundscheck, CYTHON_NCP_UNUSED int thread_safety) {
+#if CYTHON_COMPILING_IN_CPYTHON_FREETHREADING
+    // We can't really trust that the size doesn't change from under us.
+    // Note that, as of Dec-2024, this is better than what CPython does.
+    if (thread_safety && (wraparound || boundscheck)) {
+        int result;
+        Py_BEGIN_CRITICAL_SECTION(string);
+        result = __Pyx__GetItemInt_ByteArray_Fast(string, i, wraparound, boundscheck);
+        Py_END_CRITICAL_SECTION();
+        return result;
+    } else
+#endif
+    return __Pyx__GetItemInt_ByteArray_Fast(string, i, wraparound, boundscheck);
+}
+
 
 //////////////////// SetItemIntByteArray.proto ////////////////////
 
-#define __Pyx_SetItemInt_ByteArray(o, i, v, type, is_signed, to_py_func, is_list, wraparound, boundscheck) \
+#define __Pyx_SetItemInt_ByteArray(o, i, v, type, is_signed, to_py_func, is_list, wraparound, boundscheck, thread_safety) \
     (__Pyx_fits_Py_ssize_t(i, type, is_signed) ? \
-    __Pyx_SetItemInt_ByteArray_Fast(o, (Py_ssize_t)i, v, wraparound, boundscheck) : \
+    __Pyx_SetItemInt_ByteArray_Fast(o, (Py_ssize_t)i, v, wraparound, boundscheck, thread_safety) : \
     (PyErr_SetString(PyExc_IndexError, "bytearray index out of range"), -1))
 
 static CYTHON_INLINE int __Pyx_SetItemInt_ByteArray_Fast(PyObject* string, Py_ssize_t i, unsigned char v,
-                                                         int wraparound, int boundscheck);
+                                                         int wraparound, int boundscheck, int thread_safety);
 
 //////////////////// SetItemIntByteArray ////////////////////
 
-static CYTHON_INLINE int __Pyx_SetItemInt_ByteArray_Fast(PyObject* string, Py_ssize_t i, unsigned char v,
+static CYTHON_INLINE int __Pyx__SetItemInt_ByteArray_Fast(PyObject* string, Py_ssize_t i, unsigned char v,
                                                          int wraparound, int boundscheck) {
     Py_ssize_t length;
     if (wraparound | boundscheck) {
@@ -364,10 +380,26 @@ static CYTHON_INLINE int __Pyx_SetItemInt_ByteArray_Fast(PyObject* string, Py_ss
     }
 }
 
+static CYTHON_INLINE int __Pyx_SetItemInt_ByteArray_Fast(PyObject* string, Py_ssize_t i, unsigned char v,
+                                                         int wraparound, int boundscheck, CYTHON_NCP_UNUSED int thread_safety) {
+#if CYTHON_COMPILING_IN_CPYTHON_FREETHREADING
+    // We can't really trust that the size doesn't change from under us.
+    // Note that, as of Dec-2024, this is better than what CPython does.
+    if (thread_safety && (wraparound || boundscheck)) {
+        int result;
+        Py_BEGIN_CRITICAL_SECTION(string);
+        result = __Pyx__SetItemInt_ByteArray_Fast(string, i, v, wraparound, boundscheck);
+        Py_END_CRITICAL_SECTION();
+        return result;
+    } else
+#endif
+    return __Pyx__SetItemInt_ByteArray_Fast(string, i, v, wraparound, boundscheck);
+}
+
 
 //////////////////// GetItemIntUnicode.proto ////////////////////
 
-#define __Pyx_GetItemInt_Unicode(o, i, type, is_signed, to_py_func, is_list, wraparound, boundscheck) \
+#define __Pyx_GetItemInt_Unicode(o, i, type, is_signed, to_py_func, is_list, wraparound, boundscheck, thread_safety) \
     (__Pyx_fits_Py_ssize_t(i, type, is_signed) ? \
     __Pyx_GetItemInt_Unicode_Fast(o, (Py_ssize_t)i, wraparound, boundscheck) : \
     (PyErr_SetString(PyExc_IndexError, "string index out of range"), (Py_UCS4)-1))
