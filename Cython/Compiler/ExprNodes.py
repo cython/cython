@@ -5575,6 +5575,9 @@ class SliceIndexNode(ExprNode):
         if base_type.is_string:
             base_result = self.base.result_as(PyrexTypes.c_const_char_ptr_type)
             if self.type is bytearray_type:
+                # TODO - arguably bytearray should be protected by a critical section, but it's
+                # hard to generate good code for this, and it's hard to imagine a good use for slicing
+                # a volatile bytearray.
                 type_name = 'ByteArray'
             elif self.type is unicode_type:
                 type_name = 'Unicode'
