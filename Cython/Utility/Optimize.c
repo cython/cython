@@ -386,55 +386,72 @@ static CYTHON_INLINE PyObject* __Pyx_dict_iterator(PyObject* iterable, int is_di
     return PyObject_GetIter(iterable);
 }
 
+
+#if !CYTHON_COMPILING_IN_PYPY
+static CYTHON_INLINE int __Pyx_dict_iter_next_source_is_dict(
+        PyObject* iter_obj, CYTHON_NCP_UNUSED Py_ssize_t orig_length, CYTHON_NCP_UNUSED Py_ssize_t* ppos,
+        PyObject** pkey, PyObject** pvalue, PyObject** pitem) {
+    PyObject *key, *value;
+    if (unlikely(orig_length != PyDict_Size(iter_obj))) {
+        PyErr_SetString(PyExc_RuntimeError, "dictionary changed size during iteration");
+        return -1;
+    }
+    if (unlikely(!PyDict_Next(iter_obj, ppos, &key, &value))) {
+        return 0;
+    }
+    if (pitem) {
+        PyObject* tuple = PyTuple_New(2);
+        if (unlikely(!tuple)) {
+            return -1;
+        }
+        Py_INCREF(key);
+        Py_INCREF(value);
+        #if CYTHON_ASSUME_SAFE_MACROS
+        PyTuple_SET_ITEM(tuple, 0, key);
+        PyTuple_SET_ITEM(tuple, 1, value);
+        #else
+        if (unlikely(PyTuple_SetItem(tuple, 0, key) < 0)) {
+            // decref value; PyTuple_SetItem decrefs key on failure
+            Py_DECREF(value);
+            Py_DECREF(tuple);
+            return -1;
+        }
+        if (unlikely(PyTuple_SetItem(tuple, 1, value) < 0)) {
+            // PyTuple_SetItem decrefs value on failure
+            Py_DECREF(tuple);
+            return -1;
+        }
+        #endif
+        *pitem = tuple;
+    } else {
+        if (pkey) {
+            Py_INCREF(key);
+            *pkey = key;
+        }
+        if (pvalue) {
+            Py_INCREF(value);
+            *pvalue = value;
+        }
+    }
+    return 1;
+}
+#endif
+
 static CYTHON_INLINE int __Pyx_dict_iter_next(
         PyObject* iter_obj, CYTHON_NCP_UNUSED Py_ssize_t orig_length, CYTHON_NCP_UNUSED Py_ssize_t* ppos,
         PyObject** pkey, PyObject** pvalue, PyObject** pitem, int source_is_dict) {
     PyObject* next_item;
 #if !CYTHON_COMPILING_IN_PYPY
     if (source_is_dict) {
-        PyObject *key, *value;
-        if (unlikely(orig_length != PyDict_Size(iter_obj))) {
-            PyErr_SetString(PyExc_RuntimeError, "dictionary changed size during iteration");
-            return -1;
-        }
-        if (unlikely(!PyDict_Next(iter_obj, ppos, &key, &value))) {
-            return 0;
-        }
-        if (pitem) {
-            PyObject* tuple = PyTuple_New(2);
-            if (unlikely(!tuple)) {
-                return -1;
-            }
-            Py_INCREF(key);
-            Py_INCREF(value);
-            #if CYTHON_ASSUME_SAFE_MACROS
-            PyTuple_SET_ITEM(tuple, 0, key);
-            PyTuple_SET_ITEM(tuple, 1, value);
-            #else
-            if (unlikely(PyTuple_SetItem(tuple, 0, key) < 0)) {
-                // decref value; PyTuple_SetItem decrefs key on failure
-                Py_DECREF(value);
-                Py_DECREF(tuple);
-                return -1;
-            }
-            if (unlikely(PyTuple_SetItem(tuple, 1, value) < 0)) {
-                // PyTuple_SetItem decrefs value on failure
-                Py_DECREF(tuple);
-                return -1;
-            }
-            #endif
-            *pitem = tuple;
-        } else {
-            if (pkey) {
-                Py_INCREF(key);
-                *pkey = key;
-            }
-            if (pvalue) {
-                Py_INCREF(value);
-                *pvalue = value;
-            }
-        }
-        return 1;
+        int result;
+#if Py_VERSION_HEX >= 0x030d0000
+        Py_BEGIN_CRITICAL_SECTION(iter_obj);
+#endif
+        result = __Pyx_dict_iter_next_source_is_dict(iter_obj, orig_length, ppos, pkey, pvalue, pitem);
+#if Py_VERSION_HEX >= 0x030d0000
+        Py_END_CRITICAL_SECTION();
+#endif
+        return result;
     } else if (PyTuple_CheckExact(iter_obj)) {
         Py_ssize_t pos = *ppos;
         Py_ssize_t tuple_size = __Pyx_PyTuple_GET_SIZE(iter_obj);
@@ -458,13 +475,17 @@ static CYTHON_INLINE int __Pyx_dict_iter_next(
         #endif
         if (unlikely(pos >= list_size)) return 0;
         *ppos = pos + 1;
-        #if CYTHON_ASSUME_SAFE_MACROS
+        #if CYTHON_AVOID_THREAD_UNSAFE_BORROWED_REFS
+        next_item = PyList_GetItemRef(iter_obj, pos);
+        if (unlikely(!next_item)) return -1;
+        #elif CYTHON_ASSUME_SAFE_MACROS
         next_item = PyList_GET_ITEM(iter_obj, pos);
+        Py_INCREF(next_item);
         #else
         next_item = PyList_GetItem(iter_obj, pos);
         if (unlikely(!next_item)) return -1;
-        #endif
         Py_INCREF(next_item);
+        #endif
     } else
 #endif
     {
