@@ -788,15 +788,23 @@ static int __Pyx_CLineForTraceback(PyThreadState *tstate, int c_line) {
 #if CYTHON_COMPILING_IN_CPYTHON
     cython_runtime_dict = _PyObject_GetDictPtr(NAMED_CGLOBAL(cython_runtime_cname));
     if (likely(cython_runtime_dict)) {
+#if PY_VERSION_HEX >= 0x030d0000
+        Py_BEGIN_CRITICAL_SECTION(cython_runtime_dict);
+#endif
         __PYX_PY_DICT_LOOKUP_IF_MODIFIED(
             use_cline, *cython_runtime_dict,
             __Pyx_PyDict_GetItemStr(*cython_runtime_dict, PYIDENT("cline_in_traceback")))
+        Py_XINCREF(use_cline);
+#if PY_VERSION_HEX >= 0x030d0000
+        Py_END_CRITICAL_SECTION();
+#endif
     } else
 #endif
     {
       PyObject *use_cline_obj = __Pyx_PyObject_GetAttrStrNoError(NAMED_CGLOBAL(cython_runtime_cname), PYIDENT("cline_in_traceback"));
       if (use_cline_obj) {
         use_cline = PyObject_Not(use_cline_obj) ? Py_False : Py_True;
+        Py_INCREF(use_cline);
         Py_DECREF(use_cline_obj);
       } else {
         PyErr_Clear();
@@ -811,6 +819,7 @@ static int __Pyx_CLineForTraceback(PyThreadState *tstate, int c_line) {
     else if (use_cline == Py_False || (use_cline != Py_True && PyObject_Not(use_cline) != 0)) {
         c_line = 0;
     }
+    Py_XDECREF(use_cline);
     __Pyx_ErrRestoreInState(tstate, ptype, pvalue, ptraceback);
     return c_line;
 }

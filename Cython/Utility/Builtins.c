@@ -123,12 +123,16 @@ bad:
     {
         // For the limited API we just defer to the actual builtin
         // (after setting up globals and locals) - there's too much we can't do otherwise
-        PyObject *builtins, *exec;
+        PyObject *builtins, *exec, *exec_str;
         builtins = PyEval_GetBuiltins();
         if (!builtins) return NULL;
-        exec = PyDict_GetItemString(builtins, "exec");
+        PyObject *exec_str = PyUnicode_FromStringAndSize("exec", 4);
+        if (!exec_str) return NULL;
+        exec = PyObject_GetItem(exec_str);
+        Py_DECREF(exec_str);
         if (!exec) return NULL;
         result = PyObject_CallFunctionObjArgs(exec, o, globals, locals, NULL);
+        Py_DECREF(exec);
         return result;
     }
 #endif
