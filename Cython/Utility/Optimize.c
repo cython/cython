@@ -444,11 +444,11 @@ static CYTHON_INLINE int __Pyx_dict_iter_next(
 #if !CYTHON_COMPILING_IN_PYPY
     if (source_is_dict) {
         int result;
-#if Py_VERSION_HEX >= 0x030d0000
+#if PY_VERSION_HEX >= 0x030d0000
         Py_BEGIN_CRITICAL_SECTION(iter_obj);
 #endif
         result = __Pyx_dict_iter_next_source_is_dict(iter_obj, orig_length, ppos, pkey, pvalue, pitem);
-#if Py_VERSION_HEX >= 0x030d0000
+#if PY_VERSION_HEX >= 0x030d0000
         Py_END_CRITICAL_SECTION();
 #endif
         return result;
