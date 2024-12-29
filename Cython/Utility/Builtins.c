@@ -128,7 +128,7 @@ bad:
         if (!builtins) return NULL;
         PyObject *exec_str = PyUnicode_FromStringAndSize("exec", 4);
         if (!exec_str) return NULL;
-        exec = PyObject_GetItem(exec_str);
+        exec = PyObject_GetItem(builtins, exec_str);
         Py_DECREF(exec_str);
         if (!exec) return NULL;
         result = PyObject_CallFunctionObjArgs(exec, o, globals, locals, NULL);
