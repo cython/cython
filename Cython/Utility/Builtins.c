@@ -312,16 +312,20 @@ static CYTHON_INLINE PyObject* __Pyx_divmod_int(int a, int b) {
     // This results in different answers between Python and C/C++
     // when the dividend is negative and the divisor is positive and vice versa.
     int q, r;
-    if ((a < 0 && b > 0) || (a > 0 && b < 0)) {
+    if (unlikely(b == 0)) {
+        PyErr_SetString(PyExc_ZeroDivisionError, "integer division or modulo by zero");
+        return NULL;
+    }
+    else if (a == 0) {
+        q = 0;
+        r = 0;
+    }
+    else if ((a > 0) != (b > 0)) {
         // Refer to CMath.c :: DivInt and ModInt utility code
         q = a / b;
         r = a - q * b;
         q -= ((r != 0) & ((r ^ b) < 0));
         r += ((r != 0) & ((r ^ b) < 0)) * b;
-    }
-    else if (b == 0) {
-        PyErr_SetString(PyExc_ZeroDivisionError, "integer division or modulo by zero");
-        return NULL;
     }
     else {
         div_t res = div(a, b);
@@ -357,16 +361,20 @@ static CYTHON_INLINE PyObject* __Pyx_divmod_long(long a, long b) {
     // This results in different answers between Python and C/C++
     // when the dividend is negative and the divisor is positive and vice versa.
     long q, r;
-    if ((a < 0 && b > 0) || (a > 0 && b < 0)) {
+    if (unlikely(b == 0)) {
+        PyErr_SetString(PyExc_ZeroDivisionError, "long integer division or modulo by zero");
+        return NULL;
+    }
+    else if (a == 0) {
+        q = 0;
+        r = 0;
+    }
+    else if ((a > 0) != (b > 0)) {
         // Refer to CMath.c :: DivInt and ModInt utility code
         q = a / b;
         r = a - q * b;
         q -= ((r != 0) & ((r ^ b) < 0));
         r += ((r != 0) & ((r ^ b) < 0)) * b;
-    }
-    else if (b == 0) {
-        PyErr_SetString(PyExc_ZeroDivisionError, "long integer division or modulo by zero");
-        return NULL;
     }
     else {
         ldiv_t res = ldiv(a, b);
