@@ -28,7 +28,7 @@ from . import PyrexTypes
 from . import Pythran
 
 from .Errors import error, warning, CompileError, format_position
-from .PyrexTypes import py_object_type
+from .PyrexTypes import py_object_type, get_all_subtypes
 from ..Utils import open_new_file, replace_suffix, decode_filename, build_hex_version, is_cython_generated_file
 from .Code import UtilityCode, IncludeCode, TempitaUtilityCode
 from .StringEncoding import EncodedString, encoded_string_or_bytes_literal
@@ -188,6 +188,23 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         body = Nodes.CompilerDirectivesNode(self.pos, directives=self.directives, body=self.body)
         return body
 
+    def find_shared_cy_pymutexes(self, env, include_all_attrs=False, seen_scopes=None):
+        if seen_scopes is None:
+            seen_scopes = set()
+        for entry in env.entries.values():
+            if not (include_all_attrs or entry.defined_in_pxd or entry.visibility == "public" or entry.api):
+                continue
+            entry_subtypes = get_all_subtypes(entry.type)
+            if any(sub_tp is PyrexTypes.cy_pymutex_type for sub_tp in entry_subtypes):
+                return True
+            if hasattr(entry.type, "scope") and entry.type.scope is not None:
+                if entry.type.scope in seen_scopes:
+                    continue
+                seen_scopes.add(entry.type.scope)
+                if self.find_shared_cy_pymutexes(entry.type.scope, include_all_attrs=True, seen_scopes=seen_scopes):
+                    return True
+        return False
+
     def analyse_declarations(self, env):
         if has_np_pythran(env):
             Pythran.include_pythran_generic(env)
@@ -205,6 +222,14 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         env.directives = self.directives
 
         self.body.analyse_declarations(env)
+
+        if self.find_shared_cy_pymutexes(env):
+            # Be very suspicious of cython locks that are shared.
+            # They have the potential cause ABI issues.
+            self.scope.use_utility_code(
+                UtilityCode.load_cached(
+                    "CythonPyMutexPublicCheck", "Lock.c"
+                ))
 
     def prepare_utility_code(self):
         # prepare any utility code that must be created before code generation
@@ -1539,7 +1564,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         if scope.is_internal:
             # internal classes (should) never need None inits, normal zeroing will do
             py_attrs = []
-        cpp_constructable_attrs = [entry for entry in scope.var_entries if entry.type.needs_cpp_construction]
+        explicitly_constructable_attrs = [
+            entry for entry in scope.var_entries if entry.type.needs_explicit_construction(scope)]
 
         cinit_func_entry = scope.lookup_here("__cinit__")
         if cinit_func_entry and not cinit_func_entry.is_special:
@@ -1573,7 +1599,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
         need_self_cast = (type.vtabslot_cname or
                           (py_buffers or memoryview_slices or py_attrs) or
-                          cpp_constructable_attrs)
+                          explicitly_constructable_attrs)
         if need_self_cast:
             code.putln("%s;" % scope.parent_type.declaration_code("p"))
         if base_type:
@@ -1645,13 +1671,9 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 type.vtabslot_cname,
                 struct_type_cast, type.vtabptr_cname))
 
-        for entry in cpp_constructable_attrs:
-            if entry.is_cpp_optional:
-                decl_code = entry.type.cpp_optional_declaration_code("")
-            else:
-                decl_code = entry.type.empty_declaration_code()
-            code.putln("new((void*)&(p->%s)) %s();" % (
-                entry.cname, decl_code))
+        for entry in explicitly_constructable_attrs:
+            entry.type.generate_explicit_construction(
+                code, entry, extra_access_code="p->")
 
         for entry in py_attrs:
             if entry.name == "__dict__":
@@ -1738,10 +1760,10 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             dict_slot = None
 
         _, (py_attrs, _, memoryview_slices) = scope.get_refcounted_entries()
-        cpp_destructable_attrs = [entry for entry in scope.var_entries
-                           if entry.type.needs_cpp_construction]
+        explicitly_destructable_attrs = [entry for entry in scope.var_entries
+                           if entry.type.needs_explicit_destruction(scope)]
 
-        if py_attrs or cpp_destructable_attrs or memoryview_slices or weakref_slot or dict_slot:
+        if py_attrs or explicitly_destructable_attrs or memoryview_slices or weakref_slot or dict_slot:
             self.generate_self_cast(scope, code)
 
         if not is_final_type or scope.may_have_finalize():
@@ -1788,8 +1810,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         if dict_slot:
             code.putln("if (p->__dict__) PyDict_Clear(p->__dict__);")
 
-        for entry in cpp_destructable_attrs:
-            code.putln("__Pyx_call_destructor(p->%s);" % entry.cname)
+        for entry in explicitly_destructable_attrs:
+            entry.type.generate_explicit_destruction(code, entry, extra_access_code="p->")
 
         for entry in (py_attrs + memoryview_slices):
             code.put_xdecref_clear("p->%s" % entry.cname, entry.type, nanny=False,
@@ -3386,6 +3408,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                             entry_cname, entry.type,
                             clear_before_decref=True,
                             nanny=False)
+                    if entry.type.needs_explicit_destruction(env):
+                        entry.type.generate_explicit_destruction(code, entry)
         code.putln(f"__Pyx_CleanupGlobals({Naming.modulestatevalue_cname});")
         if Options.generate_cleanup_code >= 3:
             code.putln("/*--- Type import cleanup code ---*/")
@@ -3651,6 +3675,9 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             if entry.visibility != 'extern':
                 if entry.used:
                     entry.type.global_init_code(entry, code)
+                if entry.type.needs_explicit_construction(env):
+                    # TODO - this is slightly redundant with global_init_code
+                    entry.type.generate_explicit_construction(code, entry)
 
     def generate_wrapped_entries_code(self, env, code):
         for name, entry in sorted(env.entries.items()):
