@@ -863,3 +863,28 @@ def test_prange_call_exception_checked_function():
             assert buf[i] == i
     finally:
         free(buf)
+
+def test_prange_type_inference_1(short end):
+    """
+    >>> test_prange_type_inference_1(1)
+    """
+    for i in prange(end, nogil=True):
+        pass
+    assert cython.typeof(i) == "short", cython.typeof(i)
+
+def test_prange_type_inference_2(long start, short end):
+    """
+    >>> test_prange_type_inference_2(-100, 5)
+    """
+    for i in prange(start, end, nogil=True):
+        pass
+    assert cython.typeof(i) == "long", cython.typeof(i)
+
+def test_prange_type_inference_3(short start, short end, short step):
+    """
+    >>> test_prange_type_inference_3(-100, 5, 2)
+    """
+    for i in prange(start, end, step, nogil=True):
+        pass
+    # Addition in "step" makes it expand the type to "int"
+    assert cython.typeof(i) == "int", cython.typeof(i)
