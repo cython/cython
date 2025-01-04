@@ -1,0 +1,2 @@
+# __dict__ doesn't work
+run[.]cdef_multiple_inheritance$
