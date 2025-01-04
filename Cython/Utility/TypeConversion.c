@@ -63,6 +63,7 @@ static CYTHON_INLINE PyObject* __Pyx_PyUnicode_FromString(const char*);
     #define __Pyx_PyBytes_AsString(s)     ((const char*) PyBytes_AS_STRING(s))
     #define __Pyx_PyBytes_AsSString(s)    ((const signed char*) PyBytes_AS_STRING(s))
     #define __Pyx_PyBytes_AsUString(s)    ((const unsigned char*) PyBytes_AS_STRING(s))
+    #define __Pyx_PyByteArray_AsString(s) PyByteArray_AS_STRING(s)
 #else
     #define __Pyx_PyBytes_AsWritableString(s)     ((char*) PyBytes_AsString(s))
     #define __Pyx_PyBytes_AsWritableSString(s)    ((signed char*) PyBytes_AsString(s))
@@ -70,6 +71,7 @@ static CYTHON_INLINE PyObject* __Pyx_PyUnicode_FromString(const char*);
     #define __Pyx_PyBytes_AsString(s)     ((const char*) PyBytes_AsString(s))
     #define __Pyx_PyBytes_AsSString(s)    ((const signed char*) PyBytes_AsString(s))
     #define __Pyx_PyBytes_AsUString(s)    ((const unsigned char*) PyBytes_AsString(s))
+    #define __Pyx_PyByteArray_AsString(s) PyByteArray_AsString(s)
 #endif
 #define __Pyx_PyObject_AsWritableString(s)    ((char*)(__pyx_uintptr_t) __Pyx_PyObject_AsString(s))
 #define __Pyx_PyObject_AsWritableSString(s)    ((signed char*)(__pyx_uintptr_t) __Pyx_PyObject_AsString(s))
@@ -278,12 +280,17 @@ static CYTHON_INLINE const char* __Pyx_PyObject_AsStringAndSize(PyObject* o, Py_
     } else
 #endif
 
-#if (!CYTHON_COMPILING_IN_PYPY && !CYTHON_COMPILING_IN_LIMITED_API) || (defined(PyByteArray_AS_STRING) && defined(PyByteArray_GET_SIZE))
     if (PyByteArray_Check(o)) {
+#if (CYTHON_ASSUME_SAFE_SIZE && CYTHON_ASSUME_SAFE_MACROS) || (CYTHON_COMPILING_IN_PYPY && (defined(PyByteArray_AS_STRING) && defined(PyByteArray_GET_SIZE)))
         *length = PyByteArray_GET_SIZE(o);
         return PyByteArray_AS_STRING(o);
-    } else
+#else
+        *length = PyByteArray_Size(o);
+        if (*length == -1) return NULL;
+        return PyByteArray_AsString(o);
 #endif
+
+    } else
     {
         char* result;
         int r = PyBytes_AsStringAndSize(o, &result, length);
