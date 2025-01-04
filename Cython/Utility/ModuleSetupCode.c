@@ -2257,7 +2257,7 @@ static PyObject* __Pyx_PyCode_New(
                                        PyObject *code, PyObject *c, PyObject* n, PyObject *v,
                                        PyObject *fv, PyObject *cell, PyObject* fn,
                                        PyObject *name, int fline, PyObject *lnos) {
-        // Backout option for generating a code object.
+        // Backup option for generating a code object.
         // PyCode_NewEmpty isn't in the limited API. Therefore the two options are
         //  1. Python call of the code type with a long list of positional args.
         //  2. Generate a code object by compiling some trivial code, and customize.
