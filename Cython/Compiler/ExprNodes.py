@@ -6927,7 +6927,27 @@ class InlinedDefNodeCallNode(CallNode):
         return self
 
     def generate_result_code(self, code):
-        arg_code = [self.function_name.py_result()]
+        self_code = self.function_name.py_result()
+        if not self.function.def_node.is_cyfunction:
+            # If the function is a PyCFunction then the self_code is the PyCFunction.
+            # In this case, the self argument will either be NULL and unused, or it'll be
+            # the self attribute of the PyCfunction.
+            code.putln("{")
+            code.putln("#if CYTHON_COMPILING_IN_LIMITED_API")
+            code.putln(
+                f"PyObject *{Naming.quick_temp_cname} = PyCFunction_GetSelf({self_code});")
+            code.putln(code.error_goto_if(
+                f"{Naming.quick_temp_cname} == NULL && PyErr_Occurred()",
+                self.pos
+            ))
+            code.putln("#else")
+            code.putln(
+                f"PyObject *{Naming.quick_temp_cname} = PyCFunction_GET_SELF({self_code});")
+            code.putln("#endif")
+            # Note - borrowed reference to self
+            self_code = Naming.quick_temp_cname
+
+        arg_code = [self_code]
         func_type = self.function.def_node
         for arg, proto_arg in zip(self.args, func_type.args):
             if arg.type.is_pyobject:
@@ -6941,6 +6961,8 @@ class InlinedDefNodeCallNode(CallNode):
                 self.function.def_node.entry.pyfunc_cname,
                 arg_code,
                 code.error_goto_if_null(self.result(), self.pos)))
+        if not self.function.def_node.is_cyfunction:
+            code.putln("}")
         self.generate_gotref(code)
 
 
