@@ -3112,6 +3112,9 @@ class IteratorNode(ScopedExprNode):
         if self.may_be_a_sequence:
             code.putln("}")
 
+    def generate_for_loop_header(self, code):
+        code.put(";;")
+
     def generate_next_sequence_item(self, test_name, result_name, code):
         assert self.counter_cname, "internal error: counter_cname temp not prepared"
         assert test_name in ('List', 'Tuple')
@@ -3308,21 +3311,24 @@ class CppIteratorNode(ExprNode):
                     self.cpp_attribute_op,
                     begin_name))
 
-    def generate_iter_next_result_code(self, result_name, code):
+    def generate_for_loop_header(self, code):
         # end call isn't cached to support containers that allow adding while iterating
         # (much as this is usually a bad idea)
         _, end_name = self.get_iterator_func_names()
-        code.putln("if (!(%s%s != %s%s%s())) break;" % (
-                        self.extra_dereference,
-                        self.result(),
-                        self.cpp_sequence_cname or self.sequence.result(),
-                        self.cpp_attribute_op,
-                        end_name))
+        code.put("; %s%s != %s%s%s(); ++%s%s" % (
+            self.extra_dereference,
+            self.result(),
+            self.cpp_sequence_cname or self.sequence.result(),
+            self.cpp_attribute_op,
+            end_name,
+            self.extra_dereference,
+            self.result()))
+
+    def generate_iter_next_result_code(self, result_name, code):
         code.putln("%s = *%s%s;" % (
                         result_name,
                         self.extra_dereference,
                         self.result()))
-        code.putln("++%s%s;" % (self.extra_dereference, self.result()))
 
     def generate_subexpr_disposal_code(self, code):
         if not self.cpp_sequence_cname:
@@ -3432,6 +3438,9 @@ class AsyncIteratorNode(ScopedExprNode):
             self.sequence.py_result(),
             code.error_goto_if_null(self.result(), self.pos)))
         self.generate_gotref(code)
+
+    def generate_for_loop_header(self, code):
+        code.put(";;")
 
 
 class AsyncNextNode(AtomicExprNode):
@@ -4526,13 +4535,15 @@ class IndexNode(_IndexingBaseNode):
 
     def calculate_result_code(self):
         if self.base.type in (list_type, tuple_type, bytearray_type):
-            # Note - possibility of missing an error if not ASSUME_SAFE_MACROS
+            # Note - These functions are missing error checks in not CYTHON_ASSUME_SAFE_MACROS.
+            # Since they're only used in optimized modes without boundschecking, I think this is
+            # a reasonable optimization to make.
             if self.base.type is list_type:
                 index_code = "__Pyx_PyList_GET_ITEM(%s, %s)"
             elif self.base.type is tuple_type:
                 index_code = "__Pyx_PyTuple_GET_ITEM(%s, %s)"
             elif self.base.type is bytearray_type:
-                index_code = "((unsigned char)(PyByteArray_AS_STRING(%s)[%s]))"
+                index_code = "((unsigned char)(__Pyx_PyByteArray_AsString(%s)[%s]))"
             else:
                 assert False, "unexpected base type in indexing: %s" % self.base.type
         elif self.base.type.is_cfunction:

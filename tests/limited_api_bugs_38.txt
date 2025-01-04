@@ -1,2 +1,3 @@
-# __dict__ not set up correctly
+# __dict__ doesn't work on cdef classes
+run[.]cdef_multiple_inheritance$
 test_grammar
