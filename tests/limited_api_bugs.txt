@@ -8,20 +8,16 @@ builtin_subtype_methods_T653
 builtin_type_inheritance_T608
 builtinslice
 builtin_divmod
-coroutines
 cdivision_CEP_516
 cpp_stl_conversion
 cpp_nonstdint
 run[.]any
-async_iter_pep492
-async_def
 run[.]all
 embedsignatures_python
 embedsignatures_clinic
 extern_builtins_T258
 ext_attribute_cache
 fastcall
-run[.]generators$
 run[.]generators_py
 generator_frame_cycle
 # probably just an exact error message
@@ -37,7 +33,6 @@ py_ucs4_type
 pep442_tp_finalize
 test_asyncgen
 tracebacks
-test_grammar
 tuple_constants
 tss
 running_with_gil
@@ -48,6 +43,7 @@ special_method_docstrings
 run[.]ufunc
 slice2b
 verbatiminclude
+test_coroutines_pep492
 
 # Possibly only on early versions of Python?
 fused_def
