@@ -196,6 +196,7 @@ static PyObject *__Pyx__Coroutine_GetAwaitableIter(PyObject *o); /*proto*/
 //@requires: ObjectHandling.c::PyObjectGetMethod
 //@requires: ObjectHandling.c::PyObjectCallNoArg
 //@requires: ObjectHandling.c::PyObjectCallOneArg
+//@requires: Coro_CheckExact
 
 static CYTHON_INLINE PyObject *__Pyx_Coroutine_GetAwaitableIter(PyObject *o) {
 #ifdef __Pyx_Coroutine_USED
@@ -208,7 +209,7 @@ static CYTHON_INLINE PyObject *__Pyx_Coroutine_GetAwaitableIter(PyObject *o) {
 
 
 static void __Pyx_Coroutine_AwaitableIterError(PyObject *source) {
-#if PY_VERSION_HEX < 0x030d0000 || defined(_PyErr_FormatFromCause)
+#if (PY_VERSION_HEX < 0x030d0000 || defined(_PyErr_FormatFromCause)) && !CYTHON_COMPILING_IN_LIMITED_API
     __Pyx_TypeName source_type_name = __Pyx_PyType_GetFullyQualifiedName(Py_TYPE(source));
     _PyErr_FormatFromCause(PyExc_TypeError,
         "'async for' received an invalid object from __anext__: " __Pyx_FMT_TYPENAME, source_type_name);
@@ -245,9 +246,6 @@ static PyObject *__Pyx__Coroutine_GetAwaitableIter(PyObject *obj) {
     am_await = __Pyx_PyObject_TryGetSubSlot(obj, tp_as_async, am_await, unaryfunc);
     if (likely(am_await)) {
         res = (*am_await)(obj);
-    } else
-    if (PyCoro_CheckExact(obj)) {
-        return __Pyx_NewRef(obj);
     } else
 #if CYTHON_COMPILING_IN_CPYTHON && defined(CO_ITERABLE_COROUTINE)
 #if PY_VERSION_HEX >= 0x030C00A6
@@ -286,7 +284,7 @@ static PyObject *__Pyx__Coroutine_GetAwaitableIter(PyObject *obj) {
         #ifdef __Pyx_Coroutine_USED
         is_coroutine |= __Pyx_Coroutine_Check(res);
         #endif
-        is_coroutine |= PyCoro_CheckExact(res);
+        is_coroutine |= __Pyx_PyCoro_CheckExact(res);
         if (unlikely(is_coroutine)) {
             /* __await__ must return an *iterator*, not
                a coroutine or another awaitable (see PEP 492) */
@@ -2414,3 +2412,44 @@ static void __Pyx__ReturnWithStopIteration(PyObject* value, int async) {
     PyErr_SetObject(exc_type, exc);
     Py_DECREF(exc);
 }
+
+//////////////////// Coro_CheckExact.proto ////////////////
+
+#if CYTHON_COMPILING_IN_LIMITED_API
+static int __Pyx_PyCoro_CheckExact(PyObject *o); /* proto */
+#else
+#define __Pyx_PyCoro_CheckExact PyCoro_CheckExact
+#endif
+
+/////////////////// Coro_CheckExact.module_state_decls //////////
+
+#if CYTHON_COMPILING_IN_LIMITED_API
+PyObject *__Pyx_CachedCoroType;
+#endif
+
+////////////////// Coro_CheckExact.init ////////////////
+
+#if CYTHON_COMPILING_IN_LIMITED_API
+{
+    PyObject *typesModule=NULL;
+    typesModule = PyImport_ImportModule("types");
+    if (typesModule) {
+        CGLOBAL(__Pyx_CachedCoroType) = PyObject_GetAttrString(typesModule, "CoroutineType");
+        Py_DECREF(typesModule);
+    }
+} // error handling follows
+#endif
+
+/////////////// Coro_CheckExact.cleanup ////////////////
+
+#if CYTHON_COMPILING_IN_LIMITED_API
+Py_CLEAR(CGLOBAL(__Pyx_CachedCoroType));
+#endif
+
+/////////////////// Coro_CheckExact /////////////////////
+
+#if CYTHON_COMPILING_IN_LIMITED_API
+static int __Pyx_PyCoro_CheckExact(PyObject *o) {
+    return (PyObject*)Py_TYPE(o) == CGLOBAL(__Pyx_CachedCoroType);
+}
+#endif

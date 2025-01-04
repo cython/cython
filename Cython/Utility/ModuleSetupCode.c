@@ -184,7 +184,7 @@
   #undef CYTHON_USE_EXC_INFO_STACK
   #define CYTHON_USE_EXC_INFO_STACK 0
   #ifndef CYTHON_UPDATE_DESCRIPTOR_DOC
-    #define CYTHON_UPDATE_DESCRIPTOR_DOC 0
+    #define CYTHON_UPDATE_DESCRIPTOR_DOC (PYPY_VERSION_NUM >= 0x07031100)
   #endif
   #undef CYTHON_USE_FREELISTS
   #define CYTHON_USE_FREELISTS 0
@@ -2257,7 +2257,7 @@ static PyObject* __Pyx_PyCode_New(
                                        PyObject *code, PyObject *c, PyObject* n, PyObject *v,
                                        PyObject *fv, PyObject *cell, PyObject* fn,
                                        PyObject *name, int fline, PyObject *lnos) {
-        // Backout option for generating a code object.
+        // Backup option for generating a code object.
         // PyCode_NewEmpty isn't in the limited API. Therefore the two options are
         //  1. Python call of the code type with a long list of positional args.
         //  2. Generate a code object by compiling some trivial code, and customize.
@@ -2296,7 +2296,7 @@ static PyObject* __Pyx_PyCode_New(
             //        constants, names, varnames, filename, name, firstlineno,
             //        lnotab[, freevars[, cellvars]])
             (void)p;
-            result = PyObject_CallFunction(code_type, "iiiiiOOOOOOiOO", a, k, l, s, f, code,
+            result = PyObject_CallFunction(code_type, "iiiiiOOOOOOiOOO", a, k, l, s, f, code,
                           c, n, v, fn, name, fline, lnos, fv, cell);
         } else if (minor_version <= 10) {
             // 3.8, 3.9, 3.10
@@ -2304,7 +2304,7 @@ static PyObject* __Pyx_PyCode_New(
             //    flags, codestring, constants, names, varnames, filename, name,
             //    firstlineno, lnotab[, freevars[, cellvars]])
             // 3.10 switches lnotab for linetable, but is otherwise the same
-            result = PyObject_CallFunction(code_type, "iiiiiiOOOOOOiOO", a,p, k, l, s, f, code,
+            result = PyObject_CallFunction(code_type, "iiiiiiOOOOOOiOOO", a,p, k, l, s, f, code,
                           c, n, v, fn, name, fline, lnos, fv, cell);
         } else {
             // 3.11, 3.12
@@ -2313,7 +2313,7 @@ static PyObject* __Pyx_PyCode_New(
             //    qualname, firstlineno, linetable, exceptiontable, freevars=(), cellvars=(), /)
             // We use name and qualname for simplicity
             if (!(exception_table = PyBytes_FromStringAndSize(NULL, 0))) goto end;
-            result = PyObject_CallFunction(code_type, "iiiiiiOOOOOOOiOO", a,p, k, l, s, f, code,
+            result = PyObject_CallFunction(code_type, "iiiiiiOOOOOOOiOOOO", a,p, k, l, s, f, code,
                           c, n, v, fn, name, name, fline, lnos, exception_table, fv, cell);
         }
 
@@ -2404,7 +2404,8 @@ static PyObject* __Pyx_PyCode_New(
     Py_INCREF(varnames_tuple_dedup);
     #endif
 
-    if (__PYX_LIMITED_VERSION_HEX >= (0x030b0000) && line_table != NULL) {
+    if (__PYX_LIMITED_VERSION_HEX >= (0x030b0000) && line_table != NULL
+        && !CYTHON_COMPILING_IN_GRAAL) {
         line_table_bytes = PyBytes_FromStringAndSize(line_table, descr.line_table_length);
         if (unlikely(!line_table_bytes)) goto done;
 
@@ -2437,7 +2438,7 @@ static PyObject* __Pyx_PyCode_New(
         filename,
         funcname,
         (int) descr.first_line,
-        (__PYX_LIMITED_VERSION_HEX >= (0x030b0000)) ? line_table_bytes : EMPTY(bytes)
+        (__PYX_LIMITED_VERSION_HEX >= (0x030b0000) && line_table_bytes) ? line_table_bytes : EMPTY(bytes)
     );
 
 done:

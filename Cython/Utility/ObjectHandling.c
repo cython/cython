@@ -1489,6 +1489,7 @@ static CYTHON_INLINE PyObject *__Pyx__GetModuleGlobalName(PyObject *name)
     if (likely(result)) {
         return result;
     }
+    PyErr_Clear();
 #elif !CYTHON_AVOID_BORROWED_REFS && !CYTHON_AVOID_THREAD_UNSAFE_BORROWED_REFS
     // Identifier names are always interned and have a pre-calculated hash value.
     result = _PyDict_GetItem_KnownHash(NAMED_CGLOBAL(moddict_cname), name, ((PyASCIIObject *) name)->hash);
