@@ -5689,7 +5689,7 @@ class CClassDefNode(ClassDefNode):
 
                 # Let Python do the base types compatibility checking.
                 trial_type = code.funcstate.allocate_temp(PyrexTypes.py_object_type, manage_ref=True)
-                # __Pyx_PyType_GetSlot doesn't work on heap types in Limited API < 3.10 so awful manual fallback:
+                # __Pyx_PyType_GetSlot doesn't work on non-heap types in Limited API < 3.10 so awful manual fallback:
                 code.putln("#if CYTHON_COMPILING_IN_LIMITED_API && __PYX_LIMITED_VERSION_HEX < 0x030A0000")
                 code.putln("if (__Pyx_get_runtime_version() < 0x030A0000) {")
                 type_new = code.funcstate.allocate_temp(PyrexTypes.py_object_type, manage_ref=True)
@@ -5728,7 +5728,7 @@ class CClassDefNode(ClassDefNode):
                 code.putln(code.error_goto(self.pos))
                 code.putln("}")
 
-                code.putln(f"{first_base} = NULL;")  # borrowed to no decref
+                code.putln(f"{first_base} = NULL;")  # borrowed so no decref
                 code.funcstate.release_temp(first_base)
 
                 code.put_decref_clear(trial_type, PyrexTypes.py_object_type)
