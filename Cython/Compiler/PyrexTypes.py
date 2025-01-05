@@ -4888,6 +4888,12 @@ c_gilstate_type = CEnumType("PyGILState_STATE", "PyGILState_STATE", True)
 c_threadstate_type = CStructOrUnionType("PyThreadState", "struct", None, 1, "PyThreadState")
 c_threadstate_ptr_type = CPtrType(c_threadstate_type)
 
+# Critical section
+c_py_critical_section_type = CStructOrUnionType(
+    "__Pyx_PyCriticalSection", "struct", None, 1, "__Pyx_PyCriticalSection")
+c_py_critical_section2_type = CStructOrUnionType(
+    "__Pyx_PyCriticalSection2", "struct", None, 1, "__Pyx_PyCriticalSection2")
+
 # PEP-539 "Py_tss_t" type
 c_pytss_t_type = CPyTSSTType()
 
@@ -5259,7 +5265,7 @@ def result_type_of_builtin_operation(builtin_type, type2):
         elif type2.is_builtin_type and type2.name == 'complex':
             return type2
     elif builtin_type.name == 'complex':
-        if type2 == builtin_type or type2.is_complex:
+        if type2.is_complex:
             return CComplexType(widest_numeric_type(c_double_type, type2.real_type))
         elif type2.is_numeric:
             return CComplexType(widest_numeric_type(c_double_type, type2))

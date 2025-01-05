@@ -842,7 +842,7 @@ bad:
     {
         PyTypeObject* basei = NULL;
         PyTypeObject* tp_base = __Pyx_PyType_GetSlot(type, tp_base, PyTypeObject*);
-        tp_base_name = __Pyx_PyType_GetName(tp_base);
+        tp_base_name = __Pyx_PyType_GetFullyQualifiedName(tp_base);
 #if CYTHON_AVOID_BORROWED_REFS
         basei = (PyTypeObject*)PySequence_GetItem(bases, i);
         if (unlikely(!basei)) goto really_bad;
@@ -852,7 +852,7 @@ bad:
 #else
         basei = (PyTypeObject*)PyTuple_GET_ITEM(bases, i);
 #endif
-        base_name = __Pyx_PyType_GetName(basei);
+        base_name = __Pyx_PyType_GetFullyQualifiedName(basei);
 #if CYTHON_AVOID_BORROWED_REFS
         Py_DECREF(basei);
 #endif
@@ -871,15 +871,33 @@ other_failure:
     return -1;
 }
 
+/////////////// ImportNumPyArray.module_state_decls //////////////
+//@requires: MemoryView_C.c::Atomics
+
+#if CYTHON_COMPILING_IN_CPYTHON_FREETHREADING && CYTHON_ATOMICS
+__pyx_atomic_ptr_type __pyx_numpy_ndarray;
+#else
+// If freethreading but not atomics, then this is guarded by ndarray_mutex
+// in __Pyx__ImportNumPyArrayTypeIfAvailable
+PyObject *__pyx_numpy_ndarray;
+#endif
 
 /////////////// ImportNumPyArray.proto ///////////////
-
-static PyObject *__pyx_numpy_ndarray = NULL;
 
 static PyObject* __Pyx_ImportNumPyArrayTypeIfAvailable(void); /*proto*/
 
 /////////////// ImportNumPyArray.cleanup ///////////////
-Py_CLEAR(__pyx_numpy_ndarray);
+
+// I'm not actually worried about thread-safety in the cleanup function.
+// The CYTHON_ATOMICS code is only for the type-casting.
+#if CYTHON_COMPILING_IN_CPYTHON_FREETHREADING && CYTHON_ATOMICS
+{
+    PyObject* old = (PyObject*)__pyx_atomic_pointer_exchange(&CGLOBAL(__pyx_numpy_ndarray), NULL);
+    Py_XDECREF(old);
+}
+#else
+Py_CLEAR(CGLOBAL(__pyx_numpy_ndarray));
+#endif
 
 /////////////// ImportNumPyArray ///////////////
 //@requires: ImportExport.c::Import
@@ -903,10 +921,42 @@ static PyObject* __Pyx__ImportNumPyArray(void) {
     return ndarray_object;
 }
 
-static CYTHON_INLINE PyObject* __Pyx_ImportNumPyArrayTypeIfAvailable(void) {
-    if (unlikely(!__pyx_numpy_ndarray)) {
-        __pyx_numpy_ndarray = __Pyx__ImportNumPyArray();
+// Returns a borrowed reference, and encapsulates all thread safety stuff needed
+static CYTHON_INLINE PyObject* __Pyx__ImportNumPyArrayTypeIfAvailable(void) {
+#if CYTHON_COMPILING_IN_CPYTHON_FREETHREADING
+    static PyMutex ndarray_mutex = {0};
+#endif
+#if CYTHON_COMPILING_IN_CPYTHON_FREETHREADING && CYTHON_ATOMICS
+    PyObject *result = (PyObject*)__pyx_atomic_pointer_load_relaxed(&CGLOBAL(__pyx_numpy_ndarray));
+    if (unlikely(!result)) {
+        PyMutex_Lock(&ndarray_mutex);
+        // Now we've got the lock and know that no-one else is modifying it, check again
+        // that it hasn't already been set.
+        result = (PyObject*)__pyx_atomic_pointer_load_acquire(&CGLOBAL(__pyx_numpy_ndarray));
+        if (!result) {
+            result = __Pyx__ImportNumPyArray();
+            __pyx_atomic_pointer_exchange(&CGLOBAL(__pyx_numpy_ndarray), result);
+        }
+        PyMutex_Unlock(&ndarray_mutex);
     }
-    Py_INCREF(__pyx_numpy_ndarray);
-    return __pyx_numpy_ndarray;
+    return result;
+#else
+#if CYTHON_COMPILING_IN_CPYTHON_FREETHREADING // but not atomics
+    PyMutex_Lock(&ndarray_mutex);
+#endif
+    if (unlikely(!CGLOBAL(__pyx_numpy_ndarray)))
+    {
+        CGLOBAL(__pyx_numpy_ndarray) = __Pyx__ImportNumPyArray();
+    }
+#if CYTHON_COMPILING_IN_CPYTHON_FREETHREADING // but not atomics
+    PyMutex_Unlock(&ndarray_mutex);
+#endif
+    return CGLOBAL(__pyx_numpy_ndarray);
+#endif
+}
+
+static CYTHON_INLINE PyObject* __Pyx_ImportNumPyArrayTypeIfAvailable(void) {
+    PyObject *result = __Pyx__ImportNumPyArrayTypeIfAvailable();
+    Py_INCREF(result);
+    return result;
 }

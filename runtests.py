@@ -513,10 +513,6 @@ BACKENDS = ['c', 'cpp']
 
 UTF8_BOM_BYTES = r'\xef\xbb\xbf'.encode('ISO-8859-1').decode('unicode_escape')
 
-# A selector that can be used to determine whether to run with Py_LIMITED_API
-# (if run in limited api mode)
-limited_api_full_tests = None
-
 
 def memoize(f):
     uncomputed = object()
@@ -780,10 +776,6 @@ class TestBuilder(object):
                 if [1 for match in self.exclude_selectors
                         if match(fqmodule, tags)]:
                     continue
-            full_limited_api_mode = False
-            if limited_api_full_tests and limited_api_full_tests(fqmodule):
-                # TODO this (and CYTHON_LIMITED_API) don't yet make it into end-to-end tests
-                full_limited_api_mode = True
 
             mode = self.default_mode
             if tags['mode']:
@@ -819,8 +811,7 @@ class TestBuilder(object):
                 raise KeyError('Invalid test mode: ' + mode)
 
             for test in self.build_tests(test_class, path, workdir,
-                                         module, filepath, mode == 'error', tags,
-                                         full_limited_api_mode=full_limited_api_mode):
+                                         module, filepath, mode == 'error', tags):
                 suite.addTest(test)
 
             if mode == 'run' and ext == '.py' and not self.cython_only and not filename.startswith('test_'):
@@ -836,7 +827,7 @@ class TestBuilder(object):
 
         return suite
 
-    def build_tests(self, test_class, path, workdir, module, module_path, expect_errors, tags, full_limited_api_mode):
+    def build_tests(self, test_class, path, workdir, module, module_path, expect_errors, tags):
         warning_errors = 'werror' in tags['tag']
         expect_log = ("errors",) if expect_errors else ()
         if 'warnings' in tags['tag']:
@@ -888,8 +879,7 @@ class TestBuilder(object):
                                   warning_errors, preparse,
                                   pythran_dir if language == "cpp" else None,
                                   add_cython_import=add_cython_import,
-                                  extra_directives=extra_directives,
-                                  full_limited_api_mode=full_limited_api_mode)
+                                  extra_directives=extra_directives)
                   for language in languages
                   for preparse in preparse_list
                   for language_level in language_levels
@@ -899,7 +889,7 @@ class TestBuilder(object):
 
     def build_test(self, test_class, path, workdir, module, module_path, tags, language, language_level,
                    expect_log, warning_errors, preparse, pythran_dir, add_cython_import,
-                   extra_directives, full_limited_api_mode):
+                   extra_directives):
         language_workdir = os.path.join(workdir, language)
         if not os.path.exists(language_workdir):
             os.makedirs(language_workdir)
@@ -928,8 +918,7 @@ class TestBuilder(object):
                           common_utility_dir=self.common_utility_dir,
                           pythran_dir=pythran_dir,
                           stats=self.stats,
-                          add_cython_import=add_cython_import,
-                          full_limited_api_mode=full_limited_api_mode,
+                          add_cython_import=add_cython_import
                           )
 
 
@@ -988,7 +977,7 @@ class CythonCompileTestCase(unittest.TestCase):
                  fork=True, language_level=2, warning_errors=False,
                  test_determinism=False, shard_num=0,
                  common_utility_dir=None, pythran_dir=None, stats=None, add_cython_import=False,
-                 extra_directives=None, full_limited_api_mode=False):
+                 extra_directives=None):
         if extra_directives is None:
             extra_directives = {}
         self.test_directory = test_directory
@@ -1016,7 +1005,6 @@ class CythonCompileTestCase(unittest.TestCase):
         self.stats = stats
         self.add_cython_import = add_cython_import
         self.extra_directives = extra_directives
-        self.full_limited_api_mode = full_limited_api_mode
         unittest.TestCase.__init__(self)
 
     def shortDescription(self):
@@ -1319,12 +1307,6 @@ class CythonCompileTestCase(unittest.TestCase):
             # the "traceback" tag
             if 'traceback' not in self.tags['tag']:
                 extension.define_macros.append(("CYTHON_CLINE_IN_TRACEBACK", 1))
-
-            # Allow tests to be incrementally enabled with Py_LIMITED_API set.
-            # This is intended to be temporary while limited API support
-            # is improved. Eventually we'll want to move to excluding tests
-            if self.full_limited_api_mode:
-                extension.define_macros.append(("Py_LIMITED_API", 'PY_VERSION_HEX'))
 
             for matcher, fixer in list(EXT_EXTRAS.items()):
                 if isinstance(matcher, str):
@@ -2752,13 +2734,9 @@ def runtests(options, cmd_args, coverage=None):
         CDEFS.append(('CYTHON_REFNANNY', '1'))
 
     if options.limited_api:
-        global limited_api_full_tests
         CDEFS.append(('CYTHON_LIMITED_API', '1'))
+        CDEFS.append(("Py_LIMITED_API", '(PY_VERSION_HEX & 0xffff0000)'))
         CFLAGS.append('-Wno-unused-function')
-        # limited_api_full_tests is not actually "excludes" but just reusing the mechanism.
-        # These files will be run with Py_LIMITED_API defined
-        limited_api_full_tests = FileListExcluder(
-            os.path.join(ROOTDIR, "test_in_limited_api.txt"))
 
     if xml_output_dir and options.fork:
         # doesn't currently work together
@@ -2822,6 +2800,8 @@ def runtests(options, cmd_args, coverage=None):
             ('pypy_implementation_detail_bugs.txt', IS_PYPY),
             ('graal_bugs.txt', IS_GRAAL),
             ('limited_api_bugs.txt', options.limited_api),
+            ('limited_api_bugs_38.txt', options.limited_api and sys.version_info < (3, 9)),
+            ('limited_api_bugs_310.txt', options.limited_api and sys.version_info < (3, 11)),
             ('windows_bugs.txt', sys.platform == 'win32'),
             ('cygwin_bugs.txt', sys.platform == 'cygwin'),
             ('windows_bugs_39.txt', sys.platform == 'win32' and sys.version_info[:2] == (3, 9)),

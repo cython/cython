@@ -791,7 +791,7 @@ def add_macro_processor(*macro_names, regex=None, is_module_specific=False, _las
 def _wrap_c_string(_, matchobj):
     """Replace CSTRING('''xyz''') by a C compatible string, taking care of line breaks.
     """
-    content = matchobj.group(1).replace('"', '\042')
+    content = matchobj.group(1).replace('"', r'\042')
     return ''.join(
         f'"{line}\\n"\n' if not line.endswith('\\') or line.endswith('\\\\') else f'"{line[:-1]}"\n'
         for line in content.splitlines())
@@ -807,9 +807,9 @@ def _format_impl_code(utility_code: UtilityCode, _, impl):
     is_module_specific=True,
     regex=(
         r'CALL_UNBOUND_METHOD\('
-        r'([a-zA-Z_]+),'      # type cname
-        r'\s*"([^"]+)",'      # method name
-        r'\s*([^),]+)'        # object cname
+        r'([a-zA-Z_]+),\s*'   # type cname
+        r'"([^"]+)",\s*'      # method name
+        r'([^),\s]+)'         # object cname
         r'((?:,[^),]+)*)'     # args*
         r'\)'
     ),
@@ -3113,6 +3113,9 @@ class CCodeWriter:
         elif return_type.is_pyobject:
             retvalue_cname = return_type.as_pyobject(retvalue_cname)
         elif return_type.is_void:
+            retvalue_cname = 'Py_None'
+        elif return_type.is_string:
+            # We don't know if the C string is 0-terminated, but we cannot convert if it's not.
             retvalue_cname = 'Py_None'
         elif return_type.to_py_function:
             trace_func = "__Pyx_TraceReturnCValue"

@@ -1817,12 +1817,10 @@ class EarlyReplaceBuiltinCalls(Visitor.EnvTransform):
         arg = pos_args[0]
         if isinstance(arg, ExprNodes.ComprehensionNode) and arg.type is Builtin.list_type:
             list_node = arg
-            loop_node = list_node.loop
 
         elif isinstance(arg, ExprNodes.GeneratorExpressionNode):
             gen_expr_node = arg
-            loop_node = gen_expr_node.loop
-            yield_statements = _find_yield_statements(loop_node)
+            yield_statements = _find_yield_statements(gen_expr_node.loop)
             if not yield_statements:
                 return node
 
@@ -1840,12 +1838,12 @@ class EarlyReplaceBuiltinCalls(Visitor.EnvTransform):
         elif arg.is_sequence_constructor:
             # sorted([a, b, c]) or sorted((a, b, c)).  The result is always a list,
             # so starting off with a fresh one is more efficient.
-            list_node = loop_node = arg.as_list()
+            list_node = arg.as_list()
 
         else:
             # Interestingly, PySequence_List works on a lot of non-sequence
             # things as well.
-            list_node = loop_node = ExprNodes.PythonCapiCallNode(
+            list_node = ExprNodes.PythonCapiCallNode(
                 node.pos,
                 "__Pyx_PySequence_ListKeepNew"
                     if arg.is_temp and arg.type in (PyrexTypes.py_object_type, Builtin.list_type)
@@ -1853,24 +1851,7 @@ class EarlyReplaceBuiltinCalls(Visitor.EnvTransform):
                 self.PySequence_List_func_type,
                 args=pos_args, is_temp=True)
 
-        result_node = UtilNodes.ResultRefNode(
-            pos=loop_node.pos, type=Builtin.list_type, may_hold_none=False)
-        list_assign_node = Nodes.SingleAssignmentNode(
-            node.pos, lhs=result_node, rhs=list_node, first=True)
-
-        sort_method = ExprNodes.AttributeNode(
-            node.pos, obj=result_node, attribute=EncodedString('sort'),
-            # entry ? type ?
-            needs_none_check=False)
-        sort_node = Nodes.ExprStatNode(
-            node.pos, expr=ExprNodes.SimpleCallNode(
-                node.pos, function=sort_method, args=[]))
-
-        sort_node.analyse_declarations(self.current_env())
-
-        return UtilNodes.TempResultFromStatNode(
-            result_node,
-            Nodes.StatListNode(node.pos, stats=[list_assign_node, sort_node]))
+        return ExprNodes.SortedListNode(node.pos, list_node)
 
     def __handle_simple_function_sum(self, node, pos_args):
         """Transform sum(genexpr) into an equivalent inlined aggregation loop.

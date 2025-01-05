@@ -176,6 +176,9 @@ parallel_lineno = pyrex_prefix + "parallel_lineno"
 parallel_clineno = pyrex_prefix + "parallel_clineno"
 parallel_why = pyrex_prefix + "parallel_why"
 
+# Python itself used _Py_cs so loosely follow that convention
+critical_section_variable = pyrex_prefix + "cs"
+
 exc_vars = (exc_type_name, exc_value_name, exc_tb_name)
 
 api_name        = pyrex_prefix + "capi__"

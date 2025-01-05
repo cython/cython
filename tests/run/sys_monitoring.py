@@ -11,6 +11,8 @@ from collections import defaultdict
 from contextlib import contextmanager
 from functools import partial
 
+COMPILED = cython.compiled
+
 try:
     from sys import monitoring as smon
     E = smon.events
@@ -332,6 +334,34 @@ else:
     call_fused_functions PY_START [1], PY_RETURN [1]
 
 
+    ## Testing special return types:
+
+    >>> events = set()
+    >>> def trace_return(code, offset, arg):
+    ...     events.add(arg)
+
+    >>> _ = smon.register_callback(TOOL_ID, E.PY_RETURN, trace_return)
+    >>> smon.set_events(TOOL_ID, E.PY_RETURN)
+    >>> try:
+    ...     # monitored
+    ...     trace_return_neg_1()
+    ...     trace_return_charptr()
+    ... finally:
+    ...     _ = smon.register_callback(TOOL_ID, E.PY_RETURN, None)
+    ...     smon.free_tool_id(TOOL_ID)
+    -1
+    b'xyzxyz'
+
+    >>> -1 in events  or  events
+    True
+    >>> None in events  or  events
+    True
+    >>> b'xyzxyz' in events  or  events
+    True
+    >>> (b'xyz' not in events if COMPILED else b'xyz' in events)  or  events
+    True
+
+
     >>> smon.free_tool_id(TOOL_ID)
     """
 
@@ -634,3 +664,28 @@ def fused_func_def(x: cython.numeric) -> cython.numeric:
 @cython.cfunc
 def fused_func_cfunc(x: cython.numeric) -> cython.numeric:
     return x + 2
+
+
+# Special return values
+
+@cython.cfunc
+def c_return_neg_1() -> cython.Py_UCS4:
+    # Returning an invalid Py_UCS4 value could fail in combination with trace result reporting.
+    # See https://github.com/cython/cython/issues/6503
+    return cython.cast(cython.Py_UCS4, -1)
+
+def call_c_return_neg_1():
+    return cython.cast(cython.int, c_return_neg_1())
+
+def trace_return_neg_1():
+    result = call_c_return_neg_1()
+    return result
+
+
+@cython.cfunc
+def c_return_charptr() -> cython.p_char:
+    return b"xyz"
+
+def trace_return_charptr():
+    result: object = c_return_charptr()
+    return result * 2
