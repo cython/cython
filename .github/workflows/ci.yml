@@ -44,27 +44,33 @@ jobs:
         os: [ubuntu-22.04, windows-2019, macos-13]
         backend: [c, cpp]
         python-version:
-          - "3.7"
           - "3.8"
           - "3.9"
           - "3.10"
           - "3.11"
           - "3.12"
           - "3.13"
+          - "3.13t"
         env: [{}]
 
+        exclude:
+          # Windows and free-threading is difficult to build right now
+          - os: windows-2019
+            python-version: 3.13t
+            backend: "c"
+          - os: windows-2019
+            python-version: 3.13t
+            backend: "cpp"
         include:
-          #- python-version: "3.13"
-          #  allowed_failure: true
 
           # Ubuntu sub-jobs:
           # ================
           # graalpy is really slow...
-          - os: ubuntu-22.04
-            python-version: graalpy24
-            backend: c
-            env: { NO_CYTHON_COMPILE: 1 }
-            allowed_failure: true
+          #- os: ubuntu-22.04
+          #  python-version: graalpy24
+          #  backend: c
+          #  env: { NO_CYTHON_COMPILE: 1 }
+          #  allowed_failure: true
           # GCC 13 (with broad language standards)
           - os: ubuntu-22.04
             python-version: "3.9"
@@ -88,12 +94,12 @@ jobs:
             extra_hash: "-gcc11"
           # compile all modules
           - os: ubuntu-22.04
-            python-version: "3.7"
+            python-version: "3.8"
             backend: c
             env: { CYTHON_COMPILE_ALL: 1 }
             extra_hash: "-all"
           - os: ubuntu-22.04
-            python-version: "3.7"
+            python-version: "3.8"
             backend: cpp
             env: { CYTHON_COMPILE_ALL: 1 }
             extra_hash: "-all"
@@ -115,31 +121,24 @@ jobs:
             extra_hash: "-codestyle"
           # Limited API
           - os: ubuntu-22.04
-            python-version: "3.7"
-            backend: "c,cpp"
-            env: { LIMITED_API: "--limited-api", NO_LIMITED_COMPILE: 1, EXCLUDE: "--no-file" }
-            extra_hash: "-limited_api"
-          - os: ubuntu-22.04
             python-version: "3.8"
             backend: "c,cpp"
-            env: { LIMITED_API: "--limited-api", NO_LIMITED_COMPILE: 1, EXCLUDE: "--no-file" }
+            env: { LIMITED_API: "--limited-api", NO_LIMITED_COMPILE: 1 }
             extra_hash: "-limited_api"
           - os: ubuntu-22.04
             python-version: "3.11"
             backend: "c,cpp"
-            env: { LIMITED_API: "--limited-api", EXCLUDE: "--no-file" }
+            env: { LIMITED_API: "--limited-api" }
             extra_hash: "-limited_api"
           - os: ubuntu-22.04
             python-version: "3.12"
-            allowed_failure: true
             backend: "c,cpp"
-            env: { LIMITED_API: "--limited-api", EXCLUDE: "--no-file" }
+            env: { LIMITED_API: "--limited-api" }
             extra_hash: "-limited_api"
           - os: ubuntu-22.04
             python-version: "3.13"
-            allowed_failure: true
             backend: "c,cpp"
-            env: { LIMITED_API: "--limited-api", EXCLUDE: "--no-file" }
+            env: { LIMITED_API: "--limited-api" }
             extra_hash: "-limited_api"
           # Type specs
           - os: ubuntu-22.04
@@ -154,11 +153,6 @@ jobs:
             extra_hash: "-typespecs"
           - os: ubuntu-22.04
             python-version: "3.8"
-            backend: c
-            env: { EXTRA_CFLAGS: "-DCYTHON_USE_TYPE_SPECS=1" }
-            extra_hash: "-typespecs"
-          - os: ubuntu-22.04
-            python-version: "3.7"
             backend: c
             env: { EXTRA_CFLAGS: "-DCYTHON_USE_TYPE_SPECS=1" }
             extra_hash: "-typespecs"
@@ -179,10 +173,25 @@ jobs:
             env: { NO_CYTHON_COMPILE: 1 }
           # Free-threading
           - os: ubuntu-22.04
-            python-version: 3.13-freethreading
-            backend: "c,cpp"
-            env: {}
-            allowed_failure: true
+            python-version: 3.13t
+            backend: "c"
+          - os: ubuntu-22.04
+            python-version: 3.13t
+            backend: "cpp"
+#          - os: windows-2019
+#            python-version: 3.13t
+#            backend: "c"
+#            allowed_failure: true
+#          - os: windows-2019
+#            python-version: 3.13t
+#            backend: "cpp"
+#            allowed_failure: true
+          - os: macos-13
+            python-version: 3.13t
+            backend: "c"
+          - os: macos-13
+            python-version: 3.13t
+            backend: "cpp"
 
     # This defaults to 360 minutes (6h) which is way too long and if a test gets stuck, it can block other pipelines.
     # From testing, the runs tend to take ~20 minutes for ubuntu / macos and ~40 for windows,
@@ -207,17 +216,9 @@ jobs:
           fetch-depth: 1
 
       - name: Setup python
-        uses: actions/setup-python@v5.0.0
-        if: "!endsWith(matrix.python-version, '-freethreading')"
+        uses: Quansight-Labs/setup-python@v5.3.1
         with:
           python-version: ${{ matrix.python-version }}
-
-      - name: Setup python from deadsnakes
-        uses: deadsnakes/action@v3.1.0
-        if: "endsWith(matrix.python-version, '-freethreading')"
-        with:
-          python-version: "3.13"
-          nogil: true
 
       - name: Compilation Cache
         uses: hendrikmuhs/ccache-action@v1.2.12

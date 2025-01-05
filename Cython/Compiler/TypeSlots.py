@@ -996,9 +996,9 @@ class SlotTable:
             EmptySlot("sq_concat"),  # nb_add used instead
             EmptySlot("sq_repeat"),  # nb_multiply used instead
             SyntheticSlot("sq_item", ["__getitem__"], "0"),    #EmptySlot("sq_item"),   # mp_subscript used instead
-            MethodSlot(ssizessizeargfunc, "sq_slice", "__getslice__", method_name_to_slot),
+            EmptySlot("sq_slice"),
             EmptySlot("sq_ass_item"),  # mp_ass_subscript used instead
-            SyntheticSlot("sq_ass_slice", ["__setslice__", "__delslice__"], "0"),
+            EmptySlot("sq_ass_slice"),
             MethodSlot(cmpfunc, "sq_contains", "__contains__", method_name_to_slot),
             EmptySlot("sq_inplace_concat"),  # nb_inplace_add used instead
             EmptySlot("sq_inplace_repeat"),  # nb_inplace_multiply used instead
