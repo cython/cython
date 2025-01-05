@@ -22,7 +22,6 @@ run[.]generators_py
 generator_frame_cycle
 # probably just an exact error message
 importfrom
-run[.]nogil
 run[.]no_gc
 run[.]numpy
 line_trace
@@ -35,10 +34,7 @@ test_asyncgen
 tracebacks
 tuple_constants
 tss
-running_with_gil
-run[.]with_gil
 sys_monitoring
-sequential_parallel
 special_method_docstrings
 run[.]ufunc
 slice2b
@@ -95,7 +91,6 @@ run[.]pytype
 run[.]pyarray
 pyclass_scope_T671
 pyclass_special_methods
-run[.]parallel
 pep448_extended_unpacking
 r_pythonapi
 refcount_in_meth
@@ -103,6 +98,8 @@ time_pxd
 run[.]type_inference
 special_methods_T561
 run[.]slice_ptr
+running_with_gil
+run[.]with_gil
 
 # example in docs that use features unavailable in the limited API
 # (and it's a decision for the docs writers rather than a limitation
