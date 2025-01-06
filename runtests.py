@@ -2801,7 +2801,6 @@ def runtests(options, cmd_args, coverage=None):
             ('graal_bugs.txt', IS_GRAAL),
             ('limited_api_bugs.txt', options.limited_api),
             ('limited_api_bugs_38.txt', options.limited_api and sys.version_info < (3, 9)),
-            ('limited_api_bugs_310.txt', options.limited_api and sys.version_info < (3, 11)),
             ('windows_bugs.txt', sys.platform == 'win32'),
             ('cygwin_bugs.txt', sys.platform == 'cygwin'),
             ('windows_bugs_39.txt', sys.platform == 'win32' and sys.version_info[:2] == (3, 9)),
