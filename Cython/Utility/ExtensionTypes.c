@@ -254,7 +254,7 @@ static int __Pyx_PyType_Ready(PyTypeObject *t) {
         }
     #endif
 
-        // As of https://bugs.python.org/issue22079
+        // As of https://github.com/python/cpython/issues/66277
         // PyType_Ready enforces that all bases of a non-heap type are
         // non-heap. We know that this is the case for the solid base but
         // other bases are heap allocated and are kept alive through the
