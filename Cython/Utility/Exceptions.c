@@ -436,7 +436,7 @@ static int __Pyx_GetException(PyObject **type, PyObject **value, PyObject **tb)
 #endif
         goto bad;
 
-    // Note than in Python 3.12 the traceback came directly from local_value anyway
+    // Note that in Python 3.12 the traceback came directly from local_value anyway.
     if (local_tb) {
         if (unlikely(PyException_SetTraceback(local_value, local_tb) < 0))
             goto bad;
