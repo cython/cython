@@ -1473,9 +1473,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                         warning(self.pos,
                                 "__getslice__, __setslice__, and __delslice__ are not supported by Python 3, "
                                 "use __getitem__, __setitem__, and __delitem__ instead", 1)
-                        code.putln("#if PY_MAJOR_VERSION >= 3")
                         code.putln("#error __getslice__, __setslice__, and __delslice__ not supported in Python 3.")
-                        code.putln("#endif")
                     if scope.defines_any_special(["__setslice__", "__delslice__"]):
                         self.generate_ass_slice_function(scope, code)
                     if scope.defines_any_special(["__getattr__", "__getattribute__"]):

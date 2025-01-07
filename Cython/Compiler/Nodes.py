@@ -5861,13 +5861,6 @@ class CClassDefNode(ClassDefNode):
             code.put_error_if_neg(entry.pos, "__Pyx_PyType_Ready(%s)" % typeptr_cname)
             code.putln("#endif")
 
-            # Don't inherit tp_print from builtin types in Python 2, restoring the
-            # behavior of using tp_repr or tp_str instead.
-            # ("tp_print" was renamed to "tp_vectorcall_offset" in Py3.8b1)
-            code.putln("#if PY_MAJOR_VERSION < 3")
-            code.putln("%s->tp_print = 0;" % typeptr_cname)
-            code.putln("#endif")
-
             # Use specialised attribute lookup for types with generic lookup but no instance dict.
             getattr_slot_func = TypeSlots.get_slot_code_by_name(scope, 'tp_getattro')
             dictoffset_slot_func = TypeSlots.get_slot_code_by_name(scope, 'tp_dictoffset')
@@ -8746,10 +8739,9 @@ class TryFinallyStatNode(StatNode):
 
         # not using preprocessor here to avoid warnings about
         # unused utility functions and/or temps
-        code.putln("if (PY_MAJOR_VERSION >= 3)"
-                   " __Pyx_ExceptionSwap(&%s, &%s, &%s);" % exc_vars[3:])
-        code.putln("if ((PY_MAJOR_VERSION < 3) ||"
-                   # if __Pyx_GetException() fails in Py3,
+        code.putln(" __Pyx_ExceptionSwap(&%s, &%s, &%s);" % exc_vars[3:])
+        code.putln("if ("
+                   # if __Pyx_GetException() fails,
                    # store the newly raised exception instead
                    " unlikely(__Pyx_GetException(&%s, &%s, &%s) < 0)) "
                    "__Pyx_ErrFetch(&%s, &%s, &%s);" % (exc_vars[:3] * 2))
@@ -8775,11 +8767,9 @@ class TryFinallyStatNode(StatNode):
 
         # not using preprocessor here to avoid warnings about
         # unused utility functions and/or temps
-        code.putln("if (PY_MAJOR_VERSION >= 3) {")
         for var in exc_vars[3:]:
             code.put_xgiveref(var, py_object_type)
         code.putln("__Pyx_ExceptionReset(%s, %s, %s);" % exc_vars[3:])
-        code.putln("}")
         for var in exc_vars[:3]:
             code.put_xgiveref(var, py_object_type)
         code.putln("__Pyx_ErrRestore(%s, %s, %s);" % exc_vars[:3])
@@ -8803,11 +8793,9 @@ class TryFinallyStatNode(StatNode):
 
         # not using preprocessor here to avoid warnings about
         # unused utility functions and/or temps
-        code.putln("if (PY_MAJOR_VERSION >= 3) {")
         for var in exc_vars[3:]:
             code.put_xgiveref(var, py_object_type)
         code.putln("__Pyx_ExceptionReset(%s, %s, %s);" % exc_vars[3:])
-        code.putln("}")
         for var in exc_vars[:3]:
             code.put_xdecref_clear(var, py_object_type)
         if self.is_try_finally_in_nogil:
