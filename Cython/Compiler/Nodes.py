@@ -8411,6 +8411,30 @@ class ExceptClauseNode(Node):
         self.body = self.body.analyse_expressions(env)
         return self
 
+    def is_body_trivial(self):
+        """Check if the body is trivial enough to discard the exception.
+        """
+        body = self.body
+        if isinstance(body, StatListNode):
+            for node in body.stats:
+                if isinstance(node, PassStatNode):
+                    continue
+                elif isinstance(node, ReturnStatNode):
+                    body = node
+                    break
+                return False
+            else:
+                # No user code found (other than 'pass').
+                return True
+
+        if isinstance(body, ReturnStatNode):
+            value = body.value
+            if value is None or value.is_literal:
+                return True
+            # There might be other safe cases, but literals seem the safest for now.
+
+        return False
+
     def generate_handling_code(self, code, end_label):
         code.mark_pos(self.pos)
 
@@ -8480,38 +8504,33 @@ class ExceptClauseNode(Node):
             code.putln("/*except:*/ {")
 
         tracing = code.is_tracing()
+        needs_exception = (
+            self.target is not None or
+            self.excinfo_target is not None or
+            not self.is_body_trivial()
+        )
 
-        if (not getattr(self.body, 'stats', True)
-                and self.excinfo_target is None
-                and self.target is None):
-            # most simple case: no exception variable, empty body (pass)
-            # => reset the exception state, done
-            if tracing:
-                code.put_trace_exception_handled(self.pos)
-            code.globalstate.use_utility_code(UtilityCode.load_cached("PyErrFetchRestore", "Exceptions.c"))
-            code.putln("__Pyx_ErrRestore(0,0,0);")
-            if tracing:
-                code.putln("__Pyx_TraceExceptionDone();")
-            code.put_goto(end_label)
-            code.putln("}")
-            return
-
-        exc_vars = [code.funcstate.allocate_temp(py_object_type, manage_ref=True)
-                    for _ in range(3)]
-        code.put_add_traceback(self.function_name)
+        if needs_exception or tracing:
+            code.put_add_traceback(self.function_name)
 
         if tracing:
             code.put_trace_exception_handled(self.pos)
 
-        # We always have to fetch the exception value even if
-        # there is no target, because this also normalises the
-        # exception and stores it in the thread state.
-        code.globalstate.use_utility_code(get_exception_utility_code)
-        exc_args = "&%s, &%s, &%s" % tuple(exc_vars)
-        code.putln("if (__Pyx_GetException(%s) < 0) %s" % (
-            exc_args, code.error_goto(self.pos)))
-        for var in exc_vars:
-            code.put_xgotref(var, py_object_type)
+        if needs_exception:
+            # We always have to fetch the exception value even if
+            # there is no target, because this also normalises the
+            # exception and stores it in the thread state.
+            code.globalstate.use_utility_code(get_exception_utility_code)
+            exc_vars = [code.funcstate.allocate_temp(py_object_type, manage_ref=True)
+                        for _ in range(3)]
+            exc_args = "&%s, &%s, &%s" % tuple(exc_vars)
+            code.putln("if (__Pyx_GetException(%s) < 0) %s" % (
+                exc_args, code.error_goto(self.pos)))
+            for var in exc_vars:
+                code.put_xgotref(var, py_object_type)
+        else:
+            code.globalstate.use_utility_code(UtilityCode.load_cached("PyErrFetchRestore", "Exceptions.c"))
+            code.putln("__Pyx_ErrRestore(0,0,0);")
 
         if tracing:
             code.putln("__Pyx_TraceExceptionDone();")
@@ -8520,33 +8539,41 @@ class ExceptClauseNode(Node):
             self.exc_value.set_var(exc_vars[1])
             self.exc_value.generate_evaluation_code(code)
             self.target.generate_assignment_code(self.exc_value, code)
+
         if self.excinfo_target is not None:
             for tempvar, node in zip(exc_vars, self.excinfo_target.args):
                 node.set_var(tempvar)
 
         old_loop_labels = code.new_loop_labels("except_")
 
-        old_exc_vars = code.funcstate.exc_vars
-        code.funcstate.exc_vars = exc_vars
+        if needs_exception:
+            old_exc_vars = code.funcstate.exc_vars
+            code.funcstate.exc_vars = exc_vars
+
         self.body.generate_execution_code(code)
-        code.funcstate.exc_vars = old_exc_vars
+
+        if needs_exception:
+            code.funcstate.exc_vars = old_exc_vars
 
         if not self.body.is_terminator:
-            for var in exc_vars:
-                # FIXME: XDECREF() is needed to allow re-raising (which clears the exc_vars),
-                # but I don't think it's the right solution.
-                code.put_xdecref_clear(var, py_object_type)
+            if needs_exception:
+                for var in exc_vars:
+                    # FIXME: XDECREF() is needed to allow re-raising (which clears the exc_vars),
+                    # but I don't think it's the right solution.
+                    code.put_xdecref_clear(var, py_object_type)
             code.put_goto(end_label)
 
-        for _ in code.label_interceptor(code.get_loop_labels(), old_loop_labels):
-            for i, var in enumerate(exc_vars):
+        if needs_exception:
+            for _ in code.label_interceptor(code.get_loop_labels(), old_loop_labels):
+                code.put_decref_clear(exc_vars[0], py_object_type)
+                code.put_decref_clear(exc_vars[1], py_object_type)
                 # Traceback may be NULL.
-                (code.put_decref_clear if i < 2 else code.put_xdecref_clear)(var, py_object_type)
+                code.put_xdecref_clear(exc_vars[2], py_object_type)
+
+            for temp in exc_vars:
+                code.funcstate.release_temp(temp)
 
         code.set_loop_labels(old_loop_labels)
-
-        for temp in exc_vars:
-            code.funcstate.release_temp(temp)
 
         code.putln(
             "}")
