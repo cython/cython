@@ -875,6 +875,7 @@ static CYTHON_INLINE PyObject* __Pyx_PyTuple_GetSlice(PyObject* src, Py_ssize_t 
 
 /////////////// SliceTupleAndList ///////////////
 //@requires: TupleAndListFromArray
+//@requires: ModuleSetupCode.c::CriticalSections
 
 #if CYTHON_COMPILING_IN_CPYTHON
 static CYTHON_INLINE void __Pyx_crop_slice(Py_ssize_t* _start, Py_ssize_t* _stop, Py_ssize_t* _length) {
@@ -916,13 +917,9 @@ static CYTHON_INLINE PyObject* __Pyx_PyList_GetSlice_locked(
 static CYTHON_INLINE PyObject* __Pyx_PyList_GetSlice(
             PyObject* src, Py_ssize_t start, Py_ssize_t stop) {
     PyObject *result;
-#if PY_VERSION_HEX >= 0x030d0000
-    Py_BEGIN_CRITICAL_SECTION(src);
-#endif
+    __Pyx_BEGIN_CRITICAL_SECTION(src);
     result = __Pyx_PyList_GetSlice_locked(src, start, stop);
-#if PY_VERSION_HEX >= 0x030d0000
-    Py_END_CRITICAL_SECTION();
-#endif
+    __Pyx_END_CRITICAL_SECTION();
     return result;
 }
 #endif // CYTHON_COMPILING_IN_CPYTHON
