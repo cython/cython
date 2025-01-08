@@ -875,7 +875,6 @@ static CYTHON_INLINE PyObject* __Pyx_PyTuple_GetSlice(PyObject* src, Py_ssize_t 
 
 /////////////// SliceTupleAndList ///////////////
 //@requires: TupleAndListFromArray
-//@substitute: tempita
 
 #if CYTHON_COMPILING_IN_CPYTHON
 static CYTHON_INLINE void __Pyx_crop_slice(Py_ssize_t* _start, Py_ssize_t* _stop, Py_ssize_t* _length) {
@@ -896,35 +895,37 @@ static CYTHON_INLINE void __Pyx_crop_slice(Py_ssize_t* _start, Py_ssize_t* _stop
     *_stop = stop;
 }
 
-{{for type in ['List', 'Tuple']}}
-static CYTHON_INLINE PyObject* __Pyx_Py{{type}}_GetSlice(
+static CYTHON_INLINE PyObject* __Pyx_PyTuple_GetSlice(
+            PyObject* src, Py_ssize_t start, Py_ssize_t stop) {
+    Py_ssize_t length = PyTuple_GET_SIZE(src);
+    __Pyx_crop_slice(&start, &stop, &length);
+    return __Pyx_PyTuple_FromArray(((PyTupleObject*)src)->ob_item + start, length);
+}
+
+static CYTHON_INLINE PyObject* __Pyx_PyList_GetSlice_locked(
+            PyObject* src, Py_ssize_t start, Py_ssize_t stop) {
+    Py_ssize_t length = PyList_GET_SIZE(src);
+    __Pyx_crop_slice(&start, &stop, &length);
+    if (length <= 0) {
+        // Avoid undefined behaviour when accessing `ob_item` of an empty list.
+        return PyList_New(0);
+    }
+    return __Pyx_PyList_FromArray(((PyListObject*)src)->ob_item + start, length);
+}
+
+static CYTHON_INLINE PyObject* __Pyx_PyList_GetSlice(
             PyObject* src, Py_ssize_t start, Py_ssize_t stop) {
     PyObject *result;
-{{if type=='List'}}
 #if PY_VERSION_HEX >= 0x030d0000
     Py_BEGIN_CRITICAL_SECTION(src);
 #endif
-{{endif}}
-    Py_ssize_t length = Py{{type}}_GET_SIZE(src);
-    __Pyx_crop_slice(&start, &stop, &length);
-{{if type=='List'}}
-    if (length <= 0) {
-        // Avoid undefined behaviour when accessing `ob_item` of an empty list.
-        result = PyList_New(0);
-        goto end_critical_section;
-    }
-{{endif}}
-    result = __Pyx_Py{{type}}_FromArray(((Py{{type}}Object*)src)->ob_item + start, length);
-  end_critical_section:;
-{{if type=='List'}}
+    result = __Pyx_PyList_GetSlice_locked(src, start, stop);
 #if PY_VERSION_HEX >= 0x030d0000
     Py_END_CRITICAL_SECTION();
 #endif
-{{endif}}
     return result;
 }
-{{endfor}}
-#endif
+#endif // CYTHON_COMPILING_IN_CPYTHON
 
 
 /////////////// CalculateMetaclass.proto ///////////////
