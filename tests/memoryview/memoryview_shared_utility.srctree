@@ -1,0 +1,40 @@
+PYTHON -m Cython.Build.SharedModule pkg2
+PYTHON setup.py build_ext --inplace
+PYTHON -c "import test_shared_utility"
+
+######## setup.py ########
+
+from Cython.Build import cythonize
+from setuptools import setup, Extension
+from Cython.Compiler import Options
+
+Options.use_shared_utility = 'pkg2'
+
+extensions = [
+    Extension("*", ["**/*.pyx"]),
+    Extension("pkg2.MemoryView", sources=["pkg2/MemoryView.c"])
+]
+
+setup(
+  ext_modules = cythonize(extensions),
+)
+
+######## test_shared_utility.py ########
+from pkg1.pkg11.add_one import add_one
+from array import array
+a = array('i', [1, 2, 3, 4])
+add_one(a)
+assert a.tolist() == [2, 3, 4, 5]
+
+
+######## pkg1/__init__.py ########
+
+######## pkg1/pkg11/__init__.py ########
+
+######## pkg1/pkg11/add_one.pyx ########
+def add_one(int[:] buf):
+    for x in range(buf.shape[0]):
+        buf[x] += 1
+
+
+######## pkg2/__init__.py ########
