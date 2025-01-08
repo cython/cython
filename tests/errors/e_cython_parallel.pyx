@@ -172,7 +172,7 @@ def bar():
 
 def contradictory():
     cdef int i
-    for i in prange(10, nogil=True, with_gil=True):
+    for i in prange(10, nogil=True, with_python=True):
         pass
 
 _ERRORS = u"""
@@ -213,5 +213,5 @@ _ERRORS = u"""
 158:57: Calling gil-requiring function not allowed without gil
 167:51: use_threads_if may not be a Python object as we don't have the GIL
 170:49: use_threads_if may not be a Python object as we don't have the GIL
-175:19: Contradictory settings for 'with_gil' and 'nogil'
+175:19: Contradictory settings for 'with_python' and 'nogil'
 """

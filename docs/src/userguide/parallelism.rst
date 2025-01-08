@@ -24,14 +24,14 @@ However, there is now some experimental support for running with the GIL in
 freethreading builds. You must either use these functions in a no-gil block,
 or explicitly request that they are run with the GIL.
 
-.. WARNING:: ``with_gil`` is currently very experimental.  Specifically
+.. WARNING:: ``with_python`` is currently very experimental.  Specifically
              Cython currently does almost nothing to ensure that Python variables
              are accessed in a thread-safe manner - this is entirely your responsibility.
              If you do not get this right then you may see crashes, reference-counting
              errors, and other similar bugs.
 
 
-.. function:: prange([start,] stop[, step][, nogil=False][, with_gil=True][, use_threads_if=CONDITION][, schedule=None[, chunksize=None]][, num_threads=None])
+.. function:: prange([start,] stop[, step][, nogil=False][, with_python=True][, use_threads_if=CONDITION][, schedule=None[, chunksize=None]][, num_threads=None])
 
     This function can be used for parallel loops. OpenMP automatically
     starts a thread pool and distributes the work according to the schedule
@@ -63,7 +63,7 @@ or explicitly request that they are run with the GIL.
         This function can (usually) only be used with the GIL released.
         If ``nogil`` is true, the loop will be wrapped in a nogil section.
 
-    :param with_gil:
+    :param with_python:
         Explicitly document that you want this loop to be run with the GIL held.
         This is only likely to work well in the experimental Python 3.13+ freethreading
         builds. In other Python versions it will run with only one thread at a time.
@@ -178,7 +178,7 @@ Example with conditional parallelism:
 
         .. literalinclude:: ../../examples/userguide/parallelism/condition_sum.pyx
 
-.. function:: parallel(num_threads=None, use_threads_if=CONDITION, with_gil=False)
+.. function:: parallel(num_threads=None, use_threads_if=CONDITION, with_python=False)
 
     This directive can be used as part of a ``with`` statement to execute code
     sequences in parallel. This is currently useful to setup thread-local
@@ -187,7 +187,7 @@ Example with conditional parallelism:
     is also private to the ``prange``. Variables that are private in the parallel
     block are unavailable after the parallel block.
 
-    The optional (and experimental) ``with_gil`` parameter specifies that you want
+    The optional (and experimental) ``with_python`` parameter specifies that you want
     all threads to be started with the GIL held.  This is only likely to be
     useful on freethreading builds and you should be aware the thread-safety
     (including basic things like reference counting of shared Python variables)

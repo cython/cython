@@ -9474,17 +9474,17 @@ class ParallelStatNode(StatNode, ParallelNode):
                 error(self.pos, "Invalid keyword argument: %s" % kw)
             else:
                 setattr(self, kw, val)
-        if ('with_gil' in self.kwargs and 'nogil' in self.kwargs and
-                self.kwargs['with_gil'] and self.kwargs['nogil']):
-            # But nogil=False, with_gil=False is fine - it just means we neither
+        if ('with_python' in self.kwargs and 'nogil' in self.kwargs and
+                self.kwargs['with_python'] and self.kwargs['nogil']):
+            # But nogil=False, with_python=False is fine - it just means we neither
             # explicitly release or acquire the GIL.
-            error(self.pos, "Contradictory settings for 'with_gil' and 'nogil'")
-        if self.with_gil:
+            error(self.pos, "Contradictory settings for 'with_python' and 'nogil'")
+        if self.with_python:
             # For now warn against this pretty heavily. I don't want to deal with too
             # many bug reports at this stage.
             warning(
                 self.pos,
-                "'with_gil' is experimental. Cython does almost nothing to ensure "
+                "'with_python' is experimental. Cython does almost nothing to ensure "
                 "thread safe use of Python variables (including reference counting) "
                 "and so it is completely your responsibility. Use with caution!", 999)
 
@@ -9501,10 +9501,10 @@ class ParallelStatNode(StatNode, ParallelNode):
         if self.chunksize:
             self.chunksize = self.chunksize.analyse_expressions(env)
 
-        if self.with_gil:
+        if self.with_python:
             was_nogil, env.nogil = env.nogil, False
         self.body = self.body.analyse_expressions(env)
-        if self.with_gil:
+        if self.with_python:
             env.nogil = was_nogil
         self.analyse_sharing_attributes(env)
 
@@ -9804,17 +9804,17 @@ class ParallelStatNode(StatNode, ParallelNode):
         begin_code = self.begin_of_parallel_block
         self.begin_of_parallel_block = None
 
-        if self.error_label_used or self.with_gil:
+        if self.error_label_used or self.with_python:
             end_code = code
 
             begin_code.putln("#ifdef _OPENMP")
             begin_code.put_ensure_gil(declare_gilstate=True)
-            if not self.with_gil:
+            if not self.with_python:
                 begin_code.putln("Py_BEGIN_ALLOW_THREADS")
             begin_code.putln("#endif /* _OPENMP */")
 
             end_code.putln("#ifdef _OPENMP")
-            if not self.with_gil:
+            if not self.with_python:
                 end_code.putln("Py_END_ALLOW_THREADS")
             end_code.putln("#else")
             end_code.put_safe("{\n")
@@ -9822,7 +9822,7 @@ class ParallelStatNode(StatNode, ParallelNode):
             end_code.putln("#endif /* _OPENMP */")
             self.cleanup_temps(end_code)
             end_code.put_release_ensured_gil()
-            if self.with_gil:
+            if self.with_python:
                 end_code.putln("#ifdef _OPENMP")
                 end_code.putln("{")
                 end_code.putln("int had_gil = PyGILState_Check();")
@@ -10143,11 +10143,11 @@ class ParallelWithBlockNode(ParallelStatNode):
     This node represents a 'with cython.parallel.parallel():' block
     """
 
-    valid_keyword_arguments = ['num_threads', 'use_threads_if', 'with_gil']
+    valid_keyword_arguments = ['num_threads', 'use_threads_if', 'with_python']
 
     num_threads = None
     threading_condition = None
-    with_gil = False
+    with_python = False
 
     def analyse_declarations(self, env):
         super().analyse_declarations(env)
@@ -10231,12 +10231,12 @@ class ParallelRangeNode(ParallelStatNode):
     is_prange = True
 
     nogil = None
-    with_gil = False
+    with_python = False
     schedule = None
 
     valid_keyword_arguments = [
         'schedule', 'nogil', 'num_threads', 'chunksize', 'use_threads_if',
-        'with_gil'
+        'with_python'
     ]
 
     def __init__(self, pos, **kwds):
@@ -10484,7 +10484,7 @@ class ParallelRangeNode(ParallelStatNode):
             code.putln("#ifdef _OPENMP")
 
         if not self.is_parallel:
-            with_gil_deadlock_avoidance_point = code.insertion_point()
+            with_python_deadlock_avoidance_point = code.insertion_point()
             code.put("#pragma omp for")
             self.privatization_insertion_point = code.insertion_point()
             reduction_codepoint = self.parent.privatization_insertion_point
@@ -10508,10 +10508,10 @@ class ParallelRangeNode(ParallelStatNode):
                 code.putln("#if 0")
             else:
                 code.putln("#ifdef _OPENMP")
-            with_gil_deadlock_avoidance_point = code.insertion_point()
+            with_python_deadlock_avoidance_point = code.insertion_point()
             code.put("#pragma omp for")
 
-        if self.with_gil:
+        if self.with_python:
             # Any firstprivate creates a barrier at least on GCC (and thus
             # a deadlock if we're using the GIL). And there's also an implicit
             # barrier at the end of the loop (which can be avoided by nowait, but
@@ -10522,22 +10522,22 @@ class ParallelRangeNode(ParallelStatNode):
             # Unless it gets turned on during the loop because the user
             # imports a module that causes the interpreter to enable the GIL
             # That nasty edge-case is warned about in the docs.
-            with_gil_deadlock_avoidance_point.putln(
+            with_python_deadlock_avoidance_point.putln(
                 "int __pyx_parallel_is_freethreaded = __Pyx_IsTrueFreethreading();")
             # error goto is difficult here (because the label jumps across OpenMP and the
             # compiler doesn't like it. Therefore clear the error and switch to non-freethreaded
             # mode (which is a safe fallback anyway))
-            with_gil_deadlock_avoidance_point.putln(
+            with_python_deadlock_avoidance_point.putln(
                 "if (unlikely(__pyx_parallel_is_freethreaded == -1)) {")
-            with_gil_deadlock_avoidance_point.putln(
+            with_python_deadlock_avoidance_point.putln(
                 "PyErr_Clear(); __pyx_parallel_is_freethreaded = 0;")
-            with_gil_deadlock_avoidance_point.putln("}")
+            with_python_deadlock_avoidance_point.putln("}")
             code.globalstate.use_utility_code(
                 UtilityCode.load_cached("IsFreethreading", "ModuleSetupCode.c"))
 
-            with_gil_deadlock_avoidance_point.putln(
+            with_python_deadlock_avoidance_point.putln(
                 "PyThreadState *__pyx_parallel_loop_threadstate = NULL;")
-            with_gil_deadlock_avoidance_point.putln(
+            with_python_deadlock_avoidance_point.putln(
                 "if ((!__pyx_parallel_is_freethreaded)) __pyx_parallel_loop_threadstate = PyEval_SaveThread();")
 
 
@@ -10587,7 +10587,7 @@ class ParallelRangeNode(ParallelStatNode):
         # at least it doesn't spoil indentation
         code.begin_block()
 
-        if self.with_gil:
+        if self.with_python:
             code.putln("#ifdef _OPENMP")
             code.putln("if ((!__pyx_parallel_is_freethreaded)) PyEval_RestoreThread(__pyx_parallel_loop_threadstate);")
             code.putln("#endif")
@@ -10610,7 +10610,7 @@ class ParallelRangeNode(ParallelStatNode):
             # exceptions might be used
             guard_around_body_codepoint.putln("if (%s < 2)" % Naming.parallel_why)
 
-        if self.with_gil:
+        if self.with_python:
             code.putln("#ifdef _OPENMP")
             code.putln("if ((!__pyx_parallel_is_freethreaded)) __pyx_parallel_loop_threadstate = PyEval_SaveThread();")
             code.putln("#endif")
@@ -10618,7 +10618,7 @@ class ParallelRangeNode(ParallelStatNode):
         code.end_block()  # end guard around loop body
         code.end_block()  # end for loop block
 
-        if self.with_gil:
+        if self.with_python:
             code.putln("#ifdef _OPENMP")
             code.putln("if ((!__pyx_parallel_is_freethreaded)) PyEval_RestoreThread(__pyx_parallel_loop_threadstate);")
             code.putln("#endif")
