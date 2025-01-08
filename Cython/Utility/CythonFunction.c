@@ -167,30 +167,33 @@ static CYTHON_INLINE void __Pyx__CyFunction_SetClassObj(__pyx_CyFunctionObject* 
 }
 
 static PyObject *
-__Pyx_CyFunction_get_doc(__pyx_CyFunctionObject *op, void *closure)
+__Pyx_CyFunction_get_doc_locked(__pyx_CyFunctionObject *op)
 {
-    PyObject *result = NULL;
-    CYTHON_UNUSED_VAR(closure);
-    __Pyx_BEGIN_CRITICAL_SECTION(op);
     if (unlikely(op->func_doc == NULL)) {
 #if CYTHON_COMPILING_IN_LIMITED_API
         op->func_doc = PyObject_GetAttrString(op->func, "__doc__");
-        if (unlikely(!op->func_doc)) goto end;
+        if (unlikely(!op->func_doc)) return NULL;
 #else
         if (((PyCFunctionObject*)op)->m_ml->ml_doc) {
             op->func_doc = PyUnicode_FromString(((PyCFunctionObject*)op)->m_ml->ml_doc);
             if (unlikely(op->func_doc == NULL))
-                goto end;
+                return NULL;
         } else {
             Py_INCREF(Py_None);
-            result = Py_None;
-            goto end;
+            return Py_None;
         }
 #endif   /* CYTHON_COMPILING_IN_LIMITED_API */
     }
     Py_INCREF(op->func_doc);
-    result = op->func_doc;
-  end:;
+    return op->func_doc;
+}
+
+static PyObject *
+__Pyx_CyFunction_get_doc(__pyx_CyFunctionObject *op, void *closure) {
+    PyObject *result;
+    CYTHON_UNUSED_VAR(closure);
+    __Pyx_BEGIN_CRITICAL_SECTION(op);
+    result = __Pyx_CyFunction_get_doc_locked(op);
     __Pyx_END_CRITICAL_SECTION();
     return result;
 }
@@ -211,11 +214,8 @@ __Pyx_CyFunction_set_doc(__pyx_CyFunctionObject *op, PyObject *value, void *cont
 }
 
 static PyObject *
-__Pyx_CyFunction_get_name(__pyx_CyFunctionObject *op, void *context)
+__Pyx_CyFunction_get_name_locked(__pyx_CyFunctionObject *op)
 {
-    PyObject *result = NULL;
-    CYTHON_UNUSED_VAR(context);
-    __Pyx_BEGIN_CRITICAL_SECTION(op);
     if (unlikely(op->func_name == NULL)) {
 #if CYTHON_COMPILING_IN_LIMITED_API
         op->func_name = PyObject_GetAttrString(op->func, "__name__");
@@ -223,11 +223,19 @@ __Pyx_CyFunction_get_name(__pyx_CyFunctionObject *op, void *context)
         op->func_name = PyUnicode_InternFromString(((PyCFunctionObject*)op)->m_ml->ml_name);
 #endif  /* CYTHON_COMPILING_IN_LIMITED_API */
         if (unlikely(op->func_name == NULL))
-            goto end;
+            return NULL;
     }
     Py_INCREF(op->func_name);
-    result = op->func_name;
-  end:;
+    return op->func_name;
+}
+
+static PyObject *
+__Pyx_CyFunction_get_name(__pyx_CyFunctionObject *op, void *context)
+{
+    PyObject *result = NULL;
+    CYTHON_UNUSED_VAR(context);
+    __Pyx_BEGIN_CRITICAL_SECTION(op);
+    result = __Pyx_CyFunction_get_name_locked(op);
     __Pyx_END_CRITICAL_SECTION();
     return result;
 }
@@ -277,19 +285,24 @@ __Pyx_CyFunction_set_qualname(__pyx_CyFunctionObject *op, PyObject *value, void 
 }
 
 static PyObject *
-__Pyx_CyFunction_get_dict(__pyx_CyFunctionObject *op, void *context)
-{
-    CYTHON_UNUSED_VAR(context);
-    PyObject *result = NULL;
-    __Pyx_BEGIN_CRITICAL_SECTION(op);
+__Pyx_CyFunction_get_dict_locked(__pyx_CyFunctionObject *op)
+{   
     if (unlikely(op->func_dict == NULL)) {
         op->func_dict = PyDict_New();
         if (unlikely(op->func_dict == NULL))
-            goto end;
+            return NULL;
     }
     Py_INCREF(op->func_dict);
-    result = op->func_dict;
-  end:;
+    return op->func_dict;
+}
+
+static PyObject *
+__Pyx_CyFunction_get_dict(__pyx_CyFunctionObject *op, void *context)
+{
+    CYTHON_UNUSED_VAR(context);
+    PyObject *result;
+    __Pyx_BEGIN_CRITICAL_SECTION(op);
+    result = __Pyx_CyFunction_get_dict_locked(op);
     __Pyx_END_CRITICAL_SECTION();
     return result;
 }
@@ -480,21 +493,17 @@ __Pyx_CyFunction_get_annotations(__pyx_CyFunctionObject *op, void *context) {
 }
 
 static PyObject *
-__Pyx_CyFunction_get_is_coroutine(__pyx_CyFunctionObject *op, void *context) {
+__Pyx_CyFunction_get_is_coroutine_locked(__pyx_CyFunctionObject *op) {
     int is_coroutine;
-    PyObject *result = NULL;
-    CYTHON_UNUSED_VAR(context);
-    __Pyx_BEGIN_CRITICAL_SECTION(op);
     if (op->func_is_coroutine) {
-        result = __Pyx_NewRef(op->func_is_coroutine);
-        goto end;
+        return __Pyx_NewRef(op->func_is_coroutine);
     }
 
     is_coroutine = op->flags & __Pyx_CYFUNCTION_COROUTINE;
     if (is_coroutine) {
         PyObject *module, *fromlist, *marker = PYIDENT("_is_coroutine");
         fromlist = PyList_New(1);
-        if (unlikely(!fromlist)) goto end;
+        if (unlikely(!fromlist)) return NULL;
         Py_INCREF(marker);
 #if CYTHON_ASSUME_SAFE_MACROS
         PyList_SET_ITEM(fromlist, 0, marker);
@@ -502,7 +511,7 @@ __Pyx_CyFunction_get_is_coroutine(__pyx_CyFunctionObject *op, void *context) {
         if (unlikely(PyList_SetItem(fromlist, 0, marker) < 0)) {
             Py_DECREF(marker);
             Py_DECREF(fromlist);
-            goto end;
+            return NULL;
         }
 #endif
         module = PyImport_ImportModuleLevelObject(PYIDENT("asyncio.coroutines"), NULL, NULL, fromlist, 0);
@@ -511,16 +520,22 @@ __Pyx_CyFunction_get_is_coroutine(__pyx_CyFunctionObject *op, void *context) {
         op->func_is_coroutine = __Pyx_PyObject_GetAttrStr(module, marker);
         Py_DECREF(module);
         if (likely(op->func_is_coroutine)) {
-            result = __Pyx_NewRef(op->func_is_coroutine);
-            goto end;
+            return __Pyx_NewRef(op->func_is_coroutine);
         }
 ignore:
         PyErr_Clear();
     }
 
     op->func_is_coroutine = __Pyx_PyBool_FromLong(is_coroutine);
-    result = __Pyx_NewRef(op->func_is_coroutine);
-  end:;
+    return __Pyx_NewRef(op->func_is_coroutine);
+}
+
+static PyObject *
+__Pyx_CyFunction_get_is_coroutine(__pyx_CyFunctionObject *op, void *context) {
+    PyObject *result;
+    CYTHON_UNUSED_VAR(context);
+    __Pyx_BEGIN_CRITICAL_SECTION(op);
+    result = __Pyx_CyFunction_get_is_coroutine_locked(op);
     __Pyx_END_CRITICAL_SECTION();
     return result;
 }
