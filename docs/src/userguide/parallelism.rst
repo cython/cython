@@ -64,12 +64,13 @@ or explicitly request that they are run with the GIL.
         If ``nogil`` is true, the loop will be wrapped in a nogil section.
 
     :param with_python:
-        Explicitly document that you want this loop to be run with the GIL held.
-        This is only likely to work well in the experimental Python 3.13+ freethreading
+        Explicitly document that you want this loop to be run with all threads able
+        to manipulate Python objects.
+        This is only likely to work well in the experimental Python 3.13+ freethreaded
         builds. In other Python versions it will run with only one thread at a time.
-        Beware that there's a possibility of deadlock if the interpreter turns on
-        the GIL *while* you are executing a ``prange`` so be very careful of
-        importing any modules inside ``prange``.
+        Beware that there's a possibility of deadlock if the interpreter switches back
+        to the "GIL enabled" mode *while* you are executing a ``prange`` so be very
+        careful of importing any modules inside ``prange``.
 
     :param use_threads_if: The loop is run in multiple threads only if ``CONDITION``
         is evaluated as true. Otherwise the code is run sequentially. Running
@@ -188,10 +189,11 @@ Example with conditional parallelism:
     block are unavailable after the parallel block.
 
     The optional (and experimental) ``with_python`` parameter specifies that you want
-    all threads to be started with the GIL held.  This is only likely to be
-    useful on freethreading builds and you should be aware the thread-safety
+    all threads to have the ability to manipulate Python objects.  This is only likely to be
+    useful on freethreaded builds and you should be aware the thread-safety
     (including basic things like reference counting of shared Python variables)
-    is entirely your responsibility.
+    is entirely your responsibility.  On a regular non-free-threaded build only one thread 
+    will be able to run at a time in this mode.
 
     Example with thread-local buffers
 
