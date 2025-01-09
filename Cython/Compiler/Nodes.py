@@ -8411,9 +8411,7 @@ class ExceptClauseNode(Node):
         self.body = self.body.analyse_expressions(env)
         return self
 
-    def is_body_trivial(self):
-        """Check if the body is trivial enough to discard the exception.
-        """
+    def body_may_need_exception(self):
         body = self.body
         if isinstance(body, StatListNode):
             for node in body.stats:
@@ -8422,18 +8420,20 @@ class ExceptClauseNode(Node):
                 elif isinstance(node, ReturnStatNode):
                     body = node
                     break
-                return False
+                else:
+                    return True
             else:
                 # No user code found (other than 'pass').
-                return True
+                return False
 
         if isinstance(body, ReturnStatNode):
             value = body.value
             if value is None or value.is_literal:
-                return True
+                return False
             # There might be other safe cases, but literals seem the safest for now.
 
-        return False
+        # If we cannot prove that the exception is unused, it may be used.
+        return True
 
     def generate_handling_code(self, code, end_label):
         code.mark_pos(self.pos)
@@ -8507,7 +8507,7 @@ class ExceptClauseNode(Node):
         needs_exception = (
             self.target is not None or
             self.excinfo_target is not None or
-            not self.is_body_trivial()
+            self.body_may_need_exception()
         )
 
         if needs_exception or tracing:
