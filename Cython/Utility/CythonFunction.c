@@ -1462,12 +1462,57 @@ __pyx_FusedFunction_clear(__pyx_FusedFunctionObject *self)
 }
 
 
+static __pyx_FusedFunctionObject *
+__pyx_FusedFunction_descr_get_locked(__pyx_FusedFunctionObject *func, PyObject *obj)
+{
+    PyObject *module;
+    __pyx_FusedFunctionObject *meth;
+    #if CYTHON_COMPILING_IN_LIMITED_API
+    module = __Pyx_CyFunction_get_module((__pyx_CyFunctionObject *) func, NULL);
+    if ((unlikely(!module))) return NULL;
+    #else
+    module = ((PyCFunctionObject *) func)->m_module;
+    #endif
+
+    meth = (__pyx_FusedFunctionObject *) __pyx_FusedFunction_New(
+        #if CYTHON_COMPILING_IN_LIMITED_API
+                    func->ml,
+        #else
+                    ((PyCFunctionObject *) func)->m_ml,
+        #endif
+                    ((__pyx_CyFunctionObject *) func)->flags,
+                    ((__pyx_CyFunctionObject *) func)->func_qualname,
+                    ((__pyx_CyFunctionObject *) func)->func_closure,
+                    module,
+                    ((__pyx_CyFunctionObject *) func)->func_globals,
+                    ((__pyx_CyFunctionObject *) func)->func_code);
+    #if CYTHON_COMPILING_IN_LIMITED_API
+    Py_DECREF(module);
+    #endif
+    if (unlikely(!meth))
+        return NULL;
+
+    Py_XINCREF(func->func.defaults);
+    meth->func.defaults = func->func.defaults;
+
+    __Pyx_CyFunction_SetClassObj(meth, __Pyx_CyFunction_GetClassObj(func));
+
+    Py_XINCREF(func->__signatures__);
+    meth->__signatures__ = func->__signatures__;
+
+    Py_XINCREF(func->func.defaults_tuple);
+    meth->func.defaults_tuple = func->func.defaults_tuple;
+
+    Py_XINCREF(obj);
+    meth->self = obj;
+    return meth;
+}
+
 static PyObject *
 __pyx_FusedFunction_descr_get(PyObject *self, PyObject *obj, PyObject *type)
 {
-    __pyx_FusedFunctionObject *func, *meth = NULL;;
-    PyObject *module;
-
+    __pyx_FusedFunctionObject *func, *meth;
+    
     func = (__pyx_FusedFunctionObject *) self;
 
     if (func->self || func->func.flags & __Pyx_CYFUNCTION_STATICMETHOD) {
@@ -1489,45 +1534,7 @@ __pyx_FusedFunction_descr_get(PyObject *self, PyObject *obj, PyObject *type)
     }
 
     __Pyx_BEGIN_CRITICAL_SECTION(func);
-    #if CYTHON_COMPILING_IN_LIMITED_API
-    module = __Pyx_CyFunction_get_module((__pyx_CyFunctionObject *) func, NULL);
-    if ((unlikely(!module))) goto end_of_critical_section;
-    #else
-    module = ((PyCFunctionObject *) func)->m_module;
-    #endif
-
-    meth = (__pyx_FusedFunctionObject *) __pyx_FusedFunction_New(
-        #if CYTHON_COMPILING_IN_LIMITED_API
-                    func->ml,
-        #else
-                    ((PyCFunctionObject *) func)->m_ml,
-        #endif
-                    ((__pyx_CyFunctionObject *) func)->flags,
-                    ((__pyx_CyFunctionObject *) func)->func_qualname,
-                    ((__pyx_CyFunctionObject *) func)->func_closure,
-                    module,
-                    ((__pyx_CyFunctionObject *) func)->func_globals,
-                    ((__pyx_CyFunctionObject *) func)->func_code);
-    #if CYTHON_COMPILING_IN_LIMITED_API
-    Py_DECREF(module);
-    #endif
-    if (unlikely(!meth))
-        goto end_of_critical_section;
-
-    Py_XINCREF(func->func.defaults);
-    meth->func.defaults = func->func.defaults;
-
-    __Pyx_CyFunction_SetClassObj(meth, __Pyx_CyFunction_GetClassObj(func));
-
-    Py_XINCREF(func->__signatures__);
-    meth->__signatures__ = func->__signatures__;
-
-    Py_XINCREF(func->func.defaults_tuple);
-    meth->func.defaults_tuple = func->func.defaults_tuple;
-
-    Py_XINCREF(obj);
-    meth->self = obj;
-  end_of_critical_section:;
+    meth = __pyx_FusedFunction_descr_get_locked(func, obj);
     __Pyx_END_CRITICAL_SECTION()
 
     return (PyObject *) meth;
