@@ -840,12 +840,12 @@ static int __Pyx_CyFunction_traverse(__pyx_CyFunctionObject *m, visitproc visit,
 static PyObject*
 __Pyx_CyFunction_repr(__pyx_CyFunctionObject *op)
 {
-    PyObject *result;
+    PyObject *func_qualname;
     __Pyx_BEGIN_CRITICAL_SECTION(op);
-    result = PyUnicode_FromFormat("<cyfunction %U at %p>",
-                                op->func_qualname, (void *)op);
+    func_qualname = op->func_qualname;
     __Pyx_END_CRITICAL_SECTION();
-    return result;
+    return PyUnicode_FromFormat("<cyfunction %U at %p>",
+                                func_qualname, (void *)op);
 }
 
 static PyObject * __Pyx_CyFunction_CallMethod(PyObject *func, PyObject *self, PyObject *arg, PyObject *kw) {
