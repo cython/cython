@@ -116,8 +116,9 @@ if you attempt to acquire the GIL while holding a ``cython.pymutex`` lock.
 Be aware that it is also possible for Cython to acquire the GIL implicitly
 (for example by raising an exception) and this is also a deadlock risk.
 
-On Python 3.13+ ``cython.pymutex`` is just a `PyMutex <https://docs.python.org/3.13/c-api/init.html#synchronization-primitives>`_
-and so is very low-cost. On earlier versions of Python it uses the
+On Python 3.13+, ``cython.pymutex`` is just a
+`PyMutex <https://docs.python.org/3.13/c-api/init.html#synchronization-primitives>`_
+and so is very low-cost.  On earlier versions of Python, it uses the
 (undocumented) ``PyThread_type_lock``.
 
 ``cython.pythread_type_lock`` exposes the same interface but always

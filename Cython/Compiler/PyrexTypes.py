@@ -4853,8 +4853,7 @@ class CythonLockType(PyrexType):
                 return src_type is self.ref_base_type
         self._special_assignable_reference_type = SpecialAssignableReferenceType(self)
 
-    def declaration_code(self, entity_code,
-            for_display = 0, dll_linkage = None, pyrex = 0):
+    def declaration_code(self, entity_code, for_display=0, dll_linkage=None, pyrex=0):
         if for_display or pyrex:
             if self.cname_part == "PyThreadTypeLock":
                 return "cython.pythread_type_lock"
@@ -4863,10 +4862,8 @@ class CythonLockType(PyrexType):
         return f"__Pyx_Locks_{self.cname_part} {entity_code}"
 
     def assignable_from(self, src_type):
-        # cannot be copied.
-        if src_type is self._special_assignable_reference_type:
-            return True
-        return False
+        # Singleton, cannot be copied.
+        return src_type is self._special_assignable_reference_type
 
     def get_utility_code(self):
         # It doesn't seem like a good way to associate utility code with a type actually exists

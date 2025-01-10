@@ -225,7 +225,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
         if self.find_shared_cy_pymutexes(env):
             # Be very suspicious of cython locks that are shared.
-            # They have the potential cause ABI issues.
+            # They have the potential to cause ABI issues.
             self.scope.use_utility_code(
                 UtilityCode.load_cached(
                     "CythonPyMutexPublicCheck", "Lock.c"
@@ -1565,7 +1565,9 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             # internal classes (should) never need None inits, normal zeroing will do
             py_attrs = []
         explicitly_constructable_attrs = [
-            entry for entry in scope.var_entries if entry.type.needs_explicit_construction(scope)]
+            entry for entry in scope.var_entries
+            if entry.type.needs_explicit_construction(scope)
+        ]
 
         cinit_func_entry = scope.lookup_here("__cinit__")
         if cinit_func_entry and not cinit_func_entry.is_special:
@@ -1760,8 +1762,10 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             dict_slot = None
 
         _, (py_attrs, _, memoryview_slices) = scope.get_refcounted_entries()
-        explicitly_destructable_attrs = [entry for entry in scope.var_entries
-                           if entry.type.needs_explicit_destruction(scope)]
+        explicitly_destructable_attrs = [
+            entry for entry in scope.var_entries
+            if entry.type.needs_explicit_destruction(scope)
+        ]
 
         if py_attrs or explicitly_destructable_attrs or memoryview_slices or weakref_slot or dict_slot:
             self.generate_self_cast(scope, code)

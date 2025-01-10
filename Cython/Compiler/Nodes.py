@@ -9096,7 +9096,7 @@ class CythonLockStatNode(TryFinallyStatNode):
     nogil_check = None
 
     @classmethod
-    def make_from_withstat(cls, node):
+    def from_withstat(cls, node):
         from . import ExprNodes
 
         assert isinstance(node.body, TryFinallyStatNode)
