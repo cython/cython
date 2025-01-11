@@ -5737,5 +5737,4 @@ def get_all_subtypes(tp, seen=None):
                     get_all_subtypes(sub_tp, seen)
             else:
                 get_all_subtypes(list_or_subtype, seen)
-                
     return list(seen)

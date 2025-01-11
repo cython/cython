@@ -1197,7 +1197,7 @@ class Scope:
         # TODO - override to give more choices depending on the type of scope
         # e.g. slot, function, method
         return f"{Naming.modulestateglobal_cname}->{cname}"
-    
+
     def find_shared_usages_of_type(self, type_check_predicate, seen_scopes=None):
         if seen_scopes is None:
             seen_scopes = set()
