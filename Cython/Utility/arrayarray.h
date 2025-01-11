@@ -49,7 +49,9 @@ struct arrayobject {
         long long *as_longlongs;
         short *as_shorts;
         unsigned short *as_ushorts;
-        Py_UNICODE *as_pyunicodes;
+        // Don't use Py_UNICODE ourselves in the union. This avoids deprecation warnings 
+        // for anyone who uses array.array but doesn't use this field.
+        Py_DEPRECATED(3.13) wchar_t *as_pyunicodes;
         void *as_voidptr;
     } data;
     Py_ssize_t allocated;
