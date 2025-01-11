@@ -49,12 +49,13 @@ include "shared.pxi"
 #################### runtest.py #############################
 
 import sys
+import sysconfig
 
 if sys.version_info < (3, 13):
     # No chance of this working I think.
     # (Although there probably is a test that would...)
     exit(0)
-if hasattr(sys, "_is_gil_enabled"):
+if sysconfig.get_config_var("Py_GIL_DISABLED"):
     # _override_multi_interp_extensions_check is banned on free-threading builds
     exit(0)
 
