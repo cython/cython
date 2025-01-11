@@ -496,6 +496,7 @@ static int __Pyx_GetException(PyObject **type, PyObject **value, PyObject **tb)
 
     return 0;
 
+#if __PYX_LIMITED_VERSION_HEX <= 0x030C0000
 bad:
     *type = 0;
     *value = 0;
@@ -504,6 +505,7 @@ bad:
     Py_XDECREF(local_value);
     Py_XDECREF(local_tb);
     return -1;
+#endif
 }
 
 /////////////// ReRaiseException.proto ///////////////
