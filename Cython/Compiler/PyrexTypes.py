@@ -5730,11 +5730,11 @@ def get_all_subtypes(tp, seen=None):
         return
     seen.add(tp)
     for attr in tp.subtypes:
-        list_or_subtype = getattr(tp, attr)
-        if list_or_subtype:
-            if isinstance(list_or_subtype, list):
-                for sub_tp in list_or_subtype:
-                    get_all_subtypes(sub_tp, seen)
+        subtype_or_iterable = getattr(tp, attr)
+        if subtype_or_iterable:
+            if isinstance(subtype_or_iterable, BaseType):
+                get_all_subtypes(subtype_or_iterable, seen)
             else:
-                get_all_subtypes(list_or_subtype, seen)
+                for sub_tp in subtype_or_iterable:
+                    get_all_subtypes(sub_tp, seen)
     return list(seen)
