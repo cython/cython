@@ -15,7 +15,7 @@ cdef extern from "<mutex>" namespace "std" nogil:
         void unlock()
 
         native_handle_type native_handle() except+
-    
+
     cppclass timed_mutex:
         # may not be present, and we know nothing about it
         cppclass native_handle_type:
@@ -39,7 +39,7 @@ cdef extern from "<mutex>" namespace "std" nogil:
         void unlock()
 
         native_handle_type native_handle() except+
-    
+
     cppclass timed_recursive_mutex:
         # may not be present, and we know nothing about it
         cppclass native_handle_type:
@@ -114,7 +114,7 @@ cdef extern from "<mutex>" namespace "std" nogil:
 
     bool try_lock(...) except+
     void lock(...) except+
-    
+
     # If we're passed a cdef function, make sure that it's specified without Python exceptions.
     void call_once(once_flag&, _once_func_type callable) except +
     void call_once[Callable](once_flag&, Callable& callable,  ...) except +

@@ -1,5 +1,5 @@
 # mode: run
-# tag: c11, nocpp
+# tag: c11, no-cpp, no-macos
 
 from libc cimport threads
 

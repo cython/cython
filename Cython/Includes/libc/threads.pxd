@@ -23,7 +23,7 @@ cdef extern from "<threads.h>" nogil:
     # Threads
     ctypedef struct thrd_t:
         pass
-    
+
     int thrd_create(thrd_t*, thrd_start_t, void*)
     int thrd_equal(thrd_t lhs, thrd_t rhs)
     thrd_t thrd_current()
@@ -83,5 +83,3 @@ cdef extern from "<threads.h>" nogil:
     void *tss_get(tss_t key)
     int tss_set(tss_t key, void* val)
     void tss_delete(tss_t key)
-
-    
