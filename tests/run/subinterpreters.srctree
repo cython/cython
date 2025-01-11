@@ -8,7 +8,7 @@ PYTHON runtest.py 20 cython_module=with_singlephase
 PYTHON runtest.py 20
 PYTHON runtest.py 20 close_after_exec
 # less than 32 interpreters, but interpreter ID will go over 32 (32 being the optimization cut-off)
-PYTHON runtest.py 20 skip_first=20
+PYTHON runtest.py 20 skip_first=33
 PYTHON runtest.py 20 randomize_order
 PYTHON runtest.py 40
 PYTHON runtest.py 40 start_at_back

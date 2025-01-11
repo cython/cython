@@ -2678,10 +2678,12 @@ typedef struct {
 } __Pyx_ModuleStateLookupData;
 
 #define __PYX_MODULE_STATE_LOOKUP_SMALL_SIZE 32
-// "interpreter_id_as_index" above means "the maximum interpreter ID ever seen is smaller than
-// __PYX_MODULE_STATE_LOOKUP_SMALL_SIZE and thus they're stored in an array
-// where the index corresponds to interpreter ID, and __Pyx_ModuleStateLookup_count
-// is the size of the array.
+// "interpreter_id_as_index" above means that we believe it's most efficient to store the
+// data in an array where we can directly look it up with the interpreter ID rather than using
+// a binary search. This is the case when:
+// 1. the maximum interpreter ID ever seen is smaller than __PYX_MODULE_STATE_LOOKUP_SMALL_SIZE, or
+// 2. the array remains sufficiently dense (i.e. we've seen lots of interpreter IDs but there are
+//    too many big gaps in the numbers)
 
 #if CYTHON_MODULE_STATE_LOOKUP_THREAD_SAFE
 static __pyx_atomic_int_type __Pyx_ModuleStateLookup_read_counter = 0;
@@ -2768,7 +2770,7 @@ static PyObject *__Pyx_State_FindModule(CYTHON_UNUSED void* dummy) {
     if (unlikely(!data)) goto end;
 
     if (data->interpreter_id_as_index) {
-        if (interpreter_id < data->count) {
+        if (interpreter_id < data->allocated) {
             found = data->table+interpreter_id;
         }
     } else {
@@ -2800,11 +2802,18 @@ static void __Pyx_ModuleStateLookup_wait_until_no_readers(void) {
 #define __Pyx_ModuleStateLookup_wait_until_no_readers()
 #endif
 
+// Returns 0 for success, -1 for failure, 1 if it decided to switch to the alternative representation
 static int __Pyx_State_AddModuleInterpIdAsIndex(__Pyx_ModuleStateLookupData **old_data, PyObject* module, int64_t interpreter_id) {
     Py_ssize_t to_allocate = (*old_data)->allocated;
     while (to_allocate <= interpreter_id) {
         if (to_allocate == 0) to_allocate = 1;
         else to_allocate *= 2;
+    }
+    if (to_allocate > __PYX_MODULE_STATE_LOOKUP_SMALL_SIZE &&
+          (3*(*old_data)->count+1) < to_allocate) {
+        // stick with the compact "interpreter id is index" recommendation while
+        // the size is small, and while the array isn't becoming too sparse.
+        return 1;
     }
     __Pyx_ModuleStateLookupData *new_data = *old_data;
     if (to_allocate != (*old_data)->allocated) {
@@ -2822,9 +2831,7 @@ static int __Pyx_State_AddModuleInterpIdAsIndex(__Pyx_ModuleStateLookupData **ol
         new_data->allocated = to_allocate;
     }
     new_data->table[interpreter_id].module = module;
-    if (new_data->count < interpreter_id+1) {
-        new_data->count = interpreter_id+1;
-    }
+    ++(new_data->count);
     *old_data = new_data;
     return 0;
 }
@@ -2832,7 +2839,7 @@ static int __Pyx_State_AddModuleInterpIdAsIndex(__Pyx_ModuleStateLookupData **ol
 static void __Pyx_State_ConvertFromInterpIdAsIndex(__Pyx_ModuleStateLookupData *data) {
     __Pyx_InterpreterIdAndModule *read = data->table;
     __Pyx_InterpreterIdAndModule *write = data->table;
-    __Pyx_InterpreterIdAndModule *end = read + data->count;
+    __Pyx_InterpreterIdAndModule *end = read + data->allocated;
 
     for (; read<end; ++read) {
         if (read->module) {
@@ -2842,7 +2849,6 @@ static void __Pyx_State_ConvertFromInterpIdAsIndex(__Pyx_ModuleStateLookupData *
         }
         // Otherwise empty; don't copy
     }
-    data->count = write - data->table;
     for (; write<end; ++write) {
         // clear rest of array
         write->id = 0;
@@ -2886,11 +2892,12 @@ static int __Pyx_State_AddModule(PyObject* module, CYTHON_UNUSED void* dummy) {
     // until all existing readers have finished in order to be thread-safe.
     __Pyx_ModuleStateLookup_wait_until_no_readers();
     if (new_data->interpreter_id_as_index) {
-        if (interpreter_id < __PYX_MODULE_STATE_LOOKUP_SMALL_SIZE) {
-            result = __Pyx_State_AddModuleInterpIdAsIndex(&new_data, module, interpreter_id);
+        result = __Pyx_State_AddModuleInterpIdAsIndex(&new_data, module, interpreter_id);
+        if (result < 1) {
             goto end;
         }
-        // otherwise we have to convert then proceed with a normal insertion
+        // otherwise we've decided to convert the format to the more compact (but slower)
+        // representation.
         __Pyx_State_ConvertFromInterpIdAsIndex(new_data);
     }
     {
@@ -2967,8 +2974,9 @@ static int __Pyx_State_RemoveModule(CYTHON_UNUSED void* dummy) {
 #endif
 
     if (data->interpreter_id_as_index) {
-        if (interpreter_id < data->count) {
+        if (interpreter_id < data->allocated) {
             data->table[interpreter_id].module = NULL;
+            --(data->count);
         }
         goto done;
     }
