@@ -95,7 +95,7 @@ Locks
 
 Cython provides ``cython.pymutex`` as a more robust lock type.  Unlike
 ``cython.critical_section`` this will never release the lock unless you explicitly
-ask it to (at the cost of losing ``critical_section``'s inbuilt robustness against
+ask it to (at the cost of losing ``critical_section``'s inbuilt protection against
 deadlocks).
 
 ``cython.pymutex`` supports two operations: ``acquire`` and ``release``.

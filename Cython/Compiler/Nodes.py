@@ -14,6 +14,7 @@ cython.declare(os=object, copy=object, chain=object,
 
 import copy
 from itertools import chain
+import enum
 
 from . import Builtin
 from .Errors import error, warning, InternalError, CompileError, CannotSpecialize
@@ -34,6 +35,14 @@ from ..Utils import add_metaclass, str_to_number
 
 
 IMPLICIT_CLASSMETHODS = {"__init_subclass__", "__class_getitem__"}
+
+
+class NoGilState(enum.IntEnum):
+    HasGil = 0
+    NoGil = 1
+    # For 'cdef func() nogil:' functions, as the GIL may be held while
+    # calling this function (thus contained 'nogil' blocks may be valid).
+    NoGilScope = 2
 
 
 def relative_position(pos):
@@ -8075,7 +8084,7 @@ class WithStatNode(StatNode):
     def analyse_expressions(self, env):
         self.manager = self.manager.analyse_types(env)
         if self.manager.type.is_cython_lock_type:
-            return CythonLockStatNode.make_from_withstat(self).analyse_expressions(env)
+            return CythonLockStatNode.from_withstat(self).analyse_expressions(env)
         self.enter_call = self.enter_call.analyse_types(env)
         if self.target:
             # set up target_temp before descending into body (which uses it)
@@ -9151,8 +9160,6 @@ class CythonLockStatNode(TryFinallyStatNode):
         return super().analyse_expressions(env)
 
     def generate_execution_code(self, code):
-        from .ParseTreeTransforms import NoGilState
-
         code.globalstate.use_utility_code(self.arg.type.get_utility_code())
 
         code.mark_pos(self.pos)
@@ -9183,7 +9190,7 @@ class CythonLockStatNode(TryFinallyStatNode):
 
 class CythonLockExitNode(StatNode):
     """
-
+    lock_stat_node   CythonLockStatNode   the associated with block
     """
     child_attrs = []
 
@@ -9193,7 +9200,6 @@ class CythonLockExitNode(StatNode):
     def generate_execution_code(self, code):
         cname_part = self.lock_stat_node.arg.type.cname_part
         code.putln(f"__Pyx_Locks_{cname_part}_Unlock(*{self.lock_stat_node.lock_temp.result()});")
-
 
 
 def cython_view_utility_code():

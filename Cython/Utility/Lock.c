@@ -23,27 +23,41 @@ static CYTHON_INLINE void __Pyx_Locks_PyThreadTypeLock_LockGil(__Pyx_Locks_PyThr
 
 ////////////////////// PyThreadTypeLock ////////////////
 
-static void __Pyx__Locks_PyThreadTypeLock_LockGil(__Pyx_Locks_PyThreadTypeLock lock) {
-    int spin_count = 0;
+static void __Pyx__Locks_PyThreadTypeLock_LockGil_slow_spin(__Pyx_Locks_PyThreadTypeLock lock) {
     while (1) {
+        // If we've been spinning for a while take a slower path, where
+        // we release the GIL, get the lock, release the lock, reacquire the GIL
+        // and then hope the lock is still available when we try to reacquire it.
+        Py_BEGIN_ALLOW_THREADS
+        (void)PyThread_acquire_lock(lock, WAIT_LOCK);
+        PyThread_release_lock(lock);
+        Py_END_ALLOW_THREADS
         if (likely(PyThread_acquire_lock_timed(lock, 0, 0) == PY_LOCK_ACQUIRED)) {
             // All good - we got the lock
             return;
-        } else if (spin_count < 100) {
-            ++spin_count;
-            // Release and re-acquire the GIL, try to get the lock again.
-            Py_BEGIN_ALLOW_THREADS
-            Py_END_ALLOW_THREADS
-        } else {
-            // If we've been spinning for a while take a slower path, where
-            // we release the GIL, get the lock, release the lock, reacquire the GIL
-            // and then hope the lock is still available when we try to reacquire it.
-            Py_BEGIN_ALLOW_THREADS
-            (void)PyThread_acquire_lock(lock, WAIT_LOCK);
-            PyThread_release_lock(lock);
-            Py_END_ALLOW_THREADS
         }
     }
+}
+
+static void __Pyx__Locks_PyThreadTypeLock_LockGil_quick_spin(__Pyx_Locks_PyThreadTypeLock lock) {
+    for (int spin_count=0; spin_count<100; ++spin_count) {
+        // Release and re-acquire the GIL, try to get the lock again.
+        Py_BEGIN_ALLOW_THREADS
+        Py_END_ALLOW_THREADS
+        if (likely(PyThread_acquire_lock_timed(lock, 0, 0) == PY_LOCK_ACQUIRED)) {
+            // All good - we got the lock
+            return;
+        }
+    }
+    __Pyx__Locks_PyThreadTypeLock_LockGil_slow_spin(lock);
+}
+
+static CYTHON_INLINE void __Pyx__Locks_PyThreadTypeLock_LockGil(__Pyx_Locks_PyThreadTypeLock lock) {
+    if (likely(PyThread_acquire_lock_timed(lock, 0, 0) == PY_LOCK_ACQUIRED)) {
+        // All good - we got the lock
+        return;
+    }
+    __Pyx__Locks_PyThreadTypeLock_LockGil_quick_spin(lock);
 }
 
 static void __Pyx__Locks_PyThreadTypeLock_Lock(__Pyx_Locks_PyThreadTypeLock lock) {

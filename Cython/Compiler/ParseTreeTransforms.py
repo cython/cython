@@ -9,7 +9,6 @@ import copy
 import hashlib
 import sys
 from operator import itemgetter
-import enum
 
 from . import PyrexTypes
 from . import Naming
@@ -3646,14 +3645,6 @@ class InjectGilHandling(VisitorTransform, SkipDeclarations):
     visit_Node = VisitorTransform.recurse_to_children
 
 
-class NoGilState(enum.IntEnum):
-    HasGil = 0
-    NoGil = 1
-    # For 'cdef func() nogil:' functions, as the GIL may be held while
-    # calling this function (thus contained 'nogil' blocks may be valid).
-    NoGilScope = 2
-
-
 class GilCheck(VisitorTransform):
     """
     Call `node.gil_check(env)` on each node to make sure we hold the
@@ -3666,16 +3657,17 @@ class GilCheck(VisitorTransform):
 
     def __call__(self, root):
         self.env_stack = [root.scope]
-        self.nogil_state = NoGilState.HasGil
+        self.nogil_state = Nodes.NoGilState.HasGil
 
-        self.nogil_state_at_current_gilstatnode = NoGilState.HasGil
+        self.nogil_state_at_current_gilstatnode = Nodes.NoGilState.HasGil
         return super().__call__(root)
 
     def _visit_scoped_children(self, node, nogil_state):
         was_nogil = self.nogil_state
         outer_attrs = node.outer_attrs
         if outer_attrs and len(self.env_stack) > 1:
-            self.nogil_state = NoGilState.NoGil if self.env_stack[-2].nogil else NoGilState.HasGil
+            self.nogil_state = (
+                Nodes.NoGilState.NoGil if self.env_stack[-2].nogil else Nodes.NoGilState.HasGil)
             self.visitchildren(node, outer_attrs)
 
         self.nogil_state = nogil_state
@@ -3688,7 +3680,7 @@ class GilCheck(VisitorTransform):
 
         nogil_state = self.nogil_state
         if inner_nogil:
-            self.nogil_state = NoGilState.NoGilScope
+            self.nogil_state = Nodes.NoGilState.NoGilScope
 
         if inner_nogil and node.nogil_check:
             node.nogil_check(node.local_scope)
@@ -3715,14 +3707,14 @@ class GilCheck(VisitorTransform):
         was_nogil = self.nogil_state
         is_nogil = (node.state == 'nogil')
 
-        if was_nogil == is_nogil and not self.nogil_state == NoGilState.NoGilScope:
+        if was_nogil == is_nogil and not self.nogil_state == Nodes.NoGilState.NoGilScope:
             if not was_nogil:
                 error(node.pos, "Trying to acquire the GIL while it is "
                                 "already held.")
             else:
                 error(node.pos, "Trying to release the GIL while it was "
                                 "previously released.")
-        if self.nogil_state == NoGilState.NoGilScope:
+        if self.nogil_state == Nodes.NoGilState.NoGilScope:
             node.scope_gil_state_known = False
 
         if isinstance(node.finally_clause, Nodes.StatListNode):
@@ -3732,16 +3724,16 @@ class GilCheck(VisitorTransform):
 
         nogil_state_at_current_gilstatnode = self.nogil_state_at_current_gilstatnode
         self.nogil_state_at_current_gilstatnode = self.nogil_state
-        nogil_state = NoGilState.NoGil if is_nogil else NoGilState.HasGil
+        nogil_state = Nodes.NoGilState.NoGil if is_nogil else Nodes.NoGilState.HasGil
         self._visit_scoped_children(node, nogil_state)
         self.nogil_state_at_current_gilstatnode = nogil_state_at_current_gilstatnode
         return node
 
     def visit_ParallelRangeNode(self, node):
-        if node.nogil or self.nogil_state == NoGilState.NoGilScope:
+        if node.nogil or self.nogil_state == Nodes.NoGilState.NoGilScope:
             node_was_nogil, node.nogil = node.nogil, False
             node = Nodes.GILStatNode(node.pos, state='nogil', body=node)
-            if not node_was_nogil and self.nogil_state == NoGilState.NoGilScope:
+            if not node_was_nogil and self.nogil_state == Nodes.NoGilState.NoGilScope:
                 # We're in a "nogil" function, but that doesn't prove we
                 # didn't have the gil
                 node.scope_gil_state_known = False
@@ -3761,7 +3753,7 @@ class GilCheck(VisitorTransform):
             error(node.pos, "The parallel section may only be used without "
                             "the GIL")
             return None
-        if self.nogil_state == NoGilState.NoGilScope:
+        if self.nogil_state == Nodes.NoGilState.NoGilScope:
             # We're in a "nogil" function but that doesn't prove we didn't
             # have the gil, so release it
             node = Nodes.GILStatNode(node.pos, state='nogil', body=node)
@@ -3797,7 +3789,7 @@ class GilCheck(VisitorTransform):
         return self.visit_Node(node)
 
     def visit_GILExitNode(self, node):
-        if self.nogil_state_at_current_gilstatnode == NoGilState.NoGilScope:
+        if self.nogil_state_at_current_gilstatnode == Nodes.NoGilState.NoGilScope:
             node.scope_gil_state_known = False
         self.visitchildren(node)
         return node
@@ -3821,9 +3813,9 @@ class GilCheck(VisitorTransform):
             # (Remove this in the distant future when it's all PyMutexes because for these
             # it doesn't matter)
             suffix = None
-            if self.nogil_state == NoGilState.NoGil:
+            if self.nogil_state == Nodes.NoGilState.NoGil:
                 suffix = "Nogil"
-            elif self.nogil_state == NoGilState.HasGil:
+            elif self.nogil_state == Nodes.NoGilState.HasGil:
                 suffix = "Gil"
             if suffix:
                 node = ExprNodes.PythonCapiCallNode(

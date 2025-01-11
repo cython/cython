@@ -4354,13 +4354,11 @@ class CppClassType(CType):
         code.putln(f"__Pyx_call_destructor({extra_access_code}{entry.cname});")
 
     def generate_explicit_construction(self, code, entry, extra_access_code=""):
-        from . import Code
-        code.globalstate.use_utility_code(Code.UtilityCode("#include <new>"))
         if entry.is_cpp_optional:
             decl_code = self.cpp_optional_declaration_code("")
         else:
             decl_code = self.empty_declaration_code()
-        code.putln(f"new((void*)&({extra_access_code}{entry.cname})) {decl_code}();")
+        code.put_cpp_placement_new(f"{extra_access_code}{entry.cname}", decl_code)
 
 
 class EnumMixin:
@@ -4839,6 +4837,12 @@ class CythonLockType(PyrexType):
 
     scope = None
 
+    # Create a reference type that we can use in the definitions of acquire and release
+    # to override the general prohibition of assigning anything to this
+    class SpecialAssignableReferenceType(CReferenceType):
+        def assignable_from(self, src_type):
+            return src_type is self.ref_base_type
+
     @property
     def declaration_value(self):
         return f"__Pyx_Locks_{self.cname_part}_DECL"
@@ -4846,12 +4850,7 @@ class CythonLockType(PyrexType):
     def __init__(self, cname_part):
         self.cname_part = cname_part
 
-        # Create a reference type that we can use in the definitions of acquire and release
-        # to override the general prohibition of assigning anything to this
-        class SpecialAssignableReferenceType(CReferenceType):
-            def assignable_from(self, src_type):
-                return src_type is self.ref_base_type
-        self._special_assignable_reference_type = SpecialAssignableReferenceType(self)
+        self._special_assignable_reference_type = CythonLockType.SpecialAssignableReferenceType(self)
 
     def declaration_code(self, entity_code, for_display=0, dll_linkage=None, pyrex=0):
         if for_display or pyrex:
@@ -5733,9 +5732,10 @@ def get_all_subtypes(tp, seen=None):
     for attr in tp.subtypes:
         list_or_subtype = getattr(tp, attr)
         if list_or_subtype:
-            if isinstance(list_or_subtype, BaseType):
-                get_all_subtypes(list_or_subtype, seen)
-            else:
+            if isinstance(list_or_subtype, list):
                 for sub_tp in list_or_subtype:
                     get_all_subtypes(sub_tp, seen)
+            else:
+                get_all_subtypes(list_or_subtype, seen)
+                
     return list(seen)
