@@ -25,7 +25,7 @@ def test_once():
     threads.call_once(&flag, &call_me_once)
     threads.call_once(&flag, &call_me_once)
 
-cdef int my_thread_func(void* arg) noexcept:
+cdef int my_thread_func(void* arg) nogil noexcept:
     cdef int x = (<int*>arg)[0]
     t = threads.thrd_current()  # compile test - nothing useful to do with it
     return x
