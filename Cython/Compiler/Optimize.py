@@ -1673,7 +1673,7 @@ class EarlyReplaceBuiltinCalls(Visitor.EnvTransform):
         if len(pos_args) > 1:
             self._error_wrong_arg_count('float', node, pos_args, 1)
         arg_type = getattr(pos_args[0], 'type', None)
-        if arg_type in (PyrexTypes.c_double_type, Builtin.float_type):
+        if arg_type in (PyrexTypes.c_longdouble_type, PyrexTypes.c_double_type, Builtin.float_type):
             return pos_args[0]
         return node
 
@@ -2043,6 +2043,12 @@ class EarlyReplaceBuiltinCalls(Visitor.EnvTransform):
         if not isinstance(kwargs, ExprNodes.DictNode):
             return node
         return kwargs
+
+    def _handle_simple_function_round(self, node, pos_args):
+        if len(pos_args) > 1:
+            return node
+
+        return ExprNodes.SimpleRoundNode(node.pos, arg=pos_args[0])
 
 
 class InlineDefNodeCalls(Visitor.NodeRefCleanupMixin, Visitor.EnvTransform):
