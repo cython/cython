@@ -303,20 +303,17 @@ class CythonSharedUtilityCode:
 
     def declare_in_scope(self, dest_scope, used=False, cython_scope=None,
                          allowlist=None):
-        scope = self.find_module(cython_scope.context)
-        self.pxd_scope = scope
 
         for dep in self.requires:
             if dep.is_cython_utility:
                 dep.declare_in_scope(scope, cython_scope=cython_scope)
-        return scope
+        return dest_scope
 
     def put_code(self, output):
         pass
 
     def get_tree(self, entries_only=False, cython_scope=None):
-        if isinstance(Options.use_shared_utility, str) and not self.pxd_scope:
-            # Utility was loaded as dependency and hence declare_in_scope was not called.
+        if isinstance(Options.use_shared_utility, str):
             self.pxd_scope = self.find_module(cython_scope.context)
 
 

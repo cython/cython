@@ -7,11 +7,12 @@ PYTHON -c "import test_shared_utility"
 from Cython.Build import cythonize
 from setuptools import setup, Extension
 from Cython.Compiler import Options
+import numpy
 
 Options.use_shared_utility = 'pkg2'
 
 extensions = [
-    Extension("*", ["**/*.pyx"]),
+    Extension("*", ["**/*.pyx"], include_dirs=[numpy.get_include()]),
     Extension("pkg2.MemoryView", sources=["pkg2/MemoryView.c"])
 ]
 
@@ -26,6 +27,9 @@ a = array('i', [1, 2, 3, 4])
 add_one(a)
 assert a.tolist() == [2, 3, 4, 5]
 
+import numpy as np
+from pkg1.pkg11.dependency import f
+assert f(np.arange(15, dtype='f').reshape(3, 5)) == 0.0
 
 ######## pkg1/__init__.py ########
 
@@ -35,6 +39,13 @@ assert a.tolist() == [2, 3, 4, 5]
 def add_one(int[:] buf):
     for x in range(buf.shape[0]):
         buf[x] += 1
+
+######## pkg1/pkg11/dependency.pyx ########
+cimport numpy as cnp
+cimport cython
+
+def f(cnp.ndarray[cython.floating, ndim=2] x):
+    return x[0,0]
 
 
 ######## pkg2/__init__.py ########
