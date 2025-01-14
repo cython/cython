@@ -2,6 +2,7 @@
 
 PYTHON setup.py build_ext --inplace
 PYTHON -c "import a; a.use_vector([1,2,3])"
+PYTHON -c "import b; b.use_vector([1,2,3])"
 
 ######## setup.py ########
 
@@ -16,6 +17,21 @@ setup(
 ######## a.pyx ########
 
 # distutils: language=c++
+
+from libcpp.vector cimport vector
+
+def use_vector(L):
+    try:
+        v = new vector[int]()
+        for a in L:
+            v.push_back(a)
+        return v.size()
+    finally:
+        del v
+
+######## b.pyx ########
+
+# distutils: language=C++
 
 from libcpp.vector cimport vector
 
