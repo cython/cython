@@ -314,11 +314,8 @@ def update_openmp_extension(ext):
     return EXCLUDE_EXT
 
 
-def update_cpp_extension(cpp_std, min_gcc_version=None, min_clang_version=None, min_macos_version=None):
-    def _update_cpp_extension(ext):
-        """
-        Update cpp[cpp_std] extensions that will run on minimum versions of gcc / clang / macos.
-        """
+def update_language_extension(language, std, min_gcc_version=None, min_clang_version=None, min_macos_version=None):
+    def _update_language_extension(ext):
         # If the extension provides a -std=... option, and it's greater than the one
         # we're about to give, assume that whatever C compiler we use will probably be ok with it.
         extra_compile_args = []
@@ -329,7 +326,7 @@ def update_cpp_extension(cpp_std, min_gcc_version=None, min_clang_version=None, 
                 match = std_regex.search(ca)
                 if match:
                     number = int(match.group("number"))
-                    if number < cpp_std:
+                    if number < std:
                         continue  # and drop the argument
                     already_has_std = True
                 extra_compile_args.append(ca)
@@ -340,15 +337,11 @@ def update_cpp_extension(cpp_std, min_gcc_version=None, min_clang_version=None, 
         # check for a usable gcc version
         gcc_version = get_gcc_version(ext.language)
         if gcc_version:
-            if cpp_std >= 17 and sys.version_info[0] < 3:
-                # The Python 2.7 headers contain the 'register' modifier
-                # which gcc warns about in C++17 mode.
-                ext.extra_compile_args.append('-Wno-register')
             if not already_has_std:
                 compiler_version = gcc_version.group(1)
                 if not min_gcc_version or float(compiler_version) >= float(min_gcc_version):
                     use_gcc = True
-                    ext.extra_compile_args.append("-std=c++%s" % cpp_std)
+                    ext.extra_compile_args.append(f"-std={language}{std}")
 
             if use_gcc:
                 return ext
@@ -356,17 +349,14 @@ def update_cpp_extension(cpp_std, min_gcc_version=None, min_clang_version=None, 
         # check for a usable clang version
         clang_version = get_clang_version(ext.language)
         if clang_version:
-            if cpp_std >= 17 and sys.version_info[0] < 3:
-                # The Python 2.7 headers contain the 'register' modifier
-                # which clang warns about in C++17 mode.
-                ext.extra_compile_args.append('-Wno-register')
             if not already_has_std:
                 compiler_version = clang_version.group(1)
                 if not min_clang_version or float(compiler_version) >= float(min_clang_version):
                     use_clang = True
-                    ext.extra_compile_args.append("-std=c++%s" % cpp_std)
+                    ext.extra_compile_args.append(f"-std={language}{std}")
             if sys.platform == "darwin":
-                ext.extra_compile_args.append("-stdlib=libc++")
+                if language == "c++":
+                    ext.extra_compile_args.append("-stdlib=libc++")
                 if min_macos_version is not None:
                     ext.extra_compile_args.append("-mmacosx-version-min=" + min_macos_version)
 
@@ -375,8 +365,13 @@ def update_cpp_extension(cpp_std, min_gcc_version=None, min_clang_version=None, 
 
         # no usable C compiler found => exclude the extension
         return EXCLUDE_EXT
+    return _update_language_extension
 
-    return _update_cpp_extension
+def update_c_extension(c_std, min_gcc_version=None, min_clang_version=None, min_macos_version=None):
+    return update_language_extension("c", c_std, min_gcc_version, min_clang_version, min_macos_version)
+
+def update_cpp_extension(cpp_std, min_gcc_version=None, min_clang_version=None, min_macos_version=None):
+    return update_language_extension("c++", cpp_std, min_gcc_version, min_clang_version, min_macos_version)
 
 
 def require_gcc(version):
@@ -474,6 +469,7 @@ EXT_EXTRAS = {
     'tag:cpp11': update_cpp_extension(11, min_gcc_version="4.9", min_macos_version="10.7"),
     'tag:cpp17': update_cpp_extension(17, min_gcc_version="5.0", min_macos_version="10.13"),
     'tag:cpp20': update_cpp_extension(20, min_gcc_version="11.0", min_clang_version="13.0", min_macos_version="10.13"),
+    'tag:c11': update_c_extension(11, min_gcc_version="4.7", min_clang_version="3.3"),
     'tag:trace' : update_linetrace_extension,
     'tag:cppexecpolicies': require_gcc("9.1"),
 }
