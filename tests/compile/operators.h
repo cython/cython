@@ -12,6 +12,11 @@ public:
     Operators operator-(Operators f) { return Operators(this->value - f.value); }
     Operators operator*(Operators f) { return Operators(this->value * f.value); }
     Operators operator/(Operators f) { return Operators(this->value / f.value); }
+    Operators operator+=(Operators f) { return Operators(this->value += f.value); }
+    Operators operator-=(Operators f) { return Operators(this->value -= f.value); }
+    Operators operator*=(Operators f) { return Operators(this->value *= f.value); }
+    Operators operator/=(Operators f) { return Operators(this->value /= f.value); }
+    Operators operator%=(Operators f) { return Operators(this->value %= f.value); }
     bool operator<(Operators f) { return this->value < f.value; }
     bool operator<=(Operators f) { return this->value <= f.value; }
     bool operator==(Operators f) { return this->value == f.value; }
