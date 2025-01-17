@@ -246,9 +246,13 @@ static CYTHON_INLINE PyObject *__Pyx_PyDict_SetDefault(PyObject *d, PyObject *ke
                                                        int is_safe_type) {
     PyObject* value;
     CYTHON_MAYBE_UNUSED_VAR(is_safe_type);
+#if CYTHON_COMPILING_IN_LIMITED_API
+    value = PyObject_CallMethod(d, "setdefault", "OO", key, default_value);
+#else
     value = PyDict_SetDefault(d, key, default_value);
     if (unlikely(!value)) return NULL;
     Py_INCREF(value);
+#endif
     return value;
 }
 
@@ -682,7 +686,7 @@ static double __Pyx__PyObject_AsDouble(PyObject* obj) {
         if (likely(nb) && likely(nb->nb_float)) {
             float_value = nb->nb_float(obj);
             if (likely(float_value) && unlikely(!PyFloat_Check(float_value))) {
-                __Pyx_TypeName float_value_type_name = __Pyx_PyType_GetName(Py_TYPE(float_value));
+                __Pyx_TypeName float_value_type_name = __Pyx_PyType_GetFullyQualifiedName(Py_TYPE(float_value));
                 PyErr_Format(PyExc_TypeError,
                     "__float__ returned non-float (type " __Pyx_FMT_TYPENAME ")",
                     float_value_type_name);

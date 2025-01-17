@@ -2282,8 +2282,6 @@ class NameNode(AtomicExprNode):
                 entry = self.entry = entry.as_variable
                 self.type = entry.type
 
-        if self.type.is_const:
-            error(self.pos, "Assignment to const '%s'" % self.name)
         if not self.is_lvalue():
             error(self.pos, "Assignment to non-lvalue '%s'" % self.name)
             self.type = PyrexTypes.error_type
@@ -2607,6 +2605,9 @@ class NameNode(AtomicExprNode):
                 # per entry and coupled with it.
                 self.generate_acquire_buffer(rhs, code)
             assigned = False
+            if self.type.is_const:
+                # Const variables are assigned when declared
+                assigned = True
             if self.type.is_pyobject:
                 #print "NameNode.generate_assignment_code: to", self.name ###
                 #print "...from", rhs ###
@@ -3111,6 +3112,9 @@ class IteratorNode(ScopedExprNode):
         if self.may_be_a_sequence:
             code.putln("}")
 
+    def generate_for_loop_header(self, code):
+        code.put(";;")
+
     def generate_next_sequence_item(self, test_name, result_name, code):
         assert self.counter_cname, "internal error: counter_cname temp not prepared"
         assert test_name in ('List', 'Tuple')
@@ -3307,21 +3311,24 @@ class CppIteratorNode(ExprNode):
                     self.cpp_attribute_op,
                     begin_name))
 
-    def generate_iter_next_result_code(self, result_name, code):
+    def generate_for_loop_header(self, code):
         # end call isn't cached to support containers that allow adding while iterating
         # (much as this is usually a bad idea)
         _, end_name = self.get_iterator_func_names()
-        code.putln("if (!(%s%s != %s%s%s())) break;" % (
-                        self.extra_dereference,
-                        self.result(),
-                        self.cpp_sequence_cname or self.sequence.result(),
-                        self.cpp_attribute_op,
-                        end_name))
+        code.put("; %s%s != %s%s%s(); ++%s%s" % (
+            self.extra_dereference,
+            self.result(),
+            self.cpp_sequence_cname or self.sequence.result(),
+            self.cpp_attribute_op,
+            end_name,
+            self.extra_dereference,
+            self.result()))
+
+    def generate_iter_next_result_code(self, result_name, code):
         code.putln("%s = *%s%s;" % (
                         result_name,
                         self.extra_dereference,
                         self.result()))
-        code.putln("++%s%s;" % (self.extra_dereference, self.result()))
 
     def generate_subexpr_disposal_code(self, code):
         if not self.cpp_sequence_cname:
@@ -3431,6 +3438,9 @@ class AsyncIteratorNode(ScopedExprNode):
             self.sequence.py_result(),
             code.error_goto_if_null(self.result(), self.pos)))
         self.generate_gotref(code)
+
+    def generate_for_loop_header(self, code):
+        code.put(";;")
 
 
 class AsyncNextNode(AtomicExprNode):
@@ -4525,12 +4535,15 @@ class IndexNode(_IndexingBaseNode):
 
     def calculate_result_code(self):
         if self.base.type in (list_type, tuple_type, bytearray_type):
+            # Note - These functions are missing error checks in not CYTHON_ASSUME_SAFE_MACROS.
+            # Since they're only used in optimized modes without boundschecking, I think this is
+            # a reasonable optimization to make.
             if self.base.type is list_type:
-                index_code = "PyList_GET_ITEM(%s, %s)"
+                index_code = "__Pyx_PyList_GET_ITEM(%s, %s)"
             elif self.base.type is tuple_type:
-                index_code = "PyTuple_GET_ITEM(%s, %s)"
+                index_code = "__Pyx_PyTuple_GET_ITEM(%s, %s)"
             elif self.base.type is bytearray_type:
-                index_code = "((unsigned char)(PyByteArray_AS_STRING(%s)[%s]))"
+                index_code = "((unsigned char)(__Pyx_PyByteArray_AsString(%s)[%s]))"
             else:
                 assert False, "unexpected base type in indexing: %s" % self.base.type
         elif self.base.type.is_cfunction:
@@ -6914,7 +6927,27 @@ class InlinedDefNodeCallNode(CallNode):
         return self
 
     def generate_result_code(self, code):
-        arg_code = [self.function_name.py_result()]
+        self_code = self.function_name.py_result()
+        if not self.function.def_node.is_cyfunction:
+            # If the function is a PyCFunction then the self_code is the PyCFunction.
+            # In this case, the self argument will either be NULL and unused, or it'll be
+            # the self attribute of the PyCfunction.
+            code.putln("{")
+            code.putln("#if CYTHON_COMPILING_IN_LIMITED_API")
+            code.putln(
+                f"PyObject *{Naming.quick_temp_cname} = PyCFunction_GetSelf({self_code});")
+            code.putln(code.error_goto_if(
+                f"{Naming.quick_temp_cname} == NULL && PyErr_Occurred()",
+                self.pos
+            ))
+            code.putln("#else")
+            code.putln(
+                f"PyObject *{Naming.quick_temp_cname} = PyCFunction_GET_SELF({self_code});")
+            code.putln("#endif")
+            # Note - borrowed reference to self
+            self_code = Naming.quick_temp_cname
+
+        arg_code = [self_code]
         func_type = self.function.def_node
         for arg, proto_arg in zip(self.args, func_type.args):
             if arg.type.is_pyobject:
@@ -6928,6 +6961,8 @@ class InlinedDefNodeCallNode(CallNode):
                 self.function.def_node.entry.pyfunc_cname,
                 arg_code,
                 code.error_goto_if_null(self.result(), self.pos)))
+        if not self.function.def_node.is_cyfunction:
+            code.putln("}")
         self.generate_gotref(code)
 
 
@@ -9568,6 +9603,7 @@ class DictNode(ExprNode):
                 key_cname = member.cname
                 value_cname = item.value.result()
                 if item.value.type.is_array:
+                    code.globalstate.use_utility_code(UtilityCode.load_cached("IncludeStringH", "StringTools.c"))
                     code.putln(f"memcpy({self.result()}.{key_cname}, {value_cname}, sizeof({value_cname}));")
                 else:
                     code.putln(f"{self.result()}.{key_cname} = {value_cname};")

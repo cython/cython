@@ -2886,6 +2886,9 @@ class CCodeWriter:
         self.putln("Py_BLOCK_THREADS")
         if unknown_gil_state:
             self.putln("}")
+            self.putln("#if CYTHON_COMPILING_IN_LIMITED_API")
+            self.put_release_ensured_gil()
+            self.putln("#endif")
 
     def put_release_gil(self, variable=None, unknown_gil_state=True):
         "Release the GIL, corresponds to `put_acquire_gil`."
@@ -2893,9 +2896,16 @@ class CCodeWriter:
         self.putln("PyThreadState *_save;")
         self.putln("_save = NULL;")
         if unknown_gil_state:
-            # we don't *know* that we don't have the GIL (since we may be inside a nogil function,
-            # and Py_UNBLOCK_THREADS is unsafe without the GIL)
-            self.putln("if (PyGILState_Check()) {")
+            # We don't *know* that we don't have the GIL (since we may be inside a nogil function,
+            # and Py_UNBLOCK_THREADS is unsafe without the GIL).
+            self.putln("#if CYTHON_COMPILING_IN_LIMITED_API")
+            # In the Limited API we can't check whether we have the GIL.
+            # Therefore the only way to be sure that we can release it is to acquire it first.
+            self.put_ensure_gil()
+            self.putln("#else")
+            self.putln("if (PyGILState_Check())")
+            self.putln("#endif")
+            self.putln("{")
         self.putln("Py_UNBLOCK_THREADS")
         if unknown_gil_state:
             self.putln("}")

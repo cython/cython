@@ -30,8 +30,8 @@ static int __Pyx__ArgTypeTest(PyObject *obj, PyTypeObject *type, const char *nam
             extra_info = PYUNICODE("Note that Cython is deliberately stricter than PEP-484 and rejects subclasses of builtin types. If you need to pass subclasses then set the 'annotation_typing' directive to False.");
         }
     }
-    type_name = __Pyx_PyType_GetName(type);
-    obj_type_name = __Pyx_PyType_GetName(Py_TYPE(obj));
+    type_name = __Pyx_PyType_GetFullyQualifiedName(type);
+    obj_type_name = __Pyx_PyType_GetFullyQualifiedName(Py_TYPE(obj));
     PyErr_Format(PyExc_TypeError,
         "Argument '%.200s' has incorrect type (expected " __Pyx_FMT_TYPENAME
         ", got " __Pyx_FMT_TYPENAME ")"
@@ -134,7 +134,7 @@ static void __Pyx_RaiseMappingExpectedError(PyObject* arg); /*proto*/
 //////////////////// RaiseMappingExpected ////////////////////
 
 static void __Pyx_RaiseMappingExpectedError(PyObject* arg) {
-    __Pyx_TypeName arg_type_name = __Pyx_PyType_GetName(Py_TYPE(arg));
+    __Pyx_TypeName arg_type_name = __Pyx_PyType_GetFullyQualifiedName(Py_TYPE(arg));
     PyErr_Format(PyExc_TypeError,
         "'" __Pyx_FMT_TYPENAME "' object is not a mapping", arg_type_name);
     __Pyx_DECREF_TypeName(arg_type_name);
@@ -477,7 +477,7 @@ bad:
     #define __Pyx_NumKwargs_FASTCALL(kwds) __Pyx_PyTuple_GET_SIZE(kwds)
     #define __Pyx_KwValues_FASTCALL(args, nargs) ((args) + (nargs))
     static CYTHON_INLINE PyObject * __Pyx_GetKwValue_FASTCALL(PyObject *kwnames, PyObject *const *kwvalues, PyObject *s);
-  #if CYTHON_COMPILING_IN_CPYTHON && PY_VERSION_HEX >= 0x030d0000
+  #if CYTHON_COMPILING_IN_CPYTHON && PY_VERSION_HEX >= 0x030d0000 || CYTHON_COMPILING_IN_LIMITED_API
     CYTHON_UNUSED static PyObject *__Pyx_KwargsAsDict_FASTCALL(PyObject *kwnames, PyObject *const *kwvalues);/*proto*/
   #else
     #define __Pyx_KwargsAsDict_FASTCALL(kw, kwvalues) _PyStack_AsDict(kwvalues, kw)
@@ -548,17 +548,28 @@ static CYTHON_INLINE PyObject * __Pyx_GetKwValue_FASTCALL(PyObject *kwnames, PyO
     return NULL;  /* not found (no exception set) */
 }
 
-#if CYTHON_COMPILING_IN_CPYTHON && PY_VERSION_HEX >= 0x030d0000
+#if CYTHON_COMPILING_IN_CPYTHON && PY_VERSION_HEX >= 0x030d0000 || CYTHON_COMPILING_IN_LIMITED_API
 CYTHON_UNUSED static PyObject *__Pyx_KwargsAsDict_FASTCALL(PyObject *kwnames, PyObject *const *kwvalues) {
-    Py_ssize_t i, nkwargs = PyTuple_GET_SIZE(kwnames);
+    Py_ssize_t i, nkwargs;
     PyObject *dict;
+#if !CYTHON_ASSUME_SAFE_SIZE
+    nkwargs = PyTuple_Size(kwnames);
+    if (unlikely(nkwargs < 0)) return NULL;
+#else
+    nkwargs = PyTuple_GET_SIZE(kwnames);
+#endif
 
     dict = PyDict_New();
     if (unlikely(!dict))
         return NULL;
 
     for (i=0; i<nkwargs; i++) {
+#if !CYTHON_ASSUME_SAFE_MACROS
+        PyObject *key = PyTuple_GetItem(kwnames, i);
+        if (!key) goto bad;
+#else
         PyObject *key = PyTuple_GET_ITEM(kwnames, i);
+#endif
         if (unlikely(PyDict_SetItem(dict, key, kwvalues[i]) < 0))
             goto bad;
     }
