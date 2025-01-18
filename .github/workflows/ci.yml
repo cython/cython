@@ -96,9 +96,11 @@ jobs:
           - os: ubuntu-22.04-arm
             python-version: "3.12"
             backend: c
+            env: {}
           - os: ubuntu-22.04-arm
             python-version: "3.12"
             backend: cpp
+            env: {}
           # compile all modules
           - os: ubuntu-22.04
             python-version: "3.8"
