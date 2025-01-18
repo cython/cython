@@ -97,10 +97,12 @@ jobs:
             python-version: "3.12"
             backend: c
             env: {}
+            extra_hash: "arm64"
           - os: ubuntu-22.04-arm
             python-version: "3.12"
             backend: cpp
             env: {}
+            extra_hash: "arm64"
           # compile all modules
           - os: ubuntu-22.04
             python-version: "3.8"
