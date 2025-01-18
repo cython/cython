@@ -56,8 +56,9 @@ def create_shared_library_pipeline(context, scope, options, result):
     return [
         generate_tree_factory(context),
         *create_pipeline(context, 'pyx', exclude_classes=()),
-        inject_utility_code_stage_factory(context),
         inject_pxd_code_stage_factory(context),
+        inject_utility_code_stage_factory(context),
+        inject_pxd_code_stage_factory(context, utility=True),
         abort_on_errors,
         generate_pyx_code_stage_factory(options, result),
     ]
@@ -94,9 +95,11 @@ def generate_pyx_code_stage_factory(options, result):
     return generate_pyx_code_stage
 
 
-def inject_pxd_code_stage_factory(context):
+def inject_pxd_code_stage_factory(context, utility=False):
+
     def inject_pxd_code_stage(module_node):
-        for name, (statlistnode, scope) in context.pxds.items():
+        pxds = context.utility_pxds.items() if utility else context.pxds.items()
+        for name, (statlistnode, scope) in pxds:
             module_node.merge_in(statlistnode, scope, stage="pxd")
         return module_node
     return inject_pxd_code_stage
@@ -297,8 +300,9 @@ def create_pyx_pipeline(context, options, result, py=False, exclude_classes=()):
         create_pipeline(context, mode, exclude_classes=exclude_classes),
         test_support,
         [
-            inject_utility_code_stage_factory(context),
             inject_pxd_code_stage_factory(context),
+            inject_utility_code_stage_factory(context),
+            inject_pxd_code_stage_factory(context, utility=True),
             abort_on_errors
         ],
         debug_transform,

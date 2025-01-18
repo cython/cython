@@ -293,7 +293,7 @@ class CythonSharedUtilityCode:
             source_desc = FileSourceDescriptor(pxd_pathname, rel_path)
             err, result = context.process_pxd(source_desc, scope, qualified_name)
             (pxd_codenodes, pxd_scope) = result
-            context.pxds[qualified_name] = (pxd_codenodes, pxd_scope)
+            context.utility_pxds[qualified_name] = (pxd_codenodes, pxd_scope)
             scope.pxd_file_loaded = True
             if err:
                 raise err
