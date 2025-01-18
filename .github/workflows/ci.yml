@@ -92,6 +92,13 @@ jobs:
             backend: cpp
             env: { GCC_VERSION: 13, EXTRA_CFLAGS: "-std=c++20" }
             extra_hash: "-gcc11"
+          # Arm64
+          - os: ubuntu-22.04-arm
+            python-version: "3.12"
+            backend: c
+          - os: ubuntu-22.04-arm
+            python-version: "3.12"
+            backend: cpp
           # compile all modules
           - os: ubuntu-22.04
             python-version: "3.8"
