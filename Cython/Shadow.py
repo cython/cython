@@ -100,6 +100,9 @@ class _EmptyDecoratorAndManager:
 class _Optimization:
     pass
 
+class _ThreadSafety:
+    pass
+
 cclass = ccall = cfunc = _EmptyDecoratorAndManager()
 
 annotation_typing = returns = wraparound = boundscheck = initializedcheck = \
@@ -118,10 +121,13 @@ exceptval = lambda _=None, check=True: _EmptyDecoratorAndManager()
 
 overflowcheck = lambda _: _EmptyDecoratorAndManager()
 optimize = _Optimization()
+thread_safety = _ThreadSafety()
 
 
 embedsignature.format = overflowcheck.fold = optimize.use_switch = \
     optimize.unpack_method_calls = lambda arg: _EmptyDecoratorAndManager()
+
+thread_safety.generated_functions = lambda arg: _EmptyDecoratorAndManager()
 
 final = internal = type_version_tag = no_gc_clear = no_gc = total_ordering = \
     ufunc = _empty_decorator

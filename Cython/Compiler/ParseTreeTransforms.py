@@ -1419,6 +1419,10 @@ class InterpretCompilerDirectives(CythonTransform):
             elif name == "critical_section":
                 args, kwds = value
                 return self._transform_critical_section(node, args, kwds)
+            elif name == "_dummy_context":
+                # _dummy_context is internal as a tool to turn critical_section on and off in
+                # generated code. Therefore it isn't exposed in Shadow.py.
+                return node.body
             elif self.check_directive_scope(node.pos, name, 'with statement'):
                 directive_dict[name] = value
         if directive_dict:
@@ -2330,7 +2334,7 @@ if VALUE is not None:
                         state += (_dict,)
                         use_setstate = True
                     else:
-                        for idx in [%(pyobject_indices)s]:
+                        for idx in %(pyobject_indices)s:
                             if state[idx] is not None:
                                 use_setstate = True
                                 break
@@ -2349,7 +2353,7 @@ if VALUE is not None:
                     'pyobject_indices' : repr(tuple(n for n, e in enumerate(all_members) if e.type.is_pyobject )),
                 },
                 level='c_class', pipeline=[NormalizeTree(None)]).substitute(
-                    {'CRITICAL_SECTION': ExprNodes.NameNode(node.pos, name="critical_section", cython_attribute="critical_section")
+                    {'CRITICAL_SECTION': self._create_critical_section_name_node(node.scope, node.pos)
                 })
             pickle_func = InterpretCompilerDirectives(None, {})(pickle_func)
             pickle_func.analyse_declarations(node.scope)
@@ -2708,9 +2712,7 @@ if VALUE is not None:
                 "ATTR": ExprNodes.AttributeNode(pos=entry.pos,
                                                 obj=ExprNodes.NameNode(pos=entry.pos, name="self"),
                                                 attribute=entry.name),
-                "CRITICAL_SECTION": ExprNodes.NameNode(pos=entry.pos,
-                                                       name="critical_section",
-                                                       cython_attribute="critical_section")
+                "CRITICAL_SECTION": self._create_critical_section_name_node(self.current_env(), entry.pos)
             }, pos=entry.pos).stats[0]
         property = InterpretCompilerDirectives(None, {})(property)
         property.name = entry.name
@@ -2721,6 +2723,20 @@ if VALUE is not None:
         self.visitchildren(node)
         node.analyse_declarations(self.current_env())
         return node
+    
+    def _create_critical_section_name_node(self, env, pos):
+        if env.directives['thread_safety.generated_functions']:
+            return ExprNodes.NameNode(
+                pos,
+                name="critical_section",
+                cython_attribute="critical_section"
+            )
+        else:
+            return ExprNodes.NameNode(
+                pos,
+                name="_dummy_context",
+                cython_attribute="_dummy_context"
+            )
 
 
 def _calculate_pickle_checksums(member_names):
