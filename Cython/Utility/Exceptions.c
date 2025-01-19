@@ -446,7 +446,7 @@ static int __Pyx_GetException(PyObject **type, PyObject **value, PyObject **tb)
     // traceback may be NULL for freshly raised exceptions
     Py_XINCREF(local_tb);
     // exception state may be empty in parallel loops (code-gen error where we don't generate a 
-    // top-level PyGILState_Ensure surrouding the whole loop, and so releasing the GIL temporarily
+    // top-level PyGILState_Ensure surrounding the whole loop, and so releasing the GIL temporarily
     // wipes the whole thread state).
     Py_XINCREF(local_type);
     Py_XINCREF(local_value);
