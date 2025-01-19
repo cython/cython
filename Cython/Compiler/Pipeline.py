@@ -1,3 +1,4 @@
+import os.path
 import itertools
 from time import time
 
@@ -20,6 +21,47 @@ def abort_on_errors(node):
     if Errors.get_errors_count() != 0:
         raise AbortError("pipeline break")
     return node
+
+def create_shared_library_pipeline(context, scope, options, result):
+
+    def generate_tree_factory(context):
+        def generate_tree(compsrc):
+            from . import MemoryView
+            import Cython
+
+            # Force to generate __Pyx_ExportFunction
+            Options.cimport_from_pyx = True
+
+            source_desc = compsrc.source_desc
+            full_module_name = compsrc.full_module_name
+
+            initial_pos = (source_desc, 1, 0)
+            scope = context.find_module(full_module_name, pos = initial_pos, need_pxd = 0)
+
+            tree = context.parse(source_desc, scope, pxd = 0, full_module_name = full_module_name)
+
+            tree.is_pxd = False
+            tree.compilation_source = compsrc
+            tree.scope = scope
+
+            scope.use_utility_code(MemoryView.memoryview_utility_code)
+
+            scope.use_utility_code(MemoryView.memviewslice_init_code)
+            scope.use_utility_code(MemoryView.typeinfo_to_format_code)
+            context.include_directories.append(os.path.join(os.path.split(Cython.__file__)[0], 'Utility'))
+            return tree
+
+        return generate_tree
+
+    return [
+        generate_tree_factory(context),
+        *create_pipeline(context, 'pyx', exclude_classes=()),
+        inject_pxd_code_stage_factory(context),
+        inject_utility_code_stage_factory(context),
+        inject_pxd_code_stage_factory(context, utility=True),
+        abort_on_errors,
+        generate_pyx_code_stage_factory(options, result),
+    ]
 
 def parse_stage_factory(context):
     def parse(compsrc):
@@ -53,9 +95,11 @@ def generate_pyx_code_stage_factory(options, result):
     return generate_pyx_code_stage
 
 
-def inject_pxd_code_stage_factory(context):
+def inject_pxd_code_stage_factory(context, utility=False):
+
     def inject_pxd_code_stage(module_node):
-        for name, (statlistnode, scope) in context.pxds.items():
+        pxds = context.utility_pxds.items() if utility else context.pxds.items()
+        for name, (statlistnode, scope) in pxds:
             module_node.merge_in(statlistnode, scope, stage="pxd")
         return module_node
     return inject_pxd_code_stage
@@ -130,6 +174,8 @@ def inject_utility_code_stage_factory(context):
                 module_node.merge_in(tree.with_compiler_directives(),
                                      tree.scope, stage="utility",
                                      merge_scope=True)
+            elif hasattr(utilcode, 'pxd_scope') and utilcode.pxd_scope:
+                module_node.scope.cimported_modules.append(utilcode.pxd_scope)
         return module_node
 
     return inject_utility_code_stage
@@ -253,9 +299,12 @@ def create_pyx_pipeline(context, options, result, py=False, exclude_classes=()):
         [parse_stage_factory(context)],
         create_pipeline(context, mode, exclude_classes=exclude_classes),
         test_support,
-        [inject_pxd_code_stage_factory(context),
-         inject_utility_code_stage_factory(context),
-         abort_on_errors],
+        [
+            inject_pxd_code_stage_factory(context),
+            inject_utility_code_stage_factory(context),
+            inject_pxd_code_stage_factory(context, utility=True),
+            abort_on_errors
+        ],
         debug_transform,
         [generate_pyx_code_stage_factory(options, result)],
         ctest_support,

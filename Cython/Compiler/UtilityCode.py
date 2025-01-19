@@ -2,7 +2,9 @@ from .TreeFragment import parse_from_strings, StringParseContext
 from . import Symtab
 from . import Naming
 from . import Code
+from . import Options
 
+import os.path
 import re
 
 
@@ -263,6 +265,56 @@ class CythonUtilityCode(Code.UtilityCodeBase):
             if name in current_directives:
                 utility_code_directives[name] = current_directives[name]
         return utility_code_directives
+
+
+class CythonSharedUtilityCode:
+    def __init__(self, module_name, context, requires):
+        self._module_name = module_name
+        self.context = context
+        self.requires = requires
+        self.pxd_scope = None
+
+    def find_module(self, context):
+        import Cython
+        from .Scanning import FileSourceDescriptor
+        from .Errors import CompileError
+        qualified_name = '.'.join([Options.use_shared_utility, self._module_name])
+        scope = context
+        for name, is_package in scope._split_qualified_name(qualified_name, relative_import=False):
+            scope = scope.find_submodule(name, as_package=is_package)
+
+        pxd_pathname = os.path.join(
+            os.path.split(Cython.__file__)[0],
+            'Utility',
+            self._module_name + '.pxd'
+        )
+        try:
+            rel_path = qualified_name.replace('.', os.sep) + os.path.splitext(pxd_pathname)[1]
+            source_desc = FileSourceDescriptor(pxd_pathname, rel_path)
+            err, result = context.process_pxd(source_desc, scope, qualified_name)
+            (pxd_codenodes, pxd_scope) = result
+            context.utility_pxds[qualified_name] = (pxd_codenodes, pxd_scope)
+            scope.pxd_file_loaded = True
+            if err:
+                raise err
+        except CompileError:
+            pass
+        return scope
+
+    def declare_in_scope(self, dest_scope, used=False, cython_scope=None,
+                         allowlist=None):
+
+        for dep in self.requires:
+            if dep.is_cython_utility:
+                dep.declare_in_scope(scope, cython_scope=cython_scope)
+        return dest_scope
+
+    def put_code(self, output):
+        pass
+
+    def get_tree(self, entries_only=False, cython_scope=None):
+        if isinstance(Options.use_shared_utility, str):
+            self.pxd_scope = self.find_module(cython_scope.context)
 
 
 def declare_declarations_in_scope(declaration_string, env, private_type=True,

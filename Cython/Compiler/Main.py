@@ -80,6 +80,7 @@ class Context:
         self.options = options
 
         self.pxds = {}  # full name -> node tree
+        self.utility_pxds = {}  # full name -> node tree
         self._interned = {}  # (type(value), value, *key_args) -> interned_value
 
         if language_level is not None:
@@ -129,6 +130,14 @@ class Context:
             result_sink = create_default_resultobj(source, self.options)
             pipeline = Pipeline.create_pyx_as_pxd_pipeline(self, result_sink)
             result = Pipeline.run_pipeline(pipeline, source)
+        elif Options.use_shared_utility:
+            from . import ParseTreeTransforms
+            transform = ParseTreeTransforms.CnameDirectivesTransform(self)
+            before = ParseTreeTransforms.InterpretCompilerDirectives
+            pipeline = Pipeline.create_pxd_pipeline(self, scope, module_name)
+            pipeline = Pipeline.insert_into_pipeline(pipeline, transform,
+                                                     before=before)
+            result = Pipeline.run_pipeline(pipeline, source_desc)
         else:
             pipeline = Pipeline.create_pxd_pipeline(self, scope, module_name)
             result = Pipeline.run_pipeline(pipeline, source_desc)

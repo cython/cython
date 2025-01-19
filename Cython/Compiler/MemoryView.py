@@ -3,7 +3,7 @@ from . import ExprNodes
 from .ExprNodes import IntNode, NameNode, AttributeNode
 from . import Options
 from .Code import UtilityCode, TempitaUtilityCode
-from .UtilityCode import CythonUtilityCode
+from .UtilityCode import CythonUtilityCode, CythonSharedUtilityCode
 from . import Buffer
 from . import PyrexTypes
 from . import ModuleNode
@@ -791,6 +791,9 @@ def _resolve_AttributeNode(env, node):
 ### Utility loading
 #
 
+def load_memview_cy_shared_utility(util_code_name, context=None, **kwargs):
+    return CythonSharedUtilityCode(util_code_name, context, **kwargs)
+
 def load_memview_cy_utility(util_code_name, context=None, **kwargs):
     return CythonUtilityCode.load(util_code_name, "MemoryView.pyx",
                                   context=context, **kwargs)
@@ -803,9 +806,10 @@ def load_memview_c_utility(util_code_name, context=None, **kwargs):
                                        context=context, **kwargs)
 
 def use_cython_array_utility_code(env):
-    cython_scope = env.global_scope().context.cython_scope
-    cython_scope.load_cythonscope()
-    cython_scope.viewscope.lookup('array_cwrapper').used = True
+    if not Options.use_shared_utility:
+        cython_scope = env.global_scope().context.cython_scope
+        cython_scope.load_cythonscope()
+        cython_scope.viewscope.lookup('array_cwrapper').used = True
 
 context = {
     'memview_struct_name': memview_objstruct_cname,
@@ -841,10 +845,11 @@ copy_contents_new_utility = load_memview_c_utility(
     requires=[],  # require cython_array_utility_code
 )
 
-view_utility_code = load_memview_cy_utility(
+memoryview_utility_code = load_memview_cy_utility(
         "View.MemoryView",
         context=context,
-        requires=[Buffer.buffer_struct_declare_code,
+        requires=[
+                  Buffer.buffer_struct_declare_code,
                   Buffer.buffer_formats_declare_code,
                   memviewslice_init_code,
                   is_contig_utility,
@@ -852,6 +857,22 @@ view_utility_code = load_memview_cy_utility(
                   copy_contents_new_utility,
                   ],
 )
+
+shared_utility_code = load_memview_cy_shared_utility(
+        "MemoryView",
+        context=context,
+        requires=[
+                  Buffer.buffer_struct_declare_code,
+                  Buffer.buffer_formats_declare_code,
+                  memviewslice_init_code,
+                  is_contig_utility,
+                  overlapping_utility,
+                  copy_contents_new_utility,
+                  ],
+)
+
+view_utility_code = shared_utility_code if Options.use_shared_utility else memoryview_utility_code
+
 view_utility_allowlist = ('array', 'memoryview', 'array_cwrapper',
                           'generic', 'strided', 'indirect', 'contiguous',
                           'indirect_contiguous')
