@@ -425,24 +425,30 @@ static PyObject *__Pyx_PyDict_GetItem(PyObject *d, PyObject* key);/*proto*/
 #if !CYTHON_COMPILING_IN_PYPY
 static PyObject *__Pyx_PyDict_GetItem(PyObject *d, PyObject* key) {
     PyObject *value;
+    int err_indicator = 0;
+#if PY_VERSION_HEX >= 0x030d0000
+    err_indicator = PyDict_GetItemRef(d, key, &value);
+#else
     value = PyDict_GetItemWithError(d, key);
-    if (unlikely(!value)) {
-        if (!PyErr_Occurred()) {
-            if (unlikely(PyTuple_Check(key))) {
-                // CPython interprets tuples as separate arguments => must wrap them in another tuple.
-                PyObject* args = PyTuple_Pack(1, key);
-                if (likely(args)) {
-                    PyErr_SetObject(PyExc_KeyError, args);
-                    Py_DECREF(args);
-                }
-            } else {
-                // Avoid tuple packing if possible.
-                PyErr_SetObject(PyExc_KeyError, key);
-            }
-        }
-        return NULL;
+    if (likely(value)) {
+        err_indicator = 1;
+        Py_INCREF(value);
     }
-    Py_INCREF(value);
+    else if (PyErr_Occurred()) err_indicator = -1;
+#endif
+    if (unlikely(err_indicator == 0)) { // no value, no error
+        if (unlikely(PyTuple_Check(key))) {
+            // CPython interprets tuples as separate arguments => must wrap them in another tuple.
+            PyObject* args = PyTuple_Pack(1, key);
+            if (likely(args)) {
+                PyErr_SetObject(PyExc_KeyError, args);
+                Py_DECREF(args);
+            }
+        } else {
+            // Avoid tuple packing if possible.
+            PyErr_SetObject(PyExc_KeyError, key);
+        }
+    }
     return value;
 }
 #endif

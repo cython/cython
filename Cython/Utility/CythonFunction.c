@@ -1924,7 +1924,7 @@ static PyObject* __Pyx_Method_ClassMethod(PyObject *method) {
 #else
     {
         PyObject *func=NULL;
-        PyObject *builtins, *classmethod, *result=NULL;
+        PyObject *builtins, *classmethod, *classmethod_str, *result=NULL;
         if (__Pyx_TypeCheck(method, CGLOBAL(__Pyx_CachedMethodType))) {
             func = PyObject_GetAttrString(method, "__func__");
             if (!func) goto bad;
@@ -1933,11 +1933,14 @@ static PyObject* __Pyx_Method_ClassMethod(PyObject *method) {
             Py_INCREF(func);
         }
         builtins = PyEval_GetBuiltins(); // borrowed
-        if (!builtins) goto bad;
-        classmethod = PyDict_GetItemString(builtins, "classmethod");
-        // classmethod is borrowed
-        if (!classmethod) goto bad;
+        if (unlikely(!builtins)) goto bad;
+        classmethod_str = PyUnicode_FromString("classmethod");
+        if (unlikely(!classmethod_str)) goto bad;
+        classmethod = PyObject_GetItem(builtins, classmethod_str);
+        Py_DECREF(classmethod_str);
+        if (unlikely(!classmethod)) goto bad;
         result = PyObject_CallFunctionObjArgs(classmethod, func, NULL);
+        Py_DECREF(classmethod);
 
         bad:
         Py_XDECREF(func);
