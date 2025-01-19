@@ -69,9 +69,10 @@ def f():
 # are started.
 
 import sys
+import sysconfig
 if sys.version_info < (3, 13):
     exit(0)  # test won't work
-if hasattr(sys, "_is_gil_enabled"):
+if sysconfig.get_config_var("Py_GIL_DISABLED"):
     # we aren't allowed to do _imp._override_multi_interp_extensions_check(-1) on freethreading
     exit(0)
 
