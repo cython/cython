@@ -184,7 +184,7 @@
   #undef CYTHON_USE_EXC_INFO_STACK
   #define CYTHON_USE_EXC_INFO_STACK 0
   #ifndef CYTHON_UPDATE_DESCRIPTOR_DOC
-    #define CYTHON_UPDATE_DESCRIPTOR_DOC 0
+    #define CYTHON_UPDATE_DESCRIPTOR_DOC (PYPY_VERSION_NUM >= 0x07031100)
   #endif
   #undef CYTHON_USE_FREELISTS
   #define CYTHON_USE_FREELISTS 0
@@ -2257,7 +2257,7 @@ static PyObject* __Pyx_PyCode_New(
                                        PyObject *code, PyObject *c, PyObject* n, PyObject *v,
                                        PyObject *fv, PyObject *cell, PyObject* fn,
                                        PyObject *name, int fline, PyObject *lnos) {
-        // Backout option for generating a code object.
+        // Backup option for generating a code object.
         // PyCode_NewEmpty isn't in the limited API. Therefore the two options are
         //  1. Python call of the code type with a long list of positional args.
         //  2. Generate a code object by compiling some trivial code, and customize.
@@ -3023,6 +3023,14 @@ static int __Pyx_State_RemoveModule(CYTHON_UNUSED void* dummy) {
 #define __Pyx_PyCriticalSection_Begin2 PyCriticalSection2_Begin
 #define __Pyx_PyCriticalSection_End1 PyCriticalSection_End
 #define __Pyx_PyCriticalSection_End2 PyCriticalSection2_End
+#endif
+
+#if PY_VERSION_HEX < 0x030d0000 || CYTHON_COMPILING_IN_LIMITED_API
+#define __Pyx_BEGIN_CRITICAL_SECTION(o) {
+#define __Pyx_END_CRITICAL_SECTION() }
+#else
+#define __Pyx_BEGIN_CRITICAL_SECTION Py_BEGIN_CRITICAL_SECTION
+#define __Pyx_END_CRITICAL_SECTION Py_END_CRITICAL_SECTION
 #endif
 
 ////////////////////// IncludeStdlibH.proto //////////////////////

@@ -460,6 +460,7 @@ def complex_finally_clause(x, obj):
     Traceback (most recent call last):
     TypeError
     """
+    a = 0
     name = 'module'
     l = []
     cdef object lobj = l

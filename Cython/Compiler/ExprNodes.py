@@ -4535,13 +4535,15 @@ class IndexNode(_IndexingBaseNode):
 
     def calculate_result_code(self):
         if self.base.type in (list_type, tuple_type, bytearray_type):
-            # Note - possibility of missing an error if not ASSUME_SAFE_MACROS
+            # Note - These functions are missing error checks in not CYTHON_ASSUME_SAFE_MACROS.
+            # Since they're only used in optimized modes without boundschecking, I think this is
+            # a reasonable optimization to make.
             if self.base.type is list_type:
                 index_code = "__Pyx_PyList_GET_ITEM(%s, %s)"
             elif self.base.type is tuple_type:
                 index_code = "__Pyx_PyTuple_GET_ITEM(%s, %s)"
             elif self.base.type is bytearray_type:
-                index_code = "((unsigned char)(PyByteArray_AS_STRING(%s)[%s]))"
+                index_code = "((unsigned char)(__Pyx_PyByteArray_AsString(%s)[%s]))"
             else:
                 assert False, "unexpected base type in indexing: %s" % self.base.type
         elif self.base.type.is_cfunction:
@@ -6925,7 +6927,27 @@ class InlinedDefNodeCallNode(CallNode):
         return self
 
     def generate_result_code(self, code):
-        arg_code = [self.function_name.py_result()]
+        self_code = self.function_name.py_result()
+        if not self.function.def_node.is_cyfunction:
+            # If the function is a PyCFunction then the self_code is the PyCFunction.
+            # In this case, the self argument will either be NULL and unused, or it'll be
+            # the self attribute of the PyCfunction.
+            code.putln("{")
+            code.putln("#if CYTHON_COMPILING_IN_LIMITED_API")
+            code.putln(
+                f"PyObject *{Naming.quick_temp_cname} = PyCFunction_GetSelf({self_code});")
+            code.putln(code.error_goto_if(
+                f"{Naming.quick_temp_cname} == NULL && PyErr_Occurred()",
+                self.pos
+            ))
+            code.putln("#else")
+            code.putln(
+                f"PyObject *{Naming.quick_temp_cname} = PyCFunction_GET_SELF({self_code});")
+            code.putln("#endif")
+            # Note - borrowed reference to self
+            self_code = Naming.quick_temp_cname
+
+        arg_code = [self_code]
         func_type = self.function.def_node
         for arg, proto_arg in zip(self.args, func_type.args):
             if arg.type.is_pyobject:
@@ -6939,6 +6961,8 @@ class InlinedDefNodeCallNode(CallNode):
                 self.function.def_node.entry.pyfunc_cname,
                 arg_code,
                 code.error_goto_if_null(self.result(), self.pos)))
+        if not self.function.def_node.is_cyfunction:
+            code.putln("}")
         self.generate_gotref(code)
 
 
