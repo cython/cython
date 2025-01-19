@@ -2816,7 +2816,7 @@ def runtests(options, cmd_args, coverage=None):
             FileListExcluder(os.path.join(ROOTDIR, "memoryview_tests.txt")),
         ]
 
-    if not test_bugs and "arm" in platform.machine().lower():
+    if not test_bugs and re.match("arm|aarch", platform.machine(), re.IGNORECASE):
         # Pythran is only excluded on arm because it fails to link with blas on the CI.
         # I don't think there's anything fundamentally wrong with it.
         exclude_selectors += [
