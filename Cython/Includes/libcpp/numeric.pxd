@@ -17,7 +17,7 @@ cdef extern from "<numeric>" namespace "std" nogil:
     void adjacent_difference[InputIt, OutputIt, BinaryOperation](InputIt in_first, InputIt in_last, OutputIt out_first,
                                                                  BinaryOperation op)
 
-    void partial_sum[InputIt, OutputIt](InputIt in_first, OutputIt in_last, OutputIt out_first)
+    void partial_sum[InputIt, OutputIt](InputIt in_first, InputIt in_last, OutputIt out_first)
 
     void partial_sum[InputIt, OutputIt, BinaryOperation](InputIt in_first, InputIt in_last, OutputIt out_first,
                                                          BinaryOperation op)
