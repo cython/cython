@@ -2733,6 +2733,11 @@ def runtests(options, cmd_args, coverage=None):
         CDEFS.append(('CYTHON_LIMITED_API', '1'))
         CDEFS.append(("Py_LIMITED_API", '(PY_VERSION_HEX & 0xffff0000)'))
         CFLAGS.append('-Wno-unused-function')
+    if sys.platform != 'win32':
+        CFLAGS.extend([
+            "-Werror=implicit-function-declaration",
+            "-Werror=mismatched-parameter-types",
+            "-Werror=return-type"])
 
     if xml_output_dir and options.fork:
         # doesn't currently work together
