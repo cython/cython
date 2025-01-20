@@ -1068,7 +1068,7 @@ They should make little to no difference in regular builds.
     for dataclass comparison functions only.  Therefore, if you are writing
     your own code interacting with the underlying data then you should use the same
     lock.  Remember that critical sections can be interrupted so this is mostly
-    a no-crash guarrantee - the auto-generated pickle function won't necessary be
+    a no-crash guarantee - the auto-generated pickle function won't necessary be
     an atomic snapshot for example.
 
 .. _configurable_optimisations:

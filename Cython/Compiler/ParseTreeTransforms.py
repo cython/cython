@@ -2324,6 +2324,7 @@ if VALUE is not None:
 
             pickle_func = TreeFragment("""
                 def __reduce_cython__(self):
+                    cdef Py_ssize_t idx
                     cdef tuple state
                     cdef object _dict
                     cdef bint use_setstate = False
@@ -2723,7 +2724,7 @@ if VALUE is not None:
         self.visitchildren(node)
         node.analyse_declarations(self.current_env())
         return node
-    
+
     def _create_critical_section_name_node(self, env, pos):
         if env.directives['thread_safety.generated_functions']:
             return ExprNodes.NameNode(
