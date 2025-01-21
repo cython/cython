@@ -113,18 +113,19 @@ cdef extern from "<vector>" namespace "std" nogil:
             bint operator>=(const_reverse_iterator)
 
         vector() except +
-        vector(vector&) except +
+        vector(const vector&) except +
         vector(size_type) except +
-        vector(size_type, T&) except +
-        #vector[InputIt](InputIt, InputIt)
+        vector(size_type, const T&) except +
+        # type (vector&) is needed here so that Cython can compile templated definition
+        vector& vector[InputIt](InputIt, InputIt) except +
         T& operator[](size_type)
         #vector& operator=(vector&)
-        bint operator==(vector&, vector&)
-        bint operator!=(vector&, vector&)
-        bint operator<(vector&, vector&)
-        bint operator>(vector&, vector&)
-        bint operator<=(vector&, vector&)
-        bint operator>=(vector&, vector&)
+        bint operator==(const vector&, const vector&)
+        bint operator!=(const vector&, const vector&)
+        bint operator<(const vector&, const vector&)
+        bint operator>(const vector&, const vector&)
+        bint operator<=(const vector&, const vector&)
+        bint operator>=(const vector&, const vector&)
         void assign(size_type, const T&)
         void assign[InputIt](InputIt, InputIt) except +
         T& at(size_type) except +
@@ -138,15 +139,15 @@ cdef extern from "<vector>" namespace "std" nogil:
         iterator end()
         const_iterator const_end "end"()
         const_iterator cend()
-        iterator erase(iterator)
-        iterator erase(iterator, iterator)
+        iterator erase(iterator) except +
+        iterator erase(iterator, iterator) except +
         T& front()
         iterator insert(iterator, const T&) except +
         iterator insert(iterator, size_type, const T&) except +
         iterator insert[InputIt](iterator, InputIt, InputIt) except +
         size_type max_size()
         void pop_back()
-        void push_back(T&) except +
+        void push_back(const T&) except +
         reverse_iterator rbegin()
         const_reverse_iterator const_rbegin "rbegin"()
         const_reverse_iterator crbegin()
@@ -155,7 +156,7 @@ cdef extern from "<vector>" namespace "std" nogil:
         const_reverse_iterator crend()
         void reserve(size_type) except +
         void resize(size_type) except +
-        void resize(size_type, T&) except +
+        void resize(size_type, const T&) except +
         size_type size()
         void swap(vector&)
 
