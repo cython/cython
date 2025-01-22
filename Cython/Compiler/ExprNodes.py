@@ -1031,7 +1031,7 @@ class ExprNode(Node):
                         src = CoerceToPyTypeNode(src, env, type=dst_type)
                 # FIXME: I would expect that CoerceToPyTypeNode(type=dst_type) returns a value of type dst_type
                 #        but it doesn't for ctuples. Thus, we add a PyTypeTestNode which then triggers the
-                #        Python conversion and becomes useless. That sems backwards and inefficient.
+                #        Python conversion and becomes useless. That seems backwards and inefficient.
                 #        We should not need a PyTypeTestNode after a previous conversion above.
                 if not src.type.subtype_of(dst_type):
                     src = PyTypeTestNode(src, dst_type, env)
