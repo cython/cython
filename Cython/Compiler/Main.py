@@ -80,7 +80,7 @@ class Context:
         self.options = options
 
         self.pxds = {}  # full name -> node tree
-        self.utility_pxds = {}  # full name -> node tree
+        self.utility_pxd = None  # node tree
         self._interned = {}  # (type(value), value, *key_args) -> interned_value
 
         if language_level is not None:

@@ -293,7 +293,7 @@ class CythonSharedUtilityCode:
             source_desc = FileSourceDescriptor(pxd_pathname, rel_path)
             err, result = context.process_pxd(source_desc, scope, qualified_name)
             (pxd_codenodes, pxd_scope) = result
-            context.utility_pxds[qualified_name] = (pxd_codenodes, pxd_scope)
+            context.utility_pxd = (pxd_codenodes, pxd_scope)
             scope.pxd_file_loaded = True
             if err:
                 raise err
@@ -303,7 +303,8 @@ class CythonSharedUtilityCode:
 
     def declare_in_scope(self, dest_scope, used=False, cython_scope=None,
                          allowlist=None):
-
+        if not cython_scope.context.utility_pxd:
+            self.pxd_scope = self.find_module(cython_scope.context)
         for dep in self.requires:
             if dep.is_cython_utility:
                 dep.declare_in_scope(scope, cython_scope=cython_scope)
@@ -313,7 +314,7 @@ class CythonSharedUtilityCode:
         pass
 
     def get_tree(self, entries_only=False, cython_scope=None):
-        if isinstance(Options.use_shared_utility, str):
+        if isinstance(Options.use_shared_utility, str) and not cython_scope.context.utility_pxd:
             self.pxd_scope = self.find_module(cython_scope.context)
 
 

@@ -11624,6 +11624,8 @@ class CythonArrayNode(ExprNode):
     def get_cython_array_type(self, env):
         cython_scope = env.global_scope().context.cython_scope
         cython_scope.load_cythonscope()
+        if cython_scope.context.utility_pxd:
+            return cython_scope.context.utility_pxd[1].lookup('array').type
         return cython_scope.viewscope.lookup("array").type
 
     def generate_result_code(self, code):

@@ -23,6 +23,8 @@ setup(
 ######## test_shared_utility.py ########
 from pkg1.pkg11.add_one import add_one
 from array import array
+from pkg1.pkg11.cast import call_cast
+
 a = array('i', [1, 2, 3, 4])
 add_one(a)
 assert a.tolist() == [2, 3, 4, 5]
@@ -30,6 +32,9 @@ assert a.tolist() == [2, 3, 4, 5]
 import numpy as np
 from pkg1.pkg11.dependency import f
 assert f(np.arange(15, dtype='f').reshape(3, 5)) == 0.0
+
+assert call_cast() == [1, 2, 3, 4]
+
 
 ######## pkg1/__init__.py ########
 
@@ -47,5 +52,13 @@ cimport cython
 def f(cnp.ndarray[cython.floating, ndim=2] x):
     return x[0,0]
 
+######## pkg1/pkg11/cast.pyx ########
+cdef cast(void *my_data_pointer):
+    cdef int[:] my_array = <int[:4]> my_data_pointer
+    return [my_array[i] for i in range(my_array.shape[0])]
+
+def call_cast():
+    cdef int[4] g = [1, 2, 3, 4]
+    return cast(<void *> g)
 
 ######## pkg2/__init__.py ########
