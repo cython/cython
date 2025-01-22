@@ -112,7 +112,7 @@ def performance_gh5197(patternsList):
                                                                                                         #                         else patternsList[_].split('|b')[-1].split('/b')[-1] + 'pattr2' + patternsList[_].split('/')[-1].split('//')[-1] if re.search('^SomeOtherString.?Number.*EndIng$')\
                                                                                                                                     else patternsList[_].split('|b')[-1].split('/b')[-1] + 'pattr2' + patternsList[_].split('/')[-1].split('//')[-1]  )
         except Exception as e:
-            matched.append('Error at Indx:%s-%s' %(_, patternsList[_]))
+            matched.append('Error at Index:%s-%s' %(_, patternsList[_]))
 
 cdef accept_int(int x):
     return x
