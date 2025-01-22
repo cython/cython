@@ -14,7 +14,7 @@ from .Code import UtilityCode, TempitaUtilityCode, PyxCodeWriter
 from .Visitor import VisitorTransform
 from .StringEncoding import EncodedString
 from .TreeFragment import TreeFragment
-from .ParseTreeTransforms import NormalizeTree, SkipDeclarations
+from .ParseTreeTransforms import NormalizeTree, SkipDeclarations, InterpretCompilerDirectives
 from .Options import copy_inherited_directives
 
 _dataclass_loader_utilitycode = None
@@ -104,10 +104,11 @@ class TemplateCode:
     """
     _placeholder_count = 0
 
-    def __init__(self, writer=None, placeholders=None, extra_stats=None):
+    def __init__(self, writer=None, placeholders=None, extra_stats=None, critical_section_placeholder_name=None):
         self.writer = PyxCodeWriter() if writer is None else writer
         self.placeholders = {} if placeholders is None else placeholders
         self.extra_stats = [] if extra_stats is None else extra_stats
+        self.critical_section_placeholder_name = critical_section_placeholder_name
 
     def add_code_line(self, code_line):
         self.writer.putln(code_line)
@@ -160,6 +161,8 @@ class TemplateCode:
             pipeline=[NormalizeTree(None)],
         ).substitute(self.placeholders)
 
+        stat_list_node = InterpretCompilerDirectives(None, {})(stat_list_node)
+
         stat_list_node.stats += self.extra_stats
         return stat_list_node
 
@@ -168,7 +171,8 @@ class TemplateCode:
         return TemplateCode(
             writer=new_writer,
             placeholders=self.placeholders,
-            extra_stats=self.extra_stats
+            extra_stats=self.extra_stats,
+            critical_section_placeholder_name=self.critical_section_placeholder_name
         )
 
 
@@ -347,7 +351,24 @@ def handle_cclass_dataclass(node, dataclass_args, analyse_decs_transform):
     stats = Nodes.StatListNode(node.pos,
                                stats=[dataclass_params_assignment] + dataclass_fields_stats)
 
+    if node.scope.directives['thread_safety.generated_functions']:
+        critical_section_substitution = ExprNodes.NameNode(
+            node.pos,
+            name="critical_section",
+            cython_attribute="critical_section"
+        )
+    else:
+        critical_section_substitution = ExprNodes.NameNode(
+            node.pos,
+            name="_dummy_context",
+            cython_attribute="_dummy_context"
+        )
+
     code = TemplateCode()
+    code.critical_section_placeholder_name = code.new_placeholder(
+        fields,
+        critical_section_substitution
+    )
     generate_init_code(code, kwargs['init'], node, fields, kw_only)
     generate_match_args(code, kwargs['match_args'], node, fields, kw_only)
     generate_repr_code(code, kwargs['repr'], node, fields)
@@ -405,6 +426,7 @@ def generate_init_code(code, init, node, fields, kw_only):
     function_start_point = code.insertion_point()
     code = code.insertion_point()
     code.indent()
+    code.indent()  # second indent is for "with critical_section" block
 
     # create a temp to get _HAS_DEFAULT_FACTORY
     dataclass_module = make_dataclasses_module_callnode(node.pos)
@@ -472,6 +494,10 @@ def generate_init_code(code, init, node, fields, kw_only):
 
     args = ", ".join(args)
     function_start_point.add_code_line(f"def __init__({args}):")
+    function_start_point.indent()
+    # Although __init__ is usually called on the only reference to self, it doesn't
+    # have to be.
+    function_start_point.add_code_line(f"with {code.critical_section_placeholder_name}({selfname}):")
 
 
 def generate_match_args(code, match_args, node, fields, global_kw_only):
@@ -542,16 +568,16 @@ def generate_repr_code(code, repr, node, fields):
                 try:
             """)
             code.indent()
+        with code.indenter(f"with {code.critical_section_placeholder_name}(self):"):
+            strs = ["%s={self.%s!r}" % (name, name)
+                    for name, field in fields.items()
+                    if field.repr.value and not field.is_initvar]
+            format_string = ", ".join(strs)
 
-        strs = ["%s={self.%s!r}" % (name, name)
-                for name, field in fields.items()
-                if field.repr.value and not field.is_initvar]
-        format_string = ", ".join(strs)
-
-        code.add_code_chunk(f'''
-            name = getattr(type(self), "__qualname__", None) or type(self).__name__
-            return f'{{name}}({format_string})'
-        ''')
+            code.add_code_chunk(f'''
+                name = getattr(type(self), "__qualname__", None) or type(self).__name__
+                return f'{{name}}({format_string})'
+            ''')
         if needs_recursive_guard:
             code.dedent()
             with code.indenter("finally:"):
@@ -565,32 +591,33 @@ def generate_cmp_code(code, op, funcname, node, fields):
     names = [name for name, field in fields.items() if (field.compare.value and not field.is_initvar)]
 
     with code.indenter(f"def {funcname}(self, other):"):
-        code.add_code_chunk(f"""
-            if other.__class__ is not self.__class__: return NotImplemented
+        code.add_code_line(f"cdef {node.class_name} other_cast")
+        with code.indenter(f"with {code.critical_section_placeholder_name}(self, other):"):
+            code.add_code_chunk(f"""
+                if other.__class__ is not self.__class__: return NotImplemented
 
-            cdef {node.class_name} other_cast
-            other_cast = <{node.class_name}>other
-        """)
+                other_cast = <{node.class_name}>other
+            """)
 
-        # The Python implementation of dataclasses.py does a tuple comparison
-        # (roughly):
-        #  return self._attributes_to_tuple() {op} other._attributes_to_tuple()
-        #
-        # For the Cython implementation a tuple comparison isn't an option because
-        # not all attributes can be converted to Python objects and stored in a tuple
-        #
-        # TODO - better diagnostics of whether the types support comparison before
-        #    generating the code. Plus, do we want to convert C structs to dicts and
-        #    compare them that way (I think not, but it might be in demand)?
-        checks = []
-        op_without_equals = op.replace('=', '')
+            # The Python implementation of dataclasses.py does a tuple comparison
+            # (roughly):
+            #  return self._attributes_to_tuple() {op} other._attributes_to_tuple()
+            #
+            # For the Cython implementation a tuple comparison isn't an option because
+            # not all attributes can be converted to Python objects and stored in a tuple
+            #
+            # TODO - better diagnostics of whether the types support comparison before
+            #    generating the code. Plus, do we want to convert C structs to dicts and
+            #    compare them that way (I think not, but it might be in demand)?
+            checks = []
+            op_without_equals = op.replace('=', '')
 
-        for name in names:
-            if op != '==':
-                # tuple comparison rules - early elements take precedence
-                code.add_code_line(f"if self.{name} {op_without_equals} other_cast.{name}: return True")
-            code.add_code_line(f"if self.{name} != other_cast.{name}: return False")
-        code.add_code_line(f"return {'True' if '=' in op else 'False'}")  # "() == ()" is True
+            for name in names:
+                if op != '==':
+                    # tuple comparison rules - early elements take precedence
+                    code.add_code_line(f"if self.{name} {op_without_equals} other_cast.{name}: return True")
+                code.add_code_line(f"if self.{name} != other_cast.{name}: return False")
+            code.add_code_line(f"return {'True' if '=' in op else 'False'}")  # "() == ()" is True
 
 
 def generate_eq_code(code, eq, node, fields):
@@ -683,7 +710,8 @@ def generate_hash_code(code, unsafe_hash, eq, frozen, node, fields):
 
     # if we're here we want to generate a hash
     with code.indenter("def __hash__(self):"):
-        code.add_code_line(f"return hash(({hash_tuple_items}))")
+        with code.indenter(f"with {code.critical_section_placeholder_name}(self):"):
+            code.add_code_line(f"return hash(({hash_tuple_items}))")
 
 
 def get_field_type(pos, entry):

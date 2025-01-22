@@ -235,7 +235,7 @@ def run_json_report():
 
         assert not frozenset(
             report['missing_lines'] + report['excluded_lines']
-        ).intersection(report['executed_lines'])
+        ).intersection(report['executed_lines']), report
 
 
 def run_html_report():

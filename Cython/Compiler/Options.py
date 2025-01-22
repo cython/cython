@@ -3,11 +3,6 @@
 #
 
 
-import os
-
-from .. import Utils
-
-
 class ShouldBeFromDirective:
 
     known_directives = []
@@ -251,6 +246,9 @@ _directive_defaults = {
     'warn.deprecated.IF': True,
     'show_performance_hints': True,
 
+# thread safety (mostly only applies to freethreading)
+    'thread_safety.generated_functions': False,
+
 # optimizations
     'optimize.inline_defnode_calls': True,
     'optimize.unpack_method_calls': True,  # increases code size when True
@@ -353,6 +351,7 @@ directive_types = {
     'nogil' : DEFER_ANALYSIS_OF_ARGUMENTS,
     'gil' : DEFER_ANALYSIS_OF_ARGUMENTS,
     'critical_section' : DEFER_ANALYSIS_OF_ARGUMENTS,
+    '_dummy_context' : DEFER_ANALYSIS_OF_ARGUMENTS,
     'with_gil' : None,
     'internal' : bool,  # cdef class visibility in the module dict
     'infer_types' : bool,  # values can be True/None/False
@@ -393,6 +392,7 @@ directive_scopes = {  # defaults to available everywhere
     'gil' : ('with statement'),
     'with_gil' : ('function',),
     'critical_section': ('with statement',),
+    '_dummy_context': ('with statement',),
     'inline' : ('function',),
     'cfunc' : ('function', 'with statement'),
     'ccall' : ('function', 'with statement'),
