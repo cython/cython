@@ -1,7 +1,7 @@
 cdef extern from "<barrier>" namespace "std" nogil:
     cdef cppclass barrier[CompletionFunction = *]:
         cppclass arrival_token:
-            pass 
+            pass
 
         barrier(ptrdiff_t expected) except+
         # We *really* advise that CompletionFunction is nogil (but because it's a template, can't enforce it)
