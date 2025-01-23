@@ -1393,9 +1393,6 @@ class InterpretCompilerDirectives(CythonTransform):
                                 PostParseError(node.pos, "Compiler directive %s accepts one positional argument." % name))
                         node = Nodes.GILStatNode(node.pos, state=name, body=node.body, condition=condition)
                         return self.visit_Node(node)
-                    if name == "critical_section":
-                        # For Cython 3.0.x this is only supported as a no-op
-                        return self.visit_Node(node.body)
                     if self.check_directive_scope(node.pos, name, 'with statement'):
                         directive_dict[name] = value
         if directive_dict:
@@ -3646,17 +3643,13 @@ class GilCheck(VisitorTransform):
         """
         Take care of try/finally statements in nogil code sections.
         """
-        if not self.nogil:
+        if not self.nogil or isinstance(node, Nodes.GILStatNode):
             return self.visit_Node(node)
 
         node.nogil_check = None
         node.is_try_finally_in_nogil = True
         self.visitchildren(node)
         return node
-
-    def visit_CriticalSectionStatNode(self, node):
-        # skip normal "try/finally node" handling
-        return self.visit_Node(node)
 
     def visit_GILExitNode(self, node):
         if not self.current_gilstat_node_knows_gil_state:
