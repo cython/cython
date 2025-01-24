@@ -11,6 +11,7 @@ from libc.stdio cimport puts
 
 import os
 import sys
+import sysconfig
 
 try:
     from builtins import next # Py3k
@@ -21,7 +22,7 @@ except ImportError:
 def skip_in_freethreading(f):
     # defined in parallel.pyx
     if "OPENMP_PARALLEL" in globals():
-        if hasattr(sys, "_is_gil_enabled"):
+        if sysconfig.get_config_var("Py_GIL_DISABLED"):
             return None
     return f
 
