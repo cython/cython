@@ -1031,7 +1031,7 @@ class ExprNode(Node):
                         src = CoerceToPyTypeNode(src, env, type=dst_type)
                 # FIXME: I would expect that CoerceToPyTypeNode(type=dst_type) returns a value of type dst_type
                 #        but it doesn't for ctuples. Thus, we add a PyTypeTestNode which then triggers the
-                #        Python conversion and becomes useless. That sems backwards and inefficient.
+                #        Python conversion and becomes useless. That seems backwards and inefficient.
                 #        We should not need a PyTypeTestNode after a previous conversion above.
                 if not src.type.subtype_of(dst_type):
                     src = PyTypeTestNode(src, dst_type, env)
@@ -5577,6 +5577,9 @@ class SliceIndexNode(ExprNode):
         if base_type.is_string:
             base_result = self.base.result_as(PyrexTypes.c_const_char_ptr_type)
             if self.type is bytearray_type:
+                # TODO - arguably bytearray should be protected by a critical section, but it's
+                # hard to generate good code for this, and it's hard to imagine a good use for slicing
+                # a volatile bytearray.
                 type_name = 'ByteArray'
             elif self.type is unicode_type:
                 type_name = 'Unicode'
@@ -15148,3 +15151,31 @@ class AssignmentExpressionNode(ExprNode):
     def generate_result_code(self, code):
         # we have to do this manually because it isn't a subexpression
         self.assignment.generate_execution_code(code)
+
+
+class FirstArgumentForCriticalSectionNode(ExprNode):
+    # This class exists to pass the first argument of a function
+    # to a critical_section.  Mostly just to defer analysis since
+    # func.args isn't available for cdef functions until the
+    # analyse_declarations stage
+    #
+    #  func_node - FuncDefNode
+
+    subexprs = ['name_node']
+
+    name_node = None
+    type = PyrexTypes.py_object_type
+
+    def analyse_declarations(self, env):
+        if len(self.func_node.args) < 1:
+            error(self.pos, "critical_section directive can only be applied to a function with one or more positional arguments")
+            return
+        self.name_node = NameNode(self.pos, name=self.func_node.args[0].declared_name())
+        self.name_node.analyse_declarations(env)
+        self.type = self.name_node.type
+
+    def analyse_expressions(self, env):
+        # At this stage, just substitute the name node
+        if self.name_node:
+            return self.name_node.analyse_expressions(env)
+        return self  # error earlier
