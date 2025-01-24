@@ -308,6 +308,8 @@ class CythonSharedUtilityCode:
         for dep in self.requires:
             if dep.is_cython_utility:
                 dep.declare_in_scope(scope, cython_scope=cython_scope)
+        for e in self.pxd_scope.c_class_entries:
+            dest_scope.add_imported_entry(e.name, e, e.pos)
         return dest_scope
 
     def put_code(self, output):
