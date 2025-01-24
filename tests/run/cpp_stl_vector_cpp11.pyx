@@ -8,6 +8,20 @@ from libcpp.vector cimport vector
 
 ctypedef vector[int] ivector
 
+def test_vector_data():
+    """
+    >>> test_vector_data()
+    (77, 77)
+    """
+    cdef:
+        int* data
+        const int* const_data
+    int_vector = ivector()
+    int_vector.push_back(77)
+    data = int_vector.data()
+    const_data = int_vector.const_data()
+    return data[0], const_data[0]
+
 def test_vector_emplace():
     """
     >>> test_vector_emplace()

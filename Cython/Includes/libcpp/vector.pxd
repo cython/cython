@@ -129,6 +129,7 @@ cdef extern from "<vector>" namespace "std" nogil:
         # vector& operator=(const vector&)
         void assign[InputIt](InputIt, InputIt) except +
         void assign(size_type, const T&)
+        allocator_type get_allocator()
 
         # iterators
         iterator begin()
@@ -172,9 +173,14 @@ cdef extern from "<vector>" namespace "std" nogil:
 
         iterator emplace(const_iterator, ...) except +  # C++11
         iterator insert(iterator, const T&) except +
+        iterator insert(const_iterator, const T&) except +
         iterator insert(iterator, size_type, const T&) except +
+        iterator insert(const_iterator, size_type, const T&) except +
         iterator insert[InputIt](iterator, InputIt, InputIt) except +
+        iterator insert[InputIt](const_iterator, InputIt, InputIt) except +
         iterator erase(iterator) except +
+        const_iterator erase(const_iterator) except +  # C++11
         iterator erase(iterator, iterator) except +
+        iterator erase(const_iterator, const_iterator) except +  # C++11
         void swap(vector&)
         void clear()
