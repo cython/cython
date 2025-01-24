@@ -9,6 +9,13 @@ cdef extern from "<vector>" namespace "std" nogil:
         ctypedef size_t size_type
         ctypedef ptrdiff_t difference_type
 
+        bint operator==(const vector&, const vector&)
+        bint operator!=(const vector&, const vector&)
+        bint operator<(const vector&, const vector&)
+        bint operator>(const vector&, const vector&)
+        bint operator<=(const vector&, const vector&)
+        bint operator>=(const vector&, const vector&)
+
         cppclass const_iterator
         cppclass iterator:
             iterator() except +
@@ -112,57 +119,62 @@ cdef extern from "<vector>" namespace "std" nogil:
             bint operator>=(reverse_iterator)
             bint operator>=(const_reverse_iterator)
 
-        vector() except +
-        vector(const vector&) except +
-        vector(size_type) except +
-        vector(size_type, const T&) except +
+        # 22.3.11.2, construct/copy/destroy
+        vector() except +  # (1)
+        vector(size_type) except +  # (3)
+        vector(size_type, const T&) except +  # (4)
         # type (vector&) is needed here so that Cython can compile templated definition
-        vector& vector[InputIt](InputIt, InputIt) except +
-        T& operator[](size_type)
-        #vector& operator=(vector&)
-        bint operator==(const vector&, const vector&)
-        bint operator!=(const vector&, const vector&)
-        bint operator<(const vector&, const vector&)
-        bint operator>(const vector&, const vector&)
-        bint operator<=(const vector&, const vector&)
-        bint operator>=(const vector&, const vector&)
-        void assign(size_type, const T&)
+        vector& vector[InputIt](InputIt, InputIt) except +  # (5)
+        vector(const vector&) except +  # (6)
+        # vector& operator=(const vector&)
         void assign[InputIt](InputIt, InputIt) except +
-        T& at(size_type) except +
-        T& back()
+        void assign(size_type, const T&)
+
+        # iterators
         iterator begin()
         const_iterator const_begin "begin"()
-        const_iterator cbegin()
-        size_type capacity()
-        void clear()
-        bint empty()
         iterator end()
         const_iterator const_end "end"()
+        reverse_iterator rbegin()
+        const_reverse_iterator const_rbegin "rbegin"()
+        reverse_iterator rend()
+        const_reverse_iterator const_rend "rend"()
+
+        const_iterator cbegin()
         const_iterator cend()
-        iterator erase(iterator) except +
-        iterator erase(iterator, iterator) except +
+        const_reverse_iterator crbegin()
+        const_reverse_iterator crend()
+
+        # 22.3.11.3, capacity
+        bint empty()
+        size_type size()
+        size_type max_size()
+        size_type capacity()
+        void resize(size_type) except +
+        void resize(size_type, const T&) except +
+        void reserve(size_type) except +
+        void shrink_to_fit() except +  # C++11
+
+        # element access
+        T& operator[](size_type)
+        T& at(size_type) except +
         T& front()
+        T& back()
+
+        # 22.3.11.4, data access - C++11
+        T* data()
+        const T* const_data "data"()
+
+        # 22.3.11.5, modifiers
+        T& emplace_back(...) except +  # C++11
+        void push_back(const T&) except +
+        void pop_back()
+
+        iterator emplace(const_iterator, ...) except +  # C++11
         iterator insert(iterator, const T&) except +
         iterator insert(iterator, size_type, const T&) except +
         iterator insert[InputIt](iterator, InputIt, InputIt) except +
-        size_type max_size()
-        void pop_back()
-        void push_back(const T&) except +
-        reverse_iterator rbegin()
-        const_reverse_iterator const_rbegin "rbegin"()
-        const_reverse_iterator crbegin()
-        reverse_iterator rend()
-        const_reverse_iterator const_rend "rend"()
-        const_reverse_iterator crend()
-        void reserve(size_type) except +
-        void resize(size_type) except +
-        void resize(size_type, const T&) except +
-        size_type size()
+        iterator erase(iterator) except +
+        iterator erase(iterator, iterator) except +
         void swap(vector&)
-
-        # C++11 methods
-        T* data()
-        const T* const_data "data"()
-        void shrink_to_fit() except +
-        iterator emplace(const_iterator, ...) except +
-        T& emplace_back(...) except +
+        void clear()
