@@ -1597,7 +1597,7 @@ static CYTHON_INLINE PyObject* __Pyx_PyObject_GetAttrStrNoError(PyObject* obj, P
 //@requires: Exceptions.c::PyErrFetchRestore
 //@requires: Exceptions.c::PyErrExceptionMatches
 
-#if __PYX_LIMITED_VERSION_HEX < 0x030d00A1
+#if __PYX_LIMITED_VERSION_HEX < 0x030d0000
 static void __Pyx_PyObject_GetAttrStr_ClearAttributeError(void) {
     __Pyx_PyThreadState_declare
     __Pyx_PyThreadState_assign
@@ -1608,7 +1608,7 @@ static void __Pyx_PyObject_GetAttrStr_ClearAttributeError(void) {
 
 static CYTHON_INLINE PyObject* __Pyx_PyObject_GetAttrStrNoError(PyObject* obj, PyObject* attr_name) {
     PyObject *result;
-#if __PYX_LIMITED_VERSION_HEX >= 0x030d00A1
+#if __PYX_LIMITED_VERSION_HEX >= 0x030d0000
     (void) PyObject_GetOptionalAttr(obj, attr_name, &result);
     return result;
 #else
@@ -2202,7 +2202,7 @@ static PyObject* __Pyx_PyObject_CallMethod1(PyObject* obj, PyObject* method_name
 //@requires: PyObjectCallOneArg
 //@requires: PyObjectCall2Args
 
-#if !(CYTHON_VECTORCALL && __PYX_LIMITED_VERSION_HEX >= 0x030C00A2)
+#if !(CYTHON_VECTORCALL && __PYX_LIMITED_VERSION_HEX >= 0x030C0000)
 static PyObject* __Pyx__PyObject_CallMethod1(PyObject* method, PyObject* arg) {
     // Separate function to avoid excessive inlining.
     PyObject *result = __Pyx_PyObject_CallOneArg(method, arg);
@@ -2212,7 +2212,7 @@ static PyObject* __Pyx__PyObject_CallMethod1(PyObject* method, PyObject* arg) {
 #endif
 
 static PyObject* __Pyx_PyObject_CallMethod1(PyObject* obj, PyObject* method_name, PyObject* arg) {
-#if CYTHON_VECTORCALL && __PYX_LIMITED_VERSION_HEX >= 0x030C00A2
+#if CYTHON_VECTORCALL && __PYX_LIMITED_VERSION_HEX >= 0x030C0000
     PyObject *args[2] = {obj, arg};
     // avoid unused functions
     (void) __Pyx_PyObject_GetMethod;
@@ -2988,7 +2988,7 @@ __Pyx_PyType_GetFullyQualifiedName(PyTypeObject* tp)
 {
     PyObject *module = NULL, *name = NULL, *result = NULL;
 
-    #if __PYX_LIMITED_VERSION_HEX < 0x030B0000
+    #if __PYX_LIMITED_VERSION_HEX < 0x030b0000
     name = __Pyx_PyObject_GetAttrStr((PyObject *)tp,
                                                PYIDENT("__qualname__"));
     #else
