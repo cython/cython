@@ -73,7 +73,7 @@ static void __Pyx_PyIter_CheckErrorAndDecref(PyObject *source) {
 static CYTHON_INLINE __Pyx_PySendResult __Pyx_Generator_Yield_From(__pyx_CoroutineObject *gen, PyObject *source, PyObject **retval) {
     PyObject *source_gen;
     __Pyx_PySendResult result;
-    if (__Pyx_Coroutine_Check(__Pyx_SharedAbiModuleFromSharedType(Py_TYPE(gen)), source)) {
+    if (__Pyx_Coroutine_CheckPrecise(__Pyx_SharedAbiModuleFromSharedType(Py_TYPE(gen)), source)) {
         // TODO: this should only happen for types.coroutine()ed generators, but we can't determine that here
         Py_INCREF(source);
         source_gen = source;
@@ -118,7 +118,7 @@ static CYTHON_INLINE __Pyx_PySendResult __Pyx_Generator_Yield_From(__pyx_Corouti
 //////////////////// CoroutineYieldFrom.proto ////////////////////
 
 #define __Pyx_Coroutine_Yield_From(gen, source, retval) \
-    (__Pyx_Coroutine_Check(NAMED_CGLOBAL(shared_abi_module_cname), source) ? \
+    (__Pyx_Coroutine_CheckPrecise(NAMED_CGLOBAL(shared_abi_module_cname), source) ? \
         __Pyx_Coroutine_Yield_From_Coroutine(gen, source, retval) : \
         __Pyx_Coroutine_Yield_From_Generic(gen, source, retval))
 
@@ -134,7 +134,7 @@ static CYTHON_INLINE __Pyx_PySendResult __Pyx_Coroutine_Yield_From_Generic(__pyx
 static __Pyx_PySendResult __Pyx_Coroutine_Yield_From_Generic(__pyx_CoroutineObject *gen, PyObject *source, PyObject **retval) {
     __Pyx_PySendResult result;
     PyObject *source_gen = NULL;
-    #ifdef __Pyx_AsyncGen_USED
+#ifdef __Pyx_AsyncGen_USED
     // inlined "__pyx_PyAsyncGenASend" handling to avoid the series of generic calls.
     // This is an optimization so is safe in the shared ABI if it isn't available.
     if (__pyx_PyAsyncGenASend_CheckExact(__Pyx_SharedAbiModuleFromSharedType(Py_TYPE(gen)), source)) {
@@ -145,13 +145,13 @@ static __Pyx_PySendResult __Pyx_Coroutine_Yield_From_Generic(__pyx_CoroutineObje
             return PYGEN_NEXT;
         }
     } else
-    #endif
+#endif
     {
         source_gen = __Pyx__Coroutine_GetAwaitableIter(__Pyx_SharedAbiModuleFromSharedType(Py_TYPE(gen)), source);
         if (unlikely(!source_gen)) return PYGEN_ERROR;
 
         // source_gen is now the iterator, make the first next() call
-        if (__Pyx_Coroutine_Check(__Pyx_SharedAbiModuleFromSharedType(Py_TYPE(gen)), source_gen)) {
+        if (__Pyx_Coroutine_CheckPrecise(__Pyx_SharedAbiModuleFromSharedType(Py_TYPE(gen)), source_gen)) {
             result = __Pyx_Coroutine_Yield_From_Coroutine(gen, source_gen, retval);
             Py_DECREF(source_gen);
             return result;
@@ -188,22 +188,13 @@ static CYTHON_INLINE __Pyx_PySendResult __Pyx_Coroutine_Yield_From_Coroutine(__p
 
 //////////////////// GetAwaitIter.proto ////////////////////
 
-static CYTHON_INLINE PyObject *__Pyx_Coroutine_GetAwaitableIter(PyObject *o); /*proto*/
-static PyObject *__Pyx__Coroutine_GetAwaitableIter(PyObject *shared_abi_module, PyObject *o); /*proto*/
+static CYTHON_INLINE PyObject *__Pyx__Coroutine_GetAwaitableIter(PyObject *shared_abi_module, PyObject *o); /*proto*/
 
 //////////////////// GetAwaitIter ////////////////////
 //@requires: ObjectHandling.c::PyObjectGetMethod
 //@requires: ObjectHandling.c::PyObjectCallNoArg
 //@requires: ObjectHandling.c::PyObjectCallOneArg
 //@requires: Coro_CheckExact
-
-static CYTHON_INLINE PyObject *__Pyx_Coroutine_GetAwaitableIter(PyObject *o) {
-    if (__Pyx_Coroutine_Check(NAMED_CGLOBAL(shared_abi_module_cname), o)) {
-        return __Pyx_NewRef(o);
-    }
-    return __Pyx__Coroutine_GetAwaitableIter(NAMED_CGLOBAL(shared_abi_module_cname), o);
-}
-
 
 static void __Pyx_Coroutine_AwaitableIterError(PyObject *source) {
 #if (PY_VERSION_HEX < 0x030d0000 || defined(_PyErr_FormatFromCause)) && !CYTHON_COMPILING_IN_LIMITED_API
@@ -278,7 +269,7 @@ static PyObject *__Pyx__Coroutine_GetAwaitableIter(PyObject *shared_abi_module, 
         Py_CLEAR(res);
     } else {
         int is_coroutine = 0;
-        is_coroutine |= __Pyx_Coroutine_Check(shared_abi_module, res);
+        is_coroutine |= __Pyx_Coroutine_CheckPrecise(shared_abi_module, res);
         is_coroutine |= __Pyx_PyCoro_CheckExact(res);
         if (unlikely(is_coroutine)) {
             /* __await__ must return an *iterator*, not
@@ -319,9 +310,12 @@ static PyObject *__Pyx_Coroutine_GetAsyncIter_Fail(PyObject *obj) {
 
 
 static CYTHON_INLINE PyObject *__Pyx_Coroutine_GetAsyncIter(PyObject *shared_abi_module, PyObject *obj) {
+#ifdef __Pyx_AsyncGen_USED
+    // Missable optimization
     if (__Pyx_AsyncGen_CheckExact(shared_abi_module, obj)) {
         return __Pyx_NewRef(obj);
     }
+#endif
     {
         unaryfunc am_aiter = __Pyx_PyObject_TryGetSubSlot(obj, tp_as_async, am_aiter, unaryfunc);
         if (likely(am_aiter)) {
@@ -342,9 +336,12 @@ static PyObject *__Pyx_Coroutine_AsyncIterNext_Fail(PyObject *obj) {
 
 
 static CYTHON_INLINE PyObject *__Pyx_Coroutine_AsyncIterNext(PyObject *shared_abi_module, PyObject *obj) {
+#ifdef __Pyx_AsyncGen_USED
+    // Missable optimization
     if (__Pyx_AsyncGen_CheckExact(shared_abi_module, obj)) {
         return __Pyx_async_gen_anext(obj);
     }
+#endif
     {
         unaryfunc am_anext = __Pyx_PyObject_TryGetSubSlot(obj, tp_as_async, am_anext, unaryfunc);
         if (likely(am_anext)) {
@@ -399,19 +396,10 @@ static void __Pyx_Generator_Replace_StopIteration(int in_async_gen) {
 //@requires: CommonStructures.c::InitAndGetSharedAbiModule
 //@substitute: naming
 
-// Because the implementation of coroutine is shared between a number of Cython modules and we don't know what
-// components they've used, these checks must always be available even if unused in this module.
+// There are a few points where we need to get coroutine checks right to get the right behaviour even when the current module doesn't
+// necessarily use co-routines.
 #define __Pyx_Coroutine_CheckExact(shared_abi_module, obj) __Pyx_IS_TYPE(obj, __Pyx_GetSharedModuleStateFromModule(shared_abi_module)->__pyx_CoroutineType)
-#define __Pyx_Coroutine_Check(shared_abi_module, obj) (__Pyx_Coroutine_CheckExact(shared_abi_module, obj) || __Pyx_IS_TYPE(obj, __Pyx_GetSharedModuleStateFromModule(shared_abi_module)->__pyx_IterableCoroutineType))
-#define __Pyx_CoroutineAwait_CheckExact(shared_abi_module, obj) __Pyx_IS_TYPE(obj, __Pyx_GetSharedModuleStateFromModule(shared_abi_module)->__pyx_CoroutineAwaitType)
-#define __Pyx_Generator_CheckExact(shared_abi_module, obj) __Pyx_IS_TYPE(obj, __Pyx_GetSharedModuleStateFromModule(shared_abi_module)->__pyx_GeneratorType)
-#define __Pyx_AsyncGen_CheckExact(shared_abi_module, obj) __Pyx_IS_TYPE(obj, __Pyx_GetSharedModuleStateFromModule(shared_abi_module)->__pyx_AsyncGenType)
-#define __pyx_PyAsyncGenASend_CheckExact(shared_abi_module, o) \
-                    __Pyx_IS_TYPE(o, __Pyx_GetSharedModuleStateFromModule(shared_abi_module)->__pyx__PyAsyncGenASendType)
-#define __pyx_PyAsyncGenAThrow_CheckExact(shared_abi_module, o) \
-                    __Pyx_IS_TYPE(o, __Pyx_GetSharedModuleStateFromModule(shared_abi_module)->__pyx__PyAsyncGenAThrowType)
-#define __pyx__PyAsyncGenWrappedValue_CheckExact(shared_abi_module, o) \
-                    __Pyx_IS_TYPE(o, __Pyx_GetSharedModuleStateFromModule(shared_abi_module)->__pyx__PyAsyncGenWrappedValueType)
+#define __Pyx_Coroutine_CheckPrecise(shared_abi_module, obj) (__Pyx_Coroutine_CheckExact(shared_abi_module, obj) || __Pyx_IS_TYPE(obj, __Pyx_GetSharedModuleStateFromModule(shared_abi_module)->__pyx_IterableCoroutineType))
 
 struct __pyx_CoroutineObject;
 typedef PyObject *(*__pyx_coroutine_body_t)(struct __pyx_CoroutineObject *, PyThreadState *, PyObject *);
@@ -500,6 +488,10 @@ CYTHON_UNUSED static char __Pyx_Coroutine_get_is_running(__pyx_CoroutineObject *
 //////////////////// Coroutine.proto ////////////////////
 
 #define __Pyx_Coroutine_USED
+// __Pyx_Coroutine_CheckUsed(): see override for IterableCoroutine below - is used for optimizations and checks of the self argument
+// where it either doesn't matter if we miss them, or we know that the USED macro will be accurate for the type. 
+#define __Pyx_Coroutine_CheckUsed(shared_abi_module, obj) __Pyx_Coroutine_CheckExact(shared_abi_module, obj)
+#define __Pyx_CoroutineAwait_CheckExact(shared_abi_module, obj) __Pyx_IS_TYPE(obj, __Pyx_GetSharedModuleStateFromModule(shared_abi_module)->__pyx_CoroutineAwaitType)
 
 #define __Pyx_Coroutine_New(body, code, closure, name, qualname, module_name)  \
     __Pyx__Coroutine_New(__Pyx_GetSharedModuleState()->__pyx_CoroutineType, body, code, closure, name, qualname, module_name)
@@ -518,6 +510,7 @@ static __Pyx_PySendResult __Pyx_CoroutineAwait_Close(__pyx_CoroutineAwaitObject 
 //////////////////// Generator.proto ////////////////////
 
 #define __Pyx_Generator_USED
+#define __Pyx_Generator_CheckExact(shared_abi_module, obj) __Pyx_IS_TYPE(obj, __Pyx_GetSharedModuleStateFromModule(shared_abi_module)->__pyx_GeneratorType)
 
 #define __Pyx_Generator_New(body, code, closure, name, qualname, module_name)  \
     __Pyx__Coroutine_New(__Pyx_GetSharedModuleState()->__pyx_GeneratorType, body, code, closure, name, qualname, module_name)
@@ -717,10 +710,17 @@ void __Pyx_Coroutine_ExceptionClear(__Pyx_ExcInfoStruct *exc_state) {
 static void __Pyx__Coroutine_AlreadyRunningError(__pyx_CoroutineObject *gen) {
     const char *msg;
     CYTHON_MAYBE_UNUSED_VAR(gen);
-    if (__Pyx_Coroutine_Check(__Pyx_SharedAbiModuleFromSharedType(Py_TYPE(gen)), (PyObject*)gen)) {
+    if ((0)) {
+    // Note - because all of the checks are on self it's safe to change the code based on what's used in the current module.
+    // It'll only affect the specific types defined in this module and not across the whole shared ABI.
+    #ifdef __Pyx_Coroutine_USED
+    } else if (__Pyx_Coroutine_CheckUsed(__Pyx_SharedAbiModuleFromSharedType(Py_TYPE(gen)), (PyObject*)gen)) {
         msg = "coroutine already executing";
+    #endif
+    #ifdef __Pyx_AsyncGen_USED
     } else if (__Pyx_AsyncGen_CheckExact(__Pyx_SharedAbiModuleFromSharedType(Py_TYPE(gen)), (PyObject*)gen)) {
         msg = "async generator already executing";
+    #endif
     } else {
         msg = "generator already executing";
     }
@@ -730,19 +730,25 @@ static void __Pyx__Coroutine_AlreadyRunningError(__pyx_CoroutineObject *gen) {
 static void __Pyx_Coroutine_AlreadyTerminatedError(PyObject *gen, PyObject *value, int closing) {
     CYTHON_MAYBE_UNUSED_VAR(gen);
     CYTHON_MAYBE_UNUSED_VAR(closing);
-    if (!closing && __Pyx_Coroutine_Check(__Pyx_SharedAbiModuleFromSharedType(Py_TYPE(gen)), gen)) {
+    // Note - because all of the checks are on self it's safe to change the code based on what's used in the current module.
+    // It'll only affect the specific types defined in this module and not across the whole shared ABI.
+    #ifdef __Pyx_Coroutine_USED
+    if (!closing && __Pyx_Coroutine_CheckUsed(__Pyx_SharedAbiModuleFromSharedType(Py_TYPE(gen)), gen)) {
         // `self` is an exhausted coroutine: raise an error,
         // except when called from gen_close(), which should
         // always be a silent method.
         PyErr_SetString(PyExc_RuntimeError, "cannot reuse already awaited coroutine");
     } else
+    #endif
     if (value) {
         // `gen` is an exhausted generator:
         // only set exception if called from send().
+        #ifdef __Pyx_AsyncGen_USED
         if (__Pyx_AsyncGen_CheckExact(__Pyx_SharedAbiModuleFromSharedType(Py_TYPE(gen)), gen))
             PyErr_SetNone(PyExc_StopAsyncIteration);
         else
-            PyErr_SetNone(PyExc_StopIteration);
+        #endif
+        PyErr_SetNone(PyExc_StopIteration);
     }
 }
 
@@ -889,23 +895,6 @@ static CYTHON_INLINE void __Pyx_Coroutine_ResetFrameBackpointer(__Pyx_ExcInfoStr
 #endif
 }
 
-static CYTHON_INLINE
-PyObject *__Pyx_Coroutine_MethodReturn(PyObject* gen, PyObject *retval) {
-    CYTHON_MAYBE_UNUSED_VAR(gen);
-    if (unlikely(!retval)) {
-        __Pyx_PyThreadState_declare
-        __Pyx_PyThreadState_assign
-        if (!__Pyx_PyErr_Occurred()) {
-            // method call must not terminate with NULL without setting an exception
-            PyObject *exc =
-                __Pyx_AsyncGen_CheckExact(__Pyx_SharedAbiModuleFromSharedType(Py_TYPE(gen)), gen) ? PyExc_StopAsyncIteration :
-                PyExc_StopIteration;
-            __Pyx_PyErr_SetNone(exc);
-        }
-    }
-    return retval;
-}
-
 #define __Pyx_Coroutine_MethodReturnFromResult(gen, result, retval) \
     ((result) == PYGEN_NEXT ? (retval) : __Pyx__Coroutine_MethodReturnFromResult(gen, result, retval))
 
@@ -915,7 +904,10 @@ __Pyx__Coroutine_MethodReturnFromResult(PyObject* gen, __Pyx_PySendResult result
     if (likely(result == PYGEN_RETURN)) {
         // return values pass through StopIteration or StopAsyncIteration
         int is_async = 0;
+        #ifdef __Pyx_AsyncGen_USED
+        // Check is on self so is safe to put in a USED guard
         is_async = __Pyx_AsyncGen_CheckExact(__Pyx_SharedAbiModuleFromSharedType(Py_TYPE(gen)), gen);
+        #endif
         __Pyx_ReturnWithStopIteration(retval, is_async);
         Py_XDECREF(retval);
     }
@@ -1020,15 +1012,18 @@ __Pyx_Coroutine_AmSend(PyObject *self, PyObject *value, PyObject **retval) {
       #if !CYTHON_USE_AM_SEND
         // Py3.10 puts "am_send" into "gen->yieldfrom_am_send" instead of using these special cases.
         // See "__Pyx_Coroutine_Set_Owned_Yield_From()" above.
+        // These checks are optimization only; missing them in the shared ABI doesn't break anything
+        #ifdef __Pyx_Generator_USED
         if (__Pyx_Generator_CheckExact(__Pyx_SharedAbiModuleFromSharedType(Py_TYPE(gen)), yf)) {
             ret = __Pyx_Coroutine_Send(yf, value);
         } else
-        if (__Pyx_Coroutine_Check(__Pyx_SharedAbiModuleFromSharedType(Py_TYPE(gen)), yf)) {
+        #endif
+        #ifdef __Pyx_Coroutine_USED
+        if (__Pyx_Coroutine_CheckUsed(__Pyx_SharedAbiModuleFromSharedType(Py_TYPE(gen)), yf)) {
             ret = __Pyx_Coroutine_Send(yf, value);
         } else
+        #endif
         #ifdef __Pyx_AsyncGen_USED
-        // Note - optimization that we're only able to do if we have __Pyx_async_gen_asend_send.
-        // Missing it in the shared ABI doesn't break anything though.
         if (__pyx_PyAsyncGenASend_CheckExact(__Pyx_SharedAbiModuleFromSharedType(Py_TYPE(gen)), yf)) {
             ret = __Pyx_async_gen_asend_send(yf, value);
         } else
@@ -1072,14 +1067,16 @@ static int __Pyx_Coroutine_CloseIter(__pyx_CoroutineObject *gen, PyObject *yf) {
 
     assert(__Pyx_Coroutine_get_is_running(gen));
 
+    // These checks are optimization only - safe in the shared ABI if it's ifdefed out.
+    #ifdef __Pyx_Generator_USED
     if (__Pyx_Generator_CheckExact(__Pyx_SharedAbiModuleFromSharedType(Py_TYPE(gen)), yf)) {
         result = __Pyx_Coroutine_Close(yf, &retval);
     } else
-    if (__Pyx_Coroutine_Check(__Pyx_SharedAbiModuleFromSharedType(Py_TYPE(gen)), yf)) {
+    #endif
+    #ifdef __Pyx_Coroutine_USED
+    if (__Pyx_Coroutine_CheckUsed(__Pyx_SharedAbiModuleFromSharedType(Py_TYPE(gen)), yf)) {
         result = __Pyx_Coroutine_Close(yf, &retval);
     } else
-    #ifdef __Pyx_Coroutine_USED
-    // Missable optimization - safe in the shared ABI if it's ifdefed out.
     if (__Pyx_CoroutineAwait_CheckExact(__Pyx_SharedAbiModuleFromSharedType(Py_TYPE(gen)), yf)) {
         result = __Pyx_CoroutineAwait_Close((__pyx_CoroutineAwaitObject*)yf);
     } else
@@ -1134,10 +1131,13 @@ static PyObject *__Pyx_Generator_Next(PyObject *self) {
         PyObject *yf = gen->yieldfrom;
         PyObject *ret;
         // YieldFrom code ensures that yf is an iterator
+        #ifdef __Pyx_Generator_USED
         if (__Pyx_Generator_CheckExact(__Pyx_SharedAbiModuleFromSharedType(Py_TYPE(gen)), yf)) {
             ret = __Pyx_Generator_Next(yf);
         } else
-        // See https://github.com/cython/cython/issues/1999
+        #endif
+        // See https://github.com/cython/cython/issues/1999 - probably not just an optimization
+        // and needs to be baked into the shared ABI even if this module doesn't have coroutines.
         if (__Pyx_Coroutine_CheckExact(__Pyx_SharedAbiModuleFromSharedType(Py_TYPE(gen)), yf)) {
             ret = __Pyx_Coroutine_Send(yf, Py_None);
         } else
@@ -1213,10 +1213,16 @@ __Pyx_Coroutine_Close(PyObject *self, PyObject **retval) {
         const char *msg;
         Py_DECREF(*retval);
         *retval = NULL;
-        if (__Pyx_Coroutine_Check(__Pyx_SharedAbiModuleFromSharedType(Py_TYPE(gen)), self)) {
+        // Checks on self are safe to put in a USED guard even with shared ABI
+        if ((0)) {
+        #ifdef __Pyx_Coroutine_USED
+        } else if (__Pyx_Coroutine_CheckUsed(__Pyx_SharedAbiModuleFromSharedType(Py_TYPE(gen)), self)) {
             msg = "coroutine ignored GeneratorExit";
+        #endif
+        #ifdef __Pyx_AsyncGen_USED
         } else if (__Pyx_AsyncGen_CheckExact(__Pyx_SharedAbiModuleFromSharedType(Py_TYPE(gen)), self)) {
             msg = "async generator ignored GeneratorExit";
+        #endif
         } else {
             msg = "generator ignored GeneratorExit";
         }
@@ -1250,8 +1256,14 @@ static PyObject *__Pyx__Coroutine_Throw(PyObject *self, PyObject *typ, PyObject 
                 goto propagate_exception;
             goto throw_here;
         }
-        if (__Pyx_Generator_CheckExact(__Pyx_SharedAbiModuleFromSharedType(Py_TYPE(gen)), yf)
-            || __Pyx_Coroutine_Check(__Pyx_SharedAbiModuleFromSharedType(Py_TYPE(gen)), yf)) {
+        if (0
+        #ifdef __Pyx_Generator_USED
+            || __Pyx_Generator_CheckExact(__Pyx_SharedAbiModuleFromSharedType(Py_TYPE(gen)), yf)
+        #endif
+        #ifdef __Pyx_Coroutine_USED
+            || __Pyx_Coroutine_CheckUsed(__Pyx_SharedAbiModuleFromSharedType(Py_TYPE(gen)), yf)
+        #endif
+            ) {
             ret = __Pyx__Coroutine_Throw(yf, typ, val, tb, args, close_on_genexit);
         #ifdef __Pyx_Coroutine_USED
         // Missable-optimization - safe in the shared ABI if it's ifdef'ed out.
@@ -1340,14 +1352,14 @@ static int __Pyx_Coroutine_clear(PyObject *self) {
     Py_CLEAR(gen->classobj);
     __Pyx_Coroutine_Undelegate(gen);
     __Pyx_Coroutine_ExceptionClear(&gen->gi_exc_state);
-    #ifdef __Pyx_AsyncGen_USED
-    // Right now clear is called from dealloc (where this is handled explicitly)
+#ifdef __Pyx_AsyncGen_USED
+    // Right now clear is called from dealloc (where ag_finalizer is handled explicitly)
     // and from Nodes.py as an optimization to help the GC. Therefore, it doesn't
     // matter if this gets missed in the shared ABI.
     if (__Pyx_AsyncGen_CheckExact(__Pyx_SharedAbiModuleFromSharedType(Py_TYPE(gen)), self)) {
         Py_CLEAR(((__pyx_PyAsyncGenObject*)gen)->ag_finalizer);
     }
-    #endif
+#endif
     Py_CLEAR(gen->gi_code);
     Py_CLEAR(gen->gi_frame);
     Py_CLEAR(gen->gi_name);
@@ -1356,7 +1368,7 @@ static int __Pyx_Coroutine_clear(PyObject *self) {
     return 0;
 }
 
-static void __Pyx__Coroutine_dealloc(PyObject *self, void (*subclass_dealloc)(PyObject *self)) {
+static void __Pyx_Coroutine_dealloc(PyObject *self) {
     __pyx_CoroutineObject *gen = (__pyx_CoroutineObject *) self;
 
     PyObject_GC_UnTrack(gen);
@@ -1382,21 +1394,22 @@ static void __Pyx__Coroutine_dealloc(PyObject *self, void (*subclass_dealloc)(Py
         PyObject_GC_UnTrack(self);
     }
 
-    /* We have to handle this case for asynchronous generators
-    right here, because this code has to be between UNTRACK
-    and GC_Del. */
-    if (subclass_dealloc) subclass_dealloc(self);
+#ifdef __Pyx_AsyncGen_USED
+    // Check on self is safe to call in a USED guard even with shared ABI
+    if (__Pyx_AsyncGen_CheckExact(__Pyx_SharedAbiModuleFromSharedType(Py_TYPE(self)), self)) {
+        /* We have to handle this case for asynchronous generators
+           right here, because this code has to be between UNTRACK
+           and GC_Del. */
+        Py_CLEAR(((__pyx_PyAsyncGenObject*)self)->ag_finalizer);
+    }
+#endif
 
     __Pyx_Coroutine_clear(self);
     __Pyx_PyHeapTypeObject_GC_Del(gen);
 }
 
-static void __Pyx_Coroutine_dealloc(PyObject *self) {
-    __Pyx__Coroutine_dealloc(self, NULL);
-}
-
 #if !(CYTHON_USE_TYPE_SPECS && !CYTHON_USE_TP_FINALIZE)
-static void __Pyx__Coroutine_del(PyObject *self, int (*call_finalizer)(PyObject *)) {
+static void __Pyx_Coroutine_del(PyObject *self) {
     PyObject *error_type, *error_value, *error_traceback;
     __pyx_CoroutineObject *gen = (__pyx_CoroutineObject *) self;
     __Pyx_PyThreadState_declare
@@ -1417,19 +1430,31 @@ static void __Pyx__Coroutine_del(PyObject *self, int (*call_finalizer)(PyObject 
     // Save the current exception, if any.
     __Pyx_ErrFetch(&error_type, &error_value, &error_traceback);
 
-    if (call_finalizer) {
-        // Customization for async generators. Returns 1 to indicate that it's
-        // done something and that we should quit.
-        if (call_finalizer(self)) {    
-            // Restore the saved exception.
+#ifdef __Pyx_AsyncGen_USED
+    // Check on self is safe to call in the USED guard
+    if (__Pyx_AsyncGen_CheckExact(__Pyx_SharedAbiModuleFromSharedType(Py_TYPE(self)), self)) {
+        __pyx_PyAsyncGenObject *agen = (__pyx_PyAsyncGenObject*)self;
+        PyObject *finalizer = agen->ag_finalizer;
+        if (finalizer && !agen->ag_closed) {
+            PyObject *res = __Pyx_PyObject_CallOneArg(finalizer, self);
+            if (unlikely(!res)) {
+                PyErr_WriteUnraisable(self);
+            } else {
+                Py_DECREF(res);
+            }
+                // Restore the saved exception.
             __Pyx_ErrRestore(error_type, error_value, error_traceback);
             return;
         }
     }
+#endif
 
     if (unlikely(gen->resume_label == 0 && !error_value)) {
+#ifdef __Pyx_Coroutine_USED
+#ifdef __Pyx_Generator_USED
         // only warn about (async) coroutines
         if (!__Pyx_Generator_CheckExact(__Pyx_SharedAbiModuleFromSharedType(Py_TYPE(gen)), self))
+#endif
         {
             // untrack dead object as we are executing Python code (which might trigger GC)
             PyObject_GC_UnTrack(self);
@@ -1437,6 +1462,7 @@ static void __Pyx__Coroutine_del(PyObject *self, int (*call_finalizer)(PyObject 
                 PyErr_WriteUnraisable(self);
             PyObject_GC_Track(self);
         }
+#endif /*__Pyx_Coroutine_USED*/
     } else {
         PyObject *retval = NULL;
         __Pyx_PySendResult result = __Pyx_Coroutine_Close(self, &retval);
@@ -1488,10 +1514,6 @@ static void __Pyx__Coroutine_del(PyObject *self, int (*call_finalizer)(PyObject 
     --Py_TYPE(self)->tp_allocs;
 #endif
 #endif
-}
-
-static void __Pyx_Coroutine_del(PyObject *self) {
-    __Pyx__Coroutine_del(self, NULL);
 }
 #endif
 
@@ -1910,7 +1932,7 @@ static CYTHON_INLINE PyObject *__Pyx__Coroutine_await(PyObject *coroutine) {
 }
 
 static PyObject *__Pyx_Coroutine_await(PyObject *coroutine) {
-    if (unlikely(!coroutine || !__Pyx_Coroutine_Check(__Pyx_SharedAbiModuleFromSharedType(Py_TYPE(coroutine)), coroutine))) {
+    if (unlikely(!coroutine || !__Pyx_Coroutine_CheckUsed(__Pyx_SharedAbiModuleFromSharedType(Py_TYPE(coroutine)), coroutine))) {
         PyErr_SetString(PyExc_TypeError, "invalid input, expected coroutine");
         return NULL;
     }
@@ -2060,7 +2082,8 @@ static PyTypeObject __pyx_CoroutineType_type = {
 #endif /* CYTHON_USE_TYPE_SPECS */
 
 static int __pyx_Coroutine_init(PyObject *module) {
-    __Pyx_SharedModuleStateStruct *shared_mstate = __Pyx_InitAndGetSharedAbiModule(module);
+    __Pyx_SharedModuleStateStruct *shared_mstate = __Pyx_GetSharedModuleStateFromModule(__Pyx_InitAndGetSharedAbiModule(module));
+    if (!shared_mstate) return -1;
 #if CYTHON_USE_TYPE_SPECS
     shared_mstate->__pyx_CoroutineType = __Pyx_FetchCommonTypeFromSpec(module, &__pyx_CoroutineType_spec, NULL);
 #else
@@ -2089,6 +2112,9 @@ static int __pyx_Coroutine_init(PyObject *module) {
 //////////////////// IterableCoroutine.proto ////////////////////
 
 #define __Pyx_IterableCoroutine_USED
+
+#undef __Pyx_Coroutine_CheckUsed
+#define __Pyx_Coroutine_CheckUsed __Pyx_Coroutine_CheckPrecise
 
 #define __Pyx_IterableCoroutine_New(body, code, closure, name, qualname, module_name)  \
     __Pyx__Coroutine_New(__Pyx_GetSharedModuleState()->__pyx_IterableCoroutineType, body, code, closure, name, qualname, module_name)
@@ -2202,7 +2228,8 @@ static PyTypeObject __pyx_IterableCoroutineType_type = {
 
 
 static int __pyx_IterableCoroutine_init(PyObject *module) {
-    __Pyx_SharedModuleStateStruct *shared_mstate = __Pyx_InitAndGetSharedAbiModule(module);
+    __Pyx_SharedModuleStateStruct *shared_mstate = __Pyx_GetSharedModuleStateFromModule(__Pyx_InitAndGetSharedAbiModule(module));
+    if (!shared_mstate) return -1;
 #if CYTHON_USE_TYPE_SPECS
     shared_mstate->__pyx_IterableCoroutineType = __Pyx_FetchCommonTypeFromSpec(module, &__pyx_IterableCoroutineType_spec, NULL);
 #else
@@ -2361,7 +2388,8 @@ static PyTypeObject __pyx_GeneratorType_type = {
 #endif /* CYTHON_USE_TYPE_SPECS */
 
 static int __pyx_Generator_init(PyObject *module) {
-    __Pyx_SharedModuleStateStruct *shared_mstate = __Pyx_InitAndGetSharedAbiModule(module);
+    __Pyx_SharedModuleStateStruct *shared_mstate = __Pyx_GetSharedModuleStateFromModule(__Pyx_InitAndGetSharedAbiModule(module));
+    if (!shared_mstate) return -1;
 #if CYTHON_USE_TYPE_SPECS
     shared_mstate->__pyx_GeneratorType = __Pyx_FetchCommonTypeFromSpec(module, &__pyx_GeneratorType_spec, NULL);
 #else
@@ -2467,14 +2495,23 @@ static int __Pyx_PyCoro_CheckExact(PyObject *o); /* proto */
 
 #if CYTHON_COMPILING_IN_LIMITED_API
 {
-    PyObject *typesModule=NULL;
-    typesModule = PyImport_ImportModule("types");
-    if (typesModule) {
-        __Pyx_SharedModuleStateStruct *shared_mstate = __Pyx_InitAndGetSharedAbiModule(module);
-        if (shared_mstate) {
-            shared_mstate->__Pyx_CachedCoroType = PyObject_GetAttrString(typesModule, "CoroutineType");
+    PyObject *types_module=NULL;
+    PyObject *shared_module = __Pyx_InitAndGetSharedAbiModule(module);
+    if (shared_module) {
+        // Ideally we'd have a critical section around the shared module here, but that isn't possible in
+        // Limited API
+        __Pyx_SharedModuleStateStruct *shared_mstate = __Pyx_GetSharedModuleStateFromModule(shared_module);
+        if (!shared_mstate->__Pyx_CachedCoroType) {
+            types_module = PyImport_ImportModule("types");
+            if (types_module) {
+                // handle the possible race where __Pyx_CachedCoroType might have been initialized as best as possible
+                // given the Limited API
+                Py_XSETREF(shared_mstate->__Pyx_CachedCoroType, PyObject_GetAttrString(typesModule, "CoroutineType"));
+                Py_DECREF(typesModule);
+            }
         }
-        Py_DECREF(typesModule);
+
+        // End hypothetical critical section...
     }
 } // error handling follows
 #endif

@@ -14,6 +14,13 @@ typedef struct {
     int ag_running_async;
 } __pyx_PyAsyncGenObject;
 
+// These are only for optimizations and self arguments
+#define __Pyx_AsyncGen_CheckExact(shared_abi_module, obj) __Pyx_IS_TYPE(obj, __Pyx_GetSharedModuleStateFromModule(shared_abi_module)->__pyx_AsyncGenType)
+#define __pyx_PyAsyncGenASend_CheckExact(shared_abi_module, o) \
+                    __Pyx_IS_TYPE(o, __Pyx_GetSharedModuleStateFromModule(shared_abi_module)->__pyx__PyAsyncGenASendType)
+#define __pyx_PyAsyncGenAThrow_CheckExact(shared_abi_module, o) \
+                    __Pyx_IS_TYPE(o, __Pyx_GetSharedModuleStateFromModule(shared_abi_module)->__pyx__PyAsyncGenAThrowType)
+
 static PyObject *__Pyx_async_gen_anext(PyObject *o);
 static CYTHON_INLINE PyObject *__Pyx_async_gen_asend_iternext(PyObject *o);
 static PyObject *__Pyx_async_gen_asend_send(PyObject *g, PyObject *arg);
@@ -108,6 +115,9 @@ typedef struct __pyx__PyAsyncGenWrappedValue {
     PyObject_HEAD
     PyObject *agw_val;
 } __pyx__PyAsyncGenWrappedValue;
+
+#define __pyx__PyAsyncGenWrappedValue_CheckExact(shared_abi_module, o) \
+                    __Pyx_IS_TYPE(o, __Pyx_GetSharedModuleStateFromModule(shared_abi_module)->__pyx__PyAsyncGenWrappedValueType)
 
 static int
 __Pyx_async_gen_traverse(__pyx_PyAsyncGenObject *gen, visitproc visit, void *arg)
@@ -240,41 +250,6 @@ __Pyx_async_gen_self_method(PyObject *g, PyObject *arg) {
 }
 
 
-static void __Pyx_async_gen_subclass_dealloc(PyObject *self) {
-    // Hmmm... if we don't trust the type of self then can we actually use it to get the shared abi module?
-    assert(__Pyx_AsyncGen_CheckExact(__Pyx_SharedAbiModuleFromSharedType(Py_TYPE(self)), self));
-    Py_CLEAR(((__pyx_PyAsyncGenObject*)self)->ag_finalizer);
-}
-
-static void __Pyx_async_gen_dealloc(PyObject *self) {
-    __Pyx__Coroutine_dealloc(self, __Pyx_async_gen_subclass_dealloc);
-}
-
-#if !(CYTHON_USE_TYPE_SPECS && !CYTHON_USE_TP_FINALIZE)
-static int __Pyx_async_gen_call_finalizer(PyObject *self) {
-    // But if we don't trust the type of self, maybe we can't use it to get the shared ABI module?
-    assert(__Pyx_AsyncGen_CheckExact(__Pyx_SharedAbiModuleFromSharedType(Py_TYPE(self)), self));
-
-    __pyx_PyAsyncGenObject *agen = (__pyx_PyAsyncGenObject*)self;
-    PyObject *finalizer = agen->ag_finalizer;
-    if (finalizer && !agen->ag_closed) {
-        PyObject *res = __Pyx_PyObject_CallOneArg(finalizer, self);
-        if (unlikely(!res)) {
-            PyErr_WriteUnraisable(self);
-        } else {
-            Py_DECREF(res);
-        }
-        return 1;
-    }
-    return 0;
-}
-
-static void __Pyx_async_gen_del(PyObject *self) {
-    __Pyx__Coroutine_del(self, __Pyx_async_gen_call_finalizer);
-}
-#endif
-
-
 static PyGetSetDef __Pyx_async_gen_getsetlist[] = {
     {"__name__", (getter)__Pyx_Coroutine_get_name, (setter)__Pyx_Coroutine_set_name,
      PyDoc_STR("name of the async generator"), 0},
@@ -326,7 +301,7 @@ static PyMethodDef __Pyx_async_gen_methods[] = {
 
 #if CYTHON_USE_TYPE_SPECS
 static PyType_Slot __pyx_AsyncGenType_slots[] = {
-    {Py_tp_dealloc, (void *)__Pyx_async_gen_dealloc},
+    {Py_tp_dealloc, (void *)__Pyx_Coroutine_dealloc},
     {Py_am_aiter, (void *)PyObject_SelfIter},
     {Py_am_anext, (void *)__Pyx_async_gen_anext},
     {Py_tp_repr, (void *)__Pyx_async_gen_repr},
@@ -335,7 +310,7 @@ static PyType_Slot __pyx_AsyncGenType_slots[] = {
     {Py_tp_members, (void *)__Pyx_async_gen_memberlist},
     {Py_tp_getset, (void *)__Pyx_async_gen_getsetlist},
 #if CYTHON_USE_TP_FINALIZE
-    {Py_tp_finalize, (void *)__Pyx_async_gen_del},
+    {Py_tp_finalize, (void *)__Pyx_Coroutine_del},
 #endif
     {0, 0},
 };
@@ -361,7 +336,7 @@ static PyTypeObject __pyx_AsyncGenType_type = {
     "async_generator",                          /* tp_name */
     sizeof(__pyx_PyAsyncGenObject),             /* tp_basicsize */
     0,                                          /* tp_itemsize */
-    (destructor)__Pyx_async_gen_dealloc,        /* tp_dealloc */
+    (destructor)__Pyx_Coroutine_dealloc,        /* tp_dealloc */
     0,                                          /* tp_vectorcall_offset */
     0,                                          /* tp_getattr */
     0,                                          /* tp_setattr */
@@ -406,11 +381,11 @@ static PyTypeObject __pyx_AsyncGenType_type = {
 #if CYTHON_USE_TP_FINALIZE
     0,                                  /*tp_del*/
 #else
-    __Pyx_async_gen_del,                /*tp_del*/
+    __Pyx_Coroutine_del,                /*tp_del*/
 #endif
     0,                                          /* tp_version_tag */
 #if CYTHON_USE_TP_FINALIZE
-    __Pyx_async_gen_del,                        /* tp_finalize */
+    __Pyx_Coroutine_del,                        /* tp_finalize */
 #else
     0,                                          /* tp_finalize */
 #endif
@@ -1184,7 +1159,8 @@ __Pyx_async_gen_athrow_new(__pyx_PyAsyncGenObject *gen, PyObject *args)
 /* ---------- global type sharing ------------ */
 
 static int __pyx_AsyncGen_init(PyObject *module) {
-    __Pyx_SharedModuleStateStruct *shared_mstate = __Pyx_InitAndGetSharedAbiModule(module);
+    __Pyx_SharedModuleStateStruct *shared_mstate = __Pyx_GetSharedModuleStateFromModule(__Pyx_InitAndGetSharedAbiModule(module));
+    if (!shared_mstate) return -1;
 #if CYTHON_USE_TYPE_SPECS
     shared_mstate->__pyx_AsyncGenType = __Pyx_FetchCommonTypeFromSpec(module, &__pyx_AsyncGenType_spec, NULL);
 #else

@@ -461,9 +461,11 @@ static PyTypeObject *__Pyx_FetchCommonTypeFromSpec(PyObject *module, PyType_Spec
 #define __Pyx_SharedAbiModule_USED
 #endif
 
-static __Pyx_SharedModuleStateStruct* __Pyx_InitAndGetSharedAbiModule(PyObject *this_module); /* proto */
+// Returns a borrowed reference
+static PyObject* __Pyx_InitAndGetSharedAbiModule(PyObject *this_module); /* proto */
 // Must be called after the shared abi module is initialized in our module state
-#define __Pyx_GetSharedModuleStateFromModule(mod) ((__Pyx_SharedModuleStateStruct*)PyModule_GetState(mod))
+#define __Pyx_GetSharedModuleStateFromModule(mod) ((__Pyx_SharedModuleStateStruct*)__Pyx__GetSharedModuleStateFromModule(mod))
+static CYTHON_INLINE void* __Pyx__GetSharedModuleStateFromModule(PyObject *mod); /* proto */
 #define __Pyx_GetSharedModuleState() __Pyx_GetSharedModuleStateFromModule(NAMED_CGLOBAL(shared_abi_module_cname))
 
 static CYTHON_INLINE PyObject *__Pyx_SharedAbiModuleFromSharedType(PyTypeObject *tp);
@@ -471,13 +473,18 @@ static CYTHON_INLINE PyObject *__Pyx_SharedAbiModuleFromSharedType(PyTypeObject 
 /////////////////////// InitAndGetSharedAbiModule ///////////////////////
 //@substitute: naming
 
-static __Pyx_SharedModuleStateStruct* __Pyx_InitAndGetSharedAbiModule(PyObject *this_module) {
+static CYTHON_INLINE void* __Pyx__GetSharedModuleStateFromModule(PyObject *mod) {
+    if (!mod) return NULL;
+    return PyModule_GetState(mod);
+}
+
+static PyObject* __Pyx_InitAndGetSharedAbiModule(PyObject *this_module) {
     $modulestatetype_cname *this_mstate = __Pyx_PyModule_GetState(this_module);
     if (!this_mstate->$shared_abi_module_cname) {
         this_mstate->$shared_abi_module_cname = __Pyx_FetchSharedCythonABIModule();
         if (!this_mstate->$shared_abi_module_cname) return NULL;
     }
-    return (__Pyx_SharedModuleStateStruct*)PyModule_GetState(this_mstate->$shared_abi_module_cname);
+    return this_mstate->$shared_abi_module_cname;
 }
 
 static CYTHON_INLINE PyObject *__Pyx_SharedAbiModuleFromSharedType(PyTypeObject *tp) {
