@@ -270,6 +270,7 @@ cdef extern from "<string>" namespace "std" nogil:
         string& replace(iterator i1, iterator i2, const char* s, size_t n) except +  # (10)
         string& replace(iterator i1, iterator i2, const char* s) except +  # (11)
         string& replace(iterator i1, iterator i2, size_t n, char c) except +  # (12)
+        string& replace(iterator i1, iterator i2, iterator j1, iterator j2) except +  # (13)
 
         size_t copy(char* s, size_t len, size_t pos) except +
         size_t copy(char* s, size_t len) except +
