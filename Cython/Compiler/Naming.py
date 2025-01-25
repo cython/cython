@@ -205,6 +205,17 @@ used_types_and_macros = [
     ('__pyx_CoroutineType', '__Pyx_Coroutine_USED'),
 ]
 
+shared_names_and_types = [
+    ("cython_function_or_method", cyfunction_type_cname),
+    ("fused_cython_function", fusedfunction_type_cname),
+    ("generator", '__pyx_GeneratorType'),
+    ("iterable_coroutine", '__pyx_IterableCoroutineType'),
+    ("coroutine_wrapper", '__pyx_CoroutineAwaitType'),
+    ("coroutine", '__pyx_CoroutineType'),
+    ("async_generator", '__pyx_AsyncGeneratorType'),
+    ("async_generator_asend", "__pyx_AsyncGeneratorASendType"),
+]
+
 
 iso_c23_keywords = frozenset((
     'alignas',  # (C23)

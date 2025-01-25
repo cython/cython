@@ -3,21 +3,58 @@
 static PyObject *__Pyx_FetchSharedCythonABIModule(void);
 
 /////////////// FetchSharedCythonModule ////////////
-// @requires::ModuleSetupCode.c:CriticalSections
+//@requires: ModuleSetupCode.c::CriticalSections
+//@substitute: tempita
+
+
+{{py: from Cython.Compiler.Naming import shared_names_and_types}}
 
 typedef struct {
-
+    // Note that we don't attempt to work out if these types are used. Because they're shared
+    // no one Cython module can know.
+    {{for _, type in shared_names_and_types}}
+    PyObject *{{type}};
+    {{endfor}}
 } __Pyx_SharedModuleStateStruct;
 
 static int __Pyx_TraverseSharedModuleState(PyObject *self, visitproc visit, void *arg) {
+    __Pyx_SharedModuleStateStruct *mstate = (__Pyx_SharedModuleStateStruct*)PyModule_GetState(self);
+    if (unlikely(mstate)) {
+        return PyErr_Occurred() ? -1 : 0;
+    }
+    {{for _, type in shared_names_and_types}}
+    Py_VISIT(mstate->{{type}});
+    {{endfor}}
     return 0;
 }
 
 static int __Pyx_ClearSharedModuleState(PyObject *self) {
+    __Pyx_SharedModuleStateStruct *mstate = (__Pyx_SharedModuleStateStruct*)PyModule_GetState(self);
+    if (unlikely(mstate)) {
+        return PyErr_Occurred() ? -1 : 0;
+    }
+    {{for _, type in shared_names_and_types}}
+    Py_CLEAR(mstate->{{type}});
+    {{endfor}}
     return 0;
 }
 
 static void __Pyx_FreeSharedModuleState(void *self) {
+    __Pyx_ClearSharedModuleState((PyObject*)self);
+}
+
+static PyObject *__Pyx_SharedModuleGetAttr(PyObject *self, PyObject *arg) {
+    int cmp_result;
+    // TODO - in principle this linear search could become a binary search, but that doesn't seem worthwhile given the short list
+    {{for name, cname in shared_names_and_types}}
+    cmp_result = PyUnicode_CompareWithASCIIString(arg, "{{name}}");
+    if (cmp_result == 0) {
+        return ((__Pyx_SharedModuleStateStruct*)PyModule_GetState(self))->{{cname}};
+    }
+    {{endfor}}
+    
+    PyErr_SetObject(PyExc_AttributeError, arg);
+    return NULL;
 }
 
 static PyModuleDef_Slot __Pyx_SharedModuleSlots[] = {
@@ -30,6 +67,12 @@ static PyModuleDef_Slot __Pyx_SharedModuleSlots[] = {
 #if __PYX_LIMITED_VERSION_HEX >= 0x030d0000
     {Py_mod_gil, Py_MOD_GIL_NOT_USED},
 #endif
+    {0, 0}
+};
+
+PyMethodDef __Pyx_SharedModuleMethods[] = {
+    {"__getattr__", &__Pyx_SharedModuleGetAttr, METH_O, NULL},
+    {0, 0, 0, 0}
 };
 
 static PyModuleDef __Pyx_SharedModuleDef = {
@@ -37,7 +80,7 @@ static PyModuleDef __Pyx_SharedModuleDef = {
     __PYX_ABI_MODULE_NAME, /* m_doc */
     NULL,  /* m_doc */
     sizeof(__Pyx_SharedModuleStateStruct), /* m_size */
-    NULL, /* m_methods */
+    __Pyx_SharedModuleMethods, /* m_methods */
     __Pyx_SharedModuleSlots, /* m_slots */
     __Pyx_TraverseSharedModuleState, /* m_traverse */
     __Pyx_ClearSharedModuleState, /* m_clear */
