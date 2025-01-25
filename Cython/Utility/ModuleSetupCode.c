@@ -1076,14 +1076,18 @@ static CYTHON_INLINE PyObject * __Pyx_PyDict_GetItemStrWithError(PyObject *dict,
 
 #if CYTHON_AVOID_THREAD_UNSAFE_BORROWED_REFS && PY_VERSION_HEX >= 0x030d00b1
 #define __Pyx_PyList_GetItemRef(o, i) PyList_GetItemRef(o, i)
-#define __Pyx_PyDict_GetItemRef(dict, key, result) PyDict_GetItemRef(dict, key, result)
-#elif !CYTHON_AVOID_BORROWED_REFS
-
-#if CYTHON_ASSUME_SAFE_MACROS
+#elif !CYTHON_AVOID_BORROWED_REFS && CYTHON_ASSUME_SAFE_MACROS
 #define __Pyx_PyList_GetItemRef(o, i) __Pyx_NewRef(PyList_GET_ITEM(o, i))
 #else
 #define __Pyx_PyList_GetItemRef(o, i) PySequence_GetItem(o, i)
 #endif
+
+#if __PYX_LIMITED_VERSION_HEX >= 0x030d0000
+#define __Pyx_PyDict_GetItemRef(dict, key, result) PyDict_GetItemRef(dict, key, result)
+#define __Pyx_PyDict_GetItemStringRef(dict, key, result) PyDict_GetItemStringRef(dict, key, result)
+#else
+
+#if !CYTHON_AVOID_BORROWED_REFS
 
 static CYTHON_INLINE int __Pyx_PyDict_GetItemRef(PyObject *dict, PyObject *key, PyObject **result) {
   *result = PyDict_GetItem(dict, key);
@@ -1093,8 +1097,9 @@ static CYTHON_INLINE int __Pyx_PyDict_GetItemRef(PyObject *dict, PyObject *key, 
   Py_INCREF(*result);
   return 1;
 }
+
 #else
-#define __Pyx_PyList_GetItemRef(o, i) PySequence_GetItem(o, i)
+
 static CYTHON_INLINE int __Pyx_PyDict_GetItemRef(PyObject *dict, PyObject *key, PyObject **result) {
   *result = PyObject_GetItem(dict, key);
   if (PyErr_Occurred()) {
@@ -1103,6 +1108,19 @@ static CYTHON_INLINE int __Pyx_PyDict_GetItemRef(PyObject *dict, PyObject *key, 
     return 0;
   }
   return 1;
+}
+
+#endif // CYTHON_AVOID_BORROWED_REFS
+
+static CYTHON_INLINE int __Pyx_PyDict_GetItemStringRef(PyObject *dict, const char *key, PyObject **result) {
+  PyObject *py_key = PyUnicode_FromString(key);
+  if (!py_key) {  // unlikely not defined here
+    PyErr_Clear();
+    return 0;
+  }
+  int get_item_dict_result = __Pyx_PyDict_GetItemRef(dict, py_key, result);
+  Py_DECREF(py_key);
+  return get_item_dict_result;
 }
 #endif
 
