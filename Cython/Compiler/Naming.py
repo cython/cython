@@ -212,9 +212,14 @@ shared_names_and_types = [
     ("iterable_coroutine", '__pyx_IterableCoroutineType'),
     ("coroutine_wrapper", '__pyx_CoroutineAwaitType'),
     ("coroutine", '__pyx_CoroutineType'),
-    ("async_generator", '__pyx_AsyncGeneratorType'),
-    ("async_generator_asend", "__pyx_AsyncGeneratorASendType"),
+    ("async_generator", '__pyx_AsyncGenType'),
+    ("async_generator_asend", "__pyx__PyAsyncGenASendType"),
+    ("async_generator_athrow", "__pyx__PyAsyncGenAThrowType"),
+    ("async_generator_wrapped_value", "__pyx__PyAsyncGenWrappedValueType"),
 ]
+
+shared_abi_module_used = '__Pyx_SharedAbiModule_USED'
+shared_abi_module_cname = pyrex_prefix + "SharedAbiModule"
 
 
 iso_c23_keywords = frozenset((

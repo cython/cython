@@ -1,5 +1,40 @@
 /////////////// FetchSharedCythonModule.proto ///////
 
+{{py: from Cython.Compiler.Naming import shared_names_and_types}}
+
+#if CYTHON_USE_FREELISTS && !defined(_PyAsyncGen_MAXFREELIST)
+#define _PyAsyncGen_MAXFREELIST 80
+#endif
+
+typedef struct {
+    // Note that we don't attempt to work out if these types are used. Because they're shared
+    // no one Cython module can know.
+    {{for _, type in shared_names_and_types}}
+    PyTypeObject *{{type}};
+    {{endfor}}
+
+    // Cached Python types - stored here because they're used by the shared types and so they
+    // need to be associated with the shared types
+    #if CYTHON_COMPILING_IN_LIMITED_API
+    PyObject *__Pyx_CachedCoroType;
+    #endif
+
+    
+    // Freelists boost performance 6-10%; they also reduce memory
+    // fragmentation, as _PyAsyncGenWrappedValue and PyAsyncGenASend
+    // are short-living objects that are instantiated for every
+    // __anext__ call.
+    // Don't put stuff after here, because  otherwise we depend on the same definition
+    // of _PyAsyncGen_MAXFREELIST being used every time it's compiled.
+    #if CYTHON_USE_FREELISTS
+    PyObject *__Pyx_ag_value_freelist[_PyAsyncGen_MAXFREELIST];
+    int __Pyx_ag_value_freelist_free;
+
+    PyObject *__Pyx_ag_asend_freelist[_PyAsyncGen_MAXFREELIST];
+    int __Pyx_ag_asend_freelist_free;
+    #endif
+} __Pyx_SharedModuleStateStruct;
+
 static PyObject *__Pyx_FetchSharedCythonABIModule(void);
 static CYTHON_INLINE PyTypeObject **__Pyx_SharedCythonABIModule_FindTypePointer(PyObject *mod, const char* name);
 
@@ -10,22 +45,18 @@ static CYTHON_INLINE PyTypeObject **__Pyx_SharedCythonABIModule_FindTypePointer(
 
 {{py: from Cython.Compiler.Naming import shared_names_and_types}}
 
-typedef struct {
-    // Note that we don't attempt to work out if these types are used. Because they're shared
-    // no one Cython module can know.
-    {{for _, type in shared_names_and_types}}
-    PyObject *{{type}};
-    {{endfor}}
-} __Pyx_SharedModuleStateStruct;
-
 static int __Pyx_TraverseSharedModuleState(PyObject *self, visitproc visit, void *arg) {
     __Pyx_SharedModuleStateStruct *mstate = (__Pyx_SharedModuleStateStruct*)PyModule_GetState(self);
     if (unlikely(mstate)) {
         return PyErr_Occurred() ? -1 : 0;
     }
     {{for _, type in shared_names_and_types}}
-    Py_VISIT(mstate->{{type}});
+    Py_VISIT((PyObject*)mstate->{{type}});
     {{endfor}}
+
+    #if CYTHON_COMPILING_IN_LIMITED_API
+    Py_VISIT(mstate->__Pyx_CachedCoroType);
+    #endif
     return 0;
 }
 
@@ -37,11 +68,43 @@ static int __Pyx_ClearSharedModuleState(PyObject *self) {
     {{for _, type in shared_names_and_types}}
     Py_CLEAR(mstate->{{type}});
     {{endfor}}
+
+    #if CYTHON_COMPILING_IN_LIMITED_API
+    Py_CLEAR(mstate->__Pyx_CachedCoroType);
+    #endif
     return 0;
+}
+
+static int
+__Pyx_PyAsyncGen_ClearFreeLists(__Pyx_SharedModuleStateStruct *mstate)
+{
+    if (!mstate) return 0;
+
+    #if CYTHON_USE_FREELISTS
+    int ret = mstate->__Pyx_ag_value_freelist_free + mstate->__Pyx_ag_asend_freelist_free;
+
+    while (mstate->__Pyx_ag_value_freelist_free) {
+        PyObject *o;
+        o = mstate->__Pyx_ag_value_freelist[--(mstate->__Pyx_ag_value_freelist_free)];
+        __Pyx_PyHeapTypeObject_GC_Del(o);
+    }
+
+    while (mstate->__Pyx_ag_asend_freelist_free) {
+        PyObject *o;
+        o = mstate->__Pyx_ag_asend_freelist[--(mstate->__Pyx_ag_asend_freelist_free)];
+        __Pyx_PyHeapTypeObject_GC_Del(o);
+    }
+
+    return ret;
+    #else
+    return 0;
+    #endif
 }
 
 static void __Pyx_FreeSharedModuleState(void *self) {
     __Pyx_ClearSharedModuleState((PyObject*)self);
+    // Free lists should be freed but not cleared
+    __Pyx_PyAsyncGen_ClearFreeLists((__Pyx_SharedModuleStateStruct*)PyModule_GetState((PyObject*)self));
 }
 
 static PyObject *__Pyx_SharedModuleGetAttr(PyObject *self, PyObject *arg) {
@@ -50,7 +113,7 @@ static PyObject *__Pyx_SharedModuleGetAttr(PyObject *self, PyObject *arg) {
     {{for name, cname in shared_names_and_types}}
     cmp_result = PyUnicode_CompareWithASCIIString(arg, "{{name}}");
     if (cmp_result == 0) {
-        PyObject *obj = ((__Pyx_SharedModuleStateStruct*)PyModule_GetState(self))->{{cname}};
+        PyObject *obj = (PyObject*)((__Pyx_SharedModuleStateStruct*)PyModule_GetState(self))->{{cname}};
         if (!obj) goto not_found;  // quite likely - we just haven't set it from a Cython module
         return obj;
     }
@@ -132,6 +195,7 @@ static PyObject *__Pyx_FetchSharedCythonABIModule(void) {
     PyObject *abi_module_name = PyUnicode_FromString(__PYX_ABI_MODULE_NAME);
     if (unlikely(!abi_module_name)) return NULL;
     PyObject *module = NULL;
+    PyObject *dummy_spec = NULL;
     int find_module_result = __Pyx_PyDict_GetItemRef(module_dict, abi_module_name, &module);
     if (unlikely(find_module_result == -1)) goto cleanup;
     if (find_module_result == 1) goto cleanup; // Done - good
@@ -139,7 +203,7 @@ static PyObject *__Pyx_FetchSharedCythonABIModule(void) {
     // otherwise module doesn't yet exist.
     PyModuleDef_Init(&__Pyx_SharedModuleDef);
 
-    PyObject *dummy_spec = NULL;
+    
     {
         // Create a dummy spec object (Python does this internally so it's OK)
         PyObject *namespace_dict = PyDict_New();
@@ -197,7 +261,7 @@ static PyObject *__Pyx_FetchSharedCythonABIModule(void) {
 static CYTHON_INLINE PyTypeObject **__Pyx_SharedCythonABIModule_FindTypePointer(PyObject *mod, const char* name) {
     {{for name, cname in shared_names_and_types}}
     if (strcmp("{{name}}", name) == 0) {
-        return (PyTypeObject**)&((__Pyx_SharedModuleStateStruct*)PyModule_GetState(mod))->{{cname}};
+        return &((__Pyx_SharedModuleStateStruct*)PyModule_GetState(mod))->{{cname}};
     }
     {{endfor}}
     // Really a logic error in Cython if we get here
@@ -206,6 +270,11 @@ static CYTHON_INLINE PyTypeObject **__Pyx_SharedCythonABIModule_FindTypePointer(
 }
 
 /////////////// FetchCommonType.proto ///////////////
+
+
+#ifndef __Pyx_SharedAbiModule_USED
+#define __Pyx_SharedAbiModule_USED
+#endif
 
 #if !CYTHON_USE_TYPE_SPECS
 static PyTypeObject* __Pyx_FetchCommonType(PyTypeObject* type);
@@ -251,8 +320,10 @@ static PyTypeObject* __Pyx__FetchCommonType(PyTypeObject* type, PyObject* abi_mo
     abi_module_entry = __Pyx_SharedCythonABIModule_FindTypePointer(abi_module, object_name);
     if (unlikely(!abi_module_entry)) return NULL;
 
-    cached_type = (PyTypeObject*) *abi_module_entry;
+    cached_type = *abi_module_entry;
     if (cached_type) {
+        Py_INCREF(cached_type);
+      check_type:
         if (__Pyx_VerifyCachedType(
               (PyObject *)cached_type,
               object_name,
@@ -274,6 +345,7 @@ static PyTypeObject* __Pyx__FetchCommonType(PyTypeObject* type, PyObject* abi_mo
     } else {
         Py_INCREF(*abi_module_entry);
         cached_type = *abi_module_entry;
+        goto check_type;
         // type is static though, so don't decref it
     }
 
@@ -313,8 +385,10 @@ static PyTypeObject *__Pyx__FetchCommonTypeFromSpec(PyObject *module, PyType_Spe
     abi_module_entry = __Pyx_SharedCythonABIModule_FindTypePointer(abi_module, object_name);
     if (unlikely(!abi_module_entry)) return NULL;
 
-    cached_type = *abi_module_entry;
+    cached_type = (PyObject*)*abi_module_entry;
     if (cached_type) {
+        Py_INCREF(cached_type);
+      check_type:
         Py_ssize_t basicsize;
 #if CYTHON_COMPILING_IN_LIMITED_API
         PyObject *py_basicsize;
@@ -346,11 +420,12 @@ static PyTypeObject *__Pyx__FetchCommonTypeFromSpec(PyObject *module, PyType_Spe
     // Note potential race here to set the type on the ABI module
     if (likely(!*abi_module_entry)) {
         Py_INCREF(abi_module_entry);
-        *abi_module_entry = cached_type;
+        *abi_module_entry = (PyTypeObject*)cached_type;
     } else {
         Py_DECREF(cached_type);
         Py_INCREF(*abi_module_entry);
-        cached_type = *abi_module_entry;
+        cached_type = (PyObject*)*abi_module_entry;
+        goto check_type;
     }
 
 done:
@@ -379,3 +454,50 @@ static PyTypeObject *__Pyx_FetchCommonTypeFromSpec(PyObject *module, PyType_Spec
 }
 #endif
 
+/////////////////////// InitAndGetSharedAbiModule.proto ///////////////////////
+//@requires:FetchSharedCythonModule
+
+#ifndef __Pyx_SharedAbiModule_USED
+#define __Pyx_SharedAbiModule_USED
+#endif
+
+static __Pyx_SharedModuleStateStruct* __Pyx_InitAndGetSharedAbiModule(PyObject *this_module); /* proto */
+// Must be called after the shared abi module is initialized in our module state
+#define __Pyx_GetSharedModuleStateFromModule(mod) ((__Pyx_SharedModuleStateStruct*)PyModule_GetState(mod))
+#define __Pyx_GetSharedModuleState() __Pyx_GetSharedModuleStateFromModule(NAMED_CGLOBAL(shared_abi_module_cname))
+
+static CYTHON_INLINE PyObject *__Pyx_SharedAbiModuleFromSharedType(PyTypeObject *tp);
+
+/////////////////////// InitAndGetSharedAbiModule ///////////////////////
+//@substitute: naming
+
+static __Pyx_SharedModuleStateStruct* __Pyx_InitAndGetSharedAbiModule(PyObject *this_module) {
+    $modulestatetype_cname *this_mstate = __Pyx_PyModule_GetState(this_module);
+    if (!this_mstate->$shared_abi_module_cname) {
+        this_mstate->$shared_abi_module_cname = __Pyx_FetchSharedCythonABIModule();
+        if (!this_mstate->$shared_abi_module_cname) return NULL;
+    }
+    return (__Pyx_SharedModuleStateStruct*)PyModule_GetState(this_mstate->$shared_abi_module_cname);
+}
+
+static CYTHON_INLINE PyObject *__Pyx_SharedAbiModuleFromSharedType(PyTypeObject *tp) {
+#if CYTHON_USE_TYPE_SPECS && (!CYTHON_COMPILING_IN_LIMITED_API || __PYX_LIMITED_VERSION_HEX >= 0x030A0000)
+    PyTypeObject *base = tp;
+
+    // All of our shared types have a shared time at the top of our inheritance heirarchy
+    while ((1)) {
+        PyTypeObject *new_base = __Pyx_PyType_GetSlot(base, tp_base, PyTypeObject*);
+        if (likely(!new_base)) {
+            break;
+        }
+        base = new_base;
+    }
+    return PyType_GetModule(base);
+#else
+    // We're either using static types, or we're using a Limited API version without PyType_GetModule.
+    // In this case getting the shared module from an arbitrary Cython module is the best that we can do.
+    // This only becomes dodgy in the unlikely event that this arbitrary module ever gets unloaded.
+    CYTHON_UNUSED_VAR(tp);
+    return NAMED_CGLOBAL(shared_abi_module_cname);
+#endif
+}

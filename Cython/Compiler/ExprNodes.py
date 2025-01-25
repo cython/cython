@@ -3433,8 +3433,9 @@ class AsyncIteratorNode(ScopedExprNode):
 
     def generate_result_code(self, code):
         code.globalstate.use_utility_code(UtilityCode.load_cached("AsyncIter", "Coroutine.c"))
-        code.putln("%s = __Pyx_Coroutine_GetAsyncIter(%s); %s" % (
+        code.putln("%s = __Pyx_Coroutine_GetAsyncIter(%s, %s); %s" % (
             self.result(),
+            code.name_in_module_state(Naming.shared_abi_module_cname),
             self.sequence.py_result(),
             code.error_goto_if_null(self.result(), self.pos)))
         self.generate_gotref(code)
@@ -3466,8 +3467,9 @@ class AsyncNextNode(AtomicExprNode):
 
     def generate_result_code(self, code):
         code.globalstate.use_utility_code(UtilityCode.load_cached("AsyncIter", "Coroutine.c"))
-        code.putln("%s = __Pyx_Coroutine_AsyncIterNext(%s); %s" % (
+        code.putln("%s = __Pyx_Coroutine_AsyncIterNext(%s, %s); %s" % (
             self.result(),
+            code.name_in_module_state(Naming.shared_abi_module_cname),
             self.iterator.py_result(),
             code.error_goto_if_null(self.result(), self.pos)))
         self.generate_gotref(code)
