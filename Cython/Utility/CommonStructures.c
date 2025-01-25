@@ -1,11 +1,12 @@
 /////////////// FetchSharedCythonModule.proto ///////
 
 static PyObject *__Pyx_FetchSharedCythonABIModule(void);
+static CYTHON_INLINE PyTypeObject **__Pyx_SharedCythonABIModule_FindTypePointer(PyObject *mod, const char* name);
 
 /////////////// FetchSharedCythonModule ////////////
 //@requires: ModuleSetupCode.c::CriticalSections
+//@requires: StringTools.c::IncludeStringH
 //@substitute: tempita
-
 
 {{py: from Cython.Compiler.Naming import shared_names_and_types}}
 
@@ -49,12 +50,49 @@ static PyObject *__Pyx_SharedModuleGetAttr(PyObject *self, PyObject *arg) {
     {{for name, cname in shared_names_and_types}}
     cmp_result = PyUnicode_CompareWithASCIIString(arg, "{{name}}");
     if (cmp_result == 0) {
-        return ((__Pyx_SharedModuleStateStruct*)PyModule_GetState(self))->{{cname}};
+        PyObject *obj = ((__Pyx_SharedModuleStateStruct*)PyModule_GetState(self))->{{cname}};
+        if (!obj) goto not_found;  // quite likely - we just haven't set it from a Cython module
+        return obj;
     }
     {{endfor}}
     
+  not_found:
     PyErr_SetObject(PyExc_AttributeError, arg);
     return NULL;
+}
+
+// Called inside a critical section
+static PyObject *__Pyx__SharedModuleDir(PyObject *self) {
+    __Pyx_SharedModuleStateStruct* mstate = (__Pyx_SharedModuleStateStruct*)PyModule_GetState(self);
+
+    PyObject *module_dict = PyModule_GetDict(self);
+    if (unlikely(!module_dict)) return NULL;
+    PyObject *module_dict_keys = PyDict_Keys(module_dict);
+    if (unlikely(!module_dict_keys)) return NULL;
+    
+    {{for name, cname in shared_names_and_types}}
+    if (mstate->{{cname}}) {
+        PyObject *unicode_name = PyUnicode_FromStringAndSize("{{name}}", {{len(name)}});
+        if (unlikely(!unicode_name)) goto bad;
+        int append_result = PyList_Append(module_dict_keys, unicode_name);
+        Py_DECREF(unicode_name);
+        if (unlikely(append_result)) goto bad;
+    }
+    {{endfor}}
+
+    return module_dict_keys;
+
+  bad:
+    Py_DECREF(module_dict_keys);
+    return NULL;
+}
+
+static PyObject *__Pyx_SharedModuleDir(PyObject *self, PyObject *) {
+    PyObject *result;
+    __Pyx_BEGIN_CRITICAL_SECTION(self);
+    result = __Pyx__SharedModuleDir(self);
+    __Pyx_END_CRITICAL_SECTION();
+    return result;
 }
 
 static PyModuleDef_Slot __Pyx_SharedModuleSlots[] = {
@@ -72,6 +110,7 @@ static PyModuleDef_Slot __Pyx_SharedModuleSlots[] = {
 
 PyMethodDef __Pyx_SharedModuleMethods[] = {
     {"__getattr__", &__Pyx_SharedModuleGetAttr, METH_O, NULL},
+    {"__dir__", &__Pyx_SharedModuleDir, METH_NOARGS, NULL},
     {0, 0, 0, 0}
 };
 
@@ -155,6 +194,17 @@ static PyObject *__Pyx_FetchSharedCythonABIModule(void) {
     return module;
 }
 
+static CYTHON_INLINE PyTypeObject **__Pyx_SharedCythonABIModule_FindTypePointer(PyObject *mod, const char* name) {
+    {{for name, cname in shared_names_and_types}}
+    if (strcmp("{{name}}", name) == 0) {
+        return (PyTypeObject**)&((__Pyx_SharedModuleStateStruct*)PyModule_GetState(mod))->{{cname}};
+    }
+    {{endfor}}
+    // Really a logic error in Cython if we get here
+    PyErr_Format(PyExc_SystemError, "Failed to find '%s' in Cython shared module", name);
+    return NULL;
+}
+
 /////////////// FetchCommonType.proto ///////////////
 
 #if !CYTHON_USE_TYPE_SPECS
@@ -166,6 +216,7 @@ static PyTypeObject* __Pyx_FetchCommonTypeFromSpec(PyObject *module, PyType_Spec
 /////////////// FetchCommonType ///////////////
 //@requires:ExtensionTypes.c::FixUpExtensionType
 //@requires: FetchSharedCythonModule
+//@requires: ModuleSetupCode.c::CriticalSections
 //@requires:StringTools.c::IncludeStringH
 
 static int __Pyx_VerifyCachedType(PyObject *cached_type,
@@ -187,17 +238,20 @@ static int __Pyx_VerifyCachedType(PyObject *cached_type,
 }
 
 #if !CYTHON_USE_TYPE_SPECS
-static PyTypeObject* __Pyx_FetchCommonType(PyTypeObject* type) {
-    PyObject* abi_module;
+// Called with a critical section around abi_module
+static PyTypeObject* __Pyx__FetchCommonType(PyTypeObject* type, PyObject* abi_module) {
     const char* object_name;
     PyTypeObject *cached_type = NULL;
+    PyTypeObject **abi_module_entry;
 
-    abi_module = __Pyx_FetchSharedCythonABIModule();
-    if (!abi_module) return NULL;
     // get the final part of the object name (after the last dot)
     object_name = strrchr(type->tp_name, '.');
     object_name = object_name ? object_name+1 : type->tp_name;
-    cached_type = (PyTypeObject*) PyObject_GetAttrString(abi_module, object_name);
+
+    abi_module_entry = __Pyx_SharedCythonABIModule_FindTypePointer(abi_module, object_name);
+    if (unlikely(!abi_module_entry)) return NULL;
+
+    cached_type = (PyTypeObject*) *abi_module_entry;
     if (cached_type) {
         if (__Pyx_VerifyCachedType(
               (PyObject *)cached_type,
@@ -208,14 +262,20 @@ static PyTypeObject* __Pyx_FetchCommonType(PyTypeObject* type) {
         }
         goto done;
     }
-
-    if (!PyErr_ExceptionMatches(PyExc_AttributeError)) goto bad;
-    PyErr_Clear();
+    
     if (PyType_Ready(type) < 0) goto bad;
-    if (PyObject_SetAttrString(abi_module, object_name, (PyObject *)type) < 0)
-        goto bad;
-    Py_INCREF(type);
-    cached_type = type;
+
+    // Note potential race here to set the cached type
+    if (likely(!*abi_module_entry)) {
+        Py_INCREF(type);
+        *abi_module_entry = type;
+        Py_INCREF(type); 
+        cached_type = type;
+    } else {
+        Py_INCREF(*abi_module_entry);
+        cached_type = *abi_module_entry;
+        // type is static though, so don't decref it
+    }
 
 done:
     Py_DECREF(abi_module);
@@ -227,18 +287,33 @@ bad:
     cached_type = NULL;
     goto done;
 }
+
+static PyTypeObject* __Pyx_FetchCommonType(PyTypeObject* type) {
+    PyObject* abi_module;
+    PyTypeObject* result;
+
+    abi_module = __Pyx_FetchSharedCythonABIModule();
+    if (!abi_module) return NULL;    
+    __Pyx_BEGIN_CRITICAL_SECTION(abi_module)
+    result = __Pyx__FetchCommonType(type, abi_module);
+    __Pyx_END_CRITICAL_SECTION()
+    return result;    
+}
 #else
 
-static PyTypeObject *__Pyx_FetchCommonTypeFromSpec(PyObject *module, PyType_Spec *spec, PyObject *bases) {
-    PyObject *abi_module, *cached_type = NULL;
+// Called with a critical section around abi_module
+static PyTypeObject *__Pyx__FetchCommonTypeFromSpec(PyObject *module, PyType_Spec *spec, PyObject *bases, PyObject* abi_module) {
+    PyObject *cached_type = NULL;
+    PyTypeObject **abi_module_entry;
+
     // get the final part of the object name (after the last dot)
     const char* object_name = strrchr(spec->name, '.');
     object_name = object_name ? object_name+1 : spec->name;
 
-    abi_module = __Pyx_FetchSharedCythonABIModule();
-    if (!abi_module) return NULL;
+    abi_module_entry = __Pyx_SharedCythonABIModule_FindTypePointer(abi_module, object_name);
+    if (unlikely(!abi_module_entry)) return NULL;
 
-    cached_type = PyObject_GetAttrString(abi_module, object_name);
+    cached_type = *abi_module_entry;
     if (cached_type) {
         Py_ssize_t basicsize;
 #if CYTHON_COMPILING_IN_LIMITED_API
@@ -262,14 +337,21 @@ static PyTypeObject *__Pyx_FetchCommonTypeFromSpec(PyObject *module, PyType_Spec
         goto done;
     }
 
-    if (!PyErr_ExceptionMatches(PyExc_AttributeError)) goto bad;
-    PyErr_Clear();
     // We pass the ABI module reference to avoid keeping the user module alive by foreign type usages.
     CYTHON_UNUSED_VAR(module);
     cached_type = __Pyx_PyType_FromModuleAndSpec(abi_module, spec, bases);
     if (unlikely(!cached_type)) goto bad;
     if (unlikely(__Pyx_fix_up_extension_type_from_spec(spec, (PyTypeObject *) cached_type) < 0)) goto bad;
-    if (PyObject_SetAttrString(abi_module, object_name, cached_type) < 0) goto bad;
+
+    // Note potential race here to set the type on the ABI module
+    if (likely(!*abi_module_entry)) {
+        Py_INCREF(abi_module_entry);
+        *abi_module_entry = cached_type;
+    } else {
+        Py_DECREF(cached_type);
+        Py_INCREF(*abi_module_entry);
+        cached_type = *abi_module_entry;
+    }
 
 done:
     Py_DECREF(abi_module);
@@ -281,6 +363,19 @@ bad:
     Py_XDECREF(cached_type);
     cached_type = NULL;
     goto done;
+}
+
+static PyTypeObject *__Pyx_FetchCommonTypeFromSpec(PyObject *module, PyType_Spec *spec, PyObject *bases) {
+    PyObject *abi_module;
+    PyTypeObject *result;
+
+    abi_module = __Pyx_FetchSharedCythonABIModule();
+    if (!abi_module) return NULL;
+
+    __Pyx_BEGIN_CRITICAL_SECTION(abi_module)
+    result = __Pyx__FetchCommonTypeFromSpec(module, spec, bases, abi_module);
+    __Pyx_END_CRITICAL_SECTION()
+    return result;
 }
 #endif
 
