@@ -447,9 +447,11 @@ __Pyx_async_gen_asend_dealloc(__pyx_PyAsyncGenASend *o)
     Py_CLEAR(o->ags_gen);
     Py_CLEAR(o->ags_sendval);
     #if CYTHON_USE_FREELISTS
-    if (likely(__Pyx_GetSharedModuleState()->__Pyx_ag_asend_freelist_free < _PyAsyncGen_MAXFREELIST)) {
-        assert(__pyx_PyAsyncGenASend_CheckExact(__Pyx_SharedAbiModuleFromSharedType(Py_TYPE(o)), o));
-        __Pyx_GetSharedModuleState()->__Pyx_ag_asend_freelist[(__Pyx_GetSharedModuleState()->__Pyx_ag_asend_freelist_free)++] = (PyObject*)o;
+    PyObject *shared_module = __Pyx_SharedAbiModuleFromSharedType(Py_TYPE(o));
+    __Pyx_SharedModuleStateStruct *shared_mstate = __Pyx_GetSharedModuleStateFromModule(shared_module);
+    if (likely(shared_mstate->__Pyx_ag_asend_freelist_free < _PyAsyncGen_MAXFREELIST)) {
+        assert(__pyx_PyAsyncGenASend_CheckExact(shared_module, o));
+        shared_mstate->__Pyx_ag_asend_freelist[(shared_mstate->__Pyx_ag_asend_freelist_free)++] = (PyObject*)o;
     } else
     #endif
     {
@@ -654,15 +656,17 @@ static PyObject *
 __Pyx_async_gen_asend_new(__pyx_PyAsyncGenObject *gen, PyObject *sendval)
 {
     __pyx_PyAsyncGenASend *o;
+    PyObject *shared_module = __Pyx_SharedAbiModuleFromSharedType(Py_TYPE(gen));
+    __Pyx_SharedModuleStateStruct *shared_mstate = __Pyx_GetSharedModuleStateFromModule(shared_module);
     #if CYTHON_USE_FREELISTS
-    if (likely(__Pyx_GetSharedModuleState()->__Pyx_ag_asend_freelist_free)) {
-        __Pyx_GetSharedModuleState()->__Pyx_ag_asend_freelist_free--;
-        o = (__pyx_PyAsyncGenASend*)__Pyx_GetSharedModuleState()->__Pyx_ag_asend_freelist[(__Pyx_GetSharedModuleState()->__Pyx_ag_asend_freelist_free)];
+    if (likely(shared_mstate->__Pyx_ag_asend_freelist_free)) {
+        shared_mstate->__Pyx_ag_asend_freelist_free--;
+        o = (__pyx_PyAsyncGenASend*)shared_mstate->__Pyx_ag_asend_freelist[shared_mstate->__Pyx_ag_asend_freelist_free];
         _Py_NewReference((PyObject *)o);
     } else
     #endif
     {
-        o = PyObject_GC_New(__pyx_PyAsyncGenASend, __Pyx_GetSharedModuleState()->__pyx__PyAsyncGenASendType);
+        o = PyObject_GC_New(__pyx_PyAsyncGenASend, shared_mstate->__pyx__PyAsyncGenASendType);
         if (unlikely(o == NULL)) {
             return NULL;
         }
@@ -690,9 +694,11 @@ __Pyx_async_gen_wrapped_val_dealloc(__pyx__PyAsyncGenWrappedValue *o)
     PyObject_GC_UnTrack((PyObject *)o);
     Py_CLEAR(o->agw_val);
     #if CYTHON_USE_FREELISTS
-    if (likely(__Pyx_GetSharedModuleState()->__Pyx_ag_value_freelist_free < _PyAsyncGen_MAXFREELIST)) {
-        assert(__pyx__PyAsyncGenWrappedValue_CheckExact(__Pyx_SharedAbiModuleFromSharedType(Py_TYPE(o)), o));
-        __Pyx_GetSharedModuleState()->__Pyx_ag_value_freelist[(__Pyx_GetSharedModuleState()->__Pyx_ag_value_freelist_free)++] = (PyObject*)o;
+    PyObject *shared_module = __Pyx_SharedAbiModuleFromSharedType(Py_TYPE(o));
+    __Pyx_SharedModuleStateStruct *shared_mstate = __Pyx_GetSharedModuleStateFromModule(shared_module);
+    if (likely(shared_mstate->__Pyx_ag_value_freelist_free < _PyAsyncGen_MAXFREELIST)) {
+        assert(__pyx__PyAsyncGenWrappedValue_CheckExact(shared_module, o));
+        shared_mstate->__Pyx_ag_value_freelist[(shared_mstate->__Pyx_ag_value_freelist_free)++] = (PyObject*)o;
     } else
     #endif
     {
@@ -806,16 +812,18 @@ __Pyx__PyAsyncGenValueWrapperNew(PyObject *val)
     __pyx__PyAsyncGenWrappedValue *o;
     assert(val);
 
+    PyObject *shared_module = NAMED_CGLOBAL(shared_abi_module_cname);
+    __Pyx_SharedModuleStateStruct *shared_mstate = __Pyx_GetSharedModuleStateFromModule(shared_module);
     #if CYTHON_USE_FREELISTS
-    if (likely(__Pyx_GetSharedModuleState()->__Pyx_ag_value_freelist_free)) {
-        (__Pyx_GetSharedModuleState()->__Pyx_ag_value_freelist_free)--;
-        o = (__pyx__PyAsyncGenWrappedValue*)__Pyx_GetSharedModuleState()->__Pyx_ag_value_freelist[__Pyx_GetSharedModuleState()->__Pyx_ag_value_freelist_free];
-        assert(__pyx__PyAsyncGenWrappedValue_CheckExact(NAMED_CGLOBAL(shared_abi_module_cname), o));
+    if (likely(shared_mstate->__Pyx_ag_value_freelist_free)) {
+        (shared_mstate->__Pyx_ag_value_freelist_free)--;
+        o = (__pyx__PyAsyncGenWrappedValue*)shared_mstate->__Pyx_ag_value_freelist[shared_mstate->__Pyx_ag_value_freelist_free];
+        assert(__pyx__PyAsyncGenWrappedValue_CheckExact(shared_module, o));
         _Py_NewReference((PyObject*)o);
     } else
     #endif
     {
-        o = PyObject_GC_New(__pyx__PyAsyncGenWrappedValue, __Pyx_GetSharedModuleState()->__pyx__PyAsyncGenWrappedValueType);
+        o = PyObject_GC_New(__pyx__PyAsyncGenWrappedValue, shared_mstate->__pyx__PyAsyncGenWrappedValueType);
         if (unlikely(!o)) {
             Py_DECREF(val);
             return NULL;

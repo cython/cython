@@ -315,6 +315,8 @@ static CYTHON_INLINE PyObject *__Pyx_Coroutine_GetAsyncIter(PyObject *shared_abi
     if (__Pyx_AsyncGen_CheckExact(shared_abi_module, obj)) {
         return __Pyx_NewRef(obj);
     }
+#else
+    CYTHON_UNUSED_VAR(shared_abi_module);
 #endif
     {
         unaryfunc am_aiter = __Pyx_PyObject_TryGetSubSlot(obj, tp_as_async, am_aiter, unaryfunc);
@@ -341,6 +343,8 @@ static CYTHON_INLINE PyObject *__Pyx_Coroutine_AsyncIterNext(PyObject *shared_ab
     if (__Pyx_AsyncGen_CheckExact(shared_abi_module, obj)) {
         return __Pyx_async_gen_anext(obj);
     }
+#else
+    CYTHON_UNUSED_VAR(shared_abi_module);
 #endif
     {
         unaryfunc am_anext = __Pyx_PyObject_TryGetSubSlot(obj, tp_as_async, am_anext, unaryfunc);
