@@ -1187,8 +1187,8 @@ static CYTHON_INLINE int __Pyx_PyDict_GetItemRef(PyObject *dict, PyObject *key, 
   #define __Pyx_pyiter_sendfunc sendfunc
 #endif
 
-// "Py_am_send" requires Py3.10 when using type specs.
-#define __PYX_HAS_PY_AM_SEND  (!CYTHON_USE_TYPE_SPECS || CYTHON_USE_AM_SEND && __PYX_LIMITED_VERSION_HEX >= 0x030A0000)
+// "Py_am_send" requires Py3.10 when using type specs (which utility code types do).
+#define __PYX_HAS_PY_AM_SEND  CYTHON_USE_AM_SEND && __PYX_LIMITED_VERSION_HEX >= 0x030A0000
 
 #if __PYX_LIMITED_VERSION_HEX >= 0x030A0000
     #define __Pyx_PyAsyncMethodsStruct PyAsyncMethods
