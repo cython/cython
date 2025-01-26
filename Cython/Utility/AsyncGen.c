@@ -297,9 +297,7 @@ static PyMemberDef __Pyx_async_gen_memberlist[] = {
     {"ag_await", T_OBJECT, offsetof(__pyx_CoroutineObject, yieldfrom), READONLY,
      PyDoc_STR("object being awaited on, or None")},
     {"__module__", T_OBJECT, offsetof(__pyx_CoroutineObject, gi_modulename), 0, 0},
-#if CYTHON_USE_TYPE_SPECS
     {"__weaklistoffset__", T_PYSSIZET, offsetof(__pyx_CoroutineObject, gi_weakreflist), READONLY, 0},
-#endif
     {0, 0, 0, 0, 0}      /* Sentinel */
 };
 
@@ -328,7 +326,6 @@ static PyMethodDef __Pyx_async_gen_methods[] = {
 };
 
 
-#if CYTHON_USE_TYPE_SPECS
 static PyType_Slot __pyx_AsyncGenType_slots[] = {
     {Py_tp_dealloc, (void *)__Pyx_Coroutine_dealloc},
     {Py_am_aiter, (void *)PyObject_SelfIter},
@@ -351,90 +348,6 @@ static PyType_Spec __pyx_AsyncGenType_spec = {
     Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_GC | Py_TPFLAGS_HAVE_FINALIZE, /*tp_flags*/
     __pyx_AsyncGenType_slots
 };
-#else /* CYTHON_USE_TYPE_SPECS */
-
-static __Pyx_PyAsyncMethodsStruct __Pyx_async_gen_as_async = {
-    0,                                          /* am_await */
-    PyObject_SelfIter,                          /* am_aiter */
-    (unaryfunc)__Pyx_async_gen_anext,           /* am_anext */
-    0,                                          /* am_send */
-};
-
-static PyTypeObject __pyx_AsyncGenType_type = {
-    PyVarObject_HEAD_INIT(0, 0)
-    "async_generator",                          /* tp_name */
-    sizeof(__pyx_PyAsyncGenObject),             /* tp_basicsize */
-    0,                                          /* tp_itemsize */
-    (destructor)__Pyx_Coroutine_dealloc,        /* tp_dealloc */
-    0,                                          /* tp_vectorcall_offset */
-    0,                                          /* tp_getattr */
-    0,                                          /* tp_setattr */
-    __Pyx_SlotTpAsAsync(__Pyx_async_gen_as_async),    /* tp_as_async */
-    (reprfunc)__Pyx_async_gen_repr,             /* tp_repr */
-    0,                                          /* tp_as_number */
-    0,                                          /* tp_as_sequence */
-    0,                                          /* tp_as_mapping */
-    0,                                          /* tp_hash */
-    0,                                          /* tp_call */
-    0,                                          /* tp_str */
-    0,                                          /* tp_getattro */
-    0,                                          /* tp_setattro */
-    0,                                          /* tp_as_buffer */
-    Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_GC |
-        Py_TPFLAGS_HAVE_FINALIZE,               /* tp_flags */
-    0,                                          /* tp_doc */
-    (traverseproc)__Pyx_async_gen_traverse,     /* tp_traverse */
-    0,                                          /* tp_clear */
-    0,                                          /*tp_richcompare*/
-    offsetof(__pyx_CoroutineObject, gi_weakreflist), /* tp_weaklistoffset */
-    0,                                          /* tp_iter */
-    0,                                          /* tp_iternext */
-    __Pyx_async_gen_methods,                          /* tp_methods */
-    __Pyx_async_gen_memberlist,                       /* tp_members */
-    __Pyx_async_gen_getsetlist,                       /* tp_getset */
-    0,                                          /* tp_base */
-    0,                                          /* tp_dict */
-    0,                                          /* tp_descr_get */
-    0,                                          /* tp_descr_set */
-    0,                                          /* tp_dictoffset */
-    0,                                          /* tp_init */
-    0,                                          /* tp_alloc */
-    0,                                          /* tp_new */
-    0,                                          /* tp_free */
-    0,                                          /* tp_is_gc */
-    0,                                          /* tp_bases */
-    0,                                          /* tp_mro */
-    0,                                          /* tp_cache */
-    0,                                          /* tp_subclasses */
-    0,                                          /* tp_weaklist */
-#if CYTHON_USE_TP_FINALIZE
-    0,                                  /*tp_del*/
-#else
-    __Pyx_Coroutine_del,                /*tp_del*/
-#endif
-    0,                                          /* tp_version_tag */
-#if CYTHON_USE_TP_FINALIZE
-    __Pyx_Coroutine_del,                        /* tp_finalize */
-#else
-    0,                                          /* tp_finalize */
-#endif
-#if PY_VERSION_HEX >= 0x030800b1 && (!CYTHON_COMPILING_IN_PYPY || PYPY_VERSION_NUM >= 0x07030800)
-    0,                                          /*tp_vectorcall*/
-#endif
-#if __PYX_NEED_TP_PRINT_SLOT
-    0,                                          /*tp_print*/
-#endif
-#if PY_VERSION_HEX >= 0x030C0000
-    0,                                          /*tp_watched*/
-#endif
-#if PY_VERSION_HEX >= 0x030d00A4
-    0,                                          /*tp_versions_used*/
-#endif
-#if CYTHON_COMPILING_IN_PYPY && PY_VERSION_HEX >= 0x03090000 && PY_VERSION_HEX < 0x030a0000
-    0,                                          /*tp_pypy_flags*/
-#endif
-};
-#endif  /* CYTHON_USE_TYPE_SPECS */
 
 
 static int
@@ -615,7 +528,6 @@ static PyMethodDef __Pyx_async_gen_asend_methods[] = {
 };
 
 
-#if CYTHON_USE_TYPE_SPECS
 static PyType_Slot __pyx__PyAsyncGenASendType_slots[] = {
     {Py_tp_dealloc, (void *)__Pyx_async_gen_asend_dealloc},
     {Py_am_await, (void *)PyObject_SelfIter},
@@ -633,82 +545,6 @@ static PyType_Spec __pyx__PyAsyncGenASendType_spec = {
     Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_GC, /*tp_flags*/
     __pyx__PyAsyncGenASendType_slots
 };
-#else /* CYTHON_USE_TYPE_SPECS */
-
-static __Pyx_PyAsyncMethodsStruct __Pyx_async_gen_asend_as_async = {
-    PyObject_SelfIter,                          /* am_await */
-    0,                                          /* am_aiter */
-    0,                                          /* am_anext */
-    0,                                          /* am_send */
-};
-
-static PyTypeObject __pyx__PyAsyncGenASendType_type = {
-    PyVarObject_HEAD_INIT(0, 0)
-    "async_generator_asend",                    /* tp_name */
-    sizeof(__pyx_PyAsyncGenASend),                    /* tp_basicsize */
-    0,                                          /* tp_itemsize */
-    /* methods */
-    (destructor)__Pyx_async_gen_asend_dealloc,        /* tp_dealloc */
-    0,                                          /* tp_vectorcall_offset */
-    0,                                          /* tp_getattr */
-    0,                                          /* tp_setattr */
-    __Pyx_SlotTpAsAsync(__Pyx_async_gen_asend_as_async),   /* tp_as_async */
-    0,                                          /* tp_repr */
-    0,                                          /* tp_as_number */
-    0,                                          /* tp_as_sequence */
-    0,                                          /* tp_as_mapping */
-    0,                                          /* tp_hash */
-    0,                                          /* tp_call */
-    0,                                          /* tp_str */
-    0,                                          /* tp_getattro */
-    0,                                          /* tp_setattro */
-    0,                                          /* tp_as_buffer */
-    Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_GC,    /* tp_flags */
-    0,                                          /* tp_doc */
-    (traverseproc)__Pyx_async_gen_asend_traverse,  /* tp_traverse */
-    0,                                          /* tp_clear */
-    0,                                          /*tp_richcompare*/
-    0,                                          /* tp_weaklistoffset */
-    PyObject_SelfIter,                          /* tp_iter */
-    (iternextfunc)__Pyx_async_gen_asend_iternext,     /* tp_iternext */
-    __Pyx_async_gen_asend_methods,                    /* tp_methods */
-    0,                                          /* tp_members */
-    0,                                          /* tp_getset */
-    0,                                          /* tp_base */
-    0,                                          /* tp_dict */
-    0,                                          /* tp_descr_get */
-    0,                                          /* tp_descr_set */
-    0,                                          /* tp_dictoffset */
-    0,                                          /* tp_init */
-    0,                                          /* tp_alloc */
-    0,                                          /* tp_new */
-    0,                                          /* tp_free */
-    0,                                          /* tp_is_gc */
-    0,                                          /* tp_bases */
-    0,                                          /* tp_mro */
-    0,                                          /* tp_cache */
-    0,                                          /* tp_subclasses */
-    0,                                          /* tp_weaklist */
-    0,                                          /* tp_del */
-    0,                                          /* tp_version_tag */
-    0,                                          /* tp_finalize */
-#if PY_VERSION_HEX >= 0x030800b1 && (!CYTHON_COMPILING_IN_PYPY || PYPY_VERSION_NUM >= 0x07030800)
-    0,                                          /*tp_vectorcall*/
-#endif
-#if __PYX_NEED_TP_PRINT_SLOT
-    0,                                          /*tp_print*/
-#endif
-#if PY_VERSION_HEX >= 0x030C0000
-    0,                                          /*tp_watched*/
-#endif
-#if PY_VERSION_HEX >= 0x030d00A4
-    0,                                          /*tp_versions_used*/
-#endif
-#if CYTHON_COMPILING_IN_PYPY && PY_VERSION_HEX >= 0x03090000 && PY_VERSION_HEX < 0x030a0000
-    0,                                          /*tp_pypy_flags*/
-#endif
-};
-#endif /* CYTHON_USE_TYPE_SPECS */
 
 
 static PyObject *
@@ -775,7 +611,6 @@ __Pyx_async_gen_wrapped_val_traverse(__pyx__PyAsyncGenWrappedValue *o,
 }
 
 
-#if CYTHON_USE_TYPE_SPECS
 static PyType_Slot __pyx__PyAsyncGenWrappedValueType_slots[] = {
     {Py_tp_dealloc, (void *)__Pyx_async_gen_wrapped_val_dealloc},
     {Py_tp_traverse, (void *)__Pyx_async_gen_wrapped_val_traverse},
@@ -789,75 +624,6 @@ static PyType_Spec __pyx__PyAsyncGenWrappedValueType_spec = {
     Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_GC, /*tp_flags*/
     __pyx__PyAsyncGenWrappedValueType_slots
 };
-#else /* CYTHON_USE_TYPE_SPECS */
-
-static PyTypeObject __pyx__PyAsyncGenWrappedValueType_type = {
-    PyVarObject_HEAD_INIT(0, 0)
-    "async_generator_wrapped_value",            /* tp_name */
-    sizeof(__pyx__PyAsyncGenWrappedValue),            /* tp_basicsize */
-    0,                                          /* tp_itemsize */
-    /* methods */
-    (destructor)__Pyx_async_gen_wrapped_val_dealloc,  /* tp_dealloc */
-    0,                                          /* tp_vectorcall_offset */
-    0,                                          /* tp_getattr */
-    0,                                          /* tp_setattr */
-    0,                                          /* tp_as_async */
-    0,                                          /* tp_repr */
-    0,                                          /* tp_as_number */
-    0,                                          /* tp_as_sequence */
-    0,                                          /* tp_as_mapping */
-    0,                                          /* tp_hash */
-    0,                                          /* tp_call */
-    0,                                          /* tp_str */
-    0,                                          /* tp_getattro */
-    0,                                          /* tp_setattro */
-    0,                                          /* tp_as_buffer */
-    Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_GC,    /* tp_flags */
-    0,                                          /* tp_doc */
-    (traverseproc)__Pyx_async_gen_wrapped_val_traverse,    /* tp_traverse */
-    0,                                          /* tp_clear */
-    0,                                          /* tp_richcompare */
-    0,                                          /* tp_weaklistoffset */
-    0,                                          /* tp_iter */
-    0,                                          /* tp_iternext */
-    0,                                          /* tp_methods */
-    0,                                          /* tp_members */
-    0,                                          /* tp_getset */
-    0,                                          /* tp_base */
-    0,                                          /* tp_dict */
-    0,                                          /* tp_descr_get */
-    0,                                          /* tp_descr_set */
-    0,                                          /* tp_dictoffset */
-    0,                                          /* tp_init */
-    0,                                          /* tp_alloc */
-    0,                                          /* tp_new */
-    0,                                          /* tp_free */
-    0,                                          /* tp_is_gc */
-    0,                                          /* tp_bases */
-    0,                                          /* tp_mro */
-    0,                                          /* tp_cache */
-    0,                                          /* tp_subclasses */
-    0,                                          /* tp_weaklist */
-    0,                                          /* tp_del */
-    0,                                          /* tp_version_tag */
-    0,                                          /* tp_finalize */
-#if PY_VERSION_HEX >= 0x030800b1 && (!CYTHON_COMPILING_IN_PYPY || PYPY_VERSION_NUM >= 0x07030800)
-    0,                                          /*tp_vectorcall*/
-#endif
-#if __PYX_NEED_TP_PRINT_SLOT
-    0,                                          /*tp_print*/
-#endif
-#if PY_VERSION_HEX >= 0x030C0000
-    0,                                          /*tp_watched*/
-#endif
-#if PY_VERSION_HEX >= 0x030d00A4
-    0,                                          /*tp_versions_used*/
-#endif
-#if CYTHON_COMPILING_IN_PYPY && PY_VERSION_HEX >= 0x03090000 && PY_VERSION_HEX < 0x030a0000
-    0,                                          /*tp_pypy_flags*/
-#endif
-};
-#endif /* CYTHON_USE_TYPE_SPECS */
 
 
 static PyObject *
@@ -1103,7 +869,6 @@ static PyMethodDef __Pyx_async_gen_athrow_methods[] = {
 };
 
 
-#if CYTHON_USE_TYPE_SPECS
 static PyType_Slot __pyx__PyAsyncGenAThrowType_slots[] = {
     {Py_tp_dealloc, (void *)__Pyx_async_gen_athrow_dealloc},
     {Py_am_await, (void *)PyObject_SelfIter},
@@ -1122,81 +887,6 @@ static PyType_Spec __pyx__PyAsyncGenAThrowType_spec = {
     Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_GC, /*tp_flags*/
     __pyx__PyAsyncGenAThrowType_slots
 };
-#else /* CYTHON_USE_TYPE_SPECS */
-
-static __Pyx_PyAsyncMethodsStruct __Pyx_async_gen_athrow_as_async = {
-    PyObject_SelfIter,                          /* am_await */
-    0,                                          /* am_aiter */
-    0,                                          /* am_anext */
-    0,                                          /* am_send */
-};
-
-static PyTypeObject __pyx__PyAsyncGenAThrowType_type = {
-    PyVarObject_HEAD_INIT(0, 0)
-    "async_generator_athrow",                   /* tp_name */
-    sizeof(__pyx_PyAsyncGenAThrow),                   /* tp_basicsize */
-    0,                                          /* tp_itemsize */
-    (destructor)__Pyx_async_gen_athrow_dealloc,       /* tp_dealloc */
-    0,                                          /* tp_vectorcall_offset */
-    0,                                          /* tp_getattr */
-    0,                                          /* tp_setattr */
-    __Pyx_SlotTpAsAsync(__Pyx_async_gen_athrow_as_async),   /* tp_as_async */
-    0,                                          /* tp_repr */
-    0,                                          /* tp_as_number */
-    0,                                          /* tp_as_sequence */
-    0,                                          /* tp_as_mapping */
-    0,                                          /* tp_hash */
-    0,                                          /* tp_call */
-    0,                                          /* tp_str */
-    0,                                          /* tp_getattro */
-    0,                                          /* tp_setattro */
-    0,                                          /* tp_as_buffer */
-    Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_GC,    /* tp_flags */
-    0,                                          /* tp_doc */
-    (traverseproc)__Pyx_async_gen_athrow_traverse,    /* tp_traverse */
-    0,                                          /* tp_clear */
-    0,                                          /*tp_richcompare*/
-    0,                                          /* tp_weaklistoffset */
-    PyObject_SelfIter,                          /* tp_iter */
-    (iternextfunc)__Pyx_async_gen_athrow_iternext,    /* tp_iternext */
-    __Pyx_async_gen_athrow_methods,                   /* tp_methods */
-    0,                                          /* tp_members */
-    0,                                          /* tp_getset */
-    0,                                          /* tp_base */
-    0,                                          /* tp_dict */
-    0,                                          /* tp_descr_get */
-    0,                                          /* tp_descr_set */
-    0,                                          /* tp_dictoffset */
-    0,                                          /* tp_init */
-    0,                                          /* tp_alloc */
-    0,                                          /* tp_new */
-    0,                                          /* tp_free */
-    0,                                          /* tp_is_gc */
-    0,                                          /* tp_bases */
-    0,                                          /* tp_mro */
-    0,                                          /* tp_cache */
-    0,                                          /* tp_subclasses */
-    0,                                          /* tp_weaklist */
-    0,                                          /* tp_del */
-    0,                                          /* tp_version_tag */
-    0,                                          /* tp_finalize */
-#if PY_VERSION_HEX >= 0x030800b1 && (!CYTHON_COMPILING_IN_PYPY || PYPY_VERSION_NUM >= 0x07030800)
-    0,                                          /*tp_vectorcall*/
-#endif
-#if __PYX_NEED_TP_PRINT_SLOT
-    0,                                          /*tp_print*/
-#endif
-#if PY_VERSION_HEX >= 0x030C0000
-    0,                                          /*tp_watched*/
-#endif
-#if PY_VERSION_HEX >= 0x030d00A4
-    0,                                          /*tp_versions_used*/
-#endif
-#if CYTHON_COMPILING_IN_PYPY && PY_VERSION_HEX >= 0x03090000 && PY_VERSION_HEX < 0x030a0000
-    0,                                          /*tp_pypy_flags*/
-#endif
-};
-#endif /* CYTHON_USE_TYPE_SPECS */
 
 
 static PyObject *
@@ -1221,41 +911,19 @@ __Pyx_async_gen_athrow_new(__pyx_PyAsyncGenObject *gen, PyObject *args)
 
 static int __pyx_AsyncGen_init(PyObject *module) {
     $modulestatetype_cname *mstate = __Pyx_PyModule_GetState(module);
-#if CYTHON_USE_TYPE_SPECS
     mstate->__pyx_AsyncGenType = __Pyx_FetchCommonTypeFromSpec(module, &__pyx_AsyncGenType_spec, NULL);
-#else
-    CYTHON_MAYBE_UNUSED_VAR(module);
-    // on Windows, C-API functions can't be used in slots statically
-    __pyx_AsyncGenType_type.tp_getattro = PyObject_GenericGetAttr;
-    mstate->__pyx_AsyncGenType = __Pyx_FetchCommonType(&__pyx_AsyncGenType_type);
-#endif
     if (unlikely(!mstate->__pyx_AsyncGenType))
         return -1;
 
-#if CYTHON_USE_TYPE_SPECS
     mstate->__pyx__PyAsyncGenAThrowType = __Pyx_FetchCommonTypeFromSpec(module, &__pyx__PyAsyncGenAThrowType_spec, NULL);
-#else
-    __pyx__PyAsyncGenAThrowType_type.tp_getattro = PyObject_GenericGetAttr;
-    mstate->__pyx__PyAsyncGenAThrowType = __Pyx_FetchCommonType(&__pyx__PyAsyncGenAThrowType_type);
-#endif
     if (unlikely(!mstate->__pyx__PyAsyncGenAThrowType))
         return -1;
 
-#if CYTHON_USE_TYPE_SPECS
     mstate->__pyx__PyAsyncGenWrappedValueType = __Pyx_FetchCommonTypeFromSpec(module, &__pyx__PyAsyncGenWrappedValueType_spec, NULL);
-#else
-    __pyx__PyAsyncGenWrappedValueType_type.tp_getattro = PyObject_GenericGetAttr;
-    mstate->__pyx__PyAsyncGenWrappedValueType = __Pyx_FetchCommonType(&__pyx__PyAsyncGenWrappedValueType_type);
-#endif
     if (unlikely(!mstate->__pyx__PyAsyncGenWrappedValueType))
         return -1;
 
-#if CYTHON_USE_TYPE_SPECS
     mstate->__pyx__PyAsyncGenASendType = __Pyx_FetchCommonTypeFromSpec(module, &__pyx__PyAsyncGenASendType_spec, NULL);
-#else
-    __pyx__PyAsyncGenASendType_type.tp_getattro = PyObject_GenericGetAttr;
-    mstate->__pyx__PyAsyncGenASendType = __Pyx_FetchCommonType(&__pyx__PyAsyncGenASendType_type);
-#endif
     if (unlikely(!mstate->__pyx__PyAsyncGenASendType))
         return -1;
 

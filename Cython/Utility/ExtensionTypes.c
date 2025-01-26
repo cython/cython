@@ -1,14 +1,11 @@
 /////////////// FixUpExtensionType.proto ///////////////
 
-#if CYTHON_USE_TYPE_SPECS
-static int __Pyx_fix_up_extension_type_from_spec(PyType_Spec *spec, PyTypeObject *type); /*proto*/
-#endif
+static CYTHON_INLINE int __Pyx_fix_up_extension_type_from_spec(PyType_Spec *spec, PyTypeObject *type); /*proto*/
 
 /////////////// FixUpExtensionType ///////////////
 //@requires:ModuleSetupCode.c::IncludeStructmemberH
 //@requires:StringTools.c::IncludeStringH
 
-#if CYTHON_USE_TYPE_SPECS
 static int __Pyx_fix_up_extension_type_from_spec(PyType_Spec *spec, PyTypeObject *type) {
 #if PY_VERSION_HEX > 0x030900B1 || CYTHON_COMPILING_IN_LIMITED_API
     CYTHON_UNUSED_VAR(spec);
@@ -89,7 +86,6 @@ static int __Pyx_fix_up_extension_type_from_spec(PyType_Spec *spec, PyTypeObject
 #endif
     return 0;
 }
-#endif
 
 
 /////////////// ValidateBasesTuple.proto ///////////////
