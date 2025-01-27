@@ -1188,11 +1188,16 @@ static CYTHON_INLINE int __Pyx_PyDict_GetItemRef(PyObject *dict, PyObject *key, 
 #endif
 
 // "Py_am_send" requires Py3.10 when using type specs (which utility code types do).
-#define __PYX_HAS_PY_AM_SEND  CYTHON_USE_AM_SEND && __PYX_LIMITED_VERSION_HEX >= 0x030A0000
+#if !CYTHON_USE_AM_SEND
+#define __PYX_HAS_PY_AM_SEND 0
+#elif __PYX_LIMITED_VERSION_HEX >= 0x030A0000
+#define __PYX_HAS_PY_AM_SEND 1
+#else
+#define __PYX_HAS_PY_AM_SEND 2  // our own backported implementation
+#endif
 
-#if __PYX_LIMITED_VERSION_HEX >= 0x030A0000
+#if __PYX_HAS_PY_AM_SEND < 2
     #define __Pyx_PyAsyncMethodsStruct PyAsyncMethods
-    #define __Pyx_SlotTpAsAsync(s) (&(s))
 #else
     // PyAsyncMethods in Py<3.10 lacks "am_send"
     typedef struct {
@@ -1202,7 +1207,7 @@ static CYTHON_INLINE int __Pyx_PyDict_GetItemRef(PyObject *dict, PyObject *key, 
         __Pyx_pyiter_sendfunc am_send;
     } __Pyx_PyAsyncMethodsStruct;
 
-    #define __Pyx_SlotTpAsAsync(s) ((PyAsyncMethods*)&(s))
+    #define __Pyx_SlotTpAsAsync(s) ((PyAsyncMethods*)(s))
 #endif
 
 // Use a flag in Py < 3.10 to mark coroutines that have the "am_send" field.

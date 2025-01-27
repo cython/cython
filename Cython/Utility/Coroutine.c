@@ -490,6 +490,10 @@ static char __Pyx_Coroutine_test_and_set_is_running(__pyx_CoroutineObject *gen);
 static void __Pyx_Coroutine_unset_is_running(__pyx_CoroutineObject *gen);
 CYTHON_UNUSED static char __Pyx_Coroutine_get_is_running(__pyx_CoroutineObject *gen);
 
+#if __PYX_HAS_PY_AM_SEND == 2
+static void __Pyx_SetBackportTypeAmSend(PyTypeObject *type, __Pyx_PyAsyncMethodsStruct *static_amsend_methods, __Pyx_pyiter_sendfunc am_send); /* proto */
+#endif
+
 //////////////////// Coroutine.proto ////////////////////
 
 #define __Pyx_Coroutine_USED
@@ -1647,6 +1651,21 @@ CYTHON_UNUSED static char __Pyx_Coroutine_get_is_running(__pyx_CoroutineObject *
     return result;
 }
 
+#if __PYX_HAS_PY_AM_SEND == 2
+static void __Pyx_SetBackportTypeAmSend(PyTypeObject *type, __Pyx_PyAsyncMethodsStruct *static_amsend_methods, __Pyx_pyiter_sendfunc am_send) {
+    Py_ssize_t ptr_offset = (char*)(type->tp_as_async) - (char*)type;
+    // The pointer isn't to somewhere within the type. This must be a cached type that's already been update
+    if (ptr_offset < 0 || ptr_offset > type->tp_basicsize) return;
+
+    // Copy the standard Python bits of it
+    memcpy((void*)static_amsend_methods, (void*)(type->tp_as_async), sizeof(*type->tp_as_async));
+    static_amsend_methods->am_send = am_send;
+
+    // Replace.
+    type->tp_as_async = __Pyx_SlotTpAsAsync(static_amsend_methods);
+}
+#endif
+
 
 //////////////////// Coroutine ////////////////////
 //@requires: CoroutineBase
@@ -1767,7 +1786,7 @@ static PyType_Slot __pyx_CoroutineAwaitType_slots[] = {
     {Py_tp_methods, (void *)__pyx_CoroutineAwait_methods},
     {Py_tp_iter, (void *)__Pyx_CoroutineAwait_self},
     {Py_tp_iternext, (void *)__Pyx_CoroutineAwait_Next},
-#if __PYX_HAS_PY_AM_SEND
+#if __PYX_HAS_PY_AM_SEND == 1
     {Py_am_send, (void *)__Pyx_CoroutineAwait_AmSend},
 #endif
     {0, 0},
@@ -1780,9 +1799,13 @@ static PyType_Spec __pyx_CoroutineAwaitType_spec = {
 #if PY_VERSION_HEX >= 0x030A0000
     Py_TPFLAGS_IMMUTABLETYPE |
 #endif
-    Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_GC, /*tp_flags*/
+    Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_GC | __Pyx_TPFLAGS_HAVE_AM_SEND, /*tp_flags*/
     __pyx_CoroutineAwaitType_slots
 };
+
+#if __PYX_HAS_PY_AM_SEND == 2 // backport 
+static __Pyx_PyAsyncMethodsStruct __pyx_CoroutineAwait_as_async;
+#endif
 
 static CYTHON_INLINE PyObject *__Pyx__Coroutine_await(PyObject *coroutine) {
     __pyx_CoroutineAwaitObject *await = PyObject_GC_New(__pyx_CoroutineAwaitObject, CGLOBAL(__pyx_CoroutineAwaitType));
@@ -1842,7 +1865,7 @@ static PyType_Slot __pyx_CoroutineType_slots[] = {
 #if CYTHON_USE_TP_FINALIZE
     {Py_tp_finalize, (void *)__Pyx_Coroutine_del},
 #endif
-#if __PYX_HAS_PY_AM_SEND
+#if __PYX_HAS_PY_AM_SEND == 1
     {Py_am_send, (void *)__Pyx_Coroutine_AmSend},
 #endif
     {0, 0},
@@ -1855,9 +1878,13 @@ static PyType_Spec __pyx_CoroutineType_spec = {
 #if PY_VERSION_HEX >= 0x030A0000
     Py_TPFLAGS_IMMUTABLETYPE |
 #endif
-    Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_GC | Py_TPFLAGS_HAVE_FINALIZE, /*tp_flags*/
+    Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_GC | Py_TPFLAGS_HAVE_FINALIZE | __Pyx_TPFLAGS_HAVE_AM_SEND, /*tp_flags*/
     __pyx_CoroutineType_slots
 };
+
+#if __PYX_HAS_PY_AM_SEND == 2
+static __Pyx_PyAsyncMethodsStruct __pyx_Coroutine_as_async;
+#endif
 
 static int __pyx_Coroutine_init(PyObject *module) {
     $modulestatetype_cname *mstate;
@@ -1867,6 +1894,10 @@ static int __pyx_Coroutine_init(PyObject *module) {
     mstate->__pyx_CoroutineType = __Pyx_FetchCommonTypeFromSpec(module, &__pyx_CoroutineType_spec, NULL);
     if (unlikely(!mstate->__pyx_CoroutineType))
         return -1;
+#if __PYX_HAS_PY_AM_SEND == 2
+    __Pyx_SetBackportTypeAmSend(mstate->__pyx_CoroutineType, &__pyx_Coroutine_as_async, &__Pyx_Coroutine_AmSend);
+#endif
+
 #ifdef __Pyx_IterableCoroutine_USED
     if (unlikely(__pyx_IterableCoroutine_init(module) == -1))
         return -1;
@@ -1875,6 +1906,9 @@ static int __pyx_Coroutine_init(PyObject *module) {
     mstate->__pyx_CoroutineAwaitType = __Pyx_FetchCommonTypeFromSpec(module, &__pyx_CoroutineAwaitType_spec, NULL);
     if (unlikely(!mstate->__pyx_CoroutineAwaitType))
         return -1;
+#if __PYX_HAS_PY_AM_SEND == 2
+    __Pyx_SetBackportTypeAmSend(mstate->__pyx_CoroutineAwaitType, &__pyx_CoroutineAwait_as_async, &__Pyx_CoroutineAwait_AmSend);
+#endif
     return 0;
 }
 
@@ -1910,7 +1944,7 @@ static PyType_Slot __pyx_IterableCoroutineType_slots[] = {
 #if CYTHON_USE_TP_FINALIZE
     {Py_tp_finalize, (void *)__Pyx_Coroutine_del},
 #endif
-#if __PYX_HAS_PY_AM_SEND
+#if __PYX_HAS_PY_AM_SEND == 1
     {Py_am_send, (void *)__Pyx_Coroutine_AmSend},
 #endif
     {0, 0},
@@ -1923,7 +1957,7 @@ static PyType_Spec __pyx_IterableCoroutineType_spec = {
 #if PY_VERSION_HEX >= 0x030A0000
     Py_TPFLAGS_IMMUTABLETYPE |
 #endif
-    Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_GC | Py_TPFLAGS_HAVE_FINALIZE, /*tp_flags*/
+    Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_GC | Py_TPFLAGS_HAVE_FINALIZE | __Pyx_TPFLAGS_HAVE_AM_SEND, /*tp_flags*/
     __pyx_IterableCoroutineType_slots
 };
 
@@ -1933,6 +1967,9 @@ static int __pyx_IterableCoroutine_init(PyObject *module) {
     mstate->__pyx_IterableCoroutineType = __Pyx_FetchCommonTypeFromSpec(module, &__pyx_IterableCoroutineType_spec, NULL);
     if (unlikely(!mstate->__pyx_IterableCoroutineType))
         return -1;
+#if __PYX_HAS_PY_AM_SEND == 2
+    __Pyx_SetBackportTypeAmSend(mstate->__pyx_IterableCoroutineType, &__pyx_Coroutine_as_async, &__Pyx_Coroutine_AmSend);
+#endif
     return 0;
 }
 
@@ -1983,7 +2020,7 @@ static PyType_Slot __pyx_GeneratorType_slots[] = {
 #if CYTHON_USE_TP_FINALIZE
     {Py_tp_finalize, (void *)__Pyx_Coroutine_del},
 #endif
-#if __PYX_HAS_PY_AM_SEND
+#if __PYX_HAS_PY_AM_SEND == 1
     {Py_am_send, (void *)__Pyx_Coroutine_AmSend},
 #endif
     {0, 0},
@@ -1996,9 +2033,13 @@ static PyType_Spec __pyx_GeneratorType_spec = {
 #if PY_VERSION_HEX >= 0x030A0000
     Py_TPFLAGS_IMMUTABLETYPE |
 #endif
-    Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_GC | Py_TPFLAGS_HAVE_FINALIZE, /*tp_flags*/
+    Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_GC | Py_TPFLAGS_HAVE_FINALIZE | __Pyx_TPFLAGS_HAVE_AM_SEND, /*tp_flags*/
     __pyx_GeneratorType_slots
 };
+
+#if __PYX_HAS_PY_AM_SEND == 2
+static __Pyx_PyAsyncMethodsStruct __pyx_Generator_as_async;
+#endif
 
 static int __pyx_Generator_init(PyObject *module) {
     $modulestatetype_cname *mstate = __Pyx_PyModule_GetState(module);
@@ -2006,6 +2047,9 @@ static int __pyx_Generator_init(PyObject *module) {
     if (unlikely(!mstate->__pyx_GeneratorType)) {
         return -1;
     }
+#if __PYX_HAS_PY_AM_SEND == 2
+    __Pyx_SetBackportTypeAmSend(mstate->__pyx_GeneratorType, &__pyx_Generator_as_async, &__Pyx_Coroutine_AmSend);
+#endif
     return 0;
 }
 
