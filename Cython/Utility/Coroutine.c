@@ -1777,6 +1777,9 @@ static PyType_Spec __pyx_CoroutineAwaitType_spec = {
     __PYX_TYPE_MODULE_PREFIX "coroutine_wrapper",
     sizeof(__pyx_CoroutineAwaitObject),
     0,
+#if PY_VERSION_HEX >= 0x030A0000
+    Py_TPFLAGS_IMMUTABLETYPE |
+#endif
     Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_GC, /*tp_flags*/
     __pyx_CoroutineAwaitType_slots
 };
@@ -1849,6 +1852,9 @@ static PyType_Spec __pyx_CoroutineType_spec = {
     __PYX_TYPE_MODULE_PREFIX "coroutine",
     sizeof(__pyx_CoroutineObject),
     0,
+#if PY_VERSION_HEX >= 0x030A0000
+    Py_TPFLAGS_IMMUTABLETYPE |
+#endif
     Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_GC | Py_TPFLAGS_HAVE_FINALIZE, /*tp_flags*/
     __pyx_CoroutineType_slots
 };
@@ -1914,6 +1920,9 @@ static PyType_Spec __pyx_IterableCoroutineType_spec = {
     __PYX_TYPE_MODULE_PREFIX "iterable_coroutine",
     sizeof(__pyx_CoroutineObject),
     0,
+#if PY_VERSION_HEX >= 0x030A0000
+    Py_TPFLAGS_IMMUTABLETYPE |
+#endif
     Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_GC | Py_TPFLAGS_HAVE_FINALIZE, /*tp_flags*/
     __pyx_IterableCoroutineType_slots
 };
@@ -1984,6 +1993,9 @@ static PyType_Spec __pyx_GeneratorType_spec = {
     __PYX_TYPE_MODULE_PREFIX "generator",
     sizeof(__pyx_CoroutineObject),
     0,
+#if PY_VERSION_HEX >= 0x030A0000
+    Py_TPFLAGS_IMMUTABLETYPE |
+#endif
     Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_GC | Py_TPFLAGS_HAVE_FINALIZE, /*tp_flags*/
     __pyx_GeneratorType_slots
 };
