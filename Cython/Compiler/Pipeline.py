@@ -311,8 +311,7 @@ def create_pyx_pipeline(context, options, result, py=False, exclude_classes=()):
             inject_pxd_code_stage_factory(context),
             inject_utility_code_stage_factory(context),
             inject_utility_pxd_code_stage_factory(context),
-
-            abort_on_errors
+            abort_on_errors,
         ],
         debug_transform,
         [generate_pyx_code_stage_factory(options, result)],
