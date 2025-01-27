@@ -27,6 +27,7 @@ def create_shared_library_pipeline(context, scope, options, result):
     def generate_tree_factory(context):
         def generate_tree(compsrc):
             from . import MemoryView
+            from . import Code
             import Cython
 
             # Force to generate __Pyx_ExportFunction
@@ -48,7 +49,7 @@ def create_shared_library_pipeline(context, scope, options, result):
 
             scope.use_utility_code(MemoryView.memviewslice_init_code)
             scope.use_utility_code(MemoryView.typeinfo_to_format_code)
-            context.include_directories.append(os.path.join(os.path.split(Cython.__file__)[0], 'Utility'))
+            context.include_directories.append(Code.get_utility_dir())
             return tree
 
         return generate_tree
