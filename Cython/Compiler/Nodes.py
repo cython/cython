@@ -9102,7 +9102,7 @@ class CythonLockStatNode(TryFinallyStatNode):
 
     lock_temp = None
 
-    preserve_exception = False  # No need to save/resore exception state to release the lock
+    preserve_exception = False  # No need to save/restore exception state to release the lock
     nogil_check = None
 
     @classmethod
