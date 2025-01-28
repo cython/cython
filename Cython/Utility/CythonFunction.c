@@ -734,7 +734,12 @@ __Pyx__CyFunction_reduce(__pyx_CyFunctionObject *m)
         goto fail;
     }
     Py_INCREF(lookup_func);
-    cfunc_as_obj = __Pyx_c_func_ptr_to_capsule((void (*)(void))cfunc, "CyFunc capsule");
+
+    {
+        void *cfunc_as_void_ptr;
+        memcpy(cfunc_as_void_ptr, cfunc, sizeof(void*));
+        cfunc_as_obj = PyCapsule_New(cfunc_as_void_ptr, "CyFunc capsule", NULL);
+    }
     if (!cfunc_as_obj) {
         goto fail;
     }

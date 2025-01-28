@@ -3,8 +3,7 @@
 #@merge_at_end: True
 
 cdef extern from *:
-    ctypedef void (*__Pyx_generic_func_pointer)()
-    __Pyx_generic_func_pointer __Pyx_capsule_to_c_func_ptr(object, const char*) except NULL
+    void *PyCapsule_GetPointer(object capsule, const char* name) except NULL
     # implementation function - implemented in C
     object $cyfunction_unpickle_impl_cname(int, object, object, object, object)
 
@@ -12,10 +11,10 @@ cdef extern from *:
     void *{{cname}}  # tell Cython that all cnames are an extern void pointer
 {{endfor}}
 
-def $cyfunction_pickle_lookup_ptr(ptr_as_pyint):
-    cdef __Pyx_generic_func_pointer ptr = __Pyx_capsule_to_c_func_ptr(ptr_as_pyint, "CyFunc capsule")
+def $cyfunction_pickle_lookup_ptr(ptr_as_py):
+    cdef void *ptr = PyCapsule_GetPointer(ptr_as_py, "CyFunc capsule")
 {{for cname in cnames}}
-    if ptr == <__Pyx_generic_func_pointer>{{cname}}:
+    if ptr == <void*>{{cname}}:
         return b"{{cname}}"
 {{endfor}}
     raise ValueError()  # __reduce__ ignores this anyway
