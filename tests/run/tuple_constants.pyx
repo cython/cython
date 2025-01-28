@@ -141,6 +141,7 @@ def return_constant_tuple_strings():
     """
     return ('tuple_1', 'bc', 'tuple_2')
 
+
 @cython.test_assert_path_exists("//TupleNode",
                                 "//TupleNode[@is_literal = true]")
 @cython.test_fail_if_path_exists("//TupleNode[@is_literal = false]")
@@ -148,13 +149,14 @@ def return_constant_tuples_string_types():
     """
     >>> a,b,c = return_constant_tuples_string_types()
     >>> a is b
-    False
+    True
     >>> a is c
     False
     >>> b is c
     False
     """
     return ('a', 'bc'), (u'a', u'bc'), (b'a', b'bc')
+
 
 @cython.test_assert_path_exists("//ReturnStatNode//TupleNode",
                                 "//ReturnStatNode//TupleNode[@is_literal = false]")

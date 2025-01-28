@@ -1,4 +1,5 @@
 # mode: run
+# cython: language_level=3
 
 import cython
 from cython import sizeof
@@ -306,12 +307,14 @@ def cdef_nogil_false(x):
 def test_cdef_nogil(x):
     """
     >>> test_cdef_nogil(5)
-    18
+    24
     """
     with cython.nogil:
         result = cdef_nogil(x)
     with cython.nogil(True):
         result += cdef_nogil_true(x)
+    with cython.nogil(False), cython.nogil(True), cython.gil(False):
+        result += cdef_nogil(x)
     result += cdef_nogil_false(x)
     return result
 

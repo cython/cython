@@ -170,10 +170,22 @@ def copy_inherited_directives(outer_directives, **new_directives):
     # For example, test_assert_path_exists and test_fail_if_path_exists should not be inherited
     #  otherwise they can produce very misleading test failures
     new_directives_out = dict(outer_directives)
-    for name in ('test_assert_path_exists', 'test_fail_if_path_exists', 'test_assert_c_code_has', 'test_fail_if_c_code_has'):
+    for name in ('test_assert_path_exists', 'test_fail_if_path_exists', 'test_assert_c_code_has', 'test_fail_if_c_code_has',
+                 'critical_section'):
         new_directives_out.pop(name, None)
     new_directives_out.update(new_directives)
     return new_directives_out
+
+
+def copy_for_internal(outer_directives):
+    # Reset some directives that users should not control for internal code.
+    return copy_inherited_directives(
+        outer_directives,
+        binding=False,
+        profile=False,
+        linetrace=False,
+    )
+
 
 # Declare compiler directives
 _directive_defaults = {
@@ -181,6 +193,7 @@ _directive_defaults = {
     'boundscheck' : True,
     'nonecheck' : False,
     'initializedcheck' : True,
+    'freethreading_compatible': False,
     'embedsignature': False,
     'embedsignature.format': 'c',
     'auto_cpdef': False,
@@ -235,6 +248,8 @@ _directive_defaults = {
     'warn.unused_arg': False,
     'warn.unused_result': False,
     'warn.multiple_declarators': True,
+    'warn.deprecated.DEF': False,
+    'warn.deprecated.IF': True,
     'show_performance_hints': True,
 
 # optimizations
@@ -267,14 +282,24 @@ extra_warnings = {
     'warn.unused': True,
 }
 
-def one_of(*args):
+def one_of(*args, map=None):
     def validate(name, value):
+        if map is not None:
+            value = map.get(value, value)
         if value not in args:
             raise ValueError("%s directive must be one of %s, got '%s'" % (
                 name, args, value))
-        else:
-            return value
+        return value
     return validate
+
+
+_normalise_common_encoding_name = {
+    'utf8': 'utf8',
+    'utf-8': 'utf8',
+    'default': 'utf8',
+    'ascii': 'ascii',
+    'us-ascii': 'ascii',
+}.get
 
 
 def normalise_encoding_name(option_name, encoding):
@@ -290,16 +315,18 @@ def normalise_encoding_name(option_name, encoding):
     >>> normalise_encoding_name('c_string_encoding', 'utF-8')
     'utf8'
     >>> normalise_encoding_name('c_string_encoding', 'deFAuLT')
-    'default'
+    'utf8'
     >>> normalise_encoding_name('c_string_encoding', 'default')
-    'default'
+    'utf8'
     >>> normalise_encoding_name('c_string_encoding', 'SeriousLyNoSuch--Encoding')
     'SeriousLyNoSuch--Encoding'
     """
     if not encoding:
         return ''
-    if encoding.lower() in ('default', 'ascii', 'utf8'):
-        return encoding.lower()
+    encoding_name = _normalise_common_encoding_name(encoding.lower())
+    if encoding_name is not None:
+        return encoding_name
+
     import codecs
     try:
         decoder = codecs.getdecoder(encoding)
@@ -326,6 +353,7 @@ directive_types = {
     'collection_type': one_of('sequence'),
     'nogil' : DEFER_ANALYSIS_OF_ARGUMENTS,
     'gil' : DEFER_ANALYSIS_OF_ARGUMENTS,
+    'critical_section' : DEFER_ANALYSIS_OF_ARGUMENTS,
     'with_gil' : None,
     'internal' : bool,  # cdef class visibility in the module dict
     'infer_types' : bool,  # values can be True/None/False
@@ -343,7 +371,7 @@ directive_types = {
     'exceptval': type,  # actually (type, check=True/False), but has its own parser
     'set_initial_path': str,
     'freelist': int,
-    'c_string_type': one_of('bytes', 'bytearray', 'str', 'unicode'),
+    'c_string_type': one_of('bytes', 'bytearray', 'str', 'unicode', map={'unicode': 'str'}),
     'c_string_encoding': normalise_encoding_name,
     'trashcan': bool,
     'total_ordering': None,
@@ -365,6 +393,7 @@ directive_scopes = {  # defaults to available everywhere
     'nogil' : ('function', 'with statement'),
     'gil' : ('with statement'),
     'with_gil' : ('function',),
+    'critical_section': ('function', 'with statement'),
     'inline' : ('function',),
     'cfunc' : ('function', 'with statement'),
     'ccall' : ('function', 'with statement'),
@@ -407,6 +436,7 @@ directive_scopes = {  # defaults to available everywhere
     'legacy_implicit_noexcept': ('module', ),
     'control_flow.dot_output': ('module',),
     'control_flow.dot_annotate_defs': ('module',),
+    'freethreading_compatible': ('module',)
 }
 
 
@@ -447,7 +477,7 @@ def parse_directive_value(name, value, relaxed_bool=False):
     >>> parse_directive_value('c_string_type', 'bytearray')
     'bytearray'
     >>> parse_directive_value('c_string_type', 'unicode')
-    'unicode'
+    'str'
     >>> parse_directive_value('c_string_type', 'unnicode')
     Traceback (most recent call last):
     ValueError: c_string_type directive must be one of ('bytes', 'bytearray', 'str', 'unicode'), got 'unnicode'

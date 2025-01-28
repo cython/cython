@@ -13,11 +13,11 @@ True
 """
 
 cimport cython
-from cpython.ref cimport PyObject
+from cpython.ref cimport PyObject, Py_REFCNT
 
 @cython.always_allow_keywords(False)
 def get_refcount(obj):
-    return (<PyObject*>obj).ob_refcnt
+    return Py_REFCNT(obj)
 
 cdef class RefCountInMeth(object):
     cdef double value

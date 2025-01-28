@@ -125,7 +125,8 @@ cdef extern from "<string>" namespace "std" nogil:
         string(const char* s) except +
         string(const char* s, size_t n) except +
         string(size_t n, char c) except +
-        string(iterator first, iterator last) except +
+        # type (string&) is needed here so that Cython can compile templated definition
+        string& string[InputIt](InputIt, InputIt) except +  # (6)
 
         iterator begin()
         const_iterator const_begin "begin"()
@@ -178,6 +179,7 @@ cdef extern from "<string>" namespace "std" nogil:
         string& append(const char* s) except +
         string& append(const char* s, size_t n) except +
         string& append(size_t n, char c) except +
+        string& append[InputIt](InputIt, InputIt) except +  # (6)
 
         void push_back(char c) except +
         void pop_back()
@@ -187,6 +189,7 @@ cdef extern from "<string>" namespace "std" nogil:
         string& assign(const char* s, size_t n) except +
         string& assign(const char* s) except +
         string& assign(size_t n, char c) except +
+        string& assign[InputIt](InputIt, InputIt) except +  # (7)
 
         string& insert(size_t pos, const string& s, size_t subpos, size_t sublen) except +
         string& insert(size_t pos, const string& s) except +
@@ -195,6 +198,7 @@ cdef extern from "<string>" namespace "std" nogil:
         string& insert(size_t pos, size_t n, char c) except +
         void insert(iterator p, size_t n, char c) except +
         iterator insert(iterator p, char c) except +
+        iterator insert(iterator, iterator, iterator) except +
 
         string& replace(size_t pos, size_t len, const string& str) except +
         string& replace(iterator i1, iterator i2, const string& str) except +

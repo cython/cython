@@ -27,6 +27,7 @@ cdef extern from "<string.h>":
 
 cdef extern from *:
     bint __PYX_CYTHON_ATOMICS_ENABLED()
+    bint __PYX_GET_CYTHON_COMPILING_IN_CPYTHON_FREETHREADING()
     int PyObject_GetBuffer(object, Py_buffer *, int) except -1
     void PyBuffer_Release(Py_buffer *)
 
@@ -349,7 +350,9 @@ cdef class memoryview:
 
         if not __PYX_CYTHON_ATOMICS_ENABLED():
             global __pyx_memoryview_thread_locks_used
-            if __pyx_memoryview_thread_locks_used < {{THREAD_LOCKS_PREALLOCATED}}:
+            if (__pyx_memoryview_thread_locks_used < {{THREAD_LOCKS_PREALLOCATED}} and
+                    # preallocated locks cannot be made thread-safe in freethreading
+                    not __PYX_GET_CYTHON_COMPILING_IN_CPYTHON_FREETHREADING()):
                 self.lock = __pyx_memoryview_thread_locks[__pyx_memoryview_thread_locks_used]
                 __pyx_memoryview_thread_locks_used += 1
             if self.lock is NULL:
@@ -376,7 +379,7 @@ cdef class memoryview:
         cdef int i
         global __pyx_memoryview_thread_locks_used
         if self.lock != NULL:
-            for i in range(__pyx_memoryview_thread_locks_used):
+            for i in range(0 if __PYX_GET_CYTHON_COMPILING_IN_CPYTHON_FREETHREADING() else __pyx_memoryview_thread_locks_used):
                 if __pyx_memoryview_thread_locks[i] is self.lock:
                     __pyx_memoryview_thread_locks_used -= 1
                     if i != __pyx_memoryview_thread_locks_used:
@@ -417,7 +420,7 @@ cdef class memoryview:
 
         if have_slices:
             obj = self.is_slice(value)
-            if obj:
+            if obj is not None:
                 self.setitem_slice_assignment(self[index], obj)
             else:
                 self.setitem_slice_assign_scalar(self[index], value)

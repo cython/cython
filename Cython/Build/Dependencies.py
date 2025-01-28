@@ -20,6 +20,7 @@ from ..Utils import (cached_function, cached_method, path_exists,
     safe_makedirs, copy_file_to_dir_if_newer, is_package_dir, write_depfile)
 from ..Compiler import Errors
 from ..Compiler.Main import Context
+from ..Compiler import Options
 from ..Compiler.Options import (CompilationOptions, default_options,
     get_directive_defaults)
 
@@ -705,6 +706,8 @@ def default_create_extension(template, kwds):
 
     t = template.__class__
     ext = t(**kwds)
+    if hasattr(template, "py_limited_api"):
+        ext.py_limited_api = template.py_limited_api
     metadata = dict(distutils=kwds, module_name=kwds['name'])
     return (ext, metadata)
 
@@ -961,10 +964,11 @@ def cythonize(module_list, exclude=None, nthreads=0, aliases=None, quiet=False, 
 
     deps = create_dependency_tree(ctx, quiet=quiet)
     build_dir = getattr(options, 'build_dir', None)
-    if options.cache:
+    if options.cache and not (options.annotate or Options.annotate):
         # cache is enabled when:
         # * options.cache is True (the default path to the cache base dir is used)
         # * options.cache is the explicit path to the cache base dir
+        # * annotations are not generated
         cache_path = None if options.cache is True else options.cache
         cache = Cache(cache_path, getattr(options, 'cache_size', None))
     else:
@@ -1210,15 +1214,11 @@ def cythonize_one(pyx_file, c_file, fingerprint, cache, quiet, options=None,
     from ..Compiler.Main import compile_single, default_options
     from ..Compiler.Errors import CompileError, PyrexError
 
-    if cache and fingerprint:
-        cached = cache.lookup_cache(c_file, fingerprint)
-        if cached:
-            if not quiet:
-                print("%sFound compiled %s in cache" % (progress, pyx_file))
-            cache.load_from_cache(c_file, cached)
-            return
     if not quiet:
-        print("%sCythonizing %s" % (progress, Utils.decode_filename(pyx_file)))
+        if cache and fingerprint and cache.lookup_cache(c_file, fingerprint):
+            print(f"{progress}Found compiled {pyx_file} in cache")
+        else:
+            print(f"{progress}Cythonizing {Utils.decode_filename(pyx_file)}")
     if options is None:
         options = CompilationOptions(default_options)
     options.output_file = c_file
@@ -1230,7 +1230,7 @@ def cythonize_one(pyx_file, c_file, fingerprint, cache, quiet, options=None,
 
     any_failures = 0
     try:
-        result = compile_single(pyx_file, options, full_module_name=full_module_name)
+        result = compile_single(pyx_file, options, full_module_name=full_module_name, cache=cache, fingerprint=fingerprint)
         if result.num_errors > 0:
             any_failures = 1
     except (OSError, PyrexError) as e:
@@ -1254,8 +1254,6 @@ def cythonize_one(pyx_file, c_file, fingerprint, cache, quiet, options=None,
             raise CompileError(None, pyx_file)
         elif os.path.exists(c_file):
             os.remove(c_file)
-    elif cache and fingerprint:
-        cache.store_to_cache(c_file, fingerprint, result)
 
 
 def cythonize_one_helper(m):

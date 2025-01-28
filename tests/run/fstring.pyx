@@ -526,6 +526,22 @@ def format_decoded_bytes(bytes value):
 
 
 @cython.test_fail_if_path_exists(
+    "//CoerceToPyTypeNode",
+)
+def format_uchar(int x):
+    """
+    >>> format_uchar(0)
+    ('\\x00', '           \\x00', '       \\x00')
+    >>> format_uchar(13)
+    ('\\r', '           \\r', '       \\r')
+    >>> format_uchar(1114111 + 1)
+    Traceback (most recent call last):
+    OverflowError: %c arg not in range(0x110000)
+    """
+    return f"{x:c}", f"{x:12c}", f"{x:>8c}"
+
+
+@cython.test_fail_if_path_exists(
     "//AddNode",
     "//ModNode",
 )
@@ -571,9 +587,9 @@ def generated_fstring(int i, float f, unicode u not None, o):
 )
 def percent_s_unicode(u, int i):
     u"""
-    >>> u = u'x\u0194z'
+    >>> u = u'x\\u0194z'
     >>> print(percent_s_unicode(u, 12))
-    x\u0194z-12
+    x\\u0194z-12
     """
     return u"%s-%d" % (u, i)
 
@@ -597,6 +613,58 @@ def sideeffect(l):
     """
     f"{l.append(123)}"  # unused f-string !
     return list(l)
+
+
+@cython.test_assert_path_exists(
+    "//JoinedStrNode",
+    "//JoinedStrNode/CloneNode",
+)
+def dedup_same(x, int i, float f):
+    """
+    >>> dedup_same('abc', 5, 5.5)
+    'xabci5f5.5xabci5f5.5'
+    """
+    return f"x{x}i{i}f{f}x{x}i{i}f{f}"
+
+
+@cython.test_assert_path_exists(
+    "//JoinedStrNode",
+    "//JoinedStrNode/CloneNode",
+)
+def dedup_same_kind(x, int i, float f):
+    """
+    >>> dedup_same_kind('abc', 5, 5.5)
+    'xabci5f5.5xabci5f5.5'
+    """
+    return f"x{x}i{i}f{f}x{x!s}i{i!s}f{f!s}"
+
+
+@cython.test_fail_if_path_exists(
+    "//JoinedStrNode//CloneNode",
+)
+@cython.test_assert_path_exists(
+    "//JoinedStrNode",
+)
+def dedup_different_format_char(x, int i, float f):
+    """
+    >>> dedup_different_format_char('abc', 5, 5.5)
+    "xabci5f5.5x'abc'i5f5.5"
+    """
+    return f"x{x}i{i}f{f}x{x!r}i{i:d}f{f!a}"
+
+
+@cython.test_fail_if_path_exists(
+    "//JoinedStrNode//CloneNode",
+)
+@cython.test_assert_path_exists(
+    "//JoinedStrNode",
+)
+def dedup_non_simple(x, int i, float f):
+    """
+    >>> dedup_non_simple('abc', 5, 5.5)
+    'xabci6f6.5xabci6f6.5'
+    """
+    return f"x{x+''}i{i+1}f{f+1}x{x}i{i+1}f{f+1}"
 
 
 ########################################

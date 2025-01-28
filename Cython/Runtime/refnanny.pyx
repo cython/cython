@@ -6,17 +6,44 @@ from cpython.pystate cimport PyThreadState_Get
 
 cimport cython
 
+cdef extern from *:
+    """
+    #if CYTHON_COMPILING_IN_CPYTHON_FREETHREADING
+    #define __Pyx_refnanny_mutex PyMutex
+    static CYTHON_INLINE void __Pyx_refnanny_lock_acquire(PyMutex *lock) {
+        PyMutex_Lock(lock);
+    }
+
+    static CYTHON_INLINE void __Pyx_refnanny_lock_release(PyMutex *lock) {
+        PyMutex_Unlock(lock);
+    }
+    #else
+    #define __Pyx_refnanny_mutex void*
+    #define __Pyx_refnanny_lock_acquire(lock)
+    #define __Pyx_refnanny_lock_release(lock)
+    #endif
+    """
+    ctypedef void *__Pyx_refnanny_mutex
+    void __Pyx_refnanny_lock_acquire(__Pyx_refnanny_mutex *lock)
+    void __Pyx_refnanny_lock_release(__Pyx_refnanny_mutex *lock)
+
 loglevel = 0
 reflog = []
 
-cdef log(level, action, obj, lineno):
-    if reflog is None:
-        # can happen during finalisation
-        return
-    if loglevel >= level:
+cdef int log(int level, action, obj, lineno) except -1:
+    if (<int> loglevel) >= level:
+        if reflog is None:
+            # can happen during finalisation
+            return 0
         reflog.append((lineno, action, id(obj)))
+    return 0
 
 LOG_NONE, LOG_ALL = range(2)
+cdef int _LOG_NONE = LOG_NONE
+cdef int _LOG_ALL = LOG_ALL
+
+cdef object NO_REFS = (0, None)
+
 
 @cython.final
 cdef class Context(object):
@@ -24,6 +51,7 @@ cdef class Context(object):
     cdef readonly dict refs
     cdef readonly list errors
     cdef readonly Py_ssize_t start
+    cdef __Pyx_refnanny_mutex lock
 
     def __cinit__(self, name, line=0, filename=None):
         self.name = name
@@ -32,24 +60,35 @@ cdef class Context(object):
         self.refs = {} # id -> (count, [lineno])
         self.errors = []
 
-    cdef regref(self, obj, Py_ssize_t lineno, bint is_null):
-        log(LOG_ALL, u'regref', u"<NULL>" if is_null else obj, lineno)
+    cdef void acquire_lock(self) noexcept:
+        __Pyx_refnanny_lock_acquire(&self.lock)
+
+    cdef void release_lock(self) noexcept:
+        __Pyx_refnanny_lock_release(&self.lock)
+
+    cdef int regref(self, obj, Py_ssize_t lineno, bint is_null) except -1:
+        log(_LOG_ALL, u'regref', u"<NULL>" if is_null else obj, lineno)
         if is_null:
             self.errors.append(f"NULL argument on line {lineno}")
-            return
+            return 0
         id_ = id(obj)
-        count, linenumbers = self.refs.get(id_, (0, []))
+        count, linenumbers = self.refs.get(id_, NO_REFS)
+        if linenumbers is None:
+            linenumbers = []
         self.refs[id_] = (count + 1, linenumbers)
         linenumbers.append(lineno)
+        return 0
 
     cdef bint delref(self, obj, Py_ssize_t lineno, bint is_null) except -1:
         # returns whether it is ok to do the decref operation
-        log(LOG_ALL, u'delref', u"<NULL>" if is_null else obj, lineno)
+        log(_LOG_ALL, u'delref', u"<NULL>" if is_null else obj, lineno)
         if is_null:
             self.errors.append(f"NULL argument on line {lineno}")
             return False
         id_ = id(obj)
-        count, linenumbers = self.refs.get(id_, (0, []))
+        count, linenumbers = self.refs.get(id_, NO_REFS)
+        if linenumbers is None:
+            linenumbers = []
         if count == 0:
             self.errors.append(f"Too many decrefs on line {lineno}, reference acquired on lines {linenumbers!r}")
             return False
@@ -62,13 +101,13 @@ cdef class Context(object):
     cdef end(self):
         if self.refs:
             msg = u"References leaked:"
-            for count, linenos in self.refs.itervalues():
+            for count, linenos in self.refs.values():
                 msg += f"\n  ({count}) acquired on lines: {u', '.join([f'{x}' for x in linenos])}"
             self.errors.append(msg)
         return u"\n".join([f'REFNANNY: {error}' for error in self.errors]) if self.errors else None
 
 
-cdef void report_unraisable(filename, Py_ssize_t lineno, object e=None):
+cdef void report_unraisable(filename, Py_ssize_t lineno, object e=None) noexcept:
     try:
         if e is None:
             import sys
@@ -92,7 +131,7 @@ cdef PyObject* SetupContext(char* funcname, Py_ssize_t lineno, char* filename) e
     PyThreadState_Get()  # Check that we hold the GIL
     PyErr_Fetch(&type, &value, &tb)
     try:
-        ctx = Context(funcname, lineno, filename)
+        ctx = Context.__new__(Context, funcname, lineno, filename)
         Py_INCREF(ctx)
         result = <PyObject*>ctx
     except Exception, e:
@@ -100,37 +139,43 @@ cdef PyObject* SetupContext(char* funcname, Py_ssize_t lineno, char* filename) e
     PyErr_Restore(type, value, tb)
     return result
 
-cdef void GOTREF(PyObject* ctx, PyObject* p_obj, Py_ssize_t lineno):
-    if ctx == NULL: return
+cdef void GOTREF(PyObject* _ctx, PyObject* p_obj, Py_ssize_t lineno):
+    if _ctx == NULL: return
     cdef (PyObject*) type = NULL, value = NULL, tb = NULL
+    cdef Context ctx = <Context> _ctx
+    ctx.acquire_lock()
     PyErr_Fetch(&type, &value, &tb)
     try:
-        (<Context>ctx).regref(
+        ctx.regref(
             <object>p_obj if p_obj is not NULL else None,
             lineno,
             is_null=p_obj is NULL,
         )
     except:
-        report_unraisable((<Context>ctx).filename, lineno=(<Context>ctx).start)
+        report_unraisable(ctx.filename, lineno=ctx.start)
     finally:
         PyErr_Restore(type, value, tb)
+        ctx.release_lock()
         return  # swallow any exceptions
 
-cdef bint GIVEREF_and_report(PyObject* ctx, PyObject* p_obj, Py_ssize_t lineno):
-    if ctx == NULL: return 1
+cdef bint GIVEREF_and_report(PyObject* _ctx, PyObject* p_obj, Py_ssize_t lineno):
+    if _ctx == NULL: return 1
     cdef (PyObject*) type = NULL, value = NULL, tb = NULL
     cdef bint decref_ok = False
+    cdef Context ctx = <Context> _ctx
+    ctx.acquire_lock()
     PyErr_Fetch(&type, &value, &tb)
     try:
-        decref_ok = (<Context>ctx).delref(
+        decref_ok = ctx.delref(
             <object>p_obj if p_obj is not NULL else None,
             lineno,
             is_null=p_obj is NULL,
         )
     except:
-        report_unraisable((<Context>ctx).filename, lineno=(<Context>ctx).start)
+        report_unraisable(ctx.filename, lineno=ctx.start)
     finally:
         PyErr_Restore(type, value, tb)
+        ctx.release_lock()
         return decref_ok  # swallow any exceptions
 
 cdef void GIVEREF(PyObject* ctx, PyObject* p_obj, Py_ssize_t lineno):
