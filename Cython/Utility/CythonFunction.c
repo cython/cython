@@ -698,7 +698,7 @@ __Pyx__CyFunction_reduce(__pyx_CyFunctionObject *m)
         // a '<' in the qualname indicate that it's in a local scope or a lambda or similar
         Py_ssize_t len = PyUnicode_GetLength(m->func_qualname);
         if (len==-1) return NULL;
-        int char_pos = PyUnicode_FindChar(m->func_qualname, '<', 0, len, 1);
+        Py_ssize_t char_pos = PyUnicode_FindChar(m->func_qualname, '<', 0, len, 1);
         if (char_pos == -2) {
             return NULL;  // error code
         } else if (char_pos == -1) {
