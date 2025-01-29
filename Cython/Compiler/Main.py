@@ -130,7 +130,7 @@ class Context:
             result_sink = create_default_resultobj(source, self.options)
             pipeline = Pipeline.create_pyx_as_pxd_pipeline(self, result_sink)
             result = Pipeline.run_pipeline(pipeline, source)
-        elif Options.use_shared_utility:
+        elif source_desc.in_utility_code:
             from . import ParseTreeTransforms
             transform = ParseTreeTransforms.CnameDirectivesTransform(self)
             before = ParseTreeTransforms.InterpretCompilerDirectives

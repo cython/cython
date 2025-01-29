@@ -291,6 +291,7 @@ class CythonSharedUtilityCode:
         try:
             rel_path = qualified_name.replace('.', os.sep) + os.path.splitext(pxd_pathname)[1]
             source_desc = FileSourceDescriptor(pxd_pathname, rel_path)
+            source_desc.in_utility_code = True
             err, result = context.process_pxd(source_desc, scope, qualified_name)
             (pxd_codenodes, pxd_scope) = result
             context.utility_pxd = (pxd_codenodes, pxd_scope)
