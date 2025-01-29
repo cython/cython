@@ -4023,8 +4023,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 ))
                 defcode.putln("}")
                 defcode.new_error_label()
-            if local_cleanup_label:
-                defcode.putln("%s:" % local_cleanup_label)
+            defcode.putln("%s:;" % local_cleanup_label)
             if node.needs_outer_scope:
                 for name in pyobject_names:
                     defcode.putln("Py_XDECREF(%s);" % name)
