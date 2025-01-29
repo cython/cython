@@ -702,7 +702,6 @@ __Pyx__CyFunction_reduce(__pyx_CyFunctionObject *m)
         if (char_pos == -2) {
             return NULL;  // error code
         } else if (char_pos == -1) {
-            PyObject_Print(m->func_qualname, stdout, 0);
             Py_INCREF(m->func_qualname);
             return m->func_qualname;
         }
