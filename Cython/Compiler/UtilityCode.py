@@ -1,4 +1,7 @@
+import Cython
 from .TreeFragment import parse_from_strings, StringParseContext
+from .Scanning import FileSourceDescriptor
+from .Errors import CompileError
 from . import Symtab
 from . import Naming
 from . import Code
@@ -275,9 +278,6 @@ class CythonSharedUtilityCode:
         self.pxd_scope = None
 
     def find_module(self, context):
-        import Cython
-        from .Scanning import FileSourceDescriptor
-        from .Errors import CompileError
         qualified_name = '.'.join([Options.use_shared_utility, self._module_name])
         scope = context
         for name, is_package in scope._split_qualified_name(qualified_name, relative_import=False):
