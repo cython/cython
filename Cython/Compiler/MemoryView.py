@@ -791,9 +791,6 @@ def _resolve_AttributeNode(env, node):
 ### Utility loading
 #
 
-def load_memview_cy_shared_utility(util_code_name, context=None, **kwargs):
-    return CythonSharedUtilityCode(util_code_name, context, **kwargs)
-
 def load_memview_cy_utility(util_code_name, context=None, **kwargs):
     return CythonUtilityCode.load(util_code_name, "MemoryView.pyx",
                                   context=context, **kwargs)
@@ -859,7 +856,7 @@ memoryview_utility_code = load_memview_cy_utility(
                   ],
 )
 
-shared_utility_code = load_memview_cy_shared_utility(
+shared_utility_code = CythonSharedUtilityCode(
         "MemoryView",
         context=context,
         requires=[
