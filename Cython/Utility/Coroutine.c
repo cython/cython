@@ -1950,7 +1950,7 @@ static PyGetSetDef __pyx_Coroutine_getsets[] = {
     {"cr_frame", (getter)__Pyx_Coroutine_get_frame, NULL,
      PyDoc_STR("Frame of the coroutine"), 0},
     // getter rather than member for thread safety. 
-    {"cr_running", (getter)__Pyx_Coroutine_get_is_running, NULL, NULL},
+    {"cr_running", (getter)__Pyx_Coroutine_get_is_running, NULL, NULL, NULL},
     {0, 0, 0, 0, 0}
 };
 
