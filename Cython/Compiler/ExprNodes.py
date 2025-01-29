@@ -10296,19 +10296,6 @@ class PyCFunctionNode(ExprNode, ModuleNameMixin):
         clone.closure_result_code = lambda: closure_cname
         clone.is_temp = False
 
-        # The code object should have already been evaluated to a constant result
-        if clone.code_object:
-            assert clone.code_object.result()
-            entry = Symtab.Entry(
-                name=clone.code_object.result(),
-                cname=clone.code_object.result(),
-                type=py_object_type
-            )
-            clone.code_object = NameNode(
-                clone.code_object.pos, name=defaults_kwdict_cname,
-                entry=entry, is_temp=False
-            )
-
         if clone.defaults_tuple:
             entry = Symtab.Entry(
                 name=defaults_tuple_cname,

@@ -685,7 +685,7 @@ __Pyx__CyFunction_reduce(__pyx_CyFunctionObject *m)
 {
     PyCFunction cfunc;
     PyObject *module_globals = NULL, *lookup_func = NULL, *cfunc_as_obj = NULL;
-    PyObject *lookup_string = NULL, *reduced_closure = NULL;
+    PyObject *lookup_value = NULL, *reduced_closure = NULL;
     PyObject *args_tuple = NULL, *reverse_lookup_func = NULL, *output = NULL;
     PyObject *defaults_tuple = NULL, *defaults_kwdict = NULL;
     const char* additional_error_info = "";
@@ -702,6 +702,7 @@ __Pyx__CyFunction_reduce(__pyx_CyFunctionObject *m)
         if (char_pos == -2) {
             return NULL;  // error code
         } else if (char_pos == -1) {
+            PyObject_Print(m->func_qualname, stdout, 0);
             Py_INCREF(m->func_qualname);
             return m->func_qualname;
         }
@@ -725,7 +726,6 @@ __Pyx__CyFunction_reduce(__pyx_CyFunctionObject *m)
         additional_error_info = ": failed to get '__globals__'";
         goto fail;
     }
-    // lookup_func is borrowed so not cleared
     lookup_func = PyDict_GetItemString(module_globals, "$cyfunction_pickle_lookup_ptr");
     if (!lookup_func) {
         additional_error_info = ": failed to find '$cyfunction_pickle_lookup_ptr' attribute; "
@@ -737,13 +737,13 @@ __Pyx__CyFunction_reduce(__pyx_CyFunctionObject *m)
     {
         void *cfunc_as_void_ptr;
         memcpy(&cfunc_as_void_ptr, &cfunc, sizeof(void*));
-        cfunc_as_obj = PyCapsule_New(cfunc_as_void_ptr, "CyFunc capsule", NULL);
+        cfunc_as_obj = PyLong_FromVoidPtr(cfunc_as_void_ptr);
     }
     if (!cfunc_as_obj) {
         goto fail;
     }
-    lookup_string = PyObject_CallFunctionObjArgs(lookup_func, cfunc_as_obj, NULL);
-    if (!lookup_string) {
+    lookup_value = PyObject_CallFunctionObjArgs(lookup_func, cfunc_as_obj, NULL);
+    if (!lookup_value) {
         additional_error_info = ": failed function pointer lookup";
         goto fail;
     }
@@ -776,7 +776,7 @@ __Pyx__CyFunction_reduce(__pyx_CyFunctionObject *m)
         goto fail;
     }
 
-    args_tuple = PyTuple_Pack(4, lookup_string, reduced_closure, defaults_tuple, defaults_kwdict);
+    args_tuple = PyTuple_Pack(4, lookup_value, reduced_closure, defaults_tuple, defaults_kwdict);
     if (!args_tuple) {
         goto fail;
     }
@@ -799,9 +799,10 @@ __Pyx__CyFunction_reduce(__pyx_CyFunctionObject *m)
     }
     Py_XDECREF(module_globals);
     Py_XDECREF(cfunc_as_obj);
-    Py_XDECREF(lookup_string);
+    Py_XDECREF(lookup_value);
     Py_XDECREF(reduced_closure);
     Py_XDECREF(args_tuple);
+    Py_XDECREF(lookup_func);
     Py_XDECREF(reverse_lookup_func);
     Py_XDECREF(defaults_tuple);
     Py_XDECREF(defaults_kwdict);

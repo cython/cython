@@ -45,29 +45,6 @@ def no_capture():
         return True
     return inner
 
-@cython.binding(False)
-def no_binding(a, select_nocapture):
-    """
-    >>> f1 = no_binding("no binding!", select_nocapture=True)
-    >>> f1_reloaded = pickle.loads(pickle.dumps(f1))
-    >>> f1_reloaded()
-    'no_binding.inner'
-
-    >>> f2 = no_binding("no binding!", select_nocapture=False)
-    >>> f2_reloaded = pickle.loads(pickle.dumps(f2))
-    >>> f2_reloaded()
-    'no binding!'
-    """
-    if select_nocapture:
-        def inner():
-            return "no_binding.inner"
-    else:
-        # This is almost certainly forced into "binding=True"
-        # but it's worth testing anyway
-        def inner():
-            return a
-    return inner
-
 def defaults_currently_unsupported(a):
     """
     # TODO remove this test once this has been made to work properly

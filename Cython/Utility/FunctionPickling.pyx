@@ -3,7 +3,7 @@
 #@merge_at_end: True
 
 cdef extern from *:
-    void *PyCapsule_GetPointer(object capsule, const char* name) except NULL
+    void *PyLong_AsVoidPtr(object pylong) except ?NULL
     # implementation function - implemented in C
     object $cyfunction_unpickle_impl_cname(int, object, object, object, object)
 
@@ -11,37 +11,28 @@ cdef extern from *:
     void *{{cname}}  # tell Cython that all cnames are an extern void pointer
 {{endfor}}
 
+cdef dict ${cyfunction_pickle_lookup_ptr}_cache = {}
+
 def $cyfunction_pickle_lookup_ptr(ptr_as_py):
-    cdef void *ptr = PyCapsule_GetPointer(ptr_as_py, "CyFunc capsule")
+    # Cache results in a dict instead of an extended chained lookup.
+    # This at least ends up O(1) the second time we look something up.
+    cached = ${cyfunction_pickle_lookup_ptr}_cache.get(ptr_as_py, None)
+    if cached:
+        return cached
+    cdef void *ptr = PyLong_AsVoidPtr(ptr_as_py)
 {{for cname in cnames}}
     if ptr == <void*>{{cname}}:
-        return b"{{cname}}"
+        # Return a tuple of an index and a name string. The index is used for lookup
+        # (and should be quick since the lookup can be a switch). The name for a sanity check.
+        result = ({{cnames_to_index[cname]}}, "{{cname}}")
+        ${cyfunction_pickle_lookup_ptr}_cache[ptr_as_py] = result
+        return result
 {{endfor}}
     raise ValueError()  # __reduce__ ignores this anyway
 
-cdef str cyfunc_pickle_err = \
-"""Unpickling of CyFunction failed. This may be a bug or it may be:
-    1. You used have rebuilt your module with a different version of Cython since pickling;
-    2. You have changed your own module since pickling.
-Cython does not attempt to keep compatibility in these cases.
-"""
-
-# Lots of string comparisons in $cyfunction_unpickle_impl_cname are probably slow because
-# it has to do a character-by-character comparison of "key" with many different string names.
-# I'm hoping that dict lookups of bytes objects are fairly optimized, and C switches
-# can be well optimized. Thus the lookup in two stages: dict lookup to index, index as
-# switch
-cdef dict lookup_table = {
-{{for cname in cnames}}
-    b"{{cname}}": {{cnames_to_index[cname]}},
-{{endfor}}
-}
-
-def $cyfunction_unpickle_name(key, reduced_closure, defaults_tuple, defaults_kwdict):
+def $cyfunction_unpickle_name(index_and_name, reduced_closure, defaults_tuple, defaults_kwdict):
     try:
-        keyindex = lookup_table.get(key)
-        if keyindex is None:
-            raise ValueError(f"Could not match key \'{key.decode()}\' when unpickling CyFunction")
+        keyindex, key = index_and_name
         return $cyfunction_unpickle_impl_cname(<int>keyindex, key, reduced_closure, defaults_tuple, defaults_kwdict)
     except BaseException as e:
         try:
@@ -50,4 +41,10 @@ def $cyfunction_unpickle_name(key, reduced_closure, defaults_tuple, defaults_kwd
             raise e  # I'd like to give a better error message, but if it fails just provide the original
         else:
             # provide a detailed message to set user expectations
+            cyfunc_pickle_err = \
+            """Unpickling of CyFunction failed. This may be a bug or it may be:
+                1. You used have rebuilt your module with a different version of Cython since pickling;
+                2. You have changed your own module since pickling.
+            Cython does not attempt to keep compatibility in these cases.
+            """
             raise UnpicklingError(cyfunc_pickle_err) from e

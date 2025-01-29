@@ -3936,6 +3936,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                             meth_entry.func_cname))
 
     def generate_unpickle_function(self, protocode, defcode):
+        from .Symtab import Scope
+
         if not self.scope.pickleable_functions:
             return  # nothing to do
 
@@ -3947,10 +3949,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         defcode.putln("static PyObject* %s(int id, PyObject *cname, PyObject *reduced_closure, "
                         "PyObject *defaults_tuple, PyObject *defaults_kwdict) {" %
                         Naming.cyfunction_unpickle_impl_cname)
-        defcode.enter_cfunc_scope()
-        from .Symtab import Scope
         # dummy scope for debugging temp cleanup failure
-        defcode.funcstate.scope = Scope(Naming.cyfunction_unpickle_impl_cname, None, None)
+        defcode.enter_cfunc_scope(Scope(Naming.cyfunction_unpickle_impl_cname, None, None))
         defcode.putln("PyObject *out=NULL;")
         tempvardecl_code = defcode.insertion_point()
 
@@ -3978,9 +3978,19 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 pyobject_names += ["ignored0", "cl_tp_ignored", "cl_state1", "cl_state2"]
             defcode.putln("PyObject %s;" % ", ".join(["*%s = NULL" % name for name in pyobject_names]))
 
-            local_cleanup_label = None
+            local_cleanup_label = "local_cleanup_%s" % n
+            defcode.putln("{")
+            defcode.putln("int cmp_result;")
+            str_const = defcode.get_py_string_const(EncodedString(cname))
+            defcode.putln(f"cmp_result = PyObject_RichCompareBool({str_const}, cname, Py_EQ);")
+            defcode.putln(f"if (unlikely(cmp_result == -1)) goto {local_cleanup_label};")
+            defcode.putln("if (unlikely(cmp_result == 0)) {")
+            defcode.putln(f'PyErr_Format(PyExc_ValueError, "cname \'%S\' did not match expected cname \'{cname}\'", cname);')
+            defcode.putln(f"goto {local_cleanup_label};")
+            defcode.putln("}")
+            defcode.putln("}")
+
             if node.needs_outer_scope:
-                local_cleanup_label = "local_cleanup_%s" % n
                 defcode.putln("int checksum;")
                 # reduced_closure is a tuple to unpickle the closure class
                 # with the format (None, (None, checksum, state), [state?])
@@ -3992,7 +4002,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 defcode.putln("Py_INCREF(ignored0); Py_INCREF(cl_tp_ignored);")
                 defcode.putln("Py_INCREF(cl_state1); Py_XINCREF(cl_state2);")
 
-                closure_class_cname = "(PyObject*)%s" % closure_tp.typeptr_cname
+                closure_class_cname = "(PyObject*)%s" % defcode.name_in_module_state(closure_tp.typeptr_cname)
                 defcode.putln("if (!(closure = %s(%s, checksum, cl_state2 ? cl_state2 : cl_state1))) "
                               "goto %s;" % (unpickle_func, closure_class_cname, local_cleanup_label))
             else:
@@ -4022,7 +4032,6 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             defcode.putln("break;")
 
         defcode.putln("default:")
-        # formatting of bytes key probably isn't perfect here
         defcode.putln('PyErr_Format(PyExc_ValueError, '
                       '"Could not match key \'%S\' when unpickling CyFunction", '
                       'cname);')
