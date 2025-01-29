@@ -1,6 +1,5 @@
 
 //////////////////// CythonFunctionShared.proto ////////////////////
-//@substitute: naming
 
 #define __Pyx_CyFunction_USED
 
@@ -737,7 +736,7 @@ __Pyx__CyFunction_reduce(__pyx_CyFunctionObject *m)
 
     {
         void *cfunc_as_void_ptr;
-        memcpy(cfunc_as_void_ptr, cfunc, sizeof(void*));
+        memcpy(&cfunc_as_void_ptr, &cfunc, sizeof(void*));
         cfunc_as_obj = PyCapsule_New(cfunc_as_void_ptr, "CyFunc capsule", NULL);
     }
     if (!cfunc_as_obj) {
