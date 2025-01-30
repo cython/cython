@@ -487,7 +487,7 @@ static int __Pyx_GetException(PyObject **type, PyObject **value, PyObject **tb)
     Py_XDECREF(tmp_type);
     Py_XDECREF(tmp_value);
     Py_XDECREF(tmp_tb);
-#elif __PYX_LIMITED_VERSION_HEX >= 0x030B0000
+#elif __PYX_LIMITED_VERSION_HEX >= 0x030b0000
     PyErr_SetHandledException(local_value);
     Py_XDECREF(local_value);
     Py_XDECREF(local_type);
