@@ -142,10 +142,6 @@ test_dataclasses
 test_genericclass_exttype
 test_class_getitem_errors_2
 yield_from_pep380
-# https://bugs.python.org/issue40703 - fused function is given a wrong
-# __module__ attribute. This is fixable with type-specs along but 
-# probably not with the limited API
-cyfunction_pickle
 
 # Excluded for now - to be enabled incrementally
 buffers[.]

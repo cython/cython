@@ -1864,13 +1864,21 @@ bad:
     return result;
 }
 
+#if CYTHON_COMPILING_IN_LIMITED_API
+PyObject *__Pyx_FusedFunction_get_module(PyObject *func, void *context) {
+    CYTHON_UNUSED_VAR(context);
+    __pyx_CyFunctionObject *cy_func = (__pyx_CyFunctionObject *) func;
+    return PyObject_GetAttrString(cy_func->func, "__module__");
+}
+#endif
+
 static PyMemberDef __pyx_FusedFunction_members[] = {
     {"__signatures__",
      T_OBJECT,
      offsetof(__pyx_FusedFunctionObject, __signatures__),
      READONLY,
      0},
-#if CYTHON_USE_TYPE_SPECS
+#if CYTHON_USE_TYPE_SPECS && !CYTHON_COMPILING_IN_LIMITED_API
     // See https://bugs.python.org/issue40703 - PyType_FromSpec() unhelpfully overwrites __module__.
      // There is a bug fix for this in Python and a workaround in __Pyx_fix_up_extension_type_from_spec.
      // However, neither of them deal with inherited members. Therefore the simplest solution is
@@ -1886,6 +1894,9 @@ static PyGetSetDef __pyx_FusedFunction_getsets[] = {
     // a descriptor for the instance's __doc__, so rebuild the descriptor in our subclass
     // (all other descriptors are inherited)
     {"__doc__",  (getter)__Pyx_CyFunction_get_doc, (setter)__Pyx_CyFunction_set_doc, 0, 0},
+#if CYTHON_COMPILING_IN_LIMITED_API
+    {"__module__", __Pyx_FusedFunction_get_module, NULL, NULL, NULL},
+#endif
     {0, 0, 0, 0, 0}
 };
 
