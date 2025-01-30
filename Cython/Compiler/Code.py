@@ -2348,7 +2348,7 @@ class CCodeWriter(object):
         # Add required casts, but try not to shadow real warnings.
         cast = entry.signature.method_function_type()
         if cast != 'PyCFunction':
-            func_ptr = '(void*)(%s)%s' % (cast, func_ptr)
+            func_ptr = '(void(*)(void))(%s)%s' % (cast, func_ptr)
         entry_name = entry.name.as_c_string_literal()
         if is_reverse_number_slot:
             # Unlike most special functions, reverse number operator slots are actually generated here
