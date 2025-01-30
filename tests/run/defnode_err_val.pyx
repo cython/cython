@@ -10,6 +10,6 @@ def test_errval():
     >>> test_errval()
     Traceback (most recent call last):
     ...
-    TypeError: Argument 'a' has incorrect type (expected...TestErrVal, got int)
+    TypeError: Argument 'a' has incorrect type (expected ...TestErrVal, got int)
     """
     TestErrVal(123)
