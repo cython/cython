@@ -8618,12 +8618,8 @@ class TryFinallyStatNode(StatNode):
             code.error_label = old_error_label
         catch_label = code.new_label()
 
-        was_in_try_finally = code.funcstate.in_try_finally
-        code.funcstate.in_try_finally = 1
-
         self.body.generate_execution_code(code)
 
-        code.funcstate.in_try_finally = was_in_try_finally
         code.putln("}")
 
         temps_to_clean_up = code.funcstate.all_free_managed_temps()
@@ -8980,6 +8976,7 @@ class CriticalSectionStatNode(TryFinallyStatNode):
 
     var_type = None
     state_temp = None
+    preserve_exception = False
 
     def __init__(self, pos, /, args, body, **kwds):
         if len(args) > 1:

@@ -370,12 +370,11 @@ class Context:
     def parse(self, source_desc, scope, pxd, full_module_name):
         if not isinstance(source_desc, FileSourceDescriptor):
             raise RuntimeError("Only file sources for code supported")
-        source_filename = source_desc.filename
         scope.cpp = self.cpp
         # Parse the given source file and return a parse tree.
         num_errors = Errors.get_errors_count()
         try:
-            with Utils.open_source_file(source_filename) as f:
+            with source_desc.get_file_object() as f:
                 from . import Parsing
                 s = PyrexScanner(f, source_desc, source_encoding = f.encoding,
                                  scope = scope, context = self)
@@ -386,7 +385,7 @@ class Context:
                     except ImportError:
                         raise RuntimeError(
                             "Formal grammar can only be used with compiled Cython with an available pgen.")
-                    ConcreteSyntaxTree.p_module(source_filename)
+                    ConcreteSyntaxTree.p_module(source_desc.filename)
         except UnicodeDecodeError as e:
             #import traceback
             #traceback.print_exc()
