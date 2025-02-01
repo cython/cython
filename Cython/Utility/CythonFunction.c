@@ -677,14 +677,143 @@ static PyMemberDef __pyx_CyFunction_members[] = {
     {0, 0, 0,  0, 0}
 };
 
+// Called inside critical_section. Note that this doesn't absolutely guarantee an
+// atomic snapshot of the function state. And additionally there's currently
+// no locking of the closure.
 static PyObject *
-__Pyx_CyFunction_reduce(__pyx_CyFunctionObject *m, PyObject *args)
+__Pyx__CyFunction_reduce(__pyx_CyFunctionObject *m)
 {
+    PyCFunction cfunc;
+    PyObject *module_globals = NULL, *lookup_func = NULL, *cfunc_as_obj = NULL;
+    PyObject *lookup_value = NULL, *reduced_closure = NULL;
+    PyObject *args_tuple = NULL, *reverse_lookup_func = NULL, *output = NULL;
+    PyObject *defaults_tuple = NULL, *defaults_kwdict = NULL;
+    const char* additional_error_info = "";
+
+    // Where possible we just fall back to the old way of returning a string.
+    // The main reason for doing this is that the reverse-lookup function (the first argument
+    // we return) is a closureless Cython function, so this doing it this way allows it
+    // to be pickleable
+    if (!m->func_closure) {
+        // a '<' in the qualname indicate that it's in a local scope or a lambda or similar
+        Py_ssize_t len = PyUnicode_GetLength(m->func_qualname);
+        if (len==-1) return NULL;
+        Py_ssize_t char_pos = PyUnicode_FindChar(m->func_qualname, '<', 0, len, 1);
+        if (char_pos == -2) {
+            return NULL;  // error code
+        } else if (char_pos == -1) {
+            Py_INCREF(m->func_qualname);
+            return m->func_qualname;
+        }
+    }
+
+    #if CYTHON_COMPILING_IN_LIMITED_API
+    {
+        PyObject *f = ((__pyx_CyFunctionObject*)m)->func;
+        cfunc = PyCFunction_GetFunction(f);
+    }
+    #else
+    // it'd be nice to use "PyCFunction_GetFunction" here but cyfunction doesn't actually
+    // inherit from PyCFunction
+    cfunc = ((PyCFunctionObject*)m)->m_ml->ml_meth;
+    #endif
+    if (!cfunc) {
+        goto fail;
+    }
+    module_globals = PyObject_GetAttrString((PyObject*)m, "__globals__");
+    if (!module_globals) {
+        additional_error_info = ": failed to get '__globals__'";
+        goto fail;
+    }
+    lookup_func = PyDict_GetItemString(module_globals, "$cyfunction_pickle_lookup_ptr");
+    if (!lookup_func) {
+        additional_error_info = ": failed to find '$cyfunction_pickle_lookup_ptr' attribute; "
+            "use the auto_pickle directive to enable pickling for this module";
+        goto fail;
+    }
+    Py_INCREF(lookup_func);
+
+    {
+        void *cfunc_as_void_ptr;
+        memcpy(&cfunc_as_void_ptr, &cfunc, sizeof(void*));
+        cfunc_as_obj = PyLong_FromVoidPtr(cfunc_as_void_ptr);
+    }
+    if (!cfunc_as_obj) {
+        goto fail;
+    }
+    lookup_value = PyObject_CallFunctionObjArgs(lookup_func, cfunc_as_obj, NULL);
+    if (!lookup_value) {
+        additional_error_info = ": failed function pointer lookup";
+        goto fail;
+    }
+    if (m->func_closure) {
+        reduced_closure = PyObject_CallMethod(m->func_closure, "__reduce_cython__", NULL);
+        if (!reduced_closure) {
+            additional_error_info = ": closure is not pickleable";
+            goto fail;
+        }
+    } else {
+        Py_INCREF(Py_None);
+        reduced_closure = Py_None;
+    }
+
+    if (m->defaults) {
+        // the problem here is Cython's internal representation rather than defaults_tuple and
+        // defaults_kwdict which are only for introspection and easily pickled
+        additional_error_info = ": Cannot currently pickle CyFunctions with non-constant default arguments";
+        goto fail;
+    }
+    defaults_tuple = m->defaults_tuple ? m->defaults_tuple : Py_None;
+    Py_INCREF(defaults_tuple);
+    defaults_kwdict = m->defaults_kwdict ? m->defaults_kwdict : Py_None;
+    Py_INCREF(defaults_kwdict);
+
+    if (__Pyx_CyFunction_GetClassObj(m) && __Pyx_CyFunction_GetClassObj(m) != Py_None) {
+        // It's actually quite hard to come up with a closure function that has one.
+        additional_error_info = ": Cannot currently pickle CyFunctions with class cells"
+            " (this is probably because you used super() or __class__)";
+        goto fail;
+    }
+
+    args_tuple = PyTuple_Pack(4, lookup_value, reduced_closure, defaults_tuple, defaults_kwdict);
+    if (!args_tuple) {
+        goto fail;
+    }
+    reverse_lookup_func = PyDict_GetItemString(module_globals, "$cyfunction_unpickle_name");
+    if (!reverse_lookup_func) {
+        additional_error_info = ": failed to find '$cyfunction_unpickle_name' attribute";
+        goto fail;
+    }
+    Py_INCREF(reverse_lookup_func);
+    output = PyTuple_Pack(2, reverse_lookup_func, args_tuple);
+    if (!output) {
+        goto fail;
+    }
+
+    if (0) {
+        fail:
+        PyErr_Clear();  // we're replacing whatever error message caused us to get here
+        PyErr_Format(PyExc_AttributeError, "Can't pickle cyfunction object '%S'%s",
+                        m->func_qualname, additional_error_info);
+    }
+    Py_XDECREF(module_globals);
+    Py_XDECREF(cfunc_as_obj);
+    Py_XDECREF(lookup_value);
+    Py_XDECREF(reduced_closure);
+    Py_XDECREF(args_tuple);
+    Py_XDECREF(lookup_func);
+    Py_XDECREF(reverse_lookup_func);
+    Py_XDECREF(defaults_tuple);
+    Py_XDECREF(defaults_kwdict);
+    return output;
+}
+
+static PyObject *
+__Pyx_CyFunction_reduce(__pyx_CyFunctionObject *m, PyObject *args) {
     PyObject *result = NULL;
     CYTHON_UNUSED_VAR(args);
     __Pyx_BEGIN_CRITICAL_SECTION(m);
-    Py_INCREF(m->func_qualname);
-    result = m->func_qualname;
+    result = __Pyx__CyFunction_reduce(m);
     __Pyx_END_CRITICAL_SECTION();
     return result;
 }
@@ -1735,12 +1864,27 @@ bad:
     return result;
 }
 
+#if CYTHON_COMPILING_IN_LIMITED_API
+PyObject *__Pyx_FusedFunction_get_module(PyObject *func, void *context) {
+    CYTHON_UNUSED_VAR(context);
+    __pyx_CyFunctionObject *cy_func = (__pyx_CyFunctionObject *) func;
+    return PyObject_GetAttrString(cy_func->func, "__module__");
+}
+#endif
+
 static PyMemberDef __pyx_FusedFunction_members[] = {
     {"__signatures__",
      T_OBJECT,
      offsetof(__pyx_FusedFunctionObject, __signatures__),
      READONLY,
      0},
+#if CYTHON_USE_TYPE_SPECS && !CYTHON_COMPILING_IN_LIMITED_API
+    // See https://bugs.python.org/issue40703 - PyType_FromSpec() unhelpfully overwrites __module__.
+     // There is a bug fix for this in Python and a workaround in __Pyx_fix_up_extension_type_from_spec.
+     // However, neither of them deal with inherited members. Therefore the simplest solution is
+     // just to copy the definition from CyFunction
+    {"__module__", T_OBJECT, offsetof(PyCFunctionObject, m_module), 0, 0},
+#endif
     {"__self__", T_OBJECT_EX, offsetof(__pyx_FusedFunctionObject, self), READONLY, 0},
     {0, 0, 0, 0, 0},
 };
@@ -1750,7 +1894,37 @@ static PyGetSetDef __pyx_FusedFunction_getsets[] = {
     // a descriptor for the instance's __doc__, so rebuild the descriptor in our subclass
     // (all other descriptors are inherited)
     {"__doc__",  (getter)__Pyx_CyFunction_get_doc, (setter)__Pyx_CyFunction_set_doc, 0, 0},
+#if CYTHON_COMPILING_IN_LIMITED_API
+    {"__module__", __Pyx_FusedFunction_get_module, NULL, NULL, NULL},
+#endif
     {0, 0, 0, 0, 0}
+};
+
+PyObject* __Pyx_FusedFunction_reduce(__pyx_FusedFunctionObject *m, PyObject *args) {
+    PyObject *out;
+    if (m->self) {
+        PyErr_SetString(PyExc_AttributeError, "Cannot yet pickle bound FusedFunction");
+        return NULL;
+    }
+    out = __Pyx_CyFunction_reduce((__pyx_CyFunctionObject*)m, args);
+    if (!out) return out;
+    if (PyUnicode_Check(out) || PyBytes_Check(out)) {
+        // it's a simple string to lookup a global name - OK
+        return out;
+    }
+    // otherwise we're into a more complicated attempt at pickling, which mostly
+    // we can't cope with yet. TODO!
+    if (m->__signatures__) {
+        Py_DECREF(out);
+        PyErr_SetString(PyExc_AttributeError, "Cannot yet pickle most FusedFunctions");
+        return NULL;
+    }
+    return out; // Probably OK, but currently untested!
+}
+
+static PyMethodDef __pyx_FusedFunction_methods[] = {
+    {"__reduce__", (PyCFunction)__Pyx_FusedFunction_reduce, METH_VARARGS, 0},
+    {0, 0, 0, 0}
 };
 
 #if CYTHON_USE_TYPE_SPECS
@@ -1763,6 +1937,7 @@ static PyType_Slot __pyx_FusedFunctionType_slots[] = {
     {Py_tp_getset, (void *)__pyx_FusedFunction_getsets},
     {Py_tp_descr_get, (void *)__pyx_FusedFunction_descr_get},
     {Py_mp_subscript, (void *)__pyx_FusedFunction_getitem},
+    {Py_tp_methods, (void *)__pyx_FusedFunction_methods},
     {0, 0},
 };
 
@@ -1810,7 +1985,7 @@ static PyTypeObject __pyx_FusedFunctionType_type = {
     0,                                  /*tp_weaklistoffset*/
     0,                                  /*tp_iter*/
     0,                                  /*tp_iternext*/
-    0,                                  /*tp_methods*/
+    __pyx_FusedFunction_methods,        /*tp_methods*/
     __pyx_FusedFunction_members,        /*tp_members*/
     __pyx_FusedFunction_getsets,           /*tp_getset*/
     // NOTE: tp_base may be changed later during module initialisation when importing CyFunction across modules.

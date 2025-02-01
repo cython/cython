@@ -1,3 +1,6 @@
 # __dict__ doesn't work on cdef classes
 run[.]cdef_multiple_inheritance$
 test_grammar
+
+# __module__
+cyfunction_pickling

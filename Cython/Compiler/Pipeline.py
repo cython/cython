@@ -129,7 +129,7 @@ def inject_utility_code_stage_factory(context):
             if tree:
                 module_node.merge_in(tree.with_compiler_directives(),
                                      tree.scope, stage="utility",
-                                     merge_scope=True)
+                                     merge_scope=True, merge_at_end=utilcode.merge_at_end)
         return module_node
 
     return inject_utility_code_stage

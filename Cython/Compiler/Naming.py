@@ -148,6 +148,9 @@ fusedfunction_type_cname = pyrex_prefix + "FusedFunctionType"
 # the default values in variables named f"_dflt_{field.name}" in a hidden scope that's
 # passed to the __init__ function. (The name is unimportant to the exact workings though)
 dataclass_field_default_cname = pyrex_prefix + "dataclass_dflt"
+cyfunction_pickle_lookup_ptr = pyrex_prefix + "lookup_cyfunction_pointer"
+cyfunction_unpickle_name = pyrex_prefix + "unpickle_cyfunction"
+cyfunction_unpickle_impl_cname = cyfunction_unpickle_name + "_implementation"
 
 global_code_object_cache_find = pyrex_prefix + 'find_code_object'
 global_code_object_cache_insert = pyrex_prefix + 'insert_code_object'

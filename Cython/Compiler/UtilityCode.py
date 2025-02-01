@@ -28,6 +28,11 @@ class NonManglingModuleScope(Symtab.ModuleScope):
         else:
             return Symtab.ModuleScope.mangle(self, prefix)
 
+    def generate_function_pickle_code(self):
+        # Any pickleable functions in the utility code are merged into the main module and
+        # handled there (so don't generate duplicate functions to support it)
+        return
+
 
 class CythonUtilityCodeContext(StringParseContext):
     scope = None
@@ -66,10 +71,11 @@ class CythonUtilityCode(Code.UtilityCodeBase):
     """
 
     is_cython_utility = True
+    merge_at_end = False  # most utility code goes first in the generated C
 
     def __init__(self, impl, name="__pyxutil", prefix="", requires=None,
                  file=None, from_scope=None, context=None, compiler_directives=None,
-                 outer_module_scope=None):
+                 outer_module_scope=None, merge_at_end=False):
         # 1) We need to delay the parsing/processing, so that all modules can be
         #    imported without import loops
         # 2) The same utility code object can be used for multiple source files;
@@ -93,6 +99,8 @@ class CythonUtilityCode(Code.UtilityCodeBase):
         self.outer_module_scope = outer_module_scope
         self.compiler_directives = compiler_directives
         self.context_types = context_types
+        if merge_at_end:
+            self.merge_at_end = merge_at_end
 
     def __eq__(self, other):
         if isinstance(other, CythonUtilityCode):

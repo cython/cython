@@ -5991,6 +5991,34 @@ class CClassDefNode(ClassDefNode):
         if self.body:
             self.body.annotate(code)
 
+    @classmethod
+    def generate_closure_class_for_pickling(cls, pos, cclass_scope, cclass_entry, directives):
+        """
+        Currently used for closure scopes - converts a scope into a minimal class node
+        that's sufficient to have pickle functions injected
+        """
+        from . import ExprNodes
+
+        cclass_scope.implemented = True  # necessary to generate pickle functions
+        cclass_scope.needs_pickleable_closure_constructor = True
+        class_node = cls(
+            pos,
+            visibility="private",
+            module_name=None,
+            class_name=cclass_scope.name,
+            bases=ExprNodes.TupleNode(pos, args=[]),
+            scope=cclass_scope,
+            entry=cclass_entry,
+            body=StatListNode(pos, stats=[]), type_init_args=None)
+        # the class is already declared - we don't want to do it again
+        class_node.analyse_declarations = lambda env: cclass_entry
+        # crucially this gets the various auto_pickle options
+        class_node.directives = Options.copy_inherited_directives(
+            directives,
+            binding=False,  # generates less code!
+        )
+        return class_node
+
 
 class PropertyNode(StatNode):
     #  Definition of a property in an extension type.

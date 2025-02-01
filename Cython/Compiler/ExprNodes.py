@@ -10281,6 +10281,43 @@ class PyCFunctionNode(ExprNode, ModuleNameMixin):
                 code.putln('__Pyx_CyFunction_SetAnnotationsDict(%s, %s);' % (
                     self.result(), self.annotations_dict.py_result()))
 
+    def duplicate_for_unpickling(self, result_cname, closure_cname,
+                                        defaults_tuple_cname, defaults_kwdict_cname):
+        """
+        Creates a copy of the node, adapted for use in the cyfunction_unpickling function
+
+        The differences are that the defaults aren't generated, but are instead read from
+        the pickle, the closure is also read from the pickle, and the output name is
+        overridden
+        """
+
+        clone = copy.copy(self)  # shallow copy
+        clone.result = lambda: result_cname
+        clone.closure_result_code = lambda: closure_cname
+        clone.is_temp = False
+
+        if clone.defaults_tuple:
+            entry = Symtab.Entry(
+                name=defaults_tuple_cname,
+                cname=defaults_tuple_cname,
+                type=py_object_type,
+            )
+            clone.defaults_tuple = NameNode(
+                clone.defaults_tuple.pos, name=defaults_tuple_cname,
+                entry=entry, is_temp=False
+            )
+        if clone.defaults_kwdict:
+            entry = Symtab.Entry(
+                name=defaults_kwdict_cname,
+                cname=defaults_kwdict_cname,
+                type=py_object_type,
+            )
+            clone.defaults_kwdict = NameNode(
+                clone.defaults_kwdict.pos, name=defaults_kwdict_cname,
+                entry=entry, is_temp=False
+            )
+        return clone
+
 
 class InnerFunctionNode(PyCFunctionNode):
     # Special PyCFunctionNode that depends on a closure class
