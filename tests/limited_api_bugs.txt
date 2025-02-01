@@ -20,8 +20,6 @@ ext_attribute_cache
 fastcall
 run[.]generators_py
 generator_frame_cycle
-# probably just an exact error message
-importfrom
 run[.]no_gc
 run[.]numpy
 line_trace
@@ -32,7 +30,6 @@ py_ucs4_type
 pep442_tp_finalize
 test_asyncgen
 tracebacks
-tuple_constants
 tss
 sys_monitoring
 special_method_docstrings
@@ -40,11 +37,6 @@ run[.]ufunc
 slice2b
 verbatiminclude
 test_coroutines_pep492
-
-# Possibly only on early versions of Python?
-fused_def
-legacy_implicit_noexcept
-method_module_name_T422
 
 # Something to do with complex
 view_count
@@ -133,15 +125,6 @@ run[.]notinop
 py_unicode_strings
 py_unicode_type
 unicode_indexing
-
-# Only on specific versions
-# (TODO) be more specific here
-weakfail
-reduce_pickle
-test_dataclasses
-test_genericclass_exttype
-test_class_getitem_errors_2
-yield_from_pep380
 
 # Excluded for now - to be enabled incrementally
 buffers[.]
