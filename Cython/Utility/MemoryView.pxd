@@ -8,7 +8,7 @@ cdef extern from "pythread.h":
     ctypedef void *PyThread_type_lock
 
 cdef extern from *:
-    ctypedef struct __Pyx_memviewslice:
+    ctypedef struct {{memviewslice_name}}:
         pass
 
     ctypedef struct __pyx_buffer "Py_buffer":
@@ -24,15 +24,15 @@ cdef extern from *:
 
     ctypedef int __pyx_atomic_int_type
 
-    __Pyx_memviewslice slice_copy_contig "__pyx_memoryview_copy_new_contig"(
-                                 __Pyx_memviewslice *from_mvs,
+    {{memviewslice_name}} slice_copy_contig "__pyx_memoryview_copy_new_contig"(
+                                 {{memviewslice_name}} *from_mvs,
                                  char *mode, int ndim,
                                  size_t sizeof_dtype, int contig_flag,
                                  bint dtype_is_object) except * nogil
     bint slice_is_contig "__pyx_memviewslice_is_contig" (
-                            __Pyx_memviewslice mvs, char order, int ndim) nogil
-    bint slices_overlap "__pyx_slices_overlap" (__Pyx_memviewslice *slice1,
-                                                __Pyx_memviewslice *slice2,
+                            {{memviewslice_name}} mvs, char order, int ndim) nogil
+    bint slices_overlap "__pyx_slices_overlap" ({{memviewslice_name}} *slice1,
+                                                {{memviewslice_name}} *slice2,
                                                 int ndim, size_t itemsize) nogil
 
 @cname("__pyx_array")
@@ -96,7 +96,7 @@ cdef memoryview memview_slice(memoryview memview, object indices)
 
 @cname('__pyx_memoryview_slice_memviewslice')
 cdef int slice_memviewslice(
-        __Pyx_memviewslice *dst,
+        {{memviewslice_name}} *dst,
         Py_ssize_t shape, Py_ssize_t stride, Py_ssize_t suboffset,
         int dim, int new_ndim, int *suboffset_dim,
         Py_ssize_t start, Py_ssize_t stop, Py_ssize_t step,
@@ -108,33 +108,33 @@ cdef char *pybuffer_index(Py_buffer *view, char *bufp, Py_ssize_t index,
                           Py_ssize_t dim) except NULL
 
 @cname('__pyx_memslice_transpose')
-cdef int transpose_memslice(__Pyx_memviewslice *memslice) except -1 nogil
+cdef int transpose_memslice({{memviewslice_name}} *memslice) except -1 nogil
 
 @cname('__pyx_memoryview_fromslice')
-cdef memoryview_fromslice(__Pyx_memviewslice memviewslice,
+cdef memoryview_fromslice({{memviewslice_name}} memviewslice,
                           int ndim,
                           object (*to_object_func)(char *),
                           int (*to_dtype_func)(char *, object) except 0,
                           bint dtype_is_object)
 
 @cname('__pyx_memoryview_get_slice_from_memoryview')
-cdef __Pyx_memviewslice *get_slice_from_memview(memoryview memview,
-                                                __Pyx_memviewslice *mslice) except NULL
+cdef {{memviewslice_name}} *get_slice_from_memview(memoryview memview,
+                                                {{memviewslice_name}} *mslice) except NULL
 
 @cname('__pyx_memoryview_slice_copy')
-cdef void slice_copy(memoryview memview, __Pyx_memviewslice *dst) noexcept
+cdef void slice_copy(memoryview memview, {{memviewslice_name}} *dst) noexcept
 
 @cname('__pyx_memoryview_copy_object')
 cdef memoryview_copy(memoryview memview)
 
 @cname('__pyx_memoryview_copy_object_from_slice')
-cdef memoryview_copy_from_slice(memoryview memview, __Pyx_memviewslice *memviewslice)
+cdef memoryview_copy_from_slice(memoryview memview, {{memviewslice_name}} *memviewslice)
 
 @cname('__pyx_get_best_slice_order')
-cdef char get_best_order(__Pyx_memviewslice *mslice, int ndim) noexcept nogil
+cdef char get_best_order({{memviewslice_name}} *mslice, int ndim) noexcept nogil
 
 @cname('__pyx_memoryview_slice_get_size')
-cdef Py_ssize_t slice_get_size(__Pyx_memviewslice *src, int ndim) noexcept nogil
+cdef Py_ssize_t slice_get_size({{memviewslice_name}} *src, int ndim) noexcept nogil
 
 @cname('__pyx_fill_contig_strides_array')
 cdef Py_ssize_t fill_contig_strides_array(
@@ -142,8 +142,8 @@ cdef Py_ssize_t fill_contig_strides_array(
                 int ndim, char order) noexcept nogil
 
 @cname('__pyx_memoryview_copy_data_to_temp')
-cdef void *copy_data_to_temp(__Pyx_memviewslice *src,
-                             __Pyx_memviewslice *tmpslice,
+cdef void *copy_data_to_temp({{memviewslice_name}} *src,
+                             {{memviewslice_name}} *tmpslice,
                              char order,
                              int ndim) except NULL nogil
 
@@ -161,25 +161,25 @@ cdef int _err(PyObject *error, str msg) except -1 with gil
 cdef int _err_no_memory() except -1 with gil
 
 @cname('__pyx_memoryview_copy_contents')
-cdef int memoryview_copy_contents(__Pyx_memviewslice src,
-                                  __Pyx_memviewslice dst,
+cdef int memoryview_copy_contents({{memviewslice_name}} src,
+                                  {{memviewslice_name}} dst,
                                   int src_ndim, int dst_ndim,
                                   bint dtype_is_object) except -1 nogil
 
 @cname('__pyx_memoryview_broadcast_leading')
-cdef void broadcast_leading(__Pyx_memviewslice *mslice,
+cdef void broadcast_leading({{memviewslice_name}} *mslice,
                             int ndim,
                             int ndim_other) noexcept nogil
 
 @cname('__pyx_memoryview_refcount_copying')
-cdef void refcount_copying(__Pyx_memviewslice *dst, bint dtype_is_object, int ndim, bint inc) noexcept nogil
+cdef void refcount_copying({{memviewslice_name}} *dst, bint dtype_is_object, int ndim, bint inc) noexcept nogil
 
 @cname('__pyx_memoryview_refcount_objects_in_slice')
 cdef void refcount_objects_in_slice(char *data, Py_ssize_t *shape,
                                     Py_ssize_t *strides, int ndim, bint inc) noexcept
 
 @cname('__pyx_memoryview_slice_assign_scalar')
-cdef void slice_assign_scalar(__Pyx_memviewslice *dst, int ndim,
+cdef void slice_assign_scalar({{memviewslice_name}} *dst, int ndim,
                               size_t itemsize, void *item,
                               bint dtype_is_object) noexcept nogil
 

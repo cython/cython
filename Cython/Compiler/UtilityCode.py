@@ -9,6 +9,7 @@ from . import Options
 
 import os.path
 import re
+import io
 
 
 class NonManglingModuleScope(Symtab.ModuleScope):
@@ -270,6 +271,20 @@ class CythonUtilityCode(Code.UtilityCodeBase):
         return utility_code_directives
 
 
+class TemplatedFileSourceDescriptor(FileSourceDescriptor):
+
+    def __init__(self, filename, path_description, context):
+        super().__init__(filename, path_description)
+        self._context = context
+
+    def get_file_object(self, encoding=None, error_handling=None):
+        with super().get_file_object(encoding, error_handling) as f:
+            data = f.read()
+            ret = Code.sub_tempita(data, self._context, self.filename)
+            stream = io.TextIOWrapper(io.BytesIO(ret.encode(f.encoding)), encoding=f.encoding, errors=error_handling)
+        return stream
+
+
 class CythonSharedUtilityCode:
     def __init__(self, module_name, context, requires):
         self._module_name = module_name
@@ -290,7 +305,7 @@ class CythonSharedUtilityCode:
         )
         try:
             rel_path = qualified_name.replace('.', os.sep) + os.path.splitext(pxd_pathname)[1]
-            source_desc = FileSourceDescriptor(pxd_pathname, rel_path)
+            source_desc = TemplatedFileSourceDescriptor(pxd_pathname, rel_path, self.context)
             source_desc.in_utility_code = True
             err, result = context.process_pxd(source_desc, scope, qualified_name)
             (pxd_codenodes, pxd_scope) = result
