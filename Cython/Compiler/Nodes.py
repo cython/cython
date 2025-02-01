@@ -8976,6 +8976,7 @@ class CriticalSectionStatNode(TryFinallyStatNode):
 
     var_type = None
     state_temp = None
+    preserve_exception = False
 
     def __init__(self, pos, /, args, body, **kwds):
         if len(args) > 1:
