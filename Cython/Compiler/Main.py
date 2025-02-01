@@ -365,7 +365,7 @@ class Context:
         # Parse the given source file and return a parse tree.
         num_errors = Errors.get_errors_count()
         try:
-            with source_desc.get_file_handle() as f:
+            with source_desc.get_file_object() as f:
                 from . import Parsing
                 s = PyrexScanner(f, source_desc, source_encoding = f.encoding,
                                  scope = scope, context = self)
