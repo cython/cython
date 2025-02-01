@@ -272,17 +272,18 @@ def test_compare(string s1, string s2):
 
 def test_replace(string s1, string s2):
     """
-    >>> test_replace(b_asdf, b_asdg) == (b_asdg, ) * 5
+    >>> test_replace(b_asdf, b_asdg) == (b_asdg, ) * 6
     True
     """
-    cdef string o1, o2, o3, o4, o5
-    o1, o2, o3, o4, o5 = (s1, ) * 5
+    cdef string o1, o2, o3, o4, o5, o6
+    o1, o2, o3, o4, o5, o6 = (s1, ) * 6
     o1.replace(0, s2.size(), s2)
     o2.replace(0, s2.size(), s2, 0, s2.size())
     o3.replace(0, s2.size(), s2.c_str(), s2.size())
     o4.replace(0, s2.size(), s2.c_str())
     o5.replace(s2.size() - 1, 1, 1, deref(s2.rbegin()))
-    return o1, o2, o3, o4, o5
+    o6.replace(o6.begin(), o6.end(), s2.begin(), s2.end())
+    return o1, o2, o3, o4, o5, o6
 
 def test_substr(string s):
     """
