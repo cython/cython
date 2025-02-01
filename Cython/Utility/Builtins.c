@@ -58,7 +58,7 @@ static PyObject* __Pyx_PyExec3(PyObject* o, PyObject* globals, PyObject* locals)
     // In Limited API we just use exec builtin which already has this
     else if (unlikely(!PyDict_Check(globals))) {
         __Pyx_TypeName globals_type_name =
-            __Pyx_PyType_GetName(Py_TYPE(globals));
+            __Pyx_PyType_GetFullyQualifiedName(Py_TYPE(globals));
         PyErr_Format(PyExc_TypeError,
                      "exec() arg 2 must be a dict, not " __Pyx_FMT_TYPENAME,
                      globals_type_name);
@@ -99,7 +99,7 @@ static PyObject* __Pyx_PyExec3(PyObject* o, PyObject* globals, PyObject* locals)
             if (unlikely(!s)) goto bad;
             o = s;
         } else if (unlikely(!PyBytes_Check(o))) {
-            __Pyx_TypeName o_type_name = __Pyx_PyType_GetName(Py_TYPE(o));
+            __Pyx_TypeName o_type_name = __Pyx_PyType_GetFullyQualifiedName(Py_TYPE(o));
             PyErr_Format(PyExc_TypeError,
                 "exec: arg 1 must be string, bytes or code object, got " __Pyx_FMT_TYPENAME,
                 o_type_name);
@@ -123,12 +123,16 @@ bad:
     {
         // For the limited API we just defer to the actual builtin
         // (after setting up globals and locals) - there's too much we can't do otherwise
-        PyObject *builtins, *exec;
+        PyObject *builtins, *exec, *exec_str;
         builtins = PyEval_GetBuiltins();
         if (!builtins) return NULL;
-        exec = PyDict_GetItemString(builtins, "exec");
+        exec_str = PyUnicode_FromStringAndSize("exec", 4);
+        if (!exec_str) return NULL;
+        exec = PyObject_GetItem(builtins, exec_str);
+        Py_DECREF(exec_str);
         if (!exec) return NULL;
         result = PyObject_CallFunctionObjArgs(exec, o, globals, locals, NULL);
+        Py_DECREF(exec);
         return result;
     }
 #endif
@@ -144,7 +148,7 @@ static CYTHON_INLINE PyObject *__Pyx_GetAttr3(PyObject *, PyObject *, PyObject *
 //@requires: Exceptions.c::PyErrFetchRestore
 //@requires: Exceptions.c::PyErrExceptionMatches
 
-#if __PYX_LIMITED_VERSION_HEX < 0x030d00A1
+#if __PYX_LIMITED_VERSION_HEX < 0x030d0000
 static PyObject *__Pyx_GetAttr3Default(PyObject *d) {
     __Pyx_PyThreadState_declare
     __Pyx_PyThreadState_assign
@@ -158,7 +162,7 @@ static PyObject *__Pyx_GetAttr3Default(PyObject *d) {
 
 static CYTHON_INLINE PyObject *__Pyx_GetAttr3(PyObject *o, PyObject *n, PyObject *d) {
     PyObject *r;
-#if __PYX_LIMITED_VERSION_HEX >= 0x030d00A1
+#if __PYX_LIMITED_VERSION_HEX >= 0x030d0000
     int res = PyObject_GetOptionalAttr(o, n, &r);
     // On failure (res == -1), r is set to NULL.
     return (res != 0) ? r : __Pyx_NewRef(d);
@@ -179,7 +183,7 @@ static CYTHON_INLINE PyObject *__Pyx_GetAttr3(PyObject *o, PyObject *n, PyObject
 
 //////////////////// HasAttr.proto ////////////////////
 
-#if __PYX_LIMITED_VERSION_HEX >= 0x030d00A1
+#if __PYX_LIMITED_VERSION_HEX >= 0x030d0000
 #define __Pyx_HasAttr(o, n)  PyObject_HasAttrWithError(o, n)
 #else
 static CYTHON_INLINE int __Pyx_HasAttr(PyObject *, PyObject *); /*proto*/
@@ -188,7 +192,7 @@ static CYTHON_INLINE int __Pyx_HasAttr(PyObject *, PyObject *); /*proto*/
 //////////////////// HasAttr ////////////////////
 //@requires: ObjectHandling.c::PyObjectGetAttrStrNoError
 
-#if __PYX_LIMITED_VERSION_HEX < 0x030d00A1
+#if __PYX_LIMITED_VERSION_HEX < 0x030d0000
 static CYTHON_INLINE int __Pyx_HasAttr(PyObject *o, PyObject *n) {
     PyObject *r;
     if (unlikely(!PyUnicode_Check(n))) {
@@ -421,7 +425,7 @@ static long __Pyx__PyObject_Ord(PyObject* c) {
 #endif
     } else {
         // FIXME: support character buffers - but CPython doesn't support them either
-        __Pyx_TypeName c_type_name = __Pyx_PyType_GetName(Py_TYPE(c));
+        __Pyx_TypeName c_type_name = __Pyx_PyType_GetFullyQualifiedName(Py_TYPE(c));
         PyErr_Format(PyExc_TypeError,
             "ord() expected string of length 1, but " __Pyx_FMT_TYPENAME " found",
             c_type_name);
@@ -552,9 +556,9 @@ static CYTHON_INLINE PyObject* __Pyx_PyFrozenSet_New(PyObject* it) {
         result = PyFrozenSet_New(it);
         if (unlikely(!result))
             return NULL;
-        if ((__PYX_LIMITED_VERSION_HEX >= 0x030A00A1)
+        if ((__PYX_LIMITED_VERSION_HEX >= 0x030A0000)
 #if CYTHON_COMPILING_IN_LIMITED_API
-            || __Pyx_get_runtime_version() >= 0x030A00A1
+            || __Pyx_get_runtime_version() >= 0x030A0000
 #endif
             )
             return result;
@@ -614,8 +618,7 @@ static CYTHON_INLINE int __Pyx_PySet_Update(PyObject* set, PyObject* it) {
 
 ///////////////// memoryview_get_from_buffer.proto ////////////////////
 
-// buffer is in limited api from Py3.11
-#if !CYTHON_COMPILING_IN_LIMITED_API || __PYX_LIMITED_VERSION_HEX >= 0x030b0000
+#if !CYTHON_COMPILING_IN_LIMITED_API
 #define __Pyx_PyMemoryView_Get_{{name}}(o) PyMemoryView_GET_BUFFER(o)->{{name}}
 #else
 {{py:
@@ -629,7 +632,7 @@ static {{out_type}} __Pyx_PyMemoryView_Get_{{name}}(PyObject *obj); /* proto */
 
 ////////////// memoryview_get_from_buffer /////////////////////////
 
-#if !CYTHON_COMPILING_IN_LIMITED_API || __PYX_LIMITED_VERSION_HEX >= 0x030b0000
+#if !CYTHON_COMPILING_IN_LIMITED_API
 #else
 {{py:
 out_types = dict(

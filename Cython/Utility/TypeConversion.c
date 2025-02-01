@@ -63,6 +63,7 @@ static CYTHON_INLINE PyObject* __Pyx_PyUnicode_FromString(const char*);
     #define __Pyx_PyBytes_AsString(s)     ((const char*) PyBytes_AS_STRING(s))
     #define __Pyx_PyBytes_AsSString(s)    ((const signed char*) PyBytes_AS_STRING(s))
     #define __Pyx_PyBytes_AsUString(s)    ((const unsigned char*) PyBytes_AS_STRING(s))
+    #define __Pyx_PyByteArray_AsString(s) PyByteArray_AS_STRING(s)
 #else
     #define __Pyx_PyBytes_AsWritableString(s)     ((char*) PyBytes_AsString(s))
     #define __Pyx_PyBytes_AsWritableSString(s)    ((signed char*) PyBytes_AsString(s))
@@ -70,6 +71,7 @@ static CYTHON_INLINE PyObject* __Pyx_PyUnicode_FromString(const char*);
     #define __Pyx_PyBytes_AsString(s)     ((const char*) PyBytes_AsString(s))
     #define __Pyx_PyBytes_AsSString(s)    ((const signed char*) PyBytes_AsString(s))
     #define __Pyx_PyBytes_AsUString(s)    ((const unsigned char*) PyBytes_AsString(s))
+    #define __Pyx_PyByteArray_AsString(s) PyByteArray_AsString(s)
 #endif
 #define __Pyx_PyObject_AsWritableString(s)    ((char*)(__pyx_uintptr_t) __Pyx_PyObject_AsString(s))
 #define __Pyx_PyObject_AsWritableSString(s)    ((signed char*)(__pyx_uintptr_t) __Pyx_PyObject_AsString(s))
@@ -226,6 +228,33 @@ static CYTHON_INLINE const char* __Pyx_PyObject_AsString(PyObject* o) {
 #if __PYX_DEFAULT_STRING_ENCODING_IS_ASCII || __PYX_DEFAULT_STRING_ENCODING_IS_UTF8
 static CYTHON_INLINE const char* __Pyx_PyUnicode_AsStringAndSize(PyObject* o, Py_ssize_t *length) {
     if (unlikely(__Pyx_PyUnicode_READY(o) == -1)) return NULL;
+#if CYTHON_COMPILING_IN_LIMITED_API
+    {
+        const char* result;
+        Py_ssize_t unicode_length;
+        CYTHON_MAYBE_UNUSED_VAR(unicode_length); // only for __PYX_DEFAULT_STRING_ENCODING_IS_ASCII
+        #if __PYX_LIMITED_VERSION_HEX < 0x030A0000
+        if (unlikely(PyArg_Parse(o, "s#", &result, length) < 0)) return NULL;
+        #else
+        result = PyUnicode_AsUTF8AndSize(o, length);
+        #endif
+        #if __PYX_DEFAULT_STRING_ENCODING_IS_ASCII
+        // Pre-checking "isascii" the Limited API involves making Python function calls.
+        // Therefore we do a post-check instead that the lengths of the encoded and unicode
+        // strings are the same (which is only true for ascii strings).
+        // If this isn't true then we've already done the encoding so it's a potential
+        // performance loss, but it should be better in the successful case.
+        unicode_length = PyUnicode_GetLength(o);
+        if (unlikely(unicode_length < 0)) return NULL;
+        if (unlikely(unicode_length != *length)) {
+            // raise the error
+            PyUnicode_AsASCIIString(o);
+            return NULL;
+        }
+        #endif
+        return result;
+    }
+#else /* CYTHON_COMPILING_IN_LIMITED_API */
 #if __PYX_DEFAULT_STRING_ENCODING_IS_ASCII
     if (likely(PyUnicode_IS_ASCII(o))) {
         // cached for the lifetime of the object
@@ -238,7 +267,8 @@ static CYTHON_INLINE const char* __Pyx_PyUnicode_AsStringAndSize(PyObject* o, Py
     }
 #else
     return PyUnicode_AsUTF8AndSize(o, length);
-#endif
+#endif /* __PYX_DEFAULT_STRING_ENCODING_IS_ASCII */
+#endif /* !CYTHON_COMPILING_IN_LIMITED_API */
 }
 #endif
 
@@ -250,12 +280,17 @@ static CYTHON_INLINE const char* __Pyx_PyObject_AsStringAndSize(PyObject* o, Py_
     } else
 #endif
 
-#if (!CYTHON_COMPILING_IN_PYPY && !CYTHON_COMPILING_IN_LIMITED_API) || (defined(PyByteArray_AS_STRING) && defined(PyByteArray_GET_SIZE))
     if (PyByteArray_Check(o)) {
+#if (CYTHON_ASSUME_SAFE_SIZE && CYTHON_ASSUME_SAFE_MACROS) || (CYTHON_COMPILING_IN_PYPY && (defined(PyByteArray_AS_STRING) && defined(PyByteArray_GET_SIZE)))
         *length = PyByteArray_GET_SIZE(o);
         return PyByteArray_AS_STRING(o);
-    } else
+#else
+        *length = PyByteArray_Size(o);
+        if (*length == -1) return NULL;
+        return PyByteArray_AsString(o);
 #endif
+
+    } else
     {
         char* result;
         int r = PyBytes_AsStringAndSize(o, &result, length);
@@ -283,7 +318,7 @@ static CYTHON_INLINE int __Pyx_PyObject_IsTrueAndDecref(PyObject* x) {
 }
 
 static PyObject* __Pyx_PyNumber_LongWrongResultType(PyObject* result) {
-    __Pyx_TypeName result_type_name = __Pyx_PyType_GetName(Py_TYPE(result));
+    __Pyx_TypeName result_type_name = __Pyx_PyType_GetFullyQualifiedName(Py_TYPE(result));
     if (PyLong_Check(result)) {
         // CPython issue #17576: warn if 'result' not of exact type int.
         if (PyErr_WarnFormat(PyExc_DeprecationWarning, 1,
@@ -456,7 +491,14 @@ static PyObject* {{funcname}}({{struct_type_decl}} value) {
         {{py:attr = "value.f%s" % ix}}
         item = {{component.to_py_function}}({{attr}});
         if (!item) goto bad;
+        #if !CYTHON_ASSUME_SAFE_MACROS
+        if (unlikely(PyTuple_SetItem(result, {{ix}}, item) < 0)) {
+            item = NULL; // stolen
+            goto bad;
+        }
+        #else
         PyTuple_SET_ITEM(result, {{ix}}, item);
+        #endif
     {{endfor}}
 
     return result;
@@ -498,7 +540,7 @@ bad:
 
 static void __Pyx_seq_{{funcname}}(PyObject * o, {{struct_type_decl}} *result) {
     if (unlikely(!PySequence_Check(o))) {
-        __Pyx_TypeName o_type_name = __Pyx_PyType_GetName(Py_TYPE(o));
+        __Pyx_TypeName o_type_name = __Pyx_PyType_GetFullyQualifiedName(Py_TYPE(o));
         PyErr_Format(PyExc_TypeError,
                      "Expected a sequence of size %zd, got " __Pyx_FMT_TYPENAME, (Py_ssize_t) {{size}}, o_type_name);
         __Pyx_DECREF_TypeName(o_type_name);
@@ -844,6 +886,7 @@ static CYTHON_INLINE PyObject* {{TO_PY_FUNCTION}}({{TYPE}} value, Py_ssize_t wid
 /////////////// CIntToPyUnicode ///////////////
 //@requires: StringTools.c::IncludeStringH
 //@requires: StringTools.c::BuildPyUnicode
+//@requires: ModuleSetupCode.c::IncludeStdlibH
 //@requires: COrdinalToPyUnicode
 //@requires: CIntToDigits
 //@requires: GCCDiagnostics
@@ -1280,6 +1323,7 @@ static __Pyx_generic_func_pointer_$cyversion __Pyx_capsule_to_c_func_ptr_$cyvers
 
 /////////////// CFuncPtrFromPy.proto ///////////////
 //@substitute: naming
+//@requires: StringTools.c::IncludeStringH
 
 #ifndef __PYX_HAVE_RT_CFuncPtrFromPy_$cyversion
 #define __PYX_HAVE_RT_CFuncPtrFromPy_$cyversion

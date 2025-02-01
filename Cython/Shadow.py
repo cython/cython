@@ -1,7 +1,7 @@
 # cython.* namespace for pure mode.
 
 # Possible version formats: "3.1.0", "3.1.0a1", "3.1.0a1.dev0"
-__version__ = "3.1.0a0"
+__version__ = "3.1.0a1"
 
 
 # BEGIN shameless copy from Cython/minivect/minitypes.py
@@ -225,6 +225,15 @@ nogil = _nogil()
 gil = _nogil()
 with_gil = _nogil()  # Actually not a context manager, but compilation will give the right error.
 del _nogil
+
+
+class critical_section:
+    def __init__(self, *args):
+        pass
+    def __enter__(self):
+        pass
+    def __exit__(self, exc_class, exc, tb):
+        return False
 
 
 # Emulated types

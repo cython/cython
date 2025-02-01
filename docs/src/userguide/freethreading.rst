@@ -51,6 +51,60 @@ extension modules claim to support it then you can either:
 
 These options are mainly useful for testing.
 
+Tools for Thread-safety
+=======================
+
+Cython is gradually adding tools to help you write thread-safe code. These are
+described here.
+
+Critical Sections
+-----------------
+
+`Critical Sections <https://docs.python.org/3.13/c-api/init.html#python-critical-section-api>`_
+are a feature provided by Python to generate a local lock based on some Python object.
+Cython allows you to use critical sections with a convenient
+syntax::
+
+    o = object()
+    ...
+    with cython.critical_section(o):
+      ...
+      
+Critical sections can take one or two Python objects as arguments.  You are required to
+hold the GIL on entry to a critical section (you can release the GIL inside the critical
+section but that also temporarily releases the critical section so is unlikely to be
+a useful thing to do).
+
+We suggest reading the Python documentation to understand how critical sections work.
+
+* It is guaranteed that the lock will be held when executing code within the 
+  critical section. However, there is no guarantee that the code block will be executed
+  in one atomic action.  This is very similar to the guarantee provided by
+  a ``with gil`` block.
+* Operations on another Python object may end up temporarily releasing the
+  critical section in favour of a critical section based on that object.
+
+On non-freethreading builds ``cython.critical_section`` does nothing - you get the
+same guarantees simply from the fact you hold the GIL.
+
+As an alternative syntax, ``cython.critical_section`` can be used as a decorator
+or a function taking at least one argument.  In this case the critical section
+lasts the duration of the function and locks on the first argument::
+
+    @cython.cclass
+    class C:
+        @cython.critical_section
+        def func(self, *args):
+            ...
+
+        # equivalent to:
+        def func(self, *args):
+            with cython.critical_section(self):
+                ...
+
+Our expectation is that this will be most useful for locking on the ``self`` argument
+of methods in C classes.
+
 Pitfalls
 ========
 

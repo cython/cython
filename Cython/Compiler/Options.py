@@ -170,7 +170,8 @@ def copy_inherited_directives(outer_directives, **new_directives):
     # For example, test_assert_path_exists and test_fail_if_path_exists should not be inherited
     #  otherwise they can produce very misleading test failures
     new_directives_out = dict(outer_directives)
-    for name in ('test_assert_path_exists', 'test_fail_if_path_exists', 'test_assert_c_code_has', 'test_fail_if_c_code_has'):
+    for name in ('test_assert_path_exists', 'test_fail_if_path_exists', 'test_assert_c_code_has', 'test_fail_if_c_code_has',
+                 'critical_section'):
         new_directives_out.pop(name, None)
     new_directives_out.update(new_directives)
     return new_directives_out
@@ -352,6 +353,7 @@ directive_types = {
     'collection_type': one_of('sequence'),
     'nogil' : DEFER_ANALYSIS_OF_ARGUMENTS,
     'gil' : DEFER_ANALYSIS_OF_ARGUMENTS,
+    'critical_section' : DEFER_ANALYSIS_OF_ARGUMENTS,
     'with_gil' : None,
     'internal' : bool,  # cdef class visibility in the module dict
     'infer_types' : bool,  # values can be True/None/False
@@ -391,6 +393,7 @@ directive_scopes = {  # defaults to available everywhere
     'nogil' : ('function', 'with statement'),
     'gil' : ('with statement'),
     'with_gil' : ('function',),
+    'critical_section': ('function', 'with statement'),
     'inline' : ('function',),
     'cfunc' : ('function', 'with statement'),
     'ccall' : ('function', 'with statement'),

@@ -786,8 +786,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("#ifndef Py_PYTHON_H")
         code.putln("    #error Python headers needed to compile C extensions, "
                    "please install development version of Python.")
-        code.putln("#elif PY_VERSION_HEX < 0x03070000")
-        code.putln("    #error Cython requires Python 3.7+.")
+        code.putln("#elif PY_VERSION_HEX < 0x03080000")
+        code.putln("    #error Cython requires Python 3.8+.")
         code.putln("#else")
         code.globalstate["end"].putln("#endif /* Py_PYTHON_H */")
 
@@ -1473,9 +1473,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                         warning(self.pos,
                                 "__getslice__, __setslice__, and __delslice__ are not supported by Python 3, "
                                 "use __getitem__, __setitem__, and __delitem__ instead", 1)
-                        code.putln("#if PY_MAJOR_VERSION >= 3")
                         code.putln("#error __getslice__, __setslice__, and __delslice__ not supported in Python 3.")
-                        code.putln("#endif")
                     if scope.defines_any_special(["__setslice__", "__delslice__"]):
                         self.generate_ass_slice_function(scope, code)
                     if scope.defines_any_special(["__getattr__", "__getattribute__"]):
@@ -1558,13 +1556,14 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         freecount_name = scope.mangle_internal(Naming.freecount_name)
 
         if freelist_size:
-            code.putln("")
-            code.putln("#if CYTHON_USE_FREELISTS")
-            code.putln("static %s[%d];" % (
+            module_state = code.globalstate['module_state_contents']
+            module_state.putln("")
+            module_state.putln("#if CYTHON_USE_FREELISTS")
+            module_state.putln("%s[%d];" % (
                 scope.parent_type.declaration_code(freelist_name),
                 freelist_size))
-            code.putln("static int %s = 0;" % freecount_name)
-            code.putln("#endif")
+            module_state.putln("int %s;" % freecount_name)
+            module_state.putln("#endif")
 
         code.start_slotfunc(
             scope, PyrexTypes.py_objptr_type, "tp_new",
@@ -1600,9 +1599,10 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 code.putln("#if CYTHON_USE_FREELISTS")
                 code.putln(
                     "if (likely((int)(%s > 0) & (int)(t->tp_basicsize == sizeof(%s))%s)) {" % (
-                        freecount_name, obj_struct, type_safety_check))
+                        code.name_in_slot_module_state(freecount_name), obj_struct, type_safety_check))
                 code.putln("o = (PyObject*)%s[--%s];" % (
-                    freelist_name, freecount_name))
+                    code.name_in_slot_module_state(freelist_name),
+                    code.name_in_slot_module_state(freecount_name)))
                 code.putln("memset(o, 0, sizeof(%s));" % obj_struct)
                 code.putln("(void) PyObject_INIT(o, t);")
                 if scope.needs_gc():
@@ -1846,12 +1846,14 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 code.putln("#if CYTHON_USE_FREELISTS")
                 code.putln(
                     "if (((int)(%s < %d) & (int)(Py_TYPE(o)->tp_basicsize == sizeof(%s))%s)) {" % (
-                        freecount_name,
+                        code.name_in_slot_module_state(freecount_name),
                         freelist_size,
                         type.declaration_code("", deref=True),
                         type_safety_check))
                 code.putln("%s[%s++] = %s;" % (
-                    freelist_name, freecount_name, type.cast_code("o")))
+                    code.name_in_slot_module_state(freelist_name),
+                    code.name_in_slot_module_state(freecount_name),
+                    type.cast_code("o")))
                 code.putln("} else")
                 code.putln("#endif")
                 code.putln("{")
@@ -2096,9 +2098,9 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             code.putln(
                 "__Pyx_TypeName o_type_name;")
             self.generate_guarded_basetype_call(
-                base_type, "tp_as_mapping", "mp_ass_subscript", "o, i, v", code)
+                base_type, "tp_as_mapping", "mp_ass_subscript", "objobjargproc", "o, i, v", code)
             code.putln(
-                "o_type_name = __Pyx_PyType_GetName(Py_TYPE(o));")
+                "o_type_name = __Pyx_PyType_GetFullyQualifiedName(Py_TYPE(o));")
             code.putln(
                 "PyErr_Format(PyExc_NotImplementedError,")
             code.putln(
@@ -2119,9 +2121,9 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             code.putln(
                 "__Pyx_TypeName o_type_name;")
             self.generate_guarded_basetype_call(
-                base_type, "tp_as_mapping", "mp_ass_subscript", "o, i, v", code)
+                base_type, "tp_as_mapping", "mp_ass_subscript", "objobjargproc", "o, i, v", code)
             code.putln(
-                "o_type_name = __Pyx_PyType_GetName(Py_TYPE(o));")
+                "o_type_name = __Pyx_PyType_GetFullyQualifiedName(Py_TYPE(o));")
             code.putln(
                 "PyErr_Format(PyExc_NotImplementedError,")
             code.putln(
@@ -2137,81 +2139,19 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.exit_cfunc_scope()
 
     def generate_guarded_basetype_call(
-            self, base_type, substructure, slot, args, code):
+            self, base_type, substructure, slot, functype, args, code):
         if base_type:
             base_tpname = code.typeptr_cname_in_module_state(base_type)
+            # Note that the limited API versions will only work for non-heaptypes on Python3.10+.
+            # I think that's unavoidable and the best we can do.
             if substructure:
                 code.putln(
-                    "if (%s->%s && %s->%s->%s)" % (
-                        base_tpname, substructure, base_tpname, substructure, slot))
-                code.putln(
-                    "  return %s->%s->%s(%s);" % (
-                        base_tpname, substructure, slot, args))
+                    f"{functype} f = __Pyx_PyType_TryGetSubSlot({base_tpname}, {substructure}, {slot}, {functype});")
             else:
                 code.putln(
-                    "if (%s->%s)" % (
-                        base_tpname, slot))
-                code.putln(
-                    "  return %s->%s(%s);" % (
-                        base_tpname, slot, args))
-
-    def generate_ass_slice_function(self, scope, code):
-        # Setting and deleting a slice are both done through
-        # the ass_slice method, so we dispatch to user's __setslice__
-        # or __delslice__, or raise an exception.
-        base_type = scope.parent_type.base_type
-        set_entry = scope.lookup_here("__setslice__")
-        del_entry = scope.lookup_here("__delslice__")
-        code.start_slotfunc(scope, PyrexTypes.c_returncode_type, "sq_ass_slice", "PyObject *o, Py_ssize_t i, Py_ssize_t j, PyObject *v")
-        code.putln(
-            "if (v) {")
-        if set_entry:
-            code.putln(
-                "return %s(o, i, j, v);" % (
-                    set_entry.func_cname))
-        else:
-            code.putln(
-                "__Pyx_TypeName o_type_name;")
-            self.generate_guarded_basetype_call(
-                base_type, "tp_as_sequence", "sq_ass_slice", "o, i, j, v", code)
-            code.putln(
-                "o_type_name = __Pyx_PyType_GetName(Py_TYPE(o));")
-            code.putln(
-                "PyErr_Format(PyExc_NotImplementedError,")
-            code.putln(
-                '  "2-element slice assignment not supported by " __Pyx_FMT_TYPENAME, o_type_name);')
-            code.putln(
-                "__Pyx_DECREF_TypeName(o_type_name);")
-            code.putln(
-                "return -1;")
-        code.putln(
-            "}")
-        code.putln(
-            "else {")
-        if del_entry:
-            code.putln(
-                "return %s(o, i, j);" % (
-                    del_entry.func_cname))
-        else:
-            code.putln(
-                "__Pyx_TypeName o_type_name;")
-            self.generate_guarded_basetype_call(
-                base_type, "tp_as_sequence", "sq_ass_slice", "o, i, j, v", code)
-            code.putln(
-                "o_type_name = __Pyx_PyType_GetName(Py_TYPE(o));")
-            code.putln(
-                "PyErr_Format(PyExc_NotImplementedError,")
-            code.putln(
-                '  "2-element slice deletion not supported by " __Pyx_FMT_TYPENAME, o_type_name);')
-            code.putln(
-                "__Pyx_DECREF_TypeName(o_type_name);")
-            code.putln(
-                "return -1;")
-        code.putln(
-            "}")
-        code.putln(
-            "}")
-        code.exit_cfunc_scope()
+                    f"{functype} f = __Pyx_PyType_TryGetSlot({base_tpname}, {slot}, {functype});")
+            code.putln("if (f)")
+            code.putln(f"return f({args});")
 
     def generate_richcmp_function(self, scope, code):
         if scope.lookup_here("__richcmp__"):
@@ -2493,7 +2433,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                     set_entry.func_cname))
         else:
             self.generate_guarded_basetype_call(
-                base_type, None, "tp_setattro", "o, n, v", code)
+                base_type, None, "tp_setattro", "setattrofunc", "o, n, v", code)
             code.putln(
                 "return PyObject_GenericSetAttr(o, n, v);")
         code.putln(
@@ -2506,7 +2446,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                     del_entry.func_cname))
         else:
             self.generate_guarded_basetype_call(
-                base_type, None, "tp_setattro", "o, n, v", code)
+                base_type, None, "tp_setattro", "setattrofunc", "o, n, v", code)
             code.putln(
                 "return PyObject_GenericSetAttr(o, n, 0);")
         code.putln(
@@ -2559,7 +2499,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                     user_set_entry.func_cname))
         else:
             self.generate_guarded_basetype_call(
-                base_type, None, "tp_descr_set", "o, i, v", code)
+                base_type, None, "tp_descr_set", "descrsetfunc", "o, i, v", code)
             code.putln(
                 'PyErr_SetString(PyExc_NotImplementedError, "__set__");')
             code.putln(
@@ -2574,7 +2514,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                     user_del_entry.func_cname))
         else:
             self.generate_guarded_basetype_call(
-                base_type, None, "tp_descr_set", "o, i, v", code)
+                base_type, None, "tp_descr_set", "descrsetfunc", "o, i, v", code)
             code.putln(
                 'PyErr_SetString(PyExc_NotImplementedError, "__delete__");')
             code.putln(
@@ -2912,11 +2852,14 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             code.putln('#endif')
 
     def generate_module_state_end(self, env, modules, globalstate):
-        module_state = globalstate['module_state']
+        module_state = globalstate['module_state_end']
         module_state_clear = globalstate['module_state_clear']
         module_state_traverse = globalstate['module_state_traverse']
         module_state.putln('} %s;' % Naming.modulestatetype_cname)
         module_state.putln('')
+        globalstate.use_utility_code(
+            UtilityCode.load("MultiPhaseInitModuleState", "ModuleSetupCode.c")
+        )
         module_state.putln("#if CYTHON_USE_MODULE_STATE")
         module_state.putln('#ifdef __cplusplus')
         module_state.putln('namespace {')
@@ -2926,11 +2869,11 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         module_state.putln('static struct PyModuleDef %s;' % Naming.pymoduledef_cname)
         module_state.putln('#endif')
         module_state.putln('')
-        module_state.putln('#define %s (__Pyx_PyModule_GetState(PyState_FindModule(&%s)))' % (
+        module_state.putln('#define %s (__Pyx_PyModule_GetState(__Pyx_State_FindModule(&%s)))' % (
             Naming.modulestateglobal_cname,
             Naming.pymoduledef_cname))
         module_state.putln('')
-        module_state.putln('#define %s (PyState_FindModule(&%s))' % (
+        module_state.putln('#define %s (__Pyx_State_FindModule(&%s))' % (
             env.module_cname,
             Naming.pymoduledef_cname))
         module_state.putln("#else")
@@ -2984,6 +2927,11 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln('Py_CLEAR(clear_module_state->%s);' %
             Naming.fusedfunction_type_cname)
         code.putln('#endif')
+        code.putln("#if CYTHON_PEP489_MULTI_PHASE_INIT")
+        # In this case we have to remove the module from our lookup table ourself
+        # because Python isn't going to do it.
+        code.putln("__Pyx_State_RemoveModule(NULL);")
+        code.putln("#endif")
 
     def generate_module_state_traverse(self, env, code):
         code.putln("#if CYTHON_USE_MODULE_STATE")
@@ -3252,7 +3200,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         # decrement that
         code.put_decref(env.module_cname, py_object_type, nanny=False)
         # Also remove the failed module from the module state lookup
-        # fetch/restore the error indicator because PyState_RemvoeModule might fail itself
+        # fetch/restore the error indicator because PyState_RemoveModule might fail itself
         code.putln("if (pystate_addmodule_run) {")
         code.putln("PyObject *tp, *value, *tb;")
         code.putln("PyErr_Fetch(&tp, &value, &tb);")
@@ -3415,7 +3363,9 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         # which is sometime unreliable during destruction
         # (e.g. during interpreter shutdown).
         # In that case the safest thing is to give up.
-        code.putln(f"if (!PyState_FindModule(&{Naming.pymoduledef_cname})) return;")
+        code.putln("#if CYTHON_USE_MODULE_STATE")
+        code.putln(f"if (!__Pyx_State_FindModule(&{Naming.pymoduledef_cname})) return;")
+        code.putln("#endif")
         code.putln(f"{Naming.modulestatevalue_cname} = __Pyx_PyModule_GetState(self);")
 
         if Options.generate_cleanup_code >= 2:
@@ -3461,8 +3411,10 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 continue
             if cclass_type.scope.directives.get('freelist', 0):
                 scope = cclass_type.scope
-                freelist_name = scope.mangle_internal(Naming.freelist_name)
-                freecount_name = scope.mangle_internal(Naming.freecount_name)
+                freelist_name = code.name_in_main_c_code_module_state(
+                    scope.mangle_internal(Naming.freelist_name))
+                freecount_name = code.name_in_main_c_code_module_state(
+                    scope.mangle_internal(Naming.freecount_name))
                 code.putln('#if CYTHON_USE_FREELISTS')
                 code.putln("while (%s > 0) {" % freecount_name)
                 code.putln("PyObject* o = (PyObject*)%s[--%s];" % (
@@ -3584,12 +3536,10 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("  PyModuleDef_HEAD_INIT,")
         code.putln('  %s,' % env.module_name.as_c_string_literal())
         code.putln("  %s, /* m_doc */" % doc)
-        code.putln("#if CYTHON_PEP489_MULTI_PHASE_INIT")
-        code.putln("  0, /* m_size */")
-        code.putln("#elif CYTHON_USE_MODULE_STATE")  # FIXME: should allow combination with PEP-489
+        code.putln("#if CYTHON_USE_MODULE_STATE")
         code.putln(f"  sizeof({Naming.modulestatetype_cname}), /* m_size */")
         code.putln("#else")
-        code.putln("  -1, /* m_size */")
+        code.putln("  (CYTHON_PEP489_MULTI_PHASE_INIT) ? 0 : -1, /* m_size */")
         code.putln("#endif")
         code.putln("  %s /* m_methods */," % env.method_table_cname)
         code.putln("#if CYTHON_PEP489_MULTI_PHASE_INIT")
@@ -3619,23 +3569,25 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         else:
             doc = "0"
 
+        # manage_ref is False (and refnanny calls are omitted) because refnanny isn't yet initialized.
+        module_temp = code.funcstate.allocate_temp(py_object_type, manage_ref=False)
         code.putln("#if CYTHON_PEP489_MULTI_PHASE_INIT")
         code.putln("%s = %s;" % (
-            env.module_cname,
+            module_temp,
             Naming.pymodinit_module_arg))
-        code.put_incref(env.module_cname, py_object_type, nanny=False)
+        code.put_incref(module_temp, py_object_type, nanny=False)
         code.putln("#else")
-        code.putln("#if CYTHON_USE_MODULE_STATE")
-        # manage_ref is False (and refnanny calls are omitted) because refnanny isn't yet initialized
-        module_temp = code.funcstate.allocate_temp(py_object_type, manage_ref=False)
         code.putln(
             "%s = PyModule_Create(&%s); %s" % (
                 module_temp,
                 Naming.pymoduledef_cname,
                 code.error_goto_if_null(module_temp, self.pos)))
+        code.putln("#endif")
+
+        code.putln("#if CYTHON_USE_MODULE_STATE")
         code.putln("{")
         # So that PyState_FindModule works in the init function:
-        code.putln("int add_module_result = PyState_AddModule(%s, &%s);" % (
+        code.putln("int add_module_result = __Pyx_State_AddModule(%s, &%s);" % (
             module_temp, Naming.pymoduledef_cname))
         code.putln("%s = 0; /* transfer ownership from %s to %s pseudovariable */" % (
             module_temp, module_temp, env.module_name.as_c_string_literal()
@@ -3646,21 +3598,18 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln(code.error_goto_if_neg("add_module_result", self.pos))
         code.putln("pystate_addmodule_run = 1;")
         code.putln("}")
+        code.putln('#else')  # !CYTHON_USE_MODULE_STATE
+        code.putln(f"{env.module_cname} = {module_temp};")
+        code.putln("#endif")
         code.funcstate.release_temp(module_temp)
-        code.putln('#else')
-        code.putln(
-            "%s = PyModule_Create(&%s);" % (
-                env.module_cname,
-                Naming.pymoduledef_cname))
-        code.putln(code.error_goto_if_null(env.module_cname, self.pos))
-        code.putln("#endif")  # CYTHON_USE_MODULE_STATE
+
         code.putln("#if CYTHON_COMPILING_IN_CPYTHON_FREETHREADING")
         gil_option = ("Py_MOD_GIL_NOT_USED"
                       if env.directives["freethreading_compatible"]
                       else "Py_MOD_GIL_USED")
         code.putln(f"PyUnstable_Module_SetGIL({env.module_cname}, {gil_option});")
         code.putln("#endif")
-        code.putln("#endif")  # CYTHON_PEP489_MULTI_PHASE_INIT
+
         code.putln(f"{Naming.modulestatevalue_cname} = {Naming.modulestateglobal_cname};")
         code.putln("CYTHON_UNUSED_VAR(%s);" % module_temp)  # only used in limited API
 
