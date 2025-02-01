@@ -126,5 +126,9 @@ py_unicode_strings
 py_unicode_type
 unicode_indexing
 
+# Works on DW's computer, fails on CI on Python3.11 only with exactly the same versions
+# (might be due to shared ABI possibly?)
+yield_from_pep380
+
 # Excluded for now - to be enabled incrementally
 buffers[.]
