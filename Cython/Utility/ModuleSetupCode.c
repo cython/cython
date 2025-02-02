@@ -838,7 +838,7 @@ static CYTHON_INLINE int __Pyx__IsSameCFunction(PyObject *func, void *cfunc) {
 #define __Pyx_IsSameCFunction(func, cfunc)   __Pyx__IsSameCFunction(func, cfunc)
 
 // PEP-573: PyCFunction holds reference to defining class (PyCMethodObject)
-#if __PYX_LIMITED_VERSION_HEX < 0x030900B1
+#if __PYX_LIMITED_VERSION_HEX < 0x03090000
   #define __Pyx_PyType_FromModuleAndSpec(m, s, b)  ((void)m, PyType_FromSpecWithBases(s, b))
   typedef PyObject *(*__Pyx_PyCMethod)(PyObject *, PyTypeObject *, PyObject *const *, size_t, PyObject *);
 #else
@@ -1149,7 +1149,7 @@ static CYTHON_INLINE int __Pyx_PyDict_GetItemRef(PyObject *dict, PyObject *key, 
   #define __Pyx_PyUnicode_GET_LENGTH(o) PyUnicode_GetLength(o)
 #endif
 
-#if __PYX_LIMITED_VERSION_HEX >= 0x030d00A1
+#if __PYX_LIMITED_VERSION_HEX >= 0x030d0000
   #define __Pyx_PyImport_AddModuleRef(name) PyImport_AddModuleRef(name)
 #else
   static CYTHON_INLINE PyObject *__Pyx_PyImport_AddModuleRef(const char *name) {
@@ -1735,7 +1735,7 @@ static unsigned long __Pyx_get_runtime_version(void);
 
 static unsigned long __Pyx_get_runtime_version(void) {
     // We will probably never need the alpha/beta status, so avoid the complexity to parse it.
-#if __PYX_LIMITED_VERSION_HEX >= 0x030B00A4
+#if __PYX_LIMITED_VERSION_HEX >= 0x030b0000
     return Py_Version & ~0xFFUL;
 #else
     static unsigned long __Pyx_cached_runtime_version = 0;
@@ -2270,7 +2270,7 @@ static PyObject* __Pyx_PyCode_New(
         // constructor with version.
         PyObject *exception_table = NULL;
         PyObject *types_module=NULL, *code_type=NULL, *result=NULL;
-        #if __PYX_LIMITED_VERSION_HEX < 0x030B0000
+        #if __PYX_LIMITED_VERSION_HEX < 0x030b0000
         PyObject *version_info;  /* borrowed */
         PyObject *py_minor_version = NULL;
         #endif
@@ -2280,7 +2280,7 @@ static PyObject* __Pyx_PyCode_New(
         // we must be able to call this while an exception is happening - thus clear then restore the state
         PyErr_Fetch(&type, &value, &traceback);
 
-        #if __PYX_LIMITED_VERSION_HEX >= 0x030B0000
+        #if __PYX_LIMITED_VERSION_HEX >= 0x030b0000
         minor_version = 11;
         // we don't yet need to distinguish between versions > 11
         // Note that from 3.13, when we do, we can use Py_Version
