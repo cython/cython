@@ -11,12 +11,12 @@ class CythonScope(ModuleScope):
     is_cython_builtin = 1
     _cythonscope_initialized = False
 
-    def __init__(self, context):
+    def __init__(self, parent_module):
         ModuleScope.__init__(self, 'cython', None, None)
         self.pxd_file_loaded = True
         self.populate_cython_scope()
-        # The Main.Context object
-        self.context = context
+        self.parent_module = parent_module
+        self.context = parent_module.context
 
         for fused_type in (cy_integral_type, cy_floating_type, cy_numeric_type):
             entry = self.declare_typedef(fused_type.name,
@@ -122,9 +122,10 @@ class CythonScope(ModuleScope):
         cythonview_testscope_utility_code.declare_in_scope(
                                             viewscope, cython_scope=self)
 
-        view_utility_scope = MemoryView.view_utility_code.declare_in_scope(
-                                            self.viewscope, cython_scope=self,
-                                            allowlist=MemoryView.view_utility_allowlist)
+        view_utility_code = MemoryView.get_view_utility_code(self.parent_module)
+        view_utility_scope = view_utility_code.declare_in_scope(
+                                             self.viewscope, cython_scope=self,
+                                             allowlist=MemoryView.view_utility_allowlist)
 
         # Marks the types as being cython_builtin_type so that they can be
         # extended from without Cython attempting to import cython.view
