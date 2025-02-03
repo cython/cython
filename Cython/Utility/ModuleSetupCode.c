@@ -1243,10 +1243,17 @@ PyAPI_FUNC(void *) PyMem_Calloc(size_t nelem, size_t elsize); /* proto */
     // The limited API makes some significant changes to data structures, so we don't
     // want to share the implementations compiled with and without the limited API.
     #if CYTHON_METH_FASTCALL
-        #define __PYX_LIMITED_ABI_SUFFIX  "limited_fastcall"
+        #define __PYX_FASTCALL_ABI_SUFFIX  "_fastcall"
     #else
-        #define __PYX_LIMITED_ABI_SUFFIX  "limited"
+        #define __PYX_FASTCALL_ABI_SUFFIX
     #endif
+    #if CYTHON_USE_AM_SEND
+        #define __PYX_AM_SEND_ABI_SUFFIX "_amsend"
+    #else
+        #define __PYX_AM_SEND_ABI_SUFFIX
+    #endif
+
+    #define __PYX_LIMITED_ABI_SUFFIX "limited" __PYX_FASTCALL_ABI_SUFFIX __PYX_AM_SEND_ABI_SUFFIX
 #else
     #define __PYX_LIMITED_ABI_SUFFIX
 #endif
