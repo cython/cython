@@ -755,7 +755,7 @@ def _resolve_NameNode(env, node):
     except AttributeError:
         raise CompileError(node.pos, INVALID_ERR)
 
-    viewscope = env.global_scope().context.cython_scope.viewscope
+    viewscope = env.global_scope().cython_scope.viewscope
     entry = viewscope.lookup(resolved_name)
     if entry is None:
         raise CompileError(node.pos, NOT_CIMPORTED_ERR)
