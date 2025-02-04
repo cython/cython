@@ -3895,7 +3895,7 @@ class TransformBuiltinMethods(EnvTransform):
                                           entry=self.current_env().builtin_scope().lookup_here(attribute))
             elif PyrexTypes.parse_basic_type(attribute):
                 pass
-            elif self.context.cython_scope.lookup_qualified_name(attribute):
+            elif self.cython_scope.lookup_qualified_name(attribute):
                 pass
             else:
                 error(node.pos, "'%s' not a valid cython attribute or is being used incorrectly" % attribute)
