@@ -1016,7 +1016,8 @@ class ExprNode(Node):
                         tup = src.type.dtype, dst_type.dtype
 
                     error(self.pos, msg % tup)
-
+        elif dst_type.is_ctuple and src_type.is_ctuple and dst_type.assignable_from(src_type):
+            src = CTupleCastNode(src, dst_type, env)
         elif dst_type.is_pyobject:
             # We never need a type check when assigning None to a Python object type.
             if src.is_none:
@@ -1150,13 +1151,6 @@ class ExprNode(Node):
         #  a constant, local var, C global var, struct member
         #  reference, or temporary.
         return self.result_in_temp()
-
-    def try_is_simple(self):
-        # Allow ".is_simple()" to fail (e.g. before type analysis) and assume it's not simple.
-        try:
-            return self.is_simple()
-        except Exception:
-            return False
 
     def may_be_none(self):
         if self.type and not (self.type.is_pyobject or
@@ -9604,7 +9598,10 @@ class DictNode(ExprNode):
                 member = struct_scope.lookup_here(item.key.value)
                 assert member is not None, f"struct member {item.key.value} not found, error was not handled during coercion"
                 key_cname = member.cname
-                value_cname = item.value.result()
+                value = item.value
+                if isinstance(value, CoerceToPyTypeNode):
+                    value = value.arg
+                value_cname = value.result()
                 if item.value.type.is_array:
                     code.globalstate.use_utility_code(UtilityCode.load_cached("IncludeStringH", "StringTools.c"))
                     code.putln(f"memcpy({self.result()}.{key_cname}, {value_cname}, sizeof({value_cname}));")
@@ -9643,8 +9640,10 @@ class DictItemNode(ExprNode):
     def analyse_types(self, env):
         self.key = self.key.analyse_types(env)
         self.value = self.value.analyse_types(env)
-        self.key = self.key.coerce_to_pyobject(env)
-        self.value = self.value.coerce_to_pyobject(env)
+        if not self.key.type.is_pyobject:
+            self.key = CoerceToPyTypeNode(self.key, env)
+        if not self.value.type.is_pyobject:
+            self.value = CoerceToPyTypeNode(self.value, env)
         return self
 
     def generate_evaluation_code(self, code):
@@ -10868,9 +10867,12 @@ class LocalsDictItemNode(DictItemNode):
     def analyse_types(self, env):
         self.key = self.key.analyse_types(env)
         self.value = self.value.analyse_types(env)
-        self.key = self.key.coerce_to_pyobject(env)
-        if self.value.type.can_coerce_to_pyobject(env):
-            self.value = self.value.coerce_to_pyobject(env)
+        if not self.key.type.is_pyobject:
+            self.key = self.key.coerce_to_pyobject(env)
+        if self.value.type.is_pyobject:
+            pass
+        elif self.value.type.can_coerce_to_pyobject(env):
+            self.value = CoerceToPyTypeNode(self.value, env)
         else:
             self.value = None
         return self
@@ -13505,9 +13507,7 @@ class CmpNode:
 
         if new_common_type is None:
             # fall back to generic type compatibility tests
-            if type1.is_ctuple or type2.is_ctuple:
-                new_common_type = py_object_type
-            elif type1 == type2:
+            if type1 == type2 or (type1.is_ctuple and type2.is_ctuple and type1.assignable_from(type2)):
                 new_common_type = type1
             elif type1.is_pyobject or type2.is_pyobject:
                 if type2.is_numeric or type2.is_string:
@@ -13535,7 +13535,7 @@ class CmpNode:
                 self.invalid_types_error(operand1, op, operand2)
                 new_common_type = error_type
 
-        if new_common_type.is_string and (isinstance(operand1, BytesNode) or
+        if new_common_type is not None and new_common_type.is_string and (isinstance(operand1, BytesNode) or
                                           isinstance(operand2, BytesNode)):
             # special case when comparing char* to bytes literal: must
             # compare string values!
@@ -13685,7 +13685,6 @@ class CmpNode:
                     special_bool_extra_args_result if self.special_bool_extra_args else richcmp_constants[op],
                     got_ref,
                     error_clause(result_code, self.pos)))
-
         elif operand1.type.is_pyobject and op not in ('is', 'is_not'):
             assert op not in ('in', 'not_in'), op
             assert self.type.is_pyobject or self.type is PyrexTypes.c_bint_type
@@ -13697,7 +13696,6 @@ class CmpNode:
                     richcmp_constants[op],
                     got_ref,
                     error_clause(result_code, self.pos)))
-
         elif operand1.type.is_complex:
             code.putln("%s = %s(%s%s(%s, %s));" % (
                 result_code,
@@ -13706,7 +13704,30 @@ class CmpNode:
                 operand1.type.unary_op('eq'),
                 operand1.result(),
                 operand2.result()))
+        elif operand1.type.is_struct_or_union and operand2.type.is_struct_or_union and not (operand1.type.needs_cpp_construction or operand2.type.needs_cpp_construction):
+            assert op in ('==', '!=')
 
+            operand1_temp = code.funcstate.allocate_temp(operand1.type, manage_ref=False)
+            operand2_temp = code.funcstate.allocate_temp(operand2.type, manage_ref=False)
+            code.putln(f"{operand1_temp} = {operand1.result()};")
+            code.putln(f"{operand2_temp} = {operand2.result()};")
+            struct_code = self.generate_struct_code(operand1_temp, operand2_temp, operand1.type, op, code)
+            code.putln(f"{result_code} = {struct_code};")
+
+            code.funcstate.release_temp(operand1_temp)
+            code.funcstate.release_temp(operand2_temp)
+        elif operand1.type.is_ctuple and operand2.type.is_ctuple and operand1.type.assignable_from(operand2.type):
+            assert op in ('==', '!=')
+
+            operand1_temp = code.funcstate.allocate_temp(operand1.type, manage_ref=False)
+            operand2_temp = code.funcstate.allocate_temp(operand2.type, manage_ref=False)
+            code.putln(f"{operand1_temp} = {operand1.result()};")
+            code.putln(f"{operand2_temp} = {operand2.result()};")
+            ctuple_code = self.generate_ctuple_code(operand1_temp, operand2_temp, operand1.type, operand2.type, op, code)
+            code.putln(f"{result_code} = {ctuple_code};")
+
+            code.funcstate.release_temp(operand1_temp)
+            code.funcstate.release_temp(operand2_temp)
         else:
             type1 = operand1.type
             type2 = operand2.type
@@ -13735,6 +13756,36 @@ class CmpNode:
                     self.in_nogil_context)
             else:
                 code.putln(statement)
+
+    def generate_struct_code(self, operand1_name, operand2_name, struct_type, op, code):
+        comps = list()
+        for member in struct_type.scope.var_entries:
+            comps.append(self.generate_ctype_code(struct_type.member_code(operand1_name, member.name), struct_type.member_code(operand2_name, member.name), member.type, member.type, op, code))
+
+        return '(' + (' && ' if op == '==' else ' || ').join(comps) + ')'
+
+    def generate_ctuple_code(self, operand1_name, operand2_name, operand1_type, operand2_type, op, code):
+        comps = list()
+        for itr in range(len(operand2_type.components)):
+            comps.append(self.generate_ctype_code(operand1_type.index_code(operand1_name, itr), operand2_type.index_code(operand2_name, itr), operand1_type.components[itr], operand2_type.components[itr], op, code))
+
+        return '(' + (' && ' if op == '==' else ' || ').join(comps) + ')'
+
+    def generate_ctype_code(self, operand1_name, operand2_name, operand1_type, operand2_type, op, code):
+        if operand2_type.is_struct_or_union:
+            if (operand1_type.is_struct_or_union and operand1_type.kind == 'union') or (operand2_type.is_struct_or_union and operand2_type.kind == 'union'):
+                error(self.pos, "cannot compare unions, compare a specific field instead")
+    
+            if operand1_type != operand2_type:
+                error(self.pos, "cannot compare structs of different types")
+
+            return self.generate_struct_code(operand1_name, operand2_name, operand2_type, op, code)
+        elif operand2_type.is_ctuple:
+            return self.generate_ctuple_code(operand1_name, operand2_name, operand1_type, operand2_type, op, code)
+        else:
+            assert op in ('==', '!=')
+
+            return f"({operand1_name} {op} {operand2_name})"
 
     def c_operator(self, op):
         if op == 'is':
@@ -13796,6 +13847,12 @@ class PrimaryCmpNode(ExprNode, CmpNode):
     def analyse_types(self, env):
         self.operand1 = self.operand1.analyse_types(env)
         self.operand2 = self.operand2.analyse_types(env)
+
+        if isinstance(self.operand1, TypecastNode) and self.operand1.operand.type.is_ctuple:
+            self.operand1 = self.operand1.operand
+        if isinstance(self.operand2, TypecastNode) and self.operand2.operand.type.is_ctuple:
+            self.operand2 = self.operand2.operand
+
         if self.is_cpp_comparison():
             self.analyse_cpp_comparison(env)
             if self.cascade:
@@ -13823,12 +13880,12 @@ class PrimaryCmpNode(ExprNode, CmpNode):
                 if self.cascade:
                     error(self.pos, "Cascading comparison not yet supported for 'int_val in string'.")
                     return self
-                if self.operand2.type is unicode_type:
+                if type2 is unicode_type:
                     env.use_utility_code(UtilityCode.load_cached("PyUCS4InUnicode", "StringTools.c"))
                 else:
-                    if self.operand1.type is PyrexTypes.c_uchar_type:
+                    if type1 is PyrexTypes.c_uchar_type:
                         self.operand1 = self.operand1.coerce_to(PyrexTypes.c_char_type, env)
-                    if self.operand2.type is not bytes_type:
+                    if type2 is not bytes_type:
                         self.operand2 = self.operand2.coerce_to(bytes_type, env)
                     env.use_utility_code(UtilityCode.load_cached("BytesContains", "StringTools.c"))
                 self.operand2 = self.operand2.as_none_safe_node(
@@ -13839,8 +13896,11 @@ class PrimaryCmpNode(ExprNode, CmpNode):
                 self.type = PyrexTypes.c_bint_type
                 # Will be transformed by IterationTransform
                 return self
+            elif type2.is_ctuple and any([type1.assignable_from(type_) for type_ in type2.components]):
+                common_type = None
+                self.is_pycmp = False
             elif self.find_special_bool_compare_function(env, self.operand1):
-                if not self.operand1.type.is_pyobject:
+                if not type1.is_pyobject:
                     self.operand1 = self.operand1.coerce_to_pyobject(env)
                 common_type = None  # if coercion needed, the method call above has already done it
                 self.is_pycmp = False  # result is bint
@@ -13848,16 +13908,16 @@ class PrimaryCmpNode(ExprNode, CmpNode):
                 common_type = py_object_type
                 self.is_pycmp = True
         elif self.find_special_bool_compare_function(env, self.operand1):
-            if not self.operand1.type.is_pyobject:
+            if not type1.is_pyobject:
                 self.operand1 = self.operand1.coerce_to_pyobject(env)
             common_type = None  # if coercion needed, the method call above has already done it
             self.is_pycmp = False  # result is bint
         else:
             common_type = self.find_common_type(env, self.operator, self.operand1)
-            self.is_pycmp = common_type.is_pyobject
+            self.is_pycmp = common_type is not None and common_type.is_pyobject
 
         if common_type is not None and not common_type.is_error:
-            if self.operand1.type != common_type:
+            if type1 != common_type:
                 self.operand1 = self.operand1.coerce_to(common_type, env)
             self.coerce_operands_to(common_type, env)
 
@@ -13872,8 +13932,8 @@ class PrimaryCmpNode(ExprNode, CmpNode):
         else:
             self.type = PyrexTypes.c_bint_type
         self.unify_cascade_type()
-        if self.is_pycmp or self.cascade or self.special_bool_cmp_function:
-            # 1) owned reference, 2) reused value, 3) potential function error return value
+        if self.is_pycmp or self.cascade or self.special_bool_cmp_function or (type1.is_struct_or_union and type2.is_struct_or_union) or (type1.is_ctuple or type2.is_ctuple):
+            # 1) owned reference, 2) reused value, 3) potential function error return value 4) struct comparisons 5) ctuple comparisons
             self.is_temp = 1
         return self
 
@@ -13936,8 +13996,7 @@ class PrimaryCmpNode(ExprNode, CmpNode):
         return ExprNode.coerce_to_boolean(self, env)
 
     def has_python_operands(self):
-        return (self.operand1.type.is_pyobject
-            or self.operand2.type.is_pyobject)
+        return self.operand1.type.is_pyobject or self.operand2.type.is_pyobject
 
     def check_const(self):
         if self.cascade:
@@ -14216,6 +14275,33 @@ class CoerceToMemViewSliceNode(CoercionNode):
             self.pos,
             code
         ))
+
+
+class CTupleCastNode(CoercionNode):
+    """
+    Coerce between different CTuple types.
+    """
+
+    def __init__(self, arg, dst_type, env):
+        assert dst_type.is_ctuple
+        assert arg.type.is_ctuple
+        CoercionNode.__init__(self, arg)
+        self.type = dst_type
+        self.is_temp = 1
+        self.arg = arg
+
+    def generate_result_code(self, code):
+        self.recursive_assign(self.arg.result(), self.temp_code, self.arg.type, self.type, code)
+
+    def recursive_assign(self, src, dest, src_type, dest_type, code):
+        if dest_type.is_ctuple and dest_type != src_type:
+            for index, (member_src_type, member_dest_type) in enumerate(zip(src_type.components, dest_type.components)):
+                member_src = src_type.index_code(src, index)
+                member_dest = dest_type.index_code(dest, index)
+
+                self.recursive_assign(member_src, member_dest, member_src_type, member_dest_type, code)
+        else:
+            code.putln(f"{dest} = {typecast(src_type, dest_type, src) if src_type != dest_type else src};")
 
 
 class CastNode(CoercionNode):

@@ -3942,6 +3942,10 @@ class CStructOrUnionType(CType):
             return expr_code
         return super().cast_code(expr_code)
 
+    def member_code(self, expr_code, member):
+        return "%s.%s" % (expr_code, member)
+
+
 cpp_string_conversions = ("std::string",)
 
 builtin_cpp_conversions = {
@@ -4655,6 +4659,20 @@ class CTupleType(CType):
         components = [c.specialize(values) for c in self.components]
         new_entry = self.entry.scope.declare_tuple_type(self.entry.pos, components)
         return new_entry.type
+
+    def index_code(self, expr_code, index):
+        return "%s.f%i" % (expr_code, index)
+
+    def assignable_from(self, src_type):
+        return src_type.is_ctuple and len(src_type.components) == len(self.components) and \
+            all([dest.assignable_from(src) for src, dest in zip(src_type.components, self.components)])
+
+    def __eq__(self, other):
+        return isinstance(other, CTupleType) and len(other.components) == len(self.components) and \
+            all([member_self == member_other for member_self, member_other in zip(self.components, other.components)])
+
+    def __hash__(self):
+        return hash(CTupleType) ^ hash(self.components)
 
 
 def c_tuple_type(components):
