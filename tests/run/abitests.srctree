@@ -3,6 +3,7 @@
 # simulate getting the environment wrong in the Python headers (which
 # is potentially a more dramatic problem).
 
+UNSET CFLAGS
 PYTHON setup.py build_ext --inplace
 PYTHON test.py
 
