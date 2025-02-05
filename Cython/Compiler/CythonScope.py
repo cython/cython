@@ -146,11 +146,11 @@ class CythonScope(ModuleScope):
         # doesn't actually have any contents
 
 
-def create_cython_scope(context):
+def create_cython_scope(parent_module):
     # One could in fact probably make it a singleton,
     # but not sure yet whether any code mutates it (which would kill reusing
     # it across different contexts)
-    return CythonScope(context)
+    return CythonScope(parent_module)
 
 # Load test utilities for the cython scope
 

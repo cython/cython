@@ -1513,6 +1513,9 @@ class ModuleScope(Scope):
             # Special-case Cython-scope. We want to generate it uniquely for each module
             # because it depends on compiler directives
             return module_scope.cython_scope
+        if module_name.startswith("cython.") and not is_relative_import:
+            _, rest = module_name.split('.', 1)
+            return module_scope.cython_scope.find_submodule(rest)
         return module_scope.context.find_module(
             module_name, from_module=from_module, pos=pos, absolute_fallback=absolute_fallback, relative_import=is_relative_import)
 
