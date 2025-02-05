@@ -45,6 +45,7 @@ reimport_failure
 line_profile_test
 cdef_multiple_inheritance_errors
 cline_in_traceback
+module_init_error
 
 # Possibly only on early versions of Python?
 fused_def
