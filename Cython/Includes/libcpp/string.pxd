@@ -2,6 +2,8 @@
 # deprecated cimport for backwards compatibility:
 from libc.string cimport const_char
 
+from libcpp.string_view cimport string_view
+
 cdef extern from "<string>" namespace "std::string" nogil:
     const size_t npos
 
@@ -182,6 +184,7 @@ cdef extern from "<string>" namespace "std" nogil:
         string(const char* s, size_t n) except +  # (9)
         string(const char* s) except +  # (10)
         string(size_t n, char c) except +  # (11)
+        string(const string_view& sv) except +
         # type (string&) is needed here so that Cython can compile templated definition
         string& string[InputIt](InputIt, InputIt) except +  # (12)
 
