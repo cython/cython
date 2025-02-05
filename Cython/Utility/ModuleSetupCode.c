@@ -1074,34 +1074,41 @@ static CYTHON_INLINE PyObject * __Pyx_PyDict_GetItemStrWithError(PyObject *dict,
   #define __Pyx_SET_SIZE(obj, size) Py_SIZE(obj) = (size)
 #endif
 
-#if CYTHON_AVOID_THREAD_UNSAFE_BORROWED_REFS && PY_VERSION_HEX >= 0x030d00b1
+#if CYTHON_AVOID_THREAD_UNSAFE_BORROWED_REFS && __PYX_LIMITED_VERSION_HEX >= 0x030d0000
 #define __Pyx_PyList_GetItemRef(o, i) PyList_GetItemRef(o, i)
-#define __Pyx_PyDict_GetItemRef(dict, key, result) PyDict_GetItemRef(dict, key, result)
-#elif !CYTHON_AVOID_BORROWED_REFS
-
-#if CYTHON_ASSUME_SAFE_MACROS
-#define __Pyx_PyList_GetItemRef(o, i) __Pyx_NewRef(PyList_GET_ITEM(o, i))
-#else
+#elif CYTHON_AVOID_BORROWED_REFS || CYTHON_AVOID_THREAD_UNSAFE_BORROWED_REFS || !CYTHON_ASSUME_SAFE_MACROS
 #define __Pyx_PyList_GetItemRef(o, i) PySequence_GetItem(o, i)
+#else
+#define __Pyx_PyList_GetItemRef(o, i) __Pyx_NewRef(PyList_GET_ITEM(o, i))
 #endif
 
+#if __PYX_LIMITED_VERSION_HEX >= 0x030d0000
+#define __Pyx_PyDict_GetItemRef(dict, key, result) PyDict_GetItemRef(dict, key, result)
+#elif CYTHON_AVOID_BORROWED_REFS || CYTHON_AVOID_THREAD_UNSAFE_BORROWED_REFS
 static CYTHON_INLINE int __Pyx_PyDict_GetItemRef(PyObject *dict, PyObject *key, PyObject **result) {
-  *result = PyDict_GetItem(dict, key);
+  // NOTE: CPython 3.13 performs the following check
+  // if (!PyDict_Check(dict)) {
+  //   PyErr_BadInternalCall();
+  //   *result = NULL;
+  //   return -1;
+  // }
+  *result = PyObject_GetItem(dict, key);
   if (*result == NULL) {
-    return 0;
+    if (PyErr_ExceptionMatches(PyExc_KeyError)) {
+      PyErr_Clear();
+      return 0;
+    }
+    return -1;
   }
-  Py_INCREF(*result);
   return 1;
 }
 #else
-#define __Pyx_PyList_GetItemRef(o, i) PySequence_GetItem(o, i)
 static CYTHON_INLINE int __Pyx_PyDict_GetItemRef(PyObject *dict, PyObject *key, PyObject **result) {
-  *result = PyObject_GetItem(dict, key);
-  if (PyErr_Occurred()) {
-    return -1;
-  } else if (*result == NULL) {
-    return 0;
+  *result = PyDict_GetItemWithError(dict, key);
+  if (*result == NULL) {
+    return PyErr_Occurred() ? -1 : 0;
   }
+  Py_INCREF(*result);
   return 1;
 }
 #endif
