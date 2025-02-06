@@ -198,7 +198,7 @@ class PyrexType(BaseType):
     #  is_buffer             boolean     Is buffer access type
     #  is_pythran_expr       boolean     Is Pythran expr
     #  is_numpy_buffer       boolean     Is Numpy array buffer
-    #  is_unowned_view       boolean     Is a pointer or a C++ class that views but doesn't own (or similar)
+    #  is_unowned_view       boolean     Is a pointer or a C++ class such as std::string_view
     #  has_attributes        boolean     Has C dot-selectable attributes
     #  needs_cpp_construction  boolean     Needs C++ constructor and destructor when used in a cdef class
     #  needs_refcounting     boolean     Needs code to be generated similar to incref/gotref/decref.
