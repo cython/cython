@@ -4,6 +4,8 @@ requires = ["setuptools", "wheel"]
 [tool.cibuildwheel]
 build-verbosity = 2
 skip = ["pp*", "cp36*", "cp37*"]
+# Enable free-threaded support
+enable = ["cpython-freethreading"]
 # test-command = "make test"
 
 [tool.cibuildwheel.linux]
