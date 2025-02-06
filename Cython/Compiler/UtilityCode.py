@@ -290,7 +290,7 @@ class CythonSharedUtilityCode:
         self._module_name = module_name
         self.context = context
         self.requires = requires
-        self.pxd_scope = None
+        self._shared_library_scope = None
 
     def find_module(self, context):
         qualified_name = '.'.join([Options.use_shared_utility, self._module_name])
@@ -320,20 +320,24 @@ class CythonSharedUtilityCode:
     def declare_in_scope(self, dest_scope, used=False, cython_scope=None,
                          allowlist=None):
         if not cython_scope.context.utility_pxd:
-            self.pxd_scope = self.find_module(cython_scope.context)
+            self._shared_library_scope = self.find_module(cython_scope.context)
         for dep in self.requires:
             if dep.is_cython_utility:
                 dep.declare_in_scope(scope, cython_scope=cython_scope)
-        for e in self.pxd_scope.c_class_entries:
+        for e in self._shared_library_scope.c_class_entries:
             dest_scope.add_imported_entry(e.name, e, e.pos)
         return dest_scope
 
     def put_code(self, output):
         pass
 
-    def get_tree(self, entries_only=False, cython_scope=None):
+    def get_tree(self, **kwargs):
+        return None
+
+    def get_shared_library_scope(self, cython_scope):
         if isinstance(Options.use_shared_utility, str) and not cython_scope.context.utility_pxd:
-            self.pxd_scope = self.find_module(cython_scope.context)
+            self._shared_library_scope = self.find_module(cython_scope.context)
+        return self._shared_library_scope
 
 
 def declare_declarations_in_scope(declaration_string, env, private_type=True,

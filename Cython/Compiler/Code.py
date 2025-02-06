@@ -603,6 +603,9 @@ class UtilityCodeBase:
     def get_tree(self, **kwargs):
         return None
 
+    def get_shared_library_scope(self, **kwargs):
+        return None
+
     def __deepcopy__(self, memodict=None):
         # No need to deep-copy utility code since it's essentially immutable.
         return self

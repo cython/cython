@@ -136,13 +136,12 @@ def inject_utility_code_stage_factory(context):
                 for dep in utilcode.requires:
                     if dep not in added:
                         utility_code_list.append(dep)
-            tree = utilcode.get_tree(cython_scope=context.cython_scope)
-            if tree:
+            if tree := utilcode.get_tree(cython_scope=context.cython_scope):
                 module_node.merge_in(tree.with_compiler_directives(),
                                      tree.scope, stage="utility",
                                      merge_scope=True)
-            elif hasattr(utilcode, 'pxd_scope') and utilcode.pxd_scope:
-                module_node.scope.cimported_modules.append(utilcode.pxd_scope)
+            elif shared_library_scope := utilcode.get_shared_library_scope(cython_scope=context.cython_scope):
+                module_node.scope.cimported_modules.append(shared_library_scope)
         return module_node
 
     return inject_utility_code_stage
