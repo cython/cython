@@ -11,7 +11,7 @@ from functools import partial, reduce
 from itertools import product
 
 from Cython.Utils import cached_function
-from .Code import UtilityCode, LazyUtilityCode, TempitaUtilityCode
+from .Code import UtilityCode, LazyUtilityCode, TempitaUtilityCode, AbstractUtilityCode
 from . import StringEncoding
 from . import Naming
 
@@ -3710,9 +3710,7 @@ class CFuncTypeArg(BaseType):
                 return True
         return False
 
-class ToPyStructUtilityCode:
-
-    requires = None
+class ToPyStructUtilityCode(AbstractUtilityCode):
 
     def __init__(self, type, forward_decl, env):
         self.type = type
@@ -3726,12 +3724,6 @@ class ToPyStructUtilityCode:
 
     def __hash__(self):
         return hash(self.header)
-
-    def get_tree(self, **kwargs):
-        pass
-
-    def get_shared_library_scope(self, **kwargs):
-        return None
 
     def put_code(self, output):
         code = output['utility_code_def']

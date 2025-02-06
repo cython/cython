@@ -285,7 +285,7 @@ class TemplatedFileSourceDescriptor(FileSourceDescriptor):
         return stream
 
 
-class CythonSharedUtilityCode:
+class CythonSharedUtilityCode(Code.AbstractUtilityCode):
     def __init__(self, module_name, context, requires):
         self._module_name = module_name
         self.context = context
@@ -327,12 +327,6 @@ class CythonSharedUtilityCode:
         for e in self._shared_library_scope.c_class_entries:
             dest_scope.add_imported_entry(e.name, e, e.pos)
         return dest_scope
-
-    def put_code(self, output):
-        pass
-
-    def get_tree(self, **kwargs):
-        return None
 
     def get_shared_library_scope(self, cython_scope):
         if isinstance(Options.use_shared_utility, str) and not cython_scope.context.utility_pxd:

@@ -356,7 +356,22 @@ def read_utilities_from_utility_dir(path):
 # by default, read utilities from the utility directory.
 read_utilities_hook = read_utilities_from_utility_dir
 
-class UtilityCodeBase:
+
+class AbstractUtilityCode:
+
+    requires = None
+
+    def put_code(self, output):
+        pass
+
+    def get_tree(self, **kwargs):
+        return None
+
+    def get_shared_library_scope(self, **kwargs):
+        return None
+
+
+class UtilityCodeBase(AbstractUtilityCode):
     """
     Support for loading utility code from a file.
 
