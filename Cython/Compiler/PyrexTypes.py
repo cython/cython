@@ -190,7 +190,7 @@ class PyrexType(BaseType):
     #  is_typedef            boolean     Is a typedef type
     #  is_string             boolean     Is a C char * type
     #  is_pyunicode_ptr      boolean     Is a C PyUNICODE * type
-    #  is_cpp_string         boolean     Is a C++ std::string type
+    #  is_cpp_string         boolean     Is a C++ std::string or std::string_view type
     #  python_type_constructor_name     string or None     non-None if it is a Python type constructor that can be indexed/"templated"
     #  is_unicode_char       boolean     Is either Py_UCS4 or Py_UNICODE
     #  is_returncode         boolean     Is used only to signal exceptions
@@ -3937,7 +3937,7 @@ class CStructOrUnionType(CType):
             return expr_code
         return super().cast_code(expr_code)
 
-cpp_string_conversions = ("std::string",)
+cpp_string_conversions = ("std::string", "std::string_view")
 
 builtin_cpp_conversions = {
     # type                element template params
