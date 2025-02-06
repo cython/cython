@@ -2,6 +2,7 @@ from .Errors import CompileError, error
 from . import ExprNodes
 from .ExprNodes import IntNode, NameNode, AttributeNode
 from . import Options
+from .. import Utils
 from .Code import UtilityCode, TempitaUtilityCode
 from .UtilityCode import CythonUtilityCode
 from . import Buffer
@@ -852,30 +853,26 @@ def _get_copy_contents_new_utility():
     )
     return copy_contents_new_utility
 
-_cached_nonshared_result = None
-
+@Utils.cached_function
 def _get_memoryview_utility_code():
-    global _cached_nonshared_result
-    if _cached_nonshared_result is None:
-        memviewslice_declare_code = _get_memviewslice_declare_code()
-        memviewslice_init_code = _get_memviewslice_init_code(memviewslice_declare_code)
-        copy_contents_new_utility = _get_copy_contents_new_utility()
-        memoryview_utility_code = load_memview_cy_utility(
-                "View.MemoryView",
-                context=context,
-                requires=[
-                        Buffer.buffer_struct_declare_code,
-                        Buffer.buffer_formats_declare_code,
-                        memviewslice_init_code,
-                        is_contig_utility,
-                        overlapping_utility,
-                        copy_contents_new_utility,
-                        ],
-        )
-        memviewslice_declare_code.requires.append(memoryview_utility_code)
-        copy_contents_new_utility.requires.append(memoryview_utility_code)
-        _cached_nonshared_result = (memoryview_utility_code, memviewslice_init_code)
-    return _cached_nonshared_result
+    memviewslice_declare_code = _get_memviewslice_declare_code()
+    memviewslice_init_code = _get_memviewslice_init_code(memviewslice_declare_code)
+    copy_contents_new_utility = _get_copy_contents_new_utility()
+    memoryview_utility_code = load_memview_cy_utility(
+            "View.MemoryView",
+            context=context,
+            requires=[
+                    Buffer.buffer_struct_declare_code,
+                    Buffer.buffer_formats_declare_code,
+                    memviewslice_init_code,
+                    is_contig_utility,
+                    overlapping_utility,
+                    copy_contents_new_utility,
+                    ],
+    )
+    memviewslice_declare_code.requires.append(memoryview_utility_code)
+    copy_contents_new_utility.requires.append(memoryview_utility_code)
+    return memoryview_utility_code, memviewslice_init_code
 
 def get_view_utility_code(env):
     return _get_memoryview_utility_code()[0]
