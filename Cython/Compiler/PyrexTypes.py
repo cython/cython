@@ -3730,6 +3730,9 @@ class ToPyStructUtilityCode:
     def get_tree(self, **kwargs):
         pass
 
+    def get_shared_library_scope(self, **kwargs):
+        return None
+
     def put_code(self, output):
         code = output['utility_code_def']
         proto = output['utility_code_proto']
