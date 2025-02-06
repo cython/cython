@@ -6,6 +6,7 @@
 # known and working. It should be dropped once the limited API is
 # better tested
 
+UNSET CFLAGS
 PYTHON setup.py build_ext --inplace
 PYTHON run.py limited_single_phase
 PYTHON run.py limited_single_phase_modstate

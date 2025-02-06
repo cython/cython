@@ -1,3 +1,4 @@
+UNSET CFLAGS
 PYTHON setup.py build_ext --inplace
 
 # single-phase uses Python's mechanisms so should be reliable
