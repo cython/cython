@@ -1009,9 +1009,12 @@ class CythonCompileTestCase(unittest.TestCase):
         unittest.TestCase.__init__(self)
 
     def shortDescription(self):
-        directives = ''
+        extra_directives = ''
         if self.extra_directives:
-            directives = "/" + ', '.join(f"{name}={value!r}" for name, value in sorted(self.extra_directives.items()))
+            extra_directives = '/'.join(
+                name if value is True else f"{name}={value!r}"
+                for name, value in sorted(self.extra_directives.items())
+            )
 
         return (
             f"[{self.shard_num}] compiling ("
@@ -1019,7 +1022,7 @@ class CythonCompileTestCase(unittest.TestCase):
             f"{'/cy2' if self.language_level == 2 else '/cy3' if self.language_level == 3 else ''}"
             f"{'/pythran' if self.pythran_dir is not None else ''}"
             f"/{os.path.splitext(self.module_path)[1][1:]}"
-            f"{directives}"
+            f"{'/' if extra_directives else ''}{extra_directives}"
             f") {self.description_name()}"
         )
 
@@ -2011,7 +2014,10 @@ class EndToEndTest(unittest.TestCase):
         new_path = self.cython_syspath
         if old_path:
             new_path = new_path + os.pathsep + self.workdir + os.pathsep + old_path
-        env = dict(os.environ, PYTHONPATH=new_path, PYTHONIOENCODING='utf8')
+        env_cflags = list(CFLAGS) + [f'"-D{macro}={definition}"' for macro, definition in CDEFS]
+        env_cflags = " ".join(env_cflags)
+        env = dict(os.environ, PYTHONPATH=new_path, PYTHONIOENCODING='utf8',
+                   CFLAGS=env_cflags)
         cmd = []
         out = []
         err = []
