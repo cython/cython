@@ -54,7 +54,6 @@ def test_constructors(py_str):
     return (string_view(), substr1, substr2, view1, view2, view3, view4, view5)
 
 
-
 def test_iterators(string_view s):
     """
     >>> test_iterators(b'XXX hello, world! XXX')
@@ -97,6 +96,7 @@ def test_iterators(string_view s):
 
     return c1 == s.size(), c1 == c2
 
+
 def test_access(string_view s, i):
     """
     >>> test_access(b_asdf, 1) == (ord(b_asdf[1:2]), ) * 2
@@ -108,6 +108,7 @@ def test_access(string_view s, i):
     """
     return s.at(i), s[i]
 
+
 def test_empty(string_view s1, string_view s2):
     """
     >>> test_empty(b'', b_asdf)
@@ -115,12 +116,14 @@ def test_empty(string_view s1, string_view s2):
     """
     return s1.empty(), s2.empty()
 
+
 def test_size(string_view s):
     """
     >>> test_size(b_asdf)
     (4, 4)
     """
     return s.size(), s.length()
+
 
 def test_npos(string_view a, string_view b):
     """
@@ -130,6 +133,7 @@ def test_npos(string_view a, string_view b):
     False
     """
     return a.find(b) == npos
+
 
 def test_compare(string_view s1, string_view s2):
     """
@@ -146,6 +150,7 @@ def test_compare(string_view s1, string_view s2):
             s2.compare(0, s1.size(), s1.data()),
             s2.compare(0, s1.size(), s1.data(), s1.size()))
 
+
 def test_substr(string_view s):
     """
     >>> b_test_str = b'ABCDEFGH'
@@ -157,6 +162,7 @@ def test_substr(string_view s):
     o2 = s.substr(1)
     o3 = s.substr(1, 4)
     return o1, o2, o3
+
 
 def test_copy(string_view s):
     """
@@ -170,6 +176,7 @@ def test_copy(string_view s):
     buffer2[length2] = c'\0'
     return buffer1, buffer2
 
+
 def test_swap(string_view s1, string_view s2):
     """
     >>> test_swap(b_asdf, b_asdg) == (b_asdg, b_asdf)
@@ -177,6 +184,7 @@ def test_swap(string_view s1, string_view s2):
     """
     s1.swap(s2)
     return s1, s2
+
 
 def test_find(string_view s1, string_view s2):
     """
@@ -190,6 +198,7 @@ def test_find(string_view s1, string_view s2):
             s1.find(s2.data(), 0),
             s1.find(s2.at(0), 0))
 
+
 def test_rfind(string_view s1, string_view s2):
     """
     >>> all(map(lambda x: x == 2, test_rfind(b_asdf, b_asdf[2:])))
@@ -201,6 +210,7 @@ def test_rfind(string_view s1, string_view s2):
             s1.rfind(s2.data()),
             s1.rfind(s2.data(), s1.size() - 2),
             s1.rfind(s2.at(0), s1.size() - 2))
+
 
 @cython.test_assert_path_exists("//PythonCapiCallNode")
 @cython.test_fail_if_path_exists("//AttributeNode")
@@ -221,6 +231,7 @@ def test_decode_sliced(string_view a):
     """
     return a[1:3].decode('ascii')
 
+
 def test_equals_operator(char *a, string_view b):
     """
     >>> test_equals_operator(b_asdf, b_asdf)
@@ -228,6 +239,7 @@ def test_equals_operator(char *a, string_view b):
     """
     cdef string_view s = string_view(a)
     return b == s, b != <char *>"asdf"
+
 
 def test_less_than(string_view a, char *b):
     """
@@ -239,6 +251,7 @@ def test_less_than(string_view a, char *b):
     """
     cdef string_view t = string_view(b)
     return (a < t, a < b, a <= b)
+
 
 def test_greater_than(string_view a, char *b):
     """
