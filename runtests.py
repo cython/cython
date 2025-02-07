@@ -1004,12 +1004,20 @@ class CythonCompileTestCase(unittest.TestCase):
         unittest.TestCase.__init__(self)
 
     def shortDescription(self):
+        extra_directives = ''
+        if self.extra_directives:
+            extra_directives = '/'.join(
+                name if value is True else f"{name}={value!r}"
+                for name, value in sorted(self.extra_directives.items())
+            )
+
         return (
             f"[{self.shard_num}] compiling ("
             f"{self.language}"
             f"{'/cy2' if self.language_level == 2 else '/cy3' if self.language_level == 3 else ''}"
             f"{'/pythran' if self.pythran_dir is not None else ''}"
             f"/{os.path.splitext(self.module_path)[1][1:]}"
+            f"{'/' if extra_directives else ''}{extra_directives}"
             f") {self.description_name()}"
         )
 
