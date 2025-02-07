@@ -914,7 +914,8 @@ class TestBuilder(object):
                           common_utility_dir=self.common_utility_dir,
                           pythran_dir=pythran_dir,
                           stats=self.stats,
-                          add_cython_import=add_cython_import
+                          add_cython_import=add_cython_import,
+                          #extra_directives=extra_directives,  # currently crashes in C++ tests
                           )
 
 
