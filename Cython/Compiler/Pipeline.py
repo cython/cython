@@ -119,7 +119,7 @@ def normalize_deps(utilcodes):
 def inject_utility_code_stage_factory(context):
     def inject_utility_code_stage(module_node):
         module_node.prepare_utility_code()
-        use_utility_code_definitions(context.cython_scope, module_node.scope)
+        use_utility_code_definitions(module_node.scope.cython_scope, module_node.scope)
 
         utility_code_list = module_node.scope.utility_code_list
         utility_code_list[:] = sorted_utility_codes_and_deps(utility_code_list)
@@ -136,11 +136,11 @@ def inject_utility_code_stage_factory(context):
                 for dep in utilcode.requires:
                     if dep not in added:
                         utility_code_list.append(dep)
-            if tree := utilcode.get_tree(cython_scope=context.cython_scope):
+            if tree := utilcode.get_tree(cython_scope=module_node.scope.cython_scope):
                 module_node.merge_in(tree.with_compiler_directives(),
                                      tree.scope, stage="utility",
                                      merge_scope=True)
-            elif shared_library_scope := utilcode.get_shared_library_scope(cython_scope=context.cython_scope):
+            elif shared_library_scope := utilcode.get_shared_library_scope(cython_scope=module_node.scope.cython_scope):
                 module_node.scope.cimported_modules.append(shared_library_scope)
         return module_node
 

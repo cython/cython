@@ -16,7 +16,7 @@ class NonManglingModuleScope(Symtab.ModuleScope):
 
     def __init__(self, prefix, *args, **kw):
         self.prefix = prefix
-        self.cython_scope = None
+        self._cython_scope = None
         self.cpp = kw.pop('cpp', False)
         Symtab.ModuleScope.__init__(self, *args, **kw)
 
@@ -50,6 +50,7 @@ class CythonUtilityCodeContext(StringParseContext):
         if self.scope is None:
             self.scope = NonManglingModuleScope(
                 self.prefix, module_name, parent_module=None, context=self, cpp=self.cpp)
+            self.scope._cython_scope = self._cython_scope
 
         return self.scope
 
@@ -127,7 +128,7 @@ class CythonUtilityCode(Code.UtilityCodeBase):
             self.name, compiler_directives=self.compiler_directives,
             cpp=cython_scope.is_cpp() if cython_scope else False)
         context.prefix = self.prefix
-        context.cython_scope = cython_scope
+        context._cython_scope = cython_scope
         #context = StringParseContext(self.name)
         tree = parse_from_strings(
             self.name, self.impl, context=context, allow_struct_enum_decorator=True,
