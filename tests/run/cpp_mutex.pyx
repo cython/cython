@@ -1,5 +1,5 @@
 # mode: run
-# tag: cpp, cpp17
+# tag: cpp, cpp17, no-cpp-locals
 
 from libcpp.mutex cimport (
     mutex, once_flag, unique_lock, call_once,
