@@ -253,7 +253,7 @@ Other changes
 * Includes all fixes as of Cython 3.0.12 (but generates C99 code in some places).
 
 
-3.0.12 (2024-??-??)
+3.0.12 (2025-02-11)
 ===================
 
 Bugs fixed
@@ -272,6 +272,14 @@ Bugs fixed
 
 * In Py3, `pyximport` was not searching `sys.path` when looking for importable source files.
   (Github issue :issue:`5615`)
+
+* Using `& 0` on integers produced with `int.from_bytes()` could read invalid memory on Python 3.10.
+  (Github issue :issue:`6480`)
+
+* Modules could fail to compile in PyPy 3.11 due to missing CPython specific header files.
+  Patch by Matti Picus.  (Github issue :issue:`6482`)
+
+* Minor fix in C++ ``partial_sum()`` declaration.
 
 
 3.0.11 (2024-08-05)
