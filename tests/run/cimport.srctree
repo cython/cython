@@ -1,5 +1,8 @@
 PYTHON setup.py build_ext --inplace
 PYTHON -c "import a"
+# Rebuild it with a flag to pretend we're on a platform where sizeof(function_ptr) != sizeof(void*)
+PYTHON setup_large_func_pointers.py build_ext --inplace --force
+PYTHON -c "import a"
 
 ######## setup.py ########
 
@@ -9,6 +12,17 @@ from distutils.core import setup
 
 setup(
   ext_modules = cythonize("*.pyx"),
+)
+
+######## setup_large_func_pointers.py ########
+
+
+from Cython.Build import cythonize
+from distutils.core import setup, Extension
+
+setup(
+  ext_modules = cythonize(Extension("*", ["*.pyx"],
+                                    extra_compile_args=["-D__Pyx_TEST_large_func_pointers=1"])),
 )
 
 ######## other.pxd ########
@@ -48,7 +62,15 @@ from other cimport (
 print(A, foo(10))
 
 cimport other
-print(other.A, other.foo(10))
+
+cdef call_fooptr(int (*fptr)(int)):
+    return fptr(10)
+
+def call_other_foo():
+    x = other.foo  # GH4000 - failed because other was untyped
+    return call_fooptr(x) # check that x is correctly resolved as a function pointer
+
+print(other.A, other.foo(10), call_other_foo())
 
 from pkg cimport sub
 cdef sub.my_int a = 100

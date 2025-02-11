@@ -3,6 +3,10 @@
 Implementing the buffer protocol
 ================================
 
+.. include::
+    ../two-syntax-variants-used
+
+
 Cython objects can expose memory buffers to Python code
 by implementing the "buffer protocol".
 This chapter shows how to implement the protocol
@@ -16,7 +20,15 @@ The following Cython/C++ code implements a matrix of floats,
 where the number of columns is fixed at construction time
 but rows can be added dynamically.
 
-.. literalinclude:: ../../examples/userguide/buffer/matrix.pyx
+.. tabs::
+
+    .. group-tab:: Pure Python
+
+        .. literalinclude:: ../../examples/userguide/buffer/matrix.py
+
+    .. group-tab:: Cython
+
+        .. literalinclude:: ../../examples/userguide/buffer/matrix.pyx
 
 There are no methods to do anything productive with the matrices' contents.
 We could implement custom ``__getitem__``, ``__setitem__``, etc. for this,
@@ -27,15 +39,23 @@ Implementing the buffer protocol requires adding two methods,
 ``__getbuffer__`` and ``__releasebuffer__``,
 which Cython handles specially.
 
-.. literalinclude:: ../../examples/userguide/buffer/matrix_with_buffer.pyx
+.. tabs::
+
+    .. group-tab:: Pure Python
+
+        .. literalinclude:: ../../examples/userguide/buffer/matrix_with_buffer.py
+
+    .. group-tab:: Cython
+
+        .. literalinclude:: ../../examples/userguide/buffer/matrix_with_buffer.pyx
 
 The method ``Matrix.__getbuffer__`` fills a descriptor structure,
-called a ``Py_buffer``, that is defined by the Python C-API.
+called a :c:type:`Py_buffer`, that is defined by the Python C-API.
 It contains a pointer to the actual buffer in memory,
 as well as metadata about the shape of the array and the strides
 (step sizes to get from one element or row to the next).
 Its ``shape`` and ``strides`` members are pointers
-that must point to arrays of type and size ``Py_ssize_t[ndim]``.
+that must point to arrays of type and size :c:expr:`Py_ssize_t[ndim]`.
 These arrays have to stay alive as long as any buffer views the data,
 so we store them on the ``Matrix`` object as members.
 
@@ -75,7 +95,15 @@ This is where ``__releasebuffer__`` comes in.
 We can add a reference count to each matrix,
 and lock it for mutation whenever a view exists.
 
-.. literalinclude:: ../../examples/userguide/buffer/view_count.pyx
+.. tabs::
+
+    .. group-tab:: Pure Python
+
+        .. literalinclude:: ../../examples/userguide/buffer/view_count.py
+
+    .. group-tab:: Cython
+
+        .. literalinclude:: ../../examples/userguide/buffer/view_count.pyx
 
 Flags
 -----

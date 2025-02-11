@@ -1,5 +1,3 @@
-# profile.py
-
 import pstats, cProfile
 
 import calc_pi

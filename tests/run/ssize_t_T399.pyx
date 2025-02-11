@@ -1,4 +1,4 @@
-# ticket: 399
+# ticket: t399
 
 __doc__ = u"""
 >>> test(-2)

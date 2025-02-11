@@ -1,4 +1,4 @@
-# ticket: 384
+# ticket: t384
 
 """
 >>> test(3)

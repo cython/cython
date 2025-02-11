@@ -1,4 +1,4 @@
-# ticket: 258
+# ticket: t258
 
 cdef extern from "Python.h":
 

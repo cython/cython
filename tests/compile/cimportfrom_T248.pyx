@@ -1,4 +1,4 @@
-# ticket: 248
+# ticket: t248
 # mode: compile
 
 from ewing8 cimport (Foo,

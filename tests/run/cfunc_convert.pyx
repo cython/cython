@@ -1,4 +1,5 @@
 # mode: run
+# tag: autowrap
 # cython: always_allow_keywords=True
 
 cimport cython
@@ -73,7 +74,7 @@ def test_global():
     >>> global_csqrt.__doc__
     'wrap(x: float) -> float'
     >>> test_global()
-    double (double) nogil
+    double (double) noexcept nogil
     Python object
     """
     print cython.typeof(sqrt)
@@ -229,3 +230,64 @@ def test_cdef_class_params(a, b):
     TypeError: Argument 'b' has incorrect type (expected cfunc_convert.B, got cfunc_convert.A)
     """
     return (<object>test_cdef_class_params_cfunc)(a, b)
+
+# There were a few cases where duplicate utility code definitions (i.e. with the same name)
+# could be generated, causing C compile errors. This file tests them.
+
+cdef cfunc_dup_f1(x, r):
+    return "f1"
+
+cdef cfunc_dup_f2(x1, r):
+    return "f2"
+
+def make_map():
+    """
+    https://github.com/cython/cython/issues/3716
+    This is testing the generation of wrappers for f1 and f2
+    >>> for k, f in make_map().items():
+    ...    print(k == f(0, 0))  # in both cases the functions should just return their name
+    True
+    True
+
+    # Test passing of keyword arguments
+    >>> print(make_map()['f1'](x=1, r=2))
+    f1
+    >>> make_map()['f1'](x1=1, r=2)  # doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    TypeError: ...
+    >>> print(make_map()['f2'](x1=1, r=2))
+    f2
+    >>> make_map()['f2'](x=1, r=2)  # doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    TypeError: ...
+    """
+    cdef map = {
+        "f1": cfunc_dup_f1,
+        "f2": cfunc_dup_f2,
+    }
+    return map
+
+
+cdef class HasCdefFunc:
+    cdef int x
+    def __init__(self, x):
+        self.x = x
+
+    cdef int func(self, int y):
+        return self.x + y
+
+def test_unbound_methods():
+    """
+    >>> f = test_unbound_methods()
+    >>> f(HasCdefFunc(1), 2)
+    3
+    """
+    return HasCdefFunc.func
+
+def test_bound_methods():
+    """
+    >>> f = test_bound_methods()
+    >>> f(2)
+    3
+    """
+    return HasCdefFunc(1).func

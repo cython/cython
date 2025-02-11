@@ -3,12 +3,7 @@
 
 from __future__ import print_function
 
-import sys
-
-IS_PY3 = sys.version_info[0] >= 3
-
-if IS_PY3:
-    __doc__ = """
+__doc__ = """
 >>> def f(*, w): pass
 >>> try: errors_call_no_args(f)
 ... except TypeError: pass
@@ -224,10 +219,10 @@ def call_g_positional():
 
 def call_nonseq_positional1():
     """
-    >>> call_nonseq_positional1()
+    >>> call_nonseq_positional1()  # doctest: +ELLIPSIS
     Traceback (most recent call last):
       ...
-    TypeError: 'Nothing' object is not iterable
+    TypeError: ...Nothing...
 
     # TypeError: g() argument after * must be a sequence, not Nothing
     """
@@ -237,10 +232,10 @@ def call_nonseq_positional1():
 
 def call_nonseq_positional2():
     """
-    >>> call_nonseq_positional2()
+    >>> call_nonseq_positional2()  # doctest: +ELLIPSIS
     Traceback (most recent call last):
       ...
-    TypeError: 'Nothing' object is not iterable
+    TypeError: ...Nothing...
 
     # TypeError: g() argument after * must be a sequence, not Nothing
     """
@@ -441,17 +436,13 @@ def call_method(Foo):
     x = Foo()
     Foo.method(*(x, 1, 2))
     Foo.method(x, *(1, 2))
-    if sys.version_info[0] >= 3:
-        Foo.method(*(1, 2, 3))
-        Foo.method(1, *[2, 3])
-    else:
-        print(5)
-        print(5)
+    Foo.method(*(1, 2, 3))
+    Foo.method(1, *[2, 3])
 
 
 # A PyCFunction that takes only positional parameters should allow an
 # empty keyword dictionary to pass without a complaint, but raise a
-# TypeError if te dictionary is not empty
+# TypeError if the dictionary is not empty
 
 def call_builtin_empty_dict():
     """

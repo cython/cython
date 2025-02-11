@@ -1,4 +1,4 @@
-# ticket: 172
+# ticket: t172
 # tag: numpy
 
 __doc__ = u"""

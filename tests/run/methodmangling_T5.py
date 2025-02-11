@@ -1,5 +1,5 @@
 # mode: run
-# ticket: 5
+# ticket: t5
 
 # A small number of extra tests checking:
 # 1) this works correctly with pure-Python-mode decorators - methodmangling_pure.py.
@@ -338,7 +338,7 @@ class CMultiplyNested:
 
     def f5(self, __arg):
         """
-        Default values are found in the outer scope correcly
+        Default values are found in the outer scope correctly
         >>> CMultiplyNested().f5(1)
         1
         """

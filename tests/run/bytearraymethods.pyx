@@ -1,7 +1,4 @@
 
-import sys
-IS_PY3 = sys.version_info[0] >= 3
-
 cimport cython
 
 b_a = bytearray(b'a')
@@ -215,12 +212,12 @@ def bytearray_append(bytearray b, signed char c, int i, object o):
     0
 
     >>> b = bytearray(b'abc')
-    >>> b = bytearray_append(b, ord('x'), ord('y'), ord('z') if IS_PY3 else b'z')
+    >>> b = bytearray_append(b, ord('x'), ord('y'), ord('z'))
     >>> print(b.decode('ascii'))
     abcX@xyz
 
     >>> b = bytearray(b'abc')
-    >>> b = bytearray_append(b, ord('x'), ord('y'), ord('\\xc3') if IS_PY3 else b'\\xc3')
+    >>> b = bytearray_append(b, ord('x'), ord('y'), ord('\\xc3'))
     >>> print(b[:-1].decode('ascii'))
     abcX@xy
     >>> print('%x' % b[-1])
@@ -287,3 +284,11 @@ cdef class BytearraySubtype(bytearray):
     """
     def _append(self, x):
         self.append(x)
+
+def fromhex(bytearray b):
+    """
+    https://github.com/cython/cython/issues/5051
+    Optimization of bound method calls was breaking classmethods
+    >>> fromhex(bytearray(b""))
+    """
+    assert b.fromhex('2Ef0 F1f2  ') == b'.\xf0\xf1\xf2'

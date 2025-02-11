@@ -1,0 +1,33 @@
+"""
+CYTHONIZE -M foo.pyx
+PYTHON check.py
+"""
+
+######## foo.pyx ########
+
+from bar cimport empty
+
+include "baz.pxi"
+
+empty()
+print(foo())
+
+
+######## baz.pxi ########
+
+def foo():
+    return "foo"
+
+
+######## bar.pxd ########
+
+cdef inline void empty():
+    print("empty")
+
+
+######## check.py ########
+
+with open("foo.c.dep", "r") as f:
+    contents = f.read().replace("\\\n", " ").replace("\n", " ")
+
+assert sorted(contents.split()) == ['bar.pxd', 'baz.pxi', 'foo.c:', 'foo.pyx'], contents

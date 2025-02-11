@@ -1,6 +1,6 @@
 # mode: run
 # tag: closures
-# ticket: 658
+# ticket: t658
 
 def outer(int x, *args, **kwargs):
     """

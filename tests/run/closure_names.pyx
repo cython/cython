@@ -1,6 +1,6 @@
 # mode: run
 # tag: closures
-# ticket: gh-1797
+# ticket: 1797
 
 
 def func():

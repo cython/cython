@@ -1,0 +1,411 @@
+PYTHON setup.py build_ext --inplace
+PYTHON -c "import bar"
+PYTHON -c "import run"
+PYTHON -c "import crun"
+
+######## setup.py ########
+
+from Cython.Build.Dependencies import cythonize
+from distutils.core import setup
+
+setup(
+  ext_modules = cythonize(["*.pyx", "aa.py"], compiler_directives={'legacy_implicit_noexcept': True}),
+)
+
+######## run.py ########
+
+import aa
+
+def check_exception_propagated(c, ret_expected):
+    assert c(False) == ret_expected
+    try:
+        c(True)
+    except ValueError:
+        pass
+    else:
+        assert False, "ValueError not raised"
+
+def check_exception_not_propagated(c, ret_expected):
+    assert c(False) == ret_expected
+    try:
+        c(True)
+    except ValueError:
+        assert False, "ValueError raised"
+    else:
+        pass
+
+klass = aa.Klass()
+
+check_exception_propagated(klass.m1, 1)
+check_exception_not_propagated(klass.m2, 2)
+check_exception_not_propagated(klass.m3, 3)
+check_exception_propagated(klass.m4, 4)
+check_exception_propagated(klass.m5, 5)
+
+check_exception_propagated(klass.n1, "n1")
+check_exception_propagated(klass.n2, "n2")
+check_exception_propagated(klass.n3, "n3")
+
+check_exception_not_propagated(klass.o3, None)
+check_exception_propagated(klass.o2, None)
+check_exception_not_propagated(klass.o3, None)
+
+check_exception_propagated(aa.m1, 1)
+check_exception_not_propagated(aa.m2, 2)
+check_exception_not_propagated(aa.m3, 3)
+check_exception_propagated(aa.m4, 4)
+check_exception_propagated(aa.m5, 5)
+
+check_exception_propagated(aa.n1, "n1")
+check_exception_propagated(aa.n2, "n2")
+check_exception_propagated(aa.n3, "n3")
+
+check_exception_not_propagated(aa.o3, None)
+check_exception_propagated(aa.o2, None)
+check_exception_not_propagated(aa.o3, None)
+
+######## crun.pyx ########
+
+cimport aa
+cdef aa.Klass klass = aa.Klass()
+
+assert klass.p1(False) == 1
+try:   klass.p1(True)
+except ValueError: pass
+else:              assert False, "ValueError not raised"
+
+assert klass.p2(False) == 2
+try:   klass.p2(True)
+except ValueError: assert False, "ValueError not raised"
+else:              pass
+
+assert klass.p3(False) == 3
+try:   klass.p3(True)
+except ValueError: assert False, "ValueError not raised"
+else:              pass
+
+assert klass.p4(False) == 4
+try:   klass.p4(True)
+except ValueError: pass
+else:              assert False, "ValueError not raised"
+
+assert klass.p5(False) == 5
+try:   klass.p5(True)
+except ValueError: pass
+else:              assert False, "ValueError not raised"
+
+assert klass.q1(False) == 'q1'
+try:   klass.q1(True)
+except ValueError: pass
+else:              assert False, "ValueError not raised"
+
+assert klass.q2(False) == 'q2'
+try:   klass.q2(True)
+except ValueError: pass
+else:              assert False, "ValueError not raised"
+
+assert klass.q3(False) == 'q3'
+try:   klass.q3(True)
+except ValueError: pass
+else:              assert False, "ValueError not raised"
+
+klass.r1(False)
+try: klass.r1(True)
+except ValueError: assert False, "ValueError not raised"
+else:              pass
+
+klass.r2(False)
+try: klass.r2(True)
+except ValueError: pass
+else:              assert False, "ValueError not raised"
+
+klass.r3(False)
+try: klass.r3(True)
+except ValueError: assert False, "ValueError not raised"
+else:              pass
+
+assert aa.p1(False) == 1
+try: aa.p1(True)
+except ValueError: pass
+else:              assert False, "ValueError not raised"
+
+assert aa.p2(False) == 2
+try: aa.p2(True)
+except ValueError: assert False, "ValueError not raised"
+else:              pass
+
+assert aa.p3(False) == 3
+try: aa.p3(True)
+except ValueError: assert False, "ValueError not raised"
+else:              pass
+
+assert aa.p4(False) == 4
+try:   aa.p4(True)
+except ValueError: pass
+else:              assert False, "ValueError not raised"
+
+assert aa.p5(False) == 5
+try:   aa.p5(True)
+except ValueError: pass
+else:              assert False, "ValueError not raised"
+
+assert aa.q1(False) == 'q1'
+try:   aa.q1(True)
+except ValueError: pass
+else:              assert False, "ValueError not raised"
+
+assert aa.q2(False) == 'q2'
+try:   aa.q2(True)
+except ValueError: pass
+else:              assert False, "ValueError not raised"
+
+assert aa.q3(False) == 'q3'
+try:   aa.q3(True)
+except ValueError: pass
+else:              assert False, "ValueError not raised"
+
+aa.r1(False)
+try: aa.r1(True)
+except ValueError: assert False, "ValueError not raised"
+else:              pass
+
+aa.r2(False)
+try: aa.r2(True)
+except ValueError: pass
+else:              assert False, "ValueError not raised"
+
+aa.r3(False)
+try: aa.r3(True)
+except ValueError: assert False, "ValueError not raised"
+else:              pass
+
+######## bar.pxd ########
+cdef int func_noexcept_declared_in_pxd() noexcept
+cdef int func_implicit_declared_in_pxd()
+
+######## bar.pyx ########
+
+cdef int func_noexcept() noexcept:
+    raise RuntimeError()
+
+cdef int func_implicit():
+    raise RuntimeError()
+
+cdef int func_noexcept_declared_in_pxd():
+    raise RuntimeError()
+
+cdef int func_implicit_declared_in_pxd():
+    raise RuntimeError()
+
+cdef int func_return_value() except -1:
+    raise RuntimeError()
+
+func_noexcept()
+func_implicit()
+
+func_noexcept_declared_in_pxd()
+func_implicit_declared_in_pxd()
+
+try:
+    func_return_value()
+except RuntimeError:
+    pass
+else:
+    assert False, 'Exception not raised'
+
+
+######## aa.pxd ########
+cdef class Klass:
+    cpdef int m1(self, bint exc) except? -1
+    cpdef int m2(self, bint exc)
+    cpdef int m3(self, bint exc) noexcept
+    cpdef int m4(self, bint exc) except *
+    cpdef int m5(self, bint exc) except -1
+    cpdef object n1(self, bint exc)
+    cpdef object n2(self, bint exc) except *
+    cpdef object n3(self, bint exc) noexcept  # will warn, but should work
+    cpdef void o1(self, bint exc)
+    cpdef void o2(self, bint exc) except*
+    cpdef void o3(self, bint exc) noexcept
+    cdef int p1(self, bint exc) except? -1
+    cdef int p2(self, bint exc)
+    cdef int p3(self, bint exc) noexcept
+    cdef int p4(self, bint exc) except *
+    cdef int p5(self, bint exc) except -1
+    cdef object q1(self, bint exc)
+    cdef object q2(self, bint exc) except *
+    cdef object q3(self, bint exc) noexcept  # will warn, but should work
+    cdef void r1(self, bint exc)
+    cdef void r2(self, bint exc) except*
+    cdef void r3(self, bint exc) noexcept
+
+cpdef int m1(bint exc) except? -1
+cpdef int m2(bint exc)
+cpdef int m3(bint exc) noexcept
+cpdef int m4(bint exc) except *
+cpdef int m5(bint exc) except -1
+cpdef object n1(bint exc)
+cpdef object n2(bint exc) except *
+cpdef object n3(bint exc) noexcept  # will warn, but should work
+cpdef void o1(bint exc)
+cpdef void o2(bint exc) except*
+cpdef void o3(bint exc) noexcept
+cdef int p1(bint exc) except? -1
+cdef int p2(bint exc)
+cdef int p3(bint exc) noexcept
+cdef int p4(bint exc) except *
+cdef int p5(bint exc) except -1
+cdef object q1(bint exc)
+cdef object q2(bint exc) except *
+cdef object q3(bint exc) noexcept  # will warn, but should work
+cdef void r1(bint exc)
+cdef void r2(bint exc) except*
+cdef void r3(bint exc) noexcept
+
+######## aa.py ########
+
+class Klass:
+
+    def m1(self, exc):
+        if exc: raise ValueError()
+        return 1
+    def m2(self, exc):
+        if exc: raise ValueError()
+        return 2
+    def m3(self, exc):
+        if exc: raise ValueError()
+        return 3
+    def m4(self, exc):
+        if exc: raise ValueError()
+        return 4
+    def m5(self, exc):
+        if exc: raise ValueError()
+        return 5
+
+    def n1(self, exc):
+        if exc: raise ValueError()
+        return 'n1'
+    def n2(self, exc):
+        if exc: raise ValueError()
+        return 'n2'
+    def n3(self, exc):
+        if exc: raise ValueError()
+        return 'n3'
+
+    def o1(self, exc):
+        if exc: raise ValueError()
+        return
+    def o2(self, exc):
+        if exc: raise ValueError()
+        return
+    def o3(self, exc):
+        if exc: raise ValueError()
+        return
+
+    def p1(self, exc):
+        if exc: raise ValueError()
+        return 1
+    def p2(self, exc):
+        if exc: raise ValueError()
+        return 2
+    def p3(self, exc):
+        if exc: raise ValueError()
+        return 3
+    def p4(self, exc):
+        if exc: raise ValueError()
+        return 4
+    def p5(self, exc):
+        if exc: raise ValueError()
+        return 5
+
+    def q1(self, exc):
+        if exc: raise ValueError()
+        return 'q1'
+    def q2(self, exc):
+        if exc: raise ValueError()
+        return 'q2'
+    def q3(self, exc):
+        if exc: raise ValueError()
+        return 'q3'
+
+    def r1(self, exc):
+        if exc: raise ValueError()
+        return
+    def r2(self, exc):
+        if exc: raise ValueError()
+        return
+    def r3(self, exc):
+        if exc: raise ValueError()
+        return
+
+def m1(exc):
+    if exc: raise ValueError()
+    return 1
+def m2(exc):
+    if exc: raise ValueError()
+    return 2
+def m3(exc):
+    if exc: raise ValueError()
+    return 3
+def m4(exc):
+    if exc: raise ValueError()
+    return 4
+def m5(exc):
+    if exc: raise ValueError()
+    return 5
+
+def n1(exc):
+    if exc: raise ValueError()
+    return 'n1'
+def n2(exc):
+    if exc: raise ValueError()
+    return 'n2'
+def n3(exc):
+    if exc: raise ValueError()
+    return 'n3'
+
+def o1(exc):
+    if exc: raise ValueError()
+    return
+def o2(exc):
+    if exc: raise ValueError()
+    return
+def o3(exc):
+    if exc: raise ValueError()
+    return
+
+def p1(exc):
+    if exc: raise ValueError()
+    return 1
+def p2(exc):
+    if exc: raise ValueError()
+    return 2
+def p3(exc):
+    if exc: raise ValueError()
+    return 3
+def p4(exc):
+    if exc: raise ValueError()
+    return 4
+def p5(exc):
+    if exc: raise ValueError()
+    return 5
+
+def q1(exc):
+    if exc: raise ValueError()
+    return 'q1'
+def q2(exc):
+    if exc: raise ValueError()
+    return 'q2'
+def q3(exc):
+    if exc: raise ValueError()
+    return 'q3'
+
+def r1(exc):
+    if exc: raise ValueError()
+    return
+def r2(exc):
+    if exc: raise ValueError()
+    return
+def r3(exc):
+    if exc: raise ValueError()
+    return

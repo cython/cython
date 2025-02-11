@@ -1,4 +1,4 @@
-# ticket: 480
+# ticket: t480
 
 def f(x):
     return x

@@ -63,43 +63,43 @@ __doc__ = ur"""
     7
 
     >>> u1
-    u'abc\x11'
+    'abc\x11'
     >>> u1 == u'abc\x11'
     True
     >>> len(u1)
     4
 
     >>> u2
-    u'abc\x11'
+    'abc\x11'
     >>> u2 == U'abc\x11'
     True
     >>> len(u2)
     4
 
     >>> u3
-    u'abc\\x11'
-    >>> u3 == ur'abc\x11'
+    'abc\\x11'
+    >>> u3 == r'abc\x11'
     True
     >>> len(u3)
     7
 
     >>> u4
-    u'abc\\x11'
-    >>> u4 == Ur'abc\x11'
+    'abc\\x11'
+    >>> u4 == r'abc\x11'
     True
     >>> len(u4)
     7
 
     >>> u5
-    u'abc\\x11'
-    >>> u5 == uR'abc\x11'
+    'abc\\x11'
+    >>> u5 == R'abc\x11'
     True
     >>> len(u5)
     7
 
     >>> u6
-    u'abc\\x11'
-    >>> u6 == UR'abc\x11'
+    'abc\\x11'
+    >>> u6 == R'abc\x11'
     True
     >>> len(u6)
     7
@@ -119,8 +119,8 @@ __doc__ = ur"""
     9
 
     >>> uresc
-    u'\\12\\\'\\"\\\\'
-    >>> uresc == ur'\12\'\"\\'
+    '\\12\\\'\\"\\\\'
+    >>> uresc == r'\12\'\"\\'
     True
     >>> len(uresc)
     9
@@ -132,19 +132,17 @@ __doc__ = ur"""
     >>> len(bytes_uescape)
     28
 
+    >>> import sys
     >>> (sys.version_info[0] >= 3 and sys.maxunicode == 1114111 and len(str_uescape) == 4 or
     ...  sys.version_info[0] >= 3 and sys.maxunicode == 65535   and len(str_uescape) == 5 or
-    ...  sys.version_info[0] <  3 and len(str_uescape) == 28 or
     ...  len(str_uescape))
     True
     >>> (sys.version_info[0] >= 3 and str_uescape[0] == 'c' or
-    ...  sys.version_info[0] <  3 and str_uescape[0] == '\\' or
     ...  str_uescape[0])
     True
     >>> print(str_uescape[-1])
     B
     >>> (sys.version_info[0] >= 3 and ord(str_uescape[-2]) == 0x2603 or
-    ...  sys.version_info[0] <  3 and str_uescape[-12:-1]  == b'\\N{SNOWMAN}' or
     ...  sys.version_info[0] >= 3 and ord(str_uescape[-2]) or str_uescape[-12:-1])
     True
 
@@ -163,12 +161,6 @@ __doc__ = ur"""
     >>> len(lots_of_tabs_and_newlines)
     4321
 """
-
-import sys
-if sys.version_info[0] >= 3:
-    __doc__ = __doc__.replace(u" u'", u" '").replace(u" U'", u" '").replace(u" ur'", u" r'").replace(u" uR'", u" R'").replace(u" Ur'", u" r'").replace(u" UR'", u" R'")
-else:
-    __doc__ = __doc__.replace(u" b'", u" '").replace(u" B'", u" '").replace(u" br'", u" r'").replace(u" bR'", u" R'").replace(u" Br'", u" r'").replace(u" BR'", u" R'").replace(u"[b'", u"['")
 
 s1 = "abc\x11"
 s2 = r"abc\x11"

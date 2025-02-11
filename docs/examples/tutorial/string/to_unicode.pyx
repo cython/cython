@@ -1,22 +1,21 @@
-# to_unicode.pyx
-
 from cpython.version cimport PY_MAJOR_VERSION
 
-cdef unicode _text(s):
-    if type(s) is unicode:
+
+cdef str _text(s):
+    if type(s) is str:
         # Fast path for most common case(s).
-        return <unicode>s
+        return <str>s
 
     elif PY_MAJOR_VERSION < 3 and isinstance(s, bytes):
         # Only accept byte strings as text input in Python 2.x, not in Py3.
         return (<bytes>s).decode('ascii')
 
-    elif isinstance(s, unicode):
+    elif isinstance(s, str):
         # We know from the fast path above that 's' can only be a subtype here.
-        # An evil cast to <unicode> might still work in some(!) cases,
+        # An evil cast to <str> might still work in some(!) cases,
         # depending on what the further processing does.  To be safe,
         # we can always create a copy instead.
-        return unicode(s)
+        return str(s)
 
     else:
-        raise TypeError("Could not convert to unicode.")
+        raise TypeError("Could not convert to str.")

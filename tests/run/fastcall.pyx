@@ -17,13 +17,7 @@ def deque_methods(v):
     """
     d = deque([1, 3, 4])
     assert list(d) == [1,3,4]
-    if sys.version_info >= (3, 5):
-        d.insert(1, v)
-    else:
-        # deque has no 2-args methods in older Python versions
-        d.rotate(-1)
-        d.appendleft(2)
-        d.rotate(1)
+    d.insert(1, v)
     assert list(d) == [1,2,3,4]
     d.rotate(len(d) // 2)
     assert list(d) == [3,4,1,2]
@@ -68,7 +62,15 @@ cdef class SelfCast:
 
 
 cdef extern from *:
+    """
+    #ifdef NDEBUG
+    int DEBUG_MODE = 0;
+    #else
+    int DEBUG_MODE = 1;
+    #endif
+    """
     int PyCFunction_GET_FLAGS(op)
+    int DEBUG_MODE
 
 
 def has_fastcall(meth):
@@ -77,6 +79,10 @@ def has_fastcall(meth):
     return whether it uses ``METH_FASTCALL``.
     """
     # Hardcode METH_FASTCALL constant equal to 0x80 for simplicity
+    if sys.version_info >= (3, 11) and DEBUG_MODE:
+        # PyCFunction_GET_FLAGS isn't safe to use on cyfunctions in
+        # debug mode in Python 3.11 because it does an exact type check
+        return True
     return bool(PyCFunction_GET_FLAGS(meth) & 0x80)
 
 

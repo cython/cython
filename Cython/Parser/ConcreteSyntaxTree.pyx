@@ -25,20 +25,33 @@ cdef extern from "parsetok.h":
         perrdetail * err_ret,
         int * flags)
 
-import distutils.sysconfig
+if sys.version_info < (3, 9):
+    from distutils import sysconfig as _sysconfig
+
+    class sysconfig(object):
+
+        @staticmethod
+        def get_path(name):
+            assert name == 'include'
+            return _sysconfig.get_python_inc()
+else:
+    # sysconfig can be trusted from cpython >= 3.8.7
+    import sysconfig
+
 import os
 import re
 
 def extract_names(path):
     # All parse tree types are #defined in these files as ints.
     type_names = {}
-    for line in open(path):
-        if line.startswith('#define'):
-            try:
-                _, name, value = line.strip().split()
-                type_names[int(value)] = name
-            except:
-                pass
+    with open(path) as fid:
+        for line in fid:
+            if line.startswith('#define'):
+                try:
+                    _, name, value = line.strip().split()
+                    type_names[int(value)] = name
+                except:
+                    pass
     return type_names
 
 cdef dict type_names = {}
@@ -46,7 +59,7 @@ cdef dict type_names = {}
 cdef print_tree(node* n, indent=""):
     if not type_names:
         type_names.update(extract_names(
-            os.path.join(distutils.sysconfig.get_python_inc(), 'token.h')))
+            os.path.join(sysconfig.get_path('include'), 'token.h')))
         type_names.update(extract_names(
             os.path.join(os.path.dirname(__file__), 'graminit.h')))
 
@@ -61,7 +74,8 @@ def handle_includes(source, path):
         included = os.path.join(os.path.dirname(path), include_line.group(1)[1:-1])
         if not os.path.exists(included):
             return include_line.group(0) + ' # no such path: ' + included
-        return handle_includes(open(included).read(), path)
+        with open(included) as fid:
+            return handle_includes(fid.read(), path)
     # TODO: Proper string tokenizing.
     return re.sub(r'^include\s+([^\n]+[\'"])\s*(#.*)?$', include_here, source, flags=re.M)
 
@@ -69,7 +83,8 @@ def p_module(path):
     cdef perrdetail err
     cdef int flags
     cdef node* n
-    source = open(path).read()
+    with open(path) as fid:
+        source = fid.read()
     if '\ninclude ' in source:
         # TODO: Tokanizer needs to understand includes.
         source = handle_includes(source, path)

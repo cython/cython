@@ -89,7 +89,7 @@ cdef extern from "Python.h":
     # Return a C long representation of the contents of pylong. If
     # pylong is greater than LONG_MAX, an OverflowError is raised.
 
-    # long PyLong_AsLongAndOverflow(object pylong, int *overflow) except? -1
+    long PyLong_AsLongAndOverflow(object pylong, int *overflow) except? -1
     # Return a C long representation of the contents of pylong. If pylong is
     # greater than LONG_MAX or less than LONG_MIN, set *overflow to 1 or -1,
     # respectively, and return -1; otherwise, set *overflow to 0. If any other
@@ -97,7 +97,7 @@ cdef extern from "Python.h":
     # be returned and *overflow will be 0.
     # New in version 2.7.
 
-    # PY_LONG_LONG PyLong_AsLongLongAndOverflow(object pylong, int *overflow) except? -1
+    PY_LONG_LONG PyLong_AsLongLongAndOverflow(object pylong, int *overflow) except? -1
     # Return a C long long representation of the contents of pylong. If pylong
     # is greater than PY_LLONG_MAX or less than PY_LLONG_MIN, set *overflow to
     # 1 or -1, respectively, and return -1; otherwise, set *overflow to 0. If

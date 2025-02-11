@@ -1,5 +1,4 @@
 import unittest
-from Cython.Compiler.Visitor import PrintTree
 from Cython.TestUtils import TransformTest
 from Cython.Compiler.TreePath import find_first, find_all
 from Cython.Compiler import Nodes, ExprNodes
@@ -9,7 +8,7 @@ class TestTreePath(TransformTest):
 
     def _build_tree(self):
         if self._tree is None:
-            self._tree = self.run_pipeline([], u"""
+            self._tree = self.run_pipeline([], """
             def decorator(fun):  # DefNode
                 return fun       # ReturnStatNode, NameNode
             @decorator           # NameNode

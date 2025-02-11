@@ -1,0 +1,80 @@
+# test fails
+async_iter_pep492
+asyncio_generators
+ass2global
+array_cimport
+buffers[.]buffer
+cdef_multiple_inheritance_errors
+cline_in_traceback
+[.]coroutines  # something small involving cr_frame equality 
+[.]coverage
+cyfunction$
+coverage_api
+embedsignature
+error_pos
+extern_varobject_extensions
+funcexceptchained
+funcexceptcypy
+funcexceptreplace
+funcexc_iter_T228
+function_self
+generators_pep479
+module_init_error
+numpy_import_array_error
+pep442_tp_finalize_cimport
+[.]powop
+pstats_profile_test
+[.]pure_pxd  # docstring
+pxd_syntax  # docstrings
+py35_asyncio_async_def
+pycontextvar
+r_docstrings
+special_method_docstrings
+special_methods_T561$
+test_asyncgen
+test_coroutines_pep492  # although a large chunk works
+test_exceptions  # TypeError: __slots__ items must be strings, not str
+test_grammar
+test_named_expressions
+test_raisefrom
+userbuffer
+unicode_identifiers$
+unicode_identifiers_normalization
+
+# probably just GC?
+double_dealloc_T796
+exttype_dealloc
+generators_py
+generator_frame_cycle
+
+# refcounting
+capiimpl
+
+# slightly different exception message
+[.]encoding$
+class_scope_del_T684
+cclass_assign_attr_GH3100  # RuntimeError instead of TypeError
+pyclass_annotations_pep526
+
+# This one's odd because it implies that the correct nodes
+# aren't be generated in the Cython compiler
+[.]unicodeencode$
+
+# PyUnicode_CompareWithASCIIString not implemented
+cdef_class_dataclass
+test_dataclasses
+
+# PyUnicode_DecodeUnicodeEscape
+test_unicode
+unicodeliterals
+
+# PyThreadState_Swap not implemented
+reimport_from_subinterpreter
+
+# segfault
+cyfunction_defaults
+posonly
+r_extcomplex2
+
+# appears to run forever
+common_include_dir

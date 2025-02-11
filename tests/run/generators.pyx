@@ -1,6 +1,9 @@
 # mode: run
 # tag: generators, gh3265
 
+cdef extern from *:
+    int CYTHON_COMPILING_IN_LIMITED_API
+
 try:
     import backports_abc
 except ImportError: pass
@@ -13,6 +16,11 @@ except ImportError:
         from collections import Generator
     except ImportError:
         Generator = object  # easy win
+
+
+def skip_in_limited_api(f):
+    if not CYTHON_COMPILING_IN_LIMITED_API:
+        return f
 
 
 def very_simple():
@@ -504,6 +512,8 @@ def test_generator_abc():
     yield 1
 
 
+# No good solution for generating frame objects in Limited API
+@skip_in_limited_api
 def test_generator_frame(a=1):
     """
     >>> gen = test_generator_frame()
@@ -561,3 +571,24 @@ def test_generator_kwds3(**kwargs):
     a
     """
     yield from kwargs.keys()
+
+
+@skip_in_limited_api
+def test_generator_frame(a=1):
+    """
+    >>> gen = test_generator_frame()
+    >>> import types
+    >>> isinstance(gen.gi_frame, types.FrameType) or gen.gi_frame
+    True
+    >>> gen.gi_frame is gen.gi_frame  # assert that it's cached
+    True
+    >>> gen.gi_frame.f_code is not None
+    True
+    >>> code_obj = gen.gi_frame.f_code
+    >>> code_obj.co_argcount
+    1
+    >>> code_obj.co_varnames
+    ('a', 'b')
+    """
+    b = a + 1
+    yield b

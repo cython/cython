@@ -5,7 +5,7 @@ cdef extern from "Python.h":
 
     ctypedef struct PyObject  # forward declaration
 
-    ctypedef object (*newfunc)(cpython.type.type, object, object)  # (type, args, kwargs)
+    ctypedef object (*newfunc)(cpython.type.type, PyObject*, PyObject*)  # (type, args|NULL, kwargs|NULL)
 
     ctypedef object (*unaryfunc)(object)
     ctypedef object (*binaryfunc)(object, object)
@@ -35,6 +35,14 @@ cdef extern from "Python.h":
     ctypedef object (*descrgetfunc)(object, object, object)
     ctypedef int (*descrsetfunc)(object, object, object) except -1
 
+    ctypedef object (*PyCFunction)(object, object)
+
+    ctypedef struct PyMethodDef:
+        const char* ml_name
+        PyCFunction ml_meth
+        int ml_flags
+        const char* ml_doc
+
     ctypedef struct PyTypeObject:
         const char* tp_name
         const char* tp_doc
@@ -58,6 +66,8 @@ cdef extern from "Python.h":
 
         cmpfunc tp_compare
         richcmpfunc tp_richcompare
+
+        PyMethodDef* tp_methods
 
         PyTypeObject* tp_base
         PyObject* tp_dict
@@ -199,13 +209,6 @@ cdef extern from "Python.h":
     # the Python expression bytes(o), when o is not an integer.
     # Unlike bytes(o), a TypeError is raised when o is an integer
     # instead of a zero-initialized bytes object.
-
-    object PyObject_Unicode(object o)
-    # Return value: New reference.
-    # Compute a Unicode string representation of object o. Returns the
-    # Unicode string representation on success, NULL on failure. This
-    # is the equivalent of the Python expression "unicode(o)". Called
-    # by the unicode() built-in function.
 
     bint PyObject_IsInstance(object inst, object cls) except -1
     # Returns 1 if inst is an instance of the class cls or a subclass

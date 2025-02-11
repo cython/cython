@@ -49,5 +49,5 @@ def mod_int_c(int a, int b):
 assert mod_int_c(-1, 10) < 0
 
 # unraisable exceptions should produce a warning
-cdef int no_exc_propagate():
+cdef int no_exc_propagate() noexcept:
     raise TypeError()

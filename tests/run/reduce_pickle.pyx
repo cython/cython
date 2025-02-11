@@ -2,21 +2,7 @@
 # tag: pickle
 
 import cython
-import sys
 
-if sys.version_info[0] < 3:
-    __doc__ = """
-    >>> import cPickle
-    >>> a = A(5); a
-    A(5)
-    >>> cPickle.loads(cPickle.dumps(a))
-    A(5)
-
-    >>> b = B(0, 1); b
-    B(x=0, y=1)
-    >>> cPickle.loads(cPickle.dumps(b))
-    B(x=0, y=1)
-    """
 
 cdef class A:
     """
@@ -201,6 +187,16 @@ cdef class NoPyMembers(object):
     def __repr__(self):
         return "%s(ii=%s, x=%s)" % (type(self).__name__, self.ii, self.x)
 
+    def __eq__(self, other):
+        return (
+            isinstance(other, NoPyMembers) and
+            (<NoPyMembers> other).ii[0] == self.ii[0] and
+            (<NoPyMembers> other).ii[1] == self.ii[1] and
+            (<NoPyMembers> other).ii[2] == self.ii[2] and
+            (<NoPyMembers> other).x == self.x
+        )
+
+
 class NoPyMembersPySubclass(NoPyMembers):
     """
     >>> import pickle
@@ -291,16 +287,35 @@ cdef class Wrapper(object):
 
 # Non-regression test for pickling bound and unbound methods of non-extension
 # classes
-if sys.version_info[:2] >= (3, 5):
-    # builtin methods not picklable for python <= 3.4
-    class MyClass(object):
+class MyClass(object):
+    """
+    >>> import pickle
+    >>> pickle.loads(pickle.dumps(MyClass.my_method)) is MyClass.my_method
+    True
+    >>> bound_method = pickle.loads(pickle.dumps(MyClass().my_method))
+    >>> bound_method(1)
+    1
+    """
+    def my_method(self, x):
+        return x
+
+
+# Pickled with Cython 0.29.28 (using MD5 for the checksum).
+OLD_MD5_PICKLE = b'''\
+creduce_pickle\n__pyx_unpickle_NoPyMembers\nq\x00\
+(creduce_pickle\nNoPyMembers\nq\x01J\xf2K_\n(]q\x02\
+(K\x0bKyM3\x05eG?\xf8\x00\x00\x00\x00\x00\x00tq\x03tq\x04Rq\x05.\
+'''
+
+try:
+    from hashlib import md5
+except ImportError:
+    pass
+else:
+    def unpickle_old_0_29_28():
         """
         >>> import pickle
-        >>> pickle.loads(pickle.dumps(MyClass.my_method)) is MyClass.my_method
+        >>> b = pickle.loads(OLD_MD5_PICKLE)
+        >>> b == NoPyMembers(i=11, x=1.5) or b
         True
-        >>> bound_method = pickle.loads(pickle.dumps(MyClass().my_method))
-        >>> bound_method(1)
-        1
         """
-        def my_method(self, x):
-            return x
