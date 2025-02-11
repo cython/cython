@@ -141,8 +141,8 @@ EXT_DEP_MODULES = {
     'tag:pstats':   'pstats',
     'tag:posix':    'posix',
     'tag:array':    'array',
-    'tag:coverage': ['Cython.Coverage', 'coverage.tracer'],  # coverage.tracer is the C tracer
-    'Coverage':     ['Cython.Coverage', 'coverage.tracer'],
+    'tag:coverage': 'Cython.Coverage',
+    'Coverage':     'Cython.Coverage',
     'tag:ipython':  'IPython.testing.globalipapp',
     'tag:jedi':     'jedi_BROKEN_AND_DISABLED',
     'tag:test.support': 'test.support',  # support module for CPython unit tests
@@ -2122,21 +2122,17 @@ def load_listfile(filename):
 
 class MissingDependencyExcluder(object):
     def __init__(self, deps):
-        # deps: { matcher func : [module names] }
+        # deps: { matcher func : module name }
         self.exclude_matchers = []
-        for matcher, module_names in deps.items():
-            if isinstance(module_names, str):
-                module_names = [module_names]
-            for module_name in module_names:
-                try:
-                    module = __import__(module_name)
-                except ImportError:
-                    self.exclude_matchers.append(string_selector(matcher))
-                    print("Test dependency not found: '%s'" % module_name)
-                    break
-                else:
-                    version = self.find_dep_version(module_name, module)
-                    print("Test dependency found: '%s' version %s" % (module_name, version))
+        for matcher, module_name in deps.items():
+            try:
+                module = __import__(module_name)
+            except ImportError:
+                self.exclude_matchers.append(string_selector(matcher))
+                print("Test dependency not found: '%s'" % module_name)
+            else:
+                version = self.find_dep_version(module_name, module)
+                print("Test dependency found: '%s' version %s" % (module_name, version))
         self.tests_missing_deps = []
 
     def find_dep_version(self, name, module):
