@@ -55,6 +55,8 @@ def generate_shared_module(dest_dir):
 
     options = Options.CompilationOptions(language_level = 3)
     context = Main.Context.from_options(options)
+    # To set "internal" directove of types to False
+    context.compiler_directives["use_shared_utility"] = True
     scope = Symtab.ModuleScope('MemoryView', parent_module = None, context = context, is_package=False)
 
     with tempfile.TemporaryDirectory() as tmpdirname:
