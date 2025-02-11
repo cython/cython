@@ -609,6 +609,9 @@ class CArrayDeclaratorNode(CDeclaratorNode):
             self.dimension = self.dimension.analyse_const_expression(env)
             if not self.dimension.type.is_int:
                 error(self.dimension.pos, "Array dimension not integer")
+            if self.dimension.type.is_const and self.dimension.entry.visibility != 'extern':
+                # extern const variables declaring C constants are allowed
+                error(self.dimension.pos, "Array dimension cannot be const variable")
             size = self.dimension.get_constant_c_result_code()
             if size is not None:
                 try:
@@ -4081,17 +4084,20 @@ class DefNodeWrapper(FuncDefNode):
             code.put_var_gotref(self.star_arg.entry)
             code.put_incref(Naming.self_cname, py_object_type)
             code.put_giveref(Naming.self_cname, py_object_type)
-            code.putln("PyTuple_SET_ITEM(%s, 0, %s);" % (
-                self.star_arg.entry.cname, Naming.self_cname))
+            code.putln(code.error_goto_if_neg("__Pyx_PyTuple_SET_ITEM(%s, 0, %s)" % (
+                self.star_arg.entry.cname, Naming.self_cname), self.pos))
             temp = code.funcstate.allocate_temp(PyrexTypes.c_py_ssize_t_type, manage_ref=False)
             code.putln("for (%s=0; %s < %s; %s++) {" % (
                 temp, temp, Naming.nargs_cname, temp))
-            code.putln("PyObject* item = PyTuple_GET_ITEM(%s, %s);" % (
+            code.putln("PyObject* item = __Pyx_PyTuple_GET_ITEM(%s, %s);" % (
                 Naming.args_cname, temp))
+            code.putln("#if !CYTHON_ASSUME_SAFE_MACROS")
+            code.putln(code.error_goto_if_null("item", self.pos))
+            code.putln("#endif")
             code.put_incref("item", py_object_type)
             code.put_giveref("item", py_object_type)
-            code.putln("PyTuple_SET_ITEM(%s, %s+1, item);" % (
-                self.star_arg.entry.cname, temp))
+            code.putln(code.error_goto_if_neg("__Pyx_PyTuple_SET_ITEM(%s, %s+1, item)" % (
+                self.star_arg.entry.cname, temp), self.pos))
             code.putln("}")
             code.funcstate.release_temp(temp)
             self.star_arg.entry.xdecref_cleanup = 0
@@ -5686,21 +5692,47 @@ class CClassDefNode(ClassDefNode):
                 bases = code.funcstate.allocate_temp(PyrexTypes.py_object_type, manage_ref=True)
 
                 self.type_init_args.generate_evaluation_code(code)
-                code.putln("%s = PyTuple_GET_ITEM(%s, 1);" % (bases, self.type_init_args.result()))
+                code.putln("%s = __Pyx_PyTuple_GET_ITEM(%s, 1);" % (bases, self.type_init_args.result()))
+                code.putln(code.error_goto_if(f"!CYTHON_ASSUME_SAFE_MACROS && !{bases}", self.pos))
                 code.put_incref(bases, PyrexTypes.py_object_type)
 
-                first_base = "((PyTypeObject*)PyTuple_GET_ITEM(%s, 0))" % bases
+                first_base = code.funcstate.allocate_temp(Builtin.type_type, manage_ref=False)
+                code.putln(f"{first_base} = ((PyTypeObject*)__Pyx_PyTuple_GET_ITEM({bases}, 0));")
+                code.putln(code.error_goto_if(f"!CYTHON_ASSUME_SAFE_MACROS && !{first_base}", self.pos))
+
                 # Let Python do the base types compatibility checking.
                 trial_type = code.funcstate.allocate_temp(PyrexTypes.py_object_type, manage_ref=True)
+                # __Pyx_PyType_GetSlot doesn't work on non-heap types in Limited API < 3.10 so awful manual fallback:
+                code.putln("#if CYTHON_COMPILING_IN_LIMITED_API && __PYX_LIMITED_VERSION_HEX < 0x030A0000")
+                code.putln("if (__Pyx_get_runtime_version() < 0x030A0000) {")
+                type_new = code.funcstate.allocate_temp(PyrexTypes.py_object_type, manage_ref=True)
+                code.putln(f'{type_new} = PyObject_GetAttrString((PyObject*)&PyType_Type, "__new__");')
+                code.putln(code.error_goto_if_null(type_new, self.pos))
+                code.put_gotref(type_new, py_object_type)
+                type_tuple = code.funcstate.allocate_temp(PyrexTypes.py_object_type, manage_ref=True)
+                code.putln(f"{type_tuple} = PyTuple_Pack(1, (PyObject*)&PyType_Type);")
+                code.putln(code.error_goto_if_null(type_tuple, self.pos))
+                code.put_gotref(type_tuple, py_object_type)
+                args_tuple = code.funcstate.allocate_temp(PyrexTypes.py_object_type, manage_ref=True)
+                code.putln(f"{args_tuple} = PyNumber_Add({type_tuple}, {self.type_init_args.result()});")
+                code.putln(code.error_goto_if_null(args_tuple, self.pos))
+                code.put_gotref(args_tuple, py_object_type)
+                code.putln(f'{trial_type} = PyObject_Call({type_new}, {args_tuple}, NULL);')
+                for temp in [type_new, type_tuple, args_tuple]:
+                    code.put_decref_clear(temp, PyrexTypes.py_object_type)
+                    code.funcstate.release_temp(temp)
+                code.putln("} else")
+                code.putln("#endif")
                 code.putln("%s = __Pyx_PyType_GetSlot(&PyType_Type, tp_new, newfunc)(&PyType_Type, %s, NULL);" % (
                     trial_type, self.type_init_args.result()))
                 code.putln(code.error_goto_if_null(trial_type, self.pos))
                 code.put_gotref(trial_type, py_object_type)
                 code.putln("if (__Pyx_PyType_GetSlot((PyTypeObject*) %s, tp_base, PyTypeObject*) != %s) {" % (
                     trial_type, first_base))
+                # trial_type is a heaptype so GetSlot works in all versions of the limited API
                 trial_type_base = "__Pyx_PyType_GetSlot((PyTypeObject*) %s, tp_base, PyTypeObject*)" % trial_type
-                code.putln("__Pyx_TypeName base_name = __Pyx_PyType_GetName(%s);" % trial_type_base)
-                code.putln("__Pyx_TypeName type_name = __Pyx_PyType_GetName(%s);" % first_base)
+                code.putln("__Pyx_TypeName base_name = __Pyx_PyType_GetFullyQualifiedName(%s);" % trial_type_base)
+                code.putln("__Pyx_TypeName type_name = __Pyx_PyType_GetFullyQualifiedName(%s);" % first_base)
                 code.putln("PyErr_Format(PyExc_TypeError, "
                     "\"best base '\" __Pyx_FMT_TYPENAME \"' must be equal to first base '\" __Pyx_FMT_TYPENAME \"'\",")
                 code.putln("             base_name, type_name);")
@@ -5708,6 +5740,9 @@ class CClassDefNode(ClassDefNode):
                 code.putln("__Pyx_DECREF_TypeName(type_name);")
                 code.putln(code.error_goto(self.pos))
                 code.putln("}")
+
+                code.putln(f"{first_base} = NULL;")  # borrowed so no decref
+                code.funcstate.release_temp(first_base)
 
                 code.put_decref_clear(trial_type, PyrexTypes.py_object_type)
                 code.funcstate.release_temp(trial_type)
@@ -5866,13 +5901,6 @@ class CClassDefNode(ClassDefNode):
             code.globalstate.use_utility_code(
                 UtilityCode.load_cached('PyType_Ready', 'ExtensionTypes.c'))
             code.put_error_if_neg(entry.pos, "__Pyx_PyType_Ready(%s)" % typeptr_cname)
-            code.putln("#endif")
-
-            # Don't inherit tp_print from builtin types in Python 2, restoring the
-            # behavior of using tp_repr or tp_str instead.
-            # ("tp_print" was renamed to "tp_vectorcall_offset" in Py3.8b1)
-            code.putln("#if PY_MAJOR_VERSION < 3")
-            code.putln("%s->tp_print = 0;" % typeptr_cname)
             code.putln("#endif")
 
             # Use specialised attribute lookup for types with generic lookup but no instance dict.
@@ -6297,6 +6325,12 @@ class SingleAssignmentNode(AssignmentNode):
         from . import ExprNodes
 
         self.rhs = self.rhs.analyse_types(env)
+
+        if self.lhs.is_name and self.lhs.entry.type.is_const:
+            if env.is_module_scope and self.lhs.entry.init is None and self.rhs.has_constant_result():
+                self.lhs.entry.init = self.rhs.constant_result
+            else:
+                error(self.pos, f"Assignment to const '{self.lhs.name}'")
 
         unrolled_assignment = self.unroll_rhs(env)
         if unrolled_assignment:
@@ -7708,7 +7742,9 @@ class _ForInStatNode(LoopNode, StatNode):
         code.mark_pos(self.pos)
         old_loop_labels = code.new_loop_labels()
         self.iterator.generate_evaluation_code(code)
-        code.putln("for (;;) {")
+        code.put("for (")
+        self.iterator.generate_for_loop_header(code)
+        code.putln(") {")
         self.item.generate_evaluation_code(code)
         self.target.generate_assignment_code(self.item, code)
         code.write_trace_line(self.pos)
@@ -8595,12 +8631,8 @@ class TryFinallyStatNode(StatNode):
             code.error_label = old_error_label
         catch_label = code.new_label()
 
-        was_in_try_finally = code.funcstate.in_try_finally
-        code.funcstate.in_try_finally = 1
-
         self.body.generate_execution_code(code)
 
-        code.funcstate.in_try_finally = was_in_try_finally
         code.putln("}")
 
         temps_to_clean_up = code.funcstate.all_free_managed_temps()
@@ -8747,10 +8779,9 @@ class TryFinallyStatNode(StatNode):
 
         # not using preprocessor here to avoid warnings about
         # unused utility functions and/or temps
-        code.putln("if (PY_MAJOR_VERSION >= 3)"
-                   " __Pyx_ExceptionSwap(&%s, &%s, &%s);" % exc_vars[3:])
-        code.putln("if ((PY_MAJOR_VERSION < 3) ||"
-                   # if __Pyx_GetException() fails in Py3,
+        code.putln(" __Pyx_ExceptionSwap(&%s, &%s, &%s);" % exc_vars[3:])
+        code.putln("if ("
+                   # if __Pyx_GetException() fails,
                    # store the newly raised exception instead
                    " unlikely(__Pyx_GetException(&%s, &%s, &%s) < 0)) "
                    "__Pyx_ErrFetch(&%s, &%s, &%s);" % (exc_vars[:3] * 2))
@@ -8776,11 +8807,9 @@ class TryFinallyStatNode(StatNode):
 
         # not using preprocessor here to avoid warnings about
         # unused utility functions and/or temps
-        code.putln("if (PY_MAJOR_VERSION >= 3) {")
         for var in exc_vars[3:]:
             code.put_xgiveref(var, py_object_type)
         code.putln("__Pyx_ExceptionReset(%s, %s, %s);" % exc_vars[3:])
-        code.putln("}")
         for var in exc_vars[:3]:
             code.put_xgiveref(var, py_object_type)
         code.putln("__Pyx_ErrRestore(%s, %s, %s);" % exc_vars[:3])
@@ -8804,11 +8833,9 @@ class TryFinallyStatNode(StatNode):
 
         # not using preprocessor here to avoid warnings about
         # unused utility functions and/or temps
-        code.putln("if (PY_MAJOR_VERSION >= 3) {")
         for var in exc_vars[3:]:
             code.put_xgiveref(var, py_object_type)
         code.putln("__Pyx_ExceptionReset(%s, %s, %s);" % exc_vars[3:])
-        code.putln("}")
         for var in exc_vars[:3]:
             code.put_xdecref_clear(var, py_object_type)
         if self.is_try_finally_in_nogil:
@@ -8948,6 +8975,132 @@ class EnsureGILNode(GILExitNode):
 
     def generate_execution_code(self, code):
         code.put_ensure_gil(declare_gilstate=False)
+
+
+class CriticalSectionStatNode(TryFinallyStatNode):
+    """
+    Represents a freethreading Python critical section.
+    In non-freethreading Python, this is a no-op.
+
+    args    list of ExprNode    1 or 2 elements, must be object
+    """
+
+    child_attrs = ["args"] + TryFinallyStatNode.child_attrs
+
+    var_type = None
+    state_temp = None
+    preserve_exception = False
+
+    def __init__(self, pos, /, args, body, **kwds):
+        if len(args) > 1:
+            self.var_type = PyrexTypes.c_py_critical_section2_type
+        else:
+            self.var_type = PyrexTypes.c_py_critical_section_type
+
+        self.create_state_temp_if_needed(pos, body)
+
+        super().__init__(
+            pos,
+            args=args,
+            body=body,
+            finally_clause=CriticalSectionExitNode(
+                pos, len=len(args), critical_section=self),
+            **kwds,
+        )
+
+    def create_state_temp_if_needed(self, pos, body):
+        from .ParseTreeTransforms import YieldNodeCollector
+        collector = YieldNodeCollector()
+        collector.visitchildren(body)
+        if not collector.yields:
+            return
+
+        from . import ExprNodes
+        self.state_temp = ExprNodes.TempNode(pos, self.var_type)
+
+    def analyse_declarations(self, env):
+        for arg in self.args:
+            arg.analyse_declarations(env)
+        return super().analyse_declarations(env)
+
+    def analyse_expressions(self, env):
+        for i, arg in enumerate(self.args):
+            # Coerce to temp because it's a bit of a disaster if the argument is destroyed
+            # while we're working on it, and the Python critical section implementation
+            # doesn't ensure this.
+            # TODO - we could potentially be a bit smarter about this, and avoid
+            # it for local variables that we know are never re-assigned.
+            arg = arg.analyse_expressions(env).coerce_to_temp(env)
+            # Note - deliberately no coercion to Python object.
+            # Critical sections only really make sense on a specific known Python object,
+            # so using them on coerced Python objects is very unlikely to make sense.
+            if not arg.type.is_pyobject:
+                error(
+                    arg.pos,
+                    "Arguments to cython.critical_section must be Python objects."
+                )
+            self.args[i] = arg
+        return super().analyse_expressions(env)
+
+    def generate_execution_code(self, code):
+        code.globalstate.use_utility_code(
+            UtilityCode.load_cached("CriticalSections", "ModuleSetupCode.c"))
+
+        code.mark_pos(self.pos)
+        code.begin_block()
+        if self.state_temp:
+            self.state_temp.allocate(code)
+            variable = self.state_temp.result()
+        else:
+            variable = Naming.critical_section_variable
+            code.putln(f"{self.var_type.declaration_code(variable)};")
+
+        for arg in self.args:
+            arg.generate_evaluation_code(code)
+        args = [ f"(PyObject*){arg.result()}" for arg in self.args ]
+        code.putln(
+            f"__Pyx_PyCriticalSection_Begin{len(args)}(&{variable}, {', '.join(args)});"
+        )
+
+        TryFinallyStatNode.generate_execution_code(self, code)
+
+        for arg in self.args:
+            arg.generate_disposal_code(code)
+            arg.free_temps(code)
+
+        if self.state_temp:
+            self.state_temp.release(code)
+
+        code.end_block()
+
+    def nogil_check(self, env):
+        error(self.pos, "Critical sections require the GIL")
+
+
+class CriticalSectionExitNode(StatNode):
+    """
+    critical_section - the CriticalSectionStatNode that owns this
+    """
+    child_attrs = []
+
+    def __deepcopy__(self, memo):
+        # This gets deepcopied when generating finally_clause and
+        # finally_except_clause. In this case the node has essentially
+        # no state, except for a reference to its parent.
+        # We definitely don't want to let that reference be copied.
+        return self
+
+    def analyse_expressions(self, env):
+        return self
+
+    def generate_execution_code(self, code):
+        if self.critical_section.state_temp:
+            variable_name = self.critical_section.state_temp.result()
+        else:
+            variable_name =  Naming.critical_section_variable
+        code.putln(
+            f"__Pyx_PyCriticalSection_End{self.len}(&{variable_name});"
+        )
 
 
 def cython_view_utility_code():
@@ -9288,6 +9441,8 @@ class ParallelStatNode(StatNode, ParallelNode):
         Naming.clineno_cname,
     )
 
+    # Note that this refers to openmp critical sections, not freethreading
+    # Python critical sections.
     critical_section_counter = 0
 
     def __init__(self, pos, **kwargs):
@@ -10276,6 +10431,7 @@ class ParallelRangeNode(ParallelStatNode):
         self.setup_parallel_control_flow_block(code)  # parallel control flow block
 
         # Note: nsteps is private in an outer scope if present
+        code.globalstate.use_utility_code(UtilityCode.load_cached("IncludeStdlibH", "ModuleSetupCode.c"))
         code.putln("%(nsteps)s = (%(stop)s - %(start)s + %(step)s - %(step)s/abs(%(step)s)) / %(step)s;" % fmt_dict)
 
         # The target iteration variable might not be initialized, do it only if

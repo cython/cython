@@ -403,14 +403,9 @@ static int __Pyx_GetException(PyObject **type, PyObject **value, PyObject **tb)
     PyObject *local_type = NULL, *local_value, *local_tb = NULL;
 #if CYTHON_FAST_THREAD_STATE
     PyObject *tmp_type, *tmp_value, *tmp_tb;
-  #if PY_VERSION_HEX >= 0x030C00A6
+  #if PY_VERSION_HEX >= 0x030C0000
     local_value = tstate->current_exception;
     tstate->current_exception = 0;
-    if (likely(local_value)) {
-        local_type = (PyObject*) Py_TYPE(local_value);
-        Py_INCREF(local_type);
-        local_tb = PyException_GetTraceback(local_value);
-    }
   #else
     local_type = tstate->curexc_type;
     local_value = tstate->curexc_value;
@@ -419,28 +414,40 @@ static int __Pyx_GetException(PyObject **type, PyObject **value, PyObject **tb)
     tstate->curexc_value = 0;
     tstate->curexc_traceback = 0;
   #endif
+#elif __PYX_LIMITED_VERSION_HEX > 0x030C0000
+    local_value = PyErr_GetRaisedException();
 #else
     PyErr_Fetch(&local_type, &local_value, &local_tb);
 #endif
 
+#if __PYX_LIMITED_VERSION_HEX > 0x030C0000
+    if (likely(local_value)) {
+        local_type = (PyObject*) Py_TYPE(local_value);
+        Py_INCREF(local_type);
+        local_tb = PyException_GetTraceback(local_value);
+    }
+#else
+    // Note that In Python 3.12+ exceptions are already normalized
     PyErr_NormalizeException(&local_type, &local_value, &local_tb);
-#if CYTHON_FAST_THREAD_STATE && PY_VERSION_HEX >= 0x030C00A6
-    if (unlikely(tstate->current_exception))
-#elif CYTHON_FAST_THREAD_STATE
+#if CYTHON_FAST_THREAD_STATE
     if (unlikely(tstate->curexc_type))
 #else
     if (unlikely(PyErr_Occurred()))
 #endif
         goto bad;
 
+    // Note that in Python 3.12 the traceback came directly from local_value anyway.
     if (local_tb) {
         if (unlikely(PyException_SetTraceback(local_value, local_tb) < 0))
             goto bad;
     }
+#endif // __PYX_LIMITED_VERSION_HEX > 0x030C0000
 
     // traceback may be NULL for freshly raised exceptions
     Py_XINCREF(local_tb);
-    // exception state may be temporarily empty in parallel loops (race condition)
+    // exception state may be empty in parallel loops (code-gen error where we don't generate a 
+    // top-level PyGILState_Ensure surrounding the whole loop, and so releasing the GIL temporarily
+    // wipes the whole thread state).
     Py_XINCREF(local_type);
     Py_XINCREF(local_value);
     *type = local_type;
@@ -480,12 +487,18 @@ static int __Pyx_GetException(PyObject **type, PyObject **value, PyObject **tb)
     Py_XDECREF(tmp_type);
     Py_XDECREF(tmp_value);
     Py_XDECREF(tmp_tb);
+#elif __PYX_LIMITED_VERSION_HEX >= 0x030b0000
+    PyErr_SetHandledException(local_value);
+    Py_XDECREF(local_value);
+    Py_XDECREF(local_type);
+    Py_XDECREF(local_tb);
 #else
     PyErr_SetExcInfo(local_type, local_value, local_tb);
 #endif
 
     return 0;
 
+#if __PYX_LIMITED_VERSION_HEX <= 0x030C0000
 bad:
     *type = 0;
     *value = 0;
@@ -494,6 +507,7 @@ bad:
     Py_XDECREF(local_value);
     Py_XDECREF(local_tb);
     return -1;
+#endif
 }
 
 /////////////// ReRaiseException.proto ///////////////
@@ -767,6 +781,7 @@ static int __Pyx_CLineForTraceback(PyThreadState *tstate, int c_line);/*proto*/
 //@requires: ObjectHandling.c::PyObjectGetAttrStrNoError
 //@requires: ObjectHandling.c::PyDictVersioning
 //@requires: PyErrFetchRestore
+//@requires: ModuleSetupCode.c::CriticalSections
 
 #if CYTHON_CLINE_IN_TRACEBACK && CYTHON_CLINE_IN_TRACEBACK_RUNTIME
 static int __Pyx_CLineForTraceback(PyThreadState *tstate, int c_line) {
@@ -788,15 +803,19 @@ static int __Pyx_CLineForTraceback(PyThreadState *tstate, int c_line) {
 #if CYTHON_COMPILING_IN_CPYTHON
     cython_runtime_dict = _PyObject_GetDictPtr(NAMED_CGLOBAL(cython_runtime_cname));
     if (likely(cython_runtime_dict)) {
+        __Pyx_BEGIN_CRITICAL_SECTION(*cython_runtime_dict);
         __PYX_PY_DICT_LOOKUP_IF_MODIFIED(
             use_cline, *cython_runtime_dict,
             __Pyx_PyDict_GetItemStr(*cython_runtime_dict, PYIDENT("cline_in_traceback")))
+        Py_XINCREF(use_cline);
+        __Pyx_END_CRITICAL_SECTION();
     } else
 #endif
     {
       PyObject *use_cline_obj = __Pyx_PyObject_GetAttrStrNoError(NAMED_CGLOBAL(cython_runtime_cname), PYIDENT("cline_in_traceback"));
       if (use_cline_obj) {
         use_cline = PyObject_Not(use_cline_obj) ? Py_False : Py_True;
+        Py_INCREF(use_cline);
         Py_DECREF(use_cline_obj);
       } else {
         PyErr_Clear();
@@ -811,6 +830,7 @@ static int __Pyx_CLineForTraceback(PyThreadState *tstate, int c_line) {
     else if (use_cline == Py_False || (use_cline != Py_True && PyObject_Not(use_cline) != 0)) {
         c_line = 0;
     }
+    Py_XDECREF(use_cline);
     __Pyx_ErrRestoreInState(tstate, ptype, pvalue, ptraceback);
     return c_line;
 }
@@ -829,7 +849,7 @@ static void __Pyx_AddTraceback(const char *funcname, int c_line,
 #include "compile.h"
 #include "frameobject.h"
 #include "traceback.h"
-#if PY_VERSION_HEX >= 0x030b00a6 && !CYTHON_COMPILING_IN_LIMITED_API
+#if PY_VERSION_HEX >= 0x030b00a6 && !CYTHON_COMPILING_IN_LIMITED_API && !defined(PYPY_VERSION)
   #ifndef Py_BUILD_CORE
     #define Py_BUILD_CORE 1
   #endif

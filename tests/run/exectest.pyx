@@ -133,9 +133,9 @@ def test_compile(d):
 
 def exec_invalid_type(x):
     """
-    >>> exec_invalid_type(42)
+    >>> exec_invalid_type(42)  # doctest: +ELLIPSIS
     Traceback (most recent call last):
-    TypeError: exec: arg 1 must be string, bytes or code object, got int
+    TypeError: exec... arg 1 must be... string, bytes or code object...
     """
     exec x in {}
 

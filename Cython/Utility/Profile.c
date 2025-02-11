@@ -209,14 +209,20 @@
           if (CYTHON_TRACE_NOGIL) {                                                          \
               PyGILState_STATE state = PyGILState_Ensure();                                  \
               PyObject *pyvalue = convert_function(cresult);                                 \
-              if (unlikely(!pyvalue)) goto_error;                                            \
+              if (unlikely(!pyvalue)) {                                                      \
+                  PyErr_Clear();                                                             \
+                  pyvalue = Py_None; Py_INCREF(Py_None);                                     \
+              }                                                                              \
               ret = PyMonitoring_FirePyReturnEvent(&$monitoring_states_cname[__Pyx_Monitoring_PY_RETURN], $frame_code_cname, offset, pyvalue); \
               Py_DECREF(pyvalue);                                                            \
               PyGILState_Release(state);                                                     \
           }                                                                                  \
       } else {                                                                               \
           PyObject *pyvalue = convert_function(cresult);                                     \
-          if (unlikely(!pyvalue)) goto_error;                                                \
+          if (unlikely(!pyvalue)) {                                                          \
+              PyErr_Clear();                                                                 \
+              pyvalue = Py_None; Py_INCREF(Py_None);                                         \
+          }                                                                                  \
           ret = PyMonitoring_FirePyReturnEvent(&$monitoring_states_cname[__Pyx_Monitoring_PY_RETURN], $frame_code_cname, offset, pyvalue); \
           Py_DECREF(pyvalue);                                                                \
       }                                                                                      \
@@ -263,7 +269,7 @@
   #include "compile.h"
   #include "frameobject.h"
   #include "traceback.h"
-#if PY_VERSION_HEX >= 0x030b00a6
+#if PY_VERSION_HEX >= 0x030b00a6 && !defined(PYPY_VERSION)
   #ifndef Py_BUILD_CORE
     #define Py_BUILD_CORE 1
   #endif

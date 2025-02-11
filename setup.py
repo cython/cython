@@ -6,6 +6,7 @@ except ImportError:
 import os
 import stat
 import subprocess
+import sysconfig
 import textwrap
 import sys
 
@@ -14,7 +15,7 @@ is_cpython = platform.python_implementation() == 'CPython'
 
 # this specifies which versions of python we support, pip >= 9 knows to skip
 # versions of packages which are not compatible with the running python
-PYTHON_REQUIRES = '>=3.7'
+PYTHON_REQUIRES = '>=3.8'
 
 if sys.platform == "darwin":
     # Don't create resource files on OS X tar.
@@ -115,10 +116,10 @@ def compile_cython_modules(profile=False, coverage=False, compile_minimal=False,
             "Cython.Compiler.Optimize",
             ])
 
-    from distutils.spawn import find_executable
-    from distutils.sysconfig import get_python_inc
-    pgen = find_executable(
-        'pgen', os.pathsep.join([os.environ['PATH'], os.path.join(get_python_inc(), '..', 'Parser')]))
+    from shutil import which
+    from sysconfig import get_path
+    pgen = which(
+        'pgen', path=os.pathsep.join([os.environ['PATH'], os.path.join(get_path('include'), '..', 'Parser')]))
     if not pgen:
         sys.stderr.write("Unable to find pgen, not compiling formal grammar.\n")
     else:
@@ -145,6 +146,9 @@ def compile_cython_modules(profile=False, coverage=False, compile_minimal=False,
             ('Py_LIMITED_API', '0x03070000'),
         ]
         extra_extension_args['py_limited_api'] = True
+
+    if sysconfig.get_config_var('Py_GIL_DISABLED') and platform.system() == "Windows":
+        defines.append(('Py_GIL_DISABLED', 1))
 
     if cython_with_refnanny:
         defines.append(('CYTHON_REFNANNY', '1'))
@@ -226,6 +230,21 @@ cython_coverage = check_option('cython-coverage')
 cython_with_refnanny = check_option('cython-with-refnanny')
 
 compile_cython_itself = not check_option('no-cython-compile')
+
+if compile_cython_itself and sysconfig.get_config_var("Py_GIL_DISABLED"):
+    # On freethreaded builds there's good reasons not to compile Cython by default.
+    # Mainly that it doesn't currently declare as compatible with the limited API
+    # (because little effort has been spent making it thread-safe) and thus
+    # importing a compiled version of Cython will throw the interpreter back
+    # to using the GIL.
+    # This will adversely affect users of pyximport or jupyter.
+    # Therefore, we let users explicitly force Cython to be compiled on freethreaded
+    # builds but don't do it by default.
+    compile_cython_itself = (
+        check_option('cython-compile') or
+        check_option('cython-compile-all') or
+        check_option('cython-compile-minimal'))
+
 if compile_cython_itself:
     cython_compile_more = check_option('cython-compile-all')
     cython_compile_minimal = check_option('cython-compile-minimal')
