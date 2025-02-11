@@ -158,7 +158,6 @@ Environment variables:
                            'deduced from the import path if source file is in '
                            'a package, or equals the filename otherwise.')
     parser.add_argument('-M', '--depfile', action='store_true', help='produce depfiles for the sources')
-    parser.add_argument("--use-shared-utility", dest='use_shared_utility', type=str)
     parser.add_argument('sources', nargs='*', default=[])
 
     # TODO: add help
