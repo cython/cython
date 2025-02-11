@@ -5555,9 +5555,6 @@ class CClassDefNode(ClassDefNode):
                      base_type.name in ('tuple', 'bytes'):
                 error(base.pos, "inheritance from PyVarObject types like '%s' is not currently supported"
                       % base_type.name)
-            elif base_type.is_extension_type and base_type.check_size == "opaque":
-                error(base.pos, f"Base class '{base_type.name}' of type '{self.class_name}' "
-                                 "is opaque.")
             else:
                 self.base_type = base_type
 
