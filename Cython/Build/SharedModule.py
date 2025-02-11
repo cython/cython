@@ -52,7 +52,6 @@ def create_shared_library_pipeline(context, scope, options, result):
 def generate_shared_module(dest_dir):
     Errors.init_thread()
     Errors.open_listing_file(None)
-    Options.use_shared_utility = True
 
     options = Options.CompilationOptions(language_level = 3)
     context = Main.Context.from_options(options)

@@ -806,8 +806,6 @@ def load_memview_c_utility(util_code_name, context=None, **kwargs):
                                        context=context, **kwargs)
 
 def use_cython_array_utility_code(env):
-    if Options.use_shared_utility:
-        return
     cython_scope = env.global_scope().cython_scope
     cython_scope.load_cythonscope()
     cython_scope.viewscope.lookup('array_cwrapper').used = True
@@ -875,11 +873,42 @@ def _get_memoryview_utility_code():
     copy_contents_new_utility.requires.append(memoryview_utility_code)
     return memoryview_utility_code, memviewslice_init_code
 
+@Utils.cached_function
+def _get_memoryview_shared_utility_code(env):
+    global _cached_shared_result
+    if _cached_shared_result is None:
+        memviewslice_declare_code = _get_memviewslice_declare_code()
+        memviewslice_init_code = _get_memviewslice_init_code(memviewslice_declare_code)
+        copy_contents_new_utility = _get_copy_contents_new_utility()
+        shared_utility_code = load_memview_cy_shared_utility(
+            "MemoryView",
+            env.directives['use_shared_utility'],
+            context=context,
+            requires=[
+                    Buffer.buffer_struct_declare_code,
+                    Buffer.buffer_formats_declare_code,
+                    memviewslice_init_code,
+                    is_contig_utility,
+                    overlapping_utility,
+                    copy_contents_new_utility,
+                    ],
+        )
+        memviewslice_declare_code.requires.append(shared_utility_code)
+        copy_contents_new_utility.requires.append(shared_utility_code)
+        _cached_shared_result = (shared_utility_code, memviewslice_init_code)
+    return _cached_shared_result
+
 def get_view_utility_code(env):
-    return _get_memoryview_utility_code()[0]
+    if env.directives['use_shared_utility']:
+        return _get_memoryview_shared_utility_code(env)[0]
+    else:
+        return _get_memoryview_utility_code()[0]
 
 def get_memviewslice_init_code(env):
-    return _get_memoryview_utility_code()[1]
+    if env.directives['use_shared_utility']:
+        return _get_memoryview_shared_utility_code(env)[1]
+    else:
+        return _get_memoryview_utility_code()[1]
 
 view_utility_allowlist = ('array', 'memoryview', 'array_cwrapper',
                           'generic', 'strided', 'indirect', 'contiguous',

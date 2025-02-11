@@ -13,10 +13,8 @@ from setuptools import setup, Extension
 from Cython.Compiler import Options
 import numpy
 
-Options.use_shared_utility = 'pkg2'
-
 extensions = [
-    Extension("*", ["**/*.pyx"], include_dirs=[numpy.get_include()]),
+    Extension("*", ["**/*.pyx"], include_dirs=[numpy.get_include()], compiler_directives={'use_shared_utility': 'pkg2'}),
     Extension("pkg2.MemoryView", sources=["pkg2/MemoryView.c"])
 ]
 
