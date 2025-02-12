@@ -7041,6 +7041,8 @@ class ReturnStatNode(StatNode):
         if value:
             value.generate_post_assignment_code(code)
             if (not self.return_type.is_memoryviewslice and
+                    # for now, avoid thread-safety issues in parallel blocks by not tracing the return value.
+                    not self.in_parallel and
                     code.globalstate.directives['profile'] or code.globalstate.directives['linetrace']):
                 code.put_trace_return(
                     Naming.retval_cname,
