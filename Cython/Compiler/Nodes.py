@@ -6995,9 +6995,11 @@ class ReturnStatNode(StatNode):
             # Where we use a critical section, we do our best to keep the contents as
             # simple as possible.
             code.putln_openmp(
+                # For scalar types this could be omp atomic (at least on semi-recent versions
+                # of OpenMP). However, MSVC doesn't look to support that.
                 "#pragma omp critical(__pyx_returning)",
                 additional_tests=(
-                    "CYTHON_COMPILING_IN_CPYTHON_FREETHREADING" if not self.in_nogil_context
+                    "CYTHON_COMPILING_IN_CPYTHON_FREETHREADING" if code.funcstate.gil_owned
                     else None))
         code.putln("{")
 
@@ -7018,7 +7020,7 @@ class ReturnStatNode(StatNode):
                     lhs_pos=value.pos,
                     rhs=value,
                     code=code,
-                    have_gil=not self.in_nogil_context)
+                    have_gil=code.funcstate.gil_owned)
             else:
                 value.make_owned_reference(code)
                 code.putln("%s = %s;" % (
@@ -7033,7 +7035,7 @@ class ReturnStatNode(StatNode):
         code.putln("}")  # end of omp critical section
         if self.return_type.needs_refcounting:
             code.put_xdecref(
-                Naming.quick_temp_cname, self.return_type, have_gil=not self.in_nogil_context)
+                Naming.quick_temp_cname, self.return_type, have_gil=code.funcstate.gil_owned)
             code.putln("}")  # end of quick_temp scope
 
         if value:
