@@ -1680,7 +1680,7 @@ static __Pyx_CachedCodeObjectType *__pyx_find_code_object(int code_line) {
 #if CYTHON_COMPILING_IN_CPYTHON_FREETHREADING
     __pyx_nonatomic_int_type old_count = __pyx_atomic_incr_acq_rel(&code_cache->accessor_count);
     if (old_count < 0) {
-        // It's being writen so currently unreadable.
+        // It's being written so currently unreadable.
         __pyx_atomic_decr_acq_rel(&code_cache->accessor_count);
         return NULL;
     }
