@@ -1597,6 +1597,7 @@ bad:
 
 
 /////////////// CodeObjectCache.proto ///////////////
+//@requires: MemoryView_C.c::Atomics
 
 #if CYTHON_COMPILING_IN_LIMITED_API
 typedef PyObject __Pyx_CachedCodeObjectType;
@@ -1613,9 +1614,18 @@ struct __Pyx_CodeObjectCache {
     int count;
     int max_count;
     __Pyx_CodeObjectCacheEntry* entries;
+  #if CYTHON_COMPILING_IN_CPYTHON_FREETHREADING
+    // 0 for none, +ve for readers, -ve for writers.
+    // 
+    __pyx_atomic_int_type accessor_count;
+  #endif
 };
 
-static struct __Pyx_CodeObjectCache __pyx_code_cache = {0,0,NULL};
+static struct __Pyx_CodeObjectCache __pyx_code_cache = {0,0,NULL
+#if CYTHON_COMPILING_IN_CPYTHON_FREETHREADING
+  , 0
+#endif
+};
 
 static int __pyx_bisect_code_objects(__Pyx_CodeObjectCacheEntry* entries, int count, int code_line);
 
@@ -1648,7 +1658,7 @@ static int __pyx_bisect_code_objects(__Pyx_CodeObjectCacheEntry* entries, int co
     }
 }
 
-static __Pyx_CachedCodeObjectType *__pyx_find_code_object(int code_line) {
+static __Pyx_CachedCodeObjectType *__pyx__find_code_object(int code_line) {
     __Pyx_CachedCodeObjectType* code_object;
     int pos;
     if (unlikely(!code_line) || unlikely(!__pyx_code_cache.entries)) {
@@ -1663,7 +1673,27 @@ static __Pyx_CachedCodeObjectType *__pyx_find_code_object(int code_line) {
     return code_object;
 }
 
-static void __pyx_insert_code_object(int code_line, __Pyx_CachedCodeObjectType* code_object)
+static __Pyx_CachedCodeObjectType *__pyx_find_code_object(int code_line) {
+#if CYTHON_COMPILING_IN_CPYTHON_FREETHREADING && !CYTHON_ATOMICS
+    (void)__pyx__find_code_object;
+    return NULL; // Most implementation should have atomics. But otherwise, don't make it thread-safe, just miss.
+#elif CYTHON_COMPILING_IN_CPYTHON_FREETHREADING
+    __pyx_nonatomic_int_type old_count = __pyx_atomic_incr_acq_rel(&__pyx_code_cache.accessor_count);
+    if (old_count < 0) {
+        // It's being writen so currently unreadable.
+        __pyx_atomic_decr_acq_rel(&__pyx_code_cache.accessor_count);
+        return NULL;
+    }
+#endif
+    __Pyx_CachedCodeObjectType *result = __pyx__find_code_object(code_line);
+#if CYTHON_COMPILING_IN_CPYTHON_FREETHREADING && CYTHON_ATOMICS
+    __pyx_atomic_decr_acq_rel(&__pyx_code_cache.accessor_count);
+#endif
+    return result;
+}
+
+
+static void __pyx__insert_code_object(int code_line, __Pyx_CachedCodeObjectType* code_object)
 {
     int pos, i;
     __Pyx_CodeObjectCacheEntry* entries = __pyx_code_cache.entries;
@@ -1706,6 +1736,23 @@ static void __pyx_insert_code_object(int code_line, __Pyx_CachedCodeObjectType* 
     entries[pos].code_object = code_object;
     __pyx_code_cache.count++;
     Py_INCREF(code_object);
+}
+
+static void __pyx_insert_code_object(int code_line, __Pyx_CachedCodeObjectType* code_object) {
+#if CYTHON_COMPILING_IN_CPYTHON_FREETHREADING && !CYTHON_ATOMICS
+    (void)__pyx__insert_code_object;
+    return; // Most implementation should have atomics. But otherwise, don't make it thread-safe, just fail.
+#elif CYTHON_COMPILING_IN_CPYTHON_FREETHREADING
+    __pyx_nonatomic_int_type expected = 0;
+    if (!__pyx_atomic_int_cmp_exchange(&__pyx_code_cache.accessor_count, &expected, INT_MIN)) {
+        // it's being written or read, Either way we can't do anything
+        return;
+    }
+#endif
+    __pyx__insert_code_object(code_line, code_object);
+#if CYTHON_COMPILING_IN_CPYTHON_FREETHREADING && CYTHON_ATOMICS
+    __pyx_atomic_store(&__pyx_code_cache.accessor_count, 0);
+#endif
 }
 
 /////////////// CodeObjectCache.cleanup ///////////////
