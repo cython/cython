@@ -1783,10 +1783,15 @@ try_unpack:
 
 
 /////////////// UnpackUnboundCMethod.proto ///////////////
+//@requires:  MemoryView_C.c::Atomics
 
 typedef struct {
     PyObject *type;
     PyObject **method_name;
+#if CYTHON_COMPILING_IN_CPYTHON_FREETHREADING
+    PyMutex initializing_mutex;
+    __pyx_atomic_int_type initialized;
+#endif
     // "func" is set on first access (direct C function pointer)
     PyCFunction func;
     // "method" is set on first access (fallback)
@@ -1794,11 +1799,45 @@ typedef struct {
     int flag;
 } __Pyx_CachedCFunction;
 
+#if CYTHON_COMPILING_IN_CPYTHON_FREETHREADING
+static CYTHON_INLINE int __Pyx_CachedCFunction_GetInitializedAndLock(__Pyx_CachedCFunction *cfunc) {
+#if CYTHON_ATOMICS
+    if (likely(__pyx_atomic_load(&cfunc->initialized))) {
+        return 1;
+    }
+#endif
+    PyMutex_Lock(&cfunc->initializing_mutex);
+#if CYTHON_ATOMICS
+    if (unlikely(__pyx_atomic_load(&cfunc->initialized)))
+#else
+    if (cfunc->initialised)
+#endif
+    {
+        // it happened while we were waiting for the lock;
+        PyMutex_Unlock(&cfunc->initializing_mutex);
+        return 1;
+    }
+    return 0; // return with the lock held
+}
+
+static CYTHON_INLINE void __Pyx_CachedCFunction_SetInitializedAndUnlock(__Pyx_CachedCFunction *cfunc) {
+#if CYTHON_ATOMICS
+    __pyx_atomic_store(&cfunc->initialized, 1);
+#else
+    cfunc->initialized = 1;
+#endif
+    PyMutex_Unlock(&cfunc->initializing_mutex);
+}
+#else
+#define __Pyx_CachedCFunction_GetInitializedAndLock(cfunc) 1
+#define __Pyx_CachedCFunction_SetInitializedAndUnlock(cfunc) ;
+#endif
+
 /////////////// UnpackUnboundCMethod ///////////////
 //@requires: PyObjectGetAttrStr
 
+#if CYTHON_COMPILING_IN_LIMITED_API && __PYX_LIMITED_VERSION_HEX < 0x030C0000
 static PyObject *__Pyx_SelflessCall(PyObject *method, PyObject *args, PyObject *kwargs) {
-    // NOTE: possible optimization - use vectorcall
     PyObject *result;
     PyObject *selfless_args = PyTuple_GetSlice(args, 1, PyTuple_Size(args));
     if (unlikely(!selfless_args)) return NULL;
@@ -1807,20 +1846,35 @@ static PyObject *__Pyx_SelflessCall(PyObject *method, PyObject *args, PyObject *
     Py_DECREF(selfless_args);
     return result;
 }
+#else
+static PyObject *__Pyx_SelflessCall(PyObject *method, PyObject *const *args, Py_ssize_t nargs, PyObject *kwnames) {
+    return
+#if PY_VERSION_HEX < 0x03090000
+    _PyObject_VectorcallMethod
+#else
+    PyObject_VectorcallMethod
+#endif
+        (method, args ? args+1 : NULL, nargs ? nargs-1 : 0, kwnames);
+}
+#endif
 
 static PyMethodDef __Pyx_UnboundCMethod_Def = {
     /* .ml_name  = */ "CythonUnboundCMethod",
     /* .ml_meth  = */ __PYX_REINTERPRET_FUNCION(PyCFunction, __Pyx_SelflessCall),
+#if CYTHON_COMPILING_IN_LIMITED_API && __PYX_LIMITED_VERSION_HEX < 0x030C0000
     /* .ml_flags = */ METH_VARARGS | METH_KEYWORDS,
+#else
+    /* .ml_flags = */ METH_FASTCALL | METH_KEYWORDS,
+#endif
     /* .ml_doc   = */ NULL
 };
 
 static int __Pyx_TryUnpackUnboundCMethod(__Pyx_CachedCFunction* target) {
-    PyObject *method;
+    PyObject *method, *result=NULL;
     method = __Pyx_PyObject_GetAttrStr(target->type, *target->method_name);
     if (unlikely(!method))
         return -1;
-    target->method = method;
+    result = method;
 // FIXME: use functionality from CythonFunction.c/ClassMethod
 #if CYTHON_COMPILING_IN_CPYTHON
     if (likely(__Pyx_TypeCheck(method, &PyMethodDescr_Type)))
@@ -1856,9 +1910,15 @@ static int __Pyx_TryUnpackUnboundCMethod(__Pyx_CachedCFunction* target) {
             if (unlikely(!unbound_method)) return -1;
             // New PyCFunction will own method reference, thus decref __Pyx_PyObject_GetAttrStr
             Py_DECREF(method);
-            target->method = unbound_method;
+            result = unbound_method;
         }
     }
+#if !CYTHON_COMPILING_IN_CPYTHON_FREETHREADING
+    // Unlikely corner-case where another thread has initialized target->method first.
+    // Can't happen in free-threading because the whole thing is locked.
+    Py_XDECREF(target->method);
+#endif
+    target->method = result;
     return 0;
 }
 
@@ -1869,18 +1929,7 @@ CYTHON_UNUSED
 static PyObject* __Pyx__CallUnboundCMethod0(__Pyx_CachedCFunction* cfunc, PyObject* self); /*proto*/
 
 #if CYTHON_COMPILING_IN_CPYTHON
-// FASTCALL methods receive "&empty_tuple" as simple "PyObject[0]*"
-#define __Pyx_CallUnboundCMethod0(cfunc, self)  \
-    (likely((cfunc)->func) ? \
-        (likely((cfunc)->flag == METH_NOARGS) ?  (*((cfunc)->func))(self, NULL) : \
-         (likely((cfunc)->flag == METH_FASTCALL) ? \
-            (*(__Pyx_PyCFunctionFast)(void*)(PyCFunction)(cfunc)->func)(self, &EMPTY(tuple), 0) : \
-          ((cfunc)->flag == (METH_FASTCALL | METH_KEYWORDS) ? \
-            (*(__Pyx_PyCFunctionFastWithKeywords)(void*)(PyCFunction)(cfunc)->func)(self, &EMPTY(tuple), 0, NULL) : \
-            (likely((cfunc)->flag == (METH_VARARGS | METH_KEYWORDS)) ?  ((*(PyCFunctionWithKeywords)(void*)(PyCFunction)(cfunc)->func)(self, EMPTY(tuple), NULL)) : \
-               ((cfunc)->flag == METH_VARARGS ?  (*((cfunc)->func))(self, EMPTY(tuple)) : \
-               __Pyx__CallUnboundCMethod0(cfunc, self)))))) : \
-        __Pyx__CallUnboundCMethod0(cfunc, self))
+static CYTHON_INLINE PyObject* __Pyx_CallUnboundCMethod0(__Pyx_CachedCFunction* cfunc, PyObject* self); /* proto */
 #else
 #define __Pyx_CallUnboundCMethod0(cfunc, self)  __Pyx__CallUnboundCMethod0(cfunc, self)
 #endif
@@ -1888,6 +1937,30 @@ static PyObject* __Pyx__CallUnboundCMethod0(__Pyx_CachedCFunction* cfunc, PyObje
 /////////////// CallUnboundCMethod0 ///////////////
 //@requires: UnpackUnboundCMethod
 //@requires: PyObjectCallOneArg
+
+#if CYTHON_COMPILING_IN_CPYTHON
+// FASTCALL methods receive "&empty_tuple" as simple "PyObject[0]*"
+static CYTHON_INLINE PyObject* __Pyx_CallUnboundCMethod0(__Pyx_CachedCFunction* cfunc, PyObject* self) {
+    int was_initialized = __Pyx_CachedCFunction_GetInitializedAndLock(cfunc);
+
+    if (likely(cfunc->func)) {
+        assert(was_initialized);
+        return (likely(cfunc->flag == METH_NOARGS) ?  (*(cfunc->func))(self, NULL) :
+            (likely(cfunc->flag == METH_FASTCALL) ?
+                (*(__Pyx_PyCFunctionFast)(void*)(PyCFunction)cfunc->func)(self, &EMPTY(tuple), 0) :
+            ((cfunc)->flag == (METH_FASTCALL | METH_KEYWORDS) ?
+                (*(__Pyx_PyCFunctionFastWithKeywords)(void*)(PyCFunction)cfunc->func)(self, &EMPTY(tuple), 0, NULL) :
+                (likely(cfunc->flag == (METH_VARARGS | METH_KEYWORDS)) ?  ((*(PyCFunctionWithKeywords)(void*)(PyCFunction)cfunc->func)(self, EMPTY(tuple), NULL)) :
+                (cfunc->flag == METH_VARARGS ?  (*(cfunc->func))(self, EMPTY(tuple)) :
+                __Pyx__CallUnboundCMethod0(cfunc, self))))));
+    }
+    PyObject *result = __Pyx__CallUnboundCMethod0(cfunc, self);
+
+    if (was_initialized == 0)
+        __Pyx_CachedCFunction_SetInitializedAndUnlock(cfunc);
+    return result;
+}
+#endif
 
 static PyObject* __Pyx__CallUnboundCMethod0(__Pyx_CachedCFunction* cfunc, PyObject* self) {
     PyObject *result;
@@ -1914,8 +1987,11 @@ static CYTHON_INLINE PyObject* __Pyx_CallUnboundCMethod1(__Pyx_CachedCFunction* 
 
 #if CYTHON_COMPILING_IN_CPYTHON
 static CYTHON_INLINE PyObject* __Pyx_CallUnboundCMethod1(__Pyx_CachedCFunction* cfunc, PyObject* self, PyObject* arg) {
+    int was_initialized = __Pyx_CachedCFunction_GetInitializedAndLock(cfunc);
+
     if (likely(cfunc->func)) {
         int flag = cfunc->flag;
+        assert(was_initialized);
         if (flag == METH_O) {
             return (*(cfunc->func))(self, arg);
         } else if (flag == METH_FASTCALL) {
@@ -1924,7 +2000,11 @@ static CYTHON_INLINE PyObject* __Pyx_CallUnboundCMethod1(__Pyx_CachedCFunction* 
             return (*(__Pyx_PyCFunctionFastWithKeywords)(void*)(PyCFunction)cfunc->func)(self, &arg, 1, NULL);
         }
     }
-    return __Pyx__CallUnboundCMethod1(cfunc, self, arg);
+    PyObject* result = __Pyx__CallUnboundCMethod1(cfunc, self, arg);
+
+    if (was_initialized == 0)
+        __Pyx_CachedCFunction_SetInitializedAndUnlock(cfunc);
+    return result;
 }
 #endif
 
@@ -1968,15 +2048,21 @@ static CYTHON_INLINE PyObject *__Pyx_CallUnboundCMethod2(__Pyx_CachedCFunction *
 
 #if CYTHON_COMPILING_IN_CPYTHON
 static CYTHON_INLINE PyObject *__Pyx_CallUnboundCMethod2(__Pyx_CachedCFunction *cfunc, PyObject *self, PyObject *arg1, PyObject *arg2) {
+    int was_initialized = __Pyx_CachedCFunction_GetInitializedAndLock(cfunc);
+
     if (likely(cfunc->func)) {
         PyObject *args[2] = {arg1, arg2};
+        assert(was_initialized);
         if (cfunc->flag == METH_FASTCALL) {
             return (*(__Pyx_PyCFunctionFast)(void*)(PyCFunction)cfunc->func)(self, args, 2);
         }
         if (cfunc->flag == (METH_FASTCALL | METH_KEYWORDS))
             return (*(__Pyx_PyCFunctionFastWithKeywords)(void*)(PyCFunction)cfunc->func)(self, args, 2, NULL);
     }
-    return __Pyx__CallUnboundCMethod2(cfunc, self, arg1, arg2);
+    PyObject *result = __Pyx__CallUnboundCMethod2(cfunc, self, arg1, arg2);
+    if (was_initialized == 0)
+        __Pyx_CachedCFunction_SetInitializedAndUnlock(cfunc);
+    return result;
 }
 #endif
 
