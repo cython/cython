@@ -1074,24 +1074,20 @@ static CYTHON_INLINE PyObject * __Pyx_PyDict_GetItemStrWithError(PyObject *dict,
   #define __Pyx_SET_SIZE(obj, size) Py_SIZE(obj) = (size)
 #endif
 
-#if CYTHON_AVOID_THREAD_UNSAFE_BORROWED_REFS && __PYX_LIMITED_VERSION_HEX >= 0x030d0000
-#define __Pyx_PyList_GetItemRef(o, i) PyList_GetItemRef(o, i)
-#elif CYTHON_AVOID_BORROWED_REFS || CYTHON_AVOID_THREAD_UNSAFE_BORROWED_REFS || !CYTHON_ASSUME_SAFE_MACROS
-#define __Pyx_PyList_GetItemRef(o, i) PySequence_GetItem(o, i)
+#if CYTHON_COMPILING_IN_LIMITED_API || CYTHON_AVOID_BORROWED_REFS || CYTHON_AVOID_THREAD_UNSAFE_BORROWED_REFS || !CYTHON_ASSUME_SAFE_MACROS
+  #if __PYX_LIMITED_VERSION_HEX >= 0x030d0000
+    #define __Pyx_PyList_GetItemRef(o, i) PyList_GetItemRef(o, i)
+  #else
+    #define __Pyx_PyList_GetItemRef(o, i) PySequence_GetItem(o, i)
+  #endif
 #else
-#define __Pyx_PyList_GetItemRef(o, i) __Pyx_NewRef(PyList_GET_ITEM(o, i))
+  #define __Pyx_PyList_GetItemRef(o, i) __Pyx_NewRef(PyList_GET_ITEM(o, i))
 #endif
 
 #if __PYX_LIMITED_VERSION_HEX >= 0x030d0000
 #define __Pyx_PyDict_GetItemRef(dict, key, result) PyDict_GetItemRef(dict, key, result)
 #elif CYTHON_AVOID_BORROWED_REFS || CYTHON_AVOID_THREAD_UNSAFE_BORROWED_REFS
 static CYTHON_INLINE int __Pyx_PyDict_GetItemRef(PyObject *dict, PyObject *key, PyObject **result) {
-  // NOTE: CPython 3.13 performs the following check
-  // if (!PyDict_Check(dict)) {
-  //   PyErr_BadInternalCall();
-  //   *result = NULL;
-  //   return -1;
-  // }
   *result = PyObject_GetItem(dict, key);
   if (*result == NULL) {
     if (PyErr_ExceptionMatches(PyExc_KeyError)) {
