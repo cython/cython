@@ -1754,7 +1754,7 @@ static void __pyx_insert_code_object(int code_line, __Pyx_CachedCodeObjectType* 
 #endif
     __pyx__insert_code_object(code_cache, code_line, code_object);
 #if CYTHON_COMPILING_IN_CPYTHON_FREETHREADING
-    __pyx_atomic_store(&code_cache->accessor_count, 0);
+    __pyx_atomic_sub(&code_cache->accessor_count, INT_MIN);
 #endif
 #endif
 }
