@@ -1850,9 +1850,9 @@ static PyObject *__Pyx_SelflessCall(PyObject *method, PyObject *args, PyObject *
 static PyObject *__Pyx_SelflessCall(PyObject *method, PyObject *const *args, Py_ssize_t nargs, PyObject *kwnames) {
     return
 #if PY_VERSION_HEX < 0x03090000
-    _PyObject_VectorcallMethod
+    _PyObject_Vectorcall
 #else
-    PyObject_VectorcallMethod
+    PyObject_Vectorcall
 #endif
         (method, args ? args+1 : NULL, nargs ? nargs-1 : 0, kwnames);
 }
