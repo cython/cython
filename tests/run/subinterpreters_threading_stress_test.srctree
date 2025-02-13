@@ -71,17 +71,14 @@ def f():
 
 import sys
 import sysconfig
-if sys.version_info < (3, 13):
+if sys.version_info[:2] != (3, 13):
     exit(0)  # test won't work
 if sysconfig.get_config_var("Py_GIL_DISABLED"):
     # we aren't allowed to do _imp._override_multi_interp_extensions_check(-1) on freethreading
     exit(0)
 
 # TODO - in Py3.14 this'll probably be in the standard library
-try:
-    import _interpreters as interpreters
-except ImportError:
-    from interpreters_backport import interpreters
+from interpreters_backport import interpreters
 
 # create a bunch of interpreters
 num_interpreters = 5
@@ -100,12 +97,7 @@ start_next_queue.put(None)
 
 for i in all_interpreters:
     # I don't think this exec should be needed, but as of Nov 2024 it is.
-    i.exec("""
-        try:
-            from _interpreters import queues
-        except ImportError:
-            from interpreters_backport.interpreters import queues
-    """)
+    i.exec("from interpreters_backport.interpreters import queues")
     i.prepare_main(
         stop_queue=stop_queue,
         started_queue=started_queue,
