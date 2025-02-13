@@ -1,3 +1,4 @@
+UNSET CFLAGS
 PYTHON setup.py build_ext --inplace
 PYTHON main.py
 
