@@ -101,7 +101,12 @@ typedef struct {
     #define __pyx_atomic_incr_acq_rel(value) __sync_fetch_and_add(value, 1)
     #define __pyx_atomic_decr_acq_rel(value) __sync_fetch_and_sub(value, 1)
     #define __pyx_atomic_sub(value, arg) __sync_fetch_and_sub(value, arg)
-    #define __pyx_atomic_int_cmp_exchange(value, expected, desired) __sync_bool_compare_and_swap(value, *expected, desired)
+    static CYTHON_INLINE int __pyx_atomic_int_cmp_exchange(__pyx_atomic_int_type* value, __pyx_nonatomic_int_type* expected, __pyx_nonatomic_int_type desired) {
+        __pyx_nonatomic_int_type old = __sync_val_compare_and_swap(value, *expected, desired);
+        int result = old == *expected;
+        *expected = old;
+        return result;
+    }
     // the legacy gcc sync builtins don't seem to have plain "load" or "store".
     #define __pyx_atomic_load(value) __sync_fetch_and_add(value, 0)
     #define __pyx_atomic_pointer_load_relaxed(value) __sync_fetch_and_add(value, 0)
@@ -124,7 +129,12 @@ typedef struct {
     #define __pyx_atomic_incr_acq_rel(value) _InterlockedExchangeAdd(value, 1)
     #define __pyx_atomic_decr_acq_rel(value) _InterlockedExchangeAdd(value, -1)
     #define __pyx_atomic_sub(value, arg) _InterlockedExchangeAdd(value, -arg)
-    #define __pyx_atomic_int_cmp_exchange(value, expected, desired) _InterlockedCompareExchange(value, desired, *expected)
+    static CYTHON_INLINE int __pyx_atomic_int_cmp_exchange(__pyx_atomic_int_type* value, __pyx_nonatomic_int_type* expected, __pyx_nonatomic_int_type desired) {
+        __pyx_nonatomic_int_type old = _InterlockedCompareExchange(value, desired, *expected);
+        int result = old == *expected;
+        *expected = old;
+        return result;
+    }
     #define __pyx_atomic_load(value) _InterlockedExchangeAdd(value, 0)
     // Microsoft says that simple reads are guaranteed to be atomic.
     // https://learn.microsoft.com/en-gb/windows/win32/sync/interlocked-variable-access?redirectedfrom=MSDN
