@@ -70,7 +70,7 @@ jobs:
           # Ubuntu sub-jobs:
           # ================
           # graalpy is really slow...
-          #- os: ubuntu-24.04
+          #- os: ubuntu-22.04
           #  python-version: graalpy24
           #  backend: c
           #  env: { NO_CYTHON_COMPILE: 1 }
@@ -86,12 +86,12 @@ jobs:
             backend: c
             env: { GCC_VERSION: 13, EXTRA_CFLAGS: "-std=c17" }
             extra_hash: "-gcc11"
-          - os: ubuntu-24.04
+          - os: ubuntu-22.04
             python-version: "3.12"
             backend: c
             env: { GCC_VERSION: 13, EXTRA_CFLAGS: "-std=c17" }
             extra_hash: "-gcc11"
-          - os: ubuntu-24.04
+          - os: ubuntu-22.04
             python-version: "3.13"
             backend: cpp
             env: { GCC_VERSION: 13, EXTRA_CFLAGS: "-std=c++20" }
@@ -108,89 +108,89 @@ jobs:
             env: {}
             extra_hash: "arm64"
           # compile all modules
-          - os: ubuntu-24.04
+          - os: ubuntu-22.04
             python-version: "3.8"
             backend: c
             env: { CYTHON_COMPILE_ALL: 1 }
             extra_hash: "-all"
-          - os: ubuntu-24.04
+          - os: ubuntu-22.04
             python-version: "3.8"
             backend: cpp
             env: { CYTHON_COMPILE_ALL: 1 }
             extra_hash: "-all"
-          - os: ubuntu-24.04
-            python-version: "3.13"
+          - os: ubuntu-22.04
+            python-version: "3.11"
             backend: c
             env: { CYTHON_COMPILE_ALL: 1 }
             extra_hash: "-all"
-          - os: ubuntu-24.04
-            python-version: "3.13"
+          - os: ubuntu-22.04
+            python-version: "3.11"
             backend: cpp
             env: { CYTHON_COMPILE_ALL: 1 }
             extra_hash: "-all"
           # Linting
-          - os: ubuntu-latest
-            python-version: "3.13"
+          - os: ubuntu-22.04
+            python-version: "3.9"
             backend: "c,cpp"
             env: { TEST_CODE_STYLE: 1, NO_CYTHON_COMPILE: 1 }
             extra_hash: "-codestyle"
           # Limited API
-          - os: ubuntu-24.04
+          - os: ubuntu-22.04
             python-version: "3.8"
             backend: "c,cpp"
             env: { LIMITED_API: "--limited-api", NO_LIMITED_COMPILE: 1 }
             extra_hash: "-limited_api"
-          - os: ubuntu-24.04
+          - os: ubuntu-22.04
             python-version: "3.11"
             backend: "c,cpp"
             env: { LIMITED_API: "--limited-api" }
             extra_hash: "-limited_api"
-          - os: ubuntu-24.04
+          - os: ubuntu-22.04
             python-version: "3.12"
             backend: "c,cpp"
             env: { LIMITED_API: "--limited-api" }
             extra_hash: "-limited_api"
-          - os: ubuntu-24.04
+          - os: ubuntu-22.04
             python-version: "3.13"
             backend: "c,cpp"
             env: { LIMITED_API: "--limited-api" }
             extra_hash: "-limited_api"
           # Type specs
-          - os: ubuntu-24.04
+          - os: ubuntu-22.04
             python-version: "3.12"
             backend: c
             env: { EXTRA_CFLAGS: "-DCYTHON_USE_TYPE_SPECS=1" }
             extra_hash: "-typespecs"
-          - os: ubuntu-24.04
+          - os: ubuntu-22.04
             python-version: "3.9"
             backend: c
             env: { EXTRA_CFLAGS: "-DCYTHON_USE_TYPE_SPECS=1" }
             extra_hash: "-typespecs"
-          - os: ubuntu-24.04
+          - os: ubuntu-22.04
             python-version: "3.8"
             backend: c
             env: { EXTRA_CFLAGS: "-DCYTHON_USE_TYPE_SPECS=1" }
             extra_hash: "-typespecs"
           # Stackless
-          - os: ubuntu-24.04
+          - os: ubuntu-22.04
             python-version: "3.8"
             backend: c
             env: { STACKLESS: true, PY: 3 }
             extra_hash: "-stackless"
           # Pypy
-          - os: ubuntu-24.04
+          - os: ubuntu-22.04
             python-version: pypy-3.9
             backend: c
             env: { NO_CYTHON_COMPILE: 1 }
-          - os: ubuntu-24.04
+          - os: ubuntu-22.04
             python-version: pypy-3.10
             backend: c
             env: { NO_CYTHON_COMPILE: 1 }
           # Free-threading
-          - os: ubuntu-24.04
+          - os: ubuntu-22.04
             python-version: 3.13t
             backend: "c"
-          - os: ubuntu-24.04
+          - os: ubuntu-22.04
             python-version: 3.13t
             backend: "cpp"
 #          - os: windows-2019
