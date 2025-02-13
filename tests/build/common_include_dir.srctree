@@ -29,7 +29,8 @@ nthreads = 0
 if not (hasattr(sys, 'pypy_version_info') or
         (hasattr(sys, 'implementation') and sys.implementation.name == 'graalpython') or
         sys.platform == 'win32' or
-        is_mac_os):
+        is_mac_os or
+        sys.version_info > (3, 14)):
     try:
         import multiprocessing
         multiprocessing.Pool(2).close()
