@@ -52,14 +52,14 @@ def f():
     import _imp
     # TODO - eventually we'll properly allow this, at least for multi-phase.
     _imp._override_multi_interp_extensions_check(-1)
-    
+
     # wait for previous interpreter to reach its read-loop before proceeding
     # with this one.
     start_next_queue.get(20.0)
     started_queue.put(None)
     import cy_module
     cy_module.run(start_next_queue, stop_queue)
-            
+
 ################## main.py ######################
 
 # What we're doing here is running isolated sub-interpreters
@@ -78,7 +78,10 @@ if sysconfig.get_config_var("Py_GIL_DISABLED"):
     exit(0)
 
 # TODO - in Py3.14 this'll probably be in the standard library
-from interpreters_backport import interpreters
+try:
+    import _interpreters as interpreters
+except ImportError:
+    from interpreters_backport import interpreters
 
 # create a bunch of interpreters
 num_interpreters = 5
@@ -97,7 +100,12 @@ start_next_queue.put(None)
 
 for i in all_interpreters:
     # I don't think this exec should be needed, but as of Nov 2024 it is.
-    i.exec("from interpreters_backport.interpreters import queues")
+    i.exec("""
+        try:
+            from _interpreters import queues
+        except ImportError:
+            from interpreters_backport.interpreters import queues
+    """)
     i.prepare_main(
         stop_queue=stop_queue,
         started_queue=started_queue,
