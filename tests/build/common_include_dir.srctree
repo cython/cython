@@ -22,7 +22,7 @@ from distutils.core import setup
 
 if __name__ == "__main__":
     setup(
-    ext_modules = cythonize("*.pyx", common_utility_include_dir='common', nthreads=2),
+        ext_modules = cythonize("*.pyx", common_utility_include_dir='common', nthreads=2),
     )
 
 ######## a.pyx ########
