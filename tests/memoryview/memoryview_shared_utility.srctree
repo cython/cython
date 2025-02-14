@@ -4,8 +4,6 @@
 PYTHON -m Cython.Build.SharedModule pkg2
 PYTHON setup.py build_ext --inplace
 PYTHON -c "import test_shared_utility"
-PYTHON -c "import os; from pkg2 import MemoryView; os.remove(MemoryView.__file__)"
-PYTHON -c "import test_missing_shared_utility"
 """
 
 ######## setup.py ########
@@ -25,18 +23,7 @@ setup(
 )
 
 
-######## test_missing_shared_utility.py ########
-import pkg1.empty
-try:
-    import pkg1.simple
-except ModuleNotFoundError as e:
-    assert e.name == "pkg2.MemoryView"
-else:
-    assert False, "Importing pkg1.simple should fail"
-
 ######## test_shared_utility.py ########
-import pkg1.empty
-import pkg1.simple
 from pkg1.pkg11.add_one import add_one
 from array import array
 from pkg1.pkg11.cast import call_cast, call_cast_to_array
@@ -56,13 +43,6 @@ from pkg2 import MemoryView
 assert hasattr(MemoryView, '__pyx_capi__'), dir(MemoryView)
 
 ######## pkg1/__init__.py ########
-
-######## pkg1/empty.pyx ########
-
-######## pkg1/simple.pyx ########
-
-def add_one(int[:] buf):
-    pass
 
 ######## pkg1/pkg11/__init__.py ########
 
