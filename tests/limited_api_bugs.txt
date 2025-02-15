@@ -43,7 +43,6 @@ line_profile_test
 cdef_multiple_inheritance_errors
 cline_in_traceback
 module_init_error
-pep448_extended_unpacking
 
 # segfault
 run[.]type_inference
