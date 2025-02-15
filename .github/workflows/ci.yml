@@ -62,7 +62,10 @@ jobs:
           - os: windows-2019
             python-version: 3.13t
             backend: "cpp"
+
         include:
+          - python-version: "3.14-dev"
+            allowed_failure: true
 
           # Ubuntu sub-jobs:
           # ================

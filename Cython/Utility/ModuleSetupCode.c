@@ -1074,34 +1074,37 @@ static CYTHON_INLINE PyObject * __Pyx_PyDict_GetItemStrWithError(PyObject *dict,
   #define __Pyx_SET_SIZE(obj, size) Py_SIZE(obj) = (size)
 #endif
 
-#if CYTHON_AVOID_THREAD_UNSAFE_BORROWED_REFS && PY_VERSION_HEX >= 0x030d00b1
-#define __Pyx_PyList_GetItemRef(o, i) PyList_GetItemRef(o, i)
-#define __Pyx_PyDict_GetItemRef(dict, key, result) PyDict_GetItemRef(dict, key, result)
-#elif !CYTHON_AVOID_BORROWED_REFS
-
-#if CYTHON_ASSUME_SAFE_MACROS
-#define __Pyx_PyList_GetItemRef(o, i) __Pyx_NewRef(PyList_GET_ITEM(o, i))
+#if CYTHON_COMPILING_IN_LIMITED_API || CYTHON_AVOID_BORROWED_REFS || CYTHON_AVOID_THREAD_UNSAFE_BORROWED_REFS || !CYTHON_ASSUME_SAFE_MACROS
+  #if __PYX_LIMITED_VERSION_HEX >= 0x030d0000
+    #define __Pyx_PyList_GetItemRef(o, i) PyList_GetItemRef(o, i)
+  #else
+    #define __Pyx_PyList_GetItemRef(o, i) PySequence_GetItem(o, i)
+  #endif
 #else
-#define __Pyx_PyList_GetItemRef(o, i) PySequence_GetItem(o, i)
+  #define __Pyx_PyList_GetItemRef(o, i) __Pyx_NewRef(PyList_GET_ITEM(o, i))
 #endif
 
+#if __PYX_LIMITED_VERSION_HEX >= 0x030d0000
+#define __Pyx_PyDict_GetItemRef(dict, key, result) PyDict_GetItemRef(dict, key, result)
+#elif CYTHON_AVOID_BORROWED_REFS || CYTHON_AVOID_THREAD_UNSAFE_BORROWED_REFS
 static CYTHON_INLINE int __Pyx_PyDict_GetItemRef(PyObject *dict, PyObject *key, PyObject **result) {
-  *result = PyDict_GetItem(dict, key);
+  *result = PyObject_GetItem(dict, key);
   if (*result == NULL) {
-    return 0;
+    if (PyErr_ExceptionMatches(PyExc_KeyError)) {
+      PyErr_Clear();
+      return 0;
+    }
+    return -1;
   }
-  Py_INCREF(*result);
   return 1;
 }
 #else
-#define __Pyx_PyList_GetItemRef(o, i) PySequence_GetItem(o, i)
 static CYTHON_INLINE int __Pyx_PyDict_GetItemRef(PyObject *dict, PyObject *key, PyObject **result) {
-  *result = PyObject_GetItem(dict, key);
-  if (PyErr_Occurred()) {
-    return -1;
-  } else if (*result == NULL) {
-    return 0;
+  *result = PyDict_GetItemWithError(dict, key);
+  if (*result == NULL) {
+    return PyErr_Occurred() ? -1 : 0;
   }
+  Py_INCREF(*result);
   return 1;
 }
 #endif
@@ -2451,106 +2454,6 @@ done:
     return code_obj;
 }
 
-/////////////////////////// PyVersionSanityCheck.proto ///////////////////////
-
-static int __Pyx_VersionSanityCheck(void); /* proto */
-
-/////////////////////////// PyVersionSanityCheck ///////////////////////
-
-static int __Pyx_VersionSanityCheck(void) {
-  // Implementation notes:
-  //  The main thing I'm worried about in mixing up Py_GIL_DISABLED since this is incredibly
-  //  easy to do on Windows (where only a single pyconfig.h is provided, which is shared between
-  //  the freethreading and non-freethreading executables).  Getting this wrong instantly crashes.
-  //
-  //  The debug and trace-refs checks are just because they're easy to do at the same time.
-  //
-  //  In order to test it we cannot use any internals of Python objects from C
-  //  (especially refcounting) since we potentially have completely the wrong structure
-  //  of PyObject.  PyRun_SimpleStringFlags and PySys_GetObject both look fairly safe to
-  //  use like this.
-  //
-  //  Since PyRun_SimpleStringFlags runs in the __main__ scope, we should be careful not
-  //  to define variables inside it.
-  //  We use PyRun_SimpleStringFlags instead of PyRun_SimpleString since SimpleString is
-  //  a macro, and MSVC doesn't like #ifdef within a macro expansion.
-  //
-  //  PyRun_SimpleStringFlags prints and clears the exception information.  We raise
-  //  therefore raise the proper exception from C (I think the interface to PyErr_SetString
-  //  should be consistent enough between builds for this to be OK). This is fragile but
-  //  the best we can do.
-  //
-  #if CYTHON_COMPILING_IN_CPYTHON
-  // from Python 3.8 debug and release builds are ABI compatible so skip the check
-  #if PY_VERSION_HEX < 0x03080000
-    if (PySys_GetObject("gettotalrefcount")) {
-      #ifndef Py_DEBUG
-        PyErr_SetString(
-            PyExc_ImportError,
-            "Module was compiled with a non-debug version of Python but imported into a debug version."
-        );
-        return -1;
-      #endif
-    } else {
-      #ifdef Py_DEBUG
-        PyErr_SetString(
-            PyExc_ImportError,
-            "Module was compiled with a debug version of Python but imported into a non-debug version."
-        );
-        return -1;
-      #endif
-    }
-  #endif // PY_VERSION_HEX < 0x03080000
-  #if PY_VERSION_HEX >= 0x030d0000
-    if (PyRun_SimpleStringFlags(
-      "if "
-      #ifdef Py_GIL_DISABLED
-        "not "
-      #endif
-      "__import__('sysconfig').get_config_var('Py_GIL_DISABLED'): raise ImportError",
-      NULL
-    ) == -1) {
-        PyErr_SetString(
-            PyExc_ImportError,
-      #ifdef Py_GIL_DISABLED
-            "Module was compiled with a freethreading build of Python but imported into a non-freethreading build."
-      #else
-            "Module was compiled with a non-freethreading build of Python but imported into a freethreading build."
-      #endif
-        );
-      return -1;
-    }
-  #endif // version hex 3.13+
-    if (PySys_GetObject("getobjects")) {
-      #ifndef Py_TRACE_REFS
-        PyErr_SetString(
-            PyExc_ImportError,
-            "Module was compiled without Py_TRACE_REFS but imported into a build of Python with."
-        );
-        return -1;
-      #endif
-    } else {
-      #ifdef Py_TRACE_REFS
-        PyErr_SetString(
-            PyExc_ImportError,
-            "Module was compiled with Py_TRACE_REFS but imported into a build of Python without."
-        );
-        return -1;
-      #endif
-    }
-    const char code[] = "if __import__('sys').getsizeof(object()) != %u: raise ImportError";
-    char formattedCode[sizeof(code)+50];
-    PyOS_snprintf(formattedCode, sizeof(formattedCode), code, (unsigned int)sizeof(PyObject));
-    if (PyRun_SimpleStringFlags(formattedCode, NULL) == -1) {
-      PyErr_SetString(
-        PyExc_ImportError,
-        "Runtime and compile-time PyObject size do not match."
-      );
-      return -1;
-    }
-  #endif
-    return 0;
-}
 
 ////////////////////////// SharedInFreeThreading.proto //////////////////
 

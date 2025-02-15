@@ -2979,14 +2979,9 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             code.putln("#endif")
         code.putln(header3)
 
-        code.globalstate.use_utility_code(
-            UtilityCode.load("PyVersionSanityCheck", "ModuleSetupCode.c")
-        )
-
         # CPython 3.5+ supports multi-phase module initialisation (gives access to __spec__, __file__, etc.)
         code.putln("#if CYTHON_PEP489_MULTI_PHASE_INIT")
         code.putln("{")
-        code.putln("if (__Pyx_VersionSanityCheck() < 0) return NULL;")
         code.putln("return PyModuleDef_Init(&%s);" % Naming.pymoduledef_cname)
         code.putln("}")
 
@@ -3002,11 +2997,6 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
         # start of module init/exec function (pre/post PEP 489)
         code.putln("{")
-
-        code.putln("#if !CYTHON_PEP489_MULTI_PHASE_INIT")
-        code.putln("if (__Pyx_VersionSanityCheck() < 0) return NULL;")
-        code.putln("#endif")
-
         code.putln('int stringtab_initialized = 0;')
         code.putln("#if CYTHON_USE_MODULE_STATE")
         code.putln('int pystate_addmodule_run = 0;')
@@ -3833,8 +3823,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         sizeof_objstruct = objstruct = type.objstruct_cname if type.typedef_flag else f"struct {type.objstruct_cname}"
         module_name = type.module_name
         type_name = type.name
-        if module_name not in ('__builtin__', 'builtins'):
-            is_builtin_type = False
+        is_builtin = module_name in ('__builtin__', 'builtins')
+        if not is_builtin:
             module_name = f'"{module_name}"'
         elif type_name in Code.ctypedef_builtins_map:
             # Fast path for special builtins, don't actually import
@@ -3842,7 +3832,6 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 f'{code.name_in_module_state(type.typeptr_cname)} = {Code.ctypedef_builtins_map[type_name]};')
             return
         else:
-            is_builtin_type = True
             module_name = '__Pyx_BUILTIN_MODULE_NAME'
             if type_name in Code.renamed_py2_builtins_map:
                 type_name = Code.renamed_py2_builtins_map[type_name]
@@ -3858,6 +3847,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         typeptr_cname = type.typeptr_cname
         if not is_api:
             typeptr_cname = code.name_in_main_c_code_module_state(typeptr_cname)
+
         code.put(
             f"{typeptr_cname} = __Pyx_ImportType_{Naming.cyversion}("
             f"{module}, {module_name}, {type.name.as_c_string_literal()},"
@@ -3869,7 +3859,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             code.putln("#if defined(PYPY_VERSION_NUM) && PYPY_VERSION_NUM < 0x050B0000")
             code.putln(f'sizeof({objstruct}), {alignment_func}({objstruct}),')
             code.putln("#elif CYTHON_COMPILING_IN_LIMITED_API")
-            if is_builtin_type:
+            if is_builtin:
                 # Builtin types are opaque in when the limited API is enabled
                 # and subsequents attempt to access their fields will trigger
                 # compile errors. Skip the struct size check here so things keep
@@ -3892,8 +3882,6 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             raise RuntimeError(
                 f"invalid value for check_size '{type.check_size}' when compiling {module_name}.{type.name}")
         code.put(f'__Pyx_ImportType_CheckSize_{check_size.title()}_{Naming.cyversion});')
-
-        code.putln(f' if (!{typeptr_cname}) {error_code}')
 
     def generate_type_ready_code(self, entry, code):
         Nodes.CClassDefNode.generate_type_ready_code(entry, code)
