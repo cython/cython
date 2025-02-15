@@ -34,7 +34,7 @@ import _interpreters
 some_global = []
 def append_to_global():
     some_global.append(f"hello from interpreter {_interpreters.get_current()}")
-    
+
 #################### with_multiphase.pyx ####################
 
 # distutils: extra_compile_args = -DCYTHON_USE_MODULE_STATE=1
@@ -46,7 +46,7 @@ include "shared.pxi"
 # distutils: extra_compile_args = -DCYTHON_USE_MODULE_STATE=1 -DCYTHON_PEP489_MULTI_PHASE_INIT=0
 
 include "shared.pxi"
-    
+
 #################### runtest.py #############################
 
 import sys
@@ -61,7 +61,11 @@ if sysconfig.get_config_var("Py_GIL_DISABLED"):
     exit(0)
 
 # TODO - in Py3.14 this'll probably be in the standard library
-from interpreters_backport import interpreters
+try:
+    from interpreters_backport import interpreters
+except ImportError:
+    # Py3.14?
+    import _interpreters as interpreters
 
 SKIP_FIRST = "skip_first="
 CYTHON_MODULE = "cython_module="
@@ -104,7 +108,7 @@ cymod.append_to_global()
 # will fail if accidentally shared
 assert len(cymod.some_global) == 1
 """
-    
+
 # skip_first is useful because we apply an optimization when all the interpreter ids are small,
 # so it lets us pick this optimization.
 for i in all_interpreters[skip_first:]:
