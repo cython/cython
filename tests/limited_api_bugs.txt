@@ -75,6 +75,14 @@ pyclass_special_methods
 time_pxd
 array_cimport
 
+# Relies on Numpy being OK in the Limited API (which is version-dependent)
+# TODO - these can be re-enabled later as we update test dependencies.
+complex_extern_GH1433
+extension_type_memoryview
+numpy_memoryview
+memoryviewattrs
+convolve2
+
 # example in docs that use features unavailable in the limited API
 # (and it's a decision for the docs writers rather than a limitation
 # of Cython's support)
