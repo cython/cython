@@ -881,7 +881,6 @@ def _get_memoryview_shared_utility_code(env):
     memviewslice_init_code = _get_memviewslice_init_code(memviewslice_declare_code)
     copy_contents_new_utility = _get_copy_contents_new_utility()
     shared_utility_code = CythonSharedUtilityCode(
-        "MemoryView",
         env.directives['use_shared_utility'],
         context=context,
         requires=[

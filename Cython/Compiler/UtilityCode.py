@@ -287,29 +287,27 @@ class TemplatedFileSourceDescriptor(FileSourceDescriptor):
 
 
 class CythonSharedUtilityCode(Code.AbstractUtilityCode):
-    def __init__(self, module_name, shared_utility_name, context, requires):
-        self._module_name = module_name
-        self.shared_utility_name = shared_utility_name
+    def __init__(self, shared_utility_qualified_name, context, requires):
+        self._shared_utility_qualified_name = shared_utility_qualified_name
         self.context = context
         self.requires = requires
         self._shared_library_scope = None
 
     def find_module(self, context):
-        qualified_name = '.'.join([self.shared_utility_name, self._module_name])
         scope = context
-        for name, is_package in scope._split_qualified_name(qualified_name, relative_import=False):
+        for name, is_package in scope._split_qualified_name(self._shared_utility_qualified_name, relative_import=False):
             scope = scope.find_submodule(name, as_package=is_package)
 
         pxd_pathname = os.path.join(
             os.path.split(Cython.__file__)[0],
             'Utility',
-            self._module_name + '.pxd'
+            'MemoryView.pxd'
         )
         try:
-            rel_path = qualified_name.replace('.', os.sep) + os.path.splitext(pxd_pathname)[1]
+            rel_path = self._shared_utility_qualified_name.replace('.', os.sep) + os.path.splitext(pxd_pathname)[1]
             source_desc = TemplatedFileSourceDescriptor(pxd_pathname, rel_path, self.context)
             source_desc.in_utility_code = True
-            err, result = context.process_pxd(source_desc, scope, qualified_name)
+            err, result = context.process_pxd(source_desc, scope, self._shared_utility_qualified_name)
             (pxd_codenodes, pxd_scope) = result
             context.utility_pxd = (pxd_codenodes, pxd_scope)
             scope.pxd_file_loaded = True

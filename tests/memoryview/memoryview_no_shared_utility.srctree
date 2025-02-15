@@ -14,7 +14,7 @@ extensions = [
 ]
 
 setup(
-  ext_modules = cythonize(extensions, compiler_directives={'use_shared_utility': 'pkg2'})
+  ext_modules = cythonize(extensions, compiler_directives={'use_shared_utility': 'pkg2.MemoryView'})
 )
 
 ######## pkg2/__init__.py ########
