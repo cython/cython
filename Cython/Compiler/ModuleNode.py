@@ -3883,6 +3883,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 f"invalid value for check_size '{type.check_size}' when compiling {module_name}.{type.name}")
         code.put(f'__Pyx_ImportType_CheckSize_{check_size.title()}_{Naming.cyversion});')
 
+        code.putln(f' if (!{typeptr_cname}) {error_code}')
     def generate_type_ready_code(self, entry, code):
         Nodes.CClassDefNode.generate_type_ready_code(entry, code)
 
