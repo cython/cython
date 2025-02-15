@@ -926,6 +926,8 @@ class MemoryViewSliceType(PyrexType):
             dtype.is_error or
             # Pointers are not valid (yet)
             # (dtype.is_ptr and valid_memslice_dtype(dtype.base_type)) or
+            # But: Allow pointers to Python objects as a special case
+            (dtype.is_ptr and str(dtype) == "PyObject *") or
             (dtype.is_array and i < 8 and self.valid_dtype(dtype.base_type, i + 1)) or
             dtype.is_numeric or
             dtype.is_pyobject or
