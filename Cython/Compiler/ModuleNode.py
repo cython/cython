@@ -3864,7 +3864,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 # and subsequents attempt to access their fields will trigger
                 # compile errors. Skip the struct size check here so things keep
                 # working when a builtin type is imported but not actually used.
-                code.putln('0,')
+                code.putln('0, 0,')
             else:
                 code.putln(f'sizeof({objstruct}), {alignment_func}({objstruct}),')
             code.putln('#else')
