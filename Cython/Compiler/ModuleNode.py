@@ -3848,30 +3848,26 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         if not is_api:
             typeptr_cname = code.name_in_main_c_code_module_state(typeptr_cname)
 
-        code.put(
+        code.putln(
             f"{typeptr_cname} = __Pyx_ImportType_{Naming.cyversion}("
             f"{module}, {module_name}, {type.name.as_c_string_literal()},"
         )
 
         alignment_func = f"__PYX_GET_STRUCT_ALIGNMENT_{Naming.cyversion}"
-        if sizeof_objstruct != objstruct:
-            code.putln("")  # start in new line
-            code.putln("#if defined(PYPY_VERSION_NUM) && PYPY_VERSION_NUM < 0x050B0000")
-            code.putln(f'sizeof({objstruct}), {alignment_func}({objstruct}),')
-            code.putln("#elif CYTHON_COMPILING_IN_LIMITED_API")
-            if is_builtin:
-                # Builtin types are opaque in when the limited API is enabled
-                # and subsequents attempt to access their fields will trigger
-                # compile errors. Skip the struct size check here so things keep
-                # working when a builtin type is imported but not actually used.
-                code.putln('0, 0,')
-            else:
-                code.putln(f'sizeof({objstruct}), {alignment_func}({objstruct}),')
-            code.putln('#else')
-            code.putln(f'sizeof({sizeof_objstruct}), {alignment_func}({sizeof_objstruct}),')
-            code.putln("#endif")
+        code.putln("#if defined(PYPY_VERSION_NUM) && PYPY_VERSION_NUM < 0x050B0000")
+        code.putln(f'sizeof({objstruct}), {alignment_func}({objstruct}),')
+        code.putln("#elif CYTHON_COMPILING_IN_LIMITED_API")
+        if is_builtin:
+            # Builtin types are opaque in when the limited API is enabled
+            # and subsequents attempt to access their fields will trigger
+            # compile errors. Skip the struct size check here so things keep
+            # working when a builtin type is imported but not actually used.
+            code.putln('0, 0,')
         else:
-            code.put(f' sizeof({objstruct}), {alignment_func}({objstruct}),')
+            code.putln(f'sizeof({objstruct}), {alignment_func}({objstruct}),')
+        code.putln('#else')
+        code.putln(f'sizeof({sizeof_objstruct}), {alignment_func}({sizeof_objstruct}),')
+        code.putln("#endif")
 
         # check_size
         if type.check_size and type.check_size in ('error', 'warn', 'ignore'):
