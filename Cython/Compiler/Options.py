@@ -236,6 +236,7 @@ _directive_defaults = {
     'cpp_locals': False,  # uses std::optional for C++ locals, so that they work more like Python locals
     'use_shared_utility': "",
     'legacy_implicit_noexcept': False,
+    'c_compile_guard': '',
 
     # set __file__ and/or __path__ to known source/target path at import time (instead of not having them available)
     'set_initial_path' : None,  # SOURCEFILE or "/full/path/to/module"
@@ -434,6 +435,7 @@ directive_scopes = {  # defaults to available everywhere
     'cpp_locals': ('module', 'function', 'cclass'),  # I don't think they make sense in a with_statement
     'ufunc': ('function',),
     'legacy_implicit_noexcept': ('module', ),
+    'c_compile_guard': ('function',),  # actually C function but this is enforced later
     'control_flow.dot_output': ('module',),
     'control_flow.dot_annotate_defs': ('module',),
     'freethreading_compatible': ('module',),

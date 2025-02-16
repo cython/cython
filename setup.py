@@ -231,6 +231,21 @@ cython_coverage = check_option('cython-coverage')
 cython_with_refnanny = check_option('cython-with-refnanny')
 
 compile_cython_itself = not check_option('no-cython-compile')
+
+if compile_cython_itself and sysconfig.get_config_var("Py_GIL_DISABLED"):
+    # On freethreaded builds there's good reasons not to compile Cython by default.
+    # Mainly that it doesn't currently declare as compatible with the limited API
+    # (because little effort has been spent making it thread-safe) and thus
+    # importing a compiled version of Cython will throw the interpreter back
+    # to using the GIL.
+    # This will adversely affect users of pyximport or jupyter.
+    # Therefore, we let users explicitly force Cython to be compiled on freethreaded
+    # builds but don't do it by default.
+    compile_cython_itself = (
+        check_option('cython-compile') or
+        check_option('cython-compile-all') or
+        check_option('cython-compile-minimal'))
+
 if compile_cython_itself:
     cython_compile_more = check_option('cython-compile-all')
     cython_compile_minimal = check_option('cython-compile-minimal')
