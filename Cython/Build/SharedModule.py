@@ -1,6 +1,4 @@
-import argparse
 import tempfile
-import sys
 import os
 import shutil
 
@@ -49,41 +47,29 @@ def create_shared_library_pipeline(context, scope, options, result):
         Pipeline.generate_pyx_code_stage_factory(options, result),
     ]
 
-def generate_shared_module(dest_dir):
+def generate_shared_module(options):
     Errors.init_thread()
     Errors.open_listing_file(None)
 
-    options = Options.CompilationOptions(language_level = 3)
+    dest_c_file = options.shared_c_file_path
+    module_name = os.path.splitext(os.path.basename(dest_c_file))[0]
+
     context = Main.Context.from_options(options)
     # To set "internal" directive of types to False
     context.compiler_directives["use_shared_utility"] = True
     scope = Symtab.ModuleScope('MemoryView', parent_module = None, context = context, is_package=False)
 
     with tempfile.TemporaryDirectory() as tmpdirname:
-        pyx_file = os.path.join(tmpdirname, 'MemoryView.pyx')
-        c_file = os.path.join(tmpdirname, 'MemoryView.c')
+        pyx_file = os.path.join(tmpdirname, f'{module_name}.pyx')
+        c_file = os.path.join(tmpdirname, f'{module_name}.c')
         with open(pyx_file, 'w'):
             pass
         source_desc = FileSourceDescriptor(pyx_file)
-        comp_src = Main.CompilationSource(source_desc, EncodedString('MemoryView'), os.getcwd())
+        comp_src = Main.CompilationSource(source_desc, EncodedString(module_name), os.getcwd())
         result = Main.create_default_resultobj(comp_src, options)
 
         pipeline = create_shared_library_pipeline(context, scope, options, result)
         err, enddata = Pipeline.run_pipeline(pipeline, comp_src)
         if err is None:
-            shutil.copy(c_file, dest_dir)
-            sys.exit(0)
-        else:
-            sys.exit(1)
-
-def main():
-    parser = argparse.ArgumentParser()
-    parser.add_argument('DIR', nargs='?', default='.')
-    args = parser.parse_args()
-    if not os.path.isdir(args.DIR):
-        print(f"{args.DIR} must be an existing directory.", file=sys.stderr)
-        sys.exit(1)
-    generate_shared_module(args.DIR)
-
-if __name__ == '__main__':
-    main()
+            shutil.copy(c_file, dest_c_file)
+        return err, enddata

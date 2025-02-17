@@ -828,9 +828,13 @@ def main(command_line = 0):
         os.chdir(options.working_path)
 
     try:
-        result = compile(sources, options)
-        if result.num_errors > 0:
-            any_failures = 1
+        if options.shared_c_file_path:
+            from ..Build.SharedModule import generate_shared_module
+            generate_shared_module(options)
+        else:
+            result = compile(sources, options)
+            if result.num_errors > 0:
+                any_failures = 1
     except (OSError, PyrexError) as e:
         sys.stderr.write(str(e) + '\n')
         any_failures = 1

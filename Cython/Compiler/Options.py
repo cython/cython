@@ -831,4 +831,5 @@ default_options = dict(
     create_extension=None,
     np_pythran=False,
     legacy_implicit_noexcept=None,
+    shared_c_file_path=None,
 )

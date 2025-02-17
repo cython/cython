@@ -1,7 +1,7 @@
 # tag: numpy
 
 """
-PYTHON -m Cython.Build.SharedModule pkg2
+CYTHON --generate-shared=pkg2/CythonShared.c
 PYTHON setup.py build_ext --inplace
 PYTHON -c "import test_shared_utility"
 """
@@ -15,11 +15,11 @@ import numpy
 
 extensions = [
     Extension("*", ["**/*.pyx"], include_dirs=[numpy.get_include()]),
-    Extension("pkg2.MemoryView", sources=["pkg2/MemoryView.c"])
+    Extension("pkg2.CythonShared", sources=["pkg2/CythonShared.c"])
 ]
 
 setup(
-  ext_modules = cythonize(extensions, compiler_directives={'use_shared_utility': 'pkg2.MemoryView'})
+  ext_modules = cythonize(extensions, compiler_directives={'use_shared_utility': 'pkg2.CythonShared'})
 )
 
 
@@ -39,8 +39,8 @@ assert f(np.arange(15, dtype='f').reshape(3, 5)) == 0.0
 assert call_cast() == [1, 2, 3, 4]
 assert call_cast_to_array() == [1, 2, 3, 4]
 
-from pkg2 import MemoryView
-assert hasattr(MemoryView, '__pyx_capi__'), dir(MemoryView)
+from pkg2 import CythonShared
+assert hasattr(CythonShared, '__pyx_capi__'), dir(CythonShared)
 
 ######## pkg1/__init__.py ########
 
@@ -49,10 +49,10 @@ assert hasattr(MemoryView, '__pyx_capi__'), dir(MemoryView)
 ######## pkg1/pkg11/add_one.pyx ########
 
 import sys
-from pkg2 import MemoryView
+from pkg2 import CythonShared
 
-assert MemoryView in sys.modules.values(), list(sys.modules)
-assert sys.modules['pkg2.MemoryView'] is MemoryView, list(sys.modules)
+assert CythonShared in sys.modules.values(), list(sys.modules)
+assert sys.modules['pkg2.CythonShared'] is CythonShared, list(sys.modules)
 
 def add_one(int[:] buf):
     for x in range(buf.shape[0]):
@@ -63,10 +63,10 @@ cimport numpy as cnp
 cimport cython
 
 import sys
-from pkg2 import MemoryView
+from pkg2 import CythonShared
 
-assert MemoryView in sys.modules.values(), list(sys.modules)
-assert sys.modules['pkg2.MemoryView'] is MemoryView, list(sys.modules)
+assert CythonShared in sys.modules.values(), list(sys.modules)
+assert sys.modules['pkg2.CythonShared'] is CythonShared, list(sys.modules)
 
 def f(cnp.ndarray[cython.floating, ndim=2] x):
     return x[0,0]
@@ -75,10 +75,10 @@ def f(cnp.ndarray[cython.floating, ndim=2] x):
 from cython cimport view
 
 import sys
-from pkg2 import MemoryView
+from pkg2 import CythonShared
 
-assert MemoryView in sys.modules.values(), list(sys.modules)
-assert sys.modules['pkg2.MemoryView'] is MemoryView, list(sys.modules)
+assert CythonShared in sys.modules.values(), list(sys.modules)
+assert sys.modules['pkg2.CythonShared'] is CythonShared, list(sys.modules)
 
 cdef cast(void *my_data_pointer):
     cdef int[:] my_array = <int[:4]> my_data_pointer
