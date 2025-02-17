@@ -67,6 +67,12 @@ class SetAnnotateCoverageAction(Action):
         namespace.annotate = True
         namespace.annotate_coverage_xml = values
 
+class SetSharedModuleAction(Action):
+    def __call__(self, parser, namespace, values, option_string=None):
+        directives = getattr(namespace, 'compiler_directives', {})
+        directives['use_shared_utility'] = values
+        namespace.compiler_directives = directives
+
 
 def create_cython_argparser():
     description = "Cython (https://cython.org/) is a compiler for code written in the "\
@@ -167,6 +173,7 @@ Environment variables:
     parser.add_argument("--cimport-from-pyx", dest='cimport_from_pyx', action='store_true', help=SUPPRESS)
     parser.add_argument("--old-style-globals", dest='old_style_globals', action='store_true', help=SUPPRESS)
     parser.add_argument("--generate-shared", dest='shared_c_file_path', action='store', type=str, help=SUPPRESS)
+    parser.add_argument("--shared", action=SetSharedModuleAction, type=str, help=SUPPRESS)
 
     # debug stuff:
     from . import DebugFlags
