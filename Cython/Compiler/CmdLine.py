@@ -164,6 +164,11 @@ Environment variables:
                            'deduced from the import path if source file is in '
                            'a package, or equals the filename otherwise.')
     parser.add_argument('-M', '--depfile', action='store_true', help='produce depfiles for the sources')
+    parser.add_argument("--generate-shared", dest='shared_c_file_path', action='store', type=str,
+                        help='Generates shared module with specified name.')
+    parser.add_argument("--shared", action=SetSharedModuleAction, type=str,
+                        help='Imports utility code from shared module specified by fully qualified module name.')
+
     parser.add_argument('sources', nargs='*', default=[])
 
     # TODO: add help
@@ -172,8 +177,6 @@ Environment variables:
     parser.add_argument("--no-c-in-traceback", dest='c_line_in_traceback', action='store_false', help=SUPPRESS)
     parser.add_argument("--cimport-from-pyx", dest='cimport_from_pyx', action='store_true', help=SUPPRESS)
     parser.add_argument("--old-style-globals", dest='old_style_globals', action='store_true', help=SUPPRESS)
-    parser.add_argument("--generate-shared", dest='shared_c_file_path', action='store', type=str, help=SUPPRESS)
-    parser.add_argument("--shared", action=SetSharedModuleAction, type=str, help=SUPPRESS)
 
     # debug stuff:
     from . import DebugFlags
