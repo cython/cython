@@ -2473,7 +2473,8 @@ class CClassScope(ClassScope):
                         % name)
             if not cname:
                 cname = name
-                if visibility == 'private':
+                if not (self.parent_type.is_external or self.parent_type.entry.api or 
+                        self.parent_type.entry.visibility == "public"):
                     cname = c_safe_identifier(cname)
                 cname = punycodify_name(cname, Naming.unicode_structmember_prefix)
             entry = self.declare(name, cname, type, pos, visibility)
