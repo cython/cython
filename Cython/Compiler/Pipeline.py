@@ -1,4 +1,3 @@
-import os.path
 import itertools
 from time import time
 
