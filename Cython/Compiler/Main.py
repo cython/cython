@@ -60,19 +60,13 @@ class Context:
     #  future_directives     [object]
     #  language_level        int     currently 2 or 3 for Python 2/3
 
-    cython_scope = None
     language_level = None  # warn when not set but default to Py2
 
     def __init__(self, include_directories, compiler_directives, cpp=False,
                  language_level=None, options=None):
-        # cython_scope is a hack, set to False by subclasses, in order to break
-        # an infinite loop.
-        # Better code organization would fix it.
 
-        from . import Builtin, CythonScope
+        from . import Builtin
         self.modules = {"__builtin__" : Builtin.builtin_scope}
-        self.cython_scope = CythonScope.create_cython_scope(self)
-        self.modules["cython"] = self.cython_scope
         self.include_directories = include_directories
         self.future_directives = set()
         self.compiler_directives = compiler_directives
@@ -80,6 +74,7 @@ class Context:
         self.options = options
 
         self.pxds = {}  # full name -> node tree
+        self.utility_pxd = None  # node tree
         self._interned = {}  # (type(value), value, *key_args) -> interned_value
 
         if language_level is not None:
@@ -129,6 +124,14 @@ class Context:
             result_sink = create_default_resultobj(source, self.options)
             pipeline = Pipeline.create_pyx_as_pxd_pipeline(self, result_sink)
             result = Pipeline.run_pipeline(pipeline, source)
+        elif source_desc.in_utility_code:
+            from . import ParseTreeTransforms
+            transform = ParseTreeTransforms.CnameDirectivesTransform(self)
+            before = ParseTreeTransforms.InterpretCompilerDirectives
+            pipeline = Pipeline.create_pxd_pipeline(self, scope, module_name)
+            pipeline = Pipeline.insert_into_pipeline(pipeline, transform,
+                                                     before=before)
+            result = Pipeline.run_pipeline(pipeline, source_desc)
         else:
             pipeline = Pipeline.create_pxd_pipeline(self, scope, module_name)
             result = Pipeline.run_pipeline(pipeline, source_desc)
@@ -825,9 +828,13 @@ def main(command_line = 0):
         os.chdir(options.working_path)
 
     try:
-        result = compile(sources, options)
-        if result.num_errors > 0:
-            any_failures = 1
+        if options.shared_c_file_path:
+            from ..Build.SharedModule import generate_shared_module
+            generate_shared_module(options)
+        else:
+            result = compile(sources, options)
+            if result.num_errors > 0:
+                any_failures = 1
     except (OSError, PyrexError) as e:
         sys.stderr.write(str(e) + '\n')
         any_failures = 1

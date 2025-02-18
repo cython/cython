@@ -67,6 +67,12 @@ class SetAnnotateCoverageAction(Action):
         namespace.annotate = True
         namespace.annotate_coverage_xml = values
 
+class SetSharedModuleAction(Action):
+    def __call__(self, parser, namespace, values, option_string=None):
+        directives = getattr(namespace, 'compiler_directives', {})
+        directives['use_shared_utility'] = values
+        namespace.compiler_directives = directives
+
 
 def create_cython_argparser():
     description = "Cython (https://cython.org/) is a compiler for code written in the "\
@@ -158,6 +164,11 @@ Environment variables:
                            'deduced from the import path if source file is in '
                            'a package, or equals the filename otherwise.')
     parser.add_argument('-M', '--depfile', action='store_true', help='produce depfiles for the sources')
+    parser.add_argument("--generate-shared", dest='shared_c_file_path', action='store', type=str,
+                        help='Generates shared module with specified name.')
+    parser.add_argument("--shared", action=SetSharedModuleAction, type=str,
+                        help='Imports utility code from shared module specified by fully qualified module name.')
+
     parser.add_argument('sources', nargs='*', default=[])
 
     # TODO: add help
@@ -240,8 +251,10 @@ def parse_command_line(args):
 
     if options.use_listing_file and len(sources) > 1:
         parser.error("cython: Only one source file allowed when using -o\n")
-    if len(sources) == 0 and not options.show_version:
+    if len(sources) == 0 and not (options.show_version or options.shared_c_file_path):
         parser.error("cython: Need at least one source file\n")
+    if options.shared_c_file_path and len(sources) > 0:
+        parser.error("cython: Source file not allowed when using --generate-shared\n")
     if Options.embed and len(sources) > 1:
         parser.error("cython: Only one source file allowed when using --embed\n")
     if options.module_name:

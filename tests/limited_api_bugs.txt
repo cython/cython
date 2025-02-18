@@ -82,6 +82,7 @@ extension_type_memoryview
 numpy_memoryview
 memoryviewattrs
 convolve2
+memoryview_shared_utility
 
 # example in docs that use features unavailable in the limited API
 # (and it's a decision for the docs writers rather than a limitation

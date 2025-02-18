@@ -52,8 +52,18 @@ def generate_pyx_code_stage_factory(options, result):
         return result
     return generate_pyx_code_stage
 
+def inject_utility_pxd_code_stage_factory(context):
+
+    def inject_utility_pxd_code_stage(module_node):
+        if context.utility_pxd:
+            statlistnode, scope = context.utility_pxd
+            module_node.merge_in(statlistnode, scope, stage="pxd")
+        return module_node
+
+    return inject_utility_pxd_code_stage
 
 def inject_pxd_code_stage_factory(context):
+
     def inject_pxd_code_stage(module_node):
         for name, (statlistnode, scope) in context.pxds.items():
             module_node.merge_in(statlistnode, scope, stage="pxd")
@@ -108,7 +118,7 @@ def normalize_deps(utilcodes):
 def inject_utility_code_stage_factory(context):
     def inject_utility_code_stage(module_node):
         module_node.prepare_utility_code()
-        use_utility_code_definitions(context.cython_scope, module_node.scope)
+        use_utility_code_definitions(module_node.scope.cython_scope, module_node.scope)
 
         utility_code_list = module_node.scope.utility_code_list
         utility_code_list[:] = sorted_utility_codes_and_deps(utility_code_list)
@@ -125,11 +135,12 @@ def inject_utility_code_stage_factory(context):
                 for dep in utilcode.requires:
                     if dep not in added:
                         utility_code_list.append(dep)
-            tree = utilcode.get_tree(cython_scope=context.cython_scope)
-            if tree:
+            if tree := utilcode.get_tree(cython_scope=module_node.scope.cython_scope):
                 module_node.merge_in(tree.with_compiler_directives(),
                                      tree.scope, stage="utility",
                                      merge_scope=True)
+            elif shared_library_scope := utilcode.get_shared_library_scope(cython_scope=module_node.scope.cython_scope):
+                module_node.scope.cimported_modules.append(shared_library_scope)
         return module_node
 
     return inject_utility_code_stage
@@ -253,9 +264,12 @@ def create_pyx_pipeline(context, options, result, py=False, exclude_classes=()):
         [parse_stage_factory(context)],
         create_pipeline(context, mode, exclude_classes=exclude_classes),
         test_support,
-        [inject_pxd_code_stage_factory(context),
-         inject_utility_code_stage_factory(context),
-         abort_on_errors],
+        [
+            inject_pxd_code_stage_factory(context),
+            inject_utility_code_stage_factory(context),
+            inject_utility_pxd_code_stage_factory(context),
+            abort_on_errors,
+        ],
         debug_transform,
         [generate_pyx_code_stage_factory(options, result)],
         ctest_support,
