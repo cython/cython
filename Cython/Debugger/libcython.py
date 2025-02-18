@@ -233,7 +233,6 @@ frame_repr_whitelist = set(f.__qualname__ for f in [
     gdb.Frame.newer,
     gdb.Frame.find_sal,
     gdb.Frame.select,
-    gdb.Frame.static_link,
     gdb.Frame.level,
     gdb.Frame.language,
     gdb.Symbol.is_valid,
