@@ -661,3 +661,105 @@ static {{out_type}} __Pyx_PyMemoryView_Get_{{name}}(PyObject *obj) {
     return -1;
 }
 #endif
+
+//////////////////// PyInt_bit_count.proto ////////////////////
+
+static CYTHON_INLINE int __Pyx_PyInt_bit_count(PyObject *x); /*proto*/
+
+//////////////////// PyInt_bit_count ////////////////////
+
+static CYTHON_INLINE int __Pyx_PyInt_bit_count(PyObject *x) {
+#if defined(__has_builtin) && __has_builtin(__builtin_popcountll)
+    PY_LONG_LONG result;
+    int overflow;
+
+    result = PyLong_AsLongLongAndOverflow(x, &overflow);
+    if (overflow) {
+        return (int)PyLong_AsLong(CALL_UNBOUND_METHOD(PyLong_Type, "bit_count", x));
+    } else {
+        unsigned PY_LONG_LONG value = (result < 0) ? -(unsigned PY_LONG_LONG)result : (unsigned PY_LONG_LONG)result;
+        return __builtin_popcountll(value);
+    };
+#else
+    return (int)PyLong_AsLong(CALL_UNBOUND_METHOD(PyLong_Type, "bit_count", x));
+#endif
+}
+
+//////////////////// bit_count_base.proto ////////////////////
+
+#if !(defined(__has_builtin) && __has_builtin(__builtin_popcountll))
+static inline int __Pyx_bit_count_base(unsigned PY_LONG_LONG x, int size);
+#endif
+
+//////////////////// bit_count_base ////////////////////
+
+#include <limits.h>
+
+#if !(defined(__has_builtin) && __has_builtin(__builtin_popcountll))
+static inline int __Pyx_bit_count_base(unsigned PY_LONG_LONG x, int size) {
+    if (size * CHAR_BIT == 8) {
+        uint8_t tmp = (uint8_t)x;
+        tmp -= (tmp >> 1) & 0x55;
+        tmp = (tmp & 0x33) + ((tmp >> 2) & 0x33);
+        tmp = (tmp + (tmp >> 4)) & 0x0F;
+
+        return (int)tmp;
+    } else if (size * CHAR_BIT == 16) {
+        uint16_t tmp = (uint16_t)x;
+        tmp -= (tmp >> 1) & 0x5555U;
+        tmp = (tmp & 0x3333U) + ((tmp >> 2) & 0x3333U);
+        tmp = ((tmp + (tmp >> 4)) & 0x0F0FU) * 0x0101U;
+        tmp >>= 8;
+
+        return (int)tmp;
+    } else if (size * CHAR_BIT == 32) {
+        uint32_t tmp = (uint32_t)x;
+        tmp -= (tmp >> 1) & 0x55555555UL;
+        tmp = (tmp & 0x33333333UL) + ((tmp >> 2) & 0x33333333UL);
+        tmp = ((tmp + (tmp >> 4)) & 0x0F0F0F0FUL) * 0x01010101UL;
+        tmp >>= 24;
+
+        return (int)tmp;
+    } else if (size * CHAR_BIT == 64) {
+        uint64_t tmp = (uint64_t)x;
+        tmp -= (tmp >> 1) & 0x55555555ULL;
+        tmp = (tmp & 0x33333333ULL) + ((tmp >> 2) & 0x33333333ULL);
+        tmp = ((tmp + (tmp >> 4)) & 0x0F0F0F0FULL) * 0x01010101ULL;
+        tmp >>= 56;
+
+        return (int)tmp;
+    }
+  #ifdef __SIZEOF_INT128__
+    else if (size * CHAR_BIT == 128) {
+        __uint128_t tmp = (__uint128_t)x;
+        tmp -= (tmp >> 1) & 0x55555555ULL;
+        tmp = (tmp & 0x33333333ULL) + ((tmp >> 2) & 0x33333333ULL);
+        tmp = ((tmp + (tmp >> 4)) & 0x0F0F0F0FULL) * 0x01010101ULL;
+        tmp >>= 120;
+
+        return (int)tmp;
+    }
+  #endif
+}
+#endif
+
+//////////////////// bit_count.proto ////////////////////
+
+static CYTHON_INLINE int __Pyx_{{type_.specialization_name()}}_bit_count({{type_.sign_and_name()}} x);
+
+//////////////////// bit_count.proto ////////////////////
+//@requires: bit_count_base
+
+static CYTHON_INLINE int __Pyx_{{type_.specialization_name()}}_bit_count({{type_.sign_and_name()}} {{'x' if type_.signed else 'value'}}) {
+{{if type_.signed}}
+    if (x == {{type_.min}}) return 1;
+    unsigned {{type_.rank_name()}} value = (x < 0) ? -(unsigned {{type_.rank_name()}})x : (unsigned {{type_.rank_name()}})x;
+{{endif}}
+
+#if defined(__has_builtin) && __has_builtin(__builtin_popcount)
+    return {{'__builtin_popcount' if type_.rank <= 2 else ('__builtin_popcountl' if type_.rank == 3 else '__builtin_popcountll')}}\
+        ({{'(unsigned int)' if type_.rank < 2 else ''}}value);
+#else
+    return __Pyx_bit_count_base((unsigned PY_LONG_LONG)value, sizeof({{type_.sign_and_name()}}));
+#endif
+}
