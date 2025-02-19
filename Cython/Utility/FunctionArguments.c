@@ -266,6 +266,10 @@ static int __Pyx_ParseOptionalKeywords(
     int kwds_is_tuple = CYTHON_METH_FASTCALL && likely(PyTuple_Check(kwds));
 
     while (1) {
+        #if CYTHON_USE_UNICODE_INTERNALS
+        Py_hash_t key_hash;
+        #endif
+
         // clean up key and value when the loop is "continued"
         Py_XDECREF(key); key = NULL;
         Py_XDECREF(value); value = NULL;
@@ -304,6 +308,7 @@ static int __Pyx_ParseOptionalKeywords(
 #endif
         }
 
+        // Quick pointer search for interned parameter matches.
         name = first_kw_arg;
         while (*name && (**name != key)) name++;
         if (*name) {
@@ -323,15 +328,30 @@ static int __Pyx_ParseOptionalKeywords(
 #endif
         Py_INCREF(value);
 
+        if (unlikely(!PyUnicode_Check(key))) goto invalid_keyword_type;
+
+        #if CYTHON_USE_UNICODE_INTERNALS
+        // The key hash is probably pre-calculated.
+        key_hash = ((PyASCIIObject*)key)->hash;
+        if (unlikely(key_hash == -1)) {
+            key_hash = PyObject_Hash(key);
+            if (unlikely(key_hash == -1))
+                goto bad;
+        }
+        #endif
+
+        // Compare strings for non-interned matches.
         name = first_kw_arg;
-        if (likely(PyUnicode_Check(key))) {
-            while (*name) {
-                int cmp = (
-                #if CYTHON_ASSUME_SAFE_SIZE
-                    (PyUnicode_GET_LENGTH(**name) != PyUnicode_GET_LENGTH(key)) ? 1 :
-                #endif
-                    PyUnicode_Compare(**name, key)
-                );
+        while (*name) {
+            PyObject *name_str = **name;
+            #if CYTHON_USE_UNICODE_INTERNALS
+            // Our argument hash is definitely pre-calculated.
+            if (key_hash == ((PyASCIIObject*)name_str)->hash)
+            #elif CYTHON_ASSUME_SAFE_SIZE
+            if (PyUnicode_GET_LENGTH(name_str) == PyUnicode_GET_LENGTH(key))
+            #endif
+            {
+                int cmp = PyUnicode_Compare(name_str, key);
                 if (cmp < 0 && unlikely(PyErr_Occurred())) goto bad;
                 if (cmp == 0) {
                     values[name-argnames] = value;
@@ -340,26 +360,30 @@ static int __Pyx_ParseOptionalKeywords(
 #endif
                     break;
                 }
-                name++;
             }
-            if (*name) continue;
-            else {
-                // not found after positional args, check for duplicate
-                PyObject*** argname = argnames;
-                while (argname != first_kw_arg) {
-                    int cmp = (**argname == key) ? 0 :
-                    #if CYTHON_ASSUME_SAFE_SIZE
-                        (PyUnicode_GET_LENGTH(**argname) != PyUnicode_GET_LENGTH(key)) ? 1 :
-                    #endif
-                        // need to convert argument name from bytes to unicode for comparison
-                        PyUnicode_Compare(**argname, key);
+            name++;
+        }
+        if (*name) continue;
+        else {
+            // Not found after positional args, check for duplicate positional argument.
+            PyObject*** argname = argnames;
+            while (argname != first_kw_arg) {
+                PyObject *name_str = **argname;
+                if (unlikely(name_str == key)) goto arg_passed_twice;
+
+                #if CYTHON_USE_UNICODE_INTERNALS
+                if (key_hash == ((PyASCIIObject*)name_str)->hash)
+                #elif CYTHON_ASSUME_SAFE_SIZE
+                if (PyUnicode_GET_LENGTH(name_str) == PyUnicode_GET_LENGTH(key))
+                #endif
+                {
+                    int cmp = PyUnicode_Compare(name_str, key);
                     if (cmp < 0 && unlikely(PyErr_Occurred())) goto bad;
                     if (cmp == 0) goto arg_passed_twice;
-                    argname++;
                 }
+                argname++;
             }
-        } else
-            goto invalid_keyword_type;
+        }
 
         if (kwds2) {
             if (unlikely(PyDict_SetItem(kwds2, key, value))) goto bad;
