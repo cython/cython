@@ -1744,23 +1744,28 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
         if not is_final_type or scope.may_have_finalize():
             # in Py3.4+, call tp_finalize() as early as possible
-            code.putln("#if CYTHON_USE_TP_FINALIZE")
+            code.globalstate.use_utility_code(
+                UtilityCode.load_cached("CallFinalizer", "ExtensionTypes.c"))
+            code.putln(
+                "if (unlikely("
+                "(PY_VERSION_HEX >= 0x03080000 || __Pyx_PyType_HasFeature(Py_TYPE(o), Py_TPFLAGS_HAVE_FINALIZE))"
+                " && __Pyx_PyObject_GetSlot(o, tp_finalize, destructor))) {")
             if needs_gc:
                 finalised_check = '!__Pyx_PyObject_GC_IsFinalized(o)'
             else:
                 finalised_check = (
                     '(!PyType_IS_GC(Py_TYPE(o)) || !__Pyx_PyObject_GC_IsFinalized(o))')
-            code.putln(
-                "if (unlikely("
-                "(PY_VERSION_HEX >= 0x03080000 || __Pyx_PyType_HasFeature(Py_TYPE(o), Py_TPFLAGS_HAVE_FINALIZE))"
-                " && __Pyx_PyObject_GetSlot(o, tp_finalize, destructor)) && %s) {" % finalised_check)
+            code.putln("#if CYTHON_USE_TP_FINALIZE")
+            code.putln(f"if (unlikely({finalised_check}))")
+            code.putln("#endif")
+            code.putln("{")
 
             code.putln("if (__Pyx_PyObject_GetSlot(o, tp_dealloc, destructor) == %s) {" % slot_func_cname)
             # if instance was resurrected by finaliser, return
-            code.putln("if (PyObject_CallFinalizerFromDealloc(o)) return;")
+            code.putln("if (__Pyx_PyObject_CallFinalizerFromDealloc(o)) return;")
             code.putln("}")
             code.putln("}")
-            code.putln("#endif")
+            code.putln("}")
 
         if needs_gc:
             # We must mark this object as (gc) untracked while tearing
