@@ -347,21 +347,18 @@ static int __Pyx_ParseOptionalKeywords(
             #if CYTHON_USE_UNICODE_INTERNALS
             // Our argument hash is definitely pre-calculated.
             if (key_hash == ((PyASCIIObject*)name_str)->hash)
+            #elif CYTHON_ASSUME_SAFE_SIZE
+            if (PyUnicode_GET_LENGTH(name_str) == PyUnicode_GET_LENGTH(key))
             #endif
             {
-                #if CYTHON_ASSUME_SAFE_SIZE
-                if (PyUnicode_GET_LENGTH(name_str) == PyUnicode_GET_LENGTH(key))
-                #endif
-                {
-                    int cmp = PyUnicode_Compare(name_str, key);
-                    if (cmp < 0 && unlikely(PyErr_Occurred())) goto bad;
-                    if (cmp == 0) {
-                        values[name-argnames] = value;
+                int cmp = PyUnicode_Compare(name_str, key);
+                if (cmp < 0 && unlikely(PyErr_Occurred())) goto bad;
+                if (cmp == 0) {
+                    values[name-argnames] = value;
 #if CYTHON_AVOID_BORROWED_REFS
-                        value = NULL;  /* ownership transferred to values */
+                    value = NULL;  /* ownership transferred to values */
 #endif
-                        break;
-                    }
+                    break;
                 }
             }
             name++;
@@ -376,16 +373,13 @@ static int __Pyx_ParseOptionalKeywords(
 
                 #if CYTHON_USE_UNICODE_INTERNALS
                 if (key_hash == ((PyASCIIObject*)name_str)->hash)
+                #elif CYTHON_ASSUME_SAFE_SIZE
+                if (PyUnicode_GET_LENGTH(name_str) == PyUnicode_GET_LENGTH(key))
                 #endif
                 {
-                    #if CYTHON_ASSUME_SAFE_SIZE
-                    if (PyUnicode_GET_LENGTH(name_str) == PyUnicode_GET_LENGTH(key))
-                    #endif
-                    {
-                        int cmp = PyUnicode_Compare(name_str, key);
-                        if (cmp < 0 && unlikely(PyErr_Occurred())) goto bad;
-                        if (cmp == 0) goto arg_passed_twice;
-                    }
+                    int cmp = PyUnicode_Compare(name_str, key);
+                    if (cmp < 0 && unlikely(PyErr_Occurred())) goto bad;
+                    if (cmp == 0) goto arg_passed_twice;
                 }
                 argname++;
             }
