@@ -1334,6 +1334,7 @@ class ModuleScope(Scope):
     # is_cython_builtin    boolean            Is this the Cython builtin scope (or a child scope)
     # is_package           boolean            Is this a package module? (__init__)
 
+    _cython_scope = None
     is_module_scope = 1
     has_import_star = 0
     is_cython_builtin = 0
@@ -1343,6 +1344,7 @@ class ModuleScope(Scope):
         '__builtins__', '__name__', '__file__', '__doc__', '__path__',
         '__spec__', '__loader__', '__package__', '__cached__',
     ]
+
 
     def __init__(self, name, parent_module, context, is_package=False):
         from . import Builtin
@@ -1373,6 +1375,13 @@ class ModuleScope(Scope):
         self._cached_tuple_types = {}
         self._cached_defaults_c_class_entries = {}
         self.process_include(Code.IncludeCode("Python.h", initial=True))
+
+    @property
+    def cython_scope(self):
+        if not self._cython_scope:
+            from . import CythonScope
+            self._cython_scope = CythonScope.create_cython_scope(self)
+        return self._cython_scope
 
     def qualifying_scope(self):
         return self.parent_module
@@ -1500,6 +1509,13 @@ class ModuleScope(Scope):
             absolute_fallback = True
 
         module_scope = self.global_scope()
+        if module_name == "cython" and not is_relative_import:
+            # Special-case Cython-scope. We want to generate it uniquely for each module
+            # because it depends on compiler directives
+            return module_scope.cython_scope
+        if module_name.startswith("cython.") and not is_relative_import:
+            _, rest = module_name.split('.', 1)
+            return module_scope.cython_scope.find_submodule(rest)
         return module_scope.context.find_module(
             module_name, from_module=from_module, pos=pos, absolute_fallback=absolute_fallback, relative_import=is_relative_import)
 
