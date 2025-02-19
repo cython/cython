@@ -26,12 +26,14 @@ def inspect_isfunction():
 def inspect_isbuiltin():
     """
     >>> inspect_isbuiltin()
-    False
-    False
+    True
+    True
     """
     import inspect, types
-    print isinstance(inspect_isfunction, types.BuiltinFunctionType)
-    return inspect.isbuiltin(inspect_isbuiltin)
+    is_builtin = isinstance(inspect_isfunction, types.BuiltinFunctionType)
+    print(is_builtin if sys.version_info >= (3, 9) else not is_builtin)
+    is_builtin = inspect.isbuiltin(inspect_isbuiltin)
+    return is_builtin if sys.version_info >= (3, 9) else not is_builtin
 
 
 def inspect_signature(a, b, c=123, *, d=234):
