@@ -250,7 +250,82 @@ static int __Pyx_ParseOptionalKeywords(PyObject *kwds, PyObject *const *kwvalues
 //
 //  This method does not check for required keyword arguments.
 
-static int __Pyx_ParseOptionalKeywords(
+static int __Pyx_ParseOptionalKeywordDict(
+    PyObject *kwds,
+    PyObject *const *kwvalues,
+    PyObject **argnames[],
+    PyObject *kwds2,
+    PyObject *values[],
+    Py_ssize_t num_pos_args,
+    const char* function_name)
+{
+    // Validate and parse keyword arguments from kwds dict.
+    PyObject *key;
+    PyObject*** name;
+    PyObject*** first_kw_arg = argnames + num_pos_args;
+
+    // Check if dict is unicode-keys-only and let Python set the error otherwise.
+    if (unlikely(!PyArg_ValidateKeywordArguments(kwds))) goto bad;
+
+    // Check for duplicates of positional arguments.
+    name = argnames;
+    while (*name && name != first_kw_arg) {
+        int check;
+        key = **name;
+        check = PyDict_Contains(kwds, key);
+        if (unlikely(check == -1)) goto bad;
+        if (unlikely(check == 1)) goto arg_passed_twice;
+        name++;
+    }
+
+    // Fast copy of all kwargs.
+    if (PyDict_Update(kwds2, kwds) < 0) goto bad;
+
+    // Extract declared keyword arguments (if any).
+    while (*name) {
+        key = **name;
+        PyObject *value;
+
+#if !CYTHON_COMPILING_IN_LIMITED_API && (PY_VERSION_HEX >= 0x030d00A2 || defined(PyDict_Pop))
+        int found = PyDict_Pop(kwds2, key, &value);
+        if (unlikely(found < 0)) goto bad;
+        if (found) {
+            values[name-argnames] = value;
+        }
+#elif __PYX_LIMITED_VERSION_HEX >= 0x030d0000
+        int found = PyDict_GetItemRef(kwds2, key, &value);
+        if (unlikely(found < 0)) goto bad;
+        if (found) {
+            values[name-argnames] = value;
+            if (unlikely(PyDict_DelItem(kwds2, key) < 0)) goto bad;
+        }
+#else
+    // We use 'kdws2' as sentinel value to dict.pop() to avoid an exception on missing key.
+    #if CYTHON_COMPILING_IN_CPYTHON
+        value = _PyDict_Pop(kwds2, key, kwds2);
+    #else
+        value = CALL_UNBOUND_METHOD(PyDict_Type, "pop", kwds2, key, kwds2);
+    #endif
+        if (unlikely(!value)) goto bad;
+        if (value == kwds2) {
+            // Not found.
+            Py_DECREF(value);
+        } else {
+            values[name-argnames] = value;
+        }
+#endif
+        name++;
+    }
+    return 0;
+
+arg_passed_twice:
+    __Pyx_RaiseDoubleKeywordsError(function_name, key);
+    goto bad;
+bad:
+    return -1;
+}
+
+static int __Pyx__ParseOptionalKeywords(
     PyObject *kwds,
     PyObject *const *kwvalues,
     PyObject **argnames[],
@@ -394,6 +469,7 @@ static int __Pyx_ParseOptionalKeywords(
     Py_XDECREF(key);
     Py_XDECREF(value);
     return 0;
+
 arg_passed_twice:
     __Pyx_RaiseDoubleKeywordsError(function_name, key);
     goto bad;
@@ -409,6 +485,24 @@ bad:
     Py_XDECREF(key);
     Py_XDECREF(value);
     return -1;
+}
+
+static int __Pyx_ParseOptionalKeywords(
+    PyObject *kwds,
+    PyObject *const *kwvalues,
+    PyObject **argnames[],
+    PyObject *kwds2,
+    PyObject *values[],
+    Py_ssize_t num_pos_args,
+    const char* function_name)
+{
+    int kwds_is_tuple = CYTHON_METH_FASTCALL && likely(PyTuple_Check(kwds));
+    if (!kwds_is_tuple && kwds && kwds2) {
+        // Special case: copy dict to dict.
+        return __Pyx_ParseOptionalKeywordDict(kwds, kwvalues, argnames, kwds2, values, num_pos_args, function_name);
+    } else {
+        return __Pyx__ParseOptionalKeywords(kwds, kwvalues, argnames, kwds2, values, num_pos_args, function_name);
+    }
 }
 
 
