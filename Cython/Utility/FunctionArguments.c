@@ -325,6 +325,21 @@ bad:
     return -1;
 }
 
+#if CYTHON_USE_UNICODE_INTERNALS
+static CYTHON_INLINE int __Pyx_UnicodeKeywordsEqual(PyObject *s1, PyObject *s2) {
+    int kind;
+    Py_ssize_t len = PyUnicode_GET_LENGTH(s1);
+    if (len != PyUnicode_GET_LENGTH(s2)) return 0;
+
+    kind = PyUnicode_KIND(s1);
+    if (kind != PyUnicode_KIND(s2)) return 0;
+
+    const void *data1 = PyUnicode_DATA(s1);
+    const void *data2 = PyUnicode_DATA(s2);
+    return (memcmp(data1, data2, (size_t) len * kind) == 0);
+}
+#endif
+
 static int __Pyx__ParseOptionalKeywords(
     PyObject *kwds,
     PyObject *const *kwvalues,
@@ -426,10 +441,14 @@ static int __Pyx__ParseOptionalKeywords(
             if (PyUnicode_GET_LENGTH(name_str) == PyUnicode_GET_LENGTH(key))
             #endif
             {
-                PyObject *cmp = PyUnicode_RichCompare(name_str, key, Py_EQ);
-                if (unlikely(!cmp)) goto bad;
-                Py_DECREF(cmp);
-                if (cmp == Py_True) {
+                #if CYTHON_USE_UNICODE_INTERNALS
+                if (__Pyx_UnicodeKeywordsEqual(name_str, key))
+                #else
+                int cmp = PyUnicode_Compare(name_str, key);
+                if (cmp < 0 && unlikely(PyErr_Occurred())) goto bad;
+                if (cmp == 0)
+                #endif
+                {
                     values[name-argnames] = value;
 #if CYTHON_AVOID_BORROWED_REFS
                     value = NULL;  /* ownership transferred to values */
@@ -440,26 +459,39 @@ static int __Pyx__ParseOptionalKeywords(
             name++;
         }
         if (*name) continue;
-        else {
-            // Not found after positional args, check for duplicate positional argument.
+
+        // Not found after positional args, check for (unlikely) duplicate positional argument.
+        {
+        #if CYTHON_USE_UNICODE_INTERNALS
+            PyObject*** argname = argnames;
+            int hash_matches_any = 0;
+            while (argname != first_kw_arg) {
+                hash_matches_any |= (key_hash == ((PyASCIIObject*)**argname)->hash);
+                argname++;
+            }
+            if (hash_matches_any) {
+                argname = argnames;
+                while (argname != first_kw_arg) {
+                    PyObject *name_str = **argname;
+                    if (unlikely(key_hash == ((PyASCIIObject*)name_str)->hash) && unlikely(__Pyx_UnicodeKeywordsEqual(name_str, key))) goto arg_passed_twice;
+                }
+            }
+        #else
             PyObject*** argname = argnames;
             while (argname != first_kw_arg) {
                 PyObject *name_str = **argname;
                 if (unlikely(name_str == key)) goto arg_passed_twice;
-
-                #if CYTHON_USE_UNICODE_INTERNALS
-                if (key_hash == ((PyASCIIObject*)name_str)->hash)
-                #elif CYTHON_ASSUME_SAFE_SIZE
+                #if CYTHON_ASSUME_SAFE_SIZE
                 if (PyUnicode_GET_LENGTH(name_str) == PyUnicode_GET_LENGTH(key))
                 #endif
                 {
-                    PyObject *cmp = PyUnicode_RichCompare(name_str, key, Py_EQ);
-                    if (unlikely(!cmp)) goto bad;
-                    Py_DECREF(cmp);
-                    if (cmp == Py_True) goto arg_passed_twice;
+                    int cmp = PyUnicode_Compare(name_str, key);
+                    if (cmp < 0 && unlikely(PyErr_Occurred())) goto bad;
+                    if (cmp == 0) goto arg_passed_twice;
                 }
                 argname++;
             }
+        #endif
         }
 
         if (kwds2) {
