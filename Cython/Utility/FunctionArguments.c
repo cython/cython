@@ -426,9 +426,10 @@ static int __Pyx__ParseOptionalKeywords(
             if (PyUnicode_GET_LENGTH(name_str) == PyUnicode_GET_LENGTH(key))
             #endif
             {
-                int cmp = PyUnicode_Compare(name_str, key);
-                if (cmp < 0 && unlikely(PyErr_Occurred())) goto bad;
-                if (cmp == 0) {
+                PyObject *cmp = PyUnicode_RichCompare(name_str, key, Py_EQ);
+                if (unlikely(!cmp)) goto bad;
+                Py_DECREF(cmp);
+                if (cmp == Py_True) {
                     values[name-argnames] = value;
 #if CYTHON_AVOID_BORROWED_REFS
                     value = NULL;  /* ownership transferred to values */
@@ -452,9 +453,10 @@ static int __Pyx__ParseOptionalKeywords(
                 if (PyUnicode_GET_LENGTH(name_str) == PyUnicode_GET_LENGTH(key))
                 #endif
                 {
-                    int cmp = PyUnicode_Compare(name_str, key);
-                    if (cmp < 0 && unlikely(PyErr_Occurred())) goto bad;
-                    if (cmp == 0) goto arg_passed_twice;
+                    PyObject *cmp = PyUnicode_RichCompare(name_str, key, Py_EQ);
+                    if (unlikely(!cmp)) goto bad;
+                    Py_DECREF(cmp);
+                    if (cmp == Py_True) goto arg_passed_twice;
                 }
                 argname++;
             }
