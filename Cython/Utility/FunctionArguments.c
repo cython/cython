@@ -474,6 +474,7 @@ static int __Pyx__ParseOptionalKeywords(
                 while (argname != first_kw_arg) {
                     PyObject *name_str = **argname;
                     if (unlikely(key_hash == ((PyASCIIObject*)name_str)->hash) && unlikely(__Pyx_UnicodeKeywordsEqual(name_str, key))) goto arg_passed_twice;
+                    argname++;
                 }
             }
         #else
