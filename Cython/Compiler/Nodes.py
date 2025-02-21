@@ -4338,7 +4338,7 @@ class DefNodeWrapper(FuncDefNode):
                 self.starstar_arg.entry.cname,
                 self.error_value()))
             code.put_var_gotref(self.starstar_arg.entry)
-        if self.star_arg and self.star_arg.entry.cf_used:
+        if self.star_arg:
             self.star_arg.entry.xdecref_cleanup = 0
             if max_positional_args == 0:
                 # If there are no positional arguments, use the args tuple
