@@ -267,21 +267,11 @@ static int __Pyx_ParseOptionalKeywordDict(
     // Check if dict is unicode-keys-only and let Python set the error otherwise.
     if (unlikely(!PyArg_ValidateKeywordArguments(kwds))) goto bad;
 
-    // Check for duplicates of positional arguments.
-    name = argnames;
-    while (*name && name != first_kw_arg) {
-        int check;
-        key = **name;
-        check = PyDict_Contains(kwds, key);
-        if (unlikely(check == -1)) goto bad;
-        if (unlikely(check == 1)) goto arg_passed_twice;
-        name++;
-    }
-
     // Fast copy of all kwargs.
     if (PyDict_Update(kwds2, kwds) < 0) goto bad;
 
     // Extract declared keyword arguments (if any).
+    name = first_kw_arg;
     while (*name) {
         key = **name;
         PyObject *value;
@@ -316,6 +306,20 @@ static int __Pyx_ParseOptionalKeywordDict(
 #endif
         name++;
     }
+
+    // If unmatched keywords remain, check for duplicates of positional arguments.
+    if (PyDict_Size(kwds2) > 0) {
+        name = argnames;
+        while (*name && name != first_kw_arg) {
+            int check;
+            key = **name;
+            check = PyDict_Contains(kwds, key);
+            if (unlikely(check == -1)) goto bad;
+            if (unlikely(check == 1)) goto arg_passed_twice;
+            name++;
+        }
+    }
+
     return 0;
 
 arg_passed_twice:
