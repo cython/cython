@@ -529,7 +529,7 @@ bad:
     return -1;
 }
 
-static int __Pyx_ParseOptionalKeywords(
+static CYTHON_INLINE int __Pyx_ParseOptionalKeywords(
     PyObject *kwds,
     PyObject *const *kwvalues,
     PyObject **argnames[],
@@ -557,7 +557,45 @@ static int __Pyx_MergeKeywords(PyObject *kwdict, PyObject *source_mapping); /*pr
 //@requires: RaiseDoubleKeywords
 //@requires: Optimize.c::dict_iter
 
-static int __Pyx_MergeKeywords(PyObject *kwdict, PyObject *source_mapping) {
+static int __Pyx_MergeKeywords_dict(PyObject *kwdict, PyObject *source_dict) {
+    int duplicates_found = 0;
+    Py_ssize_t ppos = 0;
+    PyObject *key, *smaller_dict, *larger_dict;
+
+    if (PyDict_Size(kwdict) <= PyDict_Size(source_dict)) {
+        smaller_dict = kwdict;
+        larger_dict = source_dict;
+    } else {
+        smaller_dict = source_dict;
+        larger_dict = kwdict;
+    }
+
+    __Pyx_BEGIN_CRITICAL_SECTION(smaller_dict);
+    while (PyDict_Next(smaller_dict, &ppos, &key, NULL)) {
+        #if CYTHON_AVOID_BORROWED_REFS || CYTHON_AVOID_THREAD_UNSAFE_BORROWED_REFS
+        Py_INCREF(key);
+        #endif
+        if (unlikely(PyDict_Contains(larger_dict, key))) {
+            __Pyx_RaiseDoubleKeywordsError("function", key);
+            #if CYTHON_AVOID_BORROWED_REFS || CYTHON_AVOID_THREAD_UNSAFE_BORROWED_REFS
+            Py_DECREF(key);
+            #endif
+            duplicates_found = 1;
+            break;
+        };
+        #if CYTHON_AVOID_BORROWED_REFS || CYTHON_AVOID_THREAD_UNSAFE_BORROWED_REFS
+        Py_DECREF(key);
+        #endif
+    }
+    __Pyx_END_CRITICAL_SECTION();
+
+    if (unlikely(duplicates_found))
+        return -1;
+
+    return PyDict_Update(kwdict, source_dict);
+}
+
+static int __Pyx_MergeKeywords_any(PyObject *kwdict, PyObject *source_mapping) {
     PyObject *iter, *key = NULL, *value = NULL;
     int source_is_dict, result;
     Py_ssize_t orig_length, ppos = 0;
@@ -573,8 +611,9 @@ static int __Pyx_MergeKeywords(PyObject *kwdict, PyObject *source_mapping) {
             PyObject *fallback = PyObject_Call((PyObject*)&PyDict_Type, args, NULL);
             Py_DECREF(args);
             if (likely(fallback)) {
-                iter = __Pyx_dict_iterator(fallback, 1, PYIDENT("items"), &orig_length, &source_is_dict);
+                result = __Pyx_MergeKeywords_dict(kwdict, fallback);
                 Py_DECREF(fallback);
+                return result;
             }
         }
         if (unlikely(!iter)) goto bad;
@@ -612,6 +651,15 @@ static int __Pyx_MergeKeywords(PyObject *kwdict, PyObject *source_mapping) {
 bad:
     Py_XDECREF(iter);
     return -1;
+}
+
+static CYTHON_INLINE int __Pyx_MergeKeywords(PyObject *kwdict, PyObject *source_mapping) {
+    assert(PyDict_Check(kwdict));
+    if (likely(PyDict_Check(source_mapping))) {
+        return __Pyx_MergeKeywords_dict(kwdict, source_mapping);
+    } else {
+        return __Pyx_MergeKeywords_any(kwdict, source_mapping);
+    }
 }
 
 
