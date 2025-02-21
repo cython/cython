@@ -228,7 +228,9 @@ invalid_keyword:
 static int __Pyx_ParseOptionalKeywords(PyObject *kwds, PyObject *const *kwvalues,
     PyObject **argnames[],
     PyObject *kwds2, PyObject *values[], Py_ssize_t num_pos_args,
-    const char* function_name); /*proto*/
+    const char* function_name,
+    int ignore_unknown_kwargs
+); /*proto*/
 
 //////////////////// ParseKeywords ////////////////////
 //@requires: RaiseDoubleKeywords
@@ -351,7 +353,9 @@ static int __Pyx__ParseOptionalKeywords(
     PyObject *kwds2,
     PyObject *values[],
     Py_ssize_t num_pos_args,
-    const char* function_name)
+    const char* function_name,
+    int ignore_unknown_kwargs
+)
 {
     PyObject *key = 0, *value = 0;
     Py_ssize_t pos = 0;
@@ -501,7 +505,7 @@ static int __Pyx__ParseOptionalKeywords(
 
         if (kwds2) {
             if (unlikely(PyDict_SetItem(kwds2, key, value))) goto bad;
-        } else {
+        } else if (!ignore_unknown_kwargs) {
             goto invalid_keyword;
         }
     }
@@ -533,14 +537,15 @@ static int __Pyx_ParseOptionalKeywords(
     PyObject *kwds2,
     PyObject *values[],
     Py_ssize_t num_pos_args,
-    const char* function_name)
+    const char* function_name,
+    int ignore_unknown_kwargs)
 {
     int kwds_is_tuple = CYTHON_METH_FASTCALL && likely(PyTuple_Check(kwds));
     if (!kwds_is_tuple && kwds && kwds2) {
         // Special case: copy dict to dict.
         return __Pyx_ParseOptionalKeywordDict(kwds, kwvalues, argnames, kwds2, values, num_pos_args, function_name);
     } else {
-        return __Pyx__ParseOptionalKeywords(kwds, kwvalues, argnames, kwds2, values, num_pos_args, function_name);
+        return __Pyx__ParseOptionalKeywords(kwds, kwvalues, argnames, kwds2, values, num_pos_args, function_name, ignore_unknown_kwargs);
     }
 }
 
@@ -581,12 +586,23 @@ static int __Pyx_MergeKeywords(PyObject *kwdict, PyObject *source_mapping) {
         if (unlikely(result < 0)) goto bad;
         if (!result) break;
 
+    #if PY_VERSION_HEX >= 0x030d0000 && !CYTHON_COMPILING_IN_LIMITED_API
+        {
+            int inserted = PyDict_SetDefaultRef(kwdict, key, value, NULL);
+            if (unlikely(inserted != 0)) {
+                if (inserted == 1) __Pyx_RaiseDoubleKeywordsError("function", key);
+                result = -1;
+            }
+        }
+    #else
         if (unlikely(PyDict_Contains(kwdict, key))) {
             __Pyx_RaiseDoubleKeywordsError("function", key);
             result = -1;
         } else {
             result = PyDict_SetItem(kwdict, key, value);
         }
+    #endif
+
         Py_DECREF(key);
         Py_DECREF(value);
         if (unlikely(result < 0)) goto bad;

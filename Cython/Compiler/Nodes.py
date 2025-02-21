@@ -4198,15 +4198,16 @@ class DefNodeWrapper(FuncDefNode):
             # the kw-args dict passed is non-empty (which it will be, since kw_unpacking_condition is true)
             code.globalstate.use_utility_code(
                 UtilityCode.load_cached("ParseKeywords", "FunctionArguments.c"))
-            code.putln('if (likely(__Pyx_ParseOptionalKeywords(%s, %s, %s, %s, %s, %s, %s) < 0)) %s' % (
-                Naming.kwds_cname,
-                Naming.kwvalues_cname,
-                Naming.pykwdlist_cname,
-                self.starstar_arg.entry.cname if self.starstar_arg else 0,
-                'values',
-                0,
-                self_name_csafe,
-                code.error_goto(self.pos)))
+            code.put_error_if_neg(
+                self.pos,
+                f"__Pyx_ParseOptionalKeywords("
+                f"{Naming.kwds_cname}, {Naming.kwvalues_cname}, {Naming.pykwdlist_cname}, "
+                f"{self.starstar_arg.entry.cname if self.starstar_arg else '0'}, "
+                f"{self.starstar_arg.entry.cname if self.starstar_arg else '0'}, "
+                f"values, 0, {self_name_csafe}, "
+                f"{self.starstar_arg is not None :d}"  # **kwargs might exist but be NULL in C if unused
+                ")",
+            )
 
         # --- optimised code when we do not receive any keyword arguments
         if (self.num_required_kw_args and min_positional_args > 0) or min_positional_args == max_positional_args:
@@ -4331,14 +4332,14 @@ class DefNodeWrapper(FuncDefNode):
                 error(arg.pos, "Cannot convert Python object argument to type '%s'" % arg.type)
 
     def generate_stararg_init_code(self, max_positional_args, code):
-        if self.starstar_arg:
+        if self.starstar_arg and self.starstar_arg.entry.cf_used:
             self.starstar_arg.entry.xdecref_cleanup = 0
             code.putln('%s = PyDict_New(); if (unlikely(!%s)) return %s;' % (
                 self.starstar_arg.entry.cname,
                 self.starstar_arg.entry.cname,
                 self.error_value()))
             code.put_var_gotref(self.starstar_arg.entry)
-        if self.star_arg:
+        if self.star_arg and self.star_arg.entry.cf_used:
             self.star_arg.entry.xdecref_cleanup = 0
             if max_positional_args == 0:
                 # If there are no positional arguments, use the args tuple
@@ -4576,15 +4577,17 @@ class DefNodeWrapper(FuncDefNode):
             values_array = 'values'
         code.globalstate.use_utility_code(
             UtilityCode.load_cached("ParseKeywords", "FunctionArguments.c"))
-        code.putln('if (unlikely(__Pyx_ParseOptionalKeywords(%s, %s, %s, %s, %s, %s, %s) < 0)) %s' % (
-            Naming.kwds_cname,
-            Naming.kwvalues_cname,
-            Naming.pykwdlist_cname,
-            self.starstar_arg and self.starstar_arg.entry.cname or '0',
-            values_array,
-            pos_arg_count,
-            self_name_csafe,
-            code.error_goto(self.pos)))
+        code.put_error_if_neg(
+            self.pos,
+            f"__Pyx_ParseOptionalKeywords("
+            f"{Naming.kwds_cname}, {Naming.kwvalues_cname}, {Naming.pykwdlist_cname}, "
+            f"{self.starstar_arg and self.starstar_arg.entry.cname or '0'}, "
+            f"{values_array}, "
+            f"{pos_arg_count}, "
+            f"{self_name_csafe}, "
+            f"{self.starstar_arg is not None :d}"  # **kwargs might exist but be NULL in C if unused
+            ")"
+        )
         code.putln('}')
 
     def generate_optional_kwonly_args_unpacking_code(self, all_args, code):
