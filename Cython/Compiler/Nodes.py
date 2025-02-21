@@ -4331,6 +4331,7 @@ class DefNodeWrapper(FuncDefNode):
                 error(arg.pos, "Cannot convert Python object argument to type '%s'" % arg.type)
 
     def generate_stararg_init_code(self, max_positional_args, code):
+        # If the "**kwargs" parameter is unused, we keep it as NULL to avoid useless overhead.
         if self.starstar_arg and self.starstar_arg.entry.cf_used:
             self.starstar_arg.entry.xdecref_cleanup = 0
             code.putln('%s = PyDict_New(); if (unlikely(!%s)) return %s;' % (
