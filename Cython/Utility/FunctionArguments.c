@@ -254,7 +254,6 @@ static int __Pyx_ParseOptionalKeywords(PyObject *kwds, PyObject *const *kwvalues
 
 static int __Pyx_ParseOptionalKeywordDict(
     PyObject *kwds,
-    PyObject *const *kwvalues,
     PyObject **argnames[],
     PyObject *kwds2,
     PyObject *values[],
@@ -542,7 +541,7 @@ static CYTHON_INLINE int __Pyx_ParseOptionalKeywords(
     int kwds_is_tuple = CYTHON_METH_FASTCALL && likely(PyTuple_Check(kwds));
     if (!kwds_is_tuple && kwds && kwds2) {
         // Special case: copy dict to dict.
-        return __Pyx_ParseOptionalKeywordDict(kwds, kwvalues, argnames, kwds2, values, num_pos_args, function_name);
+        return __Pyx_ParseOptionalKeywordDict(kwds, argnames, kwds2, values, num_pos_args, function_name);
     } else {
         return __Pyx__ParseOptionalKeywords(kwds, kwvalues, argnames, kwds2, values, num_pos_args, function_name, ignore_unknown_kwargs);
     }
