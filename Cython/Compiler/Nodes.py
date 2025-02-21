@@ -4203,7 +4203,6 @@ class DefNodeWrapper(FuncDefNode):
                 f"__Pyx_ParseOptionalKeywords("
                 f"{Naming.kwds_cname}, {Naming.kwvalues_cname}, {Naming.pykwdlist_cname}, "
                 f"{self.starstar_arg.entry.cname if self.starstar_arg else '0'}, "
-                f"{self.starstar_arg.entry.cname if self.starstar_arg else '0'}, "
                 f"values, 0, {self_name_csafe}, "
                 f"{self.starstar_arg is not None :d}"  # **kwargs might exist but be NULL in C if unused
                 ")",

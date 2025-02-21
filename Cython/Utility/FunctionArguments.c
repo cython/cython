@@ -354,8 +354,7 @@ static int __Pyx__ParseOptionalKeywords(
     PyObject *values[],
     Py_ssize_t num_pos_args,
     const char* function_name,
-    int ignore_unknown_kwargs
-)
+    int ignore_unknown_kwargs)
 {
     PyObject *key = 0, *value = 0;
     Py_ssize_t pos = 0;
