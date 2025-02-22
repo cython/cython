@@ -41,7 +41,7 @@ def create_shared_library_pipeline(context, scope, options, result):
         generate_tree_factory(context),
         *Pipeline.create_pipeline(context, 'pyx', exclude_classes=()),
         Pipeline.inject_pxd_code_stage_factory(context),
-        Pipeline.inject_utility_code_stage_factory(context),
+        Pipeline.inject_utility_code_stage_factory(context, internal_c_class_entries=False),
         Pipeline.inject_utility_pxd_code_stage_factory(context),
         Pipeline.abort_on_errors,
         Pipeline.generate_pyx_code_stage_factory(options, result),
@@ -55,8 +55,6 @@ def generate_shared_module(options):
     module_name = os.path.splitext(os.path.basename(dest_c_file))[0]
 
     context = Main.Context.from_options(options)
-    # To set "internal" directive of types to False
-    context.compiler_directives["use_shared_utility"] = True
     scope = Symtab.ModuleScope('MemoryView', parent_module = None, context = context, is_package=False)
 
     with tempfile.TemporaryDirectory() as tmpdirname:
