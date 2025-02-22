@@ -234,7 +234,7 @@ _directive_defaults = {
     'np_pythran': False,
     'fast_gil': False,
     'cpp_locals': False,  # uses std::optional for C++ locals, so that they work more like Python locals
-    'use_shared_utility': "",
+    'shared_utility_qualified_name': "",
     'legacy_implicit_noexcept': False,
     'c_compile_guard': '',
 
@@ -439,7 +439,7 @@ directive_scopes = {  # defaults to available everywhere
     'control_flow.dot_output': ('module',),
     'control_flow.dot_annotate_defs': ('module',),
     'freethreading_compatible': ('module',),
-    'use_shared_utility': ('module',),
+    'shared_utility_qualified_name': ('module',),
 }
 
 

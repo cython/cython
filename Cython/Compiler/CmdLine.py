@@ -70,7 +70,7 @@ class SetAnnotateCoverageAction(Action):
 class SetSharedModuleAction(Action):
     def __call__(self, parser, namespace, values, option_string=None):
         directives = getattr(namespace, 'compiler_directives', {})
-        directives['use_shared_utility'] = values
+        directives['shared_utility_qualified_name'] = values
         namespace.compiler_directives = directives
 
 

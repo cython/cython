@@ -19,7 +19,7 @@ extensions = [
 ]
 
 setup(
-  ext_modules = cythonize(extensions, compiler_directives={'use_shared_utility': 'pkg2.CythonShared'})
+  ext_modules = cythonize(extensions, compiler_directives={'shared_utility_qualified_name': 'pkg2.CythonShared'})
 )
 
 

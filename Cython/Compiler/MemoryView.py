@@ -806,7 +806,7 @@ def load_memview_c_utility(util_code_name, context=None, **kwargs):
                                        context=context, **kwargs)
 
 def use_cython_array_utility_code(env):
-    if env.directives['use_shared_utility']:
+    if env.directives['shared_utility_qualified_name']:
         return
     cython_scope = env.global_scope().cython_scope
     cython_scope.load_cythonscope()
@@ -881,7 +881,7 @@ def _get_memoryview_shared_utility_code(env):
     memviewslice_init_code = _get_memviewslice_init_code(memviewslice_declare_code)
     copy_contents_new_utility = _get_copy_contents_new_utility()
     shared_utility_code = CythonSharedUtilityCode(
-        env.directives['use_shared_utility'],
+        env.directives['shared_utility_qualified_name'],
         context=context,
         requires=[
                 Buffer.buffer_struct_declare_code,
@@ -897,13 +897,13 @@ def _get_memoryview_shared_utility_code(env):
     return (shared_utility_code, memviewslice_init_code)
 
 def get_view_utility_code(env):
-    if env.directives['use_shared_utility']:
+    if env.directives['shared_utility_qualified_name']:
         return _get_memoryview_shared_utility_code(env)[0]
     else:
         return _get_memoryview_utility_code()[0]
 
 def get_memviewslice_init_code(env):
-    if env.directives['use_shared_utility']:
+    if env.directives['shared_utility_qualified_name']:
         return _get_memoryview_shared_utility_code(env)[1]
     else:
         return _get_memoryview_utility_code()[1]
