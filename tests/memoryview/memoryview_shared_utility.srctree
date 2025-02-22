@@ -10,7 +10,6 @@ PYTHON -c "import test_shared_utility"
 
 from Cython.Build import cythonize
 from setuptools import setup, Extension
-from Cython.Compiler import Options
 import numpy
 
 extensions = [
