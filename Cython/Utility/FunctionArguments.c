@@ -557,39 +557,53 @@ static int __Pyx_MergeKeywords(PyObject *kwdict, PyObject *source_mapping); /*pr
 //@requires: Optimize.c::dict_iter
 
 static int __Pyx_MergeKeywords_dict(PyObject *kwdict, PyObject *source_dict) {
-    int duplicates_found = 0;
-    Py_ssize_t ppos = 0;
-    PyObject *key, *smaller_dict, *larger_dict;
+    Py_ssize_t len1, len2;
 
-    if (PyDict_Size(kwdict) <= PyDict_Size(source_dict)) {
-        smaller_dict = kwdict;
-        larger_dict = source_dict;
-    } else {
-        smaller_dict = source_dict;
-        larger_dict = kwdict;
+    len2 = PyDict_Size(source_dict);
+    if (unlikely(len2 == -1)) return -1;
+    if (len2 == 0) {
+        // There's nothing to copy from an empty dict.
+        return 0;
     }
 
-    __Pyx_BEGIN_CRITICAL_SECTION(smaller_dict);
-    while (PyDict_Next(smaller_dict, &ppos, &key, NULL)) {
-        #if CYTHON_AVOID_BORROWED_REFS || CYTHON_AVOID_THREAD_UNSAFE_BORROWED_REFS
-        Py_INCREF(key);
-        #endif
-        if (unlikely(PyDict_Contains(larger_dict, key))) {
-            __Pyx_RaiseDoubleKeywordsError("function", key);
+    len1 = PyDict_Size(kwdict);
+    if (unlikely(len1 == -1)) return -1;
+
+    if (len1 > 0) {
+        PyObject *key, *smaller_dict, *larger_dict;
+        Py_ssize_t ppos = 0;
+        int duplicates_found = 0;
+
+        if (len1 <= len2) {
+            smaller_dict = kwdict;
+            larger_dict = source_dict;
+        } else {
+            smaller_dict = source_dict;
+            larger_dict = kwdict;
+        }
+
+        __Pyx_BEGIN_CRITICAL_SECTION(smaller_dict);
+        while (PyDict_Next(smaller_dict, &ppos, &key, NULL)) {
+            #if CYTHON_AVOID_BORROWED_REFS || CYTHON_AVOID_THREAD_UNSAFE_BORROWED_REFS
+            Py_INCREF(key);
+            #endif
+            if (unlikely(PyDict_Contains(larger_dict, key))) {
+                __Pyx_RaiseDoubleKeywordsError("function", key);
+                #if CYTHON_AVOID_BORROWED_REFS || CYTHON_AVOID_THREAD_UNSAFE_BORROWED_REFS
+                Py_DECREF(key);
+                #endif
+                duplicates_found = 1;
+                break;
+            };
             #if CYTHON_AVOID_BORROWED_REFS || CYTHON_AVOID_THREAD_UNSAFE_BORROWED_REFS
             Py_DECREF(key);
             #endif
-            duplicates_found = 1;
-            break;
-        };
-        #if CYTHON_AVOID_BORROWED_REFS || CYTHON_AVOID_THREAD_UNSAFE_BORROWED_REFS
-        Py_DECREF(key);
-        #endif
-    }
-    __Pyx_END_CRITICAL_SECTION();
+        }
+        __Pyx_END_CRITICAL_SECTION();
 
-    if (unlikely(duplicates_found))
-        return -1;
+        if (unlikely(duplicates_found))
+            return -1;
+    }
 
     return PyDict_Update(kwdict, source_dict);
 }
