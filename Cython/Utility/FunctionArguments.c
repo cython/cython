@@ -265,9 +265,6 @@ static int __Pyx_ParseOptionalKeywordDict(
     PyObject*** name;
     PyObject*** first_kw_arg = argnames + num_pos_args;
 
-    // Check if dict is unicode-keys-only and let Python set the error otherwise.
-    if (unlikely(!PyArg_ValidateKeywordArguments(kwds))) goto bad;
-
     // Fast copy of all kwargs.
     if (PyDict_Update(kwds2, kwds) < 0) goto bad;
 
@@ -466,7 +463,7 @@ static int __Pyx__ParseOptionalKeywords(
         }
         if (*name) continue;
 
-        // Not found after positional args, check for (unlikely) duplicate positional argument.
+        // Not found in keyword parameters, check for (unlikely) duplicate positional argument.
         {
         #if CYTHON_USE_UNICODE_INTERNALS
             PyObject*** argname = argnames;
@@ -539,12 +536,17 @@ static CYTHON_INLINE int __Pyx_ParseOptionalKeywords(
     int ignore_unknown_kwargs)
 {
     int kwds_is_tuple = CYTHON_METH_FASTCALL && likely(PyTuple_Check(kwds));
-    if (!kwds_is_tuple && kwds && kwds2) {
-        // Special case: copy dict to dict.
-        return __Pyx_ParseOptionalKeywordDict(kwds, argnames, kwds2, values, num_pos_args, function_name);
-    } else {
-        return __Pyx__ParseOptionalKeywords(kwds, kwvalues, argnames, kwds2, values, num_pos_args, function_name, ignore_unknown_kwargs);
+    if (!kwds_is_tuple && kwds) {
+        // Check if dict is unicode-keys-only and let Python set the error otherwise.
+        if (unlikely(!PyArg_ValidateKeywordArguments(kwds))) return -1;
+
+        if (kwds2) {
+            // Special case: copy dict to dict.
+            return __Pyx_ParseOptionalKeywordDict(kwds, argnames, kwds2, values, num_pos_args, function_name);
+        }
     }
+
+    return __Pyx__ParseOptionalKeywords(kwds, kwvalues, argnames, kwds2, values, num_pos_args, function_name, ignore_unknown_kwargs);
 }
 
 
