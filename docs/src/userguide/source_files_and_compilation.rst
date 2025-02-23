@@ -487,7 +487,7 @@ The compilation process now consist of four steps:
 
 4. compiling ``module.c`` file
 
-.. warning:: Extension module compiled with ``--shared=...`` argument, automatically imports the shared module under the fully qualified name provided via the argument parameter. Failing to import the shared module will cause a failure of the extention module import.
+.. warning:: Extension module compiled with ``--shared=...`` argument, automatically imports the shared module under the fully qualified name provided via the argument parameter. Failing to import the shared module will cause a failure of the extension module import.
 
 Compiling shared module using setuptools
 ----------------------------------------
