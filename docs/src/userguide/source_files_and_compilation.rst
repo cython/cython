@@ -447,6 +447,72 @@ e.g.::
 These ``.pxd`` files need not have corresponding ``.pyx``
 modules if they contain purely declarations of external libraries.
 
+.. _shared_module:
+
+Shared utility module
+=====================
+
+When ``.pyx``/``.py`` file is compiled to ``.c`` file, cython automatically embed utility code to the resulting ``.c`` file. For projects containing multiple cython modules, it
+can result with larger total size of compiled extentions. To avoid redundant code, the shared utility code can be generated to separate extention module which is
+automatically cimported and used by the extention modules.
+
+.. note:: Currently only memoryview utility code can be generated in the shared utility module.
+
+Consider following example package ::
+
+    mypkg/
+    +-- __init__.py
+    +-- shared/
+    |   +-- __init__.py
+    |   +-- _cyutility.c
+    +-- subpkg1/
+        +-- __init__.py
+        +-- module.pyx
+
+The :file:`_cyutility.c` file contains shared utility code and :file:`module.pyx` is a standard cython source file which will be compiled extention cimporting ``mypkg.shared._cyutility`` module.
+The compilation process now consist of four steps:
+
+1. generating shared utility code. This is done via ``--generate-shared`` argument:
+
+   .. code-block:: console
+
+       $ cython --generate-shared=mypkg/shared/_cyutility.c
+
+2. compiling shared utility code. Module needs to be compiled as regular ``.c`` file using directly C compiler, setuptools, etc.
+3. compiling ``.pyx`` file to ``.c`` file with ``--shared`` argument:
+
+   .. code-block:: console
+
+        $ cython --shared=mypkg.shared._cyutility module.pyx
+
+4. compiling ``module.c`` file
+
+.. warning:: Extention module compiled with ``--shared=...`` argument, automatically imports the shared module under the fully qualified name provided via the argument parameter. Failing to import the shared module will cause a failure of the extention module import.
+
+Compiling shared module using setuptools
+----------------------------------------
+
+To simplify compilation process, setuptools can be used. To specify fully qualified module name of the shared utility, the ``shared_utility_qualified_name`` directive can be used instead of the ``--shared`` argument. The :file:`setup.py` file would be:
+
+.. code-block:: python
+    :caption: setup.py
+
+    from Cython.Build import cythonize
+    from setuptools import setup, Extension
+    import numpy
+
+    extensions = [
+        Extension("*", ["**/*.pyx"]),
+        Extension("mypkg.shared._cyutility", sources=["mypkg/shared/_cyutility.c"])
+    ]
+
+    setup(
+      ext_modules = cythonize(extensions,
+          compiler_directives={'shared_utility_qualified_name': 'mypkg.shared._cyutility'})
+    )
+
+
+.. note:: The shared utility :file:`_cyutility.c` file needs to be generated manually using ``cython --generate-shared=...`` command (generated ``.c`` file can be commited to the repository).
 
 .. _integrating_multiple_modules:
 
@@ -1050,6 +1116,11 @@ Cython code.  Here is the list of currently supported directives:
     cause Cython 3.0 to have the same semantics as Cython 0.x. This directive was solely added
     to help migrate legacy code written before Cython 3. It will be removed in a future release.
 
+``shared_utility_qualified_name`` (fully qualified module name), *default=""*
+    When set, cython will automatically cimport and use internal utility code from the provided
+    shared module instead of embedding it. This can yield in overall smaller module size because
+    the shared utility code is present only in shared module. See :ref:`shared_module` for more detail.
+
 
 .. _configurable_optimisations:
 
@@ -1381,7 +1452,7 @@ hidden by default since most users will be uninterested in changing them.
             :external+python:py:func:`gc.get_referents`.
             By default, Cython avoids GC traversing these objects because they can never participate
             in reference cycles, and thus would uselessly waste time during garbage collection runs.
-            
+
         ``CYTHON_MODULE_STATE_LOOKUP_THREAD_SAFE``
             Makes module state lookup thread-safe (when ``CYTHON_USE_MODULE_STATE`` and
             ``CYTHON_PEP489_MULTI_PHASE_INIT`` are both enabled).  This is on by default
