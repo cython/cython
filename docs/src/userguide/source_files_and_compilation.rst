@@ -499,7 +499,6 @@ To simplify compilation process, setuptools can be used. To specify fully qualif
 
     from Cython.Build import cythonize
     from setuptools import setup, Extension
-    import numpy
 
     extensions = [
         Extension("*", ["**/*.pyx"]),
