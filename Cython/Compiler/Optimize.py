@@ -3499,15 +3499,22 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
             return node
         uchar = ustring.arg
         method_name = function.attribute
-        if method_name in ('istitle', 'isprintable'):
+        if method_name == 'istitle':
             # istitle() doesn't directly map to Py_UNICODE_ISTITLE()
-            # isprintable() is lacking C-API support in PyPy
             utility_code = UtilityCode.load_cached(
                 "py_unicode_%s" % method_name, "StringTools.c")
             function_name = '__Pyx_Py_UNICODE_%s' % method_name.upper()
         else:
-            utility_code = None
-            function_name = 'Py_UNICODE_%s' % method_name.upper()
+            # None of these are defined in the Limited API
+            utility_code = TempitaUtilityCode.load_cached(
+                "py_unicode_predicate", "StringTools.c",
+                context=dict(
+                    # isprintable() is lacking C-API support in PyPy
+                    generate_for_pypy=method_name=="isprintable",
+                    method_name=method_name
+                )
+            )
+            function_name = '__Pyx_Py_UNICODE_%s' % method_name.upper()
         func_call = self._substitute_method_call(
             node, function,
             function_name, self.PyUnicode_uchar_predicate_func_type,

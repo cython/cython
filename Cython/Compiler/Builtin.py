@@ -111,13 +111,17 @@ class BuiltinProperty:
 builtin_function_table = [
     # name,        args,   return,  C API func,           py equiv = "*"
     BuiltinFunction('abs',        "d",    "d",     "fabs",
-                    is_strict_signature=True, nogil=True),
+                    is_strict_signature=True, nogil=True,
+                    utility_code=UtilityCode.load("IncludeStdlibH", "ModuleSetupCode.c")),
     BuiltinFunction('abs',        "f",    "f",     "fabsf",
-                    is_strict_signature=True, nogil=True),
+                    is_strict_signature=True, nogil=True,
+                    utility_code=UtilityCode.load("IncludeStdlibH", "ModuleSetupCode.c")),
     BuiltinFunction('abs',        "i",    "i",     "abs",
-                    is_strict_signature=True, nogil=True),
+                    is_strict_signature=True, nogil=True,
+                    utility_code=UtilityCode.load("IncludeStdlibH", "ModuleSetupCode.c")),
     BuiltinFunction('abs',        "l",    "l",     "labs",
-                    is_strict_signature=True, nogil=True),
+                    is_strict_signature=True, nogil=True,
+                    utility_code=UtilityCode.load("IncludeStdlibH", "ModuleSetupCode.c")),
     BuiltinFunction('abs',        None,    None,   "__Pyx_abs_longlong",
                 utility_code = UtilityCode.load("abs_longlong", "Builtins.c"),
                 func_type = PyrexTypes.CFuncType(
@@ -338,11 +342,19 @@ builtin_types_table = [
                                                   utility_code=UtilityCode.load("py_dict_clear", "Optimize.c")),
                                     BuiltinMethod("copy",   "T",   "T", "PyDict_Copy")]),
 
-    ("slice",  "&PySlice_Type",    [BuiltinAttribute('start'),
-                                    BuiltinAttribute('stop'),
-                                    BuiltinAttribute('step'),
+    ("slice",  "&PySlice_Type",    [BuiltinProperty("start", PyrexTypes.py_object_type, '__Pyx_PySlice_Start',
+                                    utility_code=TempitaUtilityCode.load_cached(
+                                        "PySliceAccessors", "Builtins.c"
+                                    )),
+                                    BuiltinProperty("stop", PyrexTypes.py_object_type, '__Pyx_PySlice_Stop',
+                                    utility_code=TempitaUtilityCode.load_cached(
+                                        "PySliceAccessors", "Builtins.c"
+                                    )),
+                                    BuiltinProperty("step", PyrexTypes.py_object_type, '__Pyx_PySlice_Step',
+                                    utility_code=TempitaUtilityCode.load_cached(
+                                        "PySliceAccessors", "Builtins.c"
+                                    )),
                                     ]),
-#    ("file",   "&PyFile_Type",     []),  # not in Py3
 
     ("set",      "&PySet_Type",    [BuiltinMethod("clear",   "T",  "r", "PySet_Clear"),
                                     # discard() and remove() have a special treatment for unhashable values

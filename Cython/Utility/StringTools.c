@@ -610,28 +610,54 @@ static CYTHON_INLINE PyObject* __Pyx_PyUnicode_Substring(
 // Py_UNICODE_ISTITLE() doesn't match unicode.istitle() as the latter
 // additionally allows character that comply with Py_UNICODE_ISUPPER()
 
+#if CYTHON_COMPILING_IN_LIMITED_API
+static int __Pyx_Py_UNICODE_ISTITLE(Py_UCS4 uchar); /* proto */
+#else
 static CYTHON_INLINE int __Pyx_Py_UNICODE_ISTITLE(Py_UCS4 uchar) {
     return Py_UNICODE_ISTITLE(uchar) || Py_UNICODE_ISUPPER(uchar);
 }
-
-
-/////////////// py_unicode_isprintable.proto ///////////////
-
-#if CYTHON_COMPILING_IN_PYPY && !defined(Py_UNICODE_ISPRINTABLE)
-static int __Pyx_Py_UNICODE_ISPRINTABLE(Py_UCS4 uchar);/*proto*/
-#else
-#define __Pyx_Py_UNICODE_ISPRINTABLE(u)  Py_UNICODE_ISPRINTABLE(u)
 #endif
 
-/////////////// py_unicode_isprintable ///////////////
+/////////////// py_unicode_istitle /////////////////
 
-#if CYTHON_COMPILING_IN_PYPY && !defined(Py_UNICODE_ISPRINTABLE)
-static int __Pyx_Py_UNICODE_ISPRINTABLE(Py_UCS4 uchar) {
+#if CYTHON_COMPILING_IN_LIMITED_API
+static int __Pyx_Py_UNICODE_ISTITLE(Py_UCS4 uchar) {
     int result;
     PyObject* py_result;
     PyObject* ustring = PyUnicode_FromOrdinal(uchar);
     if (!ustring) goto bad;
-    py_result = PyObject_CallMethod(ustring, "isprintable", NULL);
+    py_result = PyObject_CallMethod(ustring, "istitle", NULL);
+    Py_DECREF(ustring);
+    if (!py_result) goto bad;
+    result = PyObject_IsTrue(py_result);
+    Py_DECREF(py_result);
+    if (result == -1) goto bad;
+    return result != 0;
+
+bad:
+    PyErr_Clear();
+    return 0; /* cannot fail */
+}
+#endif
+
+
+/////////////// py_unicode_predicate.proto ///////////////
+
+#if {{if generate_for_pypy}}(CYTHON_COMPILING_IN_PYPY && !defined(Py_UNICODE_{{method_name.upper()}})) ||{{endif}} CYTHON_COMPILING_IN_LIMITED_API
+static int __Pyx_Py_UNICODE_{{method_name.upper()}}(Py_UCS4 uchar);/*proto*/
+#else
+#define __Pyx_Py_UNICODE_{{method_name.upper()}}(u)  Py_UNICODE_{{method_name.upper()}}(u)
+#endif
+
+/////////////// py_unicode_predicate ///////////////
+
+#if {{if generate_for_pypy}}(CYTHON_COMPILING_IN_PYPY && !defined(Py_UNICODE_{{method_name.upper()}})) ||{{endif}} CYTHON_COMPILING_IN_LIMITED_API
+static int __Pyx_Py_UNICODE_{{method_name.upper()}}(Py_UCS4 uchar) {
+    int result;
+    PyObject* py_result;
+    PyObject* ustring = PyUnicode_FromOrdinal(uchar);
+    if (!ustring) goto bad;
+    py_result = PyObject_CallMethod(ustring, "{{method_name}}", NULL);
     Py_DECREF(ustring);
     if (!py_result) goto bad;
     result = PyObject_IsTrue(py_result);

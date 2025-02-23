@@ -355,6 +355,26 @@ static CYTHON_INLINE int __Pyx_int_from_UCS4(Py_UCS4 uchar);
 //////////////////// int_pyucs4 ////////////////////
 
 static int __Pyx_int_from_UCS4(Py_UCS4 uchar) {
+#if CYTHON_COMPILING_IN_LIMITED_API
+    // Fast path for ascii digits
+    if (likely(uchar >= (Py_UCS4)'0' && uchar <= (Py_UCS4)'9')) {
+        return uchar - (Py_UCS4)'0';
+    }
+    PyObject *u = PyUnicode_FromOrdinal(uchar);
+    if (unlikely(!u)) return -1;
+    PyObject *l = PyObject_CallFunctionObjArgs((PyObject*)(&PyLong_Type), u, NULL);
+    Py_DECREF(u);
+    if (unlikely(!l)) return -1;
+#if __PYX_LIMITED_VERSION_HEX >= 0x030d0000
+    int result = PyLong_AsInt(l);
+#else
+    // just don't handle overflow - it's very difficult to see how we'll get it from
+    // a single digit.
+    int result = (int)PyLong_AsLong(l);
+#endif
+    Py_DECREF(l);
+    return result;
+#else
     int digit = Py_UNICODE_TODIGIT(uchar);
     if (unlikely(digit < 0)) {
         PyErr_Format(PyExc_ValueError,
@@ -363,6 +383,7 @@ static int __Pyx_int_from_UCS4(Py_UCS4 uchar) {
         return -1;
     }
     return digit;
+#endif
 }
 
 
@@ -373,6 +394,20 @@ static CYTHON_INLINE double __Pyx_double_from_UCS4(Py_UCS4 uchar);
 //////////////////// float_pyucs4 ////////////////////
 
 static double __Pyx_double_from_UCS4(Py_UCS4 uchar) {
+#if CYTHON_COMPILING_IN_LIMITED_API
+    // fast path for "just an ascii digit"
+    if (likely(uchar >= (Py_UCS4)'0' && uchar <= (Py_UCS4)'9')) {
+        return uchar - (Py_UCS4)'0';
+    }
+    PyObject *u = PyUnicode_FromOrdinal(uchar);
+    if (unlikely(!u)) return -1.0;
+    PyObject *f = PyFloat_FromString(u);
+    Py_DECREF(u);
+    if (unlikely(!f)) return -1.0;
+    double result = PyFloat_AsDouble(f);
+    Py_DECREF(f);
+    return result;
+#else
     double digit = Py_UNICODE_TONUMERIC(uchar);
     if (unlikely(digit < 0.0)) {
         PyErr_Format(PyExc_ValueError,
@@ -381,6 +416,7 @@ static double __Pyx_double_from_UCS4(Py_UCS4 uchar) {
         return -1.0;
     }
     return digit;
+#endif
 }
 
 
@@ -660,4 +696,21 @@ static {{out_type}} __Pyx_PyMemoryView_Get_{{name}}(PyObject *obj) {
     Py_XDECREF(attr);
     return -1;
 }
+#endif
+
+////////////// PySliceAccessors.proto /////////////////////////
+
+#if CYTHON_COMPILING_IN_LIMITED_API
+#define __Pyx_PySlice_Start(o) PyObject_GetAttr(o, PYIDENT("start"))
+#define __Pyx_PySlice_Stop(o) PyObject_GetAttr(o, PYIDENT("stop"))
+#define __Pyx_PySlice_Step(o) PyObject_GetAttr(o, PYIDENT("step"))
+#elif CYTHON_COMPILING_IN_GRAAL
+// Graal defines it's own accessor functions
+#define __Pyx_PySlice_Start(o) __Pyx_NewRef(PySlice_Start((PySliceObject*)o))
+#define __Pyx_PySlice_Stop(o) __Pyx_NewRef(PySlice_Start((PySliceObject*)o))
+#define __Pyx_PySlice_Step(o) __Pyx_NewRef(PySlice_Start((PySliceObject*)o))
+#else
+#define __Pyx_PySlice_Start(o) __Pyx_NewRef(((PySliceObject*)o)->start)
+#define __Pyx_PySlice_Stop(o) __Pyx_NewRef(((PySliceObject*)o)->stop)
+#define __Pyx_PySlice_Step(o) __Pyx_NewRef(((PySliceObject*)o)->step)
 #endif
