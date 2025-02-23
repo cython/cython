@@ -453,8 +453,8 @@ Shared utility module
 =====================
 
 When ``.pyx``/``.py`` file is compiled to ``.c`` file, cython automatically embed utility code to the resulting ``.c`` file. For projects containing multiple cython modules, it
-can result with larger total size of compiled extentions. To avoid redundant code, the shared utility code can be generated to separate extention module which is
-automatically cimported and used by the extention modules.
+can result with larger total size of compiled extensions. To avoid redundant code, the shared utility code can be generated to separate extension module which is
+automatically cimported and used by the extension modules.
 
 .. note:: Currently only memoryview utility code can be generated in the shared utility module.
 
@@ -469,7 +469,7 @@ Consider following example package ::
         +-- __init__.py
         +-- module.pyx
 
-The :file:`_cyutility.c` file contains shared utility code and :file:`module.pyx` is a standard cython source file which will be compiled extention cimporting ``mypkg.shared._cyutility`` module.
+The :file:`_cyutility.c` file contains shared utility code and :file:`module.pyx` is a standard cython source file which will be compiled extension cimporting ``mypkg.shared._cyutility`` module.
 The compilation process now consist of four steps:
 
 1. generating shared utility code. This is done via ``--generate-shared`` argument:
@@ -487,7 +487,7 @@ The compilation process now consist of four steps:
 
 4. compiling ``module.c`` file
 
-.. warning:: Extention module compiled with ``--shared=...`` argument, automatically imports the shared module under the fully qualified name provided via the argument parameter. Failing to import the shared module will cause a failure of the extention module import.
+.. warning:: Extension module compiled with ``--shared=...`` argument, automatically imports the shared module under the fully qualified name provided via the argument parameter. Failing to import the shared module will cause a failure of the extention module import.
 
 Compiling shared module using setuptools
 ----------------------------------------
@@ -512,7 +512,7 @@ To simplify compilation process, setuptools can be used. To specify fully qualif
     )
 
 
-.. note:: The shared utility :file:`_cyutility.c` file needs to be generated manually using ``cython --generate-shared=...`` command (generated ``.c`` file can be commited to the repository).
+.. note:: The shared utility :file:`_cyutility.c` file needs to be generated manually using ``cython --generate-shared=...`` command (generated ``.c`` file can be committed to the repository).
 
 .. _integrating_multiple_modules:
 
