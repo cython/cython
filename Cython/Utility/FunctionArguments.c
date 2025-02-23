@@ -264,6 +264,7 @@ static int __Pyx_ParseOptionalKeywordDict(
     PyObject *key;
     PyObject*** name;
     PyObject*** first_kw_arg = argnames + num_pos_args;
+    Py_ssize_t len;
 
     // Fast copy of all kwargs.
     if (PyDict_Update(kwds2, kwds) < 0) goto bad;
@@ -306,7 +307,8 @@ static int __Pyx_ParseOptionalKeywordDict(
     }
 
     // If unmatched keywords remain, check for duplicates of positional arguments.
-    if (PyDict_Size(kwds2) > 0) {
+    len = PyDict_Size(kwds2);
+    if (len > 0) {
         name = argnames;
         while (*name && name != first_kw_arg) {
             int check;
@@ -316,6 +318,8 @@ static int __Pyx_ParseOptionalKeywordDict(
             if (unlikely(check == 1)) goto arg_passed_twice;
             name++;
         }
+    } else if (unlikely(len == -1)) {
+        goto bad;
     }
 
     return 0;
