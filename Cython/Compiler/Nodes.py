@@ -4179,8 +4179,7 @@ class DefNodeWrapper(FuncDefNode):
         if accept_kwd_args:
             kw_unpacking_condition = Naming.kwds_cname
         else:
-            kw_unpacking_condition = "%s && __Pyx_NumKwargs_%s(%s) > 0" % (
-                Naming.kwds_cname, self.signature.fastvar, Naming.kwds_cname)
+            kw_unpacking_condition = f"{Naming.kwds_cname} && __Pyx_NumKwargs_{self.signature.fastvar}({Naming.kwds_cname}) > 0"
 
         if self.num_required_kw_args > 0:
             kw_unpacking_condition = "likely(%s)" % kw_unpacking_condition
@@ -4188,18 +4187,23 @@ class DefNodeWrapper(FuncDefNode):
         # --- optimised code when we receive keyword arguments
         code.putln("if (%s) {" % kw_unpacking_condition)
 
-        self.generate_posargs_unpacking_code(
-            min_positional_args, max_positional_args,
-            has_fixed_positional_count, has_kw_only_args, all_args, argtuple_error_label, code)
+        if accept_kwd_args:
+            self.generate_posargs_unpacking_code(
+                min_positional_args, max_positional_args,
+                has_fixed_positional_count, has_kw_only_args, all_args, argtuple_error_label, code)
 
-        self.generate_keyword_unpacking_code(
-            max_positional_args, all_args, code)
+            self.generate_keyword_unpacking_code(
+                max_positional_args, all_args, code)
+        else:
+            code.globalstate.use_utility_code(
+                UtilityCode.load_cached("RejectKeywords", "FunctionArguments.c"))
+            code.putln(f"__Pyx_RejectKeywords({self_name_csafe}, {Naming.kwds_cname}); {code.error_goto(self.pos)}")
 
         # Validate required arguments after integrating keyword arguments.
         if accept_kwd_args and min_positional_args:
             code.globalstate.use_utility_code(
                 UtilityCode.load_cached("RaiseArgTupleInvalid", "FunctionArguments.c"))
-            code.putln(f"for (Py_ssize_t i={Naming.nargs_cname}; i < {min_positional_args}; i++) {{")
+            code.putln(f"for (Py_ssize_t i = {Naming.nargs_cname}; i < {min_positional_args}; i++) {{")
             code.putln(
                 "if (unlikely(!values[i])) { "
                 f"__Pyx_RaiseArgtupleInvalid({self_name_csafe}, {has_fixed_positional_count:d}, {min_positional_args:d}, {max_positional_args:d}, i); {code.error_goto(self.pos)}"
@@ -4210,8 +4214,8 @@ class DefNodeWrapper(FuncDefNode):
         if accept_kwd_args and self.num_required_kw_args:
             code.globalstate.use_utility_code(
                 UtilityCode.load_cached("RaiseKeywordRequired", "FunctionArguments.c"))
-            code.putln(f"for (Py_ssize_t i={max_positional_args}; i < {max_positional_args + self.num_required_kw_args}; i++) {{")
-            code.putln(f"if (unlikely(!values[i])) {{ __Pyx_RaiseKeywordRequired({self_name_csafe}, *({Naming.pykwdlist_cname}[i])); {code.error_goto(self.pos)} }}")
+            code.putln(f"for (Py_ssize_t i = {max_positional_args}; i < {max_positional_args + self.num_required_kw_args}; i++) {{")
+            code.putln(f"if (unlikely(!values[i])) {{ __Pyx_RaiseKeywordRequired({self_name_csafe}, *({Naming.pykwdlist_cname}[i - {num_pos_only_args}])); {code.error_goto(self.pos)} }}")
             code.putln("}")
 
         # --- optimised code when we do not receive any keyword arguments

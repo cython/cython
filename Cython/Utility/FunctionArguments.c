@@ -223,6 +223,32 @@ invalid_keyword:
 }
 
 
+//////////////////// RejectKeywords.proto ////////////////////
+
+static void __Pyx_RejectKeywords(const char* function_name, PyObject *kwds); /*proto*/
+
+//////////////////// RejectKeywords ////////////////////
+
+static void __Pyx_RejectKeywords(const char* function_name, PyObject *kwds) {
+    // Get the first keyword argument and raise a TypeError for it.
+    PyObject *key = NULL;
+    if (CYTHON_METH_FASTCALL && likely(PyTuple_Check(kwds))) {
+        key = __Pyx_PySequence_ITEM(kwds, 0);
+    } else {
+        Py_ssize_t pos = 0;
+        // Check if dict is unicode-keys-only and let Python set the error otherwise.
+        if (unlikely(!PyArg_ValidateKeywordArguments(kwds))) return;
+        PyDict_Next(kwds, &pos, &key, NULL);
+    }
+
+    if (likely(key)) {
+        PyErr_Format(PyExc_TypeError,
+            "%s() got an unexpected keyword argument '%U'",
+            function_name, key);
+    }
+}
+
+
 //////////////////// ParseKeywords.proto ////////////////////
 
 static int __Pyx_ParseKeywords(
