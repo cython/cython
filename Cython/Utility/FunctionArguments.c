@@ -225,8 +225,8 @@ invalid_keyword:
 
 //////////////////// ParseKeywords.proto ////////////////////
 
-static int __Pyx_ParseOptionalKeywords(PyObject *kwds, PyObject *const *kwvalues,
-    PyObject **argnames[],
+static int __Pyx_ParseKeywords(
+    PyObject *kwds, PyObject *const *kwvalues, PyObject ** const argnames[],
     PyObject *kwds2, PyObject *values[], Py_ssize_t num_pos_args,
     const char* function_name,
     int ignore_unknown_kwargs
@@ -252,9 +252,32 @@ static int __Pyx_ParseOptionalKeywords(PyObject *kwds, PyObject *const *kwvalues
 //
 //  This method does not check for required keyword arguments.
 
-static int __Pyx_ParseOptionalKeywordDict(
+static int __Pyx_ValidateDuplicatePosArgs(
     PyObject *kwds,
-    PyObject **argnames[],
+    PyObject ** const argnames[],
+    PyObject ** const *first_kw_arg,
+    const char* function_name)
+{
+    PyObject ** const *name = argnames;
+    while (*name && name != first_kw_arg) {
+        int check;
+        PyObject *key = **name;
+        check = PyDict_Contains(kwds, key);
+        if (unlikely(check != 0)) {
+            if (check == 1) __Pyx_RaiseDoubleKeywordsError(function_name, key);
+            goto bad;
+        }
+        name++;
+    }
+    return 0;
+
+bad:
+    return -1;
+}
+
+static int __Pyx_ParseKeywordDict(
+    PyObject *kwds,
+    PyObject ** const argnames[],
     PyObject *kwds2,
     PyObject *values[],
     Py_ssize_t num_pos_args,
@@ -262,9 +285,12 @@ static int __Pyx_ParseOptionalKeywordDict(
 {
     // Validate and parse keyword arguments from kwds dict.
     PyObject *key;
-    PyObject*** name;
-    PyObject*** first_kw_arg = argnames + num_pos_args;
+    PyObject** const *name;
+    PyObject** const *first_kw_arg = argnames + num_pos_args;
     Py_ssize_t len;
+
+    // Check if dict is unicode-keys-only and let Python set the error otherwise.
+    if (unlikely(!PyArg_ValidateKeywordArguments(kwds))) return -1;
 
     // Fast copy of all kwargs.
     if (PyDict_Update(kwds2, kwds) < 0) goto bad;
@@ -309,24 +335,13 @@ static int __Pyx_ParseOptionalKeywordDict(
     // If unmatched keywords remain, check for duplicates of positional arguments.
     len = PyDict_Size(kwds2);
     if (len > 0) {
-        name = argnames;
-        while (*name && name != first_kw_arg) {
-            int check;
-            key = **name;
-            check = PyDict_Contains(kwds, key);
-            if (unlikely(check == -1)) goto bad;
-            if (unlikely(check == 1)) goto arg_passed_twice;
-            name++;
-        }
+        return __Pyx_ValidateDuplicatePosArgs(kwds, argnames, first_kw_arg, function_name);
     } else if (unlikely(len == -1)) {
         goto bad;
     }
 
     return 0;
 
-arg_passed_twice:
-    __Pyx_RaiseDoubleKeywordsError(function_name, key);
-    goto bad;
 bad:
     return -1;
 }
@@ -346,10 +361,138 @@ static CYTHON_INLINE int __Pyx_UnicodeKeywordsEqual(PyObject *s1, PyObject *s2) 
 }
 #endif
 
-static int __Pyx__ParseOptionalKeywords(
+static int __Pyx_MatchKeywordArg_str(
+    PyObject *key,
+    PyObject ** const argnames[],
+    PyObject ** const *first_kw_arg,
+    size_t *index_found,
+    const char *function_name)
+{
+    PyObject ** const *name;
+    #if CYTHON_USE_UNICODE_INTERNALS
+    // The key hash is probably pre-calculated.
+    Py_hash_t key_hash = ((PyASCIIObject*)key)->hash;
+    if (unlikely(key_hash == -1)) {
+        key_hash = PyObject_Hash(key);
+        if (unlikely(key_hash == -1))
+            goto bad;
+    }
+    #endif
+
+    // Compare strings for non-interned matches.
+    name = first_kw_arg;
+    while (*name) {
+        PyObject *name_str = **name;
+
+        #if CYTHON_USE_UNICODE_INTERNALS
+        // The hash value of our interned argument name is definitely pre-calculated.
+        if (key_hash == ((PyASCIIObject*)name_str)->hash && __Pyx_UnicodeKeywordsEqual(name_str, key)) {
+            *index_found = name - argnames;
+            return 1;
+        }
+        #else
+
+        #if CYTHON_ASSUME_SAFE_SIZE
+        if (PyUnicode_GET_LENGTH(name_str) == PyUnicode_GET_LENGTH(key))
+        #endif
+        {
+            int cmp = PyUnicode_Compare(name_str, key);
+            if (cmp < 0 && unlikely(PyErr_Occurred())) goto bad;
+            if (cmp == 0) {
+                *index_found = name - argnames;
+                return 1;
+            }
+        }
+        #endif
+        name++;
+    }
+
+    // Not found in keyword parameters, check for (unlikely) duplicate positional argument.
+    name = argnames;
+    while (name != first_kw_arg) {
+        PyObject *name_str = **name;
+
+        #if CYTHON_USE_UNICODE_INTERNALS
+        if (unlikely(key_hash == ((PyASCIIObject*)name_str)->hash)) {
+            if (__Pyx_UnicodeKeywordsEqual(name_str, key))
+                goto arg_passed_twice;
+        }
+
+        #else
+
+        #if CYTHON_ASSUME_SAFE_SIZE
+        if (PyUnicode_GET_LENGTH(name_str) == PyUnicode_GET_LENGTH(key))
+        #endif
+        {
+            if (unlikely(name_str == key)) goto arg_passed_twice;
+            int cmp = PyUnicode_Compare(name_str, key);
+            if (cmp < 0 && unlikely(PyErr_Occurred())) goto bad;
+            if (cmp == 0) goto arg_passed_twice;
+        }
+
+        #endif
+        name++;
+    }
+
+    return 0;
+
+arg_passed_twice:
+    __Pyx_RaiseDoubleKeywordsError(function_name, key);
+    goto bad;
+bad:
+    return -1;
+}
+
+static int __Pyx_MatchKeywordArg_nostr(
+    PyObject *key,
+    PyObject ** const argnames[],
+    PyObject ** const *first_kw_arg,
+    size_t *index_found,
+    const char *function_name)
+{
+    // Conservatively handle str subclasses.
+    PyObject ** const *name;
+
+    if (unlikely(!PyUnicode_Check(key))) goto invalid_keyword_type;
+
+    // Match keyword argument names.
+    name = first_kw_arg;
+    while (*name) {
+        int cmp = PyObject_RichCompareBool(**name, key, Py_EQ);
+        if (cmp == 1) {
+            *index_found = name - argnames;
+            return 1;
+        }
+        if (unlikely(cmp == -1)) goto bad;
+        name++;
+    }
+    // Reject collisions with positional arguments.
+    name = argnames;
+    while (name != first_kw_arg) {
+        int cmp = PyObject_RichCompareBool(**name, key, Py_EQ);
+        if (unlikely(cmp != 0)) {
+            if (cmp == 1) goto arg_passed_twice;
+            else goto bad;
+        }
+        name++;
+    }
+    return 0;
+
+arg_passed_twice:
+    __Pyx_RaiseDoubleKeywordsError(function_name, key);
+    goto bad;
+invalid_keyword_type:
+    PyErr_Format(PyExc_TypeError,
+        "%.200s() keywords must be strings", function_name);
+    goto bad;
+bad:
+    return -1;
+}
+
+static int __Pyx__ParseKeywords(
     PyObject *kwds,
-    PyObject *const *kwvalues,
-    PyObject **argnames[],
+    PyObject * const *kwvalues,
+    PyObject ** const argnames[],
     PyObject *kwds2,
     PyObject *values[],
     Py_ssize_t num_pos_args,
@@ -357,29 +500,30 @@ static int __Pyx__ParseOptionalKeywords(
     int ignore_unknown_kwargs)
 {
     PyObject *key = 0, *value = 0;
-    Py_ssize_t pos = 0;
-    PyObject*** name;
-    PyObject*** first_kw_arg = argnames + num_pos_args;
+    Py_ssize_t pos = 0, kw_tuple_size = 0;
+    PyObject** const * name;
+    PyObject** const *first_kw_arg = argnames + num_pos_args;
     int kwds_is_tuple = CYTHON_METH_FASTCALL && likely(PyTuple_Check(kwds));
 
-    while (1) {
-        #if CYTHON_USE_UNICODE_INTERNALS
-        Py_hash_t key_hash;
+    if (kwds_is_tuple) {
+        #if CYTHON_ASSUME_SAFE_SIZE
+        kw_tuple_size = PyTuple_GET_SIZE(kwds);
+        #else
+        kw_tuple_size = PyTuple_Size(kwds);
+        if (kw_tuple_size < 0) goto bad;
         #endif
+    } else {
+        // Check if dict is unicode-keys-only and let Python set the error otherwise.
+        if (unlikely(!PyArg_ValidateKeywordArguments(kwds))) return -1;
+    }
 
+    while (1) {
         // clean up key and value when the loop is "continued"
         Py_XDECREF(key); key = NULL;
         Py_XDECREF(value); value = NULL;
 
         if (kwds_is_tuple) {
-            Py_ssize_t size;
-#if CYTHON_ASSUME_SAFE_SIZE
-            size = PyTuple_GET_SIZE(kwds);
-#else
-            size = PyTuple_Size(kwds);
-            if (size < 0) goto bad;
-#endif
-            if (pos >= size) break;
+            if (pos >= kw_tuple_size) break;
 
 #if CYTHON_AVOID_BORROWED_REFS
             // Get an owned reference to key.
@@ -405,7 +549,7 @@ static int __Pyx__ParseOptionalKeywords(
 #endif
         }
 
-        // Quick pointer search for interned parameter matches.
+        // Quick pointer search for interned parameter matches (will usually succeed).
         name = first_kw_arg;
         while (*name && (**name != key)) name++;
         if (*name) {
@@ -425,82 +569,20 @@ static int __Pyx__ParseOptionalKeywords(
 #endif
         Py_INCREF(value);
 
-        if (unlikely(!PyUnicode_Check(key))) goto invalid_keyword_type;
+        // Optimise for plain str behaviour.
+        size_t index_found = 0;
+        int cmp = likely(PyUnicode_CheckExact(key)) ?
+            __Pyx_MatchKeywordArg_str(key, argnames, first_kw_arg, &index_found, function_name) :
+            __Pyx_MatchKeywordArg_nostr(key, argnames, first_kw_arg, &index_found, function_name);
 
-        #if CYTHON_USE_UNICODE_INTERNALS
-        // The key hash is probably pre-calculated.
-        key_hash = ((PyASCIIObject*)key)->hash;
-        if (unlikely(key_hash == -1)) {
-            key_hash = PyObject_Hash(key);
-            if (unlikely(key_hash == -1))
-                goto bad;
-        }
-        #endif
-
-        // Compare strings for non-interned matches.
-        name = first_kw_arg;
-        while (*name) {
-            PyObject *name_str = **name;
-            #if CYTHON_USE_UNICODE_INTERNALS
-            // Our argument hash is definitely pre-calculated.
-            if (key_hash == ((PyASCIIObject*)name_str)->hash)
-            #elif CYTHON_ASSUME_SAFE_SIZE
-            if (PyUnicode_GET_LENGTH(name_str) == PyUnicode_GET_LENGTH(key))
+        if (cmp == 1) {
+            values[index_found] = value;
+            #if CYTHON_AVOID_BORROWED_REFS
+            value = NULL;  /* ownership transferred to values */
             #endif
-            {
-                #if CYTHON_USE_UNICODE_INTERNALS
-                if (__Pyx_UnicodeKeywordsEqual(name_str, key))
-                #else
-                int cmp = PyUnicode_Compare(name_str, key);
-                if (cmp < 0 && unlikely(PyErr_Occurred())) goto bad;
-                if (cmp == 0)
-                #endif
-                {
-                    values[name-argnames] = value;
-#if CYTHON_AVOID_BORROWED_REFS
-                    value = NULL;  /* ownership transferred to values */
-#endif
-                    break;
-                }
-            }
-            name++;
+            continue;
         }
-        if (*name) continue;
-
-        // Not found in keyword parameters, check for (unlikely) duplicate positional argument.
-        {
-        #if CYTHON_USE_UNICODE_INTERNALS
-            PyObject*** argname = argnames;
-            int hash_matches_any = 0;
-            while (argname != first_kw_arg) {
-                hash_matches_any |= (key_hash == ((PyASCIIObject*)**argname)->hash);
-                argname++;
-            }
-            if (hash_matches_any) {
-                argname = argnames;
-                while (argname != first_kw_arg) {
-                    PyObject *name_str = **argname;
-                    if (unlikely(key_hash == ((PyASCIIObject*)name_str)->hash) && unlikely(__Pyx_UnicodeKeywordsEqual(name_str, key))) goto arg_passed_twice;
-                    argname++;
-                }
-            }
-        #else
-            PyObject*** argname = argnames;
-            while (argname != first_kw_arg) {
-                PyObject *name_str = **argname;
-                if (unlikely(name_str == key)) goto arg_passed_twice;
-                #if CYTHON_ASSUME_SAFE_SIZE
-                if (PyUnicode_GET_LENGTH(name_str) == PyUnicode_GET_LENGTH(key))
-                #endif
-                {
-                    int cmp = PyUnicode_Compare(name_str, key);
-                    if (cmp < 0 && unlikely(PyErr_Occurred())) goto bad;
-                    if (cmp == 0) goto arg_passed_twice;
-                }
-                argname++;
-            }
-        #endif
-        }
+        if (unlikely(cmp == -1)) goto bad;
 
         if (kwds2) {
             if (unlikely(PyDict_SetItem(kwds2, key, value))) goto bad;
@@ -512,45 +594,35 @@ static int __Pyx__ParseOptionalKeywords(
     Py_XDECREF(value);
     return 0;
 
-arg_passed_twice:
-    __Pyx_RaiseDoubleKeywordsError(function_name, key);
-    goto bad;
-invalid_keyword_type:
-    PyErr_Format(PyExc_TypeError,
-        "%.200s() keywords must be strings", function_name);
-    goto bad;
 invalid_keyword:
     PyErr_Format(PyExc_TypeError,
         "%s() got an unexpected keyword argument '%U'",
         function_name, key);
+    goto bad;
 bad:
     Py_XDECREF(key);
     Py_XDECREF(value);
     return -1;
 }
 
-static CYTHON_INLINE int __Pyx_ParseOptionalKeywords(
+static CYTHON_INLINE int __Pyx_ParseKeywords(
     PyObject *kwds,
-    PyObject *const *kwvalues,
-    PyObject **argnames[],
+    PyObject * const *kwvalues,
+    PyObject ** const argnames[],
     PyObject *kwds2,
     PyObject *values[],
     Py_ssize_t num_pos_args,
     const char* function_name,
     int ignore_unknown_kwargs)
 {
+    // Only called if kwds contains at least one optional keyword argument.
     int kwds_is_tuple = CYTHON_METH_FASTCALL && likely(PyTuple_Check(kwds));
-    if (!kwds_is_tuple && kwds) {
-        // Check if dict is unicode-keys-only and let Python set the error otherwise.
-        if (unlikely(!PyArg_ValidateKeywordArguments(kwds))) return -1;
-
-        if (kwds2) {
-            // Special case: copy dict to dict.
-            return __Pyx_ParseOptionalKeywordDict(kwds, argnames, kwds2, values, num_pos_args, function_name);
-        }
+    if (!kwds_is_tuple && kwds2) {
+        // Special case: copy dict to dict.
+        return __Pyx_ParseKeywordDict(kwds, argnames, kwds2, values, num_pos_args, function_name);
     }
 
-    return __Pyx__ParseOptionalKeywords(kwds, kwvalues, argnames, kwds2, values, num_pos_args, function_name, ignore_unknown_kwargs);
+    return __Pyx__ParseKeywords(kwds, kwvalues, argnames, kwds2, values, num_pos_args, function_name, ignore_unknown_kwargs);
 }
 
 

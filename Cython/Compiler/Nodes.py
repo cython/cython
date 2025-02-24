@@ -4156,7 +4156,7 @@ class DefNodeWrapper(FuncDefNode):
         non_posonly_args = [arg for arg in all_args if not arg.pos_only]
         non_pos_args_id = ','.join(
             ['&%s' % code.intern_identifier(arg.entry.name) for arg in non_posonly_args] + ['0'])
-        code.putln("PyObject **%s[] = {%s};" % (
+        code.putln("PyObject ** const %s[] = {%s};" % (
             Naming.pykwdlist_cname,
             non_pos_args_id))
 
@@ -4188,25 +4188,31 @@ class DefNodeWrapper(FuncDefNode):
         # --- optimised code when we receive keyword arguments
         code.putln("if (%s) {" % kw_unpacking_condition)
 
-        if accept_kwd_args:
-            self.generate_keyword_unpacking_code(
-                min_positional_args, max_positional_args,
-                has_fixed_positional_count, has_kw_only_args, all_args, argtuple_error_label, code)
-        else:
-            # Here we do not accept kw-args but we are passed a non-empty kw-dict.
-            # We call ParseOptionalKeywords which will raise an appropriate error if
-            # the kw-args dict passed is non-empty (which it will be, since kw_unpacking_condition is true)
+        self.generate_posargs_unpacking_code(
+            min_positional_args, max_positional_args,
+            has_fixed_positional_count, has_kw_only_args, all_args, argtuple_error_label, code)
+
+        self.generate_keyword_unpacking_code(
+            max_positional_args, all_args, code)
+
+        # Validate required arguments after integrating keyword arguments.
+        if accept_kwd_args and min_positional_args:
             code.globalstate.use_utility_code(
-                UtilityCode.load_cached("ParseKeywords", "FunctionArguments.c"))
-            code.put_error_if_neg(
-                self.pos,
-                f"__Pyx_ParseOptionalKeywords("
-                f"{Naming.kwds_cname}, {Naming.kwvalues_cname}, {Naming.pykwdlist_cname}, "
-                f"{self.starstar_arg.entry.cname if self.starstar_arg else '0'}, "
-                f"values, 0, {self_name_csafe}, "
-                f"{self.starstar_arg is not None :d}"  # **kwargs might exist but be NULL in C if unused
-                ")",
+                UtilityCode.load_cached("RaiseArgTupleInvalid", "FunctionArguments.c"))
+            code.putln(f"for (Py_ssize_t i={Naming.nargs_cname}; i < {min_positional_args}; i++) {{")
+            code.putln(
+                "if (unlikely(!values[i])) { "
+                f"__Pyx_RaiseArgtupleInvalid({self_name_csafe}, {has_fixed_positional_count:d}, {min_positional_args:d}, {max_positional_args:d}, i); {code.error_goto(self.pos)}"
+                "}"
             )
+            code.putln("}")
+
+        if accept_kwd_args and self.num_required_kw_args:
+            code.globalstate.use_utility_code(
+                UtilityCode.load_cached("RaiseKeywordRequired", "FunctionArguments.c"))
+            code.putln(f"for (Py_ssize_t i={max_positional_args}; i < {max_positional_args + self.num_required_kw_args}; i++) {{")
+            code.putln(f"if (unlikely(!values[i])) {{ __Pyx_RaiseKeywordRequired({self_name_csafe}, *({Naming.pykwdlist_cname}[i])); {code.error_goto(self.pos)} }}")
+            code.putln("}")
 
         # --- optimised code when we do not receive any keyword arguments
         if (self.num_required_kw_args and min_positional_args > 0) or min_positional_args == max_positional_args:
@@ -4227,16 +4233,13 @@ class DefNodeWrapper(FuncDefNode):
                     Naming.nargs_cname, max_positional_args))
                 code.put_goto(argtuple_error_label)
             code.putln('} else {')
-            for i, arg in enumerate(kw_only_args):
+            for arg in kw_only_args:
                 if not arg.default:
-                    pystring_cname = code.intern_identifier(arg.entry.name)
                     # required keyword-only argument missing
                     code.globalstate.use_utility_code(
                         UtilityCode.load_cached("RaiseKeywordRequired", "FunctionArguments.c"))
-                    code.put('__Pyx_RaiseKeywordRequired("%s", %s); ' % (
-                        self.name,
-                        pystring_cname))
-                    code.putln(code.error_goto(self.pos))
+                    pystring_cname = code.intern_identifier(arg.entry.name)
+                    code.putln(f'__Pyx_RaiseKeywordRequired({self_name_csafe}, {pystring_cname}); {code.error_goto(self.pos)}')
                     break
 
         else:
@@ -4398,18 +4401,15 @@ class DefNodeWrapper(FuncDefNode):
         code.putln("}")
         code.putln("}")
 
-    def generate_keyword_unpacking_code(self, min_positional_args, max_positional_args,
+    def generate_posargs_unpacking_code(self, min_positional_args, max_positional_args,
                                         has_fixed_positional_count,
                                         has_kw_only_args, all_args, argtuple_error_label, code):
         # First we count how many arguments must be passed as positional
-        num_required_posonly_args = num_pos_only_args = 0
-        for i, arg in enumerate(all_args):
-            if arg.pos_only:
-                num_pos_only_args += 1
-                if not arg.default:
-                    num_required_posonly_args += 1
+        num_required_posonly_args = 0
+        for arg in all_args:
+            if arg.pos_only and not arg.default:
+                num_required_posonly_args += 1
 
-        code.putln('Py_ssize_t kw_args;')
         # copy the values from the args tuple and check that it's not too long
         code.putln('switch (%s) {' % Naming.nargs_cname)
         if self.star_arg:
@@ -4447,104 +4447,21 @@ class DefNodeWrapper(FuncDefNode):
 
         # The code above is very often (but not always) the same as
         # the optimised non-kwargs tuple unpacking code, so we keep
-        # the code block above at the very top, before the following
-        # 'external' PyDict_Size() call, to make it easy for the C
+        # the code block above at the very top, to make it easy for the C
         # compiler to merge the two separate tuple unpacking
         # implementations into one when they turn out to be identical.
 
-        # If we received kwargs, fill up the positional/required
-        # arguments with values from the kw dict
-        self_name_csafe = self.name.as_c_string_literal()
+    def generate_keyword_unpacking_code(self, max_positional_args, all_args, code):
 
-        code.putln('kw_args = __Pyx_NumKwargs_%s(%s);' % (
-                self.signature.fastvar, Naming.kwds_cname))
-        if self.num_required_args or max_positional_args > 0:
-            last_required_arg = -1
-            for i, arg in enumerate(all_args):
-                if not arg.default:
-                    last_required_arg = i
-            if last_required_arg < max_positional_args:
-                last_required_arg = max_positional_args-1
-            if max_positional_args > num_pos_only_args:
-                code.putln('switch (%s) {' % Naming.nargs_cname)
-            for i, arg in enumerate(all_args[num_pos_only_args:last_required_arg+1], num_pos_only_args):
-                if max_positional_args > num_pos_only_args and i <= max_positional_args:
-                    if i != num_pos_only_args:
-                        code.putln('CYTHON_FALLTHROUGH;')
-                    if self.star_arg and i == max_positional_args:
-                        code.putln('default:')
-                    else:
-                        code.putln('case %2d:' % i)
-                pystring_cname = code.intern_identifier(arg.entry.name)
-                if arg.default:
-                    if arg.kw_only:
-                        # optional kw-only args are handled separately below
-                        continue
-                    code.putln('if (kw_args > 0) {')
-                    # don't overwrite default argument
-                    code.putln('PyObject* value = __Pyx_GetKwValue_%s(%s, %s, %s);' % (
-                        self.signature.fastvar, Naming.kwds_cname, Naming.kwvalues_cname, pystring_cname))
-                    code.putln('if (value) {')
-                    code.putln('__Pyx_Arg_XDECREF_%s(values[%d]);' % (
-                        self.signature.fastvar, i))
-                    code.putln('values[%d] = __Pyx_Arg_NewRef_%s(value); kw_args--;' % (
-                        i, self.signature.fastvar))
-                    code.putln('}')
-                    code.putln('else if (unlikely(PyErr_Occurred())) %s' % code.error_goto(self.pos))
-                    code.putln('}')
-                else:
-                    # no arg default - no need to decref values[%d]
-                    code.putln('if (likely((values[%d] = __Pyx_GetKwValue_%s(%s, %s, %s)) != 0)) {' % (
-                        i, self.signature.fastvar, Naming.kwds_cname, Naming.kwvalues_cname, pystring_cname))
-                    code.putln('(void)__Pyx_Arg_NewRef_%s(values[%d]);' % (self.signature.fastvar, i))
-                    code.putln('kw_args--;')
-                    code.putln('}')
-                    code.putln('else if (unlikely(PyErr_Occurred())) %s' % code.error_goto(self.pos))
-                    if i < min_positional_args:
-                        if i == 0:
-                            # special case: we know arg 0 is missing
-                            code.put('else ')
-                            code.put_goto(argtuple_error_label)
-                        else:
-                            # print the correct number of values (args or
-                            # kwargs) that were passed into positional
-                            # arguments up to this point
-                            code.putln('else {')
-                            code.globalstate.use_utility_code(
-                                UtilityCode.load_cached("RaiseArgTupleInvalid", "FunctionArguments.c"))
-                            code.put('__Pyx_RaiseArgtupleInvalid(%s, %d, %d, %d, %d); ' % (
-                                self_name_csafe, has_fixed_positional_count,
-                                min_positional_args, max_positional_args, i))
-                            code.putln(code.error_goto(self.pos))
-                            code.putln('}')
-                    elif arg.kw_only:
-                        code.putln('else {')
-                        code.globalstate.use_utility_code(
-                            UtilityCode.load_cached("RaiseKeywordRequired", "FunctionArguments.c"))
-                        code.put('__Pyx_RaiseKeywordRequired(%s, %s); ' % (
-                            self_name_csafe, pystring_cname))
-                        code.putln(code.error_goto(self.pos))
-                        code.putln('}')
-            if max_positional_args > num_pos_only_args:
-                code.putln('}')
-
-        if has_kw_only_args:
-            # unpack optional keyword-only arguments separately because
-            # checking for interned strings in a dict is faster than iterating
-            self.generate_optional_kwonly_args_unpacking_code(all_args, code)
-
-        code.putln('if (unlikely(kw_args > 0)) {')
-        # non-positional/-required kw args left in dict: default args,
-        # kw-only args, **kwargs or error
-        #
-        # This is sort of a catch-all: except for checking required
-        # arguments, this will always do the right thing for unpacking
-        # keyword arguments, so that we can concentrate on optimising
-        # common cases above.
-        #
         # ParseOptionalKeywords() needs to know how many of the arguments
         # that could be passed as keywords have in fact been passed as
         # positional args.
+
+        num_pos_only_args = 0
+        for arg in all_args:
+            if arg.pos_only:
+                num_pos_only_args += 1
+
         if num_pos_only_args > 0:
             # There are positional-only arguments which we don't want to count,
             # since they cannot be keyword arguments.  Subtract the number of
@@ -4571,15 +4488,19 @@ class DefNodeWrapper(FuncDefNode):
             pos_arg_count = "used_pos_args"
         else:
             pos_arg_count = "kwd_pos_args"
+
         if num_pos_only_args < len(all_args):
             values_array = 'values + %d' % num_pos_only_args
         else:
             values_array = 'values'
+
+        self_name_csafe = self.name.as_c_string_literal()
+
         code.globalstate.use_utility_code(
             UtilityCode.load_cached("ParseKeywords", "FunctionArguments.c"))
         code.put_error_if_neg(
             self.pos,
-            f"__Pyx_ParseOptionalKeywords("
+            f"__Pyx_ParseKeywords("
             f"{Naming.kwds_cname}, {Naming.kwvalues_cname}, {Naming.pykwdlist_cname}, "
             f"{self.starstar_arg and self.starstar_arg.entry.cname or '0'}, "
             f"{values_array}, "
@@ -4588,7 +4509,6 @@ class DefNodeWrapper(FuncDefNode):
             f"{self.starstar_arg is not None :d}"  # **kwargs might exist but be NULL in C if unused
             ")"
         )
-        code.putln('}')
 
     def generate_optional_kwonly_args_unpacking_code(self, all_args, code):
         optional_args = []
