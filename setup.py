@@ -150,10 +150,11 @@ def compile_cython_modules(profile=False, coverage=False, compile_minimal=False,
     if sysconfig.get_config_var('Py_GIL_DISABLED') and platform.system() == "Windows":
         defines.append(('Py_GIL_DISABLED', 1))
 
+    extra_defines = []
     if cython_with_refnanny:
-        defines.append(('CYTHON_REFNANNY', '1'))
+        extra_defines.append(('CYTHON_REFNANNY', '1'))
     if coverage:
-        defines.append(('CYTHON_TRACE', '1'))
+        extra_defines.append(('CYTHON_TRACE', '1'))
 
     extensions = []
     for module in compiled_modules:
@@ -168,7 +169,7 @@ def compile_cython_modules(profile=False, coverage=False, compile_minimal=False,
 
         extensions.append(Extension(
             module, sources=[pyx_source_file],
-            define_macros=defines,
+            define_macros=(defines + (extra_defines if '.refnanny' not in module else [])),
             depends=dep_files,
             **extra_extension_args))
         # XXX hack around setuptools quirk for '*.pyx' sources

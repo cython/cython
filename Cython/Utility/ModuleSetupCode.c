@@ -1483,26 +1483,28 @@ static CYTHON_INLINE float __PYX_NAN() {
 #if CYTHON_COMPILING_IN_LIMITED_API && __PYX_LIMITED_VERSION_HEX < 0x03090000
 // Probably won't work before 3.8, but we don't use restricted API to find that out.
 static PY_INT64_T __Pyx_GetCurrentInterpreterId(void) {
-    PyObject *module = PyImport_ImportModule("_interpreters"); // 3.13+ I think
-    if (!module) {
-        PyErr_Clear(); // just try the 3.8-3.12 version
-        module = PyImport_ImportModule("_xxsubinterpreters");
-        if (!module) goto bad;
-    }
-    PyObject *current = PyObject_CallMethod(module, "get_current", NULL);
-    Py_DECREF(module);
-    if (!current) goto bad;
-    if (PyTuple_Check(current)) {
-        // I think 3.13+ returns a tuple of (ID, whence),
-        // but it's obviously a private module so the API changes a bit.
-        PyObject *new_current = PySequence_GetItem(current, 0);
+    {
+        PyObject *module = PyImport_ImportModule("_interpreters"); // 3.13+ I think
+        if (!module) {
+            PyErr_Clear(); // just try the 3.8-3.12 version
+            module = PyImport_ImportModule("_xxsubinterpreters");
+            if (!module) goto bad;
+        }
+        PyObject *current = PyObject_CallMethod(module, "get_current", NULL);
+        Py_DECREF(module);
+        if (!current) goto bad;
+        if (PyTuple_Check(current)) {
+            // I think 3.13+ returns a tuple of (ID, whence),
+            // but it's obviously a private module so the API changes a bit.
+            PyObject *new_current = PySequence_GetItem(current, 0);
+            Py_DECREF(current);
+            current = new_current;
+            if (!new_current) goto bad;
+        }
+        long long as_c_int = PyLong_AsLongLong(current);
         Py_DECREF(current);
-        current = new_current;
-        if (!new_current) goto bad;
+        return as_c_int;
     }
-    long long as_c_int = PyLong_AsLongLong(current);
-    Py_DECREF(current);
-    return as_c_int;
   bad:
     PySys_WriteStderr("__Pyx_GetCurrentInterpreterId failed. Try setting the C define CYTHON_PEP489_MULTI_PHASE_INIT=0\n");
     return -1;
@@ -1523,7 +1525,7 @@ static CYTHON_SMALL_CODE int __Pyx_check_single_interpreter(void) {
     PY_INT64_T current_id = PyInterpreterState_GetID(PyThreadState_Get()->interp);
 #endif
     if (unlikely(current_id == -1)) {
-      return -1;
+        return -1;
     }
     if (main_interpreter_id == -1) {
         main_interpreter_id = current_id;
