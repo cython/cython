@@ -10,11 +10,7 @@ static PyObject *__Pyx_FetchSharedCythonABIModule(void) {
 
 /////////////// FetchCommonType.proto ///////////////
 
-#if !CYTHON_USE_TYPE_SPECS
-static PyTypeObject* __Pyx_FetchCommonType(PyTypeObject* type);
-#else
 static PyTypeObject* __Pyx_FetchCommonTypeFromSpec(PyObject *module, PyType_Spec *spec, PyObject *bases);
-#endif
 
 /////////////// FetchCommonType ///////////////
 //@requires:ExtensionTypes.c::FixUpExtensionType
@@ -38,49 +34,6 @@ static int __Pyx_VerifyCachedType(PyObject *cached_type,
     }
     return 0;
 }
-
-#if !CYTHON_USE_TYPE_SPECS
-static PyTypeObject* __Pyx_FetchCommonType(PyTypeObject* type) {
-    PyObject* abi_module;
-    const char* object_name;
-    PyTypeObject *cached_type = NULL;
-
-    abi_module = __Pyx_FetchSharedCythonABIModule();
-    if (!abi_module) return NULL;
-    // get the final part of the object name (after the last dot)
-    object_name = strrchr(type->tp_name, '.');
-    object_name = object_name ? object_name+1 : type->tp_name;
-    cached_type = (PyTypeObject*) PyObject_GetAttrString(abi_module, object_name);
-    if (cached_type) {
-        if (__Pyx_VerifyCachedType(
-              (PyObject *)cached_type,
-              object_name,
-              cached_type->tp_basicsize,
-              type->tp_basicsize) < 0) {
-            goto bad;
-        }
-        goto done;
-    }
-
-    if (!PyErr_ExceptionMatches(PyExc_AttributeError)) goto bad;
-    PyErr_Clear();
-    if (PyType_Ready(type) < 0) goto bad;
-    if (PyObject_SetAttrString(abi_module, object_name, (PyObject *)type) < 0)
-        goto bad;
-    Py_INCREF(type);
-    cached_type = type;
-
-done:
-    Py_DECREF(abi_module);
-    // NOTE: always returns owned reference, or NULL on error
-    return cached_type;
-
-bad:
-    Py_XDECREF(cached_type);
-    cached_type = NULL;
-    goto done;
-}
-#else
 
 static PyTypeObject *__Pyx_FetchCommonTypeFromSpec(PyObject *module, PyType_Spec *spec, PyObject *bases) {
     PyObject *abi_module, *cached_type = NULL;
@@ -135,5 +88,4 @@ bad:
     cached_type = NULL;
     goto done;
 }
-#endif
 
