@@ -4207,7 +4207,13 @@ class DefNodeWrapper(FuncDefNode):
                 code.putln(f"for (Py_ssize_t i = {Naming.nargs_cname}; i < {min_positional_args}; i++) {{")
                 code.putln(
                     "if (unlikely(!values[i])) { "
-                    f"__Pyx_RaiseArgtupleInvalid({self_name_csafe}, {has_fixed_positional_count:d}, {min_positional_args:d}, {max_positional_args:d}, i); {code.error_goto(self.pos)}"
+                    "__Pyx_RaiseArgtupleInvalid("
+                    f"{self_name_csafe}, "
+                    f"{has_fixed_positional_count:d}, "
+                    f"{min_positional_args:d}, "
+                    f"{max_positional_args:d}, "
+                    "i); "
+                    f"{code.error_goto(self.pos)}"
                     "}"
                 )
                 code.putln("}")
@@ -4216,7 +4222,15 @@ class DefNodeWrapper(FuncDefNode):
                 code.globalstate.use_utility_code(
                     UtilityCode.load_cached("RaiseKeywordRequired", "FunctionArguments.c"))
                 code.putln(f"for (Py_ssize_t i = {max_positional_args}; i < {max_positional_args + self.num_required_kw_args}; i++) {{")
-                code.putln(f"if (unlikely(!values[i])) {{ __Pyx_RaiseKeywordRequired({self_name_csafe}, *({Naming.pykwdlist_cname}[i - {num_pos_only_args}])); {code.error_goto(self.pos)} }}")
+                code.putln(
+                    "if (unlikely(!values[i])) { "
+                    "__Pyx_RaiseKeywordRequired("
+                    f"{self_name_csafe}, "
+                    f"*({Naming.pykwdlist_cname}[i - {num_pos_only_args}])"
+                    "); "
+                    f"{code.error_goto(self.pos)} "
+                    "}"
+                )
                 code.putln("}")
 
         # --- optimised code when we do not receive any keyword arguments
