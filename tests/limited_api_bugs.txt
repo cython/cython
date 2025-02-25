@@ -44,9 +44,6 @@ cdef_multiple_inheritance_errors
 cline_in_traceback
 module_init_error
 
-# segfault
-run[.]type_inference
-
 # Something to do with complex
 view_count
 matrix_with_buffer
