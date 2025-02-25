@@ -311,7 +311,7 @@ static CYTHON_INLINE int __Pyx_UnicodeKeywordsEqual(PyObject *s1, PyObject *s2) 
 
     const void *data1 = PyUnicode_DATA(s1);
     const void *data2 = PyUnicode_DATA(s2);
-    return (memcmp(data1, data2, (size_t) len * kind) == 0);
+    return (memcmp(data1, data2, (size_t) len * (size_t) kind) == 0);
 }
 #endif
 
