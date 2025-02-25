@@ -467,10 +467,14 @@ static void __Pyx_RejectUnknownKeyword(
     PyObject *key = NULL;
 
     while (PyDict_Next(kwds, &pos, &key, NULL)) {
-        PyObject** const *name = argnames;
+        // Quickly exclude the 'obviously' valid/known keyword arguments (exact pointer match).
+        PyObject** const *name = first_kw_arg;
         while (*name && (**name != key)) name++;
+
         if (!*name) {
-            #if CYTHON_AVOID_BORROWED_REFS || CYTHON_AVOID_THREAD_UNSAFE_BORROWED_REFS
+            // No exact match found:
+            // compare against positional (always reject) and keyword (reject unknown) names.
+            #if CYTHON_AVOID_BORROWED_REFS
             Py_INCREF(key);
             #endif
 
@@ -482,17 +486,19 @@ static void __Pyx_RejectUnknownKeyword(
                         "%s() got an unexpected keyword argument '%U'",
                         function_name, key);
                 }
-                #if CYTHON_AVOID_BORROWED_REFS || CYTHON_AVOID_THREAD_UNSAFE_BORROWED_REFS
+                #if CYTHON_AVOID_BORROWED_REFS
                 Py_DECREF(key);
                 #endif
 
                 break;
             }
-            #if CYTHON_AVOID_BORROWED_REFS || CYTHON_AVOID_THREAD_UNSAFE_BORROWED_REFS
+            #if CYTHON_AVOID_BORROWED_REFS
             Py_DECREF(key);
             #endif
         }
     }
+
+    assert(PyErr_Occurred());
 }
 
 static int __Pyx_ParseKeywordDict(
