@@ -536,13 +536,19 @@ static int __Pyx_ParseKeywordDict(
         if (value) {
             Py_INCREF(value);
         } else {
-            if (unlikely(PyErr_Occurred())) goto cs_fail;
+            if (unlikely(PyErr_Occurred())) {
+                failed = 1;
+                break;
+            };
         }
         found = value != NULL;
         #endif
 
         if (found) {
-            if (unlikely(found < 0)) goto cs_fail;
+            if (unlikely(found < 0)) {
+                failed = 1;
+                break;
+            };
             values[name-argnames] = value;
             extracted++;
         }
@@ -551,29 +557,25 @@ static int __Pyx_ParseKeywordDict(
         kwcount = PyDict_GET_SIZE(kwds);
         #else
         kwcount = PyDict_Size(kwds);
-        if (unlikely(kwcount < 0)) goto cs_fail;
+        if (unlikely(kwcount < 0)) {
+            failed = 1;
+            break;
+        };
         #endif
 
         name++;
     }
 
-    if (kwcount > extracted) {
+    if (!failed && kwcount > extracted) {
         if (ignore_unknown_kwargs) {
             // Make sure the remaining kwargs are not duplicate posargs.
-            if (unlikely(__Pyx_ValidateDuplicatePosArgs(kwds, argnames, first_kw_arg, function_name) == -1))
-                goto cs_fail;
+            failed = __Pyx_ValidateDuplicatePosArgs(kwds, argnames, first_kw_arg, function_name) == -1;
         } else {
             // Any remaining kwarg is an error.
             __Pyx_RejectUnknownKeyword(kwds, argnames, first_kw_arg, function_name);
-            goto cs_fail;
+            failed = 1;
         }
     }
-    goto done;
-
-cs_fail:
-    failed = 1;
-
-done:
     __Pyx_END_CRITICAL_SECTION();
 
     return unlikely(failed) ? -1 : 0;
