@@ -4120,21 +4120,25 @@ class DefNodeWrapper(FuncDefNode):
         positional_args = []
         required_kw_only_args = []
         optional_kw_only_args = []
-        num_pos_only_args = 0
+        num_pos_only_args = num_required_pos_only_args = 0
         for arg in args:
-            if arg.is_generic:
-                if arg.default:
-                    if not arg.is_self_arg and not arg.is_type_arg:
-                        if arg.kw_only:
-                            optional_kw_only_args.append(arg)
-                        else:
-                            positional_args.append(arg)
-                elif arg.kw_only:
-                    required_kw_only_args.append(arg)
-                elif not arg.is_self_arg and not arg.is_type_arg:
-                    positional_args.append(arg)
-                if arg.pos_only:
-                    num_pos_only_args += 1
+            if not arg.is_generic:
+                continue
+            if arg.default:
+                if not arg.is_self_arg and not arg.is_type_arg:
+                    if arg.kw_only:
+                        optional_kw_only_args.append(arg)
+                    else:
+                        positional_args.append(arg)
+            elif arg.kw_only:
+                required_kw_only_args.append(arg)
+            elif not arg.is_self_arg and not arg.is_type_arg:
+                positional_args.append(arg)
+
+            if arg.pos_only:
+                num_pos_only_args += 1
+                if not arg.default:
+                    num_required_pos_only_args += 1
 
         # sort required kw-only args before optional ones to avoid special
         # cases in the unpacking code
@@ -4200,8 +4204,8 @@ class DefNodeWrapper(FuncDefNode):
             self.generate_keyword_unpacking_code(
                 max_positional_args, all_args, code)
 
-            # Validate required arguments after integrating keyword arguments.
-            if min_positional_args:
+            # Validate required arguments after integrating keyword arguments (which cannot fill up posonly arguments).
+            if min_positional_args > num_required_pos_only_args:
                 code.globalstate.use_utility_code(
                     UtilityCode.load_cached("RaiseArgTupleInvalid", "FunctionArguments.c"))
                 code.putln(f"for (Py_ssize_t i = {Naming.nargs_cname}; i < {min_positional_args}; i++) {{")
