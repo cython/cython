@@ -887,9 +887,6 @@ def _get_memoryview_shared_utility_code(env):
                 Buffer.buffer_struct_declare_code,
                 Buffer.buffer_formats_declare_code,
                 memviewslice_init_code,
-                is_contig_utility,
-                overlapping_utility,
-                copy_contents_new_utility,
                 ],
     )
     memviewslice_declare_code.requires.append(shared_utility_code)
