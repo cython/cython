@@ -341,7 +341,7 @@ static int __Pyx_MatchKeywordArg_str(
         #if CYTHON_USE_UNICODE_INTERNALS
         // The hash value of our interned argument name is definitely pre-calculated.
         if (key_hash == ((PyASCIIObject*)name_str)->hash && __Pyx_UnicodeKeywordsEqual(name_str, key)) {
-            *index_found = name - argnames;
+            *index_found = (size_t) (name - argnames);
             return 1;
         }
         #else
@@ -353,7 +353,7 @@ static int __Pyx_MatchKeywordArg_str(
             int cmp = PyUnicode_Compare(name_str, key);
             if (cmp < 0 && unlikely(PyErr_Occurred())) goto bad;
             if (cmp == 0) {
-                *index_found = name - argnames;
+                *index_found = (size_t) (name - argnames);
                 return 1;
             }
         }
@@ -414,7 +414,7 @@ static int __Pyx_MatchKeywordArg_nostr(
     while (*name) {
         int cmp = PyObject_RichCompareBool(**name, key, Py_EQ);
         if (cmp == 1) {
-            *index_found = name - argnames;
+            *index_found = (size_t) (name - argnames);
             return 1;
         }
         if (unlikely(cmp == -1)) goto bad;
@@ -515,12 +515,12 @@ static int __Pyx_ParseKeywordDict(
     kwcount = PyDict_GET_SIZE(kwds);
     #else
     kwcount = PyDict_Size(kwds);
-    if (unlikely(kwcount < 0)) goto bad;
+    if (unlikely(kwcount < 0)) return -1;
     #endif
 
     // Extract declared keyword arguments.
-    name = first_kw_arg;
     __Pyx_BEGIN_CRITICAL_SECTION(kwds);
+    name = first_kw_arg;
     while (*name && kwcount > extracted) {
         PyObject * key = **name;
         PyObject *value;
@@ -550,7 +550,7 @@ static int __Pyx_ParseKeywordDict(
         #if CYTHON_COMPILING_IN_CPYTHON && CYTHON_ASSUME_SAFE_SIZE
         kwcount = PyDict_GET_SIZE(kwds);
         #else
-        kwcount = PyDict_Size(kwds)
+        kwcount = PyDict_Size(kwds);
         if (unlikely(kwcount < 0)) goto cs_fail;
         #endif
 
