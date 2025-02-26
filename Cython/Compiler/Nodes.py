@@ -3130,6 +3130,7 @@ class DefNode(FuncDefNode):
 
     def __init__(self, pos, **kwds):
         FuncDefNode.__init__(self, pos, **kwds)
+        # Prepare signature information for code objects.
         p = k = rk = r = 0
         for arg in self.args:
             if arg.pos_only:
@@ -4124,21 +4125,17 @@ class DefNodeWrapper(FuncDefNode):
         for arg in args:
             if not arg.is_generic:
                 continue
-            if arg.default:
-                if not arg.is_self_arg and not arg.is_type_arg:
-                    if arg.kw_only:
-                        optional_kw_only_args.append(arg)
-                    else:
-                        positional_args.append(arg)
-            elif arg.kw_only:
-                required_kw_only_args.append(arg)
-            elif not arg.is_self_arg and not arg.is_type_arg:
-                positional_args.append(arg)
+            if arg.is_self_arg or arg.is_type_arg:
+                continue
 
-            if arg.pos_only:
-                num_pos_only_args += 1
-                if not arg.default:
-                    num_required_pos_only_args += 1
+            if arg.kw_only:
+                (optional_kw_only_args if arg.default else required_kw_only_args).append(arg)
+            else:
+                positional_args.append(arg)
+                if arg.pos_only:
+                    num_pos_only_args += 1
+                    if not arg.default:
+                        num_required_pos_only_args += 1
 
         # sort required kw-only args before optional ones to avoid special
         # cases in the unpacking code
@@ -4480,6 +4477,7 @@ class DefNodeWrapper(FuncDefNode):
         # that could be passed as keywords have in fact been passed as
         # positional args.
 
+        # TODO: find out why this is sometimes different from 'self.num_posonly_args'.
         num_pos_only_args = 0
         for arg in all_args:
             if arg.pos_only:
@@ -4545,40 +4543,42 @@ class DefNodeWrapper(FuncDefNode):
             if not optional_args:
                 first_optional_arg = i
             optional_args.append(arg.name)
+
+        if not optional_args:
+            return
+
         if num_posonly_args > 0:
             posonly_correction = '-%d' % num_posonly_args
         else:
             posonly_correction = ''
-        if optional_args:
-            if len(optional_args) > 1:
-                # if we receive more than the named kwargs, we either have **kwargs
-                # (in which case we must iterate anyway) or it's an error (which we
-                # also handle during iteration) => skip this part if there are more
-                code.putln('if (kw_args > 0 && %s(kw_args <= %d)) {' % (
-                    not self.starstar_arg and 'likely' or '',
-                    len(optional_args)))
-                code.putln('Py_ssize_t index;')
-                # not unrolling the loop here reduces the C code overhead
-                code.putln('for (index = %d; index < %d && kw_args > 0; index++) {' % (
-                    first_optional_arg, first_optional_arg + len(optional_args)))
-            else:
-                code.putln('if (kw_args == 1) {')
-                code.putln('const Py_ssize_t index = %d;' % first_optional_arg)
-            code.putln('PyObject* value = __Pyx_GetKwValue_%s(%s, %s, *%s[index%s]);' % (
-                self.signature.fastvar,
-                Naming.kwds_cname,
-                Naming.kwvalues_cname,
-                Naming.pykwdlist_cname,
-                posonly_correction))
-            code.putln('if (value) {')
-            code.putln('__Pyx_Arg_XDECREF_%s(values[index]);' % self.signature.fastvar)
-            code.putln('values[index] = __Pyx_Arg_NewRef_%s(value); kw_args--;' %
-                       self.signature.fastvar)
-            code.putln('}')
-            code.putln('else if (unlikely(PyErr_Occurred())) %s' % code.error_goto(self.pos))
-            if len(optional_args) > 1:
-                code.putln('}')
-            code.putln('}')
+
+        if len(optional_args) > 1:
+            # if we receive more than the named kwargs, we either have **kwargs
+            # (in which case we must iterate anyway) or it's an error (which we
+            # also handle during iteration) => skip this part if there are more
+            code.putln(f"if (kw_args > 0 && {'' if self.starstar_arg else 'likely'}(kw_args <= {len(optional_args)})) {{")
+            code.putln('Py_ssize_t index;')
+            # not unrolling the loop here reduces the C code overhead
+            code.putln(f"for (index = {first_optional_arg}; index < {first_optional_arg + len(optional_args)} && kw_args > 0; index++) {{")
+        else:
+            code.putln('if (kw_args == 1) {')
+            code.putln(f"const Py_ssize_t index = {first_optional_arg};")
+
+        code.putln(
+            f"PyObject* value = __Pyx_GetKwValue_{self.signature.fastvar}("
+            f"{Naming.kwds_cname}, "
+            f"{Naming.kwvalues_cname}, "
+            f"*{Naming.pykwdlist_cname}[index{posonly_correction}]"
+            ");"
+        )
+        code.putln('if (value) {')
+        code.putln(f'__Pyx_Arg_XDECREF_{self.signature.fastvar}(values[index]);')
+        code.putln(f'values[index] = __Pyx_Arg_NewRef_{self.signature.fastvar}(value); kw_args--;')
+        code.putln('}')
+        code.putln(f"else if (unlikely(PyErr_Occurred())) {code.error_goto(self.pos)}")
+        if len(optional_args) > 1:
+            code.putln('}')  # for-loop
+        code.putln('}')
 
     def generate_argument_conversion_code(self, code):
         # Generate code to convert arguments from signature type to
@@ -4644,6 +4644,7 @@ class DefNodeWrapper(FuncDefNode):
                                           arg.type.is_buffer or
                                           arg.type.is_memoryviewslice):
                 self.generate_arg_none_check(arg, code)
+
         if self.target.entry.is_special:
             for n in reversed(range(len(self.args), self.signature.max_num_fixed_args())):
                 # for special functions with optional args (e.g. power which can
