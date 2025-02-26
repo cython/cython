@@ -3,7 +3,7 @@ Cython Changelog
 ================
 
 
-3.1.0 alpha 2 (2025-??-??)
+3.1.0 beta 1 (2025-??-??)
 ==========================
 
 Features added
@@ -55,6 +55,9 @@ Bugs fixed
 * ``for-in`` loops could generate invalid code for C++ containers.
   Patch by Taras Kozlov.  (Github issue :issue:`6578`)
 
+* ``PyDict_GetItemRef()`` and ``PyList_GetItemRef()`` were not always used correctly.
+  Patch by Lisandro Dalcin.  (Github issue :issue:`6647`)
+
 * Inlined calls to local functions could crash with ``binding=False``.
   (Github issue :issue:`6556`)
 
@@ -84,8 +87,14 @@ Bugs fixed
 * Interoperability with recent Pythran releases was fixed.
   (Github issue :issue:`6494`)
 
+* The ``gdb`` compatibility of ``cygdb`` was improved.
+  Patch by Kent Slaney.  (Github issue :issue:`6681`)
+
 * Some redundant exception normalisation work was removed in Python 3.12+.
   (Github issue :issue:`6599`)
+
+* Some incomplete import time "safety checks" from 3.1.0a1 were removed again.
+  (Github issue :issue:`6671`)
 
 Other changes
 -------------
