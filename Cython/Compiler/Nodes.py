@@ -4194,6 +4194,9 @@ class DefNodeWrapper(FuncDefNode):
             code.putln(f"__Pyx_RejectKeywords({self_name_csafe}, {Naming.kwds_cname}); {code.error_goto(self.pos)}")
         else:
             # Extract arguments from args and keywords.
+            # Note: This may be different from the tuple unpacking code below since we cannot
+            #       recognise missing arguments from the fact that they are missing from the
+            #       positional arguments when keywords are provided as well.
             self.generate_posargs_unpacking_code(
                 min_positional_args, max_positional_args,
                 has_fixed_positional_count, has_kw_only_args, all_args, argtuple_error_label, code)
@@ -4464,12 +4467,6 @@ class DefNodeWrapper(FuncDefNode):
             code.put('default: ')  # more arguments than allowed
             code.put_goto(argtuple_error_label)
         code.putln('}')
-
-        # The code above is very often (but not always) the same as
-        # the optimised non-kwargs tuple unpacking code, so we keep
-        # the code block above at the very top, to make it easy for the C
-        # compiler to merge the two separate tuple unpacking
-        # implementations into one when they turn out to be identical.
 
     def generate_keyword_unpacking_code(self, max_positional_args, all_args, code):
 
