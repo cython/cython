@@ -653,7 +653,7 @@ static int __Pyx_ParseKeywordsTuple(
     const char* function_name,
     int ignore_unknown_kwargs)
 {
-    PyObject *key = NULL, *value = NULL;
+    PyObject *key = NULL;
     Py_ssize_t pos = 0, kw_tuple_size;
     PyObject** const * name;
     PyObject** const *first_kw_arg = argnames + num_pos_args;
@@ -662,23 +662,19 @@ static int __Pyx_ParseKeywordsTuple(
     kw_tuple_size = PyTuple_GET_SIZE(kwds);
     #else
     kw_tuple_size = PyTuple_Size(kwds);
-    if (kw_tuple_size < 0) goto bad;
+    if (kw_tuple_size < 0) return -1;
     #endif
 
     while (pos < kw_tuple_size) {
-        // clean up key and value when the loop is "continued"
-        Py_XDECREF(key); key = NULL;
-        Py_XDECREF(value); value = NULL;
+        PyObject *value;
 
 #if CYTHON_AVOID_BORROWED_REFS
-        // Get an owned reference to key.
         key = __Pyx_PySequence_ITEM(kwds, pos);
-        if (!key) goto bad;
-#elif CYTHON_ASSUME_SAFE_MACROS
-        key = PyTuple_GET_ITEM(kwds, pos);
 #else
-        key = PyTuple_GetItem(kwds, pos);
+        key = __Pyx_PyTuple_GET_ITEM(kwds, pos);
+        #if !CYTHON_ASSUME_SAFE_MACROS
         if (!key) goto bad;
+        #endif
 #endif
 
         value = kwvalues[pos];
@@ -688,42 +684,33 @@ static int __Pyx_ParseKeywordsTuple(
         name = first_kw_arg;
         while (*name && (**name != key)) name++;
         if (*name) {
-            values[name-argnames] = value;
-#if CYTHON_AVOID_BORROWED_REFS
-            Py_INCREF(value);  /* transfer ownership of value to values */
+            values[name-argnames] = __Pyx_NewRef(value);
+            #if CYTHON_AVOID_BORROWED_REFS
             Py_DECREF(key);
-#endif
-            key = NULL;
-            value = NULL;
+            #endif
             continue;
         }
-
-        // Now make sure we own both references since we're doing non-trivial Python operations.
-#if !CYTHON_AVOID_BORROWED_REFS
-        Py_INCREF(key);
-#endif
-        Py_INCREF(value);
 
         size_t index_found = 0;
         int cmp = __Pyx_MatchKeywordArg(key, argnames, first_kw_arg, &index_found, function_name);
 
         if (cmp == 1) {
-            values[index_found] = value;
-            #if CYTHON_AVOID_BORROWED_REFS
-            value = NULL;  /* ownership transferred to values */
-            #endif
-            continue;
+            // Transfer ownership of value to values array.
+            values[index_found] = __Pyx_NewRef(value);
+        } else {
+            if (unlikely(cmp == -1)) goto bad;
+            if (kwds2) {
+                if (unlikely(PyDict_SetItem(kwds2, key, value))) goto bad;
+            } else if (!ignore_unknown_kwargs) {
+                goto invalid_keyword;
+            }
         }
-        if (unlikely(cmp == -1)) goto bad;
 
-        if (kwds2) {
-            if (unlikely(PyDict_SetItem(kwds2, key, value))) goto bad;
-        } else if (!ignore_unknown_kwargs) {
-            goto invalid_keyword;
-        }
+        #if CYTHON_AVOID_BORROWED_REFS
+        Py_DECREF(key);
+        key = NULL;
+        #endif
     }
-    Py_XDECREF(key);
-    Py_XDECREF(value);
     return 0;
 
 invalid_keyword:
@@ -732,8 +719,9 @@ invalid_keyword:
         function_name, key);
     goto bad;
 bad:
+    #if CYTHON_AVOID_BORROWED_REFS
     Py_XDECREF(key);
-    Py_XDECREF(value);
+    #endif
     return -1;
 }
 
@@ -896,13 +884,16 @@ static CYTHON_INLINE int __Pyx_MergeKeywords(PyObject *kwdict, PyObject *source_
 // then the ..._FASTCALL macros simply alias ..._VARARGS
 
 #if CYTHON_AVOID_BORROWED_REFS
-    // This is the only case where we request an owned reference.
-    #define __Pyx_Arg_VARARGS(args, i) PySequence_GetItem(args, i)
+    #define __Pyx_Arg_VARARGS(args, i) __Pyx_PySequence_ITEM(args, i)
+    #define __Pyx_ArgRef_VARARGS(args, i) __Pyx_PySequence_ITEM(args, i)
 #elif CYTHON_ASSUME_SAFE_MACROS
-    #define __Pyx_Arg_VARARGS(args, i) PyTuple_GET_ITEM(args, i)
+    #define __Pyx_Arg_VARARGS(args, i) __Pyx_PyTuple_GET_ITEM(args, i)
+    #define __Pyx_ArgRef_VARARGS(args, i) __Pyx_NewRef(__Pyx_PyTuple_GET_ITEM(args, i))
 #else
     #define __Pyx_Arg_VARARGS(args, i) PyTuple_GetItem(args, i)
+    #define __Pyx_ArgRef_VARARGS(args, i) __Pyx_XNewRef(PyTuple_GetItem(args, i))
 #endif
+
 #if CYTHON_AVOID_BORROWED_REFS
     #define __Pyx_Arg_NewRef_VARARGS(arg) __Pyx_NewRef(arg)
     #define __Pyx_Arg_XDECREF_VARARGS(arg) Py_XDECREF(arg)
@@ -910,12 +901,14 @@ static CYTHON_INLINE int __Pyx_MergeKeywords(PyObject *kwdict, PyObject *source_
     #define __Pyx_Arg_NewRef_VARARGS(arg) arg  /* no-op */
     #define __Pyx_Arg_XDECREF_VARARGS(arg)     /* no-op - arg is borrowed */
 #endif
+
 #define __Pyx_NumKwargs_VARARGS(kwds) PyDict_Size(kwds)
 #define __Pyx_KwValues_VARARGS(args, nargs) NULL
 #define __Pyx_GetKwValue_VARARGS(kw, kwvalues, s) __Pyx_PyDict_GetItemStrWithError(kw, s)
 #define __Pyx_KwargsAsDict_VARARGS(kw, kwvalues) PyDict_Copy(kw)
 #if CYTHON_METH_FASTCALL
     #define __Pyx_Arg_FASTCALL(args, i) args[i]
+    #define __Pyx_ArgRef_FASTCALL(args, i) __Pyx_NewRef(args[i])
     #define __Pyx_NumKwargs_FASTCALL(kwds) __Pyx_PyTuple_GET_SIZE(kwds)
     #define __Pyx_KwValues_FASTCALL(args, nargs) ((args) + (nargs))
     static CYTHON_INLINE PyObject * __Pyx_GetKwValue_FASTCALL(PyObject *kwnames, PyObject *const *kwvalues, PyObject *s);
@@ -929,6 +922,7 @@ static CYTHON_INLINE int __Pyx_MergeKeywords(PyObject *kwdict, PyObject *source_
     #define __Pyx_Arg_XDECREF_FASTCALL(arg)     /* no-op - arg was returned from array */
 #else
     #define __Pyx_Arg_FASTCALL __Pyx_Arg_VARARGS
+    #define __Pyx_ArgRef_FASTCALL __Pyx_ArgRef_VARARGS
     #define __Pyx_NumKwargs_FASTCALL __Pyx_NumKwargs_VARARGS
     #define __Pyx_KwValues_FASTCALL __Pyx_KwValues_VARARGS
     #define __Pyx_GetKwValue_FASTCALL __Pyx_GetKwValue_VARARGS

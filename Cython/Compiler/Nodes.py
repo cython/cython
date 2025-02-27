@@ -4205,6 +4205,9 @@ class DefNodeWrapper(FuncDefNode):
             self.generate_keyword_unpacking_code(
                 max_positional_args, all_args, code)
 
+            # Assign the default values to the empty entries of the 'values' array.
+            self.generate_argument_defaults_assignment_code(all_args, code)
+
             # Validate required arguments after integrating keyword arguments (which cannot fill up posonly arguments).
             if min_positional_args > num_required_pos_only_args:
                 code.globalstate.use_utility_code(
@@ -4273,13 +4276,13 @@ class DefNodeWrapper(FuncDefNode):
                 # parse the exact number of positional arguments from
                 # the args tuple
                 for i, arg in enumerate(positional_args):
-                    # no default for this arg so no need to decref values[i]
-                    code.putln("values[%d] = __Pyx_Arg_%s(%s, %d);" % (
-                            i, self.signature.fastvar, Naming.args_cname, i))
+                    code.putln(
+                        f"values[{i}] = __Pyx_ArgRef_{self.signature.fastvar}({Naming.args_cname}, {i});")
+                    code.putln(f"if (!CYTHON_ASSUME_SAFE_MACROS && unlikely(!values[{i}])) {code.error_goto(self.pos)}")
             else:
                 # parse the positional arguments from the variable length
                 # args tuple and reject illegal argument tuple sizes
-                code.putln('switch (%s) {' % Naming.nargs_cname)
+                code.putln(f'switch ({Naming.nargs_cname}) {{')
                 if self.star_arg:
                     code.putln('default:')
                 reversed_args = list(enumerate(positional_args))[::-1]
@@ -4287,12 +4290,10 @@ class DefNodeWrapper(FuncDefNode):
                     if i >= min_positional_args-1:
                         if i != reversed_args[0][0]:
                             code.putln('CYTHON_FALLTHROUGH;')
-                        code.putln('case %2d:' % (i+1))
-                    if arg.default:
-                        code.putln('__Pyx_Arg_XDECREF_%s(values[%d]);' % (
-                            self.signature.fastvar, i))
-                    code.putln("values[%d] = __Pyx_Arg_%s(%s, %d);" % (
-                            i, self.signature.fastvar, Naming.args_cname, i))
+                        code.putln(f'case {i+1:2d}:')
+                    code.putln(
+                        f"values[{i}] = __Pyx_ArgRef_{self.signature.fastvar}({Naming.args_cname}, {i});")
+                    code.putln(f"if (!CYTHON_ASSUME_SAFE_MACROS && unlikely(!values[{i}])) {code.error_goto(self.pos)}")
                 if min_positional_args == 0:
                     code.putln('CYTHON_FALLTHROUGH;')
                     code.put('case  0: ')
@@ -4300,12 +4301,15 @@ class DefNodeWrapper(FuncDefNode):
                 if self.star_arg:
                     if min_positional_args:
                         for i in range(min_positional_args-1, -1, -1):
-                            code.putln('case %2d:' % i)
+                            code.putln(f'case {i:2d}:')
                         code.put_goto(argtuple_error_label)
                 else:
                     code.put('default: ')
                     code.put_goto(argtuple_error_label)
                 code.putln('}')
+
+            # Assign the default values to the empty entries of the 'values' array.
+            self.generate_argument_defaults_assignment_code(all_args, code)
 
         code.putln('}')  # end of the conditional unpacking blocks
 
@@ -4313,7 +4317,7 @@ class DefNodeWrapper(FuncDefNode):
         # Also inject non-Python default arguments, which do cannot
         # live in the values[] array.
         for i, arg in enumerate(all_args):
-            self.generate_arg_assignment(arg, "values[%d]" % i, code)
+            self.generate_arg_assignment(arg, f"values[{i}]", code)
 
         code.putln('}')  # end of the whole argument unpacking block
 
@@ -4403,13 +4407,12 @@ class DefNodeWrapper(FuncDefNode):
                 self.target.defaults_struct, Naming.dynamic_args_cname,
                 self.target.defaults_struct, Naming.self_cname))
 
-        # assign (usually borrowed) Python default values to the values array,
-        # so that they can be overwritten by received arguments below
+    def generate_argument_defaults_assignment_code(self, args, code):
+        # Assign the default values to the empty entries of the 'values' array.
         for i, arg in enumerate(args):
             if arg.default and arg.type.is_pyobject:
                 default_value = arg.calculate_default_value_code(code)
-                code.putln('values[%d] = __Pyx_Arg_NewRef_%s(%s);' % (
-                    i, self.signature.fastvar, arg.type.as_pyobject(default_value)))
+                code.putln(f'if (!values[{i}]) values[{i}] = __Pyx_NewRef({arg.type.as_pyobject(default_value)});')
 
     def generate_argument_values_cleanup_code(self, code):
         if not self.needs_values_cleanup:
@@ -4417,12 +4420,8 @@ class DefNodeWrapper(FuncDefNode):
         # The 'values' array may not be borrowed depending on the compilation options.
         # This cleans it up in the case it isn't borrowed
         loop_var = Naming.quick_temp_cname
-        code.putln("{")
-        code.putln("Py_ssize_t %s;" % loop_var)
-        code.putln("for (%s=0; %s < (Py_ssize_t)(sizeof(values)/sizeof(values[0])); ++%s) {" % (
-            loop_var, loop_var, loop_var))
-        code.putln("__Pyx_Arg_XDECREF_%s(values[%s]);" % (self.signature.fastvar, loop_var))
-        code.putln("}")
+        code.putln(f"for (Py_ssize_t {loop_var}=0; {loop_var} < (Py_ssize_t)(sizeof(values)/sizeof(values[0])); ++{loop_var}) {{")
+        code.putln(f"Py_XDECREF(values[{loop_var}]);")
         code.putln("}")
 
     def generate_posargs_unpacking_code(self, min_positional_args, max_positional_args,
@@ -4440,22 +4439,18 @@ class DefNodeWrapper(FuncDefNode):
             code.putln('default:')
 
         for i in range(max_positional_args-1, num_required_posonly_args-1, -1):
-            code.putln('case %2d:' % (i+1))
-            if all_args[i].default:
-                code.putln("__Pyx_Arg_XDECREF_%s(values[%d]);" % (
-                    self.signature.fastvar, i))
-            code.putln("values[%d] = __Pyx_Arg_%s(%s, %d);" % (
-                i, self.signature.fastvar, Naming.args_cname, i))
+            code.putln(f'case {i+1:2d}:')
+            code.putln(f"values[{i}] = __Pyx_ArgRef_{self.signature.fastvar}({Naming.args_cname}, {i});")
+            code.putln(f"if (!CYTHON_ASSUME_SAFE_MACROS && unlikely(!values[{i}])) {code.error_goto(self.pos)}")
             code.putln('CYTHON_FALLTHROUGH;')
         if num_required_posonly_args > 0:
-            code.put('case %2d: ' % num_required_posonly_args)
+            code.put(f'case {num_required_posonly_args:2d}: ')
             for i in range(num_required_posonly_args-1, -1, -1):
-                # These are required so never need reference counting
-                code.putln("values[%d] = __Pyx_Arg_%s(%s, %d);" % (
-                    i, self.signature.fastvar, Naming.args_cname, i))
+                code.putln(f"values[{i}] = __Pyx_ArgRef_{self.signature.fastvar}({Naming.args_cname}, {i});")
+                code.putln(f"if (!CYTHON_ASSUME_SAFE_MACROS && unlikely(!values[{i}])) {code.error_goto(self.pos)}")
             code.putln('break;')
         for i in range(num_required_posonly_args-2, -1, -1):
-            code.put('case %2d: ' % (i+1))
+            code.putln(f'case {i+1:2d}:')
             code.putln('CYTHON_FALLTHROUGH;')
 
         code.put('case  0: ')
