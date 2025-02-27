@@ -4382,15 +4382,17 @@ class DefNodeWrapper(FuncDefNode):
                 # It is possible that this is a slice of "negative" length,
                 # as in args[5:3]. That's not a problem, the function below
                 # handles that efficiently and returns the empty tuple.
-                code.putln('%s = __Pyx_ArgsSlice_%s(%s, %d, %s);' % (
-                    self.star_arg.entry.cname, self.signature.fastvar,
-                    Naming.args_cname, max_positional_args, Naming.nargs_cname))
-                code.putln("if (unlikely(!%s)) {" %
-                           self.star_arg.entry.type.nullcheck_string(self.star_arg.entry.cname))
+                code.putln(
+                    f'{self.star_arg.entry.cname} = __Pyx_ArgsSlice_{self.signature.fastvar}('
+                    f'{Naming.args_cname}, {max_positional_args}, {Naming.nargs_cname}'
+                    ');'
+                )
+                code.putln(
+                    f"if (unlikely(!{self.star_arg.entry.type.nullcheck_string(self.star_arg.entry.cname)})) {{")
                 if self.starstar_arg:
                     code.put_var_decref_clear(self.starstar_arg.entry)
                 code.put_finish_refcount_context()
-                code.putln('return %s;' % self.error_value())
+                code.putln(f'return {self.error_value()};')
                 code.putln('}')
                 code.put_var_gotref(self.star_arg.entry)
 
