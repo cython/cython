@@ -4500,15 +4500,15 @@ class DefNodeWrapper(FuncDefNode):
             # the number of possible keyword arguments.  But ParseOptionalKeywords() uses the
             # number of positional args as an index into the keyword argument name array,
             # if this is larger than the number of kwd args we get a segfault.  So round
-            # this down to max_positional_args - num_pos_only_args (= num possible kwd args).
-            code.putln("const Py_ssize_t used_pos_args = (kwd_pos_args < %d) ? kwd_pos_args : %d;" % (
-                max_positional_args - num_pos_only_args, max_positional_args - num_pos_only_args))
+            # this down to max_kwargs.
+            max_kwargs = max_positional_args - num_pos_only_args
+            code.putln(f"const Py_ssize_t used_pos_args = (kwd_pos_args < {max_kwargs}) ? kwd_pos_args : {max_kwargs};")
             pos_arg_count = "used_pos_args"
         else:
             pos_arg_count = "kwd_pos_args"
 
-        if num_pos_only_args < len(all_args):
-            values_array = 'values + %d' % num_pos_only_args
+        if 0 < num_pos_only_args < len(all_args):
+            values_array = f'values + {num_pos_only_args}'
         else:
             values_array = 'values'
 
@@ -4527,55 +4527,6 @@ class DefNodeWrapper(FuncDefNode):
             f"{self.starstar_arg is not None :d}"  # **kwargs might exist but be NULL in C if unused
             ")"
         )
-
-    def generate_optional_kwonly_args_unpacking_code(self, all_args, code):
-        optional_args = []
-        first_optional_arg = -1
-        num_posonly_args = 0
-        for i, arg in enumerate(all_args):
-            if arg.pos_only:
-                num_posonly_args += 1
-            if not arg.kw_only or not arg.default:
-                continue
-            if not optional_args:
-                first_optional_arg = i
-            optional_args.append(arg.name)
-
-        if not optional_args:
-            return
-
-        if num_posonly_args > 0:
-            posonly_correction = '-%d' % num_posonly_args
-        else:
-            posonly_correction = ''
-
-        if len(optional_args) > 1:
-            # if we receive more than the named kwargs, we either have **kwargs
-            # (in which case we must iterate anyway) or it's an error (which we
-            # also handle during iteration) => skip this part if there are more
-            code.putln(f"if (kw_args > 0 && {'' if self.starstar_arg else 'likely'}(kw_args <= {len(optional_args)})) {{")
-            code.putln('Py_ssize_t index;')
-            # not unrolling the loop here reduces the C code overhead
-            code.putln(f"for (index = {first_optional_arg}; index < {first_optional_arg + len(optional_args)} && kw_args > 0; index++) {{")
-        else:
-            code.putln('if (kw_args == 1) {')
-            code.putln(f"const Py_ssize_t index = {first_optional_arg};")
-
-        code.putln(
-            f"PyObject* value = __Pyx_GetKwValue_{self.signature.fastvar}("
-            f"{Naming.kwds_cname}, "
-            f"{Naming.kwvalues_cname}, "
-            f"*{Naming.pykwdlist_cname}[index{posonly_correction}]"
-            ");"
-        )
-        code.putln('if (value) {')
-        code.putln(f'__Pyx_Arg_XDECREF_{self.signature.fastvar}(values[index]);')
-        code.putln(f'values[index] = __Pyx_Arg_NewRef_{self.signature.fastvar}(value); kw_args--;')
-        code.putln('}')
-        code.putln(f"else if (unlikely(PyErr_Occurred())) {code.error_goto(self.pos)}")
-        if len(optional_args) > 1:
-            code.putln('}')  # for-loop
-        code.putln('}')
 
     def generate_argument_conversion_code(self, code):
         # Generate code to convert arguments from signature type to
