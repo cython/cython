@@ -512,7 +512,6 @@ static int __Pyx_ParseKeywordDict(
     PyObject** const *name;
     PyObject** const *first_kw_arg = argnames + num_pos_args;
     Py_ssize_t kwcount, extracted = 0;
-    int failed = 0;
 
     // Check if dict is unicode-keys-only and let Python set the error otherwise.
     if (unlikely(!PyArg_ValidateKeywordArguments(kwds))) return -1;
@@ -525,36 +524,26 @@ static int __Pyx_ParseKeywordDict(
     #endif
 
     // Extract declared keyword arguments.
-    __Pyx_BEGIN_CRITICAL_SECTION(kwds);
     name = first_kw_arg;
     while (*name && kwcount > extracted) {
         PyObject * key = **name;
         PyObject *value;
-        int found;
+        int found = 0;
 
         #if __PYX_LIMITED_VERSION_HEX >= 0x030d0000
         found = PyDict_GetItemRef(kwds, key, &value);
         #else
-        // There isn't a good way to make this thread-safe before Py3.13.
-        // PyObject_GetItem() would generate lots of expensive KeyErrors.
-        // PyDict_Next() returns borrowed references.
         value = PyDict_GetItemWithError(kwds, key);
         if (value) {
             Py_INCREF(value);
+            found = 1;
         } else {
-            if (unlikely(PyErr_Occurred())) {
-                failed = 1;
-                break;
-            };
+            if (unlikely(PyErr_Occurred())) goto bad;
         }
-        found = value != NULL;
         #endif
 
         if (found) {
-            if (unlikely(found < 0)) {
-                failed = 1;
-                break;
-            };
+            if (unlikely(found < 0)) goto bad;
             values[name-argnames] = value;
             extracted++;
         }
@@ -563,28 +552,27 @@ static int __Pyx_ParseKeywordDict(
         kwcount = PyDict_GET_SIZE(kwds);
         #else
         kwcount = PyDict_Size(kwds);
-        if (unlikely(kwcount < 0)) {
-            failed = 1;
-            break;
-        };
+        if (unlikely(kwcount < 0)) goto bad;
         #endif
 
         name++;
     }
 
-    if (!failed && kwcount > extracted) {
+    if (kwcount > extracted) {
         if (ignore_unknown_kwargs) {
             // Make sure the remaining kwargs are not duplicate posargs.
-            failed = __Pyx_ValidateDuplicatePosArgs(kwds, argnames, first_kw_arg, function_name) == -1;
+            if (unlikely(__Pyx_ValidateDuplicatePosArgs(kwds, argnames, first_kw_arg, function_name) == -1))
+                goto bad;
         } else {
             // Any remaining kwarg is an error.
             __Pyx_RejectUnknownKeyword(kwds, argnames, first_kw_arg, function_name);
-            failed = 1;
+            goto bad;
         }
     }
-    __Pyx_END_CRITICAL_SECTION();
+    return 0;
 
-    return unlikely(failed) ? -1 : 0;
+bad:
+    return -1;
 }
 
 static int __Pyx_ParseKeywordDictToDict(
@@ -626,7 +614,7 @@ static int __Pyx_ParseKeywordDictToDict(
             if (unlikely(PyDict_DelItem(kwds2, key) < 0)) goto bad;
         }
 #else
-    // We use 'kdws2' as sentinel value to dict.pop() to avoid an exception on missing key.
+    // We use 'kwds2' as sentinel value to dict.pop() to avoid an exception on missing key.
     #if CYTHON_COMPILING_IN_CPYTHON
         value = _PyDict_Pop(kwds2, key, kwds2);
     #else
