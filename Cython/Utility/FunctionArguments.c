@@ -672,9 +672,9 @@ static int __Pyx_ParseKeywordsTuple(
         key = __Pyx_PySequence_ITEM(kwds, pos);
 #else
         key = __Pyx_PyTuple_GET_ITEM(kwds, pos);
-        #if !CYTHON_ASSUME_SAFE_MACROS
+#endif
+#if !CYTHON_ASSUME_SAFE_MACROS
         if (!key) goto bad;
-        #endif
 #endif
 
         value = kwvalues[pos];
