@@ -4189,6 +4189,7 @@ class DefNodeWrapper(FuncDefNode):
         code.putln("if (%s) {" % kw_unpacking_condition)
 
         if not accept_kwd_args:
+            # We test above that there is at least one kwarg if we get here => reject it.
             code.globalstate.use_utility_code(
                 UtilityCode.load_cached("RejectKeywords", "FunctionArguments.c"))
             code.putln(f"__Pyx_RejectKeywords({self_name_csafe}, {Naming.kwds_cname}); {code.error_goto(self.pos)}")
