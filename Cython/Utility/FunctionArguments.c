@@ -550,13 +550,6 @@ static int __Pyx_ParseKeywordDict(
             extracted++;
         }
 
-        #if CYTHON_COMPILING_IN_CPYTHON && CYTHON_ASSUME_SAFE_SIZE
-        kwcount = PyDict_GET_SIZE(kwds);
-        #else
-        kwcount = PyDict_Size(kwds);
-        if (unlikely(kwcount < 0)) goto bad;
-        #endif
-
         name++;
     }
 
