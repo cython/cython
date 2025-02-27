@@ -466,6 +466,7 @@ static void __Pyx_RejectUnknownKeyword(
     Py_ssize_t pos = 0;
     PyObject *key = NULL;
 
+    __Pyx_BEGIN_CRITICAL_SECTION(kwds);
     while (PyDict_Next(kwds, &pos, &key, NULL)) {
         // Quickly exclude the 'obviously' valid/known keyword arguments (exact pointer match).
         PyObject** const *name = first_kw_arg;
@@ -497,6 +498,7 @@ static void __Pyx_RejectUnknownKeyword(
             #endif
         }
     }
+    __Pyx_END_CRITICAL_SECTION();
 
     assert(PyErr_Occurred());
 }
