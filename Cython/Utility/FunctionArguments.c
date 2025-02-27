@@ -230,7 +230,7 @@ static void __Pyx_RejectKeywords(const char* function_name, PyObject *kwds); /*p
 //////////////////// RejectKeywords ////////////////////
 
 static void __Pyx_RejectKeywords(const char* function_name, PyObject *kwds) {
-    // Get the first keyword argument and raise a TypeError for it.
+    // Get the first keyword argument (there is at least one) and raise a TypeError for it.
     PyObject *key = NULL;
     if (CYTHON_METH_FASTCALL && likely(PyTuple_Check(kwds))) {
         key = __Pyx_PySequence_ITEM(kwds, 0);
@@ -238,13 +238,16 @@ static void __Pyx_RejectKeywords(const char* function_name, PyObject *kwds) {
         Py_ssize_t pos = 0;
         // Check if dict is unicode-keys-only and let Python set the error otherwise.
         if (unlikely(!PyArg_ValidateKeywordArguments(kwds))) return;
+        // Read first key.
         PyDict_Next(kwds, &pos, &key, NULL);
+        Py_INCREF(key);
     }
 
     if (likely(key)) {
         PyErr_Format(PyExc_TypeError,
             "%s() got an unexpected keyword argument '%U'",
             function_name, key);
+        Py_DECREF(key);
     }
 }
 
