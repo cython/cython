@@ -3,8 +3,6 @@
 cimport cython
 cdef extern from "Python.h":
     ctypedef struct PyObject
-
-cdef extern from "pythread.h":
     ctypedef void *PyThread_type_lock
 
 cdef extern from *:

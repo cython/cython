@@ -251,10 +251,11 @@ def parse_command_line(args):
 
     if options.use_listing_file and len(sources) > 1:
         parser.error("cython: Only one source file allowed when using -o\n")
-    if len(sources) == 0 and not (options.show_version or options.shared_c_file_path):
+    if options.shared_c_file_path:
+        if len(sources) > 0:
+            parser.error("cython: Source file not allowed when using --generate-shared\n")
+    elif len(sources) == 0 and not options.show_version:
         parser.error("cython: Need at least one source file\n")
-    if options.shared_c_file_path and len(sources) > 0:
-        parser.error("cython: Source file not allowed when using --generate-shared\n")
     if Options.embed and len(sources) > 1:
         parser.error("cython: Only one source file allowed when using --embed\n")
     if options.module_name:

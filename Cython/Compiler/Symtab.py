@@ -1511,7 +1511,7 @@ class ModuleScope(Scope):
         module_scope = self.global_scope()
         if module_name == "cython" and not is_relative_import:
             # Special-case Cython-scope. We want to generate it uniquely for each module
-            # because it depends on compiler directives
+            # because it depends on compiler directives.
             return module_scope.cython_scope
         if module_name.startswith("cython.") and not is_relative_import:
             _, rest = module_name.split('.', 1)
