@@ -130,7 +130,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         # Make the module node (and its init function) look like a FuncDefNode.
         return self.scope
 
-    def merge_in(self, tree, scope, stage, merge_scope=False, internal_c_class_entries=True):
+    def merge_in(self, tree, scope, stage, merge_scope=False, internalise_c_class_entries=True):
         # Merges in the contents of another tree, and possibly scope. With the
         # current implementation below, this must be done right prior
         # to code generation.
@@ -177,7 +177,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             # Ensure that we don't generate import code for these entries!
             for entry in scope.c_class_entries:
                 entry.type.module_name = self.full_module_name
-                entry.type.scope.directives["internal"] = internal_c_class_entries
+                entry.type.scope.directives["internal"] = internalise_c_class_entries
 
             self.scope.merge_in(scope)
 

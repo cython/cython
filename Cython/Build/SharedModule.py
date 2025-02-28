@@ -41,7 +41,7 @@ def create_shared_library_pipeline(context, scope, options, result):
         generate_tree_factory(context),
         *Pipeline.create_pipeline(context, 'pyx', exclude_classes=()),
         Pipeline.inject_pxd_code_stage_factory(context),
-        Pipeline.inject_utility_code_stage_factory(context, internal_c_class_entries=False),
+        Pipeline.inject_utility_code_stage_factory(context, internalise_c_class_entries=False),
         Pipeline.inject_utility_pxd_code_stage_factory(context),
         Pipeline.abort_on_errors,
         Pipeline.generate_pyx_code_stage_factory(options, result),

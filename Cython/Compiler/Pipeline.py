@@ -115,7 +115,7 @@ def normalize_deps(utilcodes):
         utilcode.requires = [deps.setdefault(dep, dep) for dep in utilcode.requires or ()]
 
 
-def inject_utility_code_stage_factory(context, internal_c_class_entries=True):
+def inject_utility_code_stage_factory(context, internalise_c_class_entries=True):
     def inject_utility_code_stage(module_node):
         module_node.prepare_utility_code()
         module_scope = module_node.scope
@@ -140,7 +140,7 @@ def inject_utility_code_stage_factory(context, internal_c_class_entries=True):
                 module_node.merge_in(tree.with_compiler_directives(),
                                      tree.scope, stage="utility",
                                      merge_scope=True,
-                                     internal_c_class_entries=internal_c_class_entries)
+                                     internalise_c_class_entries=internalise_c_class_entries)
             elif shared_library_scope := utilcode.get_shared_library_scope(cython_scope=module_scope.cython_scope):
                 module_scope.cimported_modules.append(shared_library_scope)
         return module_node
