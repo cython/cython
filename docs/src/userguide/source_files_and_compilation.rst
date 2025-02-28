@@ -452,13 +452,13 @@ modules if they contain purely declarations of external libraries.
 Shared utility module
 =====================
 
-When ``.pyx``/``.py`` file is compiled to ``.c`` file, cython automatically embed utility code to the resulting ``.c`` file. For projects containing multiple cython modules, it
-can result with larger total size of compiled extensions. To avoid redundant code, the shared utility code can be generated to separate extension module which is
-automatically cimported and used by the extension modules.
+When a ``.pyx``/``.py`` file is compiled to ``.c`` file, cython automatically embeds utility code to the resulting ``.c`` file. For projects containing multiple cython modules, it
+can result with larger total size of compiled extensions. To avoid redundant code, the shared utility code can be generated to a separate extension module which is
+automatically cimported and used by the user-written extension modules.
 
 .. note:: Currently only memoryview utility code can be generated in the shared utility module.
 
-Consider following example package ::
+Consider the following example package ::
 
     mypkg/
     +-- __init__.py
@@ -469,7 +469,7 @@ Consider following example package ::
         +-- __init__.py
         +-- module.pyx
 
-The :file:`_cyutility.c` file contains shared utility code and :file:`module.pyx` is a standard cython source file which will be compiled extension cimporting ``mypkg.shared._cyutility`` module.
+The :file:`_cyutility.c` file contains shared utility code and :file:`module.pyx` is a standard cython source file which will be compiled into an extension cimporting ``mypkg.shared._cyutility`` module.
 The compilation process now consist of four steps:
 
 1. generating shared utility code. This is done via ``--generate-shared`` argument:
@@ -478,8 +478,9 @@ The compilation process now consist of four steps:
 
        $ cython --generate-shared=mypkg/shared/_cyutility.c
 
-2. compiling shared utility code. Module needs to be compiled as regular ``.c`` file using directly C compiler, setuptools, etc.
-3. compiling ``.pyx`` file to ``.c`` file with ``--shared`` argument:
+2. compiling the shared utility code. The module needs to be compiled as regular ``.c`` file, either by using the
+C compiler directly, or through setuptools, etc.
+3. compiling ``.pyx`` file to ``.c`` file with the ``--shared`` argument to give the name of the shared module:
 
    .. code-block:: console
 
@@ -487,12 +488,12 @@ The compilation process now consist of four steps:
 
 4. compiling ``module.c`` file
 
-.. warning:: Extension module compiled with ``--shared=...`` argument, automatically imports the shared module under the fully qualified name provided via the argument parameter. Failing to import the shared module will cause a failure of the extension module import.
+.. warning:: An extension module compiled with ``--shared=...`` argument, automatically imports the shared module under the fully qualified name provided via the argument parameter. Failing to import the shared module will cause a failure of the extension module import.
 
 Compiling shared module using setuptools
 ----------------------------------------
 
-To simplify compilation process, setuptools can be used. To specify fully qualified module name of the shared utility, the ``shared_utility_qualified_name`` directive can be used instead of the ``--shared`` argument. The :file:`setup.py` file would be:
+To simplify the compilation process, setuptools can be used. To specify the fully qualified module name of the shared utility, the ``shared_utility_qualified_name`` directive can be used instead of the ``--shared`` argument. The :file:`setup.py` file would be:
 
 .. code-block:: python
     :caption: setup.py
@@ -1117,7 +1118,7 @@ Cython code.  Here is the list of currently supported directives:
 
 ``shared_utility_qualified_name`` (fully qualified module name), *default=""*
     When set, cython will automatically cimport and use internal utility code from the provided
-    shared module instead of embedding it. This can yield in overall smaller module size because
+    shared module instead of embedding it. This can yield a smaller package size because
     the shared utility code is present only in shared module. See :ref:`shared_module` for more detail.
 
 
