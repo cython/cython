@@ -194,8 +194,11 @@ static int __Pyx_CheckKeywordStrings(
             if (!key) return 0;
             #endif
 
-            if (unlikely(!PyUnicode_Check(key)))
-                goto invalid_keyword_type;
+            if (unlikely(!PyUnicode_Check(key))) {
+                PyErr_Format(PyExc_TypeError,
+                    "%.200s() keywords must be strings", function_name);
+                return 0;
+            }
         }
 #endif
 
@@ -213,13 +216,6 @@ static int __Pyx_CheckKeywordStrings(
         goto invalid_keyword;
     }
     return 1;
-
-#if !CYTHON_COMPILING_IN_PYPY
-invalid_keyword_type:
-    PyErr_Format(PyExc_TypeError,
-        "%.200s() keywords must be strings", function_name);
-    return 0;
-#endif
 
 invalid_keyword:
     // We own a reference to 'key'.
