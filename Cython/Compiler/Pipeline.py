@@ -118,9 +118,10 @@ def normalize_deps(utilcodes):
 def inject_utility_code_stage_factory(context, internal_c_class_entries=True):
     def inject_utility_code_stage(module_node):
         module_node.prepare_utility_code()
-        use_utility_code_definitions(module_node.scope.cython_scope, module_node.scope)
+        module_scope = module_node.scope
+        use_utility_code_definitions(module_scope.cython_scope, module_scope)
 
-        utility_code_list = module_node.scope.utility_code_list
+        utility_code_list = module_scope.utility_code_list
         utility_code_list[:] = sorted_utility_codes_and_deps(utility_code_list)
         normalize_deps(utility_code_list)
 
@@ -135,13 +136,13 @@ def inject_utility_code_stage_factory(context, internal_c_class_entries=True):
                 for dep in utilcode.requires:
                     if dep not in added:
                         utility_code_list.append(dep)
-            if tree := utilcode.get_tree(cython_scope=module_node.scope.cython_scope):
+            if tree := utilcode.get_tree(cython_scope=module_scope.cython_scope):
                 module_node.merge_in(tree.with_compiler_directives(),
                                      tree.scope, stage="utility",
                                      merge_scope=True,
                                      internal_c_class_entries=internal_c_class_entries)
-            elif shared_library_scope := utilcode.get_shared_library_scope(cython_scope=module_node.scope.cython_scope):
-                module_node.scope.cimported_modules.append(shared_library_scope)
+            elif shared_library_scope := utilcode.get_shared_library_scope(cython_scope=module_scope.cython_scope):
+                module_scope.cimported_modules.append(shared_library_scope)
         return module_node
 
     return inject_utility_code_stage
