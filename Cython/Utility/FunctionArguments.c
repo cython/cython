@@ -159,66 +159,74 @@ static int __Pyx_CheckKeywordStrings(
     const char* function_name,
     int kw_allowed)
 {
-    PyObject* key = 0;
+    PyObject* key = NULL;
     Py_ssize_t pos = 0;
-#if CYTHON_COMPILING_IN_PYPY
-    /* PyPy appears to check keywords at call time, not at unpacking time => not much to do here */
-    if (!kw_allowed && PyDict_Next(kw, &pos, &key, 0))
-        goto invalid_keyword;
-    return 1;
-#else
+
+    // PyPy appears to check keyword types at call time, not at unpacking time => only check 'kw_allowed' below.
+#if !CYTHON_COMPILING_IN_PYPY
+
+    // Validate keyword types.
     if (CYTHON_METH_FASTCALL && likely(PyTuple_Check(kw))) {
         Py_ssize_t kwsize;
-#if CYTHON_ASSUME_SAFE_SIZE
+        #if CYTHON_ASSUME_SAFE_SIZE
         kwsize = PyTuple_GET_SIZE(kw);
-#else
+        #else
         kwsize = PyTuple_Size(kw);
         if (kwsize < 0) return 0;
-#endif
+        #endif
+
         if (unlikely(kwsize == 0))
             return 1;
         if (!kw_allowed) {
-#if CYTHON_ASSUME_SAFE_MACROS
-            key = PyTuple_GET_ITEM(kw, 0);
-#else
-            key = PyTuple_GetItem(kw, pos);
-            if (!key) return 0;
-#endif
+            key = PySequence_GetItem(kw, 0);
+            if (unlikely(!key)) return 0;
             goto invalid_keyword;
         }
+
+// On CPython >= 3.9, the FASTCALL protocol guarantees that keyword
+// names are strings (see https://github.com/python/cpython/issues/81721)
 #if PY_VERSION_HEX < 0x03090000
-        // On CPython >= 3.9, the FASTCALL protocol guarantees that keyword
-        // names are strings (see https://bugs.python.org/issue37540)
         for (pos = 0; pos < kwsize; pos++) {
-#if CYTHON_ASSUME_SAFE_MACROS
+            #if CYTHON_ASSUME_SAFE_MACROS
             key = PyTuple_GET_ITEM(kw, pos);
-#else
+            #else
             key = PyTuple_GetItem(kw, pos);
             if (!key) return 0;
-#endif
+            #endif
+
             if (unlikely(!PyUnicode_Check(key)))
                 goto invalid_keyword_type;
         }
 #endif
+
         return 1;
     }
 
-    while (PyDict_Next(kw, &pos, &key, 0)) {
-        if (unlikely(!PyUnicode_Check(key)))
-            goto invalid_keyword_type;
-    }
-    if (!kw_allowed && unlikely(key))
+    // Otherwise, 'kw' is a dict: check if it's unicode-keys-only and let Python set the error otherwise.
+    if (unlikely(!PyArg_ValidateKeywordArguments(kw))) return 0;
+
+#endif
+
+    // If no keywords are allowed, the first key it contains is an error.
+    if (!kw_allowed && PyDict_Next(kw, &pos, &key, 0)) {
+        Py_INCREF(key);
         goto invalid_keyword;
+    }
     return 1;
+
+#if !CYTHON_COMPILING_IN_PYPY
 invalid_keyword_type:
     PyErr_Format(PyExc_TypeError,
         "%.200s() keywords must be strings", function_name);
     return 0;
 #endif
+
 invalid_keyword:
+    // We own a reference to 'key'.
     PyErr_Format(PyExc_TypeError,
-        "%s() got an unexpected keyword argument '%U'",
+        "%.200s() got an unexpected keyword argument '%U'",
         function_name, key);
+    Py_DECREF(key);
     return 0;
 }
 
