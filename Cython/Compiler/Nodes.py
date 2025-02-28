@@ -4030,44 +4030,48 @@ class DefNodeWrapper(FuncDefNode):
             code.put_var_decref_clear(arg.entry)
 
     def generate_stararg_copy_code(self, code):
+        # Direct return simplifies **kwargs cleanup, but we give no traceback.
+        goto_error = f"return {self.error_value()};"
+
         if not self.star_arg:
             code.globalstate.use_utility_code(
                 UtilityCode.load_cached("RaiseArgTupleInvalid", "FunctionArguments.c"))
-            code.putln("if (unlikely(%s > 0)) {" % Naming.nargs_cname)
-            # Direct return simplifies **kwargs cleanup, but we give no traceback.
-            code.put('__Pyx_RaiseArgtupleInvalid(%s, 1, 0, 0, %s); return %s;' % (
-                self.name.as_c_string_literal(), Naming.nargs_cname, self.error_value()))
-            code.putln("}")
+            code.putln(
+                f"if (unlikely({Naming.nargs_cname} > 0)) {{ "
+                f"__Pyx_RaiseArgtupleInvalid({self.name.as_c_string_literal()}, 1, 0, 0, {Naming.nargs_cname}); "
+                f"{goto_error} "
+                "}"
+            )
 
-        if self.starstar_arg:
-            if self.star_arg or not self.starstar_arg.entry.cf_used:
-                kwarg_check = "unlikely(%s)" % Naming.kwds_cname
-            else:
-                kwarg_check = "%s" % Naming.kwds_cname
-        else:
-            kwarg_check = "unlikely(%s) && __Pyx_NumKwargs_%s(%s)" % (
-                Naming.kwds_cname, self.signature.fastvar, Naming.kwds_cname)
+        code.putln(
+            f"Py_ssize_t {Naming.kwds_len_cname} = "
+            f"{'' if self.starstar_arg else 'unlikely'}({Naming.kwds_cname}) ? "
+            f"__Pyx_NumKwargs_{self.signature.fastvar}({Naming.kwds_cname}) : 0;"
+        )
+        code.putln(f"if (unlikely({Naming.kwds_len_cname}) < 0) {goto_error}")
+
         code.globalstate.use_utility_code(
             UtilityCode.load_cached("KeywordStringCheck", "FunctionArguments.c"))
         code.putln(
-            "if (%s && unlikely(!__Pyx_CheckKeywordStrings(%s, %s, %d))) return %s;" % (
-                kwarg_check, Naming.kwds_cname, self.name.as_c_string_literal(),
-                bool(self.starstar_arg), self.error_value()))
+            f"if ({Naming.kwds_len_cname} > 0 && "
+            f"unlikely(!__Pyx_CheckKeywordStrings({Naming.kwds_cname}, {self.name.as_c_string_literal()}, {bool(self.starstar_arg):d}))) "
+            f"{goto_error}"
+        )
 
         if self.starstar_arg and self.starstar_arg.entry.cf_used:
-            code.putln("if (%s) {" % kwarg_check)
-            code.putln("%s = __Pyx_KwargsAsDict_%s(%s, %s);" % (
-                self.starstar_arg.entry.cname,
-                self.signature.fastvar,
-                Naming.kwds_cname,
-                Naming.kwvalues_cname))
-            code.putln("if (unlikely(!%s)) return %s;" % (
-                self.starstar_arg.entry.cname, self.error_value()))
-            code.put_gotref(self.starstar_arg.entry.cname, py_object_type)
+            starstar_arg_cname = self.starstar_arg.entry.cname
+            code.putln(f"if ({Naming.kwds_len_cname}) {{")
+            code.putln(
+                f"{starstar_arg_cname} = __Pyx_KwargsAsDict_{self.signature.fastvar}("
+                f"{Naming.kwds_cname}, {Naming.kwvalues_cname}"
+                ");"
+            )
+            code.putln(f"if (unlikely(!{starstar_arg_cname})) {goto_error};")
+            code.put_gotref(starstar_arg_cname, py_object_type)
+
             code.putln("} else {")
-            code.putln("%s = PyDict_New();" % (self.starstar_arg.entry.cname,))
-            code.putln("if (unlikely(!%s)) return %s;" % (
-                self.starstar_arg.entry.cname, self.error_value()))
+            code.putln(f"{starstar_arg_cname} = PyDict_New();")
+            code.putln(f"if (unlikely(!{starstar_arg_cname})) {goto_error};")
             code.put_var_gotref(self.starstar_arg.entry)
             self.starstar_arg.entry.xdecref_cleanup = False
             code.putln("}")
@@ -4076,38 +4080,38 @@ class DefNodeWrapper(FuncDefNode):
 
         if self.self_in_stararg and not self.target.is_staticmethod:
             assert not self.signature.use_fastcall
+            star_arg_cname = self.star_arg.entry.cname
             # need to create a new tuple with 'self' inserted as first item
-            code.putln("%s = PyTuple_New(%s + 1); %s" % (
-                self.star_arg.entry.cname,
-                Naming.nargs_cname,
-                code.error_goto_if_null(self.star_arg.entry.cname, self.pos)
-            ))
+            code.putln(
+                f"{star_arg_cname} = PyTuple_New({Naming.nargs_cname} + 1); "
+                f"{code.error_goto_if_null(star_arg_cname, self.pos)}"
+            )
             code.put_var_gotref(self.star_arg.entry)
             code.put_incref(Naming.self_cname, py_object_type)
             code.put_giveref(Naming.self_cname, py_object_type)
-            code.putln(code.error_goto_if_neg("__Pyx_PyTuple_SET_ITEM(%s, 0, %s)" % (
-                self.star_arg.entry.cname, Naming.self_cname), self.pos))
+            code.putln(
+                code.error_goto_if_neg(f"__Pyx_PyTuple_SET_ITEM({star_arg_cname}, 0, {Naming.self_cname})", self.pos))
             temp = code.funcstate.allocate_temp(PyrexTypes.c_py_ssize_t_type, manage_ref=False)
-            code.putln("for (%s=0; %s < %s; %s++) {" % (
-                temp, temp, Naming.nargs_cname, temp))
-            code.putln("PyObject* item = __Pyx_PyTuple_GET_ITEM(%s, %s);" % (
-                Naming.args_cname, temp))
+            code.putln(
+                f"for ({temp}=0; {temp} < {Naming.nargs_cname}; {temp}++) {{")
+            code.putln(
+                f"PyObject* item = __Pyx_PyTuple_GET_ITEM({Naming.args_cname}, {temp});")
             code.putln("#if !CYTHON_ASSUME_SAFE_MACROS")
             code.putln(code.error_goto_if_null("item", self.pos))
             code.putln("#endif")
             code.put_incref("item", py_object_type)
             code.put_giveref("item", py_object_type)
-            code.putln(code.error_goto_if_neg("__Pyx_PyTuple_SET_ITEM(%s, %s+1, item)" % (
-                self.star_arg.entry.cname, temp), self.pos))
+            code.putln(
+                code.error_goto_if_neg(f"__Pyx_PyTuple_SET_ITEM({star_arg_cname}, {temp}+1, item)", self.pos))
             code.putln("}")
             code.funcstate.release_temp(temp)
             self.star_arg.entry.xdecref_cleanup = 0
         elif self.star_arg:
             assert not self.signature.use_fastcall
+            star_arg_cname = self.star_arg.entry.cname
             code.put_incref(Naming.args_cname, py_object_type)
-            code.putln("%s = %s;" % (
-                self.star_arg.entry.cname,
-                Naming.args_cname))
+            code.putln(
+                f"{star_arg_cname} = {Naming.args_cname};")
             self.star_arg.entry.xdecref_cleanup = 0
 
     def generate_tuple_and_keyword_parsing_code(self, args, code, decl_code):
