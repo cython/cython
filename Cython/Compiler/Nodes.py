@@ -4117,6 +4117,7 @@ class DefNodeWrapper(FuncDefNode):
         self_name_csafe = self.name.as_c_string_literal()
 
         argtuple_error_label = code.new_label("argtuple_error")
+        goto_error = code.error_goto(self.pos)
 
         positional_args = []
         required_kw_only_args = []
@@ -4177,11 +4178,15 @@ class DefNodeWrapper(FuncDefNode):
         # for functions which do accept kw-args, so we do not generate
         # the PyDict_Size call unless all args are positional-only.
         accept_kwd_args = non_posonly_args or self.starstar_arg
-        if accept_kwd_args:
-            kw_unpacking_condition = Naming.kwds_cname
-        else:
-            kw_unpacking_condition = f"{Naming.kwds_cname} && __Pyx_NumKwargs_{self.signature.fastvar}({Naming.kwds_cname}) > 0"
 
+        code.putln(
+            f"Py_ssize_t {Naming.kwds_len_cname} = "
+            f"{'' if accept_kwd_args else 'unlikely'}({Naming.kwds_cname}) ? "
+            f"__Pyx_NumKwargs_{self.signature.fastvar}({Naming.kwds_cname}) : 0;"
+        )
+        code.putln(f"if (unlikely({Naming.kwds_len_cname}) < 0) {goto_error}")
+
+        kw_unpacking_condition = f"{Naming.kwds_len_cname} > 0"
         if self.num_required_kw_args > 0:
             kw_unpacking_condition = "likely(%s)" % kw_unpacking_condition
 
@@ -4192,7 +4197,7 @@ class DefNodeWrapper(FuncDefNode):
             # We test above that there is at least one kwarg if we get here => reject it.
             code.globalstate.use_utility_code(
                 UtilityCode.load_cached("RejectKeywords", "FunctionArguments.c"))
-            code.putln(f"__Pyx_RejectKeywords({self_name_csafe}, {Naming.kwds_cname}); {code.error_goto(self.pos)}")
+            code.putln(f"__Pyx_RejectKeywords({self_name_csafe}, {Naming.kwds_cname}); {goto_error}")
         else:
             # Extract arguments from args and keywords.
             # Note: This may be different from the tuple unpacking code below since we cannot
@@ -4221,7 +4226,7 @@ class DefNodeWrapper(FuncDefNode):
                     f"{min_positional_args:d}, "
                     f"{max_positional_args:d}, "
                     "i); "
-                    f"{code.error_goto(self.pos)}"
+                    f"{goto_error} "
                     "}"
                 )
                 code.putln("}")
@@ -4236,7 +4241,7 @@ class DefNodeWrapper(FuncDefNode):
                     f"{self_name_csafe}, "
                     f"*({Naming.pykwdlist_cname}[i - {num_pos_only_args}])"
                     "); "
-                    f"{code.error_goto(self.pos)} "
+                    f"{goto_error} "
                     "}"
                 )
                 code.putln("}")
@@ -4266,7 +4271,7 @@ class DefNodeWrapper(FuncDefNode):
                     code.globalstate.use_utility_code(
                         UtilityCode.load_cached("RaiseKeywordRequired", "FunctionArguments.c"))
                     pystring_cname = code.intern_identifier(arg.entry.name)
-                    code.putln(f'__Pyx_RaiseKeywordRequired({self_name_csafe}, {pystring_cname}); {code.error_goto(self.pos)}')
+                    code.putln(f'__Pyx_RaiseKeywordRequired({self_name_csafe}, {pystring_cname}); {goto_error}')
                     break
 
         else:
@@ -4278,7 +4283,7 @@ class DefNodeWrapper(FuncDefNode):
                 for i, arg in enumerate(positional_args):
                     code.putln(
                         f"values[{i}] = __Pyx_ArgRef_{self.signature.fastvar}({Naming.args_cname}, {i});")
-                    code.putln(f"if (!CYTHON_ASSUME_SAFE_MACROS && unlikely(!values[{i}])) {code.error_goto(self.pos)}")
+                    code.putln(f"if (!CYTHON_ASSUME_SAFE_MACROS && unlikely(!values[{i}])) {goto_error}")
             else:
                 # parse the positional arguments from the variable length
                 # args tuple and reject illegal argument tuple sizes
@@ -4293,7 +4298,7 @@ class DefNodeWrapper(FuncDefNode):
                         code.putln(f'case {i+1:2d}:')
                     code.putln(
                         f"values[{i}] = __Pyx_ArgRef_{self.signature.fastvar}({Naming.args_cname}, {i});")
-                    code.putln(f"if (!CYTHON_ASSUME_SAFE_MACROS && unlikely(!values[{i}])) {code.error_goto(self.pos)}")
+                    code.putln(f"if (!CYTHON_ASSUME_SAFE_MACROS && unlikely(!values[{i}])) {goto_error}")
                 if min_positional_args == 0:
                     code.putln('CYTHON_FALLTHROUGH;')
                     code.put('case  0: ')
@@ -4332,7 +4337,7 @@ class DefNodeWrapper(FuncDefNode):
                 self_name_csafe, has_fixed_positional_count,
                 min_positional_args, max_positional_args,
                 Naming.nargs_cname,
-                code.error_goto(self.pos)
+                goto_error,
             ))
             code.put_label(skip_error_handling)
 
@@ -4518,9 +4523,10 @@ class DefNodeWrapper(FuncDefNode):
             self.pos,
             f"__Pyx_ParseKeywords("
             f"{Naming.kwds_cname}, {Naming.kwvalues_cname}, {Naming.pykwdlist_cname}, "
-            f"{self.starstar_arg and self.starstar_arg.entry.cname or '0'}, "
+            f"{self.starstar_arg.entry.cname if self.starstar_arg else '0'}, "
             f"{values_array}, "
             f"{pos_arg_count}, "
+            f"{Naming.kwds_len_cname}, "
             f"{self_name_csafe}, "
             f"{self.starstar_arg is not None :d}"  # **kwargs might exist but be NULL in C if unused
             ")"
