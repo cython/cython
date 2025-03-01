@@ -4081,7 +4081,7 @@ class DefNodeWrapper(FuncDefNode):
             code.putln("}")
 
         else:
-            # No **kwargs => not keywords allowed (nor expected).
+            # No **kwargs => no keywords allowed (nor expected).
             code.globalstate.use_utility_code(
                 UtilityCode.load_cached("RejectKeywords", "FunctionArguments.c"))
             code.putln(
