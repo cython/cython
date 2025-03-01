@@ -2953,7 +2953,7 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
                 tp_slot = TypeSlots.ConstructorSlot("tp_new", '__new__')
                 slot_func_cname = TypeSlots.get_slot_function(ext_type.scope, tp_slot)
                 if slot_func_cname:
-                    cython_scope = self.current_env().global_scope().cython_scope
+                    cython_scope = self.context.cython_scope
                     PyTypeObjectPtr = PyrexTypes.CPtrType(
                         cython_scope.lookup('PyTypeObject').type)
                     pyx_tp_new_kwargs_func_type = PyrexTypes.CFuncType(
@@ -5046,7 +5046,7 @@ class FinalOptimizePhase(Visitor.EnvTransform, Visitor.NodeRefCleanupMixin):
             if function.name == 'isinstance' and len(node.args) == 2:
                 type_arg = node.args[1]
                 if type_arg.type.is_builtin_type and type_arg.type.name == 'type':
-                    cython_scope = self.current_env().global_scope().cython_scope
+                    cython_scope = self.context.cython_scope
                     function.entry = cython_scope.lookup('PyObject_TypeCheck')
                     function.type = function.entry.type
                     PyTypeObjectPtr = PyrexTypes.CPtrType(cython_scope.lookup('PyTypeObject').type)

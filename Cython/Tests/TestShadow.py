@@ -2,8 +2,6 @@ import unittest
 
 from Cython import Shadow
 from Cython.Compiler import Options, CythonScope, PyrexTypes, Errors
-from Cython.Compiler.Main import Context
-from Cython.Compiler.Symtab import ModuleScope
 
 class TestShadow(unittest.TestCase):
     def test_all_directives_in_shadow(self):
@@ -42,7 +40,7 @@ class TestShadow(unittest.TestCase):
         self.assertEqual(extra_directives, [])
 
     def test_all_types_in_shadow(self):
-        cython_scope = TestShadow.make_cython_scope()
+        cython_scope = CythonScope.create_cython_scope(None)
         # Not doing load_cythonscope at this stage because it requires a proper context and
         # Errors.py to be set up
 
@@ -88,7 +86,7 @@ class TestShadow(unittest.TestCase):
         # TODO it's unfortunately hard to get a definite list of types to confirm that they're
         # present (because they're obtained by on-the-fly string parsing in `cython_scope.lookup_type`)
 
-        cython_scope = TestShadow.make_cython_scope()
+        cython_scope = CythonScope.create_cython_scope(None)
         # Set up just enough of "Context" and "Errors" that CythonScope.lookup_type can fail
         class Context:
             cpp = False
@@ -114,9 +112,3 @@ class TestShadow(unittest.TestCase):
                     missing_lookups.append(ptr_name)
         self.assertEqual(missing_types, [])
         self.assertEqual(missing_lookups, [])
-
-    @staticmethod
-    def make_cython_scope():
-        ctx = Context([], Options.get_directive_defaults())
-        module = ModuleScope("dummy_module", None, ctx)
-        return CythonScope.create_cython_scope(module)

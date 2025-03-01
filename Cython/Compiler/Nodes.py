@@ -1211,7 +1211,7 @@ class MemoryViewSliceTypeNode(CBaseTypeNode):
 
     def use_memview_utilities(self, env):
         from . import MemoryView
-        env.use_utility_code(MemoryView.get_view_utility_code(env))
+        env.use_utility_code(MemoryView.view_utility_code)
 
 
 class CNestedBaseTypeNode(CBaseTypeNode):
@@ -9103,16 +9103,16 @@ class CriticalSectionExitNode(StatNode):
         )
 
 
-def cython_view_utility_code(env):
+def cython_view_utility_code():
     from . import MemoryView
-    return MemoryView.get_view_utility_code(env)
+    return MemoryView.view_utility_code
 
 
 utility_code_for_cimports = {
     # utility code (or inlining c) in a pxd (or pyx) file.
     # TODO: Consider a generic user-level mechanism for importing
-    'cpython.array'         : lambda env : UtilityCode.load_cached("ArrayAPI", "arrayarray.h"),
-    'cpython.array.array'   : lambda env : UtilityCode.load_cached("ArrayAPI", "arrayarray.h"),
+    'cpython.array'         : lambda : UtilityCode.load_cached("ArrayAPI", "arrayarray.h"),
+    'cpython.array.array'   : lambda : UtilityCode.load_cached("ArrayAPI", "arrayarray.h"),
     'cython.view'           : cython_view_utility_code,
 }
 
@@ -9177,7 +9177,7 @@ class CImportStatNode(StatNode):
             entry = env.declare_module(name, module_scope, self.pos)
             entry.known_standard_library_import = self.module_name
         if self.module_name in utility_code_for_cimports:
-            env.use_utility_code(utility_code_for_cimports[self.module_name](env))
+            env.use_utility_code(utility_code_for_cimports[self.module_name]())
 
     def analyse_expressions(self, env):
         return self
@@ -9243,11 +9243,11 @@ class FromCImportStatNode(StatNode):
 
         if module_name.startswith('cpython') or module_name.startswith('cython'):  # enough for now
             if module_name in utility_code_for_cimports:
-                env.use_utility_code(utility_code_for_cimports[module_name](env))
+                env.use_utility_code(utility_code_for_cimports[module_name]())
             for _, name, _ in self.imported_names:
                 fqname = '%s.%s' % (module_name, name)
                 if fqname in utility_code_for_cimports:
-                    env.use_utility_code(utility_code_for_cimports[fqname](env))
+                    env.use_utility_code(utility_code_for_cimports[fqname]())
 
     def declaration_matches(self, entry, kind):
         if not entry.is_type:

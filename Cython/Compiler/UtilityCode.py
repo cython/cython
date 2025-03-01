@@ -16,7 +16,7 @@ class NonManglingModuleScope(Symtab.ModuleScope):
 
     def __init__(self, prefix, *args, **kw):
         self.prefix = prefix
-        self._cython_scope = None
+        self.cython_scope = None
         self.cpp = kw.pop('cpp', False)
         Symtab.ModuleScope.__init__(self, *args, **kw)
 
@@ -50,7 +50,6 @@ class CythonUtilityCodeContext(StringParseContext):
         if self.scope is None:
             self.scope = NonManglingModuleScope(
                 self.prefix, module_name, parent_module=None, context=self, cpp=self.cpp)
-            self.scope._cython_scope = self._cython_scope
 
         return self.scope
 
@@ -128,7 +127,7 @@ class CythonUtilityCode(Code.UtilityCodeBase):
             self.name, compiler_directives=self.compiler_directives,
             cpp=cython_scope.is_cpp() if cython_scope else False)
         context.prefix = self.prefix
-        context._cython_scope = cython_scope
+        context.cython_scope = cython_scope
         #context = StringParseContext(self.name)
         tree = parse_from_strings(
             self.name, self.impl, context=context, allow_struct_enum_decorator=True,
@@ -287,14 +286,13 @@ class TemplatedFileSourceDescriptor(FileSourceDescriptor):
 
 
 class CythonSharedUtilityCode(Code.AbstractUtilityCode):
-    def __init__(self, module_name, context, requires):
-        self._module_name = module_name
+    def __init__(self, shared_utility_qualified_name, context, requires):
+        self._shared_utility_qualified_name = shared_utility_qualified_name
         self.context = context
         self.requires = requires
         self._shared_library_scope = None
 
     def find_module(self, context):
-        qualified_name = '.'.join([Options.shared_utility_qualified_name, self._module_name])
         scope = context
         for name, is_package in scope._split_qualified_name(self._shared_utility_qualified_name, relative_import=False):
             scope = scope.find_submodule(name, as_package=is_package)

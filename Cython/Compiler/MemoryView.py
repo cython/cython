@@ -536,7 +536,7 @@ def get_axes_specs(env, axes):
     packing is one of 'contig', 'strided' or 'follow'
     '''
 
-    cythonscope = env.global_scope().cython_scope
+    cythonscope = env.global_scope().context.cython_scope
     cythonscope.load_cythonscope()
     viewscope = cythonscope.viewscope
 
@@ -756,7 +756,7 @@ def _resolve_NameNode(env, node):
     except AttributeError:
         raise CompileError(node.pos, INVALID_ERR)
 
-    viewscope = env.global_scope().cython_scope.viewscope
+    viewscope = env.global_scope().context.cython_scope.viewscope
     entry = viewscope.lookup(resolved_name)
     if entry is None:
         raise CompileError(node.pos, NOT_CIMPORTED_ERR)
@@ -819,24 +819,19 @@ context = {
     'memslice_init': PyrexTypes.MemoryViewSliceType.default_value,
     'THREAD_LOCKS_PREALLOCATED': 8,
 }
-
-def _get_memviewslice_declare_code():
-    memviewslice_declare_code = load_memview_c_utility(
-            "MemviewSliceStruct",
-            context=context,
-            requires=[])
-    return memviewslice_declare_code
+memviewslice_declare_code = load_memview_c_utility(
+        "MemviewSliceStruct",
+        context=context,
+        requires=[])
 
 atomic_utility = load_memview_c_utility("Atomics", context)
 
-def _get_memviewslice_init_code(memviewslice_declare_code):
-    memviewslice_init_code = load_memview_c_utility(
-        "MemviewSliceInit",
-        context=dict(context, BUF_MAX_NDIMS=Options.buffer_max_dims),
-        requires=[memviewslice_declare_code,
-                atomic_utility],
-    )
-    return memviewslice_init_code
+memviewslice_init_code = load_memview_c_utility(
+    "MemviewSliceInit",
+    context=dict(context, BUF_MAX_NDIMS=Options.buffer_max_dims),
+    requires=[memviewslice_declare_code,
+              atomic_utility],
+)
 
 memviewslice_index_helpers = load_memview_c_utility("MemviewSliceIndex")
 
@@ -845,66 +840,44 @@ typeinfo_to_format_code = load_memview_cy_utility(
 
 is_contig_utility = load_memview_c_utility("MemviewSliceIsContig", context)
 overlapping_utility = load_memview_c_utility("OverlappingSlices", context)
+copy_contents_new_utility = load_memview_c_utility(
+    "MemviewSliceCopyTemplate",
+    context,
+    requires=[],  # require cython_array_utility_code
+)
 
-def _get_copy_contents_new_utility():
-    copy_contents_new_utility = load_memview_c_utility(
-        "MemviewSliceCopyTemplate",
-        context,
-        requires=[],  # require cython_array_utility_code
-    )
-    return copy_contents_new_utility
-
-@Utils.cached_function
-def _get_memoryview_utility_code():
-    memviewslice_declare_code = _get_memviewslice_declare_code()
-    memviewslice_init_code = _get_memviewslice_init_code(memviewslice_declare_code)
-    copy_contents_new_utility = _get_copy_contents_new_utility()
-    memoryview_utility_code = load_memview_cy_utility(
-            "View.MemoryView",
-            context=context,
-            requires=[
-                    Buffer.buffer_struct_declare_code,
-                    Buffer.buffer_formats_declare_code,
-                    memviewslice_init_code,
-                    is_contig_utility,
-                    overlapping_utility,
-                    copy_contents_new_utility,
-                    ],
-    )
-    memviewslice_declare_code.requires.append(memoryview_utility_code)
-    copy_contents_new_utility.requires.append(memoryview_utility_code)
-    return memoryview_utility_code, memviewslice_init_code
-
-@Utils.cached_function
-def _get_memoryview_shared_utility_code(env):
-    memviewslice_declare_code = _get_memviewslice_declare_code()
-    memviewslice_init_code = _get_memviewslice_init_code(memviewslice_declare_code)
-    copy_contents_new_utility = _get_copy_contents_new_utility()
-    shared_utility_code = CythonSharedUtilityCode(
-        env.directives['shared_utility_qualified_name'],
+memoryview_utility_code = load_memview_cy_utility(
+        "View.MemoryView",
         context=context,
         requires=[
-                Buffer.buffer_struct_declare_code,
-                Buffer.buffer_formats_declare_code,
-                memviewslice_init_code,
-                ],
+                  Buffer.buffer_struct_declare_code,
+                  Buffer.buffer_formats_declare_code,
+                  memviewslice_init_code,
+                  is_contig_utility,
+                  overlapping_utility,
+                  copy_contents_new_utility,
+                  ],
+)
+
+if Options.shared_utility_qualified_name:
+    view_utility_code = CythonSharedUtilityCode(
+            Options.shared_utility_qualified_name,
+            context=context,
+            requires=[
+                      Buffer.buffer_struct_declare_code,
+                      Buffer.buffer_formats_declare_code,
+                      memviewslice_init_code,
+                      is_contig_utility,
+                      overlapping_utility,
+                      copy_contents_new_utility,
+                      ],
     )
-    memviewslice_declare_code.requires.append(shared_utility_code)
-    copy_contents_new_utility.requires.append(shared_utility_code)
-    return (shared_utility_code, memviewslice_init_code)
-
-def get_view_utility_code(env):
-    if env.directives['shared_utility_qualified_name']:
-        return _get_memoryview_shared_utility_code(env)[0]
-    else:
-        return _get_memoryview_utility_code()[0]
-
-def get_memviewslice_init_code(env):
-    if env.directives['shared_utility_qualified_name']:
-        return _get_memoryview_shared_utility_code(env)[1]
-    else:
-        return _get_memoryview_utility_code()[1]
+else:
+    view_utility_code = memoryview_utility_code
 
 view_utility_allowlist = ('array', 'memoryview', 'array_cwrapper',
                           'generic', 'strided', 'indirect', 'contiguous',
                           'indirect_contiguous')
+
+memviewslice_declare_code.requires.append(view_utility_code)
+copy_contents_new_utility.requires.append(view_utility_code)

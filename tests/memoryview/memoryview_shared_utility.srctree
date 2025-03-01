@@ -13,7 +13,7 @@ from Cython.Compiler import Options
 from setuptools import setup, Extension
 import numpy
 
-Options.shared_utility_qualified_name = 'pkg2'
+Options.shared_utility_qualified_name = 'pkg2.CythonShared'
 
 extensions = [
     Extension("*", ["**/*.pyx"], include_dirs=[numpy.get_include()]),
