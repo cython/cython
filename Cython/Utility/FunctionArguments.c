@@ -143,87 +143,66 @@ static void __Pyx_RaiseMappingExpectedError(PyObject* arg) {
 
 //////////////////// KeywordStringCheck.proto ////////////////////
 
-static int __Pyx_CheckKeywordStrings(PyObject *kw, const char* function_name, int kw_allowed); /*proto*/
+static CYTHON_INLINE int __Pyx_CheckKeywordStrings(const char* function_name, PyObject *kw); /*proto*/
 
 //////////////////// KeywordStringCheck ////////////////////
 
 // __Pyx_CheckKeywordStrings raises an error if non-string keywords
-// were passed to a function, or if any keywords were passed to a
-// function that does not accept them.
+// were passed to a function.
 //
 // The "kw" argument is either a dict (for METH_VARARGS) or a tuple
-// (for METH_FASTCALL).
+// (for METH_FASTCALL), both non-empty.
 
 static int __Pyx_CheckKeywordStrings(
-    PyObject *kw,
     const char* function_name,
-    int kw_allowed)
+    PyObject *kw)
 {
-    PyObject* key = NULL;
-    Py_ssize_t pos = 0;
-
-    // PyPy appears to check keyword types at call time, not at unpacking time => only check 'kw_allowed' below.
-#if !CYTHON_COMPILING_IN_PYPY
+    // PyPy appears to check keyword types at call time, not at unpacking time.
+#if CYTHON_COMPILING_IN_PYPY
+    CYTHON_UNUSED_VAR(function_name);
+    CYTHON_UNUSED_VAR(kw);
+    return 0;
+#else
 
     // Validate keyword types.
     if (CYTHON_METH_FASTCALL && likely(PyTuple_Check(kw))) {
+        // On CPython >= 3.9, the FASTCALL protocol guarantees that keyword
+        // names are strings (see https://github.com/python/cpython/issues/81721)
+#if PY_VERSION_HEX >= 0x03090000
+        CYTHON_UNUSED_VAR(function_name);
+#else
+
         Py_ssize_t kwsize;
         #if CYTHON_ASSUME_SAFE_SIZE
         kwsize = PyTuple_GET_SIZE(kw);
         #else
         kwsize = PyTuple_Size(kw);
-        if (kwsize < 0) return 0;
+        if (unlikely(kwsize < 0)) return -1;
         #endif
 
-        if (unlikely(kwsize == 0))
-            return 1;
-        if (!kw_allowed) {
-            key = PySequence_GetItem(kw, 0);
-            if (unlikely(!key)) return 0;
-            goto invalid_keyword;
-        }
-
-// On CPython >= 3.9, the FASTCALL protocol guarantees that keyword
-// names are strings (see https://github.com/python/cpython/issues/81721)
-#if PY_VERSION_HEX < 0x03090000
-        for (pos = 0; pos < kwsize; pos++) {
+        for (Py_ssize_t pos = 0; pos < kwsize; pos++) {
+            PyObject* key = NULL;
             #if CYTHON_ASSUME_SAFE_MACROS
             key = PyTuple_GET_ITEM(kw, pos);
             #else
             key = PyTuple_GetItem(kw, pos);
-            if (!key) return 0;
+            if (unlikely(!key)) return -1;
             #endif
 
             if (unlikely(!PyUnicode_Check(key))) {
                 PyErr_Format(PyExc_TypeError,
                     "%.200s() keywords must be strings", function_name);
-                return 0;
+                return -1;
             }
         }
 #endif
-
-        return 1;
+    } else {
+        // Otherwise, 'kw' is a dict: check if it's unicode-keys-only and let Python set the error otherwise.
+        if (unlikely(!PyArg_ValidateKeywordArguments(kw))) return -1;
     }
 
-    // Otherwise, 'kw' is a dict: check if it's unicode-keys-only and let Python set the error otherwise.
-    if (unlikely(!PyArg_ValidateKeywordArguments(kw))) return 0;
-
-#endif
-
-    // If no keywords are allowed, the first key it contains is an error.
-    if (!kw_allowed && PyDict_Next(kw, &pos, &key, 0)) {
-        Py_INCREF(key);
-        goto invalid_keyword;
-    }
-    return 1;
-
-invalid_keyword:
-    // We own a reference to 'key'.
-    PyErr_Format(PyExc_TypeError,
-        "%.200s() got an unexpected keyword argument '%U'",
-        function_name, key);
-    Py_DECREF(key);
     return 0;
+#endif
 }
 
 

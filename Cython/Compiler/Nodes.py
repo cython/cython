@@ -4030,15 +4030,17 @@ class DefNodeWrapper(FuncDefNode):
             code.put_var_decref_clear(arg.entry)
 
     def generate_stararg_copy_code(self, code):
-        # Direct return simplifies **kwargs cleanup, but we give no traceback.
+        # Direct error return simplifies **kwargs cleanup, but we give no traceback.
         goto_error = f"return {self.error_value()};"
+        function_name = self.name.as_c_string_literal()
 
         if not self.star_arg:
             code.globalstate.use_utility_code(
                 UtilityCode.load_cached("RaiseArgTupleInvalid", "FunctionArguments.c"))
             code.putln(
-                f"if (unlikely({Naming.nargs_cname} > 0)) {{ "
-                f"__Pyx_RaiseArgtupleInvalid({self.name.as_c_string_literal()}, 1, 0, 0, {Naming.nargs_cname}); "
+                f"if (unlikely({Naming.nargs_cname} > 0)) "
+                "{"
+                f" __Pyx_RaiseArgtupleInvalid({function_name}, 1, 0, 0, {Naming.nargs_cname}); "
                 f"{goto_error} "
                 "}"
             )
@@ -4048,33 +4050,47 @@ class DefNodeWrapper(FuncDefNode):
             f"{'' if self.starstar_arg else 'unlikely'}({Naming.kwds_cname}) ? "
             f"__Pyx_NumKwargs_{self.signature.fastvar}({Naming.kwds_cname}) : 0;"
         )
-        code.putln(f"if (unlikely({Naming.kwds_len_cname}) < 0) {goto_error}")
+        code.putln(f"if (unlikely({Naming.kwds_len_cname} < 0)) {goto_error}")
 
-        code.globalstate.use_utility_code(
-            UtilityCode.load_cached("KeywordStringCheck", "FunctionArguments.c"))
-        code.putln(
-            f"if ({Naming.kwds_len_cname} > 0 && "
-            f"unlikely(!__Pyx_CheckKeywordStrings({Naming.kwds_cname}, {self.name.as_c_string_literal()}, {bool(self.starstar_arg):d}))) "
-            f"{goto_error}"
-        )
+        if self.starstar_arg:
+            code.putln(f"if ({Naming.kwds_len_cname} > 0) {{")
 
-        if self.starstar_arg and self.starstar_arg.entry.cf_used:
-            starstar_arg_cname = self.starstar_arg.entry.cname
-            code.putln(f"if ({Naming.kwds_len_cname}) {{")
+            code.globalstate.use_utility_code(
+                UtilityCode.load_cached("KeywordStringCheck", "FunctionArguments.c"))
             code.putln(
-                f"{starstar_arg_cname} = __Pyx_KwargsAsDict_{self.signature.fastvar}("
-                f"{Naming.kwds_cname}, {Naming.kwvalues_cname}"
-                ");"
+                f"if (unlikely(__Pyx_CheckKeywordStrings({function_name}, {Naming.kwds_cname}) == -1)) {goto_error}"
             )
-            code.putln(f"if (unlikely(!{starstar_arg_cname})) {goto_error};")
-            code.put_gotref(starstar_arg_cname, py_object_type)
 
-            code.putln("} else {")
-            code.putln(f"{starstar_arg_cname} = PyDict_New();")
-            code.putln(f"if (unlikely(!{starstar_arg_cname})) {goto_error};")
-            code.put_var_gotref(self.starstar_arg.entry)
-            self.starstar_arg.entry.xdecref_cleanup = False
+            # If the **kwargs parameter is unused, we leave it NULL.
+            if self.starstar_arg.entry.cf_used:
+                self.starstar_arg.entry.xdecref_cleanup = False
+                starstar_arg_cname = self.starstar_arg.entry.cname
+                code.putln(
+                    f"{starstar_arg_cname} = __Pyx_KwargsAsDict_{self.signature.fastvar}("
+                    f"{Naming.kwds_cname}, {Naming.kwvalues_cname}"
+                    ");"
+                )
+                code.putln(f"if (unlikely(!{starstar_arg_cname})) {goto_error}")
+                code.put_var_gotref(self.starstar_arg.entry)
+
+                code.putln("} else {")
+                code.putln(f"{starstar_arg_cname} = PyDict_New();")
+                code.putln(f"if (unlikely(!{starstar_arg_cname})) {goto_error}")
+                code.put_var_gotref(self.starstar_arg.entry)
+
             code.putln("}")
+
+        else:
+            # No **kwargs => not keywords allowed (nor expected).
+            code.globalstate.use_utility_code(
+                UtilityCode.load_cached("RejectKeywords", "FunctionArguments.c"))
+            code.putln(
+                f"if (unlikely({Naming.kwds_len_cname} > 0)) "
+                "{"
+                f"__Pyx_RejectKeywords({function_name}, {Naming.kwds_cname}); "
+                f"{goto_error}"
+                "}"
+            )
 
         # Normal (traceback) error handling from this point on to clean up the kwargs dict.
 
