@@ -111,13 +111,17 @@ class BuiltinProperty:
 builtin_function_table = [
     # name,        args,   return,  C API func,           py equiv = "*"
     BuiltinFunction('abs',        "d",    "d",     "fabs",
-                    is_strict_signature=True, nogil=True),
+                    is_strict_signature=True, nogil=True,
+                    utility_code=UtilityCode.load("IncludeStdlibH", "ModuleSetupCode.c")),
     BuiltinFunction('abs',        "f",    "f",     "fabsf",
-                    is_strict_signature=True, nogil=True),
+                    is_strict_signature=True, nogil=True,
+                    utility_code=UtilityCode.load("IncludeStdlibH", "ModuleSetupCode.c")),
     BuiltinFunction('abs',        "i",    "i",     "abs",
-                    is_strict_signature=True, nogil=True),
+                    is_strict_signature=True, nogil=True,
+                    utility_code=UtilityCode.load("IncludeStdlibH", "ModuleSetupCode.c")),
     BuiltinFunction('abs',        "l",    "l",     "labs",
-                    is_strict_signature=True, nogil=True),
+                    is_strict_signature=True, nogil=True,
+                    utility_code=UtilityCode.load("IncludeStdlibH", "ModuleSetupCode.c")),
     BuiltinFunction('abs',        None,    None,   "__Pyx_abs_longlong",
                 utility_code = UtilityCode.load("abs_longlong", "Builtins.c"),
                 func_type = PyrexTypes.CFuncType(
