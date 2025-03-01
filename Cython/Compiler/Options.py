@@ -147,6 +147,8 @@ buffer_max_dims = 8
 #: Number of function closure instances to keep in a freelist (0: no freelists)
 closure_freelist_size = 8
 
+shared_utility_qualified_name = None
+
 def get_directive_defaults():
     # To add an item to this list, all accesses should be changed to use the new
     # directive, and the global option itself should be set to an instance of
@@ -234,7 +236,6 @@ _directive_defaults = {
     'np_pythran': False,
     'fast_gil': False,
     'cpp_locals': False,  # uses std::optional for C++ locals, so that they work more like Python locals
-    'shared_utility_qualified_name': "",
     'legacy_implicit_noexcept': False,
     'c_compile_guard': '',
 
@@ -438,8 +439,7 @@ directive_scopes = {  # defaults to available everywhere
     'c_compile_guard': ('function',),  # actually C function but this is enforced later
     'control_flow.dot_output': ('module',),
     'control_flow.dot_annotate_defs': ('module',),
-    'freethreading_compatible': ('module',),
-    'shared_utility_qualified_name': ('module',),
+    'freethreading_compatible': ('module',)
 }
 
 

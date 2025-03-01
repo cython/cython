@@ -806,7 +806,7 @@ def load_memview_c_utility(util_code_name, context=None, **kwargs):
                                        context=context, **kwargs)
 
 def use_cython_array_utility_code(env):
-    if env.directives['shared_utility_qualified_name']:
+    if Options.shared_utility_qualified_name:
         return
     cython_scope = env.global_scope().cython_scope
     cython_scope.load_cythonscope()

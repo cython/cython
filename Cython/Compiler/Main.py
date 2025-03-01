@@ -65,7 +65,7 @@ class Context:
     def __init__(self, include_directories, compiler_directives, cpp=False,
                  language_level=None, options=None):
 
-        from . import Builtin
+        from . import Builtin, CythonScope
         self.modules = {"__builtin__" : Builtin.builtin_scope}
         self.include_directories = include_directories
         self.future_directives = set()

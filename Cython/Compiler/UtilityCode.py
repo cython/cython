@@ -287,13 +287,14 @@ class TemplatedFileSourceDescriptor(FileSourceDescriptor):
 
 
 class CythonSharedUtilityCode(Code.AbstractUtilityCode):
-    def __init__(self, shared_utility_qualified_name, context, requires):
-        self._shared_utility_qualified_name = shared_utility_qualified_name
+    def __init__(self, module_name, context, requires):
+        self._module_name = module_name
         self.context = context
         self.requires = requires
         self._shared_library_scope = None
 
     def find_module(self, context):
+        qualified_name = '.'.join([Options.shared_utility_qualified_name, self._module_name])
         scope = context
         for name, is_package in scope._split_qualified_name(self._shared_utility_qualified_name, relative_import=False):
             scope = scope.find_submodule(name, as_package=is_package)
