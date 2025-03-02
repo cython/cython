@@ -1,0 +1,8 @@
+CYTHONIZE --cymeit "x ** 20" --setup "cdef object x = 10"
+CYTHONIZE module.pyx --cymeit "A(x)" --setup "x = 5"
+
+######## module.pyx ########
+
+cdef class A:
+    def __init__(self, arg):
+        pass

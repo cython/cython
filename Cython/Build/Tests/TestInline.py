@@ -2,7 +2,7 @@ import os
 import tempfile
 import unittest
 from Cython.Shadow import inline
-from Cython.Build.Inline import safe_type
+from Cython.Build.Inline import safe_type, cymeit
 from Cython.TestUtils import CythonTest
 
 try:
@@ -110,3 +110,34 @@ class TestInline(CythonTest):
         a[0,0] = 10
         self.assertEqual(safe_type(a), 'numpy.ndarray[numpy.float64_t, ndim=2]')
         self.assertEqual(inline("return a[0,0]", a=a, **self._call_kwds), 10.0)
+
+
+class TestCymeit(unittest.TestCase):
+    def _run(self, code, setup_code=None, **kwargs):
+        timings, number = cymeit(code, setup_code=setup_code, **kwargs)
+
+        self.assertGreater(number, 10)  # arbitrary lower bound
+
+        for timing in timings:
+            self.assertGreater(timing, 0)
+
+        return timings
+
+    def test_benchmark_simple(self):
+        setup_code = "numbers = list(range(0, 100, 3))"
+        self._run("sum([num for num in numbers])", setup_code, repeat=3)
+
+    def test_benchmark_multiline_setup(self):
+        setup_code = """
+        numbers = list(range(0, 100, 3))
+
+        def csum(numbers):
+            result = 0
+            for number in numbers:
+                result += number
+            return result
+        """
+        self._run("csum(numbers)", setup_code)
+
+    def test_benchmark_in_module(self):
+        self._run("fsum(range(100))", import_module='math', repeat=2)
