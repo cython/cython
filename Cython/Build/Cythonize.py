@@ -172,8 +172,7 @@ Environment variables:
                       help='build extension modules in place using distutils/setuptools (implies -b)')
     parser.add_argument('-j', '--parallel', dest='parallel', metavar='N',
                       type=int, default=parallel_compiles,
-                      help=('run builds in N parallel jobs (default: %d)' %
-                            parallel_compiles or 1))
+                      help=f'run builds in N parallel jobs (default: {parallel_compiles or 1})')
     parser.add_argument('-f', '--force', dest='force', action='store_true', default=None,
                       help='force recompilation')
     parser.add_argument('-q', '--quiet', dest='quiet', action='store_true', default=None,
