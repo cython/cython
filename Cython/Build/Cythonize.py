@@ -40,7 +40,8 @@ def find_package_base(path):
 
 def cython_compile(path_pattern, options) -> dict:
     all_paths = map(os.path.abspath, extended_iglob(path_pattern))
-    return _cython_compile_files(all_paths, options)
+    ext_modules_by_basedir = _cython_compile_files(all_paths, options)
+    _build(list(ext_modules_by_basedir.items()), options.parallel)
 
 
 def _cython_compile_files(all_paths, options) -> dict:
