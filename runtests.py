@@ -2410,6 +2410,9 @@ def main():
     parser.add_option("--coverage-html", dest="coverage_html",
                       action="store_true", default=False,
                       help="collect source coverage data for the Compiler in HTML format")
+    parser.add_option("--tracemalloc", dest="tracemalloc",
+                      action="store_true", default=False,
+                      help="enable tracemalloc for the tests")
     parser.add_option("-A", "--annotate", dest="annotate_source",
                       action="store_true", default=True,
                       help="generate annotated HTML versions of the test source files")
@@ -2963,6 +2966,10 @@ def runtests(options, cmd_args, coverage=None):
         if enable_faulthandler:
             faulthandler.enable()
 
+    if options.tracemalloc:
+        import tracemalloc
+        tracemalloc.start()
+
     # Run the collected tests.
     try:
         if options.shard_num > -1:
@@ -2984,6 +2991,15 @@ def runtests(options, cmd_args, coverage=None):
                 del os.environ['PYTHONFAULTHANDLER']
             else:
                 os.environ['PYTHONFAULTHANDLER'] = old_faulhandler_envvar
+
+    if options.tracemalloc:
+        import tracemalloc
+        snapshot = tracemalloc.take_snapshot()
+        run_dir = os.curdir
+        mallocs = '\n'.join(f"   {os.path.relpath(str(tm_stat), run_dir)}" for tm_stat in snapshot.statistics('lineno')[:20])
+        del snapshot
+        tracemalloc.stop()
+        sys.stderr.write(f"Memory allocations:\n{mallocs}\n")
 
     if common_utility_dir and options.shard_num < 0 and options.cleanup_workdir:
         shutil.rmtree(common_utility_dir)

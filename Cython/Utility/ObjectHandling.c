@@ -425,18 +425,7 @@ static PyObject *__Pyx_PyDict_GetItem(PyObject *d, PyObject* key);/*proto*/
 #if !CYTHON_COMPILING_IN_PYPY
 static PyObject *__Pyx_PyDict_GetItem(PyObject *d, PyObject* key) {
     PyObject *value;
-    int err_indicator = 0;
-#if PY_VERSION_HEX >= 0x030d0000
-    err_indicator = PyDict_GetItemRef(d, key, &value);
-#else
-    value = PyDict_GetItemWithError(d, key);
-    if (likely(value)) {
-        err_indicator = 1;
-        Py_INCREF(value);
-    }
-    else if (PyErr_Occurred()) err_indicator = -1;
-#endif
-    if (unlikely(err_indicator == 0)) { // no value, no error
+    if (unlikely(__Pyx_PyDict_GetItemRef(d, key, &value) == 0)) { // no value, no error
         if (unlikely(PyTuple_Check(key))) {
             // CPython interprets tuples as separate arguments => must wrap them in another tuple.
             PyObject* args = PyTuple_Pack(1, key);
@@ -1501,6 +1490,8 @@ static CYTHON_INLINE PyObject *__Pyx__GetModuleGlobalName(PyObject *name)
     PyObject *result;
 #if CYTHON_COMPILING_IN_LIMITED_API
     if (unlikely(!$module_cname)) {
+        if (!PyErr_Occurred())
+            PyErr_SetNone(PyExc_NameError);
         return NULL;
     }
     result = PyObject_GetAttr($module_cname, name);
@@ -1508,23 +1499,15 @@ static CYTHON_INLINE PyObject *__Pyx__GetModuleGlobalName(PyObject *name)
         return result;
     }
     PyErr_Clear();
-#elif !CYTHON_AVOID_BORROWED_REFS && !CYTHON_AVOID_THREAD_UNSAFE_BORROWED_REFS
-    // Identifier names are always interned and have a pre-calculated hash value.
-    result = _PyDict_GetItem_KnownHash(NAMED_CGLOBAL(moddict_cname), name, ((PyASCIIObject *) name)->hash);
-    __PYX_UPDATE_DICT_CACHE(NAMED_CGLOBAL(moddict_cname), result, *dict_cached_value, *dict_version)
-    if (likely(result)) {
-        return __Pyx_NewRef(result);
-    } else if (unlikely(PyErr_Occurred())) {
-        return NULL;
-    }
-#elif !CYTHON_AVOID_BORROWED_REFS
+#elif CYTHON_AVOID_BORROWED_REFS || CYTHON_AVOID_THREAD_UNSAFE_BORROWED_REFS
     if (unlikely(__Pyx_PyDict_GetItemRef(NAMED_CGLOBAL(moddict_cname), name, &result) == -1)) PyErr_Clear();
     __PYX_UPDATE_DICT_CACHE(NAMED_CGLOBAL(moddict_cname), result, *dict_cached_value, *dict_version)
     if (likely(result)) {
         return result;
     }
 #else
-    result = PyObject_GetItem(NAMED_CGLOBAL(moddict_cname), name);
+    // Identifier names are always interned and have a pre-calculated hash value.
+    result = _PyDict_GetItem_KnownHash(NAMED_CGLOBAL(moddict_cname), name, ((PyASCIIObject *) name)->hash);
     __PYX_UPDATE_DICT_CACHE(NAMED_CGLOBAL(moddict_cname), result, *dict_cached_value, *dict_version)
     if (likely(result)) {
         return __Pyx_NewRef(result);
