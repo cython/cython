@@ -211,7 +211,7 @@ Environment variables:
                       help='build extension modules using distutils/setuptools')
     parser.add_argument('-i', '--inplace', dest='build_inplace', action='store_true', default=None,
                       help='build extension modules in place using distutils/setuptools (implies -b)')
-    parser.add_argument('--cymeit', dest='benchmark', metavar="CODESTRING", type=str, default=None,
+    parser.add_argument('--timeit', dest='benchmark', metavar="CODESTRING", type=str, default=None,
                       help="build in place, then compile+run CODESTRING as benchmark in first module's namespace (implies -i)")
     parser.add_argument('--setup', dest='benchmark_setup', metavar="CODESTRING", type=str, default=None,
                       help="use CODESTRING as pre-benchmark setup code for --bench")
