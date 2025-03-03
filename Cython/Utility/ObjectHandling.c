@@ -1973,7 +1973,6 @@ static CYTHON_INLINE PyObject* __Pyx_CallUnboundCMethod1(__Pyx_CachedCFunction* 
 
     if (likely(was_initialized == 2 && cfunc->func)) {
         int flag = cfunc->flag;
-        assert(was_initialized);
         if (flag == METH_O) {
             return (*(cfunc->func))(self, arg);
         } else if (flag == METH_FASTCALL) {
@@ -2043,7 +2042,6 @@ static CYTHON_INLINE PyObject *__Pyx_CallUnboundCMethod2(__Pyx_CachedCFunction *
 
     if (likely(was_initialized == 2 && cfunc->func)) {
         PyObject *args[2] = {arg1, arg2};
-        assert(was_initialized);
         if (cfunc->flag == METH_FASTCALL) {
             return (*(__Pyx_PyCFunctionFast)(void*)(PyCFunction)cfunc->func)(self, args, 2);
         }
