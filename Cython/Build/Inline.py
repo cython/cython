@@ -298,17 +298,16 @@ def cymeit(code, setup_code=None, import_module=None, directives=None, repeat=9)
     # Construct benchmark code as an inline closure function.
     setup_code = textwrap.dedent(setup_code) if setup_code else ''
 
-    initial_indent = 8
-    module_code = textwrap.dedent(f"""
-        def __PYX_setup():
-            {textwrap.indent(setup_code, ' '*(initial_indent+4)).lstrip()}
-
-            def __PYX_run_benchmark():
-                {textwrap.indent(code, ' '*(initial_indent+8)).lstrip()}
-
-            return __PYX_run_benchmark
-        """
-    )
+    module_code = '\n'.join([
+        "def __PYX_make_benchmark():",
+        textwrap.indent(setup_code, ' '*4),
+        "",
+        "    def __PYX_run_benchmark():",
+        textwrap.indent(code, ' '*8),
+        "",
+        "    return __PYX_run_benchmark",
+        ""
+    ])
 
     module_namespace = __import__(import_module).__dict__ if import_module else None
 
@@ -321,7 +320,7 @@ def cymeit(code, setup_code=None, import_module=None, directives=None, repeat=9)
     # Based on 'timeit.main()' in CPython 3.13.
     timer = timeit.Timer(
         '__PYX_run_benchmark()',
-        setup='__PYX_run_benchmark = __PYX_setup()',
+        setup='__PYX_run_benchmark = __PYX_make_benchmark()',
         timer=time.process_time,
         globals=namespace,
     )
