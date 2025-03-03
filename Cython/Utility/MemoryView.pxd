@@ -83,7 +83,7 @@ cdef class memoryview:
     cdef _get_base(self)
 
 @cname('__pyx_memoryview_new')
-cdef memoryview_cwrapper(object o, int flags, bint dtype_is_object, __Pyx_TypeInfo *typeinfo)
+cdef memoryview_cwrapper(object o, int flags, bint dtype_is_object, const __Pyx_TypeInfo *typeinfo)
 
 @cname('__pyx_memoryview_check')
 cdef inline bint memoryview_check(object o) noexcept:
