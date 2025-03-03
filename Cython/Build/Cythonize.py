@@ -135,9 +135,8 @@ def run_distutils(args):
 
 def benchmark(code, setup_code=None, import_module=None, directives=None):
     from Cython.Build.Inline import cymeit
-    import statistics
 
-    timings, number = cymeit(code, setup_code, import_module, directives)
+    timings, number = cymeit(code, setup_code, import_module, directives, repeat=9)
 
     # Based on 'timeit.main()' in CPython 3.13.
     units = {"nsec": 1e-9, "usec": 1e-6, "msec": 1e-3, "sec": 1.0}
@@ -151,8 +150,9 @@ def benchmark(code, setup_code=None, import_module=None, directives=None):
             raise RuntimeError("Timing is below nanoseconds: {t:f}")
         return f"{t / scale :.3f} {unit}"
 
-    fastest, slowest = min(timings), max(timings)
-    median = statistics.median(timings)
+    timings.sort()
+    assert len(timings) & 1 == 1  # odd number of timings, for median position
+    fastest, median, slowest = timings[0], timings[len(timings) // 2], timings[-1]
 
     print(f"{number} loops, best of {len(timings)}: {format_time(fastest)} per loop (median: {format_time(median)})")
 
