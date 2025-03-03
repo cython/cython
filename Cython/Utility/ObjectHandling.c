@@ -1890,9 +1890,10 @@ static int __Pyx_TryUnpackUnboundCMethod(__Pyx_CachedCFunction* target) {
 #if !CYTHON_COMPILING_IN_CPYTHON_FREETHREADING
     // Unlikely corner-case where another thread has initialized target->method first.
     // Can't happen in free-threading because the whole thing is locked.
-    Py_XDECREF(target->method);
-#endif
+    Py_XSETREF(target->method, result);
+#else
     target->method = result;
+#endif
     return 0;
 }
 
