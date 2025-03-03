@@ -18,7 +18,7 @@ cdef extern from *:
     cdef struct __pyx_memoryview "__pyx_memoryview_obj":
         Py_buffer view
         PyObject *obj
-        __Pyx_TypeInfo *typeinfo
+        const __Pyx_TypeInfo *typeinfo
 
     ctypedef int __pyx_atomic_int_type
 
@@ -71,7 +71,7 @@ cdef class memoryview:
     cdef Py_buffer view
     cdef int flags
     cdef bint dtype_is_object
-    cdef __Pyx_TypeInfo *typeinfo
+    cdef const __Pyx_TypeInfo *typeinfo
 
     cdef char *get_item_pointer(memoryview self, object index) except NULL
     cdef is_slice(self, obj)
