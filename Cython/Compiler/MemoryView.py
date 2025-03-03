@@ -514,8 +514,6 @@ def get_copy_new_utility(pos, from_memview, to_memview):
         mode = 'fortran'
         contig_flag = memview_f_contiguous
 
-    copy_contents_new_utility = _get_copy_contents_new_utility()
-
     return load_memview_c_utility(
         "CopyContentsUtility",
         context=dict(
