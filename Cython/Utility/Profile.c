@@ -29,6 +29,16 @@
   #undef CYTHON_PROFILE_REUSE_FRAME
 #endif
 
+#if CYTHON_USE_MODULE_STATE
+  #undef CYTHON_PROFILE_REUSE_CODEOBJ
+  #define CYTHON_PROFILE_REUSE_CODEOBJ 0
+  #undef CYTHON_PROFILE_REUSE_FRAME
+#endif
+
+#ifndef CYTHON_PROFILE_REUSE_CODEOBJ
+  #define CYTHON_PROFILE_REUSE_CODEOBJ 1
+#endif 
+
 #ifndef CYTHON_PROFILE_REUSE_FRAME
   #define CYTHON_PROFILE_REUSE_FRAME 0
 #endif
@@ -88,14 +98,14 @@
       int __pyx_exception_already_reported = 0;
 
   #define __Pyx_TraceDeclarationsGen \
-      PyObject *$frame_code_cname = $generator_cname->gi_code; \
+      PyObject *$frame_code_cname = Py_NewRef($generator_cname->gi_code); \
       PyMonitoringState* $monitoring_states_cname = $generator_cname->$monitoring_states_cname; \
       __pyx_monitoring_version_type $monitoring_version_cname = $generator_cname->$monitoring_version_cname; \
       int __pyx_exception_already_reported = 0;
 
   #define __Pyx_IsTracing(event_id)  (($monitoring_states_cname[event_id]).active)
   #define __Pyx_TraceFrameInit(codeobj) \
-      if (codeobj) $frame_code_cname = codeobj;
+      if (codeobj) $frame_code_cname = Py_NewRef(codeobj);
 
   CYTHON_UNUSED static PyCodeObject *__Pyx_createFrameCodeObject(const char *funcname, const char *srcfile, int firstlineno); /*proto*/
   CYTHON_UNUSED static int __Pyx__TraceStartFunc(PyMonitoringState *state_array, PyObject *code_obj, int offset, int skip_event); /*proto*/
@@ -103,7 +113,7 @@
   CYTHON_UNUSED static int __Pyx__TraceResumeGen(PyMonitoringState *state_array, __pyx_monitoring_version_type *version, PyObject *code_obj, int offset); /*proto*/
   CYTHON_UNUSED static void __Pyx__TraceException(PyMonitoringState *monitoring_state, PyObject *code_obj, int offset, int reraised); /*proto*/
 
-  #define __Pyx_PyMonitoring_ExitScope()  (PyMonitoring_ExitScope(), (void) __pyx_exception_already_reported)
+  #define __Pyx_PyMonitoring_ExitScope()  (PyMonitoring_ExitScope(), (void) __pyx_exception_already_reported); Py_XDECREF($frame_code_cname);
 
   // We check "tstate->tracing" after clearing the monitoring state to prevent re-entry while a trace function is running.
   #define __Pyx_TraceStartFunc(funcname, srcfile, firstlineno, offset, nogil, skip_event, goto_error) \
@@ -284,8 +294,15 @@
     #define CYTHON_FRAME_DEL(frame) Py_CLEAR(frame)
   #endif
 
+  #if CYTHON_PROFILE_REUSE_CODEOBJ
+    #define CYTHON_CODEOBJ_MODIFIER static
+  #else
+    #define CYTHON_CODEOBJ_MODIFIER
+  #endif
+
+
   #define __Pyx_TraceDeclarationsFunc \
-      static PyCodeObject *$frame_code_cname = NULL;                      \
+      CYTHON_CODEOBJ_MODIFIER PyCodeObject *$frame_code_cname = NULL;     \
       CYTHON_FRAME_MODIFIER PyFrameObject *$frame_cname = NULL;           \
       int __Pyx_use_tracing = 0;
 
@@ -615,7 +632,8 @@ static int __Pyx_TraceSetupAndCall(PyCodeObject** code,
                                    int firstlineno,
                                    int skip_event) {
     if (*frame == NULL || !CYTHON_PROFILE_REUSE_FRAME) {
-        if (*code == NULL) {
+        int needs_new_code_obj = (*code == NULL);
+        if (needs_new_code_obj) {
             *code = __Pyx_createFrameCodeObject(funcname, srcfile, firstlineno);
             if (*code == NULL) return 0;
         }
@@ -625,6 +643,8 @@ static int __Pyx_TraceSetupAndCall(PyCodeObject** code,
             NAMED_CGLOBAL(moddict_cname),    /*PyObject *globals*/
             0                                /*PyObject *locals*/
         );
+        if (needs_new_code_obj && !CYTHON_PROFILE_REUSE_CODEOBJ)
+            Py_CLEAR(*code); // otherwise the reference is owned externally
         if (*frame == NULL) return 0;
         if (CYTHON_TRACE && (*frame)->f_trace == NULL) {
             // this enables "f_lineno" lookup, at least in CPython ...
