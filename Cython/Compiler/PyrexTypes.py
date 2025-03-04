@@ -2005,6 +2005,9 @@ class CNumericType(CType):
         n = rank_to_type_name[self.rank]
         return s + n
 
+    def rank_name(self):
+        return rank_to_type_name[self.rank]
+
     def is_simple_buffer_dtype(self):
         return True
 
@@ -2205,6 +2208,20 @@ class CIntType(CIntLike, CNumericType):
                     "Binop", "Overflow.c",
                     context={'TYPE': type, 'NAME': name, 'BINOP': binop}))
         return "__Pyx_%s_%s_checking_overflow" % (binop, name)
+
+    @property
+    def _limits_name(self):
+        if self.rank == 0 and self.signed == 1:
+            return 'CHAR'
+        return ('SCHAR', 'SHRT', 'INT', 'LONG', 'LLONG')[self.rank]
+
+    @property
+    def min(self):
+        return self._limits_name + "_MIN"
+
+    @property
+    def max(self):
+        return self._limits_name + "_MAX"
 
 
 def _load_overflow_base(env):
