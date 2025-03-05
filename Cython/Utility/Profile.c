@@ -329,7 +329,7 @@
   #define __Pyx_TraceFrameInit(codeobj)                                   \
       if (codeobj) $frame_code_cname = (PyCodeObject*) codeobj;
 
-  #define __Pyx_PyMonitoring_ExitScope()  {}
+  #define __Pyx_PyMonitoring_ExitScope(nogil)  {}
   #define __Pyx_TraceException(offset, reraised, fresh)  {}
   #define __Pyx_TraceExceptionHandled(offset)  {}
   #define __Pyx_TraceExceptionDone()  {}
@@ -537,7 +537,7 @@
   #define __Pyx_TraceDeclarationsGen
   #define __Pyx_TraceExceptionDone()  {}
   #define __Pyx_TraceFrameInit(codeobj)  {}
-  #define __Pyx_PyMonitoring_ExitScope()  {}
+  #define __Pyx_PyMonitoring_ExitScope(nogil)  {}
   #define __Pyx_TraceException(offset, reraised, fresh)  {}
   #define __Pyx_TraceExceptionUnwind(offset, nogil)  {}
   #define __Pyx_TraceExceptionHandled(offset)  {}
