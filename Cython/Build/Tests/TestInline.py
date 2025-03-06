@@ -122,7 +122,7 @@ class TestCymeit(unittest.TestCase):
             self.assertGreater(timing, 0)
 
         # Validate that autoscaling leads to reasonable timings.
-        # We compare against 0.1 instead of 0.2 to accomodate for timing variations.
+        # We compare against 0.1 instead of 0.2 to accommodate for timing variations.
         for timing in timings:
             self.assertGreaterEqual(timing * number, 0.1)
 
