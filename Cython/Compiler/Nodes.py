@@ -3797,7 +3797,6 @@ class DefNodeWrapper(FuncDefNode):
         code.putln("/* function exit code */")
 
         # ----- Error cleanup
-        values_cleaned_up_label = code.new_label("cleaned_up")
         if code.label_used(code.error_label):
             code.put_goto(code.return_label)
             code.put_label(code.error_label)
@@ -3807,15 +3806,8 @@ class DefNodeWrapper(FuncDefNode):
             if err_val is not None:
                 code.putln("%s = %s;" % (Naming.retval_cname, err_val))
 
-            self.generate_argument_values_cleanup_code(code, all_xdecref=True)
-            code.put_goto(values_cleaned_up_label)
-
         # ----- Non-error return cleanup
         code.put_label(code.return_label)
-
-        self.generate_argument_values_cleanup_code(code)
-        code.put_label(values_cleaned_up_label)
-
         for entry in lenv.var_entries:
             if entry.is_arg:
                 if entry.xdecref_cleanup:
@@ -3832,6 +3824,7 @@ class DefNodeWrapper(FuncDefNode):
                 else:
                     code.put_var_decref(arg.entry)
 
+        self.generate_argument_values_cleanup_code(code)
         code.put_finish_refcount_context()
         if not self.return_type.is_void:
             code.putln("return %s;" % Naming.retval_cname)
@@ -4007,7 +4000,7 @@ class DefNodeWrapper(FuncDefNode):
         if code.label_used(our_error_label):
             code.put_goto(end_label)
             code.put_label(our_error_label)
-            self.generate_argument_values_cleanup_code(code, all_xdecref=True)
+            self.generate_argument_values_cleanup_code(code)
 
             if has_star_or_kw_args:
                 self.generate_arg_decref(self.star_arg, code)
@@ -4447,19 +4440,13 @@ class DefNodeWrapper(FuncDefNode):
                 default_value = arg.calculate_default_value_code(code)
                 code.putln(f'if (!values[{i}]) values[{i}] = __Pyx_NewRef({arg.type.as_pyobject(default_value)});')
 
-    def generate_argument_values_cleanup_code(self, code, all_xdecref=False):
+    def generate_argument_values_cleanup_code(self, code):
         if not self.needs_values_cleanup:
             return
-        code.putln("{")
+
         loop_var = Naming.quick_temp_cname
-        code.putln(f"Py_ssize_t {loop_var} = (Py_ssize_t)(sizeof(values)/sizeof(values[0])) - 1;")
-
-        unsafe_min = 0 if all_xdecref else Naming.nargs_cname
-        code.putln(f"while ({loop_var} >= {unsafe_min}) {{ Py_XDECREF(values[{loop_var}]); --{loop_var}; }}")
-
-        if not all_xdecref:
-            code.putln(f"while ({loop_var} >= 0) {{ Py_DECREF(values[{loop_var}]); --{loop_var}; }}")
-
+        code.putln(f"for (Py_ssize_t {loop_var}=0; {loop_var} < (Py_ssize_t)(sizeof(values)/sizeof(values[0])); ++{loop_var}) {{")
+        code.putln(f"Py_XDECREF(values[{loop_var}]);")
         code.putln("}")
 
     def generate_posargs_unpacking_code(self, min_positional_args, max_positional_args,
