@@ -1,3 +1,4 @@
+import gc
 import hashlib
 import inspect
 import os
@@ -277,6 +278,29 @@ def __invoke(%(params)s):
     return module.__invoke(*arg_list)
 
 
+# The code template used for cymeit benchmark runs.
+# We keep the benchmark repetition separate from the benchmarked code
+# to prevent the C compiler from doing unhelpful loop optimisations.
+_CYMEIT_TEMPLATE = """
+def __PYX_repeat_benchmark(benchmark, timer, size_t number):
+    cdef size_t i
+
+    t0 = timer()
+    for i in range(number):
+        benchmark()
+    t1 = timer()
+    return t1 - t0
+
+def __PYX_make_benchmark():
+    {setup_code}
+
+    def __PYX_run_benchmark():
+        {benchmark_code}
+
+    return __PYX_run_benchmark
+"""
+
+
 def cymeit(code, setup_code=None, import_module=None, directives=None, repeat=9):
     """Benchmark a Cython code string similar to 'timeit'.
 
@@ -293,40 +317,61 @@ def cymeit(code, setup_code=None, import_module=None, directives=None, repeat=9)
     """
     import textwrap
     import time
-    import timeit
 
-    # Construct benchmark code as an inline closure function.
-    setup_code = textwrap.dedent(setup_code) if setup_code else ''
+    # Compile the benchmark code as an inline closure function.
 
-    module_code = '\n'.join([
-        "def __PYX_make_benchmark():",
-        textwrap.indent(setup_code, ' '*4),
-        "",
-        "    def __PYX_run_benchmark():",
-        textwrap.indent(code, ' '*8),
-        "",
-        "    return __PYX_run_benchmark",
-        ""
-    ])
+    setup_code = strip_common_indent(setup_code) if setup_code else ''
+    code = strip_common_indent(code)
 
     module_namespace = __import__(import_module).__dict__ if import_module else None
 
+    cymeit_code = _CYMEIT_TEMPLATE.format(
+        setup_code=textwrap.indent(setup_code, ' '*4).strip(),
+        benchmark_code=textwrap.indent(code, ' '*8).strip(),
+
+    )
+
     namespace = cython_inline(
-        module_code,
+        cymeit_code,
         cython_compiler_directives=directives,
         locals=module_namespace,
     )
 
-    # Based on 'timeit.main()' in CPython 3.13.
-    timer = timeit.Timer(
-        '__PYX_run_benchmark()',
-        setup='__PYX_run_benchmark = __PYX_make_benchmark()',
-        timer=time.process_time,
-        globals=namespace,
-    )
+    make_benchmark = namespace['__PYX_make_benchmark']
+    repeat_benchmark = namespace['__PYX_repeat_benchmark']
 
-    number = timer.autorange()[0]
-    timings = timer.repeat(repeat=repeat, number=number)
+    # Based on 'timeit' in CPython 3.13.
+
+    def timeit(number):
+        benchmark = make_benchmark()
+
+        gcold = gc.isenabled()
+        gc.disable()
+        try:
+            timing = repeat_benchmark(benchmark, time.process_time, number)
+        finally:
+            if gcold:
+                gc.enable()
+        return timing
+
+    # Find a sufficiently large number of loops, warm up the system.
+    def autorange():
+        i = 1
+        while True:
+            for j in 1, 2, 5:
+                number = i * j
+                time_taken = timeit(number)
+                if time_taken >= 0.2:
+                    return number
+            i *= 10
+
+    number = autorange()
+
+    # Run and repeat the benchmark.
+    timings = [
+        timeit(number)
+        for _ in range(repeat)
+    ]
 
     timings = [t / number for t in timings]
 
@@ -337,7 +382,7 @@ def cymeit(code, setup_code=None, import_module=None, directives=None, repeat=9)
 # overridden with actual value upon the first cython_inline invocation
 cython_inline.so_ext = None
 
-_find_non_space = re.compile('[^ ]').search
+_find_non_space = re.compile(r'\S').search
 
 
 def strip_common_indent(code):

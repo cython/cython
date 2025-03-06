@@ -116,10 +116,15 @@ class TestCymeit(unittest.TestCase):
     def _run(self, code, setup_code=None, **kwargs):
         timings, number = cymeit(code, setup_code=setup_code, **kwargs)
 
-        self.assertGreater(number, 10)  # arbitrary lower bound
+        self.assertGreater(number, 10)  # arbitrary lower bound for our very quick benchmarks
 
         for timing in timings:
             self.assertGreater(timing, 0)
+
+        # Validate that autoscaling leads to reasonable timings.
+        # We compare against 0.1 instead of 0.2 to accomodate for timing variations.
+        for timing in timings:
+            self.assertGreaterEqual(timing * number, 0.1)
 
         return timings
 
@@ -138,6 +143,18 @@ class TestCymeit(unittest.TestCase):
             return result
         """
         self._run("csum(numbers)", setup_code)
+
+    def test_benchmark_multiline_code(self):
+        setup_code = "numbers = list(range(0, 100, 3))"
+        self._run("""
+            sum([
+                num
+                    for num in numbers
+                ])
+            """,
+            setup_code,
+            repeat=3
+        )
 
     def test_benchmark_in_module(self):
         self._run("fsum(range(100))", import_module='math', repeat=2)
