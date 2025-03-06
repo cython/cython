@@ -372,8 +372,8 @@ def cymeit(code, setup_code=None, import_module=None, directives=None, timer=tim
                     assert isinstance(time_taken, int)
                     if time_taken >= 200_000_000:  # == int(0.2 / 1e-9)
                         return number
-                    elif number >= 10 and time_taken < 10:
-                        # Arbitrary safety check to prevent endless loops for non-ns timers.
+                    elif time_taken < 10 and number >= 10:
+                        # Arbitrary sanity check to prevent endless loops for non-ns timers.
                         raise RuntimeError(f"Timer seems to return non-ns timings: {timer}")
                 else:
                     if time_taken >= 0.2:
