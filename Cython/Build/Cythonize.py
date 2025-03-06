@@ -297,7 +297,7 @@ def main(args=None):
     if ext_modules_by_basedir and options.build:
         _build(list(ext_modules_by_basedir.items()), options.parallel)
 
-    if options.benchmark:
+    if options.benchmark is not None:
         base_dir = import_module = None
         if ext_modules_by_basedir:
             base_dir, first_extensions = ext_modules_by_basedir.popitem()

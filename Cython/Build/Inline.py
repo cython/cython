@@ -324,7 +324,7 @@ def cymeit(code, setup_code=None, import_module=None, directives=None, timer=tim
     # Compile the benchmark code as an inline closure function.
 
     setup_code = strip_common_indent(setup_code) if setup_code else ''
-    code = strip_common_indent(code)
+    code = strip_common_indent(code) if code.strip() else 'pass'
 
     module_namespace = __import__(import_module).__dict__ if import_module else None
 
