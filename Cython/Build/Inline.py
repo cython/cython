@@ -313,7 +313,7 @@ def cymeit(code, setup_code=None, import_module=None, directives=None, repeat=9)
 
     'repeat': The number of timings to take and return.
 
-    Returns a tuple: (list of timings, number of loops run for each)
+    Returns a tuple: (list of single-loop timings, number of loops run for each)
     """
     import textwrap
     import time
@@ -369,11 +369,9 @@ def cymeit(code, setup_code=None, import_module=None, directives=None, repeat=9)
 
     # Run and repeat the benchmark.
     timings = [
-        timeit(number)
+        timeit(number) / number
         for _ in range(repeat)
     ]
-
-    timings = [t / number for t in timings]
 
     return (timings, number)
 
