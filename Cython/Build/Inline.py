@@ -302,7 +302,7 @@ def __PYX_make_benchmark():
 """
 
 
-def cymeit(code, setup_code=None, import_module=None, directives=None, timer=time.process_time, repeat=9):
+def cymeit(code, setup_code=None, import_module=None, directives=None, timer=time.perf_counter, repeat=9):
     """Benchmark a Cython code string similar to 'timeit'.
 
     'setup_code': string of setup code that will be run before taking the timings.
@@ -312,7 +312,7 @@ def cymeit(code, setup_code=None, import_module=None, directives=None, timer=tim
 
     'directives': Cython directives to use when compiling the benchmark code.
 
-    'timer': The timer function. Defaults to 'time.process_time', returning float seconds.
+    'timer': The timer function. Defaults to 'time.perf_counter', returning float seconds.
              Nanosecond timers are detected (and can only be used) if they return integers.
 
     'repeat': The number of timings to take and return.
