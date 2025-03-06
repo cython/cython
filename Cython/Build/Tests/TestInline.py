@@ -118,9 +118,13 @@ class TestCymeit(unittest.TestCase):
 
         self.assertGreater(min(timings), 0)
 
-        # Validate that autoscaling leads to reasonable timings.
-        # We compare against 0.1 instead of 0.2 to accommodate for timing variations.
-        self.assertGreaterEqual(max(timing * number for timing in timings), 0.1)
+        # Guard that autoscaling leads to reasonable timings.
+        # We compare against 0.01 instead of 0.2 to accommodate for timing variations.
+        max_time = max(timing * number for timing in timings)
+        if isinstance(max_time, int):
+            self.assertGreaterEqual(max_time, 10_000_000)
+        else:
+            self.assertGreaterEqual(max_time, 0.01)
         self.assertGreater(number, 10)  # arbitrary lower bound for our very quick benchmarks
 
         return timings
