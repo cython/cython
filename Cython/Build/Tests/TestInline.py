@@ -132,6 +132,22 @@ class TestCymeit(unittest.TestCase):
         setup_code = "numbers = list(range(0, 100, 3))"
         self._run("sum([num for num in numbers])", setup_code, repeat=3)
 
+    def test_benchmark_timer(self):
+        import time
+        setup_code = "numbers = list(range(0, 100, 3))"
+        timings = self._run("sum([num for num in numbers])", setup_code, timer=time.perf_counter, repeat=3)
+
+        for timing in timings:
+            self.assertIsInstance(timing, float)
+
+    def test_benchmark_timer_ns(self):
+        import time
+        setup_code = "numbers = list(range(0, 100, 3))"
+        timings = self._run("sum([num for num in numbers])", setup_code, timer=time.perf_counter_ns, repeat=3)
+
+        for timing in timings:
+            self.assertIsInstance(timing, int)
+
     def test_benchmark_multiline_setup(self):
         setup_code = """
         numbers = list(range(0, 100, 3))

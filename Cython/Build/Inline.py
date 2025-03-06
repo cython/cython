@@ -4,6 +4,7 @@ import inspect
 import os
 import re
 import sys
+import time
 
 from distutils.core import Distribution, Extension
 from distutils.command.build_ext import build_ext
@@ -301,7 +302,7 @@ def __PYX_make_benchmark():
 """
 
 
-def cymeit(code, setup_code=None, import_module=None, directives=None, repeat=9):
+def cymeit(code, setup_code=None, import_module=None, directives=None, timer=time.process_time, repeat=9):
     """Benchmark a Cython code string similar to 'timeit'.
 
     'setup_code': string of setup code that will be run before taking the timings.
@@ -311,12 +312,14 @@ def cymeit(code, setup_code=None, import_module=None, directives=None, repeat=9)
 
     'directives': Cython directives to use when compiling the benchmark code.
 
+    'timer': The timer function. Defaults to 'time.process_time', returning float seconds.
+             Nanosecond timers are detected (and can only be used) if they return integers.
+
     'repeat': The number of timings to take and return.
 
     Returns a tuple: (list of single-loop timings, number of loops run for each)
     """
     import textwrap
-    import time
 
     # Compile the benchmark code as an inline closure function.
 
@@ -348,29 +351,48 @@ def cymeit(code, setup_code=None, import_module=None, directives=None, repeat=9)
         gcold = gc.isenabled()
         gc.disable()
         try:
-            timing = repeat_benchmark(benchmark, time.process_time, number)
+            timing = repeat_benchmark(benchmark, timer, number)
         finally:
             if gcold:
                 gc.enable()
         return timing
 
     # Find a sufficiently large number of loops, warm up the system.
+
+    timer_returns_nanoseconds = isinstance(timer(), int)
+
     def autorange():
         i = 1
         while True:
             for j in 1, 2, 5:
                 number = i * j
                 time_taken = timeit(number)
-                if time_taken >= 0.2:
-                    return number
+                # At least 0.2 seconds, either as integer nanoseconds or floating point seconds.
+                if timer_returns_nanoseconds:
+                    assert isinstance(time_taken, int)
+                    if time_taken >= 200_000_000:  # == int(0.2 / 1e-9)
+                        return number
+                    elif number >= 10 and time_taken < 10:
+                        # Arbitrary safety check to prevent endless loops for non-ns timers.
+                        raise RuntimeError(f"Timer seems to return non-ns timings: {timer}")
+                else:
+                    if time_taken >= 0.2:
+                        return number
             i *= 10
 
     number = autorange()
 
     # Run and repeat the benchmark.
     timings = [
-        timeit(number) / number
+        timeit(number)
         for _ in range(repeat)
+    ]
+
+    half = number // 2  # for integer rounding
+
+    timings = [
+        (timing + half) // number if timer_returns_nanoseconds else timing / number
+        for timing in timings
     ]
 
     return (timings, number)
