@@ -3807,6 +3807,8 @@ class DefNodeWrapper(FuncDefNode):
             if err_val is not None:
                 code.putln("%s = %s;" % (Naming.retval_cname, err_val))
 
+            # We use separate cleanup paths for the success/error cases to help the
+            # C compiler optimise the success case (e.g. remove the NULL check in XDECREFs).
             self.generate_argument_values_cleanup_code(code)
             code.put_goto(values_cleaned_up_label)
 
