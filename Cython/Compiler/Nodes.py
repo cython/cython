@@ -4054,7 +4054,7 @@ class DefNodeWrapper(FuncDefNode):
             )
 
         code.putln(
-            f"Py_ssize_t {Naming.kwds_len_cname} = "
+            f"const Py_ssize_t {Naming.kwds_len_cname} = "
             f"{'' if self.starstar_arg else 'unlikely'}({Naming.kwds_cname}) ? "
             f"__Pyx_NumKwargs_{self.signature.fastvar}({Naming.kwds_cname}) : 0;"
         )
@@ -4208,7 +4208,7 @@ class DefNodeWrapper(FuncDefNode):
         accept_kwd_args = non_posonly_args or self.starstar_arg
 
         code.putln(
-            f"Py_ssize_t {Naming.kwds_len_cname} = "
+            f"const Py_ssize_t {Naming.kwds_len_cname} = "
             f"{'' if accept_kwd_args else 'unlikely'}({Naming.kwds_cname}) ? "
             f"__Pyx_NumKwargs_{self.signature.fastvar}({Naming.kwds_cname}) : 0;"
         )
