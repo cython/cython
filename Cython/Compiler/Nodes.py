@@ -3797,6 +3797,7 @@ class DefNodeWrapper(FuncDefNode):
         code.putln("/* function exit code */")
 
         # ----- Error cleanup
+        values_cleaned_up_label = code.new_label("cleaned_up")
         if code.label_used(code.error_label):
             code.put_goto(code.return_label)
             code.put_label(code.error_label)
@@ -3806,8 +3807,15 @@ class DefNodeWrapper(FuncDefNode):
             if err_val is not None:
                 code.putln("%s = %s;" % (Naming.retval_cname, err_val))
 
+            self.generate_argument_values_cleanup_code(code)
+            code.put_goto(values_cleaned_up_label)
+
         # ----- Non-error return cleanup
         code.put_label(code.return_label)
+
+        self.generate_argument_values_cleanup_code(code)
+        code.put_label(values_cleaned_up_label)
+
         for entry in lenv.var_entries:
             if entry.is_arg:
                 if entry.xdecref_cleanup:
@@ -3824,7 +3832,6 @@ class DefNodeWrapper(FuncDefNode):
                 else:
                     code.put_var_decref(arg.entry)
 
-        self.generate_argument_values_cleanup_code(code)
         code.put_finish_refcount_context()
         if not self.return_type.is_void:
             code.putln("return %s;" % Naming.retval_cname)
