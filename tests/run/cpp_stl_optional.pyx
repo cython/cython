@@ -1,6 +1,6 @@
 # ticket: 3293
 # mode: run
-# tag: cpp, cpp17, werror
+# tag: cpp, cpp17, no-cpp-locals, werror
 
 from cython.operator cimport dereference as deref
 from libcpp.optional cimport optional, nullopt, make_optional

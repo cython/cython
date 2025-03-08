@@ -838,7 +838,7 @@ static CYTHON_INLINE int __Pyx__IsSameCFunction(PyObject *func, void *cfunc) {
 #define __Pyx_IsSameCFunction(func, cfunc)   __Pyx__IsSameCFunction(func, cfunc)
 
 // PEP-573: PyCFunction holds reference to defining class (PyCMethodObject)
-#if __PYX_LIMITED_VERSION_HEX < 0x030900B1
+#if __PYX_LIMITED_VERSION_HEX < 0x03090000
   #define __Pyx_PyType_FromModuleAndSpec(m, s, b)  ((void)m, PyType_FromSpecWithBases(s, b))
   typedef PyObject *(*__Pyx_PyCMethod)(PyObject *, PyTypeObject *, PyObject *const *, size_t, PyObject *);
 #else
@@ -1074,34 +1074,37 @@ static CYTHON_INLINE PyObject * __Pyx_PyDict_GetItemStrWithError(PyObject *dict,
   #define __Pyx_SET_SIZE(obj, size) Py_SIZE(obj) = (size)
 #endif
 
-#if CYTHON_AVOID_THREAD_UNSAFE_BORROWED_REFS && PY_VERSION_HEX >= 0x030d00b1
-#define __Pyx_PyList_GetItemRef(o, i) PyList_GetItemRef(o, i)
-#define __Pyx_PyDict_GetItemRef(dict, key, result) PyDict_GetItemRef(dict, key, result)
-#elif !CYTHON_AVOID_BORROWED_REFS
-
-#if CYTHON_ASSUME_SAFE_MACROS
-#define __Pyx_PyList_GetItemRef(o, i) __Pyx_NewRef(PyList_GET_ITEM(o, i))
+#if CYTHON_COMPILING_IN_LIMITED_API || CYTHON_AVOID_BORROWED_REFS || CYTHON_AVOID_THREAD_UNSAFE_BORROWED_REFS || !CYTHON_ASSUME_SAFE_MACROS
+  #if __PYX_LIMITED_VERSION_HEX >= 0x030d0000
+    #define __Pyx_PyList_GetItemRef(o, i) PyList_GetItemRef(o, i)
+  #else
+    #define __Pyx_PyList_GetItemRef(o, i) PySequence_GetItem(o, i)
+  #endif
 #else
-#define __Pyx_PyList_GetItemRef(o, i) PySequence_GetItem(o, i)
+  #define __Pyx_PyList_GetItemRef(o, i) __Pyx_NewRef(PyList_GET_ITEM(o, i))
 #endif
 
+#if __PYX_LIMITED_VERSION_HEX >= 0x030d0000
+#define __Pyx_PyDict_GetItemRef(dict, key, result) PyDict_GetItemRef(dict, key, result)
+#elif CYTHON_AVOID_BORROWED_REFS || CYTHON_AVOID_THREAD_UNSAFE_BORROWED_REFS
 static CYTHON_INLINE int __Pyx_PyDict_GetItemRef(PyObject *dict, PyObject *key, PyObject **result) {
-  *result = PyDict_GetItem(dict, key);
+  *result = PyObject_GetItem(dict, key);
   if (*result == NULL) {
-    return 0;
+    if (PyErr_ExceptionMatches(PyExc_KeyError)) {
+      PyErr_Clear();
+      return 0;
+    }
+    return -1;
   }
-  Py_INCREF(*result);
   return 1;
 }
 #else
-#define __Pyx_PyList_GetItemRef(o, i) PySequence_GetItem(o, i)
 static CYTHON_INLINE int __Pyx_PyDict_GetItemRef(PyObject *dict, PyObject *key, PyObject **result) {
-  *result = PyObject_GetItem(dict, key);
-  if (PyErr_Occurred()) {
-    return -1;
-  } else if (*result == NULL) {
-    return 0;
+  *result = PyDict_GetItemWithError(dict, key);
+  if (*result == NULL) {
+    return PyErr_Occurred() ? -1 : 0;
   }
+  Py_INCREF(*result);
   return 1;
 }
 #endif
@@ -1149,7 +1152,7 @@ static CYTHON_INLINE int __Pyx_PyDict_GetItemRef(PyObject *dict, PyObject *key, 
   #define __Pyx_PyUnicode_GET_LENGTH(o) PyUnicode_GetLength(o)
 #endif
 
-#if __PYX_LIMITED_VERSION_HEX >= 0x030d00A1
+#if __PYX_LIMITED_VERSION_HEX >= 0x030d0000
   #define __Pyx_PyImport_AddModuleRef(name) PyImport_AddModuleRef(name)
 #else
   static CYTHON_INLINE PyObject *__Pyx_PyImport_AddModuleRef(const char *name) {
@@ -1212,7 +1215,7 @@ static CYTHON_INLINE int __Pyx_PyDict_GetItemRef(PyObject *dict, PyObject *key, 
     #define __Pyx_TPFLAGS_HAVE_AM_SEND (0)
 #endif
 
-#if Py_VERSION_HEX >= 0x03090000
+#if PY_VERSION_HEX >= 0x03090000
 #define __Pyx_PyInterpreterState_Get() PyInterpreterState_Get()
 #else
 #define __Pyx_PyInterpreterState_Get() PyThreadState_Get()->interp
@@ -1597,6 +1600,7 @@ bad:
 
 
 /////////////// CodeObjectCache.proto ///////////////
+//@requires: MemoryView_C.c::Atomics
 
 #if CYTHON_COMPILING_IN_LIMITED_API
 typedef PyObject __Pyx_CachedCodeObjectType;
@@ -1613,14 +1617,21 @@ struct __Pyx_CodeObjectCache {
     int count;
     int max_count;
     __Pyx_CodeObjectCacheEntry* entries;
+  #if CYTHON_COMPILING_IN_CPYTHON_FREETHREADING
+    // 0 for none, +ve for readers, -ve for writers.
+    // 
+    __pyx_atomic_int_type accessor_count;
+  #endif
 };
-
-static struct __Pyx_CodeObjectCache __pyx_code_cache = {0,0,NULL};
 
 static int __pyx_bisect_code_objects(__Pyx_CodeObjectCacheEntry* entries, int count, int code_line);
 
 static __Pyx_CachedCodeObjectType *__pyx_find_code_object(int code_line);
 static void __pyx_insert_code_object(int code_line, __Pyx_CachedCodeObjectType* code_object);
+
+/////////////// CodeObjectCache.module_state_decls ////////////////
+
+struct __Pyx_CodeObjectCache __pyx_code_cache;
 
 /////////////// CodeObjectCache ///////////////
 // Note that errors are simply ignored in the code below.
@@ -1648,79 +1659,125 @@ static int __pyx_bisect_code_objects(__Pyx_CodeObjectCacheEntry* entries, int co
     }
 }
 
-static __Pyx_CachedCodeObjectType *__pyx_find_code_object(int code_line) {
+static __Pyx_CachedCodeObjectType *__pyx__find_code_object(struct __Pyx_CodeObjectCache *code_cache, int code_line) {
     __Pyx_CachedCodeObjectType* code_object;
     int pos;
-    if (unlikely(!code_line) || unlikely(!__pyx_code_cache.entries)) {
+    if (unlikely(!code_line) || unlikely(!code_cache->entries)) {
         return NULL;
     }
-    pos = __pyx_bisect_code_objects(__pyx_code_cache.entries, __pyx_code_cache.count, code_line);
-    if (unlikely(pos >= __pyx_code_cache.count) || unlikely(__pyx_code_cache.entries[pos].code_line != code_line)) {
+    pos = __pyx_bisect_code_objects(code_cache->entries, code_cache->count, code_line);
+    if (unlikely(pos >= code_cache->count) || unlikely(code_cache->entries[pos].code_line != code_line)) {
         return NULL;
     }
-    code_object = __pyx_code_cache.entries[pos].code_object;
+    code_object = code_cache->entries[pos].code_object;
     Py_INCREF(code_object);
     return code_object;
 }
 
-static void __pyx_insert_code_object(int code_line, __Pyx_CachedCodeObjectType* code_object)
+static __Pyx_CachedCodeObjectType *__pyx_find_code_object(int code_line) {
+#if CYTHON_COMPILING_IN_CPYTHON_FREETHREADING && !CYTHON_ATOMICS
+    (void)__pyx__find_code_object;
+    return NULL; // Most implementation should have atomics. But otherwise, don't make it thread-safe, just miss.
+#else
+    struct __Pyx_CodeObjectCache *code_cache = &CGLOBAL(__pyx_code_cache);
+#if CYTHON_COMPILING_IN_CPYTHON_FREETHREADING
+    __pyx_nonatomic_int_type old_count = __pyx_atomic_incr_acq_rel(&code_cache->accessor_count);
+    if (old_count < 0) {
+        // It's being written so currently unreadable.
+        __pyx_atomic_decr_acq_rel(&code_cache->accessor_count);
+        return NULL;
+    }
+#endif
+    __Pyx_CachedCodeObjectType *result = __pyx__find_code_object(code_cache, code_line);
+#if CYTHON_COMPILING_IN_CPYTHON_FREETHREADING
+    __pyx_atomic_decr_acq_rel(&code_cache->accessor_count);
+#endif
+    return result;
+#endif
+}
+
+
+static void __pyx__insert_code_object(struct __Pyx_CodeObjectCache *code_cache, int code_line, __Pyx_CachedCodeObjectType* code_object)
 {
     int pos, i;
-    __Pyx_CodeObjectCacheEntry* entries = __pyx_code_cache.entries;
+    __Pyx_CodeObjectCacheEntry* entries = code_cache->entries;
     if (unlikely(!code_line)) {
         return;
     }
     if (unlikely(!entries)) {
         entries = (__Pyx_CodeObjectCacheEntry*)PyMem_Malloc(64*sizeof(__Pyx_CodeObjectCacheEntry));
         if (likely(entries)) {
-            __pyx_code_cache.entries = entries;
-            __pyx_code_cache.max_count = 64;
-            __pyx_code_cache.count = 1;
+            code_cache->entries = entries;
+            code_cache->max_count = 64;
+            code_cache->count = 1;
             entries[0].code_line = code_line;
             entries[0].code_object = code_object;
             Py_INCREF(code_object);
         }
         return;
     }
-    pos = __pyx_bisect_code_objects(__pyx_code_cache.entries, __pyx_code_cache.count, code_line);
-    if ((pos < __pyx_code_cache.count) && unlikely(__pyx_code_cache.entries[pos].code_line == code_line)) {
+    pos = __pyx_bisect_code_objects(code_cache->entries, code_cache->count, code_line);
+    if ((pos < code_cache->count) && unlikely(code_cache->entries[pos].code_line == code_line)) {
         __Pyx_CachedCodeObjectType* tmp = entries[pos].code_object;
         entries[pos].code_object = code_object;
         Py_DECREF(tmp);
         return;
     }
-    if (__pyx_code_cache.count == __pyx_code_cache.max_count) {
-        int new_max = __pyx_code_cache.max_count + 64;
+    if (code_cache->count == code_cache->max_count) {
+        int new_max = code_cache->max_count + 64;
         entries = (__Pyx_CodeObjectCacheEntry*)PyMem_Realloc(
-            __pyx_code_cache.entries, ((size_t)new_max) * sizeof(__Pyx_CodeObjectCacheEntry));
+            code_cache->entries, ((size_t)new_max) * sizeof(__Pyx_CodeObjectCacheEntry));
         if (unlikely(!entries)) {
             return;
         }
-        __pyx_code_cache.entries = entries;
-        __pyx_code_cache.max_count = new_max;
+        code_cache->entries = entries;
+        code_cache->max_count = new_max;
     }
-    for (i=__pyx_code_cache.count; i>pos; i--) {
+    for (i=code_cache->count; i>pos; i--) {
         entries[i] = entries[i-1];
     }
     entries[pos].code_line = code_line;
     entries[pos].code_object = code_object;
-    __pyx_code_cache.count++;
+    code_cache->count++;
     Py_INCREF(code_object);
+}
+
+static void __pyx_insert_code_object(int code_line, __Pyx_CachedCodeObjectType* code_object) {
+#if CYTHON_COMPILING_IN_CPYTHON_FREETHREADING && !CYTHON_ATOMICS
+    (void)__pyx__insert_code_object;
+    return; // Most implementation should have atomics. But otherwise, don't make it thread-safe, just fail.
+#else
+    struct __Pyx_CodeObjectCache *code_cache = &CGLOBAL(__pyx_code_cache);
+#if CYTHON_COMPILING_IN_CPYTHON_FREETHREADING
+    __pyx_nonatomic_int_type expected = 0;
+    if (!__pyx_atomic_int_cmp_exchange(&code_cache->accessor_count, &expected, INT_MIN)) {
+        // it's being written or read, Either way we can't do anything
+        return;
+    }
+#endif
+    __pyx__insert_code_object(code_cache, code_line, code_object);
+#if CYTHON_COMPILING_IN_CPYTHON_FREETHREADING
+    __pyx_atomic_sub(&code_cache->accessor_count, INT_MIN);
+#endif
+#endif
 }
 
 /////////////// CodeObjectCache.cleanup ///////////////
 
-  if (__pyx_code_cache.entries) {
-      __Pyx_CodeObjectCacheEntry* entries = __pyx_code_cache.entries;
-      int i, count = __pyx_code_cache.count;
-      __pyx_code_cache.count = 0;
-      __pyx_code_cache.max_count = 0;
-      __pyx_code_cache.entries = NULL;
+{
+  struct __Pyx_CodeObjectCache *code_cache = &CGLOBAL(__pyx_code_cache);
+  if (code_cache->entries) {
+      __Pyx_CodeObjectCacheEntry* entries = code_cache->entries;
+      int i, count = code_cache->count;
+      code_cache->count = 0;
+      code_cache->max_count = 0;
+      code_cache->entries = NULL;
       for (i=0; i<count; i++) {
           Py_DECREF(entries[i].code_object);
       }
       PyMem_Free(entries);
   }
+}
 
 /////////////// GetRuntimeVersion.proto ///////////////
 
@@ -1730,7 +1787,7 @@ static unsigned long __Pyx_get_runtime_version(void);
 
 static unsigned long __Pyx_get_runtime_version(void) {
     // We will probably never need the alpha/beta status, so avoid the complexity to parse it.
-#if __PYX_LIMITED_VERSION_HEX >= 0x030B00A4
+#if __PYX_LIMITED_VERSION_HEX >= 0x030b0000
     return Py_Version & ~0xFFUL;
 #else
     static unsigned long __Pyx_cached_runtime_version = 0;
@@ -2265,7 +2322,7 @@ static PyObject* __Pyx_PyCode_New(
         // constructor with version.
         PyObject *exception_table = NULL;
         PyObject *types_module=NULL, *code_type=NULL, *result=NULL;
-        #if __PYX_LIMITED_VERSION_HEX < 0x030B0000
+        #if __PYX_LIMITED_VERSION_HEX < 0x030b0000
         PyObject *version_info;  /* borrowed */
         PyObject *py_minor_version = NULL;
         #endif
@@ -2275,7 +2332,7 @@ static PyObject* __Pyx_PyCode_New(
         // we must be able to call this while an exception is happening - thus clear then restore the state
         PyErr_Fetch(&type, &value, &traceback);
 
-        #if __PYX_LIMITED_VERSION_HEX >= 0x030B0000
+        #if __PYX_LIMITED_VERSION_HEX >= 0x030b0000
         minor_version = 11;
         // we don't yet need to distinguish between versions > 11
         // Note that from 3.13, when we do, we can use Py_Version
@@ -2451,106 +2508,6 @@ done:
     return code_obj;
 }
 
-/////////////////////////// PyVersionSanityCheck.proto ///////////////////////
-
-static int __Pyx_VersionSanityCheck(void); /* proto */
-
-/////////////////////////// PyVersionSanityCheck ///////////////////////
-
-static int __Pyx_VersionSanityCheck(void) {
-  // Implementation notes:
-  //  The main thing I'm worried about in mixing up Py_GIL_DISABLED since this is incredibly
-  //  easy to do on Windows (where only a single pyconfig.h is provided, which is shared between
-  //  the freethreading and non-freethreading executables).  Getting this wrong instantly crashes.
-  //
-  //  The debug and trace-refs checks are just because they're easy to do at the same time.
-  //
-  //  In order to test it we cannot use any internals of Python objects from C
-  //  (especially refcounting) since we potentially have completely the wrong structure
-  //  of PyObject.  PyRun_SimpleStringFlags and PySys_GetObject both look fairly safe to
-  //  use like this.
-  //
-  //  Since PyRun_SimpleStringFlags runs in the __main__ scope, we should be careful not
-  //  to define variables inside it.
-  //  We use PyRun_SimpleStringFlags instead of PyRun_SimpleString since SimpleString is
-  //  a macro, and MSVC doesn't like #ifdef within a macro expansion.
-  //
-  //  PyRun_SimpleStringFlags prints and clears the exception information.  We raise
-  //  therefore raise the proper exception from C (I think the interface to PyErr_SetString
-  //  should be consistent enough between builds for this to be OK). This is fragile but
-  //  the best we can do.
-  //
-  #if CYTHON_COMPILING_IN_CPYTHON
-  // from Python 3.8 debug and release builds are ABI compatible so skip the check
-  #if PY_VERSION_HEX < 0x03080000
-    if (PySys_GetObject("gettotalrefcount")) {
-      #ifndef Py_DEBUG
-        PyErr_SetString(
-            PyExc_ImportError,
-            "Module was compiled with a non-debug version of Python but imported into a debug version."
-        );
-        return -1;
-      #endif
-    } else {
-      #ifdef Py_DEBUG
-        PyErr_SetString(
-            PyExc_ImportError,
-            "Module was compiled with a debug version of Python but imported into a non-debug version."
-        );
-        return -1;
-      #endif
-    }
-  #endif // Py_VERSION_HEX < 0x03080000
-  #if PY_VERSION_HEX >= 0x030d0000
-    if (PyRun_SimpleStringFlags(
-      "if "
-      #ifdef Py_GIL_DISABLED
-        "not "
-      #endif
-      "__import__('sysconfig').get_config_var('Py_GIL_DISABLED'): raise ImportError",
-      NULL
-    ) == -1) {
-        PyErr_SetString(
-            PyExc_ImportError,
-      #ifdef Py_GIL_DISABLED
-            "Module was compiled with a freethreading build of Python but imported into a non-freethreading build."
-      #else
-            "Module was compiled with a non-freethreading build of Python but imported into a freethreading build."
-      #endif
-        );
-      return -1;
-    }
-  #endif // version hex 3.13+
-    if (PySys_GetObject("getobjects")) {
-      #ifndef Py_TRACE_REFS
-        PyErr_SetString(
-            PyExc_ImportError,
-            "Module was compiled without Py_TRACE_REFS but imported into a build of Python with."
-        );
-        return -1;
-      #endif
-    } else {
-      #ifdef Py_TRACE_REFS
-        PyErr_SetString(
-            PyExc_ImportError,
-            "Module was compiled with Py_TRACE_REFS but imported into a build of Python without."
-        );
-        return -1;
-      #endif
-    }
-    const char code[] = "if __import__('sys').getsizeof(object()) != %u: raise ImportError";
-    char formattedCode[sizeof(code)+50];
-    PyOS_snprintf(formattedCode, sizeof(formattedCode), code, (unsigned int)sizeof(PyObject));
-    if (PyRun_SimpleStringFlags(formattedCode, NULL) == -1) {
-      PyErr_SetString(
-        PyExc_ImportError,
-        "Runtime and compile-time PyObject size do not match."
-      );
-      return -1;
-    }
-  #endif
-    return 0;
-}
 
 ////////////////////////// SharedInFreeThreading.proto //////////////////
 
@@ -3023,6 +2980,14 @@ static int __Pyx_State_RemoveModule(CYTHON_UNUSED void* dummy) {
 #define __Pyx_PyCriticalSection_Begin2 PyCriticalSection2_Begin
 #define __Pyx_PyCriticalSection_End1 PyCriticalSection_End
 #define __Pyx_PyCriticalSection_End2 PyCriticalSection2_End
+#endif
+
+#if PY_VERSION_HEX < 0x030d0000 || CYTHON_COMPILING_IN_LIMITED_API
+#define __Pyx_BEGIN_CRITICAL_SECTION(o) {
+#define __Pyx_END_CRITICAL_SECTION() }
+#else
+#define __Pyx_BEGIN_CRITICAL_SECTION Py_BEGIN_CRITICAL_SECTION
+#define __Pyx_END_CRITICAL_SECTION Py_END_CRITICAL_SECTION
 #endif
 
 ////////////////////// IncludeStdlibH.proto //////////////////////

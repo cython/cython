@@ -270,7 +270,7 @@ class IncludeCode:
     #  order     int: sorting order (automatically set by increasing counter)
 
     # Constants for location. If the same include occurs with different
-    # locations, the earliest one takes precedense.
+    # locations, the earliest one takes precedence.
     INITIAL = 0
     EARLY = 1
     LATE = 2
@@ -949,7 +949,6 @@ class FunctionState:
     # break_label      string          loop break point label
     # return_from_error_cleanup_label string
     # label_counter    integer         counter for naming labels
-    # in_try_finally   boolean         inside try of try...finally
     # exc_vars         (string * 3)    exception variables for reraise, or None
     # can_trace        boolean         line tracing is supported in the current context
     # scope            Scope           the scope object of the current function
@@ -969,7 +968,6 @@ class FunctionState:
         self.break_label = None
         self.yield_labels = []
 
-        self.in_try_finally = 0
         self.exc_vars = None
         self.current_except = None
         self.can_trace = False

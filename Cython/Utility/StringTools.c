@@ -7,6 +7,10 @@
 
 #include <string>
 
+//////////////////// IncludeCppStringViewH.proto ////////////////////
+
+#include <string_view>
+
 
 //////////////////// ssize_pyunicode_strlen.proto ////////////////////
 
@@ -426,6 +430,18 @@ static CYTHON_INLINE PyObject* __Pyx_decode_cpp_string(
         cppstring.data(), cppstring.size(), start, stop, encoding, errors, decode_func);
 }
 
+/////////////// decode_cpp_string_view.proto ///////////////
+//@requires: IncludeCppStringViewH
+//@requires: decode_c_bytes
+
+static CYTHON_INLINE PyObject* __Pyx_decode_cpp_string_view(
+         std::string_view cppstring, Py_ssize_t start, Py_ssize_t stop,
+         const char* encoding, const char* errors,
+         PyObject* (*decode_func)(const char *s, Py_ssize_t size, const char *errors)) {
+    return __Pyx_decode_c_bytes(
+        cppstring.data(), cppstring.size(), start, stop, encoding, errors, decode_func);
+}
+
 /////////////// decode_c_string.proto ///////////////
 
 static CYTHON_INLINE PyObject* __Pyx_decode_c_string(
@@ -691,7 +707,7 @@ static int __Pyx_PyBytes_SingleTailmatch(PyObject* self, PyObject* arg,
     Py_ssize_t sub_len;
     int retval;
 
-    #if CYTHON_COMPILING_IN_LIMITED_API && __PYX_LIMITED_VERSION_HEX < 0x030B0000
+    #if CYTHON_COMPILING_IN_LIMITED_API && __PYX_LIMITED_VERSION_HEX < 0x030b0000
     PyObject *converted_arg = NULL;
     #else
     Py_buffer view;
@@ -713,7 +729,7 @@ static int __Pyx_PyBytes_SingleTailmatch(PyObject* self, PyObject* arg,
         sub_len = PyBytes_GET_SIZE(arg);
         #endif
     }
-    #if CYTHON_COMPILING_IN_LIMITED_API && __PYX_LIMITED_VERSION_HEX < 0x030B0000
+    #if CYTHON_COMPILING_IN_LIMITED_API && __PYX_LIMITED_VERSION_HEX < 0x030b0000
     else if (PyByteArray_Check(arg)) {
         // The Limited API fallback is inefficient,
         // so special-case bytearray to be a bit faster. Keep this to the Limited
@@ -769,7 +785,7 @@ static int __Pyx_PyBytes_SingleTailmatch(PyObject* self, PyObject* arg,
     else
         retval = 0;
 
-    #if CYTHON_COMPILING_IN_LIMITED_API && __PYX_LIMITED_VERSION_HEX < 0x030B0000
+    #if CYTHON_COMPILING_IN_LIMITED_API && __PYX_LIMITED_VERSION_HEX < 0x030b0000
     Py_XDECREF(converted_arg);
     #else
     if (view.obj)

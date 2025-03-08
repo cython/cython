@@ -587,7 +587,6 @@ unsafe_compile_time_methods = {
     #
     'complex': set(),
     'int': {
-        'as_integer_ratio',  # Py3.8+
         'bit_count',  # Py3.10+
         'from_bytes',  # classmethod
         'is_integer',  # Py3.12+
@@ -601,14 +600,13 @@ unsafe_compile_time_methods = {
     },
     'tuple': set(),
     'str': {
-        'capitalize',  # changed in Py3.8+
+        'replace',  # changed in Py3.13+
         'maketrans',  # staticmethod
         'removeprefix',  # Py3.9+
         'removesuffix',  # Py3.9+
     },
     'bytes': {
         'fromhex',  # classmethod
-        'hex',  # changed in Py3.8+
         'maketrans',  # staticmethod
         'removeprefix',  # Py3.9+
         'removesuffix',  # Py3.9+

@@ -425,24 +425,19 @@ static PyObject *__Pyx_PyDict_GetItem(PyObject *d, PyObject* key);/*proto*/
 #if !CYTHON_COMPILING_IN_PYPY
 static PyObject *__Pyx_PyDict_GetItem(PyObject *d, PyObject* key) {
     PyObject *value;
-    value = PyDict_GetItemWithError(d, key);
-    if (unlikely(!value)) {
-        if (!PyErr_Occurred()) {
-            if (unlikely(PyTuple_Check(key))) {
-                // CPython interprets tuples as separate arguments => must wrap them in another tuple.
-                PyObject* args = PyTuple_Pack(1, key);
-                if (likely(args)) {
-                    PyErr_SetObject(PyExc_KeyError, args);
-                    Py_DECREF(args);
-                }
-            } else {
-                // Avoid tuple packing if possible.
-                PyErr_SetObject(PyExc_KeyError, key);
+    if (unlikely(__Pyx_PyDict_GetItemRef(d, key, &value) == 0)) { // no value, no error
+        if (unlikely(PyTuple_Check(key))) {
+            // CPython interprets tuples as separate arguments => must wrap them in another tuple.
+            PyObject* args = PyTuple_Pack(1, key);
+            if (likely(args)) {
+                PyErr_SetObject(PyExc_KeyError, args);
+                Py_DECREF(args);
             }
+        } else {
+            // Avoid tuple packing if possible.
+            PyErr_SetObject(PyExc_KeyError, key);
         }
-        return NULL;
     }
-    Py_INCREF(value);
     return value;
 }
 #endif
@@ -875,7 +870,7 @@ static CYTHON_INLINE PyObject* __Pyx_PyTuple_GetSlice(PyObject* src, Py_ssize_t 
 
 /////////////// SliceTupleAndList ///////////////
 //@requires: TupleAndListFromArray
-//@substitute: tempita
+//@requires: ModuleSetupCode.c::CriticalSections
 
 #if CYTHON_COMPILING_IN_CPYTHON
 static CYTHON_INLINE void __Pyx_crop_slice(Py_ssize_t* _start, Py_ssize_t* _stop, Py_ssize_t* _length) {
@@ -896,21 +891,33 @@ static CYTHON_INLINE void __Pyx_crop_slice(Py_ssize_t* _start, Py_ssize_t* _stop
     *_stop = stop;
 }
 
-{{for type in ['List', 'Tuple']}}
-static CYTHON_INLINE PyObject* __Pyx_Py{{type}}_GetSlice(
+static CYTHON_INLINE PyObject* __Pyx_PyTuple_GetSlice(
             PyObject* src, Py_ssize_t start, Py_ssize_t stop) {
-    Py_ssize_t length = Py{{type}}_GET_SIZE(src);
+    Py_ssize_t length = PyTuple_GET_SIZE(src);
     __Pyx_crop_slice(&start, &stop, &length);
-{{if type=='List'}}
+    return __Pyx_PyTuple_FromArray(((PyTupleObject*)src)->ob_item + start, length);
+}
+
+static CYTHON_INLINE PyObject* __Pyx_PyList_GetSlice_locked(
+            PyObject* src, Py_ssize_t start, Py_ssize_t stop) {
+    Py_ssize_t length = PyList_GET_SIZE(src);
+    __Pyx_crop_slice(&start, &stop, &length);
     if (length <= 0) {
         // Avoid undefined behaviour when accessing `ob_item` of an empty list.
         return PyList_New(0);
     }
-{{endif}}
-    return __Pyx_Py{{type}}_FromArray(((Py{{type}}Object*)src)->ob_item + start, length);
+    return __Pyx_PyList_FromArray(((PyListObject*)src)->ob_item + start, length);
 }
-{{endfor}}
-#endif
+
+static CYTHON_INLINE PyObject* __Pyx_PyList_GetSlice(
+            PyObject* src, Py_ssize_t start, Py_ssize_t stop) {
+    PyObject *result;
+    __Pyx_BEGIN_CRITICAL_SECTION(src);
+    result = __Pyx_PyList_GetSlice_locked(src, start, stop);
+    __Pyx_END_CRITICAL_SECTION();
+    return result;
+}
+#endif // CYTHON_COMPILING_IN_CPYTHON
 
 
 /////////////// CalculateMetaclass.proto ///////////////
@@ -1483,6 +1490,8 @@ static CYTHON_INLINE PyObject *__Pyx__GetModuleGlobalName(PyObject *name)
     PyObject *result;
 #if CYTHON_COMPILING_IN_LIMITED_API
     if (unlikely(!$module_cname)) {
+        if (!PyErr_Occurred())
+            PyErr_SetNone(PyExc_NameError);
         return NULL;
     }
     result = PyObject_GetAttr($module_cname, name);
@@ -1490,23 +1499,15 @@ static CYTHON_INLINE PyObject *__Pyx__GetModuleGlobalName(PyObject *name)
         return result;
     }
     PyErr_Clear();
-#elif !CYTHON_AVOID_BORROWED_REFS && !CYTHON_AVOID_THREAD_UNSAFE_BORROWED_REFS
-    // Identifier names are always interned and have a pre-calculated hash value.
-    result = _PyDict_GetItem_KnownHash(NAMED_CGLOBAL(moddict_cname), name, ((PyASCIIObject *) name)->hash);
-    __PYX_UPDATE_DICT_CACHE(NAMED_CGLOBAL(moddict_cname), result, *dict_cached_value, *dict_version)
-    if (likely(result)) {
-        return __Pyx_NewRef(result);
-    } else if (unlikely(PyErr_Occurred())) {
-        return NULL;
-    }
-#elif !CYTHON_AVOID_BORROWED_REFS
+#elif CYTHON_AVOID_BORROWED_REFS || CYTHON_AVOID_THREAD_UNSAFE_BORROWED_REFS
     if (unlikely(__Pyx_PyDict_GetItemRef(NAMED_CGLOBAL(moddict_cname), name, &result) == -1)) PyErr_Clear();
     __PYX_UPDATE_DICT_CACHE(NAMED_CGLOBAL(moddict_cname), result, *dict_cached_value, *dict_version)
     if (likely(result)) {
         return result;
     }
 #else
-    result = PyObject_GetItem(NAMED_CGLOBAL(moddict_cname), name);
+    // Identifier names are always interned and have a pre-calculated hash value.
+    result = _PyDict_GetItem_KnownHash(NAMED_CGLOBAL(moddict_cname), name, ((PyASCIIObject *) name)->hash);
     __PYX_UPDATE_DICT_CACHE(NAMED_CGLOBAL(moddict_cname), result, *dict_cached_value, *dict_version)
     if (likely(result)) {
         return __Pyx_NewRef(result);
@@ -1579,7 +1580,7 @@ static CYTHON_INLINE PyObject* __Pyx_PyObject_GetAttrStrNoError(PyObject* obj, P
 //@requires: Exceptions.c::PyErrFetchRestore
 //@requires: Exceptions.c::PyErrExceptionMatches
 
-#if __PYX_LIMITED_VERSION_HEX < 0x030d00A1
+#if __PYX_LIMITED_VERSION_HEX < 0x030d0000
 static void __Pyx_PyObject_GetAttrStr_ClearAttributeError(void) {
     __Pyx_PyThreadState_declare
     __Pyx_PyThreadState_assign
@@ -1590,7 +1591,7 @@ static void __Pyx_PyObject_GetAttrStr_ClearAttributeError(void) {
 
 static CYTHON_INLINE PyObject* __Pyx_PyObject_GetAttrStrNoError(PyObject* obj, PyObject* attr_name) {
     PyObject *result;
-#if __PYX_LIMITED_VERSION_HEX >= 0x030d00A1
+#if __PYX_LIMITED_VERSION_HEX >= 0x030d0000
     (void) PyObject_GetOptionalAttr(obj, attr_name, &result);
     return result;
 #else
@@ -2184,7 +2185,7 @@ static PyObject* __Pyx_PyObject_CallMethod1(PyObject* obj, PyObject* method_name
 //@requires: PyObjectCallOneArg
 //@requires: PyObjectCall2Args
 
-#if !(CYTHON_VECTORCALL && __PYX_LIMITED_VERSION_HEX >= 0x030C00A2)
+#if !(CYTHON_VECTORCALL && __PYX_LIMITED_VERSION_HEX >= 0x030C0000)
 static PyObject* __Pyx__PyObject_CallMethod1(PyObject* method, PyObject* arg) {
     // Separate function to avoid excessive inlining.
     PyObject *result = __Pyx_PyObject_CallOneArg(method, arg);
@@ -2194,7 +2195,7 @@ static PyObject* __Pyx__PyObject_CallMethod1(PyObject* method, PyObject* arg) {
 #endif
 
 static PyObject* __Pyx_PyObject_CallMethod1(PyObject* obj, PyObject* method_name, PyObject* arg) {
-#if CYTHON_VECTORCALL && __PYX_LIMITED_VERSION_HEX >= 0x030C00A2
+#if CYTHON_VECTORCALL && __PYX_LIMITED_VERSION_HEX >= 0x030C0000
     PyObject *args[2] = {obj, arg};
     // avoid unused functions
     (void) __Pyx_PyObject_GetMethod;
@@ -2970,7 +2971,7 @@ __Pyx_PyType_GetFullyQualifiedName(PyTypeObject* tp)
 {
     PyObject *module = NULL, *name = NULL, *result = NULL;
 
-    #if __PYX_LIMITED_VERSION_HEX < 0x030B0000
+    #if __PYX_LIMITED_VERSION_HEX < 0x030b0000
     name = __Pyx_PyObject_GetAttrStr((PyObject *)tp,
                                                PYIDENT("__qualname__"));
     #else

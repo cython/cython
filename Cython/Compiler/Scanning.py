@@ -216,7 +216,7 @@ class FileSourceDescriptor(SourceDescriptor):
         except KeyError:
             pass
 
-        with Utils.open_source_file(self.filename, encoding=encoding, error_handling=error_handling) as f:
+        with self.get_file_object(encoding=encoding, error_handling=error_handling) as f:
             lines = f.readlines()
 
         if key in self._lines:
@@ -226,6 +226,9 @@ class FileSourceDescriptor(SourceDescriptor):
             # already read it once
             self._lines[key] = None
         return lines
+
+    def get_file_object(self, encoding=None, error_handling=None):
+        return Utils.open_source_file(self.filename, encoding, error_handling)
 
     def get_description(self):
         return self._short_path_description
