@@ -623,8 +623,12 @@ static CYTHON_INLINE int __Pyx_Py_UNICODE_ISTITLE(Py_UCS4 uchar) {
 #if CYTHON_COMPILING_IN_LIMITED_API
 static int __Pyx_Py_UNICODE_ISTITLE(Py_UCS4 uchar) {
     int result;
-    PyObject* py_result;
-    PyObject* ustring = PyUnicode_FromOrdinal(uchar);
+    PyObject *py_result, *ustring;
+    // Fast path for ascii
+    if (uchar < 128) {
+        return uchar >= (Py_UCS4)'A' && uchar <= (Py_UCS4)'Z';
+    }
+    ustring = PyUnicode_FromOrdinal(uchar);
     if (!ustring) goto bad;
     py_result = PyObject_CallMethod(ustring, "istitle", NULL);
     Py_DECREF(ustring);
@@ -654,8 +658,21 @@ static int __Pyx_Py_UNICODE_{{method_name.upper()}}(Py_UCS4 uchar);/*proto*/
 #if {{if generate_for_pypy}}(CYTHON_COMPILING_IN_PYPY && !defined(Py_UNICODE_{{method_name.upper()}})) ||{{endif}} CYTHON_COMPILING_IN_LIMITED_API
 static int __Pyx_Py_UNICODE_{{method_name.upper()}}(Py_UCS4 uchar) {
     int result;
-    PyObject* py_result;
-    PyObject* ustring = PyUnicode_FromOrdinal(uchar);
+    PyObject *py_result, *ustring;
+    // Add a fast path for ascii - the switch statements get prohibitively big if we try to include
+    // all of unicode.
+    if (uchar < 128) {
+        switch (uchar) {
+        {{for i in range(128):}}
+            {{if getattr(chr(i), method_name)()}}
+            case (Py_UCS4)'{{chr(i)}}':
+            {{endif}}
+        {{endfor}}
+            return 1;
+        }
+        return 0;
+    }
+    ustring = PyUnicode_FromOrdinal(uchar);
     if (!ustring) goto bad;
     py_result = PyObject_CallMethod(ustring, "{{method_name}}", NULL);
     Py_DECREF(ustring);
