@@ -3,34 +3,34 @@
 cdef class A:
     @staticmethod
     def moo():
-        return "moo"
+        return "mooA"
 
 cdef class B(A):
     @staticmethod
     def moo():
-        return "boo"
+        return "mooB"
 
-cdef class Foo:
+cdef class GetBaseA:
     @staticmethod
     cdef A meth():
         return A()
 
-cdef class Bar(Foo):
+cdef class GetSubB(GetBaseA):
     @staticmethod
     cdef B meth():
         return B()
 
-def call_foo():
+def call_base():
     """
-    >>> call_foo()
-    'moo'
+    >>> call_base()
+    'mooA'
     """
-    return Foo.meth().moo()
+    return GetBaseA.meth().moo()
 
-def call_bar():
+def call_sub():
     """
-    >>> call_bar()
-    'boo'
+    >>> call_sub()
+    'mooB'
     """
-    return Bar.meth().moo()
+    return GetSubB.meth().moo()
 
