@@ -127,6 +127,24 @@ modules with the Limited API (since ``PyMutex`` is unavailable in the
 Limited API).  Note that unlike the "raw" ``PyThread_type_lock`` our
 wrapping will avoid deadslocks with the GIL.
 
+As an alternative syntax, ``cython.critical_section`` can be used as a decorator
+or a function taking at least one argument.  In this case the critical section
+lasts the duration of the function and locks on the first argument::
+
+    @cython.cclass
+    class C:
+        @cython.critical_section
+        def func(self, *args):
+            ...
+
+        # equivalent to:
+        def func(self, *args):
+            with cython.critical_section(self):
+                ...
+
+Our expectation is that this will be most useful for locking on the ``self`` argument
+of methods in C classes.
+
 Pitfalls
 ========
 

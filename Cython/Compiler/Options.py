@@ -170,7 +170,8 @@ def copy_inherited_directives(outer_directives, **new_directives):
     # For example, test_assert_path_exists and test_fail_if_path_exists should not be inherited
     #  otherwise they can produce very misleading test failures
     new_directives_out = dict(outer_directives)
-    for name in ('test_assert_path_exists', 'test_fail_if_path_exists', 'test_assert_c_code_has', 'test_fail_if_c_code_has'):
+    for name in ('test_assert_path_exists', 'test_fail_if_path_exists', 'test_assert_c_code_has', 'test_fail_if_c_code_has',
+                 'critical_section'):
         new_directives_out.pop(name, None)
     new_directives_out.update(new_directives)
     return new_directives_out
@@ -235,6 +236,7 @@ _directive_defaults = {
     'fast_gil': False,
     'cpp_locals': False,  # uses std::optional for C++ locals, so that they work more like Python locals
     'legacy_implicit_noexcept': False,
+    'c_compile_guard': '',
 
     # set __file__ and/or __path__ to known source/target path at import time (instead of not having them available)
     'set_initial_path' : None,  # SOURCEFILE or "/full/path/to/module"
@@ -392,7 +394,7 @@ directive_scopes = {  # defaults to available everywhere
     'nogil' : ('function', 'with statement'),
     'gil' : ('with statement'),
     'with_gil' : ('function',),
-    'critical_section': ('with statement',),
+    'critical_section': ('function', 'with statement'),
     'inline' : ('function',),
     'cfunc' : ('function', 'with statement'),
     'ccall' : ('function', 'with statement'),
@@ -433,6 +435,7 @@ directive_scopes = {  # defaults to available everywhere
     'cpp_locals': ('module', 'function', 'cclass'),  # I don't think they make sense in a with_statement
     'ufunc': ('function',),
     'legacy_implicit_noexcept': ('module', ),
+    'c_compile_guard': ('function',),  # actually C function but this is enforced later
     'control_flow.dot_output': ('module',),
     'control_flow.dot_annotate_defs': ('module',),
     'freethreading_compatible': ('module',)

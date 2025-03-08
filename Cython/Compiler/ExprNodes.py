@@ -1035,7 +1035,7 @@ class ExprNode(Node):
                         src = CoerceToPyTypeNode(src, env, type=dst_type)
                 # FIXME: I would expect that CoerceToPyTypeNode(type=dst_type) returns a value of type dst_type
                 #        but it doesn't for ctuples. Thus, we add a PyTypeTestNode which then triggers the
-                #        Python conversion and becomes useless. That sems backwards and inefficient.
+                #        Python conversion and becomes useless. That seems backwards and inefficient.
                 #        We should not need a PyTypeTestNode after a previous conversion above.
                 if not src.type.subtype_of(dst_type):
                     src = PyTypeTestNode(src, dst_type, env)
@@ -3116,6 +3116,9 @@ class IteratorNode(ScopedExprNode):
         if self.may_be_a_sequence:
             code.putln("}")
 
+    def generate_for_loop_header(self, code):
+        code.put(";;")
+
     def generate_next_sequence_item(self, test_name, result_name, code):
         assert self.counter_cname, "internal error: counter_cname temp not prepared"
         assert test_name in ('List', 'Tuple')
@@ -3312,21 +3315,24 @@ class CppIteratorNode(ExprNode):
                     self.cpp_attribute_op,
                     begin_name))
 
-    def generate_iter_next_result_code(self, result_name, code):
+    def generate_for_loop_header(self, code):
         # end call isn't cached to support containers that allow adding while iterating
         # (much as this is usually a bad idea)
         _, end_name = self.get_iterator_func_names()
-        code.putln("if (!(%s%s != %s%s%s())) break;" % (
-                        self.extra_dereference,
-                        self.result(),
-                        self.cpp_sequence_cname or self.sequence.result(),
-                        self.cpp_attribute_op,
-                        end_name))
+        code.put("; %s%s != %s%s%s(); ++%s%s" % (
+            self.extra_dereference,
+            self.result(),
+            self.cpp_sequence_cname or self.sequence.result(),
+            self.cpp_attribute_op,
+            end_name,
+            self.extra_dereference,
+            self.result()))
+
+    def generate_iter_next_result_code(self, result_name, code):
         code.putln("%s = *%s%s;" % (
                         result_name,
                         self.extra_dereference,
                         self.result()))
-        code.putln("++%s%s;" % (self.extra_dereference, self.result()))
 
     def generate_subexpr_disposal_code(self, code):
         if not self.cpp_sequence_cname:
@@ -3436,6 +3442,9 @@ class AsyncIteratorNode(ScopedExprNode):
             self.sequence.py_result(),
             code.error_goto_if_null(self.result(), self.pos)))
         self.generate_gotref(code)
+
+    def generate_for_loop_header(self, code):
+        code.put(";;")
 
 
 class AsyncNextNode(AtomicExprNode):
@@ -4530,13 +4539,15 @@ class IndexNode(_IndexingBaseNode):
 
     def calculate_result_code(self):
         if self.base.type in (list_type, tuple_type, bytearray_type):
-            # Note - possibility of missing an error if not ASSUME_SAFE_MACROS
+            # Note - These functions are missing error checks in not CYTHON_ASSUME_SAFE_MACROS.
+            # Since they're only used in optimized modes without boundschecking, I think this is
+            # a reasonable optimization to make.
             if self.base.type is list_type:
                 index_code = "__Pyx_PyList_GET_ITEM(%s, %s)"
             elif self.base.type is tuple_type:
                 index_code = "__Pyx_PyTuple_GET_ITEM(%s, %s)"
             elif self.base.type is bytearray_type:
-                index_code = "((unsigned char)(PyByteArray_AS_STRING(%s)[%s]))"
+                index_code = "((unsigned char)(__Pyx_PyByteArray_AsString(%s)[%s]))"
             else:
                 assert False, "unexpected base type in indexing: %s" % self.base.type
         elif self.base.type.is_cfunction:
@@ -5570,6 +5581,9 @@ class SliceIndexNode(ExprNode):
         if base_type.is_string:
             base_result = self.base.result_as(PyrexTypes.c_const_char_ptr_type)
             if self.type is bytearray_type:
+                # TODO - arguably bytearray should be protected by a critical section, but it's
+                # hard to generate good code for this, and it's hard to imagine a good use for slicing
+                # a volatile bytearray.
                 type_name = 'ByteArray'
             elif self.type is unicode_type:
                 type_name = 'Unicode'
@@ -6920,7 +6934,27 @@ class InlinedDefNodeCallNode(CallNode):
         return self
 
     def generate_result_code(self, code):
-        arg_code = [self.function_name.py_result()]
+        self_code = self.function_name.py_result()
+        if not self.function.def_node.is_cyfunction:
+            # If the function is a PyCFunction then the self_code is the PyCFunction.
+            # In this case, the self argument will either be NULL and unused, or it'll be
+            # the self attribute of the PyCfunction.
+            code.putln("{")
+            code.putln("#if CYTHON_COMPILING_IN_LIMITED_API")
+            code.putln(
+                f"PyObject *{Naming.quick_temp_cname} = PyCFunction_GetSelf({self_code});")
+            code.putln(code.error_goto_if(
+                f"{Naming.quick_temp_cname} == NULL && PyErr_Occurred()",
+                self.pos
+            ))
+            code.putln("#else")
+            code.putln(
+                f"PyObject *{Naming.quick_temp_cname} = PyCFunction_GET_SELF({self_code});")
+            code.putln("#endif")
+            # Note - borrowed reference to self
+            self_code = Naming.quick_temp_cname
+
+        arg_code = [self_code]
         func_type = self.function.def_node
         for arg, proto_arg in zip(self.args, func_type.args):
             if arg.type.is_pyobject:
@@ -6934,6 +6968,8 @@ class InlinedDefNodeCallNode(CallNode):
                 self.function.def_node.entry.pyfunc_cname,
                 arg_code,
                 code.error_goto_if_null(self.result(), self.pos)))
+        if not self.function.def_node.is_cyfunction:
+            code.putln("}")
         self.generate_gotref(code)
 
 
@@ -15119,3 +15155,31 @@ class AssignmentExpressionNode(ExprNode):
     def generate_result_code(self, code):
         # we have to do this manually because it isn't a subexpression
         self.assignment.generate_execution_code(code)
+
+
+class FirstArgumentForCriticalSectionNode(ExprNode):
+    # This class exists to pass the first argument of a function
+    # to a critical_section.  Mostly just to defer analysis since
+    # func.args isn't available for cdef functions until the
+    # analyse_declarations stage
+    #
+    #  func_node - FuncDefNode
+
+    subexprs = ['name_node']
+
+    name_node = None
+    type = PyrexTypes.py_object_type
+
+    def analyse_declarations(self, env):
+        if len(self.func_node.args) < 1:
+            error(self.pos, "critical_section directive can only be applied to a function with one or more positional arguments")
+            return
+        self.name_node = NameNode(self.pos, name=self.func_node.args[0].declared_name())
+        self.name_node.analyse_declarations(env)
+        self.type = self.name_node.type
+
+    def analyse_expressions(self, env):
+        # At this stage, just substitute the name node
+        if self.name_node:
+            return self.name_node.analyse_expressions(env)
+        return self  # error earlier

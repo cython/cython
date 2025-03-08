@@ -196,6 +196,7 @@ static PyObject *__Pyx__Coroutine_GetAwaitableIter(PyObject *o); /*proto*/
 //@requires: ObjectHandling.c::PyObjectGetMethod
 //@requires: ObjectHandling.c::PyObjectCallNoArg
 //@requires: ObjectHandling.c::PyObjectCallOneArg
+//@requires: Coro_CheckExact
 
 static CYTHON_INLINE PyObject *__Pyx_Coroutine_GetAwaitableIter(PyObject *o) {
 #ifdef __Pyx_Coroutine_USED
@@ -208,7 +209,7 @@ static CYTHON_INLINE PyObject *__Pyx_Coroutine_GetAwaitableIter(PyObject *o) {
 
 
 static void __Pyx_Coroutine_AwaitableIterError(PyObject *source) {
-#if PY_VERSION_HEX < 0x030d0000 || defined(_PyErr_FormatFromCause)
+#if (PY_VERSION_HEX < 0x030d0000 || defined(_PyErr_FormatFromCause)) && !CYTHON_COMPILING_IN_LIMITED_API
     __Pyx_TypeName source_type_name = __Pyx_PyType_GetFullyQualifiedName(Py_TYPE(source));
     _PyErr_FormatFromCause(PyExc_TypeError,
         "'async for' received an invalid object from __anext__: " __Pyx_FMT_TYPENAME, source_type_name);
@@ -245,9 +246,6 @@ static PyObject *__Pyx__Coroutine_GetAwaitableIter(PyObject *obj) {
     am_await = __Pyx_PyObject_TryGetSubSlot(obj, tp_as_async, am_await, unaryfunc);
     if (likely(am_await)) {
         res = (*am_await)(obj);
-    } else
-    if (PyCoro_CheckExact(obj)) {
-        return __Pyx_NewRef(obj);
     } else
 #if CYTHON_COMPILING_IN_CPYTHON && defined(CO_ITERABLE_COROUTINE)
 #if PY_VERSION_HEX >= 0x030C00A6
@@ -286,7 +284,7 @@ static PyObject *__Pyx__Coroutine_GetAwaitableIter(PyObject *obj) {
         #ifdef __Pyx_Coroutine_USED
         is_coroutine |= __Pyx_Coroutine_Check(res);
         #endif
-        is_coroutine |= PyCoro_CheckExact(res);
+        is_coroutine |= __Pyx_PyCoro_CheckExact(res);
         if (unlikely(is_coroutine)) {
             /* __await__ must return an *iterator*, not
                a coroutine or another awaitable (see PEP 492) */
@@ -444,7 +442,7 @@ typedef struct __pyx_CoroutineObject {
     uint64_t $monitoring_version_cname;
 #endif
     int resume_label;
-    // using T_BOOL for property below requires char value
+    // is_running is the main thread-safety mechanism for coroutines, so treat it carefully
     char is_running;
 } __pyx_CoroutineObject;
 
@@ -488,6 +486,10 @@ static PyObject *__Pyx_Coroutine_Throw(PyObject *gen, PyObject *args); /*proto*/
 static int __Pyx_PyGen__FetchStopIterationValue(PyThreadState *tstate, PyObject **pvalue); /*proto*/
 static CYTHON_INLINE void __Pyx_Coroutine_ResetFrameBackpointer(__Pyx_ExcInfoStruct *exc_state); /*proto*/
 
+static char __Pyx_Coroutine_test_and_set_is_running(__pyx_CoroutineObject *gen);
+static void __Pyx_Coroutine_unset_is_running(__pyx_CoroutineObject *gen);
+static char __Pyx_Coroutine_get_is_running(__pyx_CoroutineObject *gen);
+static PyObject *__Pyx_Coroutine_get_is_running_getter(PyObject *gen, void *closure);
 
 //////////////////// Coroutine.proto ////////////////////
 
@@ -758,7 +760,7 @@ __Pyx_PySendResult __Pyx_Coroutine_SendEx(__pyx_CoroutineObject *self, PyObject 
     __Pyx_ExcInfoStruct *exc_state;
     PyObject *retval;
 
-    assert(!self->is_running);
+    assert(__Pyx_Coroutine_get_is_running(self));  // Callers should ensure is_running
 
     if (unlikely(self->resume_label == -1)) {
         __Pyx_Coroutine_AlreadyTerminatedError((PyObject*)self, value, closing);
@@ -845,9 +847,7 @@ __Pyx_PySendResult __Pyx_Coroutine_SendEx(__pyx_CoroutineObject *self, PyObject 
     }
 #endif
 
-    self->is_running = 1;
     retval = self->body(self, tstate, value);
-    self->is_running = 0;
 
 #if CYTHON_USE_EXC_INFO_STACK
     // See  https://bugs.python.org/issue25612
@@ -977,6 +977,7 @@ static CYTHON_INLINE __Pyx_PySendResult
 __Pyx_Coroutine_FinishDelegation(__pyx_CoroutineObject *gen, PyObject** retval) {
     __Pyx_PySendResult result;
     PyObject *val = NULL;
+    assert(__Pyx_Coroutine_get_is_running(gen));
     __Pyx_Coroutine_Undelegate(gen);
     __Pyx_PyGen__FetchStopIterationValue(__Pyx_PyThreadState_Current, &val);
     // val == NULL on failure => pass on exception
@@ -990,10 +991,9 @@ static __Pyx_PySendResult
 __Pyx_Coroutine_SendToDelegate(__pyx_CoroutineObject *gen, __Pyx_pyiter_sendfunc gen_am_send, PyObject *value, PyObject **retval) {
     PyObject *ret = NULL;
     __Pyx_PySendResult result;
+    assert(__Pyx_Coroutine_get_is_running(gen));
     // we assume that gen->yieldfrom cannot change as long as 'gen->is_running' is set => no safety INCREF()
-    gen->is_running = 1;
     result = gen_am_send(gen->yieldfrom, value, &ret);
-    gen->is_running = 0;
     if (result == PYGEN_NEXT) {
         assert (ret != NULL);
         *retval = ret;
@@ -1016,7 +1016,7 @@ static __Pyx_PySendResult
 __Pyx_Coroutine_AmSend(PyObject *self, PyObject *value, PyObject **retval) {
     __Pyx_PySendResult result;
     __pyx_CoroutineObject *gen = (__pyx_CoroutineObject*) self;
-    if (unlikely(gen->is_running)) {
+    if (unlikely(__Pyx_Coroutine_test_and_set_is_running(gen))) {
         *retval = __Pyx_Coroutine_AlreadyRunningError(gen);
         return PYGEN_ERROR;
     }
@@ -1028,7 +1028,6 @@ __Pyx_Coroutine_AmSend(PyObject *self, PyObject *value, PyObject **retval) {
     if (gen->yieldfrom) {
         PyObject *yf = gen->yieldfrom;
         PyObject *ret;
-        gen->is_running = 1;
       #if !CYTHON_USE_AM_SEND
         // Py3.10 puts "am_send" into "gen->yieldfrom_am_send" instead of using these special cases.
         // See "__Pyx_Coroutine_Set_Owned_Yield_From()" above.
@@ -1065,8 +1064,8 @@ __Pyx_Coroutine_AmSend(PyObject *self, PyObject *value, PyObject **retval) {
             #endif
                 ret = __Pyx_PyObject_CallMethod1(yf, PYIDENT("send"), value);
         }
-        gen->is_running = 0;
         if (likely(ret)) {
+            __Pyx_Coroutine_unset_is_running(gen);
             *retval = ret;
             return PYGEN_NEXT;
         }
@@ -1074,6 +1073,7 @@ __Pyx_Coroutine_AmSend(PyObject *self, PyObject *value, PyObject **retval) {
     } else {
         result = __Pyx_Coroutine_SendEx(gen, value, retval, 0);
     }
+    __Pyx_Coroutine_unset_is_running(gen);
     return result;
 }
 
@@ -1082,6 +1082,8 @@ __Pyx_Coroutine_AmSend(PyObject *self, PyObject *value, PyObject **retval) {
 static int __Pyx_Coroutine_CloseIter(__pyx_CoroutineObject *gen, PyObject *yf) {
     __Pyx_PySendResult result;
     PyObject *retval = NULL;
+
+    assert(__Pyx_Coroutine_get_is_running(gen));
 
     #ifdef __Pyx_Generator_USED
     if (__Pyx_Generator_CheckExact(yf)) {
@@ -1111,7 +1113,6 @@ static int __Pyx_Coroutine_CloseIter(__pyx_CoroutineObject *gen, PyObject *yf) {
     {
         PyObject *meth;
         result = PYGEN_RETURN;
-        gen->is_running = 1;
         meth = __Pyx_PyObject_GetAttrStrNoError(yf, PYIDENT("close"));
         if (unlikely(!meth)) {
             if (unlikely(PyErr_Occurred())) {
@@ -1124,7 +1125,6 @@ static int __Pyx_Coroutine_CloseIter(__pyx_CoroutineObject *gen, PyObject *yf) {
                 result = PYGEN_ERROR;
             }
         }
-        gen->is_running = 0;
     }
     Py_XDECREF(retval);
     return result == PYGEN_ERROR ? -1 : 0;
@@ -1134,7 +1134,7 @@ static PyObject *__Pyx_Generator_Next(PyObject *self) {
     __Pyx_PySendResult result;
     PyObject *retval = NULL;
     __pyx_CoroutineObject *gen = (__pyx_CoroutineObject*) self;
-    if (unlikely(gen->is_running)) {
+    if (unlikely(__Pyx_Coroutine_test_and_set_is_running(gen))) {
         return __Pyx_Coroutine_AlreadyRunningError(gen);
     }
     #if CYTHON_USE_AM_SEND
@@ -1146,7 +1146,6 @@ static PyObject *__Pyx_Generator_Next(PyObject *self) {
         PyObject *yf = gen->yieldfrom;
         PyObject *ret;
         // YieldFrom code ensures that yf is an iterator
-        gen->is_running = 1;
         #ifdef __Pyx_Generator_USED
         if (__Pyx_Generator_CheckExact(yf)) {
             ret = __Pyx_Generator_Next(yf);
@@ -1165,14 +1164,15 @@ static PyObject *__Pyx_Generator_Next(PyObject *self) {
         } else
         #endif
             ret = __Pyx_PyIter_Next_Plain(yf);
-        gen->is_running = 0;
         if (likely(ret)) {
+            __Pyx_Coroutine_unset_is_running(gen);
             return ret;
         }
         result = __Pyx_Coroutine_FinishDelegation(gen, &retval);
     } else {
         result = __Pyx_Coroutine_SendEx(gen, Py_None, &retval, 0);
     }
+    __Pyx_Coroutine_unset_is_running(gen);
 
     return __Pyx_Coroutine_MethodReturnFromResult(self, result, retval);
 }
@@ -1192,13 +1192,14 @@ static __Pyx_PySendResult
 __Pyx_Coroutine_Close(PyObject *self, PyObject **retval) {
     __pyx_CoroutineObject *gen = (__pyx_CoroutineObject *) self;
     __Pyx_PySendResult result;
-    PyObject *yf = gen->yieldfrom;
+    PyObject *yf;
     int err = 0;
 
-    if (unlikely(gen->is_running)) {
+    if (unlikely(__Pyx_Coroutine_test_and_set_is_running(gen))) {
         *retval = __Pyx_Coroutine_AlreadyRunningError(gen);
         return PYGEN_ERROR;
     }
+    yf = gen->yieldfrom;
 
     if (yf) {
         Py_INCREF(yf);
@@ -1213,6 +1214,7 @@ __Pyx_Coroutine_Close(PyObject *self, PyObject **retval) {
         // WARNING: *retval == NULL !
         __Pyx_PyThreadState_declare
         __Pyx_PyThreadState_assign
+        __Pyx_Coroutine_unset_is_running(gen);
         if (!__Pyx_PyErr_Occurred()) {
             return PYGEN_RETURN;
         } else if (likely(__Pyx_PyErr_ExceptionMatches2(PyExc_GeneratorExit, PyExc_StopIteration))) {
@@ -1221,6 +1223,7 @@ __Pyx_Coroutine_Close(PyObject *self, PyObject **retval) {
         }
         return PYGEN_ERROR;
     } else if (likely(result == PYGEN_RETURN && *retval == Py_None)) {
+        __Pyx_Coroutine_unset_is_running(gen);
         return PYGEN_RETURN;
     } else {
         const char *msg;
@@ -1239,6 +1242,7 @@ __Pyx_Coroutine_Close(PyObject *self, PyObject **retval) {
             msg = "generator ignored GeneratorExit";
         }
         PyErr_SetString(PyExc_RuntimeError, msg);
+        __Pyx_Coroutine_unset_is_running(gen);
         return PYGEN_ERROR;
     }
 }
@@ -1246,11 +1250,12 @@ __Pyx_Coroutine_Close(PyObject *self, PyObject **retval) {
 static PyObject *__Pyx__Coroutine_Throw(PyObject *self, PyObject *typ, PyObject *val, PyObject *tb,
                                         PyObject *args, int close_on_genexit) {
     __pyx_CoroutineObject *gen = (__pyx_CoroutineObject *) self;
-    PyObject *yf = gen->yieldfrom;
+    PyObject *yf;
 
-    if (unlikely(gen->is_running))
+    if (unlikely(__Pyx_Coroutine_test_and_set_is_running(gen)))
         return __Pyx_Coroutine_AlreadyRunningError(gen);
 
+    yf = gen->yieldfrom;
     if (yf) {
         __Pyx_PySendResult result;
         PyObject *ret;
@@ -1266,7 +1271,6 @@ static PyObject *__Pyx__Coroutine_Throw(PyObject *self, PyObject *typ, PyObject 
                 goto propagate_exception;
             goto throw_here;
         }
-        gen->is_running = 1;
         if (0
         #ifdef __Pyx_Generator_USED
             || __Pyx_Generator_CheckExact(yf)
@@ -1285,11 +1289,10 @@ static PyObject *__Pyx__Coroutine_Throw(PyObject *self, PyObject *typ, PyObject 
             if (unlikely(!meth)) {
                 Py_DECREF(yf);
                 if (unlikely(PyErr_Occurred())) {
-                    gen->is_running = 0;
+                    __Pyx_Coroutine_unset_is_running(gen);
                     return NULL;
                 }
                 __Pyx_Coroutine_Undelegate(gen);
-                gen->is_running = 0;
                 goto throw_here;
             }
             if (likely(args)) {
@@ -1301,12 +1304,14 @@ static PyObject *__Pyx__Coroutine_Throw(PyObject *self, PyObject *typ, PyObject 
             }
             Py_DECREF(meth);
         }
-        gen->is_running = 0;
         Py_DECREF(yf);
-        if (ret)
+        if (ret) {
+            __Pyx_Coroutine_unset_is_running(gen);
             return ret;
+        }
 
         result = __Pyx_Coroutine_FinishDelegation(gen, &ret);
+        __Pyx_Coroutine_unset_is_running(gen);
         return __Pyx_Coroutine_MethodReturnFromResult(self, result, ret);
     }
 throw_here:
@@ -1316,6 +1321,7 @@ propagate_exception:
     {
         PyObject *retval = NULL;
         __Pyx_PySendResult result = __Pyx_Coroutine_SendEx(gen, NULL, &retval, 0);
+        __Pyx_Coroutine_unset_is_running(gen);
         return __Pyx_Coroutine_MethodReturnFromResult(self, result, retval);
     }
 }
@@ -1647,6 +1653,54 @@ static __pyx_CoroutineObject *__Pyx__Coroutine_NewInit(
 }
 
 
+static char __Pyx_Coroutine_test_and_set_is_running(__pyx_CoroutineObject *gen) {
+    // Working on the basis that:
+    // 1. is_running is the main thing needed to keep generators thread-safe. They can't be
+    //    run simultaneously from multiple threads so as long as we track this correctly
+    //    then all is good.
+    // 2. They aren't *ultra* high performance, and so critical sections (locking) is appropriate
+    //    instead of atomics.
+    char result;
+    #if PY_VERSION_HEX >= 0x030d0000 && !CYTHON_COMPILING_IN_LIMITED_API
+    Py_BEGIN_CRITICAL_SECTION(gen);
+    #endif
+    result = gen->is_running;
+    gen->is_running = 1;
+    #if PY_VERSION_HEX >= 0x030d0000 && !CYTHON_COMPILING_IN_LIMITED_API
+    Py_END_CRITICAL_SECTION();
+    #endif
+    return result;
+}
+static void __Pyx_Coroutine_unset_is_running(__pyx_CoroutineObject *gen) {
+    #if PY_VERSION_HEX >= 0x030d0000 && !CYTHON_COMPILING_IN_LIMITED_API
+    Py_BEGIN_CRITICAL_SECTION(gen);
+    #endif
+    assert(gen->is_running);
+    gen->is_running = 0;
+    #if PY_VERSION_HEX >= 0x030d0000 && !CYTHON_COMPILING_IN_LIMITED_API
+    Py_END_CRITICAL_SECTION();
+    #endif
+}
+static char __Pyx_Coroutine_get_is_running(__pyx_CoroutineObject *gen) {
+    char result;
+    #if PY_VERSION_HEX >= 0x030d0000 && !CYTHON_COMPILING_IN_LIMITED_API
+    Py_BEGIN_CRITICAL_SECTION(gen);
+    #endif
+    result = gen->is_running;
+    #if PY_VERSION_HEX >= 0x030d0000 && !CYTHON_COMPILING_IN_LIMITED_API
+    Py_END_CRITICAL_SECTION();
+    #endif
+    return result;
+}
+
+static PyObject *__Pyx_Coroutine_get_is_running_getter(PyObject *gen, void *closure) {
+    CYTHON_UNUSED_VAR(closure);
+    char result = __Pyx_Coroutine_get_is_running((__pyx_CoroutineObject*)gen);
+    if (result) Py_RETURN_TRUE;
+    else Py_RETURN_FALSE;
+}
+
+
 //////////////////// Coroutine ////////////////////
 //@requires: CoroutineBase
 //@requires: ExtensionTypes.c::CallTypeTraverse
@@ -1886,7 +1940,6 @@ static PyMethodDef __pyx_Coroutine_methods[] = {
 };
 
 static PyMemberDef __pyx_Coroutine_memberlist[] = {
-    {"cr_running", T_BOOL, offsetof(__pyx_CoroutineObject, is_running), READONLY, NULL},
     {"cr_await", T_OBJECT, offsetof(__pyx_CoroutineObject, yieldfrom), READONLY,
      PyDoc_STR("object being awaited, or None")},
     {"cr_code", T_OBJECT, offsetof(__pyx_CoroutineObject, gi_code), READONLY, NULL},
@@ -1904,6 +1957,8 @@ static PyGetSetDef __pyx_Coroutine_getsets[] = {
      PyDoc_STR("qualified name of the coroutine"), 0},
     {"cr_frame", (getter)__Pyx_Coroutine_get_frame, NULL,
      PyDoc_STR("Frame of the coroutine"), 0},
+    // getter rather than member for thread safety. 
+    {"cr_running", __Pyx_Coroutine_get_is_running_getter, NULL, NULL, NULL},
     {0, 0, 0, 0, 0}
 };
 
@@ -2194,7 +2249,6 @@ static PyMethodDef __pyx_Generator_methods[] = {
 };
 
 static PyMemberDef __pyx_Generator_memberlist[] = {
-    {"gi_running", T_BOOL, offsetof(__pyx_CoroutineObject, is_running), READONLY, NULL},
     {"gi_yieldfrom", T_OBJECT, offsetof(__pyx_CoroutineObject, yieldfrom), READONLY,
      PyDoc_STR("object being iterated by 'yield from', or None")},
     {"gi_code", T_OBJECT, offsetof(__pyx_CoroutineObject, gi_code), READONLY, NULL},
@@ -2212,6 +2266,7 @@ static PyGetSetDef __pyx_Generator_getsets[] = {
      PyDoc_STR("qualified name of the generator"), 0},
     {"gi_frame", (getter)__Pyx_Coroutine_get_frame, NULL,
      PyDoc_STR("Frame of the generator"), 0},
+    {"gi_running", __Pyx_Coroutine_get_is_running_getter, NULL, NULL, NULL},
     {0, 0, 0, 0, 0}
 };
 
@@ -2343,7 +2398,11 @@ static int __pyx_Generator_init(PyObject *module) {
 static PyObject *__Pyx_Generator_GetInlinedResult(PyObject *self) {
     __pyx_CoroutineObject *gen = (__pyx_CoroutineObject*) self;
     PyObject *retval = NULL;
+    if (unlikely(__Pyx_Coroutine_test_and_set_is_running(gen))) {
+        return __Pyx_Coroutine_AlreadyRunningError(gen);
+    }
     __Pyx_PySendResult result = __Pyx_Coroutine_SendEx(gen, Py_None, &retval, 0);
+    __Pyx_Coroutine_unset_is_running(gen);
     (void) result;
     assert (result == PYGEN_RETURN || result == PYGEN_ERROR);
     assert ((result == PYGEN_RETURN && retval != NULL) || (result == PYGEN_ERROR && retval == NULL));
@@ -2414,3 +2473,44 @@ static void __Pyx__ReturnWithStopIteration(PyObject* value, int async) {
     PyErr_SetObject(exc_type, exc);
     Py_DECREF(exc);
 }
+
+//////////////////// Coro_CheckExact.proto ////////////////
+
+#if CYTHON_COMPILING_IN_LIMITED_API
+static int __Pyx_PyCoro_CheckExact(PyObject *o); /* proto */
+#else
+#define __Pyx_PyCoro_CheckExact PyCoro_CheckExact
+#endif
+
+/////////////////// Coro_CheckExact.module_state_decls //////////
+
+#if CYTHON_COMPILING_IN_LIMITED_API
+PyObject *__Pyx_CachedCoroType;
+#endif
+
+////////////////// Coro_CheckExact.init ////////////////
+
+#if CYTHON_COMPILING_IN_LIMITED_API
+{
+    PyObject *typesModule=NULL;
+    typesModule = PyImport_ImportModule("types");
+    if (typesModule) {
+        CGLOBAL(__Pyx_CachedCoroType) = PyObject_GetAttrString(typesModule, "CoroutineType");
+        Py_DECREF(typesModule);
+    }
+} // error handling follows
+#endif
+
+/////////////// Coro_CheckExact.cleanup ////////////////
+
+#if CYTHON_COMPILING_IN_LIMITED_API
+Py_CLEAR(CGLOBAL(__Pyx_CachedCoroType));
+#endif
+
+/////////////////// Coro_CheckExact /////////////////////
+
+#if CYTHON_COMPILING_IN_LIMITED_API
+static int __Pyx_PyCoro_CheckExact(PyObject *o) {
+    return (PyObject*)Py_TYPE(o) == CGLOBAL(__Pyx_CachedCoroType);
+}
+#endif

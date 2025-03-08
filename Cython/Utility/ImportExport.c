@@ -498,6 +498,9 @@ static PyTypeObject *__Pyx_ImportType_$cyversion(PyObject *module, const char *m
     basicsize = ((PyTypeObject *)result)->tp_basicsize;
     itemsize = ((PyTypeObject *)result)->tp_itemsize;
 #else
+    if (size == 0) {
+        return (PyTypeObject *)result;
+    }
     py_basicsize = PyObject_GetAttrString(result, "__basicsize__");
     if (!py_basicsize)
         goto bad;
@@ -577,7 +580,12 @@ static int __Pyx_ImportFunction_$cyversion(PyObject *module, const char *funcnam
     d = PyObject_GetAttrString(module, "$api_name");
     if (!d)
         goto bad;
+#if PY_VERSION_HEX >= 0x030d0000
+    PyDict_GetItemStringRef(d, funcname, &cobj);
+#else
     cobj = PyDict_GetItemString(d, funcname);
+    Py_XINCREF(cobj);
+#endif
     if (!cobj) {
         PyErr_Format(PyExc_ImportError,
             "%.200s does not export expected C function %.200s",
@@ -594,9 +602,11 @@ static int __Pyx_ImportFunction_$cyversion(PyObject *module, const char *funcnam
     if (!(*f))
         goto bad;
     Py_DECREF(d);
+    Py_DECREF(cobj);
     return 0;
 bad:
     Py_XDECREF(d);
+    Py_XDECREF(cobj);
     return -1;
 }
 #endif
@@ -654,7 +664,12 @@ static int __Pyx_ImportVoidPtr_$cyversion(PyObject *module, const char *name, vo
     d = PyObject_GetAttrString(module, "$api_name");
     if (!d)
         goto bad;
+#if PY_VERSION_HEX >= 0x030d0000
+    PyDict_GetItemStringRef(d, name, &cobj);
+#else
     cobj = PyDict_GetItemString(d, name);
+    Py_XINCREF(cobj);
+#endif
     if (!cobj) {
         PyErr_Format(PyExc_ImportError,
             "%.200s does not export expected C variable %.200s",
@@ -671,9 +686,11 @@ static int __Pyx_ImportVoidPtr_$cyversion(PyObject *module, const char *name, vo
     if (!(*p))
         goto bad;
     Py_DECREF(d);
+    Py_DECREF(cobj);
     return 0;
 bad:
     Py_XDECREF(d);
+    Py_XDECREF(cobj);
     return -1;
 }
 #endif
@@ -690,8 +707,8 @@ static int __Pyx_ExportVoidPtr(PyObject *name, void *p, const char *sig) {
     PyObject *d;
     PyObject *cobj = 0;
 
-    d = PyDict_GetItem(NAMED_CGLOBAL(moddict_cname), PYIDENT("$api_name"));
-    Py_XINCREF(d);
+    if (__Pyx_PyDict_GetItemRef(NAMED_CGLOBAL(moddict_cname), PYIDENT("$api_name"), &d) == -1)
+        goto bad;
     if (!d) {
         d = PyDict_New();
         if (!d)

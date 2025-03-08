@@ -314,22 +314,19 @@ def update_openmp_extension(ext):
     return EXCLUDE_EXT
 
 
-def update_cpp_extension(cpp_std, min_gcc_version=None, min_clang_version=None, min_macos_version=None):
-    def _update_cpp_extension(ext):
-        """
-        Update cpp[cpp_std] extensions that will run on minimum versions of gcc / clang / macos.
-        """
+def update_language_extension(language, std, min_gcc_version=None, min_clang_version=None, min_macos_version=None):
+    def _update_language_extension(ext):
         # If the extension provides a -std=... option, and it's greater than the one
         # we're about to give, assume that whatever C compiler we use will probably be ok with it.
         extra_compile_args = []
         already_has_std = False
         if ext.extra_compile_args:
-            std_regex = re.compile(r"-std(?!lib).*(?P<number>[0-9]+)")
+            std_regex = re.compile(r"-std(?!lib).*?(?P<number>[0-9]+)")
             for ca in ext.extra_compile_args:
                 match = std_regex.search(ca)
                 if match:
                     number = int(match.group("number"))
-                    if number < cpp_std:
+                    if number < std:
                         continue  # and drop the argument
                     already_has_std = True
                 extra_compile_args.append(ca)
@@ -340,15 +337,11 @@ def update_cpp_extension(cpp_std, min_gcc_version=None, min_clang_version=None, 
         # check for a usable gcc version
         gcc_version = get_gcc_version(ext.language)
         if gcc_version:
-            if cpp_std >= 17 and sys.version_info[0] < 3:
-                # The Python 2.7 headers contain the 'register' modifier
-                # which gcc warns about in C++17 mode.
-                ext.extra_compile_args.append('-Wno-register')
             if not already_has_std:
                 compiler_version = gcc_version.group(1)
                 if not min_gcc_version or float(compiler_version) >= float(min_gcc_version):
                     use_gcc = True
-                    ext.extra_compile_args.append("-std=c++%s" % cpp_std)
+                    ext.extra_compile_args.append(f"-std={language}{std}")
 
             if use_gcc:
                 return ext
@@ -356,17 +349,14 @@ def update_cpp_extension(cpp_std, min_gcc_version=None, min_clang_version=None, 
         # check for a usable clang version
         clang_version = get_clang_version(ext.language)
         if clang_version:
-            if cpp_std >= 17 and sys.version_info[0] < 3:
-                # The Python 2.7 headers contain the 'register' modifier
-                # which clang warns about in C++17 mode.
-                ext.extra_compile_args.append('-Wno-register')
             if not already_has_std:
                 compiler_version = clang_version.group(1)
                 if not min_clang_version or float(compiler_version) >= float(min_clang_version):
                     use_clang = True
-                    ext.extra_compile_args.append("-std=c++%s" % cpp_std)
+                    ext.extra_compile_args.append(f"-std={language}{std}")
             if sys.platform == "darwin":
-                ext.extra_compile_args.append("-stdlib=libc++")
+                if language == "c++":
+                    ext.extra_compile_args.append("-stdlib=libc++")
                 if min_macos_version is not None:
                     ext.extra_compile_args.append("-mmacosx-version-min=" + min_macos_version)
 
@@ -375,8 +365,19 @@ def update_cpp_extension(cpp_std, min_gcc_version=None, min_clang_version=None, 
 
         # no usable C compiler found => exclude the extension
         return EXCLUDE_EXT
+    return _update_language_extension
 
-    return _update_cpp_extension
+def update_c_extension(c_std, min_gcc_version=None, min_clang_version=None, min_macos_version=None):
+    return update_language_extension("c", c_std, min_gcc_version, min_clang_version, min_macos_version)
+
+def update_cpp_extension(cpp_std, min_gcc_version=None, min_clang_version=None, min_macos_version=None):
+    return update_language_extension("c++", cpp_std, min_gcc_version, min_clang_version, min_macos_version)
+
+
+update_cpp11_extension = update_cpp_extension(11, min_gcc_version="4.9", min_macos_version="10.7")
+update_cpp17_extension = update_cpp_extension(17, min_gcc_version="5.0", min_macos_version="10.13")
+update_cpp20_extension = update_cpp_extension(20, min_gcc_version="11.0", min_clang_version="13.0", min_macos_version="10.13")
+update_c11_extension = update_c_extension(11, min_gcc_version="4.7", min_clang_version="3.3")
 
 
 def require_gcc(version):
@@ -471,9 +472,10 @@ EXT_EXTRAS = {
     'tag:numpy' : update_numpy_extension,
     'tag:openmp': update_openmp_extension,
     'tag:gdb': update_gdb_extension,
-    'tag:cpp11': update_cpp_extension(11, min_gcc_version="4.9", min_macos_version="10.7"),
-    'tag:cpp17': update_cpp_extension(17, min_gcc_version="5.0", min_macos_version="10.13"),
-    'tag:cpp20': update_cpp_extension(20, min_gcc_version="11.0", min_clang_version="13.0", min_macos_version="10.13"),
+    'tag:cpp11': update_cpp11_extension,
+    'tag:cpp17': update_cpp17_extension,
+    'tag:cpp20': update_cpp20_extension,
+    'tag:c11': update_c11_extension,
     'tag:trace' : update_linetrace_extension,
     'tag:cppexecpolicies': require_gcc("9.1"),
 }
@@ -844,6 +846,9 @@ class TestBuilder(object):
                 languages = self.languages[:1]
         else:
             languages = self.languages
+            if (self.add_cpp_locals_extra_tests and 'cpp' in languages and
+                    'cpp' in tags['tag'] and not 'no-cpp-locals' in tags['tag']):
+                extra_directives_list.append({'cpp_locals': True})
 
         if 'c' in languages and skip_c(tags):
             languages = list(languages)
@@ -851,9 +856,6 @@ class TestBuilder(object):
         if 'cpp' in languages and 'no-cpp' in tags['tag']:
             languages = list(languages)
             languages.remove('cpp')
-        if (self.add_cpp_locals_extra_tests and 'cpp' in languages and
-                'cpp' in tags['tag'] and not 'no-cpp-locals' in tags['tag']):
-            extra_directives_list.append({'cpp_locals': True})
         if not languages:
             return []
         if skip_limited(tags):
@@ -918,7 +920,8 @@ class TestBuilder(object):
                           common_utility_dir=self.common_utility_dir,
                           pythran_dir=pythran_dir,
                           stats=self.stats,
-                          add_cython_import=add_cython_import
+                          add_cython_import=add_cython_import,
+                          extra_directives=extra_directives,
                           )
 
 
@@ -978,8 +981,6 @@ class CythonCompileTestCase(unittest.TestCase):
                  test_determinism=False, shard_num=0,
                  common_utility_dir=None, pythran_dir=None, stats=None, add_cython_import=False,
                  extra_directives=None):
-        if extra_directives is None:
-            extra_directives = {}
         self.test_directory = test_directory
         self.tags = tags
         self.workdir = workdir
@@ -1004,16 +1005,24 @@ class CythonCompileTestCase(unittest.TestCase):
         self.pythran_dir = pythran_dir
         self.stats = stats
         self.add_cython_import = add_cython_import
-        self.extra_directives = extra_directives
+        self.extra_directives = extra_directives if extra_directives is not None else {}
         unittest.TestCase.__init__(self)
 
     def shortDescription(self):
+        extra_directives = ''
+        if self.extra_directives:
+            extra_directives = '/'.join(
+                name if value is True else f"{name}={value!r}"
+                for name, value in sorted(self.extra_directives.items())
+            )
+
         return (
             f"[{self.shard_num}] compiling ("
             f"{self.language}"
             f"{'/cy2' if self.language_level == 2 else '/cy3' if self.language_level == 3 else ''}"
             f"{'/pythran' if self.pythran_dir is not None else ''}"
             f"/{os.path.splitext(self.module_path)[1][1:]}"
+            f"{'/' if extra_directives else ''}{extra_directives}"
             f") {self.description_name()}"
         )
 
@@ -1112,7 +1121,6 @@ class CythonCompileTestCase(unittest.TestCase):
 
         if cleanup_c_files and os.path.exists(self.workdir + '-again'):
             shutil.rmtree(self.workdir + '-again', ignore_errors=True)
-
 
     def runTest(self):
         self.success = False
@@ -2006,7 +2014,10 @@ class EndToEndTest(unittest.TestCase):
         new_path = self.cython_syspath
         if old_path:
             new_path = new_path + os.pathsep + self.workdir + os.pathsep + old_path
-        env = dict(os.environ, PYTHONPATH=new_path, PYTHONIOENCODING='utf8')
+        env_cflags = list(CFLAGS) + [f'"-D{macro}={definition}"' for macro, definition in CDEFS]
+        env_cflags = " ".join(env_cflags)
+        env = dict(os.environ, PYTHONPATH=new_path, PYTHONIOENCODING='utf8',
+                   CFLAGS=env_cflags)
         cmd = []
         out = []
         err = []
@@ -2399,6 +2410,9 @@ def main():
     parser.add_option("--coverage-html", dest="coverage_html",
                       action="store_true", default=False,
                       help="collect source coverage data for the Compiler in HTML format")
+    parser.add_option("--tracemalloc", dest="tracemalloc",
+                      action="store_true", default=False,
+                      help="enable tracemalloc for the tests")
     parser.add_option("-A", "--annotate", dest="annotate_source",
                       action="store_true", default=True,
                       help="generate annotated HTML versions of the test source files")
@@ -2800,6 +2814,7 @@ def runtests(options, cmd_args, coverage=None):
             ('pypy_implementation_detail_bugs.txt', IS_PYPY),
             ('graal_bugs.txt', IS_GRAAL),
             ('limited_api_bugs.txt', options.limited_api),
+            ('limited_api_bugs_38.txt', options.limited_api and sys.version_info < (3, 9)),
             ('windows_bugs.txt', sys.platform == 'win32'),
             ('cygwin_bugs.txt', sys.platform == 'cygwin'),
             ('windows_bugs_39.txt', sys.platform == 'win32' and sys.version_info[:2] == (3, 9)),
@@ -2817,6 +2832,13 @@ def runtests(options, cmd_args, coverage=None):
         exclude_selectors += [
             TagsSelector('tag', 'memoryview'),
             FileListExcluder(os.path.join(ROOTDIR, "memoryview_tests.txt")),
+        ]
+
+    if not test_bugs and re.match("arm|aarch", platform.machine(), re.IGNORECASE):
+        # Pythran is only excluded on arm because it fails to link with blas on the CI.
+        # I don't think there's anything fundamentally wrong with it.
+        exclude_selectors += [
+            TagsSelector('tag', 'pythran')
         ]
 
     exclude_selectors += [TagsSelector('tag', tag) for tag, exclude in TAG_EXCLUDERS if exclude]
@@ -2944,6 +2966,10 @@ def runtests(options, cmd_args, coverage=None):
         if enable_faulthandler:
             faulthandler.enable()
 
+    if options.tracemalloc:
+        import tracemalloc
+        tracemalloc.start()
+
     # Run the collected tests.
     try:
         if options.shard_num > -1:
@@ -2965,6 +2991,15 @@ def runtests(options, cmd_args, coverage=None):
                 del os.environ['PYTHONFAULTHANDLER']
             else:
                 os.environ['PYTHONFAULTHANDLER'] = old_faulhandler_envvar
+
+    if options.tracemalloc:
+        import tracemalloc
+        snapshot = tracemalloc.take_snapshot()
+        run_dir = os.curdir
+        mallocs = '\n'.join(f"   {os.path.relpath(str(tm_stat), run_dir)}" for tm_stat in snapshot.statistics('lineno')[:20])
+        del snapshot
+        tracemalloc.stop()
+        sys.stderr.write(f"Memory allocations:\n{mallocs}\n")
 
     if common_utility_dir and options.shard_num < 0 and options.cleanup_workdir:
         shutil.rmtree(common_utility_dir)

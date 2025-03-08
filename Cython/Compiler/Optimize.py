@@ -3980,7 +3980,7 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
                         PyrexTypes.CFuncTypeArg("decode_func", self.PyUnicode_DecodeXyz_func_ptr_type, None),
                     ])
             helper_func_type = self._decode_cpp_string_func_type
-            utility_code_name = 'decode_cpp_string'
+            utility_code_name = f'decode_cpp_{string_type.name}'
         else:
             # Python bytes/bytearray object
             if not stop:

@@ -7,32 +7,19 @@ builtin_pycomplex
 builtin_subtype_methods_T653
 builtin_type_inheritance_T608
 builtinslice
-bytearray_coercion
-bytearray_iter
 builtin_divmod
-coroutines
-clear_to_null
 cdivision_CEP_516
 cpp_stl_conversion
 cpp_nonstdint
-cdef_multiple_inheritance_nodict
-cdef_multiple_inheritance
-cythonscope
 run[.]any
-async_iter_pep492
-async_def
 run[.]all
 embedsignatures_python
 embedsignatures_clinic
 extern_builtins_T258
 ext_attribute_cache
 fastcall
-run[.]generators$
 run[.]generators_py
 generator_frame_cycle
-# probably just an exact error message
-importfrom
-run[.]nogil
 run[.]no_gc
 run[.]numpy
 line_trace
@@ -43,23 +30,19 @@ py_ucs4_type
 pep442_tp_finalize
 test_asyncgen
 tracebacks
-test_grammar
-tuple_constants
 tss
-run[.]tryfinally
-running_with_gil
-run[.]with_gil
 sys_monitoring
-sequential_parallel
 special_method_docstrings
 run[.]ufunc
 slice2b
 verbatiminclude
-
-# Possibly only on early versions of Python?
-fused_def
-legacy_implicit_noexcept
-method_module_name_T422
+test_coroutines_pep492
+coverage
+reimport_failure
+line_profile_test
+cdef_multiple_inheritance_errors
+cline_in_traceback
+module_init_error
 
 # Something to do with complex
 view_count
@@ -69,49 +52,33 @@ pycapsule
 r_extcomplex2
 
 # cimport cpython
-extension_type_memoryview
-memslice
-memoryviewattrs
 clone
 overhead
-open_file
 cython_array
-# unfortunately this excludes a few working tests too - I can't get the pattern specific enough
-memoryview[.]memoryview$
-numpy_memoryview
 memoryview_inplace_division
-convolve2
-casting_python
-parameter_refcount
+clear_to_null
 cpython_capi_py35
-complex_numbers_T305
-cpython_capi
-complex_numbers_cxx_T398
-complex_numbers_c99_T398
-complex_numbers_c89_T398
 cython_includes
-complex_extern_GH1433
 cdef_bool_T227
-annotation_typing
 datetime_cimport
 datetime_pxd
 datetime_members
 run[.]exttype
-exceptionrefcount
 isinstance
 pycontextvar
 run[.]pytype
 run[.]pyarray
-pyclass_scope_T671
 pyclass_special_methods
-run[.]parallel
-pep448_extended_unpacking
-r_pythonapi
-refcount_in_meth
 time_pxd
-run[.]type_inference
-special_methods_T561
-run[.]slice_ptr
+array_cimport
+
+# Relies on Numpy being OK in the Limited API (which is version-dependent)
+# TODO - these can be re-enabled later as we update test dependencies.
+complex_extern_GH1433
+extension_type_memoryview
+numpy_memoryview
+memoryviewattrs
+convolve2
 
 # example in docs that use features unavailable in the limited API
 # (and it's a decision for the docs writers rather than a limitation
@@ -125,6 +92,7 @@ wrapping_CPlusPlus.python_to_cpp
 
 # Tests explicitly use internals
 compile[.]pylong
+extern_varobject_extensions
 
 # Inherit builtin type: PEP697
 bytearraymethods
@@ -136,6 +104,10 @@ trashcan
 unbound_special_methods
 unicode_formatting
 
+# Needs multi-phase import
+# (but is there a reason why we're not doing this in the Limited API anyway?)
+unicode_imports
+
 # Py_UNICODE
 builtin_ord
 for_in_string
@@ -146,13 +118,8 @@ py_unicode_strings
 py_unicode_type
 unicode_indexing
 
-# Only on specific versions
-# (TODO) be more specific here
-weakfail
-reduce_pickle
-test_dataclasses
-test_genericclass_exttype
-test_class_getitem_errors_2
+# Works on DW's computer, fails on CI on Python3.11 only with exactly the same versions
+# (might be due to shared ABI possibly?)
 yield_from_pep380
 
 # Excluded for now - to be enabled incrementally
