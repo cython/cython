@@ -95,17 +95,23 @@
   #define __Pyx_TraceDeclarationsFunc \
       PyObject *$frame_code_cname = NULL; \
       PyMonitoringState $monitoring_states_cname[__Pyx_MonitoringEventTypes_CyFunc_count]; \
-      int __pyx_exception_already_reported = 0;
+      int __pyx_exception_already_reported = 0; \
+      const int __pyx_sys_monitoring_disabled_in_parallel = 0; CYTHON_UNUSED_VAR(__pyx_sys_monitoring_disabled_in_parallel);
 
   #define __Pyx_TraceDeclarationsGen \
       PyObject *$frame_code_cname = Py_NewRef($generator_cname->gi_code); \
       PyMonitoringState* $monitoring_states_cname = $generator_cname->$monitoring_states_cname; \
       __pyx_monitoring_version_type $monitoring_version_cname = $generator_cname->$monitoring_version_cname; \
-      int __pyx_exception_already_reported = 0;
+      int __pyx_exception_already_reported = 0; \
+      const int __pyx_sys_monitoring_disabled_in_parallel = 0; CYTHON_UNUSED_VAR(__pyx_sys_monitoring_disabled_in_parallel);
 
-  #define __Pyx_IsTracing(event_id)  (($monitoring_states_cname[event_id]).active)
+  #define __Pyx_IsTracing(event_id)  ((!__pyx_sys_monitoring_disabled_in_parallel) && ($monitoring_states_cname[event_id]).active)
   #define __Pyx_TraceFrameInit(codeobj) \
       if (codeobj) $frame_code_cname = codeobj;
+
+  #define __Pyx_TurnOffSysMonitoringInParallel \
+    const int __pyx_sys_monitoring_disabled_in_parallel = 1; \
+    CYTHON_UNUSED_VAR(__pyx_sys_monitoring_disabled_in_parallel);
 
   CYTHON_UNUSED static PyCodeObject *__Pyx_createFrameCodeObject(const char *funcname, const char *srcfile, int firstlineno); /*proto*/
   CYTHON_UNUSED static int __Pyx__TraceStartFunc(PyMonitoringState *state_array, PyObject *code_obj, int offset, int skip_event); /*proto*/
@@ -333,6 +339,7 @@
   #define __Pyx_TraceException(offset, reraised, fresh)  {}
   #define __Pyx_TraceExceptionHandled(offset)  {}
   #define __Pyx_TraceExceptionDone()  {}
+  #define __Pyx_TurnOffSysMonitoringInParallel {} // Only needed for freethreading
 
 #if PY_VERSION_HEX >= 0x030b00a2
   #if PY_VERSION_HEX >= 0x030C00b1
@@ -537,6 +544,7 @@
   #define __Pyx_TraceDeclarationsGen
   #define __Pyx_TraceExceptionDone()  {}
   #define __Pyx_TraceFrameInit(codeobj)  {}
+  #define __Pyx_TurnOffSysMonitoringInParallel {}
   #define __Pyx_PyMonitoring_ExitScope(nogil)  {}
   #define __Pyx_TraceException(offset, reraised, fresh)  {}
   #define __Pyx_TraceExceptionUnwind(offset, nogil)  {}

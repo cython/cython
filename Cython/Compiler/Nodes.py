@@ -10004,6 +10004,11 @@ class ParallelStatNode(StatNode, ParallelNode):
             self.num_threads.generate_disposal_code(code)
             self.num_threads.free_temps(code)
 
+        if c.is_tracing():
+            # Disable sys monitoring in parallel blocks. It isn't thread safe in either
+            # Cython or Python.
+            c.putln("__Pyx_TurnOffSysMonitoringInParallel")
+
         # Firstly, always prefer errors over returning, continue or break
         if self.error_label_used:
             c.putln("const char *%s = NULL; int %s = 0, %s = 0;" % self.parallel_pos_info)
