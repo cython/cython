@@ -707,8 +707,8 @@ static {{out_type}} __Pyx_PyMemoryView_Get_{{name}}(PyObject *obj) {
 #elif CYTHON_COMPILING_IN_GRAAL
 // Graal defines it's own accessor functions
 #define __Pyx_PySlice_Start(o) __Pyx_NewRef(PySlice_Start((PySliceObject*)o))
-#define __Pyx_PySlice_Stop(o) __Pyx_NewRef(PySlice_Start((PySliceObject*)o))
-#define __Pyx_PySlice_Step(o) __Pyx_NewRef(PySlice_Start((PySliceObject*)o))
+#define __Pyx_PySlice_Stop(o) __Pyx_NewRef(PySlice_Stop((PySliceObject*)o))
+#define __Pyx_PySlice_Step(o) __Pyx_NewRef(PySlice_Step((PySliceObject*)o))
 #else
 #define __Pyx_PySlice_Start(o) __Pyx_NewRef(((PySliceObject*)o)->start)
 #define __Pyx_PySlice_Stop(o) __Pyx_NewRef(((PySliceObject*)o)->stop)
