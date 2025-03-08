@@ -19,7 +19,14 @@ Features added
 * The type of ``prange`` loop targets is now inferred.
   (Github issue :issue:`6585`)
 
+* Extracting keyword arguments is faster in some cases.
+  (Github issue :issue:`6683`)
+
 * The ``cython`` command has a new option ``--cache`` to cache generated files.
+  (Github issue :issue:`6091`)
+
+* The ``cythonize`` command has a new option ``--timeit`` to benchmark Cython code snippets.
+  (Github issue :issue:`6697`)
 
 * The argument parsing ``cygdb`` command was improved based on ``argparse``.
   Patch by William Ayd.  (Github issue :issue:`5499`)
