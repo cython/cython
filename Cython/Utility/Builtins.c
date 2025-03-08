@@ -355,11 +355,11 @@ static CYTHON_INLINE int __Pyx_int_from_UCS4(Py_UCS4 uchar);
 //////////////////// int_pyucs4 ////////////////////
 
 static int __Pyx_int_from_UCS4(Py_UCS4 uchar) {
-#if CYTHON_COMPILING_IN_LIMITED_API
     // Fast path for ascii digits
     if (likely(uchar >= (Py_UCS4)'0' && uchar <= (Py_UCS4)'9')) {
         return uchar - (Py_UCS4)'0';
     }
+#if CYTHON_COMPILING_IN_LIMITED_API
     PyObject *u = PyUnicode_FromOrdinal(uchar);
     if (unlikely(!u)) return -1;
     PyObject *l = PyObject_CallFunctionObjArgs((PyObject*)(&PyLong_Type), u, NULL);
@@ -375,7 +375,7 @@ static int __Pyx_int_from_UCS4(Py_UCS4 uchar) {
     Py_DECREF(l);
     return result;
 #else
-    int digit = Py_UNICODE_TODIGIT(uchar);
+    int digit = Py_UNICODE_TODECIMAL(uchar);
     if (unlikely(digit < 0)) {
         PyErr_Format(PyExc_ValueError,
             "invalid literal for int() with base 10: '%c'",
@@ -394,11 +394,11 @@ static CYTHON_INLINE double __Pyx_double_from_UCS4(Py_UCS4 uchar);
 //////////////////// float_pyucs4 ////////////////////
 
 static double __Pyx_double_from_UCS4(Py_UCS4 uchar) {
-#if CYTHON_COMPILING_IN_LIMITED_API
     // fast path for "just an ascii digit"
     if (likely(uchar >= (Py_UCS4)'0' && uchar <= (Py_UCS4)'9')) {
         return uchar - (Py_UCS4)'0';
     }
+#if CYTHON_COMPILING_IN_LIMITED_API
     PyObject *u = PyUnicode_FromOrdinal(uchar);
     if (unlikely(!u)) return -1.0;
     PyObject *f = PyFloat_FromString(u);
