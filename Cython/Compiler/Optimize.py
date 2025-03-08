@@ -3508,11 +3508,7 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
             # None of these are defined in the Limited API
             utility_code = TempitaUtilityCode.load_cached(
                 "py_unicode_predicate", "StringTools.c",
-                context=dict(
-                    # isprintable() is lacking C-API support in PyPy
-                    generate_for_pypy=method_name == "isprintable",
-                    method_name=method_name
-                )
+                context=dict(method_name=method_name)
             )
             function_name = '__Pyx_Py_UNICODE_%s' % method_name.upper()
         func_call = self._substitute_method_call(

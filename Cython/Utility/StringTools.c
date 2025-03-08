@@ -625,7 +625,7 @@ static int __Pyx_Py_UNICODE_ISTITLE(Py_UCS4 uchar) {
     int result;
     PyObject *py_result, *ustring;
     // Fast path for ascii
-    if (uchar < 128) {
+    if (uchar < 192) {
         return uchar >= (Py_UCS4)'A' && uchar <= (Py_UCS4)'Z';
     }
     ustring = PyUnicode_FromOrdinal(uchar);
@@ -647,7 +647,8 @@ bad:
 
 /////////////// py_unicode_predicate.proto ///////////////
 
-#if {{if generate_for_pypy}}(CYTHON_COMPILING_IN_PYPY && !defined(Py_UNICODE_{{method_name.upper()}})) ||{{endif}} CYTHON_COMPILING_IN_LIMITED_API
+// isprintable() is lacking C-API support in PyPy
+#if {{if method_name == 'isprintable'}}(CYTHON_COMPILING_IN_PYPY && !defined(Py_UNICODE_ISPRINTABLE)) ||{{endif}} CYTHON_COMPILING_IN_LIMITED_API
 static int __Pyx_Py_UNICODE_{{method_name.upper()}}(Py_UCS4 uchar);/*proto*/
 #else
 #define __Pyx_Py_UNICODE_{{method_name.upper()}}(u)  Py_UNICODE_{{method_name.upper()}}(u)
@@ -655,7 +656,7 @@ static int __Pyx_Py_UNICODE_{{method_name.upper()}}(Py_UCS4 uchar);/*proto*/
 
 /////////////// py_unicode_predicate ///////////////
 
-#if {{if generate_for_pypy}}(CYTHON_COMPILING_IN_PYPY && !defined(Py_UNICODE_{{method_name.upper()}})) ||{{endif}} CYTHON_COMPILING_IN_LIMITED_API
+#if {{if module_name == 'isprintable'}}(CYTHON_COMPILING_IN_PYPY && !defined(Py_UNICODE_ISPRINTABLE)) ||{{endif}} CYTHON_COMPILING_IN_LIMITED_API
 static int __Pyx_Py_UNICODE_{{method_name.upper()}}(Py_UCS4 uchar) {
     int result;
     PyObject *py_result, *ustring;
