@@ -3510,7 +3510,7 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
                 "py_unicode_predicate", "StringTools.c",
                 context=dict(
                     # isprintable() is lacking C-API support in PyPy
-                    generate_for_pypy=method_name=="isprintable",
+                    generate_for_pypy=method_name == "isprintable",
                     method_name=method_name
                 )
             )
