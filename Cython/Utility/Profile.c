@@ -114,8 +114,8 @@
   CYTHON_UNUSED static void __Pyx__TraceException(PyMonitoringState *monitoring_state, PyObject *code_obj, int offset, int reraised); /*proto*/
 
   #define __Pyx_PyMonitoring_ExitScope(nogil)              \
-    (void) __pyx_exception_already_reported;               \
     if (nogil) {                                           \
+        (void) __pyx_exception_already_reported;           \
         if (CYTHON_TRACE_NOGIL) {                          \
             PyGILState_STATE state = PyGILState_Ensure();  \
             PyMonitoring_ExitScope();                      \

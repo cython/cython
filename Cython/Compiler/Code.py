@@ -3073,7 +3073,7 @@ class CCodeWriter:
         )
 
     def put_trace_exit(self, nogil=False):
-        self.putln(f"__Pyx_PyMonitoring_ExitScope({nogil:d});")
+        self.putln(f"__Pyx_PyMonitoring_ExitScope({bool(nogil):d});")
 
     def put_trace_yield(self, retvalue_cname, pos):
         error_goto = self.error_goto(pos)
