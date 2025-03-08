@@ -386,8 +386,8 @@ The above is essentially equivalent to having the C code in a file
 ``header.h`` and writing ::
 
     cdef extern from "header.h":
-        long square(long x)
-        void assign(long& x, long y)
+        long c_square(long x)
+        void c_assign(long& x, long y)
 
 This feature is commonly used for platform specific adaptations at
 compile time, for example:
@@ -430,7 +430,7 @@ declarations.
     :keyword:`cimport` statement for that. Sharing Declarations Between Cython Modules.
 
 .. _inittab_guide:
-    
+
 Public Declarations
 ---------------------
 
@@ -499,7 +499,7 @@ file consists of the full dotted name of the module, e.g. a module called
     Beware that this is not portable, so it should be avoided.
 
 .. _CYTHON_EXTERN_C:
-    
+
 C++ public declarations
 ^^^^^^^^^^^^^^^^^^^^^^^
 
