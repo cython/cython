@@ -2053,6 +2053,7 @@ class CnameDirectivesTransform(CythonTransform, SkipDeclarations):
     visit_CClassDefNode = handle_function
     visit_CEnumDefNode = handle_function
     visit_CStructOrUnionDefNode = handle_function
+    visit_CVarDefNode = handle_function
 
 
 class ForwardDeclareTypes(CythonTransform):
@@ -3903,7 +3904,7 @@ class TransformBuiltinMethods(EnvTransform):
                                           entry=self.current_env().builtin_scope().lookup_here(attribute))
             elif PyrexTypes.parse_basic_type(attribute):
                 pass
-            elif self.context.cython_scope.lookup_qualified_name(attribute):
+            elif self.current_env().global_scope().cython_scope.lookup_qualified_name(attribute):
                 pass
             else:
                 error(node.pos, "'%s' not a valid cython attribute or is being used incorrectly" % attribute)
@@ -4143,7 +4144,7 @@ class TransformBuiltinMethods(EnvTransform):
                 node.function = ExprNodes.NameNode(node.pos, name=EncodedString('set'))
             elif function == 'staticmethod':
                 node.function = ExprNodes.NameNode(node.pos, name=EncodedString('staticmethod'))
-            elif self.context.cython_scope.lookup_qualified_name(function):
+            elif self.current_env().global_scope().cython_scope.lookup_qualified_name(function):
                 pass
             else:
                 error(node.function.pos,
