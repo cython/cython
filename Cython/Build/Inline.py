@@ -360,6 +360,10 @@ def cymeit(code, setup_code=None, import_module=None, directives=None, timer=tim
     # Find a sufficiently large number of loops, warm up the system.
 
     timer_returns_nanoseconds = isinstance(timer(), int)
+    one_second = 1_000_000_000 if timer_returns_nanoseconds else 1.0
+
+    # Run for at least 0.2 seconds, either as integer nanoseconds or floating point seconds.
+    min_runtime = one_second // 5 if timer_returns_nanoseconds else one_second / 5
 
     def autorange():
         i = 1
@@ -367,19 +371,15 @@ def cymeit(code, setup_code=None, import_module=None, directives=None, timer=tim
             for j in 1, 2, 5:
                 number = i * j
                 time_taken = timeit(number)
-                # At least 0.2 seconds, either as integer nanoseconds or floating point seconds.
-                if timer_returns_nanoseconds:
-                    assert isinstance(time_taken, int)
-                    if time_taken >= 200_000_000:  # == int(0.2 / 1e-9)
-                        return number
-                    elif time_taken < 10 and number >= 10:
-                        # Arbitrary sanity check to prevent endless loops for non-ns timers.
-                        raise RuntimeError(f"Timer seems to return non-ns timings: {timer}")
-                else:
-                    if time_taken >= 0.2:
-                        return number
+                assert isinstance(time_taken, int if timer_returns_nanoseconds else float)
+                if time_taken >= min_runtime:
+                    return number
+                elif timer_returns_nanoseconds and (time_taken < 10 and number >= 10):
+                    # Arbitrary sanity check to prevent endless loops for non-ns timers.
+                    raise RuntimeError(f"Timer seems to return non-ns timings: {timer}")
             i *= 10
 
+    autorange()  # warmup
     number = autorange()
 
     # Run and repeat the benchmark.
