@@ -20,7 +20,7 @@ pyexec_globals_utility_code = UtilityCode.load("PyExecGlobals", "Builtins.c")
 globals_utility_code = UtilityCode.load("Globals", "Builtins.c")
 include_std_lib_h_utility_code = UtilityCode.load("IncludeStdlibH", "ModuleSetupCode.c")
 pysequence_multiply_utility_code = UtilityCode.load("PySequenceMultiply", "ObjectHandling.c")
-slice_accessor_utility_code = UtilityCode.load_cached("PySliceAccessors", "Builtins.c")
+slice_accessor_utility_code = UtilityCode.load("PySliceAccessors", "Builtins.c")
 
 # mapping from builtins to their C-level equivalents
 
