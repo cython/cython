@@ -383,12 +383,12 @@ def uchar_cast_to_int(Py_UCS4 uchar):
     >>> uchar_cast_to_int(u'A')  # doctest: +ELLIPSIS
     Traceback (most recent call last):
     ValueError: invalid literal for int() with base 10: ...A...
-    >>> uchar_cast_to_int(u'²')  # doctest: +ELLIPSIS
+    >>> uchar_cast_to_int('²')  # doctest: +ELLIPSIS
     Traceback (most recent call last):
     ValueError: invalid literal for int() with base 10: ...²...
 
     # Verify against Python
-    >>> int(u'²')  # doctest: +ELLIPSIS
+    >>> int('²')  # doctest: +ELLIPSIS
     Traceback (most recent call last):
     ValueError: invalid literal for int() with base 10: ...²...
     """
@@ -407,12 +407,12 @@ def uchar_cast_to_float(Py_UCS4 uchar):
     >>> uchar_cast_to_float(u'A')  # doctest: +ELLIPSIS
     Traceback (most recent call last):
     ValueError: could not convert string to float: ...A...
-    >>> uchar_cast_to_float(u'²')  # doctest: +ELLIPSIS
+    >>> uchar_cast_to_float('²')  # doctest: +ELLIPSIS
     Traceback (most recent call last):
     ValueError: could not convert string to float: ...²...
 
     # Verify against Python
-    >>> float(u'²')  # doctest: +ELLIPSIS
+    >>> float('²')  # doctest: +ELLIPSIS
     Traceback (most recent call last):
     ValueError: could not convert string to float: ...²...
     """

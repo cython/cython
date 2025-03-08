@@ -607,7 +607,7 @@ static CYTHON_INLINE PyObject* __Pyx_PyUnicode_Substring(
 /////////////// py_unicode_predicate.proto ///////////////
 
 // isprintable() is lacking C-API support in PyPy
-#if {{if method_name == 'isprintable'}}(CYTHON_COMPILING_IN_PYPY && !defined(Py_UNICODE_ISPRINTABLE)) ||{{endif}} CYTHON_COMPILING_IN_LIMITED_API
+#if CYTHON_COMPILING_IN_LIMITED_API{{if method_name == 'isprintable'}} || (CYTHON_COMPILING_IN_PYPY && !defined(Py_UNICODE_ISPRINTABLE)){{endif}}
 static int __Pyx_Py_UNICODE_{{method_name.upper()}}(Py_UCS4 uchar);/*proto*/
 #else
 {{if method_name == 'istitle'}}
@@ -624,12 +624,17 @@ static CYTHON_INLINE int __Pyx_Py_UNICODE_ISTITLE(Py_UCS4 uchar) {
 /////////////// py_unicode_predicate ///////////////
 
 {{py:
-def first_nonscaii_chr(method_name):
-    import sys
-    for i in range(128, sys.maxunicode):
-        if getattr(chr(i), method_name)():
-            return i
-    return sys.maxunicode
+from operator import methodcaller
+
+char_matches_unicode_type = methodcaller(method_name)
+
+def first_nonascii_chr(method_name):
+    from sys import maxunicode
+
+    for code_point in range(128, maxunicode):
+        if char_matches_unicode_type(chr(code_point)):
+            return code_point
+    return maxunicode
 
 def format_chr_for_c(i):
     c = chr(i)
@@ -642,16 +647,16 @@ def format_chr_for_c(i):
     return str(i)
 }}
 
-#if {{if method_name == 'isprintable'}}(CYTHON_COMPILING_IN_PYPY && !defined(Py_UNICODE_ISPRINTABLE)) ||{{endif}} CYTHON_COMPILING_IN_LIMITED_API
+#if CYTHON_COMPILING_IN_LIMITED_API{{if method_name == 'isprintable'}} || (CYTHON_COMPILING_IN_PYPY && !defined(Py_UNICODE_ISPRINTABLE)){{endif}}
 static int __Pyx_Py_UNICODE_{{method_name.upper()}}(Py_UCS4 uchar) {
     int result;
     PyObject *py_result, *ustring;
     // Add a fast path for ascii - the switch statements get prohibitively big if we try to include
     // all of unicode.
-    if (uchar < {{first_nonscaii_chr(method_name)}}) {
+    if (uchar < {{first_nonascii_chr(method_name)}}) {
         switch (uchar) {
         {{for i in range(128):}}
-            {{if getattr(chr(i), method_name)()}}
+            {{ if char_matches_unicode_type(chr(i)) }}
             case {{format_chr_for_c(i)}}:
             {{endif}}
         {{endfor}}
