@@ -1787,7 +1787,7 @@ static CYTHON_INLINE int __Pyx_CachedCFunction_GetAndSetInitializing(__Pyx_Cache
 #if !CYTHON_ATOMICS
     // always say "we're initializing". This'll always go an inefficient route,
     // but in reality we always expect to have atomics.
-    return 1; 
+    return 1;
 #else
     __pyx_nonatomic_int_type expected = 0;
     if (__pyx_atomic_int_cmp_exchange(&cfunc->initialized, &expected, 1)) {
@@ -1920,20 +1920,23 @@ static CYTHON_INLINE PyObject* __Pyx_CallUnboundCMethod0(__Pyx_CachedCFunction* 
 static CYTHON_INLINE PyObject* __Pyx_CallUnboundCMethod0(__Pyx_CachedCFunction* cfunc, PyObject* self) {
     int was_initialized = __Pyx_CachedCFunction_GetAndSetInitializing(cfunc);
 
+    // For the FASTCALL variants, we use "&EMPTY(tuple)" below as a zero-sized array.
+    // Any PyObject pointer would do, really.
+
     if (likely(was_initialized==2 && cfunc->func)) {
         if (likely(cfunc->flag == METH_NOARGS))
             return (*(cfunc->func))(self, NULL);
         if (likely(cfunc->flag == METH_FASTCALL))
             return (*(__Pyx_PyCFunctionFast)(void*)(PyCFunction)cfunc->func)(self, &EMPTY(tuple), 0);
         if (cfunc->flag == (METH_FASTCALL | METH_KEYWORDS))
-            return (*(__Pyx_PyCFunctionFastWithKeywords)(void*)(PyCFunction)cfunc->func)(self, &EMPTY(tuple), 0, NULL); 
+            return (*(__Pyx_PyCFunctionFastWithKeywords)(void*)(PyCFunction)cfunc->func)(self, &EMPTY(tuple), 0, NULL);
         if (likely(cfunc->flag == (METH_VARARGS | METH_KEYWORDS)))
             return (*(PyCFunctionWithKeywords)(void*)(PyCFunction)cfunc->func)(self, EMPTY(tuple), NULL);
         if (cfunc->flag == METH_VARARGS)
             return (*(cfunc->func))(self, EMPTY(tuple));
         return __Pyx__CallUnboundCMethod0(cfunc, self);
     }
-#if CYTHON_COMPILING_IN_CPYTHON_FREETHREADING 
+#if CYTHON_COMPILING_IN_CPYTHON_FREETHREADING
     else if (unlikely(was_initialized == 1)) {
         // If it's being simultaneously initialized, just work on a temp
         __Pyx_CachedCFunction tmp_cfunc = {
