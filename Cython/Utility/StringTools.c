@@ -656,7 +656,7 @@ static int __Pyx_Py_UNICODE_{{method_name.upper()}}(Py_UCS4 uchar) {
     if (uchar < {{first_nonascii_chr(method_name)}}) {
         switch (uchar) {
         {{for i in range(128):}}
-            {{ if char_matches_unicode_type(chr(i)) }}
+            {{if char_matches_unicode_type(chr(i)) }}
             case {{format_chr_for_c(i)}}:
             {{endif}}
         {{endfor}}
