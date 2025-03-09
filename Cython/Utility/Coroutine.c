@@ -488,7 +488,8 @@ static CYTHON_INLINE void __Pyx_Coroutine_ResetFrameBackpointer(__Pyx_ExcInfoStr
 
 static char __Pyx_Coroutine_test_and_set_is_running(__pyx_CoroutineObject *gen);
 static void __Pyx_Coroutine_unset_is_running(__pyx_CoroutineObject *gen);
-CYTHON_UNUSED static char __Pyx_Coroutine_get_is_running(__pyx_CoroutineObject *gen);
+static char __Pyx_Coroutine_get_is_running(__pyx_CoroutineObject *gen);
+static PyObject *__Pyx_Coroutine_get_is_running_getter(PyObject *gen, void *closure);
 
 //////////////////// Coroutine.proto ////////////////////
 
@@ -1680,7 +1681,7 @@ static void __Pyx_Coroutine_unset_is_running(__pyx_CoroutineObject *gen) {
     Py_END_CRITICAL_SECTION();
     #endif
 }
-CYTHON_UNUSED static char __Pyx_Coroutine_get_is_running(__pyx_CoroutineObject *gen) {
+static char __Pyx_Coroutine_get_is_running(__pyx_CoroutineObject *gen) {
     char result;
     #if PY_VERSION_HEX >= 0x030d0000 && !CYTHON_COMPILING_IN_LIMITED_API
     Py_BEGIN_CRITICAL_SECTION(gen);
@@ -1690,6 +1691,13 @@ CYTHON_UNUSED static char __Pyx_Coroutine_get_is_running(__pyx_CoroutineObject *
     Py_END_CRITICAL_SECTION();
     #endif
     return result;
+}
+
+static PyObject *__Pyx_Coroutine_get_is_running_getter(PyObject *gen, void *closure) {
+    CYTHON_UNUSED_VAR(closure);
+    char result = __Pyx_Coroutine_get_is_running((__pyx_CoroutineObject*)gen);
+    if (result) Py_RETURN_TRUE;
+    else Py_RETURN_FALSE;
 }
 
 
@@ -1950,7 +1958,7 @@ static PyGetSetDef __pyx_Coroutine_getsets[] = {
     {"cr_frame", (getter)__Pyx_Coroutine_get_frame, NULL,
      PyDoc_STR("Frame of the coroutine"), 0},
     // getter rather than member for thread safety. 
-    {"cr_running", (getter)__Pyx_Coroutine_get_is_running, NULL, NULL},
+    {"cr_running", __Pyx_Coroutine_get_is_running_getter, NULL, NULL, NULL},
     {0, 0, 0, 0, 0}
 };
 
@@ -2241,7 +2249,6 @@ static PyMethodDef __pyx_Generator_methods[] = {
 };
 
 static PyMemberDef __pyx_Generator_memberlist[] = {
-    {"gi_running", T_BOOL, offsetof(__pyx_CoroutineObject, is_running), READONLY, NULL},
     {"gi_yieldfrom", T_OBJECT, offsetof(__pyx_CoroutineObject, yieldfrom), READONLY,
      PyDoc_STR("object being iterated by 'yield from', or None")},
     {"gi_code", T_OBJECT, offsetof(__pyx_CoroutineObject, gi_code), READONLY, NULL},
@@ -2259,6 +2266,7 @@ static PyGetSetDef __pyx_Generator_getsets[] = {
      PyDoc_STR("qualified name of the generator"), 0},
     {"gi_frame", (getter)__Pyx_Coroutine_get_frame, NULL,
      PyDoc_STR("Frame of the generator"), 0},
+    {"gi_running", __Pyx_Coroutine_get_is_running_getter, NULL, NULL, NULL},
     {0, 0, 0, 0, 0}
 };
 
