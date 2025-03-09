@@ -7,6 +7,10 @@
 
 #include <string>
 
+//////////////////// IncludeCppStringViewH.proto ////////////////////
+
+#include <string_view>
+
 
 //////////////////// ssize_pyunicode_strlen.proto ////////////////////
 
@@ -420,6 +424,18 @@ static CYTHON_INLINE PyObject *__Pyx_PyUnicode_DecodeUTF16BE(const char *s, Py_s
 
 static CYTHON_INLINE PyObject* __Pyx_decode_cpp_string(
          std::string cppstring, Py_ssize_t start, Py_ssize_t stop,
+         const char* encoding, const char* errors,
+         PyObject* (*decode_func)(const char *s, Py_ssize_t size, const char *errors)) {
+    return __Pyx_decode_c_bytes(
+        cppstring.data(), cppstring.size(), start, stop, encoding, errors, decode_func);
+}
+
+/////////////// decode_cpp_string_view.proto ///////////////
+//@requires: IncludeCppStringViewH
+//@requires: decode_c_bytes
+
+static CYTHON_INLINE PyObject* __Pyx_decode_cpp_string_view(
+         std::string_view cppstring, Py_ssize_t start, Py_ssize_t stop,
          const char* encoding, const char* errors,
          PyObject* (*decode_func)(const char *s, Py_ssize_t size, const char *errors)) {
     return __Pyx_decode_c_bytes(

@@ -13,7 +13,7 @@ Cython code must, unlike Python, be compiled. This happens in two stages:
    
 To understand fully the Cython + setuptools build process,
 one may want to read more about
-`distributing Python modules <https://docs.python.org/3/distributing/index.html>`_.
+`distributing Python modules <https://packaging.python.org/en/latest/tutorials/packaging-projects/>`_.
 
 There are several ways to build Cython code:
 

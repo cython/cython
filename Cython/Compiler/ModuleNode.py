@@ -2979,14 +2979,9 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             code.putln("#endif")
         code.putln(header3)
 
-        code.globalstate.use_utility_code(
-            UtilityCode.load("PyVersionSanityCheck", "ModuleSetupCode.c")
-        )
-
         # CPython 3.5+ supports multi-phase module initialisation (gives access to __spec__, __file__, etc.)
         code.putln("#if CYTHON_PEP489_MULTI_PHASE_INIT")
         code.putln("{")
-        code.putln("if (__Pyx_VersionSanityCheck() < 0) return NULL;")
         code.putln("return PyModuleDef_Init(&%s);" % Naming.pymoduledef_cname)
         code.putln("}")
 
@@ -3002,11 +2997,6 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
         # start of module init/exec function (pre/post PEP 489)
         code.putln("{")
-
-        code.putln("#if !CYTHON_PEP489_MULTI_PHASE_INIT")
-        code.putln("if (__Pyx_VersionSanityCheck() < 0) return NULL;")
-        code.putln("#endif")
-
         code.putln('int stringtab_initialized = 0;')
         code.putln("#if CYTHON_USE_MODULE_STATE")
         code.putln('int pystate_addmodule_run = 0;')
@@ -3833,7 +3823,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         sizeof_objstruct = objstruct = type.objstruct_cname if type.typedef_flag else f"struct {type.objstruct_cname}"
         module_name = type.module_name
         type_name = type.name
-        if module_name not in ('__builtin__', 'builtins'):
+        is_builtin = module_name in ('__builtin__', 'builtins')
+        if not is_builtin:
             module_name = f'"{module_name}"'
         elif type_name in Code.ctypedef_builtins_map:
             # Fast path for special builtins, don't actually import
@@ -3856,23 +3847,27 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         typeptr_cname = type.typeptr_cname
         if not is_api:
             typeptr_cname = code.name_in_main_c_code_module_state(typeptr_cname)
-        code.put(
+
+        code.putln(
             f"{typeptr_cname} = __Pyx_ImportType_{Naming.cyversion}("
             f"{module}, {module_name}, {type.name.as_c_string_literal()},"
         )
 
         alignment_func = f"__PYX_GET_STRUCT_ALIGNMENT_{Naming.cyversion}"
-        if sizeof_objstruct != objstruct:
-            code.putln("")  # start in new line
-            code.putln("#if defined(PYPY_VERSION_NUM) && PYPY_VERSION_NUM < 0x050B0000")
-            code.putln(f'sizeof({objstruct}), {alignment_func}({objstruct}),')
-            code.putln("#elif CYTHON_COMPILING_IN_LIMITED_API")
-            code.putln(f'sizeof({objstruct}), {alignment_func}({objstruct}),')
-            code.putln("#else")
-            code.putln(f'sizeof({sizeof_objstruct}), {alignment_func}({sizeof_objstruct}),')
-            code.putln("#endif")
+        code.putln("#if defined(PYPY_VERSION_NUM) && PYPY_VERSION_NUM < 0x050B0000")
+        code.putln(f'sizeof({objstruct}), {alignment_func}({objstruct}),')
+        code.putln("#elif CYTHON_COMPILING_IN_LIMITED_API")
+        if is_builtin:
+            # Builtin types are opaque in when the limited API is enabled
+            # and subsequents attempt to access their fields will trigger
+            # compile errors. Skip the struct size check here so things keep
+            # working when a builtin type is imported but not actually used.
+            code.putln('0, 0,')
         else:
-            code.put(f' sizeof({objstruct}), {alignment_func}({objstruct}),')
+            code.putln(f'sizeof({objstruct}), {alignment_func}({objstruct}),')
+        code.putln('#else')
+        code.putln(f'sizeof({sizeof_objstruct}), {alignment_func}({sizeof_objstruct}),')
+        code.putln("#endif")
 
         # check_size
         if type.check_size and type.check_size in ('error', 'warn', 'ignore'):
@@ -3885,7 +3880,6 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.put(f'__Pyx_ImportType_CheckSize_{check_size.title()}_{Naming.cyversion});')
 
         code.putln(f' if (!{typeptr_cname}) {error_code}')
-
     def generate_type_ready_code(self, entry, code):
         Nodes.CClassDefNode.generate_type_ready_code(entry, code)
 

@@ -1,6 +1,6 @@
 # ticket: 2633
 # mode: run
-# tag: cpp, cpp17, werror
+# tag: cpp, cpp17, werror, no-cpp-locals
 
 from libcpp cimport bool
 from libcpp.any cimport any, any_cast

@@ -498,6 +498,9 @@ static PyTypeObject *__Pyx_ImportType_$cyversion(PyObject *module, const char *m
     basicsize = ((PyTypeObject *)result)->tp_basicsize;
     itemsize = ((PyTypeObject *)result)->tp_itemsize;
 #else
+    if (size == 0) {
+        return (PyTypeObject *)result;
+    }
     py_basicsize = PyObject_GetAttrString(result, "__basicsize__");
     if (!py_basicsize)
         goto bad;
@@ -704,14 +707,8 @@ static int __Pyx_ExportVoidPtr(PyObject *name, void *p, const char *sig) {
     PyObject *d;
     PyObject *cobj = 0;
 
-#if PY_VERSION_HEX >= 0x030d0000
-    if (PyDict_GetItemRef(NAMED_CGLOBAL(moddict_cname), PYIDENT("$api_name"), &d) == -1) {
+    if (__Pyx_PyDict_GetItemRef(NAMED_CGLOBAL(moddict_cname), PYIDENT("$api_name"), &d) == -1)
         goto bad;
-    }
-#else
-    d = PyDict_GetItem(NAMED_CGLOBAL(moddict_cname), PYIDENT("$api_name"));
-    Py_XINCREF(d);
-#endif
     if (!d) {
         d = PyDict_New();
         if (!d)

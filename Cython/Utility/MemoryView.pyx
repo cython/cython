@@ -44,7 +44,7 @@ cdef extern from *:
     cdef struct __pyx_memoryview "__pyx_memoryview_obj":
         Py_buffer view
         PyObject *obj
-        __Pyx_TypeInfo *typeinfo
+        const __Pyx_TypeInfo *typeinfo
 
     ctypedef struct {{memviewslice_name}}:
         __pyx_memoryview *memview
@@ -80,7 +80,7 @@ cdef extern from *:
     ctypedef int __pyx_atomic_int_type
     {{memviewslice_name}} slice_copy_contig "__pyx_memoryview_copy_new_contig"(
                                  {{memviewslice_name}} *from_mvs,
-                                 char *mode, int ndim,
+                                 const char *mode, int ndim,
                                  size_t sizeof_dtype, int contig_flag,
                                  bint dtype_is_object) except * nogil
     bint slice_is_contig "__pyx_memviewslice_is_contig" (
@@ -337,7 +337,7 @@ cdef class memoryview:
     cdef Py_buffer view
     cdef int flags
     cdef bint dtype_is_object
-    cdef __Pyx_TypeInfo *typeinfo
+    cdef const __Pyx_TypeInfo *typeinfo
 
     def __cinit__(memoryview self, object obj, int flags, bint dtype_is_object=False):
         self.obj = obj
@@ -654,7 +654,7 @@ cdef class memoryview:
 
 
 @cname('__pyx_memoryview_new')
-cdef memoryview_cwrapper(object o, int flags, bint dtype_is_object, __Pyx_TypeInfo *typeinfo):
+cdef memoryview_cwrapper(object o, int flags, bint dtype_is_object, const __Pyx_TypeInfo *typeinfo):
     cdef memoryview result = memoryview(o, flags, dtype_is_object)
     result.typeinfo = typeinfo
     return result
@@ -1419,7 +1419,7 @@ cdef extern from *:
 
     ctypedef struct __Pyx_TypeInfo:
         char* name
-        __Pyx_StructField* fields
+        const __Pyx_StructField* fields
         size_t size
         size_t arraysize[8]
         int ndim
@@ -1428,12 +1428,12 @@ cdef extern from *:
         int flags
 
     ctypedef struct __Pyx_StructField:
-        __Pyx_TypeInfo* type
+        const __Pyx_TypeInfo* type
         char* name
         size_t offset
 
     ctypedef struct __Pyx_BufFmt_StackElem:
-        __Pyx_StructField* field
+        const __Pyx_StructField* field
         size_t parent_offset
 
     #ctypedef struct __Pyx_BufFmt_Context:
@@ -1443,12 +1443,12 @@ cdef extern from *:
     struct __pyx_typeinfo_string:
         char string[3]
 
-    __pyx_typeinfo_string __Pyx_TypeInfoToFormat(__Pyx_TypeInfo *)
+    __pyx_typeinfo_string __Pyx_TypeInfoToFormat(const __Pyx_TypeInfo *)
 
 
 @cname('__pyx_format_from_typeinfo')
-cdef bytes format_from_typeinfo(__Pyx_TypeInfo *type):
-    cdef __Pyx_StructField *field
+cdef bytes format_from_typeinfo(const __Pyx_TypeInfo *type):
+    cdef const __Pyx_StructField *field
     cdef __pyx_typeinfo_string fmt
     cdef bytes part, result
     cdef Py_ssize_t i
