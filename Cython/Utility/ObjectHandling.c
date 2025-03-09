@@ -1930,7 +1930,7 @@ static CYTHON_INLINE PyObject* __Pyx_CallUnboundCMethod0(__Pyx_CachedCFunction* 
         if (likely(cfunc->flag == (METH_VARARGS | METH_KEYWORDS)))
             return (*(PyCFunctionWithKeywords)(void*)(PyCFunction)cfunc->func)(self, EMPTY(tuple), NULL);
         if (cfunc->flag == METH_VARARGS)
-            return *(cfunc->func)(self, EMPTY(tuple));
+            return (*(cfunc->func))(self, EMPTY(tuple));
         return __Pyx__CallUnboundCMethod0(cfunc, self);
     }
 #if CYTHON_COMPILING_IN_CPYTHON_FREETHREADING 
