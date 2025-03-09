@@ -628,11 +628,11 @@ from operator import methodcaller
 
 char_matches_unicode_type = methodcaller(method_name)
 
-def first_nonascii_chr(method_name):
+def first_nonascii_chr(method_name, _matches=char_matches_unicode_type):
     from sys import maxunicode
 
     for code_point in range(128, maxunicode):
-        if char_matches_unicode_type(chr(code_point)):
+        if _matches(chr(code_point)):
             return code_point
     return maxunicode
 
