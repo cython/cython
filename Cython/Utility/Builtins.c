@@ -409,8 +409,8 @@ static double __Pyx_double_from_UCS4(Py_UCS4 uchar) {
     return result;
 #else
     // ...TONUMERIC would initially seem to be a better fit.
-    // However, that accepts things like the "half" symbol, which
-    // float(s) rejects those.
+    // However, that accepts things like the "half" symbol, while
+    // float(string) rejects those.
     double digit = Py_UNICODE_TODECIMAL(uchar);
     if (unlikely(digit < 0.0)) {
         PyErr_Format(PyExc_ValueError,
