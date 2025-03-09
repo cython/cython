@@ -1791,7 +1791,8 @@ static CYTHON_INLINE int __Pyx_CachedCFunction_GetAndSetInitializing(__Pyx_Cache
 #else
     __pyx_nonatomic_int_type expected = 0;
     if (__pyx_atomic_int_cmp_exchange(&cfunc->initialized, &expected, 1)) {
-        return 0;  // we were uninitialized
+        // we were uninitialized
+        return 0;
     }
     return expected;
 #endif
@@ -1804,7 +1805,7 @@ static CYTHON_INLINE void __Pyx_CachedCFunction_SetFinishedInitializing(__Pyx_Ca
 }
 #else
 #define __Pyx_CachedCFunction_GetAndSetInitializing(cfunc) 2
-#define __Pyx_CachedCFunction_SetFinishedInitializing(cfunc) ;
+#define __Pyx_CachedCFunction_SetFinishedInitializing(cfunc)
 #endif
 
 /////////////// UnpackUnboundCMethod ///////////////
