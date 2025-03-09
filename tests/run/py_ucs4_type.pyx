@@ -415,6 +415,17 @@ def uchar_cast_to_float(Py_UCS4 uchar):
     >>> float('²')  # doctest: +ELLIPSIS
     Traceback (most recent call last):
     ValueError: could not convert string to float: ...²...
+
+    # Test consistency with Python - which is a shame because the Py_UNICODE_TONUMERIC
+    # behaviour is actually nicer in some ways.
+    >>> uchar_cast_to_float('½')  # doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    ValueError: could not convert string to float: ...½...
+
+    # Verify against Python
+    >>> float('½')  # doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    ValueError: could not convert string to float: ...½...
     """
     cdef object ustr_object = uchar
     cdef str ustr_str = str(uchar)
