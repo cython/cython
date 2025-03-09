@@ -1661,10 +1661,12 @@ static PyObject *__Pyx_Coroutine_get_is_running_getter(PyObject *gen, void *clos
 #if __PYX_HAS_PY_AM_SEND == 2
 static void __Pyx_SetBackportTypeAmSend(PyTypeObject *type, __Pyx_PyAsyncMethodsStruct *static_amsend_methods, __Pyx_pyiter_sendfunc am_send) {
     Py_ssize_t ptr_offset = (char*)(type->tp_as_async) - (char*)type;
-    // The pointer isn't to somewhere within the type. This must be a cached type that's already been update
-    if (ptr_offset < 0 || ptr_offset > type->tp_basicsize) return;
+    if (ptr_offset < 0 || ptr_offset > type->tp_basicsize) {
+        // The pointer isn't to somewhere within the type. This must be a cached type that's already been updated.
+        return;
+    }
 
-    // Copy the standard Python bits of it
+    // Copy the standard Python bits of it.
     memcpy((void*)static_amsend_methods, (void*)(type->tp_as_async), sizeof(*type->tp_as_async));
     static_amsend_methods->am_send = am_send;
 
