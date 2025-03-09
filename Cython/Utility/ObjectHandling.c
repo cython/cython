@@ -1921,14 +1921,17 @@ static CYTHON_INLINE PyObject* __Pyx_CallUnboundCMethod0(__Pyx_CachedCFunction* 
     int was_initialized = __Pyx_CachedCFunction_GetAndSetInitializing(cfunc);
 
     if (likely(was_initialized==2 && cfunc->func)) {
-        return (likely(cfunc->flag == METH_NOARGS) ?  (*(cfunc->func))(self, NULL) :
-            (likely(cfunc->flag == METH_FASTCALL) ?
-                (*(__Pyx_PyCFunctionFast)(void*)(PyCFunction)cfunc->func)(self, &EMPTY(tuple), 0) :
-            ((cfunc)->flag == (METH_FASTCALL | METH_KEYWORDS) ?
-                (*(__Pyx_PyCFunctionFastWithKeywords)(void*)(PyCFunction)cfunc->func)(self, &EMPTY(tuple), 0, NULL) :
-                (likely(cfunc->flag == (METH_VARARGS | METH_KEYWORDS)) ?  ((*(PyCFunctionWithKeywords)(void*)(PyCFunction)cfunc->func)(self, EMPTY(tuple), NULL)) :
-                (cfunc->flag == METH_VARARGS ?  (*(cfunc->func))(self, EMPTY(tuple)) :
-                __Pyx__CallUnboundCMethod0(cfunc, self))))));
+        if (likely(cfunc->flag == METH_NOARGS))
+            return (*(cfunc->func))(self, NULL);
+        if (likely(cfunc->flag == METH_FASTCALL))
+            return (*(__Pyx_PyCFunctionFast)(void*)(PyCFunction)cfunc->func)(self, &EMPTY(tuple), 0);
+        if (cfunc->flag == (METH_FASTCALL | METH_KEYWORDS))
+            return (*(__Pyx_PyCFunctionFastWithKeywords)(void*)(PyCFunction)cfunc->func)(self, &EMPTY(tuple), 0, NULL); 
+        if (likely(cfunc->flag == (METH_VARARGS | METH_KEYWORDS)))
+            return (*(PyCFunctionWithKeywords)(void*)(PyCFunction)cfunc->func)(self, EMPTY(tuple), NULL);
+        if (cfunc->flag == METH_VARARGS)
+            return *(cfunc->func)(self, EMPTY(tuple));
+        return __Pyx__CallUnboundCMethod0(cfunc, self);
     }
 #if CYTHON_COMPILING_IN_CPYTHON_FREETHREADING 
     else if (unlikely(was_initialized == 1)) {
@@ -2050,7 +2053,7 @@ static CYTHON_INLINE PyObject *__Pyx_CallUnboundCMethod2(__Pyx_CachedCFunction *
             return (*(__Pyx_PyCFunctionFastWithKeywords)(void*)(PyCFunction)cfunc->func)(self, args, 2, NULL);
     }
 #if CYTHON_COMPILING_IN_CPYTHON_FREETHREADING
-    else if (was_initialized == 1) {
+    else if (unlikely(was_initialized == 1)) {
         // Race to initialize - run this on a temp function instead.
         __Pyx_CachedCFunction tmp_cfunc = {
             cfunc->type,
