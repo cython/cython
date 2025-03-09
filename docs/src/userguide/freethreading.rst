@@ -171,11 +171,11 @@ Python.  It may evolve as our understanding grows.
 Interaction between threads
 ---------------------------
 
-Multi-threaded programs general work best if you can minimize the interaction between
-threads for example by having the different threads perform completely isolated
+Multi-threaded programs generally work best if you can minimize the interaction between
+threads. It's optimal if the different threads perform completely isolated
 blocks of work which are only collected at the end.  Python code is no exception -
-especially since Python reference counting means that even apparently "read-only"
-operations usually actually involve both reading and writing.
+especially since Python's reference counting means that even apparent "read-only"
+operations can actually involve both reading and writing.
 
 As an example consider a program that collects unique words from multiple files.
 In this case it would probably be best to read each file to a separate ``set``
@@ -201,6 +201,7 @@ rather than updating one ``set`` from all threads::
 
   def read_from_files_bad(filenames):
     overall_result = set()
+
     def read_from_file(filename):
       with open(filename, 'r') as f:
         for line in f:
@@ -227,20 +228,19 @@ is not the only option, and probably should not be your default option.
 ``prange`` is a fairly thin wrapper over OpenMP's "parallel for".  This means
 it is ideal for problems where you have a big loop, every iteration is basically
 the same, and the result of each iteration is independent of any other iteration.
-If this does not describe your problem then ``prange`` is probably not the
-solution.
+If this does *not* describe your problem then ``prange`` is probably not the solution.
 
 Remember that all the threading options available in Python are also available
-in Cython.  For example you can start threads with ``threading.Thread`` or
-``concurrent.futures.ThreadPoolExecutor`` and this is much more flexible than
-``prange``.  Similarly the synchronization tools in ``threading.Thread``
+in Cython.  For example, you can start threads with ``threading.Thread`` or
+``concurrent.futures.ThreadPoolExecutor``. They are much more flexible than
+``prange``.  Similarly, the synchronization tools in ``threading.Thread``
 are also available in Cython.
 
 Try to avoid Python code in ``prange``
 --------------------------------------
 
 ``prange`` has some slightly unintuitive behaviour about which data is
-shared and which isn't.  Typically C variables (e.g. ``int``, ``float``) are
+shared and which isn't.  Typically C variables (e.g. ``int``, ``double``) are
 treated as "thread-local" and so each thread has its own copy. However,
 Python object variables are treated as shared between all the threads.
 
@@ -253,7 +253,7 @@ This means that::
     total += tmp
 
 should work fine - each thread has its own ``tmp`` and ``total`` is
-a "reduction" (so treated in a thread-safe manner).  However::
+a "reduction" (so treated in an efficient thread-safe way).  However::
 
   cdef int i
   cdef int total = 0
@@ -263,17 +263,18 @@ a "reduction" (so treated in a thread-safe manner).  However::
       tmp = i**2
       total += tmp
 
-In this case there is only a single value of ``tmp`` shared between all the threads, and
-all are continuously overwriting each other's values.  Additionally Cython does not
-currently ensure that ``tmp`` is even reference-counted correctly so you are at risk
-of crashes or memory-leaks in addition to getting a nonsense answer.
+In this case, there is only a single value of ``tmp`` shared between all the threads.
+They are continuously overwriting each other's values.  Additionally, Cython does not
+currently ensure that ``tmp`` is even reference-counted in a thread-safe way,
+so you are at risk of crashes or memory-leaks in addition to getting a nonsense answer.
 
-If you do want to work with Python objects then it is best to move them into
+If you do want to work with Python objects, then it is best to move them into
 a function and just have the loop call the function::
 
   cdef int square(int x):
     cdef object tmp = x**2
-    return tmp
+    cdef int result = tmp
+    return result
 
   # ...
 
@@ -284,7 +285,7 @@ a function and just have the loop call the function::
       total += square(i)
 
 Since ``tmp`` is now local to the function scope, each function call has its own copy
-and thus there is no conflict between threads.
+and thus there is no conflict of Python objects between threads.
 
 Use C++ for low-level synchronization primitives
 ------------------------------------------------
