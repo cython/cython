@@ -2,39 +2,20 @@
 # Limited API which will be skipped in the normal testing run.
 
 min_async
-pep492_badsyntax_async4
-builtin_pycomplex
-builtin_subtype_methods_T653
-builtin_type_inheritance_T608
-builtinslice
 builtin_divmod
-cdivision_CEP_516
-cpp_stl_conversion
 cpp_nonstdint
-run[.]any
-run[.]all
 embedsignatures_python
 embedsignatures_clinic
-extern_builtins_T258
-ext_attribute_cache
-fastcall
 run[.]generators_py
 generator_frame_cycle
-run[.]no_gc
-run[.]numpy
 line_trace
-longintrepr
 pstats_profile_test
-py35_pep492_interop
-py_ucs4_type
 pep442_tp_finalize
 test_asyncgen
 tracebacks
 tss
 sys_monitoring
 special_method_docstrings
-run[.]ufunc
-slice2b
 verbatiminclude
 test_coroutines_pep492
 coverage
@@ -42,14 +23,6 @@ reimport_failure
 line_profile_test
 cdef_multiple_inheritance_errors
 cline_in_traceback
-module_init_error
-
-# Something to do with complex
-view_count
-matrix_with_buffer
-fused_types
-pycapsule
-r_extcomplex2
 
 # cimport cpython
 clone
@@ -71,6 +44,7 @@ run[.]pyarray
 pyclass_special_methods
 time_pxd
 array_cimport
+builtin_pycomplex
 
 # Relies on Numpy being OK in the Limited API (which is version-dependent)
 # TODO - these can be re-enabled later as we update test dependencies.
@@ -80,6 +54,8 @@ numpy_memoryview
 memoryviewattrs
 convolve2
 memoryview_shared_utility
+run[.]numpy
+run[.]ufunc
 
 # example in docs that use features unavailable in the limited API
 # (and it's a decision for the docs writers rather than a limitation
@@ -94,13 +70,22 @@ wrapping_CPlusPlus.python_to_cpp
 # Tests explicitly use internals
 compile[.]pylong
 extern_varobject_extensions
+ext_attribute_cache
+fastcall
+r_extcomplex2
+longintrepr
+run[.]no_gc
 
 # Inherit builtin type: PEP697
+builtin_subtype_methods_T653
+builtin_type_inheritance_T608
 bytearraymethods
 cdef_subclass_builtin
 ext_auto_richcmp
+extern_builtins_T258
 pylistsubtype
 r_hordijk1
+slice2b
 trashcan
 unbound_special_methods
 unicode_formatting
