@@ -52,11 +52,24 @@ def make_command_file(path_to_debug_info, prefix_code='',
                 import os
                 virtualenv = os.getenv('VIRTUAL_ENV')
                 if virtualenv:
-                    path_to_activate_this_py = os.path.join(virtualenv, 'bin', 'activate_this.py')
-                    print("gdb command file: Activating virtualenv: %s; path_to_activate_this_py: %s" % (
-                        virtualenv, path_to_activate_this_py))
-                    with open(path_to_activate_this_py) as f:
-                        exec(f.read(), dict(__file__=path_to_activate_this_py))
+                    import sys
+                    import site
+                    print("gdb_command_file: Activating virtualenv: %s" % virtualenv)
+                    prev_len = len(sys.path)
+                    if sys.platform == 'win32':
+                        site_packages = os.path.join(virtualenv, 'Lib', 'site-packages')
+                    else:
+                        site_packages = os.path.join(virtualenv, 'lib', 'python%s' % sys.version[:3], 'site-packages')
+                    orig_path = sys.path[:]
+                    site.addsitedir(site_packages)
+                    # prepend newly added virtualenv paths to sys.path
+                    new_added = []
+                    for item in list(sys.path):
+                        if item not in orig_path:
+                            new_added.append(item)
+                            sys.path.remove(item)
+                    sys.path[:0] = new_added
+                    sys.prefix = virtualenv
                 from Cython.Debugger import libcython, libpython
             except Exception as ex:
                 from traceback import print_exc
