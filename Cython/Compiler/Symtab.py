@@ -540,10 +540,7 @@ class Scope:
                         # Note that we can override an inherited method with a compatible but not exactly equal signature, as in C++.
                         cpp_override_allowed = True
                     if cpp_override_allowed:
-                        if copy_entry:
-                            entry = copy.copy(alt_entry)
-                        else:
-                            entry = alt_entry
+                        entry = (copy.copy if copy_entry else lambda e: e)(alt_entry)
 
                         # A compatible signature doesn't mean the exact same signature,
                         # so we're taking the new signature for the entry.
