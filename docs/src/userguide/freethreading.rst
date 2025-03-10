@@ -51,6 +51,15 @@ extension modules claim to support it then you can either:
 
 These options are mainly useful for testing.
 
+Directives for controlling Thread-safety
+========================================
+
+Cython has :ref:`a selection of compiler directives<thread_safety>` to lets you
+enable and disable thread-safety in its code generation.  These mostly just ensure
+that Python reference-counting can't be corrupted by accessing data from different
+threads (and thus that Python does not crash).  On their own, they typically do not
+provide a useful level of thread-safety.
+
 Tools for Thread-safety
 =======================
 
