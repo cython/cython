@@ -500,7 +500,7 @@ class Scope:
         yield
         self.in_c_type_context = old_c_type_context
 
-    def handle_already_declared_name(self, name, cname, type, pos, visibility):
+    def handle_already_declared_name(self, name, cname, type, pos, visibility, copy_entry=False):
         """
         Returns an entry or None
 
@@ -529,7 +529,8 @@ class Scope:
                         # Note that we can override an inherited method with a compatible but not exactly equal signature, as in C++.
                         cpp_override_allowed = True
                     if cpp_override_allowed:
-                        entry = copy.copy(alt_entry)
+                        entry = (copy.copy if copy_entry else lambda e: e)(alt_entry)
+
                         # A compatible signature doesn't mean the exact same signature,
                         # so we're taking the new signature for the entry.
                         entry.type = type
@@ -579,6 +580,7 @@ class Scope:
             entry = Entry(name, cname, type, pos = pos)
             entry.in_cinclude = self.in_cinclude
             entry.create_wrapper = create_wrapper
+
             if name:
                 entry.qualified_name = self.qualify_name(name)
                 if not shadow:
@@ -1303,7 +1305,7 @@ class BuiltinScope(Scope):
     def builtin_scope(self):
         return self
 
-    def handle_already_declared_name(self, name, cname, type, pos, visibility):
+    def handle_already_declared_name(self, name, cname, type, pos, visibility, copy_entry=False):
         # Overriding is OK in the builtin scope
         return None
 
@@ -2743,6 +2745,10 @@ class CClassScope(ClassScope):
             if base_entry.utility_code:
                 entry.utility_code = base_entry.utility_code
 
+
+    def handle_already_declared_name(self, name, cname, type, pos, visibility, copy_entry=True):
+        # We want to copy the existing entry instead of modifying it, since this is an override.
+        super().handle_already_declared_name(name, cname, type, pos, visibility, copy_entry)
 
 class CppClassScope(Scope):
     #  Namespace of a C++ class.
