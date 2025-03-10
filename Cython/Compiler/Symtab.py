@@ -590,14 +590,15 @@ class Scope:
             entry = Entry(name, cname, type, pos = pos)
             entry.in_cinclude = self.in_cinclude
             entry.create_wrapper = create_wrapper
-            if name:
-                entry.qualified_name = self.qualify_name(name)
-                if not shadow:
-                    if name in entries and self.is_cpp() and type.is_cfunction and not entries[name].is_cmethod:
-                        # Which means: function or cppclass method is already present
-                        entries[name].overloaded_alternatives.append(entry)
-                    else:
-                        entries[name] = entry
+
+        if name:
+            entry.qualified_name = self.qualify_name(name)
+            if not shadow:
+                if name in entries and self.is_cpp() and type.is_cfunction and not entries[name].is_cmethod:
+                    # Which means: function or cppclass method is already present
+                    entries[name].overloaded_alternatives.append(entry)
+                else:
+                    entries[name] = entry
 
         if type.is_memoryviewslice:
             entry.init = type.default_value
