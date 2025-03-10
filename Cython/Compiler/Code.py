@@ -140,7 +140,7 @@ class IncludeCode(object):
     #  order     int: sorting order (automatically set by increasing counter)
 
     # Constants for location. If the same include occurs with different
-    # locations, the earliest one takes precedense.
+    # locations, the earliest one takes precedence.
     INITIAL = 0
     EARLY = 1
     LATE = 2

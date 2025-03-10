@@ -215,6 +215,9 @@ jobs:
           # fails due to lack of a compatible compiler
           - os: windows-2019
             python-version: 2.7
+          # fails due to missing Python installation
+          - os: macos-13
+            python-version: 2.7
 
           # cpp specific test fails
           - os: windows-2019

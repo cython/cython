@@ -124,8 +124,10 @@ def test_plus_one_twice():
     Test a function returning a fused ctuple
     >>> plus_one_twice(int_arr_1d)  # doctest: +ELLIPSIS
     (array([ 1,  5,  9, 13, 17]...), array([ 1,  5,  9, 13, 17]...))
-    >>> print(*plus_one_twice(1.j))
-    (1+1j) (1+1j)
+    >>> a, b = plus_one_twice(1.j)
+    >>> print(a); print(b)
+    (1+1j)
+    (1+1j)
 
     2D variant skipped because it's hard to sensible doctest
     """
