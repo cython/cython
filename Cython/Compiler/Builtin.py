@@ -171,7 +171,7 @@ builtin_function_table = [
                     'TYPE': c_type.empty_declaration_code(),
                     'TYPE_NAME': c_type.specialization_name(),
                     'RETURN_TYPE': return_type.empty_declaration_code(),
-                }),
+            }),
             func_type = PyrexTypes.CFuncType(
                 return_type, [
                     PyrexTypes.CFuncTypeArg("a", c_type, None),
@@ -179,9 +179,7 @@ builtin_function_table = [
                     ],
                 exception_value=f"__Pyx_divmod_ERROR_VALUE_{c_type.specialization_name()}",
                 exception_check=True,
-                ),
-            is_strict_signature = True,
-            nogil=True,
+            ),
         )
         for c_type in (PyrexTypes.c_int_type, PyrexTypes.c_long_type, PyrexTypes.c_longlong_type)
         for return_type in [PyrexTypes.c_tuple_type([c_type]*2)]
