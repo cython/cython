@@ -195,6 +195,7 @@ def parse_path_value(next):
             return False
     raise ValueError(f"Invalid attribute predicate: '{value}'")
 
+
 def handle_predicate(next, token):
     token = next()
     selector = []
@@ -208,8 +209,11 @@ def handle_predicate(next, token):
             if token[0] == "/":
                 token = next()
 
-        if not token[0] and token[1] == 'and':
-            return logical_and(selector, handle_predicate(next, token))
+        if not token[0]:
+            if token[1] == 'and':
+                return logical_and(selector, handle_predicate(next, token))
+            elif token[1] == 'or':
+                return logical_or(selector, handle_predicate(next, token))
 
     def select(result):
         for node in result:
@@ -221,6 +225,7 @@ def handle_predicate(next, token):
                 yield node
     return select
 
+
 def logical_and(lhs_selects, rhs_select):
     def select(result):
         for node in result:
@@ -230,8 +235,28 @@ def logical_and(lhs_selects, rhs_select):
             predicate_result = _get_first_or_none(subresult)
             subresult = iter((node,))
             if predicate_result is not None:
-                for result_node in rhs_select(subresult):
+                # True, require following conditions as well.
+                for _ in rhs_select(subresult):
                     yield node
+                    break
+    return select
+
+
+def logical_or(lhs_selects, rhs_select):
+    def select(result):
+        for node in result:
+            subresult = iter((node,))
+            for select in lhs_selects:
+                subresult = select(subresult)
+            predicate_result = _get_first_or_none(subresult)
+            if predicate_result is not None:
+                # True, ignore following conditions.
+                yield node
+            else:
+                # False, try following conditions instead.
+                for _ in rhs_select(iter((node,))):
+                    yield node
+                    break
     return select
 
 
