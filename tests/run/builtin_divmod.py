@@ -1,4 +1,5 @@
 # mode: run
+# cython:infer_types=True
 
 import cython
 

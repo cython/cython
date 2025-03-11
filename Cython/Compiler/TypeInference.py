@@ -567,7 +567,9 @@ def safe_spanning_type(types, might_overflow, scope):
         # effects, so I'm declaring this safe.
         return result_type
     elif result_type.is_ctuple:
-        return result_type
+        # Inferring ctuples is not currently entirely safe.
+        # Things like tuple unpacking or missing initialisation might fail.
+        return Builtin.tuple_type
     elif result_type.is_memoryviewslice:
         return result_type
     elif result_type is PyrexTypes.soft_complex_type:
