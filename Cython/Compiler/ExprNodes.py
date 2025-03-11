@@ -6401,6 +6401,9 @@ class SimpleCallNode(CallNode):
 
         if self.is_temp and self.type.is_reference:
             self.type = PyrexTypes.CFakeReferenceType(self.type.ref_base_type)
+        if func_type.return_type.is_ctuple:
+            # Make sure we properly declare new ctuple types coming in from function calls.
+            env.declare_tuple_type(self.function.pos, func_type.return_type.components).used = True
 
         # C++ exception handler
         if func_type.exception_check == '+':
@@ -6545,7 +6548,13 @@ class SimpleCallNode(CallNode):
                 exc_val = func_type.exception_value
                 exc_check = func_type.exception_check
                 if exc_val is not None:
-                    exc_checks.append("%s == %s" % (self.result(), func_type.return_type.cast_code(exc_val)))
+                    typed_exc_val = func_type.return_type.cast_code(exc_val)
+                    if func_type.return_type.is_ctuple:
+                        code.globalstate.use_utility_code(UtilityCode.load_cached(
+                            "IncludeStringH", "StringTools.c"))
+                        exc_checks.append(f"memcmp(&{self.result()}, &{typed_exc_val}, sizeof({self.result()})) == 0")
+                    else:
+                        exc_checks.append(f"{self.result()} == {typed_exc_val}")
                 if exc_check:
                     if nogil:
                         if not exc_checks:

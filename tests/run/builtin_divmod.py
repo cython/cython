@@ -2,67 +2,72 @@
 
 import cython
 
-def divmod_regular(a,b):
+def divmod_regular(a, b):
     """
-    >>> divmod_regular(10,5)
+    >>> divmod_regular(10, 5)
     (2, 0)
-    >>> divmod_regular(9191,4096)
+    >>> divmod_regular(9191, 4096)
     (2, 999)
-    >>> divmod_regular(10000,10010)
+    >>> divmod_regular(10000, 10010)
     (0, 10000)
-    >>> divmod_regular(-999999,-111111)
+    >>> divmod_regular(-999999, -111111)
     (9, 0)
-    >>> divmod_regular(-888888,-11111)
+    >>> divmod_regular(-888888, -11111)
     (80, -8)
-    >>> divmod_regular(-10000,-10086)
+    >>> divmod_regular(-10000, -10086)
     (0, -10000)
-    >>> divmod_regular(5,-1)
+    >>> divmod_regular(5, -1)
     (-5, 0)
-    >>> divmod_regular(-40,3)
+    >>> divmod_regular(-40, 3)
     (-14, 2)
-    >>> divmod_regular(11,-3)
+    >>> divmod_regular(11, -3)
     (-4, -1)
-    >>> divmod_regular(0,9)
+    >>> divmod_regular(0, 9)
     (0, 0)
-    >>> divmod_regular(0,-987654321)
+    >>> divmod_regular(0, -987654321)
     (0, 0)
 
-    >>> divmod_regular(33,0)  #doctest: +ELLIPSIS
+    >>> divmod_regular(33, 0)  #doctest: +ELLIPSIS
     Traceback (most recent call last):
     ZeroDivisionError: ...
     """
-    return divmod(a,b)
+    result = divmod(a, b)
+    return result
 
 
-@cython.test_assert_path_exists("//ReturnStatNode//NameNode[@entry.name = 'divmod']",
-                                "//ReturnStatNode//NameNode[@entry.cname = '__Pyx_divmod_int']")
+@cython.test_assert_path_exists(
+    "//SimpleCallNode//NameNode[@entry.name = 'divmod']",
+    "//SimpleCallNode//NameNode[@entry.cname = '__Pyx_divmod_int']",
+    "//ReturnStatNode//CoerceToPyTypeNode",
+)
 def divmod_int_regular(a: cython.int, b: cython.int):
     """
-    >>> divmod_int_regular(10,5)
+    >>> divmod_int_regular(10, 5)
     (2, 0)
-    >>> divmod_int_regular(9191,4096)
+    >>> divmod_int_regular(9191, 4096)
     (2, 999)
-    >>> divmod_int_regular(10000,10010)
+    >>> divmod_int_regular(10000, 10010)
     (0, 10000)
-    >>> divmod_int_regular(-999999,-111111)
+    >>> divmod_int_regular(-999999, -111111)
     (9, 0)
-    >>> divmod_int_regular(-888888,-11111)
+    >>> divmod_int_regular(-888888, -11111)
     (80, -8)
-    >>> divmod_int_regular(-10000,-10086)
+    >>> divmod_int_regular(-10000, -10086)
     (0, -10000)
-    >>> divmod_int_regular(-50,1)
+    >>> divmod_int_regular(-50, 1)
     (-50, 0)
-    >>> divmod_int_regular(-40,3)
+    >>> divmod_int_regular(-40, 3)
     (-14, 2)
-    >>> divmod_int_regular(11,-3)
+    >>> divmod_int_regular(11, -3)
     (-4, -1)
-    >>> divmod_int_regular(0,9)
+    >>> divmod_int_regular(0, 9)
     (0, 0)
-    >>> divmod_int_regular(0,-987654321)
+    >>> divmod_int_regular(0, -987654321)
     (0, 0)
 
-    >>> divmod_int_regular(33,0)  #doctest: +ELLIPSIS
+    >>> divmod_int_regular(33, 0)  #doctest: +ELLIPSIS
     Traceback (most recent call last):
     ZeroDivisionError: ...
     """
-    return divmod(a,b)
+    result = divmod(a, b)
+    return result

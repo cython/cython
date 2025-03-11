@@ -303,19 +303,20 @@ static PyObject *__Pyx_PyLong_AbsNeg(PyObject *n) {
 #define __Pyx_PyNumber_Power2(a, b) PyNumber_Power(a, b, Py_None)
 
 
-//////////////////// divmod_int.proto //////////////////
+//////////////////// divmod.proto //////////////////
 
-static CYTHON_INLINE PyObject* __Pyx_divmod_int(int a, int b); /*proto*/
+const {{RETURN_TYPE}} __Pyx_divmod_ERROR_VALUE_{{TYPE_NAME}} = {-1, -1};
+
+static CYTHON_INLINE {{RETURN_TYPE}} __Pyx_divmod_{{TYPE_NAME}}({{TYPE}} a, {{TYPE}} b); /*proto*/
 
 
-//////////////////// divmod_int //////////////////
+//////////////////// divmod //////////////////
 
-static CYTHON_INLINE PyObject* __Pyx_divmod_int(int a, int b) {
-    PyObject *result_tuple = NULL, *pyvalue = NULL;
+static CYTHON_INLINE {{RETURN_TYPE}} __Pyx_divmod_{{TYPE_NAME}}({{TYPE}} a, {{TYPE}} b) {
     // Python and C/C++ use different algorithms in calculating quotients and remainders.
     // This results in different answers between Python and C/C++
     // when the dividend is negative and the divisor is positive and vice versa.
-    int q, r;
+    {{TYPE}} q, r;
     if ((a < 0 && b > 0) || (a > 0 && b < 0)) {
         // see CMath.c :: DivInt and ModInt utility code
         q = a / b;
@@ -325,26 +326,15 @@ static CYTHON_INLINE PyObject* __Pyx_divmod_int(int a, int b) {
     }
     else if (b == 0) {
         PyErr_SetString(PyExc_ZeroDivisionError, "integer division or modulo by zero");
-        return NULL;
+        return __Pyx_divmod_ERROR_VALUE_{{TYPE_NAME}};
     }
     else {
-        div_t res = div(a, b);
-        q = res.quot;
-        r = res.rem;
+        q = a / b;
+        r = a % b;
     }
-    result_tuple = PyTuple_New(2);
-    if (unlikely(!result_tuple)) return NULL;
-    pyvalue = PyLong_FromLong(q);
-    if (unlikely(!pyvalue)) goto bad;
-    if (__Pyx_PyTuple_SET_ITEM(result_tuple, 0, pyvalue) != (0)) goto bad;
-    pyvalue = PyLong_FromLong(r);
-    if (unlikely(!pyvalue)) goto bad;
-    if (__Pyx_PyTuple_SET_ITEM(result_tuple, 1, pyvalue) != (0)) goto bad;
-    return result_tuple;
 
-bad:
-    Py_DECREF(result_tuple);
-    return NULL;
+    {{RETURN_TYPE}} c_result = {q, r};
+    return c_result;
 }
 
 

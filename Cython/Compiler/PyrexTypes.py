@@ -4575,9 +4575,14 @@ class CTupleType(CType):
         self.exception_check = True
         self._convert_to_py_code = None
         self._convert_from_py_code = None
-        # equivalent_type must be set now because it isn't available at import time
+
+    @property
+    def equivalent_type(self):
+        # 'tuple_type'  isn't available at import time, but we might need ctuples early on.
         from .Builtin import tuple_type
-        self.equivalent_type = tuple_type
+        # Overwrite the property.
+        CTupleType.equivalent_type = tuple_type
+        return tuple_type
 
     def __str__(self):
         return "(%s)" % ", ".join(str(c) for c in self.components)
