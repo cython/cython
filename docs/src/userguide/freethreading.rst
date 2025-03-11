@@ -355,7 +355,7 @@ the GIL (on non-freethreading builds) is reading and writing to
     something = c_instance.attr
 
 In principle, both a ``critical_section`` and the GIL can be interrupted
-by executing arbitrary Python code.  Arbitrary Python code can notable
+by executing arbitrary Python code.  Arbitrary Python code can notably
 include the finalizers of any objects being destroyed.  This means that
 reassigning a Python attribute can trigger arbitrary code (but typically
 only after the new value has been put in place).  Additionally, triggering
@@ -390,7 +390,7 @@ the addition gets expanded to something like
 (we show normal addition rather than in-place addition for ease
 of explanation, but the result is similar).
 
-Practically there are some difference between ``critical_section`` 
+Practically there are some differences between ``critical_section`` 
 and the GIL:
 
 * Releasing the GIL happens at fairly regular intervals after
@@ -402,7 +402,7 @@ and the GIL:
 The upshot is the if you're sure that no other code will have a
 reference to ``c_instance`` the example above is safe in a free-threaded
 interpreter (although arbitrary code may run, it won't interact with
-``c_instance``) but unsafe in GIL-interpreter.
+``c_instance``) but unsafe in a GIL-enabled interpreter.
 
 As an example of some practical results:
 
