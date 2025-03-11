@@ -5127,8 +5127,12 @@ def best_match(arg_types, functions, pos=None, env=None, args=None):
                     score[2] += 1
                 elif ((src_type.is_int and dst_type.is_int) or
                       (src_type.is_float and dst_type.is_float)):
-                    score[2] += abs(dst_type.rank + (not dst_type.signed) -
-                                    (src_type.rank + (not src_type.signed))) + 1
+                    src_is_unsigned = not src_type.signed
+                    dst_is_unsigned = not dst_type.signed
+                    score[2] += abs(dst_type.rank + dst_is_unsigned -
+                                    (src_type.rank + src_is_unsigned)) + 1
+                    # Prefer assigning to larger types over smaller types, unless they have different signedness.
+                    score[3] += (dst_type.rank < src_type.rank) * 2 + (src_is_unsigned != dst_is_unsigned)
                 elif dst_type.is_ptr and src_type.is_ptr:
                     if dst_type.base_type == c_void_type:
                         score[4] += 1
@@ -5141,7 +5145,7 @@ def best_match(arg_types, functions, pos=None, env=None, args=None):
                 else:
                     score[0] += 1
             else:
-                error_mesg = "Invalid conversion from '%s' to '%s'" % (src_type, dst_type)
+                error_mesg = f"Invalid conversion from '{src_type}' to '{dst_type}'"
                 bad_types.append((func, error_mesg))
                 break
         else:
