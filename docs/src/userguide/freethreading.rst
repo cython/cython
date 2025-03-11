@@ -323,11 +323,11 @@ need to heap-allocate them::
 
 It is also possible to use C++ to create new threads (for example, using the ``std::jthread``
 class).  This works, but we generally recommend creating threads through Python
-instead, mainly because the outermost ``with gil:`` statement in a non-Python
-created thread will not work reliably with multiple subinterpreters - this recommendation is
-therefore mainly to future-proofing your code and not restrict where it can
-be used from.  It is a fairly soft suggestion though, so feel free to ignore
-it if you have good reason to.
+instead.  For a C++-created thread it's necessary to register them with the interpreter
+by calling ``with gil:`` before using any Python objects and this will not work reliably
+with multiple subinterpreters - this recommendation is therefore mainly to future-proofing
+your code and not restrict where it can be used from.  It is a fairly soft suggestion though,
+so feel free to ignore it if you have good reason to.
 
 ``cython.critical_section`` vs GIL
 ----------------------------------
@@ -354,13 +354,21 @@ the GIL (on non-freethreading builds) is reading and writing to
   with cython.critical_section(c_instance):
     something = c_instance.attr
 
+The first and most obvious place that both a ``critical_section`` and
+the GIL can be interrupted is a ``with nogil:`` block.  This is hopefully
+absolutely obvious for the GIL but it's worth noting that a critical
+section only applies when the Python thread state is held.
+
 In principle, both a ``critical_section`` and the GIL can be interrupted
 by executing arbitrary Python code.  Arbitrary Python code can notably
 include the finalizers of any objects being destroyed.  This means that
 reassigning a Python attribute can trigger arbitrary code (but typically
 only after the new value has been put in place).  Additionally, triggering
-the GC can result in arbitrary code being executed (which means any Python
-memory allocation can trigger it).
+the GC can result in arbitrary code being executed. On Python <3.12 any
+Python memory allocation can trigger the GC so be wary of this if you
+aim to supprt multithreading in those version (the first free-threaded
+interpreters were in Python 3.13 so the GC is harder to trigger from
+Cython code in them).
 
 For example, in the following code (which uses the definition of ``C`` from
 the previous example)::
@@ -376,7 +384,7 @@ the addition gets expanded to something like
 
   // May trigger arbitrary Python code:
   // 1. If ``temp1`` is a class with an "__add__" method
-  // 2. If the allocation of the result triggers the GC.
+  // 2. If the allocation of the result triggers the GC on Python <3.12
   temp2 = PyNumber_Add(temp1, const_1);
 
   // this section is hidden inside a ``Py_SETREF`` or similar
