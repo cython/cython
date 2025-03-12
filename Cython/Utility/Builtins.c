@@ -327,8 +327,9 @@ static CYTHON_INLINE {{RETURN_TYPE}} __Pyx_divmod_{{TYPE_NAME}}({{TYPE}} a, {{TY
         // see CMath.c :: DivInt and ModInt utility code
         q = a / b;
         r = a - q * b;
-        q -= (r != 0);
-        r += (r != 0) * b;
+        {{TYPE}} adapt_python = ((r != 0) & ((r < 0) ^ (b < 0)));
+        q -= adapt_python;
+        r += adapt_python * b;
     }
     else {
         q = a / b;
