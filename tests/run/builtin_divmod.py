@@ -43,26 +43,26 @@ def divmod_regular(a, b):
     "//SimpleCallNode//NameNode[@entry.cname = '__Pyx_divmod_int']",
     "//ReturnStatNode//CoerceToPyTypeNode",
 )
-def divmod_cchar(a: cython.char, b: cython.char):
+def divmod_cshort(a: cython.short, b: cython.short):
     """
-    >>> divmod_cchar(10, 5)
+    >>> divmod_cshort(10, 5)
     (2, 0)
-    >>> divmod_cchar(-10, 5)
+    >>> divmod_cshort(-10, 5)
     (-2, 0)
-    >>> divmod_cchar(10, -5)
+    >>> divmod_cshort(10, -5)
     (-2, 0)
-    >>> divmod_cchar(-50, 1)
+    >>> divmod_cshort(-50, 1)
     (-50, 0)
-    >>> divmod_cchar(-40, 3)
+    >>> divmod_cshort(-40, 3)
     (-14, 2)
-    >>> divmod_cchar(11, -3)
+    >>> divmod_cshort(11, -3)
     (-4, -1)
-    >>> divmod_cchar(-1, 10)
+    >>> divmod_cshort(-1, 10)
     (-1, 9)
-    >>> divmod_cchar(0, 9)
+    >>> divmod_cshort(0, 9)
     (0, 0)
 
-    >>> divmod_cchar(33, 0)  #doctest: +ELLIPSIS
+    >>> divmod_cshort(33, 0)  #doctest: +ELLIPSIS
     Traceback (most recent call last):
     ZeroDivisionError: ...
     """
