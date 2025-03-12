@@ -2,7 +2,6 @@
 # Limited API which will be skipped in the normal testing run.
 
 min_async
-builtin_divmod
 cpp_nonstdint
 embedsignatures_python
 embedsignatures_clinic
