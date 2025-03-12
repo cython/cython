@@ -317,16 +317,18 @@ static CYTHON_INLINE {{RETURN_TYPE}} __Pyx_divmod_{{TYPE_NAME}}({{TYPE}} a, {{TY
     // This results in different answers between Python and C/C++
     // when the dividend is negative and the divisor is positive and vice versa.
     {{TYPE}} q, r;
-    if ((a < 0 && b > 0) || (a > 0 && b < 0)) {
+    if (unlikely(b == 0)) {
+        PyErr_SetString(PyExc_ZeroDivisionError, "integer division or modulo by zero");
+        return __Pyx_divmod_ERROR_VALUE_{{TYPE_NAME}};
+    } else if (a == 0) {
+        q = 0;
+        r = 0;
+    } else if ((a > 0) != (b > 0)) {
         // see CMath.c :: DivInt and ModInt utility code
         q = a / b;
         r = a - q * b;
         q -= ((r != 0) & ((r ^ b) < 0));
         r += ((r != 0) & ((r ^ b) < 0)) * b;
-    }
-    else if (b == 0) {
-        PyErr_SetString(PyExc_ZeroDivisionError, "integer division or modulo by zero");
-        return __Pyx_divmod_ERROR_VALUE_{{TYPE_NAME}};
     }
     else {
         q = a / b;
