@@ -479,32 +479,42 @@ no_error:
 
 
 /////////////// ToPyCTupleUtility.proto ///////////////
+
 static PyObject* {{funcname}}({{struct_type_decl}});
 
 /////////////// ToPyCTupleUtility ///////////////
+
 static PyObject* {{funcname}}({{struct_type_decl}} value) {
-    PyObject* item = NULL;
-    PyObject* result = PyTuple_New({{size}});
-    if (!result) goto bad;
+    PyObject* items[{{size}}] = { {{ ', '.join('0'*size) }} };
+    PyObject* result = NULL;
 
     {{for ix, component in enumerate(components):}}
-        {{py:attr = "value.f%s" % ix}}
-        item = {{component.to_py_function}}({{attr}});
-        if (!item) goto bad;
-        #if !CYTHON_ASSUME_SAFE_MACROS
-        if (unlikely(PyTuple_SetItem(result, {{ix}}, item) < 0)) {
-            item = NULL; // stolen
-            goto bad;
-        }
-        #else
-        PyTuple_SET_ITEM(result, {{ix}}, item);
-        #endif
+        {{py:attr = f"value.f{ix}" }}
+        items[{{ix}}] = {{component.to_py_function}}({{attr}});
+        if (unlikely(!items[{{ix}}])) goto bad;
     {{endfor}}
 
+    result = PyTuple_New({{size}});
+    if (unlikely(!result)) goto bad;
+
+    for (Py_ssize_t i=0; i<{{ size }}; ++i) {
+        PyObject *item = items[i];
+        items[i] = NULL;
+        #if !CYTHON_ASSUME_SAFE_MACROS
+        // PyTuple_SetItem() always steals a reference.
+        if (unlikely(PyTuple_SetItem(result, i, item) < 0)) goto bad;
+        #else
+        PyTuple_SET_ITEM(result, i, item);
+        #endif
+    }
+
     return result;
+
 bad:
-    Py_XDECREF(item);
     Py_XDECREF(result);
+    for (Py_ssize_t i={{ size-1 }}; i >= 0; --i) {
+        Py_XDECREF(items[i]);
+    }
     return NULL;
 }
 
