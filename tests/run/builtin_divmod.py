@@ -151,10 +151,22 @@ def divmod_clonglong(a: cython.longlong, b: cython.longlong):
     (2, 999)
     >>> divmod_clonglong(10000, 10010)
     (0, 10000)
-    >>> divmod_clonglong(-999999, -111111)
+    >>> divmod_clonglong(88321773, 98539211)
+    (0, 88321773)
+    >>> divmod_clonglong(-99999999, -11111111)
     (9, 0)
-    >>> divmod_clonglong(-888888, -11111)
+    >>> divmod_clonglong(-88888888, -1111111)
     (80, -8)
+    >>> divmod_clonglong(-88837244, -110119120)
+    (0, -88837244)
+    >>> divmod_clonglong(-5000000, 1)
+    (-5000000, 0)
+    >>> divmod_clonglong(-100190, 17)
+    (-5894, 8)
+    >>> divmod_clonglong(2014014349, -19)
+    (-106000756, -15)
+    >>> divmod_clonglong(0, 996007985)
+    (0, 0)
     >>> divmod_clonglong(-10000, -10086)
     (0, -10000)
     >>> divmod_clonglong(-50, 1)
@@ -169,6 +181,9 @@ def divmod_clonglong(a: cython.longlong, b: cython.longlong):
     (0, 0)
 
     >>> divmod_clonglong(33, 0)  #doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    ZeroDivisionError: ...
+    >>> divmod_clonglong(0, 0)  #doctest: +ELLIPSIS
     Traceback (most recent call last):
     ZeroDivisionError: ...
     """
@@ -187,7 +202,11 @@ def divmod_mixed_cint_clonglong(a: cython.int, b: cython.longlong):
     (2, 0)
     >>> divmod_mixed_cint_clonglong(9191, 4096)
     (2, 999)
+
     >>> divmod_mixed_cint_clonglong(33, 0)  #doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    ZeroDivisionError: ...
+    >>> divmod_mixed_cint_clonglong(0, 0)  #doctest: +ELLIPSIS
     Traceback (most recent call last):
     ZeroDivisionError: ...
     """
@@ -206,7 +225,13 @@ def divmod_mixed_clonglong_cint(a: cython.longlong, b: cython.int):
     (2, 0)
     >>> divmod_mixed_clonglong_cint(9191, 4096)
     (2, 999)
+    >>> divmod_mixed_clonglong_cint(19283090123, 1230912)
+    (15665, 853643)
+
     >>> divmod_mixed_clonglong_cint(33, 0)  #doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    ZeroDivisionError: ...
+    >>> divmod_mixed_clonglong_cint(0, 0)  #doctest: +ELLIPSIS
     Traceback (most recent call last):
     ZeroDivisionError: ...
     """
@@ -225,7 +250,13 @@ def divmod_mixed_unpack(a: cython.longlong, b: cython.int):
     (2, 0)
     >>> divmod_mixed_unpack(9191, 4096)
     (2, 999)
+    >>> divmod_mixed_unpack(19283090123, 1230912)
+    (15665, 853643)
+
     >>> divmod_mixed_unpack(33, 0)  #doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    ZeroDivisionError: ...
+    >>> divmod_mixed_unpack(0, 0)  #doctest: +ELLIPSIS
     Traceback (most recent call last):
     ZeroDivisionError: ...
     """
