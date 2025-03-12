@@ -45,6 +45,10 @@ def divmod_cchar(a: cython.char, b: cython.char):
     """
     >>> divmod_cchar(10, 5)
     (2, 0)
+    >>> divmod_cchar(-10, 5)
+    (-2, 0)
+    >>> divmod_cchar(10, -5)
+    (-2, 0)
     >>> divmod_cchar(-50, 1)
     (-50, 0)
     >>> divmod_cchar(-40, 3)
@@ -71,6 +75,10 @@ def divmod_cint(a: cython.int, b: cython.int):
     """
     >>> divmod_cint(10, 5)
     (2, 0)
+    >>> divmod_cint(-10, 5)
+    (-2, 0)
+    >>> divmod_cint(10, -5)
+    (-2, 0)
     >>> divmod_cint(9191, 4096)
     (2, 999)
     >>> divmod_cint(10000, 10010)
@@ -109,6 +117,10 @@ def divmod_clong(a: cython.long, b: cython.long):
     """
     >>> divmod_clong(10, 5)
     (2, 0)
+    >>> divmod_clong(-10, 5)
+    (-2, 0)
+    >>> divmod_clong(10, -5)
+    (-2, 0)
     >>> divmod_clong(9191, 4096)
     (2, 999)
     >>> divmod_clong(10000, 10010)
@@ -147,6 +159,10 @@ def divmod_clonglong(a: cython.longlong, b: cython.longlong):
     """
     >>> divmod_clonglong(10, 5)
     (2, 0)
+    >>> divmod_clonglong(-10, 5)
+    (-2, 0)
+    >>> divmod_clonglong(10, -5)
+    (-2, 0)
     >>> divmod_clonglong(9191, 4096)
     (2, 999)
     >>> divmod_clonglong(10000, 10010)

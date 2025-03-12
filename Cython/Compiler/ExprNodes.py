@@ -12729,24 +12729,22 @@ class DivNode(NumBinopNode):
     def calculate_result_code(self):
         if self.type.is_complex or self.is_cpp_operation():
             return NumBinopNode.calculate_result_code(self)
-        elif self.type.is_float and self.operator == '//':
-            return "floor(%s / %s)" % (
-                self.operand1.result(),
-                self.operand2.result())
+
+        op1 = self.operand1.result()
+        op2 = self.operand2.result()
+
+        if self.type.is_float and self.operator == '//':
+            return f"floor({op1} / {op2})"
         elif self.truedivision or self.cdivision:
-            op1 = self.operand1.result()
-            op2 = self.operand2.result()
             if self.truedivision:
                 if self.type != self.operand1.type:
                     op1 = self.type.cast_code(op1)
                 if self.type != self.operand2.type:
                     op2 = self.type.cast_code(op2)
-            return "(%s / %s)" % (op1, op2)
+            return f"({op1} / {op2})"
         else:
-            return "__Pyx_div_%s(%s, %s)" % (
-                self.type.specialization_name(),
-                self.operand1.result(),
-                self.operand2.result())
+            b_is_constant = self.operand2.has_constant_result()
+            return f"__Pyx_div_{self.type.specialization_name()}({op1}, {op2}, {bool(b_is_constant):d})"
 
 
 _find_formatting_types = re.compile(
@@ -12810,21 +12808,17 @@ class ModNode(DivNode):
         self.generate_div_warning_code(code)
 
     def calculate_result_code(self):
+        op1 = self.operand1.result()
+        op2 = self.operand2.result()
+
         if self.cdivision:
             if self.type.is_float:
-                return "fmod%s(%s, %s)" % (
-                    self.type.math_h_modifier,
-                    self.operand1.result(),
-                    self.operand2.result())
+                return f"fmod{self.type.math_h_modifier}({op1}, {op2})"
             else:
-                return "(%s %% %s)" % (
-                    self.operand1.result(),
-                    self.operand2.result())
+                return f"({op1} % {op2})"
         else:
-            return "__Pyx_mod_%s(%s, %s)" % (
-                    self.type.specialization_name(),
-                    self.operand1.result(),
-                    self.operand2.result())
+            b_is_constant = self.operand2.has_constant_result()
+            return f"__Pyx_mod_{self.type.specialization_name()}({op1}, {op2}, {bool(b_is_constant):d})"
 
     def py_operation_function(self, code):
         type1, type2 = self.operand1.type, self.operand2.type

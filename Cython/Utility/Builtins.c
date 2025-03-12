@@ -323,12 +323,12 @@ static CYTHON_INLINE {{RETURN_TYPE}} __Pyx_divmod_{{TYPE_NAME}}({{TYPE}} a, {{TY
     } else if (a == 0) {
         q = 0;
         r = 0;
-    } else if ((a > 0) != (b > 0)) {
+    } else if ((a < 0) != (b < 0)) {
         // see CMath.c :: DivInt and ModInt utility code
         q = a / b;
         r = a - q * b;
-        q -= ((r != 0) & ((r ^ b) < 0));
-        r += ((r != 0) & ((r ^ b) < 0)) * b;
+        q -= (r != 0);
+        r += (r != 0) * b;
     }
     else {
         q = a / b;
