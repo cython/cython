@@ -4611,18 +4611,18 @@ class CTupleType(CType):
         if self._convert_to_py_code is False:
             return None  # tri-state-ish
 
-        if self._convert_to_py_code is None:
-            for component in self.components:
-                if not component.create_to_py_utility_code(env):
-                    self.to_py_function = None
-                    self._convert_to_py_code = False
-                    return False
+        for component in self.components:
+            if not component.create_to_py_utility_code(env):
+                self.to_py_function = None
+                self._convert_to_py_code = False
+                return False
 
+        if self._convert_to_py_code is None:
             context = dict(
                 struct_type_decl=self.empty_declaration_code(),
                 components=self.components,
                 funcname=self.to_py_function,
-                size=len(self.components)
+                size=self.size,
             )
             self._convert_to_py_code = TempitaUtilityCode.load(
                 "ToPyCTupleUtility", "TypeConversion.c", context=context)
@@ -4634,18 +4634,18 @@ class CTupleType(CType):
         if self._convert_from_py_code is False:
             return None  # tri-state-ish
 
-        if self._convert_from_py_code is None:
-            for component in self.components:
-                if not component.create_from_py_utility_code(env):
-                    self.from_py_function = None
-                    self._convert_from_py_code = False
-                    return False
+        for component in self.components:
+            if not component.create_from_py_utility_code(env):
+                self.from_py_function = None
+                self._convert_from_py_code = False
+                return False
 
+        if self._convert_from_py_code is None:
             context = dict(
                 struct_type_decl=self.empty_declaration_code(),
                 components=self.components,
                 funcname=self.from_py_function,
-                size=len(self.components)
+                size=self.size,
             )
             self._convert_from_py_code = TempitaUtilityCode.load(
                 "FromPyCTupleUtility", "TypeConversion.c", context=context)
