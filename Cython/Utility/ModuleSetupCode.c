@@ -1849,6 +1849,7 @@ static void __pyx_insert_code_object(int code_line, PyCodeObject* code_object) {
     if ((pos < __pyx_code_cache.count) && unlikely(__pyx_code_cache.entries[pos].code_line == code_line)) {
         PyCodeObject* tmp = entries[pos].code_object;
         entries[pos].code_object = code_object;
+        Py_INCREF(code_object);
         Py_DECREF(tmp);
         return;
     }
