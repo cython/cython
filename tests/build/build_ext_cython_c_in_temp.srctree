@@ -1,0 +1,30 @@
+
+PYTHON setup.py build_ext --inplace --cython-c-in-temp
+PYTHON -c 'import mymodule; assert mymodule.test_string == "TEST"'
+PYTHON check_paths.py
+
+############# setup.py #############
+
+from Cython.Distutils.extension import Extension
+from Cython.Build import build_ext
+from distutils.core import setup
+
+setup(
+    name='Hello world app',
+    ext_modules = [
+        Extension(
+            name = 'mymodule',
+            sources=['mymodule.pyx'],
+        )
+    ],
+    cmdclass={'build_ext': build_ext},
+)
+
+######## mymodule.pyx ########
+
+test_string = "TEST"
+
+######## check_paths.py ########
+
+import os
+assert not os.path.exists("mymodule.c")

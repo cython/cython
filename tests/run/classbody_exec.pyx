@@ -1,11 +1,9 @@
-__doc__ = u"""
-    >>> print(D)
-    {u'answer': (42, 42)}
-"""
+# mode: run
 
-import sys
-if sys.version_info[0] >= 3:
-    __doc__ = __doc__.replace(u"u'", u"'")
+__doc__ = """
+    >>> print(D)
+    {'answer': (42, 42)}
+"""
 
 D = {}
 

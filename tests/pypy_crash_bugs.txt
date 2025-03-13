@@ -5,9 +5,11 @@
 run.fastcall
 memslice
 
-# """Fatal RPython error: NotImplementedError
-# Aborted (core dumped)"""
-run.py35_pep492_interop
-
 # gc issue?
 memoryview_in_subclasses
+
+# """Fatal RPython error: NotImplementedError"""
+pep442_tp_finalize
+
+# Deadlock when calling Event.set
+generator_thread_safety

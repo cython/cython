@@ -1,4 +1,4 @@
-# ticket: 255
+# ticket: t255
 
 __doc__ = u""
 
@@ -187,7 +187,7 @@ def test_add_short(x, y):
 SSHORT_MAX = <signed short>((<unsigned short>-1)>>1)
 SSHORT_MIN = (-SSHORT_MAX-1)
 
-def test_sshort(short x):
+def test_sshort(signed short x):
    u"""
    >>> test_sshort(SSHORT_MIN-1) #doctest: +ELLIPSIS
    Traceback (most recent call last):
@@ -764,6 +764,20 @@ def test_convert_pylong(x):
    """
    cdef long long r = x
    return r
+
+
+cdef enum:
+   ANONYMOUS_ENUM_MEMBER = 1
+
+def test_anonymous_enum():
+   """
+   The main point here is that the from-py conversion function shouldn't
+   conflict with the function for int
+   >>> test_anonymous_enum()
+   1
+   """
+   return ANONYMOUS_ENUM_MEMBER
+
 
 # -------------------------------------------------------------------
 

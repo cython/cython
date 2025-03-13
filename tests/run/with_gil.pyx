@@ -259,7 +259,7 @@ cpdef test_cpdef():
 
 # Now test some cdef functions with different return types
 
-cdef void void_nogil_ignore_exception() nogil:
+cdef void void_nogil_ignore_exception() noexcept nogil:
     with gil:
         raise ExceptionWithMsg("This is swallowed")
 
@@ -267,7 +267,7 @@ cdef void void_nogil_ignore_exception() nogil:
     with gil:
         print "unreachable"
 
-cdef void void_nogil_nested_gil() nogil:
+cdef void void_nogil_nested_gil() noexcept nogil:
     with gil:
         with nogil:
             with gil:
@@ -304,7 +304,7 @@ def test_nogil_void_funcs_with_nogil():
         void_nogil_nested_gil()
 
 
-cdef PyObject *nogil_propagate_exception() nogil except NULL:
+cdef PyObject *nogil_propagate_exception() except NULL nogil:
     with nogil:
         with gil:
             raise Exception("This exception propagates!")

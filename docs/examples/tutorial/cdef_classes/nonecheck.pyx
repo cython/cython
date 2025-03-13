@@ -3,6 +3,7 @@
 
 import cython
 
+
 cdef class MyClass:
     pass
 

@@ -3,7 +3,7 @@ Building Cython code
 
 Cython code must, unlike Python, be compiled. This happens in two stages:
 
- - A ``.pyx`` file is compiled by Cython to a ``.c`` file, containing
+ - A ``.pyx`` or ``.py`` file is compiled by Cython to a ``.c`` file, containing
    the code of a Python extension module.
  - The ``.c`` file is compiled by a C compiler to
    a ``.so`` file (or ``.pyd`` on Windows) which can be
@@ -13,11 +13,15 @@ Cython code must, unlike Python, be compiled. This happens in two stages:
    
 To understand fully the Cython + setuptools build process,
 one may want to read more about
-`distributing Python modules <https://docs.python.org/3/distributing/index.html>`_.
+`distributing Python modules <https://packaging.python.org/en/latest/tutorials/packaging-projects/>`_.
 
 There are several ways to build Cython code:
 
  - Write a setuptools ``setup.py``. This is the normal and recommended way.
+ - Run the ``cythonize`` command-line utility. This is a good approach for
+   compiling a single Cython source file directly to an extension.
+   A source file can be built "in place" (so that the extension module is created
+   next to the source file, ready to be imported) with ``cythonize -i filename.pyx``.
  - Use :ref:`Pyximport<pyximport>`, importing Cython ``.pyx`` files as if they
    were ``.py`` files (using setuptools to compile and build in the background).
    This method is easier than writing a ``setup.py``, but is not very flexible.
@@ -49,10 +53,6 @@ To build, run ``python setup.py build_ext --inplace``.  Then simply
 start a Python session and do ``from hello import say_hello_to`` and
 use the imported function as you see fit.
 
-One caveat: the default action when running ``python setup.py install`` is to
-create a zipped ``egg`` file which will not work with ``cimport`` for ``pxd``
-files when you try to use them from a dependent package.  To prevent this,
-include ``zip_safe=False`` in the arguments to ``setup()``.
 
 .. _jupyter-notebook:
 
@@ -63,7 +63,7 @@ Cython can be used conveniently and interactively from a web browser
 through the Jupyter notebook.  To install Jupyter notebook, e.g. into a virtualenv,
 use pip:
 
-.. sourcecode:: bash
+.. code-block:: bash
 
     (venv)$ pip install jupyter
     (venv)$ jupyter notebook
@@ -73,14 +73,32 @@ and load the ``Cython`` extension from within the Jupyter notebook::
 
     %load_ext Cython
 
-Then, prefix a cell with the ``%%cython`` marker to compile it::
+Then, prefix a cell with the ``%%cython`` marker to compile it
 
-    %%cython
+.. tabs::
 
-    cdef int a = 0
-    for i in range(10):
-        a += i
-    print(a)
+    .. group-tab:: Pure Python
+
+        .. code-block:: python
+
+            %%cython
+
+            a: cython.int = 0
+            for i in range(10):
+                a += i
+            print(a)
+
+
+    .. group-tab:: Cython
+
+        .. code-block:: python
+
+            %%cython
+
+            cdef int a = 0
+            for i in range(10):
+                a += i
+            print(a)
 
 You can show Cython's code analysis by passing the ``--annotate`` option::
 

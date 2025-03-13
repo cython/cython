@@ -1,4 +1,4 @@
-# ticket: 412
+# ticket: t412
 
 cdef int   i = 'x'
 cdef char  c = 'x'

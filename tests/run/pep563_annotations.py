@@ -24,3 +24,17 @@ def f(a: 1+2==3, b: list, c: this_cant_evaluate, d: "Hello from inside a string"
     True
     """
     pass
+
+
+def empty_decorator(cls):
+    return cls
+
+
+@empty_decorator
+class DecoratedStarship(object):
+    """
+    >>> sorted(DecoratedStarship.__annotations__.items())
+    [('captain', 'str'), ('damage', 'cython.int')]
+    """
+    captain: str = 'Picard'               # instance variable with default
+    damage: cython.int                    # instance variable without default

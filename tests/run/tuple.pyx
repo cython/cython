@@ -1,3 +1,5 @@
+# mode: run
+# tag: builtins
 
 cimport cython
 
@@ -71,6 +73,19 @@ def l(obj1, obj2, obj3, obj4, obj5):
     return obj1
 
 
+def const_bool_tuple():
+    """
+    >>> const_bool_tuple()
+    ((True, False), (False, True), (True, False), (False, False, True), (False, True))
+    """
+    a = (True, False)
+    b = (False, True)
+    c = (True, False)  # same as a
+    d = (False, False, True)
+    e = (5+1 == 5, 5 == 5)  # same as b
+    return a, b, c, d, e
+
+
 def tuple_none():
     """
     >>> tuple_none()   # doctest: +ELLIPSIS
@@ -117,9 +132,9 @@ def tuple_of_args_tuple(*args):
 @cython.test_fail_if_path_exists('//SimpleCallNode//SimpleCallNode')
 def tuple_of_object(ob):
     """
-    >>> tuple(type(1))
+    >>> tuple(type(1))  # doctest: +ELLIPSIS
     Traceback (most recent call last):
-    TypeError: 'type' object is not iterable
+    TypeError: ...type...
     >>> sorted(tuple(set([1, 2, 3])))
     [1, 2, 3]
     """

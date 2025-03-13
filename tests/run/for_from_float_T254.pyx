@@ -1,4 +1,4 @@
-# ticket: 254
+# ticket: t254
 
 def double_target(a, b):
     """

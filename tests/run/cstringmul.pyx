@@ -1,3 +1,6 @@
+# mode: run
+# cython: language_level=2
+
 __doc__ = u"""
 >>> print(spam)
 eggseggseggseggs
@@ -31,3 +34,18 @@ grail_long = 700 * "tomato"
 uspam = u"eggs" * 4
 ugrail = 7 * u"tomato"
 ugrail_long = 700 * u"tomato"
+
+cimport cython
+
+@cython.test_assert_path_exists(
+    "//UnicodeNode[@value = '-----']",
+    "//UnicodeNode[@bytes_value = b'-----']",
+    "//BytesNode[@value = b'-----']",
+)
+def gh3951():
+    """
+    Bug occurred with language_level=2 and affected StringNode.value
+    >>> gh3951()
+    ('-----', b'-----')
+    """
+    return "-"*5, b"-"*5

@@ -27,9 +27,7 @@ typedef struct arraydescr {
     int itemsize;
     PyObject * (*getitem)(struct arrayobject *, Py_ssize_t);
     int (*setitem)(struct arrayobject *, Py_ssize_t, PyObject *);
-#if PY_MAJOR_VERSION >= 3
     char *formats;
-#endif
 } arraydescr;
 
 
@@ -47,21 +45,22 @@ struct arrayobject {
         char *as_chars;
         unsigned long *as_ulongs;
         long *as_longs;
-#if PY_MAJOR_VERSION >= 3
         unsigned long long *as_ulonglongs;
         long long *as_longlongs;
-#endif
         short *as_shorts;
         unsigned short *as_ushorts;
-        Py_UNICODE *as_pyunicodes;
+        // Don't use Py_UNICODE ourselves in the union. This avoids deprecation warnings 
+        // for anyone who uses array.array but doesn't use this field.
+        #if PY_VERSION_HEX >= 0x030d0000
+        Py_DEPRECATED(3.13) 
+        #endif
+            wchar_t *as_pyunicodes;
         void *as_voidptr;
     } data;
     Py_ssize_t allocated;
     struct arraydescr *ob_descr;
     PyObject *weakreflist; /* List of weak references */
-#if PY_MAJOR_VERSION >= 3
-        int ob_exports;  /* Number of exported buffers */
-#endif
+    int ob_exports;  /* Number of exported buffers */
 };
 
 #ifndef NO_NEWARRAY_INLINE
@@ -88,7 +87,7 @@ static CYTHON_INLINE PyObject * newarrayobject(PyTypeObject *type, Py_ssize_t si
     op->ob_descr = descr;
     op->allocated = size;
     op->weakreflist = NULL;
-    op->ob_size = size;
+    __Pyx_SET_SIZE(op, size);
     if (size <= 0) {
         op->data.ob_item = NULL;
     }
@@ -116,7 +115,7 @@ static CYTHON_INLINE int resize(arrayobject *self, Py_ssize_t n) {
         return -1;
     }
     self->data.ob_item = (char*) items;
-    self->ob_size = n;
+    __Pyx_SET_SIZE(self, n);
     self->allocated = n;
     return 0;
 }
@@ -126,7 +125,7 @@ static CYTHON_INLINE int resize_smart(arrayobject *self, Py_ssize_t n) {
     void *items = (void*) self->data.ob_item;
     Py_ssize_t newsize;
     if (n < self->allocated && n*4 > self->allocated) {
-        self->ob_size = n;
+        __Pyx_SET_SIZE(self, n);
         return 0;
     }
     newsize = n + (n / 2) + 1;
@@ -140,7 +139,7 @@ static CYTHON_INLINE int resize_smart(arrayobject *self, Py_ssize_t n) {
         return -1;
     }
     self->data.ob_item = (char*) items;
-    self->ob_size = n;
+    __Pyx_SET_SIZE(self, n);
     self->allocated = newsize;
     return 0;
 }

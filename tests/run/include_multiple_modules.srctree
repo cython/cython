@@ -1,0 +1,31 @@
+PYTHON setup.py build_ext --inplace
+
+############# setup.py #############
+
+from Cython.Build.Dependencies import cythonize
+from distutils.core import setup
+
+setup(
+    ext_modules = cythonize(["a.pyx", "b.pyx", "include_both.pyx"]),
+    )
+
+############# a.pyx ###############
+
+cdef public f():
+    pass
+    
+############# b.pyx ###############
+
+cdef public g():
+    pass
+    
+############# include_both.pyx ####
+
+# This is just checking that a and b don't duplicate any names
+# and thus it's possible to include them both in one place
+
+cdef extern from "a.h":
+    pass
+    
+cdef extern from "b.h":
+    pass

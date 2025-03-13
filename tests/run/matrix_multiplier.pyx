@@ -22,9 +22,11 @@ ExtMatMult("ExtMatMult('ExtMatMult(1) @ ExtMatMult(2)') @ ExtMatMult(2)")
 >>> x @ y
 Traceback (most recent call last):
 TypeError: unsupported operand type(s) for @: 'int' and 'int'
->>> x @= y
+
+PyPy exception message has '@' rather than '@='
+>>> x @= y  # doctest: +ELLIPSIS
 Traceback (most recent call last):
-TypeError: unsupported operand type(s) for @=: 'int' and 'int'
+TypeError: unsupported operand type(s) for @...: 'int' and 'int'
 
 >>> y = MatMult(22)
 >>> x @= y
@@ -112,9 +114,9 @@ def test_imatmul(a, b):
     >>> print(test_imatmul(MatMult('abc'), 11))
     MatMult("MatMult('abc') @ 11")
 
-    >>> test_imatmul(1, 2)
+    >>> test_imatmul(1, 2)  # doctest: +ELLIPSIS
     Traceback (most recent call last):
-    TypeError: unsupported operand type(s) for @=: 'int' and 'int'
+    TypeError: unsupported operand type(s) for @...: 'int' and 'int'
     """
     a @= b
     return a

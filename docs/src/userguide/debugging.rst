@@ -21,6 +21,8 @@ source, and then running::
     make
     sudo make install
 
+Installing the Cython debugger can be quite tricky. `This installation script and example code <https://gitlab.com/volkerweissmann/cygdb_installation>`_ might be useful.
+
 The debugger will need debug information that the Cython compiler can export.
 This can be achieved from within the setup script by passing ``gdb_debug=True``
 to ``cythonize()``::

@@ -1,8 +1,12 @@
 def primes(int nb_primes):
     cdef int n, i, len_p
-    cdef int p[1000]
+    cdef int[1000] p
+
     if nb_primes > 1000:
         nb_primes = 1000
+
+
+
 
     len_p = 0  # The current number of elements in p.
     n = 2
@@ -18,6 +22,6 @@ def primes(int nb_primes):
             len_p += 1
         n += 1
 
-    # Let's return the result in a python list:
-    result_as_list  = [prime for prime in p[:len_p]]
+    # Let's copy the result into a Python list:
+    result_as_list = [prime for prime in p[:len_p]]
     return result_as_list

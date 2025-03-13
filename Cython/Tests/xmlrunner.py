@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-
 """unittest-xml-reporting is a PyUnit-based TestRunner that can export test
 results to XML files that can be consumed by a wide range of tools, such as
 build systems, IDEs and Continuous Integration servers.
@@ -38,17 +36,14 @@ if __name__ == '__main__':
     unittest.main(testRunner=xmlrunner.XMLTestRunner(output='test-reports'))
 """
 
-from __future__ import absolute_import
 
 import os
 import sys
 import time
-from unittest import TestResult, _TextTestResult, TextTestRunner
+from unittest import TestResult, TextTestResult, TextTestRunner
 import xml.dom.minidom
-try:
-    from StringIO import StringIO
-except ImportError:
-    from io import StringIO  # doesn't accept 'str' in Py2
+
+from io import StringIO
 
 
 class XMLDocument(xml.dom.minidom.Document):
@@ -58,7 +53,7 @@ class XMLDocument(xml.dom.minidom.Document):
         return self.createCDATASection(data)
 
 
-class _TestInfo(object):
+class _TestInfo:
     """This class is used to keep useful information about the execution of a
     test method.
     """
@@ -95,7 +90,7 @@ class _TestInfo(object):
             self.err, self.test_method)
 
 
-class _XMLTestResult(_TextTestResult):
+class _XMLTestResult(TextTestResult):
     """A test result class that can express test results in a XML report.
 
     Used by XMLTestRunner.
@@ -103,7 +98,7 @@ class _XMLTestResult(_TextTestResult):
     def __init__(self, stream=sys.stderr, descriptions=1, verbosity=1,
                  elapsed_times=True):
         "Create a new instance of _XMLTestResult."
-        _TextTestResult.__init__(self, stream, descriptions, verbosity)
+        TextTestResult.__init__(self, stream, descriptions, verbosity)
         self.successes = []
         self.callback = None
         self.elapsed_times = elapsed_times
@@ -158,7 +153,7 @@ class _XMLTestResult(_TextTestResult):
     def stopTest(self, test):
         "Called after execute each test method."
         self._restore_standard_output()
-        _TextTestResult.stopTest(self, test)
+        TextTestResult.stopTest(self, test)
         self.stop_time = time.time()
 
         if self.callback and callable(self.callback):

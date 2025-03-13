@@ -1,4 +1,4 @@
-# cython: language_level=3
+# cython: language_level=3str
 # mode: run
 
 cimport cython
@@ -73,10 +73,6 @@ def test_fused_cpdef():
 
 
 midimport_run = io.StringIO()
-if sys.version_info.major < 3:
-    # Monkey-patch midimport_run.write to accept non-unicode strings under Python 2.
-    midimport_run.write = lambda c: io.StringIO.write(midimport_run, unicode(c))
-
 realstdout = sys.stdout
 sys.stdout = midimport_run
 
@@ -186,3 +182,39 @@ def test_ambiguousmatch():
     Traceback (most recent call last):
     TypeError: Function call with ambiguous argument types
     """
+
+# https://github.com/cython/cython/issues/4409
+# default arguments + fused cpdef were crashing
+cpdef literal_default(cython.integral x, some_string="value"):
+    return x, some_string
+
+cpdef mutable_default(cython.integral x, some_value=[]):
+    some_value.append(x)
+    return some_value
+
+def test_defaults():
+    """
+    >>> literal_default(1)
+    (1, 'value')
+    >>> literal_default(1, "hello")
+    (1, 'hello')
+    >>> mutable_default(1)
+    [1]
+    >>> mutable_default(2)
+    [1, 2]
+    >>> mutable_default(3,[])
+    [3]
+    """
+
+cdef class C:
+    cpdef object has_default_struct(self, cython.floating x, a=None):
+        return x, a
+
+# https://github.com/cython/cython/issues/5588
+# On some Python versions this was causing a compiler crash
+def test_call_has_default_struct(C c, double x):
+    """
+    >>> test_call_has_default_struct(C(), 5.)
+    (5.0, None)
+    """
+    return c.has_default_struct(x)

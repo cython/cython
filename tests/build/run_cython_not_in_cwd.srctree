@@ -1,0 +1,44 @@
+#
+# Check that when cython is run on a file not in CWD it does not output paths
+# that are either basename or absolute paths in the generated C code. Instead
+# import-relative paths are used like pkg/mod.pyx even if those are not valid
+# relative paths from CWD.
+#
+
+CYTHON src/pkg/mod.pyx -o build/src/pkg/mod1.pyx.c
+CD build
+CYTHON ../src/pkg/mod.pyx -o src/pkg/mod2.pyx.c
+CD ..
+PYTHON check_paths_from_cython.py
+
+######## src/pkg/__init__.py ########
+
+# __init__.py is needed because cython uses this to determine the
+# root of the package structure.
+
+######## src/pkg/mod.pyx ########
+
+def func(x):
+    return 2*x
+
+######## build/src/pkg/empty_build_output_directory.txt ########
+
+# Build outputs go in the "build/" directory and cython is run from there.
+
+######## check_paths_from_cython.py ########
+
+def grep_paths(basename, fname):
+    with open(fname) as fin:
+        for line in fin:
+            if basename in line:
+                [part] = [p for p in line.split() if basename in p]
+                yield part.rstrip(',\n;:01234566789').strip('"')
+
+res1 = set(grep_paths('mod.pyx', 'build/src/pkg/mod1.pyx.c'))
+res2 = set(grep_paths('mod.pyx', 'build/src/pkg/mod2.pyx.c'))
+
+# Running cython on a file in CWD uses some paths relative to CWD.
+assert res1 == {"src/pkg/mod.pyx", "pkg/mod.pyx"}, res1
+
+# When not in CWD all paths are relative to sys.path.
+assert res2 == {"pkg/mod.pyx"}, res2

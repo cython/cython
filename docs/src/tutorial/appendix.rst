@@ -2,7 +2,7 @@ Appendix: Installing MinGW on Windows
 =====================================
 
  1. Download the MinGW installer from
-    http://www.mingw.org/wiki/HOWTO_Install_the_MinGW_GCC_Compiler_Suite.
+    https://www.mingw.org/wiki/HOWTO_Install_the_MinGW_GCC_Compiler_Suite.
     (As of this
     writing, the download link is a bit difficult to find; it's under
     "About" in the menu on the left-hand side). You want the file
@@ -32,7 +32,7 @@ Python 3.8+
 -----------
 
 Since Python 3.8, the search paths of DLL dependencies has been reset.
-(`changelog <https://docs.python.org/3/whatsnew/3.8.html#changes-in-the-python-api>`_)
+(`changelog <https://docs.python.org/3/whatsnew/3.8.html#bpo-36085-whatsnew>`_)
 
 Only the system paths, the directory containing the DLL or PYD file
 are searched for load-time dependencies.

@@ -1,4 +1,4 @@
-# ticket: 418
+# ticket: t418
 # mode: error
 
 import somemod.child

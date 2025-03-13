@@ -1,6 +1,5 @@
-# queue.pyx
-
 cimport cqueue
+
 
 cdef class Queue:
     cdef cqueue.Queue* _c_queue

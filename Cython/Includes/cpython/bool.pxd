@@ -5,7 +5,7 @@ cdef extern from "Python.h":
     # 7.2.2 Boolean Objects
     ############################################################################
 
-    ctypedef class __builtin__.bool [object PyBoolObject]:
+    ctypedef class __builtin__.bool [object PyLongObject]:
         pass
 
     # Booleans in Python are implemented as a subclass of
@@ -35,4 +35,3 @@ cdef extern from "Python.h":
     object PyBool_FromLong(long v)
     # Return value: New reference.
     # Return a new reference to Py_True or Py_False depending on the truth value of v.
-

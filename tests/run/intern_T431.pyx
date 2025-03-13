@@ -1,4 +1,4 @@
-# ticket: 431
+# ticket: t431
 
 __doc__ = u"""
 >>> s == s_interned
@@ -9,16 +9,6 @@ True
 True
 """
 
-import sys
-if sys.version_info[0] < 3:
-    __doc__ += u"""
->>> intern(s) is s_interned
-True
->>> intern('abc') is s_interned
-True
->>> intern('abc') is s_interned_dynamic
-True
-"""
 
 s = 'abc'
 

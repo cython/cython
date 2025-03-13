@@ -23,3 +23,16 @@ cdef A a
 foo(2, 3, [], [], P, P, &P)
 a.point("something", 3, "anything", [], "an object", P, &P)
 
+
+# Test that internally generated names do not conflict.
+cdef class A_spec:
+    pass
+
+cdef class A_members:
+    pass
+
+cdef class A_methods:
+    pass
+
+cdef class A_slots:
+    pass

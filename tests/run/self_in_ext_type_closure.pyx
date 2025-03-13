@@ -1,5 +1,5 @@
 # mode: run
-# ticket: 742
+# ticket: t742
 
 import cython
 

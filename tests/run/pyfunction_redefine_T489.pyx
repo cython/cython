@@ -1,4 +1,4 @@
-# ticket: 489
+# ticket: t489
 
 """
 >>> xxx

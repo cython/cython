@@ -1,5 +1,3 @@
-from __future__ import absolute_import
-
 from .Visitor import ScopeTrackingTransform
 from .Nodes import StatListNode, SingleAssignmentNode, CFuncDefNode, DefNode
 from .ExprNodes import DictNode, DictItemNode, NameNode, UnicodeNode
@@ -10,9 +8,9 @@ from . import Symtab
 class AutoTestDictTransform(ScopeTrackingTransform):
     # Handles autotestdict directive
 
-    blacklist = ['__cinit__', '__dealloc__', '__richcmp__',
-                 '__nonzero__', '__bool__',
-                 '__len__', '__contains__']
+    excludelist = ['__cinit__', '__dealloc__', '__richcmp__',
+                   '__nonzero__', '__bool__',
+                   '__len__', '__contains__']
 
     def visit_ModuleNode(self, node):
         if node.is_pxd:
@@ -28,7 +26,7 @@ class AutoTestDictTransform(ScopeTrackingTransform):
         assert isinstance(node.body, StatListNode)
 
         # First see if __test__ is already created
-        if u'__test__' in node.scope.entries:
+        if '__test__' in node.scope.entries:
             # Do nothing
             return node
 
@@ -37,12 +35,12 @@ class AutoTestDictTransform(ScopeTrackingTransform):
         self.tests = []
         self.testspos = node.pos
 
-        test_dict_entry = node.scope.declare_var(EncodedString(u'__test__'),
+        test_dict_entry = node.scope.declare_var(EncodedString('__test__'),
                                                  py_object_type,
                                                  pos,
                                                  visibility='public')
         create_test_dict_assignment = SingleAssignmentNode(pos,
-            lhs=NameNode(pos, name=EncodedString(u'__test__'),
+            lhs=NameNode(pos, name=EncodedString('__test__'),
                          entry=test_dict_entry),
             rhs=DictNode(pos, key_value_pairs=self.tests))
         self.visitchildren(node)
@@ -51,8 +49,8 @@ class AutoTestDictTransform(ScopeTrackingTransform):
 
     def add_test(self, testpos, path, doctest):
         pos = self.testspos
-        keystr = u'%s (line %d)' % (path, testpos[1])
-        key = UnicodeNode(pos, value=EncodedString(keystr))
+        keystr = EncodedString(f'{path} (line {testpos[1]:d})')
+        key = UnicodeNode(pos, value=keystr)
         value = UnicodeNode(pos, value=doctest)
         self.tests.append(DictItemNode(pos, key=key, value=value))
 
@@ -81,7 +79,7 @@ class AutoTestDictTransform(ScopeTrackingTransform):
                     name = node.entry.name
             else:
                 name = node.name
-            if self.scope_type == 'cclass' and name in self.blacklist:
+            if self.scope_type == 'cclass' and name in self.excludelist:
                 return node
             if self.scope_type == 'pyclass':
                 class_name = self.scope_node.name

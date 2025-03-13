@@ -12,18 +12,15 @@ __doc__ = """
 ...     print('%s = %r' % item)
 a = 1
 b = 2
-x = u'abc'
+x = 'abc'
 
 >>> except_as_deletes
 True
+
 >>> no_match_does_not_touch_target
 True
 """
 
-import sys
-IS_PY2 = sys.version_info[0] < 3
-if not IS_PY2:
-    __doc__ = __doc__.replace(" u'", " '")
 
 def locals_function(a, b=2):
     x = 'abc'
@@ -352,7 +349,7 @@ def unicode_literals():
 
 
 def non_ascii_unprefixed_str():
-    u"""
+    """
     >>> s = non_ascii_unprefixed_str()
     >>> isinstance(s, bytes)
     False
@@ -365,7 +362,7 @@ def non_ascii_unprefixed_str():
 
 
 def non_ascii_raw_str():
-    u"""
+    """
     >>> s = non_ascii_raw_str()
     >>> isinstance(s, bytes)
     False
@@ -378,7 +375,7 @@ def non_ascii_raw_str():
 
 
 def non_ascii_raw_prefixed_unicode():
-    u"""
+    """
     >>> s = non_ascii_raw_prefixed_unicode()
     >>> isinstance(s, bytes)
     False
@@ -616,25 +613,27 @@ def annotation_syntax(a: "test new test", b : "other" = 2, *args: "ARGS", **kwar
     >>> len(annotation_syntax.__annotations__)
     5
     >>> print(annotation_syntax.__annotations__['a'])
-    u'test new test'
+    'test new test'
     >>> print(annotation_syntax.__annotations__['b'])
-    u'other'
+    'other'
     >>> print(annotation_syntax.__annotations__['args'])
-    u'ARGS'
+    'ARGS'
     >>> print(annotation_syntax.__annotations__['kwargs'])
-    u'KWARGS'
+    'KWARGS'
     >>> print(annotation_syntax.__annotations__['return'])
-    u'ret'
+    'ret'
     """
     result : int = a + b
 
     return result
 
 
-def builtin_as_annotation(text: str):
+@cython.annotation_typing(False)
+def builtin_as_ignored_annotation(text: str):
+    # Used to crash the compiler when annotation typing is disabled.
     # See https://github.com/cython/cython/issues/2811
     """
-    >>> builtin_as_annotation("abc")
+    >>> builtin_as_ignored_annotation("abc")
     a
     b
     c
@@ -643,14 +642,70 @@ def builtin_as_annotation(text: str):
         print(c)
 
 
+@cython.annotation_typing(True)
+def int_annotation(x: int) -> int:
+    """
+    >>> print(int_annotation(1))
+    2
+    >>> print(int_annotation(10))
+    1024
+    >>> print(int_annotation(100))
+    1267650600228229401496703205376
+    >>> print(int_annotation((10 * 1000 * 1000) // 1000 // 1000))  # 'long' arg in Py2
+    1024
+    >>> print(int_annotation((100 * 1000 * 1000) // 1000 // 1000))  # 'long' arg in Py2
+    1267650600228229401496703205376
+    """
+    return 2 ** x
+
+
+@cython.annotation_typing(True)
 async def async_def_annotations(x: 'int') -> 'float':
     """
     >>> ret, arg = sorted(async_def_annotations.__annotations__.items())
     >>> print(ret[0]); print(ret[1])
     return
-    u'float'
+    'float'
     >>> print(arg[0]); print(arg[1])
     x
-    u'int'
+    'int'
     """
     return float(x)
+
+
+def const_str_index(int n):
+    """
+    >>> const_str_index(0)
+    '0'
+    >>> const_str_index(12)
+    '1'
+    """
+    return str(n)[0]
+
+
+@cython.test_fail_if_path_exists(
+    "//CoerceToPyTypeNode",
+)
+@cython.test_assert_path_exists(
+    "//MulNode[@is_sequence_mul = True]",
+)
+def string_multiply(str s, int N):
+    """
+    >>> print(string_multiply(u"abc", 3))
+    abcabcabc
+    """
+    return s * N
+
+
+@cython.test_fail_if_path_exists(
+    "//CoerceToPyTypeNode",
+)
+@cython.test_assert_path_exists(
+    "//MulNode[@is_sequence_mul = True]",
+)
+def string_multiply_call(s, int N):
+    """
+    >>> print(string_multiply_call(u"abc", 3))
+    abcabcabc
+    """
+    return str(s) * N

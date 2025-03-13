@@ -1,5 +1,3 @@
-# cython: language_level=3str
-
 """
 A small templating language
 
@@ -31,28 +29,27 @@ can use ``__name='tmpl.html'`` to set the name of the template.
 If there are syntax errors ``TemplateError`` will be raised.
 """
 
-from __future__ import absolute_import
 
 import re
 import sys
-import cgi
-try:
-    from urllib import quote as url_quote
-except ImportError:  # Py3
-    from urllib.parse import quote as url_quote
 import os
 import tokenize
 from io import StringIO
 
 from ._looper import looper
-from .compat3 import bytes, unicode_, basestring_, next, is_unicode, coerce_text
 
-__all__ = ['TemplateError', 'Template', 'sub', 'HTMLTemplate',
-           'sub_html', 'html', 'bunch']
+__all__ = ['TemplateError', 'Template', 'sub', 'bunch']
 
 in_re = re.compile(r'\s+in\s+')
 var_re = re.compile(r'^[a-z_][a-z0-9_]*$', re.I)
 
+def coerce_text(v):
+    if not isinstance(v, str):
+        if hasattr(v, '__str__'):
+            return str(v)
+        else:
+            return bytes(v)
+    return v
 
 class TemplateError(Exception):
     """Exception raised while parsing a template
@@ -88,7 +85,7 @@ def get_file_template(name, from_template):
         get_template=from_template.get_template)
 
 
-class Template(object):
+class Template:
 
     default_namespace = {
         'start_braces': '{{',
@@ -101,22 +98,31 @@ class Template(object):
 
     def __init__(self, content, name=None, namespace=None, stacklevel=None,
                  get_template=None, default_inherit=None, line_offset=0,
-                 delimeters=None):
+                 delimiters=None, delimeters=None):
         self.content = content
 
-        # set delimeters
-        if delimeters is None:
-            delimeters = (self.default_namespace['start_braces'],
+        # set delimiters
+        if delimeters:
+            import warnings
+            warnings.warn(
+                "'delimeters' kwarg is being deprecated in favor of correctly"
+                " spelled 'delimiters'. Please adjust your code.",
+                DeprecationWarning
+            )
+            if delimiters is None:
+                delimiters = delimeters
+        if delimiters is None:
+            delimiters = (self.default_namespace['start_braces'],
                           self.default_namespace['end_braces'])
         else:
-            #assert len(delimeters) == 2 and all([isinstance(delimeter, basestring)
-            #                                     for delimeter in delimeters])
+            #assert len(delimiters) == 2 and all([isinstance(delimiter, str)
+            #                                     for delimiter in delimiters])
             self.default_namespace = self.__class__.default_namespace.copy()
-            self.default_namespace['start_braces'] = delimeters[0]
-            self.default_namespace['end_braces'] = delimeters[1]
-        self.delimeters = delimeters
+            self.default_namespace['start_braces'] = delimiters[0]
+            self.default_namespace['end_braces'] = delimiters[1]
+        self.delimiters = self.delimeters = delimiters  # Keep a legacy read-only copy, but don't use it.
 
-        self._unicode = is_unicode(content)
+        self._unicode = isinstance(content, str)
         if name is None and stacklevel is not None:
             try:
                 caller = sys._getframe(stacklevel)
@@ -136,7 +142,7 @@ class Template(object):
                 if lineno:
                     name += ':%s' % lineno
         self.name = name
-        self._parsed = parse(content, name=name, line_offset=line_offset, delimeters=self.delimeters)
+        self._parsed = parse(content, name=name, line_offset=line_offset, delimiters=self.delimiters)
         if namespace is None:
             namespace = {}
         self.namespace = namespace
@@ -213,7 +219,7 @@ class Template(object):
     def _interpret_codes(self, codes, ns, out, defs):
         __traceback_hide__ = True
         for item in codes:
-            if isinstance(item, basestring_):
+            if isinstance(item, str):
                 out.append(item)
             else:
                 self._interpret_code(item, ns, out, defs)
@@ -284,7 +290,7 @@ class Template(object):
         __traceback_hide__ = True
         # @@: if/else/else gets through
         for part in parts:
-            assert not isinstance(part, basestring_)
+            assert not isinstance(part, str)
             name, pos = part[0], part[1]
             if name == 'else':
                 result = True
@@ -329,13 +335,13 @@ class Template(object):
                 return ''
             if self._unicode:
                 try:
-                    value = unicode_(value)
+                    value = str(value)
                 except UnicodeDecodeError:
                     value = bytes(value)
             else:
-                if not isinstance(value, basestring_):
+                if not isinstance(value, str):
                     value = coerce_text(value)
-                if (is_unicode(value)
+                if (isinstance(value, str)
                         and self.default_encoding):
                     value = value.encode(self.default_encoding)
         except Exception as e:
@@ -356,7 +362,7 @@ class Template(object):
                         e.start,
                         e.end,
                         e.reason + ' in string %r' % value)
-            elif not self._unicode and is_unicode(value):
+            elif not self._unicode and isinstance(value, str):
                 if not self.default_encoding:
                     raise UnicodeEncodeError(
                         'Cannot encode unicode value %r into bytes '
@@ -372,9 +378,10 @@ class Template(object):
         return msg
 
 
-def sub(content, delimeters=None, **kw):
+def sub(content, delimiters=None, **kw):
     name = kw.get('__name')
-    tmpl = Template(content, name=name, delimeters=delimeters)
+    delimeters = kw.pop('delimeters') if 'delimeters' in kw else None  # for legacy code
+    tmpl = Template(content, name=name, delimiters=delimiters, delimeters=delimeters)
     return tmpl.substitute(kw)
 
 
@@ -412,93 +419,8 @@ class bunch(dict):
             self.__class__.__name__,
             ' '.join(['%s=%r' % (k, v) for k, v in sorted(self.items())]))
 
-############################################################
-## HTML Templating
-############################################################
 
-
-class html(object):
-
-    def __init__(self, value):
-        self.value = value
-
-    def __str__(self):
-        return self.value
-
-    def __html__(self):
-        return self.value
-
-    def __repr__(self):
-        return '<%s %r>' % (
-            self.__class__.__name__, self.value)
-
-
-def html_quote(value, force=True):
-    if not force and hasattr(value, '__html__'):
-        return value.__html__()
-    if value is None:
-        return ''
-    if not isinstance(value, basestring_):
-        value = coerce_text(value)
-    if sys.version >= "3" and isinstance(value, bytes):
-        value = cgi.escape(value.decode('latin1'), 1)
-        value = value.encode('latin1')
-    else:
-        value = cgi.escape(value, 1)
-    if sys.version < "3":
-        if is_unicode(value):
-            value = value.encode('ascii', 'xmlcharrefreplace')
-    return value
-
-
-def url(v):
-    v = coerce_text(v)
-    if is_unicode(v):
-        v = v.encode('utf8')
-    return url_quote(v)
-
-
-def attr(**kw):
-    parts = []
-    for name, value in sorted(kw.items()):
-        if value is None:
-            continue
-        if name.endswith('_'):
-            name = name[:-1]
-        parts.append('%s="%s"' % (html_quote(name), html_quote(value)))
-    return html(' '.join(parts))
-
-
-class HTMLTemplate(Template):
-
-    default_namespace = Template.default_namespace.copy()
-    default_namespace.update(dict(
-        html=html,
-        attr=attr,
-        url=url,
-        html_quote=html_quote,
-        ))
-
-    def _repr(self, value, pos):
-        if hasattr(value, '__html__'):
-            value = value.__html__()
-            quote = False
-        else:
-            quote = True
-        plain = Template._repr(self, value, pos)
-        if quote:
-            return html_quote(plain)
-        else:
-            return plain
-
-
-def sub_html(content, **kw):
-    name = kw.get('__name')
-    tmpl = HTMLTemplate(content, name=name)
-    return tmpl.substitute(kw)
-
-
-class TemplateDef(object):
+class TemplateDef:
     def __init__(self, template, func_name, func_signature,
                  body, ns, pos, bound_self=None):
         self._template = template
@@ -575,7 +497,7 @@ class TemplateDef(object):
         return values
 
 
-class TemplateObject(object):
+class TemplateObject:
 
     def __init__(self, name):
         self.__name = name
@@ -585,7 +507,7 @@ class TemplateObject(object):
         return '<%s %s>' % (self.__class__.__name__, self.__name)
 
 
-class TemplateObjectGetter(object):
+class TemplateObjectGetter:
 
     def __init__(self, template_obj):
         self.__template_obj = template_obj
@@ -597,7 +519,7 @@ class TemplateObjectGetter(object):
         return '<%s around %r>' % (self.__class__.__name__, self.__template_obj)
 
 
-class _Empty(object):
+class _Empty:
     def __call__(self, *args, **kw):
         return self
 
@@ -608,16 +530,13 @@ class _Empty(object):
         return 'Empty'
 
     def __unicode__(self):
-        return u''
+        return ''
 
     def __iter__(self):
         return iter(())
 
     def __bool__(self):
         return False
-
-    if sys.version < "3":
-        __nonzero__ = __bool__
 
 Empty = _Empty()
 del _Empty
@@ -627,7 +546,7 @@ del _Empty
 ############################################################
 
 
-def lex(s, name=None, trim_whitespace=True, line_offset=0, delimeters=None):
+def lex(s, name=None, trim_whitespace=True, line_offset=0, delimiters=None):
     """
     Lex a string into chunks:
 
@@ -649,28 +568,28 @@ def lex(s, name=None, trim_whitespace=True, line_offset=0, delimeters=None):
         TemplateError: {{ inside expression at line 1 column 10
 
     """
-    if delimeters is None:
-        delimeters = ( Template.default_namespace['start_braces'],
+    if delimiters is None:
+        delimiters = ( Template.default_namespace['start_braces'],
                        Template.default_namespace['end_braces'] )
     in_expr = False
     chunks = []
     last = 0
     last_pos = (line_offset + 1, 1)
 
-    token_re = re.compile(r'%s|%s' % (re.escape(delimeters[0]),
-                                      re.escape(delimeters[1])))
+    token_re = re.compile(r'%s|%s' % (re.escape(delimiters[0]),
+                                      re.escape(delimiters[1])))
     for match in token_re.finditer(s):
         expr = match.group(0)
         pos = find_position(s, match.end(), last, last_pos)
-        if expr == delimeters[0] and in_expr:
-            raise TemplateError('%s inside expression' % delimeters[0],
+        if expr == delimiters[0] and in_expr:
+            raise TemplateError('%s inside expression' % delimiters[0],
                                 position=pos,
                                 name=name)
-        elif expr == delimeters[1] and not in_expr:
-            raise TemplateError('%s outside expression' % delimeters[1],
+        elif expr == delimiters[1] and not in_expr:
+            raise TemplateError('%s outside expression' % delimiters[1],
                                 position=pos,
                                 name=name)
-        if expr == delimeters[0]:
+        if expr == delimiters[0]:
             part = s[last:match.start()]
             if part:
                 chunks.append(part)
@@ -681,7 +600,7 @@ def lex(s, name=None, trim_whitespace=True, line_offset=0, delimeters=None):
         last = match.end()
         last_pos = pos
     if in_expr:
-        raise TemplateError('No %s to finish last expression' % delimeters[1],
+        raise TemplateError('No %s to finish last expression' % delimiters[1],
                             name=name, position=last_pos)
     part = s[last:]
     if part:
@@ -709,7 +628,7 @@ def trim_lex(tokens):
     """
     last_trim = None
     for i, current in enumerate(tokens):
-        if isinstance(current, basestring_):
+        if isinstance(current, str):
             # we don't trim this
             continue
         item = current[0]
@@ -723,8 +642,8 @@ def trim_lex(tokens):
             next_chunk = ''
         else:
             next_chunk = tokens[i + 1]
-        if (not isinstance(next_chunk, basestring_)
-                or not isinstance(prev, basestring_)):
+        if (not isinstance(next_chunk, str)
+                or not isinstance(prev, str)):
             continue
         prev_ok = not prev or trail_whitespace_re.search(prev)
         if i == 1 and not prev.strip():
@@ -764,7 +683,7 @@ def find_position(string, index, last_index, last_pos):
     return (last_pos[0] + lines, column)
 
 
-def parse(s, name=None, line_offset=0, delimeters=None):
+def parse(s, name=None, line_offset=0, delimiters=None):
     r"""
     Parses a string into a kind of AST
 
@@ -814,10 +733,10 @@ def parse(s, name=None, line_offset=0, delimeters=None):
             ...
         TemplateError: Multi-line py blocks must start with a newline at line 1 column 3
     """
-    if delimeters is None:
-        delimeters = ( Template.default_namespace['start_braces'],
+    if delimiters is None:
+        delimiters = ( Template.default_namespace['start_braces'],
                        Template.default_namespace['end_braces'] )
-    tokens = lex(s, name=name, line_offset=line_offset, delimeters=delimeters)
+    tokens = lex(s, name=name, line_offset=line_offset, delimiters=delimiters)
     result = []
     while tokens:
         next_chunk, tokens = parse_expr(tokens, name)
@@ -826,7 +745,7 @@ def parse(s, name=None, line_offset=0, delimeters=None):
 
 
 def parse_expr(tokens, name, context=()):
-    if isinstance(tokens[0], basestring_):
+    if isinstance(tokens[0], str):
         return tokens[0], tokens[1:]
     expr, pos = tokens[0]
     expr = expr.strip()
@@ -926,7 +845,7 @@ def parse_for(tokens, name, context):
     tokens = tokens[1:]
     context = ('for',) + context
     content = []
-    assert first.startswith('for ')
+    assert first.startswith('for '), first
     if first.endswith(':'):
         first = first[:-1]
     first = first[3:].strip()
@@ -1132,11 +1051,6 @@ def fill_command(args=None):
         metavar="FILENAME",
         help="File to write output to (default stdout)")
     parser.add_option(
-        '--html',
-        dest='use_html',
-        action='store_true',
-        help="Use HTML style filling (including automatic HTML quoting)")
-    parser.add_option(
         '--env',
         dest='use_env',
         action='store_true',
@@ -1165,11 +1079,7 @@ def fill_command(args=None):
     else:
         with open(template_name, 'rb') as f:
             template_content = f.read()
-    if options.use_html:
-        TemplateClass = HTMLTemplate
-    else:
-        TemplateClass = Template
-    template = TemplateClass(template_content, name=template_name)
+    template = Template(template_content, name=template_name)
     result = template.substitute(vars)
     if options.output:
         with open(options.output, 'wb') as f:

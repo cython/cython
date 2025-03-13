@@ -4,16 +4,15 @@
 # so it is convenient to have them in a separate module.
 #
 
-from __future__ import absolute_import
 
 from . import Nodes
 from . import ExprNodes
 from .Nodes import Node
 from .ExprNodes import AtomicExprNode
-from .PyrexTypes import c_ptr_type
+from .PyrexTypes import c_ptr_type, c_bint_type
 
 
-class TempHandle(object):
+class TempHandle:
     # THIS IS DEPRECATED, USE LetRefNode instead
     temp = None
     needs_xdecref = False
@@ -147,6 +146,9 @@ class ResultRefNode(AtomicExprNode):
         if type:
             self.type = type
 
+    def analyse_target_declaration(self, env):
+        pass  # OK - we can assign to this
+
     def analyse_types(self, env):
         if self.expression is not None:
             if not self.expression.type:
@@ -233,7 +235,10 @@ class LetNodeMixin:
         if self._result_in_temp:
             self.temp = self.temp_expression.result()
         else:
-            self.temp_expression.make_owned_reference(code)
+            if self.temp_type.is_memoryviewslice:
+                self.temp_expression.make_owned_memoryviewslice(code)
+            else:
+                self.temp_expression.make_owned_reference(code)
             self.temp = code.funcstate.allocate_temp(
                 self.temp_type, manage_ref=True)
             code.putln("%s = %s;" % (self.temp, self.temp_expression.result()))
@@ -246,7 +251,7 @@ class LetNodeMixin:
             self.temp_expression.generate_disposal_code(code)
             self.temp_expression.free_temps(code)
         else:
-            if self.temp_type.is_pyobject:
+            if self.temp_type.needs_refcounting:
                 code.put_decref_clear(self.temp, self.temp_type)
             code.funcstate.release_temp(self.temp)
 
@@ -360,3 +365,23 @@ class TempResultFromStatNode(ExprNodes.ExprNode):
     def generate_result_code(self, code):
         self.result_ref.result_code = self.result()
         self.body.generate_execution_code(code)
+
+    def generate_function_definitions(self, env, code):
+        self.body.generate_function_definitions(env, code)
+
+
+class HasGilNode(AtomicExprNode):
+    """
+    Simple node that evaluates to 0 or 1 depending on whether we're
+    in a nogil context
+    """
+    type = c_bint_type
+
+    def analyse_types(self, env):
+        return self
+
+    def generate_result_code(self, code):
+        self.has_gil = code.funcstate.gil_owned
+
+    def calculate_result_code(self):
+        return "1" if self.has_gil else "0"

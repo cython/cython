@@ -1,7 +1,28 @@
 {% extends "!layout.html" %}
 
+{% block header %}
+{%- if development %}
+<div id="development-warning" style="padding: .5em; text-align: center; background-color: #FFFfE0; color: #AA0E0E;">
+    {% trans %}This version of the documentation is for the latest and greatest in-development branch of Cython.
+    For the last release version, see {% endtrans %}
+    <a href="/en/stable/{{ pagename }}{{ file_suffix }}">{% trans %}here{% endtrans %}</a>.
+</div>
+{%- endif %}
+{% endblock %}
+
+{% block relbar1 %}
+{{ super() }}
+{% if pagename != "src/donating" %}
+<div style="width: 100%; height: 3em; vertical-align: middle; text-align: center; font-weight: bold; background-color: lightgray; border: solid red 1px">
+    <p style="font-size: 110%">🤝 Like the tool? Help making it better! <a href="{{ pathto("src/donating") }}">Your donation helps!</a> 🤝</p>
+</div>
+{% endif %}
+{% endblock %}
+
+
 {% block footer %}
 {{ super() }}
+{#  ## Removed to avoid tracking our users.
 <script type="text/javascript">
 var gaJsHost = (("https:" == document.location.protocol) ? "https://ssl." : "http://www.");
 document.write(unescape("%3Cscript src='" + gaJsHost + "google-analytics.com/ga.js' type='text/javascript'%3E%3C/script%3E"));
@@ -11,4 +32,5 @@ try {
 var pageTracker = _gat._getTracker("UA-6139100-3");
 pageTracker._trackPageview();
 } catch(err) {}</script>
+#}
 {% endblock %}

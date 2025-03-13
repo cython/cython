@@ -1,0 +1,34 @@
+PYTHON test_cythonize_no_files.py
+PYTHON test_cython_no_files.py
+
+######## a.py ###########
+a = 1
+
+######## b.py ###########
+b = 2
+
+######## c.pyx ###########
+c = 3
+
+######## d.pyx ###########
+d = 4
+
+######## test_cythonize_no_files.py ###########
+import subprocess
+import sys
+
+cmd = [sys.executable, '-c', 'from Cython.Build.Cythonize import main; main()', 'a.py', 'b.py', 'c.py', '*.pyx']
+proc = subprocess.Popen(cmd, stderr=subprocess.PIPE)
+_, err = proc.communicate()
+assert proc.returncode == 1, proc.returncode
+assert b"No such file or directory: 'c.py'" in err, err
+
+######## test_cython_no_files.py ###########
+import subprocess
+import sys
+
+cmd = [sys.executable, '-c', 'from Cython.Compiler.Main import main; main(command_line = 1)', 'a.py', 'b.py', 'c.py', '*.pyx']
+proc = subprocess.Popen(cmd, stderr=subprocess.PIPE)
+_, err = proc.communicate()
+assert proc.returncode == 1, proc.returncode
+assert b"No such file or directory: 'c.py'" in err, err

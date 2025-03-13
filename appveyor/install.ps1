@@ -48,12 +48,14 @@ function InstallPython ($python_version, $architecture, $python_home) {
     $installer_exe = ($py_major + $py_minor) -as [int] -ge 35
     if ($installer_exe) {
         $arch_suffix = @{"32"="";"64"="-amd64"}[$architecture]
-        $filename = "python-" + $python_version + $arch_suffix + ".exe"
+        $dl_filename = "python-" + $python_version + $arch_suffix + ".exe"
+        $filename = "python-" + $py_major + "." + $py_minor + $arch_suffix + ".exe"
     } else {
         $arch_suffix = @{"32"="";"64"=".amd64"}[$architecture]
-        $filename = "python-" + $python_version + $arch_suffix + ".msi"
+        $dl_filename = "python-" + $python_version + $arch_suffix + ".msi"
+        $filename = "python-" + $py_major + "." + $py_minor + $arch_suffix + ".msi"
     }
-    $url = $PYTHON_BASE_URL + $python_version + "/" + $filename
+    $url = $PYTHON_BASE_URL + $python_version + "/" + $dl_filename
     $filepath = Download $url $filename $DOWNLOADS
     Write-Host "Installing" $filename "to" $python_home
     if ($installer_exe) {
@@ -99,7 +101,8 @@ function InstallPipPackage ($python_home, $package) {
 }
 
 function main () {
-    InstallPython $env:PYTHON_VERSION $env:PYTHON_ARCH $env:PYTHON
+    $full_version = $env:PYTHON_VERSION + ".0"
+    InstallPython $full_version $env:PYTHON_ARCH $env:PYTHON
     InstallPip $env:PYTHON
     InstallPipPackage $env:PYTHON setuptools
     InstallPipPackage $env:PYTHON wheel

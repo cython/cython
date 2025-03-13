@@ -1,25 +1,37 @@
 """
-Compile a Python script into an executable that embeds CPython and run it.
+Compile a Python script into an executable that embeds CPython.
 Requires CPython to be built as a shared library ('libpythonX.Y').
 
 Basic usage:
 
-    python cythonrun somefile.py [ARGS]
+    python -m Cython.Build.BuildExecutable [ARGS] somefile.py
 """
 
-from __future__ import absolute_import
 
 DEBUG = True
 
 import sys
 import os
-from distutils import sysconfig
+if sys.version_info < (3, 9):
+    from distutils import sysconfig as _sysconfig
+
+    class sysconfig:
+
+        @staticmethod
+        def get_path(name):
+            assert name == 'include'
+            return _sysconfig.get_python_inc()
+
+        get_config_var = staticmethod(_sysconfig.get_config_var)
+else:
+    # sysconfig can be trusted from cpython >= 3.8.7
+    import sysconfig
 
 
 def get_config_var(name, default=''):
     return sysconfig.get_config_var(name) or default
 
-INCDIR = sysconfig.get_python_inc()
+INCDIR = sysconfig.get_path('include')
 LIBDIR1 = get_config_var('LIBDIR')
 LIBDIR2 = get_config_var('LIBPL')
 PYLIB = get_config_var('LIBRARY')
@@ -38,11 +50,13 @@ LIBS = get_config_var('LIBS')
 SYSLIBS = get_config_var('SYSLIBS')
 EXE_EXT = sysconfig.get_config_var('EXE')
 
+
 def _debug(msg, *args):
     if DEBUG:
         if args:
             msg = msg % args
         sys.stderr.write(msg + '\n')
+
 
 def dump_config():
     _debug('INCDIR: %s', INCDIR)
@@ -58,6 +72,26 @@ def dump_config():
     _debug('SYSLIBS: %s', SYSLIBS)
     _debug('EXE_EXT: %s', EXE_EXT)
 
+
+def _parse_args(args):
+    cy_args = []
+    last_arg = None
+    for i, arg in enumerate(args):
+        if arg.startswith('-'):
+            cy_args.append(arg)
+        elif last_arg in ('-X', '--directive'):
+            cy_args.append(arg)
+        else:
+            input_file = arg
+            args = args[i+1:]
+            break
+        last_arg = arg
+    else:
+        raise ValueError('no input file provided')
+
+    return input_file, cy_args, args
+
+
 def runcmd(cmd, shell=True):
     if shell:
         cmd = ' '.join(cmd)
@@ -71,13 +105,16 @@ def runcmd(cmd, shell=True):
     if returncode:
         sys.exit(returncode)
 
+
 def clink(basename):
     runcmd([LINKCC, '-o', basename + EXE_EXT, basename+'.o', '-L'+LIBDIR1, '-L'+LIBDIR2]
            + [PYLIB_DYN and ('-l'+PYLIB_DYN) or os.path.join(LIBDIR1, PYLIB)]
            + LIBS.split() + SYSLIBS.split() + LINKFORSHARED.split())
 
+
 def ccompile(basename):
     runcmd([CC, '-c', '-o', basename+'.o', basename+'.c', '-I' + INCDIR] + CFLAGS.split())
+
 
 def cycompile(input_file, options=()):
     from ..Compiler import Version, CmdLine, Main
@@ -87,8 +124,10 @@ def cycompile(input_file, options=()):
     if result.num_errors > 0:
         sys.exit(1)
 
+
 def exec_file(program_name, args=()):
     runcmd([os.path.abspath(program_name)] + list(args), shell=False)
+
 
 def build(input_file, compiler_args=(), force=False):
     """
@@ -109,30 +148,22 @@ def build(input_file, compiler_args=(), force=False):
     clink(basename)
     return exe_file
 
+
 def build_and_run(args):
     """
-    Build an executable program from a Cython module and runs it.
+    Build an executable program from a Cython module and run it.
 
-    Arguments after the module name will be passed verbatimely to the
-    program.
+    Arguments after the module name will be passed verbatimly to the program.
     """
-    cy_args = []
-    last_arg = None
-    for i, arg in enumerate(args):
-        if arg.startswith('-'):
-            cy_args.append(arg)
-        elif last_arg in ('-X', '--directive'):
-            cy_args.append(arg)
-        else:
-            input_file = arg
-            args = args[i+1:]
-            break
-        last_arg = arg
-    else:
-        raise ValueError('no input file provided')
-
-    program_name = build(input_file, cy_args)
+    program_name, args = _build(args)
     exec_file(program_name, args)
 
+
+def _build(args):
+    input_file, cy_args, args = _parse_args(args)
+    program_name = build(input_file, cy_args)
+    return program_name, args
+
+
 if __name__ == '__main__':
-    build_and_run(sys.argv[1:])
+    _build(sys.argv[1:])

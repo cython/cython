@@ -1,5 +1,6 @@
 from sin_of_square cimport Function
 
+
 cdef class WaveFunction(Function):
 
     # Not available in Python-space:
