@@ -1732,6 +1732,7 @@ static void __pyx__insert_code_object(struct __Pyx_CodeObjectCache *code_cache, 
     if ((pos < code_cache->count) && unlikely(code_cache->entries[pos].code_line == code_line)) {
         __Pyx_CachedCodeObjectType* tmp = entries[pos].code_object;
         entries[pos].code_object = code_object;
+        Py_INCREF(code_object);
         Py_DECREF(tmp);
         return;
     }
