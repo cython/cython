@@ -9,14 +9,12 @@ from Cython.Build import cythonize
 from Cython.Compiler import Options
 from setuptools import setup, Extension
 
-Options.shared_utility_qualified_name = 'pkg2.MemoryView'
-
 extensions = [
     Extension("*", ["**/*.pyx"]),
 ]
 
 setup(
-  ext_modules = cythonize(extensions)
+  ext_modules = cythonize(extensions, shared_utility_qualified_name = 'pkg2.MemoryView')
 )
 
 ######## pkg2/__init__.py ########

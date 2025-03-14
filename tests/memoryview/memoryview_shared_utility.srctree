@@ -13,15 +13,13 @@ from Cython.Compiler import Options
 from setuptools import setup, Extension
 import numpy
 
-Options.shared_utility_qualified_name = 'pkg2.CythonShared'
-
 extensions = [
     Extension("*", ["**/*.pyx"], include_dirs=[numpy.get_include()]),
     Extension("pkg2.CythonShared", sources=["pkg2/CythonShared.c"])
 ]
 
 setup(
-  ext_modules = cythonize(extensions)
+  ext_modules = cythonize(extensions, shared_utility_qualified_name = 'pkg2.CythonShared')
 )
 
 
