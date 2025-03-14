@@ -706,6 +706,7 @@ class TestBuilder(object):
         self.exclude_selectors = exclude_selectors
         self.shard_num = options.shard_num
         self.annotate = options.annotate_source
+        self.evaluate_tree_assertions = options.evaluate_tree_assertions
         self.cleanup_workdir = options.cleanup_workdir
         self.cleanup_sharedlibs = options.cleanup_sharedlibs
         self.cleanup_failures = options.cleanup_failures
@@ -916,6 +917,7 @@ class TestBuilder(object):
                           fork=self.fork,
                           language_level=language_level or self.language_level,
                           warning_errors=warning_errors,
+                          evaluate_tree_assertions=self.evaluate_tree_assertions,
                           test_determinism=self.test_determinism,
                           common_utility_dir=self.common_utility_dir,
                           pythran_dir=pythran_dir,
@@ -980,7 +982,7 @@ class CythonCompileTestCase(unittest.TestCase):
                  fork=True, language_level=2, warning_errors=False,
                  test_determinism=False, shard_num=0,
                  common_utility_dir=None, pythran_dir=None, stats=None, add_cython_import=False,
-                 extra_directives=None):
+                 extra_directives=None, evaluate_tree_assertions=True):
         self.test_directory = test_directory
         self.tags = tags
         self.workdir = workdir
@@ -1000,6 +1002,7 @@ class CythonCompileTestCase(unittest.TestCase):
         self.fork = fork
         self.language_level = language_level
         self.warning_errors = warning_errors
+        self.evaluate_tree_assertions = evaluate_tree_assertions
         self.test_determinism = test_determinism
         self.common_utility_dir = common_utility_dir
         self.pythran_dir = pythran_dir
@@ -1131,7 +1134,7 @@ class CythonCompileTestCase(unittest.TestCase):
         return self.compile(
             self.test_directory, self.module, self.module_path, self.workdir,
             self.test_directory, self.expect_log,
-            self.annotate, self.add_cython_import)
+            self.annotate, self.add_cython_import, self.evaluate_tree_assertions)
 
     def find_module_source_file(self, source_file):
         if not os.path.exists(source_file):
@@ -1207,7 +1210,7 @@ class CythonCompileTestCase(unittest.TestCase):
                 perf_hint_writer.geterrors() if perf_hint_writer else [])
 
     def run_cython(self, test_directory, module, module_path, targetdir, incdir, annotate,
-                   extra_compile_options=None):
+                   extra_compile_options=None, evaluate_tree_assertions=True):
         include_dirs = INCLUDE_DIRS + [os.path.join(test_directory, '..', TEST_SUPPORT_DIR)]
         if incdir:
             include_dirs.append(incdir)
@@ -1250,7 +1253,7 @@ class CythonCompileTestCase(unittest.TestCase):
             np_pythran = self.pythran_dir is not None,
             language_level = self.language_level,
             generate_pxi = False,
-            evaluate_tree_assertions = True,
+            evaluate_tree_assertions = evaluate_tree_assertions,
             common_utility_include_dir = common_utility_include_dir,
             c_line_in_traceback = True,
             compiler_directives = compiler_directives,
@@ -1379,7 +1382,7 @@ class CythonCompileTestCase(unittest.TestCase):
         return get_ext_fullpath(module)
 
     def compile(self, test_directory, module, module_path, workdir, incdir,
-                expect_log, annotate, add_cython_import):
+                expect_log, annotate, add_cython_import, evaluate_tree_assertions):
         expected_errors = expected_warnings = expected_perf_hints = errors = warnings = perf_hints = ()
         expect_errors = "errors" in expect_log
         expect_warnings = "warnings" in expect_log
@@ -1395,7 +1398,9 @@ class CythonCompileTestCase(unittest.TestCase):
             try:
                 sys.stderr = ErrorWriter()
                 with self.stats.time(self.name, self.language, 'cython'):
-                    self.run_cython(test_directory, module, module_path, workdir, incdir, annotate)
+                    self.run_cython(
+                        test_directory, module, module_path, workdir, incdir, annotate,
+                        evaluate_tree_assertions=evaluate_tree_assertions)
                 errors, warnings, perf_hints = sys.stderr.getall()
             finally:
                 sys.stderr = old_stderr
@@ -2374,6 +2379,9 @@ def main():
     parser.add_option("--no-code-style", dest="code_style",
                       action="store_false", default=True,
                       help="Do not run the code style (PEP8) checks.")
+    parser.add_option("--no-tree-asserts", dest="evaluate_tree_assertions",
+                      action="store_false", default=True,
+                      help="Do not evaluation tree path assertions (which prevents C code generation in tests)")
     parser.add_option("--cython-only", dest="cython_only",
                       action="store_true", default=False,
                       help="only compile pyx to c, do not run C compiler or run the tests")

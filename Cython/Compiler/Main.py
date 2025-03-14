@@ -552,7 +552,7 @@ def run_pipeline(source, options, full_module_name, context):
                 "Dotted filenames ('%s') are deprecated."
                 " Please use the normal Python package directory layout." % os.path.basename(abs_path), level=1)
     if re.search("[.]c(pp|[+][+]|xx)$", result.c_file, re.RegexFlag.IGNORECASE) and not context.cpp:
-        warning((source_desc, 1, 0),
+        warning((source.source_desc, 1, 0),
                 "Filename implies a c++ file but Cython is not in c++ mode.",
                 level=1)
 

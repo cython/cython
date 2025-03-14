@@ -17,7 +17,7 @@ from .PyrexTypes import py_object_type, unspecified_type
 from .TypeSlots import (
     pyfunction_signature, pymethod_signature, richcmp_special_methods,
     get_slot_table, get_property_accessor_signature)
-from . import Future
+from . import DebugFlags
 
 from . import Code
 
@@ -244,6 +244,17 @@ class Entry:
         self.cf_references = []
         self.inner_entries = []
         self.defining_entry = self
+
+    # Debug helper to find places where entry types are assigned.
+    if DebugFlags.debug_verbose_entry_types:
+        @property
+        def type(self):
+            return self.__dict__['type']
+
+        @type.setter
+        def type(self, new_type):
+            print(f"ENTRY {self.name}[{self.cname}] TYPE: {self.__dict__.get('type')} -> {new_type}")
+            self.__dict__['type'] = new_type
 
     def __repr__(self):
         return "%s(<%x>, name=%s, type=%s)" % (type(self).__name__, id(self), self.name, self.type)

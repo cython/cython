@@ -1937,9 +1937,12 @@ static CYTHON_INLINE PyObject* __Pyx_CallUnboundCMethod0(__Pyx_CachedCFunction* 
     else if (unlikely(was_initialized == 1)) {
         // If it's being simultaneously initialized, just work on a temp
         __Pyx_CachedCFunction tmp_cfunc = {
-            cfunc->type,
-            cfunc->method_name
+#ifndef __cplusplus
+            0
+#endif
         };
+        tmp_cfunc.type = cfunc->type;
+        tmp_cfunc.method_name = cfunc->method_name;
         return __Pyx__CallUnboundCMethod0(&tmp_cfunc, self);
     }
 #endif
@@ -1990,9 +1993,12 @@ static CYTHON_INLINE PyObject* __Pyx_CallUnboundCMethod1(__Pyx_CachedCFunction* 
     else if (unlikely(was_initialized == 1)) {
         // Race to initialize - use a temp
         __Pyx_CachedCFunction tmp_cfunc = {
-            cfunc->type,
-            cfunc->method_name
+#ifndef __cplusplus
+            0
+#endif
         };
+        tmp_cfunc.type = cfunc->type;
+        tmp_cfunc.method_name = cfunc->method_name;
         return __Pyx__CallUnboundCMethod1(&tmp_cfunc, self, arg);
     }
 #endif
@@ -2056,9 +2062,12 @@ static CYTHON_INLINE PyObject *__Pyx_CallUnboundCMethod2(__Pyx_CachedCFunction *
     else if (unlikely(was_initialized == 1)) {
         // Race to initialize - run this on a temp function instead.
         __Pyx_CachedCFunction tmp_cfunc = {
-            cfunc->type,
-            cfunc->method_name
+#ifndef __cplusplus
+            0
+#endif
         };
+        tmp_cfunc.type = cfunc->type;
+        tmp_cfunc.method_name = cfunc->method_name;
         return __Pyx__CallUnboundCMethod2(&tmp_cfunc, self, arg1, arg2);
     }
 #endif

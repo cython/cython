@@ -286,7 +286,7 @@ __Pyx_CyFunction_set_qualname(__pyx_CyFunctionObject *op, PyObject *value, void 
 
 static PyObject *
 __Pyx_CyFunction_get_dict_locked(__pyx_CyFunctionObject *op)
-{   
+{
     if (unlikely(op->func_dict == NULL)) {
         op->func_dict = PyDict_New();
         if (unlikely(op->func_dict == NULL))
@@ -511,15 +511,10 @@ __Pyx_CyFunction_get_annotations(__pyx_CyFunctionObject *op, void *context) {
 }
 
 static PyObject *
-__Pyx_CyFunction_get_is_coroutine_locked(__pyx_CyFunctionObject *op) {
-    int is_coroutine;
-    if (op->func_is_coroutine) {
-        return __Pyx_NewRef(op->func_is_coroutine);
-    }
-
-    is_coroutine = op->flags & __Pyx_CYFUNCTION_COROUTINE;
+__Pyx_CyFunction_get_is_coroutine_value(__pyx_CyFunctionObject *op) {
+    int is_coroutine = op->flags & __Pyx_CYFUNCTION_COROUTINE;
     if (is_coroutine) {
-        PyObject *module, *fromlist, *marker = PYIDENT("_is_coroutine");
+        PyObject *is_coroutine_value, *module, *fromlist, *marker = PYIDENT("_is_coroutine");
         fromlist = PyList_New(1);
         if (unlikely(!fromlist)) return NULL;
         Py_INCREF(marker);
@@ -535,25 +530,38 @@ __Pyx_CyFunction_get_is_coroutine_locked(__pyx_CyFunctionObject *op) {
         module = PyImport_ImportModuleLevelObject(PYIDENT("asyncio.coroutines"), NULL, NULL, fromlist, 0);
         Py_DECREF(fromlist);
         if (unlikely(!module)) goto ignore;
-        op->func_is_coroutine = __Pyx_PyObject_GetAttrStr(module, marker);
+        is_coroutine_value = __Pyx_PyObject_GetAttrStr(module, marker);
         Py_DECREF(module);
-        if (likely(op->func_is_coroutine)) {
-            return __Pyx_NewRef(op->func_is_coroutine);
+        if (likely(is_coroutine_value)) {
+            return is_coroutine_value;
         }
 ignore:
         PyErr_Clear();
     }
 
-    op->func_is_coroutine = __Pyx_PyBool_FromLong(is_coroutine);
-    return __Pyx_NewRef(op->func_is_coroutine);
+    return __Pyx_PyBool_FromLong(is_coroutine);
 }
 
 static PyObject *
 __Pyx_CyFunction_get_is_coroutine(__pyx_CyFunctionObject *op, void *context) {
     PyObject *result;
     CYTHON_UNUSED_VAR(context);
+    if (op->func_is_coroutine) {
+        return __Pyx_NewRef(op->func_is_coroutine);
+    }
+
+    result = __Pyx_CyFunction_get_is_coroutine_value(op);
+    if (unlikely(!result))
+        return NULL;
+
     __Pyx_BEGIN_CRITICAL_SECTION(op);
-    result = __Pyx_CyFunction_get_is_coroutine_locked(op);
+    // Guard against concurrent initialisation.
+    if (op->func_is_coroutine) {
+        Py_DECREF(result);
+        result = __Pyx_NewRef(op->func_is_coroutine);
+    } else {
+        op->func_is_coroutine = __Pyx_NewRef(result);
+    }
     __Pyx_END_CRITICAL_SECTION();
     return result;
 }
@@ -856,12 +864,12 @@ static int __Pyx_CyFunction_traverse(__pyx_CyFunctionObject *m, visitproc visit,
 static PyObject*
 __Pyx_CyFunction_repr(__pyx_CyFunctionObject *op)
 {
-    PyObject *func_qualname;
+    PyObject *repr;
     __Pyx_BEGIN_CRITICAL_SECTION(op);
-    func_qualname = op->func_qualname;
+    repr = PyUnicode_FromFormat("<cyfunction %U at %p>",
+                                op->func_qualname, (void *)op);
     __Pyx_END_CRITICAL_SECTION();
-    return PyUnicode_FromFormat("<cyfunction %U at %p>",
-                                func_qualname, (void *)op);
+    return repr;
 }
 
 static PyObject * __Pyx_CyFunction_CallMethod(PyObject *func, PyObject *self, PyObject *arg, PyObject *kw) {
@@ -1445,7 +1453,7 @@ static PyObject *
 __pyx_FusedFunction_descr_get(PyObject *self, PyObject *obj, PyObject *type)
 {
     __pyx_FusedFunctionObject *func, *meth;
-    
+
     func = (__pyx_FusedFunctionObject *) self;
 
     if (func->self || func->func.flags & __Pyx_CYFUNCTION_STATICMETHOD) {
