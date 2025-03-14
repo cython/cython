@@ -79,7 +79,7 @@ __doc__ = ur"""
     Existing string
 
     >>> print (Ext.m.__doc__)
-    Ext.m(self, a=u'spam', b='foo', c=b'bar')
+    Ext.m(self, a='spam', b='foo', c=b'bar')
 
     >>> print (Ext.n.__doc__)
     Ext.n(self, a: int, b: float = 1.0, *args: tuple, **kwargs: dict) -> (None, True)
@@ -107,13 +107,13 @@ __doc__ = ur"""
     'with_doc_1(a, b, c)\nExisting string'
 
     >>> funcdoc(with_doc_2)
-    'with_doc_2(a, b, c)\n\n    Existing string\n    '
+    'with_doc_2(a, b, c)\nExisting string'
 
     >>> funcdoc(with_doc_3)
     'with_doc_3(a, b, c)\nExisting string'
 
     >>> funcdoc(with_doc_4)
-    'with_doc_4(int a, str b, list c) -> str\n\n    Existing string\n    '
+    'with_doc_4(int a, str b, list c) -> str\nExisting string'
 
     >>> funcdoc(f_sd)
     "f_sd(str s='spam')"

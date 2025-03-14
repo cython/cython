@@ -13,7 +13,7 @@ def bigints(x):
     print(str(x).replace('L', ''))
 
 
-@cython.test_assert_path_exists('//IntBinopNode')
+@cython.test_assert_path_exists('//BitwiseOrNode')
 def or_obj(obj2, obj3):
     """
     >>> or_obj(2, 3)
@@ -23,7 +23,7 @@ def or_obj(obj2, obj3):
     return obj1
 
 
-@cython.test_fail_if_path_exists('//IntBinopNode')
+@cython.test_fail_if_path_exists('//BitwiseOrNode')
 def or_int(obj2):
     """
     >>> or_int(0)
@@ -84,6 +84,20 @@ def and_int(obj2):
     16
     """
     obj1 = obj2 & 0x10
+    return obj1
+
+
+@cython.test_fail_if_path_exists('//IntBinopNode')
+def and_int2(obj2):
+    # On Python 3.10 and earlier, from_bytes produces a non-canonical
+    # 0 that caused trouble when &ing with a constant.
+    """
+    >>> and_int2(1337)
+    57
+    >>> and_int2(int.from_bytes(b'\\x00', 'big'))
+    0
+    """
+    obj1 = obj2 & 0xff
     return obj1
 
 
@@ -236,7 +250,7 @@ def lshift_int(obj):
 
 @cython.test_assert_path_exists(
     '//IntBinopNode',
-    '//IntBinopNode//IntBinopNode',
+    '//BitwiseOrNode//IntBinopNode',
 )
 def mixed_obj(obj2, obj3):
     """
@@ -248,8 +262,8 @@ def mixed_obj(obj2, obj3):
 
 
 @cython.test_assert_path_exists(
-    '//IntBinopNode',
-    '//IntBinopNode//PythonCapiCallNode',
+    '//BitwiseOrNode',
+    '//BitwiseOrNode//PythonCapiCallNode',
 )
 @cython.test_fail_if_path_exists(
     '//IntBinopNode//IntBinopNode',

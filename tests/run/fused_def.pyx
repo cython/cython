@@ -413,7 +413,7 @@ def test_code_object(cython.floating dummy = 2.0):
     """
     A test for default arguments is in cyfunction_defaults
 
-    >>> getcode(test_code_object) is getcode(test_code_object[float])
+    >>> test_code_object.__code__ is not test_code_object[float].__code__
     True
     """
 
@@ -461,3 +461,53 @@ cdef class HasBound:
     func = bind_me[float]
 
     func_fused = bind_me
+
+
+
+ctypedef fused IntOrFloat1:
+    int
+    float
+
+ctypedef fused IntOrFloat2:
+    int
+    float
+
+ctypedef fused IntOrFloat3:
+    int
+    float
+
+def really_simple_fused_function(IntOrFloat1 a, IntOrFloat2 b, IntOrFloat3 c):
+    # Don't use this function for anything except the thread safety stress test.
+    # The first call should be from that.
+    return (a + 1) * 2 + (b*c)
+
+def run_really_simple_fused_function(start_barrier, n_iters, failed_list):
+    # Maximize the chance of failure by waiting until all threads are ready to start
+    args = [ n if n % 2 else float(n) for n in range(n_iters) ]
+    try:
+        start_barrier.wait()
+        for a in args:
+            really_simple_fused_function(a, a, a)
+    except:
+        failed_list.append(True)
+
+
+def stress_test_thread_safety(n_threads):
+    """
+    >>> stress_test_thread_safety(20)
+    """
+    from threading import Barrier, Thread
+    start_barrier = Barrier(n_threads)
+
+    failed_list = []
+
+    threads = [
+        Thread(
+            target=run_really_simple_fused_function,
+            args=[start_barrier, 30, failed_list]
+        ) for _ in range(n_threads) ]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
+    assert not failed_list, len(failed_list)

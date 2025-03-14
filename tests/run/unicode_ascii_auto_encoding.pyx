@@ -27,6 +27,7 @@ def as_objects(char* ascii_data):
     assert isinstance(<unicode>ascii_data, unicode)
     return ascii_data
 
+
 def from_object():
     """
     >>> from_object()
@@ -37,6 +38,7 @@ def from_object():
     assert strcmp(<char*>b, "abc") == 0
     assert strcmp(<char*>s, "abc") == 0
     assert strcmp(<char*>u, "abc") == 0
+
 
 def slice_as_objects(char* ascii_data, int start, int end):
     """
