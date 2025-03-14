@@ -122,7 +122,7 @@ class CmdLineParserTest(TestCase):
         self.assertTrue(options.gdb_debug)
         self.assertEqual(options.output_dir, '/gdb/outdir')
         self.assertEqual(options.compiler_directives['wraparound'], False)
-        self.assertEqual(Options.shared_utility_qualified_name, 'foo.shared')
+        self.assertEqual(options.shared_utility_qualified_name, 'foo.shared')
 
     def test_embed_before_positional(self):
         options, sources = parse_command_line([
