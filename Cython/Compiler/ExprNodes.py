@@ -6806,7 +6806,7 @@ class PyMethodCallNode(CallNode):
             # If positional_args is an empty tuple, it's probably only
             # worth optimizing if the kwds are f(a=1, b=2) and not
             # if they're f(**kwds)
-            return has_kwargs and kwds_is_dict_node
+            return not has_kwargs or kwds_is_dict_node
         return True
 
 
