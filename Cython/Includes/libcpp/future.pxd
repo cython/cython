@@ -38,7 +38,7 @@ cdef extern from "<future>" namespace "std" nogil:
 
     cdef cppclass future[T]:
         future() noexcept
-        future(future& other) noexcept  # slighly mistyped move constructor
+        future(future& other) noexcept  # slightly mistyped move constructor
 
         future& operator=(future& other) noexcept  # slightly mistyped move assignment
 
