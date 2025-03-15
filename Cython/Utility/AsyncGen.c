@@ -167,6 +167,37 @@ __Pyx_async_gen_repr(__pyx_CoroutineObject *o)
 
 
 static int
+__Pyx_async_gen_init_hooks_firstiter(__pyx_PyAsyncGenObject *o, PyObject *firstiter)
+{
+    PyObject *res;
+    Py_INCREF(firstiter);
+
+    // at least asyncio stores methods here => optimise the call
+#if CYTHON_UNPACK_METHODS
+    PyObject *self;
+    if (likely(PyMethod_Check(firstiter)) && likely((self = PyMethod_GET_SELF(firstiter)) != NULL)) {
+        PyObject *function = PyMethod_GET_FUNCTION(firstiter);
+        res = __Pyx_PyObject_Call2Args(function, self, (PyObject*)o);
+    } else
+#endif
+    res = __Pyx_PyObject_CallOneArg(firstiter, (PyObject*)o);
+
+    Py_DECREF(firstiter);
+
+    if (unlikely(res == NULL))
+        return 1;
+
+    Py_DECREF(res);
+    return 0;
+}
+
+
+static CYTHON_INLINE int
+__Pyx_async_gen_init_hooks_done(__pyx_PyAsyncGenObject *o) {
+    return o->ag_hooks_inited != 0;
+}
+
+static int
 __Pyx_async_gen_init_hooks(__pyx_PyAsyncGenObject *o)
 {
 #if !CYTHON_COMPILING_IN_PYPY
@@ -175,10 +206,7 @@ __Pyx_async_gen_init_hooks(__pyx_PyAsyncGenObject *o)
     PyObject *finalizer;
     PyObject *firstiter;
 
-    if (o->ag_hooks_inited) {
-        return 0;
-    }
-
+    assert (!__Pyx_async_gen_init_hooks_done(o));
     o->ag_hooks_inited = 1;
 
 #if CYTHON_COMPILING_IN_PYPY
@@ -198,26 +226,8 @@ __Pyx_async_gen_init_hooks(__pyx_PyAsyncGenObject *o)
     firstiter = tstate->async_gen_firstiter;
 #endif
     if (firstiter) {
-        PyObject *res;
-#if CYTHON_UNPACK_METHODS
-        PyObject *self;
-#endif
-
-        Py_INCREF(firstiter);
-        // at least asyncio stores methods here => optimise the call
-#if CYTHON_UNPACK_METHODS
-        if (likely(PyMethod_Check(firstiter)) && likely((self = PyMethod_GET_SELF(firstiter)) != NULL)) {
-            PyObject *function = PyMethod_GET_FUNCTION(firstiter);
-            res = __Pyx_PyObject_Call2Args(function, self, (PyObject*)o);
-        } else
-#endif
-        res = __Pyx_PyObject_CallOneArg(firstiter, (PyObject*)o);
-
-        Py_DECREF(firstiter);
-        if (unlikely(res == NULL)) {
+        if (unlikely(__Pyx_async_gen_init_hooks_firstiter(o, firstiter)))
             return 1;
-        }
-        Py_DECREF(res);
     }
 
     return 0;
@@ -228,7 +238,7 @@ static PyObject *
 __Pyx_async_gen_anext(PyObject *g)
 {
     __pyx_PyAsyncGenObject *o = (__pyx_PyAsyncGenObject*) g;
-    if (unlikely(__Pyx_async_gen_init_hooks(o))) {
+    if (!__Pyx_async_gen_init_hooks_done(o) && unlikely(__Pyx_async_gen_init_hooks(o))) {
         return NULL;
     }
     return __Pyx_async_gen_asend_new(o, NULL);
@@ -244,7 +254,7 @@ __Pyx_async_gen_anext_method(PyObject *g, PyObject *arg) {
 static PyObject *
 __Pyx_async_gen_asend(__pyx_PyAsyncGenObject *o, PyObject *arg)
 {
-    if (unlikely(__Pyx_async_gen_init_hooks(o))) {
+    if (!__Pyx_async_gen_init_hooks_done(o) && unlikely(__Pyx_async_gen_init_hooks(o))) {
         return NULL;
     }
     return __Pyx_async_gen_asend_new(o, arg);
@@ -255,7 +265,7 @@ static PyObject *
 __Pyx_async_gen_aclose(__pyx_PyAsyncGenObject *o, PyObject *arg)
 {
     CYTHON_UNUSED_VAR(arg);
-    if (unlikely(__Pyx_async_gen_init_hooks(o))) {
+    if (!__Pyx_async_gen_init_hooks_done(o) && unlikely(__Pyx_async_gen_init_hooks(o))) {
         return NULL;
     }
     return __Pyx_async_gen_athrow_new(o, NULL);
@@ -265,7 +275,7 @@ __Pyx_async_gen_aclose(__pyx_PyAsyncGenObject *o, PyObject *arg)
 static PyObject *
 __Pyx_async_gen_athrow(__pyx_PyAsyncGenObject *o, PyObject *args)
 {
-    if (unlikely(__Pyx_async_gen_init_hooks(o))) {
+    if (!__Pyx_async_gen_init_hooks_done(o) && unlikely(__Pyx_async_gen_init_hooks(o))) {
         return NULL;
     }
     return __Pyx_async_gen_athrow_new(o, args);
