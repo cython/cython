@@ -96,14 +96,15 @@ def report_revision_timings(rev_timings):
         return f"{t / scale :.3f} {unit}"
 
     timings_by_benchmark = collections.defaultdict(dict)
-    for revision, bm_timings in sorted(rev_timings.items()):
+    for revision, bm_timings in rev_timings.items():
         for benchmark, timings in bm_timings.items():
             timings_by_benchmark[benchmark][revision] = sorted(timings)
 
     for benchmark, revision_timings in timings_by_benchmark.items():
         logging.info(f"### Benchmark '{benchmark}' (min/median/max):")
         for revision, timings in revision_timings.items():
-            logging.info(f"    {revision[:20]:20} = {format_time(timings[0]):>12}, {format_time(timings[len(timings)//2]):>12}, {format_time(timings[-1]):>12}")
+            tmin, tmed, tmax = timings[0], timings[len(timings)//2], timings[-1]
+            logging.info(f"    {revision[:20]:20} = {format_time(tmin):>12}, {format_time(tmed):>12}, {format_time(tmax):>12}")
 
 
 def parse_args(args):
