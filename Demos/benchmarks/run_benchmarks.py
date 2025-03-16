@@ -103,7 +103,7 @@ def report_revision_timings(rev_timings):
     for benchmark, revision_timings in timings_by_benchmark.items():
         logging.info(f"### Benchmark '{benchmark}' (min/median/max):")
         for revision, timings in revision_timings.items():
-            logging.info(f"    {revision[:25]:25} = {format_time(timings[0])}, {format_time(timings[len(timings)//2])}, {format_time(timings[-1])}")
+            logging.info(f"    {revision[:20]:20} = {format_time(timings[0]):>12}, {format_time(timings[len(timings)//2]):>12}, {format_time(timings[-1]):>12}")
 
 
 def parse_args(args):
