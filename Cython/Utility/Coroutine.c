@@ -922,11 +922,11 @@ PyObject *__Pyx_Coroutine_MethodReturn(PyObject* gen, PyObject *retval) {
     return retval;
 }
 
-#define __Pyx_Coroutine_MethodReturnFromResult(gen, result, retval) \
-    ((result) == PYGEN_NEXT ? (retval) : __Pyx__Coroutine_MethodReturnFromResult(gen, result, retval))
+#define __Pyx_Coroutine_MethodReturnFromResult(gen, result, retval, iternext) \
+    ((result) == PYGEN_NEXT ? (retval) : __Pyx__Coroutine_MethodReturnFromResult(gen, result, retval, iternext))
 
 static PyObject *
-__Pyx__Coroutine_MethodReturnFromResult(PyObject* gen, __Pyx_PySendResult result, PyObject *retval) {
+__Pyx__Coroutine_MethodReturnFromResult(PyObject* gen, __Pyx_PySendResult result, PyObject *retval, int iternext) {
     CYTHON_MAYBE_UNUSED_VAR(gen);
     if (likely(result == PYGEN_RETURN)) {
         // return values pass through StopIteration or StopAsyncIteration
@@ -934,7 +934,7 @@ __Pyx__Coroutine_MethodReturnFromResult(PyObject* gen, __Pyx_PySendResult result
         #ifdef __Pyx_AsyncGen_USED
         is_async = __Pyx_AsyncGen_CheckExact(gen);
         #endif
-        __Pyx_ReturnWithStopIteration(retval, is_async);
+        __Pyx_ReturnWithStopIteration(retval, is_async, iternext);
         Py_XDECREF(retval);
     }
     return NULL;
@@ -1016,7 +1016,7 @@ __Pyx_Coroutine_SendToDelegate(__pyx_CoroutineObject *gen, __Pyx_pyiter_sendfunc
 static PyObject *__Pyx_Coroutine_Send(PyObject *self, PyObject *value) {
     PyObject *retval = NULL;
     __Pyx_PySendResult result = __Pyx_Coroutine_AmSend(self, value, &retval);
-    return __Pyx_Coroutine_MethodReturnFromResult(self, result, retval);
+    return __Pyx_Coroutine_MethodReturnFromResult(self, result, retval, 0);
 }
 
 static __Pyx_PySendResult
@@ -1181,7 +1181,7 @@ static PyObject *__Pyx_Generator_Next(PyObject *self) {
     }
     __Pyx_Coroutine_unset_is_running(gen);
 
-    return __Pyx_Coroutine_MethodReturnFromResult(self, result, retval);
+    return __Pyx_Coroutine_MethodReturnFromResult(self, result, retval, 1);
 }
 
 static PyObject *__Pyx_Coroutine_Close_Method(PyObject *self, PyObject *arg) {
@@ -1319,7 +1319,7 @@ static PyObject *__Pyx__Coroutine_Throw(PyObject *self, PyObject *typ, PyObject 
 
         result = __Pyx_Coroutine_FinishDelegation(gen, &ret);
         __Pyx_Coroutine_unset_is_running(gen);
-        return __Pyx_Coroutine_MethodReturnFromResult(self, result, ret);
+        return __Pyx_Coroutine_MethodReturnFromResult(self, result, ret, 0);
     }
 throw_here:
     __Pyx_Raise(typ, val, tb, NULL);
@@ -1329,7 +1329,7 @@ propagate_exception:
         PyObject *retval = NULL;
         __Pyx_PySendResult result = __Pyx_Coroutine_SendEx(gen, NULL, &retval, 0);
         __Pyx_Coroutine_unset_is_running(gen);
-        return __Pyx_Coroutine_MethodReturnFromResult(self, result, retval);
+        return __Pyx_Coroutine_MethodReturnFromResult(self, result, retval, 0);
     }
 }
 
@@ -2081,7 +2081,7 @@ static PyObject *__Pyx_Generator_GetInlinedResult(PyObject *self) {
 
 /////////////// ReturnWithStopIteration.proto ///////////////
 
-static CYTHON_INLINE void __Pyx_ReturnWithStopIteration(PyObject* value, int async); /*proto*/
+static CYTHON_INLINE void __Pyx_ReturnWithStopIteration(PyObject* value, int async, int iternext); /*proto*/
 
 /////////////// ReturnWithStopIteration ///////////////
 //@requires: Exceptions.c::PyErrFetchRestore
@@ -2097,9 +2097,11 @@ static CYTHON_INLINE void __Pyx_ReturnWithStopIteration(PyObject* value, int asy
 
 static void __Pyx__ReturnWithStopIteration(PyObject* value, int async); /*proto*/
 
-static CYTHON_INLINE void __Pyx_ReturnWithStopIteration(PyObject* value, int async) {
+static CYTHON_INLINE void __Pyx_ReturnWithStopIteration(PyObject* value, int async, int iternext) {
     if (value == Py_None) {
-        PyErr_SetNone(async ? PyExc_StopAsyncIteration : PyExc_StopIteration);
+        if (async || !iternext)
+            PyErr_SetNone(async ? PyExc_StopAsyncIteration : PyExc_StopIteration);
+        // for regular iternext, then we don't have to return StopIteration and can just return NULL
         return;
     }
     __Pyx__ReturnWithStopIteration(value, async);
