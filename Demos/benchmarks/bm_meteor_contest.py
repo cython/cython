@@ -145,7 +145,7 @@ def main(n, solve_arg=SOLVE_ARG, timer=time.perf_counter):
         curr_board = [-1] * len(board)
         pieces_left = list(range(len(pieces)))
         solutions = []
-        solve(SOLVE_ARG, 0, free, curr_board, pieces_left, solutions)
+        solve(solve_arg, 0, free, curr_board, pieces_left, solutions)
         #print len(solutions),  'solutions found\n'
         #for i in (0, -1): print_board(solutions[i])
         tk = timer()
@@ -154,7 +154,7 @@ def main(n, solve_arg=SOLVE_ARG, timer=time.perf_counter):
 
 
 def run_benchmark(repeat=10, count=SOLVE_ARG, timer=time.perf_counter):
-    return main(repeat, count, timer=timer)
+    return main(repeat, count // 2, timer=timer)
 
 
 if __name__ == "__main__":
