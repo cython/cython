@@ -46,7 +46,7 @@ def compile_benchmarks(cython_dir: pathlib.Path, bm_dir: pathlib.Path, benchmark
 
 
 def git_clone(rev_dir, revision):
-    run(["git", "clone", "-n", ".", str(rev_dir)])
+    run(["git", "clone", "-n", "--no-single-branch", ".", str(rev_dir)])
     run(["git", "switch", "-c", revision, f"origin/{revision}"], cwd=rev_dir)
 
 
