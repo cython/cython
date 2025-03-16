@@ -324,6 +324,8 @@ jobs:
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4.1.1
+        with:
+          fetch-depth: 0
 
       - name: Setup python
         uses: actions/setup-python@v5.0.0
