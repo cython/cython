@@ -37,4 +37,3 @@ cdef class Chaosgame:
     cpdef GVector transform_point(self, GVector point, trafo=*)
     cpdef truncate(self, GVector point)
     cpdef create_image_chaos(self, timer, long w, long h, long n, count=*)
-
