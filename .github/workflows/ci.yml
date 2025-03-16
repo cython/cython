@@ -318,6 +318,24 @@ jobs:
           name: cycoverage_html
           path: coverage-report-html
 
+  benchmarks:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4.1.1
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+
+      - name: Setup python
+        uses: actions/setup-python@v5.0.0
+        with:
+          python-version: "3.13"
+
+      - name: Run Benchmarks
+        run: bash -c 'git branch -v -a && python -m pip install setuptools && python Demos/benchmarks/run_benchmarks.py  origin/3.0.x  origin/master  HEAD'
+
   codespell:
     name: Check for spelling errors
     runs-on: ubuntu-latest
