@@ -194,6 +194,15 @@ builtin_function_table = [
     BuiltinFunction('iter',       "OO",   "O",     "PyCallIter_New"),
     BuiltinFunction('iter',       "O",    "O",     "PyObject_GetIter"),
     BuiltinFunction('len',        "O",    "z",     "PyObject_Length"),
+] + [
+    # length functions for the two fastcall types
+    BuiltinFunction('len', None, None, '__Pyx_%s_Len' % tp.name,
+                    func_type=PyrexTypes.CFuncType(
+                            PyrexTypes.c_py_ssize_t_type,
+                            [PyrexTypes.CFuncTypeArg("arg", tp, None)],
+                            nogil=True))
+        for tp in (PyrexTypes.fastcalltuple_type, PyrexTypes.fastcalldict_type)
+] + [
     BuiltinFunction('locals',     "",     "O",     "__pyx_locals"),
     #('map',       "",     "",      ""),
     #('max',       "",     "",      ""),

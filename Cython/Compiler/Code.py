@@ -2583,6 +2583,8 @@ class CCodeWriter:
             self.put_safe(" = %s" % entry.type.literal_code(entry.init))
         elif entry.type.is_pyobject:
             self.put(" = NULL")
+        elif entry.type.is_fastcall_tuple_or_dict:
+            self.put_safe(" = %s" % entry.type.literal_code("0"))
         self.putln(";")
         self.funcstate.scope.use_entry_utility_code(entry)
 

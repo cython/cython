@@ -198,6 +198,9 @@ class PyrexType(BaseType):
     #  is_buffer             boolean     Is buffer access type
     #  is_pythran_expr       boolean     Is Pythran expr
     #  is_numpy_buffer       boolean     Is Numpy array buffer
+    #  is_fastcall_tuple     boolean     Optimized stararg
+    #  is_fastcall_dict      boolean     Optimized starstararg
+    #  is_fastcall_tuple_or_dict      boolean     Either of fastcall_tuple or fastcall_dict
     #  has_attributes        boolean     Has C dot-selectable attributes
     #  needs_cpp_construction  boolean     Needs C++ constructor and destructor when used in a cdef class
     #  needs_refcounting     boolean     Needs code to be generated similar to incref/gotref/decref.
@@ -273,6 +276,8 @@ class PyrexType(BaseType):
     is_memoryviewslice = 0
     is_pythran_expr = 0
     is_numpy_buffer = 0
+    is_fastcall_tuple = 0
+    is_fastcall_dict = 0
     has_attributes = 0
     needs_cpp_construction = 0
     needs_refcounting = 0
@@ -370,6 +375,10 @@ class PyrexType(BaseType):
             convert_call,
             code.error_goto_if(error_condition or self.error_condition(result_code), error_pos))
 
+    @property
+    def is_fastcall_tuple_or_dict(self):
+        return self.is_fastcall_tuple or self.is_fastcall_dict
+
     def _generate_dummy_refcounting(self, code, *ignored_args, **ignored_kwds):
         if self.needs_refcounting:
             raise NotImplementedError("Ref-counting operation not yet implemented for type %s" %
@@ -398,7 +407,6 @@ class PyrexType(BaseType):
         # declares an std::optional c++ variable
         raise NotImplementedError(
             "cpp_optional_declaration_code only implemented for c++ classes and not type %s" % self)
-
 
 def public_decl(base_code, dll_linkage):
     if dll_linkage:
@@ -4708,6 +4716,152 @@ class ErrorType(PyrexType):
         return "dummy"
 
 
+class FastcallBaseType(PyrexType):
+    # Convenience class for refcounting functions
+    needs_refcounting = 1
+
+    def generate_gotref(self, code, cname):
+        code.putln("__Pyx_%s_GOTREF(%s);" % (self.name, cname))
+    def generate_decref(self, code, cname, nanny, have_gil):
+        # don't distinguish between decref and xdecref for fastcall types
+        code.putln("__Pyx_%s_XDECREF(%s, %s);" % (self.name, cname, int(nanny)))
+    def generate_decref_clear(self, code, cname, clear_before_decref, nanny, have_gil):
+        code.putln("__Pyx_%s_CLEAR(%s, %s);" % (self.name, cname, int(nanny)))
+    def generate_xdecref(self, code, cname, nanny, have_gil):
+        code.putln("__Pyx_%s_XDECREF(%s, %s);" % (self.name, cname, int(nanny)))
+    def generate_incref(self, code, cname, nanny):
+        code.putln("__Pyx_%s_INCREF(%s, %s);" % (self.name, cname, int(nanny)))
+    def generate_xincref(self, code, cname, nanny):
+        code.putln("__Pyx_%s_XINCREF(%s, %s);" % (self.name, cname, int(nanny)))
+    def generate_decref_set(self, code, cname, rhs_cname):
+        code.putln("__Pyx_%s_DECREF_SET(%s, %s);" % (self.name, cname, rhs_cname))
+    def generate_xdecref_set(self, code, cname, rhs_cname):
+        code.putln("__Pyx_%s_XDECREF_SET(%s, %s);" % (self.name, cname, rhs_cname))
+    def nullcheck_string(self, cname):
+        return "__Pyx_%s_NULLCHECK(%s)" % (self.name, cname)
+
+    def literal_code(self, value):
+        assert value in ("0", "{}"), str(value)  # only know how to handle empty literals
+        return self.declaration_value
+
+
+class FastcallTupleType(FastcallBaseType):
+    """Represents an optimized tuple-like type for "*args"
+
+    Eliminates the need for an actual tuple to be created, but
+    only supports the limited range of operations that can
+    be carried out efficiently
+    """
+
+    is_fastcall_tuple = 1
+    name = "FastcallTuple"
+    declaration_value = "__Pyx_FastcallTuple_Empty"
+
+    @property
+    def nearest_python_type(self):
+        from .Builtin import tuple_type
+        return tuple_type
+
+    def create_declaration_utility_code(self, env):
+        env.use_utility_code(UtilityCode.load_cached('FastcallTuple', 'FunctionArguments.c'))
+
+    def declaration_code(self, entity_code,
+            for_display = 0, dll_linkage = None, pyrex = 0):
+        if for_display:
+            return "FastcallTuple"
+        else:
+            return "__Pyx_FastcallTuple_obj %s" % entity_code
+
+    def create_to_py_utility_code(self, env):
+        # code is in declaration code
+        return True
+
+    def create_from_py_utility_code(self, env):
+        return False
+
+    def can_coerce_to_pyobject(self, env):
+        return True
+
+    def to_py_call_code(self, source_code, result_code, result_type, to_py_function=None):
+        # TODO maybe something cleverer with result_type
+        # TODO passing two arguments in source_code feels hacky
+        return "%s = __Pyx_FastcallTuple_ToTupleCoerced(%s)" % (result_code, source_code)
+
+class FastcallTupleCoercionType(PyrexType):
+    """Type used internally for cached coercions of fastcall tuples."""
+    needs_refcounting = 1
+    declaration_value = "NULL"
+
+    def declaration_code(self, entity_code,
+            for_display = 0, dll_linkage = None, pyrex = 0):
+        if for_display:
+            return "__Pyx_FastcallTupleCoerced"
+        else:
+            return "__Pyx_FastcallTupleCoerced %s" % entity_code
+
+    # because this is used in very limited places, xdecref is the only reference counting operation generated
+    def generate_xdecref(self, code, cname, nanny, have_gil):
+        code.putln("__Pyx_FastcallTupleCoerced_XDECREF(%s);" % cname)
+
+
+
+class FastcallDictType(FastcallBaseType):
+    """Represents an optimized dict-like type for "**kwds"
+
+    Eliminates the need for an actual dict to be created,
+    (in some cases) but
+    only supports the limited range of operations that can
+    be carried out efficiently
+    """
+
+    is_fastcall_dict = 1
+    name = "FastcallDict"
+    exception_check = None
+    needs_refcounting = 1
+
+    @property
+    def nearest_python_type(self):
+        from .Builtin import dict_type
+        return dict_type
+
+    declaration_value = "{{}}"  # Can only be used for the array version defined in the wrapper
+
+    def attributes_known(self):
+        return True
+
+    def create_declaration_utility_code(self, env):
+        env.use_utility_code(UtilityCode.load_cached('FastcallDict', 'FunctionArguments.c'))
+
+    def declaration_code(self, entity_code,
+            for_display = 0, dll_linkage = None, pyrex = 0):
+        # Abuse "dll_linkage" to indicate if it's in the wrapper function
+        # in which case, create an array instead
+        if for_display:
+            return "FastcallDict"
+        if dll_linkage == "wrapper":
+            return "__Pyx_FastcallDict_obj %s[1]" % entity_code
+        else:
+            return "__Pyx_FastcallDict_obj *%s" % entity_code
+
+    def create_to_py_utility_code(self, env):
+        env.use_utility_code(UtilityCode.load_cached('FastcallDictConvert',
+                                                        'FunctionArguments.c'))
+        return True
+
+    def create_from_py_utility_code(self, env):
+        return False
+
+    def can_coerce_to_pyobject(self, env):
+        return True
+
+    def to_py_call_code(self, source_code, result_code, result_type, to_py_function=None):
+        from .Builtin import dict_type
+        if result_type is dict_type:
+            return "%s = __Pyx_FastcallDict_ToDict_Explicit(%s)" % (result_code, source_code)
+        else:
+            return "%s = __Pyx_FastcallDict_ToDict(%s)" % (result_code, source_code)
+
+
 class PythonTypeConstructorMixin:
     """Used to help Cython interpret indexed types from the typing module (or similar)
     """
@@ -4917,6 +5071,9 @@ cython_memoryview_type = CStructOrUnionType("__pyx_memoryview_obj", "struct",
 
 memoryviewslice_type = CStructOrUnionType("memoryviewslice", "struct",
                                           None, 1, "__Pyx_memviewslice")
+
+fastcalltuple_type = FastcallTupleType()
+fastcalldict_type = FastcallDictType()
 
 fixed_sign_int_types = {
     "bint":       (1, c_bint_type),
@@ -5320,6 +5477,8 @@ def _spanning_type(type1, type2):
         return result_type_of_builtin_operation(type2, type1) or py_object_type
     elif type1.is_extension_type and type2.is_extension_type:
         return widest_extension_type(type1, type2)
+    elif type1.is_fastcall_tuple_or_dict or type2.is_fastcall_tuple_or_dict:
+        return _fastcall_spanning_types(type1, type2)
     elif type1.is_pyobject or type2.is_pyobject:
         return py_object_type
     elif type1.assignable_from(type2):
@@ -5370,6 +5529,14 @@ def widest_cpp_type(type1, type2):
     else:
         # Fall back to void* for now.
         return None
+
+def _fastcall_spanning_types(type1, type2):
+    if type1.is_fastcall_tuple_or_dict and type2 is type1.nearest_python_type:
+        return type1.nearest_python_type
+    elif type2.is_fastcall_tuple_or_dict and type1 is type2.nearest_python_type:
+        return type2.nearest_python_type
+    else:
+        return py_object_type
 
 
 def simple_c_type(signed, longness, name):

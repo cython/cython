@@ -953,6 +953,18 @@ Cython code.  Here is the list of currently supported directives:
     effect on special methods and functions with more than one argument. The
     ``METH_NOARGS`` and ``METH_O`` signatures provide slightly faster
     calling conventions but disallow the use of keywords.
+    
+``fastcall_args`` (``tuple`` and/or ``dict`` can be True / False / None)
+    Sets the ``*args`` or ``**kwds`` of a function to a more
+    limited specialized type designed to work efficiently with
+    the fastcall and vectorcall calling conventions introduced
+    in CPython 3.7+. The biggest advantage is being able to forward
+    the arguments quickly to other C-compiled functions.
+    Usage examples: ``@fastcall_args(tuple=True, dict=True)`` or
+    ``# cython: fastcall_args.tuple = True``.
+    The default argument of ``None`` lets Cython chose
+    when to use these and should be correct the vast majority of
+    the time.
 
 ``c_api_binop_methods`` (True / False), *default=False*
     When enabled, makes the special binary operator methods (``__add__``, etc.)

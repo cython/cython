@@ -1259,7 +1259,11 @@ class InterpretCompilerDirectives(CythonTransform):
             if kwds is not None or len(args) != 1 or not isinstance(args[0], ExprNodes.UnicodeNode):
                 raise PostParseError(pos,
                     'The %s directive takes one compile-time string argument' % optname)
-            return (optname, directivetype(optname, str(args[0].value)))
+            try:
+                return (optname, directivetype(optname, *[arg.value for arg in args]))
+            except CompileError as e:
+                # convert to postparse error, make sure pos it set, re-raise
+                raise PostParseError(pos, *e.args[1:])
         elif directivetype is Options.DEFER_ANALYSIS_OF_ARGUMENTS:
             # signal to pass things on without processing
             return (optname, (args, kwds.as_python_dict() if kwds else {}))
@@ -2474,6 +2478,17 @@ if VALUE is not None:
         node = self.visit_FuncDefNode(node)
         if not isinstance(node, Nodes.DefNode):
             return node
+
+        fastcall_args_tuple = self.current_directives['fastcall_args.tuple']
+        fastcall_args_dict = self.current_directives['fastcall_args.dict']
+        if fastcall_args_tuple and node.star_arg:
+            if node.self_in_stararg:
+                error(node.pos, "Cannot use 'fastcall_args(\"*\")' on a function where the"
+                        " self argument is included in *args")
+                node.star_arg.entry.type = PyrexTypes.fastcalltuple_type
+        if fastcall_args_dict and node.starstar_arg:
+            node.starstar_arg.entry.type = PyrexTypes.fastcalldict_type
+
         env = self.current_env()
         if node.code_object is None:
             node.code_object = ExprNodes.CodeObjectNode(node)
@@ -2853,7 +2868,6 @@ class CalculateQualifiedNamesTransform(EnvTransform):
 
 
 class AnalyseExpressionsTransform(CythonTransform):
-
     def visit_ModuleNode(self, node):
         node.scope.infer_types()
         node.body = node.body.analyse_expressions(node.scope)

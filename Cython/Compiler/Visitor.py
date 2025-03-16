@@ -610,9 +610,11 @@ class MethodDispatcherTransform(EnvTransform):
             if not function.entry:
                 return node
             entry = function.entry
-            is_builtin = (
-                entry.is_builtin or
-                entry is self.current_env().builtin_scope().lookup_here(function.name))
+            is_builtin = entry.is_builtin
+            if not is_builtin:
+                looked_up_entry = self.current_env().builtin_scope().lookup_here(function.name)
+                is_builtin = (entry is looked_up_entry
+                              or (looked_up_entry and entry in looked_up_entry.overloaded_alternatives))
             if not is_builtin:
                 if function.cf_state and function.cf_state.is_single:
                     # we know the value of the variable

@@ -208,6 +208,9 @@ class IterationTransform(Visitor.EnvTransform):
             return self._transform_bytes_iteration(node, iterable, reversed=reversed)
         if iterable.type is Builtin.unicode_type:
             return self._transform_unicode_iteration(node, iterable, reversed=reversed)
+        if iterable.type.is_fastcall_tuple:
+            # FIXME - https://github.com/cython/cython/pull/3617 can handle this
+            return self._transform_fastcall_tuple_iteration(node, iterable, reversed=reversed)
         # in principle _transform_indexable_iteration would work on most of the above, and
         # also tuple and list. However, it probably isn't quite as optimized
         if iterable.type is Builtin.bytearray_type:
@@ -228,7 +231,7 @@ class IterationTransform(Visitor.EnvTransform):
 
         function = iterable.function
         # dict iteration?
-        if function.is_attribute and not reversed and not arg_count:
+        if (function.is_attribute and not reversed and not arg_count):
             base_obj = iterable.self or function.obj
             method = function.attribute
             # in Py3, items() is equivalent to Py2's iteritems()
@@ -710,6 +713,56 @@ class IterationTransform(Visitor.EnvTransform):
             target=counter_temp,
             relation2=relation2, bound2=stop_ptr_node,
             step=step, body=body,
+            else_clause=node.else_clause,
+            from_range=True)
+
+        return UtilNodes.TempsBlockNode(
+            node.pos, temps=[counter],
+            body=for_node)
+
+    def _transform_fastcall_tuple_iteration(self, node, iter_node, reversed=False):
+        bound1 = ExprNodes.IntNode(pos=node.pos, value="0")
+        func_type = PyrexTypes.CFuncType(
+                PyrexTypes.c_py_ssize_t_type, [
+                    PyrexTypes.CFuncTypeArg("fastcalltuple", iter_node.type, None)
+                ], nogil=True)
+        stop_call = ExprNodes.PythonCapiCallNode(
+                iter_node.pos, "__Pyx_FastcallTuple_Len", func_type,
+                args=[iter_node], is_temp=False,
+                utility_code = UtilityCode.load_cached("FastcallTuple", "FunctionArguments.c"))
+        bound2 = UtilNodes.LetRefNode(stop_call)
+
+        relation1, relation2 = self._find_for_from_node_relations(False, reversed)
+
+        if reversed:
+            bound0, bound1 = bound1, bound0
+
+        counter = UtilNodes.TempHandle(PyrexTypes.c_py_ssize_t_type)
+        counter_temp = counter.ref(node.target.pos)
+
+        target_value = ExprNodes.IndexNode(
+                node.target.pos,
+                index=counter_temp,
+                base=iter_node,
+                type=PyrexTypes.py_object_type)
+        target_value.is_temp = 1
+        target_value = target_value.analyse_types(self.current_env())
+
+        target_assign = Nodes.SingleAssignmentNode(
+            pos = node.target.pos,
+            lhs = node.target,
+            rhs = target_value)
+
+        body = Nodes.StatListNode(
+            node.pos,
+            stats = [target_assign, node.body])
+
+        for_node = Nodes.ForFromStatNode(
+            node.pos,
+            bound1=bound1, relation1=relation1,
+            target=counter_temp,
+            relation2=relation2, bound2=bound2,
+            step=ExprNodes.IntNode(pos=node.pos, value="1"), body=body,
             else_clause=node.else_clause,
             from_range=True)
 
@@ -2463,6 +2516,16 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
                 args = [arg],
                 is_temp = node.is_temp
                 )
+        elif (isinstance(arg, ExprNodes.CoerceToPyTypeNode) and
+                arg.arg.type.is_fastcall_dict):
+            func_type = PyrexTypes.CFuncType(
+                Builtin.dict_type, [
+                    PyrexTypes.CFuncTypeArg("fastcalldict", arg.arg.type, None)
+            ])
+            return ExprNodes.PythonCapiCallNode(
+                node.pos, "__Pyx_FastcallDict_ToDict_Explicit", func_type,
+                args=[arg.arg], is_temp=node.is_temp,
+                utility_code = UtilityCode.load_cached("fastcall_dict_covert", "FunctionArguments.c"))
         return node
 
     PySequence_List_func_type = PyrexTypes.CFuncType(
@@ -2497,6 +2560,9 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
             return node
         arg = pos_args[0]
         if arg.type is Builtin.tuple_type and not arg.may_be_none():
+            if (isinstance(arg, ExprNodes.CoerceToPyTypeNode) and
+                    arg.arg.type.is_fastcall_tuple):
+                arg.target_type = Builtin.tuple_type  # used to flag an explicit conversion
             return arg
         if arg.type is Builtin.list_type:
             pos_args[0] = arg.as_none_safe_node(

@@ -2404,7 +2404,8 @@ class FuncDefNode(StatNode, BlockNode):
             if not entry.used or entry.in_closure:
                 continue
 
-            if entry.type.needs_refcounting:
+            # FIXME: fastcall tuple/dict should implement needs_refcounting.
+            if entry.type.needs_refcounting or entry.type.is_fastcall_tuple_or_dict:
                 if entry.is_arg and not entry.cf_is_reassigned:
                     continue
                 if entry.type.refcounting_needs_gil:
@@ -3066,6 +3067,13 @@ class PyArgDeclNode(Node):
     child_attrs = []
     is_self_arg = False
     is_type_arg = False
+    entry = None
+
+    @property
+    def type(self):
+        if self.entry:
+            return self.entry.type
+        return None
 
     def generate_function_definitions(self, env, code):
         self.entry.generate_function_definitions(env, code)
@@ -3453,6 +3461,15 @@ class DefNode(FuncDefNode):
 
             if not uses_args_tuple:
                 sig = self.entry.signature = sig.with_fastcall()
+            if (not self.entry.signature.use_fastcall
+                    and self.starstar_arg and self.starstar_arg.type
+                    and self.starstar_arg.type.is_fastcall_dict):
+                # it's a failure of the inference if we end up here without asking
+                assert self.starstar_arg.type.explicitly_requested
+                warning(self.pos, ("Request for **{0} to be a specialized "
+                    "fastcall argument is pointless since the function itself is not fastcallable "
+                    "and so this will only cause degraded performance."
+                    ).format(self.starstar_arg.name), 1)
 
     def bad_signature(self):
         sig = self.entry.signature
@@ -3520,7 +3537,9 @@ class DefNode(FuncDefNode):
 
     def declare_python_arg(self, env, arg):
         if arg:
-            if env.directives['infer_types'] != False:
+            if getattr(arg, 'type', None):
+                type = arg.type
+            elif env.directives['infer_types'] != False:
                 type = PyrexTypes.unspecified_type
             else:
                 type = py_object_type
@@ -3616,6 +3635,10 @@ class DefNode(FuncDefNode):
         else:
             arg_code = 'void'  # No arguments
         dc = self.return_type.declaration_code(self.entry.pyfunc_cname)
+
+        for arg in [self.star_arg, self.starstar_arg]:
+            if arg and arg.entry.type.is_fastcall_tuple_or_dict:
+                arg.entry.type.create_declaration_utility_code(code.globalstate)
 
         decls_code = code.globalstate['decls']
         preprocessor_guard = self.get_preprocessor_guard()
@@ -3934,7 +3957,13 @@ class DefNodeWrapper(FuncDefNode):
                     code.put_var_declaration(arg.entry)
         for entry in env.var_entries:
             if entry.is_arg:
-                code.put_var_declaration(entry)
+                if entry.type.is_fastcall_dict:
+                    # fastcall dict needs to be a declared different in the wrapper function
+                    # (where it's an array) compared to everywhere else (where it's a pointer)
+                    # Abuse dll_linkage to flag this
+                    code.put_var_declaration(entry, dll_linkage="wrapper")
+                else:
+                    code.put_var_declaration(entry)
 
         # Create nargs, but avoid an "unused" warning in the few cases where we don't need it.
         if self.signature_has_generic_args():
@@ -4060,6 +4089,42 @@ class DefNodeWrapper(FuncDefNode):
         )
         code.putln(f"if (unlikely({Naming.kwds_len_cname} < 0)) {goto_error}")
 
+# FIXME!
+#<<<<<<< fastcall_args
+        if self.starstar_arg and self.starstar_arg.entry.cf_used:
+            if self.starstar_arg.type.is_fastcall_dict:
+                lhs = "*%s" % self.starstar_arg.entry.cname
+                kwargsasdict = "__Pyx_KwargsAsDict_%s_fastcallstruct" % self.signature.fastvar
+                code.globalstate.use_utility_code(
+                    UtilityCode.load_cached("FastcallDict_KwargsAsDict", "FunctionArguments.c"))
+            else:
+                lhs = self.starstar_arg.entry.cname
+                kwargsasdict = "__Pyx_KwargsAsDict_%s" % self.signature.fastvar
+            code.putln("if (%s) {" % kwarg_check)
+            code.putln("%s = %s(%s, %s);" % (
+                lhs,
+                kwargsasdict,
+                Naming.kwds_cname,
+                Naming.kwvalues_cname))
+
+            code.putln("if (unlikely(!%s)) return %s;" % (
+                    self.starstar_arg.entry.type.nullcheck_string(self.starstar_arg.entry.cname),
+                    self.error_value()))
+            code.put_var_gotref(self.starstar_arg.entry)
+            code.putln("} else {")
+            allow_null = all(ref.node.allow_null for ref in self.starstar_arg.entry.cf_references)
+            if allow_null:
+                code.putln("%s = %s;" % (self.starstar_arg.entry.cname,
+                                         self.starstar_arg.entry.type.literal_code(0)))
+            else:
+                if self.starstar_arg.type.is_fastcall_dict:
+                    code.putln("*%s = __Pyx_FastcallDict_New();" % self.starstar_arg.entry.cname)
+                else:
+                    code.putln("%s = PyDict_New();" % self.starstar_arg.entry.cname)
+                code.putln("if (unlikely(!%s)) return %s;" % (
+                        self.starstar_arg.entry.type.nullcheck_string(self.starstar_arg.entry.cname),
+                        self.error_value()))
+#=======
         if self.starstar_arg:
             code.putln(f"if ({Naming.kwds_len_cname} > 0) {{")
 
@@ -4079,6 +4144,7 @@ class DefNodeWrapper(FuncDefNode):
                     ");"
                 )
                 code.putln(f"if (unlikely(!{starstar_arg_cname})) {goto_error}")
+#>>>>>>> master
                 code.put_var_gotref(self.starstar_arg.entry)
 
                 code.putln("} else {")
@@ -4104,6 +4170,7 @@ class DefNodeWrapper(FuncDefNode):
 
         if self.self_in_stararg and not self.target.is_staticmethod:
             assert not self.signature.use_fastcall
+            assert not self.star_arg.entry.type.is_fastcall_tuple
             star_arg_cname = self.star_arg.entry.cname
             # need to create a new tuple with 'self' inserted as first item
             code.putln(
@@ -4132,10 +4199,25 @@ class DefNodeWrapper(FuncDefNode):
             self.star_arg.entry.xdecref_cleanup = 0
         elif self.star_arg:
             assert not self.signature.use_fastcall
+# FIXME!
+#<<<<<<< fastcall_args
+            if self.star_arg.type.is_fastcall_tuple:
+                # need a specific conversion
+                code.putln("%s = __Pyx_FastcallTuple_FromTuple(%s);" % (
+                    self.star_arg.entry.cname,
+                    Naming.args_cname))
+                code.put_var_gotref(self.star_arg.entry)
+            else:
+                code.put_incref(Naming.args_cname, py_object_type)
+                code.putln("%s = %s;" % (
+                    self.star_arg.entry.cname,
+                    Naming.args_cname))
+#=======
             star_arg_cname = self.star_arg.entry.cname
             code.put_incref(Naming.args_cname, py_object_type)
             code.putln(
                 f"{star_arg_cname} = {Naming.args_cname};")
+#>>>>>>> master
             self.star_arg.entry.xdecref_cleanup = 0
 
     def generate_tuple_and_keyword_parsing_code(self, args, code, decl_code):
@@ -4398,14 +4480,21 @@ class DefNodeWrapper(FuncDefNode):
         # If the "**kwargs" parameter is unused, we keep it as NULL to avoid useless overhead.
         if self.starstar_arg and self.starstar_arg.entry.cf_used:
             self.starstar_arg.entry.xdecref_cleanup = 0
-            code.putln('%s = PyDict_New(); if (unlikely(!%s)) return %s;' % (
-                self.starstar_arg.entry.cname,
-                self.starstar_arg.entry.cname,
-                self.error_value()))
+
+            if not self.starstar_arg.type.is_fastcall_dict:
+                code.putln('%s = PyDict_New(); if (unlikely(!%s)) return %s;' % (
+                        self.starstar_arg.entry.cname,
+                        self.starstar_arg.entry.cname,
+                        self.error_value()))
             code.put_var_gotref(self.starstar_arg.entry)
+
         if self.star_arg:
+            is_fastcall_tuple = self.star_arg.type.is_fastcall_tuple
+
+            postfix = "" if not is_fastcall_tuple else "_struct"
+
             self.star_arg.entry.xdecref_cleanup = 0
-            if max_positional_args == 0:
+            if max_positional_args == 0 and not is_fastcall_tuple:
                 # If there are no positional arguments, use the args tuple
                 # directly
                 assert not self.signature.use_fastcall
@@ -4416,7 +4505,7 @@ class DefNodeWrapper(FuncDefNode):
                 # as in args[5:3]. That's not a problem, the function below
                 # handles that efficiently and returns the empty tuple.
                 code.putln(
-                    f'{self.star_arg.entry.cname} = __Pyx_ArgsSlice_{self.signature.fastvar}('
+                    f'{self.star_arg.entry.cname} = __Pyx_ArgsSlice_{self.signature.fastvar}{postfix}('
                     f'{Naming.args_cname}, {max_positional_args}, {Naming.nargs_cname}'
                     ');'
                 )
@@ -4541,6 +4630,73 @@ class DefNodeWrapper(FuncDefNode):
             values_array = f'values + {num_pos_only_args}'
         else:
             values_array = 'values'
+# FIXME!
+#<<<<<<< fastcall_args
+        starstar_cname = self.starstar_arg and self.starstar_arg.entry.cname or '0'
+        if self.starstar_arg and self.starstar_arg.type.is_fastcall_dict:
+            parseoptionalkeywords = "__Pyx_ParseOptionalKeywords_fastcallstruct"
+            code.globalstate.use_utility_code(
+                UtilityCode.load_cached("ParseKeywords_fastcallstruct", "FunctionArguments.c"))
+        else:
+            parseoptionalkeywords = "__Pyx_ParseOptionalKeywords"
+            code.globalstate.use_utility_code(
+                UtilityCode.load_cached("ParseKeywords", "FunctionArguments.c"))
+
+        code.putln('if (unlikely(%s(%s, %s, %s, %s, %s, %s, %s) < 0)) %s' % (
+            parseoptionalkeywords,
+            Naming.kwds_cname,
+            Naming.kwvalues_cname,
+            Naming.pykwdlist_cname,
+            starstar_cname,
+            values_array,
+            pos_arg_count,
+            self_name_csafe,
+            code.error_goto(self.pos)))
+        code.putln('}')
+
+    def generate_optional_kwonly_args_unpacking_code(self, all_args, code):
+        optional_args = []
+        first_optional_arg = -1
+        num_posonly_args = 0
+        for i, arg in enumerate(all_args):
+            if arg.pos_only:
+                num_posonly_args += 1
+            if not arg.kw_only or not arg.default:
+                continue
+            if not optional_args:
+                first_optional_arg = i
+            optional_args.append(arg.name)
+        if num_posonly_args > 0:
+            posonly_correction = '-%d' % num_posonly_args
+        else:
+            posonly_correction = ''
+        if optional_args:
+            if len(optional_args) > 1:
+                # if we receive more than the named kwargs, we either have **kwargs
+                # (in which case we must iterate anyway) or it's an error (which we
+                # also handle during iteration) => skip this part if there are more
+                code.putln('if (kw_args > 0 && %s(kw_args <= %d)) {' % (
+                    not self.starstar_arg and 'likely' or '',
+                    len(optional_args)))
+                code.putln('Py_ssize_t index;')
+                # not unrolling the loop here reduces the C code overhead
+                code.putln('for (index = %d; index < %d && kw_args > 0; index++) {' % (
+                    first_optional_arg, first_optional_arg + len(optional_args)))
+            else:
+                code.putln('if (kw_args == 1) {')
+                code.putln('const Py_ssize_t index = %d;' % first_optional_arg)
+            code.putln('PyObject* value = __Pyx_GetKwValue_%s(%s, %s, *%s[index%s]);' % (
+                self.signature.fastvar,
+                Naming.kwds_cname,
+                Naming.kwvalues_cname,
+                Naming.pykwdlist_cname,
+                posonly_correction))
+            code.putln('if (value) { values[index] = value; kw_args--; }')
+            code.putln('else if (unlikely(PyErr_Occurred())) %s' % code.error_goto(self.pos))
+            if len(optional_args) > 1:
+                code.putln('}')
+            code.putln('}')
+#=======
 
         self_name_csafe = self.name.as_c_string_literal()
 
@@ -4558,6 +4714,7 @@ class DefNodeWrapper(FuncDefNode):
             f"{self.starstar_arg is not None :d}"  # **kwargs might exist but be NULL in C if unused
             ")"
         )
+#>>>>>>> master
 
     def generate_argument_conversion_code(self, code):
         # Generate code to convert arguments from signature type to

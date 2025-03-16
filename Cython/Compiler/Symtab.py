@@ -347,6 +347,7 @@ class Scope:
     # is_c_class_scope  boolean            Is an extension type scope
     # is_local_scope    boolean            Is a local (i.e. function/method/generator) scope
     # is_closure_scope  boolean            Is a closure scope
+    # is_struct_or_union_scope boolean     Is a C struct/union scope
     # is_generator_expression_scope boolean   A subset of closure scope used for generator expressions
     # is_passthrough    boolean            Outer scope is passed directly
     # is_cpp_class_scope  boolean          Is a C++ class scope
@@ -375,6 +376,7 @@ class Scope:
     is_cpp_class_scope = 0
     is_property_scope = 0
     is_module_scope = 0
+    is_struct_or_union_scope = 0
     is_c_dataclass_scope = False
     is_internal = 0
     scope_prefix = ""
@@ -575,8 +577,15 @@ class Scope:
         # Create new entry, and add to dictionary if
         # name is not None. Reports a warning if already
         # declared.
-        if type.is_buffer and not isinstance(self, LocalScope):  # and not is_type:
+        if type.is_buffer and not self.is_local_scope:  # and not is_type:
             error(pos, 'Buffer types only allowed as function local variables')
+        elif (type.is_fastcall_tuple_or_dict and
+              not (self.is_local_scope or self.is_struct_or_union_scope)):
+            # (allow StructOrUnionScope since this is generated in TupleNode.analyse_types
+            #  but shouldn't be able to propagate out further hopefully)
+            error(pos, 'Fastcall-argument tuples and dicts only allowed as function local variables. '+
+                  "You are probably receiving this message because '%s' has been added to a closure." %
+                  name)
         if not self.in_cinclude and cname and re.match("^_[_A-Z]+$", cname):
             # See https://www.gnu.org/software/libc/manual/html_node/Reserved-Names.html#Reserved-Names
             warning(pos, "'%s' is a reserved name in C." % cname, -1)
@@ -2201,6 +2210,7 @@ class GeneratorExpressionScope(ClosureScope):
 
 class StructOrUnionScope(Scope):
     #  Namespace of a C struct or union.
+    is_struct_or_union_scope = True
 
     def __init__(self, name="?"):
         Scope.__init__(self, name, outer_scope=None, parent_scope=None)

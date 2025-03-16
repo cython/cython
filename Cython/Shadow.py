@@ -102,6 +102,8 @@ class _Optimization:
 
 cclass = ccall = cfunc = _EmptyDecoratorAndManager()
 
+fastcall_args = _EmptyDecoratorAndManager()
+
 annotation_typing = returns = wraparound = boundscheck = initializedcheck = \
     nonecheck = embedsignature = cdivision = cdivision_warnings = \
     always_allow_keywords = profile = linetrace = infer_types = \
