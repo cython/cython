@@ -42,7 +42,8 @@ def compile_benchmarks(cython_dir: pathlib.Path, bm_dir: pathlib.Path, benchmark
     if bm_files:
         bm_count = len(bm_files)
         rev_hash = get_git_rev(rev_dir=cython_dir)
-        logging.info(f"Compiling {bm_count} benchmark{'s' if bm_count != 1 else ''} with Cython gitrev {rev_hash}: {', '.join(bm_file.stem for bm_file in bm_files)}")
+        bm_list = ', '.join(bm_file.stem for bm_file in bm_files)
+        logging.info(f"Compiling {bm_count} benchmark{'s' if bm_count != 1 else ''} with Cython gitrev {rev_hash}: {bm_list}")
         run([sys.executable, str(cython_dir / "cythonize.py"), f"-j{bm_count or 1}", "-i", *bm_files, *cythonize_args], cwd=cython_dir)
 
 
