@@ -71,6 +71,8 @@ def run_benchmarks(bm_dir, benchmarks):
 
 
 def benchmark_revisions(benchmarks, revisions, cythonize_args=None):
+    logging.info(f"### Comparing revisions: {' '.join(revisions)}.")
+
     timings = {}
     for revision in revisions:
         with tempfile.TemporaryDirectory() as base_dir_str:
@@ -139,5 +141,6 @@ if __name__ == '__main__':
     logging.basicConfig(stream=sys.stdout, level=logging.INFO, format="%(asctime)s  %(message)s")
     benchmark_selectors = set(bm.strip() for bm in options.benchmarks.split(","))
     benchmarks = [bm for bm in ALL_BENCHMARKS if any(selector in bm for selector in benchmark_selectors)]
-    timings = benchmark_revisions(benchmarks, options.revisions, cythonize_args)
+    revisions = list({rev: rev for rev in options.revisions})  # deduplicate in order
+    timings = benchmark_revisions(benchmarks, revisions, cythonize_args)
     report_revision_timings(timings)
