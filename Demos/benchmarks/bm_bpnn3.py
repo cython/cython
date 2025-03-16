@@ -6,6 +6,7 @@
 # Neil Schemenauer <nascheme@enme.ucalgary.ca>
 
 import math
+import time
 import random as random
 
 # Local imports
@@ -164,21 +165,29 @@ def demo():
     # test it
     #n.test(pat)
 
-def time(fn, *args):
-    import time, traceback
-    begin = time.time()
-    result = fn(*args)
-    end = time.time()
-    return result, end-begin
 
-def test_bpnn(iterations):
+def time_bm(fn, *args, timer=time.perf_counter):
+    import traceback
+    begin = timer()
+    result = fn(*args)
+    end = timer()
+    return result, end - begin
+
+
+def test_bpnn(iterations, timer=time.perf_counter):
     times = []
     for _ in range(iterations):
-        result, t = time(demo)
+        result, t = time_bm(demo, timer=timer)
         times.append(t)
     return times
 
+
 main = test_bpnn
+
+
+def run_benchmark(repeat=10, count=None, timer=time.perf_counter):
+    return test_bpnn(repeat, timer=timer)
+
 
 if __name__ == "__main__":
     import optparse
