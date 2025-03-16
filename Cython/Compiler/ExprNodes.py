@@ -6791,10 +6791,10 @@ class PyMethodCallNode(CallNode):
         code.putln("}")
 
     @staticmethod
-    def can_be_used_for_posargs(positional_args, has_kwargs, kwds_is_dict_node=None):
+    def can_be_used_for_posargs(positional_args, has_kwargs, has_explicit_kwargs=False):
         """
         Test whether the positional args given are compatible with
-        being translated into a PyMethodCallNode
+        being translated into a PyMethodCallNode.
         """
         if not isinstance(positional_args, TupleNode):
             return False
@@ -6803,10 +6803,9 @@ class PyMethodCallNode(CallNode):
         if positional_args.is_literal and len(positional_args.args) > 1:
             return False
         if not len(positional_args.args):
-            # If positional_args is an empty tuple, it's probably only
-            # worth optimizing if the kwds are f(a=1, b=2) and not
-            # if they're f(**kwds)
-            return has_kwargs and kwds_is_dict_node
+            # If positional_args is an empty tuple, it's probably only worth optimizing
+            # if the kwds are f(a=1, b=2) or none at all, and not if they're f(**kwds).
+            return has_explicit_kwargs or not has_kwargs
         return True
 
 
