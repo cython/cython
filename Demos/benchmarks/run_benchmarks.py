@@ -1,5 +1,6 @@
 import collections
 import logging
+import os
 import pathlib
 import shutil
 import subprocess
@@ -14,17 +15,21 @@ BENCHMARK_FILES = sorted(BENCHMARKS_DIR.glob("bm_*.py"))
 ALL_BENCHMARKS = [bm.stem for bm in BENCHMARK_FILES]
 
 
-def run(command, cwd=None):
+def run(command, cwd=None, pythonpath=None):
+    if pythonpath:
+        env = os.environ.copy()
+        env['PYTHONPATH'] = pythonpath
+    else:
+        env = None
+
     try:
-        return subprocess.run(command, cwd=str(cwd) if cwd else None, check=True, capture_output=True)
+        return subprocess.run(command, cwd=str(cwd) if cwd else None, check=True, capture_output=True, env=env)
     except subprocess.CalledProcessError as exc:
         logging.error(f"Command failed: {' '.join(map(str, command))}\nOutput:\n{exc.stderr.decode()}")
         raise
 
 
-def compile_benchmarks(cython_dir: pathlib.Path, bm_dir: pathlib.Path, benchmarks=None, cythonize_args=None):
-    cythonize_args = cythonize_args or []
-
+def copy_benchmarks(bm_dir: pathlib.Path, benchmarks=None):
     util_file = BENCHMARKS_DIR / "util.py"
     if util_file.exists():
         shutil.copy(util_file, bm_dir / util_file.name)
@@ -39,12 +44,16 @@ def compile_benchmarks(cython_dir: pathlib.Path, bm_dir: pathlib.Path, benchmark
             shutil.copy(dep, bm_dir / dep.name)
         bm_files.append(bm_file)
 
-    if bm_files:
-        bm_count = len(bm_files)
-        rev_hash = get_git_rev(rev_dir=cython_dir)
-        bm_list = ', '.join(bm_file.stem for bm_file in bm_files)
-        logging.info(f"Compiling {bm_count} benchmark{'s' if bm_count != 1 else ''} with Cython gitrev {rev_hash}: {bm_list}")
-        run([sys.executable, str(cython_dir / "cythonize.py"), f"-j{bm_count or 1}", "-i", *bm_files, *cythonize_args], cwd=cython_dir)
+    return bm_files
+
+
+def compile_benchmarks(cython_dir: pathlib.Path, bm_files: list[pathlib.Path], benchmarks=None, cythonize_args=None):
+    bm_count = len(bm_files)
+    rev_hash = get_git_rev(rev_dir=cython_dir)
+    bm_list = ', '.join(bm_file.stem for bm_file in bm_files)
+    cythonize_args = cythonize_args or []
+    logging.info(f"Compiling {bm_count} benchmark{'s' if bm_count != 1 else ''} with Cython gitrev {rev_hash}: {bm_list}")
+    run([sys.executable, str(cython_dir / "cythonize.py"), f"-j{bm_count or 1}", "-i", *bm_files, *cythonize_args], cwd=cython_dir)
 
 
 def get_git_rev(revision=None, rev_dir=None):
@@ -62,9 +71,12 @@ def git_clone(rev_dir, revision):
     run(["git", "checkout", rev_hash], cwd=rev_dir)
 
 
-def run_benchmark(bm_dir, module_name):
+def run_benchmark(bm_dir, module_name, pythonpath=None):
     logging.info(f"Running benchmark '{module_name}'.")
-    output = run([sys.executable, "-c", f"import {module_name} as bm; bm.run_benchmark(4); print(bm.run_benchmark(9))"], cwd=bm_dir)
+    output = run(
+        [sys.executable, "-c", f"import {module_name} as bm; bm.run_benchmark(4); print(bm.run_benchmark(9))"],
+        cwd=bm_dir, pythonpath=pythonpath,
+    )
 
     for line in output.stdout.decode().splitlines():
         if line.startswith('[') and line.endswith(']'):
@@ -75,10 +87,10 @@ def run_benchmark(bm_dir, module_name):
         raise RuntimeError(f"Benchmark failed: {module_name}")
 
 
-def run_benchmarks(bm_dir, benchmarks):
+def run_benchmarks(bm_dir, benchmarks, pythonpath=None):
     timings = {}
     for benchmark in benchmarks:
-        timings[benchmark] = run_benchmark(bm_dir, benchmark)
+        timings[benchmark] = run_benchmark(bm_dir, benchmark, pythonpath=pythonpath)
     return timings
 
 
@@ -88,12 +100,14 @@ def benchmark_revisions(benchmarks, revisions, cythonize_args=None):
     hashes = {}
     timings = {}
     for revision in revisions:
-        rev_hash = get_git_rev(revision)
-        if rev_hash in hashes:
-            logging.info(f"### Ignoring revision '{revision}': same as '{hashes[rev_hash]}'")
-            continue
+        plain_python = revision == 'Python'
+        if not plain_python:
+            rev_hash = get_git_rev(revision)
+            if rev_hash in hashes:
+                logging.info(f"### Ignoring revision '{revision}': same as '{hashes[rev_hash]}'")
+                continue
 
-        hashes[rev_hash] = revision
+            hashes[rev_hash] = revision
 
         with tempfile.TemporaryDirectory() as base_dir_str:
             logging.info(f"### Preparing benchmark run for revision '{revision}'.")
@@ -101,13 +115,17 @@ def benchmark_revisions(benchmarks, revisions, cythonize_args=None):
             cython_dir = base_dir / "cython" / revision
             bm_dir = base_dir / "benchmarks" / revision
 
-            git_clone(cython_dir, revision)
+            git_clone(cython_dir, revision=revision if revision != 'Python' else None)
 
             bm_dir.mkdir(parents=True)
-            compile_benchmarks(cython_dir, bm_dir, benchmarks, cythonize_args)
+            bm_files = copy_benchmarks(bm_dir, benchmarks)
+            if not plain_python:
+                compile_benchmarks(cython_dir, bm_files, benchmarks, cythonize_args)
 
-            logging.info(f"### Running benchmarks for revision '{revision}'.")
-            timings[revision] = run_benchmarks(bm_dir, benchmarks)
+            logging.info(f"### Running benchmarks for '{revision}'.")
+            pythonpath = cython_dir if plain_python else None
+            timings[revision] = run_benchmarks(bm_dir, benchmarks, pythonpath=pythonpath)
+
     return timings
 
 
@@ -147,6 +165,11 @@ def parse_args(args):
         help="The list of benchmark selectors to run, simple substrings, separated by comma.",
     )
     parser.add_argument(
+        "--with-python",
+        dest="with_python", action="store_true", default=False,
+        help="Also run the benchmarks in plain Python for direct comparison.",
+    )
+    parser.add_argument(
         "revisions",
         nargs="*", default=[],
         help="The git revisions to check out and benchmark.",
@@ -166,5 +189,7 @@ if __name__ == '__main__':
         sys.exit(1)
 
     revisions = list({rev: rev for rev in options.revisions})  # deduplicate in order
+    if options.with_python:
+        revisions.append('Python')
     timings = benchmark_revisions(benchmarks, revisions, cythonize_args)
     report_revision_timings(timings)
