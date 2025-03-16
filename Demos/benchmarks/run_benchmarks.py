@@ -41,13 +41,24 @@ def compile_benchmarks(cython_dir: pathlib.Path, bm_dir: pathlib.Path, benchmark
 
     if bm_files:
         bm_count = len(bm_files)
-        logging.info(f"Compiling {bm_count} benchmark{'s' if bm_count != 1 else ''}: {', '.join(bm_file.stem for bm_file in bm_files)}")
+        rev_hash = get_git_rev(rev_dir=cython_dir)
+        logging.info(f"Compiling {bm_count} benchmark{'s' if bm_count != 1 else ''} with Cython gitrev {rev_hash}: {', '.join(bm_file.stem for bm_file in bm_files)}")
         run([sys.executable, str(cython_dir / "cythonize.py"), f"-j{bm_count or 1}", "-i", *bm_files, *cythonize_args], cwd=cython_dir)
 
 
+def get_git_rev(revision=None, rev_dir=None):
+    command = ["git", "describe", "--long"]
+    if revision:
+        command.append(revision)
+    output = run(command, cwd=rev_dir)
+    _, rev_hash = output.stdout.decode().strip().rsplit('-', 1)
+    return rev_hash[1:]
+
+
 def git_clone(rev_dir, revision):
+    rev_hash = get_git_rev(revision)
     run(["git", "clone", "-n", "--no-single-branch", ".", str(rev_dir)])
-    run(["git", "switch", "-C", revision, f"refs/remotes/origin/{revision}"], cwd=rev_dir)
+    run(["git", "checkout", rev_hash], cwd=rev_dir)
 
 
 def run_benchmark(bm_dir, module_name):
