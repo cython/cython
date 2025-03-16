@@ -325,7 +325,7 @@ It is also possible to use C++ to create new threads (for example, using the ``s
 class).  This works, but we generally recommend creating threads through Python
 instead.  For a C++-created thread it's necessary to register them with the interpreter
 by calling ``with gil:`` before using any Python objects and this will not work reliably
-with multiple subinterpreters - this recommendation is therefore mainly to future-proofing
+with multiple subinterpreters - this recommendation is therefore mainly to future-proof
 your code and not restrict where it can be used from.  It is a fairly soft suggestion though,
 so feel free to ignore it if you have good reason to.
 
@@ -366,7 +366,7 @@ reassigning a Python attribute can trigger arbitrary code (but typically
 only after the new value has been put in place).  Additionally, triggering
 the GC can result in arbitrary code being executed. On Python <3.12 any
 Python memory allocation can trigger the GC so be wary of this if you
-aim to supprt multithreading in those version (the first free-threaded
+aim to support multithreading in those versions (the first free-threaded
 interpreters were in Python 3.13 so the GC is harder to trigger from
 Cython code in them).
 
