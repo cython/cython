@@ -84,8 +84,16 @@ def run_benchmarks(bm_dir, benchmarks):
 def benchmark_revisions(benchmarks, revisions, cythonize_args=None):
     logging.info(f"### Comparing revisions: {' '.join(revisions)}.")
 
+    hashes = {}
     timings = {}
     for revision in revisions:
+        rev_hash = get_git_rev(revision)
+        if rev_hash in hashes:
+            logging.info(f"### Ignoring revision '{revision}': same as '{hashes[rev_hash]}'")
+            continue
+
+        hashes[rev_hash] = revision
+
         with tempfile.TemporaryDirectory() as base_dir_str:
             logging.info(f"### Preparing benchmark run for revision '{revision}'.")
             base_dir = pathlib.Path(base_dir_str)

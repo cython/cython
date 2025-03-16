@@ -334,7 +334,7 @@ jobs:
           python-version: "3.13"
 
       - name: Run Benchmarks
-        run: bash -c 'python -m pip install setuptools && python Demos/benchmarks/run_benchmarks.py  refs/heads/3.0.x  refs/heads/master  ${GITHUB_REF}'
+        run: bash -c 'git branch -v -a && python -m pip install setuptools && python Demos/benchmarks/run_benchmarks.py  origin/3.0.x  origin/master  ${GITHUB_REF}'
 
   codespell:
     name: Check for spelling errors
