@@ -52,4 +52,3 @@ def run_benchmark(repeat=10, count=1000, timer=time.perf_counter):
         t = timer() - t
         timings.append(t)
     return timings
-
