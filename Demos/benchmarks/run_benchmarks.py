@@ -161,6 +161,10 @@ if __name__ == '__main__':
     logging.basicConfig(stream=sys.stdout, level=logging.INFO, format="%(asctime)s  %(message)s")
     benchmark_selectors = set(bm.strip() for bm in options.benchmarks.split(","))
     benchmarks = [bm for bm in ALL_BENCHMARKS if any(selector in bm for selector in benchmark_selectors)]
+    if benchmark_selectors and not benchmarks:
+        logging.error("No benchmarks selected!")
+        sys.exit(1)
+
     revisions = list({rev: rev for rev in options.revisions})  # deduplicate in order
     timings = benchmark_revisions(benchmarks, revisions, cythonize_args)
     report_revision_timings(timings)
