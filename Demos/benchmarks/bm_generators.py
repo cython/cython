@@ -4,6 +4,7 @@
 COUNT = 10000
 
 import cython
+import time
 
 @cython.locals(N=cython.Py_ssize_t)
 def count_to(N):
@@ -53,21 +54,26 @@ def bm_yield_from_nested(N):
                       count_to(N))
 
 
-def time(fn, *args):
-    from time import time
-    begin = time()
+def time_func(fn, *args, timer=time.perf_counter):
+    begin = timer()
     result = list(fn(*args))
-    end = time()
-    return result, end-begin
+    end = timer()
+    return result, end - begin
 
-def benchmark(N):
+
+def benchmark(N, count=10, timer=time.perf_counter):
     times = []
     for _ in range(N):
-        result, t = time(bm_yield_from_nested, 10)
+        result, t = time_func(bm_yield_from_nested, count)
         times.append(t)
     return times
 
 main = benchmark
+
+
+def run_benchmark(repeat=10, count=50, timer=time.perf_counter):
+    return benchmark(repeat, count, timer=timer)
+
 
 if __name__ == "__main__":
     import optparse
