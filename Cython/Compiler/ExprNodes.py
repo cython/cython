@@ -3119,7 +3119,7 @@ class IteratorNode(ScopedExprNode):
         assert self.counter_cname, "internal error: counter_cname temp not prepared"
         assert test_name in ('List', 'Tuple')
 
-        final_size = '__Pyx_Py%s_GET_SIZE(%s)' % (test_name, self.py_result())
+        final_size = f'__Pyx_Py{test_name}_GET_SIZE({self.py_result()})'
         size_is_safe = False
         if self.sequence.is_sequence_constructor:
             item_count = len(self.sequence.args)
@@ -3141,41 +3141,31 @@ class IteratorNode(ScopedExprNode):
             code.putln("if (%s >= %s) break;" % (self.counter_cname, Naming.quick_temp_cname))
             code.putln("}")
 
-        if self.reversed:
-            inc_dec = '--'
-        else:
-            inc_dec = '++'
-        code.putln("#if CYTHON_ASSUME_SAFE_MACROS && !CYTHON_AVOID_BORROWED_REFS")
+        inc_dec = '--' if self.reversed else '++'
+
         if test_name == 'List':
             code.putln(f"{result_name} = __Pyx_PyList_GetItemRef({self.py_result()}, {self.counter_cname});")
-            code.putln(code.error_goto_if_null(result_name, self.pos))
-            code.putln(f"__Pyx_GOTREF({result_name});")
         else:  # Tuple
-            code.putln(f"{result_name} = PyTuple_GET_ITEM({self.py_result()}, {self.counter_cname});")
-            code.putln(code.error_goto_if_neg('0', self.pos))  # Use the error label to avoid C compiler warnings if we only use it below.
-            code.putln(f"__Pyx_INCREF({result_name});")
-        code.putln(f"{self.counter_cname}{inc_dec};")
-        code.putln("#else")
-        code.putln(
-            "%s = __Pyx_PySequence_ITEM(%s, %s); %s%s; %s" % (
-                result_name,
-                self.py_result(),
-                self.counter_cname,
-                self.counter_cname,
-                inc_dec,
-                code.error_goto_if_null(result_name, self.pos)))
-        code.put_gotref(result_name, py_object_type)
-        code.putln("#endif")
+            code.putln("#if CYTHON_ASSUME_SAFE_MACROS && !CYTHON_AVOID_BORROWED_REFS")
+            code.putln(f"{result_name} = __Pyx_NewRef(PyTuple_GET_ITEM({self.py_result()}, {self.counter_cname}));")
+            code.putln("#else")
+            code.putln(f"{result_name} = __Pyx_PySequence_ITEM({self.py_result()}, {self.counter_cname});")
+            code.putln("#endif")
+        code.putln(f"{inc_dec}{self.counter_cname};")
 
     def generate_iter_next_result_code(self, result_name, code):
         sequence_type = self.sequence.type
         if self.reversed:
-            code.putln("if (%s < 0) break;" % self.counter_cname)
+            code.putln(f"if ({self.counter_cname} < 0) break;")
         if sequence_type is list_type:
             self.generate_next_sequence_item('List', result_name, code)
+            code.putln(code.error_goto_if_null(result_name, self.pos))
+            code.put_gotref(result_name, py_object_type)
             return
         elif sequence_type is tuple_type:
             self.generate_next_sequence_item('Tuple', result_name, code)
+            code.putln(code.error_goto_if_null(result_name, self.pos))
+            code.put_gotref(result_name, py_object_type)
             return
 
         if self.may_be_a_sequence:
@@ -3185,24 +3175,21 @@ class IteratorNode(ScopedExprNode):
             code.putln("} else {")
             self.generate_next_sequence_item('Tuple', result_name, code)
             code.putln("}")
+            code.putln(code.error_goto_if_null(result_name, self.pos))
             code.put("} else ")
 
         code.putln("{")
-        code.putln(
-            "%s = %s(%s);" % (
-                result_name,
-                self.iter_func_ptr,
-                self.py_result()))
+        code.putln(f"{result_name} = {self.iter_func_ptr}({self.py_result()});")
         code.putln("if (unlikely(!%s)) {" % result_name)
         code.putln("PyObject* exc_type = PyErr_Occurred();")
         code.putln("if (exc_type) {")
-        code.putln("if (likely(__Pyx_PyErr_GivenExceptionMatches(exc_type, PyExc_StopIteration))) PyErr_Clear();")
-        code.putln("else %s" % code.error_goto(self.pos))
+        code.putln(code.error_goto_if("!__Pyx_PyErr_GivenExceptionMatches(exc_type, PyExc_StopIteration)", self.pos))
+        code.putln("PyErr_Clear();")
         code.putln("}")
         code.putln("break;")
         code.putln("}")
-        code.put_gotref(result_name, py_object_type)
         code.putln("}")
+        code.put_gotref(result_name, py_object_type)
 
     def free_temps(self, code):
         if self.counter_cname:
@@ -6804,10 +6791,10 @@ class PyMethodCallNode(CallNode):
         code.putln("}")
 
     @staticmethod
-    def can_be_used_for_posargs(positional_args, has_kwargs, kwds_is_dict_node=None):
+    def can_be_used_for_posargs(positional_args, has_kwargs, has_explicit_kwargs=False):
         """
         Test whether the positional args given are compatible with
-        being translated into a PyMethodCallNode
+        being translated into a PyMethodCallNode.
         """
         if not isinstance(positional_args, TupleNode):
             return False
@@ -6816,10 +6803,9 @@ class PyMethodCallNode(CallNode):
         if positional_args.is_literal and len(positional_args.args) > 1:
             return False
         if not len(positional_args.args):
-            # If positional_args is an empty tuple, it's probably only
-            # worth optimizing if the kwds are f(a=1, b=2) and not
-            # if they're f(**kwds)
-            return has_kwargs and kwds_is_dict_node
+            # If positional_args is an empty tuple, it's probably only worth optimizing
+            # if the kwds are f(a=1, b=2) or none at all, and not if they're f(**kwds).
+            return has_explicit_kwargs or not has_kwargs
         return True
 
 

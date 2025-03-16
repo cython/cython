@@ -19,7 +19,17 @@ Features added
 * The type of ``prange`` loop targets is now inferred.
   (Github issue :issue:`6585`)
 
+* Extracting keyword arguments is faster in some cases.
+  (Github issue :issue:`6683`)
+
+* Cython can avoid normalising exceptions in an `except` clause if it knows that they are unused.
+  (Github issue :issue:`6601`)
+
 * The ``cython`` command has a new option ``--cache`` to cache generated files.
+  (Github issue :issue:`6091`)
+
+* The ``cythonize`` command has a new option ``--timeit`` to benchmark Cython code snippets.
+  (Github issue :issue:`6697`)
 
 * The argument parsing ``cygdb`` command was improved based on ``argparse``.
   Patch by William Ayd.  (Github issue :issue:`5499`)
@@ -93,11 +103,23 @@ Bugs fixed
 * Some redundant exception normalisation work was removed in Python 3.12+.
   (Github issue :issue:`6599`)
 
+* A compiler hang introduced in 3.1a1 when overriding methods was resolved.
+  Patch by Aditya Pillai.  (Github issue :issue:`6704`)
+
+* A compiler crash was resolven when trying to issue a warning.
+  Patch by Gabriele N. Tornetta.  (Github issue :issue:`6711`)
+
 * Some incomplete import time "safety checks" from 3.1.0a1 were removed again.
   (Github issue :issue:`6671`)
 
 Other changes
 -------------
+
+* All Cython-internal types (functions, coroutines, …) are now heap types and use type specs.
+  (Github issue :issue:`6633`)
+
+* Tracing/monitoring is now disabled in parallel/prange sections.
+  (Github issue :issue:`6709`)
 
 * Includes all fixes as of Cython 3.0.12.
 

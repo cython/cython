@@ -1162,9 +1162,6 @@ static CYTHON_INLINE int __Pyx_PyDict_GetItemRef(PyObject *dict, PyObject *key, 
   }
 #endif
 
-// TODO: remove
-#define PyBoolObject                 PyLongObject
-
 #if CYTHON_COMPILING_IN_PYPY && !defined(PyUnicode_InternFromString)
   #define PyUnicode_InternFromString(s) PyUnicode_FromString(s)
 #endif
@@ -1190,12 +1187,17 @@ static CYTHON_INLINE int __Pyx_PyDict_GetItemRef(PyObject *dict, PyObject *key, 
   #define __Pyx_pyiter_sendfunc sendfunc
 #endif
 
-// "Py_am_send" requires Py3.10 when using type specs.
-#define __PYX_HAS_PY_AM_SEND  (!CYTHON_USE_TYPE_SPECS || CYTHON_USE_AM_SEND && __PYX_LIMITED_VERSION_HEX >= 0x030A0000)
+// "Py_am_send" requires Py3.10 when using type specs (which utility code types do).
+#if !CYTHON_USE_AM_SEND
+#define __PYX_HAS_PY_AM_SEND 0
+#elif __PYX_LIMITED_VERSION_HEX >= 0x030A0000
+#define __PYX_HAS_PY_AM_SEND 1
+#else
+#define __PYX_HAS_PY_AM_SEND 2  // our own backported implementation
+#endif
 
-#if __PYX_LIMITED_VERSION_HEX >= 0x030A0000
+#if __PYX_HAS_PY_AM_SEND < 2
     #define __Pyx_PyAsyncMethodsStruct PyAsyncMethods
-    #define __Pyx_SlotTpAsAsync(s) (&(s))
 #else
     // PyAsyncMethods in Py<3.10 lacks "am_send"
     typedef struct {
@@ -1205,7 +1207,7 @@ static CYTHON_INLINE int __Pyx_PyDict_GetItemRef(PyObject *dict, PyObject *key, 
         __Pyx_pyiter_sendfunc am_send;
     } __Pyx_PyAsyncMethodsStruct;
 
-    #define __Pyx_SlotTpAsAsync(s) ((PyAsyncMethods*)&(s))
+    #define __Pyx_SlotTpAsAsync(s) ((PyAsyncMethods*)(s))
 #endif
 
 // Use a flag in Py < 3.10 to mark coroutines that have the "am_send" field.
@@ -1241,12 +1243,22 @@ PyAPI_FUNC(void *) PyMem_Calloc(size_t nelem, size_t elsize); /* proto */
     // The limited API makes some significant changes to data structures, so we don't
     // want to share the implementations compiled with and without the limited API.
     #if CYTHON_METH_FASTCALL
-        #define __PYX_LIMITED_ABI_SUFFIX  "limited_fastcall"
+        #define __PYX_FASTCALL_ABI_SUFFIX  "_fastcall"
     #else
-        #define __PYX_LIMITED_ABI_SUFFIX  "limited"
+        #define __PYX_FASTCALL_ABI_SUFFIX
     #endif
+
+    #define __PYX_LIMITED_ABI_SUFFIX "limited" __PYX_FASTCALL_ABI_SUFFIX __PYX_AM_SEND_ABI_SUFFIX
 #else
     #define __PYX_LIMITED_ABI_SUFFIX
+#endif
+
+#if __PYX_HAS_PY_AM_SEND == 1
+    #define __PYX_AM_SEND_ABI_SUFFIX
+#elif __PYX_HAS_PY_AM_SEND == 2
+    #define __PYX_AM_SEND_ABI_SUFFIX "amsendbackport"
+#else
+    #define __PYX_AM_SEND_ABI_SUFFIX "noamsend"
 #endif
 
 #ifndef __PYX_MONITORING_ABI_SUFFIX
@@ -1267,7 +1279,7 @@ PyAPI_FUNC(void *) PyMem_Calloc(size_t nelem, size_t elsize); /* proto */
     #define __PYX_FREELISTS_ABI_SUFFIX "nofreelists"
 #endif
 
-#define CYTHON_ABI  __PYX_ABI_VERSION __PYX_LIMITED_ABI_SUFFIX __PYX_MONITORING_ABI_SUFFIX __PYX_TP_FINALIZE_ABI_SUFFIX __PYX_FREELISTS_ABI_SUFFIX
+#define CYTHON_ABI  __PYX_ABI_VERSION __PYX_LIMITED_ABI_SUFFIX __PYX_MONITORING_ABI_SUFFIX __PYX_TP_FINALIZE_ABI_SUFFIX __PYX_FREELISTS_ABI_SUFFIX __PYX_AM_SEND_ABI_SUFFIX
 
 #define __PYX_ABI_MODULE_NAME "_cython_" CYTHON_ABI
 #define __PYX_TYPE_MODULE_PREFIX __PYX_ABI_MODULE_NAME "."
@@ -1720,6 +1732,7 @@ static void __pyx__insert_code_object(struct __Pyx_CodeObjectCache *code_cache, 
     if ((pos < code_cache->count) && unlikely(code_cache->entries[pos].code_line == code_line)) {
         __Pyx_CachedCodeObjectType* tmp = entries[pos].code_object;
         entries[pos].code_object = code_object;
+        Py_INCREF(code_object);
         Py_DECREF(tmp);
         return;
     }
