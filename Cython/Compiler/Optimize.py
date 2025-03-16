@@ -5068,9 +5068,9 @@ class FinalOptimizePhase(Visitor.EnvTransform, Visitor.NodeRefCleanupMixin):
         """
         self.visitchildren(node)
         has_kwargs = bool(node.keyword_args)
-        kwds_is_dict_node = isinstance(node.keyword_args, ExprNodes.DictNode)
+        has_explicit_kwargs = isinstance(node.keyword_args, ExprNodes.DictNode)
         if not ExprNodes.PyMethodCallNode.can_be_used_for_posargs(
-                node.positional_args, has_kwargs=has_kwargs, kwds_is_dict_node=kwds_is_dict_node):
+                node.positional_args, has_kwargs=has_kwargs, has_explicit_kwargs=has_explicit_kwargs):
             return node
         function = node.function
         if not ExprNodes.PyMethodCallNode.can_be_used_for_function(function):
