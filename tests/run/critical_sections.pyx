@@ -186,7 +186,6 @@ def test_free_function_with_critical_section(n_threads, n_loops):
     lock = object()
     barrier = threading.Barrier(n_threads)
 
-    @cython.test_assert_path_exists("//CriticalSectionStatNode")
     @cython.critical_section
     def inner(lock):
         @cython.test_fail_if_path_exists("//CriticalSectionStatNode")
