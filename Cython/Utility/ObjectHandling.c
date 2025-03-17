@@ -712,11 +712,10 @@ static CYTHON_INLINE int __Pyx_PyObject_SetSlice(PyObject* obj, PyObject* value,
 {{endif}}
         Py_ssize_t cstart, Py_ssize_t cstop,
         PyObject** _py_start, PyObject** _py_stop, PyObject** _py_slice,
-        int has_cstart, int has_cstop, int wraparound) {
+        int has_cstart, int has_cstop, CYTHON_UNUSED int wraparound) {
     __Pyx_TypeName obj_type_name;
 #if CYTHON_USE_TYPE_SLOTS
     PyMappingMethods* mp = Py_TYPE(obj)->tp_as_mapping;
-    CYTHON_UNUSED_VAR(wraparound);
 {{if access == 'Get'}}
     if (likely(mp && mp->mp_subscript))
 {{else}}
