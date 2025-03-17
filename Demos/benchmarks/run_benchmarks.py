@@ -6,6 +6,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import time
 
 
 BENCHMARKS_DIR = pathlib.Path(__file__).parent
@@ -47,7 +48,7 @@ def copy_benchmarks(bm_dir: pathlib.Path, benchmarks=None):
     return bm_files
 
 
-def compile_benchmarks(cython_dir: pathlib.Path, bm_files: list[pathlib.Path], benchmarks=None, cythonize_args=None):
+def compile_benchmarks(cython_dir: pathlib.Path, bm_files: list[pathlib.Path], cythonize_args=None):
     bm_count = len(bm_files)
     rev_hash = get_git_rev(rev_dir=cython_dir)
     bm_list = ', '.join(bm_file.stem for bm_file in bm_files)
@@ -71,12 +72,68 @@ def git_clone(rev_dir, revision):
     run(["git", "checkout", rev_hash], cwd=rev_dir)
 
 
-def run_benchmark(bm_dir, module_name, pythonpath=None):
+def find_benchmark_cname(c_file_path: pathlib.Path):
+    module_name = c_file_path.stem
+    prefix = f"__pyx_pw_{len(module_name)}{module_name}_"
+    with c_file_path.open(encoding='utf8') as c_file:
+        for line in c_file:
+            if prefix in line and 'run_benchmark(' in line:
+                start = line.index(prefix)
+                end = line.index('(', start)
+                cname = line[start:end]
+                if cname.endswith('run_benchmark'):
+                    return cname
+    raise RuntimeError(f"Failed to find benchmark function in generated C file: {c_file_path.name}")
+
+
+def copy_profile(bm_dir, module_name, profiler):
+    timestamp = int(time.time() * 1000)
+    profile_input = bm_dir / "profile.out"
+    data_file_name = f"{profiler}_{module_name}_{timestamp:X}.data"
+
+    if profiler == 'callgrind':
+        bm_dir_str = str(bm_dir) + os.sep
+        with open(profile_input) as data_file_in:
+            with open(data_file_name, mode='w') as data_file_out:
+                for line in data_file_in:
+                    if bm_dir_str in line:
+                        # Remove absolute file paths to link to local file copy below.
+                        line = line.replace(bm_dir_str, "")
+                    data_file_out.write(line)
+    else:
+        shutil.move(profile_input, data_file_name)
+
+    shutil.move(bm_dir / f"{module_name}.c", f"{module_name}.c")
+    for ext in bm_dir.glob(f"{module_name}.*so"):
+        shutil.move(str(ext), ext.name)
+
+
+def run_benchmark(bm_dir, module_name, pythonpath=None, profiler=None):
     logging.info(f"Running benchmark '{module_name}'.")
-    output = run(
-        [sys.executable, "-c", f"import {module_name} as bm; bm.run_benchmark(4); print(bm.run_benchmark(9))"],
-        cwd=bm_dir, pythonpath=pythonpath,
-    )
+
+    repeat = 9
+    command = []
+
+    if profiler:
+        if profiler == 'perf':
+            command = ["perf", "record", "--quiet", "-g", "--branch-any", "--output=profile.out"]
+        elif profiler == 'callgrind':
+            repeat = 1  # The warmup runs are enough for profiling.
+            benchmark_cname = find_benchmark_cname(bm_dir / f"{module_name}.c")
+            command = [
+                "valgrind", "--tool=callgrind",
+                "--dump-instr=yes", "--collect-jumps=yes",
+                f"--toggle-collect={benchmark_cname}",
+                "--callgrind-out-file=profile.out",
+            ]
+
+    command += [sys.executable, "-c", f"import {module_name} as bm; bm.run_benchmark(4); print(bm.run_benchmark({repeat:d}))"]
+
+
+    output = run(command, cwd=bm_dir, pythonpath=pythonpath)
+
+    if profiler:
+        copy_profile(bm_dir, module_name, profiler)
 
     for line in output.stdout.decode().splitlines():
         if line.startswith('[') and line.endswith(']'):
@@ -87,14 +144,14 @@ def run_benchmark(bm_dir, module_name, pythonpath=None):
         raise RuntimeError(f"Benchmark failed: {module_name}")
 
 
-def run_benchmarks(bm_dir, benchmarks, pythonpath=None):
+def run_benchmarks(bm_dir, benchmarks, pythonpath=None, profiler=None):
     timings = {}
     for benchmark in benchmarks:
-        timings[benchmark] = run_benchmark(bm_dir, benchmark, pythonpath=pythonpath)
+        timings[benchmark] = run_benchmark(bm_dir, benchmark, pythonpath=pythonpath, profiler=profiler)
     return timings
 
 
-def benchmark_revisions(benchmarks, revisions, cythonize_args=None):
+def benchmark_revisions(benchmarks, revisions, cythonize_args=None, profiler=None):
     logging.info(f"### Comparing revisions: {' '.join(revisions)}.")
 
     hashes = {}
@@ -120,11 +177,11 @@ def benchmark_revisions(benchmarks, revisions, cythonize_args=None):
             bm_dir.mkdir(parents=True)
             bm_files = copy_benchmarks(bm_dir, benchmarks)
             if not plain_python:
-                compile_benchmarks(cython_dir, bm_files, benchmarks, cythonize_args)
+                compile_benchmarks(cython_dir, bm_files, cythonize_args)
 
             logging.info(f"### Running benchmarks for '{revision}'.")
             pythonpath = cython_dir if plain_python else None
-            timings[revision] = run_benchmarks(bm_dir, benchmarks, pythonpath=pythonpath)
+            timings[revision] = run_benchmarks(bm_dir, benchmarks, pythonpath=pythonpath, profiler=profiler)
 
     return timings
 
@@ -170,6 +227,16 @@ def parse_args(args):
         help="Also run the benchmarks in plain Python for direct comparison.",
     )
     parser.add_argument(
+        "--perf",
+        dest="profiler", action="store_const", const="perf", default=None,
+        help="Run Linux 'perf record' on the benchmark process.",
+    )
+    parser.add_argument(
+        "--callgrind",
+        dest="profiler", action="store_const", const="callgrind", default=None,
+        help="Run Valgrind's callgrind profiler on the benchmark process.",
+    )
+    parser.add_argument(
         "revisions",
         nargs="*", default=[],
         help="The git revisions to check out and benchmark.",
@@ -191,5 +258,5 @@ if __name__ == '__main__':
     revisions = list({rev: rev for rev in options.revisions})  # deduplicate in order
     if options.with_python:
         revisions.append('Python')
-    timings = benchmark_revisions(benchmarks, revisions, cythonize_args)
+    timings = benchmark_revisions(benchmarks, revisions, cythonize_args, profiler=options.profiler)
     report_revision_timings(timings)
