@@ -2120,8 +2120,7 @@ static void __Pyx__ReturnWithStopIteration(PyObject* value, int async) {
             if (unlikely(!args_tuple)) return;
             Py_INCREF(value);
             PyTuple_SET_ITEM(args_tuple, 0, value);
-            assert(((PyTypeObject*)exc_type)->tp_call != NULL);
-            exc = ((PyTypeObject*)exc_type)->tp_call(exc_type, args_tuple, NULL);
+            exc = PyObject_Call(exc_type, args_tuple, NULL);
             Py_DECREF(args_tuple);
         } else {
             exc = __Pyx_PyObject_CallOneArg(exc_type, value);
