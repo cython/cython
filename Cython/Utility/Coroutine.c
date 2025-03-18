@@ -2094,6 +2094,7 @@ static CYTHON_INLINE void __Pyx_ReturnWithStopIteration(PyObject* value, int asy
 // 3) Passing a tuple as value into PyErr_SetObject() passes its items on as arguments.
 // 4) Passing an exception as value will interpret it as an exception on unpacking and raise it (or unpack its value).
 // 5) If there is currently an exception being handled, we need to chain it.
+// 6) CPython < 3.14a1 does not implement vectorcalls for exceptions.
 
 static void __Pyx__ReturnWithStopIteration(PyObject* value, int async); /*proto*/
 
@@ -2112,9 +2113,18 @@ static void __Pyx__ReturnWithStopIteration(PyObject* value, int async) {
     PyObject *exc;
     PyObject *exc_type = async ? PyExc_StopAsyncIteration : PyExc_StopIteration;
 #if CYTHON_COMPILING_IN_CPYTHON
-    if (PY_VERSION_HEX >= 0x030C00A6
-            || unlikely(PyTuple_Check(value) || PyExceptionInstance_Check(value))) {
-        exc = __Pyx_PyObject_CallOneArg(exc_type, value);
+    if (PY_VERSION_HEX >= 0x030C00A6 || unlikely(PyTuple_Check(value) || PyExceptionInstance_Check(value))) {
+        if (PY_VERSION_HEX >= 0x030e00A1) {
+            exc = __Pyx_PyObject_CallOneArg(exc_type, value);
+        } else {
+            // Before Py3.14a1, CPython doesn't implement vectorcall for exceptions.
+            PyObject *args_tuple = PyTuple_New(1);
+            if (unlikely(!args_tuple)) return;
+            Py_INCREF(value);
+            PyTuple_SET_ITEM(args_tuple, 0, value);
+            exc = PyObject_Call(exc_type, args_tuple, NULL);
+            Py_DECREF(args_tuple);
+        }
         if (unlikely(!exc)) return;
     } else {
         // it's safe to avoid instantiating the exception
