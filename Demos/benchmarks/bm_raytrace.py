@@ -384,7 +384,7 @@ def bench_raytrace(loops: cython.long, width, height, filename=None, timer=time.
     return dt
 
 
-def run_benchmark(repeat=10, count=3, timer=time.perf_counter):
+def run_benchmark(repeat: cython.int = 10, count=3, timer=time.perf_counter):
     return [
         bench_raytrace(count, width=DEFAULT_WIDTH, height=DEFAULT_HEIGHT, timer=timer)
         for _ in range(repeat)

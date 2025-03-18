@@ -329,12 +329,21 @@ jobs:
           fetch-tags: true
 
       - name: Setup python
-        uses: actions/setup-python@v5.0.0
+        uses: actions/setup-python@v5.4.0
         with:
-          python-version: "3.13"
+          # List special Pythons first to keep the 'normal' one as (last) "python3.xy".
+          python-version: |
+            3.10
+            3.12
+            3.13
+            3.14-dev
 
       - name: Run Benchmarks
-        run: bash -c 'python -m pip install setuptools && python Demos/benchmarks/run_benchmarks.py  --with-python  origin/3.0.x  origin/master  HEAD'
+        run: |
+          for PYTHON in  python3.10  python3.12  python3.13  python3.14  ; do
+              ${PYTHON} -m pip install setuptools;
+              ${PYTHON} Demos/benchmarks/run_benchmarks.py  --with-python  origin/3.0.x  origin/master  HEAD;
+          done
 
   codespell:
     name: Check for spelling errors
