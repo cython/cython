@@ -181,7 +181,8 @@ def benchmark_revisions(benchmarks, revisions, cythonize_args=None, profiler=Non
 
             logging.info(f"### Running benchmarks for '{revision}'.")
             pythonpath = cython_dir if plain_python else None
-            timings[revision] = run_benchmarks(bm_dir, benchmarks, pythonpath=pythonpath, profiler=profiler)
+            with_profiler = None if plain_python else profiler
+            timings[revision] = run_benchmarks(bm_dir, benchmarks, pythonpath=pythonpath, profiler=with_profiler)
 
     return timings
 
