@@ -116,7 +116,7 @@ def run_benchmark(bm_dir, module_name, pythonpath=None, profiler=None):
 
     if profiler:
         if profiler == 'perf':
-            command = ["perf", "record", "--quiet", "-g", "--branch-any", "--output=profile.out"]
+            command = ["perf", "record", "--quiet", "-g", "--output=profile.out"]
         elif profiler == 'callgrind':
             repeat = 1  # The warmup runs are enough for profiling.
             benchmark_cname = find_benchmark_cname(bm_dir / f"{module_name}.c")
