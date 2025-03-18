@@ -152,13 +152,17 @@ def run_benchmarks(bm_dir, benchmarks, pythonpath=None, profiler=None):
 
 
 def benchmark_revisions(benchmarks, revisions, cythonize_args=None, profiler=None):
-    logging.info(f"### Comparing revisions: {' '.join(revisions)}.")
+    python_version = "Python %d.%d.%d" % sys.version_info[:3]
+    logging.info(f"### Comparing revisions in {python_version}: {' '.join(revisions)}.")
 
     hashes = {}
     timings = {}
     for revision in revisions:
         plain_python = revision == 'Python'
+        revision_name = python_version if plain_python else f"Cython '{revision}'"
+
         if not plain_python:
+            revision_name = f"Cython '{revision}'"
             rev_hash = get_git_rev(revision)
             if rev_hash in hashes:
                 logging.info(f"### Ignoring revision '{revision}': same as '{hashes[rev_hash]}'")
@@ -167,7 +171,7 @@ def benchmark_revisions(benchmarks, revisions, cythonize_args=None, profiler=Non
             hashes[rev_hash] = revision
 
         with tempfile.TemporaryDirectory() as base_dir_str:
-            logging.info(f"### Preparing benchmark run for revision '{revision}'.")
+            logging.info(f"### Preparing benchmark run for {revision_name}.")
             base_dir = pathlib.Path(base_dir_str)
             cython_dir = base_dir / "cython" / revision
             bm_dir = base_dir / "benchmarks" / revision
@@ -179,10 +183,10 @@ def benchmark_revisions(benchmarks, revisions, cythonize_args=None, profiler=Non
             if not plain_python:
                 compile_benchmarks(cython_dir, bm_files, cythonize_args)
 
-            logging.info(f"### Running benchmarks for '{revision}'.")
+            logging.info(f"### Running benchmarks for {revision_name}.")
             pythonpath = cython_dir if plain_python else None
             with_profiler = None if plain_python else profiler
-            timings[revision] = run_benchmarks(bm_dir, benchmarks, pythonpath=pythonpath, profiler=with_profiler)
+            timings[revision_name] = run_benchmarks(bm_dir, benchmarks, pythonpath=pythonpath, profiler=with_profiler)
 
     return timings
 
@@ -200,15 +204,17 @@ def report_revision_timings(rev_timings):
         return f"{t / scale :.3f} {unit}"
 
     timings_by_benchmark = collections.defaultdict(dict)
-    for revision, bm_timings in rev_timings.items():
+    for revision_name, bm_timings in rev_timings.items():
         for benchmark, timings in bm_timings.items():
-            timings_by_benchmark[benchmark][revision] = sorted(timings)
+            timings_by_benchmark[benchmark][revision_name] = sorted(timings)
 
     for benchmark, revision_timings in timings_by_benchmark.items():
         logging.info(f"### Benchmark '{benchmark}' (min/median/max):")
-        for revision, timings in revision_timings.items():
+        for revision_name, timings in revision_timings.items():
             tmin, tmed, tmax = timings[0], timings[len(timings)//2], timings[-1]
-            logging.info(f"    {revision[:20]:20} = {format_time(tmin):>12}, {format_time(tmed):>12}, {format_time(tmax):>12}")
+            logging.info(
+                f"    {revision_name[:25]:25} = {format_time(tmin):>12}, {format_time(tmed):>12}, {format_time(tmax):>12}"
+            )
 
 
 def parse_args(args):
@@ -249,7 +255,13 @@ def parse_args(args):
 if __name__ == '__main__':
     options, cythonize_args = parse_args(sys.argv[1:])
 
-    logging.basicConfig(stream=sys.stdout, level=logging.INFO, format="%(asctime)s  %(message)s")
+    logging.basicConfig(
+        stream=sys.stdout,
+        level=logging.INFO,
+        format="%(asctime)s  %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S",
+    )
+
     benchmark_selectors = set(bm.strip() for bm in options.benchmarks.split(","))
     benchmarks = [bm for bm in ALL_BENCHMARKS if any(selector in bm for selector in benchmark_selectors)]
     if benchmark_selectors and not benchmarks:
