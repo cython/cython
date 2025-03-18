@@ -10,9 +10,9 @@ import cython
 def run(timer=time.perf_counter):
     t0 = timer()
 
-    f = 1.0
-    n: object = 5
-    i: cython.int = 12345678
+    f: object = 1.0
+    n: cython.int = 5
+    i: object = 12345678
     s = 'abc'
     u = u'üöä'
 
