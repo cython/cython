@@ -1,17 +1,14 @@
 # This file contains tests corresponding to unresolved bugs using CPython's
 # Limited API which will be skipped in the normal testing run.
 
-min_async
 builtin_divmod
 cpp_nonstdint
 embedsignatures_python
 embedsignatures_clinic
-run[.]generators_py
 generator_frame_cycle
 line_trace
 pstats_profile_test
 pep442_tp_finalize
-test_asyncgen
 tracebacks
 tss
 sys_monitoring

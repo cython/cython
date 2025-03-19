@@ -170,8 +170,6 @@ static int
 __Pyx_async_gen_init_hooks_firstiter(__pyx_PyAsyncGenObject *o, PyObject *firstiter)
 {
     PyObject *res;
-    Py_INCREF(firstiter);
-
     // at least asyncio stores methods here => optimise the call
 #if CYTHON_UNPACK_METHODS
     PyObject *self;
@@ -200,7 +198,7 @@ __Pyx_async_gen_init_hooks_done(__pyx_PyAsyncGenObject *o) {
 static int
 __Pyx_async_gen_init_hooks(__pyx_PyAsyncGenObject *o)
 {
-#if !CYTHON_COMPILING_IN_PYPY
+#if !CYTHON_COMPILING_IN_PYPY && !CYTHON_COMPILING_IN_LIMITED_API
     PyThreadState *tstate;
 #endif
     PyObject *finalizer;
@@ -209,23 +207,63 @@ __Pyx_async_gen_init_hooks(__pyx_PyAsyncGenObject *o)
     assert (!__Pyx_async_gen_init_hooks_done(o));
     o->ag_hooks_inited = 1;
 
+#if CYTHON_COMPILING_IN_LIMITED_API
+    {
+        PyObject *hooks_func = PySys_GetObject("get_asyncgen_hooks");
+        if (unlikely(!hooks_func)) {
+            PyErr_SetString(
+                PyExc_AttributeError,
+                "Failed to get 'get_asyncgen_hooks' from sys"
+            );
+            return 1;
+        }
+        PyObject *async_gen_hooks = PyObject_CallFunctionObjArgs(hooks_func, NULL);
+        if (unlikely(!async_gen_hooks)) return 1;
+        firstiter = PySequence_GetItem(async_gen_hooks, 0);
+        if (unlikely(!firstiter)) {
+            Py_DECREF(async_gen_hooks);
+            return 1;
+        }
+        if (firstiter == Py_None) {
+            Py_CLEAR(firstiter);
+        }
+
+        finalizer = PySequence_GetItem(async_gen_hooks, 1);
+        Py_DECREF(async_gen_hooks);
+
+        if (unlikely(!finalizer)) {
+            Py_XDECREF(firstiter);
+            return 1;
+        }
+        if (finalizer == Py_None) {
+            Py_CLEAR(finalizer);
+        }
+    }
+#endif
+
 #if CYTHON_COMPILING_IN_PYPY
     finalizer = _PyEval_GetAsyncGenFinalizer();
-#else
+#elif !CYTHON_COMPILING_IN_LIMITED_API
     tstate = __Pyx_PyThreadState_Current;
     finalizer = tstate->async_gen_finalizer;
 #endif
     if (finalizer) {
+#if !CYTHON_COMPILING_IN_LIMITED_API
         Py_INCREF(finalizer);
+#endif
         o->ag_finalizer = finalizer;
     }
 
 #if CYTHON_COMPILING_IN_PYPY
     firstiter = _PyEval_GetAsyncGenFirstiter();
-#else
+#elif !CYTHON_COMPILING_IN_LIMITED_API
     firstiter = tstate->async_gen_firstiter;
 #endif
     if (firstiter) {
+#if !CYTHON_COMPILING_IN_LIMITED_API
+        Py_INCREF(firstiter);
+#endif
+        // Transfers the reference.
         if (unlikely(__Pyx_async_gen_init_hooks_firstiter(o, firstiter)))
             return 1;
     }
@@ -586,7 +624,7 @@ __Pyx_async_gen_asend_new(__pyx_PyAsyncGenObject *gen, PyObject *sendval)
         }
     }
 
-    Py_INCREF(gen);
+    Py_INCREF((PyObject*)gen);
     o->ags_gen = gen;
 
     Py_XINCREF(sendval);
@@ -933,7 +971,7 @@ __Pyx_async_gen_athrow_new(__pyx_PyAsyncGenObject *gen, PyObject *args)
     o->agt_gen = gen;
     o->agt_args = args;
     o->agt_state = __PYX_AWAITABLE_STATE_INIT;
-    Py_INCREF(gen);
+    Py_INCREF((PyObject*)gen);
     Py_XINCREF(args);
     PyObject_GC_Track((PyObject*)o);
     return (PyObject*)o;
