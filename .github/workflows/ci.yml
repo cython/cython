@@ -342,7 +342,7 @@ jobs:
         run: |
           for PYTHON in  python3.10  python3.12  python3.13  python3.14  ; do
               ${PYTHON} -m pip install setuptools;
-              ${PYTHON} Demos/benchmarks/run_benchmarks.py  --with-python  origin/3.0.x  origin/master  HEAD;
+              ${PYTHON} Demos/benchmarks/run_benchmarks.py  --with-python  origin/3.0.x  3a7a936e099df468dcaa01829ae6567c577489c0  origin/master  HEAD;
           done
 
   codespell:
