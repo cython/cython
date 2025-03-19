@@ -4181,14 +4181,19 @@ class DefNodeWrapper(FuncDefNode):
         if self.starstar_arg or self.star_arg:
             self.generate_stararg_init_code(max_positional_args, code)
 
-        code.putln('{')
         all_args = tuple(positional_args) + tuple(kw_only_args)
         non_posonly_args = [arg for arg in all_args if not arg.pos_only]
-        non_pos_args_id = ','.join(
-            ['&%s' % code.intern_identifier(arg.entry.name) for arg in non_posonly_args] + ['0'])
-        code.putln("PyObject ** const %s[] = {%s};" % (
-            Naming.pykwdlist_cname,
-            non_pos_args_id))
+        accept_kwd_args = non_posonly_args or self.starstar_arg
+
+        code.putln('{')
+        if accept_kwd_args:
+            non_pos_args_id = ','.join([
+                f'&{code.intern_identifier(arg.entry.name)}'
+                for arg in non_posonly_args
+            ] + ['0'])
+            code.putln("PyObject ** const %s[] = {%s};" % (
+                Naming.pykwdlist_cname,
+                non_pos_args_id))
 
         # Before being converted and assigned to the target variables,
         # borrowed references to all unpacked argument values are
@@ -4205,8 +4210,6 @@ class DefNodeWrapper(FuncDefNode):
         # This requires a PyDict_Size call.  This call is wasteful
         # for functions which do accept kw-args, so we do not generate
         # the PyDict_Size call unless all args are positional-only.
-        accept_kwd_args = non_posonly_args or self.starstar_arg
-
         code.putln(
             f"const Py_ssize_t {Naming.kwds_len_cname} = "
             f"{'' if accept_kwd_args else 'unlikely'}({Naming.kwds_cname}) ? "
@@ -5033,7 +5036,7 @@ class OverrideCheckNode(StatNode):
             code.error_goto_if_null(func_node_temp, self.pos)))
         code.put_gotref(func_node_temp, py_object_type)
 
-        code.putln("if (!__Pyx_IsSameCFunction(%s, (void*) %s)) {" % (func_node_temp, method_entry.func_cname))
+        code.putln("if (!__Pyx_IsSameCFunction(%s, (void(*)(void)) %s)) {" % (func_node_temp, method_entry.func_cname))
         self.body.generate_execution_code(code)
         code.putln("}")
 

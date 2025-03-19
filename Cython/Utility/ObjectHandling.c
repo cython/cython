@@ -712,11 +712,10 @@ static CYTHON_INLINE int __Pyx_PyObject_SetSlice(PyObject* obj, PyObject* value,
 {{endif}}
         Py_ssize_t cstart, Py_ssize_t cstop,
         PyObject** _py_start, PyObject** _py_stop, PyObject** _py_slice,
-        int has_cstart, int has_cstop, int wraparound) {
+        int has_cstart, int has_cstop, CYTHON_UNUSED int wraparound) {
     __Pyx_TypeName obj_type_name;
 #if CYTHON_USE_TYPE_SLOTS
     PyMappingMethods* mp = Py_TYPE(obj)->tp_as_mapping;
-    CYTHON_UNUSED_VAR(wraparound);
 {{if access == 'Get'}}
     if (likely(mp && mp->mp_subscript))
 {{else}}
@@ -1899,6 +1898,15 @@ static int __Pyx_TryUnpackUnboundCMethod(__Pyx_CachedCFunction* target) {
     return 0;
 }
 
+/////////////// CallCFunction.proto ///////////////
+#define __Pyx_CallCFunction(cfunc, self, args) \
+    ((PyCFunction)(void(*)(void))(cfunc)->func)(self, args)
+#define __Pyx_CallCFunctionWithKeywords(cfunc, self, args, kwargs) \
+    ((PyCFunctionWithKeywords)(void(*)(void))(cfunc)->func)(self, args, kwargs)
+#define __Pyx_CallCFunctionFast(cfunc, self, args, nargs) \
+    ((__Pyx_PyCFunctionFast)(void(*)(void))(PyCFunction)(cfunc)->func)(self, args, nargs)
+#define __Pyx_CallCFunctionFastWithKeywords(cfunc, self, args, nargs, kwnames) \
+    ((__Pyx_PyCFunctionFastWithKeywords)(void(*)(void))(PyCFunction)(cfunc)->func)(self, args, nargs, kwnames)
 
 /////////////// CallUnboundCMethod0.proto ///////////////
 
@@ -1912,6 +1920,7 @@ static CYTHON_INLINE PyObject* __Pyx_CallUnboundCMethod0(__Pyx_CachedCFunction* 
 #endif
 
 /////////////// CallUnboundCMethod0 ///////////////
+//@requires: CallCFunction
 //@requires: UnpackUnboundCMethod
 //@requires: PyObjectCallOneArg
 
@@ -1922,15 +1931,15 @@ static CYTHON_INLINE PyObject* __Pyx_CallUnboundCMethod0(__Pyx_CachedCFunction* 
 
     if (likely(was_initialized == 2 && cfunc->func)) {
         if (likely(cfunc->flag == METH_NOARGS))
-            return (*(cfunc->func))(self, NULL);
+            return __Pyx_CallCFunction(cfunc, self, NULL);
         if (likely(cfunc->flag == METH_FASTCALL))
-            return (*(__Pyx_PyCFunctionFast)(void*)(PyCFunction)cfunc->func)(self, NULL, 0);
+            return __Pyx_CallCFunctionFast(cfunc, self, NULL, 0);
         if (cfunc->flag == (METH_FASTCALL | METH_KEYWORDS))
-            return (*(__Pyx_PyCFunctionFastWithKeywords)(void*)(PyCFunction)cfunc->func)(self, NULL, 0, NULL);
+            return __Pyx_CallCFunctionFastWithKeywords(cfunc, self, NULL, 0, NULL);
         if (likely(cfunc->flag == (METH_VARARGS | METH_KEYWORDS)))
-            return (*(PyCFunctionWithKeywords)(void*)(PyCFunction)cfunc->func)(self, EMPTY(tuple), NULL);
+            return __Pyx_CallCFunctionWithKeywords(cfunc, self, EMPTY(tuple), NULL);
         if (cfunc->flag == METH_VARARGS)
-            return (*(cfunc->func))(self, EMPTY(tuple));
+            return __Pyx_CallCFunction(cfunc, self, EMPTY(tuple));
         return __Pyx__CallUnboundCMethod0(cfunc, self);
     }
 #if CYTHON_COMPILING_IN_CPYTHON_FREETHREADING
@@ -1972,6 +1981,7 @@ static CYTHON_INLINE PyObject* __Pyx_CallUnboundCMethod1(__Pyx_CachedCFunction* 
 #endif
 
 /////////////// CallUnboundCMethod1 ///////////////
+//@requires: CallCFunction
 //@requires: UnpackUnboundCMethod
 //@requires: PyObjectCall2Args
 
@@ -1982,11 +1992,11 @@ static CYTHON_INLINE PyObject* __Pyx_CallUnboundCMethod1(__Pyx_CachedCFunction* 
     if (likely(was_initialized == 2 && cfunc->func)) {
         int flag = cfunc->flag;
         if (flag == METH_O) {
-            return (*(cfunc->func))(self, arg);
+            return __Pyx_CallCFunction(cfunc, self, arg);
         } else if (flag == METH_FASTCALL) {
-            return (*(__Pyx_PyCFunctionFast)(void*)(PyCFunction)cfunc->func)(self, &arg, 1);
+            return __Pyx_CallCFunctionFast(cfunc, self, &arg, 1);
         } else if (flag == (METH_FASTCALL | METH_KEYWORDS)) {
-            return (*(__Pyx_PyCFunctionFastWithKeywords)(void*)(PyCFunction)cfunc->func)(self, &arg, 1, NULL);
+            return __Pyx_CallCFunctionFastWithKeywords(cfunc, self, &arg, 1, NULL);
         }
     }
 #if CYTHON_COMPILING_IN_CPYTHON_FREETHREADING
@@ -2018,9 +2028,9 @@ static PyObject* __Pyx__CallUnboundCMethod1(__Pyx_CachedCFunction* cfunc, PyObje
         Py_INCREF(arg);
         PyTuple_SET_ITEM(args, 0, arg);
         if (cfunc->flag & METH_KEYWORDS)
-            result = (*(PyCFunctionWithKeywords)(void*)(PyCFunction)cfunc->func)(self, args, NULL);
+            result = __Pyx_CallCFunctionWithKeywords(cfunc, self, args, NULL);
         else
-            result = (*cfunc->func)(self, args);
+            result = __Pyx_CallCFunction(cfunc, self, args);
         Py_DECREF(args);
     } else
 #endif
@@ -2043,6 +2053,7 @@ static CYTHON_INLINE PyObject *__Pyx_CallUnboundCMethod2(__Pyx_CachedCFunction *
 #endif
 
 /////////////// CallUnboundCMethod2 ///////////////
+//@requires: CallCFunction
 //@requires: UnpackUnboundCMethod
 //@requires: PyObjectFastCall
 
@@ -2053,10 +2064,10 @@ static CYTHON_INLINE PyObject *__Pyx_CallUnboundCMethod2(__Pyx_CachedCFunction *
     if (likely(was_initialized == 2 && cfunc->func)) {
         PyObject *args[2] = {arg1, arg2};
         if (cfunc->flag == METH_FASTCALL) {
-            return (*(__Pyx_PyCFunctionFast)(void*)(PyCFunction)cfunc->func)(self, args, 2);
+            return __Pyx_CallCFunctionFast(cfunc, self, args, 2);
         }
         if (cfunc->flag == (METH_FASTCALL | METH_KEYWORDS))
-            return (*(__Pyx_PyCFunctionFastWithKeywords)(void*)(PyCFunction)cfunc->func)(self, args, 2, NULL);
+            return __Pyx_CallCFunctionFastWithKeywords(cfunc, self, args, 2, NULL);
     }
 #if CYTHON_COMPILING_IN_CPYTHON_FREETHREADING
     else if (unlikely(was_initialized == 1)) {
@@ -2089,9 +2100,9 @@ static PyObject* __Pyx__CallUnboundCMethod2(__Pyx_CachedCFunction* cfunc, PyObje
         Py_INCREF(arg2);
         PyTuple_SET_ITEM(args, 1, arg2);
         if (cfunc->flag & METH_KEYWORDS)
-            result = (*(PyCFunctionWithKeywords)(void*)(PyCFunction)cfunc->func)(self, args, NULL);
+            result = __Pyx_CallCFunctionWithKeywords(cfunc, self, args, NULL);
         else
-            result = (*cfunc->func)(self, args);
+            result = __Pyx_CallCFunction(cfunc, self, args);
         Py_DECREF(args);
         return result;
     }
@@ -2130,6 +2141,36 @@ static PyObject* __Pyx_PyObject_FastCall_fallback(PyObject *func, PyObject **arg
     Py_DECREF(argstuple);
     return result;
 }
+#endif
+
+#if CYTHON_VECTORCALL && !CYTHON_COMPILING_IN_LIMITED_API
+  #if PY_VERSION_HEX < 0x03090000
+    #define __Pyx_PyVectorcall_Function(callable) _PyVectorcall_Function(callable)
+  #elif CYTHON_COMPILING_IN_CPYTHON
+static CYTHON_INLINE vectorcallfunc __Pyx_PyVectorcall_Function(PyObject *callable) {
+    PyTypeObject *tp = Py_TYPE(callable);
+
+    #if defined(__Pyx_CyFunction_USED)
+    if (__Pyx_CyFunction_CheckExact(callable)) {
+        return __Pyx_CyFunction_func_vectorcall(callable);
+    }
+    #endif
+
+    if (!PyType_HasFeature(tp, Py_TPFLAGS_HAVE_VECTORCALL)) {
+        return NULL;
+    }
+    assert(PyCallable_Check(callable));
+
+    Py_ssize_t offset = tp->tp_vectorcall_offset;
+    assert(offset > 0);
+
+    vectorcallfunc ptr;
+    memcpy(&ptr, (char *) callable + offset, sizeof(ptr));
+    return ptr;
+}
+  #else
+    #define __Pyx_PyVectorcall_Function(callable) PyVectorcall_Function(callable)
+  #endif
 #endif
 
 static CYTHON_INLINE PyObject* __Pyx_PyObject_FastCallDict(PyObject *func, PyObject **args, size_t _nargs, PyObject *kwargs) {
@@ -2171,11 +2212,7 @@ static CYTHON_INLINE PyObject* __Pyx_PyObject_FastCallDict(PyObject *func, PyObj
 
     if (kwargs == NULL) {
         #if CYTHON_VECTORCALL && !CYTHON_COMPILING_IN_LIMITED_API
-        #if PY_VERSION_HEX < 0x03090000
-        vectorcallfunc f = _PyVectorcall_Function(func);
-        #else
-        vectorcallfunc f = PyVectorcall_Function(func);
-        #endif
+        vectorcallfunc f = __Pyx_PyVectorcall_Function(func);
         if (f) {
             return f(func, args, (size_t)nargs, NULL);
         }

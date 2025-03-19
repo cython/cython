@@ -6,6 +6,8 @@ COUNT = 100000
 
 import cython
 
+import time
+
 
 async def done(n):
     return n
@@ -49,24 +51,28 @@ def await_one(coro):
     return result
 
 
-def time(fn, *args):
-    from time import time
-    begin = time()
+def time_bm(fn, *args, timer=time.perf_counter):
+    begin = timer()
     result = await_one(fn(*args))
-    end = time()
+    end = timer()
     return result, end-begin
 
 
-def benchmark(N):
+def benchmark(N, count=1000, timer=time.perf_counter):
     times = []
     for _ in range(N):
-        result, t = time(bm_await_nested, 1000)
+        result, t = time_bm(bm_await_nested, count, timer=timer)
         times.append(t)
         assert result == 8221043302, result
     return times
 
 
 main = benchmark
+
+
+def run_benchmark(repeat=10, count=1000, timer=time.perf_counter):
+    return benchmark(repeat, count, timer)
+
 
 if __name__ == "__main__":
     import optparse
