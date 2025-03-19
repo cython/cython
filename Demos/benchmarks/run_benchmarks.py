@@ -15,13 +15,24 @@ BENCHMARK_FILES = sorted(BENCHMARKS_DIR.glob("bm_*.py"))
 
 ALL_BENCHMARKS = [bm.stem for bm in BENCHMARK_FILES]
 
+LIMITED_API_VERSION = max((3, 12), sys.version_info[:2])
 
-def run(command, cwd=None, pythonpath=None):
+
+try:
+    from distutils import sysconfig
+    DISTUTILS_CFLAGS = sysconfig.get_config_var('CFLAGS')
+except ImportError:
+    DISTUTILS_CFLAGS = ''
+
+
+def run(command, cwd=None, pythonpath=None, c_macros=None):
+    env = None
     if pythonpath:
         env = os.environ.copy()
         env['PYTHONPATH'] = pythonpath
-    else:
-        env = None
+    if c_macros:
+        env = env or os.environ.copy()
+        env['CFLAGS'] = env.get('CFLAGS', '') + " " + ' '.join(f" -D{macro}" for macro in c_macros)
 
     try:
         return subprocess.run(command, cwd=str(cwd) if cwd else None, check=True, capture_output=True, env=env)
@@ -48,13 +59,17 @@ def copy_benchmarks(bm_dir: pathlib.Path, benchmarks=None):
     return bm_files
 
 
-def compile_benchmarks(cython_dir: pathlib.Path, bm_files: list[pathlib.Path], cythonize_args=None):
+def compile_benchmarks(cython_dir: pathlib.Path, bm_files: list[pathlib.Path], cythonize_args=None, c_macros=None):
     bm_count = len(bm_files)
     rev_hash = get_git_rev(rev_dir=cython_dir)
     bm_list = ', '.join(bm_file.stem for bm_file in bm_files)
     cythonize_args = cythonize_args or []
     logging.info(f"Compiling {bm_count} benchmark{'s' if bm_count != 1 else ''} with Cython gitrev {rev_hash}: {bm_list}")
-    run([sys.executable, str(cython_dir / "cythonize.py"), f"-j{bm_count or 1}", "-i", *bm_files, *cythonize_args], cwd=cython_dir)
+    run(
+        [sys.executable, str(cython_dir / "cythonize.py"), f"-j{bm_count or 1}", "-i", *bm_files, *cythonize_args],
+        cwd=cython_dir,
+        c_macros=c_macros,
+    )
 
 
 def get_git_rev(revision=None, rev_dir=None):
@@ -151,9 +166,10 @@ def run_benchmarks(bm_dir, benchmarks, pythonpath=None, profiler=None):
     return timings
 
 
-def benchmark_revisions(benchmarks, revisions, cythonize_args=None, profiler=None):
+def benchmark_revisions(benchmarks, revisions, cythonize_args=None, profiler=None, limited_revisions=()):
     python_version = "Python %d.%d.%d" % sys.version_info[:3]
     logging.info(f"### Comparing revisions in {python_version}: {' '.join(revisions)}.")
+    logging.info(f"CFLAGS={os.environ.get('CFLAGS', DISTUTILS_CFLAGS)}")
 
     hashes = {}
     timings = {}
@@ -170,25 +186,38 @@ def benchmark_revisions(benchmarks, revisions, cythonize_args=None, profiler=Non
 
             hashes[rev_hash] = revision
 
-        with tempfile.TemporaryDirectory() as base_dir_str:
-            logging.info(f"### Preparing benchmark run for {revision_name}.")
-            base_dir = pathlib.Path(base_dir_str)
-            cython_dir = base_dir / "cython" / revision
-            bm_dir = base_dir / "benchmarks" / revision
+        logging.info(f"### Preparing benchmark run for {revision_name}.")
+        timings[revision_name] = benchmark_revision(
+            revision, benchmarks, cythonize_args, profiler, plain_python)
 
-            git_clone(cython_dir, revision=revision if revision != 'Python' else None)
-
-            bm_dir.mkdir(parents=True)
-            bm_files = copy_benchmarks(bm_dir, benchmarks)
-            if not plain_python:
-                compile_benchmarks(cython_dir, bm_files, cythonize_args)
-
-            logging.info(f"### Running benchmarks for {revision_name}.")
-            pythonpath = cython_dir if plain_python else None
-            with_profiler = None if plain_python else profiler
-            timings[revision_name] = run_benchmarks(bm_dir, benchmarks, pythonpath=pythonpath, profiler=with_profiler)
+        if revision in limited_revisions:
+            logging.info(
+                f"### Preparing benchmark run for {revision_name} (Limited API {LIMITED_API_VERSION[0]}.{LIMITED_API_VERSION[1]}).")
+            timings['L-' + revision_name] = benchmark_revision(
+                revision, benchmarks, cythonize_args, profiler, plain_python,
+                c_macros=["Py_LIMITED_API=0x%02x%02x0000" % LIMITED_API_VERSION],
+            )
 
     return timings
+
+
+def benchmark_revision(revision, benchmarks, cythonize_args=None, profiler=None, plain_python=False, c_macros=None):
+    with tempfile.TemporaryDirectory() as base_dir_str:
+        base_dir = pathlib.Path(base_dir_str)
+        cython_dir = base_dir / "cython" / revision
+        bm_dir = base_dir / "benchmarks" / revision
+
+        git_clone(cython_dir, revision=None if plain_python else revision)
+
+        bm_dir.mkdir(parents=True)
+        bm_files = copy_benchmarks(bm_dir, benchmarks)
+        if not plain_python:
+            compile_benchmarks(cython_dir, bm_files, cythonize_args, c_macros=c_macros)
+
+        logging.info(f"### Running benchmarks for {revision}.")
+        pythonpath = cython_dir if plain_python else None
+        with_profiler = None if plain_python else profiler
+        return run_benchmarks(bm_dir, benchmarks, pythonpath=pythonpath, profiler=with_profiler)
 
 
 def report_revision_timings(rev_timings):
@@ -234,6 +263,11 @@ def parse_args(args):
         help="Also run the benchmarks in plain Python for direct comparison.",
     )
     parser.add_argument(
+        "--with-limited",
+        dest="with_limited_api", action="append", default=[],
+        help="Also run the benchmarks for REVISION against the Limited C-API.",
+    )
+    parser.add_argument(
         "--perf",
         dest="profiler", action="store_const", const="perf", default=None,
         help="Run Linux 'perf record' on the benchmark process.",
@@ -268,8 +302,12 @@ if __name__ == '__main__':
         logging.error("No benchmarks selected!")
         sys.exit(1)
 
-    revisions = list({rev: rev for rev in options.revisions})  # deduplicate in order
+    revisions = list({rev: rev for rev in (options.revisions + options.with_limited_api)})  # deduplicate in order
     if options.with_python:
         revisions.append('Python')
-    timings = benchmark_revisions(benchmarks, revisions, cythonize_args, profiler=options.profiler)
+    timings = benchmark_revisions(
+        benchmarks, revisions, cythonize_args,
+        profiler=options.profiler,
+        limited_revisions=options.with_limited_api,
+    )
     report_revision_timings(timings)

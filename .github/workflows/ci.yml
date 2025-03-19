@@ -340,9 +340,12 @@ jobs:
 
       - name: Run Benchmarks
         run: |
-          for PYTHON in  python3.10  python3.12  python3.13  python3.14  ; do
-              ${PYTHON} -m pip install setuptools;
-              ${PYTHON} Demos/benchmarks/run_benchmarks.py  --with-python  origin/3.0.x  3a7a936e099df468dcaa01829ae6567c577489c0  origin/master  HEAD;
+          # Run benchmarks in all Python versions, Limite C-API only in 3.14.
+          LIMITED_API=--with-limited
+          for PYTHON in  python3.14  python3.13  python3.12  python3.10  ; do
+              ${PYTHON} -m pip install setuptools
+              ${PYTHON} Demos/benchmarks/run_benchmarks.py  --with-python  origin/3.0.x  3a7a936e099df468dcaa01829ae6567c577489c0  ${LIMITED_API} origin/master  ${LIMITED_API} HEAD
+              LIMITED_API=
           done
 
   codespell:
