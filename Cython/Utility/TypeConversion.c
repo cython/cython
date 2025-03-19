@@ -479,32 +479,42 @@ no_error:
 
 
 /////////////// ToPyCTupleUtility.proto ///////////////
+
 static PyObject* {{funcname}}({{struct_type_decl}});
 
 /////////////// ToPyCTupleUtility ///////////////
+
 static PyObject* {{funcname}}({{struct_type_decl}} value) {
-    PyObject* item = NULL;
-    PyObject* result = PyTuple_New({{size}});
-    if (!result) goto bad;
+    PyObject* items[{{size}}] = { {{ ', '.join('0'*size) }} };
+    PyObject* result = NULL;
 
     {{for ix, component in enumerate(components):}}
-        {{py:attr = "value.f%s" % ix}}
-        item = {{component.to_py_function}}({{attr}});
-        if (!item) goto bad;
-        #if !CYTHON_ASSUME_SAFE_MACROS
-        if (unlikely(PyTuple_SetItem(result, {{ix}}, item) < 0)) {
-            item = NULL; // stolen
-            goto bad;
-        }
-        #else
-        PyTuple_SET_ITEM(result, {{ix}}, item);
-        #endif
+        {{py:attr = f"value.f{ix}" }}
+        items[{{ix}}] = {{component.to_py_function}}({{attr}});
+        if (unlikely(!items[{{ix}}])) goto bad;
     {{endfor}}
 
+    result = PyTuple_New({{size}});
+    if (unlikely(!result)) goto bad;
+
+    for (Py_ssize_t i=0; i<{{ size }}; ++i) {
+        PyObject *item = items[i];
+        items[i] = NULL;
+        #if !CYTHON_ASSUME_SAFE_MACROS
+        // PyTuple_SetItem() always steals a reference.
+        if (unlikely(PyTuple_SetItem(result, i, item) < 0)) goto bad;
+        #else
+        PyTuple_SET_ITEM(result, i, item);
+        #endif
+    }
+
     return result;
+
 bad:
-    Py_XDECREF(item);
     Py_XDECREF(result);
+    for (Py_ssize_t i={{ size-1 }}; i >= 0; --i) {
+        Py_XDECREF(items[i]);
+    }
     return NULL;
 }
 
@@ -796,23 +806,23 @@ static PyObject* __Pyx_PyUnicode_FromOrdinal_Padded(int value, Py_ssize_t ulengt
 
         char *cpos = chars + sizeof(chars);
         if (value < 0x800) {
-            *--cpos = (char) (0b10000000 | (value & 0x3f));
+            *--cpos = (char) (0x80 | (value & 0x3f));
             value >>= 6;
-            *--cpos = (char) (0b11000000 | (value & 0x1f));
+            *--cpos = (char) (0xc0 | (value & 0x1f));
         } else if (value < 0x10000) {
-            *--cpos = (char) (0b10000000 | (char) (value & 0x3f));
+            *--cpos = (char) (0x80 | (value & 0x3f));
             value >>= 6;
-            *--cpos = (char) (0b10000000 | (char) (value & 0x3f));
+            *--cpos = (char) (0x80 | (value & 0x3f));
             value >>= 6;
-            *--cpos = (char) (0b11100000 | (char) (value & 0xf));
+            *--cpos = (char) (0xe0 | (value & 0x0f));
         } else {
-            *--cpos = (char) (0b10000000 | (char) (value & 0x3f));
+            *--cpos = (char) (0x80 | (value & 0x3f));
             value >>= 6;
-            *--cpos = (char) (0b10000000 | (char) (value & 0x3f));
+            *--cpos = (char) (0x80 | (value & 0x3f));
             value >>= 6;
-            *--cpos = (char) (0b10000000 | (char) (value & 0x3f));
+            *--cpos = (char) (0x80 | (value & 0x3f));
             value >>= 6;
-            *--cpos = (char) (0b11110000 | (char) (value & 0x7));
+            *--cpos = (char) (0xf0 | (value & 0x07));
         }
         cpos -= ulength;
         memset(cpos, padding_char, (size_t) (ulength - 1));

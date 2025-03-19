@@ -318,6 +318,33 @@ jobs:
           name: cycoverage_html
           path: coverage-report-html
 
+  benchmarks:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4.1.1
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+
+      - name: Setup python
+        uses: actions/setup-python@v5.4.0
+        with:
+          # List special Pythons first to keep the 'normal' one as (last) "python3.xy".
+          python-version: |
+            3.10
+            3.12
+            3.13
+            3.14-dev
+
+      - name: Run Benchmarks
+        run: |
+          for PYTHON in  python3.10  python3.12  python3.13  python3.14  ; do
+              ${PYTHON} -m pip install setuptools;
+              ${PYTHON} Demos/benchmarks/run_benchmarks.py  --with-python  origin/3.0.x  3a7a936e099df468dcaa01829ae6567c577489c0  origin/master  HEAD;
+          done
+
   codespell:
     name: Check for spelling errors
     runs-on: ubuntu-latest

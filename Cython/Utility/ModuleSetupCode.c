@@ -828,7 +828,7 @@ static CYTHON_INLINE PyObject* __Pyx_CyOrPyCFunction_GET_SELF(PyObject *func) {
 }
 // Only used if CYTHON_COMPILING_IN_CPYTHON.
 #endif
-static CYTHON_INLINE int __Pyx__IsSameCFunction(PyObject *func, void *cfunc) {
+static CYTHON_INLINE int __Pyx__IsSameCFunction(PyObject *func, void (*cfunc)(void)) {
 #if CYTHON_COMPILING_IN_LIMITED_API
     return PyCFunction_Check(func) && PyCFunction_GetFunction(func) == (PyCFunction) cfunc;
 #else
@@ -1732,6 +1732,7 @@ static void __pyx__insert_code_object(struct __Pyx_CodeObjectCache *code_cache, 
     if ((pos < code_cache->count) && unlikely(code_cache->entries[pos].code_line == code_line)) {
         __Pyx_CachedCodeObjectType* tmp = entries[pos].code_object;
         entries[pos].code_object = code_object;
+        Py_INCREF(code_object);
         Py_DECREF(tmp);
         return;
     }
