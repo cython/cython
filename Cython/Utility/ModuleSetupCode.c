@@ -245,7 +245,7 @@
     #define CYTHON_PEP487_INIT_SUBCLASS 1
   #endif
   #ifndef CYTHON_PEP489_MULTI_PHASE_INIT
-    #define CYTHON_PEP489_MULTI_PHASE_INIT 0
+    #define CYTHON_PEP489_MULTI_PHASE_INIT 1
   #endif
   #ifndef CYTHON_USE_MODULE_STATE
     #define CYTHON_USE_MODULE_STATE 0
@@ -1492,29 +1492,34 @@ static CYTHON_INLINE float __PYX_NAN() {
 /////////////// ModuleCreationPEP489 ///////////////
 //@substitute: naming
 
-#if CYTHON_COMPILING_IN_LIMITED_API && __PYX_LIMITED_VERSION_HEX < 0x030A0000
-// Probably won't work before 3.8, but we don't use restricted API to find that out
+#if CYTHON_COMPILING_IN_LIMITED_API && __PYX_LIMITED_VERSION_HEX < 0x03090000
+// Probably won't work before 3.8, but we don't use restricted API to find that out.
 static PY_INT64_T __Pyx_GetCurrentInterpreterId(void) {
-    PyObject *module = PyImport_ImportModule("_interpreters"); // 3.13+ I think
-    if (!module) {
-        PyErr_Clear(); // just try the 3.8-3.12 version
-        module = PyImport_ImportModule("_xxsubinterpreters");
-        if (!module) return -1;
-    }
-    PyObject *current = PyObject_CallMethod(module, "get_current", NULL);
-    Py_DECREF(module);
-    if (!current) return -1;
-    if (PyTuple_Check(current)) {
-        // I think 3.13+ returns a tuple of (ID, whence),
-        // but it's obviously a private module so the API changes a bit.
-        PyObject *new_current = PySequence_GetItem(current, 0);
+    {
+        PyObject *module = PyImport_ImportModule("_interpreters"); // 3.13+ I think
+        if (!module) {
+            PyErr_Clear(); // just try the 3.8-3.12 version
+            module = PyImport_ImportModule("_xxsubinterpreters");
+            if (!module) goto bad;
+        }
+        PyObject *current = PyObject_CallMethod(module, "get_current", NULL);
+        Py_DECREF(module);
+        if (!current) goto bad;
+        if (PyTuple_Check(current)) {
+            // I think 3.13+ returns a tuple of (ID, whence),
+            // but it's obviously a private module so the API changes a bit.
+            PyObject *new_current = PySequence_GetItem(current, 0);
+            Py_DECREF(current);
+            current = new_current;
+            if (!new_current) goto bad;
+        }
+        long long as_c_int = PyLong_AsLongLong(current);
         Py_DECREF(current);
-        current = new_current;
-        if (!new_current) return -1;
+        return as_c_int;
     }
-    long long as_c_int = PyLong_AsLongLong(current);
-    Py_DECREF(current);
-    return as_c_int;
+  bad:
+    PySys_WriteStderr("__Pyx_GetCurrentInterpreterId failed. Try setting the C define CYTHON_PEP489_MULTI_PHASE_INIT=0\n");
+    return -1;
 }
 #endif
 
@@ -1524,19 +1529,20 @@ static CYTHON_SMALL_CODE int __Pyx_check_single_interpreter(void) {
     static PY_INT64_T main_interpreter_id = -1;
 #if CYTHON_COMPILING_IN_GRAAL
     PY_INT64_T current_id = PyInterpreterState_GetIDFromThreadState(PyThreadState_Get());
-#elif CYTHON_COMPILING_IN_LIMITED_API && __PYX_LIMITED_VERSION_HEX >= 0x030A0000
-    PY_INT64_T current_id = PyThreadState_GetInterpreter(PyThreadState_Get());
+#elif CYTHON_COMPILING_IN_LIMITED_API && __PYX_LIMITED_VERSION_HEX >= 0x03090000
+    PY_INT64_T current_id = PyInterpreterState_GetID(PyInterpreterState_Get());
 #elif CYTHON_COMPILING_IN_LIMITED_API
     PY_INT64_T current_id = __Pyx_GetCurrentInterpreterId();
 #else
     PY_INT64_T current_id = PyInterpreterState_GetID(PyThreadState_Get()->interp);
 #endif
+    if (unlikely(current_id == -1)) {
+        return -1;
+    }
     if (main_interpreter_id == -1) {
         main_interpreter_id = current_id;
-        return (unlikely(current_id == -1)) ? -1 : 0;
-    } else if (unlikely(main_interpreter_id != current_id))
-
-    {
+        return 0;
+    } else if (unlikely(main_interpreter_id != current_id)) {
         PyErr_SetString(
             PyExc_ImportError,
             "Interpreter change detected - this module can only be loaded into one interpreter per process.");
@@ -1546,21 +1552,13 @@ static CYTHON_SMALL_CODE int __Pyx_check_single_interpreter(void) {
 }
 #endif
 
-#if CYTHON_COMPILING_IN_LIMITED_API
-static CYTHON_SMALL_CODE int __Pyx_copy_spec_to_module(PyObject *spec, PyObject *module, const char* from_name, const char* to_name, int allow_none)
-#else
 static CYTHON_SMALL_CODE int __Pyx_copy_spec_to_module(PyObject *spec, PyObject *moddict, const char* from_name, const char* to_name, int allow_none)
-#endif
 {
     PyObject *value = PyObject_GetAttrString(spec, from_name);
     int result = 0;
     if (likely(value)) {
         if (allow_none || value != Py_None) {
-#if CYTHON_COMPILING_IN_LIMITED_API
-            result = PyModule_AddObject(module, to_name, value);
-#else
             result = PyDict_SetItemString(moddict, to_name, value);
-#endif
         }
         Py_DECREF(value);
     } else if (PyErr_ExceptionMatches(PyExc_AttributeError)) {
@@ -1590,13 +1588,9 @@ static CYTHON_SMALL_CODE PyObject* ${pymodule_create_func_cname}(PyObject *spec,
     Py_DECREF(modname);
     if (unlikely(!module)) goto bad;
 
-#if CYTHON_COMPILING_IN_LIMITED_API
-    moddict = module;
-#else
     moddict = PyModule_GetDict(module);
     if (unlikely(!moddict)) goto bad;
     // moddict is a borrowed reference
-#endif
 
     if (unlikely(__Pyx_copy_spec_to_module(spec, moddict, "loader", "__loader__", 1) < 0)) goto bad;
     if (unlikely(__Pyx_copy_spec_to_module(spec, moddict, "origin", "__file__", 1) < 0)) goto bad;
