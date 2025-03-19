@@ -7,6 +7,8 @@
 #  Translation from C++, Mario Wolczko
 #  Outer loop added by Alex Jacoby
 
+import cython
+
 # Task IDs
 I_IDLE = 1
 I_WORK = 2
@@ -171,7 +173,7 @@ class Task(TaskState):
         taskWorkArea.taskList = self
         taskWorkArea.taskTab[i] = self
 
-    def fn(self,pkt,r):
+    def fn(self, pkt, r):
         raise NotImplementedError
 
 
@@ -242,9 +244,8 @@ class DeviceTask(Task):
     def __init__(self,i,p,w,s,r):
         Task.__init__(self,i,p,w,s,r)
 
-    def fn(self,pkt,r):
+    def fn(self, pkt: Packet | None, r: DeviceTaskRec):
         d = r
-        assert isinstance(d, DeviceTaskRec)
         if pkt is None:
             pkt = d.pending
             if pkt is None:
@@ -263,9 +264,8 @@ class HandlerTask(Task):
     def __init__(self,i,p,w,s,r):
         Task.__init__(self,i,p,w,s,r)
 
-    def fn(self,pkt,r):
+    def fn(self, pkt: Packet | None, r: HandlerTaskRec):
         h = r
-        assert isinstance(h, HandlerTaskRec)
         if pkt is not None:
             if pkt.kind == K_WORK:
                 h.workInAdd(pkt)
@@ -295,9 +295,8 @@ class IdleTask(Task):
     def __init__(self,i,p,w,s,r):
         Task.__init__(self,i,0,None,s,r)
 
-    def fn(self,pkt,r):
+    def fn(self, pkt: Packet | None, r: IdleTaskRec):
         i = r
-        assert isinstance(i, IdleTaskRec)
         i.count -= 1
         if i.count == 0:
             return self.hold()
@@ -318,9 +317,8 @@ class WorkTask(Task):
     def __init__(self,i,p,w,s,r):
         Task.__init__(self,i,p,w,s,r)
 
-    def fn(self,pkt,r):
+    def fn(self, pkt: Packet | None, r: WorkerTaskRec):
         w = r
-        assert isinstance(w, WorkerTaskRec)
         if pkt is None:
             return self.waitTask()
 
@@ -346,7 +344,7 @@ import time
 
 
 def schedule():
-    t = taskWorkArea.taskList
+    t: Task = taskWorkArea.taskList
     while t is not None:
         pkt = None
 
@@ -361,7 +359,7 @@ def schedule():
 
 class Richards(object):
 
-    def run(self, iterations):
+    def run(self, iterations: cython.long):
         for i in range(iterations):
             taskWorkArea.holdCount = 0
             taskWorkArea.qpktCount = 0
@@ -395,42 +393,33 @@ class Richards(object):
 
         return True
 
-def entry_point(iterations):
+
+def entry_point(iterations, timer=time.perf_counter):
     r = Richards()
-    startTime = time.time()
+    startTime = timer()
     result = r.run(iterations)
-    endTime = time.time()
-    return result, startTime, endTime
+    endTime = timer()
+    return result, endTime - startTime
+
+
+def run_benchmark(repeat: cython.long = 10, count=10, timer=time.perf_counter):
+    return [
+        entry_point(count, timer)[1]
+        for _ in range(repeat)
+    ]
+
 
 def main(iterations = 10, entry_point = entry_point):
     print("Richards benchmark (Python) starting... [%r]" % entry_point)
-    result, startTime, endTime = entry_point(iterations)
+    result, total_s = entry_point(iterations)
     if not result:
         print("Incorrect results!")
         return -1
     print("finished.")
-    total_s = endTime - startTime
     print("Total time for %d iterations: %.2f secs" % (iterations, total_s))
     print("Average time per iteration: %.2f ms" % (total_s*1000/iterations))
     return 42
 
-try:
-    import sys
-    if '-nojit' in sys.argv:
-        sys.argv.remove('-nojit')
-        raise ImportError
-    import pypyjit
-except ImportError:
-    pass
-else:
-    import types
-    for item in globals().values():
-        if isinstance(item, types.FunctionType):
-            pypyjit.enable(item.func_code)
-        elif isinstance(item, type):
-            for it in item.__dict__.values():
-                if isinstance(it, types.FunctionType):
-                    pypyjit.enable(it.func_code)
 
 if __name__ == '__main__':
     import sys

@@ -2787,7 +2787,7 @@ class CCodeWriter:
         # Add required casts, but try not to shadow real warnings.
         cast = entry.signature.method_function_type()
         if cast != 'PyCFunction':
-            func_ptr = '(void*)(%s)%s' % (cast, func_ptr)
+            func_ptr = '(void(*)(void))(%s)%s' % (cast, func_ptr)
         entry_name = entry.name.as_c_string_literal()
         if is_number_slot:
             # Unlike most special functions, binop numeric operator slots are actually generated here
@@ -3072,8 +3072,8 @@ class CCodeWriter:
             ');'
         )
 
-    def put_trace_exit(self):
-        self.putln("__Pyx_PyMonitoring_ExitScope();")
+    def put_trace_exit(self, nogil=False):
+        self.putln(f"__Pyx_PyMonitoring_ExitScope({bool(nogil):d});")
 
     def put_trace_yield(self, retvalue_cname, pos):
         error_goto = self.error_goto(pos)

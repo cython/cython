@@ -3,7 +3,7 @@ Cython Changelog
 ================
 
 
-3.1.0 alpha 2 (2025-??-??)
+3.1.0 beta 1 (2025-??-??)
 ==========================
 
 Features added
@@ -19,7 +19,17 @@ Features added
 * The type of ``prange`` loop targets is now inferred.
   (Github issue :issue:`6585`)
 
+* Extracting keyword arguments is faster in some cases.
+  (Github issue :issue:`6683`)
+
+* Cython can avoid normalising exceptions in an `except` clause if it knows that they are unused.
+  (Github issue :issue:`6601`)
+
 * The ``cython`` command has a new option ``--cache`` to cache generated files.
+  (Github issue :issue:`6091`)
+
+* The ``cythonize`` command has a new option ``--timeit`` to benchmark Cython code snippets.
+  (Github issue :issue:`6697`)
 
 * The argument parsing ``cygdb`` command was improved based on ``argparse``.
   Patch by William Ayd.  (Github issue :issue:`5499`)
@@ -55,6 +65,9 @@ Bugs fixed
 * ``for-in`` loops could generate invalid code for C++ containers.
   Patch by Taras Kozlov.  (Github issue :issue:`6578`)
 
+* ``PyDict_GetItemRef()`` and ``PyList_GetItemRef()`` were not always used correctly.
+  Patch by Lisandro Dalcin.  (Github issue :issue:`6647`)
+
 * Inlined calls to local functions could crash with ``binding=False``.
   (Github issue :issue:`6556`)
 
@@ -84,11 +97,29 @@ Bugs fixed
 * Interoperability with recent Pythran releases was fixed.
   (Github issue :issue:`6494`)
 
+* The ``gdb`` compatibility of ``cygdb`` was improved.
+  Patch by Kent Slaney.  (Github issue :issue:`6681`)
+
 * Some redundant exception normalisation work was removed in Python 3.12+.
   (Github issue :issue:`6599`)
 
+* A compiler hang introduced in 3.1a1 when overriding methods was resolved.
+  Patch by Aditya Pillai.  (Github issue :issue:`6704`)
+
+* A compiler crash was resolven when trying to issue a warning.
+  Patch by Gabriele N. Tornetta.  (Github issue :issue:`6711`)
+
+* Some incomplete import time "safety checks" from 3.1.0a1 were removed again.
+  (Github issue :issue:`6671`)
+
 Other changes
 -------------
+
+* All Cython-internal types (functions, coroutines, …) are now heap types and use type specs.
+  (Github issue :issue:`6633`)
+
+* Tracing/monitoring is now disabled in parallel/prange sections.
+  (Github issue :issue:`6709`)
 
 * Includes all fixes as of Cython 3.0.12.
 
