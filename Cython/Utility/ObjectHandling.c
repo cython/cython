@@ -2177,16 +2177,16 @@ static CYTHON_INLINE PyObject* __Pyx_PyObject_FastCallDict(PyObject *func, PyObj
         vectorcallfunc f = PyVectorcall_Function(func);
         #endif
         if (f) {
-            return f(func, args, (size_t)nargs, NULL);
+            return f(func, args, _nargs, NULL);
         }
         #elif defined(__Pyx_CyFunction_USED) && CYTHON_BACKPORT_VECTORCALL
         // exclude fused functions for now
         if (__Pyx_CyFunction_CheckExact(func)) {
             __pyx_vectorcallfunc f = __Pyx_CyFunction_func_vectorcall(func);
-            if (f) return f(func, args, (size_t)nargs, NULL);
+            if (f) return f(func, args, _nargs, NULL);
         }
         #elif CYTHON_COMPILING_IN_LIMITED_API && CYTHON_VECTORCALL
-        return PyObject_Vectorcall(func, args, (size_t)nargs, NULL);
+        return PyObject_Vectorcall(func, args, _nargs, NULL);
         #endif
     }
 
