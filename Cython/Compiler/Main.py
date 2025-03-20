@@ -134,10 +134,10 @@ class Context:
         elif source_desc.in_utility_code:
             from . import ParseTreeTransforms
             transform = ParseTreeTransforms.CnameDirectivesTransform(self)
-            before = ParseTreeTransforms.InterpretCompilerDirectives
             pipeline = Pipeline.create_pxd_pipeline(self, scope, module_name)
-            pipeline = Pipeline.insert_into_pipeline(pipeline, transform,
-                                                     before=before)
+            pipeline = Pipeline.insert_into_pipeline(
+                pipeline, transform,
+                before=ParseTreeTransforms.InterpretCompilerDirectives)
             result = Pipeline.run_pipeline(pipeline, source_desc)
         else:
             pipeline = Pipeline.create_pxd_pipeline(self, scope, module_name)
