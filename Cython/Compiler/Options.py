@@ -147,6 +147,7 @@ buffer_max_dims = 8
 #: Number of function closure instances to keep in a freelist (0: no freelists)
 closure_freelist_size = 8
 
+
 def get_directive_defaults():
     # To add an item to this list, all accesses should be changed to use the new
     # directive, and the global option itself should be set to an instance of
