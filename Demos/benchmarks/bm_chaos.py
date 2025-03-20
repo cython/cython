@@ -90,24 +90,23 @@ class Spline(object):
         self.points = points
         self.degree = degree
 
-    def GetDomain(self):
+    def GetDomain(self) -> tuple[cython.long, cython.long]:
         """Returns the domain of the B-Spline"""
         return (self.knots[self.degree - 1],
                 self.knots[len(self.knots) - self.degree])
 
     @cython.locals(ik=cython.long, ii=cython.long, I=cython.long,
-                   ua=cython.long, ub=cython.long, u=cython.double,
-                   dom=(cython.long, cython.long))
-    def __call__(self, u):
+                   ua=cython.long, ub=cython.long, index=cython.Py_ssize_t)
+    def __call__(self, u: float):
         """Calculates a point of the B-Spline using de Boors Algorithm"""
-        dom = self.GetDomain()
+        dom: tuple[cython.long, cython.long] = self.GetDomain()
         if u < dom[0] or u > dom[1]:
             raise ValueError("Function value not in domain")
         if u == dom[0]:
             return self.points[0]
         if u == dom[1]:
             return self.points[-1]
-        I = self.GetIndex(u)
+        I: cython.long = self.GetIndex(u)
         d = [self.points[I - self.degree + 1 + ii]
              for ii in range(self.degree + 1)]
         U = self.knots
