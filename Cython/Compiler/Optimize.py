@@ -5032,7 +5032,7 @@ class FinalOptimizePhase(Visitor.EnvTransform, Visitor.NodeRefCleanupMixin):
         return (
             node.is_temp and
             function_type.is_pyobject and
-            not function_type is Builtin.type_type and
+            function_type is not Builtin.type_type and
             not (entry and entry.is_builtin) and
             self.current_directives.get(
                 "optimize.unpack_method_calls_in_pyinit"
