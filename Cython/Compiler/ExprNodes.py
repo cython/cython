@@ -6401,6 +6401,9 @@ class SimpleCallNode(CallNode):
 
         if self.is_temp and self.type.is_reference:
             self.type = PyrexTypes.CFakeReferenceType(self.type.ref_base_type)
+        if func_type.return_type.is_ctuple:
+            # Make sure we properly declare new ctuple types coming in from function calls.
+            env.declare_tuple_type(self.function.pos, func_type.return_type.components).used = True
 
         # C++ exception handler
         if func_type.exception_check == '+':
@@ -6545,7 +6548,13 @@ class SimpleCallNode(CallNode):
                 exc_val = func_type.exception_value
                 exc_check = func_type.exception_check
                 if exc_val is not None:
-                    exc_checks.append("%s == %s" % (self.result(), func_type.return_type.cast_code(exc_val)))
+                    typed_exc_val = func_type.return_type.cast_code(exc_val)
+                    if func_type.return_type.is_ctuple:
+                        code.globalstate.use_utility_code(UtilityCode.load_cached(
+                            "IncludeStringH", "StringTools.c"))
+                        exc_checks.append(f"memcmp(&{self.result()}, &{typed_exc_val}, sizeof({self.result()})) == 0")
+                    else:
+                        exc_checks.append(f"{self.result()} == {typed_exc_val}")
                 if exc_check:
                     if nogil:
                         if not exc_checks:
@@ -12719,24 +12728,22 @@ class DivNode(NumBinopNode):
     def calculate_result_code(self):
         if self.type.is_complex or self.is_cpp_operation():
             return NumBinopNode.calculate_result_code(self)
-        elif self.type.is_float and self.operator == '//':
-            return "floor(%s / %s)" % (
-                self.operand1.result(),
-                self.operand2.result())
+
+        op1 = self.operand1.result()
+        op2 = self.operand2.result()
+
+        if self.type.is_float and self.operator == '//':
+            return f"floor({op1} / {op2})"
         elif self.truedivision or self.cdivision:
-            op1 = self.operand1.result()
-            op2 = self.operand2.result()
             if self.truedivision:
                 if self.type != self.operand1.type:
                     op1 = self.type.cast_code(op1)
                 if self.type != self.operand2.type:
                     op2 = self.type.cast_code(op2)
-            return "(%s / %s)" % (op1, op2)
+            return f"({op1} / {op2})"
         else:
-            return "__Pyx_div_%s(%s, %s)" % (
-                self.type.specialization_name(),
-                self.operand1.result(),
-                self.operand2.result())
+            b_is_constant = self.operand2.has_constant_result()
+            return f"__Pyx_div_{self.type.specialization_name()}({op1}, {op2}, {bool(b_is_constant):d})"
 
 
 _find_formatting_types = re.compile(
@@ -12800,21 +12807,17 @@ class ModNode(DivNode):
         self.generate_div_warning_code(code)
 
     def calculate_result_code(self):
+        op1 = self.operand1.result()
+        op2 = self.operand2.result()
+
         if self.cdivision:
             if self.type.is_float:
-                return "fmod%s(%s, %s)" % (
-                    self.type.math_h_modifier,
-                    self.operand1.result(),
-                    self.operand2.result())
+                return f"fmod{self.type.math_h_modifier}({op1}, {op2})"
             else:
-                return "(%s %% %s)" % (
-                    self.operand1.result(),
-                    self.operand2.result())
+                return f"({op1} % {op2})"
         else:
-            return "__Pyx_mod_%s(%s, %s)" % (
-                    self.type.specialization_name(),
-                    self.operand1.result(),
-                    self.operand2.result())
+            b_is_constant = self.operand2.has_constant_result()
+            return f"__Pyx_mod_{self.type.specialization_name()}({op1}, {op2}, {bool(b_is_constant):d})"
 
     def py_operation_function(self, code):
         type1, type2 = self.operand1.type, self.operand2.type
