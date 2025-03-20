@@ -1118,12 +1118,6 @@ Cython code.  Here is the list of currently supported directives:
     cause Cython 3.0 to have the same semantics as Cython 0.x. This directive was solely added
     to help migrate legacy code written before Cython 3. It will be removed in a future release.
 
-``shared_utility_qualified_name`` (fully qualified module name), *default=""*
-    When set, cython will automatically cimport and use internal utility code from the provided
-    shared module instead of embedding it. This can yield a smaller package size because
-    the shared utility code is present only in shared module. See :ref:`shared_module` for more detail.
-
-
 .. _configurable_optimisations:
 
 Configurable optimisations
