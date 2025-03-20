@@ -118,7 +118,11 @@ def copy_profile(bm_dir, module_name, profiler):
     else:
         shutil.move(profile_input, data_file_name)
 
-    shutil.move(bm_dir / f"{module_name}.c", f"{module_name}.c")
+    for result_file_name in (f"{module_name}.c", f"{module_name}.html"):
+        result_file = bm_dir / result_file_name
+        if result_file.exists():
+            shutil.move(result_file, result_file_name)
+
     for ext in bm_dir.glob(f"{module_name}.*so"):
         shutil.move(str(ext), ext.name)
 
@@ -202,6 +206,11 @@ def benchmark_revisions(benchmarks, revisions, cythonize_args=None, profiler=Non
 
 
 def benchmark_revision(revision, benchmarks, cythonize_args=None, profiler=None, plain_python=False, c_macros=None):
+    with_profiler = None if plain_python else profiler
+
+    if with_profiler:
+        cythonize_args = (cythonize_args or []) + ['--annotate']
+
     with tempfile.TemporaryDirectory() as base_dir_str:
         base_dir = pathlib.Path(base_dir_str)
         cython_dir = base_dir / "cython" / revision
@@ -216,7 +225,6 @@ def benchmark_revision(revision, benchmarks, cythonize_args=None, profiler=None,
 
         logging.info(f"### Running benchmarks for {revision}.")
         pythonpath = cython_dir if plain_python else None
-        with_profiler = None if plain_python else profiler
         return run_benchmarks(bm_dir, benchmarks, pythonpath=pythonpath, profiler=with_profiler)
 
 
