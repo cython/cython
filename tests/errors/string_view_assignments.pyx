@@ -12,6 +12,7 @@ cdef bytes get_bytes():
 
 cdef string_view s1 = get_obj()  # bad, reference to temp
 cdef string_view s2 = get_bytes()  # bad, reference to temp
+cdef string_view s3 = u"123".encode()  # bad, reference to temp
 
 _ERRORS = """
 13:0: Storing unsafe C derivative of temporary Python reference
