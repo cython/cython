@@ -138,9 +138,8 @@ def inject_utility_code_stage_factory(context, internalise_c_class_entries=True)
                         utility_code_list.append(dep)
             if tree := utilcode.get_tree(cython_scope=context.cython_scope):
                 module_node.merge_in(tree.with_compiler_directives(),
-                                     tree.scope, stage="utility",
-                                     merge_scope=True,
-                                     internalise_c_class_entries=internalise_c_class_entries)
+                                     tree.scope, stage="utility")
+                module_node.merge_scope(tree.scope, internalise_c_class_entries=internalise_c_class_entries)
             elif shared_library_scope := utilcode.get_shared_library_scope(cython_scope=context.cython_scope):
                 module_scope.cimported_modules.append(shared_library_scope)
         return module_node
