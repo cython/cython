@@ -1211,7 +1211,11 @@ class MemoryViewSliceTypeNode(CBaseTypeNode):
 
     def use_memview_utilities(self, env):
         from . import MemoryView
-        env.use_utility_code(MemoryView.get_view_utility_code(env.global_scope().context))
+        env.use_utility_code(
+            MemoryView.get_view_utility_code(
+                env.global_scope().context.shared_utility_qualified_name
+            )
+        )
 
 
 class CNestedBaseTypeNode(CBaseTypeNode):
@@ -9058,7 +9062,7 @@ class CriticalSectionExitNode(StatNode):
 
 def cython_view_utility_code(context):
     from . import MemoryView
-    return MemoryView.get_view_utility_code(context)
+    return MemoryView.get_view_utility_code(context.shared_utility_qualified_name)
 
 
 utility_code_for_cimports = {

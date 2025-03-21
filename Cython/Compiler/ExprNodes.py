@@ -4014,7 +4014,11 @@ class IndexNode(_IndexingBaseNode):
             elif self.index.is_slice or self.index.is_sequence_constructor:
                 # memory view
                 from . import MemoryView
-                env.use_utility_code(MemoryView.get_view_utility_code(env.global_scope().context))
+                env.use_utility_code(
+                    MemoryView.get_view_utility_code(
+                        env.global_scope().context.shared_utility_qualified_name
+                    )
+                )
                 axes = [self.index] if self.index.is_slice else list(self.index.args)
                 return PyrexTypes.MemoryViewSliceType(base_type, MemoryView.get_axes_specs(env, axes))
             elif not base_type.is_pyobject:
@@ -5511,7 +5515,11 @@ class SliceIndexNode(ExprNode):
             if not self.start and not self.stop:
                 # memory view
                 from . import MemoryView
-                env.use_utility_code(MemoryView.get_view_utility_code(env.global_scope().context))
+                env.use_utility_code(
+                    MemoryView.get_view_utility_code(
+                        env.global_scope().context.shared_utility_qualified_name
+                    )
+                )
                 none_node = NoneNode(self.pos)
                 slice_node = SliceNode(
                     self.pos,

@@ -893,15 +893,13 @@ def _get_memoryview_shared_utility_code(shared_utility_qualified_name):
     copy_contents_new_utility.requires.append(shared_utility_code)
     return (shared_utility_code, memviewslice_init_code)
 
-def get_view_utility_code(context):
-    shared_utility_qualified_name = context.shared_utility_qualified_name
+def get_view_utility_code(shared_utility_qualified_name):
     if shared_utility_qualified_name:
         return _get_memoryview_shared_utility_code(shared_utility_qualified_name)[0]
     else:
         return _get_memoryview_utility_code()[0]
 
-def get_memviewslice_init_code(context):
-    shared_utility_qualified_name = context.shared_utility_qualified_name
+def get_memviewslice_init_code(shared_utility_qualified_name):
     if shared_utility_qualified_name:
         return _get_memoryview_shared_utility_code(shared_utility_qualified_name)[1]
     else:
