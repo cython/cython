@@ -286,9 +286,9 @@ class TemplatedFileSourceDescriptor(FileSourceDescriptor):
 
 
 class CythonSharedUtilityCode(Code.AbstractUtilityCode):
-    def __init__(self, shared_utility_qualified_name, context, requires):
+    def __init__(self, shared_utility_qualified_name, template_context, requires):
         self._shared_utility_qualified_name = shared_utility_qualified_name
-        self.context = context
+        self.template_context = template_context
         self.requires = requires
         self._shared_library_scope = None
 
@@ -304,7 +304,7 @@ class CythonSharedUtilityCode(Code.AbstractUtilityCode):
         )
         try:
             rel_path = self._shared_utility_qualified_name.replace('.', os.sep) + os.path.splitext(pxd_pathname)[1]
-            source_desc = TemplatedFileSourceDescriptor(pxd_pathname, rel_path, self.context)
+            source_desc = TemplatedFileSourceDescriptor(pxd_pathname, rel_path, self.template_context)
             source_desc.in_utility_code = True
             err, result = context.process_pxd(source_desc, scope, self._shared_utility_qualified_name)
             (pxd_codenodes, pxd_scope) = result

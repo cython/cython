@@ -882,7 +882,7 @@ def _get_memoryview_shared_utility_code(shared_utility_qualified_name):
     copy_contents_new_utility = _get_copy_contents_new_utility()
     shared_utility_code = CythonSharedUtilityCode(
         shared_utility_qualified_name,
-        context=context,
+        template_context=context,
         requires=[
                 Buffer.buffer_struct_declare_code,
                 Buffer.buffer_formats_declare_code,
