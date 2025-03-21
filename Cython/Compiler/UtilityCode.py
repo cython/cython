@@ -281,6 +281,7 @@ class TemplatedFileSourceDescriptor(FileSourceDescriptor):
         with super().get_file_object(encoding, error_handling) as f:
             data = f.read()
             ret = Code.sub_tempita(data, self._context, self.filename)
+            # We need stream to have .encoding attribute set
             stream = io.TextIOWrapper(io.BytesIO(ret.encode(f.encoding)), encoding=f.encoding, errors=error_handling)
         return stream
 
