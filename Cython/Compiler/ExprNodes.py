@@ -6817,7 +6817,6 @@ class PyMethodCallNode(CallNode):
             return has_explicit_kwargs or not has_kwargs
         return True
 
-
     @staticmethod
     def can_be_used_for_function(function):
         """
@@ -6825,15 +6824,13 @@ class PyMethodCallNode(CallNode):
         into a PyMethodCallNode
         """
         may_be_a_method = True
-        if function.type is Builtin.type_type:
-            may_be_a_method = False
-        elif function.is_attribute:
+        if function.is_attribute:
             if function.entry and function.entry.type.is_cfunction:
                 # optimised builtin method
                 may_be_a_method = False
         elif function.is_name:
             entry = function.entry
-            if entry.is_builtin or entry.type.is_cfunction:
+            if entry.type.is_cfunction:
                 may_be_a_method = False
             elif entry.cf_assignments:
                 # local functions/classes are definitely not methods
