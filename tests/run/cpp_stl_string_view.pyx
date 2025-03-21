@@ -54,7 +54,7 @@ def test_coercion_py(py_str):
 
     cdef const char[:] mv2 = py_str
     cdef string_view sv2 = mv2
-    assert len(mv2) = sv2.size()
+    assert len(mv2) == sv2.size()
     if py_str:
         assert &mv2[0] == sv2.data()
 
