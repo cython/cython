@@ -6681,7 +6681,8 @@ class PyMethodCallNode(CallNode):
 
     def end_direct_fallback_guard(self, code):
         if self.direct_fallback:
-            code.putln("#endif")
+            # new-line because not everything that precedes this uses putln apparently.
+            code.putln("\n#endif")
 
     def generate_evaluation_code(self, code):
         code.mark_pos(self.pos)
