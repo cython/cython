@@ -4,6 +4,7 @@
 
 cimport cython
 
+from libcpp.stdint cimport uintptr_t
 from libcpp.string cimport string
 from libcpp.string_view cimport string_view, npos
 from cython.operator cimport dereference as deref, preincrement as preinc, predecrement as predec
@@ -45,7 +46,7 @@ def test_coercion_py(py_str):
 
     cdef string_view sv1 = <bytes>py_str
     assert len(py_str) == sv1.size()
-    assert <const char*>py_str == sv1.data()
+    assert <uintptr_t><const char*>py_str == <uintptr_t>(sv1.data())
 
 
 def test_constructors(py_str):
