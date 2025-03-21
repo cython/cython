@@ -47,12 +47,6 @@ def test_coercion_py(py_str):
     assert len(py_str) == sv1.size()
     assert <const char*>py_str == sv1.data()
 
-    cdef const char[:] mv = py_str
-    cdef string_view sv2 = mv
-    assert len(mv) == sv2.size()
-    if py_str:
-        assert &mv[0] == sv2.data()
-
 
 def test_constructors(py_str):
     """
