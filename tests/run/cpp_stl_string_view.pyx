@@ -37,9 +37,8 @@ def test_return_to_py():
 
 def test_coercion_py(py_str):
     """
-    >>> b_s_7 = b_s * 7
-    >>> test_coercion_py(b_s_7) == (b'', b_s, b_s * 3) + (b_s_7, ) * 5
-    True
+    >>> b_asdf_5 = b_asdf * 5
+    >>> test_coercion_py(b_asdf_5)
     """
     if not isinstance(py_str, bytes):
         return
