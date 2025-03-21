@@ -48,7 +48,7 @@ def test_coercion_py(py_str):
     assert <const char*>py_str == sv1.data()
 
     cdef const char[:] mv1 = sv1
-    assert len(mv1) = sv1.size()
+    assert len(mv1) == sv1.size()
     if py_str:
         assert &mv1[0] == sv1.data()
 
