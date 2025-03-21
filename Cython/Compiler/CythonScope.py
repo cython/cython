@@ -16,7 +16,7 @@ class CythonScope(ModuleScope):
         self.pxd_file_loaded = True
         self.populate_cython_scope()
         # The Main.Context object
-        self.context = context
+        self._context = context
 
         for fused_type in (cy_integral_type, cy_floating_type, cy_numeric_type):
             entry = self.declare_typedef(fused_type.name,

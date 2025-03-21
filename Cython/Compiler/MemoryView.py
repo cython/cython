@@ -536,7 +536,7 @@ def get_axes_specs(env, axes):
     packing is one of 'contig', 'strided' or 'follow'
     '''
 
-    cythonscope = env.global_scope().context.cython_scope
+    cythonscope = env.context.cython_scope
     cythonscope.load_cythonscope()
     viewscope = cythonscope.viewscope
 
@@ -756,7 +756,7 @@ def _resolve_NameNode(env, node):
     except AttributeError:
         raise CompileError(node.pos, INVALID_ERR)
 
-    viewscope = env.global_scope().context.cython_scope.viewscope
+    viewscope = env.context.cython_scope.viewscope
     entry = viewscope.lookup(resolved_name)
     if entry is None:
         raise CompileError(node.pos, NOT_CIMPORTED_ERR)
@@ -806,9 +806,9 @@ def load_memview_c_utility(util_code_name, context=None, **kwargs):
                                        context=context, **kwargs)
 
 def use_cython_array_utility_code(env):
-    if env.global_scope().context.shared_utility_qualified_name:
+    if env.context.shared_utility_qualified_name:
         return
-    cython_scope = env.global_scope().context.cython_scope
+    cython_scope = env.context.cython_scope
     cython_scope.load_cythonscope()
     cython_scope.viewscope.lookup('array_cwrapper').used = True
 

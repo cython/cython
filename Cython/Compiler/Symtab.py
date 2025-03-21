@@ -490,6 +490,10 @@ class Scope:
         else:
             return '%d' % count
 
+    @property
+    def context(self):
+        return self.global_scope().context
+
     def global_scope(self):
         """ Return the module-level scope containing this scope. """
         return self.outer_scope.global_scope()
@@ -1363,7 +1367,7 @@ class ModuleScope(Scope):
         self.is_package = is_package
         self.module_name = name
         self.module_name = EncodedString(self.module_name)
-        self.context = context
+        self._context = context
         self.module_cname = Naming.module_cname
         self.module_dict_cname = Naming.moddict_cname
         self.method_table_cname = Naming.methtable_cname
@@ -1387,6 +1391,10 @@ class ModuleScope(Scope):
 
     def qualifying_scope(self):
         return self.parent_module
+
+    @property
+    def context(self):
+        return self._context
 
     def global_scope(self):
         return self

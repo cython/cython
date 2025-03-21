@@ -1213,7 +1213,7 @@ class MemoryViewSliceTypeNode(CBaseTypeNode):
         from . import MemoryView
         env.use_utility_code(
             MemoryView.get_view_utility_code(
-                env.global_scope().context.shared_utility_qualified_name
+                env.context.shared_utility_qualified_name
             )
         )
 
@@ -4898,7 +4898,7 @@ class GeneratorBodyDefNode(DefNode):
             code.putln("if (__Pyx_PyErr_Occurred()) {")  # we allow exit without GeneratorExit / StopIteration
             if tracing:
                 code.put_trace_exception_propagating()
-            if Future.generator_stop in env.global_scope().context.future_directives:
+            if Future.generator_stop in env.context.future_directives:
                 # PEP 479: turn accidental StopIteration exceptions into a RuntimeError
                 code.globalstate.use_utility_code(UtilityCode.load_cached("pep479", "Coroutine.c"))
                 code.putln("__Pyx_Generator_Replace_StopIteration(%d);" % bool(self.is_async_gen_body))
@@ -9200,11 +9200,11 @@ class FromCImportStatNode(StatNode):
 
         if module_name.startswith('cpython') or module_name.startswith('cython'):  # enough for now
             if module_name in utility_code_for_cimports:
-                env.use_utility_code(utility_code_for_cimports[module_name](env.global_scope().context))
+                env.use_utility_code(utility_code_for_cimports[module_name](env.context))
             for _, name, _ in self.imported_names:
                 fqname = '%s.%s' % (module_name, name)
                 if fqname in utility_code_for_cimports:
-                    env.use_utility_code(utility_code_for_cimports[fqname](env.global_scope().context))
+                    env.use_utility_code(utility_code_for_cimports[fqname](env.context))
 
     def declaration_matches(self, entry, kind):
         if not entry.is_type:

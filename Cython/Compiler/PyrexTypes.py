@@ -977,7 +977,7 @@ class MemoryViewSliceType(PyrexType):
 
         env.use_utility_code(
             MemoryView.get_memviewslice_init_code(
-                env.global_scope().context.shared_utility_qualified_name
+                env.context.shared_utility_qualified_name
             )
         )
         env.use_utility_code(LazyUtilityCode(lazy_utility_callback))

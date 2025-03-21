@@ -2826,7 +2826,7 @@ class ImportNode(ExprNode):
             # For modules in packages, and without 'absolute_import' enabled, try relative (Py2) import first.
             if env.global_scope().parent_module and (
                     env.directives['py2_import'] or
-                    Future.absolute_import not in env.global_scope().context.future_directives):
+                    Future.absolute_import not in env.context.future_directives):
                 self.level = -1
             else:
                 self.level = 0
@@ -4016,7 +4016,7 @@ class IndexNode(_IndexingBaseNode):
                 from . import MemoryView
                 env.use_utility_code(
                     MemoryView.get_view_utility_code(
-                        env.global_scope().context.shared_utility_qualified_name
+                        env.context.shared_utility_qualified_name
                     )
                 )
                 axes = [self.index] if self.index.is_slice else list(self.index.args)
@@ -5517,7 +5517,7 @@ class SliceIndexNode(ExprNode):
                 from . import MemoryView
                 env.use_utility_code(
                     MemoryView.get_view_utility_code(
-                        env.global_scope().context.shared_utility_qualified_name
+                        env.shared_utility_qualified_name
                     )
                 )
                 none_node = NoneNode(self.pos)
@@ -11620,7 +11620,7 @@ class CythonArrayNode(ExprNode):
         return self.get_cython_array_type(env)
 
     def get_cython_array_type(self, env):
-        cython_scope = env.global_scope().context.cython_scope
+        cython_scope = env.context.cython_scope
         cython_scope.load_cythonscope()
         return cython_scope.viewscope.lookup("array").type
 
