@@ -43,7 +43,7 @@ def test_coercion_py(py_str):
     if not isinstance(py_str, bytes):
         return
 
-    cdef string_view sv1 = py_str
+    cdef string_view sv1 = <bytes>py_str
     assert len(py_str) == sv1.size()
     assert <const char*>py_str == sv1.data()
 
