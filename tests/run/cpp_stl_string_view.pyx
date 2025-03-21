@@ -44,14 +44,20 @@ def test_coercion_py(py_str):
     if not isinstance(py_str, bytes):
         return
 
-    cdef string_view sv = py_str
-    assert len(py_str) == sv.size()
-    assert <const char*>py_str == sv.data()
+    cdef string_view sv1 = py_str
+    assert len(py_str) == sv1.size()
+    assert <const char*>py_str == sv1.data()
 
-    cdef const char[:] mv = sv
-    assert len(mv) = sv.size()
+    cdef const char[:] mv1 = sv1
+    assert len(mv1) = sv1.size()
     if py_str:
-        assert &mv[0] == sv.data()
+        assert &mv1[0] == sv1.data()
+
+    cdef const char[:] mv2 = py_str
+    cdef string_view sv2 = mv2
+    assert len(mv2) = sv2.size()
+    if py_str:
+        assert &mv2[0] == sv2.data()
 
 
 def test_constructors(py_str):
