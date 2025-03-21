@@ -43,6 +43,12 @@ public:
     BIN_OP(>=);
     BIN_OP(>);
 
+    BIN_OP(+=);
+    BIN_OP(-=);
+    BIN_OP(*=);
+    BIN_OP(/=);
+    BIN_OP(%=);
+
     BIN_OP([]);
     BIN_OP(());
 
@@ -53,6 +59,12 @@ NONMEMBER_BIN_OP(-)
 NONMEMBER_BIN_OP(*)
 NONMEMBER_BIN_OP(/)
 NONMEMBER_BIN_OP(%)
+
+NONMEMBER_BIN_OP(+=)
+NONMEMBER_BIN_OP(-=)
+NONMEMBER_BIN_OP(*=)
+NONMEMBER_BIN_OP(/=)
+NONMEMBER_BIN_OP(%=)
 
 NONMEMBER_BIN_OP(<<)
 NONMEMBER_BIN_OP(>>)
@@ -67,6 +79,12 @@ NONMEMBER_BIN_OP2(-)
 NONMEMBER_BIN_OP2(*)
 NONMEMBER_BIN_OP2(/)
 NONMEMBER_BIN_OP2(%)
+
+NONMEMBER_BIN_OP2(+=)
+NONMEMBER_BIN_OP2(-=)
+NONMEMBER_BIN_OP2(*=)
+NONMEMBER_BIN_OP2(/=)
+NONMEMBER_BIN_OP2(%=)
 
 NONMEMBER_BIN_OP2(<<)
 NONMEMBER_BIN_OP2(>>)
@@ -122,6 +140,12 @@ public:
     REF_BIN_OP(<);
     REF_BIN_OP(>=);
     REF_BIN_OP(>);
+
+    REF_BIN_OP(+=);
+    REF_BIN_OP(-=);
+    REF_BIN_OP(*=);
+    REF_BIN_OP(/=);
+    REF_BIN_OP(%=);
 
     REF_BIN_OP([]);
     REF_BIN_OP(());
