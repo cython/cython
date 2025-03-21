@@ -35,6 +35,25 @@ def test_return_to_py():
     return return_to_py()
 
 
+def test_coercion_py(py_str):
+    """
+    >>> b_s_7 = b_s * 7
+    >>> test_coercion_py(b_s_7) == (b'', b_s, b_s * 3) + (b_s_7, ) * 5
+    True
+    """
+    if not isinstance(py_str, bytes):
+        return
+
+    cdef string_view sv = py_str
+    assert len(py_str) == sv.size()
+    assert <const char*>py_str == sv.data()
+
+    cdef const char[:] mv = sv
+    assert len(mv) = sv.size()
+    if py_str:
+        assert &mv[0] == sv.data()
+
+
 def test_constructors(py_str):
     """
     >>> b_s_7 = b_s * 7
