@@ -240,7 +240,6 @@ class _critical_section:
         pass
     def __exit__(self, exc_class, exc, tb):
         return False
-    
 def critical_section(arg0, arg1=None):
     return _critical_section(arg0)
 
