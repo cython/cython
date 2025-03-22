@@ -255,6 +255,8 @@ static const char* __Pyx_BufFmt_DescribeTypeChar(char ch, int is_complex) {
     case 'L': return "'unsigned long'";
     case 'q': return "'long long'";
     case 'Q': return "'unsigned long long'";
+    case 'n': return "'ssize_t'";
+    case 'N': return "'size_t'";
     case 'f': return (is_complex ? "'complex float'" : "'float'");
     case 'd': return (is_complex ? "'complex double'" : "'double'");
     case 'g': return (is_complex ? "'complex long double'" : "'long double'");
@@ -279,6 +281,14 @@ static size_t __Pyx_BufFmt_TypeCharToStandardSize(char ch, int is_complex) {
       PyErr_SetString(PyExc_ValueError, "Python does not define a standard format string size for long double ('g')..");
       return 0;
     }
+    case 'n': {
+      PyErr_SetString(PyExc_ValueError, "Python does not define a standard format string size for ssize_t ('n')");
+      return 0;
+    }
+    case 'N': {
+      PyErr_SetString(PyExc_ValueError, "Python does not define a standard format string size for size_t ('N')");
+      return 0;
+    }
     case 'O': case 'P': return sizeof(void*);
     default:
       __Pyx_BufFmt_RaiseUnexpectedChar(ch);
@@ -292,6 +302,8 @@ static size_t __Pyx_BufFmt_TypeCharToNativeSize(char ch, int is_complex) {
     case 'h': case 'H': return sizeof(short);
     case 'i': case 'I': return sizeof(int);
     case 'l': case 'L': return sizeof(long);
+    case 'n': return sizeof(Py_ssize_t);
+    case 'N': return sizeof(size_t);
     #ifdef HAVE_LONG_LONG
     case 'q': case 'Q': return sizeof(PY_LONG_LONG);
     #endif
@@ -313,6 +325,8 @@ typedef struct { char c; float x; } __Pyx_st_float;
 typedef struct { char c; double x; } __Pyx_st_double;
 typedef struct { char c; long double x; } __Pyx_st_longdouble;
 typedef struct { char c; void *x; } __Pyx_st_void_p;
+typedef struct { char c; Py_ssize_t x; } __Pyx_st_ssize_t;
+typedef struct { char c; size_t x; } __Pyx_st_size_t;
 #ifdef HAVE_LONG_LONG
 typedef struct { char c; PY_LONG_LONG x; } __Pyx_st_longlong;
 #endif
@@ -324,6 +338,8 @@ static size_t __Pyx_BufFmt_TypeCharToAlignment(char ch, int is_complex) {
     case 'h': case 'H': return sizeof(__Pyx_st_short) - sizeof(short);
     case 'i': case 'I': return sizeof(__Pyx_st_int) - sizeof(int);
     case 'l': case 'L': return sizeof(__Pyx_st_long) - sizeof(long);
+    case 'n': return sizeof(__Pyx_st_ssize_t) - sizeof(Py_ssize_t);
+    case 'N': return sizeof(__Pyx_st_size_t) - sizeof(size_t);
 #ifdef HAVE_LONG_LONG
     case 'q': case 'Q': return sizeof(__Pyx_st_longlong) - sizeof(PY_LONG_LONG);
 #endif
@@ -348,6 +364,8 @@ typedef struct { float x; char c; } __Pyx_pad_float;
 typedef struct { double x; char c; } __Pyx_pad_double;
 typedef struct { long double x; char c; } __Pyx_pad_longdouble;
 typedef struct { void *x; char c; } __Pyx_pad_void_p;
+typedef struct { Py_ssize_t x; char c; } __Pyx_pad_ssize_t;
+typedef struct { size_t x; char c; } __Pyx_pad_size_t;
 #ifdef HAVE_LONG_LONG
 typedef struct { PY_LONG_LONG x; char c; } __Pyx_pad_longlong;
 #endif
@@ -359,6 +377,8 @@ static size_t __Pyx_BufFmt_TypeCharToPadding(char ch, int is_complex) {
     case 'h': case 'H': return sizeof(__Pyx_pad_short) - sizeof(short);
     case 'i': case 'I': return sizeof(__Pyx_pad_int) - sizeof(int);
     case 'l': case 'L': return sizeof(__Pyx_pad_long) - sizeof(long);
+    case 'n': return sizeof(__Pyx_pad_ssize_t) - sizeof(Py_ssize_t);
+    case 'N': return sizeof(__Pyx_pad_size_t) - sizeof(size_t);
 #ifdef HAVE_LONG_LONG
     case 'q': case 'Q': return sizeof(__Pyx_pad_longlong) - sizeof(PY_LONG_LONG);
 #endif
@@ -377,9 +397,9 @@ static char __Pyx_BufFmt_TypeCharToGroup(char ch, int is_complex) {
     case 'c':
         return 'H';
     case 'b': case 'h': case 'i':
-    case 'l': case 'q': case 's': case 'p':
+    case 'l': case 'q': case 's': case 'p': case 'n':
         return 'I';
-    case '?': case 'B': case 'H': case 'I': case 'L': case 'Q':
+    case '?': case 'B': case 'H': case 'I': case 'L': case 'Q': case 'N':
         return 'U';
     case 'f': case 'd': case 'g':
         return (is_complex ? 'C' : 'R');
@@ -710,7 +730,7 @@ static const char* __Pyx_BufFmt_CheckString(__Pyx_BufFmt_Context* ctx, const cha
         }
         CYTHON_FALLTHROUGH;
       case '?': case 'c': case 'b': case 'B': case 'h': case 'H': case 'i': case 'I':
-      case 'l': case 'L': case 'q': case 'Q':
+      case 'l': case 'L': case 'q': case 'Q': case 'n': case 'N':
       case 'f': case 'd': case 'g':
       case 'O': case 'p':
         if ((ctx->enc_type == *ts) && (got_Z == ctx->is_complex) &&
