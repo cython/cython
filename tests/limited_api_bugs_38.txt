@@ -12,3 +12,6 @@ test_genericclass_exttype
 yield_from_pep380
 fused_def
 legacy_implicit_noexcept
+
+# weakref
+test_asyncgen

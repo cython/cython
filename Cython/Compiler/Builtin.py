@@ -162,9 +162,28 @@ builtin_function_table = [
     #('compile',   "",     "",      ""), # PyObject* Py_CompileString(    char *str, char *filename, int start)
     BuiltinFunction('delattr',    "OO",   "r",     "PyObject_DelAttr"),
     BuiltinFunction('dir',        "O",    "O",     "PyObject_Dir"),
-    BuiltinFunction('divmod',     "ii",   "O",     "__Pyx_divmod_int",
-                    utility_code=UtilityCode.load("divmod_int", "Builtins.c"),
-                    is_strict_signature = True),
+    ] + list(
+        BuiltinFunction(
+            'divmod', None, None,
+            cname=f"__Pyx_divmod_{c_type.specialization_name()}",
+            utility_code=TempitaUtilityCode.load(
+                "divmod", "Builtins.c", context={
+                    'TYPE': c_type.empty_declaration_code(),
+                    'TYPE_NAME': c_type.specialization_name(),
+                    'RETURN_TYPE': return_type.empty_declaration_code(),
+            }),
+            func_type = PyrexTypes.CFuncType(
+                return_type, [
+                    PyrexTypes.CFuncTypeArg("a", c_type, None),
+                    PyrexTypes.CFuncTypeArg("b", c_type, None),
+                    ],
+                exception_value=f"__Pyx_divmod_ERROR_VALUE_{c_type.specialization_name()}",
+                exception_check=True,
+            ),
+        )
+        for c_type in (PyrexTypes.c_int_type, PyrexTypes.c_long_type, PyrexTypes.c_longlong_type)
+        for return_type in [PyrexTypes.c_tuple_type([c_type]*2)]
+    ) + [
     BuiltinFunction('divmod',     "OO",   "O",     "PyNumber_Divmod"),
     BuiltinFunction('exec',       "O",    "O",     "__Pyx_PyExecGlobals",
                     utility_code = pyexec_globals_utility_code),

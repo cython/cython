@@ -3,6 +3,8 @@
 #
 # contributed by Daniel Nanz, 2008-08-21
 
+import cython
+
 import optparse
 import time
 from bisect import bisect
@@ -17,14 +19,18 @@ SW = SE - E
 W, NW, NE = -E, -SE, -SW
 
 
-def rotate(ido, rd={E: NE, NE: NW, NW: W, W: SW, SW: SE, SE: E}):
+@cython.cfunc
+def rotate(ido: list, rd: dict = {E: NE, NE: NW, NW: W, W: SW, SW: SE, SE: E}) -> list:
     return [rd[o] for o in ido]
 
-def flip(ido, fd={E: E, NE: SE, NW: SW, W: W, SW: NW, SE: NE}):
+@cython.cfunc
+def flip(ido: list, fd: dict = {E: E, NE: SE, NW: SW, W: W, SW: NW, SE: NE}) -> list:
     return [fd[o] for o in ido]
 
 
-def permute(ido, r_ido):
+@cython.cfunc
+def permute(ido: list, r_ido: list) -> list:
+    r: cython.int
     ps = [ido]
     for r in range(dir_no - 1):
         ps.append(rotate(ps[-1]))
@@ -98,9 +104,12 @@ fps = get_footprints(board, cti, pieces)
 se_nh = get_senh(board, cti)
 
 
-def solve(n, i_min, free, curr_board, pieces_left, solutions,
-          fps=fps, se_nh=se_nh, bisect=bisect):
+def solve(n: cython.long, i_min: cython.long, free, curr_board: list, pieces_left: list, solutions: list,
+          fps: list = fps, se_nh: list = se_nh, bisect=bisect):
+    n_i_min: cython.long
+
     fp_i_cands = fps[i_min]
+
     for p in pieces_left:
         fp_cands = fp_i_cands[p]
         for fp in fp_cands:
@@ -129,20 +138,25 @@ def solve(n, i_min, free, curr_board, pieces_left, solutions,
 
 SOLVE_ARG = 60
 
-def main(n):
+def main(n, solve_arg=SOLVE_ARG, timer=time.perf_counter):
     times = []
     for i in range(n):
-        t0 = time.time()
+        t0 = timer()
         free = frozenset(range(len(board)))
         curr_board = [-1] * len(board)
         pieces_left = list(range(len(pieces)))
         solutions = []
-        solve(SOLVE_ARG, 0, free, curr_board, pieces_left, solutions)
+        solve(solve_arg, 0, free, curr_board, pieces_left, solutions)
         #print len(solutions),  'solutions found\n'
         #for i in (0, -1): print_board(solutions[i])
-        tk = time.time()
+        tk = timer()
         times.append(tk - t0)
     return times
+
+
+def run_benchmark(repeat=10, count=SOLVE_ARG, timer=time.perf_counter):
+    return main(repeat, count // 2, timer=timer)
+
 
 if __name__ == "__main__":
     parser = optparse.OptionParser(

@@ -2888,7 +2888,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         module_state.putln('#else')
         module_state.putln('    {0};')
         module_state.putln('#endif')
-        module_state.putln('static %s *%s = &%s_static;' % (
+        module_state.putln('static %s * const %s = &%s_static;' % (
             Naming.modulestatetype_cname,
             Naming.modulestateglobal_cname,
             Naming.modulestateglobal_cname

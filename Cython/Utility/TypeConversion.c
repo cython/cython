@@ -806,23 +806,23 @@ static PyObject* __Pyx_PyUnicode_FromOrdinal_Padded(int value, Py_ssize_t ulengt
 
         char *cpos = chars + sizeof(chars);
         if (value < 0x800) {
-            *--cpos = (char) (0b10000000 | (value & 0x3f));
+            *--cpos = (char) (0x80 | (value & 0x3f));
             value >>= 6;
-            *--cpos = (char) (0b11000000 | (value & 0x1f));
+            *--cpos = (char) (0xc0 | (value & 0x1f));
         } else if (value < 0x10000) {
-            *--cpos = (char) (0b10000000 | (char) (value & 0x3f));
+            *--cpos = (char) (0x80 | (value & 0x3f));
             value >>= 6;
-            *--cpos = (char) (0b10000000 | (char) (value & 0x3f));
+            *--cpos = (char) (0x80 | (value & 0x3f));
             value >>= 6;
-            *--cpos = (char) (0b11100000 | (char) (value & 0xf));
+            *--cpos = (char) (0xe0 | (value & 0x0f));
         } else {
-            *--cpos = (char) (0b10000000 | (char) (value & 0x3f));
+            *--cpos = (char) (0x80 | (value & 0x3f));
             value >>= 6;
-            *--cpos = (char) (0b10000000 | (char) (value & 0x3f));
+            *--cpos = (char) (0x80 | (value & 0x3f));
             value >>= 6;
-            *--cpos = (char) (0b10000000 | (char) (value & 0x3f));
+            *--cpos = (char) (0x80 | (value & 0x3f));
             value >>= 6;
-            *--cpos = (char) (0b11110000 | (char) (value & 0x7));
+            *--cpos = (char) (0xf0 | (value & 0x07));
         }
         cpos -= ulength;
         memset(cpos, padding_char, (size_t) (ulength - 1));

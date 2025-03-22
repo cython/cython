@@ -1,17 +1,13 @@
 # This file contains tests corresponding to unresolved bugs using CPython's
 # Limited API which will be skipped in the normal testing run.
 
-min_async
-builtin_divmod
 cpp_nonstdint
 embedsignatures_python
 embedsignatures_clinic
-run[.]generators_py
 generator_frame_cycle
 line_trace
 pstats_profile_test
 pep442_tp_finalize
-test_asyncgen
 tracebacks
 tss
 sys_monitoring
@@ -19,7 +15,6 @@ special_method_docstrings
 verbatiminclude
 test_coroutines_pep492
 coverage
-reimport_failure
 line_profile_test
 cdef_multiple_inheritance_errors
 cline_in_traceback
@@ -89,10 +84,6 @@ slice2b
 trashcan
 unbound_special_methods
 unicode_formatting
-
-# Needs multi-phase import
-# (but is there a reason why we're not doing this in the Limited API anyway?)
-unicode_imports
 
 # Py_UNICODE
 builtin_ord
