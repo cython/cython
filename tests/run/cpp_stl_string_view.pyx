@@ -4,7 +4,7 @@
 
 cimport cython
 
-from libcpp.stdint cimport uintptr_t
+from libc.stdint cimport uintptr_t
 from libcpp.string cimport string
 from libcpp.string_view cimport string_view, npos
 from cython.operator cimport dereference as deref, preincrement as preinc, predecrement as predec
