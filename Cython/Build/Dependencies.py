@@ -826,6 +826,7 @@ def create_extension_list(patterns, exclude=None, ctx=None, aliases=None, quiet=
                 # Create the new extension
                 m, metadata = create_extension(template, kwds)
                 m.np_pythran = np_pythran or getattr(m, 'np_pythran', False)
+                m.shared_utility_qualified_name = ctx.shared_utility_qualified_name
                 if m.np_pythran:
                     update_pythran_extension(m)
                 module_list.append(m)
