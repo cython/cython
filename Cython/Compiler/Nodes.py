@@ -9134,7 +9134,7 @@ class CImportStatNode(StatNode):
             entry = env.declare_module(name, module_scope, self.pos)
             entry.known_standard_library_import = self.module_name
         if self.module_name in utility_code_for_cimports:
-            env.use_utility_code(utility_code_for_cimports[self.module_name](env))
+            env.use_utility_code(utility_code_for_cimports[self.module_name](env.context))
 
     def analyse_expressions(self, env):
         return self
