@@ -5517,7 +5517,7 @@ class SliceIndexNode(ExprNode):
                 from . import MemoryView
                 env.use_utility_code(
                     MemoryView.get_view_utility_code(
-                        env.shared_utility_qualified_name
+                        env.context.shared_utility_qualified_name
                     )
                 )
                 none_node = NoneNode(self.pos)
