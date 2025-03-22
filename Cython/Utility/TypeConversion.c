@@ -307,7 +307,7 @@ static CYTHON_INLINE const char* __Pyx_PyObject_AsStringAndSize(PyObject* o, Py_
         } else {
             result = (char*) view.buf;
             *length = view.len;
-            PyBuffer_Release(view);
+            PyBuffer_Release(&view);
             return result;
         }
     }
