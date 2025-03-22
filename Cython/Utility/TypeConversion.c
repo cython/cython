@@ -290,7 +290,7 @@ static CYTHON_INLINE const char* __Pyx_PyObject_AsStringAndSize(PyObject* o, Py_
         return PyByteArray_AsString(o);
 #endif
 
-    } elif(PyBytes_Check(o)) {
+    } else if (PyBytes_Check(o)) {
         char* result;
         int r = PyBytes_AsStringAndSize(o, &result, length);
         if (unlikely(r < 0)) {
