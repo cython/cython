@@ -41,6 +41,8 @@ implemented function a "function", because it tests the object type
 explicitly instead of comparing an abstract interface or an abstract
 base class. This has a negative impact on code that uses inspect to
 inspect function objects, but would require a change to Python itself.
+For this reason, we provide `Cython.inspect.isfunction`, 
+which correctly detects Cython functions in addition to Python functions.
 
 
 Stack frames

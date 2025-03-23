@@ -150,9 +150,8 @@ EXT_DEP_MODULES = {
 
 def patch_inspect_isfunction():
     import inspect
+    from Cython.inspect import isfunction
     orig_isfunction = inspect.isfunction
-    def isfunction(obj):
-        return orig_isfunction(obj) or type(obj).__name__ == 'cython_function_or_method'
     isfunction._orig_isfunction = orig_isfunction
     inspect.isfunction = isfunction
 
