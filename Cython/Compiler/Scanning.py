@@ -4,22 +4,25 @@
 #
 
 
+from pathlib import Path
+
 import cython
+
 cython.declare(make_lexicon=object, lexicon=object,
                print_function=object, error=object, warning=object,
                os=object, platform=object)
 
 import os
 import platform
-from unicodedata import normalize
 from contextlib import contextmanager
+from unicodedata import normalize
 
 from .. import Utils
-from ..Plex.Scanners import Scanner
 from ..Plex.Errors import UnrecognizedInput
-from .Errors import error, warning, hold_errors, release_errors, CompileError
-from .Lexicon import any_string_prefix, make_lexicon, IDENT
+from ..Plex.Scanners import Scanner
+from .Errors import CompileError, error, hold_errors, release_errors, warning
 from .Future import print_function
+from .Lexicon import IDENT, any_string_prefix, make_lexicon
 
 debug_scanner = 0
 trace_scanner = 0
@@ -232,6 +235,13 @@ class FileSourceDescriptor(SourceDescriptor):
 
     def get_description(self):
         return self._short_path_description
+
+    def get_relative_path(self) -> Path:
+        file_path = Path(self.file_path)
+        if file_path.is_absolute():
+            return Path(self.get_description())
+        else:
+            return file_path
 
     def get_error_description(self):
         path = self.filename
@@ -559,7 +569,7 @@ def tentatively_scan(scanner: PyrexScanner):
         initial_state = (scanner.sy, scanner.systring, scanner.position())
         try:
             yield errors
-        except CompileError as e:
+        except CompileError:
             pass
         finally:
             if errors:
