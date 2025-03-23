@@ -6660,7 +6660,7 @@ class PyMethodCallNode(CallNode):
     def generate_direct_fallback_guard(self, code, negate):
         if self.direct_fallback:
             # negate gives the guard for the regular code
-            code.putln(f"#if {'!' if negate else ''}(CYTHON_VECTORCALL && !CYTHON_UNPACK_METHODS)")
+            code.putln(f"#if {'!' if negate else ''}(CYTHON_VECTORCALL)")
 
     def generate_direct_fallback(self,  code, len_args, keyword_variable):
         if not self.direct_fallback:
