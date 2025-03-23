@@ -284,6 +284,9 @@ class StringSourceDescriptor(SourceDescriptor):
     def get_description(self):
         return self.name
 
+    def get_relative_path(self):
+        return Path(self.get_description())
+
     get_error_description = get_description
 
     def get_filenametable_entry(self):
