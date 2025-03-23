@@ -30,6 +30,7 @@ def flip(ido: list, fd: dict = {E: E, NE: SE, NW: SW, W: W, SW: NW, SE: NE}) -> 
 
 @cython.cfunc
 def permute(ido: list, r_ido: list) -> list:
+    r: cython.int
     ps = [ido]
     for r in range(dir_no - 1):
         ps.append(rotate(ps[-1]))
