@@ -6753,6 +6753,7 @@ class PyMethodCallNode(CallNode):
         if self.unpack:
             # unpack is ultimately governed by optimize.unpack_method_calls
             # and is a separate decision to whether we want vectorcall-type behaviour
+            self.generate_direct_fallback_guard(code, negate=True)
             code.putln("#if CYTHON_UNPACK_METHODS")
             code.putln("if (%s(PyMethod_Check(%s))) {" % (likely_method, function))
             code.putln("%s = PyMethod_GET_SELF(%s);" % (self_arg, function))
@@ -6766,6 +6767,7 @@ class PyMethodCallNode(CallNode):
             code.putln("%s = 1;" % arg_offset_cname)
             code.putln("}")
             code.putln("#endif")  # CYTHON_UNPACK_METHODS
+            self.end_direct_fallback_guard(code)
             # TODO may need to deal with unused variables in the #else case
 
         kwnames_temp = None
