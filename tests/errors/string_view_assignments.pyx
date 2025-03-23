@@ -17,4 +17,5 @@ cdef string_view s3 = u"123".encode()  # bad, reference to temp
 _ERRORS = """
 13:0: Storing unsafe C derivative of temporary Python reference
 14:0: Storing unsafe C derivative of temporary Python reference
+15:0: Storing unsafe C derivative of temporary Python reference
 """
