@@ -6628,75 +6628,40 @@ class PyMethodCallNode(CallNode):
     # Specialised call to a (potential) PyMethodObject with non-constant argument tuple.
     # Allows the self argument to be injected directly instead of repacking a tuple for it.
     #
-    # function    ExprNode      the function/method object to call
+    # function    ExprNode  the function/method object to call
     # arg_tuple   TupleNode     the arguments for the args tuple
     # kwdict      ExprNode or None  keyword dictionary (if present)
     # unpack      bool
-    # function_obj ExprNode or None   copy of self.function.obj (in some situations)
+    # function_obj ExprNode or None   
 
-    subexprs = ['function', 'arg_tuple', 'kwdict', 'function_obj']
+    subexprs = ['function', 'arg_tuple', 'kwdict']
     is_temp = True
     kwdict = None
-    direct_fallback = False
+    avoid_attribute_lookup = False
     function_obj = None
 
     def __init__(self, pos, **kwds):
         super().__init__(pos, **kwds)
-        if self.allow_direct_fallback_call():
-            self.direct_fallback = True
-            if self.function.obj.is_simple() and not self.function.obj.result_in_temp():
-                self.function_obj = copy.copy(self.function.obj)
-            else:
-                self.function_obj = ProxyNode(self.function.obj)
-                self.function.obj = CloneNode(self.function_obj)
+        if self.can_avoid_attribute_lookup():
+            self.avoid_attribute_lookup = True
+            self.function_obj = self.function.obj
 
-    def allow_direct_fallback_call(self):
+    def can_avoid_attribute_lookup(self):
+        # Essentially, if the signature matches PyObject_VectorcallMethod
+        # then it's worth doing that directly and not creating a new method in
+        # the attribute lookup.
         if self.kwdict and not isinstance(self.kwdict, DictNode):
             return False
         if not self.function.is_attribute:
             return False
         return True
 
-    def generate_direct_fallback_guard(self, code, negate):
-        if self.direct_fallback:
-            # negate gives the guard for the regular code
-            code.putln(f"#if {'!' if negate else ''}(CYTHON_VECTORCALL)")
-
-    def generate_direct_fallback(self,  code, len_args, keyword_variable):
-        if not self.direct_fallback:
-            return
-        code.putln("#else")
-        # The assumption here is that if we can use vectorcall, but can't unpack methods
-        # then PyObject_VectorcallMethod is better because it does most of this stuff internally.
-        # This is especially the case for the Limited API where method creation is expensive
-        code.putln(f"{self.result()} = PyObject_VectorcallMethod("
-                   f"{code.get_py_string_const(self.function.attribute)}, "
-                   f"__pyx_callargs, {len_args+1}{keyword_variable or ', NULL'});")
-
-    def generate_direct_fallback_self_assignment(self, code, self_arg, arg_offset_cname):
-        if not self.direct_fallback:
-            return
-        self.generate_direct_fallback_guard(code, negate=False)
-        code.putln(f"{self_arg} = {self.function_obj.py_result()};")
-        code.put_incref(self_arg, py_object_type)
-        code.putln(f"CYTHON_UNUSED_VAR({arg_offset_cname});")
-        self.end_direct_fallback_guard(code)
-
-    def end_direct_fallback_guard(self, code):
-        if self.direct_fallback:
-            # new-line because not everything that precedes this uses putln apparently.
-            code.putln("#endif")
-
     def generate_evaluation_code(self, code):
         code.mark_pos(self.pos)
         self.allocate_temp_result(code)
 
-        if self.function_obj:
-            self.function_obj.generate_evaluation_code(code)
-
-        self.generate_direct_fallback_guard(code, negate=True)
-        self.function.generate_evaluation_code(code)
-        self.end_direct_fallback_guard(code)
+        if not self.avoid_attribute_lookup:
+            self.function.generate_evaluation_code(code)
         assert self.arg_tuple.mult_factor is None
         args = self.arg_tuple.args
         kwargs_key_value_pairs = None
@@ -6710,24 +6675,27 @@ class PyMethodCallNode(CallNode):
             self.kwdict.generate_evaluation_code(code)
 
         # make sure function is in temp so that we can replace the reference below if it's a method
-        reuse_function_temp = self.function.is_temp
-        if reuse_function_temp:
-            function = self.function.result()
-        else:
-            function = code.funcstate.allocate_temp(py_object_type, manage_ref=True)
-            self.generate_direct_fallback_guard(code, negate=True)
-            self.function.make_owned_reference(code)
-            code.putln("%s = %s; " % (function, self.function.py_result()))
-            self.function.generate_disposal_code(code)
-            self.function.free_temps(code)
-            self.end_direct_fallback_guard(code)
+        if not self.avoid_attribute_lookup:
+            reuse_function_temp = self.function.is_temp
+            if reuse_function_temp:
+                function = self.function.result()
+            else:
+                function = code.funcstate.allocate_temp(py_object_type, manage_ref=True)
+                self.function.make_owned_reference(code)
+                code.putln("%s = %s; " % (function, self.function.py_result()))
+                self.function.generate_disposal_code(code)
+                self.function.free_temps(code)
 
         self_arg = code.funcstate.allocate_temp(py_object_type, manage_ref=True)
         code.putln("%s = NULL;" % self_arg)
         arg_offset_cname = code.funcstate.allocate_temp(PyrexTypes.c_uint_type, manage_ref=False)
         code.putln("%s = 0;" % arg_offset_cname)
 
-        self.generate_direct_fallback_self_assignment(code, self_arg, arg_offset_cname)
+        if self.avoid_attribute_lookup:
+            self.function_obj.generate_evaluation_code(code)
+            code.putln(f"{self_arg} = {self.function_obj.py_result()};")
+            code.put_incref(self_arg, py_object_type)
+            code.putln(f"{arg_offset_cname} = 1;")
 
         def attribute_is_likely_method(attr):
             obj = attr.obj
@@ -6750,10 +6718,9 @@ class PyMethodCallNode(CallNode):
         else:
             likely_method = 'unlikely'
 
-        if self.unpack:
+        if not self.avoid_attribute_lookup and self.unpack:
             # unpack is ultimately governed by optimize.unpack_method_calls
             # and is a separate decision to whether we want vectorcall-type behaviour
-            self.generate_direct_fallback_guard(code, negate=True)
             code.putln("#if CYTHON_UNPACK_METHODS")
             code.putln("if (%s(PyMethod_Check(%s))) {" % (likely_method, function))
             code.putln("%s = PyMethod_GET_SELF(%s);" % (self_arg, function))
@@ -6767,14 +6734,16 @@ class PyMethodCallNode(CallNode):
             code.putln("%s = 1;" % arg_offset_cname)
             code.putln("}")
             code.putln("#endif")  # CYTHON_UNPACK_METHODS
-            self.end_direct_fallback_guard(code)
             # TODO may need to deal with unused variables in the #else case
 
         kwnames_temp = None
         if kwargs_key_value_pairs:
             code.globalstate.use_utility_code(
-                UtilityCode.load_cached("PyObjectVectorCallKwBuilder", "ObjectHandling.c"))
-            function_caller = "__Pyx_Object_Vectorcall_CallFromBuilder"
+                    UtilityCode.load_cached("PyObjectVectorCallKwBuilder", "ObjectHandling.c"))
+            if self.avoid_attribute_lookup:
+                function_caller = "__Pyx_Object_VectorcallMethod_CallFromBuilder"
+            else:
+                function_caller = "__Pyx_Object_Vectorcall_CallFromBuilder"
             kwnames_temp = code.funcstate.allocate_temp(py_object_type, manage_ref=True)
             code.putln("%s = __Pyx_MakeVectorcallBuilderKwds(%s); %s" % (
                 kwnames_temp, len(kwargs_key_value_pairs),
@@ -6782,13 +6751,19 @@ class PyMethodCallNode(CallNode):
             ))
             code.put_gotref(kwnames_temp, py_object_type)
         elif self.kwdict:
+            assert not self.avoid_attribute_lookup
             code.globalstate.use_utility_code(
                     UtilityCode.load_cached("PyObjectFastCall", "ObjectHandling.c"))
             function_caller = "__Pyx_PyObject_FastCallDict"
         else:
-            code.globalstate.use_utility_code(
-                UtilityCode.load_cached("PyObjectFastCall", "ObjectHandling.c"))
-            function_caller = "__Pyx_PyObject_FastCall"
+            if self.avoid_attribute_lookup:
+                code.globalstate.use_utility_code(
+                    UtilityCode.load_cached("PyObjectFastCallMethod", "ObjectHandling.c"))
+                function_caller = "__Pyx_PyObject_FastCallMethod"
+            else:
+                code.globalstate.use_utility_code(
+                    UtilityCode.load_cached("PyObjectFastCall", "ObjectHandling.c"))
+                function_caller = "__Pyx_PyObject_FastCall"
         # actually call the function
 
 
@@ -6825,17 +6800,15 @@ class PyMethodCallNode(CallNode):
             keyword_variable = f", {self.kwdict.result()}"
         else:
             keyword_variable = ""
-        self.generate_direct_fallback_guard(code, negate=True)
-        code.putln("%s = %s(%s, __pyx_callargs+1-%s, %d+%s%s);" % (
+        code.putln("%s = %s(%s, __pyx_callargs+1-%s, (%d+%s)%s %s);" % (
             self.result(),
             function_caller,
-            function,
+            code.get_py_string_const(self.function.attribute) if self.avoid_attribute_lookup else function,
             arg_offset_cname,
             len(args),
             arg_offset_cname,
+            "|__Pyx_PY_VECTORCALL_ARGUMENTS_OFFSET" if self.avoid_attribute_lookup else "",
             keyword_variable))
-        self.generate_direct_fallback(code, len(args), keyword_variable)
-        self.end_direct_fallback_guard(code)
 
         code.put_xdecref_clear(self_arg, py_object_type)
         code.funcstate.release_temp(self_arg)
@@ -6858,14 +6831,13 @@ class PyMethodCallNode(CallNode):
         code.putln(code.error_goto_if_null(self.result(), self.pos))
         self.generate_gotref(code)
 
-        self.generate_direct_fallback_guard(code, negate=True)
-        if reuse_function_temp:
-            self.function.generate_disposal_code(code)
-            self.function.free_temps(code)
-        else:
-            code.put_decref_clear(function, py_object_type)
-            code.funcstate.release_temp(function)
-        self.end_direct_fallback_guard(code)
+        if not self.avoid_attribute_lookup:
+            if reuse_function_temp:
+                self.function.generate_disposal_code(code)
+                self.function.free_temps(code)
+            else:
+                code.put_decref_clear(function, py_object_type)
+                code.funcstate.release_temp(function)
         code.putln("}")
 
     @staticmethod
