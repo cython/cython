@@ -229,8 +229,8 @@ with_gil = _nogil()  # Actually not a context manager, but compilation will give
 del _nogil
 
 
-class _critical_section:
-    def __init__(self, arg0):
+class critical_section:
+    def __init__(self, arg0, arg1=None):
         # It's ambiguous if this is being used as a decorator or context manager
         # even with a callable arg.
         self.arg0 = arg0
@@ -240,8 +240,6 @@ class _critical_section:
         pass
     def __exit__(self, exc_class, exc, tb):
         return False
-def critical_section(arg0, arg1=None):
-    return _critical_section(arg0)
 
 
 # Emulated types
