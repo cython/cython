@@ -6654,6 +6654,11 @@ class PyMethodCallNode(CallNode):
             return False
         if not self.function.is_attribute:
             return False
+        # These two determine that it's not just a plain getattr
+        if not self.function.is_py_attr:
+            return False
+        if self.function.is_special_lookup:
+            return False
         return True
 
     def generate_evaluation_code(self, code):
