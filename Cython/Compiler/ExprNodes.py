@@ -6659,6 +6659,17 @@ class PyMethodCallNode(CallNode):
             return False
         if self.function.is_special_lookup:
             return False
+        if not self.attribute_is_likely_method(self.function):
+            # PyObject_VectorcallMethod would work, but is more likely to
+            # be a pessimization.
+            return False
+        return True
+
+    @staticmethod
+    def attribute_is_likely_method(attr):
+        obj = attr.obj
+        if obj.is_name and obj.entry.is_pyglobal:
+            return False  # more likely to be a function
         return True
 
     def generate_evaluation_code(self, code):
@@ -6702,20 +6713,14 @@ class PyMethodCallNode(CallNode):
             code.put_incref(self_arg, py_object_type)
             code.putln(f"{arg_offset_cname} = 1;")
 
-        def attribute_is_likely_method(attr):
-            obj = attr.obj
-            if obj.is_name and obj.entry.is_pyglobal:
-                return False  # more likely to be a function
-            return True
-
         if self.function.is_attribute:
-            likely_method = 'likely' if attribute_is_likely_method(self.function) else 'unlikely'
+            likely_method = 'likely' if self.attribute_is_likely_method(self.function) else 'unlikely'
         elif self.function.is_name and self.function.cf_state:
             # not an attribute itself, but might have been assigned from one (e.g. bound method)
             for assignment in self.function.cf_state:
                 value = assignment.rhs
                 if value and value.is_attribute and value.obj.type and value.obj.type.is_pyobject:
-                    if attribute_is_likely_method(value):
+                    if self.attribute_is_likely_method(value):
                         likely_method = 'likely'
                         break
             else:
