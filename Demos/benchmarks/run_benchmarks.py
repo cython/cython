@@ -245,6 +245,7 @@ def report_revision_timings(rev_timings):
         for benchmark, timings in bm_timings.items():
             timings_by_benchmark[benchmark].append((revision_name, sorted(timings)))
 
+    differences = collections.defaultdict(list)
     for benchmark, revision_timings in timings_by_benchmark.items():
         logging.info(f"### Benchmark '{benchmark}' (min/median/max/ ±% of median):")
 
@@ -254,12 +255,27 @@ def report_revision_timings(rev_timings):
 
         for revision_name, timings in revision_timings:
             tmin, tmed, tmax = timings[0], timings[len(timings) // 2], timings[-1]
-            diff = ""
+            diff_str = ""
             if base_line != tmed:
-                diff = f"  ({tmed * 100 / base_line - 100:+8.2f} %)"
+                pdiff = tmed * 100 / base_line - 100
+                differences[revision_name].append((abs(pdiff), pdiff, tmed - base_line, benchmark))
+                diff_str = f"  ({pdiff:+8.2f} %)"
             logging.info(
-                f"    {revision_name[:25]:25} = {format_time(tmin):>12}, {format_time(tmed):>12}, {format_time(tmax):>12}{diff}"
+                f"    {revision_name[:25]:25} = {format_time(tmin):>12}, {format_time(tmed):>12}, {format_time(tmax):>12}{diff_str}"
             )
+
+    for revision_name, diffs in differences.items():
+        diffs.sort(reverse=True)
+        cutoff_diff = max(1.0, diffs[0][0] // 3)
+        for i, diff in enumerate(diffs):
+            if diff[0] < cutoff_diff:
+                diffs = diffs[:i]
+                break
+
+        if diffs:
+            logging.info(f"Largest differences for {revision_name}:")
+            for _, pdiff, tdiff, benchmark in diffs:
+                logging.info(f"    {benchmark:<25}:  {pdiff:+8.2f} %   /  {'+' if tdiff > 0 else '-'}{format_time(abs(tdiff))}")
 
 
 def parse_args(args):
