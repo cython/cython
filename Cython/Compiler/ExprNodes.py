@@ -6628,7 +6628,7 @@ class PyMethodCallNode(CallNode):
     # Specialised call to a (potential) PyMethodObject with non-constant argument tuple.
     # Allows the self argument to be injected directly instead of repacking a tuple for it.
     #
-    # function    ExprNode  the function/method object to call
+    # function    ExprNode      the function/method object to call
     # arg_tuple   TupleNode     the arguments for the args tuple
     # kwdict      ExprNode or None  keyword dictionary (if present)
     # unpack      bool
@@ -6820,7 +6820,6 @@ class PyMethodCallNode(CallNode):
         code.mark_pos(self.pos)
         self.allocate_temp_result(code)
 
-        function = None
         if not self.avoid_attribute_lookup:
             # make sure function is in temp so that we can replace the reference below if it's a method
             self.function.generate_evaluation_code(code)
@@ -6833,6 +6832,9 @@ class PyMethodCallNode(CallNode):
                 code.putln("%s = %s; " % (function, self.function.py_result()))
                 self.function.generate_disposal_code(code)
                 self.function.free_temps(code)
+        else:
+            # In avoid_attribute_lookup mode, we just pass the function name in this place
+            function = code.get_py_string_const(self.function.attribute)
 
         args = self.arg_tuple.args
         kwargs_key_value_pairs = self.kwdict.key_value_pairs if isinstance(self.kwdict, DictNode) else None
@@ -6860,7 +6862,7 @@ class PyMethodCallNode(CallNode):
         code.putln("%s = %s(%s, __pyx_callargs+1-%s, (%d+%s)%s %s);" % (
             self.result(),
             function_caller,
-            code.get_py_string_const(self.function.attribute) if self.avoid_attribute_lookup else function,
+            function,
             arg_offset_cname,
             len(args),
             arg_offset_cname,
