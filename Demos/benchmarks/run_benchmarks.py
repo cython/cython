@@ -240,17 +240,25 @@ def report_revision_timings(rev_timings):
             raise RuntimeError("Timing is below nanoseconds: {t:f}")
         return f"{t / scale :.3f} {unit}"
 
-    timings_by_benchmark = collections.defaultdict(dict)
+    timings_by_benchmark = collections.defaultdict(list)
     for revision_name, bm_timings in rev_timings.items():
         for benchmark, timings in bm_timings.items():
-            timings_by_benchmark[benchmark][revision_name] = sorted(timings)
+            timings_by_benchmark[benchmark].append((revision_name, sorted(timings)))
 
     for benchmark, revision_timings in timings_by_benchmark.items():
-        logging.info(f"### Benchmark '{benchmark}' (min/median/max):")
-        for revision_name, timings in revision_timings.items():
-            tmin, tmed, tmax = timings[0], timings[len(timings)//2], timings[-1]
+        logging.info(f"### Benchmark '{benchmark}' (min/median/max/ ±% of median):")
+
+        # Use median as base line to reduce fluctuation.
+        base_line_timings = revision_timings[0][1]
+        base_line = base_line_timings[len(base_line_timings) // 2]
+
+        for revision_name, timings in revision_timings:
+            tmin, tmed, tmax = timings[0], timings[len(timings) // 2], timings[-1]
+            diff = ""
+            if base_line != tmed:
+                diff = f"  ({tmed * 100 / base_line - 100:+8.2f} %)"
             logging.info(
-                f"    {revision_name[:25]:25} = {format_time(tmin):>12}, {format_time(tmed):>12}, {format_time(tmax):>12}"
+                f"    {revision_name[:25]:25} = {format_time(tmin):>12}, {format_time(tmed):>12}, {format_time(tmax):>12}{diff}"
             )
 
 
