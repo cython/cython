@@ -1828,7 +1828,7 @@ static PyObject *__Pyx_SelflessCall(PyObject *method, PyObject *const *args, Py_
 #else
     PyObject_Vectorcall
 #endif
-        (method, args ? args+1 : NULL, nargs ? nargs-1 : 0, kwnames);
+        (method, args ? args+1 : NULL, nargs ? (size_t) nargs-1 : 0, kwnames);
 }
 #endif
 
