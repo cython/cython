@@ -2284,14 +2284,6 @@ static int __Pyx_VectorcallBuilder_AddArgStr(const char *key, PyObject *value, P
 #define __Pyx_VectorcallBuilder_AddArgStr(key, value, builder, args, n) PyDict_SetItemString(builder, key, value)
 #endif
 
-#if CYTHON_VECTORCALL && PY_VERSION_HEX >= 0x03090000
-#define __Pyx_Object_VectorcallMethod_CallFromBuilder PyObject_VectorcallMethod
-#else
-static PyObject *__Pyx_Object_VectorcallMethod_CallFromBuilder(PyObject *name, PyObject *const *args, size_t nargsf, PyObject *kwnames); /* proto */
-#endif
-
-
-
 /////////////// PyObjectVectorCallKwBuilder ////////////////
 
 #if CYTHON_VECTORCALL
@@ -2328,12 +2320,23 @@ CYTHON_UNUSED static int __Pyx_VectorcallBuilder_AddArg_Check(PyObject *key, PyO
 }
 #endif
 
+/////////////// PyObjectVectorCallMethodKwBuilder.proto ////////////////
+
+#if CYTHON_VECTORCALL && PY_VERSION_HEX >= 0x03090000
+#define __Pyx_Object_VectorcallMethod_CallFromBuilder PyObject_VectorcallMethod
+#else
+static PyObject *__Pyx_Object_VectorcallMethod_CallFromBuilder(PyObject *name, PyObject *const *args, size_t nargsf, PyObject *kwnames); /* proto */
+#endif
+
+/////////////// PyObjectVectorCallMethodKwBuilder ////////////////
+//@requires: PyObjectVectorCallKwBuilder
+
 #if !CYTHON_VECTORCALL || PY_VERSION_HEX < 0x03090000
 static PyObject *__Pyx_Object_VectorcallMethod_CallFromBuilder(PyObject *name, PyObject *const *args, size_t nargsf, PyObject *kwnames) {
     PyObject *obj = PyObject_GetAttr(args[0], name);
     if (unlikely(!obj))
         return NULL;
-    return __Pyx_PyObject_FastCallDict(obj, args+1, nargsf-1, kwnames);
+    return __Pyx_Object_Vectorcall_CallFromBuilder(obj, args+1, nargsf-1, kwnames);
 }
 #endif
 
