@@ -6812,7 +6812,7 @@ class PyUnpackedMethodCallNode(PyMethodCallNode):
     def generate_unpacking_code(self, code, self_arg, arg_offset_cname, vectorcall_cname, function):
         code.putln(f"{self_arg} = NULL;")
         code.putln(f"{arg_offset_cname} = 0;")
-        code.putln(f"{vectorcall_cname} = 0;")
+        code.putln(f"{vectorcall_cname} = __Pyx_PY_VECTORCALL_ARGUMENTS_OFFSET;")
 
         if not self.unpack:
             return
@@ -6845,7 +6845,7 @@ class PyUnpackedMethodCallNode(PyMethodCallNode):
         # free method object as early to possible to enable reuse from CPython's freelist
         code.put_decref_set(function, py_object_type, "function")
         code.putln(f"{arg_offset_cname} = 1;")
-        code.putln(f"{vectorcall_cname} = __Pyx_PY_VECTORCALL_ARGUMENTS_OFFSET;")
+        code.putln(f"{vectorcall_cname} = 0;")
         code.putln("}")
         code.putln("#endif")  # CYTHON_UNPACK_METHODS
         # TODO may need to deal with unused variables in the #else case
