@@ -6866,14 +6866,13 @@ class PyMethodCallNode(CallNode):
         function_caller = self.select_utility_code(code)
 
         # Actually call the function.
-
         code.putln("{")
-        extra_keyword_args = f"+ ((CYTHON_VECTORCALL) ? {len(kwargs_key_value_pairs)} : 0)" if kwargs_key_value_pairs else ""
 
         # To avoid passing an out-of-bounds argument pointer in the no-args case,
         # we need at least two entries, so we pad with NULL and point to that.
         # See https://github.com/cython/cython/issues/5668
         args_list = ', '.join(arg.py_result() for arg in args) if args else "NULL"
+        extra_keyword_args = f" + ((CYTHON_VECTORCALL) ? {len(kwargs_key_value_pairs)} : 0)" if kwargs_key_value_pairs else ""
         code.putln(
             f"PyObject *{Naming.callargs_cname}[{(len(args) + 1) if args else 2:d}{extra_keyword_args}] = {{{self_arg}, {args_list}}};"
         )
