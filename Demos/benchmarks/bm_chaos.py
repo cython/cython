@@ -211,8 +211,11 @@ class Chaosgame(object):
         if point.y < self.miny:
             point.y = self.miny
 
-    @cython.locals(x=cython.long, y=cython.long)
-    def create_image_chaos(self, timer, w, h, n, count=5000):
+    def create_image_chaos(self, timer, w, h, n, count: cython.long = 5000):
+        i: cython.long
+        x: cython.long
+        y: cython.long
+
         im = [[1] * h for i in range(w)]
         point = GVector((self.maxx + self.minx) / 2,
                         (self.maxy + self.miny) / 2, 0)

@@ -42,13 +42,16 @@ async def bench_async_generators(async_tree) -> None:
 
 
 
-def run_benchmark(repeat=10, count=1000, timer=time.perf_counter):
-    async_tree = tree(range(count))
+def run_benchmark(repeat=10, scale: cython.long = 1, timer=time.perf_counter):
+    s: cython.long
+
+    async_tree = tree(range(1000))
 
     timings = []
     for _ in range(repeat):
         t = timer()
-        asyncio.run(bench_async_generators(async_tree))
+        for s in range(scale):
+            asyncio.run(bench_async_generators(async_tree))
         t = timer() - t
         timings.append(t)
     return timings
