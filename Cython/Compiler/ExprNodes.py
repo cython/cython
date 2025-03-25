@@ -6879,14 +6879,12 @@ class PyMethodCallNode(CallNode):
         )
 
         keyword_variable = ""
-        keyword_nodes_to_clean_up = kwargs_key_value_pairs
 
         if kwargs_key_value_pairs:
             keyword_variable = code.funcstate.allocate_temp(py_object_type, manage_ref=True)
             self.generate_keyvalue_args(code, args, kwargs_key_value_pairs, keyword_variable)
         elif self.kwdict:
             keyword_variable = self.kwdict.result()
-            keyword_nodes_to_clean_up = [self.kwdict]
 
         code.putln(
             f"{self.result()} = {function_caller}("
