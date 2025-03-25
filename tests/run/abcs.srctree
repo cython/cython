@@ -1,0 +1,36 @@
+UNSET CFLAGS
+PYTHON setup.py build_ext --inplace
+
+##################### setup.py ################
+
+from Cython.Build.Dependencies import cythonize
+
+from setuptools import setup
+
+setup(
+  ext_modules = cythonize("*.pyx"),
+)
+
+#################### test_it.py #################
+
+import m1
+import m2
+import cython_runtime
+
+# This is because Limited API and regular API have different cython ABIs 
+assert type(m1.f) != type(m2.f)
+assert isinstance(m1.f, cython_runtime.cython_function.cython_function_or_method_abc)
+assert isinstance(m2.f, cython_runtime.cython_function.cython_function_or_method_abc)
+assert not isinstance(lambda: None, cython_runtime.cython_function.cython_function_or_method_abc)
+
+#################### m1.pyx ####################
+
+def f():
+    pass
+
+#################### m2.pyx ####################
+
+# distutils: extra_compile_args = -DPy_LIMITED_API=0x03070000
+
+def f():
+    pass
