@@ -6913,10 +6913,10 @@ class PyMethodCallNode(CallNode):
         for tmp in [self_arg, space_for_selfarg]:
             code.funcstate.release_temp(tmp)
 
+        self.generate_dispose_function(code, function)
+
         code.putln(code.error_goto_if_null(self.result(), self.pos))
         self.generate_gotref(code)
-
-        self.generate_dispose_function(code, function)
         code.putln("}")
 
 
