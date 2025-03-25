@@ -136,7 +136,7 @@ def genexpr_fcall_order():
     """
     Note that order of "Getting function" and getting the function
     arguments can end up slightly different in Python and Cython and
-    so isn't tested. 
+    so isn't tested.
     >>> list(genexpr_fcall_order())
     Getting function
     In func

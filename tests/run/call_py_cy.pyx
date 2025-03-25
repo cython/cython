@@ -18,7 +18,6 @@ py_call_starstarargs = eval("lambda **kw: sorted(kw.items())")
 py_call_args_and_starstarargs = eval("lambda *args, **kw: (args, sorted(kw.items()))")
 
 
-#@cython.test_fail_if_path_exists("//PyMethodCallNode")
 def cy_call_noargs():
     """
     >>> cy_call_noargs()
@@ -27,7 +26,7 @@ def cy_call_noargs():
     return py_call_noargs()
 
 
-@cython.test_assert_path_exists("//PyMethodCallNode")
+@cython.test_assert_path_exists("//PyUnpackedMethodCallNode")
 def cy_call_onearg(f):
     """
     >>> cy_call_onearg(py_call_onearg)
@@ -48,7 +47,7 @@ def cy_call_onearg(f):
     return f('onearg')
 
 
-@cython.test_assert_path_exists("//PyMethodCallNode")
+@cython.test_assert_path_exists("//PyUnpackedMethodCallNode")
 def cy_call_twoargs(f, arg):
     """
     >>> cy_call_twoargs(py_call_twoargs, 132)
@@ -67,7 +66,7 @@ def cy_call_twoargs(f, arg):
     return f(arg, 'twoargs')
 
 
-@cython.test_assert_path_exists("//PyMethodCallNode")
+@cython.test_assert_path_exists("//PyUnpackedMethodCallNode")
 def cy_call_arg_and_kwarg(f, arg):
     """
     >>> cy_call_arg_and_kwarg(py_call_twoargs, 123)
@@ -85,7 +84,7 @@ def cy_call_arg_and_kwarg(f, arg):
     return f(arg, arg2='twoargs')
 
 
-@cython.test_assert_path_exists("//PyMethodCallNode")
+@cython.test_assert_path_exists("//PyUnpackedMethodCallNode")
 def cy_call_two_kwargs(f, arg):
     """
     >>> cy_call_two_kwargs(py_call_twoargs, arg=132)
@@ -237,7 +236,7 @@ def cy_call_kw_and_starstarargs(f=None, arg1=None, **kw):
     return (f or py_call_starstarargs)(arg=arg1, **kw)
 
 
-@cython.test_assert_path_exists("//PyMethodCallNode")
+@cython.test_assert_path_exists("//PyUnpackedMethodCallNode")
 def cy_call_pos_and_starstarargs(f=None, arg1=None, **kw):
     """
     >>> cy_call_pos_and_starstarargs(arg=123)
