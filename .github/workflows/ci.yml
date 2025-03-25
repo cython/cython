@@ -231,7 +231,7 @@ jobs:
           fetch-depth: 1
 
       - name: Setup python
-        uses: Quansight-Labs/setup-python@v5.3.1
+        uses: actions/setup-python@v5.5.0
         with:
           python-version: ${{ matrix.python-version }}
 
