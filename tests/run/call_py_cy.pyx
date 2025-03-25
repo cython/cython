@@ -26,7 +26,7 @@ def cy_call_noargs():
     return py_call_noargs()
 
 
-@cython.test_assert_path_exists("//PyUnpackedMethodCallNode")
+@cython.test_assert_path_exists("//PyMethodCallNode")
 def cy_call_onearg(f):
     """
     >>> cy_call_onearg(py_call_onearg)
@@ -47,7 +47,7 @@ def cy_call_onearg(f):
     return f('onearg')
 
 
-@cython.test_assert_path_exists("//PyUnpackedMethodCallNode")
+@cython.test_assert_path_exists("//PyMethodCallNode")
 def cy_call_twoargs(f, arg):
     """
     >>> cy_call_twoargs(py_call_twoargs, 132)
@@ -66,7 +66,7 @@ def cy_call_twoargs(f, arg):
     return f(arg, 'twoargs')
 
 
-@cython.test_assert_path_exists("//PyUnpackedMethodCallNode")
+@cython.test_assert_path_exists("//PyMethodCallNode")
 def cy_call_arg_and_kwarg(f, arg):
     """
     >>> cy_call_arg_and_kwarg(py_call_twoargs, 123)
@@ -84,7 +84,7 @@ def cy_call_arg_and_kwarg(f, arg):
     return f(arg, arg2='twoargs')
 
 
-@cython.test_assert_path_exists("//PyUnpackedMethodCallNode")
+@cython.test_assert_path_exists("//PyMethodCallNode")
 def cy_call_two_kwargs(f, arg):
     """
     >>> cy_call_two_kwargs(py_call_twoargs, arg=132)
@@ -104,8 +104,8 @@ def cy_call_two_kwargs(f, arg):
 
 
 @cython.test_fail_if_path_exists(
-    "//PyDirectMethodCallNode",
-    "//PyUnpackedMethodCallNode",)
+    "//PyMethodCallNode",
+    "//PyMethodCallNode",)
 def cy_call_starargs(*args):
     """
     >>> cy_call_starargs()
@@ -121,8 +121,7 @@ def cy_call_starargs(*args):
 
 
 @cython.test_fail_if_path_exists(
-    "//PyDirectMethodCallNode",
-    "//PyUnpackedMethodCallNode",)
+    "//PyMethodCallNode",)
 def cy_call_pos_and_starargs(f, *args):
     """
     >>> cy_call_pos_and_starargs(py_call_onearg)
@@ -161,8 +160,7 @@ def cy_call_pos_and_starargs(f, *args):
 # vectorcall_dict or PyObject_Call are likely to be fairly similar cost.
 # The test is for the current behaviour but it isn't a big issue if it changes
 @cython.test_fail_if_path_exists(
-    "//PyDirectMethodCallNode",
-    "//PyUnpackedMethodCallNode",)
+    "//PyMethodCallNode",)
 def cy_call_starstarargs(**kw):
     """
     >>> kw = {}
@@ -182,8 +180,7 @@ def cy_call_starstarargs(**kw):
 # vectorcall_dict or PyObject_Call are likely to be fairly similar cost.
 # The test is for the current behaviour but it isn't a big issue if it changes
 @cython.test_fail_if_path_exists(
-    "//PyDirectMethodCallNode",
-    "//PyUnpackedMethodCallNode",)
+    "//PyMethodCallNode",)
 def cy_call_kw_and_starstarargs(f=None, arg1=None, **kw):
     """
     >>> kw = {}
@@ -244,7 +241,7 @@ def cy_call_kw_and_starstarargs(f=None, arg1=None, **kw):
     return (f or py_call_starstarargs)(arg=arg1, **kw)
 
 
-@cython.test_assert_path_exists("//PyUnpackedMethodCallNode")
+@cython.test_assert_path_exists("//PyMethodCallNode")
 def cy_call_pos_and_starstarargs(f=None, arg1=None, **kw):
     """
     >>> cy_call_pos_and_starstarargs(arg=123)

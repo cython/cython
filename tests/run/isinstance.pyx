@@ -11,8 +11,8 @@ a_as_obj = A
 
 @cython.test_assert_path_exists(
     '//SimpleCallNode',
-    '//PyUnpackedMethodCallNode',
-    '//SimpleCallNode//PyUnpackedMethodCallNode',
+    '//PyMethodCallNode',
+    '//SimpleCallNode//PyMethodCallNode',
 )
 @cython.test_fail_if_path_exists(
     "//PythonCapiCallNode",
@@ -30,8 +30,8 @@ def test_non_optimised():
 
 @cython.test_assert_path_exists(
     '//PythonCapiCallNode',
-    '//PyUnpackedMethodCallNode',
-    '//PythonCapiCallNode//PyUnpackedMethodCallNode',
+    '//PyMethodCallNode',
+    '//PythonCapiCallNode//PyMethodCallNode',
     '//PythonCapiFunctionNode[@cname = "PyType_Check"]',
     '//PythonCapiFunctionNode[@cname = "PyLong_Check"]',
     '//PythonCapiFunctionNode[@cname = "PyFloat_Check"]',

@@ -56,8 +56,7 @@ def test_derived_vtab():
 @cython.test_assert_path_exists('//PythonCapiCallNode')
 @cython.test_fail_if_path_exists(
     '//SimpleCallNode/AttributeNode',
-    '//PyUnpackedMethodCallNode',
-    '//PyDirectMethodCallNode',
+    '//PyMethodCallNode',
 )
 def make_new():
     """
@@ -71,8 +70,7 @@ def make_new():
 @cython.test_assert_path_exists('//PythonCapiCallNode')
 @cython.test_fail_if_path_exists(
     '//SimpleCallNode/AttributeNode',
-    '//PyUnpackedMethodCallNode',
-    '//PyDirectMethodCallNode',
+    '//PyMethodCallNode',
 )
 def make_new_typed_target():
     """
@@ -87,8 +85,7 @@ def make_new_typed_target():
 @cython.test_assert_path_exists('//PythonCapiCallNode')
 @cython.test_fail_if_path_exists(
     '//SimpleCallNode/AttributeNode',
-    '//PyUnpackedMethodCallNode',
-    '//PyDirectMethodCallNode',
+    '//PyMethodCallNode',
 )
 def make_new_with_args():
     """
@@ -106,8 +103,7 @@ def make_new_with_args():
 @cython.test_assert_path_exists('//PythonCapiCallNode')
 @cython.test_fail_if_path_exists(
     '//SimpleCallNode/AttributeNode',
-    '//PyUnpackedMethodCallNode',
-    '//PyDirectMethodCallNode',
+    '//PyMethodCallNode',
 )
 def make_new_with_args_kwargs():
     """
@@ -125,8 +121,7 @@ def make_new_with_args_kwargs():
 @cython.test_assert_path_exists('//PythonCapiCallNode')
 @cython.test_fail_if_path_exists(
     '//SimpleCallNode/AttributeNode',
-    '//PyUnpackedMethodCallNode',
-    '//PyDirectMethodCallNode',
+    '//PyMethodCallNode',
 )
 def make_new_builtin():
     """
@@ -141,8 +136,7 @@ def make_new_builtin():
 @cython.test_assert_path_exists('//PythonCapiCallNode')
 @cython.test_fail_if_path_exists(
     '//SimpleCallNode/AttributeNode',
-    '//PyUnpackedMethodCallNode',
-    '//PyDirectMethodCallNode',
+    '//PyMethodCallNode',
 )
 def make_new_none(type t=None):
     """
@@ -156,8 +150,7 @@ def make_new_none(type t=None):
 @cython.test_assert_path_exists('//PythonCapiCallNode')
 @cython.test_fail_if_path_exists(
     '//SimpleCallNode/AttributeNode',
-    '//PyUnpackedMethodCallNode',
-    '//PyDirectMethodCallNode',
+    '//PyMethodCallNode',
 )
 def make_new_kwargs(type t=None):
     """
@@ -175,7 +168,7 @@ def make_new_kwargs(type t=None):
 
 # these cannot:
 
-@cython.test_assert_path_exists('//PyUnpackedMethodCallNode/AttributeNode')
+@cython.test_assert_path_exists('//PyMethodCallNode/AttributeNode')
 @cython.test_fail_if_path_exists('//PythonCapiCallNode')
 def make_new_pyclass():
     """
@@ -187,7 +180,7 @@ def make_new_pyclass():
     m = MyTypeSubClass.__new__(MyTypeSubClass)
     return m
 
-@cython.test_assert_path_exists('//PyDirectMethodCallNode/AttributeNode')
+@cython.test_assert_path_exists('//PyMethodCallNode/AttributeNode')
 @cython.test_fail_if_path_exists('//PythonCapiCallNode')
 def make_new_args(type t1=None, type t2=None):
     """
@@ -215,7 +208,7 @@ def make_new_args(type t1=None, type t2=None):
     m = t1.__new__(t2)
     return m
 
-@cython.test_assert_path_exists('//PyDirectMethodCallNode/AttributeNode')
+@cython.test_assert_path_exists('//PyMethodCallNode/AttributeNode')
 @cython.test_fail_if_path_exists('//PythonCapiCallNode')
 def make_new_none_typed(tuple t=None):
     """
@@ -226,7 +219,7 @@ def make_new_none_typed(tuple t=None):
     m = t.__new__(t)
     return m
 
-@cython.test_assert_path_exists('//PyDirectMethodCallNode/AttributeNode')
+@cython.test_assert_path_exists('//PyMethodCallNode/AttributeNode')
 @cython.test_fail_if_path_exists('//PythonCapiCallNode')
 def make_new_untyped(t):
     """

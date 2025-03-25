@@ -37,7 +37,7 @@ def sorted_arg(x):
 
 
 @cython.test_assert_path_exists(
-    "//PyUnpackedMethodCallNode",
+    "//PyMethodCallNode",
 )
 @cython.test_fail_if_path_exists(
     "//GeneralCallNode",
