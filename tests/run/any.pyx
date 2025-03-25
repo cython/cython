@@ -12,7 +12,7 @@ cimport cython
 
 
 @cython.test_assert_path_exists(
-    "//PyMethodCallNode",
+    "//PyUnpackedMethodCallNode",
 )
 @cython.test_fail_if_path_exists(
     "//ForInStatNode",
@@ -64,7 +64,7 @@ def any_item(x):
 )
 @cython.test_fail_if_path_exists(
     "//SimpleCallNode",
-    "//PyMethodCallNode",
+    "//PyUnpackedMethodCallNode",
     "//YieldExprNode",
 )
 def any_in_simple_gen(seq):
@@ -97,7 +97,7 @@ def any_in_simple_gen(seq):
 )
 @cython.test_fail_if_path_exists(
     "//SimpleCallNode",
-    "//PyMethodCallNode",
+    "//PyUnpackedMethodCallNode",
     "//YieldExprNode",
 )
 def any_in_simple_gen_scope(seq):
@@ -133,7 +133,7 @@ def any_in_simple_gen_scope(seq):
 )
 @cython.test_fail_if_path_exists(
     "//SimpleCallNode",
-    "//PyMethodCallNode",
+    "//PyUnpackedMethodCallNode",
     "//YieldExprNode",
 )
 def any_in_conditional_gen(seq):
@@ -174,7 +174,7 @@ upper_ustring = mixed_ustring.upper()
 )
 @cython.test_fail_if_path_exists(
     '//SimpleCallNode',
-    "//PyMethodCallNode",
+    "//PyUnpackedMethodCallNode",
     '//ForInStatNode',
 )
 def any_lower_case_characters(unicode ustring):
@@ -196,7 +196,7 @@ def any_lower_case_characters(unicode ustring):
 )
 @cython.test_fail_if_path_exists(
     "//SimpleCallNode",
-    "//PyMethodCallNode",
+    "//PyUnpackedMethodCallNode",
     "//YieldExprNode",
 #    "//IfStatNode//CoerceToBooleanNode"
 )
@@ -232,7 +232,7 @@ def any_in_typed_gen(seq):
 )
 @cython.test_fail_if_path_exists(
     "//SimpleCallNode",
-    "//PyMethodCallNode",
+    "//PyUnpackedMethodCallNode",
     "//YieldExprNode",
 )
 def any_in_gen_builtin_name(seq):
@@ -266,7 +266,7 @@ def any_in_gen_builtin_name(seq):
 )
 @cython.test_fail_if_path_exists(
     "//SimpleCallNode",
-    "//PyMethodCallNode",
+    "//PyUnpackedMethodCallNode",
     "//YieldExprNode",
 #    "//IfStatNode//CoerceToBooleanNode"
 )
