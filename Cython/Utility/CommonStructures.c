@@ -91,6 +91,8 @@ bad:
 
 /////////////// RegisterABC.proto ///////////////
 
+static void __Pyx_RegisterCommonTypeWithAbc(PyObject *type, const char *abc_name); /* proto */
+
 /////////////// RegisterABC ///////////////
 //@requires: ModuleSetupCode.c::CriticalSections
 //@requires: ObjectHandling.c::PyObjectGetAttrStrNoError
