@@ -13,7 +13,7 @@ cdef class VerboseGetItem(object):
 cimport cython
 
 @cython.test_assert_path_exists(
-    "//PyMethodCallNode",
+    "//PyUnpackedMethodCallNode",
 )
 @cython.test_fail_if_path_exists(
     "//ForInStatNode",
@@ -67,7 +67,7 @@ def all_item(x):
 )
 @cython.test_fail_if_path_exists(
     "//SimpleCallNode",
-    "//PyMethodCallNode",
+    "//PyUnpackedMethodCallNode",
     "//YieldExprNode",
 )
 def all_in_simple_gen(seq):
@@ -102,7 +102,7 @@ def all_in_simple_gen(seq):
 )
 @cython.test_fail_if_path_exists(
     "//SimpleCallNode",
-    "//PyMethodCallNode",
+    "//PyUnpackedMethodCallNode",
     "//YieldExprNode",
 )
 def all_in_simple_gen_scope(seq):
@@ -140,7 +140,7 @@ def all_in_simple_gen_scope(seq):
 )
 @cython.test_fail_if_path_exists(
     "//SimpleCallNode",
-    "//PyMethodCallNode",
+    "//PyUnpackedMethodCallNode",
     "//YieldExprNode",
 )
 def all_in_conditional_gen(seq):
@@ -183,7 +183,7 @@ upper_ustring = mixed_ustring.upper()
 )
 @cython.test_fail_if_path_exists(
     '//SimpleCallNode',
-    "//PyMethodCallNode",
+    "//PyUnpackedMethodCallNode",
     '//ForInStatNode',
 )
 def all_lower_case_characters(unicode ustring):
@@ -205,7 +205,7 @@ def all_lower_case_characters(unicode ustring):
 )
 @cython.test_fail_if_path_exists(
     "//SimpleCallNode",
-    "//PyMethodCallNode",
+    "//PyUnpackedMethodCallNode",
     "//YieldExprNode",
 #    "//IfStatNode//CoerceToBooleanNode"
 )
@@ -243,7 +243,7 @@ def all_in_typed_gen(seq):
 )
 @cython.test_fail_if_path_exists(
     "//SimpleCallNode",
-    "//PyMethodCallNode",
+    "//PyUnpackedMethodCallNode",
     "//YieldExprNode",
 #    "//IfStatNode//CoerceToBooleanNode"
 )

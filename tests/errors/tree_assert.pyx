@@ -3,7 +3,7 @@
 cimport cython
 
 @cython.test_fail_if_path_exists(
-    "//PyMethodCallNode",
+    "//PyUnpackedMethodCallNode",
     "//NameNode",
 )
 @cython.test_assert_path_exists(
@@ -18,5 +18,5 @@ _ERRORS = u"""
 5:0: Expected path '//ComprehensionNode' not found in result tree
 5:0: Expected path '//ComprehensionNode//FuncDefNode' not found in result tree
 14:4: Unexpected path '//NameNode' found in result tree
-14:10: Unexpected path '//PyMethodCallNode' found in result tree
+14:10: Unexpected path '//PyUnpackedMethodCallNode' found in result tree
 """

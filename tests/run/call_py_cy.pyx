@@ -4,7 +4,7 @@
 
 #######
 # Test that Cython and Python functions can call each other in various signature combinations.
-# and check that the right calls use vectorcall (PyMethodCallNode)
+# and check that the right calls use vectorcall (PyMethodCallNode or its subclasses)
 #######
 
 cimport cython
@@ -103,7 +103,9 @@ def cy_call_two_kwargs(f, arg):
     return f(arg2='two-kwargs', arg=arg)
 
 
-@cython.test_fail_if_path_exists("//PyMethodCallNode")
+@cython.test_fail_if_path_exists(
+    "//PyDirectMethodCallNode",
+    "//PyUnpackedMethodCallNode",)
 def cy_call_starargs(*args):
     """
     >>> cy_call_starargs()
@@ -118,7 +120,9 @@ def cy_call_starargs(*args):
     return py_call_starargs(*args)
 
 
-@cython.test_fail_if_path_exists("//PyMethodCallNode")
+@cython.test_fail_if_path_exists(
+    "//PyDirectMethodCallNode",
+    "//PyUnpackedMethodCallNode",)
 def cy_call_pos_and_starargs(f, *args):
     """
     >>> cy_call_pos_and_starargs(py_call_onearg)
@@ -156,7 +160,9 @@ def cy_call_pos_and_starargs(f, *args):
 # Choice of whether to use PyMethodCallNode here is pretty arbitrary -
 # vectorcall_dict or PyObject_Call are likely to be fairly similar cost.
 # The test is for the current behaviour but it isn't a big issue if it changes
-@cython.test_fail_if_path_exists("//PyMethodCallNode")
+@cython.test_fail_if_path_exists(
+    "//PyDirectMethodCallNode",
+    "//PyUnpackedMethodCallNode",)
 def cy_call_starstarargs(**kw):
     """
     >>> kw = {}
@@ -175,7 +181,9 @@ def cy_call_starstarargs(**kw):
 # Choice of whether to use PyMethodCallNode here is pretty arbitrary -
 # vectorcall_dict or PyObject_Call are likely to be fairly similar cost.
 # The test is for the current behaviour but it isn't a big issue if it changes
-@cython.test_fail_if_path_exists("//PyMethodCallNode")
+@cython.test_fail_if_path_exists(
+    "//PyDirectMethodCallNode",
+    "//PyUnpackedMethodCallNode",)
 def cy_call_kw_and_starstarargs(f=None, arg1=None, **kw):
     """
     >>> kw = {}

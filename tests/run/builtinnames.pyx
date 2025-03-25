@@ -22,14 +22,15 @@ cdef type(arg):
 
 
 @cython.test_fail_if_path_exists(
-    '//PyMethodCallNode/NameNode[@name="type" and @entry.is_cfunction=False]',
+    '//PyUnpackedMethodCallNode/NameNode[@name="type" and @entry.is_cfunction=False]',
+    '//PyDirectMethodCallNode/NameNode[@name="type" and @entry.is_cfunction=False]',
     '//SimpleCallNode/NameNode[@name="type" and @entry.is_cfunction=False]',
     '//SimpleCallNode/NameNode[@name="len" and @entry.is_cfunction=True]',
     )
 @cython.test_assert_path_exists(
     '//SimpleCallNode/NameNode[@name="type"]',
     '//SimpleCallNode/NameNode[@name="type" and @entry.is_cfunction=True]',
-    '//PyMethodCallNode/NameNode[@name="len"]',
+    '//PyUnpackedMethodCallNode/NameNode[@name="len"]',
     )
 def test_c(arg):
     """
