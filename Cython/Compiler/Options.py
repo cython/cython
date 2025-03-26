@@ -147,6 +147,7 @@ buffer_max_dims = 8
 #: Number of function closure instances to keep in a freelist (0: no freelists)
 closure_freelist_size = 8
 
+shared_utility_qualified_name = None
 
 def get_directive_defaults():
     # To add an item to this list, all accesses should be changed to use the new
@@ -827,4 +828,5 @@ default_options = dict(
     create_extension=None,
     np_pythran=False,
     legacy_implicit_noexcept=None,
+    shared_c_file_path=None,
 )
