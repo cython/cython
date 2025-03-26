@@ -104,9 +104,10 @@ static void __Pyx_RegisterCommonTypeWithAbc(PyObject *type, const char *abc_name
     PyObject *runtime_dict = PyModule_GetDict(NAMED_CGLOBAL(cython_runtime_cname));
     PyObject *abc_class = NULL;
     PyObject *py_abc_name = PyUnicode_FromString(abc_name);
+    int get_item_result;
     if (unlikely(!py_abc_name))
         goto done;
-    int get_item_result = __Pyx_PyDict_GetItemRef(runtime_dict, py_abc_name, &abc_class);
+    get_item_result = __Pyx_PyDict_GetItemRef(runtime_dict, py_abc_name, &abc_class);
     if (unlikely(get_item_result == -1)) {
         goto done;
     } else if (get_item_result == 0) {
