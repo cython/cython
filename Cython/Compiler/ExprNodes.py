@@ -6837,6 +6837,7 @@ class PyMethodCallNode(CallNode):
         self.allocate_temp_result(code)
 
         kwargs_key_value_pairs = self.kwargs_key_value_pairs
+        kwdict = self.kwdict
 
         self_arg = code.funcstate.allocate_temp(py_object_type, manage_ref=True)
         function = self.generate_evaluate_function(code, self_arg)
@@ -6849,8 +6850,8 @@ class PyMethodCallNode(CallNode):
         if kwargs_key_value_pairs:
             for keyvalue in kwargs_key_value_pairs:
                 keyvalue.generate_evaluation_code(code)
-        elif self.kwdict:
-            self.kwdict.generate_evaluation_code(code)
+        elif kwdict:
+            kwdict.generate_evaluation_code(code)
 
         # Leave space for self argument in before-first argument?
         space_for_selfarg = code.funcstate.allocate_temp(PyrexTypes.c_size_t_type, manage_ref=False)
@@ -6881,8 +6882,8 @@ class PyMethodCallNode(CallNode):
         if kwargs_key_value_pairs:
             keyword_variable = code.funcstate.allocate_temp(py_object_type, manage_ref=True)
             self.generate_keyvalue_args(code, args, kwargs_key_value_pairs, keyword_variable)
-        elif self.kwdict:
-            keyword_variable = self.kwdict.result()
+        elif kwdict:
+            keyword_variable = kwdict.result()
 
         code.putln(
             f"{self.result()} = {function_caller}("
@@ -6909,9 +6910,9 @@ class PyMethodCallNode(CallNode):
                 kw_node.free_temps(code)
             code.put_decref_clear(keyword_variable, py_object_type)
             code.funcstate.release_temp(keyword_variable)
-        elif self.kwdict:
-            self.kwdict.generate_disposal_code(code)
-            self.kwdict.free_temps(code)
+        elif kwdict:
+            kwdict.generate_disposal_code(code)
+            kwdict.free_temps(code)
 
         self.generate_dispose_function(code, function)
 
