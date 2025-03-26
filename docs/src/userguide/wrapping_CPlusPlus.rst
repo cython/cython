@@ -545,6 +545,19 @@ listed in the table above. The code for this standard exception handler can be
 found `here
 <https://github.com/cython/cython/blob/master/Cython/Utility/CppSupport.cpp>`__.
 
+If you want to use `std::exception_ptr` then you can ``cimport`` it from
+``libcpp.exception``.  That provides a special exception handler
+``exception_ptr_error_handler`` allowing you to declare a function: ::
+
+    cdef extern from "some_header":
+        void some_function() except +exception_ptr_error_handler
+
+The exception raised from ``some_function`` will always be an ``Exception``
+and the underlying ``std::exception_ptr`` can be retrieved with
+``wrapped_exception_ptr_from_exception``.  This is a slightly niche use,
+but ``std::exception_ptr`` is a useful way to safely store arbitrary C++
+exceptions for later.
+
 There is also the special form::
 
     cdef int raise_py_or_cpp() except +*
