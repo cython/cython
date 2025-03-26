@@ -1209,6 +1209,24 @@ class Scope:
         # e.g. slot, function, method
         return f"{Naming.modulestateglobal_cname}->{cname}"
 
+    def find_shared_usages_of_type(self, type_check_predicate, seen_scopes=None):
+        if seen_scopes is None:
+            seen_scopes = set()
+        include_all_entries = not self.is_module_scope
+        for entry in self.entries.values():
+            if not (include_all_entries or entry.defined_in_pxd or entry.visibility == "public" or entry.api):
+                continue
+            entry_subtypes = PyrexTypes.get_all_subtypes(entry.type)
+            if any(type_check_predicate(sub_tp) for sub_tp in entry_subtypes):
+                return True
+            if hasattr(entry.type, "scope") and entry.type.scope is not None:
+                if entry.type.scope in seen_scopes:
+                    continue
+                seen_scopes.add(entry.type.scope)
+                if self.find_shared_usages_of_type(type_check_predicate, seen_scopes=seen_scopes):
+                    return True
+        return False
+
 
 class PreImportScope(Scope):
 
@@ -2346,7 +2364,8 @@ class CClassScope(ClassScope):
     #  getset_table_cname    string
     #  has_pyobject_attrs    boolean  Any PyObject attributes?
     #  has_memoryview_attrs  boolean  Any memory view attributes?
-    #  has_cpp_class_attrs   boolean  Any (non-pointer) C++ attributes?
+    #  has_explicitly_constructable_class_attrs   boolean  Any attributes that
+    #                               need an explicit constructor (e.g. C++ class non-pointers)?
     #  has_cyclic_pyobject_attrs    boolean  Any PyObject attributes that may need GC?
     #  property_entries      [Entry]
     #  defined               boolean  Defined in .pxd file
@@ -2359,7 +2378,7 @@ class CClassScope(ClassScope):
 
     has_pyobject_attrs = False
     has_memoryview_attrs = False
-    has_cpp_constructable_attrs = False
+    has_explicitly_constructable_attrs = False
     has_cyclic_pyobject_attrs = False
     defined = False
     implemented = False
@@ -2498,9 +2517,8 @@ class CClassScope(ClassScope):
                     type.check_nullary_constructor(pos)
             if type.is_memoryviewslice:
                 self.has_memoryview_attrs = True
-            elif type.needs_cpp_construction:
-                self.use_utility_code(Code.UtilityCode("#include <new>"))
-                self.has_cpp_constructable_attrs = True
+            elif type.needs_explicit_construction(self):
+                self.has_explicitly_constructable_attrs = True
             elif type.is_pyobject and (self.is_closure_class_scope or name != '__weakref__'):
                 self.has_pyobject_attrs = True
                 if (not type.is_builtin_type

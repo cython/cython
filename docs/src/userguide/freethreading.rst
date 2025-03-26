@@ -85,7 +85,47 @@ We suggest reading the Python documentation to understand how critical sections 
   critical section in favour of a critical section based on that object.
 
 On non-freethreading builds ``cython.critical_section`` does nothing - you get the
-same guarantees simply from the fact you hold the GIL.
+same guarantees simply from the fact you hold the GIL.  Our current experience is
+that this provides slightly less thread-safety than you get in freethreading builds
+simply because Python releases the GIL more readily than it releases a critical
+section.
+
+Locks
+-----
+
+Cython provides ``cython.pymutex`` as a more robust lock type.  Unlike
+``cython.critical_section`` this will never release the lock unless you explicitly
+ask it to (at the cost of losing ``critical_section``'s inbuilt protection against
+deadlocks).
+
+``cython.pymutex`` supports two operations: ``acquire`` and ``release``.
+``cython.pymutex`` can also be used in a ``with`` statement::
+
+  cdef cython.pymutex l
+  with l:
+      ...  # perform operations with the lock
+  
+  # or manually
+  l.acquire()
+  ...  # perform operations with the lock
+  l.release()
+
+``acquire`` will avoid deadlocks if the GIL is held (only relevant in 
+non-freethreading versions of Python).  However, you are at risk of deadlock
+if you attempt to acquire the GIL while holding a ``cython.pymutex`` lock.
+Be aware that it is also possible for Cython to acquire the GIL implicitly
+(for example by raising an exception) and this is also a deadlock risk.
+
+On Python 3.13+, ``cython.pymutex`` is just a
+`PyMutex <https://docs.python.org/3.13/c-api/init.html#synchronization-primitives>`_
+and so is very low-cost.  On earlier versions of Python, it uses the
+(undocumented) ``PyThread_type_lock``.
+
+``cython.pythread_type_lock`` exposes the same interface but always
+uses ``PyThread_type_lock``.  It is intended for sharing locks between
+modules with the Limited API (since ``PyMutex`` is unavailable in the
+Limited API).  Note that unlike the "raw" ``PyThread_type_lock`` our
+wrapping will avoid deadslocks with the GIL.
 
 As an alternative syntax, ``cython.critical_section`` can be used as a decorator
 or a function taking at least one argument.  In this case the critical section
