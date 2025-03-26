@@ -230,8 +230,12 @@ del _nogil
 
 
 class critical_section:
-    def __init__(self, *args):
-        pass
+    def __init__(self, arg0, arg1=None):
+        # It's ambiguous if this is being used as a decorator or context manager
+        # even with a callable arg.
+        self.arg0 = arg0
+    def __call__(self, *args, **kwds):
+        return self.arg0(*args, **kwds)
     def __enter__(self):
         pass
     def __exit__(self, exc_class, exc, tb):
