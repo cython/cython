@@ -134,9 +134,10 @@ def list_index_order():
 
 def genexpr_fcall_order():
     """
-    Note that order of "Getting function" and getting the function
-    arguments can end up slightly different in Python and Cython and
-    so isn't tested.
+    Note that the order of getting the function and evaluating the
+    function arguments can end up slightly different in Python and
+    Cython and so isn't tested.
+
     >>> list(genexpr_fcall_order())
     Getting function
     In func
@@ -154,6 +155,7 @@ def list_fcall_order():
     Note that the order of getting the function and evaluating the
     function arguments can end up slightly different in Python and
     Cython and so isn't tested.
+
     >>> list_fcall_order()
     Getting function
     In func
