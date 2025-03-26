@@ -96,19 +96,20 @@ static void __Pyx_RegisterCommonTypeWithAbc(PyObject *type, const char *abc_name
 /////////////// RegisterABC ///////////////
 //@requires: ModuleSetupCode.c::CriticalSections
 //@requires: ObjectHandling.c::PyObjectGetAttrStrNoError
+//@requires: Optimize.c::dict_setdefault
 
-static int __Pyx__RegisterCommonTypeWithAbc(PyObject* cython_runtime, PyObject *type, const char *abc_name)
+static void __Pyx_RegisterCommonTypeWithAbc(PyObject *type, const char *abc_name)
 {
     int result = -1;
+    PyObject *runtime_dict = PyModule_GetDict(NAMED_CGLOBAL(cython_runtime_cname));
     PyObject *abc_class = NULL;
     PyObject *py_abc_name = PyUnicode_FromString(abc_name);
     if (unlikely(!py_abc_name))
-        return -1;
-    abc_class = __Pyx_PyObject_GetAttrStrNoError(cython_runtime, py_abc_name);
-    if (!abc_class) {
-        if (unlikely(PyErr_Occurred())) {
-            goto done;
-        }
+        goto done;
+    int get_item_result = __Pyx_PyDict_GetItemRef(runtime_dict, py_abc_name, &abc_class);
+    if (unlikely(get_item_result == -1)) {
+        goto done;
+    } else if (get_item_result == 0) {
         PyObject *abc_module = PyImport_ImportModule("abc");
         if (unlikely(!abc_module)) goto done;
 
@@ -128,41 +129,23 @@ static int __Pyx__RegisterCommonTypeWithAbc(PyObject* cython_runtime, PyObject *
         if (unlikely(!new_abc_class)) goto done;
 
         // Retry, check that there hasn't been a race
-        abc_class = __Pyx_PyObject_GetAttrStrNoError(cython_runtime, py_abc_name);
-        if (unlikely(abc_class)) {
-            Py_DECREF(new_abc_class);
-        } else if (unlikely(PyErr_Occurred())) {
-            Py_DECREF(new_abc_class);
-            goto done;
-        } else {
-            int set_result = PyObject_SetAttr(cython_runtime, py_abc_name, new_abc_class);
-            abc_class = new_abc_class;
-            if (unlikely(set_result == -1)) {
-                Py_CLEAR(abc_class);
-                goto done;
-            }
-        }
+        abc_class = __Pyx_PyDict_SetDefault(runtime_dict, py_abc_name, new_abc_class, 1);
+        Py_DECREF(new_abc_class);
+        if (unlikely(!abc_class)) goto done;
     }
-    // The class is initialized, register the type
-    PyObject *register_result = PyObject_CallMethod(abc_class, "register", "O", type);
-    Py_DECREF(abc_class);
-    if (likely(register_result)) {
-        Py_DECREF(register_result);
-        result = 0;
+    {
+        // The class is initialized, register the type
+        PyObject *register_result = PyObject_CallMethod(abc_class, "register", "O", type);
+        Py_DECREF(abc_class);
+        if (likely(register_result)) {
+            Py_DECREF(register_result);
+            result = 0;
+        }
     }
 
   done:
     Py_DECREF(py_abc_name);
-    return result;
-}
 
-static void __Pyx_RegisterCommonTypeWithAbc(PyObject *type, const char *abc_name)
-{
-    int result;
-    PyObject *runtime = NAMED_CGLOBAL(cython_runtime_cname);
-    __Pyx_BEGIN_CRITICAL_SECTION(runtime);
-    result = __Pyx__RegisterCommonTypeWithAbc(runtime, type, abc_name);
-    __Pyx_END_CRITICAL_SECTION();
     if (unlikely(result == -1)) {
         // Treat this as an allowed failure; it doesn't matter too much if we don't register the abcs.
         PyObject *type, *value, *traceback;
