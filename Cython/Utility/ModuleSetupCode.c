@@ -914,7 +914,7 @@ static CYTHON_INLINE void *__Pyx__PyModule_GetState(PyObject *op)
   #define __Pyx_PyType_TryGetSubSlot(obj, sub, name, func_ctype) __Pyx_PyType_TryGetSlot(obj, name, func_ctype)
 #endif
 
-#if CYTHON_COMPILING_IN_CPYTHON && PY_VERSION_HEX < 0x030d0000 || defined(_PyDict_NewPresized)
+#if CYTHON_COMPILING_IN_CPYTHON || defined(_PyDict_NewPresized)
 #define __Pyx_PyDict_NewPresized(n)  ((n <= 8) ? PyDict_New() : _PyDict_NewPresized(n))
 #else
 #define __Pyx_PyDict_NewPresized(n)  PyDict_New()
@@ -923,7 +923,7 @@ static CYTHON_INLINE void *__Pyx__PyModule_GetState(PyObject *op)
 #define __Pyx_PyNumber_Divide(x,y)         PyNumber_TrueDivide(x,y)
 #define __Pyx_PyNumber_InPlaceDivide(x,y)  PyNumber_InPlaceTrueDivide(x,y)
 
-#if CYTHON_COMPILING_IN_CPYTHON && PY_VERSION_HEX < 0x030d0000 && CYTHON_USE_UNICODE_INTERNALS
+#if CYTHON_COMPILING_IN_CPYTHON && CYTHON_USE_UNICODE_INTERNALS
 // _PyDict_GetItem_KnownHash() existed from CPython 3.5 to 3.12, but it was
 // dropping exceptions in 3.5. Since 3.6, exceptions are kept.
 #define __Pyx_PyDict_GetItemStrWithError(dict, name)  _PyDict_GetItem_KnownHash(dict, name, ((PyASCIIObject *) name)->hash)
@@ -1625,7 +1625,7 @@ struct __Pyx_CodeObjectCache {
     __Pyx_CodeObjectCacheEntry* entries;
   #if CYTHON_COMPILING_IN_CPYTHON_FREETHREADING
     // 0 for none, +ve for readers, -ve for writers.
-    // 
+    //
     __pyx_atomic_int_type accessor_count;
   #endif
 };
