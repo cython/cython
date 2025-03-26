@@ -300,14 +300,10 @@ static CYTHON_INLINE const char* __Pyx_PyObject_AsStringAndSize(PyObject* o, Py_
         }
     } else {
         char* result;
-        Py_buffer view;
-        int r = PyObject_GetBuffer(o, &view, PyBUF_SIMPLE);
+        int r = PyArg_Parse(o, "y#", &result, &length);
         if (unlikely(r < 0)) {
             return NULL;
         } else {
-            result = (char*) view.buf;
-            *length = view.len;
-            PyBuffer_Release(&view);
             return result;
         }
     }
