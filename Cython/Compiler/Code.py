@@ -2489,9 +2489,20 @@ class CCodeWriter:
             path = os.path.join(include_dir, include_file)
             if not os.path.exists(path):
                 tmp_path = f'{path}.tmp{os.getpid()}'
-                with Utils.open_new_file(tmp_path) as f:
-                    f.write(code)
-                shutil.move(tmp_path, path)
+                done = False
+                try:
+                    with Utils.open_new_file(tmp_path) as f:
+                        f.write(code)
+                    shutil.move(tmp_path, path)
+                    done = True
+                except FileExistsError:
+                    # If a different process created the file faster than us,
+                    # renaming can fail on Windows.  It's ok if the file is there now.
+                    if not os.path.exists(path):
+                        raise
+                finally:
+                    if not done and os.path.exists(tmp_path):
+                        os.unlink(tmp_path)
             # We use forward slashes in the include path to assure identical code generation
             # under Windows and Posix.  C/C++ compilers should still understand it.
             c_path = path.replace('\\', '/')
