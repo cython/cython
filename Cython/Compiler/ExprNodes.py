@@ -6889,7 +6889,8 @@ class PyMethodCallNode(CallNode):
             f"{self.result()} = {function_caller}("
             f"{function}, "
             f"{Naming.callargs_cname}+{space_for_selfarg}, "
-            f"({len(args)+1:d}-{space_for_selfarg}) | ({space_for_selfarg}*__Pyx_PY_VECTORCALL_ARGUMENTS_OFFSET)"
+            f"({len(args)+1:d}-{space_for_selfarg})"
+            f" | ({'1' if self.use_method_vectorcall else space_for_selfarg}*__Pyx_PY_VECTORCALL_ARGUMENTS_OFFSET)"
             f"{', ' if keyword_variable else ''}{keyword_variable}"
             ");")
 
