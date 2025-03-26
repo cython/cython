@@ -340,7 +340,7 @@ jobs:
 
       - name: Run Benchmarks
         run: |
-          # Run benchmarks in all Python versions, Limite C-API only in 3.14.
+          # Run benchmarks in all Python versions, Limited C-API only in 3.14.
           LIMITED_API=--with-limited
           for PYTHON in  python3.14  python3.13  python3.12  python3.10  ; do
               ${PYTHON} -m pip install setuptools
