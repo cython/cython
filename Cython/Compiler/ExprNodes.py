@@ -6878,7 +6878,6 @@ class PyMethodCallNode(CallNode):
         )
 
         keyword_variable = ""
-
         if kwargs_key_value_pairs:
             keyword_variable = code.funcstate.allocate_temp(py_object_type, manage_ref=True)
             self.generate_keyvalue_args(code, args, kwargs_key_value_pairs, keyword_variable)
@@ -6897,6 +6896,9 @@ class PyMethodCallNode(CallNode):
         # Clean up.
 
         code.put_xdecref_clear(self_arg, py_object_type)
+        for tmp in [self_arg, space_for_selfarg]:
+            code.funcstate.release_temp(tmp)
+
         for arg in args:
             arg.generate_disposal_code(code)
             arg.free_temps(code)
@@ -6911,13 +6913,11 @@ class PyMethodCallNode(CallNode):
             self.kwdict.generate_disposal_code(code)
             self.kwdict.free_temps(code)
 
-        for tmp in [self_arg, space_for_selfarg]:
-            code.funcstate.release_temp(tmp)
-
         self.generate_dispose_function(code, function)
 
         code.putln(code.error_goto_if_null(self.result(), self.pos))
         self.generate_gotref(code)
+
         code.putln("}")
 
 
