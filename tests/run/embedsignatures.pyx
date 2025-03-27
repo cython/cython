@@ -87,6 +87,14 @@ __doc__ = ur"""
     >>> print (Ext.o.__doc__)
     Ext.o(self, a, b=1, /, c=5, *args, **kwargs)
 
+    >>> print (Ext.__call__.__doc__)
+    Ext.__call__(self, a: int, b: float = 1.0, *args: tuple, **kwargs: dict) -> (None, True)
+    call docstring
+
+    >>> print (Ext.__add__.__doc__)
+    Ext.__add__(self, Ext other) -> Ext
+    add docstring
+
     >>> print (Ext.get_int.__doc__)
     Ext.get_int(self) -> int
 
@@ -271,6 +279,18 @@ cdef class Ext:
 
     def o(self, a, b=1, /, c=5, *args, **kwargs):
         pass
+
+    def __call__(self, a: int, b: float = 1.0, *args: tuple, **kwargs: dict) -> (None, True):
+        """
+        call docstring
+        """
+        pass
+
+    def __add__(self, Ext other) -> Ext:
+        """
+        add docstring
+        """
+        return self
 
     cpdef int get_int(self):
         return 0
