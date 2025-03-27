@@ -4,8 +4,11 @@ PYTHON setup.py build_ext --inplace
 ##################### setup.py ################
 
 from Cython.Build.Dependencies import cythonize
-
+import sysconfig
 from setuptools import setup
+
+if sysconfig.get_config_var("Py_GIL_DISABLED"):
+  exit(0)  # Doesn't support Limited API
 
 setup(
   ext_modules = cythonize("*.pyx"),
@@ -13,6 +16,9 @@ setup(
 
 #################### test_it.py #################
 
+import sysconfig
+if sysconfig.get_config_var("Py_GIL_DISABLED"):
+  exit(0)  # Doesn't support Limited API
 import m1
 import m2
 import cython_runtime
