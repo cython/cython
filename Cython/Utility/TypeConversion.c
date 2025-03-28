@@ -293,8 +293,6 @@ static CYTHON_INLINE const char* __Pyx_PyObject_AsStringAndSize(PyObject* o, Py_
         );
         if (unlikely(r < 0)) {
             return NULL;
-        } else {
-            return result;
         }
 #if (CYTHON_ASSUME_SAFE_SIZE && CYTHON_ASSUME_SAFE_MACROS) || (CYTHON_COMPILING_IN_PYPY && (defined(PyByteArray_AS_STRING) && defined(PyByteArray_GET_SIZE)))
         *length = PyByteArray_GET_SIZE(o);
