@@ -289,9 +289,7 @@ static CYTHON_INLINE const char* __Pyx_PyObject_AsStringAndSize(PyObject* o, Py_
             "To restrict resizing instead use a memory view, e.g. `unsigned char[::1]`.",
             1
         );
-        if (unlikely(r < 0)) {
-            return NULL;
-        }
+        if (unlikely(r < 0)) return NULL;
 #if (CYTHON_ASSUME_SAFE_SIZE && CYTHON_ASSUME_SAFE_MACROS) || (CYTHON_COMPILING_IN_PYPY && (defined(PyByteArray_AS_STRING) && defined(PyByteArray_GET_SIZE)))
         *length = PyByteArray_GET_SIZE(o);
         return PyByteArray_AS_STRING(o);
@@ -304,11 +302,8 @@ static CYTHON_INLINE const char* __Pyx_PyObject_AsStringAndSize(PyObject* o, Py_
     } else if (PyBytes_Check(o)) {
         char* result;
         int r = PyBytes_AsStringAndSize(o, &result, length);
-        if (unlikely(r < 0)) {
-            goto error;
-        } else {
-            return result;
-        }
+        if (unlikely(r < 0)) goto error;
+        return result;
     } else {
         char* result;
         int r;
@@ -317,9 +312,7 @@ static CYTHON_INLINE const char* __Pyx_PyObject_AsStringAndSize(PyObject* o, Py_
         // * supports the Python Buffer Protocol
         // * does not require keeping the buffer around (as we cannot return it)
         PyBufferProcs *pb = __Pyx_PyType_GetSlot(o)->tp_as_buffer;
-        if (pb == NULL || pb->bf_getbuffer == NULL || pb->bf_releasebuffer != NULL) {
-            goto error;
-        }
+        if (pb == NULL || pb->bf_getbuffer == NULL || pb->bf_releasebuffer != NULL) goto error;
 
         // Try to acquire buffer from `o`
         Py_buffer view;
@@ -338,11 +331,8 @@ static CYTHON_INLINE const char* __Pyx_PyObject_AsStringAndSize(PyObject* o, Py_
 #else
         // Fallback for the Limited API on Python pre-3.11
         r = PyArg_Parse(o, "y#", &result, &length);
-        if (unlikely(r < 0)) {
-            goto error;
-        } else {
-            return result;
-        }
+        if (unlikely(r < 0)) goto error;
+        return result;
 #endif
     }
 
