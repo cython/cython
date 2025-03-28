@@ -276,7 +276,12 @@ static CYTHON_INLINE const char* __Pyx_PyUnicode_AsStringAndSize(PyObject* o, Py
 static CYTHON_INLINE const char* __Pyx_PyObject_AsStringAndSize(PyObject* o, Py_ssize_t *length) {
 #if __PYX_DEFAULT_STRING_ENCODING_IS_ASCII || __PYX_DEFAULT_STRING_ENCODING_IS_UTF8
     if (PyUnicode_Check(o)) {
-        return __Pyx_PyUnicode_AsStringAndSize(o, length);
+        char* result = __Pyx_PyUnicode_AsStringAndSize(o, length);
+        if (unlikely(result == NULL)) {
+            goto error;
+        } else {
+            return result;
+        }
     } else
 #endif
 
@@ -332,6 +337,8 @@ static CYTHON_INLINE const char* __Pyx_PyObject_AsStringAndSize(PyObject* o, Py_
     }
 
     error:
+        // Clear existing errors and return our standardized one
+        PyErr_Clear();
         __Pyx_TypeName result_type_name = __Pyx_PyType_GetFullyQualifiedName(Py_TYPE(result));
         PyErr_Format(PyExc_TypeError,
             "a bytes-like object is required, not '" __Pyx_FMT_TYPENAME "'",
