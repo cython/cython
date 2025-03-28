@@ -321,8 +321,8 @@ static CYTHON_INLINE const char* __Pyx_PyObject_AsStringAndSize(PyObject* o, Py_
         if (unlikely(r < 0)) {
             goto error;
         } else {
-            result = (char*) view->buf;
-            *length = view->len;
+            result = (char*) view.buf;
+            *length = view.len;
             PyBuffer_Release(&view);  // Release to clean up buffer (decref object `o`)
             return result;
         }
