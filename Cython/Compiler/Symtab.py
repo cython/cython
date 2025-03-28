@@ -108,6 +108,7 @@ class Entry:
     # in_subscope      boolean    Belongs to a generator expression scope
     # is_readonly      boolean    Can't be assigned to
     # func_cname       string     C func implementing Python func
+    # wrapperbase_cname [string]  C wrapperbase object name
     # func_modifiers   [string]   C function modifiers ('inline')
     # pos              position   Source position where declared
     # namespace_cname  string     If is_pyglobal, the C variable
