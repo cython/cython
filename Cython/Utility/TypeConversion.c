@@ -286,10 +286,11 @@ static CYTHON_INLINE const char* __Pyx_PyObject_AsStringAndSize(PyObject* o, Py_
 #endif
 
     if (PyByteArray_Check(o)) {
-        int r = PyErr_Warn(
+        int r = PyErr_WarnEx(
             PyExc_RuntimeWarning,
             "Cython: Pointer taken from resizable `bytearray` object. "
-            "To restrict resizing instead use `unsigned char[::1]`."
+            "To restrict resizing instead use `unsigned char[::1]`.",
+            1
         );
         if (unlikely(r < 0)) {
             return NULL;
