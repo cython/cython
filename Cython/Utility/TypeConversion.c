@@ -334,6 +334,7 @@ static CYTHON_INLINE const char* __Pyx_PyObject_AsStringAndSize(PyObject* o, Py_
         } else {
             return result;
         }
+#endif
     }
 
     error:
