@@ -3833,7 +3833,7 @@ class GilCheck(VisitorTransform):
         if self.nogil:
             node.in_nogil_context = True
         return node
-    
+
     def visit_AttributeNode(self, node):
         if self.in_critical_section and node.is_py_attr:
             warning(
