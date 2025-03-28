@@ -13,10 +13,9 @@ DEFAULT_TIMER = time.perf_counter
 
 
 @cython.cfunc
-@cython.locals(iterations=cython.int, x=cython.int, y=cython.int)
-def do_unpacking(repeat: cython.int, iterations: cython.int, to_unpack, timer=DEFAULT_TIMER):
-    x: cython.int
-    y: cython.int
+def do_unpacking(repeat: cython.long, iterations: cython.long, to_unpack, timer=DEFAULT_TIMER):
+    x: cython.long
+    y: cython.long
 
     # Unpack to C integers
     c: cython.int
@@ -27,6 +26,64 @@ def do_unpacking(repeat: cython.int, iterations: cython.int, to_unpack, timer=DE
     for x in range(repeat):
         t0 = timer()
         for y in range(iterations):
+            a, b, c, d, e, f, g, h, i, j = to_unpack
+            a, b, c, d, e, f, g, h, i, j = to_unpack
+            a, b, c, d, e, f, g, h, i, j = to_unpack
+            a, b, c, d, e, f, g, h, i, j = to_unpack
+            a, b, c, d, e, f, g, h, i, j = to_unpack
+
+            a, b, c, d, e, f, g, h, i, j = to_unpack
+            a, b, c, d, e, f, g, h, i, j = to_unpack
+            a, b, c, d, e, f, g, h, i, j = to_unpack
+            a, b, c, d, e, f, g, h, i, j = to_unpack
+            a, b, c, d, e, f, g, h, i, j = to_unpack
+
+            a, b, c, d, e, f, g, h, i, j = to_unpack
+            a, b, c, d, e, f, g, h, i, j = to_unpack
+            a, b, c, d, e, f, g, h, i, j = to_unpack
+            a, b, c, d, e, f, g, h, i, j = to_unpack
+            a, b, c, d, e, f, g, h, i, j = to_unpack
+
+            a, b, c, d, e, f, g, h, i, j = to_unpack
+            a, b, c, d, e, f, g, h, i, j = to_unpack
+            a, b, c, d, e, f, g, h, i, j = to_unpack
+            a, b, c, d, e, f, g, h, i, j = to_unpack
+            a, b, c, d, e, f, g, h, i, j = to_unpack
+
+            a, b, c, d, e, f, g, h, i, j = to_unpack
+            a, b, c, d, e, f, g, h, i, j = to_unpack
+            a, b, c, d, e, f, g, h, i, j = to_unpack
+            a, b, c, d, e, f, g, h, i, j = to_unpack
+            a, b, c, d, e, f, g, h, i, j = to_unpack
+
+            a, b, c, d, e, f, g, h, i, j = to_unpack
+            a, b, c, d, e, f, g, h, i, j = to_unpack
+            a, b, c, d, e, f, g, h, i, j = to_unpack
+            a, b, c, d, e, f, g, h, i, j = to_unpack
+            a, b, c, d, e, f, g, h, i, j = to_unpack
+
+            a, b, c, d, e, f, g, h, i, j = to_unpack
+            a, b, c, d, e, f, g, h, i, j = to_unpack
+            a, b, c, d, e, f, g, h, i, j = to_unpack
+            a, b, c, d, e, f, g, h, i, j = to_unpack
+            a, b, c, d, e, f, g, h, i, j = to_unpack
+
+            a, b, c, d, e, f, g, h, i, j = to_unpack
+            a, b, c, d, e, f, g, h, i, j = to_unpack
+            a, b, c, d, e, f, g, h, i, j = to_unpack
+            a, b, c, d, e, f, g, h, i, j = to_unpack
+            a, b, c, d, e, f, g, h, i, j = to_unpack
+
+            a, b, c, d, e, f, g, h, i, j = to_unpack
+            a, b, c, d, e, f, g, h, i, j = to_unpack
+            a, b, c, d, e, f, g, h, i, j = to_unpack
+            a, b, c, d, e, f, g, h, i, j = to_unpack
+            a, b, c, d, e, f, g, h, i, j = to_unpack
+
+            a, b, c, d, e, f, g, h, i, j = to_unpack
+            a, b, c, d, e, f, g, h, i, j = to_unpack
+            a, b, c, d, e, f, g, h, i, j = to_unpack
+            a, b, c, d, e, f, g, h, i, j = to_unpack
             a, b, c, d, e, f, g, h, i, j = to_unpack
         t = timer() - t0
         times.append(t)
@@ -53,13 +110,13 @@ def test_iter_unpacking(repeat: cython.int, iterations: cython.int, timer=DEFAUL
 
 
 def test_all(repeat, iterations, timer=time.perf_counter):
-    tuple_data = test_tuple_unpacking(repeat, iterations, timer)
-    list_data = test_list_unpacking(repeat, iterations, timer)
-    return [x + y for (x, y) in zip(tuple_data, list_data)]
+    tuple_timings = test_tuple_unpacking(repeat, iterations, timer)
+    list_timings = test_list_unpacking(repeat, iterations, timer)
+    return [x + y for (x, y) in zip(tuple_timings, list_timings)]
 
 
-def run_benchmark(repeat=10, count=100_000, timer=DEFAULT_TIMER):
-    return test_all(repeat, count, timer)
+def run_benchmark(repeat=10, scale=20_000, timer=DEFAULT_TIMER):
+    return test_all(repeat, scale, timer)
 
 
 if __name__ == "__main__":

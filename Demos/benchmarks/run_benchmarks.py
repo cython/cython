@@ -25,6 +25,10 @@ except ImportError:
     DISTUTILS_CFLAGS = ''
 
 
+def median(sorted_list: list):
+    return sorted_list[len(sorted_list) // 2]
+
+
 def run(command, cwd=None, pythonpath=None, c_macros=None):
     env = None
     if pythonpath:
@@ -127,40 +131,67 @@ def copy_profile(bm_dir, module_name, profiler):
         shutil.move(str(ext), ext.name)
 
 
+def autorange(bench_func, python_executable: str = sys.executable, min_runtime=0.2):
+    python_command = [python_executable]
+    i = 1
+    while True:
+        for j in 1, 2, 5, 8:
+            number = i * j
+            timings = bench_func(python_command, 3, number)
+            if min(timings) >= min_runtime:
+                return number
+        i *= 10
+
+
+def _make_bench_func(bm_dir, module_name, pythonpath=None):
+    def bench_func(python_command: list, repeat: int, scale: int):
+        py_code = f"import {module_name} as bm; bm.run_benchmark(4); print(bm.run_benchmark({repeat:d}, {scale:d}))"
+        command = python_command + ["-c", py_code]
+
+        output = run(command, cwd=bm_dir, pythonpath=pythonpath)
+
+        for line in output.stdout.decode().splitlines():
+            if line.startswith('[') and line.endswith(']'):
+                timings = [float(t) for t in line[1:-1].split(',')]
+                return timings
+        else:
+            logging.error(f"Benchmark failed: {module_name}\nOutput:\n{output.stderr.decode()}")
+            raise RuntimeError(f"Benchmark failed: {module_name}")
+
+    bench_func.__name__ = module_name
+    return bench_func
+
+
 def run_benchmark(bm_dir, module_name, pythonpath=None, profiler=None):
-    logging.info(f"Running benchmark '{module_name}'.")
-
-    repeat = 9
-    command = []
-
+    python_command = []
     if profiler:
         if profiler == 'perf':
-            command = ["perf", "record", "--quiet", "-g", "--output=profile.out"]
+            python_command = ["perf", "record", "--quiet", "-g", "--output=profile.out"]
         elif profiler == 'callgrind':
             repeat = 1  # The warmup runs are enough for profiling.
             benchmark_cname = find_benchmark_cname(bm_dir / f"{module_name}.c")
-            command = [
+            python_command = [
                 "valgrind", "--tool=callgrind",
                 "--dump-instr=yes", "--collect-jumps=yes",
                 f"--toggle-collect={benchmark_cname}",
                 "--callgrind-out-file=profile.out",
             ]
 
-    command += [sys.executable, "-c", f"import {module_name} as bm; bm.run_benchmark(4); print(bm.run_benchmark({repeat:d}))"]
+    python_command += [sys.executable]
 
+    bench_func = _make_bench_func(bm_dir, module_name, pythonpath)
 
-    output = run(command, cwd=bm_dir, pythonpath=pythonpath)
+    repeat = 9
+    scale = autorange(bench_func)
+
+    logging.info(f"Running benchmark '{module_name}' with scale={scale:_d}.")
+    timings = bench_func(python_command, repeat, scale)
+    timings = [t / scale for t in timings]
 
     if profiler:
         copy_profile(bm_dir, module_name, profiler)
 
-    for line in output.stdout.decode().splitlines():
-        if line.startswith('[') and line.endswith(']'):
-            timings = [float(t) for t in line[1:-1].split(', ')]
-            return timings
-    else:
-        logging.error(f"Benchmark failed: {module_name}\nOutput:\n{output.stderr.decode()}")
-        raise RuntimeError(f"Benchmark failed: {module_name}")
+    return timings
 
 
 def run_benchmarks(bm_dir, benchmarks, pythonpath=None, profiler=None):
@@ -233,25 +264,53 @@ def report_revision_timings(rev_timings):
     scales = [(scale, unit) for unit, scale in reversed(units.items())]  # biggest first
 
     def format_time(t):
+        pos_t = abs(t)
         for scale, unit in scales:
-            if t >= scale:
+            if pos_t >= scale:
                 break
         else:
-            raise RuntimeError("Timing is below nanoseconds: {t:f}")
+            raise RuntimeError(f"Timing is below nanoseconds: {t:f}")
         return f"{t / scale :.3f} {unit}"
 
-    timings_by_benchmark = collections.defaultdict(dict)
+    timings_by_benchmark = collections.defaultdict(list)
     for revision_name, bm_timings in rev_timings.items():
         for benchmark, timings in bm_timings.items():
-            timings_by_benchmark[benchmark][revision_name] = sorted(timings)
+            timings_by_benchmark[benchmark].append((revision_name, sorted(timings)))
 
+    differences = collections.defaultdict(list)
     for benchmark, revision_timings in timings_by_benchmark.items():
-        logging.info(f"### Benchmark '{benchmark}' (min/median/max):")
-        for revision_name, timings in revision_timings.items():
-            tmin, tmed, tmax = timings[0], timings[len(timings)//2], timings[-1]
+        logging.info(f"### Benchmark '{benchmark}' (min/median/max/ ±% of median):")
+
+        # Use median as base line to reduce fluctuation.
+        base_line_timings = revision_timings[0][1]
+        base_line = median(base_line_timings)
+
+        for revision_name, timings in revision_timings:
+            tmin, tmed, tmax = timings[0], median(timings), timings[-1]
+            diff_str = ""
+            if base_line != tmed:
+                pdiff = tmed * 100 / base_line - 100
+                differences[revision_name].append((abs(pdiff), pdiff, tmed - base_line, benchmark))
+                diff_str = f"  ({pdiff:+8.2f} %)"
             logging.info(
-                f"    {revision_name[:25]:25} = {format_time(tmin):>12}, {format_time(tmed):>12}, {format_time(tmax):>12}"
+                f"    {revision_name[:25]:25} = {format_time(tmin):>12}, {format_time(tmed):>12}, {format_time(tmax):>12}{diff_str}"
             )
+
+    for revision_name, diffs in differences.items():
+        diffs.sort(reverse=True)
+        diffs_by_sign = {True: [], False: []}
+        for diff in diffs:
+            diffs_by_sign[diff[1] < 0].append(diff)
+
+        for is_win, diffs in diffs_by_sign.items():
+            if not diffs or diffs[0][0] < 1.0:
+                continue
+            logging.info(f"Largest {'gains' if is_win else 'losses'} for {revision_name}:")
+            cutoff = max(1.0, diffs[0][0] // 3)
+            for absdiff, pdiff, tdiff, benchmark in diffs:
+                if absdiff < cutoff:
+                    break
+                logging.info(f"    {benchmark[:25]:<25}:  {pdiff:+8.2f} %   /  {'+' if tdiff > 0 else '-'}{format_time(abs(tdiff))}")
 
 
 def parse_args(args):

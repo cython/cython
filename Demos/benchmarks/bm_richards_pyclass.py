@@ -360,6 +360,8 @@ def schedule():
 class Richards(object):
 
     def run(self, iterations: cython.long):
+        i: cython.long
+
         for i in range(iterations):
             taskWorkArea.holdCount = 0
             taskWorkArea.qpktCount = 0
@@ -402,9 +404,9 @@ def entry_point(iterations, timer=time.perf_counter):
     return result, endTime - startTime
 
 
-def run_benchmark(repeat: cython.long = 10, count=10, timer=time.perf_counter):
+def run_benchmark(repeat: cython.long = 10, scale=10, timer=time.perf_counter):
     return [
-        entry_point(count, timer)[1]
+        entry_point(scale, timer)[1]
         for _ in range(repeat)
     ]
 

@@ -224,16 +224,19 @@ def run(timer=time.perf_counter):
     return tk - t0
 
 
-def main(n: cython.int, count: cython.int = 10, timer=time.perf_counter):
+def main(n: cython.int, scale: cython.int = 10, timer=time.perf_counter):
+    s: cython.long
+
     run()  # warmup
+
     times = []
     for i in range(n):
-        times.append(fsum(run(timer) for _ in range(count)))
+        times.append(fsum(run(timer) for s in range(scale)))
     return times
 
 
-def run_benchmark(repeat=10, count=10, timer=time.perf_counter):
-    return main(repeat, count, timer)
+def run_benchmark(repeat=10, scale=1, timer=time.perf_counter):
+    return main(repeat, scale, timer)
 
 
 if __name__ == "__main__":
