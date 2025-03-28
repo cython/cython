@@ -65,6 +65,7 @@ class build_ext(_build_ext):
         self.cython_gen_pxi = 0
         self.cython_gdb = False
         self.cython_compile_time_env = None
+        self.shared_utility_qualified_name = None
 
     def finalize_options(self):
         super().finalize_options()
@@ -124,6 +125,7 @@ class build_ext(_build_ext):
             'gdb_debug': self.get_extension_attr(ext, 'cython_gdb'),
             'c_line_in_traceback': c_line_in_traceback,
             'compile_time_env': self.get_extension_attr(ext, 'cython_compile_time_env', default=None),
+            'shared_utility_qualified_name': self.get_extension_attr(ext, 'shared_utility_qualified_name', default=None),
         }
 
         new_ext = cythonize(
