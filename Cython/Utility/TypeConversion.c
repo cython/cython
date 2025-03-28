@@ -325,8 +325,10 @@ static CYTHON_INLINE const char* __Pyx_PyObject_AsStringAndSize(PyObject* o, Py_
 
         // Try to acquire buffer from `o`
         Py_buffer view;
-        r = PyObject_GetBuffer(o, &view, PyBUF_SIMPLE);
+        r = PyObject_GetBuffer(o, &view, PyBUF_SIMPLE | PyBUF_FORMAT);
         if (unlikely(r < 0)) {
+            goto error;
+        } else if (r.format == NULL || r.format[0] = 'B') {
             goto error;
         } else {
             result = (char*) view.buf;
