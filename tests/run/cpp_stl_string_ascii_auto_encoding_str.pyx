@@ -6,6 +6,9 @@ cimport cython
 
 from libcpp.string cimport string
 
+from array import array
+
+
 b_asdf = b'asdf'
 u_asdf = u'asdf'
 s_asdf = 'asdf'
@@ -33,6 +36,18 @@ def test_convert_typed_memoryview(const unsigned char[::1] buf):
     """
     cdef string s = buf
     assert <size_t>len(buf) == s.length(), '%d != %d' % (len(buf), s.length())
+    return s
+
+
+def test_convert_array(arr):
+    """
+    >>> test_convert_array(array("B", b_asdf)) == s_asdf
+    >>> test_convert_array(array("I", range(5)))          # doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    TypeError: a bytes-like object is required, not 'int'
+    """
+    cdef string s = arr
+    assert <size_t>len(arr) == s.length(), '%d != %d' % (len(arr), s.length())
     return s
 
 
