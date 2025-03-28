@@ -286,7 +286,7 @@ static CYTHON_INLINE const char* __Pyx_PyObject_AsStringAndSize(PyObject* o, Py_
         return PyByteArray_AS_STRING(o);
 #else
         *length = PyByteArray_Size(o);
-        if (*length == -1) return NULL;
+        if (*length == -1) goto error;
         return PyByteArray_AsString(o);
 #endif
 
@@ -294,19 +294,49 @@ static CYTHON_INLINE const char* __Pyx_PyObject_AsStringAndSize(PyObject* o, Py_
         char* result;
         int r = PyBytes_AsStringAndSize(o, &result, length);
         if (unlikely(r < 0)) {
-            return NULL;
+            goto error;
         } else {
             return result;
         }
     } else {
         char* result;
-        int r = PyArg_Parse(o, "y#", &result, &length);
+        int r;
+#if !CYTHON_COMPILING_IN_LIMITED_API || PY_VERSION_HEX >= 0x030b0000
+        // Check that `o`:
+        // * Supports the Python Buffer Protocol
+        // * There is no need to keep the buffer around (as we cannot return it)
+        PyBufferProcs *pb = Py_TYPE(o)->tp_as_buffer;
+        if (pb == NULL || pb->bf_getbuffer == NULL || pb->bf_releasebuffer != NULL) {
+            goto error;
+        }
+
+        // Try to acquire buffer from `o`
+        Py_buffer view;
+        r = PyObject_GetBuffer(o, &view, PyBUF_SIMPLE);
         if (unlikely(r < 0)) {
-            return NULL;
+            goto error;
+        } else {
+            result = (char*) view->buf;
+            *length = view->len;
+            PyBuffer_Release(&view);  // Release to clean up buffer (decref object `o`)
+            return result;
+        }
+#else
+        // Fallback for the Limited API on Python pre-3.11
+        r = PyArg_Parse(o, "y#", &result, &length);
+        if (unlikely(r < 0)) {
+            goto error;
         } else {
             return result;
         }
     }
+
+    error:
+        __Pyx_TypeName result_type_name = __Pyx_PyType_GetFullyQualifiedName(Py_TYPE(result));
+        PyErr_Format(PyExc_TypeError,
+            "a bytes-like object is required, not '" __Pyx_FMT_TYPENAME "'",
+            result_type_name);
+        return NULL;
 }
 
 /* Note: __Pyx_PyObject_IsTrue is written to minimize branching. */
