@@ -72,6 +72,7 @@ cdef class GilCheck(VisitorTransform):
     cdef bint nogil
     cdef bint nogil_declarator_only
     cdef bint current_gilstat_node_knows_gil_state
+    cdef bint in_critical_section
 
 cdef class TransformBuiltinMethods(EnvTransform):
     cdef dict def_node_body_insertions
