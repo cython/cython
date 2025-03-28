@@ -306,7 +306,7 @@ static CYTHON_INLINE const char* __Pyx_PyObject_AsStringAndSize(PyObject* o, Py_
     } else {
         char* result;
         int r;
-#if !CYTHON_COMPILING_IN_LIMITED_API || PY_VERSION_HEX >= 0x030b0000
+#if !CYTHON_COMPILING_IN_LIMITED_API || __PYX_LIMITED_VERSION_HEX >= 0x030B0000
         // Check that `o`:
         // * Supports the Python Buffer Protocol
         // * There is no need to keep the buffer around (as we cannot return it)
