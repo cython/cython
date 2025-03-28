@@ -286,11 +286,17 @@ static CYTHON_INLINE const char* __Pyx_PyObject_AsStringAndSize(PyObject* o, Py_
 #endif
 
     if (PyByteArray_Check(o)) {
-        return PyErr_Warn(PyExc_RuntimeWarning,
-                          "Cython: Pointer take from resizable `bytearray` object. "
-                          "Consider using `unsigned char[::1]` instead. "
-                          "This will also ensure the underlying `bytearray` is not resized while held."
+        int r = PyErr_Warn(
+            PyExc_RuntimeWarning,
+            "Cython: Pointer take from resizable `bytearray` object. "
+            "Consider using `unsigned char[::1]` instead. "
+            "This will also ensure the underlying `bytearray` is not resized while held."
         );
+        if (unlikely(r < 0)) {
+            return NULL;
+        } else {
+            return result;
+        }
 #if (CYTHON_ASSUME_SAFE_SIZE && CYTHON_ASSUME_SAFE_MACROS) || (CYTHON_COMPILING_IN_PYPY && (defined(PyByteArray_AS_STRING) && defined(PyByteArray_GET_SIZE)))
         *length = PyByteArray_GET_SIZE(o);
         return PyByteArray_AS_STRING(o);
