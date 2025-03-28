@@ -27,12 +27,12 @@ def test_conversion(py_obj):
     return s
 
 
-def test_convert_typed_memoryview(const unsigned char[::1] py_obj):
+def test_convert_typed_memoryview(const unsigned char[::1] buf):
     """
     >>> test_convert_typed_memoryview(b_asdf) == s_asdf
     """
-    cdef string s = py_obj
-    assert <size_t>len(py_obj) == s.length(), '%d != %d' % (len(py_obj), s.length())
+    cdef string s = buf
+    assert <size_t>len(buf) == s.length(), '%d != %d' % (len(buf), s.length())
     return s
 
 
