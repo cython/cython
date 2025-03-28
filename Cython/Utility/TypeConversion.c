@@ -277,11 +277,8 @@ static CYTHON_INLINE const char* __Pyx_PyObject_AsStringAndSize(PyObject* o, Py_
 #if __PYX_DEFAULT_STRING_ENCODING_IS_ASCII || __PYX_DEFAULT_STRING_ENCODING_IS_UTF8
     if (PyUnicode_Check(o)) {
         const char* result = __Pyx_PyUnicode_AsStringAndSize(o, length);
-        if (unlikely(result == NULL)) {
-            goto error;
-        } else {
-            return result;
-        }
+        if (unlikely(!result)) goto error;
+        return result;
     } else
 #endif
 
@@ -289,7 +286,7 @@ static CYTHON_INLINE const char* __Pyx_PyObject_AsStringAndSize(PyObject* o, Py_
         int r = PyErr_WarnEx(
             PyExc_RuntimeWarning,
             "Cython: Pointer taken from resizable `bytearray` object. "
-            "To restrict resizing instead use `unsigned char[::1]`.",
+            "To restrict resizing instead use a memory view, e.g. `unsigned char[::1]`.",
             1
         );
         if (unlikely(r < 0)) {
@@ -317,9 +314,9 @@ static CYTHON_INLINE const char* __Pyx_PyObject_AsStringAndSize(PyObject* o, Py_
         int r;
 #if !CYTHON_COMPILING_IN_LIMITED_API || __PYX_LIMITED_VERSION_HEX >= 0x030B0000
         // Check that `o`:
-        // * Supports the Python Buffer Protocol
-        // * There is no need to keep the buffer around (as we cannot return it)
-        PyBufferProcs *pb = Py_TYPE(o)->tp_as_buffer;
+        // * supports the Python Buffer Protocol
+        // * does not require keeping the buffer around (as we cannot return it)
+        PyBufferProcs *pb = __Pyx_PyType_GetSlot(o)->tp_as_buffer;
         if (pb == NULL || pb->bf_getbuffer == NULL || pb->bf_releasebuffer != NULL) {
             goto error;
         }
