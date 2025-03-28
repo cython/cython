@@ -907,7 +907,9 @@ static CYTHON_INLINE PyObject* __Pyx_PyBytes_Join(PyObject* sep, PyObject* value
 static CYTHON_INLINE PyObject* __Pyx_PyBytes_Join(PyObject* sep, PyObject* values) {
     // avoid unused function
     (void) __Pyx_PyObject_CallMethod1;
-#if CYTHON_COMPILING_IN_CPYTHON && PY_VERSION_HEX < 0x030d0000
+#if !CYTHON_COMPILING_IN_LIMITED_API && PY_VERSION_HEX >= 0x030e0000 || defined(PyBytes_Join)
+    return PyBytes_Join(sep, values);
+#elif CYTHON_COMPILING_IN_CPYTHON && PY_VERSION_HEX < 0x030d0000 || defined(_PyBytes_Join)
     return _PyBytes_Join(sep, values);
 #else
     return __Pyx_PyObject_CallMethod1(sep, PYIDENT("join"), values);

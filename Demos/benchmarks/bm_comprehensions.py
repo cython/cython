@@ -80,15 +80,19 @@ def make_some_widgets() -> list[Widget]:
     return widgets
 
 
-def run_benchmark(repeat: cython.int=10, count: cython.int = 10_000, timer=time.perf_counter):
+def run_benchmark(repeat: cython.int=10, scale: cython.long = 10_000, timer=time.perf_counter):
+    s: cython.long
+    r: cython.long
+
     widgets = make_some_widgets()
 
     timings = []
     for r in range(repeat):
         t0 = timer()
-        for c in range(count):
+        for s in range(scale):
             tray = WidgetTray(1, widgets)
             assert len(tray.sorted_widgets) == 18
         timings.append(timer() - t0)
+        tray = None
 
     return timings
