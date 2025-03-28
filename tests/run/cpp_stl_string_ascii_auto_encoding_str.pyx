@@ -27,6 +27,15 @@ def test_conversion(py_obj):
     return s
 
 
+def test_convert_typed_memoryview(const unsigned char[::1] py_obj):
+    """
+    >>> test_convert_typed_memoryview(b_asdf) == s_asdf
+    """
+    cdef string s = py_obj
+    assert <size_t>len(py_obj) == s.length(), '%d != %d' % (len(py_obj), s.length())
+    return s
+
+
 def test_empty(py_obj):
     """
     >>> test_empty('')
