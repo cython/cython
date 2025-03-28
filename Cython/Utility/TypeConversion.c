@@ -276,7 +276,7 @@ static CYTHON_INLINE const char* __Pyx_PyUnicode_AsStringAndSize(PyObject* o, Py
 static CYTHON_INLINE const char* __Pyx_PyObject_AsStringAndSize(PyObject* o, Py_ssize_t *length) {
 #if __PYX_DEFAULT_STRING_ENCODING_IS_ASCII || __PYX_DEFAULT_STRING_ENCODING_IS_UTF8
     if (PyUnicode_Check(o)) {
-        char* result = __Pyx_PyUnicode_AsStringAndSize(o, length);
+        const char* result = __Pyx_PyUnicode_AsStringAndSize(o, length);
         if (unlikely(result == NULL)) {
             goto error;
         } else {
