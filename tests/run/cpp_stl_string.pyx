@@ -50,7 +50,7 @@ def test_conversion(py_obj):
     True
     >>> test_conversion(123)  # doctest: +ELLIPSIS
     Traceback (most recent call last):
-    TypeError: expected ..., int found
+    TypeError: a bytes-like object is required, not 'int'
     """
     cdef string s = py_obj
     return s
