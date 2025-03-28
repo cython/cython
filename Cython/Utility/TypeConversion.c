@@ -343,6 +343,7 @@ static CYTHON_INLINE const char* __Pyx_PyObject_AsStringAndSize(PyObject* o, Py_
         PyErr_Format(PyExc_TypeError,
             "a bytes-like object is required, not '" __Pyx_FMT_TYPENAME "'",
             result_type_name);
+        *length = -1;
         return NULL;
 }
 
