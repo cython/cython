@@ -319,7 +319,7 @@ static CYTHON_INLINE const char* __Pyx_PyObject_AsStringAndSize(PyObject* o, Py_
         r = PyObject_GetBuffer(o, &view, PyBUF_SIMPLE | PyBUF_FORMAT);
         if (unlikely(r < 0)) {
             goto error;
-        } else if (view.format != NULL && view.format[0] != 'B') {
+        } else if (view.ndim != 1 || (view.format != NULL && view.format[0] != 'B')) {
             PyBuffer_Release(&view);  // Release to clean up buffer (decref object `o`)
             goto error;
         } else {
