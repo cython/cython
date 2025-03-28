@@ -311,8 +311,9 @@ static CYTHON_INLINE const char* __Pyx_PyObject_AsStringAndSize(PyObject* o, Py_
         // Check that `o`:
         // * supports the Python Buffer Protocol
         // * does not require keeping the buffer around (as we cannot return it)
-        PyBufferProcs *pb = __Pyx_PyType_GetSlot(o, tp_as_buffer, PyBufferProcs);
-        if (pb == NULL || pb->bf_getbuffer == NULL || pb->bf_releasebuffer != NULL) goto error;
+        getbufferproc* getbuffer = __Pyx_PyType_GetSlot(o, bf_getbuffer, getbufferproc);
+        releasebufferproc* releasebuffer = __Pyx_PyType_GetSlot(o, bf_releasebuffer, releasebufferproc);
+        if (pb == NULL || getbuffer == NULL || releasebuffer != NULL) goto error;
 
         // Try to acquire buffer from `o`
         Py_buffer view;
