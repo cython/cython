@@ -1128,8 +1128,14 @@ class SlotTable:
         # but match the "fallback" argument of a slot that does
         #
         #-------------------------------------------------------------------------
-        MethodSlot(inquiry, "", "__nonzero__", method_name_to_slot)
+
+
+        MethodSlot(inquiry, "", "__nonzero__", resolve_method_slot)
         MethodSlot(unaryfunc, "", "__long__", method_name_to_slot)
+        def resolve_method_slot(name):
+            if name == "__nonzero__":
+                return method_name_to_slot("__bool__")
+            return method_name_to_slot(name)
 
     def get_special_method_signature(self, name):
         #  Given a method name, if it is a special method,
