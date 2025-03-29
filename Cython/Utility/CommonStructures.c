@@ -89,3 +89,72 @@ bad:
     goto done;
 }
 
+/////////////// RegisterABC.proto ///////////////
+
+static void __Pyx_RegisterCommonTypeWithAbc(PyObject *type, const char *abc_name); /* proto */
+
+/////////////// RegisterABC ///////////////
+//@requires: ModuleSetupCode.c::CriticalSections
+//@requires: ObjectHandling.c::PyObjectGetAttrStrNoError
+//@requires: Optimize.c::dict_setdefault
+
+static void __Pyx_RegisterCommonTypeWithAbc(PyObject *type, const char *abc_name)
+{
+    int result = -1;
+    PyObject *runtime_dict = PyModule_GetDict(NAMED_CGLOBAL(cython_runtime_cname));
+    PyObject *abc_class = NULL;
+    PyObject *py_abc_name = PyUnicode_FromString(abc_name);
+    int get_item_result;
+    if (unlikely(!py_abc_name))
+        goto done;
+    get_item_result = __Pyx_PyDict_GetItemRef(runtime_dict, py_abc_name, &abc_class);
+    if (unlikely(get_item_result == -1)) {
+        goto done;
+    } else if (get_item_result == 0) {
+        PyObject *abc_module = PyImport_ImportModule("abc");
+        if (unlikely(!abc_module)) goto done;
+
+        PyObject *abc_type = PyObject_GetAttrString(abc_module, "ABC");
+        Py_DECREF(abc_module);
+        if (unlikely(!abc_type)) goto done;
+
+        PyObject* new_abc_class = PyObject_CallFunction(
+            (PyObject*)&PyType_Type,
+            "O(O){ss}",
+            py_abc_name,
+            abc_type,
+            "__module__",
+            "cython_runtime"
+        );
+        Py_DECREF(abc_type);
+        if (unlikely(!new_abc_class)) goto done;
+
+        // Retry, check that there hasn't been a race
+        abc_class = __Pyx_PyDict_SetDefault(runtime_dict, py_abc_name, new_abc_class, 1);
+        Py_DECREF(new_abc_class);
+        if (unlikely(!abc_class)) goto done;
+    }
+    {
+        // The class is initialized, register the type
+        PyObject *register_result = PyObject_CallMethod(abc_class, "register", "O", type);
+        Py_DECREF(abc_class);
+        if (likely(register_result)) {
+            Py_DECREF(register_result);
+            result = 0;
+        }
+    }
+
+  done:
+    Py_DECREF(py_abc_name);
+
+    if (unlikely(result == -1)) {
+        // Treat this as an allowed failure; it doesn't matter too much if we don't register the abcs.
+        PyObject *type, *value, *traceback;
+        PyErr_Fetch(&type, &value, &traceback);
+        // and equally, formatting the message doesn't really matter.
+        PyObject *msg = PyUnicode_FromFormat("Exception ignored while setting up %s abstract base class", abc_name);
+        PyErr_Restore(type, value, traceback);
+        PyErr_WriteUnraisable(msg);
+        Py_XDECREF(msg);
+    }
+}
