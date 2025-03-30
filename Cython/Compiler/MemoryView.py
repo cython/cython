@@ -401,7 +401,7 @@ def get_is_contig_func_name(contig_type, ndim):
 
 def get_is_contig_utility(contig_type, ndim):
     assert contig_type in ('C', 'F')
-    C = dict(context, ndim=ndim, contig_type=contig_type)
+    C = dict(template_context, ndim=ndim, contig_type=contig_type)
     utility = load_memview_c_utility("MemviewSliceCheckContig", C, requires=[is_contig_utility])
     return utility
 
