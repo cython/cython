@@ -64,13 +64,12 @@ class Context:
     language_level = None  # warn when not set but default to Py2
 
     def __init__(self, include_directories, compiler_directives, cpp=False,
-                 language_level=None, shared_utility_qualified_name=None, options=None):
+                 language_level=None, options=None):
         # cython_scope is a hack, set to False by subclasses, in order to break
         # an infinite loop.
         # Better code organization would fix it.
 
         from . import Builtin, CythonScope
-        self.shared_utility_qualified_name = shared_utility_qualified_name
         self.modules = {"__builtin__" : Builtin.builtin_scope}
         self.cython_scope = CythonScope.create_cython_scope(self)
         self.modules["cython"] = self.cython_scope
@@ -94,7 +93,11 @@ class Context:
     @classmethod
     def from_options(cls, options):
         return cls(options.include_path, options.compiler_directives,
-                   options.cplus, options.language_level, options.shared_utility_qualified_name, options=options)
+                   options.cplus, options.language_level, options=options)
+
+    @property
+    def shared_utility_qualified_name(self):
+        return self.options.shared_utility_qualified_name if self.options else None
 
     def set_language_level(self, level):
         from .Future import print_function, unicode_literals, absolute_import, division, generator_stop
