@@ -493,7 +493,7 @@ C compiler directly, or through setuptools, etc.
 Compiling shared module using setuptools
 ----------------------------------------
 
-To simplify the compilation process, setuptools can be used. To specify the fully qualified module name of the shared utility, the ``shared_utility_qualified_name`` option can be used instead of the ``--shared`` argument. The :file:`setup.py` file would be:
+To simplify the compilation process, setuptools can be used. To specify the fully qualified module name of the shared utility, the ``shared_utility_qualified_name`` parameter of :func:`cythonize` can be used instead of the ``--shared`` argument. The :file:`setup.py` file would be:
 
 .. code-block:: python
     :caption: setup.py
@@ -502,15 +502,13 @@ To simplify the compilation process, setuptools can be used. To specify the full
     from Cython.Compiler import Options
     from setuptools import setup, Extension
 
-    Options.shared_utility_qualified_name = 'mypkg.shared._cyutility'
-
     extensions = [
         Extension("*", ["**/*.pyx"]),
         Extension("mypkg.shared._cyutility", sources=["mypkg/shared/_cyutility.c"])
     ]
 
     setup(
-      ext_modules = cythonize(extensions)
+      ext_modules = cythonize(extensions, shared_utility_qualified_name = 'mypkg.shared._cyutility')
     )
 
 
