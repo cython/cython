@@ -993,7 +993,7 @@ class MemoryViewSliceType(PyrexType):
         funcname = "__Pyx_PyObject_to_MemoryviewSlice_" + suffix
 
         context = dict(
-            MemoryView.context,
+            MemoryView.template_context,
             buf_flag = self.flags,
             ndim = self.ndim,
             axes_specs = ', '.join(self.axes_to_code()),

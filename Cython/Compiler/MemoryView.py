@@ -812,7 +812,7 @@ def use_cython_array_utility_code(env):
     cython_scope.load_cythonscope()
     cython_scope.viewscope.lookup('array_cwrapper').used = True
 
-context = {
+template_context = {
     'memview_struct_name': memview_objstruct_cname,
     'max_dims': Options.buffer_max_dims,
     'memviewslice_name': memviewslice_cname,
@@ -823,16 +823,16 @@ context = {
 def _get_memviewslice_declare_code():
     memviewslice_declare_code = load_memview_c_utility(
             "MemviewSliceStruct",
-            context=context,
+            context=template_context,
             requires=[])
     return memviewslice_declare_code
 
-atomic_utility = load_memview_c_utility("Atomics", context)
+atomic_utility = load_memview_c_utility("Atomics", template_context)
 
 def _get_memviewslice_init_code(memviewslice_declare_code):
     memviewslice_init_code = load_memview_c_utility(
         "MemviewSliceInit",
-        context=dict(context, BUF_MAX_NDIMS=Options.buffer_max_dims),
+        context=dict(template_context, BUF_MAX_NDIMS=Options.buffer_max_dims),
         requires=[memviewslice_declare_code,
                 atomic_utility],
     )
@@ -843,13 +843,13 @@ memviewslice_index_helpers = load_memview_c_utility("MemviewSliceIndex")
 typeinfo_to_format_code = load_memview_cy_utility(
         "BufferFormatFromTypeInfo", requires=[Buffer._typeinfo_to_format_code])
 
-is_contig_utility = load_memview_c_utility("MemviewSliceIsContig", context)
-overlapping_utility = load_memview_c_utility("OverlappingSlices", context)
+is_contig_utility = load_memview_c_utility("MemviewSliceIsContig", template_context)
+overlapping_utility = load_memview_c_utility("OverlappingSlices", template_context)
 
 def _get_copy_contents_new_utility():
     copy_contents_new_utility = load_memview_c_utility(
         "MemviewSliceCopyTemplate",
-        context,
+        template_context,
         requires=[],  # require cython_array_utility_code
     )
     return copy_contents_new_utility
@@ -861,7 +861,7 @@ def _get_memoryview_utility_code():
     copy_contents_new_utility = _get_copy_contents_new_utility()
     memoryview_utility_code = load_memview_cy_utility(
             "View.MemoryView",
-            context=context,
+            context=template_context,
             requires=[
                     Buffer.buffer_struct_declare_code,
                     Buffer.buffer_formats_declare_code,
@@ -882,7 +882,7 @@ def _get_memoryview_shared_utility_code(shared_utility_qualified_name):
     copy_contents_new_utility = _get_copy_contents_new_utility()
     shared_utility_code = CythonSharedUtilityCode(
         shared_utility_qualified_name,
-        template_context=context,
+        template_context=template_context,
         requires=[
                 Buffer.buffer_struct_declare_code,
                 Buffer.buffer_formats_declare_code,
