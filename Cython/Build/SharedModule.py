@@ -10,23 +10,12 @@ from Cython.Compiler.Scanning import FileSourceDescriptor
 
 def create_shared_library_pipeline(context, scope, options, result):
 
+    # "cimport_from_pyx=True" to force generating __Pyx_ExportFunction
+    parse = Pipeline.parse_stage_factory(context, cimport_from_pyx=True)
+
     def generate_tree_factory(context):
         def generate_tree(compsrc):
-
-            # Force to generate __Pyx_ExportFunction
-            Options.cimport_from_pyx = True
-
-            source_desc = compsrc.source_desc
-            full_module_name = compsrc.full_module_name
-
-            initial_pos = (source_desc, 1, 0)
-            scope = context.find_module(full_module_name, pos = initial_pos, need_pxd = 0)
-
-            tree = context.parse(source_desc, scope, pxd = 0, full_module_name = full_module_name)
-
-            tree.is_pxd = False
-            tree.compilation_source = compsrc
-            tree.scope = scope
+            tree = parse(compsrc)
 
             scope.use_utility_code(
                     MemoryView.get_view_utility_code(context.shared_utility_qualified_name))
