@@ -840,8 +840,19 @@ def _get_memviewslice_init_code(memviewslice_declare_code):
 
 memviewslice_index_helpers = load_memview_c_utility("MemviewSliceIndex")
 
-typeinfo_to_format_code = load_memview_cy_utility(
+def _get_typeinfo_to_format_code():
+    return load_memview_cy_utility(
         "BufferFormatFromTypeInfo", requires=[Buffer._typeinfo_to_format_code])
+
+def get_typeinfo_to_format_code(shared_utility_qualified_name):
+    if shared_utility_qualified_name:
+        return CythonSharedUtilityCode(
+            'BufferFormatFromTypeInfo.pxd',
+            shared_utility_qualified_name,
+            template_context=template_context,
+            requires=[])
+    else:
+        return _get_typeinfo_to_format_code()
 
 is_contig_utility = load_memview_c_utility("MemviewSliceIsContig", template_context)
 overlapping_utility = load_memview_c_utility("OverlappingSlices", template_context)
@@ -881,6 +892,7 @@ def _get_memoryview_shared_utility_code(shared_utility_qualified_name):
     memviewslice_init_code = _get_memviewslice_init_code(memviewslice_declare_code)
     copy_contents_new_utility = _get_copy_contents_new_utility()
     shared_utility_code = CythonSharedUtilityCode(
+        'MemoryView.pxd',
         shared_utility_qualified_name,
         template_context=template_context,
         requires=[

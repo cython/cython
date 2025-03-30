@@ -11693,7 +11693,9 @@ class CythonArrayNode(ExprNode):
         self.coercion_type.validate_memslice_dtype(self.pos)
         self.type = self.get_cython_array_type(env)
         MemoryView.use_cython_array_utility_code(env)
-        env.use_utility_code(MemoryView.typeinfo_to_format_code)
+        env.use_utility_code(
+            MemoryView.get_typeinfo_to_format_code(env.context.shared_utility_qualified_name)
+        )
         return self
 
     def allocate_temp_result(self, code):
