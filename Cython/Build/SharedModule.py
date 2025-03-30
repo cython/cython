@@ -17,11 +17,11 @@ def create_shared_library_pipeline(context, scope, options, result):
         def generate_tree(compsrc):
             tree = parse(compsrc)
 
-            scope.use_utility_code(
+            tree.scope.use_utility_code(
                 MemoryView.get_view_utility_code(options.shared_utility_qualified_name))
 
-            scope.use_utility_code(MemoryView._get_memviewslice_declare_code())
-            scope.use_utility_code(MemoryView.typeinfo_to_format_code)
+            tree.scope.use_utility_code(MemoryView._get_memviewslice_declare_code())
+            tree.scope.use_utility_code(MemoryView.typeinfo_to_format_code)
             context.include_directories.append(Code.get_utility_dir())
             return tree
 
@@ -34,7 +34,8 @@ def create_shared_library_pipeline(context, scope, options, result):
         Pipeline.inject_utility_code_stage_factory(context, internalise_c_class_entries=False),
         Pipeline.inject_utility_pxd_code_stage_factory(context),
         Pipeline.abort_on_errors,
-        Pipeline.generate_pyx_code_stage_factory(options, result),
+        # "cimport_from_pyx=True" to force generating __Pyx_ExportFunction
+        Pipeline.generate_pyx_code_stage_factory(options, result, cimport_from_pyx=True),
     ]
 
 def generate_shared_module(options):

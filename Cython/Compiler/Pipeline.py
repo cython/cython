@@ -45,9 +45,13 @@ def parse_pxd_stage_factory(context, scope, module_name):
         return tree
     return parse
 
-def generate_pyx_code_stage_factory(options, result):
+def generate_pyx_code_stage_factory(options, result, cimport_from_pyx=False):
     def generate_pyx_code_stage(module_node):
-        module_node.process_implementation(options, result)
+        saved_cimport_from_pyx, Options.cimport_from_pyx = Options.cimport_from_pyx, cimport_from_pyx
+        try:
+            module_node.process_implementation(options, result)
+        finally:
+            Options.cimport_from_pyx = saved_cimport_from_pyx
         result.compilation_source = module_node.compilation_source
         return result
     return generate_pyx_code_stage
