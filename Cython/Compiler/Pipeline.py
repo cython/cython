@@ -45,7 +45,7 @@ def parse_pxd_stage_factory(context, scope, module_name):
         return tree
     return parse
 
-def generate_pyx_code_stage_factory(options, result, cimport_from_pyx=False):
+def generate_pyx_code_stage_factory(options, result, cimport_from_pyx=Options.cimport_from_pyx):
     def generate_pyx_code_stage(module_node):
         saved_cimport_from_pyx, Options.cimport_from_pyx = Options.cimport_from_pyx, cimport_from_pyx
         try:
