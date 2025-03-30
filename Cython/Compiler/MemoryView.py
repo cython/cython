@@ -519,7 +519,7 @@ def get_copy_new_utility(pos, from_memview, to_memview):
     return load_memview_c_utility(
         "CopyContentsUtility",
         context=dict(
-            context,
+            template_context,
             mode=mode,
             dtype_decl=to_memview.dtype.empty_declaration_code(),
             contig_flag=contig_flag,
