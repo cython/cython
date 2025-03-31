@@ -14,7 +14,6 @@ typedef struct {
     int ag_running_async;
 } __pyx_PyAsyncGenObject;
 
-// These are only for optimizations and self arguments
 #define __Pyx_AsyncGen_CheckExact(shared_abi_module, obj) __Pyx_IS_TYPE(obj, __Pyx_GetSharedModuleStateFromModule(shared_abi_module)->__pyx_AsyncGenType)
 #define __pyx_PyAsyncGenASend_CheckExact(shared_abi_module, o) \
                     __Pyx_IS_TYPE(o, __Pyx_GetSharedModuleStateFromModule(shared_abi_module)->__pyx__PyAsyncGenASendType)
@@ -928,7 +927,7 @@ __Pyx_async_gen_athrow_new(__pyx_PyAsyncGenObject *gen, PyObject *args)
 /* ---------- global type sharing ------------ */
 
 static int __pyx_AsyncGen_init(PyObject *module) {
-    PyObject *tp;
+    PyTypeObject *tp;
     tp = __Pyx_FetchCommonTypeFromSpec(module, &__pyx_AsyncGenType_spec, NULL);
     if (unlikely(!tp))
         return -1;

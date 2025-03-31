@@ -71,9 +71,10 @@ typedef struct {
 } __pyx_CyFunctionObject;
 
 #undef __Pyx_CyOrPyCFunction_Check
-#define __Pyx_CyFunction_Check(obj)  __Pyx_TypeCheck(obj, CGLOBAL(__pyx_CyFunctionType))
-#define __Pyx_CyOrPyCFunction_Check(obj)  __Pyx_TypeCheck2(obj, CGLOBAL(__pyx_CyFunctionType), &PyCFunction_Type)
-#define __Pyx_CyFunction_CheckExact(obj)  __Pyx_IS_TYPE(obj, CGLOBAL(__pyx_CyFunctionType))
+#define __Pyx_GetCyFunctionType() __Pyx_GetSharedModuleState()->__pyx_CyFunctionType
+#define __Pyx_CyFunction_Check(obj)  __Pyx_TypeCheck(obj, __Pyx_GetCyFunctionType())
+#define __Pyx_CyOrPyCFunction_Check(obj)  __Pyx_TypeCheck2(obj, __Pyx_GetCyFunctionType(), &PyCFunction_Type)
+#define __Pyx_CyFunction_CheckExact(obj)  __Pyx_IS_TYPE(obj, __Pyx_GetCyFunctionType())
 static CYTHON_INLINE int __Pyx__IsSameCyOrCFunction(PyObject *func, void (*cfunc)(void));/*proto*/
 #undef __Pyx_IsSameCFunction
 #define __Pyx_IsSameCFunction(func, cfunc)   __Pyx__IsSameCyOrCFunction(func, cfunc)
@@ -1236,7 +1237,7 @@ static PyType_Spec __pyx_CyFunctionType_spec = {
 };
 
 static int __pyx_CyFunction_init(PyObject *module) {
-    PyObject *tp = __Pyx_FetchCommonTypeFromSpec(module, &__pyx_CyFunctionType_spec, NULL);
+    PyTypeObject *tp = __Pyx_FetchCommonTypeFromSpec(module, &__pyx_CyFunctionType_spec, NULL);
     if (unlikely(tp == NULL)) {
         return -1;
     }
@@ -1705,7 +1706,7 @@ static int __pyx_FusedFunction_init(PyObject *module) {
     if (unlikely(!bases)) {
         return -1;
     }
-    PyObject *tp = __Pyx_FetchCommonTypeFromSpec(module, &__pyx_FusedFunctionType_spec, bases);
+    PyTypeObject *tp = __Pyx_FetchCommonTypeFromSpec(module, &__pyx_FusedFunctionType_spec, bases);
     Py_DECREF(bases);
     if (unlikely(tp == NULL)) {
         return -1;

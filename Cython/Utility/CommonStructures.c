@@ -24,8 +24,6 @@ typedef struct {
     // fragmentation, as _PyAsyncGenWrappedValue and PyAsyncGenASend
     // are short-living objects that are instantiated for every
     // __anext__ call.
-    // Don't put stuff after here, because  otherwise we depend on the same definition
-    // of _PyAsyncGen_MAXFREELIST being used every time it's compiled.
     #if CYTHON_USE_FREELISTS
     PyObject *__Pyx_ag_value_freelist[_PyAsyncGen_MAXFREELIST];
     int __Pyx_ag_value_freelist_free;
@@ -41,6 +39,7 @@ static CYTHON_INLINE PyTypeObject **__Pyx_SharedCythonABIModule_FindTypePointer(
 /////////////// FetchSharedCythonModule ////////////
 //@requires: ModuleSetupCode.c::CriticalSections
 //@requires: StringTools.c::IncludeStringH
+//@requires: Optimize.c::dict_setdefault
 //@substitute: tempita
 
 {{py: from Cython.Compiler.Naming import shared_names_and_types}}
@@ -103,9 +102,15 @@ __Pyx_PyAsyncGen_ClearFreeLists(__Pyx_SharedModuleStateStruct *mstate)
 
 static void __Pyx_FreeSharedModuleState(void *self) {
     __Pyx_ClearSharedModuleState((PyObject*)self);
-    // Free lists should be freed but not cleared
+    // Free lists should be handled in "free" but not "clear"
     __Pyx_PyAsyncGen_ClearFreeLists((__Pyx_SharedModuleStateStruct*)PyModule_GetState((PyObject*)self));
 }
+
+// Thread-safety: in principle there's a very mild data race for GetAttr and Dir, in that
+// a different Cython import could be adding more types to it as we work. Types are only
+// ever written once and never rewritten so it's harmless assuming pointers can be
+// written/read in a single step. At worst it'll trigger thread sanitizer but it shouldn't
+// cause observable bugs beyond that.
 
 static PyObject *__Pyx_SharedModuleGetAttr(PyObject *self, PyObject *arg) {
     int cmp_result;
@@ -124,8 +129,7 @@ static PyObject *__Pyx_SharedModuleGetAttr(PyObject *self, PyObject *arg) {
     return NULL;
 }
 
-// Called inside a critical section
-static PyObject *__Pyx__SharedModuleDir(PyObject *self) {
+static PyObject *__Pyx_SharedModuleDir(PyObject *self, PyObject *) {
     __Pyx_SharedModuleStateStruct* mstate = (__Pyx_SharedModuleStateStruct*)PyModule_GetState(self);
 
     PyObject *module_dict = PyModule_GetDict(self);
@@ -148,14 +152,6 @@ static PyObject *__Pyx__SharedModuleDir(PyObject *self) {
   bad:
     Py_DECREF(module_dict_keys);
     return NULL;
-}
-
-static PyObject *__Pyx_SharedModuleDir(PyObject *self, PyObject *) {
-    PyObject *result;
-    __Pyx_BEGIN_CRITICAL_SECTION(self);
-    result = __Pyx__SharedModuleDir(self);
-    __Pyx_END_CRITICAL_SECTION();
-    return result;
 }
 
 static PyModuleDef_Slot __Pyx_SharedModuleSlots[] = {
@@ -203,7 +199,6 @@ static PyObject *__Pyx_FetchSharedCythonABIModule(void) {
     // otherwise module doesn't yet exist.
     PyModuleDef_Init(&__Pyx_SharedModuleDef);
 
-    
     {
         // Create a dummy spec object (Python does this internally so it's OK)
         PyObject *namespace_dict = PyDict_New();
@@ -235,23 +230,11 @@ static PyObject *__Pyx_FetchSharedCythonABIModule(void) {
 
     // At this point we have a potential race, that another module might have managed to create the shared module
     // before us.
-    __Pyx_BEGIN_CRITICAL_SECTION(module_dict)
-    PyObject *module_again;
-    find_module_result = __Pyx_PyDict_GetItemRef(module_dict, abi_module_name, &module_again);
-    if (likely(find_module_result == 0)) {
-        // Nothing got there first.
-        if (unlikely(PyDict_SetItem(module_dict, abi_module_name, module) == -1)) {
-            Py_CLEAR(module);
-        }
-    } else if (find_module_result == 1) {
-        // Someone else got there first.
+    {
+        PyObject *module_again = __Pyx_PyDict_SetDefault(module_dict, abi_module_name, module, 1);
         Py_DECREF(module);
         module = module_again;
-    } else {
-        // error
-        Py_CLEAR(module);
     }
-    __Pyx_END_CRITICAL_SECTION()
 
   cleanup:
     Py_DECREF(abi_module_name);
@@ -261,7 +244,7 @@ static PyObject *__Pyx_FetchSharedCythonABIModule(void) {
 static CYTHON_INLINE PyTypeObject **__Pyx_SharedCythonABIModule_FindTypePointer(PyObject *mod, const char* name) {
     {{for name, cname in shared_names_and_types}}
     if (strcmp("{{name}}", name) == 0) {
-        return &((__Pyx_SharedModuleStateStruct*)PyModule_GetState(mod))->{{cname}};
+        return &(((__Pyx_SharedModuleStateStruct*)PyModule_GetState(mod))->{{cname}});
     }
     {{endfor}}
     // Really a logic error in Cython if we get here
@@ -347,7 +330,7 @@ static PyTypeObject *__Pyx__FetchCommonTypeFromSpec(PyObject *module, PyType_Spe
 
     // Note potential race here to set the type on the ABI module
     if (likely(!*abi_module_entry)) {
-        Py_INCREF(abi_module_entry);
+        Py_INCREF(cached_type);
         *abi_module_entry = (PyTypeObject*)cached_type;
     } else {
         Py_DECREF(cached_type);
@@ -357,7 +340,6 @@ static PyTypeObject *__Pyx__FetchCommonTypeFromSpec(PyObject *module, PyType_Spe
     }
 
 done:
-    Py_DECREF(abi_module);
     // NOTE: always returns owned reference, or NULL on error
     assert(cached_type == NULL || PyType_Check(cached_type));
     return (PyTypeObject *) cached_type;
@@ -423,7 +405,7 @@ static CYTHON_INLINE PyObject *__Pyx_SharedAbiModuleFromSharedType(PyTypeObject 
     // All of our shared types have a shared type at the top of our inheritance heirarchy
     while ((1)) {
         PyTypeObject *new_base = __Pyx_PyType_GetSlot(base, tp_base, PyTypeObject*);
-        if (likely(!new_base)) {
+        if (likely(!new_base || new_base == &PyBaseObject_Type)) {
             break;
         }
         base = new_base;
