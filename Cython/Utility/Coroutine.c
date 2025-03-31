@@ -903,25 +903,6 @@ static CYTHON_INLINE void __Pyx_Coroutine_ResetFrameBackpointer(__Pyx_ExcInfoStr
 #endif
 }
 
-static CYTHON_INLINE
-PyObject *__Pyx_Coroutine_MethodReturn(PyObject* gen, PyObject *retval) {
-    CYTHON_MAYBE_UNUSED_VAR(gen);
-    if (unlikely(!retval)) {
-        __Pyx_PyThreadState_declare
-        __Pyx_PyThreadState_assign
-        if (!__Pyx_PyErr_Occurred()) {
-            // method call must not terminate with NULL without setting an exception
-            PyObject *exc =
-              #ifdef __Pyx_AsyncGen_USED
-                __Pyx_AsyncGen_CheckExact(gen) ? PyExc_StopAsyncIteration :
-              #endif
-                PyExc_StopIteration;
-            __Pyx_PyErr_SetNone(exc);
-        }
-    }
-    return retval;
-}
-
 #define __Pyx_Coroutine_MethodReturnFromResult(gen, result, retval, iternext) \
     ((result) == PYGEN_NEXT ? (retval) : __Pyx__Coroutine_MethodReturnFromResult(gen, result, retval, iternext))
 
