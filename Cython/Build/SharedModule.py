@@ -10,24 +10,31 @@ from Cython.Compiler.Scanning import FileSourceDescriptor
 
 def create_shared_library_pipeline(context, scope, options, result):
 
-    # "cimport_from_pyx=True" to force generating __Pyx_ExportFunction
-    parse = Pipeline.parse_stage_factory(context, cimport_from_pyx=True)
+    parse = Pipeline.parse_stage_factory(context)
 
     def generate_tree_factory(context):
         def generate_tree(compsrc):
             tree = parse(compsrc)
 
-            scope.use_utility_code(
+            tree.scope.use_utility_code(
                 MemoryView.get_view_utility_code(options.shared_utility_qualified_name))
 
-            scope.use_utility_code(MemoryView._get_memviewslice_declare_code())
-            scope.use_utility_code(MemoryView.typeinfo_to_format_code)
+            tree.scope.use_utility_code(MemoryView._get_memviewslice_declare_code())
+            tree.scope.use_utility_code(MemoryView.typeinfo_to_format_code)
             context.include_directories.append(Code.get_utility_dir())
             return tree
 
         return generate_tree
 
+    def set_cimport_from_pyx(cimport_from_pyx):
+        def inner(node):
+            Options.cimport_from_pyx = cimport_from_pyx
+            return node
+        return inner
+
     return [
+        # "cimport_from_pyx=True" to force generating __Pyx_ExportFunction
+        set_cimport_from_pyx(True),
         generate_tree_factory(context),
         *Pipeline.create_pipeline(context, 'pyx', exclude_classes=()),
         Pipeline.inject_pxd_code_stage_factory(context),
@@ -35,6 +42,7 @@ def create_shared_library_pipeline(context, scope, options, result):
         Pipeline.inject_utility_pxd_code_stage_factory(context),
         Pipeline.abort_on_errors,
         Pipeline.generate_pyx_code_stage_factory(options, result),
+        set_cimport_from_pyx(False),
     ]
 
 def generate_shared_module(options):
