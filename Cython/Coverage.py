@@ -54,6 +54,11 @@ from collections import defaultdict
 
 from coverage.plugin import CoveragePlugin, FileTracer, FileReporter  # requires coverage.py 4.0+
 from coverage.files import canonical_filename
+try:
+    import coverage.tracer  # we mainly do this so that runtests can identify if coverage won't work
+except ImportError:
+    raise ImportError("Installed 'coverage' does not support plugins. "
+                      "See https://coverage.readthedocs.io/en/latest/install.html#c-extension")
 
 from .Utils import find_root_package_dir, is_package_dir, is_cython_generated_file, open_source_file
 

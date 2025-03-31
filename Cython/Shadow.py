@@ -1,7 +1,7 @@
 # cython.* namespace for pure mode.
 
 # Possible version formats: "3.1.0", "3.1.0a1", "3.1.0a1.dev0"
-__version__ = "3.1.0a1"
+__version__ = "3.1.0b0"
 
 
 # BEGIN shameless copy from Cython/minivect/minitypes.py
@@ -109,14 +109,16 @@ annotation_typing = returns = wraparound = boundscheck = initializedcheck = \
     auto_cpdef = c_api_binop_methods = \
     allow_none_for_extension_args = callspec = show_performance_hints = \
     cpp_locals = py2_import = iterable_coroutine = remove_unreachable = \
+    overflowcheck = \
         lambda _: _EmptyDecoratorAndManager()
 
 # Note that fast_getattr is untested and undocumented!
 fast_getattr = lambda _: _EmptyDecoratorAndManager()
+# c_compile_guard is largely for internal use
+c_compile_guard = lambda _:_EmptyDecoratorAndManager()
 
 exceptval = lambda _=None, check=True: _EmptyDecoratorAndManager()
 
-overflowcheck = lambda _: _EmptyDecoratorAndManager()
 optimize = _Optimization()
 
 

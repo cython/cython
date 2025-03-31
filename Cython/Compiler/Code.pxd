@@ -43,7 +43,6 @@ cdef class FunctionState:
 
     cdef public object exc_vars
     cdef public object current_except
-    cdef public bint in_try_finally
     cdef public bint can_trace
     cdef public bint gil_owned
 

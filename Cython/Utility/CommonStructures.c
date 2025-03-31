@@ -271,16 +271,11 @@ static CYTHON_INLINE PyTypeObject **__Pyx_SharedCythonABIModule_FindTypePointer(
 
 /////////////// FetchCommonType.proto ///////////////
 
-
 #ifndef __Pyx_SharedAbiModule_USED
 #define __Pyx_SharedAbiModule_USED
 #endif
 
-#if !CYTHON_USE_TYPE_SPECS
-static PyTypeObject* __Pyx_FetchCommonType(PyTypeObject* type);
-#else
 static PyTypeObject* __Pyx_FetchCommonTypeFromSpec(PyObject *module, PyType_Spec *spec, PyObject *bases);
-#endif
 
 /////////////// FetchCommonType ///////////////
 //@requires:ExtensionTypes.c::FixUpExtensionType
@@ -305,73 +300,6 @@ static int __Pyx_VerifyCachedType(PyObject *cached_type,
     }
     return 0;
 }
-
-#if !CYTHON_USE_TYPE_SPECS
-// Called with a critical section around abi_module
-static PyTypeObject* __Pyx__FetchCommonType(PyTypeObject* type, PyObject* abi_module) {
-    const char* object_name;
-    PyTypeObject *cached_type = NULL;
-    PyTypeObject **abi_module_entry;
-
-    // get the final part of the object name (after the last dot)
-    object_name = strrchr(type->tp_name, '.');
-    object_name = object_name ? object_name+1 : type->tp_name;
-
-    abi_module_entry = __Pyx_SharedCythonABIModule_FindTypePointer(abi_module, object_name);
-    if (unlikely(!abi_module_entry)) return NULL;
-
-    cached_type = *abi_module_entry;
-    if (cached_type) {
-        Py_INCREF(cached_type);
-      check_type:
-        if (__Pyx_VerifyCachedType(
-              (PyObject *)cached_type,
-              object_name,
-              cached_type->tp_basicsize,
-              type->tp_basicsize) < 0) {
-            goto bad;
-        }
-        goto done;
-    }
-    
-    if (PyType_Ready(type) < 0) goto bad;
-
-    // Note potential race here to set the cached type
-    if (likely(!*abi_module_entry)) {
-        Py_INCREF(type);
-        *abi_module_entry = type;
-        Py_INCREF(type); 
-        cached_type = type;
-    } else {
-        Py_INCREF(*abi_module_entry);
-        cached_type = *abi_module_entry;
-        goto check_type;
-        // type is static though, so don't decref it
-    }
-
-done:
-    Py_DECREF(abi_module);
-    // NOTE: always returns owned reference, or NULL on error
-    return cached_type;
-
-bad:
-    Py_XDECREF(cached_type);
-    cached_type = NULL;
-    goto done;
-}
-
-static PyTypeObject* __Pyx_FetchCommonType(PyTypeObject* type) {
-    PyObject* abi_module;
-    PyTypeObject* result;
-
-    abi_module = __Pyx_FetchSharedCythonABIModule();
-    if (!abi_module) return NULL;    
-    __Pyx_BEGIN_CRITICAL_SECTION(abi_module)
-    result = __Pyx__FetchCommonType(type, abi_module);
-    __Pyx_END_CRITICAL_SECTION()
-    return result;    
-}
-#else
 
 // Called with a critical section around abi_module
 static PyTypeObject *__Pyx__FetchCommonTypeFromSpec(PyObject *module, PyType_Spec *spec, PyObject *bases, PyObject* abi_module) {
@@ -452,7 +380,6 @@ static PyTypeObject *__Pyx_FetchCommonTypeFromSpec(PyObject *module, PyType_Spec
     __Pyx_END_CRITICAL_SECTION()
     return result;
 }
-#endif
 
 /////////////////////// InitAndGetSharedAbiModule.proto ///////////////////////
 //@requires:FetchSharedCythonModule

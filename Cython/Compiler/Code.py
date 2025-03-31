@@ -949,7 +949,6 @@ class FunctionState:
     # break_label      string          loop break point label
     # return_from_error_cleanup_label string
     # label_counter    integer         counter for naming labels
-    # in_try_finally   boolean         inside try of try...finally
     # exc_vars         (string * 3)    exception variables for reraise, or None
     # can_trace        boolean         line tracing is supported in the current context
     # scope            Scope           the scope object of the current function
@@ -969,7 +968,6 @@ class FunctionState:
         self.break_label = None
         self.yield_labels = []
 
-        self.in_try_finally = 0
         self.exc_vars = None
         self.current_except = None
         self.can_trace = False
@@ -2491,9 +2489,20 @@ class CCodeWriter:
             path = os.path.join(include_dir, include_file)
             if not os.path.exists(path):
                 tmp_path = f'{path}.tmp{os.getpid()}'
-                with Utils.open_new_file(tmp_path) as f:
-                    f.write(code)
-                shutil.move(tmp_path, path)
+                done = False
+                try:
+                    with Utils.open_new_file(tmp_path) as f:
+                        f.write(code)
+                    shutil.move(tmp_path, path)
+                    done = True
+                except FileExistsError:
+                    # If a different process created the file faster than us,
+                    # renaming can fail on Windows.  It's ok if the file is there now.
+                    if not os.path.exists(path):
+                        raise
+                finally:
+                    if not done and os.path.exists(tmp_path):
+                        os.unlink(tmp_path)
             # We use forward slashes in the include path to assure identical code generation
             # under Windows and Posix.  C/C++ compilers should still understand it.
             c_path = path.replace('\\', '/')
@@ -2789,7 +2798,7 @@ class CCodeWriter:
         # Add required casts, but try not to shadow real warnings.
         cast = entry.signature.method_function_type()
         if cast != 'PyCFunction':
-            func_ptr = '(void*)(%s)%s' % (cast, func_ptr)
+            func_ptr = '(void(*)(void))(%s)%s' % (cast, func_ptr)
         entry_name = entry.name.as_c_string_literal()
         if is_number_slot:
             # Unlike most special functions, binop numeric operator slots are actually generated here
@@ -3074,8 +3083,8 @@ class CCodeWriter:
             ');'
         )
 
-    def put_trace_exit(self):
-        self.putln("__Pyx_PyMonitoring_ExitScope();")
+    def put_trace_exit(self, nogil=False):
+        self.putln(f"__Pyx_PyMonitoring_ExitScope({bool(nogil):d});")
 
     def put_trace_yield(self, retvalue_cname, pos):
         error_goto = self.error_goto(pos)

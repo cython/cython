@@ -236,6 +236,7 @@ _directive_defaults = {
     'fast_gil': False,
     'cpp_locals': False,  # uses std::optional for C++ locals, so that they work more like Python locals
     'legacy_implicit_noexcept': False,
+    'c_compile_guard': '',
 
     # set __file__ and/or __path__ to known source/target path at import time (instead of not having them available)
     'set_initial_path' : None,  # SOURCEFILE or "/full/path/to/module"
@@ -434,6 +435,7 @@ directive_scopes = {  # defaults to available everywhere
     'cpp_locals': ('module', 'function', 'cclass'),  # I don't think they make sense in a with_statement
     'ufunc': ('function',),
     'legacy_implicit_noexcept': ('module', ),
+    'c_compile_guard': ('function',),  # actually C function but this is enforced later
     'control_flow.dot_output': ('module',),
     'control_flow.dot_annotate_defs': ('module',),
     'freethreading_compatible': ('module',)
@@ -765,13 +767,10 @@ class CompilationOptions:
             elif key in ['cplus', 'language_level', 'compile_time_env', 'np_pythran']:
                 # assorted bits that, e.g., influence the parser
                 data[key] = value
-            elif key == ['capi_reexport_cincludes']:
-                if self.capi_reexport_cincludes:
+            elif key in ['capi_reexport_cincludes', 'common_utility_include_dir']:
+                if value:
                     # our caching implementation does not yet include fingerprints of all the header files
-                    raise NotImplementedError('capi_reexport_cincludes is not compatible with Cython caching')
-            elif key == ['common_utility_include_dir']:
-                if self.common_utility_include_dir:
-                    raise NotImplementedError('common_utility_include_dir is not compatible with Cython caching yet')
+                    raise NotImplementedError(f'{key} is not compatible with Cython caching')
             else:
                 # any unexpected option should go into the fingerprint; it's better
                 # to recompile than to return incorrect results from the cache.
