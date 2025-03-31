@@ -111,7 +111,6 @@ static PyObject * __Pyx_CyFunction_Vectorcall_FASTCALL_KEYWORDS_METHOD(PyObject 
 
 //////////////////// CythonFunctionShared ////////////////////
 //@requires: CommonStructures.c::FetchCommonType
-//@requires: CommonStructures.c::InitAndGetSharedAbiModule
 //@requires: ObjectHandling.c::PyMethodNew
 //@requires: ObjectHandling.c::PyVectorcallFastCallDict
 //@requires: ModuleSetupCode.c::IncludeStructmemberH
@@ -1237,12 +1236,11 @@ static PyType_Spec __pyx_CyFunctionType_spec = {
 };
 
 static int __pyx_CyFunction_init(PyObject *module) {
-    __Pyx_SharedModuleStateStruct *shared_mstate = __Pyx_GetSharedModuleStateFromModule(__Pyx_InitAndGetSharedAbiModule(module));
-    if (!shared_mstate) return -1;
-    shared_mstate->__pyx_CyFunctionType = __Pyx_FetchCommonTypeFromSpec(module, &__pyx_CyFunctionType_spec, NULL);
-    if (unlikely(shared_mstate->__pyx_CyFunctionType == NULL)) {
+    PyObject *tp = __Pyx_FetchCommonTypeFromSpec(module, &__pyx_CyFunctionType_spec, NULL);
+    if (unlikely(tp == NULL)) {
         return -1;
     }
+    Py_DECREF(tp);
     return 0;
 }
 
@@ -1328,6 +1326,7 @@ static int __Pyx_CyFunction_InitClassCell(PyObject *cyfunctions, PyObject *class
 
 
 //////////////////// FusedFunction.proto ////////////////////
+//@requires: CommonStructures.c::InitAndGetSharedAbiModule
 
 typedef struct {
     __pyx_CyFunctionObject func;
@@ -1706,11 +1705,12 @@ static int __pyx_FusedFunction_init(PyObject *module) {
     if (unlikely(!bases)) {
         return -1;
     }
-    shared_mstate->__pyx_FusedFunctionType = __Pyx_FetchCommonTypeFromSpec(module, &__pyx_FusedFunctionType_spec, bases);
+    PyObject *tp = __Pyx_FetchCommonTypeFromSpec(module, &__pyx_FusedFunctionType_spec, bases);
     Py_DECREF(bases);
-    if (unlikely(shared_mstate->__pyx_FusedFunctionType == NULL)) {
+    if (unlikely(tp == NULL)) {
         return -1;
     }
+    Py_DECREF(tp);
     return 0;
 }
 

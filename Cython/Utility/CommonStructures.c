@@ -279,7 +279,7 @@ static PyTypeObject* __Pyx_FetchCommonTypeFromSpec(PyObject *module, PyType_Spec
 
 /////////////// FetchCommonType ///////////////
 //@requires:ExtensionTypes.c::FixUpExtensionType
-//@requires: FetchSharedCythonModule
+//@requires: InitAndGetSharedAbiModule
 //@requires: ModuleSetupCode.c::CriticalSections
 //@requires:StringTools.c::IncludeStringH
 
@@ -372,7 +372,7 @@ static PyTypeObject *__Pyx_FetchCommonTypeFromSpec(PyObject *module, PyType_Spec
     PyObject *abi_module;
     PyTypeObject *result;
 
-    abi_module = __Pyx_FetchSharedCythonABIModule();
+    abi_module = __Pyx_InitAndGetSharedAbiModule(module);
     if (!abi_module) return NULL;
 
     __Pyx_BEGIN_CRITICAL_SECTION(abi_module)
@@ -388,6 +388,8 @@ static PyTypeObject *__Pyx_FetchCommonTypeFromSpec(PyObject *module, PyType_Spec
 #define __Pyx_SharedAbiModule_USED
 #endif
 
+// Generates the shared ABI module if needed, and makes sure the pointer to it in our module
+// state is initialized.
 // Returns a borrowed reference
 static PyObject* __Pyx_InitAndGetSharedAbiModule(PyObject *this_module); /* proto */
 // Must be called after the shared abi module is initialized in our module state
@@ -415,10 +417,10 @@ static PyObject* __Pyx_InitAndGetSharedAbiModule(PyObject *this_module) {
 }
 
 static CYTHON_INLINE PyObject *__Pyx_SharedAbiModuleFromSharedType(PyTypeObject *tp) {
-#if CYTHON_USE_TYPE_SPECS && (!CYTHON_COMPILING_IN_LIMITED_API || __PYX_LIMITED_VERSION_HEX >= 0x030A0000)
+#if (!CYTHON_COMPILING_IN_LIMITED_API || __PYX_LIMITED_VERSION_HEX >= 0x030A0000)
     PyTypeObject *base = tp;
 
-    // All of our shared types have a shared time at the top of our inheritance heirarchy
+    // All of our shared types have a shared type at the top of our inheritance heirarchy
     while ((1)) {
         PyTypeObject *new_base = __Pyx_PyType_GetSlot(base, tp_base, PyTypeObject*);
         if (likely(!new_base)) {
@@ -428,7 +430,7 @@ static CYTHON_INLINE PyObject *__Pyx_SharedAbiModuleFromSharedType(PyTypeObject 
     }
     return PyType_GetModule(base);
 #else
-    // We're either using static types, or we're using a Limited API version without PyType_GetModule.
+    // We're using a Limited API version without PyType_GetModule.
     // In this case getting the shared module from an arbitrary Cython module is the best that we can do.
     // This only becomes dodgy in the unlikely event that this arbitrary module ever gets unloaded.
     CYTHON_UNUSED_VAR(tp);

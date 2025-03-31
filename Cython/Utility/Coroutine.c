@@ -399,7 +399,6 @@ static void __Pyx_Generator_Replace_StopIteration(int in_async_gen) {
 
 
 //////////////////// CoroutineBase.proto ////////////////////
-//@requires: CommonStructures.c::InitAndGetSharedAbiModule
 //@substitute: naming
 
 // There are a few points where we need to get coroutine checks right to get the right behaviour even when the current module doesn't
@@ -552,7 +551,6 @@ static CYTHON_INLINE PyObject *__Pyx_Generator_GetInlinedResult(PyObject *self);
 //@requires: ObjectHandling.c::PyObjectGetAttrStrNoError
 //@requires: ObjectHandling.c::IterNextPlain
 //@requires: CommonStructures.c::FetchCommonType
-//@requires: CommonStructures.c::InitAndGetSharedAbiModule
 //@requires: ModuleSetupCode.c::IncludeStructmemberH
 //@requires: ExtensionTypes.c::CallTypeTraverse
 
@@ -1937,26 +1935,26 @@ static __Pyx_PyAsyncMethodsStruct __pyx_Coroutine_as_async;
 #endif
 
 static int __pyx_Coroutine_init(PyObject *module) {
-    __Pyx_SharedModuleStateStruct *shared_mstate = __Pyx_GetSharedModuleStateFromModule(__Pyx_InitAndGetSharedAbiModule(module));
-    if (!shared_mstate) return -1;
-    shared_mstate->__pyx_CoroutineType = __Pyx_FetchCommonTypeFromSpec(module, &__pyx_CoroutineType_spec, NULL);
-    if (unlikely(!shared_mstate->__pyx_CoroutineType))
+    PyObject *tp = __Pyx_FetchCommonTypeFromSpec(module, &__pyx_CoroutineType_spec, NULL);
+    if (unlikely(!tp))
         return -1;
 #if __PYX_HAS_PY_AM_SEND == 2
-    __Pyx_SetBackportTypeAmSend(mstate->__pyx_CoroutineType, &__pyx_Coroutine_as_async, &__Pyx_Coroutine_AmSend);
+    __Pyx_SetBackportTypeAmSend(tp, &__pyx_Coroutine_as_async, &__Pyx_Coroutine_AmSend);
 #endif
+    Py_DECREF(tp);
 
 #ifdef __Pyx_IterableCoroutine_USED
     if (unlikely(__pyx_IterableCoroutine_init(module) == -1))
         return -1;
 #endif
 
-    shared_mstate->__pyx_CoroutineAwaitType = __Pyx_FetchCommonTypeFromSpec(module, &__pyx_CoroutineAwaitType_spec, NULL);
-    if (unlikely(!shared_mstate->__pyx_CoroutineAwaitType))
+    tp = __Pyx_FetchCommonTypeFromSpec(module, &__pyx_CoroutineAwaitType_spec, NULL);
+    if (unlikely(!tp))
         return -1;
 #if __PYX_HAS_PY_AM_SEND == 2
-    __Pyx_SetBackportTypeAmSend(mstate->__pyx_CoroutineAwaitType, &__pyx_CoroutineAwait_as_async, &__Pyx_CoroutineAwait_AmSend);
+    __Pyx_SetBackportTypeAmSend(tp, &__pyx_CoroutineAwait_as_async, &__Pyx_CoroutineAwait_AmSend);
 #endif
+    Py_DECREF(tp);
     return 0;
 }
 
@@ -1977,7 +1975,6 @@ static int __pyx_IterableCoroutine_init(PyObject *module);/*proto*/
 //////////////////// IterableCoroutine ////////////////////
 //@requires: Coroutine
 //@requires: CommonStructures.c::FetchCommonType
-//@requires: CommonStructures.c::InitAndGetSharedAbiModule
 
 static PyType_Slot __pyx_IterableCoroutineType_slots[] = {
     {Py_tp_dealloc, (void *)__Pyx_Coroutine_dealloc},
@@ -2011,14 +2008,13 @@ static PyType_Spec __pyx_IterableCoroutineType_spec = {
 
 
 static int __pyx_IterableCoroutine_init(PyObject *module) {
-    __Pyx_SharedModuleStateStruct *shared_mstate = __Pyx_GetSharedModuleStateFromModule(__Pyx_InitAndGetSharedAbiModule(module));
-    if (!shared_mstate) return -1;
-    shared_mstate->__pyx_IterableCoroutineType = __Pyx_FetchCommonTypeFromSpec(module, &__pyx_IterableCoroutineType_spec, NULL);
-    if (unlikely(!shared_mstate->__pyx_IterableCoroutineType))
+    PyObject *tp = __Pyx_FetchCommonTypeFromSpec(module, &__pyx_IterableCoroutineType_spec, NULL);
+    if (unlikely(!tp))
         return -1;
 #if __PYX_HAS_PY_AM_SEND == 2
-    __Pyx_SetBackportTypeAmSend(mstate->__pyx_IterableCoroutineType, &__pyx_Coroutine_as_async, &__Pyx_Coroutine_AmSend);
+    __Pyx_SetBackportTypeAmSend(tp, &__pyx_Coroutine_as_async, &__Pyx_Coroutine_AmSend);
 #endif
+    Py_DECREF(tp);
     return 0;
 }
 
@@ -2090,15 +2086,14 @@ static __Pyx_PyAsyncMethodsStruct __pyx_Generator_as_async;
 #endif
 
 static int __pyx_Generator_init(PyObject *module) {
-    __Pyx_SharedModuleStateStruct *shared_mstate = __Pyx_GetSharedModuleStateFromModule(__Pyx_InitAndGetSharedAbiModule(module));
-    if (!shared_mstate) return -1;
-    shared_mstate->__pyx_GeneratorType = __Pyx_FetchCommonTypeFromSpec(module, &__pyx_GeneratorType_spec, NULL);
-    if (unlikely(!shared_mstate->__pyx_GeneratorType)) {
+    PyObject *tp = __Pyx_FetchCommonTypeFromSpec(module, &__pyx_GeneratorType_spec, NULL);
+    if (unlikely(!tp)) {
         return -1;
     }
 #if __PYX_HAS_PY_AM_SEND == 2
-    __Pyx_SetBackportTypeAmSend(mstate->__pyx_GeneratorType, &__pyx_Generator_as_async, &__Pyx_Coroutine_AmSend);
+    __Pyx_SetBackportTypeAmSend(tp, &__pyx_Generator_as_async, &__Pyx_Coroutine_AmSend);
 #endif
+    Py_DECREF(tp);
     return 0;
 }
 
@@ -2194,6 +2189,7 @@ static void __Pyx__ReturnWithStopIteration(PyObject* value, int async) {
 }
 
 //////////////////// Coro_CheckExact.proto ////////////////
+//@requires: CommonStructures.c::InitAndGetSharedAbiModule
 
 #if CYTHON_COMPILING_IN_LIMITED_API
 static int __Pyx_PyCoro_CheckExact(PyObject *o); /* proto */

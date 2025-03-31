@@ -928,23 +928,26 @@ __Pyx_async_gen_athrow_new(__pyx_PyAsyncGenObject *gen, PyObject *args)
 /* ---------- global type sharing ------------ */
 
 static int __pyx_AsyncGen_init(PyObject *module) {
-    __Pyx_SharedModuleStateStruct *shared_mstate = __Pyx_GetSharedModuleStateFromModule(__Pyx_InitAndGetSharedAbiModule(module));
-    if (!shared_mstate) return -1;
-    shared_mstate->__pyx_AsyncGenType = __Pyx_FetchCommonTypeFromSpec(module, &__pyx_AsyncGenType_spec, NULL);
-    if (unlikely(!shared_mstate->__pyx_AsyncGenType))
+    PyObject *tp;
+    tp = __Pyx_FetchCommonTypeFromSpec(module, &__pyx_AsyncGenType_spec, NULL);
+    if (unlikely(!tp))
         return -1;
+    Py_DECREF(tp);
 
-    shared_mstate->__pyx__PyAsyncGenAThrowType = __Pyx_FetchCommonTypeFromSpec(module, &__pyx__PyAsyncGenAThrowType_spec, NULL);
-    if (unlikely(!shared_mstate->__pyx__PyAsyncGenAThrowType))
+    tp = __Pyx_FetchCommonTypeFromSpec(module, &__pyx__PyAsyncGenAThrowType_spec, NULL);
+    if (unlikely(!tp))
         return -1;
+    Py_DECREF(tp);
 
-    shared_mstate->__pyx__PyAsyncGenWrappedValueType = __Pyx_FetchCommonTypeFromSpec(module, &__pyx__PyAsyncGenWrappedValueType_spec, NULL);
-    if (unlikely(!shared_mstate->__pyx__PyAsyncGenWrappedValueType))
+    tp = __Pyx_FetchCommonTypeFromSpec(module, &__pyx__PyAsyncGenWrappedValueType_spec, NULL);
+    if (unlikely(!tp))
         return -1;
+    Py_DECREF(tp);
 
-    shared_mstate->__pyx__PyAsyncGenASendType = __Pyx_FetchCommonTypeFromSpec(module, &__pyx__PyAsyncGenASendType_spec, NULL);
-    if (unlikely(!shared_mstate->__pyx__PyAsyncGenASendType))
+    tp = __Pyx_FetchCommonTypeFromSpec(module, &__pyx__PyAsyncGenASendType_spec, NULL);
+    if (unlikely(!tp))
         return -1;
+    Py_DECREF(tp);
 
     return 0;
 }
