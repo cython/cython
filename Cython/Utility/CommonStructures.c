@@ -129,7 +129,9 @@ static PyObject *__Pyx_SharedModuleGetAttr(PyObject *self, PyObject *arg) {
     return NULL;
 }
 
-static PyObject *__Pyx_SharedModuleDir(PyObject *self, PyObject *) {
+static PyObject *__Pyx_SharedModuleDir(PyObject *self, PyObject *ignore) {
+    CYTHON_UNUSED_VAR(ignore);
+
     __Pyx_SharedModuleStateStruct* mstate = (__Pyx_SharedModuleStateStruct*)PyModule_GetState(self);
 
     PyObject *module_dict = PyModule_GetDict(self);
@@ -299,7 +301,7 @@ static PyTypeObject *__Pyx__FetchCommonTypeFromSpec(PyObject *module, PyType_Spe
     cached_type = (PyObject*)*abi_module_entry;
     if (cached_type) {
         Py_INCREF(cached_type);
-      check_type:
+      check_type:;
         Py_ssize_t basicsize;
 #if CYTHON_COMPILING_IN_LIMITED_API
         PyObject *py_basicsize;
