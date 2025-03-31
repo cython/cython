@@ -73,12 +73,14 @@ static void __Pyx_PyIter_CheckErrorAndDecref(PyObject *source) {
 static CYTHON_INLINE __Pyx_PySendResult __Pyx_Generator_Yield_From(__pyx_CoroutineObject *gen, PyObject *source, PyObject **retval) {
     PyObject *source_gen;
     __Pyx_PySendResult result;
-    if (__Pyx_Coroutine_CheckPrecise(__Pyx_SharedAbiModuleFromSharedType(Py_TYPE(gen)), source)) {
+#ifdef __Pyx_Coroutine_USED
+    if (__Pyx_Coroutine_Check(__Pyx_SharedAbiModuleFromSharedType(Py_TYPE(gen)), source)) {
         // TODO: this should only happen for types.coroutine()ed generators, but we can't determine that here
         Py_INCREF(source);
         source_gen = source;
         result = __Pyx_Coroutine_AmSend(source, Py_None, retval);
     } else
+#endif
     {
 #if CYTHON_USE_TYPE_SLOTS
         if (likely(Py_TYPE(source)->tp_iter)) {
@@ -313,8 +315,7 @@ static PyObject *__Pyx_Coroutine_GetAsyncIter_Fail(PyObject *obj) {
 
 static CYTHON_INLINE PyObject *__Pyx_Coroutine_GetAsyncIter(PyObject *shared_abi_module, PyObject *obj) {
 #ifdef __Pyx_AsyncGen_USED
-    // Missable optimization
-    if (__Pyx_AsyncGen_CheckExact(shared_abi_module, obj)) {
+    if (__Pyx_AsyncGen_CheckExact(NAMED_CGLOBAL(shared_abi_module_cname), obj)) {
         return __Pyx_NewRef(obj);
     }
 #else
@@ -339,7 +340,7 @@ static PyObject *__Pyx_Coroutine_AsyncIterNext_Fail(PyObject *obj) {
 }
 
 
-static CYTHON_INLINE PyObject *__Pyx_Coroutine_AsyncIterNext(PyObject *shared_abi_module, PyObject *obj) {
+static CYTHON_INLINE PyObject *__Pyx_Coroutine_AsyncIterNext(PyObject *obj) {
 #ifdef __Pyx_AsyncGen_USED
     // Missable optimization
     if (__Pyx_AsyncGen_CheckExact(shared_abi_module, obj)) {

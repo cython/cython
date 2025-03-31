@@ -1098,7 +1098,6 @@ static CYTHON_INLINE int __Pyx_PyDict_GetItemRef(PyObject *dict, PyObject *key, 
   }
   return 1;
 }
-
 #else
 static CYTHON_INLINE int __Pyx_PyDict_GetItemRef(PyObject *dict, PyObject *key, PyObject **result) {
   *result = PyDict_GetItemWithError(dict, key);
@@ -1107,19 +1106,6 @@ static CYTHON_INLINE int __Pyx_PyDict_GetItemRef(PyObject *dict, PyObject *key, 
   }
   Py_INCREF(*result);
   return 1;
-}
-
-#endif // CYTHON_AVOID_BORROWED_REFS
-
-static CYTHON_INLINE int __Pyx_PyDict_GetItemStringRef(PyObject *dict, const char *key, PyObject **result) {
-  PyObject *py_key = PyUnicode_FromString(key);
-  if (!py_key) {  // unlikely not defined here
-    PyErr_Clear();
-    return 0;
-  }
-  int get_item_dict_result = __Pyx_PyDict_GetItemRef(dict, py_key, result);
-  Py_DECREF(py_key);
-  return get_item_dict_result;
 }
 #endif
 
