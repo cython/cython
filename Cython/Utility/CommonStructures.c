@@ -401,7 +401,7 @@ static PyObject* __Pyx_InitAndGetSharedAbiModule(PyObject *this_module) {
 }
 
 static CYTHON_INLINE PyObject *__Pyx_SharedAbiModuleFromSharedType(PyTypeObject *tp) {
-#if (!CYTHON_COMPILING_IN_LIMITED_API || __PYX_LIMITED_VERSION_HEX >= 0x030A0000)
+#if ((CYTHON_COMPILING_IN_LIMITED_API && __PYX_LIMITED_VERSION_HEX >= 0x030A0000) || PY_VERSION_HEX >= 0x03090000)
     PyTypeObject *base = tp;
 
     // All of our shared types have a shared type at the top of our inheritance heirarchy
@@ -414,7 +414,7 @@ static CYTHON_INLINE PyObject *__Pyx_SharedAbiModuleFromSharedType(PyTypeObject 
     }
     return PyType_GetModule(base);
 #else
-    // We're using a Limited API version without PyType_GetModule.
+    // We're using a version without PyType_GetModule.
     // In this case getting the shared module from an arbitrary Cython module is the best that we can do.
     // This only becomes dodgy in the unlikely event that this arbitrary module ever gets unloaded.
     CYTHON_UNUSED_VAR(tp);
