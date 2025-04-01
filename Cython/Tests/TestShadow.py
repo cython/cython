@@ -92,7 +92,7 @@ class TestShadow(unittest.TestCase):
             cpp = False
             language_level = 3
             future_directives = []
-        cython_scope.context = Context
+        cython_scope._context = Context
         Errors.init_thread()
 
         missing_types = []

@@ -80,6 +80,7 @@ class Context:
         self.options = options
 
         self.pxds = {}  # full name -> node tree
+        self.utility_pxd = None  # node tree
         self._interned = {}  # (type(value), value, *key_args) -> interned_value
 
         if language_level is not None:
@@ -93,6 +94,10 @@ class Context:
     def from_options(cls, options):
         return cls(options.include_path, options.compiler_directives,
                    options.cplus, options.language_level, options=options)
+
+    @property
+    def shared_utility_qualified_name(self):
+        return self.options.shared_utility_qualified_name if self.options else None
 
     def set_language_level(self, level):
         from .Future import print_function, unicode_literals, absolute_import, division, generator_stop
@@ -129,6 +134,14 @@ class Context:
             result_sink = create_default_resultobj(source, self.options)
             pipeline = Pipeline.create_pyx_as_pxd_pipeline(self, result_sink)
             result = Pipeline.run_pipeline(pipeline, source)
+        elif source_desc.in_utility_code:
+            from . import ParseTreeTransforms
+            transform = ParseTreeTransforms.CnameDirectivesTransform(self)
+            pipeline = Pipeline.create_pxd_pipeline(self, scope, module_name)
+            pipeline = Pipeline.insert_into_pipeline(
+                pipeline, transform,
+                before=ParseTreeTransforms.InterpretCompilerDirectives)
+            result = Pipeline.run_pipeline(pipeline, source_desc)
         else:
             pipeline = Pipeline.create_pxd_pipeline(self, scope, module_name)
             result = Pipeline.run_pipeline(pipeline, source_desc)
@@ -825,6 +838,11 @@ def main(command_line = 0):
         os.chdir(options.working_path)
 
     try:
+        if options.shared_c_file_path:
+            from ..Build.SharedModule import generate_shared_module
+            generate_shared_module(options)
+            return
+
         result = compile(sources, options)
         if result.num_errors > 0:
             any_failures = 1
