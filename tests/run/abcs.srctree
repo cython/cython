@@ -1,5 +1,6 @@
 UNSET CFLAGS
 PYTHON setup.py build_ext --inplace
+PYTHON test_it.py
 
 ##################### setup.py ################
 
@@ -21,13 +22,13 @@ if sysconfig.get_config_var("Py_GIL_DISABLED"):
   exit(0)  # Doesn't support Limited API
 import m1
 import m2
-import cython_runtime
+import collections.abc as c_abcs
 
 # This is because Limited API and regular API have different cython ABIs 
 assert type(m1.f) != type(m2.f)
-assert isinstance(m1.f, cython_runtime.cython_function.cython_function_or_method_abc)
-assert isinstance(m2.f, cython_runtime.cython_function.cython_function_or_method_abc)
-assert not isinstance(lambda: None, cython_runtime.cython_function.cython_function_or_method_abc)
+assert isinstance(m1.f, c_abcs.CythonFunction)
+assert isinstance(m2.f, c_abcs.CythonFunction)
+assert not isinstance(lambda: None, c_abcs.CythonFunction)
 
 #################### m1.pyx ####################
 

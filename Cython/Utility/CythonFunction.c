@@ -1243,7 +1243,7 @@ static int __pyx_CyFunction_init(PyObject *module) {
     if (unlikely(mstate->__pyx_CyFunctionType == NULL)) {
         return -1;
     }
-    __Pyx_RegisterCommonTypeWithAbc((PyObject*)mstate->__pyx_CyFunctionType, "cython_function_or_method_abc");
+    __Pyx_RegisterCommonTypeWithAbc((PyObject*)mstate->__pyx_CyFunctionType, "CythonFunction");
     return 0;
 }
 
