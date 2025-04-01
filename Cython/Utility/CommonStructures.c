@@ -52,7 +52,7 @@ static PyTypeObject *__Pyx_FetchCommonTypeFromSpec(PyObject *module, PyType_Spec
     if (!abi_module_dict) goto done;
 
 
-    get_item_ref_result = __Pyx_PyDict_GetItemRef(abi_module, py_object_name, &cached_type);
+    get_item_ref_result = __Pyx_PyDict_GetItemRef(abi_module_dict, py_object_name, &cached_type);
     if (get_item_ref_result == 1) {
       verify_type:;
         Py_ssize_t basicsize;
