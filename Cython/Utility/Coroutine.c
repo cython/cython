@@ -1542,6 +1542,9 @@ static PyObject *
 __Pyx__Coroutine_get_frame(__pyx_CoroutineObject *self)
 {
 #if !CYTHON_COMPILING_IN_LIMITED_API
+    #if PY_VERSION_HEX >= 0x030d0000 && !CYTHON_COMPILING_IN_LIMITED_API
+    Py_BEGIN_CRITICAL_SECTION(self);
+    #endif
     PyObject *frame = self->gi_frame;
     if (!frame) {
         if (unlikely(!self->gi_code)) {
@@ -1573,6 +1576,9 @@ __Pyx__Coroutine_get_frame(__pyx_CoroutineObject *self)
         }
     }
     Py_INCREF(frame);
+    #if PY_VERSION_HEX >= 0x030d0000 && !CYTHON_COMPILING_IN_LIMITED_API
+    Py_END_CRITICAL_SECTION();
+    #endif
     return frame;
 #else
     // In the limited API there probably isn't much we can usefully do to get a frame
@@ -1585,14 +1591,10 @@ static PyObject *
 __Pyx_Coroutine_get_frame(__pyx_CoroutineObject *self, void *context) {
     PyObject *result;
     CYTHON_UNUSED_VAR(context);
-    #if PY_VERSION_HEX >= 0x030d0000 && !CYTHON_COMPILING_IN_LIMITED_API
-    Py_BEGIN_CRITICAL_SECTION(self);
-    #endif
-    result = __Pyx__Coroutine_get_frame(self);
-    #if PY_VERSION_HEX >= 0x030d0000 && !CYTHON_COMPILING_IN_LIMITED_API
-    Py_END_CRITICAL_SECTION();
-    #endif
-    return result;
+    PyObject *frame = self->gi_frame;
+    if (!frame)
+        frame = __Pyx__Coroutine_get_frame(self);
+    return frame;
 }
 
 static __pyx_CoroutineObject *__Pyx__Coroutine_New(
