@@ -26,6 +26,8 @@ def create_shared_library_pipeline(context, scope, options, result):
 
         return generate_tree
 
+    orig_cimport_from_pyx = Options.cimport_from_pyx
+
     def set_cimport_from_pyx(cimport_from_pyx):
         def inner(node):
             Options.cimport_from_pyx = cimport_from_pyx
