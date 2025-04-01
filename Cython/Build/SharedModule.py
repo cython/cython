@@ -44,7 +44,7 @@ def create_shared_library_pipeline(context, scope, options, result):
         Pipeline.inject_utility_pxd_code_stage_factory(context),
         Pipeline.abort_on_errors,
         Pipeline.generate_pyx_code_stage_factory(options, result),
-        set_cimport_from_pyx(False),
+        set_cimport_from_pyx(orig_cimport_from_pyx),
     ]
 
 def generate_shared_module(options):
