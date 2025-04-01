@@ -218,6 +218,13 @@ def test_use_typing_attributes_as_non_annotations():
     q2 = typing.Union[typing.FrozenSet]
     w1 = Union
     w2 = Union[Dict]
+
+    def name_of(special_decl):
+        try:
+            return special_decl.__name__
+        except AttributeError:
+            return str(special_decl).partition('.')[-1]
+
     # The result of printing "Optional[type]" is slightly version-dependent
     # so accept different forms.
     allowed_optional_frozenset_strings = [
@@ -231,11 +238,11 @@ def test_use_typing_attributes_as_non_annotations():
         "typing.Dict | None",
     ]
     print(x1, x2)
-    print(y1.__name__, y1 is z1 or (y1, z1))
-    print(y1.__name__, str(y2) in allowed_optional_frozenset_strings  or  str(y2))
-    print(z1.__name__, str(z2) in allowed_optional_dict_strings  or  str(z2))
-    print(q1.__name__, str(q2) in ["typing.Union[typing.FrozenSet, NoneType]", "typing.FrozenSet | None"] or str(q2))
-    print(w1.__name__, str(w2) in ["typing.Union[typing.Dict, NoneType]", "typing.Dict | None"] or str(w2))
+    print(name_of(y1), y1 is z1 or (y1, z1))
+    print(name_of(y1), str(y2) in allowed_optional_frozenset_strings  or  str(y2))
+    print(name_of(z1), str(z2) in allowed_optional_dict_strings  or  str(z2))
+    print(name_of(q1), str(q2) in ["typing.Union[typing.FrozenSet, NoneType]", "typing.FrozenSet | None"] or str(q2))
+    print(name_of(w1), str(w2) in ["typing.Union[typing.Dict, NoneType]", "typing.Dict | None"] or str(w2))
 
 
 try:
