@@ -478,8 +478,7 @@ The compilation process now consist of four steps:
 
        $ cython --generate-shared=mypkg/shared/_cyutility.c
 
-2. compiling the shared utility code. The module needs to be compiled as regular ``.c`` file, either by using the
-C compiler directly, or through setuptools, etc.
+2. compiling the shared utility code. The module needs to be compiled as regular ``.c`` file, either by using the C compiler directly, or through setuptools, etc.
 3. compiling ``.pyx`` file to ``.c`` file with the ``--shared`` argument to give the name of the shared module:
 
    .. code-block:: console
