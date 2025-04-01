@@ -147,7 +147,7 @@ static __Pyx_PySendResult __Pyx_Coroutine_Yield_From_Generic(__pyx_CoroutineObje
     __Pyx_PySendResult result;
     PyObject *source_gen = NULL;
 
-    source_gen = __Pyx__Coroutine_GetAwaitableIter(source);
+    source_gen = __Pyx_Coroutine_GetAwaitableIter(source);
     if (unlikely(!source_gen)) return PYGEN_ERROR;
 
     // source_gen is now the iterator, make the first next() call
