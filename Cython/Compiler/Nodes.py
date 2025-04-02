@@ -1211,7 +1211,11 @@ class MemoryViewSliceTypeNode(CBaseTypeNode):
 
     def use_memview_utilities(self, env):
         from . import MemoryView
-        env.use_utility_code(MemoryView.view_utility_code)
+        env.use_utility_code(
+            MemoryView.get_view_utility_code(
+                env.context.shared_utility_qualified_name
+            )
+        )
 
 
 class CNestedBaseTypeNode(CBaseTypeNode):
@@ -4897,7 +4901,7 @@ class GeneratorBodyDefNode(DefNode):
             code.putln("if (__Pyx_PyErr_Occurred()) {")  # we allow exit without GeneratorExit / StopIteration
             if tracing:
                 code.put_trace_exception_propagating()
-            if Future.generator_stop in env.global_scope().context.future_directives:
+            if Future.generator_stop in env.context.future_directives:
                 # PEP 479: turn accidental StopIteration exceptions into a RuntimeError
                 code.globalstate.use_utility_code(UtilityCode.load_cached("pep479", "Coroutine.c"))
                 code.putln("__Pyx_Generator_Replace_StopIteration(%d);" % bool(self.is_async_gen_body))
@@ -9059,16 +9063,16 @@ class CriticalSectionExitNode(StatNode):
         )
 
 
-def cython_view_utility_code():
+def cython_view_utility_code(options):
     from . import MemoryView
-    return MemoryView.view_utility_code
+    return MemoryView.get_view_utility_code(options.shared_utility_qualified_name)
 
 
 utility_code_for_cimports = {
     # utility code (or inlining c) in a pxd (or pyx) file.
     # TODO: Consider a generic user-level mechanism for importing
-    'cpython.array'         : lambda : UtilityCode.load_cached("ArrayAPI", "arrayarray.h"),
-    'cpython.array.array'   : lambda : UtilityCode.load_cached("ArrayAPI", "arrayarray.h"),
+    'cpython.array'         : lambda options: UtilityCode.load_cached("ArrayAPI", "arrayarray.h"),
+    'cpython.array.array'   : lambda options: UtilityCode.load_cached("ArrayAPI", "arrayarray.h"),
     'cython.view'           : cython_view_utility_code,
 }
 
@@ -9133,7 +9137,7 @@ class CImportStatNode(StatNode):
             entry = env.declare_module(name, module_scope, self.pos)
             entry.known_standard_library_import = self.module_name
         if self.module_name in utility_code_for_cimports:
-            env.use_utility_code(utility_code_for_cimports[self.module_name]())
+            env.use_utility_code(utility_code_for_cimports[self.module_name](env.context.options))
 
     def analyse_expressions(self, env):
         return self
@@ -9199,11 +9203,11 @@ class FromCImportStatNode(StatNode):
 
         if module_name.startswith('cpython') or module_name.startswith('cython'):  # enough for now
             if module_name in utility_code_for_cimports:
-                env.use_utility_code(utility_code_for_cimports[module_name]())
+                env.use_utility_code(utility_code_for_cimports[module_name](env.context.options))
             for _, name, _ in self.imported_names:
                 fqname = '%s.%s' % (module_name, name)
                 if fqname in utility_code_for_cimports:
-                    env.use_utility_code(utility_code_for_cimports[fqname]())
+                    env.use_utility_code(utility_code_for_cimports[fqname](env.context.options))
 
     def declaration_matches(self, entry, kind):
         if not entry.is_type:
@@ -10560,7 +10564,7 @@ class CnameDecoratorNode(StatNode):
         if isinstance(node, CompilerDirectivesNode):
             node = node.body.stats[0]
 
-        self.is_function = isinstance(node, FuncDefNode)
+        self.is_function = isinstance(node, (FuncDefNode, CVarDefNode))
         is_struct_or_enum = isinstance(node, (CStructOrUnionDefNode, CEnumDefNode))
         e = node.entry
 

@@ -264,11 +264,12 @@ def report_revision_timings(rev_timings):
     scales = [(scale, unit) for unit, scale in reversed(units.items())]  # biggest first
 
     def format_time(t):
+        pos_t = abs(t)
         for scale, unit in scales:
-            if t >= scale:
+            if pos_t >= scale:
                 break
         else:
-            raise RuntimeError("Timing is below nanoseconds: {t:f}")
+            raise RuntimeError(f"Timing is below nanoseconds: {t:f}")
         return f"{t / scale :.3f} {unit}"
 
     timings_by_benchmark = collections.defaultdict(list)
