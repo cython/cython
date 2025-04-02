@@ -2452,7 +2452,7 @@ def main():
     parser.add_option("--examples-dir", dest="examples_dir",
                       default=os.path.join(DISTDIR, 'docs', 'examples'),
                       help="Directory to look for documentation example tests")
-    parser.add_option("--work-dir", dest="work_dir", default=os.path.join(os.getcwd(), 'TEST_TMP'),
+    parser.add_option("--work-dir", dest="work_dir", default=os.path.join(os.getcwd(), 'TEST_TMP', str(os.getpid())),
                       help="working directory")
     parser.add_option("--cython-dir", dest="cython_dir", default=os.getcwd(),
                       help="Cython installation directory (default: use local source version)")
