@@ -23,12 +23,15 @@ if sysconfig.get_config_var("Py_GIL_DISABLED"):
 import m1
 import m2
 import collections.abc as c_abcs
+import platform
 
-# This is because Limited API and regular API have different cython ABIs 
-assert type(m1.f) != type(m2.f)
 assert isinstance(m1.f, c_abcs.CythonFunction)
 assert isinstance(m2.f, c_abcs.CythonFunction)
 assert not isinstance(lambda: None, c_abcs.CythonFunction)
+if platform.python_implementation() != 'CPython':
+  # This is because Limited API and regular API have different cython ABIs 
+  assert type(m1.f) != type(m2.f)
+
 
 #################### m1.pyx ####################
 
