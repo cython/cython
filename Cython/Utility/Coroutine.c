@@ -147,7 +147,7 @@ static __Pyx_PySendResult __Pyx_Coroutine_Yield_From_Generic(__pyx_CoroutineObje
     __Pyx_PySendResult result;
     PyObject *source_gen = NULL;
 
-    source_gen = __Pyx__Coroutine_GetAwaitableIter(source);
+    source_gen = __Pyx_Coroutine_GetAwaitableIter(source);
     if (unlikely(!source_gen)) return PYGEN_ERROR;
 
     // source_gen is now the iterator, make the first next() call
@@ -901,25 +901,6 @@ static CYTHON_INLINE void __Pyx_Coroutine_ResetFrameBackpointer(__Pyx_ExcInfoStr
         #endif
     }
 #endif
-}
-
-static CYTHON_INLINE
-PyObject *__Pyx_Coroutine_MethodReturn(PyObject* gen, PyObject *retval) {
-    CYTHON_MAYBE_UNUSED_VAR(gen);
-    if (unlikely(!retval)) {
-        __Pyx_PyThreadState_declare
-        __Pyx_PyThreadState_assign
-        if (!__Pyx_PyErr_Occurred()) {
-            // method call must not terminate with NULL without setting an exception
-            PyObject *exc =
-              #ifdef __Pyx_AsyncGen_USED
-                __Pyx_AsyncGen_CheckExact(gen) ? PyExc_StopAsyncIteration :
-              #endif
-                PyExc_StopIteration;
-            __Pyx_PyErr_SetNone(exc);
-        }
-    }
-    return retval;
 }
 
 #define __Pyx_Coroutine_MethodReturnFromResult(gen, result, retval, iternext) \
