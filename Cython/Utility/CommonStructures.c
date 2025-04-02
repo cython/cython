@@ -98,7 +98,7 @@ static PyTypeObject *__Pyx_FetchCommonTypeFromSpec(PyObject *module, PyType_Spec
 
 done:
     Py_XDECREF(abi_module);
-    Py_XDECREF(py_object_name);
+    Py_DECREF(py_object_name);
     // NOTE: always returns owned reference, or NULL on error
     assert(cached_type == NULL || PyType_Check(cached_type));
     return (PyTypeObject *) cached_type;
