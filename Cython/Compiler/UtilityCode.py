@@ -287,7 +287,8 @@ class TemplatedFileSourceDescriptor(FileSourceDescriptor):
 
 
 class CythonSharedUtilityCode(Code.AbstractUtilityCode):
-    def __init__(self, shared_utility_qualified_name, template_context, requires):
+    def __init__(self, pxd_name, shared_utility_qualified_name, template_context, requires):
+        self._pxd_name = pxd_name
         self._shared_utility_qualified_name = shared_utility_qualified_name
         self.template_context = template_context
         self.requires = requires
@@ -301,7 +302,7 @@ class CythonSharedUtilityCode(Code.AbstractUtilityCode):
         pxd_pathname = os.path.join(
             os.path.split(Cython.__file__)[0],
             'Utility',
-            'MemoryView.pxd'
+            self._pxd_name
         )
         try:
             rel_path = self._shared_utility_qualified_name.replace('.', os.sep) + os.path.splitext(pxd_pathname)[1]
@@ -309,7 +310,7 @@ class CythonSharedUtilityCode(Code.AbstractUtilityCode):
             source_desc.in_utility_code = True
             err, result = context.process_pxd(source_desc, scope, self._shared_utility_qualified_name)
             (pxd_codenodes, pxd_scope) = result
-            context.utility_pxd = (pxd_codenodes, pxd_scope)
+            context.utility_pxds[self._pxd_name] = (pxd_codenodes, pxd_scope)
             scope.pxd_file_loaded = True
             if err:
                 raise err
@@ -319,7 +320,7 @@ class CythonSharedUtilityCode(Code.AbstractUtilityCode):
 
     def declare_in_scope(self, dest_scope, used=False, cython_scope=None,
                          allowlist=None):
-        if not cython_scope.context.utility_pxd:
+        if self._pxd_name not in cython_scope.context.utility_pxds:
             self._shared_library_scope = self.find_module(cython_scope.context)
         for dep in self.requires:
             if dep.is_cython_utility:
@@ -329,7 +330,7 @@ class CythonSharedUtilityCode(Code.AbstractUtilityCode):
         return dest_scope
 
     def get_shared_library_scope(self, cython_scope):
-        if not cython_scope.context.utility_pxd:
+        if self._pxd_name not in cython_scope.context.utility_pxds:
             self._shared_library_scope = self.find_module(cython_scope.context)
         return self._shared_library_scope
 

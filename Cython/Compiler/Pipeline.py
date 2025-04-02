@@ -55,8 +55,7 @@ def generate_pyx_code_stage_factory(options, result):
 def inject_utility_pxd_code_stage_factory(context):
 
     def inject_utility_pxd_code_stage(module_node):
-        if context.utility_pxd:
-            statlistnode, scope = context.utility_pxd
+        for statlistnode, scope in context.utility_pxds.values():
             module_node.merge_in(statlistnode, scope, stage="pxd")
         return module_node
 
