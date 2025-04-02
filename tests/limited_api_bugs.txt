@@ -2,7 +2,6 @@
 # Limited API which will be skipped in the normal testing run.
 
 cpp_nonstdint
-embedsignatures_python
 embedsignatures_clinic
 generator_frame_cycle
 line_trace
