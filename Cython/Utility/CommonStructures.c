@@ -86,8 +86,8 @@ static PyTypeObject *__Pyx_FetchCommonTypeFromSpec(PyObject *module, PyType_Spec
     if (unlikely(__Pyx_fix_up_extension_type_from_spec(spec, (PyTypeObject *) cached_type) < 0)) goto bad;
 
     new_cached_type = __Pyx_PyDict_SetDefault(abi_module_dict, py_object_name, cached_type, 1);
-    if (unlikely(!new_cached_type)) goto bad;
     if (unlikely(new_cached_type != cached_type)) {
+        if (unlikely(!new_cached_type)) goto bad;
         // race to initialize it - use the value that's already been set.
         Py_DECREF(cached_type);
         cached_type = new_cached_type;
