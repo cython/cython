@@ -148,7 +148,7 @@ static __Pyx_PySendResult __Pyx_Coroutine_Yield_From_Generic(__pyx_CoroutineObje
     PyObject *source_gen = NULL;
     PyObject *shared_abi_module = __Pyx_SharedAbiModuleFromSharedType(Py_TYPE(gen));
 
-    source_gen = __Pyx__Coroutine_GetAwaitableIter(shared_abi_module, source);
+    source_gen = __Pyx_Coroutine_GetAwaitableIter(shared_abi_module, source);
     if (unlikely(!source_gen)) return PYGEN_ERROR;
 
     // source_gen is now the iterator, make the first next() call
