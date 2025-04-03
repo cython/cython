@@ -275,6 +275,61 @@ Some things to note about this example:
   time, so to access :func:`shrubbing.standard_shrubbery` we also need to
   ``import shrubbing``.
 
+``__pyx_capi__`` module attribute
+=================================
+Every Cython extension providing API via .pxd file contains a special attribute
+``__pyx_capi__`` with a dictionary with all C functions and variables accessible
+via the ``cimport`` statement.
+
+.. tabs::
+
+    .. group-tab:: Pure Python
+
+        .. code-block:: python
+            :caption: module.py
+
+            def pyfunction():
+                pass
+
+            @cython.cfunc
+            def cfunction() -> cython.void:
+                pass
+
+            @cython.ccall
+            def cpfunction() -> cython.void:
+                pass
+
+    .. group-tab:: Cython
+
+        .. code-block:: cython
+            :caption: module.pyx
+
+            def pyfunction():
+                pass
+
+
+            cdef void cfunction():
+                pass
+
+
+            cpdef void cpfunction():
+                pass
+
+
+.. code-block:: cython
+    :caption: module.pxd
+
+    cdef int VAR = 0
+
+    cdef void cfunction()
+
+    cpdef void cpfunction()
+
+.. code-block:: python
+
+    >>> import module
+    >>> module.__pyx_capi__
+    {'VAR': <capsule object "int" at 0x7f27ae0e0a50>, 'cfunction': <capsule object "void (void)" at 0x7f68376b0d20>, 'cpfunction': <capsule object "void (int __pyx_skip_dispatch)" at 0x7f68376b0cf0>}
 
 .. _versioning:
 
