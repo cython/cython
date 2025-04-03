@@ -5734,10 +5734,11 @@ def remove_cv_ref(tp, remove_fakeref=False):
 
 def get_all_subtypes(tp, seen=None):
     if seen is None:
-        seen = set()
+        # seen is used as a set, but stored as a dict to get it insertion ordered
+        seen = {}
     if tp in seen:
         return
-    seen.add(tp)
+    seen[tp] = None  # only the key is interesting
     for attr in tp.subtypes:
         subtype_or_iterable = getattr(tp, attr)
         if subtype_or_iterable:
@@ -5746,4 +5747,4 @@ def get_all_subtypes(tp, seen=None):
             else:
                 for sub_tp in subtype_or_iterable:
                     get_all_subtypes(sub_tp, seen)
-    return list(seen)
+    return list(seen.values())

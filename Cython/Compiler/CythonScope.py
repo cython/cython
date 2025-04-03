@@ -31,7 +31,6 @@ class CythonScope(ModuleScope):
         entry = self.declare_type(
             "pythread_type_lock", cy_pythread_type_lock_type, None,
             cname="__Pyx_Locks_PyThreadTypeLock")
-        entry.in_cinclude
 
     def is_cpp(self):
         # Allow C++ utility code in C++ contexts.
