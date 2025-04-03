@@ -290,6 +290,17 @@ def test_func_default_scope_local():
     print i  # genexprs don't leak
     return func
 
+
+def test_str_call(arg=str()):
+    """
+    The call to str() is optimized into a literal late in the process.
+    This shouldn't break the usage.
+    >>> test_str_call()
+    ''
+    """
+    return arg
+
+
 cdef class C:
     def f1(self, a, b=1, c=[]):
         pass
