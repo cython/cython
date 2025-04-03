@@ -604,34 +604,69 @@ static CYTHON_INLINE PyObject* __Pyx_PyUnicode_Substring(
 #endif
 }
 
+/////////////// py_unicode_predicate.proto ///////////////
 
-/////////////// py_unicode_istitle.proto ///////////////
-
+// isprintable() is lacking C-API support in PyPy
+#if CYTHON_COMPILING_IN_LIMITED_API{{if method_name == 'isprintable'}} || (CYTHON_COMPILING_IN_PYPY && !defined(Py_UNICODE_ISPRINTABLE)){{endif}}
+static int __Pyx_Py_UNICODE_{{method_name.upper()}}(Py_UCS4 uchar);/*proto*/
+#else
+{{if method_name == 'istitle'}}
 // Py_UNICODE_ISTITLE() doesn't match unicode.istitle() as the latter
 // additionally allows character that comply with Py_UNICODE_ISUPPER()
-
 static CYTHON_INLINE int __Pyx_Py_UNICODE_ISTITLE(Py_UCS4 uchar) {
     return Py_UNICODE_ISTITLE(uchar) || Py_UNICODE_ISUPPER(uchar);
 }
-
-
-/////////////// py_unicode_isprintable.proto ///////////////
-
-#if CYTHON_COMPILING_IN_PYPY && !defined(Py_UNICODE_ISPRINTABLE)
-static int __Pyx_Py_UNICODE_ISPRINTABLE(Py_UCS4 uchar);/*proto*/
-#else
-#define __Pyx_Py_UNICODE_ISPRINTABLE(u)  Py_UNICODE_ISPRINTABLE(u)
+{{else}}
+#define __Pyx_Py_UNICODE_{{method_name.upper()}}(u)  Py_UNICODE_{{method_name.upper()}}(u)
+{{endif}}
 #endif
 
-/////////////// py_unicode_isprintable ///////////////
+/////////////// py_unicode_predicate ///////////////
 
-#if CYTHON_COMPILING_IN_PYPY && !defined(Py_UNICODE_ISPRINTABLE)
-static int __Pyx_Py_UNICODE_ISPRINTABLE(Py_UCS4 uchar) {
+{{py:
+from operator import methodcaller
+
+char_matches_unicode_type = methodcaller(method_name)
+
+def first_nonascii_chr(method_name, _matches=char_matches_unicode_type):
+    from sys import maxunicode
+
+    for code_point in range(128, maxunicode):
+        if _matches(chr(code_point)):
+            return code_point
+    return maxunicode
+
+def format_chr_for_c(i):
+    c = chr(i)
+    if c == "'":
+        return r"(Py_UCS4)'\''"
+    if c == '\\':
+        return r"(Py_UCS4)'\\'"
+    if c.isprintable():
+        return f"(Py_UCS4)'{c}'"
+    return str(i)
+}}
+
+#if CYTHON_COMPILING_IN_LIMITED_API{{if method_name == 'isprintable'}} || (CYTHON_COMPILING_IN_PYPY && !defined(Py_UNICODE_ISPRINTABLE)){{endif}}
+static int __Pyx_Py_UNICODE_{{method_name.upper()}}(Py_UCS4 uchar) {
     int result;
-    PyObject* py_result;
-    PyObject* ustring = PyUnicode_FromOrdinal(uchar);
+    PyObject *py_result, *ustring;
+    // Add a fast path for ascii - the switch statements get prohibitively big if we try to include
+    // all of unicode.
+    if (uchar < {{first_nonascii_chr(method_name)}}) {
+        switch (uchar) {
+        {{for i in range(128):}}
+            {{if char_matches_unicode_type(chr(i)) }}
+            case {{format_chr_for_c(i)}}:
+            {{endif}}
+        {{endfor}}
+            return 1;
+        }
+        return 0;
+    }
+    ustring = PyUnicode_FromOrdinal(uchar);
     if (!ustring) goto bad;
-    py_result = PyObject_CallMethod(ustring, "isprintable", NULL);
+    py_result = PyObject_CallMethod(ustring, "{{method_name}}", NULL);
     Py_DECREF(ustring);
     if (!py_result) goto bad;
     result = PyObject_IsTrue(py_result);
@@ -872,7 +907,9 @@ static CYTHON_INLINE PyObject* __Pyx_PyBytes_Join(PyObject* sep, PyObject* value
 static CYTHON_INLINE PyObject* __Pyx_PyBytes_Join(PyObject* sep, PyObject* values) {
     // avoid unused function
     (void) __Pyx_PyObject_CallMethod1;
-#if CYTHON_COMPILING_IN_CPYTHON && PY_VERSION_HEX < 0x030d0000
+#if !CYTHON_COMPILING_IN_LIMITED_API && PY_VERSION_HEX >= 0x030e0000 || defined(PyBytes_Join)
+    return PyBytes_Join(sep, values);
+#elif CYTHON_COMPILING_IN_CPYTHON && PY_VERSION_HEX < 0x030d0000 || defined(_PyBytes_Join)
     return _PyBytes_Join(sep, values);
 #else
     return __Pyx_PyObject_CallMethod1(sep, PYIDENT("join"), values);

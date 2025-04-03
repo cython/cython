@@ -13,18 +13,18 @@ modified from the Shootout version:
 # Contributed by Kevin Carson.
 # Modified by Tupteq, Fredrik Johansson, and Daniel Nanz.
 
-__contact__ = "collinwinter@google.com (Collin Winter)"
+import cython
 
 # Python imports
 import optparse
-import sys
-from time import time
+import time
 
-# Local imports
-import util
 
-def combinations(l):
+@cython.cfunc
+def combinations(l: list):
     """Pure-Python implementation of itertools.combinations(l, 2)."""
+    x: cython.Py_ssize_t
+
     result = []
     for x in range(len(l) - 1):
         ls = l[x+1:]
@@ -76,8 +76,24 @@ BODIES = {
 SYSTEM = list(BODIES.values())
 PAIRS = combinations(SYSTEM)
 
+@cython.cfunc
+def advance(dt: float, n: cython.long, bodies: list = SYSTEM, pairs: list = PAIRS):
+    x1: float
+    x2: float
+    y1: float
+    y2: float
+    z1: float
+    z2: float
+    m1: float
+    m2: float
+    vx: float
+    vy: float
+    vz: float
+    i: cython.long
+    v1: list
+    v2: list
+    r: list
 
-def advance(dt, n, bodies=SYSTEM, pairs=PAIRS):
     for i in range(n):
         for (([x1, y1, z1], v1, m1),
              ([x2, y2, z2], v2, m2)) in pairs:
@@ -99,7 +115,21 @@ def advance(dt, n, bodies=SYSTEM, pairs=PAIRS):
             r[2] += dt * vz
 
 
-def report_energy(bodies=SYSTEM, pairs=PAIRS, e=0.0):
+@cython.cfunc
+def report_energy(bodies: list = SYSTEM, pairs: list = PAIRS, e: float = 0.0):
+    x1: float
+    x2: float
+    y1: float
+    y2: float
+    z1: float
+    z2: float
+    m: float
+    m1: float
+    m2: float
+    vx: float
+    vy: float
+    vz: float
+
     for (((x1, y1, z1), v1, m1),
          ((x2, y2, z2), v2, m2)) in pairs:
         dx = x1 - x2
@@ -111,7 +141,14 @@ def report_energy(bodies=SYSTEM, pairs=PAIRS, e=0.0):
     return e
 
 
-def offset_momentum(ref, bodies=SYSTEM, px=0.0, py=0.0, pz=0.0):
+@cython.cfunc
+def offset_momentum(ref: tuple, bodies: list = SYSTEM, px: float = 0.0, py: float = 0.0, pz: float = 0.0):
+    m: float
+    vx: float
+    vy: float
+    vz: float
+    v: list
+
     for (r, [vx, vy, vz], m) in bodies:
         px -= vx * m
         py -= vy * m
@@ -122,25 +159,34 @@ def offset_momentum(ref, bodies=SYSTEM, px=0.0, py=0.0, pz=0.0):
     v[2] = pz / m
 
 
-def test_nbody(iterations):
+def test_nbody(iterations: cython.int, count: cython.long=20_000, scale: cython.long = 1, timer=time.perf_counter):
+    s: cython.long
+
     # Warm-up runs.
     report_energy()
-    advance(0.01, 20000)
+    advance(0.01, count)
     report_energy()
 
     times = []
     for _ in range(iterations):
-        t0 = time()
-        report_energy()
-        advance(0.01, 20000)
-        report_energy()
-        t1 = time()
+        t0 = timer()
+        for s in range(scale):
+            report_energy()
+            advance(0.01, count)
+            report_energy()
+        t1 = timer()
         times.append(t1 - t0)
     return times
 
 main = test_nbody
 
+
+def run_benchmark(repeat=10, scale=1, timer=time.perf_counter):
+    return test_nbody(repeat, scale=scale, timer=timer)
+
+
 if __name__ == '__main__':
+    import util
     parser = optparse.OptionParser(
         usage="%prog [options]",
         description=("Run the n-body benchmark."))

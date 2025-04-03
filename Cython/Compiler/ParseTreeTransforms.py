@@ -2053,6 +2053,7 @@ class CnameDirectivesTransform(CythonTransform, SkipDeclarations):
     visit_CClassDefNode = handle_function
     visit_CEnumDefNode = handle_function
     visit_CStructOrUnionDefNode = handle_function
+    visit_CVarDefNode = handle_function
 
 
 class ForwardDeclareTypes(CythonTransform):

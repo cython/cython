@@ -356,7 +356,22 @@ def read_utilities_from_utility_dir(path):
 # by default, read utilities from the utility directory.
 read_utilities_hook = read_utilities_from_utility_dir
 
-class UtilityCodeBase:
+
+class AbstractUtilityCode:
+
+    requires = None
+
+    def put_code(self, output):
+        pass
+
+    def get_tree(self, **kwargs):
+        return None
+
+    def get_shared_library_scope(self, **kwargs):
+        return None
+
+
+class UtilityCodeBase(AbstractUtilityCode):
     """
     Support for loading utility code from a file.
 
@@ -601,6 +616,9 @@ class UtilityCodeBase:
         return "<%s(%s)>" % (type(self).__name__, self.name)
 
     def get_tree(self, **kwargs):
+        return None
+
+    def get_shared_library_scope(self, **kwargs):
         return None
 
     def __deepcopy__(self, memodict=None):
@@ -2489,9 +2507,20 @@ class CCodeWriter:
             path = os.path.join(include_dir, include_file)
             if not os.path.exists(path):
                 tmp_path = f'{path}.tmp{os.getpid()}'
-                with Utils.open_new_file(tmp_path) as f:
-                    f.write(code)
-                shutil.move(tmp_path, path)
+                done = False
+                try:
+                    with Utils.open_new_file(tmp_path) as f:
+                        f.write(code)
+                    shutil.move(tmp_path, path)
+                    done = True
+                except FileExistsError:
+                    # If a different process created the file faster than us,
+                    # renaming can fail on Windows.  It's ok if the file is there now.
+                    if not os.path.exists(path):
+                        raise
+                finally:
+                    if not done and os.path.exists(tmp_path):
+                        os.unlink(tmp_path)
             # We use forward slashes in the include path to assure identical code generation
             # under Windows and Posix.  C/C++ compilers should still understand it.
             c_path = path.replace('\\', '/')
@@ -2787,7 +2816,7 @@ class CCodeWriter:
         # Add required casts, but try not to shadow real warnings.
         cast = entry.signature.method_function_type()
         if cast != 'PyCFunction':
-            func_ptr = '(void*)(%s)%s' % (cast, func_ptr)
+            func_ptr = '(void(*)(void))(%s)%s' % (cast, func_ptr)
         entry_name = entry.name.as_c_string_literal()
         if is_number_slot:
             # Unlike most special functions, binop numeric operator slots are actually generated here

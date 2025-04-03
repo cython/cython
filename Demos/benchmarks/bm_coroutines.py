@@ -6,13 +6,14 @@ COUNT = 100000
 
 import cython
 
+import time
+
 
 async def done(n):
     return n
 
 
-@cython.locals(N=cython.Py_ssize_t)
-async def count_to(N):
+async def count_to(N: cython.Py_ssize_t):
     count = 0
     for i in range(N):
         count += await done(i)
@@ -26,8 +27,7 @@ async def await_all(*coroutines):
     return count
 
 
-@cython.locals(N=cython.Py_ssize_t)
-def bm_await_nested(N):
+def bm_await_nested(N: cython.Py_ssize_t):
     return await_all(
         count_to(N),
         await_all(
@@ -49,24 +49,31 @@ def await_one(coro):
     return result
 
 
-def time(fn, *args):
-    from time import time
-    begin = time()
-    result = await_one(fn(*args))
-    end = time()
+def time_bm(fn, *args, scale: cython.long = 1, timer=time.perf_counter):
+    s: cython.long
+    result = None
+    begin = timer()
+    for s in range(scale):
+        result = await_one(fn(*args))
+    end = timer()
     return result, end-begin
 
 
-def benchmark(N):
+def benchmark(N, count=1_000, scale=1, timer=time.perf_counter):
     times = []
     for _ in range(N):
-        result, t = time(bm_await_nested, 1000)
+        result, t = time_bm(bm_await_nested, count, scale=scale, timer=timer)
         times.append(t)
         assert result == 8221043302, result
     return times
 
 
 main = benchmark
+
+
+def run_benchmark(repeat=10, scale=1, timer=time.perf_counter):
+    return benchmark(repeat, scale=scale, timer=timer)
+
 
 if __name__ == "__main__":
     import optparse

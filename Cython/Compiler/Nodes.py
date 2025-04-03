@@ -1220,7 +1220,11 @@ class MemoryViewSliceTypeNode(CBaseTypeNode):
 
     def use_memview_utilities(self, env):
         from . import MemoryView
-        env.use_utility_code(MemoryView.view_utility_code)
+        env.use_utility_code(
+            MemoryView.get_view_utility_code(
+                env.context.shared_utility_qualified_name
+            )
+        )
 
 
 class CNestedBaseTypeNode(CBaseTypeNode):
@@ -4194,14 +4198,19 @@ class DefNodeWrapper(FuncDefNode):
         if self.starstar_arg or self.star_arg:
             self.generate_stararg_init_code(max_positional_args, code)
 
-        code.putln('{')
         all_args = tuple(positional_args) + tuple(kw_only_args)
         non_posonly_args = [arg for arg in all_args if not arg.pos_only]
-        non_pos_args_id = ','.join(
-            ['&%s' % code.intern_identifier(arg.entry.name) for arg in non_posonly_args] + ['0'])
-        code.putln("PyObject ** const %s[] = {%s};" % (
-            Naming.pykwdlist_cname,
-            non_pos_args_id))
+        accept_kwd_args = non_posonly_args or self.starstar_arg
+
+        code.putln('{')
+        if accept_kwd_args:
+            non_pos_args_id = ','.join([
+                f'&{code.intern_identifier(arg.entry.name)}'
+                for arg in non_posonly_args
+            ] + ['0'])
+            code.putln("PyObject ** const %s[] = {%s};" % (
+                Naming.pykwdlist_cname,
+                non_pos_args_id))
 
         # Before being converted and assigned to the target variables,
         # borrowed references to all unpacked argument values are
@@ -4218,8 +4227,6 @@ class DefNodeWrapper(FuncDefNode):
         # This requires a PyDict_Size call.  This call is wasteful
         # for functions which do accept kw-args, so we do not generate
         # the PyDict_Size call unless all args are positional-only.
-        accept_kwd_args = non_posonly_args or self.starstar_arg
-
         code.putln(
             f"const Py_ssize_t {Naming.kwds_len_cname} = "
             f"{'' if accept_kwd_args else 'unlikely'}({Naming.kwds_cname}) ? "
@@ -4907,7 +4914,7 @@ class GeneratorBodyDefNode(DefNode):
             code.putln("if (__Pyx_PyErr_Occurred()) {")  # we allow exit without GeneratorExit / StopIteration
             if tracing:
                 code.put_trace_exception_propagating()
-            if Future.generator_stop in env.global_scope().context.future_directives:
+            if Future.generator_stop in env.context.future_directives:
                 # PEP 479: turn accidental StopIteration exceptions into a RuntimeError
                 code.globalstate.use_utility_code(UtilityCode.load_cached("pep479", "Coroutine.c"))
                 code.putln("__Pyx_Generator_Replace_StopIteration(%d);" % bool(self.is_async_gen_body))
@@ -5046,7 +5053,7 @@ class OverrideCheckNode(StatNode):
             code.error_goto_if_null(func_node_temp, self.pos)))
         code.put_gotref(func_node_temp, py_object_type)
 
-        code.putln("if (!__Pyx_IsSameCFunction(%s, (void*) %s)) {" % (func_node_temp, method_entry.func_cname))
+        code.putln("if (!__Pyx_IsSameCFunction(%s, (void(*)(void)) %s)) {" % (func_node_temp, method_entry.func_cname))
         self.body.generate_execution_code(code)
         code.putln("}")
 
@@ -8358,6 +8365,30 @@ class ExceptClauseNode(Node):
         self.body = self.body.analyse_expressions(env)
         return self
 
+    def body_may_need_exception(self):
+        body = self.body
+        if isinstance(body, StatListNode):
+            for node in body.stats:
+                if isinstance(node, PassStatNode):
+                    continue
+                elif isinstance(node, ReturnStatNode):
+                    body = node
+                    break
+                else:
+                    return True
+            else:
+                # No user code found (other than 'pass').
+                return False
+
+        if isinstance(body, ReturnStatNode):
+            value = body.value
+            if value is None or value.is_literal:
+                return False
+            # There might be other safe cases, but literals seem the safest for now.
+
+        # If we cannot prove that the exception is unused, it may be used.
+        return True
+
     def generate_handling_code(self, code, end_label):
         code.mark_pos(self.pos)
 
@@ -8427,38 +8458,33 @@ class ExceptClauseNode(Node):
             code.putln("/*except:*/ {")
 
         tracing = code.is_tracing()
+        needs_exception = (
+            self.target is not None or
+            self.excinfo_target is not None or
+            self.body_may_need_exception()
+        )
 
-        if (not getattr(self.body, 'stats', True)
-                and self.excinfo_target is None
-                and self.target is None):
-            # most simple case: no exception variable, empty body (pass)
-            # => reset the exception state, done
-            if tracing:
-                code.put_trace_exception_handled(self.pos)
-            code.globalstate.use_utility_code(UtilityCode.load_cached("PyErrFetchRestore", "Exceptions.c"))
-            code.putln("__Pyx_ErrRestore(0,0,0);")
-            if tracing:
-                code.putln("__Pyx_TraceExceptionDone();")
-            code.put_goto(end_label)
-            code.putln("}")
-            return
-
-        exc_vars = [code.funcstate.allocate_temp(py_object_type, manage_ref=True)
-                    for _ in range(3)]
-        code.put_add_traceback(self.function_name)
+        if needs_exception or tracing:
+            code.put_add_traceback(self.function_name)
 
         if tracing:
             code.put_trace_exception_handled(self.pos)
 
-        # We always have to fetch the exception value even if
-        # there is no target, because this also normalises the
-        # exception and stores it in the thread state.
-        code.globalstate.use_utility_code(get_exception_utility_code)
-        exc_args = "&%s, &%s, &%s" % tuple(exc_vars)
-        code.putln("if (__Pyx_GetException(%s) < 0) %s" % (
-            exc_args, code.error_goto(self.pos)))
-        for var in exc_vars:
-            code.put_xgotref(var, py_object_type)
+        if needs_exception:
+            # We always have to fetch the exception value even if
+            # there is no target, because this also normalises the
+            # exception and stores it in the thread state.
+            code.globalstate.use_utility_code(get_exception_utility_code)
+            exc_vars = [code.funcstate.allocate_temp(py_object_type, manage_ref=True)
+                        for _ in range(3)]
+            exc_args = "&%s, &%s, &%s" % tuple(exc_vars)
+            code.putln("if (__Pyx_GetException(%s) < 0) %s" % (
+                exc_args, code.error_goto(self.pos)))
+            for var in exc_vars:
+                code.put_xgotref(var, py_object_type)
+        else:
+            code.globalstate.use_utility_code(UtilityCode.load_cached("PyErrFetchRestore", "Exceptions.c"))
+            code.putln("__Pyx_ErrRestore(0,0,0);")
 
         if tracing:
             code.putln("__Pyx_TraceExceptionDone();")
@@ -8467,33 +8493,41 @@ class ExceptClauseNode(Node):
             self.exc_value.set_var(exc_vars[1])
             self.exc_value.generate_evaluation_code(code)
             self.target.generate_assignment_code(self.exc_value, code)
+
         if self.excinfo_target is not None:
             for tempvar, node in zip(exc_vars, self.excinfo_target.args):
                 node.set_var(tempvar)
 
         old_loop_labels = code.new_loop_labels("except_")
 
-        old_exc_vars = code.funcstate.exc_vars
-        code.funcstate.exc_vars = exc_vars
+        if needs_exception:
+            old_exc_vars = code.funcstate.exc_vars
+            code.funcstate.exc_vars = exc_vars
+
         self.body.generate_execution_code(code)
-        code.funcstate.exc_vars = old_exc_vars
+
+        if needs_exception:
+            code.funcstate.exc_vars = old_exc_vars
 
         if not self.body.is_terminator:
-            for var in exc_vars:
-                # FIXME: XDECREF() is needed to allow re-raising (which clears the exc_vars),
-                # but I don't think it's the right solution.
-                code.put_xdecref_clear(var, py_object_type)
+            if needs_exception:
+                for var in exc_vars:
+                    # FIXME: XDECREF() is needed to allow re-raising (which clears the exc_vars),
+                    # but I don't think it's the right solution.
+                    code.put_xdecref_clear(var, py_object_type)
             code.put_goto(end_label)
 
-        for _ in code.label_interceptor(code.get_loop_labels(), old_loop_labels):
-            for i, var in enumerate(exc_vars):
+        if needs_exception:
+            for _ in code.label_interceptor(code.get_loop_labels(), old_loop_labels):
+                code.put_decref_clear(exc_vars[0], py_object_type)
+                code.put_decref_clear(exc_vars[1], py_object_type)
                 # Traceback may be NULL.
-                (code.put_decref_clear if i < 2 else code.put_xdecref_clear)(var, py_object_type)
+                code.put_xdecref_clear(exc_vars[2], py_object_type)
+
+            for temp in exc_vars:
+                code.funcstate.release_temp(temp)
 
         code.set_loop_labels(old_loop_labels)
-
-        for temp in exc_vars:
-            code.funcstate.release_temp(temp)
 
         code.putln(
             "}")
@@ -9158,16 +9192,16 @@ class CythonLockExitNode(StatNode):
         code.putln(f"__Pyx_Locks_{cname_part}_Unlock(*{self.lock_stat_node.lock_temp.result()});")
 
 
-def cython_view_utility_code():
+def cython_view_utility_code(options):
     from . import MemoryView
-    return MemoryView.view_utility_code
+    return MemoryView.get_view_utility_code(options.shared_utility_qualified_name)
 
 
 utility_code_for_cimports = {
     # utility code (or inlining c) in a pxd (or pyx) file.
     # TODO: Consider a generic user-level mechanism for importing
-    'cpython.array'         : lambda : UtilityCode.load_cached("ArrayAPI", "arrayarray.h"),
-    'cpython.array.array'   : lambda : UtilityCode.load_cached("ArrayAPI", "arrayarray.h"),
+    'cpython.array'         : lambda options: UtilityCode.load_cached("ArrayAPI", "arrayarray.h"),
+    'cpython.array.array'   : lambda options: UtilityCode.load_cached("ArrayAPI", "arrayarray.h"),
     'cython.view'           : cython_view_utility_code,
 }
 
@@ -9232,7 +9266,7 @@ class CImportStatNode(StatNode):
             entry = env.declare_module(name, module_scope, self.pos)
             entry.known_standard_library_import = self.module_name
         if self.module_name in utility_code_for_cimports:
-            env.use_utility_code(utility_code_for_cimports[self.module_name]())
+            env.use_utility_code(utility_code_for_cimports[self.module_name](env.context.options))
 
     def analyse_expressions(self, env):
         return self
@@ -9298,11 +9332,11 @@ class FromCImportStatNode(StatNode):
 
         if module_name.startswith('cpython') or module_name.startswith('cython'):  # enough for now
             if module_name in utility_code_for_cimports:
-                env.use_utility_code(utility_code_for_cimports[module_name]())
+                env.use_utility_code(utility_code_for_cimports[module_name](env.context.options))
             for _, name, _ in self.imported_names:
                 fqname = '%s.%s' % (module_name, name)
                 if fqname in utility_code_for_cimports:
-                    env.use_utility_code(utility_code_for_cimports[fqname]())
+                    env.use_utility_code(utility_code_for_cimports[fqname](env.context.options))
 
     def declaration_matches(self, entry, kind):
         if not entry.is_type:
@@ -10106,6 +10140,11 @@ class ParallelStatNode(StatNode, ParallelNode):
             self.num_threads.generate_disposal_code(code)
             self.num_threads.free_temps(code)
 
+        if c.is_tracing():
+            # Disable sys monitoring in parallel blocks. It isn't thread safe in either
+            # Cython or Python.
+            c.putln("__Pyx_TurnOffSysMonitoringInParallel")
+
         # Firstly, always prefer errors over returning, continue or break
         if self.error_label_used:
             c.putln("const char *%s = NULL; int %s = 0, %s = 0;" % self.parallel_pos_info)
@@ -10654,7 +10693,7 @@ class CnameDecoratorNode(StatNode):
         if isinstance(node, CompilerDirectivesNode):
             node = node.body.stats[0]
 
-        self.is_function = isinstance(node, FuncDefNode)
+        self.is_function = isinstance(node, (FuncDefNode, CVarDefNode))
         is_struct_or_enum = isinstance(node, (CStructOrUnionDefNode, CEnumDefNode))
         e = node.entry
 

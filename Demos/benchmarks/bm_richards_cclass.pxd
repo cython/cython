@@ -74,23 +74,16 @@ cdef class Task(TaskState):
     cpdef findtcb(self,id)
 
 cdef class DeviceTask(Task):
-    @cython.locals(d=DeviceTaskRec)
     cpdef fn(self,Packet pkt,DeviceTaskRec r)
 
 cdef class HandlerTask(Task):
-    @cython.locals(h=HandlerTaskRec)
     cpdef fn(self,Packet pkt,HandlerTaskRec r)
 
 cdef class IdleTask(Task):
-    @cython.locals(i=IdleTaskRec)
     cpdef fn(self,Packet pkt,IdleTaskRec r)
 
 cdef class WorkTask(Task):
-    @cython.locals(w=WorkerTaskRec)
     cpdef fn(self,Packet pkt,WorkerTaskRec r)
 
-@cython.locals(t=Task)
-cpdef schedule()
-
 cdef class Richards:
-    cpdef run(self, iterations)
+    cpdef run(self, long iterations)

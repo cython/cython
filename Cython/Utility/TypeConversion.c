@@ -479,32 +479,42 @@ no_error:
 
 
 /////////////// ToPyCTupleUtility.proto ///////////////
+
 static PyObject* {{funcname}}({{struct_type_decl}});
 
 /////////////// ToPyCTupleUtility ///////////////
+
 static PyObject* {{funcname}}({{struct_type_decl}} value) {
-    PyObject* item = NULL;
-    PyObject* result = PyTuple_New({{size}});
-    if (!result) goto bad;
+    PyObject* items[{{size}}] = { {{ ', '.join('0'*size) }} };
+    PyObject* result = NULL;
 
     {{for ix, component in enumerate(components):}}
-        {{py:attr = "value.f%s" % ix}}
-        item = {{component.to_py_function}}({{attr}});
-        if (!item) goto bad;
-        #if !CYTHON_ASSUME_SAFE_MACROS
-        if (unlikely(PyTuple_SetItem(result, {{ix}}, item) < 0)) {
-            item = NULL; // stolen
-            goto bad;
-        }
-        #else
-        PyTuple_SET_ITEM(result, {{ix}}, item);
-        #endif
+        {{py:attr = f"value.f{ix}" }}
+        items[{{ix}}] = {{component.to_py_function}}({{attr}});
+        if (unlikely(!items[{{ix}}])) goto bad;
     {{endfor}}
 
+    result = PyTuple_New({{size}});
+    if (unlikely(!result)) goto bad;
+
+    for (Py_ssize_t i=0; i<{{ size }}; ++i) {
+        PyObject *item = items[i];
+        items[i] = NULL;
+        #if !CYTHON_ASSUME_SAFE_MACROS
+        // PyTuple_SetItem() always steals a reference.
+        if (unlikely(PyTuple_SetItem(result, i, item) < 0)) goto bad;
+        #else
+        PyTuple_SET_ITEM(result, i, item);
+        #endif
+    }
+
     return result;
+
 bad:
-    Py_XDECREF(item);
     Py_XDECREF(result);
+    for (Py_ssize_t i={{ size-1 }}; i >= 0; --i) {
+        Py_XDECREF(items[i]);
+    }
     return NULL;
 }
 
@@ -796,23 +806,23 @@ static PyObject* __Pyx_PyUnicode_FromOrdinal_Padded(int value, Py_ssize_t ulengt
 
         char *cpos = chars + sizeof(chars);
         if (value < 0x800) {
-            *--cpos = (char) (0b10000000 | (value & 0x3f));
+            *--cpos = (char) (0x80 | (value & 0x3f));
             value >>= 6;
-            *--cpos = (char) (0b11000000 | (value & 0x1f));
+            *--cpos = (char) (0xc0 | (value & 0x1f));
         } else if (value < 0x10000) {
-            *--cpos = (char) (0b10000000 | (char) (value & 0x3f));
+            *--cpos = (char) (0x80 | (value & 0x3f));
             value >>= 6;
-            *--cpos = (char) (0b10000000 | (char) (value & 0x3f));
+            *--cpos = (char) (0x80 | (value & 0x3f));
             value >>= 6;
-            *--cpos = (char) (0b11100000 | (char) (value & 0xf));
+            *--cpos = (char) (0xe0 | (value & 0x0f));
         } else {
-            *--cpos = (char) (0b10000000 | (char) (value & 0x3f));
+            *--cpos = (char) (0x80 | (value & 0x3f));
             value >>= 6;
-            *--cpos = (char) (0b10000000 | (char) (value & 0x3f));
+            *--cpos = (char) (0x80 | (value & 0x3f));
             value >>= 6;
-            *--cpos = (char) (0b10000000 | (char) (value & 0x3f));
+            *--cpos = (char) (0x80 | (value & 0x3f));
             value >>= 6;
-            *--cpos = (char) (0b11110000 | (char) (value & 0x7));
+            *--cpos = (char) (0xf0 | (value & 0x07));
         }
         cpos -= ulength;
         memset(cpos, padding_char, (size_t) (ulength - 1));
@@ -1268,78 +1278,3 @@ raise_neg_overflow:
         "can't convert negative value to {{TYPE}}");
     return ({{TYPE}}) -1;
 }
-
-/////////////// CFuncPtrTypedef.proto ///////////////
-//@substitute: naming
-
-#ifndef __PYX_HAVE_RT_CFuncPtrTypedef_$cyversion
-#define __PYX_HAVE_RT_CFuncPtrTypedef_$cyversion
-typedef void (*__Pyx_generic_func_pointer_$cyversion)(void);
-#endif
-
-/////////////// CFuncPtrToPy.proto ///////////////
-//@requires: CFuncPtrTypedef
-//@substitute: naming
-
-static PyObject *__Pyx_c_func_ptr_to_capsule(__Pyx_generic_func_pointer_$cyversion funcptr, const char* name); /* proto */
-
-/////////////// CFuncPtrToPy ///////////////
-//@requires: StringTools.c::IncludeStringH
-//@substitute: naming
-
-static void __Pyx_destroy_c_func_ptr_capsule(PyObject *capsule) {
-    void* ptr = PyCapsule_GetPointer(capsule, PyCapsule_GetName(capsule));
-    PyMem_Free(ptr);
-}
-
-static PyObject *__Pyx_c_func_ptr_to_capsule(__Pyx_generic_func_pointer_$cyversion funcptr, const char* name) {
-    // __Pyx_TEST_large_func_pointers exists just to force an alternative code-path in testing
-#if defined(__Pyx_TEST_large_func_pointers) && __Pyx_TEST_large_func_pointers
-    if ((1))
-#else
-    if (sizeof(funcptr) > sizeof(void*))
-#endif
-    {
-        // The C standard does not guarantee that a function pointer fits inside a regular pointer
-        // (and on some platforms it doesn't). On these, we need to allocate space to store the function pointer
-        __Pyx_generic_func_pointer_$cyversion *copy_into = (__Pyx_generic_func_pointer_$cyversion*) PyMem_Malloc(sizeof(funcptr));
-        *copy_into = funcptr;
-        return PyCapsule_New(copy_into, name, __Pyx_destroy_c_func_ptr_capsule);
-    } else {
-        // on all other platforms (which is the vast majority, since POSIX require a function pointer
-        // can be  converted to a void*) we skip the allocation and store directly into the capsule's value.
-        // Use memcpy to copy the data from the function pointer to the void*.
-        // (since just casting is prohibited by standard C, and using unions is prohibited by standard c++)
-        void *copy_into;
-        memcpy((void*)&copy_into, (void*)&funcptr, sizeof(funcptr));
-        return PyCapsule_New(copy_into, name, NULL);
-    }
-}
-
-/////////////// CFuncPtrFromPy.proto ///////////////
-//@requires: CFuncPtrTypedef
-
-static __Pyx_generic_func_pointer_$cyversion __Pyx_capsule_to_c_func_ptr_$cyversion(PyObject *capsule, const char* name); /* proto */
-
-/////////////// CFuncPtrFromPy.proto ///////////////
-//@substitute: naming
-//@requires: StringTools.c::IncludeStringH
-
-#ifndef __PYX_HAVE_RT_CFuncPtrFromPy_$cyversion
-#define __PYX_HAVE_RT_CFuncPtrFromPy_$cyversion
-static __Pyx_generic_func_pointer_$cyversion __Pyx_capsule_to_c_func_ptr_$cyversion(PyObject *capsule, const char* name) {
-    void *data = PyCapsule_GetPointer(capsule, name);
-    __Pyx_generic_func_pointer_$cyversion funcptr;
-#if defined(__Pyx_TEST_large_func_pointers) && __Pyx_TEST_large_func_pointers
-    if ((1))
-#else
-    if (sizeof(funcptr) > sizeof(void*))
-#endif
-    {
-        funcptr = *((__Pyx_generic_func_pointer_$cyversion*)data);
-    } else {
-        memcpy((void*)&funcptr, (void*)&data, sizeof(funcptr));
-    }
-    return funcptr;
-}
-#endif
