@@ -2,7 +2,11 @@ cimport cython
 from ..StringIOTree cimport StringIOTree
 
 
-cdef class UtilityCodeBase(object):
+cdef class AbstractUtilityCode:
+    pass
+
+
+cdef class UtilityCodeBase(AbstractUtilityCode):
     cpdef format_code(self, code_string, replace_empty_lines=*)
 
 

@@ -48,6 +48,7 @@ extension_type_memoryview
 numpy_memoryview
 memoryviewattrs
 convolve2
+memoryview_shared_utility
 run[.]numpy
 run[.]ufunc
 
