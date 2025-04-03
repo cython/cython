@@ -35,7 +35,7 @@ static int __Pyx_VerifyCachedType(PyObject *cached_type,
     if (unlikely(!py_basicsize)) return -1;
     basicsize = PyLong_AsSsize_t(py_basicsize);
     Py_DECREF(py_basicsize);
-    py_basicsize = 0;
+    py_basicsize = NULL;
     if (unlikely(basicsize == (Py_ssize_t)-1) && PyErr_Occurred()) return -1;
 #else
     basicsize = ((PyTypeObject*) cached_type)->tp_basicsize;
