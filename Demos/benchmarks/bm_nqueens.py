@@ -6,29 +6,24 @@ __author__ = "collinwinter@google.com (Collin Winter)"
 
 # Python imports
 import optparse
-import re
-import string
-from time import time
-
-# Local imports
-import util
+import time
 
 import cython
 
-try:
-    from builtins import range as _xrange
-except ImportError:
-    from __builtin__ import xrange as _xrange
 
 # Pure-Python implementation of itertools.permutations().
-@cython.locals(n=int, i=int, j=int)
 def permutations(iterable):
     """permutations(range(3), 2) --> (0,1) (0,2) (1,0) (1,2) (2,0) (2,1)"""
     pool = tuple(iterable)
-    n = len(pool)
+    n: cython.int = len(pool)
     indices = list(range(n))
     cycles = list(range(1, n+1))[::-1]
+
+    i: cython.int
+    j: cython.int
+
     yield [ pool[i] for i in indices ]
+
     while n:
         for i in reversed(range(n)):
             j = cycles[i] - 1
@@ -43,9 +38,9 @@ def permutations(iterable):
         else:
             return
 
+
 # From https://code.activestate.com/recipes/576647/
-@cython.locals(queen_count=int, i=int, vec=list)
-def n_queens(queen_count):
+def n_queens(queen_count: cython.int):
     """N-Queens solver.
 
     Args:
@@ -57,6 +52,9 @@ def n_queens(queen_count):
         (3, 8, 2, 1, 4, ..., 6) where each number is the column position for the
         queen, and the index into the tuple indicates the row.
     """
+    i: cython.int
+    vec: list[cython.int]
+
     cols = list(range(queen_count))
     for vec in permutations(cols):
         if (queen_count == len({ vec[i]+i for i in cols })
@@ -64,22 +62,31 @@ def n_queens(queen_count):
             yield vec
 
 
-def test_n_queens(iterations):
+def test_n_queens(iterations, size=8, scale: cython.long = 1, timer=time.perf_counter):
+    s: cython.long
+
     # Warm-up runs.
     list(n_queens(8))
-    list(n_queens(8))
+    list(n_queens(size))
 
     times = []
-    for _ in _xrange(iterations):
-        t0 = time()
-        list(n_queens(8))
-        t1 = time()
+    for _ in range(iterations):
+        t0 = timer()
+        for s in range(scale):
+            list(n_queens(size))
+        t1 = timer()
         times.append(t1 - t0)
     return times
 
 main = test_n_queens
 
+
+def run_benchmark(repeat=10, scale=1, timer=time.perf_counter):
+    return test_n_queens(repeat, 7, scale, timer)
+
+
 if __name__ == "__main__":
+    import util
     parser = optparse.OptionParser(
         usage="%prog [options]",
         description=("Test the performance of an N-Queens solvers."))

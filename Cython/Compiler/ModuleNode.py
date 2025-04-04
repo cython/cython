@@ -130,7 +130,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         # Make the module node (and its init function) look like a FuncDefNode.
         return self.scope
 
-    def merge_in(self, tree, scope, stage, merge_scope=False):
+    def merge_in(self, tree, scope, stage):
         # Merges in the contents of another tree, and possibly scope. With the
         # current implementation below, this must be done right prior
         # to code generation.
@@ -173,13 +173,13 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
         extend_if_not_in(self.scope.included_files, scope.included_files)
 
-        if merge_scope:
-            # Ensure that we don't generate import code for these entries!
-            for entry in scope.c_class_entries:
-                entry.type.module_name = self.full_module_name
-                entry.type.scope.directives["internal"] = True
+    def merge_scope(self, scope, internalise_c_class_entries=True):
+        # Ensure that we don't generate import code for these entries!
+        for entry in scope.c_class_entries:
+            entry.type.module_name = self.full_module_name
+            entry.type.scope.directives["internal"] = internalise_c_class_entries
 
-            self.scope.merge_in(scope)
+        self.scope.merge_in(scope)
 
     def with_compiler_directives(self):
         # When merging a utility code module into the user code we need to preserve
@@ -1473,9 +1473,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                         warning(self.pos,
                                 "__getslice__, __setslice__, and __delslice__ are not supported by Python 3, "
                                 "use __getitem__, __setitem__, and __delitem__ instead", 1)
-                        code.putln("#if PY_MAJOR_VERSION >= 3")
                         code.putln("#error __getslice__, __setslice__, and __delslice__ not supported in Python 3.")
-                        code.putln("#endif")
                     if scope.defines_any_special(["__setslice__", "__delslice__"]):
                         self.generate_ass_slice_function(scope, code)
                     if scope.defines_any_special(["__getattr__", "__getattribute__"]):
@@ -2100,9 +2098,9 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             code.putln(
                 "__Pyx_TypeName o_type_name;")
             self.generate_guarded_basetype_call(
-                base_type, "tp_as_mapping", "mp_ass_subscript", "o, i, v", code)
+                base_type, "tp_as_mapping", "mp_ass_subscript", "objobjargproc", "o, i, v", code)
             code.putln(
-                "o_type_name = __Pyx_PyType_GetName(Py_TYPE(o));")
+                "o_type_name = __Pyx_PyType_GetFullyQualifiedName(Py_TYPE(o));")
             code.putln(
                 "PyErr_Format(PyExc_NotImplementedError,")
             code.putln(
@@ -2123,9 +2121,9 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             code.putln(
                 "__Pyx_TypeName o_type_name;")
             self.generate_guarded_basetype_call(
-                base_type, "tp_as_mapping", "mp_ass_subscript", "o, i, v", code)
+                base_type, "tp_as_mapping", "mp_ass_subscript", "objobjargproc", "o, i, v", code)
             code.putln(
-                "o_type_name = __Pyx_PyType_GetName(Py_TYPE(o));")
+                "o_type_name = __Pyx_PyType_GetFullyQualifiedName(Py_TYPE(o));")
             code.putln(
                 "PyErr_Format(PyExc_NotImplementedError,")
             code.putln(
@@ -2141,81 +2139,19 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.exit_cfunc_scope()
 
     def generate_guarded_basetype_call(
-            self, base_type, substructure, slot, args, code):
+            self, base_type, substructure, slot, functype, args, code):
         if base_type:
             base_tpname = code.typeptr_cname_in_module_state(base_type)
+            # Note that the limited API versions will only work for non-heaptypes on Python3.10+.
+            # I think that's unavoidable and the best we can do.
             if substructure:
                 code.putln(
-                    "if (%s->%s && %s->%s->%s)" % (
-                        base_tpname, substructure, base_tpname, substructure, slot))
-                code.putln(
-                    "  return %s->%s->%s(%s);" % (
-                        base_tpname, substructure, slot, args))
+                    f"{functype} f = __Pyx_PyType_TryGetSubSlot({base_tpname}, {substructure}, {slot}, {functype});")
             else:
                 code.putln(
-                    "if (%s->%s)" % (
-                        base_tpname, slot))
-                code.putln(
-                    "  return %s->%s(%s);" % (
-                        base_tpname, slot, args))
-
-    def generate_ass_slice_function(self, scope, code):
-        # Setting and deleting a slice are both done through
-        # the ass_slice method, so we dispatch to user's __setslice__
-        # or __delslice__, or raise an exception.
-        base_type = scope.parent_type.base_type
-        set_entry = scope.lookup_here("__setslice__")
-        del_entry = scope.lookup_here("__delslice__")
-        code.start_slotfunc(scope, PyrexTypes.c_returncode_type, "sq_ass_slice", "PyObject *o, Py_ssize_t i, Py_ssize_t j, PyObject *v")
-        code.putln(
-            "if (v) {")
-        if set_entry:
-            code.putln(
-                "return %s(o, i, j, v);" % (
-                    set_entry.func_cname))
-        else:
-            code.putln(
-                "__Pyx_TypeName o_type_name;")
-            self.generate_guarded_basetype_call(
-                base_type, "tp_as_sequence", "sq_ass_slice", "o, i, j, v", code)
-            code.putln(
-                "o_type_name = __Pyx_PyType_GetName(Py_TYPE(o));")
-            code.putln(
-                "PyErr_Format(PyExc_NotImplementedError,")
-            code.putln(
-                '  "2-element slice assignment not supported by " __Pyx_FMT_TYPENAME, o_type_name);')
-            code.putln(
-                "__Pyx_DECREF_TypeName(o_type_name);")
-            code.putln(
-                "return -1;")
-        code.putln(
-            "}")
-        code.putln(
-            "else {")
-        if del_entry:
-            code.putln(
-                "return %s(o, i, j);" % (
-                    del_entry.func_cname))
-        else:
-            code.putln(
-                "__Pyx_TypeName o_type_name;")
-            self.generate_guarded_basetype_call(
-                base_type, "tp_as_sequence", "sq_ass_slice", "o, i, j, v", code)
-            code.putln(
-                "o_type_name = __Pyx_PyType_GetName(Py_TYPE(o));")
-            code.putln(
-                "PyErr_Format(PyExc_NotImplementedError,")
-            code.putln(
-                '  "2-element slice deletion not supported by " __Pyx_FMT_TYPENAME, o_type_name);')
-            code.putln(
-                "__Pyx_DECREF_TypeName(o_type_name);")
-            code.putln(
-                "return -1;")
-        code.putln(
-            "}")
-        code.putln(
-            "}")
-        code.exit_cfunc_scope()
+                    f"{functype} f = __Pyx_PyType_TryGetSlot({base_tpname}, {slot}, {functype});")
+            code.putln("if (f)")
+            code.putln(f"return f({args});")
 
     def generate_richcmp_function(self, scope, code):
         if scope.lookup_here("__richcmp__"):
@@ -2497,7 +2433,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                     set_entry.func_cname))
         else:
             self.generate_guarded_basetype_call(
-                base_type, None, "tp_setattro", "o, n, v", code)
+                base_type, None, "tp_setattro", "setattrofunc", "o, n, v", code)
             code.putln(
                 "return PyObject_GenericSetAttr(o, n, v);")
         code.putln(
@@ -2510,7 +2446,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                     del_entry.func_cname))
         else:
             self.generate_guarded_basetype_call(
-                base_type, None, "tp_setattro", "o, n, v", code)
+                base_type, None, "tp_setattro", "setattrofunc", "o, n, v", code)
             code.putln(
                 "return PyObject_GenericSetAttr(o, n, 0);")
         code.putln(
@@ -2563,7 +2499,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                     user_set_entry.func_cname))
         else:
             self.generate_guarded_basetype_call(
-                base_type, None, "tp_descr_set", "o, i, v", code)
+                base_type, None, "tp_descr_set", "descrsetfunc", "o, i, v", code)
             code.putln(
                 'PyErr_SetString(PyExc_NotImplementedError, "__set__");')
             code.putln(
@@ -2578,7 +2514,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                     user_del_entry.func_cname))
         else:
             self.generate_guarded_basetype_call(
-                base_type, None, "tp_descr_set", "o, i, v", code)
+                base_type, None, "tp_descr_set", "descrsetfunc", "o, i, v", code)
             code.putln(
                 'PyErr_SetString(PyExc_NotImplementedError, "__delete__");')
             code.putln(
@@ -2952,7 +2888,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         module_state.putln('#else')
         module_state.putln('    {0};')
         module_state.putln('#endif')
-        module_state.putln('static %s *%s = &%s_static;' % (
+        module_state.putln('static %s * const %s = &%s_static;' % (
             Naming.modulestatetype_cname,
             Naming.modulestateglobal_cname,
             Naming.modulestateglobal_cname
@@ -3043,14 +2979,9 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             code.putln("#endif")
         code.putln(header3)
 
-        code.globalstate.use_utility_code(
-            UtilityCode.load("PyVersionSanityCheck", "ModuleSetupCode.c")
-        )
-
         # CPython 3.5+ supports multi-phase module initialisation (gives access to __spec__, __file__, etc.)
         code.putln("#if CYTHON_PEP489_MULTI_PHASE_INIT")
         code.putln("{")
-        code.putln("if (__Pyx_VersionSanityCheck() < 0) return NULL;")
         code.putln("return PyModuleDef_Init(&%s);" % Naming.pymoduledef_cname)
         code.putln("}")
 
@@ -3066,11 +2997,6 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
         # start of module init/exec function (pre/post PEP 489)
         code.putln("{")
-
-        code.putln("#if !CYTHON_PEP489_MULTI_PHASE_INIT")
-        code.putln("if (__Pyx_VersionSanityCheck() < 0) return NULL;")
-        code.putln("#endif")
-
         code.putln('int stringtab_initialized = 0;')
         code.putln("#if CYTHON_USE_MODULE_STATE")
         code.putln('int pystate_addmodule_run = 0;')
@@ -3905,7 +3831,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         sizeof_objstruct = objstruct = type.objstruct_cname if type.typedef_flag else f"struct {type.objstruct_cname}"
         module_name = type.module_name
         type_name = type.name
-        if module_name not in ('__builtin__', 'builtins'):
+        is_builtin = module_name in ('__builtin__', 'builtins')
+        if not is_builtin:
             module_name = f'"{module_name}"'
         elif type_name in Code.ctypedef_builtins_map:
             # Fast path for special builtins, don't actually import
@@ -3928,23 +3855,27 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         typeptr_cname = type.typeptr_cname
         if not is_api:
             typeptr_cname = code.name_in_main_c_code_module_state(typeptr_cname)
-        code.put(
+
+        code.putln(
             f"{typeptr_cname} = __Pyx_ImportType_{Naming.cyversion}("
             f"{module}, {module_name}, {type.name.as_c_string_literal()},"
         )
 
         alignment_func = f"__PYX_GET_STRUCT_ALIGNMENT_{Naming.cyversion}"
-        if sizeof_objstruct != objstruct:
-            code.putln("")  # start in new line
-            code.putln("#if defined(PYPY_VERSION_NUM) && PYPY_VERSION_NUM < 0x050B0000")
-            code.putln(f'sizeof({objstruct}), {alignment_func}({objstruct}),')
-            code.putln("#elif CYTHON_COMPILING_IN_LIMITED_API")
-            code.putln(f'sizeof({objstruct}), {alignment_func}({objstruct}),')
-            code.putln("#else")
-            code.putln(f'sizeof({sizeof_objstruct}), {alignment_func}({sizeof_objstruct}),')
-            code.putln("#endif")
+        code.putln("#if defined(PYPY_VERSION_NUM) && PYPY_VERSION_NUM < 0x050B0000")
+        code.putln(f'sizeof({objstruct}), {alignment_func}({objstruct}),')
+        code.putln("#elif CYTHON_COMPILING_IN_LIMITED_API")
+        if is_builtin:
+            # Builtin types are opaque in when the limited API is enabled
+            # and subsequents attempt to access their fields will trigger
+            # compile errors. Skip the struct size check here so things keep
+            # working when a builtin type is imported but not actually used.
+            code.putln('0, 0,')
         else:
-            code.put(f' sizeof({objstruct}), {alignment_func}({objstruct}),')
+            code.putln(f'sizeof({objstruct}), {alignment_func}({objstruct}),')
+        code.putln('#else')
+        code.putln(f'sizeof({sizeof_objstruct}), {alignment_func}({sizeof_objstruct}),')
+        code.putln("#endif")
 
         # check_size
         if type.check_size and type.check_size in ('error', 'warn', 'ignore'):
@@ -3957,7 +3888,6 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.put(f'__Pyx_ImportType_CheckSize_{check_size.title()}_{Naming.cyversion});')
 
         code.putln(f' if (!{typeptr_cname}) {error_code}')
-
     def generate_type_ready_code(self, entry, code):
         Nodes.CClassDefNode.generate_type_ready_code(entry, code)
 

@@ -314,22 +314,19 @@ def update_openmp_extension(ext):
     return EXCLUDE_EXT
 
 
-def update_cpp_extension(cpp_std, min_gcc_version=None, min_clang_version=None, min_macos_version=None):
-    def _update_cpp_extension(ext):
-        """
-        Update cpp[cpp_std] extensions that will run on minimum versions of gcc / clang / macos.
-        """
+def update_language_extension(language, std, min_gcc_version=None, min_clang_version=None, min_macos_version=None):
+    def _update_language_extension(ext):
         # If the extension provides a -std=... option, and it's greater than the one
         # we're about to give, assume that whatever C compiler we use will probably be ok with it.
         extra_compile_args = []
         already_has_std = False
         if ext.extra_compile_args:
-            std_regex = re.compile(r"-std(?!lib).*(?P<number>[0-9]+)")
+            std_regex = re.compile(r"-std(?!lib).*?(?P<number>[0-9]+)")
             for ca in ext.extra_compile_args:
                 match = std_regex.search(ca)
                 if match:
                     number = int(match.group("number"))
-                    if number < cpp_std:
+                    if number < std:
                         continue  # and drop the argument
                     already_has_std = True
                 extra_compile_args.append(ca)
@@ -340,15 +337,11 @@ def update_cpp_extension(cpp_std, min_gcc_version=None, min_clang_version=None, 
         # check for a usable gcc version
         gcc_version = get_gcc_version(ext.language)
         if gcc_version:
-            if cpp_std >= 17 and sys.version_info[0] < 3:
-                # The Python 2.7 headers contain the 'register' modifier
-                # which gcc warns about in C++17 mode.
-                ext.extra_compile_args.append('-Wno-register')
             if not already_has_std:
                 compiler_version = gcc_version.group(1)
                 if not min_gcc_version or float(compiler_version) >= float(min_gcc_version):
                     use_gcc = True
-                    ext.extra_compile_args.append("-std=c++%s" % cpp_std)
+                    ext.extra_compile_args.append(f"-std={language}{std}")
 
             if use_gcc:
                 return ext
@@ -356,17 +349,14 @@ def update_cpp_extension(cpp_std, min_gcc_version=None, min_clang_version=None, 
         # check for a usable clang version
         clang_version = get_clang_version(ext.language)
         if clang_version:
-            if cpp_std >= 17 and sys.version_info[0] < 3:
-                # The Python 2.7 headers contain the 'register' modifier
-                # which clang warns about in C++17 mode.
-                ext.extra_compile_args.append('-Wno-register')
             if not already_has_std:
                 compiler_version = clang_version.group(1)
                 if not min_clang_version or float(compiler_version) >= float(min_clang_version):
                     use_clang = True
-                    ext.extra_compile_args.append("-std=c++%s" % cpp_std)
+                    ext.extra_compile_args.append(f"-std={language}{std}")
             if sys.platform == "darwin":
-                ext.extra_compile_args.append("-stdlib=libc++")
+                if language == "c++":
+                    ext.extra_compile_args.append("-stdlib=libc++")
                 if min_macos_version is not None:
                     ext.extra_compile_args.append("-mmacosx-version-min=" + min_macos_version)
 
@@ -375,8 +365,19 @@ def update_cpp_extension(cpp_std, min_gcc_version=None, min_clang_version=None, 
 
         # no usable C compiler found => exclude the extension
         return EXCLUDE_EXT
+    return _update_language_extension
 
-    return _update_cpp_extension
+def update_c_extension(c_std, min_gcc_version=None, min_clang_version=None, min_macos_version=None):
+    return update_language_extension("c", c_std, min_gcc_version, min_clang_version, min_macos_version)
+
+def update_cpp_extension(cpp_std, min_gcc_version=None, min_clang_version=None, min_macos_version=None):
+    return update_language_extension("c++", cpp_std, min_gcc_version, min_clang_version, min_macos_version)
+
+
+update_cpp11_extension = update_cpp_extension(11, min_gcc_version="4.9", min_macos_version="10.7")
+update_cpp17_extension = update_cpp_extension(17, min_gcc_version="5.0", min_macos_version="10.13")
+update_cpp20_extension = update_cpp_extension(20, min_gcc_version="11.0", min_clang_version="13.0", min_macos_version="10.13")
+update_c11_extension = update_c_extension(11, min_gcc_version="4.7", min_clang_version="3.3")
 
 
 def require_gcc(version):
@@ -471,9 +472,10 @@ EXT_EXTRAS = {
     'tag:numpy' : update_numpy_extension,
     'tag:openmp': update_openmp_extension,
     'tag:gdb': update_gdb_extension,
-    'tag:cpp11': update_cpp_extension(11, min_gcc_version="4.9", min_macos_version="10.7"),
-    'tag:cpp17': update_cpp_extension(17, min_gcc_version="5.0", min_macos_version="10.13"),
-    'tag:cpp20': update_cpp_extension(20, min_gcc_version="11.0", min_clang_version="13.0", min_macos_version="10.13"),
+    'tag:cpp11': update_cpp11_extension,
+    'tag:cpp17': update_cpp17_extension,
+    'tag:cpp20': update_cpp20_extension,
+    'tag:c11': update_c11_extension,
     'tag:trace' : update_linetrace_extension,
     'tag:cppexecpolicies': require_gcc("9.1"),
 }
@@ -512,10 +514,6 @@ TEST_SUPPORT_DIR = 'testsupport'
 BACKENDS = ['c', 'cpp']
 
 UTF8_BOM_BYTES = r'\xef\xbb\xbf'.encode('ISO-8859-1').decode('unicode_escape')
-
-# A selector that can be used to determine whether to run with Py_LIMITED_API
-# (if run in limited api mode)
-limited_api_full_tests = None
 
 
 def memoize(f):
@@ -708,6 +706,7 @@ class TestBuilder(object):
         self.exclude_selectors = exclude_selectors
         self.shard_num = options.shard_num
         self.annotate = options.annotate_source
+        self.evaluate_tree_assertions = options.evaluate_tree_assertions
         self.cleanup_workdir = options.cleanup_workdir
         self.cleanup_sharedlibs = options.cleanup_sharedlibs
         self.cleanup_failures = options.cleanup_failures
@@ -780,10 +779,6 @@ class TestBuilder(object):
                 if [1 for match in self.exclude_selectors
                         if match(fqmodule, tags)]:
                     continue
-            full_limited_api_mode = False
-            if limited_api_full_tests and limited_api_full_tests(fqmodule):
-                # TODO this (and CYTHON_LIMITED_API) don't yet make it into end-to-end tests
-                full_limited_api_mode = True
 
             mode = self.default_mode
             if tags['mode']:
@@ -819,8 +814,7 @@ class TestBuilder(object):
                 raise KeyError('Invalid test mode: ' + mode)
 
             for test in self.build_tests(test_class, path, workdir,
-                                         module, filepath, mode == 'error', tags,
-                                         full_limited_api_mode=full_limited_api_mode):
+                                         module, filepath, mode == 'error', tags):
                 suite.addTest(test)
 
             if mode == 'run' and ext == '.py' and not self.cython_only and not filename.startswith('test_'):
@@ -836,7 +830,7 @@ class TestBuilder(object):
 
         return suite
 
-    def build_tests(self, test_class, path, workdir, module, module_path, expect_errors, tags, full_limited_api_mode):
+    def build_tests(self, test_class, path, workdir, module, module_path, expect_errors, tags):
         warning_errors = 'werror' in tags['tag']
         expect_log = ("errors",) if expect_errors else ()
         if 'warnings' in tags['tag']:
@@ -853,6 +847,9 @@ class TestBuilder(object):
                 languages = self.languages[:1]
         else:
             languages = self.languages
+            if (self.add_cpp_locals_extra_tests and 'cpp' in languages and
+                    'cpp' in tags['tag'] and not 'no-cpp-locals' in tags['tag']):
+                extra_directives_list.append({'cpp_locals': True})
 
         if 'c' in languages and skip_c(tags):
             languages = list(languages)
@@ -860,9 +857,6 @@ class TestBuilder(object):
         if 'cpp' in languages and 'no-cpp' in tags['tag']:
             languages = list(languages)
             languages.remove('cpp')
-        if (self.add_cpp_locals_extra_tests and 'cpp' in languages and
-                'cpp' in tags['tag'] and not 'no-cpp-locals' in tags['tag']):
-            extra_directives_list.append({'cpp_locals': True})
         if not languages:
             return []
         if skip_limited(tags):
@@ -888,8 +882,7 @@ class TestBuilder(object):
                                   warning_errors, preparse,
                                   pythran_dir if language == "cpp" else None,
                                   add_cython_import=add_cython_import,
-                                  extra_directives=extra_directives,
-                                  full_limited_api_mode=full_limited_api_mode)
+                                  extra_directives=extra_directives)
                   for language in languages
                   for preparse in preparse_list
                   for language_level in language_levels
@@ -899,7 +892,7 @@ class TestBuilder(object):
 
     def build_test(self, test_class, path, workdir, module, module_path, tags, language, language_level,
                    expect_log, warning_errors, preparse, pythran_dir, add_cython_import,
-                   extra_directives, full_limited_api_mode):
+                   extra_directives):
         language_workdir = os.path.join(workdir, language)
         if not os.path.exists(language_workdir):
             os.makedirs(language_workdir)
@@ -924,12 +917,13 @@ class TestBuilder(object):
                           fork=self.fork,
                           language_level=language_level or self.language_level,
                           warning_errors=warning_errors,
+                          evaluate_tree_assertions=self.evaluate_tree_assertions,
                           test_determinism=self.test_determinism,
                           common_utility_dir=self.common_utility_dir,
                           pythran_dir=pythran_dir,
                           stats=self.stats,
                           add_cython_import=add_cython_import,
-                          full_limited_api_mode=full_limited_api_mode,
+                          extra_directives=extra_directives,
                           )
 
 
@@ -988,9 +982,7 @@ class CythonCompileTestCase(unittest.TestCase):
                  fork=True, language_level=2, warning_errors=False,
                  test_determinism=False, shard_num=0,
                  common_utility_dir=None, pythran_dir=None, stats=None, add_cython_import=False,
-                 extra_directives=None, full_limited_api_mode=False):
-        if extra_directives is None:
-            extra_directives = {}
+                 extra_directives=None, evaluate_tree_assertions=True):
         self.test_directory = test_directory
         self.tags = tags
         self.workdir = workdir
@@ -1010,22 +1002,30 @@ class CythonCompileTestCase(unittest.TestCase):
         self.fork = fork
         self.language_level = language_level
         self.warning_errors = warning_errors
+        self.evaluate_tree_assertions = evaluate_tree_assertions
         self.test_determinism = test_determinism
         self.common_utility_dir = common_utility_dir
         self.pythran_dir = pythran_dir
         self.stats = stats
         self.add_cython_import = add_cython_import
-        self.extra_directives = extra_directives
-        self.full_limited_api_mode = full_limited_api_mode
+        self.extra_directives = extra_directives if extra_directives is not None else {}
         unittest.TestCase.__init__(self)
 
     def shortDescription(self):
+        extra_directives = ''
+        if self.extra_directives:
+            extra_directives = '/'.join(
+                name if value is True else f"{name}={value!r}"
+                for name, value in sorted(self.extra_directives.items())
+            )
+
         return (
             f"[{self.shard_num}] compiling ("
             f"{self.language}"
             f"{'/cy2' if self.language_level == 2 else '/cy3' if self.language_level == 3 else ''}"
             f"{'/pythran' if self.pythran_dir is not None else ''}"
             f"/{os.path.splitext(self.module_path)[1][1:]}"
+            f"{'/' if extra_directives else ''}{extra_directives}"
             f") {self.description_name()}"
         )
 
@@ -1125,7 +1125,6 @@ class CythonCompileTestCase(unittest.TestCase):
         if cleanup_c_files and os.path.exists(self.workdir + '-again'):
             shutil.rmtree(self.workdir + '-again', ignore_errors=True)
 
-
     def runTest(self):
         self.success = False
         self.runCompileTest()
@@ -1135,7 +1134,7 @@ class CythonCompileTestCase(unittest.TestCase):
         return self.compile(
             self.test_directory, self.module, self.module_path, self.workdir,
             self.test_directory, self.expect_log,
-            self.annotate, self.add_cython_import)
+            self.annotate, self.add_cython_import, self.evaluate_tree_assertions)
 
     def find_module_source_file(self, source_file):
         if not os.path.exists(source_file):
@@ -1211,7 +1210,7 @@ class CythonCompileTestCase(unittest.TestCase):
                 perf_hint_writer.geterrors() if perf_hint_writer else [])
 
     def run_cython(self, test_directory, module, module_path, targetdir, incdir, annotate,
-                   extra_compile_options=None):
+                   extra_compile_options=None, evaluate_tree_assertions=True):
         include_dirs = INCLUDE_DIRS + [os.path.join(test_directory, '..', TEST_SUPPORT_DIR)]
         if incdir:
             include_dirs.append(incdir)
@@ -1254,7 +1253,7 @@ class CythonCompileTestCase(unittest.TestCase):
             np_pythran = self.pythran_dir is not None,
             language_level = self.language_level,
             generate_pxi = False,
-            evaluate_tree_assertions = True,
+            evaluate_tree_assertions = evaluate_tree_assertions,
             common_utility_include_dir = common_utility_include_dir,
             c_line_in_traceback = True,
             compiler_directives = compiler_directives,
@@ -1320,12 +1319,6 @@ class CythonCompileTestCase(unittest.TestCase):
             if 'traceback' not in self.tags['tag']:
                 extension.define_macros.append(("CYTHON_CLINE_IN_TRACEBACK", 1))
 
-            # Allow tests to be incrementally enabled with Py_LIMITED_API set.
-            # This is intended to be temporary while limited API support
-            # is improved. Eventually we'll want to move to excluding tests
-            if self.full_limited_api_mode:
-                extension.define_macros.append(("Py_LIMITED_API", 'PY_VERSION_HEX'))
-
             for matcher, fixer in list(EXT_EXTRAS.items()):
                 if isinstance(matcher, str):
                     # lazy init
@@ -1389,7 +1382,7 @@ class CythonCompileTestCase(unittest.TestCase):
         return get_ext_fullpath(module)
 
     def compile(self, test_directory, module, module_path, workdir, incdir,
-                expect_log, annotate, add_cython_import):
+                expect_log, annotate, add_cython_import, evaluate_tree_assertions):
         expected_errors = expected_warnings = expected_perf_hints = errors = warnings = perf_hints = ()
         expect_errors = "errors" in expect_log
         expect_warnings = "warnings" in expect_log
@@ -1405,7 +1398,9 @@ class CythonCompileTestCase(unittest.TestCase):
             try:
                 sys.stderr = ErrorWriter()
                 with self.stats.time(self.name, self.language, 'cython'):
-                    self.run_cython(test_directory, module, module_path, workdir, incdir, annotate)
+                    self.run_cython(
+                        test_directory, module, module_path, workdir, incdir, annotate,
+                        evaluate_tree_assertions=evaluate_tree_assertions)
                 errors, warnings, perf_hints = sys.stderr.getall()
             finally:
                 sys.stderr = old_stderr
@@ -2024,7 +2019,10 @@ class EndToEndTest(unittest.TestCase):
         new_path = self.cython_syspath
         if old_path:
             new_path = new_path + os.pathsep + self.workdir + os.pathsep + old_path
-        env = dict(os.environ, PYTHONPATH=new_path, PYTHONIOENCODING='utf8')
+        env_cflags = list(CFLAGS) + [f'"-D{macro}={definition}"' for macro, definition in CDEFS]
+        env_cflags = " ".join(env_cflags)
+        env = dict(os.environ, PYTHONPATH=new_path, PYTHONIOENCODING='utf8',
+                   CFLAGS=env_cflags)
         cmd = []
         out = []
         err = []
@@ -2381,6 +2379,9 @@ def main():
     parser.add_option("--no-code-style", dest="code_style",
                       action="store_false", default=True,
                       help="Do not run the code style (PEP8) checks.")
+    parser.add_option("--no-tree-asserts", dest="evaluate_tree_assertions",
+                      action="store_false", default=True,
+                      help="Do not evaluation tree path assertions (which prevents C code generation in tests)")
     parser.add_option("--cython-only", dest="cython_only",
                       action="store_true", default=False,
                       help="only compile pyx to c, do not run C compiler or run the tests")
@@ -2417,6 +2418,9 @@ def main():
     parser.add_option("--coverage-html", dest="coverage_html",
                       action="store_true", default=False,
                       help="collect source coverage data for the Compiler in HTML format")
+    parser.add_option("--tracemalloc", dest="tracemalloc",
+                      action="store_true", default=False,
+                      help="enable tracemalloc for the tests")
     parser.add_option("-A", "--annotate", dest="annotate_source",
                       action="store_true", default=True,
                       help="generate annotated HTML versions of the test source files")
@@ -2752,13 +2756,9 @@ def runtests(options, cmd_args, coverage=None):
         CDEFS.append(('CYTHON_REFNANNY', '1'))
 
     if options.limited_api:
-        global limited_api_full_tests
         CDEFS.append(('CYTHON_LIMITED_API', '1'))
+        CDEFS.append(("Py_LIMITED_API", '(PY_VERSION_HEX & 0xffff0000)'))
         CFLAGS.append('-Wno-unused-function')
-        # limited_api_full_tests is not actually "excludes" but just reusing the mechanism.
-        # These files will be run with Py_LIMITED_API defined
-        limited_api_full_tests = FileListExcluder(
-            os.path.join(ROOTDIR, "test_in_limited_api.txt"))
 
     if xml_output_dir and options.fork:
         # doesn't currently work together
@@ -2822,6 +2822,7 @@ def runtests(options, cmd_args, coverage=None):
             ('pypy_implementation_detail_bugs.txt', IS_PYPY),
             ('graal_bugs.txt', IS_GRAAL),
             ('limited_api_bugs.txt', options.limited_api),
+            ('limited_api_bugs_38.txt', options.limited_api and sys.version_info < (3, 9)),
             ('windows_bugs.txt', sys.platform == 'win32'),
             ('cygwin_bugs.txt', sys.platform == 'cygwin'),
             ('windows_bugs_39.txt', sys.platform == 'win32' and sys.version_info[:2] == (3, 9)),
@@ -2839,6 +2840,13 @@ def runtests(options, cmd_args, coverage=None):
         exclude_selectors += [
             TagsSelector('tag', 'memoryview'),
             FileListExcluder(os.path.join(ROOTDIR, "memoryview_tests.txt")),
+        ]
+
+    if not test_bugs and re.match("arm|aarch", platform.machine(), re.IGNORECASE):
+        # Pythran is only excluded on arm because it fails to link with blas on the CI.
+        # I don't think there's anything fundamentally wrong with it.
+        exclude_selectors += [
+            TagsSelector('tag', 'pythran')
         ]
 
     exclude_selectors += [TagsSelector('tag', tag) for tag, exclude in TAG_EXCLUDERS if exclude]
@@ -2966,6 +2974,10 @@ def runtests(options, cmd_args, coverage=None):
         if enable_faulthandler:
             faulthandler.enable()
 
+    if options.tracemalloc:
+        import tracemalloc
+        tracemalloc.start()
+
     # Run the collected tests.
     try:
         if options.shard_num > -1:
@@ -2987,6 +2999,15 @@ def runtests(options, cmd_args, coverage=None):
                 del os.environ['PYTHONFAULTHANDLER']
             else:
                 os.environ['PYTHONFAULTHANDLER'] = old_faulhandler_envvar
+
+    if options.tracemalloc:
+        import tracemalloc
+        snapshot = tracemalloc.take_snapshot()
+        run_dir = os.curdir
+        mallocs = '\n'.join(f"   {os.path.relpath(str(tm_stat), run_dir)}" for tm_stat in snapshot.statistics('lineno')[:20])
+        del snapshot
+        tracemalloc.stop()
+        sys.stderr.write(f"Memory allocations:\n{mallocs}\n")
 
     if common_utility_dir and options.shard_num < 0 and options.cleanup_workdir:
         shutil.rmtree(common_utility_dir)

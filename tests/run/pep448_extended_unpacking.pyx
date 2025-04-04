@@ -534,9 +534,9 @@ def unpack_dict_from_iterable(it):
     >>> d == dict(a=4, b=5) or d
     True
 
-    >>> d = unpack_dict_from_iterable(Iter())
+    >>> d = unpack_dict_from_iterable(Iter())  # doctest: +ELLIPSIS
     Traceback (most recent call last):
-    TypeError: 'Iter' object is not a mapping
+    TypeError: '...Iter' object is not a mapping
 
     >>> d = unpack_dict_from_iterable([])
     Traceback (most recent call last):

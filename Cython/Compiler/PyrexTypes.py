@@ -11,7 +11,7 @@ from functools import partial, reduce
 from itertools import product
 
 from Cython.Utils import cached_function
-from .Code import UtilityCode, LazyUtilityCode, TempitaUtilityCode
+from .Code import UtilityCode, LazyUtilityCode, TempitaUtilityCode, AbstractUtilityCode
 from . import StringEncoding
 from . import Naming
 
@@ -190,7 +190,7 @@ class PyrexType(BaseType):
     #  is_typedef            boolean     Is a typedef type
     #  is_string             boolean     Is a C char * type
     #  is_pyunicode_ptr      boolean     Is a C PyUNICODE * type
-    #  is_cpp_string         boolean     Is a C++ std::string type
+    #  is_cpp_string         boolean     Is a C++ std::string or std::string_view type
     #  python_type_constructor_name     string or None     non-None if it is a Python type constructor that can be indexed/"templated"
     #  is_unicode_char       boolean     Is either Py_UCS4 or Py_UNICODE
     #  is_returncode         boolean     Is used only to signal exceptions
@@ -975,7 +975,11 @@ class MemoryViewSliceType(PyrexType):
             return TempitaUtilityCode.load(
                 "ObjectToMemviewSlice", "MemoryView_C.c", context=context)
 
-        env.use_utility_code(MemoryView.memviewslice_init_code)
+        env.use_utility_code(
+            MemoryView.get_memviewslice_init_code(
+                env.context.shared_utility_qualified_name
+            )
+        )
         env.use_utility_code(LazyUtilityCode(lazy_utility_callback))
 
         if self.is_c_contig:
@@ -989,7 +993,7 @@ class MemoryViewSliceType(PyrexType):
         funcname = "__Pyx_PyObject_to_MemoryviewSlice_" + suffix
 
         context = dict(
-            MemoryView.context,
+            MemoryView.template_context,
             buf_flag = self.flags,
             ndim = self.ndim,
             axes_specs = ', '.join(self.axes_to_code()),
@@ -3710,9 +3714,7 @@ class CFuncTypeArg(BaseType):
                 return True
         return False
 
-class ToPyStructUtilityCode:
-
-    requires = None
+class ToPyStructUtilityCode(AbstractUtilityCode):
 
     def __init__(self, type, forward_decl, env):
         self.type = type
@@ -3726,9 +3728,6 @@ class ToPyStructUtilityCode:
 
     def __hash__(self):
         return hash(self.header)
-
-    def get_tree(self, **kwargs):
-        pass
 
     def put_code(self, output):
         code = output['utility_code_def']
@@ -3942,7 +3941,7 @@ class CStructOrUnionType(CType):
             return expr_code
         return super().cast_code(expr_code)
 
-cpp_string_conversions = ("std::string",)
+cpp_string_conversions = ("std::string", "std::string_view")
 
 builtin_cpp_conversions = {
     # type                element template params
@@ -4563,21 +4562,27 @@ class CTupleType(CType):
     # components [PyrexType]
 
     is_ctuple = True
+    exception_check = True
 
     subtypes = ['components']
+
+    _convert_to_py_code = None
+    _convert_from_py_code = None
 
     def __init__(self, cname, components):
         self.cname = cname
         self.components = components
         self.size = len(components)
-        self.to_py_function = "%s_to_py_%s" % (Naming.convert_func_prefix, self.cname)
-        self.from_py_function = "%s_from_py_%s" % (Naming.convert_func_prefix, self.cname)
-        self.exception_check = True
-        self._convert_to_py_code = None
-        self._convert_from_py_code = None
-        # equivalent_type must be set now because it isn't available at import time
+        self.to_py_function = f"{Naming.convert_func_prefix}_to_py_{self.cname}"
+        self.from_py_function = f"{Naming.convert_func_prefix}_from_py_{self.cname}"
+
+    @property
+    def equivalent_type(self):
+        # 'tuple_type'  isn't available at import time, but we might need ctuples early on.
         from .Builtin import tuple_type
-        self.equivalent_type = tuple_type
+        # Overwrite the property.
+        CTupleType.equivalent_type = tuple_type
+        return tuple_type
 
     def __str__(self):
         return "(%s)" % ", ".join(str(c) for c in self.components)
@@ -4605,18 +4610,18 @@ class CTupleType(CType):
         if self._convert_to_py_code is False:
             return None  # tri-state-ish
 
-        if self._convert_to_py_code is None:
-            for component in self.components:
-                if not component.create_to_py_utility_code(env):
-                    self.to_py_function = None
-                    self._convert_to_py_code = False
-                    return False
+        for component in self.components:
+            if not component.create_to_py_utility_code(env):
+                self.to_py_function = None
+                self._convert_to_py_code = False
+                return False
 
+        if self._convert_to_py_code is None:
             context = dict(
                 struct_type_decl=self.empty_declaration_code(),
                 components=self.components,
                 funcname=self.to_py_function,
-                size=len(self.components)
+                size=self.size,
             )
             self._convert_to_py_code = TempitaUtilityCode.load(
                 "ToPyCTupleUtility", "TypeConversion.c", context=context)
@@ -4628,18 +4633,18 @@ class CTupleType(CType):
         if self._convert_from_py_code is False:
             return None  # tri-state-ish
 
-        if self._convert_from_py_code is None:
-            for component in self.components:
-                if not component.create_from_py_utility_code(env):
-                    self.from_py_function = None
-                    self._convert_from_py_code = False
-                    return False
+        for component in self.components:
+            if not component.create_from_py_utility_code(env):
+                self.from_py_function = None
+                self._convert_from_py_code = False
+                return False
 
+        if self._convert_from_py_code is None:
             context = dict(
                 struct_type_decl=self.empty_declaration_code(),
                 components=self.components,
                 funcname=self.from_py_function,
-                size=len(self.components)
+                size=self.size,
             )
             self._convert_from_py_code = TempitaUtilityCode.load(
                 "FromPyCTupleUtility", "TypeConversion.c", context=context)
@@ -4664,8 +4669,8 @@ def c_tuple_type(components):
         cname = f"<dummy fused ctuple {components!r}>"
     else:
         cname = Naming.ctuple_type_prefix + type_list_identifier(components)
-    tuple_type = CTupleType(cname, components)
-    return tuple_type
+    ctuple_type = CTupleType(cname, components)
+    return ctuple_type
 
 
 class UnspecifiedType(PyrexType):
@@ -5122,8 +5127,12 @@ def best_match(arg_types, functions, pos=None, env=None, args=None):
                     score[2] += 1
                 elif ((src_type.is_int and dst_type.is_int) or
                       (src_type.is_float and dst_type.is_float)):
-                    score[2] += abs(dst_type.rank + (not dst_type.signed) -
-                                    (src_type.rank + (not src_type.signed))) + 1
+                    src_is_unsigned = not src_type.signed
+                    dst_is_unsigned = not dst_type.signed
+                    score[2] += abs(dst_type.rank + dst_is_unsigned -
+                                    (src_type.rank + src_is_unsigned)) + 1
+                    # Prefer assigning to larger types over smaller types, unless they have different signedness.
+                    score[3] += (dst_type.rank < src_type.rank) * 2 + (src_is_unsigned != dst_is_unsigned)
                 elif dst_type.is_ptr and src_type.is_ptr:
                     if dst_type.base_type == c_void_type:
                         score[4] += 1
@@ -5136,7 +5145,7 @@ def best_match(arg_types, functions, pos=None, env=None, args=None):
                 else:
                     score[0] += 1
             else:
-                error_mesg = "Invalid conversion from '%s' to '%s'" % (src_type, dst_type)
+                error_mesg = f"Invalid conversion from '{src_type}' to '{dst_type}'"
                 bad_types.append((func, error_mesg))
                 break
         else:
@@ -5247,7 +5256,7 @@ def result_type_of_builtin_operation(builtin_type, type2):
         elif type2.is_builtin_type and type2.name == 'complex':
             return type2
     elif builtin_type.name == 'complex':
-        if type2 == builtin_type or type2.is_complex:
+        if type2.is_complex:
             return CComplexType(widest_numeric_type(c_double_type, type2.real_type))
         elif type2.is_numeric:
             return CComplexType(widest_numeric_type(c_double_type, type2))

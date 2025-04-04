@@ -270,7 +270,7 @@ class IncludeCode:
     #  order     int: sorting order (automatically set by increasing counter)
 
     # Constants for location. If the same include occurs with different
-    # locations, the earliest one takes precedense.
+    # locations, the earliest one takes precedence.
     INITIAL = 0
     EARLY = 1
     LATE = 2
@@ -356,7 +356,22 @@ def read_utilities_from_utility_dir(path):
 # by default, read utilities from the utility directory.
 read_utilities_hook = read_utilities_from_utility_dir
 
-class UtilityCodeBase:
+
+class AbstractUtilityCode:
+
+    requires = None
+
+    def put_code(self, output):
+        pass
+
+    def get_tree(self, **kwargs):
+        return None
+
+    def get_shared_library_scope(self, **kwargs):
+        return None
+
+
+class UtilityCodeBase(AbstractUtilityCode):
     """
     Support for loading utility code from a file.
 
@@ -601,6 +616,9 @@ class UtilityCodeBase:
         return "<%s(%s)>" % (type(self).__name__, self.name)
 
     def get_tree(self, **kwargs):
+        return None
+
+    def get_shared_library_scope(self, **kwargs):
         return None
 
     def __deepcopy__(self, memodict=None):
@@ -949,7 +967,6 @@ class FunctionState:
     # break_label      string          loop break point label
     # return_from_error_cleanup_label string
     # label_counter    integer         counter for naming labels
-    # in_try_finally   boolean         inside try of try...finally
     # exc_vars         (string * 3)    exception variables for reraise, or None
     # can_trace        boolean         line tracing is supported in the current context
     # scope            Scope           the scope object of the current function
@@ -969,7 +986,6 @@ class FunctionState:
         self.break_label = None
         self.yield_labels = []
 
-        self.in_try_finally = 0
         self.exc_vars = None
         self.current_except = None
         self.can_trace = False
@@ -2491,9 +2507,20 @@ class CCodeWriter:
             path = os.path.join(include_dir, include_file)
             if not os.path.exists(path):
                 tmp_path = f'{path}.tmp{os.getpid()}'
-                with Utils.open_new_file(tmp_path) as f:
-                    f.write(code)
-                shutil.move(tmp_path, path)
+                done = False
+                try:
+                    with Utils.open_new_file(tmp_path) as f:
+                        f.write(code)
+                    shutil.move(tmp_path, path)
+                    done = True
+                except FileExistsError:
+                    # If a different process created the file faster than us,
+                    # renaming can fail on Windows.  It's ok if the file is there now.
+                    if not os.path.exists(path):
+                        raise
+                finally:
+                    if not done and os.path.exists(tmp_path):
+                        os.unlink(tmp_path)
             # We use forward slashes in the include path to assure identical code generation
             # under Windows and Posix.  C/C++ compilers should still understand it.
             c_path = path.replace('\\', '/')
@@ -2789,7 +2816,7 @@ class CCodeWriter:
         # Add required casts, but try not to shadow real warnings.
         cast = entry.signature.method_function_type()
         if cast != 'PyCFunction':
-            func_ptr = '(void*)(%s)%s' % (cast, func_ptr)
+            func_ptr = '(void(*)(void))(%s)%s' % (cast, func_ptr)
         entry_name = entry.name.as_c_string_literal()
         if is_number_slot:
             # Unlike most special functions, binop numeric operator slots are actually generated here
@@ -2893,6 +2920,9 @@ class CCodeWriter:
         self.putln("Py_BLOCK_THREADS")
         if unknown_gil_state:
             self.putln("}")
+            self.putln("#if CYTHON_COMPILING_IN_LIMITED_API")
+            self.put_release_ensured_gil()
+            self.putln("#endif")
 
     def put_release_gil(self, variable=None, unknown_gil_state=True):
         "Release the GIL, corresponds to `put_acquire_gil`."
@@ -2900,9 +2930,16 @@ class CCodeWriter:
         self.putln("PyThreadState *_save;")
         self.putln("_save = NULL;")
         if unknown_gil_state:
-            # we don't *know* that we don't have the GIL (since we may be inside a nogil function,
-            # and Py_UNBLOCK_THREADS is unsafe without the GIL)
-            self.putln("if (PyGILState_Check()) {")
+            # We don't *know* that we don't have the GIL (since we may be inside a nogil function,
+            # and Py_UNBLOCK_THREADS is unsafe without the GIL).
+            self.putln("#if CYTHON_COMPILING_IN_LIMITED_API")
+            # In the Limited API we can't check whether we have the GIL.
+            # Therefore the only way to be sure that we can release it is to acquire it first.
+            self.put_ensure_gil()
+            self.putln("#else")
+            self.putln("if (PyGILState_Check())")
+            self.putln("#endif")
+            self.putln("{")
         self.putln("Py_UNBLOCK_THREADS")
         if unknown_gil_state:
             self.putln("}")
@@ -3071,8 +3108,8 @@ class CCodeWriter:
             ');'
         )
 
-    def put_trace_exit(self):
-        self.putln("__Pyx_PyMonitoring_ExitScope();")
+    def put_trace_exit(self, nogil=False):
+        self.putln(f"__Pyx_PyMonitoring_ExitScope({bool(nogil):d});")
 
     def put_trace_yield(self, retvalue_cname, pos):
         error_goto = self.error_goto(pos)
@@ -3120,6 +3157,9 @@ class CCodeWriter:
         elif return_type.is_pyobject:
             retvalue_cname = return_type.as_pyobject(retvalue_cname)
         elif return_type.is_void:
+            retvalue_cname = 'Py_None'
+        elif return_type.is_string:
+            # We don't know if the C string is 0-terminated, but we cannot convert if it's not.
             retvalue_cname = 'Py_None'
         elif return_type.to_py_function:
             trace_func = "__Pyx_TraceReturnCValue"

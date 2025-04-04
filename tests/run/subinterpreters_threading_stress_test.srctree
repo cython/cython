@@ -1,3 +1,4 @@
+UNSET CFLAGS
 PYTHON setup.py build_ext --inplace
 PYTHON main.py
 
@@ -55,7 +56,7 @@ def f():
     started_queue.put(None)
     import cy_module
     cy_module.run(start_next_queue, stop_queue)
-            
+
 ################## main.py ######################
 
 # What we're doing here is running isolated sub-interpreters
@@ -66,9 +67,10 @@ def f():
 # are started.
 
 import sys
-if sys.version_info < (3, 13):
+import sysconfig
+if sys.version_info[:2] != (3, 13):
     exit(0)  # test won't work
-if hasattr(sys, "_is_gil_enabled"):
+if sysconfig.get_config_var("Py_GIL_DISABLED"):
     # we aren't allowed to do _imp._override_multi_interp_extensions_check(-1) on freethreading
     exit(0)
 

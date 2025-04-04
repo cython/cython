@@ -1,0 +1,46 @@
+"""
+PYTHON setup.py build_ext --inplace
+PYTHON -c "import test_missing_shared_utility"
+"""
+
+######## setup.py ########
+
+from Cython.Build import cythonize
+from Cython.Compiler import Options
+from setuptools import setup, Extension
+
+extensions = [
+    Extension("*", ["**/*.pyx"]),
+]
+
+setup(
+  ext_modules = cythonize(extensions, shared_utility_qualified_name = 'pkg2.MemoryView')
+)
+
+######## pkg2/__init__.py ########
+
+######## pkg1/__init__.py ########
+
+######## pkg1/simple.pyx ########
+
+def add_one(int[:] buf):
+    pass
+
+######## pkg1/no_memoryview.pyx ########
+
+def add_one(int a):
+    return a + 1
+
+######## test_missing_shared_utility.py ########
+import pkg1.no_memoryview
+result = pkg1.no_memoryview.add_one(1)
+assert result == 2, result
+
+try:
+    import pkg1.simple
+except ModuleNotFoundError as e:
+    assert e.name == "pkg2.MemoryView", e.name
+else:
+    assert False, "Importing pkg1.simple should fail"
+
+
