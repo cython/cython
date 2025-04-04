@@ -3509,7 +3509,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("#endif")
         code.putln("#if PY_VERSION_HEX >= 0x030C0000 && CYTHON_USE_MODULE_STATE")
         subinterp_option = {
-            'False': 'Py_MOD_MULTIPLE_INTERPRETERS_NOT_SUPPORTED',
+            'no': 'Py_MOD_MULTIPLE_INTERPRETERS_NOT_SUPPORTED',
             'shared_gil': 'Py_MOD_MULTIPLE_INTERPRETERS_SUPPORTED',
             'own_gil': 'Py_MOD_PER_INTERPRETER_GIL_SUPPORTED'
         }.get(env.directives["subinterpreters_compatible"])

@@ -1651,7 +1651,7 @@ class ModuleScope(Scope):
                 raise InternalError(
                     "Non-cdef global variable is not a generic Python object")
         if (is_cdef and visibility != "extern"
-                and self.directives['subinterpreters_compatible'] != "False"):
+                and self.directives['subinterpreters_compatible'] != "no"):
             extra_warning = ""
             pyobject_warning = ""
             if type.is_pyobject:

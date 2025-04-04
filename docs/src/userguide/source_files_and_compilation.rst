@@ -944,7 +944,7 @@ Cython code.  Here is the list of currently supported directives:
     is still experimental itself, this is also an experimental directive that
     might be changed or removed in future releases.
 
-``subinterpreters_compatible``  (False / shared_gil / own_gil), *default=False*
+``subinterpreters_compatible``  (no / shared_gil / own_gil), *default=no*
     If set to ``shared_gil`` or ``own_gil``, then Cython sets the
     ``Py_mod_multiple_interpreters`` slot to ``Py_MOD_MULTIPLE_INTERPRETERS_SUPPORTED``
     or ``Py_MOD_PER_INTERPRETER_GIL_SUPPORTED`` respectively to signal that

@@ -194,7 +194,7 @@ _directive_defaults = {
     'nonecheck' : False,
     'initializedcheck' : True,
     'freethreading_compatible': False,
-    'subinterpreters_compatible': 'False',
+    'subinterpreters_compatible': 'no',
     'embedsignature': False,
     'embedsignature.format': 'c',
     'auto_cpdef': False,
@@ -380,7 +380,7 @@ directive_types = {
     'dataclasses.dataclass': DEFER_ANALYSIS_OF_ARGUMENTS,
     'dataclasses.field': DEFER_ANALYSIS_OF_ARGUMENTS,
     'embedsignature.format': one_of('c', 'clinic', 'python'),
-    'subinterpreters_compatible': one_of('False', 'shared_gil', 'own_gil'),
+    'subinterpreters_compatible': one_of('no', 'shared_gil', 'own_gil'),
 }
 
 for key, val in _directive_defaults.items():
