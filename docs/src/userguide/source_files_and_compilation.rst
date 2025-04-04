@@ -944,6 +944,17 @@ Cython code.  Here is the list of currently supported directives:
     is still experimental itself, this is also an experimental directive that
     might be changed or removed in future releases.
 
+``subinterpreters_compatible``  (no / shared_gil / own_gil), *default=no*
+    If set to ``shared_gil`` or ``own_gil``, then Cython sets the
+    ``Py_mod_multiple_interpreters`` slot to ``Py_MOD_MULTIPLE_INTERPRETERS_SUPPORTED``
+    or ``Py_MOD_PER_INTERPRETER_GIL_SUPPORTED`` respectively to signal that
+    the module is safe to run in isolated subinterpreters. Setting this option
+    does not itself make the module safe to run in isolated subinterpreters;
+    it merely confirms that you have checked the logic and consider it safe to run.
+    Currently ``cdef`` global variables (especially when the type is a Python object) and
+    acquiring the GIL (but not *re-acquiring* the GIL) are known not to work
+    correctly and will generate warnings at compile time.
+
 ``overflowcheck`` (True / False), *default=False*
     If set to True, raise errors on overflowing C integer arithmetic
     operations.  Incurs a modest runtime penalty, but is much faster than
