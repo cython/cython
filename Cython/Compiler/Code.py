@@ -916,6 +916,9 @@ class TempitaUtilityCode(UtilityCode):
     def __init__(self, name=None, proto=None, impl=None, init=None, file=None, context=None, **kwargs):
         if context is None:
             context = {}
+        else:
+            # prevent changes propagating back if context is shared between multiple utility codes.
+            context = context.copy()
         proto = sub_tempita(proto, context, file, name)
         impl = sub_tempita(impl, context, file, name)
         init = sub_tempita(init, context, file, name)
