@@ -421,6 +421,7 @@ static CYTHON_INLINE Py_hash_t __Pyx_PyIndex_AsHash_t(PyObject* o) {
 }
 
 static CYTHON_INLINE PyObject *__Pyx_Owned_Py_None(b) {
+    CYTHON_UNUSED_VAR(b);
     return __Pyx_NewRef(Py_None);
 }
 
