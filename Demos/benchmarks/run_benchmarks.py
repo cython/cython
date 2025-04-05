@@ -11,7 +11,10 @@ import time
 
 BENCHMARKS_DIR = pathlib.Path(__file__).parent
 
-BENCHMARK_FILES = sorted(BENCHMARKS_DIR.glob("bm_*.py"))
+BENCHMARK_FILES = sorted(
+    list(BENCHMARKS_DIR.glob("bm_*.py")) +
+    list((BENCHMARKS_DIR.glob("bm_*.pyx")))
+)
 
 ALL_BENCHMARKS = [bm.stem for bm in BENCHMARK_FILES]
 
@@ -137,9 +140,11 @@ def autorange(bench_func, python_executable: str = sys.executable, min_runtime=0
     while True:
         for j in 1, 2, 5, 8:
             number = i * j
-            timings = bench_func(python_command, 3, number)
-            if min(timings) >= min_runtime:
-                return number
+            all_timings = bench_func(python_command, 3, number)
+            # FIXME: make autorange work per benchchmark, not per file.
+            for timings in all_timings.values():
+                if min(timings) >= min_runtime:
+                    return number
         i *= 10
 
 
@@ -150,13 +155,23 @@ def _make_bench_func(bm_dir, module_name, pythonpath=None):
 
         output = run(command, cwd=bm_dir, pythonpath=pythonpath)
 
+        timings = {}
+
         for line in output.stdout.decode().splitlines():
-            if line.startswith('[') and line.endswith(']'):
-                timings = [float(t) for t in line[1:-1].split(',')]
-                return timings
-        else:
+            name = module_name
+            if line.endswith(']') and '[' in line:
+                if ':' in line:
+                    name, line = line.split(':', 1)
+                    name = name.strip()
+                    line = line.strip()
+                if line.startswith('['):
+                    timings[name] = [float(t) for t in line[1:-1].split(',')]
+
+        if not timings:
             logging.error(f"Benchmark failed: {module_name}\nOutput:\n{output.stderr.decode()}")
             raise RuntimeError(f"Benchmark failed: {module_name}")
+
+        return timings
 
     bench_func.__name__ = module_name
     return bench_func
@@ -202,7 +217,8 @@ def run_benchmark(bm_dir, module_name, pythonpath=None, profiler=None):
 
     logging.info(f"Running benchmark '{module_name}' with scale={scale:_d}.")
     timings = bench_func(python_command, repeat, scale)
-    timings = [t / scale for t in timings]
+
+    timings = {name: [t / scale for t in values] for name, values in timings.items()}
 
     if profiler:
         copy_profile(bm_dir, module_name, profiler)
@@ -213,7 +229,8 @@ def run_benchmark(bm_dir, module_name, pythonpath=None, profiler=None):
 def run_benchmarks(bm_dir, benchmarks, pythonpath=None, profiler=None):
     timings = {}
     for benchmark in benchmarks:
-        timings[benchmark] = run_benchmark(bm_dir, benchmark, pythonpath=pythonpath, profiler=profiler)
+        timings.update(
+            run_benchmark(bm_dir, benchmark, pythonpath=pythonpath, profiler=profiler))
     return timings
 
 
@@ -271,7 +288,11 @@ def benchmark_revision(revision, benchmarks, cythonize_args=None, profiler=None,
         bm_dir.mkdir(parents=True)
         bm_files = copy_benchmarks(bm_dir, benchmarks)
         sizes = None
-        if not plain_python:
+        if plain_python:
+            # Exclude non-Python modules.
+            bm_files = [bm_file for bm_file in bm_files if bm_file.suffix == '.py']
+            benchmarks = [bm_file.stem for bm_file in bm_files]
+        else:
             compile_benchmarks(cython_dir, bm_files, cythonize_args, c_macros=c_macros)
             if show_size:
                 sizes = measure_benchmark_sizes(bm_files)
