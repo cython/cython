@@ -20,7 +20,7 @@ def create_shared_library_pipeline(context, scope, options, result):
                 MemoryView.get_view_utility_code(options.shared_utility_qualified_name))
 
             tree.scope.use_utility_code(MemoryView._get_memviewslice_declare_code())
-            tree.scope.use_utility_code(MemoryView.typeinfo_to_format_code)
+            tree.scope.use_utility_code(MemoryView._get_typeinfo_to_format_code())
             context.include_directories.append(Code.get_utility_dir())
             return tree
 
