@@ -174,7 +174,7 @@ def measure_benchmark_sizes(bm_paths: list[pathlib.Path]):
         subprocess.run(
             ["strip", compiled_path, "-g", "-o" , stripped_path ]
         )
-        out[name] = os.path.getsize(stripped_path)
+        out[name] = stripped_path.stat().st_size
     return out
 
 
@@ -245,7 +245,8 @@ def benchmark_revisions(benchmarks, revisions, cythonize_args=None, profiler=Non
         if revision in limited_revisions:
             logging.info(
                 f"### Preparing benchmark run for {revision_name} (Limited API {LIMITED_API_VERSION[0]}.{LIMITED_API_VERSION[1]}).")
-            timings['L-' + revision_name], sizes['L-' + revision_name] = benchmark_revision(
+            rev_key = 'L-' + revision_name
+            timings[rev_key], sizes[rev_key] = benchmark_revision(
                 revision, benchmarks, cythonize_args, profiler, plain_python,
                 c_macros=["Py_LIMITED_API=0x%02x%02x0000" % LIMITED_API_VERSION],
                 show_size=show_size,
@@ -277,7 +278,8 @@ def benchmark_revision(revision, benchmarks, cythonize_args=None, profiler=None,
 
         logging.info(f"### Running benchmarks for {revision}.")
         pythonpath = cython_dir if plain_python else None
-        return run_benchmarks(bm_dir, benchmarks, pythonpath=pythonpath, profiler=with_profiler), sizes
+        timings = run_benchmarks(bm_dir, benchmarks, pythonpath=pythonpath, profiler=with_profiler)
+        return timings, sizes
 
 
 def report_revision_timings(rev_timings):
