@@ -269,12 +269,11 @@ def benchmark_revision(revision, benchmarks, cythonize_args=None, profiler=None,
 
         bm_dir.mkdir(parents=True)
         bm_files = copy_benchmarks(bm_dir, benchmarks)
+        sizes = None
         if not plain_python:
             compile_benchmarks(cython_dir, bm_files, cythonize_args, c_macros=c_macros)
             if show_size:
                 sizes = measure_benchmark_sizes(bm_files)
-            else:
-                sizes = None
 
         logging.info(f"### Running benchmarks for {revision}.")
         pythonpath = cython_dir if plain_python else None
@@ -338,6 +337,8 @@ def report_revision_timings(rev_timings):
 def report_revision_sizes(rev_sizes):
     sizes_by_benchmark = collections.defaultdict(list)
     for revision_name, bm_size in rev_sizes.items():
+        if bm_size is None:
+            continue
         for benchmark, size in bm_size.items():
             sizes_by_benchmark[benchmark].append((revision_name, size))
 
