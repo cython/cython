@@ -1650,6 +1650,20 @@ class ModuleScope(Scope):
             if not (type.is_pyobject and not type.is_extension_type):
                 raise InternalError(
                     "Non-cdef global variable is not a generic Python object")
+        if (is_cdef and visibility != "extern"
+                and self.directives['subinterpreters_compatible'] != "no"):
+            extra_warning = ""
+            pyobject_warning = ""
+            if type.is_pyobject:
+                extra_warning = "\nPython objects should not be shared between interpreters"
+                pyobject_warning = "Python "
+            warning(
+                pos,
+                f"Global cdef {pyobject_warning}variable used with subinterpreter support enabled.\n"
+                "This variable is not currently in the per-interpreter module state "
+                "but this will likely change in future releases." +
+                extra_warning,
+                2+(1 if extra_warning else 0))
 
         if not cname:
             defining = not in_pxd

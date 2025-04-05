@@ -20,6 +20,7 @@ setup(
 #################### cy_module.pyx ##################
 
 # distutils: extra_compile_args = -DCYTHON_USE_MODULE_STATE=1
+# cython: subinterpreters_compatible = own_gil
 
 cdef extern from *:
     # actually returns a borrowed PyObject*
@@ -49,10 +50,6 @@ def run(start_next_queue, stop_queue):
 # (which we prepare)
 
 def f():
-    import _imp
-    # TODO - eventually we'll properly allow this, at least for multi-phase.
-    _imp._override_multi_interp_extensions_check(-1)
-
     # wait for previous interpreter to reach its read-loop before proceeding
     # with this one.
     start_next_queue.get(20.0)
