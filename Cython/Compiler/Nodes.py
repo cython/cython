@@ -3466,7 +3466,7 @@ class DefNode(FuncDefNode):
         elif sig.optional_object_arg_count:
             expected_str += " to %d" % sig.max_num_fixed_args()
         name = self.name
-        if name.startswith("__") and name.endswith("__"):
+        if self.entry.is_special:
             desc = "Special method"
         else:
             desc = "Method"
