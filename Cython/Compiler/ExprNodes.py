@@ -7166,29 +7166,22 @@ class GeneralCallNode(CallNode):
                 code.error_goto_if_null(self.result(), self.pos)))
         self.generate_gotref(code)
 
-class SimpleRoundNode(CallNode):
+class SimpleRoundNode(ExprNode):
+    """Optimised implementation for the builtin 'round()' function.
+
+    To be injected by an optimisation transform before type analysis.
+    """
     subexprs = ['arg']
     is_temp = False
 
     def analyse_types(self, env):
         self.arg = self.arg.analyse_types(env)
 
-        input_types = (PyrexTypes.c_longdouble_type, PyrexTypes.c_double_type, PyrexTypes.c_float_type)
-
-        if self.arg.type not in input_types:
-            for type_ in input_types:
-                if type_.assignable_from(self.arg.type):
-                    self.arg = self.arg.coerce_to(type_, self.current_env())
-                    self.type = type_
-                    break
-            else:
-                return SimpleCallNode(self.pos,
-                    function=NameNode(self.pos, name="round", entry=Builtin.builtin_scope.lookup("round")),
-                    args=[self.arg.coerce_to(py_object_type, self.current_env())]).analyse_types(env)
-        else:
-            self.type = self.arg.type
-
-        if self.arg.type is PyrexTypes.c_float_type:
+        arg_type = self.arg.type
+        if arg_type.is_int:
+            # C Integers do not change when rounding.
+            return self.arg
+        elif arg_type is PyrexTypes.c_float_type:
             return PythonCapiCallNode(
                 self.pos, "__Pyx_round_float",
                 func_type = PyrexTypes.CFuncType(
@@ -7196,9 +7189,9 @@ class SimpleRoundNode(CallNode):
                         PyrexTypes.CFuncTypeArg("arg", PyrexTypes.c_float_type, None)
                         ],
                     is_strict_signature=True, nogil=True),
-                utility_code = UtilityCode.load_cached("round_float", "Builtins.c"),
-                args = [self.arg],
-                is_temp = False).analyse_types(env)
+                utility_code=UtilityCode.load_cached("round_float", "Builtins.c"),
+                args=[self.arg],
+                is_temp=False).analyse_types(env)
         elif self.arg.type is PyrexTypes.c_double_type:
             return PythonCapiCallNode(
                 self.pos, "__Pyx_round_double",
@@ -7210,17 +7203,23 @@ class SimpleRoundNode(CallNode):
                 utility_code = UtilityCode.load_cached("round_double", "Builtins.c"),
                 args = [self.arg],
                 is_temp = False).analyse_types(env)
-        elif self.arg.type is PyrexTypes.c_longdouble_type:
+        elif arg_type is PyrexTypes.c_longdouble_type:
             return PythonCapiCallNode(
                 self.pos, "__Pyx_round_longdouble",
-                func_type = PyrexTypes.CFuncType(
+                func_type=PyrexTypes.CFuncType(
                     PyrexTypes.c_longdouble_type, [
                         PyrexTypes.CFuncTypeArg("arg", PyrexTypes.c_longdouble_type, None)
                         ],
                     is_strict_signature=True, nogil=True),
-                utility_code = UtilityCode.load_cached("round_longdouble", "Builtins.c"),
-                args = [self.arg],
-                is_temp = False).analyse_types(env)
+                utility_code=UtilityCode.load_cached("round_longdouble", "Builtins.c"),
+                args=[self.arg],
+                is_temp=False,
+            ).analyse_types(env)
+        else:
+            return SimpleCallNode(self.pos,
+                function=NameNode(self.pos, name="round", entry=env.builtin_scope().lookup("round")),
+                args=[self.arg.coerce_to_pyobject(env)],
+            ).analyse_types(env)
 
 
 class AsTupleNode(ExprNode):
