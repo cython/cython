@@ -25,6 +25,13 @@ class CythonScope(ModuleScope):
                                          cname='<error>')
             entry.in_cinclude = True
 
+        entry = self.declare_type(
+            "pymutex", cy_pymutex_type, None,
+            cname="__Pyx_Locks_PyMutex")
+        entry = self.declare_type(
+            "pythread_type_lock", cy_pythread_type_lock_type, None,
+            cname="__Pyx_Locks_PyThreadTypeLock")
+
     def is_cpp(self):
         # Allow C++ utility code in C++ contexts.
         return self.context.cpp
