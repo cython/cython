@@ -179,6 +179,52 @@ static int __Pyx_validate_bases_tuple(const char *type_name, Py_ssize_t dictoffs
 }
 #endif
 
+/////////////// PyType_GetGCLessDummyType.module_state_decls /////////////////
+
+#if !CYTHON_USE_TYPE_SPECS
+PyTypeObject *__Pyx_GCLessDummyType;
+#endif
+
+/////////////// PyType_GetGCLessDummyType.cleanup /////////////////
+
+#if !CYTHON_USE_TYPE_SPECS
+Py_XDECREF(CGLOBAL(__Pyx_GCLessDummyType));
+#endif
+
+/////////////// PyType_GetGCLessDummyType.proto //////////////////
+
+#if !CYTHON_USE_TYPE_SPECS
+static PyTypeObject *__Pyx_GetGCLessDummyType(void); /* proto */
+#endif
+
+/////////////// PyType_GetGCLessDummyType ///////////////////////
+
+#if !CYTHON_USE_TYPE_SPECS
+static PyTypeObject *__Pyx_GetGCLessDummyType(void) {
+    if (CGLOBAL(__Pyx_GCLessDummyType)) {
+        return CGLOBAL(__Pyx_GCLessDummyType);
+    }
+    PyType_Slot slots[] = {
+        {Py_tp_base, &PyType_Type},
+        {0, NULL}
+    };
+
+    PyType_Spec spec = {
+        "cython_dummy_gcless_type", // name - should not be seen
+        0, // basicsize - inherited
+        0, // itemsize,
+        0, // flags
+        slots
+    };
+
+    PyTypeObject *t = (PyTypeObject*)PyType_FromSpec(&spec);
+    if (unlikely(!t)) return NULL;
+    // Unset HAVE_GC
+    t->tp_flags &= (~Py_TPFLAGS_HAVE_GC);
+    CGLOBAL(__Pyx_GCLessDummyType) = t;
+    return t;
+}
+#endif
 
 /////////////// PyType_Ready.proto ///////////////
 
@@ -186,17 +232,14 @@ static int __Pyx_validate_bases_tuple(const char *type_name, Py_ssize_t dictoffs
 CYTHON_UNUSED static int __Pyx_PyType_Ready(PyTypeObject *t);/*proto*/
 
 /////////////// PyType_Ready ///////////////
-//@requires: ObjectHandling.c::PyObjectCallMethod0
 //@requires: ValidateBasesTuple
+//@requires: PyType_GetGCLessDummyType
 
 // Wrapper around PyType_Ready() with some runtime checks and fixes
 // to deal with multiple inheritance.
 static int __Pyx_PyType_Ready(PyTypeObject *t) {
 
-// FIXME: is this really suitable for CYTHON_COMPILING_IN_LIMITED_API?
-#if CYTHON_USE_TYPE_SPECS || !(CYTHON_COMPILING_IN_CPYTHON || CYTHON_COMPILING_IN_LIMITED_API) || defined(PYSTON_MAJOR_VERSION)
-    // avoid C warning about unused helper function
-    (void)__Pyx_PyObject_CallMethod0;
+#if CYTHON_USE_TYPE_SPECS || !CYTHON_COMPILING_IN_CPYTHON || defined(PYSTON_MAJOR_VERSION)
 #if CYTHON_USE_TYPE_SPECS
     (void)__Pyx_validate_bases_tuple;
 #endif
@@ -212,42 +255,17 @@ static int __Pyx_PyType_Ready(PyTypeObject *t) {
 #if !defined(PYSTON_MAJOR_VERSION)
     {
         // Make sure GC does not pick up our non-heap type as heap type with this hack!
-        // For details, see https://github.com/cython/cython/issues/3603
-        int gc_was_enabled;
-    #if PY_VERSION_HEX >= 0x030A00b1
-        // finally added in Py3.10 :)
-        gc_was_enabled = PyGC_Disable();
-        (void)__Pyx_PyObject_CallMethod0;
-
+        // See https://github.com/cython/cython/issues/3603
+        // To solve this we temporarily swap out the metatype for one that reports that it is not GC.
+        PyTypeObject *old_type = Py_TYPE(t);
+        PyTypeObject *dummy_type = __Pyx_GetGCLessDummyType();
+        if (unlikely(dummy_type == NULL)) {
+            return -1;
+        }
+    #if PY_VERSION_HEX >= 0x03090000
+        Py_SET_TYPE(t, dummy_type);
     #else
-        // Call gc.disable() as a backwards compatible fallback, but only if needed.
-        PyObject *ret, *py_status;
-        PyObject *gc = NULL;
-        #if (!CYTHON_COMPILING_IN_PYPY || PYPY_VERSION_NUM+0 >= 0x07030400) && \
-                !CYTHON_COMPILING_IN_GRAAL
-        // https://foss.heptapod.net/pypy/pypy/-/issues/3385
-        gc = PyImport_GetModule(PYUNICODE("gc"));
-        #endif
-        if (unlikely(!gc)) gc = PyImport_Import(PYUNICODE("gc"));
-        if (unlikely(!gc)) return -1;
-        py_status = __Pyx_PyObject_CallMethod0(gc, PYUNICODE("isenabled"));
-        if (unlikely(!py_status)) {
-            Py_DECREF(gc);
-            return -1;
-        }
-        gc_was_enabled = __Pyx_PyObject_IsTrue(py_status);
-        Py_DECREF(py_status);
-        if (gc_was_enabled > 0) {
-            ret = __Pyx_PyObject_CallMethod0(gc, PYUNICODE("disable"));
-            if (unlikely(!ret)) {
-                Py_DECREF(gc);
-                return -1;
-            }
-            Py_DECREF(ret);
-        } else if (unlikely(gc_was_enabled == -1)) {
-            Py_DECREF(gc);
-            return -1;
-        }
+        t->ob_type = dummy_type;
     #endif
 
         // As of https://github.com/python/cpython/issues/66277
@@ -267,37 +285,20 @@ static int __Pyx_PyType_Ready(PyTypeObject *t) {
         // is immutable
         t->tp_flags |= Py_TPFLAGS_IMMUTABLETYPE;
 #endif
-#else
-        // avoid C warning about unused helper function
-        (void)__Pyx_PyObject_CallMethod0;
 #endif
-
+    assert(!PyObject_IS_GC((PyObject*)t));
     r = PyType_Ready(t);
 
 #if !defined(PYSTON_MAJOR_VERSION)
         t->tp_flags &= ~Py_TPFLAGS_HEAPTYPE;
 
-    #if PY_VERSION_HEX >= 0x030A00b1
-        if (gc_was_enabled)
-            PyGC_Enable();
-    #else
-        if (gc_was_enabled) {
-            PyObject *tp, *v, *tb;
-            PyErr_Fetch(&tp, &v, &tb);
-            ret = __Pyx_PyObject_CallMethod0(gc, PYUNICODE("enable"));
-            if (likely(ret || r == -1)) {
-                Py_XDECREF(ret);
-                // do not overwrite exceptions raised by PyType_Ready() above
-                PyErr_Restore(tp, v, tb);
-            } else {
-                // PyType_Ready() succeeded, but gc.enable() failed.
-                Py_XDECREF(tp);
-                Py_XDECREF(v);
-                Py_XDECREF(tb);
-                r = -1;
-            }
+        if (old_type == NULL) {
+            old_type = Py_TYPE(t->tp_base);
         }
-        Py_DECREF(gc);
+    #if PY_VERSION_HEX >= 0x03090000
+        Py_SET_TYPE(t, old_type);
+    #else
+        t->ob_type = old_type;
     #endif
     }
 #endif
