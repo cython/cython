@@ -265,7 +265,7 @@ static int __Pyx_PyType_Ready(PyTypeObject *t) {
     #if PY_VERSION_HEX >= 0x03090000
         Py_SET_TYPE(t, dummy_type);
     #else
-        t->ob_type = dummy_type;
+        ((PyObject*)t)->ob_type = dummy_type;
     #endif
 
         // As of https://github.com/python/cpython/issues/66277
@@ -298,7 +298,7 @@ static int __Pyx_PyType_Ready(PyTypeObject *t) {
     #if PY_VERSION_HEX >= 0x03090000
         Py_SET_TYPE(t, old_type);
     #else
-        t->ob_type = old_type;
+        ((PyObject*)t)->ob_type = old_type;
     #endif
     }
 #endif
