@@ -336,7 +336,7 @@ static PyTypeObject *__Pyx__FetchCommonTypeFromSpec(PyObject *module, PyType_Spe
         *abi_module_entry = (PyTypeObject*)cached_type;
     } else {
         Py_DECREF(cached_type);
-        Py_INCREF(*abi_module_entry);
+        Py_INCREF((PyObject*)*abi_module_entry);
         cached_type = (PyObject*)*abi_module_entry;
         goto check_type;
     }
@@ -401,7 +401,7 @@ static PyObject* __Pyx_InitAndGetSharedAbiModule(PyObject *this_module) {
 }
 
 static CYTHON_INLINE PyObject *__Pyx_SharedAbiModuleFromSharedType(PyTypeObject *tp) {
-#if ((CYTHON_COMPILING_IN_LIMITED_API && __PYX_LIMITED_VERSION_HEX >= 0x030A0000) || PY_VERSION_HEX >= 0x03090000)
+#if (!CYTHON_COMPILING_IN_LIMITED_API && PY_VERSION_HEX >= 0x03090000) || __PYX_LIMITED_VERSION_HEX >= 0x030A0000
     PyTypeObject *base = tp;
 
     // All of our shared types have a shared type at the top of our inheritance heirarchy
