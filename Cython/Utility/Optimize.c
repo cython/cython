@@ -1532,7 +1532,7 @@ static {{c_ret_type}} {{cfunc_name}}(PyObject *op1, PyObject *op2, double floatv
         {{if op in ('Eq', 'Ne')}}
                     {
                         PyObject *res =
-                    #if CYTHON_USE_TYPE_SLOTS || __PYX_LIMITED_VERSION_HEX > 0x030A0000
+                    #if CYTHON_USE_TYPE_SLOTS || __PYX_LIMITED_VERSION_HEX >= 0x030A0000
                             // PyType_GetSlot only works on non-heap types from Python 3.10
                             __Pyx_PyType_GetSlot((&PyFloat_Type), tp_richcompare, richcmpfunc)
                     #else

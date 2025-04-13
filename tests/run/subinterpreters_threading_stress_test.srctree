@@ -1,3 +1,4 @@
+UNSET CFLAGS
 PYTHON setup.py build_ext --inplace
 PYTHON main.py
 
@@ -19,6 +20,7 @@ setup(
 #################### cy_module.pyx ##################
 
 # distutils: extra_compile_args = -DCYTHON_USE_MODULE_STATE=1
+# cython: subinterpreters_compatible = own_gil
 
 cdef extern from *:
     # actually returns a borrowed PyObject*
@@ -48,17 +50,13 @@ def run(start_next_queue, stop_queue):
 # (which we prepare)
 
 def f():
-    import _imp
-    # TODO - eventually we'll properly allow this, at least for multi-phase.
-    _imp._override_multi_interp_extensions_check(-1)
-    
     # wait for previous interpreter to reach its read-loop before proceeding
     # with this one.
     start_next_queue.get(20.0)
     started_queue.put(None)
     import cy_module
     cy_module.run(start_next_queue, stop_queue)
-            
+
 ################## main.py ######################
 
 # What we're doing here is running isolated sub-interpreters
@@ -70,7 +68,7 @@ def f():
 
 import sys
 import sysconfig
-if sys.version_info < (3, 13):
+if sys.version_info[:2] != (3, 13):
     exit(0)  # test won't work
 if sysconfig.get_config_var("Py_GIL_DISABLED"):
     # we aren't allowed to do _imp._override_multi_interp_extensions_check(-1) on freethreading

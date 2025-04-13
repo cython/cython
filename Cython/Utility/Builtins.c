@@ -148,7 +148,7 @@ static CYTHON_INLINE PyObject *__Pyx_GetAttr3(PyObject *, PyObject *, PyObject *
 //@requires: Exceptions.c::PyErrFetchRestore
 //@requires: Exceptions.c::PyErrExceptionMatches
 
-#if __PYX_LIMITED_VERSION_HEX < 0x030d00A1
+#if __PYX_LIMITED_VERSION_HEX < 0x030d0000
 static PyObject *__Pyx_GetAttr3Default(PyObject *d) {
     __Pyx_PyThreadState_declare
     __Pyx_PyThreadState_assign
@@ -162,7 +162,7 @@ static PyObject *__Pyx_GetAttr3Default(PyObject *d) {
 
 static CYTHON_INLINE PyObject *__Pyx_GetAttr3(PyObject *o, PyObject *n, PyObject *d) {
     PyObject *r;
-#if __PYX_LIMITED_VERSION_HEX >= 0x030d00A1
+#if __PYX_LIMITED_VERSION_HEX >= 0x030d0000
     int res = PyObject_GetOptionalAttr(o, n, &r);
     // On failure (res == -1), r is set to NULL.
     return (res != 0) ? r : __Pyx_NewRef(d);
@@ -183,7 +183,7 @@ static CYTHON_INLINE PyObject *__Pyx_GetAttr3(PyObject *o, PyObject *n, PyObject
 
 //////////////////// HasAttr.proto ////////////////////
 
-#if __PYX_LIMITED_VERSION_HEX >= 0x030d00A1
+#if __PYX_LIMITED_VERSION_HEX >= 0x030d0000
 #define __Pyx_HasAttr(o, n)  PyObject_HasAttrWithError(o, n)
 #else
 static CYTHON_INLINE int __Pyx_HasAttr(PyObject *, PyObject *); /*proto*/
@@ -192,7 +192,7 @@ static CYTHON_INLINE int __Pyx_HasAttr(PyObject *, PyObject *); /*proto*/
 //////////////////// HasAttr ////////////////////
 //@requires: ObjectHandling.c::PyObjectGetAttrStrNoError
 
-#if __PYX_LIMITED_VERSION_HEX < 0x030d00A1
+#if __PYX_LIMITED_VERSION_HEX < 0x030d0000
 static CYTHON_INLINE int __Pyx_HasAttr(PyObject *o, PyObject *n) {
     PyObject *r;
     if (unlikely(!PyUnicode_Check(n))) {
@@ -277,7 +277,7 @@ static PyObject *__Pyx_PyLong_AbsNeg(PyObject *n) {
         return PyLong_FromUnsignedLong(__Pyx_PyLong_Digits(n)[0]);
     }
 #endif
-#if CYTHON_COMPILING_IN_CPYTHON && PY_VERSION_HEX < 0x030d0000
+#if CYTHON_COMPILING_IN_CPYTHON
     {
         PyObject *copy = _PyLong_Copy((PyLongObject*)n);
         if (likely(copy)) {
@@ -303,48 +303,41 @@ static PyObject *__Pyx_PyLong_AbsNeg(PyObject *n) {
 #define __Pyx_PyNumber_Power2(a, b) PyNumber_Power(a, b, Py_None)
 
 
-//////////////////// divmod_int.proto //////////////////
+//////////////////// divmod.proto //////////////////
 
-static CYTHON_INLINE PyObject* __Pyx_divmod_int(int a, int b); /*proto*/
+const {{RETURN_TYPE}} __Pyx_divmod_ERROR_VALUE_{{TYPE_NAME}} = {-1, -1};
+
+static CYTHON_INLINE {{RETURN_TYPE}} __Pyx_divmod_{{TYPE_NAME}}({{TYPE}} a, {{TYPE}} b); /*proto*/
 
 
-//////////////////// divmod_int //////////////////
+//////////////////// divmod //////////////////
 
-static CYTHON_INLINE PyObject* __Pyx_divmod_int(int a, int b) {
-    PyObject *result_tuple = NULL, *pyvalue = NULL;
+static CYTHON_INLINE {{RETURN_TYPE}} __Pyx_divmod_{{TYPE_NAME}}({{TYPE}} a, {{TYPE}} b) {
     // Python and C/C++ use different algorithms in calculating quotients and remainders.
     // This results in different answers between Python and C/C++
     // when the dividend is negative and the divisor is positive and vice versa.
-    int q, r;
-    if ((a < 0 && b > 0) || (a > 0 && b < 0)) {
+    {{TYPE}} q, r;
+    if (unlikely(b == 0)) {
+        PyErr_SetString(PyExc_ZeroDivisionError, "integer division or modulo by zero");
+        return __Pyx_divmod_ERROR_VALUE_{{TYPE_NAME}};
+    } else if (a == 0) {
+        q = 0;
+        r = 0;
+    } else if ((a < 0) != (b < 0)) {
         // see CMath.c :: DivInt and ModInt utility code
         q = a / b;
         r = a - q * b;
-        q -= ((r != 0) & ((r ^ b) < 0));
-        r += ((r != 0) & ((r ^ b) < 0)) * b;
-    }
-    else if (b == 0) {
-        PyErr_SetString(PyExc_ZeroDivisionError, "integer division or modulo by zero");
-        return NULL;
+        {{TYPE}} adapt_python = ((r != 0) & ((r < 0) ^ (b < 0)));
+        q -= adapt_python;
+        r += adapt_python * b;
     }
     else {
-        div_t res = div(a, b);
-        q = res.quot;
-        r = res.rem;
+        q = a / b;
+        r = a % b;
     }
-    result_tuple = PyTuple_New(2);
-    if (unlikely(!result_tuple)) return NULL;
-    pyvalue = PyLong_FromLong(q);
-    if (unlikely(!pyvalue)) goto bad;
-    if (__Pyx_PyTuple_SET_ITEM(result_tuple, 0, pyvalue) != (0)) goto bad;
-    pyvalue = PyLong_FromLong(r);
-    if (unlikely(!pyvalue)) goto bad;
-    if (__Pyx_PyTuple_SET_ITEM(result_tuple, 1, pyvalue) != (0)) goto bad;
-    return result_tuple;
 
-bad:
-    Py_DECREF(result_tuple);
-    return NULL;
+    {{RETURN_TYPE}} c_result = {q, r};
+    return c_result;
 }
 
 
@@ -355,7 +348,27 @@ static CYTHON_INLINE int __Pyx_int_from_UCS4(Py_UCS4 uchar);
 //////////////////// int_pyucs4 ////////////////////
 
 static int __Pyx_int_from_UCS4(Py_UCS4 uchar) {
-    int digit = Py_UNICODE_TODIGIT(uchar);
+    // Fast path for ascii digits
+    if (likely(uchar >= (Py_UCS4)'0' && uchar <= (Py_UCS4)'9')) {
+        return uchar - (Py_UCS4)'0';
+    }
+#if CYTHON_COMPILING_IN_LIMITED_API
+    PyObject *u = PyUnicode_FromOrdinal(uchar);
+    if (unlikely(!u)) return -1;
+    PyObject *l = PyObject_CallFunctionObjArgs((PyObject*)(&PyLong_Type), u, NULL);
+    Py_DECREF(u);
+    if (unlikely(!l)) return -1;
+#if __PYX_LIMITED_VERSION_HEX >= 0x030d0000
+    int result = PyLong_AsInt(l);
+#else
+    // just don't handle overflow - it's very difficult to see how we'll get it from
+    // a single digit.
+    int result = (int)PyLong_AsLong(l);
+#endif
+    Py_DECREF(l);
+    return result;
+#else
+    int digit = Py_UNICODE_TODECIMAL(uchar);
     if (unlikely(digit < 0)) {
         PyErr_Format(PyExc_ValueError,
             "invalid literal for int() with base 10: '%c'",
@@ -363,6 +376,7 @@ static int __Pyx_int_from_UCS4(Py_UCS4 uchar) {
         return -1;
     }
     return digit;
+#endif
 }
 
 
@@ -373,7 +387,24 @@ static CYTHON_INLINE double __Pyx_double_from_UCS4(Py_UCS4 uchar);
 //////////////////// float_pyucs4 ////////////////////
 
 static double __Pyx_double_from_UCS4(Py_UCS4 uchar) {
-    double digit = Py_UNICODE_TONUMERIC(uchar);
+    // fast path for "just an ascii digit"
+    if (likely(uchar >= (Py_UCS4)'0' && uchar <= (Py_UCS4)'9')) {
+        return uchar - (Py_UCS4)'0';
+    }
+#if CYTHON_COMPILING_IN_LIMITED_API
+    PyObject *u = PyUnicode_FromOrdinal(uchar);
+    if (unlikely(!u)) return -1.0;
+    PyObject *f = PyFloat_FromString(u);
+    Py_DECREF(u);
+    if (unlikely(!f)) return -1.0;
+    double result = PyFloat_AsDouble(f);
+    Py_DECREF(f);
+    return result;
+#else
+    // ...TONUMERIC would initially seem to be a better fit.
+    // However, that accepts things like the "half" symbol, while
+    // float(string) rejects those.
+    double digit = Py_UNICODE_TODECIMAL(uchar);
     if (unlikely(digit < 0.0)) {
         PyErr_Format(PyExc_ValueError,
             "could not convert string to float: '%c'",
@@ -381,6 +412,7 @@ static double __Pyx_double_from_UCS4(Py_UCS4 uchar) {
         return -1.0;
     }
     return digit;
+#endif
 }
 
 
@@ -556,9 +588,9 @@ static CYTHON_INLINE PyObject* __Pyx_PyFrozenSet_New(PyObject* it) {
         result = PyFrozenSet_New(it);
         if (unlikely(!result))
             return NULL;
-        if ((__PYX_LIMITED_VERSION_HEX >= 0x030A00A1)
+        if ((__PYX_LIMITED_VERSION_HEX >= 0x030A0000)
 #if CYTHON_COMPILING_IN_LIMITED_API
-            || __Pyx_get_runtime_version() >= 0x030A00A1
+            || __Pyx_get_runtime_version() >= 0x030A0000
 #endif
             )
             return result;
@@ -660,4 +692,21 @@ static {{out_type}} __Pyx_PyMemoryView_Get_{{name}}(PyObject *obj) {
     Py_XDECREF(attr);
     return -1;
 }
+#endif
+
+////////////// PySliceAccessors.proto /////////////////////////
+
+#if CYTHON_COMPILING_IN_LIMITED_API
+#define __Pyx_PySlice_Start(o) PyObject_GetAttr(o, PYIDENT("start"))
+#define __Pyx_PySlice_Stop(o) PyObject_GetAttr(o, PYIDENT("stop"))
+#define __Pyx_PySlice_Step(o) PyObject_GetAttr(o, PYIDENT("step"))
+#elif CYTHON_COMPILING_IN_GRAAL
+// Graal defines it's own accessor functions
+#define __Pyx_PySlice_Start(o) __Pyx_NewRef(PySlice_Start((PySliceObject*)o))
+#define __Pyx_PySlice_Stop(o) __Pyx_NewRef(PySlice_Stop((PySliceObject*)o))
+#define __Pyx_PySlice_Step(o) __Pyx_NewRef(PySlice_Step((PySliceObject*)o))
+#else
+#define __Pyx_PySlice_Start(o) __Pyx_NewRef(((PySliceObject*)o)->start)
+#define __Pyx_PySlice_Stop(o) __Pyx_NewRef(((PySliceObject*)o)->stop)
+#define __Pyx_PySlice_Step(o) __Pyx_NewRef(((PySliceObject*)o)->step)
 #endif

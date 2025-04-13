@@ -487,7 +487,7 @@ static int __Pyx_GetException(PyObject **type, PyObject **value, PyObject **tb)
     Py_XDECREF(tmp_type);
     Py_XDECREF(tmp_value);
     Py_XDECREF(tmp_tb);
-#elif __PYX_LIMITED_VERSION_HEX >= 0x030B0000
+#elif __PYX_LIMITED_VERSION_HEX >= 0x030b0000
     PyErr_SetHandledException(local_value);
     Py_XDECREF(local_value);
     Py_XDECREF(local_type);
@@ -871,32 +871,7 @@ static PyObject *__Pyx_PyCode_Replace_For_AddTraceback(PyObject *code, PyObject 
     }
     PyErr_Clear();
 
-    #if __PYX_LIMITED_VERSION_HEX < 0x030780000
-    // If we're here, we're probably on Python <=3.7 which doesn't have code.replace.
-    // In this we take a lazy interpreted route (without regard to performance
-    // since it's fairly old and this is mostly just to get something working)
-    {
-        PyObject *compiled = NULL, *result = NULL;
-        if (unlikely(PyDict_SetItemString(scratch_dict, "code", code))) return NULL;
-        if (unlikely(PyDict_SetItemString(scratch_dict, "type", (PyObject*)(&PyType_Type)))) return NULL;
-        compiled = Py_CompileString(
-            "out = type(code)(\n"
-            "  code.co_argcount, code.co_kwonlyargcount, code.co_nlocals, code.co_stacksize,\n"
-            "  code.co_flags, code.co_code, code.co_consts, code.co_names,\n"
-            "  code.co_varnames, code.co_filename, co_name, co_firstlineno,\n"
-            "  code.co_lnotab)\n", "<dummy>", Py_file_input);
-        if (!compiled) return NULL;
-        result = PyEval_EvalCode(compiled, scratch_dict, scratch_dict);
-        Py_DECREF(compiled);
-        if (!result) PyErr_Print();
-        Py_DECREF(result);
-        result = PyDict_GetItemString(scratch_dict, "out");
-        if (result) Py_INCREF(result);
-        return result;
-    }
-    #else
     return NULL;
-    #endif
 }
 
 static void __Pyx_AddTraceback(const char *funcname, int c_line,

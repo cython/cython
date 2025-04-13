@@ -2826,7 +2826,7 @@ class ImportNode(ExprNode):
             # For modules in packages, and without 'absolute_import' enabled, try relative (Py2) import first.
             if env.global_scope().parent_module and (
                     env.directives['py2_import'] or
-                    Future.absolute_import not in env.global_scope().context.future_directives):
+                    Future.absolute_import not in env.context.future_directives):
                 self.level = -1
             else:
                 self.level = 0
@@ -3119,7 +3119,7 @@ class IteratorNode(ScopedExprNode):
         assert self.counter_cname, "internal error: counter_cname temp not prepared"
         assert test_name in ('List', 'Tuple')
 
-        final_size = '__Pyx_Py%s_GET_SIZE(%s)' % (test_name, self.py_result())
+        final_size = f'__Pyx_Py{test_name}_GET_SIZE({self.py_result()})'
         size_is_safe = False
         if self.sequence.is_sequence_constructor:
             item_count = len(self.sequence.args)
@@ -3141,41 +3141,31 @@ class IteratorNode(ScopedExprNode):
             code.putln("if (%s >= %s) break;" % (self.counter_cname, Naming.quick_temp_cname))
             code.putln("}")
 
-        if self.reversed:
-            inc_dec = '--'
-        else:
-            inc_dec = '++'
-        code.putln("#if CYTHON_ASSUME_SAFE_MACROS && !CYTHON_AVOID_BORROWED_REFS")
+        inc_dec = '--' if self.reversed else '++'
+
         if test_name == 'List':
             code.putln(f"{result_name} = __Pyx_PyList_GetItemRef({self.py_result()}, {self.counter_cname});")
-            code.putln(code.error_goto_if_null(result_name, self.pos))
-            code.putln(f"__Pyx_GOTREF({result_name});")
         else:  # Tuple
-            code.putln(f"{result_name} = PyTuple_GET_ITEM({self.py_result()}, {self.counter_cname});")
-            code.putln(code.error_goto_if_neg('0', self.pos))  # Use the error label to avoid C compiler warnings if we only use it below.
-            code.putln(f"__Pyx_INCREF({result_name});")
-        code.putln(f"{self.counter_cname}{inc_dec};")
-        code.putln("#else")
-        code.putln(
-            "%s = __Pyx_PySequence_ITEM(%s, %s); %s%s; %s" % (
-                result_name,
-                self.py_result(),
-                self.counter_cname,
-                self.counter_cname,
-                inc_dec,
-                code.error_goto_if_null(result_name, self.pos)))
-        code.put_gotref(result_name, py_object_type)
-        code.putln("#endif")
+            code.putln("#if CYTHON_ASSUME_SAFE_MACROS && !CYTHON_AVOID_BORROWED_REFS")
+            code.putln(f"{result_name} = __Pyx_NewRef(PyTuple_GET_ITEM({self.py_result()}, {self.counter_cname}));")
+            code.putln("#else")
+            code.putln(f"{result_name} = __Pyx_PySequence_ITEM({self.py_result()}, {self.counter_cname});")
+            code.putln("#endif")
+        code.putln(f"{inc_dec}{self.counter_cname};")
 
     def generate_iter_next_result_code(self, result_name, code):
         sequence_type = self.sequence.type
         if self.reversed:
-            code.putln("if (%s < 0) break;" % self.counter_cname)
+            code.putln(f"if ({self.counter_cname} < 0) break;")
         if sequence_type is list_type:
             self.generate_next_sequence_item('List', result_name, code)
+            code.putln(code.error_goto_if_null(result_name, self.pos))
+            code.put_gotref(result_name, py_object_type)
             return
         elif sequence_type is tuple_type:
             self.generate_next_sequence_item('Tuple', result_name, code)
+            code.putln(code.error_goto_if_null(result_name, self.pos))
+            code.put_gotref(result_name, py_object_type)
             return
 
         if self.may_be_a_sequence:
@@ -3185,24 +3175,21 @@ class IteratorNode(ScopedExprNode):
             code.putln("} else {")
             self.generate_next_sequence_item('Tuple', result_name, code)
             code.putln("}")
+            code.putln(code.error_goto_if_null(result_name, self.pos))
             code.put("} else ")
 
         code.putln("{")
-        code.putln(
-            "%s = %s(%s);" % (
-                result_name,
-                self.iter_func_ptr,
-                self.py_result()))
+        code.putln(f"{result_name} = {self.iter_func_ptr}({self.py_result()});")
         code.putln("if (unlikely(!%s)) {" % result_name)
         code.putln("PyObject* exc_type = PyErr_Occurred();")
         code.putln("if (exc_type) {")
-        code.putln("if (likely(__Pyx_PyErr_GivenExceptionMatches(exc_type, PyExc_StopIteration))) PyErr_Clear();")
-        code.putln("else %s" % code.error_goto(self.pos))
+        code.putln(code.error_goto_if("!__Pyx_PyErr_GivenExceptionMatches(exc_type, PyExc_StopIteration)", self.pos))
+        code.putln("PyErr_Clear();")
         code.putln("}")
         code.putln("break;")
         code.putln("}")
-        code.put_gotref(result_name, py_object_type)
         code.putln("}")
+        code.put_gotref(result_name, py_object_type)
 
     def free_temps(self, code):
         if self.counter_cname:
@@ -4027,7 +4014,11 @@ class IndexNode(_IndexingBaseNode):
             elif self.index.is_slice or self.index.is_sequence_constructor:
                 # memory view
                 from . import MemoryView
-                env.use_utility_code(MemoryView.view_utility_code)
+                env.use_utility_code(
+                    MemoryView.get_view_utility_code(
+                        env.context.shared_utility_qualified_name
+                    )
+                )
                 axes = [self.index] if self.index.is_slice else list(self.index.args)
                 return PyrexTypes.MemoryViewSliceType(base_type, MemoryView.get_axes_specs(env, axes))
             elif not base_type.is_pyobject:
@@ -5524,7 +5515,11 @@ class SliceIndexNode(ExprNode):
             if not self.start and not self.stop:
                 # memory view
                 from . import MemoryView
-                env.use_utility_code(MemoryView.view_utility_code)
+                env.use_utility_code(
+                    MemoryView.get_view_utility_code(
+                        env.context.shared_utility_qualified_name
+                    )
+                )
                 none_node = NoneNode(self.pos)
                 slice_node = SliceNode(
                     self.pos,
@@ -6414,6 +6409,9 @@ class SimpleCallNode(CallNode):
 
         if self.is_temp and self.type.is_reference:
             self.type = PyrexTypes.CFakeReferenceType(self.type.ref_base_type)
+        if func_type.return_type.is_ctuple:
+            # Make sure we properly declare new ctuple types coming in from function calls.
+            env.declare_tuple_type(self.function.pos, func_type.return_type.components).used = True
 
         # C++ exception handler
         if func_type.exception_check == '+':
@@ -6558,7 +6556,13 @@ class SimpleCallNode(CallNode):
                 exc_val = func_type.exception_value
                 exc_check = func_type.exception_check
                 if exc_val is not None:
-                    exc_checks.append("%s == %s" % (self.result(), func_type.return_type.cast_code(exc_val)))
+                    typed_exc_val = func_type.return_type.cast_code(exc_val)
+                    if func_type.return_type.is_ctuple:
+                        code.globalstate.use_utility_code(UtilityCode.load_cached(
+                            "IncludeStringH", "StringTools.c"))
+                        exc_checks.append(f"memcmp(&{self.result()}, &{typed_exc_val}, sizeof({self.result()})) == 0")
+                    else:
+                        exc_checks.append(f"{self.result()} == {typed_exc_val}")
                 if exc_check:
                     if nogil:
                         if not exc_checks:
@@ -6635,179 +6639,58 @@ class PyMethodCallNode(CallNode):
     # function    ExprNode      the function/method object to call
     # arg_tuple   TupleNode     the arguments for the args tuple
     # kwdict      ExprNode or None  keyword dictionary (if present)
+    # kwargs_key_value_pairs  [ExprNode] or None  list of unpacked kwargs key-value pairs, if known
+    # function_obj  ExprNode or None  == self.function.obj when using PyObject_VectorcallMethod()
     # unpack      bool
 
-    subexprs = ['function', 'arg_tuple', 'kwdict']
+    subexprs = ['function', 'arg_tuple', 'kwdict', 'kwargs_key_value_pairs']
     is_temp = True
+    use_method_vectorcall = False
     kwdict = None
+    kwargs_key_value_pairs = None
+    function_obj = None
 
-    def generate_evaluation_code(self, code):
-        code.mark_pos(self.pos)
-        self.allocate_temp_result(code)
+    def __init__(self, pos, **kw):
+        super().__init__(pos, **kw)
+        if self.can_avoid_attribute_lookup():
+            self.use_method_vectorcall = True
+            self.function_obj = self.function.obj
+        if self.kwdict and self.kwdict.is_dict_literal:
+            self.kwargs_key_value_pairs = self.kwdict.key_value_pairs
+            self.kwdict = None
 
-        self.function.generate_evaluation_code(code)
-        assert self.arg_tuple.mult_factor is None
-        args = self.arg_tuple.args
-        kwargs_key_value_pairs = None
-        for arg in args:
-            arg.generate_evaluation_code(code)
-        if isinstance(self.kwdict, DictNode):
-            kwargs_key_value_pairs = self.kwdict.key_value_pairs
-            for keyvalue in kwargs_key_value_pairs:
-                keyvalue.generate_evaluation_code(code)
-        elif self.kwdict:
-            self.kwdict.generate_evaluation_code(code)
-
-        # make sure function is in temp so that we can replace the reference below if it's a method
-        reuse_function_temp = self.function.is_temp
-        if reuse_function_temp:
-            function = self.function.result()
-        else:
-            function = code.funcstate.allocate_temp(py_object_type, manage_ref=True)
-            self.function.make_owned_reference(code)
-            code.put("%s = %s; " % (function, self.function.py_result()))
-            self.function.generate_disposal_code(code)
-            self.function.free_temps(code)
-
-        self_arg = code.funcstate.allocate_temp(py_object_type, manage_ref=True)
-        code.putln("%s = NULL;" % self_arg)
-        arg_offset_cname = code.funcstate.allocate_temp(PyrexTypes.c_uint_type, manage_ref=False)
-        code.putln("%s = 0;" % arg_offset_cname)
-
-        def attribute_is_likely_method(attr):
-            obj = attr.obj
-            if obj.is_name and obj.entry.is_pyglobal:
-                return False  # more likely to be a function
-            return True
-
-        if self.function.is_attribute:
-            likely_method = 'likely' if attribute_is_likely_method(self.function) else 'unlikely'
-        elif self.function.is_name and self.function.cf_state:
-            # not an attribute itself, but might have been assigned from one (e.g. bound method)
-            for assignment in self.function.cf_state:
-                value = assignment.rhs
-                if value and value.is_attribute and value.obj.type and value.obj.type.is_pyobject:
-                    if attribute_is_likely_method(value):
-                        likely_method = 'likely'
-                        break
-            else:
-                likely_method = 'unlikely'
-        else:
-            likely_method = 'unlikely'
-
-        if self.unpack:
-            # unpack is ultimately governed by optimize.unpack_method_calls
-            # and is a separate decision to whether we want vectorcall-type behaviour
-            code.putln("#if CYTHON_UNPACK_METHODS")
-            code.putln("if (%s(PyMethod_Check(%s))) {" % (likely_method, function))
-            code.putln("%s = PyMethod_GET_SELF(%s);" % (self_arg, function))
-            # the result of PyMethod_GET_SELF is always true in Py3.
-            code.putln(f"assert({self_arg});")
-            code.putln("PyObject* function = PyMethod_GET_FUNCTION(%s);" % function)
-            code.put_incref(self_arg, py_object_type)
-            code.put_incref("function", py_object_type)
-            # free method object as early to possible to enable reuse from CPython's freelist
-            code.put_decref_set(function, py_object_type, "function")
-            code.putln("%s = 1;" % arg_offset_cname)
-            code.putln("}")
-            code.putln("#endif")  # CYTHON_UNPACK_METHODS
-            # TODO may need to deal with unused variables in the #else case
-
-        kwnames_temp = None
-        if kwargs_key_value_pairs:
-            code.globalstate.use_utility_code(
-                UtilityCode.load_cached("PyObjectVectorCallKwBuilder", "ObjectHandling.c"))
-            function_caller = "__Pyx_Object_Vectorcall_CallFromBuilder"
-            kwnames_temp = code.funcstate.allocate_temp(py_object_type, manage_ref=True)
-            code.putln("%s = __Pyx_MakeVectorcallBuilderKwds(%s); %s" % (
-                kwnames_temp, len(kwargs_key_value_pairs),
-                code.error_goto_if_null(kwnames_temp, self.pos)
-            ))
-            code.put_gotref(kwnames_temp, py_object_type)
-        elif self.kwdict:
-            code.globalstate.use_utility_code(
-                    UtilityCode.load_cached("PyObjectFastCall", "ObjectHandling.c"))
-            function_caller = "__Pyx_PyObject_FastCallDict"
-        else:
-            code.globalstate.use_utility_code(
-                UtilityCode.load_cached("PyObjectFastCall", "ObjectHandling.c"))
-            function_caller = "__Pyx_PyObject_FastCall"
-        # actually call the function
-
-
-        code.putln("{")
-        extra_keyword_args = ""
-        if kwargs_key_value_pairs:
-            extra_keyword_args = f"+ ((CYTHON_VECTORCALL) ? {len(kwargs_key_value_pairs)} : 0)"
-        # To avoid passing an out-of-bounds argument pointer in the no-args case,
-        # we need at least two entries, so we pad with NULL and point to that.
-        # See https://github.com/cython/cython/issues/5668
-        code.putln("PyObject *__pyx_callargs[%d%s] = {%s, %s};" % (
-            (len(args) + 1) if args else 2,
-            extra_keyword_args,
-            self_arg,
-            ', '.join(arg.py_result() for arg in args) if args else "NULL",
-        ))
-        if kwargs_key_value_pairs:
-            for n, keyvalue in enumerate(kwargs_key_value_pairs):
-                key_is_str = keyvalue.key.type is Builtin.unicode_type and not keyvalue.key.may_be_none()
-                code.put_error_if_neg(
-                    self.pos,
-                    "__Pyx_VectorcallBuilder_AddArg%s(%s, %s, %s, __pyx_callargs+%d, %d)" % (
-                        "" if key_is_str else "_Check",
-                        keyvalue.key.py_result(),
-                        keyvalue.value.py_result(),
-                        kwnames_temp,
-                        len(args) + 1,
-                        n
-                ))
-
-        if kwnames_temp:
-            keyword_variable = f", {kwnames_temp}"
-        elif self.kwdict:
-            keyword_variable = f", {self.kwdict.result()}"
-        else:
-            keyword_variable = ""
-        code.putln("%s = %s(%s, __pyx_callargs+1-%s, %d+%s%s);" % (
-            self.result(),
-            function_caller,
-            function,
-            arg_offset_cname,
-            len(args),
-            arg_offset_cname,
-            keyword_variable))
-
-        code.put_xdecref_clear(self_arg, py_object_type)
-        code.funcstate.release_temp(self_arg)
-        code.funcstate.release_temp(arg_offset_cname)
-        for arg in args:
-            arg.generate_disposal_code(code)
-            arg.free_temps(code)
-        if kwargs_key_value_pairs:
-            for keyvalue in kwargs_key_value_pairs:
-                keyvalue.generate_disposal_code(code)
-                keyvalue.free_temps(code)
-            code.put_decref_clear(kwnames_temp, py_object_type)
-            code.funcstate.release_temp(kwnames_temp)
-        elif self.kwdict:
-            self.kwdict.generate_disposal_code(code)
-            self.kwdict.free_temps(code)
-        code.putln(code.error_goto_if_null(self.result(), self.pos))
-        self.generate_gotref(code)
-
-        if reuse_function_temp:
-            self.function.generate_disposal_code(code)
-            self.function.free_temps(code)
-        else:
-            code.put_decref_clear(function, py_object_type)
-            code.funcstate.release_temp(function)
-        code.putln("}")
+    def can_avoid_attribute_lookup(self):
+        # Essentially, if the signature matches PyObject_VectorcallMethod
+        # then it's worth doing that directly and not creating a new method in
+        # the attribute lookup.
+        if self.kwdict and not isinstance(self.kwdict, DictNode):
+            return False
+        function = self.function
+        if not function.is_attribute:
+            return False
+        # These two determine that it's not just a plain getattr
+        if not function.is_py_attr:
+            return False
+        if function.is_special_lookup:
+            return False
+        if not PyMethodCallNode.attribute_is_likely_method(function):
+            # PyObject_VectorcallMethod would work, but is more likely to
+            # be a pessimization.
+            return False
+        return True
 
     @staticmethod
-    def can_be_used_for_posargs(positional_args, has_kwargs, kwds_is_dict_node=None):
+    def attribute_is_likely_method(attr):
+        obj = attr.obj
+        if obj.is_name and obj.entry.is_pyglobal:
+            return False  # more likely to be a function
+        return True
+
+    @staticmethod
+    def can_be_used_for_posargs(positional_args, has_kwargs, has_explicit_kwargs=False):
         """
         Test whether the positional args given are compatible with
-        being translated into a PyMethodCallNode
+        being translated into a PyMethodCallNode.
         """
         if not isinstance(positional_args, TupleNode):
             return False
@@ -6816,12 +6699,10 @@ class PyMethodCallNode(CallNode):
         if positional_args.is_literal and len(positional_args.args) > 1:
             return False
         if not len(positional_args.args):
-            # If positional_args is an empty tuple, it's probably only
-            # worth optimizing if the kwds are f(a=1, b=2) and not
-            # if they're f(**kwds)
-            return has_kwargs and kwds_is_dict_node
+            # If positional_args is an empty tuple, it's probably only worth optimizing
+            # if the kwds are f(a=1, b=2) or none at all, and not if they're f(**kwds).
+            return has_explicit_kwargs or not has_kwargs
         return True
-
 
     @staticmethod
     def can_be_used_for_function(function):
@@ -6830,15 +6711,13 @@ class PyMethodCallNode(CallNode):
         into a PyMethodCallNode
         """
         may_be_a_method = True
-        if function.type is Builtin.type_type:
-            may_be_a_method = False
-        elif function.is_attribute:
+        if function.is_attribute:
             if function.entry and function.entry.type.is_cfunction:
                 # optimised builtin method
                 may_be_a_method = False
         elif function.is_name:
             entry = function.entry
-            if entry.is_builtin or entry.type.is_cfunction:
+            if entry.type.is_cfunction:
                 may_be_a_method = False
             elif entry.cf_assignments:
                 # local functions/classes are definitely not methods
@@ -6847,6 +6726,208 @@ class PyMethodCallNode(CallNode):
                     assignment.rhs and not isinstance(assignment.rhs, non_method_nodes)
                     for assignment in entry.cf_assignments)
         return may_be_a_method
+
+    def generate_evaluate_function(self, code, self_arg) -> str:
+        # Returns the cname of the function variable, temp or name (for VectorcallMethod).
+        if self.use_method_vectorcall:
+            self.function_obj.generate_evaluation_code(code)
+            code.putln(f"{self_arg} = {self.function_obj.py_result()};")
+            code.put_incref(self_arg, py_object_type)
+            return code.get_py_string_const(self.function.attribute)
+
+        code.putln(f"{self_arg} = NULL;")
+        self.function.generate_evaluation_code(code)
+
+        # Make sure function is in temp so that we can replace the reference if it's a method.
+        if self.function.is_temp:
+            return self.function.result()
+
+        # FIXME: Should use "coerce_to_temp()" in "__init__()" instead, but that needs "env".
+        function = code.funcstate.allocate_temp(py_object_type, manage_ref=True)
+        self.function.make_owned_reference(code)
+        code.putln("%s = %s; " % (function, self.function.py_result()))
+        self.function.generate_disposal_code(code)
+        self.function.free_temps(code)
+        return function
+
+    def generate_dispose_function(self, code, function):
+        if self.use_method_vectorcall:
+            self.function_obj.generate_disposal_code(code)
+            self.function_obj.free_temps(code)
+        elif self.function.is_temp:
+            self.function.generate_disposal_code(code)
+            self.function.free_temps(code)
+        else:
+            code.put_decref_clear(function, py_object_type)
+            code.funcstate.release_temp(function)
+
+    def generate_runtime_method_unpacking_code(self, code, self_arg, space_for_selfarg_var, method_obj):
+        if self.use_method_vectorcall or not self.unpack:
+            return
+
+        if self.function.is_attribute:
+            likely_method = 'likely' if self.attribute_is_likely_method(self.function) else 'unlikely'
+        elif self.function.is_name and self.function.cf_state:
+            # not an attribute itself, but might have been assigned from one (e.g. bound method)
+            for assignment in self.function.cf_state:
+                value = assignment.rhs
+                if value and value.is_attribute and value.obj.type and value.obj.type.is_pyobject:
+                    if self.attribute_is_likely_method(value):
+                        likely_method = 'likely'
+                        break
+            else:
+                likely_method = 'unlikely'
+        else:
+            likely_method = 'unlikely'
+
+        # Unpacking is ultimately governed by "optimize.unpack_method_calls"
+        # and is a separate decision to whether we want vectorcall-type behaviour.
+        code.putln("#if CYTHON_UNPACK_METHODS")
+        code.putln("if (%s(PyMethod_Check(%s))) {" % (likely_method, method_obj))
+        code.putln(f"{self_arg} = PyMethod_GET_SELF({method_obj});")
+        # The result of PyMethod_GET_SELF is always true in Py3.
+        code.putln(f"assert({self_arg});")
+        code.putln(f"PyObject* __pyx__function = PyMethod_GET_FUNCTION({method_obj});")
+        code.put_incref(self_arg, py_object_type)
+        code.put_incref("__pyx__function", py_object_type)
+        # free method object as early to possible to enable reuse from CPython's freelist
+        code.put_decref_set(method_obj, py_object_type, "__pyx__function")
+        code.putln(f"{space_for_selfarg_var} = 0;")
+        code.putln("}")
+        code.putln("#endif")  # CYTHON_UNPACK_METHODS
+        # TODO may need to deal with unused variables in the #else case
+
+    def generate_keyvalue_args(self, code, args, kwargs_key_value_pairs, kwnames_temp):
+        code.putln(
+            f"{kwnames_temp} = __Pyx_MakeVectorcallBuilderKwds({len(kwargs_key_value_pairs)}); "
+            f"{code.error_goto_if_null(kwnames_temp, self.pos)}"
+        )
+        code.put_gotref(kwnames_temp, py_object_type)
+
+        for n, keyvalue in enumerate(kwargs_key_value_pairs):
+            key_is_str = keyvalue.key.type is Builtin.unicode_type and not keyvalue.key.may_be_none()
+            code.put_error_if_neg(
+                self.pos,
+                f"__Pyx_VectorcallBuilder_AddArg{'' if key_is_str else '_Check'}("
+                f"{keyvalue.key.py_result()}, "
+                f"{keyvalue.value.py_result()}, "
+                f"{kwnames_temp}, "
+                f"{Naming.callargs_cname}+{len(args) + 1}, "
+                f"{n:d}"
+                ")"
+            )
+
+    def select_utility_code(self, code):
+        # ... and return the utility function's cname.
+        if self.use_method_vectorcall:
+            if self.kwargs_key_value_pairs:
+                name = "PyObjectVectorCallMethodKwBuilder"
+                cfunc = "__Pyx_Object_VectorcallMethod_CallFromBuilder"
+            else:
+                name = "PyObjectFastCallMethod"
+                cfunc = "__Pyx_PyObject_FastCallMethod"
+        elif self.kwargs_key_value_pairs:
+            name = "PyObjectVectorCallKwBuilder"
+            cfunc = "__Pyx_Object_Vectorcall_CallFromBuilder"
+        elif self.kwdict:
+            name = "PyObjectFastCall"
+            cfunc = "__Pyx_PyObject_FastCallDict"
+        else:
+            name = "PyObjectFastCall"
+            cfunc = "__Pyx_PyObject_FastCall"
+
+        code.globalstate.use_utility_code(
+            UtilityCode.load_cached(name, "ObjectHandling.c"))
+        return cfunc
+
+    def generate_evaluation_code(self, code):
+        code.mark_pos(self.pos)
+        self.allocate_temp_result(code)
+
+        kwargs_key_value_pairs = self.kwargs_key_value_pairs
+        kwdict = self.kwdict
+
+        self_arg = code.funcstate.allocate_temp(py_object_type, manage_ref=True)
+        function = self.generate_evaluate_function(code, self_arg)
+
+        args = self.arg_tuple.args
+        assert self.arg_tuple.mult_factor is None
+        for arg in args:
+            arg.generate_evaluation_code(code)
+
+        if kwargs_key_value_pairs:
+            for keyvalue in kwargs_key_value_pairs:
+                keyvalue.generate_evaluation_code(code)
+        elif kwdict:
+            kwdict.generate_evaluation_code(code)
+
+        # Leave space for self argument in before-first argument?
+        space_for_selfarg = code.funcstate.allocate_temp(PyrexTypes.c_size_t_type, manage_ref=False)
+        code.putln(f"{space_for_selfarg} = {'0' if self.use_method_vectorcall else '1'};")
+
+        self.generate_runtime_method_unpacking_code(
+            code,
+            self_arg=self_arg,
+            space_for_selfarg_var=space_for_selfarg,
+            method_obj=function,
+        )
+
+        function_caller = self.select_utility_code(code)
+
+        # Actually call the function.
+        code.putln("{")
+
+        # To avoid passing an out-of-bounds argument pointer in the no-args case,
+        # we need at least two entries, so we pad with NULL and point to that.
+        # See https://github.com/cython/cython/issues/5668
+        args_list = ', '.join(arg.py_result() for arg in args) if args else "NULL"
+        extra_keyword_args = f" + ((CYTHON_VECTORCALL) ? {len(kwargs_key_value_pairs)} : 0)" if kwargs_key_value_pairs else ""
+        code.putln(
+            f"PyObject *{Naming.callargs_cname}[{(len(args) + 1) if args else 2:d}{extra_keyword_args}] = {{{self_arg}, {args_list}}};"
+        )
+
+        keyword_variable = ""
+        if kwargs_key_value_pairs:
+            keyword_variable = code.funcstate.allocate_temp(py_object_type, manage_ref=True)
+            self.generate_keyvalue_args(code, args, kwargs_key_value_pairs, keyword_variable)
+        elif kwdict:
+            keyword_variable = kwdict.result()
+
+        code.putln(
+            f"{self.result()} = {function_caller}("
+            f"{function}, "
+            f"{Naming.callargs_cname}+{space_for_selfarg}, "
+            f"({len(args)+1:d}-{space_for_selfarg})"
+            f" | ({'1' if self.use_method_vectorcall else space_for_selfarg}*__Pyx_PY_VECTORCALL_ARGUMENTS_OFFSET)"
+            f"{', ' if keyword_variable else ''}{keyword_variable}"
+            ");")
+
+        # Clean up.
+
+        code.put_xdecref_clear(self_arg, py_object_type)
+        for tmp in [self_arg, space_for_selfarg]:
+            code.funcstate.release_temp(tmp)
+
+        for arg in args:
+            arg.generate_disposal_code(code)
+            arg.free_temps(code)
+
+        if kwargs_key_value_pairs:
+            for kw_node in kwargs_key_value_pairs:
+                kw_node.generate_disposal_code(code)
+                kw_node.free_temps(code)
+            code.put_decref_clear(keyword_variable, py_object_type)
+            code.funcstate.release_temp(keyword_variable)
+        elif kwdict:
+            kwdict.generate_disposal_code(code)
+            kwdict.free_temps(code)
+
+        self.generate_dispose_function(code, function)
+
+        code.putln(code.error_goto_if_null(self.result(), self.pos))
+        self.generate_gotref(code)
+
+        code.putln("}")
 
 
 class InlinedDefNodeCallNode(CallNode):
@@ -7406,7 +7487,7 @@ class MergedDictNode(ExprNode):
                 # For the fairly plausible special case where item is a temporary
                 # with a refcount of 1 (so created specifically for us),
                 # avoid making a copy
-                code.putln("#if CYTHON_COMPILING_IN_CPYTHON")
+                code.putln("#if CYTHON_COMPILING_IN_CPYTHON || CYTHON_COMPILING_IN_LIMITED_API")
                 code.putln("if (Py_REFCNT(%s) == 1) {" % item.py_result())
                 code.putln("%s = %s;" % (self.result(), item.py_result()))
                 item.generate_post_assignment_code(code)
@@ -11612,7 +11693,9 @@ class CythonArrayNode(ExprNode):
         self.coercion_type.validate_memslice_dtype(self.pos)
         self.type = self.get_cython_array_type(env)
         MemoryView.use_cython_array_utility_code(env)
-        env.use_utility_code(MemoryView.typeinfo_to_format_code)
+        env.use_utility_code(
+            MemoryView.get_typeinfo_to_format_code(env.context.shared_utility_qualified_name)
+        )
         return self
 
     def allocate_temp_result(self, code):
@@ -11625,7 +11708,7 @@ class CythonArrayNode(ExprNode):
         return self.get_cython_array_type(env)
 
     def get_cython_array_type(self, env):
-        cython_scope = env.global_scope().context.cython_scope
+        cython_scope = env.context.cython_scope
         cython_scope.load_cythonscope()
         return cython_scope.viewscope.lookup("array").type
 
@@ -12733,24 +12816,22 @@ class DivNode(NumBinopNode):
     def calculate_result_code(self):
         if self.type.is_complex or self.is_cpp_operation():
             return NumBinopNode.calculate_result_code(self)
-        elif self.type.is_float and self.operator == '//':
-            return "floor(%s / %s)" % (
-                self.operand1.result(),
-                self.operand2.result())
+
+        op1 = self.operand1.result()
+        op2 = self.operand2.result()
+
+        if self.type.is_float and self.operator == '//':
+            return f"floor({op1} / {op2})"
         elif self.truedivision or self.cdivision:
-            op1 = self.operand1.result()
-            op2 = self.operand2.result()
             if self.truedivision:
                 if self.type != self.operand1.type:
                     op1 = self.type.cast_code(op1)
                 if self.type != self.operand2.type:
                     op2 = self.type.cast_code(op2)
-            return "(%s / %s)" % (op1, op2)
+            return f"({op1} / {op2})"
         else:
-            return "__Pyx_div_%s(%s, %s)" % (
-                self.type.specialization_name(),
-                self.operand1.result(),
-                self.operand2.result())
+            b_is_constant = self.operand2.has_constant_result()
+            return f"__Pyx_div_{self.type.specialization_name()}({op1}, {op2}, {bool(b_is_constant):d})"
 
 
 _find_formatting_types = re.compile(
@@ -12814,21 +12895,17 @@ class ModNode(DivNode):
         self.generate_div_warning_code(code)
 
     def calculate_result_code(self):
+        op1 = self.operand1.result()
+        op2 = self.operand2.result()
+
         if self.cdivision:
             if self.type.is_float:
-                return "fmod%s(%s, %s)" % (
-                    self.type.math_h_modifier,
-                    self.operand1.result(),
-                    self.operand2.result())
+                return f"fmod{self.type.math_h_modifier}({op1}, {op2})"
             else:
-                return "(%s %% %s)" % (
-                    self.operand1.result(),
-                    self.operand2.result())
+                return f"({op1} % {op2})"
         else:
-            return "__Pyx_mod_%s(%s, %s)" % (
-                    self.type.specialization_name(),
-                    self.operand1.result(),
-                    self.operand2.result())
+            b_is_constant = self.operand2.has_constant_result()
+            return f"__Pyx_mod_{self.type.specialization_name()}({op1}, {op2}, {bool(b_is_constant):d})"
 
     def py_operation_function(self, code):
         type1, type2 = self.operand1.type, self.operand2.type
@@ -15151,3 +15228,31 @@ class AssignmentExpressionNode(ExprNode):
     def generate_result_code(self, code):
         # we have to do this manually because it isn't a subexpression
         self.assignment.generate_execution_code(code)
+
+
+class FirstArgumentForCriticalSectionNode(ExprNode):
+    # This class exists to pass the first argument of a function
+    # to a critical_section.  Mostly just to defer analysis since
+    # func.args isn't available for cdef functions until the
+    # analyse_declarations stage
+    #
+    #  func_node - FuncDefNode
+
+    subexprs = ['name_node']
+
+    name_node = None
+    type = PyrexTypes.py_object_type
+
+    def analyse_declarations(self, env):
+        if len(self.func_node.args) < 1:
+            error(self.pos, "critical_section directive can only be applied to a function with one or more positional arguments")
+            return
+        self.name_node = NameNode(self.pos, name=self.func_node.args[0].declared_name())
+        self.name_node.analyse_declarations(env)
+        self.type = self.name_node.type
+
+    def analyse_expressions(self, env):
+        # At this stage, just substitute the name node
+        if self.name_node:
+            return self.name_node.analyse_expressions(env)
+        return self  # error earlier

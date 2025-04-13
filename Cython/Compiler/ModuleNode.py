@@ -130,7 +130,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         # Make the module node (and its init function) look like a FuncDefNode.
         return self.scope
 
-    def merge_in(self, tree, scope, stage, merge_scope=False):
+    def merge_in(self, tree, scope, stage):
         # Merges in the contents of another tree, and possibly scope. With the
         # current implementation below, this must be done right prior
         # to code generation.
@@ -173,13 +173,13 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
         extend_if_not_in(self.scope.included_files, scope.included_files)
 
-        if merge_scope:
-            # Ensure that we don't generate import code for these entries!
-            for entry in scope.c_class_entries:
-                entry.type.module_name = self.full_module_name
-                entry.type.scope.directives["internal"] = True
+    def merge_scope(self, scope, internalise_c_class_entries=True):
+        # Ensure that we don't generate import code for these entries!
+        for entry in scope.c_class_entries:
+            entry.type.module_name = self.full_module_name
+            entry.type.scope.directives["internal"] = internalise_c_class_entries
 
-            self.scope.merge_in(scope)
+        self.scope.merge_in(scope)
 
     def with_compiler_directives(self):
         # When merging a utility code module into the user code we need to preserve
@@ -2888,7 +2888,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         module_state.putln('#else')
         module_state.putln('    {0};')
         module_state.putln('#endif')
-        module_state.putln('static %s *%s = &%s_static;' % (
+        module_state.putln('static %s * const %s = &%s_static;' % (
             Naming.modulestatetype_cname,
             Naming.modulestateglobal_cname,
             Naming.modulestateglobal_cname
@@ -2979,14 +2979,9 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             code.putln("#endif")
         code.putln(header3)
 
-        code.globalstate.use_utility_code(
-            UtilityCode.load("PyVersionSanityCheck", "ModuleSetupCode.c")
-        )
-
         # CPython 3.5+ supports multi-phase module initialisation (gives access to __spec__, __file__, etc.)
         code.putln("#if CYTHON_PEP489_MULTI_PHASE_INIT")
         code.putln("{")
-        code.putln("if (__Pyx_VersionSanityCheck() < 0) return NULL;")
         code.putln("return PyModuleDef_Init(&%s);" % Naming.pymoduledef_cname)
         code.putln("}")
 
@@ -3002,11 +2997,6 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
         # start of module init/exec function (pre/post PEP 489)
         code.putln("{")
-
-        code.putln("#if !CYTHON_PEP489_MULTI_PHASE_INIT")
-        code.putln("if (__Pyx_VersionSanityCheck() < 0) return NULL;")
-        code.putln("#endif")
-
         code.putln('int stringtab_initialized = 0;')
         code.putln("#if CYTHON_USE_MODULE_STATE")
         code.putln('int pystate_addmodule_run = 0;')
@@ -3517,6 +3507,14 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                       else "Py_MOD_GIL_USED")
         code.putln("{Py_mod_gil, %s}," % gil_option)
         code.putln("#endif")
+        code.putln("#if PY_VERSION_HEX >= 0x030C0000 && CYTHON_USE_MODULE_STATE")
+        subinterp_option = {
+            'no': 'Py_MOD_MULTIPLE_INTERPRETERS_NOT_SUPPORTED',
+            'shared_gil': 'Py_MOD_MULTIPLE_INTERPRETERS_SUPPORTED',
+            'own_gil': 'Py_MOD_PER_INTERPRETER_GIL_SUPPORTED'
+        }.get(env.directives["subinterpreters_compatible"])
+        code.putln("{Py_mod_multiple_interpreters, %s}," % subinterp_option)
+        code.putln("#endif")
         code.putln("{0, NULL}")
         code.putln("};")
         if not env.module_name.isascii():
@@ -3833,7 +3831,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         sizeof_objstruct = objstruct = type.objstruct_cname if type.typedef_flag else f"struct {type.objstruct_cname}"
         module_name = type.module_name
         type_name = type.name
-        if module_name not in ('__builtin__', 'builtins'):
+        is_builtin = module_name in ('__builtin__', 'builtins')
+        if not is_builtin:
             module_name = f'"{module_name}"'
         elif type_name in Code.ctypedef_builtins_map:
             # Fast path for special builtins, don't actually import
@@ -3856,23 +3855,27 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         typeptr_cname = type.typeptr_cname
         if not is_api:
             typeptr_cname = code.name_in_main_c_code_module_state(typeptr_cname)
-        code.put(
+
+        code.putln(
             f"{typeptr_cname} = __Pyx_ImportType_{Naming.cyversion}("
             f"{module}, {module_name}, {type.name.as_c_string_literal()},"
         )
 
         alignment_func = f"__PYX_GET_STRUCT_ALIGNMENT_{Naming.cyversion}"
-        if sizeof_objstruct != objstruct:
-            code.putln("")  # start in new line
-            code.putln("#if defined(PYPY_VERSION_NUM) && PYPY_VERSION_NUM < 0x050B0000")
-            code.putln(f'sizeof({objstruct}), {alignment_func}({objstruct}),')
-            code.putln("#elif CYTHON_COMPILING_IN_LIMITED_API")
-            code.putln(f'sizeof({objstruct}), {alignment_func}({objstruct}),')
-            code.putln("#else")
-            code.putln(f'sizeof({sizeof_objstruct}), {alignment_func}({sizeof_objstruct}),')
-            code.putln("#endif")
+        code.putln("#if defined(PYPY_VERSION_NUM) && PYPY_VERSION_NUM < 0x050B0000")
+        code.putln(f'sizeof({objstruct}), {alignment_func}({objstruct}),')
+        code.putln("#elif CYTHON_COMPILING_IN_LIMITED_API")
+        if is_builtin:
+            # Builtin types are opaque in when the limited API is enabled
+            # and subsequents attempt to access their fields will trigger
+            # compile errors. Skip the struct size check here so things keep
+            # working when a builtin type is imported but not actually used.
+            code.putln('0, 0,')
         else:
-            code.put(f' sizeof({objstruct}), {alignment_func}({objstruct}),')
+            code.putln(f'sizeof({objstruct}), {alignment_func}({objstruct}),')
+        code.putln('#else')
+        code.putln(f'sizeof({sizeof_objstruct}), {alignment_func}({sizeof_objstruct}),')
+        code.putln("#endif")
 
         # check_size
         if type.check_size and type.check_size in ('error', 'warn', 'ignore'):
@@ -3885,7 +3888,6 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.put(f'__Pyx_ImportType_CheckSize_{check_size.title()}_{Naming.cyversion});')
 
         code.putln(f' if (!{typeptr_cname}) {error_code}')
-
     def generate_type_ready_code(self, entry, code):
         Nodes.CClassDefNode.generate_type_ready_code(entry, code)
 

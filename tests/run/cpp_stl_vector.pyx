@@ -60,11 +60,15 @@ def test_modifiers():
     cdef ivector v1 = ivector(3)
     cdef ivector v2 = ivector(3)
     v2.insert(v2.end(), 1)
+    v2.insert(v2.cend(), 1)
     v2.insert(v2.end(), v1.begin(), v1.end())
+    v2.insert(v2.cend(), v1.cbegin(), v1.cend())
     v1.clear()
     v2.pop_back()
     v2.erase(v2.begin())
+    v2.erase(v2.cbegin())
     v2.erase(v2.begin(), v2.end())
+    v2.erase(v2.cbegin(), v2.cend())
     return v1.size(), v2.size()
 
 def test_swap(ivector v1, ivector v2):

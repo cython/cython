@@ -80,6 +80,7 @@ class Context:
         self.options = options
 
         self.pxds = {}  # full name -> node tree
+        self.utility_pxds = {}  # pxd name -> node tree
         self._interned = {}  # (type(value), value, *key_args) -> interned_value
 
         if language_level is not None:
@@ -93,6 +94,10 @@ class Context:
     def from_options(cls, options):
         return cls(options.include_path, options.compiler_directives,
                    options.cplus, options.language_level, options=options)
+
+    @property
+    def shared_utility_qualified_name(self):
+        return self.options.shared_utility_qualified_name if self.options else None
 
     def set_language_level(self, level):
         from .Future import print_function, unicode_literals, absolute_import, division, generator_stop
@@ -129,6 +134,14 @@ class Context:
             result_sink = create_default_resultobj(source, self.options)
             pipeline = Pipeline.create_pyx_as_pxd_pipeline(self, result_sink)
             result = Pipeline.run_pipeline(pipeline, source)
+        elif source_desc.in_utility_code:
+            from . import ParseTreeTransforms
+            transform = ParseTreeTransforms.CnameDirectivesTransform(self)
+            pipeline = Pipeline.create_pxd_pipeline(self, scope, module_name)
+            pipeline = Pipeline.insert_into_pipeline(
+                pipeline, transform,
+                before=ParseTreeTransforms.InterpretCompilerDirectives)
+            result = Pipeline.run_pipeline(pipeline, source_desc)
         else:
             pipeline = Pipeline.create_pxd_pipeline(self, scope, module_name)
             result = Pipeline.run_pipeline(pipeline, source_desc)
@@ -361,12 +374,11 @@ class Context:
     def parse(self, source_desc, scope, pxd, full_module_name):
         if not isinstance(source_desc, FileSourceDescriptor):
             raise RuntimeError("Only file sources for code supported")
-        source_filename = source_desc.filename
         scope.cpp = self.cpp
         # Parse the given source file and return a parse tree.
         num_errors = Errors.get_errors_count()
         try:
-            with Utils.open_source_file(source_filename) as f:
+            with source_desc.get_file_object() as f:
                 from . import Parsing
                 s = PyrexScanner(f, source_desc, source_encoding = f.encoding,
                                  scope = scope, context = self)
@@ -377,7 +389,7 @@ class Context:
                     except ImportError:
                         raise RuntimeError(
                             "Formal grammar can only be used with compiled Cython with an available pgen.")
-                    ConcreteSyntaxTree.p_module(source_filename)
+                    ConcreteSyntaxTree.p_module(source_desc.filename)
         except UnicodeDecodeError as e:
             #import traceback
             #traceback.print_exc()
@@ -544,7 +556,7 @@ def run_pipeline(source, options, full_module_name, context):
                 "Dotted filenames ('%s') are deprecated."
                 " Please use the normal Python package directory layout." % os.path.basename(abs_path), level=1)
     if re.search("[.]c(pp|[+][+]|xx)$", result.c_file, re.RegexFlag.IGNORECASE) and not context.cpp:
-        warning((source_desc, 1, 0),
+        warning((source.source_desc, 1, 0),
                 "Filename implies a c++ file but Cython is not in c++ mode.",
                 level=1)
 
@@ -826,6 +838,11 @@ def main(command_line = 0):
         os.chdir(options.working_path)
 
     try:
+        if options.shared_c_file_path:
+            from ..Build.SharedModule import generate_shared_module
+            generate_shared_module(options)
+            return
+
         result = compile(sources, options)
         if result.num_errors > 0:
             any_failures = 1

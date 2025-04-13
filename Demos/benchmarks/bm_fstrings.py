@@ -1,19 +1,18 @@
 # coding=utf-8
 # NOTE: requires Python 3.6 or later if not compiled with Cython
 
-from time import time
+from math import fsum
+import time
 
 import cython
 
 
-@cython.locals(x=int, n=int)
-def run():
-    t0 = time()
+def run(timer=time.perf_counter):
+    t0 = timer()
 
-    f = 1.0
-    x = 2
-    n = 5
-    i = 12345678
+    f: object = 1.0
+    n: cython.int = 5
+    i: object = 12345678
     s = 'abc'
     u = u'üöä'
 
@@ -221,16 +220,23 @@ def run():
     f"{n}oo{n*10}{f:5.2}--{n:2}{n:5}oo{i}{u}"
     f"{n}oo{n*10}{f:2.2}--{n:2}{n:5}oo{i}{s}xx{u}"
 
-    tk = time()
+    tk = timer()
     return tk - t0
 
 
-def main(n):
+def main(n: cython.int, scale: cython.int = 10, timer=time.perf_counter):
+    s: cython.long
+
     run()  # warmup
+
     times = []
     for i in range(n):
-        times.append(run())
+        times.append(fsum(run(timer) for s in range(scale)))
     return times
+
+
+def run_benchmark(repeat=10, scale=1, timer=time.perf_counter):
+    return main(repeat, scale, timer)
 
 
 if __name__ == "__main__":
