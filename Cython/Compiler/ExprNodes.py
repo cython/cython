@@ -7487,7 +7487,7 @@ class MergedDictNode(ExprNode):
                 # For the fairly plausible special case where item is a temporary
                 # with a refcount of 1 (so created specifically for us),
                 # avoid making a copy
-                code.putln("#if CYTHON_COMPILING_IN_CPYTHON")
+                code.putln("#if CYTHON_COMPILING_IN_CPYTHON || CYTHON_COMPILING_IN_LIMITED_API")
                 code.putln("if (Py_REFCNT(%s) == 1) {" % item.py_result())
                 code.putln("%s = %s;" % (self.result(), item.py_result()))
                 item.generate_post_assignment_code(code)
@@ -11693,7 +11693,9 @@ class CythonArrayNode(ExprNode):
         self.coercion_type.validate_memslice_dtype(self.pos)
         self.type = self.get_cython_array_type(env)
         MemoryView.use_cython_array_utility_code(env)
-        env.use_utility_code(MemoryView.typeinfo_to_format_code)
+        env.use_utility_code(
+            MemoryView.get_typeinfo_to_format_code(env.context.shared_utility_qualified_name)
+        )
         return self
 
     def allocate_temp_result(self, code):

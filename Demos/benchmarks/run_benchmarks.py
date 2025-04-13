@@ -11,7 +11,10 @@ import time
 
 BENCHMARKS_DIR = pathlib.Path(__file__).parent
 
-BENCHMARK_FILES = sorted(BENCHMARKS_DIR.glob("bm_*.py"))
+BENCHMARK_FILES = sorted(
+    list(BENCHMARKS_DIR.glob("bm_*.py")) +
+    list((BENCHMARKS_DIR.glob("bm_*.pyx")))
+)
 
 ALL_BENCHMARKS = [bm.stem for bm in BENCHMARK_FILES]
 
@@ -137,9 +140,11 @@ def autorange(bench_func, python_executable: str = sys.executable, min_runtime=0
     while True:
         for j in 1, 2, 5, 8:
             number = i * j
-            timings = bench_func(python_command, 3, number)
-            if min(timings) >= min_runtime:
-                return number
+            all_timings = bench_func(python_command, 3, number)
+            # FIXME: make autorange work per benchchmark, not per file.
+            for timings in all_timings.values():
+                if min(timings) >= min_runtime:
+                    return number
         i *= 10
 
 
@@ -150,16 +155,42 @@ def _make_bench_func(bm_dir, module_name, pythonpath=None):
 
         output = run(command, cwd=bm_dir, pythonpath=pythonpath)
 
+        timings = {}
+
         for line in output.stdout.decode().splitlines():
-            if line.startswith('[') and line.endswith(']'):
-                timings = [float(t) for t in line[1:-1].split(',')]
-                return timings
-        else:
+            name = module_name
+            if line.endswith(']') and '[' in line:
+                if ':' in line:
+                    name, line = line.split(':', 1)
+                    name = name.strip()
+                    line = line.strip()
+                if line.startswith('['):
+                    timings[name] = [float(t) for t in line[1:-1].split(',')]
+
+        if not timings:
             logging.error(f"Benchmark failed: {module_name}\nOutput:\n{output.stderr.decode()}")
             raise RuntimeError(f"Benchmark failed: {module_name}")
 
+        return timings
+
     bench_func.__name__ = module_name
     return bench_func
+
+
+def measure_benchmark_sizes(bm_paths: list[pathlib.Path]):
+    out = {}
+    for bm_path in bm_paths:
+        name = bm_path.stem
+        dir = bm_path.parent
+        stripped_path = dir / f"{name}.stripped"
+        # TODO - this'll only work on unix at the moment because it only looks for .so files
+        # (but it's unlikely that Windows will have 'strip' either)
+        compiled_path, = dir.glob(f"{name}*.so")
+        subprocess.run(
+            ["strip", compiled_path, "-g", "-o" , stripped_path ]
+        )
+        out[name] = stripped_path.stat().st_size
+    return out
 
 
 def run_benchmark(bm_dir, module_name, pythonpath=None, profiler=None):
@@ -186,7 +217,8 @@ def run_benchmark(bm_dir, module_name, pythonpath=None, profiler=None):
 
     logging.info(f"Running benchmark '{module_name}' with scale={scale:_d}.")
     timings = bench_func(python_command, repeat, scale)
-    timings = [t / scale for t in timings]
+
+    timings = {name: [t / scale for t in values] for name, values in timings.items()}
 
     if profiler:
         copy_profile(bm_dir, module_name, profiler)
@@ -197,17 +229,19 @@ def run_benchmark(bm_dir, module_name, pythonpath=None, profiler=None):
 def run_benchmarks(bm_dir, benchmarks, pythonpath=None, profiler=None):
     timings = {}
     for benchmark in benchmarks:
-        timings[benchmark] = run_benchmark(bm_dir, benchmark, pythonpath=pythonpath, profiler=profiler)
+        timings.update(
+            run_benchmark(bm_dir, benchmark, pythonpath=pythonpath, profiler=profiler))
     return timings
 
 
-def benchmark_revisions(benchmarks, revisions, cythonize_args=None, profiler=None, limited_revisions=()):
+def benchmark_revisions(benchmarks, revisions, cythonize_args=None, profiler=None, limited_revisions=(), show_size=False):
     python_version = "Python %d.%d.%d" % sys.version_info[:3]
     logging.info(f"### Comparing revisions in {python_version}: {' '.join(revisions)}.")
     logging.info(f"CFLAGS={os.environ.get('CFLAGS', DISTUTILS_CFLAGS)}")
 
     hashes = {}
     timings = {}
+    sizes = {}
     for revision in revisions:
         plain_python = revision == 'Python'
         revision_name = python_version if plain_python else f"Cython '{revision}'"
@@ -222,21 +256,23 @@ def benchmark_revisions(benchmarks, revisions, cythonize_args=None, profiler=Non
             hashes[rev_hash] = revision
 
         logging.info(f"### Preparing benchmark run for {revision_name}.")
-        timings[revision_name] = benchmark_revision(
-            revision, benchmarks, cythonize_args, profiler, plain_python)
+        timings[revision_name], sizes[revision_name] = benchmark_revision(
+            revision, benchmarks, cythonize_args, profiler, plain_python, show_size=show_size)
 
         if revision in limited_revisions:
             logging.info(
                 f"### Preparing benchmark run for {revision_name} (Limited API {LIMITED_API_VERSION[0]}.{LIMITED_API_VERSION[1]}).")
-            timings['L-' + revision_name] = benchmark_revision(
+            rev_key = 'L-' + revision_name
+            timings[rev_key], sizes[rev_key] = benchmark_revision(
                 revision, benchmarks, cythonize_args, profiler, plain_python,
                 c_macros=["Py_LIMITED_API=0x%02x%02x0000" % LIMITED_API_VERSION],
+                show_size=show_size,
             )
 
-    return timings
+    return timings, sizes
 
 
-def benchmark_revision(revision, benchmarks, cythonize_args=None, profiler=None, plain_python=False, c_macros=None):
+def benchmark_revision(revision, benchmarks, cythonize_args=None, profiler=None, plain_python=False, c_macros=None, show_size=False):
     with_profiler = None if plain_python else profiler
 
     if with_profiler:
@@ -251,12 +287,20 @@ def benchmark_revision(revision, benchmarks, cythonize_args=None, profiler=None,
 
         bm_dir.mkdir(parents=True)
         bm_files = copy_benchmarks(bm_dir, benchmarks)
-        if not plain_python:
+        sizes = None
+        if plain_python:
+            # Exclude non-Python modules.
+            bm_files = [bm_file for bm_file in bm_files if bm_file.suffix == '.py']
+            benchmarks = [bm_file.stem for bm_file in bm_files]
+        else:
             compile_benchmarks(cython_dir, bm_files, cythonize_args, c_macros=c_macros)
+            if show_size:
+                sizes = measure_benchmark_sizes(bm_files)
 
         logging.info(f"### Running benchmarks for {revision}.")
         pythonpath = cython_dir if plain_python else None
-        return run_benchmarks(bm_dir, benchmarks, pythonpath=pythonpath, profiler=with_profiler)
+        timings = run_benchmarks(bm_dir, benchmarks, pythonpath=pythonpath, profiler=with_profiler)
+        return timings, sizes
 
 
 def report_revision_timings(rev_timings):
@@ -313,6 +357,20 @@ def report_revision_timings(rev_timings):
                 logging.info(f"    {benchmark[:25]:<25}:  {pdiff:+8.2f} %   /  {'+' if tdiff > 0 else '-'}{format_time(abs(tdiff))}")
 
 
+def report_revision_sizes(rev_sizes):
+    sizes_by_benchmark = collections.defaultdict(list)
+    for revision_name, bm_size in rev_sizes.items():
+        if bm_size is None:
+            continue
+        for benchmark, size in bm_size.items():
+            sizes_by_benchmark[benchmark].append((revision_name, size))
+
+    for benchmark, sizes in sizes_by_benchmark.items():
+        logging.info(f"### Benchmark '{benchmark}' (size):")
+        for revision_name, size in sizes:
+            logging.info(f"    {revision_name[:25]:25}:  {size} bytes")
+
+
 def parse_args(args):
     from argparse import ArgumentParser, RawDescriptionHelpFormatter
     parser = ArgumentParser(
@@ -349,6 +407,11 @@ def parse_args(args):
         nargs="*", default=[],
         help="The git revisions to check out and benchmark.",
     )
+    parser.add_argument(
+        "--show-size",
+        dest="show_size", action="store_true", default=False,
+        help="Report the size of the compiled bencharks."
+    )
 
     return parser.parse_known_args(args)
 
@@ -372,9 +435,12 @@ if __name__ == '__main__':
     revisions = list({rev: rev for rev in (options.revisions + options.with_limited_api)})  # deduplicate in order
     if options.with_python:
         revisions.append('Python')
-    timings = benchmark_revisions(
+    timings, sizes = benchmark_revisions(
         benchmarks, revisions, cythonize_args,
         profiler=options.profiler,
         limited_revisions=options.with_limited_api,
+        show_size=options.show_size
     )
     report_revision_timings(timings)
+    if options.show_size:
+        report_revision_sizes(sizes)

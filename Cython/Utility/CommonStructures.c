@@ -267,16 +267,31 @@ static PyTypeObject* __Pyx_FetchCommonTypeFromSpec(PyObject *module, PyType_Spec
 //@requires: InitAndGetSharedAbiModule
 //@requires: ModuleSetupCode.c::CriticalSections
 //@requires:StringTools.c::IncludeStringH
+//@requires:Optimize.c::dict_setdefault
 
 static int __Pyx_VerifyCachedType(PyObject *cached_type,
                                const char *name,
-                               Py_ssize_t basicsize,
                                Py_ssize_t expected_basicsize) {
+    Py_ssize_t basicsize;
+
     if (!PyType_Check(cached_type)) {
         PyErr_Format(PyExc_TypeError,
             "Shared Cython type %.200s is not a type object", name);
         return -1;
     }
+
+#if CYTHON_COMPILING_IN_LIMITED_API
+    PyObject *py_basicsize;
+    py_basicsize = PyObject_GetAttrString(cached_type, "__basicsize__");
+    if (unlikely(!py_basicsize)) return -1;
+    basicsize = PyLong_AsSsize_t(py_basicsize);
+    Py_DECREF(py_basicsize);
+    py_basicsize = NULL;
+    if (unlikely(basicsize == (Py_ssize_t)-1) && PyErr_Occurred()) return -1;
+#else
+    basicsize = ((PyTypeObject*) cached_type)->tp_basicsize;
+#endif
+    
     if (basicsize != expected_basicsize) {
         PyErr_Format(PyExc_TypeError,
             "Shared Cython type %.200s has the wrong size, try recompiling",
@@ -301,23 +316,9 @@ static PyTypeObject *__Pyx__FetchCommonTypeFromSpec(PyObject *module, PyType_Spe
     cached_type = (PyObject*)*abi_module_entry;
     if (cached_type) {
         Py_INCREF(cached_type);
-      check_type:;
-        Py_ssize_t basicsize;
-#if CYTHON_COMPILING_IN_LIMITED_API
-        PyObject *py_basicsize;
-        py_basicsize = PyObject_GetAttrString(cached_type, "__basicsize__");
-        if (unlikely(!py_basicsize)) goto bad;
-        basicsize = PyLong_AsSsize_t(py_basicsize);
-        Py_DECREF(py_basicsize);
-        py_basicsize = 0;
-        if (unlikely(basicsize == (Py_ssize_t)-1) && PyErr_Occurred()) goto bad;
-#else
-        basicsize = likely(PyType_Check(cached_type)) ? ((PyTypeObject*) cached_type)->tp_basicsize : -1;
-#endif
         if (__Pyx_VerifyCachedType(
               cached_type,
               object_name,
-              basicsize,
               spec->basicsize) < 0) {
             goto bad;
         }
@@ -338,8 +339,13 @@ static PyTypeObject *__Pyx__FetchCommonTypeFromSpec(PyObject *module, PyType_Spe
         Py_DECREF(cached_type);
         Py_INCREF((PyObject*)*abi_module_entry);
         cached_type = (PyObject*)*abi_module_entry;
-        goto check_type;
     }
+    if (__Pyx_VerifyCachedType(
+            cached_type,
+            object_name,
+            spec->basicsize) < 0) {
+        goto bad;
+    } 
 
 done:
     // NOTE: always returns owned reference, or NULL on error

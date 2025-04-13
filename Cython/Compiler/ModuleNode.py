@@ -3499,6 +3499,14 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                       else "Py_MOD_GIL_USED")
         code.putln("{Py_mod_gil, %s}," % gil_option)
         code.putln("#endif")
+        code.putln("#if PY_VERSION_HEX >= 0x030C0000 && CYTHON_USE_MODULE_STATE")
+        subinterp_option = {
+            'no': 'Py_MOD_MULTIPLE_INTERPRETERS_NOT_SUPPORTED',
+            'shared_gil': 'Py_MOD_MULTIPLE_INTERPRETERS_SUPPORTED',
+            'own_gil': 'Py_MOD_PER_INTERPRETER_GIL_SUPPORTED'
+        }.get(env.directives["subinterpreters_compatible"])
+        code.putln("{Py_mod_multiple_interpreters, %s}," % subinterp_option)
+        code.putln("#endif")
         code.putln("{0, NULL}")
         code.putln("};")
         if not env.module_name.isascii():
