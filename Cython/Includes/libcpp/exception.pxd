@@ -10,6 +10,8 @@ cdef extern from "<exception>" namespace "std" nogil:
 
 cdef extern from *:
     """
+    static void __Pyx_CppExn2PyErr(void);
+
     CYTHON_UNUSED static void __pyx_deallocate_exception_ptr_capsule(PyObject *c) {
         std::exception_ptr *ptr = static_cast<std::exception_ptr*>(
             PyCapsule_GetPointer(c, "std::exception_ptr wrapper"));
@@ -19,8 +21,13 @@ cdef extern from *:
 
     CYTHON_UNUSED static void __pyx_to_exception_ptr() {
         try {
+            __Pyx_CppExn2PyErr(); // First do regular exception conversion
             throw;
         } catch (...) {
+            PyObject *type, *value, *tb;
+            PyErr_Fetch(&type, &value, &tb);
+            Py_XDECREF(value);
+            Py_XDECREF(tb);
             std::exception_ptr *current = new std::exception_ptr(std::current_exception());
             PyObject *capsule = PyCapsule_New(
                 static_cast<void*>(current),
@@ -29,7 +36,8 @@ cdef extern from *:
             if (!capsule)
                 delete current;  // otherwise it'll be leaked
             else
-                PyErr_SetObject(PyExc_Exception, capsule);
+                PyErr_SetObject(type ? type : PyExc_Exception, capsule);
+            Py_DECREF(type);
         }
     }
 
@@ -73,3 +81,7 @@ cdef extern from *:
     void exception_ptr_error_handler "__pyx_to_exception_ptr"() except *
     # Extract the exception_ptr from a caught exception
     exception_ptr wrapped_exception_ptr_from_exception "__pyx_wrapped_exception_ptr_from_exception"(e) except *
+
+# Dummy inline function to force __Pyx_CppExn2PyErr to be included for utility code above
+cdef inline void __pyx_call_rethrow_exception "__pyx_call_rethrow_exception"(exception_ptr e) except*:
+    rethrow_exception(e)
