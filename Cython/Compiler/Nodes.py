@@ -6306,7 +6306,37 @@ class SingleAssignmentNode(AssignmentNode):
         elif rhs.type.is_pyobject:
             rhs = rhs.coerce_to_simple(env)
         self.rhs = rhs
+
+        self.try_transform_to_emplace_cpp_locals_assignment(env)
+
         return self
+
+    def try_transform_to_emplace_cpp_locals_assignment(self, env):
+        from . import ExprNodes
+        lhs_entry = getattr(self.lhs, "entry", None)
+        if not lhs_entry or not lhs_entry.is_cpp_optional:
+            return
+        if self.is_overloaded_assignment:
+            return
+        if self.rhs.is_temp:
+            return  # would be nice to do, but not easy
+        if not (isinstance(self.rhs, ExprNodes.SimpleCallNode) and
+                # C++ constructor calls get transformed into this
+                isinstance(self.rhs.function, ExprNodes.RawCNameExprNode)):
+            return  # not a constructor
+        rhs_func_entry = getattr(self.rhs.function, "entry", None)
+        if not rhs_func_entry or rhs_func_entry.name != "<init>":
+            return
+
+        # If we've got to here then we can do the transformation.
+        # First change the function cname to "" so the code generation
+        # just generates the arguments.
+        self.rhs.function.cname = ""
+        from .UtilNodes import CppLocalsEmplaceAssignmentNode
+        self.lhs = CppLocalsEmplaceAssignmentNode(
+            self.lhs.pos,
+            original_lhs=self.lhs
+        )
 
     def unroll(self, node, target_size, env):
         from . import ExprNodes, UtilNodes

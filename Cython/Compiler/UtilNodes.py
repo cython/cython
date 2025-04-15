@@ -385,3 +385,25 @@ class HasGilNode(AtomicExprNode):
 
     def calculate_result_code(self):
         return "1" if self.has_gil else "0"
+
+
+class CppLocalsEmplaceAssignmentNode(ExprNodes.ExprNode):
+    """
+    For use with C++ constructors and the cpp_locals directive.
+
+    Some C++ constructors do not have move constructors.
+    A good example is `std::latch`.
+    In order to let these be used with cpp_locals we must avoid constructing the
+    temporary C++ object and instead just call emplace with the constructor arguments.
+    """
+
+    subexprs = ["original_lhs"]
+
+    def generate_assignment_code(self, rhs, code, overloaded_assignment=False,
+                                 exception_check=None, exception_value=None):
+        # Should be ensured by not transforming temps
+        assert exception_value is None and exception_check is None
+        code.putln(f"{self.original_lhs.result()}.emplace{rhs.result()};")
+        assert not rhs.result_in_temp()
+        rhs.generate_disposal_code(code)
+        rhs.free_temps(code)
