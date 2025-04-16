@@ -189,12 +189,22 @@ CYTHON_UNUSED static int __Pyx_PyType_Ready(PyTypeObject *t);/*proto*/
 //@requires: ObjectHandling.c::PyObjectCallMethod0
 //@requires: ValidateBasesTuple
 
+CYTHON_UNUSED static int __Pyx_PyType_HasMultipleInheritance(PyTypeObject *t) {
+    while (t) {
+        PyObject *bases = __Pyx_PyType_GetSlot(t, tp_bases, PyObject*);
+        if (bases) {
+            return 1;
+        }
+        t = __Pyx_PyType_GetSlot(t, tp_base, PyTypeObject*);
+    }
+    return 0;
+}
+
 // Wrapper around PyType_Ready() with some runtime checks and fixes
 // to deal with multiple inheritance.
 static int __Pyx_PyType_Ready(PyTypeObject *t) {
 
-// FIXME: is this really suitable for CYTHON_COMPILING_IN_LIMITED_API?
-#if CYTHON_USE_TYPE_SPECS || !(CYTHON_COMPILING_IN_CPYTHON || CYTHON_COMPILING_IN_LIMITED_API) || defined(PYSTON_MAJOR_VERSION)
+#if CYTHON_USE_TYPE_SPECS || !CYTHON_COMPILING_IN_CPYTHON || defined(PYSTON_MAJOR_VERSION)
     // avoid C warning about unused helper function
     (void)__Pyx_PyObject_CallMethod0;
 #if CYTHON_USE_TYPE_SPECS
@@ -205,6 +215,12 @@ static int __Pyx_PyType_Ready(PyTypeObject *t) {
 
 #else
     int r;
+
+    if (!__Pyx_PyType_HasMultipleInheritance(t)) {
+        // shortcut - if none of the base classes do multiple inheritance then we don't need to
+        // (and shouldn't) mess around with faking heaptypes.
+        return PyType_Ready(t);
+    }
     PyObject *bases = __Pyx_PyType_GetSlot(t, tp_bases, PyObject*);
     if (bases && unlikely(__Pyx_validate_bases_tuple(t->tp_name, t->tp_dictoffset, bases) == -1))
         return -1;
