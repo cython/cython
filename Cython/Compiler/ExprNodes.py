@@ -93,6 +93,10 @@ coercion_error_dict = {
     (PyrexTypes.c_uchar_ptr_type, unicode_type): "Cannot convert 'char*' to unicode implicitly, decoding required",
     (PyrexTypes.c_const_uchar_ptr_type, unicode_type): (
         "Cannot convert 'char*' to unicode implicitly, decoding required"),
+    (PyrexTypes.cy_pymutex_type, PyrexTypes.cy_pymutex_type): (
+        "cython.pymutex cannot be copied"),
+    (PyrexTypes.cy_pythread_type_lock_type, PyrexTypes.cy_pythread_type_lock_type): (
+        "cython.pythread_type_lock cannot be copied"),
 }
 
 def find_coercion_error(type_tuple, default, env):
@@ -14738,7 +14742,7 @@ class CoerceToComplexNode(CoercionNode):
 
 
 def coerce_from_soft_complex(arg, dst_type, env):
-    from .UtilNodes import HasGilNode
+    from .UtilNodes import HasNoGilNode
     cfunc_type = PyrexTypes.CFuncType(
         PyrexTypes.c_double_type,
         [ PyrexTypes.CFuncTypeArg("value", PyrexTypes.soft_complex_type, None),
@@ -14752,7 +14756,7 @@ def coerce_from_soft_complex(arg, dst_type, env):
         "__Pyx_SoftComplexToDouble",
         cfunc_type,
         utility_code = UtilityCode.load_cached("SoftComplexToDouble", "Complex.c"),
-        args = [arg, HasGilNode(arg.pos)],
+        args = [arg, HasNoGilNode(arg.pos)],
     )
     call = call.analyse_types(env)
     if call.type != dst_type:
