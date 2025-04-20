@@ -2516,7 +2516,7 @@ class CCodeWriter:
                         f.write(code)
                     shutil.move(tmp_path, path)
                     done = True
-                except FileExistsError:
+                except (FileExistsError, PermissionError):
                     # If a different process created the file faster than us,
                     # renaming can fail on Windows.  It's ok if the file is there now.
                     if not os.path.exists(path):
