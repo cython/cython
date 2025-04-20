@@ -16,17 +16,7 @@ py_set = set
 py_xrange = xrange
 py_unicode = unicode
 
-cdef extern from *:
-    int CYTHON_COMPILING_IN_LIMITED_API
-
-def skip_if_limited_api(why):
-    def dec(f):
-        if CYTHON_COMPILING_IN_LIMITED_API:
-            return None
-        else:
-            return f
-
-    return dec
+include "skip_limited_api_helper.pxi"
 
 cdef string add_strings(string a, string b) except *:
     return a + b
