@@ -40,7 +40,7 @@ def divmod_regular(a, b):
 
 @cython.test_assert_path_exists(
     "//SimpleCallNode//NameNode[@entry.name = 'divmod']",
-    "//SimpleCallNode//NameNode[@entry.cname = '__Pyx_divmod_int']",
+    "//SimpleCallNode//NameNode[@entry.cname = '__Pyx_divmod_short']",
     "//ReturnStatNode//CoerceToPyTypeNode",
 )
 def divmod_cshort(a: cython.short, b: cython.short):
@@ -253,6 +253,8 @@ def divmod_mixed_clonglong_cint(a: cython.longlong, b: cython.int):
     (2, 999)
     >>> divmod_mixed_clonglong_cint(19283090123, 1230912)
     (15665, 853643)
+    >>> divmod_mixed_clonglong_cint(-420000000000, 1000)
+    (-420000000, 0)
 
     >>> divmod_mixed_clonglong_cint(33, 0)  #doctest: +ELLIPSIS
     Traceback (most recent call last):
@@ -287,6 +289,27 @@ def divmod_mixed_unpack(a: cython.longlong, b: cython.int):
     ZeroDivisionError: ...
     """
     q, r = divmod(a, b)
+    if cython.compiled:
+        assert cython.typeof(q) == 'long long', cython.typeof(q)
+        assert cython.typeof(r) == 'long long', cython.typeof(r)
+    return q, r
+
+
+@cython.test_assert_path_exists(
+    "//SimpleCallNode//NameNode[@entry.name = 'divmod']",
+    "//SimpleCallNode//NameNode[@entry.cname = '__Pyx_divmod_PY_LONG_LONG']",
+    "//ReturnStatNode//CoerceToPyTypeNode",
+)
+def divmod_mixed_const(a: cython.longlong):
+    """
+    >>> divmod_mixed_const(-420000000000)
+    (-420000000, 0)
+    >>> divmod_mixed_const(9191)
+    (9, 191)
+    >>> divmod_mixed_const(19283090123)
+    (19283090, 123)
+    """
+    q, r = divmod(a, 1000)
     if cython.compiled:
         assert cython.typeof(q) == 'long long', cython.typeof(q)
         assert cython.typeof(r) == 'long long', cython.typeof(r)

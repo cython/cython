@@ -155,6 +155,7 @@ class Entry:
     #                             Used for identifying imports from typing/dataclasses etc
     # pytyping_modifiers          Python type modifiers like "typing.ClassVar" but also "dataclasses.InitVar"
     # enum_int_value  None or int  If known, the int that corresponds to this enum value
+    # specialiser  function or None  Callable to specialise a function to specific C arguments.
 
     # TODO: utility_code and utility_code_definition serves the same purpose...
 
@@ -213,6 +214,7 @@ class Entry:
     is_implemented = 0
     api = 0
     utility_code = None
+    specialiser = None
     is_overridable = 0
     buffer_aux = None
     prev_entry = None
@@ -268,6 +270,20 @@ class Entry:
 
     def all_alternatives(self):
         return [self] + self.overloaded_alternatives
+
+    def best_function_match(self, scope, arg_types, fail_if_empty=False, arg_is_lvalue=None):
+        func_entry = None
+        if self.specialiser is not None:
+            func_entry = self.specialiser(scope, arg_types)
+        if func_entry is None:
+            if self.type.is_fused:
+                functypes = self.type.get_all_specialized_function_types()
+                alternatives = [f.entry for f in functypes]
+            else:
+                alternatives = self.all_alternatives()
+            func_entry = PyrexTypes.best_match(
+                arg_types, alternatives, fail_if_empty=fail_if_empty, arg_is_lvalue=arg_is_lvalue)
+        return func_entry
 
     def all_entries(self):
         return [self] + self.inner_entries
@@ -946,6 +962,8 @@ class Scope:
                     if can_override:
                         temp = self.add_cfunction(name, type, pos, cname, visibility, modifiers)
                         temp.overloaded_alternatives = entry.all_alternatives()
+                        if entry.specialiser is not None:
+                            temp.specialiser = entry.specialiser
                         entry = temp
                     else:
                         warning(pos, "Function signature does not match previous declaration", 1)
@@ -1268,11 +1286,13 @@ class BuiltinScope(Scope):
                 else:
                     warning(pos, "undeclared name not builtin: %s" % name, 2)
 
-    def declare_builtin_cfunction(self, name, type, cname, python_equiv=None, utility_code=None):
+    def declare_builtin_cfunction(self, name, type, cname, python_equiv=None, utility_code=None, specialiser=None):
         # If python_equiv == "*", the Python equivalent has the same name
         # as the entry, otherwise it has the name specified by python_equiv.
         name = EncodedString(name)
         entry = self.declare_cfunction(name, type, None, cname, visibility='extern', utility_code=utility_code)
+        if specialiser is not None:
+            entry.specialiser = specialiser
         if python_equiv:
             if python_equiv == "*":
                 python_equiv = name
