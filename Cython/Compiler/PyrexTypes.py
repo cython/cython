@@ -4987,8 +4987,12 @@ class NoMatchFound(Exception):
     def __init__(self, errors, candidate_count):
         if len(errors) == 1 or len({msg for _, msg in errors}) == 1:
             _, errmsg = errors[0]
-        else:
+        elif candidate_count:
             errmsg = f"no suitable method found (candidates: {candidate_count})"
+        else:
+            # No candidates at all. This can happen with fused types,
+            # in which case the error is reported elsewhere.
+            errmsg = ""
         super().__init__(errmsg)
 
 

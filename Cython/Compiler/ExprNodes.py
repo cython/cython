@@ -6252,7 +6252,9 @@ class SimpleCallNode(CallNode):
                     arg_is_lvalue=[arg.is_lvalue() for arg in args]
                 )
             except PyrexTypes.NoMatchFound as exc:
-                error(self.pos, str(exc))
+                message = str(exc)
+                if message:
+                    error(self.pos, message)
                 self.type = PyrexTypes.error_type
                 self.result_code = "<error>"
                 return
