@@ -116,7 +116,8 @@ Using the Sage notebook
    For users of the SageMath distribution, the Sage notebook uses Jupyter by default.
    Sage provides its own implementation of the ``%%cython`` cell magic (see
    `Sage Magics <https://doc.sagemath.org/html/en/reference/repl/sage/repl/ipython_extension.html#sage.repl.ipython_extension.SageMagics.cython>`_)
-   which is loaded by default. Alternatively, you can overwrite it with version provided by Cython,
+   which is loaded by default.
+   Alternatively, you can overwrite it with the implementation provided by Cython,
    the procedure outlined for Jupyter notebooks also applies.
 
 .. [Jupyter] https://jupyter.org/
