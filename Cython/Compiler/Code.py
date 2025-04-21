@@ -2986,10 +2986,10 @@ class CCodeWriter:
 
         if not unbound_check_code:
             unbound_check_code = entry.type.check_for_null_code(entry.cname)
-        self.putln('if (unlikely(!%s)) { %s("%s"); %s }' % (
+        self.putln('if (unlikely(!%s)) { %s(%s); %s }' % (
                                 unbound_check_code,
                                 func,
-                                entry.name,
+                                entry.name.as_c_string_literal(),
                                 self.error_goto(pos)))
 
     def set_error_info(self, pos, used=False):
