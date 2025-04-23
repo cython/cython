@@ -1318,7 +1318,7 @@ most important to least important:
     macro to be the version hex for the
     minimum Python version you want to support (>=3.7).  ``0x03070000`` will support
     Python 3.7 upwards.
-    Note that this is a :external+python:c:macro:`Python macro <Py_LIMITED_API>`_,
+    Note that this is a :external+python:c:macro:`Python macro <Py_LIMITED_API>`,
     rather than just a Cython macro, and so it changes what parts of the Python headers
     are visible too.  See :ref:`limited_api` for more details about this feature.
 
