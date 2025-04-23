@@ -5021,16 +5021,24 @@ class FinalOptimizePhase(Visitor.EnvTransform, Visitor.NodeRefCleanupMixin):
 
     def _check_optimize_method_calls(self, node):
         function = node.function
+        function_type = function.type
+        entry = function.entry if function.is_name or function.is_attribute else None
         env = self.current_env()
         in_global_scope = (
             env.is_module_scope or
             env.is_c_class_scope or
             (env.is_py_class_scope and env.outer_scope.is_module_scope)
         )
-        return (node.is_temp and function.type.is_pyobject and self.current_directives.get(
+        return (
+            node.is_temp and
+            function_type.is_pyobject and
+            function_type is not Builtin.type_type and
+            not (entry and entry.is_builtin) and
+            self.current_directives.get(
                 "optimize.unpack_method_calls_in_pyinit"
                 if not self.in_loop and in_global_scope
-                else "optimize.unpack_method_calls"))
+                else "optimize.unpack_method_calls")
+        )
 
     def visit_SimpleCallNode(self, node):
         """
@@ -5068,9 +5076,9 @@ class FinalOptimizePhase(Visitor.EnvTransform, Visitor.NodeRefCleanupMixin):
         """
         self.visitchildren(node)
         has_kwargs = bool(node.keyword_args)
-        kwds_is_dict_node = isinstance(node.keyword_args, ExprNodes.DictNode)
+        has_explicit_kwargs = isinstance(node.keyword_args, ExprNodes.DictNode)
         if not ExprNodes.PyMethodCallNode.can_be_used_for_posargs(
-                node.positional_args, has_kwargs=has_kwargs, kwds_is_dict_node=kwds_is_dict_node):
+                node.positional_args, has_kwargs=has_kwargs, has_explicit_kwargs=has_explicit_kwargs):
             return node
         function = node.function
         if not ExprNodes.PyMethodCallNode.can_be_used_for_function(function):

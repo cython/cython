@@ -813,7 +813,7 @@ class ControlFlowAnalysis(CythonTransform):
                     item_node = rhs
                 else:
                     item_node = rhs.inferable_item_node(i)
-                self.mark_assignment(arg, item_node)
+                self.mark_assignment(arg, item_node, rhs_scope=rhs_scope)
         else:
             self._visit(lhs)
 

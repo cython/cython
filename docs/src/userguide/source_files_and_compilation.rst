@@ -447,6 +447,71 @@ e.g.::
 These ``.pxd`` files need not have corresponding ``.pyx``
 modules if they contain purely declarations of external libraries.
 
+.. _shared_module:
+
+Shared utility module
+=====================
+
+When a ``.pyx``/``.py`` file is compiled to ``.c`` file, cython automatically embeds utility code to the resulting ``.c`` file. For projects containing multiple cython modules, it
+can result with larger total size of compiled extensions. To avoid redundant code, the shared utility code can be generated to a separate extension module which is
+automatically cimported and used by the user-written extension modules.
+
+.. note:: Currently only memoryview utility code can be generated in the shared utility module.
+
+Consider the following example package ::
+
+    mypkg/
+    +-- __init__.py
+    +-- shared/
+    |   +-- __init__.py
+    |   +-- _cyutility.c
+    +-- subpkg1/
+        +-- __init__.py
+        +-- module.pyx
+
+The :file:`_cyutility.c` file contains shared utility code and :file:`module.pyx` is a standard cython source file which will be compiled into an extension cimporting ``mypkg.shared._cyutility`` module.
+The compilation process now consist of four steps:
+
+1. generating shared utility code. This is done via ``--generate-shared`` argument:
+
+   .. code-block:: console
+
+       $ cython --generate-shared=mypkg/shared/_cyutility.c
+
+2. compiling the shared utility code. The module needs to be compiled as regular ``.c`` file, either by using the C compiler directly, or through setuptools, etc.
+3. compiling ``.pyx`` file to ``.c`` file with the ``--shared`` argument to give the name of the shared module:
+
+   .. code-block:: console
+
+        $ cython --shared=mypkg.shared._cyutility module.pyx
+
+4. compiling ``module.c`` file
+
+.. warning:: An extension module compiled with ``--shared=...`` argument, automatically imports the shared module under the fully qualified name provided via the argument parameter. Failing to import the shared module will cause a failure of the extension module import.
+
+Compiling shared module using setuptools
+----------------------------------------
+
+To simplify the compilation process, setuptools can be used. To specify the fully qualified module name of the shared utility, the ``shared_utility_qualified_name`` parameter of :func:`cythonize` can be used instead of the ``--shared`` argument. The :file:`setup.py` file would be:
+
+.. code-block:: python
+    :caption: setup.py
+
+    from Cython.Build import cythonize
+    from Cython.Compiler import Options
+    from setuptools import setup, Extension
+
+    extensions = [
+        Extension("*", ["**/*.pyx"]),
+        Extension("mypkg.shared._cyutility", sources=["mypkg/shared/_cyutility.c"])
+    ]
+
+    setup(
+      ext_modules = cythonize(extensions, shared_utility_qualified_name = 'mypkg.shared._cyutility')
+    )
+
+
+.. note:: The shared utility :file:`_cyutility.c` file needs to be generated manually using ``cython --generate-shared=...`` command (generated ``.c`` file can be committed to the repository).
 
 .. _integrating_multiple_modules:
 
@@ -879,6 +944,17 @@ Cython code.  Here is the list of currently supported directives:
     is still experimental itself, this is also an experimental directive that
     might be changed or removed in future releases.
 
+``subinterpreters_compatible``  (no / shared_gil / own_gil), *default=no*
+    If set to ``shared_gil`` or ``own_gil``, then Cython sets the
+    ``Py_mod_multiple_interpreters`` slot to ``Py_MOD_MULTIPLE_INTERPRETERS_SUPPORTED``
+    or ``Py_MOD_PER_INTERPRETER_GIL_SUPPORTED`` respectively to signal that
+    the module is safe to run in isolated subinterpreters. Setting this option
+    does not itself make the module safe to run in isolated subinterpreters;
+    it merely confirms that you have checked the logic and consider it safe to run.
+    Currently ``cdef`` global variables (especially when the type is a Python object) and
+    acquiring the GIL (but not *re-acquiring* the GIL) are known not to work
+    correctly and will generate warnings at compile time.
+
 ``overflowcheck`` (True / False), *default=False*
     If set to True, raise errors on overflowing C integer arithmetic
     operations.  Incurs a modest runtime penalty, but is much faster than
@@ -1049,7 +1125,6 @@ Cython code.  Here is the list of currently supported directives:
     :ref:`error_return_values` for details. Setting this directive to ``True`` will
     cause Cython 3.0 to have the same semantics as Cython 0.x. This directive was solely added
     to help migrate legacy code written before Cython 3. It will be removed in a future release.
-
 
 .. _configurable_optimisations:
 
@@ -1243,7 +1318,7 @@ most important to least important:
     macro to be the version hex for the
     minimum Python version you want to support (>=3.7).  ``0x03070000`` will support
     Python 3.7 upwards.
-    Note that this is a :external+python:c:macro:`Python macro <Py_LIMITED_API>`_,
+    Note that this is a :external+python:c:macro:`Python macro <Py_LIMITED_API>`,
     rather than just a Cython macro, and so it changes what parts of the Python headers
     are visible too.  See :ref:`limited_api` for more details about this feature.
 
@@ -1381,7 +1456,7 @@ hidden by default since most users will be uninterested in changing them.
             :external+python:py:func:`gc.get_referents`.
             By default, Cython avoids GC traversing these objects because they can never participate
             in reference cycles, and thus would uselessly waste time during garbage collection runs.
-            
+
         ``CYTHON_MODULE_STATE_LOOKUP_THREAD_SAFE``
             Makes module state lookup thread-safe (when ``CYTHON_USE_MODULE_STATE`` and
             ``CYTHON_PEP489_MULTI_PHASE_INIT`` are both enabled).  This is on by default

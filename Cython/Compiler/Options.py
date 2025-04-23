@@ -194,6 +194,7 @@ _directive_defaults = {
     'nonecheck' : False,
     'initializedcheck' : True,
     'freethreading_compatible': False,
+    'subinterpreters_compatible': 'no',
     'embedsignature': False,
     'embedsignature.format': 'c',
     'auto_cpdef': False,
@@ -379,6 +380,7 @@ directive_types = {
     'dataclasses.dataclass': DEFER_ANALYSIS_OF_ARGUMENTS,
     'dataclasses.field': DEFER_ANALYSIS_OF_ARGUMENTS,
     'embedsignature.format': one_of('c', 'clinic', 'python'),
+    'subinterpreters_compatible': one_of('no', 'shared_gil', 'own_gil'),
 }
 
 for key, val in _directive_defaults.items():
@@ -438,7 +440,8 @@ directive_scopes = {  # defaults to available everywhere
     'c_compile_guard': ('function',),  # actually C function but this is enforced later
     'control_flow.dot_output': ('module',),
     'control_flow.dot_annotate_defs': ('module',),
-    'freethreading_compatible': ('module',)
+    'freethreading_compatible': ('module',),
+    'subinterpreters_compatible': ('module',),
 }
 
 
@@ -827,4 +830,6 @@ default_options = dict(
     create_extension=None,
     np_pythran=False,
     legacy_implicit_noexcept=None,
+    shared_c_file_path=None,
+    shared_utility_qualified_name = None,
 )

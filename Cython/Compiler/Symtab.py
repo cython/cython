@@ -108,6 +108,7 @@ class Entry:
     # in_subscope      boolean    Belongs to a generator expression scope
     # is_readonly      boolean    Can't be assigned to
     # func_cname       string     C func implementing Python func
+    # wrapperbase_cname [string]  C wrapperbase object name
     # func_modifiers   [string]   C function modifiers ('inline')
     # pos              position   Source position where declared
     # namespace_cname  string     If is_pyglobal, the C variable
@@ -490,6 +491,10 @@ class Scope:
         else:
             return '%d' % count
 
+    @property
+    def context(self):
+        return self.global_scope().context
+
     def global_scope(self):
         """ Return the module-level scope containing this scope. """
         return self.outer_scope.global_scope()
@@ -511,7 +516,7 @@ class Scope:
         yield
         self.in_c_type_context = old_c_type_context
 
-    def handle_already_declared_name(self, name, cname, type, pos, visibility):
+    def handle_already_declared_name(self, name, cname, type, pos, visibility, copy_entry=False):
         """
         Returns an entry or None
 
@@ -540,7 +545,10 @@ class Scope:
                         # Note that we can override an inherited method with a compatible but not exactly equal signature, as in C++.
                         cpp_override_allowed = True
                     if cpp_override_allowed:
-                        entry = copy.copy(alt_entry)
+                        entry = alt_entry
+                        if copy_entry:
+                            entry = copy.copy(alt_entry)
+
                         # A compatible signature doesn't mean the exact same signature,
                         # so we're taking the new signature for the entry.
                         entry.type = type
@@ -590,6 +598,7 @@ class Scope:
             entry = Entry(name, cname, type, pos = pos)
             entry.in_cinclude = self.in_cinclude
             entry.create_wrapper = create_wrapper
+
             if name:
                 entry.qualified_name = self.qualify_name(name)
                 if not shadow:
@@ -1314,7 +1323,7 @@ class BuiltinScope(Scope):
     def builtin_scope(self):
         return self
 
-    def handle_already_declared_name(self, name, cname, type, pos, visibility):
+    def handle_already_declared_name(self, name, cname, type, pos, visibility, copy_entry=False):
         # Overriding is OK in the builtin scope
         return None
 
@@ -1363,7 +1372,7 @@ class ModuleScope(Scope):
         self.is_package = is_package
         self.module_name = name
         self.module_name = EncodedString(self.module_name)
-        self.context = context
+        self._context = context
         self.module_cname = Naming.module_cname
         self.module_dict_cname = Naming.moddict_cname
         self.method_table_cname = Naming.methtable_cname
@@ -1387,6 +1396,10 @@ class ModuleScope(Scope):
 
     def qualifying_scope(self):
         return self.parent_module
+
+    @property
+    def context(self):
+        return self._context
 
     def global_scope(self):
         return self
@@ -1638,6 +1651,20 @@ class ModuleScope(Scope):
             if not (type.is_pyobject and not type.is_extension_type):
                 raise InternalError(
                     "Non-cdef global variable is not a generic Python object")
+        if (is_cdef and visibility != "extern"
+                and self.directives['subinterpreters_compatible'] != "no"):
+            extra_warning = ""
+            pyobject_warning = ""
+            if type.is_pyobject:
+                extra_warning = "\nPython objects should not be shared between interpreters"
+                pyobject_warning = "Python "
+            warning(
+                pos,
+                f"Global cdef {pyobject_warning}variable used with subinterpreter support enabled.\n"
+                "This variable is not currently in the per-interpreter module state "
+                "but this will likely change in future releases." +
+                extra_warning,
+                2+(1 if extra_warning else 0))
 
         if not cname:
             defining = not in_pxd
@@ -2484,7 +2511,8 @@ class CClassScope(ClassScope):
                         % name)
             if not cname:
                 cname = name
-                if visibility == 'private':
+                if not (self.parent_type.is_external or self.parent_type.entry.api or
+                        self.parent_type.entry.visibility == "public"):
                     cname = c_safe_identifier(cname)
                 cname = punycodify_name(cname, Naming.unicode_structmember_prefix)
             entry = self.declare(name, cname, type, pos, visibility)
@@ -2754,6 +2782,10 @@ class CClassScope(ClassScope):
             if base_entry.utility_code:
                 entry.utility_code = base_entry.utility_code
 
+
+    def handle_already_declared_name(self, name, cname, type, pos, visibility, copy_entry=True):
+        # We want to copy the existing entry instead of modifying it, since this is an override.
+        super().handle_already_declared_name(name, cname, type, pos, visibility, copy_entry)
 
 class CppClassScope(Scope):
     #  Namespace of a C++ class.

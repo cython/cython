@@ -253,8 +253,8 @@ functions = {
 class _LookAheadTokenizer:
     def __init__(self, path):
         self._tokens = [
-            (special,text)
-            for (special,text) in path_tokenizer(path)
+            (special, text)
+            for (special, text) in path_tokenizer(path)
             if special or text
         ]
         self._tokens.reverse()  # allow efficient .pop()

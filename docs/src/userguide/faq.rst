@@ -116,6 +116,10 @@ Here are some more things to try:
   you can exclude them from the extension module with the option
   :data:`Cython.Compiler.Options.docstrings`.
 
+* If you use memoryviews in multiple modules, you can generate and use a shared utility module.
+  This approach will allow you to have one single utility code shared between all cython modules
+  instead of having them replicated in every module. See :ref:`shared_module` for more detail.
+
 ----------
 
 How well is Unicode supported?
