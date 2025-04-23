@@ -53,10 +53,9 @@ cdef extern from *:
         if (!args)
             goto done;
         size = PyTuple_Size(args);
-        if (size == -1)
-            goto done;
         if (size != 1) {
-            PyErr_SetString(PyExc_ValueError, "exception args were not the expected length of 1");
+            if (size != -1)
+                PyErr_SetString(PyExc_ValueError, "exception args were not the expected length of 1");
             goto done;
         }
         arg0 = PyTuple_GetItem(args, 0);
