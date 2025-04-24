@@ -117,11 +117,24 @@ def _generate_divmod_function(scope, argument_types):
     if len(argument_types) != 2:
         return None
     type_op1, type_op2 = argument_types
-    if not type_op1.is_int or not type_op2.is_int:
+
+    # Resolve internal typedefs to avoid useless code duplication.
+    if type_op1.is_typedef:
+        type_op1 = type_op1.resolve_known_type()
+    if type_op2.is_typedef:
+        type_op2 = type_op2.resolve_known_type()
+
+    if type_op1.is_float or type_op2.is_float:
+        impl = "float"
+        # TODO: support 'long double'? Currently fails to handle the error return value.
+        number_type = PyrexTypes.c_double_type
+    elif type_op1.is_int and type_op2.is_int:
+        impl = "int"
+        number_type = type_op1 if type_op1.rank >= type_op2.rank else type_op2
+    else:
         return None
 
-    integer_type = type_op1 if type_op1.rank >= type_op2.rank else type_op2
-    c_type_name = integer_type.specialization_name()
+    c_type_name = f"{impl}_{'td_' if number_type.is_typedef else ''}{number_type.specialization_name()}"
     function_cname = f"__Pyx_divmod_{c_type_name}"
 
     # Reuse an existing specialisation, if available.
@@ -133,14 +146,14 @@ def _generate_divmod_function(scope, argument_types):
                 return entry
 
     # Generate a new specialisation.
-    ctuple_entry = scope.declare_tuple_type(None, [integer_type]*2)
+    ctuple_entry = scope.declare_tuple_type(None, [number_type]*2)
     ctuple_entry.used = True
     return_type = ctuple_entry.type
 
     function_type = PyrexTypes.CFuncType(
         return_type, [
-            PyrexTypes.CFuncTypeArg("a", integer_type, None),
-            PyrexTypes.CFuncTypeArg("b", integer_type, None),
+            PyrexTypes.CFuncTypeArg("a", number_type, None),
+            PyrexTypes.CFuncTypeArg("b", number_type, None),
         ],
         exception_value=f"__Pyx_divmod_ERROR_VALUE_{c_type_name}",
         exception_check=True,
@@ -148,9 +161,10 @@ def _generate_divmod_function(scope, argument_types):
     )
 
     utility_code = TempitaUtilityCode.load(
-        "divmod", "Builtins.c", context={
+        f"divmod_{impl}", "Builtins.c", context={
             'TYPE_NAME': c_type_name,
-            'TYPE': integer_type.empty_declaration_code(),
+            'MATH_SUFFIX': number_type.math_h_modifier if number_type.is_float else '',
+            'TYPE': number_type.empty_declaration_code(),
             'RETURN_TYPE': return_type.empty_declaration_code(),
     })
 

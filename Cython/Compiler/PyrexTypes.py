@@ -452,6 +452,17 @@ class CTypedefType(BaseType):
     def resolve(self):
         return self.typedef_base_type.resolve()
 
+    def resolve_known_type(self):
+        """Resolve the typedef unless it is external (and thus not safely known).
+        """
+        tp = self
+        while tp.is_typedef:
+            if tp.typedef_is_external:
+                # External typedefs are not known at translation time.
+                return tp
+            tp = tp.typedef_base_type
+        return tp
+
     def declaration_code(self, entity_code,
             for_display = 0, dll_linkage = None, pyrex = 0):
         if pyrex or for_display:
@@ -2420,8 +2431,8 @@ class CComplexType(CNumericType):
         return "__pyx_PyComplex_FromComplex%s" % self.implementation_suffix
 
     def __init__(self, real_type):
-        while real_type.is_typedef and not real_type.typedef_is_external:
-            real_type = real_type.typedef_base_type
+        if real_type.is_typedef:
+            real_type = real_type.resolve_known_type()
         self.funcsuffix = "_%s" % real_type.specialization_name()
         if not real_type.is_float:
             # neither C nor C++ supports non-floating complex numbers,

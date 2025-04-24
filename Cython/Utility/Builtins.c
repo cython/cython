@@ -303,14 +303,14 @@ static PyObject *__Pyx_PyLong_AbsNeg(PyObject *n) {
 #define __Pyx_PyNumber_Power2(a, b) PyNumber_Power(a, b, Py_None)
 
 
-//////////////////// divmod.proto //////////////////
+//////////////////// divmod_int.proto //////////////////
 
 const {{RETURN_TYPE}} __Pyx_divmod_ERROR_VALUE_{{TYPE_NAME}} = {-1, -1};
 
 static CYTHON_INLINE {{RETURN_TYPE}} __Pyx_divmod_{{TYPE_NAME}}({{TYPE}} a, {{TYPE}} b); /*proto*/
 
 
-//////////////////// divmod //////////////////
+//////////////////// divmod_int //////////////////
 
 static CYTHON_INLINE {{RETURN_TYPE}} __Pyx_divmod_{{TYPE_NAME}}({{TYPE}} a, {{TYPE}} b) {
     // Python and C/C++ use different algorithms in calculating quotients and remainders.
@@ -334,6 +334,66 @@ static CYTHON_INLINE {{RETURN_TYPE}} __Pyx_divmod_{{TYPE_NAME}}({{TYPE}} a, {{TY
     else {
         q = a / b;
         r = a % b;
+    }
+
+    {{RETURN_TYPE}} c_result = {q, r};
+    return c_result;
+}
+
+
+//////////////////// divmod_float.proto //////////////////
+
+const {{RETURN_TYPE}} __Pyx_divmod_ERROR_VALUE_{{TYPE_NAME}} = {-1.0, -1.0};
+
+static CYTHON_INLINE {{RETURN_TYPE}} __Pyx_divmod_{{TYPE_NAME}}({{TYPE}} a, {{TYPE}} b); /*proto*/
+
+
+//////////////////// divmod_float //////////////////
+
+static CYTHON_INLINE {{RETURN_TYPE}} __Pyx_divmod_{{TYPE_NAME}}({{TYPE}} a, {{TYPE}} b) {
+    // Python and C/C++ use different algorithms in calculating quotients and remainders.
+    // This results in different answers between Python and C/C++
+    // when the dividend is negative and the divisor is positive and vice versa.
+
+    // Adapted from CPython 3.14: floatobject.c / _float_div_mod()
+
+    {{TYPE}} q, r, div;
+
+    if (unlikely(b == 0.0)) {
+        PyErr_SetString(PyExc_ZeroDivisionError, "integer division or modulo by zero");
+        return __Pyx_divmod_ERROR_VALUE_{{TYPE_NAME}};
+    }
+
+    r = fmod{{MATH_SUFFIX}}(a, b);
+    // fmod is typically exact, so a-mod is *mathematically* an
+    // exact multiple of b.  But this is fp arithmetic, and fp
+    // a - mod is an approximation; the result is that div may
+    // not be an exact integral value after the division, although
+    // it will always be very close to one.
+    div = (a - r) / b;
+    if (r) {
+        // ensure the remainder has the same sign as the denominator
+        if ((b < 0) != (r < 0)) {
+            r += b;
+            div -= 1.0;
+        }
+    }
+    else {
+        // the remainder is zero, and in the presence of signed zeroes
+        // fmod returns different results across platforms; ensure
+        // it has the same sign as the denominator.
+        r = copysign{{MATH_SUFFIX}}(0.0, b);
+    }
+    // snap quotient to nearest integral value
+    if (div) {
+        q = floor{{MATH_SUFFIX}}(div);
+        if (div - q > 0.5) {
+            q += 1.0;
+        }
+    }
+    else {
+        // div is zero - get the same sign as the true quotient
+        q = copysign{{MATH_SUFFIX}}(0.0, a / b); /* zero w/ sign of a/b */
     }
 
     {{RETURN_TYPE}} c_result = {q, r};
