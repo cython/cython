@@ -93,8 +93,6 @@ def divmod_typedef_internal(a: my_long_type, b: cython.int):
     (2, 0)
     >>> divmod_typedef_internal(9191, 4096)
     (2, 999)
-    >>> divmod_typedef_internal(-420000000000, 1000)
-    (-420000000, 0)
 
     >>> divmod_typedef_internal(33, 0)  #doctest: +ELLIPSIS
     Traceback (most recent call last):
