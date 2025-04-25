@@ -2,6 +2,44 @@
 Cython Changelog
 ================
 
+3.1.0 beta 2 (2025-??-??)
+==========================
+
+Features added
+--------------
+
+* A new directive ``subinterpreters_compatible=True`` was added to allow modules to declare
+  support for subinterpreters.
+  (Github issue :issue:`6513`)
+
+* ``divmod()`` is also optimised for C floating point types and can be called on C number types
+  without holding the GIL.
+  (Github issue :issue:`6801`)
+
+* New C++ declarations were added.
+  (Github issues :issue:`6625`, :issue:`6731`)
+
+* ``embedsignature`` now works for special methods (if they have a docstring).
+  (Github issue :issue:`1577`)
+
+Bugs fixed
+----------
+
+* Iterating over literal sequences in generator expressions could generate invalid C code.
+  (Github issue :issue:`6725`)
+
+* Tracing could generate invalid C code.
+  (Github issue :issue:`6781`)
+
+* Optimised ``divmod()`` calls could produce incorrect results due to incorrect C type usage.
+  (Github issue :issue:`6786`)
+
+* Raising ``UnboundLocalError`` could fail for non-ascii variable names.
+  (Github issue :issue:`6800`)
+
+* The signature of ``PyByteArray_Resize()`` in ``cpython.bytearray`` failed to propagate exceptions.
+  Patch by Kirill Smelkov.  (Github issue :issue:`6787`)
+
 
 3.1.0 beta 1 (2025-04-03)
 ==========================
