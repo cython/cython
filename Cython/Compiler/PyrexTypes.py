@@ -455,11 +455,10 @@ class CTypedefType(BaseType):
     def resolve_known_type(self):
         """Resolve the typedef unless it is external (and thus not safely known).
         """
-        tp = self
-        while tp.is_typedef:
-            if tp.typedef_is_external:
-                # External typedefs are not known at translation time.
-                return tp
+        if self.typedef_is_external:
+            return self
+        tp = self.typedef_base_type
+        while tp.is_typedef and not tp.typedef_is_external:
             tp = tp.typedef_base_type
         return tp
 
