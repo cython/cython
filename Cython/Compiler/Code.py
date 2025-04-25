@@ -916,6 +916,9 @@ class TempitaUtilityCode(UtilityCode):
     def __init__(self, name=None, proto=None, impl=None, init=None, file=None, context=None, **kwargs):
         if context is None:
             context = {}
+        else:
+            # prevent changes propagating back if context is shared between multiple utility codes.
+            context = context.copy()
         proto = sub_tempita(proto, context, file, name)
         impl = sub_tempita(impl, context, file, name)
         init = sub_tempita(init, context, file, name)
@@ -2513,7 +2516,7 @@ class CCodeWriter:
                         f.write(code)
                     shutil.move(tmp_path, path)
                     done = True
-                except FileExistsError:
+                except (FileExistsError, PermissionError):
                     # If a different process created the file faster than us,
                     # renaming can fail on Windows.  It's ok if the file is there now.
                     if not os.path.exists(path):
@@ -2983,10 +2986,10 @@ class CCodeWriter:
 
         if not unbound_check_code:
             unbound_check_code = entry.type.check_for_null_code(entry.cname)
-        self.putln('if (unlikely(!%s)) { %s("%s"); %s }' % (
+        self.putln('if (unlikely(!%s)) { %s(%s); %s }' % (
                                 unbound_check_code,
                                 func,
-                                entry.name,
+                                entry.name.as_c_string_literal(),
                                 self.error_goto(pos)))
 
     def set_error_info(self, pos, used=False):

@@ -103,7 +103,7 @@ static CYTHON_INLINE PyObject *__Pyx_XNewRef(PyObject *obj) {
 #endif
 }
 
-#define __Pyx_Owned_Py_None(b) __Pyx_NewRef(Py_None)
+static CYTHON_INLINE PyObject *__Pyx_Owned_Py_None(int b);
 static CYTHON_INLINE PyObject * __Pyx_PyBool_FromLong(long b);
 static CYTHON_INLINE int __Pyx_PyObject_IsTrue(PyObject*);
 static CYTHON_INLINE int __Pyx_PyObject_IsTrueAndDecref(PyObject*);
@@ -420,6 +420,10 @@ static CYTHON_INLINE Py_hash_t __Pyx_PyIndex_AsHash_t(PyObject* o) {
   }
 }
 
+static CYTHON_INLINE PyObject *__Pyx_Owned_Py_None(int b) {
+    CYTHON_UNUSED_VAR(b);
+    return __Pyx_NewRef(Py_None);
+}
 
 static CYTHON_INLINE PyObject * __Pyx_PyBool_FromLong(long b) {
   return b ? __Pyx_NewRef(Py_True) : __Pyx_NewRef(Py_False);
