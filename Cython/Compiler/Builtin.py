@@ -113,6 +113,8 @@ class BuiltinProperty:
         )
 
 
+### Special builtin implementations generated at runtime.
+
 def _generate_divmod_function(scope, argument_types):
     if len(argument_types) != 2:
         return None
@@ -174,6 +176,8 @@ def _generate_divmod_function(scope, argument_types):
     return entry
 
 
+### List of builtin functions and their implementation.
+
 builtin_function_table = [
     # name,        args,   return,  C API func,           py equiv = "*"
     BuiltinFunction('abs',        "d",    "d",     "fabs",
@@ -226,7 +230,8 @@ builtin_function_table = [
     #('compile',   "",     "",      ""), # PyObject* Py_CompileString(    char *str, char *filename, int start)
     BuiltinFunction('delattr',    "OO",   "r",     "PyObject_DelAttr"),
     BuiltinFunction('dir',        "O",    "O",     "PyObject_Dir"),
-    BuiltinFunction('divmod',     "OO",   "O",     "PyNumber_Divmod", specialiser=_generate_divmod_function),
+    BuiltinFunction('divmod',     "OO",   "O",     "PyNumber_Divmod",
+                    specialiser=_generate_divmod_function),
     BuiltinFunction('exec',       "O",    "O",     "__Pyx_PyExecGlobals",
                     utility_code = pyexec_globals_utility_code),
     BuiltinFunction('exec',       "OO",   "O",     "__Pyx_PyExec2",
