@@ -126,7 +126,7 @@ def _generate_divmod_function(scope, argument_types):
     if type_op2.is_typedef:
         type_op2 = type_op2.resolve_known_type()
 
-    if type_op1.is_float or type_op2.is_float:
+    if type_op1.is_float or type_op1 is float_type or type_op2.is_float and (type_op1.is_int or type_op1 is int_type):
         impl = "float"
         # TODO: support 'long double'? Currently fails to handle the error return value.
         number_type = PyrexTypes.c_double_type
