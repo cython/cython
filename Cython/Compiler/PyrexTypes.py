@@ -5032,7 +5032,7 @@ def map_argument_type(src_type, dst_type):
     return (src_type, None)
 
 
-def best_match(arg_types, functions, fail_if_empty=False, arg_is_lvalue=None):
+def best_match(arg_types, functions, fail_if_empty=False, arg_is_lvalue_array=None):
     """
     Given a list args of arguments and a list of functions, choose one
     to call which seems to be the "best" fit for this list of arguments.
@@ -5087,10 +5087,10 @@ def best_match(arg_types, functions, fail_if_empty=False, arg_is_lvalue=None):
             # function call argument is an lvalue. See:
             # https://en.cppreference.com/w/cpp/language/template_argument_deduction#Deduction_from_a_function_call
             arg_types_for_deduction = list(arg_types)
-            if func.type.is_cfunction and arg_is_lvalue:
+            if func.type.is_cfunction and arg_is_lvalue_array:
                 for i, formal_arg in enumerate(func.type.args):
                     if formal_arg.is_forwarding_reference():
-                        if arg_is_lvalue[i]:
+                        if arg_is_lvalue_array[i]:
                             arg_types_for_deduction[i] = c_ref_type(arg_types[i])
             deductions = reduce(
                 merge_template_deductions,

@@ -271,7 +271,7 @@ class Entry:
     def all_alternatives(self):
         return [self] + self.overloaded_alternatives
 
-    def best_function_match(self, scope, arg_types, fail_if_empty=False, arg_is_lvalue=None):
+    def best_function_match(self, scope, arg_types, fail_if_empty=False, arg_is_lvalue_array=None):
         func_entry = None
         if self.specialiser is not None:
             func_entry = self.specialiser(scope, arg_types)
@@ -282,7 +282,7 @@ class Entry:
             else:
                 alternatives = self.all_alternatives()
             func_entry = PyrexTypes.best_match(
-                arg_types, alternatives, fail_if_empty=fail_if_empty, arg_is_lvalue=arg_is_lvalue)
+                arg_types, alternatives, fail_if_empty=fail_if_empty, arg_is_lvalue_array=arg_is_lvalue_array)
         return func_entry
 
     def all_entries(self):

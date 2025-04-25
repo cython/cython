@@ -6249,7 +6249,7 @@ class SimpleCallNode(CallNode):
                     env,
                     [arg.type for arg in args],
                     fail_if_empty=True,
-                    arg_is_lvalue=[arg.is_lvalue() for arg in args]
+                    arg_is_lvalue_array=[arg.is_lvalue() for arg in args],
                 )
             except PyrexTypes.NoMatchFound as exc:
                 message = str(exc)
