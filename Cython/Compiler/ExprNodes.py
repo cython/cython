@@ -5952,9 +5952,8 @@ class CallNode(ExprNode):
             func_type = func_type.base_type
         if func_type.is_cfunction:
             if getattr(self.function, 'entry', None) and hasattr(self, 'args'):
-                alternatives = self.function.entry.all_alternatives()
                 arg_types = [arg.infer_type(env) for arg in self.args]
-                func_entry = PyrexTypes.best_match(arg_types, alternatives)
+                func_entry = self.function.entry.best_function_match(env, arg_types)
                 if func_entry:
                     func_type = func_entry.type
                     if func_type.is_ptr:
@@ -6245,16 +6244,17 @@ class SimpleCallNode(CallNode):
             overloaded_entry = None
 
         if overloaded_entry:
-            if self.function.type.is_fused:
-                functypes = self.function.type.get_all_specialized_function_types()
-                alternatives = [f.entry for f in functypes]
-            else:
-                alternatives = overloaded_entry.all_alternatives()
-
-            entry = PyrexTypes.best_match([arg.type for arg in args],
-                                          alternatives, self.pos, env, args)
-
-            if not entry:
+            try:
+                entry = overloaded_entry.best_function_match(
+                    env,
+                    [arg.type for arg in args],
+                    fail_if_empty=True,
+                    arg_is_lvalue_array=[arg.is_lvalue() for arg in args],
+                )
+            except PyrexTypes.NoMatchFound as exc:
+                message = str(exc)
+                if message:
+                    error(self.pos, message)
                 self.type = PyrexTypes.error_type
                 self.result_code = "<error>"
                 return

@@ -28,7 +28,7 @@ class _BuiltinOverride:
     def __init__(self, py_name, args, ret_type, cname, py_equiv="*",
                  utility_code=None, sig=None, func_type=None,
                  is_strict_signature=False, builtin_return_type=None,
-                 nogil=None):
+                 nogil=None, specialiser=None):
         self.py_name, self.cname, self.py_equiv = py_name, cname, py_equiv
         self.args, self.ret_type = args, ret_type
         self.func_type, self.sig = func_type, sig
@@ -36,6 +36,7 @@ class _BuiltinOverride:
         self.is_strict_signature = is_strict_signature
         self.utility_code = utility_code
         self.nogil = nogil
+        self.specialiser = specialiser
 
     def build_func_type(self, sig=None, self_arg=None):
         if sig is None:
@@ -71,8 +72,10 @@ class BuiltinFunction(_BuiltinOverride):
         func_type, sig = self.func_type, self.sig
         if func_type is None:
             func_type = self.build_func_type(sig)
-        scope.declare_builtin_cfunction(self.py_name, func_type, self.cname,
-                                        self.py_equiv, self.utility_code)
+        scope.declare_builtin_cfunction(
+            self.py_name, func_type, self.cname, self.py_equiv, self.utility_code,
+            specialiser=self.specialiser,
+        )
 
 
 class BuiltinMethod(_BuiltinOverride):
@@ -109,6 +112,74 @@ class BuiltinProperty:
             utility_code=self.utility_code
         )
 
+
+### Special builtin implementations generated at runtime.
+
+def _generate_divmod_function(scope, argument_types):
+    if len(argument_types) != 2:
+        return None
+    type_op1, type_op2 = argument_types
+
+    # Resolve internal typedefs to avoid useless code duplication.
+    if type_op1.is_typedef:
+        type_op1 = type_op1.resolve_known_type()
+    if type_op2.is_typedef:
+        type_op2 = type_op2.resolve_known_type()
+
+    if type_op1.is_float or type_op1 is float_type or type_op2.is_float and (type_op1.is_int or type_op1 is int_type):
+        impl = "float"
+        # TODO: support 'long double'? Currently fails to handle the error return value.
+        number_type = PyrexTypes.c_double_type
+    elif type_op1.is_int and type_op2.is_int:
+        impl = "int"
+        number_type = type_op1 if type_op1.rank >= type_op2.rank else type_op2
+    else:
+        return None
+
+    nogil = scope.nogil
+    cfunc_suffix = f"{'nogil_' if nogil else ''}{impl}_{'td_' if number_type.is_typedef else ''}{number_type.specialization_name()}"
+    function_cname = f"__Pyx_divmod_{cfunc_suffix}"
+
+    # Reuse an existing specialisation, if available.
+    builtin_scope = scope.builtin_scope()
+    existing_entry = builtin_scope.lookup_here("divmod")
+    if existing_entry is not None:
+        for entry in existing_entry.all_alternatives():
+            if entry.cname == function_cname:
+                return entry
+
+    # Generate a new specialisation.
+    ctuple_entry = scope.declare_tuple_type(None, [number_type]*2)
+    ctuple_entry.used = True
+    return_type = ctuple_entry.type
+
+    function_type = PyrexTypes.CFuncType(
+        return_type, [
+            PyrexTypes.CFuncTypeArg("a", number_type, None),
+            PyrexTypes.CFuncTypeArg("b", number_type, None),
+        ],
+        exception_value=f"__Pyx_divmod_ERROR_VALUE_{cfunc_suffix}",
+        exception_check=True,
+        is_strict_signature=True,
+        nogil=nogil,
+    )
+
+    utility_code = TempitaUtilityCode.load(
+        f"divmod_{impl}", "Builtins.c", context={
+            'CFUNC_SUFFIX': cfunc_suffix,
+            'MATH_SUFFIX': number_type.math_h_modifier if number_type.is_float else '',
+            'TYPE': number_type.empty_declaration_code(),
+            'RETURN_TYPE': return_type.empty_declaration_code(),
+            'NOGIL': nogil,
+    })
+
+    entry = builtin_scope.declare_builtin_cfunction(
+        "divmod", function_type, function_cname, utility_code=utility_code)
+
+    return entry
+
+
+### List of builtin functions and their implementation.
 
 builtin_function_table = [
     # name,        args,   return,  C API func,           py equiv = "*"
@@ -162,29 +233,8 @@ builtin_function_table = [
     #('compile',   "",     "",      ""), # PyObject* Py_CompileString(    char *str, char *filename, int start)
     BuiltinFunction('delattr',    "OO",   "r",     "PyObject_DelAttr"),
     BuiltinFunction('dir',        "O",    "O",     "PyObject_Dir"),
-    ] + list(
-        BuiltinFunction(
-            'divmod', None, None,
-            cname=f"__Pyx_divmod_{c_type.specialization_name()}",
-            utility_code=TempitaUtilityCode.load(
-                "divmod", "Builtins.c", context={
-                    'TYPE': c_type.empty_declaration_code(),
-                    'TYPE_NAME': c_type.specialization_name(),
-                    'RETURN_TYPE': return_type.empty_declaration_code(),
-            }),
-            func_type = PyrexTypes.CFuncType(
-                return_type, [
-                    PyrexTypes.CFuncTypeArg("a", c_type, None),
-                    PyrexTypes.CFuncTypeArg("b", c_type, None),
-                    ],
-                exception_value=f"__Pyx_divmod_ERROR_VALUE_{c_type.specialization_name()}",
-                exception_check=True,
-            ),
-        )
-        for c_type in (PyrexTypes.c_int_type, PyrexTypes.c_long_type, PyrexTypes.c_longlong_type)
-        for return_type in [PyrexTypes.c_tuple_type([c_type]*2)]
-    ) + [
-    BuiltinFunction('divmod',     "OO",   "O",     "PyNumber_Divmod"),
+    BuiltinFunction('divmod',     "OO",   "O",     "PyNumber_Divmod",
+                    specialiser=_generate_divmod_function),
     BuiltinFunction('exec',       "O",    "O",     "__Pyx_PyExecGlobals",
                     utility_code = pyexec_globals_utility_code),
     BuiltinFunction('exec',       "OO",   "O",     "__Pyx_PyExec2",

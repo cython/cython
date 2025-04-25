@@ -452,6 +452,16 @@ class CTypedefType(BaseType):
     def resolve(self):
         return self.typedef_base_type.resolve()
 
+    def resolve_known_type(self):
+        """Resolve the typedef unless it is external (and thus not safely known).
+        """
+        if self.typedef_is_external:
+            return self
+        tp = self.typedef_base_type
+        while tp.is_typedef and not tp.typedef_is_external:
+            tp = tp.typedef_base_type
+        return tp
+
     def declaration_code(self, entity_code,
             for_display = 0, dll_linkage = None, pyrex = 0):
         if pyrex or for_display:
@@ -2420,8 +2430,8 @@ class CComplexType(CNumericType):
         return "__pyx_PyComplex_FromComplex%s" % self.implementation_suffix
 
     def __init__(self, real_type):
-        while real_type.is_typedef and not real_type.typedef_is_external:
-            real_type = real_type.typedef_base_type
+        if real_type.is_typedef:
+            real_type = real_type.resolve_known_type()
         self.funcsuffix = "_%s" % real_type.specialization_name()
         if not real_type.is_float:
             # neither C nor C++ supports non-floating complex numbers,
@@ -4570,19 +4580,13 @@ class CTupleType(CType):
     _convert_from_py_code = None
 
     def __init__(self, cname, components):
+        from .Builtin import tuple_type
         self.cname = cname
         self.components = components
+        self.equivalent_type = tuple_type
         self.size = len(components)
         self.to_py_function = f"{Naming.convert_func_prefix}_to_py_{self.cname}"
         self.from_py_function = f"{Naming.convert_func_prefix}_from_py_{self.cname}"
-
-    @property
-    def equivalent_type(self):
-        # 'tuple_type'  isn't available at import time, but we might need ctuples early on.
-        from .Builtin import tuple_type
-        # Overwrite the property.
-        CTupleType.equivalent_type = tuple_type
-        return tuple_type
 
     def __str__(self):
         return "(%s)" % ", ".join(str(c) for c in self.components)
@@ -4988,7 +4992,46 @@ def is_promotion(src_type, dst_type):
             return src_type.is_float and src_type.rank <= dst_type.rank
     return False
 
-def best_match(arg_types, functions, pos=None, env=None, args=None):
+
+class NoMatchFound(Exception):
+    def __init__(self, errors, candidate_count):
+        if len(errors) == 1 or len({msg for _, msg in errors}) == 1:
+            _, errmsg = errors[0]
+        elif candidate_count:
+            errmsg = f"no suitable method found (candidates: {candidate_count})"
+        else:
+            # No candidates at all. This can happen with fused types,
+            # in which case the error is reported elsewhere.
+            errmsg = ""
+        super().__init__(errmsg)
+
+
+def map_argument_type(src_type, dst_type):
+    """Return a tuple (src_type, target_type, needs_coercion).
+    """
+    if dst_type.assignable_from(src_type):
+        return (src_type, dst_type)
+
+    # Now take care of unprefixed string literals. So when you call a cdef
+    # function that takes a char *, the coercion will mean that the
+    # type will simply become bytes. We need to do this coercion
+    # manually for overloaded and fused functions
+    c_src_type = None
+    if src_type.is_pyobject:
+        if src_type.is_builtin_type and src_type.name == 'str' and dst_type.resolve().is_string:
+            c_src_type = dst_type.resolve()
+        else:
+            c_src_type = src_type.default_coerced_ctype()
+    elif src_type.is_pythran_expr:
+        c_src_type = src_type.org_buffer
+
+    if c_src_type is not None and dst_type.assignable_from(c_src_type):
+        return (c_src_type, dst_type)
+
+    return (src_type, None)
+
+
+def best_match(arg_types, functions, fail_if_empty=False, arg_is_lvalue_array=None):
     """
     Given a list args of arguments and a list of functions, choose one
     to call which seems to be the "best" fit for this list of arguments.
@@ -5010,7 +5053,6 @@ def best_match(arg_types, functions, pos=None, env=None, args=None):
     the same weight, we return None (as there is no best match). If pos
     is not None, we also generate an error.
     """
-    # TODO: args should be a list of types, not a list of Nodes.
     actual_nargs = len(arg_types)
 
     candidates = []
@@ -5022,8 +5064,8 @@ def best_match(arg_types, functions, pos=None, env=None, args=None):
             func_type = func_type.base_type
         # Check function type
         if not func_type.is_cfunction:
-            if not func_type.is_error and pos is not None:
-                error_mesg = "Calling non-function type '%s'" % func_type
+            if not func_type.is_error and fail_if_empty:
+                error_mesg = f"Calling non-function type '{func_type}'"
             errors.append((func, error_mesg))
             continue
         # Check no. of args
@@ -5033,12 +5075,10 @@ def best_match(arg_types, functions, pos=None, env=None, args=None):
             if max_nargs == min_nargs and not func_type.has_varargs:
                 expectation = max_nargs
             elif actual_nargs < min_nargs:
-                expectation = "at least %s" % min_nargs
+                expectation = f"at least {min_nargs}"
             else:
-                expectation = "at most %s" % max_nargs
-            error_mesg = "Call with wrong number of arguments (expected %s, got %s)" \
-                         % (expectation, actual_nargs)
-            errors.append((func, error_mesg))
+                expectation = f"at most {max_nargs}"
+            errors.append((func, f"Call with wrong number of arguments (expected {expectation}, got {actual_nargs})"))
             continue
         if func_type.templates:
             # For any argument/parameter pair A/P, if P is a forwarding reference,
@@ -5046,10 +5086,10 @@ def best_match(arg_types, functions, pos=None, env=None, args=None):
             # function call argument is an lvalue. See:
             # https://en.cppreference.com/w/cpp/language/template_argument_deduction#Deduction_from_a_function_call
             arg_types_for_deduction = list(arg_types)
-            if func.type.is_cfunction and args:
+            if func.type.is_cfunction and arg_is_lvalue_array:
                 for i, formal_arg in enumerate(func.type.args):
                     if formal_arg.is_forwarding_reference():
-                        if args[i].is_lvalue():
+                        if arg_is_lvalue_array[i]:
                             arg_types_for_deduction[i] = c_ref_type(arg_types[i])
             deductions = reduce(
                 merge_template_deductions,
@@ -5078,76 +5118,46 @@ def best_match(arg_types, functions, pos=None, env=None, args=None):
     if len(candidates) == 1:
         return candidates[0][0]
     elif not candidates:
-        if pos is not None and errors:
-            if len(errors) == 1 or len({msg for _, msg in errors}) == 1:
-                _, errmsg = errors[0]
-                error(pos, errmsg)
-            else:
-                error(pos, f"no suitable method found (candidates: {len(functions)})")
+        if fail_if_empty:
+            raise NoMatchFound(errors, len(functions))
         return None
 
     possibilities = []
     bad_types = []
-    needed_coercions = {}
 
     for index, (func, func_type) in enumerate(candidates):
         score = [0,0,0,0,0,0,0]
         for i in range(min(actual_nargs, len(func_type.args))):
-            src_type = arg_types[i]
-            dst_type = func_type.args[i].type
-
-            assignable = dst_type.assignable_from(src_type)
-
-            # Now take care of unprefixed string literals. So when you call a cdef
-            # function that takes a char *, the coercion will mean that the
-            # type will simply become bytes. We need to do this coercion
-            # manually for overloaded and fused functions
-            if not assignable:
-                c_src_type = None
-                if src_type.is_pyobject:
-                    if src_type.is_builtin_type and src_type.name == 'str' and dst_type.resolve().is_string:
-                        c_src_type = dst_type.resolve()
-                    else:
-                        c_src_type = src_type.default_coerced_ctype()
-                elif src_type.is_pythran_expr:
-                        c_src_type = src_type.org_buffer
-
-                if c_src_type is not None:
-                    assignable = dst_type.assignable_from(c_src_type)
-                    if assignable:
-                        src_type = c_src_type
-                        needed_coercions[func] = (i, dst_type)
-
-            if assignable:
-                if src_type == dst_type or dst_type.same_as(src_type):
-                    pass  # score 0
-                elif func_type.is_strict_signature:
-                    break  # exact match requested but not found
-                elif is_promotion(src_type, dst_type):
-                    score[2] += 1
-                elif ((src_type.is_int and dst_type.is_int) or
-                      (src_type.is_float and dst_type.is_float)):
-                    src_is_unsigned = not src_type.signed
-                    dst_is_unsigned = not dst_type.signed
-                    score[2] += abs(dst_type.rank + dst_is_unsigned -
-                                    (src_type.rank + src_is_unsigned)) + 1
-                    # Prefer assigning to larger types over smaller types, unless they have different signedness.
-                    score[3] += (dst_type.rank < src_type.rank) * 2 + (src_is_unsigned != dst_is_unsigned)
-                elif dst_type.is_ptr and src_type.is_ptr:
-                    if dst_type.base_type == c_void_type:
-                        score[4] += 1
-                    elif src_type.base_type.is_cpp_class and src_type.base_type.is_subclass(dst_type.base_type):
-                        score[6] += src_type.base_type.subclass_dist(dst_type.base_type)
-                    else:
-                        score[5] += 1
-                elif not src_type.is_pyobject:
-                    score[1] += 1
-                else:
-                    score[0] += 1
-            else:
-                error_mesg = f"Invalid conversion from '{src_type}' to '{dst_type}'"
-                bad_types.append((func, error_mesg))
+            src_type, dst_type = map_argument_type(arg_types[i], func_type.args[i].type)
+            if dst_type is None:
+                bad_types.append((func, f"Invalid conversion from '{arg_types[i]}' to '{func_type.args[i].type}'"))
                 break
+
+            if src_type == dst_type or dst_type.same_as(src_type):
+                pass  # score 0
+            elif func_type.is_strict_signature:
+                break  # exact match requested but not found
+            elif is_promotion(src_type, dst_type):
+                score[2] += 1
+            elif ((src_type.is_int and dst_type.is_int) or
+                    (src_type.is_float and dst_type.is_float)):
+                src_is_unsigned = not src_type.signed
+                dst_is_unsigned = not dst_type.signed
+                score[2] += abs(dst_type.rank + dst_is_unsigned -
+                                (src_type.rank + src_is_unsigned)) + 1
+                # Prefer assigning to larger types over smaller types, unless they have different signedness.
+                score[3] += (dst_type.rank < src_type.rank) * 2 + (src_is_unsigned != dst_is_unsigned)
+            elif dst_type.is_ptr and src_type.is_ptr:
+                if dst_type.base_type == c_void_type:
+                    score[4] += 1
+                elif src_type.base_type.is_cpp_class and src_type.base_type.is_subclass(dst_type.base_type):
+                    score[6] += src_type.base_type.subclass_dist(dst_type.base_type)
+                else:
+                    score[5] += 1
+            elif not src_type.is_pyobject:
+                score[1] += 1
+            else:
+                score[0] += 1
         else:
             possibilities.append((score, index, func))  # so we can sort it
 
@@ -5157,23 +5167,15 @@ def best_match(arg_types, functions, pos=None, env=None, args=None):
             score1 = possibilities[0][0]
             score2 = possibilities[1][0]
             if score1 == score2:
-                if pos is not None:
-                    error(pos, "ambiguous overloaded method")
+                if fail_if_empty:
+                    raise NoMatchFound([(None, "ambiguous overloaded method")], len(functions))
                 return None
 
         function = possibilities[0][-1]
-
-        if function in needed_coercions and env:
-            arg_i, coerce_to_type = needed_coercions[function]
-            args[arg_i] = args[arg_i].coerce_to(coerce_to_type, env)
-
         return function
 
-    if pos is not None:
-        if len(bad_types) == 1:
-            error(pos, bad_types[0][1])
-        else:
-            error(pos, "no suitable method found")
+    if fail_if_empty:
+        raise NoMatchFound(bad_types, len(functions))
 
     return None
 
