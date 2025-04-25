@@ -305,21 +305,23 @@ static PyObject *__Pyx_PyLong_AbsNeg(PyObject *n) {
 
 //////////////////// divmod_int.proto //////////////////
 
-const {{RETURN_TYPE}} __Pyx_divmod_ERROR_VALUE_{{TYPE_NAME}} = {-1, -1};
+const {{RETURN_TYPE}} __Pyx_divmod_ERROR_VALUE_{{CFUNC_SUFFIX}} = {-1, -1};
 
-static CYTHON_INLINE {{RETURN_TYPE}} __Pyx_divmod_{{TYPE_NAME}}({{TYPE}} a, {{TYPE}} b); /*proto*/
+static CYTHON_INLINE {{RETURN_TYPE}} __Pyx_divmod_{{CFUNC_SUFFIX}}({{TYPE}} a, {{TYPE}} b); /*proto*/
 
 
 //////////////////// divmod_int //////////////////
 
-static CYTHON_INLINE {{RETURN_TYPE}} __Pyx_divmod_{{TYPE_NAME}}({{TYPE}} a, {{TYPE}} b) {
+static CYTHON_INLINE {{RETURN_TYPE}} __Pyx_divmod_{{CFUNC_SUFFIX}}({{TYPE}} a, {{TYPE}} b) {
     // Python and C/C++ use different algorithms in calculating quotients and remainders.
     // This results in different answers between Python and C/C++
     // when the dividend is negative and the divisor is positive and vice versa.
     {{TYPE}} q, r;
     if (unlikely(b == 0)) {
-        PyErr_SetString(PyExc_ZeroDivisionError, "integer division or modulo by zero");
-        return __Pyx_divmod_ERROR_VALUE_{{TYPE_NAME}};
+        {{if NOGIL}}PyGILState_STATE gilstate = PyGILState_Ensure();{{endif}}
+        PyErr_SetString(PyExc_ZeroDivisionError, "division by zero");
+        {{if NOGIL}}PyGILState_Release(gilstate);{{endif}}
+        return __Pyx_divmod_ERROR_VALUE_{{CFUNC_SUFFIX}};
     } else if (a == 0) {
         q = 0;
         r = 0;
@@ -343,14 +345,14 @@ static CYTHON_INLINE {{RETURN_TYPE}} __Pyx_divmod_{{TYPE_NAME}}({{TYPE}} a, {{TY
 
 //////////////////// divmod_float.proto //////////////////
 
-const {{RETURN_TYPE}} __Pyx_divmod_ERROR_VALUE_{{TYPE_NAME}} = {-1.0, -1.0};
+const {{RETURN_TYPE}} __Pyx_divmod_ERROR_VALUE_{{CFUNC_SUFFIX}} = {-1.0, -1.0};
 
-static CYTHON_INLINE {{RETURN_TYPE}} __Pyx_divmod_{{TYPE_NAME}}({{TYPE}} a, {{TYPE}} b); /*proto*/
+static CYTHON_INLINE {{RETURN_TYPE}} __Pyx_divmod_{{CFUNC_SUFFIX}}({{TYPE}} a, {{TYPE}} b); /*proto*/
 
 
 //////////////////// divmod_float //////////////////
 
-static CYTHON_INLINE {{RETURN_TYPE}} __Pyx_divmod_{{TYPE_NAME}}({{TYPE}} a, {{TYPE}} b) {
+static CYTHON_INLINE {{RETURN_TYPE}} __Pyx_divmod_{{CFUNC_SUFFIX}}({{TYPE}} a, {{TYPE}} b) {
     // Python and C/C++ use different algorithms in calculating quotients and remainders.
     // This results in different answers between Python and C/C++
     // when the dividend is negative and the divisor is positive and vice versa.
@@ -360,8 +362,10 @@ static CYTHON_INLINE {{RETURN_TYPE}} __Pyx_divmod_{{TYPE_NAME}}({{TYPE}} a, {{TY
     {{TYPE}} q, r, div;
 
     if (unlikely(b == 0.0)) {
-        PyErr_SetString(PyExc_ZeroDivisionError, "integer division or modulo by zero");
-        return __Pyx_divmod_ERROR_VALUE_{{TYPE_NAME}};
+        {{if NOGIL}}PyGILState_STATE gilstate = PyGILState_Ensure();{{endif}}
+        PyErr_SetString(PyExc_ZeroDivisionError, "division by zero");
+        {{if NOGIL}}PyGILState_Release(gilstate);{{endif}}
+        return __Pyx_divmod_ERROR_VALUE_{{CFUNC_SUFFIX}};
     }
 
     r = fmod{{MATH_SUFFIX}}(a, b);

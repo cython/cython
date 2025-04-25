@@ -506,3 +506,55 @@ def divmod_mixed_cdouble(a: cython.double, b: cython.float):
     """
     result = divmod(a, b)
     return result
+
+
+@cython.test_assert_path_exists(
+    "//SimpleCallNode//NameNode[@entry.name = 'divmod']",
+    "//SimpleCallNode//NameNode[@entry.cname = '__Pyx_divmod_nogil_int_long']",
+    "//ReturnStatNode//CoerceToPyTypeNode",
+)
+def divmod_int_nogil(a: cython.long, b: cython.int):
+    """
+    >>> divmod_int_nogil(10, 5)
+    (2, 0)
+    >>> divmod_int_nogil(-10, 5)
+    (-2, 0)
+    >>> divmod_int_nogil(9191, 4096)
+    (2, 999)
+
+    >>> divmod_int_nogil(33, 0)  #doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    ZeroDivisionError: ...
+    >>> divmod_int_nogil(0, 0)  #doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    ZeroDivisionError: ...
+    """
+    with cython.nogil:
+        q, r = divmod(a, b)
+    return q, r
+
+
+@cython.test_assert_path_exists(
+    "//SimpleCallNode//NameNode[@entry.name = 'divmod']",
+    "//SimpleCallNode//NameNode[@entry.cname = '__Pyx_divmod_nogil_float_double']",
+    "//ReturnStatNode//CoerceToPyTypeNode",
+)
+def divmod_float_nogil(a: cython.float, b: cython.double):
+    """
+    >>> divmod_float_nogil(10.0, 5.0)
+    (2.0, 0.0)
+    >>> divmod_float_nogil(-10.0, 5.0)
+    (-2.0, 0.0)
+    >>> divmod_float_nogil(9191.0, 4096.0)
+    (2.0, 999.0)
+
+    >>> divmod_float_nogil(33.0, 0.0)  #doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    ZeroDivisionError: ...
+    >>> divmod_float_nogil(0.0, 0.0)  #doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    ZeroDivisionError: ...
+    """
+    with cython.nogil:
+        q, r = divmod(a, b)
+    return q, r

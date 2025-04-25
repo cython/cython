@@ -136,8 +136,9 @@ def _generate_divmod_function(scope, argument_types):
     else:
         return None
 
-    c_type_name = f"{impl}_{'td_' if number_type.is_typedef else ''}{number_type.specialization_name()}"
-    function_cname = f"__Pyx_divmod_{c_type_name}"
+    nogil = scope.nogil
+    cfunc_suffix = f"{'nogil_' if nogil else ''}{impl}_{'td_' if number_type.is_typedef else ''}{number_type.specialization_name()}"
+    function_cname = f"__Pyx_divmod_{cfunc_suffix}"
 
     # Reuse an existing specialisation, if available.
     builtin_scope = scope.builtin_scope()
@@ -157,17 +158,19 @@ def _generate_divmod_function(scope, argument_types):
             PyrexTypes.CFuncTypeArg("a", number_type, None),
             PyrexTypes.CFuncTypeArg("b", number_type, None),
         ],
-        exception_value=f"__Pyx_divmod_ERROR_VALUE_{c_type_name}",
+        exception_value=f"__Pyx_divmod_ERROR_VALUE_{cfunc_suffix}",
         exception_check=True,
         is_strict_signature=True,
+        nogil=nogil,
     )
 
     utility_code = TempitaUtilityCode.load(
         f"divmod_{impl}", "Builtins.c", context={
-            'TYPE_NAME': c_type_name,
+            'CFUNC_SUFFIX': cfunc_suffix,
             'MATH_SUFFIX': number_type.math_h_modifier if number_type.is_float else '',
             'TYPE': number_type.empty_declaration_code(),
             'RETURN_TYPE': return_type.empty_declaration_code(),
+            'NOGIL': nogil,
     })
 
     entry = builtin_scope.declare_builtin_cfunction(
