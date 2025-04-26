@@ -1519,35 +1519,62 @@ __Pyx_Coroutine_set_qualname(__pyx_CoroutineObject *self, PyObject *value, void 
 }
 
 static PyObject *
-__Pyx_Coroutine_get_frame(__pyx_CoroutineObject *self, void *context)
+__Pyx__Coroutine_get_frame(__pyx_CoroutineObject *self)
 {
 #if !CYTHON_COMPILING_IN_LIMITED_API
-    PyObject *frame = self->gi_frame;
-    CYTHON_UNUSED_VAR(context);
+    PyObject *frame;
+    #if PY_VERSION_HEX >= 0x030d0000
+    Py_BEGIN_CRITICAL_SECTION(self);
+    #endif
+    frame = self->gi_frame;
     if (!frame) {
         if (unlikely(!self->gi_code)) {
             // Avoid doing something stupid, e.g. during garbage collection.
             Py_RETURN_NONE;
         }
+        // The coroutine doesn't know what module it's in so can't fill in proper globals.
+        // In principle this could be solved by storing a reference to the module in the coroutine,
+        // but in practice it probably isn't worth the extra memory.
+        // Therefore, just supply a blank dict.
+        PyObject *globals = PyDict_New();
+        if (unlikely(!globals)) return NULL;
         frame = (PyObject *) PyFrame_New(
             PyThreadState_Get(),            /*PyThreadState *tstate,*/
             (PyCodeObject*) self->gi_code,  /*PyCodeObject *code,*/
-            NAMED_CGLOBAL(moddict_cname),   /*PyObject *globals,*/
+            globals,                        /*PyObject *globals,*/
             0                               /*PyObject *locals*/
         );
+        Py_DECREF(globals);
         if (unlikely(!frame))
             return NULL;
-        // keep the frame cached once it's created
-        self->gi_frame = frame;
+        // handle potential race initializing the frame
+        if (unlikely(self->gi_frame)) {
+            Py_DECREF(frame);
+            frame = self->gi_frame;
+        } else {
+            // keep the frame cached once it's created
+            self->gi_frame = frame;
+        }
     }
     Py_INCREF(frame);
+    #if PY_VERSION_HEX >= 0x030d0000
+    Py_END_CRITICAL_SECTION();
+    #endif
     return frame;
 #else
     // In the limited API there probably isn't much we can usefully do to get a frame
     CYTHON_UNUSED_VAR(self);
-    CYTHON_UNUSED_VAR(context);
     Py_RETURN_NONE;
 #endif
+}
+
+static PyObject *
+__Pyx_Coroutine_get_frame(__pyx_CoroutineObject *self, void *context) {
+    CYTHON_UNUSED_VAR(context);
+    PyObject *frame = self->gi_frame;
+    if (frame)
+        return __Pyx_NewRef(frame);
+    return __Pyx__Coroutine_get_frame(self);
 }
 
 static __pyx_CoroutineObject *__Pyx__Coroutine_New(
