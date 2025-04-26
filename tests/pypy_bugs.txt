@@ -65,3 +65,4 @@ run.special_methods_T561
 run.special_methods_T561_py2
 
 lock_type  # No timed-acquire
+e_limited_lock
