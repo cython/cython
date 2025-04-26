@@ -490,10 +490,10 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         globalstate.initialize_main_c_code()
         h_code = globalstate['h_code']
 
-        self.generate_module_preamble(env, options, modules, result.embedded_metadata, h_code)
-
         globalstate.module_pos = self.pos
         globalstate.directives = self.directives
+
+        self.generate_module_preamble(env, options, modules, result.embedded_metadata, h_code)
 
         globalstate.use_utility_code(refnanny_utility_code)
 
