@@ -324,7 +324,7 @@ cpdef enum Color:
 
 def test_enum_map(o):
     """
-    >>> test_enum_map({RED: GREEN})
+    >>> test_enum_map({Color.RED: Color.GREEN})
     {<Color.RED: 0>: <Color.GREEN: 1>}
     """
     cdef map[Color, Color] m = o

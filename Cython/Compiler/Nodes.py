@@ -1776,23 +1776,29 @@ class CEnumDefNode(StatNode):
 
     def generate_execution_code(self, code):
         if self.scoped:
-            return  # nothing to do here for C++ enums
-        if self.visibility == 'public' or self.api:
-            code.mark_pos(self.pos)
-            temp = code.funcstate.allocate_temp(PyrexTypes.py_object_type, manage_ref=True)
-            for item in self.entry.enum_values:
-                code.putln("%s = PyLong_FromLong(%s); %s" % (
-                    temp,
-                    item.cname,
-                    code.error_goto_if_null(temp, item.pos)))
-                code.put_gotref(temp, PyrexTypes.py_object_type)
-                code.putln('if (PyDict_SetItemString(%s, "%s", %s) < 0) %s' % (
-                    code.name_in_module_state(Naming.moddict_cname),
-                    item.name,
-                    temp,
-                    code.error_goto(item.pos)))
-                code.put_decref_clear(temp, PyrexTypes.py_object_type)
-            code.funcstate.release_temp(temp)
+            # Nothing to do here for C++ enums.
+            return
+        if not self.api and not (self.name or self.visibility == 'public'):
+            # API enums need to be globally importable and we (currently) do that through global item names.
+            # Named enums are namespaced and need no additional global setup.
+            return
+
+        # Copy the values of anonymous cpdef/api enums into the global Python module namespace.
+        code.mark_pos(self.pos)
+        temp = code.funcstate.allocate_temp(PyrexTypes.py_object_type, manage_ref=True)
+        for item in self.entry.enum_values:
+            code.putln("%s = PyLong_FromLong(%s); %s" % (
+                temp,
+                item.cname,
+                code.error_goto_if_null(temp, item.pos)))
+            code.put_gotref(temp, PyrexTypes.py_object_type)
+            code.putln('if (PyDict_SetItemString(%s, %s, %s) < 0) %s' % (
+                code.name_in_module_state(Naming.moddict_cname),
+                item.name.as_c_string_literal(),
+                temp,
+                code.error_goto(item.pos)))
+            code.put_decref_clear(temp, PyrexTypes.py_object_type)
+        code.funcstate.release_temp(temp)
 
 
 class CEnumDefItemNode(StatNode):
