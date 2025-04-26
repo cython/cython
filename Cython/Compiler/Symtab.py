@@ -1231,7 +1231,7 @@ class Scope:
                 if entry.type.scope in seen_scopes:
                     continue
                 seen_scopes.add(entry.type.scope)
-                if self.find_shared_usages_of_type(type_check_predicate, seen_scopes=seen_scopes):
+                if entry.type.scope.find_shared_usages_of_type(type_check_predicate, seen_scopes=seen_scopes):
                     return True
         return False
 

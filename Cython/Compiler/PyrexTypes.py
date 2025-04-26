@@ -5747,4 +5747,4 @@ def get_all_subtypes(tp, seen=None):
             else:
                 for sub_tp in subtype_or_iterable:
                     get_all_subtypes(sub_tp, seen)
-    return list(seen.values())
+    return list(seen.keys())
