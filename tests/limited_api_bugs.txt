@@ -99,5 +99,8 @@ unicode_indexing
 # (might be due to shared ABI possibly?)
 yield_from_pep380
 
+# Not actually a bug - the test is to ensure that some code is included that blocks compilation on the Limited API
+e_limited_lock$
+
 # Excluded for now - to be enabled incrementally
 buffers[.]
