@@ -434,6 +434,53 @@ static CYTHON_INLINE PyObject * __Pyx_PyLong_FromSize_t(size_t ival) {
     return PyLong_FromSize_t(ival);
 }
 
+
+/////////////// pyfloat_arg.proto ///////////////
+
+static CYTHON_INLINE PyObject* __Pyx_PyFloatArg_FromNumber(PyObject *number, int accept_none); /*proto*/
+
+/////////////// pyfloat_arg ///////////////
+
+static CYTHON_INLINE PyObject* __Pyx_PyFloatArg_FromNumber(PyObject *number, int accept_none) {
+    // Convert any float-compatible Python number object into a Python float.
+    // NOTE: This function decrefs 'number' if a conversion happens to replace the original object.
+    // NOTE: For invalid types, the function may return the original object unchanges,
+    // assuming that an exact type test is still following.
+    if (likely((accept_none && number == Py_None) || PyFloat_CheckExact(number))) {
+        return number;
+    }
+
+    PyObject *float_object;
+    if (likely(PyLong_CheckExact(number))) {
+        double val;
+#if CYTHON_USE_PYLONG_INTERNALS
+        if (likely(__Pyx_PyLong_IsCompact(number))) {
+            val = (double) __Pyx_PyLong_CompactValue(number);
+        } else
+#endif
+        {
+            val = PyLong_AsDouble(number);
+            if (unlikely(val == -1 && PyErr_Occurred())) {
+                float_object = NULL;
+                goto done;
+            }
+        }
+        float_object = PyFloat_FromDouble(val);
+    }
+    else if (PyNumber_Check(number)) {
+        // PyNumber_Float() also parses strings, which we must reject.
+        float_object = PyNumber_Float(number);
+    } else {
+        // Leave the rest to an exact argument type check.
+        return number;
+    }
+
+done:
+    Py_DECREF(number);
+    return float_object;
+}
+
+
 /////////////// pynumber_float.proto ///////////////
 
 static CYTHON_INLINE PyObject* __Pyx__PyNumber_Float(PyObject* obj); /* proto */

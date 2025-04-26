@@ -321,24 +321,39 @@ class LateClass(object):
 
 def py_float_default(price : Optional[float]=None, bar: Union[float, None]=None, spam: float | None = None, ndigits=4):
     """
-    Python default arguments should prevent C type inference.
+    Python default arguments should prevent C type inference but still allow all acceptable (number) types.
 
     >>> py_float_default()
     (None, None, None, 4)
     >>> py_float_default(None)
     (None, None, None, 4)
-    >>> py_float_default(2)  # doctest: +ELLIPSIS
-    Traceback (most recent call last):
-    TypeError: ...float...
     >>> py_float_default(2.0, 3.0, 4.0)
     (2.0, 3.0, 4.0, 4)
+
+    # type errors
+    >>> py_float_default('123.0')  # doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    TypeError: ...float...
+    >>> py_float_default(1j)  # doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    TypeError: ...float...
+    >>> py_float_default(b'123')  # doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    TypeError: ...float...
+
+    # conversions
+    >>> py_float_default(1, 2, 3)
+    (1.0, 2.0, 3.0, 4)
     >>> py_float_default(2, None, None, 4)  # doctest: +ELLIPSIS
-    Traceback (most recent call last):
-    TypeError: ...float...
+    (2.0, None, None, 4)
     >>> py_float_default(None, 2, None, 4)  # doctest: +ELLIPSIS
-    Traceback (most recent call last):
-    TypeError: ...float...
+    (None, 2.0, None, 4)
     """
+    assert typeof(price) == 'float object', typeof(price)
+    assert typeof(bar) == 'float object', typeof(bar)
+    assert typeof(spam) == 'float object', typeof(spam)
+    assert typeof(ndigits) == 'Python object', typeof(ndigits)
+
     return price, bar, spam, ndigits
 
 
@@ -449,6 +464,7 @@ def pytypes_multi_union(a: Union[list, tuple, None], b: list | tuple | None):
     print((typeof(a), typeof(b)))
     return [a, b]
 
+
 _WARNINGS = """
 15:32: Strings should no longer be used for type declarations. Use 'cython.int' etc. directly.
 15:47: Dicts should no longer be used as type annotations. Use 'cython.int' etc. directly.
@@ -469,9 +485,9 @@ _WARNINGS = """
 175:59: Tuples cannot be declared as simple tuples of types. Use 'tuple[type1, type2, ...]'.
 180:13: Tuples cannot be declared as simple tuples of types. Use 'tuple[type1, type2, ...]'.
 315:44: Unknown type declaration in annotation, ignoring
-346:15: Annotation ignored since class-level attributes must be Python objects. Were you trying to set up an instance attribute?
-437:32: Unknown type declaration in annotation, ignoring
-437:69: Unknown type declaration in annotation, ignoring
+361:15: Annotation ignored since class-level attributes must be Python objects. Were you trying to set up an instance attribute?
+452:32: Unknown type declaration in annotation, ignoring
+452:69: Unknown type declaration in annotation, ignoring
 # DUPLICATE:
 75:44: Found C type name 'long' in a Python annotation. Did you mean to use 'cython.long'?
 75:44: Unknown type declaration 'long' in annotation, ignoring
