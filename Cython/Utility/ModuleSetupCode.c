@@ -1190,14 +1190,14 @@ if (likely(__Pyx_init_co_variables() == 0)); else
 #if CYTHON_COMPILING_IN_LIMITED_API
 // returns 1 for success and 0 for failure to enable it to be chained in an &&
 static int __Pyx_init_co_variable(PyObject *inspect, const char* name, int *write_to) {
-    PyObject *py_value;
-    py_value = PyObject_GetAttrString(inspect, name);
+    int value;
+    PyObject *py_value = PyObject_GetAttrString(inspect, name);
     if (!py_value) return 0;
-    // There's a small chance of overflow here, but it'd only happen if inspect
-    // was set up wrongly
-    *write_to = PyLong_AsLong(py_value);
+    // There's a small chance of overflow here, but it'd only happen if inspect was set up wrongly.
+    value = (int) PyLong_AsLong(py_value);
     Py_DECREF(py_value);
-    return *write_to != -1 || !PyErr_Occurred();
+    *write_to = value;
+    return value != -1 || !PyErr_Occurred();
 }
 
 // Returns 0 on success and -1 on failure for normal error handling
