@@ -5732,19 +5732,22 @@ def remove_cv_ref(tp, remove_fakeref=False):
             tp = tp.ref_base_type
     return tp
 
-def get_all_subtypes(tp, seen=None):
-    if seen is None:
-        # seen is used as a set, but stored as a dict to get it insertion ordered
-        seen = {}
-    if tp in seen:
-        return
-    seen[tp] = None  # only the key is interesting
+
+def get_all_subtypes(tp, _seen=None):
+    """Return a list of transitive subtypes of the given type, in top-down order.
+    """
+    if _seen is None:
+        # 'seen' is used as a set, but stored as a dict to get it insertion ordered.
+        _seen = {}
+    _seen[tp] = None  # Only the key is interesting.
     for attr in tp.subtypes:
         subtype_or_iterable = getattr(tp, attr)
         if subtype_or_iterable:
             if isinstance(subtype_or_iterable, BaseType):
-                get_all_subtypes(subtype_or_iterable, seen)
+                if subtype_or_iterable not in _seen:
+                    get_all_subtypes(subtype_or_iterable, _seen)
             else:
                 for sub_tp in subtype_or_iterable:
-                    get_all_subtypes(sub_tp, seen)
-    return list(seen.keys())
+                    if sub_tp not in _seen:
+                        get_all_subtypes(sub_tp, _seen)
+    return list(_seen)
