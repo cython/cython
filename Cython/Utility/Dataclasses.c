@@ -14,14 +14,14 @@ static PyObject* __Pyx_LoadInternalModule(const char* name, const char* fallback
     // store them
 
     PyObject *shared_abi_module = 0, *module = 0;
-#if __PYX_LIMITED_VERSION_HEX >= 0x030d00A1
+#if __PYX_LIMITED_VERSION_HEX >= 0x030d0000
     PyObject *result;
 #endif
 
     shared_abi_module = __Pyx_FetchSharedCythonABIModule();
     if (!shared_abi_module) return NULL;
 
-#if __PYX_LIMITED_VERSION_HEX >= 0x030d00A1
+#if __PYX_LIMITED_VERSION_HEX >= 0x030d0000
      if (PyObject_GetOptionalAttrString(shared_abi_module, name, &result) != 0) {
         Py_DECREF(shared_abi_module);
         return result;
@@ -57,7 +57,16 @@ static PyObject* __Pyx_LoadInternalModule(const char* name, const char* fallback
         if (!builtins) goto bad;
         if (PyDict_SetItemString(localDict, "__builtins__", builtins) <0) goto bad;
 
+#if CYTHON_COMPILING_IN_LIMITED_API
+        {
+            PyObject *compiled = Py_CompileString(fallback_code, "<dataclass fallback code>", Py_file_input);
+            if (!compiled) goto bad;
+            runValue = PyEval_EvalCode(compiled, localDict, localDict);
+            Py_DECREF(compiled);
+        }
+#else
         runValue = PyRun_String(fallback_code, Py_file_input, localDict, localDict);
+#endif
         if (!runValue) goto bad;
         Py_DECREF(runValue);
     }

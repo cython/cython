@@ -244,7 +244,7 @@ class PostParse(ScopeTrackingTransform):
             newdecls = []
             for decl in node.declarators:
                 declbase = decl
-                while isinstance(declbase, Nodes.CPtrDeclaratorNode):
+                while isinstance(declbase, (Nodes.CPtrDeclaratorNode, Nodes.CConstDeclaratorNode)):
                     declbase = declbase.base
                 if isinstance(declbase, Nodes.CNameDeclaratorNode):
                     if declbase.default is not None:
@@ -1299,11 +1299,13 @@ class InterpretCompilerDirectives(CythonTransform):
         retbody = self.visit_Node(node)
         self.directives = old_directives
 
+        if isinstance(retbody, Nodes.CompilerDirectivesNode):
+            new_directives.update(retbody.directives)
+            retbody = retbody.body
         if not isinstance(retbody, Nodes.StatListNode):
             retbody = Nodes.StatListNode(node.pos, stats=[retbody])
         return Nodes.CompilerDirectivesNode(
-            pos=retbody.pos, body=retbody, directives=new_directives)
-
+            retbody.pos, body=retbody, directives=new_directives, is_terminator=retbody.is_terminator)
 
     # Handle decorators
     def visit_FuncDefNode(self, node):
@@ -1404,30 +1406,48 @@ class InterpretCompilerDirectives(CythonTransform):
     def visit_WithStatNode(self, node):
         directive_dict = {}
         for directive in self.try_to_parse_directives(node.manager) or []:
-            if directive is not None:
-                if node.target is not None:
-                    self.context.nonfatal_error(
-                        PostParseError(node.pos, "Compiler directive with statements cannot contain 'as'"))
-                else:
-                    name, value = directive
-                    if name in ('nogil', 'gil'):
-                        # special case: in pure mode, "with nogil" spells "with cython.nogil"
-                        condition = None
-                        if isinstance(node.manager, ExprNodes.SimpleCallNode) and len(node.manager.args) > 0:
-                            if len(node.manager.args) == 1:
-                                condition = node.manager.args[0]
-                            else:
-                                self.context.nonfatal_error(
-                                    PostParseError(node.pos, "Compiler directive %s accepts one positional argument." % name))
-                        elif isinstance(node.manager, ExprNodes.GeneralCallNode):
-                            self.context.nonfatal_error(
-                                PostParseError(node.pos, "Compiler directive %s accepts one positional argument." % name))
-                        node = Nodes.GILStatNode(node.pos, state=name, body=node.body, condition=condition)
-                        return self.visit_Node(node)
-                    if self.check_directive_scope(node.pos, name, 'with statement'):
-                        directive_dict[name] = value
+            if directive is None:
+                continue
+            if node.target is not None:
+                self.context.nonfatal_error(
+                    PostParseError(node.pos, "Compiler directive with statements cannot contain 'as'"))
+                continue
+            name, value = directive
+            if name in ('nogil', 'gil'):
+                # special case: in pure mode, "with nogil" spells "with cython.nogil"
+                return self._transform_with_gil(node, name)
+            elif name == "critical_section":
+                args, kwds = value
+                return self._transform_critical_section(node, args, kwds)
+            elif self.check_directive_scope(node.pos, name, 'with statement'):
+                directive_dict[name] = value
         if directive_dict:
             return self.visit_with_directives(node.body, directive_dict, contents_directives=None)
+        return self.visit_Node(node)
+
+    def _transform_with_gil(self, node, state):
+        assert state in ('gil', 'nogil')
+        manager = node.manager
+        condition = None
+        if isinstance(manager, ExprNodes.SimpleCallNode) and manager.args:
+            if len(manager.args) > 1:
+                self.context.nonfatal_error(
+                    PostParseError(node.pos, "Compiler directive %s accepts one positional argument." % state))
+            condition = manager.args[0]
+        elif isinstance(manager, ExprNodes.GeneralCallNode):
+            self.context.nonfatal_error(
+                PostParseError(node.pos, "Compiler directive %s accepts one positional argument." % state))
+        node = Nodes.GILStatNode(node.pos, state=state, body=node.body, condition=condition)
+        return self.visit_Node(node)
+
+    def _transform_critical_section(self, node, args, kwds):
+        if len(args) < 1 or len(args) > 2 or kwds:
+            self.context.nonfatal_error(
+                PostParseError(node.pos, "critical_section directive accepts one or two positional arguments")
+            )
+        node = Nodes.CriticalSectionStatNode(
+            node.pos, args=args, body=node.body
+        )
         return self.visit_Node(node)
 
 
@@ -2033,6 +2053,7 @@ class CnameDirectivesTransform(CythonTransform, SkipDeclarations):
     visit_CClassDefNode = handle_function
     visit_CEnumDefNode = handle_function
     visit_CStructOrUnionDefNode = handle_function
+    visit_CVarDefNode = handle_function
 
 
 class ForwardDeclareTypes(CythonTransform):
@@ -2787,7 +2808,8 @@ class CalculateQualifiedNamesTransform(EnvTransform):
         lhs = ExprNodes.NameNode(
             node.pos,
             name=EncodedString(name),
-            entry=entry)
+            entry=entry,
+            is_target=True)
         rhs = ExprNodes.UnicodeNode(node.pos, value=value)
         node.body.stats.insert(0, Nodes.SingleAssignmentNode(
             node.pos,
@@ -2982,7 +3004,7 @@ class ExpandInplaceOperators(EnvTransform):
                 index = LetRefNode(node.index)
                 return ExprNodes.IndexNode(node.pos, base=base, index=index), temps + [index]
             elif node.is_attribute:
-                obj, temps = side_effect_free_reference(node.obj)
+                obj, temps = side_effect_free_reference(node.obj, setting=setting)
                 return ExprNodes.AttributeNode(node.pos, obj=obj, attribute=node.attribute), temps
             elif isinstance(node, ExprNodes.BufferIndexNode):
                 raise ValueError("Don't allow things like attributes of buffer indexing operations")
@@ -3000,6 +3022,7 @@ class ExpandInplaceOperators(EnvTransform):
                                      operand2 = rhs,
                                      inplace=True)
         # Manually analyse types for new node.
+        lhs.is_target = True
         lhs = lhs.analyse_target_types(env)
         dup.analyse_types(env)  # FIXME: no need to reanalyse the copy, right?
         binop.analyse_operation(env)
@@ -3027,6 +3050,7 @@ class AdjustDefByDirectives(CythonTransform, SkipDeclarations):
     @cython.ccall
     @cython.inline
     @cython.nogil
+    @cython.critical_section
     """
     # list of directives that cause conversion to cclass
     converts_to_cclass = ('cclass', 'total_ordering', 'dataclasses.dataclass')
@@ -3061,6 +3085,8 @@ class AdjustDefByDirectives(CythonTransform, SkipDeclarations):
         elif except_val is None:
             # backward compatible default: no exception check, unless there's also a "@returns" declaration
             except_val = (None, True if return_type_node else False)
+        if self.directives.get('c_compile_guard') and 'cfunc' not in self.directives:
+            error(node.pos, "c_compile_guard only allowed on C functions")
         if 'ccall' in self.directives:
             if 'cfunc' in self.directives:
                 error(node.pos, "cfunc and ccall directives cannot be combined")
@@ -3085,6 +3111,20 @@ class AdjustDefByDirectives(CythonTransform, SkipDeclarations):
             error(node.pos, "Python functions cannot be declared 'nogil'")
         if with_gil:
             error(node.pos, "Python functions cannot be declared 'with_gil'")
+        self.visit_FuncDefNode(node)
+        return node
+
+    def visit_FuncDefNode(self, node):
+        if "critical_section" in self.directives:
+            value = self.directives["critical_section"]
+            if value is not None:
+                error(node.pos, "critical_section decorator does not take arguments")
+            new_body = Nodes.CriticalSectionStatNode(
+                node.pos,
+                args=[ExprNodes.FirstArgumentForCriticalSectionNode(node.pos, func_node=node)],
+                body=node.body
+            )
+            node.body = new_body
         self.visitchildren(node)
         return node
 
@@ -3755,13 +3795,17 @@ class GilCheck(VisitorTransform):
         """
         Take care of try/finally statements in nogil code sections.
         """
-        if not self.nogil or isinstance(node, Nodes.GILStatNode):
+        if not self.nogil:
             return self.visit_Node(node)
 
         node.nogil_check = None
         node.is_try_finally_in_nogil = True
         self.visitchildren(node)
         return node
+
+    def visit_CriticalSectionStatNode(self, node):
+        # skip normal "try/finally node" handling
+        return self.visit_Node(node)
 
     def visit_GILExitNode(self, node):
         if not self.current_gilstat_node_knows_gil_state:
@@ -3788,7 +3832,7 @@ class CoerceCppTemps(EnvTransform, SkipDeclarations):
     inserts a coercion node to take care of this, and runs absolutely last (once nothing else can be
     inserted into the tree)
 
-    TODO: a possible alternative would be to split ExprNode.result() into ExprNode.rhs_rhs() and ExprNode.lhs_rhs()???
+    TODO: a possible alternative would be to split ExprNode.result() into ExprNode.rhs_result() and ExprNode.lhs_result()???
     """
     def visit_ModuleNode(self, node):
         if self.current_env().cpp:
@@ -3804,6 +3848,17 @@ class CoerceCppTemps(EnvTransform, SkipDeclarations):
                 not node.type.is_fake_reference):
             node = ExprNodes.CppOptionalTempCoercion(node)
 
+        return node
+
+    def visit_CppOptionalTempCoercion(self, node):
+        return node
+
+    def visit_CppIteratorNode(self, node):
+        return node
+
+    def visit_ExprStatNode(self, node):
+        # Deliberately skip `expr` in ExprStatNode - we don't need to access it.
+        self.visitchildren(node.expr)
         return node
 
 

@@ -63,6 +63,7 @@ static CYTHON_INLINE PyObject* __Pyx_PyUnicode_FromString(const char*);
     #define __Pyx_PyBytes_AsString(s)     ((const char*) PyBytes_AS_STRING(s))
     #define __Pyx_PyBytes_AsSString(s)    ((const signed char*) PyBytes_AS_STRING(s))
     #define __Pyx_PyBytes_AsUString(s)    ((const unsigned char*) PyBytes_AS_STRING(s))
+    #define __Pyx_PyByteArray_AsString(s) PyByteArray_AS_STRING(s)
 #else
     #define __Pyx_PyBytes_AsWritableString(s)     ((char*) PyBytes_AsString(s))
     #define __Pyx_PyBytes_AsWritableSString(s)    ((signed char*) PyBytes_AsString(s))
@@ -70,6 +71,7 @@ static CYTHON_INLINE PyObject* __Pyx_PyUnicode_FromString(const char*);
     #define __Pyx_PyBytes_AsString(s)     ((const char*) PyBytes_AsString(s))
     #define __Pyx_PyBytes_AsSString(s)    ((const signed char*) PyBytes_AsString(s))
     #define __Pyx_PyBytes_AsUString(s)    ((const unsigned char*) PyBytes_AsString(s))
+    #define __Pyx_PyByteArray_AsString(s) PyByteArray_AsString(s)
 #endif
 #define __Pyx_PyObject_AsWritableString(s)    ((char*)(__pyx_uintptr_t) __Pyx_PyObject_AsString(s))
 #define __Pyx_PyObject_AsWritableSString(s)    ((signed char*)(__pyx_uintptr_t) __Pyx_PyObject_AsString(s))
@@ -101,7 +103,7 @@ static CYTHON_INLINE PyObject *__Pyx_XNewRef(PyObject *obj) {
 #endif
 }
 
-#define __Pyx_Owned_Py_None(b) __Pyx_NewRef(Py_None)
+static CYTHON_INLINE PyObject *__Pyx_Owned_Py_None(int b);
 static CYTHON_INLINE PyObject * __Pyx_PyBool_FromLong(long b);
 static CYTHON_INLINE int __Pyx_PyObject_IsTrue(PyObject*);
 static CYTHON_INLINE int __Pyx_PyObject_IsTrueAndDecref(PyObject*);
@@ -226,6 +228,33 @@ static CYTHON_INLINE const char* __Pyx_PyObject_AsString(PyObject* o) {
 #if __PYX_DEFAULT_STRING_ENCODING_IS_ASCII || __PYX_DEFAULT_STRING_ENCODING_IS_UTF8
 static CYTHON_INLINE const char* __Pyx_PyUnicode_AsStringAndSize(PyObject* o, Py_ssize_t *length) {
     if (unlikely(__Pyx_PyUnicode_READY(o) == -1)) return NULL;
+#if CYTHON_COMPILING_IN_LIMITED_API
+    {
+        const char* result;
+        Py_ssize_t unicode_length;
+        CYTHON_MAYBE_UNUSED_VAR(unicode_length); // only for __PYX_DEFAULT_STRING_ENCODING_IS_ASCII
+        #if __PYX_LIMITED_VERSION_HEX < 0x030A0000
+        if (unlikely(PyArg_Parse(o, "s#", &result, length) < 0)) return NULL;
+        #else
+        result = PyUnicode_AsUTF8AndSize(o, length);
+        #endif
+        #if __PYX_DEFAULT_STRING_ENCODING_IS_ASCII
+        // Pre-checking "isascii" the Limited API involves making Python function calls.
+        // Therefore we do a post-check instead that the lengths of the encoded and unicode
+        // strings are the same (which is only true for ascii strings).
+        // If this isn't true then we've already done the encoding so it's a potential
+        // performance loss, but it should be better in the successful case.
+        unicode_length = PyUnicode_GetLength(o);
+        if (unlikely(unicode_length < 0)) return NULL;
+        if (unlikely(unicode_length != *length)) {
+            // raise the error
+            PyUnicode_AsASCIIString(o);
+            return NULL;
+        }
+        #endif
+        return result;
+    }
+#else /* CYTHON_COMPILING_IN_LIMITED_API */
 #if __PYX_DEFAULT_STRING_ENCODING_IS_ASCII
     if (likely(PyUnicode_IS_ASCII(o))) {
         // cached for the lifetime of the object
@@ -238,7 +267,8 @@ static CYTHON_INLINE const char* __Pyx_PyUnicode_AsStringAndSize(PyObject* o, Py
     }
 #else
     return PyUnicode_AsUTF8AndSize(o, length);
-#endif
+#endif /* __PYX_DEFAULT_STRING_ENCODING_IS_ASCII */
+#endif /* !CYTHON_COMPILING_IN_LIMITED_API */
 }
 #endif
 
@@ -250,12 +280,17 @@ static CYTHON_INLINE const char* __Pyx_PyObject_AsStringAndSize(PyObject* o, Py_
     } else
 #endif
 
-#if (!CYTHON_COMPILING_IN_PYPY && !CYTHON_COMPILING_IN_LIMITED_API) || (defined(PyByteArray_AS_STRING) && defined(PyByteArray_GET_SIZE))
     if (PyByteArray_Check(o)) {
+#if (CYTHON_ASSUME_SAFE_SIZE && CYTHON_ASSUME_SAFE_MACROS) || (CYTHON_COMPILING_IN_PYPY && (defined(PyByteArray_AS_STRING) && defined(PyByteArray_GET_SIZE)))
         *length = PyByteArray_GET_SIZE(o);
         return PyByteArray_AS_STRING(o);
-    } else
+#else
+        *length = PyByteArray_Size(o);
+        if (*length == -1) return NULL;
+        return PyByteArray_AsString(o);
 #endif
+
+    } else
     {
         char* result;
         int r = PyBytes_AsStringAndSize(o, &result, length);
@@ -283,7 +318,7 @@ static CYTHON_INLINE int __Pyx_PyObject_IsTrueAndDecref(PyObject* x) {
 }
 
 static PyObject* __Pyx_PyNumber_LongWrongResultType(PyObject* result) {
-    __Pyx_TypeName result_type_name = __Pyx_PyType_GetName(Py_TYPE(result));
+    __Pyx_TypeName result_type_name = __Pyx_PyType_GetFullyQualifiedName(Py_TYPE(result));
     if (PyLong_Check(result)) {
         // CPython issue #17576: warn if 'result' not of exact type int.
         if (PyErr_WarnFormat(PyExc_DeprecationWarning, 1,
@@ -385,6 +420,10 @@ static CYTHON_INLINE Py_hash_t __Pyx_PyIndex_AsHash_t(PyObject* o) {
   }
 }
 
+static CYTHON_INLINE PyObject *__Pyx_Owned_Py_None(int b) {
+    CYTHON_UNUSED_VAR(b);
+    return __Pyx_NewRef(Py_None);
+}
 
 static CYTHON_INLINE PyObject * __Pyx_PyBool_FromLong(long b) {
   return b ? __Pyx_NewRef(Py_True) : __Pyx_NewRef(Py_False);
@@ -444,25 +483,42 @@ no_error:
 
 
 /////////////// ToPyCTupleUtility.proto ///////////////
+
 static PyObject* {{funcname}}({{struct_type_decl}});
 
 /////////////// ToPyCTupleUtility ///////////////
+
 static PyObject* {{funcname}}({{struct_type_decl}} value) {
-    PyObject* item = NULL;
-    PyObject* result = PyTuple_New({{size}});
-    if (!result) goto bad;
+    PyObject* items[{{size}}] = { {{ ', '.join('0'*size) }} };
+    PyObject* result = NULL;
 
     {{for ix, component in enumerate(components):}}
-        {{py:attr = "value.f%s" % ix}}
-        item = {{component.to_py_function}}({{attr}});
-        if (!item) goto bad;
-        PyTuple_SET_ITEM(result, {{ix}}, item);
+        {{py:attr = f"value.f{ix}" }}
+        items[{{ix}}] = {{component.to_py_function}}({{attr}});
+        if (unlikely(!items[{{ix}}])) goto bad;
     {{endfor}}
 
+    result = PyTuple_New({{size}});
+    if (unlikely(!result)) goto bad;
+
+    for (Py_ssize_t i=0; i<{{ size }}; ++i) {
+        PyObject *item = items[i];
+        items[i] = NULL;
+        #if !CYTHON_ASSUME_SAFE_MACROS
+        // PyTuple_SetItem() always steals a reference.
+        if (unlikely(PyTuple_SetItem(result, i, item) < 0)) goto bad;
+        #else
+        PyTuple_SET_ITEM(result, i, item);
+        #endif
+    }
+
     return result;
+
 bad:
-    Py_XDECREF(item);
     Py_XDECREF(result);
+    for (Py_ssize_t i={{ size-1 }}; i >= 0; --i) {
+        Py_XDECREF(items[i]);
+    }
     return NULL;
 }
 
@@ -498,7 +554,7 @@ bad:
 
 static void __Pyx_seq_{{funcname}}(PyObject * o, {{struct_type_decl}} *result) {
     if (unlikely(!PySequence_Check(o))) {
-        __Pyx_TypeName o_type_name = __Pyx_PyType_GetName(Py_TYPE(o));
+        __Pyx_TypeName o_type_name = __Pyx_PyType_GetFullyQualifiedName(Py_TYPE(o));
         PyErr_Format(PyExc_TypeError,
                      "Expected a sequence of size %zd, got " __Pyx_FMT_TYPENAME, (Py_ssize_t) {{size}}, o_type_name);
         __Pyx_DECREF_TypeName(o_type_name);
@@ -754,23 +810,23 @@ static PyObject* __Pyx_PyUnicode_FromOrdinal_Padded(int value, Py_ssize_t ulengt
 
         char *cpos = chars + sizeof(chars);
         if (value < 0x800) {
-            *--cpos = (char) (0b10000000 | (value & 0x3f));
+            *--cpos = (char) (0x80 | (value & 0x3f));
             value >>= 6;
-            *--cpos = (char) (0b11000000 | (value & 0x1f));
+            *--cpos = (char) (0xc0 | (value & 0x1f));
         } else if (value < 0x10000) {
-            *--cpos = (char) (0b10000000 | (char) (value & 0x3f));
+            *--cpos = (char) (0x80 | (value & 0x3f));
             value >>= 6;
-            *--cpos = (char) (0b10000000 | (char) (value & 0x3f));
+            *--cpos = (char) (0x80 | (value & 0x3f));
             value >>= 6;
-            *--cpos = (char) (0b11100000 | (char) (value & 0xf));
+            *--cpos = (char) (0xe0 | (value & 0x0f));
         } else {
-            *--cpos = (char) (0b10000000 | (char) (value & 0x3f));
+            *--cpos = (char) (0x80 | (value & 0x3f));
             value >>= 6;
-            *--cpos = (char) (0b10000000 | (char) (value & 0x3f));
+            *--cpos = (char) (0x80 | (value & 0x3f));
             value >>= 6;
-            *--cpos = (char) (0b10000000 | (char) (value & 0x3f));
+            *--cpos = (char) (0x80 | (value & 0x3f));
             value >>= 6;
-            *--cpos = (char) (0b11110000 | (char) (value & 0x7));
+            *--cpos = (char) (0xf0 | (value & 0x07));
         }
         cpos -= ulength;
         memset(cpos, padding_char, (size_t) (ulength - 1));
@@ -844,6 +900,7 @@ static CYTHON_INLINE PyObject* {{TO_PY_FUNCTION}}({{TYPE}} value, Py_ssize_t wid
 /////////////// CIntToPyUnicode ///////////////
 //@requires: StringTools.c::IncludeStringH
 //@requires: StringTools.c::BuildPyUnicode
+//@requires: ModuleSetupCode.c::IncludeStdlibH
 //@requires: COrdinalToPyUnicode
 //@requires: CIntToDigits
 //@requires: GCCDiagnostics
@@ -1225,77 +1282,3 @@ raise_neg_overflow:
         "can't convert negative value to {{TYPE}}");
     return ({{TYPE}}) -1;
 }
-
-/////////////// CFuncPtrTypedef.proto ///////////////
-//@substitute: naming
-
-#ifndef __PYX_HAVE_RT_CFuncPtrTypedef_$cyversion
-#define __PYX_HAVE_RT_CFuncPtrTypedef_$cyversion
-typedef void (*__Pyx_generic_func_pointer_$cyversion)(void);
-#endif
-
-/////////////// CFuncPtrToPy.proto ///////////////
-//@requires: CFuncPtrTypedef
-//@substitute: naming
-
-static PyObject *__Pyx_c_func_ptr_to_capsule(__Pyx_generic_func_pointer_$cyversion funcptr, const char* name); /* proto */
-
-/////////////// CFuncPtrToPy ///////////////
-//@requires: StringTools.c::IncludeStringH
-//@substitute: naming
-
-static void __Pyx_destroy_c_func_ptr_capsule(PyObject *capsule) {
-    void* ptr = PyCapsule_GetPointer(capsule, PyCapsule_GetName(capsule));
-    PyMem_Free(ptr);
-}
-
-static PyObject *__Pyx_c_func_ptr_to_capsule(__Pyx_generic_func_pointer_$cyversion funcptr, const char* name) {
-    // __Pyx_TEST_large_func_pointers exists just to force an alternative code-path in testing
-#if defined(__Pyx_TEST_large_func_pointers) && __Pyx_TEST_large_func_pointers
-    if ((1))
-#else
-    if (sizeof(funcptr) > sizeof(void*))
-#endif
-    {
-        // The C standard does not guarantee that a function pointer fits inside a regular pointer
-        // (and on some platforms it doesn't). On these, we need to allocate space to store the function pointer
-        __Pyx_generic_func_pointer_$cyversion *copy_into = (__Pyx_generic_func_pointer_$cyversion*) PyMem_Malloc(sizeof(funcptr));
-        *copy_into = funcptr;
-        return PyCapsule_New(copy_into, name, __Pyx_destroy_c_func_ptr_capsule);
-    } else {
-        // on all other platforms (which is the vast majority, since POSIX require a function pointer
-        // can be  converted to a void*) we skip the allocation and store directly into the capsule's value.
-        // Use memcpy to copy the data from the function pointer to the void*.
-        // (since just casting is prohibited by standard C, and using unions is prohibited by standard c++)
-        void *copy_into;
-        memcpy((void*)&copy_into, (void*)&funcptr, sizeof(funcptr));
-        return PyCapsule_New(copy_into, name, NULL);
-    }
-}
-
-/////////////// CFuncPtrFromPy.proto ///////////////
-//@requires: CFuncPtrTypedef
-
-static __Pyx_generic_func_pointer_$cyversion __Pyx_capsule_to_c_func_ptr_$cyversion(PyObject *capsule, const char* name); /* proto */
-
-/////////////// CFuncPtrFromPy.proto ///////////////
-//@substitute: naming
-
-#ifndef __PYX_HAVE_RT_CFuncPtrFromPy_$cyversion
-#define __PYX_HAVE_RT_CFuncPtrFromPy_$cyversion
-static __Pyx_generic_func_pointer_$cyversion __Pyx_capsule_to_c_func_ptr_$cyversion(PyObject *capsule, const char* name) {
-    void *data = PyCapsule_GetPointer(capsule, name);
-    __Pyx_generic_func_pointer_$cyversion funcptr;
-#if defined(__Pyx_TEST_large_func_pointers) && __Pyx_TEST_large_func_pointers
-    if ((1))
-#else
-    if (sizeof(funcptr) > sizeof(void*))
-#endif
-    {
-        funcptr = *((__Pyx_generic_func_pointer_$cyversion*)data);
-    } else {
-        memcpy((void*)&funcptr, (void*)&data, sizeof(funcptr));
-    }
-    return funcptr;
-}
-#endif

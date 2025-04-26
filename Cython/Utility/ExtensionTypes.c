@@ -1,14 +1,11 @@
 /////////////// FixUpExtensionType.proto ///////////////
 
-#if CYTHON_USE_TYPE_SPECS
-static int __Pyx_fix_up_extension_type_from_spec(PyType_Spec *spec, PyTypeObject *type); /*proto*/
-#endif
+static CYTHON_INLINE int __Pyx_fix_up_extension_type_from_spec(PyType_Spec *spec, PyTypeObject *type); /*proto*/
 
 /////////////// FixUpExtensionType ///////////////
 //@requires:ModuleSetupCode.c::IncludeStructmemberH
 //@requires:StringTools.c::IncludeStringH
 
-#if CYTHON_USE_TYPE_SPECS
 static int __Pyx_fix_up_extension_type_from_spec(PyType_Spec *spec, PyTypeObject *type) {
 #if PY_VERSION_HEX > 0x030900B1 || CYTHON_COMPILING_IN_LIMITED_API
     CYTHON_UNUSED_VAR(spec);
@@ -89,7 +86,6 @@ static int __Pyx_fix_up_extension_type_from_spec(PyType_Spec *spec, PyTypeObject
 #endif
     return 0;
 }
-#endif
 
 
 /////////////// ValidateBasesTuple.proto ///////////////
@@ -134,7 +130,7 @@ static int __Pyx_validate_bases_tuple(const char *type_name, Py_ssize_t dictoffs
         b = (PyTypeObject*) b0;
         if (!__Pyx_PyType_HasFeature(b, Py_TPFLAGS_HEAPTYPE))
         {
-            __Pyx_TypeName b_name = __Pyx_PyType_GetName(b);
+            __Pyx_TypeName b_name = __Pyx_PyType_GetFullyQualifiedName(b);
             PyErr_Format(PyExc_TypeError,
                 "base class '" __Pyx_FMT_TYPENAME "' is not a heap type", b_name);
             __Pyx_DECREF_TypeName(b_name);
@@ -157,7 +153,7 @@ static int __Pyx_validate_bases_tuple(const char *type_name, Py_ssize_t dictoffs
 #endif
             if (b_dictoffset) {
                 {
-                    __Pyx_TypeName b_name = __Pyx_PyType_GetName(b);
+                    __Pyx_TypeName b_name = __Pyx_PyType_GetFullyQualifiedName(b);
                     PyErr_Format(PyExc_TypeError,
                         "extension type '%.200s' has no __dict__ slot, "
                         "but base type '" __Pyx_FMT_TYPENAME "' has: "
@@ -193,12 +189,22 @@ CYTHON_UNUSED static int __Pyx_PyType_Ready(PyTypeObject *t);/*proto*/
 //@requires: ObjectHandling.c::PyObjectCallMethod0
 //@requires: ValidateBasesTuple
 
+CYTHON_UNUSED static int __Pyx_PyType_HasMultipleInheritance(PyTypeObject *t) {
+    while (t) {
+        PyObject *bases = __Pyx_PyType_GetSlot(t, tp_bases, PyObject*);
+        if (bases) {
+            return 1;
+        }
+        t = __Pyx_PyType_GetSlot(t, tp_base, PyTypeObject*);
+    }
+    return 0;
+}
+
 // Wrapper around PyType_Ready() with some runtime checks and fixes
 // to deal with multiple inheritance.
 static int __Pyx_PyType_Ready(PyTypeObject *t) {
 
-// FIXME: is this really suitable for CYTHON_COMPILING_IN_LIMITED_API?
-#if CYTHON_USE_TYPE_SPECS || !(CYTHON_COMPILING_IN_CPYTHON || CYTHON_COMPILING_IN_LIMITED_API) || defined(PYSTON_MAJOR_VERSION)
+#if CYTHON_USE_TYPE_SPECS || !CYTHON_COMPILING_IN_CPYTHON || defined(PYSTON_MAJOR_VERSION)
     // avoid C warning about unused helper function
     (void)__Pyx_PyObject_CallMethod0;
 #if CYTHON_USE_TYPE_SPECS
@@ -209,6 +215,12 @@ static int __Pyx_PyType_Ready(PyTypeObject *t) {
 
 #else
     int r;
+
+    if (!__Pyx_PyType_HasMultipleInheritance(t)) {
+        // shortcut - if none of the base classes do multiple inheritance then we don't need to
+        // (and shouldn't) mess around with faking heaptypes.
+        return PyType_Ready(t);
+    }
     PyObject *bases = __Pyx_PyType_GetSlot(t, tp_bases, PyObject*);
     if (bases && unlikely(__Pyx_validate_bases_tuple(t->tp_name, t->tp_dictoffset, bases) == -1))
         return -1;
@@ -254,7 +266,7 @@ static int __Pyx_PyType_Ready(PyTypeObject *t) {
         }
     #endif
 
-        // As of https://bugs.python.org/issue22079
+        // As of https://github.com/python/cpython/issues/66277
         // PyType_Ready enforces that all bases of a non-heap type are
         // non-heap. We know that this is the case for the solid base but
         // other bases are heap allocated and are kept alive through the
@@ -529,7 +541,7 @@ static int __Pyx_setup_reduce(PyObject* type_obj) {
 __PYX_BAD:
     if (!PyErr_Occurred()) {
         __Pyx_TypeName type_obj_name =
-            __Pyx_PyType_GetName((PyTypeObject*)type_obj);
+            __Pyx_PyType_GetFullyQualifiedName((PyTypeObject*)type_obj);
         PyErr_Format(PyExc_RuntimeError,
             "Unable to initialize pickling for " __Pyx_FMT_TYPENAME, type_obj_name);
         __Pyx_DECREF_TypeName(type_obj_name);
@@ -637,7 +649,7 @@ static int __Pyx_validate_extern_base(PyTypeObject *base) {
         return -1;
 #endif
     if (itemsize) {
-        __Pyx_TypeName b_name = __Pyx_PyType_GetName(base);
+        __Pyx_TypeName b_name = __Pyx_PyType_GetFullyQualifiedName(base);
         PyErr_Format(PyExc_TypeError,
                 "inheritance from PyVarObject types like '" __Pyx_FMT_TYPENAME "' not currently supported", b_name);
         __Pyx_DECREF_TypeName(b_name);
