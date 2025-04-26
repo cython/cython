@@ -1518,7 +1518,6 @@ __Pyx_Coroutine_set_qualname(__pyx_CoroutineObject *self, PyObject *value, void 
     return 0;
 }
 
-// called from in a critical section on self
 static PyObject *
 __Pyx__Coroutine_get_frame(__pyx_CoroutineObject *self)
 {
