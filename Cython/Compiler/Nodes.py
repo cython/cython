@@ -1793,7 +1793,7 @@ class CEnumDefNode(StatNode):
                 code.error_goto_if_null(temp, item.pos)))
             code.put_gotref(temp, PyrexTypes.py_object_type)
             code.putln('if (PyDict_SetItemString(%s, %s, %s) < 0) %s' % (
-                Naming.moddict_cname,
+                code.name_in_module_state(Naming.moddict_cname),
                 item.name.as_c_string_literal(),
                 temp,
                 code.error_goto(item.pos)))
