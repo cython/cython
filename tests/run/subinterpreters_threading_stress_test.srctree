@@ -1,0 +1,115 @@
+UNSET CFLAGS
+PYTHON setup.py build_ext --inplace
+PYTHON main.py
+
+##################### setup.py ###################
+
+import sys
+from setuptools import setup
+from Cython.Build import cythonize
+
+if sys.version_info < (3, 13):
+    exit(0)
+
+setup(
+    ext_modules = cythonize(
+        [ "cy_module.pyx" ]
+    )
+)
+
+#################### cy_module.pyx ##################
+
+# distutils: extra_compile_args = -DCYTHON_USE_MODULE_STATE=1
+# cython: subinterpreters_compatible = own_gil
+
+cdef extern from *:
+    # actually returns a borrowed PyObject*
+    void* __Pyx_State_FindModule(void*)
+
+def run(start_next_queue, stop_queue):
+    # queues appear to be the only synchronization primitive we're
+    # allowed. So use it to control stopping the test
+    cdef void *initial = <void*>__Pyx_State_FindModule(NULL)
+    cdef void *current=NULL
+    while stop_queue.empty():
+        # wait until we're running properly and then allow the
+        # next interpreter to start
+        if start_next_queue is not None:
+            start_next_queue.put(None)
+            start_next_queue = None
+        for i in range(1000):
+            current = <void*>__Pyx_State_FindModule(NULL)
+            # if the current module pointer ever changes, then the state
+            # has got corrupted somewhere along the way
+            assert current == initial, f"{<long>current} {<long>initial}"
+
+
+################## callable.py ###################
+
+# Note - free globals are evaluated in the interpreter's "__main__" module
+# (which we prepare)
+
+def f():
+    # wait for previous interpreter to reach its read-loop before proceeding
+    # with this one.
+    start_next_queue.get(20.0)
+    started_queue.put(None)
+    import cy_module
+    cy_module.run(start_next_queue, stop_queue)
+
+################## main.py ######################
+
+# What we're doing here is running isolated sub-interpreters
+# (each with their own individual GIL) in parallel with the
+# intention of spotting thread-safety issues in __Pyx_State_FindModule.
+# Each loaded module repeatedly calls __Pyx_State_FindModule
+# expecting the same result each time. At the same time new interpreters
+# are started.
+
+import sys
+import sysconfig
+if sys.version_info[:2] != (3, 13):
+    exit(0)  # test won't work
+if sysconfig.get_config_var("Py_GIL_DISABLED"):
+    # we aren't allowed to do _imp._override_multi_interp_extensions_check(-1) on freethreading
+    exit(0)
+
+# TODO - in Py3.14 this'll probably be in the standard library
+from interpreters_backport import interpreters
+
+# create a bunch of interpreters
+num_interpreters = 5
+all_interpreters = [ interpreters.create() for _ in range(num_interpreters) ]
+
+# set up the queues used for inter-interpreter communication.
+# non-empty stop_queue is used to signal that the test is over and all interpreters should stop.
+stop_queue = interpreters.create_queue()
+# started_queue allows the main interpreter to count how many sub-interpreters have started.
+# Each sub-interpreter pushes to it once.
+started_queue = interpreters.create_queue()
+# start_next_queue allows each sub-interpreter to wait for the previous interpreter to start
+# its main loop before proceeding. Each sub-interpreter reads once from it then writes once to it.
+start_next_queue = interpreters.create_queue()
+start_next_queue.put(None)
+
+for i in all_interpreters:
+    # I don't think this exec should be needed, but as of Nov 2024 it is.
+    i.exec("from interpreters_backport.interpreters import queues")
+    i.prepare_main(
+        stop_queue=stop_queue,
+        started_queue=started_queue,
+        start_next_queue=start_next_queue)
+
+import callable
+
+threads = [ i.call_in_thread(callable.f) for i in all_interpreters ]
+
+# wait until we know all interpreters have started
+for _ in range(num_interpreters):
+    started_queue.get(20.0)
+
+# signal for the interpreters to stop.
+stop_queue.put(None)
+
+for t in threads:
+    t.join()

@@ -7,6 +7,78 @@ from cython.operator cimport preincrement as incr
 from libcpp.vector cimport vector
 from libcpp cimport bool as cbool
 
+ctypedef vector[int] ivector
+
+def test_constructors(int canary):
+    """
+    >>> test_constructors(7)
+    ([], [7, 7], [0, 0], [7, 7], [7, 7])
+    """
+    cdef ivector v1 = ivector()
+    cdef ivector v2 = ivector(2, canary)
+    cdef ivector v3 = ivector(2)
+    cdef ivector v4 = ivector(v2.begin(), v2.end())
+    cdef ivector v5 = ivector(v2)
+    return v1, v2, v3, v4, v5
+
+def test_assign(int canary):
+    """
+    >>> test_assign(7)
+    ([7, 7], [7, 7])
+    """
+    cdef ivector v1, v2
+    v1.assign(2, canary)
+    v2.assign(v1.begin(), v1.end())
+    return v1, v2
+
+def test_access(ivector v, int i):
+    """
+    >>> test_access((1, 2, 3), 1)
+    (2, 2, 1, 3)
+    >>> test_access((1, 2, 3), 5)  # doctest: +ELLIPSIS
+    Traceback (most recent call last):
+        ...
+    IndexError: ...
+    """
+    return v.at(i), v[i], v.front(), v.back()
+
+def test_capacity(ivector v):
+    """
+    >>> all(test_capacity((1, 2, 3)))
+    True
+    """
+    v.reserve(9)
+    v.resize(5)
+    v.resize(7, 0)
+    return not v.empty(), v.size() > 0, v.max_size() > 0, v.capacity() > 0
+
+def test_modifiers():
+    """
+    >>> test_modifiers()
+    (0, 0)
+    """
+    cdef ivector v1 = ivector(3)
+    cdef ivector v2 = ivector(3)
+    v2.insert(v2.end(), 1)
+    v2.insert(v2.cend(), 1)
+    v2.insert(v2.end(), v1.begin(), v1.end())
+    v2.insert(v2.cend(), v1.cbegin(), v1.cend())
+    v1.clear()
+    v2.pop_back()
+    v2.erase(v2.begin())
+    v2.erase(v2.cbegin())
+    v2.erase(v2.begin(), v2.end())
+    v2.erase(v2.cbegin(), v2.cend())
+    return v1.size(), v2.size()
+
+def test_swap(ivector v1, ivector v2):
+    """
+    >>> test_swap((1, 2), (3, 4))
+    ([3, 4], [1, 2])
+    """
+    v1.swap(v2)
+    return v1, v2
+
 def simple_test(double x):
     """
     >>> simple_test(55)

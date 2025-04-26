@@ -9,5 +9,5 @@ cdef extern from "cheesefinder.h":
 def find(f):
     find_cheeses(callback, <void*>f)
 
-cdef void callback(char *name, void *f):
+cdef void callback(char *name, void *f) noexcept:
     (<object>f)(name.decode('utf-8'))

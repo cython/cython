@@ -170,20 +170,24 @@ class Scanner:
         """
         Inlined version of run_machine for speed.
         """
-        state = self.initial_state
-        cur_pos = self.cur_pos
-        cur_line = self.cur_line
-        cur_line_start = self.cur_line_start
+        state: dict = self.initial_state
+        cur_pos: cython.Py_ssize_t = self.cur_pos
+        cur_line: cython.Py_ssize_t = self.cur_line
+        cur_line_start: cython.Py_ssize_t = self.cur_line_start
         cur_char = self.cur_char
-        input_state = self.input_state
-        next_pos = self.next_pos
-        buffer = self.buffer
-        buf_start_pos = self.buf_start_pos
-        buf_len = len(buffer)
+        input_state: cython.long = self.input_state
+        next_pos: cython.Py_ssize_t = self.next_pos
+        data: str
+        buffer: str = self.buffer
+        buf_start_pos: cython.Py_ssize_t = self.buf_start_pos
+        buf_len: cython.Py_ssize_t = len(buffer)
+        buf_index: cython.Py_ssize_t
+        discard: cython.Py_ssize_t
+
         b_action, b_cur_pos, b_cur_line, b_cur_line_start, b_cur_char, b_input_state, b_next_pos = \
             None, 0, 0, 0, '', 0, 0
 
-        trace = self.trace
+        trace: cython.bint = self.trace
         while 1:
             if trace:
                 print("State %d, %d/%d:%s -->" % (
@@ -276,7 +280,7 @@ class Scanner:
         return action
 
     def next_char(self):
-        input_state = self.input_state
+        input_state: cython.int = self.input_state
         if self.trace:
             print("Scanner: next: %s [%d] %d" % (" " * 20, input_state, self.cur_pos))
         if input_state == 1:
@@ -306,7 +310,7 @@ class Scanner:
         if self.trace:
             print("--> [%d] %d %r" % (input_state, self.cur_pos, self.cur_char))
 
-    def position(self):
+    def position(self) -> tuple:
         """
         Return a tuple (name, line, col) representing the location of
         the last token read using the read() method. |name| is the

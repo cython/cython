@@ -1,0 +1,47 @@
+# mode: run
+
+PYTHON setup.py build_ext --inplace
+PYTHON main.py
+
+######## moda.pyx ########
+
+cpdef mod_name():
+    return "mod A"
+
+cdef class ClassA:
+    cpdef class_name(self):
+        return "Class A"
+
+cdef class ClassB(ClassA):
+    cpdef class_name(self):
+        return "Class B"
+
+######## modb.pyx ########
+
+import moda
+
+cpdef mod_name_override():
+    return "I was overridden"
+
+moda.mod_name = mod_name_override
+
+######## setup.py ########
+
+from setuptools import setup
+from Cython.Build import cythonize
+import Cython.Compiler.Options
+
+Cython.Compiler.Options.lookup_module_cpdef = True
+
+setup(
+        ext_modules = cythonize(["moda.pyx", "modb.pyx"],
+            compiler_directives={'language_level': 3})
+)
+
+######## main.py ########
+
+import moda, modb
+
+assert moda.mod_name() == "I was overridden"
+assert moda.mod_name == modb.mod_name_override
+assert moda.ClassA.class_name != moda.ClassB.class_name

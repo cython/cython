@@ -245,7 +245,7 @@ def _to_escape_sequence(s):
         return r'\\'
     else:
         # within a character sequence, oct passes much better than hex
-        return ''.join(['\\%03o' % ord(c) for c in s])
+        return ''.join([f'\\{ord(c):03o}' for c in s])
 
 
 def _build_specials_replacer():
@@ -281,7 +281,7 @@ def escape_char(c):
 def escape_byte_string(s):
     """Escape a byte string so that it can be written into C code.
     Note that this returns a Unicode string instead which, when
-    encoded as ISO-8859-1, will result in the correct byte sequence
+    encoded as ASCII, will result in the correct byte sequence
     being written.
     """
     s = _replace_specials(s)
@@ -293,10 +293,10 @@ def escape_byte_string(s):
     append, extend = s_new.append, s_new.extend
     for b in s:
         if b >= 128:
-            extend(('\\%3o' % b).encode('ASCII'))
+            extend((f'\\{b:03o}').encode('ASCII'))
         else:
             append(b)
-    return s_new.decode('ISO-8859-1')
+    return s_new.decode('ASCII')
 
 def split_string_literal(s, limit=2000):
     # MSVC can't handle long string literals.
