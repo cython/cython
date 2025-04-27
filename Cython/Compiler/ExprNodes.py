@@ -1029,7 +1029,7 @@ class ExprNode(Node):
                 src = NoneNode(src.pos).coerce_to(dst_type, env)
             elif src.type.is_pyobject:
                 if not src.type.subtype_of(dst_type):
-                    src = PyTypeTestNode(src, dst_type, env, simplify_builtins=dst_type.is_builtin_type)
+                    src = PyTypeTestNode(src, dst_type, env)
             else:
                 if dst_type is bytes_type and src.type.is_int:
                     src = CoerceIntToBytesNode(src, env)
@@ -14327,7 +14327,7 @@ class PyTypeTestNode(CoercionNode):
 
     exact_builtin_type = True
 
-    def __init__(self, arg, dst_type, env, notnone=False, simplify_builtins=False):
+    def __init__(self, arg, dst_type, env, notnone=False):
         #  The arg is known to be a Python object,
         #  and the dst_type is known to be an extension type or builtin.
         assert dst_type.is_extension_type or dst_type.is_builtin_type, \
@@ -14336,7 +14336,6 @@ class PyTypeTestNode(CoercionNode):
         self.type = dst_type
         self.result_ctype = arg.ctype()
         self.notnone = notnone
-        self.simplify_builtins = simplify_builtins
 
     nogil_check = Node.gil_error
     gil_message = "Python type test"
