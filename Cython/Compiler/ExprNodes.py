@@ -13962,6 +13962,31 @@ class PrimaryCmpNode(ExprNode, CmpNode):
         type1 = self.operand1.type
         type2 = self.operand2.type
         self.is_pycmp = False
+
+        if self.operator in ['in', 'not_in']:
+            begin = type2.scope.lookup("begin")
+            end = type2.scope.lookup("end")
+            if begin and end:
+                self.exception_check = '+'
+                self.exception_value = None
+                if needs_cpp_exception_conversion(self):
+                    env.use_utility_code(UtilityCode.load_cached("CppExceptionConversion", "CppSupport.cpp"))
+
+                env.use_utility_code(UtilityCode.load_cached("InContainers", "CppSupport.cpp"))
+                # coerce operand1 to
+                # - key_type, if it exists (e.g. std::map)
+                # - the type pointed to by the iterators
+                key = type2.scope.lookup("key_type")
+                if key:
+                    t1 = key.type
+                else:
+                    iter_type = begin.type.return_type
+                    deref = env.lookup_operator_for_types(self.pos, '*', [iter_type])
+                    t1 = deref.type.return_type
+                self.operand1 = self.operand1.coerce_to(t1, env)
+                self.type = PyrexTypes.c_bint_type
+                return
+
         entry = env.lookup_operator(self.operator, [self.operand1, self.operand2])
         if entry is None:
             error(self.pos, "Invalid types for '%s' (%s, %s)" %
@@ -14053,6 +14078,11 @@ class PrimaryCmpNode(ExprNode, CmpNode):
                 method,
                 operand2.result(),
                 operand1.result())
+        elif self.operator in ['in', 'not_in']:
+            return "(%s __pyx_operator_in_containers_helpers__::is_in(%s,%s))" % (
+                "!" if self.operator == 'not_in' else "",
+                operand1.result(),
+                operand2.result())
         else:
             if is_pythran_expr(self.type):
                 result1, result2 = operand1.pythran_result(), operand2.pythran_result()
