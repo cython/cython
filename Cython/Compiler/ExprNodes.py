@@ -1030,9 +1030,6 @@ class ExprNode(Node):
             elif src.type.is_pyobject:
                 if not src.type.subtype_of(dst_type):
                     # Apply a type check on assignment.
-                    if dst_type.is_builtin_type:
-                        # Use a temp to allow builtin type conversions (which cannot replace literals).
-                        src = src.coerce_to_temp(env)
                     src = PyTypeTestNode(src, dst_type, env)
             else:
                 if dst_type is bytes_type and src.type.is_int:
@@ -14336,6 +14333,9 @@ class PyTypeTestNode(CoercionNode):
         #  and the dst_type is known to be an extension type or builtin.
         assert dst_type.is_extension_type or dst_type.is_builtin_type, \
             "PyTypeTest for %s against non extension type %s" % (arg.type, dst_type)
+        if dst_type.is_builtin_type:
+            # Use a temp to allow builtin type conversions (which cannot replace literals).
+            arg = arg.coerce_to_temp(env)
         CoercionNode.__init__(self, arg)
         self.type = dst_type
         self.result_ctype = arg.ctype()
