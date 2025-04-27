@@ -8,7 +8,7 @@ Cython Changelog
 Features added
 --------------
 
-* A new directive ``subinterpreters_compatible=True`` was added to allow modules to declare
+* A new directive ``subinterpreters_compatible=shared_gil/own_gil`` was added to allow modules to declare
   support for subinterpreters.
   (Github issue :issue:`6513`)
 
