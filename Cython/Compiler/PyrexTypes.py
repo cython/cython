@@ -198,8 +198,8 @@ class PyrexType(BaseType):
     #  is_buffer             boolean     Is buffer access type
     #  is_pythran_expr       boolean     Is Pythran expr
     #  is_numpy_buffer       boolean     Is Numpy array buffer
+    #  is_cython_lock_type   boolean     Is a Cython lock
     #  has_attributes        boolean     Has C dot-selectable attributes
-    #  needs_cpp_construction  boolean     Needs C++ constructor and destructor when used in a cdef class
     #  needs_refcounting     boolean     Needs code to be generated similar to incref/gotref/decref.
     #                                    Largely used internally.
     #  refcounting_needs_gil boolean     Reference counting needs GIL to be acquired.
@@ -273,8 +273,8 @@ class PyrexType(BaseType):
     is_memoryviewslice = 0
     is_pythran_expr = 0
     is_numpy_buffer = 0
+    is_cython_lock_type = False
     has_attributes = 0
-    needs_cpp_construction = 0
     needs_refcounting = 0
     refcounting_needs_gil = True
     equivalent_type = None
@@ -398,6 +398,12 @@ class PyrexType(BaseType):
         # declares an std::optional c++ variable
         raise NotImplementedError(
             "cpp_optional_declaration_code only implemented for c++ classes and not type %s" % self)
+
+    def needs_explicit_construction(self, scope):
+        return False
+
+    def needs_explicit_destruction(self, scope):
+        return False
 
 
 def public_decl(base_code, dll_linkage):
@@ -3786,6 +3792,7 @@ class CStructOrUnionType(CType):
     is_struct_or_union = 1
     has_attributes = 1
     exception_check = True
+    _needs_cpp_construction = False
 
     def __init__(self, name, kind, scope, typedef_flag, cname, packed=False, in_cpp=False):
         self.name = name
@@ -3802,7 +3809,7 @@ class CStructOrUnionType(CType):
         self._convert_to_py_code = None
         self._convert_from_py_code = None
         self.packed = packed
-        self.needs_cpp_construction = self.is_struct and in_cpp
+        self._needs_cpp_construction = self.is_struct and in_cpp
 
     def can_coerce_to_pyobject(self, env):
         if self._convert_to_py_code is False:
@@ -3951,6 +3958,22 @@ class CStructOrUnionType(CType):
             return expr_code
         return super().cast_code(expr_code)
 
+    def needs_explicit_construction(self, scope):
+        if self._needs_cpp_construction and scope.is_c_class_scope:
+            return True
+        return False
+
+    def needs_explicit_destruction(self, scope):
+        return self.needs_explicit_construction(scope)  # same rules
+
+    def generate_explicit_construction(self, code, entry, extra_access_code=""):
+        # defer to CppClassType since its implementation will be the same
+        CppClassType.generate_explicit_construction(self, code, entry, extra_access_code=extra_access_code)
+
+    def generate_explicit_destruction(self, code, entry, extra_access_code=""):
+        # defer to CppClassType since its implementation will be the same
+        CppClassType.generate_explicit_destruction(self, code, entry, extra_access_code=extra_access_code)
+
 cpp_string_conversions = ("std::string", "std::string_view")
 
 builtin_cpp_conversions = {
@@ -3973,7 +3996,6 @@ class CppClassType(CType):
 
     is_cpp_class = 1
     has_attributes = 1
-    needs_cpp_construction = 1
     exception_check = True
     namespace = None
 
@@ -4330,6 +4352,22 @@ class CppClassType(CType):
     def cpp_optional_check_for_null_code(self, cname):
         # only applies to c++ classes that are being declared as std::optional
         return "(%s.has_value())" % cname
+
+    def needs_explicit_construction(self, scope):
+        return scope.is_c_class_scope
+
+    def needs_explicit_destruction(self, scope):
+        return self.needs_explicit_construction(scope)  # same rules
+
+    def generate_explicit_destruction(self, code, entry, extra_access_code=""):
+        code.putln(f"__Pyx_call_destructor({extra_access_code}{entry.cname});")
+
+    def generate_explicit_construction(self, code, entry, extra_access_code=""):
+        if entry.is_cpp_optional:
+            decl_code = self.cpp_optional_declaration_code("")
+        else:
+            decl_code = self.empty_declaration_code()
+        code.put_cpp_placement_new(f"{extra_access_code}{entry.cname}", decl_code)
 
 
 class EnumMixin:
@@ -4796,6 +4834,111 @@ class SpecialPythonTypeConstructor(PyObjectType, PythonTypeConstructorMixin):
         return template_values[0].resolve()
 
 
+class CythonLockType(PyrexType):
+    """
+    A C lock type that can be used in with statements
+    (within Cython - it can't be returned to Python) and
+    safely acquired while holding the GIL.
+    """
+    is_cython_lock_type = True
+    has_attributes = True
+    exception_value = None
+
+    scope = None
+
+    # Create a reference type that we can use in the definitions of acquire and release
+    # to override the general prohibition of assigning anything to this
+    class SpecialAssignableReferenceType(CReferenceType):
+        def assignable_from(self, src_type):
+            return src_type is self.ref_base_type
+
+    @property
+    def declaration_value(self):
+        return f"__Pyx_Locks_{self.cname_part}_DECL"
+
+    def __init__(self, cname_part):
+        self.cname_part = cname_part
+
+        self._special_assignable_reference_type = CythonLockType.SpecialAssignableReferenceType(self)
+
+    def declaration_code(self, entity_code, for_display=0, dll_linkage=None, pyrex=0):
+        if for_display or pyrex:
+            if self.cname_part == "PyThreadTypeLock":
+                return "cython.pythread_type_lock"
+            else:
+                return "cython.pymutex"
+        return f"__Pyx_Locks_{self.cname_part} {entity_code}"
+
+    def assignable_from(self, src_type):
+        # Singleton, cannot be copied.
+        return src_type is self._special_assignable_reference_type
+
+    def get_utility_code(self):
+        # It doesn't seem like a good way to associate utility code with a type actually exists
+        # so we just have to do it in as many places as possible.
+        return UtilityCode.load_cached(self.cname_part, "Lock.c")
+
+    def needs_explicit_construction(self, scope):
+        # Where possible we use mutex types that don't require
+        # explicit construction (e.g. PyMutex). However, on older
+        # versions this isn't possible, and we fall back to types
+        # that do need non-static initialization.
+        return True
+
+    def needs_explicit_destruction(self, scope):
+        return True
+
+    def generate_explicit_construction(self, code, entry, extra_access_code=""):
+        code.globalstate.use_utility_code(
+            self.get_utility_code()
+        )
+        code.putln(f"__Pyx_Locks_{self.cname_part}_Init({extra_access_code}{entry.cname});")
+
+    def generate_explicit_destruction(self, code, entry, extra_access_code=""):
+        code.putln(
+            f"__Pyx_Locks_{self.cname_part}_Delete({extra_access_code}{entry.cname});")
+
+    def attributes_known(self):
+        if self.scope is None:
+            from . import Symtab
+
+            self.scope = scope = Symtab.CClassScope(
+                    self.empty_declaration_code(pyrex=True),
+                    None,
+                    visibility='extern',
+                    parent_type=self)
+
+            scope.directives = {}
+            # The functions don't really take a reference, but saying they do passes the "assignable_from" check
+            self_type = self._special_assignable_reference_type
+            scope.declare_cfunction(
+                    "acquire",
+                    CFuncType(c_void_type, [CFuncTypeArg("self", self_type, None)],
+                              nogil=True),
+                    pos=None,
+                    defining=1,
+                    cname=f"__Pyx_Locks_{self.cname_part}_Lock",
+                    utility_code=self.get_utility_code())
+            scope.declare_cfunction(
+                    "release",
+                    CFuncType(c_void_type, [CFuncTypeArg("self", self_type, None)],
+                              nogil=True),
+                    pos=None,
+                    defining=1,
+                    cname=f"__Pyx_Locks_{self.cname_part}_Unlock",
+                    utility_code=self.get_utility_code())
+            # Don't define a "locked" function because we can't do this with Py_Mutex
+            # (which is the preferred implementation)
+
+        return True
+
+    def create_to_py_utility_code(self, env):
+        return False
+
+    def create_from_py_utility_code(self, env):
+        return False
+
+
 rank_to_type_name = (
     "char",          # 0
     "short",         # 1
@@ -4925,6 +5068,9 @@ cython_memoryview_type = CStructOrUnionType("__pyx_memoryview_obj", "struct",
 
 memoryviewslice_type = CStructOrUnionType("memoryviewslice", "struct",
                                           None, 1, "__Pyx_memviewslice")
+
+cy_pymutex_type = CythonLockType("PyMutex")
+cy_pythread_type_lock_type = CythonLockType("PyThreadTypeLock")
 
 fixed_sign_int_types = {
     "bint":       (1, c_bint_type),
@@ -5587,3 +5733,22 @@ def remove_cv_ref(tp, remove_fakeref=False):
         if tp.is_reference and (not tp.is_fake_reference or remove_fakeref):
             tp = tp.ref_base_type
     return tp
+
+
+def get_all_subtypes(tp, _seen=None):
+    """Generate all transitive subtypes of the given type, in top-down order.
+    """
+    if _seen is None:
+        _seen = set()
+    yield tp
+    _seen.add(tp)
+    for attr in tp.subtypes:
+        subtype_or_iterable = getattr(tp, attr)
+        if subtype_or_iterable:
+            if isinstance(subtype_or_iterable, BaseType):
+                if subtype_or_iterable not in _seen:
+                    yield from get_all_subtypes(subtype_or_iterable, _seen)
+            else:
+                for sub_tp in subtype_or_iterable:
+                    if sub_tp not in _seen:
+                        yield from get_all_subtypes(sub_tp, _seen)
