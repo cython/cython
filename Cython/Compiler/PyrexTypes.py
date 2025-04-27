@@ -1531,7 +1531,7 @@ class BuiltinObjectType(PyObjectType):
     def convert_to_basetype(self, code, pos, arg_cname, allow_none=True, arg_name_cstring="NULL"):
         """Generate type checking code that converts compatible (number) types to the plain base type in-place.
 
-        Replaces the C value in 'arg_cname' on conversion or eror, decrefing the original value.
+        Replaces the C value in 'arg_cname' on conversion or error, decrefing the original value.
         """
         if self.name == 'float':
             utility_code_name = "pyfloat_simplify"
