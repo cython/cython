@@ -1027,12 +1027,14 @@ class ExprNode(Node):
                 pass
             elif src.constant_result is None:
                 src = NoneNode(src.pos).coerce_to(dst_type, env)
+            elif src.type.is_pyobject:
+                if not src.type.subtype_of(dst_type):
+                    src = PyTypeTestNode(src, dst_type, env, simplify_builtins=dst_type.is_builtin_type)
             else:
-                if not src.type.is_pyobject:
-                    if dst_type is bytes_type and src.type.is_int:
-                        src = CoerceIntToBytesNode(src, env)
-                    else:
-                        src = CoerceToPyTypeNode(src, env, type=dst_type)
+                if dst_type is bytes_type and src.type.is_int:
+                    src = CoerceIntToBytesNode(src, env)
+                else:
+                    src = CoerceToPyTypeNode(src, env, type=dst_type)
                 # FIXME: I would expect that CoerceToPyTypeNode(type=dst_type) returns a value of type dst_type
                 #        but it doesn't for ctuples. Thus, we add a PyTypeTestNode which then triggers the
                 #        Python conversion and becomes useless. That seems backwards and inefficient.
@@ -14320,18 +14322,21 @@ class PyTypeTestNode(CoercionNode):
     #  This node is used to check that a generic Python
     #  object is an instance of a particular extension type.
     #  This node borrows the result of its argument node.
+    #  Builtin subtypes or compatible types (e.g. int/float) can be coerced
+    #  to the base type automatically.
 
     exact_builtin_type = True
 
-    def __init__(self, arg, dst_type, env, notnone=False):
-        #  The arg is known to be a Python object, and
-        #  the dst_type is known to be an extension type.
+    def __init__(self, arg, dst_type, env, notnone=False, simplify_builtins=False):
+        #  The arg is known to be a Python object,
+        #  and the dst_type is known to be an extension type or builtin.
         assert dst_type.is_extension_type or dst_type.is_builtin_type, \
             "PyTypeTest for %s against non extension type %s" % (arg.type, dst_type)
         CoercionNode.__init__(self, arg)
         self.type = dst_type
         self.result_ctype = arg.ctype()
         self.notnone = notnone
+        self.simplify_builtins = simplify_builtins
 
     nogil_check = Node.gil_error
     gil_message = "Python type test"
@@ -14377,30 +14382,27 @@ class PyTypeTestNode(CoercionNode):
         return self.arg.result()
 
     def generate_result_code(self, code):
-        if self.type.typeobj_is_available():
-            allow_none = not self.notnone
-            if self.type.is_builtin_type:
-                type_test = self.type.type_test_code(
-                    code.funcstate.scope,
-                    self.arg.py_result(),
-                    allow_none,
-                    exact=self.exact_builtin_type,
-                )
-                code.globalstate.use_utility_code(UtilityCode.load_cached(
-                    "RaiseUnexpectedTypeError", "ObjectHandling.c"))
-            else:
-                type_test = self.type.type_test_code(
-                    code.funcstate.scope,
-                    self.arg.py_result(),
-                    allow_none,
-                )
-                code.globalstate.use_utility_code(
-                    UtilityCode.load_cached("ExtTypeTest", "ObjectHandling.c"))
-            code.putln("if (!(%s)) %s" % (
-                type_test, code.error_goto(self.pos)))
-        else:
-            error(self.pos, "Cannot test type of extern C class "
-                "without type object name specification")
+        if not self.type.typeobj_is_available():
+            error(self.pos, "Cannot test type of extern C class without type object name specification")
+            return
+
+        allow_none = not self.notnone
+        is_builtin_type = self.type.is_builtin_type
+
+        if self.exact_builtin_type and is_builtin_type:
+            self.type.convert_to_basetype(code, self.pos, self.arg.py_result(), allow_none)
+            return
+
+        type_test = self.type.type_test_code(
+            code.funcstate.scope,
+            self.arg.py_result(),
+            allow_none,
+            exact=self.exact_builtin_type or not is_builtin_type,
+        )
+        code.globalstate.use_utility_code(UtilityCode.load_cached(
+            "RaiseUnexpectedTypeError" if is_builtin_type else "ExtTypeTest",
+            "ObjectHandling.c"))
+        code.putln(f"if (!({type_test})) {code.error_goto(self.pos)}")
 
     def generate_post_assignment_code(self, code):
         self.arg.generate_post_assignment_code(code)

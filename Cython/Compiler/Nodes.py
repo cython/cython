@@ -4398,16 +4398,8 @@ class DefNodeWrapper(FuncDefNode):
     def generate_arg_assignment(self, arg, item, code):
         if arg.type.is_pyobject:
             # Python default arguments were already stored in 'item' at the very beginning
-            if arg.type.is_builtin_type and arg.type.name == 'float':
-                # TODO: This probably isn't the right place to implement this.
-                # It seems a more general feature to convert PyInt (etc.) to PyFloat
-                # automatically on assignment, not just on (some) function calls.
-                code.globalstate.use_utility_code(
-                    UtilityCode.load_cached("pyfloat_arg", "TypeConversion.c"))
-                code.putln(
-                    f"{item} = __Pyx_PyFloatArg_FromNumber({item}, {arg.accept_none:d});"
-                    f" {code.error_goto_if_null(item, arg.pos)}"
-                )
+            if arg.type.is_builtin_type and arg.type.name in ('int', 'float'):
+                arg.type.convert_to_basetype(code, arg.pos, item, arg.accept_none, arg.name_cstring)
             if arg.is_generic:
                 item = PyrexTypes.typecast(arg.type, PyrexTypes.py_object_type, item)
             entry = arg.entry
