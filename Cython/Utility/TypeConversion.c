@@ -469,7 +469,7 @@ static CYTHON_INLINE int __Pyx_PyFloat_FromNumber(PyObject **number_var, const c
         return 0;
     }
 
-    PyObject *float_object = NULL;
+    PyObject *float_object;
     if (likely(PyLong_CheckExact(number))) {
         double val;
 #if CYTHON_USE_PYLONG_INTERNALS
@@ -479,7 +479,7 @@ static CYTHON_INLINE int __Pyx_PyFloat_FromNumber(PyObject **number_var, const c
 #endif
         {
             val = PyLong_AsDouble(number);
-            if (unlikely(val == -1 && PyErr_Occurred())) goto done;
+            if (unlikely(val == -1.0 && PyErr_Occurred())) goto bad;
         }
         float_object = PyFloat_FromDouble(val);
     }
@@ -519,7 +519,7 @@ static CYTHON_INLINE int __Pyx_PyInt_FromNumber(PyObject **number_var, const cha
         return 0;
     }
 
-    PyObject *int_object = NULL;
+    PyObject *int_object;
     if (likely(PyNumber_Check(number))) {
         // PyNumber_Long() also parses strings, which we must reject.
         int_object = PyNumber_Long(number);
