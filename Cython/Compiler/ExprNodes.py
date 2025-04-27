@@ -1029,6 +1029,10 @@ class ExprNode(Node):
                 src = NoneNode(src.pos).coerce_to(dst_type, env)
             elif src.type.is_pyobject:
                 if not src.type.subtype_of(dst_type):
+                    # Apply a type check on assignment.
+                    if dst_type.is_builtin_type:
+                        # Use a temp to allow builtin type conversions (which cannot replace literals).
+                        src = src.coerce_to_temp(env)
                     src = PyTypeTestNode(src, dst_type, env)
             else:
                 if dst_type is bytes_type and src.type.is_int:
@@ -14322,7 +14326,7 @@ class PyTypeTestNode(CoercionNode):
     #  This node is used to check that a generic Python
     #  object is an instance of a particular extension type.
     #  This node borrows the result of its argument node.
-    #  Builtin subtypes or compatible types (e.g. int/float) can be coerced
+    #  Builtin subtypes or compatible types (e.g. int/float) are coerced
     #  to the base type automatically.
 
     exact_builtin_type = True
