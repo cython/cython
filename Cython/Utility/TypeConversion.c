@@ -444,7 +444,7 @@ static CYTHON_INLINE PyObject* __Pyx_PyFloatArg_FromNumber(PyObject *number, int
 static CYTHON_INLINE PyObject* __Pyx_PyFloatArg_FromNumber(PyObject *number, int accept_none) {
     // Convert any float-compatible Python number object into a Python float.
     // NOTE: This function decrefs 'number' if a conversion happens to replace the original object.
-    // NOTE: For invalid types, the function may return the original object unchanges,
+    // NOTE: For invalid types, the function may return the original object unchanged,
     // assuming that an exact type test is still following.
     if (likely((accept_none && number == Py_None) || PyFloat_CheckExact(number))) {
         return number;
