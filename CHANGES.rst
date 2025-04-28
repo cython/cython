@@ -8,8 +8,12 @@ Cython Changelog
 Features added
 --------------
 
-* A new directive ``subinterpreters_compatible=shared_gil/own_gil`` was added to allow modules to declare
-  support for subinterpreters.
+* ``cython.pymutex`` provides a fast mutex by wrapping the new ``PyMutex`` feature of recent
+  CPython versions (including free-threading) and falls back to ``PyThread`` locks in older Pythons.
+  (Github issue :issue:`6579`)
+
+* A new directive ``subinterpreters_compatible=shared_gil/own_gil`` was added to allow modules
+  to declare support for subinterpreters.
   (Github issue :issue:`6513`)
 
 * ``divmod()`` is also optimised for C floating point types and can be called on C number types
@@ -39,6 +43,25 @@ Bugs fixed
 
 * The signature of ``PyByteArray_Resize()`` in ``cpython.bytearray`` failed to propagate exceptions.
   Patch by Kirill Smelkov.  (Github issue :issue:`6787`)
+
+* Some more issues with the Limited C-API and free-threading Python were resolved.
+
+  https://github.com/cython/cython/issues?q=label%3A%22limited+api%22
+
+  https://github.com/cython/cython/issues?q=label%3A%22nogil+CPython%22
+
+* The signature of ``cythonize_one()`` accidentally changed in 3.1.0b1.
+  (Github issue :issue:`6815`)
+
+Other changes
+-------------
+
+* Named ``cpdef enums`` no longer copy their item names into the global module namespace.
+  This was considered unhelpful for named enums which already live in their own class namespace.
+  In cases where the old behaviour was desired, users can add the following backwards compatible
+  command after their enum class definition: ``globals().update(TheUserEnumClass.__members__)``.
+  Anonymous enums still produce global item names, as before.
+  (Github issue :issue:`4571`)
 
 
 3.1.0 beta 1 (2025-04-03)
