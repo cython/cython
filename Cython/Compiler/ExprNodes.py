@@ -2683,7 +2683,7 @@ class NameNode(AtomicExprNode):
         # rhstmp is only used in case the rhs is a complicated expression leading to
         # the object, to avoid repeating the same C expression for every reference
         # to the rhs. It does NOT hold a reference.
-        pretty_rhs = isinstance(rhs, NameNode) or rhs.is_temp
+        pretty_rhs = isinstance(rhs, NameNode) or rhs.result_in_temp()
         if pretty_rhs:
             rhstmp = rhs.result_as(self.ctype())
         else:
@@ -4733,7 +4733,7 @@ class IndexNode(_IndexingBaseNode):
             if rhs.is_literal or rhs.type.signed:
                 conditions.append('%s < 0' % value_code)
             if (rhs.is_literal or not
-                    (rhs.is_temp and rhs.type in (
+                    (rhs.result_in_temp() and rhs.type in (
                         PyrexTypes.c_uchar_type, PyrexTypes.c_char_type,
                         PyrexTypes.c_schar_type))):
                 conditions.append('%s > 255' % value_code)
@@ -6323,7 +6323,7 @@ class SimpleCallNode(CallNode):
                 # C methods must do the None checks at *call* time
                 arg = arg.as_none_safe_node(
                     "cannot pass None into a C function argument that is declared 'not None'")
-            if arg.is_temp:
+            if arg.result_in_temp():
                 if i > 0:
                     # first argument in temp doesn't impact subsequent arguments
                     some_args_in_temps = True
@@ -6358,7 +6358,7 @@ class SimpleCallNode(CallNode):
                           "Python object cannot be passed as a varargs parameter")
                 else:
                     args[i] = arg = arg.coerce_to(arg_ctype, env)
-            if arg.is_temp and i > 0:
+            if arg.result_in_temp() and i > 0:
                 some_args_in_temps = True
 
         if some_args_in_temps:
@@ -6743,7 +6743,7 @@ class PyMethodCallNode(CallNode):
         self.function.generate_evaluation_code(code)
 
         # Make sure function is in temp so that we can replace the reference if it's a method.
-        if self.function.is_temp:
+        if self.function.result_in_temp():
             return self.function.result()
 
         # FIXME: Should use "coerce_to_temp()" in "__init__()" instead, but that needs "env".
@@ -6758,7 +6758,7 @@ class PyMethodCallNode(CallNode):
         if self.use_method_vectorcall:
             self.function_obj.generate_disposal_code(code)
             self.function_obj.free_temps(code)
-        elif self.function.is_temp:
+        elif self.function.result_in_temp():
             self.function.generate_disposal_code(code)
             self.function.free_temps(code)
         else:
@@ -6969,7 +6969,7 @@ class InlinedDefNodeCallNode(CallNode):
         for i in range(actual_nargs):
             formal_type = func_type.args[i].type
             arg = self.args[i].coerce_to(formal_type, env)
-            if arg.is_temp:
+            if arg.result_in_temp():
                 if i > 0:
                     # first argument in temp doesn't impact subsequent arguments
                     some_args_in_temps = True
@@ -7487,7 +7487,7 @@ class MergedDictNode(ExprNode):
             code.putln("%s = %s;" % (self.result(), item.py_result()))
             item.generate_post_assignment_code(code)
         else:
-            if item.is_temp:
+            if item.result_in_temp():
                 # For the fairly plausible special case where item is a temporary
                 # with a refcount of 1 (so created specifically for us),
                 # avoid making a copy
@@ -7504,7 +7504,7 @@ class MergedDictNode(ExprNode):
                 code.error_goto_if_null(self.result(), item.pos)))
             self.generate_gotref(code)
             item.generate_disposal_code(code)
-            if item.is_temp:
+            if item.result_in_temp():
                 code.putln("}")
 
         if item.type is not dict_type:
@@ -8743,7 +8743,7 @@ class SequenceNode(ExprNode):
         code.putln("%s = %s(%s); %s" % (
             target_list,
             "__Pyx_PySequence_ListKeepNew" if (
-                    not iterator_temp and rhs.is_temp and rhs.type in (py_object_type, list_type))
+                    not iterator_temp and rhs.result_in_temp() and rhs.type in (py_object_type, list_type))
                 else "PySequence_List",
             iterator_temp or rhs.py_result(),
             code.error_goto_if_null(target_list, self.pos)))
@@ -9409,7 +9409,7 @@ class MergedSequenceNode(ExprNode):
             code.putln("%s = %s(%s); %s" % (
                 self.result(),
                 'PySet_New' if is_set
-                    else "__Pyx_PySequence_ListKeepNew" if item.is_temp and item.type in (py_object_type, list_type)
+                    else "__Pyx_PySequence_ListKeepNew" if item.result_in_temp() and item.type in (py_object_type, list_type)
                     else "PySequence_List",
                 item.py_result(),
                 code.error_goto_if_null(self.result(), self.pos)))
@@ -12519,14 +12519,14 @@ class AddNode(NumBinopNode):
                 is_unicode_concat = False
 
             if is_unicode_concat:
-                if self.inplace or self.operand1.is_temp:
+                if self.inplace or self.operand1.result_in_temp():
                     code.globalstate.use_utility_code(
                         UtilityCode.load_cached("UnicodeConcatInPlace", "ObjectHandling.c"))
                 func = '__Pyx_PyUnicode_Concat'
 
         if func:
             # any necessary utility code will be got by "NumberAdd" in generate_evaluation_code
-            if self.inplace or self.operand1.is_temp:
+            if self.inplace or self.operand1.result_in_temp():
                 func += 'InPlace'  # upper case to indicate unintuitive macro
             if self.operand1.may_be_none() or self.operand2.may_be_none():
                 func += 'Safe'
@@ -14356,8 +14356,12 @@ class PyTypeTestNode(CoercionNode):
     def nonlocally_immutable(self):
         return self.arg.nonlocally_immutable()
 
+    def coerce_to_temp(self, env):
+        self.arg = self.arg.coerce_to_temp(env)
+        return self
+
     def reanalyse(self):
-        if self.type != self.arg.type or not self.arg.is_temp:
+        if self.type != self.arg.type or not self.arg.result_in_temp():
             return self
         if not self.type.typeobj_is_available():
             return self
@@ -15177,7 +15181,7 @@ class AssignmentExpressionNode(ExprNode):
         # (plus any reference counting that's needed)
 
         self.rhs = self.rhs.analyse_types(env)
-        if not self.rhs.arg.is_temp:
+        if not self.rhs.arg.result_in_temp():
             if not self.rhs.arg.is_literal:
                 # for anything but the simplest cases (where it can be used directly)
                 # we convert rhs to a temp, because CloneNode requires arg to be a temp
@@ -15194,7 +15198,7 @@ class AssignmentExpressionNode(ExprNode):
                 self.assignment.rhs = copy.copy(self.rhs)
 
         # TODO - there's a missed optimization in the code generation stage
-        # for self.rhs.arg.is_temp: an incref/decref pair can be removed
+        # if self.rhs.arg is temp: an incref/decref pair can be removed
         # (but needs a general mechanism to do that)
         self.assignment = self.assignment.analyse_types(env)
 
