@@ -71,9 +71,10 @@ typedef struct {
 } __pyx_CyFunctionObject;
 
 #undef __Pyx_CyOrPyCFunction_Check
-#define __Pyx_CyFunction_Check(obj)  __Pyx_TypeCheck(obj, CGLOBAL(__pyx_CyFunctionType))
-#define __Pyx_CyOrPyCFunction_Check(obj)  __Pyx_TypeCheck2(obj, CGLOBAL(__pyx_CyFunctionType), &PyCFunction_Type)
-#define __Pyx_CyFunction_CheckExact(obj)  __Pyx_IS_TYPE(obj, CGLOBAL(__pyx_CyFunctionType))
+#define __Pyx_GetCyFunctionType() __Pyx_GetSharedModuleState()->__pyx_CyFunctionType
+#define __Pyx_CyFunction_Check(obj)  __Pyx_TypeCheck(obj, __Pyx_GetCyFunctionType())
+#define __Pyx_CyOrPyCFunction_Check(obj)  __Pyx_TypeCheck2(obj, __Pyx_GetCyFunctionType(), &PyCFunction_Type)
+#define __Pyx_CyFunction_CheckExact(obj)  __Pyx_IS_TYPE(obj, __Pyx_GetCyFunctionType())
 static CYTHON_INLINE int __Pyx__IsSameCyOrCFunction(PyObject *func, void (*cfunc)(void));/*proto*/
 #undef __Pyx_IsSameCFunction
 #define __Pyx_IsSameCFunction(func, cfunc)   __Pyx__IsSameCyOrCFunction(func, cfunc)
@@ -118,7 +119,6 @@ static PyObject * __Pyx_CyFunction_Vectorcall_FASTCALL_KEYWORDS_METHOD(PyObject 
 //@requires: ObjectHandling.c::CachedMethodType
 //@requires: ExtensionTypes.c::CallTypeTraverse
 //@requires: ModuleSetupCode.c::CriticalSections
-//@substitute: naming
 
 #if CYTHON_COMPILING_IN_LIMITED_API
 static CYTHON_INLINE int __Pyx__IsSameCyOrCFunctionNoMethod(PyObject *func, void (*cfunc)(void)) {
@@ -1237,11 +1237,11 @@ static PyType_Spec __pyx_CyFunctionType_spec = {
 };
 
 static int __pyx_CyFunction_init(PyObject *module) {
-    $modulestatetype_cname *mstate = __Pyx_PyModule_GetState(module);
-    mstate->__pyx_CyFunctionType = __Pyx_FetchCommonTypeFromSpec(module, &__pyx_CyFunctionType_spec, NULL);
-    if (unlikely(mstate->__pyx_CyFunctionType == NULL)) {
+    PyTypeObject *tp = __Pyx_FetchCommonTypeFromSpec(module, &__pyx_CyFunctionType_spec, NULL);
+    if (unlikely(tp == NULL)) {
         return -1;
     }
+    Py_DECREF(tp);
     return 0;
 }
 
@@ -1287,7 +1287,7 @@ static PyObject *__Pyx_CyFunction_New(PyMethodDef *ml,
 static PyObject *__Pyx_CyFunction_New(PyMethodDef *ml, int flags, PyObject* qualname,
                                       PyObject *closure, PyObject *module, PyObject* globals, PyObject* code) {
     PyObject *op = __Pyx_CyFunction_Init(
-        PyObject_GC_New(__pyx_CyFunctionObject, CGLOBAL(__pyx_CyFunctionType)),
+        PyObject_GC_New(__pyx_CyFunctionObject, __Pyx_GetCyFunctionType()),
         ml, flags, qualname, closure, module, globals, code
     );
     if (likely(op)) {
@@ -1327,6 +1327,7 @@ static int __Pyx_CyFunction_InitClassCell(PyObject *cyfunctions, PyObject *class
 
 
 //////////////////// FusedFunction.proto ////////////////////
+//@requires: CommonStructures.c::InitAndGetSharedAbiModule
 
 typedef struct {
     __pyx_CyFunctionObject func;
@@ -1349,7 +1350,6 @@ static int __pyx_FusedFunction_init(PyObject *module);
 
 //////////////////// FusedFunction ////////////////////
 //@requires: CythonFunctionShared
-//@substitute: naming
 
 static PyObject *
 __pyx_FusedFunction_New(PyMethodDef *ml, int flags,
@@ -1359,7 +1359,7 @@ __pyx_FusedFunction_New(PyMethodDef *ml, int flags,
 {
     PyObject *op = __Pyx_CyFunction_Init(
         // __pyx_CyFunctionObject is correct below since that's the cast that we want.
-        PyObject_GC_New(__pyx_CyFunctionObject, CGLOBAL(__pyx_FusedFunctionType)),
+        PyObject_GC_New(__pyx_CyFunctionObject, __Pyx_GetSharedModuleState()->__pyx_FusedFunctionType),
         ml, flags, qualname, closure, module, globals, code
     );
     if (likely(op)) {
@@ -1700,16 +1700,18 @@ static PyType_Spec __pyx_FusedFunctionType_spec = {
 };
 
 static int __pyx_FusedFunction_init(PyObject *module) {
-    $modulestatetype_cname *mstate = __Pyx_PyModule_GetState(module);
-    PyObject *bases = PyTuple_Pack(1, mstate->__pyx_CyFunctionType);
+    __Pyx_SharedModuleStateStruct *shared_mstate = __Pyx_GetSharedModuleStateFromModule(__Pyx_InitAndGetSharedAbiModule(module));
+    if (!shared_mstate) return -1;
+    PyObject *bases = PyTuple_Pack(1, shared_mstate->__pyx_CyFunctionType);
     if (unlikely(!bases)) {
         return -1;
     }
-    mstate->__pyx_FusedFunctionType = __Pyx_FetchCommonTypeFromSpec(module, &__pyx_FusedFunctionType_spec, bases);
+    PyTypeObject *tp = __Pyx_FetchCommonTypeFromSpec(module, &__pyx_FusedFunctionType_spec, bases);
     Py_DECREF(bases);
-    if (unlikely(mstate->__pyx_FusedFunctionType == NULL)) {
+    if (unlikely(tp == NULL)) {
         return -1;
     }
+    Py_DECREF(tp);
     return 0;
 }
 

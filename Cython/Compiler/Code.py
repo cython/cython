@@ -525,6 +525,7 @@ class UtilityCodeBase(AbstractUtilityCode):
                 if not issubclass(cls, TempitaUtilityCode):
                     return TempitaUtilityCode.load(util_code_name, from_file, **kwargs)
             orig_kwargs = kwargs.copy()
+            orig_kwargs.pop("context", None)  # Don't pass context on to requirements
             for name, values in tags.items():
                 if name in kwargs:
                     continue

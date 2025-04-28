@@ -197,15 +197,21 @@ PYX_NAN          = "__PYX_NAN()"
 def py_version_hex(major, minor=0, micro=0, release_level=0, release_serial=0):
     return (major << 24) | (minor << 16) | (micro << 8) | (release_level << 4) | (release_serial)
 
-# there's a few places where it's useful to iterate over all of these
-used_types_and_macros = [
-    (cyfunction_type_cname, '__Pyx_CyFunction_USED'),
-    (fusedfunction_type_cname, '__Pyx_FusedFunction_USED'),
-    ('__pyx_GeneratorType', '__Pyx_Generator_USED'),
-    ('__pyx_IterableCoroutineType', '__Pyx_IterableCoroutine_USED'),
-    ('__pyx_CoroutineAwaitType', '__Pyx_Coroutine_USED'),
-    ('__pyx_CoroutineType', '__Pyx_Coroutine_USED'),
+shared_names_and_types = [
+    ("cython_function_or_method", cyfunction_type_cname),
+    ("fused_cython_function", fusedfunction_type_cname),
+    ("generator", '__pyx_GeneratorType'),
+    ("iterable_coroutine", '__pyx_IterableCoroutineType'),
+    ("coroutine_wrapper", '__pyx_CoroutineAwaitType'),
+    ("coroutine", '__pyx_CoroutineType'),
+    ("async_generator", '__pyx_AsyncGenType'),
+    ("async_generator_asend", "__pyx__PyAsyncGenASendType"),
+    ("async_generator_athrow", "__pyx__PyAsyncGenAThrowType"),
+    ("async_generator_wrapped_value", "__pyx__PyAsyncGenWrappedValueType"),
 ]
+
+shared_abi_module_used = '__Pyx_SharedAbiModule_USED'
+shared_abi_module_cname = pyrex_prefix + "SharedAbiModule"
 
 
 iso_c23_keywords = frozenset((

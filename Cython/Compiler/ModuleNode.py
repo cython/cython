@@ -2855,10 +2855,9 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln('PyObject *%s;' % Naming.empty_unicode)
         if Options.pre_import is not None:
             code.putln('PyObject *%s;' % Naming.preimport_cname)
-        for type_cname, used_name in Naming.used_types_and_macros:
-            code.putln('#ifdef %s' % used_name)
-            code.putln('PyTypeObject *%s;' % type_cname)
-            code.putln('#endif')
+        code.putln(f"#ifdef {Naming.shared_abi_module_used}")
+        code.putln(f"PyObject *{Naming.shared_abi_module_cname};")
+        code.putln("#endif")
 
     def generate_module_state_end(self, env, modules, globalstate):
         module_state = globalstate['module_state_end']
@@ -2928,13 +2927,9 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             Naming.empty_bytes)
         code.putln('Py_CLEAR(clear_module_state->%s);' %
             Naming.empty_unicode)
-        code.putln('#ifdef __Pyx_CyFunction_USED')
+        code.putln(f'#ifdef {Naming.shared_abi_module_used}')
         code.putln('Py_CLEAR(clear_module_state->%s);' %
-            Naming.cyfunction_type_cname)
-        code.putln('#endif')
-        code.putln('#ifdef __Pyx_FusedFunction_USED')
-        code.putln('Py_CLEAR(clear_module_state->%s);' %
-            Naming.fusedfunction_type_cname)
+            Naming.shared_abi_module_cname)
         code.putln('#endif')
         code.putln("#if CYTHON_PEP489_MULTI_PHASE_INIT")
         # In this case we have to remove the module from our lookup table ourself
@@ -2953,11 +2948,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln(f'__Pyx_VISIT_CONST(traverse_module_state->{Naming.empty_tuple});')
         code.putln(f'__Pyx_VISIT_CONST(traverse_module_state->{Naming.empty_bytes});')
         code.putln(f'__Pyx_VISIT_CONST(traverse_module_state->{Naming.empty_unicode});')
-        code.putln('#ifdef __Pyx_CyFunction_USED')
-        code.putln(f'Py_VISIT(traverse_module_state->{Naming.cyfunction_type_cname});')
-        code.putln('#endif')
-        code.putln('#ifdef __Pyx_FusedFunction_USED')
-        code.putln(f'Py_VISIT(traverse_module_state->{Naming.fusedfunction_type_cname});')
+        code.putln(f'#ifdef {Naming.shared_abi_module_used}')
+        code.putln(f'Py_VISIT(traverse_module_state->{Naming.shared_abi_module_cname});')
         code.putln('#endif')
 
     def generate_module_init_func(self, imported_modules, env, code):
