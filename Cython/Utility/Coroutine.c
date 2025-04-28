@@ -1070,6 +1070,7 @@ __Pyx_Coroutine_AmSend(PyObject *self, PyObject *value, PyObject **retval) {
 static int __Pyx_Coroutine_CloseIter(__pyx_CoroutineObject *gen, PyObject *yf) {
     __Pyx_PySendResult result;
     PyObject *retval = NULL;
+    CYTHON_UNUSED_VAR(gen);
 
     assert(__Pyx_Coroutine_get_is_running(gen));
 
