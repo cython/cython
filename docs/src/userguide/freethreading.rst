@@ -125,7 +125,7 @@ and so is very low-cost.  On earlier versions of Python, it uses the
 uses ``PyThread_type_lock``.  It is intended for sharing locks between
 modules with the Limited API (since ``PyMutex`` is unavailable in the
 Limited API).  Note that unlike the "raw" ``PyThread_type_lock`` our
-wrapping will avoid deadslocks with the GIL.
+wrapping will avoid deadlocks with the GIL.
 
 As an alternative syntax, ``cython.critical_section`` can be used as a decorator
 or a function taking at least one argument.  In this case the critical section
