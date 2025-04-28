@@ -14373,6 +14373,7 @@ class PyTypeTestNode(CoercionNode):
             return self
         if not self.type.typeobj_is_available():
             return self
+        # The argument has the right type, known at compile time, so discard the type check.
         if self.arg.may_be_none() and self.notnone:
             return self.arg.as_none_safe_node("Cannot convert NoneType to %.200s" % self.type.name)
         return self.arg
