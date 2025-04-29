@@ -749,6 +749,8 @@ class ExprNode(Node):
         #  this node or one of its subexpressions. Overridden
         #  by certain nodes which can share the result of
         #  a subnode.
+        #  Temp-tests from outside of a node class should always
+        #  prefer this method over a plain "node.is_temp".
         return self.is_temp
 
     def target_code(self):
@@ -14394,6 +14396,7 @@ class PyTypeTestNode(CoercionNode):
         is_builtin_type = self.type.is_builtin_type
 
         if self.exact_builtin_type and is_builtin_type:
+            # Allow conversions instead of rejecting subtypes and compatible (number) types.
             self.type.convert_to_basetype(code, self.pos, self.arg.py_result(), allow_none)
             return
 
