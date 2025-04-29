@@ -1685,7 +1685,8 @@ class PyExtensionType(PyObjectType):
                 entity_code = "*%s" % entity_code
         return self.base_declaration_code(base_code, entity_code)
 
-    def type_test_code(self, scope, py_arg, allow_none=True):
+    def type_test_code(self, scope, py_arg, allow_none=True, exact=False):
+        assert not exact, "exact extension type tests are not currently implemented here"
         typeptr_cname = scope.name_in_module_state(self.typeptr_cname)
         type_check = f"likely(__Pyx_TypeTest({py_arg}, {typeptr_cname}))"
         scope.use_utility_code(UtilityCode.load_cached("ExtTypeTest", "ObjectHandling.c"))
