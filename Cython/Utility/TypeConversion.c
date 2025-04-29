@@ -492,7 +492,6 @@ static CYTHON_INLINE int __Pyx_PyFloat_FromNumber(PyObject **number_var, const c
     }
     if (unlikely(!float_object)) goto bad;
 
-done:
     Py_DECREF(number);
     *number_var = float_object;
     return 0;
