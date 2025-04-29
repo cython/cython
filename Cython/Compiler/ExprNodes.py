@@ -14404,7 +14404,7 @@ class PyTypeTestNode(CoercionNode):
             code.funcstate.scope,
             self.arg.py_result(),
             allow_none,
-            exact=is_builtin_type and not self.exact_builtin_type,
+            exact=self.exact_builtin_type if is_builtin_type else False,
         )
         code.globalstate.use_utility_code(UtilityCode.load_cached(
             "RaiseUnexpectedTypeError" if is_builtin_type else "ExtTypeTest",
