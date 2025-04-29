@@ -4111,7 +4111,6 @@ class CppClassType(CType):
                     return False
             return True
 
-
     def create_to_py_utility_code(self, env):
         if self.to_py_function is not None:
             return True
