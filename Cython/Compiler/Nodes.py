@@ -9459,8 +9459,7 @@ class FromImportStatNode(StatNode):
             if coerced_item is None:
                 target.generate_assignment_code(self.item, code)
             else:
-                coerced_item.allocate_temp_result(code)
-                coerced_item.generate_result_code(code)
+                coerced_item.generate_evaluation_code(code)
                 target.generate_assignment_code(coerced_item, code)
             code.put_decref_clear(item_temp, py_object_type)
         code.funcstate.release_temp(item_temp)
