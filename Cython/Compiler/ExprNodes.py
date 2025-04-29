@@ -1502,27 +1502,27 @@ class IntNode(ConstNode):
                 else:
                     suitable_type = PyrexTypes.c_long_type
             else:
-                suitable_type = PyrexTypes.py_object_type
+                suitable_type = Builtin.int_type
         return suitable_type
 
     def coerce_to(self, dst_type, env):
         if self.type is dst_type:
             return self
-        elif dst_type.is_float:
+        elif dst_type.is_float or dst_type is Builtin.float_type:
             if self.has_constant_result():
                 return FloatNode(self.pos, value='%d.0' % int(self.constant_result), type=dst_type,
                                  constant_result=float(self.constant_result))
             else:
                 return FloatNode(self.pos, value=self.value, type=dst_type,
                                  constant_result=not_a_constant)
-        if dst_type.is_numeric and not dst_type.is_complex:
+        elif dst_type.is_numeric and not dst_type.is_complex:
             node = IntNode(self.pos, value=self.value, constant_result=self.constant_result,
                            type=dst_type, is_c_literal=True,
                            unsigned=self.unsigned, longness=self.longness)
             return node
         elif dst_type.is_pyobject:
             node = IntNode(self.pos, value=self.value, constant_result=self.constant_result,
-                           type=PyrexTypes.py_object_type, is_c_literal=False,
+                           type=Builtin.int_type, is_c_literal=False,
                            unsigned=self.unsigned, longness=self.longness)
         else:
             # FIXME: not setting the type here to keep it working with
