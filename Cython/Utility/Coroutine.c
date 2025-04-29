@@ -1070,6 +1070,7 @@ __Pyx_Coroutine_AmSend(PyObject *self, PyObject *value, PyObject **retval) {
 static int __Pyx_Coroutine_CloseIter(__pyx_CoroutineObject *gen, PyObject *yf) {
     __Pyx_PySendResult result;
     PyObject *retval = NULL;
+    CYTHON_UNUSED_VAR(gen);
 
     assert(__Pyx_Coroutine_get_is_running(gen));
 
@@ -2123,8 +2124,8 @@ static void __Pyx__ReturnWithStopIteration(PyObject* value, int async) {
     PyObject *exc;
     PyObject *exc_type = async ? PyExc_StopAsyncIteration : PyExc_StopIteration;
 #if CYTHON_COMPILING_IN_CPYTHON
-    if ((PY_VERSION_HEX) >= 0x030C00A6 || unlikely(PyTuple_Check(value) || PyExceptionInstance_Check(value))) {
-        if ((PY_VERSION_HEX) >= 0x030e00A1) {
+    if ((PY_VERSION_HEX >= 0x030C00A6) || unlikely(PyTuple_Check(value) || PyExceptionInstance_Check(value))) {
+        if ((PY_VERSION_HEX >= 0x030e00A1)) {
             exc = __Pyx_PyObject_CallOneArg(exc_type, value);
         } else {
             // Before Py3.14a1, CPython doesn't implement vectorcall for exceptions.
