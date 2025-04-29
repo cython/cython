@@ -14415,10 +14415,10 @@ class PyTypeTestNode(CoercionNode):
         self.arg.generate_post_assignment_code(code)
 
     def allocate_temp_result(self, code):
-        self.arg.allocate_temp_result(code)
+        pass
 
     def release_temp_result(self, code):
-        self.arg.release_temp_result(code)
+        pass
 
     def free_temps(self, code):
         self.arg.free_temps(code)
