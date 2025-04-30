@@ -3708,6 +3708,12 @@ class CFuncTypeArg(BaseType):
             self.cname = cname
         else:
             self.cname = Naming.var_prefix + name
+            if not self.cname.isascii():
+                # We have to be careful here not to create a circular import of Symtab.
+                # This creates a cname to match a Symtab entry that'll be created later
+                # - in an ideal world the name here would be taken from the entry...
+                from .Symtab import punycodify_name
+                self.cname = punycodify_name(self.cname)
         if annotation is not None:
             self.annotation = annotation
         self.type = type
