@@ -2,8 +2,8 @@
 Cython Changelog
 ================
 
-3.1.0 beta 2 (2025-??-??)
-==========================
+3.1.0 rc 1 (2025-05-01)
+=======================
 
 Features added
 --------------
@@ -35,7 +35,10 @@ Bugs fixed
 * Tracing could generate invalid C code.
   (Github issue :issue:`6781`)
 
-* Optimised ``divmod()`` calls could produce incorrect results due to incorrect C type usage.
+* Non-ASCII function argument names could generate invalid C code.
+  (Github issue :issue:`6813`)
+
+* Optimised ``divmod()`` calls could produce incorrect results in beta-1 due to incorrect C type usage.
   (Github issue :issue:`6786`)
 
 * Raising ``UnboundLocalError`` could fail for non-ascii variable names.
