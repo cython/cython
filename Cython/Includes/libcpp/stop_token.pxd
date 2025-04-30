@@ -31,6 +31,7 @@ cdef extern from "<stop_token>" namespace "std" nogil:
 cdef extern from *:
     """
     #include <optional>
+    #include <utility>
 
     namespace {
         using func_ptr_stop_callback = std::stop_callback<void (*)()>;
@@ -44,6 +45,11 @@ cdef extern from *:
                     : o(o)
                 {
                     Py_INCREF(o);
+                }
+
+                callable_py_object_holder(callable_py_object_holder&& rhs)
+                    : o(std::exchange(rhs.o, nullptr))
+                {
                 }
 
                 ~callable_py_object_holder() {
@@ -61,7 +67,9 @@ cdef extern from *:
                     PyGILState_STATE state = PyGILState_Ensure();
                     PyObject *result = PyObject_CallObject(o, NULL);
                     if (!result) {
-                        PyErr_WriteUnraisable();
+                        PyObject *s = PyUnicode_FromString("python_stop_callback_holder callback");
+                        PyErr_WriteUnraisable(s);
+                        Py_XDECREF(s);
                     } else {
                         Py_DECREF(result);
                     }
@@ -83,11 +91,11 @@ cdef extern from *:
             void initialize(std::stop_token token, PyObject *callable) {
                 callback.emplace(std::move(token), callable_py_object_holder(callable));
             }
-        }
+        };
     }
     """
     # This is provided as a convenience mainly as a reminded to use nogil functions!
-    ctypedef stop_callback[void (*)() nogil] func_ptr_stop_callback
+    ctypedef stop_callback[void (*)() nogil noexcept] func_ptr_stop_callback
 
     # A fairly thin wrapper to let you create a stop callback with a Python object.
     # For most uses, it should be created empty and then filled with "initialize"
