@@ -17,12 +17,12 @@ def _unpack_buffer_const_char_1d(provider, number, timer=time.perf_counter):
 
 def bm_unpack_buffer_const_char_1d(number, timer=time.perf_counter):
     data = bytes(1000)
-    cdef const unsigned char[:] memview = data
+    #cdef const unsigned char[:] memview = data
     return {
         'unpack_buffer[const char 1d, bytes]': _unpack_buffer_const_char_1d(data, number, timer),
         'unpack_buffer[const char 1d, bytearray]': _unpack_buffer_const_char_1d(bytearray(data), number, timer),
         'unpack_buffer[const char 1d, array]': _unpack_buffer_const_char_1d(array.array('B', data), number, timer),
-        'unpack_buffer[const char 1d, cymemview]': _unpack_buffer_const_char_1d(memview, number, timer),
+        #'unpack_buffer[const char 1d, cymemview]': _unpack_buffer_const_char_1d(memview, number, timer),
     }
 
 
