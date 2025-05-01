@@ -5935,13 +5935,6 @@ class CallNode(ExprNode):
 
     def infer_type(self, env):
         function = self.function
-        if function.is_attribute:
-            method_obj_type = function.obj.infer_type(env)
-            if method_obj_type.is_builtin_type:
-                result_type = Builtin.find_return_type_of_builtin_method(method_obj_type, function.attribute)
-                if result_type is not py_object_type:
-                    return result_type
-
         # TODO(robertwb): Reduce redundancy with analyse_types.
         func_type = function.infer_type(env)
         if isinstance(function, NewExprNode):
@@ -5949,6 +5942,12 @@ class CallNode(ExprNode):
             return PyrexTypes.CPtrType(function.class_type)
         if func_type is py_object_type:
             # function might have lied for safety => try to find better type
+            if function.is_attribute:
+                method_obj_type = function.obj.infer_type(env)
+                if method_obj_type.is_builtin_type:
+                    result_type = Builtin.find_return_type_of_builtin_method(method_obj_type, function.attribute)
+                    if result_type is not py_object_type:
+                        return result_type
             entry = getattr(function, 'entry', None)
             if entry is not None:
                 func_type = entry.type or func_type
