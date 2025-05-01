@@ -630,6 +630,7 @@
 #endif
 
 // Work around clang bug https://stackoverflow.com/questions/21847816/c-invoke-nested-template-class-destructor
+// (even without the clang bug, the need not to know the typename is generally a benefit)
 template<typename T>
 void __Pyx_call_destructor(T& x) {
     x.~T();
