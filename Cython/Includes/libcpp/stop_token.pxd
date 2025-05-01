@@ -34,9 +34,9 @@ cdef extern from *:
     #include <utility>
 
     namespace {
-        using func_ptr_stop_callback = std::stop_callback<void (*)()>;
+        using __pyx_func_ptr_stop_callback = std::stop_callback<void (*)()>;
 
-        class python_stop_callback_holder {
+        class __pyx_python_stop_callback_holder {
             class callable_py_object_holder {
                 PyObject *o;
 
@@ -80,13 +80,13 @@ cdef extern from *:
             std::optional<std::stop_callback<callable_py_object_holder>> callback;
 
           public:
-            python_stop_callback_holder() = default;
-            python_stop_callback_holder(std::stop_token token, PyObject *callable) {
+            __pyx_python_stop_callback_holder() = default;
+            __pyx_python_stop_callback_holder(std::stop_token token, PyObject *callable) {
                 initialize(std::move(token), callable);
             }
-            python_stop_callback_holder(const python_stop_callback_holder&) = delete;
+            __pyx_python_stop_callback_holder(const __pyx_python_stop_callback_holder&) = delete;
 
-            python_stop_callback_holder& operator=(const python_stop_callback_holder&) = delete;
+            __pyx_python_stop_callback_holder& operator=(const __pyx_python_stop_callback_holder&) = delete;
 
             void initialize(std::stop_token token, PyObject *callable) {
                 callback.emplace(std::move(token), callable_py_object_holder(callable));
@@ -94,12 +94,12 @@ cdef extern from *:
         };
     }
     """
-    # This is provided as a convenience mainly as a reminded to use nogil functions!
-    ctypedef stop_callback[void (*)() nogil noexcept] func_ptr_stop_callback
+    # This is provided as a convenience mainly as a reminder to use nogil functions!
+    ctypedef stop_callback[void (*)() nogil noexcept] func_ptr_stop_callback "__pyx_func_ptr_stop_callback" 
 
     # A fairly thin wrapper to let you create a stop callback with a Python object.
     # For most uses, it should be created empty and then filled with "initialize"
-    cdef cppclass python_stop_callback_holder:
+    cdef cppclass python_stop_callback_holder "__pyx_python_stop_callback_holder":
         python_stop_callback_holder()
         python_stop_callback_holder(stop_token token, object callable)
         void initialize(stop_token token, object callable)
