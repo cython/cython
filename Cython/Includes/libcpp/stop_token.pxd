@@ -95,7 +95,7 @@ cdef extern from *:
     }
     """
     # This is provided as a convenience mainly as a reminder to use nogil functions!
-    ctypedef stop_callback[void (*)() nogil noexcept] func_ptr_stop_callback "__pyx_func_ptr_stop_callback" 
+    ctypedef stop_callback[void (*)() nogil noexcept] func_ptr_stop_callback "__pyx_func_ptr_stop_callback"
 
     # A fairly thin wrapper to let you create a stop callback with a Python object.
     # For most uses, it should be created empty and then filled with "initialize"
