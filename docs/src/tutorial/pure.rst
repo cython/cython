@@ -474,10 +474,14 @@ like the following::
 Calling C functions
 ^^^^^^^^^^^^^^^^^^^
 
-Normally, it isn't possible to call C functions in pure Python mode as there
-is no general way to support it in normal (uncompiled) Python.  However, in
-cases where an equivalent Python function exists, this can be achieved by
-combining C function coercion with a conditional import as follows:
+The magic :py:mod:`cython.cimports` package provides a way to cimport external
+compile time C declarations from code written in plain Python.  For convenience,
+it also provides a fallback Python implementation for the ``libc.math`` module.
+
+However, it is normally not possible to *call* C functions in pure Python
+code as there is no general way to represent them in normal (uncompiled) Python.
+But in cases where an equivalent Python function exists, this can be achieved
+by combining C function coercion with a conditional import as follows:
 
 .. literalinclude:: ../../examples/tutorial/pure/mymodule.pxd
 
