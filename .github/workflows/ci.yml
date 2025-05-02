@@ -52,6 +52,7 @@ jobs:
           - "3.13"
           - "3.13t"
           - "3.14-dev"
+          - "3.14t-dev"
         env: [{}]
 
         exclude:
@@ -65,6 +66,8 @@ jobs:
 
         include:
           - python-version: "3.14-dev"
+            allowed_failure: true
+          - python-version: "3.14t-dev"
             allowed_failure: true
 
           # Ubuntu sub-jobs:
