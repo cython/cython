@@ -63,6 +63,12 @@ jobs:
           - os: windows-2019
             python-version: 3.13t
             backend: "cpp"
+          - os: windows-2019
+            python-version: 3.14t-dev
+            backend: "c"
+          - os: windows-2019
+            python-version: 3.14t-dev
+            backend: "cpp"
 
         include:
           - python-version: "3.14-dev"
