@@ -254,6 +254,7 @@ releasing or acquiring the GIL. The condition must be constant (at compile time)
 A common use case for conditionally acquiring and releasing the GIL are fused types
 that allow different GIL handling depending on the specific type (see :ref:`gil_conditional`).
 
+
 .. py:module:: cython.cimports
 
 cimports
@@ -439,8 +440,34 @@ The current limitations will likely be lifted at some point.
    :class: longtable
    :widths: 1 1 1
 
+
 Tips and Tricks
 ---------------
+
+Avoiding the ``cython`` runtime dependency
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Python modules that are intended to run both compiled and as plain Python
+usually have the line ``ìmport cython`` in them and make use of the magic
+attributes in that module. If not compiled, this creates a runtime dependency
+on Cython's shadow module that provides fake implementations of types and
+decorators.
+
+Code that does not want to require Cython or its shadow module as as runtime
+dependency at all can often get away with a simple, stripped-down replacement
+like the following::
+
+    try:
+        import cython
+    except ImportError:
+        class _fake_cython:
+            compiled = False
+            def cfunc(self, func): return func
+            def ccall(self, func): return func
+            def __getattr__(self, type_name): return "object"
+
+        cython = _fake_cython()
+
 
 .. _calling-c-functions:
 
