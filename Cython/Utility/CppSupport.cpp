@@ -131,3 +131,13 @@ public:
     using __Pyx_Optional_BaseType<T>::operator=; // the chances are emplace can't work...
 #endif
 };
+
+//////////////////////// DefaultPlacementNew.proto ///////////////////////
+
+#include <new>
+
+// avoid having to know the name of the class being constructed (e.g. when user is accessing through a typedef)
+template<typename T>
+void __Pyx_default_placement_construct(T* x) {
+    new (static_cast<void*>(x)) T();
+}

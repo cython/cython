@@ -4369,11 +4369,7 @@ class CppClassType(CType):
         code.putln(f"__Pyx_call_destructor({extra_access_code}{entry.cname});")
 
     def generate_explicit_construction(self, code, entry, extra_access_code=""):
-        if entry.is_cpp_optional:
-            decl_code = self.cpp_optional_declaration_code("")
-        else:
-            decl_code = self.empty_declaration_code()
-        code.put_cpp_placement_new(f"{extra_access_code}{entry.cname}", decl_code)
+        code.put_cpp_placement_new(f"{extra_access_code}{entry.cname}")
 
 
 class EnumMixin:
