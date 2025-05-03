@@ -3081,7 +3081,6 @@ class CFuncType(CType):
     #  op_arg_struct    CPtrType   Pointer to optional argument struct
 
     is_cfunction = 1
-    original_sig = None
     cached_specialized_types = None
     from_fused = False
     is_const_method = False
@@ -3247,7 +3246,6 @@ class CFuncType(CType):
             return 0
         if not self._is_exception_compatible_with(other_type):
             return 0
-        self.original_sig = other_type.original_sig or other_type
         return 1
 
     def _is_exception_compatible_with(self, other_type):
