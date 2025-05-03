@@ -9578,7 +9578,7 @@ class DictNode(ExprNode):
         return False
 
     def coerce_to(self, dst_type, env):
-        dst_type = PyrexTypes.remove_cv_ref(dst_type, True)
+        dst_type = PyrexTypes.remove_cv_ref(dst_type, remove_fakeref=True)
         if dst_type.is_pyobject:
             self.release_errors()
             if self.type.is_struct_or_union:
