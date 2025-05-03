@@ -3054,28 +3054,6 @@ static int __Pyx_State_RemoveModule(CYTHON_UNUSED void* dummy) {
 #define __Pyx_END_CRITICAL_SECTION Py_END_CRITICAL_SECTION
 #endif
 
-///////////////////// IsFreethreading.proto //////////////////////////
-
-#if CYTHON_COMPILING_IN_CPYTHON_FREETHREADING
-static int __Pyx_IsTrueFreethreading(void); /* proto */
-#else
-#define __Pyx_IsTrueFreethreading() 0
-#endif
-
-///////////////////// IsFreethreading //////////////////////////
-
-#if CYTHON_COMPILING_IN_CPYTHON_FREETHREADING
-static int __Pyx_IsTrueFreethreading(void) {
-    PyObject *is_gil_enabled = PySys_GetObject("_is_gil_enabled");
-    if (unlikely(!is_gil_enabled)) return 0;
-    PyObject *py_result = PyObject_CallNoArgs(is_gil_enabled);
-    if (unlikely(!py_result)) return -1;
-    int c_result = PyObject_Not(py_result);
-    Py_DECREF(py_result);
-    return c_result;
-}
-#endif
-
 ////////////////////// IncludeStdlibH.proto //////////////////////
 
 #include <stdlib.h>

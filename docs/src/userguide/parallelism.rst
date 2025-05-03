@@ -68,9 +68,6 @@ or explicitly request that they are run with the GIL.
         to manipulate Python objects.
         This is only likely to work well in the experimental Python 3.13+ freethreaded
         builds. In other Python versions it will run with only one thread at a time.
-        Beware that there's a possibility of deadlock if the interpreter switches back
-        to the "GIL enabled" mode *while* you are executing a ``prange`` so be very
-        careful of importing any modules inside ``prange``.
 
     :param use_threads_if: The loop is run in multiple threads only if ``CONDITION``
         is evaluated as true. Otherwise the code is run sequentially. Running

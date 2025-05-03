@@ -10647,27 +10647,10 @@ class ParallelRangeNode(ParallelStatNode):
             # I'm very suspicious of lastprivate and whether that might need
             # a barrier in some implementations). So the safe thing to do is
             # not to hold the GIL while going round the loop.
-            # If the GIL doesn't exist then the above doesn't apply.
-            # Unless it gets turned on during the loop because the user
-            # imports a module that causes the interpreter to enable the GIL
-            # That nasty edge-case is warned about in the docs.
-            with_python_deadlock_avoidance_point.putln(
-                "int __pyx_parallel_is_freethreaded = __Pyx_IsTrueFreethreading();")
-            # error goto is difficult here (because the label jumps across OpenMP and the
-            # compiler doesn't like it. Therefore clear the error and switch to non-freethreaded
-            # mode (which is a safe fallback anyway))
-            with_python_deadlock_avoidance_point.putln(
-                "if (unlikely(__pyx_parallel_is_freethreaded == -1)) {")
-            with_python_deadlock_avoidance_point.putln(
-                "PyErr_Clear(); __pyx_parallel_is_freethreaded = 0;")
-            with_python_deadlock_avoidance_point.putln("}")
-            code.globalstate.use_utility_code(
-                UtilityCode.load_cached("IsFreethreading", "ModuleSetupCode.c"))
-
             with_python_deadlock_avoidance_point.putln(
                 "PyThreadState *__pyx_parallel_loop_threadstate = NULL;")
             with_python_deadlock_avoidance_point.putln(
-                "if ((!__pyx_parallel_is_freethreaded)) __pyx_parallel_loop_threadstate = PyEval_SaveThread();")
+                "__pyx_parallel_loop_threadstate = PyEval_SaveThread();")
 
 
         for entry, (op, lastprivate) in sorted(self.privates.items()):
@@ -10718,7 +10701,7 @@ class ParallelRangeNode(ParallelStatNode):
 
         if self.with_python:
             code.putln("#ifdef _OPENMP")
-            code.putln("if ((!__pyx_parallel_is_freethreaded)) PyEval_RestoreThread(__pyx_parallel_loop_threadstate);")
+            code.putln("PyEval_RestoreThread(__pyx_parallel_loop_threadstate);")
             code.putln("#endif")
 
         code.putln("%(target)s = (%(target_type)s)(%(start)s + %(step)s * %(i)s);" % fmt_dict)
@@ -10741,7 +10724,7 @@ class ParallelRangeNode(ParallelStatNode):
 
         if self.with_python:
             code.putln("#ifdef _OPENMP")
-            code.putln("if ((!__pyx_parallel_is_freethreaded)) __pyx_parallel_loop_threadstate = PyEval_SaveThread();")
+            code.putln("__pyx_parallel_loop_threadstate = PyEval_SaveThread();")
             code.putln("#endif")
 
         code.end_block()  # end guard around loop body
@@ -10749,7 +10732,7 @@ class ParallelRangeNode(ParallelStatNode):
 
         if self.with_python:
             code.putln("#ifdef _OPENMP")
-            code.putln("if ((!__pyx_parallel_is_freethreaded)) PyEval_RestoreThread(__pyx_parallel_loop_threadstate);")
+            code.putln("PyEval_RestoreThread(__pyx_parallel_loop_threadstate);")
             code.putln("#endif")
 
         if self.is_parallel:
