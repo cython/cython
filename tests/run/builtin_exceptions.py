@@ -11,6 +11,7 @@
 NEWER_EXCEPTIONS = {
     # Remove when increasing minimal supported Python version.
     'PythonFinalizationError': (3, 10),
+    'EncodingWarning': (3, 10),
     'ExceptionGroup': (3, 11),
     'BaseExceptionGroup': (3, 11),
 }
@@ -218,9 +219,6 @@ def accept_BaseException(exc: BaseException):
     >>> accept_BaseException(DeprecationWarning('message'))
     >>> class MyExceptionSubtype_DeprecationWarning(DeprecationWarning): pass
     >>> accept_BaseException(MyExceptionSubtype_DeprecationWarning('message'))
-    >>> accept_BaseException(EncodingWarning('message'))
-    >>> class MyExceptionSubtype_EncodingWarning(EncodingWarning): pass
-    >>> accept_BaseException(MyExceptionSubtype_EncodingWarning('message'))
     >>> accept_BaseException(FutureWarning('message'))
     >>> class MyExceptionSubtype_FutureWarning(FutureWarning): pass
     >>> accept_BaseException(MyExceptionSubtype_FutureWarning('message'))
@@ -474,18 +472,6 @@ def accept_EOFError(exc: EOFError):
     assert isinstance(exc, EOFError)
     assert exc.args == ('message',)
 
-def accept_EncodingWarning(exc: EncodingWarning):
-    """
-    >>> accept_EncodingWarning(EncodingWarning('message'))
-    >>> class MyExceptionSubtype_EncodingWarning(EncodingWarning): pass
-    >>> accept_EncodingWarning(MyExceptionSubtype_EncodingWarning('message'))
-    """
-    exc_var: EncodingWarning = {exc}.pop()
-    assert isinstance(exc, BaseException)
-    assert EncodingWarning in type(exc).__mro__
-    assert isinstance(exc, EncodingWarning)
-    assert exc.args == ('message',)
-
 def accept_Exception(exc: Exception):
     """
     >>> accept_Exception(Exception('message'))
@@ -563,9 +549,6 @@ def accept_Exception(exc: Exception):
     >>> accept_Exception(DeprecationWarning('message'))
     >>> class MyExceptionSubtype_DeprecationWarning(DeprecationWarning): pass
     >>> accept_Exception(MyExceptionSubtype_DeprecationWarning('message'))
-    >>> accept_Exception(EncodingWarning('message'))
-    >>> class MyExceptionSubtype_EncodingWarning(EncodingWarning): pass
-    >>> accept_Exception(MyExceptionSubtype_EncodingWarning('message'))
     >>> accept_Exception(FutureWarning('message'))
     >>> class MyExceptionSubtype_FutureWarning(FutureWarning): pass
     >>> accept_Exception(MyExceptionSubtype_FutureWarning('message'))
@@ -1283,9 +1266,6 @@ def accept_Warning(exc: Warning):
     >>> accept_Warning(DeprecationWarning('message'))
     >>> class MyExceptionSubtype_DeprecationWarning(DeprecationWarning): pass
     >>> accept_Warning(MyExceptionSubtype_DeprecationWarning('message'))
-    >>> accept_Warning(EncodingWarning('message'))
-    >>> class MyExceptionSubtype_EncodingWarning(EncodingWarning): pass
-    >>> accept_Warning(MyExceptionSubtype_EncodingWarning('message'))
     >>> accept_Warning(FutureWarning('message'))
     >>> class MyExceptionSubtype_FutureWarning(FutureWarning): pass
     >>> accept_Warning(MyExceptionSubtype_FutureWarning('message'))
