@@ -2,7 +2,7 @@
 # tag: exception
 
 
-# This test file is generted based on the known builtin exceptions.
+# This test file is generated based on the known builtin exceptions.
 # To regenerate the tests from a newer Python version, run the file:
 #
 #    python3 tests/run/builtin_exceptions.py
