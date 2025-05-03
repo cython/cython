@@ -6099,7 +6099,7 @@ class ExprStatNode(StatNode):
         return self
 
     def nogil_check(self, env):
-        if self.expr.type.is_pyobject and self.expr.is_temp:
+        if self.expr.type.is_pyobject and self.expr.result_in_temp():
             self.gil_error()
 
     gil_message = "Discarding owned Python object"
@@ -6108,7 +6108,7 @@ class ExprStatNode(StatNode):
         code.mark_pos(self.pos)
         self.expr.result_is_used = False  # hint that .result() may safely be left empty
         self.expr.generate_evaluation_code(code)
-        if not self.expr.is_temp and self.expr.result():
+        if not self.expr.result_in_temp() and self.expr.result():
             result = self.expr.result()
             if not self.expr.type.is_void:
                 result = "(void)(%s)" % result
@@ -6536,7 +6536,7 @@ class CascadedAssignmentNode(AssignmentNode):
             rhs = rhs.coerce_to_temp(env)
         else:
             rhs = rhs.coerce_to_simple(env)
-        self.rhs = ProxyNode(rhs) if rhs.is_temp else rhs
+        self.rhs = ProxyNode(rhs) if rhs.result_in_temp() else rhs
 
         # clone RHS and coerce it to all distinct LHS types
         self.coerced_values = []
@@ -8400,7 +8400,7 @@ class ExceptClauseNode(Node):
 
         if self.pattern:
             has_non_literals = not all(
-                pattern.is_literal or pattern.is_simple() and not pattern.is_temp
+                pattern.is_literal or pattern.is_simple() and not pattern.result_in_temp()
                 for pattern in self.pattern)
 
             if has_non_literals:

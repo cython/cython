@@ -3708,6 +3708,12 @@ class CFuncTypeArg(BaseType):
             self.cname = cname
         else:
             self.cname = Naming.var_prefix + name
+            if not self.cname.isascii():
+                # We have to be careful here not to create a circular import of Symtab.
+                # This creates a cname to match a Symtab entry that'll be created later
+                # - in an ideal world the name here would be taken from the entry...
+                from .Symtab import punycodify_name
+                self.cname = punycodify_name(self.cname)
         if annotation is not None:
             self.annotation = annotation
         self.type = type
@@ -4363,11 +4369,7 @@ class CppClassType(CType):
         code.putln(f"__Pyx_call_destructor({extra_access_code}{entry.cname});")
 
     def generate_explicit_construction(self, code, entry, extra_access_code=""):
-        if entry.is_cpp_optional:
-            decl_code = self.cpp_optional_declaration_code("")
-        else:
-            decl_code = self.empty_declaration_code()
-        code.put_cpp_placement_new(f"{extra_access_code}{entry.cname}", decl_code)
+        code.put_cpp_placement_new(f"{extra_access_code}{entry.cname}")
 
 
 class EnumMixin:

@@ -1826,7 +1826,7 @@ class EarlyReplaceBuiltinCalls(Visitor.EnvTransform):
             list_node = ExprNodes.PythonCapiCallNode(
                 node.pos,
                 "__Pyx_PySequence_ListKeepNew"
-                    if arg.is_temp and arg.type in (PyrexTypes.py_object_type, Builtin.list_type)
+                    if arg.result_in_temp() and arg.type in (PyrexTypes.py_object_type, Builtin.list_type)
                     else "PySequence_List",
                 self.PySequence_List_func_type,
                 args=pos_args, is_temp=True)
@@ -2478,7 +2478,8 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
         return ExprNodes.PythonCapiCallNode(
             node.pos,
             "__Pyx_PySequence_ListKeepNew"
-                if node.is_temp and arg.is_temp and arg.type in (PyrexTypes.py_object_type, Builtin.list_type)
+                if (node.result_in_temp() and arg.result_in_temp() and
+                    arg.type in (PyrexTypes.py_object_type, Builtin.list_type))
                 else "PySequence_List",
             self.PySequence_List_func_type,
             args=pos_args,
@@ -2493,7 +2494,7 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
     def _handle_simple_function_tuple(self, node, function, pos_args):
         """Replace tuple([...]) by PyList_AsTuple or PySequence_Tuple.
         """
-        if len(pos_args) != 1 or not node.is_temp:
+        if len(pos_args) != 1 or not node.result_in_temp():
             return node
         arg = pos_args[0]
         if arg.type is Builtin.tuple_type and not arg.may_be_none():
@@ -2504,7 +2505,7 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
 
             return ExprNodes.PythonCapiCallNode(
                 node.pos, "PyList_AsTuple", self.PyList_AsTuple_func_type,
-                args=pos_args, is_temp=node.is_temp)
+                args=pos_args, is_temp=True)
         else:
             return ExprNodes.AsTupleNode(node.pos, arg=arg, type=Builtin.tuple_type)
 
@@ -5030,7 +5031,7 @@ class FinalOptimizePhase(Visitor.EnvTransform, Visitor.NodeRefCleanupMixin):
             (env.is_py_class_scope and env.outer_scope.is_module_scope)
         )
         return (
-            node.is_temp and
+            node.result_in_temp() and
             function_type.is_pyobject and
             function_type is not Builtin.type_type and
             not (entry and entry.is_builtin) and

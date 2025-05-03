@@ -44,8 +44,7 @@ jobs:
 
       - uses: deadsnakes/action@v3.1.0
         with:
-          python-version: 3.13-dev
-          nogil: true
+          python-version: "3.13"
 
       - name: Build pure wheel
         run: |

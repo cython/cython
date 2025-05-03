@@ -3175,10 +3175,10 @@ class CCodeWriter:
         error_handling = self.error_goto(pos)
         self.putln(f"{trace_func}({retvalue_cname}{extra_arg}, {self.pos_to_offset(pos)}, {bool(nogil):d}, {error_handling});")
 
-    def put_cpp_placement_new(self, target, decl_code,
-                              _utility_code=UtilityCode("#include <new>")):
+    def put_cpp_placement_new(self, target,
+                              _utility_code=UtilityCode.load("DefaultPlacementNew", "CppSupport.cpp")):
         self.globalstate.use_utility_code(_utility_code)
-        self.putln(f"new((void*)&({target})) {decl_code}();")
+        self.putln(f"__Pyx_default_placement_construct(&({target}));")
 
     def putln_openmp(self, string):
         self.putln("#ifdef _OPENMP")
