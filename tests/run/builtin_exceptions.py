@@ -53,7 +53,7 @@ def gen_tests():
             if base_type.__name__ == 'BaseException':
                 break
 
-    # Generate tests that pass all subtypes into .
+    # Generate tests that pass all subtypes into a typed base type argument.
     for exc_name, subclass_names in sorted(subclasses.items()):
         test_code.append("\n")
         test_code.append(f"def accept_{exc_name}(exc: {exc_name}):\n")
@@ -71,7 +71,7 @@ def gen_tests():
         func_code.append(f"assert isinstance(exc, {exc_name})")
         func_code.append(f"assert exc.args == ('message',)")
 
-        # indent and insert
+        # indent and insert test function body
         test_code.extend(f"    {line}\n" for line in func_code)
 
     test_code.append("\n")
