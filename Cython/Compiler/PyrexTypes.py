@@ -1447,7 +1447,7 @@ class BuiltinObjectType(PyObjectType):
             # Special case the type type, as many C API calls (and other
             # libraries) actually expect a PyTypeObject* for type arguments.
             self.decl_type = objstruct_cname
-        if name == 'Exception':
+        if name == 'Exception' or name == 'BaseException':
             self.require_exact = 0
 
     def set_scope(self, scope):
@@ -1512,7 +1512,7 @@ class BuiltinObjectType(PyObjectType):
             type_check = "PyMemoryView_Check"
         else:
             type_check = 'Py%s_Check' % type_name.capitalize()
-        if exact and type_name not in ('bool', 'slice', 'Exception', 'memoryview'):
+        if exact and type_name not in ('bool', 'slice', 'BaseException', 'Exception', 'memoryview'):
             type_check += 'Exact'
         return type_check
 
