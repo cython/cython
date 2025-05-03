@@ -161,15 +161,16 @@ cdef extern from *:
     }
 
     static int __pyx_py_safe_cnd_wait_impl( cnd_t* cond, mtx_t* mutex) {
-        int result;
+        int result, unlock_result, relock_result;
         Py_BEGIN_ALLOW_THREADS
         result = cnd_wait(cond, mutex);
-        mtx_unlock(mutex);
+        unlock_result = mtx_unlock(mutex);
         Py_END_ALLOW_THREADS
-        if (result == thrd_success) {
-            result = __pyx_py_safe_mtx_lock_impl(mutex);
-        }
-        return result;
+        // pthreads documentation implies they try to return locked even on error.
+        relock_result = __pyx_py_safe_mtx_lock_impl(mutex);
+        return relock_result != thrd_success ? relock_result :
+            unlock_result != thrd_success ? unlock_result :
+            result;
     }
 
     static CYTHON_UNUSED int __pyx_py_safe_cnd_wait( cnd_t* cond, mtx_t* mutex) {
@@ -182,15 +183,16 @@ cdef extern from *:
     }
 
     static int __pyx_py_safe_cnd_timedwait_impl( cnd_t* cond, mtx_t* mutex, const struct timespec* time_point) {
-        int result;
+        int result, unlock_result, relock_result;
         Py_BEGIN_ALLOW_THREADS
         result = cnd_timedwait(cond, mutex, time_point);
-        mtx_unlock(mutex);
+        unlock_result = mtx_unlock(mutex);
         Py_END_ALLOW_THREADS
-        if (result == thrd_success) {
-            result = __pyx_py_safe_mtx_lock_impl(mutex);
-        }
-        return result;
+        // pthreads documentation implies they try to return locked even on error.
+        relock_result = __pyx_py_safe_mtx_lock_impl(mutex);
+        return relock_result != thrd_success ? relock_result :
+            unlock_result != thrd_success ? unlock_result :
+            result;
     }
 
     static CYTHON_UNUSED int __pyx_py_safe_cnd_timedwait(cnd_t* cond, mtx_t* mutex, const struct timespec* time_point) {
