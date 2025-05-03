@@ -123,6 +123,8 @@ cdef extern from *:
             lock_result = mtx_lock(mutex);
             if (lock_result != thrd_success)
                 return lock_result;
+            lock_result = mtx_unlock(mutex);
+            if (lock_result != thrd_success) return lock_result;
             Py_END_ALLOW_THREADS
             lock_result = mtx_trylock(mutex);
             if (lock_result != thrd_busy) {
