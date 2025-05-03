@@ -6043,6 +6043,9 @@ class CallNode(ExprNode):
             self.type = py_object_type
 
     def analyse_as_type_constructor(self, env):
+        """
+        Returns a replacement node or None
+        """
         type = self.function.analyse_as_type(env)
         if type and type.is_struct_or_union:
             args, kwds = self.explicit_args_kwds()
@@ -6051,11 +6054,10 @@ class CallNode(ExprNode):
                 items.append(DictItemNode(arg.pos, key=UnicodeNode(arg.pos, value=member.name), value=arg))
             if kwds:
                 items += kwds.key_value_pairs
-            self.key_value_pairs = items
-            self.__class__ = DictNode
-            self.analyse_types(env)    # FIXME
-            self.coerce_to(type, env)
-            return True
+
+            node = DictNode(self.pos, key_value_pairs=items)
+            node = node.analyse_types(env).coerce_to(type, env)
+            return node
         elif type and type.is_cpp_class:
             self.args = [ arg.analyse_types(env) for arg in self.args ]
             constructor = type.scope.lookup("<init>")
@@ -6068,7 +6070,7 @@ class CallNode(ExprNode):
             self.function.set_cname(type.empty_declaration_code())
             self.analyse_c_function_call(env)
             self.type = type
-            return True
+            return self
 
     def function_type(self):
         # Return the type of the function being called, coercing a function
@@ -6171,8 +6173,8 @@ class SimpleCallNode(CallNode):
         if self.analysed:
             return self
         self.analysed = True
-        if self.analyse_as_type_constructor(env):
-            return self
+        if (as_type_constructor := self.analyse_as_type_constructor(env)) is not None:
+            return as_type_constructor
         self.function.is_called = 1
         self.function = self.function.analyse_types(env)
         function = self.function
@@ -7169,8 +7171,8 @@ class GeneralCallNode(CallNode):
         return self.positional_args.args, self.keyword_args
 
     def analyse_types(self, env):
-        if self.analyse_as_type_constructor(env):
-            return self
+        if (as_type_constructor := self.analyse_as_type_constructor(env)) is not None:
+            return as_type_constructor
         self.function = self.function.analyse_types(env)
         if not self.function.type.is_pyobject:
             if self.function.type.is_error:
@@ -9575,6 +9577,7 @@ class DictNode(ExprNode):
         return False
 
     def coerce_to(self, dst_type, env):
+        dst_type = PyrexTypes.remove_cv_ref(dst_type, remove_fakeref=True)
         if dst_type.is_pyobject:
             self.release_errors()
             if self.type.is_struct_or_union:
