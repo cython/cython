@@ -826,6 +826,7 @@ def create_extension_list(patterns, exclude=None, ctx=None, aliases=None, quiet=
                 # Create the new extension
                 m, metadata = create_extension(template, kwds)
                 m.np_pythran = np_pythran or getattr(m, 'np_pythran', False)
+                m.shared_utility_qualified_name = ctx.shared_utility_qualified_name
                 if m.np_pythran:
                     update_pythran_extension(m)
                 module_list.append(m)
@@ -1064,7 +1065,7 @@ def cythonize(module_list, exclude=None, nthreads=0, aliases=None, quiet=False, 
                     else:
                         fingerprint = None
                     to_compile.append((
-                        priority, source, c_file, fingerprint, cache, quiet,
+                        priority, source, c_file, fingerprint, quiet,
                         options, not exclude_failures, module_metadata.get(m.name),
                         full_module_name, show_all_warnings))
                 new_sources.append(c_file)
@@ -1076,13 +1077,15 @@ def cythonize(module_list, exclude=None, nthreads=0, aliases=None, quiet=False, 
         m.sources = new_sources
 
     to_compile.sort()
-    # Drop "priority" component of "to_compile" entries and add a
-    # simple progress indicator.
     N = len(to_compile)
-    progress_fmt = "[{0:%d}/{1}] " % len(str(N))
-    for i in range(N):
-        progress = progress_fmt.format(i+1, N)
-        to_compile[i] = to_compile[i][1:] + (progress,)
+
+    # Drop "priority" sorting component of "to_compile" entries
+    # and add a simple progress indicator and the remaining arguments.
+    build_progress_indicator = ("[{0:%d}/%d] " % (len(str(N)), N)).format
+    to_compile = [
+        task[1:] + (build_progress_indicator(i), cache)
+        for i, task in enumerate(to_compile, 1)
+    ]
 
     if N <= 1:
         nthreads = 0
@@ -1207,10 +1210,11 @@ else:
 
 # TODO: Share context? Issue: pyx processing leaks into pxd module
 @record_results
-def cythonize_one(pyx_file, c_file, fingerprint, cache, quiet, options=None,
+def cythonize_one(pyx_file, c_file,
+                  fingerprint=None, quiet=False, options=None,
                   raise_on_failure=True, embedded_metadata=None,
                   full_module_name=None, show_all_warnings=False,
-                  progress=""):
+                  progress="", cache=None):
     from ..Compiler.Main import compile_single, default_options
     from ..Compiler.Errors import CompileError, PyrexError
 

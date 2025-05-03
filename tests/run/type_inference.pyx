@@ -732,10 +732,10 @@ def large_literals():
     a = 10
     b = 100000000000000000000000000000000
     assert typeof(a) == "long", typeof(a)
-    assert typeof(b) == "Python object", typeof(b)
+    assert typeof(b) == "int object", typeof(b)
     c, d = 10, 100000000000000000000000000000000
     assert typeof(c) == "long", typeof(c)
-    assert typeof(d) == "Python object", typeof(d)
+    assert typeof(d) == "int object", typeof(d)
 
 
 class EmptyContextManager(object):

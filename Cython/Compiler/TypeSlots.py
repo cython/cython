@@ -457,7 +457,7 @@ class ConstructorSlot(InternalMethodSlot):
         if (scope.parent_type.base_type
                 and not scope.has_pyobject_attrs
                 and not scope.has_memoryview_attrs
-                and not scope.has_cpp_constructable_attrs
+                and not scope.has_explicitly_constructable_attrs
                 and not (self.slot_name == 'tp_new' and scope.parent_type.vtabslot_cname)):
             entry = scope.lookup_here(self.method) if self.method else None
             if not (entry and entry.is_special):
@@ -996,9 +996,9 @@ class SlotTable:
             EmptySlot("sq_concat"),  # nb_add used instead
             EmptySlot("sq_repeat"),  # nb_multiply used instead
             SyntheticSlot("sq_item", ["__getitem__"], "0"),    #EmptySlot("sq_item"),   # mp_subscript used instead
-            MethodSlot(ssizessizeargfunc, "sq_slice", "__getslice__", method_name_to_slot),
+            EmptySlot("sq_slice"),
             EmptySlot("sq_ass_item"),  # mp_ass_subscript used instead
-            SyntheticSlot("sq_ass_slice", ["__setslice__", "__delslice__"], "0"),
+            EmptySlot("sq_ass_slice"),
             MethodSlot(cmpfunc, "sq_contains", "__contains__", method_name_to_slot),
             EmptySlot("sq_inplace_concat"),  # nb_inplace_add used instead
             EmptySlot("sq_inplace_repeat"),  # nb_inplace_multiply used instead

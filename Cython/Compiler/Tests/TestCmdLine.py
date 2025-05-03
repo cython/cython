@@ -108,6 +108,7 @@ class CmdLineParserTest(TestCase):
             '--annotate-coverage=cov.xml',
             '--gdb-outdir=/gdb/outdir',
             '--directive=wraparound=false',
+            '--shared=foo.shared',
         ])
         self.assertEqual(sources, ['source.pyx'])
         self.assertEqual(Options.embed, 'huhu')
@@ -121,6 +122,7 @@ class CmdLineParserTest(TestCase):
         self.assertTrue(options.gdb_debug)
         self.assertEqual(options.output_dir, '/gdb/outdir')
         self.assertEqual(options.compiler_directives['wraparound'], False)
+        self.assertEqual(options.shared_utility_qualified_name, 'foo.shared')
 
     def test_embed_before_positional(self):
         options, sources = parse_command_line([
@@ -527,6 +529,13 @@ class CmdLineParserTest(TestCase):
         self.check_default_global_options()
         self.check_default_options(options, ['module_name'])
 
+    def test_generate_shared(self):
+        options, sources = parse_command_line([
+            '--generate-shared=foo/shared.c',
+        ])
+        self.assertEqual(sources, [])
+        self.assertEqual(options.shared_c_file_path, 'foo/shared.c')
+
     def test_errors(self):
         def error(args, regex=None):
             old_stderr = sys.stderr
@@ -571,3 +580,7 @@ class CmdLineParserTest(TestCase):
               "Only one source file allowed when using --module-name")
         error(['--module-name', 'foo.bar', '--timestamps', 'foo.pyx'],
               "Cannot use --module-name with --timestamps")
+        error(['--generate-shared=shared.c', 'foo.pyx'],
+              "Source file not allowed when using --generate-shared")
+        error(['--generate-shared'],
+              "argument --generate-shared: expected one argument")

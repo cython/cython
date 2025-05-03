@@ -18,7 +18,9 @@ getattr3_utility_code = UtilityCode.load("GetAttr3", "Builtins.c")
 pyexec_utility_code = UtilityCode.load("PyExec", "Builtins.c")
 pyexec_globals_utility_code = UtilityCode.load("PyExecGlobals", "Builtins.c")
 globals_utility_code = UtilityCode.load("Globals", "Builtins.c")
-
+include_std_lib_h_utility_code = UtilityCode.load("IncludeStdlibH", "ModuleSetupCode.c")
+pysequence_multiply_utility_code = UtilityCode.load("PySequenceMultiply", "ObjectHandling.c")
+slice_accessor_utility_code = UtilityCode.load("PySliceAccessors", "Builtins.c")
 
 # mapping from builtins to their C-level equivalents
 
@@ -26,7 +28,7 @@ class _BuiltinOverride:
     def __init__(self, py_name, args, ret_type, cname, py_equiv="*",
                  utility_code=None, sig=None, func_type=None,
                  is_strict_signature=False, builtin_return_type=None,
-                 nogil=None):
+                 nogil=None, specialiser=None):
         self.py_name, self.cname, self.py_equiv = py_name, cname, py_equiv
         self.args, self.ret_type = args, ret_type
         self.func_type, self.sig = func_type, sig
@@ -34,6 +36,7 @@ class _BuiltinOverride:
         self.is_strict_signature = is_strict_signature
         self.utility_code = utility_code
         self.nogil = nogil
+        self.specialiser = specialiser
 
     def build_func_type(self, sig=None, self_arg=None):
         if sig is None:
@@ -69,8 +72,10 @@ class BuiltinFunction(_BuiltinOverride):
         func_type, sig = self.func_type, self.sig
         if func_type is None:
             func_type = self.build_func_type(sig)
-        scope.declare_builtin_cfunction(self.py_name, func_type, self.cname,
-                                        self.py_equiv, self.utility_code)
+        scope.declare_builtin_cfunction(
+            self.py_name, func_type, self.cname, self.py_equiv, self.utility_code,
+            specialiser=self.specialiser,
+        )
 
 
 class BuiltinMethod(_BuiltinOverride):
@@ -108,16 +113,88 @@ class BuiltinProperty:
         )
 
 
+### Special builtin implementations generated at runtime.
+
+def _generate_divmod_function(scope, argument_types):
+    if len(argument_types) != 2:
+        return None
+    type_op1, type_op2 = argument_types
+
+    # Resolve internal typedefs to avoid useless code duplication.
+    if type_op1.is_typedef:
+        type_op1 = type_op1.resolve_known_type()
+    if type_op2.is_typedef:
+        type_op2 = type_op2.resolve_known_type()
+
+    if type_op1.is_float or type_op1 is float_type or type_op2.is_float and (type_op1.is_int or type_op1 is int_type):
+        impl = "float"
+        # TODO: support 'long double'? Currently fails to handle the error return value.
+        number_type = PyrexTypes.c_double_type
+    elif type_op1.is_int and type_op2.is_int:
+        impl = "int"
+        number_type = type_op1 if type_op1.rank >= type_op2.rank else type_op2
+    else:
+        return None
+
+    nogil = scope.nogil
+    cfunc_suffix = f"{'nogil_' if nogil else ''}{impl}_{'td_' if number_type.is_typedef else ''}{number_type.specialization_name()}"
+    function_cname = f"__Pyx_divmod_{cfunc_suffix}"
+
+    # Reuse an existing specialisation, if available.
+    builtin_scope = scope.builtin_scope()
+    existing_entry = builtin_scope.lookup_here("divmod")
+    if existing_entry is not None:
+        for entry in existing_entry.all_alternatives():
+            if entry.cname == function_cname:
+                return entry
+
+    # Generate a new specialisation.
+    ctuple_entry = scope.declare_tuple_type(None, [number_type]*2)
+    ctuple_entry.used = True
+    return_type = ctuple_entry.type
+
+    function_type = PyrexTypes.CFuncType(
+        return_type, [
+            PyrexTypes.CFuncTypeArg("a", number_type, None),
+            PyrexTypes.CFuncTypeArg("b", number_type, None),
+        ],
+        exception_value=f"__Pyx_divmod_ERROR_VALUE_{cfunc_suffix}",
+        exception_check=True,
+        is_strict_signature=True,
+        nogil=nogil,
+    )
+
+    utility_code = TempitaUtilityCode.load(
+        f"divmod_{impl}", "Builtins.c", context={
+            'CFUNC_SUFFIX': cfunc_suffix,
+            'MATH_SUFFIX': number_type.math_h_modifier if number_type.is_float else '',
+            'TYPE': number_type.empty_declaration_code(),
+            'RETURN_TYPE': return_type.empty_declaration_code(),
+            'NOGIL': nogil,
+    })
+
+    entry = builtin_scope.declare_builtin_cfunction(
+        "divmod", function_type, function_cname, utility_code=utility_code)
+
+    return entry
+
+
+### List of builtin functions and their implementation.
+
 builtin_function_table = [
     # name,        args,   return,  C API func,           py equiv = "*"
     BuiltinFunction('abs',        "d",    "d",     "fabs",
-                    is_strict_signature=True, nogil=True),
+                    is_strict_signature=True, nogil=True,
+                    utility_code=include_std_lib_h_utility_code),
     BuiltinFunction('abs',        "f",    "f",     "fabsf",
-                    is_strict_signature=True, nogil=True),
+                    is_strict_signature=True, nogil=True,
+                    utility_code=include_std_lib_h_utility_code),
     BuiltinFunction('abs',        "i",    "i",     "abs",
-                    is_strict_signature=True, nogil=True),
+                    is_strict_signature=True, nogil=True,
+                    utility_code=include_std_lib_h_utility_code),
     BuiltinFunction('abs',        "l",    "l",     "labs",
-                    is_strict_signature=True, nogil=True),
+                    is_strict_signature=True, nogil=True,
+                    utility_code=include_std_lib_h_utility_code),
     BuiltinFunction('abs',        None,    None,   "__Pyx_abs_longlong",
                 utility_code = UtilityCode.load("abs_longlong", "Builtins.c"),
                 func_type = PyrexTypes.CFuncType(
@@ -156,10 +233,8 @@ builtin_function_table = [
     #('compile',   "",     "",      ""), # PyObject* Py_CompileString(    char *str, char *filename, int start)
     BuiltinFunction('delattr',    "OO",   "r",     "PyObject_DelAttr"),
     BuiltinFunction('dir',        "O",    "O",     "PyObject_Dir"),
-    BuiltinFunction('divmod',     "ii",   "O",     "__Pyx_divmod_int",
-                    utility_code=UtilityCode.load("divmod_int", "Builtins.c"),
-                    is_strict_signature = True),
-    BuiltinFunction('divmod',     "OO",   "O",     "PyNumber_Divmod"),
+    BuiltinFunction('divmod',     "OO",   "O",     "PyNumber_Divmod",
+                    specialiser=_generate_divmod_function),
     BuiltinFunction('exec',       "O",    "O",     "__Pyx_PyExecGlobals",
                     utility_code = pyexec_globals_utility_code),
     BuiltinFunction('exec',       "OO",   "O",     "__Pyx_PyExec2",
@@ -287,21 +362,21 @@ builtin_types_table = [
 
     ("bytearray", "&PyByteArray_Type", [
                                     BuiltinMethod("__mul__",  "Tz",   "T", "__Pyx_PySequence_Multiply",
-                                                  utility_code=UtilityCode.load("PySequenceMultiply", "ObjectHandling.c")),
+                                                  utility_code=pysequence_multiply_utility_code),
                                     ]),
     ("bytes",   "&PyBytes_Type",   [BuiltinMethod("join",  "TO",   "O", "__Pyx_PyBytes_Join",
                                                   utility_code=UtilityCode.load("StringJoin", "StringTools.c")),
                                     BuiltinMethod("__mul__",  "Tz",   "T", "__Pyx_PySequence_Multiply",
-                                                  utility_code=UtilityCode.load("PySequenceMultiply", "ObjectHandling.c")),
+                                                  utility_code=pysequence_multiply_utility_code),
                                     ]),
     ("str",     "&PyUnicode_Type", [BuiltinMethod("__contains__",  "TO",   "b", "PyUnicode_Contains"),
                                     BuiltinMethod("join",  "TO",   "T", "PyUnicode_Join"),
                                     BuiltinMethod("__mul__",  "Tz",   "T", "__Pyx_PySequence_Multiply",
-                                                  utility_code=UtilityCode.load("PySequenceMultiply", "ObjectHandling.c")),
+                                                  utility_code=pysequence_multiply_utility_code),
                                     ]),
 
     ("tuple",  "&PyTuple_Type",    [BuiltinMethod("__mul__", "Tz", "T", "__Pyx_PySequence_Multiply",
-                                                  utility_code=UtilityCode.load("PySequenceMultiply", "ObjectHandling.c")),
+                                                  utility_code=pysequence_multiply_utility_code),
                                     ]),
 
     ("list",   "&PyList_Type",     [BuiltinMethod("insert",  "TzO",  "r", "PyList_Insert"),
@@ -311,7 +386,7 @@ builtin_types_table = [
                                     BuiltinMethod("extend",  "TO",   "r", "__Pyx_PyList_Extend",
                                                   utility_code=UtilityCode.load("ListExtend", "Optimize.c")),
                                     BuiltinMethod("__mul__",  "Tz",   "T", "__Pyx_PySequence_Multiply",
-                                                  utility_code=UtilityCode.load("PySequenceMultiply", "ObjectHandling.c")),
+                                                  utility_code=pysequence_multiply_utility_code),
                                     ]),
 
     ("dict",   "&PyDict_Type",     [BuiltinMethod("__contains__",  "TO",   "b", "PyDict_Contains"),
@@ -338,11 +413,13 @@ builtin_types_table = [
                                                   utility_code=UtilityCode.load("py_dict_clear", "Optimize.c")),
                                     BuiltinMethod("copy",   "T",   "T", "PyDict_Copy")]),
 
-    ("slice",  "&PySlice_Type",    [BuiltinAttribute('start'),
-                                    BuiltinAttribute('stop'),
-                                    BuiltinAttribute('step'),
+    ("slice",  "&PySlice_Type",    [BuiltinProperty("start", PyrexTypes.py_object_type, '__Pyx_PySlice_Start',
+                                                    utility_code=slice_accessor_utility_code),
+                                    BuiltinProperty("stop", PyrexTypes.py_object_type, '__Pyx_PySlice_Stop',
+                                                    utility_code=slice_accessor_utility_code),
+                                    BuiltinProperty("step", PyrexTypes.py_object_type, '__Pyx_PySlice_Step',
+                                                    utility_code=slice_accessor_utility_code),
                                     ]),
-#    ("file",   "&PyFile_Type",     []),  # not in Py3
 
     ("set",      "&PySet_Type",    [BuiltinMethod("clear",   "T",  "r", "PySet_Clear"),
                                     # discard() and remove() have a special treatment for unhashable values
@@ -587,7 +664,6 @@ unsafe_compile_time_methods = {
     #
     'complex': set(),
     'int': {
-        'as_integer_ratio',  # Py3.8+
         'bit_count',  # Py3.10+
         'from_bytes',  # classmethod
         'is_integer',  # Py3.12+
@@ -601,14 +677,13 @@ unsafe_compile_time_methods = {
     },
     'tuple': set(),
     'str': {
-        'capitalize',  # changed in Py3.8+
+        'replace',  # changed in Py3.13+
         'maketrans',  # staticmethod
         'removeprefix',  # Py3.9+
         'removesuffix',  # Py3.9+
     },
     'bytes': {
         'fromhex',  # classmethod
-        'hex',  # changed in Py3.8+
         'maketrans',  # staticmethod
         'removeprefix',  # Py3.9+
         'removesuffix',  # Py3.9+
