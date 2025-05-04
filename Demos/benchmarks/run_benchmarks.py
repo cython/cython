@@ -367,8 +367,13 @@ def report_revision_sizes(rev_sizes):
 
     for benchmark, sizes in sizes_by_benchmark.items():
         logging.info(f"### Benchmark '{benchmark}' (size):")
+        base_line = sizes[0][1]
         for revision_name, size in sizes:
-            logging.info(f"    {revision_name[:25]:25}:  {size} bytes")
+            diff_str = ""
+            if base_line != size:
+                pdiff = size * 100 / base_line - 100
+                diff_str = f"  ({pdiff:+8.1f} %)"
+            logging.info(f"    {revision_name[:25]:25}:  {size} bytes{diff_str}")
 
 
 def parse_args(args):
