@@ -357,9 +357,16 @@ need to heap-allocate them::
 
   l = new latch(2)
   try:
-    ...  # use the latch
+    with nogil:  # avoid deadlocks!
+      ...  # use the latch
   finally:
     del l
+
+Be careful not to hold the GIL while performing blocking operations with the C or C++ standard
+library threading tools. Unlike the Python standard library, they are not aware of the
+GIL/Python thread state. Therefore you have a very high probability of deadlock (even
+on free-threaded builds, which do occassionally switch to a GIL-locked mode when running
+certain operations).
 
 It is also possible to use C++ to create new threads (for example, using the ``std::jthread``
 class).  This works, but we generally recommend creating threads through Python
@@ -368,6 +375,38 @@ by calling ``with gil:`` before using any Python objects and this will not work 
 with multiple subinterpreters - this recommendation is therefore mainly to future-proof
 your code and not restrict where it can be used from.  It is a fairly soft suggestion though,
 so feel free to ignore it if you have good reason to.
+
+Available library facilities include:
+
+* spawning threads (both C and C++, as of Cython 3.1 only the C version is wrapped),
+
+* atomic numeric types (both C and C++, wrapped for C++ in Cython 3 and C for Cython 3.1)
+
+* mutexes (regular, timed and recursive) (both C and C++, wrapped in Cython 3.1+),
+
+* shared mutexes providing many threads with read access or a single thread with write access
+  (C++, wrapped in Cython 3.1+),
+
+* condition variables, allowing one thread to wait until a condition is met (C and C++,
+  as of Cython 3.1 only the C version is wrapped),
+
+* ``call_once`` allowing an initialization function to be called safely from many threads
+  (C and C++, wrapped in Cython 3.1+),
+
+* semaphores, representing a way of counting resource ownership (C++ only, wrapped in
+  Cython 3.1+),
+
+* barriers and latches, which mark points where threads wait for each other (C++ only,
+  wrapped in Cython 3.1+),
+
+* promises and futures - a way of transmitting a single "result" between threads
+  (C++ only, wrapped in Cython 3.1+),
+
+* stop tokens, a convenient way of signaling a request to stop work (C++ only,
+  wrapped in Cython 3.1+).
+
+This list of non-exhaustive. And you can also use third-party libraries outside
+the language standard libraries for more options.
 
 ``cython.critical_section`` vs GIL
 ----------------------------------
