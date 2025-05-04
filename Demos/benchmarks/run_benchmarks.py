@@ -365,6 +365,7 @@ def report_revision_sizes(rev_sizes):
         for benchmark, size in bm_size.items():
             sizes_by_benchmark[benchmark].append((revision_name, size))
 
+    pdiffs_by_revision = collections.defaultdict(list)
     for benchmark, sizes in sizes_by_benchmark.items():
         logging.info(f"### Benchmark '{benchmark}' (size):")
         base_line = sizes[0][1]
@@ -372,8 +373,14 @@ def report_revision_sizes(rev_sizes):
             diff_str = ""
             if base_line != size:
                 pdiff = size * 100 / base_line - 100
+                pdiffs_by_revision[revision_name].append(pdiff)
                 diff_str = f"  ({pdiff:+8.1f} %)"
             logging.info(f"    {revision_name[:25]:25}:  {size} bytes{diff_str}")
+
+    logging.info(f"### Average size changes:")
+    for revision_name, pdiffs in pdiffs_by_revision.items():
+        average = sum(pdiffs) / len(pdiffs)
+        logging.info(f"    {revision_name[:25]:25}:  {average:+8.1f} %")
 
 
 def parse_args(args):
