@@ -1,7 +1,7 @@
 from libcpp cimport bool
 
 cdef extern from "<mutex>" namespace "std" nogil:
-    # For all these mutex classes, we strongly recommend you do not using any
+    # For all these mutex classes, we strongly recommend you do not use any
     # blocking lock function while holding the GIL (try_lock should be fine though).
     cppclass mutex:
         # may not be present, and we know nothing about it
