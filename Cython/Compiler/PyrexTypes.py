@@ -1419,6 +1419,12 @@ builtin_types_with_trashcan = frozenset({
     'dict', 'list', 'set', 'frozenset', 'tuple', 'type',
 })
 
+_is_exception_type_name = re.compile(
+    ".*(?:Exception|Error|Warning|Group)"
+    "|KeyboardInterrupt"
+    "|SystemExit"
+    "|Stop(?:Async)?Iteration"
+).search
 
 class BuiltinObjectType(PyObjectType):
     #  objstruct_cname  string           Name of PyObject struct
@@ -1427,7 +1433,8 @@ class BuiltinObjectType(PyObjectType):
     has_attributes = 1
     base_type = None
     module_name = '__builtin__'
-    require_exact = 1
+    require_exact = True
+    is_exception_type = False
 
     # fields that let it look like an extension type
     vtabslot_cname = None
@@ -1447,8 +1454,9 @@ class BuiltinObjectType(PyObjectType):
             # Special case the type type, as many C API calls (and other
             # libraries) actually expect a PyTypeObject* for type arguments.
             self.decl_type = objstruct_cname
-        if name == 'Exception':
-            self.require_exact = 0
+        if _is_exception_type_name(name):
+            self.is_exception_type = True
+            self.require_exact = False
 
     def set_scope(self, scope):
         self.scope = scope
@@ -1512,7 +1520,7 @@ class BuiltinObjectType(PyObjectType):
             type_check = "PyMemoryView_Check"
         else:
             type_check = 'Py%s_Check' % type_name.capitalize()
-        if exact and type_name not in ('bool', 'slice', 'Exception', 'memoryview'):
+        if exact and not self.is_exception_type and type_name not in ('bool', 'slice', 'memoryview'):
             type_check += 'Exact'
         return type_check
 

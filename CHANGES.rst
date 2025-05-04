@@ -2,6 +2,27 @@
 Cython Changelog
 ================
 
+3.1.0 final (2025-05-??)
+========================
+
+Bugs fixed
+----------
+
+* Variables typed as builtin Python exception types now accept subtypes instead of rejecting them.
+  This specifically impacted types like ``BaseException``, ``Exception`` or ``OSError``,
+  which almost always intend to reference subtypes.
+  (Github issue :issue:`6828`)
+
+* Calling cimported C functions with their fully qualified package name could crash Cython.
+  (Github issue :issue:`6551`)
+
+* Cython is more relaxed about the exact C++ constructor name when it calls ``new()`` on ctypedefs.
+  (Github issue :issue:`6821`)
+
+* ``const struct`` declarations could lead to invalid assignments to ``const`` temp variables.
+  (Github issue :issue:`6804`)
+
+
 3.1.0 rc 1 (2025-05-01)
 =======================
 
