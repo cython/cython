@@ -447,18 +447,21 @@ e.g.::
 These ``.pxd`` files need not have corresponding ``.pyx``
 modules if they contain purely declarations of external libraries.
 
+
 .. _shared_module:
 
 Shared utility module
 =====================
 
-When a ``.pyx``/``.py`` file is compiled to ``.c`` file, cython automatically embeds utility code to the resulting ``.c`` file. For projects containing multiple cython modules, it
-can result with larger total size of compiled extensions. To avoid redundant code, the shared utility code can be generated to a separate extension module which is
-automatically cimported and used by the user-written extension modules.
+When a ``.pyx``/``.py`` file is compiled to ``.c`` file, Cython automatically embeds
+internal utility code into the resulting ``.c`` file.  For projects containing multiple
+Cython modules, this can result in a larger total size of compiled extensions.
+To avoid redundant code, the common utility code can be extracted into a separate extension
+module which is automatically cimported and used by the user-written extension modules.
 
-.. note:: Currently only memoryview utility code can be generated in the shared utility module.
+.. note:: Currently, only memoryview utility code can be moved to the shared utility module.
 
-Consider the following example package ::
+Consider the following example package::
 
     mypkg/
     +-- __init__.py
@@ -469,30 +472,42 @@ Consider the following example package ::
         +-- __init__.py
         +-- module.pyx
 
-The :file:`_cyutility.c` file contains shared utility code and :file:`module.pyx` is a standard cython source file which will be compiled into an extension cimporting ``mypkg.shared._cyutility`` module.
-The compilation process now consist of four steps:
+The :file:`_cyutility.c` file contains the shared utility code and :file:`module.pyx` is
+a standard Cython source file which will be compiled into an extension cimporting the
+``mypkg.shared._cyutility`` module (automatically).
+The compilation process now consist of three steps:
 
-1. generating shared utility code. This is done via ``--generate-shared`` argument:
+1. Generating the shared utility code. This is done via the ``--generate-shared`` argument:
 
    .. code-block:: console
 
        $ cython --generate-shared=mypkg/shared/_cyutility.c
 
-2. compiling the shared utility code. The module needs to be compiled as regular ``.c`` file, either by using the C compiler directly, or through setuptools, etc.
-3. compiling ``.pyx`` file to ``.c`` file with the ``--shared`` argument to give the name of the shared module:
+2. Translating all ``.pyx`` files to ``.c`` files with the ``--shared`` argument to provide
+   the fully qualified name of the shared module:
 
    .. code-block:: console
 
         $ cython --shared=mypkg.shared._cyutility module.pyx
 
-4. compiling ``module.c`` file
+3. Compiling the shared utility module and all other (user defined) extension modules.
+   The shared utility module needs to be compiled as regular ``.c`` extension module,
+   either by using the C compiler directly, or through setuptools, etc.
 
-.. warning:: An extension module compiled with ``--shared=...`` argument, automatically imports the shared module under the fully qualified name provided via the argument parameter. Failing to import the shared module will cause a failure of the extension module import.
+.. warning::
+
+   An extension module compiled with the ``--shared=...`` argument automatically
+   imports the shared module under the fully qualified name provided via the
+   argument parameter.  Failing to import the shared module will cause a failure
+   to import the extension module that uses it.
 
 Compiling shared module using setuptools
 ----------------------------------------
 
-To simplify the compilation process, setuptools can be used. To specify the fully qualified module name of the shared utility, the ``shared_utility_qualified_name`` parameter of :func:`cythonize` can be used instead of the ``--shared`` argument. The :file:`setup.py` file would be:
+If setuptools is used in the build process, the fully qualified module name
+of the shared utility module can be specified using the ``shared_utility_qualified_name``
+parameter of :func:`cythonize` (instead of the ``--shared`` argument).
+The :file:`setup.py` file would be:
 
 .. code-block:: python
     :caption: setup.py
@@ -510,8 +525,11 @@ To simplify the compilation process, setuptools can be used. To specify the full
       ext_modules = cythonize(extensions, shared_utility_qualified_name = 'mypkg.shared._cyutility')
     )
 
+.. note::
 
-.. note:: The shared utility :file:`_cyutility.c` file needs to be generated manually using ``cython --generate-shared=...`` command (generated ``.c`` file can be committed to the repository).
+   The shared utility :file:`_cyutility.c` file still needs to be generated manually
+   using the command ``cython --generate-shared=...``.
+
 
 .. _integrating_multiple_modules:
 
