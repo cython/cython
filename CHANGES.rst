@@ -2,7 +2,7 @@
 Cython Changelog
 ================
 
-3.1.0 rc 2 (2025-05-04)
+3.1.0 rc 2 (2025-05-??)
 =======================
 
 Features added
@@ -26,6 +26,9 @@ Bugs fixed
 
 * Calling cimported C functions with their fully qualified package name could crash Cython.
   (Github issue :issue:`6551`)
+
+* Naming a variable after its inferred type (e.g. `str += ""`) could trigger an infinite loop in Cython.
+  (Github issue :issue:`6835`)
 
 * Cython is more relaxed about the exact C++ constructor name when it calls ``new()`` on ctypedefs.
   (Github issue :issue:`6821`)
