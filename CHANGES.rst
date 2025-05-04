@@ -2,8 +2,15 @@
 Cython Changelog
 ================
 
-3.1.0 final (2025-05-??)
-========================
+3.1.0 rc 2 (2025-05-04)
+=======================
+
+Features added
+--------------
+
+* Declarations for C++ ``std::stop_token`` were added as ``libcpp.stop_token`` to provide
+  additional low-level synchronisation primitives also in the light of free-threading Python.
+  (Github issue :issue:`6820`)
 
 Bugs fixed
 ----------
@@ -12,6 +19,10 @@ Bugs fixed
   This specifically impacted types like ``BaseException``, ``Exception`` or ``OSError``,
   which almost always intend to reference subtypes.
   (Github issue :issue:`6828`)
+
+* The ``call_once()`` function argument in ``libc.threads`` (new in 3.1) was changed to require
+  a ``nogil`` declaration, as semantically implied.  Code that used it with a callback function
+  expecting to hold the GIL must change the callback code to use ``with gil``.
 
 * Calling cimported C functions with their fully qualified package name could crash Cython.
   (Github issue :issue:`6551`)
