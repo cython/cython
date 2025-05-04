@@ -109,16 +109,15 @@ def test_py_safe_cnd_wait():
     cdef object done = False
 
     def wait_on_condition_var():
-        nonlocal value
         nonlocal done
 
         threads.py_safe_mtx_lock(&m)
         try:
-            while True:
+            wait_result = threads.thrd_success
+            while wait_result == threads.thrd_success and value <= 5:
                 threads.py_safe_cnd_wait(&condition_var, &m)
-                if value > 5:
-                    done = True
-                return
+            if value > 5:
+                done = True
         finally:
             threads.mtx_unlock(&m)
 
@@ -176,15 +175,14 @@ def test_py_safe_cnd_timed_wait(fail):
 
         threads.py_safe_mtx_lock(&m)
         try:
-            while True:
+            result = threads.thrd_success
+            while result == threads.thrd_success and not condition:
                 result = threads.py_safe_cnd_timedwait(
                     &condition_var, &m, &ts
                 )
-                if result == threads.thrd_timedout:
-                    return
-                elif result == threads.thrd_success and condition:
-                    condition_var_succeeded = True
-                    return
+            if condition:
+                condition_var_succeeded = True
+                return
         finally:
             threads.mtx_unlock(&m)
 
