@@ -47,7 +47,7 @@ def test_cv_any_stop_token1():
     # no need to worry about the GIL because there's no other threads involved
     m.lock()
     try:
-        # cv will instantly return becuse the stop has been requested
+        # cv will instantly return because the stop has been requested
         result = cv.wait(m, ss.get_token(), dummy_predicate)
     finally:
         m.unlock()
@@ -68,7 +68,7 @@ def test_cv_any_stop_token2():
     # no need to worry about the GIL because there's no other threads involved
     m.lock()
     try:
-        # cv will instantly return becuse the stop has been requested
+        # cv will instantly return because the stop has been requested
         result = cv.wait_for(m, ss.get_token(), days(10), dummy_predicate)
     finally:
         m.unlock()
@@ -89,7 +89,7 @@ def test_cv_any_stop_token3():
     # no need to worry about the GIL because there's no other threads involved
     m.lock()
     try:
-        # cv will instantly return becuse the stop has been requested
+        # cv will instantly return because the stop has been requested
         result = cv.wait_until(m, ss.get_token(), get_time_point(), dummy_predicate)
     finally:
         m.unlock()
