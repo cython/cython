@@ -1,9 +1,5 @@
 from libcpp cimport bool
 
-cdef extern from *:
-    # Not part of the C++ interface, but declaring this here so it isn't nogil
-    ctypedef void (*_once_func_type)() except+
-
 cdef extern from "<mutex>" namespace "std" nogil:
     cppclass mutex:
         # may not be present, and we know nothing about it
@@ -115,6 +111,7 @@ cdef extern from "<mutex>" namespace "std" nogil:
     bool try_lock(...) except+
     void lock(...) except+
 
-    # If we're passed a cdef function, make sure that it's specified without Python exceptions.
-    void call_once(once_flag&, _once_func_type callable) except +
+    # We can't enforce this in the interface, but you need to make sure that Callable
+    # doesn't require the GIL and doesn't throw Python exceptions.
+    # You should also not call this with the GIL held.
     void call_once[Callable](once_flag&, Callable& callable,  ...) except +

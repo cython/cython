@@ -1,6 +1,8 @@
 # mode: run
 # tag: c11, no-cpp, no-macos
 
+from __future__ import print_function
+
 from libc cimport threads
 
 def test_mutex():
@@ -12,8 +14,11 @@ def test_mutex():
     threads.mtx_lock(&m)
     threads.mtx_unlock(&m)
 
-cdef void call_me_once() noexcept:
-    print("Listen very carefully, I shall say this only once.")
+cdef void call_me_once() noexcept nogil:
+    # with gil is only OK because it's a toy example with no other threads so no chance of deadlock.
+    # Do not copy this code!
+    with gil:
+        print("Listen very carefully, I shall say this only once.")
 
 def test_once():
     """
@@ -25,7 +30,7 @@ def test_once():
     threads.call_once(&flag, &call_me_once)
     threads.call_once(&flag, &call_me_once)
 
-cdef int my_thread_func(void* arg) nogil noexcept:
+cdef int my_thread_func(void* arg) noexcept nogil:
     cdef int x = (<int*>arg)[0]
     t = threads.thrd_current()  # compile test - nothing useful to do with it
     return x

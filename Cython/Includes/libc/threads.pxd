@@ -1,10 +1,6 @@
 from libc.time cimport timespec
 
 cdef extern from *:
-    # Not part of the C interface, but declaring this here so it isn't nogil
-    ctypedef void (*_once_func_type)() noexcept
-
-cdef extern from *:
     """
     #include <string.h>
     #include <threads.h>
@@ -16,12 +12,14 @@ cdef extern from *:
     void once_flag_init "__Pyx_once_flag_init"(once_flag*)
 
 cdef extern from "<threads.h>" nogil:
+    ctypedef void (*_once_func_type)() noexcept nogil
+
     # Threads
     ctypedef struct thrd_t:
         pass
     # Declare as noexcept because you'll regret trying to throw a Python exception from it
     # and nogil because it's a new thread, so you definitely don't have a Python threadstate yet.
-    ctypedef int (*thrd_start_t)(void*) nogil noexcept
+    ctypedef int (*thrd_start_t)(void*) noexcept nogil
 
     int thrd_create(thrd_t*, thrd_start_t, void*)
     int thrd_equal(thrd_t lhs, thrd_t rhs)
@@ -59,7 +57,7 @@ cdef extern from "<threads.h>" nogil:
         pass
     once_flag ONCE_FLAG_INIT
 
-    # Be careful with the GIL if the Cython function you're passing needs the GIL
+    # We strongly recommend not calling this with the GIL held.
     void call_once(once_flag* flag, _once_func_type func) noexcept
 
     # condition variables
@@ -77,7 +75,7 @@ cdef extern from "<threads.h>" nogil:
         pass
     enum:
         TSS_DTOR_ITERATIONS
-    ctypedef void (*tss_dtor_t)(void*) nogil noexcept
+    ctypedef void (*tss_dtor_t)(void*) noexcept nogil
     int tss_create(tss_t* key, tss_dtor_t destructor)
     void *tss_get(tss_t key)
     int tss_set(tss_t key, void* val)
