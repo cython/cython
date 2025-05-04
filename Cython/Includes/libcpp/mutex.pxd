@@ -72,6 +72,8 @@ cdef extern from "<mutex>" namespace "std" nogil:
     # lock_guard is probably unusable without cpp_locals because it
     # can't be default-constructed or moved.
     # We strongly recommend you do not use this while holding the GIL.
+    # A safe way to construct with the GIL is to lock the mutex with py_safe_lock
+    # and then construct the lock guard with adopt_lock_t.
     cppclass lock_guard[T]:
         ctypedef T mutex_type
         lock_guard(mutex_type&) except+
@@ -112,6 +114,9 @@ cdef extern from "<mutex>" namespace "std" nogil:
     # arguments. Cython doesn't support this, so if you want more than 26 arguments,
     # you're on your own.
     # We strongly recommend that you do not use this while holding the GIL.
+    # The safe way to use it when holding the GIL is to:
+    # 1. first lock the mutexes with py_safe_lock
+    # 2. construct scoped_lock with adopt_lock as the first argument
     cppclass scoped_lock[A=*, B=*, C=*, D=*, E=*, F=*, G=*, H=*, I=*, J=*, K=*,
                          L=*, M=*, N=*, O=*, P=*, Q=*, R=*, S=*, T=*, U=*, V=*,
                          W=*, X=*, Y=*, Z=*]:
@@ -283,10 +288,22 @@ cdef extern from *:
     template <typename... LockTs>
     void __pyx_py_safe_std_lock_slow_loop(LockTs& ...locks) {
         while (true) {
-            Py_BEGIN_ALLOW_THREADS
-            __pyx_std_lock_wrapper(locks...);
-            (locks.unlock(), ...);
-            Py_END_ALLOW_THREADS
+            PyThreadState *_save;
+            Py_UNBLOCK_THREADS
+            try {
+                #if defined(__cpp_lib_scoped_lock)
+                auto scoped_lock = std::scoped_lock(locks...);
+                #else
+                __pyx_std_lock_wrapper(locks...);
+                (locks.unlock(), ...);
+                #endif
+            } catch (...) {
+                // In this case, we probably can't reason about the state of the locks but we can at least
+                // make sure the GIL is consistent.
+                Py_BLOCK_THREADS
+                throw;
+            }
+            Py_BLOCK_THREADS
             if (__pyx_std_try_lock_wrapper(locks...) == -1) {
                 return; // success
             }
