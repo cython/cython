@@ -755,6 +755,7 @@ def int64_long_sum():
     # preferable to incorrect width.
     assert typeof(ux + x64) == typeof(x64 + ux) == 'int64_t', typeof(ux + x64)
 
+
 cdef class InferInProperties:
     """
     >>> InferInProperties().x
@@ -782,6 +783,7 @@ cdef class WithMethods:
     cpdef int default_arg(self, int x, int y=0):
         return x + y + self.offset
 
+
 def test_bound_methods():
   """
   >>> test_bound_methods()
@@ -796,6 +798,7 @@ def test_bound_methods():
   assert default_arg(2) == 12, default_arg(2)
   assert default_arg(2, 3) == 15, default_arg(2, 2)
 
+
 def test_builtin_max():
     """
     # builtin max is slightly complicated because it gets transformed to EvalWithTempExprNode
@@ -808,3 +811,24 @@ def test_builtin_max():
             a = max(self.a, self.a)
             assert typeof(a) == "Python object", typeof(a)
     C().get_max()
+
+
+def variable_with_name_of_type():
+    """
+    >>> variable_with_name_of_type()
+    ([], 'abc')
+    """
+    # Names like 'list.append' refer to the type and must be inferred as such,
+    # but a simple variable called 'list' is not the same and used to break type inference.
+    # See https://github.com/cython/cython/issues/6835
+    rest_list = []
+    list = []  # note: same name as type of value
+    list += rest_list
+    assert typeof(list) == 'list object', typeof(list)
+
+    rest_str = "abc"
+    str = ""
+    str += rest_str
+    assert typeof(str) == 'str object', typeof(str)
+
+    return list, str
