@@ -335,7 +335,7 @@ def report_revision_timings(rev_timings):
             if base_line != tmed:
                 pdiff = tmed * 100 / base_line - 100
                 differences[revision_name].append((abs(pdiff), pdiff, tmed - base_line, benchmark))
-                diff_str = f"  ({pdiff:+8.2f} %)"
+                diff_str = f"  ({pdiff:+8.1f} %)"
             logging.info(
                 f"    {revision_name[:25]:25} = {format_time(tmin):>12}, {format_time(tmed):>12}, {format_time(tmax):>12}{diff_str}"
             )
@@ -354,7 +354,7 @@ def report_revision_timings(rev_timings):
             for absdiff, pdiff, tdiff, benchmark in diffs:
                 if absdiff < cutoff:
                     break
-                logging.info(f"    {benchmark[:25]:<25}:  {pdiff:+8.2f} %   /  {'+' if tdiff > 0 else '-'}{format_time(abs(tdiff))}")
+                logging.info(f"    {benchmark[:25]:<25}:  {pdiff:+8.1f} %   /  {'+' if tdiff > 0 else '-'}{format_time(abs(tdiff))}")
 
 
 def report_revision_sizes(rev_sizes):
