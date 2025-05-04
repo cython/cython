@@ -1,4 +1,7 @@
 cdef extern from "<barrier>" namespace "std" nogil:
+    # Note on thread safety:
+    # For any of the blocking functions here you should be very
+    # careful to ensure that you are not deadlocked on the GIL.
     cdef cppclass barrier[CompletionFunction = *]:
         cppclass arrival_token:
             pass
