@@ -40,9 +40,8 @@ def test_unique_lock_more():
     # unlocked automatically when it exits scope
 
 
-cdef void call_me_once() noexcept nogil:
-    with gil:
-        print("Listen very carefully, I shall say this only once.")
+cdef void call_me_once() noexcept with gil:
+    print("Listen very carefully, I shall say this only once.")
 
 cdef extern from *:
     """
