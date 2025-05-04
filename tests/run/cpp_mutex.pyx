@@ -1,7 +1,7 @@
 # mode: run
 # tag: cpp, cpp17, no-cpp-locals
 
-from __future__ import print_function
+# cython: language_level=3
 
 from libcpp.mutex cimport (
     mutex, once_flag, unique_lock, call_once,

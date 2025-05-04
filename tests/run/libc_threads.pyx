@@ -1,7 +1,7 @@
 # mode: run
 # tag: c11, no-cpp, no-macos
 
-from __future__ import print_function
+# cython: language_level=3
 
 from libc cimport threads
 
