@@ -28,6 +28,7 @@ cdef extern from "<threads.h>" nogil:
     void thrd_yield()
     void thrd_exit(int res)
     void thrd_detach(thrd_t thr)
+    # Be very wary of deadlocks if calling thrd_join with the GIL.
     int thrd_join(thrd_t, int *res)
     enum:
         thrd_success
@@ -66,6 +67,7 @@ cdef extern from "<threads.h>" nogil:
     int cnd_init(cnd_t*)
     int cnd_signal(cnd_t*)
     int cnd_broadcast(cnd_t*)
+    # Be very wary of calling wait/timedwait with the GIL held.
     int cnd_wait(cnd_t*, mtx_t*)
     int cnd_timedwait(cnd_t*, mtx_t*, const timespec*)
     void cnd_destroy(cnd_t*)

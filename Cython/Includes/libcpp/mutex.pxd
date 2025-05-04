@@ -1,6 +1,8 @@
 from libcpp cimport bool
 
 cdef extern from "<mutex>" namespace "std" nogil:
+    # For all these mutex classes, we strongly recommend you do not using any
+    # blocking lock function while holding the GIL (try_lock should be fine though).
     cppclass mutex:
         # may not be present, and we know nothing about it
         cppclass native_handle_type:
@@ -25,6 +27,9 @@ cdef extern from "<mutex>" namespace "std" nogil:
 
         native_handle_type native_handle() except+
 
+    # We strongly recommend not mixing recursive_mutex and the GIL at all.
+    # Because "unlock" may not actually unlock it, it's pretty hard to reason about
+    # avoiding deadlocks.
     cppclass recursive_mutex:
         # may not be present, and we know nothing about it
         cppclass native_handle_type:
@@ -36,6 +41,9 @@ cdef extern from "<mutex>" namespace "std" nogil:
 
         native_handle_type native_handle() except+
 
+    # We strongly recommend not mixing timed_recursive_mutex and the GIL at all.
+    # Because "unlock" may not actually unlock it, it's pretty hard to reason about
+    # avoiding deadlocks.
     cppclass timed_recursive_mutex:
         # may not be present, and we know nothing about it
         cppclass native_handle_type:
@@ -63,11 +71,14 @@ cdef extern from "<mutex>" namespace "std" nogil:
 
     # lock_guard is probably unusable without cpp_locals because it
     # can't be default-constructed or moved.
+    # We strongly recommend you do not use this while holding the GIL.
     cppclass lock_guard[T]:
         ctypedef T mutex_type
         lock_guard(mutex_type&) except+
         lock_guard(mutex_type&, adopt_lock_t)
 
+    # We strongly recommend that you do not use any blocking lock function with the GIL.
+    # (try_lock is fine though).
     cppclass unique_lock[T]:
         ctypedef T mutex_type
         unique_lock()
@@ -100,6 +111,7 @@ cdef extern from "<mutex>" namespace "std" nogil:
     # It's also a variadic template type so can take potentially unlimited number of
     # arguments. Cython doesn't support this, so if you want more than 26 arguments,
     # you're on your own.
+    # We strongly recommend that you do not use this while holding the GIL.
     cppclass scoped_lock[A=*, B=*, C=*, D=*, E=*, F=*, G=*, H=*, I=*, J=*, K=*,
                          L=*, M=*, N=*, O=*, P=*, Q=*, R=*, S=*, T=*, U=*, V=*,
                          W=*, X=*, Y=*, Z=*]:
@@ -109,6 +121,7 @@ cdef extern from "<mutex>" namespace "std" nogil:
         pass
 
     bool try_lock(...) except+
+    # We strongly recommend that you do not call "lock" while holding the GIL.
     void lock(...) except+
 
     # We can't enforce this in the interface, but you need to make sure that Callable
