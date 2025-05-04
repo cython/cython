@@ -365,7 +365,7 @@ need to heap-allocate them::
 Be careful not to hold the GIL while performing blocking operations with the C or C++ standard
 library threading tools. Unlike the Python standard library, they are not aware of the
 GIL/Python thread state. Therefore you have a very high probability of deadlock (even
-on free-threaded builds, which do occassionally switch to a GIL-locked mode when running
+on free-threaded builds, which do occasionally switch to a GIL-locked mode when running
 certain operations).
 
 It is also possible to use C++ to create new threads (for example, using the ``std::jthread``
