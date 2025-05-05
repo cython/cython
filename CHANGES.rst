@@ -33,8 +33,14 @@ Bugs fixed
 * Cython is more relaxed about the exact C++ constructor name when it calls ``new()`` on ctypedefs.
   (Github issue :issue:`6821`)
 
+* Using ``cpp_locals`` in nogil sections could crash.
+  (Github issue :issue:`6838`)
+
 * ``const struct`` declarations could lead to invalid assignments to ``const`` temp variables.
   (Github issue :issue:`6804`)
+
+* A refcounting error was fixed in the method class cell support code.
+  (Github issue :issue:`6839`)
 
 
 3.1.0 rc 1 (2025-05-01)
