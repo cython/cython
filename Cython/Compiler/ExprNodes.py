@@ -2042,11 +2042,12 @@ class NameNode(AtomicExprNode):
                 return self.inferred_type
             return py_object_type
         elif (self.entry.type.is_extension_type or self.entry.type.is_builtin_type) and \
-                not self.is_target and self.name == self.entry.type.name:
+                self.entry == self.entry.type.entry:
             # Unfortunately the type attribute of type objects
             # is used for the pointer to the type they represent.
             return type_type
-        elif self.entry.type is unicode_type and self.name in ('unicode', 'basestring'):
+        elif (self.entry.type is unicode_type and
+                self.entry == self.entry.type.entry and self.name in ('unicode', 'basestring')):
             # Keep recognising the old Py2 names for 'str' as type.
             return type_type
         elif self.entry.type.is_cfunction:

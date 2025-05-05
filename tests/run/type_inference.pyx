@@ -888,10 +888,10 @@ def test_builtin_max():
     C().get_max()
 
 
-def variable_with_name_of_type():
+def variable_with_name_of_type_builtin():
     """
-    >>> variable_with_name_of_type()
-    ([], 'abc')
+    >>> variable_with_name_of_type_builtin()
+    ([], 'abcabc')
     """
     # Names like 'list.append' refer to the type and must be inferred as such,
     # but a simple variable called 'list' is not the same and used to break type inference.
@@ -899,11 +899,29 @@ def variable_with_name_of_type():
     rest_list = []
     list = []  # note: same name as type of value
     list += rest_list
+    list = list + rest_list
     assert typeof(list) == 'list object', typeof(list)
 
     rest_str = "abc"
     str = ""
     str += rest_str
+    str = str + rest_str
     assert typeof(str) == 'str object', typeof(str)
 
     return list, str
+
+cdef class SomeExtType:
+    cdef SomeExtType get(self):
+        return self
+
+def variable_with_name_of_type_exttype(SomeExtType x):
+    """
+    >>> x = SomeExtType()
+    >>> res = variable_with_name_of_type_exttype(x)
+    >>> res == x
+    True
+    """
+    SomeExtType = x
+    SomeExtType = SomeExtType.get()
+    assert typeof(SomeExtType) == "SomeExtType", typeof(SomeExtType)
+    return SomeExtType
