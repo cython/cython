@@ -10333,12 +10333,10 @@ class PyCFunctionNode(ExprNode, ModuleNameMixin):
         if def_node.requires_classobj:
             assert code.pyclass_stack, "pyclass_stack is empty"
             class_node = code.pyclass_stack[-1]
-            code.put_incref(self.py_result(), py_object_type)
             code.putln(
                 'PyList_Append(%s, %s);' % (
                     class_node.class_cell.result(),
-                    self.result()))
-            self.generate_giveref(code)
+                    self.py_result()))
 
         if self.defaults:
             code.putln(
