@@ -3230,6 +3230,19 @@ static CYTHON_INLINE void __Pyx_RaiseUnboundLocalError(const char *varname) {
     PyErr_Format(PyExc_UnboundLocalError, "local variable '%s' referenced before assignment", varname);
 }
 
+/////////////// RaiseUnboundLocalErrorNogil.proto ///////////////
+static void __Pyx_RaiseUnboundLocalErrorNogil(const char *varname);/*proto*/
+
+/////////////// RaiseUnboundLocalErrorNogil ///////////////
+//@requires: RaiseUnboundLocalError
+
+// Don't inline the function, it should really never be called in production
+static void __Pyx_RaiseUnboundLocalErrorNogil(const char *varname) {
+    PyGILState_STATE gilstate = PyGILState_Ensure();
+    __Pyx_RaiseUnboundLocalError(varname);
+    PyGILState_Release(gilstate);
+}
+
 
 /////////////// RaiseClosureNameError.proto ///////////////
 static CYTHON_INLINE void __Pyx_RaiseClosureNameError(const char *varname);/*proto*/
@@ -3239,17 +3252,15 @@ static CYTHON_INLINE void __Pyx_RaiseClosureNameError(const char *varname) {
     PyErr_Format(PyExc_NameError, "free variable '%s' referenced before assignment in enclosing scope", varname);
 }
 
+/////////////// RaiseClosureNameErrorNogil.proto ///////////////
+static CYTHON_INLINE void __Pyx_RaiseClosureNameErrorNogil(const char *varname);/*proto*/
 
-/////////////// RaiseUnboundMemoryviewSliceNogil.proto ///////////////
-static void __Pyx_RaiseUnboundMemoryviewSliceNogil(const char *varname);/*proto*/
+/////////////// RaiseClosureNameErrorNogil ///////////////
+//@requires: RaiseClosureNameError
 
-/////////////// RaiseUnboundMemoryviewSliceNogil ///////////////
-//@requires: RaiseUnboundLocalError
-
-// Don't inline the function, it should really never be called in production
-static void __Pyx_RaiseUnboundMemoryviewSliceNogil(const char *varname) {
+static CYTHON_INLINE void __Pyx_RaiseClosureNameErrorNogil(const char *varname) {
     PyGILState_STATE gilstate = PyGILState_Ensure();
-    __Pyx_RaiseUnboundLocalError(varname);
+    __Pyx_RaiseClosureNameError(varname);
     PyGILState_Release(gilstate);
 }
 
@@ -3261,12 +3272,36 @@ static CYTHON_INLINE void __Pyx_RaiseCppGlobalNameError(const char *varname) {
     PyErr_Format(PyExc_NameError, "C++ global '%s' is not initialized", varname);
 }
 
+//////////////// RaiseCppGlobalNameErrorNogil.proto ///////////////////////
+static void __Pyx_RaiseCppGlobalNameErrorNogil(const char *varname); /*proto*/
+
+/////////////// RaiseCppGlobalNameErrorNogil //////////////////////////////
+//@requires: RaiseCppGlobalNameError
+
+static void __Pyx_RaiseCppGlobalNameErrorNogil(const char *varname) {
+    PyGILState_STATE gilstate = PyGILState_Ensure();
+    __Pyx_RaiseCppGlobalNameError(varname);
+    PyGILState_Release(gilstate);
+}
+
 //////////////// RaiseCppAttributeError.proto ///////////////////////
 static CYTHON_INLINE void __Pyx_RaiseCppAttributeError(const char *varname); /*proto*/
 
 /////////////// RaiseCppAttributeError //////////////////////////////
 static CYTHON_INLINE void __Pyx_RaiseCppAttributeError(const char *varname) {
     PyErr_Format(PyExc_AttributeError, "C++ attribute '%s' is not initialized", varname);
+}
+
+//////////////// RaiseCppAttributeErrorNogil.proto ///////////////////////
+static void __Pyx_RaiseCppAttributeErrorNogil(const char *varname); /*proto*/
+
+/////////////// RaiseCppAttributeErrorNogil //////////////////////////////
+//@requires: RaiseCppGlobalNameError
+
+static void __Pyx_RaiseCppAttributeErrorNogil(const char *varname) {
+    PyGILState_STATE gilstate = PyGILState_Ensure();
+    __Pyx_RaiseCppAttributeError(varname);
+    PyGILState_Release(gilstate);
 }
 
 /////////////// ListPack.proto //////////////////////////////////////

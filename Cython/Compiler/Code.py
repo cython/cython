@@ -2961,28 +2961,25 @@ class CCodeWriter:
         return self.putln("if (%s < 0) %s" % (value, self.error_goto(pos)))
 
     def put_error_if_unbound(self, pos, entry, in_nogil_context=False, unbound_check_code=None):
+        nogil_tag = "Nogil" if in_nogil_context else ""
         if entry.from_closure:
-            func = '__Pyx_RaiseClosureNameError'
+            func = f'__Pyx_RaiseClosureNameError{nogil_tag}'
             self.globalstate.use_utility_code(
-                UtilityCode.load_cached("RaiseClosureNameError", "ObjectHandling.c"))
-        elif entry.type.is_memoryviewslice and in_nogil_context:
-            func = '__Pyx_RaiseUnboundMemoryviewSliceNogil'
-            self.globalstate.use_utility_code(
-                UtilityCode.load_cached("RaiseUnboundMemoryviewSliceNogil", "ObjectHandling.c"))
+                UtilityCode.load_cached(f"RaiseClosureNameError{nogil_tag}", "ObjectHandling.c"))
         elif entry.type.is_cpp_class and entry.is_cglobal:
-            func = '__Pyx_RaiseCppGlobalNameError'
+            func = f'__Pyx_RaiseCppGlobalNameError{nogil_tag}'
             self.globalstate.use_utility_code(
-                UtilityCode.load_cached("RaiseCppGlobalNameError", "ObjectHandling.c"))
+                UtilityCode.load_cached(f"RaiseCppGlobalNameError{nogil_tag}", "ObjectHandling.c"))
         elif entry.type.is_cpp_class and entry.is_variable and not entry.is_member and entry.scope.is_c_class_scope:
             # there doesn't seem to be a good way to detecting an instance-attribute of a C class
             # (is_member is only set for class attributes)
-            func = '__Pyx_RaiseCppAttributeError'
+            func = f'__Pyx_RaiseCppAttributeError{nogil_tag}'
             self.globalstate.use_utility_code(
-                UtilityCode.load_cached("RaiseCppAttributeError", "ObjectHandling.c"))
+                UtilityCode.load_cached(f"RaiseCppAttributeError{nogil_tag}", "ObjectHandling.c"))
         else:
-            func = '__Pyx_RaiseUnboundLocalError'
+            func = f'__Pyx_RaiseUnboundLocalError{nogil_tag}'
             self.globalstate.use_utility_code(
-                UtilityCode.load_cached("RaiseUnboundLocalError", "ObjectHandling.c"))
+                UtilityCode.load_cached(f"RaiseUnboundLocalError{nogil_tag}", "ObjectHandling.c"))
 
         if not unbound_check_code:
             unbound_check_code = entry.type.check_for_null_code(entry.cname)

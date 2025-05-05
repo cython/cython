@@ -2541,7 +2541,7 @@ class NameNode(AtomicExprNode):
 
         elif entry.is_cglobal and entry.is_cpp_optional and self.initialized_check:
             unbound_check_code = entry.type.cpp_optional_check_for_null_code(entry.cname)
-            code.put_error_if_unbound(self.pos, entry, unbound_check_code=unbound_check_code)
+            code.put_error_if_unbound(self.pos, entry, self.in_nogil_context, unbound_check_code=unbound_check_code)
 
     def generate_assignment_code(self, rhs, code, overloaded_assignment=False,
                                  exception_check=None, exception_value=None):
@@ -2735,7 +2735,7 @@ class NameNode(AtomicExprNode):
         elif self.entry.type.is_pyobject or self.entry.type.is_memoryviewslice:
             if not self.cf_is_null:
                 if self.cf_maybe_null and not ignore_nonexisting:
-                    code.put_error_if_unbound(self.pos, self.entry)
+                    code.put_error_if_unbound(self.pos, self.entry, self.in_nogil_context)
 
                 if self.entry.in_closure:
                     # generator
@@ -8105,7 +8105,7 @@ class AttributeNode(ExprNode):
                 assert not self.is_temp  # calculate_access_code() only makes sense for non-temps
                 undereferenced_result = self.calculate_access_code()
             unbound_check_code = self.type.cpp_optional_check_for_null_code(undereferenced_result)
-            code.put_error_if_unbound(self.pos, self.entry, unbound_check_code=unbound_check_code)
+            code.put_error_if_unbound(self.pos, self.entry, self.in_nogil_context, unbound_check_code=unbound_check_code)
         else:
             # result_code contains what is needed, but we may need to insert
             # a check and raise an exception
