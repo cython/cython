@@ -10336,7 +10336,6 @@ class PyCFunctionNode(ExprNode, ModuleNameMixin):
                 'PyList_Append(%s, %s);' % (
                     class_node.class_cell.result(),
                     self.py_result()))
-            self.generate_giveref(code)
 
         if self.defaults:
             code.putln(
