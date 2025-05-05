@@ -2961,34 +2961,26 @@ class CCodeWriter:
         return self.putln("if (%s < 0) %s" % (value, self.error_goto(pos)))
 
     def put_error_if_unbound(self, pos, entry, in_nogil_context=False, unbound_check_code=None):
+        nogil_tag = "Nogil" if in_nogil_context else ""
         if entry.from_closure:
-            func = '__Pyx_RaiseClosureNameError'
-            self.globalstate.use_utility_code(
-                UtilityCode.load_cached("RaiseClosureNameError", "ObjectHandling.c"))
-        elif entry.type.is_memoryviewslice and in_nogil_context:
-            func = '__Pyx_RaiseUnboundMemoryviewSliceNogil'
-            self.globalstate.use_utility_code(
-                UtilityCode.load_cached("RaiseUnboundMemoryviewSliceNogil", "ObjectHandling.c"))
+            func = "RaiseClosureNameError"
         elif entry.type.is_cpp_class and entry.is_cglobal:
-            func = '__Pyx_RaiseCppGlobalNameError'
-            self.globalstate.use_utility_code(
-                UtilityCode.load_cached("RaiseCppGlobalNameError", "ObjectHandling.c"))
+            func = "RaiseCppGlobalNameError"
         elif entry.type.is_cpp_class and entry.is_variable and not entry.is_member and entry.scope.is_c_class_scope:
             # there doesn't seem to be a good way to detecting an instance-attribute of a C class
             # (is_member is only set for class attributes)
-            func = '__Pyx_RaiseCppAttributeError'
-            self.globalstate.use_utility_code(
-                UtilityCode.load_cached("RaiseCppAttributeError", "ObjectHandling.c"))
+            func = "RaiseCppAttributeError"
         else:
-            func = '__Pyx_RaiseUnboundLocalError'
-            self.globalstate.use_utility_code(
-                UtilityCode.load_cached("RaiseUnboundLocalError", "ObjectHandling.c"))
+            func = "RaiseUnboundLocalError"
+
+        self.globalstate.use_utility_code(
+                UtilityCode.load_cached(f"{func}{nogil_tag}", "ObjectHandling.c"))
 
         if not unbound_check_code:
             unbound_check_code = entry.type.check_for_null_code(entry.cname)
         self.putln('if (unlikely(!%s)) { %s(%s); %s }' % (
                                 unbound_check_code,
-                                func,
+                                f"__Pyx_{func}{nogil_tag}",
                                 entry.name.as_c_string_literal(),
                                 self.error_goto(pos)))
 
