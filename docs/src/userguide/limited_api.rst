@@ -9,12 +9,25 @@ get a forward-compatibility guarantee (the Stable ABI) which means that the exte
 be used with any future version of Python, without recompilation.
 
 Cython is able to compile extension modules in Limited API mode from Cython 3.1 onwards
-(Cython 3.0 had some support, but not enough to be practically useful).  Note that this is still
-experimental - a lot of code is known to work but testing is currently incomplete so you may well
-encounter bugs and missing features.
+(Cython 3.0 had some support, but not enough to be practically useful).  The Limited API
+implementation in Cython 3.1 is close to feature-complete and successfully runs the majority of
+Cython's own test-suite. However, you may still encounter bugs and missing features (even
+beyond the known missing features described below).
 
 From a user's point of view, the main benefit is that you only need to compile your Cython module
-once and it will support a range of Python versions.
+once and it will support a range of Python versions.  Be aware that forward compatibility isn't
+necessarily perfect:
+
+* The behaviour of some of the Limited API functions in the Python runtime has changed from
+  version-to-version.
+* in some cases Cython just uses an unstable Python API instead of an unstable C API, which
+  may just move any incompatibility from compile-time to runtime.
+* Cython itself does not test forward compatibility extensively. There is a
+  prohibilitively large 3D tensor (header version, ``Py_LIMITED_API`` value, runtime version)
+  of combinations to test.
+
+Therefore you should be sure to test your own extensions on all the versions of Python that
+you claim to support.
 
 Limitations
 ===========

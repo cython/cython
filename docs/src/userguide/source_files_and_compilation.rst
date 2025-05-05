@@ -1330,11 +1330,11 @@ some change the default value of other macros.  They are listed below in rough o
 most important to least important:
 
 ``Py_LIMITED_API``
-    Turns on Cython's experimental Limited API support, meaning that one compiled module
+    Turns on Cython's Limited API support, meaning that one compiled module
     can be used by many Python interpreter versions (at the cost of some performance).
     At this stage many features do not work in the Limited API.  You should set this
     macro to be the version hex for the
-    minimum Python version you want to support (>=3.7).  ``0x03070000`` will support
+    minimum Python version you want to support (\>=3.7).  ``0x03070000`` will support
     Python 3.7 upwards.
     Note that this is a :external+python:c:macro:`Python macro <Py_LIMITED_API>`,
     rather than just a Cython macro, and so it changes what parts of the Python headers
