@@ -888,9 +888,9 @@ def test_builtin_max():
     C().get_max()
 
 
-def variable_with_name_of_type():
+def variable_with_name_of_type_1():
     """
-    >>> variable_with_name_of_type()
+    >>> variable_with_name_of_type_1()
     ([], 'abc')
     """
     # Names like 'list.append' refer to the type and must be inferred as such,
@@ -907,3 +907,39 @@ def variable_with_name_of_type():
     assert typeof(str) == 'str object', typeof(str)
 
     return list, str
+
+def variable_with_name_of_type_2():
+    """
+    >>> variable_with_name_of_type_2()
+    ([], 'abc')
+    """
+    # Names like 'list.append' refer to the type and must be inferred as such,
+    # but a simple variable called 'list' is not the same and used to break type inference.
+    # See https://github.com/cython/cython/issues/6835
+    rest_list = []
+    list = []  # note: same name as type of value
+    list = list + rest_list
+    assert typeof(list) == 'list object', typeof(list)
+
+    rest_str = "abc"
+    str = ""
+    str = str + rest_str
+    assert typeof(str) == 'str object', typeof(str)
+
+    return list, str
+
+cdef class SomeExtType:
+    cdef SomeExtType get(self):
+        return self
+
+def variable_with_name_of_type_3(SomeExtType x):
+    """
+    >>> x = SomeExtType()
+    >>> res = variable_with_name_of_type_3(x)
+    >>> res == x
+    True
+    """
+    SomeExtType = x
+    SomeExtType = SomeExtType.get()
+    assert typeof(SomeExtType) == "SomeExtType", typeof(SomeExtType)
+    return SomeExtType
