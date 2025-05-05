@@ -2963,29 +2963,24 @@ class CCodeWriter:
     def put_error_if_unbound(self, pos, entry, in_nogil_context=False, unbound_check_code=None):
         nogil_tag = "Nogil" if in_nogil_context else ""
         if entry.from_closure:
-            func = f'__Pyx_RaiseClosureNameError{nogil_tag}'
-            self.globalstate.use_utility_code(
-                UtilityCode.load_cached(f"RaiseClosureNameError{nogil_tag}", "ObjectHandling.c"))
+            func = "RaiseClosureNameError"
         elif entry.type.is_cpp_class and entry.is_cglobal:
-            func = f'__Pyx_RaiseCppGlobalNameError{nogil_tag}'
-            self.globalstate.use_utility_code(
-                UtilityCode.load_cached(f"RaiseCppGlobalNameError{nogil_tag}", "ObjectHandling.c"))
+            func = "RaiseCppGlobalNameError"
         elif entry.type.is_cpp_class and entry.is_variable and not entry.is_member and entry.scope.is_c_class_scope:
             # there doesn't seem to be a good way to detecting an instance-attribute of a C class
             # (is_member is only set for class attributes)
-            func = f'__Pyx_RaiseCppAttributeError{nogil_tag}'
-            self.globalstate.use_utility_code(
-                UtilityCode.load_cached(f"RaiseCppAttributeError{nogil_tag}", "ObjectHandling.c"))
+            func = "RaiseCppAttributeError"
         else:
-            func = f'__Pyx_RaiseUnboundLocalError{nogil_tag}'
-            self.globalstate.use_utility_code(
-                UtilityCode.load_cached(f"RaiseUnboundLocalError{nogil_tag}", "ObjectHandling.c"))
+            func = "RaiseUnboundLocalError"
+
+        self.globalstate.use_utility_code(
+                UtilityCode.load_cached(f"{func}{nogil_tag}", "ObjectHandling.c"))
 
         if not unbound_check_code:
             unbound_check_code = entry.type.check_for_null_code(entry.cname)
         self.putln('if (unlikely(!%s)) { %s(%s); %s }' % (
                                 unbound_check_code,
-                                func,
+                                f"__Pyx_{func}{nogil_tag}",
                                 entry.name.as_c_string_literal(),
                                 self.error_goto(pos)))
 
