@@ -1430,7 +1430,6 @@ class ModuleScope(Scope):
         self.namespace_cname = self.module_cname
         self._cached_tuple_types = {}
         self._cached_defaults_c_class_entries = {}
-        self.process_include(Code.IncludeCode("Python.h", initial=True))
 
     def qualifying_scope(self):
         return self.parent_module

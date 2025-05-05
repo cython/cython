@@ -1,4 +1,17 @@
-/////////////// InitLimitedAPI ///////////////
+/////////////// CModulePrePreamble ///////////////
+
+#ifndef PY_SSIZE_T_CLEAN
+#define PY_SSIZE_T_CLEAN
+#endif /* PY_SSIZE_T_CLEAN */
+
+#ifdef HPY
+  #include "Python.h" // TODO - remove this
+  #include "hpy.h"
+#else
+  #include "Python.h"
+#endif
+
+/////////////// CModulePreamble ///////////////
 
 #if defined(Py_LIMITED_API) && !defined(CYTHON_LIMITED_API)
   // Use Py_LIMITED_API as the main control for Cython's limited API mode.
@@ -6,8 +19,6 @@
   // force Cython to use Limited-API code without enforcing it in Python.
   #define CYTHON_LIMITED_API 1
 #endif
-
-/////////////// CModulePreamble ///////////////
 
 #include <stddef.h> /* For offsetof */
 #ifndef offsetof
@@ -53,7 +64,52 @@
 // when doing version checks.
 #define __PYX_LIMITED_VERSION_HEX PY_VERSION_HEX
 
-#if defined(GRAALVM_PYTHON)
+#if defined(HPY)
+  // The HPY macro is defined by the HPy build system 
+  #define CYTHON_COMPILING_IN_PYPY 0
+  #define CYTHON_COMPILING_IN_CPYTHON 0
+  #define CYTHON_COMPILING_IN_LIMITED_API 0
+  #define CYTHON_COMPILING_IN_GRAAL 0
+  #define CYTHON_COMPILING_IN_HPY 1
+
+  #undef CYTHON_PEP489_MULTI_PHASE_INIT
+  #define CYTHON_PEP489_MULTI_PHASE_INIT 1
+  /* Module state is not yet supported in HPy */
+  #define CYTHON_USE_MODULE_STATE 0
+  /* Any Python objects are generally opaque in HPy */
+  #undef CYTHON_ASSUME_SAFE_MACROS
+  #define CYTHON_ASSUME_SAFE_MACROS 0
+  #undef CYTHON_USE_PYLONG_INTERNALS
+  #define CYTHON_USE_PYLONG_INTERNALS 0
+  #undef CYTHON_USE_UNICODE_INTERNALS
+  #define CYTHON_USE_UNICODE_INTERNALS 0
+  #undef CYTHON_USE_PYLIST_INTERNALS
+  #define CYTHON_USE_PYLIST_INTERNALS 0
+  #undef CYTHON_USE_DICT_VERSIONS
+  #define CYTHON_USE_DICT_VERSIONS 0
+  #undef CYTHON_FAST_THREAD_STATE
+  #define CYTHON_FAST_THREAD_STATE 0
+  #undef CYTHON_USE_TYPE_SLOTS
+  #define CYTHON_USE_TYPE_SLOTS 0
+  #undef CYTHON_AVOID_BORROWED_REFS
+  #define CYTHON_AVOID_BORROWED_REFS 1
+  #undef CYTHON_USE_TYPE_SPECS
+  #define CYTHON_USE_TYPE_SPECS 1
+  #undef CYTHON_COMPILING_IN_LIMITED_API
+  #define CYTHON_COMPILING_IN_LIMITED_API 1
+  #undef CYTHON_UNPACK_METHODS
+  #define CYTHON_UNPACK_METHODS 0
+  /* We don't use refnanny in HPy since it has the debug mode */
+  #undef CYTHON_REFNANNY
+  #define CYTHON_REFNANNY 0
+  #undef CYTHON_METH_FASTCALL
+  #define CYTHON_METH_FASTCALL 1
+  #undef CYTHON_ASSUME_SAFE_SIZE
+  #define CYTHON_ASSUME_SAFE_SIZE 0
+  #undef CYTHON_CLINE_IN_TRACEBACK
+  #define CYTHON_CLINE_IN_TRACEBACK 0 // Is disabled for the Limited API - probably safest to disable it for HPy then
+
+#elif defined(GRAALVM_PYTHON)
   /* For very preliminary testing purposes. Most variables are set the same as PyPy.
      The existence of this section does not imply that anything works or is even tested */
   // GRAALVM_PYTHON test comes before PyPy test because GraalPython unhelpfully defines PYPY_VERSION
@@ -61,6 +117,7 @@
   #define CYTHON_COMPILING_IN_CPYTHON 0
   #define CYTHON_COMPILING_IN_LIMITED_API 0
   #define CYTHON_COMPILING_IN_GRAAL 1
+  #define CYTHON_COMPILING_IN_HPY 0
 
   #define CYTHON_COMPILING_IN_CPYTHON_FREETHREADING 0
 
@@ -124,6 +181,7 @@
   #define CYTHON_COMPILING_IN_CPYTHON 0
   #define CYTHON_COMPILING_IN_LIMITED_API 0
   #define CYTHON_COMPILING_IN_GRAAL 0
+  #define CYTHON_COMPILING_IN_HPY 0
 
   #define CYTHON_COMPILING_IN_CPYTHON_FREETHREADING 0
 
@@ -199,6 +257,7 @@
   #define CYTHON_COMPILING_IN_CPYTHON 0
   #define CYTHON_COMPILING_IN_LIMITED_API 1
   #define CYTHON_COMPILING_IN_GRAAL 0
+  #define CYTHON_COMPILING_IN_HPY 0
 
   #define CYTHON_COMPILING_IN_CPYTHON_FREETHREADING 0
 
@@ -274,6 +333,7 @@
   #define CYTHON_COMPILING_IN_CPYTHON 1
   #define CYTHON_COMPILING_IN_LIMITED_API 0
   #define CYTHON_COMPILING_IN_GRAAL 0
+  #define CYTHON_COMPILING_IN_HPY 0
 
   #ifdef Py_GIL_DISABLED
     #define CYTHON_COMPILING_IN_CPYTHON_FREETHREADING 1
