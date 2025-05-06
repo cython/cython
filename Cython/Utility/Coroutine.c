@@ -1850,7 +1850,7 @@ static  PyObject* __pyx_Coroutine_getattro(__pyx_CoroutineObject *self, PyObject
     if (unlikely(PyUnicode_CompareWithASCIIString(attr, "__module__") == 0)) {
         PyObject *module;
         __Pyx_BEGIN_CRITICAL_SECTION(self)
-        module = Py_XNewRef(self->gi_modulename);
+        module = __Pyx_XNewRef(self->gi_modulename);
         __Pyx_END_CRITICAL_SECTION()
         return module ? module : Py_NewRef(Py_None);
     }

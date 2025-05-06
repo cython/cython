@@ -631,7 +631,7 @@ static  PyObject* __pyx_CyFunction_getattro(__pyx_CyFunctionObject *self, PyObje
         #else
         PyObject *module;
         __Pyx_BEGIN_CRITICAL_SECTION(self)
-        module = Py_XNewRef(((PyCFunctionObject*)self)->m_module);
+        module = __Pyx_XNewRef(((PyCFunctionObject*)self)->m_module);
         __Pyx_END_CRITICAL_SECTION()
         return module ? module : Py_NewRef(Py_None);
         #endif
