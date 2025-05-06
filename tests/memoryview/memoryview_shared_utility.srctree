@@ -1,16 +1,30 @@
 # tag: numpy
 
 """
-PYTHON setup.py build_ext --inplace
+PYTHON setup_with_sources.py build_ext --inplace
+PYTHON -c "import test_shared_utility"
+
+PYTHON setup_with_builddir.py build_ext --inplace
+PYTHON -c "import test_shared_utility"
+
+PYTHON setup_without_sources.py build_ext --inplace
 PYTHON -c "import test_shared_utility"
 """
 
-######## setup.py ########
+######## setup_with_sources.py ########
 
 from Cython.Build import cythonize
-from Cython.Compiler import Options
 from setuptools import setup, Extension
 import numpy
+
+import pathlib
+ext_to_delete = {".c", ".cpp", ".o", ".so", ".pyd"}
+for path, _, files in pathlib.Path.cwd().walk():
+    for filename in files:
+        file = path / filename
+        if file.suffix.lower() in ext_to_delete:
+            print(f"deleting {file}")
+            file.unlink()
 
 extensions = [
     Extension("*", ["**/*.pyx"], include_dirs=[numpy.get_include()]),
@@ -18,8 +32,76 @@ extensions = [
 ]
 
 setup(
-  ext_modules = cythonize(extensions, shared_utility_qualified_name = 'pkg2.CythonShared')
+    ext_modules = cythonize(
+        extensions,
+        shared_utility_qualified_name = 'pkg2.CythonShared',
+    )
 )
+
+assert pathlib.Path("pkg2/CythonShared.c").exists()
+
+
+######## setup_with_builddir.py ########
+
+from Cython.Build import cythonize
+from setuptools import setup, Extension
+import numpy
+
+import pathlib
+ext_to_delete = {".c", ".cpp", ".o", ".so", ".pyd"}
+for path, _, files in pathlib.Path.cwd().walk():
+    for filename in files:
+        file = path / filename
+        if file.suffix.lower() in ext_to_delete:
+            print(f"deleting {file}")
+            file.unlink()
+
+extensions = [
+    Extension("*", ["**/*.pyx"], include_dirs=[numpy.get_include()]),
+    Extension("pkg2.CythonShared", sources=["pkg2/CythonShared.c"]),
+]
+
+setup(
+    ext_modules = cythonize(
+        extensions,
+        shared_utility_qualified_name = 'pkg2.CythonShared',
+        build_dir = "build",
+    )
+)
+
+assert pathlib.Path("build/pkg2/CythonShared.c").exists()
+assert not pathlib.Path("pkg2/CythonShared.c").exists()
+
+
+######## setup_without_sources.py ########
+
+from Cython.Build import cythonize
+from setuptools import setup, Extension
+import numpy
+
+import pathlib
+ext_to_delete = {".c", ".cpp", ".o", ".so", ".pyd"}
+for path, _, files in pathlib.Path.cwd().walk():
+    for filename in files:
+        file = path / filename
+        if file.suffix.lower() in ext_to_delete:
+            print(f"deleting {file}")
+            file.unlink()
+
+extensions = [
+    Extension("*", ["**/*.pyx"], include_dirs=[numpy.get_include()]),
+    Extension("pkg2.CythonShared", sources=[]),
+]
+
+setup(
+    ext_modules = cythonize(
+        extensions,
+        shared_utility_qualified_name = 'pkg2.CythonShared',
+    )
+)
+
+assert pathlib.Path("pkg2/CythonShared.c").exists()
+assert not pathlib.Path("build/pkg2/CythonShared.c").exists()
 
 
 ######## test_shared_utility.py ########
