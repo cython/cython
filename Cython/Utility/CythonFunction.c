@@ -622,20 +622,37 @@ static void __Pyx_CyFunction_raise_type_error(__pyx_CyFunctionObject *func, cons
 #endif
 }
 
-
-#if CYTHON_COMPILING_IN_LIMITED_API
-static PyObject *
-__Pyx_CyFunction_get_module(__pyx_CyFunctionObject *op, void *context) {
-    CYTHON_UNUSED_VAR(context);
-    return PyObject_GetAttrString(op->func, "__module__");
+// Getting and setting __module__ is particular tricky since if we make __module__ a descriptor,
+// then it gets in the way of (type).__module__. Therefore intercept it in getattro/setattr
+static  PyObject* __pyx_CyFunction_getattro(__pyx_CyFunctionObject *self, PyObject *attr) {
+    if (unlikely(PyUnicode_CompareWithASCIIString(attr, "__module__") == 0)) {
+        #if CYTHON_COMPILING_IN_LIMITED_API
+        return PyObject_GetAttrString(op->func, "__module__");
+        #else
+        PyObject *module;
+        __Pyx_BEGIN_CRITICAL_SECTION(self)
+        module = Py_XNewRef(((PyCFunctionObject*)self)->m_module);
+        __Pyx_END_CRITICAL_SECTION()
+        return module ? module : Py_NewRef(Py_None);
+        #endif
+    }
+    return PyObject_GenericGetAttr((PyObject*)self, attr);
 }
 
-static int
-__Pyx_CyFunction_set_module(__pyx_CyFunctionObject *op, PyObject* value, void *context) {
-    CYTHON_UNUSED_VAR(context);
-    return PyObject_SetAttrString(op->func, "__module__", value);
+static int __pyx_CyFunction_setattro(__pyx_CyFunctionObject *self, PyObject *attr, PyObject *value) {
+    if (unlikely(PyUnicode_CompareWithASCIIString(attr, "__module__") == 0)) {
+        #if CYTHON_COMPILING_IN_LIMITED_API
+        return PyObject_SetAttrString(op->func, "__module__");
+        #else
+        __Pyx_BEGIN_CRITICAL_SECTION(self)
+        Py_XINCREF(value);
+        Py_XSETREF(((PyCFunctionObject*)self)->m_module, value);
+        __Pyx_END_CRITICAL_SECTION()
+        return 0;
+        #endif
+    }
+    return PyObject_GenericSetAttr((PyObject*)self, attr, value);
 }
-#endif
 
 static PyGetSetDef __pyx_CyFunction_getsets[] = {
     {"func_doc", (getter)__Pyx_CyFunction_get_doc, (setter)__Pyx_CyFunction_set_doc, 0, 0},
@@ -657,16 +674,10 @@ static PyGetSetDef __pyx_CyFunction_getsets[] = {
     {"__annotations__", (getter)__Pyx_CyFunction_get_annotations, (setter)__Pyx_CyFunction_set_annotations, 0, 0},
     {"_is_coroutine", (getter)__Pyx_CyFunction_get_is_coroutine, 0, 0, 0},
 //    {"__signature__", (getter)__Pyx_CyFunction_get_signature, 0, 0, 0},
-#if CYTHON_COMPILING_IN_LIMITED_API
-    {"__module__", (getter)__Pyx_CyFunction_get_module, (setter)__Pyx_CyFunction_set_module, 0, 0},
-#endif
     {0, 0, 0, 0, 0}
 };
 
 static PyMemberDef __pyx_CyFunction_members[] = {
-#if !CYTHON_COMPILING_IN_LIMITED_API
-    {"__module__", T_OBJECT, offsetof(PyCFunctionObject, m_module), 0, 0},
-#endif
     {"__dictoffset__", T_PYSSIZET, offsetof(__pyx_CyFunctionObject, func_dict), READONLY, 0},
 #if CYTHON_METH_FASTCALL
 #if CYTHON_BACKPORT_VECTORCALL || CYTHON_COMPILING_IN_LIMITED_API
@@ -1211,6 +1222,8 @@ static PyType_Slot __pyx_CyFunctionType_slots[] = {
     {Py_tp_methods, (void *)__pyx_CyFunction_methods},
     {Py_tp_members, (void *)__pyx_CyFunction_members},
     {Py_tp_getset, (void *)__pyx_CyFunction_getsets},
+    {Py_tp_getattro, (void *)__pyx_CyFunction_getattro},
+    {Py_tp_setattro, (void *)__pyx_CyFunction_setattro},
     {Py_tp_descr_get, (void *)__Pyx_PyMethod_New},
     {0, 0},
 };

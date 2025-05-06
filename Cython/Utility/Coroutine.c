@@ -1771,7 +1771,7 @@ static PyObject *__Pyx_CoroutineAwait_no_new(PyTypeObject *type, PyObject *args,
 // We are applying this to all Python versions (hence the commented out version guard)
 // to make the behaviour explicit.
 // #if CYTHON_USE_TYPE_SPECS
-static PyObject *__Pyx_CoroutineAwait_reduce_ex(__pyx_CoroutineAwaitObject *self, PyObject *arg) {
+static PyObject *__Pyx_CoroutineTypes_reduce_ex(PyObject *self, PyObject *arg) {
     CYTHON_UNUSED_VAR(arg);
 
     __Pyx_TypeName self_type_name = __Pyx_PyType_GetFullyQualifiedName(Py_TYPE((PyObject*)self));
@@ -1790,8 +1790,8 @@ static PyMethodDef __pyx_CoroutineAwait_methods[] = {
     {"close", (PyCFunction) __Pyx_CoroutineAwait_Close_Method, METH_NOARGS, PyDoc_STR("close() -> raise GeneratorExit inside coroutine.")},
 // only needed with type-specs, but included in all versions for clarity
 // #if CYTHON_USE_TYPE_SPECS
-    {"__reduce_ex__", (PyCFunction) __Pyx_CoroutineAwait_reduce_ex, METH_O, 0},
-    {"__reduce__", (PyCFunction) __Pyx_CoroutineAwait_reduce_ex, METH_NOARGS, 0},
+    {"__reduce_ex__", (PyCFunction) __Pyx_CoroutineTypes_reduce_ex, METH_O, 0},
+    {"__reduce__", (PyCFunction) __Pyx_CoroutineTypes_reduce_ex, METH_NOARGS, 0},
 // #endif
     {0, 0, 0, 0}
 };
@@ -1844,12 +1844,38 @@ static PyObject *__Pyx_Coroutine_await(PyObject *coroutine) {
     return __Pyx__Coroutine_await(coroutine);
 }
 
+// Getting and setting __module__ is particular tricky since if we make __module__ a descriptor,
+// then it gets in the way of (type).__module__. Therefore intercept it in getattro/setattr
+static  PyObject* __pyx_Coroutine_getattro(__pyx_CoroutineObject *self, PyObject *attr) {
+    if (unlikely(PyUnicode_CompareWithASCIIString(attr, "__module__") == 0)) {
+        PyObject *module;
+        __Pyx_BEGIN_CRITICAL_SECTION(self)
+        module = Py_XNewRef(self->gi_modulename);
+        __Pyx_END_CRITICAL_SECTION()
+        return module ? module : Py_NewRef(Py_None);
+    }
+    return PyObject_GenericGetAttr((PyObject*)self, attr);
+}
+
+static int __pyx_Coroutine_setattro(__pyx_CoroutineObject *self, PyObject *attr, PyObject *value) {
+    if (unlikely(PyUnicode_CompareWithASCIIString(attr, "__module__") == 0)) {
+        __Pyx_BEGIN_CRITICAL_SECTION(self)
+        Py_XINCREF(value);
+        Py_XSETREF(self->gi_modulename, value);
+        __Pyx_END_CRITICAL_SECTION()
+        return 0;
+    }
+    return PyObject_GenericSetAttr((PyObject*)self, attr, value);
+}
+
 static PyMethodDef __pyx_Coroutine_methods[] = {
     {"send", (PyCFunction) __Pyx_Coroutine_Send, METH_O,
      PyDoc_STR("send(arg) -> send 'arg' into coroutine,\nreturn next iterated value or raise StopIteration.")},
     {"throw", (PyCFunction) __Pyx_Coroutine_Throw, METH_VARARGS,
      PyDoc_STR("throw(typ[,val[,tb]]) -> raise exception in coroutine,\nreturn next iterated value or raise StopIteration.")},
     {"close", (PyCFunction) __Pyx_Coroutine_Close_Method, METH_NOARGS, PyDoc_STR("close() -> raise GeneratorExit inside coroutine.")},
+    {"__reduce_ex__", (PyCFunction) __Pyx_CoroutineTypes_reduce_ex, METH_O, 0},
+    {"__reduce__", (PyCFunction) __Pyx_CoroutineTypes_reduce_ex, METH_NOARGS, 0},
     {0, 0, 0, 0}
 };
 
@@ -1857,7 +1883,6 @@ static PyMemberDef __pyx_Coroutine_memberlist[] = {
     {"cr_await", T_OBJECT, offsetof(__pyx_CoroutineObject, yieldfrom), READONLY,
      PyDoc_STR("object being awaited, or None")},
     {"cr_code", T_OBJECT, offsetof(__pyx_CoroutineObject, gi_code), READONLY, NULL},
-    {"__module__", T_OBJECT, offsetof(__pyx_CoroutineObject, gi_modulename), 0, 0},
     {"__weaklistoffset__", T_PYSSIZET, offsetof(__pyx_CoroutineObject, gi_weakreflist), READONLY, 0},
     {0, 0, 0, 0, 0}
 };
@@ -1881,7 +1906,8 @@ static PyType_Slot __pyx_CoroutineType_slots[] = {
     {Py_tp_methods, (void *)__pyx_Coroutine_methods},
     {Py_tp_members, (void *)__pyx_Coroutine_memberlist},
     {Py_tp_getset, (void *)__pyx_Coroutine_getsets},
-    {Py_tp_getattro, (void *) PyObject_GenericGetAttr},
+    {Py_tp_getattro, (void *)__pyx_Coroutine_getattro},
+    {Py_tp_setattro, (void *)__pyx_Coroutine_setattro},
 #if CYTHON_USE_TP_FINALIZE
     {Py_tp_finalize, (void *)__Pyx_Coroutine_del},
 #endif
