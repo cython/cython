@@ -1852,7 +1852,7 @@ static  PyObject* __pyx_Coroutine_getattro(__pyx_CoroutineObject *self, PyObject
         __Pyx_BEGIN_CRITICAL_SECTION(self)
         module = __Pyx_XNewRef(self->gi_modulename);
         __Pyx_END_CRITICAL_SECTION()
-        return module ? module : Py_NewRef(Py_None);
+        return module ? module : __Pyx_NewRef(Py_None);
     }
     return PyObject_GenericGetAttr((PyObject*)self, attr);
 }

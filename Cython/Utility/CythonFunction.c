@@ -633,7 +633,7 @@ static  PyObject* __pyx_CyFunction_getattro(__pyx_CyFunctionObject *self, PyObje
         __Pyx_BEGIN_CRITICAL_SECTION(self)
         module = __Pyx_XNewRef(((PyCFunctionObject*)self)->m_module);
         __Pyx_END_CRITICAL_SECTION()
-        return module ? module : Py_NewRef(Py_None);
+        return module ? module : __Pyx_NewRef(Py_None);
         #endif
     }
     return PyObject_GenericGetAttr((PyObject*)self, attr);
