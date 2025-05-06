@@ -1027,7 +1027,10 @@ def cythonize(module_list, exclude=None, nthreads=0, aliases=None, quiet=False, 
             # infer FQMN from source files
             full_module_name = None
 
-        if m.np_pythran:
+        np_pythran = getattr(m, 'np_pythran', False)
+        py_limited_api = getattr(m, 'py_limited_api', False)
+
+        if np_pythran:
             options = pythran_options
         elif m.language == 'c++':
             options = cpp_options
@@ -1038,7 +1041,7 @@ def cythonize(module_list, exclude=None, nthreads=0, aliases=None, quiet=False, 
         for source in m.sources:
             base, ext = os.path.splitext(source)
             if ext in ('.pyx', '.py'):
-                c_file = base + ('.cpp' if m.language == 'c++' or m.np_pythran else '.c')
+                c_file = base + ('.cpp' if m.language == 'c++' or np_pythran else '.c')
 
                 # setup for out of place build directory if enabled
                 c_file = file_in_build_dir(c_file)
@@ -1074,11 +1077,7 @@ def cythonize(module_list, exclude=None, nthreads=0, aliases=None, quiet=False, 
                     if not force and cache:
                         fingerprint = cache.transitive_fingerprint(
                                 source, deps.all_dependencies(source), options,
-                                FingerprintFlags(
-                                    m.language or 'c',
-                                    getattr(m, 'py_limited_api', False),
-                                    getattr(m, 'np_pythran', False)
-                                )
+                                FingerprintFlags(m.language or 'c', py_limited_api, np_pythran)
                         )
                     else:
                         fingerprint = None
