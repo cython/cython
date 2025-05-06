@@ -1849,9 +1849,9 @@ static PyObject *__Pyx_Coroutine_await(PyObject *coroutine) {
 static  PyObject* __pyx_Coroutine_getattro(__pyx_CoroutineObject *self, PyObject *attr) {
     if (unlikely(PyUnicode_CompareWithASCIIString(attr, "__module__") == 0)) {
         PyObject *module;
-        __Pyx_BEGIN_CRITICAL_SECTION(self)
+        __Pyx_BEGIN_CRITICAL_SECTION(self);
         module = __Pyx_XNewRef(self->gi_modulename);
-        __Pyx_END_CRITICAL_SECTION()
+        __Pyx_END_CRITICAL_SECTION();
         return module ? module : __Pyx_NewRef(Py_None);
     }
     return PyObject_GenericGetAttr((PyObject*)self, attr);
@@ -1859,10 +1859,10 @@ static  PyObject* __pyx_Coroutine_getattro(__pyx_CoroutineObject *self, PyObject
 
 static int __pyx_Coroutine_setattro(__pyx_CoroutineObject *self, PyObject *attr, PyObject *value) {
     if (unlikely(PyUnicode_CompareWithASCIIString(attr, "__module__") == 0)) {
-        __Pyx_BEGIN_CRITICAL_SECTION(self)
+        __Pyx_BEGIN_CRITICAL_SECTION(self);
         Py_XINCREF(value);
         Py_XSETREF(self->gi_modulename, value);
-        __Pyx_END_CRITICAL_SECTION()
+        __Pyx_END_CRITICAL_SECTION();
         return 0;
     }
     return PyObject_GenericSetAttr((PyObject*)self, attr, value);

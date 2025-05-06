@@ -630,9 +630,9 @@ static  PyObject* __pyx_CyFunction_getattro(__pyx_CyFunctionObject *self, PyObje
         return PyObject_GetAttrString(self->func, "__module__");
         #else
         PyObject *module;
-        __Pyx_BEGIN_CRITICAL_SECTION(self)
+        __Pyx_BEGIN_CRITICAL_SECTION(self);
         module = __Pyx_XNewRef(((PyCFunctionObject*)self)->m_module);
-        __Pyx_END_CRITICAL_SECTION()
+        __Pyx_END_CRITICAL_SECTION();
         return module ? module : __Pyx_NewRef(Py_None);
         #endif
     }
@@ -644,10 +644,10 @@ static int __pyx_CyFunction_setattro(__pyx_CyFunctionObject *self, PyObject *att
         #if CYTHON_COMPILING_IN_LIMITED_API
         return PyObject_SetAttrString(self->func, "__module__", value);
         #else
-        __Pyx_BEGIN_CRITICAL_SECTION(self)
+        __Pyx_BEGIN_CRITICAL_SECTION(self);
         Py_XINCREF(value);
         Py_XSETREF(((PyCFunctionObject*)self)->m_module, value);
-        __Pyx_END_CRITICAL_SECTION()
+        __Pyx_END_CRITICAL_SECTION();
         return 0;
         #endif
     }
