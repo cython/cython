@@ -1491,10 +1491,11 @@ class ModuleScope(Scope):
         scope.is_defaults_class_scope = True
 
         # zero pad the argument number so they can be sorted
-        num_zeros = len(str(components))
-        format_str = "arg{0:0%dd}" % num_zeros
+        num_zeros = len(str(len(components)))
+        build_argname = ("arg{:0>%dd}" % num_zeros).format
         for n, type_ in enumerate(components):
-            scope.declare_var(EncodedString(format_str.format(n)), type_, None, is_cdef = True)
+            arg_name = EncodedString(build_argname(n))
+            scope.declare_var(arg_name, type_, pos=None, is_cdef=True)
         return entry
 
     def declare_builtin(self, name, pos):
