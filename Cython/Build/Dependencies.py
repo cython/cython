@@ -1091,12 +1091,13 @@ def cythonize(module_list, exclude=None, nthreads=0, aliases=None, quiet=False, 
                 c_file = file_in_build_dir(source)
                 module_options = CompilationOptions(
                     options, shared_c_file_path=c_file, shared_utility_qualified_name=None)
-                if Utils.is_cython_generated_file(c_file):
-                    from .SharedModule import generate_shared_module
-                    print(f"Generating shared module '{m.name}'")
-                    generate_shared_module(module_options)
-                else:
+                if not Utils.is_cython_generated_file(c_file):
                     print(f"Warning: Shared module source file is not a Cython file - not creating '{m.name}' as '{c_file}'")
+                elif force or not Utils.file_generated_by_this_cython(c_file):
+                    from .SharedModule import generate_shared_module
+                    if not quiet:
+                        print(f"Generating shared module '{m.name}'")
+                    generate_shared_module(module_options)
             else:
                 c_file = source
                 if build_dir:
