@@ -2937,7 +2937,8 @@ class CCodeWriter:
         else:
             func_name = "PyEval_SaveThread"
             result_type = "PyThreadState *"
-        self.putln(f"{result_type} _save = {func_name}();")
+        self.putln(f"{result_type} _save;")
+        self.putln(f"_save = {func_name}();")
         if variable:
             self.putln('%s = _save;' % variable)
         self.putln("__Pyx_FastGIL_Remember();")
