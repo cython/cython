@@ -2,7 +2,7 @@
 Cython Changelog
 ================
 
-3.1.0 rc 2 (2025-05-??)
+3.1.0 rc 2 (2025-05-07)
 =======================
 
 Features added
@@ -12,6 +12,11 @@ Features added
   additional low-level synchronisation primitives also in the light of free-threading Python.
   (Github issue :issue:`6820`)
 
+* The generation of the shared module now happens automatically from ``cythonize()`` in a
+  ``setuptools`` build if a corresponding ``Extension`` has been configured.
+  This avoids an additional step outside of the ``setup.py`` or ``pip wheel`` run.
+  (Github issue :issue:`6842`)
+
 Bugs fixed
 ----------
 
@@ -19,6 +24,9 @@ Bugs fixed
   This specifically impacted types like ``BaseException``, ``Exception`` or ``OSError``,
   which almost always intend to reference subtypes.
   (Github issue :issue:`6828`)
+
+* Functions with more than 10 constant default argument values could generate invalid C code.
+  (Github issue :issue:`6843`)
 
 * The ``call_once()`` function argument in ``libc.threads`` (new in 3.1) was changed to require
   a ``nogil`` declaration, as semantically implied.  Code that used it with a callback function
