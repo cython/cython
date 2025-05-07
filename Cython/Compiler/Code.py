@@ -2919,33 +2919,25 @@ class CCodeWriter:
         if variable:
             self.putln('_save = %s;' % variable)
         if unknown_gil_state:
-            self.putln("if (_save) {")
-        self.putln("Py_BLOCK_THREADS")
-        if unknown_gil_state:
-            self.putln("}")
-            self.putln("#if CYTHON_COMPILING_IN_LIMITED_API")
-            self.put_release_ensured_gil()
-            self.putln("#endif")
+            func_name = "__Pyx_RestoreUnknownThread"
+            self.globalstate.use_utility_code(
+                UtilityCode.load_cached("ReleaseUnknownGil", "ModuleSetupCode.c"))
+        else:
+            func_name = "PyEval_RestoreThread"
+        self.putln(f"{func_name}(_save);")
 
     def put_release_gil(self, variable=None, unknown_gil_state=True):
         "Release the GIL, corresponds to `put_acquire_gil`."
         self.use_fast_gil_utility_code()
-        self.putln("PyThreadState *_save;")
-        self.putln("_save = NULL;")
         if unknown_gil_state:
-            # We don't *know* that we don't have the GIL (since we may be inside a nogil function,
-            # and Py_UNBLOCK_THREADS is unsafe without the GIL).
-            self.putln("#if CYTHON_COMPILING_IN_LIMITED_API")
-            # In the Limited API we can't check whether we have the GIL.
-            # Therefore the only way to be sure that we can release it is to acquire it first.
-            self.put_ensure_gil()
-            self.putln("#else")
-            self.putln("if (PyGILState_Check())")
-            self.putln("#endif")
-            self.putln("{")
-        self.putln("Py_UNBLOCK_THREADS")
-        if unknown_gil_state:
-            self.putln("}")
+            self.globalstate.use_utility_code(
+                UtilityCode.load_cached("ReleaseUnknownGil", "ModuleSetupCode.c"))
+            func_name = "__Pyx_SaveUnknownThread"
+            result_type = "__Pyx_UnknownThreadState";
+        else:
+            func_name = "PyEval_SaveThread"
+            result_type = "PyThreadState *"
+        self.putln(f"{result_type} _save = {func_name}();")
         if variable:
             self.putln('%s = _save;' % variable)
         self.putln("__Pyx_FastGIL_Remember();")
