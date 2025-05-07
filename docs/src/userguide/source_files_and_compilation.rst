@@ -504,9 +504,11 @@ The compilation process now consist of three steps:
 Compiling shared module using setuptools
 ----------------------------------------
 
-If setuptools is used in the build process, the fully qualified module name
+If ``setuptools`` is used in the build process, the fully qualified module name
 of the shared utility module can be specified using the ``shared_utility_qualified_name``
-parameter of :func:`cythonize` (instead of the ``--shared`` argument).
+parameter of :func:`cythonize` (instead of the ``--shared`` command line argument).
+To generate the extension sources of the shared module from ``cythonize()``,
+you need to explicitly pass an ``Extension`` object describing the module.
 The :file:`setup.py` file would be:
 
 .. code-block:: python
@@ -518,17 +520,14 @@ The :file:`setup.py` file would be:
 
     extensions = [
         Extension("*", ["**/*.pyx"]),
-        Extension("mypkg.shared._cyutility", sources=["mypkg/shared/_cyutility.c"])
+        # Providing 'sources' is optional for the shared module.
+        # If missing, the module package will be used for the path in 'build_dir'.
+        Extension("mypkg.shared._cyutility", sources=["mypkg/shared/_cyutility.c"]),
     ]
 
     setup(
       ext_modules = cythonize(extensions, shared_utility_qualified_name = 'mypkg.shared._cyutility')
     )
-
-.. note::
-
-   The shared utility :file:`_cyutility.c` file still needs to be generated manually
-   using the command ``cython --generate-shared=...``.
 
 
 .. _integrating_multiple_modules:
