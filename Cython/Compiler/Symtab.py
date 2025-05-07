@@ -1491,7 +1491,7 @@ class ModuleScope(Scope):
         scope.is_defaults_class_scope = True
 
         # zero pad the argument number so they can be sorted
-        num_zeros = math.ceil(math.log10(len(components)))
+        num_zeros = len(str(components))
         format_str = "arg{0:0%dd}" % num_zeros
         for n, type_ in enumerate(components):
             scope.declare_var(EncodedString(format_str.format(n)), type_, None, is_cdef = True)
