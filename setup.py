@@ -4,6 +4,7 @@ try:
 except ImportError:
     from distutils.core import setup, Extension
 import os
+import re
 import stat
 import subprocess
 import sysconfig
@@ -211,6 +212,30 @@ def compile_cython_modules(profile=False, coverage=False, compile_minimal=False,
     setup_args['ext_modules'] = extensions
 
 
+def read_changelog(version):
+    version_line_start = version + '('
+    add_gh_issues_link = re.compile(':issue:`([0-9]+)`').sub
+
+    with open("CHANGES.rst", encoding='utf8') as f:
+        changelog = []
+        lines = iter(f)
+        for line in lines:
+            if line.replace(' ', '').startswith(version_line_start):
+                break
+        else:
+            # No changelog for this version found :-?
+            return ''
+
+        changelog.append(line)
+        for line in lines:
+            if line.startswith('=====') and len(changelog) > 1:
+                break
+            if ':issue:' in line:
+                line = add_gh_issues_link(r'https://github.com/cython/cython/issues/\1', line)
+            changelog.append(line)
+    return ''.join(changelog[:-1])
+
+
 def check_option(name):
     cli_arg = "--" + name
     if cli_arg in sys.argv:
@@ -327,7 +352,8 @@ def run_build():
             NO_CYTHON_COMPILE=true pip install .
 
         .. _Pyrex: https://www.cosc.canterbury.ac.nz/greg.ewing/python/Pyrex/
-        """),
+
+        """) + read_changelog(version),
         license='Apache-2.0',
         classifiers=[
             dev_status(version),
