@@ -2933,7 +2933,7 @@ class CCodeWriter:
             self.globalstate.use_utility_code(
                 UtilityCode.load_cached("ReleaseUnknownGil", "ModuleSetupCode.c"))
             func_name = "__Pyx_SaveUnknownThread"
-            result_type = "__Pyx_UnknownThreadState";
+            result_type = "__Pyx_UnknownThreadState"
         else:
             func_name = "PyEval_SaveThread"
             result_type = "PyThreadState *"
