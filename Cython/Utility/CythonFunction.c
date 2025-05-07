@@ -627,7 +627,7 @@ static void __Pyx_CyFunction_raise_type_error(__pyx_CyFunctionObject *func, cons
 static  PyObject* __pyx_CyFunction_getattro(__pyx_CyFunctionObject *self, PyObject *attr) {
     if (unlikely(PyUnicode_CompareWithASCIIString(attr, "__module__") == 0)) {
         #if CYTHON_COMPILING_IN_LIMITED_API
-        return PyObject_GetAttrString(self->func, "__module__");
+        return PyObject_GetAttr(self->func, attr);
         #else
         PyObject *module;
         __Pyx_BEGIN_CRITICAL_SECTION(self);
@@ -642,7 +642,7 @@ static  PyObject* __pyx_CyFunction_getattro(__pyx_CyFunctionObject *self, PyObje
 static int __pyx_CyFunction_setattro(__pyx_CyFunctionObject *self, PyObject *attr, PyObject *value) {
     if (unlikely(PyUnicode_CompareWithASCIIString(attr, "__module__") == 0)) {
         #if CYTHON_COMPILING_IN_LIMITED_API
-        return PyObject_SetAttrString(self->func, "__module__", value);
+        return PyObject_SetAttr(self->func, attr, value);
         #else
         __Pyx_BEGIN_CRITICAL_SECTION(self);
         Py_XINCREF(value);
@@ -1422,7 +1422,7 @@ __pyx_FusedFunction_descr_get_locked(__pyx_FusedFunctionObject *func, PyObject *
     PyObject *module;
     __pyx_FusedFunctionObject *meth;
     #if CYTHON_COMPILING_IN_LIMITED_API
-    module = __Pyx_CyFunction_get_module((__pyx_CyFunctionObject *) func, NULL);
+    module = PyObject_GetAttrString(((__pyx_CyFunctionObject*)func)->func, "__module__");
     if ((unlikely(!module))) return NULL;
     #else
     module = ((PyCFunctionObject *) func)->m_module;
