@@ -10,6 +10,7 @@ import subprocess
 import sysconfig
 import textwrap
 import sys
+from collections import defaultdict
 from functools import partial
 
 import platform
@@ -220,16 +221,28 @@ def collect_changelog(version):
     release_version = version + ' '  # to include subsequent a/b/rc sections in final release changelog
     add_gh_issues_link = partial(
         re.compile(':issue:`([0-9]+)`').sub,
-        TRACKER_URL + r'\1'
+        TRACKER_URL + r'\1',  # Replace ReST reference by direct tracker issue link.
     )
 
-    changelog = []
-    sections = {  # ordered
+    # Look for lines like 'Includes all fixes from Cython 3.0.12.' and add their version sections.
+    find_version_reference = re.compile(
+        r"\s*\* [Ii]ncludes all "
+        r"(?:bug[ -])?(?P<what>changes|fixes(?:\s+and features)?) "  # 'what' is unused (but interesting)
+        r"(?:as of|from) .*"
+        r"(?P<version>[0-9]+\.[0-9]+\.[0-9]+(?: ?[abr]c? ?[0-9+])?)"
+    ).match
+    referenced_versions = set()
+
+    # Collected sections in output order.
+    sections = {
         'Features added': [],
         'Bugs fixed': [],
         'Other changes': [],
     }
+    # Collect initial content in a throw-away dict.
+    current_sections = defaultdict(list)
 
+    changelog = []
     with open("CHANGES.rst", encoding='utf8') as f:
         lines = iter(f)
         for line in lines:
@@ -241,32 +254,48 @@ def collect_changelog(version):
 
         changelog.append(line)
         changelog.append(next(lines))  # underline of version
+        assert changelog[-1].startswith('=====')
 
         current_section = []
         for line in lines:
             if line.startswith('-----'):
                 # Section start found.
                 section_name = current_section.pop().strip()
-                current_section = sections[section_name]
+                current_section = current_sections[section_name]
             elif line.startswith('====='):
                 # Version start found.
-                part_version = current_section.pop().strip()
+                part_version_line = current_section.pop().strip()
                 # Remove useless empty lines and version markers from section endings.
-                for section in sections.values():
+                for section in current_sections.values():
                     while section and (not section[-1].strip() or section[-1].endswith(':\n')):
                         section.pop()
-                # Stop at first unrelated version.
-                if not part_version.startswith(release_version):
-                    break
+                # Stop at first unrelated version, unless we're still looking for referenced versions.
+                if part_version_line.startswith(release_version):
+                    current_sections = sections
+                else:
+                    current_sections = defaultdict(list)  # throw-away dict
+                    part_version = part_version_line.split('(', 1)[0].strip()
+                    if part_version in referenced_versions:
+                        referenced_versions.remove(part_version)
+                        # Include the bug fix section of referenced versions.
+                        current_sections['Bugs fixed'] = sections['Bugs fixed']
+                    elif not referenced_versions:
+                        # All relevant version sections parsed.
+                        break
                 # Put version marker into all sections.
-                for section in sections.values():
+                for section in current_sections.values():
                     section.append('\n')
-                    section.append(f"{part_version}:\n")
+                    section.append(f"{part_version_line}:\n")
+                # Ignore initial section content.
                 current_section = []
             else:
                 # Regular content line found.
                 if ':issue:' in line:
                     line = add_gh_issues_link(line)
+                else:
+                    included_version = find_version_reference(line)
+                    if included_version:
+                        referenced_versions.add(included_version.group('version'))
                 current_section.append(line)
 
     for section_name, section in sections.items():
