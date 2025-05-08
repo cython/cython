@@ -200,7 +200,8 @@ if [[ $NO_CYTHON_COMPILE != "1" && $PYTHON_VERSION != "pypy"* ]]; then
     ls -l dist/ || true
 
     # Check for changelog entry in wheel metadata.
-    fgrep -q '=======' ?ython-*.dist-info/METADATA || { echo "ERROR: wheel METADATA lacks changelog - did you add a version entry?" ; exit 1; }
+    fgrep -q '=======' $( [ -d ?ython-*.dist-info/ ] && echo "?ython-*.dist-info/METADATA" || echo "?ython*.egg-info/PKG-INFO" ) || {
+        echo "ERROR: wheel METADATA lacks changelog - did you add a version entry?" ; exit 1; }
   fi
 
   echo "Extension modules created during the build:"
