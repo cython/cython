@@ -91,7 +91,7 @@ echo "===================="
 # Install python requirements
 echo "Installing requirements [python]"
 if [[ $PYTHON_VERSION == "3.1"[2-9]* ]]; then
-  python -m pip install -U pip wheel setuptools || exit 1
+  python -m pip install -U pip wheel setuptools twine || exit 1
   if [[ $PYTHON_VERSION == "3.12"* ]]; then
     python -m pip install --pre -r test-requirements-312.txt || exit 1
   else
@@ -102,7 +102,7 @@ if [[ $PYTHON_VERSION == "3.1"[2-9]* ]]; then
     python -m pip install --pre -r test-requirements-313.txt || exit 1
   fi
 else
-  python -m pip install -U pip "setuptools<60" wheel || exit 1
+  python -m pip install -U pip "setuptools<60" wheel twine || exit 1
 
   if [[ $PYTHON_VERSION != *"-dev" || $COVERAGE == "1" ]]; then
     python -m pip install -r test-requirements.txt || exit 1
@@ -202,6 +202,7 @@ if [[ $NO_CYTHON_COMPILE != "1" && $PYTHON_VERSION != "pypy"* ]]; then
     # Check for changelog entry in wheel metadata.
     fgrep -q '=======' $( [ -d ?ython-*.dist-info/ ] && echo "?ython-*.dist-info/METADATA" || echo "?ython*.egg-info/PKG-INFO" ) || {
         echo "ERROR: wheel METADATA lacks changelog - did you add a version entry?" ; exit 1; }
+    twine check dist/*.whl
   fi
 
   echo "Extension modules created during the build:"
