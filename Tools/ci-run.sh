@@ -198,6 +198,9 @@ if [[ $NO_CYTHON_COMPILE != "1" && $PYTHON_VERSION != "pypy"* ]]; then
         $LIMITED_API == "" && $EXTRA_CFLAGS == "" ]]; then
     python setup.py bdist_wheel || exit 1
     ls -l dist/ || true
+
+    # Check for changelog entry in wheel metadata.
+    fgrep -q '=======' ?ython-*.dist-info/METADATA || { echo "ERROR: wheel METADATA lacks changelog - did you add a version entry?" ; exit 1; }
   fi
 
   echo "Extension modules created during the build:"
