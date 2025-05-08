@@ -10,6 +10,7 @@ import subprocess
 import sysconfig
 import textwrap
 import sys
+from functools import partial
 
 import platform
 is_cpython = platform.python_implementation() == 'CPython'
@@ -17,6 +18,8 @@ is_cpython = platform.python_implementation() == 'CPython'
 # this specifies which versions of python we support, pip >= 9 knows to skip
 # versions of packages which are not compatible with the running python
 PYTHON_REQUIRES = '>=3.8'
+
+TRACKER_URL = "https://github.com/cython/cython/issues/"
 
 if sys.platform == "darwin":
     # Don't create resource files on OS X tar.
@@ -212,12 +215,22 @@ def compile_cython_modules(profile=False, coverage=False, compile_minimal=False,
     setup_args['ext_modules'] = extensions
 
 
-def read_changelog(version):
+def collect_changelog(version):
     version_line_start = version + '('
-    add_gh_issues_link = re.compile(':issue:`([0-9]+)`').sub
+    release_version = version + ' '  # to include subsequent a/b/rc sections in final release changelog
+    add_gh_issues_link = partial(
+        re.compile(':issue:`([0-9]+)`').sub,
+        TRACKER_URL + r'\1'
+    )
+
+    changelog = []
+    sections = {  # ordered
+        'Features added': [],
+        'Bugs fixed': [],
+        'Other changes': [],
+    }
 
     with open("CHANGES.rst", encoding='utf8') as f:
-        changelog = []
         lines = iter(f)
         for line in lines:
             if line.replace(' ', '').startswith(version_line_start):
@@ -227,13 +240,44 @@ def read_changelog(version):
             return ''
 
         changelog.append(line)
+        changelog.append(next(lines))  # underline of version
+
+        current_section = []
         for line in lines:
-            if line.startswith('=====') and len(changelog) > 1:
-                break
-            if ':issue:' in line:
-                line = add_gh_issues_link(r'https://github.com/cython/cython/issues/\1', line)
-            changelog.append(line)
-    return ''.join(changelog[:-1])
+            if line.startswith('-----'):
+                # Section start found.
+                section_name = current_section.pop().strip()
+                current_section = sections[section_name]
+            elif line.startswith('====='):
+                # Version start found.
+                part_version = current_section.pop().strip()
+                # Remove useless empty lines and version markers from section endings.
+                for section in sections.values():
+                    while section and (not section[-1].strip() or section[-1].endswith(':\n')):
+                        section.pop()
+                # Stop at first unrelated version.
+                if not part_version.startswith(release_version):
+                    break
+                # Put version marker into all sections.
+                for section in sections.values():
+                    section.append('\n')
+                    section.append(f"{part_version}:\n")
+                current_section = []
+            else:
+                # Regular content line found.
+                if ':issue:' in line:
+                    line = add_gh_issues_link(line)
+                current_section.append(line)
+
+    for section_name, section in sections.items():
+        if not section:
+            continue
+        changelog.append('\n')
+        changelog.append(section_name + '\n')
+        changelog.append('-' * len(section_name) + '\n')
+        changelog.extend(section)
+
+    return ''.join(changelog)
 
 
 def check_option(name):
@@ -353,7 +397,7 @@ def run_build():
 
         .. _Pyrex: https://www.cosc.canterbury.ac.nz/greg.ewing/python/Pyrex/
 
-        """) + read_changelog(version),
+        """) + collect_changelog(version),
         license='Apache-2.0',
         classifiers=[
             dev_status(version),
@@ -383,7 +427,7 @@ def run_build():
             "Documentation": "https://cython.readthedocs.io/",
             "Donate": "https://cython.readthedocs.io/en/latest/src/donating.html",
             "Source Code": "https://github.com/cython/cython",
-            "Bug Tracker": "https://github.com/cython/cython/issues",
+            "Bug Tracker": TRACKER_URL,
             "User Group": "https://groups.google.com/g/cython-users",
         },
 
