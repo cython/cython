@@ -149,7 +149,7 @@ Features added
 * Extracting keyword arguments is faster in some cases.
   (Github issue :issue:`6683`)
 
-* Calling ``divmod()``on any C integer types is efficient.
+* Calling ``divmod()`` on any C integer types is efficient.
   (Github issue :issue:`6717`)
 
 * Some async/coroutine/vectorcall code has improved fast-paths.
