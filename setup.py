@@ -226,7 +226,7 @@ def collect_changelog(version):
 
     # Look for lines like 'Includes all fixes from Cython 3.0.12.' and add their version sections.
     find_version_reference = re.compile(
-        r"\s*\* [Ii]ncludes all "
+        r"\s*\* [Ii]ncludes all "  # codespell:ignore ncludes
         r"(?:bug[ -])?(?P<what>changes|fixes(?:\s+and features)?) "  # 'what' is unused (but interesting)
         r"(?:as of|from) .*"
         r"(?P<version>[0-9]+\.[0-9]+\.[0-9]+(?: ?[abr]c? ?[0-9+])?)"
