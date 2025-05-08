@@ -3083,7 +3083,7 @@ static __Pyx_UnknownThreadState __Pyx_SaveUnknownThread(void) {
         // whether we have the GIL or not. 
         PyThreadState *ts = PyThreadState_Swap(NULL);
     #if CYTHON_COMPILING_IN_LIMITED_API && __PYX_LIMITED_VERSION_HEX < 0x030d0000
-        __Pyx_UnknownThreadState out = { ts, 0 };
+        __Pyx_UnknownThreadState out = { ts, PyGILState_UNLOCKED /* arbitrary value */ };
         return out;
       } else {
         // On Python <3.13 there's no way of telling if we have the GIL in the Limited API.
@@ -3097,7 +3097,12 @@ static __Pyx_UnknownThreadState __Pyx_SaveUnknownThread(void) {
       return ts;
     #endif
   #else
-    if (_PyThreadState_UncheckedGet()) {
+    #if CYTHON_COMPILING_IN_PYPY
+    if (PyGILState_Check())
+    #else
+    if (_PyThreadState_UncheckedGet())
+    #endif
+    {
       return PyEval_SaveThread();
     }
     return NULL; // Nothing to release - we don't have the GIL
