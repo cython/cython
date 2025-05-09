@@ -502,7 +502,7 @@ class UtilityCodeBase(AbstractUtilityCode):
             rstrip = partial(re.compile(r'\s+(\\?)$').sub, r'\1')
         match_special = re.compile(
             (r'^%(C)s{5,30}\s*(?P<name>(?:\w|\.)+)\s*%(C)s{5,30}|'
-             r'^%(C)s+@(?P<tag>\w+)\s*:\s*(?P<value>(?:\w|[.:])+)') %
+             r'^%(C)s+@(?P<tag>\w+)\s*:\s*(?P<value>(?:\w|[.: *()&,])+)') %
             {'C': comment}).match
         match_type = re.compile(
             r'(.+)[.](proto(?:[.]\S+)?|impl|init|cleanup|module_state_decls|module_state_traverse|module_state_clear)$').match
@@ -690,7 +690,7 @@ class UtilityCode(UtilityCodeBase):
     def __init__(self, proto=None, impl=None, init=None, cleanup=None,
                  module_state_decls=None, module_state_traverse=None,
                  module_state_clear=None, requires=None,
-                 proto_block='utility_code_proto', name=None, file=None):
+                 proto_block='utility_code_proto', name=None, file=None, shared_params=None, shared_ret=None, shared_name=None):
         # proto_block: Which code block to dump prototype in. See GlobalState.
         self.proto = proto
         self.impl = impl
@@ -705,6 +705,9 @@ class UtilityCode(UtilityCodeBase):
         self.proto_block = proto_block
         self.name = name
         self.file = file
+        self.shared_params = shared_params
+        self.shared_ret = shared_ret
+        self.shared_name = shared_name
 
         # cached for use in hash and eq
         self._parts_tuple = tuple(getattr(self, part, None) for part in self.code_parts)
@@ -790,12 +793,39 @@ class UtilityCode(UtilityCodeBase):
         writer.putln()
 
     def put_code(self, output):
+
         if self.requires:
             for dependency in self.requires:
                 output.use_utility_code(dependency)
 
         if self.proto:
-            self._put_code_section(output[self.proto_block], output, 'proto')
+            if self.shared_name and output.module_node.scope.context.shared_utility_qualified_name:
+                # We must build pointer to function static global variable instead of function declaration
+                output[self.proto_block].putln(f'static {self.shared_ret}(*{self.shared_name})({self.shared_params}); /*proto*/')
+            else:
+                self._put_code_section(output[self.proto_block], output, 'proto')
+        if self.shared_name:
+            if 'c_function_import_code' in output.parts and output.module_node.scope.context.shared_utility_qualified_name:
+                writer = output['c_function_import_code']
+                writer.putln(
+                    'if (__Pyx_ImportFunction_%s(%s, %s, (void (**)(void))&%s, "%s") < 0) %s' % (
+                        Naming.cyversion,
+                        '__pyx_t_1',
+                        f'"{self.shared_name}"',
+                        f'{self.shared_name}',
+                        f'{self.shared_ret}({self.shared_params})',
+                        writer.error_goto(output.module_pos))
+                )
+                return
+            elif 'c_function_export_code' in output.parts and output.module_node.scope.context.options.shared_c_file_path:
+                writer = output['c_function_export_code']
+                writer.putln(
+                        'if (__Pyx_ExportFunction(%s, (void (*)(void))%s, "%s") < 0) %s' % (
+                        f'"{self.shared_name}"',
+                        f'{self.shared_name}',
+                        f'{self.shared_ret}({self.shared_params})',
+                        writer.error_goto(output.module_pos))
+                )
         if self.impl:
             self._put_code_section(output['utility_code_def'], output, 'impl')
         if self.cleanup and Options.generate_cleanup_code:
@@ -1555,6 +1585,9 @@ class GlobalState:
             code.write('\n#line 1 "cython_utility"\n')
         code.putln("")
         code.putln("/* --- Runtime support code --- */")
+
+    def register_part(self, name, code):
+        self.parts[name] = code.insertion_point()
 
     def initialize_main_h_code(self):
         rootwriter = self.rootwriter

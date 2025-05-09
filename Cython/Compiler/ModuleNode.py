@@ -3705,6 +3705,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                     signature,
                     code.error_goto(self.pos)))
 
+            code.globalstate.register_part('c_function_export_code', code)
+
     def generate_type_import_code_for_module(self, module, env, code):
         # Generate type import code for all exported extension types in
         # an imported module.
@@ -3783,6 +3785,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                         entry.cname,
                         entry.type.signature_string(),
                         code.error_goto(self.pos)))
+
+            code.globalstate.register_part('c_function_import_code', code)
             code.put_decref_clear(temp, py_object_type)
             code.funcstate.release_temp(temp)
 
