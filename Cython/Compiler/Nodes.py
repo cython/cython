@@ -46,7 +46,7 @@ class NoGilState(enum.IntEnum):
 
 
 def relative_position(pos):
-    return (pos[0].get_filenametable_entry(), pos[1])
+    return (pos[0].get_relative_path().as_posix(), pos[1])
 
 
 def embed_position(pos, docstring):
