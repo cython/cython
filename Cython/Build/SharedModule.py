@@ -27,6 +27,10 @@ def create_shared_library_pipeline(context, scope, options, result):
 
         return generate_tree
 
+    def generate_c_utilities(module_node):
+        module_node.scope.use_utility_code(Code.UtilityCode.load_cached("CythonFunction", "CythonFunction.c"))
+        return module_node
+
     orig_cimport_from_pyx = Options.cimport_from_pyx
 
     def set_cimport_from_pyx(cimport_from_pyx):
@@ -40,6 +44,7 @@ def create_shared_library_pipeline(context, scope, options, result):
         set_cimport_from_pyx(True),
         generate_tree_factory(context),
         *Pipeline.create_pipeline(context, 'pyx', exclude_classes=()),
+        generate_c_utilities,
         Pipeline.inject_pxd_code_stage_factory(context),
         Pipeline.inject_utility_code_stage_factory(context, internalise_c_class_entries=False),
         Pipeline.inject_utility_pxd_code_stage_factory(context),
