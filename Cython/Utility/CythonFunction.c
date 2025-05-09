@@ -1312,9 +1312,7 @@ static PyObject *__Pyx_CyFunction_New(PyMethodDef *ml,
                                       PyObject* code);
 
 //////////////////// CythonFunction ////////////////////
-//@shared_params: PyMethodDef *, int, PyObject *, PyObject *, PyObject *, PyObject *, PyObject *
-//@shared_ret: PyObject *
-//@shared_name: __Pyx_CyFunction_New
+//@shared_params: __Pyx_CyFunction_New::PyObject *::PyMethodDef *, int, PyObject *, PyObject *, PyObject *, PyObject *, PyObject *
 //@requires: CythonFunctionShared
 
 static PyObject *__Pyx_CyFunction_New(PyMethodDef *ml, int flags, PyObject* qualname,

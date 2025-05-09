@@ -690,7 +690,7 @@ class UtilityCode(UtilityCodeBase):
     def __init__(self, proto=None, impl=None, init=None, cleanup=None,
                  module_state_decls=None, module_state_traverse=None,
                  module_state_clear=None, requires=None,
-                 proto_block='utility_code_proto', name=None, file=None, shared_params=None, shared_ret=None, shared_name=None):
+                 proto_block='utility_code_proto', name=None, file=None, shared_params=None, shared_load_requires=True):
         # proto_block: Which code block to dump prototype in. See GlobalState.
         self.proto = proto
         self.impl = impl
@@ -705,9 +705,23 @@ class UtilityCode(UtilityCodeBase):
         self.proto_block = proto_block
         self.name = name
         self.file = file
-        self.shared_params = shared_params
-        self.shared_ret = shared_ret
-        self.shared_name = shared_name
+        self.shared_load_requires = not shared_load_requires == 'False'
+
+        self.shared = []
+        if shared_params:
+            print('=================', shared_params)
+            # breakpoint()
+            if isinstance(shared_params, str):
+                shared_params = [shared_params]
+            for sh in shared_params:
+                name, ret, params = sh.split("::")
+                self.shared.append(
+                    {
+                        'name': name,
+                        'ret': ret,
+                        'params': params,
+                     }
+                )
 
         # cached for use in hash and eq
         self._parts_tuple = tuple(getattr(self, part, None) for part in self.code_parts)
@@ -794,38 +808,23 @@ class UtilityCode(UtilityCodeBase):
 
     def put_code(self, output):
 
-        if self.requires:
+        # if self.name == 'TypeConversions':
+        #     breakpoint()
+        if self.requires and ((self.shared_load_requires and output.module_node.scope.context.shared_utility_qualified_name) or not output.module_node.scope.context.shared_utility_qualified_name):
             for dependency in self.requires:
                 output.use_utility_code(dependency)
 
         if self.proto:
-            if self.shared_name and output.module_node.scope.context.shared_utility_qualified_name:
-                # We must build pointer to function static global variable instead of function declaration
-                output[self.proto_block].putln(f'static {self.shared_ret}(*{self.shared_name})({self.shared_params}); /*proto*/')
+            if self.shared  and output.module_node.scope.context.shared_utility_qualified_name:
+                for shared in self.shared:
+                    # We must build pointer to function static global variable instead of function declaration
+                    output[self.proto_block].putln(f'static {shared["ret"]}(*{shared["name"]})({shared["params"]}); /*proto*/')
             else:
                 self._put_code_section(output[self.proto_block], output, 'proto')
-        if self.shared_name:
-            if 'c_function_import_code' in output.parts and output.module_node.scope.context.shared_utility_qualified_name:
-                writer = output['c_function_import_code']
-                writer.putln(
-                    'if (__Pyx_ImportFunction_%s(%s, %s, (void (**)(void))&%s, "%s") < 0) %s' % (
-                        Naming.cyversion,
-                        '__pyx_t_1',
-                        f'"{self.shared_name}"',
-                        f'{self.shared_name}',
-                        f'{self.shared_ret}({self.shared_params})',
-                        writer.error_goto(output.module_pos))
-                )
+        if self.shared:
+            output.shared_utility_functions.extend(list(self.shared))
+            if output.module_node.scope.context.shared_utility_qualified_name:
                 return
-            elif 'c_function_export_code' in output.parts and output.module_node.scope.context.options.shared_c_file_path:
-                writer = output['c_function_export_code']
-                writer.putln(
-                        'if (__Pyx_ExportFunction(%s, (void (*)(void))%s, "%s") < 0) %s' % (
-                        f'"{self.shared_name}"',
-                        f'{self.shared_name}',
-                        f'{self.shared_ret}({self.shared_params})',
-                        writer.error_goto(output.module_pos))
-                )
         if self.impl:
             self._put_code_section(output['utility_code_def'], output, 'impl')
         if self.cleanup and Options.generate_cleanup_code:
@@ -1533,6 +1532,7 @@ class GlobalState:
         self.const_array_counters = {}  # counts of differently prefixed arrays of constants
         self.cached_cmethods = {}
         self.initialised_constants = set()
+        self.shared_utility_functions = list()
 
         writer.set_global_state(self)
         self.rootwriter = writer
@@ -1616,6 +1616,29 @@ class GlobalState:
         util = UtilityCode.load_cached("UtilityCodePragmasEnd", "ModuleSetupCode.c")
         code.putln(util.format_code(util.impl))
         code.putln("")
+
+        if self.module_node.scope.context.shared_utility_qualified_name:
+            code = self.parts['c_function_import_code']
+            for shared in self.shared_utility_functions:
+                code.putln(
+                    'if (__Pyx_ImportFunction_%s(%s, %s, (void (**)(void))&%s, "%s") < 0) %s' % (
+                        Naming.cyversion,
+                        '__pyx_t_1',
+                        f'"{shared["name"]}"',
+                        f'{shared["name"]}',
+                        f'{shared["ret"]}({shared["params"]})',
+                        code.error_goto(self.module_pos))
+                )
+        elif self.module_node.scope.context.options.shared_c_file_path:
+            code = self.parts['c_function_export_code']
+            for shared in self.shared_utility_functions:
+                code.putln(
+                        'if (__Pyx_ExportFunction(%s, (void (*)(void))%s, "%s") < 0) %s' % (
+                        f'"{shared["name"]}"',
+                        f'{shared["name"]}',
+                        f'{shared["ret"]}({shared["params"]})',
+                        code.error_goto(self.module_pos))
+                )
 
     def __getitem__(self, key):
         return self.parts[key]
