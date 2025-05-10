@@ -2574,11 +2574,13 @@ class CComplexType(CNumericType):
         return True
 
     def create_to_py_utility_code(self, env):
+        self.create_declaration_utility_code(env)
         env.use_utility_code(TempitaUtilityCode.load_cached(
             'ToPy', 'Complex.c', self._utility_code_context()))
         return True
 
     def create_from_py_utility_code(self, env):
+        self.create_declaration_utility_code(env)
         env.use_utility_code(TempitaUtilityCode.load_cached(
             'FromPy', 'Complex.c', self._utility_code_context()))
         self.from_py_function = "__Pyx_PyComplex_As_" + self.specialization_name()
