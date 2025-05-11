@@ -92,7 +92,7 @@ echo "===================="
 echo "Installing requirements [python]"
 if [[ $PYTHON_VERSION == "3.1"[2-9]* ]]; then
   python -m pip install -U pip wheel setuptools || exit 1
-  if [[ $PYTHON_VERSION != "*t" ]]; then
+  if [[ $PYTHON_VERSION != *"t" ]]; then
     # twine is not installable on freethreaded Python due to cryptography requirement
     python -m pip install -U twine || exit 1
   fi
@@ -206,7 +206,7 @@ if [[ $NO_CYTHON_COMPILE != "1" && $PYTHON_VERSION != "pypy"* ]]; then
     # Check for changelog entry in wheel metadata.
     fgrep -q '=======' $( [ -d ?ython-*.dist-info/ ] && echo "?ython-*.dist-info/METADATA" || echo "?ython*.egg-info/PKG-INFO" ) || {
         echo "ERROR: wheel METADATA lacks changelog - did you add a version entry?" ; exit 1; }
-    if [[ $PYTHON_VERSION != "*t" ]]; then
+    if [[ $PYTHON_VERSION != *"t" ]]; then
       # twine is not installable on freethreaded Python due to cryptography requirement
       twine check dist/*.whl
     fi
