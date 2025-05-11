@@ -2733,14 +2733,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("")
         code.putln("static PyObject *%s(PyObject *o, CYTHON_UNUSED void *x) {" % func_name)
         self.generate_self_cast(scope, code)
-        # In principle reads on the dict should be atomic to make thread sanitizer happy,
-        # but the code generation is the same.
         code.putln("if (unlikely(!p->%s)){" % dict_name)
-        code.putln("__Pyx_BEGIN_CRITICAL_SECTION(o);")
-        code.putln(f"if (likely(!p->{dict_name})) {{")
         code.putln("p->%s = PyDict_New();" % dict_name)
-        code.putln("}")
-        code.putln("__Pyx_END_CRITICAL_SECTION();")
         code.putln("}")
         code.putln("Py_XINCREF(p->%s);" % dict_name)
         code.putln("return p->%s;" % dict_name)
