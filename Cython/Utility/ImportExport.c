@@ -672,7 +672,7 @@ static int __Pyx_ImportVoidPtr_$cyversion(PyObject *module, const char *name, vo
     d = PyObject_GetAttrString(module, "$api_name");
     if (!d)
         goto bad;
-// potentially defined in headers so we can't rely of __PYX_LIMITED_VERSION_HEX
+// potentially defined in headers so we can't rely on __PYX_LIMITED_VERSION_HEX
 #if (defined(Py_LIMITED_API) && Py_LIMITED_API >= 0x030d0000) || (!defined(Py_LIMITED_API) && PY_VERSION_HEX >= 0x030d0000)
     PyDict_GetItemStringRef(d, name, &cobj);
 #else
