@@ -2179,7 +2179,7 @@ class NameNode(AtomicExprNode):
         if self.cython_attribute:
             type = PyrexTypes.parse_basic_type(self.cython_attribute)
         elif env.in_c_type_context:
-            type = PyrexTypes.parse_basic_type(self.name)
+            type = PyrexTypes.parse_really_basic_type(self.name)
         if type:
             return type
 
@@ -2201,6 +2201,14 @@ class NameNode(AtomicExprNode):
         # Try to give a helpful warning when users write plain C type names.
         if not env.in_c_type_context and PyrexTypes.parse_basic_type(self.name):
             warning(self.pos, "Found C type name '%s' in a Python annotation. Did you mean to use 'cython.%s'?" % (self.name, self.name))
+        if env.in_c_type_context:
+            # slong/py_uchar style type-names are handled as lowest priority. They're
+            # only recognised in a few specific contexts (e.g. cython.declare). It's
+            # usually best to use `cython.typename` instead.
+            # Ideally this should be a warning to discourage this usage, but it generates
+            # some false positives when called from AttributeNode.analyse_as_type in cases
+            # like uchar.some_func() (where uchar is a variable name).
+            return PyrexTypes.parse_basic_type(self.name)
 
         return None
 
