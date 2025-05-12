@@ -979,7 +979,7 @@ class CythonCompileTestCase(unittest.TestCase):
                  expect_log=(),
                  annotate=False, cleanup_workdir=True,
                  cleanup_sharedlibs=True, cleanup_failures=True, cython_only=False, test_selector=None,
-                 fork=True, language_level=2, warning_errors=False,
+                 fork=True, language_level=3, warning_errors=False,
                  test_determinism=False, shard_num=0,
                  common_utility_dir=None, pythran_dir=None, stats=None, add_cython_import=False,
                  extra_directives=None, evaluate_tree_assertions=True):
@@ -2436,7 +2436,7 @@ def main():
     parser.add_option("-k", dest="only_pattern",
                       help="a regex pattern for selecting doctests and test functions in the test modules")
     parser.add_option("-3", dest="language_level",
-                      action="store_const", const=3, default=2,
+                      action="store_const", const=3, default=3,
                       help="set language level to Python 3 (useful for running the CPython regression tests)'")
     parser.add_option("--xml-output", dest="xml_output_dir", metavar="DIR",
                       help="write test results in XML to directory DIR")
