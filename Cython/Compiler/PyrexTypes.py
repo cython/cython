@@ -1895,6 +1895,15 @@ def c_const_type(base_type):
     return CConstOrVolatileType(base_type, is_const=True)
 
 
+class _FusedExceptionValuePlaceholderType(object):
+    def __repr__(self):
+        return "<Fused type exception value placeholder>"
+    def __deepcopy__(self, memo):
+        return self
+
+fused_type_exception_value_placeholder = _FusedExceptionValuePlaceholderType()
+
+
 class FusedType(CType):
     """
     Represents a Fused Type. All it needs to do is keep track of the types
@@ -1909,6 +1918,7 @@ class FusedType(CType):
 
     is_fused = 1
     exception_check = 0
+    exception_value = fused_type_exception_value_placeholder
 
     def __init__(self, types, name=None):
         # Use list rather than set to preserve order (list should be short).
@@ -3398,11 +3408,24 @@ class CFuncType(CType):
         return '(%s)' % s
 
     def specialize(self, values):
-        result = CFuncType(self.return_type.specialize(values),
+        return_type = self.return_type.specialize(values)
+        exception_value = self.exception_value
+        exception_check = self.exception_check
+        if exception_value is fused_type_exception_value_placeholder:
+            if return_type.is_pyobject:
+                # PyObjects have an implicit exception check.
+                # (There's the slight possibility this is ignoring an
+                # explicit exception check that would cause an error in
+                # a non-fused function)
+                exception_check = False
+                exception_value = None
+            else:
+                exception_value = return_type.exception_value
+        result = CFuncType(return_type,
                            [arg.specialize(values) for arg in self.args],
                            has_varargs = self.has_varargs,
-                           exception_value = self.exception_value,
-                           exception_check = self.exception_check,
+                           exception_value = exception_value,
+                           exception_check = exception_check,
                            calling_convention = self.calling_convention,
                            nogil = self.nogil,
                            with_gil = self.with_gil,
