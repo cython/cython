@@ -268,7 +268,7 @@ def test_as_default_value(PxdEnum val=PxdEnum.RANK_1):
 def test_special_attributes():
     """
     >>> test_special_attributes()
-    ('PyxEnum', 'cpdef_enums', None)
+    ('cpdefPyxDocLineEnum', 'cpdef_enums', 'Home is where...')
     """
     assert PyxEnum.__contains__
     assert PyxEnum.__init_subclass__
@@ -281,7 +281,7 @@ def test_special_attributes():
     assert PyxEnum.__qualname__.endswith(PyxEnum.__name__), (PyxEnum.__qualname__, PyxEnum.__name__)
 
     return (
-        PyxEnum.__name__,
-        PyxEnum.__module__,
-        PyxEnum.__doc__,
+        cpdefPyxDocLineEnum.__name__,
+        cpdefPyxDocLineEnum.__module__,
+        cpdefPyxDocLineEnum.__doc__,
     )
