@@ -233,6 +233,7 @@ static void __Pyx_Raise(PyObject *type, PyObject *value, PyObject *tb, PyObject 
 /////////////// RaiseException ///////////////
 //@requires: PyErrFetchRestore
 //@requires: PyThreadStateGet
+//@shared_params: __Pyx_Raise::void::PyObject *, PyObject *, PyObject *, PyObject *
 
 // The following function is based on do_raise() from ceval.c.
 

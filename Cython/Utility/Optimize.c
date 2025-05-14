@@ -203,6 +203,7 @@ static PyObject* __Pyx__PyList_PopIndex(PyObject* L, PyObject* py_ix, Py_ssize_t
 static PyObject* __Pyx_PyDict_GetItemDefault(PyObject* d, PyObject* key, PyObject* default_value); /*proto*/
 
 /////////////// dict_getitem_default ///////////////
+//@shared_params: __Pyx_PyDict_GetItemDefault::PyObject*::PyObject*, PyObject*, PyObject*
 
 static PyObject* __Pyx_PyDict_GetItemDefault(PyObject* d, PyObject* key, PyObject* default_value) {
     PyObject* value;

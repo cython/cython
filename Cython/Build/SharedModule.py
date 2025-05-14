@@ -29,6 +29,17 @@ def create_shared_library_pipeline(context, scope, options, result):
 
     def generate_c_utilities(module_node):
         module_node.scope.use_utility_code(Code.UtilityCode.load_cached("CythonFunction", "CythonFunction.c"))
+        module_node.scope.use_utility_code(Code.UtilityCode.load_cached("FusedFunction", "CythonFunction.c"))
+        module_node.scope.use_utility_code(Code.UtilityCode.load_cached("MemviewSliceValidateAndInit", "MemoryView_C.c"))
+        module_node.scope.use_utility_code(Code.UtilityCode.load_cached("BuildPyUnicode", "StringTools.c"))
+        module_node.scope.use_utility_code(Code.UtilityCode.load_cached("JoinPyUnicode", "StringTools.c"))
+        module_node.scope.use_utility_code(Code.UtilityCode.load_cached("BufferFormatCheck", "Buffer.c"))
+        module_node.scope.use_utility_code(Code.UtilityCode.load_cached("Import", "ImportExport.c"))
+        module_node.scope.use_utility_code(Code.UtilityCode.load_cached("ImportFrom", "ImportExport.c"))
+        module_node.scope.use_utility_code(Code.UtilityCode.load_cached("ImportDottedModule", "ImportExport.c"))
+        module_node.scope.use_utility_code(Code.UtilityCode.load_cached("UnpackItemEndCheck", "ObjectHandling.c"))
+        module_node.scope.use_utility_code(Code.UtilityCode.load_cached("dict_getitem_default", "Optimize.c"))
+        module_node.scope.use_utility_code(Code.UtilityCode.load_cached("CoroutineSetYieldFrom", "Coroutine.c"))
         return module_node
 
     orig_cimport_from_pyx = Options.cimport_from_pyx
