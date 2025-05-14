@@ -12476,6 +12476,7 @@ class BitwiseOrNode(IntBinopNode):
             return self._analyse_bitwise_or_none(env, self.operand2)
         elif self.operand2.is_none:
             return self._analyse_bitwise_or_none(env, self.operand1)
+        return None
 
 
 class AddNode(NumBinopNode):
