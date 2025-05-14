@@ -22,7 +22,13 @@
 // 2c7209a3bdf (gh-114091: Reword error message for unawaitable types (#114090))
 
 
+//////////////////// CoroutineSetYieldFrom.proto ////////////////////
+static void
+__Pyx_Coroutine_Set_Owned_Yield_From(__pyx_CoroutineObject *gen, PyObject *yf);
+
 //////////////////// CoroutineSetYieldFrom ////////////////////
+//@requires: CoroutineBase
+//@shared_params: __Pyx_Coroutine_Set_Owned_Yield_From::void::__pyx_CoroutineObject *, PyObject *
 
 static void
 __Pyx_Coroutine_Set_Owned_Yield_From(__pyx_CoroutineObject *gen, PyObject *yf) {

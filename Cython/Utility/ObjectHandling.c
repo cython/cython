@@ -70,6 +70,8 @@ static void __Pyx_UnpackTupleError(PyObject *t, Py_ssize_t index) {
 static int __Pyx_IternextUnpackEndCheck(PyObject *retval, Py_ssize_t expected); /*proto*/
 
 /////////////// UnpackItemEndCheck ///////////////
+//@shared_params: __Pyx_IternextUnpackEndCheck::int::PyObject *, Py_ssize_t
+//@shared_load_requires: False
 //@requires: RaiseTooManyValuesToUnpack
 //@requires: IterFinish
 
