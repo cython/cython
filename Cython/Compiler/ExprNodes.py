@@ -7771,6 +7771,9 @@ class AttributeNode(ExprNode):
                             return self.as_name_node(env, entry, target=False)
                     else:
                         error(self.pos, "%s not a known value of %s" % (self.attribute, type))
+                elif self.attribute.startswith('__') and self.attribute.endswith('__'):
+                    # Special attribute, look up at runtime.
+                    return None
                 else:
                     error(self.pos, "%s not a known value of %s" % (self.attribute, type))
         return None
