@@ -12459,7 +12459,8 @@ class BitwiseOrNode(IntBinopNode):
 
     def _analyse_bitwise_or_none(self, env, operand_node):
         """Analyse annotations in form `[...] | None` and `None | [...]`"""
-        ttype = operand_node.analyse_as_type(env)
+        with env.new_c_type_context(False):
+            ttype = operand_node.analyse_as_type(env)
         if not ttype:
             return None
         if not ttype.can_be_optional():
