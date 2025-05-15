@@ -283,7 +283,7 @@ their own value, which makes it backwards compatible.
 
 ::
 
-    globals().update(CheeseState.__members__)
+    globals().update(getattr(CheeseState, '__members__'))
 
 There is currently no special syntax for defining a constant, but you can use
 an anonymous :keyword:`enum` declaration for this purpose, for example,::

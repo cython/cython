@@ -120,7 +120,7 @@ Other changes
 * Named ``cpdef enums`` no longer copy their item names into the global module namespace.
   This was considered unhelpful for named enums which already live in their own class namespace.
   In cases where the old behaviour was desired, users can add the following backwards compatible
-  command after their enum class definition: ``globals().update(TheUserEnumClass.__members__)``.
+  command after their enum class definition: ``globals().update(getattr(TheUserEnumClass, '__members__'))``.
   Anonymous enums still produce global item names, as before.
   (Github issue :issue:`4571`)
 
