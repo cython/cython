@@ -750,7 +750,7 @@ def init_builtin_types():
         elif name == 'str':
             objstruct_cname = 'PyUnicodeObject'
         elif name == 'bool':
-            objstruct_cname = None  # FIXME: should be 'PyLongObject'
+            objstruct_cname = 'PyLongObject'
         elif name == 'BaseException':
             objstruct_cname = "PyBaseExceptionObject"
         elif name == 'Exception':
@@ -810,8 +810,16 @@ def init_builtins():
 
     float_type = builtin_scope.lookup('float').type
     int_type = builtin_scope.lookup('int').type
-    bool_type  = builtin_scope.lookup('bool').type
+    #bool_type  = builtin_scope.lookup('bool').type
     complex_type  = builtin_scope.lookup('complex').type
+
+    # Most entries are initialized via "declare_builtin_type()"", except for "bool"
+    # which is apparently a special case because it conflicts with C++ bool.
+    # Here, we only declare it as builtin name, not as actual type.
+    bool_type = PyrexTypes.BuiltinObjectType(EncodedString('bool'), "((PyObject*)&PyBool_Type)", "PyLongObject")
+    bool_type.is_final_type = True
+    bool_type.entry = builtin_scope.declare_var(EncodedString('bool'), bool_type, pos=None, cname="((PyObject*)&PyBool_Type)")
+    builtin_types['bool'] = bool_type
 
     sequence_types = (
         list_type,
