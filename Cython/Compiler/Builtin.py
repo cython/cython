@@ -750,7 +750,7 @@ def init_builtin_types():
         elif name == 'str':
             objstruct_cname = 'PyUnicodeObject'
         elif name == 'bool':
-            objstruct_cname = None
+            objstruct_cname = None  # FIXME: should be 'PyLongObject'
         elif name == 'BaseException':
             objstruct_cname = "PyBaseExceptionObject"
         elif name == 'Exception':
@@ -823,12 +823,15 @@ def init_builtins():
     )
 
     # Set up type inference links between equivalent Python/C types
+    assert bool_type.name == 'bool', bool_type.name
     bool_type.equivalent_type = PyrexTypes.c_bint_type
     PyrexTypes.c_bint_type.equivalent_type = bool_type
 
+    assert float_type.name == 'float', float_type.name
     float_type.equivalent_type = PyrexTypes.c_double_type
     PyrexTypes.c_double_type.equivalent_type = float_type
 
+    assert complex_type.name == 'complex', complex_type.name
     complex_type.equivalent_type = PyrexTypes.c_double_complex_type
     PyrexTypes.c_double_complex_type.equivalent_type = complex_type
 
