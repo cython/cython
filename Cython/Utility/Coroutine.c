@@ -464,6 +464,9 @@ static PyObject *__Pyx_Coroutine_Send(PyObject *self, PyObject *value); /*proto*
 static __Pyx_PySendResult __Pyx_Coroutine_Close(PyObject *self, PyObject **retval); /*proto*/
 static PyObject *__Pyx_Coroutine_Throw(PyObject *gen, PyObject *args); /*proto*/
 
+static PyObject* __pyx_Coroutine_getattro(__pyx_CoroutineObject *self, PyObject *attr); /*proto*/
+static int __pyx_Coroutine_setattro(__pyx_CoroutineObject *self, PyObject *attr, PyObject *value); /*proto*/
+
 // macros for exception state swapping instead of inline functions to make use of the local thread state context
 #if CYTHON_USE_EXC_INFO_STACK
 #define __Pyx_Coroutine_SwapException(self)
@@ -1326,6 +1329,30 @@ static PyObject *__Pyx_Coroutine_Throw(PyObject *self, PyObject *args) {
     return __Pyx__Coroutine_Throw(self, typ, val, tb, args, 1);
 }
 
+// Getting and setting __module__ is particular tricky since if we make __module__ a descriptor,
+// then it gets in the way of (type).__module__. Therefore intercept it in getattro/setattr
+static  PyObject* __pyx_Coroutine_getattro(__pyx_CoroutineObject *self, PyObject *attr) {
+    if (unlikely(PyUnicode_CompareWithASCIIString(attr, "__module__") == 0)) {
+        PyObject *module;
+        __Pyx_BEGIN_CRITICAL_SECTION(self);
+        module = __Pyx_XNewRef(self->gi_modulename);
+        __Pyx_END_CRITICAL_SECTION();
+        return module ? module : __Pyx_NewRef(Py_None);
+    }
+    return PyObject_GenericGetAttr((PyObject*)self, attr);
+}
+
+static int __pyx_Coroutine_setattro(__pyx_CoroutineObject *self, PyObject *attr, PyObject *value) {
+    if (unlikely(PyUnicode_CompareWithASCIIString(attr, "__module__") == 0)) {
+        __Pyx_BEGIN_CRITICAL_SECTION(self);
+        Py_XINCREF(value);
+        __Pyx_Py_XDECREF_SET(self->gi_modulename, value);
+        __Pyx_END_CRITICAL_SECTION();
+        return 0;
+    }
+    return PyObject_GenericSetAttr((PyObject*)self, attr, value);
+}
+
 static CYTHON_INLINE int __Pyx_Coroutine_traverse_excstate(__Pyx_ExcInfoStruct *exc_state, visitproc visit, void *arg) {
 #if PY_VERSION_HEX >= 0x030B00a4
     Py_VISIT(exc_state->exc_value);
@@ -1806,6 +1833,8 @@ static PyType_Slot __pyx_CoroutineAwaitType_slots[] = {
     {Py_tp_methods, (void *)__pyx_CoroutineAwait_methods},
     {Py_tp_iter, (void *)__Pyx_CoroutineAwait_self},
     {Py_tp_iternext, (void *)__Pyx_CoroutineAwait_Next},
+    {Py_tp_getattro, (void*)__pyx_Coroutine_getattro},
+    {Py_tp_setattro, (void *)__pyx_Coroutine_setattro},
 #if __PYX_HAS_PY_AM_SEND == 1
     {Py_am_send, (void *)__Pyx_CoroutineAwait_AmSend},
 #endif
@@ -1842,30 +1871,6 @@ static PyObject *__Pyx_Coroutine_await(PyObject *coroutine) {
         return NULL;
     }
     return __Pyx__Coroutine_await(coroutine);
-}
-
-// Getting and setting __module__ is particular tricky since if we make __module__ a descriptor,
-// then it gets in the way of (type).__module__. Therefore intercept it in getattro/setattr
-static  PyObject* __pyx_Coroutine_getattro(__pyx_CoroutineObject *self, PyObject *attr) {
-    if (unlikely(PyUnicode_CompareWithASCIIString(attr, "__module__") == 0)) {
-        PyObject *module;
-        __Pyx_BEGIN_CRITICAL_SECTION(self);
-        module = __Pyx_XNewRef(self->gi_modulename);
-        __Pyx_END_CRITICAL_SECTION();
-        return module ? module : __Pyx_NewRef(Py_None);
-    }
-    return PyObject_GenericGetAttr((PyObject*)self, attr);
-}
-
-static int __pyx_Coroutine_setattro(__pyx_CoroutineObject *self, PyObject *attr, PyObject *value) {
-    if (unlikely(PyUnicode_CompareWithASCIIString(attr, "__module__") == 0)) {
-        __Pyx_BEGIN_CRITICAL_SECTION(self);
-        Py_XINCREF(value);
-        __Pyx_Py_XDECREF_SET(self->gi_modulename, value);
-        __Pyx_END_CRITICAL_SECTION();
-        return 0;
-    }
-    return PyObject_GenericSetAttr((PyObject*)self, attr, value);
 }
 
 static PyMethodDef __pyx_Coroutine_methods[] = {
@@ -1986,7 +1991,7 @@ static PyType_Slot __pyx_IterableCoroutineType_slots[] = {
     {Py_tp_methods, (void *)__pyx_Coroutine_methods},
     {Py_tp_members, (void *)__pyx_Coroutine_memberlist},
     {Py_tp_getset, (void *)__pyx_Coroutine_getsets},
-    {Py_tp_getattro, (void *) PyObject_GenericGetAttr},
+    {Py_tp_getattro, (void *)__pyx_Coroutine_getattro},
 #if CYTHON_USE_TP_FINALIZE
     {Py_tp_finalize, (void *)__Pyx_Coroutine_del},
 #endif
@@ -2062,7 +2067,8 @@ static PyType_Slot __pyx_GeneratorType_slots[] = {
     {Py_tp_methods, (void *)__pyx_Generator_methods},
     {Py_tp_members, (void *)__pyx_Generator_memberlist},
     {Py_tp_getset, (void *)__pyx_Generator_getsets},
-    {Py_tp_getattro, (void *) PyObject_GenericGetAttr},
+    {Py_tp_getattro, (void *)__pyx_Coroutine_getattro},
+    {Py_tp_setattro, (void *)__pyx_Coroutine_setattro},
 #if CYTHON_USE_TP_FINALIZE
     {Py_tp_finalize, (void *)__Pyx_Coroutine_del},
 #endif

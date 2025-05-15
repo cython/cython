@@ -344,7 +344,6 @@ static PyMemberDef __Pyx_async_gen_memberlist[] = {
     //ADDED: "ag_await"
     {"ag_await", T_OBJECT, offsetof(__pyx_CoroutineObject, yieldfrom), READONLY,
      PyDoc_STR("object being awaited on, or None")},
-    {"__module__", T_OBJECT, offsetof(__pyx_CoroutineObject, gi_modulename), 0, 0},
     {"__weaklistoffset__", T_PYSSIZET, offsetof(__pyx_CoroutineObject, gi_weakreflist), READONLY, 0},
     {0, 0, 0, 0, 0}      /* Sentinel */
 };
@@ -383,6 +382,8 @@ static PyType_Slot __pyx_AsyncGenType_slots[] = {
     {Py_tp_methods, (void *)__Pyx_async_gen_methods},
     {Py_tp_members, (void *)__Pyx_async_gen_memberlist},
     {Py_tp_getset, (void *)__Pyx_async_gen_getsetlist},
+    {Py_tp_getattro, (void *)__pyx_Coroutine_getattro},
+    {Py_tp_setattro, (void *)__pyx_Coroutine_setattro},
 #if CYTHON_USE_TP_FINALIZE
     {Py_tp_finalize, (void *)__Pyx_Coroutine_del},
 #endif
