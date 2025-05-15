@@ -2,6 +2,27 @@
 Cython Changelog
 ================
 
+3.1.1 (2025-0?-??)
+==================
+
+Bugs fixed
+----------
+
+* Some Limited API issues were resolved.
+  (Github issue :issue:`6862`)
+
+* Coroutines could fail to generate invalid C with line tracing enabled.
+  (Github issue :issue:`6865`)
+
+* Code using ``complex()`` could generate invalid C code missing type declarations.
+  (Github issue :issue:`6860`)
+
+* Code using e.g. ``list[int | None]``  outside of variable/argument annotations failed to compile.
+  (Github issue :issue:`6856`)
+
+* Accessing special methods on cpdef enums failed to compile.
+
+
 3.1.0 (2025-05-08)
 ==================
 
