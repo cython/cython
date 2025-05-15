@@ -13382,8 +13382,11 @@ class CondExprNode(ExprNode):
             self.type = PyrexTypes.CFakeReferenceType(self.type.ref_base_type)
         if self.type.is_pyobject:
             self.result_ctype = py_object_type
-        elif self.true_val.is_ephemeral() or self.false_val.is_ephemeral():
-            error(self.pos, "Unsafe C derivative of temporary Python reference used in conditional expression")
+        elif self.type.is_ptr:
+            if self.true_val.is_ephemeral():
+                error(self.true_val.pos, "Unsafe C derivative of temporary Python reference used in conditional expression")
+            if self.false_val.is_ephemeral():
+                error(self.false_val.pos, "Unsafe C derivative of temporary Python reference used in conditional expression")
 
         if true_val_type.is_pyobject or false_val_type.is_pyobject or self.type.is_pyobject:
             if true_val_type != self.type:
