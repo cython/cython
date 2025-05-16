@@ -3126,6 +3126,20 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             for module in imported_modules:
                 self.specialize_fused_types(module)
                 self.generate_c_function_import_code_for_module(module, env, inner_code)
+            if env.context.shared_utility_qualified_name:
+                env.use_utility_code(
+                    UtilityCode.load_cached("FunctionImport", "ImportExport.c"))
+                temp = inner_code.funcstate.allocate_temp(py_object_type, manage_ref=True)
+                inner_code.putln(
+                    '%s = PyImport_ImportModule("%s"); if (!%s) %s' % (
+                        temp,
+                        env.context.shared_utility_qualified_name,
+                        temp,
+                        inner_code.error_goto(self.pos)))
+                inner_code.put_gotref(temp, py_object_type)
+                inner_code.globalstate.register_part('c_function_import_code', inner_code)
+                inner_code.put_decref_clear(temp, py_object_type)
+                inner_code.funcstate.release_temp(temp)
 
         code.putln("/*--- Execution code ---*/")
         code.mark_pos(None)
@@ -3785,7 +3799,6 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                         entry.type.signature_string(),
                         code.error_goto(self.pos)))
 
-            code.globalstate.register_part('c_function_import_code', code)
             code.put_decref_clear(temp, py_object_type)
             code.funcstate.release_temp(temp)
 
