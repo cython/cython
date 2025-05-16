@@ -478,7 +478,6 @@ static PyTypeObject *__Pyx_ImportType_$cyversion(PyObject *module, const char *m
     size_t size, size_t alignment, enum __Pyx_ImportType_CheckSize_$cyversion check_size)
 {
     PyObject *result = 0;
-    char warning[200];
     Py_ssize_t basicsize;
     Py_ssize_t itemsize;
 #if CYTHON_COMPILING_IN_LIMITED_API
@@ -549,11 +548,12 @@ static PyTypeObject *__Pyx_ImportType_$cyversion(PyObject *module, const char *m
         goto bad;
     }
     else if (check_size == __Pyx_ImportType_CheckSize_Warn_$cyversion && (size_t)basicsize > size) {
-        PyOS_snprintf(warning, sizeof(warning),
-            "%s.%s size changed, may indicate binary incompatibility. "
-            "Expected %zd from C header, got %zd from PyObject",
-            module_name, class_name, size, basicsize);
-        if (PyErr_WarnEx(NULL, warning, 0) < 0) goto bad;
+        if (PyErr_WarnFormat(NULL, 0,
+                "%.200s.%.200s size changed, may indicate binary incompatibility. "
+                "Expected %zd from C header, got %zd from PyObject",
+                module_name, class_name, size, basicsize) < 0) {
+            goto bad;
+        }
     }
     /* check_size == __Pyx_ImportType_CheckSize_Ignore does not warn nor error */
     return (PyTypeObject *)result;
