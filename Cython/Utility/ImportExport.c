@@ -177,7 +177,8 @@ static PyObject *__Pyx_Import(PyObject *name, PyObject *from_list, int level) {
     if (unlikely(!empty_dict))
         goto bad;
     if (level == -1) {
-        if (strchr(__Pyx_MODULE_NAME, '.') != (0)) {
+        const char* package_sep = strchr(__Pyx_MODULE_NAME, '.');
+        if (package_sep != (0)) {
             /* try package relative import first */
             module = PyImport_ImportModuleLevelObject(
                 name, NAMED_CGLOBAL(moddict_cname), empty_dict, from_list, 1);
