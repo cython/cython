@@ -1618,17 +1618,21 @@ class GlobalState:
         code.putln("")
 
         if self.module_node.scope.context.shared_utility_qualified_name:
+            from .PyrexTypes import py_object_type
             code = self.parts['c_function_import_code']
+            temp = code.funcstate.allocate_temp(py_object_type, manage_ref=True)
             for shared in self.shared_utility_functions:
                 code.putln(
                     'if (__Pyx_ImportFunction_%s(%s, %s, (void (**)(void))&%s, "%s") < 0) %s' % (
                         Naming.cyversion,
-                        '__pyx_t_1',
+                        temp,
                         f'"{shared["name"]}"',
                         f'{shared["name"]}',
                         f'{shared["ret"]}({shared["params"]})',
                         code.error_goto(self.module_pos))
                 )
+            # code.put_decref_clear(temp, py_object_type)
+            # code.funcstate.release_temp(temp)
         elif self.module_node.scope.context.options.shared_c_file_path:
             code = self.parts['c_function_export_code']
             for shared in self.shared_utility_functions:

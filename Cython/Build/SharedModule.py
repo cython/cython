@@ -40,6 +40,12 @@ def create_shared_library_pipeline(context, scope, options, result):
         module_node.scope.use_utility_code(Code.UtilityCode.load_cached("UnpackItemEndCheck", "ObjectHandling.c"))
         module_node.scope.use_utility_code(Code.UtilityCode.load_cached("dict_getitem_default", "Optimize.c"))
         module_node.scope.use_utility_code(Code.UtilityCode.load_cached("CoroutineSetYieldFrom", "Coroutine.c"))
+        module_node.scope.use_utility_code(Code.UtilityCode.load_cached("CalculateMetaclass", "ObjectHandling.c"))
+        module_node.scope.use_utility_code(Code.UtilityCode.load_cached("Py3UpdateBases", "ObjectHandling.c"))
+        module_node.scope.use_utility_code(Code.UtilityCode.load_cached("Py3ClassCreate", "ObjectHandling.c"))
+        module_node.scope.use_utility_code(Code.UtilityCode.load_cached("PyObjectGetMethod", "ObjectHandling.c"))
+        module_node.scope.use_utility_code(Code.UtilityCode.load_cached("PyObjectCallMethod0", "ObjectHandling.c"))
+        module_node.scope.use_utility_code(Code.UtilityCode.load_cached("PyObjectCallMethod1", "ObjectHandling.c"))
         return module_node
 
     orig_cimport_from_pyx = Options.cimport_from_pyx

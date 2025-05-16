@@ -945,6 +945,7 @@ static CYTHON_INLINE PyObject* __Pyx_PyList_GetSlice(
 static PyObject *__Pyx_CalculateMetaclass(PyTypeObject *metaclass, PyObject *bases);
 
 /////////////// CalculateMetaclass ///////////////
+//@shared_params: __Pyx_CalculateMetaclass::PyObject *::PyTypeObject *, PyObject *
 
 static PyObject *__Pyx_CalculateMetaclass(PyTypeObject *metaclass, PyObject *bases) {
     Py_ssize_t i, nbases;
@@ -1098,6 +1099,7 @@ static PyObject* __Pyx_PEP560_update_bases(PyObject *bases); /* proto */
 /////////////// Py3UpdateBases /////////////////////
 //@requires: PyObjectCallOneArg
 //@requires: PyObjectGetAttrStrNoError
+//@shared_params: __Pyx_PEP560_update_bases::PyObject *::PyObject *
 
 /* Shamelessly adapted from cpython/bltinmodule.c update_bases */
 static PyObject*
@@ -1223,6 +1225,9 @@ static PyObject *__Pyx_Py3ClassCreate(PyObject *metaclass, PyObject *name, PyObj
                                       PyObject *mkw, int calculate_metaclass, int allow_py2_metaclass); /*proto*/
 
 /////////////// Py3ClassCreate ///////////////
+//@shared_params: __Pyx_Py3MetaclassPrepare::PyObject *::PyObject *, PyObject *, PyObject *, PyObject *, PyObject *, PyObject *, PyObject *
+//@shared_params: __Pyx_Py3ClassCreate::PyObject *::PyObject *, PyObject *, PyObject *, PyObject *, PyObject *, PyObject *, PyObject *
+//@shared_load_requires: False
 //@requires: PyObjectGetAttrStrNoError
 //@requires: CalculateMetaclass
 //@requires: PyObjectFastCall
@@ -1690,6 +1695,8 @@ static int __Pyx_PyObject_GetMethod(PyObject *obj, PyObject *name, PyObject **me
 
 /////////////// PyObjectGetMethod ///////////////
 //@requires: PyObjectGetAttrStr
+//@shared_params: __Pyx_PyObject_GetMethod::int::PyObject *, PyObject *, PyObject *
+//@shared_load_requires: False
 
 static int __Pyx_PyObject_GetMethod(PyObject *obj, PyObject *name, PyObject **method) {
     PyObject *attr;
@@ -2392,6 +2399,8 @@ static PyObject* __Pyx_PyObject_CallMethod0(PyObject* obj, PyObject* method_name
 //@requires: PyObjectGetMethod
 //@requires: PyObjectCallOneArg
 //@requires: PyObjectCallNoArg
+//@shared_params: __Pyx_PyObject_CallMethod0::PyObject *::PyObject *, PyObject *
+//@shared_load_requires: False
 
 static PyObject* __Pyx_PyObject_CallMethod0(PyObject* obj, PyObject* method_name) {
     PyObject *method = NULL, *result = NULL;
@@ -2417,6 +2426,8 @@ static PyObject* __Pyx_PyObject_CallMethod1(PyObject* obj, PyObject* method_name
 //@requires: PyObjectGetMethod
 //@requires: PyObjectCallOneArg
 //@requires: PyObjectCall2Args
+//@shared_params: __Pyx_PyObject_CallMethod1::PyObject *::PyObject *, PyObject *, PyObject *
+//@shared_load_requires: False
 
 #if !(CYTHON_VECTORCALL && __PYX_LIMITED_VERSION_HEX >= 0x030C0000)
 static PyObject* __Pyx__PyObject_CallMethod1(PyObject* method, PyObject* arg) {

@@ -379,6 +379,8 @@ static void __Pyx_Generator_Replace_StopIteration(int in_async_gen); /*proto*/
 
 //////////////////// pep479 ////////////////////
 //@requires: Exceptions.c::GetException
+//@shared_params: __Pyx_Generator_Replace_StopIteration::void::int
+//@shared_load_requires: False
 
 static void __Pyx_Generator_Replace_StopIteration(int in_async_gen) {
     PyObject *exc, *val, *tb, *cur_exc, *new_exc;
