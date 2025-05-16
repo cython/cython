@@ -263,3 +263,25 @@ def test_as_default_value(PxdEnum val=PxdEnum.RANK_1):
     True
     """
     return val == PxdEnum.RANK_1
+
+
+def test_special_attributes():
+    """
+    >>> test_special_attributes()
+    ('cpdefPyxDocLineEnum', 'cpdef_enums', 'Home is where...')
+    """
+    assert PyxEnum.__contains__
+    assert PyxEnum.__init_subclass__
+    assert PyxEnum.__iter__
+    assert PyxEnum.__len__
+    assert PyxEnum.__class__
+
+    assert PyxEnum.__getitem__('TWO') is PyxEnum.TWO
+    assert PyxEnum.__members__['TWO'] is PyxEnum.TWO
+    assert PyxEnum.__qualname__.endswith(PyxEnum.__name__), (PyxEnum.__qualname__, PyxEnum.__name__)
+
+    return (
+        cpdefPyxDocLineEnum.__name__,
+        cpdefPyxDocLineEnum.__module__,
+        cpdefPyxDocLineEnum.__doc__,
+    )

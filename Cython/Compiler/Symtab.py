@@ -1337,7 +1337,8 @@ class BuiltinScope(Scope):
         type.set_scope(scope)
         self.type_names[name] = 1
         entry = self.declare_type(name, type, None, visibility='extern')
-        entry.utility_code = utility_code
+        if utility_code:
+            entry.utility_code = utility_code
 
         var_entry = Entry(
             name=entry.name,
@@ -1350,7 +1351,8 @@ class BuiltinScope(Scope):
         var_entry.is_cglobal = 1
         var_entry.is_readonly = 1
         var_entry.is_builtin = 1
-        var_entry.utility_code = utility_code
+        if utility_code:
+            var_entry.utility_code = utility_code
         var_entry.scope = self
         if Options.cache_builtins:
             var_entry.is_const = True
