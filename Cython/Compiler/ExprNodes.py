@@ -8317,8 +8317,14 @@ class SequenceNode(ExprNode):
         return self
 
     def coerce_to_ctuple(self, dst_type, env):
+        if dst_type.is_reference:
+            dst_type = dst_type.ref_base_type
+        if dst_type.is_cv_qualified:
+            # ctuples are passed by value and must always be assignable, never const.
+            return self.coerce_to_ctuple(dst_type.cv_base_type, env)
         if self.type == dst_type:
             return self
+
         assert not self.mult_factor
         if len(self.args) != dst_type.size:
             error(self.pos, "trying to coerce sequence to ctuple of wrong length, expected %d, got %d" % (
