@@ -144,8 +144,6 @@ tp_dict_version_temp = pyrex_prefix + "tp_dict_version"
 obj_dict_version_temp = pyrex_prefix + "obj_dict_version"
 type_dict_guard_temp = pyrex_prefix + "typedict_guard"
 cython_runtime_cname   = pyrex_prefix + "cython_runtime"
-cyfunction_type_cname = pyrex_prefix + "CyFunctionType"
-fusedfunction_type_cname = pyrex_prefix + "FusedFunctionType"
 # the name "dflt" was picked by analogy with the CPython dataclass module which stores
 # the default values in variables named f"_dflt_{field.name}" in a hidden scope that's
 # passed to the __init__ function. (The name is unimportant to the exact workings though)
@@ -197,14 +195,21 @@ PYX_NAN          = "__PYX_NAN()"
 def py_version_hex(major, minor=0, micro=0, release_level=0, release_serial=0):
     return (major << 24) | (minor << 16) | (micro << 8) | (release_level << 4) | (release_serial)
 
-# there's a few places where it's useful to iterate over all of these
-used_types_and_macros = [
-    (cyfunction_type_cname, '__Pyx_CyFunction_USED'),
-    (fusedfunction_type_cname, '__Pyx_FusedFunction_USED'),
-    ('__pyx_GeneratorType', '__Pyx_Generator_USED'),
-    ('__pyx_IterableCoroutineType', '__Pyx_IterableCoroutine_USED'),
-    ('__pyx_CoroutineAwaitType', '__Pyx_Coroutine_USED'),
-    ('__pyx_CoroutineType', '__Pyx_Coroutine_USED'),
+# there's a few places where it's useful to iterate over all of these.
+# The format is:
+#  a name which is used to calculate
+#    the __Pyx_{name}_USED macro,
+#    the __pyx_{name}Type TypeObject name and
+#    the __pyx_{name}_init function
+#  a list of other types declared under the same USED macro
+type_names_and_linked_types = [
+    ('CommonTypesMetaclass', []),  # first because other types use it
+    ('CyFunction', []),
+    ('FusedFunction', []),
+    ('Generator', []),
+    ('IterableCoroutine', []),
+    ('Coroutine', ['CoroutineAwait']),
+    ('AsyncGen', ['_PyAsyncGenWrappedValue', '_PyAsyncGenASend', '_PyAsyncGenAThrow']),
 ]
 
 

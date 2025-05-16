@@ -4,11 +4,6 @@
 
 //////////////////// AsyncGenerator.module_state_decls ////////////////////
 
-PyTypeObject *__pyx__PyAsyncGenWrappedValueType;
-PyTypeObject *__pyx__PyAsyncGenASendType;
-PyTypeObject *__pyx__PyAsyncGenAThrowType;
-PyTypeObject *__pyx_AsyncGenType;
-
 // Freelists boost performance 6-10%; they also reduce memory
 // fragmentation, as _PyAsyncGenWrappedValue and PyAsyncGenASend
 // are short-living objects that are instantiated for every
@@ -982,19 +977,20 @@ __Pyx_async_gen_athrow_new(__pyx_PyAsyncGenObject *gen, PyObject *args)
 
 static int __pyx_AsyncGen_init(PyObject *module) {
     $modulestatetype_cname *mstate = __Pyx_PyModule_GetState(module);
-    mstate->__pyx_AsyncGenType = __Pyx_FetchCommonTypeFromSpec(module, &__pyx_AsyncGenType_spec, NULL);
+    mstate->__pyx_AsyncGenType = __Pyx_FetchCommonTypeFromSpec(
+        mstate->__pyx_CommonTypesMetaclassType, module, &__pyx_AsyncGenType_spec, NULL);
     if (unlikely(!mstate->__pyx_AsyncGenType))
         return -1;
 
-    mstate->__pyx__PyAsyncGenAThrowType = __Pyx_FetchCommonTypeFromSpec(module, &__pyx__PyAsyncGenAThrowType_spec, NULL);
+    mstate->__pyx__PyAsyncGenAThrowType = __Pyx_FetchCommonTypeFromSpec(NULL, module, &__pyx__PyAsyncGenAThrowType_spec, NULL);
     if (unlikely(!mstate->__pyx__PyAsyncGenAThrowType))
         return -1;
 
-    mstate->__pyx__PyAsyncGenWrappedValueType = __Pyx_FetchCommonTypeFromSpec(module, &__pyx__PyAsyncGenWrappedValueType_spec, NULL);
+    mstate->__pyx__PyAsyncGenWrappedValueType = __Pyx_FetchCommonTypeFromSpec(NULL, module, &__pyx__PyAsyncGenWrappedValueType_spec, NULL);
     if (unlikely(!mstate->__pyx__PyAsyncGenWrappedValueType))
         return -1;
 
-    mstate->__pyx__PyAsyncGenASendType = __Pyx_FetchCommonTypeFromSpec(module, &__pyx__PyAsyncGenASendType_spec, NULL);
+    mstate->__pyx__PyAsyncGenASendType = __Pyx_FetchCommonTypeFromSpec(NULL, module, &__pyx__PyAsyncGenASendType_spec, NULL);
     if (unlikely(!mstate->__pyx__PyAsyncGenASendType))
         return -1;
 

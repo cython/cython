@@ -10,13 +10,31 @@ static PyObject *__Pyx_FetchSharedCythonABIModule(void) {
 
 /////////////// FetchCommonType.proto ///////////////
 
-static PyTypeObject* __Pyx_FetchCommonTypeFromSpec(PyObject *module, PyType_Spec *spec, PyObject *bases);
+static PyTypeObject* __Pyx_FetchCommonTypeFromSpec(PyTypeObject *metaclass, PyObject *module, PyType_Spec *spec, PyObject *bases);
 
 /////////////// FetchCommonType ///////////////
 //@requires:ExtensionTypes.c::FixUpExtensionType
 //@requires: FetchSharedCythonModule
 //@requires:StringTools.c::IncludeStringH
 //@requires:Optimize.c::dict_setdefault
+
+#if __PYX_LIMITED_VERSION_HEX < 0x030A0000
+static PyObject* __Pyx_PyType_FromMetaclass(PyTypeObject *metaclass, PyObject *module, PyType_Spec *spec, PyObject *bases) {
+    PyObject *result = __Pyx_PyType_FromModuleAndSpec(module, spec, bases);
+    if (result && metaclass) {
+        PyObject *old_tp = Py_TYPE(result);
+    #if __PYX_LIMITED_VERSION_HEX >= 0x03090000
+        Py_SET_TYPE(result, __Pyx_NewRef(metaclass));
+    #else
+        Py_TYPE(result) = __Pyx_NewRef(metaclass);
+    #endif
+        Py_DECREF(old_tp);
+    }
+    return result;
+}
+#else
+#define __Pyx_PyType_FromMetaclass(me, mo, s, b) PyType_FromMetaclass(me, mo, s, b)
+#endif
 
 static int __Pyx_VerifyCachedType(PyObject *cached_type,
                                const char *name,
@@ -50,7 +68,7 @@ static int __Pyx_VerifyCachedType(PyObject *cached_type,
     return 0;
 }
 
-static PyTypeObject *__Pyx_FetchCommonTypeFromSpec(PyObject *module, PyType_Spec *spec, PyObject *bases) {
+static PyTypeObject *__Pyx_FetchCommonTypeFromSpec(PyTypeObject *metaclass, PyObject *module, PyType_Spec *spec, PyObject *bases) {
     PyObject *abi_module = NULL, *cached_type = NULL, *abi_module_dict, *new_cached_type, *py_object_name;
     int get_item_ref_result;
     // get the final part of the object name (after the last dot)
@@ -81,7 +99,7 @@ static PyTypeObject *__Pyx_FetchCommonTypeFromSpec(PyObject *module, PyType_Spec
 
     // We pass the ABI module reference to avoid keeping the user module alive by foreign type usages.
     CYTHON_UNUSED_VAR(module);
-    cached_type = __Pyx_PyType_FromModuleAndSpec(abi_module, spec, bases);
+    cached_type = __Pyx_PyType_FromMetaclass(metaclass, abi_module, spec, bases);
     if (unlikely(!cached_type)) goto bad;
     if (unlikely(__Pyx_fix_up_extension_type_from_spec(spec, (PyTypeObject *) cached_type) < 0)) goto bad;
 
@@ -116,3 +134,60 @@ bad:
     goto done;
 }
 
+/////////////////////////// CommonTypesMetaclass.proto ////////////////////////
+
+static int __pyx_CommonTypesMetaclass_init(PyObject *module); /* proto */
+
+#define __Pyx_CommonTypesMetaclass_USED
+
+//////////////////// CommonTypesMetaclass ////////////////////
+//@requires: FetchCommonType
+//@substitute: naming
+
+PyObject* __pyx_CommonTypesMetaclass_get_module(PyObject *self, void*) {
+    // adapted from typeobject.c for non-heaptypes
+    const char* name = __Pyx_PyType_GetSlot((PyTypeObject*)self, tp_name, const char*);
+    const char *s = strrchr(name, '.');
+    if (s != NULL) {
+        PyObject *mod = PyUnicode_FromStringAndSize(
+            name, (Py_ssize_t)(s - name));
+        return mod;
+    }
+    PyErr_SetString(PyExc_SystemError, "failed to get module from type");
+    return NULL;
+}
+
+static PyGetSetDef __pyx_CommonTypesMetaclass_getset[] = {
+    {"__module__", __pyx_CommonTypesMetaclass_get_module, NULL, NULL, NULL},
+    {0, 0, 0, 0, 0}
+};
+
+static PyType_Slot __pyx_CommonTypesMetaclass_slots[] = {
+    {Py_tp_getset, (void *)__pyx_CommonTypesMetaclass_getset},
+    {0, 0}
+};
+
+static PyType_Spec __pyx_CommonTypesMetaclass_spec = {
+    __PYX_TYPE_MODULE_PREFIX "_common_types_metatype",
+    0,
+    0,
+#if PY_VERSION_HEX >= 0x030A0000
+    Py_TPFLAGS_IMMUTABLETYPE |
+#endif
+    Py_TPFLAGS_DISALLOW_INSTANTIATION |
+    Py_TPFLAGS_DEFAULT, /*tp_flags*/
+    __pyx_CommonTypesMetaclass_slots
+};
+
+static int __pyx_CommonTypesMetaclass_init(PyObject *module) {   
+    $modulestatetype_cname *mstate = __Pyx_PyModule_GetState(module);
+    PyObject *bases = PyTuple_Pack(1, &PyType_Type);
+    if (unlikely(!bases)) {
+        return -1;
+    }
+    mstate->__pyx_CommonTypesMetaclassType = __Pyx_FetchCommonTypeFromSpec(NULL, module, &__pyx_CommonTypesMetaclass_spec, bases);
+    if (unlikely(mstate->__pyx_CommonTypesMetaclassType == NULL)) {
+        return -1;
+    }
+    return 0;
+}
