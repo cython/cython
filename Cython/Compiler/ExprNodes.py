@@ -8317,11 +8317,8 @@ class SequenceNode(ExprNode):
         return self
 
     def coerce_to_ctuple(self, dst_type, env):
-        if dst_type.is_reference:
-            dst_type = dst_type.ref_base_type
-        if dst_type.is_cv_qualified:
-            # ctuples are passed by value and must always be assignable, never const.
-            return self.coerce_to_ctuple(dst_type.cv_base_type, env)
+        # ctuples are passed by value and must always be assignable, never const.
+        dst_type = PyrexTypes.remove_cv_ref(dst_type, remove_fakeref=True)
         if self.type == dst_type:
             return self
 
