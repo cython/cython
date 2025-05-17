@@ -498,6 +498,8 @@ static PyObject *__Pyx_Coroutine_get_is_running_getter(PyObject *gen, void *clos
 static void __Pyx_SetBackportTypeAmSend(PyTypeObject *type, __Pyx_PyAsyncMethodsStruct *static_amsend_methods, __Pyx_pyiter_sendfunc am_send); /* proto */
 #endif
 
+static PyObject *__Pyx_Coroutine_fail_reduce_ex(PyObject *self, PyObject *arg); /*proto*/
+
 //////////////////// Coroutine.proto ////////////////////
 
 #define __Pyx_Coroutine_USED
@@ -1687,6 +1689,26 @@ static void __Pyx_SetBackportTypeAmSend(PyTypeObject *type, __Pyx_PyAsyncMethods
 }
 #endif
 
+
+// In earlier versions of Python an object with no __dict__ and not __slots__ is assumed
+// to be pickleable by default. Coroutine-wrappers have significant state so shouldn't be.
+// Therefore provide a default implementation.
+// Something similar applies to heaptypes (i.e. with type_specs) with protocols 0 and 1
+// even in more recent versions.
+// We are applying this to all Python versions (hence the commented out version guard)
+// to make the behaviour explicit.
+// #if CYTHON_USE_TYPE_SPECS
+static PyObject *__Pyx_Coroutine_fail_reduce_ex(PyObject *self, PyObject *arg) {
+    CYTHON_UNUSED_VAR(arg);
+
+    __Pyx_TypeName self_type_name = __Pyx_PyType_GetFullyQualifiedName(Py_TYPE((PyObject*)self));
+    PyErr_Format(PyExc_TypeError, "cannot pickle '" __Pyx_FMT_TYPENAME "' object",
+                         self_type_name);
+    __Pyx_DECREF_TypeName(self_type_name);
+    return NULL;
+}
+// #endif
+
 //////////////////// Coroutine ////////////////////
 //@requires: CoroutineBase
 //@requires: ExtensionTypes.c::CallTypeTraverse
@@ -1762,25 +1784,6 @@ static PyObject *__Pyx_CoroutineAwait_no_new(PyTypeObject *type, PyObject *args,
     return NULL;
 }
 #endif
-
-// In earlier versions of Python an object with no __dict__ and not __slots__ is assumed
-// to be pickleable by default. Coroutine-wrappers have significant state so shouldn't be.
-// Therefore provide a default implementation.
-// Something similar applies to heaptypes (i.e. with type_specs) with protocols 0 and 1
-// even in more recent versions.
-// We are applying this to all Python versions (hence the commented out version guard)
-// to make the behaviour explicit.
-// #if CYTHON_USE_TYPE_SPECS
-static PyObject *__Pyx_Coroutine_fail_reduce_ex(PyObject *self, PyObject *arg) {
-    CYTHON_UNUSED_VAR(arg);
-
-    __Pyx_TypeName self_type_name = __Pyx_PyType_GetFullyQualifiedName(Py_TYPE((PyObject*)self));
-    PyErr_Format(PyExc_TypeError, "cannot pickle '" __Pyx_FMT_TYPENAME "' object",
-                         self_type_name);
-    __Pyx_DECREF_TypeName(self_type_name);
-    return NULL;
-}
-// #endif
 
 static PyMethodDef __pyx_CoroutineAwait_methods[] = {
     {"send", (PyCFunction) __Pyx_CoroutineAwait_Send, METH_O,
