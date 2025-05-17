@@ -3073,6 +3073,11 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("%s = PyUnicode_FromStringAndSize(\"\", 0); %s" % (
             empty_unicode, code.error_goto_if_null(empty_unicode, self.pos)))
 
+        for ext_type, _ in Naming.type_names_and_linked_types:
+            code.putln("#ifdef __Pyx_%s_USED" % ext_type)
+            code.put_error_if_neg(self.pos, "__pyx_%s_init(%s)" % (ext_type, env.module_cname))
+            code.putln("#endif")
+
         code.putln("/*--- Library function declarations ---*/")
         if env.directives['np_pythran']:
             code.put_error_if_neg(self.pos, "_import_array()")
@@ -3081,11 +3086,6 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.put_error_if_neg(self.pos, f"__Pyx_InitConstants({Naming.modulestatevalue_cname})")
         code.putln("stringtab_initialized = 1;")
         code.put_error_if_neg(self.pos, "__Pyx_InitGlobals()")  # calls any utility code
-
-        for ext_type, _ in Naming.type_names_and_linked_types:
-            code.putln("#ifdef __Pyx_%s_USED" % ext_type)
-            code.put_error_if_neg(self.pos, "__pyx_%s_init(%s)" % (ext_type, env.module_cname))
-            code.putln("#endif")
 
         code.putln("if (%s) {" % self.is_main_module_flag_cname())
         code.put_error_if_neg(self.pos, 'PyObject_SetAttr(%s, %s, %s)' % (

@@ -147,7 +147,6 @@ static int __pyx_CommonTypesMetaclass_init(PyObject *module); /* proto */
 
 //////////////////// CommonTypesMetaclass ////////////////////
 //@requires: FetchCommonType
-//@requires: ExtensionTypes.c::SetItemOnTypeDict
 //@substitute: naming
 
 PyObject* __pyx_CommonTypesMetaclass_get_module(PyObject *self, CYTHON_UNUSED void* context) {
@@ -186,34 +185,5 @@ static int __pyx_CommonTypesMetaclass_init(PyObject *module) {
     if (unlikely(mstate->__pyx_CommonTypesMetaclassType == NULL)) {
         return -1;
     }
-#if CYTHON_COMPILING_IN_LIMITED_API && __PYX_LIMITED_VERSION_HEX < 0x03090000
-    if (__Pyx_get_runtime_version() < 0x03090000) {
-        // Specific fixup for this class in Python 3.8.
-        // (For mysterious reasons adding this fixup to __Pyx_fix_up_extension_type_from_spec
-        // seems to break other types though.)
-        PyObject *module_descr = PyDescr_NewGetSet(
-            mstate->__pyx_CommonTypesMetaclassType,
-            &__pyx_CommonTypesMetaclass_getset[0]
-        );
-        if (unlikely(!module_descr)) {
-            return -1;
-        }
-        PyObject *module_str = PyUnicode_FromString("__module__");
-        if (unlikely(!module_str)) {
-            Py_DECREF(module_descr);
-            return -1;
-        }
-        int set_item_result = __Pyx__SetItemOnTypeDict(
-            mstate->__pyx_CommonTypesMetaclassType,
-            module_str,
-            module_descr
-        );
-        Py_DECREF(module_descr);
-        Py_DECREF(module_str);
-        if (set_item_result != 0) {
-            return -1;
-        }
-    }
-#endif
     return 0;
 }

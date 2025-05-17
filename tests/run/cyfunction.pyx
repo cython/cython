@@ -4,6 +4,10 @@
 
 cimport cython
 
+include "skip_limited_api_helper.pxi"
+
+import sys
+
 def inspect_isroutine():
     """
     >>> inspect_isroutine()
@@ -411,6 +415,7 @@ def test_firstlineno_decorated_function():
     l2 = test_firstlineno_decorated_function.__code__.co_firstlineno
     return l2 - l1
 
+@skip_if_limited_api("https://bugs.python.org/issue38140 and/or https://bugs.python.org/issue40703", sys.version_info < (3, 9))
 def test_module():
     """
     >>> test_module.__module__
@@ -425,6 +430,7 @@ def test_module():
     """
     pass
 
+@skip_if_limited_api("https://bugs.python.org/issue38140 and/or https://bugs.python.org/issue40703", sys.version_info < (3, 9))
 def test_fused_module(cython.numeric arg):
     """
     >>> test_fused_module.__module__
