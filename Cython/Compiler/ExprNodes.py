@@ -7771,6 +7771,9 @@ class AttributeNode(ExprNode):
                             return self.as_name_node(env, entry, target=False)
                     else:
                         error(self.pos, "%s not a known value of %s" % (self.attribute, type))
+                elif self.attribute.startswith('__') and self.attribute.endswith('__'):
+                    # Special attribute, look up at runtime.
+                    return None
                 else:
                     error(self.pos, "%s not a known value of %s" % (self.attribute, type))
         return None
@@ -8314,8 +8317,11 @@ class SequenceNode(ExprNode):
         return self
 
     def coerce_to_ctuple(self, dst_type, env):
+        # ctuples are passed by value and must always be assignable, never const.
+        dst_type = PyrexTypes.remove_cv_ref(dst_type, remove_fakeref=True)
         if self.type == dst_type:
             return self
+
         assert not self.mult_factor
         if len(self.args) != dst_type.size:
             error(self.pos, "trying to coerce sequence to ctuple of wrong length, expected %d, got %d" % (
@@ -12459,7 +12465,8 @@ class BitwiseOrNode(IntBinopNode):
 
     def _analyse_bitwise_or_none(self, env, operand_node):
         """Analyse annotations in form `[...] | None` and `None | [...]`"""
-        ttype = operand_node.analyse_as_type(env)
+        with env.new_c_type_context(False):
+            ttype = operand_node.analyse_as_type(env)
         if not ttype:
             return None
         if not ttype.can_be_optional():
@@ -12476,6 +12483,7 @@ class BitwiseOrNode(IntBinopNode):
             return self._analyse_bitwise_or_none(env, self.operand2)
         elif self.operand2.is_none:
             return self._analyse_bitwise_or_none(env, self.operand1)
+        return None
 
 
 class AddNode(NumBinopNode):

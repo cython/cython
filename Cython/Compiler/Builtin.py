@@ -231,7 +231,8 @@ builtin_function_table = [
     BuiltinFunction('chr',        "i",    "O",      "PyUnicode_FromOrdinal", builtin_return_type='str'),
     #('cmp', "",   "",     "",      ""), # int PyObject_Cmp(PyObject *o1, PyObject *o2, int *result)
     #('compile',   "",     "",      ""), # PyObject* Py_CompileString(    char *str, char *filename, int start)
-    BuiltinFunction('delattr',    "OO",   "r",     "PyObject_DelAttr"),
+    BuiltinFunction('delattr',    "OO",   "r",     "__Pyx_PyObject_DelAttr",
+                    utility_code=UtilityCode.load("PyObjectDelAttr", "ObjectHandling.c")),
     BuiltinFunction('dir',        "O",    "O",     "PyObject_Dir"),
     BuiltinFunction('divmod',     "OO",   "O",     "PyNumber_Divmod",
                     specialiser=_generate_divmod_function),
