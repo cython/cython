@@ -116,3 +116,97 @@ bad:
     goto done;
 }
 
+/////////////// RegisterABC.proto ///////////////
+
+static void __Pyx_RegisterCommonTypeWithAbc(PyObject *type, const char *abc_name); /* proto */
+
+/////////////// RegisterABC ///////////////
+//@requires: ModuleSetupCode.c::CriticalSections
+//@requires: ObjectHandling.c::PyObjectGetAttrStrNoError
+//@requires: Optimize.c::dict_setdefault
+
+static void __Pyx_RegisterCommonTypeWithBackportsAbc(PyObject *type, PyObject *py_abc_name) {
+    // This really is optional since there's no reason to assume that anyone will
+    // have backports_abc installed.
+    PyObject *module = PyImport_ImportModule("backports_abc");
+    if (!module) goto error;
+
+    // No need to worry about races here - collections.abc holds the master copy
+    // so at worst we'll just be reinitializing the same reference.
+    if (PyObject_SetAttr(module, py_abc_name, type) == -1) goto error;
+    return;
+
+  error:
+    PyErr_Clear();
+}
+
+static void __Pyx_RegisterCommonTypeWithAbc(PyObject *type, const char *abc_name)
+{
+    int result = -1;
+    int get_item_result;
+    PyObject *abc_class = NULL, *collections_abc_module_dict, *py_abc_name = NULL;
+    PyObject *collections_abc_module = PyImport_ImportModule("collections.abc");
+    if (unlikely(!collections_abc_module)) goto done;
+
+    collections_abc_module_dict = PyModule_GetDict(collections_abc_module);
+    if (unlikely(!collections_abc_module_dict)) goto done;
+
+    py_abc_name = PyUnicode_FromString(abc_name);
+    if (unlikely(!py_abc_name))
+        goto done;
+
+    get_item_result = __Pyx_PyDict_GetItemRef(collections_abc_module_dict, py_abc_name, &abc_class);
+    if (unlikely(get_item_result == -1)) {
+        goto done;
+    } else if (get_item_result == 0) {
+        PyObject *abc_module = PyImport_ImportModule("abc");
+        if (unlikely(!abc_module)) goto done;
+        PyObject *abc_type = PyObject_GetAttrString(abc_module, "ABC");
+        Py_DECREF(abc_module);
+        if (unlikely(!abc_type)) goto done;
+
+        PyObject* new_abc_class = PyObject_CallFunction(
+            (PyObject*)&PyType_Type,
+            "O(O){ss}",
+            py_abc_name,
+            abc_type,
+            "__module__",
+            "collections.abc"
+        );
+        Py_DECREF(abc_type);
+        if (unlikely(!new_abc_class)) goto done;
+
+        // Retry, check that there hasn't been a race
+        abc_class = __Pyx_PyDict_SetDefault(collections_abc_module_dict, py_abc_name, new_abc_class, 1);
+        Py_DECREF(new_abc_class);
+        if (unlikely(!abc_class)) goto done;
+    }
+    {
+        // The class is initialized, register the type
+        PyObject *register_result = PyObject_CallMethod(abc_class, "register", "O", type);
+
+        if (likely(register_result)) {
+            Py_DECREF(register_result);
+            result = 0;
+
+            if (get_item_result == 0)
+                __Pyx_RegisterCommonTypeWithBackportsAbc(abc_class, py_abc_name);
+        }
+    }
+
+  done:
+    Py_XDECREF(collections_abc_module);
+    Py_XDECREF(py_abc_name);
+    Py_XDECREF(abc_class);
+
+    if (unlikely(result == -1)) {
+        // Treat this as an allowed failure; it doesn't matter too much if we don't register the abcs.
+        PyObject *type, *value, *traceback;
+        PyErr_Fetch(&type, &value, &traceback);
+        // and equally, formatting the message doesn't really matter.
+        PyObject *msg = PyUnicode_FromFormat("Exception ignored while setting up %s abstract base class", abc_name);
+        PyErr_Restore(type, value, traceback);
+        PyErr_WriteUnraisable(msg);
+        Py_XDECREF(msg);
+    }
+}
