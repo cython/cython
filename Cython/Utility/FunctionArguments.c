@@ -1,6 +1,5 @@
 //////////////////// ArgTypeTest.proto ////////////////////
 
-
 // Exact is 0 (False), 1 (True) or 2 (True and from annotation)
 // The latter gives a small amount of extra error diagnostics
 #define __Pyx_ArgTypeTest(obj, type, none_allowed, name, exact) \
@@ -61,6 +60,7 @@ static int __Pyx__ArgTypeTest(PyObject *obj, PyTypeObject *type, const char *nam
     __Pyx_DECREF_TypeName(obj_type_name);
     return 0;
 }
+
 
 //////////////////// RaiseArgTupleInvalid.proto ////////////////////
 
