@@ -978,19 +978,21 @@ __Pyx_Coroutine_FinishDelegation(__pyx_CoroutineObject *gen, PyObject** retval) 
 static __Pyx_PySendResult
 __Pyx_Coroutine_SendToDelegate(__pyx_CoroutineObject *gen, __Pyx_pyiter_sendfunc gen_am_send, PyObject *value, PyObject **retval) {
     PyObject *ret = NULL;
-    __Pyx_PySendResult result;
+    __Pyx_PySendResult delegate_result, result;
     assert(__Pyx_Coroutine_get_is_running(gen));
     // we assume that gen->yieldfrom cannot change as long as 'gen->is_running' is set => no safety INCREF()
-    result = gen_am_send(gen->yieldfrom, value, &ret);
-    if (result == PYGEN_NEXT) {
+    delegate_result = gen_am_send(gen->yieldfrom, value, &ret);
+    if (delegate_result == PYGEN_NEXT) {
         assert (ret != NULL);
         *retval = ret;
         return PYGEN_NEXT;
     }
-    //assert (result == PYGEN_ERROR ? ret == NULL : ret != NULL);
-    assert (result != PYGEN_ERROR || ret == NULL);
+    //assert (delegate_result == PYGEN_ERROR ? ret == NULL : ret != NULL);
+    assert (delegate_result != PYGEN_ERROR || ret == NULL);
     __Pyx_Coroutine_Undelegate(gen);
-    return __Pyx_Coroutine_SendEx(gen, ret, retval, 0);
+    result = __Pyx_Coroutine_SendEx(gen, ret, retval, 0);
+    Py_XDECREF(ret);
+    return result;
 }
 #endif
 
