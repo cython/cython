@@ -1281,10 +1281,6 @@ class BuiltinScope(Scope):
             Scope.__init__(self, "__builtin__", PreImportScope(), None)
         self.type_names = {}
 
-        # Most entries are initialized in init_builtins, except for "bool"
-        # which is apparently a special case because it conflicts with C++ bool
-        self.declare_var("bool", py_object_type, None, "((PyObject*)&PyBool_Type)")
-
     def lookup(self, name, language_level=None):
         # 'language_level' is passed by ModuleScope
         if name == 'unicode' or name == 'basestring':
