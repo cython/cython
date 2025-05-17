@@ -2932,7 +2932,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         for tp, linked_types in Naming.type_names_and_linked_types:
             code.putln(f'#ifdef __Pyx_{tp}_USED')
             for tp in [tp]+linked_types:
-                code.putln(f'Py_CLEAR(clear_module_state->__pyx_{tp}Type')
+                code.putln(f'Py_CLEAR(clear_module_state->__pyx_{tp}Type);')
             code.putln('#endif')
         code.putln("#if CYTHON_PEP489_MULTI_PHASE_INIT")
         # In this case we have to remove the module from our lookup table ourself
@@ -2954,7 +2954,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         for tp, linked_types in Naming.type_names_and_linked_types:
             code.putln(f'#ifdef __Pyx_{tp}_USED')
             for tp in [tp]+linked_types:
-                code.putln(f'Py_VISIT(traverse_module_state->__pyx_{tp}Type')
+                code.putln(f'Py_VISIT(traverse_module_state->__pyx_{tp}Type);')
             code.putln('#endif')
 
     def generate_module_init_func(self, imported_modules, env, code):

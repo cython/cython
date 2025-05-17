@@ -24,11 +24,11 @@ static PyObject* __Pyx_PyType_FromMetaclass(PyTypeObject *metaclass, PyObject *m
     if (result && metaclass) {
         PyObject *old_tp = (PyObject*)Py_TYPE(result);
     Py_INCREF((PyObject*)metaclass);
-    #if __PYX_LIMITED_VERSION_HEX >= 0x03090000
+#if __PYX_LIMITED_VERSION_HEX >= 0x03090000
         Py_SET_TYPE(result, metaclass);
-    #else
-        Py_TYPE(result) = metaclass;
-    #endif
+#else
+        result->ob_type = metaclass;
+#endif
         Py_DECREF(old_tp);
     }
     return result;
@@ -151,7 +151,28 @@ static int __pyx_CommonTypesMetaclass_init(PyObject *module); /* proto */
 
 PyObject* __pyx_CommonTypesMetaclass_get_module(PyObject *self, CYTHON_UNUSED void* context) {
     // adapted from typeobject.c for non-heaptypes
-    const char* name = __Pyx_PyType_GetSlot((PyTypeObject*)self, tp_name, const char*);
+#if !CYTHON_USE_TYPE_SLOTS
+    PyObject *result = NULL;
+    PyObject *name_obj, *dot=NULL, *split=NULL;
+#if __PYX_LIMITED_VERSION_HEX < 0x030B0000
+    name_obj = PyObject_GetAttrString(self, "__name__");
+#else
+    name_obj = PyType_GetName((PyTypeObject*)self);
+#endif
+    if (unlikely(!name_obj)) return NULL;
+    dot = PyUnicode_FromStringAndSize(".", 1);
+    if (unlikely(!dot)) goto bad;
+    split = PyUnicode_Split(name_obj, dot, 1);
+    if (unlikely(!split)) goto bad;
+    result = PyList_GetItem(split, 1);
+    Py_XINCREF(result);
+  bad:
+    Py_XDECREF(split);
+    Py_XDECREF(dot);
+    Py_DECREF(name_obj);
+    return result;
+#else
+    const char *name = ((PyTypeObject*)self)->tp_name;
     const char *s = strrchr(name, '.');
     if (s != NULL) {
         PyObject *mod = PyUnicode_FromStringAndSize(
@@ -160,6 +181,7 @@ PyObject* __pyx_CommonTypesMetaclass_get_module(PyObject *self, CYTHON_UNUSED vo
     }
     PyErr_SetString(PyExc_SystemError, "failed to get module from type");
     return NULL;
+#endif
 }
 
 static PyGetSetDef __pyx_CommonTypesMetaclass_getset[] = {
@@ -178,8 +200,8 @@ static PyType_Spec __pyx_CommonTypesMetaclass_spec = {
     0,
 #if PY_VERSION_HEX >= 0x030A0000
     Py_TPFLAGS_IMMUTABLETYPE |
-#endif
     Py_TPFLAGS_DISALLOW_INSTANTIATION |
+#endif
     Py_TPFLAGS_DEFAULT, /*tp_flags*/
     __pyx_CommonTypesMetaclass_slots
 };
