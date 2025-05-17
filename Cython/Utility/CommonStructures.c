@@ -150,38 +150,7 @@ static int __pyx_CommonTypesMetaclass_init(PyObject *module); /* proto */
 //@substitute: naming
 
 PyObject* __pyx_CommonTypesMetaclass_get_module(PyObject *self, CYTHON_UNUSED void* context) {
-    // adapted from typeobject.c for non-heaptypes
-#if !CYTHON_USE_TYPE_SLOTS
-    PyObject *result = NULL;
-    PyObject *name_obj, *dot=NULL, *split=NULL;
-#if __PYX_LIMITED_VERSION_HEX < 0x030B0000
-    name_obj = PyObject_GetAttrString(self, "__name__");
-#else
-    name_obj = PyType_GetName((PyTypeObject*)self);
-#endif
-    if (unlikely(!name_obj)) return NULL;
-    dot = PyUnicode_FromStringAndSize(".", 1);
-    if (unlikely(!dot)) goto bad;
-    split = PyUnicode_Split(name_obj, dot, 1);
-    if (unlikely(!split)) goto bad;
-    result = PyList_GetItem(split, 1);
-    Py_XINCREF(result);
-  bad:
-    Py_XDECREF(split);
-    Py_XDECREF(dot);
-    Py_DECREF(name_obj);
-    return result;
-#else
-    const char *name = ((PyTypeObject*)self)->tp_name;
-    const char *s = strrchr(name, '.');
-    if (s != NULL) {
-        PyObject *mod = PyUnicode_FromStringAndSize(
-            name, (Py_ssize_t)(s - name));
-        return mod;
-    }
-    PyErr_SetString(PyExc_SystemError, "failed to get module from type");
-    return NULL;
-#endif
+    return PyUnicode_FromString(__PYX_ABI_MODULE_NAME);
 }
 
 static PyGetSetDef __pyx_CommonTypesMetaclass_getset[] = {
