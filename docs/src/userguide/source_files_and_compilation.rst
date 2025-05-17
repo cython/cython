@@ -1064,7 +1064,11 @@ Cython code.  Here is the list of currently supported directives:
     tracing, unless you additionally pass the C macro definition
     ``CYTHON_TRACE=1`` to the C compiler (e.g. using the setuptools option
     ``define_macros``).  Define ``CYTHON_TRACE_NOGIL=1`` to also include
-    ``nogil`` functions and sections.
+    ``nogil`` functions and sections.  Define ``CYTHON_USE_SYS_MONITORING``
+    to either 1 or 0 to control the mechanism used to implement these
+    features on Python 3.13 and above.  Note that neither ``profile``
+    or ``linetrace`` work on Python 3.12 (but they do work on both
+    higher and lower versions).
 
 ``infer_types`` (True / False), *default=None*
     Infer types of untyped variables in function bodies. Default is
@@ -1360,6 +1364,12 @@ most important to least important:
 ``CYTHON_PROFILE``, ``CYTHON_TRACE``, ``CYTHON_TRACE_NOGIL``
     These control the inclusion of profiling and line tracing calls in the module.
     See the ``profile`` and ``linetrace`` :ref:`compiler-directives`.
+
+``CYTHON_USE_SYS_MONITORING``
+    On Python 3.13+ this selects the new `sys.monitoring <https://docs.python.org/3/library/sys.monitoring.html>`_
+    mechanism for profiling and linetracing. It is on by default, but can be set to 0
+    to force use of the old mechanism. Some tools still require the old mechanism,
+    most notably "Coverage" (as of 2025).
 
 ``CYTHON_EXTERN_C``
     Slightly different to the other macros, this controls how ``cdef public``
