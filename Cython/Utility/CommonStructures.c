@@ -18,15 +18,16 @@ static PyTypeObject* __Pyx_FetchCommonTypeFromSpec(PyTypeObject *metaclass, PyOb
 //@requires:StringTools.c::IncludeStringH
 //@requires:Optimize.c::dict_setdefault
 
-#if __PYX_LIMITED_VERSION_HEX < 0x030A0000
+#if __PYX_LIMITED_VERSION_HEX < 0x030C0000
 static PyObject* __Pyx_PyType_FromMetaclass(PyTypeObject *metaclass, PyObject *module, PyType_Spec *spec, PyObject *bases) {
     PyObject *result = __Pyx_PyType_FromModuleAndSpec(module, spec, bases);
     if (result && metaclass) {
-        PyObject *old_tp = Py_TYPE(result);
+        PyObject *old_tp = (PyObject*)Py_TYPE(result);
+    Py_INCREF((PyObject*)metaclass);
     #if __PYX_LIMITED_VERSION_HEX >= 0x03090000
-        Py_SET_TYPE(result, __Pyx_NewRef(metaclass));
+        Py_SET_TYPE(result, metaclass);
     #else
-        Py_TYPE(result) = __Pyx_NewRef(metaclass);
+        Py_TYPE(result) = metaclass;
     #endif
         Py_DECREF(old_tp);
     }
@@ -45,6 +46,10 @@ static int __Pyx_VerifyCachedType(PyObject *cached_type,
         PyErr_Format(PyExc_TypeError,
             "Shared Cython type %.200s is not a type object", name);
         return -1;
+    }
+
+    if (expected_basicsize == 0) {
+        return 0; // size is inherited, nothing useful to check
     }
 
 #if CYTHON_COMPILING_IN_LIMITED_API
@@ -144,7 +149,7 @@ static int __pyx_CommonTypesMetaclass_init(PyObject *module); /* proto */
 //@requires: FetchCommonType
 //@substitute: naming
 
-PyObject* __pyx_CommonTypesMetaclass_get_module(PyObject *self, void*) {
+PyObject* __pyx_CommonTypesMetaclass_get_module(PyObject *self, CYTHON_UNUSED void* context) {
     // adapted from typeobject.c for non-heaptypes
     const char* name = __Pyx_PyType_GetSlot((PyTypeObject*)self, tp_name, const char*);
     const char *s = strrchr(name, '.');
