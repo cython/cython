@@ -1322,19 +1322,15 @@ class BuiltinScope(Scope):
             entry.as_variable = var_entry
         return entry
 
-    def declare_builtin_type(self, name, cname, utility_code=None,
+    def declare_builtin_type(self, name, cname,
                              objstruct_cname=None, type_class=PyrexTypes.BuiltinObjectType):
         name = EncodedString(name)
         type = type_class(name, cname, objstruct_cname)
         scope = CClassScope(name, outer_scope=None, visibility='extern', parent_type=type)
         scope.directives = {}
-        if name == 'bool':
-            type.is_final_type = True
         type.set_scope(scope)
         self.type_names[name] = 1
         entry = self.declare_type(name, type, None, visibility='extern')
-        if utility_code:
-            entry.utility_code = utility_code
 
         var_entry = Entry(
             name=entry.name,
@@ -1347,8 +1343,6 @@ class BuiltinScope(Scope):
         var_entry.is_cglobal = 1
         var_entry.is_readonly = 1
         var_entry.is_builtin = 1
-        if utility_code:
-            var_entry.utility_code = utility_code
         var_entry.scope = self
         if Options.cache_builtins:
             var_entry.is_const = True
