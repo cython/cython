@@ -60,6 +60,7 @@ cdef extern from *:
     cdef int SIZEOF_LONG
     cdef int SIZEOF_SIZE_T
     cdef int SIZEOF_LONG_LONG
+    ctypedef long long PY_LONG_LONG
     cdef int SIZEOF_VOID_P
     cdef int SIZEOF_OFF_T
     cdef int SIZEOF_UINTPTR_T
