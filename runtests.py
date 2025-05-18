@@ -246,9 +246,6 @@ def exclude_test_on_platform(*platforms):
 
 
 def update_linetrace_extension(ext):
-    if sys.version_info[:2] == (3, 12):
-        # Line tracing is generally fragile in Py3.12.
-        return EXCLUDE_EXT
     if not IS_CPYTHON and sys.version_info[:2] < (3, 13):
         # Tracing/profiling requires PEP-669 monitoring or old CPython tracing.
         return EXCLUDE_EXT
@@ -483,6 +480,8 @@ EXT_EXTRAS = {
 TAG_EXCLUDERS = sorted({
     'no-macos':  exclude_test_on_platform('darwin'),
     'pstats': exclude_test_in_pyver((3,12)),
+    'coverage': exclude_test_in_pyver((3,12)),
+    'monitoring': exclude_test_in_pyver((3,12)),
     'trace': not IS_CPYTHON,
 }.items())
 
@@ -501,7 +500,7 @@ VER_DEP_MODULES = {
         'run.py_unicode_strings',  # Py_UNICODE was removed
         'compile.pylong',  # PyLongObject changed its structure
         'run.longintrepr',  # PyLongObject changed its structure
-        'run.line_trace',  # sys.monitoring broke sys.set_trace() line tracing
+        'run.line_trace',  # test implementation broken by sys.monitoring
     ]),
 }
 
