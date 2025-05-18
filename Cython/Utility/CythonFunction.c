@@ -775,6 +775,8 @@ __Pyx_CyFunction_clear(__pyx_CyFunctionObject *m)
 #endif
 #if PY_VERSION_HEX < 0x030C0000 || CYTHON_COMPILING_IN_LIMITED_API
     Py_CLEAR(m->func_dict);
+#elif PY_VERSION_HEX < 0x030d0000
+    _PyObject_ClearManagedDict((PyObject*)m);
 #else
     PyObject_ClearManagedDict((PyObject*)m);
 #endif
@@ -834,7 +836,13 @@ static int __Pyx_CyFunction_traverse(__pyx_CyFunctionObject *m, visitproc visit,
     Py_VISIT(m->func_dict);
 #else
     {
-        int e = PyObject_VisitManagedDict((PyObject*)m, visit, arg);
+        int e = 
+#if PY_VERSION_HEX < 0x030d0000
+            _PyObject_VisitManagedDict
+#else
+            PyObject_VisitManagedDict
+#endif
+                ((PyObject*)m, visit, arg);
         if (e != 0) return e;
     }
 #endif
