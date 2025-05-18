@@ -10502,7 +10502,7 @@ class CodeObjectNode(ExprNode):
         # See "generate_codeobject_constants()" in Code.py.
         code.putln("{")
         code.putln(
-            "__Pyx_PyCode_New_function_description descr = {"
+            "const __Pyx_PyCode_New_function_description descr = {"
             f"{argcount - kwonly_argcount}, "
             f"{num_posonly_args}, "
             f"{kwonly_argcount}, "
@@ -10517,7 +10517,7 @@ class CodeObjectNode(ExprNode):
             var.generate_evaluation_code(code)
 
         varnames = [var.py_result() for var in self.varnames] or ['0']
-        code.putln("PyObject* varnames[] = {%s};" % ', '.join(varnames))
+        code.putln("PyObject* const varnames[] = {%s};" % ', '.join(varnames))
 
         for var in self.varnames:
             var.generate_disposal_code(code)
