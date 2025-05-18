@@ -106,7 +106,8 @@ if [[ $PYTHON_VERSION == "3.1"[2-9]* ]]; then
     python -m pip install --pre -r test-requirements-313.txt || exit 1
   fi
 else
-  python -m pip install -U pip "setuptools<60" wheel twine || exit 1
+  # Drop dependencies cryptography and nh3 (purely from twine) when removing support for PyPy3.8.
+  python -m pip install -U pip "setuptools<60" wheel twine "cryptography<42" "nh3<0.2.19" || exit 1
 
   if [[ $PYTHON_VERSION != *"-dev" || $COVERAGE == "1" ]]; then
     python -m pip install -r test-requirements.txt || exit 1
