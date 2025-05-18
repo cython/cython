@@ -9,6 +9,11 @@
 // are short-living objects that are instantiated for every
 // __anext__ call.
 
+PyTypeObject *__pyx__PyAsyncGenWrappedValueType;
+PyTypeObject *__pyx__PyAsyncGenASendType;
+PyTypeObject *__pyx__PyAsyncGenAThrowType;
+PyTypeObject *__pyx_AsyncGenType;
+
 #if CYTHON_USE_FREELISTS
 struct __pyx__PyAsyncGenWrappedValue *__Pyx_ag_value_freelist[_PyAsyncGen_MAXFREELIST];
 int __Pyx_ag_value_freelist_free;
@@ -16,6 +21,25 @@ int __Pyx_ag_value_freelist_free;
 struct __pyx_PyAsyncGenASend *__Pyx_ag_asend_freelist[_PyAsyncGen_MAXFREELIST];
 int __Pyx_ag_asend_freelist_free;
 #endif
+
+//////////////////// AsyncGenerator.module_state_traverse ////////////////////
+
+Py_VISIT(traverse_module_state->__pyx__PyAsyncGenWrappedValueType);
+Py_VISIT(traverse_module_state->__pyx__PyAsyncGenASendType);
+Py_VISIT(traverse_module_state->__pyx__PyAsyncGenAThrowType);
+Py_VISIT(traverse_module_state->__pyx_AsyncGenType);
+
+//////////////////// AsyncGenerator.module_state_traverse ////////////////////
+
+Py_CLEAR(clear_module_state->__pyx__PyAsyncGenWrappedValueType);
+Py_CLEAR(clear_module_state->__pyx__PyAsyncGenASendType);
+Py_CLEAR(clear_module_state->__pyx__PyAsyncGenAThrowType);
+Py_CLEAR(clear_module_state->__pyx_AsyncGenType);
+
+//////////////////// AsyncGenerator.init //////////////////
+//@substitute: naming
+
+if (likely(__pyx_AsyncGenerator_init($module_cname) == 0)); else
 
 //////////////////// AsyncGenerator.proto ////////////////////
 //@requires: Coroutine.c::Coroutine

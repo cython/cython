@@ -2855,16 +2855,11 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln('PyObject *%s;' % Naming.empty_unicode)
         if Options.pre_import is not None:
             code.putln('PyObject *%s;' % Naming.preimport_cname)
-        for type_name, linked_types in Naming.type_names_and_linked_types:
-            code.putln(f'#ifdef __Pyx_{type_name}_USED')
-            for type_name in [type_name]+linked_types:
-                code.putln(f'PyTypeObject *__pyx_{type_name}Type;')
-            code.putln('#endif')
 
     def generate_module_state_end(self, env, modules, globalstate):
         module_state = globalstate['module_state_end']
-        module_state_clear = globalstate['module_state_clear']
-        module_state_traverse = globalstate['module_state_traverse']
+        module_state_clear = globalstate['module_state_clear_end']
+        module_state_traverse = globalstate['module_state_traverse_end']
         module_state.putln('} %s;' % Naming.modulestatetype_cname)
         module_state.putln('')
         globalstate.use_utility_code(
@@ -2929,11 +2924,6 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             Naming.empty_bytes)
         code.putln('Py_CLEAR(clear_module_state->%s);' %
             Naming.empty_unicode)
-        for tp, linked_types in Naming.type_names_and_linked_types:
-            code.putln(f'#ifdef __Pyx_{tp}_USED')
-            for tp in [tp]+linked_types:
-                code.putln(f'Py_CLEAR(clear_module_state->__pyx_{tp}Type);')
-            code.putln('#endif')
         code.putln("#if CYTHON_PEP489_MULTI_PHASE_INIT")
         # In this case we have to remove the module from our lookup table ourself
         # because Python isn't going to do it.
@@ -2951,11 +2941,6 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln(f'__Pyx_VISIT_CONST(traverse_module_state->{Naming.empty_tuple});')
         code.putln(f'__Pyx_VISIT_CONST(traverse_module_state->{Naming.empty_bytes});')
         code.putln(f'__Pyx_VISIT_CONST(traverse_module_state->{Naming.empty_unicode});')
-        for tp, linked_types in Naming.type_names_and_linked_types:
-            code.putln(f'#ifdef __Pyx_{tp}_USED')
-            for tp in [tp]+linked_types:
-                code.putln(f'Py_VISIT(traverse_module_state->__pyx_{tp}Type);')
-            code.putln('#endif')
 
     def generate_module_init_func(self, imported_modules, env, code):
         subfunction = self.mod_init_subfunction(self.pos, self.scope, code)
@@ -3073,10 +3058,6 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("%s = PyUnicode_FromStringAndSize(\"\", 0); %s" % (
             empty_unicode, code.error_goto_if_null(empty_unicode, self.pos)))
 
-        for ext_type, _ in Naming.type_names_and_linked_types:
-            code.putln("#ifdef __Pyx_%s_USED" % ext_type)
-            code.put_error_if_neg(self.pos, "__pyx_%s_init(%s)" % (ext_type, env.module_cname))
-            code.putln("#endif")
 
         code.putln("/*--- Library function declarations ---*/")
         if env.directives['np_pythran']:

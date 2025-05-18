@@ -139,6 +139,23 @@ bad:
     goto done;
 }
 
+//////////////////// CommonTypesMetaclass.module_state_decls ////////////////////
+
+PyTypeObject *__pyx_CommonTypesMetaclassType;
+
+//////////////////// CommonTypesMetaclass.module_state_traverse ///////////////////
+
+Py_VISIT(visit_module_state->__pyx_CommonTypesMetaclassType);
+
+//////////////////// CommonTypesMetaclass.module_state_clear ///////////////////
+
+Py_CLEAR(clear_module_state->__pyx_CommonTypesMetaclassType);
+
+//////////////////// CommonTypesMetaclass.init //////////////////
+//@substitute: naming
+
+if (likely(__pyx_CommonTypesMetaclass_init($module_cname) == 0)); else
+
 /////////////////////////// CommonTypesMetaclass.proto ////////////////////////
 
 static int __pyx_CommonTypesMetaclass_init(PyObject *module); /* proto */

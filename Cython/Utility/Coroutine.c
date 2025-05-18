@@ -1710,6 +1710,26 @@ static PyObject *__Pyx_Coroutine_fail_reduce_ex(PyObject *self, PyObject *arg) {
 }
 // #endif
 
+//////////////////// Coroutine.module_state_decls ////////////////////
+
+PyTypeObject *__pyx_CoroutineType;
+PyTypeObject *__pyx_CoroutineAwaitType;
+
+//////////////////// Coroutine.module_state_traverse ///////////////////
+
+Py_VISIT(visit_module_state->__pyx_CoroutineType);
+Py_VISIT(visit_module_state->__pyx_CoroutineAwaitType);
+
+//////////////////// Coroutine.module_state_clear ///////////////////
+
+Py_CLEAR(clear_module_state->__pyx_CoroutineType);
+Py_CLEAR(clear_module_state->__pyx_CoroutineAwaitType);
+
+//////////////////// Coroutine.init //////////////////
+//@substitute: naming
+
+if (likely(__pyx_Coroutine_init($module_cname) == 0)); else
+
 //////////////////// Coroutine ////////////////////
 //@requires: CoroutineBase
 //@requires: ExtensionTypes.c::CallTypeTraverse
@@ -1940,6 +1960,22 @@ static int __pyx_Coroutine_init(PyObject *module) {
     return 0;
 }
 
+//////////////////// IterableCoroutine.module_state_decls ////////////////////
+
+PyTypeObject *__pyx_IterableCoroutineType;
+
+//////////////////// IterableCoroutine.module_state_traverse ///////////////////
+
+Py_VISIT(visit_module_state->__pyx_IterableCoroutineType);
+
+//////////////////// IterableCoroutine.module_state_clear ///////////////////
+
+Py_CLEAR(clear_module_state->__pyx_IterableCoroutineType);
+
+//////////////////// IterableCoroutine.init //////////////////
+//@substitute: naming
+
+if (likely(__pyx_IterableCoroutine_init($module_cname) == 0)); else
 
 //////////////////// IterableCoroutine.proto ////////////////////
 
@@ -2003,6 +2039,22 @@ static int __pyx_IterableCoroutine_init(PyObject *module) {
     return 0;
 }
 
+//////////////////// Generator.module_state_decls ////////////////////
+
+PyTypeObject *__pyx_GeneratorType;
+
+//////////////////// Generator.module_state_traverse ///////////////////
+
+Py_VISIT(visit_module_state->__pyx_GeneratorType);
+
+//////////////////// Generator.module_state_clear ///////////////////
+
+Py_CLEAR(clear_module_state->__pyx_GeneratorType);
+
+//////////////////// Generator.init //////////////////
+//@substitute: naming
+
+if (likely(__pyx_Generator_init($module_cname) == 0)); else
 
 //////////////////// Generator ////////////////////
 //@requires: CoroutineBase

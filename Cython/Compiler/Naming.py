@@ -195,23 +195,6 @@ PYX_NAN          = "__PYX_NAN()"
 def py_version_hex(major, minor=0, micro=0, release_level=0, release_serial=0):
     return (major << 24) | (minor << 16) | (micro << 8) | (release_level << 4) | (release_serial)
 
-# there's a few places where it's useful to iterate over all of these.
-# The format is:
-#  a name which is used to calculate
-#    the __Pyx_{name}_USED macro,
-#    the __pyx_{name}Type TypeObject name and
-#    the __pyx_{name}_init function
-#  a list of other types declared under the same USED macro
-type_names_and_linked_types = [
-    ('CommonTypesMetaclass', []),  # first because other types use it
-    ('CyFunction', []),
-    ('FusedFunction', []),
-    ('Generator', []),
-    ('IterableCoroutine', []),
-    ('Coroutine', ['CoroutineAwait']),
-    ('AsyncGen', ['_PyAsyncGenWrappedValue', '_PyAsyncGenASend', '_PyAsyncGenAThrow']),
-]
-
 
 iso_c23_keywords = frozenset((
     'alignas',  # (C23)
