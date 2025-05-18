@@ -1067,8 +1067,8 @@ Cython code.  Here is the list of currently supported directives:
     ``nogil`` functions and sections.  Define ``CYTHON_USE_SYS_MONITORING``
     to either 1 or 0 to control the mechanism used to implement these
     features on Python 3.13 and above.  Note that neither ``profile``
-    or ``linetrace`` work on Python 3.12 (but they do work on both
-    higher and lower versions).
+    nor ``linetrace`` work with any tool that uses ``sys.monitoring``
+    on Python 3.12.
 
 ``infer_types`` (True / False), *default=None*
     Infer types of untyped variables in function bodies. Default is
