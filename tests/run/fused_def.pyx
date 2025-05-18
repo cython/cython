@@ -514,7 +514,7 @@ def stress_test_thread_safety(n_threads):
         t.join()
     assert not failed_list, len(failed_list)
 
-def test_signature(arg1, arg2):
+def test_signature(cython.floating arg1, cython.floating arg2):
     """
     >>> parameters = inspect.signature(test_signature).parameters
     >>> len(parameters)
