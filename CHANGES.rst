@@ -19,6 +19,12 @@ Bugs fixed
 * Some Limited API issues were resolved.
   (Github issue :issue:`6862`)
 
+* Large C ``long long`` values could be truncated when passed into PyPy.
+  (Github issue :issue:`6890`)
+
+* The signature of fused functions was no longer introspectable in Cython 3.1.0.
+  (Github issue :issue:`6855`)
+
 * Coroutines could generate invalid C with line tracing enabled.
   (Github issue :issue:`6865`)
 
@@ -36,7 +42,7 @@ Bugs fixed
 * Some C compiler warnings were resolved.
   Patches by Daniel Larraz.  (Github issues :issue:`6876`, :issue:`3172`, :issue:`6873`, :issue:`6877`)
 
-* Partly re-establish support for PyPy 3.8.
+* Re-establish support for PyPy 3.8.
   (Github issue :issue:`6867`)
 
 
