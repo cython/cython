@@ -121,6 +121,7 @@ SIZEOF_LONG_LONG  {SIZEOF_LONG_LONG}  ({sizeof(long long)})
 SIZEOF_VOID_P  {SIZEOF_VOID_P}  ({sizeof(void*)})
 SIZEOF_UINTPTR_T  {SIZEOF_UINTPTR_T}  ({sizeof(unsigned int *)})
 SIZEOF_OFF_T  {SIZEOF_OFF_T}
+sizeof(PY_LONG_LONG)  {sizeof(PY_LONG_LONG)}  ({sizeof(long long)})
 
 Paths:
 sys.executable = {sys.executable}
