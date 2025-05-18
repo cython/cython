@@ -1694,8 +1694,8 @@ PyTypeObject *__pyx_CoroutineAwaitType;
 
 //////////////////// Coroutine.module_state_traverse ///////////////////
 
-Py_VISIT(visit_module_state->__pyx_CoroutineType);
-Py_VISIT(visit_module_state->__pyx_CoroutineAwaitType);
+Py_VISIT(traverse_module_state->__pyx_CoroutineType);
+Py_VISIT(traverse_module_state->__pyx_CoroutineAwaitType);
 
 //////////////////// Coroutine.module_state_clear ///////////////////
 
@@ -1958,7 +1958,7 @@ PyTypeObject *__pyx_IterableCoroutineType;
 
 //////////////////// IterableCoroutine.module_state_traverse ///////////////////
 
-Py_VISIT(visit_module_state->__pyx_IterableCoroutineType);
+Py_VISIT(traverse_module_state->__pyx_IterableCoroutineType);
 
 //////////////////// IterableCoroutine.module_state_clear ///////////////////
 
@@ -2035,7 +2035,7 @@ PyTypeObject *__pyx_GeneratorType;
 
 //////////////////// Generator.module_state_traverse ///////////////////
 
-Py_VISIT(visit_module_state->__pyx_GeneratorType);
+Py_VISIT(traverse_module_state->__pyx_GeneratorType);
 
 //////////////////// Generator.module_state_clear ///////////////////
 

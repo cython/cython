@@ -4,7 +4,7 @@ PyTypeObject *__pyx_CyFunctionType;
 
 //////////////////// CythonFunctionShared.module_state_traverse ///////////////////
 
-Py_VISIT(visit_module_state->__pyx_CyFunctionType);
+Py_VISIT(traverse_module_state->__pyx_CyFunctionType);
 
 //////////////////// CythonFunctionShared.module_state_clear ///////////////////
 
@@ -1347,7 +1347,7 @@ PyTypeObject *__pyx_FusedFunctionType;
 
 //////////////////// FusedFunction.module_state_traverse ///////////////////
 
-Py_VISIT(visit_module_state->__pyx_FusedFunctionType);
+Py_VISIT(traverse_module_state->__pyx_FusedFunctionType);
 
 //////////////////// FusedFunction.module_state_clear ///////////////////
 
