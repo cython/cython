@@ -2,7 +2,7 @@
 Cython Changelog
 ================
 
-3.1.1 (2025-0?-??)
+3.1.1 (2025-05-19)
 ==================
 
 Bugs fixed
@@ -21,6 +21,9 @@ Bugs fixed
 
 * Large C ``long long`` values could be truncated when passed into PyPy.
   (Github issue :issue:`6890`)
+
+* ``callable()`` incorrectly reported ``False`` in PyPy for classes with metaclasses.
+  Patch by Anatolii Aniskovych. (Github issue :issue:`6892`)
 
 * The signature of fused functions was no longer introspectable in Cython 3.1.0.
   (Github issue :issue:`6855`)
