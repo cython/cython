@@ -477,6 +477,7 @@ VER_DEP_MODULES = {
                                            'run.reimport_failure',  # reimports don't do anything in Py2
                                            'run.cpp_stl_cmath_cpp17',
                                            'run.cpp_stl_cmath_cpp20'
+                                           'run.critical_sections'
                                            ]),
     (3,): (operator.ge, lambda x: x in ['run.non_future_division',
                                         'compile.extsetslice',
