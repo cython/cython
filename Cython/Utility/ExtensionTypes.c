@@ -14,10 +14,10 @@ static int __Pyx_fix_up_extension_type_from_spec(PyType_Spec *spec, PyTypeObject
     // Set tp_weakreflist, tp_dictoffset, tp_vectorcalloffset
     // Copied and adapted from https://bugs.python.org/issue38140
     const PyType_Slot *slot = spec->slots;
+    int changed = 0;
     while (slot && slot->slot && slot->slot != Py_tp_members)
         slot++;
     if (slot && slot->slot == Py_tp_members) {
-        int changed = 0;
 #if !CYTHON_COMPILING_IN_CPYTHON
         const
 #endif  // !CYTHON_COMPILING_IN_CPYTHON)
@@ -74,14 +74,11 @@ static int __Pyx_fix_up_extension_type_from_spec(PyType_Spec *spec, PyTypeObject
             }
             memb++;
         }
-        if (changed)
-            PyType_Modified(type);
     }
     slot = spec->slots;
     while (slot && slot->slot && slot->slot != Py_tp_getset)
         slot++;
     if (slot && slot->slot == Py_tp_getset) {
-        int changed = 0;
         PyGetSetDef *getset = (PyGetSetDef*) slot->pfunc;
         while (getset && getset->name) {
             if (getset->name[0] == '_' && getset->name[1] == '_' && strcmp(getset->name, "__module__") == 0) {
@@ -97,9 +94,9 @@ static int __Pyx_fix_up_extension_type_from_spec(PyType_Spec *spec, PyTypeObject
             }
             ++getset;    
         }
-        if (changed)
-            PyType_Modified(type);
     }
+    if (changed)
+        PyType_Modified(type);
 #endif  // // PY_VERSION_HEX > 0x030900B1 || CYTHON_COMPILING_IN_LIMITED_API
     return 0;
 }
