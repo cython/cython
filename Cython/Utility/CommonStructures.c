@@ -145,7 +145,7 @@ PyTypeObject *__pyx_CommonTypesMetaclassType;
 
 //////////////////// CommonTypesMetaclass.module_state_traverse ///////////////////
 
-Py_VISIT(visit_module_state->__pyx_CommonTypesMetaclassType);
+Py_VISIT(traverse_module_state->__pyx_CommonTypesMetaclassType);
 
 //////////////////// CommonTypesMetaclass.module_state_clear ///////////////////
 

@@ -4,13 +4,13 @@ PyTypeObject *__pyx_CyFunctionType;
 
 //////////////////// CythonFunctionShared.module_state_traverse ///////////////////
 
-Py_VISIT(visit_module_state->__pyx_CyFunctionType);
+Py_VISIT(traverse_module_state->__pyx_CyFunctionType);
 
 //////////////////// CythonFunctionShared.module_state_clear ///////////////////
 
 Py_CLEAR(clear_module_state->__pyx_CyFunctionType);
 
-//////////////////// CythonFunction.init //////////////////
+//////////////////// CythonFunctionShared.init //////////////////
 //@substitute: naming
 
 if (likely(__pyx_CyFunction_init($module_cname) == 0)); else
@@ -1349,7 +1349,7 @@ PyTypeObject *__pyx_FusedFunctionType;
 
 //////////////////// FusedFunction.module_state_traverse ///////////////////
 
-Py_VISIT(visit_module_state->__pyx_FusedFunctionType);
+Py_VISIT(traverse_module_state->__pyx_FusedFunctionType);
 
 //////////////////// FusedFunction.module_state_clear ///////////////////
 

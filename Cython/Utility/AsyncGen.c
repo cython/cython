@@ -39,7 +39,11 @@ Py_CLEAR(clear_module_state->__pyx_AsyncGenType);
 //////////////////// AsyncGenerator.init //////////////////
 //@substitute: naming
 
+<<<<<<< HEAD
 if (likely(__pyx_AsyncGenerator_init($module_cname) == 0)); else
+=======
+if (likely(__pyx_AsyncGen_init($module_cname) == 0)); else
+>>>>>>> shared-types-refactor
 
 //////////////////// AsyncGenerator.proto ////////////////////
 //@requires: Coroutine.c::Coroutine
