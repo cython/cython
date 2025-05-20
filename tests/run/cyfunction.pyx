@@ -409,3 +409,17 @@ def test_firstlineno_decorated_function():
     l1 = do_nothing.__code__.co_firstlineno
     l2 = test_firstlineno_decorated_function.__code__.co_firstlineno
     return l2 - l1
+
+def test_module():
+    """
+    >>> test_module.__module__
+    'cyfunction'
+    >>> type(test_module).__module__.startswith("_cython")
+    True
+    >>> test_module.__module__ = "something_else"
+    >>> test_module.__module__
+    'something_else'
+    >>> del test_module.__module__
+    >>> test_module.__module__
+    """
+    pass
