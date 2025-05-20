@@ -418,29 +418,36 @@ def test_firstlineno_decorated_function():
 @skip_if_limited_api("https://bugs.python.org/issue38140 and/or https://bugs.python.org/issue40703", sys.version_info < (3, 9))
 def test_module():
     """
-    >>> test_module.__module__
-    'cyfunction'
-    >>> type(test_module).__module__.startswith("_cython")
-    True
-    >>> test_module.__module__ = "something_else"
-    >>> test_module.__module__
-    'something_else'
-    >>> del test_module.__module__
-    >>> test_module.__module__
+    See module-level docstring. doctest uses __module__ to decide what to run. So if it's wrong
+    then we don't run the tests, and never find out about the failure!
     """
     pass
 
 @skip_if_limited_api("https://bugs.python.org/issue38140 and/or https://bugs.python.org/issue40703", sys.version_info < (3, 9))
 def test_fused_module(cython.numeric arg):
     """
-    >>> test_fused_module.__module__
-    'cyfunction'
-    >>> type(test_fused_module).__module__.startswith("_cython")
-    True
-    >>> test_fused_module.__module__ = "something_else"
-    >>> test_fused_module.__module__
-    'something_else'
-    >>> del test_fused_module.__module__
-    >>> test_fused_module.__module__
+    See module-level docstring. doctest uses __module__ to decide what to run. So if it's wrong
+    then we don't run the tests, and never find out about the failure!
     """
     pass
+
+__doc__ = """
+>>> test_module.__module__
+'cyfunction'
+>>> type(test_module).__module__.startswith("_cython")
+True
+>>> test_module.__module__ = "something_else"
+>>> test_module.__module__
+'something_else'
+>>> del test_module.__module__
+>>> test_module.__module__
+>>> test_fused_module.__module__
+'cyfunction'
+>>> type(test_fused_module).__module__.startswith("_cython")
+True
+>>> test_fused_module.__module__ = "something_else"
+>>> test_fused_module.__module__
+'something_else'
+>>> del test_fused_module.__module__
+>>> test_fused_module.__module__
+"""
