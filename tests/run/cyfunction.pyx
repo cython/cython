@@ -2,6 +2,11 @@
 # mode: run
 # tag: cyfunction
 
+cimport cython
+
+include "skip_limited_api_helper.pxi"
+
+import sys
 
 def inspect_isroutine():
     """
@@ -411,7 +416,6 @@ def test_firstlineno_decorated_function():
     return l2 - l1
 
 
-@skip_if_limited_api("https://bugs.python.org/issue38140 and/or https://bugs.python.org/issue40703", sys.version_info < (3, 9))
 def test_fused_module(cython.numeric arg):
     """
     See module-level docstring. doctest uses __module__ to decide what to run. So if it's wrong
@@ -419,16 +423,20 @@ def test_fused_module(cython.numeric arg):
     """
     pass
 
-__doc__ = """
->>> test_fused_module.__module__
-'cyfunction'
+__doc__ = ""
 
-# TODO gh-6841
-#>>> type(test_fused_module).__module__.startswith("_cython")
-# True
->>> test_fused_module.__module__ = "something_else"
->>> test_fused_module.__module__
-'something_else'
->>> del test_fused_module.__module__
->>> test_fused_module.__module__
-"""
+if not CYTHON_COMPILING_IN_LIMITED_API or sys.version_info >= (3, 9):
+    # https://bugs.python.org/issue38140 and/or https://bugs.python.org/issue40703
+    __doc__ += """
+    >>> test_fused_module.__module__
+    'cyfunction'
+
+    # TODO gh-6841
+    #>>> type(test_fused_module).__module__.startswith("_cython")
+    # True
+    >>> test_fused_module.__module__ = "something_else"
+    >>> test_fused_module.__module__
+    'something_else'
+    >>> del test_fused_module.__module__
+    >>> test_fused_module.__module__
+    """
