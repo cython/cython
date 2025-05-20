@@ -9,10 +9,41 @@ cdef extern from *:
             return a + 1;
         }
     };
+
+    class TemplateNonTemplate {
+    public:
+        int func() const {
+            return 1;
+        }
+
+        template <class T>
+        int func() const {
+            return 0;
+        }
+
+        template <class T, class U>
+        int func() const {
+            return -1;
+        }
+    };
     """
     cdef cppclass Base:
         __init__()
         int foo(int)
+
+    cdef cppclass TemplateNonTemplate:
+        TemplateNonTemplate()
+        int func[T, U]()
+        int func[T]()
+        int func()
+
+    # same as above but declared in a different order to test robustness
+    cdef cppclass TemplateNonTemplate2 "TemplateNonTemplate":
+        TemplateNonTemplate2()
+        int func()
+        int func[T, U]()
+        int func[T]()
+
 
 cdef cppclass Derived(Base):
     # We need to specify noexcept here because Base.foo(int) is by default wrapped as noexcept.
@@ -72,3 +103,17 @@ def testDefined():
     print rst_a, rst_b, rst_c, rst_d
     del db
     del dd
+
+def test_template_non_template():
+    """
+    >>> test_template_non_template()
+    """
+    obj = TemplateNonTemplate()
+    assert obj.func() == 1
+    assert obj.func[int]() == 0
+    assert obj.func[int, int]() == -1
+
+    obj2 = TemplateNonTemplate2()
+    assert obj2.func() == 1
+    assert obj2.func[int]() == 0
+    assert obj2.func[int, int]() == -1
