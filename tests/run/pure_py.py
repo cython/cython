@@ -1,4 +1,5 @@
 # mode: run
+# cython: language_level=3
 
 import cython
 from cython import sizeof
@@ -306,12 +307,14 @@ def cdef_nogil_false(x):
 def test_cdef_nogil(x):
     """
     >>> test_cdef_nogil(5)
-    18
+    24
     """
     with cython.nogil:
         result = cdef_nogil(x)
     with cython.nogil(True):
         result += cdef_nogil_true(x)
+    with cython.nogil(False), cython.nogil(True), cython.gil(False):
+        result += cdef_nogil(x)
     result += cdef_nogil_false(x)
     return result
 
@@ -408,13 +411,15 @@ def ccall_except_check(x):
     return x+1
 
 
-@cython.test_fail_if_path_exists("//CFuncDeclaratorNode//IntNode[@base_10_value = '-1']")
 @cython.test_assert_path_exists("//CFuncDeclaratorNode")
 @cython.ccall
 @cython.returns(cython.long)
 @cython.exceptval(check=True)
 def ccall_except_check_always(x):
     """
+    Note that this actually takes the same shortcut as for a Cython-syntax cdef function
+    and does except ?-1
+
     >>> ccall_except_check_always(41)
     42
     >>> ccall_except_check_always(0)

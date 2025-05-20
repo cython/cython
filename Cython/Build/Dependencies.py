@@ -1,33 +1,14 @@
 import cython
-from .. import __version__
 
 import collections
-import contextlib
-import hashlib
 import os
-import shutil
-import subprocess
 import re, sys, time
 from glob import iglob
-from io import open as io_open
+from io import StringIO
 from os.path import relpath as _relpath
-import zipfile
+from .Cache import Cache, FingerprintFlags
 
 from collections.abc import Iterable
-
-try:
-    import gzip
-    gzip_open = gzip.open
-    gzip_ext = '.gz'
-except ImportError:
-    gzip_open = open
-    gzip_ext = ''
-
-try:
-    import zlib
-    zipfile_compression_mode = zipfile.ZIP_DEFLATED
-except ImportError:
-    zipfile_compression_mode = zipfile.ZIP_STORED
 
 try:
     import pythran
@@ -39,6 +20,7 @@ from ..Utils import (cached_function, cached_method, path_exists,
     safe_makedirs, copy_file_to_dir_if_newer, is_package_dir, write_depfile)
 from ..Compiler import Errors
 from ..Compiler.Main import Context
+from ..Compiler import Options
 from ..Compiler.Options import (CompilationOptions, default_options,
     get_directive_defaults)
 
@@ -96,19 +78,6 @@ def nonempty(it, error_msg="expected non-empty iterator"):
         yield value
     if empty:
         raise ValueError(error_msg)
-
-
-@cached_function
-def file_hash(filename):
-    path = os.path.normpath(filename)
-    prefix = ('%d:%s' % (len(path), path)).encode("UTF-8")
-    m = hashlib.sha1(prefix)
-    with open(path, 'rb') as f:
-        data = f.read(65000)
-        while data:
-            m.update(data)
-            data = f.read(65000)
-    return m.hexdigest()
 
 
 def update_pythran_extension(ext):
@@ -207,27 +176,13 @@ def _legacy_strtobool(val):
         raise ValueError("invalid truth value %r" % (val,))
 
 
-@cython.locals(start=cython.Py_ssize_t, end=cython.Py_ssize_t)
-def line_iter(source):
-    if isinstance(source, str):
-        start = 0
-        while True:
-            end = source.find('\n', start)
-            if end == -1:
-                yield source[start:]
-                return
-            yield source[start:end]
-            start = end+1
-    else:
-        yield from source
-
-
 class DistutilsInfo:
 
     def __init__(self, source=None, exn=None):
         self.values = {}
         if source is not None:
-            for line in line_iter(source):
+            source_lines = StringIO(source) if isinstance(source, str) else source
+            for line in source_lines:
                 line = line.lstrip()
                 if not line:
                     continue
@@ -668,36 +623,6 @@ class DependencyTree:
     def newest_dependency(self, filename):
         return max([self.extract_timestamp(f) for f in self.all_dependencies(filename)])
 
-    def transitive_fingerprint(self, filename, module, compilation_options):
-        r"""
-        Return a fingerprint of a cython file that is about to be cythonized.
-
-        Fingerprints are looked up in future compilations. If the fingerprint
-        is found, the cythonization can be skipped. The fingerprint must
-        incorporate everything that has an influence on the generated code.
-        """
-        try:
-            m = hashlib.sha1(__version__.encode('UTF-8'))
-            m.update(file_hash(filename).encode('UTF-8'))
-            for x in sorted(self.all_dependencies(filename)):
-                if os.path.splitext(x)[1] not in ('.c', '.cpp', '.h'):
-                    m.update(file_hash(x).encode('UTF-8'))
-            # Include the module attributes that change the compilation result
-            # in the fingerprint. We do not iterate over module.__dict__ and
-            # include almost everything here as users might extend Extension
-            # with arbitrary (random) attributes that would lead to cache
-            # misses.
-            m.update(str((
-                module.language,
-                getattr(module, 'py_limited_api', False),
-                getattr(module, 'np_pythran', False)
-            )).encode('UTF-8'))
-
-            m.update(compilation_options.get_fingerprint().encode('UTF-8'))
-            return m.hexdigest()
-        except OSError:
-            return None
-
     def distutils_info0(self, filename):
         info = self.parse_dependencies(filename)[3]
         kwds = info.values
@@ -781,6 +706,8 @@ def default_create_extension(template, kwds):
 
     t = template.__class__
     ext = t(**kwds)
+    if hasattr(template, "py_limited_api"):
+        ext.py_limited_api = template.py_limited_api
     metadata = dict(distutils=kwds, module_name=kwds['name'])
     return (ext, metadata)
 
@@ -811,6 +738,7 @@ def create_extension_list(patterns, exclude=None, ctx=None, aliases=None, quiet=
 
     explicit_modules = {m.name for m in patterns if isinstance(m, extension_classes)}
     deps = create_dependency_tree(ctx, quiet=quiet)
+    shared_utility_qualified_name = ctx.shared_utility_qualified_name
 
     to_exclude = set()
     if not isinstance(exclude, list):
@@ -842,6 +770,18 @@ def create_extension_list(patterns, exclude=None, ctx=None, aliases=None, quiet=
                     print("Warning: Multiple cython sources found for extension '%s': %s\n"
                           "See https://cython.readthedocs.io/en/latest/src/userguide/sharing_declarations.html "
                           "for sharing declarations among Cython files." % (pattern.name, cython_sources))
+            elif shared_utility_qualified_name and pattern.name == shared_utility_qualified_name:
+                # This is the shared utility code file.
+                m, _ = create_extension(pattern, dict(
+                    name=shared_utility_qualified_name,
+                    sources=pattern.sources or [
+                        shared_utility_qualified_name.replace('.', os.sep) + ('.cpp' if pattern.language == 'c++' else '.c')],
+                    language=pattern.language,
+                ))
+                m.np_pythran = False
+                m.shared_utility_qualified_name = None
+                module_list.append(m)
+                continue
             else:
                 # ignore non-cython modules
                 module_list.append(pattern)
@@ -899,6 +839,7 @@ def create_extension_list(patterns, exclude=None, ctx=None, aliases=None, quiet=
                 # Create the new extension
                 m, metadata = create_extension(template, kwds)
                 m.np_pythran = np_pythran or getattr(m, 'np_pythran', False)
+                m.shared_utility_qualified_name = shared_utility_qualified_name
                 if m.np_pythran:
                     update_pythran_extension(m)
                 module_list.append(m)
@@ -997,6 +938,9 @@ def cythonize(module_list, exclude=None, nthreads=0, aliases=None, quiet=False, 
                                 See :ref:`compiler-directives`.
 
     :param depfile: produce depfiles for the sources if True.
+    :param cache: If ``True`` the cache enabled with default path. If the value is a path to a directory,
+                  then the directory is used to cache generated ``.c``/``.cpp`` files. By default cache is disabled.
+                  See :ref:`cython-cache`.
     """
     if exclude is None:
         exclude = []
@@ -1021,6 +965,7 @@ def cythonize(module_list, exclude=None, nthreads=0, aliases=None, quiet=False, 
     cpp_options = CompilationOptions(**options); cpp_options.cplus = True
     ctx = Context.from_options(c_options)
     options = c_options
+    shared_utility_qualified_name = ctx.shared_utility_qualified_name
     module_list, module_metadata = create_extension_list(
         module_list,
         exclude=exclude,
@@ -1034,6 +979,15 @@ def cythonize(module_list, exclude=None, nthreads=0, aliases=None, quiet=False, 
 
     deps = create_dependency_tree(ctx, quiet=quiet)
     build_dir = getattr(options, 'build_dir', None)
+    if options.cache and not (options.annotate or Options.annotate):
+        # cache is enabled when:
+        # * options.cache is True (the default path to the cache base dir is used)
+        # * options.cache is the explicit path to the cache base dir
+        # * annotations are not generated
+        cache_path = None if options.cache is True else options.cache
+        cache = Cache(cache_path, getattr(options, 'cache_size', None))
+    else:
+        cache = None
 
     def copy_to_build_dir(filepath, root=os.getcwd()):
         filepath_abs = os.path.abspath(filepath)
@@ -1044,6 +998,17 @@ def cythonize(module_list, exclude=None, nthreads=0, aliases=None, quiet=False, 
             mod_dir = join_path(build_dir,
                                 os.path.dirname(_relpath(filepath, root)))
             copy_once_if_newer(filepath_abs, mod_dir)
+
+    def file_in_build_dir(c_file):
+        if not build_dir:
+            return c_file
+        if os.path.isabs(c_file):
+            c_file = os.path.splitdrive(c_file)[1]
+            c_file = c_file.split(os.sep, 1)[1]
+        c_file = os.path.join(build_dir, c_file)
+        dir = os.path.dirname(c_file)
+        safe_makedirs_once(dir)
+        return c_file
 
     modules_by_cfile = collections.defaultdict(list)
     to_compile = []
@@ -1062,28 +1027,24 @@ def cythonize(module_list, exclude=None, nthreads=0, aliases=None, quiet=False, 
             # infer FQMN from source files
             full_module_name = None
 
+        np_pythran = getattr(m, 'np_pythran', False)
+        py_limited_api = getattr(m, 'py_limited_api', False)
+
+        if np_pythran:
+            options = pythran_options
+        elif m.language == 'c++':
+            options = cpp_options
+        else:
+            options = c_options
+
         new_sources = []
         for source in m.sources:
             base, ext = os.path.splitext(source)
             if ext in ('.pyx', '.py'):
-                if m.np_pythran:
-                    c_file = base + '.cpp'
-                    options = pythran_options
-                elif m.language == 'c++':
-                    c_file = base + '.cpp'
-                    options = cpp_options
-                else:
-                    c_file = base + '.c'
-                    options = c_options
+                c_file = base + ('.cpp' if m.language == 'c++' or np_pythran else '.c')
 
                 # setup for out of place build directory if enabled
-                if build_dir:
-                    if os.path.isabs(c_file):
-                        c_file = os.path.splitdrive(c_file)[1]
-                        c_file = c_file.split(os.sep, 1)[1]
-                    c_file = os.path.join(build_dir, c_file)
-                    dir = os.path.dirname(c_file)
-                    safe_makedirs_once(dir)
+                c_file = file_in_build_dir(c_file)
 
                 # write out the depfile, if requested
                 if depfile:
@@ -1113,33 +1074,49 @@ def cythonize(module_list, exclude=None, nthreads=0, aliases=None, quiet=False, 
                                 Utils.decode_filename(source),
                                 Utils.decode_filename(dep),
                             ))
-                    if not force and options.cache:
-                        fingerprint = deps.transitive_fingerprint(source, m, options)
+                    if not force and cache:
+                        fingerprint = cache.transitive_fingerprint(
+                                source, deps.all_dependencies(source), options,
+                                FingerprintFlags(m.language or 'c', py_limited_api, np_pythran)
+                        )
                     else:
                         fingerprint = None
                     to_compile.append((
                         priority, source, c_file, fingerprint, quiet,
                         options, not exclude_failures, module_metadata.get(m.name),
                         full_module_name, show_all_warnings))
-                new_sources.append(c_file)
                 modules_by_cfile[c_file].append(m)
+            elif shared_utility_qualified_name and m.name == shared_utility_qualified_name:
+                # Generate shared utility code module now.
+                c_file = file_in_build_dir(source)
+                module_options = CompilationOptions(
+                    options, shared_c_file_path=c_file, shared_utility_qualified_name=None)
+                if not Utils.is_cython_generated_file(c_file):
+                    print(f"Warning: Shared module source file is not a Cython file - not creating '{m.name}' as '{c_file}'")
+                elif force or not Utils.file_generated_by_this_cython(c_file):
+                    from .SharedModule import generate_shared_module
+                    if not quiet:
+                        print(f"Generating shared module '{m.name}'")
+                    generate_shared_module(module_options)
             else:
-                new_sources.append(source)
+                c_file = source
                 if build_dir:
                     copy_to_build_dir(source)
+
+            new_sources.append(c_file)
+
         m.sources = new_sources
 
-    if options.cache:
-        if not os.path.exists(options.cache):
-            os.makedirs(options.cache)
     to_compile.sort()
-    # Drop "priority" component of "to_compile" entries and add a
-    # simple progress indicator.
     N = len(to_compile)
-    progress_fmt = "[{0:%d}/{1}] " % len(str(N))
-    for i in range(N):
-        progress = progress_fmt.format(i+1, N)
-        to_compile[i] = to_compile[i][1:] + (progress,)
+
+    # Drop "priority" sorting component of "to_compile" entries
+    # and add a simple progress indicator and the remaining arguments.
+    build_progress_indicator = ("[{0:%d}/%d] " % (len(str(N)), N)).format
+    to_compile = [
+        task[1:] + (build_progress_indicator(i), cache)
+        for i, task in enumerate(to_compile, 1)
+    ]
 
     if N <= 1:
         nthreads = 0
@@ -1173,7 +1150,7 @@ def cythonize(module_list, exclude=None, nthreads=0, aliases=None, quiet=False, 
             if not os.path.exists(c_file):
                 failed_modules.update(modules)
             elif os.path.getsize(c_file) < 200:
-                f = io_open(c_file, 'r', encoding='iso8859-1')
+                f = open(c_file, 'r', encoding='iso8859-1')
                 try:
                     if f.read(len('#error ')) == '#error ':
                         # dead compilation result
@@ -1186,8 +1163,9 @@ def cythonize(module_list, exclude=None, nthreads=0, aliases=None, quiet=False, 
             print("Failed compilations: %s" % ', '.join(sorted([
                 module.name for module in failed_modules])))
 
-    if options.cache:
-        cleanup_cache(options.cache, getattr(options, 'cache_size', 1024 * 1024 * 100))
+    if cache:
+        cache.cleanup_cache()
+
     # cythonize() is often followed by the (non-Python-buffered)
     # compiler output, flush now to avoid interleaving output.
     sys.stdout.flush()
@@ -1263,39 +1241,19 @@ else:
 
 # TODO: Share context? Issue: pyx processing leaks into pxd module
 @record_results
-def cythonize_one(pyx_file, c_file, fingerprint, quiet, options=None,
+def cythonize_one(pyx_file, c_file,
+                  fingerprint=None, quiet=False, options=None,
                   raise_on_failure=True, embedded_metadata=None,
                   full_module_name=None, show_all_warnings=False,
-                  progress=""):
+                  progress="", cache=None):
     from ..Compiler.Main import compile_single, default_options
     from ..Compiler.Errors import CompileError, PyrexError
 
-    if fingerprint:
-        if not os.path.exists(options.cache):
-            safe_makedirs(options.cache)
-        # Cython-generated c files are highly compressible.
-        # (E.g. a compression ratio of about 10 for Sage).
-        fingerprint_file_base = join_path(
-            options.cache, "%s-%s" % (os.path.basename(c_file), fingerprint))
-        gz_fingerprint_file = fingerprint_file_base + gzip_ext
-        zip_fingerprint_file = fingerprint_file_base + '.zip'
-        if os.path.exists(gz_fingerprint_file) or os.path.exists(zip_fingerprint_file):
-            if not quiet:
-                print("%sFound compiled %s in cache" % (progress, pyx_file))
-            if os.path.exists(gz_fingerprint_file):
-                os.utime(gz_fingerprint_file, None)
-                with contextlib.closing(gzip_open(gz_fingerprint_file, 'rb')) as g:
-                    with contextlib.closing(open(c_file, 'wb')) as f:
-                        shutil.copyfileobj(g, f)
-            else:
-                os.utime(zip_fingerprint_file, None)
-                dirname = os.path.dirname(c_file)
-                with contextlib.closing(zipfile.ZipFile(zip_fingerprint_file)) as z:
-                    for artifact in z.namelist():
-                        z.extract(artifact, os.path.join(dirname, artifact))
-            return
     if not quiet:
-        print("%sCythonizing %s" % (progress, Utils.decode_filename(pyx_file)))
+        if cache and fingerprint and cache.lookup_cache(c_file, fingerprint):
+            print(f"{progress}Found compiled {pyx_file} in cache")
+        else:
+            print(f"{progress}Cythonizing {Utils.decode_filename(pyx_file)}")
     if options is None:
         options = CompilationOptions(default_options)
     options.output_file = c_file
@@ -1307,7 +1265,7 @@ def cythonize_one(pyx_file, c_file, fingerprint, quiet, options=None,
 
     any_failures = 0
     try:
-        result = compile_single(pyx_file, options, full_module_name=full_module_name)
+        result = compile_single(pyx_file, options, full_module_name=full_module_name, cache=cache, fingerprint=fingerprint)
         if result.num_errors > 0:
             any_failures = 1
     except (OSError, PyrexError) as e:
@@ -1331,22 +1289,6 @@ def cythonize_one(pyx_file, c_file, fingerprint, quiet, options=None,
             raise CompileError(None, pyx_file)
         elif os.path.exists(c_file):
             os.remove(c_file)
-    elif fingerprint:
-        artifacts = list(filter(None, [
-            getattr(result, attr, None)
-            for attr in ('c_file', 'h_file', 'api_file', 'i_file')]))
-        if len(artifacts) == 1:
-            fingerprint_file = gz_fingerprint_file
-            with contextlib.closing(open(c_file, 'rb')) as f:
-                with contextlib.closing(gzip_open(fingerprint_file + '.tmp', 'wb')) as g:
-                    shutil.copyfileobj(f, g)
-        else:
-            fingerprint_file = zip_fingerprint_file
-            with contextlib.closing(zipfile.ZipFile(
-                    fingerprint_file + '.tmp', 'w', zipfile_compression_mode)) as zip:
-                for artifact in artifacts:
-                    zip.write(artifact, os.path.basename(artifact))
-        os.rename(fingerprint_file + '.tmp', fingerprint_file)
 
 
 def cythonize_one_helper(m):
@@ -1362,29 +1304,3 @@ def _init_multiprocessing_helper():
     # KeyboardInterrupt kills workers, so don't let them get it
     import signal
     signal.signal(signal.SIGINT, signal.SIG_IGN)
-
-
-def cleanup_cache(cache, target_size, ratio=.85):
-    try:
-        p = subprocess.Popen(['du', '-s', '-k', os.path.abspath(cache)], stdout=subprocess.PIPE)
-        stdout, _ = p.communicate()
-        res = p.wait()
-        if res == 0:
-            total_size = 1024 * int(stdout.strip().split()[0])
-            if total_size < target_size:
-                return
-    except (OSError, ValueError):
-        pass
-    total_size = 0
-    all = []
-    for file in os.listdir(cache):
-        path = join_path(cache, file)
-        s = os.stat(path)
-        total_size += s.st_size
-        all.append((s.st_atime, s.st_size, path))
-    if total_size > target_size:
-        for time, size, file in reversed(sorted(all)):
-            os.unlink(file)
-            total_size -= size
-            if total_size < target_size * ratio:
-                break

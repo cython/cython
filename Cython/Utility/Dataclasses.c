@@ -14,14 +14,14 @@ static PyObject* __Pyx_LoadInternalModule(const char* name, const char* fallback
     // store them
 
     PyObject *shared_abi_module = 0, *module = 0;
-#if __PYX_LIMITED_VERSION_HEX >= 0x030d00A1
+#if __PYX_LIMITED_VERSION_HEX >= 0x030d0000
     PyObject *result;
 #endif
 
     shared_abi_module = __Pyx_FetchSharedCythonABIModule();
     if (!shared_abi_module) return NULL;
 
-#if __PYX_LIMITED_VERSION_HEX >= 0x030d00A1
+#if __PYX_LIMITED_VERSION_HEX >= 0x030d0000
      if (PyObject_GetOptionalAttrString(shared_abi_module, name, &result) != 0) {
         Py_DECREF(shared_abi_module);
         return result;
@@ -57,7 +57,16 @@ static PyObject* __Pyx_LoadInternalModule(const char* name, const char* fallback
         if (!builtins) goto bad;
         if (PyDict_SetItemString(localDict, "__builtins__", builtins) <0) goto bad;
 
+#if CYTHON_COMPILING_IN_LIMITED_API
+        {
+            PyObject *compiled = Py_CompileString(fallback_code, "<dataclass fallback code>", Py_file_input);
+            if (!compiled) goto bad;
+            runValue = PyEval_EvalCode(compiled, localDict, localDict);
+            Py_DECREF(compiled);
+        }
+#else
         runValue = PyRun_String(fallback_code, Py_file_input, localDict, localDict);
+#endif
         if (!runValue) goto bad;
         Py_DECREF(runValue);
     }
@@ -88,7 +97,6 @@ static PyObject* __Pyx_Load_{{cname}}_Module(void) {
 static PyObject* __Pyx_DataclassesCallHelper(PyObject *callable, PyObject *kwds); /* proto */
 
 //////////////////// DataclassesCallHelper ////////////////////////
-//@substitute: naming
 
 // The signature of a few of the dataclasses module functions has
 // been expanded over the years. Cython always passes the full set
@@ -167,7 +175,7 @@ static PyObject* __Pyx_DataclassesCallHelper(PyObject *callable, PyObject *kwds)
     // copy over only those arguments that are in the specification
     if (__Pyx_DataclassesCallHelper_FilterToDict(callable, kwds, new_kwds, args_list, 0) == -1) goto bad;
     if (__Pyx_DataclassesCallHelper_FilterToDict(callable, kwds, new_kwds, kwonly_args_list, 1) == -1) goto bad;
-    result = PyObject_Call(callable, $empty_tuple, new_kwds);
+    result = PyObject_Call(callable, EMPTY(tuple), new_kwds);
 bad:
     Py_XDECREF(getfullargspec_result);
     Py_XDECREF(args_list);

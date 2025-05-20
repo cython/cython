@@ -194,7 +194,6 @@ class TreeVisitor:
         return self._visitchildren(parent, attrs, exclude)
 
     @cython.final
-    @cython.locals(idx=cython.Py_ssize_t)
     def _visitchildren(self, parent, attrs, exclude):
         # fast cdef entry point for calls from Cython subclasses
         """
@@ -206,6 +205,8 @@ class TreeVisitor:
         or a list of return values (in the case of multiple children
         in an attribute)).
         """
+        idx: cython.Py_ssize_t
+
         if parent is None: return None
         result = {}
         for attr in parent.child_attrs:
@@ -545,7 +546,7 @@ class MethodDispatcherTransform(EnvTransform):
             if special_method_name == '__contains__':
                 operand1, operand2 = operand2, operand1
             elif special_method_name == '__div__':
-                if Future.division in self.current_env().global_scope().context.future_directives:
+                if Future.division in self.current_env().context.future_directives:
                     special_method_name = '__truediv__'
             obj_type = operand1.type
             if obj_type.is_builtin_type:
@@ -580,9 +581,9 @@ class MethodDispatcherTransform(EnvTransform):
             return None
 
         call_type = 'general' if has_kwargs else 'simple'
-        handler = getattr(self, '_handle_%s_%s' % (call_type, match_name), None)
+        handler = getattr(self, f'_handle_{call_type}_{match_name}', None)
         if handler is None:
-            handler = getattr(self, '_handle_any_%s' % match_name, None)
+            handler = getattr(self, f'_handle_any_{match_name}', None)
         return handler
 
     def _delegate_to_assigned_value(self, node, function, arg_list, kwargs):
@@ -627,7 +628,7 @@ class MethodDispatcherTransform(EnvTransform):
                             node=node, function=function, arg_list=arg_list, kwargs=kwargs)
                 return node
             function_handler = self._find_handler(
-                "function_%s" % function.name, kwargs)
+                f"function_{function.name}", kwargs)
             if function_handler is None:
                 return self._handle_function(node, function.name, function, arg_list, kwargs)
             if kwargs:
@@ -658,6 +659,9 @@ class MethodDispatcherTransform(EnvTransform):
                     is_unbound_method = True
                 else:
                     type_name = obj_type.name
+                if type_name == 'str':
+                    # We traditionally used the type name 'unicode' for 'str' dispatch methods.
+                    type_name = 'unicode'
             else:
                 type_name = "object"  # safety measure
             return self._dispatch_to_method_handler(
@@ -670,12 +674,12 @@ class MethodDispatcherTransform(EnvTransform):
                                     is_unbound_method, type_name,
                                     node, function, arg_list, kwargs):
         method_handler = self._find_handler(
-            "method_%s_%s" % (type_name, attr_name), kwargs)
+            f"method_{type_name}_{attr_name}", kwargs)
         if method_handler is None:
             if (attr_name in TypeSlots.special_method_names
                     or attr_name in ['__new__', '__class__']):
                 method_handler = self._find_handler(
-                    "slot%s" % attr_name, kwargs)
+                    f"slot{attr_name}", kwargs)
             if method_handler is None:
                 return self._handle_method(
                     node, type_name, attr_name, function,
@@ -832,7 +836,8 @@ class PrintTree(TreeVisitor):
             elif isinstance(node, Nodes.DefNode):
                 result += "(name=\"%s\")" % node.name
             elif isinstance(node, Nodes.CFuncDefNode):
-                result += "(name=\"%s\")" % node.declared_name()
+                result += "(name=\"%s\", type=\"%s\")" % (
+                    node.declared_name(), getattr(node, "type", None))
             elif isinstance(node, ExprNodes.AttributeNode):
                 result += "(type=%s, attribute=\"%s\")" % (repr(node.type), node.attribute)
             elif isinstance(node,

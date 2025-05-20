@@ -6,7 +6,8 @@ def unbound_method_lookup():
     """
     ignore = slice.indices
 
-@cython.test_assert_path_exists('//SingleAssignmentNode//AttributeNode[@is_py_attr = False]')
+# BuiltinProperty ends up as a simple call node
+@cython.test_assert_path_exists('//SingleAssignmentNode//SimpleCallNode//NameNode[@name="start"]')
 @cython.test_fail_if_path_exists('//SingleAssignmentNode//AttributeNode[@is_py_attr = True]')
 def typed_slice():
     """

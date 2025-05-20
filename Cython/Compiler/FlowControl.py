@@ -160,6 +160,7 @@ class ControlFlow:
                 (entry.type.is_struct_or_union or
                  entry.type.is_complex or
                  entry.type.is_array or
+                 entry.type.is_cython_lock_type or
                  (entry.type.is_cpp_class and not entry.is_cpp_optional))):
             # stack allocated structured variable => never uninitialised
             return True
@@ -211,10 +212,15 @@ class ControlFlow:
             for child in root.children:
                 if child not in visited:
                     queue.add(child)
-        unreachable = self.blocks - visited
+
+        unreachable: set = self.blocks - visited
+        block: ControlBlock
         for block in unreachable:
             block.detach()
+
         visited.remove(self.entry_point)
+
+        parent: ControlBlock
         for block in visited:
             if block.empty():
                 for parent in block.parents:  # Re-parent
@@ -227,8 +233,10 @@ class ControlFlow:
     def initialize(self):
         """Set initial state, map assignments to bits."""
         self.assmts = {}
+        assmts: AssignmentList
+        block: ControlBlock
 
-        bit = 1
+        bit: int = 1
         for entry in self.entries:
             assmts = AssignmentList()
             assmts.mask = assmts.bit = bit
@@ -262,7 +270,7 @@ class ControlFlow:
 
     def map_one(self, istate, entry):
         ret = set()
-        assmts = self.assmts[entry]
+        assmts: AssignmentList = self.assmts[entry]
         if istate & assmts.bit:
             if self.is_statically_assigned(entry):
                 ret.add(StaticAssignment(entry))
@@ -270,6 +278,8 @@ class ControlFlow:
                 ret.add(Unknown)
             else:
                 ret.add(Uninitialized)
+
+        assmt: NameAssignment
         for assmt in assmts.stats:
             if istate & assmt.bit:
                 ret.add(assmt)
@@ -277,6 +287,9 @@ class ControlFlow:
 
     def reaching_definitions(self):
         """Per-block reaching definitions analysis."""
+        block: ControlBlock
+        parent: ControlBlock
+
         dirty = True
         while dirty:
             dirty = False
@@ -523,7 +536,8 @@ class MessageCollection:
                 warning(pos, message, 2)
 
 
-def check_definitions(flow, compiler_directives):
+@cython.cfunc
+def check_definitions(flow: ControlFlow, compiler_directives: dict):
     flow.initialize()
     flow.reaching_definitions()
 
@@ -533,6 +547,8 @@ def check_definitions(flow, compiler_directives):
     references = {}
     assmt_nodes = set()
 
+    block: ControlBlock
+    assmt: NameAssignment
     for block in flow.blocks:
         i_state = block.i_input
         for stat in block.stats:
@@ -798,7 +814,7 @@ class ControlFlowAnalysis(CythonTransform):
                     item_node = rhs
                 else:
                     item_node = rhs.inferable_item_node(i)
-                self.mark_assignment(arg, item_node)
+                self.mark_assignment(arg, item_node, rhs_scope=rhs_scope)
         else:
             self._visit(lhs)
 
@@ -1033,6 +1049,20 @@ class ControlFlowAnalysis(CythonTransform):
 
             self.mark_assignment(target, node.item, rhs_scope=node.iterator.expr_scope)
 
+    def mark_parallel_forloop_assignment(self, node):
+        target = node.target
+        for arg in node.args[:2]:
+            self.mark_assignment(target, arg)
+        if len(node.args) > 2:
+            self.mark_assignment(target, self.constant_folder(
+                ExprNodes.binop_node(node.pos,
+                                        '+',
+                                        node.args[0],
+                                        node.args[2])))
+        if not node.args:
+            # Almost certainly an error
+            self.mark_assignment(target)
+
     def visit_AsyncForStatNode(self, node):
         return self.visit_ForInStatNode(node)
 
@@ -1050,8 +1080,10 @@ class ControlFlowAnalysis(CythonTransform):
         elif isinstance(node, Nodes.AsyncForStatNode):
             # not entirely correct, but good enough for now
             self.mark_assignment(node.target, node.item)
-        else:  # Parallel
-            self.mark_assignment(node.target)
+        elif isinstance(node, Nodes.ParallelRangeNode):  # Parallel
+            self.mark_parallel_forloop_assignment(node)
+        else:
+            assert False, type(node)
 
         # Body block
         if isinstance(node, Nodes.ParallelRangeNode):
@@ -1378,4 +1410,46 @@ class ControlFlowAnalysis(CythonTransform):
             # Fake assignment to silence warning
             self.mark_assignment(node.operand, fake_rhs_expr)
         self.visitchildren(node)
+        return node
+
+    def visit_BoolBinopNode(self, node):
+        # Note - I don't believe BoolBinopResultNode needs special handling beyond this
+        assert len(node.subexprs) == 2  # operand1 and operand2 only
+
+        next_block = self.flow.newblock()
+        parent = self.flow.block
+
+        self._visit(node.operand1)
+
+        self.flow.nextblock()
+        self._visit(node.operand2)
+        if self.flow.block:
+            self.flow.block.add_child(next_block)
+
+        parent.add_child(next_block)
+
+        if next_block.parents:
+            self.flow.block = next_block
+        else:
+            self.flow.block = None
+        return node
+
+    def visit_CondExprNode(self, node):
+        assert len(node.subexprs) == 3
+        self._visit(node.test)
+        parent = self.flow.block
+        next_block = self.flow.newblock()
+        self.flow.nextblock()
+        self._visit(node.true_val)
+        if self.flow.block:
+            self.flow.block.add_child(next_block)
+        self.flow.nextblock(parent=parent)
+        self._visit(node.false_val)
+        if self.flow.block:
+            self.flow.block.add_child(next_block)
+
+        if next_block.parents:
+            self.flow.block = next_block
+        else:
+            self.flow.block = None
         return node
