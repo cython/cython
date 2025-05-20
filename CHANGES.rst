@@ -2,6 +2,19 @@
 Cython Changelog
 ================
 
+3.1.2 (2025-??-??)
+==================
+
+Bugs fixed
+----------
+
+* Avoid including C++11 ``<type_traits>`` unconditionally.
+  (Github issue :issue:`6896`)
+
+* Some tests were adapted for NumPy 2.x.
+  (Github issue :issue:`6898`)
+
+
 3.1.1 (2025-05-19)
 ==================
 
