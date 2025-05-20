@@ -12,7 +12,6 @@ def test_is_null():
     >>> test_is_null()
     """
     cdef int some_int = 1
-    return  # disabled - currently just a parser test
     assert is_null(&some_int) == False
     assert is_null(NULL) == True
 
