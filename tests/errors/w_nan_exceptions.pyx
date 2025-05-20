@@ -14,6 +14,6 @@ cdef double f2() except FLOAT_ERROR:
     return 1
 
 _WARNINGS = """
-6:24: 'NAN' is most likely unsuitable for use as an exception value because it cannot be compared with the '==' operator
-11:24: 'nan' is unsuitable for use as an exception value because it cannot be compared with the '==' operator
+8:24: 'NAN' is most likely unsuitable for use as an exception value because it cannot be compared with the '==' operator
+13:24: 'nan' is unsuitable for use as an exception value because it cannot be compared with the '==' operator
 """
