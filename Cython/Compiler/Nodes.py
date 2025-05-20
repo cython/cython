@@ -725,6 +725,7 @@ class CFuncDeclaratorNode(CDeclaratorNode):
                 error(self.pos, "Non-default argument follows default argument")
 
         exc_val = None
+        exc_c_repr = None
         exc_check = 0
 
         if (env.directives["legacy_implicit_noexcept"]
@@ -791,7 +792,7 @@ class CFuncDeclaratorNode(CDeclaratorNode):
                 else:
                     self.exception_value = self.exception_value.analyse_types(env).coerce_to(
                         return_type, env).analyse_const_expression(env)
-                    exc_val = self.exception_value.as_exception_value(env)
+                    exc_val, exc_c_repr = self.exception_value.as_exception_value(env)
                     if not return_type.assignable_from(self.exception_value.type):
                         error(self.exception_value.pos,
                               "Exception value incompatible with function return type")
@@ -812,7 +813,7 @@ class CFuncDeclaratorNode(CDeclaratorNode):
         func_type = PyrexTypes.CFuncType(
             return_type, func_type_args, self.has_varargs,
             optional_arg_count=self.optional_arg_count,
-            exception_value=exc_val, exception_check=exc_check,
+            exception_value=exc_val, exception_c_repr=exc_c_repr, exception_check=exc_check,
             calling_convention=self.base.calling_convention,
             nogil=self.nogil, with_gil=self.with_gil, is_overridable=self.overridable,
             is_const_method=self.is_const_method,
@@ -3035,7 +3036,7 @@ class CFuncDefNode(FuncDefNode):
         if self.return_type.is_pyobject:
             return "0"
         else:
-            return self.entry.type.exception_value
+            return self.entry.type.exception_c_repr
 
     def caller_will_check_exceptions(self):
         return self.entry.type.exception_check

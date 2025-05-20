@@ -210,3 +210,23 @@ def test_return_char(fail):
         return chr(return_char(fail))
     except RuntimeError:
         print("exception")
+
+
+DEF infty = float("inf")
+
+cdef double fail_with_infinity(fail) except infty:
+    if fail:
+        raise RuntimeError()
+    return 0
+
+def test_fail_with_infinity(fail):
+    """
+    >>> test_fail_with_infinity(True)
+    exception
+    >>> test_fail_with_infinity(False)
+    0.0
+    """
+    try:
+        return fail_with_infinity(fail)
+    except RuntimeError:
+        print("exception")

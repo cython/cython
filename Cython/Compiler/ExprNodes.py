@@ -584,19 +584,34 @@ class ExprNode(Node):
             e.__class__.__name__, e))
 
     def as_exception_value(self, env):
-        # Return the constant Python value if possible.
-        # This can be either a Python constant or a string
-        # for types that can't be represented by a Python constant
-        # (e.g. enums)
-        if self.has_constant_result():
-            return self.constant_result
-        # this isn't the preferred fallback because it can end up
-        # hard to distinguish between identical types, e.g. -1.0 vs -1
-        # for floats. However, it lets things like NULL and typecasts work
-        result = self.get_constant_c_result_code()
-        if result is not None:
-            return result
+        """
+        Returns a tuple of (py_repr, c_repr)
+
+        py_repr can be either a Python constant or a string
+        for types that can't be represented by a Python constant
+        (e.g. enums)
+        """
+        c_result = self.get_constant_c_result_code()
+        if c_result is not None:
+            # Using the C result string isn't the preferred fallback because it can end up
+            # hard to distinguish between identical types, e.g. -1.0 vs -1
+            # for floats. However, it lets things like NULL and typecasts work
+            py_result = self.constant_result if self.has_constant_result() else c_result
+            if py_result != py_result or c_result == "NAN":
+                most_likely = ""
+                if py_result == py_result:
+                    # For the string NAN we don't know for sure what constant they've assigned to it.
+                    # But we can have a good guess. 
+                    most_likely = "most likely " 
+                warning(
+                    self.pos,
+                    f"'{py_result}' is {most_likely}unsuitable for use as an exception value "
+                    "because it cannot be compared with the '==' operator",
+                    2)
+            return py_result, c_result
+
         error(self.pos, "Exception value must be constant")
+        return None, None
 
     # ------------- Declaration Analysis ----------------
 
@@ -6559,7 +6574,7 @@ class SimpleCallNode(CallNode):
                 assert self.is_temp
                 exc_checks.append(self.type.error_condition(self.result()))
             elif func_type.exception_check != '+':
-                exc_val = func_type.exception_value
+                exc_val = func_type.exception_c_repr
                 exc_check = func_type.exception_check
                 if exc_val is not None:
                     typed_exc_val = func_type.return_type.cast_code(exc_val)

@@ -3075,7 +3075,8 @@ class CFuncType(CType):
     #  return_type      CType
     #  args             [CFuncTypeArg]
     #  has_varargs      boolean
-    #  exception_value  string
+    #  exception_value  object
+    #  exception_c_repr string
     #  exception_check  boolean    True if PyErr_Occurred check needed
     #  calling_convention  string  Function calling convention
     #  nogil            boolean    Can be called without gil
@@ -3099,7 +3100,7 @@ class CFuncType(CType):
     subtypes = ['return_type', 'args']
 
     def __init__(self, return_type, args, has_varargs = 0,
-            exception_value = None, exception_check = 0, calling_convention = "",
+            exception_value = None, exception_c_repr = None, exception_check = 0, calling_convention = "",
             nogil = 0, with_gil = 0, is_overridable = 0, optional_arg_count = 0,
             is_const_method = False, is_static_method=False,
             templates = None, is_strict_signature = False):
@@ -3108,6 +3109,7 @@ class CFuncType(CType):
         self.has_varargs = has_varargs
         self.optional_arg_count = optional_arg_count
         self.exception_value = exception_value
+        self.exception_c_repr = exception_c_repr
         self.exception_check = exception_check
         self.calling_convention = calling_convention
         self.nogil = nogil
