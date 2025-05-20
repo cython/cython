@@ -239,8 +239,6 @@ def collect_changelog(version):
         'Bugs fixed': [],
         'Other changes': [],
     }
-    # Collect initial content in a throw-away dict.
-    current_sections = defaultdict(list)
 
     changelog = []
     with open("CHANGES.rst", encoding='utf8') as f:
@@ -256,6 +254,7 @@ def collect_changelog(version):
         changelog.append(next(lines))  # underline of version
         assert changelog[-1].startswith('=====')
 
+        current_sections = sections
         current_section = []
         for line in lines:
             if line.startswith('-----'):

@@ -122,7 +122,6 @@ class FusedCFuncDefNode(StatListNode):
 
         self.orig_py_func = self.node
         self.py_func = self.make_fused_cpdef(self.node, env, is_def=True)
-        self.py_func.code_object = CodeObjectNode(self.py_func)
 
     def copy_cdef(self, env):
         """
@@ -946,6 +945,8 @@ class FusedCFuncDefNode(StatListNode):
         self.specialized_pycfuncs = values
         for pycfuncnode in values:
             pycfuncnode.is_specialization = True
+        # use code object from first defnode to get as close to a correct signature as possible
+        self.py_func.code_object = CodeObjectNode(nodes[0])
 
     def generate_function_definitions(self, env, code):
         if self.py_func:

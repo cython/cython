@@ -1281,10 +1281,6 @@ class BuiltinScope(Scope):
             Scope.__init__(self, "__builtin__", PreImportScope(), None)
         self.type_names = {}
 
-        # Most entries are initialized in init_builtins, except for "bool"
-        # which is apparently a special case because it conflicts with C++ bool
-        self.declare_var("bool", py_object_type, None, "((PyObject*)&PyBool_Type)")
-
     def lookup(self, name, language_level=None):
         # 'language_level' is passed by ModuleScope
         if name == 'unicode' or name == 'basestring':
@@ -1326,18 +1322,15 @@ class BuiltinScope(Scope):
             entry.as_variable = var_entry
         return entry
 
-    def declare_builtin_type(self, name, cname, utility_code=None,
+    def declare_builtin_type(self, name, cname,
                              objstruct_cname=None, type_class=PyrexTypes.BuiltinObjectType):
         name = EncodedString(name)
         type = type_class(name, cname, objstruct_cname)
         scope = CClassScope(name, outer_scope=None, visibility='extern', parent_type=type)
         scope.directives = {}
-        if name == 'bool':
-            type.is_final_type = True
         type.set_scope(scope)
         self.type_names[name] = 1
         entry = self.declare_type(name, type, None, visibility='extern')
-        entry.utility_code = utility_code
 
         var_entry = Entry(
             name=entry.name,
@@ -1350,7 +1343,6 @@ class BuiltinScope(Scope):
         var_entry.is_cglobal = 1
         var_entry.is_readonly = 1
         var_entry.is_builtin = 1
-        var_entry.utility_code = utility_code
         var_entry.scope = self
         if Options.cache_builtins:
             var_entry.is_const = True

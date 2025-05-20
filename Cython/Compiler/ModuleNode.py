@@ -2731,6 +2731,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         dict_name = dict_attr.cname
 
         code.putln("")
+        code.putln("#if CYTHON_COMPILING_IN_LIMITED_API && __PYX_LIMITED_VERSION_HEX < 0x030A0000")
         code.putln("static PyObject *%s(PyObject *o, CYTHON_UNUSED void *x) {" % func_name)
         self.generate_self_cast(scope, code)
         code.putln("if (unlikely(!p->%s)){" % dict_name)
@@ -2739,6 +2740,12 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("Py_XINCREF(p->%s);" % dict_name)
         code.putln("return p->%s;" % dict_name)
         code.putln("}")
+        code.putln("#else")
+        # PyObject_GenericGetDict has the advantage that it's freethreading thread-safe,
+        # handles both managed and unmanaged dicts (in case we switch to managed in future),
+        # and can potentially do optimizations with per-class shared keys.
+        code.putln(f"#define {func_name} PyObject_GenericGetDict")
+        code.putln("#endif")
 
     def generate_getset_table(self, env, code):
         if env.property_entries:
