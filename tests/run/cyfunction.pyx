@@ -415,7 +415,6 @@ def test_firstlineno_decorated_function():
     l2 = test_firstlineno_decorated_function.__code__.co_firstlineno
     return l2 - l1
 
-@skip_if_limited_api("https://bugs.python.org/issue38140 and/or https://bugs.python.org/issue40703", sys.version_info < (3, 9))
 def test_module():
     """
     See module-level docstring. doctest uses __module__ to decide what to run. So if it's wrong
@@ -423,7 +422,6 @@ def test_module():
     """
     pass
 
-@skip_if_limited_api("https://bugs.python.org/issue38140 and/or https://bugs.python.org/issue40703", sys.version_info < (3, 9))
 def test_fused_module(cython.numeric arg):
     """
     See module-level docstring. doctest uses __module__ to decide what to run. So if it's wrong
@@ -431,23 +429,27 @@ def test_fused_module(cython.numeric arg):
     """
     pass
 
-__doc__ = """
->>> test_module.__module__
-'cyfunction'
->>> type(test_module).__module__.startswith("_cython")
-True
->>> test_module.__module__ = "something_else"
->>> test_module.__module__
-'something_else'
->>> del test_module.__module__
->>> test_module.__module__
->>> test_fused_module.__module__
-'cyfunction'
->>> type(test_fused_module).__module__.startswith("_cython")
-True
->>> test_fused_module.__module__ = "something_else"
->>> test_fused_module.__module__
-'something_else'
->>> del test_fused_module.__module__
->>> test_fused_module.__module__
-"""
+__doc__ = ""
+
+if not CYTHON_COMPILING_IN_LIMITED_API or sys.version_info >= (3, 9):
+    # https://bugs.python.org/issue38140 and/or https://bugs.python.org/issue40703
+    __doc__ += """
+    >>> test_module.__module__
+    'cyfunction'
+    >>> type(test_module).__module__.startswith("_cython")
+    True
+    >>> test_module.__module__ = "something_else"
+    >>> test_module.__module__
+    'something_else'
+    >>> del test_module.__module__
+    >>> test_module.__module__
+    >>> test_fused_module.__module__
+    'cyfunction'
+    >>> type(test_fused_module).__module__.startswith("_cython")
+    True
+    >>> test_fused_module.__module__ = "something_else"
+    >>> test_fused_module.__module__
+    'something_else'
+    >>> del test_fused_module.__module__
+    >>> test_fused_module.__module__
+    """
