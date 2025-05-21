@@ -751,7 +751,7 @@ def init_builtin_types():
         elif name == 'str':
             objstruct_cname = 'PyUnicodeObject'
         elif name == 'bool':
-            objstruct_cname = 'PyLongObject
+            objstruct_cname = 'PyLongObject'
         elif name in ['Exception', 'StopAsyncIteration', 'BaseExceptionGroup']:
             objstruct_cname = "PyBaseExceptionObject"
         else:
