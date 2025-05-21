@@ -3109,6 +3109,8 @@ class CFuncType(CType):
         self.has_varargs = has_varargs
         self.optional_arg_count = optional_arg_count
         self.exception_value = exception_value
+        if exception_c_repr is None and exception_value is not None:
+            exception_c_repr = exception_value
         self.exception_c_repr = exception_c_repr
         self.exception_check = exception_check
         self.calling_convention = calling_convention
@@ -3404,6 +3406,7 @@ class CFuncType(CType):
                            [arg.specialize(values) for arg in self.args],
                            has_varargs = self.has_varargs,
                            exception_value = self.exception_value,
+                           exception_c_repr = self.exception_c_repr,
                            exception_check = self.exception_check,
                            calling_convention = self.calling_convention,
                            nogil = self.nogil,
