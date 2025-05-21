@@ -1419,12 +1419,23 @@ builtin_types_with_trashcan = frozenset({
     'dict', 'list', 'set', 'frozenset', 'tuple', 'type',
 })
 
-_is_exception_type_name = re.compile(
+is_exception_type_name = re.compile(
     ".*(?:Exception|Error|Warning|Group)"
     "|KeyboardInterrupt"
     "|SystemExit"
     "|Stop(?:Async)?Iteration"
-).search
+).match
+
+_special_type_check_functions = {
+    'int': 'PyLong_Check',
+    'str': 'PyUnicode_Check',
+    'bytearray': 'PyByteArray_Check',
+    'frozenset': 'PyFrozenSet_Check',
+    'memoryview': 'PyMemoryView_Check',
+    'Exception': '__Pyx_PyException_Check',
+    'BaseException': '__Pyx_PyBaseException_Check',
+}
+
 
 class BuiltinObjectType(PyObjectType):
     #  objstruct_cname  string           Name of PyObject struct
@@ -1454,7 +1465,7 @@ class BuiltinObjectType(PyObjectType):
             # Special case the type type, as many C API calls (and other
             # libraries) actually expect a PyTypeObject* for type arguments.
             self.decl_type = objstruct_cname
-        if _is_exception_type_name(name):
+        if is_exception_type_name(name):
             self.is_exception_type = True
             self.require_exact = False
 
@@ -1503,23 +1514,12 @@ class BuiltinObjectType(PyObjectType):
 
     def type_check_function(self, exact=True):
         type_name = self.name
-        if type_name == 'str':
-            type_check = 'PyUnicode_Check'
-        elif type_name == 'Exception':
-            type_check = '__Pyx_PyException_Check'
-        elif type_name == 'BaseException':
-            type_check = '__Pyx_PyBaseException_Check'
-        elif type_name == 'bytearray':
-            type_check = 'PyByteArray_Check'
-        elif type_name == 'frozenset':
-            type_check = 'PyFrozenSet_Check'
-        elif type_name == 'int':
-            type_check = 'PyLong_Check'
-        elif type_name == "memoryview":
-            # capitalize doesn't catch the 'V'
-            type_check = "PyMemoryView_Check"
+        if type_name in _special_type_check_functions:
+            type_check = _special_type_check_functions[type_name]
+        elif self.is_exception_type:
+            type_check = f"__Pyx_PyExc_{type_name}_Check"
         else:
-            type_check = 'Py%s_Check' % type_name.capitalize()
+            type_check = f'Py{type_name.capitalize()}_Check'
         if exact and not self.is_exception_type and type_name not in ('bool', 'slice', 'memoryview'):
             type_check += 'Exact'
         return type_check
@@ -1559,6 +1559,11 @@ class BuiltinObjectType(PyObjectType):
     def py_type_name(self):
         return self.name
 
+
+def builtin_type_for(name):
+    if _is_exception_type_name(name):
+        return BuiltinObjectType(name, f"&PyExc_{name}")
+    return py_object_type
 
 
 class PyExtensionType(PyObjectType):

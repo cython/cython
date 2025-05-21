@@ -5,7 +5,7 @@
 
 from .StringEncoding import EncodedString
 from .Symtab import BuiltinScope, StructOrUnionScope, ModuleScope, Entry
-from .Code import UtilityCode, TempitaUtilityCode
+from .Code import UtilityCode, TempitaUtilityCode, KNOWN_PYTHON_BUILTINS, uncachable_builtins
 from .TypeSlots import Signature
 from . import PyrexTypes
 
@@ -769,6 +769,26 @@ def init_builtin_types():
             method.declare_in_type(the_type)
 
 
+def init_builtin_exceptions():
+    """Declare known builtin Python exceptions as types.
+    """
+    for name in KNOWN_PYTHON_BUILTINS:
+        if name in uncachable_builtins:
+            # Exclude builtins specific to later Python versions or platforms.
+            continue
+        if not PyrexTypes.is_exception_type_name(name):
+            continue
+        if builtin_scope.lookup_here(name) is not None:
+            # Already declared as builtin type above in a more specialised way.
+            continue
+        utility_code = UtilityCode(
+            proto=f"#define __Pyx_PyExc_{name}_Check(obj)  __Pyx_TypeCheck(obj, PyExc_{name})",
+            name=f"Py{name}_Check",
+        )
+        builtin_types[name] = builtin_scope.declare_builtin_type(
+            name, f"PyExc_{name}", utility_code=utility_code)
+
+
 def init_builtin_structs():
     for name, cname, attribute_types in builtin_structs_table:
         scope = StructOrUnionScope(name)
@@ -783,6 +803,7 @@ def init_builtins():
     #Errors.init_thread()  # hopefully not needed - we should not emit warnings ourselves
     init_builtin_structs()
     init_builtin_types()
+    init_builtin_exceptions()
     init_builtin_funcs()
 
     entry = builtin_scope.declare_var(
