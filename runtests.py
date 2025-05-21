@@ -2509,8 +2509,8 @@ def main():
         if "PYTHONIOENCODING" not in os.environ:
             # Make sure subprocesses can print() Unicode text.
             os.environ["PYTHONIOENCODING"] = sys.stdout.encoding or sys.getdefaultencoding()
-        import multiprocessing
-        pool = multiprocessing.Pool(options.shard_count)
+        from concurrent.futures import ProcessPoolExecutor, as_completed
+        pool = ProcessPoolExecutor(options.shard_count)
         tasks = [(options, cmd_args, shard_num) for shard_num in range(options.shard_count)]
         open_shards = list(range(options.shard_count))
         error_shards = []
@@ -2520,7 +2520,8 @@ def main():
         stats = Stats()
         merged_pipeline_stats = defaultdict(lambda: (0, 0))
         with time_stamper_thread(interval=keep_alive_interval, open_shards=open_shards):
-            for shard_num, shard_stats, pipeline_stats, return_code, failure_output in pool.imap_unordered(runtests_callback, tasks):
+            futures = [ pool.submit(runtests_callback, task) for task in tasks ]
+            for shard_num, shard_stats, pipeline_stats, return_code, failure_output in as_completed(futures):
                 open_shards.remove(shard_num)
                 if return_code != 0:
                     error_shards.append(shard_num)
