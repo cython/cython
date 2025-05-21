@@ -601,8 +601,8 @@ class ExprNode(Node):
                 most_likely = ""
                 if py_result == py_result:
                     # For the string NAN we don't know for sure what constant they've assigned to it.
-                    # But we can have a good guess. 
-                    most_likely = "most likely " 
+                    # But we can have a good guess.
+                    most_likely = "most likely "
                 warning(
                     self.pos,
                     f"'{py_result}' is {most_likely}unsuitable for use as an exception value "
