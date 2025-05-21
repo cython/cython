@@ -38,6 +38,8 @@ def gen_tests():
     # Construct the list of all exception subtypes.
     subclasses = defaultdict(list)
     for exc_name, exc_type in vars(builtins).items():
+        if exc_name.startswith('_'):
+            continue
         if not isinstance(exc_type, type) or not issubclass(exc_type, BaseException):
             continue
         if exc_name in NEWER_EXCEPTIONS:
@@ -83,7 +85,7 @@ def gen_tests():
         test_file.write(test_code_str)
 
 ##### BEGIN GENERATED TESTS
-# generated from the builtin exceptions in Python (3, 12, 3, 'final', 0)
+# generated from the builtin exceptions in Python (3, 15, 0, 'alpha', 0)
 
 def accept_ArithmeticError(exc: ArithmeticError):
     """
