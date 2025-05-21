@@ -236,7 +236,7 @@ def join_sep(l):
     ab|jd|sdflk|as|sa|sadas|asdas|fsdf
     """
     result = u'|'.join(l)
-    assert cython.typeof(result) == 'unicode object', cython.typeof(result)
+    assert cython.typeof(result) == "str object", cython.typeof(result)
     return result
 
 
@@ -263,7 +263,7 @@ def join_sep_genexpr(l):
     <<ab |jd |sdflk |as |sa |sadas |asdas |fsdf >>
     """
     result = u'|'.join(s + u' ' for s in l)
-    assert cython.typeof(result) == 'unicode object', cython.typeof(result)
+    assert cython.typeof(result) == "str object", cython.typeof(result)
     return result
 
 
@@ -288,7 +288,7 @@ def join_sep_genexpr_dictiter(dict d):
     0:ab|1:jd|2:sdflk|3:as|4:sa|5:sadas|6:asdas|7:fsdf
     """
     result = u' '.join('%s:%s' % (k, v) for k, v in d.iteritems())
-    assert cython.typeof(result) == 'unicode object', cython.typeof(result)
+    assert cython.typeof(result) == "str object", cython.typeof(result)
     return result
 
 
@@ -512,7 +512,7 @@ def concat(unicode s, str suffix):
     TypeError: ...
     """
     assert cython.typeof(s + object()) == 'Python object', cython.typeof(s + object())
-    assert cython.typeof(s + suffix) == 'unicode object', cython.typeof(s + suffix)
+    assert cython.typeof(s + suffix) == "str object", cython.typeof(s + suffix)
     return s + suffix
 
 
@@ -525,7 +525,7 @@ def concat_literal_str(str suffix):
     TypeError: ...NoneType...
     """
     assert cython.typeof(u'abc' + object()) == 'Python object', cython.typeof(u'abc' + object())
-    assert cython.typeof(u'abc' + suffix) == 'unicode object', cython.typeof(u'abc' + suffix)
+    assert cython.typeof(u'abc' + suffix) == "str object", cython.typeof(u'abc' + suffix)
     return u'abc' + suffix
 
 
@@ -537,7 +537,7 @@ def concat_literal_unicode(unicode suffix):
     Traceback (most recent call last):
     TypeError: ...NoneType...
     """
-    assert cython.typeof(u'abc' + suffix) == 'unicode object', cython.typeof(u'abc' + suffix)
+    assert cython.typeof(u'abc' + suffix) == "str object", cython.typeof(u'abc' + suffix)
     return u'abc' + suffix
 
 
@@ -573,7 +573,7 @@ def mod_format_literal(values):
     >>> mod_format_literal(['sa']) == "abc['sa']def"  or  mod_format(format1, ['sa'])
     True
     """
-    assert cython.typeof(u'abc%sdef' % values) == 'unicode object', cython.typeof(u'abc%sdef' % values)
+    assert cython.typeof(u'abc%sdef' % values) == "str object", cython.typeof(u'abc%sdef' % values)
     return u'abc%sdef' % values
 
 
@@ -585,7 +585,7 @@ def mod_format_tuple(*values):
     Traceback (most recent call last):
     TypeError: not enough arguments for format string
     """
-    assert cython.typeof(u'abc%sdef' % values) == 'unicode object', cython.typeof(u'abc%sdef' % values)
+    assert cython.typeof(u'abc%sdef' % values) == "str object", cython.typeof(u'abc%sdef' % values)
     return u'abc%sdef' % values
 
 
@@ -817,6 +817,25 @@ def multiply(unicode ustring, int mul):
     abcüöä\U0001F642abcüöä\U0001F642abcüöä\U0001F642abcüöä\U0001F642abcüöä\U0001F642
     """
     return ustring * mul
+
+
+@cython.test_fail_if_path_exists(
+    "//CoerceToPyTypeNode",
+)
+@cython.test_assert_path_exists(
+    "//MulNode[@is_sequence_mul = True]",
+)
+def multiply_call(ustring, int mul):
+    """
+    >>> astr = u"abc"
+    >>> ustr = u"abcüöä\\U0001F642"
+
+    >>> print(multiply_call(astr, 2))
+    abcabc
+    >>> print(multiply_call(ustr, 2))
+    abcüöä\U0001F642abcüöä\U0001F642
+    """
+    return unicode(ustring) * mul
 
 
 #@cython.test_fail_if_path_exists(

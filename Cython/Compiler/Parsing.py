@@ -808,18 +808,20 @@ def p_atom_string(s: PyrexScanner):
     # s.sy == 'BEGIN_STRING'
     pos = s.position()
     kind, bytes_value, unicode_value = p_cat_string_literal(s)
-    if kind == 'c':
-        return ExprNodes.CharNode(pos, value=bytes_value)
-    elif kind == 'u':
+    if not kind:
         return ExprNodes.UnicodeNode(pos, value=unicode_value, bytes_value=bytes_value)
-    elif kind == 'b':
+    kind_char: cython.Py_UCS4 = kind
+    if kind_char == 'c':
+        return ExprNodes.CharNode(pos, value=bytes_value)
+    elif kind_char == 'u':
+        return ExprNodes.UnicodeNode(pos, value=unicode_value, bytes_value=bytes_value)
+    elif kind_char == 'b':
         return ExprNodes.BytesNode(pos, value=bytes_value)
-    elif kind == 'f':
+    elif kind_char == 'f':
         return ExprNodes.JoinedStrNode(pos, values=unicode_value)
-    elif kind == '':
-        return ExprNodes.StringNode(pos, value=bytes_value, unicode_value=unicode_value)
     else:
-        s.error("invalid string kind '%s'" % kind)
+        # This is actually prevented by the scanner (Lexicon.py).
+        s.error(f"invalid string kind '{kind}'")
 
 
 @cython.cfunc
@@ -1359,7 +1361,7 @@ def p_f_string_expr(s: PyrexScanner, unicode_value, pos: tuple,
 
     nodes = []
     if expr_text:
-        nodes.append(ExprNodes.UnicodeNode(pos, value=StringEncoding.EncodedString(expr_text)))
+        nodes.append(ExprNodes.UnicodeNode(pos, value=EncodedString(expr_text)))
     nodes.append(ExprNodes.FormattedValueNode(pos, value=expr, conversion_char=conversion_char, format_spec=format_spec))
 
     return i + 1, nodes
@@ -2298,8 +2300,8 @@ def p_include_statement(s: PyrexScanner, ctx):
         include_file_path = s.context.find_include_file(include_file_name, pos)
         if include_file_path:
             s.included_files.append(include_file_name)
-            with Utils.open_source_file(include_file_path) as f:
-                source_desc = FileSourceDescriptor(include_file_path)
+            source_desc = FileSourceDescriptor(include_file_path)
+            with source_desc.get_file_object() as f:
                 s2 = PyrexScanner(f, source_desc, s, source_encoding=f.encoding, parse_comments=s.parse_comments)
                 tree = p_statement_list(s2, ctx)
             return tree
@@ -2550,28 +2552,31 @@ def p_IF_statement(s: PyrexScanner, ctx):
 
 
 @cython.cfunc
-def p_statement(s: PyrexScanner, ctx, first_statement: cython.bint = 0):
-    cdef_flag = ctx.cdef_flag
+def p_statement(s: PyrexScanner, ctx, first_statement: cython.bint = False):
+    cdef_flag: cython.bint = ctx.cdef_flag
+    pos = s.position()
     decorators = None
     if s.sy == 'ctypedef':
         if ctx.level not in ('module', 'module_pxd'):
             s.error("ctypedef statement not allowed here")
         #if ctx.api:
-        #    error(s.position(), "'api' not allowed with 'ctypedef'")
+        #    error(pos, "'api' not allowed with 'ctypedef'")
         return p_ctypedef_statement(s, ctx)
     elif s.sy == 'DEF':
         # We used to dep-warn about this but removed the warning again since
         # we don't have a good answer yet for all use cases.
-        # warning(s.position(),
-        #         "The 'DEF' statement is deprecated and will be removed in a future Cython version. "
-        #         "Consider using global variables, constants, and in-place literals instead. "
-        #         "See https://github.com/cython/cython/issues/4310", level=1)
+        if s.context.compiler_directives.get("warn.deprecated.DEF", False):
+            warning(pos,
+                    "The 'DEF' statement  will be removed in a future Cython version. "
+                    "Consider using global variables, constants, and in-place literals instead. "
+                    "See https://github.com/cython/cython/issues/4310", level=1)
         return p_DEF_statement(s)
     elif s.sy == 'IF':
-        warning(s.position(),
-                "The 'IF' statement is deprecated and will be removed in a future Cython version. "
-                "Consider using runtime conditions or C macros instead. "
-                "See https://github.com/cython/cython/issues/4310", level=1)
+        if s.context.compiler_directives.get("warn.deprecated.IF", True):
+            warning(pos,
+                    "The 'IF' statement is deprecated and will be removed in a future Cython version. "
+                    "Consider using runtime conditions or C macros instead. "
+                    "See https://github.com/cython/cython/issues/4310", level=1)
         return p_IF_statement(s, ctx)
     elif s.sy == '@':
         if ctx.level not in ('module', 'class', 'c_class', 'function', 'property', 'module_pxd', 'c_class_pxd', 'other'):
@@ -2587,19 +2592,19 @@ def p_statement(s: PyrexScanner, ctx, first_statement: cython.bint = 0):
         # empty cdef block
         return p_pass_statement(s, with_newline=True)
 
-    overridable = 0
+    overridable = False
     if s.sy == 'cdef':
-        cdef_flag = 1
+        cdef_flag = True
         s.next()
     elif s.sy == 'cpdef':
-        cdef_flag = 1
-        overridable = 1
+        cdef_flag = True
+        overridable = True
         s.next()
     if cdef_flag:
         if ctx.level not in ('module', 'module_pxd', 'function', 'c_class', 'c_class_pxd'):
             s.error('cdef statement not allowed here')
         s.level = ctx.level
-        node = p_cdef_statement(s, ctx(overridable=overridable))
+        node = p_cdef_statement(s, pos, ctx(overridable=overridable))
         if decorators is not None:
             tup = (Nodes.CFuncDefNode, Nodes.CVarDefNode, Nodes.CClassDefNode)
             if ctx.allow_struct_enum_decorator:
@@ -3483,8 +3488,7 @@ def p_api(s: PyrexScanner) -> cython.bint:
 
 
 @cython.cfunc
-def p_cdef_statement(s: PyrexScanner, ctx):
-    pos = s.position()
+def p_cdef_statement(s: PyrexScanner, pos, ctx):
     ctx.visibility = p_visibility(s, ctx.visibility)
     ctx.api = ctx.api or p_api(s)
     if ctx.api:
@@ -4154,10 +4158,6 @@ def _extract_docstring(node) -> tuple:
         warning(node.pos,
                 "Python 3 requires docstrings to be unicode strings")
         doc = doc_node.value
-    elif isinstance(doc_node, ExprNodes.StringNode):
-        doc = doc_node.unicode_value
-        if doc is None:
-            doc = doc_node.value
     else:
         doc = doc_node.value
     return doc, node
@@ -4225,14 +4225,6 @@ def p_module(s: PyrexScanner, pxd, full_module_name, ctx=Ctx):
 
     if s.context.language_level is None:
         s.context.set_language_level('3')
-        if pos[0].filename:
-            import warnings
-            warnings.warn(
-                "Cython directive 'language_level' not set, using '3' (Py3). "
-                "This has changed from earlier releases! File: %s" % pos[0].filename,
-                FutureWarning,
-                stacklevel=1 if cython.compiled else 2,
-            )
 
     level = 'module_pxd' if pxd else 'module'
     doc = p_doc_string(s)
@@ -4323,20 +4315,21 @@ def p_cpp_class_definition(s: PyrexScanner, pos,  ctx):
 
 @cython.cfunc
 def p_cpp_class_attribute(s: PyrexScanner, ctx):
+    pos = s.position()
     decorators = None
     if s.sy == '@':
         decorators = p_decorators(s)
     if s.systring == 'cppclass':
-        return p_cpp_class_definition(s, s.position(), ctx)
+        return p_cpp_class_definition(s, pos, ctx)
     elif s.systring == 'ctypedef':
         return p_ctypedef_statement(s, ctx)
     elif s.sy == 'IDENT' and s.systring in struct_enum_union:
         if s.systring != 'enum':
-            return p_cpp_class_definition(s, s.position(), ctx)
+            return p_cpp_class_definition(s, pos, ctx)
         else:
-            return p_struct_enum(s, s.position(), ctx)
+            return p_struct_enum(s, pos, ctx)
     else:
-        node = p_c_func_or_var_declaration(s, s.position(), ctx)
+        node = p_c_func_or_var_declaration(s, pos, ctx)
         if decorators is not None:
             tup = Nodes.CFuncDefNode, Nodes.CVarDefNode, Nodes.CClassDefNode
             if ctx.allow_struct_enum_decorator:

@@ -1,0 +1,131 @@
+UNSET CFLAGS
+PYTHON setup.py build_ext --inplace
+
+# single-phase uses Python's mechanisms so should be reliable
+PYTHON runtest.py 20 cython_module=with_singlephase
+
+# multi-phase uses our mechanisms so is work more thorough
+# testing
+PYTHON runtest.py 20
+PYTHON runtest.py 20 close_after_exec
+# less than 32 interpreters, but interpreter ID will go over 32 (32 being the optimization cut-off)
+PYTHON runtest.py 20 skip_first=20
+PYTHON runtest.py 20 randomize_order
+PYTHON runtest.py 40
+PYTHON runtest.py 40 start_at_back
+PYTHON runtest.py 40 start_at_back close_after_exec
+PYTHON runtest.py 40 randomize_order
+
+##################### setup.py ################################
+
+from setuptools import setup
+from Cython.Build import cythonize
+
+setup(
+    ext_modules = cythonize(
+        [ "with_multiphase.pyx", "with_singlephase.pyx" ]
+    )
+)
+
+##################### shared.pxi #############################
+
+import _interpreters
+
+some_global = []
+def append_to_global():
+    some_global.append(f"hello from interpreter {_interpreters.get_current()}")
+
+#################### with_multiphase.pyx ####################
+
+# distutils: extra_compile_args = -DCYTHON_USE_MODULE_STATE=1
+# cython: subinterpreters_compatible = own_gil
+
+include "shared.pxi"
+
+#################### with_singlephase.pyx ####################
+
+# distutils: extra_compile_args = -DCYTHON_USE_MODULE_STATE=1 -DCYTHON_PEP489_MULTI_PHASE_INIT=0
+
+# Declaring single-phase module compatible doesn't work.
+
+include "shared.pxi"
+
+#################### runtest.py #############################
+
+import sys
+import sysconfig
+
+if sys.version_info < (3, 13):
+    # No chance of this working I think.
+    # (Although there probably is a test that would...)
+    exit(0)
+if sysconfig.get_config_var("Py_GIL_DISABLED"):
+    # _override_multi_interp_extensions_check is banned on free-threading builds
+    exit(0)
+
+# TODO - in Py3.14 this'll probably be in the standard library
+try:
+    from interpreters_backport import interpreters
+    low_level_module = False
+except ImportError:
+    # Py3.14?
+    import _interpreters as interpreters
+    low_level_module = True
+
+SKIP_FIRST = "skip_first="
+CYTHON_MODULE = "cython_module="
+
+number_of_interpreters = int(sys.argv[1])
+start_at_back = False
+close_after_exec = False
+skip_first = 0
+randomize_order = False
+cython_module = "with_multiphase"
+for arg in sys.argv[2:]:
+    if arg == "start_at_back":
+        start_at_back = True
+    elif arg == "close_after_exec":
+        close_after_exec = True
+    elif arg == "randomize_order":
+        randomize_order = True
+    elif arg.startswith(SKIP_FIRST):
+        skip_first = int(arg[len(SKIP_FIRST):])
+    elif arg.startswith(CYTHON_MODULE):
+        cython_module = arg[len(CYTHON_MODULE):]
+    else:
+        print(f"Unrecognised argument {arg}", arg)
+        exit(1)
+
+all_interpreters = [ interpreters.create() for i in range(number_of_interpreters+skip_first) ]
+if start_at_back:
+    all_interpreters = list(reversed(all_interpreters))
+if randomize_order:
+    import random
+    random.shuffle(all_interpreters)
+
+code_to_exec = f"""
+if {cython_module == 'with_singlephase'}:
+    import _imp
+    _imp._override_multi_interp_extensions_check(-1)
+
+import {cython_module} as cymod
+cymod.append_to_global()
+# will fail if accidentally shared
+assert len(cymod.some_global) == 1
+"""
+
+# skip_first is useful because we apply an optimization when all the interpreter ids are small,
+# so it lets us pick this optimization.
+for i in all_interpreters[skip_first:]:
+    if low_level_module:
+        excinfo = interpreters.exec(i, code_to_exec, restrict=True)
+        if excinfo is not None:
+            raise RuntimeError(excinfo)
+    else:
+        i.exec(code_to_exec)
+    if close_after_exec:
+        # Will probably clean up the module, but we don't actually check this
+        if low_level_module:
+            interpreters.destroy(i, restrict=True)
+        else:
+            i.close()

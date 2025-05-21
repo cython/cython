@@ -9,4 +9,3 @@ def get_bytes():
     s.append(b'abc')
     py_bytes_object = s
     return py_bytes_object
-
