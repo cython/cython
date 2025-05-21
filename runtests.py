@@ -714,7 +714,6 @@ class TestBuilder(object):
         self.test_selector = re.compile(options.only_pattern).search if options.only_pattern else None
         self.languages = languages
         self.test_bugs = test_bugs
-        self.fork = options.fork
         self.language_level = language_level
         self.test_determinism = options.test_determinism
         self.common_utility_dir = common_utility_dir
@@ -913,7 +912,6 @@ class TestBuilder(object):
                           cython_only=self.cython_only,
                           test_selector=self.test_selector,
                           shard_num=self.shard_num,
-                          fork=self.fork,
                           language_level=language_level or self.language_level,
                           warning_errors=warning_errors,
                           evaluate_tree_assertions=self.evaluate_tree_assertions,
@@ -978,7 +976,7 @@ class CythonCompileTestCase(unittest.TestCase):
                  expect_log=(),
                  annotate=False, cleanup_workdir=True,
                  cleanup_sharedlibs=True, cleanup_failures=True, cython_only=False, test_selector=None,
-                 fork=True, language_level=2, warning_errors=False,
+                 language_level=2, warning_errors=False,
                  test_determinism=False, shard_num=0,
                  common_utility_dir=None, pythran_dir=None, stats=None, add_cython_import=False,
                  extra_directives=None, evaluate_tree_assertions=True):
@@ -998,7 +996,6 @@ class CythonCompileTestCase(unittest.TestCase):
         self.cython_only = cython_only
         self.test_selector = test_selector
         self.shard_num = shard_num
-        self.fork = fork
         self.language_level = language_level
         self.warning_errors = warning_errors
         self.evaluate_tree_assertions = evaluate_tree_assertions
@@ -1551,82 +1548,15 @@ class CythonRunTestCase(CythonCompileTestCase):
                 filter_test_suite(tests, self.test_selector)
             with self.stats.time(self.name, self.language, 'run'):
                 tests.run(result)
-        run_forked_test(result, run_test, self.shortDescription(), self.fork)
+        run_test(result, run_test)
 
 
-def run_forked_test(result, run_func, test_name, fork=True):
-    if not fork or sys.version_info[0] >= 3 or not hasattr(os, 'fork'):
-        run_func(result)
-        sys.stdout.flush()
-        sys.stderr.flush()
-        gc.collect()
-        return
-
-    # fork to make sure we do not keep the tested module loaded
-    result_handle, result_file = tempfile.mkstemp()
-    os.close(result_handle)
-    child_id = os.fork()
-    if not child_id:
-        result_code = 0
-        try:
-            try:
-                tests = partial_result = None
-                try:
-                    partial_result = PartialTestResult(result)
-                    run_func(partial_result)
-                    sys.stdout.flush()
-                    sys.stderr.flush()
-                    gc.collect()
-                except Exception:
-                    result_code = 1
-                    if partial_result is not None:
-                        if tests is None:
-                            # importing failed, try to fake a test class
-                            tests = _FakeClass(
-                                failureException=sys.exc_info()[1],
-                                _shortDescription=test_name,
-                                module_name=None)
-                        partial_result.addError(tests, sys.exc_info())
-                if partial_result is not None:
-                    with open(result_file, 'wb') as output:
-                        pickle.dump(partial_result.data(), output)
-            except:
-                traceback.print_exc()
-        finally:
-            try: sys.stderr.flush()
-            except: pass
-            try: sys.stdout.flush()
-            except: pass
-            os._exit(result_code)
-
-    try:
-        cid, result_code = os.waitpid(child_id, 0)
-        module_name = test_name.split()[-1]
-        # os.waitpid returns the child's result code in the
-        # upper byte of result_code, and the signal it was
-        # killed by in the lower byte
-        if result_code & 255:
-            raise Exception(
-                "Tests in module '%s' were unexpectedly killed by signal %d, see test output for details." % (
-                    module_name, result_code & 255))
-        result_code >>= 8
-        if result_code in (0,1):
-            try:
-                with open(result_file, 'rb') as f:
-                    PartialTestResult.join_results(result, pickle.load(f))
-            except Exception:
-                raise Exception(
-                    "Failed to load test result from test in module '%s' after exit status %d,"
-                    " see test output for details." % (module_name, result_code))
-        if result_code:
-            raise Exception(
-                "Tests in module '%s' exited with status %d, see test output for details." % (
-                    module_name, result_code))
-    finally:
-        try:
-            os.unlink(result_file)
-        except:
-            pass
+def run_test(result, run_func):
+    run_func(result)
+    sys.stdout.flush()
+    sys.stderr.flush()
+    gc.collect()
+    return
 
 
 class PureDoctestTestCase(unittest.TestCase):
@@ -1825,7 +1755,7 @@ class CythonPyregrTestCase(CythonRunTestCase):
             finally:
                 support.run_unittest, support.run_doctest = backup
 
-        run_forked_test(result, run_test, self.shortDescription(), self.fork)
+        run_test(result, run_test)
 
 
 class TestCodeFormat(unittest.TestCase):
@@ -2387,9 +2317,6 @@ def main():
     parser.add_option("--no-refnanny", dest="with_refnanny",
                       action="store_false", default=True,
                       help="do not regression test reference counting")
-    parser.add_option("--no-fork", dest="fork",
-                      action="store_false", default=True,
-                      help="do not fork to run tests")
     parser.add_option("--sys-pyregr", dest="system_pyregr",
                       action="store_true", default=False,
                       help="run the regression tests of the CPython installation")
@@ -2730,7 +2657,6 @@ def runtests(options, cmd_args, coverage=None):
     if options.for_debugging:
         options.cleanup_workdir = False
         options.cleanup_sharedlibs = False
-        options.fork = False
         if WITH_CYTHON and include_debugger:
             from Cython.Compiler.Options import default_options as compiler_default_options
             compiler_default_options['gdb_debug'] = True
@@ -2758,11 +2684,6 @@ def runtests(options, cmd_args, coverage=None):
         CDEFS.append(('CYTHON_LIMITED_API', '1'))
         CDEFS.append(("Py_LIMITED_API", '(PY_VERSION_HEX & 0xffff0000)'))
         CFLAGS.append('-Wno-unused-function')
-
-    if xml_output_dir and options.fork:
-        # doesn't currently work together
-        sys.stderr.write("Disabling forked testing to support XML test output\n")
-        options.fork = False
 
     if WITH_CYTHON:
         sys.stderr.write("Using Cython language level %d.\n" % options.language_level)
