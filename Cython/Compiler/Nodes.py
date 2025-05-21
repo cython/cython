@@ -8356,7 +8356,7 @@ class ExceptClauseNode(Node):
     exc_value = None
     excinfo_target = None
     is_except_as = False
-    add_traceback = True
+    never_add_traceback = False
 
     def analyse_declarations(self, env):
         if self.target:
@@ -8478,7 +8478,7 @@ class ExceptClauseNode(Node):
             self.body_may_need_exception()
         )
 
-        if needs_exception or tracing:
+        if (needs_exception or tracing) and not self.never_add_traceback:
             code.put_add_traceback(self.function_name)
 
         if tracing:
@@ -8499,20 +8499,6 @@ class ExceptClauseNode(Node):
         else:
             code.globalstate.use_utility_code(UtilityCode.load_cached("PyErrFetchRestore", "Exceptions.c"))
             code.putln("__Pyx_ErrRestore(0,0,0);")
-
-        exc_vars = [code.funcstate.allocate_temp(py_object_type, manage_ref=True)
-                    for _ in range(3)]
-        if self.add_traceback:
-            code.put_add_traceback(self.function_name)
-        # We always have to fetch the exception value even if
-        # there is no target, because this also normalises the
-        # exception and stores it in the thread state.
-        code.globalstate.use_utility_code(get_exception_utility_code)
-        exc_args = "&%s, &%s, &%s" % tuple(exc_vars)
-        code.putln("if (__Pyx_GetException(%s) < 0) %s" % (
-            exc_args, code.error_goto(self.pos)))
-        for var in exc_vars:
-            code.put_xgotref(var, py_object_type)
 
         if tracing:
             code.putln("__Pyx_TraceExceptionDone();")
@@ -8622,7 +8608,7 @@ class ExceptStarChainNode(StatListNode):
                 )
             )
             on_exception_raised_in_body = ExceptClauseNode(
-                clause.pos, pattern=[], body=append_to_list, target=None, add_traceback=False
+                clause.pos, pattern=[], body=append_to_list, target=None, never_add_traceback=True
             )
 
             star_except_test_setup = StarExceptTestSetupNode(
