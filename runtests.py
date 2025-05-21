@@ -2521,7 +2521,8 @@ def main():
         merged_pipeline_stats = defaultdict(lambda: (0, 0))
         with time_stamper_thread(interval=keep_alive_interval, open_shards=open_shards):
             futures = [ pool.submit(runtests_callback, task) for task in tasks ]
-            for shard_num, shard_stats, pipeline_stats, return_code, failure_output in as_completed(futures):
+            for future in as_completed(futures):
+                shard_num, shard_stats, pipeline_stats, return_code, failure_output = future.result()
                 open_shards.remove(shard_num)
                 if return_code != 0:
                     error_shards.append(shard_num)
