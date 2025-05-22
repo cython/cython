@@ -60,6 +60,27 @@ def builtin_types():
     B = bool()
     assert typeof(B) == "bool", typeof(B)
 
+
+def builtin_exceptions():
+    """
+    >>> builtin_exceptions()
+    """
+    a = Exception("msg")
+    assert typeof(a) == "Exception object", typeof(a)
+    b = BaseException("msg")
+    assert typeof(b) == "BaseException object", typeof(b)
+
+    c = TypeError("msg")
+    assert typeof(c) == "TypeError object", typeof(c)
+    d = AssertionError("msg")
+    assert typeof(d) == "AssertionError object", typeof(d)
+
+    e = FutureWarning("msg")
+    assert typeof(e) == "FutureWarning object", typeof(e)
+    f = DeprecationWarning("msg")
+    assert typeof(f) == "DeprecationWarning object", typeof(f)
+
+
 def slicing():
     """
     >>> slicing()

@@ -466,12 +466,14 @@ builtin_types_table = [
 
 
 types_that_construct_their_instance = frozenset({
-    # some builtin types do not always return an instance of
+    # Some builtin types do not always return an instance of
     # themselves - these do:
     'type', 'bool', 'int', 'float', 'complex',
     'bytes', 'unicode', 'bytearray', 'str',
     'tuple', 'list', 'dict', 'set', 'frozenset',
-    'memoryview'
+    'memoryview',
+    # All builtin exception types create their own instance.
+    *filter(PyrexTypes.is_exception_type_name, KNOWN_PYTHON_BUILTINS),
 })
 
 

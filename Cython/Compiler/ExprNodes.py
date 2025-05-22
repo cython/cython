@@ -6008,28 +6008,29 @@ class CallNode(ExprNode):
         return ExprNode.may_be_none(self)
 
     def set_py_result_type(self, function, func_type=None):
+        # Default to 'object' and then try to find a better type.
+        self.type = py_object_type
         if func_type is None:
             func_type = function.type
-        if func_type is Builtin.type_type and (
-                function.is_name and
-                function.entry and
-                function.entry.is_builtin and
-                function.entry.name in Builtin.types_that_construct_their_instance):
-            # calling a builtin type that returns a specific object type
-            if function.entry.name == 'float':
-                # the following will come true later on in a transform
-                self.type = PyrexTypes.c_double_type
-                self.result_ctype = PyrexTypes.c_double_type
-            else:
-                self.type = Builtin.builtin_types[function.entry.name]
+        if function.is_name:
+            entry = function.entry
+            if func_type is Builtin.type_type and (
+                    entry and entry.is_builtin and entry.name in Builtin.types_that_construct_their_instance):
+                # calling a builtin type that returns a specific object type
                 self.result_ctype = py_object_type
-            self.may_return_none = False
-        elif function.is_name and function.type_entry:
-            # We are calling an extension type constructor.  As long as we do not
-            # support __new__(), the result type is clear
-            self.type = function.type_entry.type
-            self.result_ctype = py_object_type
-            self.may_return_none = False
+                self.may_return_none = False
+                if entry.name == 'float':
+                    # the following will come true later on in a transform
+                    self.type = PyrexTypes.c_double_type
+                    self.result_ctype = PyrexTypes.c_double_type
+                else:
+                    self.type = Builtin.builtin_types[entry.name]
+            elif function.type_entry:
+                # We are calling an extension type constructor.  As long as we do not
+                # support __new__(), the result type is clear
+                self.type = function.type_entry.type
+                self.result_ctype = py_object_type
+                self.may_return_none = False
         elif function.is_attribute and function.obj.type.is_builtin_type:
             method_obj_type = function.obj.type
             result_type = Builtin.find_return_type_of_builtin_method(method_obj_type, function.attribute)
@@ -6038,10 +6039,6 @@ class CallNode(ExprNode):
                 self.type = result_type
             elif result_type.equivalent_type:
                 self.type = result_type.equivalent_type
-            else:
-                self.type = py_object_type
-        else:
-            self.type = py_object_type
 
     def analyse_as_type_constructor(self, env):
         """
