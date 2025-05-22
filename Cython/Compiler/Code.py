@@ -464,7 +464,8 @@ class UtilityCodeBase(AbstractUtilityCode):
             (r'^%(C)s{5,30}\s*(?P<name>(?:\w|\.)+)\s*%(C)s{5,30}|'
              r'^%(C)s+@(?P<tag>\w+)\s*:\s*(?P<value>(?:\w|[.:])+)') %
             {'C': comment}).match
-        match_type = re.compile(r'(.+)[.](proto(?:[.]\S+)?|impl|init|cleanup|module_state_decls)$').match
+        match_type = re.compile(
+            r'(.+)[.](proto(?:[.]\S+)?|impl|init|cleanup|module_state_decls|module_state_traverse|module_state_clear)$').match
 
         all_lines = read_utilities_hook(path)
 
@@ -644,10 +645,11 @@ class UtilityCode(UtilityCodeBase):
     file            filename of the utility code file this utility was loaded
                     from (or None)
     """
-    code_parts = ["proto", "impl", "init", "cleanup", "module_state_decls"]
+    code_parts = ["proto", "impl", "init", "cleanup", "module_state_decls", "module_state_traverse", "module_state_clear"]
 
     def __init__(self, proto=None, impl=None, init=None, cleanup=None,
-                 module_state_decls=None, requires=None,
+                 module_state_decls=None, module_state_traverse=None,
+                 module_state_clear=None, requires=None,
                  proto_block='utility_code_proto', name=None, file=None):
         # proto_block: Which code block to dump prototype in. See GlobalState.
         self.proto = proto
@@ -655,6 +657,8 @@ class UtilityCode(UtilityCodeBase):
         self.init = init
         self.cleanup = cleanup
         self.module_state_decls = module_state_decls
+        self.module_state_traverse = module_state_traverse
+        self.module_state_clear = module_state_clear
         self.requires = requires
         self._cache = {}
         self.specialize_list = []
@@ -707,6 +711,8 @@ class UtilityCode(UtilityCodeBase):
                 self.none_or_sub(self.init, data),
                 self.none_or_sub(self.cleanup, data),
                 self.none_or_sub(self.module_state_decls, data),
+                self.none_or_sub(self.module_state_traverse, data),
+                self.none_or_sub(self.module_state_clear, data),
                 requires,
                 self.proto_block,
                 name,
@@ -756,6 +762,10 @@ class UtilityCode(UtilityCodeBase):
             self._put_code_section(output['cleanup_globals'], output, 'cleanup')
         if self.module_state_decls:
             self._put_code_section(output['module_state_contents'], output, 'module_state_decls')
+        if self.module_state_traverse:
+            self._put_code_section(output['module_state_traverse_contents'], output, 'module_state_traverse')
+        if self.module_state_clear:
+            self._put_code_section(output['module_state_clear_contents'], output, 'module_state_clear')
 
         if self.init:
             self._put_init_code_section(output)
@@ -1394,7 +1404,11 @@ class GlobalState:
         'module_state_end',
         'constant_name_defines',
         'module_state_clear',
+        'module_state_clear_contents',
+        'module_state_clear_end',
         'module_state_traverse',
+        'module_state_traverse_contents',
+        'module_state_traverse_end',
         'module_code',  # user code goes here
         'module_exttypes',
         'initfunc_declarations',

@@ -1,3 +1,19 @@
+//////////////////// CythonFunctionShared.module_state_decls ////////////////////
+
+PyTypeObject *__pyx_CyFunctionType;
+
+//////////////////// CythonFunctionShared.module_state_traverse ///////////////////
+
+Py_VISIT(traverse_module_state->__pyx_CyFunctionType);
+
+//////////////////// CythonFunctionShared.module_state_clear ///////////////////
+
+Py_CLEAR(clear_module_state->__pyx_CyFunctionType);
+
+//////////////////// CythonFunctionShared.init //////////////////
+//@substitute: naming
+
+if (likely(__pyx_CyFunction_init($module_cname) == 0)); else
 
 //////////////////// CythonFunctionShared.proto ////////////////////
 
@@ -1330,6 +1346,22 @@ static int __Pyx_CyFunction_InitClassCell(PyObject *cyfunctions, PyObject *class
     return 0;
 }
 
+//////////////////// FusedFunction.module_state_decls ////////////////////
+
+PyTypeObject *__pyx_FusedFunctionType;
+
+//////////////////// FusedFunction.module_state_traverse ///////////////////
+
+Py_VISIT(traverse_module_state->__pyx_FusedFunctionType);
+
+//////////////////// FusedFunction.module_state_clear ///////////////////
+
+Py_CLEAR(clear_module_state->__pyx_FusedFunctionType);
+
+//////////////////// FusedFunction.init //////////////////
+//@substitute: naming
+
+if (likely(__pyx_FusedFunction_init($module_cname) == 0)); else
 
 //////////////////// FusedFunction.proto ////////////////////
 

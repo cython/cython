@@ -188,6 +188,11 @@ jobs:
             extra_hash: "-stackless"
           # Pypy
           - os: ubuntu-22.04
+            python-version: pypy-3.8  # drop with EOL of Ubuntu 22.04
+            backend: c
+            env: { NO_CYTHON_COMPILE: 1 }
+            allowed_failure: true
+          - os: ubuntu-22.04
             python-version: pypy-3.9
             backend: c
             env: { NO_CYTHON_COMPILE: 1 }

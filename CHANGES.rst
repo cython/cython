@@ -2,6 +2,79 @@
 Cython Changelog
 ================
 
+3.2.0a0 (2025-??-??)
+====================
+
+
+3.1.2 (2025-??-??)
+==================
+
+Bugs fixed
+----------
+
+* Avoid including C++11 ``<type_traits>`` unconditionally.
+  (Github issue :issue:`6896`)
+
+* Some tests were adapted for NumPy 2.x.
+  (Github issue :issue:`6898`)
+
+
+3.1.1 (2025-05-19)
+==================
+
+Bugs fixed
+----------
+
+* A reference leak in the async delegation code was fixed.
+  (Github issues :issue:`6850`, :issue:`6878`)
+
+* Conditional if-else expressions mixing Python and C (numeric) types could end up
+  inferring an overly tight result type, thus leading to unexpected type conversions,
+  runtime exceptions on assignment, or incorrect "temporary assignment" compile errors.
+  (Github issue :issue:`6854`)
+
+* Some Limited API issues were resolved.
+  (Github issue :issue:`6862`)
+
+* Large C ``long long`` values could be truncated when passed into PyPy.
+  (Github issue :issue:`6890`)
+
+* ``callable()`` incorrectly reported ``False`` in PyPy for classes with metaclasses.
+  Patch by Anatolii Aniskovych. (Github issue :issue:`6892`)
+
+* The signature of fused functions was no longer introspectable in Cython 3.1.0.
+  (Github issue :issue:`6855`)
+
+* Coroutines could generate invalid C with line tracing enabled.
+  (Github issue :issue:`6865`)
+
+* Code using ``complex()`` could generate invalid C code missing type declarations.
+  (Github issue :issue:`6860`)
+
+* Code using e.g. ``list[int | None]``  outside of variable/argument annotations failed to compile.
+  (Github issue :issue:`6856`)
+
+* Code using ctuples in a ``const`` context could generate invalid C.
+  (Github issue :issue:`6864`)
+
+* Accessing special methods on cpdef enums failed to compile.
+
+* Some C compiler warnings were resolved.
+  Patches by Daniel Larraz.  (Github issues :issue:`6876`, :issue:`3172`, :issue:`6873`, :issue:`6877`)
+
+* Re-establish support for PyPy 3.8.
+  (Github issue :issue:`6867`)
+
+
+3.1.0 (2025-05-08)
+==================
+
+Other changes
+-------------
+
+* No functional changes since 3.1.0 rc 2.
+
+
 3.1.0 rc 2 (2025-05-07)
 =======================
 
@@ -35,7 +108,7 @@ Bugs fixed
 * Calling cimported C functions with their fully qualified package name could crash Cython.
   (Github issue :issue:`6551`)
 
-* Naming a variable after its inferred type (e.g. `str += ""`) could trigger an infinite loop in Cython.
+* Naming a variable after its inferred type (e.g. ``str += ""``) could trigger an infinite loop in Cython.
   (Github issue :issue:`6835`)
 
 * Cython is more relaxed about the exact C++ constructor name when it calls ``new()`` on ctypedefs.
@@ -111,7 +184,7 @@ Other changes
 * Named ``cpdef enums`` no longer copy their item names into the global module namespace.
   This was considered unhelpful for named enums which already live in their own class namespace.
   In cases where the old behaviour was desired, users can add the following backwards compatible
-  command after their enum class definition: ``globals().update(TheUserEnumClass.__members__)``.
+  command after their enum class definition: ``globals().update(getattr(TheUserEnumClass, '__members__'))``.
   Anonymous enums still produce global item names, as before.
   (Github issue :issue:`4571`)
 
@@ -140,7 +213,7 @@ Features added
 * Extracting keyword arguments is faster in some cases.
   (Github issue :issue:`6683`)
 
-* Calling ``divmod()``on any C integer types is efficient.
+* Calling ``divmod()`` on any C integer types is efficient.
   (Github issue :issue:`6717`)
 
 * Some async/coroutine/vectorcall code has improved fast-paths.

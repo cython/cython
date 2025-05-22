@@ -231,7 +231,8 @@ builtin_function_table = [
     BuiltinFunction('chr',        "i",    "O",      "PyUnicode_FromOrdinal", builtin_return_type='str'),
     #('cmp', "",   "",     "",      ""), # int PyObject_Cmp(PyObject *o1, PyObject *o2, int *result)
     #('compile',   "",     "",      ""), # PyObject* Py_CompileString(    char *str, char *filename, int start)
-    BuiltinFunction('delattr',    "OO",   "r",     "PyObject_DelAttr"),
+    BuiltinFunction('delattr',    "OO",   "r",     "__Pyx_PyObject_DelAttr",
+                    utility_code=UtilityCode.load("PyObjectDelAttr", "ObjectHandling.c")),
     BuiltinFunction('dir',        "O",    "O",     "PyObject_Dir"),
     BuiltinFunction('divmod',     "OO",   "O",     "PyNumber_Divmod",
                     specialiser=_generate_divmod_function),
@@ -749,7 +750,7 @@ def init_builtin_types():
         elif name == 'str':
             objstruct_cname = 'PyUnicodeObject'
         elif name == 'bool':
-            objstruct_cname = None
+            objstruct_cname = 'PyLongObject'
         elif name == 'BaseException':
             objstruct_cname = "PyBaseExceptionObject"
         elif name == 'Exception':
@@ -809,8 +810,16 @@ def init_builtins():
 
     float_type = builtin_scope.lookup('float').type
     int_type = builtin_scope.lookup('int').type
-    bool_type  = builtin_scope.lookup('bool').type
+    #bool_type  = builtin_scope.lookup('bool').type
     complex_type  = builtin_scope.lookup('complex').type
+
+    # Most entries are initialized via "declare_builtin_type()"", except for "bool"
+    # which is apparently a special case because it conflicts with C++ bool.
+    # Here, we only declare it as builtin name, not as actual type.
+    bool_type = PyrexTypes.BuiltinObjectType(EncodedString('bool'), "((PyObject*)&PyBool_Type)", "PyLongObject")
+    bool_type.is_final_type = True
+    bool_type.entry = builtin_scope.declare_var(EncodedString('bool'), bool_type, pos=None, cname="((PyObject*)&PyBool_Type)")
+    builtin_types['bool'] = bool_type
 
     sequence_types = (
         list_type,
@@ -822,12 +831,15 @@ def init_builtins():
     )
 
     # Set up type inference links between equivalent Python/C types
+    assert bool_type.name == 'bool', bool_type.name
     bool_type.equivalent_type = PyrexTypes.c_bint_type
     PyrexTypes.c_bint_type.equivalent_type = bool_type
 
+    assert float_type.name == 'float', float_type.name
     float_type.equivalent_type = PyrexTypes.c_double_type
     PyrexTypes.c_double_type.equivalent_type = float_type
 
+    assert complex_type.name == 'complex', complex_type.name
     complex_type.equivalent_type = PyrexTypes.c_double_complex_type
     PyrexTypes.c_double_complex_type.equivalent_type = complex_type
 

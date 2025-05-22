@@ -2574,11 +2574,13 @@ class CComplexType(CNumericType):
         return True
 
     def create_to_py_utility_code(self, env):
+        self.create_declaration_utility_code(env)
         env.use_utility_code(TempitaUtilityCode.load_cached(
             'ToPy', 'Complex.c', self._utility_code_context()))
         return True
 
     def create_from_py_utility_code(self, env):
+        self.create_declaration_utility_code(env)
         env.use_utility_code(TempitaUtilityCode.load_cached(
             'FromPy', 'Complex.c', self._utility_code_context()))
         self.from_py_function = "__Pyx_PyComplex_As_" + self.specialization_name()
@@ -5450,6 +5452,19 @@ def independent_spanning_type(type1, type2):
         # is another C integer, we must prevent returning a numeric
         # type so that we do not lose the ability to coerce to a
         # Python bool if we have to.
+        return py_object_type
+    elif resolved_type1.is_pyobject != resolved_type2.is_pyobject:
+        # e.g. PyFloat + double => double
+        if resolved_type1.is_pyobject and resolved_type1.equivalent_type == resolved_type2:
+            return resolved_type2
+        if resolved_type2.is_pyobject and resolved_type2.equivalent_type == resolved_type1:
+            return resolved_type1
+        # PyInt + C int => PyInt
+        if resolved_type1.is_int and resolved_type2.is_builtin_type and resolved_type2.name == 'int':
+            return resolved_type2
+        if resolved_type2.is_int and resolved_type1.is_builtin_type and resolved_type1.name == 'int':
+            return resolved_type1
+        # e.g. PyInt + double => object
         return py_object_type
 
     span_type = _spanning_type(type1, type2)

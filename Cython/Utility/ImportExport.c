@@ -177,7 +177,8 @@ static PyObject *__Pyx_Import(PyObject *name, PyObject *from_list, int level) {
     if (unlikely(!empty_dict))
         goto bad;
     if (level == -1) {
-        if (strchr(__Pyx_MODULE_NAME, '.') != (0)) {
+        const char* package_sep = strchr(__Pyx_MODULE_NAME, '.');
+        if (package_sep != (0)) {
             /* try package relative import first */
             module = PyImport_ImportModuleLevelObject(
                 name, NAMED_CGLOBAL(moddict_cname), empty_dict, from_list, 1);
@@ -477,7 +478,6 @@ static PyTypeObject *__Pyx_ImportType_$cyversion(PyObject *module, const char *m
     size_t size, size_t alignment, enum __Pyx_ImportType_CheckSize_$cyversion check_size)
 {
     PyObject *result = 0;
-    char warning[200];
     Py_ssize_t basicsize;
     Py_ssize_t itemsize;
 #if CYTHON_COMPILING_IN_LIMITED_API
@@ -548,11 +548,12 @@ static PyTypeObject *__Pyx_ImportType_$cyversion(PyObject *module, const char *m
         goto bad;
     }
     else if (check_size == __Pyx_ImportType_CheckSize_Warn_$cyversion && (size_t)basicsize > size) {
-        PyOS_snprintf(warning, sizeof(warning),
-            "%s.%s size changed, may indicate binary incompatibility. "
-            "Expected %zd from C header, got %zd from PyObject",
-            module_name, class_name, size, basicsize);
-        if (PyErr_WarnEx(NULL, warning, 0) < 0) goto bad;
+        if (PyErr_WarnFormat(NULL, 0,
+                "%.200s.%.200s size changed, may indicate binary incompatibility. "
+                "Expected %zd from C header, got %zd from PyObject",
+                module_name, class_name, size, basicsize) < 0) {
+            goto bad;
+        }
     }
     /* check_size == __Pyx_ImportType_CheckSize_Ignore does not warn nor error */
     return (PyTypeObject *)result;
@@ -672,7 +673,8 @@ static int __Pyx_ImportVoidPtr_$cyversion(PyObject *module, const char *name, vo
     d = PyObject_GetAttrString(module, "$api_name");
     if (!d)
         goto bad;
-#if PY_VERSION_HEX >= 0x030d0000
+// potentially defined in headers so we can't rely on __PYX_LIMITED_VERSION_HEX
+#if (defined(Py_LIMITED_API) && Py_LIMITED_API >= 0x030d0000) || (!defined(Py_LIMITED_API) && PY_VERSION_HEX >= 0x030d0000)
     PyDict_GetItemStringRef(d, name, &cobj);
 #else
     cobj = PyDict_GetItemString(d, name);
