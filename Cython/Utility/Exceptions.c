@@ -1138,19 +1138,19 @@ static int __Pyx_ExceptionGroupMatch(PyObject *match_type, PyObject **current_ex
         #endif
 
         #if !CYTHON_ASSUME_SAFE_MACROS || CYTHON_AVOID_BORROWED_REFS
-        Py_SETREF(*match, PySequence_GetItem(pair, 0));
+        __Pyx_Py_XDECREF_SET(*match, PySequence_GetItem(pair, 0));
         if (!*match) {
             goto limited_api_bad;
         }
-        Py_SETREF(*current_exception, PySequence_GetItem(pair, 1));
+        __Pyx_Py_XDECREF_SET(*current_exception, PySequence_GetItem(pair, 1));
         if (!*current_exception) {
             limited_api_bad:
             Py_DECREF(pair);
             return -1;
         }
         #else
-        Py_SETREF(*match, Py_NewRef(PyTuple_GET_ITEM(pair, 0)));
-        Py_SETREF(*current_exception, Py_NewRef(PyTuple_GET_ITEM(pair, 1)));
+        __Pyx_Py_XDECREF_SET(*match, Py_NewRef(PyTuple_GET_ITEM(pair, 0)));
+        __Pyx_Py_XDECREF_SET(*current_exception, Py_NewRef(PyTuple_GET_ITEM(pair, 1)));
         #endif
 
         Py_DECREF(pair);

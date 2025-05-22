@@ -8867,15 +8867,18 @@ class StarExceptPrepAndReraiseNode(StatNode):
         code.putln(code.error_goto(None))
         code.putln("}")
 
-        code.putln("if (PyList_GET_SIZE(%s) || %s != Py_None) {" % (
-            self.exception_list.py_result(),
-            self.in_progress_exception_group.result()))
-        code.putln("if (%s != Py_None) {" % self.in_progress_exception_group.result())
+        code.putln("{")
+        code.putln(f"Py_ssize_t {Naming.quick_temp_cname} = __Pyx_PyList_GET_SIZE({self.exception_list.py_result()});")
+        code.putln("#if !CYTHON_ASSUME_SAFE_SIZE")
+        code.putln(code.error_goto_if_neg(Naming.quick_temp_cname, self.pos))
+        code.putln("#endif")
+        code.putln(f"if ({Naming.quick_temp_cname} || {self.in_progress_exception_group.result()} != Py_None) {{")
+        code.putln(f"if ({self.in_progress_exception_group.result()} != Py_None) {{")
         code.putln("if (PyList_Append(%s, %s) < 0) %s" % (
             self.exception_list.py_result(),
             self.in_progress_exception_group.result(),
             code.error_goto(self.pos)))
-        code.putln("}")
+        code.putln("}")  # in_progress_exception_group != None
         to_reraise = code.funcstate.allocate_temp(PyrexTypes.py_object_type, manage_ref=False)
 
         # What's slightly unclear here is how to handle exceptions raised during
@@ -8893,7 +8896,8 @@ class StarExceptPrepAndReraiseNode(StatNode):
         code.put_decref_clear(to_reraise, PyrexTypes.py_object_type)
         code.putln(code.error_goto(None))
         code.funcstate.release_temp(to_reraise)
-        code.putln("}")
+        code.putln("}")  # size != 0 or inprogress_exception_group != None
+        code.putln("}")  # scope around size temp
 
 
 class TryFinallyStatNode(StatNode):
