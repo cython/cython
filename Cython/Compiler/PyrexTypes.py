@@ -1560,12 +1560,6 @@ class BuiltinObjectType(PyObjectType):
         return self.name
 
 
-def builtin_type_for(name):
-    if _is_exception_type_name(name):
-        return BuiltinObjectType(name, f"&PyExc_{name}")
-    return py_object_type
-
-
 class PyExtensionType(PyObjectType):
     #
     #  A Python extension type.
