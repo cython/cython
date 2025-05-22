@@ -1548,10 +1548,10 @@ class CythonRunTestCase(CythonCompileTestCase):
                 filter_test_suite(tests, self.test_selector)
             with self.stats.time(self.name, self.language, 'run'):
                 tests.run(result)
-        run_test(result, run_test)
+        run_single_test(result, run_test)
 
 
-def run_test(result, run_func):
+def run_single_test(result, run_func):
     run_func(result)
     sys.stdout.flush()
     sys.stderr.flush()
@@ -1755,7 +1755,7 @@ class CythonPyregrTestCase(CythonRunTestCase):
             finally:
                 support.run_unittest, support.run_doctest = backup
 
-        run_test(result, run_test)
+        run_single_test(result, run_test)
 
 
 class TestCodeFormat(unittest.TestCase):
