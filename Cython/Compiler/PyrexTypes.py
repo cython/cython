@@ -1420,7 +1420,7 @@ builtin_types_with_trashcan = frozenset({
 })
 
 is_exception_type_name = re.compile(
-    ".*(?:Exception|Error|Warning|Group)"
+    ".*(?:Exception|Error|Warning|ExceptionGroup)"
     "|KeyboardInterrupt"
     "|SystemExit"
     "|Stop(?:Async)?Iteration"
