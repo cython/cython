@@ -2535,10 +2535,8 @@ def main():
                     old_time, old_count = merged_pipeline_stats[stage_name]
                     merged_pipeline_stats[stage_name] = (old_time + stage_time, old_count + stage_count)
 
-        pool.close()
-        pool.join()
-        pool.terminate()  # graalpy seems happier if we terminate now rather than leaving it to the gc
-
+        pool.shutdown()
+        
         total_time = time.time() - total_time
         sys.stderr.write("Sharded tests run in %d seconds (%.1f minutes)\n" % (round(total_time), total_time / 60.))
         if error_shards:
