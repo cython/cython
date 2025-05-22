@@ -1556,7 +1556,6 @@ def run_single_test(result, run_func):
     sys.stdout.flush()
     sys.stderr.flush()
     gc.collect()
-    return
 
 
 class PureDoctestTestCase(unittest.TestCase):
@@ -2317,6 +2316,9 @@ def main():
     parser.add_option("--no-refnanny", dest="with_refnanny",
                       action="store_false", default=True,
                       help="do not regression test reference counting")
+    parser.add_option("--no-fork", dest="fork",
+                      action="store_false", default=True,
+                      help="does nothing, argument kept for compatibility only")
     parser.add_option("--sys-pyregr", dest="system_pyregr",
                       action="store_true", default=False,
                       help="run the regression tests of the CPython installation")
