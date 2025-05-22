@@ -2438,8 +2438,8 @@ def main():
         if "PYTHONIOENCODING" not in os.environ:
             # Make sure subprocesses can print() Unicode text.
             os.environ["PYTHONIOENCODING"] = sys.stdout.encoding or sys.getdefaultencoding()
-        import multiprocessing
-        pool = multiprocessing.Pool(options.shard_count)
+        from concurrent.futures import ProcessPoolExecutor, as_completed
+        pool = ProcessPoolExecutor(options.shard_count)
         tasks = [(options, cmd_args, shard_num) for shard_num in range(options.shard_count)]
         open_shards = list(range(options.shard_count))
         error_shards = []
@@ -2449,7 +2449,9 @@ def main():
         stats = Stats()
         merged_pipeline_stats = defaultdict(lambda: (0, 0))
         with time_stamper_thread(interval=keep_alive_interval, open_shards=open_shards):
-            for shard_num, shard_stats, pipeline_stats, return_code, failure_output in pool.imap_unordered(runtests_callback, tasks):
+            futures = [ pool.submit(runtests_callback, task) for task in tasks ]
+            for future in as_completed(futures):
+                shard_num, shard_stats, pipeline_stats, return_code, failure_output = future.result()
                 open_shards.remove(shard_num)
                 if return_code != 0:
                     error_shards.append(shard_num)
@@ -2462,10 +2464,8 @@ def main():
                     old_time, old_count = merged_pipeline_stats[stage_name]
                     merged_pipeline_stats[stage_name] = (old_time + stage_time, old_count + stage_count)
 
-        pool.close()
-        pool.join()
-        pool.terminate()  # graalpy seems happier if we terminate now rather than leaving it to the gc
-
+        pool.shutdown()
+        
         total_time = time.time() - total_time
         sys.stderr.write("Sharded tests run in %d seconds (%.1f minutes)\n" % (round(total_time), total_time / 60.))
         if error_shards:
