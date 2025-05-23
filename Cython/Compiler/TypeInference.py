@@ -168,7 +168,7 @@ class MarkParallelAssignments(EnvTransform):
 
     def visit_ExceptClauseNode(self, node):
         if node.target is not None:
-            self.mark_assignment(node.target, object_expr)
+            self.mark_assignment(node.target, node.exc_value)
         self.visitchildren(node)
         return node
 
