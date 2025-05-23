@@ -6745,8 +6745,8 @@ class PyMethodCallNode(CallNode):
         self.function.generate_evaluation_code(code)
 
         # Make sure function is in temp so that we can replace the reference if it's a method.
-        if self.function.result_in_temp():
-            return self.function.result()
+        if self.function.result_in_temp() or (not self.unpack and self.function.nonlocally_immutable()):
+            return self.function.py_result()
 
         # FIXME: Should use "coerce_to_temp()" in "__init__()" instead, but that needs "env".
         function = code.funcstate.allocate_temp(py_object_type, manage_ref=True)
@@ -6760,7 +6760,7 @@ class PyMethodCallNode(CallNode):
         if self.use_method_vectorcall:
             self.function_obj.generate_disposal_code(code)
             self.function_obj.free_temps(code)
-        elif self.function.result_in_temp():
+        elif self.function.result_in_temp() or (not self.unpack and self.function.nonlocally_immutable()):
             self.function.generate_disposal_code(code)
             self.function.free_temps(code)
         else:
