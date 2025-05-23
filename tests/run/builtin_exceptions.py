@@ -81,6 +81,12 @@ def gen_tests():
         func_code.append(f"exc_var: {exc_name} = {{exc}}.pop()")  # test runtime assignment with untyped RHS
         func_code.append(f"assert isinstance(exc_var, {exc_name})")
 
+        func_code.append("try: raise exc_var")
+        func_code.append(f"except {exc_name} as e:")
+        func_code.append(f"    if cython.compiled: assert cython.typeof(e) == '{exc_name} object', "
+            "cython.typeof(e)")
+        func_code.append(f"else: assert False, 'exception {exc_name} not caught'")
+
         func_code.append(f"assert isinstance(exc, BaseException)")
         func_code.append(f"assert {exc_name} in type(exc).__mro__")
         func_code.append(f"assert isinstance(exc, {exc_name})")
@@ -119,6 +125,10 @@ def accept_ArithmeticError(exc: ArithmeticError):
     assert isinstance(inferred_var, ArithmeticError)
     exc_var: ArithmeticError = {exc}.pop()
     assert isinstance(exc_var, ArithmeticError)
+    try: raise exc_var
+    except ArithmeticError as e:
+        if cython.compiled: assert cython.typeof(e) == 'ArithmeticError object', cython.typeof(e)
+    else: assert False, 'exception ArithmeticError not caught'
     assert isinstance(exc, BaseException)
     assert ArithmeticError in type(exc).__mro__
     assert isinstance(exc, ArithmeticError)
@@ -135,6 +145,10 @@ def accept_AssertionError(exc: AssertionError):
     assert isinstance(inferred_var, AssertionError)
     exc_var: AssertionError = {exc}.pop()
     assert isinstance(exc_var, AssertionError)
+    try: raise exc_var
+    except AssertionError as e:
+        if cython.compiled: assert cython.typeof(e) == 'AssertionError object', cython.typeof(e)
+    else: assert False, 'exception AssertionError not caught'
     assert isinstance(exc, BaseException)
     assert AssertionError in type(exc).__mro__
     assert isinstance(exc, AssertionError)
@@ -151,6 +165,10 @@ def accept_AttributeError(exc: AttributeError):
     assert isinstance(inferred_var, AttributeError)
     exc_var: AttributeError = {exc}.pop()
     assert isinstance(exc_var, AttributeError)
+    try: raise exc_var
+    except AttributeError as e:
+        if cython.compiled: assert cython.typeof(e) == 'AttributeError object', cython.typeof(e)
+    else: assert False, 'exception AttributeError not caught'
     assert isinstance(exc, BaseException)
     assert AttributeError in type(exc).__mro__
     assert isinstance(exc, AttributeError)
@@ -353,6 +371,10 @@ def accept_BaseException(exc: BaseException):
     assert isinstance(inferred_var, BaseException)
     exc_var: BaseException = {exc}.pop()
     assert isinstance(exc_var, BaseException)
+    try: raise exc_var
+    except BaseException as e:
+        if cython.compiled: assert cython.typeof(e) == 'BaseException object', cython.typeof(e)
+    else: assert False, 'exception BaseException not caught'
     assert isinstance(exc, BaseException)
     assert BaseException in type(exc).__mro__
     assert isinstance(exc, BaseException)
@@ -369,6 +391,10 @@ def accept_BlockingIOError(exc: BlockingIOError):
     assert isinstance(inferred_var, BlockingIOError)
     exc_var: BlockingIOError = {exc}.pop()
     assert isinstance(exc_var, BlockingIOError)
+    try: raise exc_var
+    except BlockingIOError as e:
+        if cython.compiled: assert cython.typeof(e) == 'BlockingIOError object', cython.typeof(e)
+    else: assert False, 'exception BlockingIOError not caught'
     assert isinstance(exc, BaseException)
     assert BlockingIOError in type(exc).__mro__
     assert isinstance(exc, BlockingIOError)
@@ -385,6 +411,10 @@ def accept_BrokenPipeError(exc: BrokenPipeError):
     assert isinstance(inferred_var, BrokenPipeError)
     exc_var: BrokenPipeError = {exc}.pop()
     assert isinstance(exc_var, BrokenPipeError)
+    try: raise exc_var
+    except BrokenPipeError as e:
+        if cython.compiled: assert cython.typeof(e) == 'BrokenPipeError object', cython.typeof(e)
+    else: assert False, 'exception BrokenPipeError not caught'
     assert isinstance(exc, BaseException)
     assert BrokenPipeError in type(exc).__mro__
     assert isinstance(exc, BrokenPipeError)
@@ -401,6 +431,10 @@ def accept_BufferError(exc: BufferError):
     assert isinstance(inferred_var, BufferError)
     exc_var: BufferError = {exc}.pop()
     assert isinstance(exc_var, BufferError)
+    try: raise exc_var
+    except BufferError as e:
+        if cython.compiled: assert cython.typeof(e) == 'BufferError object', cython.typeof(e)
+    else: assert False, 'exception BufferError not caught'
     assert isinstance(exc, BaseException)
     assert BufferError in type(exc).__mro__
     assert isinstance(exc, BufferError)
@@ -417,6 +451,10 @@ def accept_BytesWarning(exc: BytesWarning):
     assert isinstance(inferred_var, BytesWarning)
     exc_var: BytesWarning = {exc}.pop()
     assert isinstance(exc_var, BytesWarning)
+    try: raise exc_var
+    except BytesWarning as e:
+        if cython.compiled: assert cython.typeof(e) == 'BytesWarning object', cython.typeof(e)
+    else: assert False, 'exception BytesWarning not caught'
     assert isinstance(exc, BaseException)
     assert BytesWarning in type(exc).__mro__
     assert isinstance(exc, BytesWarning)
@@ -433,6 +471,10 @@ def accept_ChildProcessError(exc: ChildProcessError):
     assert isinstance(inferred_var, ChildProcessError)
     exc_var: ChildProcessError = {exc}.pop()
     assert isinstance(exc_var, ChildProcessError)
+    try: raise exc_var
+    except ChildProcessError as e:
+        if cython.compiled: assert cython.typeof(e) == 'ChildProcessError object', cython.typeof(e)
+    else: assert False, 'exception ChildProcessError not caught'
     assert isinstance(exc, BaseException)
     assert ChildProcessError in type(exc).__mro__
     assert isinstance(exc, ChildProcessError)
@@ -449,6 +491,10 @@ def accept_ConnectionAbortedError(exc: ConnectionAbortedError):
     assert isinstance(inferred_var, ConnectionAbortedError)
     exc_var: ConnectionAbortedError = {exc}.pop()
     assert isinstance(exc_var, ConnectionAbortedError)
+    try: raise exc_var
+    except ConnectionAbortedError as e:
+        if cython.compiled: assert cython.typeof(e) == 'ConnectionAbortedError object', cython.typeof(e)
+    else: assert False, 'exception ConnectionAbortedError not caught'
     assert isinstance(exc, BaseException)
     assert ConnectionAbortedError in type(exc).__mro__
     assert isinstance(exc, ConnectionAbortedError)
@@ -477,6 +523,10 @@ def accept_ConnectionError(exc: ConnectionError):
     assert isinstance(inferred_var, ConnectionError)
     exc_var: ConnectionError = {exc}.pop()
     assert isinstance(exc_var, ConnectionError)
+    try: raise exc_var
+    except ConnectionError as e:
+        if cython.compiled: assert cython.typeof(e) == 'ConnectionError object', cython.typeof(e)
+    else: assert False, 'exception ConnectionError not caught'
     assert isinstance(exc, BaseException)
     assert ConnectionError in type(exc).__mro__
     assert isinstance(exc, ConnectionError)
@@ -493,6 +543,10 @@ def accept_ConnectionRefusedError(exc: ConnectionRefusedError):
     assert isinstance(inferred_var, ConnectionRefusedError)
     exc_var: ConnectionRefusedError = {exc}.pop()
     assert isinstance(exc_var, ConnectionRefusedError)
+    try: raise exc_var
+    except ConnectionRefusedError as e:
+        if cython.compiled: assert cython.typeof(e) == 'ConnectionRefusedError object', cython.typeof(e)
+    else: assert False, 'exception ConnectionRefusedError not caught'
     assert isinstance(exc, BaseException)
     assert ConnectionRefusedError in type(exc).__mro__
     assert isinstance(exc, ConnectionRefusedError)
@@ -509,6 +563,10 @@ def accept_ConnectionResetError(exc: ConnectionResetError):
     assert isinstance(inferred_var, ConnectionResetError)
     exc_var: ConnectionResetError = {exc}.pop()
     assert isinstance(exc_var, ConnectionResetError)
+    try: raise exc_var
+    except ConnectionResetError as e:
+        if cython.compiled: assert cython.typeof(e) == 'ConnectionResetError object', cython.typeof(e)
+    else: assert False, 'exception ConnectionResetError not caught'
     assert isinstance(exc, BaseException)
     assert ConnectionResetError in type(exc).__mro__
     assert isinstance(exc, ConnectionResetError)
@@ -525,6 +583,10 @@ def accept_DeprecationWarning(exc: DeprecationWarning):
     assert isinstance(inferred_var, DeprecationWarning)
     exc_var: DeprecationWarning = {exc}.pop()
     assert isinstance(exc_var, DeprecationWarning)
+    try: raise exc_var
+    except DeprecationWarning as e:
+        if cython.compiled: assert cython.typeof(e) == 'DeprecationWarning object', cython.typeof(e)
+    else: assert False, 'exception DeprecationWarning not caught'
     assert isinstance(exc, BaseException)
     assert DeprecationWarning in type(exc).__mro__
     assert isinstance(exc, DeprecationWarning)
@@ -541,6 +603,10 @@ def accept_EOFError(exc: EOFError):
     assert isinstance(inferred_var, EOFError)
     exc_var: EOFError = {exc}.pop()
     assert isinstance(exc_var, EOFError)
+    try: raise exc_var
+    except EOFError as e:
+        if cython.compiled: assert cython.typeof(e) == 'EOFError object', cython.typeof(e)
+    else: assert False, 'exception EOFError not caught'
     assert isinstance(exc, BaseException)
     assert EOFError in type(exc).__mro__
     assert isinstance(exc, EOFError)
@@ -731,6 +797,10 @@ def accept_Exception(exc: Exception):
     assert isinstance(inferred_var, Exception)
     exc_var: Exception = {exc}.pop()
     assert isinstance(exc_var, Exception)
+    try: raise exc_var
+    except Exception as e:
+        if cython.compiled: assert cython.typeof(e) == 'Exception object', cython.typeof(e)
+    else: assert False, 'exception Exception not caught'
     assert isinstance(exc, BaseException)
     assert Exception in type(exc).__mro__
     assert isinstance(exc, Exception)
@@ -747,6 +817,10 @@ def accept_FileExistsError(exc: FileExistsError):
     assert isinstance(inferred_var, FileExistsError)
     exc_var: FileExistsError = {exc}.pop()
     assert isinstance(exc_var, FileExistsError)
+    try: raise exc_var
+    except FileExistsError as e:
+        if cython.compiled: assert cython.typeof(e) == 'FileExistsError object', cython.typeof(e)
+    else: assert False, 'exception FileExistsError not caught'
     assert isinstance(exc, BaseException)
     assert FileExistsError in type(exc).__mro__
     assert isinstance(exc, FileExistsError)
@@ -763,6 +837,10 @@ def accept_FileNotFoundError(exc: FileNotFoundError):
     assert isinstance(inferred_var, FileNotFoundError)
     exc_var: FileNotFoundError = {exc}.pop()
     assert isinstance(exc_var, FileNotFoundError)
+    try: raise exc_var
+    except FileNotFoundError as e:
+        if cython.compiled: assert cython.typeof(e) == 'FileNotFoundError object', cython.typeof(e)
+    else: assert False, 'exception FileNotFoundError not caught'
     assert isinstance(exc, BaseException)
     assert FileNotFoundError in type(exc).__mro__
     assert isinstance(exc, FileNotFoundError)
@@ -779,6 +857,10 @@ def accept_FloatingPointError(exc: FloatingPointError):
     assert isinstance(inferred_var, FloatingPointError)
     exc_var: FloatingPointError = {exc}.pop()
     assert isinstance(exc_var, FloatingPointError)
+    try: raise exc_var
+    except FloatingPointError as e:
+        if cython.compiled: assert cython.typeof(e) == 'FloatingPointError object', cython.typeof(e)
+    else: assert False, 'exception FloatingPointError not caught'
     assert isinstance(exc, BaseException)
     assert FloatingPointError in type(exc).__mro__
     assert isinstance(exc, FloatingPointError)
@@ -795,6 +877,10 @@ def accept_FutureWarning(exc: FutureWarning):
     assert isinstance(inferred_var, FutureWarning)
     exc_var: FutureWarning = {exc}.pop()
     assert isinstance(exc_var, FutureWarning)
+    try: raise exc_var
+    except FutureWarning as e:
+        if cython.compiled: assert cython.typeof(e) == 'FutureWarning object', cython.typeof(e)
+    else: assert False, 'exception FutureWarning not caught'
     assert isinstance(exc, BaseException)
     assert FutureWarning in type(exc).__mro__
     assert isinstance(exc, FutureWarning)
@@ -811,6 +897,10 @@ def accept_GeneratorExit(exc: GeneratorExit):
     assert isinstance(inferred_var, GeneratorExit)
     exc_var: GeneratorExit = {exc}.pop()
     assert isinstance(exc_var, GeneratorExit)
+    try: raise exc_var
+    except GeneratorExit as e:
+        if cython.compiled: assert cython.typeof(e) == 'GeneratorExit object', cython.typeof(e)
+    else: assert False, 'exception GeneratorExit not caught'
     assert isinstance(exc, BaseException)
     assert GeneratorExit in type(exc).__mro__
     assert isinstance(exc, GeneratorExit)
@@ -830,6 +920,10 @@ def accept_ImportError(exc: ImportError):
     assert isinstance(inferred_var, ImportError)
     exc_var: ImportError = {exc}.pop()
     assert isinstance(exc_var, ImportError)
+    try: raise exc_var
+    except ImportError as e:
+        if cython.compiled: assert cython.typeof(e) == 'ImportError object', cython.typeof(e)
+    else: assert False, 'exception ImportError not caught'
     assert isinstance(exc, BaseException)
     assert ImportError in type(exc).__mro__
     assert isinstance(exc, ImportError)
@@ -846,6 +940,10 @@ def accept_ImportWarning(exc: ImportWarning):
     assert isinstance(inferred_var, ImportWarning)
     exc_var: ImportWarning = {exc}.pop()
     assert isinstance(exc_var, ImportWarning)
+    try: raise exc_var
+    except ImportWarning as e:
+        if cython.compiled: assert cython.typeof(e) == 'ImportWarning object', cython.typeof(e)
+    else: assert False, 'exception ImportWarning not caught'
     assert isinstance(exc, BaseException)
     assert ImportWarning in type(exc).__mro__
     assert isinstance(exc, ImportWarning)
@@ -865,6 +963,10 @@ def accept_IndentationError(exc: IndentationError):
     assert isinstance(inferred_var, IndentationError)
     exc_var: IndentationError = {exc}.pop()
     assert isinstance(exc_var, IndentationError)
+    try: raise exc_var
+    except IndentationError as e:
+        if cython.compiled: assert cython.typeof(e) == 'IndentationError object', cython.typeof(e)
+    else: assert False, 'exception IndentationError not caught'
     assert isinstance(exc, BaseException)
     assert IndentationError in type(exc).__mro__
     assert isinstance(exc, IndentationError)
@@ -881,6 +983,10 @@ def accept_IndexError(exc: IndexError):
     assert isinstance(inferred_var, IndexError)
     exc_var: IndexError = {exc}.pop()
     assert isinstance(exc_var, IndexError)
+    try: raise exc_var
+    except IndexError as e:
+        if cython.compiled: assert cython.typeof(e) == 'IndexError object', cython.typeof(e)
+    else: assert False, 'exception IndexError not caught'
     assert isinstance(exc, BaseException)
     assert IndexError in type(exc).__mro__
     assert isinstance(exc, IndexError)
@@ -897,6 +1003,10 @@ def accept_InterruptedError(exc: InterruptedError):
     assert isinstance(inferred_var, InterruptedError)
     exc_var: InterruptedError = {exc}.pop()
     assert isinstance(exc_var, InterruptedError)
+    try: raise exc_var
+    except InterruptedError as e:
+        if cython.compiled: assert cython.typeof(e) == 'InterruptedError object', cython.typeof(e)
+    else: assert False, 'exception InterruptedError not caught'
     assert isinstance(exc, BaseException)
     assert InterruptedError in type(exc).__mro__
     assert isinstance(exc, InterruptedError)
@@ -913,6 +1023,10 @@ def accept_IsADirectoryError(exc: IsADirectoryError):
     assert isinstance(inferred_var, IsADirectoryError)
     exc_var: IsADirectoryError = {exc}.pop()
     assert isinstance(exc_var, IsADirectoryError)
+    try: raise exc_var
+    except IsADirectoryError as e:
+        if cython.compiled: assert cython.typeof(e) == 'IsADirectoryError object', cython.typeof(e)
+    else: assert False, 'exception IsADirectoryError not caught'
     assert isinstance(exc, BaseException)
     assert IsADirectoryError in type(exc).__mro__
     assert isinstance(exc, IsADirectoryError)
@@ -929,6 +1043,10 @@ def accept_KeyError(exc: KeyError):
     assert isinstance(inferred_var, KeyError)
     exc_var: KeyError = {exc}.pop()
     assert isinstance(exc_var, KeyError)
+    try: raise exc_var
+    except KeyError as e:
+        if cython.compiled: assert cython.typeof(e) == 'KeyError object', cython.typeof(e)
+    else: assert False, 'exception KeyError not caught'
     assert isinstance(exc, BaseException)
     assert KeyError in type(exc).__mro__
     assert isinstance(exc, KeyError)
@@ -945,6 +1063,10 @@ def accept_KeyboardInterrupt(exc: KeyboardInterrupt):
     assert isinstance(inferred_var, KeyboardInterrupt)
     exc_var: KeyboardInterrupt = {exc}.pop()
     assert isinstance(exc_var, KeyboardInterrupt)
+    try: raise exc_var
+    except KeyboardInterrupt as e:
+        if cython.compiled: assert cython.typeof(e) == 'KeyboardInterrupt object', cython.typeof(e)
+    else: assert False, 'exception KeyboardInterrupt not caught'
     assert isinstance(exc, BaseException)
     assert KeyboardInterrupt in type(exc).__mro__
     assert isinstance(exc, KeyboardInterrupt)
@@ -967,6 +1089,10 @@ def accept_LookupError(exc: LookupError):
     assert isinstance(inferred_var, LookupError)
     exc_var: LookupError = {exc}.pop()
     assert isinstance(exc_var, LookupError)
+    try: raise exc_var
+    except LookupError as e:
+        if cython.compiled: assert cython.typeof(e) == 'LookupError object', cython.typeof(e)
+    else: assert False, 'exception LookupError not caught'
     assert isinstance(exc, BaseException)
     assert LookupError in type(exc).__mro__
     assert isinstance(exc, LookupError)
@@ -983,6 +1109,10 @@ def accept_MemoryError(exc: MemoryError):
     assert isinstance(inferred_var, MemoryError)
     exc_var: MemoryError = {exc}.pop()
     assert isinstance(exc_var, MemoryError)
+    try: raise exc_var
+    except MemoryError as e:
+        if cython.compiled: assert cython.typeof(e) == 'MemoryError object', cython.typeof(e)
+    else: assert False, 'exception MemoryError not caught'
     assert isinstance(exc, BaseException)
     assert MemoryError in type(exc).__mro__
     assert isinstance(exc, MemoryError)
@@ -999,6 +1129,10 @@ def accept_ModuleNotFoundError(exc: ModuleNotFoundError):
     assert isinstance(inferred_var, ModuleNotFoundError)
     exc_var: ModuleNotFoundError = {exc}.pop()
     assert isinstance(exc_var, ModuleNotFoundError)
+    try: raise exc_var
+    except ModuleNotFoundError as e:
+        if cython.compiled: assert cython.typeof(e) == 'ModuleNotFoundError object', cython.typeof(e)
+    else: assert False, 'exception ModuleNotFoundError not caught'
     assert isinstance(exc, BaseException)
     assert ModuleNotFoundError in type(exc).__mro__
     assert isinstance(exc, ModuleNotFoundError)
@@ -1018,6 +1152,10 @@ def accept_NameError(exc: NameError):
     assert isinstance(inferred_var, NameError)
     exc_var: NameError = {exc}.pop()
     assert isinstance(exc_var, NameError)
+    try: raise exc_var
+    except NameError as e:
+        if cython.compiled: assert cython.typeof(e) == 'NameError object', cython.typeof(e)
+    else: assert False, 'exception NameError not caught'
     assert isinstance(exc, BaseException)
     assert NameError in type(exc).__mro__
     assert isinstance(exc, NameError)
@@ -1034,6 +1172,10 @@ def accept_NotADirectoryError(exc: NotADirectoryError):
     assert isinstance(inferred_var, NotADirectoryError)
     exc_var: NotADirectoryError = {exc}.pop()
     assert isinstance(exc_var, NotADirectoryError)
+    try: raise exc_var
+    except NotADirectoryError as e:
+        if cython.compiled: assert cython.typeof(e) == 'NotADirectoryError object', cython.typeof(e)
+    else: assert False, 'exception NotADirectoryError not caught'
     assert isinstance(exc, BaseException)
     assert NotADirectoryError in type(exc).__mro__
     assert isinstance(exc, NotADirectoryError)
@@ -1050,6 +1192,10 @@ def accept_NotImplementedError(exc: NotImplementedError):
     assert isinstance(inferred_var, NotImplementedError)
     exc_var: NotImplementedError = {exc}.pop()
     assert isinstance(exc_var, NotImplementedError)
+    try: raise exc_var
+    except NotImplementedError as e:
+        if cython.compiled: assert cython.typeof(e) == 'NotImplementedError object', cython.typeof(e)
+    else: assert False, 'exception NotImplementedError not caught'
     assert isinstance(exc, BaseException)
     assert NotImplementedError in type(exc).__mro__
     assert isinstance(exc, NotImplementedError)
@@ -1117,6 +1263,10 @@ def accept_OSError(exc: OSError):
     assert isinstance(inferred_var, OSError)
     exc_var: OSError = {exc}.pop()
     assert isinstance(exc_var, OSError)
+    try: raise exc_var
+    except OSError as e:
+        if cython.compiled: assert cython.typeof(e) == 'OSError object', cython.typeof(e)
+    else: assert False, 'exception OSError not caught'
     assert isinstance(exc, BaseException)
     assert OSError in type(exc).__mro__
     assert isinstance(exc, OSError)
@@ -1133,6 +1283,10 @@ def accept_OverflowError(exc: OverflowError):
     assert isinstance(inferred_var, OverflowError)
     exc_var: OverflowError = {exc}.pop()
     assert isinstance(exc_var, OverflowError)
+    try: raise exc_var
+    except OverflowError as e:
+        if cython.compiled: assert cython.typeof(e) == 'OverflowError object', cython.typeof(e)
+    else: assert False, 'exception OverflowError not caught'
     assert isinstance(exc, BaseException)
     assert OverflowError in type(exc).__mro__
     assert isinstance(exc, OverflowError)
@@ -1149,6 +1303,10 @@ def accept_PendingDeprecationWarning(exc: PendingDeprecationWarning):
     assert isinstance(inferred_var, PendingDeprecationWarning)
     exc_var: PendingDeprecationWarning = {exc}.pop()
     assert isinstance(exc_var, PendingDeprecationWarning)
+    try: raise exc_var
+    except PendingDeprecationWarning as e:
+        if cython.compiled: assert cython.typeof(e) == 'PendingDeprecationWarning object', cython.typeof(e)
+    else: assert False, 'exception PendingDeprecationWarning not caught'
     assert isinstance(exc, BaseException)
     assert PendingDeprecationWarning in type(exc).__mro__
     assert isinstance(exc, PendingDeprecationWarning)
@@ -1165,6 +1323,10 @@ def accept_PermissionError(exc: PermissionError):
     assert isinstance(inferred_var, PermissionError)
     exc_var: PermissionError = {exc}.pop()
     assert isinstance(exc_var, PermissionError)
+    try: raise exc_var
+    except PermissionError as e:
+        if cython.compiled: assert cython.typeof(e) == 'PermissionError object', cython.typeof(e)
+    else: assert False, 'exception PermissionError not caught'
     assert isinstance(exc, BaseException)
     assert PermissionError in type(exc).__mro__
     assert isinstance(exc, PermissionError)
@@ -1181,6 +1343,10 @@ def accept_ProcessLookupError(exc: ProcessLookupError):
     assert isinstance(inferred_var, ProcessLookupError)
     exc_var: ProcessLookupError = {exc}.pop()
     assert isinstance(exc_var, ProcessLookupError)
+    try: raise exc_var
+    except ProcessLookupError as e:
+        if cython.compiled: assert cython.typeof(e) == 'ProcessLookupError object', cython.typeof(e)
+    else: assert False, 'exception ProcessLookupError not caught'
     assert isinstance(exc, BaseException)
     assert ProcessLookupError in type(exc).__mro__
     assert isinstance(exc, ProcessLookupError)
@@ -1197,6 +1363,10 @@ def accept_RecursionError(exc: RecursionError):
     assert isinstance(inferred_var, RecursionError)
     exc_var: RecursionError = {exc}.pop()
     assert isinstance(exc_var, RecursionError)
+    try: raise exc_var
+    except RecursionError as e:
+        if cython.compiled: assert cython.typeof(e) == 'RecursionError object', cython.typeof(e)
+    else: assert False, 'exception RecursionError not caught'
     assert isinstance(exc, BaseException)
     assert RecursionError in type(exc).__mro__
     assert isinstance(exc, RecursionError)
@@ -1213,6 +1383,10 @@ def accept_ReferenceError(exc: ReferenceError):
     assert isinstance(inferred_var, ReferenceError)
     exc_var: ReferenceError = {exc}.pop()
     assert isinstance(exc_var, ReferenceError)
+    try: raise exc_var
+    except ReferenceError as e:
+        if cython.compiled: assert cython.typeof(e) == 'ReferenceError object', cython.typeof(e)
+    else: assert False, 'exception ReferenceError not caught'
     assert isinstance(exc, BaseException)
     assert ReferenceError in type(exc).__mro__
     assert isinstance(exc, ReferenceError)
@@ -1229,6 +1403,10 @@ def accept_ResourceWarning(exc: ResourceWarning):
     assert isinstance(inferred_var, ResourceWarning)
     exc_var: ResourceWarning = {exc}.pop()
     assert isinstance(exc_var, ResourceWarning)
+    try: raise exc_var
+    except ResourceWarning as e:
+        if cython.compiled: assert cython.typeof(e) == 'ResourceWarning object', cython.typeof(e)
+    else: assert False, 'exception ResourceWarning not caught'
     assert isinstance(exc, BaseException)
     assert ResourceWarning in type(exc).__mro__
     assert isinstance(exc, ResourceWarning)
@@ -1251,6 +1429,10 @@ def accept_RuntimeError(exc: RuntimeError):
     assert isinstance(inferred_var, RuntimeError)
     exc_var: RuntimeError = {exc}.pop()
     assert isinstance(exc_var, RuntimeError)
+    try: raise exc_var
+    except RuntimeError as e:
+        if cython.compiled: assert cython.typeof(e) == 'RuntimeError object', cython.typeof(e)
+    else: assert False, 'exception RuntimeError not caught'
     assert isinstance(exc, BaseException)
     assert RuntimeError in type(exc).__mro__
     assert isinstance(exc, RuntimeError)
@@ -1267,6 +1449,10 @@ def accept_RuntimeWarning(exc: RuntimeWarning):
     assert isinstance(inferred_var, RuntimeWarning)
     exc_var: RuntimeWarning = {exc}.pop()
     assert isinstance(exc_var, RuntimeWarning)
+    try: raise exc_var
+    except RuntimeWarning as e:
+        if cython.compiled: assert cython.typeof(e) == 'RuntimeWarning object', cython.typeof(e)
+    else: assert False, 'exception RuntimeWarning not caught'
     assert isinstance(exc, BaseException)
     assert RuntimeWarning in type(exc).__mro__
     assert isinstance(exc, RuntimeWarning)
@@ -1283,6 +1469,10 @@ def accept_StopAsyncIteration(exc: StopAsyncIteration):
     assert isinstance(inferred_var, StopAsyncIteration)
     exc_var: StopAsyncIteration = {exc}.pop()
     assert isinstance(exc_var, StopAsyncIteration)
+    try: raise exc_var
+    except StopAsyncIteration as e:
+        if cython.compiled: assert cython.typeof(e) == 'StopAsyncIteration object', cython.typeof(e)
+    else: assert False, 'exception StopAsyncIteration not caught'
     assert isinstance(exc, BaseException)
     assert StopAsyncIteration in type(exc).__mro__
     assert isinstance(exc, StopAsyncIteration)
@@ -1299,6 +1489,10 @@ def accept_StopIteration(exc: StopIteration):
     assert isinstance(inferred_var, StopIteration)
     exc_var: StopIteration = {exc}.pop()
     assert isinstance(exc_var, StopIteration)
+    try: raise exc_var
+    except StopIteration as e:
+        if cython.compiled: assert cython.typeof(e) == 'StopIteration object', cython.typeof(e)
+    else: assert False, 'exception StopIteration not caught'
     assert isinstance(exc, BaseException)
     assert StopIteration in type(exc).__mro__
     assert isinstance(exc, StopIteration)
@@ -1321,6 +1515,10 @@ def accept_SyntaxError(exc: SyntaxError):
     assert isinstance(inferred_var, SyntaxError)
     exc_var: SyntaxError = {exc}.pop()
     assert isinstance(exc_var, SyntaxError)
+    try: raise exc_var
+    except SyntaxError as e:
+        if cython.compiled: assert cython.typeof(e) == 'SyntaxError object', cython.typeof(e)
+    else: assert False, 'exception SyntaxError not caught'
     assert isinstance(exc, BaseException)
     assert SyntaxError in type(exc).__mro__
     assert isinstance(exc, SyntaxError)
@@ -1337,6 +1535,10 @@ def accept_SyntaxWarning(exc: SyntaxWarning):
     assert isinstance(inferred_var, SyntaxWarning)
     exc_var: SyntaxWarning = {exc}.pop()
     assert isinstance(exc_var, SyntaxWarning)
+    try: raise exc_var
+    except SyntaxWarning as e:
+        if cython.compiled: assert cython.typeof(e) == 'SyntaxWarning object', cython.typeof(e)
+    else: assert False, 'exception SyntaxWarning not caught'
     assert isinstance(exc, BaseException)
     assert SyntaxWarning in type(exc).__mro__
     assert isinstance(exc, SyntaxWarning)
@@ -1353,6 +1555,10 @@ def accept_SystemError(exc: SystemError):
     assert isinstance(inferred_var, SystemError)
     exc_var: SystemError = {exc}.pop()
     assert isinstance(exc_var, SystemError)
+    try: raise exc_var
+    except SystemError as e:
+        if cython.compiled: assert cython.typeof(e) == 'SystemError object', cython.typeof(e)
+    else: assert False, 'exception SystemError not caught'
     assert isinstance(exc, BaseException)
     assert SystemError in type(exc).__mro__
     assert isinstance(exc, SystemError)
@@ -1369,6 +1575,10 @@ def accept_SystemExit(exc: SystemExit):
     assert isinstance(inferred_var, SystemExit)
     exc_var: SystemExit = {exc}.pop()
     assert isinstance(exc_var, SystemExit)
+    try: raise exc_var
+    except SystemExit as e:
+        if cython.compiled: assert cython.typeof(e) == 'SystemExit object', cython.typeof(e)
+    else: assert False, 'exception SystemExit not caught'
     assert isinstance(exc, BaseException)
     assert SystemExit in type(exc).__mro__
     assert isinstance(exc, SystemExit)
@@ -1385,6 +1595,10 @@ def accept_TabError(exc: TabError):
     assert isinstance(inferred_var, TabError)
     exc_var: TabError = {exc}.pop()
     assert isinstance(exc_var, TabError)
+    try: raise exc_var
+    except TabError as e:
+        if cython.compiled: assert cython.typeof(e) == 'TabError object', cython.typeof(e)
+    else: assert False, 'exception TabError not caught'
     assert isinstance(exc, BaseException)
     assert TabError in type(exc).__mro__
     assert isinstance(exc, TabError)
@@ -1401,6 +1615,10 @@ def accept_TimeoutError(exc: TimeoutError):
     assert isinstance(inferred_var, TimeoutError)
     exc_var: TimeoutError = {exc}.pop()
     assert isinstance(exc_var, TimeoutError)
+    try: raise exc_var
+    except TimeoutError as e:
+        if cython.compiled: assert cython.typeof(e) == 'TimeoutError object', cython.typeof(e)
+    else: assert False, 'exception TimeoutError not caught'
     assert isinstance(exc, BaseException)
     assert TimeoutError in type(exc).__mro__
     assert isinstance(exc, TimeoutError)
@@ -1417,6 +1635,10 @@ def accept_TypeError(exc: TypeError):
     assert isinstance(inferred_var, TypeError)
     exc_var: TypeError = {exc}.pop()
     assert isinstance(exc_var, TypeError)
+    try: raise exc_var
+    except TypeError as e:
+        if cython.compiled: assert cython.typeof(e) == 'TypeError object', cython.typeof(e)
+    else: assert False, 'exception TypeError not caught'
     assert isinstance(exc, BaseException)
     assert TypeError in type(exc).__mro__
     assert isinstance(exc, TypeError)
@@ -1433,6 +1655,10 @@ def accept_UnboundLocalError(exc: UnboundLocalError):
     assert isinstance(inferred_var, UnboundLocalError)
     exc_var: UnboundLocalError = {exc}.pop()
     assert isinstance(exc_var, UnboundLocalError)
+    try: raise exc_var
+    except UnboundLocalError as e:
+        if cython.compiled: assert cython.typeof(e) == 'UnboundLocalError object', cython.typeof(e)
+    else: assert False, 'exception UnboundLocalError not caught'
     assert isinstance(exc, BaseException)
     assert UnboundLocalError in type(exc).__mro__
     assert isinstance(exc, UnboundLocalError)
@@ -1449,6 +1675,10 @@ def accept_UnicodeError(exc: UnicodeError):
     assert isinstance(inferred_var, UnicodeError)
     exc_var: UnicodeError = {exc}.pop()
     assert isinstance(exc_var, UnicodeError)
+    try: raise exc_var
+    except UnicodeError as e:
+        if cython.compiled: assert cython.typeof(e) == 'UnicodeError object', cython.typeof(e)
+    else: assert False, 'exception UnicodeError not caught'
     assert isinstance(exc, BaseException)
     assert UnicodeError in type(exc).__mro__
     assert isinstance(exc, UnicodeError)
@@ -1465,6 +1695,10 @@ def accept_UnicodeWarning(exc: UnicodeWarning):
     assert isinstance(inferred_var, UnicodeWarning)
     exc_var: UnicodeWarning = {exc}.pop()
     assert isinstance(exc_var, UnicodeWarning)
+    try: raise exc_var
+    except UnicodeWarning as e:
+        if cython.compiled: assert cython.typeof(e) == 'UnicodeWarning object', cython.typeof(e)
+    else: assert False, 'exception UnicodeWarning not caught'
     assert isinstance(exc, BaseException)
     assert UnicodeWarning in type(exc).__mro__
     assert isinstance(exc, UnicodeWarning)
@@ -1481,6 +1715,10 @@ def accept_UserWarning(exc: UserWarning):
     assert isinstance(inferred_var, UserWarning)
     exc_var: UserWarning = {exc}.pop()
     assert isinstance(exc_var, UserWarning)
+    try: raise exc_var
+    except UserWarning as e:
+        if cython.compiled: assert cython.typeof(e) == 'UserWarning object', cython.typeof(e)
+    else: assert False, 'exception UserWarning not caught'
     assert isinstance(exc, BaseException)
     assert UserWarning in type(exc).__mro__
     assert isinstance(exc, UserWarning)
@@ -1500,6 +1738,10 @@ def accept_ValueError(exc: ValueError):
     assert isinstance(inferred_var, ValueError)
     exc_var: ValueError = {exc}.pop()
     assert isinstance(exc_var, ValueError)
+    try: raise exc_var
+    except ValueError as e:
+        if cython.compiled: assert cython.typeof(e) == 'ValueError object', cython.typeof(e)
+    else: assert False, 'exception ValueError not caught'
     assert isinstance(exc, BaseException)
     assert ValueError in type(exc).__mro__
     assert isinstance(exc, ValueError)
@@ -1546,6 +1788,10 @@ def accept_Warning(exc: Warning):
     assert isinstance(inferred_var, Warning)
     exc_var: Warning = {exc}.pop()
     assert isinstance(exc_var, Warning)
+    try: raise exc_var
+    except Warning as e:
+        if cython.compiled: assert cython.typeof(e) == 'Warning object', cython.typeof(e)
+    else: assert False, 'exception Warning not caught'
     assert isinstance(exc, BaseException)
     assert Warning in type(exc).__mro__
     assert isinstance(exc, Warning)
@@ -1562,6 +1808,10 @@ def accept_ZeroDivisionError(exc: ZeroDivisionError):
     assert isinstance(inferred_var, ZeroDivisionError)
     exc_var: ZeroDivisionError = {exc}.pop()
     assert isinstance(exc_var, ZeroDivisionError)
+    try: raise exc_var
+    except ZeroDivisionError as e:
+        if cython.compiled: assert cython.typeof(e) == 'ZeroDivisionError object', cython.typeof(e)
+    else: assert False, 'exception ZeroDivisionError not caught'
     assert isinstance(exc, BaseException)
     assert ZeroDivisionError in type(exc).__mro__
     assert isinstance(exc, ZeroDivisionError)
