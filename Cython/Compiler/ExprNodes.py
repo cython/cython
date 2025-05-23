@@ -592,10 +592,12 @@ class ExprNode(Node):
         (e.g. enums)
         """
         c_result = self.get_constant_c_result_code()
-        if c_result is not None:
+        if c_result is None:
+            error(self.pos, "Exception value must be constant")
+            return None, None
             # Using the C result string isn't the preferred fallback because it can end up
             # hard to distinguish between identical types, e.g. -1.0 vs -1
-            # for floats. However, it lets things like NULL and typecasts work
+            # for floats. However, it lets things like NULL and typecasts work.
             py_result = self.constant_result if self.has_constant_result() else c_result
             if py_result != py_result or c_result == "NAN":
                 most_likely = ""
