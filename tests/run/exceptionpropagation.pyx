@@ -1,3 +1,5 @@
+from libc.math cimport NAN
+
 cdef int CHKERR(int ierr) except -1:
     if ierr==0: return 0
     raise RuntimeError
@@ -213,6 +215,7 @@ def test_return_char(fail):
 
 
 DEF infty = float("inf")
+DEF nan = float("nan")
 
 cdef double fail_with_infinity(fail) except infty:
     if fail:
@@ -228,5 +231,41 @@ def test_fail_with_infinity(fail):
     """
     try:
         return fail_with_infinity(fail)
+    except RuntimeError:
+        print("exception")
+
+# NaN is tricky because NaN != NaN
+
+cdef double fail_with_nan1(fail) except nan:  # Cython knows this is NaN
+    if fail:
+        raise RuntimeError()
+    return 0
+
+cdef double fail_with_nan2(fail) except NAN:  # Cython doesn't know this is NaN because it's an extern constant
+    if fail:
+        raise RuntimeError()
+    return 0
+
+def test_fail_with_nan1(fail):
+    """
+    >>> test_fail_with_nan1(False)
+    0.0
+    >>> test_fail_with_nan1(True)
+    exception
+    """
+    try:
+        return fail_with_nan1(fail)
+    except RuntimeError:
+        print("exception")
+
+def test_fail_with_nan2(fail):
+    """
+    >>> test_fail_with_nan2(False)
+    0.0
+    >>> test_fail_with_nan2(True)
+    exception
+    """
+    try:
+        return fail_with_nan2(fail)
     except RuntimeError:
         print("exception")
