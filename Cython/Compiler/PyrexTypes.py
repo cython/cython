@@ -1509,6 +1509,8 @@ class BuiltinObjectType(PyObjectType):
             type_check = '__Pyx_PyException_Check'
         elif type_name == 'BaseException':
             type_check = '__Pyx_PyBaseException_Check'
+        elif type_name == 'BaseExceptionGroup':
+            type_check = '__Pyx_PyBaseExceptionGroup_Check'
         elif type_name == 'bytearray':
             type_check = 'PyByteArray_Check'
         elif type_name == 'frozenset':
