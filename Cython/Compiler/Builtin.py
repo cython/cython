@@ -788,7 +788,7 @@ def init_builtin_exceptions():
             name=f"Py{name}_Check",
         )
         builtin_types[name] = builtin_scope.declare_builtin_type(
-            name, f"PyExc_{name}", utility_code=utility_code)
+            name, f"((PyTypeObject*)PyExc_{name})", utility_code=utility_code)
 
 
 def init_builtin_structs():
