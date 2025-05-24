@@ -3109,11 +3109,11 @@ class CFuncType(CType):
             # only the python_repr is used for equality comparison. This allows
             # things like "-1 == -1.0" to be treated as the same function signature
             return self.python_repr == other.python_repr
-        
+
         def __str__(self):
             # repr is used in code-generation
             return str(self.c_repr)
-        
+
         def is_or_may_be_nan(self):
             # only meaningful where we know the type is point
             if not isinstance(self.python_repr, float):
