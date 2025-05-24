@@ -502,6 +502,28 @@ def loop_over_unicode_literal():
         pass
     return typeof(uchar)
 
+
+def loop_over_sequence_literal():
+    """
+    >>> loop_over_sequence_literal()
+    """
+    for tuple_str_item in ("abc", "", "x"):
+        pass
+    assert typeof(tuple_str_item) == 'str object', typeof(tuple_str_item)
+
+    for list_str_item in ["abc", "", "x"]:
+        pass
+    assert typeof(list_str_item) == 'str object', typeof(list_str_item)
+
+    for set_str_item in {"abc", "", "x"}:
+        pass
+    assert typeof(set_str_item) == 'str object', typeof(set_str_item)
+
+    for list_mixed_item in ["abc", b'', "x", None]:
+        pass
+    assert typeof(list_mixed_item) == 'Python object', typeof(list_mixed_item)
+
+
 def loop_over_int_array():
     """
     >>> print( loop_over_int_array() )
