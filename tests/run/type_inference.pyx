@@ -128,7 +128,7 @@ def indexing():
     b = b"abc"
     assert typeof(b) == "bytes object", typeof(b)
     b1 = b[1]
-    assert typeof(b1) == "Python object", typeof(b1)
+    assert typeof(b1) == "unsigned char", typeof(b1)
 
     u = u"xyz"
     assert typeof(u) == "str object", typeof(u)
@@ -454,7 +454,7 @@ def loop_over_charptr():
 def loop_over_bytes_literal():
     """
     >>> print( loop_over_bytes_literal() )
-    Python object
+    unsigned char
     """
     for c in b'abcdefg':
         pass
@@ -463,7 +463,7 @@ def loop_over_bytes_literal():
 def loop_over_bytes():
     """
     >>> print( loop_over_bytes() )
-    Python object
+    unsigned char
     """
     cdef bytes bytes_string = b'abcdefg'
     # bytes in Py2, int in Py3

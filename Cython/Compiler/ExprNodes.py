@@ -4085,7 +4085,7 @@ class IndexNode(_IndexingBaseNode):
                 # to receive it, throw it away, and potentially rebuild it
                 # on a subsequent PyObject coercion.
                 return PyrexTypes.c_py_ucs4_type
-            elif base_type is bytearray_type or self.base is bytes_type:
+            elif base_type is bytearray_type or base_type is bytes_type:
                 return PyrexTypes.c_uchar_type
             elif base_type in (tuple_type, list_type):
                 # if base is a literal, take a look at its values
