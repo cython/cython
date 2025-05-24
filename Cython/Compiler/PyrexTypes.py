@@ -3075,8 +3075,7 @@ class CFuncType(CType):
     #  return_type      CType
     #  args             [CFuncTypeArg]
     #  has_varargs      boolean
-    #  exception_value  object
-    #  exception_c_repr string
+    #  exception_value  CFuncType.ExceptionValue or Node (for except+)
     #  exception_check  boolean    True if PyErr_Occurred check needed
     #  calling_convention  string  Function calling convention
     #  nogil            boolean    Can be called without gil
@@ -3099,8 +3098,32 @@ class CFuncType(CType):
 
     subtypes = ['return_type', 'args']
 
+    class ExceptionValue:
+        def __init__(self, python_repr, c_repr):
+            self.python_repr = python_repr
+            self.c_repr = c_repr
+
+        def __eq__(self, other):
+            if not isinstance(other, CFuncType.ExceptionValue):
+                return NotImplemented
+            # only the python_repr is used for equality comparison. This allows
+            # things like "-1 == -1.0" to be treated as the same function signature
+            return self.python_repr == other.python_repr
+        
+        def __str__(self):
+            # repr is used in code-generation
+            return str(self.c_repr)
+        
+        def is_or_may_be_nan(self):
+            # only meaningful where we know the type is point
+            if not isinstance(self.python_repr, float):
+                # an string representing an unknown C constant that might be NaN
+                return True
+            # a known constant that evaluates to NaN
+            return self.python_repr != self.python_repr
+
     def __init__(self, return_type, args, has_varargs = 0,
-            exception_value = None, exception_c_repr = None, exception_check = 0, calling_convention = "",
+            exception_value = None, exception_check = 0, calling_convention = "",
             nogil = 0, with_gil = 0, is_overridable = 0, optional_arg_count = 0,
             is_const_method = False, is_static_method=False,
             templates = None, is_strict_signature = False):
@@ -3108,10 +3131,11 @@ class CFuncType(CType):
         self.args = args
         self.has_varargs = has_varargs
         self.optional_arg_count = optional_arg_count
+        if isinstance(exception_value, (int, float, str, bytes)):
+            # happens within Cython itself when writing custom function types
+            # for utility code functions.
+            exception_value = CFuncType.ExceptionValue(exception_value, str(exception_value))
         self.exception_value = exception_value
-        if exception_c_repr is None and exception_value is not None:
-            exception_c_repr = exception_value
-        self.exception_c_repr = exception_c_repr
         self.exception_check = exception_check
         self.calling_convention = calling_convention
         self.nogil = nogil
@@ -3406,7 +3430,6 @@ class CFuncType(CType):
                            [arg.specialize(values) for arg in self.args],
                            has_varargs = self.has_varargs,
                            exception_value = self.exception_value,
-                           exception_c_repr = self.exception_c_repr,
                            exception_check = self.exception_check,
                            calling_convention = self.calling_convention,
                            nogil = self.nogil,

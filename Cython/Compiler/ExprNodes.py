@@ -585,7 +585,7 @@ class ExprNode(Node):
 
     def as_exception_value(self, env):
         """
-        Returns a tuple of (py_repr, c_repr)
+        Returns a PyrexTypes.CFuncType.ExceptionValue (or None)
 
         py_repr can be either a Python constant or a string
         for types that can't be represented by a Python constant
@@ -594,12 +594,12 @@ class ExprNode(Node):
         c_result = self.get_constant_c_result_code()
         if c_result is None:
             error(self.pos, "Exception value must be constant")
-            return None, None
+            return None
         # Using the C result string isn't the preferred fallback because it can end up
         # hard to distinguish between identical types, e.g. -1.0 vs -1
         # for floats. However, it lets things like NULL and typecasts work.
         py_result = self.constant_result if self.has_constant_result() else c_result
-        return py_result, c_result
+        return PyrexTypes.CFuncType.ExceptionValue(py_result, c_result)
 
     # ------------- Declaration Analysis ----------------
 
@@ -6562,7 +6562,7 @@ class SimpleCallNode(CallNode):
                 assert self.is_temp
                 exc_checks.append(self.type.error_condition(self.result()))
             elif func_type.exception_check != '+':
-                exc_val = func_type.exception_c_repr
+                exc_val = func_type.exception_value
                 exc_check = func_type.exception_check
                 if exc_val is not None:
                     typed_exc_val = func_type.return_type.cast_code(exc_val)
@@ -6570,11 +6570,7 @@ class SimpleCallNode(CallNode):
                         code.globalstate.use_utility_code(UtilityCode.load_cached(
                             "IncludeStringH", "StringTools.c"))
                         exc_checks.append(f"memcmp(&{self.result()}, &{typed_exc_val}, sizeof({self.result()})) == 0")
-                    elif (self.type.is_float and (
-                            # if it isn't a Python float, it's an unknown constant
-                            not isinstance(exc_val, float) or
-                            # NaN does not compare equal to itself
-                            exc_val != exc_val)):
+                    elif self.type.is_float and exc_val.is_or_may_be_nan():
                         # for floats, we may need to handle comparison with NaN
                         code.globalstate.use_utility_code(
                             UtilityCode.load_cached("FloatExceptionCheck", "Exceptions.c"))
