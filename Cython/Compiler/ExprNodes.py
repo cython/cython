@@ -151,7 +151,7 @@ def infer_sequence_item_type(env, seq_node, index_node=None, seq_type=None):
                     seq_node = seq_node.cf_state[0].rhs
                 except AttributeError:
                     pass
-    if seq_node is not None and seq_node.is_sequence_constructor:
+    if seq_node is not None and (seq_node.is_sequence_constructor or seq_node.is_set_literal):
         if index_node is not None and index_node.has_constant_result():
             try:
                 item = seq_node.args[index_node.constant_result]
@@ -4093,7 +4093,7 @@ class IndexNode(_IndexingBaseNode):
                 return PyrexTypes.c_py_ucs4_type
             elif base_type is bytearray_type or base_type is bytes_type:
                 return PyrexTypes.c_uchar_type
-            elif base_type in (tuple_type, list_type):
+            elif base_type in (tuple_type, list_type, set_type):
                 # if base is a literal, take a look at its values
                 item_type = infer_sequence_item_type(
                     env, self.base, self.index, seq_type=base_type)
