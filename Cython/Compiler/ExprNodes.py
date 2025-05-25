@@ -599,7 +599,7 @@ class ExprNode(Node):
         # hard to distinguish between identical types, e.g. -1.0 vs -1
         # for floats. However, it lets things like NULL and typecasts work.
         py_result = self.constant_result if self.has_constant_result() else c_result
-        return PyrexTypes.CFuncType.ExceptionValue(py_result, c_result)
+        return PyrexTypes.CFuncType.ExceptionValue(py_result, c_result, self.type)
 
     # ------------- Declaration Analysis ----------------
 
@@ -6565,18 +6565,7 @@ class SimpleCallNode(CallNode):
                 exc_val = func_type.exception_value
                 exc_check = func_type.exception_check
                 if exc_val is not None:
-                    typed_exc_val = func_type.return_type.cast_code(exc_val)
-                    if func_type.return_type.is_ctuple:
-                        code.globalstate.use_utility_code(UtilityCode.load_cached(
-                            "IncludeStringH", "StringTools.c"))
-                        exc_checks.append(f"memcmp(&{self.result()}, &{typed_exc_val}, sizeof({self.result()})) == 0")
-                    elif self.type.is_float and exc_val.may_be_nan():
-                        # for floats, we may need to handle comparison with NaN
-                        code.globalstate.use_utility_code(
-                            UtilityCode.load_cached("FloatExceptionCheck", "Exceptions.c"))
-                        exc_checks.append(f"__PYX_CHECK_FLOAT_EXCEPTION({self.result()}, {typed_exc_val})")
-                    else:
-                        exc_checks.append(f"{self.result()} == {typed_exc_val}")
+                    exc_checks.append(exc_val.exception_test_code(self.result(), code))
                 if exc_check:
                     if nogil:
                         if not exc_checks:
