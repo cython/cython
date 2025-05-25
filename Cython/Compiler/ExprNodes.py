@@ -587,8 +587,8 @@ class ExprNode(Node):
         """
         Returns a PyrexTypes.CFuncType.ExceptionValue (or None)
 
-        py_repr can be either a Python constant or a string
-        for types that can't be represented by a Python constant
+        The python_value attribute of the result can be either a Python constant
+        or a string for types that can't be represented by a Python constant
         (e.g. enums)
         """
         c_result = self.get_constant_c_result_code()
@@ -6570,7 +6570,7 @@ class SimpleCallNode(CallNode):
                         code.globalstate.use_utility_code(UtilityCode.load_cached(
                             "IncludeStringH", "StringTools.c"))
                         exc_checks.append(f"memcmp(&{self.result()}, &{typed_exc_val}, sizeof({self.result()})) == 0")
-                    elif self.type.is_float and exc_val.is_or_may_be_nan():
+                    elif self.type.is_float and exc_val.may_be_nan():
                         # for floats, we may need to handle comparison with NaN
                         code.globalstate.use_utility_code(
                             UtilityCode.load_cached("FloatExceptionCheck", "Exceptions.c"))

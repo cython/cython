@@ -3099,28 +3099,28 @@ class CFuncType(CType):
     subtypes = ['return_type', 'args']
 
     class ExceptionValue:
-        def __init__(self, python_repr, c_repr):
-            self.python_repr = python_repr
+        def __init__(self, python_value, c_repr):
+            self.python_value = python_value
             self.c_repr = c_repr
 
         def __eq__(self, other):
             if not isinstance(other, CFuncType.ExceptionValue):
                 return NotImplemented
-            # only the python_repr is used for equality comparison. This allows
+            # only the python_value is used for equality comparison. This allows
             # things like "-1 == -1.0" to be treated as the same function signature
-            return self.python_repr == other.python_repr
+            return self.python_value == other.python_value
 
         def __str__(self):
             # repr is used in code-generation
             return str(self.c_repr)
 
-        def is_or_may_be_nan(self):
+        def may_be_nan(self):
             # only meaningful where we know the type is point
-            if not isinstance(self.python_repr, float):
+            if not isinstance(self.python_value, float):
                 # an string representing an unknown C constant that might be NaN
                 return True
             # a known constant that evaluates to NaN
-            return self.python_repr != self.python_repr
+            return self.python_value != self.python_value
 
     def __init__(self, return_type, args, has_varargs = 0,
             exception_value = None, exception_check = 0, calling_convention = "",
@@ -3131,10 +3131,11 @@ class CFuncType(CType):
         self.args = args
         self.has_varargs = has_varargs
         self.optional_arg_count = optional_arg_count
-        if isinstance(exception_value, (int, float, str, bytes)):
+        if (exception_value is not None and exception_check != '+' and
+                not isinstance(exception_value, self.ExceptionValue)):
             # happens within Cython itself when writing custom function types
             # for utility code functions.
-            exception_value = CFuncType.ExceptionValue(exception_value, str(exception_value))
+            exception_value = self.ExceptionValue(exception_value, str(exception_value))
         self.exception_value = exception_value
         self.exception_check = exception_check
         self.calling_convention = calling_convention
