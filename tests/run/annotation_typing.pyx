@@ -449,6 +449,26 @@ def pytypes_multi_union(a: Union[list, tuple, None], b: list | tuple | None):
     print((typeof(a), typeof(b)))
     return [a, b]
 
+def optional_py_bool(a: Optional[bool]):
+    """
+    >>> optional_py_bool(True)
+    True
+    >>> optional_py_bool(None)
+    """
+    return a
+
+ctypedef bint c_bool
+
+# Mostly a code-generation test. Although this doesn't quite make sense, it should
+# compile in some form.
+def optional_c_bool(a: Optional[c_bool]):
+    """
+    >>> optional_c_bool(True)
+    True
+    >>> optional_c_bool(None)
+    """
+    return a
+
 _WARNINGS = """
 15:32: Strings should no longer be used for type declarations. Use 'cython.int' etc. directly.
 15:47: Dicts should no longer be used as type annotations. Use 'cython.int' etc. directly.
@@ -472,6 +492,7 @@ _WARNINGS = """
 346:15: Annotation ignored since class-level attributes must be Python objects. Were you trying to set up an instance attribute?
 437:32: Unknown type declaration in annotation, ignoring
 437:69: Unknown type declaration in annotation, ignoring
+452:32: Unknown type declaration in annotation, ignoring
 # DUPLICATE:
 75:44: Found C type name 'long' in a Python annotation. Did you mean to use 'cython.long'?
 75:44: Unknown type declaration 'long' in annotation, ignoring
