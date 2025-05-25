@@ -4,7 +4,7 @@
 
 
 from .StringEncoding import EncodedString
-from .Symtab import BuiltinScope, StructOrUnionScope, ModuleScope, Entry
+from .Symtab import BuiltinScope, CClassScope, StructOrUnionScope, ModuleScope, Entry
 from .Code import UtilityCode, TempitaUtilityCode
 from .TypeSlots import Signature
 from . import PyrexTypes
@@ -817,6 +817,8 @@ def init_builtins():
     # which is apparently a special case because it conflicts with C++ bool.
     # Here, we only declare it as builtin name, not as actual type.
     bool_type = PyrexTypes.BuiltinObjectType(EncodedString('bool'), "((PyObject*)&PyBool_Type)", "PyLongObject")
+    scope = CClassScope('bool', outer_scope=None, visibility='extern', parent_type=bool_type)
+    bool_type.set_scope(scope)
     bool_type.is_final_type = True
     bool_type.entry = builtin_scope.declare_var(EncodedString('bool'), bool_type, pos=None, cname="((PyObject*)&PyBool_Type)")
     builtin_types['bool'] = bool_type
