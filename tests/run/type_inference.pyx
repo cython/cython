@@ -503,9 +503,9 @@ def loop_over_unicode_literal():
     return typeof(uchar)
 
 
-def loop_over_sequence_literal():
+def loop_over_sequence_literal_str():
     """
-    >>> loop_over_sequence_literal()
+    >>> loop_over_sequence_literal_str()
     """
     for tuple_str_item in ("abc", "", "x"):
         pass
@@ -519,9 +519,73 @@ def loop_over_sequence_literal():
         pass
     assert typeof(set_str_item) == 'str object', typeof(set_str_item)
 
+
+def loop_over_sequence_literal_with_none():
+    """
+    >>> loop_over_sequence_literal_with_none()
+    """
+    for tuple_str_item in ("abc", "", None, "x"):
+        pass
+    assert typeof(tuple_str_item) == 'str object', typeof(tuple_str_item)
+
+    for list_str_item in ["abc", "", "x", None]:
+        pass
+    assert typeof(list_str_item) == 'str object', typeof(list_str_item)
+
+    for set_str_item in {None, "abc", "", "x"}:
+        pass
+    assert typeof(set_str_item) == 'str object', typeof(set_str_item)
+
+
+def loop_over_sequence_literal_int():
+    """
+    >>> loop_over_sequence_literal_int()
+    """
+    for tuple_int_item in (1, 2, 3, 4):
+        pass
+    assert typeof(tuple_int_item) == 'long', typeof(tuple_int_item)
+
+    for list_int_item in [1, 2, 3, 4]:
+        pass
+    assert typeof(list_int_item) == 'long', typeof(list_int_item)
+
+    for set_int_item in {1, 2, 3, 4}:
+        pass
+    assert typeof(set_int_item) == 'long', typeof(set_int_item)
+
+
+def loop_over_sequence_literal_float():
+    """
+    >>> loop_over_sequence_literal_float()
+    """
+    for tuple_float_item in (1., 2., 3., 4.):
+        pass
+    assert typeof(tuple_float_item) == 'double', typeof(tuple_float_item)
+
+    for list_float_item in [1., 2., 3., 4.]:
+        pass
+    assert typeof(list_float_item) == 'double', typeof(list_float_item)
+
+    for set_float_item in {1., 2., 3., 4.}:
+        pass
+    assert typeof(set_float_item) == 'double', typeof(set_float_item)
+
+
+def loop_over_sequence_literal_mixed():
+    """
+    >>> loop_over_sequence_literal_mixed()
+    """
+    for tuple_mixed_item in ("abc", b'', "x", None):
+        pass
+    assert typeof(tuple_mixed_item) == 'Python object', typeof(tuple_mixed_item)
+
     for list_mixed_item in ["abc", b'', "x", None]:
         pass
     assert typeof(list_mixed_item) == 'Python object', typeof(list_mixed_item)
+
+    for set_mixed_item in {"abc", b'', "x", None}:
+        pass
+    assert typeof(set_mixed_item) == 'Python object', typeof(set_mixed_item)
 
 
 def loop_over_int_array():
