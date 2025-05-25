@@ -584,19 +584,22 @@ class ExprNode(Node):
             e.__class__.__name__, e))
 
     def as_exception_value(self, env):
-        # Return the constant Python value if possible.
-        # This can be either a Python constant or a string
-        # for types that can't be represented by a Python constant
-        # (e.g. enums)
-        if self.has_constant_result():
-            return self.constant_result
-        # this isn't the preferred fallback because it can end up
+        """
+        Returns a PyrexTypes.CFuncType.ExceptionValue (or None)
+
+        py_repr can be either a Python constant or a string
+        for types that can't be represented by a Python constant
+        (e.g. enums)
+        """
+        c_result = self.get_constant_c_result_code()
+        if c_result is None:
+            error(self.pos, "Exception value must be constant")
+            return None
+        # Using the C result string isn't the preferred fallback because it can end up
         # hard to distinguish between identical types, e.g. -1.0 vs -1
-        # for floats. However, it lets things like NULL and typecasts work
-        result = self.get_constant_c_result_code()
-        if result is not None:
-            return result
-        error(self.pos, "Exception value must be constant")
+        # for floats. However, it lets things like NULL and typecasts work.
+        py_result = self.constant_result if self.has_constant_result() else c_result
+        return PyrexTypes.CFuncType.ExceptionValue(py_result, c_result)
 
     # ------------- Declaration Analysis ----------------
 
@@ -6559,6 +6562,11 @@ class SimpleCallNode(CallNode):
                         code.globalstate.use_utility_code(UtilityCode.load_cached(
                             "IncludeStringH", "StringTools.c"))
                         exc_checks.append(f"memcmp(&{self.result()}, &{typed_exc_val}, sizeof({self.result()})) == 0")
+                    elif self.type.is_float and exc_val.is_or_may_be_nan():
+                        # for floats, we may need to handle comparison with NaN
+                        code.globalstate.use_utility_code(
+                            UtilityCode.load_cached("FloatExceptionCheck", "Exceptions.c"))
+                        exc_checks.append(f"__PYX_CHECK_FLOAT_EXCEPTION({self.result()}, {typed_exc_val})")
                     else:
                         exc_checks.append(f"{self.result()} == {typed_exc_val}")
                 if exc_check:
