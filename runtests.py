@@ -2261,7 +2261,7 @@ def main():
             args.append(arg)
 
     from argparse import ArgumentParser
-    parser = ArgumentParser(usage="usage: %prog [options] [selector ...]")
+    parser = ArgumentParser(usage="usage: %(prog)s [options] [selector ...]")
     parser.add_argument(
         "--no-cleanup", dest="cleanup_workdir",
         action="store_false", default=True,
