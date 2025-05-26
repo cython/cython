@@ -3123,7 +3123,6 @@ class CFuncType(CType):
                 return True
             # a known constant that evaluates to NaN
             return self.python_value != self.python_value
-        
         def exception_test_code(self, result_cname, code) -> str:
             typed_exc_val = self.type.cast_code(str(self))
             if self.type.is_ctuple:
