@@ -3112,17 +3112,18 @@ class CFuncType(CType):
             return self.python_value == other.python_value
 
         def __str__(self):
-            # repr is used in code-generation
+            # Called for C code generation.
             return str(self.c_repr)
 
         def may_be_nan(self):
             if not self.type.is_float:
                 return False
             if not isinstance(self.python_value, float):
-                # an string representing an unknown C constant that might be NaN
+                # A string representing an unknown C constant that might be NaN.
                 return True
             # a known constant that evaluates to NaN
             return self.python_value != self.python_value
+
         def exception_test_code(self, result_cname, code) -> str:
             typed_exc_val = self.type.cast_code(str(self))
             if self.type.is_ctuple:
