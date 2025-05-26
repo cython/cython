@@ -2400,6 +2400,8 @@ def main():
                       help="do not capture stdout, stderr in srctree tests. Makes pdb.set_trace interactive")
     parser.add_option("--limited-api", dest="limited_api", default=False, action="store_true",
                       help="Compiles Cython using CPython's LIMITED_API")
+    parser.add_option("--limited-api-version", dest="limited_api_version", default="", action="store",
+                      help="Run Limited API tests with a specific version (e.g. '3.11')")
 
     options, cmd_args = parser.parse_args(args)
 
@@ -2682,9 +2684,27 @@ def runtests(options, cmd_args, coverage=None):
             refnanny = import_refnanny()
         CDEFS.append(('CYTHON_REFNANNY', '1'))
 
-    if options.limited_api:
-        CDEFS.append(('CYTHON_LIMITED_API', '1'))
-        CDEFS.append(("Py_LIMITED_API", '(PY_VERSION_HEX & 0xffff0000)'))
+    sys_version_or_limited_version = sys.version_info
+    if options.limited_api or options.limited_api_version:
+        options.limited_api = True
+        if options.limited_api_version:
+            limited_api_version = re.match(r"^(\d+)[.](\d+)$", options.limited_api_version)
+            if not limited_api_version:
+                sys.stderr.write('Limited version string should be in the form "3.11"\n')
+                exit(1)
+            limited_api_major_version = int(limited_api_version.group(1))
+            limited_api_minor_version = int(limited_api_version.group(2))
+            CDEFS.append((
+                "Py_LIMITED_API",
+                f"0x{limited_api_major_version:02x}{limited_api_minor_version:02x}0000")
+            )
+            sys_version_or_limited_version = (
+                limited_api_major_version,
+                limited_api_minor_version,
+                0
+            )
+        else:
+            CDEFS.append(("Py_LIMITED_API", '(PY_VERSION_HEX & 0xffff0000)'))
         CFLAGS.append('-Wno-unused-function')
 
     if WITH_CYTHON:
@@ -2744,7 +2764,7 @@ def runtests(options, cmd_args, coverage=None):
             ('pypy_implementation_detail_bugs.txt', IS_PYPY),
             ('graal_bugs.txt', IS_GRAAL),
             ('limited_api_bugs.txt', options.limited_api),
-            ('limited_api_bugs_38.txt', options.limited_api and sys.version_info < (3, 9)),
+            ('limited_api_bugs_38.txt', options.limited_api and sys_version_or_limited_version < (3, 9)),
             ('windows_bugs.txt', sys.platform == 'win32'),
             ('cygwin_bugs.txt', sys.platform == 'cygwin'),
             ('windows_bugs_39.txt', sys.platform == 'win32' and sys.version_info[:2] == (3, 9)),
@@ -2756,7 +2776,7 @@ def runtests(options, cmd_args, coverage=None):
             for bugs_file_name, condition in bug_files if condition
         ]
 
-    if sys.version_info < (3, 11) and options.limited_api:
+    if sys_version_or_limited_version < (3, 11) and options.limited_api:
         # exclude everything with memoryviews in since this is a big
         # missing feature from the limited API in these versions
         exclude_selectors += [
