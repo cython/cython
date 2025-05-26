@@ -3118,7 +3118,7 @@ class CFuncType(CType):
         def may_be_nan(self):
             if not self.type.is_float:
                 return False
-            if not isinstance(self.python_value, float):
+            if not isinstance(self.python_value, (int, float)):
                 # A string representing an unknown C constant that might be NaN.
                 return True
             # a known constant that evaluates to NaN
