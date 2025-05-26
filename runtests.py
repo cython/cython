@@ -2335,8 +2335,10 @@ def main():
         help="do not regression test reference counting")
     parser.add_argument(
         "--no-fork", dest="fork",
-        action="store_false", default=True, deprecated=True,
-        help="does nothing, argument kept for compatibility only")
+        action="store_false", default=True,
+        help="does nothing, argument kept for compatibility only",
+        # 'deprecated' added in Python 3.13
+        **({'deprecated': True} if sys.version_info >= (3, 13) else {}))
     parser.add_argument(
         "--sys-pyregr", dest="system_pyregr",
         action="store_true", default=False,
