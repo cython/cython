@@ -2738,24 +2738,21 @@ def runtests(options, cmd_args, coverage=None):
 
     sys_version_or_limited_version = sys.version_info
     if options.limited_api:
-        if options.limited_api is True:
-            CDEFS.append(("Py_LIMITED_API", '(PY_VERSION_HEX & 0xffff0000)'))
-        else:
-            limited_api_version = re.match(r"^(\d+)[.](\d+)$", options.limited_api)
-            if not limited_api_version:
-                sys.stderr.write('Limited API version string should be in the form "3.11"\n')
-                exit(1)
-            limited_api_major_version = int(limited_api_version.group(1))
-            limited_api_minor_version = int(limited_api_version.group(2))
-            CDEFS.append((
-                "Py_LIMITED_API",
-                f"0x{limited_api_major_version:02x}{limited_api_minor_version:02x}0000")
-            )
-            sys_version_or_limited_version = (
-                limited_api_major_version,
-                limited_api_minor_version,
-                0
-            )
+        limited_api_version = re.match(r"^(\d+)[.](\d+)$", options.limited_api)
+        if not limited_api_version:
+            sys.stderr.write('Limited API version string should be in the form "3.11"\n')
+            exit(1)
+        limited_api_major_version = int(limited_api_version.group(1))
+        limited_api_minor_version = int(limited_api_version.group(2))
+        CDEFS.append((
+            "Py_LIMITED_API",
+            f"0x{limited_api_major_version:02x}{limited_api_minor_version:02x}0000")
+        )
+        sys_version_or_limited_version = (
+            limited_api_major_version,
+            limited_api_minor_version,
+            0
+        )
         CFLAGS.append('-Wno-unused-function')
 
     if WITH_CYTHON:
