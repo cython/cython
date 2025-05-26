@@ -3075,7 +3075,7 @@ class CFuncType(CType):
     #  return_type      CType
     #  args             [CFuncTypeArg]
     #  has_varargs      boolean
-    #  exception_value  string
+    #  exception_value  CFuncType.ExceptionValue or Node (for except+)
     #  exception_check  boolean    True if PyErr_Occurred check needed
     #  calling_convention  string  Function calling convention
     #  nogil            boolean    Can be called without gil
@@ -3098,6 +3098,46 @@ class CFuncType(CType):
 
     subtypes = ['return_type', 'args']
 
+    class ExceptionValue:
+        def __init__(self, python_value, c_repr, type):
+            self.python_value = python_value
+            self.c_repr = c_repr
+            self.type = type
+
+        def __eq__(self, other):
+            if not isinstance(other, CFuncType.ExceptionValue):
+                return NotImplemented
+            # only the python_value is used for equality comparison. This allows
+            # things like "-1 == -1.0" to be treated as the same function signature
+            return self.python_value == other.python_value
+
+        def __str__(self):
+            # Called for C code generation.
+            return str(self.c_repr)
+
+        def may_be_nan(self):
+            if not self.type.is_float:
+                return False
+            if not isinstance(self.python_value, (int, float)):
+                # A string representing an unknown C constant that might be NaN.
+                return True
+            # a known constant that evaluates to NaN
+            return self.python_value != self.python_value
+
+        def exception_test_code(self, result_cname, code) -> str:
+            typed_exc_val = self.type.cast_code(str(self))
+            if self.type.is_ctuple:
+                code.globalstate.use_utility_code(UtilityCode.load_cached(
+                            "IncludeStringH", "StringTools.c"))
+                return f"memcmp(&{result_cname}, &{typed_exc_val}, sizeof({result_cname})) == 0"
+            elif self.may_be_nan():
+                # for floats, we may need to handle comparison with NaN
+                code.globalstate.use_utility_code(
+                        UtilityCode.load_cached("FloatExceptionCheck", "Exceptions.c"))
+                return f"__PYX_CHECK_FLOAT_EXCEPTION({result_cname}, {typed_exc_val})"
+            else:
+                return f"{result_cname} == {typed_exc_val}"
+
     def __init__(self, return_type, args, has_varargs = 0,
             exception_value = None, exception_check = 0, calling_convention = "",
             nogil = 0, with_gil = 0, is_overridable = 0, optional_arg_count = 0,
@@ -3107,6 +3147,12 @@ class CFuncType(CType):
         self.args = args
         self.has_varargs = has_varargs
         self.optional_arg_count = optional_arg_count
+        if (exception_value is not None and exception_check != '+' and
+                not isinstance(exception_value, self.ExceptionValue)):
+            # happens within Cython itself when writing custom function types
+            # for utility code functions.
+            exception_value = self.ExceptionValue(
+                exception_value, str(exception_value), return_type)
         self.exception_value = exception_value
         self.exception_check = exception_check
         self.calling_convention = calling_convention

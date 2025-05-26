@@ -1010,3 +1010,11 @@ bad:
     Py_XDECREF(py_frame);
 }
 #endif
+
+///////////////////////////// FloatExceptionCheck.proto ///////////////////////////
+
+// Detect if error_value is NaN, and use a different check in that case
+#define __PYX_CHECK_FLOAT_EXCEPTION(value, error_value) \
+    ((error_value) == (error_value) ? \
+     (value) == (error_value) : \
+     (value) != (value))

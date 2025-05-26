@@ -179,3 +179,35 @@ def test_nested(x):
     if isinstance(a[0], (int, float)):
         return True
     return False
+
+
+def test_exceptions(exc):
+    """
+    >>> test_exceptions(AttributeError('aha'))
+    'A:AttributeError'
+    >>> test_exceptions(ValueError(123))
+    'ValueError'
+    >>> test_exceptions(IndexError(321))
+    'IndexError'
+    >>> test_exceptions(RuntimeError("message"))
+    'RuntimeError'
+    >>> test_exceptions(OSError("eye oh"))
+    'OSError'
+    >>> test_exceptions(TypeError("message"))
+    'E:TypeError'
+    """
+    try:
+        if exc is not None:
+            raise exc
+    except ValueError:
+        return "ValueError"
+    except AttributeError as e:
+        return f"A:{type(e).__name__}"
+    except Exception as e:
+        if isinstance(e, IndexError):
+            return "IndexError"
+        if isinstance(e, RuntimeError):
+            return "RuntimeError"
+        if type(e) is OSError:
+            return "OSError"
+        return f"E:{type(e).__name__}"
