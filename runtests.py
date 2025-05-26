@@ -2448,7 +2448,7 @@ def main():
         help="do not capture stdout, stderr in srctree tests. Makes pdb.set_trace interactive")
     parser.add_argument(
         "--limited-api", dest="limited_api", nargs='?', default=False, const=True, action="store",
-        help="Compiles Cython using CPython's LIMITED_API")
+        help="Compiles Cython using CPython's LIMITED_API. You can optional specify a version in the form '3.11'")
     parser.add_argument('cmd_args', nargs='*')
 
     options = parser.parse_args(args)
