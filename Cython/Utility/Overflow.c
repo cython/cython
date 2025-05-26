@@ -361,7 +361,7 @@ static CYTHON_INLINE {{TYPE}} __Pyx_{{BINOP}}_{{NAME}}_checking_overflow({{TYPE}
             return ({{TYPE}}) __Pyx_{{BINOP}}_unsigned_long_long_checking_overflow(a, b, overflow);
 #endif
         } else {
-            abort(); return 0; /* handled elsewhere */
+            Py_FatalError("Please report this as a bug in Cython - this code path should not be executed"); return 0; /* handled elsewhere */
         }
     } else {
         if ((sizeof({{TYPE}}) == sizeof(int))) {
@@ -373,7 +373,7 @@ static CYTHON_INLINE {{TYPE}} __Pyx_{{BINOP}}_{{NAME}}_checking_overflow({{TYPE}
             return ({{TYPE}}) __Pyx_{{BINOP}}_long_long_checking_overflow(a, b, overflow);
 #endif
         } else {
-            abort(); return 0; /* handled elsewhere */
+            Py_FatalError("Please report this as a bug in Cython - this code path should not be executed"); return 0; /* handled elsewhere */
         }
     }
 }
