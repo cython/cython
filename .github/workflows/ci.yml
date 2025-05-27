@@ -369,7 +369,7 @@ jobs:
           LIMITED_API=--with-limited
           for PYTHON in  python3.14  python3.13  python3.13t  python3.12  python3.10  ; do
               ${PYTHON} -m pip install setuptools
-              if [[ ${PYTHON} == *t ]]; then
+              if [[ ${PYTHON} == *t || ${PYTHON} == *"t-dev" ]]; then
                 COMMITS=("origin/master"  "HEAD")
                 CYTHONIZE_ARGS="-Xfreethreading_compatible=True'"
               else
