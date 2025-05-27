@@ -1,10 +1,16 @@
 # mode: run
 
 """
+>>> int
+<class 'int'>
 >>> issubclass(Int, int)
 True
+>>> float
+<class 'float'>
 >>> issubclass(Float, float)
 True
+>>> complex
+<class 'complex'>
 >>> issubclass(Complex, complex)
 True
 

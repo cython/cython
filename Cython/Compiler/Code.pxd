@@ -2,7 +2,11 @@ cimport cython
 from ..StringIOTree cimport StringIOTree
 
 
-cdef class UtilityCodeBase(object):
+cdef class AbstractUtilityCode:
+    pass
+
+
+cdef class UtilityCodeBase(AbstractUtilityCode):
     cpdef format_code(self, code_string, replace_empty_lines=*)
 
 
@@ -13,12 +17,19 @@ cdef class UtilityCode(UtilityCodeBase):
     cdef public object init
     cdef public object cleanup
     cdef public object proto_block
+    cdef public object module_state_decls
+    cdef public object module_state_traverse
+    cdef public object module_state_clear
     cdef public object requires
     cdef public dict _cache
     cdef public list specialize_list
     cdef public object file
+    cdef public tuple _parts_tuple
 
     cpdef none_or_sub(self, s, context)
+    # TODO - Signature not compatible with previous declaration
+    #@cython.final
+    #cdef bint _put_code_section(self, writer, code_type: str) except -1
 
 
 cdef class FunctionState:
@@ -38,7 +49,6 @@ cdef class FunctionState:
 
     cdef public object exc_vars
     cdef public object current_except
-    cdef public bint in_try_finally
     cdef public bint can_trace
     cdef public bint gil_owned
 
@@ -82,7 +92,7 @@ cdef class StringConst:
     cdef public dict py_strings
     cdef public list py_versions
 
-    cpdef get_py_string_const(self, encoding, identifier=*, bint is_str=*, py3str_cstring=*)
+    cpdef get_py_string_const(self, encoding, identifier=*)
 
 ## cdef class PyStringConst:
 ##     cdef public object cname
@@ -138,6 +148,3 @@ cdef class PyxCodeWriter:
     cdef Py_ssize_t level
     cdef Py_ssize_t original_level
     cdef dict _insertion_points
-
-    @cython.final
-    cdef int _putln(self, line) except -1

@@ -122,7 +122,6 @@ class FusedCFuncDefNode(StatListNode):
 
         self.orig_py_func = self.node
         self.py_func = self.make_fused_cpdef(self.node, env, is_def=True)
-        self.py_func.code_object = CodeObjectNode(self.py_func)
 
     def copy_cdef(self, env):
         """
@@ -406,8 +405,7 @@ class FusedCFuncDefNode(StatListNode):
         pyx_code.context.update(
             specialized_type_name=specialized_type.specialization_string,
             sizeof_dtype=self._sizeof_dtype(dtype),
-            ndim_dtype=specialized_type.ndim,
-            dtype_is_struct_obj=int(dtype.is_struct or dtype.is_pyobject))
+            ndim_dtype=specialized_type.ndim)
 
         # use the memoryview object to check itemsize and ndim.
         # In principle it could check more, but these are the easiest to do quickly
@@ -417,16 +415,7 @@ class FusedCFuncDefNode(StatListNode):
                 if (((itemsize == -1 and arg_as_memoryview.itemsize == {{sizeof_dtype}})
                         or itemsize == {{sizeof_dtype}})
                         and arg_as_memoryview.ndim == {{ndim_dtype}}):
-                    {{if dtype_is_struct_obj}}
-                    if __PYX_IS_PYPY2:
-                        # I wasn't able to diagnose why, but PyPy2 fails to convert a
-                        # memoryview to a Cython memoryview in this case
-                        memslice = {{coerce_from_py_func}}(arg, 0)
-                    else:
-                    {{else}}
-                    if True:
-                    {{endif}}
-                        memslice = {{coerce_from_py_func}}(arg_as_memoryview, 0)
+                    memslice = {{coerce_from_py_func}}(arg_as_memoryview, 0)
                     if memslice.memview:
                         __PYX_XCLEAR_MEMVIEW(&memslice, 1)
                         # print 'found a match for the buffer through format parsing'
@@ -534,7 +523,6 @@ class FusedCFuncDefNode(StatListNode):
 
                 void __PYX_XCLEAR_MEMVIEW({{memviewslice_cname}} *, int have_gil)
                 bint __pyx_memoryview_check(object)
-                bint __PYX_IS_PYPY2 "(CYTHON_COMPILING_IN_PYPY && PY_MAJOR_VERSION == 2)"
             """)
 
         pyx_code['local_variable_declarations'].put_chunk(
@@ -643,11 +631,25 @@ class FusedCFuncDefNode(StatListNode):
         Generate Cython code for constructing a persistent nested dictionary index of
         fused type specialization signatures.
         """
+        # Note on thread-safety:
+        # Filling in "fused_sigindex" should only happen once. However, in a multi-threaded
+        # environment it's possible that multiple threads can all start to fill it in
+        # independently (especially on freehtreading builds).
+        # Therefore:
+        # * "_fused_sigindex_ref" is a list of length 1 where the first element is either None,
+        #   or a dictionary of signatures to lookup.
+        # * We rely on being able to get/set list elements atomically (which is true on
+        #   freethreading and regular Python).
+        # * It doesn't really matter if multiple threads start generating their own version
+        #   of this - the contents will end up the same. The main point is that no thread
+        #   sees a half filled-in sigindex
         pyx_code.put_chunk(
             """
-                if not _fused_sigindex:
+                fused_sigindex = <dict> _fused_sigindex_ref[0]
+                if fused_sigindex is None:
+                    fused_sigindex = {}
                     for sig in <dict> signatures:
-                        sigindex_node = <dict> _fused_sigindex
+                        sigindex_node = fused_sigindex
                         *sig_series, last_type = sig.strip('()').split('|')
                         for sig_type in sig_series:
                             if sig_type not in sigindex_node:
@@ -655,6 +657,7 @@ class FusedCFuncDefNode(StatListNode):
                             else:
                                 sigindex_node = <dict> sigindex_node[sig_type]
                         sigindex_node[last_type] = sig
+                    _fused_sigindex_ref[0] = fused_sigindex
             """
         )
 
@@ -694,7 +697,7 @@ class FusedCFuncDefNode(StatListNode):
 
         pyx_code.put_chunk(
             """
-                def __pyx_fused_cpdef(signatures, args, kwargs, defaults, _fused_sigindex={}):
+                def __pyx_fused_cpdef(signatures, args, kwargs, defaults, _fused_sigindex_ref=[None]):
                     # FIXME: use a typed signature - currently fails badly because
                     #        default arguments inherit the types we specify here!
 
@@ -773,7 +776,7 @@ class FusedCFuncDefNode(StatListNode):
         pyx_code.put_chunk(
             """
                 sigindex_matches = []
-                sigindex_candidates = [_fused_sigindex]
+                sigindex_candidates = [fused_sigindex]
 
                 for dst_type in dest_sig:
                     found_matches = []
@@ -932,7 +935,7 @@ class FusedCFuncDefNode(StatListNode):
 
         signatures = [StringEncoding.EncodedString(node.specialized_signature_string)
                       for node in nodes]
-        keys = [ExprNodes.StringNode(node.pos, value=sig)
+        keys = [ExprNodes.UnicodeNode(node.pos, value=sig)
                 for node, sig in zip(nodes, signatures)]
         values = [ExprNodes.PyCFunctionNode.from_defnode(node, binding=True)
                   for node in nodes]
@@ -942,6 +945,8 @@ class FusedCFuncDefNode(StatListNode):
         self.specialized_pycfuncs = values
         for pycfuncnode in values:
             pycfuncnode.is_specialization = True
+        # use code object from first defnode to get as close to a correct signature as possible
+        self.py_func.code_object = CodeObjectNode(nodes[0])
 
     def generate_function_definitions(self, env, code):
         if self.py_func:

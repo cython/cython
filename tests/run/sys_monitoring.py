@@ -11,6 +11,8 @@ from collections import defaultdict
 from contextlib import contextmanager
 from functools import partial
 
+COMPILED = cython.compiled
+
 try:
     from sys import monitoring as smon
     E = smon.events
@@ -97,7 +99,7 @@ else:
 
     >>> with monitored_events(events=()) as collected_events:
     ...     print(test_profile(2))
-    16
+    22
     >>> list(collected_events.items())  # test_profile(2)
     []
 
@@ -113,7 +115,7 @@ else:
     ...         print_events(collected_events)
     ...         assert_events(event_set, collected_events['test_profile'])  # test_profile(10)
     --- PY_START ---
-    720
+    990
     f_cdef PY_START [10]
     f_cpdef PY_START [20]
     f_def PY_START [10]
@@ -126,11 +128,13 @@ else:
     f_return_none PY_START [10]
     f_withgil_prof PY_START [10]
     m_cdef PY_START [10]
+    m_classmethod PY_START [10]
     m_cpdef PY_START [20]
     m_def PY_START [20]
+    m_staticmethod PY_START [10]
     test_profile PY_START [1]
     --- PY_RETURN ---
-    720
+    990
     f_cdef PY_RETURN [10]
     f_cpdef PY_RETURN [20]
     f_def PY_RETURN [10]
@@ -143,16 +147,18 @@ else:
     f_return_none PY_RETURN [10]
     f_withgil_prof PY_RETURN [10]
     m_cdef PY_RETURN [10]
+    m_classmethod PY_RETURN [10]
     m_cpdef PY_RETURN [20]
     m_def PY_RETURN [20]
+    m_staticmethod PY_RETURN [10]
     test_profile PY_RETURN [1]
     --- RAISE ---
-    720
+    990
     f_raise RAISE [20], PY_UNWIND [20]
     f_reraise RAISE [10], PY_UNWIND [10], RERAISE [10]
     test_profile RAISE [20]
     --- PY_START, PY_RETURN ---
-    720
+    990
     f_cdef PY_START [10], PY_RETURN [10]
     f_cpdef PY_START [20], PY_RETURN [20]
     f_def PY_START [10], PY_RETURN [10]
@@ -165,11 +171,13 @@ else:
     f_return_none PY_START [10], PY_RETURN [10]
     f_withgil_prof PY_START [10], PY_RETURN [10]
     m_cdef PY_START [10], PY_RETURN [10]
+    m_classmethod PY_START [10], PY_RETURN [10]
     m_cpdef PY_START [20], PY_RETURN [20]
     m_def PY_START [20], PY_RETURN [20]
+    m_staticmethod PY_START [10], PY_RETURN [10]
     test_profile PY_START [1], PY_RETURN [1]
     --- PY_START, RAISE ---
-    720
+    990
     f_cdef PY_START [10]
     f_cpdef PY_START [20]
     f_def PY_START [10]
@@ -182,11 +190,13 @@ else:
     f_return_none PY_START [10]
     f_withgil_prof PY_START [10]
     m_cdef PY_START [10]
+    m_classmethod PY_START [10]
     m_cpdef PY_START [20]
     m_def PY_START [20]
+    m_staticmethod PY_START [10]
     test_profile PY_START [1], RAISE [20]
     --- PY_RETURN, RAISE ---
-    720
+    990
     f_cdef PY_RETURN [10]
     f_cpdef PY_RETURN [20]
     f_def PY_RETURN [10]
@@ -199,11 +209,13 @@ else:
     f_return_none PY_RETURN [10]
     f_withgil_prof PY_RETURN [10]
     m_cdef PY_RETURN [10]
+    m_classmethod PY_RETURN [10]
     m_cpdef PY_RETURN [20]
     m_def PY_RETURN [20]
+    m_staticmethod PY_RETURN [10]
     test_profile PY_RETURN [1], RAISE [20]
     --- PY_START, PY_RETURN, RAISE ---
-    720
+    990
     f_cdef PY_START [10], PY_RETURN [10]
     f_cpdef PY_START [20], PY_RETURN [20]
     f_def PY_START [10], PY_RETURN [10]
@@ -216,8 +228,10 @@ else:
     f_return_none PY_START [10], PY_RETURN [10]
     f_withgil_prof PY_START [10], PY_RETURN [10]
     m_cdef PY_START [10], PY_RETURN [10]
+    m_classmethod PY_START [10], PY_RETURN [10]
     m_cpdef PY_START [20], PY_RETURN [20]
     m_def PY_START [20], PY_RETURN [20]
+    m_staticmethod PY_START [10], PY_RETURN [10]
     test_profile PY_START [1], PY_RETURN [1], RAISE [20]
 
 
@@ -254,7 +268,7 @@ else:
     ...         print_events(collected_events)
     ...         assert_events(event_set, collected_events['test_profile'])  # test_profile(10)
     --- PY_START, LINE, RAISE ---
-    720
+    990
     f_cdef PY_START [10], LINE [10]
     f_cpdef PY_START [20], LINE [20]
     f_def PY_START [10], LINE [10]
@@ -267,11 +281,13 @@ else:
     f_return_none PY_START [10], LINE [10]
     f_withgil_prof PY_START [10], LINE [10]
     m_cdef PY_START [10], LINE [10]
+    m_classmethod PY_START [10], LINE [10]
     m_cpdef PY_START [20], LINE [20]
     m_def PY_START [20], LINE [20]
-    test_profile PY_START [1], LINE [314], RAISE [20]
+    m_staticmethod PY_START [10], LINE [10]
+    test_profile PY_START [1], LINE [385], RAISE [20]
     --- PY_RETURN, LINE, RAISE ---
-    720
+    990
     f_cdef PY_RETURN [10], LINE [10]
     f_cpdef PY_RETURN [20], LINE [20]
     f_def PY_RETURN [10], LINE [10]
@@ -284,11 +300,13 @@ else:
     f_return_none PY_RETURN [10], LINE [10]
     f_withgil_prof PY_RETURN [10], LINE [10]
     m_cdef PY_RETURN [10], LINE [10]
+    m_classmethod PY_RETURN [10], LINE [10]
     m_cpdef PY_RETURN [20], LINE [20]
     m_def PY_RETURN [20], LINE [20]
-    test_profile PY_RETURN [1], LINE [314], RAISE [20]
+    m_staticmethod PY_RETURN [10], LINE [10]
+    test_profile PY_RETURN [1], LINE [385], RAISE [20]
     --- PY_START, PY_RETURN, LINE, RAISE ---
-    720
+    990
     f_cdef PY_START [10], PY_RETURN [10], LINE [10]
     f_cpdef PY_START [20], PY_RETURN [20], LINE [20]
     f_def PY_START [10], PY_RETURN [10], LINE [10]
@@ -301,9 +319,11 @@ else:
     f_return_none PY_START [10], PY_RETURN [10], LINE [10]
     f_withgil_prof PY_START [10], PY_RETURN [10], LINE [10]
     m_cdef PY_START [10], PY_RETURN [10], LINE [10]
+    m_classmethod PY_START [10], PY_RETURN [10], LINE [10]
     m_cpdef PY_START [20], PY_RETURN [20], LINE [20]
     m_def PY_START [20], PY_RETURN [20], LINE [20]
-    test_profile PY_START [1], PY_RETURN [1], LINE [314], RAISE [20]
+    m_staticmethod PY_START [10], PY_RETURN [10], LINE [10]
+    test_profile PY_START [1], PY_RETURN [1], LINE [385], RAISE [20]
 
 
     ## Testing fused functions:
@@ -312,6 +332,34 @@ else:
     ...     call_fused_functions()
     >>> print_events(collected_events)  # call_fused_functions()
     call_fused_functions PY_START [1], PY_RETURN [1]
+
+
+    ## Testing special return types:
+
+    >>> events = set()
+    >>> def trace_return(code, offset, arg):
+    ...     events.add(arg)
+
+    >>> _ = smon.register_callback(TOOL_ID, E.PY_RETURN, trace_return)
+    >>> smon.set_events(TOOL_ID, E.PY_RETURN)
+    >>> try:
+    ...     # monitored
+    ...     trace_return_neg_1()
+    ...     trace_return_charptr()
+    ... finally:
+    ...     _ = smon.register_callback(TOOL_ID, E.PY_RETURN, None)
+    ...     smon.free_tool_id(TOOL_ID)
+    -1
+    b'xyzxyz'
+
+    >>> -1 in events  or  events
+    True
+    >>> None in events  or  events
+    True
+    >>> b'xyzxyz' in events  or  events
+    True
+    >>> (b'xyz' not in events if COMPILED else b'xyz' in events)  or  events
+    True
 
 
     >>> smon.free_tool_id(TOOL_ID)
@@ -394,7 +442,8 @@ def test_profile(N: cython.long):
     i: cython.long
     n: cython.long = 0
     obj: object
-    a: A = A()
+    a: CyA = CyA()
+    py_a = PyA()
 
     for i in range(N):
         n += f_def(i)
@@ -422,6 +471,15 @@ def test_profile(N: cython.long):
         n += a.m_cpdef(i)
         n += obj.m_cpdef(i)
         n += a.m_cdef(i)
+        n += CyA.m_staticmethod(i)
+        n += a.m_classmethod(i)
+
+        n += py_a.pym_def(i)
+        obj = py_a
+        n += obj.pym_def(i)
+        n += py_a.pym_staticmethod(i)
+        n += py_a.pym_classmethod(i)
+
         try:
             n += f_raise(i+2)
         except RuntimeError:
@@ -511,7 +569,7 @@ def f_return_default(_: cython.long) -> cython.long:
 
 
 @cython.cclass
-class A:
+class CyA:
     def m_def(self, a: cython.long):
         return a
 
@@ -521,6 +579,29 @@ class A:
 
     @cython.cfunc
     def m_cdef(self, a: cython.long) -> cython.long:
+        return a
+
+    @classmethod
+    @cython.cfunc
+    def m_classmethod(cls, a: cython.long) -> cython.long:
+        return a
+
+    @staticmethod
+    @cython.cfunc
+    def m_staticmethod(a: cython.long) -> cython.long:
+        return a
+
+
+class PyA:
+    def pym_def(self, a: cython.long):
+        return a
+
+    @classmethod
+    def pym_classmethod(cls, a: cython.long) -> cython.long:
+        return a
+
+    @staticmethod
+    def pym_staticmethod(a: cython.long) -> cython.long:
         return a
 
 
@@ -583,3 +664,28 @@ def fused_func_def(x: cython.numeric) -> cython.numeric:
 @cython.cfunc
 def fused_func_cfunc(x: cython.numeric) -> cython.numeric:
     return x + 2
+
+
+# Special return values
+
+@cython.cfunc
+def c_return_neg_1() -> cython.Py_UCS4:
+    # Returning an invalid Py_UCS4 value could fail in combination with trace result reporting.
+    # See https://github.com/cython/cython/issues/6503
+    return cython.cast(cython.Py_UCS4, -1)
+
+def call_c_return_neg_1():
+    return cython.cast(cython.int, c_return_neg_1())
+
+def trace_return_neg_1():
+    result = call_c_return_neg_1()
+    return result
+
+
+@cython.cfunc
+def c_return_charptr() -> cython.p_char:
+    return b"xyz"
+
+def trace_return_charptr():
+    result: object = c_return_charptr()
+    return result * 2

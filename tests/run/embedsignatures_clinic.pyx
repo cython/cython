@@ -72,6 +72,19 @@ cdef class Foo:
             return 0
     cdef public Foo p3
 
+    def __call__(self, a: int, b: float = 1.0, *args: tuple, **kwargs: dict) -> (None, True):
+        """
+        call docstring
+        """
+        pass
+
+    def __add__(self, Foo other) -> Foo:
+        """
+        add docstring
+        """
+        return self
+
+
 
 __doc__ += ur"""
 >>> print(Foo.__doc__)
@@ -122,5 +135,17 @@ p2 docstring
 
 >>> print(Foo.p3.__doc__)
 None
+
+>>> print(Foo.__call__.__doc__)
+call docstring
+
+>>> print(Foo.__call__.__text_signature__)
+($self, a, b=1.0, *args, **kwargs)
+
+>>> print(Foo.__add__.__doc__)
+add docstring
+
+>>> print(Foo.__add__.__text_signature__)
+($self, other)
 
 """

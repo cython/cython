@@ -16,7 +16,7 @@ class Matrix:
         """Adds a row, initially zero-filled."""
         self.v.resize(self.v.size() + self.ncols)
 
-    def __getbuffer__(self, buffer: cython.pointer(Py_buffer), flags: cython.int):
+    def __getbuffer__(self, buffer: cython.pointer[Py_buffer], flags: cython.int):
         itemsize: cython.Py_ssize_t = cython.sizeof(self.v[0])
 
         self.shape[0] = self.v.size() // self.ncols
@@ -44,5 +44,5 @@ class Matrix:
         buffer.strides = self.strides
         buffer.suboffsets = cython.NULL         # for pointer arrays only
 
-    def __releasebuffer__(self, buffer: cython.pointer(Py_buffer)):
+    def __releasebuffer__(self, buffer: cython.pointer[Py_buffer]):
         pass

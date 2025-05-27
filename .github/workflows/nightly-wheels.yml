@@ -31,10 +31,12 @@ jobs:
   build_pure_wheel:
     name: Build pure wheel and upload to Anaconda's PyPI
     if: >-
-      github.event_name == 'schedule' ||
-      github.event_name == 'workflow_dispatch' ||
-      (github.event_name == 'pull_request' &&
-      contains(github.event.pull_request.labels.*.name, 'Build System'))
+      github.repository == 'cython/cython' && (
+        github.event_name == 'schedule' ||
+        github.event_name == 'workflow_dispatch' ||
+        (github.event_name == 'pull_request' &&
+        contains(github.event.pull_request.labels.*.name, 'Build System'))
+      )
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Cython
@@ -42,8 +44,7 @@ jobs:
 
       - uses: deadsnakes/action@v3.1.0
         with:
-          python-version: 3.13-dev
-          nogil: true
+          python-version: "3.13"
 
       - name: Build pure wheel
         run: |
@@ -56,8 +57,8 @@ jobs:
           path: ./dist/*.whl
 
       - name: Upload wheels to scientific-python-nightly-wheels
-        if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'          
-        uses: scientific-python/upload-nightly-action@b67d7fcc0396e1128a474d1ab2b48aa94680f9fc # 0.5.0
+        if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+        uses: scientific-python/upload-nightly-action@82396a2ed4269ba06c6b2988bb4fd568ef3c3d6b # 0.6.1
         with:
           artifacts_path: dist
           anaconda_nightly_upload_token: ${{ secrets.CYTHON_NIGHTLY_UPLOAD_TOKEN }}

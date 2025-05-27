@@ -2,7 +2,7 @@
 
 set -x
 
-GCC_VERSION=${GCC_VERSION:=8}
+GCC_VERSION=${GCC_VERSION:=10}
 
 # Set up compilers
 if [[ $TEST_CODE_STYLE == "1" ]]; then
@@ -92,14 +92,22 @@ echo "===================="
 echo "Installing requirements [python]"
 if [[ $PYTHON_VERSION == "3.1"[2-9]* ]]; then
   python -m pip install -U pip wheel setuptools || exit 1
+  if [[ $PYTHON_VERSION != *"t" && $PYTHON_VERSION != *"t-dev" ]]; then
+    # twine is not installable on freethreaded Python due to cryptography requirement
+    python -m pip install -U twine || exit 1
+  fi
   if [[ $PYTHON_VERSION == "3.12"* ]]; then
     python -m pip install --pre -r test-requirements-312.txt || exit 1
   else
     # Install packages one by one, allowing failures due to missing recent wheels.
     cat test-requirements-312.txt | while read package; do python -m pip install --pre --only-binary ":all:" "$package" || true; done
   fi
+  if [[ $PYTHON_VERSION == "3.13"* ]]; then
+    python -m pip install --pre -r test-requirements-313.txt || exit 1
+  fi
 else
-  python -m pip install -U pip "setuptools<60" wheel || exit 1
+  # Drop dependencies cryptography and nh3 (purely from twine) when removing support for PyPy3.8.
+  python -m pip install -U pip "setuptools<60" wheel twine "cryptography<42" "nh3<0.2.19" || exit 1
 
   if [[ $PYTHON_VERSION != *"-dev" || $COVERAGE == "1" ]]; then
     python -m pip install -r test-requirements.txt || exit 1
@@ -119,9 +127,8 @@ else
 
   # Install more requirements
   if [[ $PYTHON_VERSION != *"-dev" ]]; then
-    if [[ $BACKEND == *"cpp"* ]]; then
-      echo "WARNING: Currently not installing pythran due to compatibility issues"
-      # python -m pip install pythran==0.9.5 || exit 1
+    if [[ $BACKEND == *"cpp"* && $OSTYPE != "msys" ]]; then
+      python -m pip install pythran || exit 1
     fi
 
     if [[ $BACKEND != "cpp" && $PYTHON_VERSION != "pypy"* ]]; then
@@ -196,6 +203,12 @@ if [[ $NO_CYTHON_COMPILE != "1" && $PYTHON_VERSION != "pypy"* ]]; then
         $LIMITED_API == "" && $EXTRA_CFLAGS == "" ]]; then
     python setup.py bdist_wheel || exit 1
     ls -l dist/ || true
+
+    # Check for changelog entry in wheel metadata.
+    fgrep -q '=======' $( [ -d ?ython-*.dist-info/ ] && echo "?ython-*.dist-info/METADATA" || echo "?ython*.egg-info/PKG-INFO" ) || {
+        echo "ERROR: wheel METADATA lacks changelog - did you add a version entry?" ; exit 1; }
+
+    if $( twine --version ); then twine check dist/*.whl; fi
   fi
 
   echo "Extension modules created during the build:"
@@ -230,7 +243,7 @@ if [[ $PYTHON_VERSION == "graalpy"* ]]; then
 fi
 
 export CFLAGS="$CFLAGS $EXTRA_CFLAGS"
-if [[ $PYTHON_VERSION == *"-freethreading-dev" ]]; then
+if [[ $PYTHON_VERSION == "3.13t" ]]; then
   export PYTHON_GIL=0
 fi
 python runtests.py \

@@ -169,7 +169,7 @@ C array can be declared by adding ``[ARRAY_SIZE]`` to the type of variable:
             def func():
                 g: cython.float[42]
                 f: cython.int[5][5][5]
-                ptr_char_array: cython.pointer(cython.char[4])  # pointer to the array of 4 chars
+                ptr_char_array: cython.pointer[cython.char[4]]  # pointer to the array of 4 chars
                 array_ptr_char: cython.p_char[4]                # array of 4 char pointers
 
     .. group-tab:: Cython
@@ -268,6 +268,23 @@ Declaring an enum as ``cpdef`` will create a :pep:`435`-style Python wrapper::
         soft = 2
         runny = 3
 
+Up to Cython version 3.0.x, this used to copy all item names into the global
+module namespace, so that they were available both as attributes of the Python
+enum type (``CheseState`` above) and as global constants.
+This was changed in Cython 3.1 to distinguish between anonymous cpdef enums,
+which only create global Python constants for their items, and named cpdef enums,
+where the items live only in the namespace of the enum type and do not create
+global Python constants.
+
+To create global constants also for the items of a declared named enum type,
+you can copy the enum items into the global Python module namespace manually.
+In Cython before 3.1, this will simply overwrite the global names with
+their own value, which makes it backwards compatible.
+
+::
+
+    globals().update(getattr(CheeseState, '__members__'))
+
 There is currently no special syntax for defining a constant, but you can use
 an anonymous :keyword:`enum` declaration for this purpose, for example,::
 
@@ -360,8 +377,8 @@ containers.
 Pointer types are constructed as in C when using Cython syntax, by appending a ``*`` to the base type
 they point to, e.g. ``int**`` for a pointer to a pointer to a C int. In Pure python mode, simple pointer types
 use a naming scheme with "p"s instead, separated from the type name with an underscore, e.g. ``cython.pp_int`` for a pointer to
-a pointer to a C int.  Further pointer types can be constructed with the ``cython.pointer()`` function,
-e.g. ``cython.pointer(cython.int)``.
+a pointer to a C int.  Further pointer types can be constructed with the ``cython.pointer[]`` type construct,
+e.g. ``cython.p_int`` is equivalent to ``cython.pointer[cython.int]``.
 
 Arrays use the normal C array syntax, e.g. ``int[10]``, and the size must be known
 at compile time for stack allocated arrays. Cython doesn't support variable length arrays from C99.
@@ -390,6 +407,9 @@ For example
 This requires an *exact* match of the class, it does not allow subclasses.
 This allows Cython to optimize code by accessing internals of the builtin class,
 which is the main reason for declaring builtin types in the first place.
+
+Since Cython 3.1, builtin *exception* types generally no longer fall under the "exact type" restriction.
+Thus, declarations like ``exc: BaseException`` accept all exception objects, as they probably intend.
 
 For declared builtin types, Cython uses internally a C variable of type :c:expr:`PyObject*`.
 
@@ -429,29 +449,65 @@ and is typically what one wants).
 If you want to use these numeric Python types simply omit the
 type declaration and let them be objects.
 
+.. _type_qualifiers:
 
 Type qualifiers
 ---------------
 
-Cython supports ``const`` and ``volatile`` `C type qualifiers <https://en.wikipedia.org/wiki/Type_qualifier>`_::
+Cython supports ``const`` and ``volatile`` `C type qualifiers <https://en.wikipedia.org/wiki/Type_qualifier>`_
 
-    cdef volatile int i = 5
+.. tabs::
 
-    cdef const int sum(const int a, const int b):
-        return a + b
+    .. group-tab:: Pure Python
 
-    cdef void print_const_pointer(const int *value):
-        print(value[0])
+        .. literalinclude:: ../../examples/userguide/language_basics/type_qualifiers.py
 
-    cdef void print_pointer_to_const_value(int * const value):
-        print(value[0])
 
-    cdef void print_const_pointer_to_const_value(const int * const value):
-        print(value[0])
+
+    .. group-tab:: Cython
+
+        .. literalinclude:: ../../examples/userguide/language_basics/type_qualifiers.pyx
+
+
+Similar to pointers Cython supports shortcut types that can be used in pure python mode. The following table shows several examples:
+
+.. list-table:: Type qualifiers shortcut types
+   :widths: 100 10 10
+   :header-rows: 1
+
+   * - Cython
+     - Full Annotation type
+     - Shortcut type
+   * - ``const float``
+     - ``cython.const[cython.float]``
+     - ``cython.const_float``
+
+   * - ``const void *``
+     - ``cython.pointer[cython.const[cython.void]]``
+     - ``cython.p_const_void``
+
+   * - ``const int *``
+     - ``cython.pointer[cython.const[cython.int]]``
+     - ``cython.p_const_int``
+
+   * - ``const long **``
+     - ``cython.pointer[cython.pointer[cython.const[cython.long]]]``
+     - ``cython.pp_const_long``
+
+
+For full list of shortcut types see the ``Shadow.pyi`` file.
+
+The ``const`` qualifier supports declaration of global constants::
+
+    cdef const int i = 5
+
+    # constant pointers are defined as pointer to a constant value.
+    cdef const char *msg = "Dummy string"
+    msg = "Another dummy string"
 
 .. Note::
 
-    Both type qualifiers are not supported by pure python mode.  Moreover, the ``const`` modifier is unusable
+    The ``const`` modifier is unusable
     in a lot of contexts since Cython needs to generate definitions and their assignments separately. Therefore
     we suggest using it mainly for function argument and pointer types where ``const`` is necessary to
     work with an existing C/C++ interface.
@@ -995,8 +1051,8 @@ Some things to note:
   which return Python objects. Remember that a function with no declared
   return type implicitly returns a Python object. (Exceptions on such
   functions are implicitly propagated by returning ``NULL``.)
-  
-* There's a known performance pitfall when combining ``nogil`` and 
+
+* There's a known performance pitfall when combining ``nogil`` and
   ``except *`` \ ``@cython.exceptval(check=True)``.
   In this case Cython must always briefly re-acquire the GIL after a function
   call to check if an exception has been raised.  This can commonly happen with a
@@ -1113,7 +1169,7 @@ possibilities.
 .. [#2] Other than signed/unsigned char[].
    The conversion will fail if the length of C array is not known at compile time,
    and when using a slice of a C array.
-   
+
 .. [#4] The automatic conversion of a struct to a ``dict`` (and vice
    versa) does have some potential pitfalls detailed
    :ref:`elsewhere in the documentation <automatic_conversion_pitfalls>`.
@@ -1215,7 +1271,7 @@ Cython uses ``"<"`` and ``">"``.  In pure python mode, the ``cython.cast()`` fun
          .. note:: Cython will not prevent a redundant cast, but emits a warning for it.
 
         To get the address of some Python object, use a cast to a pointer type
-        like ``cast(p_void, ...)`` or ``cast(pointer(PyObject), ...)``.
+        like ``cast(p_void, ...)`` or ``cast(pointer[PyObject], ...)``.
         You can also cast a C pointer back to a Python object reference
         with ``cast(object, ...)``, or to a more specific builtin or extension type
         (e.g. ``cast(MyExtType, ptr)``). This will increase the reference count of
@@ -1257,7 +1313,7 @@ Cython uses ``"<"`` and ``">"``.  In pure python mode, the ``cython.cast()`` fun
 
         Casting with ``cast(object, ...)`` creates an owned reference. Cython will automatically
         perform a :c:func:`Py_INCREF` and :c:func:`Py_DECREF` operation. Casting to
-        ``cast(pointer(PyObject), ...)`` creates a borrowed reference, leaving the refcount unchanged.
+        ``cast(pointer[PyObject], ...)`` creates a borrowed reference, leaving the refcount unchanged.
 
     .. group-tab:: Cython
 
@@ -1655,6 +1711,11 @@ expression must evaluate to a Python value of type ``int``, ``long``,
 ``float``, ``bytes`` or ``unicode`` (``str`` in Py3).
 
 .. literalinclude:: ../../examples/userguide/language_basics/compile_time.pyx
+
+.. Note::
+
+   Compile-time constants are deprecated. The preferred way for declaring global
+   constants is using global ``const`` variables. See :ref:`type_qualifiers`.
 
 
 Conditional Statements

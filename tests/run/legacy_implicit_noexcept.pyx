@@ -146,10 +146,11 @@ def test_pure_noexcept():
 cdef extern int extern_fun()
 cdef extern int extern_fun_fun(int (*f)(int))
 
+
 _WARNINGS = """
-12:5: Unraisable exception in function 'legacy_implicit_noexcept.func_implicit'.
+12:0: Unraisable exception in function 'legacy_implicit_noexcept.func_implicit'.
 12:22: Implicit noexcept declaration is deprecated. Function declaration should contain 'noexcept' keyword.
-15:5: Unraisable exception in function 'legacy_implicit_noexcept.func_noexcept'.
+15:0: Unraisable exception in function 'legacy_implicit_noexcept.func_noexcept'.
 27:28: Implicit noexcept declaration is deprecated. Function declaration should contain 'noexcept' keyword.
 45:0: Implicit noexcept declaration is deprecated. Function declaration should contain 'noexcept' keyword.
 45:0: Unraisable exception in function 'legacy_implicit_noexcept.func_pure_implicit'.

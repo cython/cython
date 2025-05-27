@@ -168,7 +168,6 @@ static PyObject *__Pyx_Import(PyObject *name, PyObject *from_list, int level); /
 /////////////// Import ///////////////
 //@requires: ObjectHandling.c::PyObjectGetAttrStr
 //@requires:StringTools.c::IncludeStringH
-//@substitute: naming
 
 static PyObject *__Pyx_Import(PyObject *name, PyObject *from_list, int level) {
     PyObject *module = 0;
@@ -178,10 +177,11 @@ static PyObject *__Pyx_Import(PyObject *name, PyObject *from_list, int level) {
     if (unlikely(!empty_dict))
         goto bad;
     if (level == -1) {
-        if (strchr(__Pyx_MODULE_NAME, '.') != (0)) {
+        const char* package_sep = strchr(__Pyx_MODULE_NAME, '.');
+        if (package_sep != (0)) {
             /* try package relative import first */
             module = PyImport_ImportModuleLevelObject(
-                name, $moddict_cname, empty_dict, from_list, 1);
+                name, NAMED_CGLOBAL(moddict_cname), empty_dict, from_list, 1);
             if (unlikely(!module)) {
                 if (unlikely(!PyErr_ExceptionMatches(PyExc_ImportError)))
                     goto bad;
@@ -192,7 +192,7 @@ static PyObject *__Pyx_Import(PyObject *name, PyObject *from_list, int level) {
     }
     if (!module) {
         module = PyImport_ImportModuleLevelObject(
-            name, $moddict_cname, empty_dict, from_list, level);
+            name, NAMED_CGLOBAL(moddict_cname), empty_dict, from_list, level);
     }
 bad:
     Py_XDECREF(empty_dict);
@@ -334,6 +334,7 @@ static int ${import_star}(PyObject* m) {
     PyObject *item;
     PyObject *import_obj;
     Py_ssize_t size;
+    ${modulestatetype_cname} *mstate = __Pyx_PyModule_GetState(m);
 
     locals = PyDict_New();              if (!locals) goto bad;
     if (__Pyx_import_all_from(locals, m) < 0) goto bad;
@@ -351,7 +352,7 @@ static int ${import_star}(PyObject* m) {
         utf8_name = PyUnicode_AsUTF8String(name);
         if (!utf8_name) goto bad;
         s = __Pyx_PyBytes_AsString(utf8_name); if (!s) goto bad;
-        if (${import_star_set}(item, name, s) < 0) goto bad;
+        if (${import_star_set}(mstate, item, name, s) < 0) goto bad;
         Py_DECREF(utf8_name); utf8_name = 0;
     }
     ret = 0;
@@ -477,7 +478,6 @@ static PyTypeObject *__Pyx_ImportType_$cyversion(PyObject *module, const char *m
     size_t size, size_t alignment, enum __Pyx_ImportType_CheckSize_$cyversion check_size)
 {
     PyObject *result = 0;
-    char warning[200];
     Py_ssize_t basicsize;
     Py_ssize_t itemsize;
 #if CYTHON_COMPILING_IN_LIMITED_API
@@ -498,6 +498,9 @@ static PyTypeObject *__Pyx_ImportType_$cyversion(PyObject *module, const char *m
     basicsize = ((PyTypeObject *)result)->tp_basicsize;
     itemsize = ((PyTypeObject *)result)->tp_itemsize;
 #else
+    if (size == 0) {
+        return (PyTypeObject *)result;
+    }
     py_basicsize = PyObject_GetAttrString(result, "__basicsize__");
     if (!py_basicsize)
         goto bad;
@@ -545,11 +548,12 @@ static PyTypeObject *__Pyx_ImportType_$cyversion(PyObject *module, const char *m
         goto bad;
     }
     else if (check_size == __Pyx_ImportType_CheckSize_Warn_$cyversion && (size_t)basicsize > size) {
-        PyOS_snprintf(warning, sizeof(warning),
-            "%s.%s size changed, may indicate binary incompatibility. "
-            "Expected %zd from C header, got %zd from PyObject",
-            module_name, class_name, size, basicsize);
-        if (PyErr_WarnEx(NULL, warning, 0) < 0) goto bad;
+        if (PyErr_WarnFormat(NULL, 0,
+                "%.200s.%.200s size changed, may indicate binary incompatibility. "
+                "Expected %zd from C header, got %zd from PyObject",
+                module_name, class_name, size, basicsize) < 0) {
+            goto bad;
+        }
     }
     /* check_size == __Pyx_ImportType_CheckSize_Ignore does not warn nor error */
     return (PyTypeObject *)result;
@@ -566,18 +570,26 @@ static int __Pyx_ImportFunction_$cyversion(PyObject *module, const char *funcnam
 
 /////////////// FunctionImport ///////////////
 //@substitute: naming
-//@requires: TypeConversion.c::CFuncPtrFromPy
 
 #ifndef __PYX_HAVE_RT_ImportFunction_$cyversion
 #define __PYX_HAVE_RT_ImportFunction_$cyversion
 static int __Pyx_ImportFunction_$cyversion(PyObject *module, const char *funcname, void (**f)(void), const char *sig) {
     PyObject *d = 0;
     PyObject *cobj = 0;
+    union {
+        void (*fp)(void);
+        void *p;
+    } tmp;
 
     d = PyObject_GetAttrString(module, "$api_name");
     if (!d)
         goto bad;
+#if (defined(Py_LIMITED_API) && Py_LIMITED_API >= 0x030d0000) || (!defined(Py_LIMITED_API) && PY_VERSION_HEX >= 0x030d0000)
+    PyDict_GetItemStringRef(d, funcname, &cobj);
+#else
     cobj = PyDict_GetItemString(d, funcname);
+    Py_XINCREF(cobj);
+#endif
     if (!cobj) {
         PyErr_Format(PyExc_ImportError,
             "%.200s does not export expected C function %.200s",
@@ -590,13 +602,16 @@ static int __Pyx_ImportFunction_$cyversion(PyObject *module, const char *funcnam
              PyModule_GetName(module), funcname, sig, PyCapsule_GetName(cobj));
         goto bad;
     }
-    *f = __Pyx_capsule_to_c_func_ptr_$cyversion(cobj, sig);
+    tmp.p = PyCapsule_GetPointer(cobj, sig);
+    *f = tmp.fp;
     if (!(*f))
         goto bad;
     Py_DECREF(d);
+    Py_DECREF(cobj);
     return 0;
 bad:
     Py_XDECREF(d);
+    Py_XDECREF(cobj);
     return -1;
 }
 #endif
@@ -607,11 +622,14 @@ static int __Pyx_ExportFunction(const char *name, void (*f)(void), const char *s
 
 /////////////// FunctionExport ///////////////
 //@substitute: naming
-//@requires: TypeConversion.c::CFuncPtrToPy
 
 static int __Pyx_ExportFunction(const char *name, void (*f)(void), const char *sig) {
     PyObject *d = 0;
     PyObject *cobj = 0;
+    union {
+        void (*fp)(void);
+        void *p;
+    } tmp;
 
     d = PyObject_GetAttrString($module_cname, "$api_name");
     if (!d) {
@@ -623,7 +641,8 @@ static int __Pyx_ExportFunction(const char *name, void (*f)(void), const char *s
         if (PyModule_AddObject($module_cname, "$api_name", d) < 0)
             goto bad;
     }
-    cobj = __Pyx_c_func_ptr_to_capsule(f, sig);
+    tmp.fp = f;
+    cobj = PyCapsule_New(tmp.p, sig, 0);
     if (!cobj)
         goto bad;
     if (PyDict_SetItemString(d, name, cobj) < 0)
@@ -654,7 +673,13 @@ static int __Pyx_ImportVoidPtr_$cyversion(PyObject *module, const char *name, vo
     d = PyObject_GetAttrString(module, "$api_name");
     if (!d)
         goto bad;
+// potentially defined in headers so we can't rely on __PYX_LIMITED_VERSION_HEX
+#if (defined(Py_LIMITED_API) && Py_LIMITED_API >= 0x030d0000) || (!defined(Py_LIMITED_API) && PY_VERSION_HEX >= 0x030d0000)
+    PyDict_GetItemStringRef(d, name, &cobj);
+#else
     cobj = PyDict_GetItemString(d, name);
+    Py_XINCREF(cobj);
+#endif
     if (!cobj) {
         PyErr_Format(PyExc_ImportError,
             "%.200s does not export expected C variable %.200s",
@@ -671,9 +696,11 @@ static int __Pyx_ImportVoidPtr_$cyversion(PyObject *module, const char *name, vo
     if (!(*p))
         goto bad;
     Py_DECREF(d);
+    Py_DECREF(cobj);
     return 0;
 bad:
     Py_XDECREF(d);
+    Py_XDECREF(cobj);
     return -1;
 }
 #endif
@@ -690,8 +717,8 @@ static int __Pyx_ExportVoidPtr(PyObject *name, void *p, const char *sig) {
     PyObject *d;
     PyObject *cobj = 0;
 
-    d = PyDict_GetItem($moddict_cname, PYIDENT("$api_name"));
-    Py_XINCREF(d);
+    if (__Pyx_PyDict_GetItemRef(NAMED_CGLOBAL(moddict_cname), PYIDENT("$api_name"), &d) == -1)
+        goto bad;
     if (!d) {
         d = PyDict_New();
         if (!d)
@@ -842,7 +869,7 @@ bad:
     {
         PyTypeObject* basei = NULL;
         PyTypeObject* tp_base = __Pyx_PyType_GetSlot(type, tp_base, PyTypeObject*);
-        tp_base_name = __Pyx_PyType_GetName(tp_base);
+        tp_base_name = __Pyx_PyType_GetFullyQualifiedName(tp_base);
 #if CYTHON_AVOID_BORROWED_REFS
         basei = (PyTypeObject*)PySequence_GetItem(bases, i);
         if (unlikely(!basei)) goto really_bad;
@@ -852,7 +879,7 @@ bad:
 #else
         basei = (PyTypeObject*)PyTuple_GET_ITEM(bases, i);
 #endif
-        base_name = __Pyx_PyType_GetName(basei);
+        base_name = __Pyx_PyType_GetFullyQualifiedName(basei);
 #if CYTHON_AVOID_BORROWED_REFS
         Py_DECREF(basei);
 #endif
@@ -871,15 +898,33 @@ other_failure:
     return -1;
 }
 
+/////////////// ImportNumPyArray.module_state_decls //////////////
+//@requires: MemoryView_C.c::Atomics
+
+#if CYTHON_COMPILING_IN_CPYTHON_FREETHREADING && CYTHON_ATOMICS
+__pyx_atomic_ptr_type __pyx_numpy_ndarray;
+#else
+// If freethreading but not atomics, then this is guarded by ndarray_mutex
+// in __Pyx__ImportNumPyArrayTypeIfAvailable
+PyObject *__pyx_numpy_ndarray;
+#endif
 
 /////////////// ImportNumPyArray.proto ///////////////
-
-static PyObject *__pyx_numpy_ndarray = NULL;
 
 static PyObject* __Pyx_ImportNumPyArrayTypeIfAvailable(void); /*proto*/
 
 /////////////// ImportNumPyArray.cleanup ///////////////
-Py_CLEAR(__pyx_numpy_ndarray);
+
+// I'm not actually worried about thread-safety in the cleanup function.
+// The CYTHON_ATOMICS code is only for the type-casting.
+#if CYTHON_COMPILING_IN_CPYTHON_FREETHREADING && CYTHON_ATOMICS
+{
+    PyObject* old = (PyObject*)__pyx_atomic_pointer_exchange(&CGLOBAL(__pyx_numpy_ndarray), NULL);
+    Py_XDECREF(old);
+}
+#else
+Py_CLEAR(CGLOBAL(__pyx_numpy_ndarray));
+#endif
 
 /////////////// ImportNumPyArray ///////////////
 //@requires: ImportExport.c::Import
@@ -903,10 +948,42 @@ static PyObject* __Pyx__ImportNumPyArray(void) {
     return ndarray_object;
 }
 
-static CYTHON_INLINE PyObject* __Pyx_ImportNumPyArrayTypeIfAvailable(void) {
-    if (unlikely(!__pyx_numpy_ndarray)) {
-        __pyx_numpy_ndarray = __Pyx__ImportNumPyArray();
+// Returns a borrowed reference, and encapsulates all thread safety stuff needed
+static CYTHON_INLINE PyObject* __Pyx__ImportNumPyArrayTypeIfAvailable(void) {
+#if CYTHON_COMPILING_IN_CPYTHON_FREETHREADING
+    static PyMutex ndarray_mutex = {0};
+#endif
+#if CYTHON_COMPILING_IN_CPYTHON_FREETHREADING && CYTHON_ATOMICS
+    PyObject *result = (PyObject*)__pyx_atomic_pointer_load_relaxed(&CGLOBAL(__pyx_numpy_ndarray));
+    if (unlikely(!result)) {
+        PyMutex_Lock(&ndarray_mutex);
+        // Now we've got the lock and know that no-one else is modifying it, check again
+        // that it hasn't already been set.
+        result = (PyObject*)__pyx_atomic_pointer_load_acquire(&CGLOBAL(__pyx_numpy_ndarray));
+        if (!result) {
+            result = __Pyx__ImportNumPyArray();
+            __pyx_atomic_pointer_exchange(&CGLOBAL(__pyx_numpy_ndarray), result);
+        }
+        PyMutex_Unlock(&ndarray_mutex);
     }
-    Py_INCREF(__pyx_numpy_ndarray);
-    return __pyx_numpy_ndarray;
+    return result;
+#else
+#if CYTHON_COMPILING_IN_CPYTHON_FREETHREADING // but not atomics
+    PyMutex_Lock(&ndarray_mutex);
+#endif
+    if (unlikely(!CGLOBAL(__pyx_numpy_ndarray)))
+    {
+        CGLOBAL(__pyx_numpy_ndarray) = __Pyx__ImportNumPyArray();
+    }
+#if CYTHON_COMPILING_IN_CPYTHON_FREETHREADING // but not atomics
+    PyMutex_Unlock(&ndarray_mutex);
+#endif
+    return CGLOBAL(__pyx_numpy_ndarray);
+#endif
+}
+
+static CYTHON_INLINE PyObject* __Pyx_ImportNumPyArrayTypeIfAvailable(void) {
+    PyObject *result = __Pyx__ImportNumPyArrayTypeIfAvailable();
+    Py_INCREF(result);
+    return result;
 }
