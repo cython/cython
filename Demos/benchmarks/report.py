@@ -21,8 +21,8 @@ def read_rows(csv_rows):
     # CSV Format: benchmark, revision_name, pyversion, tmin, tmed, tmax
     reader = csv.reader(csv_rows)
 
-    # Sort by "benchmark, revision_name, pyversion"
-    rows = sorted(reader, key=operator.itemgetter(0, 1, 2))
+    # Sort by benchmark name.
+    rows = sorted(reader, key=operator.itemgetter(0))
     return rows
 
 
