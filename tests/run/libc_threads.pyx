@@ -1,7 +1,7 @@
 # mode: run
 # tag: c11, no-cpp, no-macos
 
-from __future__ import print_function
+# cython: language_level=3
 
 from libc cimport threads
 from libc cimport time as ctime
@@ -19,11 +19,10 @@ def test_mutex():
     threads.mtx_unlock(&m)
     threads.mtx_destroy(&m)
 
-cdef void call_me_once() noexcept nogil:
-    # with gil is only OK because it's a toy example with no other threads.
+cdef void call_me_once() noexcept with gil:
+    # with gil is only OK because it's a toy example with no other threads so no chance of deadlock.
     # Do not copy this code!
-    with gil:
-        print("Listen very carefully, I shall say this only once.")
+    print("Listen very carefully, I shall say this only once.")
 
 def test_once():
     """

@@ -1,7 +1,7 @@
 # mode: run
 # tag: cpp, cpp17, no-cpp-locals
 
-from __future__ import print_function
+# cython: language_level=3
 
 from libcpp.mutex cimport (
     mutex, once_flag, unique_lock, call_once,
@@ -19,7 +19,7 @@ from threading import Thread, Barrier
 # Note to readers: some of these tests are a bit lazy
 # with the GIL because they know the lock is only being
 # used from one thread. Be very careful with the GIL and
-# C++ locks!
+# C++ locks to avoid deadlocks!
 
 def test_mutex():
     """
@@ -111,8 +111,7 @@ def test_py_safe_lock_nogil():
 
 # Note that it is only safe to acquire the GIL because we aren't actually running the
 # tests from multiple threads.
-cdef void call_me_once() noexcept nogil:
-    with gil:
+cdef void call_me_once() noexcept with gil:
         print("Listen very carefully, I shall say this only once.")
 
 cdef extern from *:

@@ -1,7 +1,7 @@
 from libcpp cimport bool
 
 cdef extern from "<mutex>" namespace "std" nogil:
-    # For all these mutex classes, we strongly recommend you do not using any
+    # For all these mutex classes, we strongly recommend you do not use any
     # blocking lock function while holding the GIL (try_lock should be fine though).
     cppclass mutex:
         # may not be present, and we know nothing about it
@@ -41,7 +41,7 @@ cdef extern from "<mutex>" namespace "std" nogil:
 
         native_handle_type native_handle() except+
 
-    # We strongly recommend not mixing recursive_mutex and the GIL at all.
+    # We strongly recommend not mixing timed_recursive_mutex and the GIL at all.
     # Because "unlock" may not actually unlock it, it's pretty hard to reason about
     # avoiding deadlocks.
     cppclass timed_recursive_mutex:

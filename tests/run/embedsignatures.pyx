@@ -30,9 +30,11 @@ __doc__ = ur"""
 
     >>> print (Ext.attr0.__doc__)
     attr0: 'int'
+    <BLANKLINE>
     attr0 docstring
     >>> print (Ext.attr1.__doc__)
     attr1: object
+    <BLANKLINE>
     attr1 docstring
     >>> print (Ext.attr2.__doc__)
     attr2: list
@@ -47,6 +49,7 @@ __doc__ = ur"""
     attr4 docstring
     >>> print (Ext.attr5.__doc__)
     attr5: 'int'
+    <BLANKLINE>
     attr5 docstring
 
     >>> print (Ext.a.__doc__)
@@ -78,6 +81,7 @@ __doc__ = ur"""
 
     >>> print (Ext.l.__doc__)
     Ext.l(self, a, b, c=1, *args, d=42, e=17, f, **kwds)
+    <BLANKLINE>
     Existing string
 
     >>> print (Ext.m.__doc__)
@@ -91,6 +95,7 @@ __doc__ = ur"""
 
     >>> print (Ext.__add__.__doc__)
     Ext.__add__(self, Ext other) -> Ext
+    <BLANKLINE>
     add docstring
 
     >>> print (Ext.get_int.__doc__)
@@ -101,6 +106,7 @@ __doc__ = ur"""
 
     >>> print (Ext.get_str.__doc__)
     Ext.get_str(self) -> str
+    <BLANKLINE>
     Existing string
 
     >>> print (Ext.clone.__doc__)
@@ -110,16 +116,16 @@ __doc__ = ur"""
     foo()
 
     >>> funcdoc(with_doc_1)
-    'with_doc_1(a, b, c)\nExisting string'
+    'with_doc_1(a, b, c)\n\nExisting string'
 
     >>> funcdoc(with_doc_2)
-    'with_doc_2(a, b, c)\nExisting string'
+    'with_doc_2(a, b, c)\n\nExisting string'
 
     >>> funcdoc(with_doc_3)
-    'with_doc_3(a, b, c)\nExisting string'
+    'with_doc_3(a, b, c)\n\nExisting string'
 
     >>> funcdoc(with_doc_4)
-    'with_doc_4(int a, str b, list c) -> str\nExisting string'
+    'with_doc_4(int a, str b, list c) -> str\n\nExisting string'
 
     >>> funcdoc(f_sd)
     "f_sd(str s='spam')"
@@ -210,6 +216,7 @@ def test_nonlimited_api():
     """
     >>> print (Ext.__call__.__doc__)
     Ext.__call__(self, a: int, b: float = 1.0, *args: tuple, **kwargs: dict) -> (None, True)
+    <BLANKLINE>
     call docstring
     """
 

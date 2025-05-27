@@ -57,12 +57,14 @@ cdef extern from "<shared_mutex>" namespace "std" nogil:
         ## this feels like it should be noexcept, but cppreference implies it isn't
         #shared_lock(mutex_type&, adopt_lock_t) except+
 
+        # We strongly recommend not calling lock with the GIL held (to avoid deadlocks)
         void lock() except+
         bool try_lock() except+
         bool try_lock_for[T](const T& duration) except+
         bool try_lock_until[T](const T& time_point) except+
         void unlock() except+
 
+        # We strongly recommend not calling lock_shared with the GIL held (to avoid deadlocks)
         void swap(shared_lock& other)
         # "release" is definitely not the same as unlock. Noted here because
         # DW always makes this mistake and regrets it and wants to save you

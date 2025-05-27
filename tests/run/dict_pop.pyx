@@ -15,7 +15,7 @@ def dict_pop(dict d, key):
     >>> d = { 1: 10, 2: 20 }
     >>> dict_pop(d, 1)
     (10, {2: 20})
-    >>> dict_pop(d, FailHash())
+    >>> dict_pop(d, FailHash())  # doctest: +IGNORE_EXCEPTION_DETAIL
     Traceback (most recent call last):
     TypeError
     >>> d
@@ -36,7 +36,7 @@ def dict_pop_default(dict d, key, default):
     >>> d = { 1: 10, 2: 20 }
     >>> dict_pop_default(d, 1, "default")
     (10, {2: 20})
-    >>> dict_pop_default(d, FailHash(), 30)
+    >>> dict_pop_default(d, FailHash(), 30)  # doctest: +IGNORE_EXCEPTION_DETAIL
     Traceback (most recent call last):
     TypeError
     >>> d
@@ -59,7 +59,7 @@ def dict_pop_ignored(dict d, key):
     >>> dict_pop_ignored(d, 'a')
     >>> d
     {1: 2}
-    >>> dict_pop_ignored(d, FailHash())
+    >>> dict_pop_ignored(d, FailHash())  # doctest: +IGNORE_EXCEPTION_DETAIL
     Traceback (most recent call last):
     TypeError
     >>> d

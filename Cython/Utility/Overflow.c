@@ -361,7 +361,11 @@ static CYTHON_INLINE {{TYPE}} __Pyx_{{BINOP}}_{{NAME}}_checking_overflow({{TYPE}
             return ({{TYPE}}) __Pyx_{{BINOP}}_unsigned_long_long_checking_overflow(a, b, overflow);
 #endif
         } else {
-            abort(); return 0; /* handled elsewhere */
+            Py_FatalError(
+                "__Pyx_{{BINOP}}_{{NAME}}_checking_overflow({{TYPE}}) executed an unexpected code path. "
+                "Please report this as a bug in Cython"
+            );
+            return 0; /* handled elsewhere */
         }
     } else {
         if ((sizeof({{TYPE}}) == sizeof(int))) {
@@ -373,7 +377,11 @@ static CYTHON_INLINE {{TYPE}} __Pyx_{{BINOP}}_{{NAME}}_checking_overflow({{TYPE}
             return ({{TYPE}}) __Pyx_{{BINOP}}_long_long_checking_overflow(a, b, overflow);
 #endif
         } else {
-            abort(); return 0; /* handled elsewhere */
+            Py_FatalError(
+                "__Pyx_{{BINOP}}_{{NAME}}_checking_overflow({{TYPE}}) executed an unexpected code path. "
+                "Please report this as a bug in Cython"
+            );
+            return 0; /* handled elsewhere */
         }
     }
 }

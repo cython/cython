@@ -1419,6 +1419,24 @@ builtin_types_with_trashcan = frozenset({
     'dict', 'list', 'set', 'frozenset', 'tuple', 'type',
 })
 
+is_exception_type_name = re.compile(
+    ".*(?:Exception|Error|Warning|ExceptionGroup)"
+    "|KeyboardInterrupt"
+    "|GeneratorExit"
+    "|SystemExit"
+    "|Stop(?:Async)?Iteration"
+).match
+
+_special_type_check_functions = {
+    'int': 'PyLong_Check',
+    'str': 'PyUnicode_Check',
+    'bytearray': 'PyByteArray_Check',
+    'frozenset': 'PyFrozenSet_Check',
+    'memoryview': 'PyMemoryView_Check',
+    'Exception': '__Pyx_PyException_Check',
+    'BaseException': '__Pyx_PyBaseException_Check',
+}
+
 
 class BuiltinObjectType(PyObjectType):
     #  objstruct_cname  string           Name of PyObject struct
@@ -1427,7 +1445,8 @@ class BuiltinObjectType(PyObjectType):
     has_attributes = 1
     base_type = None
     module_name = '__builtin__'
-    require_exact = 1
+    require_exact = True
+    is_exception_type = False
 
     # fields that let it look like an extension type
     vtabslot_cname = None
@@ -1447,8 +1466,9 @@ class BuiltinObjectType(PyObjectType):
             # Special case the type type, as many C API calls (and other
             # libraries) actually expect a PyTypeObject* for type arguments.
             self.decl_type = objstruct_cname
-        if name == 'Exception':
-            self.require_exact = 0
+        if is_exception_type_name(name):
+            self.is_exception_type = True
+            self.require_exact = False
 
     def set_scope(self, scope):
         self.scope = scope
@@ -1495,24 +1515,13 @@ class BuiltinObjectType(PyObjectType):
 
     def type_check_function(self, exact=True):
         type_name = self.name
-        if type_name == 'str':
-            type_check = 'PyUnicode_Check'
-        elif type_name == 'Exception':
-            type_check = '__Pyx_PyException_Check'
-        elif type_name == 'BaseException':
-            type_check = '__Pyx_PyBaseException_Check'
-        elif type_name == 'bytearray':
-            type_check = 'PyByteArray_Check'
-        elif type_name == 'frozenset':
-            type_check = 'PyFrozenSet_Check'
-        elif type_name == 'int':
-            type_check = 'PyLong_Check'
-        elif type_name == "memoryview":
-            # capitalize doesn't catch the 'V'
-            type_check = "PyMemoryView_Check"
+        if type_name in _special_type_check_functions:
+            type_check = _special_type_check_functions[type_name]
+        elif self.is_exception_type:
+            type_check = f"__Pyx_PyExc_{type_name}_Check"
         else:
-            type_check = 'Py%s_Check' % type_name.capitalize()
-        if exact and type_name not in ('bool', 'slice', 'Exception', 'memoryview'):
+            type_check = f'Py{type_name.capitalize()}_Check'
+        if exact and not self.is_exception_type and type_name not in ('bool', 'slice', 'memoryview'):
             type_check += 'Exact'
         return type_check
 
@@ -1550,7 +1559,6 @@ class BuiltinObjectType(PyObjectType):
 
     def py_type_name(self):
         return self.name
-
 
 
 class PyExtensionType(PyObjectType):
@@ -2566,11 +2574,13 @@ class CComplexType(CNumericType):
         return True
 
     def create_to_py_utility_code(self, env):
+        self.create_declaration_utility_code(env)
         env.use_utility_code(TempitaUtilityCode.load_cached(
             'ToPy', 'Complex.c', self._utility_code_context()))
         return True
 
     def create_from_py_utility_code(self, env):
+        self.create_declaration_utility_code(env)
         env.use_utility_code(TempitaUtilityCode.load_cached(
             'FromPy', 'Complex.c', self._utility_code_context()))
         self.from_py_function = "__Pyx_PyComplex_As_" + self.specialization_name()
@@ -3065,7 +3075,7 @@ class CFuncType(CType):
     #  return_type      CType
     #  args             [CFuncTypeArg]
     #  has_varargs      boolean
-    #  exception_value  string
+    #  exception_value  CFuncType.ExceptionValue or Node (for except+)
     #  exception_check  boolean    True if PyErr_Occurred check needed
     #  calling_convention  string  Function calling convention
     #  nogil            boolean    Can be called without gil
@@ -3088,6 +3098,46 @@ class CFuncType(CType):
 
     subtypes = ['return_type', 'args']
 
+    class ExceptionValue:
+        def __init__(self, python_value, c_repr, type):
+            self.python_value = python_value
+            self.c_repr = c_repr
+            self.type = type
+
+        def __eq__(self, other):
+            if not isinstance(other, CFuncType.ExceptionValue):
+                return NotImplemented
+            # only the python_value is used for equality comparison. This allows
+            # things like "-1 == -1.0" to be treated as the same function signature
+            return self.python_value == other.python_value
+
+        def __str__(self):
+            # Called for C code generation.
+            return str(self.c_repr)
+
+        def may_be_nan(self):
+            if not self.type.is_float:
+                return False
+            if not isinstance(self.python_value, (int, float)):
+                # A string representing an unknown C constant that might be NaN.
+                return True
+            # a known constant that evaluates to NaN
+            return self.python_value != self.python_value
+
+        def exception_test_code(self, result_cname, code) -> str:
+            typed_exc_val = self.type.cast_code(str(self))
+            if self.type.is_ctuple:
+                code.globalstate.use_utility_code(UtilityCode.load_cached(
+                            "IncludeStringH", "StringTools.c"))
+                return f"memcmp(&{result_cname}, &{typed_exc_val}, sizeof({result_cname})) == 0"
+            elif self.may_be_nan():
+                # for floats, we may need to handle comparison with NaN
+                code.globalstate.use_utility_code(
+                        UtilityCode.load_cached("FloatExceptionCheck", "Exceptions.c"))
+                return f"__PYX_CHECK_FLOAT_EXCEPTION({result_cname}, {typed_exc_val})"
+            else:
+                return f"{result_cname} == {typed_exc_val}"
+
     def __init__(self, return_type, args, has_varargs = 0,
             exception_value = None, exception_check = 0, calling_convention = "",
             nogil = 0, with_gil = 0, is_overridable = 0, optional_arg_count = 0,
@@ -3097,6 +3147,12 @@ class CFuncType(CType):
         self.args = args
         self.has_varargs = has_varargs
         self.optional_arg_count = optional_arg_count
+        if (exception_value is not None and exception_check != '+' and
+                not isinstance(exception_value, self.ExceptionValue)):
+            # happens within Cython itself when writing custom function types
+            # for utility code functions.
+            exception_value = self.ExceptionValue(
+                exception_value, str(exception_value), return_type)
         self.exception_value = exception_value
         self.exception_check = exception_check
         self.calling_convention = calling_convention
@@ -5442,6 +5498,19 @@ def independent_spanning_type(type1, type2):
         # is another C integer, we must prevent returning a numeric
         # type so that we do not lose the ability to coerce to a
         # Python bool if we have to.
+        return py_object_type
+    elif resolved_type1.is_pyobject != resolved_type2.is_pyobject:
+        # e.g. PyFloat + double => double
+        if resolved_type1.is_pyobject and resolved_type1.equivalent_type == resolved_type2:
+            return resolved_type2
+        if resolved_type2.is_pyobject and resolved_type2.equivalent_type == resolved_type1:
+            return resolved_type1
+        # PyInt + C int => PyInt
+        if resolved_type1.is_int and resolved_type2.is_builtin_type and resolved_type2.name == 'int':
+            return resolved_type2
+        if resolved_type2.is_int and resolved_type1.is_builtin_type and resolved_type1.name == 'int':
+            return resolved_type1
+        # e.g. PyInt + double => object
         return py_object_type
 
     span_type = _spanning_type(type1, type2)

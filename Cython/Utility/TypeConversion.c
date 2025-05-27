@@ -724,7 +724,9 @@ static CYTHON_INLINE PyObject* {{TO_PY_FUNCTION}}({{TYPE}} value) {
             return PyLong_FromLong((long) value);
         } else if (sizeof({{TYPE}}) <= sizeof(unsigned long)) {
             return PyLong_FromUnsignedLong((unsigned long) value);
-#ifdef HAVE_LONG_LONG
+#if defined(HAVE_LONG_LONG) && !CYTHON_COMPILING_IN_PYPY
+        // PyLong_FromUnsignedLongLong() does not necessarily accept ULL arguments in PyPy.
+        // See https://github.com/cython/cython/issues/6890
         } else if (sizeof({{TYPE}}) <= sizeof(unsigned PY_LONG_LONG)) {
             return PyLong_FromUnsignedLongLong((unsigned PY_LONG_LONG) value);
 #endif
