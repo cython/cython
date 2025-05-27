@@ -361,10 +361,12 @@ jobs:
               ${PYTHON} -m pip install setuptools
               if [[ ${PYTHON} == *t ]]; then
                 COMMITS=("origin/master"  "HEAD")
+                CYTHONIZE_ARGS="-Xfreethreading_compatible=True'"
               else
                 COMMITS=("origin/3.0.x"  "3a7a936e099df468dcaa01829ae6567c577489c0"  "${LIMITED_API}" "origin/master"  "${LIMITED_API}" "HEAD")
+                CYTHONIZE_ARGS=
               fi
-              ${PYTHON} Demos/benchmarks/run_benchmarks.py  --show-size --with-python  ${COMMITS[*]}
+              ${PYTHON} Demos/benchmarks/run_benchmarks.py  --show-size --with-python  ${CYTHONIZE_ARGS} ${COMMITS[*]}
               LIMITED_API=
           done
 
