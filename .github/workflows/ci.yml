@@ -278,6 +278,7 @@ jobs:
 
   pycoverage:
     runs-on: ubuntu-22.04
+    needs: [ benchmarks ]  # order summary report output
 
     env:
       BACKEND: c,cpp
@@ -297,7 +298,11 @@ jobs:
         env: { COVERAGE: 1, NO_CYTHON_COMPILE: 1 }
         run: bash ./Tools/ci-run.sh
 
-      - name: Upload Coverage Report
+      - name: Write summary
+        run: |
+          if [ -f coverage-report.md ]; then { echo "## Python coverage results:"; cat coverage-report.md ; } >> $GITHUB_STEP_SUMMARY; fi
+
+      - name: Upload Coverage HTML Report
         uses: actions/upload-artifact@v4.3.0
         with:
           name: pycoverage_html
@@ -305,6 +310,7 @@ jobs:
 
   cycoverage:
     runs-on: ubuntu-22.04
+    needs: [ pycoverage ]  # order summary report output
 
     env:
       BACKEND: c,cpp
@@ -326,7 +332,11 @@ jobs:
         env: { COVERAGE: 1 }
         run: bash ./Tools/ci-run.sh
 
-      - name: Upload Coverage Report
+      - name: Write summary
+        run: |
+          if [ -f coverage-report.md ]; then { echo "## Compiled coverage results:"; cat coverage-report.md ; } >> $GITHUB_STEP_SUMMARY; fi
+
+      - name: Upload Coverage HTML Report
         uses: actions/upload-artifact@v4.3.0
         with:
           name: cycoverage_html
@@ -358,9 +368,19 @@ jobs:
           LIMITED_API=--with-limited
           for PYTHON in  python3.14  python3.13  python3.12  python3.10  ; do
               ${PYTHON} -m pip install setuptools
-              ${PYTHON} Demos/benchmarks/run_benchmarks.py  --show-size --with-python  origin/3.0.x  3a7a936e099df468dcaa01829ae6567c577489c0  ${LIMITED_API} origin/master  ${LIMITED_API} HEAD
+              ${PYTHON} Demos/benchmarks/run_benchmarks.py  --show-size --report benchmark_results_${PYTHON}.csv --with-python  origin/3.0.x  3a7a936e099df468dcaa01829ae6567c577489c0  ${LIMITED_API} origin/master  ${LIMITED_API} HEAD
               LIMITED_API=
-          done
+          done | tee benchmarks.log
+
+      - name: Create summary
+        run: |
+          { echo "## Benchmark results:"; echo; python Demos/benchmarks/report.py benchmark_results_*.csv; } >> $GITHUB_STEP_SUMMARY
+
+      - name: Upload results
+        uses: actions/upload-artifact@v4.3.0
+        with:
+          name: benchmark_results.txt
+          path: benchmarks.log
 
   codespell:
     name: Check for spelling errors
