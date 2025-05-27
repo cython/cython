@@ -2368,13 +2368,17 @@ def main():
         action="store_true", default=False,
         help="collect source coverage data for the Compiler")
     parser.add_argument(
-        "--coverage-xml", dest="coverage_xml",
-        action="store_true", default=False,
-        help="collect source coverage data for the Compiler in XML format")
+        "--coverage-xml", dest="coverage_formats",
+        action="append_const", const="xml",
+        help="report source coverage data for the Compiler in XML format (coverage-report.xml)")
     parser.add_argument(
-        "--coverage-html", dest="coverage_html",
-        action="store_true", default=False,
-        help="collect source coverage data for the Compiler in HTML format")
+        "--coverage-html", dest="coverage_formats",
+        action="append_const", const="html",
+        help="report source coverage data for the Compiler in HTML format (coverage-report-html/)")
+    parser.add_argument(
+        "--coverage-md", dest="coverage_formats",
+        action="append_const", const="markdown",
+        help="report source coverage data for the Compiler in Markdown format (coverage-report.md)")
     parser.add_argument(
         "--tracemalloc", dest="tracemalloc",
         action="store_true", default=False,
@@ -2467,9 +2471,10 @@ def main():
     WITH_CYTHON = options.with_cython
 
     coverage = None
-    if options.coverage or options.coverage_xml or options.coverage_html:
+    if options.coverage or options.coverage_formats:
         if not WITH_CYTHON:
-            options.coverage = options.coverage_xml = options.coverage_html = False
+            options.coverage = False
+            options.coverage_formats = []
         elif options.shard_num == -1:
             print("Enabling coverage analysis")
             from coverage import coverage as _coverage
@@ -2648,9 +2653,16 @@ def configure_cython(options):
 def save_coverage(coverage, options):
     if options.coverage:
         coverage.report(show_missing=0)
-    if options.coverage_xml:
+    if not options.coverage_formats:
+        return
+    if 'markdown' in options.coverage_formats:
+        with open("coverage-report.md", "w") as f:
+            coverage.report(
+                file=f, output_format='markdown',
+                show_missing=True, ignore_errors=True, skip_empty=True)
+    if 'xml' in options.coverage_formats:
         coverage.xml_report(outfile="coverage-report.xml")
-    if options.coverage_html:
+    if 'html' in options.coverage_formats:
         coverage.html_report(directory="coverage-report-html")
 
 
