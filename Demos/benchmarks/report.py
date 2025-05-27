@@ -7,6 +7,10 @@ import itertools
 import operator
 
 
+def unbreak(s):
+    return s.replace(' ', '\N{NO-BREAK SPACE}')
+
+
 def concat_files(csv_files):
     for csv_file in csv_files:
         with open(csv_file) as f:
@@ -35,18 +39,25 @@ def build_table(rows):
         for pyversion in python_versions
         for revision in revisions
     }
-    header = ["Benchmark timings"] + [f"Py{pyversion}: {revision[:25]}" for (pyversion, revision) in column_map]
+    header = ["Benchmark timings"] + [f"Py{pyversion}: {revision[:20]}" for (pyversion, revision) in column_map]
     row_template = [''] * len(header)
 
     # For each benchmark, report all timings in separate columns.
     table = []
+    empty_column_indices = set(column_map.values())
     for benchmark, bm_rows in itertools.groupby(rows, key=operator.itemgetter(0)):
         row = row_template[:]
         table.append(row)
 
         row[0] = benchmark
         for _, revision_name, pyversion, tmin, tmed, tmax, diff in bm_rows:
-            row[column_map[(pyversion, revision_name)]] = f"{tmed} ({diff.strip(' ()')})" if diff else tmed
+            column_index = column_map[(pyversion, revision_name)]
+            empty_column_indices.discard(column_index)
+            row[column_index] = f"{unbreak(tmed)} ({unbreak(diff.strip(' ()'))})" if diff else unbreak(tmed)
+
+    # Strip empty columns, highest to lowest.
+    for column_index in sorted(empty_column_indices, reverse=True):
+        del header[column_index], table[column_index]
 
     return header, table
 
