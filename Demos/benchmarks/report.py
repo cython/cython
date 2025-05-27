@@ -57,7 +57,9 @@ def build_table(rows):
 
     # Strip empty columns, highest to lowest.
     for column_index in sorted(empty_column_indices, reverse=True):
-        del header[column_index], table[column_index]
+        del header[column_index]
+        for row in table:
+            del row[column_index]
 
     return header, table
 
