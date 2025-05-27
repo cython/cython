@@ -362,7 +362,7 @@ static CYTHON_INLINE {{TYPE}} __Pyx_{{BINOP}}_{{NAME}}_checking_overflow({{TYPE}
 #endif
         } else {
             Py_FatalError(
-                __func__ " for type {{TYPE}} executed an unexpected code path. "
+                "__Pyx_{{BINOP}}_{{NAME}}_checking_overflow({{TYPE}}) executed an unexpected code path. "
                 "Please report this as a bug in Cython"
             );
             return 0; /* handled elsewhere */
@@ -378,7 +378,7 @@ static CYTHON_INLINE {{TYPE}} __Pyx_{{BINOP}}_{{NAME}}_checking_overflow({{TYPE}
 #endif
         } else {
             Py_FatalError(
-                __func__ " for type {{TYPE}} executed an unexpected code path. "
+                "__Pyx_{{BINOP}}_{{NAME}}_checking_overflow({{TYPE}}) executed an unexpected code path. "
                 "Please report this as a bug in Cython"
             );
             return 0; /* handled elsewhere */
