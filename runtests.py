@@ -710,6 +710,7 @@ class TestBuilder(object):
         self.cleanup_failures = options.cleanup_failures
         self.with_pyregr = with_pyregr
         self.cython_only = options.cython_only
+        self.abi3audit = options.abi3audit
         self.test_selector = re.compile(options.only_pattern).search if options.only_pattern else None
         self.languages = languages
         self.test_bugs = test_bugs
@@ -920,6 +921,7 @@ class TestBuilder(object):
                           stats=self.stats,
                           add_cython_import=add_cython_import,
                           extra_directives=extra_directives,
+                          abi3audit=self.abi3audit
                           )
 
 
@@ -978,7 +980,8 @@ class CythonCompileTestCase(unittest.TestCase):
                  language_level=2, warning_errors=False,
                  test_determinism=False, shard_num=0,
                  common_utility_dir=None, pythran_dir=None, stats=None, add_cython_import=False,
-                 extra_directives=None, evaluate_tree_assertions=True):
+                 extra_directives=None, evaluate_tree_assertions=True,
+                 abi3audit=False):
         self.test_directory = test_directory
         self.tags = tags
         self.workdir = workdir
@@ -1004,6 +1007,7 @@ class CythonCompileTestCase(unittest.TestCase):
         self.stats = stats
         self.add_cython_import = add_cython_import
         self.extra_directives = extra_directives if extra_directives is not None else {}
+        self.abi3audit = abi3audit
         unittest.TestCase.__init__(self)
 
     def shortDescription(self):
@@ -1120,9 +1124,28 @@ class CythonCompileTestCase(unittest.TestCase):
         if cleanup_c_files and os.path.exists(self.workdir + '-again'):
             shutil.rmtree(self.workdir + '-again', ignore_errors=True)
 
+    def runAbi3AuditTest(self):
+        if not self.abi3audit:
+            return
+        shared_libs = [ file for file in os.listdir(self.workdir)
+                        if os.path.splitext(file)[1] in ('.so', '.dll') ]
+        if not shared_libs:
+            return
+        shared_libs = [ os.path.join(self.workdir, file) for file in shared_libs ]
+        abi3result = subprocess.run(
+            [
+                "abi3audit",
+                '--assume-minimum-abi3', f'{sys_version_or_limited_version[0]}.{sys_version_or_limited_version[1]}',
+                "-v",
+                *shared_libs,
+            ], stdout=subprocess.PIPE, stderr=subprocess.STDOUT, encoding='utf8',)
+        if abi3result.returncode != 0:
+            raise RuntimeError(f"ABI3 audit failed:\n{abi3result.stdout}")
+
     def runTest(self):
         self.success = False
         self.runCompileTest()
+        self.runAbi3AuditTest()
         self.success = True
 
     def runCompileTest(self):
@@ -2368,13 +2391,17 @@ def main():
         action="store_true", default=False,
         help="collect source coverage data for the Compiler")
     parser.add_argument(
-        "--coverage-xml", dest="coverage_xml",
-        action="store_true", default=False,
-        help="collect source coverage data for the Compiler in XML format")
+        "--coverage-xml", dest="coverage_formats",
+        action="append_const", const="xml",
+        help="report source coverage data for the Compiler in XML format (coverage-report.xml)")
     parser.add_argument(
-        "--coverage-html", dest="coverage_html",
-        action="store_true", default=False,
-        help="collect source coverage data for the Compiler in HTML format")
+        "--coverage-html", dest="coverage_formats",
+        action="append_const", const="html",
+        help="report source coverage data for the Compiler in HTML format (coverage-report-html/)")
+    parser.add_argument(
+        "--coverage-md", dest="coverage_formats",
+        action="append_const", const="markdown",
+        help="report source coverage data for the Compiler in Markdown format (coverage-report.md)")
     parser.add_argument(
         "--tracemalloc", dest="tracemalloc",
         action="store_true", default=False,
@@ -2452,6 +2479,9 @@ def main():
         "--limited-api", dest="limited_api", nargs='?', default='', const="%d.%d" % sys.version_info[:2], action="store",
         help=("Use CPython's Limited API. "
               "Accepts an optional API version in the form '3.11', otherwise uses current."))
+    parser.add_argument(
+        "--abi3audit", dest="abi3audit", default=False, action="store_true",
+        help="Validate compiled files with ABI3 audit")
     parser.add_argument('cmd_args', nargs='*')
 
     options = parser.parse_args(args)
@@ -2467,9 +2497,10 @@ def main():
     WITH_CYTHON = options.with_cython
 
     coverage = None
-    if options.coverage or options.coverage_xml or options.coverage_html:
+    if options.coverage or options.coverage_formats:
         if not WITH_CYTHON:
-            options.coverage = options.coverage_xml = options.coverage_html = False
+            options.coverage = False
+            options.coverage_formats = []
         elif options.shard_num == -1:
             print("Enabling coverage analysis")
             from coverage import coverage as _coverage
@@ -2648,9 +2679,16 @@ def configure_cython(options):
 def save_coverage(coverage, options):
     if options.coverage:
         coverage.report(show_missing=0)
-    if options.coverage_xml:
+    if not options.coverage_formats:
+        return
+    if 'markdown' in options.coverage_formats:
+        with open("coverage-report.md", "w") as f:
+            coverage.report(
+                file=f, output_format='markdown',
+                show_missing=True, ignore_errors=True, skip_empty=True)
+    if 'xml' in options.coverage_formats:
         coverage.xml_report(outfile="coverage-report.xml")
-    if options.coverage_html:
+    if 'html' in options.coverage_formats:
         coverage.html_report(directory="coverage-report-html")
 
 
@@ -2736,6 +2774,7 @@ def runtests(options, cmd_args, coverage=None):
             refnanny = import_refnanny()
         CDEFS.append(('CYTHON_REFNANNY', '1'))
 
+    global sys_version_or_limited_version
     sys_version_or_limited_version = sys.version_info
     if options.limited_api:
         limited_api_version = re.match(r"^(\d+)[.](\d+)$", options.limited_api)

@@ -303,9 +303,10 @@ def benchmark_revision(revision, benchmarks, cythonize_args=None, profiler=None,
         return timings, sizes
 
 
-def report_revision_timings(rev_timings):
+def report_revision_timings(rev_timings, csv_out=None):
     units = {"nsec": 1e-9, "usec": 1e-6, "msec": 1e-3, "sec": 1.0}
     scales = [(scale, unit) for unit, scale in reversed(units.items())]  # biggest first
+    pyversion = "%d.%d.%d" % sys.version_info[:3]
 
     def format_time(t):
         pos_t = abs(t)
@@ -339,6 +340,8 @@ def report_revision_timings(rev_timings):
             logging.info(
                 f"    {revision_name[:25]:25} = {format_time(tmin):>12}, {format_time(tmed):>12}, {format_time(tmax):>12}{diff_str}"
             )
+            if csv_out is not None:
+                csv_out.writerow([benchmark, revision_name, pyversion, format_time(tmin), format_time(tmed), format_time(tmax), diff_str])
 
     for revision_name, diffs in differences.items():
         diffs.sort(reverse=True)
@@ -424,6 +427,11 @@ def parse_args(args):
         dest="show_size", action="store_true", default=False,
         help="Report the size of the compiled bencharks."
     )
+    parser.add_argument(
+        "--report",
+        dest="report_csv", default=None, metavar="FILE",
+        help="Write a CSV report to FILE."
+    )
 
     return parser.parse_known_args(args)
 
@@ -453,6 +461,11 @@ if __name__ == '__main__':
         limited_revisions=options.with_limited_api,
         show_size=options.show_size
     )
-    report_revision_timings(timings)
+    if options.report_csv:
+        with open(options.report_csv, "w") as f:
+            import csv
+            report_revision_timings(timings, csv_out=csv.writer(f))
+    else:
+        report_revision_timings(timings)
     if options.show_size:
         report_revision_sizes(sizes)
