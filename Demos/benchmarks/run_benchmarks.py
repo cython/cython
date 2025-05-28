@@ -236,6 +236,8 @@ def run_benchmarks(bm_dir, benchmarks, pythonpath=None, profiler=None):
 
 def benchmark_revisions(benchmarks, revisions, cythonize_args=None, profiler=None, limited_revisions=(), show_size=False):
     python_version = "Python %d.%d.%d" % sys.version_info[:3]
+    if hasattr(sys, '_is_gil_enabled') and not sys._is_gil_enabled():
+        python_version += 't'
     logging.info(f"### Comparing revisions in {python_version}: {' '.join(revisions)}.")
     logging.info(f"CFLAGS={os.environ.get('CFLAGS', DISTUTILS_CFLAGS)}")
 
