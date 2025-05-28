@@ -164,7 +164,10 @@ def infer_sequence_item_type(env, seq_node, index_node=None, seq_type=None):
         # If we're lucky, all items have the same type (possibly with None).
         args_without_none = [item for item in seq_node.args if not item.is_none]
         has_none = len(args_without_none) < len(seq_node.args)
-        item_types = {item.infer_type(env) for item in args_without_none}
+        item_types = {
+            infer_sequence_item_type(env, item) if item.is_starred else item.infer_type(env)
+            for item in args_without_none
+        }
         if len(item_types) == 1:
             item_type = item_types.pop()
             if has_none and not item_type.is_pyobject:
