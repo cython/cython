@@ -160,7 +160,10 @@ def infer_sequence_item_type(env, seq_node, index_node=None, seq_type=None):
             else:
                 return item.infer_type(env)
         # if we're lucky, all items have the same type
-        item_types = {item.infer_type(env) for item in seq_node.args}
+        item_types = {
+            infer_sequence_item_type(env, item) if item.is_starred else item.infer_type(env)
+            for item in seq_node.args
+        }
         if len(item_types) == 1:
             return item_types.pop()
     return None
