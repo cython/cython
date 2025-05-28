@@ -93,24 +93,36 @@ cdef extern from *:
     """
     static int __pyx_libc_threads_has_gil(PyGILState_STATE *gil_state) {
         #if CYTHON_COMPILING_IN_LIMITED_API
+            if ((__PYX_LIMITED_VERSION_HEX >= 0x030d0000) || __Pyx_get_runtime_version() >= 0x030d0000) {
+                // In 3.13+ we can temporarily give up the GIL to find out what the thread state was
+                PyThreadState *ts = PyThreadState_Swap(NULL);
+                if (ts) {
+                    PyThreadState_Swap(ts);
+                    return 1;
+                }
+                return 0;
+            }
             /* There is no way to know if we have the GIL. Therefore the only
-            * thing we can safely do is make absolutely sure that we have it.
-            */
+             * thing we can safely do is make absolutely sure that we have it.
+             */
             *gil_state = PyGILState_Ensure();
             return 1;
         #else
             (void)gil_state;
         #if PY_VERSION_HEX >= 0x030d0000
             return PyThreadState_GetUnchecked() != NULL;
-        #else
+        #elif PY_VERSION_HEX >= 0x030b0000
             return _PyThreadState_UncheckedGet() != NULL;
+        #else
+            return PyGILState_Check();
         #endif
         #endif
     }
 
-    #if CYTHON_COMPILING_IN_LIMITED_API
+    #if CYTHON_COMPILING_IN_LIMITED_API && __PYX_LIMITED_VERSION_HEX < 0x030d0000
     static void __pyx_libc_threads_finish_gil(PyGILState_STATE gil_state) {
-        PyGILState_Release(gil_state);
+        if (__Pyx_get_runtime_version() < 0x030d0000)
+            PyGILState_Release(gil_state);
     }
     #else
     #define __pyx_libc_threads_finish_gil(ignore)
