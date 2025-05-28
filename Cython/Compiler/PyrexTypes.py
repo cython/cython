@@ -5663,10 +5663,6 @@ def parse_basic_ctype(name):
     basic_type = simple_c_type(1, 0, name)
     if basic_type:
         return basic_type
-    if name == "long":
-        return c_long_type
-    elif name == "short":
-        return c_short_type
     return None
 
 
