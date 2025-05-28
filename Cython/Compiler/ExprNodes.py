@@ -168,6 +168,11 @@ def infer_sequence_item_type(env, seq_node, index_node=None, seq_type=None):
             infer_sequence_item_type(env, item) if item.is_starred else item.infer_type(env)
             for item in args_without_none
         }
+        # Unpack the Python types. Also avoids a mix of inferred C and Python.
+        item_types = {
+            item_type.equivalent_type if item_type.is_pyobject and item_type.equivalent_type else item_type
+            for item_type in item_types
+        }
         if len(item_types) == 1:
             item_type = item_types.pop()
             if has_none and not item_type.is_pyobject:
