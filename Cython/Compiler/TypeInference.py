@@ -383,7 +383,8 @@ class SimpleAssignmentTypeInferer:
         dependencies = {}
         assmt_to_names = {}
 
-        for name, entry in scope.entries.items():
+        # make a copy because type_dependencies can create new entries
+        for name, entry in scope.entries.copy().items():
             for assmt in entry.cf_assignments:
                 names = assmt.type_dependencies()
                 assmt_to_names[assmt] = names
