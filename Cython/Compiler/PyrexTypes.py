@@ -5619,9 +5619,7 @@ def parse_basic_type(name: str):
             return CConstOrVolatileType(
                 base, is_const=modifier == 'const', is_volatile=modifier == 'volatile')
     #
-    if name in fixed_sign_int_types:
-        return fixed_sign_int_types[name][1]
-    basic_type = simple_c_type(1, 0, name)
+    basic_type = parse_basic_ctype(name)
     if basic_type:
         return basic_type
     #
@@ -5650,7 +5648,7 @@ def parse_basic_type(name: str):
     return simple_c_type(signed, longness, name)
 
 
-def parse_really_basic_type(name):
+def parse_basic_ctype(name):
     """
     This only covers C types without spaces (i.e. what NameNode can represent).
     It doesn't cover 'longlong' or 'p_long' or similar - just what appears in C.
