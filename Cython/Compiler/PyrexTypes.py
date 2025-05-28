@@ -5160,6 +5160,9 @@ modifiers_and_name_to_type = {
     (2,  1, "int"): c_slong_type,
     (2,  2, "int"): c_slonglong_type,
 
+    (1, 0, "short"): c_short_type,
+    (1, 0, "long"): c_long_type,
+
     (1,  0, "float"):  c_float_type,
     (1,  0, "double"): c_double_type,
     (1,  1, "double"): c_longdouble_type,
