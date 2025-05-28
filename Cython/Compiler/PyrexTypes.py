@@ -5410,8 +5410,7 @@ def parse_basic_type(name):
 def parse_really_basic_type(name):
     """
     This only covers C types without spaces (i.e. what NameNode can represent).
-    It doesn't cover 'longlong' or 'p_long' or similar - just what appears in
-    C.
+    It doesn't cover 'longlong' or 'p_long' or similar - just what appears in C.
     """
     if name in fixed_sign_int_types:
         return fixed_sign_int_types[name][1]

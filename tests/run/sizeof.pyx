@@ -24,7 +24,10 @@ def f():
     i = sizeof(Spam (*)())
 
 def test_extern_typedef():
-
+    """
+    >>> test_extern_typedef()
+    1
+    """
     # Cython should generate the C code "sizeof(p_ulong)"
     # rather than interpreting p_ulong as "unsigned long*".
     return sizeof(p_ulong)
