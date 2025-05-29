@@ -598,6 +598,43 @@ def loop_over_int_array():
         pass
     return typeof(i)
 
+
+@cython.test_assert_path_exists("//ForFromStatNode")
+@cython.test_fail_if_path_exists("//ForInStatNode")
+def loop_over_character_list():
+    """
+    >>> loop_over_character_list()
+    'Py_UCS4'
+    """
+    for ch in ['a', '\x0a', '\N{SNOWMAN}']:
+        assert not ch.isdigit()
+    return typeof(ch)
+
+
+@cython.test_assert_path_exists("//ForFromStatNode")
+@cython.test_fail_if_path_exists("//ForInStatNode")
+def loop_over_single_bytes_tuple():
+    """
+    >>> loop_over_single_bytes_tuple()
+    'unsigned char'
+    """
+    for ch in (b'a', b'\x0a', b' '):
+        assert ch > 0
+    return typeof(ch)
+
+
+@cython.test_assert_path_exists("//ForFromStatNode")
+@cython.test_fail_if_path_exists("//ForInStatNode")
+def loop_over_bools():
+    """
+    >>> loop_over_bools()
+    'bint'
+    """
+    for b in True, False, False, True:
+        assert b or not b
+    return typeof(b)
+
+
 cdef struct MyStruct:
     int a
 
