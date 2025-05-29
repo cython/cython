@@ -54,7 +54,7 @@ basicsize_builtins_map = {
 }
 
 # Builtins as of Python version ...
-KNOWN_PYTHON_BUILTINS_VERSION = (3, 13, 0, 'alpha', 5)
+KNOWN_PYTHON_BUILTINS_VERSION = (3, 14, 0, 'beta', 1)
 KNOWN_PYTHON_BUILTINS = frozenset([
     'ArithmeticError',
     'AssertionError',
@@ -86,7 +86,6 @@ KNOWN_PYTHON_BUILTINS = frozenset([
     'IOError',
     'ImportError',
     'ImportWarning',
-    '_IncompleteInputError',
     'IndentationError',
     'IndexError',
     'InterruptedError',
@@ -133,6 +132,7 @@ KNOWN_PYTHON_BUILTINS = frozenset([
     'Warning',
     'WindowsError',
     'ZeroDivisionError',
+    '_IncompleteInputError',
     '__build_class__',
     '__debug__',
     '__import__',
@@ -464,7 +464,8 @@ class UtilityCodeBase(AbstractUtilityCode):
             (r'^%(C)s{5,30}\s*(?P<name>(?:\w|\.)+)\s*%(C)s{5,30}|'
              r'^%(C)s+@(?P<tag>\w+)\s*:\s*(?P<value>(?:\w|[.:])+)') %
             {'C': comment}).match
-        match_type = re.compile(r'(.+)[.](proto(?:[.]\S+)?|impl|init|cleanup|module_state_decls)$').match
+        match_type = re.compile(
+            r'(.+)[.](proto(?:[.]\S+)?|impl|init|cleanup|module_state_decls|module_state_traverse|module_state_clear)$').match
 
         all_lines = read_utilities_hook(path)
 
@@ -644,10 +645,11 @@ class UtilityCode(UtilityCodeBase):
     file            filename of the utility code file this utility was loaded
                     from (or None)
     """
-    code_parts = ["proto", "impl", "init", "cleanup", "module_state_decls"]
+    code_parts = ["proto", "impl", "init", "cleanup", "module_state_decls", "module_state_traverse", "module_state_clear"]
 
     def __init__(self, proto=None, impl=None, init=None, cleanup=None,
-                 module_state_decls=None, requires=None,
+                 module_state_decls=None, module_state_traverse=None,
+                 module_state_clear=None, requires=None,
                  proto_block='utility_code_proto', name=None, file=None):
         # proto_block: Which code block to dump prototype in. See GlobalState.
         self.proto = proto
@@ -655,6 +657,8 @@ class UtilityCode(UtilityCodeBase):
         self.init = init
         self.cleanup = cleanup
         self.module_state_decls = module_state_decls
+        self.module_state_traverse = module_state_traverse
+        self.module_state_clear = module_state_clear
         self.requires = requires
         self._cache = {}
         self.specialize_list = []
@@ -707,6 +711,8 @@ class UtilityCode(UtilityCodeBase):
                 self.none_or_sub(self.init, data),
                 self.none_or_sub(self.cleanup, data),
                 self.none_or_sub(self.module_state_decls, data),
+                self.none_or_sub(self.module_state_traverse, data),
+                self.none_or_sub(self.module_state_clear, data),
                 requires,
                 self.proto_block,
                 name,
@@ -756,6 +762,10 @@ class UtilityCode(UtilityCodeBase):
             self._put_code_section(output['cleanup_globals'], output, 'cleanup')
         if self.module_state_decls:
             self._put_code_section(output['module_state_contents'], output, 'module_state_decls')
+        if self.module_state_traverse:
+            self._put_code_section(output['module_state_traverse_contents'], output, 'module_state_traverse')
+        if self.module_state_clear:
+            self._put_code_section(output['module_state_clear_contents'], output, 'module_state_clear')
 
         if self.init:
             self._put_init_code_section(output)
@@ -1394,7 +1404,11 @@ class GlobalState:
         'module_state_end',
         'constant_name_defines',
         'module_state_clear',
+        'module_state_clear_contents',
+        'module_state_clear_end',
         'module_state_traverse',
+        'module_state_traverse_contents',
+        'module_state_traverse_end',
         'module_code',  # user code goes here
         'module_exttypes',
         'initfunc_declarations',
@@ -2961,34 +2975,26 @@ class CCodeWriter:
         return self.putln("if (%s < 0) %s" % (value, self.error_goto(pos)))
 
     def put_error_if_unbound(self, pos, entry, in_nogil_context=False, unbound_check_code=None):
+        nogil_tag = "Nogil" if in_nogil_context else ""
         if entry.from_closure:
-            func = '__Pyx_RaiseClosureNameError'
-            self.globalstate.use_utility_code(
-                UtilityCode.load_cached("RaiseClosureNameError", "ObjectHandling.c"))
-        elif entry.type.is_memoryviewslice and in_nogil_context:
-            func = '__Pyx_RaiseUnboundMemoryviewSliceNogil'
-            self.globalstate.use_utility_code(
-                UtilityCode.load_cached("RaiseUnboundMemoryviewSliceNogil", "ObjectHandling.c"))
+            func = "RaiseClosureNameError"
         elif entry.type.is_cpp_class and entry.is_cglobal:
-            func = '__Pyx_RaiseCppGlobalNameError'
-            self.globalstate.use_utility_code(
-                UtilityCode.load_cached("RaiseCppGlobalNameError", "ObjectHandling.c"))
+            func = "RaiseCppGlobalNameError"
         elif entry.type.is_cpp_class and entry.is_variable and not entry.is_member and entry.scope.is_c_class_scope:
             # there doesn't seem to be a good way to detecting an instance-attribute of a C class
             # (is_member is only set for class attributes)
-            func = '__Pyx_RaiseCppAttributeError'
-            self.globalstate.use_utility_code(
-                UtilityCode.load_cached("RaiseCppAttributeError", "ObjectHandling.c"))
+            func = "RaiseCppAttributeError"
         else:
-            func = '__Pyx_RaiseUnboundLocalError'
-            self.globalstate.use_utility_code(
-                UtilityCode.load_cached("RaiseUnboundLocalError", "ObjectHandling.c"))
+            func = "RaiseUnboundLocalError"
+
+        self.globalstate.use_utility_code(
+                UtilityCode.load_cached(f"{func}{nogil_tag}", "ObjectHandling.c"))
 
         if not unbound_check_code:
             unbound_check_code = entry.type.check_for_null_code(entry.cname)
         self.putln('if (unlikely(!%s)) { %s(%s); %s }' % (
                                 unbound_check_code,
-                                func,
+                                f"__Pyx_{func}{nogil_tag}",
                                 entry.name.as_c_string_literal(),
                                 self.error_goto(pos)))
 

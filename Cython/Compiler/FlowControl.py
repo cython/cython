@@ -1233,7 +1233,7 @@ class ControlFlowAnalysis(CythonTransform):
             entry_point = self.flow.newblock(parent=self.flow.block)
             self.flow.nextblock()
             if clause.target:
-                self.mark_assignment(clause.target)
+                self.mark_assignment(clause.target, clause.exc_value)
             self._visit(clause.body)
             if self.flow.block:
                 self.flow.block.add_child(next_block)

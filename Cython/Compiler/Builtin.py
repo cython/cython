@@ -4,8 +4,8 @@
 
 
 from .StringEncoding import EncodedString
-from .Symtab import BuiltinScope, StructOrUnionScope, ModuleScope, Entry
-from .Code import UtilityCode, TempitaUtilityCode
+from .Symtab import BuiltinScope, CClassScope, StructOrUnionScope, ModuleScope, Entry
+from .Code import UtilityCode, TempitaUtilityCode, KNOWN_PYTHON_BUILTINS, uncachable_builtins
 from .TypeSlots import Signature
 from . import PyrexTypes
 
@@ -231,7 +231,8 @@ builtin_function_table = [
     BuiltinFunction('chr',        "i",    "O",      "PyUnicode_FromOrdinal", builtin_return_type='str'),
     #('cmp', "",   "",     "",      ""), # int PyObject_Cmp(PyObject *o1, PyObject *o2, int *result)
     #('compile',   "",     "",      ""), # PyObject* Py_CompileString(    char *str, char *filename, int start)
-    BuiltinFunction('delattr',    "OO",   "r",     "PyObject_DelAttr"),
+    BuiltinFunction('delattr',    "OO",   "r",     "__Pyx_PyObject_DelAttr",
+                    utility_code=UtilityCode.load("PyObjectDelAttr", "ObjectHandling.c")),
     BuiltinFunction('dir',        "O",    "O",     "PyObject_Dir"),
     BuiltinFunction('divmod',     "OO",   "O",     "PyNumber_Divmod",
                     specialiser=_generate_divmod_function),
@@ -347,10 +348,7 @@ builtin_types_table = [
 
     ("type",    "&PyType_Type",     []),
 
-# This conflicts with the C++ bool type, and unfortunately
-# C++ is too liberal about PyObject* <-> bool conversions,
-# resulting in unintuitive runtime behavior and segfaults.
-#    ("bool",   "&PyBool_Type",     []),
+    ("bool",   "&PyBool_Type",     []),
 
     ("int",     "&PyLong_Type",     []),
     ("float",   "&PyFloat_Type",   []),
@@ -435,7 +433,6 @@ builtin_types_table = [
     ("frozenset", "&PyFrozenSet_Type", []),
     ("BaseException", "((PyTypeObject*)PyExc_BaseException)", []),
     ("Exception", "((PyTypeObject*)PyExc_Exception)", []),
-    ("StopAsyncIteration", "((PyTypeObject*)PyExc_StopAsyncIteration)", []),
     ("memoryview", "&PyMemoryView_Type", [
         # TODO - format would be nice, but hard to get
         # __len__ can be accessed through a direct lookup of the buffer (but probably in Optimize.c)
@@ -466,12 +463,14 @@ builtin_types_table = [
 
 
 types_that_construct_their_instance = frozenset({
-    # some builtin types do not always return an instance of
+    # Some builtin types do not always return an instance of
     # themselves - these do:
     'type', 'bool', 'int', 'float', 'complex',
     'bytes', 'unicode', 'bytearray', 'str',
     'tuple', 'list', 'dict', 'set', 'frozenset',
-    'memoryview'
+    'memoryview',
+    # All builtin exception types create their own instance.
+    *filter(PyrexTypes.is_exception_type_name, KNOWN_PYTHON_BUILTINS),
 })
 
 
@@ -750,12 +749,10 @@ def init_builtin_types():
         elif name == 'str':
             objstruct_cname = 'PyUnicodeObject'
         elif name == 'bool':
-            objstruct_cname = None
+            objstruct_cname = 'PyLongObject'
         elif name == 'BaseException':
             objstruct_cname = "PyBaseExceptionObject"
         elif name == 'Exception':
-            objstruct_cname = "PyBaseExceptionObject"
-        elif name == 'StopAsyncIteration':
             objstruct_cname = "PyBaseExceptionObject"
         else:
             objstruct_cname = 'Py%sObject' % name.capitalize()
@@ -769,6 +766,26 @@ def init_builtin_types():
         builtin_types[name] = the_type
         for method in methods:
             method.declare_in_type(the_type)
+
+
+def init_builtin_exceptions():
+    """Declare known builtin Python exceptions as types.
+    """
+    for name in KNOWN_PYTHON_BUILTINS:
+        if name in uncachable_builtins:
+            # Exclude builtins specific to later Python versions or platforms.
+            continue
+        if not PyrexTypes.is_exception_type_name(name):
+            continue
+        if builtin_scope.lookup_here(name) is not None:
+            # Already declared as builtin type above in a more specialised way.
+            continue
+        utility_code = UtilityCode(
+            proto=f"#define __Pyx_PyExc_{name}_Check(obj)  __Pyx_TypeCheck(obj, PyExc_{name})",
+            name=f"Py{name}_Check",
+        )
+        builtin_types[name] = builtin_scope.declare_builtin_type(
+            name, f"((PyTypeObject*)PyExc_{name})", utility_code=utility_code)
 
 
 def init_builtin_structs():
@@ -785,6 +802,7 @@ def init_builtins():
     #Errors.init_thread()  # hopefully not needed - we should not emit warnings ourselves
     init_builtin_structs()
     init_builtin_types()
+    init_builtin_exceptions()
     init_builtin_funcs()
 
     entry = builtin_scope.declare_var(
@@ -825,12 +843,15 @@ def init_builtins():
     )
 
     # Set up type inference links between equivalent Python/C types
+    assert bool_type.name == 'bool', bool_type.name
     bool_type.equivalent_type = PyrexTypes.c_bint_type
     PyrexTypes.c_bint_type.equivalent_type = bool_type
 
+    assert float_type.name == 'float', float_type.name
     float_type.equivalent_type = PyrexTypes.c_double_type
     PyrexTypes.c_double_type.equivalent_type = float_type
 
+    assert complex_type.name == 'complex', complex_type.name
     complex_type.equivalent_type = PyrexTypes.c_double_complex_type
     PyrexTypes.c_double_complex_type.equivalent_type = complex_type
 

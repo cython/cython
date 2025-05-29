@@ -978,19 +978,21 @@ __Pyx_Coroutine_FinishDelegation(__pyx_CoroutineObject *gen, PyObject** retval) 
 static __Pyx_PySendResult
 __Pyx_Coroutine_SendToDelegate(__pyx_CoroutineObject *gen, __Pyx_pyiter_sendfunc gen_am_send, PyObject *value, PyObject **retval) {
     PyObject *ret = NULL;
-    __Pyx_PySendResult result;
+    __Pyx_PySendResult delegate_result, result;
     assert(__Pyx_Coroutine_get_is_running(gen));
     // we assume that gen->yieldfrom cannot change as long as 'gen->is_running' is set => no safety INCREF()
-    result = gen_am_send(gen->yieldfrom, value, &ret);
-    if (result == PYGEN_NEXT) {
+    delegate_result = gen_am_send(gen->yieldfrom, value, &ret);
+    if (delegate_result == PYGEN_NEXT) {
         assert (ret != NULL);
         *retval = ret;
         return PYGEN_NEXT;
     }
-    //assert (result == PYGEN_ERROR ? ret == NULL : ret != NULL);
-    assert (result != PYGEN_ERROR || ret == NULL);
+    //assert (delegate_result == PYGEN_ERROR ? ret == NULL : ret != NULL);
+    assert (delegate_result != PYGEN_ERROR || ret == NULL);
     __Pyx_Coroutine_Undelegate(gen);
-    return __Pyx_Coroutine_SendEx(gen, ret, retval, 0);
+    result = __Pyx_Coroutine_SendEx(gen, ret, retval, 0);
+    Py_XDECREF(ret);
+    return result;
 }
 #endif
 
@@ -1687,6 +1689,26 @@ static void __Pyx_SetBackportTypeAmSend(PyTypeObject *type, __Pyx_PyAsyncMethods
 }
 #endif
 
+//////////////////// Coroutine.module_state_decls ////////////////////
+
+PyTypeObject *__pyx_CoroutineType;
+PyTypeObject *__pyx_CoroutineAwaitType;
+
+//////////////////// Coroutine.module_state_traverse ///////////////////
+
+Py_VISIT(traverse_module_state->__pyx_CoroutineType);
+Py_VISIT(traverse_module_state->__pyx_CoroutineAwaitType);
+
+//////////////////// Coroutine.module_state_clear ///////////////////
+
+Py_CLEAR(clear_module_state->__pyx_CoroutineType);
+Py_CLEAR(clear_module_state->__pyx_CoroutineAwaitType);
+
+//////////////////// Coroutine.init //////////////////
+//@substitute: naming
+
+if (likely(__pyx_Coroutine_init($module_cname) == 0)); else
+
 //////////////////// Coroutine ////////////////////
 //@requires: CoroutineBase
 //@requires: ExtensionTypes.c::CallTypeTraverse
@@ -1932,6 +1954,22 @@ static int __pyx_Coroutine_init(PyObject *module) {
     return 0;
 }
 
+//////////////////// IterableCoroutine.module_state_decls ////////////////////
+
+PyTypeObject *__pyx_IterableCoroutineType;
+
+//////////////////// IterableCoroutine.module_state_traverse ///////////////////
+
+Py_VISIT(traverse_module_state->__pyx_IterableCoroutineType);
+
+//////////////////// IterableCoroutine.module_state_clear ///////////////////
+
+Py_CLEAR(clear_module_state->__pyx_IterableCoroutineType);
+
+//////////////////// IterableCoroutine.init //////////////////
+//@substitute: naming
+
+if (likely(__pyx_IterableCoroutine_init($module_cname) == 0)); else
 
 //////////////////// IterableCoroutine.proto ////////////////////
 
@@ -1993,6 +2031,22 @@ static int __pyx_IterableCoroutine_init(PyObject *module) {
     return 0;
 }
 
+//////////////////// Generator.module_state_decls ////////////////////
+
+PyTypeObject *__pyx_GeneratorType;
+
+//////////////////// Generator.module_state_traverse ///////////////////
+
+Py_VISIT(traverse_module_state->__pyx_GeneratorType);
+
+//////////////////// Generator.module_state_clear ///////////////////
+
+Py_CLEAR(clear_module_state->__pyx_GeneratorType);
+
+//////////////////// Generator.init //////////////////
+//@substitute: naming
+
+if (likely(__pyx_Generator_init($module_cname) == 0)); else
 
 //////////////////// Generator ////////////////////
 //@requires: CoroutineBase
@@ -2124,8 +2178,8 @@ static void __Pyx__ReturnWithStopIteration(PyObject* value, int async) {
     PyObject *exc;
     PyObject *exc_type = async ? PyExc_StopAsyncIteration : PyExc_StopIteration;
 #if CYTHON_COMPILING_IN_CPYTHON
-    if ((PY_VERSION_HEX >= 0x030C00A6) || unlikely(PyTuple_Check(value) || PyExceptionInstance_Check(value))) {
-        if ((PY_VERSION_HEX >= 0x030e00A1)) {
+    if ((PY_VERSION_HEX >= (0x030C00A6)) || unlikely(PyTuple_Check(value) || PyExceptionInstance_Check(value))) {
+        if (PY_VERSION_HEX >= (0x030e00A1)) {
             exc = __Pyx_PyObject_CallOneArg(exc_type, value);
         } else {
             // Before Py3.14a1, CPython doesn't implement vectorcall for exceptions.

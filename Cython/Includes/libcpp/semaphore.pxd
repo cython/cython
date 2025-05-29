@@ -8,6 +8,13 @@ cdef extern from "<semaphore>" namespace "std" nogil:
     # don't need to use the templates. If you do though, then there's a
     # few tricks - e.g. you can define a class with a cname of "3" for
     # example.
+
+    # Note on thread-safety:
+    # You should use these classes without the GIL. It's very easy
+    # to deadlock with the GIL, and we're assuming that anyone going
+    # low enough level to be using semaphores doesn't want the overhead
+    # of Cython handling GIL safety.
+
     cdef cppclass counting_semaphore[LeastMaxValue=*]:
         counting_semaphore(ptrdiff_t desired)
 

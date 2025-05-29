@@ -1,6 +1,8 @@
 # mode: run
 # tag: cpp, cpp17, no-cpp-locals
 
+# cython: language_level=3
+
 from libcpp.mutex cimport (
     mutex, once_flag, unique_lock, call_once,
     adopt_lock, scoped_lock
@@ -8,6 +10,11 @@ from libcpp.mutex cimport (
 from libcpp.shared_mutex cimport (
     shared_mutex, shared_lock
 )
+
+# Note to readers: some of these tests are a bit lazy
+# with the GIL because they know the lock is only being
+# used from one thread. Be very careful with the GIL and
+# C++ locks to avoid deadlocks!
 
 def test_mutex():
     """
@@ -33,7 +40,7 @@ def test_unique_lock_more():
     # unlocked automatically when it exits scope
 
 
-cdef void call_me_once() noexcept:
+cdef void call_me_once() noexcept with gil:
     print("Listen very carefully, I shall say this only once.")
 
 cdef extern from *:
