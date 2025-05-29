@@ -204,8 +204,8 @@ class IterationTransform(Visitor.EnvTransform):
         # C array (slice) iteration?
         if iterable.type.is_ptr or iterable.type.is_array:
             return self._transform_carray_iteration(node, iterable, reversed=reversed)
-        if iterable.is_sequence_constructor and not iterable.slow:
-            # Convert iteration over homogeneous sequences into array iteration.
+        if iterable.is_sequence_constructor:
+            # Convert iteration over homogeneous sequences of C types into array iteration.
             env = self.current_env()
             item_type = ExprNodes.infer_sequence_item_type(
                 env, iterable, seq_type=iterable.type)
