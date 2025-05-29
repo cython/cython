@@ -9956,17 +9956,6 @@ class ParallelStatNode(StatNode, ParallelNode):
             end_code.putln("#endif /* _OPENMP */")
             self.cleanup_temps(end_code)
             end_code.put_release_ensured_gil()
-            if self.with_python:
-                end_code.putln("#ifdef _OPENMP")
-                end_code.putln("{")
-                end_code.putln("int had_gil = PyGILState_Check();")
-                end_code.putln("PyThreadState *_save;")
-                end_code.putln("if (had_gil) Py_UNBLOCK_THREADS")
-                # Ensure the GIL is unblocked, and wait for all threads before proceeding.
-                end_code.putln("#pragma omp barrier")
-                end_code.putln("if (had_gil) Py_BLOCK_THREADS")
-                end_code.putln("}")
-                end_code.putln("#endif /* _OPENMP */")
             end_code.putln("#ifndef _OPENMP")
             end_code.put_safe("}\n")
             end_code.putln("#endif /* _OPENMP */")

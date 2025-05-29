@@ -3748,7 +3748,8 @@ class GilCheck(VisitorTransform):
         return node
 
     def visit_ParallelRangeNode(self, node):
-        if node.nogil or (self.nogil_state == Nodes.NoGilState.NoGilScope and not node.with_python):
+        if (node.nogil or self.nogil_state == Nodes.NoGilState.NoGilScope or
+                (node.with_python and not self.nogil_state == Nodes.NoGilState.NoGil and node.parent is None)):
             node_was_nogil, node.nogil = node.nogil, False
             node = Nodes.GILStatNode(node.pos, state='nogil', body=node)
             if not node_was_nogil and self.nogil_state == Nodes.NoGilState.NoGilScope:
@@ -3782,9 +3783,12 @@ class GilCheck(VisitorTransform):
             error(node.pos, "The parallel section may only be used without "
                             "the GIL")
             return None
-        if self.nogil_state == Nodes.NoGilState.NoGilScope and not node.with_python:
+        if (self.nogil_state == Nodes.NoGilState.NoGilScope or
+                (node.with_python and self.nogil_state != Nodes.NoGilState.NoGil)):
             # We're in a "nogil" function but that doesn't prove we didn't
-            # have the gil, so release it
+            # have the gil, so release it.
+            # Note that we do this even for "with_python" because it's easier to
+            # enter/exit the block without the GIL to avoid deadlocks.
             node = Nodes.GILStatNode(node.pos, state='nogil', body=node)
             node.scope_gil_state_known = False
             return self.visit_GILStatNode(node)
