@@ -183,7 +183,7 @@ def infer_sequence_item_type(env, seq_node, index_node=None, seq_type=None):
                 item_type = item_type.equivalent_type  # 'equivalent_type' may be None => cannot infer type
             elif item_type in (unicode_type, bytes_type):
                 # Infer special case of single character sequences as single character type.
-                if all(arg.is_string_literal and len(arg.value) == 1 for arg in args_without_none):
+                if all(arg.is_string_literal and arg.can_coerce_to_char_literal() for arg in args_without_none):
                     item_type = PyrexTypes.c_py_ucs4_type if item_type is unicode_type else PyrexTypes.c_uchar_type
             return item_type
     return None
