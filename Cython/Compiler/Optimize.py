@@ -213,6 +213,20 @@ class IterationTransform(Visitor.EnvTransform):
                 iterable = ExprNodes.ListNode(iterable.pos, args=iterable.args).analyse_types(env).coerce_to(
                     PyrexTypes.c_array_type(item_type, len(iterable.args)), env)
                 return self._transform_carray_iteration(node, iterable, reversed=reversed)
+        if iterable.is_string_literal:
+            # Iterate over C array of single character values.
+            env = self.current_env()
+            if iterable.type is Builtin.unicode_type:
+                item_type = PyrexTypes.c_py_ucs4_type
+                items = map(ord, iterable.value)
+            else:
+                item_type = PyrexTypes.c_uchar_type
+                items = iterable.value
+            iterable = ExprNodes.ListNode(iterable.pos, args=[
+                ExprNodes.IntNode(iterable.pos, value=str(ch), constant_result=ch, type=item_type)
+                for ch in items
+            ]).analyse_types(env).coerce_to(PyrexTypes.c_array_type(item_type, len(iterable.value)), env)
+            return self._transform_carray_iteration(node, iterable, reversed=reversed)
         if iterable.type is Builtin.bytes_type:
             return self._transform_bytes_iteration(node, iterable, reversed=reversed)
         if iterable.type is Builtin.unicode_type:
