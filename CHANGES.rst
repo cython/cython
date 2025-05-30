@@ -5,6 +5,38 @@ Cython Changelog
 3.2.0a0 (2025-??-??)
 ====================
 
+Features added
+--------------
+
+* Builtin exception types are now inferred.
+  (Github issue :issue:`6908`)
+
+* Item type inferrence was improved for looping over literals.
+  (Github issue :issue:`6912`)
+
+* Looping over literal sequences and strings now uses efficient C array looping if possible.
+  (Github issue :issue:`6926`)
+
+* Using ``NaN`` as exception return value is supported.
+  (Github issues :issue:`6900`, :issue:`6903`)
+
+Bugs fixed
+----------
+
+* Special float exception values could generate invalid C code.
+  (Github issues :issue:`6900`, :issue:`6903`)
+
+* References to the Python ``bool`` type could generate invalid C code.
+  (Github issue :issue:`6902`)
+
+* Pure mode type alias like ``p_int`` or ``ulong`` leaked into some C type contexts.
+  (Github issues :issue:`6922`, :issue:`6339`)
+
+* Vectorcalls could use needless temp assignments for ``self``.
+  (Github issue :issue:`6909`)
+
+* Includes all fixes as of Cython 3.1.2.
+
 
 3.1.2 (2025-??-??)
 ==================
