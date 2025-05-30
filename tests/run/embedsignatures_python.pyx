@@ -309,3 +309,14 @@ m61(self, a: complex) -> complex
 m71(self, a: complex) -> complex
 
 """
+
+def has_lambda(arg=lambda z: z+1):
+    pass
+
+# Currently the lambda is shown as an Ellipsis because it's unformatable
+# (and in this context, failure is basically OK). If that changes and we're able to
+# print it properly then update the test.
+__doc__ += """
+>>> print(has_lambda.__doc__)
+has_lambda(arg=...)
+"""
