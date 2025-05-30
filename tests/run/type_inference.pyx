@@ -599,40 +599,67 @@ def loop_over_int_array():
     return typeof(i)
 
 
-@cython.test_assert_path_exists("//ForFromStatNode")
-@cython.test_fail_if_path_exists("//ForInStatNode")
+@cython.test_assert_path_exists(
+    "//ForFromStatNode",
+    "//ForFromStatNode//NameNode[@name = 'c_ch']",
+    "//ForInStatNode",
+    "//ForInStatNode//NameNode[@name = 'py_ch']",
+)
 def loop_over_character_list():
     """
     >>> loop_over_character_list()
-    'Py_UCS4'
+    Py_UCS4
+    str object
     """
-    for ch in ['a', '\x0a', '\N{SNOWMAN}']:
-        assert not ch.isdigit()
-    return typeof(ch)
+    for c_ch in ['a', '\x0a', '\N{SNOWMAN}']:
+        assert not c_ch.isdigit()
+    print(typeof(c_ch))
+
+    for py_ch in ['a', '\x0a', None, '\N{SNOWMAN}']:
+        pass
+    print(typeof(py_ch))
 
 
-@cython.test_assert_path_exists("//ForFromStatNode")
-@cython.test_fail_if_path_exists("//ForInStatNode")
+@cython.test_assert_path_exists(
+    "//ForFromStatNode",
+    "//ForFromStatNode//NameNode[@name = 'c_ch']",
+    "//ForInStatNode",
+    "//ForInStatNode//NameNode[@name = 'py_ch']",
+)
 def loop_over_single_bytes_tuple():
     """
     >>> loop_over_single_bytes_tuple()
-    'unsigned char'
+    unsigned char
+    bytes object
     """
-    for ch in (b'a', b'\x0a', b' '):
-        assert ch > 0
-    return typeof(ch)
+    for c_ch in (b'a', b'\x0a', b' '):
+        assert c_ch > 0
+    print(typeof(c_ch))
+
+    for py_ch in (b'a', b'\x0a', b' ', None):
+        assert py_ch or not py_ch
+    print(typeof(py_ch))
 
 
-@cython.test_assert_path_exists("//ForFromStatNode")
-@cython.test_fail_if_path_exists("//ForInStatNode")
+@cython.test_assert_path_exists(
+    "//ForFromStatNode",
+    "//ForFromStatNode//NameNode[@name = 'c_b']",
+    "//ForInStatNode",
+    "//ForInStatNode//NameNode[@name = 'py_b']",
+)
 def loop_over_bools():
     """
     >>> loop_over_bools()
-    'bint'
+    bint
+    bool object
     """
-    for b in True, False, False, True:
-        assert b or not b
-    return typeof(b)
+    for c_b in True, False, False, True:
+        assert c_b or not c_b
+    print(typeof(c_b))
+
+    for py_b in None, True, False, False, True:
+        assert py_b or not py_b
+    print(typeof(py_b))
 
 
 cdef struct MyStruct:
