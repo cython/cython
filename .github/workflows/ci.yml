@@ -41,7 +41,7 @@ jobs:
         #
         # FIXME: 'cpp' tests seems to fail due to compilation errors (numpy_pythran_unit)
         # in all python versions and test failures (builtin_float) in 3.5<
-        os: [ubuntu-22.04, windows-2019, macos-13]
+        os: [ubuntu-22.04, windows-2022, macos-13]
         backend: [c, cpp]
         python-version:
           - "3.8"
@@ -57,16 +57,16 @@ jobs:
 
         exclude:
           # Windows and free-threading is difficult to build right now
-          - os: windows-2019
+          - os: windows-2022
             python-version: 3.13t
             backend: "c"
-          - os: windows-2019
+          - os: windows-2022
             python-version: 3.13t
             backend: "cpp"
-          - os: windows-2019
+          - os: windows-2022
             python-version: 3.14t-dev
             backend: "c"
-          - os: windows-2019
+          - os: windows-2022
             python-version: 3.14t-dev
             backend: "cpp"
 
@@ -207,11 +207,11 @@ jobs:
           - os: ubuntu-22.04
             python-version: 3.13t
             backend: "cpp"
-#          - os: windows-2019
+#          - os: windows-2022
 #            python-version: 3.13t
 #            backend: "c"
 #            allowed_failure: true
-#          - os: windows-2019
+#          - os: windows-2022
 #            python-version: 3.13t
 #            backend: "cpp"
 #            allowed_failure: true
