@@ -14,7 +14,6 @@ cdef extern from "<semaphore>" namespace "std" nogil:
     # to deadlock with the GIL, and we're assuming that anyone going
     # low enough level to be using semaphores doesn't want the overhead
     # of Cython handling GIL safety.
-
     cdef cppclass counting_semaphore[LeastMaxValue=*]:
         counting_semaphore(ptrdiff_t desired)
 
