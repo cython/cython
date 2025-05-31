@@ -3748,7 +3748,8 @@ class GilCheck(VisitorTransform):
         return node
 
     def visit_ParallelRangeNode(self, node):
-        if node.nogil or self.nogil_state == Nodes.NoGilState.NoGilScope:
+        if (node.nogil or self.nogil_state == Nodes.NoGilState.NoGilScope or
+                (node.with_python and not self.nogil_state == Nodes.NoGilState.NoGil and node.parent is None)):
             node_was_nogil, node.nogil = node.nogil, False
             node = Nodes.GILStatNode(node.pos, state='nogil', body=node)
             if not node_was_nogil and self.nogil_state == Nodes.NoGilState.NoGilScope:
@@ -3757,26 +3758,44 @@ class GilCheck(VisitorTransform):
                 node.scope_gil_state_known = False
             return self.visit_GILStatNode(node)
 
-        if not self.nogil_state:
+        if not self.nogil_state and not node.with_python:
+            # TODO - eventually point them to the with_python argument in this message.
+            # For now it's sufficiently experimental and fragile that I don't want to
+            # encourage any user that hasn't read the documentation in detail to find it.
             error(node.pos, "prange() can only be used without the GIL")
             # Forget about any GIL-related errors that may occur in the body
             return None
 
+        if node.with_python:
+            was_nogil = self.nogil_state
+            self.nogil_state = Nodes.NoGilState.HasGil
+
         node.nogil_check(self.env_stack[-1])
         self.visitchildren(node)
+
+        if node.with_python:
+            self.nogil_state = was_nogil
         return node
 
     def visit_ParallelWithBlockNode(self, node):
-        if not self.nogil_state:
+        if not self.nogil_state and not node.with_python:
+            # TODO - when it's stable, eventually mention the with_python argument
             error(node.pos, "The parallel section may only be used without "
                             "the GIL")
             return None
-        if self.nogil_state == Nodes.NoGilState.NoGilScope:
+        if (self.nogil_state == Nodes.NoGilState.NoGilScope or
+                (node.with_python and self.nogil_state != Nodes.NoGilState.NoGil)):
             # We're in a "nogil" function but that doesn't prove we didn't
-            # have the gil, so release it
+            # have the gil, so release it.
+            # Note that we do this even for "with_python" because it's easier to
+            # enter/exit the block without the GIL to avoid deadlocks.
             node = Nodes.GILStatNode(node.pos, state='nogil', body=node)
             node.scope_gil_state_known = False
             return self.visit_GILStatNode(node)
+
+        if node.with_python:
+            was_nogil = self.nogil_state
+            self.nogil_state = Nodes.NoGilState.HasGil
 
         if node.nogil_check:
             # It does not currently implement this, but test for it anyway to
@@ -3784,6 +3803,8 @@ class GilCheck(VisitorTransform):
             node.nogil_check(self.env_stack[-1])
 
         self.visitchildren(node)
+        if node.with_python:
+            self.nogil_state = was_nogil
         return node
 
     def visit_TryFinallyStatNode(self, node):
