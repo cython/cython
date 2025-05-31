@@ -8909,6 +8909,10 @@ class GILStatNode(NogilTryFinallyStatNode):
         code.mark_pos(self.pos)
         code.begin_block()
         if self.state_temp:
+            # state-temps only happen inside generators which are inherently Python functions
+            # and thus we do always know whether we have the GIL. This is important because it
+            # means that the type of the state-temp is always PyThreadState*.
+            assert self.scope_gil_state_known
             self.state_temp.allocate(code)
             variable = self.state_temp.result()
         else:
