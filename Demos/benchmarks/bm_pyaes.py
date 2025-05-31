@@ -521,7 +521,7 @@ aes_inv_sbox = array('B', codecs.decode(
 )
 
 # The Rcon table is used in AES's key schedule (key expansion)
-# It's a pre-computed table of exponentation of 2 in AES's finite field
+# It's a pre-computed table of exponentiation of 2 in AES's finite field
 #
 # More information: http://en.wikipedia.org/wiki/Rijndael_key_schedule
 
