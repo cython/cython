@@ -3099,12 +3099,7 @@ class IteratorNode(ScopedExprNode):
         if not is_builtin_sequence:
             # reversed() not currently optimised (see Optimize.py)
             assert not self.reversed, "internal error: reversed() only implemented for list/tuple objects"
-        # range is a *very* common builtin function which we know doesn't produce a sequence
-        is_range = (isinstance(self.sequence, CallNode) and
-                    self.sequence.function.is_name and
-                    self.sequence.function.name == "range" and
-                    self.sequence.function.entry.is_builtin)
-        self.may_be_a_sequence = not sequence_type.is_builtin_type and not is_range
+        self.may_be_a_sequence = not sequence_type.is_builtin_type
         if self.may_be_a_sequence:
             code.putln(
                 "if (likely(PyList_CheckExact(%s)) || PyTuple_CheckExact(%s)) {" % (
