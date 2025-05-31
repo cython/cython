@@ -19,7 +19,7 @@ cdef extern from "<condition_variable>" namespace "std" nogil:
         # Be very wary of calling any of the wait functions with the GIL held.
         # Also be a little wary of re-acquiring the GIL in the predicate
         # (because in principle it may deadlock with the lock).
-        # The predicate should no require the GIL or throw Python exceptions.
+        # The predicate should not require the GIL or throw Python exceptions.
         void wait(unique_lock[mutex]& lock) except+
         void wait[Predicate](unique_lock[mutex]& lock, Predicate pred) except+
 
@@ -39,7 +39,7 @@ cdef extern from "<condition_variable>" namespace "std" nogil:
         # Be very wary of calling any of the wait functions with the GIL held.
         # Also be a little wary of re-acquiring the GIL in the predicate
         # (because in principle it may deadlock with the lock).
-        # The predicate should no require the GIL or throw Python exceptions.
+        # The predicate should not require the GIL or throw Python exceptions.
         void wait[Lock](Lock& lock) except+
         void wait[Lock, Predicate](Lock& lock, Predicate pred) except+
         _bool wait[Lock, Predicate](Lock& lock, stop_token stoken, Predicate pred) except+
