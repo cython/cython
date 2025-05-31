@@ -198,8 +198,10 @@ cdef extern from *:
         if (__Pyx_UnknownThreadStateMayHaveHadGil(thread_state)) {
             int unlock_result, relock_result;
             unlock_result = mtx_unlock(mutex);
-            relock_result = __pyx_py_safe_mtx_lock_impl(mutex);
             __Pyx_RestoreUnknownThread(thread_state);
+            PyGILState_STATE gil_state = __pyx_libc_threads_limited_api_ensure_gil();
+            relock_result = __pyx_py_safe_mtx_lock_impl(mutex);
+            __pyx_libc_threads_limited_api_release_gil(gil_state);
             return relock_result != thrd_success ? relock_result :
                 unlock_result != thrd_success ? unlock_result :
                 result;
@@ -215,8 +217,10 @@ cdef extern from *:
         if (__Pyx_UnknownThreadStateMayHaveHadGil(thread_state)) {
             int unlock_result, relock_result;
             unlock_result = mtx_unlock(mutex);
-            relock_result = __pyx_py_safe_mtx_lock_impl(mutex);
             __Pyx_RestoreUnknownThread(thread_state);
+            PyGILState_STATE gil_state = __pyx_libc_threads_limited_api_ensure_gil();
+            relock_result = __pyx_py_safe_mtx_lock_impl(mutex);
+            __pyx_libc_threads_limited_api_release_gil(gil_state);
             return relock_result != thrd_success ? relock_result :
                 unlock_result != thrd_success ? unlock_result :
                 result;
