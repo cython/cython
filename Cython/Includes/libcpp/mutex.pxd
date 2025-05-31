@@ -1,3 +1,5 @@
+# cython: preliminary_late_includes_cy28=True
+
 from libcpp cimport bool
 
 cdef extern from "<mutex>" namespace "std" nogil:
@@ -137,6 +139,16 @@ cdef extern from "<mutex>" namespace "std" nogil:
     void call_once[Callable](once_flag&, Callable& callable,  ...) except +
 
 
+cdef inline void _dummy_force_utility_code_inclusion() nogil:
+    with nogil:
+        pass
+
+cdef extern from *:
+    # Treat this as a different type from Cython's point of view so that if users use our safe functions
+    # then they can't mix them with the unsafe functions using the same flag.
+    cdef cppclass py_safe_once_flag "std::once_flag":
+        pass
+
 # Cython-specific wrappers to avoid deadlock.
 # If you're holding the GIL then we strongly recommend you use these.
 cdef extern from *:
@@ -146,7 +158,25 @@ cdef extern from *:
 
     namespace {
 
-    static int __pyx_libcpp_mutex_has_gil(PyGILState_STATE *gil_state) {
+    static PyGILState_STATE __pyx_libcpp_mutex_limited_api_ensure_gil() {
+        #if CYTHON_COMPILING_IN_LIMITED_API
+        if ((__PYX_LIMITED_VERSION_HEX < 0x030d0000) && __Pyx_get_runtime_version() < 0x030d0000) {
+            return PyGILState_Ensure();
+        }
+        #endif
+        return PyGILState_LOCKED;  // Unused
+    }
+
+    #if CYTHON_COMPILING_IN_LIMITED_API && __PYX_LIMITED_VERSION_HEX < 0x030d0000
+    static void __pyx_libcpp_mutex_limited_api_release_gil(PyGILState_STATE gil_state) {
+        if (__Pyx_get_runtime_version() < 0x030d0000)
+            PyGILState_Release(gil_state);
+    }
+    #else
+    #define __pyx_libcpp_mutex_limited_api_release_gil(ignore) (void)ignore
+    #endif
+
+    static int __pyx_libcpp_mutex_has_gil() {
         #if CYTHON_COMPILING_IN_LIMITED_API
             if ((__PYX_LIMITED_VERSION_HEX >= 0x030d0000) || __Pyx_get_runtime_version() >= 0x030d0000) {
                 // In 3.13+ we can temporarily give up the GIL to find out what the thread state was
@@ -158,30 +188,18 @@ cdef extern from *:
                 return 0;
             }
             /* There is no way to know if we have the GIL. Therefore the only
-            * thing we can safely do is make absolutely sure that we have it.
+            * thing we can safely do is make absolutely sure that we have it
+            * in (__pyx_libcpp_mutex_limited_api_ensure_gil).
             */
-            *gil_state = PyGILState_Ensure();
             return 1;
-        #else
-            (void)gil_state;
-        #if PY_VERSION_HEX >= 0x030d0000
+        #elif PY_VERSION_HEX >= 0x030d0000
             return PyThreadState_GetUnchecked() != NULL;
         #elif PY_VERSION_HEX >= 0x030b0000
             return _PyThreadState_UncheckedGet() != NULL;
         #else
             return PyGILState_Check();
         #endif
-        #endif
     }
-
-    #if CYTHON_COMPILING_IN_LIMITED_API  && __PYX_LIMITED_VERSION_HEX < 0x030d0000
-    static void __pyx_libcpp_mutex_finish_gil(PyGILState_STATE gil_state) {
-        if (__Pyx_get_runtime_version() < 0x030d0000)
-            PyGILState_Release(gil_state);
-    }
-    #else
-    #define __pyx_libcpp_mutex_finish_gil(ignore)
-    #endif
 
     template <typename F>
     class __pyx_libcpp_mutex_cleanup_on_exit {
@@ -218,17 +236,10 @@ cdef extern from *:
             using std::exception::exception;
         };
 
-        PyGILState_STATE gil_state;
-        int had_gil_on_call = __pyx_libcpp_mutex_has_gil(&gil_state);
-        PyThreadState *ts = nullptr;
-
-        if (had_gil_on_call)
-            ts = PyEval_SaveThread();
+        __Pyx_UnknownThreadState thread_state = __Pyx_SaveUnknownThread();
         auto on_exit = __pyx_make_libcpp_mutex_cleanup_on_exit(
             [&]() {
-                if (ts)
-                    PyEval_RestoreThread(ts);
-                __pyx_libcpp_mutex_finish_gil(gil_state);
+                __Pyx_RestoreUnknownThread(thread_state);
             });
 
         try {
@@ -236,15 +247,16 @@ cdef extern from *:
                 [&](Args& ...args) {
                     // Make sure we have the GIL
                     PyGILState_STATE gil_state;
+                    int had_gil_on_call = __Pyx_UnknownThreadStateDefinitelyHadGil(thread_state);
                     if (had_gil_on_call) {
-                        PyEval_RestoreThread(ts); ts = 0;
+                        __Pyx_RestoreUnknownThread(thread_state);
                     } else {
                         gil_state = PyGILState_Ensure();
                     }
                     auto on_callable_exit = __pyx_make_libcpp_mutex_cleanup_on_exit(
                         [&]() {
                             if (had_gil_on_call) {
-                                ts = PyEval_SaveThread();
+                                thread_state = __Pyx_SaveUnknownThread();
                             } else {
                                 PyGILState_Release(gil_state);
                             }
@@ -336,11 +348,11 @@ cdef extern from *:
 
     template <typename... LockTs>
     void __pyx_py_safe_std_lock(LockTs& ...locks) {
-        PyGILState_STATE gil_state;
-        int had_gil_on_call = __pyx_libcpp_mutex_has_gil(&gil_state);
+        PyGILState_STATE gil_state = __pyx_libcpp_mutex_limited_api_ensure_gil();
+        int had_gil_on_call = __pyx_libcpp_mutex_has_gil();
         auto on_exit = __pyx_make_libcpp_mutex_cleanup_on_exit(
             [&]() {
-                __pyx_libcpp_mutex_finish_gil(gil_state);
+                __pyx_libcpp_mutex_limited_api_release_gil(gil_state);
             });
         if (!had_gil_on_call) {
             // Nothing special to do - just lock and quit
@@ -365,11 +377,6 @@ cdef extern from *:
     }
     } // namespace
     """
-    # Treat this as a different type from Cython's point of view so that if users use our safe functions
-    # then they can't mix them with the unsafe functions using the same flag.
-    cdef cppclass py_safe_once_flag "std::once_flag":
-        pass
-
     # Call a Python callable once, ensuring that the GIL is released before locking, and the callable
     # is called with the GIL held. The callable may be a Python object or C function.
     # If using a generic callable, the callable can throw either Python

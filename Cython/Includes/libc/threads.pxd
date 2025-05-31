@@ -118,7 +118,7 @@ cdef extern from *:
             PyGILState_Release(gil_state);
     }
     #else
-    #define __pyx_libc_threads_limited_api_release_gil(ignore)
+    #define __pyx_libc_threads_limited_api_release_gil(ignore) (void)ignore
     #endif
 
     static int __pyx_libc_threads_has_gil() {
@@ -133,7 +133,8 @@ cdef extern from *:
                 return 0;
             }
             /* There is no way to know if we have the GIL. Therefore the only
-             * thing we can safely do is make absolutely sure that we have it.
+             * thing we can safely do is make absolutely sure that we have it
+             * (in __pyx_libc_threads_limited_api_ensure_gil).
              */
             return 1;
         #elif PY_VERSION_HEX >= 0x030d0000

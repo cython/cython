@@ -81,6 +81,9 @@ cimport libcpp.mutex as _cpp_mutex
 cdef extern from *:
     """
     namespace {
+        template <typename... LockTs>
+        void __pyx_py_safe_std_lock(LockTs& ...locks);
+
         template <typename MutexT>
         std::shared_lock<MutexT> __pyx_py_safe_construct_shared_lock(MutexT &m) {
             std::shared_lock<MutexT> l(m, std::defer_lock);
