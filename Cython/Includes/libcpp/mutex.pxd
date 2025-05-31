@@ -212,8 +212,10 @@ cdef extern from *:
         {}
         __pyx_libcpp_mutex_cleanup_on_exit(__pyx_libcpp_mutex_cleanup_on_exit &&rhs)
             : on_exit(std::move(rhs.on_exit))
-            , invoke(std::exchange(rhs.invoke, false))
-        {}
+            , invoke(rhs.invoke)
+        {
+            rhs.invoke = false;
+        }
 
         __pyx_libcpp_mutex_cleanup_on_exit(const __pyx_libcpp_mutex_cleanup_on_exit&) = delete;
         __pyx_libcpp_mutex_cleanup_on_exit& operator=(const __pyx_libcpp_mutex_cleanup_on_exit&) = delete;
@@ -289,9 +291,15 @@ cdef extern from *:
         arg0.lock();
     }
 
-    template <typename Lockable0T, typename Lockable1T, typename ...Lockables>
+    template <typename Lockable0T, typename Lockable1T, typename ... Lockables>
     void __pyx_std_lock_wrapper(Lockable0T& arg0, Lockable1T& arg1, Lockables&... args) {
         std::lock(arg0, arg1, args...);
+    }
+
+    template <typename Lockable0T, typename ... Lockables>
+    void __pyx_libcpp_mutex_unlock(Lockable0T& arg0, Lockables&... locks) {
+        arg0.unlock();
+        __pyx_libcpp_mutex_unlock(locks...);
     }
 
     template <typename LockableT>
@@ -319,7 +327,7 @@ cdef extern from *:
                 auto scoped_lock = std::scoped_lock(locks...);
                 #else
                 __pyx_std_lock_wrapper(locks...);
-                (locks.unlock(), ...);
+                __pyx_libcpp_mutex_unlock(locks...);
                 #endif
             } catch (...) {
                 // In this case, we probably can't reason about the state of the locks but we can at least
@@ -371,7 +379,7 @@ cdef extern from *:
 
     template <typename MutexT>
     std::unique_lock<MutexT> __pyx_py_safe_construct_unique_lock(MutexT& mutex) {
-        std::unique_lock l{mutex, std::defer_lock};
+        std::unique_lock<MutexT> l{mutex, std::defer_lock};
         __pyx_py_safe_std_lock(l);
         return l;
     }
