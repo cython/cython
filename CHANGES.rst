@@ -11,7 +11,7 @@ Features added
 * Builtin exception types are now inferred.
   (Github issue :issue:`6908`)
 
-* Item type inferrence was improved for looping over literals.
+* Item type inference was improved for looping over literals.
   (Github issue :issue:`6912`)
 
 * Looping over literal sequences and strings now uses efficient C array looping if possible.
