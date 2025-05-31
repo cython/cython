@@ -1,3 +1,5 @@
+# cython: preliminary_late_includes_cy28=True
+
 from libc.time cimport timespec
 
 cdef extern from *:
@@ -89,12 +91,40 @@ cdef extern from "<threads.h>" nogil:
     int tss_set(tss_t key, void* val)
     void tss_delete(tss_t key)
 
+
+cdef inline void _dummy_force_utility_code_inclusion() nogil:
+    with nogil:
+        pass
+
+cdef extern from *:
+    ctypedef struct py_safe_once_flag "once_flag":
+        pass
+    py_safe_once_flag PY_SAFE_ONCE_FLAG_INIT "ONCE_FLAG_INIT"
+
 cdef extern from *:
     """
-    static int __pyx_libc_threads_has_gil(PyGILState_STATE *gil_state) {
+    static PyGILState_STATE __pyx_libc_threads_limited_api_ensure_gil() {
+        #if CYTHON_COMPILING_IN_LIMITED_API
+        if ((__PYX_LIMITED_VERSION_HEX < 0x030d0000) && __Pyx_get_runtime_version() < 0x030d0000) {
+            return PyGILState_Ensure();
+        }
+        #endif
+        return PyGILState_LOCKED;  // Unused
+    }
+
+    #if CYTHON_COMPILING_IN_LIMITED_API && __PYX_LIMITED_VERSION_HEX < 0x030d0000
+    static void __pyx_libc_threads_limited_api_release_gil(PyGILState_STATE gil_state) {
+        if (__Pyx_get_runtime_version() < 0x030d0000)
+            PyGILState_Release(gil_state);
+    }
+    #else
+    #define __pyx_libc_threads_limited_api_release_gil(ignore)
+    #endif
+
+    static int __pyx_libc_threads_has_gil() {
         #if CYTHON_COMPILING_IN_LIMITED_API
             if ((__PYX_LIMITED_VERSION_HEX >= 0x030d0000) || __Pyx_get_runtime_version() >= 0x030d0000) {
-                // In 3.13+ we can temporarily give up the GIL to find out what the thread state was
+                // In 3.13+ we can temporarily give up the GIL to find out what the thread state was.
                 PyThreadState *ts = PyThreadState_Swap(NULL);
                 if (ts) {
                     PyThreadState_Swap(ts);
@@ -105,28 +135,15 @@ cdef extern from *:
             /* There is no way to know if we have the GIL. Therefore the only
              * thing we can safely do is make absolutely sure that we have it.
              */
-            *gil_state = PyGILState_Ensure();
             return 1;
-        #else
-            (void)gil_state;
-        #if PY_VERSION_HEX >= 0x030d0000
+        #elif PY_VERSION_HEX >= 0x030d0000
             return PyThreadState_GetUnchecked() != NULL;
         #elif PY_VERSION_HEX >= 0x030b0000
             return _PyThreadState_UncheckedGet() != NULL;
         #else
             return PyGILState_Check();
         #endif
-        #endif
     }
-
-    #if CYTHON_COMPILING_IN_LIMITED_API && __PYX_LIMITED_VERSION_HEX < 0x030d0000
-    static void __pyx_libc_threads_finish_gil(PyGILState_STATE gil_state) {
-        if (__Pyx_get_runtime_version() < 0x030d0000)
-            PyGILState_Release(gil_state);
-    }
-    #else
-    #define __pyx_libc_threads_finish_gil(ignore)
-    #endif
 
     static int __pyx_py_safe_mtx_lock_slow_spin(mtx_t* mutex) {
         while (1) {
@@ -166,68 +183,52 @@ cdef extern from *:
     }
 
     static CYTHON_UNUSED int __pyx_py_safe_mtx_lock(mtx_t* mutex) {
-        PyGILState_STATE gil_state;
-        if (!__pyx_libc_threads_has_gil(&gil_state))
+        PyGILState_STATE gil_state = __pyx_libc_threads_limited_api_ensure_gil();
+        if (!__pyx_libc_threads_has_gil())
             return mtx_lock(mutex); /* No GIL, no problem */
         int result = __pyx_py_safe_mtx_lock_impl(mutex);
-        __pyx_libc_threads_finish_gil(gil_state);
+        __pyx_libc_threads_limited_api_release_gil(gil_state);
         return result;
-    }
-
-    static int __pyx_py_safe_cnd_wait_impl( cnd_t* cond, mtx_t* mutex) {
-        int result, unlock_result, relock_result;
-        Py_BEGIN_ALLOW_THREADS
-        result = cnd_wait(cond, mutex);
-        unlock_result = mtx_unlock(mutex);
-        Py_END_ALLOW_THREADS
-        // pthreads documentation implies they try to return locked even on error.
-        relock_result = __pyx_py_safe_mtx_lock_impl(mutex);
-        return relock_result != thrd_success ? relock_result :
-            unlock_result != thrd_success ? unlock_result :
-            result;
     }
 
     static CYTHON_UNUSED int __pyx_py_safe_cnd_wait( cnd_t* cond, mtx_t* mutex) {
-        PyGILState_STATE gil_state;
-        if (!__pyx_libc_threads_has_gil(&gil_state))
-            return cnd_wait(cond, mutex); /* No GIL, no problem */
-        int result = __pyx_py_safe_cnd_wait_impl(cond, mutex);
-        __pyx_libc_threads_finish_gil(gil_state);
-        return result;
-    }
-
-    static int __pyx_py_safe_cnd_timedwait_impl( cnd_t* cond, mtx_t* mutex, const struct timespec* time_point) {
-        int result, unlock_result, relock_result;
-        Py_BEGIN_ALLOW_THREADS
-        result = cnd_timedwait(cond, mutex, time_point);
-        unlock_result = mtx_unlock(mutex);
-        Py_END_ALLOW_THREADS
-        // pthreads documentation implies they try to return locked even on error.
-        relock_result = __pyx_py_safe_mtx_lock_impl(mutex);
-        return relock_result != thrd_success ? relock_result :
-            unlock_result != thrd_success ? unlock_result :
-            result;
+        __Pyx_UnknownThreadState thread_state = __Pyx_SaveUnknownThread();
+        int result = cnd_wait(cond, mutex);
+        if (__Pyx_UnknownThreadStateMayHaveHadGil(thread_state)) {
+            int unlock_result, relock_result;
+            unlock_result = mtx_unlock(mutex);
+            relock_result = __pyx_py_safe_mtx_lock_impl(mutex);
+            __Pyx_RestoreUnknownThread(thread_state);
+            return relock_result != thrd_success ? relock_result :
+                unlock_result != thrd_success ? unlock_result :
+                result;
+        } else {
+            __Pyx_RestoreUnknownThread(thread_state);
+            return result;
+        }
     }
 
     static CYTHON_UNUSED int __pyx_py_safe_cnd_timedwait(cnd_t* cond, mtx_t* mutex, const struct timespec* time_point) {
-        PyGILState_STATE gil_state;
-        if (!__pyx_libc_threads_has_gil(&gil_state))
-            return cnd_timedwait(cond, mutex, time_point); /* No GIL, no problem */
-        int result = __pyx_py_safe_cnd_timedwait_impl(cond, mutex, time_point);
-        __pyx_libc_threads_finish_gil(gil_state);
-        return result;
+        __Pyx_UnknownThreadState thread_state = __Pyx_SaveUnknownThread();
+        int result = cnd_timedwait(cond, mutex, time_point);
+        if (__Pyx_UnknownThreadStateMayHaveHadGil(thread_state)) {
+            int unlock_result, relock_result;
+            unlock_result = mtx_unlock(mutex);
+            relock_result = __pyx_py_safe_mtx_lock_impl(mutex);
+            __Pyx_RestoreUnknownThread(thread_state);
+            return relock_result != thrd_success ? relock_result :
+                unlock_result != thrd_success ? unlock_result :
+                result;
+        } else {
+            __Pyx_RestoreUnknownThread(thread_state);
+            return result;
+        }
     }
 
     static CYTHON_UNUSED void __pyx_libc_threads_py_safe_call_once(once_flag* flag, void (*func)(void)) {
-        PyGILState_STATE gil_state;
-        if (!__pyx_libc_threads_has_gil(&gil_state)) {
-            call_once(flag, func);
-            return;
-        }
-        Py_BEGIN_ALLOW_THREADS
+        __Pyx_UnknownThreadState thread_state = __Pyx_SaveUnknownThread();
         call_once(flag, func);
-        Py_END_ALLOW_THREADS
-        __pyx_libc_threads_finish_gil(gil_state);
+        __Pyx_RestoreUnknownThread(thread_state);
     }
     """
     # Acquire the lock without deadlocking on the GIL.
@@ -241,8 +242,5 @@ cdef extern from *:
 
     # call_once making sure not to deadlock on the GIL.
     # The callable must still be nogil though.
-    ctypedef struct py_safe_once_flag "once_flag":
-        pass
-    py_safe_once_flag PY_SAFE_ONCE_FLAG_INIT "ONCE_FLAG_INIT"
     void py_safe_once_flag_init "__Pyx_once_flag_init"(py_safe_once_flag*)
     int py_safe_call_once "__pyx_libc_threads_py_safe_call_once"(py_safe_once_flag* flag, _once_func_type func) nogil
