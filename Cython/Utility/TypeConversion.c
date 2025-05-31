@@ -426,7 +426,7 @@ static CYTHON_INLINE PyObject *__Pyx_Owned_Py_None(int b) {
 }
 
 static CYTHON_INLINE PyObject * __Pyx_PyBool_FromLong(long b) {
-  return b ? __Pyx_NewRef(Py_True) : __Pyx_NewRef(Py_False);
+  return __Pyx_NewRef(b ? Py_True: Py_False);
 }
 
 

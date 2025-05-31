@@ -20,6 +20,10 @@ ALL_BENCHMARKS = [bm.stem for bm in BENCHMARK_FILES]
 
 LIMITED_API_VERSION = max((3, 12), sys.version_info[:2])
 
+PYTHON_VERSION = "%d.%d.%d" % sys.version_info[:3]
+if hasattr(sys, '_is_gil_enabled') and not sys._is_gil_enabled():
+    PYTHON_VERSION += 't'
+
 
 try:
     from distutils import sysconfig
@@ -235,7 +239,7 @@ def run_benchmarks(bm_dir, benchmarks, pythonpath=None, profiler=None):
 
 
 def benchmark_revisions(benchmarks, revisions, cythonize_args=None, profiler=None, limited_revisions=(), show_size=False):
-    python_version = "Python %d.%d.%d" % sys.version_info[:3]
+    python_version = f"Python {PYTHON_VERSION}"
     logging.info(f"### Comparing revisions in {python_version}: {' '.join(revisions)}.")
     logging.info(f"CFLAGS={os.environ.get('CFLAGS', DISTUTILS_CFLAGS)}")
 
@@ -306,7 +310,6 @@ def benchmark_revision(revision, benchmarks, cythonize_args=None, profiler=None,
 def report_revision_timings(rev_timings, csv_out=None):
     units = {"nsec": 1e-9, "usec": 1e-6, "msec": 1e-3, "sec": 1.0}
     scales = [(scale, unit) for unit, scale in reversed(units.items())]  # biggest first
-    pyversion = "%d.%d.%d" % sys.version_info[:3]
 
     def format_time(t):
         pos_t = abs(t)
@@ -341,7 +344,7 @@ def report_revision_timings(rev_timings, csv_out=None):
                 f"    {revision_name[:25]:25} = {format_time(tmin):>12}, {format_time(tmed):>12}, {format_time(tmax):>12}{diff_str}"
             )
             if csv_out is not None:
-                csv_out.writerow([benchmark, revision_name, pyversion, format_time(tmin), format_time(tmed), format_time(tmax), diff_str])
+                csv_out.writerow([benchmark, revision_name, PYTHON_VERSION, format_time(tmin), format_time(tmed), format_time(tmax), diff_str])
 
     for revision_name, diffs in differences.items():
         diffs.sort(reverse=True)

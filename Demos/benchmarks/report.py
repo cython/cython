@@ -39,7 +39,7 @@ def build_table(rows):
         for pyversion in python_versions
         for revision in revisions
     }
-    header = ["Benchmark timings"] + [f"Py{pyversion}: {revision[:20]}" for (pyversion, revision) in column_map]
+    header = ["Benchmark timings"] + [f"Py{pyversion}: {revision[:22]}" for (pyversion, revision) in column_map]
     row_template = [''] * len(header)
 
     # For each benchmark, report all timings in separate columns.

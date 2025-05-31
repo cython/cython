@@ -5160,6 +5160,9 @@ modifiers_and_name_to_type = {
     (2,  1, "int"): c_slong_type,
     (2,  2, "int"): c_slonglong_type,
 
+    (1, 0, "short"): c_short_type,
+    (1, 0, "long"): c_long_type,
+
     (1,  0, "float"):  c_float_type,
     (1,  0, "double"): c_double_type,
     (1,  1, "double"): c_longdouble_type,
@@ -5619,9 +5622,7 @@ def parse_basic_type(name: str):
             return CConstOrVolatileType(
                 base, is_const=modifier == 'const', is_volatile=modifier == 'volatile')
     #
-    if name in fixed_sign_int_types:
-        return fixed_sign_int_types[name][1]
-    basic_type = simple_c_type(1, 0, name)
+    basic_type = parse_basic_ctype(name)
     if basic_type:
         return basic_type
     #
@@ -5648,6 +5649,21 @@ def parse_basic_type(name: str):
         name = 'int'  # long/short [int]
 
     return simple_c_type(signed, longness, name)
+
+
+def parse_basic_ctype(name):
+    """
+    This only covers C types without spaces (i.e. what NameNode can represent).
+    It doesn't cover 'longlong' or 'p_long' or similar - just what appears in C.
+    """
+    if name in fixed_sign_int_types:
+        return fixed_sign_int_types[name][1]
+    if "complex" in name and name != "complex":
+        return None  # not a "simple" name
+    basic_type = simple_c_type(1, 0, name)
+    if basic_type:
+        return basic_type
+    return None
 
 
 def _construct_type_from_base(cls, base_type, *args):

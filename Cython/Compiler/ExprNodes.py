@@ -151,18 +151,41 @@ def infer_sequence_item_type(env, seq_node, index_node=None, seq_type=None):
                     seq_node = seq_node.cf_state[0].rhs
                 except AttributeError:
                     pass
-    if seq_node is not None and seq_node.is_sequence_constructor:
+    if seq_node.is_sequence_constructor:
         if index_node is not None and index_node.has_constant_result():
+            # With a constant index, look up the item and infer its type.
             try:
                 item = seq_node.args[index_node.constant_result]
             except (ValueError, TypeError, IndexError):
                 pass
             else:
                 return item.infer_type(env)
-        # if we're lucky, all items have the same type
-        item_types = {item.infer_type(env) for item in seq_node.args}
+    if seq_node.is_sequence_constructor or seq_node.is_set_literal:
+        # If we're lucky, all items have the same type (possibly with None).
+        args_without_none = [item for item in seq_node.args if not item.is_none]
+        has_none = len(args_without_none) < len(seq_node.args)
+        item_types = {
+            infer_sequence_item_type(env, item) if item.is_starred else item.infer_type(env)
+            for item in args_without_none
+        }
+        if None in item_types:
+            # Could not infer all starred types.
+            return None
+        # Unpack the Python types. Also avoids a mix of inferred C and Python.
+        item_types = {
+            item_type.equivalent_type if item_type.is_pyobject and item_type.equivalent_type else item_type
+            for item_type in item_types
+        }
         if len(item_types) == 1:
-            return item_types.pop()
+            item_type = item_types.pop()
+            if has_none and not item_type.is_pyobject:
+                # Must be a Python type to cover 'None'.
+                item_type = item_type.equivalent_type  # 'equivalent_type' may be None => cannot infer type
+            elif not has_none and item_type in (unicode_type, bytes_type):
+                # Infer special case of single character sequences as single character type.
+                if all(arg.is_string_literal and arg.can_coerce_to_char_literal() for arg in args_without_none):
+                    item_type = PyrexTypes.c_py_ucs4_type if item_type is unicode_type else PyrexTypes.c_uchar_type
+            return item_type
     return None
 
 
@@ -2182,7 +2205,7 @@ class NameNode(AtomicExprNode):
         if self.cython_attribute:
             type = PyrexTypes.parse_basic_type(self.cython_attribute)
         elif env.in_c_type_context:
-            type = PyrexTypes.parse_basic_type(self.name)
+            type = PyrexTypes.parse_basic_ctype(self.name)
         if type:
             return type
 
@@ -2201,9 +2224,17 @@ class NameNode(AtomicExprNode):
             # This is normally parsed as "simple C type", but not if we don't parse C types.
             return py_object_type
 
-        # Try to give a helpful warning when users write plain C type names.
-        if not env.in_c_type_context and PyrexTypes.parse_basic_type(self.name):
-            warning(self.pos, "Found C type name '%s' in a Python annotation. Did you mean to use 'cython.%s'?" % (self.name, self.name))
+        if env.in_c_type_context:
+            # slong/p_uchar style type-names are handled here, as lowest priority.
+            # They're only recognised in a few specific contexts (e.g. cython.declare).
+            # It's usually best to use `cython.the_typename` instead.
+            # Ideally this should issue a warning to discourage this usage, but it generates
+            # some false positives when called from "AttributeNode.analyse_as_type()" in cases
+            # like "uchar.some_func()" (where "uchar" is a variable name).
+            return PyrexTypes.parse_basic_type(self.name)
+        elif PyrexTypes.parse_basic_type(self.name):
+            # Try to give a helpful warning when users write plain C type names.
+            warning(self.pos, f"Found C type name '{self.name}' in a Python annotation. Did you mean to use 'cython.{self.name}'?")
 
         return None
 
@@ -3068,7 +3099,12 @@ class IteratorNode(ScopedExprNode):
         if not is_builtin_sequence:
             # reversed() not currently optimised (see Optimize.py)
             assert not self.reversed, "internal error: reversed() only implemented for list/tuple objects"
-        self.may_be_a_sequence = not sequence_type.is_builtin_type
+        # range is a *very* common builtin function which we know doesn't produce a sequence
+        is_range = (isinstance(self.sequence, CallNode) and
+                    self.sequence.function.is_name and
+                    self.sequence.function.name == "range" and
+                    self.sequence.function.entry.is_builtin)
+        self.may_be_a_sequence = not sequence_type.is_builtin_type and not is_range
         if self.may_be_a_sequence:
             code.putln(
                 "if (likely(PyList_CheckExact(%s)) || PyTuple_CheckExact(%s)) {" % (
@@ -3362,6 +3398,8 @@ class NextNode(AtomicExprNode):
     #
     #  iterator   IteratorNode
 
+    is_temp = True
+
     def __init__(self, iterator):
         AtomicExprNode.__init__(self, iterator.pos)
         self.iterator = iterator
@@ -3392,9 +3430,15 @@ class NextNode(AtomicExprNode):
             return fake_index_node.infer_type(env)
 
     def analyse_types(self, env):
-        self.type = self.infer_type(env, self.iterator.type)
-        self.is_temp = 1
-        return self
+        item_type = self.infer_type(env, self.iterator.type)
+        if self.iterator.type.is_pyobject and not item_type.is_pyobject:
+            # We definitely read a Python object from the iterable but inferred a C type for it,
+            # probably by anticipating to unpack it.  Do the coercion outside to allow undoing it later.
+            self.type = item_type.equivalent_type or py_object_type
+            return self.coerce_to(item_type, env)
+        else:
+            self.type = item_type
+            return self
 
     def generate_result_code(self, code):
         self.iterator.generate_iter_next_result_code(self.result(), code)
@@ -4090,7 +4134,7 @@ class IndexNode(_IndexingBaseNode):
                 return PyrexTypes.c_py_ucs4_type
             elif base_type is bytearray_type or base_type is bytes_type:
                 return PyrexTypes.c_uchar_type
-            elif base_type in (tuple_type, list_type):
+            elif base_type in (tuple_type, list_type, set_type):
                 # if base is a literal, take a look at its values
                 item_type = infer_sequence_item_type(
                     env, self.base, self.index, seq_type=base_type)
@@ -4105,6 +4149,9 @@ class IndexNode(_IndexingBaseNode):
                         index += base_type.size
                     if 0 <= index < base_type.size:
                         return base_type.components[index]
+                item_types = set(base_type.components)
+                if len(item_types) == 1:
+                    return item_types.pop()
             elif base_type.is_memoryviewslice:
                 if base_type.ndim == 0:
                     pass  # probably an error, but definitely don't know what to do - return pyobject for now
@@ -4255,11 +4302,11 @@ class IndexNode(_IndexingBaseNode):
             self.index = self.index.coerce_to_pyobject(env)
             self.is_temp = 1
 
-        if self.index.type.is_int and base_type is unicode_type:
+        if base_type is unicode_type and self.index.type.is_int:
             # Py_UNICODE/Py_UCS4 will automatically coerce to a unicode string
             # if required, so this is fast and safe
             self.type = PyrexTypes.c_py_ucs4_type
-        elif self.index.type.is_int and base_type is bytearray_type:
+        elif base_type is bytearray_type and self.index.type.is_int:
             if setting:
                 self.type = PyrexTypes.c_uchar_type
             else:
@@ -4270,11 +4317,15 @@ class IndexNode(_IndexingBaseNode):
         else:
             item_type = None
             if base_type in (list_type, tuple_type) and self.index.type.is_int:
-                item_type = infer_sequence_item_type(
-                    env, self.base, self.index, seq_type=base_type)
+                item_type = infer_sequence_item_type(env, self.base, self.index, seq_type=base_type)
+            elif self.base.is_literal:
+                # Infer homogeneous item type when looping over container literals.
+                item_type = infer_sequence_item_type(env, self.base, seq_type=base_type)
+
             if base_type in (list_type, tuple_type, dict_type):
-                # do the None check explicitly (not in a helper) to allow optimising it away
+                # Do the None check explicitly (not in a helper, and regardless of 'nonecheck') to allow optimising it away.
                 self.base = self.base.as_none_safe_node("'NoneType' object is not subscriptable")
+
             if item_type is None or not item_type.is_pyobject:
                 # Even if we inferred a C type as result, we will read a Python object, so trigger coercion if needed.
                 # We could potentially use "item_type.equivalent_type" here, but that may trigger assumptions
