@@ -10613,7 +10613,7 @@ class ParallelRangeNode(ParallelStatNode):
 
         if not self.is_parallel:
             with_python_deadlock_avoidance_point = code.insertion_point()
-            code.put("#pragma omp for")
+            code.put("#pragma omp for nowait")
             self.privatization_insertion_point = code.insertion_point()
             reduction_codepoint = self.parent.privatization_insertion_point
         else:
@@ -10637,20 +10637,14 @@ class ParallelRangeNode(ParallelStatNode):
             else:
                 code.putln("#ifdef _OPENMP")
             with_python_deadlock_avoidance_point = code.insertion_point()
-            code.put("#pragma omp for")
+            code.put("#pragma omp for nowait")
 
         if self.with_python:
             # Any firstprivate creates a barrier at least on GCC (and thus
-            # a deadlock if we're using the GIL). And there's also an implicit
-            # barrier at the end of the loop (which can be avoided by nowait, but
-            # I'm very suspicious of lastprivate and whether that might need
-            # a barrier in some implementations). So the safe thing to do is
-            # not to hold the GIL while going round the loop.
+            # a deadlock if we're using the GIL). So at very least we need
+            # a barrier starting the loop
             with_python_deadlock_avoidance_point.putln(
-                "PyThreadState *__pyx_parallel_loop_threadstate = NULL;")
-            with_python_deadlock_avoidance_point.putln(
-                "__pyx_parallel_loop_threadstate = PyEval_SaveThread();")
-
+                "PyThreadState *__pyx_parallel_loop_threadstate = PyEval_SaveThread();")
 
         for entry, (op, lastprivate) in sorted(self.privates.items()):
             # Don't declare the index variable as a reduction
@@ -10700,7 +10694,10 @@ class ParallelRangeNode(ParallelStatNode):
 
         if self.with_python:
             code.putln("#ifdef _OPENMP")
+            code.putln("if (__pyx_parallel_loop_threadstate) {")
             code.putln("PyEval_RestoreThread(__pyx_parallel_loop_threadstate);")
+            code.putln("__pyx_parallel_loop_threadstate = NULL;")
+            code.putln("}")
             code.putln("#endif")
 
         code.putln("%(target)s = (%(target_type)s)(%(start)s + %(step)s * %(i)s);" % fmt_dict)
@@ -10721,16 +10718,16 @@ class ParallelRangeNode(ParallelStatNode):
             # exceptions might be used
             guard_around_body_codepoint.putln("if (%s < 2)" % Naming.parallel_why)
 
-        if self.with_python:
-            code.putln("#ifdef _OPENMP")
-            code.putln("__pyx_parallel_loop_threadstate = PyEval_SaveThread();")
-            code.putln("#endif")
-
         code.end_block()  # end guard around loop body
         code.end_block()  # end for loop block
 
-        if self.with_python:
+        if self.with_python: 
             code.putln("#ifdef _OPENMP")
+            code.putln("if (!__pyx_parallel_loop_threadstate) {") 
+            code.putln("__pyx_parallel_loop_threadstate = PyEval_SaveThread();") 
+            code.putln("}")
+            # synchronization point for all loops at the end of the thread but without the GIL
+            code.putln("#pragma omp barrier")
             code.putln("PyEval_RestoreThread(__pyx_parallel_loop_threadstate);")
             code.putln("#endif")
 
