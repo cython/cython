@@ -8,6 +8,7 @@ from Cython.Compiler import (
 from Cython.Compiler.StringEncoding import EncodedString
 from Cython.Compiler.Scanning import FileSourceDescriptor
 
+
 def create_shared_library_pipeline(context, scope, options, result):
 
     parse = Pipeline.parse_stage_factory(context)
@@ -47,6 +48,7 @@ def create_shared_library_pipeline(context, scope, options, result):
         set_cimport_from_pyx(orig_cimport_from_pyx),
     ]
 
+
 def generate_shared_module(options):
     Errors.init_thread()
     Errors.open_listing_file(None)
@@ -70,4 +72,5 @@ def generate_shared_module(options):
         err, enddata = Pipeline.run_pipeline(pipeline, comp_src)
         if err is None:
             shutil.copy(c_file, dest_c_file)
-        return err, enddata
+
+    return err, enddata

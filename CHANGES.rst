@@ -2,7 +2,131 @@
 Cython Changelog
 ================
 
-3.1.0 rc 2 (2025-05-04)
+3.2.0a0 (2025-??-??)
+====================
+
+Features added
+--------------
+
+* Builtin exception types are now inferred.
+  (Github issue :issue:`6908`)
+
+* Item type inference was improved for looping over literals.
+  (Github issue :issue:`6912`)
+
+* Looping over literal sequences and strings now uses efficient C array looping if possible.
+  (Github issue :issue:`6926`)
+
+* Using ``NaN`` as exception return value is supported.
+  (Github issues :issue:`6900`, :issue:`6903`)
+
+Bugs fixed
+----------
+
+* Special float exception values could generate invalid C code.
+  (Github issues :issue:`6900`, :issue:`6903`)
+
+* References to the Python ``bool`` type could generate invalid C code.
+  (Github issue :issue:`6902`)
+
+* Pure mode type alias like ``p_int`` or ``ulong`` leaked into some C type contexts.
+  (Github issues :issue:`6922`, :issue:`6339`)
+
+* Vectorcalls could use needless temp assignments for ``self``.
+  (Github issue :issue:`6909`)
+
+* Includes all fixes as of Cython 3.1.2.
+
+
+3.1.2 (2025-??-??)
+==================
+
+Bugs fixed
+----------
+
+* Attribute lookups failed on the ``bool`` builtin type.
+  (Github issue :issue:`6905`)
+
+* Iterating over literal sequences with starred (unpacked) items could infer a wrong
+  type for the loop variable and fail to assign the values.
+  (Github issue :issue:`6924`)
+
+* Avoid including C++11 ``<type_traits>`` unconditionally.
+  (Github issue :issue:`6896`)
+
+* ``PyDict_GetItemStringRef()`` was accidentally used in older Limited API versions.
+  (Github issue :issue:`6914`)
+
+* ``abort()`` was used but not always available in the Limited API.
+  (Github issue :issue:`6918`)
+
+* Embedded function signatures were not always separated from the existing docstring.
+  (Github issue :issue:`6904`)
+
+* Some tests were adapted for NumPy 2.x.
+  (Github issue :issue:`6898`)
+
+* Some C compiler warnings were fixed.
+  (Github issue :issue:`6870`)
+
+
+3.1.1 (2025-05-19)
+==================
+
+Bugs fixed
+----------
+
+* A reference leak in the async delegation code was fixed.
+  (Github issues :issue:`6850`, :issue:`6878`)
+
+* Conditional if-else expressions mixing Python and C (numeric) types could end up
+  inferring an overly tight result type, thus leading to unexpected type conversions,
+  runtime exceptions on assignment, or incorrect "temporary assignment" compile errors.
+  (Github issue :issue:`6854`)
+
+* Some Limited API issues were resolved.
+  (Github issue :issue:`6862`)
+
+* Large C ``long long`` values could be truncated when passed into PyPy.
+  (Github issue :issue:`6890`)
+
+* ``callable()`` incorrectly reported ``False`` in PyPy for classes with metaclasses.
+  Patch by Anatolii Aniskovych. (Github issue :issue:`6892`)
+
+* The signature of fused functions was no longer introspectable in Cython 3.1.0.
+  (Github issue :issue:`6855`)
+
+* Coroutines could generate invalid C with line tracing enabled.
+  (Github issue :issue:`6865`)
+
+* Code using ``complex()`` could generate invalid C code missing type declarations.
+  (Github issue :issue:`6860`)
+
+* Code using e.g. ``list[int | None]``  outside of variable/argument annotations failed to compile.
+  (Github issue :issue:`6856`)
+
+* Code using ctuples in a ``const`` context could generate invalid C.
+  (Github issue :issue:`6864`)
+
+* Accessing special methods on cpdef enums failed to compile.
+
+* Some C compiler warnings were resolved.
+  Patches by Daniel Larraz.  (Github issues :issue:`6876`, :issue:`3172`, :issue:`6873`, :issue:`6877`)
+
+* Re-establish support for PyPy 3.8.
+  (Github issue :issue:`6867`)
+
+
+3.1.0 (2025-05-08)
+==================
+
+Other changes
+-------------
+
+* No functional changes since 3.1.0 rc 2.
+
+
+3.1.0 rc 2 (2025-05-07)
 =======================
 
 Features added
@@ -12,6 +136,11 @@ Features added
   additional low-level synchronisation primitives also in the light of free-threading Python.
   (Github issue :issue:`6820`)
 
+* The generation of the shared module now happens automatically from ``cythonize()`` in a
+  ``setuptools`` build if a corresponding ``Extension`` has been configured.
+  This avoids an additional step outside of the ``setup.py`` or ``pip wheel`` run.
+  (Github issue :issue:`6842`)
+
 Bugs fixed
 ----------
 
@@ -20,6 +149,9 @@ Bugs fixed
   which almost always intend to reference subtypes.
   (Github issue :issue:`6828`)
 
+* Functions with more than 10 constant default argument values could generate invalid C code.
+  (Github issue :issue:`6843`)
+
 * The ``call_once()`` function argument in ``libc.threads`` (new in 3.1) was changed to require
   a ``nogil`` declaration, as semantically implied.  Code that used it with a callback function
   expecting to hold the GIL must change the callback code to use ``with gil``.
@@ -27,11 +159,20 @@ Bugs fixed
 * Calling cimported C functions with their fully qualified package name could crash Cython.
   (Github issue :issue:`6551`)
 
+* Naming a variable after its inferred type (e.g. ``str += ""``) could trigger an infinite loop in Cython.
+  (Github issue :issue:`6835`)
+
 * Cython is more relaxed about the exact C++ constructor name when it calls ``new()`` on ctypedefs.
   (Github issue :issue:`6821`)
 
+* Using ``cpp_locals`` in nogil sections could crash.
+  (Github issue :issue:`6838`)
+
 * ``const struct`` declarations could lead to invalid assignments to ``const`` temp variables.
   (Github issue :issue:`6804`)
+
+* A refcounting error was fixed in the method class cell support code.
+  (Github issue :issue:`6839`)
 
 
 3.1.0 rc 1 (2025-05-01)
@@ -94,7 +235,7 @@ Other changes
 * Named ``cpdef enums`` no longer copy their item names into the global module namespace.
   This was considered unhelpful for named enums which already live in their own class namespace.
   In cases where the old behaviour was desired, users can add the following backwards compatible
-  command after their enum class definition: ``globals().update(TheUserEnumClass.__members__)``.
+  command after their enum class definition: ``globals().update(getattr(TheUserEnumClass, '__members__'))``.
   Anonymous enums still produce global item names, as before.
   (Github issue :issue:`4571`)
 
@@ -123,7 +264,7 @@ Features added
 * Extracting keyword arguments is faster in some cases.
   (Github issue :issue:`6683`)
 
-* Calling ``divmod()``on any C integer types is efficient.
+* Calling ``divmod()`` on any C integer types is efficient.
   (Github issue :issue:`6717`)
 
 * Some async/coroutine/vectorcall code has improved fast-paths.

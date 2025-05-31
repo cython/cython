@@ -173,7 +173,7 @@ class EmbedSignature(CythonTransform):
             if self.is_format_clinic:
                 docfmt = "%s\n--\n\n%s"
             else:
-                docfmt = "%s\n%s"
+                docfmt = "%s\n\n%s"
             node_doc = inspect.cleandoc(node_doc)
             return docfmt % (signature, node_doc)
         else:

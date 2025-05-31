@@ -504,9 +504,11 @@ The compilation process now consist of three steps:
 Compiling shared module using setuptools
 ----------------------------------------
 
-If setuptools is used in the build process, the fully qualified module name
+If ``setuptools`` is used in the build process, the fully qualified module name
 of the shared utility module can be specified using the ``shared_utility_qualified_name``
-parameter of :func:`cythonize` (instead of the ``--shared`` argument).
+parameter of :func:`cythonize` (instead of the ``--shared`` command line argument).
+To generate the extension sources of the shared module from ``cythonize()``,
+you need to explicitly pass an ``Extension`` object describing the module.
 The :file:`setup.py` file would be:
 
 .. code-block:: python
@@ -518,17 +520,14 @@ The :file:`setup.py` file would be:
 
     extensions = [
         Extension("*", ["**/*.pyx"]),
-        Extension("mypkg.shared._cyutility", sources=["mypkg/shared/_cyutility.c"])
+        # Providing 'sources' is optional for the shared module.
+        # If missing, the module package will be used for the path in 'build_dir'.
+        Extension("mypkg.shared._cyutility", sources=["mypkg/shared/_cyutility.c"]),
     ]
 
     setup(
       ext_modules = cythonize(extensions, shared_utility_qualified_name = 'mypkg.shared._cyutility')
     )
-
-.. note::
-
-   The shared utility :file:`_cyutility.c` file still needs to be generated manually
-   using the command ``cython --generate-shared=...``.
 
 
 .. _integrating_multiple_modules:
@@ -1065,7 +1064,11 @@ Cython code.  Here is the list of currently supported directives:
     tracing, unless you additionally pass the C macro definition
     ``CYTHON_TRACE=1`` to the C compiler (e.g. using the setuptools option
     ``define_macros``).  Define ``CYTHON_TRACE_NOGIL=1`` to also include
-    ``nogil`` functions and sections.
+    ``nogil`` functions and sections.  Define ``CYTHON_USE_SYS_MONITORING``
+    to either 1 or 0 to control the mechanism used to implement these
+    features on Python 3.13 and above.  Note that neither ``profile``
+    nor ``linetrace`` work with any tool that uses ``sys.monitoring``
+    on Python 3.12.
 
 ``infer_types`` (True / False), *default=None*
     Infer types of untyped variables in function bodies. Default is
@@ -1330,11 +1333,11 @@ some change the default value of other macros.  They are listed below in rough o
 most important to least important:
 
 ``Py_LIMITED_API``
-    Turns on Cython's experimental Limited API support, meaning that one compiled module
+    Turns on Cython's Limited API support, meaning that one compiled module
     can be used by many Python interpreter versions (at the cost of some performance).
     At this stage many features do not work in the Limited API.  You should set this
     macro to be the version hex for the
-    minimum Python version you want to support (>=3.7).  ``0x03070000`` will support
+    minimum Python version you want to support (\>=3.7).  ``0x03070000`` will support
     Python 3.7 upwards.
     Note that this is a :external+python:c:macro:`Python macro <Py_LIMITED_API>`,
     rather than just a Cython macro, and so it changes what parts of the Python headers
@@ -1361,6 +1364,12 @@ most important to least important:
 ``CYTHON_PROFILE``, ``CYTHON_TRACE``, ``CYTHON_TRACE_NOGIL``
     These control the inclusion of profiling and line tracing calls in the module.
     See the ``profile`` and ``linetrace`` :ref:`compiler-directives`.
+
+``CYTHON_USE_SYS_MONITORING``
+    On Python 3.13+ this selects the new `sys.monitoring <https://docs.python.org/3/library/sys.monitoring.html>`_
+    mechanism for profiling and linetracing. It is on by default, but can be set to 0
+    to force use of the old mechanism. Some tools still require the old mechanism,
+    most notably "Coverage" (as of 2025).
 
 ``CYTHON_EXTERN_C``
     Slightly different to the other macros, this controls how ``cdef public``
