@@ -6,6 +6,10 @@ second_module_level_tuple = (1,2,3)  # should be deduplicated to be the same as 
 string_module_level_tuple = ("1", "2")
 string_module_level_tuple2 = ("1", "2")
 
+cdef extern from *:
+    cdef enum:
+        CYTHON_COMPILING_IN_LIMITED_API
+
 def return_module_level_tuple():
     """
     >>> return_module_level_tuple()
@@ -38,8 +42,9 @@ def test_deduplicated_args():
     import sys
     check_identity_of_co_varnames = (
         not hasattr(sys, "pypy_version_info") and  # test doesn't work on PyPy (which is probably fair enough)
-        sys.version_info < (3, 11)  # on Python 3.11 co_varnames returns a new, dynamically-calculated tuple
+        sys.version_info < (3, 11) and  # on Python 3.11 co_varnames returns a new, dynamically-calculated tuple
                                     # each time it is run
+        not (CYTHON_COMPILING_IN_LIMITED_API and sys.version_info < (3, 9))
     )
     if check_identity_of_co_varnames:
         assert func1.__code__.co_varnames is func2.__code__.co_varnames
