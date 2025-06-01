@@ -797,7 +797,7 @@ cdef fused confusing_fused_typedef:
 
 def test_dispatch_external_typedef(np.ndarray[confusing_fused_typedef] a):
     """
-    >>> test_dispatch_external_typedef(np.arange(-5, 5, dtype=np.int_))
+    >>> test_dispatch_external_typedef(np.arange(-5, 5, dtype=np.long))
     -2
     """
     print a[3]
