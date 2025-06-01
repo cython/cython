@@ -925,3 +925,13 @@ def variable_with_name_of_type_exttype(SomeExtType x):
     SomeExtType = SomeExtType.get()
     assert typeof(SomeExtType) == "SomeExtType", typeof(SomeExtType)
     return SomeExtType
+
+def type_bitwise_or(actually_run_it, type t1, type t2):
+    """
+    >>> import sys
+    >>> type_bitwise_or(sys.version_info >= (3, 10), list, int)
+    """
+    if actually_run_it:
+        t3 = t1 | t2
+    # Generic object, not "type"
+    assert typeof(t3) == "Python object", typeof(t3)

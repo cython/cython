@@ -179,3 +179,25 @@ def test_nested(x):
     if isinstance(a[0], (int, float)):
         return True
     return False
+
+
+def skip_if_less_than_310(f):
+    import sys
+    if sys.version_info < (3, 10):
+        return None
+    else:
+        return f
+
+@skip_if_less_than_310
+def test_union(tp):
+    """
+    >>> test_union([])
+    True
+    >>> test_union(b'hello')
+    True
+    >>> test_union(list)
+    False
+    >>> test_union(1)
+    False
+    """
+    return isinstance(tp, list | bytes)
