@@ -6786,7 +6786,7 @@ class PyMethodCallNode(CallNode):
 
         # Make sure function is in temp so that we can replace the reference if it's a method.
         if self.function.result_in_temp() or (not self.unpack and self.function.nonlocally_immutable()):
-            return self.function.py_result()
+            return self.function.result()
 
         # FIXME: Should use "coerce_to_temp()" in "__init__()" instead, but that needs "env".
         function = code.funcstate.allocate_temp(py_object_type, manage_ref=True)
@@ -6941,7 +6941,7 @@ class PyMethodCallNode(CallNode):
 
         code.putln(
             f"{self.result()} = {function_caller}("
-            f"{function}, "
+            f"(PyObject*){function}, "
             f"{Naming.callargs_cname}+{space_for_selfarg}, "
             f"({len(args)+1:d}-{space_for_selfarg})"
             f" | ({'1' if self.use_method_vectorcall else space_for_selfarg}*__Pyx_PY_VECTORCALL_ARGUMENTS_OFFSET)"
