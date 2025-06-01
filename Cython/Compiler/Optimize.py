@@ -66,6 +66,44 @@ def filter_none_node(node):
     return node
 
 
+def _unpack_union_type_nodes(union_type_nodes: list):
+    # Unpack 'int | float | None' etc.
+    BitwiseOrNode = ExprNodes.BitwiseOrNode
+
+    def collect_tree_types(tree_node):
+        if isinstance(tree_node, BitwiseOrNode):
+            yield from collect_tree_types(tree_node.operand1)
+            yield from collect_tree_types(tree_node.operand2)
+        elif not tree_node.is_none:
+            yield tree_node.type
+
+    types = []
+    allowed_none_node = None
+
+    type_stack = union_type_nodes[::-1]  # Left-most type is top of stack.
+    while type_stack:
+        tp = type_stack.pop()
+        if isinstance(tp, BitwiseOrNode):
+            # If all or-ed nodes are types (or None), we can split and test them separately.
+            # "None | None" is implicitly handled as runtime error (len(type_set) == 0).
+            type_set = set(collect_tree_types(tp))
+            if len(type_set) == 1 and type_set.pop() is Builtin.type_type:
+                if tp.operand2.is_none:
+                    if allowed_none_node is None:
+                        allowed_none_node = tp.operand2
+                else:
+                    type_stack.append(tp.operand2)
+                if tp.operand1.is_none:
+                    if allowed_none_node is None:
+                        allowed_none_node = tp.operand1
+                else:
+                    type_stack.append(tp.operand1)
+                continue
+        types.append(tp)
+
+    return types, allowed_none_node
+
+
 class _YieldNodeCollector(Visitor.TreeVisitor):
     """
     YieldExprNode finder for generator expressions.
@@ -2849,40 +2887,16 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
             return node
         arg, type_nodes = pos_args
         temps = []
+
         if isinstance(type_nodes, ExprNodes.TupleNode):
-            type_nodes = list(type_nodes.args)
+            type_nodes = type_nodes.args
         elif type_nodes.type is Builtin.type_type or isinstance(type_nodes, ExprNodes.BitwiseOrNode):
             type_nodes = [type_nodes]
         else:
             return node
 
         # Unpack 'int | float | None' etc.
-
-        def collect_tree_types(tree_node):
-            if isinstance(tree_node, ExprNodes.BitwiseOrNode):
-                yield from collect_tree_types(tree_node.operand1)
-                yield from collect_tree_types(tree_node.operand2)
-            elif not tree_node.is_none:
-                yield tree_node.type
-
-        types = []
-        allowed_none_node = None
-        for i, tp in enumerate(type_nodes, 1):
-            if isinstance(tp, ExprNodes.BitwiseOrNode):
-                # If all or-ed nodes are types (or None), we can split and test them separately.
-                type_set = set(collect_tree_types(tp))
-                if len(type_set) == 1 and type_set.pop() is Builtin.type_type:
-                    if tp.operand1.is_none:
-                        allowed_none_node = tp.operand1
-                    else:
-                        type_nodes.insert(i, tp.operand1)
-                    if tp.operand2.is_none:
-                        allowed_none_node = tp.operand2
-                    else:
-                        type_nodes.insert(i+1, tp.operand2)
-                    continue
-                # "None | None" is implicitly handled as runtime error.
-            types.append(tp)
+        types, allowed_none_node = _unpack_union_type_nodes(type_nodes)
 
         # Map the separate type checks to check functions.
 
