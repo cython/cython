@@ -12221,7 +12221,11 @@ class BinopNode(ExprNode):
                 type1 = Builtin.bytes_type
             elif type1.is_pyunicode_ptr:
                 type1 = Builtin.unicode_type
-            if type1.is_builtin_type or type2.is_builtin_type:
+            if type1 is Builtin.type_type or type2 is Builtin.type_type:
+                # This only really applies to | - the result is a subclass of 'type'
+                # but not an exact instance of 'type'.
+                return py_object_type 
+            elif type1.is_builtin_type or type2.is_builtin_type:
                 if type1 is type2 and self.operator in '**%+|&^':
                     # FIXME: at least these operators should be safe - others?
                     return type1
