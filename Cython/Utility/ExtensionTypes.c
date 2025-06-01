@@ -11,6 +11,7 @@ static int __Pyx_fix_up_extension_type_from_spec(PyType_Spec *spec, PyTypeObject
 #if __PYX_LIMITED_VERSION_HEX > 0x030900B1
     CYTHON_UNUSED_VAR(spec);
     CYTHON_UNUSED_VAR(type);
+    CYTHON_UNUSED_VAR(__Pyx__SetItemOnTypeDict);
 #else
     // Set tp_weakreflist, tp_dictoffset, tp_vectorcalloffset
     // Copied and adapted from https://bugs.python.org/issue38140
@@ -97,6 +98,7 @@ static int __Pyx_fix_up_extension_type_from_spec(PyType_Spec *spec, PyTypeObject
                 int set_item_result = __Pyx_SetItemOnTypeDict(type, pyname, descr);
                 Py_DECREF(pyname);
                 #else
+                CYTHON_UNUSED_VAR(__Pyx__SetItemOnTypeDict);
                 int set_item_result = PyDict_SetItem(type->tp_dict, PyDescr_NAME(descr), descr);
                 #endif
                 Py_DECREF(descr);
