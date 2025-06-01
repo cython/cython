@@ -584,7 +584,7 @@ static int __Pyx_ImportFunction_$cyversion(PyObject *module, const char *funcnam
     d = PyObject_GetAttrString(module, "$api_name");
     if (!d)
         goto bad;
-#if PY_VERSION_HEX >= 0x030d0000
+#if (defined(Py_LIMITED_API) && Py_LIMITED_API >= 0x030d0000) || (!defined(Py_LIMITED_API) && PY_VERSION_HEX >= 0x030d0000)
     PyDict_GetItemStringRef(d, funcname, &cobj);
 #else
     cobj = PyDict_GetItemString(d, funcname);

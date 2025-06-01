@@ -5,7 +5,7 @@ import collections
 import time
 
 
-def _unpack_buffer_const_char_1d(provider, number, timer=time.perf_counter):
+def _unpack_buffer_const_char_1d(provider, int number, timer=time.perf_counter):
     cdef const unsigned char[:] buffer
 
     t = timer()
@@ -26,7 +26,7 @@ def bm_unpack_buffer_const_char_1d(number, timer=time.perf_counter):
     }
 
 
-def _with_contextmanager_pass(cm, number, timer=time.perf_counter):
+def _with_contextmanager_pass(cm, int number, timer=time.perf_counter):
     t = timer()
     for _ in range(number):
         with cm:
@@ -35,7 +35,7 @@ def _with_contextmanager_pass(cm, number, timer=time.perf_counter):
     return t
 
 
-def _with_contextmanager_raise(cm, number, timer=time.perf_counter):
+def _with_contextmanager_raise(cm, int number, timer=time.perf_counter):
     exception = TypeError()
     t = timer()
     for _ in range(number):

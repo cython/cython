@@ -14,7 +14,6 @@ import re
 import shutil
 import subprocess
 import sys
-import tempfile
 import time
 import traceback
 import unittest
@@ -711,10 +710,10 @@ class TestBuilder(object):
         self.cleanup_failures = options.cleanup_failures
         self.with_pyregr = with_pyregr
         self.cython_only = options.cython_only
+        self.abi3audit = options.abi3audit
         self.test_selector = re.compile(options.only_pattern).search if options.only_pattern else None
         self.languages = languages
         self.test_bugs = test_bugs
-        self.fork = options.fork
         self.language_level = language_level
         self.test_determinism = options.test_determinism
         self.common_utility_dir = common_utility_dir
@@ -913,7 +912,6 @@ class TestBuilder(object):
                           cython_only=self.cython_only,
                           test_selector=self.test_selector,
                           shard_num=self.shard_num,
-                          fork=self.fork,
                           language_level=language_level or self.language_level,
                           warning_errors=warning_errors,
                           evaluate_tree_assertions=self.evaluate_tree_assertions,
@@ -923,6 +921,7 @@ class TestBuilder(object):
                           stats=self.stats,
                           add_cython_import=add_cython_import,
                           extra_directives=extra_directives,
+                          abi3audit=self.abi3audit
                           )
 
 
@@ -978,10 +977,11 @@ class CythonCompileTestCase(unittest.TestCase):
                  expect_log=(),
                  annotate=False, cleanup_workdir=True,
                  cleanup_sharedlibs=True, cleanup_failures=True, cython_only=False, test_selector=None,
-                 fork=True, language_level=2, warning_errors=False,
+                 language_level=2, warning_errors=False,
                  test_determinism=False, shard_num=0,
                  common_utility_dir=None, pythran_dir=None, stats=None, add_cython_import=False,
-                 extra_directives=None, evaluate_tree_assertions=True):
+                 extra_directives=None, evaluate_tree_assertions=True,
+                 abi3audit=False):
         self.test_directory = test_directory
         self.tags = tags
         self.workdir = workdir
@@ -998,7 +998,6 @@ class CythonCompileTestCase(unittest.TestCase):
         self.cython_only = cython_only
         self.test_selector = test_selector
         self.shard_num = shard_num
-        self.fork = fork
         self.language_level = language_level
         self.warning_errors = warning_errors
         self.evaluate_tree_assertions = evaluate_tree_assertions
@@ -1008,6 +1007,7 @@ class CythonCompileTestCase(unittest.TestCase):
         self.stats = stats
         self.add_cython_import = add_cython_import
         self.extra_directives = extra_directives if extra_directives is not None else {}
+        self.abi3audit = abi3audit
         unittest.TestCase.__init__(self)
 
     def shortDescription(self):
@@ -1124,9 +1124,28 @@ class CythonCompileTestCase(unittest.TestCase):
         if cleanup_c_files and os.path.exists(self.workdir + '-again'):
             shutil.rmtree(self.workdir + '-again', ignore_errors=True)
 
+    def runAbi3AuditTest(self):
+        if not self.abi3audit:
+            return
+        shared_libs = [ file for file in os.listdir(self.workdir)
+                        if os.path.splitext(file)[1] in ('.so', '.dll') ]
+        if not shared_libs:
+            return
+        shared_libs = [ os.path.join(self.workdir, file) for file in shared_libs ]
+        abi3result = subprocess.run(
+            [
+                "abi3audit",
+                '--assume-minimum-abi3', f'{sys_version_or_limited_version[0]}.{sys_version_or_limited_version[1]}',
+                "-v",
+                *shared_libs,
+            ], stdout=subprocess.PIPE, stderr=subprocess.STDOUT, encoding='utf8',)
+        if abi3result.returncode != 0:
+            raise RuntimeError(f"ABI3 audit failed:\n{abi3result.stdout}")
+
     def runTest(self):
         self.success = False
         self.runCompileTest()
+        self.runAbi3AuditTest()
         self.success = True
 
     def runCompileTest(self):
@@ -1551,82 +1570,14 @@ class CythonRunTestCase(CythonCompileTestCase):
                 filter_test_suite(tests, self.test_selector)
             with self.stats.time(self.name, self.language, 'run'):
                 tests.run(result)
-        run_forked_test(result, run_test, self.shortDescription(), self.fork)
+        run_single_test(result, run_test)
 
 
-def run_forked_test(result, run_func, test_name, fork=True):
-    if not fork or sys.version_info[0] >= 3 or not hasattr(os, 'fork'):
-        run_func(result)
-        sys.stdout.flush()
-        sys.stderr.flush()
-        gc.collect()
-        return
-
-    # fork to make sure we do not keep the tested module loaded
-    result_handle, result_file = tempfile.mkstemp()
-    os.close(result_handle)
-    child_id = os.fork()
-    if not child_id:
-        result_code = 0
-        try:
-            try:
-                tests = partial_result = None
-                try:
-                    partial_result = PartialTestResult(result)
-                    run_func(partial_result)
-                    sys.stdout.flush()
-                    sys.stderr.flush()
-                    gc.collect()
-                except Exception:
-                    result_code = 1
-                    if partial_result is not None:
-                        if tests is None:
-                            # importing failed, try to fake a test class
-                            tests = _FakeClass(
-                                failureException=sys.exc_info()[1],
-                                _shortDescription=test_name,
-                                module_name=None)
-                        partial_result.addError(tests, sys.exc_info())
-                if partial_result is not None:
-                    with open(result_file, 'wb') as output:
-                        pickle.dump(partial_result.data(), output)
-            except:
-                traceback.print_exc()
-        finally:
-            try: sys.stderr.flush()
-            except: pass
-            try: sys.stdout.flush()
-            except: pass
-            os._exit(result_code)
-
-    try:
-        cid, result_code = os.waitpid(child_id, 0)
-        module_name = test_name.split()[-1]
-        # os.waitpid returns the child's result code in the
-        # upper byte of result_code, and the signal it was
-        # killed by in the lower byte
-        if result_code & 255:
-            raise Exception(
-                "Tests in module '%s' were unexpectedly killed by signal %d, see test output for details." % (
-                    module_name, result_code & 255))
-        result_code >>= 8
-        if result_code in (0,1):
-            try:
-                with open(result_file, 'rb') as f:
-                    PartialTestResult.join_results(result, pickle.load(f))
-            except Exception:
-                raise Exception(
-                    "Failed to load test result from test in module '%s' after exit status %d,"
-                    " see test output for details." % (module_name, result_code))
-        if result_code:
-            raise Exception(
-                "Tests in module '%s' exited with status %d, see test output for details." % (
-                    module_name, result_code))
-    finally:
-        try:
-            os.unlink(result_file)
-        except:
-            pass
+def run_single_test(result, run_func):
+    run_func(result)
+    sys.stdout.flush()
+    sys.stderr.flush()
+    gc.collect()
 
 
 class PureDoctestTestCase(unittest.TestCase):
@@ -1825,7 +1776,7 @@ class CythonPyregrTestCase(CythonRunTestCase):
             finally:
                 support.run_unittest, support.run_doctest = backup
 
-        run_forked_test(result, run_test, self.shortDescription(), self.fork)
+        run_single_test(result, run_test)
 
 
 class TestCodeFormat(unittest.TestCase):
@@ -2332,147 +2283,209 @@ def main():
         else:
             args.append(arg)
 
-    from optparse import OptionParser
-    parser = OptionParser(usage="usage: %prog [options] [selector ...]")
-    parser.add_option("--no-cleanup", dest="cleanup_workdir",
-                      action="store_false", default=True,
-                      help="do not delete the generated C files (allows passing --no-cython on next run)")
-    parser.add_option("--no-cleanup-sharedlibs", dest="cleanup_sharedlibs",
-                      action="store_false", default=True,
-                      help="do not delete the generated shared library files (allows manual module experimentation)")
-    parser.add_option("--no-cleanup-failures", dest="cleanup_failures",
-                      action="store_false", default=True,
-                      help="enable --no-cleanup and --no-cleanup-sharedlibs for failed tests only")
-    parser.add_option("--no-cython", dest="with_cython",
-                      action="store_false", default=True,
-                      help="do not run the Cython compiler, only the C compiler")
-    parser.add_option("--compiler", dest="compiler", default=None,
-                      help="C compiler type")
+    from argparse import ArgumentParser
+    parser = ArgumentParser(usage="usage: %(prog)s [options] [selector ...]")
+    parser.add_argument(
+        "--no-cleanup", dest="cleanup_workdir",
+        action="store_false", default=True,
+        help="do not delete the generated C files (allows passing --no-cython on next run)")
+    parser.add_argument(
+        "--no-cleanup-sharedlibs", dest="cleanup_sharedlibs",
+        action="store_false", default=True,
+        help="do not delete the generated shared library files (allows manual module experimentation)")
+    parser.add_argument(
+        "--no-cleanup-failures", dest="cleanup_failures",
+        action="store_false", default=True,
+        help="enable --no-cleanup and --no-cleanup-sharedlibs for failed tests only")
+    parser.add_argument(
+        "--no-cython", dest="with_cython",
+        action="store_false", default=True,
+        help="do not run the Cython compiler, only the C compiler")
+    parser.add_argument(
+        "--compiler", dest="compiler", default=None,
+        help="C compiler type")
     backend_list = ','.join(BACKENDS)
-    parser.add_option("--backends", dest="backends", default=backend_list,
-                      help="select backends to test (default: %s)" % backend_list)
-    parser.add_option("--no-c", dest="use_c",
-                      action="store_false", default=True,
-                      help="do not test C compilation backend")
-    parser.add_option("--no-cpp", dest="use_cpp",
-                      action="store_false", default=True,
-                      help="do not test C++ compilation backend")
-    parser.add_option("--no-cpp-locals", dest="use_cpp_locals",
-                      action="store_false", default=True,
-                      help="do not rerun select C++ tests with cpp_locals directive")
-    parser.add_option("--no-unit", dest="unittests",
-                      action="store_false", default=True,
-                      help="do not run the unit tests")
-    parser.add_option("--no-doctest", dest="doctests",
-                      action="store_false", default=True,
-                      help="do not run the doctests")
-    parser.add_option("--no-file", dest="filetests",
-                      action="store_false", default=True,
-                      help="do not run the file based tests")
-    parser.add_option("--no-pyregr", dest="pyregr",
-                      action="store_false", default=True,
-                      help="do not run the regression tests of CPython in tests/pyregr/")
-    parser.add_option("--no-examples", dest="examples",
-                      action="store_false", default=True,
-                      help="Do not run the documentation tests in the examples directory.")
-    parser.add_option("--no-code-style", dest="code_style",
-                      action="store_false", default=True,
-                      help="Do not run the code style (PEP8) checks.")
-    parser.add_option("--no-tree-asserts", dest="evaluate_tree_assertions",
-                      action="store_false", default=True,
-                      help="Do not evaluation tree path assertions (which prevents C code generation in tests)")
-    parser.add_option("--cython-only", dest="cython_only",
-                      action="store_true", default=False,
-                      help="only compile pyx to c, do not run C compiler or run the tests")
-    parser.add_option("--no-refnanny", dest="with_refnanny",
-                      action="store_false", default=True,
-                      help="do not regression test reference counting")
-    parser.add_option("--no-fork", dest="fork",
-                      action="store_false", default=True,
-                      help="do not fork to run tests")
-    parser.add_option("--sys-pyregr", dest="system_pyregr",
-                      action="store_true", default=False,
-                      help="run the regression tests of the CPython installation")
-    parser.add_option("-x", "--exclude", dest="exclude",
-                      action="append", metavar="PATTERN",
-                      help="exclude tests matching the PATTERN")
-    parser.add_option("--listfile", dest="listfile",
-                      action="append",
-                      help="specify a file containing a list of tests to run")
-    parser.add_option("-j", "--shard_count", dest="shard_count", metavar="N",
-                      type=int, default=1,
-                      help="shard this run into several parallel runs")
-    parser.add_option("--shard_num", dest="shard_num", metavar="K",
-                      type=int, default=-1,
-                      help="test only this single shard")
-    parser.add_option("--profile", dest="profile",
-                      action="store_true", default=False,
-                      help="enable profiling of the tests")
-    parser.add_option("-C", "--coverage", dest="coverage",
-                      action="store_true", default=False,
-                      help="collect source coverage data for the Compiler")
-    parser.add_option("--coverage-xml", dest="coverage_xml",
-                      action="store_true", default=False,
-                      help="collect source coverage data for the Compiler in XML format")
-    parser.add_option("--coverage-html", dest="coverage_html",
-                      action="store_true", default=False,
-                      help="collect source coverage data for the Compiler in HTML format")
-    parser.add_option("--tracemalloc", dest="tracemalloc",
-                      action="store_true", default=False,
-                      help="enable tracemalloc for the tests")
-    parser.add_option("-A", "--annotate", dest="annotate_source",
-                      action="store_true", default=True,
-                      help="generate annotated HTML versions of the test source files")
-    parser.add_option("--no-annotate", dest="annotate_source",
-                      action="store_false",
-                      help="do not generate annotated HTML versions of the test source files")
-    parser.add_option("-v", "--verbose", dest="verbosity",
-                      action="count", default=0,
-                      help="display test progress, pass twice to print test names")
-    parser.add_option("-T", "--ticket", dest="tickets",
-                      action="append",
-                      help="a bug ticket number to run the respective test in 'tests/*'")
-    parser.add_option("-k", dest="only_pattern",
-                      help="a regex pattern for selecting doctests and test functions in the test modules")
-    parser.add_option("-3", dest="language_level",
-                      action="store_const", const=3, default=2,
-                      help="set language level to Python 3 (useful for running the CPython regression tests)'")
-    parser.add_option("--xml-output", dest="xml_output_dir", metavar="DIR",
-                      help="write test results in XML to directory DIR")
-    parser.add_option("--exit-ok", dest="exit_ok", default=False,
-                      action="store_true",
-                      help="exit without error code even on test failures")
-    parser.add_option("--failfast", dest="failfast", default=False,
-                      action="store_true",
-                      help="stop on first failure or error")
-    parser.add_option("--root-dir", dest="root_dir", default=os.path.join(DISTDIR, 'tests'),
-                      help=("Directory to look for the file based "
-                            "tests (the ones which are deactivated with '--no-file'."))
-    parser.add_option("--examples-dir", dest="examples_dir",
-                      default=os.path.join(DISTDIR, 'docs', 'examples'),
-                      help="Directory to look for documentation example tests")
-    parser.add_option("--work-dir", dest="work_dir", default=os.path.join(os.getcwd(), 'TEST_TMP'),
-                      help="working directory")
-    parser.add_option("--cython-dir", dest="cython_dir", default=os.getcwd(),
-                      help="Cython installation directory (default: use local source version)")
-    parser.add_option("--debug", dest="for_debugging", default=False, action="store_true",
-                      help="configure for easier use with a debugger (e.g. gdb)")
-    parser.add_option("--pyximport-py", dest="pyximport_py", default=False, action="store_true",
-                      help="use pyximport to automatically compile imported .pyx and .py files")
-    parser.add_option("--watermark", dest="watermark", default=None,
-                      help="deterministic generated by string")
-    parser.add_option("--use_common_utility_dir", default=False, action="store_true")
-    parser.add_option("--use_formal_grammar", default=False, action="store_true")
-    parser.add_option("--test_determinism", default=False, action="store_true",
-                      help="test whether Cython's output is deterministic")
-    parser.add_option("--pythran-dir", dest="pythran_dir", default=None,
-                      help="specify Pythran include directory. This will run the C++ tests using Pythran backend for Numpy")
-    parser.add_option("--no-capture", dest="capture", default=True, action="store_false",
-                      help="do not capture stdout, stderr in srctree tests. Makes pdb.set_trace interactive")
-    parser.add_option("--limited-api", dest="limited_api", default=False, action="store_true",
-                      help="Compiles Cython using CPython's LIMITED_API")
+    parser.add_argument(
+        "--backends", dest="backends", default=backend_list,
+        help="select backends to test (default: %s)" % backend_list)
+    parser.add_argument(
+        "--no-c", dest="use_c",
+        action="store_false", default=True,
+        help="do not test C compilation backend")
+    parser.add_argument(
+        "--no-cpp", dest="use_cpp",
+        action="store_false", default=True,
+        help="do not test C++ compilation backend")
+    parser.add_argument(
+        "--no-cpp-locals", dest="use_cpp_locals",
+        action="store_false", default=True,
+        help="do not rerun select C++ tests with cpp_locals directive")
+    parser.add_argument(
+        "--no-unit", dest="unittests",
+        action="store_false", default=True,
+        help="do not run the unit tests")
+    parser.add_argument(
+        "--no-doctest", dest="doctests",
+        action="store_false", default=True,
+        help="do not run the doctests")
+    parser.add_argument(
+        "--no-file", dest="filetests",
+        action="store_false", default=True,
+        help="do not run the file based tests")
+    parser.add_argument(
+        "--no-pyregr", dest="pyregr",
+        action="store_false", default=True,
+        help="do not run the regression tests of CPython in tests/pyregr/")
+    parser.add_argument(
+        "--no-examples", dest="examples",
+        action="store_false", default=True,
+        help="Do not run the documentation tests in the examples directory.")
+    parser.add_argument(
+        "--no-code-style", dest="code_style",
+        action="store_false", default=True,
+        help="Do not run the code style (PEP8) checks.")
+    parser.add_argument(
+        "--no-tree-asserts", dest="evaluate_tree_assertions",
+        action="store_false", default=True,
+        help="Do not evaluation tree path assertions (which prevents C code generation in tests)")
+    parser.add_argument(
+        "--cython-only", dest="cython_only",
+        action="store_true", default=False,
+        help="only compile pyx to c, do not run C compiler or run the tests")
+    parser.add_argument(
+        "--no-refnanny", dest="with_refnanny",
+        action="store_false", default=True,
+        help="do not regression test reference counting")
+    parser.add_argument(
+        "--no-fork", dest="fork",
+        action="store_false", default=True,
+        help="does nothing, argument kept for compatibility only",
+        # 'deprecated' added in Python 3.13
+        **({'deprecated': True} if sys.version_info >= (3, 13) else {}))
+    parser.add_argument(
+        "--sys-pyregr", dest="system_pyregr",
+        action="store_true", default=False,
+        help="run the regression tests of the CPython installation")
+    parser.add_argument(
+        "-x", "--exclude", dest="exclude",
+        action="append", metavar="PATTERN",
+        help="exclude tests matching the PATTERN")
+    parser.add_argument(
+        "--listfile", dest="listfile",
+        action="append",
+        help="specify a file containing a list of tests to run")
+    parser.add_argument(
+        "-j", "--shard_count", dest="shard_count", metavar="N",
+        type=int, default=1,
+        help="shard this run into several parallel runs")
+    parser.add_argument(
+        "--shard_num", dest="shard_num", metavar="K",
+        type=int, default=-1,
+        help="test only this single shard")
+    parser.add_argument(
+        "--profile", dest="profile",
+        action="store_true", default=False,
+        help="enable profiling of the tests")
+    parser.add_argument(
+        "-C", "--coverage", dest="coverage",
+        action="store_true", default=False,
+        help="collect source coverage data for the Compiler")
+    parser.add_argument(
+        "--coverage-xml", dest="coverage_formats",
+        action="append_const", const="xml",
+        help="report source coverage data for the Compiler in XML format (coverage-report.xml)")
+    parser.add_argument(
+        "--coverage-html", dest="coverage_formats",
+        action="append_const", const="html",
+        help="report source coverage data for the Compiler in HTML format (coverage-report-html/)")
+    parser.add_argument(
+        "--coverage-md", dest="coverage_formats",
+        action="append_const", const="markdown",
+        help="report source coverage data for the Compiler in Markdown format (coverage-report.md)")
+    parser.add_argument(
+        "--tracemalloc", dest="tracemalloc",
+        action="store_true", default=False,
+        help="enable tracemalloc for the tests")
+    parser.add_argument(
+        "-A", "--annotate", dest="annotate_source",
+        action="store_true", default=True,
+        help="generate annotated HTML versions of the test source files")
+    parser.add_argument(
+        "--no-annotate", dest="annotate_source",
+        action="store_false",
+        help="do not generate annotated HTML versions of the test source files")
+    parser.add_argument(
+        "-v", "--verbose", dest="verbosity",
+        action="count", default=0,
+        help="display test progress, pass twice to print test names")
+    parser.add_argument(
+        "-T", "--ticket", dest="tickets",
+        action="append",
+        help="a bug ticket number to run the respective test in 'tests/*'")
+    parser.add_argument(
+        "-k", dest="only_pattern",
+        help="a regex pattern for selecting doctests and test functions in the test modules")
+    parser.add_argument(
+        "-3", dest="language_level",
+        action="store_const", const=3, default=2,
+        help="set language level to Python 3 (useful for running the CPython regression tests)'")
+    parser.add_argument(
+        "--xml-output", dest="xml_output_dir", metavar="DIR",
+        help="write test results in XML to directory DIR")
+    parser.add_argument(
+        "--exit-ok", dest="exit_ok", default=False,
+        action="store_true",
+        help="exit without error code even on test failures")
+    parser.add_argument(
+        "--failfast", dest="failfast", default=False,
+        action="store_true",
+        help="stop on first failure or error")
+    parser.add_argument(
+        "--root-dir", dest="root_dir", default=os.path.join(DISTDIR, 'tests'),
+        help="Directory to look for the file based tests (the ones which are deactivated with '--no-file'.")
+    parser.add_argument(
+        "--examples-dir", dest="examples_dir",
+        default=os.path.join(DISTDIR, 'docs', 'examples'),
+        help="Directory to look for documentation example tests")
+    parser.add_argument(
+        "--work-dir", dest="work_dir", default=os.path.join(os.getcwd(), 'TEST_TMP'),
+        help="working directory")
+    parser.add_argument(
+        "--cython-dir", dest="cython_dir", default=os.getcwd(),
+        help="Cython installation directory (default: use local source version)")
+    parser.add_argument(
+        "--debug", dest="for_debugging", default=False, action="store_true",
+        help="configure for easier use with a debugger (e.g. gdb)")
+    parser.add_argument(
+        "--pyximport-py", dest="pyximport_py", default=False, action="store_true",
+        help="use pyximport to automatically compile imported .pyx and .py files")
+    parser.add_argument(
+        "--watermark", dest="watermark", default=None,
+        help="deterministic generated by string")
+    parser.add_argument(
+        "--use_common_utility_dir", default=False, action="store_true")
+    parser.add_argument(
+        "--use_formal_grammar", default=False, action="store_true")
+    parser.add_argument(
+        "--test_determinism", default=False, action="store_true",
+        help="test whether Cython's output is deterministic")
+    parser.add_argument(
+        "--pythran-dir", dest="pythran_dir", default=None,
+        help="specify Pythran include directory. This will run the C++ tests using Pythran backend for Numpy")
+    parser.add_argument(
+        "--no-capture", dest="capture", default=True, action="store_false",
+        help="do not capture stdout, stderr in srctree tests. Makes pdb.set_trace interactive")
+    parser.add_argument(
+        "--limited-api", dest="limited_api", nargs='?', default='', const="%d.%d" % sys.version_info[:2], action="store",
+        help=("Use CPython's Limited API. "
+              "Accepts an optional API version in the form '3.11', otherwise uses current."))
+    parser.add_argument(
+        "--abi3audit", dest="abi3audit", default=False, action="store_true",
+        help="Validate compiled files with ABI3 audit")
+    parser.add_argument('cmd_args', nargs='*')
 
-    options, cmd_args = parser.parse_args(args)
+    options = parser.parse_args(args)
+    cmd_args = options.cmd_args
 
     if options.with_cython:
         sys.path.insert(0, options.cython_dir)
@@ -2484,9 +2497,10 @@ def main():
     WITH_CYTHON = options.with_cython
 
     coverage = None
-    if options.coverage or options.coverage_xml or options.coverage_html:
+    if options.coverage or options.coverage_formats:
         if not WITH_CYTHON:
-            options.coverage = options.coverage_xml = options.coverage_html = False
+            options.coverage = False
+            options.coverage_formats = []
         elif options.shard_num == -1:
             print("Enabling coverage analysis")
             from coverage import coverage as _coverage
@@ -2509,8 +2523,8 @@ def main():
         if "PYTHONIOENCODING" not in os.environ:
             # Make sure subprocesses can print() Unicode text.
             os.environ["PYTHONIOENCODING"] = sys.stdout.encoding or sys.getdefaultencoding()
-        import multiprocessing
-        pool = multiprocessing.Pool(options.shard_count)
+        from concurrent.futures import ProcessPoolExecutor, as_completed
+        pool = ProcessPoolExecutor(options.shard_count)
         tasks = [(options, cmd_args, shard_num) for shard_num in range(options.shard_count)]
         open_shards = list(range(options.shard_count))
         error_shards = []
@@ -2520,7 +2534,9 @@ def main():
         stats = Stats()
         merged_pipeline_stats = defaultdict(lambda: (0, 0))
         with time_stamper_thread(interval=keep_alive_interval, open_shards=open_shards):
-            for shard_num, shard_stats, pipeline_stats, return_code, failure_output in pool.imap_unordered(runtests_callback, tasks):
+            futures = [ pool.submit(runtests_callback, task) for task in tasks ]
+            for future in as_completed(futures):
+                shard_num, shard_stats, pipeline_stats, return_code, failure_output = future.result()
                 open_shards.remove(shard_num)
                 if return_code != 0:
                     error_shards.append(shard_num)
@@ -2533,9 +2549,7 @@ def main():
                     old_time, old_count = merged_pipeline_stats[stage_name]
                     merged_pipeline_stats[stage_name] = (old_time + stage_time, old_count + stage_count)
 
-        pool.close()
-        pool.join()
-        pool.terminate()  # graalpy seems happier if we terminate now rather than leaving it to the gc
+        pool.shutdown()
 
         total_time = time.time() - total_time
         sys.stderr.write("Sharded tests run in %d seconds (%.1f minutes)\n" % (round(total_time), total_time / 60.))
@@ -2665,9 +2679,16 @@ def configure_cython(options):
 def save_coverage(coverage, options):
     if options.coverage:
         coverage.report(show_missing=0)
-    if options.coverage_xml:
+    if not options.coverage_formats:
+        return
+    if 'markdown' in options.coverage_formats:
+        with open("coverage-report.md", "w") as f:
+            coverage.report(
+                file=f, output_format='markdown',
+                show_missing=True, ignore_errors=True, skip_empty=True)
+    if 'xml' in options.coverage_formats:
         coverage.xml_report(outfile="coverage-report.xml")
-    if options.coverage_html:
+    if 'html' in options.coverage_formats:
         coverage.html_report(directory="coverage-report-html")
 
 
@@ -2730,7 +2751,6 @@ def runtests(options, cmd_args, coverage=None):
     if options.for_debugging:
         options.cleanup_workdir = False
         options.cleanup_sharedlibs = False
-        options.fork = False
         if WITH_CYTHON and include_debugger:
             from Cython.Compiler.Options import default_options as compiler_default_options
             compiler_default_options['gdb_debug'] = True
@@ -2754,15 +2774,25 @@ def runtests(options, cmd_args, coverage=None):
             refnanny = import_refnanny()
         CDEFS.append(('CYTHON_REFNANNY', '1'))
 
+    global sys_version_or_limited_version
+    sys_version_or_limited_version = sys.version_info
     if options.limited_api:
-        CDEFS.append(('CYTHON_LIMITED_API', '1'))
-        CDEFS.append(("Py_LIMITED_API", '(PY_VERSION_HEX & 0xffff0000)'))
+        limited_api_version = re.match(r"^(\d+)[.](\d+)$", options.limited_api)
+        if not limited_api_version:
+            sys.stderr.write('Limited API version string should be in the form "3.11"\n')
+            exit(1)
+        limited_api_major_version = int(limited_api_version.group(1))
+        limited_api_minor_version = int(limited_api_version.group(2))
+        CDEFS.append((
+            "Py_LIMITED_API",
+            f"0x{limited_api_major_version:02x}{limited_api_minor_version:02x}0000")
+        )
+        sys_version_or_limited_version = (
+            limited_api_major_version,
+            limited_api_minor_version,
+            0
+        )
         CFLAGS.append('-Wno-unused-function')
-
-    if xml_output_dir and options.fork:
-        # doesn't currently work together
-        sys.stderr.write("Disabling forked testing to support XML test output\n")
-        options.fork = False
 
     if WITH_CYTHON:
         sys.stderr.write("Using Cython language level %d.\n" % options.language_level)
@@ -2821,7 +2851,7 @@ def runtests(options, cmd_args, coverage=None):
             ('pypy_implementation_detail_bugs.txt', IS_PYPY),
             ('graal_bugs.txt', IS_GRAAL),
             ('limited_api_bugs.txt', options.limited_api),
-            ('limited_api_bugs_38.txt', options.limited_api and sys.version_info < (3, 9)),
+            ('limited_api_bugs_38.txt', options.limited_api and sys_version_or_limited_version < (3, 9)),
             ('windows_bugs.txt', sys.platform == 'win32'),
             ('cygwin_bugs.txt', sys.platform == 'cygwin'),
             ('windows_bugs_39.txt', sys.platform == 'win32' and sys.version_info[:2] == (3, 9)),
@@ -2833,7 +2863,7 @@ def runtests(options, cmd_args, coverage=None):
             for bugs_file_name, condition in bug_files if condition
         ]
 
-    if sys.version_info < (3, 11) and options.limited_api:
+    if sys_version_or_limited_version < (3, 11) and options.limited_api:
         # exclude everything with memoryviews in since this is a big
         # missing feature from the limited API in these versions
         exclude_selectors += [

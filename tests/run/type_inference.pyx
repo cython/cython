@@ -60,6 +60,27 @@ def builtin_types():
     B = bool()
     assert typeof(B) == "bool", typeof(B)
 
+
+def builtin_exceptions():
+    """
+    >>> builtin_exceptions()
+    """
+    a = Exception("msg")
+    assert typeof(a) == "Exception object", typeof(a)
+    b = BaseException("msg")
+    assert typeof(b) == "BaseException object", typeof(b)
+
+    c = TypeError("msg")
+    assert typeof(c) == "TypeError object", typeof(c)
+    d = AssertionError("msg")
+    assert typeof(d) == "AssertionError object", typeof(d)
+
+    e = FutureWarning("msg")
+    assert typeof(e) == "FutureWarning object", typeof(e)
+    f = DeprecationWarning("msg")
+    assert typeof(f) == "DeprecationWarning object", typeof(f)
+
+
 def slicing():
     """
     >>> slicing()
@@ -107,7 +128,7 @@ def indexing():
     b = b"abc"
     assert typeof(b) == "bytes object", typeof(b)
     b1 = b[1]
-    assert typeof(b1) == "Python object", typeof(b1)
+    assert typeof(b1) == "unsigned char", typeof(b1)
 
     u = u"xyz"
     assert typeof(u) == "str object", typeof(u)
@@ -433,7 +454,7 @@ def loop_over_charptr():
 def loop_over_bytes_literal():
     """
     >>> print( loop_over_bytes_literal() )
-    Python object
+    unsigned char
     """
     for c in b'abcdefg':
         pass
@@ -442,7 +463,7 @@ def loop_over_bytes_literal():
 def loop_over_bytes():
     """
     >>> print( loop_over_bytes() )
-    Python object
+    unsigned char
     """
     cdef bytes bytes_string = b'abcdefg'
     # bytes in Py2, int in Py3
@@ -481,6 +502,92 @@ def loop_over_unicode_literal():
         pass
     return typeof(uchar)
 
+
+def loop_over_sequence_literal_str():
+    """
+    >>> loop_over_sequence_literal_str()
+    """
+    for tuple_str_item in ("abc", "", "x"):
+        pass
+    assert typeof(tuple_str_item) == 'str object', typeof(tuple_str_item)
+
+    for list_str_item in ["abc", "", "x"]:
+        pass
+    assert typeof(list_str_item) == 'str object', typeof(list_str_item)
+
+    for set_str_item in {"abc", "", "x"}:
+        pass
+    assert typeof(set_str_item) == 'str object', typeof(set_str_item)
+
+
+def loop_over_sequence_literal_with_none():
+    """
+    >>> loop_over_sequence_literal_with_none()
+    """
+    for tuple_str_item in ("abc", "", None, "x"):
+        pass
+    assert typeof(tuple_str_item) == 'str object', typeof(tuple_str_item)
+
+    for list_str_item in ["abc", "", "x", None]:
+        pass
+    assert typeof(list_str_item) == 'str object', typeof(list_str_item)
+
+    for set_str_item in {None, "abc", "", "x"}:
+        pass
+    assert typeof(set_str_item) == 'str object', typeof(set_str_item)
+
+
+def loop_over_sequence_literal_int():
+    """
+    >>> loop_over_sequence_literal_int()
+    """
+    for tuple_int_item in (1, 2, 3, 4):
+        pass
+    assert typeof(tuple_int_item) == 'long', typeof(tuple_int_item)
+
+    for list_int_item in [1, 2, 3, 4]:
+        pass
+    assert typeof(list_int_item) == 'long', typeof(list_int_item)
+
+    for set_int_item in {1, 2, 3, 4}:
+        pass
+    assert typeof(set_int_item) == 'long', typeof(set_int_item)
+
+
+def loop_over_sequence_literal_float():
+    """
+    >>> loop_over_sequence_literal_float()
+    """
+    for tuple_float_item in (1., 2., 3., 4.):
+        pass
+    assert typeof(tuple_float_item) == 'double', typeof(tuple_float_item)
+
+    for list_float_item in [1., 2., 3., 4.]:
+        pass
+    assert typeof(list_float_item) == 'double', typeof(list_float_item)
+
+    for set_float_item in {1., 2., 3., 4.}:
+        pass
+    assert typeof(set_float_item) == 'double', typeof(set_float_item)
+
+
+def loop_over_sequence_literal_mixed():
+    """
+    >>> loop_over_sequence_literal_mixed()
+    """
+    for tuple_mixed_item in ("abc", b'', "x", None):
+        pass
+    assert typeof(tuple_mixed_item) == 'Python object', typeof(tuple_mixed_item)
+
+    for list_mixed_item in ["abc", b'', "x", None]:
+        pass
+    assert typeof(list_mixed_item) == 'Python object', typeof(list_mixed_item)
+
+    for set_mixed_item in {"abc", b'', "x", None}:
+        pass
+    assert typeof(set_mixed_item) == 'Python object', typeof(set_mixed_item)
+
+
 def loop_over_int_array():
     """
     >>> print( loop_over_int_array() )
@@ -490,6 +597,70 @@ def loop_over_int_array():
     for i in int_array:
         pass
     return typeof(i)
+
+
+@cython.test_assert_path_exists(
+    "//ForFromStatNode",
+    "//ForFromStatNode//NameNode[@name = 'c_ch']",
+    "//ForInStatNode",
+    "//ForInStatNode//NameNode[@name = 'py_ch']",
+)
+def loop_over_character_list():
+    """
+    >>> loop_over_character_list()
+    Py_UCS4
+    str object
+    """
+    for c_ch in ['a', '\x0a', '\N{SNOWMAN}']:
+        assert not c_ch.isdigit()
+    print(typeof(c_ch))
+
+    for py_ch in ['a', '\x0a', None, '\N{SNOWMAN}']:
+        pass
+    print(typeof(py_ch))
+
+
+@cython.test_assert_path_exists(
+    "//ForFromStatNode",
+    "//ForFromStatNode//NameNode[@name = 'c_ch']",
+    "//ForInStatNode",
+    "//ForInStatNode//NameNode[@name = 'py_ch']",
+)
+def loop_over_single_bytes_tuple():
+    """
+    >>> loop_over_single_bytes_tuple()
+    unsigned char
+    bytes object
+    """
+    for c_ch in (b'a', b'\x0a', b' '):
+        assert c_ch > 0
+    print(typeof(c_ch))
+
+    for py_ch in (b'a', b'\x0a', b' ', None):
+        assert py_ch or not py_ch
+    print(typeof(py_ch))
+
+
+@cython.test_assert_path_exists(
+    "//ForFromStatNode",
+    "//ForFromStatNode//NameNode[@name = 'c_b']",
+    "//ForInStatNode",
+    "//ForInStatNode//NameNode[@name = 'py_b']",
+)
+def loop_over_bools():
+    """
+    >>> loop_over_bools()
+    bint
+    bool object
+    """
+    for c_b in True, False, False, True:
+        assert c_b or not c_b
+    print(typeof(c_b))
+
+    for py_b in None, True, False, False, True:
+        assert py_b or not py_b
+    print(typeof(py_b))
+
 
 cdef struct MyStruct:
     int a

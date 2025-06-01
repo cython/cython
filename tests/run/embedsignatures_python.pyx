@@ -90,10 +90,12 @@ def test_nonlimited_api():
     """
     >>> print(Foo.__init__.__doc__)
     __init__(self, *args: Any, **kwargs: Any) -> None
+    <BLANKLINE>
     init Foo
 
     >>> print(Foo.__call__.__doc__)
     __call__(self, a: int, b: float = 1.0, *args: tuple, **kwargs: dict) -> (None, True)
+    <BLANKLINE>
     call docstring
     """
 
@@ -160,6 +162,7 @@ p1 docstring
 
 >>> print(Foo.p2.__doc__)
 p2: int
+<BLANKLINE>
 p2 docstring
 
 >>> print(Foo.p3.__doc__)
@@ -167,6 +170,7 @@ p3: Foo
 
 >>> print(Foo.__add__.__doc__)
 __add__(self, other: Foo) -> Foo
+<BLANKLINE>
 add docstring
 
 """

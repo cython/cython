@@ -204,6 +204,29 @@ class IterationTransform(Visitor.EnvTransform):
         # C array (slice) iteration?
         if iterable.type.is_ptr or iterable.type.is_array:
             return self._transform_carray_iteration(node, iterable, reversed=reversed)
+        if iterable.is_sequence_constructor:
+            # Convert iteration over homogeneous sequences of C types into array iteration.
+            env = self.current_env()
+            item_type = ExprNodes.infer_sequence_item_type(
+                env, iterable, seq_type=iterable.type)
+            if item_type and not item_type.is_pyobject and not any(item.is_starred for item in iterable.args):
+                iterable = ExprNodes.ListNode(iterable.pos, args=iterable.args).analyse_types(env).coerce_to(
+                    PyrexTypes.c_array_type(item_type, len(iterable.args)), env)
+                return self._transform_carray_iteration(node, iterable, reversed=reversed)
+        if iterable.is_string_literal:
+            # Iterate over C array of single character values.
+            env = self.current_env()
+            if iterable.type is Builtin.unicode_type:
+                item_type = PyrexTypes.c_py_ucs4_type
+                items = map(ord, iterable.value)
+            else:
+                item_type = PyrexTypes.c_uchar_type
+                items = iterable.value
+            iterable = ExprNodes.ListNode(iterable.pos, args=[
+                ExprNodes.IntNode(iterable.pos, value=str(ch), constant_result=ch, type=item_type)
+                for ch in items
+            ]).analyse_types(env).coerce_to(PyrexTypes.c_array_type(item_type, len(iterable.value)), env)
+            return self._transform_carray_iteration(node, iterable, reversed=reversed)
         if iterable.type is Builtin.bytes_type:
             return self._transform_bytes_iteration(node, iterable, reversed=reversed)
         if iterable.type is Builtin.unicode_type:
@@ -2842,19 +2865,18 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
         test_nodes = []
         env = self.current_env()
         for test_type_node in types:
-            builtin_type = None
-            if test_type_node.is_name:
-                if test_type_node.entry:
-                    entry = env.lookup(test_type_node.entry.name)
-                    if entry and entry.type and entry.type.is_builtin_type:
-                        builtin_type = entry.type
+            builtin_type = entry = None
+            if test_type_node.is_name and test_type_node.entry:
+                entry = env.lookup(test_type_node.entry.name)
+                if entry and entry.type and entry.type.is_builtin_type:
+                    builtin_type = entry.type
             if builtin_type is Builtin.type_type:
                 # all types have type "type", but there's only one 'type'
                 if entry.name != 'type' or not (
                         entry.scope and entry.scope.is_builtin_scope):
                     builtin_type = None
             if builtin_type is not None:
-                type_check_function = entry.type.type_check_function(exact=False)
+                type_check_function = builtin_type.type_check_function(exact=False)
                 if type_check_function in tests:
                     continue
                 tests.append(type_check_function)
@@ -2872,6 +2894,7 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
                 ExprNodes.PythonCapiCallNode(
                     test_type_node.pos, type_check_function, self.Py_type_check_func_type,
                     args=type_check_args,
+                    utility_code=entry.utility_code if entry is not None else None,
                     is_temp=True,
                 ))
 

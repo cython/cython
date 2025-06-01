@@ -54,7 +54,7 @@ basicsize_builtins_map = {
 }
 
 # Builtins as of Python version ...
-KNOWN_PYTHON_BUILTINS_VERSION = (3, 13, 0, 'alpha', 5)
+KNOWN_PYTHON_BUILTINS_VERSION = (3, 14, 0, 'beta', 1)
 KNOWN_PYTHON_BUILTINS = frozenset([
     'ArithmeticError',
     'AssertionError',
@@ -86,7 +86,6 @@ KNOWN_PYTHON_BUILTINS = frozenset([
     'IOError',
     'ImportError',
     'ImportWarning',
-    '_IncompleteInputError',
     'IndentationError',
     'IndexError',
     'InterruptedError',
@@ -133,6 +132,7 @@ KNOWN_PYTHON_BUILTINS = frozenset([
     'Warning',
     'WindowsError',
     'ZeroDivisionError',
+    '_IncompleteInputError',
     '__build_class__',
     '__debug__',
     '__import__',
