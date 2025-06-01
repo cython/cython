@@ -93,9 +93,9 @@ def initial_compile_time_env():
     names = (
         'False', 'True',
         'abs', 'all', 'any', 'ascii', 'bin', 'bool', 'bytearray', 'bytes',
-        'chr', 'cmp', 'complex', 'dict', 'divmod', 'enumerate', 'filter',
+        'chr', 'complex', 'dict', 'divmod', 'enumerate', 'filter',
         'float', 'format', 'frozenset', 'hash', 'hex', 'int', 'len',
-        'list', 'map', 'max', 'min', 'oct', 'ord', 'pow', 'range',
+        'list', 'map', 'max', 'min', 'next', 'oct', 'ord', 'pow', 'range',
         'repr', 'reversed', 'round', 'set', 'slice', 'sorted', 'str',
         'sum', 'tuple', 'zip',
         ### defined below in a platform independent way
@@ -113,8 +113,8 @@ def initial_compile_time_env():
     from functools import reduce
     benv.declare('reduce', reduce)
     benv.declare('unicode', str)
-    benv.declare('long', getattr(builtins, 'long', getattr(builtins, 'int')))
-    benv.declare('xrange', getattr(builtins, 'xrange', getattr(builtins, 'range')))
+    benv.declare('long', int)
+    benv.declare('xrange', range)
 
     denv = CompileTimeScope(benv)
     return denv
