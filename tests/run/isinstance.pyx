@@ -224,8 +224,7 @@ def skip_if_less_than_310(f):
 @cython.test_fail_if_path_exists(
     "//BitwiseOrNode",
 )
-@skip_if_less_than_310
-def test_union(tp):
+def test_union(obj):
     """
     >>> test_union([])
     True
@@ -240,7 +239,7 @@ def test_union(tp):
     >>> test_union(1)
     False
     """
-    return isinstance(tp, (list | bytes, tuple, list | None | tuple | bytes, bytes))
+    return isinstance(obj, (list | bytes, tuple, list | None | tuple | bytes, bytes))
 
 
 cdef object py_bytes = bytes
@@ -249,7 +248,7 @@ cdef object py_bytes = bytes
     "//BitwiseOrNode",
 )
 @skip_if_less_than_310
-def test_union_non_type(tp):
+def test_union_non_type(obj):
     """
     >>> test_union_non_type([])
     True
@@ -262,30 +261,47 @@ def test_union_non_type(tp):
     >>> test_union_non_type(1)
     False
     """
-    return isinstance(tp, (list | py_bytes, tuple))
+    return isinstance(obj, (list | py_bytes, tuple))
 
 
 @cython.test_assert_path_exists(
     "//BitwiseOrNode",
 )
-def test_initial_double_none(tp):
+def test_initial_double_none(obj):
     """
     >>> test_initial_double_none(1)  # doctest: +ELLIPSIS
     Traceback (most recent call last):
     TypeError: unsupported operand type...
     """
-    return isinstance(tp, None | None | int)
+    return isinstance(obj, None | None | int)
 
 
 @cython.test_fail_if_path_exists(
     "//BitwiseOrNode",
 )
-@skip_if_less_than_310
-def test_double_none_ok(tp):
+def test_double_none_ok(obj):
     """
     >>> test_double_none_ok(1)
     True
     >>> test_double_none_ok(None)
     True
     """
-    return isinstance(tp, int | None | None)
+    return isinstance(obj, int | None | None)
+
+
+@cython.test_fail_if_path_exists(
+    "//BitwiseOrNode",
+)
+@cython.test_assert_path_exists(
+    "//PythonCapiCallNode//ResultRefNode",
+)
+def test_exttype_or_none(get_obj):
+    """
+    >>> test_exttype_or_none(A)
+    True
+    >>> test_exttype_or_none(lambda: None)
+    True
+    >>> test_exttype_or_none(list)
+    False
+    """
+    return isinstance(get_obj(), A | None)
