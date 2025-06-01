@@ -10721,10 +10721,10 @@ class ParallelRangeNode(ParallelStatNode):
         code.end_block()  # end guard around loop body
         code.end_block()  # end for loop block
 
-        if self.with_python: 
+        if self.with_python:
             code.putln("#ifdef _OPENMP")
-            code.putln("if (!__pyx_parallel_loop_threadstate) {") 
-            code.putln("__pyx_parallel_loop_threadstate = PyEval_SaveThread();") 
+            code.putln("if (!__pyx_parallel_loop_threadstate) {")
+            code.putln("__pyx_parallel_loop_threadstate = PyEval_SaveThread();")
             code.putln("}")
             # synchronization point for all loops at the end of the thread but without the GIL
             code.putln("#pragma omp barrier")
