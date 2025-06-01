@@ -2,6 +2,9 @@
 cimport cython
 from cpython.bool cimport bool
 
+import sys
+
+
 cdef class A:
     pass
 
@@ -220,16 +223,46 @@ def skip_if_less_than_310(f):
     else:
         return f
 
+
+@cython.test_fail_if_path_exists(
+    "//BitwiseOrNode",
+)
 @skip_if_less_than_310
 def test_union(tp):
     """
     >>> test_union([])
     True
+    >>> test_union(())
+    True
     >>> test_union(b'hello')
+    True
+    >>> test_union(None)
     True
     >>> test_union(list)
     False
     >>> test_union(1)
     False
     """
-    return isinstance(tp, list | bytes)
+    return isinstance(tp, (list | bytes, tuple, list | None | tuple | bytes, bytes))
+
+
+cdef object py_bytes = bytes
+
+@cython.test_assert_path_exists(
+    "//BitwiseOrNode",
+)
+@skip_if_less_than_310
+def test_union_non_type(tp):
+    """
+    >>> test_union_non_type([])
+    True
+    >>> test_union_non_type(())
+    True
+    >>> test_union_non_type(b'hello')
+    True
+    >>> test_union_non_type(list)
+    False
+    >>> test_union_non_type(1)
+    False
+    """
+    return isinstance(tp, (list | py_bytes, tuple))
