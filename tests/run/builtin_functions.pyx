@@ -20,6 +20,21 @@ def test_format():
     return s1, s2
 
 
+def test_bin(n):
+    """
+    >>> test_bin(5)
+    '0b101'
+    >>> test_bin(55)
+    '0b110111'
+    >>> test_bin('abc')  # doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    TypeError: ...
+    """
+    s = bin(n)
+    assert typeof(s) == 'str object', typeof(s)
+    return s
+
+
 def test_hex(n):
     """
     >>> test_hex(5)

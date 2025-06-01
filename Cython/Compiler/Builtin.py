@@ -227,7 +227,10 @@ builtin_function_table = [
     #('aiter',     "",     "",      ""),
     #('anext',     "",     "",      ""),
     #('ascii',     "",     "",      ""),
-    #('bin',       "",     "",      ""),
+    BuiltinFunction('bin',       "O",     "O",      "__Pyx_PyNumber_Bin", builtin_return_type='str',
+                    utility_code=UtilityCode(
+                        proto="#define __Pyx_PyNumber_Bin(obj) PyNumber_ToBase((obj), 2)",
+                        name="PyNumber_Bin")),
     #('breakpoint', "",     "",      ""),
     BuiltinFunction('callable',   "O",    "b",     "__Pyx_PyCallable_Check",
                     utility_code = UtilityCode.load("CallableCheck", "ObjectHandling.c")),
