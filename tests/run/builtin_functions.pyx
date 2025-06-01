@@ -39,10 +39,19 @@ def test_ascii(n):
 
 def test_bin(n):
     """
+    >>> bin(5)
+    '0b101'
     >>> test_bin(5)
     '0b101'
+
+    >>> bin(55)
+    '0b110111'
     >>> test_bin(55)
     '0b110111'
+
+    >>> bin('abc')  # doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    TypeError: ...
     >>> test_bin('abc')  # doctest: +ELLIPSIS
     Traceback (most recent call last):
     TypeError: ...
@@ -54,10 +63,19 @@ def test_bin(n):
 
 def test_hex(n):
     """
+    >>> hex(5)
+    '0x5'
     >>> test_hex(5)
     '0x5'
+
+    >>> hex(55)
+    '0x37'
     >>> test_hex(55)
     '0x37'
+
+    >>> hex('abc')  # doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    TypeError: ...
     >>> test_hex('abc')  # doctest: +ELLIPSIS
     Traceback (most recent call last):
     TypeError: ...
@@ -69,10 +87,19 @@ def test_hex(n):
 
 def test_oct(n):
     """
+    >>> oct(5)
+    '0o5'
     >>> test_oct(5)
     '0o5'
+
     >>> test_oct(55)
     '0o67'
+    >>> oct(55)
+    '0o67'
+
+    >>> oct('abc')  # doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    TypeError: ...
     >>> test_oct('abc')  # doctest: +ELLIPSIS
     Traceback (most recent call last):
     TypeError: ...
