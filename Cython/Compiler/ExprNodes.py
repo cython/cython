@@ -12222,7 +12222,7 @@ class BinopNode(ExprNode):
             elif type1.is_pyunicode_ptr:
                 type1 = Builtin.unicode_type
             if type1.is_builtin_type or type2.is_builtin_type:
-                if type1 is type2 and type1 is not type_type and self.operator in '**%+&^':
+                if type1 is type2 and type1 is not type_type and self.operator in '**%+|&^':
                     # FIXME: at least these operators should be safe - others?
                     return type1
                 result_type = self.infer_builtin_types_operation(type1, type2)
@@ -12524,14 +12524,6 @@ class BitwiseOrNode(IntBinopNode):
         elif self.operand2.is_none:
             return self._analyse_bitwise_or_none(env, self.operand1)
         return None
-
-    def infer_builtin_types_operation(self, type1, type2):
-        if type1 is type_type or type2 is type_type:
-            # the result is a subclass of 'type' but not an exact instance of 'type'.
-            return py_object_type
-        if type1 is type2 and type1.is_builtin_type:
-            return type1
-        return super().infer_builtin_types_operation(type1, type2)
 
 
 class AddNode(NumBinopNode):
