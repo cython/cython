@@ -2,9 +2,6 @@
 cimport cython
 from cpython.bool cimport bool
 
-import sys
-
-
 cdef class A:
     pass
 
