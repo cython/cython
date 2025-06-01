@@ -265,6 +265,9 @@ def test_union_non_type(tp):
     return isinstance(tp, (list | py_bytes, tuple))
 
 
+@cython.test_assert_path_exists(
+    "//BitwiseOrNode",
+)
 def test_initial_double_none(tp):
     """
     >>> test_initial_double_none(1)  # doctest: +ELLIPSIS
@@ -274,6 +277,10 @@ def test_initial_double_none(tp):
     return isinstance(tp, None | None | int)
 
 
+@cython.test_fail_if_path_exists(
+    "//BitwiseOrNode",
+)
+@skip_if_less_than_310
 def test_double_none_ok(tp):
     """
     >>> test_double_none_ok(1)
