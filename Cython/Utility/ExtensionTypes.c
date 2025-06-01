@@ -5,9 +5,10 @@ static CYTHON_INLINE int __Pyx_fix_up_extension_type_from_spec(PyType_Spec *spec
 /////////////// FixUpExtensionType ///////////////
 //@requires:ModuleSetupCode.c::IncludeStructmemberH
 //@requires:StringTools.c::IncludeStringH
+//@requires:SetItemOnTypeDict
 
 static int __Pyx_fix_up_extension_type_from_spec(PyType_Spec *spec, PyTypeObject *type) {
-#if PY_VERSION_HEX > 0x030900B1 || CYTHON_COMPILING_IN_LIMITED_API
+#if __PYX_LIMITED_VERSION_HEX > 0x030900B1
     CYTHON_UNUSED_VAR(spec);
     CYTHON_UNUSED_VAR(type);
 #else
@@ -15,6 +16,7 @@ static int __Pyx_fix_up_extension_type_from_spec(PyType_Spec *spec, PyTypeObject
     // Copied and adapted from https://bugs.python.org/issue38140
     const PyType_Slot *slot = spec->slots;
     int changed = 0;
+#if !CYTHON_COMPILING_IN_LIMITED_API
     while (slot && slot->slot && slot->slot != Py_tp_members)
         slot++;
     if (slot && slot->slot == Py_tp_members) {
@@ -75,6 +77,7 @@ static int __Pyx_fix_up_extension_type_from_spec(PyType_Spec *spec, PyTypeObject
             memb++;
         }
     }
+#endif  // !CYTHON_COMPILING_IN_LIMITED_API
     slot = spec->slots;
     while (slot && slot->slot && slot->slot != Py_tp_getset)
         slot++;
@@ -85,7 +88,17 @@ static int __Pyx_fix_up_extension_type_from_spec(PyType_Spec *spec, PyTypeObject
                 PyObject *descr = PyDescr_NewGetSet(type, getset);
                 if (unlikely(!descr))
                     return -1;
+                #if CYTHON_COMPILING_IN_LIMITED_API
+                PyObject *pyname = PyUnicode_FromString(getset->name);
+                if (unlikely(!pyname)) {
+                    Py_DECREF(descr);
+                    return -1;
+                }
+                int set_item_result = __Pyx_SetItemOnTypeDict(type, pyname, descr);
+                Py_DECREF(pyname);
+                #else
                 int set_item_result = PyDict_SetItem(type->tp_dict, PyDescr_NAME(descr), descr);
+                #endif
                 Py_DECREF(descr);
                 if (unlikely(set_item_result < 0)) {
                     return -1;
@@ -97,7 +110,7 @@ static int __Pyx_fix_up_extension_type_from_spec(PyType_Spec *spec, PyTypeObject
     }
     if (changed)
         PyType_Modified(type);
-#endif  // // PY_VERSION_HEX > 0x030900B1 || CYTHON_COMPILING_IN_LIMITED_API
+#endif  // PY_VERSION_HEX > 0x030900B1
     return 0;
 }
 

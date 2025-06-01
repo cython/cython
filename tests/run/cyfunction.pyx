@@ -66,6 +66,7 @@ def inspect_signature(a, b, c=123, *, d=234):
 #     return inspect_signature.__signature__
 
 
+@skip_if_limited_api("tp_dictoffset not set", min_runtime_version=(3, 9))
 def test_dict():
     """
     >>> test_dict.foo = 123
@@ -429,27 +430,23 @@ def test_fused_module(cython.numeric arg):
     """
     pass
 
-__doc__ = ""
-
-if not CYTHON_COMPILING_IN_LIMITED_API or sys.version_info >= (3, 9):
-    # https://bugs.python.org/issue38140 and/or https://bugs.python.org/issue40703
-    __doc__ += """
-    >>> test_module.__module__
-    'cyfunction'
-    >>> type(test_module).__module__.startswith("_cython")
-    True
-    >>> test_module.__module__ = "something_else"
-    >>> test_module.__module__
-    'something_else'
-    >>> del test_module.__module__
-    >>> test_module.__module__
-    >>> test_fused_module.__module__
-    'cyfunction'
-    >>> type(test_fused_module).__module__.startswith("_cython")
-    True
-    >>> test_fused_module.__module__ = "something_else"
-    >>> test_fused_module.__module__
-    'something_else'
-    >>> del test_fused_module.__module__
-    >>> test_fused_module.__module__
-    """
+__doc__ = """
+>>> test_module.__module__
+'cyfunction'
+>>> type(test_module).__module__.startswith("_cython")
+True
+>>> test_module.__module__ = "something_else"
+>>> test_module.__module__
+'something_else'
+>>> del test_module.__module__
+>>> test_module.__module__
+>>> test_fused_module.__module__
+'cyfunction'
+>>> type(test_fused_module).__module__.startswith("_cython")
+True
+>>> test_fused_module.__module__ = "something_else"
+>>> test_fused_module.__module__
+'something_else'
+>>> del test_fused_module.__module__
+>>> test_fused_module.__module__
+"""
