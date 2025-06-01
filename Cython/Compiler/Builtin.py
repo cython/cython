@@ -226,7 +226,7 @@ builtin_function_table = [
     #('any',       "",     "",      ""),
     #('aiter',     "",     "",      ""),
     #('anext',     "",     "",      ""),
-    #('ascii',     "",     "",      ""),
+    BuiltinFunction('ascii',     "O",     "O",      "PyObject_ASCII", builtin_return_type='str'),
     BuiltinFunction('bin',       "O",     "O",      "__Pyx_PyNumber_Bin", builtin_return_type='str',
                     utility_code=UtilityCode(
                         proto="#define __Pyx_PyNumber_Bin(obj) PyNumber_ToBase((obj), 2)",

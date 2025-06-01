@@ -20,6 +20,23 @@ def test_format():
     return s1, s2
 
 
+def test_ascii(n):
+    """
+    >>> ascii(5)
+    '5'
+    >>> test_ascii(5)
+    '5'
+
+    >>> ascii('\\N{SNOWMAN}')
+    "'\\\\u2603'"
+    >>> test_ascii('\\N{SNOWMAN}')
+    "'\\\\u2603'"
+    """
+    s = ascii(n)
+    assert typeof(s) == 'str object', typeof(s)
+    return s
+
+
 def test_bin(n):
     """
     >>> test_bin(5)
