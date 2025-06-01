@@ -17,3 +17,4 @@ cpp_stl_cmath_cpp20
 cpp_stl_cmath_cpp17
 libcpp_threadsync_cpp20
 libcpp_stop_token
+cpp_condition_variables_cpp20
