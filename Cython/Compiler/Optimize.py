@@ -2870,14 +2870,9 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
         for i, tp in enumerate(type_nodes, 1):
             if isinstance(tp, ExprNodes.BitwiseOrNode):
                 # If all or-ed nodes are types (or None), we can split and test them separately.
-                # FIXME: None | None ???
                 type_set = set(collect_tree_types(tp))
                 if len(type_set) == 1 and type_set.pop() is Builtin.type_type:
                     if tp.operand1.is_none:
-                        if tp.operand2.is_none:
-                            # "None | None" => runtime error (but "None | int | None" etc. is ok)
-                            types.append(tp)
-                            continue
                         allowed_none_node = tp.operand1
                     else:
                         type_nodes.insert(i, tp.operand1)
@@ -2886,6 +2881,7 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
                     else:
                         type_nodes.insert(i+1, tp.operand2)
                     continue
+                # "None | None" is implicitly handled as runtime error.
             types.append(tp)
 
         # Map the separate type checks to check functions.

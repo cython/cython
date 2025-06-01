@@ -263,3 +263,22 @@ def test_union_non_type(tp):
     False
     """
     return isinstance(tp, (list | py_bytes, tuple))
+
+
+def test_initial_double_none(tp):
+    """
+    >>> test_initial_double_none(1)  # doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    TypeError: unsupported operand type...
+    """
+    return isinstance(tp, None | None | int)
+
+
+def test_double_none_ok(tp):
+    """
+    >>> test_double_none_ok(1)
+    True
+    >>> test_double_none_ok(None)
+    True
+    """
+    return isinstance(tp, int | None | None)
