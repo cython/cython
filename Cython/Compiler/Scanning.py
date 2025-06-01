@@ -103,13 +103,9 @@ def initial_compile_time_env():
     )
 
     for name in names:
-        try:
-            benv.declare(name, getattr(builtins, name))
-        except AttributeError:
-            # ignore, likely Py3
-            pass
+        benv.declare(name, getattr(builtins, name))
 
-    # Py2/3 adaptations
+    # legacy Py2 names
     from functools import reduce
     benv.declare('reduce', reduce)
     benv.declare('unicode', str)
