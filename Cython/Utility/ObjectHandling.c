@@ -480,7 +480,7 @@ static PyObject *__Pyx_GetItemInt_Generic(PyObject *o, PyObject* j) {
 static CYTHON_INLINE PyObject *__Pyx_GetItemInt_{{type}}_Fast(PyObject *o, Py_ssize_t i,
                                                               CYTHON_NCP_UNUSED int wraparound,
                                                               CYTHON_NCP_UNUSED int boundscheck) {
-#if CYTHON_ASSUME_SAFE_SIZE{{if type != 'List'}} && CYTHON_ASSUME_SAFE_MACROS && !CYTHON_AVOID_BORROWED_REFS{{endif}}
+#if CYTHON_ASSUME_SAFE_SIZE{{if type != 'List'}} && (CYTHON_ASSUME_SAFE_MACROS && !CYTHON_AVOID_BORROWED_REFS){{endif}}
     Py_ssize_t wrapped_i = i;
     if (wraparound & unlikely(i < 0)) {
         wrapped_i += Py{{type}}_GET_SIZE(o);
@@ -489,6 +489,10 @@ static CYTHON_INLINE PyObject *__Pyx_GetItemInt_{{type}}_Fast(PyObject *o, Py_ss
     if ((CYTHON_AVOID_THREAD_UNSAFE_BORROWED_REFS || !(CYTHON_ASSUME_SAFE_MACROS && !CYTHON_AVOID_BORROWED_REFS))) {
         // Note that there's a minor thread-safety issue where the size for wraparound may change before we use it.
         // CPython doesn't worry about it and serious violations will be caught by boundschecking anyway.
+        #if CYTHON_COMPILING_IN_PYPY
+        // Prevent double wraparound in PyPy.
+        if ((wraparound & boundscheck) && unlikely(n < 0)) return PySequence_GetItem(o, i);
+        #endif
         return __Pyx_PyList_GetItemRef(o, wrapped_i);
     } else
     {{endif}}
@@ -512,6 +516,10 @@ static CYTHON_INLINE PyObject *__Pyx_GetItemInt_Fast(PyObject *o, Py_ssize_t i, 
         // be caught eventually.
         Py_ssize_t n = ((!wraparound) | likely(i >= 0)) ? i : i + PyList_GET_SIZE(o);
         if ((CYTHON_AVOID_THREAD_UNSAFE_BORROWED_REFS)) {
+            // Prevent double wraparound in PyPy (via fallthrough to Generic() below).
+            #if CYTHON_COMPILING_IN_PYPY
+            if (!((wraparound & boundscheck) && unlikely(n < 0)))
+            #endif
             return __Pyx_PyList_GetItemRef(o, n);
         } else if ((!boundscheck) || (likely(__Pyx_is_valid_index(n, PyList_GET_SIZE(o))))) {
             return __Pyx_NewRef(PyList_GET_ITEM(o, n));
