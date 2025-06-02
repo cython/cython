@@ -589,7 +589,9 @@ static CYTHON_INLINE int __Pyx_SetItemInt_Fast(PyObject *o, Py_ssize_t i, PyObje
             Py_INCREF(v);
             return PyList_SetItem(o, n, v);
         } else if ((!boundscheck) || likely(__Pyx_is_valid_index(n, PyList_GET_SIZE(o)))) {
-            PyObject* old = PyList_GET_ITEM(o, n);
+            PyObject* old;
+            Py_INCREF(v);
+            old = PyList_GET_ITEM(o, n);
             PyList_SET_ITEM(o, n, v);
             Py_DECREF(old);
             return 0;
