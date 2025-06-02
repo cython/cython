@@ -492,13 +492,13 @@ static CYTHON_INLINE int __Pyx_PyFloat_FromNumber(PyObject **number_var, const c
     }
     if (unlikely(!float_object)) goto bad;
 
-    Py_DECREF(number);
     *number_var = float_object;
+    Py_DECREF(number);
     return 0;
 
 bad:
-    Py_DECREF(number);
     *number_var = NULL;
+    Py_DECREF(number);
     return -1;
 }
 
@@ -528,13 +528,13 @@ static CYTHON_INLINE int __Pyx_PyInt_FromNumber(PyObject **number_var, const cha
         goto bad;
     }
 
-    Py_DECREF(number);
     *number_var = int_object;
+    Py_DECREF(number);
     return 0;
 
 bad:
-    Py_DECREF(number);
     *number_var = NULL;
+    Py_DECREF(number);
     return -1;
 }
 
