@@ -586,7 +586,7 @@ static CYTHON_INLINE int __Pyx_SetItemInt_Fast(PyObject *o, Py_ssize_t i, PyObje
             PyList_SET_ITEM(o, n, v);
             Py_DECREF(old);
 #endif
-            return 1;
+            return 0;
         }
     } else {
         // inlined PySequence_SetItem() + special cased length overflow
