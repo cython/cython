@@ -11,6 +11,13 @@ Features added
 * Builtin exception types are now inferred.
   (Github issue :issue:`6908`)
 
+* The list of known, inferred and optimised Python builtins was updated.
+  `range` is now considered a type. `ascii`, `bin`, `format`, `hex`, `oct` were added as functions.
+  (Github issue :issue:`6931`)
+
+* Type checks on PEP-604 union types (`int | None`) are optimised into separate checks.
+  (Github issue :issue:`6935`)
+
 * Item type inference was improved for looping over literals.
   (Github issue :issue:`6912`)
 
@@ -19,6 +26,9 @@ Features added
 
 * Using ``NaN`` as exception return value is supported.
   (Github issues :issue:`6900`, :issue:`6903`)
+
+* Declarations for C++ condition variables were added.
+  (Github issue :issue:`6836`)
 
 Bugs fixed
 ----------
