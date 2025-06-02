@@ -420,26 +420,28 @@ def increment():
     a += 1
     assert typeof(a) == "long"
 
+
 def loop():
     """
     >>> loop()
     """
     for a in range(10):
         pass
-    assert typeof(a) == "long"
+    assert typeof(a) == "long", typeof(a)
 
     b = 1.0
     for b in range(5):
         pass
-    assert typeof(b) == "double"
+    assert typeof(b) == "double", typeof(b)
 
     for c from 0 <= c < 10 by .5:
         pass
-    assert typeof(c) == "double"
+    assert typeof(c) == "double", typeof(c)
 
     for d in range(0, 10L, 2):
         pass
-    assert typeof(a) == "long"
+    assert typeof(d) == "long", typeof(d)
+
 
 def loop_over_charptr():
     """
