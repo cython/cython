@@ -220,16 +220,88 @@ def skip_if_less_than_310(f):
     else:
         return f
 
-@skip_if_less_than_310
-def test_union(tp):
+
+@cython.test_fail_if_path_exists(
+    "//BitwiseOrNode",
+)
+def test_union(obj):
     """
     >>> test_union([])
     True
+    >>> test_union(())
+    True
     >>> test_union(b'hello')
+    True
+    >>> test_union(None)
     True
     >>> test_union(list)
     False
     >>> test_union(1)
     False
     """
-    return isinstance(tp, list | bytes)
+    return isinstance(obj, (list | bytes, tuple, list | None | tuple | bytes, bytes))
+
+
+cdef object py_bytes = bytes
+
+@cython.test_assert_path_exists(
+    "//BitwiseOrNode",
+)
+@skip_if_less_than_310
+def test_union_non_type(obj):
+    """
+    >>> test_union_non_type([])
+    True
+    >>> test_union_non_type(())
+    True
+    >>> test_union_non_type(b'hello')
+    True
+    >>> test_union_non_type(list)
+    False
+    >>> test_union_non_type(1)
+    False
+    """
+    return isinstance(obj, (list | py_bytes, tuple))
+
+
+@cython.test_assert_path_exists(
+    "//BitwiseOrNode",
+)
+def test_initial_double_none(obj):
+    """
+    >>> test_initial_double_none(1)  # doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    TypeError: unsupported operand type...
+    """
+    return isinstance(obj, None | None | int)
+
+
+@cython.test_fail_if_path_exists(
+    "//BitwiseOrNode",
+)
+def test_double_none_ok(obj):
+    """
+    >>> test_double_none_ok(1)
+    True
+    >>> test_double_none_ok(None)
+    True
+    """
+    return isinstance(obj, int | None | None)
+
+
+@cython.test_fail_if_path_exists(
+    "//BitwiseOrNode",
+)
+@cython.test_assert_path_exists(
+    "//PythonCapiCallNode//ResultRefNode",
+)
+def test_exttype_or_none(get_obj):
+    """
+    >>> test_exttype_or_none(A)
+    True
+    >>> test_exttype_or_none(lambda: None)
+    True
+    >>> test_exttype_or_none(list)
+    False
+    """
+    return isinstance(get_obj(), A | None)
