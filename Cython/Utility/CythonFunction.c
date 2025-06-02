@@ -1214,7 +1214,14 @@ static PyObject * __Pyx_CyFunction_Vectorcall_FASTCALL_KEYWORDS_METHOD(PyObject 
         return NULL;
     }
 
-    return ((__Pyx_PyCMethod)(void(*)(void))meth)(self, cls, args, (size_t)nargs, kwnames);
+    #if PY_VERSION_HEX < 0x030e00A6
+    // See https://github.com/python/cpython/pull/131135
+    size_t nargs_value = (size_t) nargs;
+    #else
+    Py_ssize_t nargs_value = nargs;
+    #endif
+
+    return ((__Pyx_PyCMethod)(void(*)(void))meth)(self, cls, args, nargs_value, kwnames);
 }
 #endif
 
