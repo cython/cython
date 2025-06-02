@@ -47,6 +47,9 @@ Bugs fixed
 * Attribute lookups failed on the ``bool`` builtin type.
   (Github issue :issue:`6905`)
 
+* Type checks on or-ed union types could incorrectly return false.
+  (Github issue :issue:`6420`)
+
 * Iterating over literal sequences with starred (unpacked) items could infer a wrong
   type for the loop variable and fail to assign the values.
   (Github issue :issue:`6924`)
