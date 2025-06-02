@@ -4398,6 +4398,8 @@ class DefNodeWrapper(FuncDefNode):
     def generate_arg_assignment(self, arg, item, code):
         if arg.type.is_pyobject:
             # Python default arguments were already stored in 'item' at the very beginning
+            if arg.type.is_builtin_type and arg.type.name in ('int', 'float'):
+                arg.type.convert_to_basetype(code, arg.pos, item, arg.accept_none, arg.name_cstring)
             if arg.is_generic:
                 item = PyrexTypes.typecast(arg.type, PyrexTypes.py_object_type, item)
             entry = arg.entry
@@ -9467,8 +9469,7 @@ class FromImportStatNode(StatNode):
             if coerced_item is None:
                 target.generate_assignment_code(self.item, code)
             else:
-                coerced_item.allocate_temp_result(code)
-                coerced_item.generate_result_code(code)
+                coerced_item.generate_evaluation_code(code)
                 target.generate_assignment_code(coerced_item, code)
             code.put_decref_clear(item_temp, py_object_type)
         code.funcstate.release_temp(item_temp)
