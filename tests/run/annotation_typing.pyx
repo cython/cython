@@ -470,6 +470,28 @@ def pytypes_multi_union(a: Union[list, tuple, None], b: list | tuple | None):
     return [a, b]
 
 
+def optional_py_bool(a: Optional[bool]):
+    """
+    >>> optional_py_bool(True)
+    True
+    >>> optional_py_bool(None)
+    """
+    return a
+
+
+ctypedef bint c_bool
+
+# Mostly a code-generation test. Although this doesn't quite make sense, it should
+# compile in some form.
+def optional_c_bool(a: Optional[c_bool]):
+    """
+    >>> optional_c_bool(True)
+    True
+    >>> optional_c_bool(None)
+    """
+    return a
+
+
 _WARNINGS = """
 15:32: Strings should no longer be used for type declarations. Use 'cython.int' etc. directly.
 15:47: Dicts should no longer be used as type annotations. Use 'cython.int' etc. directly.

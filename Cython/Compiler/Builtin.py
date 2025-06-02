@@ -4,8 +4,8 @@
 
 
 from .StringEncoding import EncodedString
-from .Symtab import BuiltinScope, StructOrUnionScope, ModuleScope, Entry
-from .Code import UtilityCode, TempitaUtilityCode
+from .Symtab import BuiltinScope, CClassScope, StructOrUnionScope, ModuleScope, Entry
+from .Code import UtilityCode, TempitaUtilityCode, KNOWN_PYTHON_BUILTINS, uncachable_builtins
 from .TypeSlots import Signature
 from . import PyrexTypes
 
@@ -224,26 +224,37 @@ builtin_function_table = [
                     utility_code=UtilityCode.load("py_abs", "Builtins.c")),
     #('all',       "",     "",      ""),
     #('any',       "",     "",      ""),
-    #('ascii',     "",     "",      ""),
-    #('bin',       "",     "",      ""),
+    #('aiter',     "",     "",      ""),
+    #('anext',     "",     "",      ""),
+    BuiltinFunction('ascii',     "O",     "O",      "PyObject_ASCII", builtin_return_type='str'),
+    BuiltinFunction('bin',       "O",     "O",      "__Pyx_PyNumber_Bin", builtin_return_type='str',
+                    utility_code=UtilityCode(
+                        proto="#define __Pyx_PyNumber_Bin(obj) PyNumber_ToBase((obj), 2)",
+                        name="PyNumber_Bin")),
+    #('breakpoint', "",     "",      ""),
     BuiltinFunction('callable',   "O",    "b",     "__Pyx_PyCallable_Check",
                     utility_code = UtilityCode.load("CallableCheck", "ObjectHandling.c")),
     BuiltinFunction('chr',        "i",    "O",      "PyUnicode_FromOrdinal", builtin_return_type='str'),
-    #('cmp', "",   "",     "",      ""), # int PyObject_Cmp(PyObject *o1, PyObject *o2, int *result)
     #('compile',   "",     "",      ""), # PyObject* Py_CompileString(    char *str, char *filename, int start)
-    BuiltinFunction('delattr',    "OO",   "r",     "PyObject_DelAttr"),
+    BuiltinFunction('delattr',    "OO",   "r",     "__Pyx_PyObject_DelAttr",
+                    utility_code=UtilityCode.load("PyObjectDelAttr", "ObjectHandling.c")),
     BuiltinFunction('dir',        "O",    "O",     "PyObject_Dir"),
     BuiltinFunction('divmod',     "OO",   "O",     "PyNumber_Divmod",
                     specialiser=_generate_divmod_function),
+    #('enumerate', "",     "",      ""),
+    #('eval',      "",     "",      ""),
     BuiltinFunction('exec',       "O",    "O",     "__Pyx_PyExecGlobals",
                     utility_code = pyexec_globals_utility_code),
     BuiltinFunction('exec',       "OO",   "O",     "__Pyx_PyExec2",
                     utility_code = pyexec_utility_code),
     BuiltinFunction('exec',       "OOO",  "O",     "__Pyx_PyExec3",
                     utility_code = pyexec_utility_code),
-    #('eval',      "",     "",      ""),
-    #('execfile',  "",     "",      ""),
     #('filter',    "",     "",      ""),
+    BuiltinFunction('format',    "OO",     "O",      "PyObject_Format", builtin_return_type='str'),
+    BuiltinFunction('format',    "O",      "O",      "__Pyx_PyObject_Format1", builtin_return_type='str',
+                    utility_code=UtilityCode(
+                        proto="#define __Pyx_PyObject_Format1(obj) PyObject_Format((obj), NULL)",
+                        name="PyObject_Format1")),
     BuiltinFunction('getattr3',   "OOO",  "O",     "__Pyx_GetAttr3",     "getattr",
                     utility_code=getattr3_utility_code),  # Pyrex legacy
     BuiltinFunction('getattr',    "OOO",  "O",     "__Pyx_GetAttr3",
@@ -253,10 +264,14 @@ builtin_function_table = [
     BuiltinFunction('hasattr',    "OO",   "b",     "__Pyx_HasAttr",
                     utility_code = UtilityCode.load("HasAttr", "Builtins.c")),
     BuiltinFunction('hash',       "O",    "h",     "PyObject_Hash"),
-    #('hex',       "",     "",      ""),
+    #('help',      "",     "",      ""),
+    BuiltinFunction('hex',       "O",     "O",      "__Pyx_PyNumber_Hex", builtin_return_type='str',
+                    utility_code=UtilityCode(
+                        proto="#define __Pyx_PyNumber_Hex(obj) PyNumber_ToBase((obj), 16)",
+                        name="PyNumber_Hex")),
     #('id',        "",     "",      ""),
     #('input',     "",     "",      ""),
-    BuiltinFunction('intern',     "O",    "O",     "__Pyx_Intern",
+    BuiltinFunction('intern',     "O",    "O",     "__Pyx_Intern",  # Py2 legacy
                     utility_code = UtilityCode.load("Intern", "Builtins.c")),
     BuiltinFunction('isinstance', "OO",   "b",     "PyObject_IsInstance"),
     BuiltinFunction('issubclass', "OO",   "b",     "PyObject_IsSubclass"),
@@ -268,11 +283,14 @@ builtin_function_table = [
     #('max',       "",     "",      ""),
     #('min',       "",     "",      ""),
     BuiltinFunction('next',       "O",    "O",     "__Pyx_PyIter_Next",
-                    utility_code = iter_next_utility_code),   # not available in Py2 => implemented here
+                    utility_code = iter_next_utility_code),
     BuiltinFunction('next',      "OO",    "O",     "__Pyx_PyIter_Next2",
-                    utility_code = iter_next_utility_code),  # not available in Py2 => implemented here
-    #('oct',       "",     "",      ""),
-    #('open',       "ss",   "O",     "PyFile_FromString"),   # not in Py3
+                    utility_code = iter_next_utility_code),
+    BuiltinFunction('oct',       "O",     "O",      "__Pyx_PyNumber_Oct", builtin_return_type='str',
+                    utility_code=UtilityCode(
+                        proto="#define __Pyx_PyNumber_Oct(obj) PyNumber_ToBase((obj), 8)",
+                        name="PyNumber_Oct")),
+    #('open',      "ss",   "O",     ""),   # no C-API equivalent in Py3
 ] + [
     BuiltinFunction('ord',        None,    None,   "__Pyx_long_cast",
                     func_type=PyrexTypes.CFuncType(
@@ -296,22 +314,19 @@ builtin_function_table = [
     BuiltinFunction('pow',        "OOO",  "O",     "PyNumber_Power"),
     BuiltinFunction('pow',        "OO",   "O",     "__Pyx_PyNumber_Power2",
                     utility_code = UtilityCode.load("pow2", "Builtins.c")),
-    #('range',     "",     "",      ""),
-    #('raw_input', "",     "",      ""),
-    #('reduce',    "",     "",      ""),
-    BuiltinFunction('reload',     "O",    "O",     "PyImport_ReloadModule"),
+    #('print',     "",     "",      ""),
+    #('property',  "",     "",      ""),
+    BuiltinFunction('reload',     "O",    "O",     "PyImport_ReloadModule"),  # legacy Py2
     BuiltinFunction('repr',       "O",    "O",     "PyObject_Repr", builtin_return_type='str'),
+    #('reversed',  "",     "",      ""),
     #('round',     "",     "",      ""),
     BuiltinFunction('setattr',    "OOO",  "r",     "PyObject_SetAttr"),
-    #('sum',       "",     "",      ""),
     #('sorted',    "",     "",      ""),
+    #('sum',       "",     "",      ""),
     #('type',       "O",    "O",     "PyObject_Type"),
-    BuiltinFunction('unichr',     "i",    "O",      "PyUnicode_FromOrdinal", builtin_return_type='str'),
+    BuiltinFunction('unichr',     "i",    "O",      "PyUnicode_FromOrdinal", builtin_return_type='str'),  # legacy Py2
     #('vars',      "",     "",      ""),
     #('zip',       "",     "",      ""),
-    #  Can't do these easily until we have builtin type entries.
-    #('typecheck',  "OO",   "i",     "PyObject_TypeCheck", False),
-    #('issubtype',  "OO",   "i",     "PyType_IsSubtype",   False),
 
     # Put in namespace append optimization.
     BuiltinFunction('__Pyx_PyObject_Append', "OO",  "O",     "__Pyx_PyObject_Append"),
@@ -324,33 +339,34 @@ builtin_function_table = [
 
 # Builtin types
 #  bool
-#  buffer
+#  bytearray
+#  bytes
 #  classmethod
+#  complex
 #  dict
 #  enumerate
-#  file
 #  float
+#  frozenset
 #  int
 #  list
 #  long
+#  memoryview
 #  object
 #  property
+#  range
+#  set
 #  slice
 #  staticmethod
-#  super
 #  str
+#  super
 #  tuple
 #  type
-#  xrange
 
 builtin_types_table = [
 
     ("type",    "&PyType_Type",     []),
 
-# This conflicts with the C++ bool type, and unfortunately
-# C++ is too liberal about PyObject* <-> bool conversions,
-# resulting in unintuitive runtime behavior and segfaults.
-#    ("bool",   "&PyBool_Type",     []),
+    ("bool",   "&PyBool_Type",     []),
 
     ("int",     "&PyLong_Type",     []),
     ("float",   "&PyFloat_Type",   []),
@@ -413,6 +429,8 @@ builtin_types_table = [
                                                   utility_code=UtilityCode.load("py_dict_clear", "Optimize.c")),
                                     BuiltinMethod("copy",   "T",   "T", "PyDict_Copy")]),
 
+    ("range",  "&PyRange_Type",    []),
+
     ("slice",  "&PySlice_Type",    [BuiltinProperty("start", PyrexTypes.py_object_type, '__Pyx_PySlice_Start',
                                                     utility_code=slice_accessor_utility_code),
                                     BuiltinProperty("stop", PyrexTypes.py_object_type, '__Pyx_PySlice_Stop',
@@ -435,7 +453,6 @@ builtin_types_table = [
     ("frozenset", "&PyFrozenSet_Type", []),
     ("BaseException", "((PyTypeObject*)PyExc_BaseException)", []),
     ("Exception", "((PyTypeObject*)PyExc_Exception)", []),
-    ("StopAsyncIteration", "((PyTypeObject*)PyExc_StopAsyncIteration)", []),
     ("memoryview", "&PyMemoryView_Type", [
         # TODO - format would be nice, but hard to get
         # __len__ can be accessed through a direct lookup of the buffer (but probably in Optimize.c)
@@ -466,12 +483,14 @@ builtin_types_table = [
 
 
 types_that_construct_their_instance = frozenset({
-    # some builtin types do not always return an instance of
+    # Some builtin types do not always return an instance of
     # themselves - these do:
     'type', 'bool', 'int', 'float', 'complex',
     'bytes', 'unicode', 'bytearray', 'str',
     'tuple', 'list', 'dict', 'set', 'frozenset',
-    'memoryview'
+    'memoryview', 'range',
+    # All builtin exception types create their own instance.
+    *filter(PyrexTypes.is_exception_type_name, KNOWN_PYTHON_BUILTINS),
 })
 
 
@@ -750,12 +769,10 @@ def init_builtin_types():
         elif name == 'str':
             objstruct_cname = 'PyUnicodeObject'
         elif name == 'bool':
-            objstruct_cname = None
+            objstruct_cname = 'PyLongObject'
         elif name == 'BaseException':
             objstruct_cname = "PyBaseExceptionObject"
         elif name == 'Exception':
-            objstruct_cname = "PyBaseExceptionObject"
-        elif name == 'StopAsyncIteration':
             objstruct_cname = "PyBaseExceptionObject"
         else:
             objstruct_cname = 'Py%sObject' % name.capitalize()
@@ -769,6 +786,26 @@ def init_builtin_types():
         builtin_types[name] = the_type
         for method in methods:
             method.declare_in_type(the_type)
+
+
+def init_builtin_exceptions():
+    """Declare known builtin Python exceptions as types.
+    """
+    for name in KNOWN_PYTHON_BUILTINS:
+        if name in uncachable_builtins:
+            # Exclude builtins specific to later Python versions or platforms.
+            continue
+        if not PyrexTypes.is_exception_type_name(name):
+            continue
+        if builtin_scope.lookup_here(name) is not None:
+            # Already declared as builtin type above in a more specialised way.
+            continue
+        utility_code = UtilityCode(
+            proto=f"#define __Pyx_PyExc_{name}_Check(obj)  __Pyx_TypeCheck(obj, PyExc_{name})",
+            name=f"Py{name}_Check",
+        )
+        builtin_types[name] = builtin_scope.declare_builtin_type(
+            name, f"((PyTypeObject*)PyExc_{name})", utility_code=utility_code)
 
 
 def init_builtin_structs():
@@ -785,6 +822,7 @@ def init_builtins():
     #Errors.init_thread()  # hopefully not needed - we should not emit warnings ourselves
     init_builtin_structs()
     init_builtin_types()
+    init_builtin_exceptions()
     init_builtin_funcs()
 
     entry = builtin_scope.declare_var(
@@ -792,7 +830,8 @@ def init_builtins():
         pos=None, cname='__pyx_assertions_enabled()', is_cdef=True)
     entry.utility_code = UtilityCode.load_cached("AssertionsEnabled", "Exceptions.c")
 
-    global type_type, list_type, tuple_type, dict_type, set_type, frozenset_type, slice_type
+    global type_type, list_type, tuple_type, dict_type, set_type, frozenset_type
+    global slice_type, range_type
     global bytes_type, unicode_type, bytearray_type
     global float_type, int_type, bool_type, complex_type
     global memoryview_type, py_buffer_type
@@ -804,6 +843,7 @@ def init_builtins():
     set_type   = builtin_scope.lookup('set').type
     frozenset_type = builtin_scope.lookup('frozenset').type
     slice_type   = builtin_scope.lookup('slice').type
+    range_type   = builtin_scope.lookup('range').type
 
     bytes_type = builtin_scope.lookup('bytes').type
     unicode_type = builtin_scope.lookup('str').type
@@ -825,12 +865,15 @@ def init_builtins():
     )
 
     # Set up type inference links between equivalent Python/C types
+    assert bool_type.name == 'bool', bool_type.name
     bool_type.equivalent_type = PyrexTypes.c_bint_type
     PyrexTypes.c_bint_type.equivalent_type = bool_type
 
+    assert float_type.name == 'float', float_type.name
     float_type.equivalent_type = PyrexTypes.c_double_type
     PyrexTypes.c_double_type.equivalent_type = float_type
 
+    assert complex_type.name == 'complex', complex_type.name
     complex_type.equivalent_type = PyrexTypes.c_double_complex_type
     PyrexTypes.c_double_complex_type.equivalent_type = complex_type
 

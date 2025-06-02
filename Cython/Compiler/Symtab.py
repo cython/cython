@@ -1281,10 +1281,6 @@ class BuiltinScope(Scope):
             Scope.__init__(self, "__builtin__", PreImportScope(), None)
         self.type_names = {}
 
-        # Most entries are initialized in init_builtins, except for "bool"
-        # which is apparently a special case because it conflicts with C++ bool
-        self.declare_var("bool", py_object_type, None, "((PyObject*)&PyBool_Type)")
-
     def lookup(self, name, language_level=None):
         # 'language_level' is passed by ModuleScope
         if name == 'unicode' or name == 'basestring':
@@ -1326,18 +1322,22 @@ class BuiltinScope(Scope):
             entry.as_variable = var_entry
         return entry
 
-    def declare_builtin_type(self, name, cname, utility_code=None,
-                             objstruct_cname=None, type_class=PyrexTypes.BuiltinObjectType):
+    def declare_builtin_type(self, name, cname,
+                             objstruct_cname=None, type_class=PyrexTypes.BuiltinObjectType,
+                             utility_code=None):
         name = EncodedString(name)
         type = type_class(name, cname, objstruct_cname)
         scope = CClassScope(name, outer_scope=None, visibility='extern', parent_type=type)
         scope.directives = {}
-        if name == 'bool':
-            type.is_final_type = True
         type.set_scope(scope)
         self.type_names[name] = 1
+
         entry = self.declare_type(name, type, None, visibility='extern')
-        entry.utility_code = utility_code
+        if utility_code:
+            entry.utility_code = utility_code
+        if name == 'range' and 'xrange' not in self.entries:
+            # Keep supporting legacy Py2 'xrange' because it's still in use.
+            self.entries['xrange'] = entry
 
         var_entry = Entry(
             name=entry.name,
@@ -1350,10 +1350,11 @@ class BuiltinScope(Scope):
         var_entry.is_cglobal = 1
         var_entry.is_readonly = 1
         var_entry.is_builtin = 1
-        var_entry.utility_code = utility_code
         var_entry.scope = self
         if Options.cache_builtins:
             var_entry.is_const = True
+        if utility_code:
+            var_entry.utility_code = utility_code
         entry.as_variable = var_entry
 
         return type
@@ -1491,10 +1492,11 @@ class ModuleScope(Scope):
         scope.is_defaults_class_scope = True
 
         # zero pad the argument number so they can be sorted
-        num_zeros = math.floor(math.log10(len(components)))
-        format_str = "arg{0:0%dd}" % num_zeros
+        num_zeros = len(str(len(components)))
+        build_argname = ("arg{:0>%dd}" % num_zeros).format
         for n, type_ in enumerate(components):
-            scope.declare_var(EncodedString(format_str.format(n)), type_, None, is_cdef = True)
+            arg_name = EncodedString(build_argname(n))
+            scope.declare_var(arg_name, type_, pos=None, is_cdef=True)
         return entry
 
     def declare_builtin(self, name, pos):

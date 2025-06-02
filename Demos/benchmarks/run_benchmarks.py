@@ -20,6 +20,10 @@ ALL_BENCHMARKS = [bm.stem for bm in BENCHMARK_FILES]
 
 LIMITED_API_VERSION = max((3, 12), sys.version_info[:2])
 
+PYTHON_VERSION = "%d.%d.%d" % sys.version_info[:3]
+if hasattr(sys, '_is_gil_enabled') and not sys._is_gil_enabled():
+    PYTHON_VERSION += 't'
+
 
 try:
     from distutils import sysconfig
@@ -235,7 +239,7 @@ def run_benchmarks(bm_dir, benchmarks, pythonpath=None, profiler=None):
 
 
 def benchmark_revisions(benchmarks, revisions, cythonize_args=None, profiler=None, limited_revisions=(), show_size=False):
-    python_version = "Python %d.%d.%d" % sys.version_info[:3]
+    python_version = f"Python {PYTHON_VERSION}"
     logging.info(f"### Comparing revisions in {python_version}: {' '.join(revisions)}.")
     logging.info(f"CFLAGS={os.environ.get('CFLAGS', DISTUTILS_CFLAGS)}")
 
@@ -303,7 +307,7 @@ def benchmark_revision(revision, benchmarks, cythonize_args=None, profiler=None,
         return timings, sizes
 
 
-def report_revision_timings(rev_timings):
+def report_revision_timings(rev_timings, csv_out=None):
     units = {"nsec": 1e-9, "usec": 1e-6, "msec": 1e-3, "sec": 1.0}
     scales = [(scale, unit) for unit, scale in reversed(units.items())]  # biggest first
 
@@ -335,10 +339,12 @@ def report_revision_timings(rev_timings):
             if base_line != tmed:
                 pdiff = tmed * 100 / base_line - 100
                 differences[revision_name].append((abs(pdiff), pdiff, tmed - base_line, benchmark))
-                diff_str = f"  ({pdiff:+8.2f} %)"
+                diff_str = f"  ({pdiff:+8.1f} %)"
             logging.info(
                 f"    {revision_name[:25]:25} = {format_time(tmin):>12}, {format_time(tmed):>12}, {format_time(tmax):>12}{diff_str}"
             )
+            if csv_out is not None:
+                csv_out.writerow([benchmark, revision_name, PYTHON_VERSION, format_time(tmin), format_time(tmed), format_time(tmax), diff_str])
 
     for revision_name, diffs in differences.items():
         diffs.sort(reverse=True)
@@ -354,7 +360,7 @@ def report_revision_timings(rev_timings):
             for absdiff, pdiff, tdiff, benchmark in diffs:
                 if absdiff < cutoff:
                     break
-                logging.info(f"    {benchmark[:25]:<25}:  {pdiff:+8.2f} %   /  {'+' if tdiff > 0 else '-'}{format_time(abs(tdiff))}")
+                logging.info(f"    {benchmark[:25]:<25}:  {pdiff:+8.1f} %   /  {'+' if tdiff > 0 else '-'}{format_time(abs(tdiff))}")
 
 
 def report_revision_sizes(rev_sizes):
@@ -365,10 +371,22 @@ def report_revision_sizes(rev_sizes):
         for benchmark, size in bm_size.items():
             sizes_by_benchmark[benchmark].append((revision_name, size))
 
+    pdiffs_by_revision = collections.defaultdict(list)
     for benchmark, sizes in sizes_by_benchmark.items():
         logging.info(f"### Benchmark '{benchmark}' (size):")
+        base_line = sizes[0][1]
         for revision_name, size in sizes:
-            logging.info(f"    {revision_name[:25]:25}:  {size} bytes")
+            diff_str = ""
+            if base_line != size:
+                pdiff = size * 100 / base_line - 100
+                pdiffs_by_revision[revision_name].append(pdiff)
+                diff_str = f"  ({pdiff:+8.1f} %)"
+            logging.info(f"    {revision_name[:25]:25}:  {size} bytes{diff_str}")
+
+    logging.info(f"### Average size changes:")
+    for revision_name, pdiffs in pdiffs_by_revision.items():
+        average = sum(pdiffs) / len(pdiffs)
+        logging.info(f"    {revision_name[:25]:25}:  {average:+8.1f} %")
 
 
 def parse_args(args):
@@ -412,6 +430,11 @@ def parse_args(args):
         dest="show_size", action="store_true", default=False,
         help="Report the size of the compiled bencharks."
     )
+    parser.add_argument(
+        "--report",
+        dest="report_csv", default=None, metavar="FILE",
+        help="Write a CSV report to FILE."
+    )
 
     return parser.parse_known_args(args)
 
@@ -441,6 +464,11 @@ if __name__ == '__main__':
         limited_revisions=options.with_limited_api,
         show_size=options.show_size
     )
-    report_revision_timings(timings)
+    if options.report_csv:
+        with open(options.report_csv, "w") as f:
+            import csv
+            report_revision_timings(timings, csv_out=csv.writer(f))
+    else:
+        report_revision_timings(timings)
     if options.show_size:
         report_revision_sizes(sizes)

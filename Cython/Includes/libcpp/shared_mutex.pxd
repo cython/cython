@@ -7,10 +7,12 @@ cdef extern from "<shared_mutex>" namespace "std" nogil:
         cppclass native_handle_type:
             pass
 
+        # We strongly recommend not calling lock with the GIL held (to avoid deadlocks)
         void lock() except+
         bool try_lock()
         void unlock()
 
+        # We strongly recommend not calling lock_shared with the GIL held (to avoid deadlocks)
         void lock_shared() except+
         bool try_lock_shared()
         void unlock_shared()
@@ -23,6 +25,8 @@ cdef extern from "<shared_mutex>" namespace "std" nogil:
         cppclass native_handle_type:
             pass
 
+        # We strongly recommend not calling lock with the GIL held (to avoid deadlocks)
+        # and moderately recommend not calling the timed lock functions with the GIL either.
         void lock() except+
         bool try_lock()
         bool try_lock_for[T](const T& duration) except+
@@ -46,15 +50,17 @@ cdef extern from "<shared_mutex>" namespace "std" nogil:
         shared_lock(mutex_type&, ...) except+
         #shared_lock(mutex_type&, defer_lock_t)
         #shared_lock(mutex_type&, try_to_lock_t) except+
-        ## this feels like it should be noexcet, but cppreference implies it isn't
+        ## this feels like it should be noexcept, but cppreference implies it isn't
         #shared_lock(mutex_type&, adopt_lock_t) except+
 
+        # We strongly recommend not calling lock with the GIL held (to avoid deadlocks)
         void lock() except+
         bool try_lock() except+
         bool try_lock_for[T](const T& duration) except+
         bool try_lock_until[T](const T& time_point) except+
         void unlock() except+
 
+        # We strongly recommend not calling lock_shared with the GIL held (to avoid deadlocks)
         void swap(shared_lock& other)
         # "release" is definitely not the same as unlock. Noted here because
         # DW always makes this mistake and regrets it and wants to save you

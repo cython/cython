@@ -77,7 +77,7 @@ jobs:
               && cibuildwheel --print-build-identifiers --prerelease-pythons --platform macos \
               | jq -nRc '{"only": inputs, "os": "macos-latest"}' \
               && cibuildwheel --print-build-identifiers --prerelease-pythons --platform windows \
-              | jq -nRc '{"only": inputs, "os": "windows-2019"}'
+              | jq -nRc '{"only": inputs, "os": "windows-2022"}'
             } | jq -sc
           )
           echo "$MATRIX"

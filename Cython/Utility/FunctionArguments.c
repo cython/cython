@@ -158,7 +158,7 @@ static int __Pyx_CheckKeywordStrings(
     PyObject *kw)
 {
     // PyPy appears to check keyword types at call time, not at unpacking time.
-#if CYTHON_COMPILING_IN_PYPY
+#if CYTHON_COMPILING_IN_PYPY && !defined(PyArg_ValidateKeywordArguments)
     CYTHON_UNUSED_VAR(function_name);
     CYTHON_UNUSED_VAR(kw);
     return 0;
@@ -219,8 +219,10 @@ static void __Pyx_RejectKeywords(const char* function_name, PyObject *kwds) {
         key = __Pyx_PySequence_ITEM(kwds, 0);
     } else {
         Py_ssize_t pos = 0;
+#if !CYTHON_COMPILING_IN_PYPY || defined(PyArg_ValidateKeywordArguments)
         // Check if dict is unicode-keys-only and let Python set the error otherwise.
         if (unlikely(!PyArg_ValidateKeywordArguments(kwds))) return;
+#endif
         // Read first key.
         PyDict_Next(kwds, &pos, &key, NULL);
         Py_INCREF(key);
@@ -503,8 +505,10 @@ static int __Pyx_ParseKeywordDict(
     PyObject** const *first_kw_arg = argnames + num_pos_args;
     Py_ssize_t extracted = 0;
 
+#if !CYTHON_COMPILING_IN_PYPY || defined(PyArg_ValidateKeywordArguments)
     // Check if dict is unicode-keys-only and let Python set the error otherwise.
     if (unlikely(!PyArg_ValidateKeywordArguments(kwds))) return -1;
+#endif
 
     // Extract declared keyword arguments.
     name = first_kw_arg;
@@ -564,8 +568,10 @@ static int __Pyx_ParseKeywordDictToDict(
     PyObject** const *first_kw_arg = argnames + num_pos_args;
     Py_ssize_t len;
 
+#if !CYTHON_COMPILING_IN_PYPY || defined(PyArg_ValidateKeywordArguments)
     // Check if dict is unicode-keys-only and let Python set the error otherwise.
     if (unlikely(!PyArg_ValidateKeywordArguments(kwds))) return -1;
+#endif
 
     // Fast copy of all kwargs.
     if (PyDict_Update(kwds2, kwds) < 0) goto bad;

@@ -66,6 +66,44 @@ def filter_none_node(node):
     return node
 
 
+def _unpack_union_type_nodes(union_type_nodes: list):
+    # Unpack 'int | float | None' etc.
+    BitwiseOrNode = ExprNodes.BitwiseOrNode
+
+    def collect_tree_types(tree_node):
+        if isinstance(tree_node, BitwiseOrNode):
+            yield from collect_tree_types(tree_node.operand1)
+            yield from collect_tree_types(tree_node.operand2)
+        elif not tree_node.is_none:
+            yield tree_node.type
+
+    types = []
+    allowed_none_node = None
+
+    type_stack = union_type_nodes[::-1]  # Left-most type is top of stack.
+    while type_stack:
+        tp = type_stack.pop()
+        if isinstance(tp, BitwiseOrNode):
+            # If all or-ed nodes are types (or None), we can split and test them separately.
+            # "None | None" is implicitly handled as runtime error (len(type_set) == 0).
+            type_set = set(collect_tree_types(tp))
+            if len(type_set) == 1 and type_set.pop() is Builtin.type_type:
+                if tp.operand2.is_none:
+                    if allowed_none_node is None:
+                        allowed_none_node = tp.operand2
+                else:
+                    type_stack.append(tp.operand2)
+                if tp.operand1.is_none:
+                    if allowed_none_node is None:
+                        allowed_none_node = tp.operand1
+                else:
+                    type_stack.append(tp.operand1)
+                continue
+        types.append(tp)
+
+    return types, allowed_none_node
+
+
 class _YieldNodeCollector(Visitor.TreeVisitor):
     """
     YieldExprNode finder for generator expressions.
@@ -203,6 +241,29 @@ class IterationTransform(Visitor.EnvTransform):
 
         # C array (slice) iteration?
         if iterable.type.is_ptr or iterable.type.is_array:
+            return self._transform_carray_iteration(node, iterable, reversed=reversed)
+        if iterable.is_sequence_constructor:
+            # Convert iteration over homogeneous sequences of C types into array iteration.
+            env = self.current_env()
+            item_type = ExprNodes.infer_sequence_item_type(
+                env, iterable, seq_type=iterable.type)
+            if item_type and not item_type.is_pyobject and not any(item.is_starred for item in iterable.args):
+                iterable = ExprNodes.ListNode(iterable.pos, args=iterable.args).analyse_types(env).coerce_to(
+                    PyrexTypes.c_array_type(item_type, len(iterable.args)), env)
+                return self._transform_carray_iteration(node, iterable, reversed=reversed)
+        if iterable.is_string_literal:
+            # Iterate over C array of single character values.
+            env = self.current_env()
+            if iterable.type is Builtin.unicode_type:
+                item_type = PyrexTypes.c_py_ucs4_type
+                items = map(ord, iterable.value)
+            else:
+                item_type = PyrexTypes.c_uchar_type
+                items = iterable.value
+            iterable = ExprNodes.ListNode(iterable.pos, args=[
+                ExprNodes.IntNode(iterable.pos, value=str(ch), constant_result=ch, type=item_type)
+                for ch in items
+            ]).analyse_types(env).coerce_to(PyrexTypes.c_array_type(item_type, len(iterable.value)), env)
             return self._transform_carray_iteration(node, iterable, reversed=reversed)
         if iterable.type is Builtin.bytes_type:
             return self._transform_bytes_iteration(node, iterable, reversed=reversed)
@@ -2824,40 +2885,55 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
         """
         if len(pos_args) != 2:
             return node
-        arg, types = pos_args
+        arg, type_nodes = pos_args
         temps = []
-        if isinstance(types, ExprNodes.TupleNode):
-            types = types.args
-            if len(types) == 1 and not types[0].type is Builtin.type_type:
-                return node  # nothing to improve here
-            if arg.is_attribute or not arg.is_simple():
-                arg = UtilNodes.ResultRefNode(arg)
-                temps.append(arg)
-        elif types.type is Builtin.type_type:
-            types = [types]
+
+        if isinstance(type_nodes, ExprNodes.TupleNode):
+            type_nodes = type_nodes.args
+        elif type_nodes.type is Builtin.type_type or isinstance(type_nodes, ExprNodes.BitwiseOrNode):
+            type_nodes = [type_nodes]
         else:
             return node
 
-        tests = []
+        # Unpack 'int | float | None' etc.
+        types, allowed_none_node = _unpack_union_type_nodes(type_nodes)
+
+        # Map the separate type checks to check functions.
+
+        if types and (allowed_none_node or len(types) > 1):
+            if arg.is_attribute or not arg.is_simple():
+                arg = UtilNodes.ResultRefNode(arg)
+                temps.append(arg)
+
         test_nodes = []
         env = self.current_env()
+
+        if allowed_none_node is not None:
+            test_nodes.append(
+                ExprNodes.PrimaryCmpNode(
+                    allowed_none_node.pos,
+                    operand1=arg,
+                    operator='is',
+                    operand2=allowed_none_node,
+            ).analyse_types(env).coerce_to(PyrexTypes.c_bint_type, env))
+
+        builtin_tests = set()
         for test_type_node in types:
-            builtin_type = None
-            if test_type_node.is_name:
-                if test_type_node.entry:
-                    entry = env.lookup(test_type_node.entry.name)
-                    if entry and entry.type and entry.type.is_builtin_type:
-                        builtin_type = entry.type
+            builtin_type = entry = None
+            if test_type_node.is_name and test_type_node.entry:
+                entry = env.lookup(test_type_node.entry.name)
+                if entry and entry.type and entry.type.is_builtin_type:
+                    builtin_type = entry.type
             if builtin_type is Builtin.type_type:
                 # all types have type "type", but there's only one 'type'
                 if entry.name != 'type' or not (
                         entry.scope and entry.scope.is_builtin_scope):
                     builtin_type = None
             if builtin_type is not None:
-                type_check_function = entry.type.type_check_function(exact=False)
-                if type_check_function in tests:
+                type_check_function = builtin_type.type_check_function(exact=False)
+                if type_check_function in builtin_tests:
                     continue
-                tests.append(type_check_function)
+                builtin_tests.add(type_check_function)
                 type_check_args = [arg]
             elif test_type_node.type is Builtin.type_type:
                 type_check_function = '__Pyx_TypeCheck'
@@ -2872,6 +2948,7 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
                 ExprNodes.PythonCapiCallNode(
                     test_type_node.pos, type_check_function, self.Py_type_check_func_type,
                     args=type_check_args,
+                    utility_code=entry.utility_code if entry is not None else None,
                     is_temp=True,
                 ))
 

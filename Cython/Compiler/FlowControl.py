@@ -1025,20 +1025,19 @@ class ControlFlowAnalysis(CythonTransform):
                                     sequence = sequence.args[0]
         if isinstance(sequence, ExprNodes.SimpleCallNode):
             function = sequence.function
-            if sequence.self is None and function.is_name:
+            if sequence.self is None and function.is_name and function.name in ('range', 'xrange'):
                 entry = env.lookup(function.name)
-                if not entry or entry.is_builtin:
-                    if function.name in ('range', 'xrange'):
-                        is_special = True
-                        for arg in sequence.args[:2]:
-                            self.mark_assignment(target, arg, rhs_scope=node.iterator.expr_scope)
-                        if len(sequence.args) > 2:
-                            self.mark_assignment(target, self.constant_folder(
-                                ExprNodes.binop_node(node.pos,
-                                                     '+',
-                                                     sequence.args[0],
-                                                     sequence.args[2])),
-                                                rhs_scope=node.iterator.expr_scope)
+                if entry and entry.is_type and entry.type is Builtin.range_type:
+                    is_special = True
+                    for arg in sequence.args[:2]:
+                        self.mark_assignment(target, arg, rhs_scope=node.iterator.expr_scope)
+                    if len(sequence.args) > 2:
+                        self.mark_assignment(target, self.constant_folder(
+                            ExprNodes.binop_node(node.pos,
+                                                    '+',
+                                                    sequence.args[0],
+                                                    sequence.args[2])),
+                                            rhs_scope=node.iterator.expr_scope)
 
         if not is_special:
             # A for-loop basically translates to subsequent calls to
@@ -1233,7 +1232,7 @@ class ControlFlowAnalysis(CythonTransform):
             entry_point = self.flow.newblock(parent=self.flow.block)
             self.flow.nextblock()
             if clause.target:
-                self.mark_assignment(clause.target)
+                self.mark_assignment(clause.target, clause.exc_value)
             self._visit(clause.body)
             if self.flow.block:
                 self.flow.block.add_child(next_block)

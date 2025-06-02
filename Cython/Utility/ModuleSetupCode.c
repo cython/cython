@@ -486,7 +486,7 @@
 #endif
 
 #ifndef CYTHON_NCP_UNUSED
-# if CYTHON_COMPILING_IN_CPYTHON
+# if CYTHON_COMPILING_IN_CPYTHON && !CYTHON_COMPILING_IN_CPYTHON_FREETHREADING
 #  define CYTHON_NCP_UNUSED
 # else
 #  define CYTHON_NCP_UNUSED CYTHON_UNUSED
@@ -630,6 +630,7 @@
 #endif
 
 // Work around clang bug https://stackoverflow.com/questions/21847816/c-invoke-nested-template-class-destructor
+// (even without the clang bug, the need not to know the typename is generally a benefit)
 template<typename T>
 void __Pyx_call_destructor(T& x) {
     x.~T();
@@ -2307,7 +2308,10 @@ static void __Pyx_FastGilFuncInit(void) {
 // In C++ a variable must actually be initialized to make returning
 // it defined behaviour, and there doesn't seem to be a viable compiler trick to
 // avoid that.
+#if __cplusplus > 201103L
 #include <type_traits>
+#endif
+
 template <typename T>
 static void __Pyx_pretend_to_initialize(T* ptr) {
     // In C++11 we have enough introspection to work out which types it's actually
@@ -2354,12 +2358,12 @@ static PyObject* __Pyx_PyCode_New(
         // int s,
         //int flags,
         //int first_line,
-        __Pyx_PyCode_New_function_description descr,
+        const __Pyx_PyCode_New_function_description descr,
         // PyObject *code,
         // PyObject *consts,
         // PyObject* n,
         // PyObject *varnames_tuple,
-        PyObject **varnames,
+        PyObject * const *varnames,
         // PyObject *freevars,
         // PyObject *cellvars,
         PyObject *filename,
@@ -2484,15 +2488,15 @@ static PyObject* __Pyx_PyCode_New(
         // int s,
         //int flags,
         //int first_line,
-        __Pyx_PyCode_New_function_description descr,
+        const __Pyx_PyCode_New_function_description descr,
         // PyObject *code,
         // PyObject *consts,
         // PyObject* n,
         // PyObject *varnames_tuple,
-        PyObject **varnames,
+        PyObject * const *varnames,
         // PyObject *freevars,
         // PyObject *cellvars,
-        PyObject* filename,
+        PyObject *filename,
         PyObject *funcname,
         // line table replaced lnotab in Py3.11 (PEP-626)
         const char *line_table,

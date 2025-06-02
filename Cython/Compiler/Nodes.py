@@ -8355,6 +8355,8 @@ class ExceptClauseNode(Node):
     def analyse_declarations(self, env):
         if self.target:
             self.target.analyse_target_declaration(env)
+            from .ExprNodes import ExcValueNode
+            self.exc_value = ExcValueNode(self.pos, self.infer_exception_type(env))
         self.body.analyse_declarations(env)
 
     def analyse_expressions(self, env):
@@ -8366,12 +8368,20 @@ class ExceptClauseNode(Node):
                 self.pattern[i] = pattern.coerce_to_pyobject(env)
 
         if self.target:
-            from . import ExprNodes
-            self.exc_value = ExprNodes.ExcValueNode(self.pos)
             self.target = self.target.analyse_target_expression(env, self.exc_value)
 
         self.body = self.body.analyse_expressions(env)
         return self
+
+    def infer_exception_type(self, env):
+        if self.pattern and len(self.pattern) == 1:
+            # Infer target type for simple "except XyzError as exc".
+            pattern = self.pattern[0]
+            if pattern.is_name:
+                entry = env.lookup(pattern.name)
+                if entry and entry.is_type and entry.scope.is_builtin_scope:
+                    return entry.type
+        return Builtin.builtin_types["BaseException"]
 
     def body_may_need_exception(self):
         body = self.body

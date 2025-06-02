@@ -1,6 +1,9 @@
 from libcpp cimport bool
 
 cdef extern from "<latch>" namespace "std" nogil:
+    # Note on thread safety:
+    # For any of the blocking functions, you should be very careful
+    # to ensure that you are not deadlocked on the GIL.
     cdef cppclass latch:
         latch(ptrdiff_t expected)
 
