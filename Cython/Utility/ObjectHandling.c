@@ -491,7 +491,7 @@ static CYTHON_INLINE PyObject *__Pyx_GetItemInt_{{type}}_Fast(PyObject *o, Py_ss
         // CPython doesn't worry about it and serious violations will be caught by boundschecking anyway.
         #if CYTHON_COMPILING_IN_PYPY
         // Prevent double wraparound in PyPy.
-        if ((wraparound & boundscheck) && unlikely(n < 0)) return PySequence_GetItem(o, i);
+        if ((wraparound & boundscheck) && unlikely(wrapped_i < 0)) return PySequence_GetItem(o, i);
         #endif
         return __Pyx_PyList_GetItemRef(o, wrapped_i);
     } else
@@ -516,8 +516,8 @@ static CYTHON_INLINE PyObject *__Pyx_GetItemInt_Fast(PyObject *o, Py_ssize_t i, 
         // be caught eventually.
         Py_ssize_t n = ((!wraparound) | likely(i >= 0)) ? i : i + PyList_GET_SIZE(o);
         if ((CYTHON_AVOID_THREAD_UNSAFE_BORROWED_REFS)) {
-            // Prevent double wraparound in PyPy (via fallthrough to Generic() below).
             #if CYTHON_COMPILING_IN_PYPY
+            // Prevent double wraparound in PyPy (via fallthrough to Generic() below).
             if (!((wraparound & boundscheck) && unlikely(n < 0)))
             #endif
             return __Pyx_PyList_GetItemRef(o, n);
