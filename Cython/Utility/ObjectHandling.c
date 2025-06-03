@@ -478,54 +478,67 @@ static PyObject *__Pyx_GetItemInt_Generic(PyObject *o, PyObject* j) {
 
 {{for type in ['List', 'Tuple']}}
 static CYTHON_INLINE PyObject *__Pyx_GetItemInt_{{type}}_Fast(PyObject *o, Py_ssize_t i,
-                                                              CYTHON_NCP_UNUSED int wraparound,
-                                                              CYTHON_NCP_UNUSED int boundscheck) {
-#if CYTHON_ASSUME_SAFE_MACROS && CYTHON_ASSUME_SAFE_SIZE && !CYTHON_AVOID_BORROWED_REFS{{if type == 'List'}} && !CYTHON_AVOID_THREAD_UNSAFE_BORROWED_REFS{{endif}}
+                                                              int wraparound, int boundscheck) {
+#if CYTHON_ASSUME_SAFE_SIZE{{if type == 'Tuple'}} && CYTHON_ASSUME_SAFE_MACROS && !CYTHON_AVOID_BORROWED_REFS{{endif}}
     Py_ssize_t wrapped_i = i;
     if (wraparound & unlikely(i < 0)) {
         wrapped_i += Py{{type}}_GET_SIZE(o);
     }
+    {{if type == 'List'}}
+    if ((CYTHON_AVOID_BORROWED_REFS || CYTHON_AVOID_THREAD_UNSAFE_BORROWED_REFS || !CYTHON_ASSUME_SAFE_MACROS)) {
+        // Note that there's a minor thread-safety issue where the size for wraparound may change before we use it.
+        // CPython doesn't worry about it and serious violations will be caught by boundschecking anyway.
+        return __Pyx_PyList_GetItemRef(o, wrapped_i);
+    } else
+    {{endif}}
     if ((!boundscheck) || likely(__Pyx_is_valid_index(wrapped_i, Py{{type}}_GET_SIZE(o)))) {
-        PyObject *r = Py{{type}}_GET_ITEM(o, wrapped_i);
-        Py_INCREF(r);
-        return r;
+        return __Pyx_NewRef(Py{{type}}_GET_ITEM(o, wrapped_i));
     }
     return __Pyx_GetItemInt_Generic(o, PyLong_FromSsize_t(i));
 #else
+    (void)wraparound;
+    (void)boundscheck;
     return PySequence_GetItem(o, i);
 #endif
 }
 {{endfor}}
 
 static CYTHON_INLINE PyObject *__Pyx_GetItemInt_Fast(PyObject *o, Py_ssize_t i, int is_list,
-                                                     CYTHON_NCP_UNUSED int wraparound,
-                                                     CYTHON_NCP_UNUSED int boundscheck) {
-#if CYTHON_ASSUME_SAFE_MACROS && CYTHON_ASSUME_SAFE_SIZE && !CYTHON_AVOID_BORROWED_REFS && CYTHON_USE_TYPE_SLOTS
+                                                     int wraparound, int boundscheck) {
+#if CYTHON_ASSUME_SAFE_MACROS && CYTHON_ASSUME_SAFE_SIZE
     if (is_list || PyList_CheckExact(o)) {
+        // We specifically aren't worrying about thread-safety issues from the delay between getting the size
+        // and using the size because Python itself doesn't either. If we have boundschecking on they'll
+        // be caught eventually.
         Py_ssize_t n = ((!wraparound) | likely(i >= 0)) ? i : i + PyList_GET_SIZE(o);
-        if ((!boundscheck) || (likely(__Pyx_is_valid_index(n, PyList_GET_SIZE(o))))) {
+        if ((CYTHON_AVOID_BORROWED_REFS || CYTHON_AVOID_THREAD_UNSAFE_BORROWED_REFS)) {
             return __Pyx_PyList_GetItemRef(o, n);
+        } else if ((!boundscheck) || (likely(__Pyx_is_valid_index(n, PyList_GET_SIZE(o))))) {
+            return __Pyx_NewRef(PyList_GET_ITEM(o, n));
         }
-    }
-    else if (PyTuple_CheckExact(o)) {
+    } else
+    #if !CYTHON_AVOID_BORROWED_REFS
+    if (PyTuple_CheckExact(o)) {
         Py_ssize_t n = ((!wraparound) | likely(i >= 0)) ? i : i + PyTuple_GET_SIZE(o);
         if ((!boundscheck) || likely(__Pyx_is_valid_index(n, PyTuple_GET_SIZE(o)))) {
-            PyObject *r = PyTuple_GET_ITEM(o, n);
-            Py_INCREF(r);
-            return r;
+            return __Pyx_NewRef(PyTuple_GET_ITEM(o, n));
         }
-    } else {
+    } else
+    #endif
+#endif
+#if CYTHON_USE_TYPE_SLOTS
+    {
         // inlined PySequence_GetItem() + special cased length overflow
         PyMappingMethods *mm = Py_TYPE(o)->tp_as_mapping;
         PySequenceMethods *sm = Py_TYPE(o)->tp_as_sequence;
-        if (mm && mm->mp_subscript) {
+        if (!is_list && mm && mm->mp_subscript) {
             PyObject *r, *key = PyLong_FromSsize_t(i);
             if (unlikely(!key)) return NULL;
             r = mm->mp_subscript(o, key);
             Py_DECREF(key);
             return r;
         }
-        if (likely(sm && sm->sq_item)) {
+        if (is_list || likely(sm && sm->sq_item)) {
             if (wraparound && unlikely(i < 0) && likely(sm->sq_length)) {
                 Py_ssize_t l = sm->sq_length(o);
                 if (likely(l >= 0)) {
@@ -547,6 +560,8 @@ static CYTHON_INLINE PyObject *__Pyx_GetItemInt_Fast(PyObject *o, Py_ssize_t i, 
         return PySequence_GetItem(o, i);
     }
 #endif
+    (void)wraparound;
+    (void)boundscheck;
     return __Pyx_GetItemInt_Generic(o, PyLong_FromSsize_t(i));
 }
 
@@ -573,26 +588,29 @@ static int __Pyx_SetItemInt_Generic(PyObject *o, PyObject *j, PyObject *v) {
 }
 
 static CYTHON_INLINE int __Pyx_SetItemInt_Fast(PyObject *o, Py_ssize_t i, PyObject *v, int is_list,
-                                               CYTHON_NCP_UNUSED int wraparound, CYTHON_NCP_UNUSED int boundscheck) {
-#if CYTHON_ASSUME_SAFE_MACROS && CYTHON_ASSUME_SAFE_SIZE && !CYTHON_AVOID_BORROWED_REFS && CYTHON_USE_TYPE_SLOTS
+                                               int wraparound, int boundscheck) {
+#if CYTHON_ASSUME_SAFE_MACROS && CYTHON_ASSUME_SAFE_SIZE && !CYTHON_AVOID_BORROWED_REFS
     if (is_list || PyList_CheckExact(o)) {
         Py_ssize_t n = (!wraparound) ? i : ((likely(i >= 0)) ? i : i + PyList_GET_SIZE(o));
-        if ((!boundscheck) || likely(__Pyx_is_valid_index(n, PyList_GET_SIZE(o)))) {
+        if ((CYTHON_AVOID_THREAD_UNSAFE_BORROWED_REFS)) {
             Py_INCREF(v);
-#if CYTHON_AVOID_THREAD_UNSAFE_BORROWED_REFS
-            PyList_SetItem(o, n, v);
-#else
-            PyObject* old = PyList_GET_ITEM(o, n);
+            return PyList_SetItem(o, n, v);
+        } else if ((!boundscheck) || likely(__Pyx_is_valid_index(n, PyList_GET_SIZE(o)))) {
+            PyObject* old;
+            Py_INCREF(v);
+            old = PyList_GET_ITEM(o, n);
             PyList_SET_ITEM(o, n, v);
             Py_DECREF(old);
-#endif
             return 0;
         }
-    } else {
+    } else
+#endif
+#if CYTHON_USE_TYPE_SLOTS
+    {
         // inlined PySequence_SetItem() + special cased length overflow
         PyMappingMethods *mm = Py_TYPE(o)->tp_as_mapping;
         PySequenceMethods *sm = Py_TYPE(o)->tp_as_sequence;
-        if (mm && mm->mp_ass_subscript) {
+        if (!is_list && mm && mm->mp_ass_subscript) {
             int r;
             PyObject *key = PyLong_FromSsize_t(i);
             if (unlikely(!key)) return -1;
@@ -600,7 +618,7 @@ static CYTHON_INLINE int __Pyx_SetItemInt_Fast(PyObject *o, Py_ssize_t i, PyObje
             Py_DECREF(key);
             return r;
         }
-        if (likely(sm && sm->sq_ass_item)) {
+        if (is_list || likely(sm && sm->sq_ass_item)) {
             if (wraparound && unlikely(i < 0) && likely(sm->sq_length)) {
                 Py_ssize_t l = sm->sq_length(o);
                 if (likely(l >= 0)) {
@@ -617,12 +635,13 @@ static CYTHON_INLINE int __Pyx_SetItemInt_Fast(PyObject *o, Py_ssize_t i, PyObje
     }
 #else
     // PySequence_SetItem behaves differently to PyObject_SetItem for i<0
-    // and possibly some other cases so can't generally be substituted
-    if (is_list || !PyMapping_Check(o))
-    {
+    // and possibly some other cases, so can't generally be substituted.
+    if (is_list || !PyMapping_Check(o)) {
         return PySequence_SetItem(o, i, v);
     }
 #endif
+    (void)wraparound;
+    (void)boundscheck;
     return __Pyx_SetItemInt_Generic(o, PyLong_FromSsize_t(i), v);
 }
 
