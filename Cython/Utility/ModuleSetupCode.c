@@ -1080,7 +1080,8 @@ static CYTHON_INLINE PyObject * __Pyx_PyDict_GetItemStrWithError(PyObject *dict,
   #if __PYX_LIMITED_VERSION_HEX >= 0x030d0000
     #define __Pyx_PyList_GetItemRef(o, i) PyList_GetItemRef(o, i)
   #else
-    #define __Pyx_PyList_GetItemRef(o, i) PySequence_GetItem(o, i)
+    // This is the only case where the API applies negative index wrap-around.
+    #define __Pyx_PyList_GetItemRef(o, i) (likely(i >= 0) ? PySequence_GetItem(o, i) : (PyErr_SetString(PyExc_IndexError, "list index out of range"), (PyObject*)NULL))
   #endif
 #else
   #define __Pyx_PyList_GetItemRef(o, i) __Pyx_NewRef(PyList_GET_ITEM(o, i))
