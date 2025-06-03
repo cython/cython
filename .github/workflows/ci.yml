@@ -352,6 +352,13 @@ jobs:
           fetch-depth: 0
           fetch-tags: true
 
+      - name: Compilation Cache
+        uses: hendrikmuhs/ccache-action@v1.2.18
+        with:
+          variant: ${{ startsWith(runner.os, 'windows') && 'sccache' || 'ccache' }}  # fake ternary
+          key: ${{ runner.os }}-hendrikmuhs-ccache-benchmarks
+          max-size: 200M
+
       - name: Setup python
         uses: actions/setup-python@v5.4.0
         with:
