@@ -1845,7 +1845,38 @@ static void __pyx_insert_code_object(int code_line, __Pyx_CachedCodeObjectType* 
 
 /////////////// GetRuntimeVersion.proto ///////////////
 
+#if __PYX_LIMITED_VERSION_HEX >= 0x030b0000
+static unsigned long __Pyx_cached_runtime_version = 0;
+#endif
+
+// Does not require the GIL to be held
 static unsigned long __Pyx_get_runtime_version(void);
+
+/////////////// GetRuntimeVersion.init ///////////////
+
+// It already be set if running in mutliple interpreters for example.
+if (__Pyx_cached_runtime_version == 0) {
+    const char* rt_version = Py_GetVersion();
+    unsigned long version = 0;
+    unsigned long factor = 0x01000000UL;
+    unsigned int digit = 0;
+    int i = 0;
+    while (factor) {
+        while ('0' <= rt_version[i] && rt_version[i] <= '9') {
+            digit = digit * 10 + (unsigned int) (rt_version[i] - '0');
+            ++i;
+        }
+        version += factor * digit;
+        if (rt_version[i] != '.')
+            break;
+        digit = 0;
+        factor >>= 8;
+        ++i;
+    }
+    __Pyx_cached_runtime_version = version;
+}
+// this init section should never set an exception
+if ((0))
 
 /////////////// GetRuntimeVersion ///////////////
 
@@ -1854,27 +1885,6 @@ static unsigned long __Pyx_get_runtime_version(void) {
 #if __PYX_LIMITED_VERSION_HEX >= 0x030b0000
     return Py_Version & ~0xFFUL;
 #else
-    static unsigned long __Pyx_cached_runtime_version = 0;
-    if (__Pyx_cached_runtime_version == 0) {
-        const char* rt_version = Py_GetVersion();
-        unsigned long version = 0;
-        unsigned long factor = 0x01000000UL;
-        unsigned int digit = 0;
-        int i = 0;
-        while (factor) {
-            while ('0' <= rt_version[i] && rt_version[i] <= '9') {
-                digit = digit * 10 + (unsigned int) (rt_version[i] - '0');
-                ++i;
-            }
-            version += factor * digit;
-            if (rt_version[i] != '.')
-                break;
-            digit = 0;
-            factor >>= 8;
-            ++i;
-        }
-        __Pyx_cached_runtime_version = version;
-    }
     return __Pyx_cached_runtime_version;
 #endif
 }
