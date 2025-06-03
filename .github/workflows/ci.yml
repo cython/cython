@@ -355,6 +355,7 @@ jobs:
       - name: Compilation Cache
         uses: hendrikmuhs/ccache-action@v1.2.18
         with:
+          create-symlink: true
           variant: ${{ startsWith(runner.os, 'windows') && 'sccache' || 'ccache' }}  # fake ternary
           key: ${{ runner.os }}-hendrikmuhs-ccache-benchmarks
           max-size: 200M
