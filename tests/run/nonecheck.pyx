@@ -190,3 +190,16 @@ def test_memslice_slice_assign2(double[:] buf):
     TypeError: Cannot slice None memoryview slice
     """
     buf[:] = buf[::-1]
+
+cpdef non_none_arg_hint(a: MyClass):
+    return a
+    
+def test_call_non_none_arg_hint_with_none():
+    """
+    >>> test_call_non_none_arg_hint_with_none()
+    Traceback (most recent call last):
+    TypeError: cannot pass None into a C function argument that is declared 'not None'
+    """
+    
+    a = None
+    return non_none_arg_hint(a)

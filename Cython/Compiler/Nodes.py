@@ -717,8 +717,9 @@ class CFuncDeclaratorNode(CDeclaratorNode):
             # Catch attempted C-style func(void) decl
             if type.is_void:
                 error(arg_node.pos, "Use spam() rather than spam(void) to declare a function with no arguments.")
-            func_type_args.append(
-                PyrexTypes.CFuncTypeArg(name, type, arg_node.pos))
+            single_func_type_arg = PyrexTypes.CFuncTypeArg(name, type, arg_node.pos)
+            single_func_type_arg.not_none = arg_node.not_none
+            func_type_args.append(single_func_type_arg)
             if arg_node.default:
                 self.optional_arg_count += 1
             elif self.optional_arg_count:
