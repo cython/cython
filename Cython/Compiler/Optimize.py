@@ -346,7 +346,8 @@ class IterationTransform(Visitor.EnvTransform):
             rhs = target_value)
 
         env = self.current_env()
-        new_directives = Options.copy_inherited_directives(env.directives, boundscheck=is_mutable, wraparound=False)
+        boundscheck = Options.BoundsCheckEnum.OnFreethreading if is_mutable else False
+        new_directives = Options.copy_inherited_directives(env.directives, boundscheck=boundscheck, wraparound=False)
         target_assign = Nodes.CompilerDirectivesNode(
             target_assign.pos,
             directives=new_directives,

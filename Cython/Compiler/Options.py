@@ -7,6 +7,7 @@ import os
 
 from .. import Utils
 
+import enum
 
 class ShouldBeFromDirective:
 
@@ -345,6 +346,21 @@ def normalise_encoding_name(option_name, encoding):
 class DEFER_ANALYSIS_OF_ARGUMENTS:
     pass
 DEFER_ANALYSIS_OF_ARGUMENTS = DEFER_ANALYSIS_OF_ARGUMENTS()
+
+class BoundsCheckEnum(enum.Enum):
+    # From a user point of view boundscheck is strictly True/False. However there are
+    # times internally when we want differ based on whether we're in a freethreaded
+    # build. Code can use this enum if required. Otherwise it can keep threading it as
+    # a bool (since OnFreethreading evaluates as True).
+    Off = False
+    On = True
+    OnFreethreading = enum.auto()
+
+    def as_c_code(self) -> str:
+        if self == BoundsCheckEnum.OnFreethreading:
+            return "CYTHON_COMPILING_IN_CPYTHON_FREETHREADING"
+        return "%d" % bool(self)
+
 
 # Override types possibilities above, if needed
 directive_types = {

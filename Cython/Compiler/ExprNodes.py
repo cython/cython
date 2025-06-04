@@ -4556,14 +4556,15 @@ class IndexNode(_IndexingBaseNode):
 
     def extra_index_params(self, code):
         if self.index.type.is_int:
+            from .Options import BoundsCheckEnum
             is_list = self.base.type is list_type
             wraparound = (
                 bool(code.globalstate.directives['wraparound']) and
                 self.original_index_type.signed and
                 not (isinstance(self.index.constant_result, int)
                      and self.index.constant_result >= 0))
-            boundscheck = bool(code.globalstate.directives['boundscheck'])
-            return ", %s, %d, %s, %d, %d, %d" % (
+            boundscheck = BoundsCheckEnum(code.globalstate.directives['boundscheck']).as_c_code()
+            return ", %s, %d, %s, %d, %d, %s" % (
                 self.original_index_type.empty_declaration_code(),
                 self.original_index_type.signed and 1 or 0,
                 self.original_index_type.to_py_function,
