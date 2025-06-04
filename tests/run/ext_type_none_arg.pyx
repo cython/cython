@@ -366,7 +366,8 @@ def notype_not_none(o not None):
     """
     return type(o).__name__
 
-# Args types specified with annotations are not None
+
+# Arg types specified in annotations do not allow None.
 cpdef non_none_arg_hint(a: MyExtType):
     return a
     
