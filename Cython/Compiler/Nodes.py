@@ -722,6 +722,7 @@ class CFuncDeclaratorNode(CDeclaratorNode):
                 func_arg.not_none = True
             if arg_node.or_none:
                 func_arg.or_none = True
+            func_type_args.append(func_arg)
             if arg_node.default:
                 self.optional_arg_count += 1
             elif self.optional_arg_count:
