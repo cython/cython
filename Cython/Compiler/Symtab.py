@@ -1331,9 +1331,13 @@ class BuiltinScope(Scope):
         scope.directives = {}
         type.set_scope(scope)
         self.type_names[name] = 1
+
         entry = self.declare_type(name, type, None, visibility='extern')
         if utility_code:
             entry.utility_code = utility_code
+        if name == 'range' and 'xrange' not in self.entries:
+            # Keep supporting legacy Py2 'xrange' because it's still in use.
+            self.entries['xrange'] = entry
 
         var_entry = Entry(
             name=entry.name,

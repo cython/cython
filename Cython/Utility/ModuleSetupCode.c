@@ -1076,11 +1076,19 @@ static CYTHON_INLINE PyObject * __Pyx_PyDict_GetItemStrWithError(PyObject *dict,
   #define __Pyx_SET_SIZE(obj, size) Py_SIZE(obj) = (size)
 #endif
 
-#if CYTHON_COMPILING_IN_LIMITED_API || CYTHON_AVOID_BORROWED_REFS || CYTHON_AVOID_THREAD_UNSAFE_BORROWED_REFS || !CYTHON_ASSUME_SAFE_MACROS
+#if CYTHON_AVOID_BORROWED_REFS || CYTHON_AVOID_THREAD_UNSAFE_BORROWED_REFS
+  #if __PYX_LIMITED_VERSION_HEX >= 0x030d0000
+    #define __Pyx_PyList_GetItemRef(o, i) PyList_GetItemRef(o, i)
+  #elif CYTHON_COMPILING_IN_LIMITED_API || !CYTHON_ASSUME_SAFE_MACROS
+    #define __Pyx_PyList_GetItemRef(o, i) (likely((i) >= 0) ? PySequence_GetItem(o, i) : (PyErr_SetString(PyExc_IndexError, "list index out of range"), (PyObject*)NULL))
+  #else
+    #define __Pyx_PyList_GetItemRef(o, i) PySequence_ITEM(o, i)
+  #endif
+#elif CYTHON_COMPILING_IN_LIMITED_API || !CYTHON_ASSUME_SAFE_MACROS
   #if __PYX_LIMITED_VERSION_HEX >= 0x030d0000
     #define __Pyx_PyList_GetItemRef(o, i) PyList_GetItemRef(o, i)
   #else
-    #define __Pyx_PyList_GetItemRef(o, i) PySequence_GetItem(o, i)
+    #define __Pyx_PyList_GetItemRef(o, i) __Pyx_XNewRef(PyList_GetItem(o, i))
   #endif
 #else
   #define __Pyx_PyList_GetItemRef(o, i) __Pyx_NewRef(PyList_GET_ITEM(o, i))
@@ -1845,16 +1853,21 @@ static void __pyx_insert_code_object(int code_line, __Pyx_CachedCodeObjectType* 
 
 /////////////// GetRuntimeVersion.proto ///////////////
 
+#if __PYX_LIMITED_VERSION_HEX < 0x030b0000
+static unsigned long __Pyx_cached_runtime_version = 0;
+
+static void __Pyx_init_runtime_version(void);
+#else
+#define __Pyx_init_runtime_version()
+#endif
+
+// Does not require the GIL to be held
 static unsigned long __Pyx_get_runtime_version(void);
 
 /////////////// GetRuntimeVersion ///////////////
 
-static unsigned long __Pyx_get_runtime_version(void) {
-    // We will probably never need the alpha/beta status, so avoid the complexity to parse it.
-#if __PYX_LIMITED_VERSION_HEX >= 0x030b0000
-    return Py_Version & ~0xFFUL;
-#else
-    static unsigned long __Pyx_cached_runtime_version = 0;
+#if __PYX_LIMITED_VERSION_HEX < 0x030b0000
+void __Pyx_init_runtime_version(void) {
     if (__Pyx_cached_runtime_version == 0) {
         const char* rt_version = Py_GetVersion();
         unsigned long version = 0;
@@ -1875,6 +1888,14 @@ static unsigned long __Pyx_get_runtime_version(void) {
         }
         __Pyx_cached_runtime_version = version;
     }
+}
+#endif
+
+static unsigned long __Pyx_get_runtime_version(void) {
+    // We will probably never need the alpha/beta status, so avoid the complexity to parse it.
+#if __PYX_LIMITED_VERSION_HEX >= 0x030b0000
+    return Py_Version & ~0xFFUL;
+#else
     return __Pyx_cached_runtime_version;
 #endif
 }

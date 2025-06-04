@@ -144,3 +144,22 @@ def test_enum_range():
         assert 0 <= <int>i < <int>n
         assert cython.typeof(i) == "RangeEnum", cython.typeof(i)
     return cython.typeof(i)
+
+
+@cython.test_assert_path_exists("//ForFromStatNode",
+                                "//ForFromStatNode//PrintStatNode//CoerceToPyTypeNode")
+@cython.test_fail_if_path_exists("//ForInStatNode")
+def test_negindex_inferred_xrange():
+    """
+    >>> test_negindex_inferred_xrange()
+    5
+    4
+    3
+    2
+    (2, 0)
+    """
+    cdef int n = 5
+    for i in xrange(n, 1, -1):
+        print i
+        n = 0
+    return i,n
