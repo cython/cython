@@ -365,3 +365,21 @@ def notype_not_none(o not None):
     TypeError: Argument 'o' must not be None
     """
     return type(o).__name__
+
+
+# Arg types specified in annotations do not allow None.
+cpdef non_none_arg_hint(a: MyExtType):
+    return a
+    
+def test_call_non_none_arg_hint_with_none():
+    """
+    >>> non_none_arg_hint(None)  # doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    TypeError: Argument 'a' has incorrect type ...
+    >>> test_call_non_none_arg_hint_with_none()
+    Traceback (most recent call last):
+    TypeError: cannot pass None into a C function argument that is declared 'not None'
+    """
+    
+    a = None
+    return non_none_arg_hint(a)
