@@ -112,7 +112,7 @@ def test_py_safe_lock_nogil():
 # Note that it is only safe to acquire the GIL because we aren't actually running the
 # tests from multiple threads.
 cdef void call_me_once() noexcept with gil:
-        print("Listen very carefully, I shall say this only once.")
+    print("Listen very carefully, I shall say this only once.")
 
 cdef extern from *:
     """
