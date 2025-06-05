@@ -1328,6 +1328,7 @@ static PyObject *__Pyx_CyFunction_New(PyMethodDef *ml, int flags, PyObject* qual
 }
 
 //////////////////// CyFunctionClassCell.proto ////////////////////
+//@shared_params: __Pyx_CyFunction_InitClassCell::int::PyObject *, PyObject *
 static int __Pyx_CyFunction_InitClassCell(PyObject *cyfunctions, PyObject *classobj);/*proto*/
 
 //////////////////// CyFunctionClassCell ////////////////////
