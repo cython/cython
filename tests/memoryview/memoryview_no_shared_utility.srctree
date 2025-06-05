@@ -32,9 +32,13 @@ def add_one(int a):
     return a + 1
 
 ######## test_missing_shared_utility.py ########
-import pkg1.no_memoryview
-result = pkg1.no_memoryview.add_one(1)
-assert result == 2, result
+
+try:
+    import pkg1.no_memoryview
+except ModuleNotFoundError as e:
+    assert e.name == "pkg2.MemoryView", e.name
+else:
+    assert False, "Importing pkg1.no_memoryview should fail"
 
 try:
     import pkg1.simple

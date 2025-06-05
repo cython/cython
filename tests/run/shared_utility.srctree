@@ -1,0 +1,96 @@
+"""
+PYTHON setup.py build_ext --inplace
+PYTHON -c "import run_tests"
+"""
+
+######## setup.py ########
+
+from Cython.Build import cythonize
+from Cython.Compiler import Options
+from setuptools import setup, Extension
+
+extensions = [
+    Extension("*", ["**/*.pyx"]),
+    Extension("pkg2.CythonShared", sources=["pkg2/CythonShared.c"]),
+]
+
+setup(
+  ext_modules = cythonize(extensions, shared_utility_qualified_name = 'pkg2.CythonShared')
+)
+
+######## pkg2/__init__.py ########
+
+######## pkg2/a.py ########
+A = 5
+
+######## pkg2/b.py ########
+B = 6
+
+######## pkg1/__init__.py ########
+
+######## pkg1/Py3ClassCreate.pyx ########
+
+class Bar:
+    pass
+
+
+######## pkg1/PyObjectCallMethod.pyx ########
+# CythonFunction
+# PyObjectCallMethod0
+# PyObjectCallMethod1
+
+def func(a):
+    a.append(5)
+
+def func2(a):
+    a.pop()
+
+######## pkg1/RaiseException.pyx ########
+
+def raise_error():
+    raise ValueError
+
+######## pkg1/Import.pyx ########
+# __Pyx_Import
+# __Pyx_ImportFrom
+
+import pkg2.a
+from pkg2 import b
+
+A = pkg2.a.A
+B = b.B
+
+######## pkg1/JoinPyUnicode.pyx ########
+
+def join_strings():
+    foo = "foo"
+    bar = "bar"
+    return f"{foo}#{bar}"
+
+######## run_tests.py ########
+import pkg1.Py3ClassCreate
+import pkg1.PyObjectCallMethod
+
+bar = pkg1.Py3ClassCreate.Bar()
+lst = []
+pkg1.PyObjectCallMethod.func(lst)
+assert lst == [5]
+pkg1.PyObjectCallMethod.func2(lst)
+assert lst == []
+
+import pkg1.RaiseException
+
+try:
+    pkg1.RaiseException.raise_error()
+except ValueError:
+    pass
+else:
+    assert False
+
+import pkg1.Import
+
+assert pkg1.Import.A == 5
+assert pkg1.Import.B == 6
+
+import pkg1.JoinPyUnicode
+assert pkg1.JoinPyUnicode.join_strings() == "foo#bar"
