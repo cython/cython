@@ -392,14 +392,18 @@ def strip_string_literals(code: str, prefix: str = '__Pyx_L'):
 # We need to allow spaces to allow for conditional compilation like
 # IF ...:
 #     cimport ...
-dependency_regex = re.compile(r"(?:^\s*from +([0-9a-zA-Z_.]+) +cimport)|"
-                              r"(?:^\s*cimport +([0-9a-zA-Z_.]+(?: *, *[0-9a-zA-Z_.]+)*))|"
-                              r"(?:^\s*cdef +extern +from +['\"]([^'\"]+)['\"])|"
-                              r"(?:^\s*include +['\"]([^'\"]+)['\"])", re.M)
+dependency_regex = re.compile(
+    r"(?:^ [ \t\f]* from     [ \t\f]+ cython\.cimports\.([\w.]+) [ \t\f]+ c?import ) |"
+    r"(?:^ [ \t\f]* from     [ \t\f]+ ([\w.]+) [ \t\f]+ cimport ) |"
+    r"(?:^ [ \t\f]* c?import [ \t\f]+ cython\.cimports\.([\w.]+) ) |"
+    r"(?:^ [ \t\f]* cimport  [ \t\f]+ ([\w.]+ (?:[ \t\f]* , [ \t\f]* [\w.]+)*) ) |"
+    r"(?:^ [ \t\f]* cdef     [ \t\f]+ extern [ \t\f]+ from [ \t\f]+ ['\"] ([^'\"]+) ['\"] ) |"
+    r"(?:^ [ \t\f]* include  [ \t\f]+ ['\"] ([^'\"]+) ['\"] )",
+    re.MULTILINE | re.VERBOSE)
 dependency_after_from_regex = re.compile(
-    r"(?:^\s+\(([0-9a-zA-Z_., ]*)\)[#\n])|"
-    r"(?:^\s+([0-9a-zA-Z_., ]*)[#\n])",
-    re.M)
+    r"(?:^ [ \t\f]+ \( ([\w., \t\f]*) \) [ \t\f]* [#\n]) |"
+    r"(?:^ [ \t\f]+    ([\w., \t\f]*)    [ \t\f]* [#\n])",
+    re.MULTILINE | re.VERBOSE)
 
 
 def normalize_existing(base_path, rel_paths):
@@ -486,7 +490,12 @@ def parse_dependencies(source_filename):
     includes = []
     externs  = []
     for m in dependency_regex.finditer(source):
-        cimport_from, cimport_list, extern, include = m.groups()
+        pycimports_from, cimport_from, pycimports_list, cimport_list, extern, include = m.groups()
+        if pycimports_from:
+            cimport_from = pycimports_from
+        if pycimports_list:
+            cimport_list = pycimports_list
+
         if cimport_from:
             cimports.append(cimport_from)
             m_after_from = dependency_after_from_regex.search(source, pos=m.end())
