@@ -420,26 +420,28 @@ def increment():
     a += 1
     assert typeof(a) == "long"
 
+
 def loop():
     """
     >>> loop()
     """
     for a in range(10):
         pass
-    assert typeof(a) == "long"
+    assert typeof(a) == "long", typeof(a)
 
     b = 1.0
     for b in range(5):
         pass
-    assert typeof(b) == "double"
+    assert typeof(b) == "double", typeof(b)
 
     for c from 0 <= c < 10 by .5:
         pass
-    assert typeof(c) == "double"
+    assert typeof(c) == "double", typeof(c)
 
     for d in range(0, 10L, 2):
         pass
-    assert typeof(a) == "long"
+    assert typeof(d) == "long", typeof(d)
+
 
 def loop_over_charptr():
     """
@@ -1096,3 +1098,13 @@ def variable_with_name_of_type_exttype(SomeExtType x):
     SomeExtType = SomeExtType.get()
     assert typeof(SomeExtType) == "SomeExtType", typeof(SomeExtType)
     return SomeExtType
+
+def type_bitwise_or(actually_run_it, type t1, type t2):
+    """
+    >>> import sys
+    >>> type_bitwise_or(sys.version_info >= (3, 10), list, int)
+    """
+    if actually_run_it:
+        t3 = t1 | t2
+    # Generic object, not "type"
+    assert typeof(t3) == "Python object", typeof(t3)

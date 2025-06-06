@@ -434,6 +434,111 @@ static CYTHON_INLINE PyObject * __Pyx_PyLong_FromSize_t(size_t ival) {
     return PyLong_FromSize_t(ival);
 }
 
+
+/////////////// pybuiltin_invalid ///////////////
+
+static void __Pyx_PyBuiltin_Invalid(PyObject *obj, const char *type_name, const char *argname) {
+    __Pyx_TypeName obj_type_name = __Pyx_PyType_GetFullyQualifiedName(Py_TYPE(obj));
+    if (argname) {
+        PyErr_Format(PyExc_TypeError,
+            "Argument '%.200s' has incorrect type (expected %.200s, got " __Pyx_FMT_TYPENAME ")",
+            argname, type_name, obj_type_name
+        );
+    } else {
+        PyErr_Format(PyExc_TypeError,
+            "Expected %.200s, got " __Pyx_FMT_TYPENAME,
+            type_name, obj_type_name
+        );
+    }
+    __Pyx_DECREF_TypeName(obj_type_name);
+}
+
+
+/////////////// pyfloat_simplify.proto ///////////////
+
+static CYTHON_INLINE int __Pyx_PyFloat_FromNumber(PyObject **number_var, const char *argname, int accept_none); /*proto*/
+
+/////////////// pyfloat_simplify ///////////////
+//@requires: pybuiltin_invalid
+
+static CYTHON_INLINE int __Pyx_PyFloat_FromNumber(PyObject **number_var, const char *argname, int accept_none) {
+    // Convert any float-compatible Python number object into a Python float.
+    // NOTE: This function decrefs 'number' if a conversion happens to replace the original object.
+    PyObject *number = *number_var;
+    if (likely((accept_none && number == Py_None) || PyFloat_CheckExact(number))) {
+        return 0;
+    }
+
+    PyObject *float_object;
+    if (likely(PyLong_CheckExact(number))) {
+        double val;
+#if CYTHON_USE_PYLONG_INTERNALS
+        if (likely(__Pyx_PyLong_IsCompact(number))) {
+            val = (double) __Pyx_PyLong_CompactValue(number);
+        } else
+#endif
+        {
+            val = PyLong_AsDouble(number);
+            if (unlikely(val == -1.0 && PyErr_Occurred())) goto bad;
+        }
+        float_object = PyFloat_FromDouble(val);
+    }
+    else if (PyNumber_Check(number)) {
+        // PyNumber_Float() also parses strings, which we must reject.
+        float_object = PyNumber_Float(number);
+    } else {
+        __Pyx_PyBuiltin_Invalid(number, "float", argname);
+        goto bad;
+    }
+    if (unlikely(!float_object)) goto bad;
+
+    *number_var = float_object;
+    Py_DECREF(number);
+    return 0;
+
+bad:
+    *number_var = NULL;
+    Py_DECREF(number);
+    return -1;
+}
+
+
+/////////////// pyint_simplify.proto ///////////////
+
+static CYTHON_INLINE int __Pyx_PyInt_FromNumber(PyObject **number_var, const char *argname, int accept_none); /*proto*/
+
+/////////////// pyint_simplify ///////////////
+//@requires: pybuiltin_invalid
+
+static CYTHON_INLINE int __Pyx_PyInt_FromNumber(PyObject **number_var, const char *argname, int accept_none) {
+    // Convert any int-compatible Python number object into a Python int.
+    // NOTE: This function decrefs 'number' if a conversion happens to replace the original object.
+    PyObject *number = *number_var;
+    if (likely((accept_none && number == Py_None) || PyLong_CheckExact(number))) {
+        return 0;
+    }
+
+    PyObject *int_object;
+    if (likely(PyNumber_Check(number))) {
+        // PyNumber_Long() also parses strings, which we must reject.
+        int_object = PyNumber_Long(number);
+        if (unlikely(!int_object)) goto bad;
+    } else {
+        __Pyx_PyBuiltin_Invalid(number, "int", argname);
+        goto bad;
+    }
+
+    *number_var = int_object;
+    Py_DECREF(number);
+    return 0;
+
+bad:
+    *number_var = NULL;
+    Py_DECREF(number);
+    return -1;
+}
+
+
 /////////////// pynumber_float.proto ///////////////
 
 static CYTHON_INLINE PyObject* __Pyx__PyNumber_Float(PyObject* obj); /* proto */

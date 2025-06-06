@@ -775,6 +775,8 @@ class ExprNode(Node):
         #  this node or one of its subexpressions. Overridden
         #  by certain nodes which can share the result of
         #  a subnode.
+        #  Temp-tests from outside of a node class should always
+        #  prefer this method over a plain "node.is_temp".
         return self.is_temp
 
     def target_code(self):
@@ -1053,12 +1055,15 @@ class ExprNode(Node):
                 pass
             elif src.constant_result is None:
                 src = NoneNode(src.pos).coerce_to(dst_type, env)
+            elif src.type.is_pyobject:
+                if not src.type.subtype_of(dst_type):
+                    # Apply a type check on assignment.
+                    src = PyTypeTestNode(src, dst_type, env)
             else:
-                if not src.type.is_pyobject:
-                    if dst_type is bytes_type and src.type.is_int:
-                        src = CoerceIntToBytesNode(src, env)
-                    else:
-                        src = CoerceToPyTypeNode(src, env, type=dst_type)
+                if dst_type is bytes_type and src.type.is_int:
+                    src = CoerceIntToBytesNode(src, env)
+                else:
+                    src = CoerceToPyTypeNode(src, env, type=dst_type)
                 # FIXME: I would expect that CoerceToPyTypeNode(type=dst_type) returns a value of type dst_type
                 #        but it doesn't for ctuples. Thus, we add a PyTypeTestNode which then triggers the
                 #        Python conversion and becomes useless. That seems backwards and inefficient.
@@ -3099,12 +3104,7 @@ class IteratorNode(ScopedExprNode):
         if not is_builtin_sequence:
             # reversed() not currently optimised (see Optimize.py)
             assert not self.reversed, "internal error: reversed() only implemented for list/tuple objects"
-        # range is a *very* common builtin function which we know doesn't produce a sequence
-        is_range = (isinstance(self.sequence, CallNode) and
-                    self.sequence.function.is_name and
-                    self.sequence.function.name == "range" and
-                    self.sequence.function.entry.is_builtin)
-        self.may_be_a_sequence = not sequence_type.is_builtin_type and not is_range
+        self.may_be_a_sequence = not sequence_type.is_builtin_type
         if self.may_be_a_sequence:
             code.putln(
                 "if (likely(PyList_CheckExact(%s)) || PyTuple_CheckExact(%s)) {" % (
@@ -6786,7 +6786,7 @@ class PyMethodCallNode(CallNode):
 
         # Make sure function is in temp so that we can replace the reference if it's a method.
         if self.function.result_in_temp() or (not self.unpack and self.function.nonlocally_immutable()):
-            return self.function.py_result()
+            return self.function.result()
 
         # FIXME: Should use "coerce_to_temp()" in "__init__()" instead, but that needs "env".
         function = code.funcstate.allocate_temp(py_object_type, manage_ref=True)
@@ -6941,7 +6941,7 @@ class PyMethodCallNode(CallNode):
 
         code.putln(
             f"{self.result()} = {function_caller}("
-            f"{function}, "
+            f"(PyObject*){function}, "
             f"{Naming.callargs_cname}+{space_for_selfarg}, "
             f"({len(args)+1:d}-{space_for_selfarg})"
             f" | ({'1' if self.use_method_vectorcall else space_for_selfarg}*__Pyx_PY_VECTORCALL_ARGUMENTS_OFFSET)"
@@ -12222,7 +12222,7 @@ class BinopNode(ExprNode):
             elif type1.is_pyunicode_ptr:
                 type1 = Builtin.unicode_type
             if type1.is_builtin_type or type2.is_builtin_type:
-                if type1 is type2 and self.operator in '**%+|&^':
+                if type1 is type2 and type1 is not type_type and self.operator in '**%+|&^':
                     # FIXME: at least these operators should be safe - others?
                     return type1
                 result_type = self.infer_builtin_types_operation(type1, type2)
@@ -14372,14 +14372,19 @@ class PyTypeTestNode(CoercionNode):
     #  This node is used to check that a generic Python
     #  object is an instance of a particular extension type.
     #  This node borrows the result of its argument node.
+    #  Builtin subtypes or compatible types (e.g. int/float) are coerced
+    #  to the base type automatically.
 
     exact_builtin_type = True
 
     def __init__(self, arg, dst_type, env, notnone=False):
-        #  The arg is known to be a Python object, and
-        #  the dst_type is known to be an extension type.
+        #  The arg is known to be a Python object,
+        #  and the dst_type is known to be an extension type or builtin.
         assert dst_type.is_extension_type or dst_type.is_builtin_type, \
             "PyTypeTest for %s against non extension type %s" % (arg.type, dst_type)
+        if dst_type.is_builtin_type:
+            # Use a temp to allow builtin type conversions (which cannot replace literals).
+            arg = arg.coerce_to_temp(env)
         CoercionNode.__init__(self, arg)
         self.type = dst_type
         self.result_ctype = arg.ctype()
@@ -14417,6 +14422,7 @@ class PyTypeTestNode(CoercionNode):
             return self
         if not self.type.typeobj_is_available():
             return self
+        # The argument has the right type, known at compile time, so discard the type check.
         if self.arg.may_be_none() and self.notnone:
             return self.arg.as_none_safe_node("Cannot convert NoneType to %.200s" % self.type.name)
         return self.arg
@@ -14429,30 +14435,28 @@ class PyTypeTestNode(CoercionNode):
         return self.arg.result()
 
     def generate_result_code(self, code):
-        if self.type.typeobj_is_available():
-            allow_none = not self.notnone
-            if self.type.is_builtin_type:
-                type_test = self.type.type_test_code(
-                    code.funcstate.scope,
-                    self.arg.py_result(),
-                    allow_none,
-                    exact=self.exact_builtin_type,
-                )
-                code.globalstate.use_utility_code(UtilityCode.load_cached(
-                    "RaiseUnexpectedTypeError", "ObjectHandling.c"))
-            else:
-                type_test = self.type.type_test_code(
-                    code.funcstate.scope,
-                    self.arg.py_result(),
-                    allow_none,
-                )
-                code.globalstate.use_utility_code(
-                    UtilityCode.load_cached("ExtTypeTest", "ObjectHandling.c"))
-            code.putln("if (!(%s)) %s" % (
-                type_test, code.error_goto(self.pos)))
-        else:
-            error(self.pos, "Cannot test type of extern C class "
-                "without type object name specification")
+        if not self.type.typeobj_is_available():
+            error(self.pos, "Cannot test type of extern C class without type object name specification")
+            return
+
+        allow_none = not self.notnone
+        is_builtin_type = self.type.is_builtin_type
+
+        if self.exact_builtin_type and is_builtin_type:
+            # Allow conversions instead of rejecting subtypes and compatible (number) types.
+            self.type.convert_to_basetype(code, self.pos, self.arg.py_result(), allow_none)
+            return
+
+        type_test = self.type.type_test_code(
+            code.funcstate.scope,
+            self.arg.py_result(),
+            allow_none,
+            exact=self.exact_builtin_type if is_builtin_type else False,
+        )
+        code.globalstate.use_utility_code(UtilityCode.load_cached(
+            "RaiseUnexpectedTypeError" if is_builtin_type else "ExtTypeTest",
+            "ObjectHandling.c"))
+        code.putln(f"if (!({type_test})) {code.error_goto(self.pos)}")
 
     def generate_post_assignment_code(self, code):
         self.arg.generate_post_assignment_code(code)

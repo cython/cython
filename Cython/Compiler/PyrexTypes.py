@@ -1537,6 +1537,29 @@ class BuiltinObjectType(PyObjectType):
             check += f'||(({arg}) == Py_None)'
         return check + f' || __Pyx_RaiseUnexpectedTypeError("{self.name}", {arg})'
 
+    def convert_to_basetype(self, code, pos, arg_cname, allow_none=True, arg_name_cstring="NULL"):
+        """Generate type checking code that converts compatible (number) types to the plain base type in-place.
+
+        Replaces the C value in 'arg_cname' on conversion or error, decrefing the original value.
+        """
+        if self.name == 'float':
+            utility_code_name = "pyfloat_simplify"
+            cfunc = "__Pyx_PyFloat_FromNumber"
+        elif self.name == 'int':
+            utility_code_name = "pyint_simplify"
+            cfunc = "__Pyx_PyInt_FromNumber"
+        else:
+            # No conversion, simple type check.
+            type_test = self.type_test_code(code.globalstate, arg_cname, allow_none=allow_none)
+            code.putln(f"if (!({type_test})) {code.error_goto(pos)}")
+            return
+
+        code.globalstate.use_utility_code(
+            UtilityCode.load_cached(utility_code_name, "TypeConversion.c"))
+        code.put_error_if_neg(
+            pos, f"{cfunc}(&{arg_cname}, {arg_name_cstring}, {allow_none:d})"
+        )
+
     def declaration_code(self, entity_code,
             for_display = 0, dll_linkage = None, pyrex = 0):
         if pyrex or for_display:
@@ -1670,7 +1693,8 @@ class PyExtensionType(PyObjectType):
                 entity_code = "*%s" % entity_code
         return self.base_declaration_code(base_code, entity_code)
 
-    def type_test_code(self, scope, py_arg, allow_none=True):
+    def type_test_code(self, scope, py_arg, allow_none=True, exact=False):
+        assert not exact, "exact extension type tests are not currently implemented here"
         typeptr_cname = scope.name_in_module_state(self.typeptr_cname)
         type_check = f"likely(__Pyx_TypeTest({py_arg}, {typeptr_cname}))"
         scope.use_utility_code(UtilityCode.load_cached("ExtTypeTest", "ObjectHandling.c"))
@@ -4146,7 +4170,6 @@ class CppClassType(CType):
                 if T.is_pyobject or not T.can_coerce_to_pyobject(env):
                     return False
             return True
-
 
     def create_to_py_utility_code(self, env):
         if self.to_py_function is not None:
