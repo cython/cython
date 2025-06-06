@@ -360,7 +360,12 @@ def report_revision_timings(rev_timings, csv_out=None):
             for absdiff, pdiff, tdiff, benchmark in diffs:
                 if absdiff < cutoff:
                     break
-                logging.info(f"    {benchmark[:25]:<25}:  {pdiff:+8.1f} %   /  {'+' if tdiff > 0 else '-'}{format_time(abs(tdiff))}")
+                diff_str = (
+                    f'+{format_time(tdiff)}' if tdiff > 1e-9 else
+                    f'-{format_time(-tdiff)}' if tdiff < -1e-9 else
+                    '±0'
+                )
+                logging.info(f"    {benchmark[:25]:<25}:  {pdiff:+8.1f} %   /  {diff_str}")
 
 
 def report_revision_sizes(rev_sizes):
