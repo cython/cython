@@ -717,8 +717,12 @@ class CFuncDeclaratorNode(CDeclaratorNode):
             # Catch attempted C-style func(void) decl
             if type.is_void:
                 error(arg_node.pos, "Use spam() rather than spam(void) to declare a function with no arguments.")
-            func_type_args.append(
-                PyrexTypes.CFuncTypeArg(name, type, arg_node.pos))
+            func_arg = PyrexTypes.CFuncTypeArg(name, type, arg_node.pos)
+            if arg_node.not_none:
+                func_arg.not_none = True
+            if arg_node.or_none:
+                func_arg.or_none = True
+            func_type_args.append(func_arg)
             if arg_node.default:
                 self.optional_arg_count += 1
             elif self.optional_arg_count:
@@ -4398,6 +4402,8 @@ class DefNodeWrapper(FuncDefNode):
     def generate_arg_assignment(self, arg, item, code):
         if arg.type.is_pyobject:
             # Python default arguments were already stored in 'item' at the very beginning
+            if arg.type.is_builtin_type and arg.type.name in ('int', 'float'):
+                arg.type.convert_to_basetype(code, arg.pos, item, arg.accept_none, arg.name_cstring)
             if arg.is_generic:
                 item = PyrexTypes.typecast(arg.type, PyrexTypes.py_object_type, item)
             entry = arg.entry
@@ -8909,6 +8915,10 @@ class GILStatNode(NogilTryFinallyStatNode):
         code.mark_pos(self.pos)
         code.begin_block()
         if self.state_temp:
+            # state-temps only happen inside generators which are inherently Python functions
+            # and thus we do always know whether we have the GIL. This is important because it
+            # means that the type of the state-temp is always PyThreadState*.
+            assert self.scope_gil_state_known
             self.state_temp.allocate(code)
             variable = self.state_temp.result()
         else:
@@ -9467,8 +9477,7 @@ class FromImportStatNode(StatNode):
             if coerced_item is None:
                 target.generate_assignment_code(self.item, code)
             else:
-                coerced_item.allocate_temp_result(code)
-                coerced_item.generate_result_code(code)
+                coerced_item.generate_evaluation_code(code)
                 target.generate_assignment_code(coerced_item, code)
             code.put_decref_clear(item_temp, py_object_type)
         code.funcstate.release_temp(item_temp)
