@@ -393,17 +393,17 @@ def strip_string_literals(code: str, prefix: str = '__Pyx_L'):
 # IF ...:
 #     cimport ...
 dependency_regex = re.compile(
-    r"(?:^\s*from +cython\.cimports\.([\w.]+) +c?import)|"
-    r"(?:^\s*from +([\w.]+) +cimport)|"
-    r"(?:^\s*c?import +cython\.cimports\.([\w.]+(?: *, *[\w.]+)*))|"
-    r"(?:^\s*cimport +([\w.]+(?: *, *[\w.]+)*))|"
-    r"(?:^\s*cdef +extern +from +['\"]([^'\"]+)['\"])|"
-    r"(?:^\s*include +['\"]([^'\"]+)['\"])",
-    re.M)
+    r"(?:^ [ \t\f]* from     [ \t\f]+ cython\.cimports\.([\w.]+) [ \t\f]+ c?import ) |"
+    r"(?:^ [ \t\f]* from     [ \t\f]+ ([\w.]+) [ \t\f]+ cimport ) |"
+    r"(?:^ [ \t\f]* c?import [ \t\f]+ cython\.cimports\.([\w.]+) ) |"
+    r"(?:^ [ \t\f]* cimport  [ \t\f]+ ([\w.]+ (?:[ \t\f]* , [ \t\f]* [\w.]+)*) ) |"
+    r"(?:^ [ \t\f]* cdef     [ \t\f]+ extern [ \t\f]+ from [ \t\f]+ ['\"] ([^'\"]+) ['\"] ) |"
+    r"(?:^ [ \t\f]* include  [ \t\f]+ ['\"] ([^'\"]+) ['\"] )",
+    re.MULTILINE | re.VERBOSE)
 dependency_after_from_regex = re.compile(
-    r"(?:^\s+\(([\w., ]*)\)[#\n])|"
-    r"(?:^\s+([\w., ]*)[#\n])",
-    re.M)
+    r"(?:^ [ \t\f]+ \( ([\w., \t\f]*) \) [ \t\f]* [#\n]) |"
+    r"(?:^ [ \t\f]+    ([\w., \t\f]*)    [ \t\f]* [#\n])",
+    re.MULTILINE | re.VERBOSE)
 
 
 def normalize_existing(base_path, rel_paths):
