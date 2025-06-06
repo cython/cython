@@ -290,38 +290,27 @@ static CYTHON_INLINE int __Pyx_GetItemInt_ByteArray_Fast(PyObject* string, Py_ss
                                                          int wraparound, int boundscheck);
 
 //////////////////// GetItemIntByteArray ////////////////////
-//@requires: ModuleSetupCode.c::CriticalSections
-
-static CYTHON_INLINE int __Pyx_GetItemInt_ByteArray_Fast_Locked(PyObject* string, Py_ssize_t i,
-                                                                int wraparound, int boundscheck) {                                             
-    Py_ssize_t length = __Pyx_PyByteArray_GET_SIZE(string);
-    #if !CYTHON_ASSUME_SAFE_SIZE
-    if (unlikely(length < 0)) return -1;
-    #endif
-    if (wraparound & unlikely(i < 0)) i += length;
-    if ((!boundscheck) || likely(__Pyx_is_valid_index(i, length))) {
-        #if !CYTHON_ASSUME_SAFE_MACROS
-        char *asString = PyByteArray_AsString(string);
-        return likely(asString) ? (unsigned char) asString[i] : -1;
-        #else
-        return (unsigned char) (PyByteArray_AS_STRING(string)[i]);
-        #endif
-    } else {
-        PyErr_SetString(PyExc_IndexError, "bytearray index out of range");
-        return -1;
-    }
-}
 
 static CYTHON_INLINE int __Pyx_GetItemInt_ByteArray_Fast(PyObject* string, Py_ssize_t i,
                                                          int wraparound, int boundscheck) {
+    Py_ssize_t length;
     if (wraparound | boundscheck) {
-        int result;
-        // What we're guarding here is just that the size isn't mutating from under us.
-        // The aim isn't to make the character read-writes atomic (although practically they probably are).
-        __Pyx_BEGIN_CRITICAL_SECTION(string);
-        result = __Pyx_GetItemInt_ByteArray_Fast_Locked(string, i, wraparound, boundscheck);
-        __Pyx_END_CRITICAL_SECTION();
-        return result;
+        length = __Pyx_PyByteArray_GET_SIZE(string);
+        #if !CYTHON_ASSUME_SAFE_SIZE
+        if (unlikely(length < 0)) return -1;
+        #endif
+        if (wraparound & unlikely(i < 0)) i += length;
+        if ((!boundscheck) || likely(__Pyx_is_valid_index(i, length))) {
+            #if !CYTHON_ASSUME_SAFE_MACROS
+            char *asString = PyByteArray_AsString(string);
+            return likely(asString) ? (unsigned char) asString[i] : -1;
+            #else
+            return (unsigned char) (PyByteArray_AS_STRING(string)[i]);
+            #endif
+        } else {
+            PyErr_SetString(PyExc_IndexError, "bytearray index out of range");
+            return -1;
+        }
     } else {
         #if !CYTHON_ASSUME_SAFE_MACROS
         char *asString = PyByteArray_AsString(string);
@@ -344,40 +333,29 @@ static CYTHON_INLINE int __Pyx_SetItemInt_ByteArray_Fast(PyObject* string, Py_ss
                                                          int wraparound, int boundscheck);
 
 //////////////////// SetItemIntByteArray ////////////////////
-//@requires: ModuleSetupCode.c::CriticalSections
-
-static CYTHON_INLINE int __Pyx_SetItemInt_ByteArray_Fast_Locked(PyObject* string, Py_ssize_t i, unsigned char v,
-                                                                int wraparound, int boundscheck) {
-    Py_ssize_t length = __Pyx_PyByteArray_GET_SIZE(string);
-    #if !CYTHON_ASSUME_SAFE_SIZE
-    if (unlikely(length < 0)) return -1;
-    #endif
-    if (wraparound & unlikely(i < 0)) i += length;
-    if ((!boundscheck) || likely(__Pyx_is_valid_index(i, length))) {
-        #if !CYTHON_ASSUME_SAFE_MACROS
-        char *asString = PyByteArray_AsString(string);
-        if (unlikely(!asString)) return -1;
-        asString[i] = (char)v;
-        #else
-        PyByteArray_AS_STRING(string)[i] = (char) v;
-        #endif
-        return 0;
-    } else {
-        PyErr_SetString(PyExc_IndexError, "bytearray index out of range");
-        return -1;
-    }
-}
 
 static CYTHON_INLINE int __Pyx_SetItemInt_ByteArray_Fast(PyObject* string, Py_ssize_t i, unsigned char v,
                                                          int wraparound, int boundscheck) {
+    Py_ssize_t length;
     if (wraparound | boundscheck) {
-        int result;
-        // What we're guarding here is just that the size isn't mutating from under us.
-        // The aim isn't to make the character read-writes atomic (although practically they probably are).
-        __Pyx_BEGIN_CRITICAL_SECTION(string);
-        result = __Pyx_SetItemInt_ByteArray_Fast_Locked(string, i, v, wraparound, boundscheck);
-        __Pyx_END_CRITICAL_SECTION();
-        return result;
+        length = __Pyx_PyByteArray_GET_SIZE(string);
+        #if !CYTHON_ASSUME_SAFE_SIZE
+        if (unlikely(length < 0)) return -1;
+        #endif
+        if (wraparound & unlikely(i < 0)) i += length;
+        if ((!boundscheck) || likely(__Pyx_is_valid_index(i, length))) {
+            #if !CYTHON_ASSUME_SAFE_MACROS
+            char *asString = PyByteArray_AsString(string);
+            if (unlikely(!asString)) return -1;
+            asString[i] = (char)v;
+            #else
+            PyByteArray_AS_STRING(string)[i] = (char) v;
+            #endif
+            return 0;
+        } else {
+            PyErr_SetString(PyExc_IndexError, "bytearray index out of range");
+            return -1;
+        }
     } else {
         #if !CYTHON_ASSUME_SAFE_MACROS
         char *asString = PyByteArray_AsString(string);
