@@ -1704,6 +1704,10 @@ static PyMemberDef __pyx_FusedFunction_members[] = {
      READONLY,
      0},
     {"__self__", T_OBJECT_EX, offsetof(__pyx_FusedFunctionObject, self), READONLY, 0},
+    // For heap-types __module__ appears not to be inherited (so redeclare)
+    #if !CYTHON_COMPILING_IN_LIMITED_API
+    {"__module__", T_OBJECT, offsetof(PyCFunctionObject, m_module), 0, 0},
+    #endif
     {0, 0, 0, 0, 0},
 };
 
@@ -1712,6 +1716,10 @@ static PyGetSetDef __pyx_FusedFunction_getsets[] = {
     // a descriptor for the instance's __doc__, so rebuild the descriptor in our subclass
     // (all other descriptors are inherited)
     {"__doc__",  (getter)__Pyx_CyFunction_get_doc, (setter)__Pyx_CyFunction_set_doc, 0, 0},
+    // For heap-types __module__ appears not to be inherited (so redeclare)
+    #if CYTHON_COMPILING_IN_LIMITED_API
+    {"__module__", (getter)__Pyx_CyFunction_get_module, (setter)__Pyx_CyFunction_set_module, 0, 0},
+    #endif
     {0, 0, 0, 0, 0}
 };
 
