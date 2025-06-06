@@ -332,7 +332,6 @@ class IterationTransform(Visitor.EnvTransform):
             may_hold_none=False, is_temp=True
             )
 
-        counter_ref = UtilNodes.LetRefNode(pos=node.pos, type=PyrexTypes.c_py_ssize_t_type)
         length_call_node = ExprNodes.SimpleCallNode(
             node.pos,
             function=ExprNodes.NameNode(
@@ -345,7 +344,7 @@ class IterationTransform(Visitor.EnvTransform):
             end_node = UtilNodes.LetRefNode(length_call_node, type=PyrexTypes.c_py_ssize_t_type)
         start_node = ExprNodes.IntNode(
             node.pos, value='0', constant_result=0, type=PyrexTypes.c_py_ssize_t_type)
-        keep_going_ref = UtilNodes.LetRefNode(pos=node.pos, type=PyrexTypes.c_bint_type)
+        keep_going_ref = UtilNodes.LetRefNode(ExprNodes.BoolNode(node.pos, value=True), type=PyrexTypes.c_bint_type)
 
         if reversed:
             relation1, relation2 = '>', '>='
@@ -358,6 +357,8 @@ class IterationTransform(Visitor.EnvTransform):
         else:
             start_check_node = copy.copy(start_node)
             relation1, relation2 = '<=', '<'
+
+        counter_ref = UtilNodes.LetRefNode(start_node, type=PyrexTypes.c_py_ssize_t_type)
 
         test_node = ExprNodes.PrimaryCmpNode(
             node.pos,
@@ -448,36 +449,14 @@ class IterationTransform(Visitor.EnvTransform):
             else_clause = node.else_clause,
         )
 
-        initialization_and_loop = Nodes.StatListNode(
-            node.pos,
-            stats=[
-                Nodes.SingleAssignmentNode(
-                    node.pos,
-                    lhs=counter_ref,
-                    rhs=start_node
-                ),
-                Nodes.SingleAssignmentNode(
-                    node.pos,
-                    lhs=keep_going_ref,
-                    rhs=ExprNodes.BoolNode(node.pos, value=True)
-                ),
-                loop_node
-            ])
-
-        ret = initialization_and_loop
+        ret = loop_node
         # temps that are are assigned once on entry to the loop
-        for let_ref_node in [unpack_temp_node] + ([end_node] if not is_mutable else []):
+        for let_ref_node in [unpack_temp_node, keep_going_ref, counter_ref] + (
+                [end_node] if not is_mutable else []):
             ret = UtilNodes.LetNode(
                 let_ref_node,
                 ret
             )
-        # temps that are re-assigned during the loop. TempResultFromStatNode provides
-        # a framework to work with these temps, but we don't need the result so we wrap
-        # it in an ExprStatNode.
-        for let_ref_node in [keep_going_ref, counter_ref]:
-            ret = Nodes.ExprStatNode(
-                node.pos,
-                expr=UtilNodes.TempResultFromStatNode(let_ref_node, ret))
 
         ret = ret.analyse_expressions(env)
         body.stats.insert(1, node.body)
