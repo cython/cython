@@ -134,6 +134,7 @@ static PyObject * __Pyx_CyFunction_Vectorcall_FASTCALL_KEYWORDS_METHOD(PyObject 
 //@requires: ObjectHandling.c::CachedMethodType
 //@requires: ExtensionTypes.c::CallTypeTraverse
 //@requires: ModuleSetupCode.c::CriticalSections
+//@requires: CommonStructures.c::RegisterABC
 //@substitute: naming
 
 #if CYTHON_COMPILING_IN_LIMITED_API
@@ -1265,6 +1266,7 @@ static int __pyx_CyFunction_init(PyObject *module) {
     if (unlikely(mstate->__pyx_CyFunctionType == NULL)) {
         return -1;
     }
+    __Pyx_RegisterCommonTypeWithAbc((PyObject*)mstate->__pyx_CyFunctionType, "CythonFunction");
     return 0;
 }
 

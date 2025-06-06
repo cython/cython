@@ -1,0 +1,46 @@
+UNSET CFLAGS
+PYTHON setup.py build_ext --inplace
+PYTHON test_it.py
+
+##################### setup.py ################
+
+from Cython.Build.Dependencies import cythonize
+import sysconfig
+from setuptools import setup
+
+if sysconfig.get_config_var("Py_GIL_DISABLED"):
+  exit(0)  # Doesn't support Limited API
+
+setup(
+  ext_modules = cythonize("*.pyx"),
+)
+
+#################### test_it.py #################
+
+import sysconfig
+if sysconfig.get_config_var("Py_GIL_DISABLED"):
+  exit(0)  # Doesn't support Limited API
+import m1
+import m2
+import collections.abc as c_abcs
+import platform
+
+assert isinstance(m1.f, c_abcs.CythonFunction)
+assert isinstance(m2.f, c_abcs.CythonFunction)
+assert not isinstance(lambda: None, c_abcs.CythonFunction)
+if platform.python_implementation() == 'CPython':
+  # This is because Limited API and regular API have different cython ABIs 
+  assert type(m1.f) != type(m2.f)
+
+
+#################### m1.pyx ####################
+
+def f():
+    pass
+
+#################### m2.pyx ####################
+
+# distutils: extra_compile_args = -DPy_LIMITED_API=0x03070000
+
+def f():
+    pass
