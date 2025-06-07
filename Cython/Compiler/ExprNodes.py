@@ -1137,8 +1137,7 @@ class ExprNode(Node):
         # if it's constant, calculate the result now
         if self.has_constant_result():
             bool_value = bool(self.constant_result)
-            return BoolNode(self.pos, value=bool_value,
-                            constant_result=bool_value)
+            return BoolNode(self.pos, value=bool_value)
 
         type = self.type
         if type.is_enum or type.is_error:
@@ -1155,8 +1154,7 @@ class ExprNode(Node):
                 args=[]).analyse_types(env)
         elif type.is_ctuple:
             bool_value = len(type.components) == 0
-            return BoolNode(self.pos, value=bool_value,
-                            constant_result=bool_value)
+            return BoolNode(self.pos, value=bool_value)
         else:
             error(self.pos, "Type '%s' not acceptable as a boolean" % type)
             return self
@@ -1427,6 +1425,13 @@ class BoolNode(ConstNode):
     type = PyrexTypes.c_bint_type
     #  The constant value True or False
 
+    def __init__(self, pos, value: bool, type=None):
+        assert value is True or value is False, repr(value)
+        super().__init__(pos, value=value, constant_result=value)
+        if type is not None and type is not self.type:
+            assert type is Builtin.bool_type, type
+            self.type = type
+
     def calculate_constant_result(self):
         self.constant_result = self.value
 
@@ -1437,7 +1442,17 @@ class BoolNode(ConstNode):
         if self.type.is_pyobject:
             return 'Py_True' if self.value else 'Py_False'
         else:
-            return str(int(self.value))
+            return '1' if self.value else '0'
+
+    def coerce_to_pyobject(self, env):
+        if self.type.is_pyobject:
+            return self
+        return BoolNode(self.pos, value=self.value, type=Builtin.bool_type)
+
+    def coerce_to_boolean(self, env):
+        if self.type.is_int:
+            return self
+        return BoolNode(self.pos, value=self.value)
 
     def coerce_to(self, dst_type, env):
         if dst_type == self.type:
@@ -1445,15 +1460,9 @@ class BoolNode(ConstNode):
         if dst_type is py_object_type and self.type is Builtin.bool_type:
             return self
         if dst_type.is_pyobject and self.type.is_int:
-            return BoolNode(
-                self.pos, value=self.value,
-                constant_result=self.constant_result,
-                type=Builtin.bool_type)
+            return BoolNode(self.pos, value=self.value, type=Builtin.bool_type)
         if dst_type.is_int and self.type.is_pyobject:
-            return BoolNode(
-                self.pos, value=self.value,
-                constant_result=self.constant_result,
-                type=PyrexTypes.c_bint_type)
+            return BoolNode(self.pos, value=self.value)
         return ConstNode.coerce_to(self, dst_type, env)
 
 
@@ -1741,8 +1750,7 @@ class BytesNode(ConstNode):
     def coerce_to_boolean(self, env):
         # This is special because testing a C char* for truth directly
         # would yield the wrong result.
-        bool_value = bool(self.value)
-        return BoolNode(self.pos, value=bool_value, constant_result=bool_value)
+        return BoolNode(self.pos, value=bool(self.value))
 
     def coerce_to(self, dst_type, env):
         if self.type == dst_type:
@@ -1880,7 +1888,7 @@ class UnicodeNode(ConstNode):
 
     def coerce_to_boolean(self, env):
         bool_value = bool(self.value)
-        return BoolNode(self.pos, value=bool_value, constant_result=bool_value)
+        return BoolNode(self.pos, value=bool_value)
 
     def estimate_max_charval(self):
         # Most strings will probably be ASCII.

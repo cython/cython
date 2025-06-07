@@ -186,7 +186,7 @@ class IterationTransform(Visitor.EnvTransform):
                 pos, operator='==', operand1=node.operand1, operand2=target)
             if_body = Nodes.StatListNode(
                 pos,
-                stats = [Nodes.SingleAssignmentNode(pos, lhs=result_ref, rhs=ExprNodes.BoolNode(pos, value=1)),
+                stats = [Nodes.SingleAssignmentNode(pos, lhs=result_ref, rhs=ExprNodes.BoolNode(pos, value=True)),
                          Nodes.BreakStatNode(pos)])
             if_node = Nodes.IfStatNode(
                 pos,
@@ -200,7 +200,8 @@ class IterationTransform(Visitor.EnvTransform):
                     target=target,
                     iterator=ExprNodes.IteratorNode(node.operand2.pos, sequence=node.operand2),
                     body=if_node,
-                    else_clause=Nodes.SingleAssignmentNode(pos, lhs=result_ref, rhs=ExprNodes.BoolNode(pos, value=0))))
+                    else_clause=Nodes.SingleAssignmentNode(
+                        pos, lhs=result_ref, rhs=ExprNodes.BoolNode(pos, value=False))))
             for_loop = for_loop.analyse_expressions(self.current_env())
             for_loop = self.visit(for_loop)
             new_node = UtilNodes.TempResultFromStatNode(result_ref, for_loop)
@@ -1391,8 +1392,8 @@ class SwitchTransform(Visitor.EnvTransform):
 
         return self.build_simple_switch_statement(
             node, common_var, conditions, not_in,
-            ExprNodes.BoolNode(node.pos, value=True, constant_result=True),
-            ExprNodes.BoolNode(node.pos, value=False, constant_result=False))
+            ExprNodes.BoolNode(node.pos, value=True),
+            ExprNodes.BoolNode(node.pos, value=False))
 
     def visit_PrimaryCmpNode(self, node):
         if not self.current_directives.get('optimize.use_switch'):
@@ -1409,8 +1410,8 @@ class SwitchTransform(Visitor.EnvTransform):
 
         return self.build_simple_switch_statement(
             node, common_var, conditions, not_in,
-            ExprNodes.BoolNode(node.pos, value=True, constant_result=True),
-            ExprNodes.BoolNode(node.pos, value=False, constant_result=False))
+            ExprNodes.BoolNode(node.pos, value=True),
+            ExprNodes.BoolNode(node.pos, value=False))
 
     def build_simple_switch_statement(self, node, common_var, conditions,
                                       not_in, true_val, false_val):
@@ -1489,7 +1490,7 @@ class FlattenInListTransform(Visitor.VisitorTransform, SkipDeclarations):
             # note: lhs may have side effects, but ".is_simple()" may not work yet before type analysis.
             if lhs.try_is_simple():
                 constant_result = node.operator == 'not_in'
-                return ExprNodes.BoolNode(node.pos, value=constant_result, constant_result=constant_result)
+                return ExprNodes.BoolNode(node.pos, value=constant_result)
             return node
 
         if any([arg.is_starred for arg in args]):
@@ -1829,12 +1830,12 @@ class EarlyReplaceBuiltinCalls(Visitor.EnvTransform):
                     condition=condition,
                     body=Nodes.ReturnStatNode(
                         node.pos,
-                        value=ExprNodes.BoolNode(yield_expression.pos, value=is_any, constant_result=is_any))
+                        value=ExprNodes.BoolNode(yield_expression.pos, value=is_any))
                 )]
         )
         loop_node.else_clause = Nodes.ReturnStatNode(
             node.pos,
-            value=ExprNodes.BoolNode(yield_expression.pos, value=not is_any, constant_result=not is_any))
+            value=ExprNodes.BoolNode(yield_expression.pos, value=not is_any))
 
         Visitor.recursively_replace_node(gen_expr_node, yield_stat_node, test_node)
 
@@ -2724,9 +2725,7 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
         """Transform bool(x) into a type coercion to a boolean.
         """
         if len(pos_args) == 0:
-            return ExprNodes.BoolNode(
-                node.pos, value=False, constant_result=False
-                ).coerce_to(Builtin.bool_type, self.current_env())
+            return ExprNodes.BoolNode(node.pos, value=False, type=Builtin.bool_type)
         elif len(pos_args) != 1:
             self._error_wrong_arg_count('bool', node, pos_args, '0 or 1')
             return node
@@ -4226,9 +4225,7 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
     def _inject_bint_default_argument(self, node, args, arg_index, default_value):
         assert len(args) >= arg_index
         if len(args) == arg_index:
-            default_value = bool(default_value)
-            args.append(ExprNodes.BoolNode(node.pos, value=default_value,
-                                           constant_result=default_value))
+            args.append(ExprNodes.BoolNode(node.pos, value=bool(default_value)))
         else:
             args[arg_index] = args[arg_index].coerce_to_boolean(self.current_env())
 
@@ -4281,12 +4278,12 @@ def optimise_numeric_binop(operator, node, ret_type, arg0, arg1):
         numval.pos, value=numval.value, constant_result=numval.constant_result,
         type=num_type))
     inplace = node.inplace if isinstance(node, ExprNodes.NumBinopNode) else False
-    extra_args.append(ExprNodes.BoolNode(node.pos, value=inplace, constant_result=inplace))
+    extra_args.append(ExprNodes.BoolNode(node.pos, value=inplace))
     if is_float or operator not in ('Eq', 'Ne'):
         # "PyFloatBinop" and "PyLongBinop" take an additional "check for zero division" argument.
         zerodivision_check = arg_order == 'CObj' and (
             not node.cdivision if isinstance(node, ExprNodes.DivNode) else False)
-        extra_args.append(ExprNodes.BoolNode(node.pos, value=zerodivision_check, constant_result=zerodivision_check))
+        extra_args.append(ExprNodes.BoolNode(node.pos, value=zerodivision_check))
 
     utility_code = TempitaUtilityCode.load_cached(
         "PyFloatBinop" if is_float else "PyLongCompare" if operator in ('Eq', 'Ne') else "PyLongBinop",
@@ -4374,8 +4371,7 @@ class ConstantFolding(Visitor.VisitorTransform, SkipDeclarations):
             return None
 
     def _bool_node(self, node, value):
-        value = bool(value)
-        return ExprNodes.BoolNode(node.pos, value=value, constant_result=value)
+        return ExprNodes.BoolNode(node.pos, value=bool(value))
 
     def visit_ExprNode(self, node):
         self._calculate_const(node)
@@ -4511,14 +4507,12 @@ class ConstantFolding(Visitor.VisitorTransform, SkipDeclarations):
                 new_node.type = PyrexTypes.py_object_type
             else:
                 new_node.type = PyrexTypes.widest_numeric_type(widest_type, new_node.type)
+        elif target_class is ExprNodes.BoolNode:
+            new_node = ExprNodes.BoolNode(node.pos, value=node.constant_result, type=widest_type)
         else:
-            if target_class is ExprNodes.BoolNode:
-                node_value = node.constant_result
-            else:
-                node_value = str(node.constant_result)
-            new_node = target_class(pos=node.pos, type = widest_type,
-                                    value = node_value,
-                                    constant_result = node.constant_result)
+            new_node = target_class(pos=node.pos, type=widest_type,
+                                    value=str(node.constant_result),
+                                    constant_result=node.constant_result)
         return new_node
 
     def visit_AddNode(self, node):
