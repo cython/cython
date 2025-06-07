@@ -3748,8 +3748,11 @@ class GilCheck(VisitorTransform):
         return node
 
     def visit_ParallelRangeNode(self, node):
+        if self.nogil_state == Nodes.NoGilState.HasGil and not node.nogil:
+            # We still release the GIL then reacquire it to avoid deadlocks.
+            node.acquire_gil = True
         if (node.nogil or self.nogil_state == Nodes.NoGilState.NoGilScope or
-                (node.with_python and not self.nogil_state == Nodes.NoGilState.NoGil and node.parent is None)):
+                (self.nogil_state == Nodes.NoGilState.HasGil and not node.parent)):
             node_was_nogil, node.nogil = node.nogil, False
             node = Nodes.GILStatNode(node.pos, state='nogil', body=node)
             if not node_was_nogil and self.nogil_state == Nodes.NoGilState.NoGilScope:
@@ -3758,42 +3761,40 @@ class GilCheck(VisitorTransform):
                 node.scope_gil_state_known = False
             return self.visit_GILStatNode(node)
 
-        if not self.nogil_state and not node.with_python:
-            # TODO - eventually point them to the with_python argument in this message.
-            # For now it's sufficiently experimental and fragile that I don't want to
-            # encourage any user that hasn't read the documentation in detail to find it.
-            error(node.pos, "prange() can only be used without the GIL")
-            # Forget about any GIL-related errors that may occur in the body
-            return None
-
-        if node.with_python:
+        if node.acquire_gil:
+            if not self.env_stack[-1].directives['freethreading_compatible']:
+                warning(
+                    node.pos,
+                    "prange without releasing the GIL will only work well on freethreaded Python",
+                    level=2)
             was_nogil = self.nogil_state
             self.nogil_state = Nodes.NoGilState.HasGil
 
         node.nogil_check(self.env_stack[-1])
         self.visitchildren(node)
 
-        if node.with_python:
+        if node.acquire_gil:
             self.nogil_state = was_nogil
         return node
 
     def visit_ParallelWithBlockNode(self, node):
-        if not self.nogil_state and not node.with_python:
-            # TODO - when it's stable, eventually mention the with_python argument
-            error(node.pos, "The parallel section may only be used without "
-                            "the GIL")
-            return None
-        if (self.nogil_state == Nodes.NoGilState.NoGilScope or
-                (node.with_python and self.nogil_state != Nodes.NoGilState.NoGil)):
-            # We're in a "nogil" function but that doesn't prove we didn't
-            # have the gil, so release it.
-            # Note that we do this even for "with_python" because it's easier to
-            # enter/exit the block without the GIL to avoid deadlocks.
+        if self.nogil_state != Nodes.NoGilState.NoGil:
+            # Ensure that the GIL is released
+            if self.nogil_state == Nodes.NoGilState.HasGil:
+                # Even if we intend the block to have the GIL it's easier to release
+                # and reacquire it to void deadlocks.
+                node.acquire_gil = True
             node = Nodes.GILStatNode(node.pos, state='nogil', body=node)
-            node.scope_gil_state_known = False
+            if self.nogil_state == Nodes.NoGilState.NoGilScope:
+                node.scope_gil_state_known = False
             return self.visit_GILStatNode(node)
 
-        if node.with_python:
+        if node.acquire_gil:
+            if not self.env_stack[-1].directives['freethreading_compatible']:
+                warning(
+                    node.pos,
+                    "Parallel section without releasing the GIL will only work well on freethreaded Python",
+                    level=2)
             was_nogil = self.nogil_state
             self.nogil_state = Nodes.NoGilState.HasGil
 
@@ -3803,7 +3804,7 @@ class GilCheck(VisitorTransform):
             node.nogil_check(self.env_stack[-1])
 
         self.visitchildren(node)
-        if node.with_python:
+        if node.acquire_gil:
             self.nogil_state = was_nogil
         return node
 
