@@ -9746,16 +9746,16 @@ class ParallelStatNode(StatNode, ParallelNode):
             if parent and (op or lastprivate):
                 parent.propagate_var_privatization(entry, pos, op, lastprivate)
 
-    def _allocate_closure_temp(self, code, entry):
+    def _allocate_closure_global_temp(self, code, entry):
         """
-        Helper function that allocate a temporary for a closure variable that
-        is assigned to.
+        Helper function that allocate a temporary for a closure or global
+        variable that is assigned to.
         """
         if self.parent:
-            return self.parent._allocate_closure_temp(code, entry)
+            return self.parent._allocate_closure_global_temp(code, entry)
 
         if entry.cname in self.seen_closure_vars:
-            return entry.cname
+            return
 
         cname = code.funcstate.allocate_temp(entry.type, True)
 
@@ -9765,7 +9765,11 @@ class ParallelStatNode(StatNode, ParallelNode):
         self.seen_closure_vars.add(cname)
 
         self.modified_entries.append((entry, entry.cname))
-        code.putln("%s = %s;" % (cname, entry.cname))
+        if entry.is_declared_in_module_state():
+            code.putln(f"{cname} = {code.name_in_module_state(entry.cname)};")
+            # TODO - this doesn't work because the lookup for NameNodes is computed far too early
+        else:
+            code.putln("%s = %s;" % (cname, entry.cname))
         entry.cname = cname
 
     def initialize_privates_to_nan(self, code, exclude=None):
@@ -9813,8 +9817,8 @@ class ParallelStatNode(StatNode, ParallelNode):
         self.modified_entries = []
 
         for entry in sorted(self.assignments):
-            if entry.from_closure or entry.in_closure:
-                self._allocate_closure_temp(code, entry)
+            if entry.from_closure or entry.in_closure or entry.is_cglobal:
+                self._allocate_closure_global_temp(code, entry)
 
     def release_closure_privates(self, code):
         """

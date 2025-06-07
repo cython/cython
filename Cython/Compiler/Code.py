@@ -2984,7 +2984,10 @@ class CCodeWriter:
                 UtilityCode.load_cached(f"{func}{nogil_tag}", "ObjectHandling.c"))
 
         if not unbound_check_code:
-            unbound_check_code = entry.type.check_for_null_code(entry.cname)
+            entry_cname = entry.cname
+            if entry.is_declared_in_module_state():
+                entry_cname = self.name_in_module_state(entry_cname)
+            unbound_check_code = entry.type.check_for_null_code(entry_cname)
         self.putln('if (unlikely(!%s)) { %s(%s); %s }' % (
                                 unbound_check_code,
                                 f"__Pyx_{func}{nogil_tag}",

@@ -259,6 +259,19 @@ class Entry:
             print(f"ENTRY {self.name}[{self.cname}] TYPE: {self.__dict__.get('type')} -> {new_type}")
             self.__dict__['type'] = new_type
 
+    def is_declared_in_module_state(self):
+        if not self.scope.is_module_scope:
+            return False
+        if self.is_pyglobal or self.is_cclass_var_entry:
+            return True
+        if self.is_cglobal:
+            if self.visibility != "private":
+                return False
+            if self.init and self.type.is_const:
+                return False
+            return True
+        return False
+
     def __repr__(self):
         return "%s(<%x>, name=%s, type=%s)" % (type(self).__name__, id(self), self.name, self.type)
 
@@ -1691,7 +1704,7 @@ class ModuleScope(Scope):
             if not (type.is_pyobject and not type.is_extension_type):
                 raise InternalError(
                     "Non-cdef global variable is not a generic Python object")
-        if (is_cdef and visibility != "extern"
+        if (is_cdef and visibility == "public"
                 and self.directives['subinterpreters_compatible'] != "no"):
             extra_warning = ""
             pyobject_warning = ""
@@ -1700,9 +1713,8 @@ class ModuleScope(Scope):
                 pyobject_warning = "Python "
             warning(
                 pos,
-                f"Global cdef {pyobject_warning}variable used with subinterpreter support enabled.\n"
-                "This variable is not currently in the per-interpreter module state "
-                "but this will likely change in future releases." +
+                f"Global cdef public {pyobject_warning}variable used with subinterpreter support enabled.\n"
+                "This variable is not in the per-interpreter module state." +
                 extra_warning,
                 2+(1 if extra_warning else 0))
 

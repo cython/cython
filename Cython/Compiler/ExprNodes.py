@@ -2387,9 +2387,7 @@ class NameNode(AtomicExprNode):
             # assume that type inference is smarter than the static entry
             type = self.inferred_type
         self.type = type
-        if entry.scope.is_module_scope and (
-                entry.is_pyglobal or entry.is_cclass_var_entry):
-            # TODO - eventually this should apply to cglobals too
+        if entry.is_declared_in_module_state():
             self.module_state_lookup = env.name_in_module_state("")
 
     def check_identifier_kind(self):
@@ -2580,9 +2578,11 @@ class NameNode(AtomicExprNode):
             optional_cpp_check = entry.is_cpp_optional and self.initialized_check
 
             if optional_cpp_check:
-                unbound_check_code = entry.type.cpp_optional_check_for_null_code(entry.cname)
+                unbound_check_code = entry.type.cpp_optional_check_for_null_code(
+                    f"{self.module_state_lookup}{entry.cname}")
             else:
-                unbound_check_code = entry.type.check_for_null_code(entry.cname)
+                unbound_check_code = entry.type.check_for_null_code(
+                    f"{self.module_state_lookup}{entry.cname}")
 
             if unbound_check_code and raise_unbound and (entry.type.is_pyobject or memslice_check or optional_cpp_check):
                 code.put_error_if_unbound(self.pos, entry, self.in_nogil_context, unbound_check_code=unbound_check_code)
