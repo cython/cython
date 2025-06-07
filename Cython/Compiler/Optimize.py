@@ -344,7 +344,7 @@ class IterationTransform(Visitor.EnvTransform):
             end_node = UtilNodes.LetRefNode(length_call_node, type=PyrexTypes.c_py_ssize_t_type)
         start_node = ExprNodes.IntNode(
             node.pos, value='0', constant_result=0, type=PyrexTypes.c_py_ssize_t_type)
-        keep_going_ref = UtilNodes.LetRefNode(ExprNodes.BoolNode(node.pos, value=True), type=PyrexTypes.c_bint_type)
+        keep_going_ref = UtilNodes.LetRefNode(ExprNodes.BoolNode(node.pos, value=True))
 
         if reversed:
             relation1, relation2 = '>', '>='
@@ -450,15 +450,13 @@ class IterationTransform(Visitor.EnvTransform):
         )
 
         ret = loop_node
-        # temps that are are assigned once on entry to the loop
+        # temps that are assigned once on entry to the loop
         for let_ref_node in [unpack_temp_node, keep_going_ref, counter_ref] + (
                 [end_node] if not is_mutable else []):
-            ret = UtilNodes.LetNode(
-                let_ref_node,
-                ret
-            )
+            ret = UtilNodes.LetNode(let_ref_node, ret)
 
         ret = ret.analyse_expressions(env)
+        # Reinsert loop body after analysing the rest.
         body.stats.insert(1, node.body)
         return ret
 
