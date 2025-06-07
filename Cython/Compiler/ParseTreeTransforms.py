@@ -3623,7 +3623,7 @@ class InjectGilHandling(VisitorTransform, SkipDeclarations):
     def _inject_gil_in_nogil(self, node):
         """Allow the (Python statement) node in nogil sections by wrapping it in a 'with gil' block."""
         if self.nogil:
-            node = Nodes.GILStatNode(node.pos, state='gil', body=node)
+            node = Nodes.GILStatNode(node.pos, state='gil', body=node, internally_generated=True)
         return node
 
     visit_RaiseStatNode = _inject_gil_in_nogil
@@ -3751,8 +3751,12 @@ class GilCheck(VisitorTransform):
         node_body = node.body
         if (isinstance(node_body, Nodes.StatListNode) and len(node_body.stats) == 1):
             node_body = node_body.stats[0]
-        if isinstance(node_body, Nodes.GILStatNode):
-            assert node_body.state != node.state, f"{node_body.state} {node.pos}"
+        if isinstance(node_body, Nodes.GILStatNode) and node_body.state != node.state and (
+                # Don't optimize out user-inserted `with nogil` for now. They have the
+                # side-effect of deliberately allowing a thread-switch even if they might
+                # appear useless, so they might be deliberate.
+                (node_body.state == "nogil" and node_body.internally_generated) or
+                (node.state == "nogil" and node.internally_generated)):
             if not node.scope_gil_state_known:
                 node_body.scope_gil_state_known = False
                 node_body.finally_clause.scope_gil_state_known = False
@@ -3771,7 +3775,7 @@ class GilCheck(VisitorTransform):
         if (node.nogil or self.nogil_state == Nodes.NoGilState.NoGilScope or
                 (self.nogil_state == Nodes.NoGilState.HasGil and not node.parent)):
             node_was_nogil, node.nogil = node.nogil, False
-            node = Nodes.GILStatNode(node.pos, state='nogil', body=node)
+            node = Nodes.GILStatNode(node.pos, state='nogil', body=node, internally_generated=True)
             if not node_was_nogil and self.nogil_state == Nodes.NoGilState.NoGilScope:
                 # We're in a "nogil" function, but that doesn't prove we
                 # didn't have the gil
@@ -3801,7 +3805,7 @@ class GilCheck(VisitorTransform):
                 # Even if we intend the block to have the GIL it's easier to release
                 # and reacquire it to void deadlocks.
                 node.acquire_gil = True
-            node = Nodes.GILStatNode(node.pos, state='nogil', body=node)
+            node = Nodes.GILStatNode(node.pos, state='nogil', body=node, internally_generated=True)
             if self.nogil_state == Nodes.NoGilState.NoGilScope:
                 node.scope_gil_state_known = False
             return self.visit_GILStatNode(node)

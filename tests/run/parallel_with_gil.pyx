@@ -108,7 +108,7 @@ def test_prange_nogil_with_python():
 
     with nogil:
         # Although this is how we want users to write it, we should still
-        # transform it internally to minimze GIL juggling.
+        # transform it internally to minimize GIL juggling.
         with gil:
             for i in prange(100):
                 out[i] = f(i)

@@ -8857,11 +8857,14 @@ class GILStatNode(NogilTryFinallyStatNode):
     child_attrs = ["condition"] + NogilTryFinallyStatNode.child_attrs
     state_temp = None
     scope_gil_state_known = True
+    internally_generated = False
 
-    def __init__(self, pos, state, body, condition=None):
+    def __init__(self, pos, state, body, condition=None, internally_generated=False):
         self.state = state
         self.condition = condition
         self.create_state_temp_if_needed(pos, state, body)
+        if internally_generated:
+            self.internally_generated = internally_generated
         TryFinallyStatNode.__init__(
             self, pos,
             body=body,
