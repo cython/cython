@@ -61,7 +61,7 @@ interpret it "being in a state where you can run Python code", rather than holdi
 an exclusive lock.
 
 In Cython that thread-state is still controlled by the existing ``with gil:`` and
-``with nogil:``.  There may still be a value in placing code that doesn't need
+``with nogil:`` context managers.  There may still be a value in placing code that doesn't need
 to use Python objects in a ``with nogil`` so that it works well in the regular
 Python interpreter, and to avoid it blocking the Python garbage collector.
 

@@ -20,18 +20,19 @@ module.  It currently supports OpenMP, but later on more backends might be suppo
 
 Historically, this kind of parallelism could only be used with the
 :term:`GIL<Global Interpreter Lock or GIL>` released (see :ref:`Releasing the GIL <nogil>`).
-However, there is now some experimental support for running with the GIL in
-freethreading builds. You must either use these functions in a no-gil block,
-or explicitly request that they are run with the GIL.
+However, from Cython 3.2 there is now some experimental support for running these parallel blocks with
+the GIL.  This will only work well (i.e. actually run your code in parallel) on freethreaded
+builds of Python
 
-.. WARNING:: ``with_python`` is currently very experimental.  Specifically
+.. WARNING:: Running ``cython.parallel`` and ``cython.prange`` with the GIL is currently
+             very experimental.  Specifically
              Cython currently does almost nothing to ensure that Python variables
              are accessed in a thread-safe manner - this is entirely your responsibility.
              If you do not get this right then you may see crashes, reference-counting
              errors, and other similar bugs.
 
 
-.. function:: prange([start,] stop[, step][, nogil=False][, with_python=True][, use_threads_if=CONDITION][, schedule=None[, chunksize=None]][, num_threads=None])
+.. function:: prange([start,] stop[, step][, nogil=False][, use_threads_if=CONDITION][, schedule=None[, chunksize=None]][, num_threads=None])
 
     This function can be used for parallel loops. OpenMP automatically
     starts a thread pool and distributes the work according to the schedule
@@ -60,14 +61,9 @@ or explicitly request that they are run with the GIL.
         It must not be 0.
 
     :param nogil:
-        This function can (usually) only be used with the GIL released.
-        If ``nogil`` is true, the loop will be wrapped in a nogil section.
-
-    :param with_python:
-        Explicitly document that you want this loop to be run with all threads able
-        to manipulate Python objects.
-        This is only likely to work well in the experimental Python 3.13+ freethreaded
-        builds. In other Python versions it will run with only one thread at a time.
+        If ``nogil`` is true, the loop will be wrapped in a nogil section.  Except on
+        the experimental free-threaded Python interpreter, this is needed to actually
+        run in parallel.
 
     :param use_threads_if: The loop is run in multiple threads only if ``CONDITION``
         is evaluated as true. Otherwise the code is run sequentially. Running
@@ -176,7 +172,7 @@ Example with conditional parallelism:
 
         .. literalinclude:: ../../examples/userguide/parallelism/condition_sum.pyx
 
-.. function:: parallel(num_threads=None, use_threads_if=CONDITION, with_python=False)
+.. function:: parallel(num_threads=None, use_threads_if=CONDITION)
 
     This directive can be used as part of a ``with`` statement to execute code
     sequences in parallel. This is currently useful to setup thread-local
@@ -184,13 +180,6 @@ Example with conditional parallelism:
     that is not parallel, so any variable assigned to in the parallel section
     is also private to the ``prange``. Variables that are private in the parallel
     block are unavailable after the parallel block.
-
-    The optional (and experimental) ``with_python`` parameter specifies that you want
-    all threads to have the ability to manipulate Python objects.  This is only likely to be
-    useful on freethreaded builds and you should be aware the thread-safety
-    (including basic things like reference counting of shared Python variables)
-    is entirely your responsibility.  On a regular non-free-threaded build only one thread 
-    will be able to run at a time in this mode.
 
     Example with thread-local buffers
 
