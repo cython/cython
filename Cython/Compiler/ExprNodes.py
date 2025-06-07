@@ -4570,11 +4570,12 @@ class IndexNode(_IndexingBaseNode):
                 not (isinstance(self.index.constant_result, int)
                      and self.index.constant_result >= 0))
             boundscheck = bool(code.globalstate.directives['boundscheck'])
-            return ", %s, %d, %s, %d, %d, %d" % (
+            has_gil = not self.in_nogil_context
+            return ", %s, %d, %s, %d, %d, %d, %d" % (
                 self.original_index_type.empty_declaration_code(),
                 self.original_index_type.signed and 1 or 0,
                 self.original_index_type.to_py_function,
-                is_list, wraparound, boundscheck)
+                is_list, wraparound, boundscheck, has_gil)
         else:
             return ""
 

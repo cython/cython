@@ -445,14 +445,14 @@ static PyObject *__Pyx_PyDict_GetItem(PyObject *d, PyObject* key) {
 /////////////// GetItemInt.proto ///////////////
 //@substitute: tempita
 
-#define __Pyx_GetItemInt(o, i, type, is_signed, to_py_func, is_list, wraparound, boundscheck) \
+#define __Pyx_GetItemInt(o, i, type, is_signed, to_py_func, is_list, wraparound, boundscheck, has_gil) \
     (__Pyx_fits_Py_ssize_t(i, type, is_signed) ? \
     __Pyx_GetItemInt_Fast(o, (Py_ssize_t)i, is_list, wraparound, boundscheck) : \
     (is_list ? (PyErr_SetString(PyExc_IndexError, "list index out of range"), (PyObject*)NULL) : \
                __Pyx_GetItemInt_Generic(o, to_py_func(i))))
 
 {{for type in ['List', 'Tuple']}}
-#define __Pyx_GetItemInt_{{type}}(o, i, type, is_signed, to_py_func, is_list, wraparound, boundscheck) \
+#define __Pyx_GetItemInt_{{type}}(o, i, type, is_signed, to_py_func, is_list, wraparound, boundscheck, has_gil) \
     (__Pyx_fits_Py_ssize_t(i, type, is_signed) ? \
     __Pyx_GetItemInt_{{type}}_Fast(o, (Py_ssize_t)i, wraparound, boundscheck) : \
     (PyErr_SetString(PyExc_IndexError, "{{ type.lower() }} index out of range"), (PyObject*)NULL))
@@ -552,7 +552,7 @@ static CYTHON_INLINE PyObject *__Pyx_GetItemInt_Fast(PyObject *o, Py_ssize_t i, 
 
 /////////////// SetItemInt.proto ///////////////
 
-#define __Pyx_SetItemInt(o, i, v, type, is_signed, to_py_func, is_list, wraparound, boundscheck) \
+#define __Pyx_SetItemInt(o, i, v, type, is_signed, to_py_func, is_list, wraparound, boundscheck, has_gil) \
     (__Pyx_fits_Py_ssize_t(i, type, is_signed) ? \
     __Pyx_SetItemInt_Fast(o, (Py_ssize_t)i, v, is_list, wraparound, boundscheck) : \
     (is_list ? (PyErr_SetString(PyExc_IndexError, "list assignment index out of range"), -1) : \
@@ -629,7 +629,7 @@ static CYTHON_INLINE int __Pyx_SetItemInt_Fast(PyObject *o, Py_ssize_t i, PyObje
 
 /////////////// DelItemInt.proto ///////////////
 
-#define __Pyx_DelItemInt(o, i, type, is_signed, to_py_func, is_list, wraparound, boundscheck) \
+#define __Pyx_DelItemInt(o, i, type, is_signed, to_py_func, is_list, wraparound, boundscheck, has_gil) \
     (__Pyx_fits_Py_ssize_t(i, type, is_signed) ? \
     __Pyx_DelItemInt_Fast(o, (Py_ssize_t)i, is_list, wraparound) : \
     (is_list ? (PyErr_SetString(PyExc_IndexError, "list assignment index out of range"), -1) : \
