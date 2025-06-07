@@ -397,6 +397,8 @@ class IterationTransform(Visitor.EnvTransform):
             lhs = node.target,
             rhs = target_value)
 
+        # analyse with boundscheck and wraparound
+        # off (because we're confident we know the size)
         env = self.current_env()
         new_directives = Options.copy_inherited_directives(env.directives, boundscheck=False, wraparound=False)
         target_assign = Nodes.CompilerDirectivesNode(
@@ -431,11 +433,13 @@ class IterationTransform(Visitor.EnvTransform):
             stats = [
                 length_check_and_target_assign,
                 # exclude node.body for now to not reanalyse it
-                Nodes.ExprStatNode(
+                Nodes.SingleAssignmentNode(
                     node.pos,
-                    expr=ExprNodes.NumBinopNode(
+                    lhs=counter_ref,
+                    rhs=ExprNodes.binop_node(
                         node.pos,
-                        operator="-=" if reversed else "+=",
+                        operator="-" if reversed else "+",
+                        inplace=True,
                         operand1=counter_ref,
                         operand2=ExprNodes.IntNode(node.pos, value="1", constant_result=1, type=PyrexTypes.c_py_ssize_t_type)
                     )
