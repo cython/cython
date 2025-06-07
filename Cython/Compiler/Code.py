@@ -2255,6 +2255,8 @@ class CCodeWriter:
         return self.buffer.getvalue()
 
     def write(self, s):
+        if "__Pyx_GOTREF(__pyx_8genexpr4__pyx_v_8dictcomp_i);" in s:
+            breakpoint()
         if '\n' in s:
             self._write_lines(s)
         else:
@@ -2737,40 +2739,76 @@ class CCodeWriter:
         self.put_incref_memoryviewslice(entry.cname, entry.type, have_gil=have_gil)
 
     def put_var_gotref(self, entry):
-        self.put_gotref(entry.cname, entry.type)
+        cname = entry.cname
+        if entry.is_declared_in_module_state():
+            cname = self.name_in_module_state(cname)
+        self.put_gotref(cname, entry.type)
 
     def put_var_giveref(self, entry):
-        self.put_giveref(entry.cname, entry.type)
+        cname = entry.cname
+        if entry.is_declared_in_module_state():
+            cname = self.name_in_module_state(cname)
+        self.put_giveref(cname, entry.type)
 
     def put_var_xgotref(self, entry):
-        self.put_xgotref(entry.cname, entry.type)
+        cname = entry.cname
+        if entry.is_declared_in_module_state():
+            cname = self.name_in_module_state(cname)
+        self.put_xgotref(cname, entry.type)
 
     def put_var_xgiveref(self, entry):
-        self.put_xgiveref(entry.cname, entry.type)
+        cname = entry.cname
+        if entry.is_declared_in_module_state():
+            cname = self.name_in_module_state(cname)
+        self.put_xgiveref(cname, entry.type)
 
     def put_var_incref(self, entry, **kwds):
-        self.put_incref(entry.cname, entry.type, **kwds)
+        cname = entry.cname
+        if entry.is_declared_in_module_state():
+            cname = self.name_in_module_state(cname)
+        self.put_incref(cname, entry.type, **kwds)
 
     def put_var_xincref(self, entry, **kwds):
-        self.put_xincref(entry.cname, entry.type, **kwds)
+        cname = entry.cname
+        if entry.is_declared_in_module_state():
+            cname = self.name_in_module_state(cname)
+        self.put_xincref(cname, entry.type, **kwds)
 
     def put_var_decref(self, entry, **kwds):
-        self.put_decref(entry.cname, entry.type, **kwds)
+        cname = entry.cname
+        if entry.is_declared_in_module_state():
+            cname = self.name_in_module_state(cname)
+        self.put_decref(cname, entry.type, **kwds)
 
     def put_var_xdecref(self, entry, **kwds):
-        self.put_xdecref(entry.cname, entry.type, **kwds)
+        cname = entry.cname
+        if entry.is_declared_in_module_state():
+            cname = self.name_in_module_state(cname)
+        self.put_xdecref(cname, entry.type, **kwds)
 
     def put_var_decref_clear(self, entry, **kwds):
-        self.put_decref_clear(entry.cname, entry.type, clear_before_decref=entry.in_closure, **kwds)
+        cname = entry.cname
+        if entry.is_declared_in_module_state():
+            cname = self.name_in_module_state(cname)
+        self.put_decref_clear(cname, entry.type, clear_before_decref=entry.in_closure, **kwds)
 
     def put_var_decref_set(self, entry, rhs_cname, **kwds):
-        self.put_decref_set(entry.cname, entry.type, rhs_cname, **kwds)
+        cname = entry.cname
+        if entry.is_declared_in_module_state():
+            cname = self.name_in_module_state(cname)
+        self.put_decref_set(cname, entry.type, rhs_cname, **kwds)
 
     def put_var_xdecref_set(self, entry, rhs_cname, **kwds):
-        self.put_xdecref_set(entry.cname, entry.type, rhs_cname, **kwds)
+        cname = entry.cname
+        if entry.is_declared_in_module_state():
+            cname = self.name_in_module_state(cname)
+        self.put_xdecref_set(cname, entry.type, rhs_cname, **kwds)
 
     def put_var_xdecref_clear(self, entry, **kwds):
-        self.put_xdecref_clear(entry.cname, entry.type, clear_before_decref=entry.in_closure, **kwds)
+        cname = entry.cname
+        if entry.is_declared_in_module_state():
+            cname = self.name_in_module_state(cname)
+        self.put_xdecref_clear(cname, entry.type, clear_before_decref=entry.in_closure, **kwds)
 
     def put_var_decrefs(self, entries, used_only = 0):
         for entry in entries:

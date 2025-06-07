@@ -260,7 +260,7 @@ class Entry:
             self.__dict__['type'] = new_type
 
     def is_declared_in_module_state(self):
-        if not self.scope.is_module_scope:
+        if self.scope.is_builtin_scope:
             return False
         if self.is_pyglobal or self.is_cclass_var_entry:
             return True
