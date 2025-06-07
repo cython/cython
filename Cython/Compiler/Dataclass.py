@@ -306,13 +306,16 @@ def handle_cclass_dataclass(node, dataclass_args, analyse_decs_transform):
         if dataclass_args[0]:
             error(node.pos, "cython.dataclasses.dataclass takes no positional arguments")
         for k, v in dataclass_args[1].items():
+            if k in kwargs and isinstance(v, ExprNodes.BoolNode):
+                kwargs[k] = v.value
+                continue
+
             if k not in kwargs:
                 error(node.pos,
                       "cython.dataclasses.dataclass() got an unexpected keyword argument '%s'" % k)
             if not isinstance(v, ExprNodes.BoolNode):
                 error(node.pos,
                       "Arguments passed to cython.dataclasses.dataclass must be True or False")
-            kwargs[k] = v.value
 
     kw_only = kwargs['kw_only']
 
@@ -328,10 +331,10 @@ def handle_cclass_dataclass(node, dataclass_args, analyse_decs_transform):
     dataclass_params_keywords = ExprNodes.DictNode.from_pairs(
         node.pos,
         [ (ExprNodes.IdentifierStringNode(node.pos, value=EncodedString(k)),
-           ExprNodes.BoolNode(node.pos, value=v))
+           ExprNodes.BoolNode(node.pos, value=v, type=Builtin.bool_type))
           for k, v in kwargs.items() ] +
         [ (ExprNodes.IdentifierStringNode(node.pos, value=EncodedString(k)),
-           ExprNodes.BoolNode(node.pos, value=v))
+           ExprNodes.BoolNode(node.pos, value=v, type=Builtin.bool_type))
           for k, v in [('kw_only', kw_only),
                        ('slots', False), ('weakref_slot', False)]
         ])
