@@ -66,6 +66,7 @@ def inspect_signature(a, b, c=123, *, d=234):
 #     return inspect_signature.__signature__
 
 
+@skip_if_limited_api("tp_dictoffset not set", min_runtime_version=(3, 9))
 def test_dict():
     """
     >>> test_dict.foo = 123
@@ -415,6 +416,12 @@ def test_firstlineno_decorated_function():
     l2 = test_firstlineno_decorated_function.__code__.co_firstlineno
     return l2 - l1
 
+def test_module():
+    """
+    See module-level docstring. doctest uses __module__ to decide what to run. So if it's wrong
+    then we don't run the tests, and never find out about the failure!
+    """
+    pass
 
 def test_fused_module(cython.numeric arg):
     """
@@ -423,20 +430,23 @@ def test_fused_module(cython.numeric arg):
     """
     pass
 
-__doc__ = ""
-
-if not CYTHON_COMPILING_IN_LIMITED_API or sys.version_info >= (3, 9):
-    # https://bugs.python.org/issue38140 and/or https://bugs.python.org/issue40703
-    __doc__ += """
-    >>> test_fused_module.__module__
-    'cyfunction'
-
-    # TODO gh-6841
-    #>>> type(test_fused_module).__module__.startswith("_cython")
-    # True
-    >>> test_fused_module.__module__ = "something_else"
-    >>> test_fused_module.__module__
-    'something_else'
-    >>> del test_fused_module.__module__
-    >>> test_fused_module.__module__
-    """
+__doc__ = """
+>>> test_module.__module__
+'cyfunction'
+>>> type(test_module).__module__.startswith("_cython")
+True
+>>> test_module.__module__ = "something_else"
+>>> test_module.__module__
+'something_else'
+>>> del test_module.__module__
+>>> test_module.__module__
+>>> test_fused_module.__module__
+'cyfunction'
+>>> type(test_fused_module).__module__.startswith("_cython")
+True
+>>> test_fused_module.__module__ = "something_else"
+>>> test_fused_module.__module__
+'something_else'
+>>> del test_fused_module.__module__
+>>> test_fused_module.__module__
+"""

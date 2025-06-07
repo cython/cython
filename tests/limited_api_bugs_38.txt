@@ -1,6 +1,7 @@
 # __dict__ doesn't work on cdef classes
 run[.]cdef_multiple_inheritance$
 test_grammar
+dynamic_attributes
 
 # To do with missing attributes when initializing types
 weakfail
