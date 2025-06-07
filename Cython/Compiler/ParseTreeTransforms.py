@@ -3745,6 +3745,23 @@ class GilCheck(VisitorTransform):
         nogil_state = Nodes.NoGilState.NoGil if is_nogil else Nodes.NoGilState.HasGil
         self._visit_scoped_children(node, nogil_state)
         self.nogil_state_at_current_gilstatnode = nogil_state_at_current_gilstatnode
+
+        # Drop pointless nested `with gil: with nogil:` blocks.
+        # These can occur during the generation of prange/parallel sections for example.
+        node_body = node.body
+        if (isinstance(node_body, Nodes.StatListNode) and len(node_body.stats) == 1):
+            node_body = node_body.stats[0]
+        if isinstance(node_body, Nodes.GILStatNode):
+            assert node_body.state != node.state, f"{node_body.state} {node.pos}"
+            if not node.scope_gil_state_known:
+                node_body.scope_gil_state_known = False
+                node_body.finally_clause.scope_gil_state_known = False
+                if node_body.finally_except_clause is not None:
+                    node_body.finally_except_clause.scope_gil_state_known = False
+                return node_body
+            else:
+                return node_body.body
+
         return node
 
     def visit_ParallelRangeNode(self, node):

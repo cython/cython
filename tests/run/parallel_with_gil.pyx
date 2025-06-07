@@ -6,6 +6,7 @@
 # cython: freethreading_compatible=True
 
 from cython.parallel import prange, parallel, threadid
+cimport cython
 cimport openmp
 
 # A very simple test function to call while holding the gil.
@@ -27,7 +28,8 @@ def test_parallel_with_python():
     for i in range(maxthreads):
         assert lst[i] == i
 
-# TEST ASSERT
+@cython.test_assert_path_exists("//GILStatNode[@state='nogil']//ParallelWithBlockNode[@acquire_gil=True]")
+@cython.test_fail_if_path_exists("//GILStatNode//GILStatNode")
 def test_parallel_nogil_with_python():
     """
     >>> test_parallel_nogil_with_python()
@@ -47,13 +49,14 @@ def test_parallel_nogil_with_python():
     for i in range(maxthreads):
         assert lst[i] == i
 
-# TEST ASSERT
+@cython.test_assert_path_exists("//GILStatNode[@state='nogil']//ParallelWithBlockNode[@acquire_gil=True]")
+@cython.test_fail_if_path_exists("//GILStatNode//GILStatNode")
 cdef void test_parallel_maybe_nogil_with_python_impl() nogil:
     cdef int maxthreads = openmp.omp_get_max_threads()
     with gil:
         lst = [None]*maxthreads
 
-    # Although this is how we want user's to write it, we should transform it to minimize
+    # Although this is how we want users to write it, we should transform it to minimize
     # juggling the GIL.
     with gil:
         with parallel():
@@ -93,7 +96,8 @@ def test_prange_with_python():
     for i in range(100):
         assert out[i] == i
 
-# TEST ASSERT
+@cython.test_assert_path_exists("//GILStatNode[@state='nogil']//ParallelRangeNode[@acquire_gil=True]")
+@cython.test_fail_if_path_exists("//GILStatNode//GILStatNode")
 def test_prange_nogil_with_python():
     """
     >>> test_prange_nogil_with_python()
@@ -112,7 +116,8 @@ def test_prange_nogil_with_python():
     for i in range(100):
         assert out[i] == i
 
-# TEST ASSERT
+@cython.test_assert_path_exists("//GILStatNode[@state='nogil']//ParallelRangeNode[@acquire_gil=True]")
+@cython.test_fail_if_path_exists("//GILStatNode//GILStatNode")
 cdef void test_prange_maybe_nogil_with_python_impl() nogil:
     cdef int i = 0
 
