@@ -4626,6 +4626,12 @@ class IndexNode(_IndexingBaseNode):
                      and self.index.constant_result >= 0))
             boundscheck = bool(code.globalstate.directives['boundscheck'])
             has_gil = not self.in_nogil_context
+            if (self.base.type is bytearray_type and not has_gil and (boundscheck or wraparound)
+                    and code.globalstate.directives['freethreading_compatible']):
+                performance_hint(
+                    self.pos, "Indexing bytearrays with 'boundscheck' or 'wraparound' in a 'nogil' section "
+                        "requires reacquiring the Python thread-state on freethreaded builds.",
+                        code.globalstate)
             return ", %s, %d, %s, %d, %d, %d, %d" % (
                 self.original_index_type.empty_declaration_code(),
                 self.original_index_type.signed and 1 or 0,
