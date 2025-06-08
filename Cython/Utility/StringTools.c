@@ -337,18 +337,13 @@ static CYTHON_INLINE int __Pyx_GetItemInt_ByteArray_Fast(PyObject* string, Py_ss
 #endif
     if (wraparound | boundscheck) {
         int result;
-#if CYTHON_COMPILING_IN_CPYTHON_FREETHREADING
-        PyGILState_STATE gil_state;
-        if (!has_gil) gil_state = PyGILState_Ensure();
         // What we're guarding here is just that the size isn't mutating from under us.
         // The aim isn't to make the character read-writes atomic (although practically they probably are).
-        __Pyx_BEGIN_CRITICAL_SECTION(string);
-#endif
+        // For simplicity, skip the critical section if we don't have the GIL. It's the user's problem!
+        __Pyx_PyCriticalSection cs;
+        if (has_gil) __Pyx_PyCriticalSection_Begin1(cs, string);
         result = __Pyx_GetItemInt_ByteArray_Fast_Locked(string, i, wraparound, boundscheck, has_gil);
-#if CYTHON_COMPILING_IN_CPYTHON_FREETHREADING
-        __Pyx_END_CRITICAL_SECTION();
-        if (!has_gil) PyGILState_Release(gil_state);
-#endif
+        if (has_gil) __Pyx_PyCriticalSection_End1(cs);
         return result;
     } else {
         #if !CYTHON_ASSUME_SAFE_MACROS
@@ -406,18 +401,13 @@ static CYTHON_INLINE int __Pyx_SetItemInt_ByteArray_Fast(PyObject* string, Py_ss
 #endif
     if (wraparound | boundscheck) {
         int result;
-#if CYTHON_COMPILING_IN_CPYTHON_FREETHREADING
-        PyGILState_STATE gil_state;
-        if (!has_gil) gil_state = PyGILState_Ensure();
         // What we're guarding here is just that the size isn't mutating from under us.
         // The aim isn't to make the character read-writes atomic (although practically they probably are).
-        __Pyx_BEGIN_CRITICAL_SECTION(string);
-#endif
+        // For simplicity, skip the critical section if we don't have the GIL. It's the user's problem!
+        __Pyx_PyCriticalSection cs;
+        if (has_gil) __Pyx_PyCriticalSection_Begin1(cs, string);
         result = __Pyx_SetItemInt_ByteArray_Fast_Locked(string, i, v, wraparound, boundscheck, has_gil);
-#if CYTHON_COMPILING_IN_CPYTHON_FREETHREADING
-        __Pyx_END_CRITICAL_SECTION();
-        if (!has_gil) PyGILState_Release(gil_state);
-#endif
+        if (has_gil) __Pyx_PyCriticalSection_End1(cs);
         return result;
     } else {
         #if !CYTHON_ASSUME_SAFE_MACROS
