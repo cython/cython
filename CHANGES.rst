@@ -48,7 +48,7 @@ Bugs fixed
 * Includes all fixes as of Cython 3.1.2.
 
 
-3.1.2 (2025-??-??)
+3.1.2 (2025-06-08)
 ==================
 
 Bugs fixed
@@ -69,6 +69,15 @@ Bugs fixed
 * Calls to C functions taking exception types failed to check for a `None` argument.
   (Github issue :issue:`6420`)
 
+* Fused functions had an incorrect ``__module__`` attribute.
+  (Github issue :issue:`6897`)
+
+* The type of Cython implemented functions had an incorrect ``__module__`` attribute.
+  (Github issue :issue:`6841`)
+
+* Errors while indexing into ``bytearray`` or ``str`` in ``nogil`` sections could crash.
+  (Github issue :issue:`6947`)
+
 * The C++11 ``<type_traits>`` header was included regardless of the C++ version.
   (Github issue :issue:`6896`)
 
@@ -83,6 +92,9 @@ Bugs fixed
 
 * Embedded function signatures were not always separated from the existing docstring.
   (Github issue :issue:`6904`)
+
+* ``numpy.math`` was missing from ``Cython/Includes/`` and could not be cimported.
+  (Github issue :issue:`6859`)
 
 * Some tests were adapted for NumPy 2.x.
   (Github issue :issue:`6898`)
