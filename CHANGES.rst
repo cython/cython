@@ -2,7 +2,7 @@
 Cython Changelog
 ================
 
-3.1.2 (2025-06-08)
+3.1.2 (2025-06-09)
 ==================
 
 Bugs fixed
@@ -31,6 +31,8 @@ Bugs fixed
 
 * Errors while indexing into ``bytearray`` or ``str`` in ``nogil`` sections could crash.
   (Github issue :issue:`6947`)
+
+* ``bytearray.append()`` could silently accept some invalid character numbers.
 
 * The C++11 ``<type_traits>`` header was included regardless of the C++ version.
   (Github issue :issue:`6896`)
