@@ -3083,6 +3083,11 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("%s = PyUnicode_FromStringAndSize(\"\", 0); %s" % (
             empty_unicode, code.error_goto_if_null(empty_unicode, self.pos)))
 
+        code.putln("/*--- Initialize various global constants etc. ---*/")
+        code.put_error_if_neg(self.pos, f"__Pyx_InitConstants({Naming.modulestatevalue_cname})")
+        code.putln("stringtab_initialized = 1;")
+        code.put_error_if_neg(self.pos, "__Pyx_InitGlobals()")  # calls any utility code
+
         shared_types = ('CyFunction', 'FusedFunction', 'Coroutine', 'Generator', 'AsyncGen')
         code.put("#if 0")
         for ext_type in shared_types:
@@ -3099,11 +3104,6 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("/*--- Library function declarations ---*/")
         if env.directives['np_pythran']:
             code.put_error_if_neg(self.pos, "_import_array()")
-
-        code.putln("/*--- Initialize various global constants etc. ---*/")
-        code.put_error_if_neg(self.pos, f"__Pyx_InitConstants({Naming.modulestatevalue_cname})")
-        code.putln("stringtab_initialized = 1;")
-        code.put_error_if_neg(self.pos, "__Pyx_InitGlobals()")  # calls any utility code
 
         code.putln("if (%s) {" % self.is_main_module_flag_cname())
         code.put_error_if_neg(self.pos, 'PyObject_SetAttr(%s, %s, %s)' % (
