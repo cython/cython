@@ -3083,7 +3083,15 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("%s = PyUnicode_FromStringAndSize(\"\", 0); %s" % (
             empty_unicode, code.error_goto_if_null(empty_unicode, self.pos)))
 
-        for ext_type in ('CyFunction', 'FusedFunction', 'Coroutine', 'Generator', 'AsyncGen'):
+        shared_types = ('CyFunction', 'FusedFunction', 'Coroutine', 'Generator', 'AsyncGen')
+        code.put("#if 0")
+        for ext_type in shared_types:
+            code.put(f" || defined(__Pyx_{ext_type}_USED)")
+        code.putln("")
+        code.put_error_if_neg(self.pos, f"__pyx_CommonTypesMetaclass_init({env.module_cname})")
+        code.putln("#endif")
+
+        for ext_type in shared_types:
             code.putln("#ifdef __Pyx_%s_USED" % ext_type)
             code.put_error_if_neg(self.pos, "__pyx_%s_init(%s)" % (ext_type, env.module_cname))
             code.putln("#endif")

@@ -151,11 +151,6 @@ Py_VISIT(traverse_module_state->__pyx_CommonTypesMetaclassType);
 
 Py_CLEAR(clear_module_state->__pyx_CommonTypesMetaclassType);
 
-//////////////////// CommonTypesMetaclass.init //////////////////
-//@substitute: naming
-
-if (likely(__pyx_CommonTypesMetaclass_init($module_cname) == 0)); else
-
 /////////////////////////// CommonTypesMetaclass.proto ////////////////////////
 
 static int __pyx_CommonTypesMetaclass_init(PyObject *module); /* proto */
