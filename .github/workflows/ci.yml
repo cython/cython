@@ -245,7 +245,7 @@ jobs:
           fetch-depth: 1
 
       - name: Setup python
-        uses: actions/setup-python@v5.5.0
+        uses: actions/setup-python@v5.6.0
         with:
           python-version: ${{ matrix.python-version }}
 
@@ -262,14 +262,14 @@ jobs:
         run: bash ./Tools/ci-run.sh
 
       - name: Upload HTML docs
-        uses: actions/upload-artifact@v4.3.0
+        uses: actions/upload-artifact@v4.6.2
         with:
           name: htmldocs
           path: docs/build/html
           if-no-files-found: ignore
 
       - name: Upload wheels
-        uses: actions/upload-artifact@v4.3.0
+        uses: actions/upload-artifact@v4.6.2
         with:
           name: wheels-${{ runner.os }}-${{ matrix.python-version }}${{ matrix.extra_hash }}
           path: dist/*.whl
@@ -290,7 +290,7 @@ jobs:
         uses: actions/checkout@v4.1.1
 
       - name: Setup python
-        uses: actions/setup-python@v5.5.0
+        uses: actions/setup-python@v5.6.0
         with:
           python-version: "3.11"
 
@@ -303,7 +303,7 @@ jobs:
           if [ -f coverage-report.md ]; then { echo "## Python coverage results:"; cat coverage-report.md ; } >> $GITHUB_STEP_SUMMARY; fi
 
       - name: Upload Coverage HTML Report
-        uses: actions/upload-artifact@v4.3.0
+        uses: actions/upload-artifact@v4.6.2
         with:
           name: pycoverage_html
           path: coverage-report-html
@@ -324,7 +324,7 @@ jobs:
           fetch-depth: 1
 
       - name: Setup python
-        uses: actions/setup-python@v5.5.0
+        uses: actions/setup-python@v5.6.0
         with:
           python-version: "3.11"
 
@@ -337,7 +337,7 @@ jobs:
           if [ -f coverage-report.md ]; then { echo "## Compiled coverage results:"; cat coverage-report.md ; } >> $GITHUB_STEP_SUMMARY; fi
 
       - name: Upload Coverage HTML Report
-        uses: actions/upload-artifact@v4.3.0
+        uses: actions/upload-artifact@v4.6.2
         with:
           name: cycoverage_html
           path: coverage-report-html
@@ -361,7 +361,7 @@ jobs:
           max-size: 200M
 
       - name: Setup python
-        uses: actions/setup-python@v5.5.0
+        uses: actions/setup-python@v5.6.0
         with:
           # List special Pythons first to keep the 'normal' one as (last) "python3.xy".
           python-version: |
@@ -393,7 +393,7 @@ jobs:
           { echo "## Benchmark results:"; echo; python Demos/benchmarks/report.py benchmark_results_*.csv; } >> $GITHUB_STEP_SUMMARY
 
       - name: Upload results
-        uses: actions/upload-artifact@v4.3.0
+        uses: actions/upload-artifact@v4.6.2
         with:
           name: benchmark_results.txt
           path: benchmarks.log
