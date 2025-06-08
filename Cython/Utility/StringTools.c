@@ -1119,7 +1119,7 @@ static CYTHON_INLINE int __Pyx_PyByteArray_AppendObject(PyObject* bytearray, PyO
             ival = 0;
         } else {
             ival = __Pyx_PyLong_CompactValue(value);
-            if (unlikely(ival > 255)) goto bad_range;
+            if (unlikely(!__Pyx_is_valid_index(ival, 256))) goto bad_range;
         }
     } else
 #endif
@@ -1132,7 +1132,7 @@ static CYTHON_INLINE int __Pyx_PyByteArray_AppendObject(PyObject* bytearray, PyO
             goto bad_range;
         }
     }
-    return __Pyx_PyByteArray_Append(bytearray, ival);
+    return __Pyx_PyByteArray_Append(bytearray, (int) ival);
 bad_range:
     PyErr_SetString(PyExc_ValueError, "byte must be in range(0, 256)");
     return -1;
