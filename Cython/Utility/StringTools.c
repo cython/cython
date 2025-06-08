@@ -1153,7 +1153,7 @@ static CYTHON_INLINE int __Pyx_PyByteArray_Append(PyObject* bytearray, int value
         if (likely(n != PY_SSIZE_T_MAX)) {
             if (unlikely(PyByteArray_Resize(bytearray, n + 1) < 0))
                 return -1;
-            PyByteArray_AS_STRING(bytearray)[n] = value;
+            PyByteArray_AS_STRING(bytearray)[n] = (char) (unsigned char) value;
             return 0;
         }
     } else {
