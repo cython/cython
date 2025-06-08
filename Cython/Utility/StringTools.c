@@ -323,7 +323,7 @@ static CYTHON_INLINE int __Pyx_GetItemInt_ByteArray_Fast_Locked(PyObject* string
         return (unsigned char) (PyByteArray_AS_STRING(string)[i]);
         #endif
     } else {
-        __Pyx_SetStringIndexingError("bytearray index out of range", CYTHON_COMPILING_IN_CPYTHON_FREETHREADING || has_gil);
+        __Pyx_SetStringIndexingError("bytearray index out of range", has_gil);
         return -1;
     }
 }
@@ -387,7 +387,7 @@ static CYTHON_INLINE int __Pyx_SetItemInt_ByteArray_Fast_Locked(PyObject* string
         #endif
         return 0;
     } else {
-        __Pyx_SetStringIndexingError("bytearray index out of range", CYTHON_COMPILING_IN_CPYTHON_FREETHREADING || has_gil);
+        __Pyx_SetStringIndexingError("bytearray index out of range", has_gil);
         return -1;
     }
 }
