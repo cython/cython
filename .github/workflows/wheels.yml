@@ -42,8 +42,7 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
   cancel-in-progress: true
 
-permissions:
-  contents: write # to create GitHub release (softprops/action-gh-release)
+permissions: {}
 
 jobs:
   generate-wheels-matrix:
@@ -114,15 +113,6 @@ jobs:
         # consider running a subset in the future?
         #CIBW_TEST_COMMAND: python {project}/runtests.py -vv
 
-      - name: Release
-        uses: softprops/action-gh-release@v2
-        if: startsWith(github.ref, 'refs/tags/')
-        with:
-          files: wheelhouse/*.whl
-          prerelease: >-
-            ${{ contains(github.ref_name, 'a') || contains(github.ref_name, 'b')
-              || contains(github.ref_name, 'rc') || contains(github.ref_name, 'dev') }}
-
       - uses: actions/upload-artifact@v4.6.2
         with:
           name: ${{ matrix.only }}
@@ -164,13 +154,37 @@ jobs:
           name: pure-wheel
           path: ./dist/*.whl
 
+  upload_release_assets:
+    name: Upload Release Assets
+    needs: [ build_sdist_pure_wheel, build_wheels ]
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: write  # to create GitHub release (softprops/action-gh-release)
+
+    steps:
+      - name: Download artifacts
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          path: ./release_upload
+          merge-multiple: true
+
+      - name: List downloaded artifacts
+        run: ls -la ./release_upload
+
+      - name: Upload wheels
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          path: ./release_upload/*.whl
+          name: all_wheels
+
       - name: Release
         uses: softprops/action-gh-release@v2
-        if: startsWith(github.ref, 'refs/tags/')
+        if: github.ref_type == 'tag'
         with:
           files: |
-            dist/*.tar.gz
-            dist/*-none-any.whl
+            ./release_upload/*.whl
+            ./release_upload/*.tar.gz
           prerelease: >-
             ${{ contains(github.ref_name, 'a') || contains(github.ref_name, 'b')
               || contains(github.ref_name, 'rc') || contains(github.ref_name, 'dev') }}
