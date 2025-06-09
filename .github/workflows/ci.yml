@@ -253,6 +253,7 @@ jobs:
         uses: hendrikmuhs/ccache-action@v1.2.18
         with:
           variant: ${{ startsWith(runner.os, 'windows') && 'sccache' || 'ccache' }}  # fake ternary
+          create-symlink: ${{ startsWith(runner.os, 'windows') && 'true' || 'false' }}  # fake ternary
           key: ${{ runner.os }}-hendrikmuhs-ccache${{ matrix.extra_hash }}-${{ matrix.python-version }}-${{ matrix.backend == 'c' || matrix.backend == 'c,cpp' }}-${{ contains(matrix.backend, 'cpp') }}-${{ hashFiles('test-requirements*.txt', '.github/**/ci.yml', 'Tools/**/ci-run.sh') }}
           max-size: ${{ env.CCACHE_MAXSIZE }}
 
