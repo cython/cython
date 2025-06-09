@@ -278,7 +278,6 @@ jobs:
 
   pycoverage:
     runs-on: ubuntu-22.04
-    needs: [ benchmarks ]  # order summary report output
 
     env:
       BACKEND: c,cpp
