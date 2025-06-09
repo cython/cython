@@ -709,8 +709,6 @@ class UtilityCode(UtilityCodeBase):
 
         self.shared = []
         if shared_params:
-            print('=================', shared_params)
-            # breakpoint()
             if isinstance(shared_params, str):
                 shared_params = [shared_params]
             for sh in shared_params:
@@ -808,8 +806,6 @@ class UtilityCode(UtilityCodeBase):
 
     def put_code(self, output):
 
-        # if self.name == 'TypeConversions':
-        #     breakpoint()
         if self.requires and ((self.shared_load_requires and output.module_node.scope.context.shared_utility_qualified_name) or not output.module_node.scope.context.shared_utility_qualified_name):
             for dependency in self.requires:
                 output.use_utility_code(dependency)
@@ -1631,8 +1627,6 @@ class GlobalState:
                         f'{shared["ret"]}({shared["params"]})',
                         code.error_goto(self.module_pos))
                 )
-            # code.put_decref_clear(temp, py_object_type)
-            # code.funcstate.release_temp(temp)
         elif self.module_node.scope.context.options.shared_c_file_path:
             code = self.parts['c_function_export_code']
             for shared in self.shared_utility_functions:
