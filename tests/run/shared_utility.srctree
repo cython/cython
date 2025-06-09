@@ -46,6 +46,7 @@ def func2(a):
     a.pop()
 
 ######## pkg1/RaiseException.pyx ########
+# RaiseException
 
 def raise_error():
     raise ValueError

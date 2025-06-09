@@ -3798,7 +3798,6 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                         entry.cname,
                         entry.type.signature_string(),
                         code.error_goto(self.pos)))
-
             code.put_decref_clear(temp, py_object_type)
             code.funcstate.release_temp(temp)
 
