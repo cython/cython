@@ -236,7 +236,8 @@ jobs:
       USE_CCACHE: 1
       CCACHE_SLOPPINESS: "pch_defines,time_macros"
       CCACHE_COMPRESS: 1
-      CCACHE_MAXSIZE: "200M"
+      CCACHE_COMPRESSLEVEL: 3
+      CCACHE_MAXSIZE: "250M"
 
     steps:
       - name: Checkout repo
@@ -345,6 +346,11 @@ jobs:
   benchmarks:
     runs-on: ubuntu-latest
 
+    env:
+      CCACHE_SLOPPINESS: "pch_defines,time_macros"
+      CCACHE_COMPRESS: 1
+      CCACHE_COMPRESSLEVEL: 5
+
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4.1.1
@@ -358,7 +364,7 @@ jobs:
           create-symlink: true
           variant: ${{ startsWith(runner.os, 'windows') && 'sccache' || 'ccache' }}  # fake ternary
           key: ${{ runner.os }}-hendrikmuhs-ccache-benchmarks
-          max-size: 200M
+          max-size: 500M
 
       - name: Setup python
         uses: actions/setup-python@v5.6.0
