@@ -306,27 +306,45 @@ static CYTHON_INLINE int __Pyx_GetItemInt_ByteArray_Fast(PyObject* string, Py_ss
                                                          int wraparound, int boundscheck, int has_gil);
 
 //////////////////// GetItemIntByteArray ////////////////////
+//@requires: ModuleSetupCode.c::CriticalSections
+
+static CYTHON_INLINE int __Pyx_GetItemInt_ByteArray_Fast_Locked(PyObject* string, Py_ssize_t i,
+                                                                int wraparound, int boundscheck, int has_gil) {                                             
+    Py_ssize_t length = __Pyx_PyByteArray_GET_SIZE(string);
+    #if !CYTHON_ASSUME_SAFE_SIZE
+    if (unlikely(length < 0)) return -1;
+    #endif
+    if (wraparound & unlikely(i < 0)) i += length;
+    if ((!boundscheck) || likely(__Pyx_is_valid_index(i, length))) {
+        #if !CYTHON_ASSUME_SAFE_MACROS
+        char *asString = PyByteArray_AsString(string);
+        return likely(asString) ? (unsigned char) asString[i] : -1;
+        #else
+        return (unsigned char) (PyByteArray_AS_STRING(string)[i]);
+        #endif
+    } else {
+        __Pyx_SetStringIndexingError("bytearray index out of range", has_gil);
+        return -1;
+    }
+}
 
 static CYTHON_INLINE int __Pyx_GetItemInt_ByteArray_Fast(PyObject* string, Py_ssize_t i,
                                                          int wraparound, int boundscheck, int has_gil) {
-    Py_ssize_t length;
+#if CYTHON_COMPILING_IN_CPYTHON_FREETHREADING
+    // In freethreaded Python, wraparound is expensive because it involves acquiring a lock and maybe also the GIL.
+    // Therefore we skip it if it isn't needed.
+    wraparound = wraparound && i<0;
+#endif
     if (wraparound | boundscheck) {
-        length = __Pyx_PyByteArray_GET_SIZE(string);
-        #if !CYTHON_ASSUME_SAFE_SIZE
-        if (unlikely(length < 0)) return -1;
-        #endif
-        if (wraparound & unlikely(i < 0)) i += length;
-        if ((!boundscheck) || likely(__Pyx_is_valid_index(i, length))) {
-            #if !CYTHON_ASSUME_SAFE_MACROS
-            char *asString = PyByteArray_AsString(string);
-            return likely(asString) ? (unsigned char) asString[i] : -1;
-            #else
-            return (unsigned char) (PyByteArray_AS_STRING(string)[i]);
-            #endif
-        } else {
-            __Pyx_SetStringIndexingError("bytearray index out of range", has_gil);
-            return -1;
-        }
+        int result;
+        // What we're guarding here is just that the size isn't mutating from under us.
+        // The aim isn't to make the character read-writes atomic (although practically they probably are).
+        // For simplicity, skip the critical section if we don't have the GIL. It's the user's problem!
+        __Pyx_PyCriticalSection cs;
+        if (has_gil) __Pyx_PyCriticalSection_Begin1(&cs, string);
+        result = __Pyx_GetItemInt_ByteArray_Fast_Locked(string, i, wraparound, boundscheck, has_gil);
+        if (has_gil) __Pyx_PyCriticalSection_End1(&cs);
+        return result;
     } else {
         #if !CYTHON_ASSUME_SAFE_MACROS
         char *asString = PyByteArray_AsString(string);
@@ -350,29 +368,47 @@ static CYTHON_INLINE int __Pyx_SetItemInt_ByteArray_Fast(PyObject* string, Py_ss
                                                          int wraparound, int boundscheck, int has_gil);
 
 //////////////////// SetItemIntByteArray ////////////////////
+//@requires: ModuleSetupCode.c::CriticalSections
+
+static CYTHON_INLINE int __Pyx_SetItemInt_ByteArray_Fast_Locked(PyObject* string, Py_ssize_t i, unsigned char v,
+                                                                int wraparound, int boundscheck, int has_gil) {
+    Py_ssize_t length = __Pyx_PyByteArray_GET_SIZE(string);
+    #if !CYTHON_ASSUME_SAFE_SIZE
+    if (unlikely(length < 0)) return -1;
+    #endif
+    if (wraparound & unlikely(i < 0)) i += length;
+    if ((!boundscheck) || likely(__Pyx_is_valid_index(i, length))) {
+        #if !CYTHON_ASSUME_SAFE_MACROS
+        char *asString = PyByteArray_AsString(string);
+        if (unlikely(!asString)) return -1;
+        asString[i] = (char)v;
+        #else
+        PyByteArray_AS_STRING(string)[i] = (char) v;
+        #endif
+        return 0;
+    } else {
+        __Pyx_SetStringIndexingError("bytearray index out of range", has_gil);
+        return -1;
+    }
+}
 
 static CYTHON_INLINE int __Pyx_SetItemInt_ByteArray_Fast(PyObject* string, Py_ssize_t i, unsigned char v,
                                                          int wraparound, int boundscheck, int has_gil) {
-    Py_ssize_t length;
+#if CYTHON_COMPILING_IN_CPYTHON_FREETHREADING
+    // In freethreaded Python, wraparound is expensive because it involves acquiring a lock and maybe also the GIL.
+    // Therefore we skip it if it isn't needed.
+    wraparound = wraparound && i<0;
+#endif
     if (wraparound | boundscheck) {
-        length = __Pyx_PyByteArray_GET_SIZE(string);
-        #if !CYTHON_ASSUME_SAFE_SIZE
-        if (unlikely(length < 0)) return -1;
-        #endif
-        if (wraparound & unlikely(i < 0)) i += length;
-        if ((!boundscheck) || likely(__Pyx_is_valid_index(i, length))) {
-            #if !CYTHON_ASSUME_SAFE_MACROS
-            char *asString = PyByteArray_AsString(string);
-            if (unlikely(!asString)) return -1;
-            asString[i] = (char)v;
-            #else
-            PyByteArray_AS_STRING(string)[i] = (char) v;
-            #endif
-            return 0;
-        } else {
-            __Pyx_SetStringIndexingError("bytearray index out of range", has_gil);
-            return -1;
-        }
+        int result;
+        // What we're guarding here is just that the size isn't mutating from under us.
+        // The aim isn't to make the character read-writes atomic (although practically they probably are).
+        // For simplicity, skip the critical section if we don't have the GIL. It's the user's problem!
+        __Pyx_PyCriticalSection cs;
+        if (has_gil) __Pyx_PyCriticalSection_Begin1(&cs, string);
+        result = __Pyx_SetItemInt_ByteArray_Fast_Locked(string, i, v, wraparound, boundscheck, has_gil);
+        if (has_gil) __Pyx_PyCriticalSection_End1(&cs);
+        return result;
     } else {
         #if !CYTHON_ASSUME_SAFE_MACROS
         char *asString = PyByteArray_AsString(string);

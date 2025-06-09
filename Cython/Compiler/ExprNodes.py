@@ -4626,6 +4626,14 @@ class IndexNode(_IndexingBaseNode):
                      and self.index.constant_result >= 0))
             boundscheck = bool(code.globalstate.directives['boundscheck'])
             has_gil = not self.in_nogil_context
+            if (self.base.type is bytearray_type and not has_gil and boundscheck
+                    and code.globalstate.directives['freethreading_compatible']):
+                # In principle this applies to 'wraparound' too. The warning only applies to
+                # 'boundscheck' just so there's an easy way to turn it off.
+                warning(
+                    self.pos, "Indexing a bytearray with 'boundscheck' enabled and without the GIL "
+                    "is not thread-safe on freethreaded Python "
+                    "(disable 'boundscheck' to turn off this warning)", 1)
             return ", %s, %d, %s, %d, %d, %d, %d" % (
                 self.original_index_type.empty_declaration_code(),
                 self.original_index_type.signed and 1 or 0,
