@@ -350,7 +350,7 @@ jobs:
       CCACHE_SLOPPINESS: "pch_defines,time_macros"
       CCACHE_COMPRESS: 1
       CCACHE_COMPRESSLEVEL: 5
-      CFLAGS: -O3 -g1 -mtune=generic
+      CFLAGS: -O3 -g1 -fPIC -mtune=generic
 
     steps:
       - name: Checkout repo
