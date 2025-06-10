@@ -812,14 +812,9 @@ static int __Pyx_CLineForTraceback(PyThreadState *tstate, int c_line) {
     } else
 #endif
     {
-      PyObject *use_cline_obj = __Pyx_PyObject_GetAttrStrNoError(NAMED_CGLOBAL(cython_runtime_cname), PYIDENT("cline_in_traceback"));
-      if (use_cline_obj) {
-        use_cline = PyObject_Not(use_cline_obj) ? Py_False : Py_True;
-        Py_INCREF(use_cline);
-        Py_DECREF(use_cline_obj);
-      } else {
+      use_cline = __Pyx_PyObject_GetAttrStrNoError(NAMED_CGLOBAL(cython_runtime_cname), PYIDENT("cline_in_traceback"));
+      if (!use_cline) {
         PyErr_Clear();
-        use_cline = NULL;
       }
     }
     if (!use_cline) {
@@ -881,9 +876,7 @@ static void __Pyx_AddTraceback(const char *funcname, int c_line,
     PyObject *exc_type, *exc_value, *exc_traceback;
     int success = 0;
     if (c_line) {
-        // Avoid "unused" warning as long as we don't use this.
-        (void) $cfilenm_cname;
-        (void) __Pyx_CLineForTraceback(__Pyx_PyThreadState_Current, c_line);
+        c_line = __Pyx_CLineForTraceback(__Pyx_PyThreadState_Current, c_line);
     }
 
     // DW - this is a horrendous hack, but I'm quite proud of it. Essentially
@@ -900,7 +893,11 @@ static void __Pyx_AddTraceback(const char *funcname, int c_line,
         if (unlikely(!code_object)) goto bad;
         py_py_line = PyLong_FromLong(py_line);
         if (unlikely(!py_py_line)) goto bad;
-        py_funcname = PyUnicode_FromString(funcname);
+        if (c_line) {
+            py_funcname = PyUnicode_FromFormat( "%s (%s:%d)", funcname, $cfilenm_cname, c_line);
+        } else {
+            py_funcname = PyUnicode_FromString(funcname);
+        }
         if (unlikely(!py_funcname)) goto bad;
         dict = PyDict_New();
         if (unlikely(!dict)) goto bad;
