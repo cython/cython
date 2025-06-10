@@ -25,6 +25,8 @@ cdef class UtilityCode(UtilityCodeBase):
     cdef public list specialize_list
     cdef public object file
     cdef public tuple _parts_tuple
+    cdef public bint shared_load_requires
+    cdef public list shared
 
     cpdef none_or_sub(self, s, context)
     # TODO - Signature not compatible with previous declaration
