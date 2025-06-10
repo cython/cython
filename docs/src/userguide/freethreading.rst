@@ -69,7 +69,7 @@ syntax::
     ...
     with cython.critical_section(o):
       ...
-      
+
 Critical sections can take one or two Python objects as arguments.  You are required to
 hold the GIL on entry to a critical section (you can release the GIL inside the critical
 section but that also temporarily releases the critical section so is unlikely to be
@@ -77,7 +77,7 @@ a useful thing to do).
 
 We suggest reading the Python documentation to understand how critical sections work.
 
-* It is guaranteed that the lock will be held when executing code within the 
+* It is guaranteed that the lock will be held when executing code within the
   critical section. However, there is no guarantee that the code block will be executed
   in one atomic action.  This is very similar to the guarantee provided by
   a ``with gil`` block.
@@ -89,43 +89,6 @@ same guarantees simply from the fact you hold the GIL.  Our current experience i
 that this provides slightly less thread-safety than you get in freethreading builds
 simply because Python releases the GIL more readily than it releases a critical
 section.
-
-Locks
------
-
-Cython provides ``cython.pymutex`` as a more robust lock type.  Unlike
-``cython.critical_section`` this will never release the lock unless you explicitly
-ask it to (at the cost of losing ``critical_section``'s inbuilt protection against
-deadlocks).
-
-``cython.pymutex`` supports two operations: ``acquire`` and ``release``.
-``cython.pymutex`` can also be used in a ``with`` statement::
-
-  cdef cython.pymutex l
-  with l:
-      ...  # perform operations with the lock
-  
-  # or manually
-  l.acquire()
-  ...  # perform operations with the lock
-  l.release()
-
-``acquire`` will avoid deadlocks if the GIL is held (only relevant in 
-non-freethreading versions of Python).  However, you are at risk of deadlock
-if you attempt to acquire the GIL while holding a ``cython.pymutex`` lock.
-Be aware that it is also possible for Cython to acquire the GIL implicitly
-(for example by raising an exception) and this is also a deadlock risk.
-
-On Python 3.13+, ``cython.pymutex`` is just a
-`PyMutex <https://docs.python.org/3.13/c-api/init.html#synchronization-primitives>`_
-and so is very low-cost.  On earlier versions of Python, it uses the
-(undocumented) ``PyThread_type_lock``.
-
-``cython.pythread_type_lock`` exposes the same interface but always
-uses ``PyThread_type_lock``.  It is intended for sharing locks between
-modules with the Limited API (since ``PyMutex`` is unavailable in the
-Limited API).  Note that unlike the "raw" ``PyThread_type_lock`` our
-wrapping will avoid deadlocks with the GIL.
 
 As an alternative syntax, ``cython.critical_section`` can be used as a decorator
 or a function taking at least one argument.  In this case the critical section
@@ -144,6 +107,45 @@ lasts the duration of the function and locks on the first argument::
 
 Our expectation is that this will be most useful for locking on the ``self`` argument
 of methods in C classes.
+
+
+Locks
+-----
+
+Cython provides ``cython.pymutex`` as a more robust lock type.  Unlike
+``cython.critical_section`` this will never release the lock unless you explicitly
+ask it to (at the cost of losing ``critical_section``'s inbuilt protection against
+deadlocks).
+
+``cython.pymutex`` supports two operations: ``acquire`` and ``release``.
+``cython.pymutex`` can also be used in a ``with`` statement::
+
+  cdef cython.pymutex l
+  with l:
+      ...  # perform operations with the lock
+
+  # or manually
+  l.acquire()
+  ...  # perform operations with the lock
+  l.release()
+
+``acquire`` will avoid deadlocks if the GIL is held (only relevant in
+non-freethreading versions of Python).  However, you are at risk of deadlock
+if you attempt to acquire the GIL while holding a ``cython.pymutex`` lock.
+Be aware that it is also possible for Cython to acquire the GIL implicitly
+(for example by raising an exception) and this is also a deadlock risk.
+
+On Python 3.13+, ``cython.pymutex`` is just a
+`PyMutex <https://docs.python.org/3.13/c-api/init.html#synchronization-primitives>`_
+and so is very low-cost.  On earlier versions of Python, it uses the
+(undocumented) ``PyThread_type_lock``.
+
+``cython.pythread_type_lock`` exposes the same interface but always
+uses ``PyThread_type_lock``.  It is intended for sharing locks between
+modules with the Limited API (since ``PyMutex`` is unavailable in the
+Limited API).  Note that unlike the "raw" ``PyThread_type_lock`` our
+wrapping will avoid deadlocks with the GIL.
+
 
 Pitfalls
 ========
@@ -173,7 +175,7 @@ inconsistent and the interpreter will crash.
    When running pure Python code directly in the Python interpreter itself, the
    interpreter should ensure that reference counting is at least consistent and
    that the interpreter does not crash.  Cython doesn't currently even go this far.
-   
+
    By itself "not crashing" is not a useful level of thread safety for most algorithms.
    It will always be your own responsibility to use appropriate synchronization
    mechanisms so that your own algorithms work as you intend.
@@ -425,7 +427,7 @@ the GIL (on non-freethreading builds) is reading and writing to
     cdef object attr
 
   ...
-  
+
   cdef C c_instance = C()
   with cython.critical_section(c_instance):
     c_instance.attr = something
@@ -468,7 +470,7 @@ the addition gets expanded to something like
 
   // this section is hidden inside a ``Py_SETREF`` or similar
   {
-    temp3 = c_instance->attr; 
+    temp3 = c_instance->attr;
     c_instance->attr = temp2;
     // May trigger arbitrary Python code through finalizers
     Py_DECREF(temp3);
@@ -477,7 +479,7 @@ the addition gets expanded to something like
 (we show normal addition rather than in-place addition for ease
 of explanation, but the result is similar).
 
-Practically there are some differences between ``critical_section`` 
+Practically there are some differences between ``critical_section``
 and the GIL:
 
 * Releasing the GIL happens at fairly regular intervals after
@@ -513,7 +515,7 @@ However, be wary of code like::
     cdef void add_one(self):
       with cython.critical_section(self):
         self.attr += 1
-  
+
   ...
 
   c_instance = C()
@@ -538,7 +540,7 @@ results on both free-threading and GIL builds::
       self.attr = 1
 
   ...
-  
+
   c_instance = C()
   with cython.critical_section(c_instance):
     c_instance.attr += 1
