@@ -37,18 +37,13 @@ def median(sorted_list: list):
 
 
 def run(command, cwd=None, pythonpath=None, c_macros=None, tmp_dir=None):
-    env = None
+    env = os.environ.copy()
     if pythonpath:
-        env = os.environ.copy()
         env['PYTHONPATH'] = pythonpath
     if c_macros:
-        env = env or os.environ.copy()
         env['CFLAGS'] = env.get('CFLAGS', '') + " " + ' '.join(f" -D{macro}" for macro in c_macros)
     if tmp_dir:
-        env = env or os.environ.copy()
-        # Note that CCACHE_NOHASHDIR=1 also seems to be needed for ccache to work. However this isn't
-        # dynamic so doesn't need to come from run_benchmarks.
-        env['CCACHE_BASEDIR'] = str(tmp_dir)
+        env.update(CCACHE_NOHASHDIR="1",CCACHE_BASEDIR=str(tmp_dir))
 
     try:
         return subprocess.run(command, cwd=str(cwd) if cwd else None, check=True, capture_output=True, env=env)
@@ -85,7 +80,7 @@ def compile_benchmarks(cython_dir: pathlib.Path, bm_files: list[pathlib.Path], c
         [sys.executable, str(cython_dir / "cythonize.py"), f"-j{bm_count or 1}", "-i", *bm_files, *cythonize_args],
         cwd=cython_dir,
         c_macros=c_macros,
-        tmp_dir=tmp_dir
+        tmp_dir=tmp_dir,
     )
 
 
