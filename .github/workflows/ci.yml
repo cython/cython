@@ -350,6 +350,7 @@ jobs:
       CCACHE_SLOPPINESS: "pch_defines,time_macros"
       CCACHE_COMPRESS: 1
       CCACHE_COMPRESSLEVEL: 5
+      CCACHE_NOHASHDIR: 1
       CFLAGS: -O3 -g1 -fPIC -mtune=generic
 
     steps:
