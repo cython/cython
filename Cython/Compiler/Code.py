@@ -462,7 +462,7 @@ class UtilityCodeBase(AbstractUtilityCode):
             rstrip = partial(re.compile(r'\s+(\\?)$').sub, r'\1')
         match_special = re.compile(
             (r'^%(C)s{5,30}\s*(?P<name>(?:\w|\.)+)\s*%(C)s{5,30}|'
-             r'^%(C)s+@(?P<tag>\w+)\s*:\s*(?P<value>(?:\w|[.:])+)') %
+             r'^%(C)s+@(?P<tag>\w+)\s*:\s*(?P<value>(?:\w|[.: *()&,])+)') %
             {'C': comment}).match
         match_type = re.compile(
             r'(.+)[.](proto(?:[.]\S+)?|impl|init|cleanup|module_state_decls|module_state_traverse|module_state_clear)$').match
@@ -650,7 +650,7 @@ class UtilityCode(UtilityCodeBase):
     def __init__(self, proto=None, impl=None, init=None, cleanup=None,
                  module_state_decls=None, module_state_traverse=None,
                  module_state_clear=None, requires=None,
-                 proto_block='utility_code_proto', name=None, file=None):
+                 proto_block='utility_code_proto', name=None, file=None, shared_params=None, shared_load_requires=True):
         # proto_block: Which code block to dump prototype in. See GlobalState.
         self.proto = proto
         self.impl = impl
@@ -665,6 +665,21 @@ class UtilityCode(UtilityCodeBase):
         self.proto_block = proto_block
         self.name = name
         self.file = file
+        self.shared_load_requires = not shared_load_requires == 'False'
+
+        self.shared = []
+        if shared_params:
+            if isinstance(shared_params, str):
+                shared_params = [shared_params]
+            for sh in shared_params:
+                name, ret, params = sh.split("::")
+                self.shared.append(
+                    {
+                        'name': name,
+                        'ret': ret,
+                        'params': params,
+                     }
+                )
 
         # cached for use in hash and eq
         self._parts_tuple = tuple(getattr(self, part, None) for part in self.code_parts)
@@ -750,12 +765,22 @@ class UtilityCode(UtilityCodeBase):
         writer.putln()
 
     def put_code(self, output):
-        if self.requires:
+
+        if self.requires and ((self.shared_load_requires and output.module_node.scope.context.shared_utility_qualified_name) or not output.module_node.scope.context.shared_utility_qualified_name):
             for dependency in self.requires:
                 output.use_utility_code(dependency)
 
         if self.proto:
-            self._put_code_section(output[self.proto_block], output, 'proto')
+            if self.shared  and output.module_node.scope.context.shared_utility_qualified_name:
+                for shared in self.shared:
+                    # We must build pointer to function static global variable instead of function declaration
+                    output[self.proto_block].putln(f'static {shared["ret"]}(*{shared["name"]})({shared["params"]}); /*proto*/')
+            else:
+                self._put_code_section(output[self.proto_block], output, 'proto')
+        if self.shared:
+            output.shared_utility_functions.extend(list(self.shared))
+            if output.module_node.scope.context.shared_utility_qualified_name:
+                return
         if self.impl:
             self._put_code_section(output['utility_code_def'], output, 'impl')
         if self.cleanup and Options.generate_cleanup_code:
@@ -1460,6 +1485,7 @@ class GlobalState:
         self.const_array_counters = {}  # counts of differently prefixed arrays of constants
         self.cached_cmethods = {}
         self.initialised_constants = set()
+        self.shared_utility_functions = list()
 
         writer.set_global_state(self)
         self.rootwriter = writer
@@ -1516,6 +1542,9 @@ class GlobalState:
         code.putln("")
         code.putln("/* --- Runtime support code --- */")
 
+    def register_part(self, name, code):
+        self.parts[name] = code.insertion_point()
+
     def initialize_main_h_code(self):
         rootwriter = self.rootwriter
         for part in self.h_code_layout:
@@ -1543,6 +1572,31 @@ class GlobalState:
         util = UtilityCode.load_cached("UtilityCodePragmasEnd", "ModuleSetupCode.c")
         code.putln(util.format_code(util.impl))
         code.putln("")
+
+        if self.module_node.scope.context.shared_utility_qualified_name:
+            from .PyrexTypes import py_object_type
+            code = self.parts['c_function_import_code']
+            temp = code.funcstate.allocate_temp(py_object_type, manage_ref=True)
+            for shared in self.shared_utility_functions:
+                code.putln(
+                    'if (__Pyx_ImportFunction_%s(%s, %s, (void (**)(void))&%s, "%s") < 0) %s' % (
+                        Naming.cyversion,
+                        temp,
+                        f'"{shared["name"]}"',
+                        f'{shared["name"]}',
+                        f'{shared["ret"]}({shared["params"]})',
+                        code.error_goto(self.module_pos))
+                )
+        elif self.module_node.scope.context.options.shared_c_file_path:
+            code = self.parts['c_function_export_code']
+            for shared in self.shared_utility_functions:
+                code.putln(
+                        'if (__Pyx_ExportFunction(%s, (void (*)(void))%s, "%s") < 0) %s' % (
+                        f'"{shared["name"]}"',
+                        f'{shared["name"]}',
+                        f'{shared["ret"]}({shared["params"]})',
+                        code.error_goto(self.module_pos))
+                )
 
     def __getitem__(self, key):
         return self.parts[key]
