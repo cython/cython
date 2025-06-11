@@ -180,8 +180,6 @@ static void __Pyx_BufFmt_Init(__Pyx_BufFmt_Context* ctx,
                               const __Pyx_TypeInfo* type); /*proto*/
 
 /////////////// BufferFormatCheck ///////////////
-//@shared_params: __Pyx_BufFmt_CheckString::const char*::__Pyx_BufFmt_Context*, const char*
-//@shared_params: __Pyx_BufFmt_Init::void::__Pyx_BufFmt_Context *, __Pyx_BufFmt_StackElem *,const __Pyx_TypeInfo *
 //@requires: ModuleSetupCode.c::IsLittleEndian
 //@requires: BufferFormatStructs
 

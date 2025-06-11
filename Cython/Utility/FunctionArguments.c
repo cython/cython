@@ -63,7 +63,6 @@ static int __Pyx__ArgTypeTest(PyObject *obj, PyTypeObject *type, const char *nam
 
 
 //////////////////// RaiseArgTupleInvalid.proto ////////////////////
-//@shared_params: __Pyx_RaiseArgtupleInvalid::void::const char*, int, Py_ssize_t, Py_ssize_t, Py_ssize_t
 
 static void __Pyx_RaiseArgtupleInvalid(const char* func_name, int exact,
     Py_ssize_t num_min, Py_ssize_t num_max, Py_ssize_t num_found); /*proto*/
@@ -212,7 +211,6 @@ static int __Pyx_CheckKeywordStrings(
 static void __Pyx_RejectKeywords(const char* function_name, PyObject *kwds); /*proto*/
 
 //////////////////// RejectKeywords ////////////////////
-//@shared_params: __Pyx_RejectKeywords::void::const char*, PyObject *
 
 static void __Pyx_RejectKeywords(const char* function_name, PyObject *kwds) {
     // Get the first keyword argument (there is at least one) and raise a TypeError for it.

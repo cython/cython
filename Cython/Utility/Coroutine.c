@@ -22,13 +22,7 @@
 // 2c7209a3bdf (gh-114091: Reword error message for unawaitable types (#114090))
 
 
-//////////////////// CoroutineSetYieldFrom.proto ////////////////////
-static void
-__Pyx_Coroutine_Set_Owned_Yield_From(__pyx_CoroutineObject *gen, PyObject *yf);
-
 //////////////////// CoroutineSetYieldFrom ////////////////////
-//@requires: CoroutineBase
-//@shared_params: __Pyx_Coroutine_Set_Owned_Yield_From::void::__pyx_CoroutineObject *, PyObject *
 
 static void
 __Pyx_Coroutine_Set_Owned_Yield_From(__pyx_CoroutineObject *gen, PyObject *yf) {
@@ -379,8 +373,6 @@ static void __Pyx_Generator_Replace_StopIteration(int in_async_gen); /*proto*/
 
 //////////////////// pep479 ////////////////////
 //@requires: Exceptions.c::GetException
-//@shared_params: __Pyx_Generator_Replace_StopIteration::void::int
-//@shared_load_requires: False
 
 static void __Pyx_Generator_Replace_StopIteration(int in_async_gen) {
     PyObject *exc, *val, *tb, *cur_exc, *new_exc;

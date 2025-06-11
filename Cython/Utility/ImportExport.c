@@ -5,8 +5,6 @@ static PyObject *__Pyx_ImportDottedModule_WalkParts(PyObject *module, PyObject *
 
 
 /////////////// ImportDottedModule ///////////////
-//@shared_params: __Pyx_ImportDottedModule::PyObject *::PyObject *, PyObject *
-//@shared_params: __Pyx_ImportDottedModule_WalkParts::PyObject *::PyObject *, PyObject *, PyObject *
 //@requires: Import
 
 static PyObject *__Pyx__ImportDottedModule_Error(PyObject *name, PyObject *parts_tuple, Py_ssize_t count) {
@@ -168,7 +166,6 @@ static PyObject *__Pyx_ImportDottedModuleRelFirst(PyObject *name, PyObject *part
 static PyObject *__Pyx_Import(PyObject *name, PyObject *from_list, int level); /*proto*/
 
 /////////////// Import ///////////////
-//@shared_params: __Pyx_Import::PyObject *::PyObject *, PyObject *, int
 //@requires: ObjectHandling.c::PyObjectGetAttrStr
 //@requires:StringTools.c::IncludeStringH
 
@@ -209,7 +206,6 @@ bad:
 static PyObject* __Pyx_ImportFrom(PyObject* module, PyObject* name); /*proto*/
 
 /////////////// ImportFrom ///////////////
-//@shared_params: __Pyx_ImportFrom::PyObject *::PyObject *, PyObject *
 //@requires: ObjectHandling.c::PyObjectGetAttrStr
 
 static PyObject* __Pyx_ImportFrom(PyObject* module, PyObject* name) {

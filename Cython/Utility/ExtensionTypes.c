@@ -427,7 +427,6 @@ static void __Pyx_call_next_tp_dealloc(PyObject* obj, destructor current_tp_deal
 static int __Pyx_call_next_tp_traverse(PyObject* obj, visitproc v, void *a, traverseproc current_tp_traverse);
 
 /////////////// CallNextTpTraverse ///////////////
-//@shared_params: __Pyx_call_next_tp_traverse::int::PyObject *, visitproc, void *, traverseproc
 
 static int __Pyx_call_next_tp_traverse(PyObject* obj, visitproc v, void *a, traverseproc current_tp_traverse) {
     PyTypeObject* type = Py_TYPE(obj);
@@ -444,7 +443,6 @@ static int __Pyx_call_next_tp_traverse(PyObject* obj, visitproc v, void *a, trav
 }
 
 /////////////// CallNextTpClear.proto ///////////////
-//@shared_params: __Pyx_call_next_tp_clear::void::PyObject *, inquiry
 
 static void __Pyx_call_next_tp_clear(PyObject* obj, inquiry current_tp_clear);
 

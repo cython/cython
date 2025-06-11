@@ -1031,7 +1031,6 @@ static PyObject* __Pyx_PyUnicode_Join(PyObject** values, Py_ssize_t value_count,
                                       Py_UCS4 max_char);
 
 /////////////// JoinPyUnicode ///////////////
-//@shared_params: __Pyx_PyUnicode_Join::PyObject *::PyObject**, Py_ssize_t, Py_ssize_t, Py_UCS4
 //@requires: IncludeStringH
 
 static PyObject* __Pyx_PyUnicode_Join(PyObject** values, Py_ssize_t value_count, Py_ssize_t result_ulength,
@@ -1125,7 +1124,6 @@ static PyObject* __Pyx_PyUnicode_BuildFromAscii(Py_ssize_t ulength, const char* 
                                                 int prepend_sign, char padding_char);
 
 /////////////// BuildPyUnicode ///////////////
-//@shared_params: __Pyx_PyUnicode_BuildFromAscii::PyObject *::Py_ssize_t, const char*, int, int, char
 
 // Create a PyUnicode object from an ASCII char*, e.g. a formatted number.
 

@@ -263,8 +263,6 @@ static int __Pyx_ValidateAndInit_memviewslice(
                 PyObject *original_obj);
 
 /////////////// MemviewSliceValidateAndInit ///////////////
-//@shared_load_requires: False
-//@shared_params: __Pyx_ValidateAndInit_memviewslice::int::int *, int , int , int , const __Pyx_TypeInfo *, __Pyx_BufFmt_StackElem *, __Pyx_memviewslice *, PyObject *
 //@requires: Buffer.c::TypeInfoCompare
 //@requires: Buffer.c::BufferFormatStructs
 //@requires: Buffer.c::BufferFormatCheck
