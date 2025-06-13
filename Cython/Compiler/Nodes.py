@@ -2697,8 +2697,7 @@ class CFuncDefNode(FuncDefNode):
         if self.directive_returns is not None:
             base_type = self.directive_returns.analyse_as_type(env)
             if base_type is None:
-                error(self.directive_returns.pos, "Not a type")
-                base_type = PyrexTypes.error_type
+                base_type = self.base_type.analyse(env)
         else:
             base_type = self.base_type.analyse(env)
         self.is_static_method = 'staticmethod' in env.directives and not env.lookup_here('staticmethod')
