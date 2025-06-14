@@ -7885,6 +7885,7 @@ class ForFromStatNode(LoopNode, StatNode):
         code.mark_pos(self.pos)
         old_loop_labels = code.new_loop_labels()
         from_range = self.from_range
+        self.loopvar_node.generate_evaluation_code(code)
         self.bound1.generate_evaluation_code(code)
         self.bound2.generate_evaluation_code(code)
         offset, incop = self.relation_table[self.relation1]
