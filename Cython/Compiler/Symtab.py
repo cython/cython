@@ -235,6 +235,7 @@ class Entry:
     pytyping_modifiers = None
     enum_int_value = None
     vtable_type = None
+    force_not_declared_in_module_state = False
 
     def __init__(self, name, cname, type, pos = None, init = None):
         self.name = name
@@ -261,6 +262,8 @@ class Entry:
 
     def is_declared_in_module_state(self):
         if self.scope.is_builtin_scope:
+            return False
+        if self.force_not_declared_in_module_state:
             return False
         if self.is_pyglobal or self.is_cclass_var_entry:
             return True

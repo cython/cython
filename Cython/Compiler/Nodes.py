@@ -9764,10 +9764,10 @@ class ParallelStatNode(StatNode, ParallelNode):
         self.seen_closure_vars.add(entry.cname)
         self.seen_closure_vars.add(cname)
 
-        self.modified_entries.append((entry, entry.cname))
+        self.modified_entries.append((entry, entry.cname, entry.force_not_declared_in_module_state))
         if entry.is_declared_in_module_state():
             code.putln(f"{cname} = {code.name_in_module_state(entry.cname)};")
-            # TODO - this doesn't work because the lookup for NameNodes is computed far too early
+            entry.force_not_declared_in_module_state = True
         else:
             code.putln("%s = %s;" % (cname, entry.cname))
         entry.cname = cname
@@ -9826,10 +9826,14 @@ class ParallelStatNode(StatNode, ParallelNode):
         outermost parallel block, we don't need to delete the cnames from
         self.seen_closure_vars.
         """
-        for entry, original_cname in self.modified_entries:
-            code.putln("%s = %s;" % (original_cname, entry.cname))
-            code.funcstate.release_temp(entry.cname)
-            entry.cname = original_cname
+        for entry, original_cname, original_module_state in self.modified_entries:
+            entry.force_not_declared_in_module_state = original_module_state
+            current_cname, entry.cname = entry.cname, original_cname
+            lhs_cname = entry.cname
+            if entry.is_declared_in_module_state():
+                lhs_cname = code.name_in_module_state(lhs_cname)
+            code.putln("%s = %s;" % (lhs_cname, current_cname))
+            code.funcstate.release_temp(current_cname)
 
     def privatize_temps(self, code, exclude_temps=()):
         """

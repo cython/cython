@@ -2387,8 +2387,6 @@ class NameNode(AtomicExprNode):
             # assume that type inference is smarter than the static entry
             type = self.inferred_type
         self.type = type
-        if entry.is_declared_in_module_state():
-            self.module_state_lookup = env.name_in_module_state("")
 
     def check_identifier_kind(self):
         # Check that this is an appropriate kind of name for use in an
@@ -2501,6 +2499,9 @@ class NameNode(AtomicExprNode):
             return  # There was an error earlier
         if entry.utility_code:
             code.globalstate.use_utility_code(entry.utility_code)
+        if entry.is_declared_in_module_state():
+            self.module_state_lookup = code.funcstate.scope.name_in_module_state("")
+
         if entry.is_builtin and entry.is_const:
             return  # Lookup already cached
         elif entry.is_pyclass_attr:
@@ -2597,6 +2598,9 @@ class NameNode(AtomicExprNode):
         entry = self.entry
         if entry is None:
             return  # There was an error earlier
+
+        if entry.is_declared_in_module_state():
+            self.module_state_lookup = code.funcstate.scope.name_in_module_state("")
 
         if (self.entry.type.is_ptr and isinstance(rhs, ListNode)
                 and not self.lhs_of_first_assignment and not rhs.in_module_scope):
@@ -2750,7 +2754,11 @@ class NameNode(AtomicExprNode):
     def generate_deletion_code(self, code, ignore_nonexisting=False):
         if self.entry is None:
             return  # There was an error earlier
-        elif self.entry.is_pyclass_attr:
+
+        if self.entry.is_declared_in_module_state():
+            self.module_state_lookup = code.funcstate.scope.name_in_module_state("")
+
+        if self.entry.is_pyclass_attr:
             namespace = self.entry.scope.namespace_cname
             interned_cname = code.intern_identifier(self.entry.name)
             if ignore_nonexisting:
