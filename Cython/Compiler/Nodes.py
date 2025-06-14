@@ -7898,8 +7898,12 @@ class ForFromStatNode(LoopNode, StatNode):
         from . import ExprNodes
         if isinstance(self.loopvar_node, ExprNodes.TempNode):
             self.loopvar_node.allocate(code)
+        elif isinstance(self.loopvar_node, ExprNodes.NameNode):
+            self.loopvar_node.generate_evaluation_code(code)
         if isinstance(self.py_loopvar_node, ExprNodes.TempNode):
             self.py_loopvar_node.allocate(code)
+        elif isinstance(self.py_loopvar_node, ExprNodes.NameNode):
+            self.py_loopvar_node.generate_evaluation_code(code)
 
         loopvar_type = PyrexTypes.c_long_type if self.target.type.is_enum else self.target.type
 
@@ -9746,16 +9750,16 @@ class ParallelStatNode(StatNode, ParallelNode):
             if parent and (op or lastprivate):
                 parent.propagate_var_privatization(entry, pos, op, lastprivate)
 
-    def _allocate_closure_temp(self, code, entry):
+    def _allocate_closure_global_temp(self, code, entry):
         """
-        Helper function that allocate a temporary for a closure variable that
-        is assigned to.
+        Helper function that allocate a temporary for a closure or global
+        variable that is assigned to.
         """
         if self.parent:
-            return self.parent._allocate_closure_temp(code, entry)
+            return self.parent._allocate_closure_global_temp(code, entry)
 
         if entry.cname in self.seen_closure_vars:
-            return entry.cname
+            return
 
         cname = code.funcstate.allocate_temp(entry.type, True)
 
@@ -9764,8 +9768,12 @@ class ParallelStatNode(StatNode, ParallelNode):
         self.seen_closure_vars.add(entry.cname)
         self.seen_closure_vars.add(cname)
 
-        self.modified_entries.append((entry, entry.cname))
-        code.putln("%s = %s;" % (cname, entry.cname))
+        self.modified_entries.append((entry, entry.cname, entry.force_not_declared_in_module_state))
+        if entry.is_declared_in_module_state():
+            code.putln(f"{cname} = {code.name_in_module_state(entry.cname)};")
+            entry.force_not_declared_in_module_state = True
+        else:
+            code.putln("%s = %s;" % (cname, entry.cname))
         entry.cname = cname
 
     def initialize_privates_to_nan(self, code, exclude=None):
@@ -9813,8 +9821,8 @@ class ParallelStatNode(StatNode, ParallelNode):
         self.modified_entries = []
 
         for entry in sorted(self.assignments):
-            if entry.from_closure or entry.in_closure:
-                self._allocate_closure_temp(code, entry)
+            if entry.from_closure or entry.in_closure or entry.is_cglobal:
+                self._allocate_closure_global_temp(code, entry)
 
     def release_closure_privates(self, code):
         """
@@ -9822,10 +9830,14 @@ class ParallelStatNode(StatNode, ParallelNode):
         outermost parallel block, we don't need to delete the cnames from
         self.seen_closure_vars.
         """
-        for entry, original_cname in self.modified_entries:
-            code.putln("%s = %s;" % (original_cname, entry.cname))
-            code.funcstate.release_temp(entry.cname)
-            entry.cname = original_cname
+        for entry, original_cname, original_module_state in self.modified_entries:
+            entry.force_not_declared_in_module_state = original_module_state
+            current_cname, entry.cname = entry.cname, original_cname
+            lhs_cname = entry.cname
+            if entry.is_declared_in_module_state():
+                lhs_cname = code.name_in_module_state(lhs_cname)
+            code.putln("%s = %s;" % (lhs_cname, current_cname))
+            code.funcstate.release_temp(current_cname)
 
     def privatize_temps(self, code, exclude_temps=()):
         """
