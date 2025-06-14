@@ -7885,10 +7885,6 @@ class ForFromStatNode(LoopNode, StatNode):
         code.mark_pos(self.pos)
         old_loop_labels = code.new_loop_labels()
         from_range = self.from_range
-        if self.loopvar_node is not None:
-            self.loopvar_node.generate_evaluation_code(code)
-        if self.py_loopvar_node is not None:
-            self.py_loopvar_node.generate_evaluation_code(code)
         self.bound1.generate_evaluation_code(code)
         self.bound2.generate_evaluation_code(code)
         offset, incop = self.relation_table[self.relation1]
@@ -7902,8 +7898,12 @@ class ForFromStatNode(LoopNode, StatNode):
         from . import ExprNodes
         if isinstance(self.loopvar_node, ExprNodes.TempNode):
             self.loopvar_node.allocate(code)
+        elif isinstance(self.loopvar_node, ExprNodes.NameNode):
+            self.loopvar_node.generate_evaluation_code(code)
         if isinstance(self.py_loopvar_node, ExprNodes.TempNode):
             self.py_loopvar_node.allocate(code)
+        elif isinstance(self.py_loopvar_node, ExprNodes.NameNode):
+            self.py_loopvar_node.generate_evaluation_code(code)
 
         loopvar_type = PyrexTypes.c_long_type if self.target.type.is_enum else self.target.type
 
