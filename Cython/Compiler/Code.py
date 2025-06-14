@@ -2255,8 +2255,6 @@ class CCodeWriter:
         return self.buffer.getvalue()
 
     def write(self, s):
-        if "__Pyx_GOTREF(__pyx_8genexpr4__pyx_v_8dictcomp_i);" in s:
-            breakpoint()
         if '\n' in s:
             self._write_lines(s)
         else:
