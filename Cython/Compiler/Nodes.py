@@ -962,24 +962,31 @@ class CArgDeclNode(Node):
 
         # The parser may misinterpret names as types. We fix that here.
         if isinstance(self.declarator, CNameDeclaratorNode) and self.declarator.name == '':
+            # The nonempty arg is true if there's a function body
             if nonempty:
+                # A single name is always the arg name, but the name is changed
+                # for some basic C types
                 if self.base_type.is_basic_c_type:
                     # char, short, long called "int"
                     type = self.base_type.analyse(env, could_be_name=True)
                     arg_name = type.empty_declaration_code()
                 else:
                     arg_name = self.base_type.name
+            # Otherwise, it's a declaration
+            else:
+                # The single name is a arg name iff the name is not bound to a
+                # type. If it's an arg_name, self.base_type.arg_name will be set
+                # to the name
+                unused_ty = self.base_type.analyse(env, could_be_name=True)
+                arg_name = getattr(self.base_type, 'arg_name', None)
+
+            if arg_name is not None:
                 self.declarator.name = EncodedString(arg_name)
                 self.base_type.name = None
                 self.base_type.is_basic_c_type = False
-            could_be_name = True
-        else:
-            could_be_name = False
+
         self.base_type.is_arg = True
-        base_type = self.base_type.analyse(env, could_be_name=could_be_name)
-        base_arg_name = getattr(self.base_type, 'arg_name', None)
-        if base_arg_name:
-            self.declarator.name = base_arg_name
+        base_type = self.base_type.analyse(env, could_be_name=False)
 
         # The parser is unable to resolve the ambiguity of [] as part of the
         # type (e.g. in buffers) or empty declarator (as with arrays).
