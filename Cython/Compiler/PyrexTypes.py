@@ -4435,7 +4435,7 @@ class CppClassType(CType):
 
     def cpp_optional_check_for_null_code(self, cname):
         # only applies to c++ classes that are being declared as std::optional
-        return "(%s.has_value())" % cname
+        return "%s.has_value()" % cname
 
     def needs_explicit_construction(self, scope):
         return scope.is_c_class_scope

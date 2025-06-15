@@ -2490,7 +2490,7 @@ class NameNode(AtomicExprNode):
         if not entry:
             return "<error>"  # There was an error earlier
         if self.entry.is_cpp_optional and not self.is_target:
-            return "(*%s)" % entry.cname
+            return f"(*{self.module_state_lookup}{entry.cname})"
         return self.module_state_lookup + entry.cname
 
     def generate_result_code(self, code):
@@ -2589,7 +2589,7 @@ class NameNode(AtomicExprNode):
                 code.put_error_if_unbound(self.pos, entry, self.in_nogil_context, unbound_check_code=unbound_check_code)
 
         elif entry.is_cglobal and entry.is_cpp_optional and self.initialized_check:
-            unbound_check_code = entry.type.cpp_optional_check_for_null_code(entry.cname)
+            unbound_check_code = f"({self.module_state_lookup}{entry.type.cpp_optional_check_for_null_code(entry.cname)})"
             code.put_error_if_unbound(self.pos, entry, self.in_nogil_context, unbound_check_code=unbound_check_code)
 
     def generate_assignment_code(self, rhs, code, overloaded_assignment=False,
