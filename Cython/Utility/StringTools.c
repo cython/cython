@@ -72,16 +72,17 @@ static int __Pyx_InitStrings(__Pyx_StringTabEntry const *t, PyObject **target, c
         } else {
             str = PyBytes_FromStringAndSize(t->s, t->n - 1);
         }
-        if (!str)
-            return -1;
+        if (!str) goto bad;
         *target = str;
-        // initialise cached hash value
-        if (PyObject_Hash(str) == -1)
-            return -1;
-        ++t;
         ++target;
+        // initialise cached hash value
+        if (PyObject_Hash(str) == -1) goto bad;
+        ++t;
     }
     return 0;
+
+bad:
+    return -1;
 }
 
 //////////////////// BytesContains.proto ////////////////////
@@ -309,7 +310,7 @@ static CYTHON_INLINE int __Pyx_GetItemInt_ByteArray_Fast(PyObject* string, Py_ss
 //@requires: ModuleSetupCode.c::CriticalSections
 
 static CYTHON_INLINE int __Pyx_GetItemInt_ByteArray_Fast_Locked(PyObject* string, Py_ssize_t i,
-                                                                int wraparound, int boundscheck, int has_gil) {                                             
+                                                                int wraparound, int boundscheck, int has_gil) {
     Py_ssize_t length = __Pyx_PyByteArray_GET_SIZE(string);
     #if !CYTHON_ASSUME_SAFE_SIZE
     if (unlikely(length < 0)) return -1;
