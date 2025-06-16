@@ -49,7 +49,7 @@ jobs:
           - "3.10"
           - "3.11"
           - "3.12"
-          - "3.13"
+          - "3.13.5"  # 3.13.4 fails to build extensions on Windows.
           - "3.13t"
           - "3.14-dev"
           - "3.14t-dev"
@@ -101,7 +101,7 @@ jobs:
             env: { GCC_VERSION: 13, EXTRA_CFLAGS: "-std=c17" }
             extra_hash: "-gcc11"
           - os: ubuntu-22.04
-            python-version: "3.13"
+            python-version: "3.13.5"
             backend: cpp
             env: { GCC_VERSION: 13, EXTRA_CFLAGS: "-std=c++20" }
             extra_hash: "-gcc11"
@@ -160,7 +160,7 @@ jobs:
             env: { LIMITED_API: "--limited-api" }
             extra_hash: "-limited_api"
           - os: ubuntu-22.04
-            python-version: "3.13"
+            python-version: "3.13.5"
             backend: "c,cpp"
             env: { LIMITED_API: "--limited-api" }
             extra_hash: "-limited_api"
@@ -376,7 +376,7 @@ jobs:
             3.13t
             3.10
             3.12
-            3.13
+            3.13.5
             3.14-dev
 
       - name: Run Benchmarks
