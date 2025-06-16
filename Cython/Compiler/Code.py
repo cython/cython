@@ -8,7 +8,7 @@ cython.declare(os=object, re=object, operator=object, textwrap=object,
                Template=object, Naming=object, Options=object, StringEncoding=object,
                Utils=object, SourceDescriptor=object, StringIOTree=object,
                DebugFlags=object, defaultdict=object,
-               closing=object, partial=object, wraps=object)
+               closing=object, partial=object, wraps=object, zlib_compress=object)
 
 import hashlib
 import operator
@@ -20,6 +20,7 @@ from string import Template
 from functools import partial, wraps
 from contextlib import closing, contextmanager
 from collections import defaultdict
+from zlib import compress as zlib_compress
 
 from . import Naming
 from . import Options
@@ -1277,7 +1278,15 @@ class StringConst:
     """
     # cname            string
     # text             EncodedString or BytesLiteral
+    # escaped_value    str        The string value as C code byte sequence.
     # py_strings       {(identifier, encoding) : PyStringConst}
+    # compressed_value str|None   The string value as zlib compressed C code byte sequence.
+    # is_compressed    boolean
+    # c_used           boolean  Is the plain C string used (or only the Python object?)
+
+    is_compressed = False
+
+    c_used = None   # Flag if the string is used in C (or only as Python string).
 
     def __init__(self, cname, text, byte_string):
         self.cname = cname
@@ -1333,6 +1342,29 @@ class StringConst:
         py_string = PyStringConst(pystring_cname, encoding, intern, is_unicode)
         self.py_strings[key] = py_string
         return py_string
+
+    def try_compression(self):
+        # Can currently only compress Python(-only) Unicode strings, not C strings.
+        if self.c_used or not self.py_strings:
+            return
+        for py_string in self.py_strings.values():
+            if not py_string.is_unicode:
+                return
+
+        byte_string = self.text.byteencode() if self.text.encoding else self.text.utf8encode()
+
+        # Arbitrary size limit that is very unlikely to provide a reduction.
+        if len(byte_string) < 40:
+            return
+
+        compressed_bytes = zlib_compress(byte_string, level=9)
+
+        # Avoid useless compression if the gain is marginal.
+        if len(compressed_bytes) >= len(byte_string) - 15:
+            return
+
+        self.compressed_value = StringEncoding.escape_byte_string(compressed_bytes)
+        self.is_compressed = True
 
 
 class PyStringConst:
@@ -1639,7 +1671,7 @@ class GlobalState:
         # aren't just Python objects
         return c
 
-    def get_string_const(self, text):
+    def get_string_const(self, text, c_used=True):
         # return a C string constant, creating a new one if necessary
         if text.is_unicode:
             byte_string = text.utf8encode()
@@ -1649,6 +1681,8 @@ class GlobalState:
             c = self.string_const_index[byte_string]
         except KeyError:
             c = self.new_string_const(text, byte_string)
+        if c_used:
+            c.c_used = True
         return c
 
     def get_pyunicode_ptr_const(self, text):
@@ -1662,7 +1696,7 @@ class GlobalState:
 
     def get_py_string_const(self, text, identifier=None):
         # return a Python string constant, creating a new one if necessary
-        c_string = self.get_string_const(text)
+        c_string = self.get_string_const(text, c_used=False)
         py_string = c_string.get_py_string_const(text.encoding, identifier)
         return py_string
 
@@ -1870,18 +1904,29 @@ class GlobalState:
         encodings = set()
 
         def normalise_encoding_name(py_string):
-            if py_string.encoding and py_string.encoding.lower() not in (
-                    'ascii', 'usascii', 'us-ascii', 'utf8', 'utf-8'):
-                return f'"{py_string.encoding.lower()}"'
-            else:
-                return '0'
+            return f'"{py_string.encoding.lower()}"' if py_string.encoding else '0'
 
+        # Generate C string constants.
         decls_writer = self.parts['string_decls']
         for _, cname, c in c_consts:
+            c.try_compression()
+
+            if c.is_compressed:
+                decls_writer.putln("#if CYTHON_COMPRESS_LONG_STRINGS")
+                cliteral = StringEncoding.split_string_literal(c.compressed_value)
+                decls_writer.putln(
+                    f'static const char {cname}[] = "{cliteral}";',
+                    safe=True)  # Braces in user strings are not for indentation.
+                decls_writer.putln("#else")
+
             cliteral = StringEncoding.split_string_literal(c.escaped_value)
             decls_writer.putln(
                 f'static const char {cname}[] = "{cliteral}";',
                 safe=True)  # Braces in user strings are not for indentation.
+
+            if c.is_compressed:
+                decls_writer.putln("#endif")
+
             if c.py_strings is not None:
                 if len(c.escaped_value) > longest_pystring:
                     # This is not an accurate count since it adds up C escape characters,
@@ -1889,7 +1934,7 @@ class GlobalState:
                     longest_pystring = len(c.escaped_value)
                 for py_string in c.py_strings.values():
                     encodings.add(normalise_encoding_name(py_string))
-                    py_strings.append((c.cname, len(py_string.cname), py_string))
+                    py_strings.append((c.cname, len(py_string.cname), c.is_compressed, py_string))
 
         for c, cname in sorted(self.pyunicode_ptr_const_index.items()):
             utf16_array, utf32_array = StringEncoding.encode_pyunicode_string(c)
@@ -1902,6 +1947,7 @@ class GlobalState:
                 decls_writer.putln("static Py_UNICODE %s[] = { %s };" % (cname, utf16_array))
                 decls_writer.putln("#endif")
 
+        # Generate Python string object constants.
         if not py_strings:
             return
 
@@ -1933,6 +1979,7 @@ class GlobalState:
             const Py_ssize_t encoding;
         #endif
             const unsigned int is_unicode : 1;
+            const unsigned int is_compressed : 1;
             const unsigned int intern : 1;
         } __Pyx_StringTabEntry;
         """ % dict(
@@ -1954,7 +2001,7 @@ class GlobalState:
         ))
 
         w.putln("static const __Pyx_StringTabEntry %s[] = {" % Naming.stringtab_cname)
-        for n, (c_cname, _, py_string) in enumerate(py_strings):
+        for n, (c_cname, _, is_compressed, py_string) in enumerate(py_strings):
             encodings_index = encodings_map[normalise_encoding_name(py_string)]
             is_unicode = py_string.is_unicode
 
@@ -1963,15 +2010,16 @@ class GlobalState:
                 Naming.stringtab_cname,
                 n))
 
-            w.putln("{%s, sizeof(%s), %d, %d, %d}, /* PyObject cname: %s */" % (
+            w.putln("{%s, sizeof(%s), %d, %d, %d, %d}, /* PyObject cname: %s */" % (
                 c_cname,
                 c_cname,
                 encodings_index,
                 is_unicode,
+                is_compressed,
                 py_string.intern,
                 py_string.cname
                 ))
-        w.putln("{0, 0, 0, 0, 0}")
+        w.putln("{0, 0, 0, 0, 0, 0}")
         w.putln("};")
 
         self.use_utility_code(UtilityCode.load_cached("InitStrings", "StringTools.c"))
