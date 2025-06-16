@@ -1870,8 +1870,8 @@ class GlobalState:
         encodings = set()
 
         def normalise_encoding_name(py_string):
-            if py_string.encoding and py_string.encoding not in (
-                    'ASCII', 'USASCII', 'US-ASCII', 'UTF8', 'UTF-8'):
+            if py_string.encoding and py_string.encoding.lower() not in (
+                    'ascii', 'usascii', 'us-ascii', 'utf8', 'utf-8'):
                 return f'"{py_string.encoding.lower()}"'
             else:
                 return '0'
