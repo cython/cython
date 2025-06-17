@@ -1290,14 +1290,12 @@ class StringConst:
     # text             EncodedString or BytesLiteral
     # escaped_value    str        The string value as C code byte sequence.
     # py_strings       {(identifier, encoding) : PyStringConst}
-    # compressed_value str|None   The string value as zlib compressed C code byte sequence.
     # c_used           boolean  Is the plain C string used (or only the Python object?)
 
     def __init__(self, cname, text, byte_string):
         self.cname = cname
         self.text = text
         self.escaped_value = StringEncoding.escape_byte_string(byte_string)
-        self.compressed_value = None
         self.py_strings = None
         self.c_used = False
 
@@ -1353,28 +1351,6 @@ class StringConst:
         py_string = PyStringConst(pystring_cname, encoding, intern, is_unicode)
         self.py_strings[key] = py_string
         return py_string
-
-    def try_compression(self):
-        # Can currently only compress Python(-only) Unicode strings, not C strings.
-        if self.c_used or not self.py_strings:
-            return
-        for py_string in self.py_strings.values():
-            if not py_string.is_unicode:
-                return
-
-        byte_string = self.text.byteencode() if self.text.encoding else self.text.utf8encode()
-
-        # Arbitrary size limit that is very unlikely to provide a reduction.
-        if len(byte_string) < 40:
-            return
-
-        compressed_bytes = zlib_compress(byte_string, level=9)
-
-        # Avoid useless compression if the gain is marginal.
-        if len(compressed_bytes) >= len(byte_string) - 15:
-            return
-
-        self.compressed_value = StringEncoding.escape_byte_string(compressed_bytes)
 
 
 class PyStringConst:

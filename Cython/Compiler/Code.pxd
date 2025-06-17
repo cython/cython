@@ -89,7 +89,6 @@ cdef class StringConst:
     cdef public object cname
     cdef public object text
     cdef public object escaped_value
-    cdef public object compressed_value
     cdef public dict py_strings
     cdef public bint c_used
 
