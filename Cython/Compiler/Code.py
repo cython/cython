@@ -1992,6 +1992,7 @@ class GlobalState:
             escaped_bytes = StringEncoding.escape_byte_string(concat_bytes)
             w.putln(f'const char* const cstring = "{escaped_bytes}";', safe=True)
             w.putln(f'PyObject *data = PyBytes_FromStringAndSize(cstring, {len(concat_bytes)}); ')
+            w.putln("CYTHON_UNUSED_VAR(__Pyx_DecompressString);")
             w.putln("#endif")
 
             w.putln(w.error_goto_if_null('data', self.module_pos))
