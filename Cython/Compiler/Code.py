@@ -2006,7 +2006,6 @@ class GlobalState:
                 w.putln("#if !CYTHON_ASSUME_SAFE_MACROS")
                 w.putln('if (unlikely(!bytes)) {')
                 w.putln("Py_DECREF(data);")
-                w.putln(w.error_goto_if_neg('result', self.module_pos))
                 w.putln('}')
                 w.putln('#endif')
 
