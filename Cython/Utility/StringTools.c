@@ -55,7 +55,7 @@ static CYTHON_INLINE size_t __Pyx_Py_UNICODE_strlen(const Py_UNICODE *u)
 
 static PyObject *__Pyx_DecompressString(const char *s, Py_ssize_t length); /*proto*/
 
-//////////////////// DecompressString.proto ////////////////////
+//////////////////// DecompressString ////////////////////
 
 static PyObject *__Pyx_DecompressString(const char *s, Py_ssize_t length, int algo) {
     PyObject *module, *decompress, *compressed_bytes, *decompressed;
