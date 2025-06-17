@@ -3,8 +3,11 @@
 """
 PYTHON -c "'py'; import module; assert len(module.__doc__) == 1297, len(module.__doc__)"
 
-PYTHON setup_compressed.py build_ext --inplace --force
-PYTHON -c "'compressed'; import module; assert len(module.__doc__) == 1297, len(module.__doc__)"
+PYTHON setup_zlib.py build_ext --inplace --force
+PYTHON -c "'zlib'; import module; assert len(module.__doc__) == 1297, len(module.__doc__)"
+
+PYTHON setup_bz2.py build_ext --inplace --force
+PYTHON -c "'bz2'; import module; assert len(module.__doc__) == 1297, len(module.__doc__)"
 
 PYTHON setup_uncompressed.py build_ext --inplace --force
 PYTHON -c "'uncompressed'; import module; assert len(module.__doc__) == 1297, len(module.__doc__)"
@@ -23,7 +26,17 @@ setup(
 )
 
 
-######## setup_compressed.py ########
+######## setup_uncompressed.py ########
+
+from Cython.Build.Dependencies import cythonize
+from setuptools import setup, Extension
+
+setup(ext_modules=cythonize(
+    Extension("*", sources=["module.py"], define_macros=[('CYTHON_COMPRESS_STRINGS', '0')]),
+))
+
+
+######## setup_zlib.py ########
 
 from Cython.Build.Dependencies import cythonize
 from setuptools import setup, Extension
@@ -33,13 +46,13 @@ setup(ext_modules=cythonize(
 ))
 
 
-######## setup_uncompressed.py ########
+######## setup_bz2.py ########
 
 from Cython.Build.Dependencies import cythonize
 from setuptools import setup, Extension
 
 setup(ext_modules=cythonize(
-    Extension("*", sources=["module.py"], define_macros=[('CYTHON_COMPRESS_STRINGS', '0')]),
+    Extension("*", sources=["module.py"], define_macros=[('CYTHON_COMPRESS_STRINGS', '2')]),
 ))
 
 
