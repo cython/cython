@@ -1281,18 +1281,20 @@ class StringConst:
     # escaped_value    str        The string value as C code byte sequence.
     # py_strings       {(identifier, encoding) : PyStringConst}
     # compressed_value str|None   The string value as zlib compressed C code byte sequence.
-    # is_compressed    boolean
     # c_used           boolean  Is the plain C string used (or only the Python object?)
 
-    is_compressed = False
-
-    c_used = None   # Flag if the string is used in C (or only as Python string).
+    compressed_value = None
 
     def __init__(self, cname, text, byte_string):
         self.cname = cname
         self.text = text
         self.escaped_value = StringEncoding.escape_byte_string(byte_string)
         self.py_strings = None
+        self.c_used = False
+
+    @property
+    def is_compressed(self):
+        return self.compressed_value is not None
 
     def get_py_string_const(self, encoding, identifier=None):
         text = self.text
@@ -1364,7 +1366,6 @@ class StringConst:
             return
 
         self.compressed_value = StringEncoding.escape_byte_string(compressed_bytes)
-        self.is_compressed = True
 
 
 class PyStringConst:
@@ -1696,7 +1697,7 @@ class GlobalState:
 
     def get_py_string_const(self, text, identifier=None):
         # return a Python string constant, creating a new one if necessary
-        c_string = self.get_string_const(text, c_used=False)
+        c_string: StringConst = self.get_string_const(text, c_used=False)
         py_string = c_string.get_py_string_const(text.encoding, identifier)
         return py_string
 
