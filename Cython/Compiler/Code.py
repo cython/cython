@@ -1299,10 +1299,6 @@ class StringConst:
         self.py_strings = None
         self.c_used = False
 
-    @property
-    def is_compressed(self):
-        return self.compressed_value is not None
-
     def get_py_string_const(self, encoding, identifier=None):
         text = self.text
         intern: cython.bint
