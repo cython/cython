@@ -22,7 +22,7 @@ from Cython.Build.Dependencies import cythonize
 from setuptools import setup, Extension
 
 setup(
-    ext_modules=cythonize("module.py"),
+    ext_modules=cythonize(["module.py", "short_text.py"]),
 )
 
 
@@ -31,9 +31,10 @@ setup(
 from Cython.Build.Dependencies import cythonize
 from setuptools import setup, Extension
 
-setup(ext_modules=cythonize(
+setup(ext_modules=cythonize([
     Extension("*", sources=["module.py"], define_macros=[('CYTHON_COMPRESS_STRINGS', '0')]),
-))
+    Extension("*", sources=["short_text.py"], define_macros=[('CYTHON_COMPRESS_STRINGS', '0')]),
+]))
 
 
 ######## setup_zlib.py ########
@@ -41,9 +42,10 @@ setup(ext_modules=cythonize(
 from Cython.Build.Dependencies import cythonize
 from setuptools import setup, Extension
 
-setup(ext_modules=cythonize(
+setup(ext_modules=cythonize([
     Extension("*", sources=["module.py"], define_macros=[('CYTHON_COMPRESS_STRINGS', '1')]),
-))
+    Extension("*", sources=["short_text.py"], define_macros=[('CYTHON_COMPRESS_STRINGS', '1')]),
+]))
 
 
 ######## setup_bz2.py ########
@@ -51,9 +53,16 @@ setup(ext_modules=cythonize(
 from Cython.Build.Dependencies import cythonize
 from setuptools import setup, Extension
 
-setup(ext_modules=cythonize(
+setup(ext_modules=cythonize([
     Extension("*", sources=["module.py"], define_macros=[('CYTHON_COMPRESS_STRINGS', '2')]),
-))
+    Extension("*", sources=["short_text.py"], define_macros=[('CYTHON_COMPRESS_STRINGS', '2')]),
+]))
+
+
+######## short_text.py ########
+
+a = 'a'
+b = b'b'
 
 
 ######## module.py ########
@@ -183,3 +192,8 @@ def long_docstring():
 # Cython 3.13+ strips leading whitespace from docstrings.
 assert len(long_docstring.__doc__) in (1486, 1398), len(long_docstring.__doc__)
 assert long_docstring.__doc__[:4] == 'Arc-', long_docstring.__doc__[:10]
+
+
+import short_text
+assert short_text.a == 'a'
+assert short_text.b == b'b'

@@ -3,6 +3,7 @@
 #
 
 
+import bz2
 import cython
 cython.declare(os=object, re=object, operator=object, textwrap=object,
                Template=object, Naming=object, Options=object, StringEncoding=object,
@@ -1975,25 +1976,33 @@ class GlobalState:
 
             algorithm_names = ['zlib', 'bz2', 'lzma']
             zlib_bytes = zlib_compress(concat_bytes, level=9)
+            if len(zlib_bytes) >= len(concat_bytes):
+                zlib_bytes = None
             bz2_bytes = bz2_compress(concat_bytes, compresslevel=9) if bz2_compress is not None else None
+            if bz2_bytes and len(bz2_bytes) >= len(concat_bytes):
+                bz2_bytes = None
             # LZMA is difficult to configure for efficient output from C code
             # and the default output tends to be quite large.
             #lzma_bytes = lzma_compress(concat_bytes) if lzma_compress is not None else None
 
+            has_if = False
             for i, compressed_bytes in enumerate([zlib_bytes, bz2_bytes], 1):
                 if not compressed_bytes:
                     continue
-                w.putln(f"#{'if' if i == 1 else 'elif'} CYTHON_COMPRESS_STRINGS == {i}  /* {algorithm_names[i-1]} */")
+                w.putln(f"#{'if' if not has_if else 'elif'} CYTHON_COMPRESS_STRINGS == {i}  /* {algorithm_names[i-1]} */")
+                has_if = True
                 escaped_bytes = StringEncoding.escape_byte_string(compressed_bytes)
                 w.putln(f'const char* const cstring = "{escaped_bytes}";', safe=True)
                 w.putln(f'PyObject *data = __Pyx_DecompressString(cstring, {len(compressed_bytes)}, {i}); ')
 
-            w.putln("#else")
+            if has_if:
+                w.putln("#else")
             escaped_bytes = StringEncoding.escape_byte_string(concat_bytes)
             w.putln(f'const char* const cstring = "{escaped_bytes}";', safe=True)
             w.putln(f'PyObject *data = PyBytes_FromStringAndSize(cstring, {len(concat_bytes)}); ')
             w.putln("CYTHON_UNUSED_VAR(__Pyx_DecompressString);")
-            w.putln("#endif")
+            if has_if:
+                w.putln("#endif")
 
             w.putln(w.error_goto_if_null('data', self.module_pos))
 
