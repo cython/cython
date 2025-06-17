@@ -67,13 +67,13 @@ static PyObject *__Pyx_DecompressString(const char *s, Py_ssize_t length, int al
     // Let's keep the module alive during the call, just in case.
     if (unlikely(!decompress)) goto bad;
 
-    PyObject *compressed_bytes = PyBytes_FromStringAndSize(s, length);
+    compressed_bytes = PyBytes_FromStringAndSize(s, length);
     if (unlikely(!compressed_bytes)) {
         Py_DECREF(decompress);
         goto bad;
     }
 
-    PyObject *decompressed = PyObject_CallFunctionObjArgs(decompress, compressed_bytes, NULL);
+    decompressed = PyObject_CallFunctionObjArgs(decompress, compressed_bytes, NULL);
     Py_DECREF(compressed_bytes);
     Py_DECREF(decompress);
     Py_DECREF(module);
