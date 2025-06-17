@@ -1283,12 +1283,11 @@ class StringConst:
     # compressed_value str|None   The string value as zlib compressed C code byte sequence.
     # c_used           boolean  Is the plain C string used (or only the Python object?)
 
-    compressed_value = None
-
     def __init__(self, cname, text, byte_string):
         self.cname = cname
         self.text = text
         self.escaped_value = StringEncoding.escape_byte_string(byte_string)
+        self.compressed_value = None
         self.py_strings = None
         self.c_used = False
 
