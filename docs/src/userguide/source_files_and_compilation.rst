@@ -1388,8 +1388,11 @@ most important to least important:
     where we think it's likely to work.
 
 ``CYTHON_COMPRESS_STRINGS``
-    Whether to store Python strings in the binary module as (zlib) compressed data,
-    decompressing them at import time.
+    Store Python strings in the binary module as compressed data, decompressing them
+    at import time.  By default, ``zlib`` compression is used (``CYTHON_COMPRESS_STRINGS=1``).
+    Set to ``0`` to disable compression or to ``2`` to select ``bzip2`` compression.
+    Note that the respective standard library decompression module must be available
+    at module import time.
 
 There is a further list of macros which turn off various optimizations or language
 features.  Under normal circumstance Cython enables these automatically based on the

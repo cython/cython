@@ -51,65 +51,28 @@ static CYTHON_INLINE size_t __Pyx_Py_UNICODE_strlen(const Py_UNICODE *u)
 #define __Pyx_PyUnicode_FromUnicodeAndLength PyUnicode_FromUnicode
 
 
-//////////////////// InitStrings.proto ////////////////////
-//@proto_block: pystring_table
+//////////////////// DecompressString.proto ////////////////////
 
-static int __Pyx_InitStrings(__Pyx_StringTabEntry const *t, PyObject **target, const char* const* encoding_names); /*proto*/
+static PyObject *__Pyx_DecompressString(const char *s, Py_ssize_t length); /*proto*/
 
-//////////////////// InitStrings ////////////////////
+//////////////////// DecompressString.proto ////////////////////
 
-static int __Pyx_InitStrings(__Pyx_StringTabEntry const *t, PyObject **target, const char* const* encoding_names) {
-    PyObject *decompress = NULL;
-    while (t->s) {
-        PyObject *str;
-        if (t->is_unicode) {
-            #if CYTHON_COMPRESS_STRINGS
-            if (t->is_compressed) {
-                if (!decompress) {
-                    PyObject *zlib = PyImport_ImportModule("zlib");
-                    if (unlikely(!zlib)) goto bad;
-                    decompress = PyObject_GetAttrString(zlib, "decompress");
-                    Py_DECREF(zlib);
-                    if (unlikely(!decompress)) goto bad;
-                }
-                PyObject *compressed_bytes = PyBytes_FromStringAndSize(t->s, t->n - 1);
-                if (unlikely(!compressed_bytes)) goto bad;
-                PyObject *decompressed = PyObject_CallFunctionObjArgs(decompress, compressed_bytes, NULL);
-                Py_DECREF(compressed_bytes);
-                if (unlikely(!decompressed)) goto bad;
-                str = PyUnicode_FromEncodedObject(decompressed, t->encoding ? encoding_names[t->encoding] : "UTF-8", NULL);
-                Py_DECREF(decompressed);
-                if (t->intern && str) {
-                    PyUnicode_InternInPlace(&str);
-                }
-            } else
-            #endif
-
-            if (t->intern) {
-                str = PyUnicode_InternFromString(t->s);
-            } else if (t->encoding) {
-                str = PyUnicode_Decode(t->s, t->n - 1, encoding_names[t->encoding], NULL);
-            } else {
-                str = PyUnicode_FromStringAndSize(t->s, t->n - 1);
-            }
-        } else {
-            str = PyBytes_FromStringAndSize(t->s, t->n - 1);
-        }
-        if (!str) goto bad;
-        *target = str;
-        ++target;
-        // initialise cached hash value
-        if (PyObject_Hash(str) == -1) goto bad;
-        ++t;
-    }
-
-    Py_XDECREF(decompress);
-    return 0;
+static PyObject *__Pyx_DecompressString(const char *s, Py_ssize_t length, int algo) {
+    PyObject *module = PyImport_ImportModule(algo == 2 ? "bz2" : "zlib");
+    if (unlikely(!module)) goto bad;
+    PyObject *decompress = PyObject_GetAttrString(module, "decompress");
+    Py_DECREF(module);
+    if (unlikely(!decompress)) goto bad;
+    PyObject *compressed_bytes = PyBytes_FromStringAndSize(s, length);
+    if (unlikely(!compressed_bytes)) goto bad;
+    PyObject *decompressed = PyObject_CallFunctionObjArgs(decompress, compressed_bytes, NULL);
+    Py_DECREF(compressed_bytes);
+    return decompressed;
 
 bad:
-    Py_XDECREF(decompress);
-    return -1;
+    return NULL;
 }
+
 
 //////////////////// BytesContains.proto ////////////////////
 
