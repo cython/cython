@@ -63,7 +63,7 @@ static int __Pyx_InitStrings(__Pyx_StringTabEntry const *t, PyObject **target, c
     while (t->s) {
         PyObject *str;
         if (t->is_unicode) {
-            #if CYTHON_COMPRESS_LONG_STRINGS
+            #if CYTHON_COMPRESS_STRINGS
             if (t->is_compressed) {
                 if (!decompress) {
                     PyObject *zlib = PyImport_ImportModule("zlib");

@@ -1912,7 +1912,7 @@ class GlobalState:
             c.try_compression()
 
             if c.is_compressed:
-                decls_writer.putln("#if CYTHON_COMPRESS_LONG_STRINGS")
+                decls_writer.putln("#if CYTHON_COMPRESS_STRINGS")
                 cliteral = StringEncoding.split_string_literal(c.compressed_value)
                 decls_writer.putln(
                     f'static const char {cname}[] = "{cliteral}";',

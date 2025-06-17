@@ -1387,6 +1387,10 @@ most important to least important:
     use the standard library types.  It is on by default on platforms
     where we think it's likely to work.
 
+``CYTHON_COMPRESS_STRINGS``
+    Whether to store Python strings in the binary module as (zlib) compressed data,
+    decompressing them at import time.
+
 There is a further list of macros which turn off various optimizations or language
 features.  Under normal circumstance Cython enables these automatically based on the
 version of Python you are compiling for so there is no need to use them
