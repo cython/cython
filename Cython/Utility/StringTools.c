@@ -58,21 +58,29 @@ static PyObject *__Pyx_DecompressString(const char *s, Py_ssize_t length); /*pro
 //////////////////// DecompressString.proto ////////////////////
 
 static PyObject *__Pyx_DecompressString(const char *s, Py_ssize_t length, int algo) {
-    PyObject *module = PyImport_ImportModule(algo == 2 ? "bz2" : "zlib");
-    if (unlikely(!module)) return NULL;
+    PyObject *module, *decompress, *compressed_bytes, *decompressed;
 
-    PyObject *decompress = PyObject_GetAttrString(module, "decompress");
-    Py_DECREF(module);
-    if (unlikely(!decompress)) return NULL;
+    module = PyImport_ImportModule(algo == 2 ? "bz2" : "zlib");
+    if (unlikely(!module)) goto bad;
+
+    decompress = PyObject_GetAttrString(module, "decompress");
+    // Let's keep the module alive during the call, just in case.
+    if (unlikely(!decompress)) goto bad;
 
     PyObject *compressed_bytes = PyBytes_FromStringAndSize(s, length);
-    if (unlikely(!compressed_bytes)) return NULL;
+    if (unlikely(!compressed_bytes)) {
+        Py_DECREF(decompress);
+        goto bad;
+    }
 
     PyObject *decompressed = PyObject_CallFunctionObjArgs(decompress, compressed_bytes, NULL);
     Py_DECREF(compressed_bytes);
+    Py_DECREF(decompress);
+    Py_DECREF(module);
     return decompressed;
 
 bad:
+    Py_XDECREF(module);
     return NULL;
 }
 
