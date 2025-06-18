@@ -22,15 +22,6 @@ from string import Template
 from functools import partial, wraps
 from contextlib import closing, contextmanager
 from collections import defaultdict
-from zlib import compress as zlib_compress
-try:
-    from bz2 import compress as bz2_compress
-except ImportError:
-    bz2_compress = None
-#try:
-#    from lzma import compress as lzma_compress
-#except ImportError:
-#    lzma_compress = None
 
 from . import Naming
 from . import Options
@@ -39,6 +30,43 @@ from . import StringEncoding
 from .. import Utils
 from .Scanning import SourceDescriptor
 from ..StringIOTree import StringIOTree
+
+
+# Set up available compression algorithms for maximum compression.
+from zlib import compress as zlib_compress
+try:
+    from bz2 import compress as bz2_compress
+except ImportError:
+    bz2_compress = None
+else:
+    bz2_compress = partial(bz2_compress, compresslevel=9)
+#try:
+#    from lzma import compress as lzma_compress
+#except ImportError:
+#    lzma_compress = None
+try:
+    from compression.zstd import (
+        compress as zstd_compress,
+        CompressionParameter as zstd_CompressionParameter,
+        Strategy as zstd_Strategy,
+    )
+except ImportError:
+    zstd_compress = None
+else:
+    zstd_compress = partial(zstd_compress, options={
+        zstd_CompressionParameter.strategy: zstd_Strategy.btultra2,
+        zstd_CompressionParameter.compression_level: zstd_CompressionParameter.compression_level.bounds()[1],
+    })
+
+compression_algorithms = [
+    # Note: order is important and defines valiues for "CYTHON_COMPRESS_STRINGS" !
+    (1, 'zlib', partial(zlib_compress, level=9)),
+    (2, 'bz2', bz2_compress),
+    (3, 'zstd', zstd_compress),
+    # LZMA is difficult to configure for efficient output from C code
+    # and the default output tends to be quite large.
+    #(4, 'lzma', lzma_compress),
+]
 
 
 renamed_py2_builtins_map = {
@@ -1980,26 +2008,20 @@ class GlobalState:
         # string data
         self.use_utility_code(UtilityCode.load_cached("DecompressString", "StringTools.c"))
 
-        algorithm_names = ['zlib', 'bz2', 'lzma']
-        zlib_bytes = zlib_compress(concat_bytes, level=9)
-        if len(zlib_bytes) >= len(concat_bytes) - 10:
-            zlib_bytes = None
-        bz2_bytes = bz2_compress(concat_bytes, compresslevel=9) if bz2_compress is not None else None
-        if bz2_bytes and len(bz2_bytes) >= len(concat_bytes) - 10:
-            bz2_bytes = None
-        # LZMA is difficult to configure for efficient output from C code
-        # and the default output tends to be quite large.
-        #lzma_bytes = lzma_compress(concat_bytes) if lzma_compress is not None else None
-
         has_if = False
-        for i, compressed_bytes in enumerate([zlib_bytes, bz2_bytes], 1):
-            if not compressed_bytes:
+        for algo_number, algo_name, compress in compression_algorithms:
+            if compress is None:
                 continue
-            w.putln(f"#{'if' if not has_if else 'elif'} CYTHON_COMPRESS_STRINGS == {i}  /* {algorithm_names[i-1]} */")
+            compressed_bytes = compress(concat_bytes)
+            if len(compressed_bytes) >= len(concat_bytes) - 10:
+                continue
+
+            guard = "__PYX_LIMITED_VERSION_HEX >= 0x030e0000" if algo_name == 'zstd' else "1"
+            w.putln(f"#{'if' if not has_if else 'elif'} CYTHON_COMPRESS_STRINGS == {algo_number} && ({guard}) /* {algo_name} */")
             has_if = True
             escaped_bytes = StringEncoding.escape_byte_string(compressed_bytes)
             w.putln(f'const char* const cstring = "{escaped_bytes}";', safe=True)
-            w.putln(f'PyObject *data = __Pyx_DecompressString(cstring, {len(compressed_bytes)}, {i});')
+            w.putln(f'PyObject *data = __Pyx_DecompressString(cstring, {len(compressed_bytes)}, {algo_number});')
             if is_unicode:
                 w.putln('PyObject *str_data = PyUnicode_FromEncodedObject(data, "UTF-8", NULL);')
                 w.putln("Py_DECREF(data); data = str_data;")

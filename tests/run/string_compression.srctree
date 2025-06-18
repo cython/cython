@@ -9,12 +9,43 @@ PYTHON -c "'zlib'; import module; assert len(module.__doc__) == 1297, len(module
 PYTHON setup_bz2.py build_ext --inplace --force
 PYTHON -c "'bz2'; import module; assert len(module.__doc__) == 1297, len(module.__doc__)"
 
+PYTHON setup_zstd.py build_ext --inplace --force
+PYTHON -c "'zstd'; import module; assert len(module.__doc__) == 1297, len(module.__doc__)"
+
 PYTHON setup_uncompressed.py build_ext --inplace --force
 PYTHON -c "'uncompressed'; import module; assert len(module.__doc__) == 1297, len(module.__doc__)"
 
 PYTHON setup_default.py build_ext --inplace --force
 PYTHON -c "'default'; import module; assert len(module.__doc__) == 1297, len(module.__doc__)"
+
+PYTHON check_source.py
 """
+
+######## check_source.py ########
+
+algorithms = {}
+
+with open("module.c") as f:
+    for line in f:
+        if ' CYTHON_COMPRESS_STRINGS == ' not in line or ' /* ' not in line:
+            continue
+
+        _, rest = line.split(' CYTHON_COMPRESS_STRINGS == ')
+        config_value, rest = rest.split(' && ')
+        _, algo_name = rest.split(' /* ')
+
+        algorithms[int(config_value)] = algo_name.rstrip(' */\n')
+
+assert algorithms == {
+    1: 'zlib',
+    2: 'bz2',
+    3: 'zstd',
+}, algorithms
+
+with open("short_text.c") as f:
+    for line in f:
+        assert ' CYTHON_COMPRESS_STRINGS == ' not in line, line
+
 
 ######## setup_default.py ########
 
@@ -57,6 +88,22 @@ setup(ext_modules=cythonize([
     Extension("*", sources=["module.py"], define_macros=[('CYTHON_COMPRESS_STRINGS', '2')]),
     Extension("*", sources=["short_text.py"], define_macros=[('CYTHON_COMPRESS_STRINGS', '2')]),
 ]))
+
+
+######## setup_zstd.py ########
+
+from Cython.Build.Dependencies import cythonize
+from setuptools import setup, Extension
+
+try:
+    import compression.zstd
+except ImportError:
+    pass
+else:
+    setup(ext_modules=cythonize([
+        Extension("*", sources=["module.py"], define_macros=[('CYTHON_COMPRESS_STRINGS', '3')]),
+        Extension("*", sources=["short_text.py"], define_macros=[('CYTHON_COMPRESS_STRINGS', '3')]),
+    ]))
 
 
 ######## short_text.py ########

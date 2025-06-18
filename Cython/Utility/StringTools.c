@@ -60,10 +60,21 @@ static PyObject *__Pyx_DecompressString(const char *s, Py_ssize_t length, int al
 static PyObject *__Pyx_DecompressString(const char *s, Py_ssize_t length, int algo) {
     PyObject *module, *decompress, *compressed_bytes, *decompressed;
 
+    PyObject *methodname = PyUnicode_FromString("decompress");
+    if (unlikely(!methodname)) return NULL;
+
+    #if __PYX_LIMITED_VERSION_HEX >= 0x030e0000
+    if (algo == 3) {
+        PyObject *fromlist = Py_BuildValue("[O]", methodname);
+        if (unlikely(!fromlist)) return NULL;
+        module = PyImport_ImportModuleLevel("compression.zstd", NULL, NULL, fromlist, 0);
+        Py_DECREF(fromlist);
+    } else
+    #endif
     module = PyImport_ImportModule(algo == 2 ? "bz2" : "zlib");
     if (unlikely(!module)) goto bad;
 
-    decompress = PyObject_GetAttrString(module, "decompress");
+    decompress = PyObject_GetAttr(module, methodname);
     // Let's keep the module alive during the call, just in case.
     if (unlikely(!decompress)) goto bad;
 
@@ -74,13 +85,17 @@ static PyObject *__Pyx_DecompressString(const char *s, Py_ssize_t length, int al
     }
 
     decompressed = PyObject_CallFunctionObjArgs(decompress, compressed_bytes, NULL);
+
     Py_DECREF(compressed_bytes);
     Py_DECREF(decompress);
     Py_DECREF(module);
+    Py_DECREF(methodname);
+
     return decompressed;
 
 bad:
     Py_XDECREF(module);
+    Py_DECREF(methodname);
     return NULL;
 }
 
