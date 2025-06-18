@@ -2019,7 +2019,8 @@ class GlobalState:
             guard = "__PYX_LIMITED_VERSION_HEX >= 0x030e0000" if algo_name == 'zstd' else "1"
             w.putln(f"#{'if' if not has_if else 'elif'} CYTHON_COMPRESS_STRINGS == {algo_number} && ({guard}) /* {algo_name} */")
             has_if = True
-            escaped_bytes = StringEncoding.escape_byte_string(compressed_bytes)
+            escaped_bytes = StringEncoding.split_string_literal(
+                StringEncoding.escape_byte_string(compressed_bytes))
             w.putln(f'const char* const cstring = "{escaped_bytes}";', safe=True)
             w.putln(f'PyObject *data = __Pyx_DecompressString(cstring, {len(compressed_bytes)}, {algo_number});')
             if is_unicode:
@@ -2033,7 +2034,8 @@ class GlobalState:
 
         if has_if:
             w.putln("#else")
-        escaped_bytes = StringEncoding.escape_byte_string(concat_bytes)
+        escaped_bytes = StringEncoding.split_string_literal(
+            StringEncoding.escape_byte_string(concat_bytes))
         w.putln(f'const char* const cstring = "{escaped_bytes}";', safe=True)
         if is_unicode:
             w.putln(f'PyObject *data = PyUnicode_DecodeUTF8(cstring, {len(concat_bytes)}, NULL); ')
