@@ -78,7 +78,7 @@ static PyObject *__Pyx_DecompressString(const char *s, Py_ssize_t length, int al
     // Let's keep the module alive during the call, just in case.
     if (unlikely(!decompress)) goto bad;
 
-    compressed_bytes = PyBytes_FromStringAndSize(s, length);
+    compressed_bytes = PyMemoryView_FromMemory(s, length, PyBUF_READ);
     if (unlikely(!compressed_bytes)) {
         Py_DECREF(decompress);
         goto bad;
