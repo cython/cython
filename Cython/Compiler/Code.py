@@ -1897,7 +1897,6 @@ class GlobalState:
                         py_string.is_unicode,
                         py_string.intern and py_string.is_unicode,
                         py_string.cname,
-                        py_string.encoding,
                         text,
                     ))
 
@@ -1944,7 +1943,7 @@ class GlobalState:
             max_length: cython.Py_ssize_t = 0
 
             stringtab_group_start = stringtab_pos
-            for _, _, cname, encoding, text in py_strings:
+            for _, _, cname, text in py_strings:
                 string_value = text if is_unicode else text.byteencode() if text.encoding else text.utf8encode()
                 length = len(string_value)
                 if length > max_length:
@@ -1962,8 +1961,7 @@ class GlobalState:
 
             w.putln("{")
 
-            # index
-            #array_type = f"__Pyx_StringIndex_{int(bool(is_unicode))}_{int(bool(is_interned))}"
+            # index of string offsets
             w.putln(
                 "const struct { "
                 f"const unsigned int length: {max_length.bit_length()}; "
@@ -1976,10 +1974,10 @@ class GlobalState:
 
             algorithm_names = ['zlib', 'bz2', 'lzma']
             zlib_bytes = zlib_compress(concat_bytes, level=9)
-            if len(zlib_bytes) >= len(concat_bytes):
+            if len(zlib_bytes) >= len(concat_bytes) - 10:
                 zlib_bytes = None
             bz2_bytes = bz2_compress(concat_bytes, compresslevel=9) if bz2_compress is not None else None
-            if bz2_bytes and len(bz2_bytes) >= len(concat_bytes):
+            if bz2_bytes and len(bz2_bytes) >= len(concat_bytes) - 10:
                 bz2_bytes = None
             # LZMA is difficult to configure for efficient output from C code
             # and the default output tends to be quite large.
@@ -1993,31 +1991,31 @@ class GlobalState:
                 has_if = True
                 escaped_bytes = StringEncoding.escape_byte_string(compressed_bytes)
                 w.putln(f'const char* const cstring = "{escaped_bytes}";', safe=True)
-                w.putln(f'PyObject *data = __Pyx_DecompressString(cstring, {len(compressed_bytes)}, {i}); ')
+                w.putln(f'PyObject *data = __Pyx_DecompressString(cstring, {len(compressed_bytes)}, {i});')
+                if is_unicode:
+                    w.putln('PyObject *str_data = PyUnicode_FromEncodedObject(data, "UTF-8", NULL);')
+                    w.putln("Py_DECREF(data); data = str_data;")
+                else:
+                    w.putln('const char* const bytes = __Pyx_PyBytes_AsString(data);')
+                    w.putln("#if !CYTHON_ASSUME_SAFE_MACROS")
+                    w.putln(f'if (likely(bytes)); else {{ Py_DECREF(data); {w.error_goto(self.module_pos)} }}')
+                    w.putln('#endif')
 
             if has_if:
                 w.putln("#else")
             escaped_bytes = StringEncoding.escape_byte_string(concat_bytes)
             w.putln(f'const char* const cstring = "{escaped_bytes}";', safe=True)
-            w.putln(f'PyObject *data = PyBytes_FromStringAndSize(cstring, {len(concat_bytes)}); ')
+            if is_unicode:
+                w.putln(f'PyObject *data = PyUnicode_DecodeUTF8(cstring, {len(concat_bytes)}, NULL); ')
+            else:
+                w.putln(f'const char* const bytes = cstring;')
+                w.putln('PyObject *data = NULL;')  # Always allow xdecref below.
             w.putln("CYTHON_UNUSED_VAR(__Pyx_DecompressString);")
             if has_if:
                 w.putln("#endif")
 
-            w.putln(w.error_goto_if_null('data', self.module_pos))
-
             if is_unicode:
-                w.put('PyObject *str_data = PyUnicode_FromEncodedObject(data, "UTF-8", NULL); ')
-                w.putln("Py_DECREF(data);")
-                w.putln("data = str_data;")
                 w.putln(w.error_goto_if_null('data', self.module_pos))
-            else:
-                w.putln('const char* bytes = __Pyx_PyBytes_AsString(data);')
-                w.putln("#if !CYTHON_ASSUME_SAFE_MACROS")
-                w.putln('if (unlikely(!bytes)) {')
-                w.putln("Py_DECREF(data);")
-                w.putln('}')
-                w.putln('#endif')
 
             w.putln(
                 "PyObject **stringtab = "
@@ -2028,18 +2026,18 @@ class GlobalState:
             w.putln("Py_ssize_t end = pos + index[i].length;")
 
             if is_unicode:
-                w.putln("PyObject *str = PyUnicode_Substring(data, pos, end);")
+                w.putln("PyObject *string = PyUnicode_Substring(data, pos, end);")
                 if is_interned:
-                    w.putln("if (likely(str)) PyUnicode_InternInPlace(&str);")
+                    w.putln("if (likely(string)) PyUnicode_InternInPlace(&string);")
             else:
-                w.putln("PyObject *str = PyBytes_FromStringAndSize(bytes + pos, end - pos);")
+                w.putln("PyObject *string = PyBytes_FromStringAndSize(bytes + pos, end - pos);")
 
-            w.putln("if (unlikely(!str) || (unlikely(PyObject_Hash(str) == -1))) {")
-            w.putln("Py_XDECREF(str); Py_DECREF(data);")
+            w.putln("if (unlikely(!string) || (unlikely(PyObject_Hash(string) == -1))) {")
+            w.putln("Py_XDECREF(string); Py_XDECREF(data);")
             w.putln(w.error_goto(self.module_pos))
             w.putln('}')
 
-            w.putln(f"stringtab[i] = str;")
+            w.putln(f"stringtab[i] = string;")
 
             w.putln("pos = end;")
             w.putln("}")  # for()
