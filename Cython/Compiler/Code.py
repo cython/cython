@@ -60,7 +60,7 @@ else:
     del zstd_Strategy
 
 compression_algorithms = [
-    # Note: order is important and defines valiues for "CYTHON_COMPRESS_STRINGS" !
+    # Note: order is important and defines values for "CYTHON_COMPRESS_STRINGS" !
     (1, 'zlib', partial(zlib_compress, level=9)),
     (2, 'bz2', bz2_compress),
     (3, 'zstd', zstd_compress),
