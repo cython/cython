@@ -22,7 +22,6 @@ from string import Template
 from functools import partial, wraps
 from contextlib import closing, contextmanager
 from collections import defaultdict
-from itertools import groupby
 from zlib import compress as zlib_compress
 try:
     from bz2 import compress as bz2_compress
@@ -1881,7 +1880,8 @@ class GlobalState:
 
     def generate_string_constants(self):
         c_consts = []
-        py_consts = []
+        py_bytes_consts = []
+        py_unicode_consts = []
 
         # Split into buckets.
         for _, _, c in sorted([(len(c.cname), c.cname, c) for c in self.string_const_index.values()]):
@@ -1893,15 +1893,15 @@ class GlobalState:
                     if py_string.is_unicode and not isinstance(text, str):
                         text = StringEncoding.EncodedString(text.decode(py_string.encoding or 'UTF-8'))
 
-                    py_consts.append((
-                        py_string.is_unicode,
+                    (py_unicode_consts if py_string.is_unicode else py_bytes_consts).append((
                         py_string.intern and py_string.is_unicode,
                         py_string.cname,
                         text,
                     ))
 
         c_consts.sort()
-        py_consts.sort()
+        py_bytes_consts.sort()
+        py_unicode_consts.sort()
 
         # Generate C string constants.
         decls_writer = self.parts['string_decls']
@@ -1925,127 +1925,132 @@ class GlobalState:
                 decls_writer.putln("#endif")
 
         # Generate stringtab and Python string constants.
-        py_string_count = len(py_consts)
+        py_string_count = len(py_bytes_consts) + len(py_unicode_consts)
         self.parts['module_state'].putln(f"PyObject *{Naming.stringtab_cname}[{py_string_count}];")
         self._generate_module_array_traverse_and_clear(Naming.stringtab_cname, py_string_count, may_have_refcycles=False)
+
+        stringtab_offset = 0
+        self.generate_pystring_constants(py_bytes_consts, stringtab_offset, is_unicode=False)
+        stringtab_offset = len(py_bytes_consts)
+        self.generate_pystring_constants(py_unicode_consts, stringtab_offset, is_unicode=True)
+
+    @cython.cfunc
+    def generate_pystring_constants(self, py_strings: list, stringtab_pos: cython.Py_ssize_t, is_unicode: bool):
+        # Concatenate strings and build index array.
+        if not py_strings:
+            return
 
         w = self.parts['init_constants']
         defines = self.parts['constant_name_defines']
 
-        is_unicode: bool
-        is_interned: bool
-        stringtab_pos: cython.Py_ssize_t = 0
+        index = []
+        string_values = []
+        max_length: cython.Py_ssize_t = 1
+        first_interned: cython.Py_ssize_t = -1
+        stringtab_group_start = stringtab_pos
 
-        for is_unicode, py_strings in groupby(py_consts, key=operator.itemgetter(0)):
-            # Concatenate and build index array.
-            index = []
-            string_values = []
-            max_length: cython.Py_ssize_t = 0
+        for i, (is_interned, cname, text) in enumerate(py_strings):
+            string_value = text if is_unicode else text.byteencode() if text.encoding else text.utf8encode()
+            length = len(string_value)
+            if length > max_length:
+                max_length = length
+            if is_interned and first_interned == -1:
+                first_interned = i
+            index.append("{%d}" % length)
+            string_values.append(string_value)
 
-            stringtab_group_start = stringtab_pos
-            first_interned: cython.Py_ssize_t = -1
-            for i, (_, is_interned, cname, text) in enumerate(py_strings):
-                string_value = text if is_unicode else text.byteencode() if text.encoding else text.utf8encode()
-                length = len(string_value)
-                if length > max_length:
-                    max_length = length
-                if is_interned and first_interned == -1:
-                    first_interned = i
-                index.append("{%d}" % length)
-                string_values.append(string_value)
+            defines.putln(f"#define {cname} {Naming.stringtab_cname}[{stringtab_pos}]")
+            stringtab_pos += 1
 
-                defines.putln(f"#define {cname} {Naming.stringtab_cname}[{stringtab_pos}]")
-                stringtab_pos += 1
+        if is_unicode:
+            concat_bytes = ''.join(string_values).encode('utf8')
+        else:
+            concat_bytes = b''.join(string_values)
 
-            if is_unicode:
-                concat_bytes = ''.join(string_values).encode('utf8')
-            else:
-                concat_bytes = b''.join(string_values)
+        w.putln("{")
 
-            w.putln("{")
+        # index of string offsets
+        w.putln(
+            "const struct { "
+            f"const unsigned int length: {max_length.bit_length()}; "
+            "} "
+            f"index[] = {{{','.join(index)}}};",
+        )
 
-            # index of string offsets
-            w.putln(
-                "const struct { "
-                f"const unsigned int length: {max_length.bit_length()}; "
-                "} "
-                f"index[] = {{{','.join(index)}}};",
-            )
+        # string data
+        self.use_utility_code(UtilityCode.load_cached("DecompressString", "StringTools.c"))
 
-            # string data
-            self.use_utility_code(UtilityCode.load_cached("DecompressString", "StringTools.c"))
+        algorithm_names = ['zlib', 'bz2', 'lzma']
+        zlib_bytes = zlib_compress(concat_bytes, level=9)
+        if len(zlib_bytes) >= len(concat_bytes) - 10:
+            zlib_bytes = None
+        bz2_bytes = bz2_compress(concat_bytes, compresslevel=9) if bz2_compress is not None else None
+        if bz2_bytes and len(bz2_bytes) >= len(concat_bytes) - 10:
+            bz2_bytes = None
+        # LZMA is difficult to configure for efficient output from C code
+        # and the default output tends to be quite large.
+        #lzma_bytes = lzma_compress(concat_bytes) if lzma_compress is not None else None
 
-            algorithm_names = ['zlib', 'bz2', 'lzma']
-            zlib_bytes = zlib_compress(concat_bytes, level=9)
-            if len(zlib_bytes) >= len(concat_bytes) - 10:
-                zlib_bytes = None
-            bz2_bytes = bz2_compress(concat_bytes, compresslevel=9) if bz2_compress is not None else None
-            if bz2_bytes and len(bz2_bytes) >= len(concat_bytes) - 10:
-                bz2_bytes = None
-            # LZMA is difficult to configure for efficient output from C code
-            # and the default output tends to be quite large.
-            #lzma_bytes = lzma_compress(concat_bytes) if lzma_compress is not None else None
-
-            has_if = False
-            for i, compressed_bytes in enumerate([zlib_bytes, bz2_bytes], 1):
-                if not compressed_bytes:
-                    continue
-                w.putln(f"#{'if' if not has_if else 'elif'} CYTHON_COMPRESS_STRINGS == {i}  /* {algorithm_names[i-1]} */")
-                has_if = True
-                escaped_bytes = StringEncoding.escape_byte_string(compressed_bytes)
-                w.putln(f'const char* const cstring = "{escaped_bytes}";', safe=True)
-                w.putln(f'PyObject *data = __Pyx_DecompressString(cstring, {len(compressed_bytes)}, {i});')
-                if is_unicode:
-                    w.putln('PyObject *str_data = PyUnicode_FromEncodedObject(data, "UTF-8", NULL);')
-                    w.putln("Py_DECREF(data); data = str_data;")
-                else:
-                    w.putln('const char* const bytes = __Pyx_PyBytes_AsString(data);')
-                    w.putln("#if !CYTHON_ASSUME_SAFE_MACROS")
-                    w.putln(f'if (likely(bytes)); else {{ Py_DECREF(data); {w.error_goto(self.module_pos)} }}')
-                    w.putln('#endif')
-
-            if has_if:
-                w.putln("#else")
-            escaped_bytes = StringEncoding.escape_byte_string(concat_bytes)
+        has_if = False
+        for i, compressed_bytes in enumerate([zlib_bytes, bz2_bytes], 1):
+            if not compressed_bytes:
+                continue
+            w.putln(f"#{'if' if not has_if else 'elif'} CYTHON_COMPRESS_STRINGS == {i}  /* {algorithm_names[i-1]} */")
+            has_if = True
+            escaped_bytes = StringEncoding.escape_byte_string(compressed_bytes)
             w.putln(f'const char* const cstring = "{escaped_bytes}";', safe=True)
+            w.putln(f'PyObject *data = __Pyx_DecompressString(cstring, {len(compressed_bytes)}, {i});')
             if is_unicode:
-                w.putln(f'PyObject *data = PyUnicode_DecodeUTF8(cstring, {len(concat_bytes)}, NULL); ')
+                w.putln('PyObject *str_data = PyUnicode_FromEncodedObject(data, "UTF-8", NULL);')
+                w.putln("Py_DECREF(data); data = str_data;")
             else:
-                w.putln(f'const char* const bytes = cstring;')
-                w.putln('PyObject *data = NULL;')  # Always allow xdecref below.
-            w.putln("CYTHON_UNUSED_VAR(__Pyx_DecompressString);")
-            if has_if:
-                w.putln("#endif")
+                w.putln('const char* const bytes = __Pyx_PyBytes_AsString(data);')
+                w.putln("#if !CYTHON_ASSUME_SAFE_MACROS")
+                w.putln(f'if (likely(bytes)); else {{ Py_DECREF(data); {w.error_goto(self.module_pos)} }}')
+                w.putln('#endif')
 
-            if is_unicode:
-                w.putln(w.error_goto_if_null('data', self.module_pos))
+        if has_if:
+            w.putln("#else")
+        escaped_bytes = StringEncoding.escape_byte_string(concat_bytes)
+        w.putln(f'const char* const cstring = "{escaped_bytes}";', safe=True)
+        if is_unicode:
+            w.putln(f'PyObject *data = PyUnicode_DecodeUTF8(cstring, {len(concat_bytes)}, NULL); ')
+        else:
+            w.putln(f'const char* const bytes = cstring;')
+            w.putln('PyObject *data = NULL;')  # Always allow xdecref below.
+        w.putln("CYTHON_UNUSED_VAR(__Pyx_DecompressString);")
+        if has_if:
+            w.putln("#endif")
 
-            w.putln(
-                "PyObject **stringtab = "
-                f"{w.name_in_main_c_code_module_state(Naming.stringtab_cname)} + {stringtab_group_start};"
-            )
+        if is_unicode:
+            w.putln(w.error_goto_if_null('data', self.module_pos))
 
-            w.putln(f"for (Py_ssize_t pos = 0, i = 0; i < {len(index)}; i++) {{")
-            w.putln("Py_ssize_t end = pos + index[i].length;")
+        w.putln(
+            "PyObject **stringtab = "
+            f"{w.name_in_main_c_code_module_state(Naming.stringtab_cname)} + {stringtab_group_start};"
+        )
 
-            if is_unicode:
-                w.putln("PyObject *string = PyUnicode_Substring(data, pos, end);")
-                if first_interned >= 0:
-                    w.putln(f"if (likely(string) && i >= {first_interned}) PyUnicode_InternInPlace(&string);")
-            else:
-                w.putln("PyObject *string = PyBytes_FromStringAndSize(bytes + pos, end - pos);")
+        w.putln(f"for (Py_ssize_t pos = 0, i = 0; i < {len(index)}; i++) {{")
+        w.putln("Py_ssize_t end = pos + index[i].length;")
 
-            w.putln("if (unlikely(!string) || (unlikely(PyObject_Hash(string) == -1))) {")
-            w.putln("Py_XDECREF(string); Py_XDECREF(data);")
-            w.putln(w.error_goto(self.module_pos))
-            w.putln('}')
+        if is_unicode:
+            w.putln("PyObject *string = PyUnicode_Substring(data, pos, end);")
+            if first_interned >= 0:
+                w.putln(f"if (likely(string) && i >= {first_interned}) PyUnicode_InternInPlace(&string);")
+        else:
+            w.putln("PyObject *string = PyBytes_FromStringAndSize(bytes + pos, end - pos);")
 
-            w.putln(f"stringtab[i] = string;")
+        w.putln("if (unlikely(!string) || (unlikely(PyObject_Hash(string) == -1))) {")
+        w.putln("Py_XDECREF(string); Py_XDECREF(data);")
+        w.putln(w.error_goto(self.module_pos))
+        w.putln('}')
 
-            w.putln("pos = end;")
-            w.putln("}")  # for()
+        w.putln(f"stringtab[i] = string;")
 
-            w.putln("}")  # close block
+        w.putln("pos = end;")
+        w.putln("}")  # for()
+
+        w.putln("}")  # close block
 
     def generate_codeobject_constants(self):
         w = self.parts['init_codeobjects']
