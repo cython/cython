@@ -31,6 +31,10 @@ def grep_paths(basename, fname):
     with open(fname) as fin:
         for line in fin:
             if basename in line:
+                if 'const cstring' in line:
+                    # Cannot realistically parse concatenated Python string constants.
+                    continue
+
                 [part] = [p for p in line.split() if basename in p]
                 yield part.rstrip(',\n;:01234566789').strip('"')
 
