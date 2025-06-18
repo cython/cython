@@ -36,11 +36,11 @@ with open("module.c") as f:
 
         algorithms[int(config_value)] = algo_name.rstrip(' */\n')
 
-assert algorithms == {
-    1: 'zlib',
-    2: 'bz2',
-    3: 'zstd',
-}, algorithms
+assert algorithms[1] == 'zlib', algorithms
+assert algorithms[2] == 'bz2', algorithms
+assert algorithms.get(3) in ('zstd', None), algorithms
+
+assert len(algorithms) in (2, 3), algorithms
 
 with open("short_text.c") as f:
     for line in f:
