@@ -95,15 +95,10 @@ setup(ext_modules=cythonize([
 from Cython.Build.Dependencies import cythonize
 from setuptools import setup, Extension
 
-try:
-    import compression.zstd
-except ImportError:
-    pass
-else:
-    setup(ext_modules=cythonize([
-        Extension("*", sources=["module.py"], define_macros=[('CYTHON_COMPRESS_STRINGS', '3')]),
-        Extension("*", sources=["short_text.py"], define_macros=[('CYTHON_COMPRESS_STRINGS', '3')]),
-    ]))
+setup(ext_modules=cythonize([
+    Extension("*", sources=["module.py"], define_macros=[('CYTHON_COMPRESS_STRINGS', '3')]),
+    Extension("*", sources=["short_text.py"], define_macros=[('CYTHON_COMPRESS_STRINGS', '3')]),
+]))
 
 
 ######## short_text.py ########
