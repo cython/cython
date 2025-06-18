@@ -1936,18 +1936,21 @@ class GlobalState:
         is_interned: bool
         stringtab_pos: cython.Py_ssize_t = 0
 
-        for (is_unicode, is_interned), py_strings in groupby(py_consts, key=operator.itemgetter(0, 1)):
+        for is_unicode, py_strings in groupby(py_consts, key=operator.itemgetter(0)):
             # Concatenate and build index array.
             index = []
             string_values = []
             max_length: cython.Py_ssize_t = 0
 
             stringtab_group_start = stringtab_pos
-            for _, _, cname, text in py_strings:
+            first_interned: cython.Py_ssize_t = -1
+            for i, (_, is_interned, cname, text) in enumerate(py_strings):
                 string_value = text if is_unicode else text.byteencode() if text.encoding else text.utf8encode()
                 length = len(string_value)
                 if length > max_length:
                     max_length = length
+                if is_interned and first_interned == -1:
+                    first_interned = i
                 index.append("{%d}" % length)
                 string_values.append(string_value)
 
@@ -2027,8 +2030,8 @@ class GlobalState:
 
             if is_unicode:
                 w.putln("PyObject *string = PyUnicode_Substring(data, pos, end);")
-                if is_interned:
-                    w.putln("if (likely(string)) PyUnicode_InternInPlace(&string);")
+                if first_interned >= 0:
+                    w.putln(f"if (likely(string) && i >= {first_interned}) PyUnicode_InternInPlace(&string);")
             else:
                 w.putln("PyObject *string = PyBytes_FromStringAndSize(bytes + pos, end - pos);")
 
