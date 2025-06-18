@@ -1962,7 +1962,6 @@ class GlobalState:
         stringtab_offset = len(py_bytes_consts)
         self.generate_pystring_constants(py_unicode_consts, stringtab_offset, is_unicode=True)
 
-    @cython.cfunc
     def generate_pystring_constants(self, py_strings: list, stringtab_pos: cython.Py_ssize_t, is_unicode: bool):
         # Concatenate strings and build index array.
         if not py_strings:
