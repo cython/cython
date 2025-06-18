@@ -3,14 +3,13 @@
 #
 
 
-import bz2
 import cython
 cython.declare(os=object, re=object, operator=object, textwrap=object,
                Template=object, Naming=object, Options=object, StringEncoding=object,
                Utils=object, SourceDescriptor=object, StringIOTree=object,
                DebugFlags=object, defaultdict=object, groupby=object,
                closing=object, partial=object, wraps=object,
-               zlib_compress=object, bz2_compress=object, lzma_compress=object)
+               zlib_compress=object, bz2_compress=object, lzma_compress=object, zstd_compress=object)
 
 import hashlib
 import operator
@@ -57,6 +56,8 @@ else:
         zstd_CompressionParameter.strategy: zstd_Strategy.btultra2,
         zstd_CompressionParameter.compression_level: zstd_CompressionParameter.compression_level.bounds()[1],
     })
+    del zstd_CompressionParameter
+    del zstd_Strategy
 
 compression_algorithms = [
     # Note: order is important and defines valiues for "CYTHON_COMPRESS_STRINGS" !
