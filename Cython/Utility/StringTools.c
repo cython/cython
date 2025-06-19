@@ -56,6 +56,7 @@ static CYTHON_INLINE size_t __Pyx_Py_UNICODE_strlen(const Py_UNICODE *u)
 static PyObject *__Pyx_DecompressString(const char *s, Py_ssize_t length, int algo); /*proto*/
 
 //////////////////// DecompressString ////////////////////
+//@requires: TypeConversion.c::GCCDiagnostics
 
 static PyObject *__Pyx_DecompressString(const char *s, Py_ssize_t length, int algo) {
     PyObject *module, *decompress, *compressed_bytes, *decompressed;
@@ -85,9 +86,16 @@ static PyObject *__Pyx_DecompressString(const char *s, Py_ssize_t length, int al
         // 's' is 'const' for storage reasons but PyMemoryView_FromMemory() requires a non-const pointer.
         // We create a read-only buffer, so casting away the 'const' is ok here.
         #ifdef __cplusplus
-        char *memview_bytes = const_cast<char*>(s);
+            char *memview_bytes = const_cast<char*>(s);
         #else
-        char *memview_bytes = (char*) s;
+            #ifdef __Pyx_HAS_GCC_DIAGNOSTIC
+              #pragma GCC diagnostic push
+              #pragma GCC diagnostic ignored "-Wcast-qual"
+            #endif
+            char *memview_bytes = (char*) s;
+            #ifdef __Pyx_HAS_GCC_DIAGNOSTIC
+              #pragma GCC diagnostic pop
+            #endif
         #endif
 
         #if CYTHON_COMPILING_IN_LIMITED_API && !defined(PyBUF_READ)
