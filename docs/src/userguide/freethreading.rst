@@ -51,6 +51,20 @@ extension modules claim to support it then you can either:
 
 These options are mainly useful for testing.
 
+Understanding the "GIL" in free-threaded Python
+===============================================
+
+Although free-threading builds don't have a Global Interpreter Lock, they do still
+need to have a suitable Python "thread-state" when running code that touches Python
+objects.  When the Cython documentation refers to "holding the GIL" you should
+interpret it "being in a state where you can run Python code", rather than holding
+an exclusive lock.
+
+In Cython that thread-state is still controlled by the existing ``with gil:`` and
+``with nogil:`` context managers.  There may still be a value in placing code that doesn't need
+to use Python objects in a ``with nogil`` so that it works well in the regular
+Python interpreter, and to avoid it blocking the Python garbage collector.
+
 Tools for Thread-safety
 =======================
 
