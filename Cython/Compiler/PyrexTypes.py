@@ -1323,7 +1323,8 @@ class PyObjectType(PyrexType):
         return False
 
     def global_init_code(self, entry, code):
-        code.put_init_var_to_py_none(entry, nanny=False)
+        template = "%s" if entry.visibility == "public" else f"{Naming.modulestatevalue_cname}->%s"
+        code.put_init_var_to_py_none(entry, template, nanny=False)
 
     def check_for_null_code(self, cname):
         return cname
@@ -4434,7 +4435,7 @@ class CppClassType(CType):
 
     def cpp_optional_check_for_null_code(self, cname):
         # only applies to c++ classes that are being declared as std::optional
-        return "(%s.has_value())" % cname
+        return "%s.has_value()" % cname
 
     def needs_explicit_construction(self, scope):
         return scope.is_c_class_scope
@@ -4443,10 +4444,16 @@ class CppClassType(CType):
         return self.needs_explicit_construction(scope)  # same rules
 
     def generate_explicit_destruction(self, code, entry, extra_access_code=""):
-        code.putln(f"__Pyx_call_destructor({extra_access_code}{entry.cname});")
+        cname = entry.cname
+        if entry.is_declared_in_module_state():
+            cname = code.name_in_main_c_code_module_state(cname)
+        code.putln(f"__Pyx_call_destructor({extra_access_code}{cname});")
 
     def generate_explicit_construction(self, code, entry, extra_access_code=""):
-        code.put_cpp_placement_new(f"{extra_access_code}{entry.cname}")
+        cname = entry.cname
+        if entry.is_declared_in_module_state():
+            cname = code.name_in_main_c_code_module_state(cname)
+        code.put_cpp_placement_new(f"{extra_access_code}{cname}")
 
 
 class EnumMixin:
@@ -4971,11 +4978,17 @@ class CythonLockType(PyrexType):
         code.globalstate.use_utility_code(
             self.get_utility_code()
         )
-        code.putln(f"__Pyx_Locks_{self.cname_part}_Init({extra_access_code}{entry.cname});")
+        cname = entry.cname
+        if entry.is_declared_in_module_state():
+            cname = code.name_in_main_c_code_module_state(cname)
+        code.putln(f"__Pyx_Locks_{self.cname_part}_Init({extra_access_code}{cname});")
 
     def generate_explicit_destruction(self, code, entry, extra_access_code=""):
+        cname = entry.cname
+        if entry.is_declared_in_module_state():
+            cname = code.name_in_main_c_code_module_state(cname)
         code.putln(
-            f"__Pyx_Locks_{self.cname_part}_Delete({extra_access_code}{entry.cname});")
+            f"__Pyx_Locks_{self.cname_part}_Delete({extra_access_code}{cname});")
 
     def attributes_known(self):
         if self.scope is None:
