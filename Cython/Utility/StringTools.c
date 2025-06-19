@@ -60,6 +60,8 @@ static PyObject *__Pyx_DecompressString(const char *s, Py_ssize_t length, int al
 static PyObject *__Pyx_DecompressString(const char *s, Py_ssize_t length, int algo) {
     PyObject *module, *decompress, *compressed_bytes, *decompressed;
 
+    const char* module_name = algo == 3 ? "compression.zstd" : algo == 2 ? "bz2" : "zlib";
+
     PyObject *methodname = PyUnicode_FromString("decompress");
     if (unlikely(!methodname)) return NULL;
 
@@ -71,13 +73,13 @@ static PyObject *__Pyx_DecompressString(const char *s, Py_ssize_t length, int al
         Py_DECREF(fromlist);
     } else
     #endif
-        module = PyImport_ImportModule(algo == 2 ? "bz2" : "zlib");
+        module = PyImport_ImportModule(module_name);
 
-    if (unlikely(!module)) goto bad;
+    if (unlikely(!module)) goto import_failed;
 
     decompress = PyObject_GetAttr(module, methodname);
     // Let's keep the module alive during the Python function call, just in case.
-    if (unlikely(!decompress)) goto bad;
+    if (unlikely(!decompress)) goto import_failed;
 
     {
         // 's' is 'const' for storage reasons but PyMemoryView_FromMemory() requires a non-const pointer.
@@ -111,6 +113,10 @@ static PyObject *__Pyx_DecompressString(const char *s, Py_ssize_t length, int al
 
     return decompressed;
 
+import_failed:
+    PyErr_Format(PyExc_ImportError,
+        "Failed to import '%.20s.decompress' - cannot initialise module strings.", module_name);
+    goto bad;
 bad:
     Py_XDECREF(module);
     Py_DECREF(methodname);
