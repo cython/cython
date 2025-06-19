@@ -78,7 +78,21 @@ static PyObject *__Pyx_DecompressString(const char *s, Py_ssize_t length, int al
     // Let's keep the module alive during the call, just in case.
     if (unlikely(!decompress)) goto bad;
 
-    compressed_bytes = PyMemoryView_FromMemory(s, length, PyBUF_READ);
+    // 's' is 'const' for storage reasons but PyMemoryView_FromMemory() requires a non-const pointer.
+    // We create a read-only buffer, so casting away the 'const' is ok here.
+    #ifdef __cplusplus
+    char *memview_bytes = const_cast<char*>(s);
+    #else
+    char *memview_bytes = (char*) s;
+    #endif
+
+    #if CYTHON_COMPILING_IN_LIMITED_API && !defined(PyBUF_READ)
+    int memview_flags = 0x100;
+    #else
+    int memview_flags = PyBUF_READ;
+    #endif
+
+    compressed_bytes = PyMemoryView_FromMemory(memview_bytes, length, memview_flags);
     if (unlikely(!compressed_bytes)) {
         Py_DECREF(decompress);
         goto bad;
