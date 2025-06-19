@@ -2009,20 +2009,30 @@ class GlobalState:
         self.use_utility_code(UtilityCode.load_cached("DecompressString", "StringTools.c"))
 
         has_if = False
-        for algo_number, algo_name, compress in compression_algorithms:
+        for algo_number, algo_name, compress in reversed(compression_algorithms):
             if compress is None:
                 continue
             compressed_bytes = compress(concat_bytes)
             if len(compressed_bytes) >= len(concat_bytes) - 10:
                 continue
 
-            guard = "__PYX_LIMITED_VERSION_HEX >= 0x030e0000" if algo_name == 'zstd' else "1"
-            w.putln(f"#{'if' if not has_if else 'elif'} CYTHON_COMPRESS_STRINGS == {algo_number} && ({guard}) /* {algo_name} */")
+            if algo_name == 'zlib':
+                # Use zlib as fallback if the selected compression module is not available.
+                assert algo_number == 1, f"Compression algorithm no. 1 must be 'zlib' to be used as fallback."
+                guard = "(CYTHON_COMPRESS_STRINGS) != 0"
+            elif algo_name == 'zstd':
+                # 'compression.zstd' was added in Python 3.14.
+                guard = f"(CYTHON_COMPRESS_STRINGS) == {algo_number} && __PYX_LIMITED_VERSION_HEX >= 0x030e0000"
+            else:
+                guard = f"(CYTHON_COMPRESS_STRINGS) == {algo_number}"
+
+            w.putln(f"#{'if' if not has_if else 'elif'} {guard} /* {algo_name} */")
             has_if = True
             escaped_bytes = StringEncoding.split_string_literal(
                 StringEncoding.escape_byte_string(compressed_bytes))
             w.putln(f'const char* const cstring = "{escaped_bytes}";', safe=True)
             w.putln(f'PyObject *data = __Pyx_DecompressString(cstring, {len(compressed_bytes)}, {algo_number});')
+            w.putln(w.error_goto_if_null('data', self.module_pos))
             if is_unicode:
                 w.putln('PyObject *str_data = PyUnicode_FromEncodedObject(data, "UTF-8", NULL);')
                 w.putln("Py_DECREF(data); data = str_data;")

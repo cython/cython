@@ -23,28 +23,45 @@ PYTHON check_source.py
 
 ######## check_source.py ########
 
-algorithms = {}
+import re
+
+_parse_config = re.compile(
+    r"\s*  \#(?:el)?if   [\s(]+  CYTHON_COMPRESS_STRINGS  [)\s]*  (!=|==) \s* ([0-9]+)  [^/]+"
+    r"/\* \s* (\w+) \s* \*/",
+    re.VERBOSE
+).match
+
+algorithms = []
 
 with open("module.c") as f:
     for line in f:
-        if ' CYTHON_COMPRESS_STRINGS == ' not in line or ' /* ' not in line:
+        if ' (CYTHON_COMPRESS_STRINGS) ' not in line or ' /* ' not in line:
             continue
 
-        _, rest = line.split(' CYTHON_COMPRESS_STRINGS == ')
-        config_value, rest = rest.split(' && ')
-        _, algo_name = rest.split(' /* ')
+        config = _parse_config(line)
+        if config is not None:
+            compare, config_value, algo_name = config.groups()
+            entry = (f"{compare} {int(config_value)}", algo_name)
+            if entry not in algorithms:
+                algorithms.append(entry)
 
-        algorithms[int(config_value)] = algo_name.rstrip(' */\n')
-
-assert algorithms[1] == 'zlib', algorithms
-assert algorithms[2] == 'bz2', algorithms
-assert algorithms.get(3) in ('zstd', None), algorithms
+print(algorithms)
+assert algorithms[-1] == ('!= 0', 'zlib'), algorithms
+assert algorithms[-2] == ('== 2', 'bz2'), algorithms
+assert algorithms[:-3] in ([], [('== 3', 'zstd')]), algorithms
 
 assert len(algorithms) in (2, 3), algorithms
 
+
+macro_usage_count = 0
 with open("short_text.c") as f:
     for line in f:
-        assert ' CYTHON_COMPRESS_STRINGS == ' not in line, line
+        if 'CYTHON_COMPRESS_STRINGS' in line:
+            macro_usage_count += 1
+            assert 'if (CYTHON_COMPRESS_STRINGS) == ' not in line, line
+            assert 'if (CYTHON_COMPRESS_STRINGS) != ' not in line, line
+
+assert macro_usage_count > 0
 
 
 ######## setup_default.py ########
