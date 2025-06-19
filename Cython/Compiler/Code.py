@@ -1970,7 +1970,7 @@ class GlobalState:
 
         # For (Unicode) text strings, the index stores the character lengths after UTF8 decoding.
         for i, (is_interned, cname, text) in enumerate(text_strings):
-            bytes_values.append(text.utf8encode())
+            bytes_values.append(text.encode('utf-8'))
             if first_interned == -1 and is_interned:
                 first_interned = i
             defines.putln(f"#define {cname} {Naming.stringtab_cname}[{stringtab_pos}]")
@@ -1995,7 +1995,7 @@ class GlobalState:
             "const struct { "
             f"const unsigned int length: {max(index).bit_length()}; "
             "} "
-            f"index[] = {{{','.join(["{%d}" % length for length in index])}}};",
+            f"index[] = {{{','.join(['{%d}' % length for length in index])}}};",
         )
 
         # Store and decompress the string data.
