@@ -1958,54 +1958,47 @@ class GlobalState:
         self.parts['module_state'].putln(f"PyObject *{Naming.stringtab_cname}[{py_string_count}];")
         self._generate_module_array_traverse_and_clear(Naming.stringtab_cname, py_string_count, may_have_refcycles=False)
 
-        stringtab_offset = 0
-        self.generate_pystring_constants(py_bytes_consts, stringtab_offset, is_unicode=False)
-        stringtab_offset = len(py_bytes_consts)
-        self.generate_pystring_constants(py_unicode_consts, stringtab_offset, is_unicode=True)
+        self.generate_pystring_constants(py_unicode_consts, py_bytes_consts)
 
-    def generate_pystring_constants(self, py_strings: list, stringtab_pos: cython.Py_ssize_t, is_unicode: bool):
-        # Concatenate strings and build index array.
-        if not py_strings:
-            return
-
-        w = self.parts['init_constants']
+    def generate_pystring_constants(self, text_strings: list, byte_strings: list):
+        # Concatenate all strings into one byte sequence and build a length index array.
         defines = self.parts['constant_name_defines']
 
-        index = []
-        string_values = []
-        max_length: cython.Py_ssize_t = 1
+        bytes_values = []
         first_interned: cython.Py_ssize_t = -1
-        stringtab_group_start = stringtab_pos
+        stringtab_pos: cython.Py_ssize_t = 0
 
-        for i, (is_interned, cname, text) in enumerate(py_strings):
-            string_value = text if is_unicode else text.byteencode() if text.encoding else text.utf8encode()
-            length = len(string_value)
-            if length > max_length:
-                max_length = length
-            if is_interned and first_interned == -1:
+        # For (Unicode) text strings, the index stores the character lengths after UTF8 decoding.
+        for i, (is_interned, cname, text) in enumerate(text_strings):
+            bytes_values.append(text.utf8encode())
+            if first_interned == -1 and is_interned:
                 first_interned = i
-            index.append("{%d}" % length)
-            string_values.append(string_value)
-
             defines.putln(f"#define {cname} {Naming.stringtab_cname}[{stringtab_pos}]")
             stringtab_pos += 1
 
-        if is_unicode:
-            concat_bytes = ''.join(string_values).encode('utf8')
-        else:
-            concat_bytes = b''.join(string_values)
+        stringtab_bytes_start: cython.Py_ssize_t = len(text_strings)
 
-        w.putln("{")
+        # For bytes objects, the index stores the byte lengths, ignoring the initial Unicode string.
+        for _, cname, text in byte_strings:
+            bytes_values.append(text.byteencode() if text.encoding else text.utf8encode())
+            defines.putln(f"#define {cname} {Naming.stringtab_cname}[{stringtab_pos}]")
+            stringtab_pos += 1
 
-        # index of string offsets
+        index = list(map(len, bytes_values))
+        concat_bytes = b''.join(bytes_values)
+
+        w = self.parts['init_constants']
+        w.putln("{")  # Start code block.
+
+        # Store the index of string lengths.
         w.putln(
             "const struct { "
-            f"const unsigned int length: {max_length.bit_length()}; "
+            f"const unsigned int length: {max(index).bit_length()}; "
             "} "
-            f"index[] = {{{','.join(index)}}};",
+            f"index[] = {{{','.join(["{%d}" % length for length in index])}}};",
         )
 
-        # string data
+        # Store and decompress the string data.
         self.use_utility_code(UtilityCode.load_cached("DecompressString", "StringTools.c"))
 
         has_if = False
@@ -2033,56 +2026,64 @@ class GlobalState:
             w.putln(f'const char* const cstring = "{escaped_bytes}";', safe=True)
             w.putln(f'PyObject *data = __Pyx_DecompressString(cstring, {len(compressed_bytes)}, {algo_number});')
             w.putln(w.error_goto_if_null('data', self.module_pos))
-            if is_unicode:
-                w.putln('PyObject *str_data = PyUnicode_FromEncodedObject(data, "UTF-8", NULL);')
-                w.putln("Py_DECREF(data); data = str_data;")
-            else:
-                w.putln('const char* const bytes = __Pyx_PyBytes_AsString(data);')
-                w.putln("#if !CYTHON_ASSUME_SAFE_MACROS")
-                w.putln(f'if (likely(bytes)); else {{ Py_DECREF(data); {w.error_goto(self.module_pos)} }}')
-                w.putln('#endif')
+
+            w.putln('const char* const bytes = __Pyx_PyBytes_AsString(data);')
+            w.putln("#if !CYTHON_ASSUME_SAFE_MACROS")
+            w.putln(f'if (likely(bytes)); else {{ Py_DECREF(data); {w.error_goto(self.module_pos)} }}')
+            w.putln('#endif')
 
         if has_if:
             w.putln("#else")
         escaped_bytes = StringEncoding.split_string_literal(
             StringEncoding.escape_byte_string(concat_bytes))
-        w.putln(f'const char* const cstring = "{escaped_bytes}";', safe=True)
-        if is_unicode:
-            w.putln(f'PyObject *data = PyUnicode_DecodeUTF8(cstring, {len(concat_bytes)}, NULL); ')
-        else:
-            w.putln(f'const char* const bytes = cstring;')
-            w.putln('PyObject *data = NULL;')  # Always allow xdecref below.
+        w.putln(f'const char* const bytes = "{escaped_bytes}";', safe=True)
+        w.putln('PyObject *data = NULL;')  # Always allow xdecref below.
         w.putln("CYTHON_UNUSED_VAR(__Pyx_DecompressString);")
         if has_if:
             w.putln("#endif")
 
-        if is_unicode:
-            w.putln(w.error_goto_if_null('data', self.module_pos))
+        w.putln(f"PyObject **stringtab = {w.name_in_main_c_code_module_state(Naming.stringtab_cname)};")
+        w.putln("Py_ssize_t pos = 0;")
 
-        w.putln(
-            "PyObject **stringtab = "
-            f"{w.name_in_main_c_code_module_state(Naming.stringtab_cname)} + {stringtab_group_start};"
-        )
+        # Unpack Unicode strings.
+        if stringtab_bytes_start > 0:
+            # Note: We could decode the concatenated Unicode string in one go, but this has a drawback:
+            # If most strings are ASCII/Latin-1 or at most BMP, then a single non-BMP string in the mix
+            # will make all strings use 4 bytes of RAM per character during initialisation, until we finish
+            # splitting the user substrings. In addition to using more memory, this might not even be faster
+            # because it must copy Unicode slices between different character sizes.
+            # We avoid this by repeatedly calling PyUnicode_DecodeUTF8() for each substring.
+            w.putln(f"for (Py_ssize_t i = 0; i < {stringtab_bytes_start}; i++) {{")
+            w.putln("Py_ssize_t bytes_length = index[i].length;")
 
-        w.putln(f"for (Py_ssize_t pos = 0, i = 0; i < {len(index)}; i++) {{")
-        w.putln("Py_ssize_t end = pos + index[i].length;")
-
-        if is_unicode:
-            w.putln("PyObject *string = PyUnicode_Substring(data, pos, end);")
+            w.putln("PyObject *string = PyUnicode_DecodeUTF8(bytes + pos, bytes_length, NULL);")
             if first_interned >= 0:
                 w.putln(f"if (likely(string) && i >= {first_interned}) PyUnicode_InternInPlace(&string);")
-        else:
-            w.putln("PyObject *string = PyBytes_FromStringAndSize(bytes + pos, end - pos);")
+            w.putln("stringtab[i] = string;")
+            w.putln("pos += bytes_length;")
 
-        w.putln("if (unlikely(!string) || (unlikely(PyObject_Hash(string) == -1))) {")
-        w.putln("Py_XDECREF(string); Py_XDECREF(data);")
-        w.putln(w.error_goto(self.module_pos))
-        w.putln('}')
+            w.putln("if (unlikely(!string) || (unlikely(PyObject_Hash(string) == -1))) {")
+            w.putln("Py_XDECREF(data);")
+            w.putln(w.error_goto(self.module_pos))
+            w.putln('}')
 
-        w.putln(f"stringtab[i] = string;")
+            w.putln("}")  # for()
 
-        w.putln("pos = end;")
-        w.putln("}")  # for()
+        # Unpack byte strings.
+        if stringtab_bytes_start < len(index):
+            w.putln(f"for (Py_ssize_t i = {stringtab_bytes_start}; i < {len(index)}; i++) {{")
+            w.putln("Py_ssize_t bytes_length = index[i].length;")
+
+            w.putln("PyObject *string = PyBytes_FromStringAndSize(bytes + pos, bytes_length);")
+            w.putln("stringtab[i] = string;")
+            w.putln("pos += bytes_length;")
+
+            w.putln("if (unlikely(!string) || (unlikely(PyObject_Hash(string) == -1))) {")
+            w.putln("Py_XDECREF(data);")
+            w.putln(w.error_goto(self.module_pos))
+            w.putln('}')
+
+            w.putln("}")  # for()
 
         w.putln("}")  # close block
 
