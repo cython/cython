@@ -7,8 +7,9 @@ import cython
 cython.declare(os=object, re=object, operator=object, textwrap=object,
                Template=object, Naming=object, Options=object, StringEncoding=object,
                Utils=object, SourceDescriptor=object, StringIOTree=object,
-               DebugFlags=object, defaultdict=object,
-               closing=object, partial=object, wraps=object)
+               DebugFlags=object, defaultdict=object, groupby=object,
+               closing=object, partial=object, wraps=object,
+               zlib_compress=object, bz2_compress=object, lzma_compress=object, zstd_compress=object)
 
 import hashlib
 import operator
@@ -28,6 +29,45 @@ from . import StringEncoding
 from .. import Utils
 from .Scanning import SourceDescriptor
 from ..StringIOTree import StringIOTree
+
+
+# Set up available compression algorithms for maximum compression.
+from zlib import compress as zlib_compress
+try:
+    from bz2 import compress as bz2_compress
+except ImportError:
+    bz2_compress = None
+else:
+    bz2_compress = partial(bz2_compress, compresslevel=9)
+#try:
+#    from lzma import compress as lzma_compress
+#except ImportError:
+#    lzma_compress = None
+try:
+    from compression.zstd import (
+        compress as zstd_compress,
+        CompressionParameter as zstd_CompressionParameter,
+        Strategy as zstd_Strategy,
+    )
+except ImportError:
+    zstd_compress = None
+else:
+    zstd_compress = partial(zstd_compress, options={
+        zstd_CompressionParameter.strategy: zstd_Strategy.btultra2,
+        zstd_CompressionParameter.compression_level: zstd_CompressionParameter.compression_level.bounds()[1],
+    })
+    del zstd_CompressionParameter
+    del zstd_Strategy
+
+compression_algorithms = [
+    # Note: order is important and defines values for "CYTHON_COMPRESS_STRINGS" !
+    (1, 'zlib', partial(zlib_compress, level=9)),
+    (2, 'bz2', bz2_compress),
+    (3, 'zstd', zstd_compress),
+    # LZMA is difficult to configure for efficient output from C code
+    # and the default output tends to be quite large.
+    #(4, 'lzma', lzma_compress),
+]
 
 
 renamed_py2_builtins_map = {
@@ -1277,13 +1317,16 @@ class StringConst:
     """
     # cname            string
     # text             EncodedString or BytesLiteral
+    # escaped_value    str        The string value as C code byte sequence.
     # py_strings       {(identifier, encoding) : PyStringConst}
+    # c_used           boolean  Is the plain C string used (or only the Python object?)
 
     def __init__(self, cname, text, byte_string):
         self.cname = cname
         self.text = text
         self.escaped_value = StringEncoding.escape_byte_string(byte_string)
         self.py_strings = None
+        self.c_used = False
 
     def get_py_string_const(self, encoding, identifier=None):
         text = self.text
@@ -1639,7 +1682,7 @@ class GlobalState:
         # aren't just Python objects
         return c
 
-    def get_string_const(self, text):
+    def get_string_const(self, text, c_used=True):
         # return a C string constant, creating a new one if necessary
         if text.is_unicode:
             byte_string = text.utf8encode()
@@ -1649,6 +1692,8 @@ class GlobalState:
             c = self.string_const_index[byte_string]
         except KeyError:
             c = self.new_string_const(text, byte_string)
+        if c_used:
+            c.c_used = True
         return c
 
     def get_pyunicode_ptr_const(self, text):
@@ -1662,7 +1707,7 @@ class GlobalState:
 
     def get_py_string_const(self, text, identifier=None):
         # return a Python string constant, creating a new one if necessary
-        c_string = self.get_string_const(text)
+        c_string: StringConst = self.get_string_const(text, c_used=False)
         py_string = c_string.get_py_string_const(text.encoding, identifier)
         return py_string
 
@@ -1863,34 +1908,40 @@ class GlobalState:
                 cleanup.putln(f"Py_CLEAR({init.name_in_main_c_code_module_state(cname)}.method);")
 
     def generate_string_constants(self):
-        c_consts = [(len(c.cname), c.cname, c) for c in self.string_const_index.values()]
+        c_consts = []
+        py_bytes_consts = []
+        py_unicode_consts = []
+
+        # Split into buckets.
+        for _, _, c in sorted([(len(c.cname), c.cname, c) for c in self.string_const_index.values()]):
+            if c.c_used:
+                c_consts.append((len(c.cname), c.cname, c.escaped_value))
+            if c.py_strings:
+                for py_string in c.py_strings.values():
+                    text = c.text
+                    if py_string.is_unicode and not isinstance(text, str):
+                        text = StringEncoding.EncodedString(text.decode(py_string.encoding or 'UTF-8'))
+
+                    (py_unicode_consts if py_string.is_unicode else py_bytes_consts).append((
+                        py_string.intern and py_string.is_unicode,
+                        py_string.cname,
+                        text,
+                    ))
+
         c_consts.sort()
-        py_strings = []
-        longest_pystring = 0
-        encodings = set()
+        py_bytes_consts.sort()
+        py_unicode_consts.sort()
 
-        def normalise_encoding_name(py_string):
-            if py_string.encoding and py_string.encoding.lower() not in (
-                    'ascii', 'usascii', 'us-ascii', 'utf8', 'utf-8'):
-                return f'"{py_string.encoding.lower()}"'
-            else:
-                return '0'
-
+        # Generate C string constants.
         decls_writer = self.parts['string_decls']
-        for _, cname, c in c_consts:
-            cliteral = StringEncoding.split_string_literal(c.escaped_value)
+        for _, cname, escaped_value in c_consts:
+            cliteral = StringEncoding.split_string_literal(escaped_value)
             decls_writer.putln(
                 f'static const char {cname}[] = "{cliteral}";',
-                safe=True)  # Braces in user strings are not for indentation.
-            if c.py_strings is not None:
-                if len(c.escaped_value) > longest_pystring:
-                    # This is not an accurate count since it adds up C escape characters,
-                    # but it's probably good enough for an upper bound.
-                    longest_pystring = len(c.escaped_value)
-                for py_string in c.py_strings.values():
-                    encodings.add(normalise_encoding_name(py_string))
-                    py_strings.append((c.cname, len(py_string.cname), py_string))
+                safe=True,  # Braces in user strings are not for indentation.
+            )
 
+        # Generate legacy Py_UNICODE[] constants.
         for c, cname in sorted(self.pyunicode_ptr_const_index.items()):
             utf16_array, utf32_array = StringEncoding.encode_pyunicode_string(c)
             if utf16_array:
@@ -1902,87 +1953,148 @@ class GlobalState:
                 decls_writer.putln("static Py_UNICODE %s[] = { %s };" % (cname, utf16_array))
                 decls_writer.putln("#endif")
 
-        if not py_strings:
-            return
-
-        py_strings.sort()
-
-        w = self.parts['pystring_table']
-        w.putln("")
-
-        # We use only type size macros from "pyport.h" here.
-        w.put(textwrap.dedent("""\
-        typedef struct {
-            const char *s;
-        #if %(max_length)d <= 65535
-            const unsigned short n;
-        #elif %(max_length)d / 2 < INT_MAX
-            const unsigned int n;
-        #elif %(max_length)d / 2 < LONG_MAX
-            const unsigned long n;
-        #else
-            const Py_ssize_t n;
-        #endif
-        #if %(num_encodings)d <= 31
-            const unsigned int encoding : 5;
-        #elif %(num_encodings)d <= 255
-            const unsigned char encoding;
-        #elif %(num_encodings)d <= 65535
-            const unsigned short encoding;
-        #else
-            const Py_ssize_t encoding;
-        #endif
-            const unsigned int is_unicode : 1;
-            const unsigned int intern : 1;
-        } __Pyx_StringTabEntry;
-        """ % dict(
-            max_length=longest_pystring,
-            num_encodings=len(encodings),
-        )))
-
-        py_string_count = len(py_strings)
+        # Generate stringtab and Python string constants.
+        py_string_count = len(py_bytes_consts) + len(py_unicode_consts)
         self.parts['module_state'].putln(f"PyObject *{Naming.stringtab_cname}[{py_string_count}];")
         self._generate_module_array_traverse_and_clear(Naming.stringtab_cname, py_string_count, may_have_refcycles=False)
 
-        encodings = sorted(encodings)
-        encodings.sort(key=len)  # stable sort to make sure '0' comes first, index 0
-        assert not encodings or '0' not in encodings or encodings[0] == '0', encodings
-        encodings_map = {encoding: i for i, encoding in enumerate(encodings)}
-        w.putln("static const char * const %s[] = { %s };" % (
-            Naming.stringtab_encodings_cname,
-            ', '.join(encodings),
-        ))
+        self.generate_pystring_constants(py_unicode_consts, py_bytes_consts)
 
-        w.putln("static const __Pyx_StringTabEntry %s[] = {" % Naming.stringtab_cname)
-        for n, (c_cname, _, py_string) in enumerate(py_strings):
-            encodings_index = encodings_map[normalise_encoding_name(py_string)]
-            is_unicode = py_string.is_unicode
+    def generate_pystring_constants(self, text_strings: list, byte_strings: list):
+        # Concatenate all strings into one byte sequence and build a length index array.
+        defines = self.parts['constant_name_defines']
 
-            self.parts['constant_name_defines'].putln("#define %s %s[%s]" % (
-                py_string.cname,
-                Naming.stringtab_cname,
-                n))
+        bytes_values = []
+        first_interned: cython.Py_ssize_t = -1
+        stringtab_pos: cython.Py_ssize_t = 0
 
-            w.putln("{%s, sizeof(%s), %d, %d, %d}, /* PyObject cname: %s */" % (
-                c_cname,
-                c_cname,
-                encodings_index,
-                is_unicode,
-                py_string.intern,
-                py_string.cname
-                ))
-        w.putln("{0, 0, 0, 0, 0}")
-        w.putln("};")
+        # For (Unicode) text strings, the index stores the character lengths after UTF8 decoding.
+        for i, (is_interned, cname, text) in enumerate(text_strings):
+            bytes_values.append(text.encode('utf-8'))
+            if first_interned == -1 and is_interned:
+                first_interned = i
+            defines.putln(f"#define {cname} {Naming.stringtab_cname}[{stringtab_pos}]")
+            stringtab_pos += 1
 
-        self.use_utility_code(UtilityCode.load_cached("InitStrings", "StringTools.c"))
+        stringtab_bytes_start: cython.Py_ssize_t = len(text_strings)
 
-        init_constants = self.parts['init_constants']
-        init_constants.putln(
-            "if (__Pyx_InitStrings(%s, %s, %s) < 0) %s;" % (
-                Naming.stringtab_cname,
-                init_constants.name_in_main_c_code_module_state(Naming.stringtab_cname),
-                Naming.stringtab_encodings_cname,
-                init_constants.error_goto(self.module_pos)))
+        # For bytes objects, the index stores the byte lengths, ignoring the initial Unicode string.
+        for _, cname, text in byte_strings:
+            bytes_values.append(text.byteencode() if text.encoding else text.utf8encode())
+            defines.putln(f"#define {cname} {Naming.stringtab_cname}[{stringtab_pos}]")
+            stringtab_pos += 1
+
+        index = list(map(len, bytes_values))
+        concat_bytes = b''.join(bytes_values)
+
+        w = self.parts['init_constants']
+        w.putln("{")  # Start code block.
+
+        # Store the index of string lengths.
+        w.putln(
+            "const struct { "
+            f"const unsigned int length: {max(index).bit_length()}; "
+            "} "
+            f"index[] = {{{','.join(['{%d}' % length for length in index])}}};",
+        )
+
+        # Store and decompress the string data.
+        self.use_utility_code(UtilityCode.load_cached("DecompressString", "StringTools.c"))
+
+        has_if = False
+        for algo_number, algo_name, compress in reversed(compression_algorithms):
+            if compress is None:
+                continue
+            compressed_bytes = compress(concat_bytes)
+            if len(compressed_bytes) >= len(concat_bytes) - 10:
+                continue
+
+            if algo_name == 'zlib':
+                # Use zlib as fallback if the selected compression module is not available.
+                assert algo_number == 1, f"Compression algorithm no. 1 must be 'zlib' to be used as fallback."
+                guard = "(CYTHON_COMPRESS_STRINGS) != 0"
+            elif algo_name == 'zstd':
+                # 'compression.zstd' was added in Python 3.14.
+                guard = f"(CYTHON_COMPRESS_STRINGS) == {algo_number} && __PYX_LIMITED_VERSION_HEX >= 0x030e0000"
+            else:
+                guard = f"(CYTHON_COMPRESS_STRINGS) == {algo_number}"
+
+            w.putln(f"#{'if' if not has_if else 'elif'} {guard} /* compression: {algo_name} ({len(compressed_bytes)} bytes) */")
+            has_if = True
+            escaped_bytes = StringEncoding.split_string_literal(
+                StringEncoding.escape_byte_string(compressed_bytes))
+            w.putln(f'const char* const cstring = "{escaped_bytes}";', safe=True)
+            w.putln(f'PyObject *data = __Pyx_DecompressString(cstring, {len(compressed_bytes)}, {algo_number});')
+            w.putln(w.error_goto_if_null('data', self.module_pos))
+
+            w.putln('const char* const bytes = __Pyx_PyBytes_AsString(data);')
+            w.putln("#if !CYTHON_ASSUME_SAFE_MACROS")
+            w.putln(f'if (likely(bytes)); else {{ Py_DECREF(data); {w.error_goto(self.module_pos)} }}')
+            w.putln('#endif')
+
+        if has_if:
+            w.putln(f"#else /* compression: none ({len(concat_bytes)} bytes) */")
+        escaped_bytes = StringEncoding.split_string_literal(
+            StringEncoding.escape_byte_string(concat_bytes))
+        w.putln(f'const char* const bytes = "{escaped_bytes}";', safe=True)
+        w.putln('PyObject *data = NULL;')  # Always allow xdecref below.
+        w.putln("CYTHON_UNUSED_VAR(__Pyx_DecompressString);")
+        if has_if:
+            w.putln("#endif")
+
+        # Populate stringtab.
+        w.putln(f"PyObject **stringtab = {w.name_in_main_c_code_module_state(Naming.stringtab_cname)};")
+        w.putln("Py_ssize_t pos = 0;")
+
+        # Unpack Unicode strings.
+        if stringtab_bytes_start > 0:
+            # Note: We could decode the concatenated Unicode string in one go, but this has a drawback:
+            # If most strings are ASCII/Latin-1 or at most BMP, then a single non-BMP string in the mix
+            # will make all strings use 4 bytes of RAM per character during initialisation, until we finish
+            # splitting the user substrings. In addition to using more memory, this might not even be faster
+            # because it must copy Unicode slices between different character sizes.
+            # We avoid this by repeatedly calling PyUnicode_DecodeUTF8() for each substring.
+            w.putln(f"for (Py_ssize_t i = 0; i < {stringtab_bytes_start}; i++) {{")
+            w.putln("Py_ssize_t bytes_length = index[i].length;")
+
+            w.putln("PyObject *string = PyUnicode_DecodeUTF8(bytes + pos, bytes_length, NULL);")
+            if first_interned >= 0:
+                w.putln(f"if (likely(string) && i >= {first_interned}) PyUnicode_InternInPlace(&string);")
+            w.putln("if (unlikely(!string)) {")
+            w.putln("Py_XDECREF(data);")
+            w.putln(w.error_goto(self.module_pos))
+            w.putln('}')
+
+            w.putln("stringtab[i] = string;")
+            w.putln("pos += bytes_length;")
+            w.putln("}")  # for()
+
+        # Unpack byte strings.
+        if stringtab_bytes_start < len(index):
+            w.putln(f"for (Py_ssize_t i = {stringtab_bytes_start}; i < {len(index)}; i++) {{")
+            w.putln("Py_ssize_t bytes_length = index[i].length;")
+
+            w.putln("PyObject *string = PyBytes_FromStringAndSize(bytes + pos, bytes_length);")
+            w.putln("stringtab[i] = string;")
+            w.putln("pos += bytes_length;")
+
+            w.putln("if (unlikely(!string)) {")
+            w.putln("Py_XDECREF(data);")
+            w.putln(w.error_goto(self.module_pos))
+            w.putln('}')
+
+            w.putln("}")  # for()
+
+        w.putln("Py_XDECREF(data);")
+
+        # Set up hash values.
+        w.putln(f"for (Py_ssize_t i = 0; i < {len(index)}; i++) {{")
+        w.putln("if (unlikely(PyObject_Hash(stringtab[i]) == -1)) {")
+        w.putln(w.error_goto(self.module_pos))
+        w.putln('}')
+        w.putln('}')
+
+        w.putln("}")  # close block
 
     def generate_codeobject_constants(self):
         w = self.parts['init_codeobjects']

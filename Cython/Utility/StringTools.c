@@ -51,39 +51,92 @@ static CYTHON_INLINE size_t __Pyx_Py_UNICODE_strlen(const Py_UNICODE *u)
 #define __Pyx_PyUnicode_FromUnicodeAndLength PyUnicode_FromUnicode
 
 
-//////////////////// InitStrings.proto ////////////////////
-//@proto_block: pystring_table
+//////////////////// DecompressString.proto ////////////////////
 
-static int __Pyx_InitStrings(__Pyx_StringTabEntry const *t, PyObject **target, const char* const* encoding_names); /*proto*/
+static PyObject *__Pyx_DecompressString(const char *s, Py_ssize_t length, int algo); /*proto*/
 
-//////////////////// InitStrings ////////////////////
+//////////////////// DecompressString ////////////////////
+//@requires: TypeConversion.c::GCCDiagnostics
 
-static int __Pyx_InitStrings(__Pyx_StringTabEntry const *t, PyObject **target, const char* const* encoding_names) {
-    while (t->s) {
-        PyObject *str;
-        if (t->is_unicode) {
-            if (t->intern) {
-                str = PyUnicode_InternFromString(t->s);
-            } else if (t->encoding) {
-                str = PyUnicode_Decode(t->s, t->n - 1, encoding_names[t->encoding], NULL);
-            } else {
-                str = PyUnicode_FromStringAndSize(t->s, t->n - 1);
-            }
-        } else {
-            str = PyBytes_FromStringAndSize(t->s, t->n - 1);
-        }
-        if (!str) goto bad;
-        *target = str;
-        ++target;
-        // initialise cached hash value
-        if (PyObject_Hash(str) == -1) goto bad;
-        ++t;
+static PyObject *__Pyx_DecompressString(const char *s, Py_ssize_t length, int algo) {
+    PyObject *module, *decompress, *compressed_bytes, *decompressed;
+
+    const char* module_name = algo == 3 ? "compression.zstd" : algo == 2 ? "bz2" : "zlib";
+
+    PyObject *methodname = PyUnicode_FromString("decompress");
+    if (unlikely(!methodname)) return NULL;
+
+    #if __PYX_LIMITED_VERSION_HEX >= 0x030e0000
+    if (algo == 3) {
+        PyObject *fromlist = Py_BuildValue("[O]", methodname);
+        if (unlikely(!fromlist)) return NULL;
+        module = PyImport_ImportModuleLevel("compression.zstd", NULL, NULL, fromlist, 0);
+        Py_DECREF(fromlist);
+    } else
+    #endif
+        module = PyImport_ImportModule(module_name);
+
+    if (unlikely(!module)) goto import_failed;
+
+    decompress = PyObject_GetAttr(module, methodname);
+    // Let's keep the module alive during the Python function call, just in case.
+    if (unlikely(!decompress)) goto import_failed;
+
+    {
+        // 's' is 'const' for storage reasons but PyMemoryView_FromMemory() requires a non-const pointer.
+        // We create a read-only buffer, so casting away the 'const' is ok here.
+        #ifdef __cplusplus
+            char *memview_bytes = const_cast<char*>(s);
+        #else
+            #if !defined(__INTEL_COMPILER) && defined(__GCC__)
+              #pragma GCC diagnostic push
+              #pragma GCC diagnostic ignored "-Wcast-qual"
+            #elif defined(__clang__)
+              #pragma clang diagnostic push
+              #pragma clang diagnostic ignored "-Wcast-qual"
+            #endif
+            char *memview_bytes = (char*) s;
+            #if !defined(__INTEL_COMPILER) && defined(__GCC__)
+              #pragma GCC diagnostic pop
+            #elif defined(__clang__)
+              #pragma clang diagnostic pop
+            #endif
+        #endif
+
+        #if CYTHON_COMPILING_IN_LIMITED_API && !defined(PyBUF_READ)
+        int memview_flags = 0x100;
+        #else
+        int memview_flags = PyBUF_READ;
+        #endif
+
+        compressed_bytes = PyMemoryView_FromMemory(memview_bytes, length, memview_flags);
     }
-    return 0;
 
+    if (unlikely(!compressed_bytes)) {
+        Py_DECREF(decompress);
+        goto bad;
+    }
+
+    decompressed = PyObject_CallFunctionObjArgs(decompress, compressed_bytes, NULL);
+
+    Py_DECREF(compressed_bytes);
+    Py_DECREF(decompress);
+    Py_DECREF(module);
+    Py_DECREF(methodname);
+
+    return decompressed;
+
+import_failed:
+    PyErr_Format(PyExc_ImportError,
+        "Failed to import '%.20s.decompress' - cannot initialise module strings. "
+        "String compression was configured with the C macro 'CYTHON_COMPRESS_STRINGS=%d'.",
+        module_name, algo);
 bad:
-    return -1;
+    Py_XDECREF(module);
+    Py_DECREF(methodname);
+    return NULL;
 }
+
 
 //////////////////// BytesContains.proto ////////////////////
 
