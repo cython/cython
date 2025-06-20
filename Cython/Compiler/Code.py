@@ -2171,7 +2171,29 @@ class GlobalState:
         consts = [(c.py_type, c.value[0] == '-', len(c.value), c.value, c.value_code, c)
                   for c in self.num_const_index.values()]
         consts.sort()
-        init_constants = self.parts['init_constants']
+        if not consts:
+            return
+
+        base32_digits = '0123456789abcdefghijklmnopqrstuv'
+        def to_base32(number_string):
+            number = Utils.str_to_number(number_string)
+            is_neg = number < 0
+            number = abs(number)
+
+            digits = []
+            while number:
+                digits.append(base32_digits[number & 31])
+                number >>= 5
+            if not digits:
+                return '0'
+
+            digits.reverse()
+            return ('-' if is_neg else '') + ''.join(digits)
+
+        float_constants = []
+        long_constants = []
+        large_constants = []
+
         for py_type, _, _, value, value_code, c in consts:
             cname = c.cname
             self.parts['module_state'].putln("PyObject *%s;" % cname)
@@ -2179,20 +2201,68 @@ class GlobalState:
                 "Py_CLEAR(clear_module_state->%s);" % cname)
             self.parts['module_state_traverse'].putln(
                 "__Pyx_VISIT_CONST(traverse_module_state->%s);" % cname)
+
             if py_type == 'float':
-                function = 'PyFloat_FromDouble(%s)'
-            elif py_type == 'long':
-                function = 'PyLong_FromString("%s", 0, 0)'
-            elif Utils.long_literal(value):
-                function = 'PyLong_FromString("%s", 0, 0)'
-            elif len(value.lstrip('-')) > 4:
-                function = "PyLong_FromLong(%sL)"
+                float_constants.append((cname, value_code))
+            elif py_type == 'long' or Utils.long_literal(value):
+                large_constants.append((cname, to_base32(value_code)))
             else:
-                function = "PyLong_FromLong(%s)"
-            init_cname = init_constants.name_in_main_c_code_module_state(cname)
-            init_constants.putln('%s = %s; %s' % (
-                init_cname, function % value_code,
-                init_constants.error_goto_if_null(init_cname, self.module_pos)))
+                long_constants.append((cname, f"{value_code}L"))
+
+        w = self.parts['init_constants']
+        w.putln("{")
+        w.putln(f"PyObject *py_constants[{max(len(float_constants), len(long_constants), len(large_constants))}];")
+
+        def handle_conversion_error():
+            w.putln("if (unlikely(!py_constants[i])) {")
+            w.putln("while (--i >= 0) { Py_DECREF(py_constants[i]); }")
+            w.putln(w.error_goto(self.module_pos))
+            w.putln("}")
+
+        def assign_constants(constants):
+            for i, (cname, _) in enumerate(constants):
+                init_cname = w.name_in_main_c_code_module_state(cname)
+                w.putln(f"{init_cname} = py_constants[{i}];")
+
+        def build_numeric_constants(constants, ctype, convert_call):
+            if not constants:
+                return
+
+            w.putln("{")
+            w.putln("%s const c_constants[] = {%s};" % (
+                ctype,
+                ','.join([c[1] for c in constants]),
+            ))
+            convert_call = convert_call % "c_constants[i]"
+
+            w.putln(f"for (Py_ssize_t i = 0; i < {len(constants)}; i++) {{")
+            w.putln(f"py_constants[i] = {convert_call};")
+            handle_conversion_error()
+            w.putln("}")  # for()
+
+            assign_constants(constants)
+            w.putln("}")
+
+        build_numeric_constants(float_constants, 'double', 'PyFloat_FromDouble(%s)')
+        build_numeric_constants(long_constants, 'long', 'PyLong_FromLong(%s)')
+
+        if large_constants:
+            # We store large integer constants in a single '\0'-separated C string of base32 digits.
+            w.putln("{")
+
+            c_string = '\\000'.join([c[1] for c in large_constants])
+            w.putln('const char* c_constant = "%s";' % c_string)
+            w.putln(f"for (Py_ssize_t i = 0; i < {len(large_constants)}; i++) {{")
+            w.putln("char *end_pos;")
+            w.putln(f"py_constants[i] = PyLong_FromString(c_constant, &end_pos, 32);")
+            handle_conversion_error()
+            w.putln("c_constant = end_pos + 1;")
+            w.putln("}")  # for()
+
+            assign_constants(large_constants)
+            w.putln("}")
+
+        w.putln("}")
 
     # The functions below are there in a transition phase only
     # and will be deprecated. They are called from Nodes.BlockNode.
