@@ -2195,12 +2195,11 @@ class GlobalState:
                 large_constants.append((cname, Utils.str_to_number(value_code)))
             else:
                 number_value = Utils.str_to_number(value_code)
-                bits = abs(number_value).bit_count()
-                if long_constants or bits >= 32:
+                if long_constants or not (-2**31 <= number_value <= 2**31 - 1):
                     long_constants.append((cname, f"{value_code}L"))
-                elif int_constants or bits >= 16:
+                elif int_constants or not (-2**15 <= number_value <= 2**15 - 1):
                     int_constants.append((cname, value_code))
-                elif short_constants or bits >= 8:
+                elif short_constants or not (-2**7 <= number_value <= 2**7 - 1):
                     short_constants.append((cname, value_code))
                 else:
                     char_constants.append((cname, value_code))
