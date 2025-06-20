@@ -42,8 +42,8 @@ with open("module.c") as f:
         if config is not None:
             compare, config_value, algo_name = config.groups()
             entry = (f"{compare} {int(config_value)}", algo_name)
-            if entry not in algorithms:
-                algorithms.append(entry)
+            assert entry not in algorithms, algorithms
+            algorithms.append(entry)
 
 print(algorithms)
 assert algorithms[-1] == ('!= 0', 'zlib'), algorithms
