@@ -2019,7 +2019,7 @@ class GlobalState:
             else:
                 guard = f"(CYTHON_COMPRESS_STRINGS) == {algo_number}"
 
-            w.putln(f"#{'if' if not has_if else 'elif'} {guard} /* {algo_name} */")
+            w.putln(f"#{'if' if not has_if else 'elif'} {guard} /* compression: {algo_name} ({len(compressed_bytes)} bytes) */")
             has_if = True
             escaped_bytes = StringEncoding.split_string_literal(
                 StringEncoding.escape_byte_string(compressed_bytes))
@@ -2033,7 +2033,7 @@ class GlobalState:
             w.putln('#endif')
 
         if has_if:
-            w.putln("#else")
+            w.putln(f"#else /* compression: none ({len(concat_bytes)} bytes) */")
         escaped_bytes = StringEncoding.split_string_literal(
             StringEncoding.escape_byte_string(concat_bytes))
         w.putln(f'const char* const bytes = "{escaped_bytes}";', safe=True)
@@ -2042,6 +2042,7 @@ class GlobalState:
         if has_if:
             w.putln("#endif")
 
+        # Populate stringtab.
         w.putln(f"PyObject **stringtab = {w.name_in_main_c_code_module_state(Naming.stringtab_cname)};")
         w.putln("Py_ssize_t pos = 0;")
 

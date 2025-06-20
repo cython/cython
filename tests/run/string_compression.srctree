@@ -27,7 +27,7 @@ import re
 
 _parse_config = re.compile(
     r"\s*  \#(?:el)?if   [\s(]+  CYTHON_COMPRESS_STRINGS  [)\s]*  (!=|==) \s* ([0-9]+)  [^/]+"
-    r"/\* \s* (\w+) \s* \*/",
+    r"/\* \s* compression: \s* (\w+)  \s*  \([0-9]+ \s+ bytes\) \s* \*/",
     re.VERBOSE
 ).match
 
