@@ -2060,14 +2060,13 @@ class GlobalState:
             w.putln("PyObject *string = PyUnicode_DecodeUTF8(bytes + pos, bytes_length, NULL);")
             if first_interned >= 0:
                 w.putln(f"if (likely(string) && i >= {first_interned}) PyUnicode_InternInPlace(&string);")
-            w.putln("stringtab[i] = string;")
-            w.putln("pos += bytes_length;")
-
-            w.putln("if (unlikely(!string) || (unlikely(PyObject_Hash(string) == -1))) {")
+            w.putln("if (unlikely(!string)) {")
             w.putln("Py_XDECREF(data);")
             w.putln(w.error_goto(self.module_pos))
             w.putln('}')
 
+            w.putln("stringtab[i] = string;")
+            w.putln("pos += bytes_length;")
             w.putln("}")  # for()
 
         # Unpack byte strings.
@@ -2079,12 +2078,21 @@ class GlobalState:
             w.putln("stringtab[i] = string;")
             w.putln("pos += bytes_length;")
 
-            w.putln("if (unlikely(!string) || (unlikely(PyObject_Hash(string) == -1))) {")
+            w.putln("if (unlikely(!string)) {")
             w.putln("Py_XDECREF(data);")
             w.putln(w.error_goto(self.module_pos))
             w.putln('}')
 
             w.putln("}")  # for()
+
+        w.putln("Py_XDECREF(data);")
+
+        # Set up hash values.
+        w.putln(f"for (Py_ssize_t i = 0; i < {len(index)}; i++) {{")
+        w.putln("if (unlikely(PyObject_Hash(stringtab[i]) == -1)) {")
+        w.putln(w.error_goto(self.module_pos))
+        w.putln('}')
+        w.putln('}')
 
         w.putln("}")  # close block
 
