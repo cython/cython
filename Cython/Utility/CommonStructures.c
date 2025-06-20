@@ -161,7 +161,7 @@ static int __pyx_CommonTypesMetaclass_init(PyObject *module); /* proto */
 //@requires: FetchCommonType
 //@substitute: naming
 
-PyObject* __pyx_CommonTypesMetaclass_get_module(CYTHON_UNUSED PyObject *self, CYTHON_UNUSED void* context) {
+static PyObject* __pyx_CommonTypesMetaclass_get_module(CYTHON_UNUSED PyObject *self, CYTHON_UNUSED void* context) {
     return PyUnicode_FromString(__PYX_ABI_MODULE_NAME);
 }
 

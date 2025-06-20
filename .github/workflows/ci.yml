@@ -345,6 +345,13 @@ jobs:
   benchmarks:
     runs-on: ubuntu-latest
 
+    env:
+      CCACHE_SLOPPINESS: "pch_defines,time_macros"
+      CCACHE_COMPRESS: 1
+      CCACHE_COMPRESSLEVEL: 5
+      CCACHE_NOHASHDIR: 1
+      CFLAGS: -O3 -g1 -fPIC -mtune=generic
+
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4.1.1

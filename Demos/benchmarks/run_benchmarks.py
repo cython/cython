@@ -32,14 +32,14 @@ def median(sorted_list: list):
     return sorted_list[len(sorted_list) // 2]
 
 
-def run(command, cwd=None, pythonpath=None, c_macros=None):
-    env = None
+def run(command, cwd=None, pythonpath=None, c_macros=None, tmp_dir=None):
+    env = os.environ.copy()
     if pythonpath:
-        env = os.environ.copy()
         env['PYTHONPATH'] = pythonpath
     if c_macros:
-        env = env or os.environ.copy()
         env['CFLAGS'] = env.get('CFLAGS', '') + " " + ' '.join(f" -D{macro}" for macro in c_macros)
+    if tmp_dir:
+        env.update(CCACHE_NOHASHDIR="1",CCACHE_BASEDIR=str(tmp_dir))
 
     try:
         return subprocess.run(command, cwd=str(cwd) if cwd else None, check=True, capture_output=True, env=env)
@@ -66,7 +66,7 @@ def copy_benchmarks(bm_dir: pathlib.Path, benchmarks=None):
     return bm_files
 
 
-def compile_benchmarks(cython_dir: pathlib.Path, bm_files: list[pathlib.Path], cythonize_args=None, c_macros=None):
+def compile_benchmarks(cython_dir: pathlib.Path, bm_files: list[pathlib.Path], cythonize_args=None, c_macros=None, tmp_dir=None):
     bm_count = len(bm_files)
     rev_hash = get_git_rev(rev_dir=cython_dir)
     bm_list = ', '.join(bm_file.stem for bm_file in bm_files)
@@ -76,6 +76,7 @@ def compile_benchmarks(cython_dir: pathlib.Path, bm_files: list[pathlib.Path], c
         [sys.executable, str(cython_dir / "cythonize.py"), f"-j{bm_count or 1}", "-i", *bm_files, *cythonize_args],
         cwd=cython_dir,
         c_macros=c_macros,
+        tmp_dir=tmp_dir,
     )
 
 
@@ -293,7 +294,7 @@ def benchmark_revision(revision, benchmarks, cythonize_args=None, profiler=None,
             bm_files = [bm_file for bm_file in bm_files if bm_file.suffix == '.py']
             benchmarks = [bm_file.stem for bm_file in bm_files]
         else:
-            compile_benchmarks(cython_dir, bm_files, cythonize_args, c_macros=c_macros)
+            compile_benchmarks(cython_dir, bm_files, cythonize_args, c_macros=c_macros, tmp_dir=base_dir_str)
             if show_size:
                 sizes = measure_benchmark_sizes(bm_files)
 
