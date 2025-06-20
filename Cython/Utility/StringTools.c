@@ -88,13 +88,18 @@ static PyObject *__Pyx_DecompressString(const char *s, Py_ssize_t length, int al
         #ifdef __cplusplus
             char *memview_bytes = const_cast<char*>(s);
         #else
-            #ifdef __Pyx_HAS_GCC_DIAGNOSTIC
+            #if !defined(__INTEL_COMPILER) && defined(__GCC__)
               #pragma GCC diagnostic push
               #pragma GCC diagnostic ignored "-Wcast-qual"
+            #elif defined(__clang__)
+              #pragma clang diagnostic push
+              #pragma clang diagnostic ignored "-Wcast-qual"
             #endif
             char *memview_bytes = (char*) s;
-            #ifdef __Pyx_HAS_GCC_DIAGNOSTIC
+            #if !defined(__INTEL_COMPILER) && defined(__GCC__)
               #pragma GCC diagnostic pop
+            #elif defined(__clang__)
+              #pragma clang diagnostic pop
             #endif
         #endif
 
