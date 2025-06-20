@@ -2168,17 +2168,20 @@ class GlobalState:
         self._generate_module_array_traverse_and_clear(Naming.codeobjtab_cname, code_object_count, may_have_refcycles=False)
 
     def generate_num_constants(self):
-        consts = [(c.py_type, c.value[0] == '-', len(c.value), c.value, c.value_code, c)
+        consts = [(c.py_type, len(c.value.lstrip('-')), c.value, c.value_code, c)
                   for c in self.num_const_index.values()]
         consts.sort()
         if not consts:
             return
 
         float_constants = []
+        char_constants = []
+        short_constants = []
+        int_constants = []
         long_constants = []
         large_constants = []
 
-        for py_type, _, _, value, value_code, c in consts:
+        for py_type, _, value, value_code, c in consts:
             cname = c.cname
             self.parts['module_state'].putln("PyObject *%s;" % cname)
             self.parts['module_state_clear'].putln(
@@ -2191,11 +2194,22 @@ class GlobalState:
             elif py_type == 'long' or Utils.long_literal(value):
                 large_constants.append((cname, Utils.str_to_number(value_code)))
             else:
-                long_constants.append((cname, f"{value_code}L"))
+                number_value = Utils.str_to_number(value_code)
+                bits = abs(number_value).bit_count()
+                if long_constants or bits >= 32:
+                    long_constants.append((cname, f"{value_code}L"))
+                elif int_constants or bits >= 16:
+                    int_constants.append((cname, value_code))
+                elif short_constants or bits >= 8:
+                    short_constants.append((cname, value_code))
+                else:
+                    char_constants.append((cname, value_code))
+
+        cinteger_constants = char_constants + short_constants + int_constants + long_constants
 
         w = self.parts['init_constants']
         w.putln("{")
-        w.putln(f"PyObject *py_constants[{max(len(float_constants), len(long_constants), len(large_constants))}];")
+        w.putln(f"PyObject *py_constants[{max(len(float_constants), len(cinteger_constants), len(large_constants))}];")
 
         def handle_conversion_error():
             w.putln("if (unlikely(!py_constants[i])) {")
@@ -2208,27 +2222,56 @@ class GlobalState:
                 init_cname = w.name_in_main_c_code_module_state(cname)
                 w.putln(f"{init_cname} = py_constants[{i}];")
 
-        def build_numeric_constants(constants, ctype, convert_call):
-            if not constants:
-                return
+        def store_array(name, ctype, constants):
+            if constants:
+                values = ','.join([c[1] for c in constants])
+                w.putln(f"{ctype} const {name}[] = {{{values}}};")
 
+        if float_constants:
             w.putln("{")
-            w.putln("%s const c_constants[] = {%s};" % (
-                ctype,
-                ','.join([c[1] for c in constants]),
-            ))
-            convert_call = convert_call % "c_constants[i]"
+            store_array("c_constants", 'double', float_constants)
 
-            w.putln(f"for (Py_ssize_t i = 0; i < {len(constants)}; i++) {{")
-            w.putln(f"py_constants[i] = {convert_call};")
+            w.putln(f"for (Py_ssize_t i = 0; i < {len(float_constants)}; i++) {{")
+            w.putln(f"py_constants[i] = PyFloat_FromDouble(c_constants[i]);")
             handle_conversion_error()
             w.putln("}")  # for()
 
-            assign_constants(constants)
+            assign_constants(float_constants)
             w.putln("}")
 
-        build_numeric_constants(float_constants, 'double', 'PyFloat_FromDouble(%s)')
-        build_numeric_constants(long_constants, 'long', 'PyLong_FromLong(%s)')
+        if cinteger_constants:
+            w.putln("{")
+            store_array('c_char_constants', 'signed char', char_constants)
+            store_array('c_short_constants', 'signed short', short_constants)
+            store_array('c_int_constants', 'signed int', int_constants)
+            store_array('c_long_constants', 'signed long', long_constants)
+
+            w.putln(f"for (Py_ssize_t i = 0; i < {len(cinteger_constants)}; i++) {{")
+            value_access = ""
+            if char_constants:
+                value_access = "c_char_constants[i]"
+            if short_constants:
+                value_access = (
+                    f"(i >= {len(char_constants)} ? "
+                    f"c_short_constants[i - {len(char_constants)}] : {value_access})"
+                ) if value_access else "c_short_constants[i]"
+            if int_constants:
+                value_access = (
+                    f"(i >= {len(char_constants) + len(short_constants)} ? "
+                    f"c_int_constants[i - {len(char_constants) + len(short_constants)}] : {value_access})"
+                ) if value_access else "c_int_constants[i]"
+            if long_constants:
+                value_access = (
+                    f"(i >= {len(char_constants) + len(short_constants) + len(int_constants)} ? "
+                    f"c_long_constants[i - {len(char_constants) + len(short_constants) + len(int_constants)}] : {value_access})"
+                ) if value_access else "c_long_constants[i]"
+
+            w.putln(f"py_constants[i] = PyLong_FromLong({value_access});")
+            handle_conversion_error()
+            w.putln("}")  # for()
+
+            assign_constants(cinteger_constants)
+            w.putln("}")
 
         if large_constants:
             # We store large integer constants in a single '\0'-separated C string of base32 digits.
