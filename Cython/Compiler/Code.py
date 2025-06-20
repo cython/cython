@@ -2174,22 +2174,6 @@ class GlobalState:
         if not consts:
             return
 
-        base32_digits = '0123456789abcdefghijklmnopqrstuv'
-        def to_base32(number_string):
-            number = Utils.str_to_number(number_string)
-            is_neg = number < 0
-            number = abs(number)
-
-            digits = []
-            while number:
-                digits.append(base32_digits[number & 31])
-                number >>= 5
-            if not digits:
-                return '0'
-
-            digits.reverse()
-            return ('-' if is_neg else '') + ''.join(digits)
-
         float_constants = []
         long_constants = []
         large_constants = []
@@ -2205,7 +2189,7 @@ class GlobalState:
             if py_type == 'float':
                 float_constants.append((cname, value_code))
             elif py_type == 'long' or Utils.long_literal(value):
-                large_constants.append((cname, to_base32(value_code)))
+                large_constants.append((cname, Utils.str_to_number(value_code)))
             else:
                 long_constants.append((cname, f"{value_code}L"))
 
@@ -2248,10 +2232,25 @@ class GlobalState:
 
         if large_constants:
             # We store large integer constants in a single '\0'-separated C string of base32 digits.
-            w.putln("{")
+            base32_digits = '0123456789abcdefghijklmnopqrstuv'
+            def to_base32(number):
+                is_neg = number < 0
+                number = abs(number)
 
-            c_string = '\\000'.join([c[1] for c in large_constants])
+                digits = []
+                while number:
+                    digits.append(base32_digits[number & 31])
+                    number >>= 5
+                if not digits:
+                    return '0'
+
+                digits.reverse()
+                return ('-' if is_neg else '') + ''.join(digits)
+
+            w.putln("{")
+            c_string = '\\000'.join([to_base32(c[1]) for c in large_constants])
             w.putln('const char* c_constant = "%s";' % c_string)
+
             w.putln(f"for (Py_ssize_t i = 0; i < {len(large_constants)}; i++) {{")
             w.putln("char *end_pos;")
             w.putln(f"py_constants[i] = PyLong_FromString(c_constant, &end_pos, 32);")
