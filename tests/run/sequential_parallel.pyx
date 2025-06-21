@@ -889,3 +889,15 @@ def test_prange_type_inference_3(short start, short end, short step):
         pass
     # Addition in "step" makes it expand the type to "int"
     assert cython.typeof(i) == "int", cython.typeof(i)
+
+def test_type_inference_two_step(unsigned char[:] x):
+    """
+    >>> ba = bytearray(b'\\0'*50)
+    >>> test_type_inference_two_step(ba)
+    >>> for n, c in enumerate(ba):
+    ...     assert c==n, c
+    """
+    length = x.shape[0]  # type of length should be inferred...
+    for n in prange(length, nogil=True):  # then used to infer the type of n
+        x[n] = n
+    assert cython.typeof(n) == "Py_ssize_t", cython.typeof(n)
