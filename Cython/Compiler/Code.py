@@ -2254,7 +2254,8 @@ class GlobalState:
 
                 int_constants_seen += len(constants)
 
-            w.putln(f"py_constants[i] = PyLong_FromLongLong({value_access});")
+            capi_func = "PyLong_FromLongLong" if len(int_constants_by_bytesize) >= 5 else "PyLong_FromLong"
+            w.putln(f"py_constants[i] = {capi_func}({value_access});")
             handle_conversion_error()
             w.putln("}")  # for()
 
