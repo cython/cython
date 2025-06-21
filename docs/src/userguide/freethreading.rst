@@ -390,7 +390,7 @@ Available library facilities include:
   (C++, wrapped in Cython 3.1+),
 
 * condition variables, allowing one thread to wait until a condition is met (C and C++,
-  as of Cython 3.1 only the C version is wrapped),
+  C version wrapped in Cython 3.1, C++ version in Cython 3.2),
 
 * ``call_once`` allowing an initialization function to be called safely from many threads
   (C and C++, wrapped in Cython 3.1+),
@@ -409,6 +409,14 @@ Available library facilities include:
 
 This list of non-exhaustive. And you can also use third-party libraries outside
 the language standard libraries for more options.
+
+In addition to the plain standard library features, Cython (3.2) also produces "py_safe" versions
+of some of these features (e.g. ``call_once``, mutex ``lock``).  
+These ensure that the Python thread-state is released (if held) while blocking and then restored
+to its initial state after the call. The C++ version of ``py_safe_call_once`` also allows you to
+pass a Python callable.  Using the "py_safe" versions may be useful even in a function labelled
+as ``nogil`` - remember that this says that a function *may* be called without an attached
+Python thread-state rather than ensuring that it definitely is. Therefore, avoiding deadlocks is still useful.
 
 ``cython.critical_section`` vs GIL
 ----------------------------------
