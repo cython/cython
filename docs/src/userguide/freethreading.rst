@@ -390,7 +390,7 @@ Available library facilities include:
   (C++, wrapped in Cython 3.1+),
 
 * condition variables, allowing one thread to wait until a condition is met (C and C++,
-  C version wrapped in Cython 3.1, C++ version will be in Cython 3.2),
+  C version wrapped in Cython 3.1, C++ version in Cython 3.2),
 
 * ``call_once`` allowing an initialization function to be called safely from many threads
   (C and C++, wrapped in Cython 3.1+),
