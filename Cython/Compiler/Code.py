@@ -2202,8 +2202,6 @@ class GlobalState:
                     large_constants.append((cname, number_value))
 
         w = self.parts['init_constants']
-        w.putln("{")
-        w.putln(f"PyObject *py_constants[{max(len(float_constants), int_constant_count, len(large_constants))}];")
 
         def handle_conversion_error():
             w.putln("if (unlikely(!py_constants[i])) {")
@@ -2225,6 +2223,7 @@ class GlobalState:
             w.putln("{")
             store_array("c_constants", 'double', float_constants)
 
+            w.putln(f"PyObject *py_constants[{len(float_constants)}];")
             w.putln(f"for (Py_ssize_t i = 0; i < {len(float_constants)}; i++) {{")
             w.putln(f"py_constants[i] = PyFloat_FromDouble(c_constants[i]);")
             handle_conversion_error()
@@ -2240,6 +2239,7 @@ class GlobalState:
             for byte_size, constants in enumerate(int_constants_by_bytesize, 1):
                 store_array(f"cint_constants_{byte_size}", int_types[byte_size], constants)
 
+            w.putln(f"PyObject *py_constants[{int_constant_count}];")
             w.putln(f"for (Py_ssize_t i = 0; i < {int_constant_count}; i++) {{")
 
             value_access = ""
@@ -2286,6 +2286,7 @@ class GlobalState:
             c_string = '\\000'.join([to_base32(c[1]) for c in large_constants])
             w.putln('const char* c_constant = "%s";' % c_string)
 
+            w.putln(f"PyObject *py_constants[{len(large_constants)}];")
             w.putln(f"for (Py_ssize_t i = 0; i < {len(large_constants)}; i++) {{")
             w.putln("char *end_pos;")
             w.putln(f"py_constants[i] = PyLong_FromString(c_constant, &end_pos, 32);")
@@ -2295,8 +2296,6 @@ class GlobalState:
 
             assign_constants(large_constants)
             w.putln("}")
-
-        w.putln("}")
 
     # The functions below are there in a transition phase only
     # and will be deprecated. They are called from Nodes.BlockNode.
