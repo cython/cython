@@ -7,7 +7,7 @@ import cython
 cython.declare(os=object, re=object, operator=object, textwrap=object,
                Template=object, Naming=object, Options=object, StringEncoding=object,
                Utils=object, SourceDescriptor=object, StringIOTree=object,
-               DebugFlags=object, defaultdict=object, groupby=object,
+               DebugFlags=object, defaultdict=object, iterchain=object,
                closing=object, partial=object, wraps=object,
                zlib_compress=object, bz2_compress=object, lzma_compress=object, zstd_compress=object)
 
@@ -21,6 +21,7 @@ from string import Template
 from functools import partial, wraps
 from contextlib import closing, contextmanager
 from collections import defaultdict
+from itertools import chain as iterchain
 
 from . import Naming
 from . import Options
@@ -2175,11 +2176,9 @@ class GlobalState:
             return
 
         float_constants = []
-        char_constants = []
-        short_constants = []
-        int_constants = []
-        long_constants = []
+        int_constants_by_bytesize = []
         large_constants = []
+        int_constant_count = 0
 
         for py_type, _, value, value_code, c in consts:
             cname = c.cname
@@ -2191,24 +2190,20 @@ class GlobalState:
 
             if py_type == 'float':
                 float_constants.append((cname, value_code))
-            elif py_type == 'long' or Utils.long_literal(value):
-                large_constants.append((cname, Utils.str_to_number(value_code)))
             else:
-                number_value = Utils.str_to_number(value_code)
-                if long_constants or not (-2**31 <= number_value <= 2**31 - 1):
-                    long_constants.append((cname, f"{value_code}L"))
-                elif int_constants or not (-2**15 <= number_value <= 2**15 - 1):
-                    int_constants.append((cname, value_code))
-                elif short_constants or not (-2**7 <= number_value <= 2**7 - 1):
-                    short_constants.append((cname, value_code))
+                number_value = Utils.str_to_number(value)
+                byte_size = (number_value.bit_length() + 8) // 8 if number_value else 1
+                if byte_size <= 8:
+                    while len(int_constants_by_bytesize) < byte_size:
+                        int_constants_by_bytesize.append([])
+                    int_constant_count += 1
+                    int_constants_by_bytesize[-1].append((cname, value_code))
                 else:
-                    char_constants.append((cname, value_code))
-
-        cinteger_constants = char_constants + short_constants + int_constants + long_constants
+                    large_constants.append((cname, number_value))
 
         w = self.parts['init_constants']
         w.putln("{")
-        w.putln(f"PyObject *py_constants[{max(len(float_constants), len(cinteger_constants), len(large_constants))}];")
+        w.putln(f"PyObject *py_constants[{max(len(float_constants), int_constant_count, len(large_constants))}];")
 
         def handle_conversion_error():
             w.putln("if (unlikely(!py_constants[i])) {")
@@ -2238,46 +2233,41 @@ class GlobalState:
             assign_constants(float_constants)
             w.putln("}")
 
-        if cinteger_constants:
+        if int_constant_count > 0:
             w.putln("{")
-            store_array('c_char_constants', 'signed char', char_constants)
-            store_array('c_short_constants', 'signed short', short_constants)
-            store_array('c_int_constants', 'signed int', int_constants)
-            store_array('c_long_constants', 'signed long', long_constants)
 
-            w.putln(f"for (Py_ssize_t i = 0; i < {len(cinteger_constants)}; i++) {{")
+            int_types = ['int8_t', 'int8_t', 'int16_t', 'int32_t', 'int32_t', 'int64_t', 'int64_t', 'int64_t', 'int64_t']
+            for byte_size, constants in enumerate(int_constants_by_bytesize, 1):
+                store_array(f"cint_constants_{byte_size}", int_types[byte_size], constants)
+
+            w.putln(f"for (Py_ssize_t i = 0; i < {int_constant_count}; i++) {{")
+
             value_access = ""
-            if char_constants:
-                value_access = "c_char_constants[i]"
-            if short_constants:
+            int_constants_seen = 0
+            for byte_size, constants in enumerate(int_constants_by_bytesize, 1):
+                if not constants:
+                    continue
                 value_access = (
-                    f"(i >= {len(char_constants)} ? "
-                    f"c_short_constants[i - {len(char_constants)}] : {value_access})"
-                ) if value_access else "c_short_constants[i]"
-            if int_constants:
-                value_access = (
-                    f"(i >= {len(char_constants) + len(short_constants)} ? "
-                    f"c_int_constants[i - {len(char_constants) + len(short_constants)}] : {value_access})"
-                ) if value_access else "c_int_constants[i]"
-            if long_constants:
-                value_access = (
-                    f"(i >= {len(char_constants) + len(short_constants) + len(int_constants)} ? "
-                    f"c_long_constants[i - {len(char_constants) + len(short_constants) + len(int_constants)}] : {value_access})"
-                ) if value_access else "c_long_constants[i]"
+                    f"(i >= {int_constants_seen} ? "
+                    f"cint_constants_{byte_size}[i - {int_constants_seen}] : {value_access})"
+                ) if value_access else f"cint_constants_{byte_size}[i]"
 
-            w.putln(f"py_constants[i] = PyLong_FromLong({value_access});")
+                int_constants_seen += len(constants)
+
+            w.putln(f"py_constants[i] = PyLong_FromLongLong({value_access});")
             handle_conversion_error()
             w.putln("}")  # for()
 
-            assign_constants(cinteger_constants)
+            assign_constants(iterchain(*int_constants_by_bytesize))
             w.putln("}")
 
         if large_constants:
             # We store large integer constants in a single '\0'-separated C string of base32 digits.
             base32_digits = '0123456789abcdefghijklmnopqrstuv'
             def to_base32(number):
-                is_neg = number < 0
-                number = abs(number)
+                is_neg: bool = number < 0
+                if is_neg:
+                    number = -number
 
                 digits = []
                 while number:
@@ -2286,8 +2276,10 @@ class GlobalState:
                 if not digits:
                     return '0'
 
+                if is_neg:
+                    digits.append('-')
                 digits.reverse()
-                return ('-' if is_neg else '') + ''.join(digits)
+                return ''.join(digits)
 
             w.putln("{")
             c_string = '\\000'.join([to_base32(c[1]) for c in large_constants])
