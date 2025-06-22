@@ -2176,7 +2176,7 @@ class GlobalState:
             return
 
         float_constants = []
-        int_constants_by_bytesize = []
+        int_constants_by_bytesize = [[]]
         large_constants = []
         int_constant_count = 0
 
@@ -2192,9 +2192,9 @@ class GlobalState:
                 float_constants.append((cname, value_code))
             else:
                 number_value = Utils.str_to_number(value)
-                byte_size = (number_value.bit_length() + 8) // 8 if number_value else 1
-                if byte_size <= 8:
-                    while len(int_constants_by_bytesize) < byte_size:
+                bit_length = number_value.bit_length()
+                if bit_length <= 63:
+                    while (bit_length + 8) // 8 > 1 << (len(int_constants_by_bytesize) - 1):
                         int_constants_by_bytesize.append([])
                     int_constant_count += 1
                     int_constants_by_bytesize[-1].append((cname, value_code))
@@ -2210,7 +2210,7 @@ class GlobalState:
             w.putln("}")
 
         def assign_constants(constants):
-            for i, (cname, _) in enumerate(constants):
+            for i, (cname, value) in enumerate(constants):
                 init_cname = w.name_in_main_c_code_module_state(cname)
                 w.putln(f"{init_cname} = py_constants[{i}];")
 
@@ -2235,27 +2235,28 @@ class GlobalState:
         if int_constant_count > 0:
             w.putln("{")
 
-            int_types = ['int8_t', 'int8_t', 'int16_t', 'int32_t', 'int32_t', 'int64_t', 'int64_t', 'int64_t', 'int64_t']
+            int_types = ['', 'int8_t', 'int16_t', 'int32_t', 'int64_t']
             for byte_size, constants in enumerate(int_constants_by_bytesize, 1):
                 store_array(f"cint_constants_{byte_size}", int_types[byte_size], constants)
 
             w.putln(f"PyObject *py_constants[{int_constant_count}];")
             w.putln(f"for ({'int' if int_constant_count < 2**15 else 'Py_ssize_t'} i = 0; i < {int_constant_count}; i++) {{")
 
-            value_access = ""
-            int_constants_seen = 0
-            for byte_size, constants in enumerate(int_constants_by_bytesize, 1):
-                if not constants:
-                    continue
-                value_access = (
-                    f"(i >= {int_constants_seen} ? "
-                    f"cint_constants_{byte_size}[i - {int_constants_seen}] : {value_access})"
-                ) if value_access else f"cint_constants_{byte_size}[i]"
+            def read_array_item(constants, byte_size, int_constants_seen):
+                read_item = f"cint_constants_{byte_size}[i - {int_constants_seen}]"
+                if byte_size >= len(constants):
+                    return read_item
 
-                int_constants_seen += len(constants)
+                int_constants = constants[byte_size - 1]
+                next_int_constants_seen = int_constants_seen + len(int_constants)
+                read_next_item = read_array_item(constants, byte_size + 1, next_int_constants_seen)
 
-            capi_func = "PyLong_FromLong" if len(int_constants_by_bytesize) <= 4 else "PyLong_FromLongLong"
-            w.putln(f"py_constants[i] = {capi_func}({value_access});")
+                return (
+                    f"(i < {next_int_constants_seen} ? {read_item} : {read_next_item})"
+                ) if int_constants else read_next_item
+
+            capi_func = "PyLong_FromLong" if len(int_constants_by_bytesize) <= 3 else "PyLong_FromLongLong"
+            w.putln(f"py_constants[i] = {capi_func}({read_array_item(int_constants_by_bytesize, 1, 0)});")
             handle_conversion_error()
             w.putln("}")  # for()
 
