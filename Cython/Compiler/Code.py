@@ -2055,7 +2055,7 @@ class GlobalState:
             # splitting the user substrings. In addition to using more memory, this might not even be faster
             # because it must copy Unicode slices between different character sizes.
             # We avoid this by repeatedly calling PyUnicode_DecodeUTF8() for each substring.
-            w.putln(f"for (Py_ssize_t i = 0; i < {stringtab_bytes_start}; i++) {{")
+            w.putln(f"for ({'int' if stringtab_bytes_start < 2**15 else 'Py_ssize_t'} i = 0; i < {stringtab_bytes_start}; i++) {{")
             w.putln("Py_ssize_t bytes_length = index[i].length;")
 
             w.putln("PyObject *string = PyUnicode_DecodeUTF8(bytes + pos, bytes_length, NULL);")
@@ -2072,7 +2072,7 @@ class GlobalState:
 
         # Unpack byte strings.
         if stringtab_bytes_start < len(index):
-            w.putln(f"for (Py_ssize_t i = {stringtab_bytes_start}; i < {len(index)}; i++) {{")
+            w.putln(f"for ({'int' if len(index) < 2**15 else 'Py_ssize_t'} i = {stringtab_bytes_start}; i < {len(index)}; i++) {{")
             w.putln("Py_ssize_t bytes_length = index[i].length;")
 
             w.putln("PyObject *string = PyBytes_FromStringAndSize(bytes + pos, bytes_length);")
@@ -2224,7 +2224,7 @@ class GlobalState:
             store_array("c_constants", 'double', float_constants)
 
             w.putln(f"PyObject *py_constants[{len(float_constants)}];")
-            w.putln(f"for (Py_ssize_t i = 0; i < {len(float_constants)}; i++) {{")
+            w.putln(f"for ({'int' if len(float_constants) < 2**15 else 'Py_ssize_t'} i = 0; i < {len(float_constants)}; i++) {{")
             w.putln(f"py_constants[i] = PyFloat_FromDouble(c_constants[i]);")
             handle_conversion_error()
             w.putln("}")  # for()
@@ -2240,7 +2240,7 @@ class GlobalState:
                 store_array(f"cint_constants_{byte_size}", int_types[byte_size], constants)
 
             w.putln(f"PyObject *py_constants[{int_constant_count}];")
-            w.putln(f"for (Py_ssize_t i = 0; i < {int_constant_count}; i++) {{")
+            w.putln(f"for ({'int' if int_constant_count < 2**15 else 'Py_ssize_t'} i = 0; i < {int_constant_count}; i++) {{")
 
             value_access = ""
             int_constants_seen = 0
@@ -2287,7 +2287,7 @@ class GlobalState:
             w.putln('const char* c_constant = "%s";' % c_string)
 
             w.putln(f"PyObject *py_constants[{len(large_constants)}];")
-            w.putln(f"for (Py_ssize_t i = 0; i < {len(large_constants)}; i++) {{")
+            w.putln(f"for ({'int' if len(large_constants) < 2**15 else 'Py_ssize_t'} i = 0; i < {len(large_constants)}; i++) {{")
             w.putln("char *end_pos;")
             w.putln(f"py_constants[i] = PyLong_FromString(c_constant, &end_pos, 32);")
             handle_conversion_error()
