@@ -509,7 +509,8 @@
 
 #define __Pyx_void_to_None(void_result) ((void)(void_result), Py_INCREF(Py_None), Py_None)
 
-#ifdef _MSC_VER
+#if defined(_MSC_VER) && _MSC_VER < 1600
+    // Visual Studio 2010 (_MSC_VER == 1600) has "stdint.h".
     #ifndef _MSC_STDINT_H_
         #if _MSC_VER < 1300
             typedef signed   char     int8_t;
