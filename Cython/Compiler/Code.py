@@ -690,7 +690,7 @@ class UtilityCode(UtilityCodeBase):
     def __init__(self, proto=None, impl=None, init=None, cleanup=None,
                  module_state_decls=None, module_state_traverse=None,
                  module_state_clear=None, requires=None,
-                 proto_block='utility_code_proto', name=None, file=None, shared_params=None, shared_load_requires=True):
+                 proto_block='utility_code_proto', name=None, file=None, shared_proto=None):
         # proto_block: Which code block to dump prototype in. See GlobalState.
         self.proto = proto
         self.impl = impl
@@ -705,15 +705,14 @@ class UtilityCode(UtilityCodeBase):
         self.proto_block = proto_block
         self.name = name
         self.file = file
-        self.shared_load_requires = not shared_load_requires == 'False'
 
-        self.shared = []
-        if shared_params:
-            if isinstance(shared_params, str):
-                shared_params = [shared_params]
-            for sh in shared_params:
+        self.shared_utility_functions = []
+        if shared_proto:
+            if isinstance(shared_proto, str):
+                shared_proto = [shared_proto]
+            for sh in shared_proto:
                 name, ret, params = sh.split("::")
-                self.shared.append(
+                self.shared_utility_functions.append(
                     {
                         'name': name,
                         'ret': ret,
@@ -807,21 +806,21 @@ class UtilityCode(UtilityCodeBase):
     def put_code(self, output):
         shared_utility_loaded = bool(output.module_node.scope.context.shared_utility_qualified_name)
 
-        if self.requires and ((self.shared_load_requires and shared_utility_loaded) or not shared_utility_loaded):
+        if self.requires and not (self.shared_utility_functions and shared_utility_loaded):
             for dependency in self.requires:
                 output.use_utility_code(dependency)
 
         if self.proto:
-            if self.shared  and shared_utility_loaded:
+            if self.shared_utility_functions and shared_utility_loaded:
                 output[self.proto_block].putln(f'/* {self.name} */')
-                for shared in self.shared:
+                for shared in self.shared_utility_functions:
                     # We must build pointer to function static global variable instead of function declaration
                     output[self.proto_block].putln(f'static {shared["ret"]}(*{shared["name"]})({shared["params"]});')
                 output[self.proto_block].putln()
             else:
                 self._put_code_section(output[self.proto_block], output, 'proto')
-        if self.shared:
-            output.shared_utility_functions.extend(list(self.shared))
+        if self.shared_utility_functions:
+            output.shared_utility_functions.extend(list(self.shared_utility_functions))
             if shared_utility_loaded:
                 return
         if self.impl:
