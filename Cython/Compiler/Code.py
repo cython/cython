@@ -2289,7 +2289,7 @@ class GlobalState:
             w.putln("{")
             w.putln(f"PyObject **numbertab = {w.name_in_main_c_code_module_state(Naming.numbertab_cname)} + {constant_offset};")
             c_string = '\\000'.join([to_base32(c[1]) for c in large_constants])
-            w.putln('const char* c_constant = "%s";' % c_string)
+            w.putln(f'const char* c_constant = "{StringEncoding.split_string_literal(c_string)}";')
             define_constants(large_constants, start_offset=constant_offset)
 
             generate_forloop_start(len(large_constants))
