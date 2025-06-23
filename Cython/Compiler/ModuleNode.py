@@ -3130,8 +3130,6 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             # Import shared utility C functions
             shared_utility_qualified_name = env.context.shared_utility_qualified_name
             if shared_utility_qualified_name:
-                env.use_utility_code(
-                    UtilityCode.load_cached("FunctionImport", "ImportExport.c"))
                 temp = inner_code.funcstate.allocate_temp(py_object_type, manage_ref=True)
                 error_goto = inner_code.error_goto(self.pos)
                 inner_code.putln(

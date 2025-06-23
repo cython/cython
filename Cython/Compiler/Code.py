@@ -1621,6 +1621,8 @@ class GlobalState:
         if shared_module_loaded:
             from .PyrexTypes import py_object_type
             code = self.parts['c_function_import_code']
+            if self.shared_utility_functions:
+                code.globalstate.use_utility_code(UtilityCode.load_cached("FunctionImport", "ImportExport.c"))
             temp = code.funcstate.allocate_temp(py_object_type, manage_ref=True)
             cyversion = Naming.cyversion
             for shared in self.shared_utility_functions:
