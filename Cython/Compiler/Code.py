@@ -1887,7 +1887,11 @@ class GlobalState:
             return
 
         decl = self.parts['module_state']
-        init = self.parts['init_constants']
+        init = self.parts['cached_builtins']
+
+        init.putln("")
+        init.putln("/* Cached unbound methods */")
+
         cnames = []
         for (type_cname, method_name), cname in sorted(self.cached_cmethods.items()):
             cnames.append(cname)
