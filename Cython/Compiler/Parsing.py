@@ -4201,14 +4201,6 @@ def p_module(s: PyrexScanner, pxd, full_module_name, ctx=Ctx):
 
     if s.context.language_level is None:
         s.context.set_language_level('3')
-        if pos[0].filename:
-            import warnings
-            warnings.warn(
-                "Cython directive 'language_level' not set, using '3' (Py3). "
-                "This has changed from earlier releases! File: %s" % pos[0].filename,
-                FutureWarning,
-                stacklevel=1 if cython.compiled else 2,
-            )
 
     level = 'module_pxd' if pxd else 'module'
     doc = p_doc_string(s)

@@ -7,10 +7,12 @@ cdef extern from "<shared_mutex>" namespace "std" nogil:
         cppclass native_handle_type:
             pass
 
+        # We strongly recommend not calling lock with the GIL held (to avoid deadlocks)
         void lock() except+
         bool try_lock()
         void unlock()
 
+        # We strongly recommend not calling lock_shared with the GIL held (to avoid deadlocks)
         void lock_shared() except+
         bool try_lock_shared()
         void unlock_shared()
@@ -23,12 +25,16 @@ cdef extern from "<shared_mutex>" namespace "std" nogil:
         cppclass native_handle_type:
             pass
 
+        # We strongly recommend not calling lock with the GIL held (to avoid deadlocks)
+        # and moderately recommend not calling the timed lock functions with the GIL either.
         void lock() except+
         bool try_lock()
         bool try_lock_for[T](const T& duration) except+
         bool try_lock_until[T](const T& time_point) except+
         void unlock()
 
+        # We strongly recommend not calling lock_shared with the GIL held (to avoid deadlocks)
+        # and moderately recommend not calling the timed lock functions with the GIL either.
         void lock_shared() except+
         bool try_lock_shared()
         bool try_lock_shared_for[T](const T& duration) except+
@@ -37,6 +43,8 @@ cdef extern from "<shared_mutex>" namespace "std" nogil:
 
         native_handle_type native_handle() except+
 
+    # We strongly recommend not attempting to acquire a lock via a shared_lock while holding
+    # the GIL. Use py_safe_construct_shared_lock instead.
     cppclass shared_lock[T]:
         ctypedef T mutex_type
         # This covers both the plain regular constructor, the 3 versions with tags
@@ -46,15 +54,17 @@ cdef extern from "<shared_mutex>" namespace "std" nogil:
         shared_lock(mutex_type&, ...) except+
         #shared_lock(mutex_type&, defer_lock_t)
         #shared_lock(mutex_type&, try_to_lock_t) except+
-        ## this feels like it should be noexcet, but cppreference implies it isn't
+        ## this feels like it should be noexcept, but cppreference implies it isn't
         #shared_lock(mutex_type&, adopt_lock_t) except+
 
+        # We strongly recommend not calling lock with the GIL held (to avoid deadlocks)
         void lock() except+
         bool try_lock() except+
         bool try_lock_for[T](const T& duration) except+
         bool try_lock_until[T](const T& time_point) except+
         void unlock() except+
 
+        # We strongly recommend not calling lock_shared with the GIL held (to avoid deadlocks)
         void swap(shared_lock& other)
         # "release" is definitely not the same as unlock. Noted here because
         # DW always makes this mistake and regrets it and wants to save you
@@ -64,3 +74,23 @@ cdef extern from "<shared_mutex>" namespace "std" nogil:
         mutex_type* mutex()
         bool owns_lock()
         bool operator bool()
+
+# Just to get our GIL-safe utility code
+cimport libcpp.mutex as _cpp_mutex
+
+cdef extern from *:
+    """
+    namespace {
+        template <typename... LockTs>
+        void __pyx_py_safe_std_lock(LockTs& ...locks);
+
+        template <typename MutexT>
+        std::shared_lock<MutexT> __pyx_py_safe_construct_shared_lock(MutexT &m) {
+            std::shared_lock<MutexT> l(m, std::defer_lock);
+            __pyx_py_safe_std_lock(l);  // in mutex.pxd
+            return l;
+        }
+    }
+    """
+    # Construct a shared_lock while holding the GIL, without deadlock on the GIL
+    shared_lock[MutexT] py_safe_construct_shared_lock "__pyx_py_safe_construct_shared_lock" [MutexT](MutexT& m) except+ nogil

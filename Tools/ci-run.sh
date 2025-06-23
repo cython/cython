@@ -92,6 +92,10 @@ echo "===================="
 echo "Installing requirements [python]"
 if [[ $PYTHON_VERSION == "3.1"[2-9]* ]]; then
   python -m pip install -U pip wheel setuptools || exit 1
+  if [[ $PYTHON_VERSION != *"t" && $PYTHON_VERSION != *"t-dev" ]]; then
+    # twine is not installable on freethreaded Python due to cryptography requirement
+    python -m pip install -U twine || exit 1
+  fi
   if [[ $PYTHON_VERSION == "3.12"* ]]; then
     python -m pip install --pre -r test-requirements-312.txt || exit 1
   else
@@ -102,7 +106,8 @@ if [[ $PYTHON_VERSION == "3.1"[2-9]* ]]; then
     python -m pip install --pre -r test-requirements-313.txt || exit 1
   fi
 else
-  python -m pip install -U pip "setuptools<60" wheel || exit 1
+  # Drop dependencies cryptography and nh3 (purely from twine) when removing support for PyPy3.8.
+  python -m pip install -U pip "setuptools<60" wheel twine "cryptography<42" "nh3<0.2.19" || exit 1
 
   if [[ $PYTHON_VERSION != *"-dev" || $COVERAGE == "1" ]]; then
     python -m pip install -r test-requirements.txt || exit 1
@@ -198,6 +203,12 @@ if [[ $NO_CYTHON_COMPILE != "1" && $PYTHON_VERSION != "pypy"* ]]; then
         $LIMITED_API == "" && $EXTRA_CFLAGS == "" ]]; then
     python setup.py bdist_wheel || exit 1
     ls -l dist/ || true
+
+    # Check for changelog entry in wheel metadata.
+    fgrep -q '=======' $( [ -d ?ython-*.dist-info/ ] && echo "?ython-*.dist-info/METADATA" || echo "?ython*.egg-info/PKG-INFO" ) || {
+        echo "ERROR: wheel METADATA lacks changelog - did you add a version entry?" ; exit 1; }
+
+    if $( twine --version ); then twine check dist/*.whl; fi
   fi
 
   echo "Extension modules created during the build:"
@@ -219,7 +230,7 @@ fi
 
 RUNTESTS_ARGS=""
 if [[ $COVERAGE == "1" ]]; then
-  RUNTESTS_ARGS="$RUNTESTS_ARGS --coverage --coverage-html --cython-only"
+  RUNTESTS_ARGS="$RUNTESTS_ARGS --coverage --coverage-html --coverage-md --cython-only"
 fi
 if [[ $TEST_CODE_STYLE != "1" ]]; then
   RUNTESTS_ARGS="$RUNTESTS_ARGS -j7"

@@ -7,6 +7,8 @@ Test Python def functions without extern types
 cy = __import__("cython")
 cimport cython
 
+import inspect
+
 cdef extern from *:
     int __Pyx_CyFunction_Check(object)
 
@@ -511,3 +513,12 @@ def stress_test_thread_safety(n_threads):
     for t in threads:
         t.join()
     assert not failed_list, len(failed_list)
+
+def test_signature(cython.floating arg1, cython.floating arg2):
+    """
+    >>> parameters = inspect.signature(test_signature).parameters
+    >>> len(parameters)
+    2
+    >>> list(parameters.keys())
+    ['arg1', 'arg2']
+    """

@@ -1,5 +1,5 @@
 # mode: run
-# tag: cpp, warnings
+# tag: cpp, no-cpp-locals, warnings
 
 cimport cython
 

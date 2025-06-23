@@ -1,97 +1,45 @@
 # This file contains tests corresponding to unresolved bugs using CPython's
 # Limited API which will be skipped in the normal testing run.
 
-min_async
-pep492_badsyntax_async4
-builtin_pycomplex
-builtin_subtype_methods_T653
-builtin_type_inheritance_T608
-builtinslice
-builtin_divmod
-cdivision_CEP_516
-cpp_stl_conversion
 cpp_nonstdint
-run[.]any
-run[.]all
-embedsignatures_python
 embedsignatures_clinic
-extern_builtins_T258
-ext_attribute_cache
-fastcall
-run[.]generators_py
 generator_frame_cycle
-run[.]no_gc
-run[.]numpy
 line_trace
-longintrepr
 pstats_profile_test
-py35_pep492_interop
-py_ucs4_type
 pep442_tp_finalize
-test_asyncgen
 tracebacks
 tss
 sys_monitoring
 special_method_docstrings
-run[.]ufunc
-slice2b
 verbatiminclude
 test_coroutines_pep492
-
-# Something to do with complex
-view_count
-matrix_with_buffer
-fused_types
-pycapsule
-r_extcomplex2
+coverage
+line_profile_test
+cdef_multiple_inheritance_errors
+cline_in_traceback
+pythran
 
 # cimport cpython
-extension_type_memoryview
-memslice
-memoryviewattrs
 clone
 overhead
-open_file
 cython_array
-# unfortunately this excludes a few working tests too - I can't get the pattern specific enough
-memoryview[.]memoryview$
-numpy_memoryview
 memoryview_inplace_division
 clear_to_null
-convolve2
-casting_python
-parameter_refcount
 cpython_capi_py35
-complex_numbers_T305
-cpython_capi
-complex_numbers_cxx_T398
-complex_numbers_c99_T398
-complex_numbers_c89_T398
 cython_includes
-cythonscope
-complex_extern_GH1433
 cdef_bool_T227
-annotation_typing
 datetime_cimport
 datetime_pxd
 datetime_members
 run[.]exttype
-exceptionrefcount
 isinstance
 pycontextvar
 run[.]pytype
 run[.]pyarray
-pyclass_scope_T671
 pyclass_special_methods
-pep448_extended_unpacking
-r_pythonapi
-refcount_in_meth
 time_pxd
-run[.]type_inference
-special_methods_T561
-run[.]slice_ptr
-running_with_gil
-run[.]with_gil
+array_cimport
+builtin_pycomplex
 
 # example in docs that use features unavailable in the limited API
 # (and it's a decision for the docs writers rather than a limitation
@@ -105,13 +53,23 @@ wrapping_CPlusPlus.python_to_cpp
 
 # Tests explicitly use internals
 compile[.]pylong
+extern_varobject_extensions
+ext_attribute_cache
+fastcall
+r_extcomplex2
+longintrepr
+run[.]no_gc
 
 # Inherit builtin type: PEP697
+builtin_subtype_methods_T653
+builtin_type_inheritance_T608
 bytearraymethods
 cdef_subclass_builtin
 ext_auto_richcmp
+extern_builtins_T258
 pylistsubtype
 r_hordijk1
+slice2b
 trashcan
 unbound_special_methods
 unicode_formatting
@@ -130,5 +88,5 @@ unicode_indexing
 # (might be due to shared ABI possibly?)
 yield_from_pep380
 
-# Excluded for now - to be enabled incrementally
-buffers[.]
+# Not actually a bug - the test is to ensure that some code is included that blocks compilation on the Limited API
+e_limited_lock$

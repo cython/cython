@@ -392,14 +392,18 @@ def strip_string_literals(code: str, prefix: str = '__Pyx_L'):
 # We need to allow spaces to allow for conditional compilation like
 # IF ...:
 #     cimport ...
-dependency_regex = re.compile(r"(?:^\s*from +([0-9a-zA-Z_.]+) +cimport)|"
-                              r"(?:^\s*cimport +([0-9a-zA-Z_.]+(?: *, *[0-9a-zA-Z_.]+)*))|"
-                              r"(?:^\s*cdef +extern +from +['\"]([^'\"]+)['\"])|"
-                              r"(?:^\s*include +['\"]([^'\"]+)['\"])", re.M)
+dependency_regex = re.compile(
+    r"(?:^ [ \t\f]* from     [ \t\f]+ cython\.cimports\.([\w.]+) [ \t\f]+ c?import ) |"
+    r"(?:^ [ \t\f]* from     [ \t\f]+ ([\w.]+) [ \t\f]+ cimport ) |"
+    r"(?:^ [ \t\f]* c?import [ \t\f]+ cython\.cimports\.([\w.]+) ) |"
+    r"(?:^ [ \t\f]* cimport  [ \t\f]+ ([\w.]+ (?:[ \t\f]* , [ \t\f]* [\w.]+)*) ) |"
+    r"(?:^ [ \t\f]* cdef     [ \t\f]+ extern [ \t\f]+ from [ \t\f]+ ['\"] ([^'\"]+) ['\"] ) |"
+    r"(?:^ [ \t\f]* include  [ \t\f]+ ['\"] ([^'\"]+) ['\"] )",
+    re.MULTILINE | re.VERBOSE)
 dependency_after_from_regex = re.compile(
-    r"(?:^\s+\(([0-9a-zA-Z_., ]*)\)[#\n])|"
-    r"(?:^\s+([0-9a-zA-Z_., ]*)[#\n])",
-    re.M)
+    r"(?:^ [ \t\f]+ \( ([\w., \t\f]*) \) [ \t\f]* [#\n]) |"
+    r"(?:^ [ \t\f]+    ([\w., \t\f]*)    [ \t\f]* [#\n])",
+    re.MULTILINE | re.VERBOSE)
 
 
 def normalize_existing(base_path, rel_paths):
@@ -486,7 +490,12 @@ def parse_dependencies(source_filename):
     includes = []
     externs  = []
     for m in dependency_regex.finditer(source):
-        cimport_from, cimport_list, extern, include = m.groups()
+        pycimports_from, cimport_from, pycimports_list, cimport_list, extern, include = m.groups()
+        if pycimports_from:
+            cimport_from = pycimports_from
+        if pycimports_list:
+            cimport_list = pycimports_list
+
         if cimport_from:
             cimports.append(cimport_from)
             m_after_from = dependency_after_from_regex.search(source, pos=m.end())
@@ -738,6 +747,7 @@ def create_extension_list(patterns, exclude=None, ctx=None, aliases=None, quiet=
 
     explicit_modules = {m.name for m in patterns if isinstance(m, extension_classes)}
     deps = create_dependency_tree(ctx, quiet=quiet)
+    shared_utility_qualified_name = ctx.shared_utility_qualified_name
 
     to_exclude = set()
     if not isinstance(exclude, list):
@@ -769,6 +779,18 @@ def create_extension_list(patterns, exclude=None, ctx=None, aliases=None, quiet=
                     print("Warning: Multiple cython sources found for extension '%s': %s\n"
                           "See https://cython.readthedocs.io/en/latest/src/userguide/sharing_declarations.html "
                           "for sharing declarations among Cython files." % (pattern.name, cython_sources))
+            elif shared_utility_qualified_name and pattern.name == shared_utility_qualified_name:
+                # This is the shared utility code file.
+                m, _ = create_extension(pattern, dict(
+                    name=shared_utility_qualified_name,
+                    sources=pattern.sources or [
+                        shared_utility_qualified_name.replace('.', os.sep) + ('.cpp' if pattern.language == 'c++' else '.c')],
+                    language=pattern.language,
+                ))
+                m.np_pythran = False
+                m.shared_utility_qualified_name = None
+                module_list.append(m)
+                continue
             else:
                 # ignore non-cython modules
                 module_list.append(pattern)
@@ -826,6 +848,7 @@ def create_extension_list(patterns, exclude=None, ctx=None, aliases=None, quiet=
                 # Create the new extension
                 m, metadata = create_extension(template, kwds)
                 m.np_pythran = np_pythran or getattr(m, 'np_pythran', False)
+                m.shared_utility_qualified_name = shared_utility_qualified_name
                 if m.np_pythran:
                     update_pythran_extension(m)
                 module_list.append(m)
@@ -951,6 +974,7 @@ def cythonize(module_list, exclude=None, nthreads=0, aliases=None, quiet=False, 
     cpp_options = CompilationOptions(**options); cpp_options.cplus = True
     ctx = Context.from_options(c_options)
     options = c_options
+    shared_utility_qualified_name = ctx.shared_utility_qualified_name
     module_list, module_metadata = create_extension_list(
         module_list,
         exclude=exclude,
@@ -984,6 +1008,17 @@ def cythonize(module_list, exclude=None, nthreads=0, aliases=None, quiet=False, 
                                 os.path.dirname(_relpath(filepath, root)))
             copy_once_if_newer(filepath_abs, mod_dir)
 
+    def file_in_build_dir(c_file):
+        if not build_dir:
+            return c_file
+        if os.path.isabs(c_file):
+            c_file = os.path.splitdrive(c_file)[1]
+            c_file = c_file.split(os.sep, 1)[1]
+        c_file = os.path.join(build_dir, c_file)
+        dir = os.path.dirname(c_file)
+        safe_makedirs_once(dir)
+        return c_file
+
     modules_by_cfile = collections.defaultdict(list)
     to_compile = []
     for m in module_list:
@@ -1001,28 +1036,24 @@ def cythonize(module_list, exclude=None, nthreads=0, aliases=None, quiet=False, 
             # infer FQMN from source files
             full_module_name = None
 
+        np_pythran = getattr(m, 'np_pythran', False)
+        py_limited_api = getattr(m, 'py_limited_api', False)
+
+        if np_pythran:
+            options = pythran_options
+        elif m.language == 'c++':
+            options = cpp_options
+        else:
+            options = c_options
+
         new_sources = []
         for source in m.sources:
             base, ext = os.path.splitext(source)
             if ext in ('.pyx', '.py'):
-                if m.np_pythran:
-                    c_file = base + '.cpp'
-                    options = pythran_options
-                elif m.language == 'c++':
-                    c_file = base + '.cpp'
-                    options = cpp_options
-                else:
-                    c_file = base + '.c'
-                    options = c_options
+                c_file = base + ('.cpp' if m.language == 'c++' or np_pythran else '.c')
 
                 # setup for out of place build directory if enabled
-                if build_dir:
-                    if os.path.isabs(c_file):
-                        c_file = os.path.splitdrive(c_file)[1]
-                        c_file = c_file.split(os.sep, 1)[1]
-                    c_file = os.path.join(build_dir, c_file)
-                    dir = os.path.dirname(c_file)
-                    safe_makedirs_once(dir)
+                c_file = file_in_build_dir(c_file)
 
                 # write out the depfile, if requested
                 if depfile:
@@ -1055,34 +1086,46 @@ def cythonize(module_list, exclude=None, nthreads=0, aliases=None, quiet=False, 
                     if not force and cache:
                         fingerprint = cache.transitive_fingerprint(
                                 source, deps.all_dependencies(source), options,
-                                FingerprintFlags(
-                                    m.language or 'c',
-                                    getattr(m, 'py_limited_api', False),
-                                    getattr(m, 'np_pythran', False)
-                                )
+                                FingerprintFlags(m.language or 'c', py_limited_api, np_pythran)
                         )
                     else:
                         fingerprint = None
                     to_compile.append((
-                        priority, source, c_file, fingerprint, cache, quiet,
+                        priority, source, c_file, fingerprint, quiet,
                         options, not exclude_failures, module_metadata.get(m.name),
                         full_module_name, show_all_warnings))
-                new_sources.append(c_file)
                 modules_by_cfile[c_file].append(m)
+            elif shared_utility_qualified_name and m.name == shared_utility_qualified_name:
+                # Generate shared utility code module now.
+                c_file = file_in_build_dir(source)
+                module_options = CompilationOptions(
+                    options, shared_c_file_path=c_file, shared_utility_qualified_name=None)
+                if not Utils.is_cython_generated_file(c_file):
+                    print(f"Warning: Shared module source file is not a Cython file - not creating '{m.name}' as '{c_file}'")
+                elif force or not Utils.file_generated_by_this_cython(c_file):
+                    from .SharedModule import generate_shared_module
+                    if not quiet:
+                        print(f"Generating shared module '{m.name}'")
+                    generate_shared_module(module_options)
             else:
-                new_sources.append(source)
+                c_file = source
                 if build_dir:
                     copy_to_build_dir(source)
+
+            new_sources.append(c_file)
+
         m.sources = new_sources
 
     to_compile.sort()
-    # Drop "priority" component of "to_compile" entries and add a
-    # simple progress indicator.
     N = len(to_compile)
-    progress_fmt = "[{0:%d}/{1}] " % len(str(N))
-    for i in range(N):
-        progress = progress_fmt.format(i+1, N)
-        to_compile[i] = to_compile[i][1:] + (progress,)
+
+    # Drop "priority" sorting component of "to_compile" entries
+    # and add a simple progress indicator and the remaining arguments.
+    build_progress_indicator = ("[{0:%d}/%d] " % (len(str(N)), N)).format
+    to_compile = [
+        task[1:] + (build_progress_indicator(i), cache)
+        for i, task in enumerate(to_compile, 1)
+    ]
 
     if N <= 1:
         nthreads = 0
@@ -1207,10 +1250,11 @@ else:
 
 # TODO: Share context? Issue: pyx processing leaks into pxd module
 @record_results
-def cythonize_one(pyx_file, c_file, fingerprint, cache, quiet, options=None,
+def cythonize_one(pyx_file, c_file,
+                  fingerprint=None, quiet=False, options=None,
                   raise_on_failure=True, embedded_metadata=None,
                   full_module_name=None, show_all_warnings=False,
-                  progress=""):
+                  progress="", cache=None):
     from ..Compiler.Main import compile_single, default_options
     from ..Compiler.Errors import CompileError, PyrexError
 

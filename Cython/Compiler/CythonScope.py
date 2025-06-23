@@ -16,7 +16,7 @@ class CythonScope(ModuleScope):
         self.pxd_file_loaded = True
         self.populate_cython_scope()
         # The Main.Context object
-        self.context = context
+        self._context = context
 
         for fused_type in (cy_integral_type, cy_floating_type, cy_numeric_type):
             entry = self.declare_typedef(fused_type.name,
@@ -24,6 +24,13 @@ class CythonScope(ModuleScope):
                                          None,
                                          cname='<error>')
             entry.in_cinclude = True
+
+        entry = self.declare_type(
+            "pymutex", cy_pymutex_type, None,
+            cname="__Pyx_Locks_PyMutex")
+        entry = self.declare_type(
+            "pythread_type_lock", cy_pythread_type_lock_type, None,
+            cname="__Pyx_Locks_PyThreadTypeLock")
 
     def is_cpp(self):
         # Allow C++ utility code in C++ contexts.
@@ -122,9 +129,10 @@ class CythonScope(ModuleScope):
         cythonview_testscope_utility_code.declare_in_scope(
                                             viewscope, cython_scope=self)
 
-        view_utility_scope = MemoryView.view_utility_code.declare_in_scope(
-                                            self.viewscope, cython_scope=self,
-                                            allowlist=MemoryView.view_utility_allowlist)
+        view_utility_scope = MemoryView.get_view_utility_code(
+            self.context.shared_utility_qualified_name
+        ).declare_in_scope(
+            self.viewscope, cython_scope=self, allowlist=MemoryView.view_utility_allowlist)
 
         # Marks the types as being cython_builtin_type so that they can be
         # extended from without Cython attempting to import cython.view

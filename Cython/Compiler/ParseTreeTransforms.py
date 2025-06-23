@@ -1628,7 +1628,7 @@ class ParallelRangeTransform(CythonTransform, SkipDeclarations):
 
 class WithTransform(VisitorTransform, SkipDeclarations):
     def visit_WithStatNode(self, node):
-        self.visitchildren(node, 'body')
+        self.visitchildren(node, ['body'])
         pos = node.pos
         is_async = node.is_async
         body, target, manager = node.body, node.target, node.manager
@@ -2053,6 +2053,7 @@ class CnameDirectivesTransform(CythonTransform, SkipDeclarations):
     visit_CClassDefNode = handle_function
     visit_CEnumDefNode = handle_function
     visit_CStructOrUnionDefNode = handle_function
+    visit_CVarDefNode = handle_function
 
 
 class ForwardDeclareTypes(CythonTransform):
@@ -3084,6 +3085,8 @@ class AdjustDefByDirectives(CythonTransform, SkipDeclarations):
         elif except_val is None:
             # backward compatible default: no exception check, unless there's also a "@returns" declaration
             except_val = (None, True if return_type_node else False)
+        if self.directives.get('c_compile_guard') and 'cfunc' not in self.directives:
+            error(node.pos, "c_compile_guard only allowed on C functions")
         if 'ccall' in self.directives:
             if 'cfunc' in self.directives:
                 error(node.pos, "cfunc and ccall directives cannot be combined")
@@ -3672,42 +3675,39 @@ class GilCheck(VisitorTransform):
 
     def __call__(self, root):
         self.env_stack = [root.scope]
-        self.nogil = False
+        self.nogil_state = Nodes.NoGilState.HasGil
 
-        # True for 'cdef func() nogil:' functions, as the GIL may be held while
-        # calling this function (thus contained 'nogil' blocks may be valid).
-        self.nogil_declarator_only = False
-
-        self.current_gilstat_node_knows_gil_state = False
+        self.nogil_state_at_current_gilstatnode = Nodes.NoGilState.HasGil
         return super().__call__(root)
 
-    def _visit_scoped_children(self, node, gil_state):
-        was_nogil = self.nogil
+    def _visit_scoped_children(self, node, nogil_state):
+        was_nogil = self.nogil_state
         outer_attrs = node.outer_attrs
         if outer_attrs and len(self.env_stack) > 1:
-            self.nogil = self.env_stack[-2].nogil
+            self.nogil_state = (
+                Nodes.NoGilState.NoGil if self.env_stack[-2].nogil else Nodes.NoGilState.HasGil)
             self.visitchildren(node, outer_attrs)
 
-        self.nogil = gil_state
+        self.nogil_state = nogil_state
         self.visitchildren(node, attrs=None, exclude=outer_attrs)
-        self.nogil = was_nogil
+        self.nogil_state = was_nogil
 
     def visit_FuncDefNode(self, node):
         self.env_stack.append(node.local_scope)
         inner_nogil = node.local_scope.nogil
 
-        nogil_declarator_only = self.nogil_declarator_only
+        nogil_state = self.nogil_state
         if inner_nogil:
-            self.nogil_declarator_only = True
+            self.nogil_state = Nodes.NoGilState.NoGilScope
 
         if inner_nogil and node.nogil_check:
             node.nogil_check(node.local_scope)
 
-        self._visit_scoped_children(node, inner_nogil)
+        self._visit_scoped_children(node, self.nogil_state)
 
         # FuncDefNodes can be nested, because a cpdef function contains a def function
         # inside it. Therefore restore to previous state
-        self.nogil_declarator_only = nogil_declarator_only
+        self.nogil_state = nogil_state
 
         self.env_stack.pop()
         return node
@@ -3719,20 +3719,20 @@ class GilCheck(VisitorTransform):
                   "`with %s(<condition>)` statement" % node.state)
             return node
 
-        if self.nogil and node.nogil_check:
+        if self.nogil_state and node.nogil_check:
             node.nogil_check()
 
-        was_nogil = self.nogil
+        was_nogil = self.nogil_state
         is_nogil = (node.state == 'nogil')
 
-        if was_nogil == is_nogil and not self.nogil_declarator_only:
+        if was_nogil == is_nogil and not self.nogil_state == Nodes.NoGilState.NoGilScope:
             if not was_nogil:
                 error(node.pos, "Trying to acquire the GIL while it is "
                                 "already held.")
             else:
                 error(node.pos, "Trying to release the GIL while it was "
                                 "previously released.")
-        if self.nogil_declarator_only:
+        if self.nogil_state == Nodes.NoGilState.NoGilScope:
             node.scope_gil_state_known = False
 
         if isinstance(node.finally_clause, Nodes.StatListNode):
@@ -3740,26 +3740,24 @@ class GilCheck(VisitorTransform):
             # which is wrapped in a StatListNode. Just unpack that.
             node.finally_clause, = node.finally_clause.stats
 
-        nogil_declarator_only = self.nogil_declarator_only
-        self.nogil_declarator_only = False
-        current_gilstat_node_knows_gil_state = self.current_gilstat_node_knows_gil_state
-        self.current_gilstat_node_knows_gil_state = node.scope_gil_state_known
-        self._visit_scoped_children(node, is_nogil)
-        self.nogil_declarator_only = nogil_declarator_only
-        self.current_gilstat_node_knows_gil_state = current_gilstat_node_knows_gil_state
+        nogil_state_at_current_gilstatnode = self.nogil_state_at_current_gilstatnode
+        self.nogil_state_at_current_gilstatnode = self.nogil_state
+        nogil_state = Nodes.NoGilState.NoGil if is_nogil else Nodes.NoGilState.HasGil
+        self._visit_scoped_children(node, nogil_state)
+        self.nogil_state_at_current_gilstatnode = nogil_state_at_current_gilstatnode
         return node
 
     def visit_ParallelRangeNode(self, node):
-        if node.nogil or self.nogil_declarator_only:
+        if node.nogil or self.nogil_state == Nodes.NoGilState.NoGilScope:
             node_was_nogil, node.nogil = node.nogil, False
             node = Nodes.GILStatNode(node.pos, state='nogil', body=node)
-            if not node_was_nogil and self.nogil_declarator_only:
+            if not node_was_nogil and self.nogil_state == Nodes.NoGilState.NoGilScope:
                 # We're in a "nogil" function, but that doesn't prove we
                 # didn't have the gil
                 node.scope_gil_state_known = False
             return self.visit_GILStatNode(node)
 
-        if not self.nogil:
+        if not self.nogil_state:
             error(node.pos, "prange() can only be used without the GIL")
             # Forget about any GIL-related errors that may occur in the body
             return None
@@ -3769,11 +3767,11 @@ class GilCheck(VisitorTransform):
         return node
 
     def visit_ParallelWithBlockNode(self, node):
-        if not self.nogil:
+        if not self.nogil_state:
             error(node.pos, "The parallel section may only be used without "
                             "the GIL")
             return None
-        if self.nogil_declarator_only:
+        if self.nogil_state == Nodes.NoGilState.NoGilScope:
             # We're in a "nogil" function but that doesn't prove we didn't
             # have the gil, so release it
             node = Nodes.GILStatNode(node.pos, state='nogil', body=node)
@@ -3792,7 +3790,7 @@ class GilCheck(VisitorTransform):
         """
         Take care of try/finally statements in nogil code sections.
         """
-        if not self.nogil:
+        if not self.nogil_state:
             return self.visit_Node(node)
 
         node.nogil_check = None
@@ -3804,22 +3802,47 @@ class GilCheck(VisitorTransform):
         # skip normal "try/finally node" handling
         return self.visit_Node(node)
 
+    def visit_CythonLockStatNode(self, node):
+        # skip normal "try/finally node" handling
+        return self.visit_Node(node)
+
     def visit_GILExitNode(self, node):
-        if not self.current_gilstat_node_knows_gil_state:
+        if self.nogil_state_at_current_gilstatnode == Nodes.NoGilState.NoGilScope:
             node.scope_gil_state_known = False
         self.visitchildren(node)
         return node
 
     def visit_Node(self, node):
-        if self.env_stack and self.nogil and node.nogil_check:
+        if self.env_stack and self.nogil_state and node.nogil_check:
             node.nogil_check(self.env_stack[-1])
         if node.outer_attrs:
-            self._visit_scoped_children(node, self.nogil)
+            self._visit_scoped_children(node, self.nogil_state)
         else:
             self.visitchildren(node)
-        if self.nogil:
-            node.in_nogil_context = True
+        if self.nogil_state:
+            node.in_nogil_context = self.nogil_state
         return node
+
+    def visit_SimpleCallNode(self, node):
+        if (node.self and node.self.type.is_cython_lock_type and
+                node.function.is_attribute and node.function.attribute == "acquire" and
+                len(node.args) == 1):
+            # For the cython lock types we can optimize if we know the GIL state.
+            # (Remove this in the distant future when it's all PyMutexes because for these
+            # it doesn't matter)
+            suffix = None
+            if self.nogil_state == Nodes.NoGilState.NoGil:
+                suffix = "Nogil"
+            elif self.nogil_state == Nodes.NoGilState.HasGil:
+                suffix = "Gil"
+            if suffix:
+                node = ExprNodes.PythonCapiCallNode(
+                    node.pos,
+                    node.function.entry.cname + suffix,
+                    node.function.type,
+                    args=[node.self],
+                )
+        return self.visit_Node(node)
 
 
 class CoerceCppTemps(EnvTransform, SkipDeclarations):
@@ -3829,7 +3852,7 @@ class CoerceCppTemps(EnvTransform, SkipDeclarations):
     inserts a coercion node to take care of this, and runs absolutely last (once nothing else can be
     inserted into the tree)
 
-    TODO: a possible alternative would be to split ExprNode.result() into ExprNode.rhs_rhs() and ExprNode.lhs_rhs()???
+    TODO: a possible alternative would be to split ExprNode.result() into ExprNode.rhs_result() and ExprNode.lhs_result()???
     """
     def visit_ModuleNode(self, node):
         if self.current_env().cpp:
@@ -3840,11 +3863,17 @@ class CoerceCppTemps(EnvTransform, SkipDeclarations):
     def visit_ExprNode(self, node):
         self.visitchildren(node)
         if (self.current_env().directives['cpp_locals'] and
-                node.is_temp and node.type.is_cpp_class and
+                node.result_in_temp() and node.type.is_cpp_class and
                 # Fake references are not replaced with "std::optional()".
                 not node.type.is_fake_reference):
             node = ExprNodes.CppOptionalTempCoercion(node)
 
+        return node
+
+    def visit_CppOptionalTempCoercion(self, node):
+        return node
+
+    def visit_CppIteratorNode(self, node):
         return node
 
     def visit_ExprStatNode(self, node):
