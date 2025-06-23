@@ -1514,14 +1514,11 @@ class GlobalState:
             if i > 0:
                 w.putln("/* #### Code section: %s ### */" % part)
 
-        if not Options.cache_builtins:
-            del self.parts['cached_builtins']
-        else:
-            w = self.parts['cached_builtins']
-            w.start_initcfunc(
-                "int __Pyx_InitCachedBuiltins("
-                f"{Naming.modulestatetype_cname} *{Naming.modulestatevalue_cname})")
-            w.putln(f"CYTHON_UNUSED_VAR({Naming.modulestatevalue_cname});")
+        w = self.parts['cached_builtins']
+        w.start_initcfunc(
+            "int __Pyx_InitCachedBuiltins("
+            f"{Naming.modulestatetype_cname} *{Naming.modulestatevalue_cname})")
+        w.putln(f"CYTHON_UNUSED_VAR({Naming.modulestatevalue_cname});")
 
         w = self.parts['cached_constants']
         w.start_initcfunc(
@@ -1597,14 +1594,14 @@ class GlobalState:
         # This is called when it is known that no more global declarations will
         # declared.
         self.generate_const_declarations()
-        if Options.cache_builtins:
-            w = self.parts['cached_builtins']
-            w.putln("return 0;")
-            if w.label_used(w.error_label):
-                w.put_label(w.error_label)
-                w.putln("return -1;")
-            w.putln("}")
-            w.exit_cfunc_scope()
+
+        w = self.parts['cached_builtins']
+        w.putln("return 0;")
+        if w.label_used(w.error_label):
+            w.put_label(w.error_label)
+            w.putln("return -1;")
+        w.putln("}")
+        w.exit_cfunc_scope()
 
         w = self.parts['cached_constants']
         w.put_finish_refcount_context()
