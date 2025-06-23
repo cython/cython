@@ -805,21 +805,24 @@ class UtilityCode(UtilityCodeBase):
         writer.putln()
 
     def put_code(self, output):
+        shared_utility_loaded = bool(output.module_node.scope.context.shared_utility_qualified_name)
 
-        if self.requires and ((self.shared_load_requires and output.module_node.scope.context.shared_utility_qualified_name) or not output.module_node.scope.context.shared_utility_qualified_name):
+        if self.requires and ((self.shared_load_requires and shared_utility_loaded) or not shared_utility_loaded):
             for dependency in self.requires:
                 output.use_utility_code(dependency)
 
         if self.proto:
-            if self.shared  and output.module_node.scope.context.shared_utility_qualified_name:
+            if self.shared  and shared_utility_loaded:
+                output[self.proto_block].putln(f'/* {self.name} */')
                 for shared in self.shared:
                     # We must build pointer to function static global variable instead of function declaration
-                    output[self.proto_block].putln(f'static {shared["ret"]}(*{shared["name"]})({shared["params"]}); /*proto*/')
+                    output[self.proto_block].putln(f'static {shared["ret"]}(*{shared["name"]})({shared["params"]});')
+                output[self.proto_block].putln()
             else:
                 self._put_code_section(output[self.proto_block], output, 'proto')
         if self.shared:
             output.shared_utility_functions.extend(list(self.shared))
-            if output.module_node.scope.context.shared_utility_qualified_name:
+            if shared_utility_loaded:
                 return
         if self.impl:
             self._put_code_section(output['utility_code_def'], output, 'impl')
@@ -1613,29 +1616,29 @@ class GlobalState:
         code.putln(util.format_code(util.impl))
         code.putln("")
 
-        if self.module_node.scope.context.shared_utility_qualified_name:
+        shared_module_loaded = self.module_node.scope.context.shared_utility_qualified_name
+        shared_module_generated = self.module_node.scope.context.options.shared_c_file_path
+
+        if shared_module_loaded:
             from .PyrexTypes import py_object_type
             code = self.parts['c_function_import_code']
             temp = code.funcstate.allocate_temp(py_object_type, manage_ref=True)
+            cyversion = Naming.cyversion
             for shared in self.shared_utility_functions:
+                shared_func_proto = f'{shared["ret"]}({shared["params"]})'
+                shared_func = shared["name"]
+                error_goto = code.error_goto(self.module_pos)
                 code.putln(
-                    'if (__Pyx_ImportFunction_%s(%s, %s, (void (**)(void))&%s, "%s") < 0) %s' % (
-                        Naming.cyversion,
-                        temp,
-                        f'"{shared["name"]}"',
-                        f'{shared["name"]}',
-                        f'{shared["ret"]}({shared["params"]})',
-                        code.error_goto(self.module_pos))
+                    f'if (__Pyx_ImportFunction_{cyversion}({temp}, "{shared_func}", (void (**)(void))&{shared_func}, "{shared_func_proto}") < 0) {error_goto}'
                 )
-        elif self.module_node.scope.context.options.shared_c_file_path:
+        elif shared_module_generated:
             code = self.parts['c_function_export_code']
             for shared in self.shared_utility_functions:
+                shared_func_proto = f'{shared["ret"]}({shared["params"]})'
+                shared_func = shared["name"]
+                error_goto = code.error_goto(self.module_pos)
                 code.putln(
-                        'if (__Pyx_ExportFunction(%s, (void (*)(void))%s, "%s") < 0) %s' % (
-                        f'"{shared["name"]}"',
-                        f'{shared["name"]}',
-                        f'{shared["ret"]}({shared["params"]})',
-                        code.error_goto(self.module_pos))
+                    f'if (__Pyx_ExportFunction("{shared_func}", (void (*)(void)){shared_func}, "{shared_func_proto}") < 0) {error_goto}'
                 )
 
     def __getitem__(self, key):
