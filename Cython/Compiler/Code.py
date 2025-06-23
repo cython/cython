@@ -2239,12 +2239,11 @@ class GlobalState:
             w.putln(f"PyObject **numbertab = {w.name_in_main_c_code_module_state(Naming.numbertab_cname)} + {constant_offset};")
 
             int_types = ['', 'int8_t', 'int16_t', 'int32_t', 'int64_t']
-            offset = constant_offset
             for byte_size, constants in enumerate(int_constants_by_bytesize, 1):
                 if constants:
                     store_array(f"cint_constants_{2 ** (byte_size - 1)}", int_types[byte_size], constants)
-                    define_constants(constants, start_offset=offset)
-                    offset += len(constants)
+                    define_constants(constants, start_offset=constant_offset)
+                    constant_offset += len(constants)
 
             def read_array_item(constants, byte_size, int_constants_seen):
                 read_item = f"cint_constants_{2 ** (byte_size - 1)}[i - {int_constants_seen}]"
@@ -2265,7 +2264,6 @@ class GlobalState:
             w.putln("}")  # for()
 
             w.putln("}")
-            constant_offset += offset
 
         if large_constants:
             # We store large integer constants in a single '\0'-separated C string of base32 digits.
