@@ -17,7 +17,7 @@ for fast C modules that speed up the execution of Python code.
 * Github repository: https://github.com/cython/cython
 * Wiki: https://github.com/cython/cython/wiki
 
-Cython has `about 30 million downloads <https://pypistats.org/packages/cython>`_
+Cython has `more than 60 million downloads <https://pypistats.org/packages/cython>`_
 per month on PyPI.  You can **support the Cython project** via
 `Github Sponsors <https://github.com/users/scoder/sponsorship>`_ or
 `Tidelift <https://tidelift.com/subscription/pkg/pypi-cython>`_.

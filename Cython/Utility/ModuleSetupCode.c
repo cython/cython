@@ -391,6 +391,10 @@
   #endif
 #endif
 
+#ifndef CYTHON_COMPRESS_STRINGS
+  #define CYTHON_COMPRESS_STRINGS 1
+#endif
+
 #ifndef CYTHON_FAST_PYCCALL
 #define CYTHON_FAST_PYCCALL  CYTHON_FAST_PYCALL
 #endif
@@ -3086,7 +3090,7 @@ typedef struct {
   PyGILState_STATE gil_state;
 } __Pyx_UnknownThreadState;
 #else
-#define __Pyx_UnknownThreadState PyThreadState* 
+#define __Pyx_UnknownThreadState PyThreadState*
 #endif
 
 static __Pyx_UnknownThreadState __Pyx_SaveUnknownThread(void); /* proto */

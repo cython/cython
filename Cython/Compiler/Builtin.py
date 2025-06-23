@@ -18,6 +18,7 @@ getattr3_utility_code = UtilityCode.load("GetAttr3", "Builtins.c")
 pyexec_utility_code = UtilityCode.load("PyExec", "Builtins.c")
 pyexec_globals_utility_code = UtilityCode.load("PyExecGlobals", "Builtins.c")
 globals_utility_code = UtilityCode.load("Globals", "Builtins.c")
+range_utility_code = UtilityCode.load("PyRange_Check", "Builtins.c")
 include_std_lib_h_utility_code = UtilityCode.load("IncludeStdlibH", "ModuleSetupCode.c")
 pysequence_multiply_utility_code = UtilityCode.load("PySequenceMultiply", "ObjectHandling.c")
 slice_accessor_utility_code = UtilityCode.load("PySliceAccessors", "Builtins.c")
@@ -776,13 +777,17 @@ def init_builtin_types():
             objstruct_cname = "PyBaseExceptionObject"
         else:
             objstruct_cname = 'Py%sObject' % name.capitalize()
+
+        utility_code = None
         type_class = PyrexTypes.BuiltinObjectType
         if name in ['dict', 'list', 'set', 'frozenset']:
             type_class = PyrexTypes.BuiltinTypeConstructorObjectType
         elif name == 'tuple':
             type_class = PyrexTypes.PythonTupleTypeConstructor
+        elif name == 'range':
+            utility_code = range_utility_code
         the_type = builtin_scope.declare_builtin_type(
-            name, cname, objstruct_cname=objstruct_cname, type_class=type_class)
+            name, cname, objstruct_cname=objstruct_cname, type_class=type_class, utility_code=utility_code)
         builtin_types[name] = the_type
         for method in methods:
             method.declare_in_type(the_type)

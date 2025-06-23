@@ -41,3 +41,15 @@ def attributes(r: range):
     (1, 2, 3)
     """
     return r.start, r.stop, r.step
+
+
+def isinstance_range(x):
+    """
+    >>> isinstance_range(range(20))
+    True
+    >>> isinstance_range([])
+    False
+    >>> isinstance_range(2)
+    False
+    """
+    return isinstance(x, range)
