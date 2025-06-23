@@ -256,7 +256,7 @@ static PyObject *__Pyx_PyLong_AbsNeg(PyObject *num);/*proto*/
 
 #define __Pyx_PyNumber_Absolute(x) \
     ((likely(PyLong_CheckExact(x))) ? \
-         (likely(__Pyx_PyLong_IsNonNeg(x)) ? (Py_INCREF(x), (x)) : __Pyx_PyLong_AbsNeg(x)) : \
+         (likely(__Pyx_PyLong_IsNonNeg(x)) ? __Pyx_NewRef(x) : __Pyx_PyLong_AbsNeg(x)) : \
          PyNumber_Absolute(x))
 
 #else
@@ -283,7 +283,7 @@ static PyObject *__Pyx_PyLong_AbsNeg(PyObject *n) {
         if (likely(copy)) {
             #if PY_VERSION_HEX >= 0x030C00A7
             // clear the sign bits to set the sign from SIGN_NEGATIVE (2) to positive (0)
-            ((PyLongObject*)copy)->long_value.lv_tag = ((PyLongObject*)copy)->long_value.lv_tag & ~_PyLong_SIGN_MASK;
+            ((PyLongObject*)copy)->long_value.lv_tag ^= ((PyLongObject*)copy)->long_value.lv_tag & _PyLong_SIGN_MASK;
             #else
             // negate the size to swap the sign
             __Pyx_SET_SIZE(copy, -Py_SIZE(copy));
