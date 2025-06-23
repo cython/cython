@@ -28,8 +28,9 @@ def create_shared_library_pipeline(context, scope, options, result):
         return generate_tree
 
     def generate_c_utilities(module_node):
-        module_node.scope.use_utility_code(Code.UtilityCode.load_cached("CyFunctionClassCell", "CythonFunction.c"))
-        module_node.scope.use_utility_code(Code.UtilityCode.load_cached("CythonFunction", "CythonFunction.c"))
+        module_node.scope.use_utility_code(Code.UtilityCode.load_cached("Py3ClassCreate", "ObjectHandling.c"))
+        module_node.scope.use_utility_code(Code.UtilityCode.load_cached("PyObjectCallMethod0", "ObjectHandling.c"))
+        module_node.scope.use_utility_code(Code.UtilityCode.load_cached("PyObjectCallMethod1", "ObjectHandling.c"))
         return module_node
 
     orig_cimport_from_pyx = Options.cimport_from_pyx

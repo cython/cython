@@ -1221,6 +1221,9 @@ static PyObject *__Pyx_Py3ClassCreate(PyObject *metaclass, PyObject *name, PyObj
                                       PyObject *mkw, int calculate_metaclass, int allow_py2_metaclass); /*proto*/
 
 /////////////// Py3ClassCreate ///////////////
+//@shared_params: __Pyx_Py3MetaclassPrepare::PyObject *::PyObject *, PyObject *, PyObject *, PyObject *, PyObject *, PyObject *, PyObject *
+//@shared_params: __Pyx_Py3ClassCreate::PyObject *::PyObject *, PyObject *, PyObject *, PyObject *, PyObject *, PyObject *, PyObject *
+//@shared_load_requires: False
 //@requires: PyObjectGetAttrStrNoError
 //@requires: CalculateMetaclass
 //@requires: PyObjectFastCall
@@ -2387,6 +2390,8 @@ static PyObject *__Pyx_Object_VectorcallMethod_CallFromBuilder(PyObject *name, P
 static PyObject* __Pyx_PyObject_CallMethod0(PyObject* obj, PyObject* method_name); /*proto*/
 
 /////////////// PyObjectCallMethod0 ///////////////
+//@shared_params: __Pyx_PyObject_CallMethod0::PyObject *::PyObject *, PyObject *
+//@shared_load_requires: False
 //@requires: PyObjectGetMethod
 //@requires: PyObjectCallOneArg
 //@requires: PyObjectCallNoArg
@@ -2412,6 +2417,8 @@ bad:
 static PyObject* __Pyx_PyObject_CallMethod1(PyObject* obj, PyObject* method_name, PyObject* arg); /*proto*/
 
 /////////////// PyObjectCallMethod1 ///////////////
+//@shared_params: __Pyx_PyObject_CallMethod1::PyObject *::PyObject *, PyObject *, PyObject *
+//@shared_load_requires: False
 //@requires: PyObjectGetMethod
 //@requires: PyObjectCallOneArg
 //@requires: PyObjectCall2Args
