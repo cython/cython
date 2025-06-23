@@ -7,7 +7,7 @@ import cython
 cython.declare(os=object, re=object, operator=object, textwrap=object,
                Template=object, Naming=object, Options=object, StringEncoding=object,
                Utils=object, SourceDescriptor=object, StringIOTree=object,
-               DebugFlags=object, defaultdict=object, iterchain=object,
+               DebugFlags=object, defaultdict=object,
                closing=object, partial=object, wraps=object,
                zlib_compress=object, bz2_compress=object, lzma_compress=object, zstd_compress=object)
 
@@ -21,7 +21,6 @@ from string import Template
 from functools import partial, wraps
 from contextlib import closing, contextmanager
 from collections import defaultdict
-from itertools import chain as iterchain
 
 from . import Naming
 from . import Options
@@ -2169,25 +2168,24 @@ class GlobalState:
         self._generate_module_array_traverse_and_clear(Naming.codeobjtab_cname, code_object_count, may_have_refcycles=False)
 
     def generate_num_constants(self):
-        consts = [(c.py_type, len(c.value.lstrip('-')), c.value, c.value_code, c)
+        consts = [(c.py_type, len(c.value.lstrip('-')), c.value.lstrip('-'), c.value, c.value_code, c)
                   for c in self.num_const_index.values()]
         consts.sort()
         if not consts:
             return
 
+        constant_count = len(consts)
+        self.parts['module_state'].putln(f"PyObject *{Naming.numbertab_cname}[{constant_count}];")
+        # The code objects that we generate only contain plain constants and can never participate in reference cycles.
+        self._generate_module_array_traverse_and_clear(Naming.numbertab_cname, constant_count, may_have_refcycles=False)
+
         float_constants = []
-        int_constants_by_bytesize = [[]]
+        int_constants_by_bytesize = [[]]  # [[1 byte], [2 bytes], [4 bytes], [8 bytes]]
         large_constants = []
         int_constant_count = 0
 
-        for py_type, _, value, value_code, c in consts:
+        for py_type, _, _, value, value_code, c in consts:
             cname = c.cname
-            self.parts['module_state'].putln("PyObject *%s;" % cname)
-            self.parts['module_state_clear'].putln(
-                "Py_CLEAR(clear_module_state->%s);" % cname)
-            self.parts['module_state_traverse'].putln(
-                "__Pyx_VISIT_CONST(traverse_module_state->%s);" % cname)
-
             if py_type == 'float':
                 float_constants.append((cname, value_code))
             else:
@@ -2202,48 +2200,54 @@ class GlobalState:
                     large_constants.append((cname, number_value))
 
         w = self.parts['init_constants']
-
-        def handle_conversion_error():
-            w.putln("if (unlikely(!py_constants[i])) {")
-            w.putln("while (--i >= 0) { Py_DECREF(py_constants[i]); }")
-            w.putln(w.error_goto(self.module_pos))
-            w.putln("}")
-
-        def assign_constants(constants):
-            for i, (cname, value) in enumerate(constants):
-                init_cname = w.name_in_main_c_code_module_state(cname)
-                w.putln(f"{init_cname} = py_constants[{i}];")
+        defines = self.parts['constant_name_defines']
 
         def store_array(name, ctype, constants):
-            if constants:
-                values = ','.join([c[1] for c in constants])
-                w.putln(f"{ctype} const {name}[] = {{{values}}};")
+            values = ','.join([c[1] for c in constants])
+            w.putln(f"{ctype} const {name}[] = {{{values}}};")
+
+        def generate_forloop_start(end):
+            counter_type = 'int' if end < 2**15 else 'Py_ssize_t'
+            w.putln(f"for ({counter_type} i = 0; i < {end}; i++) {{")
+
+        def assign_constant(rhs_code):
+            w.putln(f"numbertab[i] = {rhs_code};")
+            w.putln(w.error_goto_if_null("numbertab[i]", self.module_pos))
+
+        def define_constants(constants, start_offset=0):
+            for i, (cname, _) in enumerate(constants):
+                defines.putln(f"#define {cname} {Naming.numbertab_cname}[{start_offset + i}]")
+
+        constant_offset = 0
 
         if float_constants:
             w.putln("{")
-            store_array("c_constants", 'double', float_constants)
+            w.putln(f"PyObject **numbertab = {w.name_in_main_c_code_module_state(Naming.numbertab_cname)};")
 
-            w.putln(f"PyObject *py_constants[{len(float_constants)}];")
-            w.putln(f"for ({'int' if len(float_constants) < 2**15 else 'Py_ssize_t'} i = 0; i < {len(float_constants)}; i++) {{")
-            w.putln(f"py_constants[i] = PyFloat_FromDouble(c_constants[i]);")
-            handle_conversion_error()
+            store_array("c_constants", 'double', float_constants)
+            define_constants(float_constants, start_offset=constant_offset)
+
+            generate_forloop_start(len(float_constants))
+            assign_constant("PyFloat_FromDouble(c_constants[i])")
             w.putln("}")  # for()
 
-            assign_constants(float_constants)
             w.putln("}")
+            constant_offset += len(float_constants)
 
         if int_constant_count > 0:
             w.putln("{")
+            w.putln(f"PyObject **numbertab = {w.name_in_main_c_code_module_state(Naming.numbertab_cname)} + {constant_offset};")
 
             int_types = ['', 'int8_t', 'int16_t', 'int32_t', 'int64_t']
+            offset = constant_offset
             for byte_size, constants in enumerate(int_constants_by_bytesize, 1):
-                store_array(f"cint_constants_{byte_size}", int_types[byte_size], constants)
-
-            w.putln(f"PyObject *py_constants[{int_constant_count}];")
-            w.putln(f"for ({'int' if int_constant_count < 2**15 else 'Py_ssize_t'} i = 0; i < {int_constant_count}; i++) {{")
+                if constants:
+                    store_array(f"cint_constants_{2 ** (byte_size - 1)}", int_types[byte_size], constants)
+                    define_constants(constants, start_offset=offset)
+                    offset += len(constants)
 
             def read_array_item(constants, byte_size, int_constants_seen):
-                read_item = f"cint_constants_{byte_size}[i - {int_constants_seen}]"
+                read_item = f"cint_constants_{2 ** (byte_size - 1)}[i - {int_constants_seen}]"
                 if byte_size >= len(constants):
                     return read_item
 
@@ -2255,13 +2259,13 @@ class GlobalState:
                     f"(i < {next_int_constants_seen} ? {read_item} : {read_next_item})"
                 ) if int_constants else read_next_item
 
+            generate_forloop_start(int_constant_count)
             capi_func = "PyLong_FromLong" if len(int_constants_by_bytesize) <= 3 else "PyLong_FromLongLong"
-            w.putln(f"py_constants[i] = {capi_func}({read_array_item(int_constants_by_bytesize, 1, 0)});")
-            handle_conversion_error()
+            assign_constant(f"{capi_func}({read_array_item(int_constants_by_bytesize, 1, 0)})")
             w.putln("}")  # for()
 
-            assign_constants(iterchain(*int_constants_by_bytesize))
             w.putln("}")
+            constant_offset += offset
 
         if large_constants:
             # We store large integer constants in a single '\0'-separated C string of base32 digits.
@@ -2284,18 +2288,17 @@ class GlobalState:
                 return ''.join(digits)
 
             w.putln("{")
+            w.putln(f"PyObject **numbertab = {w.name_in_main_c_code_module_state(Naming.numbertab_cname)} + {constant_offset};")
             c_string = '\\000'.join([to_base32(c[1]) for c in large_constants])
             w.putln('const char* c_constant = "%s";' % c_string)
+            define_constants(large_constants, start_offset=constant_offset)
 
-            w.putln(f"PyObject *py_constants[{len(large_constants)}];")
-            w.putln(f"for ({'int' if len(large_constants) < 2**15 else 'Py_ssize_t'} i = 0; i < {len(large_constants)}; i++) {{")
+            generate_forloop_start(len(large_constants))
             w.putln("char *end_pos;")
-            w.putln(f"py_constants[i] = PyLong_FromString(c_constant, &end_pos, 32);")
-            handle_conversion_error()
+            assign_constant("PyLong_FromString(c_constant, &end_pos, 32)")
             w.putln("c_constant = end_pos + 1;")
             w.putln("}")  # for()
 
-            assign_constants(large_constants)
             w.putln("}")
 
     # The functions below are there in a transition phase only

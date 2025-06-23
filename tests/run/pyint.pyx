@@ -1,5 +1,11 @@
 # mode: run
 
+# cython: test_assert_c_code_has = cint_constants_1\[\] = .*127
+# cython: test_assert_c_code_has = cint_constants_2\[\] = .*128.*32767
+# cython: test_assert_c_code_has = cint_constants_4\[\] = .*32768
+# cython: test_assert_c_code_has = cint_constants_8\[\] = .*2147483648
+# cython: test_assert_c_code_has = const char\* c_constant =
+
 pylong_constants = [
     -130,
     126,
