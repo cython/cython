@@ -2203,20 +2203,20 @@ class GlobalState:
         w = self.parts['init_constants']
         defines = self.parts['constant_name_defines']
 
-        def store_array(name: str, ctype: str, constants: list):
+        def store_array(w, name: str, ctype: str, constants: list):
             c: tuple
             values = ','.join([c[1] for c in constants])
             w.putln(f"{ctype} const {name}[] = {{{values}}};")
 
-        def generate_forloop_start(end: cython.Py_ssize_t):
+        def generate_forloop_start(w, end: cython.Py_ssize_t):
             counter_type = 'int' if end < 2**15 else 'Py_ssize_t'
             w.putln(f"for ({counter_type} i = 0; i < {end}; i++) {{")
 
-        def assign_constant(rhs_code: str):
+        def assign_constant(w, error_pos, rhs_code: str):
             w.putln(f"numbertab[i] = {rhs_code};")
-            w.putln(w.error_goto_if_null("numbertab[i]", self.module_pos))
+            w.putln(w.error_goto_if_null("numbertab[i]", error_pos))
 
-        def define_constants(constants: list, start_offset: cython.Py_ssize_t = 0):
+        def define_constants(defines, constants: list, start_offset: cython.Py_ssize_t = 0):
             i: cython.Py_ssize_t
             c: tuple
             numbertab_cname: str = Naming.numbertab_cname
@@ -2230,11 +2230,11 @@ class GlobalState:
             w.putln("{")
             w.putln(f"PyObject **numbertab = {w.name_in_main_c_code_module_state(Naming.numbertab_cname)};")
 
-            store_array("c_constants", 'double', float_constants)
-            define_constants(float_constants, constant_offset)
+            store_array(w, "c_constants", 'double', float_constants)
+            define_constants(defines, float_constants, constant_offset)
 
-            generate_forloop_start(len(float_constants))
-            assign_constant("PyFloat_FromDouble(c_constants[i])")
+            generate_forloop_start(w, len(float_constants))
+            assign_constant(w, self.module_pos, "PyFloat_FromDouble(c_constants[i])")
             w.putln("}")  # for()
 
             w.putln("}")
@@ -2245,35 +2245,33 @@ class GlobalState:
             w.putln(f"PyObject **numbertab = {w.name_in_main_c_code_module_state(Naming.numbertab_cname)} + {constant_offset};")
 
             int_types = ['', 'int8_t', 'int16_t', 'int32_t', 'int64_t']
+            array_access = "%s"
+            int_constants_seen: cython.Py_ssize_t = 0
             for byte_size, constants in enumerate(int_constants_by_bytesize, 1):
-                if constants:
-                    store_array(f"cint_constants_{2 ** (byte_size - 1)}", int_types[byte_size], constants)
-                    define_constants(constants, constant_offset)
-                    constant_offset += len(constants)
+                if not constants:
+                    continue
 
-            def read_array_item(constants: list, byte_size: cython.int, int_constants_seen: cython.Py_ssize_t):
-                read_item = f"cint_constants_{2 ** (byte_size - 1)}[i - {int_constants_seen}]"
-                if byte_size >= len(constants):
-                    return read_item
+                array_name = f"cint_constants_{2 ** (byte_size - 1)}"
+                store_array(w, array_name, int_types[byte_size], constants)
+                define_constants(defines, constants, constant_offset + int_constants_seen)
 
-                int_constants = constants[byte_size - 1]
-                next_int_constants_seen = int_constants_seen + len(int_constants)
-                read_next_item = read_array_item(constants, byte_size + 1, next_int_constants_seen)
+                read_item = f"{array_name}[i - {int_constants_seen}]"
+                int_constants_seen += len(constants)
+                array_access %= (
+                    read_item if byte_size == len(int_constants_by_bytesize)  # last is simple access
+                    else f"(i < {int_constants_seen} ? {read_item} : %s)"  # otherwise, access arrays step by step
+                )
 
-                return (
-                    f"(i < {next_int_constants_seen} ? {read_item} : {read_next_item})"
-                ) if int_constants else read_next_item
-
-            generate_forloop_start(int_constant_count)
+            generate_forloop_start(w, int_constant_count)
             capi_func = "PyLong_FromLong" if len(int_constants_by_bytesize) <= 3 else "PyLong_FromLongLong"
-            assign_constant(f"{capi_func}({read_array_item(int_constants_by_bytesize, 1, 0)})")
+            assign_constant(w, self.module_pos, f"{capi_func}({array_access})")
             w.putln("}")  # for()
 
             w.putln("}")
+            constant_offset += int_constant_count
 
         if large_constants:
             # We store large integer constants in a single '\0'-separated C string of base32 digits.
-            base32_digits = '0123456789abcdefghijklmnopqrstuv'
             def to_base32(number):
                 is_neg: bool = number < 0
                 if is_neg:
@@ -2281,7 +2279,8 @@ class GlobalState:
 
                 digits = []
                 while number:
-                    digits.append(base32_digits[number & 31])
+                    digit: cython.int = number & 31
+                    digits.append('0123456789abcdefghijklmnopqrstuv'[digit])
                     number >>= 5
                 if not digits:
                     return '0'
@@ -2295,11 +2294,11 @@ class GlobalState:
             w.putln(f"PyObject **numbertab = {w.name_in_main_c_code_module_state(Naming.numbertab_cname)} + {constant_offset};")
             c_string = '\\000'.join([to_base32(c[1]) for c in large_constants])
             w.putln(f'const char* c_constant = "{StringEncoding.split_string_literal(c_string)}";')
-            define_constants(large_constants, constant_offset)
+            define_constants(defines, large_constants, constant_offset)
 
-            generate_forloop_start(len(large_constants))
+            generate_forloop_start(w, len(large_constants))
             w.putln("char *end_pos;")
-            assign_constant("PyLong_FromString(c_constant, &end_pos, 32)")
+            assign_constant(w, self.module_pos, "PyLong_FromString(c_constant, &end_pos, 32)")
             w.putln("c_constant = end_pos + 1;")
             w.putln("}")  # for()
 
