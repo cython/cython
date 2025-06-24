@@ -788,14 +788,19 @@ static int __Pyx_CLineForTraceback(PyThreadState *tstate, int c_line);/*proto*/
 // On earlier version of the Limited API we're a less flexible and assume it's
 // definitely a module. Which will break some odd user monkey-patching...
 #define __Pyx_PyProbablyModule_GetDict(o) PyModule_GetDict(o)
+#define __Pyx_PyProbablyModule_XDecrefDict(o)
 #elif !CYTHON_COMPILING_IN_CPYTHON
 #define __Pyx_PyProbablyModule_GetDict(o) PyObject_GenericGetDict(o, NULL);
+#define __Pyx_PyProbablyModule_XDecrefDict(o) Py_XDECREF(o)
 #else
 PyObject* __Pyx_PyProbablyModule_GetDict(PyObject *o) {
     PyObject **dict_ptr = _PyObject_GetDictPtr(o);
     return dict_ptr ? *dict_ptr : NULL;
 }
+#define __Pyx_PyProbablyModule_XDecrefDict(o)
 #endif
+
+
 
 static int __Pyx_CLineForTraceback(PyThreadState *tstate, int c_line) {
     PyObject *use_cline=NULL;
@@ -815,12 +820,14 @@ static int __Pyx_CLineForTraceback(PyThreadState *tstate, int c_line) {
     if (likely(cython_runtime_dict)) {
         __PYX_PY_DICT_LOOKUP_IF_MODIFIED(
             use_cline, cython_runtime_dict,
-            __Pyx_PyDict_SetDefault(cython_runtime_dict, PYIDENT("cline_in_traceback"), Py_False, 1))
+            __Pyx_PyDict_SetDefault(cython_runtime_dict, PYIDENT("cline_in_traceback"), Py_False, 1),
+            1)
     }
     if (use_cline == NULL || use_cline == Py_False || (use_cline != Py_True && PyObject_Not(use_cline) != 0)) {
         c_line = 0;
     }
     Py_XDECREF(use_cline);
+    __Pyx_PyProbablyModule_XDecrefDict(cython_runtime_dict);
     __Pyx_ErrRestoreInState(tstate, ptype, pvalue, ptraceback);
     return c_line;
 }
