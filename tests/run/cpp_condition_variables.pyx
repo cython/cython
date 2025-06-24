@@ -6,11 +6,12 @@
 # cython: language_level=3
 
 from libcpp.condition_variable cimport *
-from libcpp.mutex cimport mutex, timed_mutex, unique_lock
+from libcpp.mutex cimport mutex, timed_mutex, unique_lock, py_safe_construct_unique_lock
 from libcpp cimport bool
 from libcpp.utility cimport move
 
-from threading import Thread
+from threading import Thread, Barrier
+import time
 
 # define some placeholder chrono stuff for the sake of testing
 cdef extern from "<chrono>" namespace "std::chrono" nogil:
@@ -205,3 +206,57 @@ def test_cv_any_wait_for(bint use_predicate, int how_to_notify, int ms):
     helper.notify(how_to_notify=how_to_notify, new_value=(5 if use_predicate else None))
     t.join()
     return helper.outcome
+
+def test_py_safe_wait_basic(sleep_for):
+    """
+    >>> test_py_safe_wait_basic(None)
+    >>> test_py_safe_wait_basic(0.05)
+    >>> test_py_safe_wait_basic(0.0)
+    """
+    cdef condition_variable cv
+    cdef mutex m
+    l = unique_lock[mutex](m)
+
+    def trigger():
+        # needs the GIL
+        l2 = py_safe_construct_unique_lock(m)
+        cv.notify_all()
+        if sleep_for is not None:
+            time.sleep(sleep_for)
+
+    t = Thread(target=trigger)
+    t.start()
+    py_safe_wait(cv, l)
+
+def test_py_safe_wait_object(sleep_for):
+    """
+    >>> test_py_safe_wait_object(None)
+    >>> test_py_safe_wait_object(0.05)
+    >>> test_py_safe_wait_object(0.0)
+    """
+    cdef condition_variable cv
+    cdef mutex m
+    success = False
+    l = unique_lock[mutex](m)
+
+    import sys
+
+    def predicate():
+        # The condition variable will always call this with the lock held
+        print(f"predicate {success}", file=sys.stderr)
+        return success
+
+    def trigger():
+        nonlocal success
+        # needs the GIL
+        l2 = py_safe_construct_unique_lock(m)
+        success = True
+        print("trigger1", file=sys.stderr)
+        cv.notify_all()
+        print("trigger2", file=sys.stderr)
+        if sleep_for is not None:
+            time.sleep(sleep_for)
+
+    t = Thread(target=trigger)
+    t.start()
+    py_safe_object_wait(cv, l, predicate)
