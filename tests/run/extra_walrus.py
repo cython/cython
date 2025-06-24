@@ -57,7 +57,7 @@ def optimize_literals1_typed_int():
 def optimize_literals1_typed_object():
     """
     There's a small optimization for literals to avoid creating unnecessary temps
-    >>> optimize_literals1_typed_int()
+    >>> optimize_literals1_typed_object()
     10
     """
     x: object = 5
