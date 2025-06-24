@@ -15221,11 +15221,12 @@ class AssignmentExpressionNode(ExprNode):
     subexprs = ["rhs"]
     child_attrs = ["rhs", "assignment"]  # This order is important for control-flow (i.e. xdecref) to be right
 
-    is_temp = False
-    assignment = None
-    clone_node = None
+    is_temp: bool = False
+    rhs: ExprNode
+    assignment: SingleAssignmentNode
+    is_literal_assignment: bool = False
 
-    def __init__(self, pos, lhs, rhs, **kwds):
+    def __init__(self, pos, lhs: NameNode, rhs: ExprNode, **kwds):
         super().__init__(pos, **kwds)
         self.rhs = ProxyNode(rhs)
         assign_expr_rhs = CloneNode(self.rhs)
@@ -15268,7 +15269,9 @@ class AssignmentExpressionNode(ExprNode):
                 # This is a special case of https://github.com/cython/cython/issues/4146
                 # TODO - once that's fixed general revisit this code and possibly
                 # use coerce_to_simple
-                self.assignment.rhs = copy.copy(self.rhs)
+                self.assignment.rhs = copy.copy(self.rhs.arg)
+                self.rhs = self.rhs.arg  # take out of ProxyNode
+                self.is_literal_assignment = True
 
         # TODO - there's a missed optimization in the code generation stage
         # if self.rhs.arg is temp: an incref/decref pair can be removed
@@ -15284,6 +15287,10 @@ class AssignmentExpressionNode(ExprNode):
         return self
 
     def coerce_to(self, dst_type, env):
+        if self.is_literal_assignment:
+            # rhs and assignment don't share a node, so just behave normally
+            self.rhs = self.rhs.coerce_to(dst_type, env)
+            return self
         if dst_type == self.assignment.rhs.type:
             # in this quite common case (for example, when both lhs, and self are being coerced to Python)
             # we can optimize the coercion out by sharing it between
