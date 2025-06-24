@@ -2277,22 +2277,23 @@ class GlobalState:
                 if is_neg:
                     number = -number
 
-                digits = []
+                digits = bytearray()
                 while number:
-                    digit: cython.int = number & 31
-                    digits.append('0123456789abcdefghijklmnopqrstuv'[digit])
+                    digit: cython.uint = number & 31
+                    digit_char: cython.char = b'0123456789abcdefghijklmnopqrstuv'[digit]
+                    digits.append(digit_char)
                     number >>= 5
                 if not digits:
-                    return '0'
+                    return b'0'
 
                 if is_neg:
-                    digits.append('-')
+                    digits.append(ord(b'-'))
                 digits.reverse()
-                return ''.join(digits)
+                return digits
 
             w.putln("{")
             w.putln(f"PyObject **numbertab = {w.name_in_main_c_code_module_state(Naming.numbertab_cname)} + {constant_offset};")
-            c_string = '\\000'.join([to_base32(c[1]) for c in large_constants])
+            c_string = b'\\000'.join([to_base32(c[1]) for c in large_constants]).decode('ascii')
             w.putln(f'const char* c_constant = "{StringEncoding.split_string_literal(c_string)}";')
             define_constants(defines, large_constants, constant_offset)
 
