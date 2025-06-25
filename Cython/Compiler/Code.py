@@ -2177,7 +2177,7 @@ class GlobalState:
 
         constant_count = len(consts)
         self.parts['module_state'].putln(f"PyObject *{Naming.numbertab_cname}[{constant_count}];")
-        # The code objects that we generate only contain plain constants and can never participate in reference cycles.
+        # Numeric constants can never participate in reference cycles.
         self._generate_module_array_traverse_and_clear(Naming.numbertab_cname, constant_count, may_have_refcycles=False)
 
         float_constants = []
