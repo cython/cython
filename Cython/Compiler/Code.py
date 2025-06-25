@@ -2258,7 +2258,7 @@ class GlobalState:
                 if not constants:
                     continue
 
-                array_name = f"cint_constants_{2 ** (byte_size - 1)}"
+                array_name = f"cint_constants_{1 << (byte_size - 1)}"
                 store_array(w, array_name, int_types[byte_size], constants)
                 define_constants(defines, constants, constant_offset + int_constants_seen)
 
