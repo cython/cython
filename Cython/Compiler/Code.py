@@ -2184,6 +2184,7 @@ class GlobalState:
         int_constants_by_bytesize = [[]]  # [[1 byte], [2 bytes], [4 bytes], [8 bytes]]
         large_constants = []
         int_constant_count = 0
+        int_suffix = ''
 
         for py_type, _, _, value, value_code, c in consts:
             cname = c.cname
@@ -2195,8 +2196,13 @@ class GlobalState:
                 if bit_length <= 63:
                     while (bit_length + 8) // 8 > 1 << (len(int_constants_by_bytesize) - 1):
                         int_constants_by_bytesize.append([])
+                        # Our <= 31-bit integer values pass happily as 'int32' without further modifiers,
+                        # but MSVC misinterprets a negative '-2147483648' (== INT_MIN) and similar values as
+                        # "that's 'uint32' just with a minus sign", where '-(2147483648)' == '2147483648'.
+                        # See https://learn.microsoft.com/en-us/cpp/error-messages/compiler-warnings/compiler-warning-level-2-c4146?view=msvc-170
+                        int_suffix = 'LL'[:len(int_constants_by_bytesize) - 2]
                     int_constant_count += 1
-                    int_constants_by_bytesize[-1].append((cname, value_code))
+                    int_constants_by_bytesize[-1].append((cname, f"{number_value}{int_suffix}"))
                 else:
                     large_constants.append((cname, number_value))
 
