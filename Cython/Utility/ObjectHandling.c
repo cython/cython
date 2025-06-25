@@ -2899,12 +2899,12 @@ static CYTHON_INLINE PyObject *__Pyx_PyVectorcall_FastCallDict(PyObject *func, _
     (version_var) = __PYX_GET_DICT_VERSION(dict); \
     (cache_var) = (value);
 
-#define __PYX_PY_DICT_LOOKUP_IF_MODIFIED(VAR, DICT, LOOKUP, LOOKUP_RETURNS_NEW_REF) { \
+// The lookup funcion should return a new reference.
+#define __PYX_PY_DICT_LOOKUP_IF_MODIFIED(VAR, DICT, LOOKUP) { \
     static PY_UINT64_T __pyx_dict_version = 0; \
     static PyObject *__pyx_dict_cached_value = NULL; \
     if (likely(__PYX_GET_DICT_VERSION(DICT) == __pyx_dict_version)) { \
-        (VAR) = (__pyx_dict_cached_value); \
-        if ((LOOKUP_RETURNS_NEW_REF)) Py_XINCREF((VAR)); \
+        (VAR) = __Pyx_XNewRef(__pyx_dict_cached_value); \
     } else { \
         (VAR) = __pyx_dict_cached_value = (LOOKUP); \
         __pyx_dict_version = __PYX_GET_DICT_VERSION(DICT); \

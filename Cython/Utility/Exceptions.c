@@ -820,8 +820,7 @@ static int __Pyx_CLineForTraceback(PyThreadState *tstate, int c_line) {
     if (likely(cython_runtime_dict)) {
         __PYX_PY_DICT_LOOKUP_IF_MODIFIED(
             use_cline, cython_runtime_dict,
-            __Pyx_PyDict_SetDefault(cython_runtime_dict, PYIDENT("cline_in_traceback"), Py_False, 1),
-            1)
+            __Pyx_PyDict_SetDefault(cython_runtime_dict, PYIDENT("cline_in_traceback"), Py_False, 1))
     }
     if (use_cline == NULL || use_cline == Py_False || (use_cline != Py_True && PyObject_Not(use_cline) != 0)) {
         c_line = 0;
