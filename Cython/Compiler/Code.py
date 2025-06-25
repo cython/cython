@@ -502,10 +502,10 @@ class UtilityCodeBase(AbstractUtilityCode):
             rstrip = partial(re.compile(r'\s+(\\?)$').sub, r'\1')
         match_special = re.compile(
             (r'^%(C)s{5,30}\s*(?P<name>(?:\w|\.)+)\s*%(C)s{5,30}|'
-             r'^%(C)s+@(?P<tag>\w+)\s*:\s*(?P<value>(?:\w|[.: *()&,])+)') %
+             r'^%(C)s+@(?P<tag>\w+)\s*:\s*(?P<value>(?:\w|[.:])+)') %
             {'C': comment}).match
         match_type = re.compile(
-            r'(.+)[.](proto(?:[.]\S+)?|impl|init|cleanup|module_state_decls|module_state_traverse|module_state_clear)$').match
+            r'(.+)[.](proto(?:[.]\S+)?|impl|init|cleanup|module_state_decls|module_state_traverse|module_state_clear|export)$').match
 
         all_lines = read_utilities_hook(path)
 
@@ -685,12 +685,12 @@ class UtilityCode(UtilityCodeBase):
     file            filename of the utility code file this utility was loaded
                     from (or None)
     """
-    code_parts = ["proto", "impl", "init", "cleanup", "module_state_decls", "module_state_traverse", "module_state_clear"]
+    code_parts = ["proto", "impl", "init", "cleanup", "module_state_decls", "module_state_traverse", "module_state_clear", "export"]
 
     def __init__(self, proto=None, impl=None, init=None, cleanup=None,
                  module_state_decls=None, module_state_traverse=None,
                  module_state_clear=None, requires=None,
-                 proto_block='utility_code_proto', name=None, file=None, shared_proto=None):
+                 proto_block='utility_code_proto', name=None, file=None, export=None):
         # proto_block: Which code block to dump prototype in. See GlobalState.
         self.proto = proto
         self.impl = impl
@@ -705,23 +705,27 @@ class UtilityCode(UtilityCodeBase):
         self.proto_block = proto_block
         self.name = name
         self.file = file
-
-        self.shared_utility_functions = []
-        if shared_proto:
-            if isinstance(shared_proto, str):
-                shared_proto = [shared_proto]
-            for sh in shared_proto:
-                name, ret, params = sh.split("::")
-                self.shared_utility_functions.append(
-                    {
-                        'name': name,
-                        'ret': ret,
-                        'params': params,
-                     }
-                )
+        self.shared_utility_functions = self.parse_export_function(export) if export else []
 
         # cached for use in hash and eq
         self._parts_tuple = tuple(getattr(self, part, None) for part in self.code_parts)
+
+    @classmethod
+    def parse_export_function(cls, export_proto):
+        assert '/*' not in export_proto or '*/' not in export_proto, 'Export block must not contain comments'
+        assert '//' not in export_proto, 'Export block must not contain comments'
+
+        export_proto = export_proto.strip().replace('\n', '')
+        export_proto = re.sub(r'\s+', ' ', export_proto)
+        shared_protos = []
+        for ret_type, func_name, func_params in re.findall(r'(?:static )?(?P<ret_type>[^;]+[ *]) ?(?P<func_name>\w+)\((?P<func_params>[^)]*)\);', export_proto):
+            shared_protos.append({
+                'name': func_name.strip(),
+                'ret': ret_type.strip(),
+                'params': func_params.strip(),
+             })
+        return shared_protos
+
 
     def __hash__(self):
         return hash(self._parts_tuple)
