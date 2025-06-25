@@ -633,11 +633,11 @@ static CYTHON_INLINE PyObject *__Pyx_PyDict_SetDefault(PyObject *d, PyObject *ke
 
 static CYTHON_INLINE PyObject *__Pyx_PyDict_SetDefault(PyObject *d, PyObject *key, PyObject *default_value) {
     PyObject* value;
-#if CYTHON_COMPILING_IN_LIMITED_API && __PYX_LIMITED_VERSION_HEX > 0x030C0000
+#if CYTHON_COMPILING_IN_LIMITED_API && __PYX_LIMITED_VERSION_HEX >= 0x030C0000
     PyObject *args[] = {d, key, default_value};
     value = PyObject_VectorcallMethod(PYIDENT("setdefault"), args, 3 | PY_VECTORCALL_ARGUMENTS_OFFSET, NULL);
 #elif CYTHON_COMPILING_IN_LIMITED_API
-    value = PyObject_CallMethod(d, "setdefault", "OO", key, default_value);
+    value = PyObject_CallMethodObjArgs(d, PYIDENT("setdefault"), key, default_value, NULL);
 #elif PY_VERSION_HEX >= 0x030d0000
     PyDict_SetDefaultRef(d, key, default_value, &value);
 #else
