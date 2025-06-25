@@ -364,7 +364,9 @@ static PyMemberDef __Pyx_async_gen_memberlist[] = {
     {"ag_await", T_OBJECT, offsetof(__pyx_CoroutineObject, yieldfrom), READONLY,
      PyDoc_STR("object being awaited on, or None")},
     {"__module__", T_OBJECT, offsetof(__pyx_CoroutineObject, gi_modulename), 0, 0},
+#if PY_VERSION_HEX < 0x030C0000 || CYTHON_COMPILING_IN_LIMITED_API
     {"__weaklistoffset__", T_PYSSIZET, offsetof(__pyx_CoroutineObject, gi_weakreflist), READONLY, 0},
+#endif
     {0, 0, 0, 0, 0}      /* Sentinel */
 };
 
@@ -416,6 +418,9 @@ static PyType_Spec __pyx_AsyncGenType_spec = {
     0,
 #if PY_VERSION_HEX >= 0x030A0000
     Py_TPFLAGS_IMMUTABLETYPE |
+#endif
+#if PY_VERSION_HEX >= 0x030C0000 && !CYTHON_COMPILING_IN_LIMITED_API
+    Py_TPFLAGS_MANAGED_WEAKREF |
 #endif
     Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_GC | Py_TPFLAGS_HAVE_FINALIZE, /*tp_flags*/
     __pyx_AsyncGenType_slots

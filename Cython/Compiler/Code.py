@@ -2118,7 +2118,6 @@ class GlobalState:
         max_posonly_args = 1
         max_vars = 1
         max_line = 1
-        max_positions = 1
         for node in self.codeobject_constants:
             def_node = node.def_node
             if not def_node.is_generator_expression:
@@ -2127,10 +2126,6 @@ class GlobalState:
                 max_posonly_args = max(max_posonly_args, def_node.num_posonly_args)
             max_vars = max(max_vars, len(node.varnames))
             max_line = max(max_line, def_node.pos[1])
-            max_positions = max(max_positions, len(def_node.node_positions))
-
-        # Even for full 64-bit line/column values, one entry in the line table can never be larger than 45 bytes.
-        max_linetable_len = max_positions * 47
 
         w.put(textwrap.dedent(f"""\
         typedef struct {{
@@ -2140,7 +2135,6 @@ class GlobalState:
             unsigned int nlocals : {max_vars.bit_length()};
             unsigned int flags : {max_flags.bit_length()};
             unsigned int first_line : {max_line.bit_length()};
-            unsigned int line_table_length : {max_linetable_len.bit_length()};
         }} __Pyx_PyCode_New_function_description;
         """))
 

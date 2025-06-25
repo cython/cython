@@ -6152,7 +6152,7 @@ class AssignmentNode(StatNode):
         node = self.analyse_types(env)
         self._check_const_assignment(node)
         if isinstance(node, AssignmentNode) and not isinstance(node, ParallelAssignmentNode):
-            if node.rhs.type.is_ptr and node.rhs.is_ephemeral():
+            if node.rhs.type.is_unowned_view and node.rhs.is_ephemeral():
                 error(self.pos, "Storing unsafe C derivative of temporary Python reference")
         return node
 
