@@ -526,7 +526,7 @@ static CYTHON_INLINE PyObject *__Pyx_GetItemInt_Fast(PyObject *o, Py_ssize_t i, 
     } else
     #endif
 #endif
-#if CYTHON_USE_TYPE_SLOTS
+#if CYTHON_USE_TYPE_SLOTS && !CYTHON_COMPILING_IN_PYPY
     {
         // inlined PySequence_GetItem() + special cased length overflow
         PyMappingMethods *mm = Py_TYPE(o)->tp_as_mapping;
@@ -605,7 +605,7 @@ static CYTHON_INLINE int __Pyx_SetItemInt_Fast(PyObject *o, Py_ssize_t i, PyObje
         }
     } else
 #endif
-#if CYTHON_USE_TYPE_SLOTS
+#if CYTHON_USE_TYPE_SLOTS && !CYTHON_COMPILING_IN_PYPY
     {
         // inlined PySequence_SetItem() + special cased length overflow
         PyMappingMethods *mm = Py_TYPE(o)->tp_as_mapping;
