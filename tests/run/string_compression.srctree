@@ -58,9 +58,10 @@ with open("short_text.c") as f:
     for line in f:
         if 'CYTHON_COMPRESS_STRINGS' in line:
             macro_usage_count += 1
-            assert 'if (CYTHON_COMPRESS_STRINGS) == ' not in line, line
-            assert 'if (CYTHON_COMPRESS_STRINGS) != ' not in line, line
 
+# We cannot really make a lot of assumptions about the effectiveness of the string compression
+# because it includes internal strings, line tables, etc. So even small modules may or may not
+# benefit from it.
 assert macro_usage_count > 0
 
 
