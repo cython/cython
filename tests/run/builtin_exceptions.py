@@ -18,10 +18,10 @@ except ImportError:
 
 NEWER_EXCEPTIONS = {
     # Remove when increasing minimal supported Python version.
-    'PythonFinalizationError': (3, 10),
     'EncodingWarning': (3, 10),
     'ExceptionGroup': (3, 11),
     'BaseExceptionGroup': (3, 11),
+    'PythonFinalizationError': (3, 13),
 }
 
 
