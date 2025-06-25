@@ -102,11 +102,8 @@ static PyTypeObject *__Pyx_FetchCommonTypeFromSpec(PyTypeObject *metaclass, PyOb
         goto bad;
     }
 
-#if !CYTHON_USE_MODULE_STATE
     // Without module-state, pass the ABI module reference to avoid keeping the user module alive by foreign type usages.
     // With module-state it's important to keep the user module alive though.
-    CYTHON_UNUSED_VAR(module);
-#endif
     cached_type = __Pyx_PyType_FromMetaclass(
         metaclass,
         CYTHON_USE_MODULE_STATE ? module : abi_module,
