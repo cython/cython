@@ -2247,6 +2247,7 @@ class GlobalState:
             int_types = ['', 'int8_t', 'int16_t', 'int32_t', 'int64_t']
             array_access = "%s"
             int_constants_seen: cython.Py_ssize_t = 0
+            byte_size: cython.int
             for byte_size, constants in enumerate(int_constants_by_bytesize, 1):
                 if not constants:
                     continue
