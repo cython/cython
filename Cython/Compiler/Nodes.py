@@ -10352,10 +10352,14 @@ class ParallelRangeNode(ParallelStatNode):
 
     valid_keyword_arguments = ['schedule', 'nogil', 'num_threads', 'chunksize', 'use_threads_if']
 
+    class DummyIteratorNode(Node):
+        child_attrs = ["args"]
+
     def __init__(self, pos, **kwds):
         super().__init__(pos, **kwds)
-        # Pretend to be a ForInStatNode for control flow analysis
-        self.iterator = PassStatNode(pos)
+        # Pretend to be a ForInStatNode for control flow analysis,
+        # ensuring that the args get visited when the iterator would be.
+        self.iterator = self.DummyIteratorNode(pos, args=self.args)
 
     def analyse_declarations(self, env):
         super().analyse_declarations(env)
