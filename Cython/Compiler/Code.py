@@ -718,7 +718,8 @@ class UtilityCode(UtilityCodeBase):
         export_proto = export_proto.strip().replace('\n', '')
         export_proto = re.sub(r'\s+', ' ', export_proto)
         shared_protos = []
-        for ret_type, func_name, func_params in re.findall(r'(?:static )?(?P<ret_type>[^;]+[ *]) ?(?P<func_name>\w+)\((?P<func_params>[^)]*)\);', export_proto):
+        proto_regex=r'(?:static )?(?P<ret_type>[^;]+[ *]) ?(?P<func_name>\w+)\((?P<func_params>[^)]*)\);'
+        for ret_type, func_name, func_params in re.findall(proto_regex, export_proto):
             shared_protos.append({
                 'name': func_name.strip(),
                 'ret': ret_type.strip(),
@@ -1634,7 +1635,8 @@ class GlobalState:
                 shared_func = shared["name"]
                 error_goto = code.error_goto(self.module_pos)
                 code.putln(
-                    f'if (__Pyx_ImportFunction_{cyversion}({temp}, "{shared_func}", (void (**)(void))&{shared_func}, "{shared_func_proto}") < 0) {error_goto}'
+                    f'if (__Pyx_ImportFunction_{cyversion}({temp}, "{shared_func}", (void (**)(void))&{shared_func}, "{shared_func_proto}") < 0) '
+                    f'{error_goto}'
                 )
         elif shared_module_generated:
             code = self.parts['c_function_export_code']
