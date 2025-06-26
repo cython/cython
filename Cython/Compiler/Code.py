@@ -290,6 +290,14 @@ cleanup_level_for_type_prefix = cython.declare(object, {
     'slice': 2,
 }.get)
 
+def get_match_special(comment):
+    return re.compile(
+        (r'^%(C)s{5,30}\s*(?P<name>(?:\w|\.)+)\s*%(C)s{5,30}|'
+         r'^%(C)s+@(?P<tag>\w+)\s*:\s*(?P<value>(?:\w|[.:])+)') %
+        {'C': comment}).match
+
+match_type = re.compile(
+    r'(.+)[.](proto(?:[.]\S+)?|impl|init|cleanup|module_state_decls|module_state_traverse|module_state_clear|export)$').match
 
 class IncludeCode:
     """
@@ -500,12 +508,8 @@ class UtilityCodeBase(AbstractUtilityCode):
             comment = '/'
             strip_comments = partial(re.compile(r'^\s*//.*|/\*[^*]*\*/').sub, '')
             rstrip = partial(re.compile(r'\s+(\\?)$').sub, r'\1')
-        match_special = re.compile(
-            (r'^%(C)s{5,30}\s*(?P<name>(?:\w|\.)+)\s*%(C)s{5,30}|'
-             r'^%(C)s+@(?P<tag>\w+)\s*:\s*(?P<value>(?:\w|[.:])+)') %
-            {'C': comment}).match
-        match_type = re.compile(
-            r'(.+)[.](proto(?:[.]\S+)?|impl|init|cleanup|module_state_decls|module_state_traverse|module_state_clear|export)$').match
+
+        match_special = get_match_special(comment)
 
         all_lines = read_utilities_hook(path)
 

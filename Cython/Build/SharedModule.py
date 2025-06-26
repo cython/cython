@@ -1,6 +1,8 @@
 import tempfile
 import os
 import shutil
+from glob import glob
+import re
 
 from Cython.Compiler import (
     MemoryView, Code, Options, Pipeline, Errors, Main, Symtab
@@ -28,9 +30,18 @@ def create_shared_library_pipeline(context, scope, options, result):
         return generate_tree
 
     def generate_c_utilities(module_node):
-        module_node.scope.use_utility_code(Code.UtilityCode.load_cached("Py3ClassCreate", "ObjectHandling.c"))
-        module_node.scope.use_utility_code(Code.UtilityCode.load_cached("PyObjectCallMethod0", "ObjectHandling.c"))
-        module_node.scope.use_utility_code(Code.UtilityCode.load_cached("PyObjectCallMethod1", "ObjectHandling.c"))
+
+        match_special = Code.get_match_special(comment='/')
+        for c_utility_file in glob('*.c', root_dir=Code.get_utility_dir()):
+            all_lines = Code.read_utilities_hook(c_utility_file)
+            for line in all_lines:
+                m = match_special(line)
+                if m and m.group('name'):
+                    name = m.group('name')
+                    if mtype := Code.match_type(name):
+                        name, type = mtype.groups()
+                        if type == 'export':
+                            module_node.scope.use_utility_code(Code.UtilityCode.load_cached(name, c_utility_file))
         return module_node
 
     orig_cimport_from_pyx = Options.cimport_from_pyx
