@@ -1070,7 +1070,6 @@ class ControlFlowAnalysis(CythonTransform):
         next_block = self.flow.newblock()
         # Condition with iterator
         self.flow.loops.append(LoopDescr(next_block, condition_block))
-        # For ParallelRangeNode, args are hidden in node.iterator
         self._visit(node.iterator)
         # Target assignment
         self.flow.nextblock()
