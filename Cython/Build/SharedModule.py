@@ -30,7 +30,6 @@ def create_shared_library_pipeline(context, scope, options, result):
         return generate_tree
 
     def generate_c_utilities(module_node):
-
         match_special = Code.get_match_special(comment='/')
         for c_utility_file in glob('*.c', root_dir=Code.get_utility_dir()):
             all_lines = Code.read_utilities_hook(c_utility_file)
