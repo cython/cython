@@ -10359,7 +10359,7 @@ class ParallelRangeNode(ParallelStatNode):
         super().__init__(pos, **kwds)
         # Pretend to be a ForInStatNode for control flow analysis,
         # ensuring that the args get visited when the iterator would be.
-        self.iterator = ParallelRangeNode.DummyIteratorNode(pos, args=self.args)
+        self.iterator = self.DummyIteratorNode(pos, args=self.args)
 
     def analyse_declarations(self, env):
         super().analyse_declarations(env)
