@@ -718,8 +718,12 @@ class UtilityCode(UtilityCodeBase):
         export_proto = export_proto.strip().replace('\n', '')
         export_proto = re.sub(r'\s+', ' ', export_proto)
         shared_protos = []
-        proto_regex=r'(?:static )?(?P<ret_type>[^;]+[ *]) ?(?P<func_name>\w+)\((?P<func_params>[^)]*)\);'
-        for ret_type, func_name, func_params in re.findall(proto_regex, export_proto):
+        proto_regex=r'''
+            (?:static\s)?                                   # optional `static` keyword
+            (?P<ret_type>[^;]+[\s*])\s?                     # return type + modifier with optional * - e.g.: int *, float, const str *, ...
+            (?P<func_name>\w+)\((?P<func_params>[^)]*)\);   # function with params - e.g. foo(int, float, *PyObject)
+        '''
+        for ret_type, func_name, func_params in re.findall(proto_regex, export_proto, re.VERBOSE):
             shared_protos.append({
                 'name': func_name.strip(),
                 'ret': ret_type.strip(),
