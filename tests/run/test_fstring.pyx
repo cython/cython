@@ -410,7 +410,8 @@ non-important content
                             r"does not match opening parenthesis '\('",
                             ["f'{a(4}'",
                             ])
-        self.assertRaises(SyntaxError, eval, "f'{" + "("*500 + "}'")
+        # disabled: Used to test CPython and the nesting is too deep for Cython's parser.
+        #self.assertRaises(SyntaxError, eval, "f'{" + "("*500 + "}'")
 
     def test_double_braces(self):
         self.assertEqual(f'{{', '{')

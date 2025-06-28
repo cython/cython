@@ -174,3 +174,32 @@ def test_with_statement():
 
     with make_context_manager():
         print "running"
+
+@cython.test_fail_if_path_exists('//SimpleCallNode')
+@cython.test_assert_path_exists('//InlinedDefNodeCallNode')
+@cython.binding(False)
+def test_no_binding(x):
+    """
+    >>> test_no_binding(5)
+    5
+    """
+    def f():
+        return x
+    return f()
+
+@cython.test_fail_if_path_exists('//SimpleCallNode')
+@cython.test_assert_path_exists('//InlinedDefNodeCallNode')
+@cython.binding(False)
+def test_no_binding_generator(to_flatten):
+    """
+    >>> test_no_binding_generator([1,[2, 3]])
+    [1, 2, 3]
+    """
+    def g(l):
+        if isinstance(l, list):
+            for x in l:
+                yield from g(x)
+        else:
+            yield l
+    return [x for x in g(to_flatten)]
+

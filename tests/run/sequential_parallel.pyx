@@ -11,6 +11,7 @@ from libc.stdio cimport puts
 
 import os
 import sys
+import sysconfig
 
 try:
     from builtins import next # Py3k
@@ -21,7 +22,7 @@ except ImportError:
 def skip_in_freethreading(f):
     # defined in parallel.pyx
     if "OPENMP_PARALLEL" in globals():
-        if hasattr(sys, "_is_gil_enabled"):
+        if sysconfig.get_config_var("Py_GIL_DISABLED"):
             return None
     return f
 
@@ -863,3 +864,40 @@ def test_prange_call_exception_checked_function():
             assert buf[i] == i
     finally:
         free(buf)
+
+def test_prange_type_inference_1(short end):
+    """
+    >>> test_prange_type_inference_1(1)
+    """
+    for i in prange(end, nogil=True):
+        pass
+    assert cython.typeof(i) == "short", cython.typeof(i)
+
+def test_prange_type_inference_2(long start, short end):
+    """
+    >>> test_prange_type_inference_2(-100, 5)
+    """
+    for i in prange(start, end, nogil=True):
+        pass
+    assert cython.typeof(i) == "long", cython.typeof(i)
+
+def test_prange_type_inference_3(short start, short end, short step):
+    """
+    >>> test_prange_type_inference_3(-100, 5, 2)
+    """
+    for i in prange(start, end, step, nogil=True):
+        pass
+    # Addition in "step" makes it expand the type to "int"
+    assert cython.typeof(i) == "int", cython.typeof(i)
+
+def test_type_inference_two_step(unsigned char[:] x):
+    """
+    >>> ba = bytearray(b'\\0'*50)
+    >>> test_type_inference_two_step(ba)
+    >>> for n, c in enumerate(ba):
+    ...     assert c==n, c
+    """
+    length = x.shape[0]  # type of length should be inferred...
+    for n in prange(length, nogil=True):  # then used to infer the type of n
+        x[n] = n
+    assert cython.typeof(n) == "Py_ssize_t", cython.typeof(n)

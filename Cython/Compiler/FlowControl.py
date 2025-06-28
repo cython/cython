@@ -160,6 +160,7 @@ class ControlFlow:
                 (entry.type.is_struct_or_union or
                  entry.type.is_complex or
                  entry.type.is_array or
+                 entry.type.is_cython_lock_type or
                  (entry.type.is_cpp_class and not entry.is_cpp_optional))):
             # stack allocated structured variable => never uninitialised
             return True
@@ -813,7 +814,7 @@ class ControlFlowAnalysis(CythonTransform):
                     item_node = rhs
                 else:
                     item_node = rhs.inferable_item_node(i)
-                self.mark_assignment(arg, item_node)
+                self.mark_assignment(arg, item_node, rhs_scope=rhs_scope)
         else:
             self._visit(lhs)
 
@@ -1024,20 +1025,19 @@ class ControlFlowAnalysis(CythonTransform):
                                     sequence = sequence.args[0]
         if isinstance(sequence, ExprNodes.SimpleCallNode):
             function = sequence.function
-            if sequence.self is None and function.is_name:
+            if sequence.self is None and function.is_name and function.name in ('range', 'xrange'):
                 entry = env.lookup(function.name)
-                if not entry or entry.is_builtin:
-                    if function.name in ('range', 'xrange'):
-                        is_special = True
-                        for arg in sequence.args[:2]:
-                            self.mark_assignment(target, arg, rhs_scope=node.iterator.expr_scope)
-                        if len(sequence.args) > 2:
-                            self.mark_assignment(target, self.constant_folder(
-                                ExprNodes.binop_node(node.pos,
-                                                     '+',
-                                                     sequence.args[0],
-                                                     sequence.args[2])),
-                                                rhs_scope=node.iterator.expr_scope)
+                if entry and entry.is_type and entry.type is Builtin.range_type:
+                    is_special = True
+                    for arg in sequence.args[:2]:
+                        self.mark_assignment(target, arg, rhs_scope=node.iterator.expr_scope)
+                    if len(sequence.args) > 2:
+                        self.mark_assignment(target, self.constant_folder(
+                            ExprNodes.binop_node(node.pos,
+                                                    '+',
+                                                    sequence.args[0],
+                                                    sequence.args[2])),
+                                            rhs_scope=node.iterator.expr_scope)
 
         if not is_special:
             # A for-loop basically translates to subsequent calls to
@@ -1047,6 +1047,20 @@ class ControlFlowAnalysis(CythonTransform):
             # object type when the base type cannot be handled.
 
             self.mark_assignment(target, node.item, rhs_scope=node.iterator.expr_scope)
+
+    def mark_parallel_forloop_assignment(self, node):
+        target = node.target
+        for arg in node.args[:2]:
+            self.mark_assignment(target, arg)
+        if len(node.args) > 2:
+            self.mark_assignment(target, self.constant_folder(
+                ExprNodes.binop_node(node.pos,
+                                        '+',
+                                        node.args[0],
+                                        node.args[2])))
+        if not node.args:
+            # Almost certainly an error
+            self.mark_assignment(target)
 
     def visit_AsyncForStatNode(self, node):
         return self.visit_ForInStatNode(node)
@@ -1065,8 +1079,10 @@ class ControlFlowAnalysis(CythonTransform):
         elif isinstance(node, Nodes.AsyncForStatNode):
             # not entirely correct, but good enough for now
             self.mark_assignment(node.target, node.item)
-        else:  # Parallel
-            self.mark_assignment(node.target)
+        elif isinstance(node, Nodes.ParallelRangeNode):  # Parallel
+            self.mark_parallel_forloop_assignment(node)
+        else:
+            assert False, type(node)
 
         # Body block
         if isinstance(node, Nodes.ParallelRangeNode):
@@ -1216,7 +1232,7 @@ class ControlFlowAnalysis(CythonTransform):
             entry_point = self.flow.newblock(parent=self.flow.block)
             self.flow.nextblock()
             if clause.target:
-                self.mark_assignment(clause.target)
+                self.mark_assignment(clause.target, clause.exc_value)
             self._visit(clause.body)
             if self.flow.block:
                 self.flow.block.add_child(next_block)

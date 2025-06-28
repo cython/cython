@@ -1,9 +1,15 @@
+import Cython
 from .TreeFragment import parse_from_strings, StringParseContext
+from .Scanning import FileSourceDescriptor
+from .Errors import CompileError
 from . import Symtab
 from . import Naming
 from . import Code
+from . import Options
 
+import os.path
 import re
+import io
 
 
 class NonManglingModuleScope(Symtab.ModuleScope):
@@ -263,6 +269,70 @@ class CythonUtilityCode(Code.UtilityCodeBase):
             if name in current_directives:
                 utility_code_directives[name] = current_directives[name]
         return utility_code_directives
+
+
+class TemplatedFileSourceDescriptor(FileSourceDescriptor):
+
+    def __init__(self, filename, path_description, context):
+        super().__init__(filename, path_description)
+        self._context = context
+
+    def get_file_object(self, encoding=None, error_handling=None):
+        with super().get_file_object(encoding, error_handling) as f:
+            data = f.read()
+            ret = Code.sub_tempita(data, self._context, self.filename)
+            # We need stream to have .encoding attribute set
+            stream = io.TextIOWrapper(io.BytesIO(ret.encode(f.encoding)), encoding=f.encoding, errors=error_handling)
+        return stream
+
+
+class CythonSharedUtilityCode(Code.AbstractUtilityCode):
+    def __init__(self, pxd_name, shared_utility_qualified_name, template_context, requires):
+        self._pxd_name = pxd_name
+        self._shared_utility_qualified_name = shared_utility_qualified_name
+        self.template_context = template_context
+        self.requires = requires
+        self._shared_library_scope = None
+
+    def find_module(self, context):
+        scope = context
+        for name, is_package in scope._split_qualified_name(self._shared_utility_qualified_name, relative_import=False):
+            scope = scope.find_submodule(name, as_package=is_package)
+
+        pxd_pathname = os.path.join(
+            os.path.split(Cython.__file__)[0],
+            'Utility',
+            self._pxd_name
+        )
+        try:
+            rel_path = self._shared_utility_qualified_name.replace('.', os.sep) + os.path.splitext(pxd_pathname)[1]
+            source_desc = TemplatedFileSourceDescriptor(pxd_pathname, rel_path, self.template_context)
+            source_desc.in_utility_code = True
+            err, result = context.process_pxd(source_desc, scope, self._shared_utility_qualified_name)
+            (pxd_codenodes, pxd_scope) = result
+            context.utility_pxds[self._pxd_name] = (pxd_codenodes, pxd_scope)
+            scope.pxd_file_loaded = True
+            if err:
+                raise err
+        except CompileError:
+            pass
+        return scope
+
+    def declare_in_scope(self, dest_scope, used=False, cython_scope=None,
+                         allowlist=None):
+        if self._pxd_name not in cython_scope.context.utility_pxds:
+            self._shared_library_scope = self.find_module(cython_scope.context)
+        for dep in self.requires:
+            if dep.is_cython_utility:
+                dep.declare_in_scope(scope, cython_scope=cython_scope)
+        for e in self._shared_library_scope.c_class_entries:
+            dest_scope.add_imported_entry(e.name, e, e.pos)
+        return dest_scope
+
+    def get_shared_library_scope(self, cython_scope):
+        if self._pxd_name not in cython_scope.context.utility_pxds:
+            self._shared_library_scope = self.find_module(cython_scope.context)
+        return self._shared_library_scope
 
 
 def declare_declarations_in_scope(declaration_string, env, private_type=True,

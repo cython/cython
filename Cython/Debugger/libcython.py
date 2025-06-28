@@ -220,31 +220,30 @@ class CythonFunction(CythonVariable):
 
 # General purpose classes
 
-# fail fast if the API changes
-frame_repr_whitelist = set(f.__qualname__ for f in [
-    gdb.Frame.is_valid,
-    gdb.Frame.name,
-    gdb.Frame.architecture,
-    gdb.Frame.type,
-    gdb.Frame.pc,
-    gdb.Frame.block,
-    gdb.Frame.function,
-    gdb.Frame.older,
-    gdb.Frame.newer,
-    gdb.Frame.find_sal,
-    gdb.Frame.select,
-    gdb.Frame.static_link,
-    gdb.Frame.level,
-    gdb.Frame.language,
-    gdb.Symbol.is_valid,
-    gdb.Symbol.value,
-    gdb.Symtab_and_line.is_valid,
-    gdb.Symtab.is_valid,
-    gdb.Symtab.fullname,
-    gdb.Symtab.global_block,
-    gdb.Symtab.static_block,
-    gdb.Symtab.linetable,
-])
+frame_repr_whitelist = {
+    "Frame.is_valid",
+    "Frame.name",
+    "Frame.architecture",
+    "Frame.type",
+    "Frame.pc",
+    "Frame.block",
+    "Frame.function",
+    "Frame.older",
+    "Frame.newer",
+    "Frame.find_sal",
+    "Frame.select",
+    "Frame.static_link",
+    "Frame.level",
+    "Frame.language",
+    "Symbol.is_valid",
+    "Symbol.value",
+    "Symtab_and_line.is_valid",
+    "Symtab.is_valid",
+    "Symtab.fullname",
+    "Symtab.global_block",
+    "Symtab.static_block",
+    "Symtab.linetable",
+}
 
 def frame_repr(frame):
     """Returns a string representing the internal state of a provided GDB frame

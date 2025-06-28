@@ -246,11 +246,11 @@ class CythonMagics(Magics):
         """Compile and import everything from a Cython code cell.
 
         The contents of the cell are written to a `.pyx` file in the
-        directory `IPYTHONDIR/cython` using a filename with the hash of the
-        code. This file is then cythonized and compiled. The resulting module
-        is imported and all of its symbols are injected into the user's
-        namespace. The usage is similar to that of `%%cython_pyximport` but
-        you don't have to pass a module name::
+        directory returned by `get_ipython_cache_dir()/cython` using a filename
+        with the hash of the code. This file is then cythonized and compiled.
+        The resulting module is imported and all of its symbols are injected
+        into the user's namespace. The usage is similar to that of
+        `%%cython_pyximport` but you don't have to pass a module name::
 
             %%cython
             def f(x):

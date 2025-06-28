@@ -93,9 +93,9 @@ def initial_compile_time_env():
     names = (
         'False', 'True',
         'abs', 'all', 'any', 'ascii', 'bin', 'bool', 'bytearray', 'bytes',
-        'chr', 'cmp', 'complex', 'dict', 'divmod', 'enumerate', 'filter',
+        'chr', 'complex', 'dict', 'divmod', 'enumerate', 'filter',
         'float', 'format', 'frozenset', 'hash', 'hex', 'int', 'len',
-        'list', 'map', 'max', 'min', 'oct', 'ord', 'pow', 'range',
+        'list', 'map', 'max', 'min', 'next', 'oct', 'ord', 'pow', 'range',
         'repr', 'reversed', 'round', 'set', 'slice', 'sorted', 'str',
         'sum', 'tuple', 'zip',
         ### defined below in a platform independent way
@@ -103,18 +103,14 @@ def initial_compile_time_env():
     )
 
     for name in names:
-        try:
-            benv.declare(name, getattr(builtins, name))
-        except AttributeError:
-            # ignore, likely Py3
-            pass
+        benv.declare(name, getattr(builtins, name))
 
-    # Py2/3 adaptations
+    # legacy Py2 names
     from functools import reduce
     benv.declare('reduce', reduce)
     benv.declare('unicode', str)
-    benv.declare('long', getattr(builtins, 'long', getattr(builtins, 'int')))
-    benv.declare('xrange', getattr(builtins, 'xrange', getattr(builtins, 'range')))
+    benv.declare('long', int)
+    benv.declare('xrange', range)
 
     denv = CompileTimeScope(benv)
     return denv
@@ -216,7 +212,7 @@ class FileSourceDescriptor(SourceDescriptor):
         except KeyError:
             pass
 
-        with Utils.open_source_file(self.filename, encoding=encoding, error_handling=error_handling) as f:
+        with self.get_file_object(encoding=encoding, error_handling=error_handling) as f:
             lines = f.readlines()
 
         if key in self._lines:
@@ -226,6 +222,9 @@ class FileSourceDescriptor(SourceDescriptor):
             # already read it once
             self._lines[key] = None
         return lines
+
+    def get_file_object(self, encoding=None, error_handling=None):
+        return Utils.open_source_file(self.filename, encoding, error_handling)
 
     def get_description(self):
         return self._short_path_description

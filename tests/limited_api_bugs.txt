@@ -1,116 +1,44 @@
 # This file contains tests corresponding to unresolved bugs using CPython's
 # Limited API which will be skipped in the normal testing run.
 
-min_async
-pep492_badsyntax_async4
-builtin_pycomplex
-builtin_subtype_methods_T653
-builtin_type_inheritance_T608
-builtinslice
-bytearray_coercion
-bytearray_iter
-builtin_divmod
-coroutines
-clear_to_null
-cdivision_CEP_516
-cpp_stl_conversion
 cpp_nonstdint
-cdef_multiple_inheritance_nodict
-cdef_multiple_inheritance
-cythonscope
-run[.]any
-async_iter_pep492
-async_def
-run[.]all
-embedsignatures_python
 embedsignatures_clinic
-extern_builtins_T258
-ext_attribute_cache
-fastcall
-run[.]generators$
-run[.]generators_py
 generator_frame_cycle
-# probably just an exact error message
-importfrom
-run[.]nogil
-run[.]no_gc
-run[.]numpy
 line_trace
-longintrepr
 pstats_profile_test
-py35_pep492_interop
-py_ucs4_type
 pep442_tp_finalize
-test_asyncgen
 tracebacks
-test_grammar
-tuple_constants
 tss
-running_with_gil
-run[.]with_gil
 sys_monitoring
-sequential_parallel
 special_method_docstrings
-run[.]ufunc
-slice2b
 verbatiminclude
-
-# Possibly only on early versions of Python?
-fused_def
-legacy_implicit_noexcept
-method_module_name_T422
-
-# Something to do with complex
-view_count
-matrix_with_buffer
-fused_types
-pycapsule
-r_extcomplex2
+test_coroutines_pep492
+coverage
+line_profile_test
+cdef_multiple_inheritance_errors
+pythran
 
 # cimport cpython
-extension_type_memoryview
-memslice
-memoryviewattrs
 clone
 overhead
-open_file
 cython_array
-# unfortunately this excludes a few working tests too - I can't get the pattern specific enough
-memoryview[.]memoryview$
-numpy_memoryview
 memoryview_inplace_division
-convolve2
-casting_python
-parameter_refcount
+clear_to_null
 cpython_capi_py35
-complex_numbers_T305
-cpython_capi
-complex_numbers_cxx_T398
-complex_numbers_c99_T398
-complex_numbers_c89_T398
 cython_includes
-complex_extern_GH1433
 cdef_bool_T227
-annotation_typing
 datetime_cimport
 datetime_pxd
 datetime_members
 run[.]exttype
-exceptionrefcount
 isinstance
 pycontextvar
 run[.]pytype
 run[.]pyarray
-pyclass_scope_T671
 pyclass_special_methods
-run[.]parallel
-pep448_extended_unpacking
-r_pythonapi
-refcount_in_meth
 time_pxd
-run[.]type_inference
-special_methods_T561
-run[.]slice_ptr
+array_cimport
+builtin_pycomplex
 
 # example in docs that use features unavailable in the limited API
 # (and it's a decision for the docs writers rather than a limitation
@@ -124,13 +52,23 @@ wrapping_CPlusPlus.python_to_cpp
 
 # Tests explicitly use internals
 compile[.]pylong
+extern_varobject_extensions
+ext_attribute_cache
+fastcall
+r_extcomplex2
+longintrepr
+run[.]no_gc
 
 # Inherit builtin type: PEP697
+builtin_subtype_methods_T653
+builtin_type_inheritance_T608
 bytearraymethods
 cdef_subclass_builtin
 ext_auto_richcmp
+extern_builtins_T258
 pylistsubtype
 r_hordijk1
+slice2b
 trashcan
 unbound_special_methods
 unicode_formatting
@@ -145,14 +83,9 @@ py_unicode_strings
 py_unicode_type
 unicode_indexing
 
-# Only on specific versions
-# (TODO) be more specific here
-weakfail
-reduce_pickle
-test_dataclasses
-test_genericclass_exttype
-test_class_getitem_errors_2
+# Works on DW's computer, fails on CI on Python3.11 only with exactly the same versions
+# (might be due to shared ABI possibly?)
 yield_from_pep380
 
-# Excluded for now - to be enabled incrementally
-buffers[.]
+# Not actually a bug - the test is to ensure that some code is included that blocks compilation on the Limited API
+e_limited_lock$

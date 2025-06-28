@@ -6,6 +6,7 @@
 # known and working. It should be dropped once the limited API is
 # better tested
 
+UNSET CFLAGS
 PYTHON setup.py build_ext --inplace
 PYTHON run.py limited_single_phase
 PYTHON run.py limited_single_phase_modstate
@@ -14,11 +15,11 @@ PYTHON run.py limited_multi_phase
 
 ##################### setup.py ################################
 
-import sys
+import sysconfig
 from setuptools import setup
 from Cython.Build import cythonize
 
-if hasattr(sys, "_is_gil_enabled"):
+if sysconfig.get_config_var("Py_GIL_DISABLED"):
     print("Skipping isolated_limited_api tests on free-threading build")
     exit(0)  # At least for 3.13, freethreading and limited API don't mix
 
@@ -38,8 +39,9 @@ import decimal
 
 import weakref
 import sys
+import sysconfig
 
-if hasattr(sys, "_is_gil_enabled"):
+if sysconfig.get_config_var("Py_GIL_DISABLED"):
     print("Skipping isolated_limited_api tests on free-threading build")
     exit(0)  # At least for 3.13, freethreading and limited API don't mix
 
@@ -125,6 +127,16 @@ include 'limited.pxi'
 ##################### limited.pxi #############################
 
 import cython
+
+# Cimporting from cpython imports a range of types with their internals exposed.
+# These can't necessarily be used in the limited API but simply cimporting them
+# shouldn't break compilation.
+cimport cpython
+cimport cpython.bool
+cimport cpython.complex
+cimport cpython.descr
+cimport cpython.longintrepr
+cimport cpython.type
 
 @cython.binding(False)
 def fib(int n):
