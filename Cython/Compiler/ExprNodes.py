@@ -15297,8 +15297,7 @@ class AssignmentExpressionNode(ExprNode):
             self.rhs = self.rhs.coerce_to(dst_type, env)
             return self
         if dst_type == self.assignment.rhs.type:
-            if self.rhs is None:
-                self = self.analyse_types(env)
+            assert self.rhs is not None
             # in this quite common case (for example, when both lhs, and self are being coerced to Python)
             # we can optimize the coercion out by sharing it between
             # this and the assignment
