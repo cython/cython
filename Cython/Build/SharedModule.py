@@ -30,17 +30,18 @@ def create_shared_library_pipeline(context, scope, options, result):
         return generate_tree
 
     def generate_c_utilities(module_node):
-        match_special = Code.get_match_special('/')
+        UtilityCode = Code.UtilityCode
+        match_special = UtilityCode.get_special_comment_matcher('/')
         for c_utility_file in [f for f in os.listdir(Code.get_utility_dir()) if f.endswith('.c')]:
             all_lines = Code.read_utilities_hook(c_utility_file)
             for line in all_lines:
                 m = match_special(line)
                 if m and m.group('name'):
                     name = m.group('name')
-                    if mtype := Code.match_type(name):
+                    if mtype := UtilityCode.type_matcher(name):
                         name, type = mtype.groups()
                         if type == 'export':
-                            module_node.scope.use_utility_code(Code.UtilityCode.load_cached(name, c_utility_file))
+                            module_node.scope.use_utility_code(UtilityCode.load_cached(name, c_utility_file))
         return module_node
 
     orig_cimport_from_pyx = Options.cimport_from_pyx
