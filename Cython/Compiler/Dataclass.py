@@ -351,18 +351,11 @@ def handle_cclass_dataclass(node, dataclass_args, analyse_decs_transform):
     stats = Nodes.StatListNode(node.pos,
                                stats=[dataclass_params_assignment] + dataclass_fields_stats)
 
-    if node.scope.directives['thread_safety.generated_functions']:
-        critical_section_substitution = ExprNodes.NameNode(
-            node.pos,
-            name="critical_section",
-            cython_attribute="critical_section"
-        )
-    else:
-        critical_section_substitution = ExprNodes.NameNode(
-            node.pos,
-            name="_dummy_context",
-            cython_attribute="_dummy_context"
-        )
+    critical_section_substitution = ExprNodes.NameNode(
+        node.pos,
+        name="critical_section",
+        cython_attribute="critical_section"
+    )
 
     code = TemplateCode()
     code.critical_section_placeholder_name = code.new_placeholder(

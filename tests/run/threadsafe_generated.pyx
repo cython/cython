@@ -1,7 +1,5 @@
 # mode: run
 
-# cython: thread_safety.generated_functions = True
-
 cimport cython
 
 import threading

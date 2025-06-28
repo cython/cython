@@ -1419,10 +1419,6 @@ class InterpretCompilerDirectives(CythonTransform):
             elif name == "critical_section":
                 args, kwds = value
                 return self._transform_critical_section(node, args, kwds)
-            elif name == "_dummy_context":
-                # _dummy_context is internal as a tool to turn critical_section on and off in
-                # generated code. Therefore it isn't exposed in Shadow.py.
-                return node.body
             elif self.check_directive_scope(node.pos, name, 'with statement'):
                 directive_dict[name] = value
         if directive_dict:
@@ -2726,18 +2722,11 @@ if VALUE is not None:
         return node
 
     def _create_critical_section_name_node(self, env, pos):
-        if env.directives['thread_safety.generated_functions']:
-            return ExprNodes.NameNode(
-                pos,
-                name="critical_section",
-                cython_attribute="critical_section"
-            )
-        else:
-            return ExprNodes.NameNode(
-                pos,
-                name="_dummy_context",
-                cython_attribute="_dummy_context"
-            )
+        return ExprNodes.NameNode(
+            pos,
+            name="critical_section",
+            cython_attribute="critical_section"
+        )
 
 
 def _calculate_pickle_checksums(member_names):

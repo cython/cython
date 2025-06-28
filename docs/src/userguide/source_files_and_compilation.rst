@@ -1050,27 +1050,6 @@ Cython code.  Here is the list of currently supported directives:
     cause Cython 3.0 to have the same semantics as Cython 0.x. This directive was solely added
     to help migrate legacy code written before Cython 3. It will be removed in a future release.
 
-.. _thread_safety:
-
-Thread-safety
--------------
-
-The following directives control thread-safety in free-threading builds of Python.
-They should make little to no difference in regular builds.
-
-``thread_safety.generated_functions`` (True / False), *default=False*
-    Controls whether Cython-generated functions are thread-safe by default.
-    This includes properties on extension types (e.g. ``cdef public int x`` or
-    ``cdef readonly int x``), the auto-generated pickle functions of
-    extension types, and functions of ``cython.dataclasses.dataclass`` class.
-    The thread-safety here is achieve by adding ``with cython.critical_section(self[, other]):``
-    where ``self`` is the instance of the extension type and ``other`` is the second argument
-    for dataclass comparison functions only.  Therefore, if you are writing
-    your own code interacting with the underlying data then you should use the same
-    lock.  Remember that critical sections can be interrupted so this is mostly
-    a no-crash guarantee - the auto-generated pickle function won't necessary be
-    an atomic snapshot for example.
-
 .. _configurable_optimisations:
 
 Configurable optimisations
