@@ -40,8 +40,10 @@ def optimize_literals1():
     return (x := 10)
 
 
-@cython.test_fail_if_path_exists("//CloneNode")
-@cython.test_fail_if_path_exists("//CoercionNode")
+@cython.test_fail_if_path_exists(
+    "//CloneNode",
+    "//CoercionNode",
+)
 def optimize_literals1_typed_int():
     """
     There's a small optimization for literals to avoid creating unnecessary temps
@@ -52,8 +54,10 @@ def optimize_literals1_typed_int():
     return (x := 10)
 
 
-@cython.test_fail_if_path_exists("//CloneNode")
-@cython.test_fail_if_path_exists("//CoercionNode")
+@cython.test_fail_if_path_exists(
+    "//CloneNode",
+    "//CoercionNode",
+)
 def optimize_literals1_typed_object():
     """
     There's a small optimization for literals to avoid creating unnecessary temps
