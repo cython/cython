@@ -27,7 +27,7 @@ class TestShadow(unittest.TestCase):
                 # used from the cython module
                 continue
 
-            if not directive.startswith('_') and not hasattr(Shadow, directive):
+            if not hasattr(Shadow, directive):
                 missing_directives.append(full_directive)
             elif rest:
                 directive_value = getattr(Shadow, directive)

@@ -121,6 +121,7 @@ exceptval = lambda _=None, check=True: _EmptyDecoratorAndManager()
 
 optimize = _Optimization()
 
+
 embedsignature.format = overflowcheck.fold = optimize.use_switch = \
     optimize.unpack_method_calls = lambda arg: _EmptyDecoratorAndManager()
 
