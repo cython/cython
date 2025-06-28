@@ -1325,8 +1325,7 @@ class PyObjectType(PyrexType):
         return False
 
     def global_init_code(self, entry, code):
-        template = "%s" if entry.visibility == "public" else f"{Naming.modulestatevalue_cname}->%s"
-        code.put_init_var_to_py_none(entry, template, nanny=False)
+        code.put_init_var_to_py_none(entry, nanny=False)
 
     def check_for_null_code(self, cname):
         return cname

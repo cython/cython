@@ -2542,7 +2542,7 @@ class CCodeWriter:
             # it into something useful this mess will need to be fixed.
             return self.name_in_main_c_code_module_state(cname)
         return self.funcstate.scope.name_in_module_state(cname)
-    
+
     def entry_cname_in_module_state(self, entry):
         if not entry.is_declared_in_module_state():
             return entry.cname
@@ -2921,7 +2921,7 @@ class CCodeWriter:
             self.putln("%s = %s; Py_INCREF(Py_None);" % (cname, py_none))
 
     def put_init_var_to_py_none(self, entry, template = "%s", nanny=True):
-        code = template % entry.cname
+        code = template % self.entry_cname_in_module_state(entry)
         #if entry.type.is_extension_type:
         #    code = "((PyObject*)%s)" % code
         self.put_init_to_py_none(code, entry.type, nanny)
