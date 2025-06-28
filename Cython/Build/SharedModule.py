@@ -1,6 +1,8 @@
 import tempfile
 import os
 import shutil
+from glob import glob
+import re
 
 from Cython.Compiler import (
     MemoryView, Code, Options, Pipeline, Errors, Main, Symtab
@@ -27,6 +29,21 @@ def create_shared_library_pipeline(context, scope, options, result):
 
         return generate_tree
 
+    def generate_c_utilities(module_node):
+        UtilityCode = Code.UtilityCode
+        match_special = UtilityCode.get_special_comment_matcher('/')
+        for c_utility_file in [f for f in os.listdir(Code.get_utility_dir()) if f.endswith('.c')]:
+            all_lines = Code.read_utilities_hook(c_utility_file)
+            for line in all_lines:
+                m = match_special(line)
+                if m and m.group('name'):
+                    name = m.group('name')
+                    if mtype := UtilityCode.type_matcher(name):
+                        name, type = mtype.groups()
+                        if type == 'export':
+                            module_node.scope.use_utility_code(UtilityCode.load_cached(name, c_utility_file))
+        return module_node
+
     orig_cimport_from_pyx = Options.cimport_from_pyx
 
     def set_cimport_from_pyx(cimport_from_pyx):
@@ -40,6 +57,7 @@ def create_shared_library_pipeline(context, scope, options, result):
         set_cimport_from_pyx(True),
         generate_tree_factory(context),
         *Pipeline.create_pipeline(context, 'pyx', exclude_classes=()),
+        generate_c_utilities,
         Pipeline.inject_pxd_code_stage_factory(context),
         Pipeline.inject_utility_code_stage_factory(context, internalise_c_class_entries=False),
         Pipeline.inject_utility_pxd_code_stage_factory(context),
