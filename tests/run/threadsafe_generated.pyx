@@ -35,6 +35,8 @@ def test_properties(n_writers, n_readers):
                 if c.i > 1000:
                     c.i = 0
             c_obj.o = o2
+            with nogil:
+                pass  # Add an opportunity to switch threads since PyPy doesn't naturally seem to otherwise
     
     def reader():
         barrier.wait()
@@ -42,6 +44,8 @@ def test_properties(n_writers, n_readers):
             p = pickle.dumps(c_obj)
             o = c_obj.o
             assert c_obj.i % 2 == 0
+            with nogil:
+                pass  # Add an opportunity to switch threads since PyPy doesn't naturally seem to otherwise
 
     readers = [ threading.Thread(target=reader) for _ in range(n_readers) ]
     writers = [ threading.Thread(target=writer) for _ in range(n_writers) ]
