@@ -2491,7 +2491,9 @@ class NameNode(AtomicExprNode):
             return "<error>"  # There was an error earlier
         if self.entry.is_cpp_optional and not self.is_target:
             return f"(*{self.entry_cname})"
-        return self.entry_cname
+        if self.entry_cname is not None:
+            return self.entry_cname
+        return self.entry.cname
 
     def generate_result_code(self, code):
         entry = self.entry
