@@ -2427,7 +2427,7 @@ class CCodeWriter:
         return self.globalstate.get_cached_constants_writer(target)
 
     def name_in_module_state(self, cname):
-        if self.funcstate.scope is None:
+        if self.funcstate is None or self.funcstate.scope is None:
             # This is a mess. For example, within the codeobj generation
             # funcstate.scope is None while evaluating the strings, but not while
             # evaluating the code objects themselves. Right now it doesn't matter
