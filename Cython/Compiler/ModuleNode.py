@@ -2831,9 +2831,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         msvc_count = 0
         for name, entry in sorted(env.entries.items()):
             if entry.is_cglobal and entry.used and not entry.type.is_const:
-                entry_cname = entry.cname 
-                if entry.is_declared_in_module_state():
-                    entry_cname = code.name_in_module_state(entry_cname)
+                entry_cname = code.entry_cname_in_module_state(entry)
                 msvc_count += 1
                 if msvc_count % 100 == 0:
                     code.putln("#ifdef _MSC_VER")
@@ -3386,10 +3384,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             for entry in rev_entries:
                 if entry.visibility != 'extern':
                     if entry.type.needs_refcounting and entry.used:
-                        if not entry.is_declared_in_module_state():
-                            entry_cname = entry.cname
-                        else:
-                            entry_cname = code.name_in_module_state(entry.cname)
+                        entry_cname = code.entry_cname_in_module_state(entry)
                         code.put_xdecref_clear(
                             entry_cname, entry.type,
                             clear_before_decref=True,
@@ -3705,9 +3700,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             for entry in entries:
                 signature = entry.type.empty_declaration_code()
                 name = code.intern_identifier(entry.name)
-                cname = entry.cname
-                if entry.is_declared_in_module_state():
-                    cname = code.name_in_module_state(cname)
+                cname = code.entry_cname_in_module_state(entry)
                 code.putln('if (__Pyx_ExportVoidPtr(%s, (void *)&%s, "%s") < 0) %s' % (
                     name, cname, signature,
                     code.error_goto(self.pos)))

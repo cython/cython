@@ -2059,7 +2059,7 @@ class NameNode(AtomicExprNode):
     allow_null = False
     nogil = False
     inferred_type = None
-    module_state_lookup = ""
+    entry_cname = None
 
     def as_cython_attribute(self):
         return self.cython_attribute
@@ -2490,8 +2490,8 @@ class NameNode(AtomicExprNode):
         if not entry:
             return "<error>"  # There was an error earlier
         if self.entry.is_cpp_optional and not self.is_target:
-            return f"(*{self.module_state_lookup}{entry.cname})"
-        return self.module_state_lookup + entry.cname
+            return f"(*{self.entry_cname})"
+        return self.entry_cname
 
     def generate_result_code(self, code):
         entry = self.entry
@@ -2499,8 +2499,7 @@ class NameNode(AtomicExprNode):
             return  # There was an error earlier
         if entry.utility_code:
             code.globalstate.use_utility_code(entry.utility_code)
-        if entry.is_declared_in_module_state():
-            self.module_state_lookup = code.funcstate.scope.name_in_module_state("")
+        self.entry_cname = code.entry_cname_in_module_state(self.entry)
 
         if entry.is_builtin and entry.is_const:
             return  # Lookup already cached
@@ -2580,16 +2579,16 @@ class NameNode(AtomicExprNode):
 
             if optional_cpp_check:
                 unbound_check_code = entry.type.cpp_optional_check_for_null_code(
-                    f"{self.module_state_lookup}{entry.cname}")
+                    self.entry_cname)
             else:
                 unbound_check_code = entry.type.check_for_null_code(
-                    f"{self.module_state_lookup}{entry.cname}")
+                    self.entry_cname)
 
             if unbound_check_code and raise_unbound and (entry.type.is_pyobject or memslice_check or optional_cpp_check):
                 code.put_error_if_unbound(self.pos, entry, self.in_nogil_context, unbound_check_code=unbound_check_code)
 
         elif entry.is_cglobal and entry.is_cpp_optional and self.initialized_check:
-            unbound_check_code = f"({self.module_state_lookup}{entry.type.cpp_optional_check_for_null_code(entry.cname)})"
+            unbound_check_code = f"({entry.type.cpp_optional_check_for_null_code(self.entry_cname)})"
             code.put_error_if_unbound(self.pos, entry, self.in_nogil_context, unbound_check_code=unbound_check_code)
 
     def generate_assignment_code(self, rhs, code, overloaded_assignment=False,
@@ -2599,8 +2598,7 @@ class NameNode(AtomicExprNode):
         if entry is None:
             return  # There was an error earlier
 
-        if entry.is_declared_in_module_state():
-            self.module_state_lookup = code.funcstate.scope.name_in_module_state("")
+        self.entry_cname = code.entry_cname_in_module_state(self.entry)
 
         if (self.entry.type.is_ptr and isinstance(rhs, ListNode)
                 and not self.lhs_of_first_assignment and not rhs.in_module_scope):
@@ -2755,8 +2753,7 @@ class NameNode(AtomicExprNode):
         if self.entry is None:
             return  # There was an error earlier
 
-        if self.entry.is_declared_in_module_state():
-            self.module_state_lookup = code.funcstate.scope.name_in_module_state("")
+        self.entry_cname = code.entry_cname_in_module_state(self.entry)
 
         if self.entry.is_pyclass_attr:
             namespace = self.entry.scope.namespace_cname

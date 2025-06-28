@@ -9769,11 +9769,9 @@ class ParallelStatNode(StatNode, ParallelNode):
         self.seen_closure_vars.add(cname)
 
         self.modified_entries.append((entry, entry.cname, entry.force_not_declared_in_module_state))
-        if entry.is_declared_in_module_state():
-            code.putln(f"{cname} = {code.name_in_module_state(entry.cname)};")
-            entry.force_not_declared_in_module_state = True
-        else:
-            code.putln("%s = %s;" % (cname, entry.cname))
+        entry_cname = code.entry_cname_in_module_state(entry)
+        entry.force_not_declared_in_module_state = True
+        code.putln(f"{cname} = {entry_cname};")
         entry.cname = cname
 
     def initialize_privates_to_nan(self, code, exclude=None):
@@ -9833,9 +9831,7 @@ class ParallelStatNode(StatNode, ParallelNode):
         for entry, original_cname, original_module_state in self.modified_entries:
             entry.force_not_declared_in_module_state = original_module_state
             current_cname, entry.cname = entry.cname, original_cname
-            lhs_cname = entry.cname
-            if entry.is_declared_in_module_state():
-                lhs_cname = code.name_in_module_state(lhs_cname)
+            lhs_cname = code.entry_cname_in_module_state(entry)
             code.putln("%s = %s;" % (lhs_cname, current_cname))
             code.funcstate.release_temp(current_cname)
 

@@ -2435,6 +2435,11 @@ class CCodeWriter:
             # it into something useful this mess will need to be fixed.
             return self.name_in_main_c_code_module_state(cname)
         return self.funcstate.scope.name_in_module_state(cname)
+    
+    def entry_cname_in_module_state(self, entry):
+        if not entry.is_declared_in_module_state():
+            return entry.cname
+        return self.name_in_module_state(entry.cname)
 
     @staticmethod
     def name_in_main_c_code_module_state(cname):
@@ -2737,75 +2742,51 @@ class CCodeWriter:
         self.put_incref_memoryviewslice(entry.cname, entry.type, have_gil=have_gil)
 
     def put_var_gotref(self, entry):
-        cname = entry.cname
-        if entry.is_declared_in_module_state():
-            cname = self.name_in_module_state(cname)
+        cname = self.entry_cname_in_module_state(entry)
         self.put_gotref(cname, entry.type)
 
     def put_var_giveref(self, entry):
-        cname = entry.cname
-        if entry.is_declared_in_module_state():
-            cname = self.name_in_module_state(cname)
+        cname = self.entry_cname_in_module_state(entry)
         self.put_giveref(cname, entry.type)
 
     def put_var_xgotref(self, entry):
-        cname = entry.cname
-        if entry.is_declared_in_module_state():
-            cname = self.name_in_module_state(cname)
+        cname = self.entry_cname_in_module_state(entry)
         self.put_xgotref(cname, entry.type)
 
     def put_var_xgiveref(self, entry):
-        cname = entry.cname
-        if entry.is_declared_in_module_state():
-            cname = self.name_in_module_state(cname)
+        cname = self.entry_cname_in_module_state(entry)
         self.put_xgiveref(cname, entry.type)
 
     def put_var_incref(self, entry, **kwds):
-        cname = entry.cname
-        if entry.is_declared_in_module_state():
-            cname = self.name_in_module_state(cname)
+        cname = self.entry_cname_in_module_state(entry)
         self.put_incref(cname, entry.type, **kwds)
 
     def put_var_xincref(self, entry, **kwds):
-        cname = entry.cname
-        if entry.is_declared_in_module_state():
-            cname = self.name_in_module_state(cname)
+        cname = self.entry_cname_in_module_state(entry)
         self.put_xincref(cname, entry.type, **kwds)
 
     def put_var_decref(self, entry, **kwds):
-        cname = entry.cname
-        if entry.is_declared_in_module_state():
-            cname = self.name_in_module_state(cname)
+        cname = self.entry_cname_in_module_state(entry)
         self.put_decref(cname, entry.type, **kwds)
 
     def put_var_xdecref(self, entry, **kwds):
-        cname = entry.cname
-        if entry.is_declared_in_module_state():
-            cname = self.name_in_module_state(cname)
+        cname = self.entry_cname_in_module_state(entry)
         self.put_xdecref(cname, entry.type, **kwds)
 
     def put_var_decref_clear(self, entry, **kwds):
-        cname = entry.cname
-        if entry.is_declared_in_module_state():
-            cname = self.name_in_module_state(cname)
+        cname = self.entry_cname_in_module_state(entry)
         self.put_decref_clear(cname, entry.type, clear_before_decref=entry.in_closure, **kwds)
 
     def put_var_decref_set(self, entry, rhs_cname, **kwds):
-        cname = entry.cname
-        if entry.is_declared_in_module_state():
-            cname = self.name_in_module_state(cname)
+        cname = self.entry_cname_in_module_state(entry)
         self.put_decref_set(cname, entry.type, rhs_cname, **kwds)
 
     def put_var_xdecref_set(self, entry, rhs_cname, **kwds):
-        cname = entry.cname
-        if entry.is_declared_in_module_state():
-            cname = self.name_in_module_state(cname)
+        cname = self.entry_cname_in_module_state(entry)
         self.put_xdecref_set(cname, entry.type, rhs_cname, **kwds)
 
     def put_var_xdecref_clear(self, entry, **kwds):
-        cname = entry.cname
-        if entry.is_declared_in_module_state():
-            cname = self.name_in_module_state(cname)
+        cname = self.entry_cname_in_module_state(entry)
         self.put_xdecref_clear(cname, entry.type, clear_before_decref=entry.in_closure, **kwds)
 
     def put_var_decrefs(self, entries, used_only = 0):
@@ -3020,9 +3001,7 @@ class CCodeWriter:
                 UtilityCode.load_cached(f"{func}{nogil_tag}", "ObjectHandling.c"))
 
         if not unbound_check_code:
-            entry_cname = entry.cname
-            if entry.is_declared_in_module_state():
-                entry_cname = self.name_in_module_state(entry_cname)
+            entry_cname = self.entry_cname_in_module_state(entry)
             unbound_check_code = entry.type.check_for_null_code(entry_cname)
         self.putln('if (unlikely(!%s)) { %s(%s); %s }' % (
                                 unbound_check_code,

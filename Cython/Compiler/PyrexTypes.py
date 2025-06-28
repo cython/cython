@@ -4444,15 +4444,11 @@ class CppClassType(CType):
         return self.needs_explicit_construction(scope)  # same rules
 
     def generate_explicit_destruction(self, code, entry, extra_access_code=""):
-        cname = entry.cname
-        if entry.is_declared_in_module_state():
-            cname = code.name_in_main_c_code_module_state(cname)
+        cname = code.entry_cname_in_module_state(entry)
         code.putln(f"__Pyx_call_destructor({extra_access_code}{cname});")
 
     def generate_explicit_construction(self, code, entry, extra_access_code=""):
-        cname = entry.cname
-        if entry.is_declared_in_module_state():
-            cname = code.name_in_main_c_code_module_state(cname)
+        cname = code.entry_cname_in_module_state(entry)
         code.put_cpp_placement_new(f"{extra_access_code}{cname}")
 
 
@@ -4978,15 +4974,11 @@ class CythonLockType(PyrexType):
         code.globalstate.use_utility_code(
             self.get_utility_code()
         )
-        cname = entry.cname
-        if entry.is_declared_in_module_state():
-            cname = code.name_in_main_c_code_module_state(cname)
+        cname = code.entry_cname_in_module_state(entry)
         code.putln(f"__Pyx_Locks_{self.cname_part}_Init({extra_access_code}{cname});")
 
     def generate_explicit_destruction(self, code, entry, extra_access_code=""):
-        cname = entry.cname
-        if entry.is_declared_in_module_state():
-            cname = code.name_in_main_c_code_module_state(cname)
+        cname = code.entry_cname_in_module_state(entry)
         code.putln(
             f"__Pyx_Locks_{self.cname_part}_Delete({extra_access_code}{cname});")
 
