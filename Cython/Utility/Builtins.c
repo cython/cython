@@ -256,7 +256,7 @@ static PyObject *__Pyx_PyLong_AbsNeg(PyObject *num);/*proto*/
 
 #define __Pyx_PyNumber_Absolute(x) \
     ((likely(PyLong_CheckExact(x))) ? \
-         (likely(__Pyx_PyLong_IsNonNeg(x)) ? (Py_INCREF(x), (x)) : __Pyx_PyLong_AbsNeg(x)) : \
+         (likely(__Pyx_PyLong_IsNonNeg(x)) ? __Pyx_NewRef(x) : __Pyx_PyLong_AbsNeg(x)) : \
          PyNumber_Absolute(x))
 
 #else
@@ -283,7 +283,7 @@ static PyObject *__Pyx_PyLong_AbsNeg(PyObject *n) {
         if (likely(copy)) {
             #if PY_VERSION_HEX >= 0x030C00A7
             // clear the sign bits to set the sign from SIGN_NEGATIVE (2) to positive (0)
-            ((PyLongObject*)copy)->long_value.lv_tag = ((PyLongObject*)copy)->long_value.lv_tag & ~_PyLong_SIGN_MASK;
+            ((PyLongObject*)copy)->long_value.lv_tag ^= ((PyLongObject*)copy)->long_value.lv_tag & _PyLong_SIGN_MASK;
             #else
             // negate the size to swap the sign
             __Pyx_SET_SIZE(copy, -Py_SIZE(copy));
@@ -625,6 +625,30 @@ static CYTHON_INLINE PyObject* __Pyx_PyDict_ViewItems(PyObject* d) {
 }
 
 
+/////////////// dict_setdefault.proto ///////////////
+
+static CYTHON_INLINE PyObject *__Pyx_PyDict_SetDefault(PyObject *d, PyObject *key, PyObject *default_value); /*proto*/
+
+/////////////// dict_setdefault ///////////////
+
+static CYTHON_INLINE PyObject *__Pyx_PyDict_SetDefault(PyObject *d, PyObject *key, PyObject *default_value) {
+    PyObject* value;
+#if CYTHON_COMPILING_IN_LIMITED_API && __PYX_LIMITED_VERSION_HEX > 0x030C0000
+    PyObject *args[] = {d, key, default_value};
+    value = PyObject_VectorcallMethod(PYIDENT("setdefault"), args, 3 | PY_VECTORCALL_ARGUMENTS_OFFSET, NULL);
+#elif CYTHON_COMPILING_IN_LIMITED_API
+    value = PyObject_CallMethod(d, "setdefault", "OO", key, default_value);
+#elif PY_VERSION_HEX >= 0x030d0000
+    PyDict_SetDefaultRef(d, key, default_value, &value);
+#else
+    value = PyDict_SetDefault(d, key, default_value);
+    if (unlikely(!value)) return NULL;
+    Py_INCREF(value);
+#endif
+    return value;
+}
+
+
 //////////////////// pyfrozenset_new.proto ////////////////////
 
 static CYTHON_INLINE PyObject* __Pyx_PyFrozenSet_New(PyObject* it);
@@ -711,6 +735,13 @@ static CYTHON_INLINE int __Pyx_PySet_Update(PyObject* set, PyObject* it) {
     Py_DECREF(retval);
     return 0;
 }
+
+//////////////////// PyRange_Check.proto ////////////////////
+
+#if CYTHON_COMPILING_IN_PYPY && !defined(PyRange_Check)
+  #define PyRange_Check(obj)  __Pyx_TypeCheck((obj), &PyRange_Type)
+#endif
+
 
 ///////////////// memoryview_get_from_buffer.proto ////////////////////
 

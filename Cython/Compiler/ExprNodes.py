@@ -4631,6 +4631,14 @@ class IndexNode(_IndexingBaseNode):
                      and self.index.constant_result >= 0))
             boundscheck = bool(code.globalstate.directives['boundscheck'])
             has_gil = not self.in_nogil_context
+            if (self.base.type is bytearray_type and not has_gil and boundscheck
+                    and code.globalstate.directives['freethreading_compatible']):
+                # In principle this applies to 'wraparound' too. The warning only applies to
+                # 'boundscheck' just so there's an easy way to turn it off.
+                warning(
+                    self.pos, "Indexing a bytearray with 'boundscheck' enabled and without the GIL "
+                    "is not thread-safe on freethreaded Python "
+                    "(disable 'boundscheck' to turn off this warning)", 1)
             return ", %s, %d, %s, %d, %d, %d, %d" % (
                 self.original_index_type.empty_declaration_code(),
                 self.original_index_type.signed and 1 or 0,
@@ -10521,7 +10529,7 @@ class CodeObjectNode(ExprNode):
 
         if func.node_positions:
             line_table = StringEncoding.bytes_literal(build_line_table(func.node_positions, first_lineno).encode('iso8859-1'), 'iso8859-1')
-            line_table_result = code.get_string_const(line_table)
+            line_table_result = code.get_py_string_const(line_table)
             line_table_length = len(line_table)
         else:
             line_table_result = "NULL"
@@ -10562,8 +10570,7 @@ class CodeObjectNode(ExprNode):
             f"{kwonly_argcount}, "
             f"{nlocals}, "
             f"{flags}, "
-            f"{first_lineno}, "
-            f"{line_table_length}"
+            f"{first_lineno}"
             "};"
         )
 
@@ -14707,7 +14714,7 @@ class CoerceFromPyTypeNode(CoercionNode):
         return self
 
     def is_ephemeral(self):
-        return (self.type.is_ptr and not self.type.is_array) and self.arg.is_ephemeral()
+        return (self.type.is_unowned_view and not self.type.is_array) and self.arg.is_ephemeral()
 
     def generate_result_code(self, code):
         from_py_function = None

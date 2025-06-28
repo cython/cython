@@ -49,7 +49,7 @@ jobs:
           - "3.10"
           - "3.11"
           - "3.12"
-          - "3.13"
+          - "3.13.5"  # 3.13.4 fails to build extensions on Windows.
           - "3.13t"
           - "3.14-dev"
           - "3.14t-dev"
@@ -101,7 +101,7 @@ jobs:
             env: { GCC_VERSION: 13, EXTRA_CFLAGS: "-std=c17" }
             extra_hash: "-gcc11"
           - os: ubuntu-22.04
-            python-version: "3.13"
+            python-version: "3.13.5"
             backend: cpp
             env: { GCC_VERSION: 13, EXTRA_CFLAGS: "-std=c++20" }
             extra_hash: "-gcc11"
@@ -160,7 +160,7 @@ jobs:
             env: { LIMITED_API: "--limited-api" }
             extra_hash: "-limited_api"
           - os: ubuntu-22.04
-            python-version: "3.13"
+            python-version: "3.13.5"
             backend: "c,cpp"
             env: { LIMITED_API: "--limited-api" }
             extra_hash: "-limited_api"
@@ -223,7 +223,7 @@ jobs:
             backend: "cpp"
 
     # This defaults to 360 minutes (6h) which is way too long and if a test gets stuck, it can block other pipelines.
-    # From testing, the runs tend to take ~20 minutes for ubuntu / macos and ~40 for windows,
+    # From testing, the runs tend to take ~10-15 minutes for ubuntu / macos and ~25 for windows,
     # so a limit of 80 minutes should be enough. This can always be changed in the future if needed.
     timeout-minutes: 80
     runs-on: ${{ matrix.os }}
@@ -236,7 +236,8 @@ jobs:
       USE_CCACHE: 1
       CCACHE_SLOPPINESS: "pch_defines,time_macros"
       CCACHE_COMPRESS: 1
-      CCACHE_MAXSIZE: "200M"
+      CCACHE_COMPRESSLEVEL: 3
+      CCACHE_MAXSIZE: "250M"
 
     steps:
       - name: Checkout repo
@@ -245,14 +246,15 @@ jobs:
           fetch-depth: 1
 
       - name: Setup python
-        uses: actions/setup-python@v5.5.0
+        uses: actions/setup-python@v5.6.0
         with:
           python-version: ${{ matrix.python-version }}
 
       - name: Compilation Cache
-        uses: hendrikmuhs/ccache-action@v1.2.12
+        uses: hendrikmuhs/ccache-action@v1.2.18
         with:
           variant: ${{ startsWith(runner.os, 'windows') && 'sccache' || 'ccache' }}  # fake ternary
+          create-symlink: ${{ startsWith(runner.os, 'windows') && 'true' || 'false' }}  # fake ternary
           key: ${{ runner.os }}-hendrikmuhs-ccache${{ matrix.extra_hash }}-${{ matrix.python-version }}-${{ matrix.backend == 'c' || matrix.backend == 'c,cpp' }}-${{ contains(matrix.backend, 'cpp') }}-${{ hashFiles('test-requirements*.txt', '.github/**/ci.yml', 'Tools/**/ci-run.sh') }}
           max-size: ${{ env.CCACHE_MAXSIZE }}
 
@@ -262,14 +264,14 @@ jobs:
         run: bash ./Tools/ci-run.sh
 
       - name: Upload HTML docs
-        uses: actions/upload-artifact@v4.3.0
+        uses: actions/upload-artifact@v4.6.2
         with:
           name: htmldocs
           path: docs/build/html
           if-no-files-found: ignore
 
       - name: Upload wheels
-        uses: actions/upload-artifact@v4.3.0
+        uses: actions/upload-artifact@v4.6.2
         with:
           name: wheels-${{ runner.os }}-${{ matrix.python-version }}${{ matrix.extra_hash }}
           path: dist/*.whl
@@ -278,7 +280,6 @@ jobs:
 
   pycoverage:
     runs-on: ubuntu-22.04
-    needs: [ benchmarks ]  # order summary report output
 
     env:
       BACKEND: c,cpp
@@ -290,7 +291,7 @@ jobs:
         uses: actions/checkout@v4.1.1
 
       - name: Setup python
-        uses: actions/setup-python@v5.5.0
+        uses: actions/setup-python@v5.6.0
         with:
           python-version: "3.11"
 
@@ -303,7 +304,7 @@ jobs:
           if [ -f coverage-report.md ]; then { echo "## Python coverage results:"; cat coverage-report.md ; } >> $GITHUB_STEP_SUMMARY; fi
 
       - name: Upload Coverage HTML Report
-        uses: actions/upload-artifact@v4.3.0
+        uses: actions/upload-artifact@v4.6.2
         with:
           name: pycoverage_html
           path: coverage-report-html
@@ -324,7 +325,7 @@ jobs:
           fetch-depth: 1
 
       - name: Setup python
-        uses: actions/setup-python@v5.5.0
+        uses: actions/setup-python@v5.6.0
         with:
           python-version: "3.11"
 
@@ -337,13 +338,20 @@ jobs:
           if [ -f coverage-report.md ]; then { echo "## Compiled coverage results:"; cat coverage-report.md ; } >> $GITHUB_STEP_SUMMARY; fi
 
       - name: Upload Coverage HTML Report
-        uses: actions/upload-artifact@v4.3.0
+        uses: actions/upload-artifact@v4.6.2
         with:
           name: cycoverage_html
           path: coverage-report-html
 
   benchmarks:
     runs-on: ubuntu-latest
+
+    env:
+      CCACHE_SLOPPINESS: "pch_defines,time_macros"
+      CCACHE_COMPRESS: 1
+      CCACHE_COMPRESSLEVEL: 5
+      CCACHE_NOHASHDIR: 1
+      CFLAGS: -O3 -g1 -fPIC -mtune=generic
 
     steps:
       - name: Checkout repo
@@ -358,17 +366,17 @@ jobs:
           create-symlink: true
           variant: ${{ startsWith(runner.os, 'windows') && 'sccache' || 'ccache' }}  # fake ternary
           key: ${{ runner.os }}-hendrikmuhs-ccache-benchmarks
-          max-size: 200M
+          max-size: 500M
 
       - name: Setup python
-        uses: actions/setup-python@v5.5.0
+        uses: actions/setup-python@v5.6.0
         with:
           # List special Pythons first to keep the 'normal' one as (last) "python3.xy".
           python-version: |
             3.13t
             3.10
             3.12
-            3.13
+            3.13.5
             3.14-dev
 
       - name: Run Benchmarks
@@ -393,7 +401,7 @@ jobs:
           { echo "## Benchmark results:"; echo; python Demos/benchmarks/report.py benchmark_results_*.csv; } >> $GITHUB_STEP_SUMMARY
 
       - name: Upload results
-        uses: actions/upload-artifact@v4.3.0
+        uses: actions/upload-artifact@v4.6.2
         with:
           name: benchmark_results.txt
           path: benchmarks.log

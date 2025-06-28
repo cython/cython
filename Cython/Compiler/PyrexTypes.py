@@ -198,6 +198,7 @@ class PyrexType(BaseType):
     #  is_buffer             boolean     Is buffer access type
     #  is_pythran_expr       boolean     Is Pythran expr
     #  is_numpy_buffer       boolean     Is Numpy array buffer
+    #  is_unowned_view       boolean     Is a pointer or a C++ class such as std::string_view
     #  is_cython_lock_type   boolean     Is a Cython lock
     #  has_attributes        boolean     Has C dot-selectable attributes
     #  needs_refcounting     boolean     Needs code to be generated similar to incref/gotref/decref.
@@ -273,6 +274,7 @@ class PyrexType(BaseType):
     is_memoryviewslice = 0
     is_pythran_expr = 0
     is_numpy_buffer = 0
+    is_unowned_view = False
     is_cython_lock_type = False
     has_attributes = 0
     needs_refcounting = 0
@@ -2920,6 +2922,7 @@ class CPtrType(CPointerBaseType):
     #  base_type     CType              Reference type
 
     is_ptr = 1
+    is_unowned_view = True
     default_value = "0"
     exception_value = "NULL"
 
@@ -4060,6 +4063,7 @@ class CStructOrUnionType(CType):
         CppClassType.generate_explicit_destruction(self, code, entry, extra_access_code=extra_access_code)
 
 cpp_string_conversions = ("std::string", "std::string_view")
+cpp_unowned_views = ("std::string_view",)
 
 builtin_cpp_conversions = {
     # type                element template params
@@ -4105,6 +4109,7 @@ class CppClassType(CType):
         else:
             self.specializations = {}
         self.is_cpp_string = cname in cpp_string_conversions
+        self.is_unowned_view = cname in cpp_unowned_views
 
     def use_conversion_utility(self, from_or_to):
         pass

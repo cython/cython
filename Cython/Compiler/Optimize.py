@@ -373,35 +373,87 @@ class IterationTransform(Visitor.EnvTransform):
 
     def _transform_indexable_iteration(self, node, slice_node, is_mutable, reversed=False):
         """In principle can handle any iterable that Cython has a len() for and knows how to index"""
+        # Generates code that looks approximately like:
+        #
+        # done = False
+        # index = 0
+        # while not done:
+        #    with critical_section(iterable):
+        #        if index > len(iterable):
+        #            done = True
+        #            continue
+        #        value = iterable[index]
+        #    ...
+        #    index += 1
+        # else:
+        #     ...
+        #
+        # with small adjustments for reverse iteration and non-mutable sequences.
         unpack_temp_node = UtilNodes.LetRefNode(
             slice_node.as_none_safe_node("'NoneType' is not iterable"),
             may_hold_none=False, is_temp=True
             )
 
+        length_call_node = ExprNodes.SimpleCallNode(
+            node.pos,
+            function=ExprNodes.NameNode(
+                node.pos, name="len",
+                entry=Builtin.builtin_scope.lookup("len")),
+            args=[unpack_temp_node])
+        if is_mutable:
+            end_node = length_call_node
+        else:
+            end_node = UtilNodes.LetRefNode(length_call_node, type=PyrexTypes.c_py_ssize_t_type)
         start_node = ExprNodes.IntNode(
             node.pos, value='0', constant_result=0, type=PyrexTypes.c_py_ssize_t_type)
-        def make_length_call():
-            # helper function since we need to create this node for a couple of places
-            builtin_len = ExprNodes.NameNode(node.pos, name="len",
-                                             entry=Builtin.builtin_scope.lookup("len"))
-            return ExprNodes.SimpleCallNode(node.pos,
-                                    function=builtin_len,
-                                    args=[unpack_temp_node]
-                                    )
-        length_temp = UtilNodes.LetRefNode(make_length_call(), type=PyrexTypes.c_py_ssize_t_type, is_temp=True)
-        end_node = length_temp
+        keep_going_ref = UtilNodes.LetRefNode(ExprNodes.BoolNode(node.pos, value=True))
 
         if reversed:
             relation1, relation2 = '>', '>='
-            start_node, end_node = end_node, start_node
+            start_check_node, end_node = end_node, start_node
+            start_node = ExprNodes.SubNode(
+                node.pos,
+                operator='-',
+                operand1=copy.copy(start_check_node),
+                operand2=ExprNodes.IntNode(node.pos, value="1", constant_result=1, type=PyrexTypes.c_py_ssize_t_type))
         else:
+            start_check_node = copy.copy(start_node)
             relation1, relation2 = '<=', '<'
 
-        counter_ref = UtilNodes.LetRefNode(pos=node.pos, type=PyrexTypes.c_py_ssize_t_type)
+        counter_ref = UtilNodes.LetRefNode(start_node, type=PyrexTypes.c_py_ssize_t_type)
+
+        test_node = ExprNodes.PrimaryCmpNode(
+            node.pos,
+            operator=relation2,
+            operand1=counter_ref,
+            operand2=end_node)
+        if is_mutable and reversed:
+            test_node = ExprNodes.BoolBinopNode(
+                node.pos,
+                operator="and",
+                operand1=test_node,
+                operand2=ExprNodes.PrimaryCmpNode(
+                    node.pos,
+                    operator=relation1,
+                    operand1=start_check_node,
+                    operand2=counter_ref,
+                )
+            )
+        failed_test_body = Nodes.StatListNode(
+            node.pos,
+            stats=[
+                # set "done" to true and continue. This'll terminate the loop and trigger the else clause
+                Nodes.SingleAssignmentNode(
+                    node.pos,
+                    lhs=keep_going_ref,
+                    rhs=ExprNodes.BoolNode(node.pos, value=False)
+                ),
+                Nodes.ContinueStatNode(node.pos)
+            ]
+        )
 
         target_value = ExprNodes.IndexNode(slice_node.pos, base=unpack_temp_node,
                                            index=counter_ref)
-
         target_assign = Nodes.SingleAssignmentNode(
             pos = node.target.pos,
             lhs = node.target,
@@ -417,43 +469,60 @@ class IterationTransform(Visitor.EnvTransform):
             body=target_assign,
         )
 
+        length_check_and_target_assign = Nodes.IfStatNode(
+            node.pos,
+            if_clauses=[
+                Nodes.IfClauseNode(
+                    node.pos,
+                    condition=test_node,
+                    body=target_assign
+                ),
+            ],
+            else_clause=failed_test_body)
+
+        if is_mutable:
+            assert slice_node.type.is_pyobject, slice_node.type
+            # For mutable containers, the size can change underneath us.
+            # In freethreaded builds we need to lock around the length check and the indexing.
+            length_check_and_target_assign = Nodes.CriticalSectionStatNode(
+                node.pos,
+                args=[unpack_temp_node],
+                body=length_check_and_target_assign
+            )
+            length_check_and_target_assign.analyse_declarations(env)  # sets up "finally_except_clause"
         body = Nodes.StatListNode(
             node.pos,
-            stats = [target_assign])  # exclude node.body for now to not reanalyse it
-        if is_mutable:
-            # We need to be slightly careful here that we are actually modifying the loop
-            # bounds and not a temp copy of it. Setting is_temp=True on length_temp seems
-            # to ensure this.
-            # If this starts to fail then we could insert an "if out_of_bounds: break" instead
-            loop_length_reassign = Nodes.SingleAssignmentNode(node.pos,
-                                                        lhs = length_temp,
-                                                        rhs = make_length_call())
-            body.stats.append(loop_length_reassign)
-
-        loop_node = Nodes.ForFromStatNode(
-            node.pos,
-            bound1=start_node, relation1=relation1,
-            target=counter_ref,
-            relation2=relation2, bound2=end_node,
-            step=None, body=body,
-            else_clause=node.else_clause,
-            from_range=True)
-
-        ret = UtilNodes.LetNode(
-                    unpack_temp_node,
-                    UtilNodes.LetNode(
-                        length_temp,
-                        # TempResultFromStatNode provides the framework where the "counter_ref"
-                        # temp is set up and can be assigned to. However, we don't need the
-                        # result it returns so wrap it in an ExprStatNode.
-                        Nodes.ExprStatNode(node.pos,
-                            expr=UtilNodes.TempResultFromStatNode(
-                                    counter_ref,
-                                    loop_node
-                            )
-                        )
+            stats = [
+                length_check_and_target_assign,
+                # exclude node.body for now to not reanalyse it
+                Nodes.SingleAssignmentNode(
+                    node.pos,
+                    lhs=counter_ref,
+                    rhs=ExprNodes.binop_node(
+                        node.pos,
+                        operator="-" if reversed else "+",
+                        inplace=True,
+                        operand1=counter_ref,
+                        operand2=ExprNodes.IntNode(node.pos, value="1", constant_result=1, type=PyrexTypes.c_py_ssize_t_type)
                     )
-                ).analyse_expressions(env)
+                )
+            ])
+
+        loop_node = Nodes.WhileStatNode(
+            node.pos,
+            condition = keep_going_ref,
+            body = body,
+            else_clause = node.else_clause,
+        )
+
+        ret = loop_node
+        # temps that are assigned once on entry to the loop
+        for let_ref_node in [unpack_temp_node, keep_going_ref, counter_ref] + (
+                [end_node] if not is_mutable else []):
+            ret = UtilNodes.LetNode(let_ref_node, ret)
+
+        ret = ret.analyse_expressions(env)
+        # Reinsert loop body after analysing the rest.
         body.stats.insert(1, node.body)
         return ret
 
@@ -3352,23 +3421,13 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
         elif len(args) != 3:
             self._error_wrong_arg_count('dict.setdefault', node, args, "2 or 3")
             return node
-        key_type = args[1].type
-        if key_type.is_builtin_type:
-            is_safe_type = int(key_type.name in
-                               'str bytes unicode float int long bool')
-        elif key_type is PyrexTypes.py_object_type:
-            is_safe_type = -1  # don't know
-        else:
-            is_safe_type = 0   # definitely not
-        args.append(ExprNodes.IntNode(
-            node.pos, value=str(is_safe_type), constant_result=is_safe_type))
 
         return self._substitute_method_call(
             node, function,
             "__Pyx_PyDict_SetDefault", self.Pyx_PyDict_SetDefault_func_type,
             'setdefault', is_unbound_method, args,
             may_return_none=True,
-            utility_code=load_c_utility('dict_setdefault'))
+            utility_code=UtilityCode.load_cached('dict_setdefault', "Builtins.c"))
 
     PyDict_Pop_func_type = PyrexTypes.CFuncType(
         PyrexTypes.py_object_type, [
