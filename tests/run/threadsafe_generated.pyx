@@ -72,7 +72,7 @@ def test_dataclasses():
     def writer():
         barrier.wait()
         while not done.is_set():
-            # only one writer thread so no raace between read and writer
+            # only one writer thread so no race between reader and writer
             dc1.__init__(x=dc1.x+0.1, y=dc1.y+0.1)
             dc2.__init__(x=dc2.x+0.1, y=dc2.y+0.1)
 
