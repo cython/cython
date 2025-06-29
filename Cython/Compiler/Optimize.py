@@ -937,20 +937,32 @@ class IterationTransform(Visitor.EnvTransform):
         args = range_function.arg_tuple.args
         if len(args) < 3:
             step_pos = range_function.pos
-            step_value = 1
             step = ExprNodes.IntNode(step_pos, value='1', constant_result=1)
+            step_value = 1
+            abs_step_value = 1
+            neg_step_value = False
+            abs_step = step
         else:
-            step = args[2]
+            step = unwrap_coerced_node(args[2])
             step_pos = step.pos
-            if not isinstance(step.constant_result, int):
+            if isinstance(step.constant_result, int):
+                step_value = step.constant_result
+                abs_step_value = abs(step_value)
+                neg_step_value = step_value < 0
+                if step_value == 0:
+                    # will lead to an error elsewhere
+                    return node
+                step = ExprNodes.IntNode(step_pos, value=str(step_value),
+                                         constant_result=step_value)
+                abs_step = ExprNodes.IntNode(step_pos, value=str(abs(step_value)),
+                                         constant_result=abs(step_value))
+            elif step.type.is_int and not step.type.signed:
+                step_value = None
+                neg_step_value = False
+                abs_step = step
+            else:
                 # cannot determine step direction
                 return node
-            step_value = step.constant_result
-            if step_value == 0:
-                # will lead to an error elsewhere
-                return node
-            step = ExprNodes.IntNode(step_pos, value=str(step_value),
-                                     constant_result=step_value)
 
         if len(args) == 1:
             bound1 = ExprNodes.IntNode(range_function.pos, value='0',
@@ -960,39 +972,36 @@ class IterationTransform(Visitor.EnvTransform):
             bound1 = args[0].coerce_to_index(self.current_env())
             bound2 = args[1].coerce_to_index(self.current_env())
 
-        relation1, relation2 = self._find_for_from_node_relations(step_value < 0, reversed)
+        relation1, relation2 = self._find_for_from_node_relations(neg_step_value, reversed)
 
         bound2_ref_node = None
         if reversed:
             bound1, bound2 = bound2, bound1
-            abs_step = abs(step_value)
-            if abs_step != 1:
-                if (isinstance(bound1.constant_result, int) and
-                        isinstance(bound2.constant_result, int)):
-                    # calculate final bounds now
-                    if step_value < 0:
-                        begin_value = bound2.constant_result
-                        end_value = bound1.constant_result
-                        bound1_value = begin_value - abs_step * ((begin_value - end_value - 1) // abs_step) - 1
-                    else:
-                        begin_value = bound1.constant_result
-                        end_value = bound2.constant_result
-                        bound1_value = end_value + abs_step * ((begin_value - end_value - 1) // abs_step) + 1
-
-                    bound1 = ExprNodes.IntNode(
-                        bound1.pos, value=str(bound1_value), constant_result=bound1_value,
-                        type=PyrexTypes.spanning_type(bound1.type, bound2.type))
+            if (isinstance(bound1.constant_result, int) and
+                    isinstance(bound2.constant_result, int) and
+                    isinstance(step.constant_result, int)):
+                # calculate final bounds now
+                if neg_step_value:
+                    begin_value = bound2.constant_result
+                    end_value = bound1.constant_result
+                    bound1_value = begin_value - abs_step_value * ((begin_value - end_value - 1) // abs_step_value) - 1
                 else:
-                    # evaluate the same expression as above at runtime
-                    bound2_ref_node = UtilNodes.LetRefNode(bound2)
-                    bound1 = self._build_range_step_calculation(
-                        bound1, bound2_ref_node, step, step_value)
+                    begin_value = bound1.constant_result
+                    end_value = bound2.constant_result
+                    bound1_value = end_value + abs_step_value * ((begin_value - end_value - 1) // abs_step_value) + 1
 
-        if step_value < 0:
-            step_value = -step_value
-        step.value = str(step_value)
-        step.constant_result = step_value
-        step = step.coerce_to_index(self.current_env())
+                bound1 = ExprNodes.IntNode(
+                    bound1.pos, value=str(bound1_value), constant_result=bound1_value,
+                    type=PyrexTypes.spanning_type(bound1.type, bound2.type))
+            elif isinstance(step.constant_result, int) and step_value == 1:
+                pass
+            else:
+                # evaluate the same expression as above at runtime
+                bound2_ref_node = UtilNodes.LetRefNode(bound2)
+                bound1 = self._build_range_step_calculation(
+                    bound1, bound2_ref_node, step, abs_step, neg_step_value, step_value)
+
+        step = abs_step.coerce_to_index(self.current_env())
 
         if not bound2.is_literal:
             # stop bound must be immutable => keep it in a temp var
@@ -1016,15 +1025,14 @@ class IterationTransform(Visitor.EnvTransform):
 
         return for_node
 
-    def _build_range_step_calculation(self, bound1, bound2_ref_node, step, step_value):
-        abs_step = abs(step_value)
+    def _build_range_step_calculation(self, bound1, bound2_ref_node, step, abs_step, neg_step_value, step_value):
         spanning_type = PyrexTypes.spanning_type(bound1.type, bound2_ref_node.type)
-        if step.type.is_int and abs_step < 0x7FFF:
+        if step_value is not None and step.type.is_int and abs(step_value) < 0x7FFF:
             # Avoid loss of integer precision warnings.
             spanning_step_type = PyrexTypes.spanning_type(spanning_type, PyrexTypes.c_int_type)
         else:
             spanning_step_type = PyrexTypes.spanning_type(spanning_type, step.type)
-        if step_value < 0:
+        if neg_step_value:
             begin_value = bound2_ref_node
             end_value = bound1
             final_op = '-'
@@ -1041,11 +1049,7 @@ class IterationTransform(Visitor.EnvTransform):
                 operator=final_op,  # +/-
                 operand2=ExprNodes.MulNode(
                     bound1.pos,
-                    operand1=ExprNodes.IntNode(
-                        bound1.pos,
-                        value=str(abs_step),
-                        constant_result=abs_step,
-                        type=spanning_step_type),
+                    operand1=abs_step,
                     operator='*',
                     operand2=ExprNodes.DivNode(
                         bound1.pos,
@@ -1064,11 +1068,7 @@ class IterationTransform(Visitor.EnvTransform):
                                 constant_result=1),
                             type=spanning_step_type),
                         operator='//',
-                        operand2=ExprNodes.IntNode(
-                            bound1.pos,
-                            value=str(abs_step),
-                            constant_result=abs_step,
-                            type=spanning_step_type),
+                        operand2=abs_step,
                         type=spanning_step_type),
                     type=spanning_step_type),
                 type=spanning_step_type),
