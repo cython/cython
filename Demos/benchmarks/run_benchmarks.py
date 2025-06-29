@@ -84,7 +84,7 @@ def compile_benchmarks(cython_dir: pathlib.Path, bm_files: list[pathlib.Path], c
     )
 
 def compile_shared_benchmarks(cython_dir: pathlib.Path, bm_files: list[pathlib.Path], c_macros=None, tmp_dir=None):
-    extensions = "\\n".join([f'''Extension("{bm_file.name.split('.')[0]}", ["{bm_file}"]),''' for bm_file in bm_files])
+    extensions = "\n".join([f'''Extension("{bm_file.name.split('.')[0]}", ["{bm_file}"]),''' for bm_file in bm_files])
     with open(tmp_dir / 'setup.py', 'w') as setup_file:
         setup_file.write(f'''
 from Cython.Build import cythonize
@@ -108,6 +108,7 @@ setup(
     run(
         [sys.executable, "setup.py", "build_ext", "-i"],
         cwd=tmp_dir,
+        pythonpath=cython_dir,
         c_macros=c_macros,
         tmp_dir=tmp_dir,
     )
