@@ -27,6 +27,33 @@ def create_shared_library_pipeline(context, scope, options, result):
 
         return generate_tree
 
+    def generate_c_utilities(module_node):
+        module_node.scope.use_utility_code(Code.UtilityCode.load_cached("BufferFormatCheck", "Buffer.c"))
+        module_node.scope.use_utility_code(Code.UtilityCode.load_cached("CoroutineSetYieldFrom", "Coroutine.c"))
+        module_node.scope.use_utility_code(Code.UtilityCode.load_cached("pep479", "Coroutine.c"))
+        module_node.scope.use_utility_code(Code.UtilityCode.load_cached("CyFunctionClassCell", "CythonFunction.c"))
+        module_node.scope.use_utility_code(Code.UtilityCode.load_cached("CythonFunction", "CythonFunction.c"))
+        module_node.scope.use_utility_code(Code.UtilityCode.load_cached("RaiseException", "Exceptions.c"))
+        module_node.scope.use_utility_code(Code.UtilityCode.load_cached("CallNextTpTraverse", "ExtensionTypes.c"))
+        module_node.scope.use_utility_code(Code.UtilityCode.load_cached("CallNextTpClear", "ExtensionTypes.c"))
+        module_node.scope.use_utility_code(Code.UtilityCode.load_cached("RaiseArgTupleInvalid", "FunctionArguments.c"))
+        module_node.scope.use_utility_code(Code.UtilityCode.load_cached("RejectKeywords", "FunctionArguments.c"))
+        module_node.scope.use_utility_code(Code.UtilityCode.load_cached("Import", "ImportExport.c"))
+        module_node.scope.use_utility_code(Code.UtilityCode.load_cached("ImportFrom", "ImportExport.c"))
+        module_node.scope.use_utility_code(Code.UtilityCode.load_cached("ImportDottedModule", "ImportExport.c"))
+        module_node.scope.use_utility_code(Code.UtilityCode.load_cached("MemviewSliceValidateAndInit", "MemoryView_C.c"))
+        module_node.scope.use_utility_code(Code.UtilityCode.load_cached("UnpackItemEndCheck", "ObjectHandling.c"))
+        module_node.scope.use_utility_code(Code.UtilityCode.load_cached("CalculateMetaclass", "ObjectHandling.c"))
+        module_node.scope.use_utility_code(Code.UtilityCode.load_cached("Py3UpdateBases", "ObjectHandling.c"))
+        module_node.scope.use_utility_code(Code.UtilityCode.load_cached("Py3ClassCreate", "ObjectHandling.c"))
+        module_node.scope.use_utility_code(Code.UtilityCode.load_cached("PyObjectGetMethod", "ObjectHandling.c"))
+        module_node.scope.use_utility_code(Code.UtilityCode.load_cached("PyObjectCallMethod0", "ObjectHandling.c"))
+        module_node.scope.use_utility_code(Code.UtilityCode.load_cached("PyObjectCallMethod1", "ObjectHandling.c"))
+        module_node.scope.use_utility_code(Code.UtilityCode.load_cached("dict_getitem_default", "Optimize.c"))
+        module_node.scope.use_utility_code(Code.UtilityCode.load_cached("BuildPyUnicode", "StringTools.c"))
+        module_node.scope.use_utility_code(Code.UtilityCode.load_cached("JoinPyUnicode", "StringTools.c"))
+        return module_node
+
     orig_cimport_from_pyx = Options.cimport_from_pyx
 
     def set_cimport_from_pyx(cimport_from_pyx):
@@ -40,6 +67,7 @@ def create_shared_library_pipeline(context, scope, options, result):
         set_cimport_from_pyx(True),
         generate_tree_factory(context),
         *Pipeline.create_pipeline(context, 'pyx', exclude_classes=()),
+        generate_c_utilities,
         Pipeline.inject_pxd_code_stage_factory(context),
         Pipeline.inject_utility_code_stage_factory(context, internalise_c_class_entries=False),
         Pipeline.inject_utility_pxd_code_stage_factory(context),
