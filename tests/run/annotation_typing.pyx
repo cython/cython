@@ -491,6 +491,15 @@ def optional_c_bool(a: Optional[c_bool]):
     """
     return a
 
+cdef optional_str(s: str | None):
+    """
+    >>> optional_str('')
+    ''
+    >>> repr(optional_str(None))
+    'None'
+    """
+    return s
+
 
 _WARNINGS = """
 15:32: Strings should no longer be used for type declarations. Use 'cython.int' etc. directly.
