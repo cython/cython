@@ -2348,7 +2348,7 @@ if VALUE is not None:
                     'checksum': checksums[0],
                     'members': ', '.join('self.%s' % v for v in all_members_names) + (',' if len(all_members_names) == 1 else ''),
                     # Even better, we could check PyType_IS_GC.
-                    'pyobject_indices' : repr(tuple(n for n, e in enumerate(all_members) if e.type.is_pyobject )),
+                    'pyobject_indices' : repr(tuple(n for n, e in enumerate(all_members) if e.type.is_pyobject)),
                 },
                 level='c_class', pipeline=[NormalizeTree(None)]).substitute(
                     {'CRITICAL_SECTION': self._create_critical_section_name_node(node.scope, node.pos)

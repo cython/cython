@@ -104,11 +104,10 @@ class TemplateCode:
     """
     _placeholder_count = 0
 
-    def __init__(self, writer=None, placeholders=None, extra_stats=None, critical_section_placeholder_name=None):
+    def __init__(self, writer=None, placeholders=None, extra_stats=None):
         self.writer = PyxCodeWriter() if writer is None else writer
         self.placeholders = {} if placeholders is None else placeholders
         self.extra_stats = [] if extra_stats is None else extra_stats
-        self.critical_section_placeholder_name = critical_section_placeholder_name
 
     def add_code_line(self, code_line):
         self.writer.putln(code_line)
@@ -172,7 +171,6 @@ class TemplateCode:
             writer=new_writer,
             placeholders=self.placeholders,
             extra_stats=self.extra_stats,
-            critical_section_placeholder_name=self.critical_section_placeholder_name
         )
 
 
@@ -361,16 +359,21 @@ def handle_cclass_dataclass(node, dataclass_args, analyse_decs_transform):
     )
 
     code = TemplateCode()
-    code.critical_section_placeholder_name = code.new_placeholder(
+    critical_section_placeholder_name = code.new_placeholder(
         fields,
         critical_section_substitution
     )
-    generate_init_code(code, kwargs['init'], node, fields, kw_only)
+    generate_init_code(code, kwargs['init'], node, fields, kw_only,
+                       critical_section_placeholder_name=critical_section_placeholder_name)
     generate_match_args(code, kwargs['match_args'], node, fields, kw_only)
-    generate_repr_code(code, kwargs['repr'], node, fields)
-    generate_eq_code(code, kwargs['eq'], node, fields)
-    generate_order_code(code, kwargs['order'], node, fields)
-    generate_hash_code(code, kwargs['unsafe_hash'], kwargs['eq'], kwargs['frozen'], node, fields)
+    generate_repr_code(code, kwargs['repr'], node, fields,
+                       critical_section_placeholder_name=critical_section_placeholder_name)
+    generate_eq_code(code, kwargs['eq'], node, fields,
+                     critical_section_placeholder_name=critical_section_placeholder_name)
+    generate_order_code(code, kwargs['order'], node, fields,
+                        critical_section_placeholder_name=critical_section_placeholder_name)
+    generate_hash_code(code, kwargs['unsafe_hash'], kwargs['eq'], kwargs['frozen'], node, fields,
+                       critical_section_placeholder_name=critical_section_placeholder_name)
 
     stats.stats += code.generate_tree().stats
 
@@ -390,7 +393,7 @@ def handle_cclass_dataclass(node, dataclass_args, analyse_decs_transform):
     node.body.stats.append(comp_directives)
 
 
-def generate_init_code(code, init, node, fields, kw_only):
+def generate_init_code(code, init, node, fields, kw_only, *, critical_section_placeholder_name):
     """
     Notes on CPython generated "__init__":
     * Implemented in `_init_fn`.
@@ -493,7 +496,7 @@ def generate_init_code(code, init, node, fields, kw_only):
     function_start_point.indent()
     # Although __init__ is usually called on the only reference to self, it doesn't
     # have to be.
-    function_start_point.add_code_line(f"with {code.critical_section_placeholder_name}({selfname}):")
+    function_start_point.add_code_line(f"with {critical_section_placeholder_name}({selfname}):")
 
 
 def generate_match_args(code, match_args, node, fields, global_kw_only):
@@ -515,7 +518,7 @@ def generate_match_args(code, match_args, node, fields, global_kw_only):
     code.add_code_line("__match_args__ = %s" % str(tuple(positional_arg_names)))
 
 
-def generate_repr_code(code, repr, node, fields):
+def generate_repr_code(code, repr, node, fields, *, critical_section_placeholder_name):
     """
     The core of the CPython implementation is just:
     ['return self.__class__.__qualname__ + f"(' +
@@ -564,7 +567,7 @@ def generate_repr_code(code, repr, node, fields):
                 try:
             """)
             code.indent()
-        with code.indenter(f"with {code.critical_section_placeholder_name}(self):"):
+        with code.indenter(f"with {critical_section_placeholder_name}(self):"):
             strs = ["%s={self.%s!r}" % (name, name)
                     for name, field in fields.items()
                     if field.repr.value and not field.is_initvar]
@@ -580,7 +583,7 @@ def generate_repr_code(code, repr, node, fields):
                 code.add_code_line("guard_set.remove(key)")
 
 
-def generate_cmp_code(code, op, funcname, node, fields):
+def generate_cmp_code(code, op, funcname, node, fields, *, critical_section_placeholder_name):
     if node.scope.lookup_here(funcname):
         return
 
@@ -588,13 +591,12 @@ def generate_cmp_code(code, op, funcname, node, fields):
 
     with code.indenter(f"def {funcname}(self, other):"):
         code.add_code_line(f"cdef {node.class_name} other_cast")
-        with code.indenter(f"with {code.critical_section_placeholder_name}(self, other):"):
-            code.add_code_chunk(f"""
+        code.add_code_chunk(f"""
                 if other.__class__ is not self.__class__: return NotImplemented
 
                 other_cast = <{node.class_name}>other
             """)
-
+        with code.indenter(f"with {critical_section_placeholder_name}(self, other):"):
             # The Python implementation of dataclasses.py does a tuple comparison
             # (roughly):
             #  return self._attributes_to_tuple() {op} other._attributes_to_tuple()
@@ -605,7 +607,6 @@ def generate_cmp_code(code, op, funcname, node, fields):
             # TODO - better diagnostics of whether the types support comparison before
             #    generating the code. Plus, do we want to convert C structs to dicts and
             #    compare them that way (I think not, but it might be in demand)?
-            checks = []
             op_without_equals = op.replace('=', '')
 
             for name in names:
@@ -616,13 +617,16 @@ def generate_cmp_code(code, op, funcname, node, fields):
             code.add_code_line(f"return {'True' if '=' in op else 'False'}")  # "() == ()" is True
 
 
-def generate_eq_code(code, eq, node, fields):
+def generate_eq_code(code, eq, node, fields, *, critical_section_placeholder_name):
     if not eq:
         return
-    generate_cmp_code(code, "==", "__eq__", node, fields)
+    generate_cmp_code(
+        code, "==", "__eq__", node, fields,
+        critical_section_placeholder_name=critical_section_placeholder_name
+    )
 
 
-def generate_order_code(code, order, node, fields):
+def generate_order_code(code, order, node, fields, *, critical_section_placeholder_name):
     if not order:
         return
 
@@ -630,10 +634,13 @@ def generate_order_code(code, order, node, fields):
                      ("<=", "__le__"),
                      (">", "__gt__"),
                      (">=", "__ge__")]:
-        generate_cmp_code(code, op, name, node, fields)
+        generate_cmp_code(
+            code, op, name, node, fields,
+            critical_section_placeholder_name=critical_section_placeholder_name
+        )
 
 
-def generate_hash_code(code, unsafe_hash, eq, frozen, node, fields):
+def generate_hash_code(code, unsafe_hash, eq, frozen, node, fields, *, critical_section_placeholder_name):
     """
     Copied from CPython implementation - the intention is to follow this as far as
     is possible:
@@ -706,7 +713,7 @@ def generate_hash_code(code, unsafe_hash, eq, frozen, node, fields):
 
     # if we're here we want to generate a hash
     with code.indenter("def __hash__(self):"):
-        with code.indenter(f"with {code.critical_section_placeholder_name}(self):"):
+        with code.indenter(f"with {critical_section_placeholder_name}(self):"):
             code.add_code_line(f"return hash(({hash_tuple_items}))")
 
 
