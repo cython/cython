@@ -142,8 +142,10 @@ cdef extern from *:
         }
     };
 
+    inline bool __Pyx_libcpp_cv_dummy_predicate() { return true; }  // Just used for type deduction, not called
+
     template <typename Lock, typename CV_T>
-    void __Pyx_libcpp_cv_py_safe_wait_impl(CV_T& cv, Lock& lock) {
+    void __Pyx_libcpp_cv_py_safe_wait_2arg(CV_T& cv, Lock& lock) {
         __Pyx_UnknownThreadState ts = __Pyx_SaveUnknownThread();
         auto cleanup = __pyx_make_libcpp_mutex_cleanup_on_exit(
             [&ts, &lock](){
@@ -152,8 +154,6 @@ cdef extern from *:
         );
         cv.wait(lock);
     }
-
-    inline bool __Pyx_libcpp_cv_dummy_predicate() { return true; }  // Just used for type deduction, not called
 
     template <typename Lock, typename Predicate, typename CV_T, typename ...Args>
     auto __Pyx_libcpp_cv_py_safe_wait_impl(CV_T& cv, Lock& lock, Predicate pred, Args&&... args) 
@@ -166,52 +166,157 @@ cdef extern from *:
         return cv.wait(lock, std::forward<Args>(args)..., __Pyx_libcpp_cv_py_safe_wrap_predicate(&lock, &pred, &ts));
     }
 
-    // StopToken only templated to support c++11 (where it doesn't yet exist)
+    template <typename Predicate, typename Lock, typename CV>
+    void __Pyx_libcpp_cv_py_safe_wait_3arg(CV& cv, Lock& lock, Predicate predicate) {
+        return __Pyx_libcpp_cv_py_safe_wait_impl(cv, lock, std::move(predicate));
+    }
+
+    // StopToken only templated not break c++11 (where std::stop_token doesn't yet exist)
     template <typename Lock, typename Predicate, typename StopToken>
     bool __Pyx_libcpp_cv_py_safe_wait_4arg(std::condition_variable_any& cv, Lock& lock, StopToken stoken, Predicate pred) {
         // note in impl, predicate comes first
         return __Pyx_libcpp_cv_py_safe_wait_impl(cv, lock, std::move(pred), std::move(stoken));
     }
 
-    template <typename Lock, typename CV_T, typename ...Args>
-    auto __Pyx_libcpp_cv_py_safe_wait_object(CV_T& cv, Lock& lock, Args&&... args, PyObject *pred) ->
-        decltype(__Pyx_libcpp_cv_py_safe_wait_impl(
+    template <typename Lock, typename CV_T>
+    void __Pyx_libcpp_cv_py_safe_wait_object3(CV_T& cv, Lock& lock, PyObject *pred) {
+        __Pyx_libcpp_cv_py_safe_wait_impl(
             cv, lock,
-            __Pyx_libcpp_cv_dummy_predicate,
-            std::forward<Args>(args)...)) {
+            __Pyx_libcpp_cv_WrappedPyObjectPredicate(pred));
+    }
+
+    template <typename Lock, typename CV_T, typename StopToken>
+    bool __Pyx_libcpp_cv_py_safe_wait_object4(CV_T& cv, Lock& lock, StopToken st, PyObject *pred) {
         return __Pyx_libcpp_cv_py_safe_wait_impl(
             cv, lock,
             __Pyx_libcpp_cv_WrappedPyObjectPredicate(pred),
-            std::forward<Args>(args)...);
+            std::move(st));
     }
 
+    template <typename Duration, typename Lock, typename CV_T>
+    std::cv_status __Pyx_libcpp_cv_py_safe_wait_for_3arg(CV_T& cv, Lock& lock, const Duration& duration) {
+        __Pyx_UnknownThreadState ts = __Pyx_SaveUnknownThread();
+        auto cleanup = __pyx_make_libcpp_mutex_cleanup_on_exit(
+            [&ts, &lock](){
+                __Pyx_libcpp_cv_relock_at_end(lock, ts);
+            }
+        );
+        return cv.wait_for(lock, duration);
+    }
+
+    template <typename Duration, typename Lock, typename Predicate, typename CV_T, typename ...Args>
+    bool __Pyx_libcpp_cv_py_safe_wait_for_impl(CV_T& cv, Lock& lock, const Duration &duration, Predicate pred, Args&&... args) {
+        __Pyx_UnknownThreadState ts = __Pyx_SaveUnknownThread();
+        auto cleanup = __pyx_make_libcpp_mutex_cleanup_on_exit(
+            [&ts, &lock](){
+                __Pyx_libcpp_cv_relock_at_end(lock, ts);
+            });
+        return cv.wait_for(lock, std::forward<Args>(args)..., duration, __Pyx_libcpp_cv_py_safe_wrap_predicate(&lock, &pred, &ts));
+    }
+
+    template <typename Duration, typename Predicate, typename Lock, typename CV>
+    bool __Pyx_libcpp_cv_py_safe_wait_for_4arg(CV& cv, Lock& lock, const Duration& duration, Predicate predicate) {
+        return __Pyx_libcpp_cv_py_safe_wait_for_impl(cv, lock, duration, std::move(predicate));
+    }
+
+    template <typename Duration, typename Predicate, typename Lock, typename CV, typename StopToken>
+    bool __Pyx_libcpp_cv_py_safe_wait_for_5arg(CV& cv, Lock& lock, StopToken stop_token, const Duration& duration, Predicate predicate) {
+        return __Pyx_libcpp_cv_py_safe_wait_for_impl(cv, lock, duration, std::move(predicate), std::move(stop_token));
+    }
+
+    template <typename Duration, typename Lock, typename CV_T>
+    bool __Pyx_libcpp_cv_py_safe_wait_for_object4(CV_T& cv, Lock& lock, const Duration& duration, PyObject *pred) {
+        return __Pyx_libcpp_cv_py_safe_wait_for_impl(
+            cv, lock, duration,
+            __Pyx_libcpp_cv_WrappedPyObjectPredicate(pred));
+    }
+
+    template <typename Duration, typename Lock, typename CV_T, typename StopToken>
+    bool __Pyx_libcpp_cv_py_safe_wait_for_object5(CV_T& cv, Lock& lock, StopToken st, const Duration& duration, PyObject *pred) {
+        return __Pyx_libcpp_cv_py_safe_wait_for_impl(
+            cv, lock, duration,
+            __Pyx_libcpp_cv_WrappedPyObjectPredicate(pred),
+            std::move(st));
+    }
+
+    template <typename Timepoint, typename Lock, typename CV_T>
+    std::cv_status __Pyx_libcpp_cv_py_safe_wait_until_3arg(CV_T& cv, Lock& lock, const Timepoint& timepoint) {
+        __Pyx_UnknownThreadState ts = __Pyx_SaveUnknownThread();
+        auto cleanup = __pyx_make_libcpp_mutex_cleanup_on_exit(
+            [&ts, &lock](){
+                __Pyx_libcpp_cv_relock_at_end(lock, ts);
+            }
+        );
+        return cv.wait_until(lock, timepoint);
+    }
+
+    template <typename Timepoint, typename Lock, typename Predicate, typename CV_T, typename ...Args>
+    bool __Pyx_libcpp_cv_py_safe_wait_until_impl(CV_T& cv, Lock& lock, const Timepoint &timepoint, Predicate pred, Args&&... args) {
+        __Pyx_UnknownThreadState ts = __Pyx_SaveUnknownThread();
+        auto cleanup = __pyx_make_libcpp_mutex_cleanup_on_exit(
+            [&ts, &lock](){
+                __Pyx_libcpp_cv_relock_at_end(lock, ts);
+            });
+        return cv.wait_until(lock, std::forward<Args>(args)..., timepoint, __Pyx_libcpp_cv_py_safe_wrap_predicate(&lock, &pred, &ts));
+    }
+
+    template <typename Timepoint, typename Predicate, typename Lock, typename CV>
+    bool __Pyx_libcpp_cv_py_safe_wait_until_4arg(CV& cv, Lock& lock, const Timepoint& timepoint, Predicate predicate) {
+        return __Pyx_libcpp_cv_py_safe_wait_until_impl(cv, lock, timepoint, std::move(predicate));
+    }
+
+    template <typename Timepoint, typename Predicate, typename Lock, typename CV, typename StopToken>
+    bool __Pyx_libcpp_cv_py_safe_wait_until_5arg(CV& cv, Lock& lock, StopToken stop_token, const Timepoint& timepoint, Predicate predicate) {
+        return __Pyx_libcpp_cv_py_safe_wait_until_impl(cv, lock, timepoint, std::move(predicate), std::move(stop_token));
+    }
+
+    template <typename Timepoint, typename Lock, typename CV_T>
+    bool __Pyx_libcpp_cv_py_safe_wait_until_object4(CV_T& cv, Lock& lock, const Timepoint& timepoint, PyObject *pred) {
+        return __Pyx_libcpp_cv_py_safe_wait_until_impl(
+            cv, lock, timepoint,
+            __Pyx_libcpp_cv_WrappedPyObjectPredicate(pred));
+    }
+
+    template <typename Timepoint, typename Lock, typename CV_T, typename StopToken>
+    bool __Pyx_libcpp_cv_py_safe_wait_until_object5(CV_T& cv, Lock& lock, StopToken st, const Timepoint& timepoint, PyObject *pred) {
+        return __Pyx_libcpp_cv_py_safe_wait_until_impl(
+            cv, lock, timepoint,
+            __Pyx_libcpp_cv_WrappedPyObjectPredicate(pred),
+            std::move(st));
+    }
 
     } // namespace
     """
-    void py_safe_wait "__Pyx_libcpp_cv_py_safe_wait_impl" (condition_variable& cv, unique_lock[mutex]& lock) except+
-    void py_safe_object_wait "__Pyx_libcpp_cv_py_safe_wait_object" (condition_variable& cv, unique_lock[mutex]& lock, object predicate) except+
-    void py_safe_wait "__Pyx_libcpp_cv_py_safe_wait_impl" [Predicate](condition_variable& cv, unique_lock[mutex]& lock, Predicate predicate) except+
-    void py_safe_wait "__Pyx_libcpp_cv_py_safe_wait_impl" [Lock](condition_variable_any& cv, Lock& lock) except+
-    void py_safe_object_wait "__Pyx_libcpp_cv_py_safe_wait_object" [Lock](condition_variable_any& cv, Lock& lock, object predicate) except+
-    void py_safe_wait "__Pyx_libcpp_cv_py_safe_wait_impl" [Lock, Predicate](condition_variable_any& cv, Lock& lock, Predicate predicate) except+
-    _bool py_safe_object_wait "__Pyx_libcpp_cv_py_safe_wait_object" [Lock](condition_variable_any& cv, Lock& lock, stop_token stoken, object predicate) except+
-    _bool py_safe_wait "__Pyx_libcpp_cv_py_safe_wait_impl" [Lock, Predicate](condition_variable_any& cv, Lock& lock, stop_token stoken, Predicate predicate) except+
+    # py_safe functions:
+    # * Release the GIL when blocking
+    # * Restore the GIL to whatever state it was when called (without deadlock)
+    # * Hold the GIL while evaluating the predicate (without deadlock)
+    # * Can accept a Python object callable predicate
+    # The condition_variable_any versions require a lockable class that implements try_lock in addition to lock and unlock
+    #
+    void py_safe_wait "__Pyx_libcpp_cv_py_safe_wait_2arg" (condition_variable& cv, unique_lock[mutex]& lock) except+ nogil
+    void py_safe_object_wait "__Pyx_libcpp_cv_py_safe_wait_object3" (condition_variable& cv, unique_lock[mutex]& lock, object predicate) except+
+    void py_safe_wait "__Pyx_libcpp_cv_py_safe_wait_3arg" [Predicate](condition_variable& cv, unique_lock[mutex]& lock, Predicate predicate) except+ nogil
+    void py_safe_wait "__Pyx_libcpp_cv_py_safe_wait_2arg" [Lock](condition_variable_any& cv, Lock& lock) except+ nogil
+    void py_safe_object_wait "__Pyx_libcpp_cv_py_safe_wait_object3" [Lock](condition_variable_any& cv, Lock& lock, object predicate) except+
+    void py_safe_wait "__Pyx_libcpp_cv_py_safe_wait_3arg" [Predicate, Lock](condition_variable_any& cv, Lock& lock, Predicate predicate) except+ nogil
+    _bool py_safe_object_wait "__Pyx_libcpp_cv_py_safe_wait_object4" [Lock](condition_variable_any& cv, Lock& lock, stop_token stoken, object predicate) except+
+    _bool py_safe_wait "__Pyx_libcpp_cv_py_safe_wait_4arg" [Lock, Predicate](condition_variable_any& cv, Lock& lock, stop_token stoken, Predicate predicate) except+ nogil
 
-    cv_status py_safe_wait_for[Duration](condition_variable& cv, unique_lock[mutex]& lock, const Duration &duration) except+
-    _bool wait_for[Duration](condition_variable& cv, unique_lock[mutex]& lock, const Duration &duration, object pred) except+
-    _bool wait_for[Duration, Predicate](condition_variable& cv, unique_lock[mutex]& lock, const Duration &duration, Predicate pred) except+
-    cv_status wait_for[Lock, Duration](condition_variable_any& cv, Lock& lock, const Duration &duration) except+
-    _bool wait_for[Lock, Duration, Predicate](condition_variable_any& cv, Lock& lock, const Duration &duration, object pred) except+
-    _bool wait_for[Lock, Duration, Predicate](condition_variable_any& cv, Lock& lock, const Duration &duration, Predicate pred) except+
-    _bool wait_for[Lock, Duration, Predicate](condition_variable_any& cv, Lock& lock, stop_token stoken, const Duration &duration, object pred) except+
-    _bool wait_for[Lock, Duration, Predicate](condition_variable_any& cv, Lock& lock, stop_token stoken, const Duration &duration, Predicate pred) except+
+    cv_status py_safe_wait_for "__Pyx_libcpp_cv_py_safe_wait_for_3arg" [Duration](condition_variable& cv, unique_lock[mutex]& lock, const Duration &duration) except+ nogil
+    _bool py_safe_object_wait_for "__Pyx_libcpp_cv_py_safe_wait_for_object4" [Duration](condition_variable& cv, unique_lock[mutex]& lock, const Duration &duration, object pred) except+
+    _bool py_safe_wait_for "__Pyx_libcpp_cv_py_safe_wait_for_4arg" [Duration, Predicate](condition_variable& cv, unique_lock[mutex]& lock, const Duration &duration, Predicate pred) except+ nogil
+    cv_status py_safe_wait_for "__Pyx_libcpp_cv_py_safe_wait_for_3arg" [Duration, Lock](condition_variable_any& cv, Lock& lock, const Duration &duration) except+ nogil
+    _bool py_safe_object_wait_for "__Pyx_libcpp_cv_py_safe_wait_for_object4" [Duration, Lock](condition_variable_any& cv, Lock& lock, const Duration &duration, object pred) except+
+    _bool py_safe_wait_for "__Pyx_libcpp_cv_py_safe_wait_for_4arg" [Duration, Predicate, Lock](condition_variable_any& cv, Lock& lock, const Duration &duration, Predicate pred) except+ nogil
+    _bool py_safe_object_wait_for "__Pyx_libcpp_cv_py_safe_wait_for_object5" [Duration, Lock](condition_variable_any& cv, Lock& lock, stop_token stoken, const Duration &duration, object pred) except+
+    _bool py_safe_wait_for "__Pyx_libcpp_cv_py_safe_wait_for_5arg" [Duration, Predicate, Lock](condition_variable_any& cv, Lock& lock, stop_token stoken, const Duration &duration, Predicate pred) except+ nogil
 
-    cv_status py_safe_wait_until[TimePoint](condition_variable& cv, unique_lock[mutex]& lock, const TimePoint &time_point) except+
-    _bool wait_until[TimePoint](condition_variable& cv, unique_lock[mutex]& lock, const TimePoint &time_point, object pred) except+
-    _bool wait_until[TimePoint, Predicate](condition_variable& cv, unique_lock[mutex]& lock, const TimePoint &time_point, Predicate pred) except+
-    cv_status wait_until[Lock, TimePoint](condition_variable_any& cv, Lock& lock, const TimePoint &time_point) except+
-    _bool wait_until[Lock, TimePoint, Predicate](condition_variable_any& cv, Lock& lock, const TimePoint &time_point, object pred) except+
-    _bool wait_until[Lock, TimePoint, Predicate](condition_variable_any& cv, Lock& lock, const TimePoint &time_point, Predicate pred) except+
-    _bool wait_until[Lock, TimePoint, Predicate](condition_variable_any& cv, Lock& lock, stop_token stoken, const TimePoint &time_point, object pred) except+
-    _bool wait_until[Lock, TimePoint, Predicate](condition_variable_any& cv, Lock& lock, stop_token stoken, const TimePoint &time_point, Predicate pred) except+
-        
+    cv_status py_safe_wait_until "__Pyx_libcpp_cv_py_safe_wait_until_3arg" [Timepoint](condition_variable& cv, unique_lock[mutex]& lock, const Timepoint &timepoint) except+ nogil
+    _bool py_safe_object_wait_until "__Pyx_libcpp_cv_py_safe_wait_until_object4" [Timepoint](condition_variable& cv, unique_lock[mutex]& lock, const Timepoint &timepoint, object pred) except+
+    _bool py_safe_wait_until "__Pyx_libcpp_cv_py_safe_wait_until_4arg" [Timepoint, Predicate](condition_variable& cv, unique_lock[mutex]& lock, const Timepoint &timepoint, Predicate pred) except+ nogil
+    cv_status py_safe_wait_until "__Pyx_libcpp_cv_py_safe_wait_until_3arg" [Timepoint, Lock](condition_variable_any& cv, Lock& lock, const Timepoint &timepoint) except+ nogil
+    _bool py_safe_object_wait_until "__Pyx_libcpp_cv_py_safe_wait_until_object4" [Timepoint, Lock](condition_variable_any& cv, Lock& lock, const Timepoint &timepoint, object pred) except+
+    _bool py_safe_wait_until "__Pyx_libcpp_cv_py_safe_wait_until_4arg" [Timepoint, Predicate, Lock](condition_variable_any& cv, Lock& lock, const Timepoint &timepoint, Predicate pred) except+ nogil
+    _bool py_safe_object_wait_until "__Pyx_libcpp_cv_py_safe_wait_until_object5" [Timepoint, Lock](condition_variable_any& cv, Lock& lock, stop_token stoken, const Timepoint &timepoint, object pred) except+
+    _bool py_safe_wait_until "__Pyx_libcpp_cv_py_safe_wait_until_5arg" [Timepoint, Predicate, Lock](condition_variable_any& cv, Lock& lock, stop_token stoken, const Timepoint &timepoint, Predicate pred) except+ nogil
