@@ -85,7 +85,7 @@ cdef extern from *:
         Predicate *pred;
         __Pyx_UnknownThreadState *ts;
     public:
-        __Pyx_libcpp_cv_WrappedPySafePredicate(Lock *l, Predicate *p, __Pyx_UnknownThreadState *ts) 
+        __Pyx_libcpp_cv_WrappedPySafePredicate(Lock *l, Predicate *p, __Pyx_UnknownThreadState *ts)
             : lock(l)
             , pred(p)
             , ts(ts)
@@ -156,7 +156,7 @@ cdef extern from *:
     }
 
     template <typename Lock, typename Predicate, typename CV_T, typename ...Args>
-    auto __Pyx_libcpp_cv_py_safe_wait_impl(CV_T& cv, Lock& lock, Predicate pred, Args&&... args) 
+    auto __Pyx_libcpp_cv_py_safe_wait_impl(CV_T& cv, Lock& lock, Predicate pred, Args&&... args)
         -> decltype(cv.wait(lock, std::forward<Args>(args)..., __Pyx_libcpp_cv_dummy_predicate)) {
         __Pyx_UnknownThreadState ts = __Pyx_SaveUnknownThread();
         auto cleanup = __pyx_make_libcpp_mutex_cleanup_on_exit(
