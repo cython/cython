@@ -544,6 +544,11 @@ class CNameDeclaratorNode(CDeclaratorNode):
                       self.name)
 
         self.type = base_type
+        if hasattr(base_type, "entry"):
+            print("Good", self.pos, base_type, base_type.entry, base_type.entry.scope, id(base_type.entry.scope))
+            base_type.entry.used = True
+        else:
+            print("FFS", base_type)
         return self, base_type
 
 
@@ -9176,7 +9181,7 @@ class CythonLockStatNode(TryFinallyStatNode):
         return super().analyse_expressions(env)
 
     def generate_execution_code(self, code):
-        code.globalstate.use_utility_code(self.arg.type.get_utility_code())
+        code.globalstate.use_utility_code(self.arg.type.get_usage_utility_code())
 
         code.mark_pos(self.pos)
         code.begin_block()
