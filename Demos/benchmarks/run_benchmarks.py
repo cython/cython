@@ -316,7 +316,8 @@ def benchmark_revisions(benchmarks, revisions, cythonize_args=None, profiler=Non
     return timings, sizes
 
 
-def benchmark_revision(revision, benchmarks, cythonize_args=None, profiler=None, plain_python=False, c_macros=None, show_size=False, use_shared_module=False):
+def benchmark_revision(
+        revision, benchmarks, cythonize_args=None, profiler=None, plain_python=False, c_macros=None, show_size=False, use_shared_module=False):
     with_profiler = None if plain_python else profiler
 
     if with_profiler:
