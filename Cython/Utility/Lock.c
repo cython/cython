@@ -23,41 +23,29 @@ static CYTHON_INLINE void __Pyx_Locks_PyThreadTypeLock_LockGil(__Pyx_Locks_PyThr
 
 ////////////////////// PyThreadTypeLock ////////////////
 
-static void __Pyx__Locks_PyThreadTypeLock_LockGil_slow_spin(__Pyx_Locks_PyThreadTypeLock lock) {
+static void __Pyx__Locks_PyThreadTypeLock_LockGil_spin(__Pyx_Locks_PyThreadTypeLock lock) {
     while (1) {
-        // If we've been spinning for a while take a slower path, where
-        // we release the GIL, get the lock, release the lock, reacquire the GIL
-        // and then hope the lock is still available when we try to reacquire it.
+        int res;
         Py_BEGIN_ALLOW_THREADS
-        (void)PyThread_acquire_lock(lock, WAIT_LOCK);
-        PyThread_release_lock(lock);
+        res = PyThread_acquire_lock(lock, WAIT_LOCK);
+        // Wait on the GIL while holding the lock. But importantly we never do the inverse
+        // and wait on the lock while holding the GIL.
         Py_END_ALLOW_THREADS
-        if (likely(PyThread_acquire_lock_timed(lock, 0, 0) == PY_LOCK_ACQUIRED)) {
+        if (likely(res == PY_LOCK_ACQUIRED)) {
             // All good - we got the lock
             return;
         }
     }
-}
-
-static void __Pyx__Locks_PyThreadTypeLock_LockGil_quick_spin(__Pyx_Locks_PyThreadTypeLock lock) {
-    for (int spin_count=0; spin_count<100; ++spin_count) {
-        // Release and re-acquire the GIL, try to get the lock again.
-        Py_BEGIN_ALLOW_THREADS
-        Py_END_ALLOW_THREADS
-        if (likely(PyThread_acquire_lock_timed(lock, 0, 0) == PY_LOCK_ACQUIRED)) {
-            // All good - we got the lock
-            return;
-        }
-    }
-    __Pyx__Locks_PyThreadTypeLock_LockGil_slow_spin(lock);
 }
 
 static CYTHON_INLINE void __Pyx__Locks_PyThreadTypeLock_LockGil(__Pyx_Locks_PyThreadTypeLock lock) {
+    // This is possibly dubious - it makes things faster in the uncontended case, but
+    // in the heavily-contended case it makes it more likely that one thread will dominate.
     if (likely(PyThread_acquire_lock_timed(lock, 0, 0) == PY_LOCK_ACQUIRED)) {
         // All good - we got the lock
         return;
     }
-    __Pyx__Locks_PyThreadTypeLock_LockGil_quick_spin(lock);
+    __Pyx__Locks_PyThreadTypeLock_LockGil_spin(lock);
 }
 
 static void __Pyx__Locks_PyThreadTypeLock_Lock(__Pyx_Locks_PyThreadTypeLock lock) {
