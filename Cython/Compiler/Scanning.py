@@ -4,17 +4,16 @@
 #
 
 
-from pathlib import Path
-
 import cython
 
 cython.declare(make_lexicon=object, lexicon=object,
                print_function=object, error=object, warning=object,
-               os=object, platform=object)
+               os=object, platform=object, Path=object)
 
 import os
 import platform
 from contextlib import contextmanager
+from pathlib import Path
 from unicodedata import normalize
 
 from .. import Utils
