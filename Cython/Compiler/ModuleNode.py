@@ -282,6 +282,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             h_guard = self.api_name(Naming.h_guard_prefix, env)
             h_code_start.put_h_guard(h_guard)
             h_code_start.putln("")
+            self._put_setup_code(h_code_start, "InitLimitedAPI")
             h_code_start.putln('#include "Python.h"')
             self.generate_type_header_code(h_types, h_code_start)
             if options.capi_reexport_cincludes:
@@ -389,6 +390,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             if impl:
                 h_code.put(impl)
 
+        self._put_setup_code(h_code, "InitLimitedAPI")
         h_code.putln('#include "Python.h"')
         if result.h_file:
             h_filename = os.path.basename(result.h_file)

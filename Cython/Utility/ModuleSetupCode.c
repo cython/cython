@@ -7,6 +7,14 @@
   #define CYTHON_LIMITED_API 1
 #endif
 
+// For the limited API it often makes sense to use Py_LIMITED_API rather than PY_VERSION_HEX
+// when doing version checks.
+#define __PYX_LIMITED_VERSION_HEX PY_VERSION_HEX
+#ifdef Py_LIMITED_API
+  #undef __PYX_LIMITED_VERSION_HEX
+  #define __PYX_LIMITED_VERSION_HEX Py_LIMITED_API
+#endif
+
 /////////////// CModulePreamble ///////////////
 
 #include <stddef.h> /* For offsetof */
@@ -48,10 +56,6 @@
 #ifndef Py_HUGE_VAL
   #define Py_HUGE_VAL HUGE_VAL
 #endif
-
-// For the limited API it often makes sense to use Py_LIMITED_API rather than PY_VERSION_HEX
-// when doing version checks.
-#define __PYX_LIMITED_VERSION_HEX PY_VERSION_HEX
 
 #if defined(GRAALVM_PYTHON)
   /* For very preliminary testing purposes. Most variables are set the same as PyPy.
@@ -190,11 +194,6 @@
   #define CYTHON_USE_FREELISTS 0
 
 #elif defined(CYTHON_LIMITED_API)
-  // EXPERIMENTAL !!
-  #ifdef Py_LIMITED_API
-    #undef __PYX_LIMITED_VERSION_HEX
-    #define __PYX_LIMITED_VERSION_HEX Py_LIMITED_API
-  #endif
   #define CYTHON_COMPILING_IN_PYPY 0
   #define CYTHON_COMPILING_IN_CPYTHON 0
   #define CYTHON_COMPILING_IN_LIMITED_API 1
