@@ -2263,6 +2263,8 @@ class GlobalState:
             self.use_utility_code(entry.utility_code)
         if entry.utility_code_definition:
             self.use_utility_code(entry.utility_code_definition)
+        if hasattr(entry.type, "entry") and entry.type.entry is not entry:
+            self.use_entry_utility_code(entry.type.entry)
 
 
 def funccontext_property(func):

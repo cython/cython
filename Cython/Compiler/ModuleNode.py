@@ -1358,7 +1358,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 decl = attr_type.cpp_optional_declaration_code(attr.cname)
             else:
                 decl = attr_type.declaration_code(attr.cname)
-            type.scope.use_entry_utility_code(attr)
+            code.globalstate.use_entry_utility_code(attr)
             code.putln("%s;" % decl)
         code.putln(footer)
         if type.objtypedef_cname is not None:

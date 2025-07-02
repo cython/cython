@@ -1,0 +1,70 @@
+PYTHON setup.py
+
+################# setup.py ######################
+
+from setuptools import setup
+from Cython.Build import cythonize
+
+setup(ext_modules = cythonize("m*.pyx"))
+setup(ext_modules = cythonize("i*.pyx"))
+setup(ext_modules = cythonize("ci*.pyx"))
+
+################## m1.pxd #######################
+
+cimport cython
+cdef public cython.pymutex m
+
+################# m1.pyx ########################
+
+################# m2.pxd ########################
+
+cimport cython
+cdef public void f(cython.pymutex* m)
+
+################# m2.pyx ########################
+
+cdef void f(cython.pymutex* m):
+    pass
+
+################# m3.pxd ########################
+
+cimport cython
+cdef class C:
+    cython.pymutex m
+
+################# m3.pyx ########################
+
+cdef class C:
+    pass
+
+################# i1.pyx ########################
+
+cdef extern from "m1.h":
+    pass
+
+################# i2.pyx ########################
+
+cdef extern from "m2.h":
+    pass
+
+################# i3.pyx ########################
+
+cdef extern from "m3.h":
+    pass
+
+################# ci1.pyx #######################
+
+cimport m1
+print(&m1.m)
+
+################# ci2.pyx #######################
+
+cimport m2
+print(&m2.f)
+
+################# ci3.pyx #######################
+
+cimport m3
+
+cdef class D(m3.C):
+    pass

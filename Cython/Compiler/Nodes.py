@@ -544,11 +544,6 @@ class CNameDeclaratorNode(CDeclaratorNode):
                       self.name)
 
         self.type = base_type
-        if hasattr(base_type, "entry"):
-            print("Good", self.pos, base_type, base_type.entry, base_type.entry.scope, id(base_type.entry.scope))
-            base_type.entry.used = True
-        else:
-            print("FFS", base_type)
         return self, base_type
 
 
