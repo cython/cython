@@ -1,13 +1,14 @@
-PYTHON setup.py
+PYTHON setup.py build_ext --inplace
 
 ################# setup.py ######################
 
 from setuptools import setup
 from Cython.Build import cythonize
 
-setup(ext_modules = cythonize("m*.pyx"))
-setup(ext_modules = cythonize("i*.pyx"))
-setup(ext_modules = cythonize("ci*.pyx"))
+setup(ext_modules = 
+    cythonize("m*.pyx") + 
+    cythonize("i*.pyx") +
+    cythonize("ci*.pyx"))
 
 ################## m1.pxd #######################
 
@@ -29,8 +30,8 @@ cdef void f(cython.pymutex* m):
 ################# m3.pxd ########################
 
 cimport cython
-cdef class C:
-    cython.pymutex m
+cdef public class C[object C_obj, type C_type]:
+    cdef cython.pymutex m
 
 ################# m3.pyx ########################
 
@@ -55,12 +56,12 @@ cdef extern from "m3.h":
 ################# ci1.pyx #######################
 
 cimport m1
-print(&m1.m)
+print(<long long><void*>&m1.m)
 
 ################# ci2.pyx #######################
 
 cimport m2
-print(&m2.f)
+print(<long long><void*>&m2.f)
 
 ################# ci3.pyx #######################
 
