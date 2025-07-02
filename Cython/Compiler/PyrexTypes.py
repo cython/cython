@@ -4957,11 +4957,10 @@ class CythonLockType(PyrexType):
         # Singleton, cannot be copied.
         return src_type is self._special_assignable_reference_type
 
-    def get_decl_utility_code(self):
-        return UtilityCode.load_cached(f"{self.cname_part}Decl", "Lock.c")
-
-    def get_usage_utility_code(self):
-        return UtilityCode.load_cached(f"{self.cname_part}Usage", "Lock.c")
+    def get_utility_code(self):
+        # It doesn't seem like a good way to associate utility code with a type actually exists
+        # so we just have to do it in as many places as possible.
+        return UtilityCode.load_cached(self.cname_part, "Lock.c")
 
     def needs_explicit_construction(self, scope):
         # Where possible we use mutex types that don't require
@@ -4975,7 +4974,7 @@ class CythonLockType(PyrexType):
 
     def generate_explicit_construction(self, code, entry, extra_access_code=""):
         code.globalstate.use_utility_code(
-            self.get_usage_utility_code()
+            self.get_utility_code()
         )
         code.putln(f"__Pyx_Locks_{self.cname_part}_Init({extra_access_code}{entry.cname});")
 
@@ -5003,7 +5002,7 @@ class CythonLockType(PyrexType):
                     pos=None,
                     defining=1,
                     cname=f"__Pyx_Locks_{self.cname_part}_Lock",
-                    utility_code=self.get_usage_utility_code())
+                    utility_code=self.get_utility_code())
             scope.declare_cfunction(
                     "release",
                     CFuncType(c_void_type, [CFuncTypeArg("self", self_type, None)],
@@ -5011,7 +5010,7 @@ class CythonLockType(PyrexType):
                     pos=None,
                     defining=1,
                     cname=f"__Pyx_Locks_{self.cname_part}_Unlock",
-                    utility_code=self.get_usage_utility_code())
+                    utility_code=self.get_utility_code())
             # Don't define a "locked" function because we can't do this with Py_Mutex
             # (which is the preferred implementation)
 
@@ -5022,14 +5021,6 @@ class CythonLockType(PyrexType):
 
     def create_from_py_utility_code(self, env):
         return False
-    
-    def __eq__(self, other):
-        if type(other) != type(self):
-            return False
-        return other.cname_part == self.cname_part
-
-    def __hash__(self):
-        return hash(self.cname_part)
 
 
 rank_to_type_name = (
@@ -5162,12 +5153,8 @@ cython_memoryview_type = CStructOrUnionType("__pyx_memoryview_obj", "struct",
 memoryviewslice_type = CStructOrUnionType("memoryviewslice", "struct",
                                           None, 1, "__Pyx_memviewslice")
 
-# Don't declare these as globals - it interferes with our ability to check if it's
-# used in a particular scope.
-def get_cy_pymutex_type():
-    return CythonLockType("PyMutex")
-def get_cy_pythread_type_lock_type():
-    return CythonLockType("PyThreadTypeLock")
+cy_pymutex_type = CythonLockType("PyMutex")
+cy_pythread_type_lock_type = CythonLockType("PyThreadTypeLock")
 
 fixed_sign_int_types = {
     "bint":       (1, c_bint_type),

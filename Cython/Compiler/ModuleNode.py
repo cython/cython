@@ -161,7 +161,6 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         else:
             target_stats.stats.append(tree)
 
-        breakpoint()
         self.scope.utility_code_list.extend(scope.utility_code_list)
 
         for inc in scope.c_includes.values():
@@ -207,8 +206,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
         self.body.analyse_declarations(env)
 
-        cy_pymutex_type = PyrexTypes.get_cy_pymutex_type()
-        if env.find_shared_usages_of_type(lambda tp: tp == cy_pymutex_type):
+        if env.find_shared_usages_of_type(lambda tp: tp is PyrexTypes.cy_pymutex_type):
             # Be very suspicious of cython locks that are shared.
             # They have the potential to cause ABI issues.
             self.scope.use_utility_code(

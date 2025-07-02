@@ -71,17 +71,14 @@ def inject_pxd_code_stage_factory(context):
 
 
 def use_utility_code_definitions(scope, target, seen=None):
-    breakpoint()
     if seen is None:
         seen = set()
 
-    print(f"---- {target} {id(scope)} ----")
     for entry in scope.entries.values():
         if entry in seen:
             continue
 
         seen.add(entry)
-        print(entry, entry.used, entry.utility_code_definition)
         if entry.used and entry.utility_code_definition:
             target.use_utility_code(entry.utility_code_definition)
             for required_utility in entry.utility_code_definition.requires:
@@ -285,10 +282,9 @@ def create_pxd_pipeline(context, scope, module_name):
     # code of the pxd, as well as a pxd scope.
     return [
         parse_pxd_stage_factory(context, scope, module_name)
-    ] + create_pipeline(context, 'pxd') + [
-        inject_utility_code_stage_factory(context),
+        ] + create_pipeline(context, 'pxd') + [
         ExtractPxdCode()
-    ]
+        ]
 
 def create_py_pipeline(context, options, result):
     return create_pyx_pipeline(context, options, result, py=True)
