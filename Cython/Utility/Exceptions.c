@@ -781,15 +781,31 @@ static int __Pyx_CLineForTraceback(PyThreadState *tstate, int c_line);/*proto*/
 //@requires: ObjectHandling.c::PyObjectGetAttrStrNoError
 //@requires: ObjectHandling.c::PyDictVersioning
 //@requires: PyErrFetchRestore
-//@requires: ModuleSetupCode.c::CriticalSections
+//@requires: Builtins.c::dict_setdefault
 
 #if CYTHON_CLINE_IN_TRACEBACK && CYTHON_CLINE_IN_TRACEBACK_RUNTIME
-static int __Pyx_CLineForTraceback(PyThreadState *tstate, int c_line) {
-    PyObject *use_cline;
-    PyObject *ptype, *pvalue, *ptraceback;
-#if CYTHON_COMPILING_IN_CPYTHON
-    PyObject **cython_runtime_dict;
+#if CYTHON_COMPILING_IN_LIMITED_API && __PYX_LIMITED_VERSION_HEX < 0x030A0000
+// On earlier version of the Limited API we're less flexible and assume it's
+// definitely a module. Which will break some odd user monkey-patching...
+#define __Pyx_PyProbablyModule_GetDict(o) PyModule_GetDict(o)
+#define __Pyx_PyProbablyModule_XDecrefDict(o)
+#elif !CYTHON_COMPILING_IN_CPYTHON
+#define __Pyx_PyProbablyModule_GetDict(o) PyObject_GenericGetDict(o, NULL);
+#define __Pyx_PyProbablyModule_XDecrefDict(o) Py_XDECREF(o)
+#else
+PyObject* __Pyx_PyProbablyModule_GetDict(PyObject *o) {
+    PyObject **dict_ptr = _PyObject_GetDictPtr(o);
+    return dict_ptr ? *dict_ptr : NULL;
+}
+#define __Pyx_PyProbablyModule_XDecrefDict(o)
 #endif
+
+
+
+static int __Pyx_CLineForTraceback(PyThreadState *tstate, int c_line) {
+    PyObject *use_cline = NULL;
+    PyObject *ptype, *pvalue, *ptraceback;
+    PyObject *cython_runtime_dict;
 
     CYTHON_MAYBE_UNUSED_VAR(tstate);
 
@@ -800,32 +816,17 @@ static int __Pyx_CLineForTraceback(PyThreadState *tstate, int c_line) {
 
     __Pyx_ErrFetchInState(tstate, &ptype, &pvalue, &ptraceback);
 
-#if CYTHON_COMPILING_IN_CPYTHON
-    cython_runtime_dict = _PyObject_GetDictPtr(NAMED_CGLOBAL(cython_runtime_cname));
+    cython_runtime_dict = __Pyx_PyProbablyModule_GetDict(NAMED_CGLOBAL(cython_runtime_cname));
     if (likely(cython_runtime_dict)) {
-        __Pyx_BEGIN_CRITICAL_SECTION(*cython_runtime_dict);
         __PYX_PY_DICT_LOOKUP_IF_MODIFIED(
-            use_cline, *cython_runtime_dict,
-            __Pyx_PyDict_GetItemStr(*cython_runtime_dict, PYIDENT("cline_in_traceback")))
-        Py_XINCREF(use_cline);
-        __Pyx_END_CRITICAL_SECTION();
-    } else
-#endif
-    {
-      use_cline = __Pyx_PyObject_GetAttrStrNoError(NAMED_CGLOBAL(cython_runtime_cname), PYIDENT("cline_in_traceback"));
-      if (!use_cline) {
-        PyErr_Clear();
-      }
+            use_cline, cython_runtime_dict,
+            __Pyx_PyDict_SetDefault(cython_runtime_dict, PYIDENT("cline_in_traceback"), Py_False))
     }
-    if (!use_cline) {
-        c_line = 0;
-        // No need to handle errors here when we reset the exception state just afterwards.
-        (void) PyObject_SetAttr(NAMED_CGLOBAL(cython_runtime_cname), PYIDENT("cline_in_traceback"), Py_False);
-    }
-    else if (use_cline == Py_False || (use_cline != Py_True && PyObject_Not(use_cline) != 0)) {
+    if (use_cline == NULL || use_cline == Py_False || (use_cline != Py_True && PyObject_Not(use_cline) != 0)) {
         c_line = 0;
     }
     Py_XDECREF(use_cline);
+    __Pyx_PyProbablyModule_XDecrefDict(cython_runtime_dict);
     __Pyx_ErrRestoreInState(tstate, ptype, pvalue, ptraceback);
     return c_line;
 }
