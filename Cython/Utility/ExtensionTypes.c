@@ -57,6 +57,7 @@ static int __Pyx_fix_up_extension_type_from_spec(PyType_Spec *spec, PyTypeObject
                     changed = 1;
                 }
 #endif  // CYTHON_METH_FASTCALL
+#if !CYTHON_COMPILING_IN_PYPY
                 else if (strcmp(memb->name, "__module__") == 0) {
                     // PyType_FromSpec() in CPython <= 3.9b1 overwrites this field with a constant string.
                     // See https://bugs.python.org/issue40703
@@ -74,11 +75,13 @@ static int __Pyx_fix_up_extension_type_from_spec(PyType_Spec *spec, PyTypeObject
                     }
                     changed = 1;
                 }
+#endif  // !CYTHON_COMPILING_IN_PYPY
             }
             memb++;
         }
     }
 #endif  // !CYTHON_COMPILING_IN_LIMITED_API
+#if !CYTHON_COMPILING_IN_PYPY
     slot = spec->slots;
     while (slot && slot->slot && slot->slot != Py_tp_getset)
         slot++;
@@ -107,9 +110,10 @@ static int __Pyx_fix_up_extension_type_from_spec(PyType_Spec *spec, PyTypeObject
                 }
                 changed = 1;
             }
-            ++getset;    
+            ++getset;
         }
     }
+#endif  // !CYTHON_COMPILING_IN_PYPY
     if (changed)
         PyType_Modified(type);
 #endif  // PY_VERSION_HEX > 0x030900B1

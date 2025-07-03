@@ -6151,7 +6151,7 @@ class AssignmentNode(StatNode):
         node = self.analyse_types(env)
         self._check_const_assignment(node)
         if isinstance(node, AssignmentNode) and not isinstance(node, ParallelAssignmentNode):
-            if node.rhs.type.is_ptr and node.rhs.is_ephemeral():
+            if node.rhs.type.is_unowned_view and node.rhs.is_ephemeral():
                 error(self.pos, "Storing unsafe C derivative of temporary Python reference")
         return node
 
@@ -10351,10 +10351,14 @@ class ParallelRangeNode(ParallelStatNode):
 
     valid_keyword_arguments = ['schedule', 'nogil', 'num_threads', 'chunksize', 'use_threads_if']
 
+    class DummyIteratorNode(Node):
+        child_attrs = ["args"]
+
     def __init__(self, pos, **kwds):
         super().__init__(pos, **kwds)
-        # Pretend to be a ForInStatNode for control flow analysis
-        self.iterator = PassStatNode(pos)
+        # Pretend to be a ForInStatNode for control flow analysis,
+        # ensuring that the args get visited when the iterator would be.
+        self.iterator = self.DummyIteratorNode(pos, args=self.args)
 
     def analyse_declarations(self, env):
         super().analyse_declarations(env)

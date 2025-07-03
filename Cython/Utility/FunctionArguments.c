@@ -249,6 +249,7 @@ static CYTHON_INLINE int __Pyx_ParseKeywords(
 
 //////////////////// ParseKeywords ////////////////////
 //@requires: RaiseDoubleKeywords
+//@requires: ModuleSetupCode.c::CriticalSections
 
 //  __Pyx_ParseOptionalKeywords copies the optional/unknown keyword
 //  arguments from kwds into the dict kwds2.  If kwds2 is NULL, unknown

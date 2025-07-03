@@ -16,7 +16,6 @@ test_coroutines_pep492
 coverage
 line_profile_test
 cdef_multiple_inheritance_errors
-cline_in_traceback
 pythran
 
 # cimport cpython

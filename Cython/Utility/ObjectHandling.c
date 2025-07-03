@@ -526,7 +526,7 @@ static CYTHON_INLINE PyObject *__Pyx_GetItemInt_Fast(PyObject *o, Py_ssize_t i, 
     } else
     #endif
 #endif
-#if CYTHON_USE_TYPE_SLOTS
+#if CYTHON_USE_TYPE_SLOTS && !CYTHON_COMPILING_IN_PYPY
     {
         // inlined PySequence_GetItem() + special cased length overflow
         PyMappingMethods *mm = Py_TYPE(o)->tp_as_mapping;
@@ -605,7 +605,7 @@ static CYTHON_INLINE int __Pyx_SetItemInt_Fast(PyObject *o, Py_ssize_t i, PyObje
         }
     } else
 #endif
-#if CYTHON_USE_TYPE_SLOTS
+#if CYTHON_USE_TYPE_SLOTS && !CYTHON_COMPILING_IN_PYPY
     {
         // inlined PySequence_SetItem() + special cased length overflow
         PyMappingMethods *mm = Py_TYPE(o)->tp_as_mapping;
@@ -2899,11 +2899,12 @@ static CYTHON_INLINE PyObject *__Pyx_PyVectorcall_FastCallDict(PyObject *func, _
     (version_var) = __PYX_GET_DICT_VERSION(dict); \
     (cache_var) = (value);
 
+// The lookup function should return a new reference.
 #define __PYX_PY_DICT_LOOKUP_IF_MODIFIED(VAR, DICT, LOOKUP) { \
     static PY_UINT64_T __pyx_dict_version = 0; \
     static PyObject *__pyx_dict_cached_value = NULL; \
     if (likely(__PYX_GET_DICT_VERSION(DICT) == __pyx_dict_version)) { \
-        (VAR) = __pyx_dict_cached_value; \
+        (VAR) = __Pyx_XNewRef(__pyx_dict_cached_value); \
     } else { \
         (VAR) = __pyx_dict_cached_value = (LOOKUP); \
         __pyx_dict_version = __PYX_GET_DICT_VERSION(DICT); \

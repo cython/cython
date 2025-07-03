@@ -10524,7 +10524,7 @@ class CodeObjectNode(ExprNode):
 
         if func.node_positions:
             line_table = StringEncoding.bytes_literal(build_line_table(func.node_positions, first_lineno).encode('iso8859-1'), 'iso8859-1')
-            line_table_result = code.get_string_const(line_table)
+            line_table_result = code.get_py_string_const(line_table)
             line_table_length = len(line_table)
         else:
             line_table_result = "NULL"
@@ -10565,8 +10565,7 @@ class CodeObjectNode(ExprNode):
             f"{kwonly_argcount}, "
             f"{nlocals}, "
             f"{flags}, "
-            f"{first_lineno}, "
-            f"{line_table_length}"
+            f"{first_lineno}"
             "};"
         )
 
@@ -14710,7 +14709,7 @@ class CoerceFromPyTypeNode(CoercionNode):
         return self
 
     def is_ephemeral(self):
-        return (self.type.is_ptr and not self.type.is_array) and self.arg.is_ephemeral()
+        return (self.type.is_unowned_view and not self.type.is_array) and self.arg.is_ephemeral()
 
     def generate_result_code(self, code):
         from_py_function = None

@@ -202,10 +202,6 @@
 
   #define CYTHON_COMPILING_IN_CPYTHON_FREETHREADING 0
 
-  // CYTHON_CLINE_IN_TRACEBACK is currently disabled for the Limited API
-  #undef CYTHON_CLINE_IN_TRACEBACK
-  #define CYTHON_CLINE_IN_TRACEBACK 0
-
   #undef CYTHON_USE_TYPE_SLOTS
   #define CYTHON_USE_TYPE_SLOTS 0
   #undef CYTHON_USE_TYPE_SPECS
@@ -395,6 +391,10 @@
   #endif
 #endif
 
+#ifndef CYTHON_COMPRESS_STRINGS
+  #define CYTHON_COMPRESS_STRINGS 1
+#endif
+
 #ifndef CYTHON_FAST_PYCCALL
 #define CYTHON_FAST_PYCCALL  CYTHON_FAST_PYCALL
 #endif
@@ -505,36 +505,8 @@
 
 #define __Pyx_void_to_None(void_result) ((void)(void_result), Py_INCREF(Py_None), Py_None)
 
-#ifdef _MSC_VER
-    #ifndef _MSC_STDINT_H_
-        #if _MSC_VER < 1300
-            typedef unsigned char     uint8_t;
-            typedef unsigned short    uint16_t;
-            typedef unsigned int      uint32_t;
-        #else
-            typedef unsigned __int8   uint8_t;
-            typedef unsigned __int16  uint16_t;
-            typedef unsigned __int32  uint32_t;
-        #endif
-    #endif
-    #if _MSC_VER < 1300
-        #ifdef _WIN64
-            typedef unsigned long long  __pyx_uintptr_t;
-        #else
-            typedef unsigned int        __pyx_uintptr_t;
-        #endif
-    #else
-        #ifdef _WIN64
-            typedef unsigned __int64    __pyx_uintptr_t;
-        #else
-            typedef unsigned __int32    __pyx_uintptr_t;
-        #endif
-    #endif
-#else
-    #include <stdint.h>
-    typedef uintptr_t  __pyx_uintptr_t;
-#endif
-
+#include <stdint.h>
+typedef uintptr_t  __pyx_uintptr_t;
 
 #ifndef CYTHON_FALLTHROUGH
   #if defined(__cplusplus)
@@ -2389,7 +2361,7 @@ static PyObject* __Pyx_PyCode_New(
         // PyObject *cellvars,
         PyObject *filename,
         PyObject *funcname,
-        const char *line_table,
+        PyObject *line_table,
         PyObject *tuple_dedup_map
 );/*proto*/
 
@@ -2520,11 +2492,11 @@ static PyObject* __Pyx_PyCode_New(
         PyObject *filename,
         PyObject *funcname,
         // line table replaced lnotab in Py3.11 (PEP-626)
-        const char *line_table,
+        PyObject *line_table,
         PyObject *tuple_dedup_map
 ) {
 
-    PyObject *code_obj = NULL, *varnames_tuple_dedup = NULL, *code_bytes = NULL, *line_table_bytes = NULL;
+    PyObject *code_obj = NULL, *varnames_tuple_dedup = NULL, *code_bytes = NULL;
     Py_ssize_t var_count = (Py_ssize_t) descr.nlocals;
 
     PyObject *varnames_tuple = PyTuple_New(var_count);
@@ -2549,15 +2521,15 @@ static PyObject* __Pyx_PyCode_New(
     Py_INCREF(varnames_tuple_dedup);
     #endif
 
-    if (__PYX_LIMITED_VERSION_HEX >= (0x030b0000) && line_table != NULL
-        && !CYTHON_COMPILING_IN_GRAAL) {
-        line_table_bytes = PyBytes_FromStringAndSize(line_table, descr.line_table_length);
-        if (unlikely(!line_table_bytes)) goto done;
-
+    if (__PYX_LIMITED_VERSION_HEX >= (0x030b0000) && line_table != NULL && !CYTHON_COMPILING_IN_GRAAL) {
         // Allocate a "byte code" array (oversized) to match the addresses in the line table.
         // Length and alignment must be a multiple of sizeof(_Py_CODEUNIT), which is CPython specific but currently 2.
         // CPython makes a copy of the code array internally, so make sure it's somewhat short (but not too short).
-        Py_ssize_t code_len = (descr.line_table_length * 2 + 4) & ~3;
+        Py_ssize_t line_table_length = __Pyx_PyBytes_GET_SIZE(line_table);
+        #if !CYTHON_ASSUME_SAFE_SIZE
+        if (unlikely(line_table_length == -1)) goto done;
+        #endif
+        Py_ssize_t code_len = (line_table_length * 2 + 4) & ~3LL;
         code_bytes = PyBytes_FromStringAndSize(NULL, code_len);
         if (unlikely(!code_bytes)) goto done;
         char* c_code_bytes = PyBytes_AsString(code_bytes);
@@ -2583,12 +2555,11 @@ static PyObject* __Pyx_PyCode_New(
         filename,
         funcname,
         (int) descr.first_line,
-        (__PYX_LIMITED_VERSION_HEX >= (0x030b0000) && line_table_bytes) ? line_table_bytes : EMPTY(bytes)
+        (__PYX_LIMITED_VERSION_HEX >= (0x030b0000) && line_table) ? line_table : EMPTY(bytes)
     );
 
 done:
     Py_XDECREF(code_bytes);
-    Py_XDECREF(line_table_bytes);
     #if CYTHON_AVOID_BORROWED_REFS
     Py_XDECREF(varnames_tuple_dedup);
     #endif
@@ -3090,7 +3061,7 @@ typedef struct {
   PyGILState_STATE gil_state;
 } __Pyx_UnknownThreadState;
 #else
-#define __Pyx_UnknownThreadState PyThreadState* 
+#define __Pyx_UnknownThreadState PyThreadState*
 #endif
 
 static __Pyx_UnknownThreadState __Pyx_SaveUnknownThread(void); /* proto */
