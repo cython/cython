@@ -2263,8 +2263,10 @@ class GlobalState:
             self.use_utility_code(entry.utility_code)
         if entry.utility_code_definition:
             self.use_utility_code(entry.utility_code_definition)
-        if hasattr(entry.type, "entry") and entry.type.entry is not entry:
-            self.use_entry_utility_code(entry.type.entry)
+        from . import PyrexTypes
+        for tp in PyrexTypes.get_all_subtypes(entry.type):
+            if hasattr(tp, "entry") and tp.entry is not entry:
+                self.use_entry_utility_code(tp.entry)
 
 
 def funccontext_property(func):
@@ -2739,7 +2741,7 @@ class CCodeWriter:
         elif entry.type.is_pyobject:
             self.put(" = NULL")
         self.putln(";")
-        self.funcstate.scope.use_entry_utility_code(entry)
+        self.globalstate.use_entry_utility_code(entry)
 
     def put_temp_declarations(self, func_context):
         for name, type, manage_ref, static in func_context.temps_allocated:

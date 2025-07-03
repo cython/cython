@@ -1,12 +1,18 @@
-////////////////////// PyThreadTypeLock.proto //////////
+////////////////////// PyThreadTypeLockDecl.proto //////////
 //@proto_block: utility_code_proto_before_types
 
 // This lock type always uses PyThread_type_lock. The main reason
 // to use it is if you are using the Limited API and want to
 // share locks between modules.
 
+#ifndef __PYX_HAVE_PYX_THREAD_TYPE_LOCK_DECL
+#define __PYX_HAVE_PYX_THREAD_TYPE_LOCK_DECL
 #define __Pyx_Locks_PyThreadTypeLock PyThread_type_lock
 #define __Pyx_Locks_PyThreadTypeLock_DECL NULL
+#endif
+
+////////////////////// PyThreadTypeLockUsage.proto //////////////////
+
 #define __Pyx_Locks_PyThreadTypeLock_Init(l) l = PyThread_allocate_lock()
 #define __Pyx_Locks_PyThreadTypeLock_Delete(l) PyThread_free_lock(l)
 #define __Pyx_Locks_PyThreadTypeLock_LockNogil(l) (void)PyThread_acquire_lock(l, WAIT_LOCK)
@@ -21,7 +27,7 @@ static CYTHON_INLINE void __Pyx_Locks_PyThreadTypeLock_LockGil(__Pyx_Locks_PyThr
     __Pyx__Locks_PyThreadTypeLock_LockGil(lock);
 }
 
-////////////////////// PyThreadTypeLock ////////////////
+////////////////////// PyThreadTypeLockUsage ////////////////
 
 static void __Pyx__Locks_PyThreadTypeLock_LockGil_slow_spin(__Pyx_Locks_PyThreadTypeLock lock) {
     while (1) {
@@ -76,9 +82,9 @@ static void __Pyx__Locks_PyThreadTypeLock_Lock(__Pyx_Locks_PyThreadTypeLock lock
 #endif
 }
 
-////////////////////// PyMutex.proto ////////////////////
+////////////////////// PyMutexDecl.proto ////////////////////
 //@proto_block: utility_code_proto_before_types
-//@requires: PyThreadTypeLock
+//@requires: PyThreadTypeLockDecl
 
 // We support two implementations - a Py3.13+ version using PyMutex and
 // an older version using PyThread_type_lock.
@@ -93,9 +99,21 @@ static void __Pyx__Locks_PyThreadTypeLock_Lock(__Pyx_Locks_PyThreadTypeLock lock
 // CythonLockType in a public way. However, they can use
 // CythonCompatibleLockType which will always be PyThread_type_lock.
 
+#ifndef __PYX_HAVE_PYX_PYMUTEX_DECL
+#define __PYX_HAVE_PYX_PYMUTEX_DECL
 #if PY_VERSION_HEX > 0x030d0000 && !CYTHON_COMPILING_IN_LIMITED_API
 #define __Pyx_Locks_PyMutex PyMutex
 #define __Pyx_Locks_PyMutex_DECL {0}
+#else
+#define __Pyx_Locks_PyMutex __Pyx_Locks_PyThreadTypeLock
+#define __Pyx_Locks_PyMutex_DECL __Pyx_Locks_PyThreadTypeLock_DECL
+#endif
+#endif
+
+////////////////// PyMutexUsage.proto ///////////////////////////
+//@requires: PyThreadTypeLockUsage
+
+#if PY_VERSION_HEX > 0x030d0000 && !CYTHON_COMPILING_IN_LIMITED_API
 #define __Pyx_Locks_PyMutex_Init(l) (void)(l)
 #define __Pyx_Locks_PyMutex_Delete(l) (void)(l)
 // Py_Mutex takes care of all GIL handling itself
@@ -106,8 +124,6 @@ static void __Pyx__Locks_PyThreadTypeLock_Lock(__Pyx_Locks_PyThreadTypeLock lock
 
 #else
 
-#define __Pyx_Locks_PyMutex __Pyx_Locks_PyThreadTypeLock
-#define __Pyx_Locks_PyMutex_DECL __Pyx_Locks_PyThreadTypeLock_DECL
 #define __Pyx_Locks_PyMutex_Init(l) __Pyx_Locks_PyThreadTypeLock_Init(l)
 #define __Pyx_Locks_PyMutex_Delete(l) __Pyx_Locks_PyThreadTypeLock_Delete(l)
 #define __Pyx_Locks_PyMutex_Lock(l) __Pyx_Locks_PyThreadTypeLock_Lock(l)

@@ -2963,6 +2963,7 @@ class CFuncDefNode(FuncDefNode):
             if preprocessor_guard:
                 code.globalstate.parts['module_declarations'].putln("#endif")
         code.putln("%s%s%s {" % (storage_class, modifiers, header))
+        code.globalstate.use_entry_utility_code(self.entry)
 
     def generate_argument_declarations(self, env, code):
         scope = self.local_scope
@@ -9176,7 +9177,7 @@ class CythonLockStatNode(TryFinallyStatNode):
         return super().analyse_expressions(env)
 
     def generate_execution_code(self, code):
-        code.globalstate.use_utility_code(self.arg.type.get_utility_code())
+        code.globalstate.use_utility_code(self.arg.type.get_usage_utility_code())
 
         code.mark_pos(self.pos)
         code.begin_block()
