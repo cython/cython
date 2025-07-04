@@ -2,14 +2,27 @@ PYTHON setup.py build_ext --inplace
 
 ################# setup.py ######################
 
+# The tests in this file are mainly about ensuring that the
+# correct utility code is included when needed.
+# Therefore, future additions should add new files rather than
+# new code in the existing files.
+
 from setuptools import setup
 from Cython.Build import cythonize
 
-setup(ext_modules = 
+ext_modules = (
     cythonize("m*.pyx") + 
     cythonize("i*.pyx") +
     cythonize("api*.pyx") +
     cythonize("ci*.pyx"))
+
+# Don't worry about ABI compatability if using the Limited API:
+# it's not what we're testing
+for ext_module in ext_modules:
+    ext_module.define_macros.append(
+        ('CYTHON_UNSAFE_IGNORE_PYMUTEX_ABI_COMPATIBILITY', 1))
+
+setup(ext_modules=ext_modules)
 
 ################## m1.pxd #######################
 

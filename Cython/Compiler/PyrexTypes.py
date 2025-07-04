@@ -5022,7 +5022,7 @@ class CythonLockType(PyrexType):
 
     def create_from_py_utility_code(self, env):
         return False
-    
+
     def __eq__(self, other):
         if type(other) != type(self):
             return False
