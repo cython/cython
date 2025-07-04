@@ -16,8 +16,8 @@ ext_modules = (
     cythonize("api*.pyx") +
     cythonize("ci*.pyx"))
 
-# Don't worry about ABI compatability if using the Limited API:
-# it's not what we're testing
+# Don't worry about ABI compatibility if using the Limited API:
+# it's not what we're testing.
 for ext_module in ext_modules:
     ext_module.define_macros.append(
         ('CYTHON_UNSAFE_IGNORE_PYMUTEX_ABI_COMPATIBILITY', 1))
