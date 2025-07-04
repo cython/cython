@@ -14,7 +14,7 @@ setup(ext_modules =
 ################## m1.pxd #######################
 
 cimport cython
-cdef public api cython.pymutex m
+cdef public api cython.pymutex my_public_mtx
 
 ################# m1.pyx ########################
 
@@ -84,16 +84,29 @@ cdef extern from "m3_api.h":
 ################# ci1.pyx #######################
 
 cimport m1
-print(<long long><void*>&m1.m)
+print(<long long><void*>&m1.my_public_mtx)
 
 ################# ci2.pyx #######################
 
 cimport m2
 print(<long long><void*>&m2.f)
 
-################# ci3.pyx #######################
+################# ci3a.pyx #######################
 
 cimport m3
 
 cdef class D(m3.C):
     pass
+
+################# ci3b.pxd #######################
+
+cimport m3
+
+cdef class D(m3.C):
+    pass
+
+################ ci3b.pyx #######################
+
+cdef class D:
+    pass
+
