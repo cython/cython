@@ -11,7 +11,7 @@
 #define __Pyx_Locks_PyThreadTypeLock_DECL NULL
 #endif
 
-////////////////////// PyThreadTypeLockUsage.proto //////////////////
+////////////////////// PyThreadTypeLock.proto //////////////////
 
 #define __Pyx_Locks_PyThreadTypeLock_Init(l) l = PyThread_allocate_lock()
 #define __Pyx_Locks_PyThreadTypeLock_Delete(l) PyThread_free_lock(l)
@@ -27,7 +27,8 @@ static CYTHON_INLINE void __Pyx_Locks_PyThreadTypeLock_LockGil(__Pyx_Locks_PyThr
     __Pyx__Locks_PyThreadTypeLock_LockGil(lock);
 }
 
-////////////////////// PyThreadTypeLockUsage ////////////////
+////////////////////// PyThreadTypeLock ////////////////
+//@requires: PyThreadTypeLockDecl
 
 static void __Pyx__Locks_PyThreadTypeLock_LockGil_slow_spin(__Pyx_Locks_PyThreadTypeLock lock) {
     while (1) {
@@ -110,8 +111,9 @@ static void __Pyx__Locks_PyThreadTypeLock_Lock(__Pyx_Locks_PyThreadTypeLock lock
 #endif
 #endif
 
-////////////////// PyMutexUsage.proto ///////////////////////////
-//@requires: PyThreadTypeLockUsage
+////////////////// PyMutex.proto ///////////////////////////
+//@requires: PyThreadTypeLock
+//@requires: PyMutexDecl
 
 #if PY_VERSION_HEX > 0x030d0000 && !CYTHON_COMPILING_IN_LIMITED_API
 #define __Pyx_Locks_PyMutex_Init(l) (void)(l)

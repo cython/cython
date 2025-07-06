@@ -4961,7 +4961,7 @@ class CythonLockType(PyrexType):
         return UtilityCode.load_cached(f"{self.cname_part}Decl", "Lock.c")
 
     def get_usage_utility_code(self):
-        return UtilityCode.load_cached(f"{self.cname_part}Usage", "Lock.c")
+        return UtilityCode.load_cached(self.cname_part, "Lock.c")
 
     def needs_explicit_construction(self, scope):
         # Where possible we use mutex types that don't require
