@@ -102,7 +102,9 @@ static void __Pyx__Locks_PyThreadTypeLock_Lock(__Pyx_Locks_PyThreadTypeLock lock
 
 #ifndef __PYX_HAVE_PYX_PYMUTEX_DECL
 #define __PYX_HAVE_PYX_PYMUTEX_DECL
-#if PY_VERSION_HEX > 0x030d0000 && !CYTHON_COMPILING_IN_LIMITED_API
+// Not CYTHON_COMPILING_IN_LIMITED_API because this code may be in
+// headers where that isn't available
+#if PY_VERSION_HEX > 0x030d0000 && !defined(Py_LIMITED_API)
 #define __Pyx_Locks_PyMutex PyMutex
 #define __Pyx_Locks_PyMutex_DECL {0}
 #else

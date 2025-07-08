@@ -1,4 +1,8 @@
 PYTHON setup.py build_ext --inplace
+PYTHON -c "import m1, m2, m3"
+PYTHON -c "import i1, i2, i3"
+PYTHON -c "import api1, api2, api3"
+PYTHON -c "import ci1, ci2, ci3a, ci3b"
 
 ################# setup.py ######################
 
