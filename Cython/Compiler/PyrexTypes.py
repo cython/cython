@@ -5024,8 +5024,8 @@ class CythonLockType(PyrexType):
         return False
 
     def __eq__(self, other):
-        if type(other) != type(self):
-            return False
+        if type(other) is not type(self):
+            return NotImplemented
         return other.cname_part == self.cname_part
 
     def __hash__(self):
