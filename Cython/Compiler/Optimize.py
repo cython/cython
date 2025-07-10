@@ -517,8 +517,14 @@ class IterationTransform(Visitor.EnvTransform):
 
         ret = loop_node
         # temps that are assigned once on entry to the loop
-        for let_ref_node in [unpack_temp_node, keep_going_ref, counter_ref] + (
-                [end_node] if not is_mutable else []):
+        for let_ref_node in [
+                end_node if not is_mutable else None,
+                counter_ref,
+                keep_going_ref,
+                unpack_temp_node,
+                ]:
+            if let_ref_node is None:
+                continue
             ret = UtilNodes.LetNode(let_ref_node, ret)
 
         ret = ret.analyse_expressions(env)
