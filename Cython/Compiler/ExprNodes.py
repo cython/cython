@@ -634,7 +634,7 @@ class ExprNode(Node):
             # If it's a refcounted variable, we hold a reference to it. Therefore, if
             # the reference count is 1, we trust that we're the unique owner.
             return False
-        if not hasattr(self, "entry") and self.entry is not None:
+        if not hasattr(self, "entry") or self.entry is None:
             return True  # Not sure if we can reason about it
         if (self.entry.scope.is_local_scope and
                 # TODO - in principle a generator closure should be "non shared" because
