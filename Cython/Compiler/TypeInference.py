@@ -251,6 +251,7 @@ class MarkParallelAssignments(EnvTransform):
         return node
 
     def visit_ExprNode(self, node):
+        self.visitchildren(node)
         if self.parallel_block_stack:
             node.in_parallel_block = True
         return node
