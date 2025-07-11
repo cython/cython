@@ -491,15 +491,13 @@ def optional_c_bool(a: Optional[c_bool]):
     """
     return a
 
-# Parsing / code-generation tests for now
-# XXX defining as @cython.ccall so doctests would work fails with function
-# redeclaration errors
+# Mostly code-generation tests
 class PyClass:
 
     def __repr__(self):
         return 'PyClass()'
 
-@cython.cfunc
+@cython.ccall
 def unknown_pyclass(a: PyClass) -> PyClass:
     """
     >>> unknown_pyclass(PyClass())
@@ -507,10 +505,10 @@ def unknown_pyclass(a: PyClass) -> PyClass:
     """
     return a
 
-@cython.cfunc
+@cython.ccall
 def none_as_type(a: None) -> None:
     """
-    >>> repr(unknown_pyclass(None))
+    >>> repr(none_as_type(None))
     'None'
     """
     return a
@@ -547,6 +545,9 @@ _WARNINGS = """
 222:0: 'struct_convert' redeclared
 241:0: 'exception_default' redeclared
 272:0: 'exception_default_uint' redeclared
-511:20: Unknown type declaration in annotation, ignoring
-511:29: Unknown type declaration in annotation, ignoring
+500:0: 'unknown_pyclass' redeclared
+508:0: 'none_as_type' redeclared
+509:20: Unknown type declaration in annotation, ignoring
+509:20: Unknown type declaration in annotation, ignoring
+509:29: Unknown type declaration in annotation, ignoring
 """
