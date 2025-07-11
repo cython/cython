@@ -593,7 +593,7 @@ static CYTHON_INLINE int __Pyx_SetItemInt_Fast(PyObject *o, Py_ssize_t i, PyObje
 #if CYTHON_ASSUME_SAFE_MACROS && CYTHON_ASSUME_SAFE_SIZE && !CYTHON_AVOID_BORROWED_REFS
     if (is_list || PyList_CheckExact(o)) {
         Py_ssize_t n = (!wraparound) ? i : ((likely(i >= 0)) ? i : i + PyList_GET_SIZE(o));
-        if ((CYTHON_AVOID_THREAD_UNSAFE_BORROWED_REFS && (unsafe_shared || Py_REFCNT(o) > 1))) {
+        if ((CYTHON_AVOID_THREAD_UNSAFE_BORROWED_REFS && (unsafe_shared || __Pyx_REFCNT_MAY_BE_SHARED(o)))) {
             Py_INCREF(v);
             return PyList_SetItem(o, n, v);
         } else if ((!boundscheck) || likely(__Pyx_is_valid_index(n, PyList_GET_SIZE(o)))) {
@@ -3074,7 +3074,7 @@ static PyObject *__Pyx_PyMethod_New2Arg(PyObject *func, PyObject *self) {
 static int
 __Pyx_unicode_modifiable(PyObject *unicode)
 {
-    if (Py_REFCNT(unicode) != 1)
+    if (__Pyx_REFCNT_MAY_BE_SHARED(unicode))
         return 0;
     if (!PyUnicode_CheckExact(unicode))
         return 0;

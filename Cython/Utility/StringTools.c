@@ -395,7 +395,7 @@ static CYTHON_INLINE int __Pyx_GetItemInt_ByteArray_Fast(PyObject* string, Py_ss
         // The aim isn't to make the character read-writes atomic (although practically they probably are).
         // For simplicity, skip the critical section if we don't have the GIL. It's the user's problem!
         __Pyx_PyCriticalSection cs;
-        int lock = CYTHON_COMPILING_IN_CPYTHON_FREETHREADING && has_gil && (unsafe_shared || Py_REFCNT(o) > 1);
+        int lock = CYTHON_COMPILING_IN_CPYTHON_FREETHREADING && has_gil && (unsafe_shared || __Pyx_REFCNT_MAY_BE_SHARED(string));
         if (lock) { __Pyx_PyCriticalSection_Begin1(&cs, string); }
         result = __Pyx_GetItemInt_ByteArray_Fast_Locked(string, i, wraparound, boundscheck, has_gil);
         if (lock) { __Pyx_PyCriticalSection_End1(&cs); }
@@ -460,7 +460,7 @@ static CYTHON_INLINE int __Pyx_SetItemInt_ByteArray_Fast(PyObject* string, Py_ss
         // The aim isn't to make the character read-writes atomic (although practically they probably are).
         // For simplicity, skip the critical section if we don't have the GIL. It's the user's problem!
         __Pyx_PyCriticalSection cs;
-        int lock = CYTHON_COMPILING_IN_CPYTHON_FREETHREADING && has_gil && (unsafe_shared || Py_REFCNT(o) > 1);
+        int lock = CYTHON_COMPILING_IN_CPYTHON_FREETHREADING && has_gil && (unsafe_shared || __Pyx_REFCNT_MAY_BE_SHARED(string));
         if (lock) { __Pyx_PyCriticalSection_Begin1(&cs, string); }
         result = __Pyx_SetItemInt_ByteArray_Fast_Locked(string, i, v, wraparound, boundscheck, has_gil);
         if (lock) { __Pyx_PyCriticalSection_End1(&cs); }
