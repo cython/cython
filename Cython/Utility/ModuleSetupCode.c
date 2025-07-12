@@ -1049,7 +1049,7 @@ static CYTHON_INLINE PyObject * __Pyx_PyDict_GetItemStrWithError(PyObject *dict,
 #endif
 
 #if CYTHON_COMPILING_IN_CPYTHON || CYTHON_COMPILING_IN_LIMITED_API
-#define __Pyx_REFCNT_MAY_BE_SHARED(o) Py_REFCNT(o) > 1
+#define __Pyx_REFCNT_MAY_BE_SHARED(o)  (Py_REFCNT(o) > 1)
 #else
 // On other platforms we don't trust the refcount so don't optimize based on it
 #define __Pyx_REFCNT_MAY_BE_SHARED(o) 1

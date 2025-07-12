@@ -22,7 +22,7 @@ cdef extern from *:
 
     #define do_nothing()
     """
-    int unsafe_shared_set
+    bint unsafe_shared_set
     void undef_getitemint_list_fast "#undef __Pyx_GetItemInt_List_Fast \n do_nothing" ()
     void define_new_getitemint_list_fast "#define __Pyx_GetItemInt_List_Fast(o, i, wraparound, boundscheck, unsafe_shared) Call_GetItemInt_List_Fast(o, i, wraparound, boundscheck, unsafe_shared) \n do_nothing" ()
 
@@ -40,7 +40,7 @@ def local_var():
     unsafe_shared_set = False
     cdef list l = [None]
     x = l[0]
-    return bool(unsafe_shared_set)
+    return unsafe_shared_set
 
 def closure1():
     """
@@ -54,7 +54,7 @@ def closure1():
     def function_that_captures_l():
         return l
     x = l[0]
-    return bool(unsafe_shared_set)
+    return unsafe_shared_set
 
 def closure2():
     """
@@ -68,7 +68,7 @@ def closure2():
     def function_that_captures_l():
         return l[0]
     x = function_that_captures_l()
-    return bool(unsafe_shared_set)
+    return unsafe_shared_set
 
 cdef class ListAttr:
     cdef list l
@@ -83,7 +83,7 @@ cdef class ListAttr:
         global unsafe_shared_set
         unsafe_shared_set = False
         x = self.l[0]
-        return bool(unsafe_shared_set)
+        return unsafe_shared_set
 
 
 def in_prange():
@@ -97,7 +97,7 @@ def in_prange():
     for i in prange(1, nogil=True):
         with gil:
             x = l[0]
-    return bool(unsafe_shared_set)
+    return unsafe_shared_set
 
 
 def dummy_func2():
