@@ -5,10 +5,10 @@
 
 # List indexing should be thread-safe (at least as far as not generating
 # reference counting errors).
-# It's actually suprisingly hard to make a test that reliably breaks and
+# It's actually surprisingly hard to make a test that reliably breaks and
 # so this is pretty tailored to CPython's implementation.
 # Essentially you want to catch it in "quick" deallocation (where objects
-# are created and destroyed by the same thread)
+# are created and destroyed by the same thread).
 
 cimport cython
 
