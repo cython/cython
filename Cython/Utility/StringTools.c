@@ -384,6 +384,7 @@ static CYTHON_INLINE int __Pyx_GetItemInt_ByteArray_Fast_Locked(PyObject* string
 
 static CYTHON_INLINE int __Pyx_GetItemInt_ByteArray_Fast(PyObject* string, Py_ssize_t i,
                                                          int wraparound, int boundscheck, int has_gil, int unsafe_shared) {
+    CYTHON_MAYBE_UNUSED_VAR(unsafe_shared);
 #if CYTHON_COMPILING_IN_CPYTHON_FREETHREADING
     // In freethreaded Python, wraparound is expensive because it involves acquiring a lock and maybe also the GIL.
     // Therefore we skip it if it isn't needed.
@@ -449,6 +450,7 @@ static CYTHON_INLINE int __Pyx_SetItemInt_ByteArray_Fast_Locked(PyObject* string
 
 static CYTHON_INLINE int __Pyx_SetItemInt_ByteArray_Fast(PyObject* string, Py_ssize_t i, unsigned char v,
                                                          int wraparound, int boundscheck, int has_gil, int unsafe_shared) {
+    CYTHON_MAYBE_UNUSED_VAR(unsafe_shared);
 #if CYTHON_COMPILING_IN_CPYTHON_FREETHREADING
     // In freethreaded Python, wraparound is expensive because it involves acquiring a lock and maybe also the GIL.
     // Therefore we skip it if it isn't needed.
