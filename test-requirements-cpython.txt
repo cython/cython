@@ -1,4 +1,4 @@
 ipython
 pytest  # needed by IPython/Jupyter integration tests
-line_profiler<4, >=4.1  # currently 4 appears to collect no profiling info
+line_profiler ~=4.0  # currently 4 appears to collect no profiling info
 setuptools<60
