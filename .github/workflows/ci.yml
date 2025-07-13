@@ -213,10 +213,10 @@ jobs:
 #            python-version: 3.13t
 #            backend: "cpp"
 #            allowed_failure: true
-          - os: macos-13
+          - os: macos-15
             python-version: 3.13t
             backend: "c"
-          - os: macos-13
+          - os: macos-15
             python-version: 3.13t
             backend: "cpp"
 
