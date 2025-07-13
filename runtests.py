@@ -351,8 +351,6 @@ def update_language_extension(language, std, min_gcc_version=None, min_clang_ver
                     use_clang = True
                     ext.extra_compile_args.append(f"-std={language}{std}")
             if sys.platform == "darwin":
-                if language == "c++":
-                    ext.extra_compile_args.append("-stdlib=libc++")
                 if min_macos_version is not None:
                     ext.extra_compile_args.append("-mmacosx-version-min=" + min_macos_version)
 
@@ -2899,13 +2897,6 @@ def runtests(options, cmd_args, coverage=None):
     if options.shard_num <= 0:
         sys.stderr.write("Backends: %s\n" % ','.join(backends))
     languages = backends
-
-    if 'CI' in os.environ and sys.platform == 'darwin' and 'cpp' in languages:
-        bugs_file_name = 'macos_cpp_bugs.txt'
-        exclude_selectors += [
-            FileListExcluder(os.path.join(ROOTDIR, bugs_file_name),
-                             verbose=verbose_excludes)
-        ]
 
     if options.use_common_utility_dir:
         common_utility_dir = os.path.join(WORKDIR, 'utility_code')
