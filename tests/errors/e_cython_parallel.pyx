@@ -1,4 +1,8 @@
 # mode: error
+# tag: werror
+
+# Explicitly generate warnings related to this. 
+# cython: freethreading_compatible=False
 
 cimport cython.parallel.parallel as p
 from cython.parallel cimport something
@@ -171,41 +175,54 @@ def bar():
         pass
 
 _ERRORS = u"""
-3:8: cython.parallel.parallel is not a module
-4:0: No such directive: cython.parallel.something
-6:7: cython.parallel.parallel is not a module
-7:0: No such directive: cython.parallel.something
-13:6: prange() can only be used as part of a for loop
-13:6: prange() can only be used without the GIL
-18:19: Invalid schedule argument to prange: invalid_schedule
-21:29: The parallel section may only be used without the GIL
-27:8: target may not be a Python object as we don't have the GIL
-30:9: Can only iterate over an iteration variable
-33:8: Must be of numeric type, not int *
-36:33: Nested parallel with blocks are disallowed
-39:12: The parallel directive must be called
-45:8: local variable 'y' referenced before assignment
-55:8: local variable 'y' referenced before assignment
-60:4: Reduction operator '*' is inconsistent with previous reduction operator '+'
-62:36: cython.parallel.parallel() does not take positional arguments
-65:36: Invalid keyword argument: invalid
-73:12: 'yield' not allowed in parallel sections
-77:16: 'yield' not allowed in parallel sections
-97:8: Cannot assign to private of outer parallel block
-98:8: Cannot assign to private of outer parallel block
-104:4: Reductions not allowed for parallel blocks
-110:6: local variable 'i' referenced before assignment
-119:14: Cannot read reduction variable in loop body
-121:19: prange() can only be used without the GIL
-121:20: stop argument must be numeric
-131:4: Memoryview slices can only be shared in parallel sections
-133:42: Must provide schedule with chunksize
-136:62: Chunksize must not be negative
-139:62: Chunksize not valid for the schedule runtime
-145:70: Calling gil-requiring function not allowed without gil
-149:33: Nested parallel with blocks are disallowed
-155:59: Calling gil-requiring function not allowed without gil
-158:57: Calling gil-requiring function not allowed without gil
-167:51: use_threads_if may not be a Python object as we don't have the GIL
-170:49: use_threads_if may not be a Python object as we don't have the GIL
+7:8: cython.parallel.parallel is not a module
+8:0: No such directive: cython.parallel.something
+10:7: cython.parallel.parallel is not a module
+11:0: No such directive: cython.parallel.something
+17:6: prange() can only be used as part of a for loop
+17:6: prange without releasing the GIL will only work well on freethreaded Python
+22:19: Invalid schedule argument to prange: invalid_schedule
+25:29: Parallel section without releasing the GIL will only work well on freethreaded Python
+31:8: target may not be a Python object as we don't have the GIL
+34:9: Can only iterate over an iteration variable
+37:8: Must be of numeric type, not int *
+40:33: Nested parallel with blocks are disallowed
+43:12: The parallel directive must be called
+49:8: local variable 'y' referenced before assignment
+59:8: local variable 'y' referenced before assignment
+64:4: Reduction operator '*' is inconsistent with previous reduction operator '+'
+66:36: cython.parallel.parallel() does not take positional arguments
+69:36: Invalid keyword argument: invalid
+77:12: 'yield' not allowed in parallel sections
+81:16: 'yield' not allowed in parallel sections
+101:8: Cannot assign to private of outer parallel block
+102:8: Cannot assign to private of outer parallel block
+108:4: Reductions not allowed for parallel blocks
+114:6: local variable 'i' referenced before assignment
+123:14: Cannot read reduction variable in loop body
+125:4: target may not be a Python object as we don't have the GIL
+125:19: prange without releasing the GIL will only work well on freethreaded Python
+125:20: stop argument must be numeric
+125:20: stop may not be a Python object as we don't have the GIL
+135:4: Memoryview slices can only be shared in parallel sections
+137:42: Must provide schedule with chunksize
+140:62: Chunksize must not be negative
+143:62: Chunksize not valid for the schedule runtime
+149:70: Calling gil-requiring function not allowed without gil
+153:33: Nested parallel with blocks are disallowed
+159:59: Calling gil-requiring function not allowed without gil
+162:57: Calling gil-requiring function not allowed without gil
+171:51: use_threads_if may not be a Python object as we don't have the GIL
+174:49: use_threads_if may not be a Python object as we don't have the GIL
+
+# Spurious warnings that we aren't really interest in
+26:4: 'cpdef_method' redeclared
+36:4: 'cpdef_cname_method' redeclared
+# From memoryview code
+961:29: Ambiguous exception value, same as default return value: 0
+961:29: Ambiguous exception value, same as default return value: 0
+1002:46: Ambiguous exception value, same as default return value: 0
+1002:46: Ambiguous exception value, same as default return value: 0
+1092:29: Ambiguous exception value, same as default return value: 0
+1092:29: Ambiguous exception value, same as default return value: 0
 """
