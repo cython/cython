@@ -14646,7 +14646,7 @@ class CoerceToPyTypeNode(CoercionNode):
         elif arg_type.is_string and self.type is not unicode_type:
             # "ptr[0] != '\0'"  instead of  "ptr != 0"
             # This is safe because we know that we're otherwise coercing to Python 'bytes',
-            # which does the euivalent much less efficiently (strlen -> bytes object -> len>0).
+            # which does the equivalent much less efficiently (strlen -> bytes object -> len>0).
             # Unicode strings are unsafe because they might fail to decode.
             arg = IndexNode(
                 self.arg.pos,
