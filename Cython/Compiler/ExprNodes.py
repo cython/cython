@@ -14648,13 +14648,13 @@ class CoerceToPyTypeNode(CoercionNode):
             # This is safe because we know that we're otherwise coercing to Python 'bytes',
             # which does the equivalent much less efficiently (strlen -> bytes object -> len>0).
             # Unicode strings are unsafe because they might fail to decode.
-            arg = IndexNode(
+            first_character = IndexNode(
                 self.arg.pos,
                 base=self.arg,
                 index=IntNode(self.arg.pos, value='0', constant_result=0, type=PyrexTypes.c_int_type),
                 type=arg_type.base_type,
             )
-            return CoerceToBooleanNode(arg, env)
+            return CoerceToBooleanNode(first_character, env)
         elif arg_type.is_int or arg_type.is_float or (arg_type.is_ptr and not arg_type.is_string):
             return CoerceToBooleanNode(self.arg, env)
         else:
