@@ -340,6 +340,7 @@ class ExprNode(Node):
     result_is_used = True
     is_numpy_attribute = False
     generator_arg_tag = None
+    in_parallel_block = False
 
     #  The Analyse Expressions phase for expressions is split
     #  into two sub-phases:
@@ -626,6 +627,25 @@ class ExprNode(Node):
         # for floats. However, it lets things like NULL and typecasts work.
         py_result = self.constant_result if self.has_constant_result() else c_result
         return PyrexTypes.CFuncType.ExceptionValue(py_result, c_result, self.type)
+
+    def may_be_unsafe_shared(self):
+        # for some function-local variables we can optimize their usage because we
+        # know that it's unique to this thread and can't be used from another thread.
+        if self.in_parallel_block:
+            return True
+        if self.is_temp:
+            # If it's a refcounted variable, we hold a reference to it. Therefore, if
+            # the reference count is 1, we trust that we're the unique owner.
+            return False
+        if not hasattr(self, "entry") or self.entry is None:
+            return True  # Not sure if we can reason about it
+        if (self.entry.scope.is_local_scope and
+                # TODO - in principle a generator closure should be "non shared" because
+                # only one thread can run the generator at once.
+                not self.entry.in_closure and not self.entry.from_closure):
+            return False
+        # Most likely a global, or a class attribute
+        return True
 
     # ------------- Declaration Analysis ----------------
 
@@ -3199,7 +3219,9 @@ class IteratorNode(ScopedExprNode):
         inc_dec = '--' if self.reversed else '++'
 
         if test_name == 'List':
-            code.putln(f"{result_name} = __Pyx_PyList_GetItemRef({self.py_result()}, {self.counter_cname});")
+            code.putln(
+                f"{result_name} = __Pyx_PyList_GetItemRefFast("
+                f"{self.py_result()}, {self.counter_cname}, {self.may_be_unsafe_shared():d});")
         else:  # Tuple
             code.putln("#if CYTHON_ASSUME_SAFE_MACROS && !CYTHON_AVOID_BORROWED_REFS")
             code.putln(f"{result_name} = __Pyx_NewRef(PyTuple_GET_ITEM({self.py_result()}, {self.counter_cname}));")
@@ -4629,6 +4651,7 @@ class IndexNode(_IndexingBaseNode):
                      and self.index.constant_result >= 0))
             boundscheck = bool(code.globalstate.directives['boundscheck'])
             has_gil = not self.in_nogil_context
+            unsafe_shared = self.base.may_be_unsafe_shared()
             if (self.base.type is bytearray_type and not has_gil and boundscheck
                     and code.globalstate.directives['freethreading_compatible']):
                 # In principle this applies to 'wraparound' too. The warning only applies to
@@ -4637,11 +4660,11 @@ class IndexNode(_IndexingBaseNode):
                     self.pos, "Indexing a bytearray with 'boundscheck' enabled and without the GIL "
                     "is not thread-safe on freethreaded Python "
                     "(disable 'boundscheck' to turn off this warning)", 1)
-            return ", %s, %d, %s, %d, %d, %d, %d" % (
+            return ", %s, %d, %s, %d, %d, %d, %d, %d" % (
                 self.original_index_type.empty_declaration_code(),
                 self.original_index_type.signed and 1 or 0,
                 self.original_index_type.to_py_function,
-                is_list, wraparound, boundscheck, has_gil)
+                is_list, wraparound, boundscheck, has_gil, unsafe_shared)
         else:
             return ""
 
@@ -8652,7 +8675,8 @@ class SequenceNode(ExprNode):
             code.putln("if (likely(Py%s_CheckExact(sequence))) {" % sequence_types[0])
         for i, item in enumerate(self.unpacked_items):
             if sequence_types[0] == "List":
-                code.putln(f"{item.result()} = __Pyx_PyList_GetItemRef(sequence, {i});")
+                code.putln(f"{item.result()} = __Pyx_PyList_GetItemRefFast"
+                           f"(sequence, {i}, {self.may_be_unsafe_shared():d});")
                 code.putln(code.error_goto_if_null(item.result(), self.pos))
                 code.put_xgotref(item.result(), item.ctype())
             else:  # Tuple
@@ -8662,7 +8686,7 @@ class SequenceNode(ExprNode):
             code.putln("} else {")
             for i, item in enumerate(self.unpacked_items):
                 if sequence_types[1] == "List":
-                    code.putln(f"{item.result()} = __Pyx_PyList_GetItemRef(sequence, {i});")
+                    code.putln(f"{item.result()} = __Pyx_PyList_GetItemRefFast(sequence, {i}, {self.may_be_unsafe_shared():d});")
                     code.putln(code.error_goto_if_null(item.result(), self.pos))
                     code.put_xgotref(item.result(), item.ctype())
                 else:  # Tuple
@@ -14519,6 +14543,9 @@ class NoneCheckNode(_TempModifierNode):
 
     def may_be_none(self):
         return False
+
+    def may_be_unsafe_shared(self):
+        return self.arg.may_be_unsafe_shared()
 
     def condition(self):
         if self.type.is_pyobject:
