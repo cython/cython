@@ -18,16 +18,42 @@ Features added
 * Type checks on PEP-604 union types (`int | None`) are optimised into separate checks.
   (Github issue :issue:`6935`)
 
+* Assignments to the PEP-604 union type `float | None` allow any suitable Python number as input
+  and convert it to a Python `float` automatically.
+  (Github issue :issue:`5750`)
+
 * Item type inference was improved for looping over literals.
   (Github issue :issue:`6912`)
 
 * Looping over literal sequences and strings now uses efficient C array looping if possible.
   (Github issue :issue:`6926`)
 
+* Releasing the GIL from an unknown lock state is more efficient.
+  (Github issue :issue:`6847`)
+
+* Several improvements were made in freethreaded Python code.
+  (Github issues :issue:`6936`, :issue:`6939`, :issue:`6949`, :issue:`6984`, :issue:`7011`)
+
+* Several improvements were made for the Limited API.
+  (Github issues :issue:`6959`, :issue:`6991`, :issue:``)
+
+* Some GIL-safe C-API wrappers were added to the libc/libcpp declarations.
+  (Github issue :issue:`6829`)
+
+* String and number constants use less storage space in the module.
+  (Github issues :issue:`6971`, :issue:`6978`, :issue:`6986`)
+
+* The managed dict/weakref support in CPython 3.12+ is used for internal types
+  to benefit from future CPython optimisations here.
+  (Github issue :issue:`6891`)
+
 * Using ``NaN`` as exception return value is supported.
   (Github issues :issue:`6900`, :issue:`6903`)
 
 * Declarations for C++ condition variables were added.
+  (Github issue :issue:`6836`)
+
+* Unicode 16.0.0 is used to parse identifiers.
   (Github issue :issue:`6836`)
 
 Bugs fixed
@@ -39,11 +65,30 @@ Bugs fixed
 * References to the Python ``bool`` type could generate invalid C code.
   (Github issue :issue:`6902`)
 
-* Pure mode type alias like ``p_int`` or ``ulong`` leaked into some C type contexts.
-  (Github issues :issue:`6922`, :issue:`6339`)
-
 * Vectorcalls could use needless temp assignments for ``self``.
   (Github issue :issue:`6909`)
+
+* Iterating over temporary memoryviews could crash Cython.
+  (Github issue :issue:`7005`)
+
+* Type casts on constants as part of numeric expressions could crash Cython.
+  (Github issue :issue:`6779`)
+
+* Pure mode type aliases like ``p_int`` or ``ulong`` leaked into some C type contexts,
+  risking to conflict with user declarations.
+  (Github issues :issue:`6922`, :issue:`6339`)
+
+* The return type of ``bytes.join()`` was sometimes referred as plain ``object``.
+  (Github issue :issue:`6987`)
+
+* Type inference could fail to understand ``prange()`` arguments.
+  (Github issue :issue:`6974`)
+
+* ``embedsignatures`` failed if ``lamda`` was used in function default arguments.
+  (Github issue :issue:`6880`)
+
+* An internal C function was not marked as ``static`` and leaked a linker symbol.
+  (Github issue :issue:`6957`)
 
 * Includes all fixes as of Cython 3.1.2.
 
