@@ -14643,6 +14643,17 @@ class CoerceToPyTypeNode(CoercionNode):
         if (arg_type == PyrexTypes.c_bint_type or
                 (arg_type.is_pyobject and arg_type.name == 'bool')):
             return self.arg.coerce_to_temp(env)
+        elif arg_type.is_string and self.type is not unicode_type:
+            # "ptr[0] != '\0'"  instead of  "ptr != 0"
+            # This is safe because we know that we're otherwise coercing to Python 'bytes',
+            # which does the euivalent much less efficiently (strlen -> bytes object -> len>0).
+            arg = IndexNode(
+                self.arg.pos,
+                base=self.arg,
+                index=IntNode(self.arg.pos, value='0', constant_result=0, type=PyrexTypes.c_int_type),
+                type=arg_type.base_type,
+            )
+            return CoerceToBooleanNode(arg, env)
         elif arg_type.is_int or arg_type.is_float or arg_type.is_ptr:
             return CoerceToBooleanNode(self.arg, env)
         else:
