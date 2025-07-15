@@ -13064,7 +13064,7 @@ class PowNode(NumBinopNode):
         from numbers import Real
         c_result_type = None
         op1_is_definitely_positive = (
-            self.operand1.has_constant_result()
+            isinstance(self.operand1.constant_result, Real)
             and self.operand1.constant_result >= 0
         ) or (
             type1.is_int and type1.signed == 0  # definitely unsigned
