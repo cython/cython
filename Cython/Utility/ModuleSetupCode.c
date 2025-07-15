@@ -1047,6 +1047,13 @@ static CYTHON_INLINE PyObject * __Pyx_PyDict_GetItemStrWithError(PyObject *dict,
   #define __Pyx_SET_SIZE(obj, size) Py_SIZE(obj) = (size)
 #endif
 
+#if CYTHON_COMPILING_IN_CPYTHON || CYTHON_COMPILING_IN_LIMITED_API
+#define __Pyx_REFCNT_MAY_BE_SHARED(o)  (Py_REFCNT(o) > 1)
+#else
+// On other platforms we don't trust the refcount so don't optimize based on it
+#define __Pyx_REFCNT_MAY_BE_SHARED(o) 1
+#endif
+
 #if CYTHON_AVOID_BORROWED_REFS || CYTHON_AVOID_THREAD_UNSAFE_BORROWED_REFS
   #if __PYX_LIMITED_VERSION_HEX >= 0x030d0000
     #define __Pyx_PyList_GetItemRef(o, i) PyList_GetItemRef(o, i)
@@ -1063,6 +1070,14 @@ static CYTHON_INLINE PyObject * __Pyx_PyDict_GetItemStrWithError(PyObject *dict,
   #endif
 #else
   #define __Pyx_PyList_GetItemRef(o, i) __Pyx_NewRef(PyList_GET_ITEM(o, i))
+#endif
+
+
+#if CYTHON_AVOID_THREAD_UNSAFE_BORROWED_REFS && !CYTHON_COMPILING_IN_LIMITED_API && CYTHON_ASSUME_SAFE_MACROS
+  #define __Pyx_PyList_GetItemRefFast(o, i, unsafe_shared) ((unsafe_shared || __Pyx_REFCNT_MAY_BE_SHARED(o)) ? \
+    __Pyx_PyList_GetItemRef(o, i) : __Pyx_NewRef(PyList_GET_ITEM(o, i)))
+#else
+  #define __Pyx_PyList_GetItemRefFast(o, i, unsafe_shared) __Pyx_PyList_GetItemRef(o, i)
 #endif
 
 #if __PYX_LIMITED_VERSION_HEX >= 0x030d0000
