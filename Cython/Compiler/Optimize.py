@@ -372,7 +372,8 @@ class IterationTransform(Visitor.EnvTransform):
         return self._optimise_for_loop(node, arg, reversed=True)
 
     def _transform_indexable_iteration(self, node, slice_node, is_mutable, reversed=False):
-        """In principle can handle any iterable that Cython has a len() for and knows how to index"""
+        """Iteration over iterables that Cython has a len() for and knows how to index.
+        """
         # Generates code that looks approximately like:
         #
         # done = False
@@ -389,24 +390,34 @@ class IterationTransform(Visitor.EnvTransform):
         #     ...
         #
         # with small adjustments for reverse iteration and non-mutable sequences.
+        temp_nodes = []
+
         unpack_temp_node = UtilNodes.LetRefNode(
             slice_node.as_none_safe_node("'NoneType' is not iterable"),
-            may_hold_none=False, is_temp=True
-            )
+            may_hold_none=False,
+            is_temp=True,
+        )
+        temp_nodes.append(unpack_temp_node)
 
         length_call_node = ExprNodes.SimpleCallNode(
             node.pos,
             function=ExprNodes.NameNode(
                 node.pos, name="len",
-                entry=Builtin.builtin_scope.lookup("len")),
-            args=[unpack_temp_node])
+                entry=Builtin.builtin_scope.lookup("len"),
+            ),
+            args=[unpack_temp_node],
+        )
+
         if is_mutable:
             end_node = length_call_node
         else:
             end_node = UtilNodes.LetRefNode(length_call_node, type=PyrexTypes.c_py_ssize_t_type)
+            temp_nodes.append(end_node)
+
         start_node = ExprNodes.IntNode(
             node.pos, value='0', constant_result=0, type=PyrexTypes.c_py_ssize_t_type)
         keep_going_ref = UtilNodes.LetRefNode(ExprNodes.BoolNode(node.pos, value=True))
+        temp_nodes.append(keep_going_ref)
 
         if reversed:
             relation1, relation2 = '>', '>='
@@ -415,18 +426,21 @@ class IterationTransform(Visitor.EnvTransform):
                 node.pos,
                 operator='-',
                 operand1=copy.copy(start_check_node),
-                operand2=ExprNodes.IntNode(node.pos, value="1", constant_result=1, type=PyrexTypes.c_py_ssize_t_type))
+                operand2=ExprNodes.IntNode(node.pos, value="1", constant_result=1, type=PyrexTypes.c_py_ssize_t_type),
+            )
         else:
             start_check_node = copy.copy(start_node)
             relation1, relation2 = '<=', '<'
 
         counter_ref = UtilNodes.LetRefNode(start_node, type=PyrexTypes.c_py_ssize_t_type)
+        temp_nodes.append(counter_ref)
 
         test_node = ExprNodes.PrimaryCmpNode(
             node.pos,
             operator=relation2,
             operand1=counter_ref,
-            operand2=end_node)
+            operand2=end_node,
+        )
         if is_mutable and reversed:
             test_node = ExprNodes.BoolBinopNode(
                 node.pos,
@@ -446,18 +460,18 @@ class IterationTransform(Visitor.EnvTransform):
                 Nodes.SingleAssignmentNode(
                     node.pos,
                     lhs=keep_going_ref,
-                    rhs=ExprNodes.BoolNode(node.pos, value=False)
+                    rhs=ExprNodes.BoolNode(node.pos, value=False),
                 ),
-                Nodes.ContinueStatNode(node.pos)
+                Nodes.ContinueStatNode(node.pos),
             ]
         )
 
-        target_value = ExprNodes.IndexNode(slice_node.pos, base=unpack_temp_node,
-                                           index=counter_ref)
+        target_value = ExprNodes.IndexNode(slice_node.pos, base=unpack_temp_node, index=counter_ref)
         target_assign = Nodes.SingleAssignmentNode(
             pos = node.target.pos,
             lhs = node.target,
-            rhs = target_value)
+            rhs = target_value,
+        )
 
         # analyse with boundscheck and wraparound
         # off (because we're confident we know the size)
@@ -475,10 +489,11 @@ class IterationTransform(Visitor.EnvTransform):
                 Nodes.IfClauseNode(
                     node.pos,
                     condition=test_node,
-                    body=target_assign
+                    body=target_assign,
                 ),
             ],
-            else_clause=failed_test_body)
+            else_clause=failed_test_body,
+        )
 
         if is_mutable:
             assert slice_node.type.is_pyobject, slice_node.type
@@ -487,7 +502,7 @@ class IterationTransform(Visitor.EnvTransform):
             length_check_and_target_assign = Nodes.CriticalSectionStatNode(
                 node.pos,
                 args=[unpack_temp_node],
-                body=length_check_and_target_assign
+                body=length_check_and_target_assign,
             )
             length_check_and_target_assign.analyse_declarations(env)  # sets up "finally_except_clause"
         body = Nodes.StatListNode(
@@ -503,7 +518,7 @@ class IterationTransform(Visitor.EnvTransform):
                         operator="-" if reversed else "+",
                         inplace=True,
                         operand1=counter_ref,
-                        operand2=ExprNodes.IntNode(node.pos, value="1", constant_result=1, type=PyrexTypes.c_py_ssize_t_type)
+                        operand2=ExprNodes.IntNode(node.pos, value="1", constant_result=1, type=PyrexTypes.c_py_ssize_t_type),
                     )
                 )
             ])
@@ -516,19 +531,12 @@ class IterationTransform(Visitor.EnvTransform):
         )
 
         ret = loop_node
-        # temps that are assigned once on entry to the loop
-        for let_ref_node in [
-                end_node if not is_mutable else None,
-                counter_ref,
-                keep_going_ref,
-                unpack_temp_node,
-                ]:
-            if let_ref_node is None:
-                continue
+        # Initialise the temps that are assigned once on entry to the loop.
+        for let_ref_node in temp_nodes[::-1]:
             ret = UtilNodes.LetNode(let_ref_node, ret)
 
         ret = ret.analyse_expressions(env)
-        # Reinsert loop body after analysing the rest.
+        # Reinsert the original loop body after analysing the rest.
         body.stats.insert(1, node.body)
         return ret
 
