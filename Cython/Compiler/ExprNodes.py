@@ -14643,6 +14643,8 @@ class CoerceToPyTypeNode(CoercionNode):
         if (arg_type == PyrexTypes.c_bint_type or
                 (arg_type.is_pyobject and arg_type.name == 'bool')):
             return self.arg.coerce_to_temp(env)
+        elif arg_type.is_int or arg_type.is_float or arg_type.is_ptr:
+            return CoerceToBooleanNode(self.arg, env)
         else:
             return CoerceToBooleanNode(self, env)
 
