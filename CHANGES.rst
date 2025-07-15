@@ -84,7 +84,7 @@ Bugs fixed
 * Type inference could fail to understand ``prange()`` arguments.
   (Github issue :issue:`6974`)
 
-* ``embedsignatures`` failed if ``lamda`` was used in function default arguments.
+* ``embedsignatures`` failed if ``lambda`` was used in function default arguments.
   (Github issue :issue:`6880`)
 
 * An internal C function was not marked as ``static`` and leaked a linker symbol.
