@@ -35,7 +35,7 @@ Features added
   (Github issues :issue:`6936`, :issue:`6939`, :issue:`6949`, :issue:`6984`, :issue:`7011`)
 
 * Several improvements were made for the Limited API.
-  (Github issues :issue:`6959`, :issue:`6991`, :issue:``)
+  (Github issues :issue:`6959`, :issue:`6991`)
 
 * Some GIL-safe C-API wrappers were added to the libc/libcpp declarations.
   (Github issue :issue:`6829`)
