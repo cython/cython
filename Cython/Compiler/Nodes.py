@@ -614,6 +614,8 @@ class CArrayDeclaratorNode(CDeclaratorNode):
             else:
                 base_type = base_type.specialize_here(self.pos, env, values)
             return self.base.analyse(base_type, env, nonempty=nonempty, visibility=visibility, in_pxd=in_pxd)
+
+        size = None
         if self.dimension:
             self.dimension = self.dimension.analyse_const_expression(env)
             if not self.dimension.type.is_int:
@@ -621,15 +623,14 @@ class CArrayDeclaratorNode(CDeclaratorNode):
             if self.dimension.type.is_const and self.dimension.entry.visibility != 'extern':
                 # extern const variables declaring C constants are allowed
                 error(self.dimension.pos, "Array dimension cannot be const variable")
-            size = self.dimension.get_constant_c_result_code()
-            if size is not None:
-                try:
-                    size = int(size)
-                except ValueError:
-                    # runtime constant?
-                    pass
-        else:
-            size = None
+            size = (self.dimension.constant_result if isinstance(self.dimension.constant_result, int)
+                    else self.dimension.get_constant_c_result_code())
+            try:
+                size = int(size)
+            except ValueError:
+                # runtime constant?
+                pass
+
         if not base_type.is_complete():
             error(self.pos, "Array element type '%s' is incomplete" % base_type)
         if base_type.is_pyobject:
