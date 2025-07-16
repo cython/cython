@@ -1791,6 +1791,9 @@ class ModuleScope(Scope):
             self.utility_code_list.append(entry.utility_code)
         if entry.utility_code_definition:
             self.utility_code_list.append(entry.utility_code_definition)
+        for tp in PyrexTypes.get_all_subtypes(entry.type):
+            if hasattr(tp, "entry") and tp.entry is not entry:
+                self.use_entry_utility_code(tp.entry)
 
     def declare_c_class(self, name, pos, defining=0, implementing=0,
             module_name=None, base_type=None, objstruct_cname=None,
