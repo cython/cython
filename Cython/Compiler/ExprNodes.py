@@ -214,26 +214,6 @@ def make_dedup_key(outer_type, item_nodes):
     return outer_type, tuple(item_keys)
 
 
-def build_charptr_nonempty_test(charptr_node):
-    """Build a node tree that tests a char* for non-emptyness, avoiding a Python string creation for
-    charptr != '', bool(charptr), etc.
-    """
-    assert charptr_node.type.is_string, charptr_node.type
-
-    return PrimaryCmpNode(
-        charptr_node.pos,
-        operand1=IndexNode(
-            charptr_node.pos,
-            base=charptr_node,
-            index=IntNode(charptr_node.pos, value='0', constant_result=0, type=PyrexTypes.c_int_type),
-            type=charptr_node.type.base_type,
-        ),
-        operator='==',
-        operand2=IntNode(charptr_node.pos, value='0', constant_result=0, type=PyrexTypes.c_int_type),
-        type=PyrexTypes.c_bint_type,
-    )
-
-
 # Returns a block of code to translate the exception,
 # plus a boolean indicating whether to check for Python exceptions.
 def get_exception_handler(exception_value):
