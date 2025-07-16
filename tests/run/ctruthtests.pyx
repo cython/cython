@@ -14,8 +14,8 @@ def test_ptr2():
     >>> test_ptr2()
     2
     """
-    cdef char* p1 = NULL
-    cdef char* p2 = NULL
+    cdef int* p1 = NULL
+    cdef int* p2 = NULL
     p1 += 1
 
     if p1 and p2:
