@@ -214,6 +214,26 @@ def make_dedup_key(outer_type, item_nodes):
     return outer_type, tuple(item_keys)
 
 
+def build_charptr_nonempty_test(charptr_node):
+    """Build a node tree that tests a char* for non-emptyness, avoiding a Python string creation for
+    charptr != '', bool(charptr), etc.
+    """
+    assert charptr_node.type.is_string, charptr_node.type
+
+    return PrimaryCmpNode(
+        charptr_node.pos,
+        operand1=IndexNode(
+            charptr_node.pos,
+            base=charptr_node,
+            index=IntNode(charptr_node.pos, value='0', constant_result=0, type=PyrexTypes.c_int_type),
+            type=charptr_node.type.base_type,
+        ),
+        operator='==',
+        operand2=IntNode(charptr_node.pos, value='0', constant_result=0, type=PyrexTypes.c_int_type),
+        type=PyrexTypes.c_bint_type,
+    )
+
+
 # Returns a block of code to translate the exception,
 # plus a boolean indicating whether to check for Python exceptions.
 def get_exception_handler(exception_value):
@@ -14643,11 +14663,12 @@ class CoerceToPyTypeNode(CoercionNode):
         if (arg_type == PyrexTypes.c_bint_type or
                 (arg_type.is_pyobject and arg_type.name == 'bool')):
             return self.arg.coerce_to_temp(env)
-        elif arg_type.is_string and self.type is not unicode_type:
-            # "ptr[0] != '\0'"  instead of  "ptr != 0"
-            # This is safe because we know that we're otherwise coercing to Python 'bytes',
-            # which does the equivalent much less efficiently (strlen -> bytes object -> len>0).
-            # Unicode strings are unsafe because they might fail to decode.
+        elif arg_type.is_string:
+            # Test for 0-length string with "ptr[0] != '\0'" instead of  "ptr != 0".
+            # This is safe because we know that we're otherwise coercing to Python 'bytes' / 'str',
+            # which does the equivalent much less efficiently (strlen -> string object -> len>0).
+            # Unicode strings might fail to decode (so it's not entirely equivalent), but the code
+            # really asks if the C string pointer is non-empty, not the decoded string.
             first_character = IndexNode(
                 self.arg.pos,
                 base=self.arg,

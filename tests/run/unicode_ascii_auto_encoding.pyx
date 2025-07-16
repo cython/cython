@@ -28,6 +28,26 @@ def as_objects(char* ascii_data):
     return ascii_data
 
 
+def as_bool(char *ascii_data):
+    """
+    >>> as_bool('abc')
+    (True, True, True, True, True, True)
+    >>> as_bool('')
+    (True, False, False, False, False, False)
+    """
+    a = False
+    if ascii_data:  # Tests the pointer, not the string.
+        a = True
+
+    b = bool(ascii_data)
+    c = bool(<object> ascii_data)
+    d = bool(<bytes> ascii_data)
+    e = bool(<str> ascii_data)
+    f = bool(<unicode> ascii_data)
+
+    return (a, b, c, d, e, f)
+
+
 def from_object():
     """
     >>> from_object()
