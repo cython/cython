@@ -493,6 +493,27 @@ def optional_c_bool(a: Optional[c_bool]):
     """
     return a
 
+# Mostly code-generation tests
+class PyClass:
+
+    def __repr__(self):
+        return 'PyClass()'
+
+@cython.ccall
+def unknown_pyclass(a: PyClass) -> PyClass:
+    """
+    >>> unknown_pyclass(PyClass())
+    PyClass()
+    """
+    return a
+
+@cython.ccall
+def none_as_type(a: None) -> None:
+    """
+    >>> repr(none_as_type(None))
+    'None'
+    """
+    return a
 
 _WARNINGS = """
 15:32: Strings should no longer be used for type declarations. Use 'cython.int' etc. directly.
@@ -527,4 +548,9 @@ _WARNINGS = """
 222:0: 'struct_convert' redeclared
 241:0: 'exception_default' redeclared
 272:0: 'exception_default_uint' redeclared
+500:0: 'unknown_pyclass' redeclared
+508:0: 'none_as_type' redeclared
+509:20: Unknown type declaration in annotation, ignoring
+509:20: Unknown type declaration in annotation, ignoring
+509:29: Unknown type declaration in annotation, ignoring
 """
