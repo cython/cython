@@ -33,10 +33,10 @@ def as_bool(char *ascii_data):
     >>> as_bool('abc')
     (True, True, True, True, True, True)
     >>> as_bool('')
-    (False, False, False, False, False, False)
+    (True, False, False, False, False, False)
     """
     a = False
-    if ascii_data:
+    if ascii_data:  # Tests the pointer, not the string.
         a = True
 
     b = bool(ascii_data)

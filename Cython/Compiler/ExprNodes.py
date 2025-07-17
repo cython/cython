@@ -14646,7 +14646,20 @@ class CoerceToPyTypeNode(CoercionNode):
         if (arg_type == PyrexTypes.c_bint_type or
                 (arg_type.is_pyobject and arg_type.name == 'bool')):
             return self.arg.coerce_to_temp(env)
-        elif arg_type.is_int or arg_type.is_float or arg_type.is_ptr:
+        elif arg_type.is_string:
+            # Test for 0-length string with "ptr[0] != '\0'" instead of  "ptr != 0".
+            # This is safe because we know that we're otherwise coercing to Python 'bytes' / 'str',
+            # which does the equivalent much less efficiently (strlen -> string object -> len>0).
+            # Unicode strings might fail to decode (so it's not entirely equivalent), but the code
+            # really asks if the C string pointer is non-empty, not the decoded string.
+            first_character = IndexNode(
+                self.arg.pos,
+                base=self.arg,
+                index=IntNode(self.arg.pos, value='0', constant_result=0, type=PyrexTypes.c_int_type),
+                type=arg_type.base_type,
+            )
+            return CoerceToBooleanNode(first_character, env)
+        elif arg_type.is_int or arg_type.is_float or (arg_type.is_ptr and not arg_type.is_string):
             return CoerceToBooleanNode(self.arg, env)
         else:
             return CoerceToBooleanNode(self, env)
@@ -14798,16 +14811,7 @@ class CoerceToBooleanNode(CoercionNode):
         return self.arg.check_const()
 
     def calculate_result_code(self):
-        arg = self.arg.result()
-        if self.arg.type.is_string:
-            # Test for 0-length string with "ptr[0] != '\0'" instead of just "ptr != 0".
-            # If we'd coerce the pointer to a Python 'bytes' / 'str', we'd do the equivalent
-            # but much less efficiently (strlen -> string object -> len>0).
-            # Unicode strings might fail to decode (so it's not entirely equivalent), but the code
-            # really asks if the C string pointer is non-empty, not the decoded string.
-            return f"({arg} != 0 && ({arg})[0] != 0)"
-        else:
-            return f"({arg} != 0)"
+        return "(%s != 0)" % self.arg.result()
 
     def generate_result_code(self, code):
         if not self.is_temp:
