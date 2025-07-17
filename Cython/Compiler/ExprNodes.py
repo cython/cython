@@ -14643,22 +14643,15 @@ class CoerceToPyTypeNode(CoercionNode):
 
     def coerce_to_boolean(self, env):
         arg_type = self.arg.type
-        if (arg_type == PyrexTypes.c_bint_type or
-                (arg_type.is_pyobject and arg_type.name == 'bool')):
+        if arg_type is PyrexTypes.c_bint_type or arg_type is Builtin.bool_type:
             return self.arg.coerce_to_temp(env)
         elif arg_type.is_string:
-            # Test for 0-length string with "ptr[0] != '\0'" instead of  "ptr != 0".
+            # Test for 0-length string with "ptr[0] != '\0'" instead of just "ptr != 0".
             # This is safe because we know that we're otherwise coercing to Python 'bytes' / 'str',
             # which does the equivalent much less efficiently (strlen -> string object -> len>0).
             # Unicode strings might have failed to decode at runtime (so it's not entirely equivalent),
             # but the code really asks if the C string pointer is non-empty, not the decoded string.
-            first_character = IndexNode(
-                self.arg.pos,
-                base=self.arg,
-                index=IntNode.for_int(self.arg.pos, 0),
-                type=arg_type.base_type,
-            )
-            return CoerceToBooleanNode(first_character, env)
+            return CoerceCStringToBooleanNode(self.arg, env)
         elif arg_type.is_int or arg_type.is_float or arg_type.is_ptr:
             return CoerceToBooleanNode(self.arg, env)
         else:
@@ -14832,6 +14825,23 @@ class CoerceToBooleanNode(CoercionNode):
 
     def analyse_types(self, env):
         return self
+
+
+class CoerceCStringToBooleanNode(CoerceToBooleanNode):
+    """Special 'CoerceToBooleanNode' for C string arguments which checks the pointer
+    and additionally that the C string is non-empty.
+    """
+    def __init__(self, arg, env):
+        assert arg.type.is_string, arg.type
+        arg = arg.coerce_to_simple(env)
+        super().__init__(arg, env)
+
+    def calculate_result_code(self):
+        arg = self.arg.result()
+        if self.arg.type.is_array:
+            return f"(({arg})[0] != 0)"
+        else:
+            return f"({arg} != 0 && ({arg})[0] != 0)"
 
 
 class CoerceToComplexNode(CoercionNode):
