@@ -28,11 +28,11 @@ def as_objects(char* ascii_data):
     return ascii_data
 
 
-def as_bool(char *ascii_data):
+def charptr_as_bool(char *ascii_data):
     """
-    >>> as_bool('abc')
+    >>> charptr_as_bool('abc')
     (True, True, True, True, True, True)
-    >>> as_bool('')
+    >>> charptr_as_bool('')
     (True, False, False, False, False, False)
     """
     a = False
