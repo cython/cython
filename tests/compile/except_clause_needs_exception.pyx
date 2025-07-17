@@ -1,10 +1,12 @@
 # mode: compile
-# tag: cpp, no-cpp-locals
+# tag: cpp, cpp17, no-cpp-locals
 
 # This test tests a small optimization for except clauses where they can
 # potentially omit some exception handling code if sufficiently simple.
 # The optimization is performed explicitly because it's completely
 # unobservable. Therefore, it's hard to test behaviourally.
+#
+# Restrict to c++17 just because to use cpp_locals in the test.
 
 cimport cython
 
