@@ -8389,8 +8389,8 @@ class ExceptClauseNode(Node):
 
     def body_may_need_exception(self):
         from .ParseTreeTransforms import HasNoExceptionHandlingVisitor
-        visitor = HasNoExceptionHandlingVisitor()
-        return not visitor(self.body)
+        tree_has_no_exceptions = HasNoExceptionHandlingVisitor()
+        return not tree_has_no_exceptions(self.body)
 
     def generate_handling_code(self, code, end_label):
         code.mark_pos(self.pos)

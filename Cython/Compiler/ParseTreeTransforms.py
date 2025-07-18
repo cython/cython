@@ -4539,7 +4539,7 @@ class HasNoExceptionHandlingVisitor(TreeVisitor):
         if not node.is_literal:
             self.result = False
 
-    def visit_SimpleCallNode(self, node):
+    def visit_CallNode(self, node):
         # Implement this to make the behaviour as explicit as possible.
         # Even noexcept functions might end up printing a traceback.
         self.result = False
