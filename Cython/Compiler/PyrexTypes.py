@@ -2713,6 +2713,8 @@ class CPointerBaseType(CType):
     # common base type for pointer/array types
     #
     #  base_type     CType              Reference type
+    #  is_string         bool           Pointer is a char* or similar C string.
+    #  is_pyunicode_ptr  bool           Pointer is a Py_UNICODE*.
 
     subtypes = ['base_type']
 
