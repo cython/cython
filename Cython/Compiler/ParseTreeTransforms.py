@@ -4522,7 +4522,7 @@ class HasNoExceptionHandlingVisitor(TreeVisitor):
         self.assignment_lhs = None
         super().__init__()
 
-    def __call__(self, node):
+    def __call__(self, node) -> bool:
         self.visit(node)
         return self.result
 
@@ -4604,3 +4604,6 @@ class HasNoExceptionHandlingVisitor(TreeVisitor):
             self.result = False
         if self.result:
             self.visitchildren(node)
+
+    def visit_CoerceToTempNode(self, node):
+        self.visitchildren(node)

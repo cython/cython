@@ -123,7 +123,7 @@ def test_attr_assignment(CClass arg):
     cdef int[:] unassigned_mview
     with cython.test_body_needs_exception_handling(False):
         arg.x = 5
-        # something = arg.x  # This currently fails because of a "CoerceToTemp". Ideally it'd pass.
+        something = arg.x
     o = object()
     with cython.test_body_needs_exception_handling(True):
         arg.y = o  # maybe destructor
