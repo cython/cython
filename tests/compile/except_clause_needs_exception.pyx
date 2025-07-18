@@ -71,12 +71,15 @@ def call_noexcept_func():
 def test_assignment(arg):
     global py_global, c_global
 
+    cdef str typed_as_string = "hello"
+
     some_value = 5
     with cython.test_body_needs_exception_handling(False):
         a = 2
         b = None
         c = some_value
         d = arg
+        typed_as_string = "goodbye"  # string destructor is safe
 
     if arg:
         some_other_value = object()

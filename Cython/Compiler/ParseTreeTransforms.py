@@ -4518,16 +4518,16 @@ class HasNoExceptionHandlingVisitor(TreeVisitor):
     2. May try to access the traceback.
     """
     def __init__(self):
-        self.result = True
+        self.uses_no_exceptions = True
         self.assignment_lhs = None
         super().__init__()
 
     def __call__(self, node) -> bool:
         self.visit(node)
-        return self.result
+        return self.uses_no_exceptions
 
     def visit_Node(self, node):
-        self.result = False  # In general, nodes use exceptions
+        self.uses_no_exceptions = False  # In general, nodes use exceptions
 
     def visit_ExprStatNode(self, node):
         self.visitchildren(node)
@@ -4537,29 +4537,35 @@ class HasNoExceptionHandlingVisitor(TreeVisitor):
 
     def visit_ExprNode(self, node):
         if not node.is_literal:
-            self.result = False
+            self.uses_no_exceptions = False
 
     def visit_CallNode(self, node):
         # Implement this to make the behaviour as explicit as possible.
         # Even noexcept functions might end up printing a traceback.
-        self.result = False
+        self.uses_no_exceptions = False
 
     def visit_PassStatNode(self, node):
         pass  # Does nothing.  Good.
 
     def visit_ReturnStatNode(self, node):
-        if not self.result:
+        if not self.uses_no_exceptions:
             return  # shortcut
         self.visitchildren(node)
 
     def visit_SingleAssignmentNode(self, node):
-        if not self.result:
+        if not self.uses_no_exceptions:
             return  # shortcut
         node_lhs = self.assignment_lhs = node.lhs
         if ((not node_lhs.is_name or not node_lhs.cf_is_null) and
                 (node_lhs.type.needs_refcounting or node_lhs.type.is_cpp_class)):
-            # May trigger Non-trivial destructor - potentially dubious
-            self.result = False
+            # There's a small (maybe non-exhaustive) list of builtin types that we can be confident
+            # don't do anything interesting on destruction.
+            if not (node_lhs.type in [Builtin.bytes_type, Builtin.unicode_type, Builtin.bytearray_type,
+                                      Builtin.range_type,
+                                      Builtin.bool_type, Builtin.float_type,
+                                      Builtin.int_type, Builtin.complex_type]):
+                # May trigger non-trivial destructor - potentially dubious
+                self.uses_no_exceptions = False
             return
         self.visit(node_lhs)
         self.assignment_lhs = None
@@ -4567,42 +4573,44 @@ class HasNoExceptionHandlingVisitor(TreeVisitor):
         if not (rhs_type.is_numeric or rhs_type.is_pyobject or rhs_type.is_memoryviewslice):
             # Treat everything we haven't explicitly thought about as potentially dubious.
             # cpp classes may non-trivial assignment operators for example.
-            self.result = False
-        if not self.result:
+            self.uses_no_exceptions = False
+        if not self.uses_no_exceptions:
             return
         self.visitchildren(node, exclude=["lhs"])
 
     def visit_NameNode(self, node):
-        if not self.result:
+        if not self.uses_no_exceptions:
             return  # shortcut
         entry = node.entry
         if self.assignment_lhs == node:
             if not (entry.is_cglobal or entry.is_arg or
                     entry.is_local or entry.in_closure or entry.from_closure):
-                self.result = False
+                self.uses_no_exceptions = False
                 return
         else:
             if entry.is_cglobal:
                 if entry.is_cpp_optional and node.initialized_check:
                     # Otherwise, C globals should be safe.
-                    self.result = False
+                    self.uses_no_exceptions = False
                     return
             elif entry.is_arg or entry.is_local or entry.in_closure or entry.from_closure:
                 if (node.cf_is_null or node.cf_maybe_null) and not node.type.is_numeric:
                     # The logic here is slightly simpler than for NameNode error checking.
                     # This gives a few false negatives (which is always the safe thing to do)
                     # for memoryviews and cpp_optionals
-                    self.result = False
+                    self.uses_no_exceptions = False
                     return
             else:
                 # Probably a py_global.
-                self.result = False
+                self.uses_no_exceptions = False
                 return
 
     def visit_AttributeNode(self, node):
         if node.is_py_attr or node.entry.is_cpp_optional or node.type.is_memoryviewslice:
-            self.result = False
-        if self.result:
+            self.uses_no_exceptions = False
+        if not (node.type.is_pyobject or node.type.is_numeric):
+            self.uses_no_exceptions = False
+        if self.uses_no_exceptions:
             self.visitchildren(node)
 
     def visit_CoerceToTempNode(self, node):
