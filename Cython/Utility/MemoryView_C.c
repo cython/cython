@@ -59,6 +59,7 @@ typedef struct {
     #define __pyx_atomic_sub(value, arg) atomic_fetch_sub(value, arg)
     #define __pyx_atomic_int_cmp_exchange(value, expected, desired) atomic_compare_exchange_strong(value, expected, desired)
     #define __pyx_atomic_load(value) atomic_load(value)
+    #define __pyx_atomic_store(value, new_value) atomic_store(value, new_value)
     #define __pyx_atomic_pointer_load_relaxed(value) atomic_load_explicit(value, memory_order_relaxed)
     #define __pyx_atomic_pointer_load_acquire(value) atomic_load_explicit(value, memory_order_acquire)
     #define __pyx_atomic_pointer_exchange(value, new_value) atomic_exchange(value, (__pyx_nonatomic_ptr_type)new_value)
@@ -83,6 +84,7 @@ typedef struct {
     #define __pyx_atomic_sub(value, arg) std::atomic_fetch_sub(value, arg)
     #define __pyx_atomic_int_cmp_exchange(value, expected, desired) std::atomic_compare_exchange_strong(value, expected, desired)
     #define __pyx_atomic_load(value) std::atomic_load(value)
+    #define __pyx_atomic_store(value, new_value) std::atomic_store(value, new_value)
     #define __pyx_atomic_pointer_load_relaxed(value) std::atomic_load_explicit(value, std::memory_order_relaxed)
     #define __pyx_atomic_pointer_load_acquire(value) std::atomic_load_explicit(value, std::memory_order_acquire)
     #define __pyx_atomic_pointer_exchange(value, new_value) std::atomic_exchange(value, (__pyx_nonatomic_ptr_type)new_value)
@@ -109,6 +111,7 @@ typedef struct {
     }
     // the legacy gcc sync builtins don't seem to have plain "load" or "store".
     #define __pyx_atomic_load(value) __sync_fetch_and_add(value, 0)
+    #define __pyx_atomic_store(value, new_value) __sync_lock_test_and_set(value, new_value)
     #define __pyx_atomic_pointer_load_relaxed(value) __sync_fetch_and_add(value, 0)
     #define __pyx_atomic_pointer_load_acquire(value) __sync_fetch_and_add(value, 0)
     #define __pyx_atomic_pointer_exchange(value, new_value) __sync_lock_test_and_set(value, (__pyx_atomic_ptr_type)new_value)
@@ -124,7 +127,7 @@ typedef struct {
     #define __pyx_atomic_ptr_type void*
     #undef __pyx_nonatomic_int_type
     #define __pyx_nonatomic_int_type long
-    #pragma intrinsic (_InterlockedExchangeAdd, _InterlockedCompareExchange, _InterlockedCompareExchangePointer, _InterlockedExchangePointer)
+    #pragma intrinsic (_InterlockedExchangeAdd, _InterlockedExchange, _InterlockedCompareExchange, _InterlockedCompareExchangePointer, _InterlockedExchangePointer)
     #define __pyx_atomic_incr_relaxed(value) _InterlockedExchangeAdd(value, 1)
     #define __pyx_atomic_incr_acq_rel(value) _InterlockedExchangeAdd(value, 1)
     #define __pyx_atomic_decr_acq_rel(value) _InterlockedExchangeAdd(value, -1)
@@ -136,6 +139,7 @@ typedef struct {
         return result;
     }
     #define __pyx_atomic_load(value) _InterlockedExchangeAdd(value, 0)
+    #define __pyx_atomic_store(value, new_value) _InterlockedExchange(value, new_value)
     // Microsoft says that simple reads are guaranteed to be atomic.
     // https://learn.microsoft.com/en-gb/windows/win32/sync/interlocked-variable-access?redirectedfrom=MSDN
     // The volatile cast is what CPython does.

@@ -285,8 +285,25 @@ def test_insert():
 
 
 #  Tests GitHub issue #1788.
+# https://github.com/cython/cython/issues/1788
+
 cdef cppclass MyVector[T](vector):
     pass
 
 cdef cppclass Ints(MyVector[int]):
     pass
+
+
+# Tests Github issue #6864
+# https://github.com/cython/cython/issues/6864
+
+ctypedef (int, int)  int_ctuple2
+
+def test_ctuple_items():
+    """
+    >>> test_ctuple_items()
+    [(1, 2), (3, 4), (5, 6)]
+    """
+    cdef vector[int_ctuple2] v = [(1, 2), (3, 4)]
+    v.push_back((5, 6))  # takes const argument
+    return v

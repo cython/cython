@@ -202,10 +202,6 @@
 
   #define CYTHON_COMPILING_IN_CPYTHON_FREETHREADING 0
 
-  // CYTHON_CLINE_IN_TRACEBACK is currently disabled for the Limited API
-  #undef CYTHON_CLINE_IN_TRACEBACK
-  #define CYTHON_CLINE_IN_TRACEBACK 0
-
   #undef CYTHON_USE_TYPE_SLOTS
   #define CYTHON_USE_TYPE_SLOTS 0
   #undef CYTHON_USE_TYPE_SPECS
@@ -245,7 +241,7 @@
     #define CYTHON_PEP487_INIT_SUBCLASS 1
   #endif
   #ifndef CYTHON_PEP489_MULTI_PHASE_INIT
-    #define CYTHON_PEP489_MULTI_PHASE_INIT 0
+    #define CYTHON_PEP489_MULTI_PHASE_INIT 1
   #endif
   #ifndef CYTHON_USE_MODULE_STATE
     #define CYTHON_USE_MODULE_STATE 0
@@ -395,6 +391,10 @@
   #endif
 #endif
 
+#ifndef CYTHON_COMPRESS_STRINGS
+  #define CYTHON_COMPRESS_STRINGS 1
+#endif
+
 #ifndef CYTHON_FAST_PYCCALL
 #define CYTHON_FAST_PYCCALL  CYTHON_FAST_PYCALL
 #endif
@@ -486,7 +486,7 @@
 #endif
 
 #ifndef CYTHON_NCP_UNUSED
-# if CYTHON_COMPILING_IN_CPYTHON
+# if CYTHON_COMPILING_IN_CPYTHON && !CYTHON_COMPILING_IN_CPYTHON_FREETHREADING
 #  define CYTHON_NCP_UNUSED
 # else
 #  define CYTHON_NCP_UNUSED CYTHON_UNUSED
@@ -505,36 +505,8 @@
 
 #define __Pyx_void_to_None(void_result) ((void)(void_result), Py_INCREF(Py_None), Py_None)
 
-#ifdef _MSC_VER
-    #ifndef _MSC_STDINT_H_
-        #if _MSC_VER < 1300
-            typedef unsigned char     uint8_t;
-            typedef unsigned short    uint16_t;
-            typedef unsigned int      uint32_t;
-        #else
-            typedef unsigned __int8   uint8_t;
-            typedef unsigned __int16  uint16_t;
-            typedef unsigned __int32  uint32_t;
-        #endif
-    #endif
-    #if _MSC_VER < 1300
-        #ifdef _WIN64
-            typedef unsigned long long  __pyx_uintptr_t;
-        #else
-            typedef unsigned int        __pyx_uintptr_t;
-        #endif
-    #else
-        #ifdef _WIN64
-            typedef unsigned __int64    __pyx_uintptr_t;
-        #else
-            typedef unsigned __int32    __pyx_uintptr_t;
-        #endif
-    #endif
-#else
-    #include <stdint.h>
-    typedef uintptr_t  __pyx_uintptr_t;
-#endif
-
+#include <stdint.h>
+typedef uintptr_t  __pyx_uintptr_t;
 
 #ifndef CYTHON_FALLTHROUGH
   #if defined(__cplusplus)
@@ -630,6 +602,7 @@
 #endif
 
 // Work around clang bug https://stackoverflow.com/questions/21847816/c-invoke-nested-template-class-destructor
+// (even without the clang bug, the need not to know the typename is generally a benefit)
 template<typename T>
 void __Pyx_call_destructor(T& x) {
     x.~T();
@@ -668,29 +641,37 @@ class __Pyx_FakeReference {
 
 #if CYTHON_COMPILING_IN_LIMITED_API
     // Cython uses these constants but they are not available in the limited API.
-    // (it'd be nice if there was a more robust way of looking these up)
+    // Therefore define them as static variables and look them up at module init.
     #ifndef CO_OPTIMIZED
-    #define CO_OPTIMIZED 0x0001
+    static int CO_OPTIMIZED;
     #endif
     #ifndef CO_NEWLOCALS
-    #define CO_NEWLOCALS 0x0002
+    static int CO_NEWLOCALS;
     #endif
     #ifndef CO_VARARGS
-    #define CO_VARARGS 0x0004
+    static int CO_VARARGS;
     #endif
     #ifndef CO_VARKEYWORDS
-    #define CO_VARKEYWORDS 0x0008
+    static int CO_VARKEYWORDS;
     #endif
     #ifndef CO_ASYNC_GENERATOR
-    #define CO_ASYNC_GENERATOR 0x0200
+    static int CO_ASYNC_GENERATOR;
     #endif
     #ifndef CO_GENERATOR
-    #define CO_GENERATOR 0x0020
+    static int CO_GENERATOR;
     #endif
     #ifndef CO_COROUTINE
-    #define CO_COROUTINE 0x0080
+    static int CO_COROUTINE;
+    #endif
+#else
+    #ifndef CO_COROUTINE
+      #define CO_COROUTINE 0x80
+    #endif
+    #ifndef CO_ASYNC_GENERATOR
+      #define CO_ASYNC_GENERATOR 0x200
     #endif
 #endif
+static int __Pyx_init_co_variables(void); /* proto */
 
 #if PY_VERSION_HEX >= 0x030900A4 || defined(Py_IS_TYPE)
   #define __Pyx_IS_TYPE(ob, type) Py_IS_TYPE(ob, type)
@@ -724,13 +705,6 @@ class __Pyx_FakeReference {
   #define __Pyx_PyObject_GC_IsFinalized(o) PyObject_GC_IsFinalized(o)
 #else
   #define __Pyx_PyObject_GC_IsFinalized(o) _PyGC_FINALIZED(o)
-#endif
-
-#ifndef CO_COROUTINE
-  #define CO_COROUTINE 0x80
-#endif
-#ifndef CO_ASYNC_GENERATOR
-  #define CO_ASYNC_GENERATOR 0x200
 #endif
 
 #ifndef Py_TPFLAGS_CHECKTYPES
@@ -828,7 +802,7 @@ static CYTHON_INLINE PyObject* __Pyx_CyOrPyCFunction_GET_SELF(PyObject *func) {
 }
 // Only used if CYTHON_COMPILING_IN_CPYTHON.
 #endif
-static CYTHON_INLINE int __Pyx__IsSameCFunction(PyObject *func, void *cfunc) {
+static CYTHON_INLINE int __Pyx__IsSameCFunction(PyObject *func, void (*cfunc)(void)) {
 #if CYTHON_COMPILING_IN_LIMITED_API
     return PyCFunction_Check(func) && PyCFunction_GetFunction(func) == (PyCFunction) cfunc;
 #else
@@ -914,7 +888,7 @@ static CYTHON_INLINE void *__Pyx__PyModule_GetState(PyObject *op)
   #define __Pyx_PyType_TryGetSubSlot(obj, sub, name, func_ctype) __Pyx_PyType_TryGetSlot(obj, name, func_ctype)
 #endif
 
-#if CYTHON_COMPILING_IN_CPYTHON && PY_VERSION_HEX < 0x030d0000 || defined(_PyDict_NewPresized)
+#if CYTHON_COMPILING_IN_CPYTHON || defined(_PyDict_NewPresized)
 #define __Pyx_PyDict_NewPresized(n)  ((n <= 8) ? PyDict_New() : _PyDict_NewPresized(n))
 #else
 #define __Pyx_PyDict_NewPresized(n)  PyDict_New()
@@ -923,7 +897,7 @@ static CYTHON_INLINE void *__Pyx__PyModule_GetState(PyObject *op)
 #define __Pyx_PyNumber_Divide(x,y)         PyNumber_TrueDivide(x,y)
 #define __Pyx_PyNumber_InPlaceDivide(x,y)  PyNumber_InPlaceTrueDivide(x,y)
 
-#if CYTHON_COMPILING_IN_CPYTHON && PY_VERSION_HEX < 0x030d0000 && CYTHON_USE_UNICODE_INTERNALS
+#if CYTHON_COMPILING_IN_CPYTHON && CYTHON_USE_UNICODE_INTERNALS
 // _PyDict_GetItem_KnownHash() existed from CPython 3.5 to 3.12, but it was
 // dropping exceptions in 3.5. Since 3.6, exceptions are kept.
 #define __Pyx_PyDict_GetItemStrWithError(dict, name)  _PyDict_GetItem_KnownHash(dict, name, ((PyASCIIObject *) name)->hash)
@@ -1074,14 +1048,37 @@ static CYTHON_INLINE PyObject * __Pyx_PyDict_GetItemStrWithError(PyObject *dict,
   #define __Pyx_SET_SIZE(obj, size) Py_SIZE(obj) = (size)
 #endif
 
-#if CYTHON_COMPILING_IN_LIMITED_API || CYTHON_AVOID_BORROWED_REFS || CYTHON_AVOID_THREAD_UNSAFE_BORROWED_REFS || !CYTHON_ASSUME_SAFE_MACROS
+#if CYTHON_COMPILING_IN_CPYTHON || CYTHON_COMPILING_IN_LIMITED_API
+#define __Pyx_REFCNT_MAY_BE_SHARED(o)  (Py_REFCNT(o) > 1)
+#else
+// On other platforms we don't trust the refcount so don't optimize based on it
+#define __Pyx_REFCNT_MAY_BE_SHARED(o) 1
+#endif
+
+#if CYTHON_AVOID_BORROWED_REFS || CYTHON_AVOID_THREAD_UNSAFE_BORROWED_REFS
+  #if __PYX_LIMITED_VERSION_HEX >= 0x030d0000
+    #define __Pyx_PyList_GetItemRef(o, i) PyList_GetItemRef(o, i)
+  #elif CYTHON_COMPILING_IN_LIMITED_API || !CYTHON_ASSUME_SAFE_MACROS
+    #define __Pyx_PyList_GetItemRef(o, i) (likely((i) >= 0) ? PySequence_GetItem(o, i) : (PyErr_SetString(PyExc_IndexError, "list index out of range"), (PyObject*)NULL))
+  #else
+    #define __Pyx_PyList_GetItemRef(o, i) PySequence_ITEM(o, i)
+  #endif
+#elif CYTHON_COMPILING_IN_LIMITED_API || !CYTHON_ASSUME_SAFE_MACROS
   #if __PYX_LIMITED_VERSION_HEX >= 0x030d0000
     #define __Pyx_PyList_GetItemRef(o, i) PyList_GetItemRef(o, i)
   #else
-    #define __Pyx_PyList_GetItemRef(o, i) PySequence_GetItem(o, i)
+    #define __Pyx_PyList_GetItemRef(o, i) __Pyx_XNewRef(PyList_GetItem(o, i))
   #endif
 #else
   #define __Pyx_PyList_GetItemRef(o, i) __Pyx_NewRef(PyList_GET_ITEM(o, i))
+#endif
+
+
+#if CYTHON_AVOID_THREAD_UNSAFE_BORROWED_REFS && !CYTHON_COMPILING_IN_LIMITED_API && CYTHON_ASSUME_SAFE_MACROS
+  #define __Pyx_PyList_GetItemRefFast(o, i, unsafe_shared) ((unsafe_shared || __Pyx_REFCNT_MAY_BE_SHARED(o)) ? \
+    __Pyx_PyList_GetItemRef(o, i) : __Pyx_NewRef(PyList_GET_ITEM(o, i)))
+#else
+  #define __Pyx_PyList_GetItemRefFast(o, i, unsafe_shared) __Pyx_PyList_GetItemRef(o, i)
 #endif
 
 #if __PYX_LIMITED_VERSION_HEX >= 0x030d0000
@@ -1162,9 +1159,6 @@ static CYTHON_INLINE int __Pyx_PyDict_GetItemRef(PyObject *dict, PyObject *key, 
   }
 #endif
 
-// TODO: remove
-#define PyBoolObject                 PyLongObject
-
 #if CYTHON_COMPILING_IN_PYPY && !defined(PyUnicode_InternFromString)
   #define PyUnicode_InternFromString(s) PyUnicode_FromString(s)
 #endif
@@ -1190,12 +1184,17 @@ static CYTHON_INLINE int __Pyx_PyDict_GetItemRef(PyObject *dict, PyObject *key, 
   #define __Pyx_pyiter_sendfunc sendfunc
 #endif
 
-// "Py_am_send" requires Py3.10 when using type specs.
-#define __PYX_HAS_PY_AM_SEND  (!CYTHON_USE_TYPE_SPECS || CYTHON_USE_AM_SEND && __PYX_LIMITED_VERSION_HEX >= 0x030A0000)
+// "Py_am_send" requires Py3.10 when using type specs (which utility code types do).
+#if !CYTHON_USE_AM_SEND
+#define __PYX_HAS_PY_AM_SEND 0
+#elif __PYX_LIMITED_VERSION_HEX >= 0x030A0000
+#define __PYX_HAS_PY_AM_SEND 1
+#else
+#define __PYX_HAS_PY_AM_SEND 2  // our own backported implementation
+#endif
 
-#if __PYX_LIMITED_VERSION_HEX >= 0x030A0000
+#if __PYX_HAS_PY_AM_SEND < 2
     #define __Pyx_PyAsyncMethodsStruct PyAsyncMethods
-    #define __Pyx_SlotTpAsAsync(s) (&(s))
 #else
     // PyAsyncMethods in Py<3.10 lacks "am_send"
     typedef struct {
@@ -1205,7 +1204,7 @@ static CYTHON_INLINE int __Pyx_PyDict_GetItemRef(PyObject *dict, PyObject *key, 
         __Pyx_pyiter_sendfunc am_send;
     } __Pyx_PyAsyncMethodsStruct;
 
-    #define __Pyx_SlotTpAsAsync(s) ((PyAsyncMethods*)&(s))
+    #define __Pyx_SlotTpAsAsync(s) ((PyAsyncMethods*)(s))
 #endif
 
 // Use a flag in Py < 3.10 to mark coroutines that have the "am_send" field.
@@ -1232,6 +1231,57 @@ extern "C"
 PyAPI_FUNC(void *) PyMem_Calloc(size_t nelem, size_t elsize); /* proto */
 #endif
 
+#if CYTHON_COMPILING_IN_LIMITED_API
+// returns 1 for success and 0 for failure to enable it to be chained in an &&
+static int __Pyx_init_co_variable(PyObject *inspect, const char* name, int *write_to) {
+    int value;
+    PyObject *py_value = PyObject_GetAttrString(inspect, name);
+    if (!py_value) return 0;
+    // There's a small chance of overflow here, but it'd only happen if inspect was set up wrongly.
+    value = (int) PyLong_AsLong(py_value);
+    Py_DECREF(py_value);
+    *write_to = value;
+    return value != -1 || !PyErr_Occurred();
+}
+
+// Returns 0 on success and -1 on failure for normal error handling
+static int __Pyx_init_co_variables(void) {
+    PyObject *inspect;
+    int result;
+    inspect = PyImport_ImportModule("inspect");
+
+    result =
+#if !defined(CO_OPTIMIZED)
+        __Pyx_init_co_variable(inspect, "CO_OPTIMIZED", &CO_OPTIMIZED) &&
+#endif
+#if !defined(CO_NEWLOCALS)
+        __Pyx_init_co_variable(inspect, "CO_NEWLOCALS", &CO_NEWLOCALS) &&
+#endif
+#if !defined(CO_VARARGS)
+        __Pyx_init_co_variable(inspect, "CO_VARARGS", &CO_VARARGS) &&
+#endif
+#if !defined(CO_VARKEYWORDS)
+        __Pyx_init_co_variable(inspect, "CO_VARKEYWORDS", &CO_VARKEYWORDS) &&
+#endif
+#if !defined(CO_ASYNC_GENERATOR)
+        __Pyx_init_co_variable(inspect, "CO_ASYNC_GENERATOR", &CO_ASYNC_GENERATOR) &&
+#endif
+#if !defined(CO_GENERATOR)
+        __Pyx_init_co_variable(inspect, "CO_GENERATOR", &CO_GENERATOR) &&
+#endif
+#if !defined(CO_COROUTINE)
+        __Pyx_init_co_variable(inspect, "CO_COROUTINE", &CO_COROUTINE) &&
+#endif
+        1;
+
+    Py_DECREF(inspect);
+    return result ? 0 : -1;
+}
+#else
+static int __Pyx_init_co_variables(void) {
+    return 0;  // It's a limited API-only feature
+}
+#endif
 
 /////////////// CythonABIVersion.proto ///////////////
 //@proto_block: module_declarations
@@ -1241,12 +1291,22 @@ PyAPI_FUNC(void *) PyMem_Calloc(size_t nelem, size_t elsize); /* proto */
     // The limited API makes some significant changes to data structures, so we don't
     // want to share the implementations compiled with and without the limited API.
     #if CYTHON_METH_FASTCALL
-        #define __PYX_LIMITED_ABI_SUFFIX  "limited_fastcall"
+        #define __PYX_FASTCALL_ABI_SUFFIX  "_fastcall"
     #else
-        #define __PYX_LIMITED_ABI_SUFFIX  "limited"
+        #define __PYX_FASTCALL_ABI_SUFFIX
     #endif
+
+    #define __PYX_LIMITED_ABI_SUFFIX "limited" __PYX_FASTCALL_ABI_SUFFIX __PYX_AM_SEND_ABI_SUFFIX
 #else
     #define __PYX_LIMITED_ABI_SUFFIX
+#endif
+
+#if __PYX_HAS_PY_AM_SEND == 1
+    #define __PYX_AM_SEND_ABI_SUFFIX
+#elif __PYX_HAS_PY_AM_SEND == 2
+    #define __PYX_AM_SEND_ABI_SUFFIX "amsendbackport"
+#else
+    #define __PYX_AM_SEND_ABI_SUFFIX "noamsend"
 #endif
 
 #ifndef __PYX_MONITORING_ABI_SUFFIX
@@ -1267,10 +1327,14 @@ PyAPI_FUNC(void *) PyMem_Calloc(size_t nelem, size_t elsize); /* proto */
     #define __PYX_FREELISTS_ABI_SUFFIX "nofreelists"
 #endif
 
-#define CYTHON_ABI  __PYX_ABI_VERSION __PYX_LIMITED_ABI_SUFFIX __PYX_MONITORING_ABI_SUFFIX __PYX_TP_FINALIZE_ABI_SUFFIX __PYX_FREELISTS_ABI_SUFFIX
+#define CYTHON_ABI  __PYX_ABI_VERSION __PYX_LIMITED_ABI_SUFFIX __PYX_MONITORING_ABI_SUFFIX __PYX_TP_FINALIZE_ABI_SUFFIX __PYX_FREELISTS_ABI_SUFFIX __PYX_AM_SEND_ABI_SUFFIX
 
 #define __PYX_ABI_MODULE_NAME "_cython_" CYTHON_ABI
 #define __PYX_TYPE_MODULE_PREFIX __PYX_ABI_MODULE_NAME "."
+
+/////////////// PythonCompatibility.init ///////////////
+
+if (likely(__Pyx_init_co_variables() == 0)); else
 
 
 /////////////// IncludeStructmemberH.proto ///////////////
@@ -1480,29 +1544,34 @@ static CYTHON_INLINE float __PYX_NAN() {
 /////////////// ModuleCreationPEP489 ///////////////
 //@substitute: naming
 
-#if CYTHON_COMPILING_IN_LIMITED_API && __PYX_LIMITED_VERSION_HEX < 0x030A0000
-// Probably won't work before 3.8, but we don't use restricted API to find that out
+#if CYTHON_COMPILING_IN_LIMITED_API && __PYX_LIMITED_VERSION_HEX < 0x03090000
+// Probably won't work before 3.8, but we don't use restricted API to find that out.
 static PY_INT64_T __Pyx_GetCurrentInterpreterId(void) {
-    PyObject *module = PyImport_ImportModule("_interpreters"); // 3.13+ I think
-    if (!module) {
-        PyErr_Clear(); // just try the 3.8-3.12 version
-        module = PyImport_ImportModule("_xxsubinterpreters");
-        if (!module) return -1;
-    }
-    PyObject *current = PyObject_CallMethod(module, "get_current", NULL);
-    Py_DECREF(module);
-    if (!current) return -1;
-    if (PyTuple_Check(current)) {
-        // I think 3.13+ returns a tuple of (ID, whence),
-        // but it's obviously a private module so the API changes a bit.
-        PyObject *new_current = PySequence_GetItem(current, 0);
+    {
+        PyObject *module = PyImport_ImportModule("_interpreters"); // 3.13+ I think
+        if (!module) {
+            PyErr_Clear(); // just try the 3.8-3.12 version
+            module = PyImport_ImportModule("_xxsubinterpreters");
+            if (!module) goto bad;
+        }
+        PyObject *current = PyObject_CallMethod(module, "get_current", NULL);
+        Py_DECREF(module);
+        if (!current) goto bad;
+        if (PyTuple_Check(current)) {
+            // I think 3.13+ returns a tuple of (ID, whence),
+            // but it's obviously a private module so the API changes a bit.
+            PyObject *new_current = PySequence_GetItem(current, 0);
+            Py_DECREF(current);
+            current = new_current;
+            if (!new_current) goto bad;
+        }
+        long long as_c_int = PyLong_AsLongLong(current);
         Py_DECREF(current);
-        current = new_current;
-        if (!new_current) return -1;
+        return as_c_int;
     }
-    long long as_c_int = PyLong_AsLongLong(current);
-    Py_DECREF(current);
-    return as_c_int;
+  bad:
+    PySys_WriteStderr("__Pyx_GetCurrentInterpreterId failed. Try setting the C define CYTHON_PEP489_MULTI_PHASE_INIT=0\n");
+    return -1;
 }
 #endif
 
@@ -1512,19 +1581,20 @@ static CYTHON_SMALL_CODE int __Pyx_check_single_interpreter(void) {
     static PY_INT64_T main_interpreter_id = -1;
 #if CYTHON_COMPILING_IN_GRAAL
     PY_INT64_T current_id = PyInterpreterState_GetIDFromThreadState(PyThreadState_Get());
-#elif CYTHON_COMPILING_IN_LIMITED_API && __PYX_LIMITED_VERSION_HEX >= 0x030A0000
-    PY_INT64_T current_id = PyThreadState_GetInterpreter(PyThreadState_Get());
+#elif CYTHON_COMPILING_IN_LIMITED_API && __PYX_LIMITED_VERSION_HEX >= 0x03090000
+    PY_INT64_T current_id = PyInterpreterState_GetID(PyInterpreterState_Get());
 #elif CYTHON_COMPILING_IN_LIMITED_API
     PY_INT64_T current_id = __Pyx_GetCurrentInterpreterId();
 #else
     PY_INT64_T current_id = PyInterpreterState_GetID(PyThreadState_Get()->interp);
 #endif
+    if (unlikely(current_id == -1)) {
+        return -1;
+    }
     if (main_interpreter_id == -1) {
         main_interpreter_id = current_id;
-        return (unlikely(current_id == -1)) ? -1 : 0;
-    } else if (unlikely(main_interpreter_id != current_id))
-
-    {
+        return 0;
+    } else if (unlikely(main_interpreter_id != current_id)) {
         PyErr_SetString(
             PyExc_ImportError,
             "Interpreter change detected - this module can only be loaded into one interpreter per process.");
@@ -1534,21 +1604,13 @@ static CYTHON_SMALL_CODE int __Pyx_check_single_interpreter(void) {
 }
 #endif
 
-#if CYTHON_COMPILING_IN_LIMITED_API
-static CYTHON_SMALL_CODE int __Pyx_copy_spec_to_module(PyObject *spec, PyObject *module, const char* from_name, const char* to_name, int allow_none)
-#else
 static CYTHON_SMALL_CODE int __Pyx_copy_spec_to_module(PyObject *spec, PyObject *moddict, const char* from_name, const char* to_name, int allow_none)
-#endif
 {
     PyObject *value = PyObject_GetAttrString(spec, from_name);
     int result = 0;
     if (likely(value)) {
         if (allow_none || value != Py_None) {
-#if CYTHON_COMPILING_IN_LIMITED_API
-            result = PyModule_AddObject(module, to_name, value);
-#else
             result = PyDict_SetItemString(moddict, to_name, value);
-#endif
         }
         Py_DECREF(value);
     } else if (PyErr_ExceptionMatches(PyExc_AttributeError)) {
@@ -1578,13 +1640,9 @@ static CYTHON_SMALL_CODE PyObject* ${pymodule_create_func_cname}(PyObject *spec,
     Py_DECREF(modname);
     if (unlikely(!module)) goto bad;
 
-#if CYTHON_COMPILING_IN_LIMITED_API
-    moddict = module;
-#else
     moddict = PyModule_GetDict(module);
     if (unlikely(!moddict)) goto bad;
     // moddict is a borrowed reference
-#endif
 
     if (unlikely(__Pyx_copy_spec_to_module(spec, moddict, "loader", "__loader__", 1) < 0)) goto bad;
     if (unlikely(__Pyx_copy_spec_to_module(spec, moddict, "origin", "__file__", 1) < 0)) goto bad;
@@ -1619,7 +1677,7 @@ struct __Pyx_CodeObjectCache {
     __Pyx_CodeObjectCacheEntry* entries;
   #if CYTHON_COMPILING_IN_CPYTHON_FREETHREADING
     // 0 for none, +ve for readers, -ve for writers.
-    // 
+    //
     __pyx_atomic_int_type accessor_count;
   #endif
 };
@@ -1720,6 +1778,7 @@ static void __pyx__insert_code_object(struct __Pyx_CodeObjectCache *code_cache, 
     if ((pos < code_cache->count) && unlikely(code_cache->entries[pos].code_line == code_line)) {
         __Pyx_CachedCodeObjectType* tmp = entries[pos].code_object;
         entries[pos].code_object = code_object;
+        Py_INCREF(code_object);
         Py_DECREF(tmp);
         return;
     }
@@ -1781,16 +1840,21 @@ static void __pyx_insert_code_object(int code_line, __Pyx_CachedCodeObjectType* 
 
 /////////////// GetRuntimeVersion.proto ///////////////
 
+#if __PYX_LIMITED_VERSION_HEX < 0x030b0000
+static unsigned long __Pyx_cached_runtime_version = 0;
+
+static void __Pyx_init_runtime_version(void);
+#else
+#define __Pyx_init_runtime_version()
+#endif
+
+// Does not require the GIL to be held
 static unsigned long __Pyx_get_runtime_version(void);
 
 /////////////// GetRuntimeVersion ///////////////
 
-static unsigned long __Pyx_get_runtime_version(void) {
-    // We will probably never need the alpha/beta status, so avoid the complexity to parse it.
-#if __PYX_LIMITED_VERSION_HEX >= 0x030b0000
-    return Py_Version & ~0xFFUL;
-#else
-    static unsigned long __Pyx_cached_runtime_version = 0;
+#if __PYX_LIMITED_VERSION_HEX < 0x030b0000
+void __Pyx_init_runtime_version(void) {
     if (__Pyx_cached_runtime_version == 0) {
         const char* rt_version = Py_GetVersion();
         unsigned long version = 0;
@@ -1811,6 +1875,14 @@ static unsigned long __Pyx_get_runtime_version(void) {
         }
         __Pyx_cached_runtime_version = version;
     }
+}
+#endif
+
+static unsigned long __Pyx_get_runtime_version(void) {
+    // We will probably never need the alpha/beta status, so avoid the complexity to parse it.
+#if __PYX_LIMITED_VERSION_HEX >= 0x030b0000
+    return Py_Version & ~0xFFUL;
+#else
     return __Pyx_cached_runtime_version;
 #endif
 }
@@ -2244,7 +2316,10 @@ static void __Pyx_FastGilFuncInit(void) {
 // In C++ a variable must actually be initialized to make returning
 // it defined behaviour, and there doesn't seem to be a viable compiler trick to
 // avoid that.
+#if __cplusplus > 201103L
 #include <type_traits>
+#endif
+
 template <typename T>
 static void __Pyx_pretend_to_initialize(T* ptr) {
     // In C++11 we have enough introspection to work out which types it's actually
@@ -2291,17 +2366,17 @@ static PyObject* __Pyx_PyCode_New(
         // int s,
         //int flags,
         //int first_line,
-        __Pyx_PyCode_New_function_description descr,
+        const __Pyx_PyCode_New_function_description descr,
         // PyObject *code,
         // PyObject *consts,
         // PyObject* n,
         // PyObject *varnames_tuple,
-        PyObject **varnames,
+        PyObject * const *varnames,
         // PyObject *freevars,
         // PyObject *cellvars,
         PyObject *filename,
         PyObject *funcname,
-        const char *line_table,
+        PyObject *line_table,
         PyObject *tuple_dedup_map
 );/*proto*/
 
@@ -2421,22 +2496,22 @@ static PyObject* __Pyx_PyCode_New(
         // int s,
         //int flags,
         //int first_line,
-        __Pyx_PyCode_New_function_description descr,
+        const __Pyx_PyCode_New_function_description descr,
         // PyObject *code,
         // PyObject *consts,
         // PyObject* n,
         // PyObject *varnames_tuple,
-        PyObject **varnames,
+        PyObject * const *varnames,
         // PyObject *freevars,
         // PyObject *cellvars,
-        PyObject* filename,
+        PyObject *filename,
         PyObject *funcname,
         // line table replaced lnotab in Py3.11 (PEP-626)
-        const char *line_table,
+        PyObject *line_table,
         PyObject *tuple_dedup_map
 ) {
 
-    PyObject *code_obj = NULL, *varnames_tuple_dedup = NULL, *code_bytes = NULL, *line_table_bytes = NULL;
+    PyObject *code_obj = NULL, *varnames_tuple_dedup = NULL, *code_bytes = NULL;
     Py_ssize_t var_count = (Py_ssize_t) descr.nlocals;
 
     PyObject *varnames_tuple = PyTuple_New(var_count);
@@ -2461,15 +2536,15 @@ static PyObject* __Pyx_PyCode_New(
     Py_INCREF(varnames_tuple_dedup);
     #endif
 
-    if (__PYX_LIMITED_VERSION_HEX >= (0x030b0000) && line_table != NULL
-        && !CYTHON_COMPILING_IN_GRAAL) {
-        line_table_bytes = PyBytes_FromStringAndSize(line_table, descr.line_table_length);
-        if (unlikely(!line_table_bytes)) goto done;
-
+    if (__PYX_LIMITED_VERSION_HEX >= (0x030b0000) && line_table != NULL && !CYTHON_COMPILING_IN_GRAAL) {
         // Allocate a "byte code" array (oversized) to match the addresses in the line table.
         // Length and alignment must be a multiple of sizeof(_Py_CODEUNIT), which is CPython specific but currently 2.
         // CPython makes a copy of the code array internally, so make sure it's somewhat short (but not too short).
-        Py_ssize_t code_len = (descr.line_table_length * 2 + 4) & ~3;
+        Py_ssize_t line_table_length = __Pyx_PyBytes_GET_SIZE(line_table);
+        #if !CYTHON_ASSUME_SAFE_SIZE
+        if (unlikely(line_table_length == -1)) goto done;
+        #endif
+        Py_ssize_t code_len = (line_table_length * 2 + 4) & ~3LL;
         code_bytes = PyBytes_FromStringAndSize(NULL, code_len);
         if (unlikely(!code_bytes)) goto done;
         char* c_code_bytes = PyBytes_AsString(code_bytes);
@@ -2495,12 +2570,11 @@ static PyObject* __Pyx_PyCode_New(
         filename,
         funcname,
         (int) descr.first_line,
-        (__PYX_LIMITED_VERSION_HEX >= (0x030b0000) && line_table_bytes) ? line_table_bytes : EMPTY(bytes)
+        (__PYX_LIMITED_VERSION_HEX >= (0x030b0000) && line_table) ? line_table : EMPTY(bytes)
     );
 
 done:
     Py_XDECREF(code_bytes);
-    Py_XDECREF(line_table_bytes);
     #if CYTHON_AVOID_BORROWED_REFS
     Py_XDECREF(varnames_tuple_dedup);
     #endif
@@ -2993,3 +3067,86 @@ static int __Pyx_State_RemoveModule(CYTHON_UNUSED void* dummy) {
 ////////////////////// IncludeStdlibH.proto //////////////////////
 
 #include <stdlib.h>
+
+////////////////////// ReleaseUnknownGil.proto ///////////////////
+
+#if CYTHON_COMPILING_IN_LIMITED_API && __PYX_LIMITED_VERSION_HEX < 0x030d0000
+typedef struct {
+  PyThreadState* ts;
+  PyGILState_STATE gil_state;
+} __Pyx_UnknownThreadState;
+#else
+#define __Pyx_UnknownThreadState PyThreadState*
+#endif
+
+static __Pyx_UnknownThreadState __Pyx_SaveUnknownThread(void); /* proto */
+static void __Pyx_RestoreUnknownThread(__Pyx_UnknownThreadState state); /* proto */
+
+// Note - may return false negatives for some versions of the Limited API
+static CYTHON_INLINE int __Pyx_UnknownThreadStateDefinitelyHadGil(__Pyx_UnknownThreadState state); /* proto */
+// Note - may return false positives for some versions of the Limited API
+static CYTHON_INLINE int __Pyx_UnknownThreadStateMayHaveHadGil(__Pyx_UnknownThreadState state); /* proto */
+
+////////////////////// ReleaseUnknownGil ///////////////////
+
+static __Pyx_UnknownThreadState __Pyx_SaveUnknownThread(void) {
+#if CYTHON_COMPILING_IN_LIMITED_API && __PYX_LIMITED_VERSION_HEX < 0x030d0000
+    if (__Pyx_get_runtime_version() >= 0x030d0000) {
+        // On Python 3.13+ we can just swap the thread state for NULL, and that's fine,
+        // whether we have the GIL or not.
+        PyThreadState *ts = PyThreadState_Swap(NULL);
+        __Pyx_UnknownThreadState out = { ts, PyGILState_UNLOCKED /* arbitrary value */ };
+        return out;
+    } else {
+        // On Python <3.13 there's no way of telling if we have the GIL in the Limited API.
+        // Therefore, the only safe thing to do is to acquire it then release it.
+        PyGILState_STATE gil_state = PyGILState_Ensure();
+        PyThreadState *ts = PyEval_SaveThread();
+        __Pyx_UnknownThreadState out = { ts, gil_state };
+        return out;
+    }
+#elif __PYX_LIMITED_VERSION_HEX >= 0x030d0000
+    return PyThreadState_Swap(NULL);
+#else
+  #if CYTHON_COMPILING_IN_PYPY || PY__VERSION_HEX < 0x030B0000
+    if (PyGILState_Check())
+  #else
+    if (_PyThreadState_UncheckedGet())  // UncheckedGet is a reliable check for the GIL from 3.12 upwards
+  #endif
+    {
+      return PyEval_SaveThread();
+    }
+    return NULL; // Nothing to release - we don't have the GIL
+#endif
+}
+
+static void __Pyx_RestoreUnknownThread(__Pyx_UnknownThreadState state) {
+#if CYTHON_COMPILING_IN_LIMITED_API && __PYX_LIMITED_VERSION_HEX < 0x030d0000
+    if (!state.ts) return;
+    PyEval_RestoreThread(state.ts);
+    if (__Pyx_get_runtime_version() < 0x030d0000) {
+        PyGILState_Release(state.gil_state);
+    }
+#else
+    if (state) {
+        PyEval_RestoreThread(state);
+    }
+#endif
+}
+
+static CYTHON_INLINE int __Pyx_UnknownThreadStateDefinitelyHadGil(__Pyx_UnknownThreadState state) {
+  #if CYTHON_COMPILING_IN_LIMITED_API && __PYX_LIMITED_VERSION_HEX < 0x030d0000
+  // For older Limited API versions we can't tell if we had the GIL
+  return ((state.ts != NULL) && (__Pyx_get_runtime_version() >= 0x030d0000));
+  #else
+  return state != NULL;
+  #endif
+}
+
+static CYTHON_INLINE int __Pyx_UnknownThreadStateMayHaveHadGil(__Pyx_UnknownThreadState state) {
+  #if CYTHON_COMPILING_IN_LIMITED_API && __PYX_LIMITED_VERSION_HEX < 0x030d0000
+  return state.ts != NULL;
+  #else
+  return state != NULL;
+  #endif
+}

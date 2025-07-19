@@ -50,7 +50,7 @@ class EmbedSignature(CythonTransform):
         self.class_node = None
 
     def _fmt_expr(self, node):
-        writer = ExpressionWriter()
+        writer = ExpressionWriter(allow_unknown_nodes=True)
         result = writer.write(node)
         # print(type(node).__name__, '-->', result)
         return result
@@ -173,7 +173,7 @@ class EmbedSignature(CythonTransform):
             if self.is_format_clinic:
                 docfmt = "%s\n--\n\n%s"
             else:
-                docfmt = "%s\n%s"
+                docfmt = "%s\n\n%s"
             node_doc = inspect.cleandoc(node_doc)
             return docfmt % (signature, node_doc)
         else:
@@ -217,13 +217,14 @@ class EmbedSignature(CythonTransform):
         hide_self = False
         if node.entry.is_special:
             is_constructor = self.class_node and node.name == '__init__'
-            if not is_constructor:
-                return node
-            class_name = None
-            func_name = node.name
-            if self.is_format_c:
-                func_name = self.class_name
-                hide_self = True
+            if is_constructor:
+                class_name = None
+                func_name = node.name
+                if self.is_format_c:
+                    func_name = self.class_name
+                    hide_self = True
+            else:
+                class_name, func_name = self.class_name, node.name
         else:
             class_name, func_name = self.class_name, node.name
 
@@ -248,7 +249,12 @@ class EmbedSignature(CythonTransform):
             else:
                 old_doc = None
             new_doc = self._embed_signature(signature, old_doc)
-            doc_holder.doc = EncodedString(new_doc)
+            if not node.entry.is_special or is_constructor or node.entry.wrapperbase_cname is not None:
+                # TODO: the wrapperbase must be generated for __doc__ to exist;
+                # however this phase is run later in the pipeline than
+                # Compiler/Nodes.py:declare_pyfunction, so wrapperbase_cname
+                # may already be set to None
+                doc_holder.doc = EncodedString(new_doc)
             if not is_constructor and getattr(node, 'py_func', None) is not None:
                 node.py_func.entry.doc = EncodedString(new_doc)
         return node

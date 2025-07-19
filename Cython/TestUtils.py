@@ -264,13 +264,6 @@ class TreeAssertVisitor(VisitorTransform):
             content = _strip_c_comments(content)
             validate_file_content(c_file, content)
 
-            html_file = os.path.splitext(c_file)[0] + ".html"
-            if os.path.exists(html_file) and os.path.getmtime(c_file) <= os.path.getmtime(html_file):
-                with open(html_file, encoding='utf8') as f:
-                    content = f.read()
-                content = _strip_cython_code_from_html(content)
-                validate_file_content(html_file, content)
-
         return validate_c_file
 
     def _check_directives(self, node):

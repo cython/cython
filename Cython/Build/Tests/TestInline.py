@@ -2,7 +2,7 @@ import os
 import tempfile
 import unittest
 from Cython.Shadow import inline
-from Cython.Build.Inline import safe_type
+from Cython.Build.Inline import safe_type, cymeit
 from Cython.TestUtils import CythonTest
 
 try:
@@ -110,3 +110,68 @@ class TestInline(CythonTest):
         a[0,0] = 10
         self.assertEqual(safe_type(a), 'numpy.ndarray[numpy.float64_t, ndim=2]')
         self.assertEqual(inline("return a[0,0]", a=a, **self._call_kwds), 10.0)
+
+
+class TestCymeit(unittest.TestCase):
+    def _run(self, code, setup_code=None, **kwargs):
+        timings, number = cymeit(code, setup_code=setup_code, **kwargs)
+
+        self.assertGreater(min(timings), 0)
+
+        # Guard that autoscaling leads to reasonable timings.
+        # Note: we cannot compare against the expected 0.2 due to large timing variations on CI.
+        max_time = max(timing * number for timing in timings)
+        if isinstance(max_time, int):
+            self.assertGreaterEqual(max_time, 100_000)
+        else:
+            self.assertGreaterEqual(max_time, 0.0001)
+        self.assertGreater(number, 10)  # arbitrary lower bound for our very quick benchmarks
+
+        return timings
+
+    def test_benchmark_simple(self):
+        setup_code = "numbers = list(range(0, 1000, 3))"
+        self._run("sum([num for num in numbers])", setup_code, repeat=3)
+
+    def test_benchmark_timer(self):
+        import time
+        setup_code = "numbers = list(range(0, 1000, 3))"
+        timings = self._run("sum([num for num in numbers])", setup_code, timer=time.perf_counter, repeat=3)
+
+        for timing in timings:
+            self.assertIsInstance(timing, float)
+
+    def test_benchmark_timer_ns(self):
+        import time
+        setup_code = "numbers = list(range(0, 1000, 3))"
+        timings = self._run("sum([num for num in numbers])", setup_code, timer=time.perf_counter_ns, repeat=3)
+
+        for timing in timings:
+            self.assertIsInstance(timing, int)
+
+    def test_benchmark_multiline_setup(self):
+        setup_code = """
+        numbers = list(range(0, 100, 3))
+
+        def csum(numbers):
+            result = 0
+            for number in numbers:
+                result += number
+            return result
+        """
+        self._run("csum(numbers)", setup_code)
+
+    def test_benchmark_multiline_code(self):
+        setup_code = "numbers = list(range(0, 100, 3))"
+        self._run("""
+            sum([
+                num
+                    for num in numbers
+                ])
+            """,
+            setup_code,
+            repeat=3
+        )
+
+    def test_benchmark_in_module(self):
+        self._run("fsum(range(100))", import_module='math', repeat=2)
