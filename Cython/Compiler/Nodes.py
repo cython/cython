@@ -8388,28 +8388,9 @@ class ExceptClauseNode(Node):
         return Builtin.builtin_types["BaseException"]
 
     def body_may_need_exception(self):
-        body = self.body
-        if isinstance(body, StatListNode):
-            for node in body.stats:
-                if isinstance(node, PassStatNode):
-                    continue
-                elif isinstance(node, ReturnStatNode):
-                    body = node
-                    break
-                else:
-                    return True
-            else:
-                # No user code found (other than 'pass').
-                return False
-
-        if isinstance(body, ReturnStatNode):
-            value = body.value
-            if value is None or value.is_literal:
-                return False
-            # There might be other safe cases, but literals seem the safest for now.
-
-        # If we cannot prove that the exception is unused, it may be used.
-        return True
+        from .ParseTreeTransforms import HasNoExceptionHandlingVisitor
+        tree_has_no_exceptions = HasNoExceptionHandlingVisitor()
+        return not tree_has_no_exceptions(self.body)
 
     def generate_handling_code(self, code, end_label):
         code.mark_pos(self.pos)
