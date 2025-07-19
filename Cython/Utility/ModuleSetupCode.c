@@ -426,6 +426,10 @@
   #endif
 #endif
 
+#ifndef CYTHON_LOCK_AND_GIL_DEADLOCK_AVOIDANCE_TIME
+  #define CYTHON_LOCK_AND_GIL_DEADLOCK_AVOIDANCE_TIME 100  /* ms */
+#endif
+
 #ifndef __has_attribute
   #define __has_attribute(x) 0
 #endif
