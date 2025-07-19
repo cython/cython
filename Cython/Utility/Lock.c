@@ -23,6 +23,10 @@ static CYTHON_INLINE void __Pyx_Locks_PyThreadTypeLock_LockGil(__Pyx_Locks_PyThr
 
 ////////////////////// PyThreadTypeLock ////////////////
 
+#if CYTHON_COMPILING_IN_PYPY && !defined(PY_LOCK_ACQUIRED)
+#define PY_LOCK_ACQUIRED 1
+#endif
+
 static void __Pyx__Locks_PyThreadTypeLock_LockGil_spin(__Pyx_Locks_PyThreadTypeLock lock) {
     while (1) {
         int res;
