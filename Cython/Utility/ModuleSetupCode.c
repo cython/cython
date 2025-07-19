@@ -3125,7 +3125,7 @@ static __Pyx_UnknownThreadState __Pyx_SaveUnknownThread(void) {
 #elif __PYX_LIMITED_VERSION_HEX >= 0x030d0000
     return PyThreadState_Swap(NULL);
 #else
-  #if CYTHON_COMPILING_IN_PYPY || PY__VERSION_HEX < 0x030B0000
+  #if CYTHON_COMPILING_IN_PYPY || PY_VERSION_HEX < 0x030B0000
     if (PyGILState_Check())
   #else
     if (_PyThreadState_UncheckedGet())  // UncheckedGet is a reliable check for the GIL from 3.12 upwards

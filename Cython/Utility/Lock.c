@@ -63,19 +63,35 @@ static CYTHON_INLINE void __Pyx__Locks_PyThreadTypeLock_LockGil(__Pyx_Locks_PyTh
 }
 
 static void __Pyx__Locks_PyThreadTypeLock_Lock(__Pyx_Locks_PyThreadTypeLock lock) {
+    int has_gil = 0;
 #if CYTHON_COMPILING_IN_LIMITED_API
-    // We can't tell if we have the GIL. Therefore make sure we do have it
-    // and then restore whatever state was there before.
-    PyGILState_STATE state = PyGILState_Ensure();
-    __Pyx_Locks_PyThreadTypeLock_LockNogil(lock);
-    PyGILState_Release(state);
+    if (__PYX_LIMITED_VERSION_HEX >= 0x030d0000 || __Pyx_get_runtime_version() >= 0x030d0000) {
+        // Swap the existing thread state to see if we had the GIL.
+        // Requires re-acquiring the thread state if we had it, but no-op if we didn't.
+        PyThreadState *tstate = PyThreadState_Swap(NULL);
+        has_gil = tstate != NULL;
+        if (has_gil)
+            PyThreadState_Swap(tstate);
+    } else {
+        // We can't tell if we have the GIL. Therefore make sure we do have it
+        // and then restore whatever state was there before.
+        PyGILState_STATE state = PyGILState_Ensure();
+        __Pyx_Locks_PyThreadTypeLock_LockNogil(lock);
+        PyGILState_Release(state);
+        return;
+    }
+#elif CYTHON_COMPILING_IN_PYPY || PY_VERSION_HEX < 0x030B0000
+    has_gil = PyGILState_Check();
+#elif PY_VERSION_HEX < 0x030d0000
+    has_gil = _PyThreadState_UncheckedGet() != NULL;
 #else
-    if (PyGILState_Check()) {
+    has_gil = PyThreadState_GetUnchecked() != NULL;
+#endif
+    if (has_gil) {
         __Pyx_Locks_PyThreadTypeLock_LockGil(lock);
     } else {
         __Pyx_Locks_PyThreadTypeLock_LockNogil(lock);
     }
-#endif
 }
 
 ////////////////////// PyMutex.proto ////////////////////
