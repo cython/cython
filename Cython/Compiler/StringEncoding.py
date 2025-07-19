@@ -272,10 +272,12 @@ def escape_char(c):
     elif c == "'":
         return "\\'"
     n = ord(c)
-    if n < 32 or n > 127:
+    if n < 32 or n >= 127:
         # hex works well for characters
         return "\\x%02X" % n
     else:
+        # strictly £, @ and ` (which fall in this list) are only allowed
+        # in C23. But practically they're well-supported earlier.
         return c
 
 def escape_byte_string(s):
@@ -292,7 +294,7 @@ def escape_byte_string(s):
     s_new = bytearray()
     append, extend = s_new.append, s_new.extend
     for b in s:
-        if b >= 128:
+        if b >= 127:
             extend((f'\\{b:03o}').encode('ASCII'))
         else:
             append(b)
