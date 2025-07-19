@@ -2286,45 +2286,7 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
         elif isinstance(arg, ExprNodes.SimpleCallNode):
             if node.type.is_int or node.type.is_float:
                 return self._optimise_numeric_cast_call(node, arg)
-        elif arg.is_subscript:
-            index_node = arg.index
-            if isinstance(index_node, ExprNodes.CoerceToPyTypeNode):
-                index_node = index_node.arg
-            if index_node.type.is_int:
-                return self._optimise_int_indexing(node, arg, index_node)
         return node
-
-    PyBytes_GetItemInt_func_type = PyrexTypes.CFuncType(
-        PyrexTypes.c_char_type, [
-            PyrexTypes.CFuncTypeArg("bytes", Builtin.bytes_type, None),
-            PyrexTypes.CFuncTypeArg("index", PyrexTypes.c_py_ssize_t_type, None),
-            PyrexTypes.CFuncTypeArg("check_bounds", PyrexTypes.c_int_type, None),
-            ],
-        exception_value = "((char)-1)",
-        exception_check = True)
-
-    def _optimise_int_indexing(self, coerce_node, arg, index_node):
-        env = self.current_env()
-        bound_check_bool = 1 if env.directives['boundscheck'] else 0
-        if arg.base.type is Builtin.bytes_type:
-            if coerce_node.type in (PyrexTypes.c_char_type, PyrexTypes.c_uchar_type):
-                # bytes[index] -> char
-                bound_check_node = ExprNodes.IntNode.for_int(coerce_node.pos, bound_check_bool)
-                node = ExprNodes.PythonCapiCallNode(
-                    coerce_node.pos, "__Pyx_PyBytes_GetItemInt",
-                    self.PyBytes_GetItemInt_func_type,
-                    args=[
-                        arg.base.as_none_safe_node("'NoneType' object is not subscriptable"),
-                        index_node.coerce_to(PyrexTypes.c_py_ssize_t_type, env),
-                        bound_check_node,
-                        ],
-                    is_temp=True,
-                    utility_code=UtilityCode.load_cached(
-                        'bytes_index', 'StringTools.c'))
-                if coerce_node.type is not PyrexTypes.c_char_type:
-                    node = node.coerce_to(coerce_node.type, env)
-                return node
-        return coerce_node
 
     float_float_func_types = {
         float_type: PyrexTypes.CFuncType(
