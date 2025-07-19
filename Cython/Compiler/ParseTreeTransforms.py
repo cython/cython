@@ -3676,6 +3676,7 @@ class GilCheck(VisitorTransform):
     def __call__(self, root):
         self.env_stack = [root.scope]
         self.nogil_state = Nodes.NoGilState.HasGil
+        self.in_lock_block = None
 
         self.nogil_state_at_current_gilstatnode = Nodes.NoGilState.HasGil
         return super().__call__(root)
@@ -3695,6 +3696,7 @@ class GilCheck(VisitorTransform):
     def visit_FuncDefNode(self, node):
         self.env_stack.append(node.local_scope)
         inner_nogil = node.local_scope.nogil
+        in_lock_block, self.in_lock_block = self.in_lock_block, None
 
         nogil_state = self.nogil_state
         if inner_nogil:
@@ -3708,6 +3710,7 @@ class GilCheck(VisitorTransform):
         # FuncDefNodes can be nested, because a cpdef function contains a def function
         # inside it. Therefore restore to previous state
         self.nogil_state = nogil_state
+        self.in_lock_block = in_lock_block
 
         self.env_stack.pop()
         return node
@@ -3724,6 +3727,14 @@ class GilCheck(VisitorTransform):
 
         was_nogil = self.nogil_state
         is_nogil = (node.state == 'nogil')
+
+        if not is_nogil and self.in_lock_block:
+            type_name = self.in_lock_block.arg.type.empty_declaration_code(pyrex=True).strip()
+            warning(
+                node.pos,
+                f"Acquiring the GIL inside a {type_name} lock. "
+                "To avoid potential deadlocks acquire the GIL first.",
+                2)
 
         if was_nogil == is_nogil and not self.nogil_state == Nodes.NoGilState.NoGilScope:
             if not was_nogil:
@@ -3804,7 +3815,10 @@ class GilCheck(VisitorTransform):
 
     def visit_CythonLockStatNode(self, node):
         # skip normal "try/finally node" handling
-        return self.visit_Node(node)
+        in_lock_block, self.in_lock_block = self.in_lock_block, node
+        result = self.visit_Node(node)
+        self.in_lock_block = in_lock_block
+        return result
 
     def visit_GILExitNode(self, node):
         if self.nogil_state_at_current_gilstatnode == Nodes.NoGilState.NoGilScope:

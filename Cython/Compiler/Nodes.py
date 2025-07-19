@@ -9165,14 +9165,6 @@ class CythonLockStatNode(TryFinallyStatNode):
         body = self.body
         if isinstance(body, StatListNode) and len(body.stats) >= 1:
             body = body.stats[0]
-        if isinstance(body, GILStatNode) and body.state == "gil":
-            # Only warn about the initial and most obvious mistake (directly nesting the loops)
-            type_name = self.arg.type.empty_declaration_code(pyrex=True).strip()
-            warning(
-                body.pos,
-                f"Acquiring the GIL inside a {type_name} lock. "
-                "To avoid potential deadlocks acquire the GIL first.",
-                2)
         return super().analyse_expressions(env)
 
     def generate_execution_code(self, code):

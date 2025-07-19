@@ -63,6 +63,3 @@ memoryview.parallel_refcounting_stress_test
 # bugs in cpyext: PyNumber_InPlacePower with non-None modulus is not supported
 run.special_methods_T561
 run.special_methods_T561_py2
-
-lock_type  # No timed-acquire
-e_limited_lock
