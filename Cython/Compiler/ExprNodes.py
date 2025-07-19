@@ -4339,11 +4339,12 @@ class IndexNode(_IndexingBaseNode):
             self.index = self.index.coerce_to_pyobject(env)
             self.is_temp = 1
 
-        if base_type is unicode_type and self.index.type.is_int:
+        is_int_indexing = not is_slice and self.index.type.is_int
+        if is_int_indexing and base_type is unicode_type:
             # Py_UNICODE/Py_UCS4 will automatically coerce to a unicode string
             # if required, so this is fast and safe
             self.type = PyrexTypes.c_py_ucs4_type
-        elif base_type is bytearray_type and self.index.type.is_int:
+        elif is_int_indexing and base_type in (bytearray_type, bytes_type):
             if setting:
                 self.type = PyrexTypes.c_uchar_type
             else:
@@ -4353,7 +4354,7 @@ class IndexNode(_IndexingBaseNode):
             self.type = base_type
         else:
             item_type = None
-            if base_type in (list_type, tuple_type) and self.index.type.is_int:
+            if is_int_indexing and base_type in (list_type, tuple_type):
                 item_type = infer_sequence_item_type(env, self.base, self.index, seq_type=base_type)
             elif self.base.is_literal:
                 # Infer homogeneous item type when looping over container literals.
@@ -4708,6 +4709,12 @@ class IndexNode(_IndexingBaseNode):
             function = "__Pyx_GetItemInt_Unicode"
             error_value = '(Py_UCS4)-1'
             utility_code = UtilityCode.load_cached("GetItemIntUnicode", "StringTools.c")
+        elif base_type is bytes_type:
+            assert self.index.type.is_int
+            assert self.type.is_int
+            function = "__Pyx_GetItemInt_Bytes"
+            error_value = '-1'
+            utility_code = UtilityCode.load_cached("GetItemIntBytes", "StringTools.c")
         elif base_type is bytearray_type:
             assert self.index.type.is_int
             assert self.type.is_int
