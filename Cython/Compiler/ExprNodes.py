@@ -724,8 +724,7 @@ class ExprNode(Node):
         Return a node that represents the (type) result of an indexing operation,
         e.g. for tuple unpacking or iteration.
         """
-        return IndexNode(self.pos, base=self, index=IntNode(
-            self.pos, value=str(index), constant_result=index, type=PyrexTypes.c_py_ssize_t_type))
+        return IndexNode(self.pos, base=self, index=IntNode.for_size(self.pos, index))
 
     # --------------- Type Analysis ------------------
 
@@ -1533,6 +1532,15 @@ class IntNode(ConstNode):
         if 'type' not in kwds:
             self.type = self.find_suitable_type_for_value()
 
+    @classmethod
+    def for_int(cls, pos, int_value, type=PyrexTypes.c_int_type):
+        assert isinstance(int_value, int), repr(int_value)
+        return cls(pos, value=str(int_value), constant_result=int_value, type=type, is_c_literal=True)
+
+    @classmethod
+    def for_size(cls, pos, int_value):
+        return cls.for_int(pos, int_value, type=PyrexTypes.c_py_ssize_t_type)
+
     def find_suitable_type_for_value(self):
         if self.constant_result is constant_value_not_set:
             try:
@@ -1875,8 +1883,7 @@ class UnicodeNode(ConstNode):
                       "surrogate pairs can be coerced into Py_UCS4/Py_UNICODE.")
                 return self
             int_value = ord(self.value)
-            return IntNode(self.pos, type=dst_type, value=str(int_value),
-                           constant_result=int_value)
+            return IntNode.for_int(self.pos, int_value, type=dst_type)
         elif dst_type.is_pyunicode_ptr:
             return UnicodeNode(self.pos, value=self.value, type=dst_type)
         elif not dst_type.is_pyobject:
@@ -11734,14 +11741,10 @@ class CythonArrayNode(ExprNode):
                 return self
 
             if axis.stop.is_none:
-                if array_dimension_sizes:
-                    dimsize = array_dimension_sizes[axis_no]
-                    axis.stop = IntNode(self.pos, value=str(dimsize),
-                                        constant_result=dimsize,
-                                        type=PyrexTypes.c_int_type)
-                else:
+                if not array_dimension_sizes:
                     error(axis.pos, ERR_NOT_STOP)
                     return self
+                axis.stop = IntNode.for_int(self.pos, array_dimension_sizes[axis_no])
 
             axis.stop = axis.stop.analyse_types(env)
             shape = axis.stop.coerce_to(self.shape_type, env)
@@ -11882,7 +11885,7 @@ class CythonArrayNode(ExprNode):
             axes.append(SliceNode(pos, start=none_node, stop=none_node,
                                        step=none_node))
             base_type = base_type.base_type
-        axes[-1].step = IntNode(pos, value="1", is_c_literal=True)
+        axes[-1].step = IntNode.for_int(pos, 1)
 
         memslicenode = Nodes.MemoryViewSliceTypeNode(pos, axes=axes,
                                                      base_type_node=base_type)
@@ -13064,7 +13067,7 @@ class PowNode(NumBinopNode):
         from numbers import Real
         c_result_type = None
         op1_is_definitely_positive = (
-            self.operand1.has_constant_result()
+            isinstance(self.operand1.constant_result, Real)
             and self.operand1.constant_result >= 0
         ) or (
             type1.is_int and type1.signed == 0  # definitely unsigned
