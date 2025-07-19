@@ -6,7 +6,7 @@
 # The optimization is performed explicitly because it's completely
 # unobservable. Therefore, it's hard to test behaviourally.
 #
-# Restrict to c++17 just because to use cpp_locals in the test.
+# Restrict to c++17 just because we use cpp_locals in the test.
 
 cimport cython
 

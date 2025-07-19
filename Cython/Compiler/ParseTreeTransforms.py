@@ -4560,10 +4560,10 @@ class HasNoExceptionHandlingVisitor(TreeVisitor):
                 (node_lhs.type.needs_refcounting or node_lhs.type.is_cpp_class)):
             # There's a small (maybe non-exhaustive) list of builtin types that we can be confident
             # don't do anything interesting on destruction.
-            if not (node_lhs.type in [Builtin.bytes_type, Builtin.unicode_type, Builtin.bytearray_type,
-                                      Builtin.range_type,
-                                      Builtin.bool_type, Builtin.float_type,
-                                      Builtin.int_type, Builtin.complex_type]):
+            if node_lhs.type not in [Builtin.bytes_type, Builtin.unicode_type, Builtin.bytearray_type,
+                                     Builtin.range_type,
+                                     Builtin.bool_type, Builtin.float_type,
+                                     Builtin.int_type, Builtin.complex_type]:
                 # May trigger non-trivial destructor - potentially dubious
                 self.uses_no_exceptions = False
             return
@@ -4572,7 +4572,7 @@ class HasNoExceptionHandlingVisitor(TreeVisitor):
         rhs_type = node.rhs.type
         if not (rhs_type.is_numeric or rhs_type.is_pyobject or rhs_type.is_memoryviewslice):
             # Treat everything we haven't explicitly thought about as potentially dubious.
-            # cpp classes may non-trivial assignment operators for example.
+            # cpp classes may have non-trivial assignment operators for example.
             self.uses_no_exceptions = False
         if not self.uses_no_exceptions:
             return
@@ -4582,7 +4582,7 @@ class HasNoExceptionHandlingVisitor(TreeVisitor):
         if not self.uses_no_exceptions:
             return  # shortcut
         entry = node.entry
-        if self.assignment_lhs == node:
+        if self.assignment_lhs is node:
             if not (entry.is_cglobal or entry.is_arg or
                     entry.is_local or entry.in_closure or entry.from_closure):
                 self.uses_no_exceptions = False
@@ -4590,7 +4590,7 @@ class HasNoExceptionHandlingVisitor(TreeVisitor):
         else:
             if entry.is_cglobal:
                 if entry.is_cpp_optional and node.initialized_check:
-                    # Otherwise, C globals should be safe.
+                    # Otherwise, reading C globals should be safe.
                     self.uses_no_exceptions = False
                     return
             elif entry.is_arg or entry.is_local or entry.in_closure or entry.from_closure:
@@ -4608,6 +4608,7 @@ class HasNoExceptionHandlingVisitor(TreeVisitor):
     def visit_AttributeNode(self, node):
         if node.is_py_attr or node.entry.is_cpp_optional or node.type.is_memoryviewslice:
             self.uses_no_exceptions = False
+        # Python objects just need an incref and simple C types are fine, too. Others may not be.
         if not (node.type.is_pyobject or node.type.is_numeric):
             self.uses_no_exceptions = False
         if self.uses_no_exceptions:
