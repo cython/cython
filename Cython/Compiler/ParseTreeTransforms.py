@@ -4614,5 +4614,12 @@ class HasNoExceptionHandlingVisitor(TreeVisitor):
         if self.uses_no_exceptions:
             self.visitchildren(node)
 
+    def visit_IndexNode(self, node):
+        if not (node.base.type.is_array or node.base.type.is_ptr):
+            self.uses_no_exceptions = False
+        if not self.uses_no_exceptions:
+            return
+        self.visitchildren(node)
+
     def visit_CoerceToTempNode(self, node):
         self.visitchildren(node)

@@ -73,6 +73,8 @@ def test_assignment(arg):
 
     cdef str typed_as_string = "hello"
 
+    cdef list this_is_a_list = []
+
     some_value = 5
     with cython.test_body_needs_exception_handling(False):
         a = 2
@@ -90,6 +92,8 @@ def test_assignment(arg):
     cdef float some_c_value = 0.0
     with cython.test_body_needs_exception_handling(False):
         some_c_value = 1.0  # no destructor
+    with cython.test_body_needs_exception_handling(True):
+        this_is_a_list = arg  # type-check
 
     with cython.test_body_needs_exception_handling(True):
         py_global = True
@@ -154,3 +158,13 @@ def test_cpp_locals(arg):
         maybe_unassigned.attr = 1
     with cython.test_body_needs_exception_handling(True):
         a = arg.maybe_unassigned
+
+def test_indexing(s):
+    cdef list this_is_a_list = []
+    cdef const char *s_ptr = s
+    cdef int[5] arr
+    with cython.test_body_needs_exception_handling(True):
+        this_is_a_list[0]
+    with cython.test_body_needs_exception_handling(False):
+        s_ptr[0]
+        arr[0]
