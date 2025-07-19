@@ -3,11 +3,6 @@
 #
 
 
-import os
-
-from .. import Utils
-
-
 class ShouldBeFromDirective:
 
     known_directives = []
