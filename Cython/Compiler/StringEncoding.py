@@ -295,7 +295,7 @@ def escape_byte_string(s):
     append, extend = s_new.append, s_new.extend
     for b in s:
         if b >= 127:
-            extend((f'\\{b:03o}').encode('ASCII'))
+            extend(b'\\%03o' % b)
         else:
             append(b)
     return s_new.decode('ASCII')
