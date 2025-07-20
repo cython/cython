@@ -153,7 +153,7 @@ def make_lexicon():
 
 
 # BEGIN GENERATED CODE
-# Generated with 'cython-generate-lexicon.py' based on:
+# Generated with 'cython-generate-lexicon.py' based on Unicode 16.0.0:
 # cpython 3.15.0a0 (heads/master:652d6938ef8, May 20 2025, 09:24:50) [GCC 13.3.0]
 
 unicode_start_ch_any = (
