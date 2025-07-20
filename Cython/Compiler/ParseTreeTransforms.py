@@ -4600,7 +4600,7 @@ class HasNoExceptionHandlingVisitor(TreeVisitor):
         elif (node.type.is_memoryviewslice or node.entry.is_cpp_optional) and self.assignment_lhs is not node:
             # Memoryviewslices and cpp_optional are OK as a target, but reading them involves checks.
             # (Although cpp optionals are currently banned elsewhere
-            # because C++ classes may have non-trivial assignment). 
+            # because C++ classes may have non-trivial assignment).
             self.uses_no_exceptions = False
         # Python objects just need an incref and simple C types are fine, too. Others may not be.
         if not (node.type.is_pyobject or node.type.is_numeric or node.type.is_memoryviewslice):
