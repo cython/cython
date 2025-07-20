@@ -1,6 +1,8 @@
 # mode: run
-# tag: gdb
+# tag: gdb, no-windows
 # ticket: gh-1961
+
+# no-windows - even if we had gdb (which the CI appears to) the paths within the venv are wrong
 
 PYTHON -m venv venv
 venv/bin/python -m pip install setuptools
