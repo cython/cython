@@ -1,8 +1,9 @@
 # mode: run
-# tag: py3only, gdb
-# ticket: 1961
+# tag: gdb
+# ticket: gh-1961
 
 PYTHON -m venv venv
+venv/bin/python -m pip install setuptools
 venv/bin/python setup.py build_ext -i
 venv/bin/python -m pip install dummy_module_dir/
 venv/bin/python test_runner.py
@@ -30,7 +31,7 @@ if not os.path.isfile('SUCCESS'):
 ######## setup.py ########
 
 from Cython.Build.Dependencies import cythonize
-from distutils.core import setup
+from setuptools import setup
 
 setup(
   ext_modules = cythonize("*.pyx", gdb_debug=True),
