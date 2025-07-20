@@ -85,16 +85,17 @@ def test_assignment(arg):
 
     if arg:
         some_other_value = object()
+    cdef float some_c_value = 0.0
     with cython.test_body_needs_exception_handling(True):
         e = some_other_value
-    with cython.test_body_needs_exception_handling(True):
-        some_other_value = None  # may call destructor
-    cdef float some_c_value = 0.0
     with cython.test_body_needs_exception_handling(False):
+        # Re-assignment of Python or C objects isn't a problem.
+        # We're treating it as undefined if the destructor gets called
+        # during the exception handler.
+        some_other_value = None  # may call destructor
         some_c_value = 1.0  # no destructor
     with cython.test_body_needs_exception_handling(True):
         this_is_a_list = arg  # type-check
-
     with cython.test_body_needs_exception_handling(True):
         py_global = True
     with cython.test_body_needs_exception_handling(False):
@@ -116,9 +117,9 @@ def test_memoryview_assignment(obj):
     
     with cython.test_body_needs_exception_handling(False):
         b = obj_view
-
-    with cython.test_body_needs_exception_handling(True):
-        a = obj_view  # now may be assigned - destructor
+        # `a` may call destructor on re-assignment but we're
+        # treating that as implementation-defined.
+        a = obj_view
 
 cdef class CClass:
     cdef int x
@@ -128,14 +129,12 @@ cdef class CClass:
 def test_attr_assignment(CClass arg):
     cdef int[:] mview = arg
     cdef int[:] unassigned_mview
+    o = object()
     with cython.test_body_needs_exception_handling(False):
         arg.x = 5
         something = arg.x
-    o = object()
-    with cython.test_body_needs_exception_handling(True):
-        arg.y = o  # maybe destructor
-    with cython.test_body_needs_exception_handling(True):
-        arg.z = mview  # maybe destructor
+        arg.y = o
+        arg.z = mview
     with cython.test_body_needs_exception_handling(True):
         unassigned_mview = arg.z  # needs initialized check
     with cython.test_body_needs_exception_handling(True):
@@ -152,6 +151,9 @@ def test_maybe_unassigned_int(arg):
 
 @cython.cpp_locals(True)
 def test_cpp_locals(arg):
+    # Currently, cpp classes are need exception handling because
+    # they may have a non-trivial assignment operator. So by
+    # definition cpp_locals also need exception handling.
     if arg:
         maybe_unassigned = CppClass()
     with cython.test_body_needs_exception_handling(True):

@@ -4555,19 +4555,8 @@ class HasNoExceptionHandlingVisitor(TreeVisitor):
     def visit_SingleAssignmentNode(self, node):
         if not self.uses_no_exceptions:
             return  # shortcut
-        node_lhs = self.assignment_lhs = node.lhs
-        if ((not node_lhs.is_name or not node_lhs.cf_is_null) and
-                (node_lhs.type.needs_refcounting or node_lhs.type.is_cpp_class)):
-            # There's a small (maybe non-exhaustive) list of builtin types that we can be confident
-            # don't do anything interesting on destruction.
-            if node_lhs.type not in [Builtin.bytes_type, Builtin.unicode_type, Builtin.bytearray_type,
-                                     Builtin.range_type,
-                                     Builtin.bool_type, Builtin.float_type,
-                                     Builtin.int_type, Builtin.complex_type]:
-                # May trigger non-trivial destructor - potentially dubious
-                self.uses_no_exceptions = False
-            return
-        self.visit(node_lhs)
+        self.assignment_lhs = node.lhs
+        self.visit(node.lhs)
         self.assignment_lhs = None
         rhs_type = node.rhs.type
         if not (rhs_type.is_numeric or rhs_type.is_pyobject or rhs_type.is_memoryviewslice):
@@ -4606,10 +4595,15 @@ class HasNoExceptionHandlingVisitor(TreeVisitor):
                 return
 
     def visit_AttributeNode(self, node):
-        if node.is_py_attr or node.entry.is_cpp_optional or node.type.is_memoryviewslice:
+        if node.is_py_attr:
+            self.uses_no_exceptions = False
+        elif (node.type.is_memoryviewslice or node.entry.is_cpp_optional) and self.assignment_lhs is not node:
+            # Memoryviewslices and cpp_optional are OK as a target, but reading them involves checks.
+            # (Although cpp optionals are currently banned elsewhere
+            # because C++ classes may have non-trivial assignment). 
             self.uses_no_exceptions = False
         # Python objects just need an incref and simple C types are fine, too. Others may not be.
-        if not (node.type.is_pyobject or node.type.is_numeric):
+        if not (node.type.is_pyobject or node.type.is_numeric or node.type.is_memoryviewslice):
             self.uses_no_exceptions = False
         if self.uses_no_exceptions:
             self.visitchildren(node)
