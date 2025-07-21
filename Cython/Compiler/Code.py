@@ -1546,7 +1546,7 @@ class GlobalState:
         self.const_array_counters = {}  # counts of differently prefixed arrays of constants
         self.cached_cmethods = {}
         self.initialised_constants = set()
-        self.shared_utility_functions = list()
+        self.shared_utility_functions = []
 
         writer.set_global_state(self)
         self.rootwriter = writer
