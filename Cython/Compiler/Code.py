@@ -455,11 +455,13 @@ class UtilityCodeBase(AbstractUtilityCode):
         r'(.+)[.](proto(?:[.]\S+)?|impl|init|cleanup|module_state_decls|module_state_traverse|module_state_clear|export)$'
     ).match
     @staticmethod
-    def get_special_comment_matcher(comment):
-        return re.compile(
-            (r'^%(C)s{5,30}\s*(?P<name>(?:\w|\.)+)\s*%(C)s{5,30}|'
-             r'^%(C)s+@(?P<tag>\w+)\s*:\s*(?P<value>(?:\w|[.:])+)') %
-            {'C': comment}).match
+    def get_special_comment_matcher(line_comment_char):
+        return re.compile((
+            # section title
+            r'^%(C)s{5,30}  \s*  (?P<name> (?:\w|\.)+ )  \s*  %(C)s{5,30} |'
+            # section tags and dependencies
+            r'^%(C)s+  @(?P<tag> \w+)  \s*  :  \s*  (?P<value> (?: \w|[.:] )+ )'
+        ) % {'C': line_comment_char}, re.VERBOSE).match
 
     @classmethod
     def _add_utility(cls, utility, name, type, lines, begin_lineno, tags=None):
