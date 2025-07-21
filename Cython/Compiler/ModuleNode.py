@@ -3131,9 +3131,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             shared_utility_qualified_name = env.context.shared_utility_qualified_name
             if shared_utility_qualified_name:
                 temp = inner_code.funcstate.allocate_temp(py_object_type, manage_ref=True)
-                error_goto = inner_code.error_goto(self.pos)
                 inner_code.putln(
-                    f'{temp} = PyImport_ImportModule("{shared_utility_qualified_name}"); if (!{temp}) {error_goto}'
+                    f'{temp} = PyImport_ImportModule("{shared_utility_qualified_name}"); {inner_code.error_goto_if_null(temp, self.pos)}'
                 )
                 inner_code.put_gotref(temp, py_object_type)
                 inner_code.globalstate.register_part('c_function_import_code', inner_code)
