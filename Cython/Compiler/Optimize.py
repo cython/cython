@@ -1266,12 +1266,6 @@ class SwitchTransform(Visitor.EnvTransform):
                 not_in = cond.operator == 'not_in'
                 if not_in and not allow_not_in:
                     return self.NO_MATCH
-                if isinstance(cond.operand2, ExprNodes.UnicodeNode) and \
-                       cond.operand2.contains_surrogates():
-                    # dealing with surrogates leads to different
-                    # behaviour on wide and narrow Unicode
-                    # platforms => refuse to optimise this case
-                    return self.NO_MATCH
                 return not_in, cond.operand1, self.extract_in_string_conditions(cond.operand2)
             elif not cond.is_python_comparison():
                 if cond.operator == '==':
