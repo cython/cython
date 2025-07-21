@@ -31,6 +31,12 @@ Features added
 * Releasing the GIL from an unknown lock state is more efficient.
   (Github issue :issue:`6847`)
 
+* ``bool(c_int/float/ptr)`` avoid passing through Python objects.
+  (Github issue :issue:`7015`)
+
+* Unused exceptions in ``except`` clauses are detected in some more cases to avoid their normalisation.
+  (Github issue :issue:`7021`)
+
 * Several improvements were made in freethreaded Python code.
   (Github issues :issue:`6936`, :issue:`6939`, :issue:`6949`, :issue:`6984`, :issue:`7011`)
 
@@ -73,6 +79,9 @@ Bugs fixed
 
 * Type casts on constants as part of numeric expressions could crash Cython.
   (Github issue :issue:`6779`)
+
+* Indexing ``bytes`` failed to optimise in some cases.
+  (Github issue :issue:`6997`)
 
 * Pure mode type aliases like ``p_int`` or ``ulong`` leaked into some C type contexts,
   risking to conflict with user declarations.
