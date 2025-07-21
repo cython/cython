@@ -1654,9 +1654,9 @@ class GlobalState:
             for shared in self.shared_utility_functions:
                 shared_func_proto = f'{shared["ret"]}({shared["params"]})'
                 shared_func = shared["name"]
-                error_goto = code.error_goto(self.module_pos)
-                code.putln(
-                    f'if (__Pyx_ExportFunction("{shared_func}", (void (*)(void)){shared_func}, "{shared_func_proto}") < 0) {error_goto}'
+                code.put_error_if_neg(
+                    self.module_pos,
+                    f'__Pyx_ExportFunction("{shared_func}", (void (*)(void)){shared_func}, "{shared_func_proto}")'
                 )
 
     def __getitem__(self, key):
