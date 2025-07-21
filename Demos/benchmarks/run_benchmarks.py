@@ -83,6 +83,36 @@ def compile_benchmarks(cython_dir: pathlib.Path, bm_files: list[pathlib.Path], c
         tmp_dir=tmp_dir,
     )
 
+def compile_shared_benchmarks(cython_dir: pathlib.Path, bm_files: list[pathlib.Path], c_macros=None, tmp_dir=None):
+    extensions = "\n".join([f'''Extension("{bm_file.name.split('.')[0]}", ["{bm_file}"]),''' for bm_file in bm_files])
+    with open(tmp_dir / 'setup.py', 'w') as setup_file:
+        setup_file.write(f'''
+from Cython.Build import cythonize
+from Cython.Compiler import Options
+from setuptools import setup, Extension
+
+extensions = [
+    {extensions}
+    Extension("_cyutility", sources=["{tmp_dir}/_cyutility.c"]),
+]
+
+setup(
+  ext_modules = cythonize(extensions, shared_utility_qualified_name = '_cyutility')
+)
+'''
+    )
+    rev_hash = get_git_rev(rev_dir=cython_dir)
+    bm_list = ', '.join(bm_file.stem for bm_file in bm_files)
+    bm_count = len(bm_files)
+    logging.info(f"Compiling {bm_count} benchmark{'s' if bm_count != 1 else ''} with Cython gitrev {rev_hash}: {bm_list}")
+    run(
+        [sys.executable, "setup.py", "build_ext", "-i"],
+        cwd=tmp_dir,
+        pythonpath=cython_dir,
+        c_macros=c_macros,
+        tmp_dir=tmp_dir,
+    )
+
 
 def get_git_rev(revision=None, rev_dir=None):
     command = ["git", "describe", "--long"]
@@ -239,7 +269,7 @@ def run_benchmarks(bm_dir, benchmarks, pythonpath=None, profiler=None):
     return timings
 
 
-def benchmark_revisions(benchmarks, revisions, cythonize_args=None, profiler=None, limited_revisions=(), show_size=False):
+def benchmark_revisions(benchmarks, revisions, cythonize_args=None, profiler=None, limited_revisions=(), shared_revisions=(), show_size=False):
     python_version = f"Python {PYTHON_VERSION}"
     logging.info(f"### Comparing revisions in {python_version}: {' '.join(revisions)}.")
     logging.info(f"CFLAGS={os.environ.get('CFLAGS', DISTUTILS_CFLAGS)}")
@@ -274,10 +304,20 @@ def benchmark_revisions(benchmarks, revisions, cythonize_args=None, profiler=Non
                 show_size=show_size,
             )
 
+        if revision in shared_revisions:
+            logging.info(
+                f"### Preparing benchmark run for {revision_name} (Shared Cython module).")
+            rev_key = 'S-' + revision_name
+            timings[rev_key], sizes[rev_key] = benchmark_revision(
+                revision, benchmarks, cythonize_args, profiler, plain_python,
+                show_size=show_size, use_shared_module=True
+            )
+
     return timings, sizes
 
 
-def benchmark_revision(revision, benchmarks, cythonize_args=None, profiler=None, plain_python=False, c_macros=None, show_size=False):
+def benchmark_revision(
+        revision, benchmarks, cythonize_args=None, profiler=None, plain_python=False, c_macros=None, show_size=False, use_shared_module=False):
     with_profiler = None if plain_python else profiler
 
     if with_profiler:
@@ -298,7 +338,10 @@ def benchmark_revision(revision, benchmarks, cythonize_args=None, profiler=None,
             bm_files = [bm_file for bm_file in bm_files if bm_file.suffix == '.py']
             benchmarks = [bm_file.stem for bm_file in bm_files]
         else:
-            compile_benchmarks(cython_dir, bm_files, cythonize_args, c_macros=c_macros, tmp_dir=base_dir_str)
+            if use_shared_module:
+                compile_shared_benchmarks(cython_dir, bm_files, c_macros=c_macros, tmp_dir=bm_dir)
+            else:
+                compile_benchmarks(cython_dir, bm_files, cythonize_args, c_macros=c_macros, tmp_dir=base_dir_str)
             if show_size:
                 sizes = measure_benchmark_sizes(bm_files)
 
@@ -417,6 +460,11 @@ def parse_args(args):
         help="Also run the benchmarks for REVISION against the Limited C-API.",
     )
     parser.add_argument(
+        "--with-shared-module",
+        dest="with_shared_module", action="append", default=[],
+        help="Also run the benchmarks for REVISION against the module using shared module.",
+    )
+    parser.add_argument(
         "--perf",
         dest="profiler", action="store_const", const="perf", default=None,
         help="Run Linux 'perf record' on the benchmark process.",
@@ -461,13 +509,14 @@ if __name__ == '__main__':
         logging.error("No benchmarks selected!")
         sys.exit(1)
 
-    revisions = list({rev: rev for rev in (options.revisions + options.with_limited_api)})  # deduplicate in order
+    revisions = list({rev: rev for rev in (options.revisions + options.with_limited_api + options.with_shared_module)})  # deduplicate in order
     if options.with_python:
         revisions.append('Python')
     timings, sizes = benchmark_revisions(
         benchmarks, revisions, cythonize_args,
         profiler=options.profiler,
         limited_revisions=options.with_limited_api,
+        shared_revisions=options.with_shared_module,
         show_size=options.show_size
     )
     if options.report_csv:
