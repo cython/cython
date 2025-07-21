@@ -712,13 +712,13 @@ class UtilityCode(UtilityCodeBase):
         self.proto_block = proto_block
         self.name = name
         self.file = file
-        self.shared_utility_functions = self.parse_export_function(export) if export else []
+        self.shared_utility_functions = self.parse_export_functions(export) if export else []
 
         # cached for use in hash and eq
         self._parts_tuple = tuple(getattr(self, part, None) for part in self.code_parts)
 
     @classmethod
-    def parse_export_function(cls, export_proto):
+    def parse_export_functions(cls, export_proto):
         assert '/*' not in export_proto or '*/' not in export_proto, 'Export block must not contain comments'
         assert '//' not in export_proto, 'Export block must not contain comments'
 
