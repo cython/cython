@@ -830,7 +830,7 @@ class UtilityCode(UtilityCodeBase):
             if self.shared_utility_functions and shared_utility_loaded:
                 output[self.proto_block].putln(f'/* {self.name} */')
                 for shared in self.shared_utility_functions:
-                    # We must build pointer to function static global variable instead of function declaration
+                    # Convert function declarations to static function pointers.
                     output[self.proto_block].putln(f'static {shared["ret"]}(*{shared["name"]})({shared["params"]});')
                 output[self.proto_block].putln()
             else:
