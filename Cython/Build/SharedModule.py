@@ -38,7 +38,7 @@ def create_shared_library_pipeline(context, scope, options, result):
                 m = match_special(line)
                 if m and m.group('name'):
                     name = m.group('name')
-                    if mtype := UtilityCode.type_matcher(name):
+                    if mtype := UtilityCode.match_section_title(name):
                         name, type = mtype.groups()
                         if type == 'export':
                             module_node.scope.use_utility_code(UtilityCode.load_cached(name, c_utility_file))

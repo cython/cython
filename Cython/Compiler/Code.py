@@ -451,7 +451,7 @@ class UtilityCodeBase(AbstractUtilityCode):
     is_cython_utility = False
     _utility_cache = {}
 
-    type_matcher = re.compile(
+    match_section_title = re.compile(
         r'(.+)[.](proto(?:[.]\S+)?|impl|init|cleanup|module_state_decls|module_state_traverse|module_state_clear|export)$'
     ).match
     @staticmethod
@@ -533,7 +533,7 @@ class UtilityCodeBase(AbstractUtilityCode):
                     tags.clear()
 
                     name = m.group('name')
-                    mtype = cls.type_matcher(name)
+                    mtype = cls.match_section_title(name)
                     if mtype:
                         name, type = mtype.groups()
                     else:
