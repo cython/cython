@@ -454,8 +454,6 @@ class UtilityCodeBase(AbstractUtilityCode):
     type_matcher = re.compile(
         r'(.+)[.](proto(?:[.]\S+)?|impl|init|cleanup|module_state_decls|module_state_traverse|module_state_clear|export)$'
     ).match
-
-
     @staticmethod
     def get_special_comment_matcher(comment):
         return re.compile(
