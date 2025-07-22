@@ -891,7 +891,7 @@ static CYTHON_INLINE PyObject* __Pyx_PyTuple_GetSlice(PyObject* src, Py_ssize_t 
 
 /////////////// SliceTupleAndList ///////////////
 //@requires: TupleAndListFromArray
-//@requires: ModuleSetupCode.c::CriticalSections
+//@requires: Synchronization.c::CriticalSections
 
 #if CYTHON_COMPILING_IN_CPYTHON
 static CYTHON_INLINE void __Pyx_crop_slice(Py_ssize_t* _start, Py_ssize_t* _stop, Py_ssize_t* _length) {
@@ -1797,7 +1797,7 @@ try_unpack:
 
 
 /////////////// UnpackUnboundCMethod.proto ///////////////
-//@requires:  MemoryView_C.c::Atomics
+//@requires:  Synchronization.c::Atomics
 
 typedef struct {
     PyObject *type;

@@ -401,7 +401,7 @@ static CYTHON_INLINE int __Pyx_GetItemInt_ByteArray_Fast(PyObject* string, Py_ss
                                                          int wraparound, int boundscheck, int has_gil, int unsafe_shared);
 
 //////////////////// GetItemIntByteArray ////////////////////
-//@requires: ModuleSetupCode.c::CriticalSections
+//@requires: Synchronization.c::CriticalSections
 
 static CYTHON_INLINE int __Pyx_GetItemInt_ByteArray_Fast_Locked(PyObject* string, Py_ssize_t i,
                                                                 int wraparound, int boundscheck, int has_gil) {
@@ -465,7 +465,7 @@ static CYTHON_INLINE int __Pyx_SetItemInt_ByteArray_Fast(PyObject* string, Py_ss
                                                          int wraparound, int boundscheck, int has_gil, int unsafe_shared);
 
 //////////////////// SetItemIntByteArray ////////////////////
-//@requires: ModuleSetupCode.c::CriticalSections
+//@requires: Synchronization.c::CriticalSections
 
 static CYTHON_INLINE int __Pyx_SetItemInt_ByteArray_Fast_Locked(PyObject* string, Py_ssize_t i, unsigned char v,
                                                                 int wraparound, int boundscheck, int has_gil) {

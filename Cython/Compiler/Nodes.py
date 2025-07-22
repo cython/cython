@@ -9045,7 +9045,7 @@ class CriticalSectionStatNode(TryFinallyStatNode):
 
     def generate_execution_code(self, code):
         code.globalstate.use_utility_code(
-            UtilityCode.load_cached("CriticalSections", "ModuleSetupCode.c"))
+            UtilityCode.load_cached("CriticalSections", "Synchronization.c"))
 
         code.mark_pos(self.pos)
         code.begin_block()
@@ -9856,7 +9856,7 @@ class ParallelStatNode(StatNode, ParallelNode):
                     c.globalstate.use_utility_code(
                         UtilityCode.load_cached(
                             "SharedInFreeThreading",
-                            "ModuleSetupCode.c"))
+                            "Synchronization.c"))
                     c.put(f" __Pyx_shared_in_cpython_freethreading({Naming.parallel_freethreading_mutex})")
                     c.put(" private(%s, %s, %s)" % self.pos_info)
 
