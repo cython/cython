@@ -456,6 +456,7 @@ class UtilityCodeBase(AbstractUtilityCode):
     ).match
     @staticmethod
     def get_special_comment_matcher(line_comment_char):
+        line_comment_char = '\#' if line_comment_char == '#' else line_comment_char
         return re.compile((
             # section title
             r'^%(C)s{5,30}  \s*  (?P<name> (?:\w|\.)+ )  \s*  %(C)s{5,30} |'
