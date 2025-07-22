@@ -3037,19 +3037,28 @@ static int __Pyx_State_RemoveModule(CYTHON_UNUSED void* dummy) {
 
 #endif
 
-/////////////////////// CriticalSections.proto /////////////////////
+/////////////////////// CriticalSectionsDefinition.proto /////////////////////
 //@proto_block: utility_code_proto_before_types
 
 #if !CYTHON_COMPILING_IN_CPYTHON_FREETHREADING
 #define __Pyx_PyCriticalSection void*
 #define __Pyx_PyCriticalSection2 void*
+#else
+#define __Pyx_PyCriticalSection PyCriticalSection
+#define __Pyx_PyCriticalSection2 PyCriticalSection2
+#endif
+
+/////////////////////// CriticalSections.proto /////////////////////
+//@proto_block: utility_code_proto_before_types
+//@requires: CriticalSectionsDefinition
+
+#if !CYTHON_COMPILING_IN_CPYTHON_FREETHREADING
+
 #define __Pyx_PyCriticalSection_Begin1(cs, arg) (void)cs
 #define __Pyx_PyCriticalSection_Begin2(cs, arg1, arg2) (void)cs
 #define __Pyx_PyCriticalSection_End1(cs)
 #define __Pyx_PyCriticalSection_End2(cs)
 #else
-#define __Pyx_PyCriticalSection PyCriticalSection
-#define __Pyx_PyCriticalSection2 PyCriticalSection2
 #define __Pyx_PyCriticalSection_Begin1 PyCriticalSection_Begin
 #define __Pyx_PyCriticalSection_Begin2 PyCriticalSection2_Begin
 #define __Pyx_PyCriticalSection_End1 PyCriticalSection_End
@@ -3062,6 +3071,31 @@ static int __Pyx_State_RemoveModule(CYTHON_UNUSED void* dummy) {
 #else
 #define __Pyx_BEGIN_CRITICAL_SECTION Py_BEGIN_CRITICAL_SECTION
 #define __Pyx_END_CRITICAL_SECTION Py_END_CRITICAL_SECTION
+#endif
+
+/////////////////////// CriticalSectionsMutex.proto /////////////////////
+//@requires: CriticalSectionsDefinition
+
+#if !CYTHON_COMPILING_IN_CPYTHON_FREETHREADING
+#define __Pyx_PyCriticalSection_Begin1Mutex(cs, arg) (void)cs
+#define __Pyx_PyCriticalSection_Begin2Mutex(cs, arg1, arg2) (void)cs
+#define __Pyx_PyCriticalSection_End1Mutex(cs)
+#define __Pyx_PyCriticalSection_End2Mutex(cs)
+
+#elif PY_VERSION_HEX < 0x030e00C1
+#ifndef Py_BUILD_CORE
+#define Py_BUILD_CORE
+#endif
+#define __Pyx_PyCriticalSection_Begin1Mutex _PyCriticalSection_BeginMutex
+#define __Pyx_PyCriticalSection_Begin2Mutex _PyCriticalSection2_BeginMutex
+#define __Pyx_PyCriticalSection_End1Mutex PyCriticalSection_End
+#define __Pyx_PyCriticalSection_End2Mutex PyCriticalSection2_End
+
+#else
+#define __Pyx_PyCriticalSection_Begin1Mutex PyCriticalSection_BeginMutex
+#define __Pyx_PyCriticalSection_Begin2Mutex PyCriticalSection2_BeginMutex
+#define __Pyx_PyCriticalSection_End1Mutex PyCriticalSection_End
+#define __Pyx_PyCriticalSection_End2Mutex PyCriticalSection2_End
 #endif
 
 ////////////////////// IncludeStdlibH.proto //////////////////////

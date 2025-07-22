@@ -47,14 +47,14 @@ _ERRORS = """
 7:9: critical_section directive accepts one or two positional arguments
 9:9: critical_section directive accepts one or two positional arguments
 11:9: critical_section directive accepts one or two positional arguments
-13:33: Arguments to cython.critical_section must be Python objects.
-15:33: Arguments to cython.critical_section must be Python objects.
+13:33: Arguments to cython.critical_section must be Python objects, pymutex, or pymutex*.
+15:33: Arguments to cython.critical_section must be Python objects, pymutex, or pymutex*.
 18:13: Critical sections require the GIL
 21:0: critical_section directive can only be applied to a function with one or more positional arguments
 25:0: critical_section directive can only be applied to a function with one or more positional arguments
 29:0: critical_section directive can only be applied to a function with one or more positional arguments
 33:0: critical_section decorator does not take arguments
-37:0: Arguments to cython.critical_section must be Python objects.
+37:0: Arguments to cython.critical_section must be Python objects, pymutex, or pymutex*.
 41:0: Critical sections require the GIL
 
 # slightly extraneous, but no real harm
