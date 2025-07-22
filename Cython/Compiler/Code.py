@@ -777,7 +777,7 @@ class UtilityCode(UtilityCodeBase):
             # can be reused across modules
             writer.put_or_include(code_string, f'{self.name}_{code_type}')
         else:
-            writer.put(code_string)
+            writer.put_multilines(code_string)
 
     def _put_init_code_section(self, output):
         if not self.init:
@@ -786,7 +786,7 @@ class UtilityCode(UtilityCodeBase):
         self._put_code_section(writer, output, 'init')
         # 'init' code can end with an 'if' statement for an error condition like:
         # if (check_ok()) ; else
-        writer.putln(writer.error_goto_if_PyErr(output.module_pos))
+        writer.putln("  " + writer.error_goto_if_PyErr(output.module_pos))
         writer.putln()
 
     def put_code(self, output):
@@ -2766,6 +2766,14 @@ class CCodeWriter:
             # under Windows and Posix.  C/C++ compilers should still understand it.
             c_path = path.replace('\\', '/')
             code = f'#include "{c_path}"\n'
+        self.put_multilines(code)
+
+    @cython.final
+    def put_multilines(self, code):
+        # We assume that the code is consistently indented and just needs overall indenting.
+        # We also don't need to indent the first line since "self.put()" will do it for us.
+        if self.level and '\n' in code:
+            code = ("  " * self.level).join(code.splitlines(keepends=True))
         self.put(code)
 
     def put(self, code):
