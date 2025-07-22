@@ -22,7 +22,6 @@ static CYTHON_INLINE void __Pyx_Locks_PyThreadTypeLock_LockGil(__Pyx_Locks_PyThr
 }
 
 ////////////////////// PyThreadTypeLock ////////////////
-//@requires: ModuleSetupCode.c::GetRuntimeVersion
 
 #if CYTHON_COMPILING_IN_PYPY || PYPY_VERSION_NUM < 0x07031400
 #define PY_LOCK_ACQUIRED 1
