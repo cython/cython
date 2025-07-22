@@ -133,3 +133,39 @@ def test_gen_is_running():
 
     inner_instance = inner()
     return inner_instance
+
+def test_gen_concurrent_initialization():
+    """
+    Test a thread safety sanity-check in async generators
+    (although this test doesn't need threads to trigger it).
+
+    >>> test_gen_concurrent_initialization()  # doctest: +ELLIPSIS
+    <_cython...async_generator_asend object...>
+    RuntimeError('async generator is being initialized twice')
+    """
+    async def agen():
+        yield 0
+
+    ag = agen()
+
+    exc = None
+
+    def first_iter_hook(o):
+        nonlocal exc
+        try:
+            # This should fail - by definition we're in the initialization
+            # of o here.
+            o.asend(None)
+        except RuntimeError as e:
+            exc = e
+
+    import sys
+    original_hooks = sys.get_asyncgen_hooks()
+    sys.set_asyncgen_hooks(first_iter_hook)
+    try:
+        value = ag.asend(None)
+    finally:
+        sys.set_asyncgen_hooks(*original_hooks)
+
+    print(value)
+    print(repr(exc))

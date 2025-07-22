@@ -43,12 +43,21 @@ if (likely(__pyx_AsyncGen_init($module_cname) == 0)); else
 
 //////////////////// AsyncGenerator.proto ////////////////////
 //@requires: Coroutine.c::Coroutine
+//@requires: MemoryView_C.c::Atomics
 
 #define __Pyx_AsyncGen_USED
 typedef struct {
     __pyx_CoroutineObject coro;
     PyObject *ag_finalizer;
+    // ag_hooks_inited has 3 values:
+    // 0 - uninitialized
+    // 1 - being initialized
+    // 2 - initialized
+#if CYTHON_ATOMICS && CYTHON_COMPILING_IN_CPYTHON_FREETHREADING
+    __pyx_atomic_int_type ag_hooks_inited;
+#else
     int ag_hooks_inited;
+#endif
     int ag_closed;
     int ag_running_async;
 } __pyx_PyAsyncGenObject;
@@ -92,6 +101,7 @@ __Pyx_PyAsyncGen_Fini();
 //@requires: Coroutine.c::ReturnWithStopIteration
 //@requires: ObjectHandling.c::PyObjectCall2Args
 //@requires: ExtensionTypes.c::CallTypeTraverse
+//@requires: ModuleSetupCode.c::CriticalSections
 
 PyDoc_STRVAR(__Pyx_async_gen_send_doc,
 "send(arg) -> send 'arg' into generator,\n\
@@ -211,20 +221,24 @@ __Pyx_async_gen_init_hooks_firstiter(__pyx_PyAsyncGenObject *o, PyObject *firsti
 
 static CYTHON_INLINE int
 __Pyx_async_gen_init_hooks_done(__pyx_PyAsyncGenObject *o) {
-    return o->ag_hooks_inited != 0;
+#if CYTHON_ATOMICS && CYTHON_COMPILING_IN_CPYTHON_FREETHREADING
+    return __pyx_atomic_load(&(o->ag_hooks_inited)) == 2;  // could be relaxed load in principle.
+#else
+    // Skip critical section even on CYTHON_COMPILING_IN_CPYTHON_FREETHREADING
+    // because practically this is a relaxed load. And also because it we really should have
+    // access to atomics there.
+    return o->ag_hooks_inited == 2;
+#endif
 }
 
 static int
-__Pyx_async_gen_init_hooks(__pyx_PyAsyncGenObject *o)
+__Pyx__async_gen_init_hooks(__pyx_PyAsyncGenObject *o)
 {
 #if !CYTHON_COMPILING_IN_PYPY && !CYTHON_COMPILING_IN_LIMITED_API
     PyThreadState *tstate;
 #endif
     PyObject *finalizer;
     PyObject *firstiter;
-
-    assert (!__Pyx_async_gen_init_hooks_done(o));
-    o->ag_hooks_inited = 1;
 
 #if CYTHON_COMPILING_IN_LIMITED_API
     {
@@ -288,6 +302,43 @@ __Pyx_async_gen_init_hooks(__pyx_PyAsyncGenObject *o)
     }
 
     return 0;
+}
+
+static int
+__Pyx_async_gen_init_hooks(__pyx_PyAsyncGenObject *o)
+{
+#if CYTHON_ATOMICS && CYTHON_COMPILING_IN_CPYTHON_FREETHREADING
+    int ag_hooks_inited_was = 0;
+    if (unlikely(!__pyx_atomic_int_cmp_exchange(&o->ag_hooks_inited, &ag_hooks_inited_was, 1)))
+#else
+    int ag_hooks_inited_was;
+    {
+        __Pyx_BEGIN_CRITICAL_SECTION(o);
+        ag_hooks_inited_was = o->ag_hooks_inited;
+        if (likely(ag_hooks_inited_was == 0)) o->ag_hooks_inited = 1;
+        __Pyx_END_CRITICAL_SECTION();
+    }
+    if (unlikely(ag_hooks_inited_was != 0))
+#endif
+    {
+        // We've hit a race with 2 threads attempting to init the same async generator at once.
+        PyErr_SetString(
+            PyExc_RuntimeError,
+            "async generator is being initialized twice");
+        return -1;
+    }
+    int result = __Pyx__async_gen_init_hooks(o);
+    // CPython doesn't worry about the possibility that initialization might fail.
+    // It still considers an async generator initialized even on exception.
+    // Therefore we do the same.
+#if CYTHON_ATOMICS && CYTHON_COMPILING_IN_CPYTHON_FREETHREADING
+    __pyx_atomic_store(&(o->ag_hooks_inited), 2);
+#else
+    __Pyx_BEGIN_CRITICAL_SECTION(o);
+    o->ag_hooks_inited = 2;
+    __Pyx_END_CRITICAL_SECTION();
+#endif
+    return result;
 }
 
 
