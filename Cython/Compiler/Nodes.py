@@ -614,6 +614,8 @@ class CArrayDeclaratorNode(CDeclaratorNode):
             else:
                 base_type = base_type.specialize_here(self.pos, env, values)
             return self.base.analyse(base_type, env, nonempty=nonempty, visibility=visibility, in_pxd=in_pxd)
+
+        size = None
         if self.dimension:
             self.dimension = self.dimension.analyse_const_expression(env)
             if not self.dimension.type.is_int:
@@ -621,15 +623,14 @@ class CArrayDeclaratorNode(CDeclaratorNode):
             if self.dimension.type.is_const and self.dimension.entry.visibility != 'extern':
                 # extern const variables declaring C constants are allowed
                 error(self.dimension.pos, "Array dimension cannot be const variable")
-            size = self.dimension.get_constant_c_result_code()
-            if size is not None:
-                try:
-                    size = int(size)
-                except ValueError:
-                    # runtime constant?
-                    pass
-        else:
-            size = None
+            size = (self.dimension.constant_result if isinstance(self.dimension.constant_result, int)
+                    else self.dimension.get_constant_c_result_code())
+            try:
+                size = int(size)
+            except ValueError:
+                # runtime constant?
+                pass
+
         if not base_type.is_complete():
             error(self.pos, "Array element type '%s' is incomplete" % base_type)
         if base_type.is_pyobject:
@@ -6362,7 +6363,6 @@ class SingleAssignmentNode(AssignmentNode):
                     else:
                         error(self.pos, "C array iteration requires known end index")
                         return
-                step_node = None  #node.step
                 if step_node:
                     step_node = step_node.coerce_to(PyrexTypes.c_py_ssize_t_type, env)
 
@@ -6410,17 +6410,17 @@ class SingleAssignmentNode(AssignmentNode):
             refs.append(step_node)
 
         for ix in range(target_size):
-            ix_node = ExprNodes.IntNode(self.pos, value=str(ix), constant_result=ix, type=PyrexTypes.c_py_ssize_t_type)
+            ix_node = ExprNodes.IntNode.for_size(self.pos, ix)
             if step_node is not None:
-                if step_node.has_constant_result():
+                if isinstance(step_node.constant_result, int):
                     step_value = ix_node.constant_result * step_node.constant_result
-                    ix_node = ExprNodes.IntNode(self.pos, value=str(step_value), constant_result=step_value)
+                    ix_node = ExprNodes.IntNode.for_size(self.pos, step_value)
                 else:
                     ix_node = ExprNodes.MulNode(self.pos, operator='*', operand1=step_node, operand2=ix_node)
             if start_node is not None:
-                if start_node.has_constant_result() and ix_node.has_constant_result():
+                if isinstance(start_node.constant_result, int) and ix_node.has_constant_result():
                     index_value = ix_node.constant_result + start_node.constant_result
-                    ix_node = ExprNodes.IntNode(self.pos, value=str(index_value), constant_result=index_value)
+                    ix_node = ExprNodes.IntNode.for_size(self.pos, index_value)
                 else:
                     ix_node = ExprNodes.AddNode(
                         self.pos, operator='+', operand1=start_node, operand2=ix_node)
@@ -8388,28 +8388,9 @@ class ExceptClauseNode(Node):
         return Builtin.builtin_types["BaseException"]
 
     def body_may_need_exception(self):
-        body = self.body
-        if isinstance(body, StatListNode):
-            for node in body.stats:
-                if isinstance(node, PassStatNode):
-                    continue
-                elif isinstance(node, ReturnStatNode):
-                    body = node
-                    break
-                else:
-                    return True
-            else:
-                # No user code found (other than 'pass').
-                return False
-
-        if isinstance(body, ReturnStatNode):
-            value = body.value
-            if value is None or value.is_literal:
-                return False
-            # There might be other safe cases, but literals seem the safest for now.
-
-        # If we cannot prove that the exception is unused, it may be used.
-        return True
+        from .ParseTreeTransforms import HasNoExceptionHandlingVisitor
+        tree_has_no_exceptions = HasNoExceptionHandlingVisitor()
+        return not tree_has_no_exceptions(self.body)
 
     def generate_handling_code(self, code, end_label):
         code.mark_pos(self.pos)
@@ -10344,10 +10325,14 @@ class ParallelRangeNode(ParallelStatNode):
 
     valid_keyword_arguments = ['schedule', 'nogil', 'num_threads', 'chunksize', 'use_threads_if']
 
+    class DummyIteratorNode(Node):
+        child_attrs = ["args"]
+
     def __init__(self, pos, **kwds):
         super().__init__(pos, **kwds)
-        # Pretend to be a ForInStatNode for control flow analysis
-        self.iterator = PassStatNode(pos)
+        # Pretend to be a ForInStatNode for control flow analysis,
+        # ensuring that the args get visited when the iterator would be.
+        self.iterator = self.DummyIteratorNode(pos, args=self.args)
 
     def analyse_declarations(self, env):
         super().analyse_declarations(env)

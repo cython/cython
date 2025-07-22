@@ -65,7 +65,8 @@ cdef class memoryview:
 
     cdef object obj
     cdef object _size
-    cdef object _array_interface
+    # This comes before acquisition_count so can't be removed without breaking ABI compatibility
+    cdef void* _unused
     cdef PyThread_type_lock lock
     cdef __pyx_atomic_int_type acquisition_count
     cdef Py_buffer view

@@ -2713,6 +2713,8 @@ class CPointerBaseType(CType):
     # common base type for pointer/array types
     #
     #  base_type     CType              Reference type
+    #  is_string         bool           Pointer is a char* or similar C string.
+    #  is_pyunicode_ptr  bool           Pointer is a Py_UNICODE*.
 
     subtypes = ['base_type']
 
@@ -2867,12 +2869,10 @@ class CArrayType(CPointerBaseType):
         return True
 
     def to_py_call_code(self, source_code, result_code, result_type, to_py_function=None):
-        func = self.to_py_function if to_py_function is None else to_py_function
         if self.is_string or self.is_pyunicode_ptr:
-            return '%s = %s(%s)' % (
-                result_code,
-                func,
-                source_code)
+            return super().to_py_call_code(source_code, result_code, result_type, to_py_function)
+
+        func = self.to_py_function if to_py_function is None else to_py_function
         target_is_tuple = result_type.is_builtin_type and result_type.name == 'tuple'
         return '%s = %s(%s, %s)' % (
             result_code,
