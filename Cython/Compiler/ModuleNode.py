@@ -3686,24 +3686,33 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
     def generate_c_function_export_code(self, env, code):
         # Generate code to create PyCFunction wrappers for exported C functions.
-        entries = []
-        for entry in env.cfunc_entries:
-            if (entry.api
-                    or entry.defined_in_pxd
-                    or (Options.cimport_from_pyx and not entry.visibility == 'extern')):
-                entries.append(entry)
-        if entries:
-            env.use_utility_code(
-                UtilityCode.load_cached("FunctionExport", "ImportExport.c"))
-            # Note: while this looks like it could be more cheaply stored and read from a struct array,
-            # investigation shows that the resulting binary is smaller with repeated functions calls.
-            for entry in entries:
-                signature = entry.type.signature_string()
-                code.putln('if (__Pyx_ExportFunction(%s, (void (*)(void))%s, "%s") < 0) %s' % (
-                    entry.name.as_c_string_literal(),
-                    entry.cname,
-                    signature,
-                    code.error_goto(self.pos)))
+        entries = [
+            entry for entry in env.cfunc_entries
+            if entry.api or entry.defined_in_pxd or (Options.cimport_from_pyx and not entry.visibility == 'extern')
+        ]
+        if not entries:
+            return
+
+        env.use_utility_code(
+            UtilityCode.load_cached("FunctionExport", "ImportExport.c"))
+
+        api_dict = code.funcstate.allocate_temp(py_object_type, manage_ref=True)
+        code.putln(f"{api_dict} = __Pyx_ExportFunction_GetApiDict(); {code.error_goto_if_null(api_dict, self.pos)}")
+        code.put_gotref(api_dict, py_object_type)
+
+        # Note: while this looks like it could be more cheaply stored and read from a struct array,
+        # investigation shows that the resulting binary is smaller with repeated functions calls.
+        for entry in entries:
+            name = code.intern_identifier(entry.name)
+            signature = entry.type.signature_string()
+
+            code.put_error_if_neg(
+                self.pos,
+                f'__Pyx_ExportFunction({api_dict}, {name}, (void (*)(void)){entry.cname}, "{signature}")'
+            )
+
+        code.put_decref_clear(api_dict, py_object_type)
+        code.funcstate.release_temp(api_dict)
 
     def generate_type_import_code_for_module(self, module, env, code):
         # Generate type import code for all exported extension types in

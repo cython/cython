@@ -618,20 +618,14 @@ bad:
 
 /////////////// FunctionExport.proto ///////////////
 
-static int __Pyx_ExportFunction(const char *name, void (*f)(void), const char *sig); /*proto*/
+static PyObject *__Pyx_ExportFunction_GetApiDict(void); /*proto*/
+static int __Pyx_ExportFunction(PyObject *api_dict, PyObject *name, void (*f)(void), const char *sig); /*proto*/
 
 /////////////// FunctionExport ///////////////
 //@substitute: naming
 
-static int __Pyx_ExportFunction(const char *name, void (*f)(void), const char *sig) {
-    PyObject *d = 0;
-    PyObject *cobj = 0;
-    union {
-        void (*fp)(void);
-        void *p;
-    } tmp;
-
-    d = PyObject_GetAttrString($module_cname, "$api_name");
+static PyObject *__Pyx_ExportFunction_GetApiDict(void) {
+    PyObject *d = PyObject_GetAttrString($module_cname, "$api_name");
     if (!d) {
         PyErr_Clear();
         d = PyDict_New();
@@ -641,18 +635,30 @@ static int __Pyx_ExportFunction(const char *name, void (*f)(void), const char *s
         if (PyModule_AddObject($module_cname, "$api_name", d) < 0)
             goto bad;
     }
+    return d;
+
+bad:
+    Py_XDECREF(d);
+    return NULL;
+}
+
+static int __Pyx_ExportFunction(PyObject *api_dict, PyObject *name, void (*f)(void), const char *sig) {
+    PyObject *cobj = 0;
+    union {
+        void (*fp)(void);
+        void *p;
+    } tmp;
+
     tmp.fp = f;
     cobj = PyCapsule_New(tmp.p, sig, 0);
     if (!cobj)
         goto bad;
-    if (PyDict_SetItemString(d, name, cobj) < 0)
+    if (PyDict_SetItem(api_dict, name, cobj) < 0)
         goto bad;
     Py_DECREF(cobj);
-    Py_DECREF(d);
     return 0;
 bad:
     Py_XDECREF(cobj);
-    Py_XDECREF(d);
     return -1;
 }
 
