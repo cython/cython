@@ -290,6 +290,7 @@ cleanup_level_for_type_prefix = cython.declare(object, {
     'slice': 2,
 }.get)
 
+
 class IncludeCode:
     """
     An include file and/or verbatim C code to be included in the
@@ -454,15 +455,15 @@ class UtilityCodeBase(AbstractUtilityCode):
     match_section_title = re.compile(
         r'(.+)[.](proto(?:[.]\S+)?|impl|init|cleanup|module_state_decls|module_state_traverse|module_state_clear|export)$'
     ).match
+
     @staticmethod
     def get_special_comment_matcher(line_comment_char):
-        line_comment_char = '\#' if line_comment_char == '#' else line_comment_char
         return re.compile((
             # section title
             r'^%(C)s{5,30}  \s*  (?P<name> (?:\w|\.)+ )  \s*  %(C)s{5,30} |'
             # section tags and dependencies
             r'^%(C)s+  @(?P<tag> \w+)  \s*  :  \s*  (?P<value> (?: \w|[.:] )+ )'
-        ) % {'C': line_comment_char}, re.VERBOSE).match
+        ) % {'C': re.escape(line_comment_char)}, re.VERBOSE).match
 
     @classmethod
     def _add_utility(cls, utility, name, type, lines, begin_lineno, tags=None):
@@ -837,7 +838,7 @@ class UtilityCode(UtilityCodeBase):
             else:
                 self._put_code_section(output[self.proto_block], output, 'proto')
         if self.shared_utility_functions:
-            output.shared_utility_functions.extend(list(self.shared_utility_functions))
+            output.shared_utility_functions.extend(self.shared_utility_functions)
             if shared_utility_loaded:
                 return
         if self.impl:

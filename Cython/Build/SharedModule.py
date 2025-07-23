@@ -32,16 +32,17 @@ def create_shared_library_pipeline(context, scope, options, result):
     def generate_c_utilities(module_node):
         UtilityCode = Code.UtilityCode
         match_special = UtilityCode.get_special_comment_matcher('/')
-        for c_utility_file in [f for f in os.listdir(Code.get_utility_dir()) if f.endswith('.c')]:
-            all_lines = Code.read_utilities_hook(c_utility_file)
-            for line in all_lines:
-                m = match_special(line)
-                if m and m.group('name'):
-                    name = m.group('name')
-                    if mtype := UtilityCode.match_section_title(name):
-                        name, type = mtype.groups()
-                        if type == 'export':
-                            module_node.scope.use_utility_code(UtilityCode.load_cached(name, c_utility_file))
+        for c_utility_file in os.listdir(Code.get_utility_dir()):
+            if not c_utility_file.endswith('.c'):
+                continue
+            for line in Code.read_utilities_hook(c_utility_file):
+                if not (m := match_special(line)):
+                    continue
+                if not (section_title := UtilityCode.match_section_title(m.group('name'))):
+                    continue
+                name, section_type = section_title.groups()
+                if section_type == 'export':
+                    module_node.scope.use_utility_code(UtilityCode.load_cached(name, c_utility_file))
         return module_node
 
     orig_cimport_from_pyx = Options.cimport_from_pyx
