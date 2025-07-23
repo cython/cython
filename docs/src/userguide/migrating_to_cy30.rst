@@ -308,14 +308,18 @@ Usages of ``DEF`` should be replaced by:
 - C macros, e.g. defined in :ref:`verbatim C code <verbatim_c>`
 - the usual Python mechanisms for sharing values across modules and usages
 
-Usages of ``IF`` should be replaced by:
+Usages of ``IF`` should be replaced by runtime conditions and conditional Python imports,
+i.e. the usual Python patterns.  Specifically:
 
-- runtime conditions and conditional Python imports (i.e. the usual Python patterns)
-- leaving out unused C struct field names from a Cython extern struct definition
-  (which does not have to be complete)
-- redefining an extern struct type under different Cython names,
-  with different (e.g. version/platform dependent) attributes,
-  but with the :ref:`same cname string <resolve-conflicts>`.
-- separating out optional (non-trivial) functionality into optional Cython modules
-  and importing/using them at need (with regular runtime Python imports)
-- code generation, as a last resort
+- Non-trivial or platform specific functionalities can often be separated out into optional
+  Cython modules that can be imported/used at need (with regular runtime Python imports).
+- Version specific struct field names that are unused can be left out of a Cython
+  :ref:`extern struct definition <_external-C-code>` (which does not have to be complete).
+  If they are used, C shims to access them with functions or macros can often be used,
+  easily defined in :ref:`verbatim C code <verbatim_c>`.
+- Largely different layouts of extern structs can be declared in Cython as separate structs
+  with different Cython names and different (e.g. version/platform dependent) attributes,
+  but with the C struct name provided as :ref:`same cname string <resolve-conflicts>`.
+  This allows their usage from more use case specific code that can be included and
+  reused from different optional modules.
+- If all else fails, code generation can be used as a last resort.
