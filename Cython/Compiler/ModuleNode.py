@@ -211,7 +211,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             # They have the potential to cause ABI issues.
             self.scope.use_utility_code(
                 UtilityCode.load_cached(
-                    "CythonPyMutexPublicCheck", "Lock.c"
+                    "CythonPyMutexPublicCheck", "Synchronization.c"
                 ))
 
     def prepare_utility_code(self):
