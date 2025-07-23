@@ -154,6 +154,7 @@
             __pyx_sub_acquisition_count_locked(__pyx_get_slice_count_pointer(memview), memview->lock)
 #endif
 
+
 /////////////////////// CriticalSections.proto /////////////////////
 //@proto_block: utility_code_proto_before_types
 
@@ -181,6 +182,7 @@
 #define __Pyx_END_CRITICAL_SECTION Py_END_CRITICAL_SECTION
 #endif
 
+
 ////////////////////// PyThreadTypeLock.proto //////////
 //@proto_block: utility_code_proto_before_types
 
@@ -203,6 +205,7 @@ static CYTHON_INLINE void __Pyx_Locks_PyThreadTypeLock_Lock(__Pyx_Locks_PyThread
 static CYTHON_INLINE void __Pyx_Locks_PyThreadTypeLock_LockGil(__Pyx_Locks_PyThreadTypeLock lock) {
     __Pyx__Locks_PyThreadTypeLock_LockGil(lock);
 }
+
 
 ////////////////////// PyThreadTypeLock ////////////////
 
@@ -259,6 +262,7 @@ static void __Pyx__Locks_PyThreadTypeLock_Lock(__Pyx_Locks_PyThreadTypeLock lock
 #endif
 }
 
+
 ////////////////////// PyMutex.proto ////////////////////
 //@proto_block: utility_code_proto_before_types
 //@requires: PyThreadTypeLock
@@ -300,6 +304,7 @@ static void __Pyx__Locks_PyThreadTypeLock_Lock(__Pyx_Locks_PyThreadTypeLock lock
 
 #endif
 
+
 //////////////////////////// CythonPyMutexPublicCheck ///////////////////////////////////
 
 #ifndef CYTHON_UNSAFE_IGNORE_PYMUTEX_ABI_COMPATIBILITY
@@ -317,6 +322,7 @@ static void __Pyx__Locks_PyThreadTypeLock_Lock(__Pyx_Locks_PyThreadTypeLock lock
  modules to be compatible with each other.  Use cython.pythread_type_lock for a safe\
  alternative lock type instead.
 #endif
+
 
 ////////////////////////// SharedInFreeThreading.proto //////////////////
 
