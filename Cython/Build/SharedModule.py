@@ -36,9 +36,9 @@ def create_shared_library_pipeline(context, scope, options, result):
             if not c_utility_file.endswith('.c'):
                 continue
             for line in Code.read_utilities_hook(c_utility_file):
-                if not (m := match_special(line)):
+                if not (m := match_special(line) and name := m.group('name')):
                     continue
-                if not (section_title := UtilityCode.match_section_title(m.group('name'))):
+                if not (section_title := UtilityCode.match_section_title(name)):
                     continue
                 name, section_type = section_title.groups()
                 if section_type == 'export':
