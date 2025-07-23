@@ -127,18 +127,18 @@ Class-private name mangling
 
 Cython has been updated to follow the `Python rules for class-private names
 <https://docs.python.org/3/tutorial/classes.html#private-variables>`_
-more closely. Essentially any name that starts with and doesn't end with 
+more closely. Essentially any name that starts with and doesn't end with
 ``__`` within a class is mangled with the class name. Most user code
 should be unaffected -- unlike in Python unmangled global names will
 still be matched to ensure it is possible to access C names
 beginning with ``__``::
 
      cdef extern void __foo()
-     
+
      class C: # or "cdef class"
         def call_foo(self):
             return __foo() # still calls the global name
-            
+
 What will no-longer work is overriding methods starting with ``__`` in
 a ``cdef class``::
 
@@ -154,7 +154,7 @@ a ``cdef class``::
             return 2
 
 Here ``Base.__bar`` is mangled to ``_Base__bar`` and ``Derived.__bar``
-to ``_Derived__bar``. Therefore ``call_bar`` will always call 
+to ``_Derived__bar``. Therefore ``call_bar`` will always call
 ``_Base__bar``. This matches established Python behaviour and applies
 for ``def``, ``cdef`` and ``cpdef`` methods and attributes.
 
@@ -162,14 +162,14 @@ Arithmetic special methods
 ==========================
 
 The behaviour of arithmetic special methods (for example ``__add__``
-and ``__pow__``) of cdef classes has changed in Cython 3.0. They now 
-support separate "reversed" versions of these methods (e.g. 
+and ``__pow__``) of cdef classes has changed in Cython 3.0. They now
+support separate "reversed" versions of these methods (e.g.
 ``__radd__``, ``__rpow__``) that behave like in pure Python.
 The main incompatible change is that the type of the first operand
 (usually ``__self__``) is now assumed to be that of the defining class,
 rather than relying on the user to test and cast the type of each operand.
 
-The old behaviour can be restored with the 
+The old behaviour can be restored with the
 :ref:`directive <compiler-directives>` ``c_api_binop_methods=True``.
 More details are given in :ref:`arithmetic_methods`.
 
@@ -231,7 +231,7 @@ instead to let Cython use the ``int`` as an error flag
   The unsafe legacy behaviour of not propagating exceptions by default can be enabled by
   setting ``legacy_implicit_noexcept`` :ref:`compiler directive<compiler-directives>`
   to ``True``.
-  
+
 
 Annotation typing
 =================
