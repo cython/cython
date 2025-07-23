@@ -1,11 +1,63 @@
+/////////////// ImportLookup.proto ///////////////
+
+static PyObject *__Pyx__Import_Lookup(PyObject *name); /*proto*/
+static PyObject *__Pyx__Import_LookupLock(PyObject *name); /*proto*/
+
+/////////////// ImportLookup ///////////////
+
+static PyObject *__Pyx__Import_Lookup(PyObject *name) {
+    PyObject *imported_module;
+#if (CYTHON_COMPILING_IN_PYPY && PYPY_VERSION_NUM  < 0x07030400) || \
+        CYTHON_COMPILING_IN_GRAAL
+    PyObject *modules = PyImport_GetModuleDict();
+    if (unlikely(!modules))
+        return NULL;
+    imported_module = __Pyx_PyDict_GetItemStr(modules, name);
+    Py_XINCREF(imported_module);
+#else
+    imported_module = PyImport_GetModule(name);
+#endif
+    return imported_module;
+}
+
+static PyObject *__Pyx__Import_LookupLock(PyObject *name) {
+    PyObject *module = __Pyx__Import_Lookup(name);
+    if (likely(module)) {
+        // CPython guards against thread-concurrent initialisation in importlib.
+        // In this case, we let PyImport_ImportModuleLevelObject() handle the locking.
+        PyObject *spec = __Pyx_PyObject_GetAttrStrNoError(module, PYIDENT("__spec__"));
+        if (likely(spec)) {
+            PyObject *unsafe = __Pyx_PyObject_GetAttrStrNoError(spec, PYIDENT("_initializing"));
+            if (likely(!unsafe || !__Pyx_PyObject_IsTrue(unsafe))) {
+                Py_DECREF(spec);
+                spec = NULL;
+            }
+            Py_XDECREF(unsafe);
+        }
+        if (likely(!spec)) {
+            // Not in initialisation phase => use modules as is.
+            PyErr_Clear();
+            return module;
+        }
+        Py_DECREF(spec);
+        Py_DECREF(module);
+    } else if (PyErr_Occurred()) {
+        PyErr_Clear();
+    }
+    return NULL;
+}
+
+
 /////////////// ImportDottedModule.proto ///////////////
 
-static PyObject *__Pyx_ImportDottedModule(PyObject *name, PyObject *parts_tuple); /*proto*/
+static PyObject *__Pyx_ImportDottedModule(PyObject *name, PyObject *parts_tuple, PyObject *qualname); /*proto*/
 static PyObject *__Pyx_ImportDottedModule_WalkParts(PyObject *module, PyObject *name, PyObject *parts_tuple); /*proto*/
 
 
 /////////////// ImportDottedModule ///////////////
 //@requires: Import
+//@requires: ImportLookup
+//@requires: ObjectHandling.c::PyObjectGetAttrStr
 
 static PyObject *__Pyx__ImportDottedModule_Error(PyObject *name, PyObject *parts_tuple, Py_ssize_t count) {
     PyObject *partial_name = NULL, *slice = NULL, *sep = NULL;
@@ -42,21 +94,6 @@ bad:
     return NULL;
 }
 
-static PyObject *__Pyx__ImportDottedModule_Lookup(PyObject *name) {
-    PyObject *imported_module;
-#if (CYTHON_COMPILING_IN_PYPY && PYPY_VERSION_NUM  < 0x07030400) || \
-        CYTHON_COMPILING_IN_GRAAL
-    PyObject *modules = PyImport_GetModuleDict();
-    if (unlikely(!modules))
-        return NULL;
-    imported_module = __Pyx_PyDict_GetItemStr(modules, name);
-    Py_XINCREF(imported_module);
-#else
-    imported_module = PyImport_GetModule(name);
-#endif
-    return imported_module;
-}
-
 static PyObject *__Pyx_ImportDottedModule_WalkParts(PyObject *module, PyObject *name, PyObject *parts_tuple) {
     Py_ssize_t i, nparts;
 #if CYTHON_ASSUME_SAFE_SIZE
@@ -87,65 +124,36 @@ static PyObject *__Pyx_ImportDottedModule_WalkParts(PyObject *module, PyObject *
     return module;
 }
 
-static PyObject *__Pyx__ImportDottedModule(PyObject *name, PyObject *parts_tuple) {
-    PyObject *imported_module;
-    PyObject *module = __Pyx_Import(name, NULL, 0);
+static PyObject *__Pyx__ImportDottedModule(PyObject *name, PyObject *parts_tuple, PyObject *qualname) {
+    PyObject *module = __Pyx_Import(name, NULL, 0, qualname);
     if (!parts_tuple || unlikely(!module))
         return module;
-
-    // Look up module in sys.modules, which is safer than the attribute lookups below.
-    imported_module = __Pyx__ImportDottedModule_Lookup(name);
-    if (likely(imported_module)) {
-        Py_DECREF(module);
-        return imported_module;
-    }
-    PyErr_Clear();
     return __Pyx_ImportDottedModule_WalkParts(module, name, parts_tuple);
 }
 
-static PyObject *__Pyx_ImportDottedModule(PyObject *name, PyObject *parts_tuple) {
+static PyObject *__Pyx_ImportDottedModule(PyObject *name, PyObject *parts_tuple, PyObject *qualname) {
 #if CYTHON_COMPILING_IN_CPYTHON
-    PyObject *module = __Pyx__ImportDottedModule_Lookup(name);
+    PyObject *module = __Pyx__Import_LookupLock(name);
     if (likely(module)) {
-        // CPython guards against thread-concurrent initialisation in importlib.
-        // In this case, we let PyImport_ImportModuleLevelObject() handle the locking.
-        PyObject *spec = __Pyx_PyObject_GetAttrStrNoError(module, PYIDENT("__spec__"));
-        if (likely(spec)) {
-            PyObject *unsafe = __Pyx_PyObject_GetAttrStrNoError(spec, PYIDENT("_initializing"));
-            if (likely(!unsafe || !__Pyx_PyObject_IsTrue(unsafe))) {
-                Py_DECREF(spec);
-                spec = NULL;
-            }
-            Py_XDECREF(unsafe);
-        }
-        if (likely(!spec)) {
-            // Not in initialisation phase => use modules as is.
-            PyErr_Clear();
-            return module;
-        }
-        Py_DECREF(spec);
-        Py_DECREF(module);
-    } else if (PyErr_Occurred()) {
-        PyErr_Clear();
+        return module;
     }
 #endif
-
-    return __Pyx__ImportDottedModule(name, parts_tuple);
+    return __Pyx__ImportDottedModule(name, parts_tuple, qualname);
 }
 
 
 /////////////// ImportDottedModuleRelFirst.proto ///////////////
 
-static PyObject *__Pyx_ImportDottedModuleRelFirst(PyObject *name, PyObject *parts_tuple); /*proto*/
+static PyObject *__Pyx_ImportDottedModuleRelFirst(PyObject *name, PyObject *parts_tuple, PyObject *qualname); /*proto*/
 
 /////////////// ImportDottedModuleRelFirst ///////////////
 //@requires: ImportDottedModule
 //@requires: Import
 
-static PyObject *__Pyx_ImportDottedModuleRelFirst(PyObject *name, PyObject *parts_tuple) {
+static PyObject *__Pyx_ImportDottedModuleRelFirst(PyObject *name, PyObject *parts_tuple, PyObject *qualname) {
     PyObject *module;
     PyObject *from_list = NULL;
-    module = __Pyx_Import(name, from_list, -1);
+    module = __Pyx_Import(name, from_list, -1, qualname);
     Py_XDECREF(from_list);
     if (module) {
         if (parts_tuple) {
@@ -163,18 +171,21 @@ static PyObject *__Pyx_ImportDottedModuleRelFirst(PyObject *name, PyObject *part
 
 /////////////// Import.proto ///////////////
 
-static PyObject *__Pyx_Import(PyObject *name, PyObject *from_list, int level); /*proto*/
+static PyObject *__Pyx_Import(PyObject *name, PyObject *from_list, int level, PyObject *qualname); /*proto*/
 
 /////////////// Import ///////////////
-//@requires: ObjectHandling.c::PyObjectGetAttrStr
-//@requires:StringTools.c::IncludeStringH
+//@requires: StringTools.c::IncludeStringH
+//@requires: ImportLookup
 
-static PyObject *__Pyx_Import(PyObject *name, PyObject *from_list, int level) {
+static PyObject *__Pyx_Import(PyObject *name, PyObject *from_list, int level, PyObject *qualname) {
     PyObject *module = 0;
     PyObject *empty_dict = 0;
     PyObject *empty_list = 0;
     empty_dict = PyDict_New();
     if (unlikely(!empty_dict))
+        goto bad;
+    module = __Pyx__Import_LookupLock(qualname);
+    if (likely(module))
         goto bad;
     if (level == -1) {
         const char* package_sep = strchr(__Pyx_MODULE_NAME, '.');
@@ -931,7 +942,7 @@ Py_CLEAR(CGLOBAL(__pyx_numpy_ndarray));
 
 static PyObject* __Pyx__ImportNumPyArray(void) {
     PyObject *numpy_module, *ndarray_object = NULL;
-    numpy_module = __Pyx_Import(PYIDENT("numpy"), NULL, 0);
+    numpy_module = __Pyx_Import(PYIDENT("numpy"), NULL, 0, PYIDENT("numpy"));
     if (likely(numpy_module)) {
         ndarray_object = PyObject_GetAttrString(numpy_module, "ndarray");
         Py_DECREF(numpy_module);

@@ -2889,13 +2889,15 @@ class ImportNode(ExprNode):
     #                           directives
     #  get_top_level_module   int          true: return top-level module, false: return imported module
     #  module_names           TupleNode    the separate names of the module and submodules, or None
+    #  module_qualname        IdentifierStringNode  the fully qualified name of the module
 
     type = py_object_type
     module_names = None
     get_top_level_module = False
     is_temp = True
+    module_qualname = None
 
-    subexprs = ['module_name', 'name_list', 'module_names']
+    subexprs = ['module_name', 'name_list', 'module_names', 'module_qualname']
 
     def analyse_types(self, env):
         if self.level is None:
@@ -2917,6 +2919,23 @@ class ImportNode(ExprNode):
                 IdentifierStringNode(self.module_name.pos, value=part)
                 for part in map(StringEncoding.EncodedString, self.module_name.value.split('.'))
             ]).analyse_types(env)
+        if self.level > 0:
+            cur_module = env
+            while not cur_module.is_module_scope:
+                cur_module = cur_module.parent_scope
+            qualname = cur_module.qualified_name
+            for _ in range(self.level):
+                qualname, _, _ = qualname.rpartition('.')
+            qualname = IdentifierStringNode(
+                self.module_name.pos,
+                value=StringEncoding.EncodedString(f"{qualname}.{self.module_name.value}"),
+            ).analyse_types(env)
+        else:
+            qualname = IdentifierStringNode(
+                self.module_name.pos,
+                value=StringEncoding.EncodedString(self.module_name.value),
+            ).analyse_types(env)
+        self.module_qualname = qualname.coerce_to_pyobject(env)
         return self
 
     gil_message = "Python import"
@@ -2935,17 +2954,19 @@ class ImportNode(ExprNode):
                 utility_code = UtilityCode.load_cached("ImportDottedModuleRelFirst", "ImportExport.c")
                 helper_func = "__Pyx_ImportDottedModuleRelFirst"
             code.globalstate.use_utility_code(utility_code)
-            import_code = "%s(%s, %s)" % (
+            import_code = "%s(%s, %s, %s)" % (
                 helper_func,
                 self.module_name.py_result(),
                 self.module_names.py_result() if self.module_names else 'NULL',
+                self.module_qualname.py_result(),
             )
         else:
             code.globalstate.use_utility_code(UtilityCode.load_cached("Import", "ImportExport.c"))
-            import_code = "__Pyx_Import(%s, %s, %d)" % (
+            import_code = "__Pyx_Import(%s, %s, %d, %s)" % (
                 self.module_name.py_result(),
                 self.name_list.py_result() if self.name_list else '0',
-                self.level)
+                self.level,
+                self.module_qualname.py_result())
 
         code.putln("%s = %s; %s" % (
             self.result(),
