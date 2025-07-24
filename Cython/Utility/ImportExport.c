@@ -175,17 +175,40 @@ static PyObject *__Pyx_Import(PyObject *name, PyObject *from_list, int level, Py
 
 /////////////// Import ///////////////
 //@requires: StringTools.c::IncludeStringH
+//@requires: Builtins.c::HasAttr
 //@requires: ImportLookup
 
 static PyObject *__Pyx_Import(PyObject *name, PyObject *from_list, int level, PyObject *qualname) {
     PyObject *module = 0;
     PyObject *empty_dict = 0;
     PyObject *empty_list = 0;
+    module = __Pyx__Import_LookupLock(qualname);
+    if (likely(module)) {
+        if (from_list) {
+            int module_ready = 1;
+            for (Py_ssize_t i = 0; i < __Pyx_PyList_GET_SIZE(from_list); i++) {
+                PyObject *item = __Pyx_PyList_GetItemRef(from_list, i);
+                if (unlikely(!item)) {
+                    Py_DECREF(module);
+                    return NULL;
+                }
+                int hasattr = __Pyx_HasAttr(module, item);
+                Py_DECREF(item);
+                if (!hasattr) {
+                    Py_CLEAR(module);
+                    break;
+                }
+            }
+            if (module) {
+                return module;
+            }
+        }
+        else {
+            return module;
+        }
+    }
     empty_dict = PyDict_New();
     if (unlikely(!empty_dict))
-        goto bad;
-    module = __Pyx__Import_LookupLock(qualname);
-    if (likely(module))
         goto bad;
     if (level == -1) {
         const char* package_sep = strchr(__Pyx_MODULE_NAME, '.');

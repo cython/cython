@@ -2920,10 +2920,7 @@ class ImportNode(ExprNode):
                 for part in map(StringEncoding.EncodedString, self.module_name.value.split('.'))
             ]).analyse_types(env)
         if self.level > 0:
-            cur_module = env
-            while not cur_module.is_module_scope:
-                cur_module = cur_module.parent_scope
-            qualname = cur_module.qualified_name
+            qualname = env.global_scope().qualified_name
             for _ in range(self.level):
                 qualname, _, _ = qualname.rpartition('.')
             qualname = IdentifierStringNode(
