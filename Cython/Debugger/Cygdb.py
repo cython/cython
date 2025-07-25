@@ -86,6 +86,59 @@ def make_command_file(path_to_debug_info, prefix_code='',
             f.write('\n'.join('cy import %s\n' % fn for fn in debug_files))
 
             if not skip_interpreter:
+                # The following `f.write` stuff is a bit tricky:
+
+                # How this is supposed to work:
+                # If you launch gdb and enter these commands:
+                # (gdb) file someexe
+                # (gdb) explore MyStruct
+                # or these commands
+                # (gdb) file someexe
+                # (gdb) python
+                # gdb.lookup_type('MyStruct')
+                # end
+                # You get an error, unless the source code of `someexe` contains
+                # `struct MyStruct {...};`, and debugging symbols for that are
+                # loaded into gdb. Thus, we use
+                # `gdb.lookup_type('PyModuleObject')` to detect whether debug
+                # symbols for the python interpreter are loaded into gdb. Some
+                # functionality of cygdb requires these debug symbols. For example
+                # `cy list` will print c code if these debug symbols are missing,
+                # but it will print cython code if these debug symbols exist.
+
+                # Two reasons why this does not work properly:
+                # 1. If I build python with `--with-pydebug` the debug symbol
+                # for `PyModuleObject` is not in the python binary, but in a
+                # shared library called `libpython3.so`. Thus, if do this:
+                # (gdb) file python
+                # (gdb) explore PyModuleObject
+                # I get an error. If I however do this
+                # (gdb) file python
+                # (gdb) break main
+                # (gdb) run
+                # (gdb) explore PyModuleObject
+                # I don't get an error. Therefore, the code below this long
+                # comment always prints a warning, but `cy list` works fine, since
+                # the code below is executed before `libpython3.so` is loaded, but
+                # `cy list` is executed after `libpython3.so` is loaded.
+                # 2. I installed python from the official Arch Linux package,
+                # and the code below this long comment prints the warning, but `cy
+                # list` works fine anyway. Why? Because `libpython3.so` contains
+                # no debug symbols, but debuginfod exists. As soon as
+                # `libpython3.so` is loaded, gdb downloads debug symbols for
+                # `libpython3.so` and `cy list` works properly. Since the code
+                # below runs before `libpython3.so` is loaded, it runs before the
+                # debug symbols are downloaded.
+
+                # How to fix this:
+                # The check below should probably removed and instead executed
+                # everytime e.g. `cy list` is executed.
+
+                # Hint: If you want a python interpreter that was compiled with
+                # `--with-pydebug` and thus contains debug symbols, and another
+                # python interpreter thas was not, run e.g. `pyenv install 3.8.1`
+                # and `pyenv install 3.8.1-debug`.
+
                 f.write(textwrap.dedent('''\
                     python
                     import sys
