@@ -209,3 +209,36 @@ def test_free_function_with_critical_section(n_threads, n_loops):
 
     expected = n_loops*n_threads
     assert count == expected, (count, expected)
+
+def test_critical_section_mutex():
+    """
+    >>> test_critical_section_mutex()
+    In critical section
+    Outside critical section
+    """
+    cdef cython.pymutex m
+    with cython.critical_section(m):
+        print("In critical section")
+    print("Outside critical section")
+
+def test_critical_section_p_mutex():
+    """
+    >>> test_critical_section_p_mutex()
+    In critical section
+    Outside critical section
+    """
+    cdef cython.pymutex m
+    with cython.critical_section(&m):  # also allow pointers
+        print("In critical section")
+    print("Outside critical section")
+
+def test_critical_section_mutexes():
+    """
+    >>> test_critical_section_mutexes()
+    In critical section
+    Outside critical section
+    """
+    cdef cython.pymutex m1, m2
+    with cython.critical_section(&m1, m2):
+        print("In critical section")
+    print("Outside critical section")

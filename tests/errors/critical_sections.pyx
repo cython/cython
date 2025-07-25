@@ -42,6 +42,18 @@ def has_int_arg(int arg):
 cdef void some_nogil_function(a) noexcept nogil:
     pass
 
+def mixed_critical_section1():
+    o = object()
+    cdef cython.pymutex m
+    with cython.critical_section(o, m):
+        pass
+
+def mixed_critical_section2():
+    o = object()
+    cdef cython.pymutex m
+    with cython.critical_section(&m, o):
+        pass
+
 
 _ERRORS = """
 7:9: critical_section directive accepts one or two positional arguments
@@ -56,6 +68,8 @@ _ERRORS = """
 33:0: critical_section decorator does not take arguments
 37:0: Arguments to cython.critical_section must be Python objects, pymutex, or pymutex*.
 41:0: Critical sections require the GIL
+48:9: Arguments to cython.critical_section must not mix objects and pymutexes.
+54:9: Arguments to cython.critical_section must not mix objects and pymutexes.
 
 # slightly extraneous, but no real harm
 18:37: Creating temporary Python reference not allowed without gil

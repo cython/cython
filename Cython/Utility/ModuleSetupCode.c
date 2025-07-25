@@ -3054,8 +3054,8 @@ static int __Pyx_State_RemoveModule(CYTHON_UNUSED void* dummy) {
 
 #if !CYTHON_COMPILING_IN_CPYTHON_FREETHREADING
 
-#define __Pyx_PyCriticalSection_Begin1(cs, arg) (void)cs
-#define __Pyx_PyCriticalSection_Begin2(cs, arg1, arg2) (void)cs
+#define __Pyx_PyCriticalSection_Begin1(cs, arg) (void)(cs)
+#define __Pyx_PyCriticalSection_Begin2(cs, arg1, arg2) (void)(cs)
 #define __Pyx_PyCriticalSection_End1(cs)
 #define __Pyx_PyCriticalSection_End2(cs)
 #else
@@ -3077,25 +3077,26 @@ static int __Pyx_State_RemoveModule(CYTHON_UNUSED void* dummy) {
 //@requires: CriticalSectionsDefinition
 
 #if !CYTHON_COMPILING_IN_CPYTHON_FREETHREADING
-#define __Pyx_PyCriticalSection_Begin1Mutex(cs, arg) (void)cs
-#define __Pyx_PyCriticalSection_Begin2Mutex(cs, arg1, arg2) (void)cs
-#define __Pyx_PyCriticalSection_End1Mutex(cs)
-#define __Pyx_PyCriticalSection_End2Mutex(cs)
+#define __Pyx_PyCriticalSection_BeginMutex1(cs, arg) (void)(cs), (void)(arg)
+#define __Pyx_PyCriticalSection_BeginMutex2(cs, arg1, arg2) (void)(cs), (void)(arg1), (void)(arg2)
+#define __Pyx_PyCriticalSection_EndMutex1(cs)
+#define __Pyx_PyCriticalSection_EndMutex2(cs)
 
 #elif PY_VERSION_HEX < 0x030e00C1
 #ifndef Py_BUILD_CORE
 #define Py_BUILD_CORE
 #endif
-#define __Pyx_PyCriticalSection_Begin1Mutex _PyCriticalSection_BeginMutex
-#define __Pyx_PyCriticalSection_Begin2Mutex _PyCriticalSection2_BeginMutex
-#define __Pyx_PyCriticalSection_End1Mutex PyCriticalSection_End
-#define __Pyx_PyCriticalSection_End2Mutex PyCriticalSection2_End
+#include "internal/pycore_critical_section.h"
+#define __Pyx_PyCriticalSection_BeginMutex1 _PyCriticalSection_BeginMutex
+#define __Pyx_PyCriticalSection_BeginMutex2 _PyCriticalSection2_BeginMutex
+#define __Pyx_PyCriticalSection_EndMutex1 PyCriticalSection_End
+#define __Pyx_PyCriticalSection_EndMutex2 PyCriticalSection2_End
 
 #else
-#define __Pyx_PyCriticalSection_Begin1Mutex PyCriticalSection_BeginMutex
-#define __Pyx_PyCriticalSection_Begin2Mutex PyCriticalSection2_BeginMutex
-#define __Pyx_PyCriticalSection_End1Mutex PyCriticalSection_End
-#define __Pyx_PyCriticalSection_End2Mutex PyCriticalSection2_End
+#define __Pyx_PyCriticalSection_BeginMutex1 PyCriticalSection_BeginMutex
+#define __Pyx_PyCriticalSection_BeginMutex2 PyCriticalSection2_BeginMutex
+#define __Pyx_PyCriticalSection_EndMutex1 PyCriticalSection_End
+#define __Pyx_PyCriticalSection_EndMutex2 PyCriticalSection2_End
 #endif
 
 ////////////////////// IncludeStdlibH.proto //////////////////////
