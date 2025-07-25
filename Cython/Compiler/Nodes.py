@@ -9009,17 +9009,19 @@ class CriticalSectionStatNode(TryFinallyStatNode):
     def analyse_expressions(self, env):
         mutex_count = 0
         for i, arg in enumerate(self.args):
-            # Coerce to temp because it's a bit of a disaster if the argument is destroyed
-            # while we're working on it, and the Python critical section implementation
-            # doesn't ensure this.
-            # TODO - we could potentially be a bit smarter about this, and avoid
-            # it for local variables that we know are never re-assigned.
-            arg = arg.analyse_expressions(env).coerce_to_temp(env)
+            arg = arg.analyse_expressions(env)
             if (arg.type is PyrexTypes.cy_pymutex_type or (
                     arg.type.is_ptr and arg.type.base_type is PyrexTypes.cy_pymutex_type)):
                 mutex_count += 1
                 self.is_pymutex_critical_section = True
-            elif not arg.type.is_pyobject:
+            elif arg.type.is_pyobject:
+                # Coerce to temp because it's a bit of a disaster if the argument is destroyed
+                # while we're working on it, and the Python critical section implementation
+                # doesn't ensure this.
+                # TODO - we could potentially be a bit smarter about this, and avoid
+                # it for local variables that we know are never re-assigned.
+                arg = arg.coerce_to_temp(env)
+            else:
                 # Note - deliberately no coercion to Python object.
                 # Critical sections only really make sense on a specific known Python object,
                 # so using them on coerced Python objects is very unlikely to make sense.
