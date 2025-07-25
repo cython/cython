@@ -1491,3 +1491,10 @@ hidden by default since most users will be uninterested in changing them.
             one interpreter will not be importing your module at the same time as another
             is using it.  Values greater than 1 can be used to select a specific implementation
             for debugging purposes.
+
+        ``CYTHON_LOCK_AND_GIL_DEADLOCK_AVOIDANCE_TIME``
+            The maximum time in ms that Cython will block while holding the GIL when trying to
+            acquire a lock in a deadlock-free way.  Defaults to 100 ms.  Negative numbers
+            indicate "forever" (which may help in situations where the lock is very heavily
+            contended and you're confident that you haven't introduced a deadlock in your
+            own code).
