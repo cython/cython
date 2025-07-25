@@ -20,8 +20,6 @@ setup(
 
 ######## test_profile.py ###########
 
-import os
-os.environ['LINE_PROFILE'] = '1'
 try:
     import line_profiler
 except ImportError:
