@@ -8388,28 +8388,9 @@ class ExceptClauseNode(Node):
         return Builtin.builtin_types["BaseException"]
 
     def body_may_need_exception(self):
-        body = self.body
-        if isinstance(body, StatListNode):
-            for node in body.stats:
-                if isinstance(node, PassStatNode):
-                    continue
-                elif isinstance(node, ReturnStatNode):
-                    body = node
-                    break
-                else:
-                    return True
-            else:
-                # No user code found (other than 'pass').
-                return False
-
-        if isinstance(body, ReturnStatNode):
-            value = body.value
-            if value is None or value.is_literal:
-                return False
-            # There might be other safe cases, but literals seem the safest for now.
-
-        # If we cannot prove that the exception is unused, it may be used.
-        return True
+        from .ParseTreeTransforms import HasNoExceptionHandlingVisitor
+        tree_has_no_exceptions = HasNoExceptionHandlingVisitor()
+        return not tree_has_no_exceptions(self.body)
 
     def generate_handling_code(self, code, end_label):
         code.mark_pos(self.pos)
@@ -9057,11 +9038,11 @@ class CriticalSectionStatNode(TryFinallyStatNode):
     def generate_execution_code(self, code):
         if self.is_pymutex_critical_section:
             code.globalstate.use_utility_code(
-                UtilityCode.load_cached("CriticalSectionsMutex", "ModuleSetupCode.c"))
+                UtilityCode.load_cached("CriticalSectionsMutex", "Synchronization.c"))
             mutex = "Mutex"
         else:
             code.globalstate.use_utility_code(
-                UtilityCode.load_cached("CriticalSections", "ModuleSetupCode.c"))
+                UtilityCode.load_cached("CriticalSections", "Synchronization.c"))
             mutex = ""
 
         code.mark_pos(self.pos)
@@ -9878,7 +9859,7 @@ class ParallelStatNode(StatNode, ParallelNode):
                     c.globalstate.use_utility_code(
                         UtilityCode.load_cached(
                             "SharedInFreeThreading",
-                            "ModuleSetupCode.c"))
+                            "Synchronization.c"))
                     c.put(f" __Pyx_shared_in_cpython_freethreading({Naming.parallel_freethreading_mutex})")
                     c.put(" private(%s, %s, %s)" % self.pos_info)
 

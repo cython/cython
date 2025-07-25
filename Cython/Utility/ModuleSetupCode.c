@@ -1658,7 +1658,7 @@ bad:
 
 
 /////////////// CodeObjectCache.proto ///////////////
-//@requires: MemoryView_C.c::Atomics
+//@requires: Synchronization.c::Atomics
 
 #if CYTHON_COMPILING_IN_LIMITED_API
 typedef PyObject __Pyx_CachedCodeObjectType;
@@ -2583,14 +2583,6 @@ done:
 }
 
 
-////////////////////////// SharedInFreeThreading.proto //////////////////
-
-#if CYTHON_COMPILING_IN_CPYTHON_FREETHREADING
-#define __Pyx_shared_in_cpython_freethreading(x) shared(x)
-#else
-#define __Pyx_shared_in_cpython_freethreading(x)
-#endif
-
 ////////////////////////// MultiPhaseInitModuleState.proto /////////////
 
 #if CYTHON_PEP489_MULTI_PHASE_INIT && CYTHON_USE_MODULE_STATE
@@ -2608,7 +2600,7 @@ static int __Pyx_State_RemoveModule(void*); /* proto */
 #endif
 
 ////////////////////////// MultiPhaseInitModuleState /////////////
-//@requires: MemoryView_C.c::Atomics
+//@requires: Synchronization.c::Atomics
 
 
 // Code to maintain a mapping between (sub)interpreters and the module instance that they imported.
@@ -3035,68 +3027,6 @@ static int __Pyx_State_RemoveModule(CYTHON_UNUSED void* dummy) {
     return 0;
 }
 
-#endif
-
-/////////////////////// CriticalSectionsDefinition.proto /////////////////////
-//@proto_block: utility_code_proto_before_types
-
-#if !CYTHON_COMPILING_IN_CPYTHON_FREETHREADING
-#define __Pyx_PyCriticalSection void*
-#define __Pyx_PyCriticalSection2 void*
-#else
-#define __Pyx_PyCriticalSection PyCriticalSection
-#define __Pyx_PyCriticalSection2 PyCriticalSection2
-#endif
-
-/////////////////////// CriticalSections.proto /////////////////////
-//@proto_block: utility_code_proto_before_types
-//@requires: CriticalSectionsDefinition
-
-#if !CYTHON_COMPILING_IN_CPYTHON_FREETHREADING
-
-#define __Pyx_PyCriticalSection_Begin1(cs, arg) (void)(cs)
-#define __Pyx_PyCriticalSection_Begin2(cs, arg1, arg2) (void)(cs)
-#define __Pyx_PyCriticalSection_End1(cs)
-#define __Pyx_PyCriticalSection_End2(cs)
-#else
-#define __Pyx_PyCriticalSection_Begin1 PyCriticalSection_Begin
-#define __Pyx_PyCriticalSection_Begin2 PyCriticalSection2_Begin
-#define __Pyx_PyCriticalSection_End1 PyCriticalSection_End
-#define __Pyx_PyCriticalSection_End2 PyCriticalSection2_End
-#endif
-
-#if PY_VERSION_HEX < 0x030d0000 || CYTHON_COMPILING_IN_LIMITED_API
-#define __Pyx_BEGIN_CRITICAL_SECTION(o) {
-#define __Pyx_END_CRITICAL_SECTION() }
-#else
-#define __Pyx_BEGIN_CRITICAL_SECTION Py_BEGIN_CRITICAL_SECTION
-#define __Pyx_END_CRITICAL_SECTION Py_END_CRITICAL_SECTION
-#endif
-
-/////////////////////// CriticalSectionsMutex.proto /////////////////////
-//@requires: CriticalSectionsDefinition
-
-#if !CYTHON_COMPILING_IN_CPYTHON_FREETHREADING
-#define __Pyx_PyCriticalSection_BeginMutex1(cs, arg) (void)(cs), (void)(arg)
-#define __Pyx_PyCriticalSection_BeginMutex2(cs, arg1, arg2) (void)(cs), (void)(arg1), (void)(arg2)
-#define __Pyx_PyCriticalSection_EndMutex1(cs)
-#define __Pyx_PyCriticalSection_EndMutex2(cs)
-
-#elif PY_VERSION_HEX < 0x030e00C1
-#ifndef Py_BUILD_CORE
-#define Py_BUILD_CORE
-#endif
-#include "internal/pycore_critical_section.h"
-#define __Pyx_PyCriticalSection_BeginMutex1 _PyCriticalSection_BeginMutex
-#define __Pyx_PyCriticalSection_BeginMutex2 _PyCriticalSection2_BeginMutex
-#define __Pyx_PyCriticalSection_EndMutex1 PyCriticalSection_End
-#define __Pyx_PyCriticalSection_EndMutex2 PyCriticalSection2_End
-
-#else
-#define __Pyx_PyCriticalSection_BeginMutex1 PyCriticalSection_BeginMutex
-#define __Pyx_PyCriticalSection_BeginMutex2 PyCriticalSection2_BeginMutex
-#define __Pyx_PyCriticalSection_EndMutex1 PyCriticalSection_End
-#define __Pyx_PyCriticalSection_EndMutex2 PyCriticalSection2_End
 #endif
 
 ////////////////////// IncludeStdlibH.proto //////////////////////

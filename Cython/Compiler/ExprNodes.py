@@ -1929,9 +1929,6 @@ class UnicodeNode(ConstNode):
         else:
             return 1114111
 
-    def contains_surrogates(self):
-        return StringEncoding.string_contains_surrogates(self.value)
-
     def generate_evaluation_code(self, code):
         if self.type.is_pyobject:
             if StringEncoding.string_contains_lone_surrogates(self.value):

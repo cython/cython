@@ -616,45 +616,59 @@ bad:
 }
 #endif
 
-/////////////// FunctionExport.proto ///////////////
 
-static int __Pyx_ExportFunction(const char *name, void (*f)(void), const char *sig); /*proto*/
+/////////////// GetApiDict.proto ///////////////
 
-/////////////// FunctionExport ///////////////
+static PyObject *__Pyx_ApiExport_GetApiDict(void); /*proto*/
+
+/////////////// GetApiDict ///////////////
 //@substitute: naming
 
-static int __Pyx_ExportFunction(const char *name, void (*f)(void), const char *sig) {
-    PyObject *d = 0;
+static PyObject *__Pyx_ApiExport_GetApiDict(void) {
+    PyObject *d;
+    if (__Pyx_PyDict_GetItemRef(NAMED_CGLOBAL(moddict_cname), PYIDENT("$api_name"), &d) == -1)
+        return NULL;
+    if (!d) {
+        d = PyDict_New();
+        if (!d)
+            goto bad;
+        if (PyObject_SetAttr($module_cname, PYIDENT("$api_name"), d) < 0)
+            goto bad;
+    }
+    return d;
+
+bad:
+    Py_XDECREF(d);
+    return NULL;
+}
+
+
+/////////////// FunctionExport.proto ///////////////
+
+static int __Pyx_ExportFunction(PyObject *api_dict, PyObject *name, void (*f)(void), const char *sig); /*proto*/
+
+/////////////// FunctionExport ///////////////
+
+static int __Pyx_ExportFunction(PyObject *api_dict, PyObject *name, void (*f)(void), const char *sig) {
     PyObject *cobj = 0;
     union {
         void (*fp)(void);
         void *p;
     } tmp;
 
-    d = PyObject_GetAttrString($module_cname, "$api_name");
-    if (!d) {
-        PyErr_Clear();
-        d = PyDict_New();
-        if (!d)
-            goto bad;
-        Py_INCREF(d);
-        if (PyModule_AddObject($module_cname, "$api_name", d) < 0)
-            goto bad;
-    }
     tmp.fp = f;
     cobj = PyCapsule_New(tmp.p, sig, 0);
     if (!cobj)
         goto bad;
-    if (PyDict_SetItemString(d, name, cobj) < 0)
+    if (PyDict_SetItem(api_dict, name, cobj) < 0)
         goto bad;
     Py_DECREF(cobj);
-    Py_DECREF(d);
     return 0;
 bad:
     Py_XDECREF(cobj);
-    Py_XDECREF(d);
     return -1;
 }
+
 
 /////////////// VoidPtrImport.proto ///////////////
 //@substitute: naming
@@ -705,38 +719,25 @@ bad:
 }
 #endif
 
+
 /////////////// VoidPtrExport.proto ///////////////
 
-static int __Pyx_ExportVoidPtr(PyObject *name, void *p, const char *sig); /*proto*/
+static int __Pyx_ExportVoidPtr(PyObject *api_dict, PyObject *name, void *p, const char *sig); /*proto*/
 
 /////////////// VoidPtrExport ///////////////
-//@substitute: naming
-//@requires: ObjectHandling.c::PyObjectSetAttrStr
 
-static int __Pyx_ExportVoidPtr(PyObject *name, void *p, const char *sig) {
-    PyObject *d;
+static int __Pyx_ExportVoidPtr(PyObject *api_dict, PyObject *name, void *p, const char *sig) {
     PyObject *cobj = 0;
 
-    if (__Pyx_PyDict_GetItemRef(NAMED_CGLOBAL(moddict_cname), PYIDENT("$api_name"), &d) == -1)
-        goto bad;
-    if (!d) {
-        d = PyDict_New();
-        if (!d)
-            goto bad;
-        if (__Pyx_PyObject_SetAttrStr($module_cname, PYIDENT("$api_name"), d) < 0)
-            goto bad;
-    }
     cobj = PyCapsule_New(p, sig, 0);
     if (!cobj)
         goto bad;
-    if (PyDict_SetItem(d, name, cobj) < 0)
+    if (PyDict_SetItem(api_dict, name, cobj) < 0)
         goto bad;
     Py_DECREF(cobj);
-    Py_DECREF(d);
     return 0;
 bad:
     Py_XDECREF(cobj);
-    Py_XDECREF(d);
     return -1;
 }
 
@@ -899,7 +900,7 @@ other_failure:
 }
 
 /////////////// ImportNumPyArray.module_state_decls //////////////
-//@requires: MemoryView_C.c::Atomics
+//@requires: Synchronization.c::Atomics
 
 #if CYTHON_COMPILING_IN_CPYTHON_FREETHREADING && CYTHON_ATOMICS
 __pyx_atomic_ptr_type __pyx_numpy_ndarray;
