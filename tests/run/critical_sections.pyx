@@ -210,35 +210,102 @@ def test_free_function_with_critical_section(n_threads, n_loops):
     expected = n_loops*n_threads
     assert count == expected, (count, expected)
 
-def test_critical_section_mutex():
+def test_critical_section_mutex(n_threads, n_loops):
     """
-    >>> test_critical_section_mutex()
-    In critical section
-    Outside critical section
+    >>> test_critical_section_mutex(4, 100)
     """
-    cdef cython.pymutex m
-    with cython.critical_section(m):
-        print("In critical section")
-    print("Outside critical section")
+    cdef int count = 0
+    cdef cython.pymutex lock
+    barrier = threading.Barrier(n_threads)
 
-def test_critical_section_p_mutex():
-    """
-    >>> test_critical_section_p_mutex()
-    In critical section
-    Outside critical section
-    """
-    cdef cython.pymutex m
-    with cython.critical_section(&m):  # also allow pointers
-        print("In critical section")
-    print("Outside critical section")
+    def worker():
+        nonlocal count
+        barrier.wait()
+        for i in range(n_loops):
+            with cython.critical_section(lock):
+                count += i
 
-def test_critical_section_mutexes():
+    threads = [
+        threading.Thread(target=worker)
+        for _ in range(n_threads)
+    ]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
+
+    expected = ((n_loops * (n_loops - 1))/2)*n_threads
+    assert count == expected, (count, expected)
+
+def test_critical_section_p_mutex(n_threads, n_loops):
     """
-    >>> test_critical_section_mutexes()
-    In critical section
-    Outside critical section
+    >>> test_critical_section_p_mutex(4, 100)
     """
-    cdef cython.pymutex m1, m2
-    with cython.critical_section(&m1, m2):
-        print("In critical section")
-    print("Outside critical section")
+    cdef int count = 0
+    cdef cython.pymutex lock
+    barrier = threading.Barrier(n_threads)
+
+    def worker():
+        nonlocal count
+        barrier.wait()
+        for i in range(n_loops):
+            with cython.critical_section(&lock):
+                count += i
+
+    threads = [
+        threading.Thread(target=worker)
+        for _ in range(n_threads)
+    ]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
+
+    expected = ((n_loops * (n_loops - 1))/2)*n_threads
+    assert count == expected, (count, expected)
+
+def test_critical_section_mutexes(n_loops):
+    """
+    >>> test_critical_section_mutexes(100)
+    """
+    cdef int a = 0
+    cdef int b = 0
+    barrier = threading.Barrier(3)
+    cdef cython.pymutex lock_a
+    cdef cython.pymutex lock_b
+
+    def a_thread():
+        nonlocal a
+        barrier.wait()
+        for i in range(n_loops):
+            with cython.critical_section(lock_a):
+                a += i
+
+    def b_thread():
+        nonlocal b
+        barrier.wait()
+        for i in range(n_loops):
+            with cython.critical_section(lock_b):
+                b += i
+
+    def ab_thread():
+        nonlocal a, b
+        barrier.wait()
+        for i in range(n_loops):
+            with cython.critical_section(&lock_a, lock_b):
+                a += i
+                b += i
+
+    threads = [
+        threading.Thread(target=target)
+        for target in [a_thread, b_thread, ab_thread]
+    ]
+    for thread in threads:
+        thread.start()
+    for thread in threads:
+        thread.join()
+
+    # Each variable is modified from 2 threads
+    expected = ((n_loops * (n_loops - 1))/2)*2
+    assert a == expected, (a, expected)
+    assert b == expected, (b, expected)
