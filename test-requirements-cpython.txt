@@ -1,4 +1,3 @@
 ipython
 pytest  # needed by IPython/Jupyter integration tests
-line_profiler
-setuptools<60
+line_profiler != 4.*  # 4 collects no profiling info

@@ -38,8 +38,9 @@ def main():
 """)
         return
 
+    from unicodedata import unidata_version
     generated_code = (
-        f"# Generated with 'cython-generate-lexicon.py' based on:\n"
+        f"# Generated with 'cython-generate-lexicon.py' based on Unicode {unidata_version}:\n"
         f"# {sys.implementation.name} {sys.version.splitlines()[0].strip()}\n"
         "\n"
         f"{generate_character_sets()}\n"

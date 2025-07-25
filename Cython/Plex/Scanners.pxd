@@ -40,7 +40,6 @@ cdef class Scanner:
     #@cython.final
     cpdef tuple position(self)  # used frequently by Parsing.py
 
-    @cython.final
     cdef run_machine_inlined(self)
 
     cdef inline begin(self, state)
