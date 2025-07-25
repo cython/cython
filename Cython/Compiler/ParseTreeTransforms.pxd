@@ -71,6 +71,7 @@ cdef class GilCheck(VisitorTransform):
     cdef list env_stack
     cdef int nogil_state
     cdef int nogil_state_at_current_gilstatnode
+    cdef object in_lock_block
 
 cdef class TransformBuiltinMethods(EnvTransform):
     cdef dict def_node_body_insertions
