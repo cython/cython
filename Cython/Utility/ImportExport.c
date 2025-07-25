@@ -627,7 +627,7 @@ static PyObject *__Pyx_ApiExport_GetApiDict(void); /*proto*/
 static PyObject *__Pyx_ApiExport_GetApiDict(void) {
     PyObject *d;
     if (__Pyx_PyDict_GetItemRef(NAMED_CGLOBAL(moddict_cname), PYIDENT("$api_name"), &d) == -1)
-        goto bad;
+        return NULL;
     if (!d) {
         d = PyDict_New();
         if (!d)
@@ -648,7 +648,6 @@ bad:
 static int __Pyx_ExportFunction(PyObject *api_dict, PyObject *name, void (*f)(void), const char *sig); /*proto*/
 
 /////////////// FunctionExport ///////////////
-//@requires: GetApiDict
 
 static int __Pyx_ExportFunction(PyObject *api_dict, PyObject *name, void (*f)(void), const char *sig) {
     PyObject *cobj = 0;
@@ -726,7 +725,6 @@ bad:
 static int __Pyx_ExportVoidPtr(PyObject *api_dict, PyObject *name, void *p, const char *sig); /*proto*/
 
 /////////////// VoidPtrExport ///////////////
-//@requires: GetApiDict
 
 static int __Pyx_ExportVoidPtr(PyObject *api_dict, PyObject *name, void *p, const char *sig) {
     PyObject *cobj = 0;

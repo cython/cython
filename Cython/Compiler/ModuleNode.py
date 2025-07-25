@@ -3681,15 +3681,17 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         if not entries:
             return
 
-        code.globalstate.use_utility_code(
-            UtilityCode.load_cached(utility_code_name, "ImportExport.c"))
-
         api_dict = code.funcstate.allocate_temp(py_object_type, manage_ref=True)
+        code.globalstate.use_utility_code(
+            UtilityCode.load_cached("GetApiDict", "ImportExport.c"))
         code.putln(
             f"{api_dict} = __Pyx_ApiExport_GetApiDict(); "
             f"{code.error_goto_if_null(api_dict, self.pos)}"
         )
         code.put_gotref(api_dict, py_object_type)
+
+        code.globalstate.use_utility_code(
+            UtilityCode.load_cached(utility_code_name, "ImportExport.c"))
 
         for entry in entries:
             name = code.intern_identifier(entry.name)
