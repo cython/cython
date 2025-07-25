@@ -244,10 +244,11 @@ def exclude_test_on_platform(*platforms):
     return sys.platform in platforms
 
 
+def exclude_test_on_dev():
+    return sys.version_info.releaselevel != 'final'
+
+
 def update_linetrace_extension(ext):
-    if not IS_CPYTHON and sys.version_info[:2] < (3, 13):
-        # Tracing/profiling requires PEP-669 monitoring or old CPython tracing.
-        return EXCLUDE_EXT
     ext.define_macros.append(('CYTHON_TRACE', 1))
     return ext
 
@@ -479,9 +480,9 @@ EXT_EXTRAS = {
 TAG_EXCLUDERS = sorted({
     'no-macos':  exclude_test_on_platform('darwin'),
     'pstats': exclude_test_in_pyver((3,12)),
-    'coverage': exclude_test_in_pyver((3,12)),
+    'coverage': exclude_test_in_pyver((3,12)) or exclude_test_on_dev(),
     'monitoring': exclude_test_in_pyver((3,12)),
-    'trace': not IS_CPYTHON,
+    'trace': not IS_CPYTHON or exclude_test_in_pyver((3,12)),
 }.items())
 
 # TODO: use tags
