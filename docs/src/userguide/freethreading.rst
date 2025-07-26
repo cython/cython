@@ -70,7 +70,9 @@ syntax::
     with cython.critical_section(o):
       ...
 
-Critical sections can take one or two Python objects as arguments.  You are required to
+Critical sections can take either one or two Python objects as arguments, or take one or
+two ``cython.pymutex`` arguments (for convenience you can pass either the mutexes or
+pointers to the mutexes).  You are required to
 hold the GIL on entry to a critical section (you can release the GIL inside the critical
 section but that also temporarily releases the critical section so is unlikely to be
 a useful thing to do).
