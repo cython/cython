@@ -899,7 +899,7 @@ other_failure:
 }
 
 /////////////// ImportNumPyArray.module_state_decls //////////////
-//@requires: MemoryView_C.c::Atomics
+//@requires: Synchronization.c::Atomics
 
 #if CYTHON_COMPILING_IN_CPYTHON_FREETHREADING && CYTHON_ATOMICS
 __pyx_atomic_ptr_type __pyx_numpy_ndarray;
