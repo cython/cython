@@ -426,6 +426,10 @@
   #endif
 #endif
 
+#ifndef CYTHON_LOCK_AND_GIL_DEADLOCK_AVOIDANCE_TIME
+  #define CYTHON_LOCK_AND_GIL_DEADLOCK_AVOIDANCE_TIME 100  /* ms */
+#endif
+
 #ifndef __has_attribute
   #define __has_attribute(x) 0
 #endif
@@ -505,36 +509,8 @@
 
 #define __Pyx_void_to_None(void_result) ((void)(void_result), Py_INCREF(Py_None), Py_None)
 
-#ifdef _MSC_VER
-    #ifndef _MSC_STDINT_H_
-        #if _MSC_VER < 1300
-            typedef unsigned char     uint8_t;
-            typedef unsigned short    uint16_t;
-            typedef unsigned int      uint32_t;
-        #else
-            typedef unsigned __int8   uint8_t;
-            typedef unsigned __int16  uint16_t;
-            typedef unsigned __int32  uint32_t;
-        #endif
-    #endif
-    #if _MSC_VER < 1300
-        #ifdef _WIN64
-            typedef unsigned long long  __pyx_uintptr_t;
-        #else
-            typedef unsigned int        __pyx_uintptr_t;
-        #endif
-    #else
-        #ifdef _WIN64
-            typedef unsigned __int64    __pyx_uintptr_t;
-        #else
-            typedef unsigned __int32    __pyx_uintptr_t;
-        #endif
-    #endif
-#else
-    #include <stdint.h>
-    typedef uintptr_t  __pyx_uintptr_t;
-#endif
-
+#include <stdint.h>
+typedef uintptr_t  __pyx_uintptr_t;
 
 #ifndef CYTHON_FALLTHROUGH
   #if defined(__cplusplus)
@@ -1076,6 +1052,13 @@ static CYTHON_INLINE PyObject * __Pyx_PyDict_GetItemStrWithError(PyObject *dict,
   #define __Pyx_SET_SIZE(obj, size) Py_SIZE(obj) = (size)
 #endif
 
+#if CYTHON_COMPILING_IN_CPYTHON || CYTHON_COMPILING_IN_LIMITED_API
+#define __Pyx_REFCNT_MAY_BE_SHARED(o)  (Py_REFCNT(o) > 1)
+#else
+// On other platforms we don't trust the refcount so don't optimize based on it
+#define __Pyx_REFCNT_MAY_BE_SHARED(o) 1
+#endif
+
 #if CYTHON_AVOID_BORROWED_REFS || CYTHON_AVOID_THREAD_UNSAFE_BORROWED_REFS
   #if __PYX_LIMITED_VERSION_HEX >= 0x030d0000
     #define __Pyx_PyList_GetItemRef(o, i) PyList_GetItemRef(o, i)
@@ -1092,6 +1075,14 @@ static CYTHON_INLINE PyObject * __Pyx_PyDict_GetItemStrWithError(PyObject *dict,
   #endif
 #else
   #define __Pyx_PyList_GetItemRef(o, i) __Pyx_NewRef(PyList_GET_ITEM(o, i))
+#endif
+
+
+#if CYTHON_AVOID_THREAD_UNSAFE_BORROWED_REFS && !CYTHON_COMPILING_IN_LIMITED_API && CYTHON_ASSUME_SAFE_MACROS
+  #define __Pyx_PyList_GetItemRefFast(o, i, unsafe_shared) ((unsafe_shared || __Pyx_REFCNT_MAY_BE_SHARED(o)) ? \
+    __Pyx_PyList_GetItemRef(o, i) : __Pyx_NewRef(PyList_GET_ITEM(o, i)))
+#else
+  #define __Pyx_PyList_GetItemRefFast(o, i, unsafe_shared) __Pyx_PyList_GetItemRef(o, i)
 #endif
 
 #if __PYX_LIMITED_VERSION_HEX >= 0x030d0000
@@ -1671,7 +1662,7 @@ bad:
 
 
 /////////////// CodeObjectCache.proto ///////////////
-//@requires: MemoryView_C.c::Atomics
+//@requires: Synchronization.c::Atomics
 
 #if CYTHON_COMPILING_IN_LIMITED_API
 typedef PyObject __Pyx_CachedCodeObjectType;
@@ -2596,14 +2587,6 @@ done:
 }
 
 
-////////////////////////// SharedInFreeThreading.proto //////////////////
-
-#if CYTHON_COMPILING_IN_CPYTHON_FREETHREADING
-#define __Pyx_shared_in_cpython_freethreading(x) shared(x)
-#else
-#define __Pyx_shared_in_cpython_freethreading(x)
-#endif
-
 ////////////////////////// MultiPhaseInitModuleState.proto /////////////
 
 #if CYTHON_PEP489_MULTI_PHASE_INIT && CYTHON_USE_MODULE_STATE
@@ -2621,7 +2604,7 @@ static int __Pyx_State_RemoveModule(void*); /* proto */
 #endif
 
 ////////////////////////// MultiPhaseInitModuleState /////////////
-//@requires: MemoryView_C.c::Atomics
+//@requires: Synchronization.c::Atomics
 
 
 // Code to maintain a mapping between (sub)interpreters and the module instance that they imported.
@@ -3050,33 +3033,6 @@ static int __Pyx_State_RemoveModule(CYTHON_UNUSED void* dummy) {
 
 #endif
 
-/////////////////////// CriticalSections.proto /////////////////////
-//@proto_block: utility_code_proto_before_types
-
-#if !CYTHON_COMPILING_IN_CPYTHON_FREETHREADING
-#define __Pyx_PyCriticalSection void*
-#define __Pyx_PyCriticalSection2 void*
-#define __Pyx_PyCriticalSection_Begin1(cs, arg) (void)cs
-#define __Pyx_PyCriticalSection_Begin2(cs, arg1, arg2) (void)cs
-#define __Pyx_PyCriticalSection_End1(cs)
-#define __Pyx_PyCriticalSection_End2(cs)
-#else
-#define __Pyx_PyCriticalSection PyCriticalSection
-#define __Pyx_PyCriticalSection2 PyCriticalSection2
-#define __Pyx_PyCriticalSection_Begin1 PyCriticalSection_Begin
-#define __Pyx_PyCriticalSection_Begin2 PyCriticalSection2_Begin
-#define __Pyx_PyCriticalSection_End1 PyCriticalSection_End
-#define __Pyx_PyCriticalSection_End2 PyCriticalSection2_End
-#endif
-
-#if PY_VERSION_HEX < 0x030d0000 || CYTHON_COMPILING_IN_LIMITED_API
-#define __Pyx_BEGIN_CRITICAL_SECTION(o) {
-#define __Pyx_END_CRITICAL_SECTION() }
-#else
-#define __Pyx_BEGIN_CRITICAL_SECTION Py_BEGIN_CRITICAL_SECTION
-#define __Pyx_END_CRITICAL_SECTION Py_END_CRITICAL_SECTION
-#endif
-
 ////////////////////// IncludeStdlibH.proto //////////////////////
 
 #include <stdlib.h>
@@ -3121,7 +3077,7 @@ static __Pyx_UnknownThreadState __Pyx_SaveUnknownThread(void) {
 #elif __PYX_LIMITED_VERSION_HEX >= 0x030d0000
     return PyThreadState_Swap(NULL);
 #else
-  #if CYTHON_COMPILING_IN_PYPY || PY__VERSION_HEX < 0x030B0000
+  #if CYTHON_COMPILING_IN_PYPY || PY_VERSION_HEX < 0x030B0000
     if (PyGILState_Check())
   #else
     if (_PyThreadState_UncheckedGet())  // UncheckedGet is a reliable check for the GIL from 3.12 upwards

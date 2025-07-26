@@ -337,6 +337,7 @@ class ExprNode(Node):
     result_is_used = True
     is_numpy_attribute = False
     generator_arg_tag = None
+    in_parallel_block = False
 
     #  The Analyse Expressions phase for expressions is split
     #  into two sub-phases:
@@ -624,6 +625,25 @@ class ExprNode(Node):
         py_result = self.constant_result if self.has_constant_result() else c_result
         return PyrexTypes.CFuncType.ExceptionValue(py_result, c_result, self.type)
 
+    def may_be_unsafe_shared(self):
+        # for some function-local variables we can optimize their usage because we
+        # know that it's unique to this thread and can't be used from another thread.
+        if self.in_parallel_block:
+            return True
+        if self.is_temp:
+            # If it's a refcounted variable, we hold a reference to it. Therefore, if
+            # the reference count is 1, we trust that we're the unique owner.
+            return False
+        if not hasattr(self, "entry") or self.entry is None:
+            return True  # Not sure if we can reason about it
+        if (self.entry.scope.is_local_scope and
+                # TODO - in principle a generator closure should be "non shared" because
+                # only one thread can run the generator at once.
+                not self.entry.in_closure and not self.entry.from_closure):
+            return False
+        # Most likely a global, or a class attribute
+        return True
+
     # ------------- Declaration Analysis ----------------
 
     def analyse_target_declaration(self, env):
@@ -704,8 +724,7 @@ class ExprNode(Node):
         Return a node that represents the (type) result of an indexing operation,
         e.g. for tuple unpacking or iteration.
         """
-        return IndexNode(self.pos, base=self, index=IntNode(
-            self.pos, value=str(index), constant_result=index, type=PyrexTypes.c_py_ssize_t_type))
+        return IndexNode(self.pos, base=self, index=IntNode.for_size(self.pos, index))
 
     # --------------- Type Analysis ------------------
 
@@ -1513,6 +1532,15 @@ class IntNode(ConstNode):
         if 'type' not in kwds:
             self.type = self.find_suitable_type_for_value()
 
+    @classmethod
+    def for_int(cls, pos, int_value, type=PyrexTypes.c_int_type):
+        assert isinstance(int_value, int), repr(int_value)
+        return cls(pos, value=str(int_value), constant_result=int_value, type=type, is_c_literal=True)
+
+    @classmethod
+    def for_size(cls, pos, int_value):
+        return cls.for_int(pos, int_value, type=PyrexTypes.c_py_ssize_t_type)
+
     def find_suitable_type_for_value(self):
         if self.constant_result is constant_value_not_set:
             try:
@@ -1855,8 +1883,7 @@ class UnicodeNode(ConstNode):
                       "surrogate pairs can be coerced into Py_UCS4/Py_UNICODE.")
                 return self
             int_value = ord(self.value)
-            return IntNode(self.pos, type=dst_type, value=str(int_value),
-                           constant_result=int_value)
+            return IntNode.for_int(self.pos, int_value, type=dst_type)
         elif dst_type.is_pyunicode_ptr:
             return UnicodeNode(self.pos, value=self.value, type=dst_type)
         elif not dst_type.is_pyobject:
@@ -1901,9 +1928,6 @@ class UnicodeNode(ConstNode):
             return 65535
         else:
             return 1114111
-
-    def contains_surrogates(self):
-        return StringEncoding.string_contains_surrogates(self.value)
 
     def generate_evaluation_code(self, code):
         if self.type.is_pyobject:
@@ -3203,7 +3227,9 @@ class IteratorNode(ScopedExprNode):
         inc_dec = '--' if self.reversed else '++'
 
         if test_name == 'List':
-            code.putln(f"{result_name} = __Pyx_PyList_GetItemRef({self.py_result()}, {self.counter_cname});")
+            code.putln(
+                f"{result_name} = __Pyx_PyList_GetItemRefFast("
+                f"{self.py_result()}, {self.counter_cname}, {self.may_be_unsafe_shared():d});")
         else:  # Tuple
             code.putln("#if CYTHON_ASSUME_SAFE_MACROS && !CYTHON_AVOID_BORROWED_REFS")
             code.putln(f"{result_name} = __Pyx_NewRef(PyTuple_GET_ITEM({self.py_result()}, {self.counter_cname}));")
@@ -4317,11 +4343,12 @@ class IndexNode(_IndexingBaseNode):
             self.index = self.index.coerce_to_pyobject(env)
             self.is_temp = 1
 
-        if base_type is unicode_type and self.index.type.is_int:
+        is_int_indexing = not is_slice and self.index.type.is_int
+        if is_int_indexing and base_type is unicode_type:
             # Py_UNICODE/Py_UCS4 will automatically coerce to a unicode string
             # if required, so this is fast and safe
             self.type = PyrexTypes.c_py_ucs4_type
-        elif base_type is bytearray_type and self.index.type.is_int:
+        elif is_int_indexing and base_type in (bytearray_type, bytes_type):
             if setting:
                 self.type = PyrexTypes.c_uchar_type
             else:
@@ -4331,7 +4358,7 @@ class IndexNode(_IndexingBaseNode):
             self.type = base_type
         else:
             item_type = None
-            if base_type in (list_type, tuple_type) and self.index.type.is_int:
+            if is_int_indexing and base_type in (list_type, tuple_type):
                 item_type = infer_sequence_item_type(env, self.base, self.index, seq_type=base_type)
             elif self.base.is_literal:
                 # Infer homogeneous item type when looping over container literals.
@@ -4633,6 +4660,7 @@ class IndexNode(_IndexingBaseNode):
                      and self.index.constant_result >= 0))
             boundscheck = bool(code.globalstate.directives['boundscheck'])
             has_gil = not self.in_nogil_context
+            unsafe_shared = self.base.may_be_unsafe_shared()
             if (self.base.type is bytearray_type and not has_gil and boundscheck
                     and code.globalstate.directives['freethreading_compatible']):
                 # In principle this applies to 'wraparound' too. The warning only applies to
@@ -4641,11 +4669,11 @@ class IndexNode(_IndexingBaseNode):
                     self.pos, "Indexing a bytearray with 'boundscheck' enabled and without the GIL "
                     "is not thread-safe on freethreaded Python "
                     "(disable 'boundscheck' to turn off this warning)", 1)
-            return ", %s, %d, %s, %d, %d, %d, %d" % (
+            return ", %s, %d, %s, %d, %d, %d, %d, %d" % (
                 self.original_index_type.empty_declaration_code(),
                 self.original_index_type.signed and 1 or 0,
                 self.original_index_type.to_py_function,
-                is_list, wraparound, boundscheck, has_gil)
+                is_list, wraparound, boundscheck, has_gil, unsafe_shared)
         else:
             return ""
 
@@ -4685,6 +4713,12 @@ class IndexNode(_IndexingBaseNode):
             function = "__Pyx_GetItemInt_Unicode"
             error_value = '(Py_UCS4)-1'
             utility_code = UtilityCode.load_cached("GetItemIntUnicode", "StringTools.c")
+        elif base_type is bytes_type:
+            assert self.index.type.is_int
+            assert self.type.is_int
+            function = "__Pyx_GetItemInt_Bytes"
+            error_value = '-1'
+            utility_code = UtilityCode.load_cached("GetItemIntBytes", "StringTools.c")
         elif base_type is bytearray_type:
             assert self.index.type.is_int
             assert self.type.is_int
@@ -8656,7 +8690,8 @@ class SequenceNode(ExprNode):
             code.putln("if (likely(Py%s_CheckExact(sequence))) {" % sequence_types[0])
         for i, item in enumerate(self.unpacked_items):
             if sequence_types[0] == "List":
-                code.putln(f"{item.result()} = __Pyx_PyList_GetItemRef(sequence, {i});")
+                code.putln(f"{item.result()} = __Pyx_PyList_GetItemRefFast"
+                           f"(sequence, {i}, {self.may_be_unsafe_shared():d});")
                 code.putln(code.error_goto_if_null(item.result(), self.pos))
                 code.put_xgotref(item.result(), item.ctype())
             else:  # Tuple
@@ -8666,7 +8701,7 @@ class SequenceNode(ExprNode):
             code.putln("} else {")
             for i, item in enumerate(self.unpacked_items):
                 if sequence_types[1] == "List":
-                    code.putln(f"{item.result()} = __Pyx_PyList_GetItemRef(sequence, {i});")
+                    code.putln(f"{item.result()} = __Pyx_PyList_GetItemRefFast(sequence, {i}, {self.may_be_unsafe_shared():d});")
                     code.putln(code.error_goto_if_null(item.result(), self.pos))
                     code.put_xgotref(item.result(), item.ctype())
                 else:  # Tuple
@@ -11717,14 +11752,10 @@ class CythonArrayNode(ExprNode):
                 return self
 
             if axis.stop.is_none:
-                if array_dimension_sizes:
-                    dimsize = array_dimension_sizes[axis_no]
-                    axis.stop = IntNode(self.pos, value=str(dimsize),
-                                        constant_result=dimsize,
-                                        type=PyrexTypes.c_int_type)
-                else:
+                if not array_dimension_sizes:
                     error(axis.pos, ERR_NOT_STOP)
                     return self
+                axis.stop = IntNode.for_int(self.pos, array_dimension_sizes[axis_no])
 
             axis.stop = axis.stop.analyse_types(env)
             shape = axis.stop.coerce_to(self.shape_type, env)
@@ -11865,7 +11896,7 @@ class CythonArrayNode(ExprNode):
             axes.append(SliceNode(pos, start=none_node, stop=none_node,
                                        step=none_node))
             base_type = base_type.base_type
-        axes[-1].step = IntNode(pos, value="1", is_c_literal=True)
+        axes[-1].step = IntNode.for_int(pos, 1)
 
         memslicenode = Nodes.MemoryViewSliceTypeNode(pos, axes=axes,
                                                      base_type_node=base_type)
@@ -13047,7 +13078,7 @@ class PowNode(NumBinopNode):
         from numbers import Real
         c_result_type = None
         op1_is_definitely_positive = (
-            self.operand1.has_constant_result()
+            isinstance(self.operand1.constant_result, Real)
             and self.operand1.constant_result >= 0
         ) or (
             type1.is_int and type1.signed == 0  # definitely unsigned
@@ -14524,6 +14555,9 @@ class NoneCheckNode(_TempModifierNode):
     def may_be_none(self):
         return False
 
+    def may_be_unsafe_shared(self):
+        return self.arg.may_be_unsafe_shared()
+
     def condition(self):
         if self.type.is_pyobject:
             return self.arg.py_result()
@@ -14620,9 +14654,17 @@ class CoerceToPyTypeNode(CoercionNode):
 
     def coerce_to_boolean(self, env):
         arg_type = self.arg.type
-        if (arg_type == PyrexTypes.c_bint_type or
-                (arg_type.is_pyobject and arg_type.name == 'bool')):
+        if arg_type is PyrexTypes.c_bint_type or arg_type is Builtin.bool_type:
             return self.arg.coerce_to_temp(env)
+        elif arg_type.is_string:
+            # Test for 0-length string with "ptr[0] != '\0'" instead of just "ptr != 0".
+            # This is safe because we know that we're otherwise coercing to Python 'bytes' / 'str',
+            # which does the equivalent much less efficiently (strlen -> string object -> len>0).
+            # Unicode strings might have failed to decode at runtime (so it's not entirely equivalent),
+            # but the code really asks if the C string pointer is non-empty, not the decoded string.
+            return CoerceCStringToBooleanNode(self.arg, env)
+        elif arg_type.is_int or arg_type.is_float or arg_type.is_ptr:
+            return CoerceToBooleanNode(self.arg, env)
         else:
             return CoerceToBooleanNode(self, env)
 
@@ -14794,6 +14836,23 @@ class CoerceToBooleanNode(CoercionNode):
 
     def analyse_types(self, env):
         return self
+
+
+class CoerceCStringToBooleanNode(CoerceToBooleanNode):
+    """Special 'CoerceToBooleanNode' for C string arguments which checks the pointer
+    and additionally that the C string is non-empty.
+    """
+    def __init__(self, arg, env):
+        assert arg.type.is_string, arg.type
+        arg = arg.coerce_to_simple(env)
+        super().__init__(arg, env)
+
+    def calculate_result_code(self):
+        arg = self.arg.result()
+        if self.arg.type.is_array:
+            return f"(({arg})[0] != 0)"
+        else:
+            return f"({arg} != 0 && ({arg})[0] != 0)"
 
 
 class CoerceToComplexNode(CoercionNode):

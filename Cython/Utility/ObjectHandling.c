@@ -355,7 +355,7 @@ static PyObject *__Pyx_PyObject_GetIndex(PyObject *obj, PyObject *index) {
     Py_ssize_t key_value;
     key_value = __Pyx_PyIndex_AsSsize_t(index);
     if (likely(key_value != -1 || !(runerr = PyErr_Occurred()))) {
-        return __Pyx_GetItemInt_Fast(obj, key_value, 0, 1, 1);
+        return __Pyx_GetItemInt_Fast(obj, key_value, 0, 1, 1, 1);
     }
 
     // Error handling code -- only manage OverflowError differently.
@@ -445,25 +445,25 @@ static PyObject *__Pyx_PyDict_GetItem(PyObject *d, PyObject* key) {
 /////////////// GetItemInt.proto ///////////////
 //@substitute: tempita
 
-#define __Pyx_GetItemInt(o, i, type, is_signed, to_py_func, is_list, wraparound, boundscheck, has_gil) \
+#define __Pyx_GetItemInt(o, i, type, is_signed, to_py_func, is_list, wraparound, boundscheck, has_gil, unsafe_shared) \
     (__Pyx_fits_Py_ssize_t(i, type, is_signed) ? \
-    __Pyx_GetItemInt_Fast(o, (Py_ssize_t)i, is_list, wraparound, boundscheck) : \
+    __Pyx_GetItemInt_Fast(o, (Py_ssize_t)i, is_list, wraparound, boundscheck, unsafe_shared) : \
     (is_list ? (PyErr_SetString(PyExc_IndexError, "list index out of range"), (PyObject*)NULL) : \
                __Pyx_GetItemInt_Generic(o, to_py_func(i))))
 
 {{for type in ['List', 'Tuple']}}
-#define __Pyx_GetItemInt_{{type}}(o, i, type, is_signed, to_py_func, is_list, wraparound, boundscheck, has_gil) \
+#define __Pyx_GetItemInt_{{type}}(o, i, type, is_signed, to_py_func, is_list, wraparound, boundscheck, has_gil, unsafe_shared) \
     (__Pyx_fits_Py_ssize_t(i, type, is_signed) ? \
-    __Pyx_GetItemInt_{{type}}_Fast(o, (Py_ssize_t)i, wraparound, boundscheck) : \
+    __Pyx_GetItemInt_{{type}}_Fast(o, (Py_ssize_t)i, wraparound, boundscheck, unsafe_shared) : \
     (PyErr_SetString(PyExc_IndexError, "{{ type.lower() }} index out of range"), (PyObject*)NULL))
 
 static CYTHON_INLINE PyObject *__Pyx_GetItemInt_{{type}}_Fast(PyObject *o, Py_ssize_t i,
-                                                              int wraparound, int boundscheck);
+                                                              int wraparound, int boundscheck, int unsafe_shared);
 {{endfor}}
 
 static PyObject *__Pyx_GetItemInt_Generic(PyObject *o, PyObject* j);
 static CYTHON_INLINE PyObject *__Pyx_GetItemInt_Fast(PyObject *o, Py_ssize_t i,
-                                                     int is_list, int wraparound, int boundscheck);
+                                                     int is_list, int wraparound, int boundscheck, int unsafe_shared);
 
 /////////////// GetItemInt ///////////////
 //@substitute: tempita
@@ -478,7 +478,8 @@ static PyObject *__Pyx_GetItemInt_Generic(PyObject *o, PyObject* j) {
 
 {{for type in ['List', 'Tuple']}}
 static CYTHON_INLINE PyObject *__Pyx_GetItemInt_{{type}}_Fast(PyObject *o, Py_ssize_t i,
-                                                              int wraparound, int boundscheck) {
+                                                              int wraparound, int boundscheck, int unsafe_shared) {
+    CYTHON_MAYBE_UNUSED_VAR(unsafe_shared);
 #if CYTHON_ASSUME_SAFE_SIZE{{if type == 'Tuple'}} && CYTHON_ASSUME_SAFE_MACROS && !CYTHON_AVOID_BORROWED_REFS{{endif}}
     Py_ssize_t wrapped_i = i;
     if (wraparound & unlikely(i < 0)) {
@@ -488,7 +489,7 @@ static CYTHON_INLINE PyObject *__Pyx_GetItemInt_{{type}}_Fast(PyObject *o, Py_ss
     if ((CYTHON_AVOID_BORROWED_REFS || CYTHON_AVOID_THREAD_UNSAFE_BORROWED_REFS || !CYTHON_ASSUME_SAFE_MACROS)) {
         // Note that there's a minor thread-safety issue where the size for wraparound may change before we use it.
         // CPython doesn't worry about it and serious violations will be caught by boundschecking anyway.
-        return __Pyx_PyList_GetItemRef(o, wrapped_i);
+        return __Pyx_PyList_GetItemRefFast(o, wrapped_i, unsafe_shared);
     } else
     {{endif}}
     if ((!boundscheck) || likely(__Pyx_is_valid_index(wrapped_i, Py{{type}}_GET_SIZE(o)))) {
@@ -504,7 +505,8 @@ static CYTHON_INLINE PyObject *__Pyx_GetItemInt_{{type}}_Fast(PyObject *o, Py_ss
 {{endfor}}
 
 static CYTHON_INLINE PyObject *__Pyx_GetItemInt_Fast(PyObject *o, Py_ssize_t i, int is_list,
-                                                     int wraparound, int boundscheck) {
+                                                     int wraparound, int boundscheck, int unsafe_shared) {
+    CYTHON_MAYBE_UNUSED_VAR(unsafe_shared);
 #if CYTHON_ASSUME_SAFE_MACROS && CYTHON_ASSUME_SAFE_SIZE
     if (is_list || PyList_CheckExact(o)) {
         // We specifically aren't worrying about thread-safety issues from the delay between getting the size
@@ -512,7 +514,7 @@ static CYTHON_INLINE PyObject *__Pyx_GetItemInt_Fast(PyObject *o, Py_ssize_t i, 
         // be caught eventually.
         Py_ssize_t n = ((!wraparound) | likely(i >= 0)) ? i : i + PyList_GET_SIZE(o);
         if ((CYTHON_AVOID_BORROWED_REFS || CYTHON_AVOID_THREAD_UNSAFE_BORROWED_REFS)) {
-            return __Pyx_PyList_GetItemRef(o, n);
+            return __Pyx_PyList_GetItemRefFast(o, n, unsafe_shared);
         } else if ((!boundscheck) || (likely(__Pyx_is_valid_index(n, PyList_GET_SIZE(o))))) {
             return __Pyx_NewRef(PyList_GET_ITEM(o, n));
         }
@@ -567,15 +569,15 @@ static CYTHON_INLINE PyObject *__Pyx_GetItemInt_Fast(PyObject *o, Py_ssize_t i, 
 
 /////////////// SetItemInt.proto ///////////////
 
-#define __Pyx_SetItemInt(o, i, v, type, is_signed, to_py_func, is_list, wraparound, boundscheck, has_gil) \
+#define __Pyx_SetItemInt(o, i, v, type, is_signed, to_py_func, is_list, wraparound, boundscheck, has_gil, unsafe_shared) \
     (__Pyx_fits_Py_ssize_t(i, type, is_signed) ? \
-    __Pyx_SetItemInt_Fast(o, (Py_ssize_t)i, v, is_list, wraparound, boundscheck) : \
+    __Pyx_SetItemInt_Fast(o, (Py_ssize_t)i, v, is_list, wraparound, boundscheck, unsafe_shared) : \
     (is_list ? (PyErr_SetString(PyExc_IndexError, "list assignment index out of range"), -1) : \
                __Pyx_SetItemInt_Generic(o, to_py_func(i), v)))
 
 static int __Pyx_SetItemInt_Generic(PyObject *o, PyObject *j, PyObject *v);
 static CYTHON_INLINE int __Pyx_SetItemInt_Fast(PyObject *o, Py_ssize_t i, PyObject *v,
-                                               int is_list, int wraparound, int boundscheck);
+                                               int is_list, int wraparound, int boundscheck, int unsafe_shared);
 
 /////////////// SetItemInt ///////////////
 
@@ -588,11 +590,12 @@ static int __Pyx_SetItemInt_Generic(PyObject *o, PyObject *j, PyObject *v) {
 }
 
 static CYTHON_INLINE int __Pyx_SetItemInt_Fast(PyObject *o, Py_ssize_t i, PyObject *v, int is_list,
-                                               int wraparound, int boundscheck) {
+                                               int wraparound, int boundscheck, int unsafe_shared) {
+    CYTHON_MAYBE_UNUSED_VAR(unsafe_shared);
 #if CYTHON_ASSUME_SAFE_MACROS && CYTHON_ASSUME_SAFE_SIZE && !CYTHON_AVOID_BORROWED_REFS
     if (is_list || PyList_CheckExact(o)) {
         Py_ssize_t n = (!wraparound) ? i : ((likely(i >= 0)) ? i : i + PyList_GET_SIZE(o));
-        if ((CYTHON_AVOID_THREAD_UNSAFE_BORROWED_REFS)) {
+        if ((CYTHON_AVOID_THREAD_UNSAFE_BORROWED_REFS && (unsafe_shared || __Pyx_REFCNT_MAY_BE_SHARED(o)))) {
             Py_INCREF(v);
             return PyList_SetItem(o, n, v);
         } else if ((!boundscheck) || likely(__Pyx_is_valid_index(n, PyList_GET_SIZE(o)))) {
@@ -648,7 +651,7 @@ static CYTHON_INLINE int __Pyx_SetItemInt_Fast(PyObject *o, Py_ssize_t i, PyObje
 
 /////////////// DelItemInt.proto ///////////////
 
-#define __Pyx_DelItemInt(o, i, type, is_signed, to_py_func, is_list, wraparound, boundscheck, has_gil) \
+#define __Pyx_DelItemInt(o, i, type, is_signed, to_py_func, is_list, wraparound, boundscheck, has_gil, unsafe_shared) \
     (__Pyx_fits_Py_ssize_t(i, type, is_signed) ? \
     __Pyx_DelItemInt_Fast(o, (Py_ssize_t)i, is_list, wraparound) : \
     (is_list ? (PyErr_SetString(PyExc_IndexError, "list assignment index out of range"), -1) : \
@@ -888,7 +891,7 @@ static CYTHON_INLINE PyObject* __Pyx_PyTuple_GetSlice(PyObject* src, Py_ssize_t 
 
 /////////////// SliceTupleAndList ///////////////
 //@requires: TupleAndListFromArray
-//@requires: ModuleSetupCode.c::CriticalSections
+//@requires: Synchronization.c::CriticalSections
 
 #if CYTHON_COMPILING_IN_CPYTHON
 static CYTHON_INLINE void __Pyx_crop_slice(Py_ssize_t* _start, Py_ssize_t* _stop, Py_ssize_t* _length) {
@@ -1794,7 +1797,7 @@ try_unpack:
 
 
 /////////////// UnpackUnboundCMethod.proto ///////////////
-//@requires:  MemoryView_C.c::Atomics
+//@requires:  Synchronization.c::Atomics
 
 typedef struct {
     PyObject *type;
@@ -2392,6 +2395,14 @@ static PyObject* __Pyx_PyObject_CallMethod0(PyObject* obj, PyObject* method_name
 //@requires: PyObjectCallNoArg
 
 static PyObject* __Pyx_PyObject_CallMethod0(PyObject* obj, PyObject* method_name) {
+#if CYTHON_VECTORCALL && (__PYX_LIMITED_VERSION_HEX >= 0x030C0000 || (!CYTHON_COMPILING_IN_LIMITED_API && PY_VERSION_HEX >= 0x03090000))
+    PyObject *args[1] = {obj};
+    // avoid unused functions
+    (void) __Pyx_PyObject_GetMethod;
+    (void) __Pyx_PyObject_CallOneArg;
+    (void) __Pyx_PyObject_CallNoArg;
+    return PyObject_VectorcallMethod(method_name, args, 1 | PY_VECTORCALL_ARGUMENTS_OFFSET, NULL);
+#else
     PyObject *method = NULL, *result = NULL;
     int is_method = __Pyx_PyObject_GetMethod(obj, method_name, &method);
     if (likely(is_method)) {
@@ -2404,6 +2415,7 @@ static PyObject* __Pyx_PyObject_CallMethod0(PyObject* obj, PyObject* method_name
     Py_DECREF(method);
 bad:
     return result;
+#endif
 }
 
 
@@ -2416,7 +2428,7 @@ static PyObject* __Pyx_PyObject_CallMethod1(PyObject* obj, PyObject* method_name
 //@requires: PyObjectCallOneArg
 //@requires: PyObjectCall2Args
 
-#if !(CYTHON_VECTORCALL && __PYX_LIMITED_VERSION_HEX >= 0x030C0000)
+#if !(CYTHON_VECTORCALL && (__PYX_LIMITED_VERSION_HEX >= 0x030C0000 || (!CYTHON_COMPILING_IN_LIMITED_API && PY_VERSION_HEX >= 0x03090000)))
 static PyObject* __Pyx__PyObject_CallMethod1(PyObject* method, PyObject* arg) {
     // Separate function to avoid excessive inlining.
     PyObject *result = __Pyx_PyObject_CallOneArg(method, arg);
@@ -2426,7 +2438,7 @@ static PyObject* __Pyx__PyObject_CallMethod1(PyObject* method, PyObject* arg) {
 #endif
 
 static PyObject* __Pyx_PyObject_CallMethod1(PyObject* obj, PyObject* method_name, PyObject* arg) {
-#if CYTHON_VECTORCALL && __PYX_LIMITED_VERSION_HEX >= 0x030C0000
+#if CYTHON_VECTORCALL && (__PYX_LIMITED_VERSION_HEX >= 0x030C0000 || (!CYTHON_COMPILING_IN_LIMITED_API && PY_VERSION_HEX >= 0x03090000))
     PyObject *args[2] = {obj, arg};
     // avoid unused functions
     (void) __Pyx_PyObject_GetMethod;
@@ -2448,21 +2460,9 @@ static PyObject* __Pyx_PyObject_CallMethod1(PyObject* obj, PyObject* method_name
 
 
 /////////////// tp_new.proto ///////////////
-//@requires: ModuleSetupCode.c::GetRuntimeVersion
 
 #define __Pyx_tp_new(type_obj, args) __Pyx_tp_new_kwargs(type_obj, args, NULL)
-#if CYTHON_COMPILING_IN_LIMITED_API && __PYX_LIMITED_VERSION_HEX < 0x030A0000
-static PyObject* __Pyx_tp_new_fallback(PyObject* type_obj, PyObject* args, PyObject* kwargs); /*proto*/
-#endif
-static CYTHON_INLINE PyObject* __Pyx_tp_new_kwargs(PyObject* type_obj, PyObject* args, PyObject* kwargs) {
-    newfunc tp_new = __Pyx_PyType_TryGetSlot((PyTypeObject*)type_obj, tp_new, newfunc);
-#if CYTHON_COMPILING_IN_LIMITED_API && __PYX_LIMITED_VERSION_HEX < 0x030A0000
-    if (!tp_new) return __Pyx_tp_new_fallback(type_obj, args, kwargs);
-#else
-    assert(tp_new != NULL);
-#endif
-    return tp_new((PyTypeObject*)type_obj, args, kwargs);
-}
+static CYTHON_INLINE PyObject* __Pyx_tp_new_kwargs(PyObject* type_obj, PyObject* args, PyObject* kwargs); /*proto*/
 
 /////////////// tp_new ///////////////
 
@@ -2494,6 +2494,17 @@ static PyObject* __Pyx_tp_new_fallback(PyObject* type_obj, PyObject* args, PyObj
     return NULL;
 }
 #endif
+
+static PyObject* __Pyx_tp_new_kwargs(PyObject* type_obj, PyObject* args, PyObject* kwargs) {
+    newfunc tp_new = __Pyx_PyType_TryGetSlot((PyTypeObject*)type_obj, tp_new, newfunc);
+#if CYTHON_COMPILING_IN_LIMITED_API && __PYX_LIMITED_VERSION_HEX < 0x030A0000
+    if (!tp_new) return __Pyx_tp_new_fallback(type_obj, args, kwargs);
+#else
+    assert(tp_new != NULL);
+#endif
+    return tp_new((PyTypeObject*)type_obj, args, kwargs);
+}
+
 
 /////////////// PyObjectCall.proto ///////////////
 
@@ -2899,11 +2910,12 @@ static CYTHON_INLINE PyObject *__Pyx_PyVectorcall_FastCallDict(PyObject *func, _
     (version_var) = __PYX_GET_DICT_VERSION(dict); \
     (cache_var) = (value);
 
+// The lookup function should return a new reference.
 #define __PYX_PY_DICT_LOOKUP_IF_MODIFIED(VAR, DICT, LOOKUP) { \
     static PY_UINT64_T __pyx_dict_version = 0; \
     static PyObject *__pyx_dict_cached_value = NULL; \
     if (likely(__PYX_GET_DICT_VERSION(DICT) == __pyx_dict_version)) { \
-        (VAR) = __pyx_dict_cached_value; \
+        (VAR) = __Pyx_XNewRef(__pyx_dict_cached_value); \
     } else { \
         (VAR) = __pyx_dict_cached_value = (LOOKUP); \
         __pyx_dict_version = __PYX_GET_DICT_VERSION(DICT); \
@@ -3072,7 +3084,7 @@ static PyObject *__Pyx_PyMethod_New2Arg(PyObject *func, PyObject *self) {
 static int
 __Pyx_unicode_modifiable(PyObject *unicode)
 {
-    if (Py_REFCNT(unicode) != 1)
+    if (__Pyx_REFCNT_MAY_BE_SHARED(unicode))
         return 0;
     if (!PyUnicode_CheckExact(unicode))
         return 0;
