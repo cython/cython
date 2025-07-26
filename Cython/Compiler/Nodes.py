@@ -8982,12 +8982,14 @@ class CriticalSectionStatNode(TryFinallyStatNode):
 
         self.create_state_temp_if_needed(pos, body)
 
+        self.length_tag = str(len(args)) if len(args) > 1 else ""
+
         super().__init__(
             pos,
             args=args,
             body=body,
             finally_clause=CriticalSectionExitNode(
-                pos, len=len(args), critical_section=self),
+                pos, length_tag=self.length_tag, critical_section=self),
             **kwds,
         )
 
@@ -9063,7 +9065,7 @@ class CriticalSectionStatNode(TryFinallyStatNode):
         else:
             args = [ f"(PyObject*){arg.result()}" for arg in self.args ]
         code.putln(
-            f"__Pyx_PyCriticalSection_Begin{mutex}{len(args)}(&{variable}, {', '.join(args)});"
+            f"__Pyx_PyCriticalSection{self.length_tag}_Begin{mutex}(&{variable}, {', '.join(args)});"
         )
 
         TryFinallyStatNode.generate_execution_code(self, code)
@@ -9102,10 +9104,9 @@ class CriticalSectionExitNode(StatNode):
             variable_name = self.critical_section.state_temp.result()
         else:
             variable_name =  Naming.critical_section_variable
-        mutex = "Mutex" if self.critical_section.is_pymutex_critical_section else ""
 
         code.putln(
-            f"__Pyx_PyCriticalSection_End{mutex}{self.len}(&{variable_name});"
+            f"__Pyx_PyCriticalSection{self.length_tag}_End(&{variable_name});"
         )
 
 class CythonLockStatNode(TryFinallyStatNode):
@@ -9170,14 +9171,6 @@ class CythonLockStatNode(TryFinallyStatNode):
         body = self.body
         if isinstance(body, StatListNode) and len(body.stats) >= 1:
             body = body.stats[0]
-        if isinstance(body, GILStatNode) and body.state == "gil":
-            # Only warn about the initial and most obvious mistake (directly nesting the loops)
-            type_name = self.arg.type.empty_declaration_code(pyrex=True).strip()
-            warning(
-                body.pos,
-                f"Acquiring the GIL inside a {type_name} lock. "
-                "To avoid potential deadlocks acquire the GIL first.",
-                2)
         return super().analyse_expressions(env)
 
     def generate_execution_code(self, code):

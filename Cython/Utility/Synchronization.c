@@ -161,9 +161,13 @@
 #if !CYTHON_COMPILING_IN_CPYTHON_FREETHREADING
 #define __Pyx_PyCriticalSection void*
 #define __Pyx_PyCriticalSection2 void*
+#define __Pyx_PyCriticalSection_End(cs)
+#define __Pyx_PyCriticalSection2_End(cs)
 #else
 #define __Pyx_PyCriticalSection PyCriticalSection
 #define __Pyx_PyCriticalSection2 PyCriticalSection2
+#define __Pyx_PyCriticalSection_End PyCriticalSection_End
+#define __Pyx_PyCriticalSection2_End PyCriticalSection2_End
 #endif
 
 
@@ -172,16 +176,11 @@
 //@requires: CriticalSectionsDefinition
 
 #if !CYTHON_COMPILING_IN_CPYTHON_FREETHREADING
-
-#define __Pyx_PyCriticalSection_Begin1(cs, arg) (void)(cs)
-#define __Pyx_PyCriticalSection_Begin2(cs, arg1, arg2) (void)(cs)
-#define __Pyx_PyCriticalSection_End1(cs)
-#define __Pyx_PyCriticalSection_End2(cs)
+#define __Pyx_PyCriticalSection_Begin(cs, arg) (void)(cs)
+#define __Pyx_PyCriticalSection2_Begin(cs, arg1, arg2) (void)(cs)
 #else
-#define __Pyx_PyCriticalSection_Begin1 PyCriticalSection_Begin
-#define __Pyx_PyCriticalSection_Begin2 PyCriticalSection2_Begin
-#define __Pyx_PyCriticalSection_End1 PyCriticalSection_End
-#define __Pyx_PyCriticalSection_End2 PyCriticalSection2_End
+#define __Pyx_PyCriticalSection_Begin PyCriticalSection_Begin
+#define __Pyx_PyCriticalSection2_Begin PyCriticalSection2_Begin
 #endif
 
 #if PY_VERSION_HEX < 0x030d0000 || CYTHON_COMPILING_IN_LIMITED_API
@@ -197,26 +196,20 @@
 //@requires: CriticalSectionsDefinition
 
 #if !CYTHON_COMPILING_IN_CPYTHON_FREETHREADING
-#define __Pyx_PyCriticalSection_BeginMutex1(cs, arg) (void)(cs), (void)(arg)
-#define __Pyx_PyCriticalSection_BeginMutex2(cs, arg1, arg2) (void)(cs), (void)(arg1), (void)(arg2)
-#define __Pyx_PyCriticalSection_EndMutex1(cs)
-#define __Pyx_PyCriticalSection_EndMutex2(cs)
+#define __Pyx_PyCriticalSection_BeginMutex(cs, arg) (void)(cs), (void)(arg)
+#define __Pyx_PyCriticalSection2_BeginMutex(cs, arg1, arg2) (void)(cs), (void)(arg1), (void)(arg2)
 
 #elif PY_VERSION_HEX < 0x030e00C1
 #ifndef Py_BUILD_CORE
 #define Py_BUILD_CORE
 #endif
 #include "internal/pycore_critical_section.h"
-#define __Pyx_PyCriticalSection_BeginMutex1 _PyCriticalSection_BeginMutex
-#define __Pyx_PyCriticalSection_BeginMutex2 _PyCriticalSection2_BeginMutex
-#define __Pyx_PyCriticalSection_EndMutex1 PyCriticalSection_End
-#define __Pyx_PyCriticalSection_EndMutex2 PyCriticalSection2_End
+#define __Pyx_PyCriticalSection_BeginMutex _PyCriticalSection_BeginMutex
+#define __Pyx_PyCriticalSection2_BeginMutex _PyCriticalSection2_BeginMutex
 
 #else
-#define __Pyx_PyCriticalSection_BeginMutex1 PyCriticalSection_BeginMutex
-#define __Pyx_PyCriticalSection_BeginMutex2 PyCriticalSection2_BeginMutex
-#define __Pyx_PyCriticalSection_EndMutex1 PyCriticalSection_End
-#define __Pyx_PyCriticalSection_EndMutex2 PyCriticalSection2_End
+#define __Pyx_PyCriticalSection_BeginMutex PyCriticalSection_BeginMutex
+#define __Pyx_PyCriticalSection2_BeginMutex PyCriticalSection2_BeginMutex
 #endif
 
 
@@ -246,57 +239,79 @@ static CYTHON_INLINE void __Pyx_Locks_PyThreadTypeLock_LockGil(__Pyx_Locks_PyThr
 
 ////////////////////// PyThreadTypeLock ////////////////
 
-static void __Pyx__Locks_PyThreadTypeLock_LockGil_slow_spin(__Pyx_Locks_PyThreadTypeLock lock) {
-    while (1) {
-        // If we've been spinning for a while take a slower path, where
-        // we release the GIL, get the lock, release the lock, reacquire the GIL
-        // and then hope the lock is still available when we try to reacquire it.
-        Py_BEGIN_ALLOW_THREADS
-        (void)PyThread_acquire_lock(lock, WAIT_LOCK);
-        PyThread_release_lock(lock);
-        Py_END_ALLOW_THREADS
-        if (likely(PyThread_acquire_lock_timed(lock, 0, 0) == PY_LOCK_ACQUIRED)) {
-            // All good - we got the lock
-            return;
-        }
-    }
-}
+#if CYTHON_COMPILING_IN_PYPY || PYPY_VERSION_NUM < 0x07031400
+#define PY_LOCK_ACQUIRED 1
+#endif
 
-static void __Pyx__Locks_PyThreadTypeLock_LockGil_quick_spin(__Pyx_Locks_PyThreadTypeLock lock) {
-    for (int spin_count=0; spin_count<100; ++spin_count) {
-        // Release and re-acquire the GIL, try to get the lock again.
+static void __Pyx__Locks_PyThreadTypeLock_LockGil_spin(__Pyx_Locks_PyThreadTypeLock lock) {
+    while (1) {
+        int res;
         Py_BEGIN_ALLOW_THREADS
+#if !CYTHON_COMPILING_IN_PYPY || PYPY_VERSION_NUM >= 0x07031400
+        // Don't block indefinitely. This ensures we don't deadlock (forever) on
+        //
+        // with nogil:
+        //   with lock:
+        //     with gil:
+        //       ...
+        //
+        // Arguably that's user error, but it seems better to try to help them out.
+        res = PyThread_acquire_lock_timed(lock, CYTHON_LOCK_AND_GIL_DEADLOCK_AVOIDANCE_TIME, 0);
+#else
+        res = PyThread_acquire_lock(lock, WAIT_LOCK);
+#endif
+        // Wait on the GIL while holding the lock. But importantly we never do the inverse
+        // and wait on the lock while holding the GIL.
         Py_END_ALLOW_THREADS
-        if (likely(PyThread_acquire_lock_timed(lock, 0, 0) == PY_LOCK_ACQUIRED)) {
+        if (likely(res == PY_LOCK_ACQUIRED)) {
             // All good - we got the lock
             return;
         }
     }
-    __Pyx__Locks_PyThreadTypeLock_LockGil_slow_spin(lock);
 }
 
 static CYTHON_INLINE void __Pyx__Locks_PyThreadTypeLock_LockGil(__Pyx_Locks_PyThreadTypeLock lock) {
+    #if !CYTHON_COMPILING_IN_PYPY || PYPY_VERSION_NUM >= 0x07031400
+    // This is possibly dubious - it makes things faster in the uncontended case, but
+    // in the heavily-contended case it makes it more likely that one thread will dominate.
     if (likely(PyThread_acquire_lock_timed(lock, 0, 0) == PY_LOCK_ACQUIRED)) {
         // All good - we got the lock
         return;
     }
-    __Pyx__Locks_PyThreadTypeLock_LockGil_quick_spin(lock);
+    #endif
+    __Pyx__Locks_PyThreadTypeLock_LockGil_spin(lock);
 }
 
 static void __Pyx__Locks_PyThreadTypeLock_Lock(__Pyx_Locks_PyThreadTypeLock lock) {
+    int has_gil = 0;
 #if CYTHON_COMPILING_IN_LIMITED_API
-    // We can't tell if we have the GIL. Therefore make sure we do have it
-    // and then restore whatever state was there before.
-    PyGILState_STATE state = PyGILState_Ensure();
-    __Pyx_Locks_PyThreadTypeLock_LockNogil(lock);
-    PyGILState_Release(state);
+    if (__PYX_LIMITED_VERSION_HEX >= 0x030d0000 || __Pyx_get_runtime_version() >= 0x030d0000) {
+        // Swap the existing thread state to see if we had the GIL.
+        // Requires re-acquiring the thread state if we had it, but no-op if we didn't.
+        PyThreadState *tstate = PyThreadState_Swap(NULL);
+        has_gil = tstate != NULL;
+        if (has_gil)
+            PyThreadState_Swap(tstate);
+    } else {
+        // We can't tell if we have the GIL. Therefore make sure we do have it
+        // and then restore whatever state was there before.
+        PyGILState_STATE state = PyGILState_Ensure();
+        __Pyx_Locks_PyThreadTypeLock_LockNogil(lock);
+        PyGILState_Release(state);
+        return;
+    }
+#elif CYTHON_COMPILING_IN_PYPY || PY_VERSION_HEX < 0x030B0000
+    has_gil = PyGILState_Check();
+#elif PY_VERSION_HEX < 0x030d0000
+    has_gil = _PyThreadState_UncheckedGet() != NULL;
 #else
-    if (PyGILState_Check()) {
+    has_gil = PyThreadState_GetUnchecked() != NULL;
+#endif
+    if (has_gil) {
         __Pyx_Locks_PyThreadTypeLock_LockGil(lock);
     } else {
         __Pyx_Locks_PyThreadTypeLock_LockNogil(lock);
     }
-#endif
 }
 
 
