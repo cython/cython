@@ -27,6 +27,7 @@ We use `github actions <https://github.com/cython/cython/actions>`_ for cross-pl
 .. toctree::
    :maxdepth: 2
 
+   src/devguide/bugtracker
    src/devguide/getting_started
    src/devguide/debugging_the_cython_compiler
    src/devguide/cython_internals

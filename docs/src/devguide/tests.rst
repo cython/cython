@@ -1,8 +1,11 @@
+.. _The Test Suite:
+
 The Test Suite
 ==============
 
 A very good place to start understanding Cython is the `test suite <https://github.com/cython/cython/tree/master/tests/>`_, 
-which lives in the "tests" directory of the source repository. The tests (collected and run by runtests.py) 
+which lives in the "tests" directory of the source repository. The tests (collected and run by
+`runtests.py <https://github.com/cython/cython/blob/master/runtests.py>`_)
 mostly use the `doctest module <https://docs.python.org/3/library/doctest.html>`_ of Python.
 They contain lots of little examples that Cython can compile, so if you want to understand a specific part of 
 Cython or make a new feature work, it is a very good idea to look out for a related test case or to
@@ -43,7 +46,7 @@ These are distinguished by a ``mode`` tag comment at the top of the file, which 
 
 A test consists of a .pyx file that Cython compiles, possibly accompanied by a couple of .pxd or
 header files in the same directory.  More complicated cases use a ``.srctree`` file which is broken by the
-test runner into a set of files, and the commands at the top are run as the test.  We tend not to recommend
+test runner into a set of files, and the commands at the top are run as the test.  We don't recommend
 ``.srctree`` tests unless necessary because they are less well integrated into the test system and are
 slower to run.
 Error tests additionally contain an error description, as in this example:

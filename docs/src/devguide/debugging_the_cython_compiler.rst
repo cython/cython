@@ -2,7 +2,7 @@
 ===================================
 
 Most often, when you are new to Cython development, you have an idea about the Cython code you want to debug.
-So, looking at the generated C code, your main question will be: "where is that C code generated?".
+So, looking at the generated C code, your main question will be: »where is that C code generated?«.
 
 One simple and useful feature to help you start: by default Cython injects the source
 Python code into the C code as comments in the form:
