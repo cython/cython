@@ -11,5 +11,5 @@ Also see the `Cython project homepage <https://cython.org/>`_.
    src/userguide/index
    src/userguide/glossary
    src/reference/index
-   Contributing <CONTRIBUTING>
+   src/devguide/index
    src/changes
