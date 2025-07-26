@@ -20,7 +20,7 @@ cdef extern from "a_early.h":
 cdef extern from "a_late.h":
     my_int square_value_plus_one()
 
-cdef my_int my_value "my_value"
+cdef public my_int my_value "my_value"
 
 cdef my_int square "square"(my_int x)
 
