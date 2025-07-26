@@ -8981,12 +8981,14 @@ class CriticalSectionStatNode(TryFinallyStatNode):
 
         self.create_state_temp_if_needed(pos, body)
 
+        self.length_tag = str(len(args)) if len(args) > 1 else ""
+
         super().__init__(
             pos,
             args=args,
             body=body,
             finally_clause=CriticalSectionExitNode(
-                pos, len=len(args), critical_section=self),
+                pos, length_tag=self.length_tag, critical_section=self),
             **kwds,
         )
 
@@ -9041,7 +9043,7 @@ class CriticalSectionStatNode(TryFinallyStatNode):
             arg.generate_evaluation_code(code)
         args = [ f"(PyObject*){arg.result()}" for arg in self.args ]
         code.putln(
-            f"__Pyx_PyCriticalSection_Begin{len(args)}(&{variable}, {', '.join(args)});"
+            f"__Pyx_PyCriticalSection{self.length_tag}_Begin(&{variable}, {', '.join(args)});"
         )
 
         TryFinallyStatNode.generate_execution_code(self, code)
@@ -9081,7 +9083,7 @@ class CriticalSectionExitNode(StatNode):
         else:
             variable_name =  Naming.critical_section_variable
         code.putln(
-            f"__Pyx_PyCriticalSection_End{self.len}(&{variable_name});"
+            f"__Pyx_PyCriticalSection{self.length_tag}_End(&{variable_name});"
         )
 
 class CythonLockStatNode(TryFinallyStatNode):
