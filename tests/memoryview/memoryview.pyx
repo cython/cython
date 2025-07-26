@@ -456,6 +456,39 @@ def memview_iter(double[:, :] arg):
     if total == 15:
         return True
 
+@cython.test_fail_if_path_exists("//CoerceToPyTypeNode")
+def memview_backwards_iter(double[:] arg):
+    """
+    >>> memview_backwards_iter(DoubleMockBuffer("C", range(6), (6,)))
+    acquired C
+    released C
+    True
+    """
+    cdef double total = 0
+    cdef double first = 0
+    cdef double first_set = False
+    for val in arg[::-1]:
+        if not first_set:
+            first = val
+            first_set = True
+        total += val
+    if total == 15 and first == 5:
+        return True
+
+@cython.test_fail_if_path_exists("//CoerceToPyTypeNode")
+def memview_skip_iter(double[:] arg):
+    """
+    >>> memview_skip_iter(DoubleMockBuffer("C", range(6), (6,)))
+    acquired C
+    released C
+    True
+    """
+    cdef double total = 0
+    for val in arg[::2]:
+        total += val
+    if total == 6:
+        return True
+
 #
 # Test all kinds of indexing and flags
 #
@@ -1326,5 +1359,5 @@ def test_untyped_index(i):
 
 _PERFORMANCE_HINTS = """
 243:9: Use boundscheck(False) for faster access
-1325:21: Index should be typed for more efficient access
+1358:21: Index should be typed for more efficient access
 """

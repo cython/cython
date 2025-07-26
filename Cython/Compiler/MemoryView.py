@@ -402,7 +402,8 @@ def get_is_contig_func_name(contig_type, ndim):
 def get_is_contig_utility(contig_type, ndim):
     assert contig_type in ('C', 'F')
     C = dict(template_context, ndim=ndim, contig_type=contig_type)
-    utility = load_memview_c_utility("MemviewSliceCheckContig", C, requires=[is_contig_utility])
+    utility = load_memview_c_utility("MemviewSliceCheckContig", context=C,
+                                     requires=[is_contig_utility])
     return utility
 
 
@@ -798,11 +799,14 @@ def load_memview_cy_utility(util_code_name, context=None, **kwargs):
     return CythonUtilityCode.load(util_code_name, "MemoryView.pyx",
                                   context=context, **kwargs)
 
-def load_memview_c_utility(util_code_name, context=None, **kwargs):
+def load_memview_c_utility(
+        util_code_name, util_code_filename="MemoryView_C.c",
+        *,
+        context=None, **kwargs):
     if context is None:
-        return UtilityCode.load(util_code_name, "MemoryView_C.c", **kwargs)
+        return UtilityCode.load(util_code_name, util_code_filename, **kwargs)
     else:
-        return TempitaUtilityCode.load(util_code_name, "MemoryView_C.c",
+        return TempitaUtilityCode.load(util_code_name, util_code_filename,
                                        context=context, **kwargs)
 
 def use_cython_array_utility_code(env):
@@ -827,7 +831,8 @@ def _get_memviewslice_declare_code():
             requires=[])
     return memviewslice_declare_code
 
-atomic_utility = load_memview_c_utility("Atomics", template_context)
+atomic_utility = load_memview_c_utility(
+    "Atomics", util_code_filename="Synchronization.c", context=template_context)
 
 def _get_memviewslice_init_code(memviewslice_declare_code):
     memviewslice_init_code = load_memview_c_utility(
@@ -854,13 +859,13 @@ def get_typeinfo_to_format_code(shared_utility_qualified_name):
     else:
         return _get_typeinfo_to_format_code()
 
-is_contig_utility = load_memview_c_utility("MemviewSliceIsContig", template_context)
-overlapping_utility = load_memview_c_utility("OverlappingSlices", template_context)
+is_contig_utility = load_memview_c_utility("MemviewSliceIsContig", context=template_context)
+overlapping_utility = load_memview_c_utility("OverlappingSlices", context=template_context)
 
 def _get_copy_contents_new_utility():
     copy_contents_new_utility = load_memview_c_utility(
         "MemviewSliceCopyTemplate",
-        template_context,
+        context=template_context,
         requires=[],  # require cython_array_utility_code
     )
     return copy_contents_new_utility
