@@ -34,7 +34,7 @@ personal Github copy of Cython:
     git commit -a  # commit all changed files
     git push origin from-future-import-braces
 
-You can then create a pull request using the Github web iterface to merge your branch into the main Cython
+You can then create a pull request using the Github web interface to merge your branch into the main Cython
 repository.
 
 Running Cython on your PC
