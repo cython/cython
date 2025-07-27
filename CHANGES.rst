@@ -123,7 +123,7 @@ Bugs fixed
 
 * Compatibility with PyPy3.8 was lost by accident.
 
-* The Linux binary wheels of 3.1.2 used SSSE3 CPU instructions which are not avaiable on some CPUs.
+* The Linux binary wheels of 3.1.2 used SSSE3 CPU instructions which are not available on some CPUs.
   (Github issue :issue:`7038`)
 
 
