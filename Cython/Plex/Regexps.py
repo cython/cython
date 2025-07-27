@@ -164,10 +164,10 @@ class RE:
                                             num, self.__class__.__name__, repr(value)))
 
     def wrong_type(self, num, value, expected):
-        got = type(value).__name__
-        raise Errors.PlexTypeError("Invalid type for argument %d of Plex.%s "
-                                   "(expected %s, got %s" % (
-                                       num, self.__class__.__name__, expected, got))
+        raise Errors.PlexTypeError(
+            f"Invalid type for argument {num:d} of {self.__class__.__qualname__} "
+            f"(expected {expected}, got {type(value).__name__}"
+        )
 
 #
 #     Primitive RE constructors
