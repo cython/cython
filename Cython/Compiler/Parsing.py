@@ -791,7 +791,7 @@ def p_atom(s: PyrexScanner):
         value = s.systring[:-1]
         s.next()
         return ExprNodes.ImagNode(pos, value = value)
-    elif sy == 'BEGIN_STRING':
+    elif sy == 'BEGIN_STRING' or sy == 'BEGIN_FSTRING':
         return p_atom_string(s)
     elif sy == 'IDENT':
         result = p_atom_ident_constants(s)
@@ -805,7 +805,7 @@ def p_atom(s: PyrexScanner):
 
 @cython.cfunc
 def p_atom_string(s: PyrexScanner):
-    # s.sy == 'BEGIN_STRING'
+    # s.sy == 'BEGIN_STRING' or s.sy == 'BEGIN_FSTRING'
     pos = s.position()
     kind, bytes_value, unicode_value = p_cat_string_literal(s)
     if not kind:
@@ -936,11 +936,11 @@ def p_cat_string_literal(s: PyrexScanner) -> tuple:
     # where kind in ('b', 'c', 'u', 'f', '')
     pos = s.position()
     kind, bytes_value, unicode_value = p_string_literal(s)
-    if kind == 'c' or s.sy != 'BEGIN_STRING':
+    if kind == 'c' or s.sy != 'BEGIN_STRING' or kind != 'BEGIN_FSTRING':
         return kind, bytes_value, unicode_value
     bstrings, ustrings, positions = [bytes_value], [unicode_value], [pos]
     bytes_value = unicode_value = None
-    while s.sy == 'BEGIN_STRING':
+    while s.sy == 'BEGIN_STRING' or s.sy == 'BEGIN_FSTRING':
         pos = s.position()
         next_kind, next_bytes_value, next_unicode_value = p_string_literal(s)
         if next_kind == 'c':
@@ -1000,21 +1000,39 @@ def check_for_non_ascii_characters(string) -> cython.bint:
 
 
 @cython.cfunc
-def p_string_literal(s: PyrexScanner, kind_override=None) -> tuple:
-    # A single string or char literal.  Returns (kind, bvalue, uvalue)
-    # where kind in ('b', 'c', 'u', 'f', '').  The 'bvalue' is the source
-    # code byte sequence of the string literal, 'uvalue' is the
-    # decoded Unicode string.  Either of the two may be None depending
-    # on the 'kind' of string, only unprefixed strings have both
-    # representations. In f-strings, the uvalue is a list of the Unicode
-    # strings and f-string expressions that make up the f-string.
-
-    # s.sy == 'BEGIN_STRING'
-    pos = s.position()
+def p_string_literal_shared_read(
+        s: PyrexScanner, pos, chars, kind,
+        is_raw: cython.bint, has_non_ascii_literal_characters: cython.bint):
+    """
+    Returns a tuple of (handled, has_non_ascii_literal_characters)
+    """
+    sy = s.sy
+    systr = cython.cast(str, s.systring)
     is_python3_source: cython.bint = s.context.language_level >= 3
-    has_non_ascii_literal_characters = False
-    string_start_pos = (pos[0], pos[1], pos[2] + len(s.systring))
-    kind_string = s.systring.rstrip('"\'').lower()
+    # print "p_string_literal: sy =", sy, repr(s.systring) ###
+    if sy == 'CHARS':
+        chars.append(systr)
+        if is_python3_source and not has_non_ascii_literal_characters and check_for_non_ascii_characters(systr):
+            has_non_ascii_literal_characters = True
+    elif sy == 'ESCAPE':
+        # in Py2, 'ur' raw unicode strings resolve unicode escapes but nothing else
+        if is_raw and (is_python3_source or kind != 'u' or systr[1] not in 'Uu'):
+            chars.append(systr)
+            if is_python3_source and not has_non_ascii_literal_characters and check_for_non_ascii_characters(systr):
+                has_non_ascii_literal_characters = True
+        else:
+            _append_escape_sequence(kind, chars, systr, s)
+    elif sy == 'NEWLINE':
+        chars.append('\n')
+    elif sy == 'EOF':
+        s.error("Unclosed string literal", pos=pos)
+    else:
+        return False, has_non_ascii_literal_characters
+    return True, has_non_ascii_literal_characters
+
+@cython.cfunc
+def _validate_kind_string(pos, systring: str):
+    kind_string = systring.rstrip('"\'').lower()
     if len(kind_string) > 1:
         if len(set(kind_string)) != len(kind_string):
             error(pos, 'Duplicate string prefix character')
@@ -1024,6 +1042,27 @@ def p_string_literal(s: PyrexScanner, kind_override=None) -> tuple:
             error(pos, 'String prefixes b and f cannot be combined')
         if 'u' in kind_string and 'f' in kind_string:
             error(pos, 'String prefixes u and f cannot be combined')
+    return kind_string
+
+@cython.cfunc
+def p_string_literal(s: PyrexScanner, kind_override=None) -> tuple:
+    # A single string or char literal.  Returns (kind, bvalue, uvalue)
+    # where kind in ('b', 'c', 'u', 'f', '').  The 'bvalue' is the source
+    # code byte sequence of the string literal, 'uvalue' is the
+    # decoded Unicode string.  Either of the two may be None depending
+    # on the 'kind' of string, only unprefixed strings have both
+    # representations. In f-strings, the uvalue is a list of the Unicode
+    # strings and f-string expressions that make up the f-string.
+
+    # s.sy == 'BEGIN_STRING' or s.sy == 'BEGIN_FSTRING'
+    if s.sy == 'BEGIN_FSTRING':
+        assert kind_override is None
+        return p_fstring_literal(s)
+    pos = s.position()
+    is_python3_source: cython.bint = s.context.language_level >= 3
+    has_non_ascii_literal_characters = False
+    string_start_pos = (pos[0], pos[1], pos[2] + len(s.systring))
+    kind_string = _validate_kind_string(pos, s.systring)
 
     is_raw: cython.bint = 'r' in kind_string
 
@@ -1056,33 +1095,19 @@ def p_string_literal(s: PyrexScanner, kind_override=None) -> tuple:
         else:
             chars = StringEncoding.BytesLiteralBuilder(s.source_encoding)
 
-    systr: str
     while 1:
         s.next()
-        sy = s.sy
-        systr = cython.cast(str, s.systring)
-        # print "p_string_literal: sy =", sy, repr(s.systring) ###
-        if sy == 'CHARS':
-            chars.append(systr)
-            if is_python3_source and not has_non_ascii_literal_characters and check_for_non_ascii_characters(systr):
-                has_non_ascii_literal_characters = True
-        elif sy == 'ESCAPE':
-            # in Py2, 'ur' raw unicode strings resolve unicode escapes but nothing else
-            if is_raw and (is_python3_source or kind != 'u' or systr[1] not in 'Uu'):
-                chars.append(systr)
-                if is_python3_source and not has_non_ascii_literal_characters and check_for_non_ascii_characters(systr):
-                    has_non_ascii_literal_characters = True
-            else:
-                _append_escape_sequence(kind, chars, systr, s)
-        elif sy == 'NEWLINE':
-            chars.append('\n')
-        elif sy == 'END_STRING':
+        handled, has_non_ascii_literal_characters = p_string_literal_shared_read(
+            s, pos, chars, kind,
+            is_raw=is_raw,
+            has_non_ascii_literal_characters=has_non_ascii_literal_characters)
+        if handled:
+            continue
+        if s.sy == 'END_STRING':
             break
-        elif sy == 'EOF':
-            s.error("Unclosed string literal", pos=pos)
         else:
             s.error("Unexpected token %r:%r in string literal" % (
-                sy, s.systring))
+                s.sy, s.systring))
 
     if kind == 'c':
         unicode_value = None
@@ -1101,6 +1126,86 @@ def p_string_literal(s: PyrexScanner, kind_override=None) -> tuple:
         unicode_value = p_f_string(s, unicode_value, string_start_pos, is_raw='r' in kind_string)
     s.next()
     return (kind, bytes_value, unicode_value)
+
+
+@cython.cfunc
+def p_fstring_replacement_field(s: PyrexScanner, is_raw: cython.bint):
+    # s.sy == '{'
+    s.next()
+    pos = s.position()
+    conversion_char = None
+    format_spec = None
+    if s.sy == 'yield':
+        expr = p_yield_expression(s)
+    else:
+        expr = p_testlist_star_expr(s)
+    if s.sy == "=":
+        s.next()
+        # TODO this bit is hard!
+    if s.sy == "!":
+        # format conversion
+        s.next()
+        conversion_expr = p_name()
+        conversion_char = p_name.name
+        # validate the conversion char
+        if conversion_char is not None and not ExprNodes.FormattedValueNode.find_conversion_func(conversion_char):
+            error(conversion_expr.pos, "invalid conversion character '%s'" % conversion_char)
+    if s.sy == ":":
+        # full format spec
+        s.next()
+        format_spec_contents = p_fstring_middles(s, is_raw)
+        print(f"{format_spec_contents=}")
+        breakpoint()
+    return ExprNodes.FormattedValueNode(
+        pos, value=expr, conversion_char=conversion_char,
+        format_spec=format_spec
+    )           
+
+@cython.cfunc
+def p_fstring_middles(s: PyrexScanner, is_raw: cython.bint):
+    middles: list = []
+    builder = StringEncoding.UnicodeLiteralBuilder()
+    pos = s.position()
+    breakpoint()
+    while True:
+        s.next()
+        sy = s.sy
+        systr = cython.cast(str, s.systring)
+        
+        handled, _ = p_string_literal_shared_read(
+            s, pos, builder, "u",
+            is_raw=is_raw,
+            has_non_ascii_literal_characters=True)
+        if handled:
+            continue
+        if sy == "FSTRING_DOUBLE_BRACKET":
+            builder.append(systr[0])
+            continue
+        if builder.chars:
+            middles.append(ExprNodes.UnicodeNode(pos, value=builder.getstring()))
+            builder = StringEncoding.UnicodeLiteralBuilder()
+        
+        if sy == "{":
+            f = p_fstring_replacement_field(s, is_raw)
+            print(f"{f=}")
+            middles.append(f)
+            if s.sy != '}':
+                s.expected('}')
+        elif sy == "END_FSTRING":
+            break
+        else:
+            print(f"{sy=}")
+    return middles
+
+@cython.cfunc
+def p_fstring_literal(s: PyrexScanner):
+    # s.sy == BEGIN_FSTRING
+    kind_string = _validate_kind_string(s.position(), s.systring)
+    is_raw: cython.bint = 'r' in kind_string
+    middles = p_fstring_middles(s, is_raw)
+    print(f"{middles=}")
+    s.expect("END_FSTRING")
+    return 'f', None, middles
 
 
 @cython.cfunc

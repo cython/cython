@@ -124,6 +124,8 @@ def string_contains_lone_surrogates(ustring):
     Unicode, i.e. characters that would be spelled as two
     separate code units on a narrow platform, but that do not form a pair.
     """
+    if not isinstance(ustring, str):
+        breakpoint()
     for c in map(ord, ustring):
         # Surrogates tend to be rare, so we use separate conditions.
         if 0xD800 <= c and c <= 0xDFFF:

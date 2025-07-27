@@ -6,7 +6,8 @@
 
 raw_prefixes = "rR"
 bytes_prefixes = "bB"
-string_prefixes = "fFuU" + bytes_prefixes
+string_prefixes = "uU" + bytes_prefixes
+fstring_prefixes = "fF"
 char_prefixes = "cC"
 any_string_prefix = raw_prefixes + string_prefixes + char_prefixes
 IDENT = 'IDENT'
@@ -61,6 +62,10 @@ def make_lexicon():
     beginstring = Opt(Rep(Any(string_prefixes + raw_prefixes)) |
                       Any(char_prefixes)
                       ) + (Str("'") | Str('"') | Str("'''") | Str('"""'))
+    begin_fstring = (Opt(Any(raw_prefixes)) +
+                     Any(fstring_prefixes) +
+                     Opt(Any(raw_prefixes)) +
+                     (Str("'") | Str('"') | Str("'''") | Str('"""')))
     two_oct = octdigit + octdigit
     three_oct = octdigit + octdigit + octdigit
     two_hex = hexdigit + hexdigit
@@ -73,7 +78,7 @@ def make_lexicon():
     bra = Any("([{")
     ket = Any(")]}")
     ellipsis = Str("...")
-    punct = Any(":,;+-*/|&<>=.%`~^?!@")
+    punct = Any(",;+-*/|&<>=.%`~^?!@")
     diphthong = Str("==", "<>", "!=", "<=", ">=", "<<", ">>", "**", "//",
                     "+=", "-=", "*=", "/=", "%=", "|=", "^=", "&=",
                     "<<=", ">>=", "**=", "//=", "->", "@=", "&&", "||", ':=')
@@ -83,18 +88,50 @@ def make_lexicon():
 
     comment = Str("#") + Rep(AnyBut("\n"))
 
+    def generate_fstring_states():
+        out = []
+        for prefix in ["'", '"', "'''", '"""']:
+            if prefix[0] == "'":
+                type_ = 'SQ'
+                allowed_string_chars = Str('"')
+            else:
+                type_ = 'DQ'
+                allowed_string_chars = Str("'")
+            if len(prefix) > 1:
+                triple = "T"
+                newline_method = Method('unclosed_string_action')
+                allowed_string_chars = Any("'\"")
+            else:
+                triple = ""
+                newline_method = "NEWLINE"
+            out.append(
+                State(f"{triple}{type_}_FSTRING", [
+                    (escapeseq, 'ESCAPE'),
+                    (Str('{{') | Str('}}'), 'FSTRING_DOUBLE_BRACKET'),
+                    (Str('{'), Method('begin_executable_fstring_part_action')),
+                    (Rep1(AnyBut("'\"\n\\{}")), 'CHARS'),
+                    (allowed_string_chars, 'CHARS'),
+                    (Str("\n"), newline_method),
+                    (Str(prefix), Method('end_fstring_action')),
+                    (Eof, 'EOF')
+                ])
+            )
+        return out
+
     return Lexicon([
         (name, Method('normalize_ident')),
         (intliteral, Method('strip_underscores', symbol='INT')),
         (fltconst, Method('strip_underscores', symbol='FLOAT')),
         (imagconst, Method('strip_underscores', symbol='IMAG')),
         (ellipsis | punct | diphthong, TEXT),
+        (Str(':'), Method('colon_action')),
 
         (bra, Method('open_bracket_action')),
         (ket, Method('close_bracket_action')),
         (lineterm, Method('newline_action')),
 
         (beginstring, Method('begin_string_action')),
+        (begin_fstring, Method('begin_fstring_action')),
 
         (comment, IGNORE),
         (spaces, IGNORE),
@@ -142,6 +179,7 @@ def make_lexicon():
             (Str('"""'), Method('end_string_action')),
             (Eof, 'EOF')
         ]),
+        *generate_fstring_states(),
 
         (Eof, Method('eof_action'))
         ],

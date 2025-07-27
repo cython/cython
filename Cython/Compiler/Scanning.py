@@ -18,7 +18,7 @@ from .. import Utils
 from ..Plex.Scanners import Scanner
 from ..Plex.Errors import UnrecognizedInput
 from .Errors import error, warning, hold_errors, release_errors, CompileError
-from .Lexicon import any_string_prefix, make_lexicon, IDENT
+from .Lexicon import any_string_prefix, fstring_prefixes, make_lexicon, IDENT
 from .Future import print_function
 
 debug_scanner = 0
@@ -336,6 +336,7 @@ class PyrexScanner(Scanner):
         self.indentation_stack = [0]
         self.indentation_char = '\0'
         self.bracket_nesting_level = 0
+        self.fstring_state = []
 
         self.put_back_on_failure = None
 
@@ -363,10 +364,21 @@ class PyrexScanner(Scanner):
         return text
 
     def close_bracket_action(self, text):
+        if (self.fstring_state and text == '}' and
+                self.fstring_state[-1].bracket_nesting_level == self.bracket_nesting_level):
+            self.begin(self.fstring_state[-1].scanner_state)
         self.bracket_nesting_level -= 1
+        return text
+    
+    def colon_action(self, text):
+        if (self.fstring_state and
+                self.fstring_state[-1].bracket_nesting_level == self.bracket_nesting_level):
+            self.fstring_state[-1].in_format_specifier = True
         return text
 
     def newline_action(self, text):
+        if self.fstring_state and self.fstring_state[-1].in_format_specifier:
+            self.error_at_scanpos("newline in fstring format specifier")
         if self.bracket_nesting_level == 0:
             self.begin('INDENT')
             self.produce('NEWLINE', '')
@@ -387,6 +399,25 @@ class PyrexScanner(Scanner):
     def end_string_action(self, text):
         self.begin('')
         self.produce('END_STRING')
+
+    def begin_fstring_action(self, text):
+        while text and (text[0] in any_string_prefix or text[0] in fstring_prefixes):
+            text = text[1:]
+        fstring_state = self.string_states[text].replace("STRING", "FSTRING")
+        self.begin(fstring_state)
+        self.produce('BEGIN_FSTRING')
+        self.fstring_state.append(FStringState(fstring_state))
+
+    def end_fstring_action(self, text):
+        self.begin('')
+        self.fstring_state.pop()
+        self.produce('END_FSTRING')
+
+    def begin_executable_fstring_part_action(self, text):
+        self.bracket_nesting_level += 1
+        self.fstring_state[-1].bracket_nesting_level = self.bracket_nesting_level
+        self.begin('')
+        return text
 
     def unclosed_string_action(self, text):
         self.end_string_action(text)
@@ -571,3 +602,10 @@ def tentatively_scan(scanner: PyrexScanner):
             scanner.put_back_on_failure = put_back_on_failure
     finally:
         release_errors(ignore=True)
+
+
+class FStringState:
+    def __init__(self, scanner_state):
+        self.scanner_state = scanner_state
+        self.bracket_nesting_level = None
+        self.in_format_specifier = False
