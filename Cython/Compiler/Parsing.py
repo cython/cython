@@ -1122,51 +1122,90 @@ def p_string_literal(s: PyrexScanner, kind_override=None) -> tuple:
             if kind == 'b':
                 s.error("bytes can only contain ASCII literal characters.", pos=pos)
             bytes_value = None
-    if kind == 'f':
-        unicode_value = p_f_string(s, unicode_value, string_start_pos, is_raw='r' in kind_string)
     s.next()
     return (kind, bytes_value, unicode_value)
 
 
 @cython.cfunc
-def p_fstring_replacement_field(s: PyrexScanner, is_raw: cython.bint):
-    # s.sy == '{'
+def p_fstring_replacement_field_contents(s: PyrexScanner, is_single_quoted: cython.bint):
+    expr_contents = []
+    while True:
+        if s.sy == "END_FSTRING_EXPRESSION":
+            break
+        elif s.sy == "FSTRING_FORMAT_START":
+            break
+        expr_contents.append(s.systring)
+        s.next()
+    expr_contents = ''.join(expr_contents)
+    # normalise line endings as the parser expects that
+    expr_contents = expr_contents.replace('\r\n', '\n').replace('\r', '\n')
+    return expr_contents
+
+@cython.cfunc
+def p_fstring_replacement_field(s: PyrexScanner,
+                                is_raw: cython.bint, is_single_quoted: cython.bint):
+    expr_pos = s.position()
     s.next()
-    pos = s.position()
+    expr_str = p_fstring_replacement_field_contents(s, is_single_quoted)
+
     conversion_char = None
     format_spec = None
+    if s.sy == "FSTRING_FORMAT_START":
+        # full format spec
+        pos = s.position()
+        format_spec_contents = p_fstring_middles(s, is_raw, is_single_quoted)
+        format_spec = ExprNodes.JoinedStrNode(
+            pos,
+            values=format_spec_contents
+        )
+
+    parent_scanner = s
+
+    if not expr_str.strip():
+        error(expr_pos, "empty expression not allowed in f-string")
+        return []
+    expr_buf = StringIO(expr_str)
+    s = PyrexScanner(
+        expr_buf, expr_pos[0],
+        parent_scanner=parent_scanner, source_encoding=parent_scanner.source_encoding,
+        initial_pos=expr_pos)
+    
+    result = []
+    pos = s.position()
+    conversion_char = None
     if s.sy == 'yield':
         expr = p_yield_expression(s)
     else:
         expr = p_testlist_star_expr(s)
     if s.sy == "=":
         s.next()
-        # TODO this bit is hard!
+        result.append(
+            ExprNodes.UnicodeNode(
+                pos=pos,
+                value=StringEncoding.EncodedString(expr_str)
+            )
+        )
     if s.sy == "!":
         # format conversion
         s.next()
-        conversion_expr = p_name()
-        conversion_char = p_name.name
+        conversion_char = s.systring
         # validate the conversion char
-        if conversion_char is not None and not ExprNodes.FormattedValueNode.find_conversion_func(conversion_char):
-            error(conversion_expr.pos, "invalid conversion character '%s'" % conversion_char)
-    if s.sy == ":":
-        # full format spec
-        s.next()
-        format_spec_contents = p_fstring_middles(s, is_raw)
-        print(f"{format_spec_contents=}")
-        breakpoint()
-    return ExprNodes.FormattedValueNode(
+        if not conversion_char:
+            error(s.position(), "missing conversion character")
+        elif not ExprNodes.FormattedValueNode.find_conversion_func(conversion_char):
+            error(s.position(), "invalid conversion character '%s'" % conversion_char)
+    
+    result.append(ExprNodes.FormattedValueNode(
         pos, value=expr, conversion_char=conversion_char,
         format_spec=format_spec
-    )           
+    ))
+    return result
 
 @cython.cfunc
-def p_fstring_middles(s: PyrexScanner, is_raw: cython.bint):
+def p_fstring_middles(s: PyrexScanner, is_raw: cython.bint, is_single_quoted: cython.bint):
     middles: list = []
     builder = StringEncoding.UnicodeLiteralBuilder()
     pos = s.position()
-    breakpoint()
     while True:
         s.next()
         sy = s.sy
@@ -1186,15 +1225,19 @@ def p_fstring_middles(s: PyrexScanner, is_raw: cython.bint):
             builder = StringEncoding.UnicodeLiteralBuilder()
         
         if sy == "{":
-            f = p_fstring_replacement_field(s, is_raw)
-            print(f"{f=}")
-            middles.append(f)
-            if s.sy != '}':
+            fields = p_fstring_replacement_field(s, is_raw, is_single_quoted)
+            middles.extend(fields)
+            if s.sy != 'END_FSTRING_EXPRESSION':
                 s.expected('}')
+        elif sy == "END_FSTRING_EXPRESSION":
+            break
         elif sy == "END_FSTRING":
             break
+        elif s.sy == '}':
+            s.error("f-string: single '}' is not allowed")
         else:
-            print(f"{sy=}")
+            s.error("Unexpected token %r:%r in f-string literal" % (
+                s.sy, s.systring))
     return middles
 
 @cython.cfunc
@@ -1202,9 +1245,12 @@ def p_fstring_literal(s: PyrexScanner):
     # s.sy == BEGIN_FSTRING
     kind_string = _validate_kind_string(s.position(), s.systring)
     is_raw: cython.bint = 'r' in kind_string
-    middles = p_fstring_middles(s, is_raw)
-    print(f"{middles=}")
-    s.expect("END_FSTRING")
+    quotes = str(filter(lambda x: x.isascii(), s.systring))
+    is_single_quoted: cython.bint = len(quotes)==3
+    middles = p_fstring_middles(s, is_raw, is_single_quoted)
+    if s.sy != "END_FSTRING":
+        s.expected(quotes)
+    s.next()
     return 'f', None, middles
 
 
@@ -1267,209 +1313,6 @@ _parse_escape_sequences_raw, _parse_escape_sequences = [re.compile((
     ).decode('us-ascii')).match
     for is_raw in (True, False)
 ]
-
-
-@cython.cfunc
-def _f_string_error_pos(pos: tuple, string, i: cython.Py_ssize_t) -> tuple:
-    return (pos[0], pos[1], pos[2] + i + 1)  # FIXME: handle newlines in string
-
-
-@cython.cfunc
-def p_f_string(s: PyrexScanner, unicode_value, pos, is_raw: cython.bint) -> list:
-    # Parses a PEP 498 f-string literal into a list of nodes. Nodes are either UnicodeNodes
-    # or FormattedValueNodes.
-    values = []
-    next_start: cython.Py_ssize_t = 0
-    size: cython.Py_ssize_t = len(unicode_value)
-    builder = StringEncoding.UnicodeLiteralBuilder()
-    _parse_seq = _parse_escape_sequences_raw if is_raw else _parse_escape_sequences
-
-    while next_start < size:
-        end: cython.Py_ssize_t = next_start
-        match = _parse_seq(unicode_value, next_start)
-        if match is None:
-            error(_f_string_error_pos(pos, unicode_value, next_start), "Invalid escape sequence")
-
-        next_start: cython.Py_ssize_t = match.end()
-        part: str = match.group()
-        c = part[0]
-        if c == '\\':
-            if not is_raw and len(part) > 1:
-                _append_escape_sequence('f', builder, part, s)
-            else:
-                builder.append(part)
-        elif c == '{':
-            if part == '{{':
-                builder.append('{')
-            else:
-                # start of an expression
-                if builder.chars:
-                    values.append(ExprNodes.UnicodeNode(pos, value=builder.getstring()))
-                    builder = StringEncoding.UnicodeLiteralBuilder()
-                next_start, expr_nodes = p_f_string_expr(s, unicode_value, pos, next_start, is_raw)
-                values.extend(expr_nodes)
-        elif c == '}':
-            if part == '}}':
-                builder.append('}')
-            else:
-                error(_f_string_error_pos(pos, unicode_value, end),
-                      "f-string: single '}' is not allowed")
-        else:
-            builder.append(part)
-
-    if builder.chars:
-        values.append(ExprNodes.UnicodeNode(pos, value=builder.getstring()))
-    return values
-
-
-@cython.cfunc
-def p_f_string_expr(s: PyrexScanner, unicode_value, pos: tuple,
-                    starting_index: cython.Py_ssize_t, is_raw: cython.bint) -> tuple:
-    # Parses a {}-delimited expression inside an f-string. Returns a list of nodes
-    # [UnicodeNode?, FormattedValueNode] and the index in the string that follows
-    # the expression.
-    #
-    # ? = Optional
-    i: cython.Py_ssize_t = starting_index
-    size: cython.Py_ssize_t = len(unicode_value)
-    conversion_char = terminal_char = format_spec = None
-    format_spec_str = None
-    expr_text = None
-    NO_CHAR: cython.Py_UCS4 = 2**30
-
-    nested_depth: cython.Py_ssize_t = 0
-    quote_char: cython.Py_UCS4 = NO_CHAR
-    c: cython.Py_UCS4
-    in_triple_quotes = False
-    backslash_reported = False
-
-    while True:
-        if i >= size:
-            break  # error will be reported below
-        c = unicode_value[i]
-
-        if quote_char != NO_CHAR:
-            if c == '\\':
-                # avoid redundant error reports along '\' sequences
-                if not backslash_reported:
-                    error(_f_string_error_pos(pos, unicode_value, i),
-                          "backslashes not allowed in f-strings")
-                backslash_reported = True
-            elif c == quote_char:
-                if in_triple_quotes:
-                    if i + 2 < size and unicode_value[i + 1] == c and unicode_value[i + 2] == c:
-                        in_triple_quotes = False
-                        quote_char = NO_CHAR
-                        i += 2
-                else:
-                    quote_char = NO_CHAR
-        elif c in '\'"':
-            quote_char = c
-            if i + 2 < size and unicode_value[i + 1] == c and unicode_value[i + 2] == c:
-                in_triple_quotes = True
-                i += 2
-        elif c in '{[(':
-            nested_depth += 1
-        elif nested_depth != 0 and c in '}])':
-            nested_depth -= 1
-        elif c == '#':
-            error(_f_string_error_pos(pos, unicode_value, i),
-                  "format string cannot include #")
-        elif nested_depth == 0 and c in '><=!:}':
-            # allow special cases with '!' and '='
-            if i + 1 < size and c in '!=><':
-                if unicode_value[i + 1] == '=':
-                    i += 2  # we checked 2, so we can skip 2: '!=', '==', '>=', '<='
-                    continue
-                elif c in '><':  # allow single '<' and '>'
-                    i += 1
-                    continue
-            terminal_char = c
-            break
-        i += 1
-
-    # normalise line endings as the parser expects that
-    expr_str = unicode_value[starting_index:i].replace('\r\n', '\n').replace('\r', '\n')
-    expr_pos = (pos[0], pos[1], pos[2] + starting_index + 2)  # TODO: find exact code position (concat, multi-line, ...)
-
-    if not expr_str.strip():
-        error(_f_string_error_pos(pos, unicode_value, starting_index),
-              "empty expression not allowed in f-string")
-
-    if terminal_char == '=':
-        i += 1
-        while i < size and unicode_value[i].isspace():
-            i += 1
-
-        if i < size:
-            terminal_char = unicode_value[i]
-            expr_text = unicode_value[starting_index:i]
-        # otherwise: error will be reported below
-
-    if terminal_char == '!':
-        i += 1
-        if i + 2 > size:
-            pass  # error will be reported below
-        else:
-            conversion_char = unicode_value[i]
-            i += 1
-            terminal_char = unicode_value[i]
-
-    if terminal_char == ':':
-        in_triple_quotes = False
-        in_string = False
-        nested_depth = 0
-        start_format_spec = i + 1
-        while True:
-            if i >= size:
-                break  # error will be reported below
-            c = unicode_value[i]
-            if not in_triple_quotes and not in_string:
-                if c == '{':
-                    nested_depth += 1
-                elif c == '}':
-                    if nested_depth > 0:
-                        nested_depth -= 1
-                    else:
-                        terminal_char = c
-                        break
-            if c in '\'"':
-                if not in_string and i + 2 < size and unicode_value[i + 1] == c and unicode_value[i + 2] == c:
-                    in_triple_quotes = not in_triple_quotes
-                    i += 2
-                elif not in_triple_quotes:
-                    in_string = not in_string
-            i += 1
-
-        format_spec_str = unicode_value[start_format_spec:i]
-
-    if expr_text and conversion_char is None and format_spec_str is None:
-        conversion_char = 'r'
-
-    if terminal_char != '}':
-        error(_f_string_error_pos(pos, unicode_value, i),
-              "missing '}' in format string expression" + (
-                  ", found '%s'" % terminal_char if terminal_char else ""))
-
-    # parse the expression as if it was surrounded by parentheses
-    buf = StringIO('(%s)' % expr_str)
-    scanner = PyrexScanner(buf, expr_pos[0], parent_scanner=s, source_encoding=s.source_encoding, initial_pos=expr_pos)
-    expr = p_testlist(scanner)  # TODO is testlist right here?
-
-    # validate the conversion char
-    if conversion_char is not None and not ExprNodes.FormattedValueNode.find_conversion_func(conversion_char):
-        error(expr_pos, "invalid conversion character '%s'" % conversion_char)
-
-    # the format spec is itself treated like an f-string
-    if format_spec_str:
-        format_spec = ExprNodes.JoinedStrNode(pos, values=p_f_string(s, format_spec_str, pos, is_raw))
-
-    nodes = []
-    if expr_text:
-        nodes.append(ExprNodes.UnicodeNode(pos, value=EncodedString(expr_text)))
-    nodes.append(ExprNodes.FormattedValueNode(pos, value=expr, conversion_char=conversion_char, format_spec=format_spec))
-
-    return i + 1, nodes
 
 
 # since PEP 448:
