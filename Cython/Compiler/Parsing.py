@@ -1061,7 +1061,6 @@ def p_string_literal(s: PyrexScanner, kind_override=None) -> tuple:
     pos = s.position()
     is_python3_source: cython.bint = s.context.language_level >= 3
     has_non_ascii_literal_characters = False
-    string_start_pos = (pos[0], pos[1], pos[2] + len(s.systring))
     kind_string = _validate_kind_string(pos, s.systring)
 
     is_raw: cython.bint = 'r' in kind_string
@@ -1127,82 +1126,106 @@ def p_string_literal(s: PyrexScanner, kind_override=None) -> tuple:
 
 
 @cython.cfunc
-def p_fstring_replacement_field_contents(s: PyrexScanner, is_single_quoted: cython.bint):
-    expr_contents = []
-    while True:
-        if s.sy == "END_FSTRING_EXPRESSION":
-            break
-        elif s.sy == "FSTRING_FORMAT_START":
-            break
-        expr_contents.append(s.systring)
-        s.next()
-    expr_contents = ''.join(expr_contents)
-    # normalise line endings as the parser expects that
-    expr_contents = expr_contents.replace('\r\n', '\n').replace('\r', '\n')
-    return expr_contents
+def _reconstruct_fstring_expr_from_tokens(bracket_pos, tokens: list, next_token_pos):
+    # Reconstruct the expression string as best as possible for the left-hand side of
+    # an fstring self-documenting expression.  Use the position of each token to try
+    # to work out the spacing.
+    lines = {}
+    for _, systring, pos in tokens:
+        line = lines.setdefault(pos[1], [])
+        token_end = pos[2] + len(systring)
+        if len(line) < pos[2]:
+            line.extend(' ' * (pos[2] - len(line)))
+        line[pos[2]:token_end] = systring
+    # get any spacing that's required after the =
+    final_line = lines.setdefault(next_token_pos[1], [])
+    if len(final_line) < next_token_pos[2]:
+        final_line.extend(' ' * (next_token_pos[2] - len(final_line)))
+    # get rid of blanks before the expression
+    first_line = lines.setdefault(bracket_pos[1], [])
+    del first_line[:(bracket_pos[2]+1)]
+
+    out = []
+    keys = sorted(lines.keys())
+    for line_no in range(min(keys), max(keys)+1):
+        # setdefault also means blank lines are included
+        line = lines.setdefault(line_no, [])
+        out.append(''.join(line))
+    return "\n".join(out)
+
 
 @cython.cfunc
 def p_fstring_replacement_field(s: PyrexScanner,
                                 is_raw: cython.bint, is_single_quoted: cython.bint):
-    expr_pos = s.position()
-    s.next()
-    expr_str = p_fstring_replacement_field_contents(s, is_single_quoted)
+    result = []
+    conversion_char = format_spec = expr = None
+    
+    bracket_pos = s.position()
+    # Use tentatively scan to get a list of tokens if needed.
+    with tentatively_scan(s) as errors:
+        s.next()
+        expr_pos = s.position()
 
-    conversion_char = None
-    format_spec = None
-    if s.sy == "FSTRING_FORMAT_START":
+        if s.sy == '}':
+            error(bracket_pos, "empty expression not allowed in f-string")
+            result = []
+        elif s.sy == 'yield':
+            expr = p_yield_expression(s)
+        else:
+            expr = p_testlist_star_expr(s)
+
+        if s.sy == "=":
+            seen_tokens = list(s.put_back_on_failure)
+            s.next()
+            next_token_position = s.position()
+            expr_string = _reconstruct_fstring_expr_from_tokens(
+                bracket_pos, seen_tokens, next_token_position)
+            # TODO this is hard
+            result.append(
+                ExprNodes.UnicodeNode(
+                    pos=expr_pos,
+                    value=StringEncoding.EncodedString(expr_string)
+                )
+            )
+        s.put_back_on_failure = []
+    if errors:
+        for e in errors:
+            s.error(e.args[1], pos=e.args[0], fatal=False)
+        
+    if s.sy == "!":
+        # format conversion
+        s.next()
+        conversion_char = s.systring
+        # validate the conversion char
+        if conversion_char in ['}' or ':']:
+            error(s.position(), "missing conversion character")
+        elif not ExprNodes.FormattedValueNode.find_conversion_func(conversion_char):
+            error(s.position(), "invalid conversion character '%s'" % conversion_char)
+            s.next()
+        else:
+            s.next()
+
+    if s.sy == ":":
         # full format spec
         pos = s.position()
-        format_spec_contents = p_fstring_middles(s, is_raw, is_single_quoted)
+        format_spec_contents = p_fstring_middles(s, is_raw, is_single_quoted, True)
         format_spec = ExprNodes.JoinedStrNode(
             pos,
             values=format_spec_contents
         )
 
     parent_scanner = s
-
-    if not expr_str.strip():
-        error(expr_pos, "empty expression not allowed in f-string")
-        return []
-    expr_buf = StringIO(expr_str)
-    s = PyrexScanner(
-        expr_buf, expr_pos[0],
-        parent_scanner=parent_scanner, source_encoding=parent_scanner.source_encoding,
-        initial_pos=expr_pos)
-    
-    result = []
-    pos = s.position()
-    conversion_char = None
-    if s.sy == 'yield':
-        expr = p_yield_expression(s)
-    else:
-        expr = p_testlist_star_expr(s)
-    if s.sy == "=":
-        s.next()
-        result.append(
-            ExprNodes.UnicodeNode(
-                pos=pos,
-                value=StringEncoding.EncodedString(expr_str)
-            )
-        )
-    if s.sy == "!":
-        # format conversion
-        s.next()
-        conversion_char = s.systring
-        # validate the conversion char
-        if not conversion_char:
-            error(s.position(), "missing conversion character")
-        elif not ExprNodes.FormattedValueNode.find_conversion_func(conversion_char):
-            error(s.position(), "invalid conversion character '%s'" % conversion_char)
     
     result.append(ExprNodes.FormattedValueNode(
-        pos, value=expr, conversion_char=conversion_char,
+        expr_pos, value=expr, conversion_char=conversion_char,
         format_spec=format_spec
     ))
     return result
 
 @cython.cfunc
-def p_fstring_middles(s: PyrexScanner, is_raw: cython.bint, is_single_quoted: cython.bint):
+def p_fstring_middles(s: PyrexScanner,
+                      is_raw: cython.bint, is_single_quoted: cython.bint,
+                      is_format_string: cython.bint):
     middles: list = []
     builder = StringEncoding.UnicodeLiteralBuilder()
     pos = s.position()
@@ -1227,13 +1250,13 @@ def p_fstring_middles(s: PyrexScanner, is_raw: cython.bint, is_single_quoted: cy
         if sy == "{":
             fields = p_fstring_replacement_field(s, is_raw, is_single_quoted)
             middles.extend(fields)
-            if s.sy != 'END_FSTRING_EXPRESSION':
+            if not s.sy == '}':
                 s.expected('}')
-        elif sy == "END_FSTRING_EXPRESSION":
-            break
         elif sy == "END_FSTRING":
             break
         elif s.sy == '}':
+            if is_format_string:
+                break
             s.error("f-string: single '}' is not allowed")
         else:
             s.error("Unexpected token %r:%r in f-string literal" % (
@@ -1247,7 +1270,7 @@ def p_fstring_literal(s: PyrexScanner):
     is_raw: cython.bint = 'r' in kind_string
     quotes = str(filter(lambda x: x.isascii(), s.systring))
     is_single_quoted: cython.bint = len(quotes)==3
-    middles = p_fstring_middles(s, is_raw, is_single_quoted)
+    middles = p_fstring_middles(s, is_raw, is_single_quoted, False)
     if s.sy != "END_FSTRING":
         s.expected(quotes)
     s.next()

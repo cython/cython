@@ -78,7 +78,7 @@ def make_lexicon():
     bra = Any("([{")
     ket = Any(")]}")
     ellipsis = Str("...")
-    punct = Any(":,;+-*/|&<>=.%`~^?!@")
+    punct = Any(",;+-*/|&<>=.%`~^?!@")
     diphthong = Str("==", "<>", "!=", "<=", ">=", "<<", ">>", "**", "//",
                     "+=", "-=", "*=", "/=", "%=", "|=", "^=", "&=",
                     "<<=", ">>=", "**=", "//=", "->", "@=", "&&", "||", ':=')
@@ -90,16 +90,6 @@ def make_lexicon():
 
     def generate_fstring_states():
         out = []
-
-        out.append(
-            State("FSTRING_EXPRESSION", [
-                (bra, Method('open_bracket_action')),
-                (ket, Method('close_fstring_bracket_action')),
-                (Str(':'), Method('colon_fstring_action')),
-                (Rep1(AnyBut("(){}[]:\n")), 'CHARS'),
-                (Str("\n"), "NEWLINE"),
-            ])
-        )
 
         for prefix in ["'", '"', "'''", '"""']:
             if prefix[0] == "'":
@@ -120,7 +110,7 @@ def make_lexicon():
                     (escapeseq, 'ESCAPE'),
                     (Str('{{') | Str('}}'), 'FSTRING_DOUBLE_BRACKET'),
                     (Str('{'), Method('begin_executable_fstring_part_action')),
-                    (Str('}'), Method('close_fstring_bracket_action')),
+                    (Str('}'), Method('close_bracket_action')),
                     (Rep1(AnyBut("'\"\n\\{}")), 'CHARS'),
                     (allowed_string_chars, 'CHARS'),
                     (Str("\n"), newline_method),
@@ -136,6 +126,7 @@ def make_lexicon():
         (fltconst, Method('strip_underscores', symbol='FLOAT')),
         (imagconst, Method('strip_underscores', symbol='IMAG')),
         (ellipsis | punct | diphthong, TEXT),
+        (Str(':'), Method('colon_action')),
 
         (bra, Method('open_bracket_action')),
         (ket, Method('close_bracket_action')),

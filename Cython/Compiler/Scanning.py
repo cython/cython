@@ -337,8 +337,7 @@ class PyrexScanner(Scanner):
         self.indentation_char = '\0'
         self.bracket_nesting_level = 0
         # fstrings
-        self.fstring_bracket_nesting_level = 0
-        self.previous_fstring_state = ''
+        self.fstring_state_stack = []
 
         self.put_back_on_failure = None
 
@@ -366,24 +365,17 @@ class PyrexScanner(Scanner):
         return text
 
     def close_bracket_action(self, text):
+        if (text == '}' and self.fstring_state_stack and
+                self.fstring_state_stack[-1].bracket_nesting_level == self.bracket_nesting_level):
+            self.begin(self.fstring_state_stack[-1].scanner_state)
+            self.fstring_state_stack[-1].bracket_nesting_level = None
         self.bracket_nesting_level -= 1
         return text
     
-    def close_fstring_bracket_action(self, text):
-        if text == '}' and self.fstring_bracket_nesting_level == self.bracket_nesting_level:
-            self.begin(self.previous_fstring_state)
-            self.bracket_nesting_level -= 1
-            self.previous_fstring_state = ''
-            self.produce("END_FSTRING_EXPRESSION")
-            return
-        return self.close_bracket_action(text)
-
-    
-    def colon_fstring_action(self, text):
-        if self.bracket_nesting_level == self.fstring_bracket_nesting_level:
-            self.begin(self.previous_fstring_state)
-            self.produce('FSTRING_FORMAT_START')
-            return
+    def colon_action(self, text):
+        if (self.fstring_state_stack and
+                self.fstring_state_stack[-1].bracket_nesting_level == self.bracket_nesting_level):
+            self.begin(self.fstring_state_stack[-1].scanner_state)
         return text
 
     def newline_action(self, text):
@@ -412,18 +404,21 @@ class PyrexScanner(Scanner):
         while text and (text[0] in any_string_prefix or text[0] in fstring_prefixes):
             text = text[1:]
         fstring_state = self.string_states[text].replace("STRING", "FSTRING")
+        self.fstring_state_stack.append(
+            FStringState(fstring_state)
+        )
         self.begin(fstring_state)
         self.produce('BEGIN_FSTRING')
 
     def end_fstring_action(self, text):
+        self.fstring_state_stack.pop()
         self.begin('')
         self.produce('END_FSTRING')
 
     def begin_executable_fstring_part_action(self, text):
         self.bracket_nesting_level += 1
-        self.fstring_bracket_nesting_level = self.bracket_nesting_level
-        self.previous_fstring_state = self.state_name
-        self.begin('FSTRING_EXPRESSION')
+        self.fstring_state_stack[-1].bracket_nesting_level = self.bracket_nesting_level
+        self.begin('')
         return text
 
     def unclosed_string_action(self, text):
