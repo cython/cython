@@ -31,6 +31,12 @@ Features added
 * Releasing the GIL from an unknown lock state is more efficient.
   (Github issue :issue:`6847`)
 
+* ``bool(c_int/float/ptr)`` avoid passing through Python objects.
+  (Github issue :issue:`7015`)
+
+* Unused exceptions in ``except`` clauses are detected in some more cases to avoid their normalisation.
+  (Github issue :issue:`7021`)
+
 * Several improvements were made in freethreaded Python code.
   (Github issues :issue:`6936`, :issue:`6939`, :issue:`6949`, :issue:`6984`, :issue:`7011`)
 
@@ -74,6 +80,9 @@ Bugs fixed
 * Type casts on constants as part of numeric expressions could crash Cython.
   (Github issue :issue:`6779`)
 
+* Indexing ``bytes`` failed to optimise in some cases.
+  (Github issue :issue:`6997`)
+
 * Pure mode type aliases like ``p_int`` or ``ulong`` leaked into some C type contexts,
   risking to conflict with user declarations.
   (Github issues :issue:`6922`, :issue:`6339`)
@@ -99,10 +108,23 @@ Bugs fixed
 Bugs fixed
 ----------
 
+* Some method calls with 0 or 1 argument failed to use ``PyObject_VectorCallMethod()``.
+
+* ``cython.pythread_type_lock`` (also used as fallback for ``cython.pymutex``)
+  could stall on heavily contended locks.
+  (Github issue :issue:`6999`)
+
+* C string arrays (not pointers) always coerced to the Python default string type,
+  even on explicit casts to other string types.
+  (Github issue :issue:`7020`)
+
 * An internal C function was not marked as ``static`` and leaked a linker symbol.
   (Github issue :issue:`6957`)
 
 * Compatibility with PyPy3.8 was lost by accident.
+
+* The Linux binary wheels of 3.1.2 used SSSE3 CPU instructions which are not available on some CPUs.
+  (Github issue :issue:`7038`)
 
 
 3.1.2 (2025-06-09)
