@@ -70,10 +70,14 @@ def make_lexicon():
     three_oct = octdigit + octdigit + octdigit
     two_hex = hexdigit + hexdigit
     four_hex = two_hex + two_hex
-    escapeseq = Str("\\") + (two_oct | three_oct |
+    fescapeseq = Str("\\") + (two_oct | three_oct |
                              Str('N{') + Rep(AnyBut('}')) + Str('}') |
                              Str('u') + four_hex | Str('x') + two_hex |
-                             Str('U') + four_hex + four_hex | AnyChar)
+                             Str('U') + four_hex + four_hex |
+                             # This generally accepts invalid escape sequences. But in
+                             # fstring we need to treat \{ as '\\' and { more strictly.
+                             AnyBut("{}"))
+    escapeseq = fescapeseq | (Str("\\") + Any("{}")) 
 
     bra = Any("([{")
     ket = Any(")]}")
@@ -107,10 +111,10 @@ def make_lexicon():
                 newline_method = "NEWLINE"
             out.append(
                 State(f"{triple}{type_}_FSTRING", [
-                    (escapeseq, 'ESCAPE'),
-                    (Str('{{') | Str('}}'), 'FSTRING_DOUBLE_BRACKET'),
+                    (fescapeseq, 'ESCAPE'),
                     (Str('{'), Method('begin_executable_fstring_part_action')),
                     (Str('}'), Method('close_bracket_action')),
+                    (Str('{{')|Str('}}'), Method('fsting_double_bracket_action')),
                     (Rep1(AnyBut("'\"\n\\{}")), 'CHARS'),
                     (allowed_string_chars, 'CHARS'),
                     (Str("\n"), newline_method),

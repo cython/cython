@@ -384,16 +384,16 @@ class PyrexScanner(Scanner):
             self.produce('NEWLINE', '')
 
     string_states = {
-        "'":   'SQ_STRING',
-        '"':   'DQ_STRING',
-        "'''": 'TSQ_STRING',
-        '"""': 'TDQ_STRING'
+        "'":   'SQ',
+        '"':   'DQ',
+        "'''": 'TSQ',
+        '"""': 'TDQ'
     }
 
     def begin_string_action(self, text: str):
         while text and text[0] in any_string_prefix:
             text = text[1:]
-        self.begin(self.string_states[text])
+        self.begin(f'{self.string_states[text]}_STRING')
         self.produce('BEGIN_STRING')
 
     def end_string_action(self, text):
@@ -403,7 +403,7 @@ class PyrexScanner(Scanner):
     def begin_fstring_action(self, text):
         while text and (text[0] in any_string_prefix or text[0] in fstring_prefixes):
             text = text[1:]
-        fstring_state = self.string_states[text].replace("STRING", "FSTRING")
+        fstring_state = f'{self.string_states[text]}_FSTRING'
         self.fstring_state_stack.append(
             FStringState(fstring_state)
         )
@@ -420,6 +420,15 @@ class PyrexScanner(Scanner):
         self.fstring_state_stack[-1].bracket_nesting_level = self.bracket_nesting_level
         self.begin('')
         return text
+    
+    def fsting_double_bracket_action(self, text):
+        if text == '}}' and self.fstring_state_stack[-1].bracket_nesting_level == self.bracket_nesting_level:
+            # We're currently expecting to close a bracket (e.g. in a format string),
+            # so the double bracket may be that.  
+            self.produce(self.close_bracket_action(text[0]))
+            self.produce(self.close_bracket_action(text[1]))
+        else:
+            self.produce('CHARS', text[0])
 
     def unclosed_string_action(self, text):
         self.end_string_action(text)

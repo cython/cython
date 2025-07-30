@@ -28,7 +28,7 @@ from . import Builtin
 from . import StringEncoding
 from .StringEncoding import EncodedString, bytes_literal
 from .ModuleNode import ModuleNode
-from .Errors import error, warning
+from .Errors import error, warning, CompileError
 from .. import Utils
 from . import Future
 from . import Options
@@ -936,7 +936,7 @@ def p_cat_string_literal(s: PyrexScanner) -> tuple:
     # where kind in ('b', 'c', 'u', 'f', '')
     pos = s.position()
     kind, bytes_value, unicode_value = p_string_literal(s)
-    if kind == 'c' or s.sy != 'BEGIN_STRING' or kind != 'BEGIN_FSTRING':
+    if kind == 'c' or (s.sy != 'BEGIN_STRING' and s.sy != 'BEGIN_FSTRING'):
         return kind, bytes_value, unicode_value
     bstrings, ustrings, positions = [bytes_value], [unicode_value], [pos]
     bytes_value = unicode_value = None
@@ -1053,7 +1053,6 @@ def p_string_literal(s: PyrexScanner, kind_override=None) -> tuple:
     # on the 'kind' of string, only unprefixed strings have both
     # representations. In f-strings, the uvalue is a list of the Unicode
     # strings and f-string expressions that make up the f-string.
-
     # s.sy == 'BEGIN_STRING' or s.sy == 'BEGIN_FSTRING'
     if s.sy == 'BEGIN_FSTRING':
         assert kind_override is None
@@ -1163,30 +1162,35 @@ def p_fstring_replacement_field(s: PyrexScanner,
     bracket_pos = s.position()
     # Use tentatively scan to get a list of tokens if needed.
     with tentatively_scan(s) as errors:
-        s.next()
-        expr_pos = s.position()
-
-        if s.sy == '}':
-            error(bracket_pos, "empty expression not allowed in f-string")
-            result = []
-        elif s.sy == 'yield':
-            expr = p_yield_expression(s)
-        else:
-            expr = p_testlist_star_expr(s)
-
-        if s.sy == "=":
-            seen_tokens = list(s.put_back_on_failure)
+        try:
             s.next()
-            next_token_position = s.position()
-            expr_string = _reconstruct_fstring_expr_from_tokens(
-                bracket_pos, seen_tokens, next_token_position)
-            # TODO this is hard
-            result.append(
-                ExprNodes.UnicodeNode(
-                    pos=expr_pos,
-                    value=StringEncoding.EncodedString(expr_string)
+            expr_pos = s.position()
+
+            if s.sy == '}':
+                error(bracket_pos, "empty expression not allowed in f-string")
+                result = []
+            elif s.sy == 'yield':
+                expr = p_yield_expression(s)
+            else:
+                expr = p_testlist_star_expr(s)
+
+            if s.sy == "=":
+                seen_tokens = list(s.put_back_on_failure)
+                s.next()
+                next_token_position = s.position()
+                expr_string = _reconstruct_fstring_expr_from_tokens(
+                    bracket_pos, seen_tokens, next_token_position)
+                # TODO this is hard
+                result.append(
+                    ExprNodes.UnicodeNode(
+                        pos=expr_pos,
+                        value=StringEncoding.EncodedString(expr_string)
+                    )
                 )
-            )
+        except CompileError as e:
+            # Catch errors since we're only using tentatively scan to
+            # collect tokens
+            pass
         s.put_back_on_failure = []
     if errors:
         for e in errors:
@@ -1232,34 +1236,37 @@ def p_fstring_middles(s: PyrexScanner,
     while True:
         s.next()
         sy = s.sy
-        systr = cython.cast(str, s.systring)
         
-        handled, _ = p_string_literal_shared_read(
-            s, pos, builder, "u",
-            is_raw=is_raw,
-            has_non_ascii_literal_characters=True)
-        if handled:
-            continue
-        if sy == "FSTRING_DOUBLE_BRACKET":
-            builder.append(systr[0])
-            continue
+        if is_raw and sy == 'ESCAPE' and s.systring == r"\{":
+            builder.append('\\')
+            sy = '{'
+        else:
+            handled, _ = p_string_literal_shared_read(
+                s, pos, builder, "u",
+                is_raw=is_raw,
+                has_non_ascii_literal_characters=True)
+            if handled:
+                continue
+
         if builder.chars:
             middles.append(ExprNodes.UnicodeNode(pos, value=builder.getstring()))
             builder = StringEncoding.UnicodeLiteralBuilder()
-        
         if sy == "{":
             fields = p_fstring_replacement_field(s, is_raw, is_single_quoted)
             middles.extend(fields)
             if not s.sy == '}':
                 s.expected('}')
+            continue
         elif sy == "END_FSTRING":
             break
         elif s.sy == '}':
             if is_format_string:
                 break
-            s.error("f-string: single '}' is not allowed")
+            error(s.position(), "f-string: single '}' is not allowed")
         else:
-            s.error("Unexpected token %r:%r in f-string literal" % (
+            error(
+                s.position(),
+                "Unexpected token %r:%r in f-string literal" % (
                 s.sy, s.systring))
     return middles
 
