@@ -30,33 +30,34 @@ typedef struct arraydescr {
     char *formats;
 } arraydescr;
 
+typedef union {
+    char *ob_item;
+    float *as_floats;
+    double *as_doubles;
+    int *as_ints;
+    unsigned int *as_uints;
+    unsigned char *as_uchars;
+    signed char *as_schars;
+    char *as_chars;
+    unsigned long *as_ulongs;
+    long *as_longs;
+    unsigned long long *as_ulonglongs;
+    long long *as_longlongs;
+    short *as_shorts;
+    unsigned short *as_ushorts;
+    // Don't use Py_UNICODE ourselves in the union. This avoids deprecation warnings 
+    // for anyone who uses array.array but doesn't use this field.
+    #if PY_VERSION_HEX >= 0x030d0000
+    Py_DEPRECATED(3.13) 
+    #endif
+        wchar_t *as_pyunicodes;
+    void *as_voidptr;
+} __data_union;
 
 struct arrayobject {
     PyObject_HEAD
     Py_ssize_t ob_size;
-    union {
-        char *ob_item;
-        float *as_floats;
-        double *as_doubles;
-        int *as_ints;
-        unsigned int *as_uints;
-        unsigned char *as_uchars;
-        signed char *as_schars;
-        char *as_chars;
-        unsigned long *as_ulongs;
-        long *as_longs;
-        unsigned long long *as_ulonglongs;
-        long long *as_longlongs;
-        short *as_shorts;
-        unsigned short *as_ushorts;
-        // Don't use Py_UNICODE ourselves in the union. This avoids deprecation warnings 
-        // for anyone who uses array.array but doesn't use this field.
-        #if PY_VERSION_HEX >= 0x030d0000
-        Py_DEPRECATED(3.13) 
-        #endif
-            wchar_t *as_pyunicodes;
-        void *as_voidptr;
-    } data;
+    __data_union data;
     Py_ssize_t allocated;
     struct arraydescr *ob_descr;
     PyObject *weakreflist; /* List of weak references */
@@ -105,9 +106,20 @@ PyObject* newarrayobject(PyTypeObject *type, Py_ssize_t size,
     struct arraydescr *descr);
 #endif /* ifndef NO_NEWARRAY_INLINE */
 
+static CYTHON_INLINE __data_union __Pyx_PyArray_Data(arrayobject *self) {
+#if !CYTHON_COMPILING_IN_GRAAL
+    return self->data;
+#else
+    __data_union data;
+    data.ob_item = GraalPyArray_Data((PyObject*)self);
+    return data;
+#endif
+}
+
 // fast resize (reallocation to the point)
 // not designed for filing small increments (but for fast opaque array apps)
 static CYTHON_INLINE int resize(arrayobject *self, Py_ssize_t n) {
+#if !CYTHON_COMPILING_IN_GRAAL
     void *items = (void*) self->data.ob_item;
     PyMem_Resize(items, char, (size_t)(n * self->ob_descr->itemsize));
     if (items == NULL) {
@@ -118,10 +130,14 @@ static CYTHON_INLINE int resize(arrayobject *self, Py_ssize_t n) {
     __Pyx_SET_SIZE(self, n);
     self->allocated = n;
     return 0;
+#else
+    return GraalPyArray_Resize((PyObject*)self, n);
+#endif
 }
 
 // suitable for small increments; over allocation 50% ;
 static CYTHON_INLINE int resize_smart(arrayobject *self, Py_ssize_t n) {
+#if !CYTHON_COMPILING_IN_GRAAL
     void *items = (void*) self->data.ob_item;
     Py_ssize_t newsize;
     if (n < self->allocated && n*4 > self->allocated) {
@@ -142,6 +158,9 @@ static CYTHON_INLINE int resize_smart(arrayobject *self, Py_ssize_t n) {
     __Pyx_SET_SIZE(self, n);
     self->allocated = newsize;
     return 0;
+#else
+    return GraalPyArray_Resize((PyObject*)self, n);
+#endif
 }
 
 #endif
