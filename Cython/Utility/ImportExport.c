@@ -1,211 +1,92 @@
-/////////////// ImportLookup.proto ///////////////
+/////////////// Import.proto ///////////////
 
-static PyObject *__Pyx__Import_Lookup(PyObject *name); /*proto*/
-static PyObject *__Pyx__Import_LookupLock(PyObject *name); /*proto*/
+static PyObject *__Pyx_Import(PyObject *name, PyObject *from_list, PyObject *qualname, int level); /*proto*/
 
-/////////////// ImportLookup ///////////////
+/////////////// Import ///////////////
+//@requires: StringTools.c::IncludeStringH
+//@requires: Builtins.c::HasAttr
 
-static PyObject *__Pyx__Import_Lookup(PyObject *name) {
+static PyObject *__Pyx__Import_GetModuleFromSysModules(PyObject *qualname) {
     PyObject *imported_module;
 #if (CYTHON_COMPILING_IN_PYPY && PYPY_VERSION_NUM  < 0x07030400) || \
         CYTHON_COMPILING_IN_GRAAL
     PyObject *modules = PyImport_GetModuleDict();
     if (unlikely(!modules))
         return NULL;
-    imported_module = __Pyx_PyDict_GetItemStr(modules, name);
+    imported_module = __Pyx_PyDict_GetItemStr(modules, qualname);
     Py_XINCREF(imported_module);
 #else
-    imported_module = PyImport_GetModule(name);
+    imported_module = PyImport_GetModule(qualname);
 #endif
     return imported_module;
 }
 
-static PyObject *__Pyx__Import_LookupLock(PyObject *name) {
-    PyObject *module = __Pyx__Import_Lookup(name);
-    if (likely(module)) {
-        // CPython guards against thread-concurrent initialisation in importlib.
-        // In this case, we let PyImport_ImportModuleLevelObject() handle the locking.
-        PyObject *spec = __Pyx_PyObject_GetAttrStrNoError(module, PYIDENT("__spec__"));
-        if (likely(spec)) {
-            PyObject *unsafe = __Pyx_PyObject_GetAttrStrNoError(spec, PYIDENT("_initializing"));
-            if (likely(!unsafe || !__Pyx_PyObject_IsTrue(unsafe))) {
-                Py_DECREF(spec);
-                spec = NULL;
-            }
-            Py_XDECREF(unsafe);
-        }
-        if (likely(!spec)) {
-            // Not in initialisation phase => use modules as is.
-            PyErr_Clear();
-            return module;
-        }
-        Py_DECREF(spec);
-        Py_DECREF(module);
-    } else if (PyErr_Occurred()) {
-        PyErr_Clear();
-    }
-    return NULL;
-}
-
-
-/////////////// ImportDottedModule.proto ///////////////
-
-static PyObject *__Pyx_ImportDottedModule(PyObject *name, PyObject *parts_tuple, PyObject *qualname); /*proto*/
-static PyObject *__Pyx_ImportDottedModule_WalkParts(PyObject *module, PyObject *name, PyObject *parts_tuple); /*proto*/
-
-
-/////////////// ImportDottedModule ///////////////
-//@requires: Import
-//@requires: ImportLookup
-//@requires: ObjectHandling.c::PyObjectGetAttrStr
-
-static PyObject *__Pyx__ImportDottedModule_Error(PyObject *name, PyObject *parts_tuple, Py_ssize_t count) {
-    PyObject *partial_name = NULL, *slice = NULL, *sep = NULL;
-    Py_ssize_t size;
-    if (unlikely(PyErr_Occurred())) {
-        PyErr_Clear();
-    }
-#if CYTHON_ASSUME_SAFE_SIZE
-    size = PyTuple_GET_SIZE(parts_tuple);
-#else
-    size = PyTuple_Size(parts_tuple);
-    if (size < 0) goto bad;
-#endif
-    if (likely(size == count)) {
-        partial_name = name;
-    } else {
-        slice = PySequence_GetSlice(parts_tuple, 0, count);
-        if (unlikely(!slice))
-            goto bad;
-        sep = PyUnicode_FromStringAndSize(".", 1);
-        if (unlikely(!sep))
-            goto bad;
-        partial_name = PyUnicode_Join(sep, slice);
-    }
-
-    PyErr_Format(
-        PyExc_ModuleNotFoundError,
-        "No module named '%U'", partial_name);
-
-bad:
-    Py_XDECREF(sep);
-    Py_XDECREF(slice);
-    Py_XDECREF(partial_name);
-    return NULL;
-}
-
-static PyObject *__Pyx_ImportDottedModule_WalkParts(PyObject *module, PyObject *name, PyObject *parts_tuple) {
-    Py_ssize_t i, nparts;
-#if CYTHON_ASSUME_SAFE_SIZE
-    nparts = PyTuple_GET_SIZE(parts_tuple);
-#else
-    nparts = PyTuple_Size(parts_tuple);
-    if (nparts < 0) return NULL;
-#endif
-    for (i=1; i < nparts && module; i++) {
-        PyObject *part, *submodule;
-#if CYTHON_ASSUME_SAFE_MACROS && !CYTHON_AVOID_BORROWED_REFS
-        part = PyTuple_GET_ITEM(parts_tuple, i);
-#else
-        part = __Pyx_PySequence_ITEM(parts_tuple, i);
-        if (!part) return NULL;
-#endif
-        submodule = __Pyx_PyObject_GetAttrStrNoError(module, part);
-        // We stop if the attribute isn't found, i.e. if submodule is NULL here.
-#if !(CYTHON_ASSUME_SAFE_MACROS && !CYTHON_AVOID_BORROWED_REFS)
-        Py_DECREF(part);
-#endif
-        Py_DECREF(module);
-        module = submodule;
-    }
-    if (unlikely(!module)) {
-        return __Pyx__ImportDottedModule_Error(name, parts_tuple, i);
-    }
-    return module;
-}
-
-static PyObject *__Pyx__ImportDottedModule(PyObject *name, PyObject *parts_tuple, PyObject *qualname) {
-    PyObject *module = __Pyx_Import(name, NULL, 0, qualname);
-    if (!parts_tuple || unlikely(!module))
-        return module;
-    return __Pyx_ImportDottedModule_WalkParts(module, name, parts_tuple);
-}
-
-static PyObject *__Pyx_ImportDottedModule(PyObject *name, PyObject *parts_tuple, PyObject *qualname) {
-#if CYTHON_COMPILING_IN_CPYTHON
-    PyObject *module = __Pyx__Import_LookupLock(name);
-    if (likely(module)) {
-        return module;
-    }
-#endif
-    return __Pyx__ImportDottedModule(name, parts_tuple, qualname);
-}
-
-
-/////////////// ImportDottedModuleRelFirst.proto ///////////////
-
-static PyObject *__Pyx_ImportDottedModuleRelFirst(PyObject *name, PyObject *parts_tuple, PyObject *qualname); /*proto*/
-
-/////////////// ImportDottedModuleRelFirst ///////////////
-//@requires: ImportDottedModule
-//@requires: Import
-
-static PyObject *__Pyx_ImportDottedModuleRelFirst(PyObject *name, PyObject *parts_tuple, PyObject *qualname) {
-    PyObject *module;
-    PyObject *from_list = NULL;
-    module = __Pyx_Import(name, from_list, -1, qualname);
-    Py_XDECREF(from_list);
-    if (module) {
-        if (parts_tuple) {
-            module = __Pyx_ImportDottedModule_WalkParts(module, name, parts_tuple);
-        }
-        return module;
-    }
-    if (unlikely(!PyErr_ExceptionMatches(PyExc_ImportError)))
+static PyObject *__Pyx__Import_Lookup(PyObject *qualname, PyObject *from_list) {
+    PyObject *imported_module = __Pyx__Import_GetModuleFromSysModules(qualname);
+    if (unlikely(!imported_module)) {
         return NULL;
-    PyErr_Clear();
-    // try absolute import
-    return __Pyx_ImportDottedModule(name, parts_tuple);
+    }
+
+    if (from_list) {
+        Py_ssize_t size = __Pyx_PyList_GET_SIZE(from_list);
+        #if !CYTHON_ASSUME_SAFE_SIZE
+        if (unlikely(size == -1)) {
+            Py_DECREF(imported_module);
+            return NULL;
+        }
+        #endif
+        for (Py_ssize_t i = 0; i < size; i++) {
+            PyObject *item = __Pyx_PyList_GetItemRef(from_list, i);
+            if (unlikely(!item)) {
+                Py_DECREF(imported_module);
+                return NULL;
+            }
+            int hasattr = PyObject_HasAttr(imported_module, item);
+            Py_DECREF(item);
+            if (!hasattr) {
+                Py_DECREF(imported_module);
+                return NULL;
+            }
+        }
+        return imported_module;
+    }
+
+    // Get top-level module
+    const char *qualname_s = PyUnicode_AsUTF8(qualname);
+    if (unlikely(!qualname_s)) {
+        Py_DECREF(imported_module);
+        return NULL;
+    }
+    const char *dot = strchr(qualname_s, '.');
+    if (!dot) {
+        // We already have the top-level object
+        return imported_module;
+    }
+
+    PyObject *top_level_str = PyUnicode_FromStringAndSize(qualname_s, dot - qualname_s);
+    if (!top_level_str) {
+        Py_DECREF(imported_module);
+        return NULL;
+    }
+
+    PyObject *top_level = __Pyx__Import_GetModuleFromSysModules(top_level_str);
+    Py_DECREF(imported_module);
+    if (!top_level) {
+        return NULL;
+    }
+    return top_level;
 }
 
-
-/////////////// Import.proto ///////////////
-
-static PyObject *__Pyx_Import(PyObject *name, PyObject *from_list, int level, PyObject *qualname); /*proto*/
-
-/////////////// Import ///////////////
-//@requires: StringTools.c::IncludeStringH
-//@requires: Builtins.c::HasAttr
-//@requires: ImportLookup
-
-static PyObject *__Pyx_Import(PyObject *name, PyObject *from_list, int level, PyObject *qualname) {
+static PyObject *__Pyx_Import(PyObject *name, PyObject *from_list, PyObject *qualname, int level) {
     PyObject *module = 0;
     PyObject *empty_dict = 0;
     PyObject *empty_list = 0;
-    module = __Pyx__Import_LookupLock(qualname);
+    if (!qualname) {
+        qualname = name;
+    }
+    module = __Pyx__Import_Lookup(qualname, from_list);
     if (likely(module)) {
-        if (from_list) {
-            int module_ready = 1;
-            for (Py_ssize_t i = 0; i < __Pyx_PyList_GET_SIZE(from_list); i++) {
-                PyObject *item = __Pyx_PyList_GetItemRef(from_list, i);
-                if (unlikely(!item)) {
-                    Py_DECREF(module);
-                    return NULL;
-                }
-                int hasattr = __Pyx_HasAttr(module, item);
-                Py_DECREF(item);
-                if (!hasattr) {
-                    Py_CLEAR(module);
-                    break;
-                }
-            }
-            if (module) {
-                return module;
-            }
-        }
-        else {
-            return module;
-        }
+        return module;
     }
     empty_dict = PyDict_New();
     if (unlikely(!empty_dict))
