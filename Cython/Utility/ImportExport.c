@@ -58,29 +58,23 @@ static PyObject *__Pyx__Import_Lookup(PyObject *qualname, PyObject *from_list) {
         return NULL;
     }
 
-    PyObject *tuple = PyUnicode_Partition(qualname, dot);
+    PyObject *list = PyUnicode_Split(qualname, dot, 1);
     Py_DECREF(dot);
-    if (unlikely(!tuple)) {
+    if (unlikely(!list)) {
         Py_DECREF(imported_module);
         return NULL;
     }
 
-    PyObject *top_level_str = __Pyx_PyTuple_GET_ITEM(tuple, 0);
-    int eq = PyObject_RichCompareBool(qualname, top_level_str, Py_EQ);
-    if (eq == -1) {
-        Py_DECREF(tuple);
-        Py_DECREF(imported_module);
-        return NULL;
-    }
-    else if (eq == 1) {
-        Py_DECREF(tuple);
+    if (__Pyx_PyList_GET_SIZE(list) == 1) {
+        // No dot, so we already have the top-level module
         return imported_module;
     }
 
+    PyObject *top_level_str = __Pyx_PyList_GET_ITEM(list, 0);
     PyObject *top_level = __Pyx__Import_GetModuleFromSysModules(top_level_str);
-    Py_DECREF(tuple);
+    Py_DECREF(list);
     Py_DECREF(imported_module);
-    if (!top_level) {
+    if (unlikely(!top_level)) {
         return NULL;
     }
     return top_level;

@@ -2958,7 +2958,7 @@ class ImportNode(ExprNode):
                     submodule,
                     tmp_result,
                     code.error_goto(self.pos)))
-                code.putln("Py_SETREF(%s, %s);" % (tmp_result, submodule));
+                code.putln("Py_DECREF(%s); %s = %s;" % (tmp_result, tmp_result, submodule))
             code.funcstate.release_temp(submodule)
 
         code.putln("%s = %s;" % (self.result(), tmp_result))
