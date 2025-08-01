@@ -376,6 +376,17 @@ class PyrexScanner(Scanner):
         if (self.fstring_state_stack and
                 self.fstring_state_stack[-1].bracket_nesting_level == self.bracket_nesting_level):
             self.begin(self.fstring_state_stack[-1].scanner_state)
+            self.fstring_state_stack[-1].in_format_specifier = True
+        return text
+    
+    def walrus_action(self, text):
+        if (self.fstring_state_stack and
+                self.fstring_state_stack[-1].bracket_nesting_level == self.bracket_nesting_level):
+            # It's actually a colon in an fstring
+            self.begin(self.fstring_state_stack[-1].scanner_state)
+            self.produce(':', ':')
+            self.produce('CHARS', '=')  # back into fstring mode
+            return
         return text
 
     def newline_action(self, text):
@@ -401,9 +412,10 @@ class PyrexScanner(Scanner):
         self.produce('END_STRING')
 
     def begin_fstring_action(self, text):
+        is_raw = 'r' in text or 'R' in text
         while text and (text[0] in any_string_prefix or text[0] in fstring_prefixes):
             text = text[1:]
-        fstring_state = f'{self.string_states[text]}_FSTRING'
+        fstring_state = f'{self.string_states[text]}_{"R" if is_raw else ""}FSTRING'
         self.fstring_state_stack.append(
             FStringState(fstring_state)
         )
@@ -422,11 +434,18 @@ class PyrexScanner(Scanner):
         return text
     
     def fsting_double_bracket_action(self, text):
-        if text == '}}' and self.fstring_state_stack[-1].bracket_nesting_level == self.bracket_nesting_level:
-            # We're currently expecting to close a bracket (e.g. in a format string),
-            # so the double bracket may be that.  
-            self.produce(self.close_bracket_action(text[0]))
-            self.produce(self.close_bracket_action(text[1]))
+        #if text == '}}' and self.fstring_state_stack[-1].bracket_nesting_level == self.bracket_nesting_level:
+        #    # We're currently expecting to close a bracket (e.g. in a format string),
+        #    # so the double bracket may be that.  
+        #    self.produce(self.close_bracket_action(text[0]))
+        #    self.produce(self.close_bracket_action(text[1]))
+        if self.fstring_state_stack[-1].in_format_specifier:
+            if text == '}}':
+                self.produce(self.close_bracket_action('}'))
+                self.produce(self.close_bracket_action('}'))
+            else:
+                self.produce(self.open_bracket_action('{'))
+                self.produce(self.open_bracket_action('{'))
         else:
             self.produce('CHARS', text[0])
 
@@ -619,3 +638,4 @@ class FStringState:
     def __init__(self, scanner_state):
         self.scanner_state = scanner_state
         self.bracket_nesting_level = None
+        self.in_format_specifier = False

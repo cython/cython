@@ -35,7 +35,8 @@ from . import Options
 
 
 _CDEF_MODIFIERS = ('inline', 'nogil', 'api')
-
+statement_terminators = cython.declare(frozenset, frozenset((
+    ';', 'NEWLINE', 'EOF')))
 
 class Ctx:
     #  Parsing context
@@ -441,7 +442,7 @@ def p_sizeof(s: PyrexScanner):
 
 
 @cython.cfunc
-def p_yield_expression(s: PyrexScanner):
+def p_yield_expression(s: PyrexScanner, statement_terminators: frozenset = statement_terminators):
     # s.sy == "yield"
     pos = s.position()
     s.next()
@@ -1158,8 +1159,9 @@ def p_fstring_replacement_field(s: PyrexScanner,
                                 is_raw: cython.bint, is_single_quoted: cython.bint):
     result = []
     conversion_char = format_spec = expr = None
-    
-    bracket_pos = s.position()
+    self_documenting = False
+
+    bracket_pos = expr_pos = s.position()
     # Use tentatively scan to get a list of tokens if needed.
     with tentatively_scan(s) as errors:
         try:
@@ -1170,11 +1172,14 @@ def p_fstring_replacement_field(s: PyrexScanner,
                 error(bracket_pos, "empty expression not allowed in f-string")
                 result = []
             elif s.sy == 'yield':
-                expr = p_yield_expression(s)
+                    expr = p_yield_expression(
+                        s,
+                        statement_terminators=statement_terminators|{':', '}', '!'})
             else:
                 expr = p_testlist_star_expr(s)
 
             if s.sy == "=":
+                self_documenting = True
                 seen_tokens = list(s.put_back_on_failure)
                 s.next()
                 next_token_position = s.position()
@@ -1198,6 +1203,7 @@ def p_fstring_replacement_field(s: PyrexScanner,
         
     if s.sy == "!":
         # format conversion
+        previous_pos = s.position()
         s.next()
         conversion_char = s.systring
         # validate the conversion char
@@ -1205,6 +1211,9 @@ def p_fstring_replacement_field(s: PyrexScanner,
             error(s.position(), "missing conversion character")
         elif not ExprNodes.FormattedValueNode.find_conversion_func(conversion_char):
             error(s.position(), "invalid conversion character '%s'" % conversion_char)
+            s.next()
+        elif s.position()[2] != (previous_pos[2] + 1):
+            error(s.position(), "f-string: conversion type must come right after the exclamanation mark")
             s.next()
         else:
             s.next()
@@ -1217,8 +1226,8 @@ def p_fstring_replacement_field(s: PyrexScanner,
             pos,
             values=format_spec_contents
         )
-
-    parent_scanner = s
+    if self_documenting and conversion_char is None and format_spec is None:
+        conversion_char = 'r'
     
     result.append(ExprNodes.FormattedValueNode(
         expr_pos, value=expr, conversion_char=conversion_char,
@@ -1237,16 +1246,12 @@ def p_fstring_middles(s: PyrexScanner,
         s.next()
         sy = s.sy
         
-        if is_raw and sy == 'ESCAPE' and s.systring == r"\{":
-            builder.append('\\')
-            sy = '{'
-        else:
-            handled, _ = p_string_literal_shared_read(
-                s, pos, builder, "u",
-                is_raw=is_raw,
-                has_non_ascii_literal_characters=True)
-            if handled:
-                continue
+        handled, _ = p_string_literal_shared_read(
+            s, pos, builder, "u",
+            is_raw=is_raw,
+            has_non_ascii_literal_characters=True)
+        if handled:
+            continue
 
         if builder.chars:
             middles.append(ExprNodes.UnicodeNode(pos, value=builder.getstring()))
@@ -1286,6 +1291,9 @@ def p_fstring_literal(s: PyrexScanner):
 
 @cython.cfunc
 def _append_escape_sequence(kind, builder, escape_sequence: str, s: PyrexScanner):
+    if len(escape_sequence) < 2:
+        builder.append("\\")  # invalid escape sequence, warned earlier
+        return
     c = escape_sequence[1]
     if c in "01234567":
         builder.append_charval(int(escape_sequence[1:], 8))
@@ -1321,28 +1329,6 @@ def _append_escape_sequence(kind, builder, escape_sequence: str, s: PyrexScanner
             builder.append_uescape(chrval, escape_sequence)
     else:
         builder.append(escape_sequence)
-
-
-_parse_escape_sequences_raw, _parse_escape_sequences = [re.compile((
-    # escape sequences:
-    br'(\\(?:' +
-    (br'\\?' if is_raw else (
-        br'[\\abfnrtv"\'{]|'
-        br'[0-7]{2,3}|'
-        br'N\{[^}]*\}|'
-        br'x[0-9a-fA-F]{2}|'
-        br'u[0-9a-fA-F]{4}|'
-        br'U[0-9a-fA-F]{8}|'
-        br'[NxuU]|'  # detect invalid escape sequences that do not match above
-    )) +
-    br')?|'
-    # non-escape sequences:
-    br'\{\{?|'
-    br'\}\}?|'
-    br'[^\\{}]+)'
-    ).decode('us-ascii')).match
-    for is_raw in (True, False)
-]
 
 
 # since PEP 448:
@@ -2018,10 +2004,6 @@ def p_assert_statement(s: PyrexScanner):
     else:
         value = None
     return Nodes.AssertStatNode(pos, condition=cond, value=value)
-
-
-statement_terminators = cython.declare(frozenset, frozenset((
-    ';', 'NEWLINE', 'EOF')))
 
 
 @cython.cfunc

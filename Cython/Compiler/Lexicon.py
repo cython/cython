@@ -70,14 +70,13 @@ def make_lexicon():
     three_oct = octdigit + octdigit + octdigit
     two_hex = hexdigit + hexdigit
     four_hex = two_hex + two_hex
-    fescapeseq = Str("\\") + (two_oct | three_oct |
+    escapeseq = Str("\\") + (two_oct | three_oct |
                              Str('N{') + Rep(AnyBut('}')) + Str('}') |
                              Str('u') + four_hex | Str('x') + two_hex |
                              Str('U') + four_hex + four_hex |
-                             # This generally accepts invalid escape sequences. But in
-                             # fstring we need to treat \{ as '\\' and { more strictly.
-                             AnyBut("{}"))
-    escapeseq = fescapeseq | (Str("\\") + Any("{}")) 
+                             # Invalid escape sequences just produce a slash
+                             Opt(Any("\n\\'\"abfnrtvNuU")))
+    rawescapeseq = Str("\\") + Opt(Any('"\''))
 
     bra = Any("([{")
     ket = Any(")]}")
@@ -85,7 +84,8 @@ def make_lexicon():
     punct = Any(",;+-*/|&<>=.%`~^?!@")
     diphthong = Str("==", "<>", "!=", "<=", ">=", "<<", ">>", "**", "//",
                     "+=", "-=", "*=", "/=", "%=", "|=", "^=", "&=",
-                    "<<=", ">>=", "**=", "//=", "->", "@=", "&&", "||", ':=')
+                    "<<=", ">>=", "**=", "//=", "->", "@=", "&&", "||",)
+    walrus = Str(':=')
     spaces = Rep1(Any(" \t\f"))
     escaped_newline = Str("\\\n")
     lineterm = Eol + Opt(Str("\n"))
@@ -94,6 +94,17 @@ def make_lexicon():
 
     def generate_fstring_states():
         out = []
+
+        #states = [
+        #    AnyBut('"\'{}()[]!:#'),
+        #    comment,
+        #    ':='  # at top level, not walrus
+        #    ':' 
+        #    full string handling
+        #    full bracket handling
+        #    '!=' # distinguish from !
+        #    '!'  # still expression mode, but stop gathering
+        #]
 
         for prefix in ["'", '"', "'''", '"""']:
             if prefix[0] == "'":
@@ -109,18 +120,20 @@ def make_lexicon():
             else:
                 triple = ""
                 newline_method = "NEWLINE"
-            out.append(
-                State(f"{triple}{type_}_FSTRING", [
-                    (fescapeseq, 'ESCAPE'),
-                    (Str('{'), Method('begin_executable_fstring_part_action')),
-                    (Str('}'), Method('close_bracket_action')),
-                    (Str('{{')|Str('}}'), Method('fsting_double_bracket_action')),
-                    (Rep1(AnyBut("'\"\n\\{}")), 'CHARS'),
-                    (allowed_string_chars, 'CHARS'),
-                    (Str("\n"), newline_method),
-                    (Str(prefix), Method('end_fstring_action')),
-                    (Eof, 'EOF')
-                ])
+            for raw in ["", "R"]:
+                escapeseq_sy = rawescapeseq if raw else escapeseq
+                out.append(
+                    State(f"{triple}{type_}_{raw}FSTRING", [
+                        (escapeseq_sy, 'ESCAPE'),
+                        (Str('{'), Method('begin_executable_fstring_part_action')),
+                        (Str('}'), Method('close_bracket_action')),
+                        (Str('{{')|Str('}}'), Method('fsting_double_bracket_action')),
+                        (Rep1(AnyBut("'\"\n\\{}")), 'CHARS'),
+                        (allowed_string_chars, 'CHARS'),
+                        (Str("\n"), newline_method),
+                        (Str(prefix), Method('end_fstring_action')),
+                        (Eof, 'EOF')
+                    ])
             )
         return out
 
@@ -130,6 +143,7 @@ def make_lexicon():
         (fltconst, Method('strip_underscores', symbol='FLOAT')),
         (imagconst, Method('strip_underscores', symbol='IMAG')),
         (ellipsis | punct | diphthong, TEXT),
+        (walrus, Method('walrus_action')),
         (Str(':'), Method('colon_action')),
 
         (bra, Method('open_bracket_action')),
