@@ -1056,6 +1056,14 @@ Cython code.  Here is the list of currently supported directives:
 
 ``profile`` (True / False), *default=False*
     Write hooks for Python profilers into the compiled C code.
+    Whether the generated module actually uses profiling depends on
+    the value of the C macro ``CYTHON_PROFILE`` which is ``1`` by
+    default but which you can optionally set to ``0`` to turn off the
+    profiling code at C compile-time.  Define ``CYTHON_USE_SYS_MONITORING``
+    to either 1 or 0 to control the mechanism used to implement profiling
+    on Python 3.13 and above.  Note that neither ``profile``
+    nor ``linetrace`` work with any tool that uses ``sys.monitoring``
+    on Python 3.12.
 
 ``linetrace`` (True / False), *default=False*
     Write line tracing hooks for Python profilers or coverage reporting
@@ -1364,6 +1372,8 @@ most important to least important:
 ``CYTHON_PROFILE``, ``CYTHON_TRACE``, ``CYTHON_TRACE_NOGIL``
     These control the inclusion of profiling and line tracing calls in the module.
     See the ``profile`` and ``linetrace`` :ref:`compiler-directives`.
+    ``CYTHON_PROFILE`` is on by default; the ``CYTHON_TRACE`` macros are
+    off by default.
 
 ``CYTHON_USE_SYS_MONITORING``
     On Python 3.13+ this selects the new `sys.monitoring <https://docs.python.org/3/library/sys.monitoring.html>`_
@@ -1501,3 +1511,10 @@ hidden by default since most users will be uninterested in changing them.
             one interpreter will not be importing your module at the same time as another
             is using it.  Values greater than 1 can be used to select a specific implementation
             for debugging purposes.
+
+        ``CYTHON_LOCK_AND_GIL_DEADLOCK_AVOIDANCE_TIME``
+            The maximum time in ms that Cython will block while holding the GIL when trying to
+            acquire a lock in a deadlock-free way.  Defaults to 100 ms.  Negative numbers
+            indicate "forever" (which may help in situations where the lock is very heavily
+            contended and you're confident that you haven't introduced a deadlock in your
+            own code).

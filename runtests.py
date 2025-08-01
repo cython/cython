@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 import atexit
 import base64
@@ -244,6 +244,10 @@ def exclude_test_on_platform(*platforms):
     return sys.platform in platforms
 
 
+def exclude_test_on_dev():
+    return sys.version_info.releaselevel != 'final'
+
+
 include_debugger = IS_CPYTHON
 
 
@@ -261,9 +265,6 @@ def exclude_test_if_no_gdb(*, _has_gdb=[None]):
 
 
 def update_linetrace_extension(ext):
-    if not IS_CPYTHON and sys.version_info[:2] < (3, 13):
-        # Tracing/profiling requires PEP-669 monitoring or old CPython tracing.
-        return EXCLUDE_EXT
     ext.define_macros.append(('CYTHON_TRACE', 1))
     return ext
 
@@ -479,10 +480,10 @@ EXT_EXTRAS = {
 TAG_EXCLUDERS = sorted({
     'no-macos':  exclude_test_on_platform('darwin'),
     'pstats': exclude_test_in_pyver((3,12)),
-    'coverage': exclude_test_in_pyver((3,12)),
+    'coverage': exclude_test_in_pyver((3,12)) or exclude_test_on_dev(),
     'monitoring': exclude_test_in_pyver((3,12)),
     'gdb': exclude_test_if_no_gdb(),
-    'trace': not IS_CPYTHON,
+    'trace': not IS_CPYTHON or exclude_test_in_pyver((3,12)),
 }.items())
 
 def iterate_matcher_fixer_dict(matchers_and_fixers):

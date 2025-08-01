@@ -127,18 +127,18 @@ Class-private name mangling
 
 Cython has been updated to follow the `Python rules for class-private names
 <https://docs.python.org/3/tutorial/classes.html#private-variables>`_
-more closely. Essentially any name that starts with and doesn't end with 
+more closely. Essentially any name that starts with and doesn't end with
 ``__`` within a class is mangled with the class name. Most user code
 should be unaffected -- unlike in Python unmangled global names will
 still be matched to ensure it is possible to access C names
 beginning with ``__``::
 
      cdef extern void __foo()
-     
+
      class C: # or "cdef class"
         def call_foo(self):
             return __foo() # still calls the global name
-            
+
 What will no-longer work is overriding methods starting with ``__`` in
 a ``cdef class``::
 
@@ -154,7 +154,7 @@ a ``cdef class``::
             return 2
 
 Here ``Base.__bar`` is mangled to ``_Base__bar`` and ``Derived.__bar``
-to ``_Derived__bar``. Therefore ``call_bar`` will always call 
+to ``_Derived__bar``. Therefore ``call_bar`` will always call
 ``_Base__bar``. This matches established Python behaviour and applies
 for ``def``, ``cdef`` and ``cpdef`` methods and attributes.
 
@@ -162,14 +162,14 @@ Arithmetic special methods
 ==========================
 
 The behaviour of arithmetic special methods (for example ``__add__``
-and ``__pow__``) of cdef classes has changed in Cython 3.0. They now 
-support separate "reversed" versions of these methods (e.g. 
+and ``__pow__``) of cdef classes has changed in Cython 3.0. They now
+support separate "reversed" versions of these methods (e.g.
 ``__radd__``, ``__rpow__``) that behave like in pure Python.
 The main incompatible change is that the type of the first operand
 (usually ``__self__``) is now assumed to be that of the defining class,
 rather than relying on the user to test and cast the type of each operand.
 
-The old behaviour can be restored with the 
+The old behaviour can be restored with the
 :ref:`directive <compiler-directives>` ``c_api_binop_methods=True``.
 More details are given in :ref:`arithmetic_methods`.
 
@@ -231,7 +231,7 @@ instead to let Cython use the ``int`` as an error flag
   The unsafe legacy behaviour of not propagating exceptions by default can be enabled by
   setting ``legacy_implicit_noexcept`` :ref:`compiler directive<compiler-directives>`
   to ``True``.
-  
+
 
 Annotation typing
 =================
@@ -308,14 +308,18 @@ Usages of ``DEF`` should be replaced by:
 - C macros, e.g. defined in :ref:`verbatim C code <verbatim_c>`
 - the usual Python mechanisms for sharing values across modules and usages
 
-Usages of ``IF`` should be replaced by:
+Usages of ``IF`` should be replaced by runtime conditions and conditional Python imports,
+i.e. the usual Python patterns.  Specifically:
 
-- runtime conditions and conditional Python imports (i.e. the usual Python patterns)
-- leaving out unused C struct field names from a Cython extern struct definition
-  (which does not have to be complete)
-- redefining an extern struct type under different Cython names,
-  with different (e.g. version/platform dependent) attributes,
-  but with the :ref:`same cname string <resolve-conflicts>`.
-- separating out optional (non-trivial) functionality into optional Cython modules
-  and importing/using them at need (with regular runtime Python imports)
-- code generation, as a last resort
+- Non-trivial or platform specific functionalities can often be separated out into optional
+  Cython modules that can be imported/used at need (with regular runtime Python imports).
+- Version specific struct field names that are unused can be left out of a Cython
+  :ref:`extern struct definition <_external-C-code>` (which does not have to be complete).
+  If they are used, C shims to access them with functions or macros can often be used,
+  easily defined in :ref:`verbatim C code <verbatim_c>`.
+- Largely different layouts of extern structs can be declared in Cython as separate structs
+  with different Cython names and different (e.g. version/platform dependent) attributes,
+  but with the C struct name provided as :ref:`same cname string <resolve-conflicts>`.
+  This allows their usage from more use case specific code that can be included and
+  reused from different optional modules.
+- If all else fails, code generation can be used as a last resort.

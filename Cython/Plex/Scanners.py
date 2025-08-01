@@ -166,6 +166,7 @@ class Scanner:
                     return ('', None)
             raise Errors.UnrecognizedInput(self, self.state_name)
 
+    @cython.final
     def run_machine_inlined(self):
         """
         Inlined version of run_machine for speed.
