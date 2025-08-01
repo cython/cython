@@ -856,7 +856,7 @@ Py_CLEAR(CGLOBAL(__pyx_numpy_ndarray));
 
 static PyObject* __Pyx__ImportNumPyArray(void) {
     PyObject *numpy_module, *ndarray_object = NULL;
-    numpy_module = __Pyx_Import(PYIDENT("numpy"), NULL, 0, PYIDENT("numpy"));
+    numpy_module = __Pyx_Import(PYIDENT("numpy"), NULL, NULL, 0);
     if (likely(numpy_module)) {
         ndarray_object = PyObject_GetAttrString(numpy_module, "ndarray");
         Py_DECREF(numpy_module);
