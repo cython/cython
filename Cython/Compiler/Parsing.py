@@ -1059,6 +1059,8 @@ def p_string_literal(s: PyrexScanner, kind_override=None) -> tuple:
         assert kind_override is None
         return p_fstring_literal(s)
     pos = s.position()
+    print(pos)
+    breakpoint()
     is_python3_source: cython.bint = s.context.language_level >= 3
     has_non_ascii_literal_characters = False
     kind_string = _validate_kind_string(pos, s.systring)
@@ -1071,9 +1073,6 @@ def p_string_literal(s: PyrexScanner, kind_override=None) -> tuple:
         if len(kind_string) != 1:
             error(pos, 'Invalid string prefix for character literal')
         kind = 'c'
-    elif 'f' in kind_string:
-        kind = 'f'     # u is ignored
-        is_raw = True  # postpone the escape resolution
     elif 'b' in kind_string:
         kind = 'b'
     elif 'u' in kind_string:
@@ -1280,8 +1279,8 @@ def p_fstring_literal(s: PyrexScanner):
     # s.sy == BEGIN_FSTRING
     kind_string = _validate_kind_string(s.position(), s.systring)
     is_raw: cython.bint = 'r' in kind_string
-    quotes = str(filter(lambda x: x.isascii(), s.systring))
-    is_single_quoted: cython.bint = len(quotes)==3
+    quotes = "".join(filter(lambda x: not x.isalnum(), s.systring))
+    is_single_quoted: cython.bint = len(quotes) != 3
     middles = p_fstring_middles(s, is_raw, is_single_quoted, False)
     if s.sy != "END_FSTRING":
         s.expected(quotes)

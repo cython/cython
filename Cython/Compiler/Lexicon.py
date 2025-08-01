@@ -71,7 +71,7 @@ def make_lexicon():
     two_hex = hexdigit + hexdigit
     four_hex = two_hex + two_hex
     escapeseq = Str("\\") + (two_oct | three_oct |
-                             Str('N{') + Rep(AnyBut('}')) + Str('}') |
+                             Str('N{') + Rep(AnyBut('}"\'\n')) + Str('}') |
                              Str('u') + four_hex | Str('x') + two_hex |
                              Str('U') + four_hex + four_hex |
                              # Invalid escape sequences just produce a slash
@@ -115,11 +115,11 @@ def make_lexicon():
                 allowed_string_chars = Str("'")
             if len(prefix) > 1:
                 triple = "T"
-                newline_method = Method('unclosed_string_action')
+                newline_method = "NEWLINE"
                 allowed_string_chars = Any("'\"")
             else:
                 triple = ""
-                newline_method = "NEWLINE"
+                newline_method = Method('unclosed_string_action')
             for raw in ["", "R"]:
                 escapeseq_sy = rawescapeseq if raw else escapeseq
                 out.append(
