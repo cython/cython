@@ -15,6 +15,6 @@ def bad_starred_expression(a):
 _ERRORS = """
 8:4: Cannot assign to or delete this
 9:7: Cannot assign to or delete this
-10:7: Cannot assign to or delete this
+10:6: Cannot assign to or delete this
 13:7: starred expression is not allowed here
 """
