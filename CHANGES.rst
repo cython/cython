@@ -5,11 +5,42 @@ Cython Changelog
 3.1.4 (2025-??-??)
 ==================
 
+Features added
+--------------
+
+* Declarations for the new ``PyUnstable_*()`` refcounting C-API functions in Py3.14 were added.
+  (Github issue :issue:`6836`)
+
 Bugs fixed
 ----------
 
+* The monitoring code could crash on tracing.
+  (Github issue :issue:`7050`)
+
+* Initialising the monitoring code could fail with a CPython exception.
+  See https://github.com/nedbat/coveragepy/issues/1790#issuecomment-3257410149
+
 * Optimised integer shifting triggered undefined behaviour in C.
   (Github issue :issue:`7089`)
+
+* Deallocating objects that inherit from external types defined in pxd files
+  could run into an infinite loop.
+  (Github issue :issue:`7143`)
+
+* A reference to metaclasses could be leaked on instantiation.
+  (Github issue :issue:`7130`)
+
+* (Unlikely) error handling during empty builtin container tests was ineffective.
+  (Github issue :issue:`7190`)
+
+* Generated ``*_api.h`` files used potentially unknown Cython configuration macros.
+  (Github issue :issue:`7108`)
+
+* ``cythonize()`` avoids parallel compiler runs on systems using ``spawn()`` in multiprocessing.
+  Patch by Marcel Bargull.  (Github issue :issue:`3262`)
+
+* The ``@cython.ufunc``  decorator was missing in type checker stubs.
+  Patch by jayClean.  (Github issue :issue:`7109`)
 
 
 3.1.3 (2025-08-13)
