@@ -79,7 +79,11 @@ def make_lexicon():
                              Str('U') + four_hex + four_hex |
                              # Invalid escape sequences just produce a slash
                              Opt(Any("\n\\'\"abfnrtvNuU")))
-    rawescapeseq = Str("\\") + Opt(Any('"\''))
+    rawescapeseq = (# Double \\ isn't actually escaped in raw strings, but
+                    # we do want to process it so that the end of '\\'
+                    # doesn't get processed.
+                    Str("\\\\") |
+                    Str("\\") + Opt(Any('"\'')))
 
     bra = Any("([{")
     ket = Any(")]}")
@@ -128,9 +132,8 @@ def make_lexicon():
                 out.append(
                     State(f"{triple}{type_}_{raw}FSTRING", [
                         (escapeseq_sy, 'ESCAPE'),
-                        (Str('{'), Method('begin_executable_fstring_part_action')),
-                        (Str('}'), Method('close_bracket_action')),
-                        (Str('{{')|Str('}}'), Method('fsting_double_bracket_action')),
+                        (Rep1(Str('{')), Method('open_fstring_bracket_action')),
+                        (Rep1(Str('}')), Method('close_fstring_bracket_action')),
                         (Rep1(AnyBut("'\"\n\\{}")), 'CHARS'),
                         (allowed_string_chars, 'CHARS'),
                         (Str("\n"), newline_method),

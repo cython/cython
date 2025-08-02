@@ -366,26 +366,25 @@ class PyrexScanner(Scanner):
 
     def close_bracket_action(self, text):
         if (text == '}' and self.fstring_state_stack and
-                self.fstring_state_stack[-1].bracket_nesting_level == self.bracket_nesting_level):
+                self.fstring_state_stack[-1].bracket_nesting_level() == self.bracket_nesting_level):
             self.begin(self.fstring_state_stack[-1].scanner_state)
-            self.fstring_state_stack[-1].bracket_nesting_level = None
+            self.fstring_state_stack[-1].pop_bracket_state()
         self.bracket_nesting_level -= 1
         return text
     
     def colon_action(self, text):
         if (self.fstring_state_stack and
-                self.fstring_state_stack[-1].bracket_nesting_level == self.bracket_nesting_level):
+                self.fstring_state_stack[-1].bracket_nesting_level() == self.bracket_nesting_level):
             self.begin(self.fstring_state_stack[-1].scanner_state)
-            self.fstring_state_stack[-1].in_format_specifier = True
+            self.fstring_state_stack[-1].set_in_format_specifier()
         return text
     
     def walrus_action(self, text):
         if (self.fstring_state_stack and
-                self.fstring_state_stack[-1].bracket_nesting_level == self.bracket_nesting_level):
+                self.fstring_state_stack[-1].bracket_nesting_level() == self.bracket_nesting_level):
             # It's actually a colon in an fstring
-            self.begin(self.fstring_state_stack[-1].scanner_state)
-            self.produce(':', ':')
-            self.produce('CHARS', '=')  # back into fstring mode
+            self.produce(self.colon_action(':'), ':')
+            self.produce('CHARS', '=')
             return
         return text
 
@@ -426,28 +425,40 @@ class PyrexScanner(Scanner):
         self.fstring_state_stack.pop()
         self.begin('')
         self.produce('END_FSTRING')
-
-    def begin_executable_fstring_part_action(self, text):
-        self.bracket_nesting_level += 1
-        self.fstring_state_stack[-1].bracket_nesting_level = self.bracket_nesting_level
-        self.begin('')
-        return text
     
-    def fsting_double_bracket_action(self, text):
-        #if text == '}}' and self.fstring_state_stack[-1].bracket_nesting_level == self.bracket_nesting_level:
-        #    # We're currently expecting to close a bracket (e.g. in a format string),
-        #    # so the double bracket may be that.  
-        #    self.produce(self.close_bracket_action(text[0]))
-        #    self.produce(self.close_bracket_action(text[1]))
-        if self.fstring_state_stack[-1].in_format_specifier:
-            if text == '}}':
-                self.produce(self.close_bracket_action('}'))
-                self.produce(self.close_bracket_action('}'))
+    def open_fstring_bracket_action(self, text):
+        started_fstring_expr = False
+        while text:
+            if len(text) == 1 or self.fstring_state_stack[-1].in_format_specifier():
+                self.bracket_nesting_level += 1
+                if not started_fstring_expr:
+                    self.fstring_state_stack[-1].push_bracket_state(self.bracket_nesting_level)
+                    self.begin('')
+                started_fstring_expr = True
+                self.produce(text[0])
+                text = text[1:]
             else:
-                self.produce(self.open_bracket_action('{'))
-                self.produce(self.open_bracket_action('{'))
-        else:
-            self.produce('CHARS', text[0])
+                self.produce('CHARS', text[0])
+                text = text[2:]
+
+    def close_fstring_bracket_action(self, text):
+        while text:
+            if len(text) == 1 or self.fstring_state_stack[-1].in_format_specifier():
+                fstring_bracket_level = self.fstring_state_stack[-1].bracket_nesting_level()
+                if fstring_bracket_level is None or self.bracket_nesting_level < fstring_bracket_level:
+                    # To help try to parse a little further, don't reduce the bracket
+                    # nesting level more.
+                    self.error(
+                        "f-string: single '}' is not allowed",
+                        pos=self.get_current_scan_pos(),
+                        fatal=False)
+                    self.produce('}', '}')
+                else:
+                    self.produce(self.close_bracket_action('}'), '}')
+                text = text[1:]
+            else:
+                self.produce('CHARS', text[0])
+                text = text[2:]
 
     def unclosed_string_action(self, text):
         self.end_string_action(text)
@@ -637,5 +648,34 @@ def tentatively_scan(scanner: PyrexScanner):
 class FStringState:
     def __init__(self, scanner_state):
         self.scanner_state = scanner_state
-        self.bracket_nesting_level = None
+        self.bracket_states = []
+
+    def bracket_nesting_level(self):
+        if not self.bracket_states:
+            return None
+        return self.bracket_states[-1].bracket_nesting_level
+    
+    def in_format_specifier(self):
+        if not self.bracket_states:
+            return False
+        return self.bracket_states[-1].in_format_specifier
+    
+    def set_in_format_specifier(self):
+        self.bracket_states[-1].in_format_specifier = True
+
+    def push_bracket_state(self, bracket_nesting_level: int):
+        self.bracket_states.append(FStringBracketState(bracket_nesting_level))
+
+    def pop_bracket_state(self):
+        self.bracket_states.pop()
+
+
+class FStringBracketState:
+    bracket_nesting_level: int
+    in_format_specifier: bool
+    def __init__(self, bracket_nesting_level: int):
+        self.bracket_nesting_level = bracket_nesting_level
         self.in_format_specifier = False
+
+    
+    

@@ -1059,8 +1059,6 @@ def p_string_literal(s: PyrexScanner, kind_override=None) -> tuple:
         assert kind_override is None
         return p_fstring_literal(s)
     pos = s.position()
-    print(pos)
-    breakpoint()
     is_python3_source: cython.bint = s.context.language_level >= 3
     has_non_ascii_literal_characters = False
     kind_string = _validate_kind_string(pos, s.systring)
@@ -1266,7 +1264,7 @@ def p_fstring_middles(s: PyrexScanner,
         elif s.sy == '}':
             if is_format_string:
                 break
-            error(s.position(), "f-string: single '}' is not allowed")
+            # otherwise it's an error, but the scanner has reported it
         else:
             error(
                 s.position(),

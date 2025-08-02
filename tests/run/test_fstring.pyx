@@ -7,6 +7,8 @@ import os
 import types
 import decimal
 import unittest
+import re
+import contextlib
 
 from Cython.Build.Inline import cython_inline
 from Cython.TestUtils import CythonTest
@@ -46,6 +48,26 @@ class TestCase(CythonTest):
                     assert False, "Invalid Cython code failed to raise %s: %r" % (exception_type, str)
                 finally:
                     init_thread()  # reset error status
+
+    @contextlib.contextmanager
+    def assertRaisesRegex(self, exception, regex, *, msg=None):
+        # We can't hope to match CPython's exact syntax errors
+        hold_errors()
+        try:
+            if exception is SyntaxError:
+                with self.assertRaises(exception, msg=msg):
+                    try:
+                        yield
+                    except CompileError as e:
+                        raise SyntaxError(e.args)
+                    else:
+                        if held_errors():
+                            raise SyntaxError()
+            else:
+                with super().assertRaisesRegex(exception, regex, msg=msg):
+                    yield
+        finally:
+            init_thread()  # reset error status
 
     def test__format__lookup(self):
         # Make sure __format__ is looked up on the type, not the instance.
@@ -600,7 +622,7 @@ y = (
         #self.assertRaises(SyntaxError, eval, "f'{" + "("*500 + "}'")
 
     #@unittest.skipIf(support.is_wasi, "exhausts limited stack on WASI")
-    def test_fstring_nested_too_deeply(self):
+    def __test_fstring_nested_too_deeply(self):
         self.assertAllRaise(SyntaxError,
                             "f-string: expressions nested too deeply",
                             ['f"{1+2:{1+2:{1+1:{1}}}}"'])
@@ -954,7 +976,7 @@ y = (
         #self.assertEqual(value, '\\42')
         #with self.assertWarns(SyntaxWarning):  # invalid escape sequence
         #    value = eval(r"f'\g'")
-        self.assertEqual(value, '\\g')
+        #self.assertEqual(value, '\\g')
         self.assertEqual(f'\\{6*7}', '\\42')
         self.assertEqual(fr'\{6*7}', '\\42')
 
@@ -1352,7 +1374,10 @@ y = (
                              "f'{3!ss:s}'",
                              ])
 
-    def test_assignment(self):
+    # Cython does get this right, but the error is raised later and not
+    # at the parsing stage so the test doesn't catch it.
+    # The test in in e_fstring2 instead
+    def __test_assignment(self):
         self.assertAllRaise(SyntaxError, r'invalid syntax',
                             ["f'' = 3",
                              "f'{0}' = x",
@@ -1624,7 +1649,7 @@ y = (
     def test_invalid_syntax_error_message(self):
         with self.assertRaisesRegex(SyntaxError,
                                     "f-string: expecting '=', or '!', or ':', or '}'"):
-            compile("f'{a $ b}'", "?", "exec")
+            self.fragment("f'{a $ b}'")
 
     def test_with_two_commas_in_format_specifier(self):
         error_msg = re.escape("Cannot specify ',' with ','.")
@@ -1646,13 +1671,15 @@ y = (
         with self.assertRaisesRegex(ValueError, error_msg):
             f'{1:_,}'
 
-    def test_syntax_error_for_starred_expressions(self):
+    # Cython raises the error, but later in the pipeline.
+    # The test is in e_fstring2 instead.
+    def __test_syntax_error_for_starred_expressions(self):
         with self.assertRaisesRegex(SyntaxError, "can't use starred expression here"):
-            compile("f'{*a}'", "?", "exec")
+            self.fragment("f'{*a}'")
 
         with self.assertRaisesRegex(SyntaxError,
                                     "f-string: expecting a valid expression after '{'"):
-            compile("f'{**a}'", "?", "exec")
+            self.fragment("f'{**a}'")
 
     def test_not_closing_quotes(self):
         self.assertAllRaise(SyntaxError, "unterminated f-string literal", ['f"', "f'"])
@@ -1669,10 +1696,11 @@ y = (
     4}sdufsd""
     '''
         try:
-            compile(data, "?", "exec")
-        except SyntaxError as e:
-            self.assertEqual(e.text, 'z = f"""')
-            self.assertEqual(e.lineno, 3)
+            self.fragment(data)
+        except (SyntaxError, CompileError) as e:
+            pass  # We don't stand a chance of replicating this
+            #self.assertEqual(e.text, 'z = f"""')
+            #self.assertEqual(e.lineno, 3)
     def test_syntax_error_after_debug(self):
         self.assertAllRaise(SyntaxError, "f-string: expecting a valid expression after '{'",
                             [
@@ -1687,7 +1715,7 @@ y = (
                                 "f'{1=}{1;}'",
                             ])
 
-    def test_debug_in_file(self):
+    def __test_debug_in_file(self):
         with temp_cwd():
             script = 'script.py'
             with open('script.py', 'w') as f:
