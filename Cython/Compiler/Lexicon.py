@@ -79,9 +79,9 @@ def make_lexicon():
                              Str('U') + four_hex + four_hex |
                              # Invalid escape sequences just produce a slash
                              Opt(Any("\n\\'\"abfnrtvNuU")))
-    rawescapeseq = (# Double \\ isn't actually escaped in raw strings, but
-                    # we do want to process it so that the end of '\\'
-                    # doesn't get processed.
+    rawescapeseq = (  # Double \\ isn't actually escaped in raw strings, but
+                      # we do want to process it so that the end of '\\'
+                      # doesn't get processed.
                     Str("\\\\") |
                     Str("\\") + Opt(Any('"\'')))
 

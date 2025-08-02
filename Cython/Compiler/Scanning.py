@@ -376,7 +376,7 @@ class PyrexScanner(Scanner):
             self.fstring_state_stack[-1].pop_bracket_state()
         self.bracket_nesting_level -= 1
         return text
-    
+
     def colon_action(self, text):
         if (self.fstring_state_stack and
                 self.fstring_state_stack[-1].bracket_nesting_level() == self.bracket_nesting_level):
@@ -386,7 +386,7 @@ class PyrexScanner(Scanner):
             self.begin(self.fstring_state_stack[-1].scanner_state)
             self.fstring_state_stack[-1].set_in_format_specifier()
         return text
-    
+
     def walrus_action(self, text):
         if (self.fstring_state_stack and
                 self.fstring_state_stack[-1].bracket_nesting_level() == self.bracket_nesting_level):
@@ -433,7 +433,7 @@ class PyrexScanner(Scanner):
         self.fstring_state_stack.pop()
         self.begin('FSTRING_EXPR_PRESCAN' if self.in_fstring_expr_prescan else '')
         self.produce('END_FSTRING')
-    
+
     def open_fstring_bracket_action(self, text):
         started_fstring_expr = False
         while text:
@@ -663,12 +663,12 @@ class FStringState:
         if not self.bracket_states:
             return None
         return self.bracket_states[-1].bracket_nesting_level
-    
+
     def in_format_specifier(self):
         if not self.bracket_states:
             return False
         return self.bracket_states[-1].in_format_specifier
-    
+
     def set_in_format_specifier(self):
         self.bracket_states[-1].in_format_specifier = True
 
@@ -685,6 +685,3 @@ class FStringBracketState:
     def __init__(self, bracket_nesting_level: int):
         self.bracket_nesting_level = bracket_nesting_level
         self.in_format_specifier = False
-
-    
-    

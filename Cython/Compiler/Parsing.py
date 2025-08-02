@@ -1165,7 +1165,7 @@ def p_fstring_replacement_field(s: PyrexScanner,
         if s.sy == 'yield':
             expr = p_yield_expression(
                 s,
-                statement_terminators=statement_terminators|{':', '}', '!'})
+                statement_terminators=statement_terminators | {':', '}', '!'})
         else:
             expr = p_testlist_star_expr(s)
 
@@ -1218,7 +1218,7 @@ def p_fstring_replacement_field(s: PyrexScanner,
         )
     if self_documenting and conversion_char is None and format_spec is None:
         conversion_char = 'r'
-    
+
     result.append(ExprNodes.FormattedValueNode(
         expr_pos, value=expr, conversion_char=conversion_char,
         format_spec=format_spec
@@ -1235,7 +1235,7 @@ def p_fstring_middles(s: PyrexScanner,
     while True:
         s.next()
         sy = s.sy
-        
+
         handled, _ = p_string_literal_shared_read(
             s, pos, builder, "u",
             is_raw=is_raw,
