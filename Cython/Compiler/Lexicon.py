@@ -70,7 +70,7 @@ def make_lexicon():
     three_oct = octdigit + octdigit + octdigit
     two_hex = hexdigit + hexdigit
     four_hex = two_hex + two_hex
-    escapeseq = Str("\\") + (two_oct | three_oct |
+    escapeseq = Str("\\") + (octdigit | two_oct | three_oct |
                              # Unicode character names are [A-Z \-]
                              # https://www.unicode.org/versions/Unicode16.0.0/core-spec/chapter-4/
                              # Although Python itself is case agnostic
