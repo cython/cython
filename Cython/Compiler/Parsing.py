@@ -1017,7 +1017,7 @@ def p_string_literal_shared_read(
             has_non_ascii_literal_characters = True
     elif sy == 'ESCAPE':
         # in Py2, 'ur' raw unicode strings resolve unicode escapes but nothing else
-        if is_raw and (is_python3_source or kind != 'u' or systr[1] not in 'Uu'):
+        if is_raw and (is_python3_source or kind != 'u' or len(systr) < 2 or systr[1] not in 'Uu'):
             chars.append(systr)
             if is_python3_source and not has_non_ascii_literal_characters and check_for_non_ascii_characters(systr):
                 has_non_ascii_literal_characters = True
