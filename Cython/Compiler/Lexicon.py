@@ -71,7 +71,10 @@ def make_lexicon():
     two_hex = hexdigit + hexdigit
     four_hex = two_hex + two_hex
     escapeseq = Str("\\") + (two_oct | three_oct |
-                             Str('N{') + Rep(AnyBut('}"\'\n')) + Str('}') |
+                             # Unicode character names are [A-Z \-]
+                             # https://www.unicode.org/versions/Unicode16.0.0/core-spec/chapter-4/
+                             # Although Python itself is case agnostic
+                             Str('N{') + Rep(Range('azAZ') | Any('- ')) + Str('}') |
                              Str('u') + four_hex | Str('x') + two_hex |
                              Str('U') + four_hex + four_hex |
                              # Invalid escape sequences just produce a slash
