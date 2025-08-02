@@ -338,6 +338,7 @@ class PyrexScanner(Scanner):
         self.bracket_nesting_level = 0
         # fstrings
         self.fstring_state_stack = []
+        self.in_fstring_expr_prescan = 0
 
         self.put_back_on_failure = None
 
@@ -367,6 +368,10 @@ class PyrexScanner(Scanner):
     def close_bracket_action(self, text):
         if (text == '}' and self.fstring_state_stack and
                 self.fstring_state_stack[-1].bracket_nesting_level() == self.bracket_nesting_level):
+            if not self.fstring_state_stack[-1].in_format_specifier():
+                self.in_fstring_expr_prescan -= 1
+                if self.in_fstring_expr_prescan == 0:
+                    self.produce("END_FSTRING_EXPR")
             self.begin(self.fstring_state_stack[-1].scanner_state)
             self.fstring_state_stack[-1].pop_bracket_state()
         self.bracket_nesting_level -= 1
@@ -375,6 +380,9 @@ class PyrexScanner(Scanner):
     def colon_action(self, text):
         if (self.fstring_state_stack and
                 self.fstring_state_stack[-1].bracket_nesting_level() == self.bracket_nesting_level):
+            self.in_fstring_expr_prescan -= 1
+            if self.in_fstring_expr_prescan == 0:
+                self.produce("END_FSTRING_EXPR")
             self.begin(self.fstring_state_stack[-1].scanner_state)
             self.fstring_state_stack[-1].set_in_format_specifier()
         return text
@@ -407,7 +415,7 @@ class PyrexScanner(Scanner):
         self.produce('BEGIN_STRING')
 
     def end_string_action(self, text):
-        self.begin('')
+        self.begin('FSTRING_EXPR_PRESCAN' if self.in_fstring_expr_prescan else '')
         self.produce('END_STRING')
 
     def begin_fstring_action(self, text):
@@ -423,7 +431,7 @@ class PyrexScanner(Scanner):
 
     def end_fstring_action(self, text):
         self.fstring_state_stack.pop()
-        self.begin('')
+        self.begin('FSTRING_EXPR_PRESCAN' if self.in_fstring_expr_prescan else '')
         self.produce('END_FSTRING')
     
     def open_fstring_bracket_action(self, text):
@@ -433,7 +441,8 @@ class PyrexScanner(Scanner):
                 self.bracket_nesting_level += 1
                 if not started_fstring_expr:
                     self.fstring_state_stack[-1].push_bracket_state(self.bracket_nesting_level)
-                    self.begin('')
+                    self.begin('FSTRING_EXPR_PRESCAN')
+                    self.in_fstring_expr_prescan += 1
                 started_fstring_expr = True
                 self.produce(text[0])
                 text = text[1:]

@@ -1123,32 +1123,18 @@ def p_string_literal(s: PyrexScanner, kind_override=None) -> tuple:
 
 
 @cython.cfunc
-def _reconstruct_fstring_expr_from_tokens(bracket_pos, tokens: list, next_token_pos):
-    # Reconstruct the expression string as best as possible for the left-hand side of
-    # an fstring self-documenting expression.  Use the position of each token to try
-    # to work out the spacing.
-    lines = {}
-    for _, systring, pos in tokens:
-        line = lines.setdefault(pos[1], [])
-        token_end = pos[2] + len(systring)
-        if len(line) < pos[2]:
-            line.extend(' ' * (pos[2] - len(line)))
-        line[pos[2]:token_end] = systring
-    # get any spacing that's required after the =
-    final_line = lines.setdefault(next_token_pos[1], [])
-    if len(final_line) < next_token_pos[2]:
-        final_line.extend(' ' * (next_token_pos[2] - len(final_line)))
-    # get rid of blanks before the expression
-    first_line = lines.setdefault(bracket_pos[1], [])
-    del first_line[:(bracket_pos[2]+1)]
-
-    out = []
-    keys = sorted(lines.keys())
-    for line_no in range(min(keys), max(keys)+1):
-        # setdefault also means blank lines are included
-        line = lines.setdefault(line_no, [])
-        out.append(''.join(line))
-    return "\n".join(out)
+def p_read_fstring_expression(s: PyrexScanner):
+    strings = []
+    while True:
+        s.next()
+        sy = s.sy
+        if sy in ["END_FSTRING_EXPR",
+                    # probably an error, but handle it elsewhere
+                   "EOF", None]:
+            if sy == "END_FSTRING_EXPR":
+                s.next()
+            return ''.join(strings)
+        strings.append(s.systring)
 
 
 @cython.cfunc
@@ -1158,62 +1144,69 @@ def p_fstring_replacement_field(s: PyrexScanner,
     conversion_char = format_spec = expr = None
     self_documenting = False
 
-    bracket_pos = expr_pos = s.position()
-    # Use tentatively scan to get a list of tokens if needed.
-    with tentatively_scan(s) as errors:
-        try:
+    bracket_pos = s.position()
+    expr_pos = (bracket_pos[0], bracket_pos[1], bracket_pos[2]+1)
+    expr_string = p_read_fstring_expression(s)
+    if not expr_string.strip():
+        error(bracket_pos, "empty expression not allowed in f-string")
+        result = []
+    else:
+        original_scanner = s
+        s = PyrexScanner(
+            StringIO(expr_string),
+            bracket_pos[0],
+            parent_scanner=s,
+            source_encoding=s.source_encoding,
+            initial_pos=expr_pos
+        )
+        s.bracket_nesting_level += 1
+        if s.sy == "INDENT":
             s.next()
-            expr_pos = s.position()
-
-            if s.sy == '}':
-                error(bracket_pos, "empty expression not allowed in f-string")
-                result = []
-            elif s.sy == 'yield':
-                    expr = p_yield_expression(
-                        s,
-                        statement_terminators=statement_terminators|{':', '}', '!'})
-            else:
-                expr = p_testlist_star_expr(s)
-
-            if s.sy == "=":
-                self_documenting = True
-                seen_tokens = list(s.put_back_on_failure)
-                s.next()
-                next_token_position = s.position()
-                expr_string = _reconstruct_fstring_expr_from_tokens(
-                    bracket_pos, seen_tokens, next_token_position)
-                # TODO this is hard
-                result.append(
-                    ExprNodes.UnicodeNode(
-                        pos=expr_pos,
-                        value=StringEncoding.EncodedString(expr_string)
-                    )
-                )
-        except CompileError as e:
-            # Catch errors since we're only using tentatively scan to
-            # collect tokens
-            pass
-        s.put_back_on_failure = []
-    if errors:
-        for e in errors:
-            s.error(e.args[1], pos=e.args[0], fatal=False)
-        
-    if s.sy == "!":
-        # format conversion
-        previous_pos = s.position()
-        s.next()
-        conversion_char = s.systring
-        # validate the conversion char
-        if conversion_char in ['}' or ':']:
-            error(s.position(), "missing conversion character")
-        elif not ExprNodes.FormattedValueNode.find_conversion_func(conversion_char):
-            error(s.position(), "invalid conversion character '%s'" % conversion_char)
-            s.next()
-        elif s.position()[2] != (previous_pos[2] + 1):
-            error(s.position(), "f-string: conversion type must come right after the exclamanation mark")
-            s.next()
+        if s.sy == 'yield':
+            expr = p_yield_expression(
+                s,
+                statement_terminators=statement_terminators|{':', '}', '!'})
         else:
+            expr = p_testlist_star_expr(s)
+
+        if s.sy == "=":
+            self_documenting = True
             s.next()
+
+        if s.sy == "!":
+            # format conversion
+            previous_pos = s.position()
+            s.next()
+            conversion_char = s.systring
+            # validate the conversion char
+            if conversion_char in ['}', ':', '']:
+                error(s.position(), "missing conversion character")
+            elif not ExprNodes.FormattedValueNode.find_conversion_func(conversion_char):
+                error(s.position(), "invalid conversion character '%s'" % conversion_char)
+                s.next()
+            elif s.position()[2] != (previous_pos[2] + 1):
+                error(s.position(), "f-string: conversion type must come right after the exclamanation mark")
+                s.next()
+            else:
+                s.next()
+
+        if self_documenting:
+            if conversion_char is not None:
+                expr_string, _ = expr_string.rsplit('!', 1)
+            result.append(
+                ExprNodes.UnicodeNode(
+                    pos=expr_pos,
+                    value=StringEncoding.EncodedString(expr_string)
+                )
+            )
+
+        # Validate that the expression string has actually ended
+        while s.sy == "NEWLINE" or s.sy == "DEDENT":
+            s.next()
+        if s.sy != "EOF":
+            error(s.position(), f"Unexpected characters after f-string expression: {s.systring}")
+
+        s = original_scanner
 
     if s.sy == ":":
         # full format spec
@@ -1630,7 +1623,7 @@ def p_genexp(s: PyrexScanner, expr):
 
 
 expr_terminators = cython.declare(frozenset, frozenset((
-    ')', ']', '}', ':', '=', 'NEWLINE')))
+    ')', ']', '}', ':', '=', 'NEWLINE', 'EOF')))
 
 
 #-------------------------------------------------------

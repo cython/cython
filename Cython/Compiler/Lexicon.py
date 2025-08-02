@@ -88,7 +88,7 @@ def make_lexicon():
     bra = Any("([{")
     ket = Any(")]}")
     ellipsis = Str("...")
-    punct = Any(",;+-*/|&<>=.%`~^?!@")
+    punct = Any(":,;+-*/|&<>=.%`~^?!@")
     diphthong = Str("==", "<>", "!=", "<=", ">=", "<<", ">>", "**", "//",
                     "+=", "-=", "*=", "/=", "%=", "|=", "^=", "&=",
                     "<<=", ">>=", "**=", "//=", "->", "@=", "&&", "||",)
@@ -102,16 +102,24 @@ def make_lexicon():
     def generate_fstring_states():
         out = []
 
-        #states = [
-        #    AnyBut('"\'{}()[]!:#'),
-        #    comment,
-        #    ':='  # at top level, not walrus
-        #    ':' 
-        #    full string handling
-        #    full bracket handling
-        #    '!=' # distinguish from !
-        #    '!'  # still expression mode, but stop gathering
-        #]
+        # In order for self-documenting strings to work, we need to
+        # pre-scan the fstring into a string, and then parse it
+        # again as an expression.  This allows us to accurately
+        # preserve whitespace (at the cost of being quite recursive
+        # for deeply nested fstrings).
+        # To do this we need to pay attention to brackets, strings,
+        # colons, and comments, but can ignore anything else.
+        out.append(
+            State("FSTRING_EXPR_PRESCAN", [
+                (Rep1(AnyBut('"\'{}()[]:#')), 'CHARS'),
+                (comment, IGNORE),
+                (Str(':'), Method('colon_action')),
+                (bra, Method('open_bracket_action')),
+                (ket, Method('close_bracket_action')),
+                (beginstring, Method('begin_string_action')),
+                (begin_fstring, Method('begin_fstring_action')),
+                (Eof, 'EOF')
+            ]))
 
         for prefix in ["'", '"', "'''", '"""']:
             if prefix[0] == "'":
@@ -150,7 +158,6 @@ def make_lexicon():
         (imagconst, Method('strip_underscores', symbol='IMAG')),
         (ellipsis | punct | diphthong, TEXT),
         (walrus, Method('walrus_action')),
-        (Str(':'), Method('colon_action')),
 
         (bra, Method('open_bracket_action')),
         (ket, Method('close_bracket_action')),

@@ -17,8 +17,7 @@ _ERRORS = """
 7:10: empty expression not allowed in f-string
 8:13: missing conversion character
 9:13: invalid conversion character 'q'
-# Note that position isn't perfect due to tokenizer
+# Note that position isn't perfect due to need to tokenize all brackets as a block
 10:12: f-string: single '}' is not allowed
-11:12: Expected '}', found 'CHARS'
 11:13: Unclosed string literal
 """
