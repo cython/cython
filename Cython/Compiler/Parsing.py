@@ -1220,7 +1220,7 @@ def p_fstring_replacement_field(s: PyrexScanner,
         conversion_char = 'r'
 
     result.append(ExprNodes.FormattedValueNode(
-        expr_pos, value=expr, conversion_char=conversion_char,
+        bracket_pos, value=expr, conversion_char=conversion_char,
         format_spec=format_spec
     ))
     return result
