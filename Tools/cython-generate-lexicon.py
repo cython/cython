@@ -91,6 +91,7 @@ def to_ranges(char_num_list):
     #  list of characters
     #  a list pairs of characters representing closed ranges
     char_num_list = sorted(char_num_list)
+    char_num_list.append(-1)  # ensure the last range is added
     first_good_val = char_num_list[0]
 
     single_chars = []
