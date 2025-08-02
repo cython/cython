@@ -91,8 +91,7 @@ def make_lexicon():
     punct = Any(":,;+-*/|&<>=.%`~^?!@")
     diphthong = Str("==", "<>", "!=", "<=", ">=", "<<", ">>", "**", "//",
                     "+=", "-=", "*=", "/=", "%=", "|=", "^=", "&=",
-                    "<<=", ">>=", "**=", "//=", "->", "@=", "&&", "||",)
-    walrus = Str(':=')
+                    "<<=", ">>=", "**=", "//=", "->", "@=", "&&", "||", ':=')
     spaces = Rep1(Any(" \t\f"))
     escaped_newline = Str("\\\n")
     lineterm = Eol + Opt(Str("\n"))
@@ -105,7 +104,7 @@ def make_lexicon():
         # In order for self-documenting strings to work, we need to
         # pre-scan the fstring into a string, and then parse it
         # again as an expression.  This allows us to accurately
-        # preserve whitespace (at the cost of being quite recursive
+        # preserve whitespace (at the cost of repeatedly tokenizing
         # for deeply nested fstrings).
         # To do this we need to pay attention to brackets, strings,
         # colons, and comments, but can ignore anything else.
@@ -157,7 +156,6 @@ def make_lexicon():
         (fltconst, Method('strip_underscores', symbol='FLOAT')),
         (imagconst, Method('strip_underscores', symbol='IMAG')),
         (ellipsis | punct | diphthong, TEXT),
-        (walrus, Method('walrus_action')),
 
         (bra, Method('open_bracket_action')),
         (ket, Method('close_bracket_action')),

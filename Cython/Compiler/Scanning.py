@@ -387,15 +387,6 @@ class PyrexScanner(Scanner):
             self.fstring_state_stack[-1].set_in_format_specifier()
         return text
 
-    def walrus_action(self, text):
-        if (self.fstring_state_stack and
-                self.fstring_state_stack[-1].bracket_nesting_level() == self.bracket_nesting_level):
-            # It's actually a colon in an fstring
-            self.produce(self.colon_action(':'), ':')
-            self.produce('CHARS', '=')
-            return
-        return text
-
     def newline_action(self, text):
         if self.bracket_nesting_level == 0:
             self.begin('INDENT')
