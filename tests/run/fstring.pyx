@@ -683,3 +683,13 @@ def test_await_inside_f_string():
         print(f"{await f()}")
 
     print("PARSED_SUCCESSFULLY")
+
+
+# Be very careful allowing this test to be reformatted by an editor.
+# It deliberately contains tabs which should not be replaced with spaces.
+def test_print_self_documenting_tabs(x):
+    r"""
+    >>> test_print_self_documenting_tabs(5)
+    '\tx\t=5'
+    """
+    print(repr(f'{	x	=}'))
