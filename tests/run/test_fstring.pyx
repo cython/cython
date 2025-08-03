@@ -9,6 +9,7 @@ import decimal
 import unittest
 import re
 import contextlib
+import sys
 
 from Cython.Build.Inline import cython_inline
 from Cython.TestUtils import CythonTest
@@ -1655,7 +1656,8 @@ y = (
             self.fragment("f'{a $ b}'")
 
     def test_with_two_commas_in_format_specifier(self):
-        error_msg = re.escape("Cannot specify ',' with ','.")
+        error_msg = (re.escape("Cannot specify ',' with ','.")
+            if sys.version_info >= (3, 9) else "Cannot specify .*")
         with self.assertRaisesRegex(ValueError, error_msg):
             f'{1:,,}'
 
