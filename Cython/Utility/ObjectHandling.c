@@ -3424,17 +3424,24 @@ static int __Pyx_PyDict_NextRef(PyObject *p, __PYX_PYDICT_NEXTREF_PPOS *ppos, Py
     if (!*ppos) {
         // Intentionally using lazy iterators instead of PyDict_Items/Keys/Values
         // at the cost of a function call.
+        PyObject *tmp;
         if (pkey && pvalue) {
-            *ppos = __Pyx_PyDict_Items(p);
+            tmp = __Pyx_PyDict_Items(p);
         } else if (pkey) {
-            *ppos = __Pyx_PyDict_Keys(p);
+            tmp = __Pyx_PyDict_Keys(p);
         } else {
-            *ppos = __Pyx_PyDict_Values(p);
+            tmp = __Pyx_PyDict_Values(p);
         }
+        if (unlikely(!tmp)) goto bad;
+        *ppos = PyObject_GetIter(tmp);
+        Py_DECREF(tmp);
         if (unlikely(!*ppos)) goto bad;
     }
     next = PyIter_Next(*ppos);
-    if (unlikely(!next)) goto bad;
+    if (!next) {
+        if (PyErr_Occurred()) goto bad;
+        return 0;
+    }
     if (pkey && pvalue) {
         *pkey = __Pyx_PySequence_ITEM(next, 0);
         if (unlikely(*pkey)) goto bad;
