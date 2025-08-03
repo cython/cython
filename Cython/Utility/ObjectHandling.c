@@ -2709,6 +2709,8 @@ static PyObject *__Pyx_PyFunction_FastCallDict(PyObject *func, PyObject *const *
 
         k = &PyTuple_GET_ITEM(kwtuple, 0);
         pos = i = 0;
+        // This code almost certainly isn't being used anywhere with a strict
+        // avoid borrowed references requirement, so don't do __Pyx_PyDict_NextRef
         while (PyDict_Next(kwargs, &pos, &k[i], &k[i+1])) {
             Py_INCREF(k[i]);
             Py_INCREF(k[i+1]);
@@ -2799,6 +2801,7 @@ static CYTHON_INLINE PyObject *__Pyx_PyVectorcall_FastCallDict(PyObject *func, _
 #endif
 
 /////////////// PyVectorcallFastCallDict ///////////////
+//@requires: OwnedDictNext
 
 #if CYTHON_METH_FASTCALL && (CYTHON_VECTORCALL || CYTHON_BACKPORT_VECTORCALL)
 // Slow path when kw is non-empty
@@ -2809,7 +2812,8 @@ static PyObject *__Pyx_PyVectorcall_FastCallDict_kw(PyObject *func, __pyx_vector
     PyObject *kwnames;
     PyObject **newargs;
     PyObject **kwvalues;
-    Py_ssize_t i, pos;
+    Py_ssize_t i;
+    __PYX_PYDICT_NEXTREF_PPOS pos;
     size_t j;
     PyObject *key, *value;
     unsigned long keys_are_strings;
@@ -2835,17 +2839,16 @@ static PyObject *__Pyx_PyVectorcall_FastCallDict_kw(PyObject *func, __pyx_vector
         return NULL;
     }
     kwvalues = newargs + nargs;
-    pos = i = 0;
+    pos = 0;
+    i = 0;
     keys_are_strings = Py_TPFLAGS_UNICODE_SUBCLASS;
-    while (PyDict_Next(kw, &pos, &key, &value)) {
+    while (__Pyx_PyDict_NextRef(kw, &pos, &key, &value)) {
         keys_are_strings &=
         #if CYTHON_COMPILING_IN_LIMITED_API
             PyType_GetFlags(Py_TYPE(key));
         #else
             Py_TYPE(key)->tp_flags;
         #endif
-        Py_INCREF(key);
-        Py_INCREF(value);
         #if !CYTHON_ASSUME_SAFE_MACROS
         if (unlikely(PyTuple_SetItem(kwnames, i, key) < 0)) goto cleanup;
         #else
@@ -3387,4 +3390,93 @@ static PyObject *__Pyx_PyList_Pack(Py_ssize_t n, ...) {
 #define __Pyx_PyObject_LengthHint(o, defaultval)  (defaultval)
 #else
 #define __Pyx_PyObject_LengthHint(o, defaultval)  PyObject_LengthHint(o, defaultval)
+#endif
+
+//////////////////////// OwnedDictNext.proto ///////////////////////////////
+
+#if CYTHON_AVOID_BORROWED_REFS
+#define __PYX_PYDICT_NEXTREF_PPOS PyObject*
+#define __PYX_XDECREF_PYDICT_NEXTREF_PPOS(ppos) Py_XDECREF(ppos)
+#else
+#define __PYX_PYDICT_NEXTREF_PPOS Py_ssize_t
+#define __PYX_XDECREF_PYDICT_NEXTREF_PPOS(ppos)
+#endif
+
+// Like PyDict_Next but pkey and pvalue are new references (and thus must be decrefed).
+// pkey and pvalue may be NULL but this must be the same for all subsequent calls.
+// If it encounters an exception it prints it as unraisable and stops.
+#if !CYTHON_AVOID_BORROWED_REFS
+CYTHON_INLINE
+#endif
+static int __Pyx_PyDict_NextRef(PyObject *p, __PYX_PYDICT_NEXTREF_PPOS *ppos, PyObject **pkey, PyObject **pvalue); /* proto */
+
+//////////////////////// OwnedDictNext //////////////////////////////////////
+//@requires: Builtins.c::py_dict_values
+//@requires: Builtins.c::py_dict_keys
+//@requires: Builtins.c::py_dict_items
+
+#if !CYTHON_AVOID_BORROWED_REFS
+CYTHON_INLINE
+#endif
+static int __Pyx_PyDict_NextRef(PyObject *p, __PYX_PYDICT_NEXTREF_PPOS *ppos, PyObject **pkey, PyObject **pvalue) {
+#if CYTHON_AVOID_BORROWED_REFS
+    PyObject *next = NULL;
+    if (!*ppos) {
+        // Intentionally using lazy iterators instead of PyDict_Items/Keys/Values
+        // at the cost of a function call.
+        if (pkey && pvalue) {
+            *ppos = __Pyx_PyDict_Items(p);
+        } else if (pkey) {
+            *ppos = __Pyx_PyDict_Keys(p);
+        } else {
+            *ppos = __Pyx_PyDict_Values(p);
+        }
+        if (unlikely(!*ppos)) goto bad;
+    }
+    next = PyIter_Next(*ppos);
+    if (unlikely(!next)) goto bad;
+    if (pkey && pvalue) {
+        *pkey = __Pyx_PySequence_ITEM(next, 0);
+        if (unlikely(*pkey)) goto bad;
+        *pvalue = __Pyx_PySequence_ITEM(next, 1);
+        if (unlikely(*pvalue)) goto bad;
+        Py_DECREF(next);
+    } else if (pkey) {
+        *pkey = next;
+    } else {
+        assert(pvalue);
+        *pvalue = next;
+    }
+    return 1;
+
+  bad:
+    Py_XDECREF(next);
+    // PyDict_Next can't fail, so neither can this
+    PyErr_FormatUnraisable("Exception ignored in __Pyx_PyDict_NextRef");
+    if (pkey) *pkey = NULL;
+    if (pvalue) *pvalue = NULL;
+    return 0;
+#else
+    int result = PyDict_Next(p, ppos, pkey, pvalue);
+    if (likely(result == 1)) {
+        if (pkey) Py_INCREF(*pkey);
+        if (pvalue) Py_INCREF(*pvalue);
+    }
+    return result;
+#endif
+}
+
+//////////////////////// AvoidBorrowedDictNext.proto ///////////////////////////////
+//@requires: OwnedDictNext
+
+// This returns an owned ref for keys and values if CYTHON_AVOID_BORROWED_REFS,
+// otherwise a borrowed ref.
+#if CYTHON_AVOID_BORROWED_REFS
+#define __PYX_PYDICT_NEXTREFIFAVOIDBORROWED_PPOS PyObject*
+#define __PYX_XDECREF_PYDICT_NEXTREFIFAVOIDBORROWED_PPOS(o) __PYX_XDECREF_PYDICT_NEXTREF_PPOS(o)
+#define __Pyx_PyDict_NextRefIfAvoidBorrowed __Pyx_PyDict_NextRef
+#else
+#define __PYX_PYDICT_NEXTREFIFAVOIDBORROWED_PPOS Py_ssize_t
+#define __PYX_XDECREF_PYDICT_NEXTREFIFAVOIDBORROWED_PPOS(o)
+#define __Pyx_PyDict_NextRefIfAvoidBorrowed PyDict_Next
 #endif

@@ -211,6 +211,7 @@ static int __Pyx_CheckKeywordStrings(
 static void __Pyx_RejectKeywords(const char* function_name, PyObject *kwds); /*proto*/
 
 //////////////////// RejectKeywords ////////////////////
+//@requires: ObjectHandling.c::OwnedDictNext
 
 static void __Pyx_RejectKeywords(const char* function_name, PyObject *kwds) {
     // Get the first keyword argument (there is at least one) and raise a TypeError for it.
@@ -218,14 +219,14 @@ static void __Pyx_RejectKeywords(const char* function_name, PyObject *kwds) {
     if (CYTHON_METH_FASTCALL && likely(PyTuple_Check(kwds))) {
         key = __Pyx_PySequence_ITEM(kwds, 0);
     } else {
-        Py_ssize_t pos = 0;
+        __PYX_PYDICT_NEXTREF_PPOS pos = 0;
 #if !CYTHON_COMPILING_IN_PYPY || defined(PyArg_ValidateKeywordArguments)
         // Check if dict is unicode-keys-only and let Python set the error otherwise.
         if (unlikely(!PyArg_ValidateKeywordArguments(kwds))) return;
 #endif
         // Read first key.
-        PyDict_Next(kwds, &pos, &key, NULL);
-        Py_INCREF(key);
+        __Pyx_PyDict_NextRef(kwds, &pos, &key, NULL);
+        __PYX_XDECREF_PYDICT_NEXTREF_PPOS(pos);
     }
 
     if (likely(key)) {
@@ -250,6 +251,7 @@ static CYTHON_INLINE int __Pyx_ParseKeywords(
 //////////////////// ParseKeywords ////////////////////
 //@requires: RaiseDoubleKeywords
 //@requires: Synchronization.c::CriticalSections
+//@requires: ObjectHandling.c::AvoidBorrowedDictNext
 
 //  __Pyx_ParseOptionalKeywords copies the optional/unknown keyword
 //  arguments from kwds into the dict kwds2.  If kwds2 is NULL, unknown
@@ -453,11 +455,11 @@ static void __Pyx_RejectUnknownKeyword(
     const char *function_name)
 {
     // Find the first unknown keyword and raise an error. There must be at least one.
-    Py_ssize_t pos = 0;
+    __PYX_PYDICT_NEXTREFIFAVOIDBORROWED_PPOS pos = 0;
     PyObject *key = NULL;
 
     __Pyx_BEGIN_CRITICAL_SECTION(kwds);
-    while (PyDict_Next(kwds, &pos, &key, NULL)) {
+    while (__Pyx_PyDict_NextRefIfAvoidBorrowed(kwds, &pos, &key, NULL)) {
         // Quickly exclude the 'obviously' valid/known keyword arguments (exact pointer match).
         PyObject** const *name = first_kw_arg;
         while (*name && (**name != key)) name++;
@@ -465,9 +467,6 @@ static void __Pyx_RejectUnknownKeyword(
         if (!*name) {
             // No exact match found:
             // compare against positional (always reject) and keyword (reject unknown) names.
-            #if CYTHON_AVOID_BORROWED_REFS
-            Py_INCREF(key);
-            #endif
 
             size_t index_found = 0;
             int cmp = __Pyx_MatchKeywordArg(key, argnames, first_kw_arg, &index_found, function_name);
@@ -483,12 +482,13 @@ static void __Pyx_RejectUnknownKeyword(
 
                 break;
             }
-            #if CYTHON_AVOID_BORROWED_REFS
-            Py_DECREF(key);
-            #endif
         }
+        #if CYTHON_AVOID_BORROWED_REFS
+        Py_DECREF(key);
+        #endif
     }
     __Pyx_END_CRITICAL_SECTION();
+    __PYX_XDECREF_PYDICT_NEXTREFIFAVOIDBORROWED_PPOS(pos);
 
     assert(PyErr_Occurred());
 }
@@ -726,6 +726,7 @@ static int __Pyx_MergeKeywords(PyObject *kwdict, PyObject *source_mapping); /*pr
 //////////////////// MergeKeywords ////////////////////
 //@requires: RaiseDoubleKeywords
 //@requires: Optimize.c::dict_iter
+//@requires: ObjectHnadling.c::AvoidBorrowedDictNext
 
 static int __Pyx_MergeKeywords_dict(PyObject *kwdict, PyObject *source_dict) {
     Py_ssize_t len1, len2;
@@ -742,7 +743,7 @@ static int __Pyx_MergeKeywords_dict(PyObject *kwdict, PyObject *source_dict) {
 
     if (len1 > 0) {
         PyObject *key, *smaller_dict, *larger_dict;
-        Py_ssize_t ppos = 0;
+        __PYX_PYDICT_NEXTREFIFAVOIDBORROWED_PPOS ppos = 0;
         int duplicates_found = 0;
 
         if (len1 <= len2) {
@@ -754,8 +755,8 @@ static int __Pyx_MergeKeywords_dict(PyObject *kwdict, PyObject *source_dict) {
         }
 
         __Pyx_BEGIN_CRITICAL_SECTION(smaller_dict);
-        while (PyDict_Next(smaller_dict, &ppos, &key, NULL)) {
-            #if CYTHON_AVOID_BORROWED_REFS || CYTHON_AVOID_THREAD_UNSAFE_BORROWED_REFS
+        while (__Pyx_PyDict_NextRefIfAvoidBorrowed(smaller_dict, &ppos, &key, NULL)) {
+            #if CYTHON_AVOID_THREAD_UNSAFE_BORROWED_REFS
             Py_INCREF(key);
             #endif
             if (unlikely(PyDict_Contains(larger_dict, key))) {
@@ -771,6 +772,7 @@ static int __Pyx_MergeKeywords_dict(PyObject *kwdict, PyObject *source_dict) {
             #endif
         }
         __Pyx_END_CRITICAL_SECTION();
+        __PYX_XDECREF_PYDICT_NEXTREFIFAVOIDBORROWED_PPOS(ppos);
 
         if (unlikely(duplicates_found))
             return -1;
