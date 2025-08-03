@@ -481,7 +481,10 @@
               tstate = __Pyx_PyThreadState_Current;                                       \
               if (__Pyx_IsTracing(tstate, 0, 0)) {                                        \
                   PyObject *pyvalue = convert_function(cresult);                          \
-                  if (unlikely(!pyvalue)) goto_error;                                     \
+                  if (unlikely(!pyvalue)) {                                               \
+                    PyErr_Clear();                                                        \
+                    pyvalue = Py_None; Py_INCREF(Py_None);                                \
+                  }                                                                       \
                   __Pyx_call_return_trace_func(tstate, $frame_cname, pyvalue, 1);         \
                   Py_DECREF(pyvalue);                                                     \
               }                                                                           \
@@ -491,7 +494,10 @@
           PyThreadState* tstate = __Pyx_PyThreadState_Current;                            \
           if (__Pyx_IsTracing(tstate, 0, 0)) {                                            \
               PyObject *pyvalue = convert_function(cresult);                              \
-              if (unlikely(!pyvalue)) goto_error;                                         \
+              if (unlikely(!pyvalue)) {                                                   \
+                  PyErr_Clear();                                                          \
+                  pyvalue = Py_None; Py_INCREF(Py_None);                                  \
+              }                                                                           \
               __Pyx_call_return_trace_func(tstate, $frame_cname, pyvalue, 1);             \
               Py_DECREF(pyvalue);                                                         \
           }                                                                               \
