@@ -3452,7 +3452,11 @@ static int __Pyx_PyDict_NextRef(PyObject *p, __PYX_PYDICT_NEXTREF_PPOS *ppos, Py
   bad:
     Py_XDECREF(next);
     // PyDict_Next can't fail, so neither can this
+#if !CYTHON_COMPILING_IN_LIMITED_API && PY_VERSION_HEX >= 0x030d0000 
     PyErr_FormatUnraisable("Exception ignored in __Pyx_PyDict_NextRef");
+#else
+    PyErr_WriteUnraisable(PYIDENT("__Pyx_PyDict_NextRef"));
+#endif
     if (pkey) *pkey = NULL;
     if (pvalue) *pvalue = NULL;
     return 0;
