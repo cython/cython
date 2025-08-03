@@ -72,6 +72,8 @@ included using the ``UtilityCode`` classes.  There are a few points of customiza
 
 * ``PYIDENT("some_name")`` is replaced with cached and interned string while ``PYUNICODE``
   is replaced with a cached string.
+* ``CALL_UNBOUND_METHOD(type, "method_name"[, args])`` produces an optimized (and cached)
+  call to a method of a builtin type.
 * ``#substitute: naming`` allows you to refer to variables in the ``Cython.Compiler.Naming``
   module using ``$varname``.
 * ``EMPTY(tuple)`` (or ``bytes`` or ``unicode``) is a quick way of getting access to an
