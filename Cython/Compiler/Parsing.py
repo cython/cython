@@ -1185,7 +1185,7 @@ def p_fstring_replacement_field(s: PyrexScanner,
                 error(s.position(), "invalid conversion character '%s'" % conversion_char)
                 s.next()
             elif s.position()[2] != (previous_pos[2] + 1):
-                error(s.position(), "f-string: conversion type must come right after the exclamanation mark")
+                error(s.position(), "f-string: conversion type must come right after the exclamation mark")
                 s.next()
             else:
                 s.next()

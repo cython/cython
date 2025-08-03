@@ -7,6 +7,7 @@ def incorrect_fstrings(x):
         f"{}",
         f"{x!}",
         f"{x!q}",
+        f"{x! r}",
         f"{{}}}",
         f"{",
     ]
@@ -17,7 +18,8 @@ _ERRORS = """
 7:10: empty expression not allowed in f-string
 8:13: missing conversion character
 9:13: invalid conversion character 'q'
+10:14: f-string: conversion type must come right after the exclamation mark
 # Note that position isn't perfect due to need to tokenize all brackets as a block
-10:12: f-string: single '}' is not allowed
-11:13: Unclosed string literal
+11:12: f-string: single '}' is not allowed
+12:13: Unclosed string literal
 """
