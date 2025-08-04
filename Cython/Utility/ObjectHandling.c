@@ -3412,7 +3412,6 @@ static int __Pyx_PyDict_NextRef(PyObject *p, __PYX_PYDICT_NEXTREF_PPOS *ppos, Py
 
 //////////////////////// OwnedDictNext //////////////////////////////////////
 //@requires: Builtins.c::py_dict_values
-//@requires: Builtins.c::py_dict_keys
 //@requires: Builtins.c::py_dict_items
 
 #if !CYTHON_AVOID_BORROWED_REFS
@@ -3425,16 +3424,18 @@ static int __Pyx_PyDict_NextRef(PyObject *p, __PYX_PYDICT_NEXTREF_PPOS *ppos, Py
         // Intentionally using lazy iterators instead of PyDict_Items/Keys/Values
         // at the cost of a function call.
         PyObject *tmp;
-        if (pkey && pvalue) {
-            tmp = __Pyx_PyDict_Items(p);
-        } else if (pkey) {
-            tmp = __Pyx_PyDict_Keys(p);
+        if (pvalue) {
+            if (pkey)
+                tmp = __Pyx_PyDict_Items(p);
+            else
+                tmp = __Pyx_PyDict_Values(p);
+            if (unlikely(!tmp)) goto bad;
         } else {
-            tmp = __Pyx_PyDict_Values(p);
+            tmp = p;
         }
-        if (unlikely(!tmp)) goto bad;
+        
         *ppos = PyObject_GetIter(tmp);
-        Py_DECREF(tmp);
+        if (pvalue) Py_DECREF(tmp);
         if (unlikely(!*ppos)) goto bad;
     }
     next = PyIter_Next(*ppos);
