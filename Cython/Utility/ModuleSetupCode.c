@@ -1153,7 +1153,44 @@ static CYTHON_INLINE int __Pyx_PyDict_GetItemRef(PyObject *dict, PyObject *key, 
   #define __Pyx_PyUnicode_GET_LENGTH(o) PyUnicode_GetLength(o)
 #endif
 
-#if __PYX_LIMITED_VERSION_HEX >= 0x030d0000
+#if CYTHON_COMPILING_IN_CPYTHON_FREETHREADING /* && __PYX_LIMITED_VERSION_HEX < some future value */
+  // https://github.com/python/cpython/issues/137422 - PyImport_AddModule(Ref) isn't thread safe!
+  static CYTHON_INLINE PyObject *__Pyx_PyImport_AddModuleObjectRef(PyObject *name) {
+      // We're going to assume nobody is swapping the module dict out from under us
+      // (even though they're allowed to) because we really can't write code that's
+      // safe against that.
+      PyObject *module_dict = PyImport_GetModuleDict();
+      PyObject *m;
+      if (PyMapping_GetOptionalItem(module_dict, name, &m) < 0) { 
+          return NULL; 
+      } 
+      if (m != NULL && PyModule_Check(m)) { 
+          return m; 
+      }
+      Py_XDECREF(m); 
+      m = PyModule_NewObject(name);
+      if (m == NULL) 
+          return NULL; 
+      if (PyDict_CheckExact(module_dict)) {
+          PyObject *new_m;
+          (void)PyDict_SetDefaultRef(module_dict, name, m, &new_m);
+          Py_DECREF(m);
+          return new_m;
+      } else {
+            // For non-dict sys-modules I don't think it's possible to reliably make thread-safe.
+           if (PyObject_SetItem(module_dict, name, m) != 0) { 
+                Py_DECREF(m); 
+                return NULL; 
+            }         
+            return m; 
+      }
+  }
+  static CYTHON_INLINE PyObject *__Pyx_PyImport_AddModuleRef(const char *name) {
+      PyObject *py_name = PyUnicode_FromString(name);
+      if (!py_name) return NULL;
+      return __Pyx_PyImport_AddModuleObjectRef(py_name);
+  }
+#elif __PYX_LIMITED_VERSION_HEX >= 0x030d0000
   #define __Pyx_PyImport_AddModuleRef(name) PyImport_AddModuleRef(name)
 #else
   static CYTHON_INLINE PyObject *__Pyx_PyImport_AddModuleRef(const char *name) {
