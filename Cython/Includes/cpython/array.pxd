@@ -75,7 +75,7 @@ cdef extern from *:  # Hard-coded utility code hack.
             GETF getitem    # PyObject * (*getitem)(struct arrayobject *, Py_ssize_t);
             SETF setitem    # int (*setitem)(struct arrayobject *, Py_ssize_t, PyObject *);
 
-    ctypedef union __data_union:
+    ctypedef union __data_union "__Pyx_data_union":
         # views of ob_item:
         float* as_floats        # direct float pointer access to buffer
         double* as_doubles      # double ...
