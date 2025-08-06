@@ -2879,7 +2879,6 @@ class ImportNode(ExprNode):
     #  module_name   UnicodeNode            dotted name of module. Empty module
     #                       name means importing the parent package according
     #                       to level
-    #  as_name       NameNode or None      name in an import 'as' block
     #  name_list     ListNode or None      list of names to be imported
     #  level         int                   relative import level:
     #                       -1: attempt both relative import and absolute import;
@@ -2888,6 +2887,7 @@ class ImportNode(ExprNode):
     #                           relative to the current module.
     #                     None: decide the level according to language level and
     #                           directives
+    #  is_import_as_name    boolean        is imported in an 'as' block
 
     type = py_object_type
     is_temp = True
@@ -2943,7 +2943,7 @@ class ImportNode(ExprNode):
             import_code,
             code.error_goto_if_null(tmp_result, self.pos)))
 
-        if self.as_name and "." in self.module_name.value:
+        if self.is_import_as_name and "." in self.module_name.value:
             # We need to get the submodules in this case
             code.globalstate.use_utility_code(UtilityCode.load_cached("ImportFrom", "ImportExport.c"))
             submodule = code.funcstate.allocate_temp(self.type, manage_ref=False)
@@ -2954,11 +2954,9 @@ class ImportNode(ExprNode):
                     submodule,
                     tmp_result,
                     module_obj))
-                code.putln("if (unlikely(!%s)) { Py_DECREF(%s); %s; }" % (
-                    submodule,
-                    tmp_result,
-                    code.error_goto(self.pos)))
-                code.putln("Py_DECREF(%s); %s = %s;" % (tmp_result, tmp_result, submodule))
+                code.putln("Py_DECREF(%s);" % tmp_result)
+                code.error_goto_if_null(submodule, self.pos)
+                code.putln("%s = %s;" % (tmp_result, submodule))
             code.funcstate.release_temp(submodule)
 
         code.putln("%s = %s;" % (self.result(), tmp_result))
