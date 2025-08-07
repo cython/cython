@@ -157,18 +157,18 @@
               if (!__Pyx_PyThreadState_Current->tracing) {                                   \
                   if (likely($frame_code_cname)) Py_INCREF($frame_code_cname);               \
                   else $frame_code_cname = (PyObject*) __Pyx_createFrameCodeObject(funcname, srcfile, firstlineno); \
-                  if (unlikely(!$frame_code_cname)) goto_error;                              \
-                  ret = __Pyx__TraceStartFunc($monitoring_states_cname, $frame_code_cname, offset, skip_event); \
-              }                                                                              \
+                  if (unlikely(!$frame_code_cname)) ret = -1;                                \
+                  else ret = __Pyx__TraceStartFunc($monitoring_states_cname, $frame_code_cname, offset, skip_event); \
+              } else $frame_code_cname = NULL;                                               \
               PyGILState_Release(state);                                                     \
-          }                                                                                  \
+          } else $frame_code_cname = NULL;                                                   \
       } else {                                                                               \
           if (!__Pyx_PyThreadState_Current->tracing) {                                       \
               if (likely($frame_code_cname)) Py_INCREF($frame_code_cname);                   \
               else $frame_code_cname = (PyObject*) __Pyx_createFrameCodeObject(funcname, srcfile, firstlineno); \
-              if (unlikely(!$frame_code_cname)) goto_error;                                  \
-              ret = __Pyx__TraceStartFunc($monitoring_states_cname, $frame_code_cname, offset, skip_event); \
-          }                                                                                  \
+              if (unlikely(!$frame_code_cname)) ret = -1;                                    \
+              else ret = __Pyx__TraceStartFunc($monitoring_states_cname, $frame_code_cname, offset, skip_event); \
+          } else $frame_code_cname = NULL;                                                   \
       }                                                                                      \
       if (unlikely(ret == -1)) goto_error;                                                   \
   }
