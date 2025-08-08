@@ -1,3 +1,6 @@
+Cython internals
+================
+
 The parse tree (AST)
 --------------------
 
@@ -61,10 +64,32 @@ the ``child_attrs`` list, the ``.analyse_declarations()`` method,
 and the ``.analyse_expressions()`` or ``.analyse_types()`` method of the parent node,
 so that the new child is correctly traversed and processed by all tree analysis and modification phases.
 
+Utility Code
+------------
+
+C code that is included directly into Cython modules is stored in ``Cython/Utility`` and is
+included using the ``UtilityCode`` classes.  There are a few points of customization:
+
+* ``PYIDENT("some_name")`` is replaced with cached and interned string while ``PYUNICODE``
+  is replaced with a cached string.
+* ``CALL_UNBOUND_METHOD(type, "method_name"[, args])`` produces an optimized (and cached)
+  call to a method of a builtin type.
+* ``#substitute: naming`` allows you to refer to variables in the ``Cython.Compiler.Naming``
+  module using ``$varname``.
+* ``EMPTY(tuple)`` (or ``bytes`` or ``unicode``) is a quick way of getting access to an
+  empty immutable container..
+* ``CGLOBAL(varname)`` looks up ``varname`` in the module state structure. 
+  ``NAMED_CGLOBAL(named_varname)`` looks up the result of ``Cython.Compiler.Naming.named_varname``
+  in the module state structure.
+* "Tempita" is a more advanced templating language vendored into Cython
+  (but `originally written by Ian Bicking outside Cython <https://github.com/TurboGears/tempita>`_)
+  which can be used for more advanced code-generation.
+
 Naming conventions
 ------------------
 
-* Modules use ``CamelCase`` naming for historical reasons (the code base predates PEP-8).
+* Modules use ``CamelCase`` naming for historical reasons (the code base predates PEP-8, and of course
+  PEP-8 is only *required* for the Python standard library and other code can choose to adopt it or not).
 * To avoid naming collisions in C space, global C names are "always" prefixed with ``__pyx_``,
   internal function names and types with ``__Pyx_``, internal upper-case macros with ``__PYX_``.
   Exceptions to this rule are exceptions to this rule.
