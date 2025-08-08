@@ -1,6 +1,7 @@
 import builtins
 import sys
 import unittest
+import multiprocessing
 
 from ..Builtin import (
     inferred_method_return_types, find_return_type_of_builtin_method,
@@ -36,8 +37,27 @@ class TestBuiltinReturnTypes(unittest.TestCase):
                     self.assertEqual(return_type.empty_declaration_code(pyrex=True), return_type_name)
 
 
+def run_builtin_compatibility_test():
+    suite = unittest.TestSuite()
+    suite.addTest(TestBuiltinCompatibility("_test_python_builtin_compatibility"))
+    runner = unittest.TextTestRunner()
+    runner.run(suite)
+
 class TestBuiltinCompatibility(unittest.TestCase):
     def test_python_builtin_compatibility(self):
+        # Things like IPython can inject additional entries into builtins.
+        # Therefore intentionally run this test in a fresh process for a clean
+        # set of builtins.
+
+        ctx = multiprocessing.get_context('spawn')
+        process = ctx.Process(
+            target=run_builtin_compatibility_test
+        )
+        process.start()
+        process.join()
+        self.assertEqual(process.exitcode, 0, "See output from test subprocess")
+
+    def _test_python_builtin_compatibility(self):
         expected_builtins = set(KNOWN_PYTHON_BUILTINS)
         if sys.platform != 'win32':
             expected_builtins.discard("WindowsError")
