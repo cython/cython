@@ -1549,10 +1549,15 @@ static CYTHON_INLINE float __PYX_NAN() {
 #endif
 
 
-/////////////// ModuleCreationPEP489 ///////////////
-//@substitute: naming
+////////////// GetInterpreterId.proto ///////////////////
 
-#if CYTHON_COMPILING_IN_LIMITED_API && __PYX_LIMITED_VERSION_HEX < 0x03090000
+#if CYTHON_COMPILING_IN_GRAAL && defined(GRAALPY_VERSION_NUM) && GRAALPY_VERSION_NUM > 0x19000000
+#define __Pyx_GetCurrentInterpreterId() GraalPyInterpreterState_GetIDFromThreadState(PyThreadState_Get());
+#elif CYTHON_COMPILING_IN_GRAAL
+#define __Pyx_GetCurrentInterpreterId() PyInterpreterState_GetIDFromThreadState(PyThreadState_Get());
+#elif CYTHON_COMPILING_IN_LIMITED_API && __PYX_LIMITED_VERSION_HEX >= 0x03090000
+#define __Pyx_GetCurrentInterpreterId() PyInterpreterState_GetID(PyInterpreterState_Get());
+#elif CYTHON_COMPILING_IN_LIMITED_API
 // Probably won't work before 3.8, but we don't use restricted API to find that out.
 static PY_INT64_T __Pyx_GetCurrentInterpreterId(void) {
     {
@@ -1581,23 +1586,19 @@ static PY_INT64_T __Pyx_GetCurrentInterpreterId(void) {
     PySys_WriteStderr("__Pyx_GetCurrentInterpreterId failed. Try setting the C define CYTHON_PEP489_MULTI_PHASE_INIT=0\n");
     return -1;
 }
+#else
+#define __Pyx_GetCurrentInterpreterId() PyInterpreterState_GetID(PyThreadState_Get()->interp);
 #endif
+
+/////////////// ModuleCreationPEP489 ///////////////
+//@requires: GetInterpreterId
+//@substitute: naming
 
 //#if CYTHON_PEP489_MULTI_PHASE_INIT
 #if !CYTHON_USE_MODULE_STATE
 static CYTHON_SMALL_CODE int __Pyx_check_single_interpreter(void) {
     static PY_INT64_T main_interpreter_id = -1;
-#if CYTHON_COMPILING_IN_GRAAL && defined(GRAALPY_VERSION_NUM) && GRAALPY_VERSION_NUM > 0x19000000
-    PY_INT64_T current_id = GraalPyInterpreterState_GetIDFromThreadState(PyThreadState_Get());
-#elif CYTHON_COMPILING_IN_GRAAL
-    PY_INT64_T current_id = PyInterpreterState_GetIDFromThreadState(PyThreadState_Get());
-#elif CYTHON_COMPILING_IN_LIMITED_API && __PYX_LIMITED_VERSION_HEX >= 0x03090000
-    PY_INT64_T current_id = PyInterpreterState_GetID(PyInterpreterState_Get());
-#elif CYTHON_COMPILING_IN_LIMITED_API
     PY_INT64_T current_id = __Pyx_GetCurrentInterpreterId();
-#else
-    PY_INT64_T current_id = PyInterpreterState_GetID(PyThreadState_Get()->interp);
-#endif
     if (unlikely(current_id == -1)) {
         return -1;
     }
@@ -2625,6 +2626,7 @@ static int __Pyx_ModuleStateLookup_RemoveModule(__Pyx_ModuleStateLookupData *dat
 
 ////////////////////////// MultiPhaseInitModuleState /////////////
 //@requires: Synchronization.c::Atomics
+//@requires: GetInterpreterId
 
 
 // Code to maintain a mapping between (sub)interpreters and the module instance that they imported.
@@ -2778,17 +2780,14 @@ typedef struct __Pyx_ModuleStateLookupData {
   #endif
 } __Pyx_ModuleStateLookupData;
 
-static __Pyx_ModuleStateLookupData __Pyx_ModuleStateLookup_data
-#if __cplusplus // C++11 is a bit picky about initializing atomics
-  {
+static __Pyx_ModuleStateLookupData __Pyx_ModuleStateLookup_data = {
+#if defined(__cplusplus) // C++11 is a bit picky about initializing atomics
     __PYX_MODULE_STATE_MUTEX_INIT
   #if CYTHON_MODULE_STATE_LOOKUP_THREAD_SAFE
     {}, // read_counter
   #endif
     {}, {}, {}
-  };
 #else
-= {
   __PYX_MODULE_STATE_MUTEX_INIT
   #if CYTHON_MODULE_STATE_LOOKUP_THREAD_SAFE
     0, // read_counter
@@ -2796,8 +2795,8 @@ static __Pyx_ModuleStateLookupData __Pyx_ModuleStateLookup_data
     0, // module0
     0, // count
     0 // table
-};
 #endif
+};
 
 
 
@@ -2907,7 +2906,7 @@ static PyObject *__Pyx_ModuleStateLookup_FindModule(__Pyx_ModuleStateLookupData 
 
 static PyObject *__Pyx_State_FindModule(CYTHON_UNUSED void* dummy) {
     __PYX_MODULE_STATE_MUTEX_RUNTIME_INIT_GLOBAL();
-    int64_t interpreter_id = PyInterpreterState_GetID(__Pyx_PyInterpreterState_Get());
+    int64_t interpreter_id = __Pyx_GetCurrentInterpreterId();
     return __Pyx_ModuleStateLookup_FindModule(&__Pyx_ModuleStateLookup_data, interpreter_id);
 }
 
@@ -3076,7 +3075,7 @@ static int __Pyx_ModuleStateLookup_AddModule(__Pyx_ModuleStateLookupData* data, 
 
 static int __Pyx_State_AddModule(PyObject* module, CYTHON_UNUSED void* dummy) {
     __PYX_MODULE_STATE_MUTEX_RUNTIME_INIT_GLOBAL();
-    int64_t interpreter_id = PyInterpreterState_GetID(__Pyx_PyInterpreterState_Get());
+    int64_t interpreter_id = __Pyx_GetCurrentInterpreterId();
     return __Pyx_ModuleStateLookup_AddModule(&__Pyx_ModuleStateLookup_data, interpreter_id, module);
 }
 
@@ -3132,7 +3131,7 @@ static int __Pyx_ModuleStateLookup_RemoveModule(__Pyx_ModuleStateLookupData *dat
 }
 
 static int __Pyx_State_RemoveModule(CYTHON_UNUSED void* dummy) {
-    int64_t interpreter_id = PyInterpreterState_GetID(__Pyx_PyInterpreterState_Get());
+    int64_t interpreter_id = __Pyx_GetCurrentInterpreterId();
     return __Pyx_ModuleStateLookup_RemoveModule(&__Pyx_ModuleStateLookup_data, interpreter_id);
 }
 
