@@ -13,6 +13,10 @@
 
 #define __pyx_atomic_int_type int
 #define __pyx_nonatomic_int_type int
+#define __pyx_atomic_intn_type(n) int ## n ## _t
+#define __pyx_nonatomic_intn_type(n) int ## n ## _t
+#define __pyx_atomic_ptr_type void*
+#define __pyx_nonatomic_ptr_type void*
 
 // For standard C/C++ atomics, get the headers first so we have ATOMIC_INT_LOCK_FREE
 // defined when we decide to use them.
@@ -26,14 +30,27 @@
     #include <atomic>
 #endif
 
+// For everything but MSVC, using a fixed size type is the same as using an int type
+#define __Pyx_atomic_incr_relaxed_n(n, value) __pyx_atomic_incr_relaxed(value)
+#define __pyx_atomic_incr_acq_rel_n(n, value) __pyx_atomic_incr_acq_rel(value)
+#define __pyx_atomic_decr_acq_rel_n(n, value) __pyx_atomic_decr_acq_rel(value)
+#define __pyx_atomic_sub_n(n, value, arg) __pyx_atomic_sub_n(value, arg)
+#define __pyx_atomic_int_cmp_exchange_n(n, value, expected, desired) __pyx_atomic_int_cmp_exchange(value, expected, desired)
+#define __pyx_atomic_load_n(n, value) __pyx_atomic_load(value)
+#define __pyx_atomic_store_n(n, value, new_value) __pyx_atomic_store(value, new_value)
+
 #if CYTHON_ATOMICS && (defined(__STDC_VERSION__) && \
                         (__STDC_VERSION__ >= 201112L) && \
                         !defined(__STDC_NO_ATOMICS__) && \
                        ATOMIC_INT_LOCK_FREE == 2)
     // C11 atomics are available and  ATOMIC_INT_LOCK_FREE is definitely on
     #undef __pyx_atomic_int_type
+    #undef __pyx_atomic_intn_type
     #define __pyx_atomic_int_type atomic_int
+    #define __pyx_atomic_intn_type(n) _Atomic int ## n ## _t
+    #undef  __pyx_atomic_ptr_type
     #define __pyx_atomic_ptr_type atomic_uintptr_t
+    #undef __pyx_nonatomic_ptr_type
     #define __pyx_nonatomic_ptr_type uintptr_t
     #define __pyx_atomic_incr_relaxed(value) atomic_fetch_add_explicit(value, 1, memory_order_relaxed)
     #define __pyx_atomic_incr_acq_rel(value) atomic_fetch_add_explicit(value, 1, memory_order_acq_rel)
@@ -45,6 +62,7 @@
     #define __pyx_atomic_pointer_load_relaxed(value) atomic_load_explicit(value, memory_order_relaxed)
     #define __pyx_atomic_pointer_load_acquire(value) atomic_load_explicit(value, memory_order_acquire)
     #define __pyx_atomic_pointer_exchange(value, new_value) atomic_exchange(value, (__pyx_nonatomic_ptr_type)new_value)
+    #define __pyx_atomic_pointer_cmp_exchange(value, expected, desired) atomic_compare_exchange_strong(value, expected, desired)
     #if defined(__PYX_DEBUG_ATOMICS) && defined(_MSC_VER)
         #pragma message ("Using standard C atomics")
     #elif defined(__PYX_DEBUG_ATOMICS)
@@ -57,8 +75,12 @@
                     ATOMIC_INT_LOCK_FREE == 2)
     // C++11 atomics are available and ATOMIC_INT_LOCK_FREE is definitely on
     #undef __pyx_atomic_int_type
+    #undef __pyx_atomic_intn_type
     #define __pyx_atomic_int_type std::atomic_int
+    #define __pyx_atomic_intn_type(n) std::atomic<int ## n ## _t>
+    #undef  __pyx_atomic_ptr_type
     #define __pyx_atomic_ptr_type std::atomic_uintptr_t
+    #undef __pyx_nonatomic_ptr_type
     #define __pyx_nonatomic_ptr_type uintptr_t
     #define __pyx_atomic_incr_relaxed(value) std::atomic_fetch_add_explicit(value, 1, std::memory_order_relaxed)
     #define __pyx_atomic_incr_acq_rel(value) std::atomic_fetch_add_explicit(value, 1, std::memory_order_acq_rel)
@@ -70,6 +92,7 @@
     #define __pyx_atomic_pointer_load_relaxed(value) std::atomic_load_explicit(value, std::memory_order_relaxed)
     #define __pyx_atomic_pointer_load_acquire(value) std::atomic_load_explicit(value, std::memory_order_acquire)
     #define __pyx_atomic_pointer_exchange(value, new_value) std::atomic_exchange(value, (__pyx_nonatomic_ptr_type)new_value)
+    #define __pyx_atomic_pointer_cmp_exchange(value, expected, desired) std::atomic_compare_exchange_strong(value, expected, desired)
 
     #if defined(__PYX_DEBUG_ATOMICS) && defined(_MSC_VER)
         #pragma message ("Using standard C++ atomics")
@@ -80,7 +103,10 @@
                     (__GNUC_MINOR__ > 1 ||  \
                     (__GNUC_MINOR__ == 1 && __GNUC_PATCHLEVEL__ >= 2))))
     /* gcc >= 4.1.2 */
+    #undef  __pyx_atomic_ptr_type
     #define __pyx_atomic_ptr_type void*
+    #undef __pyx_nonatomic_ptr_type
+    #define __pyx_nonatomic_ptr_type void*
     #define __pyx_atomic_incr_relaxed(value) __sync_fetch_and_add(value, 1)
     #define __pyx_atomic_incr_acq_rel(value) __sync_fetch_and_add(value, 1)
     #define __pyx_atomic_decr_acq_rel(value) __sync_fetch_and_sub(value, 1)
@@ -97,6 +123,12 @@
     #define __pyx_atomic_pointer_load_relaxed(value) __sync_fetch_and_add(value, 0)
     #define __pyx_atomic_pointer_load_acquire(value) __sync_fetch_and_add(value, 0)
     #define __pyx_atomic_pointer_exchange(value, new_value) __sync_lock_test_and_set(value, (__pyx_atomic_ptr_type)new_value)
+    static CYTHON_INLINE int __pyx_atomic_pointer_cmp_exchange(__pyx_atomic_ptr_type* value, __pyx_nonatomic_ptr_type* expected, __pyx_nonatomic_ptr_type desired) {
+        __pyx_nonatomic_ptr_type old = __sync_val_compare_and_swap(value, *expected, desired);
+        int result = old == *expected;
+        *expected = old;
+        return result;
+    }
 
     #ifdef __PYX_DEBUG_ATOMICS
         #warning "Using GNU atomics"
@@ -106,14 +138,22 @@
     #include <intrin.h>
     #undef __pyx_atomic_int_type
     #define __pyx_atomic_int_type long
+    #undef __pyx_atomic_ptr_type
     #define __pyx_atomic_ptr_type void*
+    #undef __pyx_nonatomic_ptr_type
+    #define __pyx_nonatomic_ptr_type void*
     #undef __pyx_nonatomic_int_type
     #define __pyx_nonatomic_int_type long
     #pragma intrinsic (_InterlockedExchangeAdd, _InterlockedExchange, _InterlockedCompareExchange, _InterlockedCompareExchangePointer, _InterlockedExchangePointer)
     #define __pyx_atomic_incr_relaxed(value) _InterlockedExchangeAdd(value, 1)
+    #define __pyx_atomic_incr_relaxed_n(n, value) _InterlockedExchangeAdd ## n (value, 1)
     #define __pyx_atomic_incr_acq_rel(value) _InterlockedExchangeAdd(value, 1)
-    #define __pyx_atomic_decr_acq_rel(value) _InterlockedExchangeAdd(value, -1)
+    #define __pyx_atomic_incr_acq_rel_n(n, value) _InterlockedExchangeAdd ## n (value, 1)
+    #define __pyx_atomic_decr_acq_rel(value) _/InterlockedExchangeAdd(value, -1)
+    #define __pyx_atomic_decr_acq_rel_n(n, value) _InterlockedExchangeAdd ## n(value, -1)
     #define __pyx_atomic_sub(value, arg) _InterlockedExchangeAdd(value, -arg)
+    #define __pyx_atomic_sub_n(n, value, arg) _InterlockedExchangeAdd ## n(value, -arg)
+    // TODO - work out how to do __pyx_atomic_int_cmp_exchange_n
     static CYTHON_INLINE int __pyx_atomic_int_cmp_exchange(__pyx_atomic_int_type* value, __pyx_nonatomic_int_type* expected, __pyx_nonatomic_int_type desired) {
         __pyx_nonatomic_int_type old = _InterlockedCompareExchange(value, desired, *expected);
         int result = old == *expected;
@@ -121,7 +161,9 @@
         return result;
     }
     #define __pyx_atomic_load(value) _InterlockedExchangeAdd(value, 0)
+    #define __pyx_atomic_load_n(n, value) _InterlockedExchangeAdd ## n (value, 0)
     #define __pyx_atomic_store(value, new_value) _InterlockedExchange(value, new_value)
+    #define __pyx_atomic_store_n(n, value, new_value) _InterlockedExchange ## n (value, new_value)
     // Microsoft says that simple reads are guaranteed to be atomic.
     // https://learn.microsoft.com/en-gb/windows/win32/sync/interlocked-variable-access?redirectedfrom=MSDN
     // The volatile cast is what CPython does.
@@ -129,6 +171,12 @@
     // compare/exchange is probably overkill nonsense, but plain "load" intrinsics are hard to get.
     #define __pyx_atomic_pointer_load_acquire(value) _InterlockedCompareExchangePointer(value, 0, 0)
     #define __pyx_atomic_pointer_exchange(value, new_value) _InterlockedExchangePointer(value, (__pyx_atomic_ptr_type)new_value)
+    static CYTHON_INLINE int __pyx_atomic_pointer_cmp_exchange(__pyx_atomic_ptr_type* value, __pyx_nonatomic_ptr_type* expected, __pyx_nonatomic_ptr_type desired) {
+        __pyx_nonatomic_ptr_type old = _InterlockedCompareExchangePointer(value, desired, *expected);
+        int result = old == *expected;
+        *expected = old;
+        return result;
+    }
 
     #ifdef __PYX_DEBUG_ATOMICS
         #pragma message ("Using MSVC atomics")
