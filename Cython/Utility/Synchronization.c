@@ -146,12 +146,16 @@
     #define __pyx_nonatomic_int_type long
     #pragma intrinsic (_InterlockedExchangeAdd, _InterlockedExchange, _InterlockedCompareExchange, _InterlockedCompareExchangePointer, _InterlockedExchangePointer)
     #define __pyx_atomic_incr_relaxed(value) _InterlockedExchangeAdd(value, 1)
+    #undef __pyx_atomic_incr_relaxed_n
     #define __pyx_atomic_incr_relaxed_n(n, value) _InterlockedExchangeAdd ## n (value, 1)
     #define __pyx_atomic_incr_acq_rel(value) _InterlockedExchangeAdd(value, 1)
+    #undef __pyx_atomic_incr_acq_rel_n
     #define __pyx_atomic_incr_acq_rel_n(n, value) _InterlockedExchangeAdd ## n (value, 1)
-    #define __pyx_atomic_decr_acq_rel(value) _/InterlockedExchangeAdd(value, -1)
+    #define __pyx_atomic_decr_acq_rel(value) _InterlockedExchangeAdd(value, -1)
+    #undef __pyx_atomic_decr_acq_rel_n
     #define __pyx_atomic_decr_acq_rel_n(n, value) _InterlockedExchangeAdd ## n(value, -1)
     #define __pyx_atomic_sub(value, arg) _InterlockedExchangeAdd(value, -arg)
+    #undef __pyx_atomic_sub_n
     #define __pyx_atomic_sub_n(n, value, arg) _InterlockedExchangeAdd ## n(value, -arg)
     // TODO - work out how to do __pyx_atomic_int_cmp_exchange_n
     static CYTHON_INLINE int __pyx_atomic_int_cmp_exchange(__pyx_atomic_int_type* value, __pyx_nonatomic_int_type* expected, __pyx_nonatomic_int_type desired) {
@@ -161,8 +165,10 @@
         return result;
     }
     #define __pyx_atomic_load(value) _InterlockedExchangeAdd(value, 0)
+    #undef __pyx_atomic_load_n
     #define __pyx_atomic_load_n(n, value) _InterlockedExchangeAdd ## n (value, 0)
     #define __pyx_atomic_store(value, new_value) _InterlockedExchange(value, new_value)
+    #undef __pyx_atomic_store_n
     #define __pyx_atomic_store_n(n, value, new_value) _InterlockedExchange ## n (value, new_value)
     // Microsoft says that simple reads are guaranteed to be atomic.
     // https://learn.microsoft.com/en-gb/windows/win32/sync/interlocked-variable-access?redirectedfrom=MSDN
