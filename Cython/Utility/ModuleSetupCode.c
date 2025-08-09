@@ -2781,14 +2781,15 @@ typedef struct __Pyx_ModuleStateLookupData {
 } __Pyx_ModuleStateLookupData;
 
 static __Pyx_ModuleStateLookupData __Pyx_ModuleStateLookup_data = {
-#if defined(__cplusplus) // C++11 is a bit picky about initializing atomics
     __PYX_MODULE_STATE_MUTEX_INIT
+// C++ is a bit picky about how we initialize. Before C++11 {} doesn't work.
+// On some compilers after C++11, 0 doesn't work for atomics. 
+#if defined(__cplusplus) && __cplusplus >= 201103L
   #if CYTHON_MODULE_STATE_LOOKUP_THREAD_SAFE
     {}, // read_counter
   #endif
     {}, {}, {}
-#else
-  __PYX_MODULE_STATE_MUTEX_INIT
+#elif !defined(__cplusplus)
   #if CYTHON_MODULE_STATE_LOOKUP_THREAD_SAFE
     0, // read_counter
   #endif
