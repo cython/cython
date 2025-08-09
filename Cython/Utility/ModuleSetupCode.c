@@ -2671,7 +2671,7 @@ static int __Pyx_ModuleStateLookup_RemoveModule(__Pyx_ModuleStateLookupData *dat
 
 #define __PYX_MODULE_STATE_MUTEX_DECL
 #define __PYX_MODULE_STATE_MUTEX_INIT
-#define __PYX_MODULE_STATE_RUNTIME_INIT(data)
+#define __PYX_MODULE_STATE_MUTEX_RUNTIME_INIT(data)
 #define __PYX_MODULE_STATE_MUTEX_RUNTIME_INIT_GLOBAL()
 #define __Pyx_ModuleStateLookup_Lock(data)
 #define __Pyx_ModuleStateLookup_Unlock(data)
@@ -2698,19 +2698,19 @@ static int __Pyx_ModuleStateLookup_RemoveModule(__Pyx_ModuleStateLookupData *dat
 #elif defined(__STDC_VERSION__) && (__STDC_VERSION__ > 201112L) && !defined(__STDC_NO_THREADS__)
 #include <threads.h>
 #define __PYX_MODULE_STATE_MUTEX_DECL mtx_t mutex;
-statc once_flag __Pyx_ModuleStateLookup_mutex_once_flag = ONCE_FLAG_INIT;
+static once_flag __Pyx_ModuleStateLookup_mutex_once_flag = ONCE_FLAG_INIT;
 #define __PYX_MODULE_STATE_MUTEX_INIT {0},
 #define __PYX_MODULE_STATE_MUTEX_RUNTIME_INIT(data) \
   mtx_init(&data->mutex, mtx_plain)
 #define __PYX_MODULE_STATE_MUTEX_RUNTIME_INIT_GLOBAL() \
-  call_once(&__Pyx_ModuleStateLookup_data.mutex_once_flag, __Pyx_ModuleStateLookup_initialize_mutex)
+  call_once(&__Pyx_ModuleStateLookup_mutex_once_flag, __Pyx_ModuleStateLookup_initialize_mutex_global)
 static void __Pyx_ModuleStateLookup_initialize_mutex_global(void);
 #define __PYX_MODULE_STATE_DECLARE_INITIALIZE_MUTEX_GLOBAL \
     static void __Pyx_ModuleStateLookup_initialize_mutex_global(void) { \
-        __PYX_MODULE_STATE_MUTEX_RUNTIME_INIT(&__Pyx_ModuleStateLookup_data); \
+        __PYX_MODULE_STATE_MUTEX_RUNTIME_INIT((&__Pyx_ModuleStateLookup_data)); \
     }
-#define __Pyx_ModuleStateLookup_Lock(data)  mtx_lock(&__Pyx_ModuleStateLookup_mutex)
-#define __Pyx_ModuleStateLookup_Unlock(data) mtx_unlock(&__Pyx_ModuleStateLookup_mutex)
+#define __Pyx_ModuleStateLookup_Lock(data)  mtx_lock(&data->mutex)
+#define __Pyx_ModuleStateLookup_Unlock(data) mtx_unlock(&data->mutex)
 
 // HAVE_PTHREAD_H comes from pyconfig.h
 #elif defined(HAVE_PTHREAD_H)
