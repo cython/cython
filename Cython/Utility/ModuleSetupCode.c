@@ -2778,15 +2778,27 @@ typedef struct __Pyx_ModuleStateLookupData {
   #endif
 } __Pyx_ModuleStateLookupData;
 
-static __Pyx_ModuleStateLookupData __Pyx_ModuleStateLookup_data = {
+static __Pyx_ModuleStateLookupData __Pyx_ModuleStateLookup_data
+#if __cplusplus // C++11 is a bit picky about initializing atomics
+  {
+    __PYX_MODULE_STATE_MUTEX_INIT
+  #if CYTHON_MODULE_STATE_LOOKUP_THREAD_SAFE
+    {}, // read_counter
+  #endif
+    {}, {}, {}
+  };
+#else
+= {
   __PYX_MODULE_STATE_MUTEX_INIT
   #if CYTHON_MODULE_STATE_LOOKUP_THREAD_SAFE
     0, // read_counter
   #endif
-    0,  // module0
+    0, // module0
     0, // count
     0 // table
 };
+#endif
+
 
 
 static int64_t __Pyx_ModuleStateLookup_HashId(int64_t id)
