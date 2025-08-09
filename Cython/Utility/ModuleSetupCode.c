@@ -2804,7 +2804,7 @@ static __Pyx_ModuleStateLookupData __Pyx_ModuleStateLookup_data = {
 static int64_t __Pyx_ModuleStateLookup_HashId(int64_t id)
 {
   #if !CYTHON_COMPILING_IN_LIMITED_API && PY_VERSION_HEX >= 0x030E0000
-    Py_hash_t v = Py_HashBuffer((void*)id, sizeof(id));
+    int64_t v = Py_HashBuffer((void*)&id, sizeof(id));
     return v >= 0 ? v : -(v+1);  // make sure we return something +ve
   #else
     // CityHash
