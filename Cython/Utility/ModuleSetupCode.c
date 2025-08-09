@@ -2803,6 +2803,9 @@ static __Pyx_ModuleStateLookupData __Pyx_ModuleStateLookup_data = {
 
 static int64_t __Pyx_ModuleStateLookup_HashId(int64_t id)
 {
+  #if !CYTHON_COMPILING_IN_LIMITED_API && PY_VERSION_HEX >= 0x030E0000
+    return Py_HashBuffer((void*)id, sizeof(id));
+  #else
     // CityHash
     char* buf = (char*)&id;
     uint64_t a = 0, b = 0;
@@ -2819,6 +2822,7 @@ static int64_t __Pyx_ModuleStateLookup_HashId(int64_t id)
     b ^= (b >> 47);
     b *= kMul;
     return (b >> 1); // lose a bit and convert to signed int
+  #endif
 }
 
 static __Pyx_ModuleStateLookupTable* __Pyx_ModuleStateLookup_load_table_for_read(__Pyx_ModuleStateLookupData *data) {
