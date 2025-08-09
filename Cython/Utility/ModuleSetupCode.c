@@ -2744,7 +2744,7 @@ static void __Pyx_ModuleStateLookup_initialize_mutex_global(void);
 
 
 typedef struct {
-    // module == NULL -> free to use/re-use
+    // module == NULL -> free to use/reuse
     // id == 0 -> uninitialized and thus searches for an id should not go further
     // id == -1 -> set to this before setting the module to NULL, so searches
     //             for other ids can continue beyond it, but it doesn't get mistaken for a valid id.
