@@ -73,6 +73,48 @@ def _int(fmt):
     """
     cdef object[int] buf = MockBuffer(fmt, sizeof(int))
 
+def _ssize_t(fmt):
+    """
+    >>> _ssize_t("n")
+
+    >>> _ssize_t("b")
+    Traceback (most recent call last):
+       ...
+    ValueError: Buffer dtype mismatch, expected 'Py_ssize_t' but got 'signed char'
+
+    >>> _ssize_t("nf")
+    Traceback (most recent call last):
+       ...
+    ValueError: Buffer dtype mismatch, expected end but got 'float'
+
+    >>> _ssize_t("$$")
+    Traceback (most recent call last):
+       ...
+    ValueError: Does not understand character buffer dtype format string ('$')
+    """
+    cdef object[Py_ssize_t] buf = MockBuffer(fmt, sizeof(Py_ssize_t))
+
+def _size_t(fmt):
+    """
+    >>> _size_t("N")
+
+    >>> _size_t("b")
+    Traceback (most recent call last):
+       ...
+    ValueError: Buffer dtype mismatch, expected 'size_t' but got 'signed char'
+
+    >>> _size_t("Nf")
+    Traceback (most recent call last):
+       ...
+    ValueError: Buffer dtype mismatch, expected end but got 'float'
+
+    >>> _size_t("$$")
+    Traceback (most recent call last):
+       ...
+    ValueError: Does not understand character buffer dtype format string ('$')
+    """
+    cdef object[size_t] buf = MockBuffer(fmt, sizeof(size_t))
+
 def _ulong(fmt):
     """
     >>> _ulong("L")

@@ -888,6 +888,36 @@ def printbuf_td_cy_int(object[td_cy_int] buf, shape):
     print 'END'
 
 @testcase
+def printbuf_ssize_t(object[Py_ssize_t] buf, shape):
+    """
+    >>> printbuf_ssize_t(SsizetMockBuffer(None, range(3)), (3,))
+    0 1 2 END
+    >>> printbuf_ssize_t(ShortMockBuffer(None, range(3)), (3,))
+    Traceback (most recent call last):
+       ...
+    ValueError: Buffer dtype mismatch, expected 'Py_ssize_t' but got 'short'
+    """
+    cdef int i
+    for i in range(shape[0]):
+        print buf[i],
+    print 'END'
+
+@testcase
+def printbuf_size_t(object[size_t] buf, shape):
+    """
+    >>> printbuf_size_t(SizetMockBuffer(None, range(3)), (3,))
+    0 1 2 END
+    >>> printbuf_size_t(ShortMockBuffer(None, range(3)), (3,))
+    Traceback (most recent call last):
+       ...
+    ValueError: Buffer dtype mismatch, expected 'size_t' but got 'short'
+    """
+    cdef int i
+    for i in range(shape[0]):
+        print buf[i],
+    print 'END'
+
+@testcase
 def printbuf_td_h_short(object[td_h_short] buf, shape):
     """
     >>> printbuf_td_h_short(ShortMockBuffer(None, range(3)), (3,))
