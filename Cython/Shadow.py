@@ -1,7 +1,7 @@
 # cython.* namespace for pure mode.
 
 # Possible version formats: "3.1.0", "3.1.0a1", "3.1.0a1.dev0"
-__version__ = "3.1.2"
+__version__ = "3.1.3"
 
 
 # BEGIN shameless copy from Cython/minivect/minitypes.py
