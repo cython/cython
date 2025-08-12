@@ -4,6 +4,7 @@ requires = ["setuptools"]
 [tool.cibuildwheel]
 build-verbosity = 2
 skip = ["pp*", "cp36*", "cp37*"]
+enable = ["cpython-prerelease"]
 # test-command = "make test"
 
 [tool.cibuildwheel.linux]
