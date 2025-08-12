@@ -2759,9 +2759,9 @@ def runtests(options, cmd_args, coverage=None):
             compiler_default_options['gdb_debug'] = True
             compiler_default_options['output_dir'] = os.getcwd()
 
-    if IS_PYPY:
+    if IS_PYPY or IS_GRAAL:
         if options.with_refnanny:
-            sys.stderr.write("Disabling refnanny in PyPy\n")
+            sys.stderr.write("Disabling refnanny in PyPy/GraalPy\n")
             options.with_refnanny = False
 
     refnanny = None
