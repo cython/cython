@@ -1814,29 +1814,37 @@ class TestCodeFormat(unittest.TestCase):
         for codedir in ['Cython', 'Demos', 'pyximport']:  # source_dirs:
             paths += glob.glob(os.path.join(self.cython_dir, codedir + "/**/*.p[yx][xdi]"), recursive=True)
         style = pycodestyle.StyleGuide(config_file=config_file, select=[
+            'E711',
+            'E713',
+            'E714',
+            #'E501',
+            'W291',
+            'W292',
+            'E502',
+            'E703',
             # whitespace
             'W1',
             'W2',
             'W3',
             #'E211',
-            #'E223',
-            #'E224',
+            'E223',
+            'E224',
             #'E227',
-            #'E228',
-            #'E242',
+            'E228',
+            'E242',
             #'E261',
-            #'E273',
-            #'E274',
+            'E273',
+            'E274',
             #'E275',
             # indentation
             'E101',
             'E111',
-            #'E112',
+            'E112',
             #'E113',
-            #'E117',
-            #'E121',
-            #'E125',
-            #'E129',
+            'E117',
+            'E121',
+            'E125',
+            'E129',
         ])
         print("")  # Fix the first line of the report.
         result = style.check_files(paths)
@@ -1847,10 +1855,17 @@ class TestCodeFormat(unittest.TestCase):
         for codedir in ['tests']:  # source_dirs:
             paths += glob.glob(os.path.join(self.cython_dir, codedir + "/**/*.p[yx][xdi]"), recursive=True)
         style = pycodestyle.StyleGuide(config_file=config_file, select=[
+            #'E711',
+            #'E713',
+            #'E714',
+            #'E501',
+            #'E502',
+            #'E703',
             # whitespace
             #'W1',
             #'W2',
             #'W3',
+            #'W291',
             'W292',
             #'E211',
             'E223',
