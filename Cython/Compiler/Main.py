@@ -635,17 +635,17 @@ class CompilationResultSet(dict):
 
 
 def get_fingerprint(cache, source, options):
-        from ..Build.Dependencies import create_dependency_tree
-        from ..Build.Cache import FingerprintFlags
-        context = Context.from_options(options)
-        dependencies = create_dependency_tree(context)
-        return cache.transitive_fingerprint(
-                source, dependencies.all_dependencies(source), options,
-                FingerprintFlags(
-                    'c++' if options.cplus else 'c',
-                    np_pythran=options.np_pythran
-                )
-        )
+    from ..Build.Dependencies import create_dependency_tree
+    from ..Build.Cache import FingerprintFlags
+    context = Context.from_options(options)
+    dependencies = create_dependency_tree(context)
+    return cache.transitive_fingerprint(
+            source, dependencies.all_dependencies(source), options,
+            FingerprintFlags(
+                'c++' if options.cplus else 'c',
+                np_pythran=options.np_pythran
+            )
+    )
 
 
 def compile_single(source, options, full_module_name, cache=None, context=None, fingerprint=None):
