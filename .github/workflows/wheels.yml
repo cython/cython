@@ -71,12 +71,12 @@ jobs:
         run: |
           MATRIX=$(
             {
-              cibuildwheel --print-build-identifiers --prerelease-pythons --platform linux \
+              cibuildwheel --print-build-identifiers --platform linux \
               | jq -nRc '{"only": inputs, "os": "ubuntu-latest"}' \
               | sed -e '/aarch64/s|ubuntu-latest|ubuntu-24.04-arm|' \
-              && cibuildwheel --print-build-identifiers --prerelease-pythons --platform macos \
+              && cibuildwheel --print-build-identifiers --platform macos \
               | jq -nRc '{"only": inputs, "os": "macos-latest"}' \
-              && cibuildwheel --print-build-identifiers --prerelease-pythons --platform windows \
+              && cibuildwheel --print-build-identifiers --platform windows \
               | jq -nRc '{"only": inputs, "os": "windows-2022"}'
             } | jq -sc
           )
