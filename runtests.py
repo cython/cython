@@ -1815,10 +1815,65 @@ class TestCodeFormat(unittest.TestCase):
             paths += glob.glob(os.path.join(self.cython_dir, codedir + "/**/*.p[yx][xdi]"), recursive=True)
         style = pycodestyle.StyleGuide(config_file=config_file, select=[
             # whitespace
-            "W1", "W2", "W3",
+            'W1',
+            'W2',
+            'W3',
+            #'E211',
+            #'E223',
+            #'E224',
+            #'E227',
+            #'E228',
+            #'E242',
+            #'E261',
+            #'E273',
+            #'E274',
+            #'E275',
             # indentation
-            "E101", "E111",
+            'E101',
+            'E111',
+            #'E112',
+            #'E113',
+            #'E117',
+            #'E121',
+            #'E125',
+            #'E129',
         ])
+        print("")  # Fix the first line of the report.
+        result = style.check_files(paths)
+        total_errors += result.total_errors
+
+        # checks for non-Python test source files
+        paths = []
+        for codedir in ['tests']:  # source_dirs:
+            paths += glob.glob(os.path.join(self.cython_dir, codedir + "/**/*.p[yx][xdi]"), recursive=True)
+        style = pycodestyle.StyleGuide(config_file=config_file, select=[
+            # whitespace
+            #'W1',
+            #'W2',
+            #'W3',
+            'W292',
+            #'E211',
+            'E223',
+            'E224',
+            #'E227',
+            #'E228',
+            'E242',
+            #'E261',
+            'E273',
+            'E274',
+            #'E275',
+            # indentation
+            'E101',
+            #'E111',
+            'E112',
+            'E113',
+            #'E117',
+            #'E121',
+            #'E125',
+            #'E129',
+            ],
+            exclude=["*badindent*"],
+        )
         print("")  # Fix the first line of the report.
         result = style.check_files(paths)
         total_errors += result.total_errors
