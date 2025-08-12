@@ -2,7 +2,7 @@
 Cython Changelog
 ================
 
-3.1.3 (2025-??-??)
+3.1.3 (2025-08-12)
 ==================
 
 Bugs fixed
@@ -20,6 +20,9 @@ Bugs fixed
 
 * An internal C function was not marked as ``static`` and leaked a linker symbol.
   (Github issue :issue:`6957`)
+
+* Some Unicode letters were not recognised as lexically valid name parts.
+  (Github issue :issue:`7059`)
 
 * Compatibility with PyPy3.8 was lost by accident.
 
