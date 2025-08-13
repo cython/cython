@@ -1887,7 +1887,10 @@ class TestCodeFormat(unittest.TestCase):
             #'E125',
             #'E129',
             ],
-            exclude=["*badindent*"],
+            exclude=[
+                "*badindent*",
+                "*tabspace*",
+            ],
         )
         print("")  # Fix the first line of the report.
         result = style.check_files(paths)
