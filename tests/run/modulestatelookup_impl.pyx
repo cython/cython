@@ -19,6 +19,7 @@ cdef extern from *:
     int __Pyx_ModuleStateLookup_AddModule(__Pyx_ModuleStateLookupData*, int64_t, PyObject*) except -1
     int __Pyx_ModuleStateLookup_RemoveModule(__Pyx_ModuleStateLookupData*, int64_t) except -1
 
+
 def test_module0():
     """
     >>> test_module0()
@@ -36,6 +37,7 @@ def test_module0():
     finally:
         __Pyx_ModuleStateLookup_free_for_tests(data)
 
+
 def test_add_modules():
     """
     >>> test_add_modules()
@@ -51,6 +53,7 @@ def test_add_modules():
             assert __Pyx_ModuleStateLookup_FindModule(data, n) == <PyObject*>module
     finally:
         __Pyx_ModuleStateLookup_free_for_tests(data)
+
 
 def test_remove_modules():
     """
@@ -74,6 +77,7 @@ def test_remove_modules():
             assert __Pyx_ModuleStateLookup_FindModule(data, n) == NULL
     finally:
         __Pyx_ModuleStateLookup_free_for_tests(data)
+
 
 def test_random_add_removal():
     """
