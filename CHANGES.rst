@@ -2,13 +2,16 @@
 Cython Changelog
 ================
 
-3.1.3 (2025-08-12)
+3.1.3 (2025-08-13)
 ==================
 
 Bugs fixed
 ----------
 
 * Some method calls with 0 or 1 argument failed to use ``PyObject_VectorCallMethod()``.
+
+* Walrus assignments of literal Python integers could generate invalid C code.
+  (Github issue :issue:`6989`)
 
 * ``cython.pythread_type_lock`` (also used as fallback for ``cython.pymutex``)
   could stall on heavily contended locks.
@@ -17,6 +20,9 @@ Bugs fixed
 * C string arrays (not pointers) always coerced to the Python default string type,
   even on explicit casts to other string types.
   (Github issue :issue:`7020`)
+
+* Unterminated ``\N{}`` character escapes in strings could unrail the parser.
+  (Github issue :issue:`7056`)
 
 * An internal C function was not marked as ``static`` and leaked a linker symbol.
   (Github issue :issue:`6957`)
