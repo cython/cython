@@ -2915,8 +2915,7 @@ static PyObject *__Pyx_State_FindModule(CYTHON_UNUSED void* dummy) {
 static void __Pyx_ModuleStateLookup_wait_until_no_readers(__Pyx_ModuleStateLookupData *data) {
     // Wait for any readers still working on the old data. Spin-lock is
     // fine because readers should be much faster than memory allocation.
-    // This is called while also being a reader, so allow one reader.
-    while (__pyx_atomic_load(&data->read_counter) > 1);
+    while (__pyx_atomic_load(&data->read_counter) > 0);
 }
 #else
 #define __Pyx_ModuleStateLookup_wait_until_no_readers(data)
@@ -3052,8 +3051,10 @@ static int __Pyx_ModuleStateLookup_AddModule(__Pyx_ModuleStateLookupData* data, 
   #endif
     __Pyx_ModuleStateLookupTable* table = __Pyx_ModuleStateLookup_load_table_for_read(data);
     if (!table || table->size != __Pyx_ModuleStateLookup_calculate_target_size(data, table)) {
+        __pyx_atomic_decr_acq_rel(&data->read_counter);
         __Pyx_ModuleStateLookup_Lock(data);
         table = __Pyx_ModuleStateLookup_reallocate_and_rehash(data);
+        __pyx_atomic_incr_relaxed(&data->read_counter);
         __Pyx_ModuleStateLookup_Unlock(data);
     }
 
@@ -3118,9 +3119,9 @@ static int __Pyx_ModuleStateLookup_RemoveModule(__Pyx_ModuleStateLookupData *dat
     --data->count;
   bad:
 #else
-    __pyx_atomic_decr_acq_rel(&data->read_counter);
-  bad:
     __pyx_atomic_decr_acq_rel_n(64, &data->count);
+  bad:
+    __pyx_atomic_decr_acq_rel(&data->read_counter);
 #endif
     return result;
 }
