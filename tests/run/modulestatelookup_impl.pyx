@@ -79,13 +79,19 @@ def test_remove_modules():
         __Pyx_ModuleStateLookup_free_for_tests(data)
 
 
-def test_random_add_removal():
+def test_random_add_removal(state=None):
     """
+    The state argument is to help debugging test failures.
+    On failure this function will print the initial state.
+    To debug it, modify the call to pass that state in.
+
     >>> test_random_add_removal()
     """
     import random
 
     generator = random.Random()
+    if state is not None:
+        generator.setstate(state)
     initial_state = generator.getstate()
 
     data = __Pyx_ModuleStateLookup_allocate_for_tests();
