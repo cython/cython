@@ -3051,11 +3051,15 @@ static int __Pyx_ModuleStateLookup_AddModule(__Pyx_ModuleStateLookupData* data, 
   #endif
     __Pyx_ModuleStateLookupTable* table = __Pyx_ModuleStateLookup_load_table_for_read(data);
     if (!table || table->size != __Pyx_ModuleStateLookup_calculate_target_size(data, table)) {
+#if CYTHON_MODULE_STATE_LOOKUP_THREAD_SAFE
         __pyx_atomic_decr_acq_rel(&data->read_counter);
         __Pyx_ModuleStateLookup_Lock(data);
+#endif
         table = __Pyx_ModuleStateLookup_reallocate_and_rehash(data);
+#if CYTHON_MODULE_STATE_LOOKUP_THREAD_SAFE
         __pyx_atomic_incr_relaxed(&data->read_counter);
         __Pyx_ModuleStateLookup_Unlock(data);
+#endif
     }
 
     if (likely(table)) {
