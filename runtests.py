@@ -1803,7 +1803,7 @@ class TestCodeFormat(unittest.TestCase):
         # checks for .py files
         paths = []
         for codedir in source_dirs:
-            paths += glob.glob(os.path.join(self.cython_dir, codedir + "/**/*.py"), recursive=True)
+            paths += glob.iglob(os.path.join(self.cython_dir, codedir + "/**/*.py"), recursive=True)
         style = pycodestyle.StyleGuide(config_file=config_file)
         print("")  # Fix the first line of the report.
         result = style.check_files(paths)
@@ -1812,7 +1812,7 @@ class TestCodeFormat(unittest.TestCase):
         # checks for non-Python source files
         paths = []
         for codedir in ['Cython', 'Demos', 'pyximport']:  # source_dirs:
-            paths += glob.glob(os.path.join(self.cython_dir, codedir + "/**/*.p[yx][xdi]"), recursive=True)
+            paths += glob.iglob(os.path.join(self.cython_dir, codedir + "/**/*.p[yx][xdi]"), recursive=True)
         style = pycodestyle.StyleGuide(config_file=config_file, select=[
             'E711',
             'E713',
@@ -1853,7 +1853,7 @@ class TestCodeFormat(unittest.TestCase):
         # checks for non-Python test source files
         paths = []
         for codedir in ['tests']:  # source_dirs:
-            paths += glob.glob(os.path.join(self.cython_dir, codedir + "/**/*.p[yx][xdi]"), recursive=True)
+            paths += glob.iglob(os.path.join(self.cython_dir, codedir + "/**/*.p[yx][xdi]"), recursive=True)
         style = pycodestyle.StyleGuide(config_file=config_file, select=[
             #'E711',
             #'E713',
