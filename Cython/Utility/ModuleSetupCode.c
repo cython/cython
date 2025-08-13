@@ -2803,10 +2803,6 @@ static __Pyx_ModuleStateLookupData __Pyx_ModuleStateLookup_data = {
 
 static int64_t __Pyx_ModuleStateLookup_HashId(int64_t id)
 {
-  #if !CYTHON_COMPILING_IN_LIMITED_API && PY_VERSION_HEX >= 0x030E0000
-    int64_t v = Py_HashBuffer((void*)&id, sizeof(id));
-    return v >= 0 ? v : -(v+1);  // make sure we return something +ve
-  #else
     // CityHash
     char* buf = (char*)&id;
     uint64_t a = 0, b = 0;
@@ -2823,7 +2819,6 @@ static int64_t __Pyx_ModuleStateLookup_HashId(int64_t id)
     b ^= (b >> 47);
     b *= kMul;
     return (b >> 1); // lose a bit and convert to signed int
-  #endif
 }
 
 static __Pyx_ModuleStateLookupTable* __Pyx_ModuleStateLookup_load_table_for_read(__Pyx_ModuleStateLookupData *data) {
@@ -2969,19 +2964,13 @@ static Py_ssize_t __Pyx_ModuleStateLookup_calculate_target_size(__Pyx_ModuleStat
     Py_ssize_t allocated = table ? table->size : 0;
     Py_ssize_t target = allocated;
     // arbitrary minimum size
-    if (target < 10) target = 10;
+    if (target < 8) target = 8;
 
     // keep it less than half filled
     while (target <= count*2) {
         target *= 2;
     }
-    // but shrink if less than 10% filled
-    while (target < count/10) {
-        target /= 2;
-        if (target < 10) {
-            return 10;
-        }
-    }
+    // For now, never shrink.
     return target;
 }
 
