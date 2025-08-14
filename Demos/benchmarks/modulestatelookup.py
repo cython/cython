@@ -66,7 +66,7 @@ def run_benchmark(n_interpreters, n_simultaneous, n_loops, print_result=True):
 
     if print_result:
         print(f"{n_interpreters=} {n_simultaneous=}: {total_time/n_results} s")
-    return total_time/n_results 
+    return total_time/n_results
 
 def run_many_benchmarks(n_interpreters_list, n_simultaneous, n_loops):
     from concurrent.futures import ProcessPoolExecutor
@@ -79,7 +79,7 @@ def run_many_benchmarks(n_interpreters_list, n_simultaneous, n_loops):
             list(range(200, 500, 250)) +
             [500]
         )
-    n_interpreters_list = [ 
+    n_interpreters_list = [
         ni for ni in n_interpreters_list
         if ni >= n_simultaneous
     ]

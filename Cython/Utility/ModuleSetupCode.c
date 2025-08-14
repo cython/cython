@@ -2690,6 +2690,7 @@ static int __Pyx_ModuleStateLookup_RemoveModule(__Pyx_ModuleStateLookupData *dat
 #elif defined(__cplusplus) && __cplusplus >= 201103L
 
 #include <mutex>
+#include <new>
 #define __PYX_MODULE_STATE_MUTEX_DECL std::mutex mutex;
 #define __PYX_MODULE_STATE_MUTEX_INIT {},
 #define __PYX_MODULE_STATE_MUTEX_RUNTIME_INIT(data)
@@ -2768,6 +2769,17 @@ typedef struct __Pyx_ModuleStateLookupData {
   __PYX_MODULE_STATE_MUTEX_DECL
   #if CYTHON_MODULE_STATE_LOOKUP_THREAD_SAFE
     __pyx_atomic_int_type read_counter;
+    // Leave at enough space to keep the read_counter read_counter the
+    // rest of the structure in different cache lines to prevent false sharing.
+    // On modern C++ the required size is available. Otherwise use an arbitrary value
+    // of "twice what most x64 chips are in 2025".
+    char blank_space[
+#if defined(__cplusplus) && defined(__cpp_lib_hardware_interference_size)
+      std::hardware_destructive_interference_size
+#else
+      128
+#endif
+    ];
   #endif
     // special case for interpreter 0
     PyObject *module0;
@@ -2787,11 +2799,13 @@ static __Pyx_ModuleStateLookupData __Pyx_ModuleStateLookup_data = {
 #if defined(__cplusplus) && __cplusplus >= 201103L
   #if CYTHON_MODULE_STATE_LOOKUP_THREAD_SAFE
     {}, // read_counter
+    {}, // blank_space
   #endif
     {}, {}, {}
 #elif !defined(__cplusplus)
   #if CYTHON_MODULE_STATE_LOOKUP_THREAD_SAFE
     0, // read_counter
+    {0}, // blank_space
   #endif
     0, // module0
     0, // count
