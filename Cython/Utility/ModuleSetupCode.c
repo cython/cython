@@ -1549,10 +1549,15 @@ static CYTHON_INLINE float __PYX_NAN() {
 #endif
 
 
-/////////////// ModuleCreationPEP489 ///////////////
-//@substitute: naming
+////////////// GetInterpreterId.proto ///////////////////
 
-#if CYTHON_COMPILING_IN_LIMITED_API && __PYX_LIMITED_VERSION_HEX < 0x03090000
+#if CYTHON_COMPILING_IN_GRAAL && defined(GRAALPY_VERSION_NUM) && GRAALPY_VERSION_NUM > 0x19000000
+#define __Pyx_GetCurrentInterpreterId() GraalPyInterpreterState_GetIDFromThreadState(PyThreadState_Get());
+#elif CYTHON_COMPILING_IN_GRAAL
+#define __Pyx_GetCurrentInterpreterId() PyInterpreterState_GetIDFromThreadState(PyThreadState_Get());
+#elif CYTHON_COMPILING_IN_LIMITED_API && __PYX_LIMITED_VERSION_HEX >= 0x03090000
+#define __Pyx_GetCurrentInterpreterId() PyInterpreterState_GetID(PyInterpreterState_Get());
+#elif CYTHON_COMPILING_IN_LIMITED_API
 // Probably won't work before 3.8, but we don't use restricted API to find that out.
 static PY_INT64_T __Pyx_GetCurrentInterpreterId(void) {
     {
@@ -1581,23 +1586,20 @@ static PY_INT64_T __Pyx_GetCurrentInterpreterId(void) {
     PySys_WriteStderr("__Pyx_GetCurrentInterpreterId failed. Try setting the C define CYTHON_PEP489_MULTI_PHASE_INIT=0\n");
     return -1;
 }
+#else
+#define __Pyx_GetCurrentInterpreterId() PyInterpreterState_GetID(PyThreadState_Get()->interp);
 #endif
+
+
+/////////////// ModuleCreationPEP489 ///////////////
+//@requires: GetInterpreterId
+//@substitute: naming
 
 //#if CYTHON_PEP489_MULTI_PHASE_INIT
 #if !CYTHON_USE_MODULE_STATE
 static CYTHON_SMALL_CODE int __Pyx_check_single_interpreter(void) {
     static PY_INT64_T main_interpreter_id = -1;
-#if CYTHON_COMPILING_IN_GRAAL && defined(GRAALPY_VERSION_NUM) && GRAALPY_VERSION_NUM > 0x19000000
-    PY_INT64_T current_id = GraalPyInterpreterState_GetIDFromThreadState(PyThreadState_Get());
-#elif CYTHON_COMPILING_IN_GRAAL
-    PY_INT64_T current_id = PyInterpreterState_GetIDFromThreadState(PyThreadState_Get());
-#elif CYTHON_COMPILING_IN_LIMITED_API && __PYX_LIMITED_VERSION_HEX >= 0x03090000
-    PY_INT64_T current_id = PyInterpreterState_GetID(PyInterpreterState_Get());
-#elif CYTHON_COMPILING_IN_LIMITED_API
     PY_INT64_T current_id = __Pyx_GetCurrentInterpreterId();
-#else
-    PY_INT64_T current_id = PyInterpreterState_GetID(PyThreadState_Get()->interp);
-#endif
     if (unlikely(current_id == -1)) {
         return -1;
     }
@@ -1669,6 +1671,7 @@ bad:
 
 /////////////// CodeObjectCache.proto ///////////////
 //@requires: Synchronization.c::Atomics
+//@requires: GetInterpreterId
 
 #if CYTHON_COMPILING_IN_LIMITED_API
 typedef PyObject __Pyx_CachedCodeObjectType;
@@ -2594,6 +2597,7 @@ done:
 
 
 ////////////////////////// MultiPhaseInitModuleState.proto /////////////
+//@proto_block: utility_code_proto_before_types
 
 #if CYTHON_PEP489_MULTI_PHASE_INIT && CYTHON_USE_MODULE_STATE
 // This defines an ad-hoc, single module version of PyState_FindModule that
@@ -2609,6 +2613,18 @@ static int __Pyx_State_RemoveModule(void*); /* proto */
 #define __Pyx_State_RemoveModule PyState_RemoveModule
 #endif
 
+// If we're using this code in tests, then it's useful to have prototypes defined early
+#if defined(CYTHON_TEST_MODULE_STATE_LOOKUP) && CYTHON_TEST_MODULE_STATE_LOOKUP
+
+struct __Pyx_ModuleStateLookupData;
+typedef struct __Pyx_ModuleStateLookupData __Pyx_ModuleStateLookupData;
+static __Pyx_ModuleStateLookupData *__Pyx_ModuleStateLookup_allocate_for_tests(void);
+static void __Pyx_ModuleStateLookup_free_for_tests(__Pyx_ModuleStateLookupData *data);
+static PyObject *__Pyx_ModuleStateLookup_FindModule(__Pyx_ModuleStateLookupData *data, int64_t interpreter_id);
+static int __Pyx_ModuleStateLookup_AddModule(__Pyx_ModuleStateLookupData *data, int64_t interpreter_id, PyObject *module);
+static int __Pyx_ModuleStateLookup_RemoveModule(__Pyx_ModuleStateLookupData *data, int64_t interpreter_id);
+#endif
+
 ////////////////////////// MultiPhaseInitModuleState /////////////
 //@requires: Synchronization.c::Atomics
 
@@ -2616,7 +2632,8 @@ static int __Pyx_State_RemoveModule(void*); /* proto */
 // Code to maintain a mapping between (sub)interpreters and the module instance that they imported.
 // This is used to find the correct module state for the current interpreter.
 
-#if CYTHON_PEP489_MULTI_PHASE_INIT && CYTHON_USE_MODULE_STATE
+#if (CYTHON_PEP489_MULTI_PHASE_INIT && CYTHON_USE_MODULE_STATE) || \
+    (defined(CYTHON_TEST_MODULE_STATE_LOOKUP) && CYTHON_TEST_MODULE_STATE_LOOKUP)
 
 #ifndef CYTHON_MODULE_STATE_LOOKUP_THREAD_SAFE
 // If you're using multiple interpreters but a single GIL then
@@ -2645,41 +2662,57 @@ static int __Pyx_State_RemoveModule(void*); /* proto */
 // - PyThread_lock isn't acceptable since we can't initialize it in a thread safe way
 #if !CYTHON_MODULE_STATE_LOOKUP_THREAD_SAFE
 
-#define __Pyx_ModuleStateLookup_Lock()
-#define __Pyx_ModuleStateLookup_Unlock()
+#define __PYX_MODULE_STATE_MUTEX_DECL
+#define __PYX_MODULE_STATE_MUTEX_INIT
+#define __PYX_MODULE_STATE_MUTEX_RUNTIME_INIT(data)
+#define __PYX_MODULE_STATE_MUTEX_RUNTIME_INIT_GLOBAL()
+#define __Pyx_ModuleStateLookup_Lock(data)
+#define __Pyx_ModuleStateLookup_Unlock(data)
 
 #elif !CYTHON_COMPILING_IN_LIMITED_API && PY_VERSION_HEX >= 0x030d0000
 
-static PyMutex __Pyx_ModuleStateLookup_mutex = {0};
-#define __Pyx_ModuleStateLookup_Lock() PyMutex_Lock(&__Pyx_ModuleStateLookup_mutex)
-#define __Pyx_ModuleStateLookup_Unlock() PyMutex_Unlock(&__Pyx_ModuleStateLookup_mutex)
+#define __PYX_MODULE_STATE_MUTEX_DECL PyMutex mutex;
+#define __PYX_MODULE_STATE_MUTEX_INIT {0},
+#define __PYX_MODULE_STATE_MUTEX_RUNTIME_INIT(data)
+#define __PYX_MODULE_STATE_MUTEX_RUNTIME_INIT_GLOBAL()
+#define __Pyx_ModuleStateLookup_Lock(data) PyMutex_Lock(&data->mutex)
+#define __Pyx_ModuleStateLookup_Unlock(data) PyMutex_Unlock(&data->mutex)
 
 #elif defined(__cplusplus) && __cplusplus >= 201103L
 
 #include <mutex>
-static std::mutex __Pyx_ModuleStateLookup_mutex;
-#define __Pyx_ModuleStateLookup_Lock() __Pyx_ModuleStateLookup_mutex.lock()
-#define __Pyx_ModuleStateLookup_Unlock() __Pyx_ModuleStateLookup_mutex.unlock()
+#define __PYX_MODULE_STATE_MUTEX_DECL std::mutex mutex;
+#define __PYX_MODULE_STATE_MUTEX_INIT {},
+#define __PYX_MODULE_STATE_MUTEX_RUNTIME_INIT(data)
+#define __PYX_MODULE_STATE_MUTEX_RUNTIME_INIT_GLOBAL()
+#define __Pyx_ModuleStateLookup_Lock(data) data->mutex.lock()
+#define __Pyx_ModuleStateLookup_Unlock(data) data->mutex.unlock()
 
 #elif defined(__STDC_VERSION__) && (__STDC_VERSION__ > 201112L) && !defined(__STDC_NO_THREADS__)
 #include <threads.h>
-static mtx_t __Pyx_ModuleStateLookup_mutex;
-static once_flag __Pyx_ModuleStateLookup_mutex_once_flag = ONCE_FLAG_INIT;
-static void __Pyx_ModuleStateLookup_initialize_mutex(void) {
-    mtx_init(&__Pyx_ModuleStateLookup_mutex, mtx_plain);
-}
-#define __Pyx_ModuleStateLookup_Lock() \
-  call_once(&__Pyx_ModuleStateLookup_mutex_once_flag, __Pyx_ModuleStateLookup_initialize_mutex); \
-  mtx_lock(&__Pyx_ModuleStateLookup_mutex)
-#define __Pyx_ModuleStateLookup_Unlock() mtx_unlock(&__Pyx_ModuleStateLookup_mutex)
+#define __PYX_MODULE_STATE_MUTEX_INIT {0},
+#define __PYX_MODULE_STATE_MUTEX_RUNTIME_INIT(data) \
+  mtx_init(&data->mutex, mtx_plain)
+#define __PYX_MODULE_STATE_MUTEX_RUNTIME_INIT_GLOBAL() \
+  call_once(&__Pyx_ModuleStateLookup_mutex_once_flag, __Pyx_ModuleStateLookup_initialize_mutex_global)
+static void __Pyx_ModuleStateLookup_initialize_mutex_global(void);
+#define __PYX_MODULE_STATE_DECLARE_INITIALIZE_MUTEX_GLOBAL \
+    static void __Pyx_ModuleStateLookup_initialize_mutex_global(void) { \
+        __PYX_MODULE_STATE_MUTEX_RUNTIME_INIT((&__Pyx_ModuleStateLookup_data)); \
+    }
+#define __Pyx_ModuleStateLookup_Lock(data)  mtx_lock(&data->mutex)
+#define __Pyx_ModuleStateLookup_Unlock(data) mtx_unlock(&data->mutex)
 
 // HAVE_PTHREAD_H comes from pyconfig.h
 #elif defined(HAVE_PTHREAD_H)
 
 #include <pthread.h>
-static pthread_mutex_t __Pyx_ModuleStateLookup_mutex = PTHREAD_MUTEX_INITIALIZER;
-#define __Pyx_ModuleStateLookup_Lock() pthread_mutex_lock(&__Pyx_ModuleStateLookup_mutex)
-#define __Pyx_ModuleStateLookup_Unlock() pthread_mutex_unlock(&__Pyx_ModuleStateLookup_mutex)
+#define __PYX_MODULE_STATE_MUTEX_DECL pthread_mutex_t mutex;
+#define __PYX_MODULE_STATE_MUTEX_INIT PTHREAD_MUTEX_INITIALIZER,
+#define __PYX_MODULE_STATE_MUTEX_RUNTIME_INIT(data)
+#define __PYX_MODULE_STATE_MUTEX_RUNTIME_INIT_GLOBAL()
+#define __Pyx_ModuleStateLookup_Lock(data) pthread_mutex_lock(&data->mutex)
+#define __Pyx_ModuleStateLookup_Unlock(data) pthread_mutex_unlock(&data->mutex)
 
 #elif defined(_WIN32)
 
@@ -2687,9 +2720,12 @@ static pthread_mutex_t __Pyx_ModuleStateLookup_mutex = PTHREAD_MUTEX_INITIALIZER
 
 // Using a slim-read-write lock (instead of a mutex/critical section)
 // because it can be statically initialized.
-static SRWLOCK __Pyx_ModuleStateLookup_mutex = SRWLOCK_INIT;
-#define __Pyx_ModuleStateLookup_Lock() AcquireSRWLockExclusive(&__Pyx_ModuleStateLookup_mutex)
-#define __Pyx_ModuleStateLookup_Unlock() ReleaseSRWLockExclusive(&__Pyx_ModuleStateLookup_mutex)
+#define __PYX_MODULE_STATE_MUTEX_DECL SRWLOCK mutex;
+#define __PYX_MODULE_STATE_MUTEX_INIT SRWLOCK_INIT,
+#define __PYX_MODULE_STATE_MUTEX_RUNTIME_INIT(data)
+#define __PYX_MODULE_STATE_MUTEX_RUNTIME_INIT_GLOBAL()
+#define __Pyx_ModuleStateLookup_Lock(data) AcquireSRWLockExclusive(&data->mutex)
+#define __Pyx_ModuleStateLookup_Unlock(data) ReleaseSRWLockExclusive(&data->mutex)
 
 #else
 #error "No suitable lock available for CYTHON_MODULE_STATE_LOOKUP_THREAD_SAFE.\
@@ -2707,26 +2743,47 @@ typedef struct {
     char interpreter_id_as_index;
     Py_ssize_t count;
     Py_ssize_t allocated;
-    __Pyx_InterpreterIdAndModule table[1];
+    __Pyx_InterpreterIdAndModule id_and_modules[1];
+} __Pyx_ModuleStateLookupTable;
+
+typedef struct __Pyx_ModuleStateLookupData {
+    __PYX_MODULE_STATE_MUTEX_DECL
+    #if CYTHON_MODULE_STATE_LOOKUP_THREAD_SAFE
+    __pyx_atomic_int_type read_counter;
+    #endif
+
+    // A sorted list of (sub)interpreter IDs and the module that was imported into that interpreter.
+    // For now look this up via binary search.
+    #if CYTHON_MODULE_STATE_LOOKUP_THREAD_SAFE
+    __pyx_atomic_ptr_type table;
+    #else
+    __Pyx_ModuleStateLookupTable* table;
+    #endif
 } __Pyx_ModuleStateLookupData;
+
+
+static __Pyx_ModuleStateLookupData __Pyx_ModuleStateLookup_data = {
+    __PYX_MODULE_STATE_MUTEX_INIT
+// C++ is a bit picky about how we initialize. Before C++11 {} doesn't work.
+// On some compilers after C++11, 0 doesn't work for atomics.
+#if defined(__cplusplus) && __cplusplus >= 201103L
+  #if CYTHON_MODULE_STATE_LOOKUP_THREAD_SAFE
+    {}, // read_counter
+  #endif
+    {} // table
+#elif !defined(__cplusplus)
+  #if CYTHON_MODULE_STATE_LOOKUP_THREAD_SAFE
+    0, // read_counter
+  #endif
+    0 // table
+#endif
+};
 
 #define __PYX_MODULE_STATE_LOOKUP_SMALL_SIZE 32
 // "interpreter_id_as_index" above means "the maximum interpreter ID ever seen is smaller than
 // __PYX_MODULE_STATE_LOOKUP_SMALL_SIZE and thus they're stored in an array
 // where the index corresponds to interpreter ID, and __Pyx_ModuleStateLookup_count
 // is the size of the array.
-
-#if CYTHON_MODULE_STATE_LOOKUP_THREAD_SAFE
-static __pyx_atomic_int_type __Pyx_ModuleStateLookup_read_counter = 0;
-#endif
-
-// A sorted list of (sub)interpreter IDs and the module that was imported into that interpreter.
-// For now look this up via binary search.
-#if CYTHON_MODULE_STATE_LOOKUP_THREAD_SAFE
-static __pyx_atomic_ptr_type __Pyx_ModuleStateLookup_data = 0;
-#else
-static __Pyx_ModuleStateLookupData* __Pyx_ModuleStateLookup_data = NULL;
-#endif
 
 
 static __Pyx_InterpreterIdAndModule* __Pyx_State_FindModuleStateLookupTableLowerBound(
@@ -2760,21 +2817,20 @@ static __Pyx_InterpreterIdAndModule* __Pyx_State_FindModuleStateLookupTableLower
     return begin;
 }
 
-static PyObject *__Pyx_State_FindModule(CYTHON_UNUSED void* dummy) {
-    int64_t interpreter_id = PyInterpreterState_GetID(__Pyx_PyInterpreterState_Get());
+static PyObject *__Pyx_ModuleStateLookup_FindModule(__Pyx_ModuleStateLookupData *data, int64_t interpreter_id) {
     if (interpreter_id == -1) return NULL;
 
 #if CYTHON_MODULE_STATE_LOOKUP_THREAD_SAFE
-    __Pyx_ModuleStateLookupData* data = (__Pyx_ModuleStateLookupData*)__pyx_atomic_pointer_load_relaxed(&__Pyx_ModuleStateLookup_data);
+    __Pyx_ModuleStateLookupTable* table = (__Pyx_ModuleStateLookupTable*)__pyx_atomic_pointer_load_relaxed(&data->table);
     {
         // Thread sanitizer says that this is OK relaxed, but I think it needs to be acquire-release
-        __pyx_atomic_incr_acq_rel(&__Pyx_ModuleStateLookup_read_counter);
-        // data == NULL can either mean we're writing, or it's uninitialized.
+        __pyx_atomic_incr_acq_rel(&data->read_counter);
+        // table == NULL can either mean we're writing, or it's uninitialized.
         // Uninitialized only happens infrequently on the first few calls, so it's fine
         // to be on the slow path.
         if (likely(data)) {
-            __Pyx_ModuleStateLookupData* new_data = (__Pyx_ModuleStateLookupData*)__pyx_atomic_pointer_load_acquire(&__Pyx_ModuleStateLookup_data);
-            if (likely(data == new_data)) {
+            __Pyx_ModuleStateLookupTable* new_table = (__Pyx_ModuleStateLookupTable*)__pyx_atomic_pointer_load_acquire(&data->table);
+            if (likely(table == new_table)) {
                 // Nothing has written the data between incrementing the read counter and loading the pointer.
                 goto read_finished;
             }
@@ -2782,31 +2838,31 @@ static PyObject *__Pyx_State_FindModule(CYTHON_UNUSED void* dummy) {
         // In principle DW believes this could be "relaxed", but it's on the unlikely slow path anyway
         // so let's not add more macros.
         // Undo our addition to the read counter.
-        __pyx_atomic_decr_acq_rel(&__Pyx_ModuleStateLookup_read_counter);
+        __pyx_atomic_decr_acq_rel(&data->read_counter);
         // Wait for the write to finish and try again
-        __Pyx_ModuleStateLookup_Lock();
-        __pyx_atomic_incr_relaxed(&__Pyx_ModuleStateLookup_read_counter);
-        data = (__Pyx_ModuleStateLookupData*)__pyx_atomic_pointer_load_relaxed(&__Pyx_ModuleStateLookup_data);
-        __Pyx_ModuleStateLookup_Unlock();
+        __Pyx_ModuleStateLookup_Lock(data);
+        __pyx_atomic_incr_relaxed(&data->read_counter);
+        table = (__Pyx_ModuleStateLookupTable*)__pyx_atomic_pointer_load_relaxed(&data->table);
+        __Pyx_ModuleStateLookup_Unlock(data);
     }
   read_finished:;
 
 #else
-    __Pyx_ModuleStateLookupData* data = __Pyx_ModuleStateLookup_data;
+    __Pyx_ModuleStateLookupTable* table = data->table;
 #endif
 
     __Pyx_InterpreterIdAndModule* found = NULL;
 
     // There's one "already imported" check that'll hit this
-    if (unlikely(!data)) goto end;
+    if (unlikely(!table)) goto end;
 
-    if (data->interpreter_id_as_index) {
-        if (interpreter_id < data->count) {
-            found = data->table+interpreter_id;
+    if (table->interpreter_id_as_index) {
+        if (interpreter_id < table->count) {
+            found = table->id_and_modules+interpreter_id;
         }
     } else {
         found = __Pyx_State_FindModuleStateLookupTableLowerBound(
-            data->table, data->count, interpreter_id);
+            table->id_and_modules, table->count, interpreter_id);
     }
 
   end:
@@ -2817,55 +2873,61 @@ static PyObject *__Pyx_State_FindModule(CYTHON_UNUSED void* dummy) {
             result = found->module;
         }
 #if CYTHON_MODULE_STATE_LOOKUP_THREAD_SAFE
-        __pyx_atomic_decr_acq_rel(&__Pyx_ModuleStateLookup_read_counter);
+        __pyx_atomic_decr_acq_rel(&data->read_counter);
 #endif
         return result;
     }
 }
 
+static PyObject *__Pyx_State_FindModule(CYTHON_UNUSED void* dummy) {
+    __PYX_MODULE_STATE_MUTEX_RUNTIME_INIT_GLOBAL();
+    int64_t interpreter_id = __Pyx_GetCurrentInterpreterId();
+    return __Pyx_ModuleStateLookup_FindModule(&__Pyx_ModuleStateLookup_data, interpreter_id);
+}
+
 #if CYTHON_MODULE_STATE_LOOKUP_THREAD_SAFE
-static void __Pyx_ModuleStateLookup_wait_until_no_readers(void) {
+static void __Pyx_ModuleStateLookup_wait_until_no_readers(__Pyx_ModuleStateLookupData *data) {
     // Wait for any readers still working on the old data. Spin-lock is
     // fine because readers should be much faster than memory allocation.
-    while (__pyx_atomic_load(&__Pyx_ModuleStateLookup_read_counter) != 0);
+    while (__pyx_atomic_load(&data->read_counter) != 0);
 }
 #else
-#define __Pyx_ModuleStateLookup_wait_until_no_readers()
+#define __Pyx_ModuleStateLookup_wait_until_no_readers(data)
 #endif
 
-static int __Pyx_State_AddModuleInterpIdAsIndex(__Pyx_ModuleStateLookupData **old_data, PyObject* module, int64_t interpreter_id) {
-    Py_ssize_t to_allocate = (*old_data)->allocated;
+static int __Pyx_State_AddModuleInterpIdAsIndex(__Pyx_ModuleStateLookupTable **old_table, PyObject* module, int64_t interpreter_id) {
+    Py_ssize_t to_allocate = (*old_table)->allocated;
     while (to_allocate <= interpreter_id) {
         if (to_allocate == 0) to_allocate = 1;
         else to_allocate *= 2;
     }
-    __Pyx_ModuleStateLookupData *new_data = *old_data;
-    if (to_allocate != (*old_data)->allocated) {
-         new_data = (__Pyx_ModuleStateLookupData *)realloc(
-            *old_data,
-            sizeof(__Pyx_ModuleStateLookupData)+(to_allocate-1)*sizeof(__Pyx_InterpreterIdAndModule));
-        if (!new_data) {
+    __Pyx_ModuleStateLookupTable *new_table = *old_table;
+    if (to_allocate != (*old_table)->allocated) {
+         new_table = (__Pyx_ModuleStateLookupTable *)realloc(
+            *old_table,
+            sizeof(__Pyx_ModuleStateLookupTable)+(to_allocate-1)*sizeof(__Pyx_InterpreterIdAndModule));
+        if (!new_table) {
             PyErr_NoMemory();
             return -1;
         }
-        for (Py_ssize_t i = new_data->allocated; i < to_allocate; ++i) {
-            new_data->table[i].id = i;
-            new_data->table[i].module = NULL;
+        for (Py_ssize_t i = new_table->allocated; i < to_allocate; ++i) {
+            new_table->id_and_modules[i].id = i;
+            new_table->id_and_modules[i].module = NULL;
         }
-        new_data->allocated = to_allocate;
+        new_table->allocated = to_allocate;
     }
-    new_data->table[interpreter_id].module = module;
-    if (new_data->count < interpreter_id+1) {
-        new_data->count = interpreter_id+1;
+    new_table->id_and_modules[interpreter_id].module = module;
+    if (new_table->count < interpreter_id+1) {
+        new_table->count = interpreter_id+1;
     }
-    *old_data = new_data;
+    *old_table = new_table;
     return 0;
 }
 
-static void __Pyx_State_ConvertFromInterpIdAsIndex(__Pyx_ModuleStateLookupData *data) {
-    __Pyx_InterpreterIdAndModule *read = data->table;
-    __Pyx_InterpreterIdAndModule *write = data->table;
-    __Pyx_InterpreterIdAndModule *end = read + data->count;
+static void __Pyx_State_ConvertFromInterpIdAsIndex(__Pyx_ModuleStateLookupTable *table) {
+    __Pyx_InterpreterIdAndModule *read = table->id_and_modules;
+    __Pyx_InterpreterIdAndModule *write = table->id_and_modules;
+    __Pyx_InterpreterIdAndModule *end = read + table->count;
 
     for (; read<end; ++read) {
         if (read->module) {
@@ -2875,168 +2937,212 @@ static void __Pyx_State_ConvertFromInterpIdAsIndex(__Pyx_ModuleStateLookupData *
         }
         // Otherwise empty; don't copy
     }
-    data->count = write - data->table;
+    table->count = write - table->id_and_modules;
     for (; write<end; ++write) {
         // clear rest of array
         write->id = 0;
         write->module = NULL;
     }
-    data->interpreter_id_as_index = 0;
+    table->interpreter_id_as_index = 0;
 }
 
-static int __Pyx_State_AddModule(PyObject* module, CYTHON_UNUSED void* dummy) {
-    int64_t interpreter_id = PyInterpreterState_GetID(__Pyx_PyInterpreterState_Get());
+static int __Pyx_ModuleStateLookup_AddModule(__Pyx_ModuleStateLookupData* data, int64_t interpreter_id, PyObject* module) {
     if (interpreter_id == -1) return -1;
 
     int result = 0;
 
-    __Pyx_ModuleStateLookup_Lock();
+    __Pyx_ModuleStateLookup_Lock(data);
 
     // Adding modules is the slow path so I've not thought about memory ordering much and
     // just made it strict.
 #if CYTHON_MODULE_STATE_LOOKUP_THREAD_SAFE
     // we're working and maybe modifying it, swap for 0
-    __Pyx_ModuleStateLookupData *old_data = (__Pyx_ModuleStateLookupData *)
-            __pyx_atomic_pointer_exchange(&__Pyx_ModuleStateLookup_data, 0);
+    __Pyx_ModuleStateLookupTable *old_table = (__Pyx_ModuleStateLookupTable *)
+            __pyx_atomic_pointer_exchange(&data->table, 0);
 #else
-    __Pyx_ModuleStateLookupData *old_data = __Pyx_ModuleStateLookup_data;
+    __Pyx_ModuleStateLookupTable *old_table = data->table;
 #endif
-    __Pyx_ModuleStateLookupData *new_data = old_data;
+    __Pyx_ModuleStateLookupTable *new_table = old_table;
 
-    if (!new_data) {
+    if (!new_table) {
         // If we don't yet have anything, initialize
-        new_data = (__Pyx_ModuleStateLookupData *)calloc(1, sizeof(__Pyx_ModuleStateLookupData));
-        if (!new_data) {
+        new_table = (__Pyx_ModuleStateLookupTable *)calloc(1, sizeof(__Pyx_ModuleStateLookupTable));
+        if (!new_table) {
             result = -1;
             PyErr_NoMemory();
             goto end;
         }
-        new_data->allocated = 1;
-        new_data->interpreter_id_as_index = 1;
+        new_table->allocated = 1;
+        new_table->interpreter_id_as_index = 1;
     }
 
     // Pretty much everything from here modifies the data, and so requires us to wait
     // until all existing readers have finished in order to be thread-safe.
-    __Pyx_ModuleStateLookup_wait_until_no_readers();
-    if (new_data->interpreter_id_as_index) {
+    __Pyx_ModuleStateLookup_wait_until_no_readers(data);
+    if (new_table->interpreter_id_as_index) {
         if (interpreter_id < __PYX_MODULE_STATE_LOOKUP_SMALL_SIZE) {
-            result = __Pyx_State_AddModuleInterpIdAsIndex(&new_data, module, interpreter_id);
+            result = __Pyx_State_AddModuleInterpIdAsIndex(&new_table, module, interpreter_id);
             goto end;
         }
         // otherwise we have to convert then proceed with a normal insertion
-        __Pyx_State_ConvertFromInterpIdAsIndex(new_data);
+        __Pyx_State_ConvertFromInterpIdAsIndex(new_table);
     }
     {
         Py_ssize_t insert_at = 0;
         {
             __Pyx_InterpreterIdAndModule* lower_bound = __Pyx_State_FindModuleStateLookupTableLowerBound(
-                new_data->table, new_data->count, interpreter_id);
+                new_table->id_and_modules, new_table->count, interpreter_id);
 
             assert(lower_bound);
 
-            insert_at = lower_bound - new_data->table;
+            insert_at = lower_bound - new_table->id_and_modules;
 
-            if (unlikely(insert_at < new_data->count && lower_bound->id == interpreter_id)) {
+            if (unlikely(insert_at < new_table->count && lower_bound->id == interpreter_id)) {
                 lower_bound->module = module;
                 goto end;  // already in table, nothing more to do
             }
 
         }
 
-        if (new_data->count+1 >= new_data->allocated) {
+        if (new_table->count+1 >= new_table->allocated) {
             // Use C realloc. PyMem_RawMalloc is added to the limited API fairly late (3.13)
             // and we want allocation independent of the interpreter which I think excludes PyMem_Malloc.
-            Py_ssize_t to_allocate = (new_data->count+1)*2;
-            new_data =
-                (__Pyx_ModuleStateLookupData*)realloc(
-                    new_data,
-                    sizeof(__Pyx_ModuleStateLookupData) +
+            Py_ssize_t to_allocate = (new_table->count+1)*2;
+            new_table =
+                (__Pyx_ModuleStateLookupTable*)realloc(
+                    new_table,
+                    sizeof(__Pyx_ModuleStateLookupTable) +
                     (to_allocate-1)*sizeof(__Pyx_InterpreterIdAndModule));
-            if (!new_data) {
+            if (!new_table) {
                 result = -1;
-                new_data = old_data;
+                new_table = old_table;
                 PyErr_NoMemory();
                 goto end;
             }
-            new_data->allocated = to_allocate;
+            new_table->allocated = to_allocate;
         }
 
-        ++new_data->count;
+        ++new_table->count;
 
         int64_t last_id = interpreter_id;
         PyObject *last_module = module;
-        for (Py_ssize_t i=insert_at; i<new_data->count; ++i) {
-            int64_t current_id = new_data->table[i].id;
-            new_data->table[i].id = last_id;
+        for (Py_ssize_t i=insert_at; i<new_table->count; ++i) {
+            int64_t current_id = new_table->id_and_modules[i].id;
+            new_table->id_and_modules[i].id = last_id;
             last_id = current_id;
-            PyObject *current_module = new_data->table[i].module;
-            new_data->table[i].module = last_module;
+            PyObject *current_module = new_table->id_and_modules[i].module;
+            new_table->id_and_modules[i].module = last_module;
             last_module = current_module;
         }
     }
 
   end:
 #if CYTHON_MODULE_STATE_LOOKUP_THREAD_SAFE
-    __pyx_atomic_pointer_exchange(&__Pyx_ModuleStateLookup_data, new_data);
+    __pyx_atomic_pointer_exchange(&data->table, new_table);
 #else
-    __Pyx_ModuleStateLookup_data = new_data;
+    data->table = new_table;
 #endif
 
-    __Pyx_ModuleStateLookup_Unlock();
+    __Pyx_ModuleStateLookup_Unlock(data);
     return result;
 }
 
-static int __Pyx_State_RemoveModule(CYTHON_UNUSED void* dummy) {
-    int64_t interpreter_id = PyInterpreterState_GetID(__Pyx_PyInterpreterState_Get());
+static int __Pyx_State_AddModule(PyObject* module, CYTHON_UNUSED void* dummy) {
+    __PYX_MODULE_STATE_MUTEX_RUNTIME_INIT_GLOBAL();
+    int64_t interpreter_id = __Pyx_GetCurrentInterpreterId();
+    return __Pyx_ModuleStateLookup_AddModule(&__Pyx_ModuleStateLookup_data, interpreter_id, module);
+}
+
+static int __Pyx_ModuleStateLookup_RemoveModule(__Pyx_ModuleStateLookupData *data, int64_t interpreter_id) {
     if (interpreter_id == -1) return -1;
 
-    __Pyx_ModuleStateLookup_Lock();
+    __Pyx_ModuleStateLookup_Lock(data);
 
 #if CYTHON_MODULE_STATE_LOOKUP_THREAD_SAFE
-    __Pyx_ModuleStateLookupData *data = (__Pyx_ModuleStateLookupData *)
-            __pyx_atomic_pointer_exchange(&__Pyx_ModuleStateLookup_data, 0);
+    __Pyx_ModuleStateLookupTable *table = (__Pyx_ModuleStateLookupTable *)
+            __pyx_atomic_pointer_exchange(&data->table, 0);
 #else
-    __Pyx_ModuleStateLookupData *data = __Pyx_ModuleStateLookup_data;
+    __Pyx_ModuleStateLookupTable *table = data->table;
 #endif
 
-    if (data->interpreter_id_as_index) {
-        if (interpreter_id < data->count) {
-            data->table[interpreter_id].module = NULL;
+    if (table->interpreter_id_as_index) {
+        if (interpreter_id < table->count) {
+            table->id_and_modules[interpreter_id].module = NULL;
         }
         goto done;
     }
     {
-        __Pyx_ModuleStateLookup_wait_until_no_readers();
+        __Pyx_ModuleStateLookup_wait_until_no_readers(data);
 
         __Pyx_InterpreterIdAndModule* lower_bound = __Pyx_State_FindModuleStateLookupTableLowerBound(
-            data->table, data->count, interpreter_id);
+            table->id_and_modules, table->count, interpreter_id);
 
         // TODO Errors here?
         if (!lower_bound) goto done;
         if (lower_bound->id != interpreter_id) goto done;
 
-        __Pyx_InterpreterIdAndModule *end = data->table+data->count;
+        __Pyx_InterpreterIdAndModule *end = table->id_and_modules+table->count;
         for (;lower_bound<end-1; ++lower_bound) {
             lower_bound->id = (lower_bound+1)->id;
             lower_bound->module = (lower_bound+1)->module;
         }
     }
-    --data->count;
-    if (data->count == 0) {
-        free(data);
-        data = NULL;
+    --table->count;
+    if (table->count == 0) {
+        free(table);
+        table = NULL;
     }
     // For now, never shrink the allocated table.
   done:
 #if CYTHON_MODULE_STATE_LOOKUP_THREAD_SAFE
-    __pyx_atomic_pointer_exchange(&__Pyx_ModuleStateLookup_data, data);
+    __pyx_atomic_pointer_exchange(&data->table, table);
 #else
-    __Pyx_ModuleStateLookup_data = data;
+    data->table = table;
 #endif
-    __Pyx_ModuleStateLookup_Unlock();
+    __Pyx_ModuleStateLookup_Unlock(data);
     return 0;
 }
 
+static int __Pyx_State_RemoveModule(CYTHON_UNUSED void* dummy) {
+    int64_t interpreter_id = __Pyx_GetCurrentInterpreterId();
+    return __Pyx_ModuleStateLookup_RemoveModule(&__Pyx_ModuleStateLookup_data, interpreter_id);
+}
+
+#ifdef __PYX_MODULE_STATE_DECLARE_INITIALIZE_MUTEX_GLOBAL
+__PYX_MODULE_STATE_DECLARE_INITIALIZE_MUTEX_GLOBAL
+#endif
+
+#endif
+
+#if defined(CYTHON_TEST_MODULE_STATE_LOOKUP) && CYTHON_TEST_MODULE_STATE_LOOKUP
+static __Pyx_ModuleStateLookupData *__Pyx_ModuleStateLookup_allocate_for_tests(void) {
+    __Pyx_ModuleStateLookupData *out = (__Pyx_ModuleStateLookupData*)calloc(
+        1, sizeof(__Pyx_ModuleStateLookupData));
+    if (!out) {
+        PyErr_NoMemory();
+        return NULL;
+    }
+    __PYX_MODULE_STATE_MUTEX_RUNTIME_INIT(out);
+    return out;
+}
+
+static void __Pyx_ModuleStateLookup_free_for_tests(__Pyx_ModuleStateLookupData *data) {
+    if (data) {
+#if CYTHON_COMPILING_IN_LIMITED_API && __PYX_LIMITED_VERSION_HEX < 0x030d0000
+        free
+#else
+        PyMem_RawFree
+#endif
+          (
+#if !CYTHON_MODULE_STATE_LOOKUP_THREAD_SAFE
+              (void*)data->table
+#else
+              (void*)__pyx_atomic_pointer_load_acquire(&data->table)
+#endif
+          );
+        free(data);
+    }
+}
 #endif
 
 ////////////////////// IncludeStdlibH.proto //////////////////////
