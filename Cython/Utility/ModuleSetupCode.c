@@ -2690,6 +2690,8 @@ static int __Pyx_ModuleStateLookup_RemoveModule(__Pyx_ModuleStateLookupData *dat
 
 #elif defined(__STDC_VERSION__) && (__STDC_VERSION__ > 201112L) && !defined(__STDC_NO_THREADS__)
 #include <threads.h>
+#define __PYX_MODULE_STATE_MUTEX_DECL mtx_t mutex;
+static once_flag __Pyx_ModuleStateLookup_mutex_once_flag = ONCE_FLAG_INIT;
 #define __PYX_MODULE_STATE_MUTEX_INIT {0},
 #define __PYX_MODULE_STATE_MUTEX_RUNTIME_INIT(data) \
   mtx_init(&data->mutex, mtx_plain)
