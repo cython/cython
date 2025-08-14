@@ -3086,6 +3086,10 @@ static int __Pyx_ModuleStateLookup_RemoveModule(__Pyx_ModuleStateLookupData *dat
             lower_bound->id = (lower_bound+1)->id;
             lower_bound->module = (lower_bound+1)->module;
         }
+        if (end-1 >= lower_bound) {
+            (end-1)->id = 0;
+            (end-1)->module = NULL;
+        }
     }
     --table->count;
     if (table->count == 0) {

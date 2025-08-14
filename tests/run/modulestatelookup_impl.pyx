@@ -116,9 +116,9 @@ def test_random_add_removal(state=None):
                     removed_modules[id] = m
             elif mode == "check":
                 for id, m in added_modules.items():
-                    assert __Pyx_ModuleStateLookup_FindModule(data, id) == <PyObject*>m
+                    assert __Pyx_ModuleStateLookup_FindModule(data, id) == <PyObject*>m, id
                 for id, m in removed_modules.items():
-                    assert __Pyx_ModuleStateLookup_FindModule(data, id) == NULL
+                    assert __Pyx_ModuleStateLookup_FindModule(data, id) == NULL, id
             else:
                 assert False, mode
 
