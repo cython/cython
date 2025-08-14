@@ -366,7 +366,7 @@ static CYTHON_INLINE PyObject* __Pyx_dict_iterator(PyObject* iterable, int is_di
 }
 
 
-#if !CYTHON_COMPILING_IN_PYPY
+#if !CYTHON_AVOID_BORROWED_REFS
 static CYTHON_INLINE int __Pyx_dict_iter_next_source_is_dict(
         PyObject* iter_obj, CYTHON_NCP_UNUSED Py_ssize_t orig_length, CYTHON_NCP_UNUSED Py_ssize_t* ppos,
         PyObject** pkey, PyObject** pvalue, PyObject** pitem) {
@@ -420,7 +420,7 @@ static CYTHON_INLINE int __Pyx_dict_iter_next(
         PyObject* iter_obj, CYTHON_NCP_UNUSED Py_ssize_t orig_length, CYTHON_NCP_UNUSED Py_ssize_t* ppos,
         PyObject** pkey, PyObject** pvalue, PyObject** pitem, int source_is_dict) {
     PyObject* next_item;
-#if !CYTHON_COMPILING_IN_PYPY
+#if !CYTHON_AVOID_BORROWED_REFS
     if (source_is_dict) {
         int result;
 #if PY_VERSION_HEX >= 0x030d0000 && !CYTHON_COMPILING_IN_LIMITED_API

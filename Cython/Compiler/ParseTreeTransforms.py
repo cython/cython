@@ -2279,67 +2279,77 @@ if VALUE is not None:
             all_members_names = [e.name for e in all_members]
             checksums = _calculate_pickle_checksums(all_members_names)
 
-            unpickle_func_name = '__pyx_unpickle_%s' % node.punycode_class_name
+            unpickle_func_name = f'__pyx_unpickle_{node.punycode_class_name}'
 
             # TODO(robertwb): Move the state into the third argument
             # so it can be pickled *after* self is memoized.
-            unpickle_func = TreeFragment("""
-                def %(unpickle_func_name)s(__pyx_type, long __pyx_checksum, __pyx_state):
+            unpickle_func = TreeFragment(
+                """
+                def {unpickle_func_name}(__pyx_type, long __pyx_checksum, __pyx_state):
                     cdef object __pyx_PickleError
                     cdef object __pyx_result
-                    if __pyx_checksum not in %(checksums)s:
+                    if __pyx_checksum not in ({checksums}):
                         from pickle import PickleError as __pyx_PickleError
-                        raise __pyx_PickleError, "Incompatible checksums (0x%%x vs %(checksums)s = (%(members)s))" %% __pyx_checksum
-                    __pyx_result = %(class_name)s.__new__(__pyx_type)
+                        raise __pyx_PickleError, "Incompatible checksums (0x%x vs ({checksums}) = ({members}))" % __pyx_checksum
+                    __pyx_result = {class_name}.__new__(__pyx_type)
                     if __pyx_state is not None:
-                        %(unpickle_func_name)s__set_state(<%(class_name)s> __pyx_result, __pyx_state)
+                        {unpickle_func_name}__set_state(<{class_name}> __pyx_result, __pyx_state)
                     return __pyx_result
 
-                cdef %(unpickle_func_name)s__set_state(%(class_name)s __pyx_result, tuple __pyx_state):
-                    %(assignments)s
-                    if len(__pyx_state) > %(num_members)d and hasattr(__pyx_result, '__dict__'):
-                        __pyx_result.__dict__.update(__pyx_state[%(num_members)d])
-                """ % {
-                    'unpickle_func_name': unpickle_func_name,
-                    'checksums': "(%s)" % ', '.join(checksums),
-                    'members': ', '.join(all_members_names),
-                    'class_name': node.class_name,
-                    'assignments': '; '.join(
+                cdef {unpickle_func_name}__set_state({class_name} __pyx_result, tuple __pyx_state):
+                    {assignments}
+                    if len(__pyx_state) > {num_members:d} and hasattr(__pyx_result, '__dict__'):
+                        __pyx_result.__dict__.update(__pyx_state[{num_members:d}])
+                """.format(
+                    unpickle_func_name=unpickle_func_name,
+                    checksums=', '.join(checksums),
+                    members=', '.join(all_members_names),
+                    class_name=node.class_name,
+                    assignments='; '.join([
                         '__pyx_result.%s = __pyx_state[%s]' % (v, ix)
-                        for ix, v in enumerate(all_members_names)),
-                    'num_members': len(all_members_names),
-                }, level='module', pipeline=[NormalizeTree(None)]).substitute({})
+                        for ix, v in enumerate(all_members_names)
+                    ]),
+                    num_members=len(all_members_names),
+                ),
+                level='module',
+                pipeline=[NormalizeTree(None)],
+            ).substitute({})
+
             unpickle_func.analyse_declarations(node.entry.scope)
             self.visit(unpickle_func)
             self.extra_module_declarations.append(unpickle_func)
 
-            pickle_func = TreeFragment("""
+            pickle_func = TreeFragment(
+                """
                 def __reduce_cython__(self):
                     cdef tuple state
                     cdef object _dict
                     cdef bint use_setstate
-                    state = (%(members)s)
+                    state = ({members})
                     _dict = getattr(self, '__dict__', None)
                     if _dict is not None:
                         state += (_dict,)
                         use_setstate = True
                     else:
-                        use_setstate = %(any_notnone_members)s
+                        use_setstate = {any_notnone_members}
                     if use_setstate:
-                        return %(unpickle_func_name)s, (type(self), %(checksum)s, None), state
+                        return {unpickle_func_name}, (type(self), {checksum}, None), state
                     else:
-                        return %(unpickle_func_name)s, (type(self), %(checksum)s, state)
+                        return {unpickle_func_name}, (type(self), {checksum}, state)
 
                 def __setstate_cython__(self, __pyx_state):
-                    %(unpickle_func_name)s__set_state(self, __pyx_state)
-                """ % {
-                    'unpickle_func_name': unpickle_func_name,
-                    'checksum': checksums[0],
-                    'members': ', '.join('self.%s' % v for v in all_members_names) + (',' if len(all_members_names) == 1 else ''),
+                    {unpickle_func_name}__set_state(self, __pyx_state)
+                """.format(
+                    unpickle_func_name=unpickle_func_name,
+                    checksum=checksums[0],
+                    members=', '.join('self.%s' % v for v in all_members_names) + (',' if len(all_members_names) == 1 else ''),
                     # Even better, we could check PyType_IS_GC.
-                    'any_notnone_members' : ' or '.join(['self.%s is not None' % e.name for e in all_members if e.type.is_pyobject] or ['False']),
-                },
-                level='c_class', pipeline=[NormalizeTree(None)]).substitute({})
+                    any_notnone_members=' or '.join(['self.%s is not None' % e.name for e in all_members if e.type.is_pyobject] or ['False']),
+                ),
+                level='c_class',
+                pipeline=[NormalizeTree(None)],
+            ).substitute({})
+
             pickle_func.analyse_declarations(node.scope)
             self.enter_scope(node, node.scope)  # functions should be visited in the class scope
             self.visit(pickle_func)
@@ -2590,10 +2600,15 @@ if VALUE is not None:
         init_assignments = []
         for entry, attr in zip(var_entries, attributes):
             # TODO: branch on visibility
-            init_assignments.append(self.init_assignment.substitute({
-                    "VALUE": ExprNodes.NameNode(entry.pos, name = entry.name),
-                    "ATTR": attr,
-                }, pos = entry.pos))
+            init_assignments.append(
+                self.init_assignment.substitute(
+                    {
+                        "VALUE": ExprNodes.NameNode(entry.pos, name = entry.name),
+                        "ATTR": attr,
+                    },
+                    pos=entry.pos,
+                )
+            )
 
         # create the class
         str_format = "%s(%s)" % (node.entry.type.name, ("%s, " * len(attributes))[:-2])
@@ -2631,9 +2646,12 @@ if VALUE is not None:
                 template = self.basic_pyobject_property
             else:
                 template = self.basic_property
-            property = template.substitute({
+            property = template.substitute(
+                {
                     "ATTR": attr,
-                }, pos = entry.pos).stats[0]
+                },
+                pos=entry.pos,
+            ).stats[0]
             property.name = entry.name
             wrapper_class.body.stats.append(property)
 
@@ -2692,11 +2710,14 @@ if VALUE is not None:
                 template = self.basic_property
         elif entry.visibility == 'readonly':
             template = self.basic_property_ro
-        property = template.substitute({
+        property = template.substitute(
+            {
                 "ATTR": ExprNodes.AttributeNode(pos=entry.pos,
                                                 obj=ExprNodes.NameNode(pos=entry.pos, name="self"),
                                                 attribute=entry.name),
-            }, pos=entry.pos).stats[0]
+            },
+            pos=entry.pos,
+        ).stats[0]
         property.name = entry.name
         property.doc = entry.doc
         return property

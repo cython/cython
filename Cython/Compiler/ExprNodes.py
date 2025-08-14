@@ -24,6 +24,7 @@ import os.path
 import pathlib
 import re
 import sys
+from typing import Optional
 
 from .Errors import (
     error, warning, InternalError, CompileError, report_error, local_errors,
@@ -3343,38 +3344,45 @@ class CppIteratorNode(ExprNode):
     def generate_result_code(self, code):
         sequence_type = self.sequence.type
         begin_name, _ = self.get_iterator_func_names()
+
         # essentially 3 options:
         if self.sequence.is_simple():
             # 1) Sequence can be accessed directly, like a name;
             #    assigning to it may break the container, but that's the responsibility
-            #    of the user
+            #    of the user.
             code.putln("%s = %s%s%s();" % (
                 self.result(),
                 self.sequence.result(),
                 self.cpp_attribute_op,
-                begin_name))
-        else:
-                # (while it'd be nice to limit the scope of the loop temp, it's essentially
-                # impossible to do while supporting generators)
-                temp_type = sequence_type
-                if temp_type.is_reference:
-                    # 2) Sequence is a reference (often obtained by dereferencing a pointer);
-                    #    make the temp a pointer so we are not sensitive to users reassigning
-                    #    the pointer than it came from
-                    temp_type = PyrexTypes.CPtrType(sequence_type.ref_base_type)
-                if temp_type.is_ptr or code.globalstate.directives['cpp_locals']:
-                    self.cpp_attribute_op = "->"
-                # 3) (otherwise) sequence comes from a function call or similar, so we must
-                #    create a temp to store it in
-                self.cpp_sequence_cname = code.funcstate.allocate_temp(temp_type, manage_ref=False)
-                code.putln("%s = %s%s;" % (self.cpp_sequence_cname,
-                                           "&" if temp_type.is_ptr else "",
-                                           self.sequence.move_result_rhs()))
-                code.putln("%s = %s%s%s();" % (
-                    self.result(),
-                    self.cpp_sequence_cname,
-                    self.cpp_attribute_op,
-                    begin_name))
+                begin_name,
+            ))
+            return
+
+        # (while it'd be nice to limit the scope of the loop temp, it's essentially
+        # impossible to do while supporting generators)
+        temp_type = sequence_type
+        if temp_type.is_reference:
+            # 2) Sequence is a reference (often obtained by dereferencing a pointer);
+            #    make the temp a pointer so we are not sensitive to users reassigning
+            #    the pointer than it came from
+            temp_type = PyrexTypes.CPtrType(sequence_type.ref_base_type)
+        if temp_type.is_ptr or code.globalstate.directives['cpp_locals']:
+            self.cpp_attribute_op = "->"
+
+        # 3) (otherwise) sequence comes from a function call or similar, so we must
+        #    create a temp to store it in
+        self.cpp_sequence_cname = code.funcstate.allocate_temp(temp_type, manage_ref=False)
+        code.putln("%s = %s%s;" % (
+            self.cpp_sequence_cname,
+            "&" if temp_type.is_ptr else "",
+            self.sequence.move_result_rhs(),
+        ))
+        code.putln("%s = %s%s%s();" % (
+            self.result(),
+            self.cpp_sequence_cname,
+            self.cpp_attribute_op,
+            begin_name,
+        ))
 
     def generate_for_loop_header(self, code):
         # end call isn't cached to support containers that allow adding while iterating
@@ -15279,27 +15287,29 @@ class AssignmentExpressionNode(ExprNode):
     subexprs = ["rhs"]
     child_attrs = ["rhs", "assignment"]  # This order is important for control-flow (i.e. xdecref) to be right
 
-    is_temp = False
-    assignment = None
-    clone_node = None
+    is_temp: bool = False
+    rhs: Optional[ExprNode] = None
+    assignment: SingleAssignmentNode
+    assignment_is_independent: bool = False
 
-    def __init__(self, pos, lhs, rhs, **kwds):
+    def __init__(self, pos, lhs: NameNode, rhs: ExprNode, **kwds):
         super().__init__(pos, **kwds)
-        self.rhs = ProxyNode(rhs)
-        assign_expr_rhs = CloneNode(self.rhs)
         self.assignment = SingleAssignmentNode(
-            pos, lhs=lhs, rhs=assign_expr_rhs, is_assignment_expression=True)
+            pos, lhs=lhs, rhs=rhs, is_assignment_expression=True)
 
     @property
     def type(self):
-        return self.rhs.type
+        if self.rhs is not None:
+            return self.rhs.type
+        return self.assignment.rhs.type
 
     @property
     def target_name(self):
         return self.assignment.lhs.name
 
     def infer_type(self, env):
-        return self.rhs.infer_type(env)
+        rhs = self.rhs or self.assignment.rhs
+        return rhs.infer_type(env)
 
     def analyse_declarations(self, env):
         self.assignment.analyse_declarations(env)
@@ -15311,13 +15321,10 @@ class AssignmentExpressionNode(ExprNode):
         #   __pyx_t_1
         # (plus any reference counting that's needed)
 
-        self.rhs = self.rhs.analyse_types(env)
-        if not self.rhs.arg.result_in_temp():
-            if not self.rhs.arg.is_literal:
-                # for anything but the simplest cases (where it can be used directly)
-                # we convert rhs to a temp, because CloneNode requires arg to be a temp
-                self.rhs.arg = self.rhs.arg.coerce_to_temp(env)
-            else:
+        self.assignment = self.assignment.analyse_types(env)
+        rhs = self.assignment.rhs
+        if not rhs.result_in_temp():
+            if rhs.is_literal:
                 # For literals we can optimize by just using the literal twice
                 #
                 # We aren't including `self.rhs.is_name` in this optimization
@@ -15326,14 +15333,22 @@ class AssignmentExpressionNode(ExprNode):
                 # This is a special case of https://github.com/cython/cython/issues/4146
                 # TODO - once that's fixed general revisit this code and possibly
                 # use coerce_to_simple
-                self.assignment.rhs = copy.copy(self.rhs)
+                self.rhs = copy.copy(self.assignment.rhs)
+                self.assignment_is_independent = True
+            else:
+                # for anything but the simplest cases (where it can be used directly)
+                # we convert rhs to a temp, because CloneNode requires arg to be a temp
+                rhs = rhs.coerce_to_temp(env)
+        if not self.assignment_is_independent:
+            self.rhs = ProxyNode(rhs)
+            self.assignment.rhs = CloneNode(self.rhs)
+            self.rhs.arg = self.rhs.arg.coerce_to_temp(env)
 
         # TODO - there's a missed optimization in the code generation stage
         # if self.rhs.arg is temp: an incref/decref pair can be removed
         # (but needs a general mechanism to do that)
-        self.assignment = self.assignment.analyse_types(env)
 
-        if self.type.is_memoryviewslice and isinstance(self.assignment.rhs, CloneNode):
+        if self.type.is_memoryviewslice and self.assignment_is_independent:
             # In "put_assign_to_memviewslice", memoryviews don't generate reference
             # counting on assignment from temp. That lack of reference counting
             # essentially happens twice (since we use the temp twice), which we want to
@@ -15342,7 +15357,12 @@ class AssignmentExpressionNode(ExprNode):
         return self
 
     def coerce_to(self, dst_type, env):
+        if self.assignment_is_independent:
+            # rhs and assignment don't share a node, so just behave normally
+            self.rhs = self.rhs.coerce_to(dst_type, env)
+            return self
         if dst_type == self.assignment.rhs.type:
+            assert self.rhs is not None
             # in this quite common case (for example, when both lhs, and self are being coerced to Python)
             # we can optimize the coercion out by sharing it between
             # this and the assignment

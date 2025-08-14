@@ -1890,7 +1890,7 @@ class ModuleScope(Scope):
             type.objstruct_cname = objstruct_cname
         if typeobj_cname:
             if type.typeobj_cname and type.typeobj_cname != typeobj_cname:
-                    error(pos, "Type object name differs from previous declaration")
+                error(pos, "Type object name differs from previous declaration")
             type.typeobj_cname = typeobj_cname
 
         if self.directives.get('final'):

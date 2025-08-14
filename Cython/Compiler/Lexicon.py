@@ -66,7 +66,10 @@ def make_lexicon():
     two_hex = hexdigit + hexdigit
     four_hex = two_hex + two_hex
     escapeseq = Str("\\") + (two_oct | three_oct |
-                             Str('N{') + Rep(AnyBut('}')) + Str('}') |
+                             # Unicode character names are [A-Z \-]
+                             # https://www.unicode.org/versions/Unicode16.0.0/core-spec/chapter-4/
+                             # Although Python itself is case agnostic
+                             Str('N{') + Rep(Range('azAZ') | Any('- ')) + Str('}') |
                              Str('u') + four_hex | Str('x') + two_hex |
                              Str('U') + four_hex + four_hex | AnyChar)
 
@@ -154,7 +157,7 @@ def make_lexicon():
 
 # BEGIN GENERATED CODE
 # Generated with 'cython-generate-lexicon.py' based on Unicode 16.0.0:
-# cpython 3.15.0a0 (heads/master:652d6938ef8, May 20 2025, 09:24:50) [GCC 13.3.0]
+# cpython 3.14.0rc1 free-threading build (main, Jul 25 2025, 19:13:08) [GCC 14.2.1 20250220 [revision 9ffecde121af883b60bbe60d00425036bc873048]]
 
 unicode_start_ch_any = (
     "\u005f\u00aa\u00b5\u00ba\u02ec\u02ee\u037f\u0386\u038c\u0559\u06d5"
@@ -269,7 +272,8 @@ unicode_start_ch_range = (
     "\U0001ee32\U0001ee34\U0001ee37\U0001ee4d\U0001ee4f\U0001ee51\U0001ee52\U0001ee61\U0001ee62\U0001ee67\U0001ee6a"
     "\U0001ee6c\U0001ee72\U0001ee74\U0001ee77\U0001ee79\U0001ee7c\U0001ee80\U0001ee89\U0001ee8b\U0001ee9b\U0001eea1"
     "\U0001eea3\U0001eea5\U0001eea9\U0001eeab\U0001eebb\U00020000\U0002a6df\U0002a700\U0002b739\U0002b740\U0002b81d"
-    "\U0002b820\U0002cea1\U0002ceb0\U0002ebe0\U0002ebf0\U0002ee5d\U0002f800\U0002fa1d\U00030000\U0003134a"
+    "\U0002b820\U0002cea1\U0002ceb0\U0002ebe0\U0002ebf0\U0002ee5d\U0002f800\U0002fa1d\U00030000\U0003134a\U00031350"
+    "\U000323af"
 )
 unicode_continuation_ch_any = (
     "\u00b7\u0387\u05bf\u05c7\u0670\u0711\u07fd\u09bc\u09d7\u09fe\u0a3c"
@@ -338,7 +342,7 @@ unicode_continuation_ch_range = (
     "\U0001d242\U0001d244\U0001d7ce\U0001d7ff\U0001da00\U0001da36\U0001da3b\U0001da6c\U0001da9b\U0001da9f\U0001daa1"
     "\U0001daaf\U0001e000\U0001e006\U0001e008\U0001e018\U0001e01b\U0001e021\U0001e023\U0001e024\U0001e026\U0001e02a"
     "\U0001e130\U0001e136\U0001e140\U0001e149\U0001e2ec\U0001e2f9\U0001e4ec\U0001e4f9\U0001e5ee\U0001e5ef\U0001e5f1"
-    "\U0001e5fa\U0001e8d0\U0001e8d6\U0001e944\U0001e94a\U0001e950\U0001e959\U0001fbf0\U0001fbf9"
+    "\U0001e5fa\U0001e8d0\U0001e8d6\U0001e944\U0001e94a\U0001e950\U0001e959\U0001fbf0\U0001fbf9\U000e0100\U000e01ef"
 )
 
 # END GENERATED CODE

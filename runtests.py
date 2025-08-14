@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 import atexit
 import base64
@@ -1803,7 +1803,7 @@ class TestCodeFormat(unittest.TestCase):
         # checks for .py files
         paths = []
         for codedir in source_dirs:
-            paths += glob.glob(os.path.join(self.cython_dir, codedir + "/**/*.py"), recursive=True)
+            paths += glob.iglob(os.path.join(self.cython_dir, codedir + "/**/*.py"), recursive=True)
         style = pycodestyle.StyleGuide(config_file=config_file)
         print("")  # Fix the first line of the report.
         result = style.check_files(paths)
@@ -1812,13 +1812,86 @@ class TestCodeFormat(unittest.TestCase):
         # checks for non-Python source files
         paths = []
         for codedir in ['Cython', 'Demos', 'pyximport']:  # source_dirs:
-            paths += glob.glob(os.path.join(self.cython_dir, codedir + "/**/*.p[yx][xdi]"), recursive=True)
+            paths += glob.iglob(os.path.join(self.cython_dir, codedir + "/**/*.p[yx][xdi]"), recursive=True)
         style = pycodestyle.StyleGuide(config_file=config_file, select=[
+            'E711',
+            'E713',
+            'E714',
+            #'E501',
+            'W291',
+            'W292',
+            'E502',
+            'E703',
             # whitespace
-            "W1", "W2", "W3",
+            'W1',
+            'W2',
+            'W3',
+            #'E211',
+            'E223',
+            'E224',
+            #'E227',
+            'E228',
+            'E242',
+            #'E261',
+            'E273',
+            'E274',
+            #'E275',
             # indentation
-            "E101", "E111",
+            'E101',
+            'E111',
+            'E112',
+            #'E113',
+            'E117',
+            'E121',
+            'E125',
+            'E129',
         ])
+        print("")  # Fix the first line of the report.
+        result = style.check_files(paths)
+        total_errors += result.total_errors
+
+        # checks for non-Python test source files
+        paths = []
+        for codedir in ['tests']:  # source_dirs:
+            paths += glob.iglob(os.path.join(self.cython_dir, codedir + "/**/*.p[yx][xdi]"), recursive=True)
+        style = pycodestyle.StyleGuide(config_file=config_file, select=[
+            #'E711',
+            #'E713',
+            #'E714',
+            #'E501',
+            #'E502',
+            #'E703',
+            # whitespace
+            #'W1',
+            #'W2',
+            #'W3',
+            #'W291',
+            'W292',
+            #'E211',
+            'E223',
+            'E224',
+            #'E227',
+            #'E228',
+            'E242',
+            #'E261',
+            'E273',
+            'E274',
+            #'E275',
+            # indentation
+            'E101',
+            #'E111',
+            'E112',
+            'E113',
+            #'E117',
+            #'E121',
+            #'E125',
+            #'E129',
+            ],
+            exclude=[
+                "*badindent*",
+                "*tabspace*",
+            ],
+        )
         print("")  # Fix the first line of the report.
         result = style.check_files(paths)
         total_errors += result.total_errors
@@ -2759,9 +2832,9 @@ def runtests(options, cmd_args, coverage=None):
             compiler_default_options['gdb_debug'] = True
             compiler_default_options['output_dir'] = os.getcwd()
 
-    if IS_PYPY:
+    if IS_PYPY or IS_GRAAL:
         if options.with_refnanny:
-            sys.stderr.write("Disabling refnanny in PyPy\n")
+            sys.stderr.write("Disabling refnanny in PyPy/GraalPy\n")
             options.with_refnanny = False
 
     refnanny = None
