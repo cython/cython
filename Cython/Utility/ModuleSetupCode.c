@@ -2830,7 +2830,7 @@ static PyObject *__Pyx_ModuleStateLookup_FindModule(__Pyx_ModuleStateLookupData 
         // table == NULL can either mean we're writing, or it's uninitialized.
         // Uninitialized only happens infrequently on the first few calls, so it's fine
         // to be on the slow path.
-        if (likely(data)) {
+        if (likely(table)) {
             __Pyx_ModuleStateLookupTable* new_table = (__Pyx_ModuleStateLookupTable*)__pyx_atomic_pointer_load_acquire(&data->table);
             if (likely(table == new_table)) {
                 // Nothing has written the data between incrementing the read counter and loading the pointer.
