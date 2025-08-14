@@ -21,9 +21,9 @@ static int __Pyx__Import_GetModule(PyObject *qualname, PyObject **module) {
 
 static int __Pyx__Import_Lookup(PyObject *qualname, PyObject *from_list, PyObject **module) {
     PyObject *imported_module;
-    PyObject *list, *listitem;
-    Py_ssize_t i, listsize;
-    int status;
+    PyObject *name_parts, *top_level_package_name;
+    Py_ssize_t i, part_count, from_list_size;
+    int status, module_found;
 
     module_found = __Pyx__Import_GetModule(qualname, &imported_module);
     if (unlikely(!module_found || module_found == -1)) {
@@ -32,13 +32,13 @@ static int __Pyx__Import_Lookup(PyObject *qualname, PyObject *from_list, PyObjec
     }
 
     if (from_list) {
-        listsize = __Pyx_PyList_GET_SIZE(from_list);
+        from_list_size = __Pyx_PyList_GET_SIZE(from_list);
         #if !CYTHON_ASSUME_SAFE_SIZE
-        if (unlikely(listsize == -1)) {
+        if (unlikely(from_list_size == -1)) {
             goto error;
         }
         #endif
-        for (i = 0; i < part_count; i++) {
+        for (i = 0; i < from_list_size; i++) {
             PyObject *imported_name = __Pyx_PyList_GetItemRef(from_list, i);
             if (unlikely(!imported_name)) {
                 goto error;
@@ -54,34 +54,34 @@ static int __Pyx__Import_Lookup(PyObject *qualname, PyObject *from_list, PyObjec
     }
 
     // Get top-level module
-    list = PyUnicode_Split(qualname, PYUNICODE("."), 1);
-    if (unlikely(!list)) {
+    name_parts = PyUnicode_Split(qualname, PYUNICODE("."), 1);
+    if (unlikely(!name_parts)) {
         goto error;
     }
 
-    listsize = __Pyx_PyList_GET_SIZE(list);
+    part_count = __Pyx_PyList_GET_SIZE(name_parts);
     #if !CYTHON_ASSUME_SAFE_SIZE
-    if (unlikely(listsize == -1)) {
+    if (unlikely(part_count == -1)) {
         goto error;
     }
     #endif
-    if (listsize == 1) {
+    if (part_count == 1) {
         // No dot, so we already have the top-level module
         *module = imported_module;
         return 1;
     }
     Py_DECREF(imported_module);
 
-    listitem = __Pyx_PyList_GET_ITEM(list, 0);
+    top_level_package_name = __Pyx_PyList_GET_ITEM(name_parts, 0);
     #if !CYTHON_ASSUME_SAFE_MACROS
-    if (unlikely(!listitem)) {
+    if (unlikely(!top_level_package_name)) {
         *module = NULL;
         return -1;
     }
     #endif
 
-    status = __Pyx__Import_GetModule(listitem, module);
-    Py_DECREF(list);
+    status = __Pyx__Import_GetModule(top_level_package_name, module);
+    Py_DECREF(name_parts);
     return status;
 
 error:
@@ -99,7 +99,7 @@ static PyObject *__Pyx_Import(PyObject *name, PyObject *from_list, PyObject *qua
     PyObject *module = 0;
     PyObject *empty_dict = 0;
     PyObject *empty_list = 0;
-    int status;
+    int module_found;
 
     if (!qualname) {
         qualname = name;

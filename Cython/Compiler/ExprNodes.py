@@ -2937,11 +2937,10 @@ class ImportNode(ExprNode):
             self.name_list.py_result() if self.name_list else '0',
             module_qualname,
             self.level)
-        tmp_result = code.funcstate.allocate_temp(self.type, manage_ref=False)
-        code.putln("%s = %s; %s" % (
-            tmp_result,
-            import_code,
-            code.error_goto_if_null(tmp_result, self.pos)))
+        tmp_submodule = code.funcstate.allocate_temp(self.type, manage_ref=False)
+        code.putln(
+            f"{tmp_submodule} = {import_code}; {code.error_goto_if_null(tmp_submodule, self.pos)}"
+        )
 
         if self.is_import_as_name and "." in self.module_name.value:
             # We need to get the submodules in this case
@@ -2950,17 +2949,14 @@ class ImportNode(ExprNode):
             modules = self.module_name.value.split(".")
             for module in modules[1:]:
                 module_obj = code.get_py_string_const(StringEncoding.EncodedString(module))
-                code.putln("%s = __Pyx_ImportFrom(%s, %s);" % (
-                    submodule,
-                    tmp_result,
-                    module_obj))
-                code.putln("Py_DECREF(%s);" % tmp_result)
+                code.putln(f"{submodule} = __Pyx_ImportFrom({tmp_submodule}, {module_obj});")
+                code.putln(f"Py_DECREF({tmp_submodule});")
                 code.error_goto_if_null(submodule, self.pos)
-                code.putln("%s = %s;" % (tmp_result, submodule))
+                code.putln(f"{tmp_submodule} = {submodule};")
             code.funcstate.release_temp(submodule)
 
-        code.putln("%s = %s;" % (self.result(), tmp_result))
-        code.funcstate.release_temp(tmp_result)
+        code.putln(f"{self.result()} = {tmp_submodule};")
+        code.funcstate.release_temp(tmp_submodule)
         self.generate_gotref(code)
 
     def get_known_standard_library_import(self):
