@@ -452,6 +452,19 @@ class UtilityCodeBase(AbstractUtilityCode):
     is_cython_utility = False
     _utility_cache = {}
 
+    match_section_title = re.compile(
+        r'(.+)[.](proto(?:[.]\S+)?|impl|init|cleanup|module_state_decls|module_state_traverse|module_state_clear|export)$'
+    ).match
+
+    @staticmethod
+    def get_special_comment_matcher(line_comment_char):
+        return re.compile((
+            # section title
+            r'^%(C)s{5,30}  \s*  (?P<name> (?:\w|\.)+ )  \s*  %(C)s{5,30} |'
+            # section tags and dependencies
+            r'^%(C)s+  @(?P<tag> \w+)  \s*  :  \s*  (?P<value> (?: \w|[.:] )+ )'
+        ) % {'C': re.escape(line_comment_char)}, re.VERBOSE).match
+
     @classmethod
     def _add_utility(cls, utility, name, type, lines, begin_lineno, tags=None):
         if utility is None:
@@ -500,12 +513,8 @@ class UtilityCodeBase(AbstractUtilityCode):
             comment = '/'
             strip_comments = partial(re.compile(r'^\s*//.*|/\*[^*]*\*/').sub, '')
             rstrip = partial(re.compile(r'\s+(\\?)$').sub, r'\1')
-        match_special = re.compile(
-            (r'^%(C)s{5,30}\s*(?P<name>(?:\w|\.)+)\s*%(C)s{5,30}|'
-             r'^%(C)s+@(?P<tag>\w+)\s*:\s*(?P<value>(?:\w|[.:])+)') %
-            {'C': comment}).match
-        match_type = re.compile(
-            r'(.+)[.](proto(?:[.]\S+)?|impl|init|cleanup|module_state_decls|module_state_traverse|module_state_clear)$').match
+
+        match_special = cls.get_special_comment_matcher(comment)
 
         all_lines = read_utilities_hook(path)
 
@@ -526,7 +535,7 @@ class UtilityCodeBase(AbstractUtilityCode):
                     tags.clear()
 
                     name = m.group('name')
-                    mtype = match_type(name)
+                    mtype = cls.match_section_title(name)
                     if mtype:
                         name, type = mtype.groups()
                     else:
@@ -685,12 +694,12 @@ class UtilityCode(UtilityCodeBase):
     file            filename of the utility code file this utility was loaded
                     from (or None)
     """
-    code_parts = ["proto", "impl", "init", "cleanup", "module_state_decls", "module_state_traverse", "module_state_clear"]
+    code_parts = ["proto", "impl", "init", "cleanup", "module_state_decls", "module_state_traverse", "module_state_clear", "export"]
 
     def __init__(self, proto=None, impl=None, init=None, cleanup=None,
                  module_state_decls=None, module_state_traverse=None,
                  module_state_clear=None, requires=None,
-                 proto_block='utility_code_proto', name=None, file=None):
+                 proto_block='utility_code_proto', name=None, file=None, export=None):
         # proto_block: Which code block to dump prototype in. See GlobalState.
         self.proto = proto
         self.impl = impl
@@ -705,9 +714,32 @@ class UtilityCode(UtilityCodeBase):
         self.proto_block = proto_block
         self.name = name
         self.file = file
+        self.shared_utility_functions = self.parse_export_functions(export) if export else []
 
         # cached for use in hash and eq
         self._parts_tuple = tuple(getattr(self, part, None) for part in self.code_parts)
+
+    @classmethod
+    def parse_export_functions(cls, export_proto):
+        assert '/*' not in export_proto or '*/' not in export_proto, 'Export block must not contain comments'
+        assert '//' not in export_proto, 'Export block must not contain comments'
+
+        export_proto = export_proto.strip().replace('\n', '')
+        export_proto = re.sub(r'\s+', ' ', export_proto)
+        shared_protos = []
+        proto_regex=r'''
+            (?:static\s)?                                   # optional `static` keyword
+            (?P<ret_type>[^;]+[\s*])\s?                     # return type + modifier with optional * - e.g.: int *, float, const str *, ...
+            (?P<func_name>\w+)\((?P<func_params>[^)]*)\);   # function with params - e.g. foo(int, float, *PyObject)
+        '''
+        for ret_type, func_name, func_params in re.findall(proto_regex, export_proto, re.VERBOSE):
+            shared_protos.append({
+                'name': func_name.strip(),
+                'ret': ret_type.strip(),
+                'params': func_params.strip(),
+             })
+        return shared_protos
+
 
     def __hash__(self):
         return hash(self._parts_tuple)
@@ -791,12 +823,25 @@ class UtilityCode(UtilityCodeBase):
         writer.putln()
 
     def put_code(self, output):
-        if self.requires:
+        shared_utility_loaded = bool(output.module_node.scope.context.shared_utility_qualified_name)
+
+        if self.requires and not (self.shared_utility_functions and shared_utility_loaded):
             for dependency in self.requires:
                 output.use_utility_code(dependency)
 
         if self.proto:
-            self._put_code_section(output[self.proto_block], output, 'proto')
+            if self.shared_utility_functions and shared_utility_loaded:
+                output[self.proto_block].putln(f'/* {self.name} */')
+                for shared in self.shared_utility_functions:
+                    # Convert function declarations to static function pointers.
+                    output[self.proto_block].putln(f'static {shared["ret"]}(*{shared["name"]})({shared["params"]});')
+                output[self.proto_block].putln()
+            else:
+                self._put_code_section(output[self.proto_block], output, 'proto')
+        if self.shared_utility_functions:
+            output.shared_utility_functions.extend(self.shared_utility_functions)
+            if shared_utility_loaded:
+                return
         if self.impl:
             self._put_code_section(output['utility_code_def'], output, 'impl')
         if self.cleanup and Options.generate_cleanup_code:
@@ -1504,6 +1549,7 @@ class GlobalState:
         self.const_array_counters = {}  # counts of differently prefixed arrays of constants
         self.cached_cmethods = {}
         self.initialised_constants = set()
+        self.shared_utility_functions = []
 
         writer.set_global_state(self)
         self.rootwriter = writer
@@ -1557,6 +1603,9 @@ class GlobalState:
         code.putln("")
         code.putln("/* --- Runtime support code --- */")
 
+    def register_part(self, name, code):
+        self.parts[name] = code.insertion_point()
+
     def initialize_main_h_code(self):
         rootwriter = self.rootwriter
         for part in self.h_code_layout:
@@ -1584,6 +1633,33 @@ class GlobalState:
         util = UtilityCode.load_cached("UtilityCodePragmasEnd", "ModuleSetupCode.c")
         code.putln(util.format_code(util.impl))
         code.putln("")
+
+        shared_module_loaded = self.module_node.scope.context.shared_utility_qualified_name
+        shared_module_generated = self.module_node.scope.context.options.shared_c_file_path
+
+        if shared_module_loaded:
+            from .PyrexTypes import py_object_type
+            code = self.parts['c_function_import_code']
+            if self.shared_utility_functions:
+                code.globalstate.use_utility_code(UtilityCode.load_cached("FunctionImport", "ImportExport.c"))
+            temp = code.funcstate.allocate_temp(py_object_type, manage_ref=True)
+            cyversion = Naming.cyversion
+            for shared in self.shared_utility_functions:
+                shared_func_proto = f'{shared["ret"]}({shared["params"]})'
+                shared_func = shared["name"]
+                code.put_error_if_neg(
+                    self.module_pos,
+                    f'__Pyx_ImportFunction_{cyversion}({temp}, "{shared_func}", (void (**)(void))&{shared_func}, "{shared_func_proto}")'
+                )
+        elif shared_module_generated:
+            code = self.parts['c_function_export_code']
+            for shared in self.shared_utility_functions:
+                shared_func_proto = f'{shared["ret"]}({shared["params"]})'
+                shared_func = shared["name"]
+                code.put_error_if_neg(
+                    self.module_pos,
+                    f'__Pyx_ExportFunction("{shared_func}", (void (*)(void)){shared_func}, "{shared_func_proto}")'
+                )
 
     def __getitem__(self, key):
         return self.parts[key]
