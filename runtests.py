@@ -1899,19 +1899,6 @@ class TestCodeFormat(unittest.TestCase):
         result = style.check_files(paths)
         total_errors += result.total_errors
 
-        """
-        # checks for non-Python test files
-        paths = []
-        for codedir in ['tests']:
-            paths += glob.glob(os.path.join(self.cython_dir, codedir + "/**/*.p[yx][xdi]"), recursive=True)
-        style = pycodestyle.StyleGuide(select=[
-            # whitespace
-            "W1", "W2", "W3",
-        ])
-        result = style.check_files(paths)
-        total_errors += result.total_errors
-        """
-
         self.assertEqual(total_errors, 0, "Found code style errors.")
 
 
