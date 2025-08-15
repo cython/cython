@@ -3036,6 +3036,10 @@ static int __Pyx_ModuleStateLookup_AddModule(__Pyx_ModuleStateLookupData* data, 
             new_table->id_and_modules[i].module = last_module;
             last_module = current_module;
         }
+        for (Py_ssize_t i=new_table->count; i<new_table->allocated; ++i) {
+            new_table->id_and_modules[i].id = 0;
+            new_table->id_and_modules[i].module = NULL;
+        }
     }
 
   end:
@@ -3066,6 +3070,8 @@ static int __Pyx_ModuleStateLookup_RemoveModule(__Pyx_ModuleStateLookupData *dat
 #else
     __Pyx_ModuleStateLookupTable *table = data->table;
 #endif
+
+    if (!table) goto done;
 
     if (table->interpreter_id_as_index) {
         if (interpreter_id < table->count) {

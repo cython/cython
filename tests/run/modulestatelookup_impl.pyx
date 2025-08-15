@@ -57,23 +57,19 @@ def test_add_modules():
 
 def test_remove_modules():
     """
-    test_remove_modules()
+    >>> test_remove_modules()
     """
     data = __Pyx_ModuleStateLookup_allocate_for_tests();
     try:
         modules = [object() for _ in range(500)]
         for n, module in enumerate(modules):
-            try:
-                __Pyx_ModuleStateLookup_RemoveModule(data, n)
-            except SystemError:
-                pass  # expected
-            else:
-                assert False, "Didn't raise SystemError"
+            # Shouldn't crash
+            __Pyx_ModuleStateLookup_RemoveModule(data, n)
             __Pyx_ModuleStateLookup_AddModule(data, n, <PyObject*>module)
 
-        for n, module in range(len(modules)):
+        for n in range(len(modules)):
             __Pyx_ModuleStateLookup_RemoveModule(data, n)
-        for n, module in range(len(modules)):
+        for n in range(len(modules)):
             assert __Pyx_ModuleStateLookup_FindModule(data, n) == NULL
     finally:
         __Pyx_ModuleStateLookup_free_for_tests(data)
