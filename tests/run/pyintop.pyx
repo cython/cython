@@ -184,6 +184,11 @@ def rshift_int(obj2):
     144115188075855872
     >>> bigint(rshift_int(-2**60))
     -144115188075855872
+
+    >>> rshift_int(-1)
+    -1
+    >>> (-1) >> 3
+    -1
     """
     obj1 = obj2 >> 3
     return obj1
@@ -703,3 +708,75 @@ def pure_truediv_int(obj2: int):
     """
     res = obj2 / 2
     return res
+
+
+def negative_rhs_lshift(obj: int):
+    """
+    >>> negative_rhs_lshift(5)
+    Traceback (most recent call last):
+        ...
+    ValueError: negative shift count
+    """
+    return (obj << (-1))
+
+def negative_rhs_rshift(obj: int):
+    """
+    >>> negative_rhs_rshift(5)
+    Traceback (most recent call last):
+        ...
+    ValueError: negative shift count
+    """
+    return (obj >> (-1))
+
+
+def big_lshift(obj):
+    """
+    >>> big_lshift(1)
+    1180591620717411303424
+    >>> big_lshift(-1)
+    -1180591620717411303424
+    """
+    return obj << 70
+
+def somewhat_big_lshift(obj):
+    """
+    Note that on MSVC this is bigger than a long
+
+    >>> somewhat_big_lshift(1)
+    (1099511627776, 4294967296)
+    >>> somewhat_big_lshift(-1)
+    (-1099511627776, -4294967296)
+    """
+    return obj << 40, obj << 32
+
+def big_rshift(obj):
+    """
+    >>> big_rshift(1)
+    0
+    >>> big_rshift(-1)
+    -1
+    >>> big_rshift(2**80)
+    1024
+    >>> big_rshift(-(2**80))
+    -1024
+    """
+    return obj >> 70
+
+def somewhat_big_rshift(obj):
+    """
+    Note that on MSVC this is bigger than a long
+
+    >>> somewhat_big_rshift(1)
+    (0, 0)
+    >>> somewhat_big_rshift(-1)
+    (-1, -1)
+    >>> somewhat_big_rshift(0x6f)
+    (0, 0)
+    >>> somewhat_big_rshift(-0x6f)
+    (-1, -1)
+    >>> somewhat_big_rshift(2**50)
+    (1024, 262144)
+    >>> somewhat_big_rshift(-(2**50))
+    (-1024, -262144)
+    """
+    return obj >> 40, obj >> 32

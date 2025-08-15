@@ -1325,17 +1325,31 @@ static {{c_ret_type}} __Pyx_Unpacked_{{cfunc_name}}(PyObject *op1, PyObject *op2
                 x = q;
             }
         {{else}}
+            {{if op == 'Rshift' or op == 'Lshift'}}
+#if !(defined(__cplusplus) && __cplusplus < 202002L)
+            // This is well-defined only in C++20
+            if (unlikely(a < 0)) goto fallback;
+#endif
+            {{endif}}
             x = a {{c_op}} b;
-            {{if op == 'Lshift'}}
+            {{if op == 'Lshift' or op == 'Rshift'}}
 #ifdef HAVE_LONG_LONG
-            if (unlikely(!(b < (long) (sizeof(long)*8) && a == x >> b)) && a) {
+            if (unlikely(b >= (long) (sizeof(long)*8))
+                {{if op == 'Lshift'}}
+                    || unlikely(a != x >> b && a)
+                {{endif}}
+                ) {
                 ll{{ival}} = {{ival}};
                 goto long_long;
             }
 #else
-            if (likely(b < (long) (sizeof(long)*8) && a == x >> b) || !a) /* execute return statement below */
+            if (likely(b < (long) (sizeof(long)*8)))
+                {{if op=='Lshift'}}
+                if (likely(a == x >> b) || !a)
+                {{endif}}
+                /* execute return statement below */
 #endif
-            {{endif}}
+            {{endif}}{{# Lshift or Rshift #}}
         {{endif}}
         return PyLong_FromLong(x);
 
@@ -1356,13 +1370,25 @@ static {{c_ret_type}} __Pyx_Unpacked_{{cfunc_name}}(PyObject *op1, PyObject *op2
                 llx = q;
             }
         {{else}}
+            {{if op == 'LShift' or op == 'Rshift'}}
+#if !(defined(__cplusplus) && __cplusplus < 202002L)
+            // This is well-defined only in C++20
+            if (lla < 0) goto fallback;
+#endif
+            {{endif}}
             llx = lla {{c_op}} llb;
-            {{if op == 'Lshift'}}
-            if (likely(lla == llx >> llb)) /* then execute 'return' below */
+            {{if op == 'Lshift' or op == 'Rshift'}}
+            if (likely(llb < (long long)(sizeof(long long)*8))) /* then execute 'return' below */
+                {{if op == 'Lshift'}}
+                if (likely(lla == llx >> llb))
+                {{endif}}
             {{endif}}
         {{endif}}
         return PyLong_FromLongLong(llx);
 #endif
+{{if op == 'Lshift' or op == 'Rshift'}}
+  fallback:
+{{endif}}
 
     return __Pyx_Fallback_{{cfunc_name}}(op1, op2, inplace);
 
