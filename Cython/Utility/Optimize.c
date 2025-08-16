@@ -1215,7 +1215,7 @@ static {{c_ret_type}} __Pyx_Unpacked_{{cfunc_name}}(PyObject *op1, PyObject *op2
 #endif
     {{endif}}
     {{if op == 'Rshift' or op == 'Lshift'}}
-// shifting negative numbers is technically implentation defined on C, and
+// shifting negative numbers is technically implementation defined on C, and
 // C++ before C++20. Most implementation do the right thing though so
 // special case ones we know are good.
 #if (defined(__cplusplus) && __cplusplus < 202002L) \
