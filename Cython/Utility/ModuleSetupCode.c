@@ -37,7 +37,8 @@
 #define __PYX_COMMA ,
 
 #ifndef HAVE_LONG_LONG
-  // CPython has required PY_LONG_LONG support for years, even if HAVE_LONG_LONG is not defined for us
+  // CPython has required PY_LONG_LONG support for years, even if HAVE_LONG_LONG is not defined for us.
+  // (We no longer use this in Cython - this definition it now just for user-code.)
   #define HAVE_LONG_LONG
 #endif
 
