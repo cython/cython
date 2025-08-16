@@ -1332,24 +1332,20 @@ static {{c_ret_type}} __Pyx_Unpacked_{{cfunc_name}}(PyObject *op1, PyObject *op2
 #endif
             {{endif}}
             x = a {{c_op}} b;
-            {{if op == 'Lshift' or op == 'Rshift'}}
+            {{if op == 'Rshift'}}
+            if (unlikely(b >= (long) (sizeof(long)*8))) {
+                x = (a < 0) ? -1 : 0;
+            }
+            {{elif op == 'Lshift'}}
 #ifdef HAVE_LONG_LONG
-            if (unlikely(b >= (long) (sizeof(long)*8))
-                {{if op == 'Lshift'}}
-                    || unlikely(a != x >> b && a)
-                {{endif}}
-                ) {
+            if (unlikely(!(b < (long) (sizeof(long)*8) && a == x >> b)) && a) {
                 ll{{ival}} = {{ival}};
                 goto long_long;
             }
 #else
-            if (likely(b < (long) (sizeof(long)*8)))
-                {{if op=='Lshift'}}
-                if (likely(a == x >> b) || !a)
-                {{endif}}
-                /* execute return statement below */
+            if (likely(b < (long) (sizeof(long)*8) && a == x >> b) || !a) /* execute return statement below */
 #endif
-            {{endif}}{{# Lshift or Rshift #}}
+            {{endif}}
         {{endif}}
         return PyLong_FromLong(x);
 
@@ -1377,11 +1373,12 @@ static {{c_ret_type}} __Pyx_Unpacked_{{cfunc_name}}(PyObject *op1, PyObject *op2
 #endif
             {{endif}}
             llx = lla {{c_op}} llb;
-            {{if op == 'Lshift' or op == 'Rshift'}}
-            if (likely(llb < (long long)(sizeof(long long)*8))) /* then execute 'return' below */
-                {{if op == 'Lshift'}}
-                if (likely(lla == llx >> llb))
-                {{endif}}
+            {{if op == 'Rshift'}}
+            if (unlikely(llb >= (long long)(sizeof(long long)*8))) {
+                llx = (lla < 0) ? -1 : 0;
+            }
+            {{elif op == 'Lshift'}}
+            if (likely(lla == llx >> llb)) /* then execute 'return' below */
             {{endif}}
         {{endif}}
         return PyLong_FromLongLong(llx);
