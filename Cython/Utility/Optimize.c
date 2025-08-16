@@ -1214,6 +1214,20 @@ static {{c_ret_type}} __Pyx_Unpacked_{{cfunc_name}}(PyObject *op1, PyObject *op2
     PY_LONG_LONG ll{{ival}}, llx;
 #endif
     {{endif}}
+    {{if op == 'Rshift' or op == 'Lshift'}}
+// shifting negative numbers is technically implentation defined on C, and
+// C++ before C++20. Most implementation do the right thing though so
+// special case ones we know are good.
+#if (defined(__cplusplus) && __cplusplus < 202002L) \
+        || (defined(__GNUC__) || (defined(__clang__))) && \
+            (defined(__arm__) || defined(__x86_64__) || defined(__i386__)) \
+        || (defined(_MSC_VER) && \
+            (defined(_M_ARM) || defined(_M_AMD64) || defined(_M_IX86)))
+    const int negative_shift_works = 1;
+#else
+    const int negative_shift_works = 0;
+#endif
+    {{endif}}
 
     // special cases for 0: + - * % / // | ^ & >> <<
     if (unlikely(__Pyx_PyLong_IsZero({{pyval}}))) {
@@ -1325,11 +1339,9 @@ static {{c_ret_type}} __Pyx_Unpacked_{{cfunc_name}}(PyObject *op1, PyObject *op2
                 x = q;
             }
         {{else}}
+             
             {{if op == 'Rshift' or op == 'Lshift'}}
-#if !(defined(__cplusplus) && __cplusplus < 202002L)
-            // This is well-defined only in C++20
-            if (unlikely(a < 0)) goto fallback;
-#endif
+            if ((!negative_shift_works) && unlikely(a < 0)) goto fallback;
             {{endif}}
             x = a {{c_op}} b;
             {{if op == 'Rshift'}}
@@ -1367,10 +1379,7 @@ static {{c_ret_type}} __Pyx_Unpacked_{{cfunc_name}}(PyObject *op1, PyObject *op2
             }
         {{else}}
             {{if op == 'LShift' or op == 'Rshift'}}
-#if !(defined(__cplusplus) && __cplusplus < 202002L)
-            // This is well-defined only in C++20
-            if (lla < 0) goto fallback;
-#endif
+            if ((!negative_shift_works) && unlikely(a < 0)) goto fallback;
             {{endif}}
             llx = lla {{c_op}} llb;
             {{if op == 'Rshift'}}
