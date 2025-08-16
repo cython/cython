@@ -1055,11 +1055,9 @@ static PyObject* __Pyx__PyNumber_PowerOf2(PyObject *two, PyObject *exp, PyObject
         if ((size_t)shiftby <= sizeof(long) * 8 - 2) {
             long value = 1L << shiftby;
             return PyLong_FromLong(value);
-#ifdef HAVE_LONG_LONG
         } else if ((size_t)shiftby <= sizeof(unsigned PY_LONG_LONG) * 8 - 1) {
             unsigned PY_LONG_LONG value = ((unsigned PY_LONG_LONG)1) << shiftby;
             return PyLong_FromUnsignedLongLong(value);
-#endif
         } else {
             PyObject *result, *one = PyLong_FromLong(1L);
             if (unlikely(!one)) return NULL;
@@ -1209,10 +1207,8 @@ static {{c_ret_type}} __Pyx_Unpacked_{{cfunc_name}}(PyObject *op1, PyObject *op2
     const long {{'a' if order == 'CObj' else 'b'}} = intval;
     long {{ival}}{{if op not in ('Eq', 'Ne')}}, x{{endif}};
     {{if op not in ('Eq', 'Ne', 'TrueDivide')}}
-#ifdef HAVE_LONG_LONG
     const PY_LONG_LONG ll{{'a' if order == 'CObj' else 'b'}} = intval;
     PY_LONG_LONG ll{{ival}}, llx;
-#endif
     {{endif}}
     {{if op == 'Rshift' or op == 'Lshift'}}
 // shifting negative numbers is technically implementation defined on C, and
@@ -1276,11 +1272,9 @@ static {{c_ret_type}} __Pyx_Unpacked_{{cfunc_name}}(PyObject *op1, PyObject *op2
                     {{ival}} = {{'-' if _case < 0 else ''}}(long) {{pylong_join(_size, 'digits')}};
                     break;
                 {{if op not in ('Eq', 'Ne', 'TrueDivide')}}
-                #ifdef HAVE_LONG_LONG
                 } else if (8 * sizeof(PY_LONG_LONG) - 1 > {{_size}} * PyLong_SHIFT{{if c_op == '*'}}+30{{endif}}) {
                     ll{{ival}} = {{'-' if _case < 0 else ''}}(PY_LONG_LONG) {{pylong_join(_size, 'digits', 'unsigned PY_LONG_LONG')}};
                     goto long_long;
-                #endif
                 {{endif}}
                 }
                 // if size doesn't fit into a long or PY_LONG_LONG anymore, fall through to default
@@ -1313,12 +1307,8 @@ static {{c_ret_type}} __Pyx_Unpacked_{{cfunc_name}}(PyObject *op1, PyObject *op2
         {{if c_op == '*'}}
             CYTHON_UNUSED_VAR(a);
             CYTHON_UNUSED_VAR(b);
-            #ifdef HAVE_LONG_LONG
             ll{{ival}} = {{ival}};
             goto long_long;
-            #else
-            return PyLong_Type.tp_as_number->nb_{{slot_name}}(op1, op2);
-            #endif
         {{elif c_op == '%'}}
             // see CMath.c :: ModInt utility code
             x = a % b;
@@ -1349,20 +1339,15 @@ static {{c_ret_type}} __Pyx_Unpacked_{{cfunc_name}}(PyObject *op1, PyObject *op2
                 x = (a < 0) ? -1 : 0;
             }
             {{elif op == 'Lshift'}}
-#ifdef HAVE_LONG_LONG
             if (unlikely(!(b < (long) (sizeof(long)*8) && a == x >> b)) && a) {
                 ll{{ival}} = {{ival}};
                 goto long_long;
             }
-#else
-            if (likely(b < (long) (sizeof(long)*8) && a == x >> b) || !a) /* execute return statement below */
-#endif
             {{endif}}
         {{endif}}
         return PyLong_FromLong(x);
 
     {{if op != 'TrueDivide'}}
-#ifdef HAVE_LONG_LONG
     long_long:
         {{if c_op == '%'}}
             // see CMath.c :: ModInt utility code
@@ -1391,7 +1376,6 @@ static {{c_ret_type}} __Pyx_Unpacked_{{cfunc_name}}(PyObject *op1, PyObject *op2
             {{endif}}
         {{endif}}
         return PyLong_FromLongLong(llx);
-#endif
 {{if op == 'Lshift' or op == 'Rshift'}}
   fallback:
 {{endif}}
