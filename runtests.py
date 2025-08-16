@@ -264,9 +264,11 @@ def exclude_test_if_no_gdb(*, _has_gdb=[None]):
     return not _has_gdb[0]
 
 
-def update_linetrace_extension(ext):
-    ext.define_macros.append(('CYTHON_TRACE', 1))
-    return ext
+def add_macro(macro_name, value):
+    def update(ext):
+        ext.define_macros.append((macro_name, value))
+        return ext
+    return update
 
 
 def update_numpy_extension(ext, set_api17_macro=True):
@@ -473,8 +475,9 @@ EXT_EXTRAS = {
     'tag:cpp17': update_cpp17_extension,
     'tag:cpp20': update_cpp20_extension,
     'tag:c11': update_c11_extension,
-    'tag:trace' : update_linetrace_extension,
+    'tag:trace' : add_macro('CYTHON_TRACE', 1),
     'tag:cppexecpolicies': require_gcc("9.1"),
+    'tag:module_state_utility_code' : add_macro('CYTHON_TEST_MODULE_STATE_LOOKUP', 1),
 }
 
 TAG_EXCLUDERS = sorted({
