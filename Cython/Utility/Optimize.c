@@ -1214,11 +1214,12 @@ static {{c_ret_type}} __Pyx_Unpacked_{{cfunc_name}}(PyObject *op1, PyObject *op2
 // shifting negative numbers is technically implementation defined on C, and
 // C++ before C++20. Most implementation do the right thing though so
 // special case ones we know are good.
-#if (defined(__cplusplus) && __cplusplus < 202002L) \
+#if (defined(__cplusplus) && __cplusplus >= 202002L) \
         || (defined(__GNUC__) || (defined(__clang__))) && \
             (defined(__arm__) || defined(__x86_64__) || defined(__i386__)) \
         || (defined(_MSC_VER) && \
-            (defined(_M_ARM) || defined(_M_AMD64) || defined(_M_IX86)))
+            /* _M_ARM is almost certainly fine, but diabled until we can test it */ \
+            (/*defined(_M_ARM) ||*/ defined(_M_AMD64) || defined(_M_IX86)))
     const int negative_shift_works = 1;
 #else
     const int negative_shift_works = 0;
@@ -1333,12 +1334,13 @@ static {{c_ret_type}} __Pyx_Unpacked_{{cfunc_name}}(PyObject *op1, PyObject *op2
             {{if op == 'Rshift' or op == 'Lshift'}}
             if ((!negative_shift_works) && unlikely(a < 0)) goto fallback;
             {{endif}}
-            x = a {{c_op}} b;
             {{if op == 'Rshift'}}
             if (unlikely(b >= (long) (sizeof(long)*8))) {
                 x = (a < 0) ? -1 : 0;
-            }
-            {{elif op == 'Lshift'}}
+            } else
+            {{endif}}
+            x = a {{c_op}} b;
+            {{if op == 'Lshift'}}
             if (unlikely(!(b < (long) (sizeof(long)*8) && a == x >> b)) && a) {
                 ll{{ival}} = {{ival}};
                 goto long_long;
@@ -1366,12 +1368,13 @@ static {{c_ret_type}} __Pyx_Unpacked_{{cfunc_name}}(PyObject *op1, PyObject *op2
             {{if op == 'LShift' or op == 'Rshift'}}
             if ((!negative_shift_works) && unlikely(a < 0)) goto fallback;
             {{endif}}
-            llx = lla {{c_op}} llb;
             {{if op == 'Rshift'}}
-            if (unlikely(llb >= (long long)(sizeof(long long)*8))) {
+            if (unlikely(llb >= (long long) (sizeof(long long)*8))) {
                 llx = (lla < 0) ? -1 : 0;
-            }
-            {{elif op == 'Lshift'}}
+            } else
+            {{endif}}
+            llx = lla {{c_op}} llb;
+            {{if op == 'Lshift'}}
             if (likely(lla == llx >> llb)) /* then execute 'return' below */
             {{endif}}
         {{endif}}
