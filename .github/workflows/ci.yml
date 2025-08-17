@@ -118,7 +118,12 @@ jobs:
             extra_hash: "arm64"
           - os:  windows-11-arm
             python-version: "3.12"
-            backend: "c,cpp"
+            backend: "c"
+            extra_hash: "arm64"
+            env: {}
+          - os:  windows-11-arm
+            python-version: "3.12"
+            backend: "cpp"
             extra_hash: "arm64"
             env: {}
           # compile all modules
