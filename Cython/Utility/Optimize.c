@@ -1218,8 +1218,7 @@ static {{c_ret_type}} __Pyx_Unpacked_{{cfunc_name}}(PyObject *op1, PyObject *op2
         || (defined(__GNUC__) || (defined(__clang__))) && \
             (defined(__arm__) || defined(__x86_64__) || defined(__i386__)) \
         || (defined(_MSC_VER) && \
-            /* _M_ARM is almost certainly fine, but disabled until we can test it */ \
-            (/*defined(_M_ARM) ||*/ defined(_M_AMD64) || defined(_M_IX86)))
+            (defined(_M_ARM) || defined(_M_AMD64) || defined(_M_IX86)))
     const int negative_shift_works = 1;
 #else
     const int negative_shift_works = 0;
