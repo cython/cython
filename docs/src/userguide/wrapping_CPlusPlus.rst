@@ -675,7 +675,6 @@ possible to declare them in the :file:`setup.py` file::
 
    setup(ext_modules = cythonize(
               "rect.pyx",                 # our Cython source
-              sources=["Rectangle.cpp"],  # additional source file(s)
               language="c++",             # generate C++ code
          ))
 
@@ -701,8 +700,7 @@ is then handled by ``cythonize()`` as follows::
 
    setup(ext_modules = cythonize(Extension(
               "rect",                                # the extension name
-              sources=["rect.pyx", "Rectangle.cpp"], # the Cython source and
-                                                     # additional C++ source files
+              sources=["rect.pyx"],                  # the Cython source and
               language="c++",                        # generate and compile C++ code
          )))
 
@@ -724,7 +722,6 @@ any source code, to compile it in C++ mode and link it statically against the
 :file:`Rectangle.cpp` code file::
 
    # distutils: language = c++
-   # distutils: sources = Rectangle.cpp
 
 .. note::
 
