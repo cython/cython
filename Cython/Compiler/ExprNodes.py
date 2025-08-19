@@ -14833,7 +14833,7 @@ class CoerceToBooleanNode(CoercionNode):
             # return an int which fits into a Py_ssize_t).
             code.putln(f"Py_ssize_t {Naming.quick_temp_cname} = {test_func}({self.arg.py_result()});")
             code.putln(code.error_goto_if(
-                f"((!CYTHON_ASSUME_SAFE_SIZE) && {self.result()} < 0)", self.pos))
+                f"((!CYTHON_ASSUME_SAFE_SIZE) && {Naming.quick_temp_cname} < 0)", self.pos))
             code.putln(f"{self.result()} = ({Naming.quick_temp_cname} != 0);")
             code.putln("}")
             code.putln()
