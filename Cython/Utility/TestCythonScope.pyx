@@ -41,9 +41,9 @@ cdef class TestClass(object):
     def def_cname_method(self, int value):
         print("Hello from def_cname_method", value)
 
-# For now cdef variables are outside the module scope,
+# cdef public variables are outside the module scope,
 # so we can create a global cname that is easily accessible
-cdef PyObject* __pyx_TestClass_type = <PyObject*>TestClass
+cdef public PyObject* __pyx_TestClass_type = <PyObject*>TestClass
 
 @cname('__pyx_test_call_other_cy_util')
 cdef test_call(obj):
