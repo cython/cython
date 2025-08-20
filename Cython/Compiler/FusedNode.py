@@ -660,7 +660,6 @@ class FusedCFuncDefNode(StatListNode):
                     int __Pyx_Is_Little_Endian()
 
                     # from FusedFunction utility code
-                    object __pyx_ff_match_signatures_single(dict signatures, dest_type)
                     object __pyx_ff_match_signatures(dict signatures, list dest_sig, dict sigindex)
             """)
         decl_code.indent()
