@@ -5,6 +5,22 @@ cimport cython
 
 @cname("__pyx_ff_build_signature_index")
 cdef list build_signature_index(signatures: dict, fused_sigindex_ref: list):
+    """
+    Construct a persistent nested dictionary index of
+    fused type specialization signatures.
+    """
+    # Note on thread-safety:
+    # Filling in "fused_sigindex" should only happen once. However, in a multi-threaded
+    # environment it's possible that multiple threads can all start to fill it in
+    # independently (especially on freehtreading builds).
+    # Therefore:
+    # * "fused_sigindex_ref" is a list of length 1 where the first element is either None,
+    #   or a dictionary of signatures to lookup.
+    # * We rely on being able to get/set list elements atomically (which is true on
+    #   freethreading and regular Python).
+    # * It doesn't really matter if multiple threads start generating their own version
+    #   of this - the contents will end up the same. The main point is that no thread
+    #   sees a half filled-in sigindex
     cdef dict sigindex_node
 
     fused_sigindex = {}
@@ -25,8 +41,12 @@ cdef list build_signature_index(signatures: dict, fused_sigindex_ref: list):
 
 
 @cname("__pyx_ff_match_signatures")
-cdef object match_signatures(signatures: dict, dest_sig: list, sigindex_candidates: list):
+cdef object match_signatures(signatures: dict, dest_sig: list, fused_sigindex_ref: list):
     sigindex_matches = []
+
+    cdef list sigindex_candidates = <list> fused_sigindex_ref[0]
+    if sigindex_candidates is None:
+        sigindex_candidates = build_signature_index(signatures, fused_sigindex_ref)
 
     for dst_type in dest_sig:
         found_matches = []
@@ -62,3 +82,16 @@ cdef object match_signatures(signatures: dict, dest_sig: list, sigindex_candidat
         raise TypeError("Function call with ambiguous argument types" if match_count else "No matching signature found")
 
     return signatures[ sigindex_matches[0] ]
+
+
+#################### match_signatures_single ####################
+
+cimport cython
+
+
+@cname("__pyx_ff_match_signatures_single")
+cdef object match_signatures_single(signatures: dict, dst_type):
+    found_match = signatures.get(dst_type)
+    if found_match is None:
+        raise TypeError("No matching signature found")
+    return found_match
