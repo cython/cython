@@ -306,7 +306,7 @@ class FusedCFuncDefNode(StatListNode):
             pyx_code.put_chunk(
                 """
                     if isinstance(arg, {{py_type_name}}):
-                        dest_sig[{{dest_sig_idx}}] = '{{specialized_type_name}}'; break
+                        dest_sig{{dest_sig_idx}} = '{{specialized_type_name}}'; break
                 """)
 
     def _dtype_name(self, dtype):
@@ -340,8 +340,8 @@ class FusedCFuncDefNode(StatListNode):
             pyx_code.putln("pass")
             pyx_code.named_insertion_point("dtype_complex")
 
-    match = "dest_sig[{{dest_sig_idx}}] = '{{specialized_type_name}}'"
-    no_match = "dest_sig[{{dest_sig_idx}}] = None"
+    match = "dest_sig{{dest_sig_idx}} = '{{specialized_type_name}}'"
+    no_match = "dest_sig{{dest_sig_idx}} = None"
     def _buffer_check_numpy_dtype(self, pyx_code, specialized_buffer_types, pythran_types):
         """
         Match a numpy dtype object to the individual specializations.
@@ -661,7 +661,7 @@ class FusedCFuncDefNode(StatListNode):
 
                     # from FusedFunction utility code
                     object __pyx_ff_match_signatures_single(dict signatures, dest_type)
-                    object __pyx_ff_match_signatures(dict signatures, list dest_sig, dict sigindex)
+                    object __pyx_ff_match_signatures(dict signatures, tuple dest_sig, dict sigindex)
             """)
         decl_code.indent()
 
@@ -670,8 +670,6 @@ class FusedCFuncDefNode(StatListNode):
                 def __pyx_fused_cpdef(signatures, args, kwargs, defaults, _fused_sigindex={}):
                     # FIXME: use a typed signature - currently fails badly because
                     #        default arguments inherit the types we specify here!
-
-                    dest_sig = [None] * {{n_fused}}
 
                     if kwargs is not None and not kwargs:
                         kwargs = None
@@ -744,12 +742,14 @@ class FusedCFuncDefNode(StatListNode):
                 CythonUtilityCode.load("match_signatures_single", "FusedFunction.pyx"))
             pyx_code.put_chunk(
                 """
-                return __pyx_ff_match_signatures_single(<dict> signatures, dest_sig[0])
+                return __pyx_ff_match_signatures_single(<dict> signatures, dest_sig0)
                 """
             )
         else:
+            dest_sig_line = f"dest_sig = ({', '.join(f'dest_sig{i}' for i in range(len(seen_fused_types)))})"
             env.use_utility_code(
                 CythonUtilityCode.load("match_signatures", "FusedFunction.pyx"))
+            pyx_code.put_chunk(dest_sig_line)
             pyx_code.put_chunk(
                 """
                 return __pyx_ff_match_signatures(<dict> signatures, dest_sig, <dict> _fused_sigindex)
