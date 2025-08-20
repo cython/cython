@@ -363,6 +363,9 @@ else:
 
 
     >>> smon.free_tool_id(TOOL_ID)
+
+    >>> count_event_inner.__code__  # doctest: +ELLIPSIS
+    <code object count_event_inner ...>
     """
 
 
@@ -395,6 +398,16 @@ def assert_events(expected_events, collected_events, loops=10):
     collected_events = {name: dict(values) for name, values in collected_events.items()}
 
 
+@cython.profile(True)
+@cython.linetrace(True)
+def count_event_inner():
+    # count_event_inner is deliberately called inside a monitoring event handler
+    # with profile and linetrace on. It shouldn't appear in any traces (because
+    # it should know that it's inside an event handler) and it also shouldn't
+    # cause any crashes. Other than that, it does nothing.
+    pass
+
+
 @contextmanager
 @cython.profile(False)
 @cython.linetrace(False)
@@ -420,6 +433,7 @@ def monitored_events(events=FUNC_EVENTS, function_name="test_profile"):
             collected_line_events[offset] += 1
             assert offset in (line for line, *_ in code_obj.co_positions()), f"{code_obj.co_name}: {offset} in {list(code_obj.co_positions())}"
         collected_events[code_obj.co_name][event][offset] += 1
+        count_event_inner()
 
     try:
         for event in events:
