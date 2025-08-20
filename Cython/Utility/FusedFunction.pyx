@@ -95,3 +95,46 @@ cdef object match_signatures_single(signatures: dict, dst_type):
     if found_match is None:
         raise TypeError("No matching signature found")
     return found_match
+
+
+#################### match_signatures_args_2 ####################
+
+cimport cython
+
+
+@cname("__pyx_ff_build_signature_index2")
+cdef dict build_signature_index2(signatures: dict, fused_sigindex_ref: list):
+    fused_sigindex = {}
+    for sig, function in signatures.items():
+        type1, type2 = (<str> sig).strip('()').split('|')
+
+        fused_sigindex[type1, type2] = function
+
+        key = (None, type2)
+        if key in fused_sigindex:
+            fused_sigindex[key] = None  # ambiguous
+        else:
+            fused_sigindex[key] = function
+
+        key = (type1, None)
+        if key in fused_sigindex:
+            fused_sigindex[key] = None  # ambiguous
+        else:
+            fused_sigindex[key] = function
+
+    fused_sigindex_ref[0] = fused_sigindex  # cache in single-item list
+    return fused_sigindex
+
+
+@cname("__pyx_ff_match_signatures_args_2")
+cdef object match_signatures_args_2(signatures: dict, dest_sig: list, fused_sigindex_ref: list):
+
+    cdef dict sigindex_candidates = <dict> fused_sigindex_ref[0]
+    if sigindex_candidates is None:
+        sigindex_candidates = build_signature_index2(signatures, fused_sigindex_ref)
+
+    key = tuple(dest_sig)
+    found_match = sigindex_candidates.get(key)
+    if found_match is None:
+        raise TypeError("Function call with ambiguous argument types" if key in sigindex_candidates else "No matching signature found")
+    return found_match

@@ -661,8 +661,9 @@ class FusedCFuncDefNode(StatListNode):
 
                     # from FusedFunction utility code
                     list __pyx_ff_build_signature_index(dict signatures, list fused_sigindex_ref)
-                    object __pyx_ff_match_signatures(dict signatures, list dest_sig, list sigindex_candidates)
                     object __pyx_ff_match_signatures_single(dict signatures, dest_type)
+                    object __pyx_ff_match_signatures(dict signatures, list dest_sig, list sigindex_candidates)
+                    object __pyx_ff_match_signatures_args_2(dict signatures, list dest_sig, list sigindex_candidates)
             """)
         decl_code.indent()
 
@@ -740,21 +741,27 @@ class FusedCFuncDefNode(StatListNode):
             env.use_utility_code(Code.UtilityCode.load_cached("ImportNumPyArray", "ImportExport.c"))
 
         if len(seen_fused_types) == 1:
-            env.use_utility_code(
-                CythonUtilityCode.load("match_signatures_single", "FusedFunction.pyx"))
+            dispatch_utility_code = "match_signatures_single"
             pyx_code.put_chunk(
                 """
                 return __pyx_ff_match_signatures_single(<dict> signatures, dest_sig[0])
                 """
             )
         else:
-            env.use_utility_code(
-                CythonUtilityCode.load("match_signatures", "FusedFunction.pyx"))
+            dispatch_utility_code, dispatch_cfunc = {
+                2: ("match_signatures_args_2", "__pyx_ff_match_signatures_args_2"),
+            }.get(
+                len(seen_fused_types),
+                ("match_signatures", "__pyx_ff_match_signatures")
+            )
             pyx_code.put_chunk(
-                """
-                return __pyx_ff_match_signatures(<dict> signatures, dest_sig, _fused_sigindex_ref)
+                f"""
+                return {dispatch_cfunc}(<dict> signatures, dest_sig, _fused_sigindex_ref)
                 """
             )
+
+        env.use_utility_code(
+            CythonUtilityCode.load(dispatch_utility_code, "FusedFunction.pyx"))
 
         fragment_code = pyx_code.getvalue()
         # print(decl_code.getvalue())
