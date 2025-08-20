@@ -660,6 +660,7 @@ class FusedCFuncDefNode(StatListNode):
                     int __Pyx_Is_Little_Endian()
 
                     # from FusedFunction utility code
+                    object __pyx_ff_match_signatures_single(dict signatures, dest_type)
                     object __pyx_ff_match_signatures(dict signatures, list dest_sig, dict sigindex)
             """)
         decl_code.indent()
@@ -737,13 +738,23 @@ class FusedCFuncDefNode(StatListNode):
             env.use_utility_code(Code.UtilityCode.load_cached("Import", "ImportExport.c"))
             env.use_utility_code(Code.UtilityCode.load_cached("ImportNumPyArray", "ImportExport.c"))
 
-        env.use_utility_code(
-            CythonUtilityCode.load("match_signatures", "FusedFunction.pyx"))
-        pyx_code.put_chunk(
-            """
+        if len(seen_fused_types) == 1:
+            # Fast and common case: a single fused type across all arguments.
+            env.use_utility_code(
+                CythonUtilityCode.load("match_signatures_single", "FusedFunction.pyx"))
+            pyx_code.put_chunk(
+                """
+                return __pyx_ff_match_signatures_single(<dict> signatures, dest_sig[0])
+                """
+            )
+        else:
+            env.use_utility_code(
+                CythonUtilityCode.load("match_signatures", "FusedFunction.pyx"))
+            pyx_code.put_chunk(
+                """
                 return __pyx_ff_match_signatures(<dict> signatures, dest_sig, <dict> _fused_sigindex)
-            """
-        )
+                """
+            )
 
         fragment_code = pyx_code.getvalue()
         # print(decl_code.getvalue())

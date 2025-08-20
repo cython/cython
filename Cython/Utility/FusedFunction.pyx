@@ -1,26 +1,32 @@
+#################### match_signatures_single ####################
+
+@cname("__pyx_ff_match_signatures_single")
+cdef object match_signatures_single(signatures: dict, dest_type):
+    found_match = signatures.get(dest_type)
+    if found_match is None:
+        raise TypeError("No matching signature found")
+    return found_match
+
+
 #################### match_signatures ####################
 
 cimport cython
 
 @cname("__pyx_ff_index_signature")
 cdef object index_signature(dest_sig: tuple, signatures: dict, sigindex: dict):
-    if len(dest_sig) == 1:
-        # Single argument case is so simple, it's probably worth special casing.
-        matched_function = signatures.get(dest_sig[0])
-    else:
-        matched_function = None
-        for sig, function in signatures.items():
-            types = (<str> sig).strip('()').split('|')
+    matched_function = None
+    for sig, function in signatures.items():
+        types = (<str> sig).strip('()').split('|')
 
-            for type_name, dest_type in zip(types, dest_sig):
-                if dest_type is None:
-                    continue
-                if dest_type != type_name:
-                    break
-            else:
-                if matched_function is not None:
-                    raise TypeError("Function call with ambiguous argument types")
-                matched_function = function
+        for type_name, dest_type in zip(types, dest_sig):
+            if dest_type is None:
+                continue
+            if dest_type != type_name:
+                break
+        else:
+            if matched_function is not None:
+                raise TypeError("Function call with ambiguous argument types")
+            matched_function = function
 
     if matched_function is None:
         raise TypeError("No matching signature found")
