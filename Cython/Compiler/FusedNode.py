@@ -627,31 +627,6 @@ class FusedCFuncDefNode(StatListNode):
                 {{endif}}
             """)
 
-    def _fused_signature_index(self, pyx_code):
-        """
-        Generate Cython code for constructing a persistent nested dictionary index of
-        fused type specialization signatures.
-        """
-        # Note on thread-safety:
-        # Filling in "fused_sigindex" should only happen once. However, in a multi-threaded
-        # environment it's possible that multiple threads can all start to fill it in
-        # independently (especially on freehtreading builds).
-        # Therefore:
-        # * "_fused_sigindex_ref" is a list of length 1 where the first element is either None,
-        #   or a dictionary of signatures to lookup.
-        # * We rely on being able to get/set list elements atomically (which is true on
-        #   freethreading and regular Python).
-        # * It doesn't really matter if multiple threads start generating their own version
-        #   of this - the contents will end up the same. The main point is that no thread
-        #   sees a half filled-in sigindex
-        pyx_code.put_chunk(
-            """
-                fused_sigindex = <list> _fused_sigindex_ref[0]
-                if fused_sigindex is None:
-                    fused_sigindex = __pyx_ff_build_signature_index(<dict> signatures, <list> _fused_sigindex_ref)
-            """
-        )
-
     def make_fused_cpdef(self, orig_py_func, env, is_def):
         """
         This creates the function that is indexable from Python and does
@@ -685,14 +660,14 @@ class FusedCFuncDefNode(StatListNode):
                     int __Pyx_Is_Little_Endian()
 
                     # from FusedFunction utility code
-                    list __pyx_ff_build_signature_index(dict signatures, list fused_sigindex_ref)
-                    object __pyx_ff_match_signatures(dict signatures, list dest_sig, list sigindex_candidates)
+                    object __pyx_ff_match_signatures_single(dict signatures, dest_type)
+                    object __pyx_ff_match_signatures(dict signatures, list dest_sig, dict sigindex)
             """)
         decl_code.indent()
 
         pyx_code.put_chunk(
             """
-                def __pyx_fused_cpdef(signatures, args, kwargs, defaults, _fused_sigindex_ref=[None]):
+                def __pyx_fused_cpdef(signatures, args, kwargs, defaults, _fused_sigindex={}):
                     # FIXME: use a typed signature - currently fails badly because
                     #        default arguments inherit the types we specify here!
 
@@ -763,17 +738,28 @@ class FusedCFuncDefNode(StatListNode):
             env.use_utility_code(Code.UtilityCode.load_cached("Import", "ImportExport.c"))
             env.use_utility_code(Code.UtilityCode.load_cached("ImportNumPyArray", "ImportExport.c"))
 
-        self._fused_signature_index(pyx_code)
-
-        pyx_code.put_chunk(
-            """
-                return __pyx_ff_match_signatures(<dict> signatures, dest_sig, fused_sigindex)
-            """
-        )
+        if len(seen_fused_types) == 1:
+            # Fast and common case: a single fused type across all arguments.
+            env.use_utility_code(
+                CythonUtilityCode.load("match_signatures_single", "FusedFunction.pyx"))
+            pyx_code.put_chunk(
+                """
+                return __pyx_ff_match_signatures_single(<dict> signatures, dest_sig[0])
+                """
+            )
+        else:
+            env.use_utility_code(
+                CythonUtilityCode.load("match_signatures", "FusedFunction.pyx"))
+            pyx_code.put_chunk(
+                """
+                return __pyx_ff_match_signatures(<dict> signatures, dest_sig, <dict> _fused_sigindex)
+                """
+            )
 
         fragment_code = pyx_code.getvalue()
         # print(decl_code.getvalue())
         # print(fragment_code)
+        # print(''.join(f"{i:3d}  {line}" for i, line in enumerate(fragment_code.splitlines(keepends=True))))
         from .Optimize import ConstantFolding
         fragment = TreeFragment.TreeFragment(
             fragment_code, level='module', pipeline=[ConstantFolding()])
@@ -785,9 +771,6 @@ class FusedCFuncDefNode(StatListNode):
         ast.analyse_declarations(env)
         py_func = ast.stats[-1]  # the DefNode
         self.fragment_scope = ast.scope
-
-        env.use_utility_code(
-            CythonUtilityCode.load("match_signatures", "FusedFunction.pyx"))
 
         if isinstance(self.node, DefNode):
             py_func.specialized_cpdefs = self.nodes[:]
