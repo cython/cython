@@ -2,139 +2,38 @@
 
 cimport cython
 
+@cname("__pyx_ff_index_signature")
+cdef object index_signature(dest_sig: tuple, signatures: dict, sigindex: dict):
+    if len(dest_sig) == 1:
+        # Single argument case is so simple, it's probably worth special casing.
+        matched_function = signatures.get(dest_sig[0])
+    else:
+        matched_function = None
+        for sig, function in signatures.items():
+            types = (<str> sig).strip('()').split('|')
 
-@cname("__pyx_ff_build_signature_index")
-cdef list build_signature_index(signatures: dict, fused_sigindex_ref: list):
-    """
-    Construct a persistent nested dictionary index of
-    fused type specialization signatures.
-    """
-    # Note on thread-safety:
-    # Filling in "fused_sigindex" should only happen once. However, in a multi-threaded
-    # environment it's possible that multiple threads can all start to fill it in
-    # independently (especially on freehtreading builds).
-    # Therefore:
-    # * "fused_sigindex_ref" is a list of length 1 where the first element is either None,
-    #   or a dictionary of signatures to lookup.
-    # * We rely on being able to get/set list elements atomically (which is true on
-    #   freethreading and regular Python).
-    # * It doesn't really matter if multiple threads start generating their own version
-    #   of this - the contents will end up the same. The main point is that no thread
-    #   sees a half filled-in sigindex
-    cdef dict sigindex_node
-
-    fused_sigindex = {}
-    for sig in signatures:
-        sigindex_node = fused_sigindex
-        *sig_series, last_type = (<str> sig).strip('()').split('|')
-        for sig_type in sig_series:
-            if sig_type not in sigindex_node:
-                sigindex_node[sig_type] = sigindex_node = {}
+            for type_name, dest_type in zip(types, dest_sig):
+                if dest_type is None:
+                    continue
+                if dest_type != type_name:
+                    break
             else:
-                sigindex_node = <dict> sigindex_node[sig_type]
-        sigindex_node[last_type] = sig
+                if matched_function is not None:
+                    raise TypeError("Function call with ambiguous argument types")
+                matched_function = function
 
-    # We always use it as list in "match_signatures()", so wrap it directly.
-    index_list = [fused_sigindex]
-    fused_sigindex_ref[0] = index_list  # cache in single-item list
-    return index_list
+    if matched_function is None:
+        raise TypeError("No matching signature found")
+
+    sigindex[dest_sig] = matched_function
+    return matched_function
 
 
 @cname("__pyx_ff_match_signatures")
-cdef object match_signatures(signatures: dict, dest_sig: list, fused_sigindex_ref: list):
-    sigindex_matches = []
-
-    cdef list sigindex_candidates = <list> fused_sigindex_ref[0]
-    if sigindex_candidates is None:
-        sigindex_candidates = build_signature_index(signatures, fused_sigindex_ref)
-
-    for dst_type in dest_sig:
-        found_matches = []
-        found_candidates = []
-
-        # Make two separate lists:
-        # One for signature sub-trees with at least one definite match,
-        # and another for signature sub-trees with only ambiguous matches
-        # (where `dest_sig[i] is None`).
-        if dst_type is None:
-            for sn in sigindex_matches:
-                found_matches.extend((<dict> sn).values())
-            for sn in sigindex_candidates:
-                found_candidates.extend((<dict> sn).values())
-        else:
-            for sn in sigindex_matches:
-                type_match = (<dict> sn).get(dst_type)
-                if type_match is not None:
-                    found_matches.append(type_match)
-            for sn in sigindex_candidates:
-                type_match = (<dict> sn).get(dst_type)
-                if type_match is not None:
-                    found_matches.append(type_match)
-
-        sigindex_matches = found_matches
-        sigindex_candidates = found_candidates
-
-        if not (found_candidates or found_matches):
-            break
-
-    match_count = len(sigindex_matches)
-    if match_count != 1:
-        raise TypeError("Function call with ambiguous argument types" if match_count else "No matching signature found")
-
-    return signatures[ sigindex_matches[0] ]
-
-
-#################### match_signatures_single ####################
-
-cimport cython
-
-
-@cname("__pyx_ff_match_signatures_single")
-cdef object match_signatures_single(signatures: dict, dst_type):
-    found_match = signatures.get(dst_type)
+cdef object match_signatures(signatures: dict, dest_sig: list, sigindex: dict):
+    dest_sig_tuple = tuple(dest_sig)
+    found_match = sigindex.get(dest_sig_tuple)
     if found_match is None:
-        raise TypeError("No matching signature found")
-    return found_match
-
-
-#################### match_signatures_args_2 ####################
-
-cimport cython
-
-
-@cname("__pyx_ff_build_signature_index2")
-cdef dict build_signature_index2(signatures: dict, fused_sigindex_ref: list):
-    fused_sigindex = {}
-    for sig, function in signatures.items():
-        type1, type2 = (<str> sig).strip('()').split('|')
-
-        fused_sigindex[type1, type2] = function
-
-        key = (None, type2)
-        if key in fused_sigindex:
-            fused_sigindex[key] = None  # ambiguous
-        else:
-            fused_sigindex[key] = function
-
-        key = (type1, None)
-        if key in fused_sigindex:
-            fused_sigindex[key] = None  # ambiguous
-        else:
-            fused_sigindex[key] = function
-
-    fused_sigindex_ref[0] = fused_sigindex  # cache in single-item list
-    return fused_sigindex
-
-
-@cname("__pyx_ff_match_signatures_args_2")
-cdef object match_signatures_args_2(signatures: dict, dest_sig: list, fused_sigindex_ref: list):
-
-    cdef dict sigindex_candidates = <dict> fused_sigindex_ref[0]
-    if sigindex_candidates is None:
-        sigindex_candidates = build_signature_index2(signatures, fused_sigindex_ref)
-
-    key = tuple(dest_sig)
-    found_match = sigindex_candidates.get(key)
-    if found_match is None:
-        raise TypeError("Function call with ambiguous argument types" if key in sigindex_candidates else "No matching signature found")
+        # Unknown, ambiguous or not initialised yet.
+        found_match = index_signature(dest_sig_tuple, signatures, sigindex)
     return found_match

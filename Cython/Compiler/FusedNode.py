@@ -660,16 +660,14 @@ class FusedCFuncDefNode(StatListNode):
                     int __Pyx_Is_Little_Endian()
 
                     # from FusedFunction utility code
-                    list __pyx_ff_build_signature_index(dict signatures, list fused_sigindex_ref)
                     object __pyx_ff_match_signatures_single(dict signatures, dest_type)
-                    object __pyx_ff_match_signatures(dict signatures, list dest_sig, list sigindex_candidates)
-                    object __pyx_ff_match_signatures_args_2(dict signatures, list dest_sig, list sigindex_candidates)
+                    object __pyx_ff_match_signatures(dict signatures, list dest_sig, dict sigindex)
             """)
         decl_code.indent()
 
         pyx_code.put_chunk(
             """
-                def __pyx_fused_cpdef(signatures, args, kwargs, defaults, _fused_sigindex_ref=[None]):
+                def __pyx_fused_cpdef(signatures, args, kwargs, defaults, _fused_sigindex={}):
                     # FIXME: use a typed signature - currently fails badly because
                     #        default arguments inherit the types we specify here!
 
@@ -740,28 +738,13 @@ class FusedCFuncDefNode(StatListNode):
             env.use_utility_code(Code.UtilityCode.load_cached("Import", "ImportExport.c"))
             env.use_utility_code(Code.UtilityCode.load_cached("ImportNumPyArray", "ImportExport.c"))
 
-        if len(seen_fused_types) == 1:
-            dispatch_utility_code = "match_signatures_single"
-            pyx_code.put_chunk(
-                """
-                return __pyx_ff_match_signatures_single(<dict> signatures, dest_sig[0])
-                """
-            )
-        else:
-            dispatch_utility_code, dispatch_cfunc = {
-                2: ("match_signatures_args_2", "__pyx_ff_match_signatures_args_2"),
-            }.get(
-                len(seen_fused_types),
-                ("match_signatures", "__pyx_ff_match_signatures")
-            )
-            pyx_code.put_chunk(
-                f"""
-                return {dispatch_cfunc}(<dict> signatures, dest_sig, _fused_sigindex_ref)
-                """
-            )
-
         env.use_utility_code(
-            CythonUtilityCode.load(dispatch_utility_code, "FusedFunction.pyx"))
+            CythonUtilityCode.load("match_signatures", "FusedFunction.pyx"))
+        pyx_code.put_chunk(
+            """
+                return __pyx_ff_match_signatures(<dict> signatures, dest_sig, <dict> _fused_sigindex)
+            """
+        )
 
         fragment_code = pyx_code.getvalue()
         # print(decl_code.getvalue())
