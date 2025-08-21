@@ -547,18 +547,16 @@ class FusedCFuncDefNode(StatListNode):
                 if dtype_name not in seen_typedefs:
                     seen_typedefs.add(dtype_name)
                     decl_code.putln(
-                        'ctypedef %s %s "%s"' % (dtype.resolve(), dtype_name,
-                                                 dtype.empty_declaration_code()))
+                        f'ctypedef {dtype.resolve()} {dtype_name} "{dtype.empty_declaration_code()}"')
 
-            if buffer_type.dtype.is_int:
+            if dtype.is_int:
                 if str(dtype) not in seen_int_dtypes:
                     seen_int_dtypes.add(str(dtype))
-                    pyx_code.context.update(dtype_name=dtype_name,
-                                            dtype_type=self._dtype_type(dtype))
+                    dtype_type = self._dtype_type(dtype)
                     pyx_code['local_variable_declarations'].put_chunk(
-                        """
-                            cdef bint {{dtype_name}}_is_signed
-                            {{dtype_name}}_is_signed = not (<{{dtype_type}}> -1 > 0)
+                        f"""
+                            cdef bint {dtype_name}_is_signed
+                            {dtype_name}_is_signed = not (<{dtype_type}> -1 > 0)
                         """)
 
     def _split_fused_types(self, arg):
