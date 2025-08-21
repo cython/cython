@@ -609,10 +609,10 @@ class FusedCFuncDefNode(StatListNode):
         elif arg_tuple_idx < min_positional_args:
             pyx_code.putln(
                 'raise TypeError("Expected at least %d argument%s, got %d" % ('
-                f'{min_positional_args}, {'"s"' if min_positional_args != 1 else '""'}, len(<tuple>args)))'
+                f'''{min_positional_args}, {'"s"' if min_positional_args != 1 else '""'}, len(<tuple>args)))'''
             )
         else:
-            pyx_code.putln(f"""raise TypeError("Missing keyword-only argument: '%s'" % "{arg.default}")""")
+            pyx_code.putln(f"""raise TypeError("Missing keyword-only argument: '%s'" % "{arg.name}")""")
         pyx_code.dedent()
 
     def make_fused_cpdef(self, orig_py_func, env, is_def):
