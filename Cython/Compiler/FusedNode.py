@@ -499,8 +499,7 @@ class FusedCFuncDefNode(StatListNode):
 
     def _buffer_declarations(self, pyx_code, decl_code, all_buffer_types, pythran_types):
         """
-        If we have any buffer specializations, write out some variable
-        declarations and imports.
+        If we have any buffer specializations, write out some variable and type declarations.
         """
         decl_code.put_chunk(
             f"""
