@@ -525,6 +525,7 @@ class FusedCFuncDefNode(StatListNode):
             pyx_code['local_variable_declarations'].put_chunk("""
                 cdef bint arg_is_pythran_compatible
                 cdef Py_ssize_t cur_stride
+                cdef Py_ssize_t i
             """)
 
         pyx_code['local_variable_declarations'].put_chunk(
@@ -652,8 +653,6 @@ class FusedCFuncDefNode(StatListNode):
 
                     if kwargs is not None and not kwargs:
                         kwargs = None
-
-                    cdef Py_ssize_t i
 
                     # instance check body
             """)
