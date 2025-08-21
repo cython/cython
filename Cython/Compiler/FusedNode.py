@@ -300,13 +300,10 @@ class FusedCFuncDefNode(StatListNode):
             # all_numeric = all_numeric and specialized_type.is_numeric
             py_type_name = specialized_type.py_type_name()
             pyx_code.put_chunk(
+                f"""
+                    if isinstance(arg, {py_type_name}):
+                        return '{specialized_type.specialization_string}'
                 """
-                    if isinstance(arg, %s):
-                        return '%s'
-                """ % (
-                    py_type_name,
-                    specialized_type.specialization_string,
-                )
             )
 
     def _dtype_name(self, dtype):
@@ -324,7 +321,7 @@ class FusedCFuncDefNode(StatListNode):
         if dtype.is_pyobject:
             return 'sizeof(void *)'
         else:
-            return "sizeof(%s)" % self._dtype_type(dtype)
+            return f"sizeof({self._dtype_type(dtype)})"
 
     def _buffer_check_numpy_dtype_setup_cases(self, pyx_code):
         "Setup some common cases to match dtypes against specializations"
@@ -479,10 +476,11 @@ class FusedCFuncDefNode(StatListNode):
             # compatibility. Better behaviour would be to see if subsequent
             # arguments give a stronger match.
             pyx_code.put_chunk(
-                """
+                f"""
                 if arg is None:
-                    return '%s'
-                """ % (buffer_types[0].specialization_string,))
+                    return '{buffer_types[0].specialization_string}'
+                """
+            )
 
         # creating a Cython memoryview from a Python memoryview avoids the
         # need to get the buffer multiple times, and we can
@@ -945,22 +943,23 @@ class FusedCFuncDefNode(StatListNode):
         super().generate_execution_code(code)
 
         if self.__signatures__:
-            self.__signatures__.generate_evaluation_code(code)
-            self.resulting_fused_function.generate_evaluation_code(code)
+            signatures = self.__signatures__
+            signatures.generate_evaluation_code(code)
+            fused_func = self.resulting_fused_function
+            fused_func.generate_evaluation_code(code)
 
             code.putln(
-                "((__pyx_FusedFunctionObject *) %s)->__signatures__ = %s;" %
-                                    (self.resulting_fused_function.result(),
-                                     self.__signatures__.result()))
-            self.__signatures__.generate_giveref(code)
-            self.__signatures__.generate_post_assignment_code(code)
-            self.__signatures__.free_temps(code)
+                f"((__pyx_FusedFunctionObject *) {fused_func.result()})->__signatures__ = {signatures.result()};")
+
+            signatures.generate_giveref(code)
+            signatures.generate_post_assignment_code(code)
+            signatures.free_temps(code)
 
             self.fused_func_assignment.generate_execution_code(code)
 
             # Dispose of results
-            self.resulting_fused_function.generate_disposal_code(code)
-            self.resulting_fused_function.free_temps(code)
+            fused_func.generate_disposal_code(code)
+            fused_func.free_temps(code)
             self.defaults_tuple.generate_disposal_code(code)
             self.defaults_tuple.free_temps(code)
 
