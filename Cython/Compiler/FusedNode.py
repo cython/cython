@@ -375,8 +375,7 @@ class FusedCFuncDefNode(StatListNode):
                     #codewriter.putln("print 'buffer match found based on numpy dtype'")
                     codewriter.putln(f"return '{final_type.specialization_string}'")
 
-    def _buffer_parse_format_string_check(self, pyx_code, decl_code,
-                                          specialized_type, env):
+    def _buffer_parse_format_string_check(self, pyx_code, decl_code, specialized_type, env):
         """
         For each specialized type, try to coerce the object to a memoryview
         slice of that type. This means obtaining a buffer and parsing the
@@ -391,33 +390,31 @@ class FusedCFuncDefNode(StatListNode):
 
         memslice_type = PyrexTypes.MemoryViewSliceType(dtype, axes)
         memslice_type.create_from_py_utility_code(env)
-        pyx_code.context.update(
-            coerce_from_py_func=memslice_type.from_py_function,
-            dtype=dtype)
+        coerce_from_py_func = memslice_type.from_py_function
+
         decl_code.putln(
-            "{{memviewslice_cname}} {{coerce_from_py_func}}(object, int)")
+            f"{MemoryView.memviewslice_cname} {coerce_from_py_func}(object, int)")
 
-        pyx_code.context.update(
-            sizeof_dtype=self._sizeof_dtype(dtype),
-            ndim_dtype=specialized_type.ndim)
-
-        # use the memoryview object to check itemsize and ndim.
-        # In principle it could check more, but these are the easiest to do quickly
         match = specialized_type.specialization_string
+        sizeof_dtype = self._sizeof_dtype(dtype)
+        ndim_dtype = specialized_type.ndim
+
+        # Use the memoryview object to check itemsize and ndim.
+        # In principle it could check more, but these are the easiest to do quickly.
         pyx_code.put_chunk(
-            """
-                # try {{dtype}}
-                if (((itemsize == -1 and arg_as_memoryview.itemsize == {{sizeof_dtype}})
-                        or itemsize == {{sizeof_dtype}})
-                        and arg_as_memoryview.ndim == {{ndim_dtype}}):
-                    memslice = {{coerce_from_py_func}}(arg_as_memoryview, 0)
+            f"""
+                # try {dtype}
+                if (((itemsize == -1 and arg_as_memoryview.itemsize == {sizeof_dtype})
+                        or itemsize == {sizeof_dtype})
+                        and arg_as_memoryview.ndim == {ndim_dtype}):
+                    memslice = {coerce_from_py_func}(arg_as_memoryview, 0)
                     if memslice.memview:
                         __PYX_XCLEAR_MEMVIEW(&memslice, 1)
                         # print 'found a match for the buffer through format parsing'
-                        return '%s'
+                        return '{match}'
                     else:
                         __pyx_PyErr_Clear()
-            """ % (match,)
+            """
         )
 
     def _buffer_checks(self, buffer_types, pythran_types, pyx_code, decl_code, accept_none, env):
@@ -508,17 +505,17 @@ class FusedCFuncDefNode(StatListNode):
         declarations and imports.
         """
         decl_code.put_chunk(
-            """
-                ctypedef struct {{memviewslice_cname}}:
+            f"""
+                ctypedef struct {MemoryView.memviewslice_cname}:
                     void *memview
 
-                void __PYX_XCLEAR_MEMVIEW({{memviewslice_cname}} *, int have_gil)
+                void __PYX_XCLEAR_MEMVIEW({MemoryView.memviewslice_cname} *, int have_gil)
                 bint __pyx_memoryview_check(object)
             """)
 
         pyx_code['local_variable_declarations'].put_chunk(
-            """
-                cdef {{memviewslice_cname}} memslice
+            f"""
+                cdef {MemoryView.memviewslice_cname} memslice
                 cdef Py_ssize_t itemsize
                 cdef bint dtype_signed
                 cdef Py_UCS4 kind
@@ -558,7 +555,6 @@ class FusedCFuncDefNode(StatListNode):
 
             # 'is_signed' is also needed for typedefs.
             if dtype.is_int:
-                print(str(dtype))
                 if str(dtype) not in seen_int_dtypes:
                     seen_int_dtypes.add(str(dtype))
                     dtype_type = self._dtype_type(dtype)
@@ -597,26 +593,29 @@ class FusedCFuncDefNode(StatListNode):
 
         return normal_types, buffer_types, pythran_types, has_object_fallback
 
-    def _unpack_argument(self, pyx_code):
+    def _unpack_argument(self, pyx_code, arg, arg_tuple_idx, min_positional_args, default_idx):
         pyx_code.put_chunk(
-            """
-                # PROCESSING ARGUMENT {{arg_tuple_idx}}
-                if {{arg_tuple_idx}} < len(<tuple>args):
-                    arg = (<tuple>args)[{{arg_tuple_idx}}]
-                elif kwargs is not None and '{{arg.name}}' in <dict>kwargs:
-                    arg = (<dict>kwargs)['{{arg.name}}']
+            f"""
+                # PROCESSING ARGUMENT {arg_tuple_idx}
+                if {arg_tuple_idx} < len(<tuple>args):
+                    arg = (<tuple>args)[{arg_tuple_idx}]
+                elif kwargs is not None and '{arg.name}' in <dict>kwargs:
+                    arg = (<dict>kwargs)['{arg.name}']
                 else:
-                {{if arg.default}}
-                    arg = (<tuple>defaults)[{{default_idx}}]
-                {{else}}
-                    {{if arg_tuple_idx < min_positional_args}}
-                        raise TypeError("Expected at least %d argument%s, got %d" % (
-                            {{min_positional_args}}, {{'"s"' if min_positional_args != 1 else '""'}}, len(<tuple>args)))
-                    {{else}}
-                        raise TypeError("Missing keyword-only argument: '%s'" % "{{arg.default}}")
-                    {{endif}}
-                {{endif}}
-            """)
+            """
+        )
+        pyx_code.indent()
+        if arg.default:
+            pyx_code.putln(
+                f"arg = (<tuple>defaults)[{default_idx}]")
+        elif arg_tuple_idx < min_positional_args:
+            pyx_code.putln(
+                'raise TypeError("Expected at least %d argument%s, got %d" % ('
+                f'{min_positional_args}, {'"s"' if min_positional_args != 1 else '""'}, len(<tuple>args)))'
+            )
+        else:
+            pyx_code.putln(f"""raise TypeError("Missing keyword-only argument: '%s'" % "{arg.default}")""")
+        pyx_code.dedent()
 
     def make_fused_cpdef(self, orig_py_func, env, is_def):
         """
@@ -627,23 +626,15 @@ class FusedCFuncDefNode(StatListNode):
         """
         from . import TreeFragment, Code, UtilityCode
 
-        fused_types = self._get_fused_base_types([
-            arg.type for arg in self.node.args if arg.type.is_fused])
+        min_positional_args = (
+            self.node.num_required_args - self.node.num_required_kw_args
+            if is_def else
+            sum(1 for arg in self.node.args if arg.default is None)
+        )
 
-        context = {
-            'memviewslice_cname': MemoryView.memviewslice_cname,
-            'func_args': self.node.args,
-            'n_fused': len(fused_types),
-            'min_positional_args':
-                self.node.num_required_args - self.node.num_required_kw_args
-                if is_def else
-                sum(1 for arg in self.node.args if arg.default is None),
-            'name': orig_py_func.entry.name,
-        }
-
-        pyx_code = Code.PyxCodeWriter(context=context)
-        decl_code = Code.PyxCodeWriter(context=context)
-        type_mapper = Code.PyxCodeWriter(context=context)
+        pyx_code = Code.PyxCodeWriter()
+        decl_code = Code.PyxCodeWriter()
+        type_mapper = Code.PyxCodeWriter()
         decl_code.put_chunk(
             """
                 cdef extern from *:
@@ -687,14 +678,8 @@ class FusedCFuncDefNode(StatListNode):
             if arg.type.is_fused and fused_type not in seen_fused_types:
                 seen_fused_types.add(fused_type)
 
-                context.update(
-                    arg_tuple_idx=i,
-                    arg=arg,
-                    default_idx=default_idx,
-                )
-
                 normal_types, buffer_types, pythran_types, has_object_fallback = self._split_fused_types(arg)
-                self._unpack_argument(pyx_code)
+                self._unpack_argument(pyx_code, arg, i, min_positional_args, default_idx)
 
                 mapper_arg_types = ['object', 'type']
                 mapper_arg_names = ['arg']
@@ -748,9 +733,6 @@ class FusedCFuncDefNode(StatListNode):
 
                 type_mapper_impl = type_mapper.getvalue()
                 type_mapper.reset()
-                if 'Foo' in type_mapper_impl:
-                    print(buffer_types)
-                    print(''.join(f"{i:3d}  {line}" for i, line in enumerate(type_mapper_impl.splitlines(keepends=True))))
                 # print(''.join(f"{i:3d}  {line}" for i, line in enumerate(type_mapper_impl.splitlines(keepends=True))))
 
                 env.use_utility_code(
@@ -803,8 +785,6 @@ class FusedCFuncDefNode(StatListNode):
         # print(decl_code.getvalue())
         # print(fragment_code)
         # print(''.join(f"{i:3d}  {line}" for i, line in enumerate(fragment_code.splitlines(keepends=True))))
-        if 'Foo' in type_mapper_impl:
-            print(''.join(f"{i:3d}  {line}" for i, line in enumerate(fragment_code.splitlines(keepends=True))))
         from .Optimize import ConstantFolding
         fragment = TreeFragment.TreeFragment(
             fragment_code, level='module', pipeline=[ConstantFolding()])
