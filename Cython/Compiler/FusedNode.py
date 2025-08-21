@@ -644,7 +644,7 @@ class FusedCFuncDefNode(StatListNode):
 
                     # from FusedFunction utility code
                     object __pyx_ff_match_signatures_single(dict signatures, dest_type)
-                    object __pyx_ff_match_signatures(dict signatures, list dest_sig, dict sigindex)
+                    object __pyx_ff_match_signatures(dict signatures, tuple dest_sig, dict sigindex)
             """)
         decl_code.indent()
 
@@ -653,8 +653,6 @@ class FusedCFuncDefNode(StatListNode):
                 def __pyx_fused_cpdef(signatures, args, kwargs, defaults, _fused_sigindex={}):
                     # FIXME: use a typed signature - currently fails badly because
                     #        default arguments inherit the types we specify here!
-
-                    dest_sig = [None] * {{n_fused}}
 
                     if kwargs is not None and not kwargs:
                         kwargs = None
@@ -749,7 +747,7 @@ class FusedCFuncDefNode(StatListNode):
                     CythonUtilityCode(type_mapper_impl, name=type_mapper_cname))
 
                 decl_code.putln(f"str {type_mapper_cname}({mapper_sig})")
-                pyx_code.putln(f"dest_sig[{fused_index}] = {type_mapper_cname}({mapper_args})")
+                pyx_code.putln(f"dest_sig{fused_index} = {type_mapper_cname}({mapper_args})")
 
                 fused_index += 1
                 all_buffer_types.update(buffer_types)
@@ -778,15 +776,16 @@ class FusedCFuncDefNode(StatListNode):
                 CythonUtilityCode.load("match_signatures_single", "FusedFunction.pyx"))
             pyx_code.put_chunk(
                 """
-                return __pyx_ff_match_signatures_single(<dict> signatures, dest_sig[0])
+                return __pyx_ff_match_signatures_single(<dict> signatures, dest_sig0)
                 """
             )
         else:
             env.use_utility_code(
                 CythonUtilityCode.load("match_signatures", "FusedFunction.pyx"))
+            dest_sig_tuple = ', '.join(f'dest_sig{i}' for i in range(len(seen_fused_types)))
             pyx_code.put_chunk(
-                """
-                return __pyx_ff_match_signatures(<dict> signatures, dest_sig, <dict> _fused_sigindex)
+                f"""
+                return __pyx_ff_match_signatures(<dict> signatures, ({dest_sig_tuple}), <dict> _fused_sigindex)
                 """
             )
 
