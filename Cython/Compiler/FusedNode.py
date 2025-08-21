@@ -540,16 +540,25 @@ class FusedCFuncDefNode(StatListNode):
 
         seen_typedefs = set()
         seen_int_dtypes = set()
+        seen_structs = set()
         for buffer_type in all_buffer_types:
             dtype = buffer_type.dtype
             dtype_name = self._dtype_name(dtype)
-            if dtype.is_typedef:
+            if dtype.is_struct_or_union:
+                if dtype_name not in seen_structs:
+                    seen_structs.add(dtype_name)
+                    decl_code.putln(
+                        f'ctypedef {dtype.kind} {dtype_name} "{dtype.empty_declaration_code()}": pass')
+
+            elif dtype.is_typedef:
                 if dtype_name not in seen_typedefs:
                     seen_typedefs.add(dtype_name)
                     decl_code.putln(
                         f'ctypedef {dtype.resolve()} {dtype_name} "{dtype.empty_declaration_code()}"')
 
+            # 'is_signed' is also needed for typedefs.
             if dtype.is_int:
+                print(str(dtype))
                 if str(dtype) not in seen_int_dtypes:
                     seen_int_dtypes.add(str(dtype))
                     dtype_type = self._dtype_type(dtype)
@@ -739,6 +748,9 @@ class FusedCFuncDefNode(StatListNode):
 
                 type_mapper_impl = type_mapper.getvalue()
                 type_mapper.reset()
+                if 'Foo' in type_mapper_impl:
+                    print(buffer_types)
+                    print(''.join(f"{i:3d}  {line}" for i, line in enumerate(type_mapper_impl.splitlines(keepends=True))))
                 # print(''.join(f"{i:3d}  {line}" for i, line in enumerate(type_mapper_impl.splitlines(keepends=True))))
 
                 env.use_utility_code(
@@ -791,6 +803,8 @@ class FusedCFuncDefNode(StatListNode):
         # print(decl_code.getvalue())
         # print(fragment_code)
         # print(''.join(f"{i:3d}  {line}" for i, line in enumerate(fragment_code.splitlines(keepends=True))))
+        if 'Foo' in type_mapper_impl:
+            print(''.join(f"{i:3d}  {line}" for i, line in enumerate(fragment_code.splitlines(keepends=True))))
         from .Optimize import ConstantFolding
         fragment = TreeFragment.TreeFragment(
             fragment_code, level='module', pipeline=[ConstantFolding()])
