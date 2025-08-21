@@ -14787,7 +14787,9 @@ class CoerceToBooleanNode(CoercionNode):
 
     type = PyrexTypes.c_bint_type
 
-    # Note that all of these need a check if CYTHON_ASSUME_SAFE_MACROS is false
+    # Note that all of these need a check if CYTHON_ASSUME_SAFE_SIZE is false.
+    # They should also all return something compatible with Py_ssize_t
+    # (i.e. Py_ssize_t or a smaller int type).
     _special_builtins = {
         Builtin.list_type:       '__Pyx_PyList_GET_SIZE',
         Builtin.tuple_type:      '__Pyx_PyTuple_GET_SIZE',
@@ -14823,11 +14825,18 @@ class CoerceToBooleanNode(CoercionNode):
             return
         test_func = self._special_builtins.get(self.arg.type)
         if test_func is not None:
-            checks = ["(%s != Py_None)" % self.arg.py_result()] if self.arg.may_be_none() else []
-            checks.append("(%s(%s) != 0)" % (test_func, self.arg.py_result()))
-            code.putln("%s = %s;" % (self.result(), '&&'.join(checks)))
+            if self.arg.may_be_none():
+                code.putln(f"if ({self.arg.py_result()} == Py_None) {self.result()} = 0;")
+                code.putln("else")
+            code.putln("{")
+            # Be aware that __Pyx_PyUnicode_IS_TRUE isn't strictly returning a size (but it does
+            # return an int which fits into a Py_ssize_t).
+            code.putln(f"Py_ssize_t {Naming.quick_temp_cname} = {test_func}({self.arg.py_result()});")
             code.putln(code.error_goto_if(
-                "((!CYTHON_ASSUME_SAFE_MACROS) && %s < 0)" % self.result(), self.pos))
+                f"((!CYTHON_ASSUME_SAFE_SIZE) && {Naming.quick_temp_cname} < 0)", self.pos))
+            code.putln(f"{self.result()} = ({Naming.quick_temp_cname} != 0);")
+            code.putln("}")
+            code.putln()
         else:
             code.putln(
                 "%s = __Pyx_PyObject_IsTrue(%s); %s" % (
