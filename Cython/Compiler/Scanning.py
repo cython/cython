@@ -433,40 +433,61 @@ class PyrexScanner(Scanner):
         self.begin('FSTRING_EXPR_PRESCAN' if self.in_fstring_expr_prescan else '')
         self.produce('END_FSTRING')
 
+    def _handle_open_single_fstring_brace(self, started_fstring_expr):
+        self.bracket_nesting_level += 1
+        if not started_fstring_expr:
+            self.fstring_state_stack[-1].push_bracket_state(self.bracket_nesting_level)
+            self.begin('FSTRING_EXPR_PRESCAN')
+            self.in_fstring_expr_prescan += 1
+        self.produce('{')
+
     def open_fstring_brace_action(self, text):
-        started_fstring_expr = False
-        while text:
-            if len(text) == 1 or self.fstring_state_stack[-1].in_format_specifier():
-                self.bracket_nesting_level += 1
-                if not started_fstring_expr:
-                    self.fstring_state_stack[-1].push_bracket_state(self.bracket_nesting_level)
-                    self.begin('FSTRING_EXPR_PRESCAN')
-                    self.in_fstring_expr_prescan += 1
-                started_fstring_expr = True
-                self.produce(text[0])
-                text = text[1:]
-            else:
-                self.produce('CHARS', text[0])
-                text = text[2:]
+        len_text = len(text)
+        if self.fstring_state_stack[-1].in_format_specifier():
+            self._handle_open_single_fstring_brace(False)
+            len_text -= 1
+            started_fstring_expr = True
+        else:
+            started_fstring_expr = False
+        assert not self.fstring_state_stack[-1].in_format_specifier()
+
+        double_braces = len_text // 2
+        for _ in range(double_braces):
+            self.produce('CHARS', '{')
+        len_text -= (double_braces*2)
+
+        if len_text < 0:
+            breakpoint()
+        if len_text:
+            assert len_text == 1
+            self._handle_open_single_fstring_brace(started_fstring_expr)
+
+    def _handle_close_single_fstring_brace(self):
+        fstring_bracket_level = self.fstring_state_stack[-1].bracket_nesting_level()
+        if fstring_bracket_level is None or self.bracket_nesting_level < fstring_bracket_level:
+            # To help try to parse a little further, don't reduce the bracket
+            # nesting level more.
+            self.error(
+                "f-string: single '}' is not allowed",
+                pos=self.get_current_scan_pos(),
+                fatal=False)
+            self.produce('}', '}')
+        else:
+            self.produce(self.close_brace_action('}'), '}')
 
     def close_fstring_brace_action(self, text):
-        while text:
-            if len(text) == 1 or self.fstring_state_stack[-1].in_format_specifier():
-                fstring_bracket_level = self.fstring_state_stack[-1].bracket_nesting_level()
-                if fstring_bracket_level is None or self.bracket_nesting_level < fstring_bracket_level:
-                    # To help try to parse a little further, don't reduce the bracket
-                    # nesting level more.
-                    self.error(
-                        "f-string: single '}' is not allowed",
-                        pos=self.get_current_scan_pos(),
-                        fatal=False)
-                    self.produce('}', '}')
-                else:
-                    self.produce(self.close_brace_action('}'), '}')
-                text = text[1:]
-            else:
-                self.produce('CHARS', text[0])
-                text = text[2:]
+        len_text = len(text)
+        while len_text and self.fstring_state_stack[-1].in_format_specifier():
+            self._handle_close_single_fstring_brace()
+            len_text -= 1
+
+        double_braces = len_text // 2
+        for _ in range(double_braces):
+            self.produce('CHARS', '}')
+        len_text -= double_braces*2
+
+        if len_text:
+            self._handle_close_single_fstring_brace()
 
     def unclosed_string_action(self, text):
         self.end_string_action(text)
