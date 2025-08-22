@@ -368,10 +368,10 @@ class PyrexScanner(Scanner):
     def close_bracket_action(self, text):
         self.bracket_nesting_level -= 1
         return text
-    
+
     def open_brace_action(self, text):
         return self.open_bracket_action(text)
-    
+
     def close_brace_action(self, text):
         assert text == '}'
         if (self.fstring_state_stack and

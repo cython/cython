@@ -1005,10 +1005,12 @@ def p_string_literal_shared_read(
         s: PyrexScanner, pos, chars, kind,
         is_raw: cython.bint):
     """
-    Returns a bool to indicate whether it's been handled
+    Returns a string of non-escaped characters (if handled) or none.
+    If passed an escape sequence returns an empty string.
     """
     sy = s.sy
     systr = s.systring
+    result = systr
     is_python3_source: cython.bint = s.context.language_level >= 3
     # print "p_string_literal: sy =", sy, repr(s.systring) ###
     if sy == 'CHARS':
@@ -1018,14 +1020,15 @@ def p_string_literal_shared_read(
         if is_raw and (is_python3_source or kind != 'u' or len(systr) < 2 or systr[1] not in 'Uu'):
             chars.append(systr)
         else:
+            result = ""
             _append_escape_sequence(kind, chars, systr, s)
     elif sy == 'NEWLINE':
         chars.append('\n')
     elif sy == 'EOF':
         s.error("Unclosed string literal", pos=pos)
     else:
-        return False
-    return True
+        return None
+    return result
 
 @cython.cfunc
 def _validate_kind_string(pos, systring: str):
@@ -1041,7 +1044,6 @@ def _validate_kind_string(pos, systring: str):
     if len(unique_string_prefixes) >= 2:
         error(pos, f'String prefixes {unique_string_prefixes[0]} and {unique_string_prefixes[1]} cannot be combined')
     else:
-        breakpoint()
         error(pos, f'Invalid string prefix {kind_string}')
     return ''
 
@@ -1060,6 +1062,7 @@ def p_string_literal(s: PyrexScanner, kind_override=None) -> tuple:
         return p_fstring_literal(s)
     pos = s.position()
     is_python3_source: cython.bint = s.context.language_level >= 3
+    has_non_ascii_literal_characters = False
     kind_string = _validate_kind_string(pos, s.systring)
 
     is_raw: cython.bint = 'r' in kind_string
@@ -1092,10 +1095,13 @@ def p_string_literal(s: PyrexScanner, kind_override=None) -> tuple:
 
     while 1:
         s.next()
-        handled = p_string_literal_shared_read(
+        handled_chars = p_string_literal_shared_read(
             s, pos, chars, kind,
             is_raw=is_raw)
-        if handled:
+        if handled_chars is not None:
+            if (not has_non_ascii_literal_characters and
+                    is_python3_source and Future.unicode_literals in s.context.future_directives):
+                has_non_ascii_literal_characters = check_for_non_ascii_characters(handled_chars)
             continue
         if s.sy == 'END_STRING':
             break
@@ -1110,9 +1116,10 @@ def p_string_literal(s: PyrexScanner, kind_override=None) -> tuple:
             error(pos, "invalid character literal: %r" % bytes_value)
     else:
         bytes_value, unicode_value = chars.getstrings()
-        if (is_python3_source and Future.unicode_literals in s.context.future_directives):
+        if (has_non_ascii_literal_characters
+                and is_python3_source and Future.unicode_literals in s.context.future_directives):
             # Python 3 forbids literal non-ASCII characters in byte strings
-            if kind == 'b' and check_for_non_ascii_characters(bytes_value):
+            if kind == 'b':
                 s.error("bytes can only contain ASCII literal characters.", pos=pos)
             bytes_value = None
     s.next()
@@ -1233,10 +1240,10 @@ def p_fstring_middles(s: PyrexScanner,
         s.next()
         sy = s.sy
 
-        handled = p_string_literal_shared_read(
+        handled_chars = p_string_literal_shared_read(
             s, pos, builder, "u",
             is_raw=is_raw)
-        if handled:
+        if handled_chars is not None:
             continue
 
         if builder.chars:
