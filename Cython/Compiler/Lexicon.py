@@ -138,7 +138,7 @@ def make_lexicon():
             for raw in ["", "R"]:
                 escapeseq_sy = rawescapeseq if raw else escapeseq
                 out.append(
-                    State(f"{triple}{quote_type}_{raw}FSTRING", [
+                    State(f"{triple}{quote_type}_STRING_F{raw}", [
                         (escapeseq_sy, 'ESCAPE'),
                         (Rep1(Str('{')), open_fstring_bracket_method),
                         (Rep1(Str('}')), close_fstring_bracket_method),

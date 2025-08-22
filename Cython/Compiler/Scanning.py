@@ -393,16 +393,16 @@ class PyrexScanner(Scanner):
             self.produce('NEWLINE', '')
 
     string_states = {
-        "'":   'SQ',
-        '"':   'DQ',
-        "'''": 'TSQ',
-        '"""': 'TDQ'
+        "'":   'SQ_STRING',
+        '"':   'DQ_STRING',
+        "'''": 'TSQ_STRING',
+        '"""': 'TDQ_STRING'
     }
 
     def begin_string_action(self, text: str):
         while text and text[0] in any_string_prefix:
             text = text[1:]
-        self.begin(f'{self.string_states[text]}_STRING')
+        self.begin(self.string_states[text])
         self.produce('BEGIN_STRING')
 
     def end_string_action(self, text):
@@ -413,7 +413,7 @@ class PyrexScanner(Scanner):
         is_raw = 'r' in text or 'R' in text
         while text and (text[0] in any_string_prefix or text[0] in fstring_prefixes):
             text = text[1:]
-        fstring_state = f'{self.string_states[text]}_{"R" if is_raw else ""}FSTRING'
+        fstring_state = f'{self.string_states[text]}_F{"R" if is_raw else ""}'
         self.fstring_state_stack.append(
             FStringState(fstring_state)
         )
