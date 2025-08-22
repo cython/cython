@@ -671,6 +671,9 @@ class FStringState:
 
 
 class FStringBracketState:
+    # Because of the way this is accessed, it probably doesn't make sense as a cdef class
+    # so just use __slots__ to keep it compact.
+    __slots__ = ('bracket_nesting_level', 'in_format_specifier')
     bracket_nesting_level: int
     in_format_specifier: bool
     def __init__(self, bracket_nesting_level: int):

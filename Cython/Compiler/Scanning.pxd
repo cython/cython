@@ -41,3 +41,8 @@ cdef class PyrexScanner(Scanner):
 
     cdef Py_ssize_t current_level(self)
     cdef int error_at_scanpos(self, str message) except -1
+
+
+cdef class FStringState:
+    cdef list bracket_states
+    cdef readonly str scanner_state
