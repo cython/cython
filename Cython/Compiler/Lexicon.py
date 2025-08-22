@@ -63,7 +63,7 @@ def make_lexicon():
                       Any(char_prefixes)
                       ) + (Str("'") | Str('"') | Str("'''") | Str('"""'))
     begin_fstring = (
-        ((Any(fstring_prefixes) + Opt(Any(raw_prefixes))) | (Opt(Any(raw_prefixes)) + Any(fstring_prefixes))) +
+        ((Any(fstring_prefixes) + Opt(Any(raw_prefixes))) | (Any(raw_prefixes) + Any(fstring_prefixes))) +
         (Str("'") | Str('"') | Str("'''") | Str('"""')))
     two_oct = octdigit + octdigit
     three_oct = octdigit + octdigit + octdigit

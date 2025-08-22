@@ -443,12 +443,11 @@ class PyrexScanner(Scanner):
 
     def open_fstring_brace_action(self, text):
         len_text = len(text)
+        started_fstring_expr = False
         if self.fstring_state_stack[-1].in_format_specifier():
-            self._handle_open_single_fstring_brace(False)
+            self._handle_open_single_fstring_brace(started_fstring_expr)
             len_text -= 1
             started_fstring_expr = True
-        else:
-            started_fstring_expr = False
         assert not self.fstring_state_stack[-1].in_format_specifier()
 
         double_braces = len_text // 2
