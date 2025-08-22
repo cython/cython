@@ -138,10 +138,10 @@ def make_lexicon():
             for raw in ["", "R"]:
                 escapeseq_sy = rawescapeseq if raw else escapeseq
                 out.append(
-                    State(f"{triple}{type_}_{raw}FSTRING", [
+                    State(f"{triple}{quote_type}_{raw}FSTRING", [
                         (escapeseq_sy, 'ESCAPE'),
                         (Rep1(Str('{')), open_fstring_bracket_method),
-                        (Rep1(Str('}')), close_fstring_bracketmethod),
+                        (Rep1(Str('}')), close_fstring_bracket_method),
                         (Rep1(AnyBut("'\"\n\\{}")), 'CHARS'),
                         (allowed_string_chars, 'CHARS'),
                         (Str("\n"), newline_method),
