@@ -84,8 +84,10 @@ def make_lexicon():
                     Str("\\\\") |
                     Str("\\") + Opt(Any('"\'')))
 
-    bra = Any("([{")
-    ket = Any(")]}")
+    bra = Any("([")
+    ket = Any(")]")
+    open_brace = Str('{')
+    close_brace = Str('}')
     ellipsis = Str("...")
     punct = Any(":,;+-*/|&<>=.%`~^?!@")
     diphthong = Str("==", "<>", "!=", "<=", ">=", "<<", ">>", "**", "//",
@@ -112,6 +114,8 @@ def make_lexicon():
                 (Rep1(AnyBut('"\'{}()[]:#')), 'CHARS'),
                 (comment, IGNORE),
                 (Str(':'), Method('colon_action')),
+                (open_brace, Method('open_brace_action')),
+                (close_brace, Method('close_brace_action')),
                 (bra, Method('open_bracket_action')),
                 (ket, Method('close_bracket_action')),
                 (beginstring, Method('begin_string_action')),
@@ -120,8 +124,8 @@ def make_lexicon():
             ]))
 
         unclosed_string_method = Method('unclosed_string_action')
-        open_fstring_bracket_method = Method('open_fstring_bracket_action')
-        close_fstring_bracket_method = Method('close_fstring_bracket_action')
+        open_fstring_brace_method = Method('open_fstring_brace_action')
+        close_fstring_brace_method = Method('close_fstring_brace_action')
         end_fstring_method = Method('end_fstring_action')
 
         for prefix in ["'", '"', "'''", '"""']:
@@ -140,8 +144,8 @@ def make_lexicon():
                 out.append(
                     State(f"{triple}{quote_type}_STRING_F{raw}", [
                         (escapeseq_sy, 'ESCAPE'),
-                        (Rep1(Str('{')), open_fstring_bracket_method),
-                        (Rep1(Str('}')), close_fstring_bracket_method),
+                        (Rep1(Str('{')), open_fstring_brace_method),
+                        (Rep1(Str('}')), close_fstring_brace_method),
                         (Rep1(AnyBut("'\"\n\\{}")), 'CHARS'),
                         (allowed_string_chars, 'CHARS'),
                         (Str("\n"), newline_method),
@@ -160,6 +164,8 @@ def make_lexicon():
 
         (bra, Method('open_bracket_action')),
         (ket, Method('close_bracket_action')),
+        (open_brace, Method('open_brace_action')),
+        (close_brace, Method('close_brace_action')),
         (lineterm, Method('newline_action')),
 
         (beginstring, Method('begin_string_action')),

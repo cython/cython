@@ -366,7 +366,15 @@ class PyrexScanner(Scanner):
         return text
 
     def close_bracket_action(self, text):
-        if (text == '}' and self.fstring_state_stack and
+        self.bracket_nesting_level -= 1
+        return text
+    
+    def open_brace_action(self, text):
+        return self.open_bracket_action(text)
+    
+    def close_brace_action(self, text):
+        assert text == '}'
+        if (self.fstring_state_stack and
                 self.fstring_state_stack[-1].bracket_nesting_level() == self.bracket_nesting_level):
             if not self.fstring_state_stack[-1].in_format_specifier():
                 self.in_fstring_expr_prescan -= 1
@@ -425,7 +433,7 @@ class PyrexScanner(Scanner):
         self.begin('FSTRING_EXPR_PRESCAN' if self.in_fstring_expr_prescan else '')
         self.produce('END_FSTRING')
 
-    def open_fstring_bracket_action(self, text):
+    def open_fstring_brace_action(self, text):
         started_fstring_expr = False
         while text:
             if len(text) == 1 or self.fstring_state_stack[-1].in_format_specifier():
@@ -441,7 +449,7 @@ class PyrexScanner(Scanner):
                 self.produce('CHARS', text[0])
                 text = text[2:]
 
-    def close_fstring_bracket_action(self, text):
+    def close_fstring_brace_action(self, text):
         while text:
             if len(text) == 1 or self.fstring_state_stack[-1].in_format_specifier():
                 fstring_bracket_level = self.fstring_state_stack[-1].bracket_nesting_level()
@@ -454,7 +462,7 @@ class PyrexScanner(Scanner):
                         fatal=False)
                     self.produce('}', '}')
                 else:
-                    self.produce(self.close_bracket_action('}'), '}')
+                    self.produce(self.close_brace_action('}'), '}')
                 text = text[1:]
             else:
                 self.produce('CHARS', text[0])
