@@ -62,10 +62,9 @@ def make_lexicon():
     beginstring = Opt(Rep(Any(string_prefixes + raw_prefixes)) |
                       Any(char_prefixes)
                       ) + (Str("'") | Str('"') | Str("'''") | Str('"""'))
-    begin_fstring = (Opt(Any(raw_prefixes)) +
-                     Any(fstring_prefixes) +
-                     Opt(Any(raw_prefixes)) +
-                     (Str("'") | Str('"') | Str("'''") | Str('"""')))
+    begin_fstring = (
+        ((Any(fstring_prefixes) + Opt(Any(raw_prefixes))) | (Opt(Any(raw_prefixes)) + Any(fstring_prefixes))) +
+        (Str("'") | Str('"') | Str("'''") | Str('"""')))
     two_oct = octdigit + octdigit
     three_oct = octdigit + octdigit + octdigit
     two_hex = hexdigit + hexdigit
@@ -120,31 +119,33 @@ def make_lexicon():
                 (Eof, 'EOF')
             ]))
 
+        unclosed_string_method = Method('unclosed_string_action')
+        open_fstring_bracket_method = Method('open_fstring_bracket_action')
+        close_fstring_bracket_method = Method('close_fstring_bracket_action')
+        end_fstring_method = Method('end_fstring_action')
+
         for prefix in ["'", '"', "'''", '"""']:
-            if prefix[0] == "'":
-                type_ = 'SQ'
-                allowed_string_chars = Str('"')
-            else:
-                type_ = 'DQ'
-                allowed_string_chars = Str("'")
+            quote_type = 'SQ' if "'" in prefix else 'DQ'
             if len(prefix) > 1:
                 triple = "T"
                 newline_method = "NEWLINE"
                 allowed_string_chars = Any("'\"")
             else:
                 triple = ""
-                newline_method = Method('unclosed_string_action')
+                newline_method = unclosed_string_method
+                allowed_string_chars = Str('"' if quote_type == 'SQ' else "'")
+
             for raw in ["", "R"]:
                 escapeseq_sy = rawescapeseq if raw else escapeseq
                 out.append(
                     State(f"{triple}{type_}_{raw}FSTRING", [
                         (escapeseq_sy, 'ESCAPE'),
-                        (Rep1(Str('{')), Method('open_fstring_bracket_action')),
-                        (Rep1(Str('}')), Method('close_fstring_bracket_action')),
+                        (Rep1(Str('{')), open_fstring_bracket_method),
+                        (Rep1(Str('}')), close_fstring_bracketmethod),
                         (Rep1(AnyBut("'\"\n\\{}")), 'CHARS'),
                         (allowed_string_chars, 'CHARS'),
                         (Str("\n"), newline_method),
-                        (Str(prefix), Method('end_fstring_action')),
+                        (Str(prefix), end_fstring_method),
                         (Eof, 'EOF')
                     ])
             )
