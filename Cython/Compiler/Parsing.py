@@ -1008,7 +1008,7 @@ def p_string_literal_shared_read(
     Returns a tuple of (handled, has_non_ascii_literal_characters)
     """
     sy = s.sy
-    systr = cython.cast(str, s.systring)
+    systr = s.systring
     is_python3_source: cython.bint = s.context.language_level >= 3
     # print "p_string_literal: sy =", sy, repr(s.systring) ###
     if sy == 'CHARS':
@@ -1034,16 +1034,20 @@ def p_string_literal_shared_read(
 @cython.cfunc
 def _validate_kind_string(pos, systring: str):
     kind_string = systring.rstrip('"\'').lower()
-    if len(kind_string) > 1:
-        if len(set(kind_string)) != len(kind_string):
-            error(pos, 'Duplicate string prefix character')
-        if 'b' in kind_string and 'u' in kind_string:
-            error(pos, 'String prefixes b and u cannot be combined')
-        if 'b' in kind_string and 'f' in kind_string:
-            error(pos, 'String prefixes b and f cannot be combined')
-        if 'u' in kind_string and 'f' in kind_string:
-            error(pos, 'String prefixes u and f cannot be combined')
-    return kind_string
+    if len(kind_string) <= 1 or (len(kind_string) == 2 and kind_string in "rbrurfr"):
+        return kind_string
+    # Otherwise an error of some sort
+    unique_string_prefixes = set(kind_string)
+    if len(unique_string_prefixes) != len(kind_string):
+        error(pos, 'Duplicate string prefix character')
+    unique_string_prefixes.discard('r')
+    unique_string_prefixes = sorted(unique_string_prefixes)
+    if len(unique_string_prefixes) >= 2:
+        error(pos, f'String prefixes {unique_string_prefixes[0]} and {unique_string_prefixes[1]} cannot be combined')
+    else:
+        breakpoint()
+        error(pos, f'Invalid string prefix {kind_string}')
+    return ''
 
 @cython.cfunc
 def p_string_literal(s: PyrexScanner, kind_override=None) -> tuple:
