@@ -795,8 +795,13 @@ static {{out_type}} __Pyx_PyMemoryView_Get_{{name}}(PyObject *obj) {
 #define __Pyx_PySlice_Start(o) PyObject_GetAttr(o, PYIDENT("start"))
 #define __Pyx_PySlice_Stop(o) PyObject_GetAttr(o, PYIDENT("stop"))
 #define __Pyx_PySlice_Step(o) PyObject_GetAttr(o, PYIDENT("step"))
-#elif CYTHON_COMPILING_IN_GRAAL
+#elif CYTHON_COMPILING_IN_GRAAL && defined(GRAALPY_VERSION_NUM) && GRAALPY_VERSION_NUM > 0x19000000
 // Graal defines it's own accessor functions
+#define __Pyx_PySlice_Start(o) GraalPySlice_Start(o)
+#define __Pyx_PySlice_Stop(o) GraalPySlice_Stop(o)
+#define __Pyx_PySlice_Step(o) GraalPySlice_Step(o)
+#elif CYTHON_COMPILING_IN_GRAAL
+// Remove when GraalPy 24 goes EOL
 #define __Pyx_PySlice_Start(o) __Pyx_NewRef(PySlice_Start((PySliceObject*)o))
 #define __Pyx_PySlice_Stop(o) __Pyx_NewRef(PySlice_Stop((PySliceObject*)o))
 #define __Pyx_PySlice_Step(o) __Pyx_NewRef(PySlice_Step((PySliceObject*)o))

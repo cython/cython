@@ -1799,8 +1799,12 @@ static PyObject* __Pyx_Method_ClassMethod(PyObject *method) {
             "This is most likely a classmethod in a cdef class method with binding=False. "
             "Try setting 'binding' to True.",
             method);
-#elif CYTHON_COMPILING_IN_GRAAL
+#elif CYTHON_COMPILING_IN_GRAAL && defined(GRAALPY_VERSION_NUM) && GRAALPY_VERSION_NUM > 0x19000000
         // cdef classes
+        PyTypeObject *d_type = GraalPyDescrObject_GetType(method);
+        return PyDescr_NewClassMethod(d_type, GraalPyMethodDescrObject_GetMethod(method));
+#elif CYTHON_COMPILING_IN_GRAAL
+        // Remove when GraalPy 24 goes EOL
         PyTypeObject *d_type = PyDescrObject_GetType(method);
         return PyDescr_NewClassMethod(d_type, PyMethodDescrObject_GetMethod(method));
 #else
