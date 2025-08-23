@@ -102,13 +102,22 @@ Bugs fixed
 * Includes all fixes as of Cython 3.1.2.
 
 
-3.1.3 (2025-??-??)
+3.1.4 (2025-??-??)
+==================
+* Optimised integer shifting triggered undefined behaviour in C.
+  (Github issue :issue:`7089`)
+
+
+3.1.3 (2025-08-13)
 ==================
 
 Bugs fixed
 ----------
 
 * Some method calls with 0 or 1 argument failed to use ``PyObject_VectorCallMethod()``.
+
+* Walrus assignments of literal Python integers could generate invalid C code.
+  (Github issue :issue:`6989`)
 
 * ``cython.pythread_type_lock`` (also used as fallback for ``cython.pymutex``)
   could stall on heavily contended locks.
@@ -118,8 +127,14 @@ Bugs fixed
   even on explicit casts to other string types.
   (Github issue :issue:`7020`)
 
+* Unterminated ``\N{}`` character escapes in strings could unrail the parser.
+  (Github issue :issue:`7056`)
+
 * An internal C function was not marked as ``static`` and leaked a linker symbol.
   (Github issue :issue:`6957`)
+
+* Some Unicode letters were not recognised as lexically valid name parts.
+  (Github issue :issue:`7059`)
 
 * Compatibility with PyPy3.8 was lost by accident.
 

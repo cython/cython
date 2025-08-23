@@ -1329,7 +1329,7 @@ static {{c_ret_type}} __Pyx_Unpacked_{{cfunc_name}}(PyObject *op1, PyObject *op2
                 x = q;
             }
         {{else}}
-             
+
             {{if op == 'Rshift' or op == 'Lshift'}}
             if ((!negative_shift_works) && unlikely(a < 0)) goto fallback;
             {{endif}}
@@ -1378,6 +1378,7 @@ static {{c_ret_type}} __Pyx_Unpacked_{{cfunc_name}}(PyObject *op1, PyObject *op2
             {{endif}}
         {{endif}}
         return PyLong_FromLongLong(llx);
+
 {{if op == 'Lshift' or op == 'Rshift'}}
   fallback:
 {{endif}}
