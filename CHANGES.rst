@@ -104,6 +104,10 @@ Bugs fixed
 
 3.1.4 (2025-??-??)
 ==================
+
+Bugs fixed
+----------
+
 * Optimised integer shifting triggered undefined behaviour in C.
   (Github issue :issue:`7089`)
 
