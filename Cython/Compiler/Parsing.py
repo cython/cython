@@ -1304,7 +1304,7 @@ def p_ft_string_literal(s: PyrexScanner):
     kind_string = _validate_kind_string(s.position(), s.systring)
     is_t: cython.bint = 't' in kind_string
     is_raw: cython.bint = 'r' in kind_string
-    quotes = "".join(filter(lambda x: not x.isalnum(), s.systring))
+    quotes = s.systring.lstrip("rRbBuUfFtT")
     is_single_quoted: cython.bint = len(quotes) != 3
     middles = p_ft_string_middles(s, is_raw, is_single_quoted, False, is_t=is_t)
     if s.sy != "END_FT_STRING":
