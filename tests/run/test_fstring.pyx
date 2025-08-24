@@ -1081,7 +1081,7 @@ y = (
 
         # but don't emit the paren warning in general cases
         with self.assertRaisesRegex(SyntaxError, "f-string: expecting a valid expression after '{'"):
-            eval("f'{+ lambda:None}'")
+            cy_eval("f'{+ lambda:None}'")
 
     def test_valid_prefixes(self):
         self.assertEqual(F'{1}', "1")
