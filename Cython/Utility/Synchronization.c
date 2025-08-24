@@ -83,6 +83,7 @@
                     (__GNUC_MINOR__ == 1 && __GNUC_PATCHLEVEL__ >= 2))))
     /* gcc >= 4.1.2 */
     #define __pyx_atomic_ptr_type void*
+    #define __pyx_nonatomic_ptr_type void*
     #define __pyx_atomic_incr_relaxed(value) __sync_fetch_and_add(value, 1)
     #define __pyx_atomic_incr_acq_rel(value) __sync_fetch_and_add(value, 1)
     #define __pyx_atomic_decr_acq_rel(value) __sync_fetch_and_sub(value, 1)
