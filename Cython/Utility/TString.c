@@ -168,13 +168,13 @@ static int __Pyx_InitializeTemplateLib(void) {
 
 #if CYTHON_COMPILING_IN_CPYTHON_FREETHREADING && CYTHON_ATOMICS
     {
-        __pyx_nonatomic_ptr_type expected = NULL;
-        if (!__pyx_atomic_pointer_cmp_exchange(&CGLOBAL(__pyx_templatelib_Template), &expected, template_)) {
+        __pyx_nonatomic_ptr_type expected = 0;
+        if (!__pyx_atomic_pointer_cmp_exchange(&CGLOBAL(__pyx_templatelib_Template), &expected, (__pyx_nonatomic_ptr_type)template_)) {
             // Already written - that's fine.
             Py_DECREF(template_);
         }
-        expected = NULL;
-        if (!__pyx_atomic_pointer_cmp_exchange(&CGLOBAL(__pyx_templatelib_Interpolation), &expected, interpolation)) {
+        expected = 0;
+        if (!__pyx_atomic_pointer_cmp_exchange(&CGLOBAL(__pyx_templatelib_Interpolation), &expected, (__pyx_nonatomic_ptr_type)interpolation)) {
             // Already written - that's fine.
             Py_DECREF(interpolation);
         }
