@@ -167,15 +167,17 @@ static int __Pyx_InitializeTemplateLib(void) {
     if (unlikely(!interpolation)) goto end;
 
 #if CYTHON_COMPILING_IN_CPYTHON_FREETHREADING && CYTHON_ATOMICS
-    __pyx_nonatomic_ptr_type expected = NULL;
-    if (!__pyx_atomic_pointer_cmp_exchange(&CGLOBAL(__pyx_templatelib_Template), &expected, template_)) {
-        // Already written - that's fine.
-        Py_DECREF(template_);
-    }
-    expected = NULL;
-    if (!__pyx_atomic_pointer_cmp_exchange(&CGLOBAL(__pyx_templatelib_Interpolation), &expected, interpolation)) {
-        // Already written - that's fine.
-        Py_DECREF(interpolation);
+    {
+        __pyx_nonatomic_ptr_type expected = NULL;
+        if (!__pyx_atomic_pointer_cmp_exchange(&CGLOBAL(__pyx_templatelib_Template), &expected, template_)) {
+            // Already written - that's fine.
+            Py_DECREF(template_);
+        }
+        expected = NULL;
+        if (!__pyx_atomic_pointer_cmp_exchange(&CGLOBAL(__pyx_templatelib_Interpolation), &expected, interpolation)) {
+            // Already written - that's fine.
+            Py_DECREF(interpolation);
+        }
     }
 #else
     if (unlikely(CGLOBAL(__pyx_templatelib_Template))) {
