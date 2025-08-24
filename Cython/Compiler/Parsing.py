@@ -1154,7 +1154,7 @@ def p_read_ft_string_expression(s: PyrexScanner):
 @cython.cfunc
 def p_ft_string_replacement_field(s: PyrexScanner,
                                 is_raw: cython.bint, is_single_quoted: cython.bint,
-                                is_t: cython.bint):
+                                is_template_string: cython.bint):
     result = []
     conversion_char = format_spec = expr = None
     t_string_expression = None
@@ -1165,7 +1165,7 @@ def p_ft_string_replacement_field(s: PyrexScanner,
     expr_string = p_read_ft_string_expression(s)
     if not expr_string.strip():
         error(bracket_pos,
-              f"empty expression not allowed in {'t' if is_t else 'f'}-string")
+              f"empty expression not allowed in {'t' if is_template_string else 'f'}-string")
         result = []
     else:
         original_scanner = s
@@ -1207,10 +1207,10 @@ def p_ft_string_replacement_field(s: PyrexScanner,
             else:
                 s.next()
 
-        if self_documenting or is_t:
+        if self_documenting or is_template_string:
             if conversion_char is not None:
                 expr_string, _ = expr_string.rsplit('!', 1)
-            if is_t:
+            if is_template_string:
                 t_string_expression = ExprNodes.UnicodeNode(
                     pos=expr_pos,
                     value=StringEncoding.EncodedString(expr_string.rstrip().rstrip('=').rstrip())
@@ -1229,7 +1229,7 @@ def p_ft_string_replacement_field(s: PyrexScanner,
         if s.sy != "EOF":
             error(
                 s.position(),
-                f"Unexpected characters after {'t' if is_t else 'f'}-string expression: {s.systring}")
+                f"Unexpected characters after {'t' if is_template_string else 'f'}-string expression: {s.systring}")
 
         s = original_scanner
 
@@ -1238,7 +1238,7 @@ def p_ft_string_replacement_field(s: PyrexScanner,
         pos = s.position()
         # Contents of format spec are handled closer to an f-string than a t-string
         # (even for t-strings).
-        format_spec_contents = p_ft_string_middles(s, is_raw, is_single_quoted, True, is_t=False)
+        format_spec_contents = p_ft_string_middles(s, is_raw, is_single_quoted, True, is_template_string=False)
         format_spec = ExprNodes.JoinedStrNode(
             pos,
             values=format_spec_contents
@@ -1246,7 +1246,7 @@ def p_ft_string_replacement_field(s: PyrexScanner,
     if self_documenting and conversion_char is None and format_spec is None:
         conversion_char = 'r'
 
-    if is_t:
+    if is_template_string:
         result.append(ExprNodes.TStringInterpolationNode(
             bracket_pos, value=expr, conversion_char=conversion_char,
             format_spec=format_spec, expression_str=t_string_expression
@@ -1262,7 +1262,7 @@ def p_ft_string_replacement_field(s: PyrexScanner,
 def p_ft_string_middles(s: PyrexScanner,
                       is_raw: cython.bint, is_single_quoted: cython.bint,
                       is_format_string: cython.bint,
-                      is_t):
+                      is_template_string):
     middles: list = []
     builder = StringEncoding.UnicodeLiteralBuilder()
     pos = s.position()
@@ -1280,7 +1280,8 @@ def p_ft_string_middles(s: PyrexScanner,
             middles.append(ExprNodes.UnicodeNode(pos, value=builder.getstring()))
             builder = StringEncoding.UnicodeLiteralBuilder()
         if sy == "{":
-            fields = p_ft_string_replacement_field(s, is_raw, is_single_quoted, is_t=is_t)
+            fields = p_ft_string_replacement_field(
+                s, is_raw, is_single_quoted, is_template_string=is_template_string)
             middles.extend(fields)
             if not s.sy == '}':
                 s.expected('}')
@@ -1295,22 +1296,22 @@ def p_ft_string_middles(s: PyrexScanner,
             error(
                 s.position(),
                 "Unexpected token %r:%r in %s-string literal" % (
-                s.sy, s.systring, 't' if is_t else 's'))
+                s.sy, s.systring, 't' if is_template_string else 's'))
     return middles
 
 @cython.cfunc
 def p_ft_string_literal(s: PyrexScanner):
     # s.sy == BEGIN_FT_STRING
     kind_string = _validate_kind_string(s.position(), s.systring)
-    is_t: cython.bint = 't' in kind_string
+    is_template_string: cython.bint = 't' in kind_string
     is_raw: cython.bint = 'r' in kind_string
     quotes = s.systring.lstrip("rRbBuUfFtT")
     is_single_quoted: cython.bint = len(quotes) != 3
-    middles = p_ft_string_middles(s, is_raw, is_single_quoted, False, is_t=is_t)
+    middles = p_ft_string_middles(s, is_raw, is_single_quoted, False, is_template_string)
     if s.sy != "END_FT_STRING":
         s.expected(quotes)
     s.next()
-    return 't' if is_t else 'f', None, middles
+    return 't' if is_template_string else 'f', None, middles
 
 
 @cython.cfunc
