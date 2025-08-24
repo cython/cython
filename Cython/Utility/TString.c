@@ -117,10 +117,17 @@ static PyObject *__Pyx_TemplateLibFallback(void) {
     PyObject *code=NULL, *eval_result=NULL, *module=NULL, *module_dict=NULL;
     PyObject *dict = PyDict_New();
     if (unlikely(!dict)) return NULL;
-
+#if __PYX_LIMITED_VERSION_HEX < 0x030A0000
+    {
+        PyObject *builtins = PyEval_GetBuiltins();
+        if (unlikely(!builtins)) goto end;
+        if (unlikely(PyDict_SetItemString(dict, "__builtins__", builtins) < 0)) goto end;
+    }
+#endif
+    
     code = Py_CompileString(code_str, "<cython string.templatelib fallback>", Py_file_input);
     if (unlikely(!code)) goto end;
-    eval_result = PyEval_EvalCode(code, dict, dict);
+    eval_result = PyEval_EvalCode(code, dict, NULL);
     Py_DECREF(code);
     if (unlikely(!eval_result)) goto end;
     Py_DECREF(eval_result);
@@ -320,7 +327,7 @@ static PyObject* __Pyx_MakeTemplateLibTemplate(PyObject *strings, PyObject *inte
         if (i < interpolations_len) {
             PyObject *interpolation = __Pyx_PyTuple_GET_ITEM(interpolations, i);
 #if !CYTHON_ASSUME_SAFE_MACROS
-            if (unlikely(!interpolation)) goto bad;
+            if (unlikely(!interpolation)) goto end;
 #endif
             Py_INCREF(interpolation);
             if (unlikely(__Pyx_PyTuple_SET_ITEM(zipped_tuple, zipped_index, interpolation) < 0)) goto end;

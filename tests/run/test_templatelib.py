@@ -51,7 +51,10 @@ class TStringBaseCase:
         self.assertEqual(t.strings, strings)
         self.assertEqual(len(t.interpolations), len(interpolations))
 
-        for i, exp in zip(t.interpolations, interpolations, strict=True):
+        if len(t.interpolations) != len(interpolations):
+            # Handle Python <3.10 which doesn't have strict in zip
+            raise ValueError(f"Lengths differ {len(t.interpolations)} {len(interpolations)}")
+        for i, exp in zip(t.interpolations, interpolations):
             self.assertInterpolationEqual(i, exp)
 
 

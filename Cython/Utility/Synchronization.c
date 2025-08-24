@@ -117,6 +117,7 @@
     #define __pyx_atomic_ptr_type void*
     #undef __pyx_nonatomic_int_type
     #define __pyx_nonatomic_int_type long
+    #define __pyx_nonatomic_ptr_type void*
     #pragma intrinsic (_InterlockedExchangeAdd, _InterlockedExchange, _InterlockedCompareExchange, _InterlockedCompareExchangePointer, _InterlockedExchangePointer)
     #define __pyx_atomic_incr_relaxed(value) _InterlockedExchangeAdd(value, 1)
     #define __pyx_atomic_incr_acq_rel(value) _InterlockedExchangeAdd(value, 1)
