@@ -518,8 +518,6 @@ class MethodDispatcherTransform(EnvTransform):
     def visit_SimpleCallNode(self, node):
         self._process_children(node)
         function = node.function
-        if function.type is None:
-            breakpoint()
         if function.type.is_pyobject:
             arg_tuple = node.arg_tuple
             if not isinstance(arg_tuple, ExprNodes.TupleNode):

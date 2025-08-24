@@ -15472,7 +15472,6 @@ class TStringInterpolationNode(ExprNode):
         code.put_gotref(self.result(), py_object_type)
 
 
-
 class TemplateStringNode(ExprNode):
     """t-string"""
     subexprs = ['strings', 'interpolations']

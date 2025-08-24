@@ -41,78 +41,79 @@ static PyObject *__Pyx_TemplateLibFallback(void) {
     // The assumption here is that Interpolation and Template are fairly simple classes
     // and the cost of compiling them with Cython (for all Python versions) is probably
     // higher than the cost of using a plain-Python fallback. 
-    const char code_str[] =
-"class Interpolation:\n"
-"    __module__ = 'string.templatelib'\n"
-"    __slots__ = __match_args__ = ('value', 'expression', 'conversion', 'format_spec')\n"
-"    def __setattr__(self, attr, value):\n"
-"        raise AttributeError('Interpolation is immutable')\n"
-"    def __new__(cls, value, expression='', conversion=None, format_spec=''):\n"
-"        obj = super().__new__(cls)\n"
-"        super().__setattr__(obj, 'value', value)\n"
-"        super().__setattr__(obj, 'expression', expression)\n"
-"        super().__setattr__(obj, 'conversion', conversion)\n"
-"        super().__setattr__(obj, 'format_spec', format_spec)\n"
-"        return obj\n"
-"    def __repr__(self):\n"
-"        return f'Interpolation({self.value!r}, {self.expression!r}, {self.conversion!r}, {self.format_spec!r})'\n"
-"    def __reduce__(self):\n"
-"        # This probably won't work unless a t-string has already been created from Cython\n"
-"        return (type(self), (self.value, self.expression, self.conversion, self.format_spec))\n"
-"    def __init_subclass__(cls, **kwds):\n"
-"        raise TypeError('Interpolation is not an acceptable base type')\n"
-"class Template:\n"
-"    __module__ = 'string.templatelib'\n"
-"    __slots__ = ('strings', 'interpolations')\n"
-"    def __setattr__(self, attr, value):\n"
-"        raise AttributeError('Template is immutable')\n"
-"    @classmethod\n"
-"    def _from_strings_and_interpolations(cls, strings, interpolations):\n"
-"        obj = super().__new__(cls)\n"
-"        super().__setattr__(obj, 'strings', tuple(strings))\n"
-"        super().__setattr__(obj, 'interpolations', tuple(interpolations))\n"
-"        return obj\n"
-"    def __new__(cls, *args):\n"
-"        last_string = ''\n"
-"        strings = []\n"
-"        interpolations = []\n"
-"        for arg in args:\n"
-"            if isinstance(arg, str):\n"
-"                last_string += arg\n"
-"            elif isinstance(arg, Interpolation):\n"
-"                strings.append(last_string)\n"
-"                last_string = ''\n"
-"                interpolations.append(arg)\n"
-"            else:\n"
-"                raise TypeError('Unexpected argument to Template')\n"
-"        strings.append(last_string)\n"
-"        return cls._from_strings_and_interpolations(strings, interpolations)\n"
-"    def __repr__(self):\n"
-"        return f'Template(strings={self.strings!r}, interpolations={self.interpolations!r})'\n"
-"    def __reduce__(self):\n"
-"        # This probably won't work unless a t-string has already been created from Cython.\n"
-"        # It also doesn't quite match how CPython pickles them.\n"
-"        values = tuple(iter(self))\n"
-"        return (type(self), values)\n"
-"    def __iter__(self):\n"
-"        for n in range(len(self.interpolations)):\n"
-"            if (s := self.strings[n]):\n"
-"               yield s\n"
-"            yield self.interpolations[n]\n"
-"        if (s := self.strings[-1]):\n"
-"           yield s\n"
-"    def __add__(self, other):\n"
-"        if not (isinstance(self, Template) and isinstance(other, Template)):\n"
-"            raise TypeError('can only concatenate Template to Template')\n"
-"        interpolations = self.interpolations + other.interpolations\n"
-"        middle_string = self.strings[-1] + other.strings[0]\n"
-"        strings = self.strings[:-1] + (middle_string,) + other.strings[1:]\n"
-"        return Template._from_strings_and_interpolations(strings, interpolations)\n"
-"    @property\n"
-"    def values(self):\n"
-"        return tuple(i.value for i in self.interpolations)\n"
-"    def __init_subclass__(cls, **kwds):\n"
-"        raise TypeError('Template is not an acceptable base type')\n";
+    const char code_str[] = CSTRING("""
+class Interpolation:
+    __module__ = 'string.templatelib'
+    __slots__ = __match_args__ = ('value', 'expression', 'conversion', 'format_spec')
+    def __setattr__(self, attr, value):
+        raise AttributeError('Interpolation is immutable')
+    def __new__(cls, value, expression='', conversion=None, format_spec=''):
+        obj = super().__new__(cls)
+        super().__setattr__(obj, 'value', value)
+        super().__setattr__(obj, 'expression', expression)
+        super().__setattr__(obj, 'conversion', conversion)
+        super().__setattr__(obj, 'format_spec', format_spec)
+        return obj
+    def __repr__(self):
+        return f'Interpolation({self.value!r}, {self.expression!r}, {self.conversion!r}, {self.format_spec!r})'
+    def __reduce__(self):
+        # This probably won't work unless a t-string has already been created from Cython
+        return (type(self), (self.value, self.expression, self.conversion, self.format_spec))
+    def __init_subclass__(cls, **kwds):
+        raise TypeError('Interpolation is not an acceptable base type')
+class Template:
+    __module__ = 'string.templatelib'
+    __slots__ = ('strings', 'interpolations')
+    def __setattr__(self, attr, value):
+        raise AttributeError('Template is immutable')
+    @classmethod
+    def _from_strings_and_interpolations(cls, strings, interpolations):
+        obj = super().__new__(cls)
+        super().__setattr__(obj, 'strings', tuple(strings))
+        super().__setattr__(obj, 'interpolations', tuple(interpolations))
+        return obj
+    def __new__(cls, *args):
+        last_string = ''
+        strings = []
+        interpolations = []
+        for arg in args:
+            if isinstance(arg, str):
+                last_string += arg
+            elif isinstance(arg, Interpolation):
+                strings.append(last_string)
+                last_string = ''
+                interpolations.append(arg)
+            else:
+                raise TypeError('Unexpected argument to Template')
+        strings.append(last_string)
+        return cls._from_strings_and_interpolations(strings, interpolations)
+    def __repr__(self):
+        return f'Template(strings={self.strings!r}, interpolations={self.interpolations!r})'
+    def __reduce__(self):
+        # This probably won't work unless a t-string has already been created from Cython.
+        # It also doesn't quite match how CPython pickles them.
+        values = tuple(iter(self))
+        return (type(self), values)
+    def __iter__(self):
+        for n in range(len(self.interpolations)):
+            if (s := self.strings[n]):
+               yield s
+            yield self.interpolations[n]
+        if (s := self.strings[-1]):
+           yield s
+    def __add__(self, other):
+        if not (isinstance(self, Template) and isinstance(other, Template)):
+            raise TypeError('can only concatenate Template to Template')
+        interpolations = self.interpolations + other.interpolations
+        middle_string = self.strings[-1] + other.strings[0]
+        strings = self.strings[:-1] + (middle_string,) + other.strings[1:]
+        return Template._from_strings_and_interpolations(strings, interpolations)
+    @property
+    def values(self):
+        return tuple(i.value for i in self.interpolations)
+    def __init_subclass__(cls, **kwds):
+        raise TypeError('Template is not an acceptable base type')
+""");
 
     PyObject *code=NULL, *eval_result=NULL, *module=NULL, *module_dict=NULL;
     PyObject *dict = PyDict_New();

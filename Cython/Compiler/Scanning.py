@@ -455,8 +455,6 @@ class PyrexScanner(Scanner):
             self.produce('CHARS', '{')
         len_text -= (double_braces*2)
 
-        if len_text < 0:
-            breakpoint()
         if len_text:
             assert len_text == 1
             self._handle_open_single_ft_string_brace(started_ft_string_expr)
