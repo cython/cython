@@ -10,6 +10,7 @@ import locale
 import math
 import operator
 import os
+import platform
 import re
 import shutil
 import subprocess
@@ -23,7 +24,6 @@ from collections import defaultdict
 from contextlib import contextmanager
 
 try:
-    import platform
     IS_PYPY = platform.python_implementation() == 'PyPy'
     IS_CPYTHON = platform.python_implementation() == 'CPython'
     IS_GRAAL = platform.python_implementation() == 'GraalVM'
@@ -278,7 +278,10 @@ def update_numpy_extension(ext, set_api17_macro=True):
     ]
     ext.library_dirs += lib_path
     if sys.platform == "win32":
-        ext.libraries += ["npymath"]
+        if platform.machine().lower() != 'arm64':
+            # For unknown reasons, Windows arm provides libnpymath.a instead of npymath.lib.
+            # See if we can get away without it.
+            ext.libraries += ["npymath"]
     else:
         ext.libraries += ["npymath", "m"]
     ext.include_dirs.append(np.get_include())
@@ -1896,19 +1899,6 @@ class TestCodeFormat(unittest.TestCase):
         result = style.check_files(paths)
         total_errors += result.total_errors
 
-        """
-        # checks for non-Python test files
-        paths = []
-        for codedir in ['tests']:
-            paths += glob.glob(os.path.join(self.cython_dir, codedir + "/**/*.p[yx][xdi]"), recursive=True)
-        style = pycodestyle.StyleGuide(select=[
-            # whitespace
-            "W1", "W2", "W3",
-        ])
-        result = style.check_files(paths)
-        total_errors += result.total_errors
-        """
-
         self.assertEqual(total_errors, 0, "Found code style errors.")
 
 
@@ -2929,6 +2919,7 @@ def runtests(options, cmd_args, coverage=None):
             ('limited_api_bugs.txt', options.limited_api),
             ('limited_api_bugs_38.txt', options.limited_api and sys_version_or_limited_version < (3, 9)),
             ('windows_bugs.txt', sys.platform == 'win32'),
+            ('windows_arm_bugs.txt', sys.platform == 'win32' and platform.machine().lower() == "arm64"),
             ('cygwin_bugs.txt', sys.platform == 'cygwin'),
             ('windows_bugs_39.txt', sys.platform == 'win32' and sys.version_info[:2] == (3, 9)),
         ]

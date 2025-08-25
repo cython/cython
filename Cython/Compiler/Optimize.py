@@ -4163,7 +4163,11 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
     def _inject_null_for_none(self, args, index):
         if len(args) <= index:
             return
+
         arg = args[index]
+        if not arg.may_be_none():
+            return
+
         args[index] = ExprNodes.NullNode(arg.pos) if arg.is_none else ExprNodes.PythonCapiCallNode(
             arg.pos, "__Pyx_NoneAsNull",
             self.obj_to_obj_func_type,

@@ -116,6 +116,16 @@ jobs:
             backend: cpp
             env: {}
             extra_hash: "arm64"
+          - os:  windows-11-arm
+            python-version: "3.12"
+            backend: "c"
+            extra_hash: "arm64"
+            env: {}
+          - os:  windows-11-arm
+            python-version: "3.12"
+            backend: "cpp"
+            extra_hash: "arm64"
+            env: {}
           # compile all modules
           - os: ubuntu-22.04
             python-version: "3.8"
