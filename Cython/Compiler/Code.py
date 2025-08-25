@@ -1634,26 +1634,6 @@ class GlobalState:
         code.putln(util.format_code(util.impl))
         code.putln("")
 
-        shared_module_loaded = self.module_node.scope.context.shared_utility_qualified_name
-        shared_module_generated = self.module_node.scope.context.options.shared_c_file_path
-
-        if shared_module_loaded:
-            from .PyrexTypes import py_object_type
-            code = self.parts['c_function_import_code']
-            if self.shared_utility_functions:
-                code.globalstate.use_utility_code(UtilityCode.load_cached("FunctionImport", "ImportExport.c"))
-            temp = code.funcstate.allocate_temp(py_object_type, manage_ref=True)
-            cyversion = Naming.cyversion
-            for shared in self.shared_utility_functions:
-                shared_func_proto = f'{shared["ret"]}({shared["params"]})'
-                shared_func = shared["name"]
-                code.put_error_if_neg(
-                    self.module_pos,
-                    f'__Pyx_ImportFunction_{cyversion}({temp}, "{shared_func}", (void (**)(void))&{shared_func}, "{shared_func_proto}")'
-                )
-        elif shared_module_generated:
-            code = self.parts['c_function_export_code']
-
     def __getitem__(self, key):
         return self.parts[key]
 
