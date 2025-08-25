@@ -171,7 +171,7 @@ def copy_inherited_directives(outer_directives, **new_directives):
     #  otherwise they can produce very misleading test failures
     new_directives_out = dict(outer_directives)
     for name in ('test_assert_path_exists', 'test_fail_if_path_exists', 'test_assert_c_code_has', 'test_fail_if_c_code_has',
-                 'critical_section'):
+                 'test_body_needs_exception_handling', 'critical_section'):
         new_directives_out.pop(name, None)
     new_directives_out.update(new_directives)
     return new_directives_out
@@ -270,6 +270,7 @@ _directive_defaults = {
 # test support
     'test_assert_path_exists' : [],
     'test_fail_if_path_exists' : [],
+    'test_body_needs_exception_handling' : None,
     'test_assert_c_code_has' : [],
     'test_fail_if_c_code_has' : [],
 
@@ -381,6 +382,7 @@ directive_types = {
     'dataclasses.field': DEFER_ANALYSIS_OF_ARGUMENTS,
     'embedsignature.format': one_of('c', 'clinic', 'python'),
     'subinterpreters_compatible': one_of('no', 'shared_gil', 'own_gil'),
+    'test_body_needs_exception_handling': bool,
 }
 
 for key, val in _directive_defaults.items():
@@ -416,6 +418,7 @@ directive_scopes = {  # defaults to available everywhere
     'test_fail_if_path_exists' : ('function', 'class', 'cclass'),
     'test_assert_c_code_has' : ('module',),
     'test_fail_if_c_code_has' : ('module',),
+    'test_body_needs_exception_handling' : ('with statement',),
     'freelist': ('cclass',),
     'formal_grammar': ('module',),
     'emit_code_comments': ('module',),
@@ -456,6 +459,7 @@ immediate_decorator_directives = {
     'auto_pickle', 'internal', 'collection_type', 'total_ordering',
     # testing directives
     'test_fail_if_path_exists', 'test_assert_path_exists',
+    'test_body_needs_exception_handling',
 }
 
 

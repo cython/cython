@@ -1323,14 +1323,21 @@ class BuiltinScope(Scope):
         return entry
 
     def declare_builtin_type(self, name, cname,
-                             objstruct_cname=None, type_class=PyrexTypes.BuiltinObjectType):
+                             objstruct_cname=None, type_class=PyrexTypes.BuiltinObjectType,
+                             utility_code=None):
         name = EncodedString(name)
         type = type_class(name, cname, objstruct_cname)
         scope = CClassScope(name, outer_scope=None, visibility='extern', parent_type=type)
         scope.directives = {}
         type.set_scope(scope)
         self.type_names[name] = 1
+
         entry = self.declare_type(name, type, None, visibility='extern')
+        if utility_code:
+            entry.utility_code = utility_code
+        if name == 'range' and 'xrange' not in self.entries:
+            # Keep supporting legacy Py2 'xrange' because it's still in use.
+            self.entries['xrange'] = entry
 
         var_entry = Entry(
             name=entry.name,
@@ -1346,6 +1353,8 @@ class BuiltinScope(Scope):
         var_entry.scope = self
         if Options.cache_builtins:
             var_entry.is_const = True
+        if utility_code:
+            var_entry.utility_code = utility_code
         entry.as_variable = var_entry
 
         return type
@@ -1881,7 +1890,7 @@ class ModuleScope(Scope):
             type.objstruct_cname = objstruct_cname
         if typeobj_cname:
             if type.typeobj_cname and type.typeobj_cname != typeobj_cname:
-                    error(pos, "Type object name differs from previous declaration")
+                error(pos, "Type object name differs from previous declaration")
             type.typeobj_cname = typeobj_cname
 
         if self.directives.get('final'):

@@ -13,7 +13,7 @@ if (likely(__Pyx_init_assertions_enabled() == 0)); else
 
 /////////////// AssertionsEnabled.proto ///////////////
 
-#if CYTHON_COMPILING_IN_LIMITED_API  ||  (CYTHON_COMPILING_IN_CPYTHON && PY_VERSION_HEX >= 0x030C0000)
+#if CYTHON_COMPILING_IN_LIMITED_API  ||  PY_VERSION_HEX >= 0x030C0000
   // Py_OptimizeFlag is deprecated in Py3.12+ and not available in the Limited API.
   static int __pyx_assertions_enabled_flag;
   #define __pyx_assertions_enabled() (__pyx_assertions_enabled_flag)
@@ -781,15 +781,31 @@ static int __Pyx_CLineForTraceback(PyThreadState *tstate, int c_line);/*proto*/
 //@requires: ObjectHandling.c::PyObjectGetAttrStrNoError
 //@requires: ObjectHandling.c::PyDictVersioning
 //@requires: PyErrFetchRestore
-//@requires: ModuleSetupCode.c::CriticalSections
+//@requires: Builtins.c::dict_setdefault
 
 #if CYTHON_CLINE_IN_TRACEBACK && CYTHON_CLINE_IN_TRACEBACK_RUNTIME
-static int __Pyx_CLineForTraceback(PyThreadState *tstate, int c_line) {
-    PyObject *use_cline;
-    PyObject *ptype, *pvalue, *ptraceback;
-#if CYTHON_COMPILING_IN_CPYTHON
-    PyObject **cython_runtime_dict;
+#if CYTHON_COMPILING_IN_LIMITED_API && __PYX_LIMITED_VERSION_HEX < 0x030A0000
+// On earlier version of the Limited API we're less flexible and assume it's
+// definitely a module. Which will break some odd user monkey-patching...
+#define __Pyx_PyProbablyModule_GetDict(o) PyModule_GetDict(o)
+#define __Pyx_PyProbablyModule_XDecrefDict(o)
+#elif !CYTHON_COMPILING_IN_CPYTHON
+#define __Pyx_PyProbablyModule_GetDict(o) PyObject_GenericGetDict(o, NULL);
+#define __Pyx_PyProbablyModule_XDecrefDict(o) Py_XDECREF(o)
+#else
+PyObject* __Pyx_PyProbablyModule_GetDict(PyObject *o) {
+    PyObject **dict_ptr = _PyObject_GetDictPtr(o);
+    return dict_ptr ? *dict_ptr : NULL;
+}
+#define __Pyx_PyProbablyModule_XDecrefDict(o)
 #endif
+
+
+
+static int __Pyx_CLineForTraceback(PyThreadState *tstate, int c_line) {
+    PyObject *use_cline = NULL;
+    PyObject *ptype, *pvalue, *ptraceback;
+    PyObject *cython_runtime_dict;
 
     CYTHON_MAYBE_UNUSED_VAR(tstate);
 
@@ -800,37 +816,17 @@ static int __Pyx_CLineForTraceback(PyThreadState *tstate, int c_line) {
 
     __Pyx_ErrFetchInState(tstate, &ptype, &pvalue, &ptraceback);
 
-#if CYTHON_COMPILING_IN_CPYTHON
-    cython_runtime_dict = _PyObject_GetDictPtr(NAMED_CGLOBAL(cython_runtime_cname));
+    cython_runtime_dict = __Pyx_PyProbablyModule_GetDict(NAMED_CGLOBAL(cython_runtime_cname));
     if (likely(cython_runtime_dict)) {
-        __Pyx_BEGIN_CRITICAL_SECTION(*cython_runtime_dict);
         __PYX_PY_DICT_LOOKUP_IF_MODIFIED(
-            use_cline, *cython_runtime_dict,
-            __Pyx_PyDict_GetItemStr(*cython_runtime_dict, PYIDENT("cline_in_traceback")))
-        Py_XINCREF(use_cline);
-        __Pyx_END_CRITICAL_SECTION();
-    } else
-#endif
-    {
-      PyObject *use_cline_obj = __Pyx_PyObject_GetAttrStrNoError(NAMED_CGLOBAL(cython_runtime_cname), PYIDENT("cline_in_traceback"));
-      if (use_cline_obj) {
-        use_cline = PyObject_Not(use_cline_obj) ? Py_False : Py_True;
-        Py_INCREF(use_cline);
-        Py_DECREF(use_cline_obj);
-      } else {
-        PyErr_Clear();
-        use_cline = NULL;
-      }
+            use_cline, cython_runtime_dict,
+            __Pyx_PyDict_SetDefault(cython_runtime_dict, PYIDENT("cline_in_traceback"), Py_False))
     }
-    if (!use_cline) {
-        c_line = 0;
-        // No need to handle errors here when we reset the exception state just afterwards.
-        (void) PyObject_SetAttr(NAMED_CGLOBAL(cython_runtime_cname), PYIDENT("cline_in_traceback"), Py_False);
-    }
-    else if (use_cline == Py_False || (use_cline != Py_True && PyObject_Not(use_cline) != 0)) {
+    if (use_cline == NULL || use_cline == Py_False || (use_cline != Py_True && PyObject_Not(use_cline) != 0)) {
         c_line = 0;
     }
     Py_XDECREF(use_cline);
+    __Pyx_PyProbablyModule_XDecrefDict(cython_runtime_dict);
     __Pyx_ErrRestoreInState(tstate, ptype, pvalue, ptraceback);
     return c_line;
 }
@@ -881,9 +877,7 @@ static void __Pyx_AddTraceback(const char *funcname, int c_line,
     PyObject *exc_type, *exc_value, *exc_traceback;
     int success = 0;
     if (c_line) {
-        // Avoid "unused" warning as long as we don't use this.
-        (void) $cfilenm_cname;
-        (void) __Pyx_CLineForTraceback(__Pyx_PyThreadState_Current, c_line);
+        c_line = __Pyx_CLineForTraceback(__Pyx_PyThreadState_Current, c_line);
     }
 
     // DW - this is a horrendous hack, but I'm quite proud of it. Essentially
@@ -900,7 +894,11 @@ static void __Pyx_AddTraceback(const char *funcname, int c_line,
         if (unlikely(!code_object)) goto bad;
         py_py_line = PyLong_FromLong(py_line);
         if (unlikely(!py_py_line)) goto bad;
-        py_funcname = PyUnicode_FromString(funcname);
+        if (c_line) {
+            py_funcname = PyUnicode_FromFormat( "%s (%s:%d)", funcname, $cfilenm_cname, c_line);
+        } else {
+            py_funcname = PyUnicode_FromString(funcname);
+        }
         if (unlikely(!py_funcname)) goto bad;
         dict = PyDict_New();
         if (unlikely(!dict)) goto bad;
@@ -1010,6 +1008,16 @@ bad:
     Py_XDECREF(py_frame);
 }
 #endif
+
+
+///////////////////////////// FloatExceptionCheck.proto ///////////////////////////
+
+// Detect if error_value is NaN, and use a different check in that case
+#define __PYX_CHECK_FLOAT_EXCEPTION(value, error_value) \
+    ((error_value) == (error_value) ? \
+     (value) == (error_value) : \
+     (value) != (value))
+
 
 /////////////////// ExceptStar.proto /////////////////////////
 

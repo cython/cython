@@ -90,10 +90,12 @@ def test_nonlimited_api():
     """
     >>> print(Foo.__init__.__doc__)
     __init__(self, *args: Any, **kwargs: Any) -> None
+    <BLANKLINE>
     init Foo
 
     >>> print(Foo.__call__.__doc__)
     __call__(self, a: int, b: float = 1.0, *args: tuple, **kwargs: dict) -> (None, True)
+    <BLANKLINE>
     call docstring
     """
 
@@ -160,6 +162,7 @@ p1 docstring
 
 >>> print(Foo.p2.__doc__)
 p2: int
+<BLANKLINE>
 p2 docstring
 
 >>> print(Foo.p3.__doc__)
@@ -167,6 +170,7 @@ p3: Foo
 
 >>> print(Foo.__add__.__doc__)
 __add__(self, other: Foo) -> Foo
+<BLANKLINE>
 add docstring
 
 """
@@ -304,4 +308,15 @@ m61(self, a: complex) -> complex
 >>> print(Bar.m71.__doc__)
 m71(self, a: complex) -> complex
 
+"""
+
+def has_lambda(arg=lambda z: z+1):
+    pass
+
+# Currently the lambda is shown as an Ellipsis because it's unformatable
+# (and in this context, failure is basically OK). If that changes and we're able to
+# print it properly then update the test.
+__doc__ += """
+>>> print(has_lambda.__doc__)
+has_lambda(arg=...)
 """

@@ -895,15 +895,15 @@ releasebufferproc = Signature("TB", "v")   # typedef void (*releasebufferproc)(P
 
 # typedef PySendResult (*sendfunc)(PyObject* iter, PyObject* value, PyObject** result);
 sendfunc = PyrexTypes.CPtrType(PyrexTypes.CFuncType(
-        return_type=PyrexTypes.PySendResult_type,
-        args=[
-            PyrexTypes.CFuncTypeArg("iter", PyrexTypes.py_object_type),
-            PyrexTypes.CFuncTypeArg("value", PyrexTypes.py_object_type),
-            PyrexTypes.CFuncTypeArg("result", PyrexTypes.CPtrType(PyrexTypes.py_objptr_type)),
-        ],
-        exception_value="PYGEN_ERROR",
-        exception_check=True,  # we allow returning PYGEN_ERROR without GeneratorExit / StopIteration
-    ))
+    return_type=PyrexTypes.PySendResult_type,
+    args=[
+        PyrexTypes.CFuncTypeArg("iter", PyrexTypes.py_object_type),
+        PyrexTypes.CFuncTypeArg("value", PyrexTypes.py_object_type),
+        PyrexTypes.CFuncTypeArg("result", PyrexTypes.CPtrType(PyrexTypes.py_objptr_type)),
+    ],
+    exception_value="PYGEN_ERROR",
+    exception_check=True,  # we allow returning PYGEN_ERROR without GeneratorExit / StopIteration
+))
 
 
 #------------------------------------------------------------------------------------------

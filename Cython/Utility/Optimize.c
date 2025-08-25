@@ -236,29 +236,6 @@ static PyObject* __Pyx_PyDict_GetItemDefault(PyObject* d, PyObject* key, PyObjec
 }
 
 
-/////////////// dict_setdefault.proto ///////////////
-
-static CYTHON_INLINE PyObject *__Pyx_PyDict_SetDefault(PyObject *d, PyObject *key, PyObject *default_value, int is_safe_type); /*proto*/
-
-/////////////// dict_setdefault ///////////////
-
-static CYTHON_INLINE PyObject *__Pyx_PyDict_SetDefault(PyObject *d, PyObject *key, PyObject *default_value,
-                                                       int is_safe_type) {
-    PyObject* value;
-    CYTHON_MAYBE_UNUSED_VAR(is_safe_type);
-#if CYTHON_COMPILING_IN_LIMITED_API
-    value = PyObject_CallMethod(d, "setdefault", "OO", key, default_value);
-#elif PY_VERSION_HEX >= 0x030d0000
-    PyDict_SetDefaultRef(d, key, default_value, &value);
-#else
-    value = PyDict_SetDefault(d, key, default_value);
-    if (unlikely(!value)) return NULL;
-    Py_INCREF(value);
-#endif
-    return value;
-}
-
-
 /////////////// py_dict_clear.proto ///////////////
 
 #define __Pyx_PyDict_Clear(d) (PyDict_Clear(d), 0)
@@ -389,7 +366,7 @@ static CYTHON_INLINE PyObject* __Pyx_dict_iterator(PyObject* iterable, int is_di
 }
 
 
-#if !CYTHON_COMPILING_IN_PYPY
+#if !CYTHON_AVOID_BORROWED_REFS
 static CYTHON_INLINE int __Pyx_dict_iter_next_source_is_dict(
         PyObject* iter_obj, CYTHON_NCP_UNUSED Py_ssize_t orig_length, CYTHON_NCP_UNUSED Py_ssize_t* ppos,
         PyObject** pkey, PyObject** pvalue, PyObject** pitem) {
@@ -443,7 +420,7 @@ static CYTHON_INLINE int __Pyx_dict_iter_next(
         PyObject* iter_obj, CYTHON_NCP_UNUSED Py_ssize_t orig_length, CYTHON_NCP_UNUSED Py_ssize_t* ppos,
         PyObject** pkey, PyObject** pvalue, PyObject** pitem, int source_is_dict) {
     PyObject* next_item;
-#if !CYTHON_COMPILING_IN_PYPY
+#if !CYTHON_AVOID_BORROWED_REFS
     if (source_is_dict) {
         int result;
 #if PY_VERSION_HEX >= 0x030d0000 && !CYTHON_COMPILING_IN_LIMITED_API
@@ -1078,11 +1055,9 @@ static PyObject* __Pyx__PyNumber_PowerOf2(PyObject *two, PyObject *exp, PyObject
         if ((size_t)shiftby <= sizeof(long) * 8 - 2) {
             long value = 1L << shiftby;
             return PyLong_FromLong(value);
-#ifdef HAVE_LONG_LONG
         } else if ((size_t)shiftby <= sizeof(unsigned PY_LONG_LONG) * 8 - 1) {
             unsigned PY_LONG_LONG value = ((unsigned PY_LONG_LONG)1) << shiftby;
             return PyLong_FromUnsignedLongLong(value);
-#endif
         } else {
             PyObject *result, *one = PyLong_FromLong(1L);
             if (unlikely(!one)) return NULL;
@@ -1232,9 +1207,21 @@ static {{c_ret_type}} __Pyx_Unpacked_{{cfunc_name}}(PyObject *op1, PyObject *op2
     const long {{'a' if order == 'CObj' else 'b'}} = intval;
     long {{ival}}{{if op not in ('Eq', 'Ne')}}, x{{endif}};
     {{if op not in ('Eq', 'Ne', 'TrueDivide')}}
-#ifdef HAVE_LONG_LONG
     const PY_LONG_LONG ll{{'a' if order == 'CObj' else 'b'}} = intval;
     PY_LONG_LONG ll{{ival}}, llx;
+    {{endif}}
+    {{if op == 'Rshift' or op == 'Lshift'}}
+// shifting negative numbers is technically implementation defined on C, and
+// C++ before C++20. Most implementation do the right thing though so
+// special case ones we know are good.
+#if (defined(__cplusplus) && __cplusplus >= 202002L) \
+        || (defined(__GNUC__) || (defined(__clang__))) && \
+            (defined(__arm__) || defined(__x86_64__) || defined(__i386__)) \
+        || (defined(_MSC_VER) && \
+            (defined(_M_ARM) || defined(_M_AMD64) || defined(_M_IX86)))
+    const int negative_shift_works = 1;
+#else
+    const int negative_shift_works = 0;
 #endif
     {{endif}}
 
@@ -1285,11 +1272,9 @@ static {{c_ret_type}} __Pyx_Unpacked_{{cfunc_name}}(PyObject *op1, PyObject *op2
                     {{ival}} = {{'-' if _case < 0 else ''}}(long) {{pylong_join(_size, 'digits')}};
                     break;
                 {{if op not in ('Eq', 'Ne', 'TrueDivide')}}
-                #ifdef HAVE_LONG_LONG
                 } else if (8 * sizeof(PY_LONG_LONG) - 1 > {{_size}} * PyLong_SHIFT{{if c_op == '*'}}+30{{endif}}) {
                     ll{{ival}} = {{'-' if _case < 0 else ''}}(PY_LONG_LONG) {{pylong_join(_size, 'digits', 'unsigned PY_LONG_LONG')}};
                     goto long_long;
-                #endif
                 {{endif}}
                 }
                 // if size doesn't fit into a long or PY_LONG_LONG anymore, fall through to default
@@ -1322,12 +1307,8 @@ static {{c_ret_type}} __Pyx_Unpacked_{{cfunc_name}}(PyObject *op1, PyObject *op2
         {{if c_op == '*'}}
             CYTHON_UNUSED_VAR(a);
             CYTHON_UNUSED_VAR(b);
-            #ifdef HAVE_LONG_LONG
             ll{{ival}} = {{ival}};
             goto long_long;
-            #else
-            return PyLong_Type.tp_as_number->nb_{{slot_name}}(op1, op2);
-            #endif
         {{elif c_op == '%'}}
             // see CMath.c :: ModInt utility code
             x = a % b;
@@ -1348,22 +1329,26 @@ static {{c_ret_type}} __Pyx_Unpacked_{{cfunc_name}}(PyObject *op1, PyObject *op2
                 x = q;
             }
         {{else}}
+
+            {{if op == 'Rshift' or op == 'Lshift'}}
+            if ((!negative_shift_works) && unlikely(a < 0)) goto fallback;
+            {{endif}}
+            {{if op == 'Rshift'}}
+            if (unlikely(b >= (long) (sizeof(long)*8))) {
+                x = (a < 0) ? -1 : 0;
+            } else
+            {{endif}}
             x = a {{c_op}} b;
             {{if op == 'Lshift'}}
-#ifdef HAVE_LONG_LONG
             if (unlikely(!(b < (long) (sizeof(long)*8) && a == x >> b)) && a) {
                 ll{{ival}} = {{ival}};
                 goto long_long;
             }
-#else
-            if (likely(b < (long) (sizeof(long)*8) && a == x >> b) || !a) /* execute return statement below */
-#endif
             {{endif}}
         {{endif}}
         return PyLong_FromLong(x);
 
     {{if op != 'TrueDivide'}}
-#ifdef HAVE_LONG_LONG
     long_long:
         {{if c_op == '%'}}
             // see CMath.c :: ModInt utility code
@@ -1379,13 +1364,24 @@ static {{c_ret_type}} __Pyx_Unpacked_{{cfunc_name}}(PyObject *op1, PyObject *op2
                 llx = q;
             }
         {{else}}
+            {{if op == 'LShift' or op == 'Rshift'}}
+            if ((!negative_shift_works) && unlikely(a < 0)) goto fallback;
+            {{endif}}
+            {{if op == 'Rshift'}}
+            if (unlikely(llb >= (long long) (sizeof(long long)*8))) {
+                llx = (lla < 0) ? -1 : 0;
+            } else
+            {{endif}}
             llx = lla {{c_op}} llb;
             {{if op == 'Lshift'}}
             if (likely(lla == llx >> llb)) /* then execute 'return' below */
             {{endif}}
         {{endif}}
         return PyLong_FromLongLong(llx);
-#endif
+
+{{if op == 'Lshift' or op == 'Rshift'}}
+  fallback:
+{{endif}}
 
     return __Pyx_Fallback_{{cfunc_name}}(op1, op2, inplace);
 

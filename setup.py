@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 try:
     from setuptools import setup, Extension
 except ImportError:
@@ -48,7 +48,9 @@ pxd_include_dirs = [
     directory for directory, dirs, files
     in os.walk(os.path.join('Cython', 'Includes'))
     if '__init__.pyx' in files or '__init__.pxd' in files
-    or directory == os.path.join('Cython', 'Includes')]
+    or directory == os.path.join('Cython', 'Includes')
+    or directory == os.path.join('Cython', 'Includes', 'numpy')
+]
 
 pxd_include_patterns = [
     p+'/*.pxd' for p in pxd_include_dirs ] + [

@@ -298,9 +298,9 @@ man_pages = [
 # (source start file, target name, title, author,
 #  dir menu entry, description, category)
 texinfo_documents = [
-  ('index', 'Cython', u'Cython Documentation',
-   authors, 'Cython', 'One line description of project.',
-   'Miscellaneous'),
+    ('index', 'Cython', u'Cython Documentation',
+     authors, 'Cython', 'One line description of project.',
+     'Miscellaneous'),
 ]
 
 # Documents to append as an appendix to all manuals.

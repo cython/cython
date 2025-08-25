@@ -1,5 +1,5 @@
 [codespell]
-skip = .git,*.pdf,*.svg,cython.st,msvc_strings.pyx,test_genericclass_exttype.pyx,e_invalid_special_cython_modules.py,encoding.pyx,str_encoding_latin1.pyx,unicodeliteralslatin1.pyx
+skip = .git,*.pdf,*.svg,cython.st,msvc_strings.pyx,test_genericclass_exttype.pyx,e_invalid_special_cython_modules.py,encoding.pyx,str_encoding_latin1.pyx,unicodeliteralslatin1.pyx,string_compression.srctree
 # case sensitive etc
 # Tripple -- relates to kate. Not sure if could be fixed
 ignore-regex= Tripple|/Fo|ist das|TOi|respect to the includee

@@ -5,6 +5,7 @@ from . import (ExprNodes, PyrexTypes, MemoryView,
                Naming)
 from .ExprNodes import CloneNode, CodeObjectNode, ProxyNode, TupleNode
 from .Nodes import FuncDefNode, StatListNode, DefNode
+from .UtilityCode import CythonUtilityCode
 from ..Utils import OrderedSet
 from .Errors import error, CannotSpecialize
 
@@ -626,41 +627,6 @@ class FusedCFuncDefNode(StatListNode):
                 {{endif}}
             """)
 
-    def _fused_signature_index(self, pyx_code):
-        """
-        Generate Cython code for constructing a persistent nested dictionary index of
-        fused type specialization signatures.
-        """
-        # Note on thread-safety:
-        # Filling in "fused_sigindex" should only happen once. However, in a multi-threaded
-        # environment it's possible that multiple threads can all start to fill it in
-        # independently (especially on freehtreading builds).
-        # Therefore:
-        # * "_fused_sigindex_ref" is a list of length 1 where the first element is either None,
-        #   or a dictionary of signatures to lookup.
-        # * We rely on being able to get/set list elements atomically (which is true on
-        #   freethreading and regular Python).
-        # * It doesn't really matter if multiple threads start generating their own version
-        #   of this - the contents will end up the same. The main point is that no thread
-        #   sees a half filled-in sigindex
-        pyx_code.put_chunk(
-            """
-                fused_sigindex = <dict> _fused_sigindex_ref[0]
-                if fused_sigindex is None:
-                    fused_sigindex = {}
-                    for sig in <dict> signatures:
-                        sigindex_node = fused_sigindex
-                        *sig_series, last_type = sig.strip('()').split('|')
-                        for sig_type in sig_series:
-                            if sig_type not in sigindex_node:
-                                sigindex_node[sig_type] = sigindex_node = {}
-                            else:
-                                sigindex_node = <dict> sigindex_node[sig_type]
-                        sigindex_node[last_type] = sig
-                    _fused_sigindex_ref[0] = fused_sigindex
-            """
-        )
-
     def make_fused_cpdef(self, orig_py_func, env, is_def):
         """
         This creates the function that is indexable from Python and does
@@ -692,17 +658,18 @@ class FusedCFuncDefNode(StatListNode):
                     void __pyx_PyErr_Clear "PyErr_Clear" ()
                     type __Pyx_ImportNumPyArrayTypeIfAvailable()
                     int __Pyx_Is_Little_Endian()
+
+                    # from FusedFunction utility code
+                    object __pyx_ff_match_signatures_single(dict signatures, dest_type)
+                    object __pyx_ff_match_signatures(dict signatures, list dest_sig, dict sigindex)
             """)
         decl_code.indent()
 
         pyx_code.put_chunk(
             """
-                def __pyx_fused_cpdef(signatures, args, kwargs, defaults, _fused_sigindex_ref=[None]):
+                def __pyx_fused_cpdef(signatures, args, kwargs, defaults, _fused_sigindex={}):
                     # FIXME: use a typed signature - currently fails badly because
                     #        default arguments inherit the types we specify here!
-
-                    cdef list search_list
-                    cdef dict sigindex_node
 
                     dest_sig = [None] * {{n_fused}}
 
@@ -771,49 +738,28 @@ class FusedCFuncDefNode(StatListNode):
             env.use_utility_code(Code.UtilityCode.load_cached("Import", "ImportExport.c"))
             env.use_utility_code(Code.UtilityCode.load_cached("ImportNumPyArray", "ImportExport.c"))
 
-        self._fused_signature_index(pyx_code)
-
-        pyx_code.put_chunk(
-            """
-                sigindex_matches = []
-                sigindex_candidates = [fused_sigindex]
-
-                for dst_type in dest_sig:
-                    found_matches = []
-                    found_candidates = []
-                    # Make two separate lists: One for signature sub-trees
-                    #        with at least one definite match, and another for
-                    #        signature sub-trees with only ambiguous matches
-                    #        (where `dest_sig[i] is None`).
-                    if dst_type is None:
-                        for sn in sigindex_matches:
-                            found_matches.extend((<dict> sn).values())
-                        for sn in sigindex_candidates:
-                            found_candidates.extend((<dict> sn).values())
-                    else:
-                        for search_list in (sigindex_matches, sigindex_candidates):
-                            for sn in search_list:
-                                type_match = (<dict> sn).get(dst_type)
-                                if type_match is not None:
-                                    found_matches.append(type_match)
-                    sigindex_matches = found_matches
-                    sigindex_candidates = found_candidates
-                    if not (found_matches or found_candidates):
-                        break
-
-                candidates = sigindex_matches
-
-                if not candidates:
-                    raise TypeError("No matching signature found")
-                elif len(candidates) > 1:
-                    raise TypeError("Function call with ambiguous argument types")
-                else:
-                    return (<dict>signatures)[candidates[0]]
-            """)
+        if len(seen_fused_types) == 1:
+            # Fast and common case: a single fused type across all arguments.
+            env.use_utility_code(
+                CythonUtilityCode.load("match_signatures_single", "FusedFunction.pyx"))
+            pyx_code.put_chunk(
+                """
+                return __pyx_ff_match_signatures_single(<dict> signatures, dest_sig[0])
+                """
+            )
+        else:
+            env.use_utility_code(
+                CythonUtilityCode.load("match_signatures", "FusedFunction.pyx"))
+            pyx_code.put_chunk(
+                """
+                return __pyx_ff_match_signatures(<dict> signatures, dest_sig, <dict> _fused_sigindex)
+                """
+            )
 
         fragment_code = pyx_code.getvalue()
-        # print decl_code.getvalue()
-        # print fragment_code
+        # print(decl_code.getvalue())
+        # print(fragment_code)
+        # print(''.join(f"{i:3d}  {line}" for i, line in enumerate(fragment_code.splitlines(keepends=True))))
         from .Optimize import ConstantFolding
         fragment = TreeFragment.TreeFragment(
             fragment_code, level='module', pipeline=[ConstantFolding()])

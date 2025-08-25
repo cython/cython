@@ -108,9 +108,12 @@ class AnnotationCCodeWriter(CCodeWriter):
 
     # on-click toggle function to show/hide C source code
     _onclick_attr = ' onclick="{}"'.format((
-        "(function(s){"
-        "    s.display =  s.display === 'block' ? 'none' : 'block'"
-        "})(this.nextElementSibling.style)"
+        # Use local JS variables by declaring them as function arguments.
+        "(function(f, s, c) {"
+        "    c = f.nodeValue == '+';"
+        "    s.display = c ? 'block' : 'none';"
+        "    f.nodeValue = c ? '−' : '+'"
+        "})(this.firstChild, this.nextElementSibling.style)"
         ).replace(' ', '')  # poor dev's JS minification
     )
 
