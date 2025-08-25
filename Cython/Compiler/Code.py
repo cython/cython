@@ -719,13 +719,14 @@ class UtilityCode(UtilityCodeBase):
         # cached for use in hash and eq
         self._parts_tuple = tuple(getattr(self, part, None) for part in self.code_parts)
 
-    @classmethod
-    def parse_export_functions(cls, export_proto):
-        assert '/*' not in export_proto or '*/' not in export_proto, 'Export block must not contain comments'
-        assert '//' not in export_proto, 'Export block must not contain comments'
+    def parse_export_functions(self, export_proto):
 
-        export_proto = export_proto.strip().replace('\n', '')
         export_proto = re.sub(r'\s+', ' ', export_proto)
+        export_proto = export_proto.strip().replace('\n', '')
+
+        assert '//' not in export_proto and '/*' not in export_proto and '*/' not in export_proto, \
+            f'Export block `{export_proto}` in {self.file} must not contain comments'
+
         shared_protos = []
         proto_regex=r'''
             (?:static\s)?                                   # optional `static` keyword
