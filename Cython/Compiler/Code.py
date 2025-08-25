@@ -737,7 +737,7 @@ class UtilityCode(UtilityCodeBase):
                 'name': func_name.strip(),
                 'ret': ret_type.strip(),
                 'params': func_params.strip(),
-             })
+            })
         return shared_protos
 
 
