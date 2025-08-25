@@ -2879,12 +2879,12 @@ class BackquoteNode(ExprNode):
 class ImportNode(ExprNode):
     #  Used as part of import statement implementation.
     #  Implements result =
-    #    __import__(module_name, globals(), None, name_list, level)
+    #    __import__(module_name, globals(), None, list(name_tuple), level)
     #
     #  module_name   UnicodeNode            dotted name of module. Empty module
     #                       name means importing the parent package according
     #                       to level
-    #  name_list     ListNode or None      list of names to be imported
+    #  name_tuple     TupleNode or None      list of names to be imported
     #  level         int                   relative import level:
     #                       -1: attempt both relative import and absolute import;
     #                        0: absolute import;
@@ -2897,7 +2897,7 @@ class ImportNode(ExprNode):
     type = py_object_type
     is_temp = True
 
-    subexprs = ['module_name', 'name_list']
+    subexprs = ['module_name', 'name_tuple']
 
     def analyse_types(self, env):
         if self.level is None:
@@ -2913,9 +2913,9 @@ class ImportNode(ExprNode):
         self.module_name = module_name.coerce_to_pyobject(env)
         assert self.module_name.is_string_literal
 
-        if self.name_list:
-            name_list = self.name_list.analyse_types(env)
-            self.name_list = name_list.coerce_to_pyobject(env)
+        if self.name_tuple:
+            name_tuple = self.name_tuple.analyse_types(env)
+            self.name_tuple = name_tuple.coerce_to_pyobject(env)
 
         if self.level != 0:
             level = self.level if self.level > 0 else 1
@@ -2939,7 +2939,7 @@ class ImportNode(ExprNode):
         code.globalstate.use_utility_code(UtilityCode.load_cached("Import", "ImportExport.c"))
         import_code = "__Pyx_Import(%s, %s, %s, %d)" % (
             self.module_name.py_result(),
-            self.name_list.py_result() if self.name_list else '0',
+            self.name_tuple.py_result() if self.name_tuple else '0',
             module_qualname,
             self.level)
         tmp_submodule = code.funcstate.allocate_temp(self.type, manage_ref=False)

@@ -1867,7 +1867,7 @@ def p_import_statement(s: PyrexScanner):
                     module_name=ExprNodes.IdentifierStringNode(pos, value=dotted_name),
                     is_import_as_name=bool(as_name),
                     level=0 if is_absolute else None,
-                    name_list=None))
+                    name_tuple=None))
         stats.append(stat)
     return Nodes.StatListNode(pos, stats=stats)
 
@@ -1944,14 +1944,14 @@ def p_from_import_statement(s: PyrexScanner, first_statement: cython.bint = 0):
                 ExprNodes.IdentifierStringNode(name_pos, value=name))
             items.append(
                 (name, ExprNodes.NameNode(name_pos, name=as_name or name)))
-        import_list = ExprNodes.ListNode(
+        import_list = ExprNodes.TupleNode(
             imported_names[0][0], args=imported_name_strings)
         return Nodes.FromImportStatNode(pos,
             module = ExprNodes.ImportNode(dotted_name_pos,
                 module_name = ExprNodes.IdentifierStringNode(pos, value = dotted_name),
                 is_import_as_name = False,
                 level = level,
-                name_list = import_list),
+                name_tuple = import_list),
             items = items)
 
 
