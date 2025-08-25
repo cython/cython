@@ -728,7 +728,7 @@ class UtilityCode(UtilityCodeBase):
         # cached for use in hash and eq
         self._parts_tuple = tuple(getattr(self, part, None) for part in self.code_parts)
 
-    def parse_export_functions(self, export_proto: str) -> list[SharedFunctionDecl]:
+    def parse_export_functions(self, export_proto: str) -> list:
 
         export_proto = re.sub(r'\s+', ' ', export_proto)
         export_proto = export_proto.strip().replace('\n', '')
