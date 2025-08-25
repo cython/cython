@@ -554,13 +554,13 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         for utilcode in env.utility_code_list[:]:
             globalstate.use_utility_code(utilcode)
 
-        shared_module_generated = self.scope.context.options.shared_c_file_path
-        shared_module_loaded = self.scope.context.shared_utility_qualified_name
+        in_shared_utility_module = bool(self.scope.context.options.shared_c_file_path)
+        using_shared_utility_module = bool(self.scope.context.shared_utility_qualified_name)
         code = globalstate['init_module']
         code.enter_cfunc_scope(self.scope)
         subfunction = self.mod_init_subfunction(self.pos, self.scope, code)
 
-        if shared_module_generated:
+        if in_shared_utility_module:
             s = subfunction("Shared function export code")
             with s as inner_code:
                 s.call_code = globalstate['c_function_export_code']
@@ -569,7 +569,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                     [(shared["name"], shared["params"], shared["ret"]) for shared in code.globalstate.shared_utility_functions]
                 )
 
-        if shared_module_loaded:
+        if using_shared_utility_module:
             s = subfunction("Shared function import code")
             with s as inner_code:
                 s.call_code = globalstate['c_function_import_code']
