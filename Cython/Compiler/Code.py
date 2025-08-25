@@ -516,6 +516,7 @@ class UtilityCodeBase(AbstractUtilityCode):
             rstrip = partial(re.compile(r'\s+(\\?)$').sub, r'\1')
 
         match_special = cls.get_special_comment_matcher(comment)
+        match_type = cls.match_section_title
 
         all_lines = read_utilities_hook(path)
 
@@ -536,7 +537,7 @@ class UtilityCodeBase(AbstractUtilityCode):
                     tags.clear()
 
                     name = m.group('name')
-                    mtype = cls.match_section_title(name)
+                    mtype = match_type(name)
                     if mtype:
                         name, type = mtype.groups()
                     else:
