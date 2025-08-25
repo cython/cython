@@ -729,8 +729,8 @@ class UtilityCode(UtilityCodeBase):
 
         shared_protos = []
         proto_regex=r'''
-            (?:static\s)?                                   # optional `static` keyword
-            (?P<ret_type>[^;]+[\s*])\s?                     # return type + modifier with optional * - e.g.: int *, float, const str *, ...
+            (?:static\s)                                    # `static` keyword
+            (?P<ret_type>[^;()]+[\s*])\s?                   # return type + modifier with optional * - e.g.: int *, float, const str *, ...
             (?P<func_name>\w+)\((?P<func_params>[^)]*)\);   # function with params - e.g. foo(int, float, *PyObject)
         '''
         for ret_type, func_name, func_params in re.findall(proto_regex, export_proto, re.VERBOSE):
@@ -739,6 +739,10 @@ class UtilityCode(UtilityCodeBase):
                 'ret': ret_type.strip(),
                 'params': func_params.strip(),
             })
+        # Each function must end with ; hence we can check whether all functions were parsed correctly.
+        # But this assert does not catch case when ; is missing.
+        assert export_proto.count(';') == len(shared_protos) or len(shared_protos) == 0, \
+            f"Wrong format of function definition in export block {export_proto} in {self.file}"
         return shared_protos
 
 
