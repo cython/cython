@@ -98,7 +98,6 @@ not_found:
 static PyObject *__Pyx_Import(PyObject *name, PyObject *from_list, PyObject *qualname, int level) {
     PyObject *module = 0;
     PyObject *empty_dict = 0;
-    PyObject *empty_list = 0;
     int module_found;
 
     if (!qualname) {
@@ -134,7 +133,6 @@ static PyObject *__Pyx_Import(PyObject *name, PyObject *from_list, PyObject *qua
     }
 bad:
     Py_XDECREF(empty_dict);
-    Py_XDECREF(empty_list);
     return module;
 }
 
