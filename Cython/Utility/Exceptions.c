@@ -1054,8 +1054,7 @@ static int __Pyx_ValidateStarCatchPatternElement(PyObject *pattern) {
 
 static int __Pyx_ValidateStarCatchPattern(PyObject *pattern) {
     if (PyTuple_Check(pattern)) {
-        int i;
-        int size;
+        Py_ssize_t size, i;
         #if CYTHON_ASSUME_SAFE_MACROS
         size = PyTuple_GET_SIZE(pattern);
         #else
