@@ -566,7 +566,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 s.call_code = globalstate['c_function_export_code']
                 self.generate_c_shared_function_export_code(
                     inner_code,
-                    [(shared["name"], shared["params"], shared["ret"]) for shared in code.globalstate.shared_utility_functions]
+                    [(shared.name, shared.params, shared.ret) for shared in code.globalstate.shared_utility_functions]
                 )
 
         if using_shared_utility_module:
@@ -575,7 +575,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 s.call_code = globalstate['c_function_import_code']
                 self.generate_c_shared_function_import_code_for_module(
                     inner_code, env,
-                    [(shared["name"], shared["params"], shared["ret"]) for shared in code.globalstate.shared_utility_functions]
+                    [(shared.name, shared.params, shared.ret) for shared in code.globalstate.shared_utility_functions]
                 )
 
         code.exit_cfunc_scope()

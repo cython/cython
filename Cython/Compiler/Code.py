@@ -16,6 +16,7 @@ import operator
 import os
 import re
 import shutil
+from dataclasses import dataclass
 import textwrap
 from string import Template
 from functools import partial, wraps
@@ -675,6 +676,12 @@ class UtilityCodeBase(AbstractUtilityCode):
         # No need to deep-copy utility code since it's essentially immutable.
         return self
 
+@dataclass
+class SharedFunctionDecl:
+    """Contains parsed declaration of shared utility function"""
+    name: str
+    ret: str
+    params: str
 
 class UtilityCode(UtilityCodeBase):
     """
@@ -684,15 +691,16 @@ class UtilityCode(UtilityCodeBase):
 
     hashes/equals by instance
 
-    proto           C prototypes
-    impl            implementation code
-    init            code to call on module initialization
-    requires        utility code dependencies
-    proto_block     the place in the resulting file where the prototype should
-                    end up
-    name            name of the utility code (or None)
-    file            filename of the utility code file this utility was loaded
-                    from (or None)
+    proto                    C prototypes
+    impl                     implementation code
+    init                     code to call on module initialization
+    requires                 utility code dependencies
+    proto_block              the place in the resulting file where the prototype should
+                             end up
+    name                     name of the utility code (or None)
+    file                     filename of the utility code file this utility was loaded
+                             from (or None)
+    shared_utility_functions List of parsed declaration line of the shared utility function
     """
     code_parts = ["proto", "impl", "init", "cleanup", "module_state_decls", "module_state_traverse", "module_state_clear", "export"]
 
@@ -719,7 +727,7 @@ class UtilityCode(UtilityCodeBase):
         # cached for use in hash and eq
         self._parts_tuple = tuple(getattr(self, part, None) for part in self.code_parts)
 
-    def parse_export_functions(self, export_proto):
+    def parse_export_functions(self, export_proto: str) -> list[SharedFunctionDecl]:
 
         export_proto = re.sub(r'\s+', ' ', export_proto)
         export_proto = export_proto.strip().replace('\n', '')
@@ -734,11 +742,9 @@ class UtilityCode(UtilityCodeBase):
             (?P<func_name>\w+)\((?P<func_params>[^)]*)\);   # function with params - e.g. foo(int, float, *PyObject)
         '''
         for ret_type, func_name, func_params in re.findall(proto_regex, export_proto, re.VERBOSE):
-            shared_protos.append({
-                'name': func_name.strip(),
-                'ret': ret_type.strip(),
-                'params': func_params.strip(),
-            })
+            shared_protos.append(
+                SharedFunctionDecl(name=func_name.strip(), ret=ret_type.strip(), params=func_params.strip())
+            )
         # Each function must end with ; hence we can check whether all functions were parsed correctly.
         # But this assert does not catch case when ; is missing.
         assert export_proto.count(';') == len(shared_protos) or len(shared_protos) == 0, \
@@ -827,7 +833,7 @@ class UtilityCode(UtilityCodeBase):
         writer.putln("  " + writer.error_goto_if_PyErr(output.module_pos))
         writer.putln()
 
-    def put_code(self, output):
+    def put_code(self, output: "GlobalState") -> None:
         shared_utility_loaded = bool(output.module_node.scope.context.shared_utility_qualified_name)
 
         if self.requires and not (self.shared_utility_functions and shared_utility_loaded):
@@ -839,7 +845,7 @@ class UtilityCode(UtilityCodeBase):
                 output[self.proto_block].putln(f'/* {self.name} */')
                 for shared in self.shared_utility_functions:
                     # Convert function declarations to static function pointers.
-                    output[self.proto_block].putln(f'static {shared["ret"]}(*{shared["name"]})({shared["params"]});')
+                    output[self.proto_block].putln(f'static {shared.ret}(*{shared.name})({shared.params});')
                 output[self.proto_block].putln()
             else:
                 self._put_code_section(output[self.proto_block], output, 'proto')
@@ -1463,7 +1469,7 @@ class GlobalState:
     #                                  supplied directly instead.
     #
     # const_cnames_used  dict          global counter for unique constant identifiers
-    #
+    # shared_utility_functions         List of parsed declaration line of the shared utility function
 
     # parts            {string:CCodeWriter}
 
