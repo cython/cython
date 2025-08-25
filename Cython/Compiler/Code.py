@@ -16,6 +16,7 @@ import operator
 import os
 import re
 import shutil
+from dataclasses import dataclass
 import textwrap
 from string import Template
 from functools import partial, wraps
@@ -452,6 +453,19 @@ class UtilityCodeBase(AbstractUtilityCode):
     is_cython_utility = False
     _utility_cache = {}
 
+    match_section_title = re.compile(
+        r'(.+)[.](proto(?:[.]\S+)?|impl|init|cleanup|module_state_decls|module_state_traverse|module_state_clear|export)$'
+    ).match
+
+    @staticmethod
+    def get_special_comment_matcher(line_comment_char):
+        return re.compile((
+            # section title
+            r'^%(C)s{5,30}  \s*  (?P<name> (?:\w|\.)+ )  \s*  %(C)s{5,30} |'
+            # section tags and dependencies
+            r'^%(C)s+  @(?P<tag> \w+)  \s*  :  \s*  (?P<value> (?: \w|[.:] )+ )'
+        ) % {'C': re.escape(line_comment_char)}, re.VERBOSE).match
+
     @classmethod
     def _add_utility(cls, utility, name, type, lines, begin_lineno, tags=None):
         if utility is None:
@@ -500,12 +514,9 @@ class UtilityCodeBase(AbstractUtilityCode):
             comment = '/'
             strip_comments = partial(re.compile(r'^\s*//.*|/\*[^*]*\*/').sub, '')
             rstrip = partial(re.compile(r'\s+(\\?)$').sub, r'\1')
-        match_special = re.compile(
-            (r'^%(C)s{5,30}\s*(?P<name>(?:\w|\.)+)\s*%(C)s{5,30}|'
-             r'^%(C)s+@(?P<tag>\w+)\s*:\s*(?P<value>(?:\w|[.:])+)') %
-            {'C': comment}).match
-        match_type = re.compile(
-            r'(.+)[.](proto(?:[.]\S+)?|impl|init|cleanup|module_state_decls|module_state_traverse|module_state_clear)$').match
+
+        match_special = cls.get_special_comment_matcher(comment)
+        match_type = cls.match_section_title
 
         all_lines = read_utilities_hook(path)
 
@@ -666,6 +677,12 @@ class UtilityCodeBase(AbstractUtilityCode):
         # No need to deep-copy utility code since it's essentially immutable.
         return self
 
+@dataclass
+class SharedFunctionDecl:
+    """Contains parsed declaration of shared utility function"""
+    name: str
+    ret: str
+    params: str
 
 class UtilityCode(UtilityCodeBase):
     """
@@ -675,22 +692,23 @@ class UtilityCode(UtilityCodeBase):
 
     hashes/equals by instance
 
-    proto           C prototypes
-    impl            implementation code
-    init            code to call on module initialization
-    requires        utility code dependencies
-    proto_block     the place in the resulting file where the prototype should
-                    end up
-    name            name of the utility code (or None)
-    file            filename of the utility code file this utility was loaded
-                    from (or None)
+    proto                    C prototypes
+    impl                     implementation code
+    init                     code to call on module initialization
+    requires                 utility code dependencies
+    proto_block              the place in the resulting file where the prototype should
+                             end up
+    name                     name of the utility code (or None)
+    file                     filename of the utility code file this utility was loaded
+                             from (or None)
+    shared_utility_functions List of parsed declaration line of the shared utility function
     """
-    code_parts = ["proto", "impl", "init", "cleanup", "module_state_decls", "module_state_traverse", "module_state_clear"]
+    code_parts = ["proto", "impl", "init", "cleanup", "module_state_decls", "module_state_traverse", "module_state_clear", "export"]
 
     def __init__(self, proto=None, impl=None, init=None, cleanup=None,
                  module_state_decls=None, module_state_traverse=None,
                  module_state_clear=None, requires=None,
-                 proto_block='utility_code_proto', name=None, file=None):
+                 proto_block='utility_code_proto', name=None, file=None, export=None):
         # proto_block: Which code block to dump prototype in. See GlobalState.
         self.proto = proto
         self.impl = impl
@@ -705,9 +723,35 @@ class UtilityCode(UtilityCodeBase):
         self.proto_block = proto_block
         self.name = name
         self.file = file
+        self.shared_utility_functions = self.parse_export_functions(export) if export else []
 
         # cached for use in hash and eq
         self._parts_tuple = tuple(getattr(self, part, None) for part in self.code_parts)
+
+    def parse_export_functions(self, export_proto: str) -> list:
+
+        export_proto = re.sub(r'\s+', ' ', export_proto)
+        export_proto = export_proto.strip().replace('\n', '')
+
+        assert '//' not in export_proto and '/*' not in export_proto and '*/' not in export_proto, \
+            f'Export block `{export_proto}` in {self.file} must not contain comments'
+
+        shared_protos = []
+        proto_regex=r'''
+            (?:static\s)                                    # `static` keyword
+            (?P<ret_type>[^;()]+[\s*])\s?                   # return type + modifier with optional * - e.g.: int *, float, const str *, ...
+            (?P<func_name>\w+)\((?P<func_params>[^)]*)\);   # function with params - e.g. foo(int, float, *PyObject)
+        '''
+        for ret_type, func_name, func_params in re.findall(proto_regex, export_proto, re.VERBOSE):
+            shared_protos.append(
+                SharedFunctionDecl(name=func_name.strip(), ret=ret_type.strip(), params=func_params.strip())
+            )
+        # Each function must end with ; hence we can check whether all functions were parsed correctly.
+        # But this assert does not catch case when ; is missing.
+        assert export_proto.count(';') == len(shared_protos) or len(shared_protos) == 0, \
+            f"Wrong format of function definition in export block {export_proto} in {self.file}"
+        return shared_protos
+
 
     def __hash__(self):
         return hash(self._parts_tuple)
@@ -790,13 +834,26 @@ class UtilityCode(UtilityCodeBase):
         writer.putln("  " + writer.error_goto_if_PyErr(output.module_pos))
         writer.putln()
 
-    def put_code(self, output):
-        if self.requires:
+    def put_code(self, output: "GlobalState") -> None:
+        shared_utility_loaded = bool(output.module_node.scope.context.shared_utility_qualified_name)
+
+        if self.requires and not (self.shared_utility_functions and shared_utility_loaded):
             for dependency in self.requires:
                 output.use_utility_code(dependency)
 
         if self.proto:
-            self._put_code_section(output[self.proto_block], output, 'proto')
+            if self.shared_utility_functions and shared_utility_loaded:
+                output[self.proto_block].putln(f'/* {self.name} */')
+                for shared in self.shared_utility_functions:
+                    # Convert function declarations to static function pointers.
+                    output[self.proto_block].putln(f'static {shared.ret}(*{shared.name})({shared.params});')
+                output[self.proto_block].putln()
+            else:
+                self._put_code_section(output[self.proto_block], output, 'proto')
+        if self.shared_utility_functions:
+            output.shared_utility_functions.extend(self.shared_utility_functions)
+            if shared_utility_loaded:
+                return
         if self.impl:
             self._put_code_section(output['utility_code_def'], output, 'impl')
         if self.cleanup and Options.generate_cleanup_code:
@@ -1413,7 +1470,7 @@ class GlobalState:
     #                                  supplied directly instead.
     #
     # const_cnames_used  dict          global counter for unique constant identifiers
-    #
+    # shared_utility_functions         List of parsed declaration line of the shared utility function
 
     # parts            {string:CCodeWriter}
 
@@ -1504,6 +1561,7 @@ class GlobalState:
         self.const_array_counters = {}  # counts of differently prefixed arrays of constants
         self.cached_cmethods = {}
         self.initialised_constants = set()
+        self.shared_utility_functions = []
 
         writer.set_global_state(self)
         self.rootwriter = writer
@@ -1556,6 +1614,9 @@ class GlobalState:
             code.write('\n#line 1 "cython_utility"\n')
         code.putln("")
         code.putln("/* --- Runtime support code --- */")
+
+    def register_part(self, name, code):
+        self.parts[name] = code.insertion_point()
 
     def initialize_main_h_code(self):
         rootwriter = self.rootwriter
