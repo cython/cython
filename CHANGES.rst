@@ -120,7 +120,7 @@ Bugs fixed
 * An internal C function was not marked as ``static`` and leaked a linker symbol.
   (Github issue :issue:`6957`)
 
-* Cython's tools and frontend scrips now use ``python3``  instead of just ``python``
+* Cython's tools and frontend scripts now use ``python3``  instead of just ``python``
   in their shebang line.
   Patch by Matti Picus.  (Github issue :issue:`7053`)
 
