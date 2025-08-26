@@ -146,39 +146,22 @@ cdef extern from *:
         #endif
     }
 
-    static int __pyx_py_safe_mtx_lock_slow_spin(mtx_t* mutex) {
-        while (1) {
-            int lock_result;
-            Py_BEGIN_ALLOW_THREADS
-            lock_result = mtx_lock(mutex);
-            if (lock_result != thrd_success)
-                return lock_result;
-            lock_result = mtx_unlock(mutex);
-            if (lock_result != thrd_success) return lock_result;
-            Py_END_ALLOW_THREADS
-            lock_result = mtx_trylock(mutex);
-            if (lock_result != thrd_busy) {
-                return lock_result;
-            }
-        }
-    }
-
-    static int __pyx_py_safe_mtx_lock_quick_spin(mtx_t* mutex) {
-        for (int i=0; i<100; ++i) {
-            Py_BEGIN_ALLOW_THREADS
-            Py_END_ALLOW_THREADS
-            int lock_result = mtx_trylock(mutex);
-            if (lock_result != thrd_busy) {
-                return lock_result;
-            }
-        }
-        return __pyx_py_safe_mtx_lock_slow_spin(mutex);
+    static int __pyx_py_safe_mtx_lock_release_lock_reacquire(mtx_t* mutex) {
+        // Release the GIL, acquire the lock, then reacquire the GIL.
+        // This is safe provided the user never holds the GIL while trying
+        // to reacquire the lock (i.e. it's safe provided they always use
+        // the py-safe wrappers).
+        int result;
+        Py_BEGIN_ALLOW_THREADS
+        result = mtx_lock(mutex);
+        Py_END_ALLOW_THREADS
+        return result;
     }
 
     static int __pyx_py_safe_mtx_lock_impl(mtx_t* mutex) {
         int lock_result = mtx_trylock(mutex);
         if (lock_result == thrd_busy) {
-            return __pyx_py_safe_mtx_lock_quick_spin(mutex);
+            return __pyx_py_safe_mtx_lock_release_lock_reacquire(mutex);
         }
         return lock_result;
     }
