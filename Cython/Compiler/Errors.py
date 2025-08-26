@@ -41,7 +41,7 @@ def context(position):
     else:
         s = ''.join(F[max(0, position[1]-6):position[1]])
         if not s.endswith('\n'):
-            s = f"{F}\n"
+            s += '\n'
         s = '...\n%s%s^\n' % (s, ' '*(position[2]))
     s = '%s\n%s%s\n' % ('-'*60, s, '-'*60)
     return s
