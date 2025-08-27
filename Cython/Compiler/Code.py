@@ -835,14 +835,16 @@ class UtilityCode(UtilityCodeBase):
         writer.putln()
 
     def put_code(self, output: "GlobalState") -> None:
-        shared_utility_loaded = bool(output.module_node.scope.context.shared_utility_qualified_name)
+        has_shared_utility_code = bool(
+            self.shared_utility_functions and output.module_node.scope.context.shared_utility_qualified_name
+        )
 
-        if self.requires and not (self.shared_utility_functions and shared_utility_loaded):
+        if self.requires and not has_shared_utility_code:
             for dependency in self.requires:
                 output.use_utility_code(dependency)
 
         if self.proto:
-            if self.shared_utility_functions and shared_utility_loaded:
+            if has_shared_utility_code:
                 output[self.proto_block].putln(f'/* {self.name} */')
                 for shared in self.shared_utility_functions:
                     # Convert function declarations to static function pointers.
@@ -852,7 +854,7 @@ class UtilityCode(UtilityCodeBase):
                 self._put_code_section(output[self.proto_block], output, 'proto')
         if self.shared_utility_functions:
             output.shared_utility_functions.extend(self.shared_utility_functions)
-            if shared_utility_loaded:
+            if has_shared_utility_code:
                 return
         if self.impl:
             self._put_code_section(output['utility_code_def'], output, 'impl')
