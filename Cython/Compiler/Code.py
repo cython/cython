@@ -730,27 +730,32 @@ class UtilityCode(UtilityCodeBase):
 
     def parse_export_functions(self, export_proto: str) -> list:
 
-        export_proto = re.sub(r'\s+', ' ', export_proto)
-        export_proto = export_proto.strip().replace('\n', '')
-
         assert '//' not in export_proto and '/*' not in export_proto and '*/' not in export_proto, \
-            f'Export block `{export_proto}` in {self.file} must not contain comments'
+            f'Export block \n{export_proto.strip()}\n in {self.file} must not contain comments'
 
-        shared_protos = []
+        parsed_protos = []
         proto_regex=r'''
-            (?:static\s)                                    # `static` keyword
-            (?P<ret_type>[^;()]+[\s*])\s?                   # return type + modifier with optional * - e.g.: int *, float, const str *, ...
-            (?P<func_name>\w+)\((?P<func_params>[^)]*)\);   # function with params - e.g. foo(int, float, *PyObject)
+            ^(?:static\s)                                     # `static` keyword
+            (?P<ret_type>[^;()]+[\s*])\s?                     # return type + modifier with optional * - e.g.: int *, float, const str *, ...
+            (?P<func_name>\w+)\((?P<func_params>[^)]*)\)$     # function with params - e.g. foo(int, float, *PyObject)
         '''
-        for ret_type, func_name, func_params in re.findall(proto_regex, export_proto, re.VERBOSE):
-            shared_protos.append(
+
+        for proto in export_proto.split(';\n'):
+            proto = proto.strip().replace('\n', '')
+            proto = re.sub(r'\s+', ' ', proto)
+
+            if len(proto) == 0:
+                continue
+            matched = re.match(proto_regex, proto, re.VERBOSE)
+            assert matched is not None, \
+                f"Wrong format of function definition in export block \n{export_proto.strip()}\n in {self.file}"
+
+            ret_type, func_name, func_params = matched.groups()
+            parsed_protos.append(
                 SharedFunctionDecl(name=func_name.strip(), ret=ret_type.strip(), params=func_params.strip())
             )
-        # Each function must end with ; hence we can check whether all functions were parsed correctly.
-        # But this assert does not catch case when ; is missing.
-        assert export_proto.count(';') == len(shared_protos) or len(shared_protos) == 0, \
-            f"Wrong format of function definition in export block {export_proto} in {self.file}"
-        return shared_protos
+
+        return parsed_protos
 
 
     def __hash__(self):
