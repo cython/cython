@@ -39,7 +39,7 @@ jobs:
       matrix:
         # Tests [amd64]
         #
-        os: [ubuntu-22.04, windows-2022, macos-15]
+        os: [ubuntu-22.04, windows-2022, macos-latest]
         backend: [c, cpp]
         python-version:
           - "3.8"
@@ -213,10 +213,10 @@ jobs:
 #            python-version: 3.13t
 #            backend: "cpp"
 #            allowed_failure: true
-          - os: macos-15
+          - os: macos-latest
             python-version: 3.13t
             backend: "c"
-          - os: macos-15
+          - os: macos-latest
             python-version: 3.13t
             backend: "cpp"
 
