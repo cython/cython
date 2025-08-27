@@ -316,10 +316,11 @@ class Node:
         current = lines[-1]
         if mark_column:
             current = current[:col] + marker + current[col:]
-        lines[-1] = current.rstrip() + '             # <<<<<<<<<<<<<<\n'
+        lines[-1] = current.rstrip() + '             # <<<<<<<<<<<<<<'
         lines += contents[line:line+2]
-        return '"%s":%d:%d\n%s\n' % (
-            source_desc.get_escaped_description(), line, col, ''.join(lines))
+
+        code = '\n'.join(lines)
+        return f'"{source_desc.get_escaped_description()}":{line:d}:{col}\n{code}\n'
 
 
 class CompilerDirectivesNode(Node):
