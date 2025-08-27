@@ -10052,7 +10052,9 @@ class Py3ClassNode(ExprNode):
                 self.allow_py2_metaclass,
                 code.error_goto_if_null(self.result(), self.pos)))
         self.generate_gotref(code)
-        if code.funcstate.scope.is_module_scope or code.funcstate.scope.is_class_scope:
+        if (code.funcstate.scope.is_module_scope or
+                code.funcstate.scope.is_c_class_scope or
+                code.funcstate.scope.is_py_class_scope):
             # Deferred reference counting is probably only worthwhile on global classes
             # that we expect to be long-term accessible. 
             code.putln("#if CYTHON_COMPILING_IN_CPYTHON && PY_VERSION_HEX >= 0x030E0000")
@@ -10441,7 +10443,9 @@ class PyCFunctionNode(ExprNode, ModuleNameMixin):
                 code.error_goto_if_null(self.result(), self.pos)))
 
         self.generate_gotref(code)
-        if code.funcstate.scope.is_module_scope or code.funcstate.scope.is_class_scope:
+        if (code.funcstate.scope.is_module_scope or
+                code.funcstate.scope.is_c_class_scope or
+                code.funcstate.scope.is_py_class_scope):
             # Deferred reference counting is probably only worthwhile on global functions
             # that we expect to be accessible from many threads.
             code.putln("#if CYTHON_COMPILING_IN_CPYTHON && PY_VERSION_HEX >= 0x030E0000")
