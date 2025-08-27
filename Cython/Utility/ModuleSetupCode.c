@@ -1061,7 +1061,7 @@ enum __Pyx_ReferenceSharing {
 #define __Pyx_IS_UNIQUELY_REFERENCED(o, sharing) \
     (sharing == __Pyx_ReferenceSharing_DefinitelyUnique ? 1 : \
       (sharing == __Pyx_ReferenceSharing_FunctionArgument ? PyUnstable_Object_IsUniqueReferencedTemporary(o) : \
-      (sharing == __Pyx_ReferenceSharing_PossiblyUnique ? PyUnstable_Object_IsUniquelyReferenced(o) : 0)))
+      (sharing == __Pyx_ReferenceSharing_OwnStrongReference ? PyUnstable_Object_IsUniquelyReferenced(o) : 0)))
 #elif (CYTHON_COMPILING_IN_CPYTHON && !CYTHON_COMPILING_IN_CPYTHON_FREETHREADING) || CYTHON_COMPILING_IN_LIMITED_API
 #define __Pyx_IS_UNIQUELY_REFERENCED(o, sharing) (Py_REFCNT(o) == 1)
 #else
