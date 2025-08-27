@@ -320,7 +320,7 @@ class Node:
         lines += contents[line:line+2]
 
         code = '\n'.join(lines)
-        return f'"{source_desc.get_escaped_description()}":{line:d}:{col}\n{code}\n'
+        return f'"{source_desc.get_escaped_description()}":{line:d}:{col:d}\n{code}\n'
 
 
 class CompilerDirectivesNode(Node):
