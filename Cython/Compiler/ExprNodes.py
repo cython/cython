@@ -10052,6 +10052,12 @@ class Py3ClassNode(ExprNode):
                 self.allow_py2_metaclass,
                 code.error_goto_if_null(self.result(), self.pos)))
         self.generate_gotref(code)
+        if code.funcstate.scope.is_module_scope or code.funcstate.scope.is_class_scope:
+            # Deferred reference counting is probably only worthwhile on global classes
+            # that we expect to be long-term accessible. 
+            code.putln("#if CYTHON_COMPILING_IN_CPYTHON && PY_VERSION_HEX >= 0x030E0000")
+            code.putln(f"PyUnstable_Object_EnableDeferredRefcount({self.result()});")
+            code.putln("#endif")
 
 
 class PyClassMetaclassNode(ExprNode):
@@ -10435,6 +10441,12 @@ class PyCFunctionNode(ExprNode, ModuleNameMixin):
                 code.error_goto_if_null(self.result(), self.pos)))
 
         self.generate_gotref(code)
+        if code.funcstate.scope.is_module_scope or code.funcstate.scope.is_class_scope:
+            # Deferred reference counting is probably only worthwhile on global functions
+            # that we expect to be accessible from many threads.
+            code.putln("#if CYTHON_COMPILING_IN_CPYTHON && PY_VERSION_HEX >= 0x030E0000")
+            code.putln(f"PyUnstable_Object_EnableDeferredRefcount({self.result()});")
+            code.putln("#endif")
 
         if def_node.requires_classobj:
             assert code.pyclass_stack, "pyclass_stack is empty"

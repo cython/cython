@@ -5861,6 +5861,9 @@ class CClassDefNode(ClassDefNode):
                 UtilityCode.load_cached('PyType_Ready', 'ExtensionTypes.c'))
             code.put_error_if_neg(entry.pos, "__Pyx_PyType_Ready(%s)" % typeptr_cname)
             code.putln("#endif")
+            code.putln("#if CYTHON_COMPILING_IN_CPYTHON && PY_VERSION_HEX >= 0x030E0000")
+            code.putln(f"PyUnstable_Object_EnableDeferredRefcount((PyObject*){typeptr_cname});")
+            code.putln("#endif")
 
             # Use specialised attribute lookup for types with generic lookup but no instance dict.
             getattr_slot_func = TypeSlots.get_slot_code_by_name(scope, 'tp_getattro')
