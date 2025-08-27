@@ -1028,7 +1028,10 @@ static CYTHON_INLINE PyObject * __Pyx_PyDict_GetItemStrWithError(PyObject *dict,
 // ("..." % x)  must call PyNumber_Remainder() if x is a string subclass that implements "__rmod__()".
 #define __Pyx_PyUnicode_FormatSafe(a, b)  ((unlikely((a) == Py_None || (PyUnicode_Check(b) && !PyUnicode_CheckExact(b)))) ? PyNumber_Remainder(a, b) : PyUnicode_Format(a, b))
 
-#if CYTHON_COMPILING_IN_CPYTHON
+#if CYTHON_COMPILING_IN_CPYTHON && PY_VERSION_HEX >= 0x030E0000
+  #define __Pyx_PySequence_ListKeepNew(obj) \
+    (likely(PyList_CheckExact(obj) && PyUnstable_Object_IsUniquelyReferenced(obj)) ? __Pyx_NewRef(obj) : PySequence_List(obj))
+#elif CYTHON_COMPILING_IN_CPYTHON
   #define __Pyx_PySequence_ListKeepNew(obj) \
     (likely(PyList_CheckExact(obj) && Py_REFCNT(obj) == 1) ? __Pyx_NewRef(obj) : PySequence_List(obj))
 #else
@@ -1047,12 +1050,25 @@ static CYTHON_INLINE PyObject * __Pyx_PyDict_GetItemStrWithError(PyObject *dict,
   #define __Pyx_SET_SIZE(obj, size) Py_SIZE(obj) = (size)
 #endif
 
-#if CYTHON_COMPILING_IN_CPYTHON || CYTHON_COMPILING_IN_LIMITED_API
-#define __Pyx_REFCNT_MAY_BE_SHARED(o)  (Py_REFCNT(o) > 1)
+enum __Pyx_ReferenceSharing {
+  __Pyx_ReferenceSharing_DefinitelyUnique, // We created it so we know it's unshared - no need to check
+  __Pyx_ReferenceSharing_OwnStrongReference,
+  __Pyx_ReferenceSharing_FunctionArgument,
+  __Pyx_ReferenceSharing_SharedReference, // Never trust it to be unshared because it's a global or similar
+};
+
+#if CYTHON_COMPILING_IN_CPYTHON_FREETHREADING && PY_VERSION_HEX >= 0x030E0000
+#define __Pyx_IS_UNIQUELY_REFERENCED(o, sharing) \
+    (sharing == __Pyx_ReferenceSharing_DefinitelyUnique ? 1 : \
+      (sharing == __Pyx_ReferenceSharing_FunctionArgument ? PyUnstable_Object_IsUniqueReferencedTemporary(o) : \
+      (sharing == __Pyx_ReferenceSharing_PossiblyUnique ? PyUnstable_Object_IsUniquelyReferenced(o) : 0)))
+#elif (CYTHON_COMPILING_IN_CPYTHON && !CYTHON_COMPILING_IN_CPYTHON_FREETHREADING) || CYTHON_COMPILING_IN_LIMITED_API
+#define __Pyx_IS_UNIQUELY_REFERENCED(o, sharing) (Py_REFCNT(o) == 1)
 #else
 // On other platforms we don't trust the refcount so don't optimize based on it
-#define __Pyx_REFCNT_MAY_BE_SHARED(o) 1
+#define __Pyx_IS_UNIQUELY_REFERENCED(o, sharing) 0
 #endif
+
 
 #if CYTHON_AVOID_BORROWED_REFS || CYTHON_AVOID_THREAD_UNSAFE_BORROWED_REFS
   #if __PYX_LIMITED_VERSION_HEX >= 0x030d0000
@@ -1074,8 +1090,8 @@ static CYTHON_INLINE PyObject * __Pyx_PyDict_GetItemStrWithError(PyObject *dict,
 
 
 #if CYTHON_AVOID_THREAD_UNSAFE_BORROWED_REFS && !CYTHON_COMPILING_IN_LIMITED_API && CYTHON_ASSUME_SAFE_MACROS
-  #define __Pyx_PyList_GetItemRefFast(o, i, unsafe_shared) ((unsafe_shared || __Pyx_REFCNT_MAY_BE_SHARED(o)) ? \
-    __Pyx_PyList_GetItemRef(o, i) : __Pyx_NewRef(PyList_GET_ITEM(o, i)))
+  #define __Pyx_PyList_GetItemRefFast(o, i, unsafe_shared) (__Pyx_IS_UNIQUELY_REFERENCED(o, unsafe_shared) ? \
+    __Pyx_NewRef(PyList_GET_ITEM(o, i)) : __Pyx_PyList_GetItemRef(o, i))
 #else
   #define __Pyx_PyList_GetItemRefFast(o, i, unsafe_shared) __Pyx_PyList_GetItemRef(o, i)
 #endif
