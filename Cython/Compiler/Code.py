@@ -839,6 +839,13 @@ class UtilityCode(UtilityCodeBase):
         writer.putln("  " + writer.error_goto_if_PyErr(output.module_pos))
         writer.putln()
 
+    def _put_shared_function_declarations(self, output: "GlobalState"):
+        output[self.proto_block].putln(f'/* {self.name} */')
+        for shared in self.shared_utility_functions:
+            # Convert function declarations to static function pointers.
+            output[self.proto_block].putln(f'static {shared.ret}(*{shared.name})({shared.params});')
+        output[self.proto_block].putln()
+
     def put_code(self, output: "GlobalState") -> None:
         has_shared_utility_code = bool(
             self.shared_utility_functions and output.module_node.scope.context.shared_utility_qualified_name
@@ -848,20 +855,13 @@ class UtilityCode(UtilityCodeBase):
             for dependency in self.requires:
                 output.use_utility_code(dependency)
 
-        if self.proto:
-            if has_shared_utility_code:
-                output[self.proto_block].putln(f'/* {self.name} */')
-                for shared in self.shared_utility_functions:
-                    # Convert function declarations to static function pointers.
-                    output[self.proto_block].putln(f'static {shared.ret}(*{shared.name})({shared.params});')
-                output[self.proto_block].putln()
-            else:
-                self._put_code_section(output[self.proto_block], output, 'proto')
-        if self.shared_utility_functions:
-            output.shared_utility_functions.extend(self.shared_utility_functions)
-            if has_shared_utility_code:
-                return
-        if self.impl:
+        if has_shared_utility_code:
+            self._put_shared_function_declarations(output)
+        output.shared_utility_functions.extend(self.shared_utility_functions)
+
+        if self.proto and not has_shared_utility_code:
+            self._put_code_section(output[self.proto_block], output, 'proto')
+        if self.impl and not has_shared_utility_code:
             self._put_code_section(output['utility_code_def'], output, 'impl')
         if self.cleanup and Options.generate_cleanup_code:
             self._put_code_section(output['cleanup_globals'], output, 'cleanup')
