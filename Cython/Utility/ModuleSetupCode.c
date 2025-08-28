@@ -1063,10 +1063,10 @@ enum __Pyx_ReferenceSharing {
       (sharing == __Pyx_ReferenceSharing_FunctionArgument ? PyUnstable_Object_IsUniqueReferencedTemporary(o) : \
       (sharing == __Pyx_ReferenceSharing_OwnStrongReference ? PyUnstable_Object_IsUniquelyReferenced(o) : 0)))
 #elif (CYTHON_COMPILING_IN_CPYTHON && !CYTHON_COMPILING_IN_CPYTHON_FREETHREADING) || CYTHON_COMPILING_IN_LIMITED_API
-#define __Pyx_IS_UNIQUELY_REFERENCED(o, sharing) (Py_REFCNT(o) == 1)
+#define __Pyx_IS_UNIQUELY_REFERENCED(o, sharing) (((void)sharing), Py_REFCNT(o) == 1)
 #else
 // On other platforms we don't trust the refcount so don't optimize based on it
-#define __Pyx_IS_UNIQUELY_REFERENCED(o, sharing) 0
+#define __Pyx_IS_UNIQUELY_REFERENCED(o, sharing) (((void)o), ((void)sharing), 0)
 #endif
 
 
