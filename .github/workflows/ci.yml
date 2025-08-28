@@ -54,7 +54,7 @@ jobs:
           #  allowed_failure: true
 
           - os:  windows-11-arm
-            python-version: "3.12"
+            python-version: "3.13"
             backend: "c"
             extra_hash: "arm64"
             env: {}
