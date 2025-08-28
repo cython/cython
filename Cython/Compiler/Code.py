@@ -3035,7 +3035,9 @@ class CCodeWriter:
         if (self.funcstate.scope.is_module_scope or
                 self.funcstate.scope.is_c_class_scope or
                 self.funcstate.scope.is_py_class_scope):
+            self.putln("#if CYTHON_COMPILING_IN_CPYTHON && PY_VERSION_HEX >= 0x030E0000")
             self.putln(f"PyUnstable_Object_EnableDeferredRefcount({cname});")
+            self.putln("#endif")
 
     def put_init_to_py_none(self, cname, type, nanny=True):
         from .PyrexTypes import py_object_type, typecast
