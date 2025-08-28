@@ -1410,9 +1410,9 @@ most important to least important:
 ``CYTHON_IMMORTAL_CONSTANTS``
     Makes cached constants (e.g. strings, tuples, ints, floats, slices) immortal,
     in Python versions that support immortality. This is most useful when
-    the constants are used in many different threads because it most writes to
-    the constants due to reference counting and so is only on by default for
-    free-threaded builds.
+    the constants are used in many different threads because it avoids most writes
+    to the constants due to reference counting. Disabled by default, but enabled
+    in free-threaded builds.
 
 There is a further list of macros which turn off various optimizations or language
 features.  Under normal circumstance Cython enables these automatically based on the
