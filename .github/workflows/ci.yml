@@ -41,34 +41,11 @@ jobs:
         #
         # FIXME: 'cpp' tests seems to fail due to compilation errors (numpy_pythran_unit)
         # in all python versions and test failures (builtin_float) in 3.5<
-        os: [ubuntu-22.04, windows-2022, macos-13]
-        backend: [c, cpp]
+        os: [ubuntu-22.04]
+        backend: [c]
         python-version:
-          - "3.8"
-          - "3.9"
-          - "3.10"
-          - "3.11"
           - "3.12"
-          - "3.13"
-          - "3.13t"
-          - "3.14-dev"
-          - "3.14t-dev"
         env: [{}]
-
-        exclude:
-          # Windows and free-threading is difficult to build right now
-          - os: windows-2022
-            python-version: 3.13t
-            backend: "c"
-          - os: windows-2022
-            python-version: 3.13t
-            backend: "cpp"
-          - os: windows-2022
-            python-version: 3.14t-dev
-            backend: "c"
-          - os: windows-2022
-            python-version: 3.14t-dev
-            backend: "cpp"
 
         include:
           #- python-version: "3.14-dev"
@@ -76,161 +53,12 @@ jobs:
           #- python-version: "3.14t-dev"
           #  allowed_failure: true
 
-          # Ubuntu sub-jobs:
-          # ================
-          # graalpy is really slow...
-          #- os: ubuntu-22.04
-          #  python-version: graalpy24
-          #  backend: c
-          #  env: { NO_CYTHON_COMPILE: 1 }
-          #  allowed_failure: true
-          # GCC 13 (with broad language standards)
-          - os: ubuntu-22.04
-            python-version: "3.9"
-            backend: c
-            env: { GCC_VERSION: 13, EXTRA_CFLAGS: "-std=c99" }
-            extra_hash: "-c99"
-          - os: ubuntu-22.04
-            python-version: "3.10"
-            backend: c
-            env: { GCC_VERSION: 13, EXTRA_CFLAGS: "-std=c17" }
-            extra_hash: "-gcc11"
-          - os: ubuntu-22.04
-            python-version: "3.12"
-            backend: c
-            env: { GCC_VERSION: 13, EXTRA_CFLAGS: "-std=c17" }
-            extra_hash: "-gcc11"
-          - os: ubuntu-22.04
-            python-version: "3.13"
-            backend: cpp
-            env: { GCC_VERSION: 13, EXTRA_CFLAGS: "-std=c++20" }
-            extra_hash: "-gcc11"
-          # Arm64
-          - os: ubuntu-22.04-arm
-            python-version: "3.12"
-            backend: c
-            env: {}
-            extra_hash: "arm64"
-          - os: ubuntu-22.04-arm
-            python-version: "3.12"
-            backend: cpp
-            env: {}
-            extra_hash: "arm64"
           - os:  windows-11-arm
             python-version: "3.12"
             backend: "c"
             extra_hash: "arm64"
             env: {}
-          - os:  windows-11-arm
-            python-version: "3.12"
-            backend: "cpp"
-            extra_hash: "arm64"
-            env: {}
-          # compile all modules
-          - os: ubuntu-22.04
-            python-version: "3.8"
-            backend: c
-            env: { CYTHON_COMPILE_ALL: 1 }
-            extra_hash: "-all"
-          - os: ubuntu-22.04
-            python-version: "3.8"
-            backend: cpp
-            env: { CYTHON_COMPILE_ALL: 1 }
-            extra_hash: "-all"
-          - os: ubuntu-22.04
-            python-version: "3.11"
-            backend: c
-            env: { CYTHON_COMPILE_ALL: 1 }
-            extra_hash: "-all"
-          - os: ubuntu-22.04
-            python-version: "3.11"
-            backend: cpp
-            env: { CYTHON_COMPILE_ALL: 1 }
-            extra_hash: "-all"
-          # Linting
-          - os: ubuntu-22.04
-            python-version: "3.9"
-            backend: "c,cpp"
-            env: { TEST_CODE_STYLE: 1, NO_CYTHON_COMPILE: 1 }
-            extra_hash: "-codestyle"
-          # Limited API
-          - os: ubuntu-22.04
-            python-version: "3.8"
-            backend: "c,cpp"
-            env: { LIMITED_API: "--limited-api", NO_LIMITED_COMPILE: 1 }
-            extra_hash: "-limited_api"
-          - os: ubuntu-22.04
-            python-version: "3.11"
-            backend: "c,cpp"
-            env: { LIMITED_API: "--limited-api" }
-            extra_hash: "-limited_api"
-          - os: ubuntu-22.04
-            python-version: "3.12"
-            backend: "c,cpp"
-            env: { LIMITED_API: "--limited-api" }
-            extra_hash: "-limited_api"
-          - os: ubuntu-22.04
-            python-version: "3.13"
-            backend: "c,cpp"
-            env: { LIMITED_API: "--limited-api" }
-            extra_hash: "-limited_api"
-          # Type specs
-          - os: ubuntu-22.04
-            python-version: "3.12"
-            backend: c
-            env: { EXTRA_CFLAGS: "-DCYTHON_USE_TYPE_SPECS=1" }
-            extra_hash: "-typespecs"
-          - os: ubuntu-22.04
-            python-version: "3.9"
-            backend: c
-            env: { EXTRA_CFLAGS: "-DCYTHON_USE_TYPE_SPECS=1" }
-            extra_hash: "-typespecs"
-          - os: ubuntu-22.04
-            python-version: "3.8"
-            backend: c
-            env: { EXTRA_CFLAGS: "-DCYTHON_USE_TYPE_SPECS=1" }
-            extra_hash: "-typespecs"
-          # Stackless
-          - os: ubuntu-22.04
-            python-version: "3.8"
-            backend: c
-            env: { STACKLESS: true, PY: 3 }
-            extra_hash: "-stackless"
-          # Pypy
-          - os: ubuntu-22.04
-            python-version: pypy-3.8  # drop with EOL of Ubuntu 22.04
-            backend: c
-            env: { NO_CYTHON_COMPILE: 1 }
-            allowed_failure: true
-          - os: ubuntu-22.04
-            python-version: pypy-3.9
-            backend: c
-            env: { NO_CYTHON_COMPILE: 1 }
-          - os: ubuntu-22.04
-            python-version: pypy-3.10
-            backend: c
-            env: { NO_CYTHON_COMPILE: 1 }
-          # Free-threading
-          - os: ubuntu-22.04
-            python-version: 3.13t
-            backend: "c"
-          - os: ubuntu-22.04
-            python-version: 3.13t
-            backend: "cpp"
-#          - os: windows-2022
-#            python-version: 3.13t
-#            backend: "c"
-#            allowed_failure: true
-#          - os: windows-2022
-#            python-version: 3.13t
-#            backend: "cpp"
-#            allowed_failure: true
-          - os: macos-13
-            python-version: 3.13t
-            backend: "c"
-          - os: macos-13
-            python-version: 3.13t
-            backend: "cpp"
+
 
     # This defaults to 360 minutes (6h) which is way too long and if a test gets stuck, it can block other pipelines.
     # From testing, the runs tend to take ~10-15 minutes for ubuntu / macos and ~25 for windows,

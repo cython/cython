@@ -1,4 +1,4 @@
 ipython
 pytest  # needed by IPython/Jupyter integration tests
 # for line_profiler, 4 collects no profiling info, and 5 doesn't build on arm Windows right now
-line_profiler != 4.* ; platform_machine != 'arm64' and sys_platform != 'win32'
+git+https://github.com/TTsangSC/line_profiler.git@3d47c9020dd92cb0ef52020bdab9e8bbcbaa2443
