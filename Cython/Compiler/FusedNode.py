@@ -5,7 +5,6 @@ from . import (ExprNodes, PyrexTypes, MemoryView,
                Naming)
 from .ExprNodes import CloneNode, CodeObjectNode, ProxyNode, TupleNode
 from .Nodes import FuncDefNode, StatListNode, DefNode
-from .UtilityCode import CythonUtilityCode
 from ..Utils import OrderedSet
 from .Errors import error, CannotSpecialize
 
@@ -732,7 +731,7 @@ class FusedCFuncDefNode(StatListNode):
                 # print(''.join(f"{i:3d}  {line}" for i, line in enumerate(type_mapper_impl.splitlines(keepends=True))))
 
                 env.use_utility_code(
-                    CythonUtilityCode(type_mapper_impl, name=type_mapper_cname))
+                    UtilityCode.CythonUtilityCode(type_mapper_impl, name=type_mapper_cname))
 
                 decl_code.putln(f"str {type_mapper_cname}({mapper_sig})")
                 pyx_code.putln(f"dest_sig{fused_index} = {type_mapper_cname}({mapper_args})")
@@ -761,7 +760,7 @@ class FusedCFuncDefNode(StatListNode):
         if len(seen_fused_types) == 1:
             # Fast and common case: a single fused type across all arguments.
             env.use_utility_code(
-                CythonUtilityCode.load("match_signatures_single", "FusedFunction.pyx"))
+                UtilityCode.CythonUtilityCode.load("match_signatures_single", "FusedFunction.pyx"))
             pyx_code.put_chunk(
                 """
                 return __pyx_ff_match_signatures_single(<dict> signatures, dest_sig0)
@@ -769,7 +768,7 @@ class FusedCFuncDefNode(StatListNode):
             )
         else:
             env.use_utility_code(
-                CythonUtilityCode.load("match_signatures", "FusedFunction.pyx"))
+                UtilityCode.CythonUtilityCode.load("match_signatures", "FusedFunction.pyx"))
             dest_sig_tuple = ', '.join(f'dest_sig{i}' for i in range(len(seen_fused_types)))
             pyx_code.put_chunk(
                 f"""
