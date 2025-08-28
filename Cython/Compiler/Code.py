@@ -1622,9 +1622,6 @@ class GlobalState:
         code.putln("")
         code.putln("/* --- Runtime support code --- */")
 
-    def register_part(self, name, code):
-        self.parts[name] = code.insertion_point()
-
     def initialize_main_h_code(self):
         rootwriter = self.rootwriter
         for part in self.h_code_layout:

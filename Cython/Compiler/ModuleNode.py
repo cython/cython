@@ -541,8 +541,18 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         self.generate_module_state_clear(env, globalstate['module_state_clear'])
         self.generate_module_state_traverse(env, globalstate['module_state_traverse'])
 
+        in_shared_utility_module = bool(self.scope.context.options.shared_c_file_path)
+        using_shared_utility_module = bool(self.scope.context.shared_utility_qualified_name)
+        code = globalstate['init_module']
+        subfunction = self.mod_init_subfunction(self.pos, self.scope, code)
+        shared_utility_export_code = subfunction("Shared function export code") if in_shared_utility_module else None
+        shared_utility_import_code = subfunction("Shared function import code") if using_shared_utility_module else None
+
         # init_globals is inserted before this
-        self.generate_module_init_func(modules[:-1], env, globalstate['init_module'])
+        self.generate_module_init_func(
+            modules[:-1], env, globalstate['init_module'],
+            shared_utility_export_code=shared_utility_export_code, shared_utility_import_code=shared_utility_import_code
+        )
         self.generate_module_cleanup_func(env, globalstate['cleanup_module'])
         if Options.embed:
             self.generate_main_method(env, globalstate['main_method'])
@@ -554,25 +564,17 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         for utilcode in env.utility_code_list[:]:
             globalstate.use_utility_code(utilcode)
 
-        in_shared_utility_module = bool(self.scope.context.options.shared_c_file_path)
-        using_shared_utility_module = bool(self.scope.context.shared_utility_qualified_name)
-        code = globalstate['init_module']
         code.enter_cfunc_scope(self.scope)
-        subfunction = self.mod_init_subfunction(self.pos, self.scope, code)
 
-        if in_shared_utility_module:
-            s = subfunction("Shared function export code")
-            with s as inner_code:
-                s.call_code = globalstate['c_function_export_code']
+        if shared_utility_export_code:
+            with shared_utility_export_code as inner_code:
                 self.generate_c_shared_function_export_code(
                     inner_code,
                     [(shared.name, shared.params, shared.ret) for shared in code.globalstate.shared_utility_functions]
                 )
 
-        if using_shared_utility_module:
-            s = subfunction("Shared function import code")
-            with s as inner_code:
-                s.call_code = globalstate['c_function_import_code']
+        if shared_utility_import_code:
+            with shared_utility_import_code as inner_code:
                 self.generate_c_shared_function_import_code_for_module(
                     inner_code, env,
                     [(shared.name, shared.params, shared.ret) for shared in code.globalstate.shared_utility_functions]
@@ -2977,7 +2979,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln(f'__Pyx_VISIT_CONST(traverse_module_state->{Naming.empty_bytes});')
         code.putln(f'__Pyx_VISIT_CONST(traverse_module_state->{Naming.empty_unicode});')
 
-    def generate_module_init_func(self, imported_modules, env, code):
+    def generate_module_init_func(self, imported_modules, env, code, shared_utility_export_code=None, shared_utility_import_code=None):
         subfunction = self.mod_init_subfunction(self.pos, self.scope, code)
 
         self.generate_pymoduledef_struct(env, code)
@@ -3139,7 +3141,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         with subfunction("Function export code") as inner_code:
             self.generate_c_function_export_code(env, inner_code)
 
-        code.globalstate.register_part('c_function_export_code', code)
+        if shared_utility_export_code:
+            shared_utility_export_code.set_call_code(code)
 
         with subfunction("Type init code") as inner_code:
             self.generate_type_init_code(env, inner_code)
@@ -3157,7 +3160,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 self.specialize_fused_types(module)
                 self.generate_c_function_import_code_for_module(module, env, inner_code)
 
-        code.globalstate.register_part('c_function_import_code', code)
+        if shared_utility_import_code:
+            shared_utility_import_code.set_call_code(code)
 
         code.putln("/*--- Execution code ---*/")
         code.mark_pos(None)
@@ -3263,8 +3267,12 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 self.tempdecl_code = None
                 self.call_code = None
 
+            def set_call_code(self, code):
+                self.call_code = code.insertion_point()
+
             def __enter__(self):
-                self.call_code = orig_code.insertion_point()
+                if self.call_code is None:
+                    self.call_code = orig_code.insertion_point()
                 code = function_code
                 code.start_initcfunc(
                     f"int {self.cfunc_name}({Naming.modulestatetype_cname} *{Naming.modulestatevalue_cname})",
