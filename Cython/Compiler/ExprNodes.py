@@ -10056,6 +10056,7 @@ class Py3ClassNode(ExprNode):
                 self.allow_py2_metaclass,
                 code.error_goto_if_null(self.result(), self.pos)))
         self.generate_gotref(code)
+        code.put_make_object_deferred(self.result())
 
 
 class PyClassMetaclassNode(ExprNode):
@@ -10439,6 +10440,7 @@ class PyCFunctionNode(ExprNode, ModuleNameMixin):
                 code.error_goto_if_null(self.result(), self.pos)))
 
         self.generate_gotref(code)
+        code.put_make_object_deferred(self.result())
 
         if def_node.requires_classobj:
             assert code.pyclass_stack, "pyclass_stack is empty"
