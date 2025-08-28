@@ -2319,7 +2319,7 @@ class GlobalState:
             w.name_in_main_c_code_module_state(Naming.numbertab_cname),
             constant_count,
             w)
-    
+
     @staticmethod
     def immortalize_constants(array_cname, constant_count, writer):
         writer.putln("#if CYTHON_IMMORTAL_CONSTANTS")
