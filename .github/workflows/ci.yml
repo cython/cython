@@ -59,7 +59,6 @@ jobs:
             extra_hash: "arm64"
             env: {}
 
-
     # This defaults to 360 minutes (6h) which is way too long and if a test gets stuck, it can block other pipelines.
     # From testing, the runs tend to take ~10-15 minutes for ubuntu / macos and ~25 for windows,
     # so a limit of 80 minutes should be enough. This can always be changed in the future if needed.
