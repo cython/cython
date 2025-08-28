@@ -3028,6 +3028,15 @@ class CCodeWriter:
         for entry in entries:
             self.put_var_xdecref_clear(entry)
 
+    def put_make_object_deferred(self, cname):
+        # Deferred reference counting is probably only worthwhile on global classes
+        # that we expect to be long-term accessible.  So for now exclude it if not
+        # at class or module scope.
+        if (self.funcstate.scope.is_module_scope or
+                self.funcstate.scope.is_c_class_scope or
+                self.funcstate.scope.is_py_class_scope):
+            self.putln(f"PyUnstable_Object_EnableDeferredRefcount({cname});")
+
     def put_init_to_py_none(self, cname, type, nanny=True):
         from .PyrexTypes import py_object_type, typecast
         py_none = typecast(type, py_object_type, "Py_None")
