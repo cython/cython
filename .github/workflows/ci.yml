@@ -39,9 +39,7 @@ jobs:
       matrix:
         # Tests [amd64]
         #
-        # FIXME: 'cpp' tests seems to fail due to compilation errors (numpy_pythran_unit)
-        # in all python versions and test failures (builtin_float) in 3.5<
-        os: [ubuntu-22.04, windows-2022, macos-13]
+        os: [ubuntu-22.04, windows-2022, macos-latest]
         backend: [c, cpp]
         python-version:
           - "3.8"
@@ -49,7 +47,7 @@ jobs:
           - "3.10"
           - "3.11"
           - "3.12"
-          - "3.13.5"  # 3.13.4 fails to build extensions on Windows.
+          - "3.13"
           - "3.13t"
           - "3.14-dev"
           - "3.14t-dev"
@@ -101,7 +99,7 @@ jobs:
             env: { GCC_VERSION: 13, EXTRA_CFLAGS: "-std=c17" }
             extra_hash: "-gcc11"
           - os: ubuntu-22.04
-            python-version: "3.13.5"
+            python-version: "3.13"
             backend: cpp
             env: { GCC_VERSION: 13, EXTRA_CFLAGS: "-std=c++20" }
             extra_hash: "-gcc11"
@@ -116,6 +114,16 @@ jobs:
             backend: cpp
             env: {}
             extra_hash: "arm64"
+          - os:  windows-11-arm
+            python-version: "3.12"
+            backend: "c"
+            extra_hash: "arm64"
+            env: {}
+          - os:  windows-11-arm
+            python-version: "3.12"
+            backend: "cpp"
+            extra_hash: "arm64"
+            env: {}
           # compile all modules
           - os: ubuntu-22.04
             python-version: "3.8"
@@ -160,7 +168,7 @@ jobs:
             env: { LIMITED_API: "--limited-api" }
             extra_hash: "-limited_api"
           - os: ubuntu-22.04
-            python-version: "3.13.5"
+            python-version: "3.13"
             backend: "c,cpp"
             env: { LIMITED_API: "--limited-api" }
             extra_hash: "-limited_api"
@@ -215,10 +223,10 @@ jobs:
 #            python-version: 3.13t
 #            backend: "cpp"
 #            allowed_failure: true
-          - os: macos-13
+          - os: macos-latest
             python-version: 3.13t
             backend: "c"
-          - os: macos-13
+          - os: macos-latest
             python-version: 3.13t
             backend: "cpp"
 
@@ -376,7 +384,7 @@ jobs:
             3.13t
             3.10
             3.12
-            3.13.5
+            3.13
             3.14-dev
 
       - name: Run Benchmarks

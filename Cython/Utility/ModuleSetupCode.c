@@ -36,11 +36,6 @@
 // For use in DL_IMPORT/DL_EXPORT macros.
 #define __PYX_COMMA ,
 
-#ifndef HAVE_LONG_LONG
-  // CPython has required PY_LONG_LONG support for years, even if HAVE_LONG_LONG is not defined for us
-  #define HAVE_LONG_LONG
-#endif
-
 #ifndef PY_LONG_LONG
   #define PY_LONG_LONG LONG_LONG
 #endif
@@ -81,7 +76,7 @@
   #undef CYTHON_AVOID_BORROWED_REFS
   #define CYTHON_AVOID_BORROWED_REFS 1
   #undef CYTHON_AVOID_THREAD_UNSAFE_BORROWED_REFS
-  #define CYTHON_AVOID_THREAD_UNSAFE_BORROWED_REFS 1
+  #define CYTHON_AVOID_THREAD_UNSAFE_BORROWED_REFS 0
   #undef CYTHON_ASSUME_SAFE_MACROS
   #define CYTHON_ASSUME_SAFE_MACROS 0
   #undef CYTHON_ASSUME_SAFE_SIZE
@@ -424,10 +419,6 @@
   #ifdef SIZEOF_VOID_P
     enum { __pyx_check_sizeof_voidp = 1 / (int)(SIZEOF_VOID_P == sizeof(void*)) };
   #endif
-#endif
-
-#ifndef CYTHON_LOCK_AND_GIL_DEADLOCK_AVOIDANCE_TIME
-  #define CYTHON_LOCK_AND_GIL_DEADLOCK_AVOIDANCE_TIME 100  /* ms */
 #endif
 
 #ifndef __has_attribute
@@ -836,7 +827,11 @@ static CYTHON_INLINE int __Pyx__IsSameCFunction(PyObject *func, void (*cfunc)(vo
 #if CYTHON_COMPILING_IN_LIMITED_API
   // __Pyx_PyCode_HasFreeVars isn't easily emulated in the limited API (but isn't really necessary)
   #define __Pyx_PyFrame_SetLineNumber(frame, lineno)
+#elif CYTHON_COMPILING_IN_GRAAL && defined(GRAALPY_VERSION_NUM) && GRAALPY_VERSION_NUM > 0x19000000
+  #define __Pyx_PyCode_HasFreeVars(co)  (PyCode_GetNumFree(co) > 0)
+  #define __Pyx_PyFrame_SetLineNumber(frame, lineno) GraalPyFrame_SetLineNumber((frame), (lineno))
 #elif CYTHON_COMPILING_IN_GRAAL
+  // Remove when GraalPy 24 goes EOL
   #define __Pyx_PyCode_HasFreeVars(co)  (PyCode_GetNumFree(co) > 0)
   #define __Pyx_PyFrame_SetLineNumber(frame, lineno) _PyFrame_SetLineNumber((frame), (lineno))
 #else
@@ -1033,7 +1028,10 @@ static CYTHON_INLINE PyObject * __Pyx_PyDict_GetItemStrWithError(PyObject *dict,
 // ("..." % x)  must call PyNumber_Remainder() if x is a string subclass that implements "__rmod__()".
 #define __Pyx_PyUnicode_FormatSafe(a, b)  ((unlikely((a) == Py_None || (PyUnicode_Check(b) && !PyUnicode_CheckExact(b)))) ? PyNumber_Remainder(a, b) : PyUnicode_Format(a, b))
 
-#if CYTHON_COMPILING_IN_CPYTHON
+#if CYTHON_COMPILING_IN_CPYTHON && PY_VERSION_HEX >= 0x030E0000
+  #define __Pyx_PySequence_ListKeepNew(obj) \
+    (likely(PyList_CheckExact(obj) && PyUnstable_Object_IsUniquelyReferenced(obj)) ? __Pyx_NewRef(obj) : PySequence_List(obj))
+#elif CYTHON_COMPILING_IN_CPYTHON
   #define __Pyx_PySequence_ListKeepNew(obj) \
     (likely(PyList_CheckExact(obj) && Py_REFCNT(obj) == 1) ? __Pyx_NewRef(obj) : PySequence_List(obj))
 #else
@@ -1052,12 +1050,25 @@ static CYTHON_INLINE PyObject * __Pyx_PyDict_GetItemStrWithError(PyObject *dict,
   #define __Pyx_SET_SIZE(obj, size) Py_SIZE(obj) = (size)
 #endif
 
-#if CYTHON_COMPILING_IN_CPYTHON || CYTHON_COMPILING_IN_LIMITED_API
-#define __Pyx_REFCNT_MAY_BE_SHARED(o)  (Py_REFCNT(o) > 1)
+enum __Pyx_ReferenceSharing {
+  __Pyx_ReferenceSharing_DefinitelyUnique, // We created it so we know it's unshared - no need to check
+  __Pyx_ReferenceSharing_OwnStrongReference,
+  __Pyx_ReferenceSharing_FunctionArgument,
+  __Pyx_ReferenceSharing_SharedReference, // Never trust it to be unshared because it's a global or similar
+};
+
+#if CYTHON_COMPILING_IN_CPYTHON_FREETHREADING && PY_VERSION_HEX >= 0x030E0000
+#define __Pyx_IS_UNIQUELY_REFERENCED(o, sharing) \
+    (sharing == __Pyx_ReferenceSharing_DefinitelyUnique ? 1 : \
+      (sharing == __Pyx_ReferenceSharing_FunctionArgument ? PyUnstable_Object_IsUniqueReferencedTemporary(o) : \
+      (sharing == __Pyx_ReferenceSharing_OwnStrongReference ? PyUnstable_Object_IsUniquelyReferenced(o) : 0)))
+#elif (CYTHON_COMPILING_IN_CPYTHON && !CYTHON_COMPILING_IN_CPYTHON_FREETHREADING) || CYTHON_COMPILING_IN_LIMITED_API
+#define __Pyx_IS_UNIQUELY_REFERENCED(o, sharing) (((void)sharing), Py_REFCNT(o) == 1)
 #else
 // On other platforms we don't trust the refcount so don't optimize based on it
-#define __Pyx_REFCNT_MAY_BE_SHARED(o) 1
+#define __Pyx_IS_UNIQUELY_REFERENCED(o, sharing) (((void)o), ((void)sharing), 0)
 #endif
+
 
 #if CYTHON_AVOID_BORROWED_REFS || CYTHON_AVOID_THREAD_UNSAFE_BORROWED_REFS
   #if __PYX_LIMITED_VERSION_HEX >= 0x030d0000
@@ -1079,8 +1090,8 @@ static CYTHON_INLINE PyObject * __Pyx_PyDict_GetItemStrWithError(PyObject *dict,
 
 
 #if CYTHON_AVOID_THREAD_UNSAFE_BORROWED_REFS && !CYTHON_COMPILING_IN_LIMITED_API && CYTHON_ASSUME_SAFE_MACROS
-  #define __Pyx_PyList_GetItemRefFast(o, i, unsafe_shared) ((unsafe_shared || __Pyx_REFCNT_MAY_BE_SHARED(o)) ? \
-    __Pyx_PyList_GetItemRef(o, i) : __Pyx_NewRef(PyList_GET_ITEM(o, i)))
+  #define __Pyx_PyList_GetItemRefFast(o, i, unsafe_shared) (__Pyx_IS_UNIQUELY_REFERENCED(o, unsafe_shared) ? \
+    __Pyx_NewRef(PyList_GET_ITEM(o, i)) : __Pyx_PyList_GetItemRef(o, i))
 #else
   #define __Pyx_PyList_GetItemRefFast(o, i, unsafe_shared) __Pyx_PyList_GetItemRef(o, i)
 #endif
@@ -1583,7 +1594,9 @@ static PY_INT64_T __Pyx_GetCurrentInterpreterId(void) {
 #if !CYTHON_USE_MODULE_STATE
 static CYTHON_SMALL_CODE int __Pyx_check_single_interpreter(void) {
     static PY_INT64_T main_interpreter_id = -1;
-#if CYTHON_COMPILING_IN_GRAAL
+#if CYTHON_COMPILING_IN_GRAAL && defined(GRAALPY_VERSION_NUM) && GRAALPY_VERSION_NUM > 0x19000000
+    PY_INT64_T current_id = GraalPyInterpreterState_GetIDFromThreadState(PyThreadState_Get());
+#elif CYTHON_COMPILING_IN_GRAAL
     PY_INT64_T current_id = PyInterpreterState_GetIDFromThreadState(PyThreadState_Get());
 #elif CYTHON_COMPILING_IN_LIMITED_API && __PYX_LIMITED_VERSION_HEX >= 0x03090000
     PY_INT64_T current_id = PyInterpreterState_GetID(PyInterpreterState_Get());

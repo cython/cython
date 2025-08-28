@@ -408,6 +408,8 @@ static PyTypeObject *__Pyx_ImportType_$cyversion(PyObject* module, const char *m
 /////////////// TypeImport ///////////////
 //@substitute: naming
 
+// Note that this goes into headers so CYTHON_COMPILING_IN_LIMITED_API isn't available.
+
 #ifndef __PYX_HAVE_RT_ImportType_$cyversion
 #define __PYX_HAVE_RT_ImportType_$cyversion
 static PyTypeObject *__Pyx_ImportType_$cyversion(PyObject *module, const char *module_name, const char *class_name,
@@ -416,7 +418,7 @@ static PyTypeObject *__Pyx_ImportType_$cyversion(PyObject *module, const char *m
     PyObject *result = 0;
     Py_ssize_t basicsize;
     Py_ssize_t itemsize;
-#if CYTHON_COMPILING_IN_LIMITED_API
+#ifdef Py_LIMITED_API
     PyObject *py_basicsize;
     PyObject *py_itemsize;
 #endif
@@ -430,7 +432,7 @@ static PyTypeObject *__Pyx_ImportType_$cyversion(PyObject *module, const char *m
             module_name, class_name);
         goto bad;
     }
-#if !CYTHON_COMPILING_IN_LIMITED_API
+#ifndef Py_LIMITED_API
     basicsize = ((PyTypeObject *)result)->tp_basicsize;
     itemsize = ((PyTypeObject *)result)->tp_itemsize;
 #else
