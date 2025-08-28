@@ -39,9 +39,7 @@ jobs:
       matrix:
         # Tests [amd64]
         #
-        # FIXME: 'cpp' tests seems to fail due to compilation errors (numpy_pythran_unit)
-        # in all python versions and test failures (builtin_float) in 3.5<
-        os: [ubuntu-22.04, windows-2022, macos-13]
+        os: [ubuntu-22.04, windows-2022, macos-latest]
         backend: [c, cpp]
         python-version:
           - "3.8"
@@ -215,10 +213,10 @@ jobs:
 #            python-version: 3.13t
 #            backend: "cpp"
 #            allowed_failure: true
-          - os: macos-13
+          - os: macos-latest
             python-version: 3.13t
             backend: "c"
-          - os: macos-13
+          - os: macos-latest
             python-version: 3.13t
             backend: "cpp"
 
