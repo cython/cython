@@ -37,11 +37,13 @@ def context(position):
         F = source.get_lines()
     except UnicodeDecodeError:
         # file has an encoding problem
-        s = "[unprintable code]\n"
+        s = "[unprintable code]"
     else:
-        s = ''.join(F[max(0, position[1]-6):position[1]])
-        s = '...\n%s%s^\n' % (s, ' '*(position[2]))
-    s = '%s\n%s%s\n' % ('-'*60, s, '-'*60)
+        s = '\n'.join(F[max(0, position[1]-6):position[1]])
+        s = '...\n%s\n%s^' % (s, ' '*(position[2]))
+
+    hbar = '-' * 60
+    s = f'{hbar}\n{s}\n{hbar}\n'
     return s
 
 def format_position(position):
@@ -54,7 +56,7 @@ def format_error(message, position):
     if position:
         pos_str = format_position(position)
         cont = context(position)
-        message = '\nError compiling Cython file:\n%s\n%s%s' % (cont, pos_str, message or '')
+        message = '\nError compiling Cython file:\n%s%s%s' % (cont, pos_str, message or '')
     return message
 
 class CompileError(PyrexError):
