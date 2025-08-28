@@ -1,4 +1,5 @@
 import copy
+import hashlib
 
 from . import (ExprNodes, PyrexTypes, MemoryView,
                ParseTreeTransforms, StringEncoding, Errors,
@@ -682,16 +683,6 @@ class FusedCFuncDefNode(StatListNode):
                 if buffer_types or pythran_types:
                     mapper_arg_names.append('ndarray')
 
-                simple_arg_type = arg.type.dtype if arg.type.is_memoryviewslice or arg.type.is_buffer else arg.type
-                type_mapper_cname = (
-                    f"__pyx_ff_map_fused_{len(mapper_arg_names)}_"
-                    # FIXME: it is surprisingly difficult to find a unique name
-                    # for an arbitrary fused type, including memoryviews/buffers.
-                    f"{simple_arg_type.is_const:d}{simple_arg_type.is_volatile:d}"
-                    f"{simple_arg_type.is_memoryviewslice or simple_arg_type.is_buffer:d}_"
-                    f"{PyrexTypes.type_list_identifier(fused_type.types)}"
-                )
-
                 mapper_sig = ', '.join(f"{atype} {aname}" for atype, aname in zip(mapper_arg_types, mapper_arg_names))
                 mapper_args = ', '.join(mapper_arg_names)
 
@@ -706,7 +697,7 @@ class FusedCFuncDefNode(StatListNode):
                 mapper_decl_code.indent()
 
                 type_mapper.putln('')
-                type_mapper.putln(f"@cname('{type_mapper_cname}')")
+                type_mapper.putln("@TYPE_MAPPER_CNAME_PLACEHOLDER")
                 with type_mapper.indenter(f"cdef str map_fused_type({mapper_sig}):"):
 
                     type_mapper.named_insertion_point("local_variable_declarations")
@@ -729,6 +720,16 @@ class FusedCFuncDefNode(StatListNode):
 
                 type_mapper_impl = type_mapper.getvalue()
                 type_mapper.reset()
+
+                # Generate a unique name for the mapper function based on type declarations and implementation.
+                impl_hash = hashlib.sha256(type_mapper_impl.encode('utf-8')).hexdigest()
+                type_mapper_cname = (
+                    f"__pyx_ff_map_fused_{impl_hash[:6]}"
+                    f"_{len(mapper_arg_names)}_{len(fused_type.types)}"
+                    f"_{PyrexTypes.type_list_identifier(fused_type.types)}"
+                )
+                type_mapper_impl = type_mapper_impl.replace(
+                    "\n@TYPE_MAPPER_CNAME_PLACEHOLDER\n", f"\n@cname('{type_mapper_cname}')\n")
                 # print(''.join(f"{i:3d}  {line}" for i, line in enumerate(type_mapper_impl.splitlines(keepends=True))))
 
                 env.use_utility_code(
