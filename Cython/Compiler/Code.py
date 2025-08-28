@@ -1605,6 +1605,12 @@ class GlobalState:
         w.exit_cfunc_scope()
 
         w = self.parts['cached_constants']
+        for const_type in ["tuple", "slice"]:
+            if const_type in self.const_array_counters:
+                self.immortalize_constants(
+                    w.name_in_module_state(Naming.pyrex_prefix + const_type),
+                    self.const_array_counters[const_type],
+                    w)
         w.put_finish_refcount_context()
         w.putln("return 0;")
         if w.label_used(w.error_label):
@@ -2096,6 +2102,8 @@ class GlobalState:
         w.putln('}')
         w.putln('}')
 
+        self.immortalize_constants("stringtab", len(index), w)
+
         w.putln("}")  # close block
 
     def generate_codeobject_constants(self):
@@ -2306,6 +2314,22 @@ class GlobalState:
             w.putln("}")  # for()
 
             w.putln("}")
+
+        self.immortalize_constants(
+            w.name_in_main_c_code_module_state(Naming.numbertab_cname),
+            constant_count,
+            w)
+    
+    @staticmethod
+    def immortalize_constants(array_cname, constant_count, writer):
+        writer.putln("#if CYTHON_IMMORTAL_CONSTANTS")
+        writer.putln("{")
+        writer.putln(f"PyObject **table = {array_cname};")
+        writer.putln(f"for (Py_ssize_t i=0; i<{constant_count}; ++i) {{")
+        writer.putln("Py_SET_REFCNT(table[i], _Py_IMMORTAL_INITIAL_REFCNT);")
+        writer.putln("}")  # for()
+        writer.putln("}")
+        writer.putln("#endif")
 
     # The functions below are there in a transition phase only
     # and will be deprecated. They are called from Nodes.BlockNode.
