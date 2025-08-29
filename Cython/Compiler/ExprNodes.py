@@ -4072,7 +4072,7 @@ class IndexNode(_IndexingBaseNode):
     def analyse_as_type(self, env):
         modifier = self.base.as_cython_attribute()
 
-        if modifier is not None and modifier in ('pointer', 'const', 'volatile'):
+        if modifier is not None and modifier in ('pointer', 'reference', 'rvalue_reference', 'const', 'volatile'):
             base_type = self.index.analyse_as_type(env)
             if base_type is None:
                 error(self.base.pos, f"invalid use of '{modifier}', argument is not a type")
@@ -4080,6 +4080,12 @@ class IndexNode(_IndexingBaseNode):
             if modifier == 'pointer':
                 # pointer[base_type]
                 return PyrexTypes.CPtrType(base_type)
+            if modifier == 'reference':
+                # reference[base_type]
+                return PyrexTypes.CReferenceType(base_type)
+            if modifier == 'rvalue_reference':
+                # rvalue_reference[base_type]
+                return PyrexTypes.CppRvalueReferenceType(base_type)
 
             # const[base_type] or volatile[base_type]
             is_const = modifier == 'const'
