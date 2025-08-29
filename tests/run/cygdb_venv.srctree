@@ -1,0 +1,66 @@
+# mode: run
+# tag: py3only, gdb
+# ticket: 1961
+
+PYTHON -m venv venv
+venv/bin/python setup.py build_ext -i
+venv/bin/python -m pip install dummy_module_dir/
+venv/bin/python test_runner.py
+
+######## test_runner.py ########
+
+import sys, os
+import subprocess
+
+subprocess.check_call([sys.executable,
+    '-c',
+    'from Cython.Debugger import Cygdb as cygdb; cygdb.main()',
+    '.',
+    '--',
+    '-ex', 'run test_inside_gdb.py',
+    '-ex', 'quit',
+    sys.executable
+])
+
+# gdb run might have error, check for that
+if not os.path.isfile('SUCCESS'):
+    sys.exit(1)
+
+
+######## setup.py ########
+
+from Cython.Build.Dependencies import cythonize
+from distutils.core import setup
+
+setup(
+  ext_modules = cythonize("*.pyx", gdb_debug=True),
+)
+
+
+######## dummy_ext.pyx ########
+
+__version__ = '1.0'
+
+
+######## test_inside_gdb.py ########
+
+import dummy_module_cygdb
+assert dummy_module_cygdb.SECRET_VAR == "cygdb"
+
+with open('SUCCESS', 'w') as fp:
+    fp.write('')
+
+
+######## dummy_module_dir/setup.py ########
+
+import setuptools
+
+setuptools.setup(
+    name = 'dummy_module_cygdb',
+    packages = ['dummy_module_cygdb', ],
+)
+
+
+######## dummy_module_dir/dummy_module_cygdb/__init__.py ########
+
+SECRET_VAR = 'cygdb'
