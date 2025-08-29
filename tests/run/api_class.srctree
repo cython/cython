@@ -1,0 +1,55 @@
+PYTHON setup.py build_ext --inplace
+PYTHON -c "import useapi; useapi.make_testclass()"
+
+################# setup.py ######################
+
+# The tests in this file are mainly about ensuring that the
+# correct utility code is included when needed.
+# Therefore, future additions should add new files rather than
+# new code in the existing files.
+
+from setuptools import setup, Extension
+from Cython.Build import cythonize
+
+ext_modules = (
+    cythonize("mainmodule.pyx") +
+    cythonize(Extension("useapi", sources=["useapi.pyx", "use_api_c.c"]))
+)
+
+import sys
+print(ext_modules, file=sys.stderr)
+
+setup(ext_modules=ext_modules)
+
+################ mainmodule.pyx #################
+
+ctypedef api class TestClass [type Test_Type, object TestObject]:
+    cdef int attr
+
+############## use_api_c.c ################
+
+// This is making sure that mainmodule_api is functional
+// when used outside Cython (and with/without the Limited API
+// depending on how the tests are run).
+
+#include "mainmodule_api.h"
+
+PyObject *make_testclass_c(void) {
+    if (import_mainmodule() == -1) return NULL;
+    PyObject *tpl = PyTuple_New(0);
+    if (!tpl) return NULL;
+    PyObject *result = PyObject_Call((PyObject*)&Test_Type, tpl, NULL);
+    Py_DECREF(tpl);
+    return result;
+}
+
+############## useapi.pyx #######################
+
+cdef extern from *:
+    """
+    PyObject *make_testclass_c(void);
+    """
+    object make_testclass_c()
+
+def make_testclass():
+    return make_testclass_c()

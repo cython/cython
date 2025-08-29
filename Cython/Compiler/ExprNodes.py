@@ -626,24 +626,28 @@ class ExprNode(Node):
         py_result = self.constant_result if self.has_constant_result() else c_result
         return PyrexTypes.CFuncType.ExceptionValue(py_result, c_result, self.type)
 
-    def may_be_unsafe_shared(self):
-        # for some function-local variables we can optimize their usage because we
+    def may_be_unsafe_shared(self) -> str:
+        # For some function-local variables we can optimize their usage because we
         # know that it's unique to this thread and can't be used from another thread.
+        # Returns the name of a C enum.
         if self.in_parallel_block:
-            return True
+            return "__Pyx_ReferenceSharing_SharedReference"
         if self.is_temp:
             # If it's a refcounted variable, we hold a reference to it. Therefore, if
             # the reference count is 1, we trust that we're the unique owner.
-            return False
+            return "__Pyx_ReferenceSharing_OwnStrongReference"
         if not hasattr(self, "entry") or self.entry is None:
-            return True  # Not sure if we can reason about it
+            return "__Pyx_ReferenceSharing_SharedReference"  # Not sure if we can reason about it
+        if self.entry.is_arg:
+            # Arguments are a little hard to reason about so need an extra level of check
+            return "__Pyx_ReferenceSharing_FunctionArgument"
         if (self.entry.scope.is_local_scope and
                 # TODO - in principle a generator closure should be "non shared" because
                 # only one thread can run the generator at once.
                 not self.entry.in_closure and not self.entry.from_closure):
-            return False
+            return "__Pyx_ReferenceSharing_OwnStrongReference"
         # Most likely a global, or a class attribute
-        return True
+        return "__Pyx_ReferenceSharing_SharedReference"
 
     # ------------- Declaration Analysis ----------------
 
@@ -2888,15 +2892,12 @@ class ImportNode(ExprNode):
     #                           relative to the current module.
     #                     None: decide the level according to language level and
     #                           directives
-    #  get_top_level_module   int          true: return top-level module, false: return imported module
-    #  module_names           TupleNode    the separate names of the module and submodules, or None
+    #  is_import_as_name    boolean        is imported in an 'as' block
 
     type = py_object_type
-    module_names = None
-    get_top_level_module = False
     is_temp = True
 
-    subexprs = ['module_name', 'name_list', 'module_names']
+    subexprs = ['module_name', 'name_list']
 
     def analyse_types(self, env):
         if self.level is None:
@@ -2907,51 +2908,60 @@ class ImportNode(ExprNode):
                 self.level = -1
             else:
                 self.level = 0
+
         module_name = self.module_name.analyse_types(env)
         self.module_name = module_name.coerce_to_pyobject(env)
         assert self.module_name.is_string_literal
+
         if self.name_list:
             name_list = self.name_list.analyse_types(env)
             self.name_list = name_list.coerce_to_pyobject(env)
-        elif '.' in self.module_name.value:
-            self.module_names = TupleNode(self.module_name.pos, args=[
-                IdentifierStringNode(self.module_name.pos, value=part)
-                for part in map(StringEncoding.EncodedString, self.module_name.value.split('.'))
-            ]).analyse_types(env)
+
+        if self.level != 0:
+            level = self.level if self.level > 0 else 1
+            qualname = env.global_scope().qualified_name
+            for _ in range(level):
+                qualname, _, _ = qualname.rpartition('.')
+            self.module_qualname = StringEncoding.EncodedString(f"{qualname}.{self.module_name.value}")
+        else:
+            self.module_qualname = None
         return self
 
     gil_message = "Python import"
 
     def generate_result_code(self, code):
         assert self.module_name.is_string_literal
-        module_name = self.module_name.value
 
-        if self.level <= 0 and not self.name_list and not self.get_top_level_module:
-            if self.module_names:
-                assert self.module_names.is_literal  # make sure we create the tuple only once
-            if self.level == 0:
-                utility_code = UtilityCode.load_cached("ImportDottedModule", "ImportExport.c")
-                helper_func = "__Pyx_ImportDottedModule"
-            else:
-                utility_code = UtilityCode.load_cached("ImportDottedModuleRelFirst", "ImportExport.c")
-                helper_func = "__Pyx_ImportDottedModuleRelFirst"
-            code.globalstate.use_utility_code(utility_code)
-            import_code = "%s(%s, %s)" % (
-                helper_func,
-                self.module_name.py_result(),
-                self.module_names.py_result() if self.module_names else 'NULL',
-            )
-        else:
-            code.globalstate.use_utility_code(UtilityCode.load_cached("Import", "ImportExport.c"))
-            import_code = "__Pyx_Import(%s, %s, %d)" % (
-                self.module_name.py_result(),
-                self.name_list.py_result() if self.name_list else '0',
-                self.level)
+        module_qualname = 'NULL'
+        if self.module_qualname is not None:
+            module_qualname = code.get_py_string_const(self.module_qualname)
 
-        code.putln("%s = %s; %s" % (
-            self.result(),
-            import_code,
-            code.error_goto_if_null(self.result(), self.pos)))
+        code.globalstate.use_utility_code(UtilityCode.load_cached("Import", "ImportExport.c"))
+        import_code = "__Pyx_Import(%s, %s, %s, %d)" % (
+            self.module_name.py_result(),
+            self.name_list.py_result() if self.name_list else '0',
+            module_qualname,
+            self.level)
+        tmp_submodule = code.funcstate.allocate_temp(self.type, manage_ref=False)
+        code.putln(
+            f"{tmp_submodule} = {import_code}; {code.error_goto_if_null(tmp_submodule, self.pos)}"
+        )
+
+        if self.is_import_as_name and "." in self.module_name.value:
+            # We need to get the submodules in this case
+            code.globalstate.use_utility_code(UtilityCode.load_cached("ImportFrom", "ImportExport.c"))
+            submodule = code.funcstate.allocate_temp(self.type, manage_ref=False)
+            modules = self.module_name.value.split(".")
+            for module in modules[1:]:
+                module_obj = code.get_py_string_const(StringEncoding.EncodedString(module))
+                code.putln(f"{submodule} = __Pyx_ImportFrom({tmp_submodule}, {module_obj});")
+                code.putln(f"Py_DECREF({tmp_submodule});")
+                code.error_goto_if_null(submodule, self.pos)
+                code.putln(f"{tmp_submodule} = {submodule};")
+            code.funcstate.release_temp(submodule)
+
+        code.putln(f"{self.result()} = {tmp_submodule};")
+        code.funcstate.release_temp(tmp_submodule)
         self.generate_gotref(code)
 
     def get_known_standard_library_import(self):
@@ -3223,7 +3233,7 @@ class IteratorNode(ScopedExprNode):
         if test_name == 'List':
             code.putln(
                 f"{result_name} = __Pyx_PyList_GetItemRefFast("
-                f"{self.py_result()}, {self.counter_cname}, {self.may_be_unsafe_shared():d});")
+                f"{self.py_result()}, {self.counter_cname}, {self.may_be_unsafe_shared()});")
         else:  # Tuple
             code.putln("#if CYTHON_ASSUME_SAFE_MACROS && !CYTHON_AVOID_BORROWED_REFS")
             code.putln(f"{result_name} = __Pyx_NewRef(PyTuple_GET_ITEM({self.py_result()}, {self.counter_cname}));")
@@ -4670,7 +4680,7 @@ class IndexNode(_IndexingBaseNode):
                     self.pos, "Indexing a bytearray with 'boundscheck' enabled and without the GIL "
                     "is not thread-safe on freethreaded Python "
                     "(disable 'boundscheck' to turn off this warning)", 1)
-            return ", %s, %d, %s, %d, %d, %d, %d, %d" % (
+            return ", %s, %d, %s, %d, %d, %d, %d, %s" % (
                 self.original_index_type.empty_declaration_code(),
                 self.original_index_type.signed and 1 or 0,
                 self.original_index_type.to_py_function,
@@ -7591,9 +7601,9 @@ class MergedDictNode(ExprNode):
             if item.result_in_temp():
                 # For the fairly plausible special case where item is a temporary
                 # with a refcount of 1 (so created specifically for us),
-                # avoid making a copy
+                # avoid making a copy.
                 code.putln("#if CYTHON_COMPILING_IN_CPYTHON || CYTHON_COMPILING_IN_LIMITED_API")
-                code.putln("if (Py_REFCNT(%s) == 1) {" % item.py_result())
+                code.putln(f"if (__Pyx_IS_UNIQUELY_REFERENCED({item.py_result()}, {item.may_be_unsafe_shared()})) {{")
                 code.putln("%s = %s;" % (self.result(), item.py_result()))
                 item.generate_post_assignment_code(code)
                 code.putln("} else")
@@ -8692,7 +8702,7 @@ class SequenceNode(ExprNode):
         for i, item in enumerate(self.unpacked_items):
             if sequence_types[0] == "List":
                 code.putln(f"{item.result()} = __Pyx_PyList_GetItemRefFast"
-                           f"(sequence, {i}, {self.may_be_unsafe_shared():d});")
+                           f"(sequence, {i}, {self.may_be_unsafe_shared()});")
                 code.putln(code.error_goto_if_null(item.result(), self.pos))
                 code.put_xgotref(item.result(), item.ctype())
             else:  # Tuple
@@ -8702,7 +8712,7 @@ class SequenceNode(ExprNode):
             code.putln("} else {")
             for i, item in enumerate(self.unpacked_items):
                 if sequence_types[1] == "List":
-                    code.putln(f"{item.result()} = __Pyx_PyList_GetItemRefFast(sequence, {i}, {self.may_be_unsafe_shared():d});")
+                    code.putln(f"{item.result()} = __Pyx_PyList_GetItemRefFast(sequence, {i}, {self.may_be_unsafe_shared()});")
                     code.putln(code.error_goto_if_null(item.result(), self.pos))
                     code.put_xgotref(item.result(), item.ctype())
                 else:  # Tuple
@@ -10052,6 +10062,7 @@ class Py3ClassNode(ExprNode):
                 self.allow_py2_metaclass,
                 code.error_goto_if_null(self.result(), self.pos)))
         self.generate_gotref(code)
+        code.put_make_object_deferred(self.result())
 
 
 class PyClassMetaclassNode(ExprNode):
@@ -10435,6 +10446,7 @@ class PyCFunctionNode(ExprNode, ModuleNameMixin):
                 code.error_goto_if_null(self.result(), self.pos)))
 
         self.generate_gotref(code)
+        code.put_make_object_deferred(self.result())
 
         if def_node.requires_classobj:
             assert code.pyclass_stack, "pyclass_stack is empty"
@@ -12623,10 +12635,11 @@ class AddNode(NumBinopNode):
                 is_unicode_concat = False
 
             if is_unicode_concat:
+                func = '__Pyx_PyUnicode_Concat'
                 if self.inplace or self.operand1.result_in_temp():
                     code.globalstate.use_utility_code(
                         UtilityCode.load_cached("UnicodeConcatInPlace", "ObjectHandling.c"))
-                func = '__Pyx_PyUnicode_Concat'
+                    func += self.may_be_unsafe_shared()
 
         if func:
             # any necessary utility code will be got by "NumberAdd" in generate_evaluation_code

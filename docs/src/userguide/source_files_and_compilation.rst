@@ -1407,6 +1407,13 @@ most important to least important:
     available in the standard library in Python 3.14 and later.  Cython will then
     fall back to ``zlib`` when compiling in older Python versions.
 
+``CYTHON_IMMORTAL_CONSTANTS``
+    Makes cached constants (e.g. strings, tuples, ints, floats, slices) immortal,
+    in Python versions that support immortality. This is most useful when
+    the constants are used in many different threads because it avoids most writes
+    to the constants due to reference counting. Disabled by default, but enabled
+    in free-threaded builds.
+
 There is a further list of macros which turn off various optimizations or language
 features.  Under normal circumstance Cython enables these automatically based on the
 version of Python you are compiling for so there is no need to use them
@@ -1511,10 +1518,3 @@ hidden by default since most users will be uninterested in changing them.
             one interpreter will not be importing your module at the same time as another
             is using it.  Values greater than 1 can be used to select a specific implementation
             for debugging purposes.
-
-        ``CYTHON_LOCK_AND_GIL_DEADLOCK_AVOIDANCE_TIME``
-            The maximum time in ms that Cython will block while holding the GIL when trying to
-            acquire a lock in a deadlock-free way.  Defaults to 100 ms.  Negative numbers
-            indicate "forever" (which may help in situations where the lock is very heavily
-            contended and you're confident that you haven't introduced a deadlock in your
-            own code).

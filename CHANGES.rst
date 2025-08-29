@@ -15,6 +15,12 @@ Features added
   `range` is now considered a type. `ascii`, `bin`, `format`, `hex`, `oct` were added as functions.
   (Github issue :issue:`6931`)
 
+* The f-string syntax was extended according to PEP-701.
+  (Github issue :issue:`5452`)
+
+* The runtime Python dispatch for fused functions is substantially faster.
+  (Github issues :issue:`1385`, :issue:`6996`)
+
 * Type checks on PEP-604 union types (`int | None`) are optimised into separate checks.
   (Github issue :issue:`6935`)
 
@@ -29,6 +35,9 @@ Features added
   (Github issue :issue:`6926`)
 
 * Releasing the GIL from an unknown lock state is more efficient.
+  (Github issue :issue:`6847`)
+
+* ``cython.critical_section(PyMutex)`` now works, as with Python objects.
   (Github issue :issue:`6847`)
 
 * ``bool(c_int/float/ptr)`` avoid passing through Python objects.
@@ -59,6 +68,15 @@ Features added
 * Declarations for C++ condition variables were added.
   (Github issue :issue:`6836`)
 
+* Declarations for the new ``PyUnstable_*()`` refcounting C-API functions in Py3.14 were added.
+  (Github issue :issue:`6836`)
+
+* Several improvements were made for the GraalPython support.
+  Patch by Michael Šimáček.  (Github issue :issue:`7074`)
+
+* The annotated source HTML page shows alternating +/− markers to open/close lines.
+  Patch by Kamil Monicz.  (Github issue :issue:`7099`)
+
 * Unicode 16.0.0 is used to parse identifiers.
   (Github issue :issue:`6836`)
 
@@ -87,6 +105,9 @@ Bugs fixed
   risking to conflict with user declarations.
   (Github issues :issue:`6922`, :issue:`6339`)
 
+* Boolean (emptyness) tests on builtin containers could fail to handle (unlikely) errors.
+  (Github issue :issue:`7090`)
+
 * The return type of ``bytes.join()`` was sometimes referred as plain ``object``.
   (Github issue :issue:`6987`)
 
@@ -99,7 +120,11 @@ Bugs fixed
 * An internal C function was not marked as ``static`` and leaked a linker symbol.
   (Github issue :issue:`6957`)
 
-* Includes all fixes as of Cython 3.1.2.
+* Cython's tools and frontend scripts now use ``python3``  instead of just ``python``
+  in their shebang line.
+  Patch by Matti Picus.  (Github issue :issue:`7053`)
+
+* Includes all fixes as of Cython 3.1.3.
 
 
 3.1.4 (2025-??-??)

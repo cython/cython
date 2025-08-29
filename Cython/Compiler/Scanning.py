@@ -205,22 +205,15 @@ class FileSourceDescriptor(SourceDescriptor):
         # we cache the lines only the second time this is called, in
         # order to save memory when they are only used once
         key = (encoding, error_handling)
-        try:
-            lines = self._lines[key]
-            if lines is not None:
-                return lines
-        except KeyError:
-            pass
+        lines = self._lines.get(key)
+        if lines is not None:
+            return lines
 
         with self.get_file_object(encoding=encoding, error_handling=error_handling) as f:
             lines = f.readlines()
 
-        if key in self._lines:
-            self._lines[key] = lines
-        else:
-            # do not cache the first access, but remember that we
-            # already read it once
-            self._lines[key] = None
+        # Do not cache the first access, but add the key to remember that we already read it once.
+        self._lines[key] = lines if key in self._lines else None
         return lines
 
     def get_file_object(self, encoding=None, error_handling=None):

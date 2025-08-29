@@ -113,6 +113,8 @@
   #endif
   #undef CYTHON_USE_FREELISTS
   #define CYTHON_USE_FREELISTS 0
+  #undef CYTHON_IMMORTAL_CONSTANTS
+  #define CYTHON_IMMORTAL_CONSTANTS 0
 
 #elif defined(PYPY_VERSION)
   #define CYTHON_COMPILING_IN_PYPY 1
@@ -183,6 +185,8 @@
   #endif
   #undef CYTHON_USE_FREELISTS
   #define CYTHON_USE_FREELISTS 0
+  #undef CYTHON_IMMORTAL_CONSTANTS
+  #define CYTHON_IMMORTAL_CONSTANTS 0
 
 #elif defined(CYTHON_LIMITED_API)
   // EXPERIMENTAL !!
@@ -259,6 +263,8 @@
   #endif
   #undef CYTHON_USE_FREELISTS
   #define CYTHON_USE_FREELISTS 0
+  #undef CYTHON_IMMORTAL_CONSTANTS
+  #define CYTHON_IMMORTAL_CONSTANTS 0
 
 #else
   #define CYTHON_COMPILING_IN_PYPY 0
@@ -384,6 +390,15 @@
   #ifndef CYTHON_USE_FREELISTS
     #define CYTHON_USE_FREELISTS (!CYTHON_COMPILING_IN_CPYTHON_FREETHREADING)
   #endif
+  #if defined(CYTHON_IMMORTAL_CONSTANTS) && PY_VERSION_HEX < 0x030C0000
+    #undef CYTHON_IMMORTAL_CONSTANTS
+    #define CYTHON_IMMORTAL_CONSTANTS 0  // definitely won't work
+  #elif !defined(CYTHON_IMMORTAL_CONSTANTS)
+    // The assumption is that immortal constants mainly help reduce contention when accessed from many threads
+    // (hence freethreading only), and that with module state the module may be unloaded and reloaded (so they
+    // could be a memory leak). However the user can always override these assumptions.
+    #define CYTHON_IMMORTAL_CONSTANTS (PY_VERSION_HEX >= 0x030C0000 && !CYTHON_USE_MODULE_STATE && CYTHON_COMPILING_IN_CPYTHON_FREETHREADING)
+  #endif
 #endif
 
 #ifndef CYTHON_COMPRESS_STRINGS
@@ -419,10 +434,6 @@
   #ifdef SIZEOF_VOID_P
     enum { __pyx_check_sizeof_voidp = 1 / (int)(SIZEOF_VOID_P == sizeof(void*)) };
   #endif
-#endif
-
-#ifndef CYTHON_LOCK_AND_GIL_DEADLOCK_AVOIDANCE_TIME
-  #define CYTHON_LOCK_AND_GIL_DEADLOCK_AVOIDANCE_TIME 100  /* ms */
 #endif
 
 #ifndef __has_attribute
@@ -1032,7 +1043,10 @@ static CYTHON_INLINE PyObject * __Pyx_PyDict_GetItemStrWithError(PyObject *dict,
 // ("..." % x)  must call PyNumber_Remainder() if x is a string subclass that implements "__rmod__()".
 #define __Pyx_PyUnicode_FormatSafe(a, b)  ((unlikely((a) == Py_None || (PyUnicode_Check(b) && !PyUnicode_CheckExact(b)))) ? PyNumber_Remainder(a, b) : PyUnicode_Format(a, b))
 
-#if CYTHON_COMPILING_IN_CPYTHON
+#if CYTHON_COMPILING_IN_CPYTHON && PY_VERSION_HEX >= 0x030E0000
+  #define __Pyx_PySequence_ListKeepNew(obj) \
+    (likely(PyList_CheckExact(obj) && PyUnstable_Object_IsUniquelyReferenced(obj)) ? __Pyx_NewRef(obj) : PySequence_List(obj))
+#elif CYTHON_COMPILING_IN_CPYTHON
   #define __Pyx_PySequence_ListKeepNew(obj) \
     (likely(PyList_CheckExact(obj) && Py_REFCNT(obj) == 1) ? __Pyx_NewRef(obj) : PySequence_List(obj))
 #else
@@ -1051,12 +1065,25 @@ static CYTHON_INLINE PyObject * __Pyx_PyDict_GetItemStrWithError(PyObject *dict,
   #define __Pyx_SET_SIZE(obj, size) Py_SIZE(obj) = (size)
 #endif
 
-#if CYTHON_COMPILING_IN_CPYTHON || CYTHON_COMPILING_IN_LIMITED_API
-#define __Pyx_REFCNT_MAY_BE_SHARED(o)  (Py_REFCNT(o) > 1)
+enum __Pyx_ReferenceSharing {
+  __Pyx_ReferenceSharing_DefinitelyUnique, // We created it so we know it's unshared - no need to check
+  __Pyx_ReferenceSharing_OwnStrongReference,
+  __Pyx_ReferenceSharing_FunctionArgument,
+  __Pyx_ReferenceSharing_SharedReference, // Never trust it to be unshared because it's a global or similar
+};
+
+#if CYTHON_COMPILING_IN_CPYTHON_FREETHREADING && PY_VERSION_HEX >= 0x030E0000
+#define __Pyx_IS_UNIQUELY_REFERENCED(o, sharing) \
+    (sharing == __Pyx_ReferenceSharing_DefinitelyUnique ? 1 : \
+      (sharing == __Pyx_ReferenceSharing_FunctionArgument ? PyUnstable_Object_IsUniqueReferencedTemporary(o) : \
+      (sharing == __Pyx_ReferenceSharing_OwnStrongReference ? PyUnstable_Object_IsUniquelyReferenced(o) : 0)))
+#elif (CYTHON_COMPILING_IN_CPYTHON && !CYTHON_COMPILING_IN_CPYTHON_FREETHREADING) || CYTHON_COMPILING_IN_LIMITED_API
+#define __Pyx_IS_UNIQUELY_REFERENCED(o, sharing) (((void)sharing), Py_REFCNT(o) == 1)
 #else
 // On other platforms we don't trust the refcount so don't optimize based on it
-#define __Pyx_REFCNT_MAY_BE_SHARED(o) 1
+#define __Pyx_IS_UNIQUELY_REFERENCED(o, sharing) (((void)o), ((void)sharing), 0)
 #endif
+
 
 #if CYTHON_AVOID_BORROWED_REFS || CYTHON_AVOID_THREAD_UNSAFE_BORROWED_REFS
   #if __PYX_LIMITED_VERSION_HEX >= 0x030d0000
@@ -1078,8 +1105,8 @@ static CYTHON_INLINE PyObject * __Pyx_PyDict_GetItemStrWithError(PyObject *dict,
 
 
 #if CYTHON_AVOID_THREAD_UNSAFE_BORROWED_REFS && !CYTHON_COMPILING_IN_LIMITED_API && CYTHON_ASSUME_SAFE_MACROS
-  #define __Pyx_PyList_GetItemRefFast(o, i, unsafe_shared) ((unsafe_shared || __Pyx_REFCNT_MAY_BE_SHARED(o)) ? \
-    __Pyx_PyList_GetItemRef(o, i) : __Pyx_NewRef(PyList_GET_ITEM(o, i)))
+  #define __Pyx_PyList_GetItemRefFast(o, i, unsafe_shared) (__Pyx_IS_UNIQUELY_REFERENCED(o, unsafe_shared) ? \
+    __Pyx_NewRef(PyList_GET_ITEM(o, i)) : __Pyx_PyList_GetItemRef(o, i))
 #else
   #define __Pyx_PyList_GetItemRefFast(o, i, unsafe_shared) __Pyx_PyList_GetItemRef(o, i)
 #endif
