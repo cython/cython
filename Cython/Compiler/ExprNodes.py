@@ -6164,6 +6164,53 @@ class CallNode(ExprNode):
             elif result_type.equivalent_type:
                 self.type = result_type.equivalent_type
 
+    def analyse_as_type(self, env):
+        attr = self.function.as_cython_attribute()
+        if attr == 'function_type':
+            args, kwargs = self.explicit_args_kwds()
+            if len(args) != 2:
+                error(self.args.pos, "function_type requires exactly two positional arguments.")
+                return None
+            if not isinstance(args[0], ListNode):
+                error(args[0].pos, "First argument of function_type must be a list of parameter types.")
+                return None
+            if kwargs is not None and not isinstance(kwargs, DictNode):
+                error(kwargs.pos, "function_type kwargs should be in a dictionary.")
+                return None
+            param_types = [arg.analyse_as_type(env) for arg in args[0].args]
+            if None in param_types:
+                error(args[0].pos, "Unknown type in parameter types")
+                return None
+            ret_type = args[1].analyse_as_type(env)
+            if ret_type is None:
+                error(args[1].pos, "Unknown return type")
+            func_type_kwargs = {
+                'exception_value': None,
+                'exception_check': True
+            }
+            if kwargs is not None:
+                kwargs = kwargs.compile_time_value(env)
+                for k, v in (kwargs or {}).items():
+                    if k in ('nogil', 'has_varargs', 'noexcept', 'except_plus'):
+                        if isinstance(v, bool):
+                            if k == 'noexcept':
+                                func_type_kwargs['exception_check'] = not v
+                            elif k == 'except_plus':
+                                func_type_kwargs['exception_check'] = '+' if v else False
+                            else:
+                                func_type_kwargs[k] = v
+                        else:
+                            error(self.pos, f"Value for {k} must be boolean")
+                    elif k == 'except_val':
+                        func_type_kwargs['exception_value'] = v
+                    else:
+                        error(self.pos, f"Unknown kwarg in function_type: {k}")
+            return PyrexTypes.CFuncType(
+                return_type=ret_type,
+                args=[PyrexTypes.CFuncTypeArg('', t) for t in param_types],
+                **func_type_kwargs
+            )
+
     def analyse_as_type_constructor(self, env):
         """
         Returns a replacement node or None
@@ -6287,6 +6334,7 @@ class SimpleCallNode(CallNode):
                 error(self.args.pos, "only one type allowed.")
             operand = self.args[0].analyse_types(env)
             return operand.type
+        return super().analyse_as_type(env)
 
     def explicit_args_kwds(self):
         return self.args, None
