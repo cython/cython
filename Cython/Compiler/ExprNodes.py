@@ -2892,15 +2892,12 @@ class ImportNode(ExprNode):
     #                           relative to the current module.
     #                     None: decide the level according to language level and
     #                           directives
-    #  get_top_level_module   int          true: return top-level module, false: return imported module
-    #  module_names           TupleNode    the separate names of the module and submodules, or None
+    #  is_import_as_name    boolean        is imported in an 'as' block
 
     type = py_object_type
-    module_names = None
-    get_top_level_module = False
     is_temp = True
 
-    subexprs = ['module_name', 'name_list', 'module_names']
+    subexprs = ['module_name', 'name_list']
 
     def analyse_types(self, env):
         if self.level is None:
@@ -2911,51 +2908,60 @@ class ImportNode(ExprNode):
                 self.level = -1
             else:
                 self.level = 0
+
         module_name = self.module_name.analyse_types(env)
         self.module_name = module_name.coerce_to_pyobject(env)
         assert self.module_name.is_string_literal
+
         if self.name_list:
             name_list = self.name_list.analyse_types(env)
             self.name_list = name_list.coerce_to_pyobject(env)
-        elif '.' in self.module_name.value:
-            self.module_names = TupleNode(self.module_name.pos, args=[
-                IdentifierStringNode(self.module_name.pos, value=part)
-                for part in map(StringEncoding.EncodedString, self.module_name.value.split('.'))
-            ]).analyse_types(env)
+
+        if self.level != 0:
+            level = self.level if self.level > 0 else 1
+            qualname = env.global_scope().qualified_name
+            for _ in range(level):
+                qualname, _, _ = qualname.rpartition('.')
+            self.module_qualname = StringEncoding.EncodedString(f"{qualname}.{self.module_name.value}")
+        else:
+            self.module_qualname = None
         return self
 
     gil_message = "Python import"
 
     def generate_result_code(self, code):
         assert self.module_name.is_string_literal
-        module_name = self.module_name.value
 
-        if self.level <= 0 and not self.name_list and not self.get_top_level_module:
-            if self.module_names:
-                assert self.module_names.is_literal  # make sure we create the tuple only once
-            if self.level == 0:
-                utility_code = UtilityCode.load_cached("ImportDottedModule", "ImportExport.c")
-                helper_func = "__Pyx_ImportDottedModule"
-            else:
-                utility_code = UtilityCode.load_cached("ImportDottedModuleRelFirst", "ImportExport.c")
-                helper_func = "__Pyx_ImportDottedModuleRelFirst"
-            code.globalstate.use_utility_code(utility_code)
-            import_code = "%s(%s, %s)" % (
-                helper_func,
-                self.module_name.py_result(),
-                self.module_names.py_result() if self.module_names else 'NULL',
-            )
-        else:
-            code.globalstate.use_utility_code(UtilityCode.load_cached("Import", "ImportExport.c"))
-            import_code = "__Pyx_Import(%s, %s, %d)" % (
-                self.module_name.py_result(),
-                self.name_list.py_result() if self.name_list else '0',
-                self.level)
+        module_qualname = 'NULL'
+        if self.module_qualname is not None:
+            module_qualname = code.get_py_string_const(self.module_qualname)
 
-        code.putln("%s = %s; %s" % (
-            self.result(),
-            import_code,
-            code.error_goto_if_null(self.result(), self.pos)))
+        code.globalstate.use_utility_code(UtilityCode.load_cached("Import", "ImportExport.c"))
+        import_code = "__Pyx_Import(%s, %s, %s, %d)" % (
+            self.module_name.py_result(),
+            self.name_list.py_result() if self.name_list else '0',
+            module_qualname,
+            self.level)
+        tmp_submodule = code.funcstate.allocate_temp(self.type, manage_ref=False)
+        code.putln(
+            f"{tmp_submodule} = {import_code}; {code.error_goto_if_null(tmp_submodule, self.pos)}"
+        )
+
+        if self.is_import_as_name and "." in self.module_name.value:
+            # We need to get the submodules in this case
+            code.globalstate.use_utility_code(UtilityCode.load_cached("ImportFrom", "ImportExport.c"))
+            submodule = code.funcstate.allocate_temp(self.type, manage_ref=False)
+            modules = self.module_name.value.split(".")
+            for module in modules[1:]:
+                module_obj = code.get_py_string_const(StringEncoding.EncodedString(module))
+                code.putln(f"{submodule} = __Pyx_ImportFrom({tmp_submodule}, {module_obj});")
+                code.putln(f"Py_DECREF({tmp_submodule});")
+                code.error_goto_if_null(submodule, self.pos)
+                code.putln(f"{tmp_submodule} = {submodule};")
+            code.funcstate.release_temp(submodule)
+
+        code.putln(f"{self.result()} = {tmp_submodule};")
+        code.funcstate.release_temp(tmp_submodule)
         self.generate_gotref(code)
 
     def get_known_standard_library_import(self):
