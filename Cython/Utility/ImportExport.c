@@ -104,7 +104,7 @@ static PyObject *__Pyx_Import(PyObject *name, PyObject **imported_names, Py_ssiz
         from_list = PyList_New(len_imported_names);
         if (unlikely(!from_list)) goto bad;
         for (Py_ssize_t i=0; i<len_imported_names; ++i) {
-            if (PyList_SetItem(from_list, __Pyx_NewRef(imported_names[i]), i) < 0) goto bad;
+            if (PyList_SetItem(from_list, i, __Pyx_NewRef(imported_names[i])) < 0) goto bad;
         }
 #endif
     } 
