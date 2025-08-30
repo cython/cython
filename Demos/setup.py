@@ -22,6 +22,6 @@ else:
     ext_modules.extend(cythonize(numpy_demo))
 
 setup(
-  name = 'Demos',
-  ext_modules = ext_modules,
+    name = 'Demos',
+    ext_modules = ext_modules,
 )

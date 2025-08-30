@@ -448,6 +448,88 @@ These ``.pxd`` files need not have corresponding ``.pyx``
 modules if they contain purely declarations of external libraries.
 
 
+.. _shared_module:
+
+Shared utility module
+=====================
+
+When a ``.pyx``/``.py`` file is compiled to ``.c`` file, Cython automatically embeds
+internal utility code into the resulting ``.c`` file.  For projects containing multiple
+Cython modules, this can result in a larger total size of compiled extensions.
+To avoid redundant code, the common utility code can be extracted into a separate extension
+module which is automatically cimported and used by the user-written extension modules.
+
+.. note:: Currently, only memoryview utility code can be moved to the shared utility module.
+
+Consider the following example package::
+
+    mypkg/
+    +-- __init__.py
+    +-- shared/
+    |   +-- __init__.py
+    |   +-- _cyutility.c
+    +-- subpkg1/
+        +-- __init__.py
+        +-- module.pyx
+
+The :file:`_cyutility.c` file contains the shared utility code and :file:`module.pyx` is
+a standard Cython source file which will be compiled into an extension cimporting the
+``mypkg.shared._cyutility`` module (automatically).
+The compilation process now consist of three steps:
+
+1. Generating the shared utility code. This is done via the ``--generate-shared`` argument:
+
+   .. code-block:: console
+
+       $ cython --generate-shared=mypkg/shared/_cyutility.c
+
+2. Translating all ``.pyx`` files to ``.c`` files with the ``--shared`` argument to provide
+   the fully qualified name of the shared module:
+
+   .. code-block:: console
+
+        $ cython --shared=mypkg.shared._cyutility module.pyx
+
+3. Compiling the shared utility module and all other (user defined) extension modules.
+   The shared utility module needs to be compiled as regular ``.c`` extension module,
+   either by using the C compiler directly, or through setuptools, etc.
+
+.. warning::
+
+   An extension module compiled with the ``--shared=...`` argument automatically
+   imports the shared module under the fully qualified name provided via the
+   argument parameter.  Failing to import the shared module will cause a failure
+   to import the extension module that uses it.
+
+Compiling shared module using setuptools
+----------------------------------------
+
+If ``setuptools`` is used in the build process, the fully qualified module name
+of the shared utility module can be specified using the ``shared_utility_qualified_name``
+parameter of :func:`cythonize` (instead of the ``--shared`` command line argument).
+To generate the extension sources of the shared module from ``cythonize()``,
+you need to explicitly pass an ``Extension`` object describing the module.
+The :file:`setup.py` file would be:
+
+.. code-block:: python
+    :caption: setup.py
+
+    from Cython.Build import cythonize
+    from Cython.Compiler import Options
+    from setuptools import setup, Extension
+
+    extensions = [
+        Extension("*", ["**/*.pyx"]),
+        # Providing 'sources' is optional for the shared module.
+        # If missing, the module package will be used for the path in 'build_dir'.
+        Extension("mypkg.shared._cyutility", sources=["mypkg/shared/_cyutility.c"]),
+    ]
+
+    setup(
+      ext_modules = cythonize(extensions, shared_utility_qualified_name = 'mypkg.shared._cyutility')
+    )
+
+
 .. _integrating_multiple_modules:
 
 Integrating multiple modules
@@ -879,6 +961,17 @@ Cython code.  Here is the list of currently supported directives:
     is still experimental itself, this is also an experimental directive that
     might be changed or removed in future releases.
 
+``subinterpreters_compatible``  (no / shared_gil / own_gil), *default=no*
+    If set to ``shared_gil`` or ``own_gil``, then Cython sets the
+    ``Py_mod_multiple_interpreters`` slot to ``Py_MOD_MULTIPLE_INTERPRETERS_SUPPORTED``
+    or ``Py_MOD_PER_INTERPRETER_GIL_SUPPORTED`` respectively to signal that
+    the module is safe to run in isolated subinterpreters. Setting this option
+    does not itself make the module safe to run in isolated subinterpreters;
+    it merely confirms that you have checked the logic and consider it safe to run.
+    Currently ``cdef`` global variables (especially when the type is a Python object) and
+    acquiring the GIL (but not *re-acquiring* the GIL) are known not to work
+    correctly and will generate warnings at compile time.
+
 ``overflowcheck`` (True / False), *default=False*
     If set to True, raise errors on overflowing C integer arithmetic
     operations.  Incurs a modest runtime penalty, but is much faster than
@@ -963,6 +1056,14 @@ Cython code.  Here is the list of currently supported directives:
 
 ``profile`` (True / False), *default=False*
     Write hooks for Python profilers into the compiled C code.
+    Whether the generated module actually uses profiling depends on
+    the value of the C macro ``CYTHON_PROFILE`` which is ``1`` by
+    default but which you can optionally set to ``0`` to turn off the
+    profiling code at C compile-time.  Define ``CYTHON_USE_SYS_MONITORING``
+    to either 1 or 0 to control the mechanism used to implement profiling
+    on Python 3.13 and above.  Note that neither ``profile``
+    nor ``linetrace`` work with any tool that uses ``sys.monitoring``
+    on Python 3.12.
 
 ``linetrace`` (True / False), *default=False*
     Write line tracing hooks for Python profilers or coverage reporting
@@ -971,7 +1072,11 @@ Cython code.  Here is the list of currently supported directives:
     tracing, unless you additionally pass the C macro definition
     ``CYTHON_TRACE=1`` to the C compiler (e.g. using the setuptools option
     ``define_macros``).  Define ``CYTHON_TRACE_NOGIL=1`` to also include
-    ``nogil`` functions and sections.
+    ``nogil`` functions and sections.  Define ``CYTHON_USE_SYS_MONITORING``
+    to either 1 or 0 to control the mechanism used to implement these
+    features on Python 3.13 and above.  Note that neither ``profile``
+    nor ``linetrace`` work with any tool that uses ``sys.monitoring``
+    on Python 3.12.
 
 ``infer_types`` (True / False), *default=None*
     Infer types of untyped variables in function bodies. Default is
@@ -1049,7 +1154,6 @@ Cython code.  Here is the list of currently supported directives:
     :ref:`error_return_values` for details. Setting this directive to ``True`` will
     cause Cython 3.0 to have the same semantics as Cython 0.x. This directive was solely added
     to help migrate legacy code written before Cython 3. It will be removed in a future release.
-
 
 .. _configurable_optimisations:
 
@@ -1237,13 +1341,13 @@ some change the default value of other macros.  They are listed below in rough o
 most important to least important:
 
 ``Py_LIMITED_API``
-    Turns on Cython's experimental Limited API support, meaning that one compiled module
+    Turns on Cython's Limited API support, meaning that one compiled module
     can be used by many Python interpreter versions (at the cost of some performance).
     At this stage many features do not work in the Limited API.  You should set this
     macro to be the version hex for the
-    minimum Python version you want to support (>=3.7).  ``0x03070000`` will support
+    minimum Python version you want to support (\>=3.7).  ``0x03070000`` will support
     Python 3.7 upwards.
-    Note that this is a :external+python:c:macro:`Python macro <Py_LIMITED_API>`_,
+    Note that this is a :external+python:c:macro:`Python macro <Py_LIMITED_API>`,
     rather than just a Cython macro, and so it changes what parts of the Python headers
     are visible too.  See :ref:`limited_api` for more details about this feature.
 
@@ -1268,6 +1372,14 @@ most important to least important:
 ``CYTHON_PROFILE``, ``CYTHON_TRACE``, ``CYTHON_TRACE_NOGIL``
     These control the inclusion of profiling and line tracing calls in the module.
     See the ``profile`` and ``linetrace`` :ref:`compiler-directives`.
+    ``CYTHON_PROFILE`` is on by default; the ``CYTHON_TRACE`` macros are
+    off by default.
+
+``CYTHON_USE_SYS_MONITORING``
+    On Python 3.13+ this selects the new `sys.monitoring <https://docs.python.org/3/library/sys.monitoring.html>`_
+    mechanism for profiling and linetracing. It is on by default, but can be set to 0
+    to force use of the old mechanism. Some tools still require the old mechanism,
+    most notably "Coverage" (as of 2025).
 
 ``CYTHON_EXTERN_C``
     Slightly different to the other macros, this controls how ``cdef public``
@@ -1284,6 +1396,23 @@ most important to least important:
     has poor standards support (especially in C mode) and so struggles to
     use the standard library types.  It is on by default on platforms
     where we think it's likely to work.
+
+``CYTHON_COMPRESS_STRINGS``
+    Store Python strings in the binary module as compressed data, decompressing them
+    at import time.  By default, ``zlib`` compression is used (``CYTHON_COMPRESS_STRINGS=1``).
+    Set to ``0`` to disable compression or to ``2`` to select ``bzip2`` compression.
+    Note that the respective standard library decompression module must be available
+    at module import time, or the import will fail.
+    ``compression.zstd`` can be selected with ``CYTHON_COMPRESS_STRINGS=3`` but is only
+    available in the standard library in Python 3.14 and later.  Cython will then
+    fall back to ``zlib`` when compiling in older Python versions.
+
+``CYTHON_IMMORTAL_CONSTANTS``
+    Makes cached constants (e.g. strings, tuples, ints, floats, slices) immortal,
+    in Python versions that support immortality. This is most useful when
+    the constants are used in many different threads because it avoids most writes
+    to the constants due to reference counting. Disabled by default, but enabled
+    in free-threaded builds.
 
 There is a further list of macros which turn off various optimizations or language
 features.  Under normal circumstance Cython enables these automatically based on the
@@ -1381,7 +1510,7 @@ hidden by default since most users will be uninterested in changing them.
             :external+python:py:func:`gc.get_referents`.
             By default, Cython avoids GC traversing these objects because they can never participate
             in reference cycles, and thus would uselessly waste time during garbage collection runs.
-            
+
         ``CYTHON_MODULE_STATE_LOOKUP_THREAD_SAFE``
             Makes module state lookup thread-safe (when ``CYTHON_USE_MODULE_STATE`` and
             ``CYTHON_PEP489_MULTI_PHASE_INIT`` are both enabled).  This is on by default

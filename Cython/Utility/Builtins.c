@@ -256,7 +256,7 @@ static PyObject *__Pyx_PyLong_AbsNeg(PyObject *num);/*proto*/
 
 #define __Pyx_PyNumber_Absolute(x) \
     ((likely(PyLong_CheckExact(x))) ? \
-         (likely(__Pyx_PyLong_IsNonNeg(x)) ? (Py_INCREF(x), (x)) : __Pyx_PyLong_AbsNeg(x)) : \
+         (likely(__Pyx_PyLong_IsNonNeg(x)) ? __Pyx_NewRef(x) : __Pyx_PyLong_AbsNeg(x)) : \
          PyNumber_Absolute(x))
 
 #else
@@ -277,13 +277,13 @@ static PyObject *__Pyx_PyLong_AbsNeg(PyObject *n) {
         return PyLong_FromUnsignedLong(__Pyx_PyLong_Digits(n)[0]);
     }
 #endif
-#if CYTHON_COMPILING_IN_CPYTHON && PY_VERSION_HEX < 0x030d0000
+#if CYTHON_COMPILING_IN_CPYTHON
     {
         PyObject *copy = _PyLong_Copy((PyLongObject*)n);
         if (likely(copy)) {
             #if PY_VERSION_HEX >= 0x030C00A7
             // clear the sign bits to set the sign from SIGN_NEGATIVE (2) to positive (0)
-            ((PyLongObject*)copy)->long_value.lv_tag = ((PyLongObject*)copy)->long_value.lv_tag & ~_PyLong_SIGN_MASK;
+            ((PyLongObject*)copy)->long_value.lv_tag ^= ((PyLongObject*)copy)->long_value.lv_tag & _PyLong_SIGN_MASK;
             #else
             // negate the size to swap the sign
             __Pyx_SET_SIZE(copy, -Py_SIZE(copy));
@@ -303,23 +303,25 @@ static PyObject *__Pyx_PyLong_AbsNeg(PyObject *n) {
 #define __Pyx_PyNumber_Power2(a, b) PyNumber_Power(a, b, Py_None)
 
 
-//////////////////// divmod.proto //////////////////
+//////////////////// divmod_int.proto //////////////////
 
-const {{RETURN_TYPE}} __Pyx_divmod_ERROR_VALUE_{{TYPE_NAME}} = {-1, -1};
+const {{RETURN_TYPE}} __Pyx_divmod_ERROR_VALUE_{{CFUNC_SUFFIX}} = {-1, -1};
 
-static CYTHON_INLINE {{RETURN_TYPE}} __Pyx_divmod_{{TYPE_NAME}}({{TYPE}} a, {{TYPE}} b); /*proto*/
+static CYTHON_INLINE {{RETURN_TYPE}} __Pyx_divmod_{{CFUNC_SUFFIX}}({{TYPE}} a, {{TYPE}} b); /*proto*/
 
 
-//////////////////// divmod //////////////////
+//////////////////// divmod_int //////////////////
 
-static CYTHON_INLINE {{RETURN_TYPE}} __Pyx_divmod_{{TYPE_NAME}}({{TYPE}} a, {{TYPE}} b) {
+static CYTHON_INLINE {{RETURN_TYPE}} __Pyx_divmod_{{CFUNC_SUFFIX}}({{TYPE}} a, {{TYPE}} b) {
     // Python and C/C++ use different algorithms in calculating quotients and remainders.
     // This results in different answers between Python and C/C++
     // when the dividend is negative and the divisor is positive and vice versa.
     {{TYPE}} q, r;
     if (unlikely(b == 0)) {
-        PyErr_SetString(PyExc_ZeroDivisionError, "integer division or modulo by zero");
-        return __Pyx_divmod_ERROR_VALUE_{{TYPE_NAME}};
+        {{if NOGIL}}PyGILState_STATE gilstate = PyGILState_Ensure();{{endif}}
+        PyErr_SetString(PyExc_ZeroDivisionError, "division by zero");
+        {{if NOGIL}}PyGILState_Release(gilstate);{{endif}}
+        return __Pyx_divmod_ERROR_VALUE_{{CFUNC_SUFFIX}};
     } else if (a == 0) {
         q = 0;
         r = 0;
@@ -334,6 +336,68 @@ static CYTHON_INLINE {{RETURN_TYPE}} __Pyx_divmod_{{TYPE_NAME}}({{TYPE}} a, {{TY
     else {
         q = a / b;
         r = a % b;
+    }
+
+    {{RETURN_TYPE}} c_result = {q, r};
+    return c_result;
+}
+
+
+//////////////////// divmod_float.proto //////////////////
+
+const {{RETURN_TYPE}} __Pyx_divmod_ERROR_VALUE_{{CFUNC_SUFFIX}} = {-1.0, -1.0};
+
+static CYTHON_INLINE {{RETURN_TYPE}} __Pyx_divmod_{{CFUNC_SUFFIX}}({{TYPE}} a, {{TYPE}} b); /*proto*/
+
+
+//////////////////// divmod_float //////////////////
+
+static CYTHON_INLINE {{RETURN_TYPE}} __Pyx_divmod_{{CFUNC_SUFFIX}}({{TYPE}} a, {{TYPE}} b) {
+    // Python and C/C++ use different algorithms in calculating quotients and remainders.
+    // This results in different answers between Python and C/C++
+    // when the dividend is negative and the divisor is positive and vice versa.
+
+    // Adapted from CPython 3.14: floatobject.c / _float_div_mod()
+
+    {{TYPE}} q, r, div;
+
+    if (unlikely(b == 0.0)) {
+        {{if NOGIL}}PyGILState_STATE gilstate = PyGILState_Ensure();{{endif}}
+        PyErr_SetString(PyExc_ZeroDivisionError, "division by zero");
+        {{if NOGIL}}PyGILState_Release(gilstate);{{endif}}
+        return __Pyx_divmod_ERROR_VALUE_{{CFUNC_SUFFIX}};
+    }
+
+    r = fmod{{MATH_SUFFIX}}(a, b);
+    // fmod is typically exact, so a-mod is *mathematically* an
+    // exact multiple of b.  But this is fp arithmetic, and fp
+    // a - mod is an approximation; the result is that div may
+    // not be an exact integral value after the division, although
+    // it will always be very close to one.
+    div = (a - r) / b;
+    if (r) {
+        // ensure the remainder has the same sign as the denominator
+        if ((b < 0) != (r < 0)) {
+            r += b;
+            div -= 1.0;
+        }
+    }
+    else {
+        // the remainder is zero, and in the presence of signed zeroes
+        // fmod returns different results across platforms; ensure
+        // it has the same sign as the denominator.
+        r = copysign{{MATH_SUFFIX}}(0.0, b);
+    }
+    // snap quotient to nearest integral value
+    if (div) {
+        q = floor{{MATH_SUFFIX}}(div);
+        if (div - q > 0.5) {
+            q += 1.0;
+        }
+    }
+    else {
+        // div is zero - get the same sign as the true quotient
+        q = copysign{{MATH_SUFFIX}}(0.0, a / b); /* zero w/ sign of a/b */
     }
 
     {{RETURN_TYPE}} c_result = {q, r};
@@ -561,6 +625,30 @@ static CYTHON_INLINE PyObject* __Pyx_PyDict_ViewItems(PyObject* d) {
 }
 
 
+/////////////// dict_setdefault.proto ///////////////
+
+static CYTHON_INLINE PyObject *__Pyx_PyDict_SetDefault(PyObject *d, PyObject *key, PyObject *default_value); /*proto*/
+
+/////////////// dict_setdefault ///////////////
+
+static CYTHON_INLINE PyObject *__Pyx_PyDict_SetDefault(PyObject *d, PyObject *key, PyObject *default_value) {
+    PyObject* value;
+#if CYTHON_COMPILING_IN_LIMITED_API && __PYX_LIMITED_VERSION_HEX >= 0x030C0000
+    PyObject *args[] = {d, key, default_value};
+    value = PyObject_VectorcallMethod(PYIDENT("setdefault"), args, 3 | PY_VECTORCALL_ARGUMENTS_OFFSET, NULL);
+#elif CYTHON_COMPILING_IN_LIMITED_API
+    value = PyObject_CallMethodObjArgs(d, PYIDENT("setdefault"), key, default_value, NULL);
+#elif PY_VERSION_HEX >= 0x030d0000
+    PyDict_SetDefaultRef(d, key, default_value, &value);
+#else
+    value = PyDict_SetDefault(d, key, default_value);
+    if (unlikely(!value)) return NULL;
+    Py_INCREF(value);
+#endif
+    return value;
+}
+
+
 //////////////////// pyfrozenset_new.proto ////////////////////
 
 static CYTHON_INLINE PyObject* __Pyx_PyFrozenSet_New(PyObject* it);
@@ -648,6 +736,13 @@ static CYTHON_INLINE int __Pyx_PySet_Update(PyObject* set, PyObject* it) {
     return 0;
 }
 
+//////////////////// PyRange_Check.proto ////////////////////
+
+#if CYTHON_COMPILING_IN_PYPY && !defined(PyRange_Check)
+  #define PyRange_Check(obj)  __Pyx_TypeCheck((obj), &PyRange_Type)
+#endif
+
+
 ///////////////// memoryview_get_from_buffer.proto ////////////////////
 
 #if !CYTHON_COMPILING_IN_LIMITED_API
@@ -700,8 +795,13 @@ static {{out_type}} __Pyx_PyMemoryView_Get_{{name}}(PyObject *obj) {
 #define __Pyx_PySlice_Start(o) PyObject_GetAttr(o, PYIDENT("start"))
 #define __Pyx_PySlice_Stop(o) PyObject_GetAttr(o, PYIDENT("stop"))
 #define __Pyx_PySlice_Step(o) PyObject_GetAttr(o, PYIDENT("step"))
-#elif CYTHON_COMPILING_IN_GRAAL
+#elif CYTHON_COMPILING_IN_GRAAL && defined(GRAALPY_VERSION_NUM) && GRAALPY_VERSION_NUM > 0x19000000
 // Graal defines it's own accessor functions
+#define __Pyx_PySlice_Start(o) GraalPySlice_Start(o)
+#define __Pyx_PySlice_Stop(o) GraalPySlice_Stop(o)
+#define __Pyx_PySlice_Step(o) GraalPySlice_Step(o)
+#elif CYTHON_COMPILING_IN_GRAAL
+// Remove when GraalPy 24 goes EOL
 #define __Pyx_PySlice_Start(o) __Pyx_NewRef(PySlice_Start((PySliceObject*)o))
 #define __Pyx_PySlice_Stop(o) __Pyx_NewRef(PySlice_Stop((PySliceObject*)o))
 #define __Pyx_PySlice_Step(o) __Pyx_NewRef(PySlice_Step((PySliceObject*)o))

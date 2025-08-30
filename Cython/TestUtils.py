@@ -264,13 +264,6 @@ class TreeAssertVisitor(VisitorTransform):
             content = _strip_c_comments(content)
             validate_file_content(c_file, content)
 
-            html_file = os.path.splitext(c_file)[0] + ".html"
-            if os.path.exists(html_file) and os.path.getmtime(c_file) <= os.path.getmtime(html_file):
-                with open(html_file, encoding='utf8') as f:
-                    content = f.read()
-                content = _strip_cython_code_from_html(content)
-                validate_file_content(html_file, content)
-
         return validate_c_file
 
     def _check_directives(self, node):
@@ -292,6 +285,18 @@ class TreeAssertVisitor(VisitorTransform):
             self._c_patterns.extend(directives['test_assert_c_code_has'])
         if 'test_fail_if_c_code_has' in directives:
             self._c_antipatterns.extend(directives['test_fail_if_c_code_has'])
+        if 'test_body_needs_exception_handling' in directives:
+            value = directives['test_body_needs_exception_handling']
+            if value is not None:
+                from .Compiler.ParseTreeTransforms import HasNoExceptionHandlingVisitor
+                visitor = HasNoExceptionHandlingVisitor()
+                result = not visitor(node.body)
+                if value != result:
+                    visitor(node.body)
+                    Errors.error(
+                        node.pos,
+                        "Node had unexpected exception handling value"
+                    )
 
     def visit_ModuleNode(self, node):
         self._module_pos = node.pos

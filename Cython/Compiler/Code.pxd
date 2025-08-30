@@ -2,7 +2,11 @@ cimport cython
 from ..StringIOTree cimport StringIOTree
 
 
-cdef class UtilityCodeBase(object):
+cdef class AbstractUtilityCode:
+    pass
+
+
+cdef class UtilityCodeBase(AbstractUtilityCode):
     cpdef format_code(self, code_string, replace_empty_lines=*)
 
 
@@ -14,6 +18,8 @@ cdef class UtilityCode(UtilityCodeBase):
     cdef public object cleanup
     cdef public object proto_block
     cdef public object module_state_decls
+    cdef public object module_state_traverse
+    cdef public object module_state_clear
     cdef public object requires
     cdef public dict _cache
     cdef public list specialize_list
@@ -26,6 +32,7 @@ cdef class UtilityCode(UtilityCodeBase):
     #cdef bint _put_code_section(self, writer, code_type: str) except -1
 
 
+@cython.final
 cdef class FunctionState:
     cdef public set names_taken
     cdef public object owner
@@ -70,30 +77,31 @@ cdef class FunctionState:
 
     cpdef list temps_in_use(self)
 
-cdef class IntConst:
-    cdef public object cname
-    cdef public object value
-    cdef public bint is_long
 
+@cython.final
 cdef class PyObjectConst:
     cdef public object cname
     cdef public object type
 
+
+@cython.final
 cdef class StringConst:
     cdef public object cname
     cdef public object text
     cdef public object escaped_value
     cdef public dict py_strings
-    cdef public list py_versions
+    cdef public bint c_used
 
     cpdef get_py_string_const(self, encoding, identifier=*)
 
-## cdef class PyStringConst:
-##     cdef public object cname
-##     cdef public object encoding
-##     cdef public bint is_str
-##     cdef public bint is_unicode
-##     cdef public bint intern
+
+@cython.final
+cdef class PyStringConst:
+    cdef public object cname
+    cdef public object encoding
+    cdef public bint is_unicode
+    cdef public bint intern
+
 
 #class GlobalState(object):
 
@@ -112,21 +120,16 @@ cdef class CCodeWriter(object):
     cdef bint bol
 
     cpdef write(self, s)
-    @cython.final
     cdef _write_lines(self, s)
     cpdef _write_to_buffer(self, s)
+    cdef put_multilines(self, code)
     cpdef put(self, code)
     cpdef put_safe(self, code)
     cpdef putln(self, code=*, bint safe=*)
-    @cython.final
     cdef emit_marker(self)
-    @cython.final
     cdef _build_marker(self, tuple pos)
-    @cython.final
     cdef increase_indent(self)
-    @cython.final
     cdef decrease_indent(self)
-    @cython.final
     cdef indent(self)
 
 

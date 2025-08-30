@@ -14,6 +14,7 @@ cython.declare(os=object, copy=object, chain=object,
 
 import copy
 from itertools import chain
+import enum
 
 from . import Builtin
 from .Errors import error, warning, InternalError, CompileError, CannotSpecialize
@@ -34,6 +35,14 @@ from ..Utils import add_metaclass, str_to_number
 
 
 IMPLICIT_CLASSMETHODS = {"__init_subclass__", "__class_getitem__"}
+
+
+class NoGilState(enum.IntEnum):
+    HasGil = 0
+    NoGil = 1
+    # For 'cdef func() nogil:' functions, as the GIL may be held while
+    # calling this function (thus contained 'nogil' blocks may be valid).
+    NoGilScope = 2
 
 
 def relative_position(pos):
@@ -605,6 +614,8 @@ class CArrayDeclaratorNode(CDeclaratorNode):
             else:
                 base_type = base_type.specialize_here(self.pos, env, values)
             return self.base.analyse(base_type, env, nonempty=nonempty, visibility=visibility, in_pxd=in_pxd)
+
+        size = None
         if self.dimension:
             self.dimension = self.dimension.analyse_const_expression(env)
             if not self.dimension.type.is_int:
@@ -612,15 +623,14 @@ class CArrayDeclaratorNode(CDeclaratorNode):
             if self.dimension.type.is_const and self.dimension.entry.visibility != 'extern':
                 # extern const variables declaring C constants are allowed
                 error(self.dimension.pos, "Array dimension cannot be const variable")
-            size = self.dimension.get_constant_c_result_code()
-            if size is not None:
-                try:
-                    size = int(size)
-                except ValueError:
-                    # runtime constant?
-                    pass
-        else:
-            size = None
+            size = (self.dimension.constant_result if isinstance(self.dimension.constant_result, int)
+                    else self.dimension.get_constant_c_result_code())
+            try:
+                size = int(size)
+            except ValueError:
+                # runtime constant?
+                pass
+
         if not base_type.is_complete():
             error(self.pos, "Array element type '%s' is incomplete" % base_type)
         if base_type.is_pyobject:
@@ -708,8 +718,12 @@ class CFuncDeclaratorNode(CDeclaratorNode):
             # Catch attempted C-style func(void) decl
             if type.is_void:
                 error(arg_node.pos, "Use spam() rather than spam(void) to declare a function with no arguments.")
-            func_type_args.append(
-                PyrexTypes.CFuncTypeArg(name, type, arg_node.pos))
+            func_arg = PyrexTypes.CFuncTypeArg(name, type, arg_node.pos)
+            if arg_node.not_none:
+                func_arg.not_none = True
+            if arg_node.or_none:
+                func_arg.or_none = True
+            func_type_args.append(func_arg)
             if arg_node.default:
                 self.optional_arg_count += 1
             elif self.optional_arg_count:
@@ -1211,7 +1225,11 @@ class MemoryViewSliceTypeNode(CBaseTypeNode):
 
     def use_memview_utilities(self, env):
         from . import MemoryView
-        env.use_utility_code(MemoryView.view_utility_code)
+        env.use_utility_code(
+            MemoryView.get_view_utility_code(
+                env.context.shared_utility_qualified_name
+            )
+        )
 
 
 class CNestedBaseTypeNode(CBaseTypeNode):
@@ -1772,23 +1790,29 @@ class CEnumDefNode(StatNode):
 
     def generate_execution_code(self, code):
         if self.scoped:
-            return  # nothing to do here for C++ enums
-        if self.visibility == 'public' or self.api:
-            code.mark_pos(self.pos)
-            temp = code.funcstate.allocate_temp(PyrexTypes.py_object_type, manage_ref=True)
-            for item in self.entry.enum_values:
-                code.putln("%s = PyLong_FromLong(%s); %s" % (
-                    temp,
-                    item.cname,
-                    code.error_goto_if_null(temp, item.pos)))
-                code.put_gotref(temp, PyrexTypes.py_object_type)
-                code.putln('if (PyDict_SetItemString(%s, "%s", %s) < 0) %s' % (
-                    code.name_in_module_state(Naming.moddict_cname),
-                    item.name,
-                    temp,
-                    code.error_goto(item.pos)))
-                code.put_decref_clear(temp, PyrexTypes.py_object_type)
-            code.funcstate.release_temp(temp)
+            # Nothing to do here for C++ enums.
+            return
+        if not self.api and not (self.name or self.visibility == 'public'):
+            # API enums need to be globally importable and we (currently) do that through global item names.
+            # Named enums are namespaced and need no additional global setup.
+            return
+
+        # Copy the values of anonymous cpdef/api enums into the global Python module namespace.
+        code.mark_pos(self.pos)
+        temp = code.funcstate.allocate_temp(PyrexTypes.py_object_type, manage_ref=True)
+        for item in self.entry.enum_values:
+            code.putln("%s = PyLong_FromLong(%s); %s" % (
+                temp,
+                item.cname,
+                code.error_goto_if_null(temp, item.pos)))
+            code.put_gotref(temp, PyrexTypes.py_object_type)
+            code.putln('if (PyDict_SetItemString(%s, %s, %s) < 0) %s' % (
+                code.name_in_module_state(Naming.moddict_cname),
+                item.name.as_c_string_literal(),
+                temp,
+                code.error_goto(item.pos)))
+            code.put_decref_clear(temp, PyrexTypes.py_object_type)
+        code.funcstate.release_temp(temp)
 
 
 class CEnumDefItemNode(StatNode):
@@ -2203,6 +2227,8 @@ class FuncDefNode(StatNode, BlockNode):
                     code.put_var_xincref(entry)
                 else:
                     code.put_var_incref(entry)
+            if entry.type.needs_explicit_construction(lenv):
+                entry.type.generate_explicit_construction(code, entry)
 
         # ----- Initialise local buffer auxiliary variables
         for entry in lenv.var_entries + lenv.arg_entries:
@@ -2409,6 +2435,8 @@ class FuncDefNode(StatNode, BlockNode):
                     continue
                 if entry.type.refcounting_needs_gil:
                     assure_gil('success')
+            elif entry.type.needs_explicit_destruction(lenv):
+                entry.type.generate_explicit_destruction(code, entry)
             # FIXME ideally use entry.xdecref_cleanup but this currently isn't reliable
             code.put_var_xdecref(entry, have_gil=gil_owned['success'])
 
@@ -3462,7 +3490,7 @@ class DefNode(FuncDefNode):
         elif sig.optional_object_arg_count:
             expected_str += " to %d" % sig.max_num_fixed_args()
         name = self.name
-        if name.startswith("__") and name.endswith("__"):
+        if self.entry.is_special:
             desc = "Special method"
         else:
             desc = "Method"
@@ -3981,7 +4009,7 @@ class DefNodeWrapper(FuncDefNode):
                 Naming.args_cname,
                 code.unlikely("%s < 0" % Naming.nargs_cname),
                 self.error_value(),
-             ))
+            ))
             code.putln("#endif")
             if self.signature.use_fastcall:
                 code.putln("#endif")
@@ -4375,6 +4403,8 @@ class DefNodeWrapper(FuncDefNode):
     def generate_arg_assignment(self, arg, item, code):
         if arg.type.is_pyobject:
             # Python default arguments were already stored in 'item' at the very beginning
+            if arg.type.is_builtin_type and arg.type.name in ('int', 'float'):
+                arg.type.convert_to_basetype(code, arg.pos, item, arg.accept_none, arg.name_cstring)
             if arg.is_generic:
                 item = PyrexTypes.typecast(arg.type, PyrexTypes.py_object_type, item)
             entry = arg.entry
@@ -4897,7 +4927,7 @@ class GeneratorBodyDefNode(DefNode):
             code.putln("if (__Pyx_PyErr_Occurred()) {")  # we allow exit without GeneratorExit / StopIteration
             if tracing:
                 code.put_trace_exception_propagating()
-            if Future.generator_stop in env.global_scope().context.future_directives:
+            if Future.generator_stop in env.context.future_directives:
                 # PEP 479: turn accidental StopIteration exceptions into a RuntimeError
                 code.globalstate.use_utility_code(UtilityCode.load_cached("pep479", "Coroutine.c"))
                 code.putln("__Pyx_Generator_Replace_StopIteration(%d);" % bool(self.is_async_gen_body))
@@ -5831,6 +5861,7 @@ class CClassDefNode(ClassDefNode):
                 UtilityCode.load_cached('PyType_Ready', 'ExtensionTypes.c'))
             code.put_error_if_neg(entry.pos, "__Pyx_PyType_Ready(%s)" % typeptr_cname)
             code.putln("#endif")
+            code.put_make_object_deferred(f"(PyObject*){typeptr_cname}")
 
             # Use specialised attribute lookup for types with generic lookup but no instance dict.
             getattr_slot_func = TypeSlots.get_slot_code_by_name(scope, 'tp_getattro')
@@ -6076,7 +6107,7 @@ class ExprStatNode(StatNode):
         return self
 
     def nogil_check(self, env):
-        if self.expr.type.is_pyobject and self.expr.is_temp:
+        if self.expr.type.is_pyobject and self.expr.result_in_temp():
             self.gil_error()
 
     gil_message = "Discarding owned Python object"
@@ -6085,7 +6116,7 @@ class ExprStatNode(StatNode):
         code.mark_pos(self.pos)
         self.expr.result_is_used = False  # hint that .result() may safely be left empty
         self.expr.generate_evaluation_code(code)
-        if not self.expr.is_temp and self.expr.result():
+        if not self.expr.result_in_temp() and self.expr.result():
             result = self.expr.result()
             if not self.expr.type.is_void:
                 result = "(void)(%s)" % result
@@ -6123,7 +6154,7 @@ class AssignmentNode(StatNode):
         node = self.analyse_types(env)
         self._check_const_assignment(node)
         if isinstance(node, AssignmentNode) and not isinstance(node, ParallelAssignmentNode):
-            if node.rhs.type.is_ptr and node.rhs.is_ephemeral():
+            if node.rhs.type.is_unowned_view and node.rhs.is_ephemeral():
                 error(self.pos, "Storing unsafe C derivative of temporary Python reference")
         return node
 
@@ -6333,7 +6364,6 @@ class SingleAssignmentNode(AssignmentNode):
                     else:
                         error(self.pos, "C array iteration requires known end index")
                         return
-                step_node = None  #node.step
                 if step_node:
                     step_node = step_node.coerce_to(PyrexTypes.c_py_ssize_t_type, env)
 
@@ -6381,17 +6411,17 @@ class SingleAssignmentNode(AssignmentNode):
             refs.append(step_node)
 
         for ix in range(target_size):
-            ix_node = ExprNodes.IntNode(self.pos, value=str(ix), constant_result=ix, type=PyrexTypes.c_py_ssize_t_type)
+            ix_node = ExprNodes.IntNode.for_size(self.pos, ix)
             if step_node is not None:
-                if step_node.has_constant_result():
+                if isinstance(step_node.constant_result, int):
                     step_value = ix_node.constant_result * step_node.constant_result
-                    ix_node = ExprNodes.IntNode(self.pos, value=str(step_value), constant_result=step_value)
+                    ix_node = ExprNodes.IntNode.for_size(self.pos, step_value)
                 else:
                     ix_node = ExprNodes.MulNode(self.pos, operator='*', operand1=step_node, operand2=ix_node)
             if start_node is not None:
-                if start_node.has_constant_result() and ix_node.has_constant_result():
+                if isinstance(start_node.constant_result, int) and ix_node.has_constant_result():
                     index_value = ix_node.constant_result + start_node.constant_result
-                    ix_node = ExprNodes.IntNode(self.pos, value=str(index_value), constant_result=index_value)
+                    ix_node = ExprNodes.IntNode.for_size(self.pos, index_value)
                 else:
                     ix_node = ExprNodes.AddNode(
                         self.pos, operator='+', operand1=start_node, operand2=ix_node)
@@ -6513,7 +6543,7 @@ class CascadedAssignmentNode(AssignmentNode):
             rhs = rhs.coerce_to_temp(env)
         else:
             rhs = rhs.coerce_to_simple(env)
-        self.rhs = ProxyNode(rhs) if rhs.is_temp else rhs
+        self.rhs = ProxyNode(rhs) if rhs.result_in_temp() else rhs
 
         # clone RHS and coerce it to all distinct LHS types
         self.coerced_values = []
@@ -8036,6 +8066,8 @@ class WithStatNode(StatNode):
 
     def analyse_expressions(self, env):
         self.manager = self.manager.analyse_types(env)
+        if self.manager.type.is_cython_lock_type:
+            return CythonLockStatNode.from_withstat(self).analyse_expressions(env)
         self.enter_call = self.enter_call.analyse_types(env)
         if self.target:
             # set up target_temp before descending into body (which uses it)
@@ -8328,6 +8360,8 @@ class ExceptClauseNode(Node):
     def analyse_declarations(self, env):
         if self.target:
             self.target.analyse_target_declaration(env)
+            from .ExprNodes import ExcValueNode
+            self.exc_value = ExcValueNode(self.pos, self.infer_exception_type(env))
         self.body.analyse_declarations(env)
 
     def analyse_expressions(self, env):
@@ -8339,43 +8373,32 @@ class ExceptClauseNode(Node):
                 self.pattern[i] = pattern.coerce_to_pyobject(env)
 
         if self.target:
-            from . import ExprNodes
-            self.exc_value = ExprNodes.ExcValueNode(self.pos)
             self.target = self.target.analyse_target_expression(env, self.exc_value)
 
         self.body = self.body.analyse_expressions(env)
         return self
 
+    def infer_exception_type(self, env):
+        if self.pattern and len(self.pattern) == 1:
+            # Infer target type for simple "except XyzError as exc".
+            pattern = self.pattern[0]
+            if pattern.is_name:
+                entry = env.lookup(pattern.name)
+                if entry and entry.is_type and entry.scope.is_builtin_scope:
+                    return entry.type
+        return Builtin.builtin_types["BaseException"]
+
     def body_may_need_exception(self):
-        body = self.body
-        if isinstance(body, StatListNode):
-            for node in body.stats:
-                if isinstance(node, PassStatNode):
-                    continue
-                elif isinstance(node, ReturnStatNode):
-                    body = node
-                    break
-                else:
-                    return True
-            else:
-                # No user code found (other than 'pass').
-                return False
-
-        if isinstance(body, ReturnStatNode):
-            value = body.value
-            if value is None or value.is_literal:
-                return False
-            # There might be other safe cases, but literals seem the safest for now.
-
-        # If we cannot prove that the exception is unused, it may be used.
-        return True
+        from .ParseTreeTransforms import HasNoExceptionHandlingVisitor
+        tree_has_no_exceptions = HasNoExceptionHandlingVisitor()
+        return not tree_has_no_exceptions(self.body)
 
     def generate_handling_code(self, code, end_label):
         code.mark_pos(self.pos)
 
         if self.pattern:
             has_non_literals = not all(
-                pattern.is_literal or pattern.is_simple() and not pattern.is_temp
+                pattern.is_literal or pattern.is_simple() and not pattern.result_in_temp()
                 for pattern in self.pattern)
 
             if has_non_literals:
@@ -8874,6 +8897,10 @@ class GILStatNode(NogilTryFinallyStatNode):
         code.mark_pos(self.pos)
         code.begin_block()
         if self.state_temp:
+            # state-temps only happen inside generators which are inherently Python functions
+            # and thus we do always know whether we have the GIL. This is important because it
+            # means that the type of the state-temp is always PyThreadState*.
+            assert self.scope_gil_state_known
             self.state_temp.allocate(code)
             variable = self.state_temp.result()
         else:
@@ -8938,7 +8965,7 @@ class CriticalSectionStatNode(TryFinallyStatNode):
     Represents a freethreading Python critical section.
     In non-freethreading Python, this is a no-op.
 
-    args    list of ExprNode    1 or 2 elements, must be object
+    args    list of ExprNode    1 or 2 elements, must be object, pymutex or pymutex*
     """
 
     child_attrs = ["args"] + TryFinallyStatNode.child_attrs
@@ -8946,6 +8973,7 @@ class CriticalSectionStatNode(TryFinallyStatNode):
     var_type = None
     state_temp = None
     preserve_exception = False
+    is_pymutex_critical_section = False
 
     def __init__(self, pos, /, args, body, **kwds):
         if len(args) > 1:
@@ -8955,12 +8983,14 @@ class CriticalSectionStatNode(TryFinallyStatNode):
 
         self.create_state_temp_if_needed(pos, body)
 
+        self.length_tag = str(len(args)) if len(args) > 1 else ""
+
         super().__init__(
             pos,
             args=args,
             body=body,
             finally_clause=CriticalSectionExitNode(
-                pos, len=len(args), critical_section=self),
+                pos, length_tag=self.length_tag, critical_section=self),
             **kwds,
         )
 
@@ -8980,27 +9010,45 @@ class CriticalSectionStatNode(TryFinallyStatNode):
         return super().analyse_declarations(env)
 
     def analyse_expressions(self, env):
+        mutex_count = 0
         for i, arg in enumerate(self.args):
-            # Coerce to temp because it's a bit of a disaster if the argument is destroyed
-            # while we're working on it, and the Python critical section implementation
-            # doesn't ensure this.
-            # TODO - we could potentially be a bit smarter about this, and avoid
-            # it for local variables that we know are never re-assigned.
-            arg = arg.analyse_expressions(env).coerce_to_temp(env)
-            # Note - deliberately no coercion to Python object.
-            # Critical sections only really make sense on a specific known Python object,
-            # so using them on coerced Python objects is very unlikely to make sense.
-            if not arg.type.is_pyobject:
+            arg = arg.analyse_expressions(env)
+            if (arg.type is PyrexTypes.cy_pymutex_type or (
+                    arg.type.is_ptr and arg.type.base_type is PyrexTypes.cy_pymutex_type)):
+                mutex_count += 1
+                self.is_pymutex_critical_section = True
+            elif arg.type.is_pyobject:
+                # Coerce to temp because it's a bit of a disaster if the argument is destroyed
+                # while we're working on it, and the Python critical section implementation
+                # doesn't ensure this.
+                # TODO - we could potentially be a bit smarter about this, and avoid
+                # it for local variables that we know are never re-assigned.
+                arg = arg.coerce_to_temp(env)
+            else:
+                # Note - deliberately no coercion to Python object.
+                # Critical sections only really make sense on a specific known Python object,
+                # so using them on coerced Python objects is very unlikely to make sense.
                 error(
                     arg.pos,
-                    "Arguments to cython.critical_section must be Python objects."
+                    "Arguments to cython.critical_section must be Python objects, pymutex, or pymutex*."
                 )
             self.args[i] = arg
+        if mutex_count != 0 and mutex_count != len(self.args):
+            error(
+                self.pos,
+                "Arguments to cython.critical_section must not mix objects and pymutexes."
+            )
         return super().analyse_expressions(env)
 
     def generate_execution_code(self, code):
-        code.globalstate.use_utility_code(
-            UtilityCode.load_cached("CriticalSections", "ModuleSetupCode.c"))
+        if self.is_pymutex_critical_section:
+            code.globalstate.use_utility_code(
+                UtilityCode.load_cached("CriticalSectionsMutex", "Synchronization.c"))
+            mutex = "Mutex"
+        else:
+            code.globalstate.use_utility_code(
+                UtilityCode.load_cached("CriticalSections", "Synchronization.c"))
+            mutex = ""
 
         code.mark_pos(self.pos)
         code.begin_block()
@@ -9013,9 +9061,12 @@ class CriticalSectionStatNode(TryFinallyStatNode):
 
         for arg in self.args:
             arg.generate_evaluation_code(code)
-        args = [ f"(PyObject*){arg.result()}" for arg in self.args ]
+        if self.is_pymutex_critical_section:
+            args = [ f"{'' if arg.type.is_ptr else '&'}{arg.result()}" for arg in self.args ]
+        else:
+            args = [ f"(PyObject*){arg.result()}" for arg in self.args ]
         code.putln(
-            f"__Pyx_PyCriticalSection_Begin{len(args)}(&{variable}, {', '.join(args)});"
+            f"__Pyx_PyCriticalSection{self.length_tag}_Begin{mutex}(&{variable}, {', '.join(args)});"
         )
 
         TryFinallyStatNode.generate_execution_code(self, code)
@@ -9054,21 +9105,128 @@ class CriticalSectionExitNode(StatNode):
             variable_name = self.critical_section.state_temp.result()
         else:
             variable_name =  Naming.critical_section_variable
+
         code.putln(
-            f"__Pyx_PyCriticalSection_End{self.len}(&{variable_name});"
+            f"__Pyx_PyCriticalSection{self.length_tag}_End(&{variable_name});"
         )
 
+class CythonLockStatNode(TryFinallyStatNode):
+    """
+    Represents
+        with l:
+            ...
+    where l in a cython.pymutex or cython.pythread_type_lock.
 
-def cython_view_utility_code():
+    arg    ExprNode
+    """
+
+    child_attrs = ["arg"] + TryFinallyStatNode.child_attrs
+
+    lock_temp = None
+
+    preserve_exception = False  # No need to save/restore exception state to release the lock
+    nogil_check = None
+
+    @classmethod
+    def from_withstat(cls, node):
+        from . import ExprNodes
+
+        assert isinstance(node.body, TryFinallyStatNode)
+        assert isinstance(node.body.body, TryExceptStatNode)
+        result = cls(
+            node.pos,
+            arg=node.manager,
+            body=node.body.body.body,
+            finally_clause = CythonLockExitNode(
+                node.pos
+            ),
+            lock_temp = ExprNodes.TempNode(node.pos, PyrexTypes.CPtrType(node.manager.type))
+        )
+        result.finally_clause.lock_stat_node = result
+        result.finally_except_clause = result.finally_clause
+        return result
+
+    def check_for_yields(self):
+        from .ParseTreeTransforms import YieldNodeCollector
+        collector = YieldNodeCollector()
+        collector.visitchildren(self.body)
+        if collector.yields:
+            # DW - I've disallowed this because it seems like a deadlock disaster waiting to happen.
+            # I'm sure it's technically possible, and we can revise it if people have legitimate
+            # uses.
+            typename = self.arg.type.empty_declaration_code(pyrex=True).strip()
+            error(
+                self.pos,
+                f"Cannot use a 'with' statement with a '{typename}' in a generator. "
+                "If you really want to do this (and you are confident that there are no deadlocks) "
+                "then use try-finally."
+            )
+
+    def analyse_declarations(self, env):
+        self.arg.analyse_declarations(env)
+        return super().analyse_declarations(env)
+
+    def analyse_expressions(self, env):
+        self.arg = self.arg.analyse_expressions(env)
+        self.check_for_yields()
+        body = self.body
+        if isinstance(body, StatListNode) and len(body.stats) >= 1:
+            body = body.stats[0]
+        return super().analyse_expressions(env)
+
+    def generate_execution_code(self, code):
+        code.globalstate.use_utility_code(self.arg.type.get_utility_code())
+
+        code.mark_pos(self.pos)
+        code.begin_block()
+
+        self.lock_temp.allocate(code)
+        temp_name = self.lock_temp.result()
+        self.arg.generate_evaluation_code(code)
+        code.putln(f"{temp_name} = &{self.arg.result()};")
+        if self.in_nogil_context == NoGilState.NoGil:
+            gil_str = "Nogil"
+        elif self.in_nogil_context == NoGilState.NoGilScope:
+            gil_str = ""
+        else:
+            gil_str = "Gil"
+
+        code.putln(f"__Pyx_Locks_{self.arg.type.cname_part}_Lock{gil_str}(*{temp_name});")
+
+        TryFinallyStatNode.generate_execution_code(self, code)
+
+        self.arg.generate_disposal_code(code)
+        self.arg.free_temps(code)
+
+        self.lock_temp.release(code)
+
+        code.end_block()
+
+
+class CythonLockExitNode(StatNode):
+    """
+    lock_stat_node   CythonLockStatNode   the associated with block
+    """
+    child_attrs = []
+
+    def analyse_expressions(self, env):
+        return self
+
+    def generate_execution_code(self, code):
+        cname_part = self.lock_stat_node.arg.type.cname_part
+        code.putln(f"__Pyx_Locks_{cname_part}_Unlock(*{self.lock_stat_node.lock_temp.result()});")
+
+
+def cython_view_utility_code(options):
     from . import MemoryView
-    return MemoryView.view_utility_code
+    return MemoryView.get_view_utility_code(options.shared_utility_qualified_name)
 
 
 utility_code_for_cimports = {
     # utility code (or inlining c) in a pxd (or pyx) file.
     # TODO: Consider a generic user-level mechanism for importing
-    'cpython.array'         : lambda : UtilityCode.load_cached("ArrayAPI", "arrayarray.h"),
-    'cpython.array.array'   : lambda : UtilityCode.load_cached("ArrayAPI", "arrayarray.h"),
+    'cpython.array'         : lambda options: UtilityCode.load_cached("ArrayAPI", "arrayarray.h"),
+    'cpython.array.array'   : lambda options: UtilityCode.load_cached("ArrayAPI", "arrayarray.h"),
     'cython.view'           : cython_view_utility_code,
 }
 
@@ -9092,10 +9250,9 @@ def cimport_numpy_check(node, code):
                 warning(node.pos, "'numpy.import_array()' has been added automatically "
                         "since 'numpy' was cimported but 'numpy.import_array' was not called.", 0)
                 code.globalstate.use_utility_code(
-                         UtilityCode.load_cached("NumpyImportArray", "NumpyImportArray.c")
-                    )
+                    UtilityCode.load_cached("NumpyImportArray", "NumpyImportArray.c")
+                )
                 return  # no need to continue once the utility code is added
-
 
 
 class CImportStatNode(StatNode):
@@ -9133,7 +9290,7 @@ class CImportStatNode(StatNode):
             entry = env.declare_module(name, module_scope, self.pos)
             entry.known_standard_library_import = self.module_name
         if self.module_name in utility_code_for_cimports:
-            env.use_utility_code(utility_code_for_cimports[self.module_name]())
+            env.use_utility_code(utility_code_for_cimports[self.module_name](env.context.options))
 
     def analyse_expressions(self, env):
         return self
@@ -9199,11 +9356,11 @@ class FromCImportStatNode(StatNode):
 
         if module_name.startswith('cpython') or module_name.startswith('cython'):  # enough for now
             if module_name in utility_code_for_cimports:
-                env.use_utility_code(utility_code_for_cimports[module_name]())
+                env.use_utility_code(utility_code_for_cimports[module_name](env.context.options))
             for _, name, _ in self.imported_names:
                 fqname = '%s.%s' % (module_name, name)
                 if fqname in utility_code_for_cimports:
-                    env.use_utility_code(utility_code_for_cimports[fqname]())
+                    env.use_utility_code(utility_code_for_cimports[fqname](env.context.options))
 
     def declaration_matches(self, entry, kind):
         if not entry.is_type:
@@ -9318,8 +9475,7 @@ class FromImportStatNode(StatNode):
             if coerced_item is None:
                 target.generate_assignment_code(self.item, code)
             else:
-                coerced_item.allocate_temp_result(code)
-                coerced_item.generate_result_code(code)
+                coerced_item.generate_evaluation_code(code)
                 target.generate_assignment_code(coerced_item, code)
             code.put_decref_clear(item_temp, py_object_type)
         code.funcstate.release_temp(item_temp)
@@ -9698,7 +9854,7 @@ class ParallelStatNode(StatNode, ParallelNode):
                     c.globalstate.use_utility_code(
                         UtilityCode.load_cached(
                             "SharedInFreeThreading",
-                            "ModuleSetupCode.c"))
+                            "Synchronization.c"))
                     c.put(f" __Pyx_shared_in_cpython_freethreading({Naming.parallel_freethreading_mutex})")
                     c.put(" private(%s, %s, %s)" % self.pos_info)
 
@@ -10194,10 +10350,14 @@ class ParallelRangeNode(ParallelStatNode):
 
     valid_keyword_arguments = ['schedule', 'nogil', 'num_threads', 'chunksize', 'use_threads_if']
 
+    class DummyIteratorNode(Node):
+        child_attrs = ["args"]
+
     def __init__(self, pos, **kwds):
         super().__init__(pos, **kwds)
-        # Pretend to be a ForInStatNode for control flow analysis
-        self.iterator = PassStatNode(pos)
+        # Pretend to be a ForInStatNode for control flow analysis,
+        # ensuring that the args get visited when the iterator would be.
+        self.iterator = self.DummyIteratorNode(pos, args=self.args)
 
     def analyse_declarations(self, env):
         super().analyse_declarations(env)
@@ -10560,7 +10720,7 @@ class CnameDecoratorNode(StatNode):
         if isinstance(node, CompilerDirectivesNode):
             node = node.body.stats[0]
 
-        self.is_function = isinstance(node, FuncDefNode)
+        self.is_function = isinstance(node, (FuncDefNode, CVarDefNode))
         is_struct_or_enum = isinstance(node, (CStructOrUnionDefNode, CEnumDefNode))
         e = node.entry
 

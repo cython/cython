@@ -331,7 +331,8 @@ cdef class memoryview:
 
     cdef object obj
     cdef object _size
-    cdef object _array_interface
+    # This comes before acquisition_count so can't be removed without breaking ABI compatibility
+    cdef void* _unused
     cdef PyThread_type_lock lock
     cdef __pyx_atomic_int_type acquisition_count
     cdef Py_buffer view
@@ -1143,7 +1144,7 @@ cdef void _copy_strided_to_strided(char *src_data, Py_ssize_t *src_strides,
 
     if ndim == 1:
         if (src_stride > 0 and dst_stride > 0 and
-            <size_t> src_stride == itemsize == <size_t> dst_stride):
+                <size_t> src_stride == itemsize == <size_t> dst_stride):
             memcpy(dst_data, src_data, itemsize * dst_extent)
         else:
             for i in range(dst_extent):

@@ -1,14 +1,17 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 try:
     from setuptools import setup, Extension
 except ImportError:
     from distutils.core import setup, Extension
 import os
+import re
 import stat
 import subprocess
 import sysconfig
 import textwrap
 import sys
+from collections import defaultdict
+from functools import partial
 
 import platform
 is_cpython = platform.python_implementation() == 'CPython'
@@ -16,6 +19,8 @@ is_cpython = platform.python_implementation() == 'CPython'
 # this specifies which versions of python we support, pip >= 9 knows to skip
 # versions of packages which are not compatible with the running python
 PYTHON_REQUIRES = '>=3.8'
+
+TRACKER_URL = "https://github.com/cython/cython/issues/"
 
 if sys.platform == "darwin":
     # Don't create resource files on OS X tar.
@@ -43,7 +48,9 @@ pxd_include_dirs = [
     directory for directory, dirs, files
     in os.walk(os.path.join('Cython', 'Includes'))
     if '__init__.pyx' in files or '__init__.pxd' in files
-    or directory == os.path.join('Cython', 'Includes')]
+    or directory == os.path.join('Cython', 'Includes')
+    or directory == os.path.join('Cython', 'Includes', 'numpy')
+]
 
 pxd_include_patterns = [
     p+'/*.pxd' for p in pxd_include_dirs ] + [
@@ -211,6 +218,98 @@ def compile_cython_modules(profile=False, coverage=False, compile_minimal=False,
     setup_args['ext_modules'] = extensions
 
 
+def collect_changelog(version):
+    version_line_start = version + '('
+    release_version = version + ' '  # to include subsequent a/b/rc sections in final release changelog
+    add_gh_issues_link = partial(
+        re.compile(':issue:`([0-9]+)`').sub,
+        TRACKER_URL + r'\1',  # Replace ReST reference by direct tracker issue link.
+    )
+
+    # Look for lines like 'Includes all fixes from Cython 3.0.12.' and add their version sections.
+    find_version_reference = re.compile(
+        r"\s*\* [Ii]ncludes all "  # codespell:ignore ncludes
+        r"(?:bug[ -])?(?P<what>changes|fixes(?:\s+and features)?) "  # 'what' is unused (but interesting)
+        r"(?:as of|from) .*"
+        r"(?P<version>[0-9]+\.[0-9]+\.[0-9]+(?: ?[abr]c? ?[0-9+])?)"
+    ).match
+    referenced_versions = set()
+
+    # Collected sections in output order.
+    sections = {
+        'Features added': [],
+        'Bugs fixed': [],
+        'Other changes': [],
+    }
+
+    changelog = []
+    with open("CHANGES.rst", encoding='utf8') as f:
+        lines = iter(f)
+        for line in lines:
+            if line.replace(' ', '').startswith(version_line_start):
+                break
+        else:
+            # No changelog for this version found :-?
+            return ''
+
+        changelog.append(line)
+        changelog.append(next(lines))  # underline of version
+        assert changelog[-1].startswith('=====')
+
+        current_sections = sections
+        current_section = []
+        for line in lines:
+            if line.startswith('-----'):
+                # Section start found.
+                section_name = current_section.pop().strip()
+                current_section = current_sections[section_name]
+            elif line.startswith('====='):
+                # Version start found.
+                part_version_line = current_section.pop().strip()
+                # Remove useless empty lines and version markers from section endings.
+                for section in current_sections.values():
+                    while section and (not section[-1].strip() or section[-1].endswith(':\n')):
+                        section.pop()
+                # Stop at first unrelated version, unless we're still looking for referenced versions.
+                if part_version_line.startswith(release_version):
+                    current_sections = sections
+                else:
+                    current_sections = defaultdict(list)  # throw-away dict
+                    part_version = part_version_line.split('(', 1)[0].strip()
+                    if part_version in referenced_versions:
+                        referenced_versions.remove(part_version)
+                        # Include the bug fix section of referenced versions.
+                        current_sections['Bugs fixed'] = sections['Bugs fixed']
+                    elif not referenced_versions:
+                        # All relevant version sections parsed.
+                        break
+                # Put version marker into all sections.
+                for section in current_sections.values():
+                    section.append('\n')
+                    section.append(f"{part_version_line}:\n")
+                # Ignore initial section content.
+                current_section = []
+            else:
+                # Regular content line found.
+                if ':issue:' in line:
+                    line = add_gh_issues_link(line)
+                else:
+                    included_version = find_version_reference(line)
+                    if included_version:
+                        referenced_versions.add(included_version.group('version'))
+                current_section.append(line)
+
+    for section_name, section in sections.items():
+        if not section:
+            continue
+        changelog.append('\n')
+        changelog.append(section_name + '\n')
+        changelog.append('-' * len(section_name) + '\n')
+        changelog.extend(section)
+
+    return ''.join(changelog)
+
+
 def check_option(name):
     cli_arg = "--" + name
     if cli_arg in sys.argv:
@@ -299,6 +398,7 @@ def run_build():
         author='Robert Bradshaw, Stefan Behnel, David Woods, Greg Ewing, et al.',
         author_email='cython-devel@python.org',
         description="The Cython compiler for writing C extensions in the Python language.",
+        long_description_content_type="text/x-rst",
         long_description=textwrap.dedent("""\
         The Cython language makes writing C extensions for the Python language as
         easy as Python itself.  Cython is a source code translator based on Pyrex_,
@@ -327,7 +427,8 @@ def run_build():
             NO_CYTHON_COMPILE=true pip install .
 
         .. _Pyrex: https://www.cosc.canterbury.ac.nz/greg.ewing/python/Pyrex/
-        """),
+
+        """) + collect_changelog(version),
         license='Apache-2.0',
         classifiers=[
             dev_status(version),
@@ -336,7 +437,6 @@ def run_build():
             "Operating System :: OS Independent",
             "Programming Language :: Python",
             "Programming Language :: Python :: 3",
-            "Programming Language :: Python :: 3.7",
             "Programming Language :: Python :: 3.8",
             "Programming Language :: Python :: 3.9",
             "Programming Language :: Python :: 3.10",
@@ -358,7 +458,7 @@ def run_build():
             "Documentation": "https://cython.readthedocs.io/",
             "Donate": "https://cython.readthedocs.io/en/latest/src/donating.html",
             "Source Code": "https://github.com/cython/cython",
-            "Bug Tracker": "https://github.com/cython/cython/issues",
+            "Bug Tracker": TRACKER_URL,
             "User Group": "https://groups.google.com/g/cython-users",
         },
 

@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 """N-body benchmark from the Computer Language Benchmarks Game.
 
@@ -159,7 +159,9 @@ def offset_momentum(ref: tuple, bodies: list = SYSTEM, px: float = 0.0, py: floa
     v[2] = pz / m
 
 
-def test_nbody(iterations: cython.int, count: cython.long=20_000, timer=time.perf_counter):
+def test_nbody(iterations: cython.int, count: cython.long=20_000, scale: cython.long = 1, timer=time.perf_counter):
+    s: cython.long
+
     # Warm-up runs.
     report_energy()
     advance(0.01, count)
@@ -168,9 +170,10 @@ def test_nbody(iterations: cython.int, count: cython.long=20_000, timer=time.per
     times = []
     for _ in range(iterations):
         t0 = timer()
-        report_energy()
-        advance(0.01, count)
-        report_energy()
+        for s in range(scale):
+            report_energy()
+            advance(0.01, count)
+            report_energy()
         t1 = timer()
         times.append(t1 - t0)
     return times
@@ -178,8 +181,8 @@ def test_nbody(iterations: cython.int, count: cython.long=20_000, timer=time.per
 main = test_nbody
 
 
-def run_benchmark(repeat=10, count=20_000, timer=time.perf_counter):
-    return test_nbody(repeat, count, timer)
+def run_benchmark(repeat=10, scale=1, timer=time.perf_counter):
+    return test_nbody(repeat, scale=scale, timer=timer)
 
 
 if __name__ == '__main__':

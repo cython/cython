@@ -136,26 +136,30 @@ def solve(n: cython.long, i_min: cython.long, free, curr_board: list, pieces_lef
             return
     return
 
+
 SOLVE_ARG = 60
 
-def main(n, solve_arg=SOLVE_ARG, timer=time.perf_counter):
+def main(n, solve_arg=SOLVE_ARG, scale: cython.long = 1, timer=time.perf_counter):
+    s: cython.long
+
     times = []
     for i in range(n):
         t0 = timer()
-        free = frozenset(range(len(board)))
-        curr_board = [-1] * len(board)
-        pieces_left = list(range(len(pieces)))
-        solutions = []
-        solve(solve_arg, 0, free, curr_board, pieces_left, solutions)
-        #print len(solutions),  'solutions found\n'
-        #for i in (0, -1): print_board(solutions[i])
+        for s in range(scale):
+            free = frozenset(range(len(board)))
+            curr_board = [-1] * len(board)
+            pieces_left = list(range(len(pieces)))
+            solutions = []
+            solve(solve_arg, 0, free, curr_board, pieces_left, solutions)
+            #print len(solutions),  'solutions found\n'
+            #for i in (0, -1): print_board(solutions[i])
         tk = timer()
         times.append(tk - t0)
     return times
 
 
-def run_benchmark(repeat=10, count=SOLVE_ARG, timer=time.perf_counter):
-    return main(repeat, count // 2, timer=timer)
+def run_benchmark(repeat=10, scale=1, timer=time.perf_counter):
+    return main(repeat, scale=scale, timer=timer)
 
 
 if __name__ == "__main__":

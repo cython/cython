@@ -1,6 +1,5 @@
 //////////////////// ArgTypeTest.proto ////////////////////
 
-
 // Exact is 0 (False), 1 (True) or 2 (True and from annotation)
 // The latter gives a small amount of extra error diagnostics
 #define __Pyx_ArgTypeTest(obj, type, none_allowed, name, exact) \
@@ -61,6 +60,7 @@ static int __Pyx__ArgTypeTest(PyObject *obj, PyTypeObject *type, const char *nam
     __Pyx_DECREF_TypeName(obj_type_name);
     return 0;
 }
+
 
 //////////////////// RaiseArgTupleInvalid.proto ////////////////////
 
@@ -158,7 +158,7 @@ static int __Pyx_CheckKeywordStrings(
     PyObject *kw)
 {
     // PyPy appears to check keyword types at call time, not at unpacking time.
-#if CYTHON_COMPILING_IN_PYPY
+#if CYTHON_COMPILING_IN_PYPY && !defined(PyArg_ValidateKeywordArguments)
     CYTHON_UNUSED_VAR(function_name);
     CYTHON_UNUSED_VAR(kw);
     return 0;
@@ -219,8 +219,10 @@ static void __Pyx_RejectKeywords(const char* function_name, PyObject *kwds) {
         key = __Pyx_PySequence_ITEM(kwds, 0);
     } else {
         Py_ssize_t pos = 0;
+#if !CYTHON_COMPILING_IN_PYPY || defined(PyArg_ValidateKeywordArguments)
         // Check if dict is unicode-keys-only and let Python set the error otherwise.
         if (unlikely(!PyArg_ValidateKeywordArguments(kwds))) return;
+#endif
         // Read first key.
         PyDict_Next(kwds, &pos, &key, NULL);
         Py_INCREF(key);
@@ -247,6 +249,7 @@ static CYTHON_INLINE int __Pyx_ParseKeywords(
 
 //////////////////// ParseKeywords ////////////////////
 //@requires: RaiseDoubleKeywords
+//@requires: Synchronization.c::CriticalSections
 
 //  __Pyx_ParseOptionalKeywords copies the optional/unknown keyword
 //  arguments from kwds into the dict kwds2.  If kwds2 is NULL, unknown
@@ -503,8 +506,10 @@ static int __Pyx_ParseKeywordDict(
     PyObject** const *first_kw_arg = argnames + num_pos_args;
     Py_ssize_t extracted = 0;
 
+#if !CYTHON_COMPILING_IN_PYPY || defined(PyArg_ValidateKeywordArguments)
     // Check if dict is unicode-keys-only and let Python set the error otherwise.
     if (unlikely(!PyArg_ValidateKeywordArguments(kwds))) return -1;
+#endif
 
     // Extract declared keyword arguments.
     name = first_kw_arg;
@@ -564,8 +569,10 @@ static int __Pyx_ParseKeywordDictToDict(
     PyObject** const *first_kw_arg = argnames + num_pos_args;
     Py_ssize_t len;
 
+#if !CYTHON_COMPILING_IN_PYPY || defined(PyArg_ValidateKeywordArguments)
     // Check if dict is unicode-keys-only and let Python set the error otherwise.
     if (unlikely(!PyArg_ValidateKeywordArguments(kwds))) return -1;
+#endif
 
     // Fast copy of all kwargs.
     if (PyDict_Update(kwds2, kwds) < 0) goto bad;

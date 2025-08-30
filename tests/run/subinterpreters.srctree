@@ -38,12 +38,15 @@ def append_to_global():
 #################### with_multiphase.pyx ####################
 
 # distutils: extra_compile_args = -DCYTHON_USE_MODULE_STATE=1
+# cython: subinterpreters_compatible = own_gil
 
 include "shared.pxi"
 
 #################### with_singlephase.pyx ####################
 
 # distutils: extra_compile_args = -DCYTHON_USE_MODULE_STATE=1 -DCYTHON_PEP489_MULTI_PHASE_INIT=0
+
+# Declaring single-phase module compatible doesn't work.
 
 include "shared.pxi"
 
@@ -101,9 +104,9 @@ if randomize_order:
     random.shuffle(all_interpreters)
 
 code_to_exec = f"""
-import _imp
-# TODO - eventually we'll properly allow this, at least for multi-phase
-_imp._override_multi_interp_extensions_check(-1)
+if {cython_module == 'with_singlephase'}:
+    import _imp
+    _imp._override_multi_interp_extensions_check(-1)
 
 import {cython_module} as cymod
 cymod.append_to_global()

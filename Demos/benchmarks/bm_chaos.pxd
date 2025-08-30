@@ -36,4 +36,4 @@ cdef class Chaosgame:
     cpdef tuple get_random_trafo(self)
     cpdef GVector transform_point(self, GVector point, trafo=*)
     cpdef truncate(self, GVector point)
-    cpdef create_image_chaos(self, timer, long w, long h, long n, count=*)
+    cpdef create_image_chaos(self, timer, long w, long h, long n, long count=*)

@@ -457,7 +457,7 @@ class ConstructorSlot(InternalMethodSlot):
         if (scope.parent_type.base_type
                 and not scope.has_pyobject_attrs
                 and not scope.has_memoryview_attrs
-                and not scope.has_cpp_constructable_attrs
+                and not scope.has_explicitly_constructable_attrs
                 and not (self.slot_name == 'tp_new' and scope.parent_type.vtabslot_cname)):
             entry = scope.lookup_here(self.method) if self.method else None
             if not (entry and entry.is_special):
@@ -895,15 +895,15 @@ releasebufferproc = Signature("TB", "v")   # typedef void (*releasebufferproc)(P
 
 # typedef PySendResult (*sendfunc)(PyObject* iter, PyObject* value, PyObject** result);
 sendfunc = PyrexTypes.CPtrType(PyrexTypes.CFuncType(
-        return_type=PyrexTypes.PySendResult_type,
-        args=[
-            PyrexTypes.CFuncTypeArg("iter", PyrexTypes.py_object_type),
-            PyrexTypes.CFuncTypeArg("value", PyrexTypes.py_object_type),
-            PyrexTypes.CFuncTypeArg("result", PyrexTypes.CPtrType(PyrexTypes.py_objptr_type)),
-        ],
-        exception_value="PYGEN_ERROR",
-        exception_check=True,  # we allow returning PYGEN_ERROR without GeneratorExit / StopIteration
-    ))
+    return_type=PyrexTypes.PySendResult_type,
+    args=[
+        PyrexTypes.CFuncTypeArg("iter", PyrexTypes.py_object_type),
+        PyrexTypes.CFuncTypeArg("value", PyrexTypes.py_object_type),
+        PyrexTypes.CFuncTypeArg("result", PyrexTypes.CPtrType(PyrexTypes.py_objptr_type)),
+    ],
+    exception_value="PYGEN_ERROR",
+    exception_check=True,  # we allow returning PYGEN_ERROR without GeneratorExit / StopIteration
+))
 
 
 #------------------------------------------------------------------------------------------

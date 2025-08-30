@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 """Simple, brute-force N-Queens solver."""
 
@@ -53,7 +53,8 @@ def n_queens(queen_count: cython.int):
         queen, and the index into the tuple indicates the row.
     """
     i: cython.int
-    vec: list
+    vec: list[cython.int]
+
     cols = list(range(queen_count))
     for vec in permutations(cols):
         if (queen_count == len({ vec[i]+i for i in cols })
@@ -61,15 +62,18 @@ def n_queens(queen_count: cython.int):
             yield vec
 
 
-def test_n_queens(iterations, size=8, timer=time.perf_counter):
+def test_n_queens(iterations, size=8, scale: cython.long = 1, timer=time.perf_counter):
+    s: cython.long
+
     # Warm-up runs.
     list(n_queens(8))
-    list(n_queens(8))
+    list(n_queens(size))
 
     times = []
     for _ in range(iterations):
         t0 = timer()
-        list(n_queens(size))
+        for s in range(scale):
+            list(n_queens(size))
         t1 = timer()
         times.append(t1 - t0)
     return times
@@ -77,8 +81,8 @@ def test_n_queens(iterations, size=8, timer=time.perf_counter):
 main = test_n_queens
 
 
-def run_benchmark(repeat=10, count=8, timer=time.perf_counter):
-    return test_n_queens(repeat, count, timer)
+def run_benchmark(repeat=10, scale=1, timer=time.perf_counter):
+    return test_n_queens(repeat, 7, scale, timer)
 
 
 if __name__ == "__main__":

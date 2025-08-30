@@ -23,7 +23,7 @@ cdef extern from "Python.h":
     # Return the contents of bytearray as a char array after checking for a NULL pointer.
     # The returned array always has an extra null byte appended.
 
-    int PyByteArray_Resize(object bytearray, Py_ssize_t len)
+    int PyByteArray_Resize(object bytearray, Py_ssize_t len) except -1
     # Resize the internal buffer of bytearray to len.
 
     char* PyByteArray_AS_STRING(object bytearray)
