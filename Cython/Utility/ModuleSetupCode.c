@@ -418,12 +418,9 @@
 //  available though.
 #define CYTHON_VECTORCALL  (__PYX_LIMITED_VERSION_HEX >= 0x030C0000)
 #else
-#define CYTHON_VECTORCALL  (CYTHON_FAST_PYCCALL && PY_VERSION_HEX >= 0x030800B1)
+#define CYTHON_VECTORCALL  (CYTHON_FAST_PYCCALL)
 #endif
 #endif
-
-/* Whether to use METH_FASTCALL with a fake backported implementation of vectorcall */
-#define CYTHON_BACKPORT_VECTORCALL (CYTHON_METH_FASTCALL && PY_VERSION_HEX < 0x030800B1)
 
 #if CYTHON_USE_PYLONG_INTERNALS
   /* These short defines from the PyLong header can easily conflict with other code */
@@ -566,9 +563,9 @@ typedef uintptr_t  __pyx_uintptr_t;
 #endif
 
 #if CYTHON_COMPILING_IN_PYPY == 1
-  #define __PYX_NEED_TP_PRINT_SLOT  (PY_VERSION_HEX >= 0x030800b4 && PY_VERSION_HEX < 0x030A0000)
+  #define __PYX_NEED_TP_PRINT_SLOT  (PY_VERSION_HEX < 0x030A0000)
 #else
-  #define __PYX_NEED_TP_PRINT_SLOT  (PY_VERSION_HEX >= 0x030800b4 && PY_VERSION_HEX < 0x03090000)
+  #define __PYX_NEED_TP_PRINT_SLOT  (PY_VERSION_HEX < 0x03090000)
 #endif
 // reinterpret
 
@@ -778,11 +775,6 @@ static int __Pyx_init_co_variables(void); /* proto */
   #define __pyx_vectorcallfunc vectorcallfunc
   #define __Pyx_PY_VECTORCALL_ARGUMENTS_OFFSET  PY_VECTORCALL_ARGUMENTS_OFFSET
   #define __Pyx_PyVectorcall_NARGS(n)  PyVectorcall_NARGS((size_t)(n))
-#elif CYTHON_BACKPORT_VECTORCALL
-  typedef PyObject *(*__pyx_vectorcallfunc)(PyObject *callable, PyObject *const *args,
-                                            size_t nargsf, PyObject *kwnames);
-  #define __Pyx_PY_VECTORCALL_ARGUMENTS_OFFSET  ((size_t)1 << (8 * sizeof(size_t) - 1))
-  #define __Pyx_PyVectorcall_NARGS(n)  ((Py_ssize_t)(((size_t)(n)) & ~__Pyx_PY_VECTORCALL_ARGUMENTS_OFFSET))
 #else
   #define __Pyx_PY_VECTORCALL_ARGUMENTS_OFFSET  0
   #define __Pyx_PyVectorcall_NARGS(n)  ((Py_ssize_t)(n))
@@ -965,7 +957,7 @@ static CYTHON_INLINE PyObject * __Pyx_PyDict_GetItemStrWithError(PyObject *dict,
 // PyIter_Next() discards the StopIteration, unlike Python's "next()".
 #define __Pyx_PyObject_GetIterNextFunc(iterator)  __Pyx_PyObject_GetSlot(iterator, tp_iternext, iternextfunc)
 
-#if CYTHON_USE_TYPE_SPECS && PY_VERSION_HEX >= 0x03080000
+#if CYTHON_USE_TYPE_SPECS
 // In Py3.8+, instances of heap types need to decref their type on deallocation.
 // https://bugs.python.org/issue35810
 #define __Pyx_PyHeapTypeObject_GC_Del(obj)  { \
@@ -2509,7 +2501,7 @@ static PyObject* __Pyx_PyCode_New(
         (a, p, k, l, s, f, code, c, n, v, fv, cell, fn, name, name, fline, lnos, EMPTY(bytes));
     return result;
   }
-#elif PY_VERSION_HEX >= 0x030800B2 && !CYTHON_COMPILING_IN_PYPY
+#elif !CYTHON_COMPILING_IN_PYPY
   #define __Pyx__PyCode_New(a, p, k, l, s, f, code, c, n, v, fv, cell, fn, name, fline, lnos) \
           PyCode_NewWithPosOnlyArgs(a, p, k, l, s, f, code, c, n, v, fv, cell, fn, name, fline, lnos)
 #else
