@@ -233,18 +233,6 @@ static CYTHON_INLINE PyObject *__Pyx_PyIter_Next2(PyObject *, PyObject *); /*pro
 //@requires: GetBuiltinName
 //@requires: IterNextPlain
 
-#if CYTHON_COMPILING_IN_LIMITED_API && __PYX_LIMITED_VERSION_HEX < 0x03080000
-// In the Limited API for Py 3.7, PyIter_Check is defined but as a macro that uses
-// non-limited API features and thus is unusable. Therefore, just call builtin next.
-static PyObject *__Pyx_PyIter_Next2(PyObject *o, PyObject *defval) {
-    PyObject *result;
-    PyObject *next = __Pyx_GetBuiltinNext_LimitedAPI();
-    if (unlikely(!next)) return NULL;
-    // This works if defval is NULL or not
-    result = PyObject_CallFunctionObjArgs(next, o, defval, NULL);
-    return result;
-}
-#else
 static PyObject *__Pyx_PyIter_Next2Default(PyObject* defval) {
     PyObject* exc_type;
     __Pyx_PyThreadState_declare
@@ -306,7 +294,7 @@ static CYTHON_INLINE PyObject *__Pyx_PyIter_Next2(PyObject* iterator, PyObject* 
     }
     return __Pyx_PyIter_Next2Default(defval);
 }
-#endif
+
 
 /////////////// IterFinish.proto ///////////////
 
@@ -2229,33 +2217,13 @@ static CYTHON_INLINE PyObject* __Pyx_PyObject_FastCallDict(PyObject *func, PyObj
     }
 #endif
 
-    #if PY_VERSION_HEX < 0x030800B1
-    #if CYTHON_FAST_PYCCALL
-    if (PyCFunction_Check(func)) {
-        if (kwargs) {
-            return _PyCFunction_FastCallDict(func, args, nargs, kwargs);
-        } else {
-            return _PyCFunction_FastCallKeywords(func, args, nargs, NULL);
-        }
-    }
-    if (!kwargs && __Pyx_IS_TYPE(func, &PyMethodDescr_Type)) {
-        return _PyMethodDescr_FastCallKeywords(func, args, nargs, NULL);
-    }
-    #endif
-    #if CYTHON_FAST_PYCALL
-    if (PyFunction_Check(func)) {
-        return __Pyx_PyFunction_FastCallDict(func, args, nargs, kwargs);
-    }
-    #endif
-    #endif
-
     if (kwargs == NULL) {
         #if CYTHON_VECTORCALL && !CYTHON_COMPILING_IN_LIMITED_API
         vectorcallfunc f = __Pyx_PyVectorcall_Function(func);
         if (f) {
             return f(func, args, _nargs, NULL);
         }
-        #elif defined(__Pyx_CyFunction_USED) && CYTHON_BACKPORT_VECTORCALL
+        #elif defined(__Pyx_CyFunction_USED)
         // exclude fused functions for now
         if (__Pyx_CyFunction_CheckExact(func)) {
             __pyx_vectorcallfunc f = __Pyx_CyFunction_func_vectorcall(func);
@@ -2596,26 +2564,8 @@ static PyObject *__Pyx_PyFunction_FastCallDict(PyObject *func, PyObject *const *
 #endif
 
 #if !CYTHON_VECTORCALL
-#if PY_VERSION_HEX >= 0x03080000
   #include "frameobject.h"
-  #define __Pxy_PyFrame_Initialize_Offsets()
   #define __Pyx_PyFrame_GetLocalsplus(frame)  ((frame)->f_localsplus)
-#else
-  // Initialised by module init code.
-  static size_t __pyx_pyframe_localsplus_offset = 0;
-
-  #include "frameobject.h"
-  // This is the long runtime version of
-  //     #define __Pyx_PyFrame_GetLocalsplus(frame)  ((frame)->f_localsplus)
-  // offsetof(PyFrameObject, f_localsplus) differs between regular C-Python and Stackless Python < 3.8.
-  // Therefore the offset is computed at run time from PyFrame_type.tp_basicsize. That is feasible,
-  // because f_localsplus is the last field of PyFrameObject (checked by Py_BUILD_ASSERT_EXPR below).
-  #define __Pxy_PyFrame_Initialize_Offsets()  \
-    ((void)__Pyx_BUILD_ASSERT_EXPR(sizeof(PyFrameObject) == offsetof(PyFrameObject, f_localsplus) + Py_MEMBER_SIZE(PyFrameObject, f_localsplus)), \
-     (void)(__pyx_pyframe_localsplus_offset = ((size_t)PyFrame_Type.tp_basicsize) - Py_MEMBER_SIZE(PyFrameObject, f_localsplus)))
-  #define __Pyx_PyFrame_GetLocalsplus(frame)  \
-    (assert(__pyx_pyframe_localsplus_offset), (PyObject **)(((char *)(frame)) + __pyx_pyframe_localsplus_offset))
-#endif
 #endif /* !CYTHON_VECTORCALL */
 
 #endif /* CYTHON_FAST_PYCALL */
@@ -2794,13 +2744,13 @@ static CYTHON_INLINE PyObject* __Pyx_PyObject_CallNoArg(PyObject *func) {
 
 /////////////// PyVectorcallFastCallDict.proto ///////////////
 
-#if CYTHON_METH_FASTCALL && (CYTHON_VECTORCALL || CYTHON_BACKPORT_VECTORCALL)
+#if CYTHON_METH_FASTCALL && CYTHON_VECTORCALL
 static CYTHON_INLINE PyObject *__Pyx_PyVectorcall_FastCallDict(PyObject *func, __pyx_vectorcallfunc vc, PyObject *const *args, size_t nargs, PyObject *kw);
 #endif
 
 /////////////// PyVectorcallFastCallDict ///////////////
 
-#if CYTHON_METH_FASTCALL && (CYTHON_VECTORCALL || CYTHON_BACKPORT_VECTORCALL)
+#if CYTHON_METH_FASTCALL && CYTHON_VECTORCALL
 // Slow path when kw is non-empty
 static PyObject *__Pyx_PyVectorcall_FastCallDict_kw(PyObject *func, __pyx_vectorcallfunc vc, PyObject *const *args, size_t nargs, PyObject *kw)
 {

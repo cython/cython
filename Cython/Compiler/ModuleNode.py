@@ -1761,9 +1761,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 finalised_check = (
                     '(!PyType_IS_GC(Py_TYPE(o)) || !__Pyx_PyObject_GC_IsFinalized(o))')
             code.putln(
-                "if (unlikely("
-                "(PY_VERSION_HEX >= 0x03080000 || __Pyx_PyType_HasFeature(Py_TYPE(o), Py_TPFLAGS_HAVE_FINALIZE))"
-                " && __Pyx_PyObject_GetSlot(o, tp_finalize, destructor)) && %s) {" % finalised_check)
+                "if (unlikely(__Pyx_PyObject_GetSlot(o, tp_finalize, destructor)) && %s) {" % finalised_check)
 
             code.putln("if (__Pyx_PyObject_GetSlot(o, tp_dealloc, destructor) == %s) {" % slot_func_cname)
             # if instance was resurrected by finaliser, return
@@ -3053,9 +3051,6 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                                         "CYTHON_COMPILING_IN_LIMITED_API)"
         )
 
-        code.putln("#ifdef __Pxy_PyFrame_Initialize_Offsets")
-        code.putln("__Pxy_PyFrame_Initialize_Offsets();")
-        code.putln("#endif")
         empty_tuple = code.name_in_main_c_code_module_state(Naming.empty_tuple)
         code.putln("%s = PyTuple_New(0); %s" % (
             empty_tuple, code.error_goto_if_null(empty_tuple, self.pos)))
