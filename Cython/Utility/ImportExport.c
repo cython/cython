@@ -37,7 +37,12 @@ static int __Pyx__Import_Lookup(PyObject *qualname, PyObject **imported_names, P
     if (imported_names) {
         for (i = 0; i < len_imported_names; i++) {
             PyObject *imported_name = imported_names[i];
+#if __PYX_LIMITED_VERSION_HEX < 0x030d0000
             int has_imported_attribute = PyObject_HasAttr(imported_module, imported_name);
+#else
+            int has_imported_attribute = PyObject_HasAttrWithError(imported_module, imported_name);
+            if (unlikely(has_imported_attribute == -1)) goto error;
+#endif
             if (!has_imported_attribute) {
                 goto not_found;
             }
