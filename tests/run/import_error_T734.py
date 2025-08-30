@@ -1,5 +1,5 @@
 # mode: run
-# ticket: 734
+# ticket: t734
 
 def test_import_error():
     """

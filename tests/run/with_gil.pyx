@@ -1,3 +1,6 @@
+# mode: run
+# tag: nogil, withgil
+
 """
 Test the 'with gil:' statement.
 """
@@ -256,7 +259,7 @@ cpdef test_cpdef():
 
 # Now test some cdef functions with different return types
 
-cdef void void_nogil_ignore_exception() nogil:
+cdef void void_nogil_ignore_exception() noexcept nogil:
     with gil:
         raise ExceptionWithMsg("This is swallowed")
 
@@ -264,7 +267,7 @@ cdef void void_nogil_ignore_exception() nogil:
     with gil:
         print "unreachable"
 
-cdef void void_nogil_nested_gil() nogil:
+cdef void void_nogil_nested_gil() noexcept nogil:
     with gil:
         with nogil:
             with gil:
@@ -301,7 +304,7 @@ def test_nogil_void_funcs_with_nogil():
         void_nogil_nested_gil()
 
 
-cdef PyObject *nogil_propagate_exception() nogil except NULL:
+cdef PyObject *nogil_propagate_exception() except NULL nogil:
     with nogil:
         with gil:
             raise Exception("This exception propagates!")
@@ -458,6 +461,35 @@ def test_nogil_try_finally_error_label():
                 with gil: print "print me first"
     except Exception, e:
         print e.args[0]
+
+
+def void_with_python_objects():
+    """
+    >>> void_with_python_objects()
+    """
+    with nogil:
+        _void_with_python_objects()
+
+
+cdef void _void_with_python_objects() nogil:
+    c = 123
+    with gil:
+        obj1 = [123]
+        obj2 = [456]
+
+
+def void_with_py_arg_reassigned(x):
+    """
+    >>> void_with_py_arg_reassigned(123)
+    """
+    with nogil:
+        _void_with_py_arg_reassigned(x)
+
+
+cdef void _void_with_py_arg_reassigned(x) nogil:
+    c = 123
+    with gil:
+        x = [456]
 
 
 cdef void test_timing_callback() with gil:

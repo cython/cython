@@ -1,5 +1,5 @@
 # mode: run
-# ticket: 303
+# ticket: t303
 
 __doc__ = """
 >>> try: readonly()

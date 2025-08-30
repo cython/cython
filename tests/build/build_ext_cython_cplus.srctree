@@ -1,0 +1,34 @@
+# tag: cpp
+
+PYTHON setup.py build_ext --inplace --cython-cplus
+PYTHON -c "import a; a.use_vector([1,2,3])"
+
+######## setup.py ########
+
+from Cython.Distutils.extension import Extension
+from Cython.Build import build_ext
+from distutils.core import setup
+
+setup(
+    name='Hello world app',
+    ext_modules = [
+        Extension(
+            name = 'a',
+            sources=['a.pyx'],
+        )
+    ],
+    cmdclass={'build_ext': build_ext},
+)
+
+######## a.pyx ########
+
+from libcpp.vector cimport vector
+
+def use_vector(L):
+    try:
+        v = new vector[int]()
+        for a in L:
+            v.push_back(a)
+        return v.size()
+    finally:
+        del v

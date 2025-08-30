@@ -33,13 +33,9 @@ static void __Pyx_RaiseBufferIndexErrorNogil(int axis); /*proto*/
 
 /////////////// BufferIndexErrorNogil ///////////////
 static void __Pyx_RaiseBufferIndexErrorNogil(int axis) {
-    #ifdef WITH_THREAD
     PyGILState_STATE gilstate = PyGILState_Ensure();
-    #endif
     __Pyx_RaiseBufferIndexError(axis);
-    #ifdef WITH_THREAD
     PyGILState_Release(gilstate);
-    #endif
 }
 
 /////////////// BufferFallbackError.proto ///////////////
@@ -54,8 +50,6 @@ static void __Pyx_RaiseBufferFallbackError(void) {
 /////////////// BufferFormatStructs.proto ///////////////
 //@proto_block: utility_code_proto_before_types
 
-#define IS_UNSIGNED(type) (((type) -1) > 0)
-
 /* Run-time type information about structs used with buffers */
 struct __Pyx_StructField_;
 
@@ -63,7 +57,7 @@ struct __Pyx_StructField_;
 
 typedef struct {
   const char* name; /* for error messages only */
-  struct __Pyx_StructField_* fields;
+  const struct __Pyx_StructField_* fields;
   size_t size;     /* sizeof(type) */
   size_t arraysize[8]; /* length of array in each dimension */
   int ndim;
@@ -73,13 +67,13 @@ typedef struct {
 } __Pyx_TypeInfo;
 
 typedef struct __Pyx_StructField_ {
-  __Pyx_TypeInfo* type;
+  const __Pyx_TypeInfo* type;
   const char* name;
   size_t offset;
 } __Pyx_StructField;
 
 typedef struct {
-  __Pyx_StructField* field;
+  const __Pyx_StructField* field;
   size_t parent_offset;
 } __Pyx_BufFmt_StackElem;
 
@@ -97,55 +91,6 @@ typedef struct {
 } __Pyx_BufFmt_Context;
 
 
-/////////////// GetAndReleaseBuffer.proto ///////////////
-
-#if PY_MAJOR_VERSION < 3
-    static int __Pyx_GetBuffer(PyObject *obj, Py_buffer *view, int flags);
-    static void __Pyx_ReleaseBuffer(Py_buffer *view);
-#else
-    #define __Pyx_GetBuffer PyObject_GetBuffer
-    #define __Pyx_ReleaseBuffer PyBuffer_Release
-#endif
-
-/////////////// GetAndReleaseBuffer ///////////////
-
-#if PY_MAJOR_VERSION < 3
-static int __Pyx_GetBuffer(PyObject *obj, Py_buffer *view, int flags) {
-    if (PyObject_CheckBuffer(obj)) return PyObject_GetBuffer(obj, view, flags);
-
-    {{for type_ptr, getbuffer, releasebuffer in types}}
-      {{if getbuffer}}
-        if (__Pyx_TypeCheck(obj, {{type_ptr}})) return {{getbuffer}}(obj, view, flags);
-      {{endif}}
-    {{endfor}}
-
-    PyErr_Format(PyExc_TypeError, "'%.200s' does not have the buffer interface", Py_TYPE(obj)->tp_name);
-    return -1;
-}
-
-static void __Pyx_ReleaseBuffer(Py_buffer *view) {
-    PyObject *obj = view->obj;
-    if (!obj) return;
-
-    if (PyObject_CheckBuffer(obj)) {
-        PyBuffer_Release(view);
-        return;
-    }
-
-    if ((0)) {}
-    {{for type_ptr, getbuffer, releasebuffer in types}}
-      {{if releasebuffer}}
-        else if (__Pyx_TypeCheck(obj, {{type_ptr}})) {{releasebuffer}}(obj, view);
-      {{endif}}
-    {{endfor}}
-
-    view->obj = NULL;
-    Py_DECREF(obj);
-}
-
-#endif /*  PY_MAJOR_VERSION < 3 */
-
-
 /////////////// BufferGetAndValidate.proto ///////////////
 
 #define __Pyx_GetBufferAndValidate(buf, obj, dtype, flags, nd, cast, stack) \
@@ -154,7 +99,7 @@ static void __Pyx_ReleaseBuffer(Py_buffer *view) {
     __Pyx__GetBufferAndValidate(buf, obj, dtype, flags, nd, cast, stack))
 
 static int  __Pyx__GetBufferAndValidate(Py_buffer* buf, PyObject* obj,
-    __Pyx_TypeInfo* dtype, int flags, int nd, int cast, __Pyx_BufFmt_StackElem* stack);
+  const __Pyx_TypeInfo* dtype, int flags, int nd, int cast, __Pyx_BufFmt_StackElem* stack);
 static void __Pyx_ZeroBuffer(Py_buffer* buf);
 static CYTHON_INLINE void __Pyx_SafeReleaseBuffer(Py_buffer* info);/*proto*/
 
@@ -168,7 +113,7 @@ static Py_ssize_t __Pyx_zeros[] = { {{ ", ".join(["0"] * max_dims) }} };
 static CYTHON_INLINE void __Pyx_SafeReleaseBuffer(Py_buffer* info) {
   if (unlikely(info->buf == NULL)) return;
   if (info->suboffsets == __Pyx_minusones) info->suboffsets = NULL;
-  __Pyx_ReleaseBuffer(info);
+  PyBuffer_Release(info);
 }
 
 static void __Pyx_ZeroBuffer(Py_buffer* buf) {
@@ -180,11 +125,11 @@ static void __Pyx_ZeroBuffer(Py_buffer* buf) {
 }
 
 static int __Pyx__GetBufferAndValidate(
-        Py_buffer* buf, PyObject* obj,  __Pyx_TypeInfo* dtype, int flags,
+        Py_buffer* buf, PyObject* obj,  const __Pyx_TypeInfo* dtype, int flags,
         int nd, int cast, __Pyx_BufFmt_StackElem* stack)
 {
   buf->buf = NULL;
-  if (unlikely(__Pyx_GetBuffer(obj, buf, flags) == -1)) {
+  if (unlikely(PyObject_GetBuffer(obj, buf, flags) == -1)) {
     __Pyx_ZeroBuffer(buf);
     return -1;
   }
@@ -232,7 +177,7 @@ fail:;
 static const char* __Pyx_BufFmt_CheckString(__Pyx_BufFmt_Context* ctx, const char* ts);
 static void __Pyx_BufFmt_Init(__Pyx_BufFmt_Context* ctx,
                               __Pyx_BufFmt_StackElem* stack,
-                              __Pyx_TypeInfo* type); /*proto*/
+                              const __Pyx_TypeInfo* type); /*proto*/
 
 /////////////// BufferFormatCheck ///////////////
 //@requires: ModuleSetupCode.c::IsLittleEndian
@@ -240,7 +185,7 @@ static void __Pyx_BufFmt_Init(__Pyx_BufFmt_Context* ctx,
 
 static void __Pyx_BufFmt_Init(__Pyx_BufFmt_Context* ctx,
                               __Pyx_BufFmt_StackElem* stack,
-                              __Pyx_TypeInfo* type) {
+                              const __Pyx_TypeInfo* type) {
   stack[0].field = &ctx->root;
   stack[0].parent_offset = 0;
   ctx->root.type = type;
@@ -318,7 +263,7 @@ static const char* __Pyx_BufFmt_DescribeTypeChar(char ch, int is_complex) {
     case 'P': return "a pointer";
     case 's': case 'p': return "a string";
     case 0: return "end";
-    default: return "unparseable format string";
+    default: return "unparsable format string";
   }
 }
 
@@ -347,9 +292,7 @@ static size_t __Pyx_BufFmt_TypeCharToNativeSize(char ch, int is_complex) {
     case 'h': case 'H': return sizeof(short);
     case 'i': case 'I': return sizeof(int);
     case 'l': case 'L': return sizeof(long);
-    #ifdef HAVE_LONG_LONG
     case 'q': case 'Q': return sizeof(PY_LONG_LONG);
-    #endif
     case 'f': return sizeof(float) * (is_complex ? 2 : 1);
     case 'd': return sizeof(double) * (is_complex ? 2 : 1);
     case 'g': return sizeof(long double) * (is_complex ? 2 : 1);
@@ -368,19 +311,16 @@ typedef struct { char c; float x; } __Pyx_st_float;
 typedef struct { char c; double x; } __Pyx_st_double;
 typedef struct { char c; long double x; } __Pyx_st_longdouble;
 typedef struct { char c; void *x; } __Pyx_st_void_p;
-#ifdef HAVE_LONG_LONG
 typedef struct { char c; PY_LONG_LONG x; } __Pyx_st_longlong;
-#endif
 
-static size_t __Pyx_BufFmt_TypeCharToAlignment(char ch, CYTHON_UNUSED int is_complex) {
+static size_t __Pyx_BufFmt_TypeCharToAlignment(char ch, int is_complex) {
+  CYTHON_UNUSED_VAR(is_complex);
   switch (ch) {
     case '?': case 'c': case 'b': case 'B': case 's': case 'p': return 1;
     case 'h': case 'H': return sizeof(__Pyx_st_short) - sizeof(short);
     case 'i': case 'I': return sizeof(__Pyx_st_int) - sizeof(int);
     case 'l': case 'L': return sizeof(__Pyx_st_long) - sizeof(long);
-#ifdef HAVE_LONG_LONG
     case 'q': case 'Q': return sizeof(__Pyx_st_longlong) - sizeof(PY_LONG_LONG);
-#endif
     case 'f': return sizeof(__Pyx_st_float) - sizeof(float);
     case 'd': return sizeof(__Pyx_st_double) - sizeof(double);
     case 'g': return sizeof(__Pyx_st_longdouble) - sizeof(long double);
@@ -402,19 +342,16 @@ typedef struct { float x; char c; } __Pyx_pad_float;
 typedef struct { double x; char c; } __Pyx_pad_double;
 typedef struct { long double x; char c; } __Pyx_pad_longdouble;
 typedef struct { void *x; char c; } __Pyx_pad_void_p;
-#ifdef HAVE_LONG_LONG
 typedef struct { PY_LONG_LONG x; char c; } __Pyx_pad_longlong;
-#endif
 
-static size_t __Pyx_BufFmt_TypeCharToPadding(char ch, CYTHON_UNUSED int is_complex) {
+static size_t __Pyx_BufFmt_TypeCharToPadding(char ch, int is_complex) {
+  CYTHON_UNUSED_VAR(is_complex);
   switch (ch) {
     case '?': case 'c': case 'b': case 'B': case 's': case 'p': return 1;
     case 'h': case 'H': return sizeof(__Pyx_pad_short) - sizeof(short);
     case 'i': case 'I': return sizeof(__Pyx_pad_int) - sizeof(int);
     case 'l': case 'L': return sizeof(__Pyx_pad_long) - sizeof(long);
-#ifdef HAVE_LONG_LONG
     case 'q': case 'Q': return sizeof(__Pyx_pad_longlong) - sizeof(PY_LONG_LONG);
-#endif
     case 'f': return sizeof(__Pyx_pad_float) - sizeof(float);
     case 'd': return sizeof(__Pyx_pad_double) - sizeof(double);
     case 'g': return sizeof(__Pyx_pad_longdouble) - sizeof(long double);
@@ -464,8 +401,8 @@ static void __Pyx_BufFmt_RaiseExpected(__Pyx_BufFmt_Context* ctx) {
                  quote, expected, quote,
                  __Pyx_BufFmt_DescribeTypeChar(ctx->enc_type, ctx->is_complex));
   } else {
-    __Pyx_StructField* field = ctx->head->field;
-    __Pyx_StructField* parent = (ctx->head - 1)->field;
+    const __Pyx_StructField* field = ctx->head->field;
+    const __Pyx_StructField* parent = (ctx->head - 1)->field;
     PyErr_Format(PyExc_ValueError,
                  "Buffer dtype mismatch, expected '%s' but got %s in '%s.%s'",
                  field->type->name, __Pyx_BufFmt_DescribeTypeChar(ctx->enc_type, ctx->is_complex),
@@ -511,8 +448,8 @@ static int __Pyx_BufFmt_ProcessTypeChunk(__Pyx_BufFmt_Context* ctx) {
 
   group = __Pyx_BufFmt_TypeCharToGroup(ctx->enc_type, ctx->is_complex);
   do {
-    __Pyx_StructField* field = ctx->head->field;
-    __Pyx_TypeInfo* type = field->type;
+    const __Pyx_StructField* field = ctx->head->field;
+    const __Pyx_TypeInfo* type = field->type;
 
     if (ctx->enc_packmode == '@' || ctx->enc_packmode == '^') {
       size = __Pyx_BufFmt_TypeCharToNativeSize(ctx->enc_type, ctx->is_complex);
@@ -597,23 +534,26 @@ static int __Pyx_BufFmt_ProcessTypeChunk(__Pyx_BufFmt_Context* ctx) {
   return 0;
 }
 
-/* Parse an array in the format string (e.g. (1,2,3)) */
-static PyObject *
+// Parse an array in the format string (e.g. (1,2,3))
+// Return 0 on success, -1 on error
+static int
 __pyx_buffmt_parse_array(__Pyx_BufFmt_Context* ctx, const char** tsp)
 {
     const char *ts = *tsp;
-    int i = 0, number;
-    int ndim = ctx->head->field->type->ndim;
-;
+    int i = 0, number, ndim;
+
     ++ts;
     if (ctx->new_count != 1) {
         PyErr_SetString(PyExc_ValueError,
                         "Cannot handle repeated arrays in format string");
-        return NULL;
+        return -1;
     }
 
     /* Process the previous element */
-    if (__Pyx_BufFmt_ProcessTypeChunk(ctx) == -1) return NULL;
+    if (__Pyx_BufFmt_ProcessTypeChunk(ctx) == -1) return -1;
+
+    // store ndim now, as field advanced by __Pyx_BufFmt_ProcessTypeChunk call
+    ndim = ctx->head->field->type->ndim;
 
     /* Parse all numbers in the format string */
     while (*ts && *ts != ')') {
@@ -624,35 +564,41 @@ __pyx_buffmt_parse_array(__Pyx_BufFmt_Context* ctx, const char** tsp)
         }
 
         number = __Pyx_BufFmt_ExpectNumber(&ts);
-        if (number == -1) return NULL;
+        if (number == -1) return -1;
 
-        if (i < ndim && (size_t) number != ctx->head->field->type->arraysize[i])
-            return PyErr_Format(PyExc_ValueError,
+        if (i < ndim && (size_t) number != ctx->head->field->type->arraysize[i]) {
+            PyErr_Format(PyExc_ValueError,
                         "Expected a dimension of size %zu, got %d",
                         ctx->head->field->type->arraysize[i], number);
+            return -1;
+        }
 
-        if (*ts != ',' && *ts != ')')
-            return PyErr_Format(PyExc_ValueError,
+        if (*ts != ',' && *ts != ')') {
+            PyErr_Format(PyExc_ValueError,
                                 "Expected a comma in format string, got '%c'", *ts);
+            return -1;
+        }
 
         if (*ts == ',') ts++;
         i++;
     }
 
-    if (i != ndim)
-        return PyErr_Format(PyExc_ValueError, "Expected %d dimension(s), got %d",
+    if (i != ndim) {
+        PyErr_Format(PyExc_ValueError, "Expected %d dimension(s), got %d",
                             ctx->head->field->type->ndim, i);
+        return -1;
+    }
 
     if (!*ts) {
         PyErr_SetString(PyExc_ValueError,
                         "Unexpected end of format string, expected ')'");
-        return NULL;
+        return -1;
     }
 
     ctx->is_valid_array = 1;
     ctx->new_count = 1;
     *tsp = ++ts;
-    return Py_None;
+    return 0;
 }
 
 static const char* __Pyx_BufFmt_CheckString(__Pyx_BufFmt_Context* ctx, const char* ts) {
@@ -757,8 +703,8 @@ static const char* __Pyx_BufFmt_CheckString(__Pyx_BufFmt_Context* ctx, const cha
       case 'l': case 'L': case 'q': case 'Q':
       case 'f': case 'd': case 'g':
       case 'O': case 'p':
-        if (ctx->enc_type == *ts && got_Z == ctx->is_complex &&
-            ctx->enc_packmode == ctx->new_packmode) {
+        if ((ctx->enc_type == *ts) && (got_Z == ctx->is_complex) &&
+            (ctx->enc_packmode == ctx->new_packmode) && (!ctx->is_valid_array)) {
           /* Continue pooling same type */
           ctx->enc_count += ctx->new_count;
           ctx->new_count = 1;
@@ -784,7 +730,7 @@ static const char* __Pyx_BufFmt_CheckString(__Pyx_BufFmt_Context* ctx, const cha
         ++ts;
         break;
       case '(':
-        if (!__pyx_buffmt_parse_array(ctx, &ts)) return NULL;
+        if (__pyx_buffmt_parse_array(ctx, &ts) < 0) return NULL;
         break;
       default:
         {
@@ -797,14 +743,14 @@ static const char* __Pyx_BufFmt_CheckString(__Pyx_BufFmt_Context* ctx, const cha
 }
 
 /////////////// TypeInfoCompare.proto ///////////////
-static int __pyx_typeinfo_cmp(__Pyx_TypeInfo *a, __Pyx_TypeInfo *b);
+static int __pyx_typeinfo_cmp(const __Pyx_TypeInfo *a, const __Pyx_TypeInfo *b);
 
 /////////////// TypeInfoCompare ///////////////
 //@requires: BufferFormatStructs
 
 // See if two dtypes are equal
 static int
-__pyx_typeinfo_cmp(__Pyx_TypeInfo *a, __Pyx_TypeInfo *b)
+__pyx_typeinfo_cmp(const __Pyx_TypeInfo *a, const __Pyx_TypeInfo *b)
 {
     int i;
 
@@ -844,8 +790,8 @@ __pyx_typeinfo_cmp(__Pyx_TypeInfo *a, __Pyx_TypeInfo *b)
 
             /* compare */
             for (i = 0; a->fields[i].type && b->fields[i].type; i++) {
-                __Pyx_StructField *field_a = a->fields + i;
-                __Pyx_StructField *field_b = b->fields + i;
+                const __Pyx_StructField *field_a = a->fields + i;
+                const __Pyx_StructField *field_b = b->fields + i;
 
                 if (field_a->offset != field_b->offset ||
                     !__pyx_typeinfo_cmp(field_a->type, field_b->type))
@@ -865,14 +811,14 @@ __pyx_typeinfo_cmp(__Pyx_TypeInfo *a, __Pyx_TypeInfo *b)
 struct __pyx_typeinfo_string {
     char string[3];
 };
-static struct __pyx_typeinfo_string __Pyx_TypeInfoToFormat(__Pyx_TypeInfo *type);
+static struct __pyx_typeinfo_string __Pyx_TypeInfoToFormat(const __Pyx_TypeInfo *type);
 
 /////////////// TypeInfoToFormat ///////////////
 //@requires: BufferFormatStructs
 
 // See also MemoryView.pyx:BufferFormatFromTypeInfo
 
-static struct __pyx_typeinfo_string __Pyx_TypeInfoToFormat(__Pyx_TypeInfo *type) {
+static struct __pyx_typeinfo_string __Pyx_TypeInfoToFormat(const __Pyx_TypeInfo *type) {
     struct __pyx_typeinfo_string result = { {0} };
     char *buf = (char *) result.string;
     size_t size = type->size;

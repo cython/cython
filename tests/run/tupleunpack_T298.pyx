@@ -1,4 +1,4 @@
-# ticket: 298
+# ticket: t298
 
 """
 >>> func()

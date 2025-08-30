@@ -1,15 +1,17 @@
-import os
+import os.path
+import unittest
 
 from Cython.TestUtils import TransformTest
 from Cython.Compiler.ParseTreeTransforms import *
+from Cython.Compiler.ParseTreeTransforms import _calculate_pickle_checksums
 from Cython.Compiler.Nodes import *
 from Cython.Compiler import Main, Symtab, Options
 
 
 class TestNormalizeTree(TransformTest):
     def test_parserbehaviour_is_what_we_coded_for(self):
-        t = self.fragment(u"if x: y").root
-        self.assertLines(u"""
+        t = self.fragment("if x: y").root
+        self.assertLines("""
 (root): StatListNode
   stats[0]: IfStatNode
     if_clauses[0]: IfClauseNode
@@ -19,8 +21,8 @@ class TestNormalizeTree(TransformTest):
 """, self.treetypes(t))
 
     def test_wrap_singlestat(self):
-        t = self.run_pipeline([NormalizeTree(None)], u"if x: y")
-        self.assertLines(u"""
+        t = self.run_pipeline([NormalizeTree(None)], "if x: y")
+        self.assertLines("""
 (root): StatListNode
   stats[0]: IfStatNode
     if_clauses[0]: IfClauseNode
@@ -31,12 +33,12 @@ class TestNormalizeTree(TransformTest):
 """, self.treetypes(t))
 
     def test_wrap_multistat(self):
-        t = self.run_pipeline([NormalizeTree(None)], u"""
+        t = self.run_pipeline([NormalizeTree(None)], """
             if z:
                 x
                 y
         """)
-        self.assertLines(u"""
+        self.assertLines("""
 (root): StatListNode
   stats[0]: IfStatNode
     if_clauses[0]: IfClauseNode
@@ -49,10 +51,10 @@ class TestNormalizeTree(TransformTest):
 """, self.treetypes(t))
 
     def test_statinexpr(self):
-        t = self.run_pipeline([NormalizeTree(None)], u"""
+        t = self.run_pipeline([NormalizeTree(None)], """
             a, b = x, y
         """)
-        self.assertLines(u"""
+        self.assertLines("""
 (root): StatListNode
   stats[0]: SingleAssignmentNode
     lhs: TupleNode
@@ -64,13 +66,13 @@ class TestNormalizeTree(TransformTest):
 """, self.treetypes(t))
 
     def test_wrap_offagain(self):
-        t = self.run_pipeline([NormalizeTree(None)], u"""
+        t = self.run_pipeline([NormalizeTree(None)], """
             x
             y
             if z:
                 x
         """)
-        self.assertLines(u"""
+        self.assertLines("""
 (root): StatListNode
   stats[0]: ExprStatNode
     expr: NameNode
@@ -85,19 +87,15 @@ class TestNormalizeTree(TransformTest):
 """, self.treetypes(t))
 
 
-    def test_pass_eliminated(self):
-        t = self.run_pipeline([NormalizeTree(None)], u"pass")
-        self.assertTrue(len(t.stats) == 0)
-
-class TestWithTransform(object): # (TransformTest): # Disabled!
+class TestWithTransform:  # (TransformTest): # Disabled!
 
     def test_simplified(self):
-        t = self.run_pipeline([WithTransform(None)], u"""
+        t = self.run_pipeline([WithTransform(None)], """
         with x:
             y = z ** 3
         """)
 
-        self.assertCode(u"""
+        self.assertCode("""
 
         $0_0 = x
         $0_2 = $0_0.__exit__
@@ -118,11 +116,11 @@ class TestWithTransform(object): # (TransformTest): # Disabled!
         """, t)
 
     def test_basic(self):
-        t = self.run_pipeline([WithTransform(None)], u"""
+        t = self.run_pipeline([WithTransform(None)], """
         with x as y:
             y = z ** 3
         """)
-        self.assertCode(u"""
+        self.assertCode("""
 
         $0_0 = x
         $0_2 = $0_0.__exit__
@@ -151,7 +149,7 @@ class TestInterpretCompilerDirectives(TransformTest):
 
     # Test the parallel directives (c)importing
 
-    import_code = u"""
+    import_code = """
         cimport cython.parallel
         cimport cython.parallel as par
         from cython cimport parallel as par2
@@ -163,19 +161,19 @@ class TestInterpretCompilerDirectives(TransformTest):
     """
 
     expected_directives_dict = {
-        u'cython.parallel': u'cython.parallel',
-        u'par': u'cython.parallel',
-        u'par2': u'cython.parallel',
-        u'parallel': u'cython.parallel',
+        'cython.parallel': 'cython.parallel',
+        'par': 'cython.parallel',
+        'par2': 'cython.parallel',
+        'parallel': 'cython.parallel',
 
-        u"tid": u"cython.parallel.threadid",
-        u"tavail": u"cython.parallel.threadavailable",
-        u"prange": u"cython.parallel.prange",
+        "tid": "cython.parallel.threadid",
+        "tavail": "cython.parallel.threadavailable",
+        "prange": "cython.parallel.prange",
     }
 
 
     def setUp(self):
-        super(TestInterpretCompilerDirectives, self).setUp()
+        super().setUp()
 
         compilation_options = Options.CompilationOptions(Options.default_options)
         ctx = Main.Context.from_options(compilation_options)
@@ -196,7 +194,7 @@ class TestInterpretCompilerDirectives(TransformTest):
 
     def test_parallel_directives_imports(self):
         self.run_pipeline(self.pipeline,
-                          self.import_code.replace(u'cimport', u'import'))
+                          self.import_code.replace('cimport', 'import'))
         parallel_directives = self.pipeline[0].parallel_directives
         self.assertEqual(parallel_directives, self.expected_directives_dict)
 
@@ -224,12 +222,12 @@ class TestDebugTransform(DebuggerTestCase):
             # anything fancy
             L = list(t.find('/Module/Globals'))
             assert L
-            xml_globals = dict((e.attrib['name'], e.attrib['type']) for e in L)
+            xml_globals = {e.attrib['name']: e.attrib['type'] for e in L}
             self.assertEqual(len(L), len(xml_globals))
 
             L = list(t.find('/Module/Functions'))
             assert L
-            xml_funcs = dict((e.attrib['qualified_name'], e) for e in L)
+            xml_funcs = {e.attrib['qualified_name']: e for e in L}
             self.assertEqual(len(L), len(xml_funcs))
 
             # test globals
@@ -275,6 +273,11 @@ class TestDebugTransform(DebuggerTestCase):
                 f.close()
             raise
 
+
+class TestAnalyseDeclarationsTransform(unittest.TestCase):
+    def test_calculate_pickle_checksums(self):
+        checksums = _calculate_pickle_checksums(['member1', 'member2', 'member3'])
+        assert 2 <= len(checksums) <= 3, checksums  # expecting ['0xc0af380' (MD5), '0x0c75bd4', '0xa7a7b94']
 
 
 if __name__ == "__main__":

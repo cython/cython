@@ -1,7 +1,7 @@
 # cython: warn.maybe_uninitialized=True
 # mode: error
 # tag: werror
-# ticket: 739
+# ticket: t739
 
 def index_lhs(a):
     cdef object idx

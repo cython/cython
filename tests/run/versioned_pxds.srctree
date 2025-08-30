@@ -1,0 +1,79 @@
+# mode: run
+# tag: pxd
+
+"""
+PYTHON setup.py build_ext --inplace
+PYTHON -c "import runner"
+"""
+
+######## setup.py ########
+
+from Cython.Build.Dependencies import cythonize
+
+from distutils.core import setup, Extension
+
+setup(
+  ext_modules=cythonize([
+    Extension("pkg.m1.a", ["pkg/m1/a.pyx"]),
+    Extension("pkg.m2.b", ["pkg/m2/b.pyx"])
+  ]),
+)
+
+######## pkg/__init__.py ########
+
+######## pkg/m1/__init__.py ########
+
+
+######## pkg/m1/a.pyx ########
+
+cdef class A:
+    def __init__(self):
+        self.x = 5
+
+######## pkg/m1/a.pxd ########
+
+to be ignored if there is a more specific file
+
+######## pkg/m1/a.cython-2.pxd ########
+
+very outdated, not to be picked up
+
+######## pkg/m1/a.cython-20.pxd ########
+
+outdated, not to be picked up
+
+######## pkg/m1/a.cython-29.pxd ########
+
+# closest version should get found!
+
+cdef class A:
+    cdef public float x
+
+######## pkg/m1/a.cython-300000.pxd ########
+
+Invalid distant future syntax right here!
+
+######## pkg/m1/a.cython-100000.pxd ########
+
+Invalid future syntax right here!
+
+
+######## pkg/m2/__init__.py ########
+
+######## pkg/m2/b.pyx ########
+
+from pkg.m1.a cimport A
+
+cdef class B(A):
+    pass
+
+######## runner.py ########
+
+from pkg.m1.a import A
+from pkg.m2.b import B
+
+a = A()
+b = B()
+
+assert a.x == 5
+assert isinstance(a.x, float), type(a.x)

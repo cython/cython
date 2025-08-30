@@ -1,11 +1,10 @@
-from __future__ import absolute_import
-
 from .Symtab import ModuleScope
 from .PyrexTypes import *
 from .UtilityCode import CythonUtilityCode
 from .Errors import error
 from .Scanning import StringSourceDescriptor
 from . import MemoryView
+from .StringEncoding import EncodedString
 
 
 class CythonScope(ModuleScope):
@@ -13,11 +12,11 @@ class CythonScope(ModuleScope):
     _cythonscope_initialized = False
 
     def __init__(self, context):
-        ModuleScope.__init__(self, u'cython', None, None)
+        ModuleScope.__init__(self, 'cython', None, None)
         self.pxd_file_loaded = True
         self.populate_cython_scope()
         # The Main.Context object
-        self.context = context
+        self._context = context
 
         for fused_type in (cy_integral_type, cy_floating_type, cy_numeric_type):
             entry = self.declare_typedef(fused_type.name,
@@ -25,6 +24,13 @@ class CythonScope(ModuleScope):
                                          None,
                                          cname='<error>')
             entry.in_cinclude = True
+
+        entry = self.declare_type(
+            "pymutex", cy_pymutex_type, None,
+            cname="__Pyx_Locks_PyMutex")
+        entry = self.declare_type(
+            "pythread_type_lock", cy_pythread_type_lock_type, None,
+            cname="__Pyx_Locks_PyThreadTypeLock")
 
     def is_cpp(self):
         # Allow C++ utility code in C++ contexts.
@@ -36,21 +42,21 @@ class CythonScope(ModuleScope):
         if type:
             return type
 
-        return super(CythonScope, self).lookup_type(name)
+        return super().lookup_type(name)
 
     def lookup(self, name):
-        entry = super(CythonScope, self).lookup(name)
+        entry = super().lookup(name)
 
         if entry is None and not self._cythonscope_initialized:
             self.load_cythonscope()
-            entry = super(CythonScope, self).lookup(name)
+            entry = super().lookup(name)
 
         return entry
 
     def find_module(self, module_name, pos):
         error("cython.%s is not available" % module_name, pos)
 
-    def find_submodule(self, module_name):
+    def find_submodule(self, module_name, as_package=False):
         entry = self.entries.get(module_name, None)
         if not entry:
             self.load_cythonscope()
@@ -63,12 +69,12 @@ class CythonScope(ModuleScope):
             # expected to create a submodule here (to protect CythonScope's
             # possible immutability). Hack ourselves out of the situation
             # for now.
-            raise error((StringSourceDescriptor(u"cython", u""), 0, 0),
+            raise error((StringSourceDescriptor("cython", ""), 0, 0),
                   "cython.%s is not available" % module_name)
 
     def lookup_qualified_name(self, qname):
         # ExprNode.as_cython_attribute generates qnames and we untangle it here...
-        name_path = qname.split(u'.')
+        name_path = qname.split('.')
         scope = self
         while len(name_path) > 1:
             scope = scope.lookup_here(name_path[0])
@@ -115,7 +121,7 @@ class CythonScope(ModuleScope):
         #
         # The view sub-scope
         #
-        self.viewscope = viewscope = ModuleScope(u'view', self, None)
+        self.viewscope = viewscope = ModuleScope('view', self, None)
         self.declare_module('view', viewscope, None).as_module = viewscope
         viewscope.is_cython_builtin = True
         viewscope.pxd_file_loaded = True
@@ -123,11 +129,28 @@ class CythonScope(ModuleScope):
         cythonview_testscope_utility_code.declare_in_scope(
                                             viewscope, cython_scope=self)
 
-        view_utility_scope = MemoryView.view_utility_code.declare_in_scope(
-                                            self.viewscope, cython_scope=self,
-                                            whitelist=MemoryView.view_utility_whitelist)
+        view_utility_scope = MemoryView.get_view_utility_code(
+            self.context.shared_utility_qualified_name
+        ).declare_in_scope(
+            self.viewscope, cython_scope=self, allowlist=MemoryView.view_utility_allowlist)
+
+        # Marks the types as being cython_builtin_type so that they can be
+        # extended from without Cython attempting to import cython.view
+        ext_types = [ entry.type
+                         for entry in view_utility_scope.entries.values()
+                         if entry.type.is_extension_type ]
+        for ext_type in ext_types:
+            ext_type.is_cython_builtin_type = 1
 
         # self.entries["array"] = view_utility_scope.entries.pop("array")
+
+        # dataclasses scope
+        dc_str = EncodedString('dataclasses')
+        dataclassesscope = ModuleScope(dc_str, self, context=None)
+        self.declare_module(dc_str, dataclassesscope, pos=None).as_module = dataclassesscope
+        dataclassesscope.is_cython_builtin = True
+        dataclassesscope.pxd_file_loaded = True
+        # doesn't actually have any contents
 
 
 def create_cython_scope(context):
@@ -142,7 +165,7 @@ def load_testscope_utility(cy_util_name, **kwargs):
     return CythonUtilityCode.load(cy_util_name, "TestCythonScope.pyx", **kwargs)
 
 
-undecorated_methods_protos = UtilityCode(proto=u"""
+undecorated_methods_protos = UtilityCode(proto="""
     /* These methods are undecorated and have therefore no prototype */
     static PyObject *__pyx_TestClass_cdef_method(
             struct __pyx_TestClass_obj *self, int value);

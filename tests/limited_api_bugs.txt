@@ -1,0 +1,91 @@
+# This file contains tests corresponding to unresolved bugs using CPython's
+# Limited API which will be skipped in the normal testing run.
+
+cpp_nonstdint
+embedsignatures_clinic
+generator_frame_cycle
+line_trace
+pstats_profile_test
+pep442_tp_finalize
+tracebacks
+tss
+sys_monitoring
+special_method_docstrings
+verbatiminclude
+test_coroutines_pep492
+coverage
+line_profile_test
+cdef_multiple_inheritance_errors
+pythran
+
+# cimport cpython
+clone
+overhead
+cython_array
+memoryview_inplace_division
+clear_to_null
+cpython_capi_py35
+cython_includes
+cdef_bool_T227
+datetime_cimport
+datetime_pxd
+datetime_members
+run[.]exttype
+isinstance
+pycontextvar
+run[.]pytype
+run[.]pyarray
+pyclass_special_methods
+time_pxd
+array_cimport
+builtin_pycomplex
+
+# example in docs that use features unavailable in the limited API
+# (and it's a decision for the docs writers rather than a limitation
+# of Cython's support)
+embedded
+extension_types.c_property
+array.resize
+array.safe_usage
+array.unsafe_usage
+wrapping_CPlusPlus.python_to_cpp
+
+# Tests explicitly use internals
+compile[.]pylong
+extern_varobject_extensions
+ext_attribute_cache
+fastcall
+r_extcomplex2
+longintrepr
+run[.]no_gc
+
+# Inherit builtin type: PEP697
+builtin_subtype_methods_T653
+builtin_type_inheritance_T608
+bytearraymethods
+cdef_subclass_builtin
+ext_auto_richcmp
+extern_builtins_T258
+pylistsubtype
+r_hordijk1
+slice2b
+trashcan
+unbound_special_methods
+unicode_formatting
+
+# Py_UNICODE
+builtin_ord
+for_in_string
+fstring
+run[.]inop
+run[.]notinop
+py_unicode_strings
+py_unicode_type
+unicode_indexing
+
+# Works on DW's computer, fails on CI on Python3.11 only with exactly the same versions
+# (might be due to shared ABI possibly?)
+yield_from_pep380
+
+# Not actually a bug - the test is to ensure that some code is included that blocks compilation on the Limited API
+e_limited_lock$

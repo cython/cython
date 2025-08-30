@@ -1,4 +1,4 @@
-def primes_python(nb_primes):
+def primes(nb_primes):
     p = []
     n = 2
     while len(p) < nb_primes:

@@ -1,7 +1,8 @@
 # -*- coding: utf-8 -*-
-# cython: language_level=3
 # mode: run
 # tag: pep3131, traceback
+
+# cython: language_level=3
 
 # Code with unicode identifiers can be compiled with Cython running either Python 2 or 3.
 # However Python access to unicode identifiers is only possible in Python 3. In Python 2
@@ -11,10 +12,12 @@
 # This is controlled by putting the Python3 only tests in the module __doc__ attribute
 # Most of the individual function and class docstrings are only present as a compile test
 
+cimport cython
+
 import sys
 
-if sys.version_info[0]>2:
-    __doc__ = """
+
+__doc__ = u"""
     >>> f()()
     2
     >>> f().__name__
@@ -37,6 +40,9 @@ if sys.version_info[0]>2:
     >>> print(x.α)
     200
 
+    >>> B().Ƒ()
+    >>> C().Ƒ()
+
     Test generation of locals()
     >>> sorted(Γναμε2().boring_function(1,2).keys())
     ['self', 'somevalue', 'x', 'ναμε5', 'ναμε6']
@@ -44,6 +50,8 @@ if sys.version_info[0]>2:
     >>> Γναμε2().boring_cpdef() - Γναμε2().εxciting_cpdef()
     0
     >>> function_taking_fancy_argument(Γναμε2()).ναμε3
+    1
+    >>> metho_function_taking_fancy_argument(Γναμε2()).ναμε3
     1
     >>> NormalClassΓΓ().ναμε
     10
@@ -61,8 +69,6 @@ if sys.version_info[0]>2:
     >>> NormalizeAttrPy().get()
     5
     """
-else:
-    __doc__ = ""
 
 global_ναμε1 = None
 cdef double global_ναμε2 = 1.2
@@ -81,10 +87,10 @@ cdef class A:
     def __init__(self):
         self.ναμε = 1
     cdef Ƒ(self):
-        return self.ναμε==1
+        return self.ναμε == 1
     def regular_function(self):
         """
-        Can use unicode cdef functions and (private) attributes iternally
+        Can use unicode cdef functions and (private) attributes internally
         >>> A().regular_function()
         True
         """
@@ -168,14 +174,27 @@ cdef class Γναμε2:
     cpdef εxciting_cpdef(self):
         """docstring"""
         return 2
+    cpdef cpdef_with_exciting_arg(self, ααα):
+        """
+        >>> Γναμε2().cpdef_with_exciting_arg(5)
+        5
+        """
+        return ααα
 
 cdef class Derived(Γναμε2):
     pass
 
 cdef Γναμε2 global_ναμε3 = Γναμε2()
 
+
+@cython.always_allow_keywords(False)  # METH_O signature
+def metho_function_taking_fancy_argument(Γναμε2 αrγ):
+    return αrγ
+
+@cython.always_allow_keywords(True)
 def function_taking_fancy_argument(Γναμε2 αrγ):
     return αrγ
+
 
 class NormalClassΓΓ(Γναμε2):
     """
@@ -221,7 +240,30 @@ cdef class NormalizeAttrCdef:
     def get(self):
         return self.ﬁ
 
-if sys.version_info[0]<=2:
-    # These symbols are causing problems for doctest
-    del NormalClassΓΓ
-    del globals()[u'Γναμε2'.encode('utf-8')]
+
+ctypedef long äntägär
+
+def use_typedef(x: äntägär):
+    """
+    >>> use_typedef(5)
+    10
+    """
+    cdef äntägär i = x
+    return i + x
+
+
+ctypedef fused nümbärs:
+    float
+    äntägär
+
+
+def use_fused_typedef(x: nümbärs):
+    """
+    >>> use_fused_typedef(4)
+    8
+    >>> use_fused_typedef(4.5)
+    9.0
+    """
+    cdef nümbärs i = x
+    assert cython.typeof(i) in ('float', 'äntägär'), cython.typeof(i)
+    return i + x

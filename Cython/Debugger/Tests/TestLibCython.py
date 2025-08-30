@@ -1,4 +1,3 @@
-
 import os
 import re
 import sys
@@ -22,7 +21,7 @@ codefile = os.path.join(root, 'codefile')
 cfuncs_file = os.path.join(root, 'cfuncs.c')
 
 with open(codefile) as f:
-    source_to_lineno = dict((line.strip(), i + 1) for i, line in enumerate(f))
+    source_to_lineno = {line.strip(): i for i, line in enumerate(f, 1)}
 
 
 have_gdb = None
@@ -99,6 +98,7 @@ class DebuggerTestCase(unittest.TestCase):
             opts = dict(
                 test_directory=self.tempdir,
                 module='codefile',
+                module_path=self.destfile,
             )
 
             optimization_disabler = build_ext.Optimization()
@@ -131,10 +131,11 @@ class DebuggerTestCase(unittest.TestCase):
                 )
 
                 cython_compile_testcase.run_distutils(
+                    test_directory=opts['test_directory'],
+                    module=opts['module'],
+                    workdir=opts['test_directory'],
                     incdir=None,
-                    workdir=self.tempdir,
                     extra_extension_args={'extra_objects':['cfuncs.o']},
-                    **opts
                 )
             finally:
                 optimization_disabler.restore_state()
@@ -170,7 +171,7 @@ class GdbDebuggerTestCase(DebuggerTestCase):
         if not test_gdb():
             return
 
-        super(GdbDebuggerTestCase, self).setUp()
+        super().setUp()
 
         prefix_code = textwrap.dedent('''\
             python
@@ -231,7 +232,7 @@ class GdbDebuggerTestCase(DebuggerTestCase):
             return
 
         try:
-            super(GdbDebuggerTestCase, self).tearDown()
+            super().tearDown()
             if self.p:
                 try: self.p.stdout.close()
                 except: pass
@@ -258,11 +259,11 @@ class TestAll(GdbDebuggerTestCase):
             sys.stderr.write(out)
             sys.stderr.write(err)
         elif exit_status >= 2:
-            border = u'*' * 30
-            start  = u'%s   v INSIDE GDB v   %s' % (border, border)
-            stderr = u'%s   v STDERR v   %s' % (border, border)
-            end    = u'%s   ^ INSIDE GDB ^   %s' % (border, border)
-            errmsg = u'\n%s\n%s%s\n%s%s' % (start, out, stderr, err, end)
+            border = '*' * 30
+            start  = '%s   v INSIDE GDB v   %s' % (border, border)
+            stderr = '%s   v STDERR v   %s' % (border, border)
+            end    = '%s   ^ INSIDE GDB ^   %s' % (border, border)
+            errmsg = '\n%s\n%s%s\n%s%s' % (start, out, stderr, err, end)
 
             sys.stderr.write(errmsg)
 

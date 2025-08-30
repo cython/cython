@@ -1,4 +1,4 @@
-# ticket: 411
+# ticket: t411
 
 cdef class A:
     """

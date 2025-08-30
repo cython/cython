@@ -87,6 +87,10 @@ cdef class FromPxd:
     cdef static_cdef(int* x):
         return 'pxd_cdef', x[0]
 
+    @staticmethod
+    cdef static_cdef_with_implicit_object(obj):
+        return obj+1
+
 def call_static_pxd_cdef(int x):
     """
     >>> call_static_pxd_cdef(2)
@@ -94,3 +98,11 @@ def call_static_pxd_cdef(int x):
     """
     cdef int *x_ptr = &x
     return FromPxd.static_cdef(x_ptr)
+
+def call_static_pxd_cdef_with_implicit_object(int x):
+    """
+    # https://github.com/cython/cython/issues/3174
+    >>> call_static_pxd_cdef_with_implicit_object(2)
+    3
+    """
+    return FromPxd.static_cdef_with_implicit_object(x)

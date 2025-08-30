@@ -9,14 +9,20 @@ import pyximport
 # blacklist for speed
 import pyximport.pyxbuild, Cython.Compiler.Pipeline
 
+pyximport.DEBUG_IMPORT = True
+
 pyximport.install(pyximport=False, pyimport=True,
                   build_dir=os.path.join(os.path.dirname(__file__), "TEST_TMP"))
 
 def test():
     import mymodule
     assert mymodule.test_string == "TEST"
-    assert not mymodule.__file__.rstrip('oc').endswith('.py'), mymodule.__file__
+    assert mymodule.compiled
 
 ######## mymodule.py ########
+
+import cython
+
+compiled = cython.compiled
 
 test_string = "TEST"

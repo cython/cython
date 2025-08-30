@@ -1,0 +1,174 @@
+# tag: numpy
+
+"""
+PYTHON delete_generated_files.py
+PYTHON setup_with_sources.py build_ext --inplace
+PYTHON -c "import test_shared_utility"
+
+PYTHON delete_generated_files.py
+PYTHON setup_with_builddir.py build_ext --inplace
+PYTHON -c "import test_shared_utility"
+
+PYTHON delete_generated_files.py
+PYTHON setup_without_sources.py build_ext --inplace
+PYTHON -c "import test_shared_utility"
+"""
+
+######## delete_generated_files.py ########
+
+import os
+from pathlib import Path
+
+ext_to_delete = {".c", ".cpp", ".o", ".so", ".pyd"}
+for directory, _, files in os.walk(os.getcwd()):
+    path = Path(directory)
+    for filename in files:
+        file = path / filename
+        if file.suffix.lower() in ext_to_delete:
+            print(f"Deleting {file}")
+            file.unlink()
+
+
+######## setup_with_sources.py ########
+
+from Cython.Build import cythonize
+from setuptools import setup, Extension
+import numpy
+
+extensions = [
+    Extension("*", ["**/*.pyx"], include_dirs=[numpy.get_include()]),
+    Extension("pkg2.CythonShared", sources=["pkg2/CythonShared.c"]),
+]
+
+setup(
+    ext_modules = cythonize(
+        extensions,
+        shared_utility_qualified_name = 'pkg2.CythonShared',
+    )
+)
+
+import pathlib
+assert pathlib.Path("pkg2/CythonShared.c").exists()
+
+
+######## setup_with_builddir.py ########
+
+from Cython.Build import cythonize
+from setuptools import setup, Extension
+import numpy
+
+extensions = [
+    Extension("*", ["**/*.pyx"], include_dirs=[numpy.get_include()]),
+    Extension("pkg2.CythonShared", sources=["pkg2/CythonShared.c"]),
+]
+
+setup(
+    ext_modules = cythonize(
+        extensions,
+        shared_utility_qualified_name = 'pkg2.CythonShared',
+        build_dir = "build",
+    )
+)
+
+import pathlib
+assert pathlib.Path("build/pkg2/CythonShared.c").exists()
+assert not pathlib.Path("pkg2/CythonShared.c").exists()
+
+
+######## setup_without_sources.py ########
+
+from Cython.Build import cythonize
+from setuptools import setup, Extension
+import numpy
+
+extensions = [
+    Extension("*", ["**/*.pyx"], include_dirs=[numpy.get_include()]),
+    Extension("pkg2.CythonShared", sources=[]),
+]
+
+setup(
+    ext_modules = cythonize(
+        extensions,
+        shared_utility_qualified_name = 'pkg2.CythonShared',
+    )
+)
+
+import pathlib
+assert pathlib.Path("pkg2/CythonShared.c").exists()
+assert not pathlib.Path("build/pkg2/CythonShared.c").exists()
+
+
+######## test_shared_utility.py ########
+from pkg1.pkg11.add_one import add_one
+from array import array
+from pkg1.pkg11.cast import call_cast, call_cast_to_array
+
+a = array('i', [1, 2, 3, 4])
+add_one(a)
+assert a.tolist() == [2, 3, 4, 5]
+
+import numpy as np
+from pkg1.pkg11.dependency import f
+assert f(np.arange(15, dtype='f').reshape(3, 5)) == 0.0
+
+assert call_cast() == [1, 2, 3, 4]
+assert call_cast_to_array() == [1, 2, 3, 4]
+
+from pkg2 import CythonShared
+assert hasattr(CythonShared, '__pyx_capi__'), dir(CythonShared)
+
+######## pkg1/__init__.py ########
+
+######## pkg1/pkg11/__init__.py ########
+
+######## pkg1/pkg11/add_one.pyx ########
+
+import sys
+from pkg2 import CythonShared
+
+assert CythonShared in sys.modules.values(), list(sys.modules)
+assert sys.modules['pkg2.CythonShared'] is CythonShared, list(sys.modules)
+
+def add_one(int[:] buf):
+    for x in range(buf.shape[0]):
+        buf[x] += 1
+
+######## pkg1/pkg11/dependency.pyx ########
+cimport numpy as cnp
+cimport cython
+
+import sys
+from pkg2 import CythonShared
+
+assert CythonShared in sys.modules.values(), list(sys.modules)
+assert sys.modules['pkg2.CythonShared'] is CythonShared, list(sys.modules)
+
+def f(cnp.ndarray[cython.floating, ndim=2] x):
+    return x[0,0]
+
+######## pkg1/pkg11/cast.pyx ########
+from cython cimport view
+
+import sys
+from pkg2 import CythonShared
+
+assert CythonShared in sys.modules.values(), list(sys.modules)
+assert sys.modules['pkg2.CythonShared'] is CythonShared, list(sys.modules)
+
+cdef cast(void *my_data_pointer):
+    cdef int[:] my_array = <int[:4]> my_data_pointer
+    return [my_array[i] for i in range(my_array.shape[0])]
+
+cdef cast_to_array(void *my_data_pointer):
+    cdef view.array my_array = <int[:4]> my_data_pointer
+    return [my_array[i] for i in range(my_array.shape[0])]
+
+def call_cast():
+    cdef int[4] g = [1, 2, 3, 4]
+    return cast(<void *> g)
+
+def call_cast_to_array():
+    cdef int[4] g = [1, 2, 3, 4]
+    return cast_to_array(<void *> g)
+
+######## pkg2/__init__.py ########

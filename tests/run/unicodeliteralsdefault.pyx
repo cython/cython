@@ -10,21 +10,21 @@ __doc__ = br"""
     >>> sa
     'abc'
     >>> ua
-    u'abc'
+    'abc'
     >>> b
-    u'123'
+    '123'
     >>> c
-    u'S\xf8k ik'
+    'S\xf8k ik'
     >>> d
-    u'\xfc\xd6\xe4'
+    '\xfc\xd6\xe4'
     >>> e
-    u'\x03g\xf8\uf8d2S\xf8k ik'
+    '\x03g\xf8\uf8d2S\xf8k ik'
     >>> f
-    u'\xf8'
+    '\xf8'
     >>> add
-    u'S\xf8k ik\xfc\xd6\xe4abc'
+    'S\xf8k ik\xfc\xd6\xe4abc'
     >>> null
-    u'\x00'
+    '\x00'
 """.decode("ASCII") + b"""
     >>> len(sa)
     3
@@ -45,33 +45,27 @@ __doc__ = br"""
     >>> len(null)
     1
 """.decode("ASCII") + u"""
-    >>> ua == u'abc'
+    >>> ua == 'abc'
     True
-    >>> b == u'123'
+    >>> b == '123'
     True
-    >>> c == u'Søk ik'
+    >>> c == 'Søk ik'
     True
-    >>> d == u'üÖä'
+    >>> d == 'üÖä'
     True
-    >>> e == u'\x03\x67\xf8\uf8d2Søk ik'     # unescaped by Cython
+    >>> e == '\x03\x67\xf8\uf8d2Søk ik'     # unescaped by Cython
     True
-    >>> e == u'\\x03\\x67\\xf8\\uf8d2Søk ik' # unescaped by Python
+    >>> e == '\\x03\\x67\\xf8\\uf8d2Søk ik' # unescaped by Python
     True
-    >>> f == u'\xf8'  # unescaped by Cython
+    >>> f == '\xf8'  # unescaped by Cython
     True
-    >>> f == u'\\xf8' # unescaped by Python
+    >>> f == '\\xf8' # unescaped by Python
     True
-    >>> add == u'Søk ik' + u'üÖä' + 'abc'
+    >>> add == 'Søk ik' + 'üÖä' + 'abc'
     True
-    >>> null == u'\\x00' # unescaped by Python (required by doctest)
+    >>> null == '\\x00' # unescaped by Python (required by doctest)
     True
 """
-
-import sys
-if sys.version_info[0] >= 3:
-    __doc__ = __doc__.replace(u" u'", u" '")
-else:
-    __doc__ = __doc__.replace(u" b'", u" '")
 
 sa = 'abc'
 ua = u'abc'

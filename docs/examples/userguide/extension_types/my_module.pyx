@@ -1,5 +1,3 @@
-from __future__ import print_function
-
 cdef class Shrubbery:
 
     def __init__(self, w, h):

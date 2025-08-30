@@ -1,9 +1,15 @@
-from __future__ import absolute_import
-
+import Cython
 from .TreeFragment import parse_from_strings, StringParseContext
+from .Scanning import FileSourceDescriptor
+from .Errors import CompileError
 from . import Symtab
 from . import Naming
 from . import Code
+from . import Options
+
+import os.path
+import re
+import io
 
 
 class NonManglingModuleScope(Symtab.ModuleScope):
@@ -16,7 +22,7 @@ class NonManglingModuleScope(Symtab.ModuleScope):
 
     def add_imported_entry(self, name, entry, pos):
         entry.used = True
-        return super(NonManglingModuleScope, self).add_imported_entry(name, entry, pos)
+        return super().add_imported_entry(name, entry, pos)
 
     def mangle(self, prefix, name=None):
         if name:
@@ -32,8 +38,8 @@ class NonManglingModuleScope(Symtab.ModuleScope):
 class CythonUtilityCodeContext(StringParseContext):
     scope = None
 
-    def find_module(self, module_name, relative_to=None, pos=None, need_pxd=True, absolute_fallback=True):
-        if relative_to:
+    def find_module(self, module_name, from_module=None, pos=None, need_pxd=True, absolute_fallback=True, relative_import=False):
+        if from_module:
             raise AssertionError("Relative imports not supported in utility code.")
         if module_name != self.module_name:
             if module_name not in self.modules:
@@ -124,14 +130,15 @@ class CythonUtilityCode(Code.UtilityCodeBase):
         context.cython_scope = cython_scope
         #context = StringParseContext(self.name)
         tree = parse_from_strings(
-            self.name, self.impl, context=context, allow_struct_enum_decorator=True)
+            self.name, self.impl, context=context, allow_struct_enum_decorator=True,
+            in_utility_code=True)
         pipeline = Pipeline.create_pipeline(context, 'pyx', exclude_classes=excludes)
 
         if entries_only:
             p = []
             for t in pipeline:
                 p.append(t)
-                if isinstance(p, ParseTreeTransforms.AnalyseDeclarationsTransform):
+                if isinstance(t, ParseTreeTransforms.AnalyseDeclarationsTransform):
                     break
 
             pipeline = p
@@ -173,8 +180,15 @@ class CythonUtilityCode(Code.UtilityCodeBase):
         if self.context_types:
             # inject types into module scope
             def scope_transform(module_node):
+                dummy_entry = object()
                 for name, type in self.context_types.items():
+                    # Restore the old type entry after declaring the type.
+                    # We need to access types in the scope, but this shouldn't alter the entry
+                    # that is visible from everywhere else
+                    old_type_entry = getattr(type, "entry", dummy_entry)
                     entry = module_node.scope.declare_type(name, type, None, visibility='extern')
+                    if old_type_entry is not dummy_entry:
+                        type.entry = old_type_entry
                     entry.in_cinclude = True
                 return module_node
 
@@ -191,15 +205,23 @@ class CythonUtilityCode(Code.UtilityCodeBase):
         pass
 
     @classmethod
+    def load(cls, util_code_name, from_file, **kwargs):
+        if re.search("[.]c(pp)?::", util_code_name):
+            # We're trying to load a C/C++ utility code.
+            # For now, just handle the simple case with no tempita
+            return Code.UtilityCode.load_cached(util_code_name, from_file)
+        return super().load(util_code_name, from_file, **kwargs)
+
+    @classmethod
     def load_as_string(cls, util_code_name, from_file=None, **kwargs):
         """
         Load a utility code as a string. Returns (proto, implementation)
         """
         util = cls.load(util_code_name, from_file, **kwargs)
-        return util.proto, util.impl # keep line numbers => no lstrip()
+        return util.proto, util.impl  # keep line numbers => no lstrip()
 
     def declare_in_scope(self, dest_scope, used=False, cython_scope=None,
-                         whitelist=None):
+                         allowlist=None):
         """
         Declare all entries from the utility code in dest_scope. Code will only
         be included for used entries. If module_name is given, declare the
@@ -218,7 +240,7 @@ class CythonUtilityCode(Code.UtilityCodeBase):
             entry.used = used
 
         original_scope = tree.scope
-        dest_scope.merge_in(original_scope, merge_unused=True, whitelist=whitelist)
+        dest_scope.merge_in(original_scope, merge_unused=True, allowlist=allowlist)
         tree.scope = dest_scope
 
         for dep in self.requires:
@@ -226,6 +248,91 @@ class CythonUtilityCode(Code.UtilityCodeBase):
                 dep.declare_in_scope(dest_scope, cython_scope=cython_scope)
 
         return original_scope
+
+    @staticmethod
+    def filter_inherited_directives(current_directives):
+        """
+        Cython utility code should usually only pick up a few directives from the
+        environment (those that intentionally control its function) and ignore most
+        other compiler directives. This function provides a sensible default list
+        of directives to copy.
+        """
+        from .Options import _directive_defaults
+        utility_code_directives = dict(_directive_defaults)
+        inherited_directive_names = (
+            'binding', 'always_allow_keywords', 'allow_none_for_extension_args',
+            'auto_pickle', 'ccomplex',
+            'c_string_type', 'c_string_encoding',
+            'optimize.inline_defnode_calls', 'optimize.unpack_method_calls',
+            'optimize.unpack_method_calls_in_pyinit', 'optimize.use_switch')
+        for name in inherited_directive_names:
+            if name in current_directives:
+                utility_code_directives[name] = current_directives[name]
+        return utility_code_directives
+
+
+class TemplatedFileSourceDescriptor(FileSourceDescriptor):
+
+    def __init__(self, filename, path_description, context):
+        super().__init__(filename, path_description)
+        self._context = context
+
+    def get_file_object(self, encoding=None, error_handling=None):
+        with super().get_file_object(encoding, error_handling) as f:
+            data = f.read()
+            ret = Code.sub_tempita(data, self._context, self.filename)
+            # We need stream to have .encoding attribute set
+            stream = io.TextIOWrapper(io.BytesIO(ret.encode(f.encoding)), encoding=f.encoding, errors=error_handling)
+        return stream
+
+
+class CythonSharedUtilityCode(Code.AbstractUtilityCode):
+    def __init__(self, pxd_name, shared_utility_qualified_name, template_context, requires):
+        self._pxd_name = pxd_name
+        self._shared_utility_qualified_name = shared_utility_qualified_name
+        self.template_context = template_context
+        self.requires = requires
+        self._shared_library_scope = None
+
+    def find_module(self, context):
+        scope = context
+        for name, is_package in scope._split_qualified_name(self._shared_utility_qualified_name, relative_import=False):
+            scope = scope.find_submodule(name, as_package=is_package)
+
+        pxd_pathname = os.path.join(
+            os.path.split(Cython.__file__)[0],
+            'Utility',
+            self._pxd_name
+        )
+        try:
+            rel_path = self._shared_utility_qualified_name.replace('.', os.sep) + os.path.splitext(pxd_pathname)[1]
+            source_desc = TemplatedFileSourceDescriptor(pxd_pathname, rel_path, self.template_context)
+            source_desc.in_utility_code = True
+            err, result = context.process_pxd(source_desc, scope, self._shared_utility_qualified_name)
+            (pxd_codenodes, pxd_scope) = result
+            context.utility_pxds[self._pxd_name] = (pxd_codenodes, pxd_scope)
+            scope.pxd_file_loaded = True
+            if err:
+                raise err
+        except CompileError:
+            pass
+        return scope
+
+    def declare_in_scope(self, dest_scope, used=False, cython_scope=None,
+                         allowlist=None):
+        if self._pxd_name not in cython_scope.context.utility_pxds:
+            self._shared_library_scope = self.find_module(cython_scope.context)
+        for dep in self.requires:
+            if dep.is_cython_utility:
+                dep.declare_in_scope(scope, cython_scope=cython_scope)
+        for e in self._shared_library_scope.c_class_entries:
+            dest_scope.add_imported_entry(e.name, e, e.pos)
+        return dest_scope
+
+    def get_shared_library_scope(self, cython_scope):
+        if self._pxd_name not in cython_scope.context.utility_pxds:
+            self._shared_library_scope = self.find_module(cython_scope.context)
+        return self._shared_library_scope
 
 
 def declare_declarations_in_scope(declaration_string, env, private_type=True,

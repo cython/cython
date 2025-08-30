@@ -1,5 +1,3 @@
-from __future__ import absolute_import
-
 from .Visitor import VisitorTransform
 from .Nodes import StatListNode
 

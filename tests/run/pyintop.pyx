@@ -1,6 +1,9 @@
+# cython: language_level=3str
 # mode: run
 
 cimport cython
+
+from operator import lshift as py_lshift, rshift as py_rshift
 
 
 def bigint(x):
@@ -12,7 +15,7 @@ def bigints(x):
     print(str(x).replace('L', ''))
 
 
-@cython.test_assert_path_exists('//IntBinopNode')
+@cython.test_assert_path_exists('//BitwiseOrNode')
 def or_obj(obj2, obj3):
     """
     >>> or_obj(2, 3)
@@ -22,7 +25,7 @@ def or_obj(obj2, obj3):
     return obj1
 
 
-@cython.test_fail_if_path_exists('//IntBinopNode')
+@cython.test_fail_if_path_exists('//BitwiseOrNode')
 def or_int(obj2):
     """
     >>> or_int(0)
@@ -79,8 +82,24 @@ def and_int(obj2):
     0
     >>> and_int(18)
     16
+    >>> and_int(-1)
+    16
     """
     obj1 = obj2 & 0x10
+    return obj1
+
+
+@cython.test_fail_if_path_exists('//IntBinopNode')
+def and_int2(obj2):
+    # On Python 3.10 and earlier, from_bytes produces a non-canonical
+    # 0 that caused trouble when &ing with a constant.
+    """
+    >>> and_int2(1337)
+    57
+    >>> and_int2(int.from_bytes(b'\\x00', 'big'))
+    0
+    """
+    obj1 = obj2 & 0xff
     return obj1
 
 
@@ -167,6 +186,11 @@ def rshift_int(obj2):
     144115188075855872
     >>> bigint(rshift_int(-2**60))
     -144115188075855872
+
+    >>> rshift_int(-1)
+    -1
+    >>> (-1) >> 3
+    -1
     """
     obj1 = obj2 >> 3
     return obj1
@@ -233,7 +257,7 @@ def lshift_int(obj):
 
 @cython.test_assert_path_exists(
     '//IntBinopNode',
-    '//IntBinopNode//IntBinopNode',
+    '//BitwiseOrNode//IntBinopNode',
 )
 def mixed_obj(obj2, obj3):
     """
@@ -245,8 +269,8 @@ def mixed_obj(obj2, obj3):
 
 
 @cython.test_assert_path_exists(
-    '//IntBinopNode',
-    '//IntBinopNode//PythonCapiCallNode',
+    '//BitwiseOrNode',
+    '//BitwiseOrNode//PythonCapiCallNode',
 )
 @cython.test_fail_if_path_exists(
     '//IntBinopNode//IntBinopNode',
@@ -505,3 +529,413 @@ def truthy(obj2):
         return True
     else:
         return False
+
+@cython.test_fail_if_path_exists("//CoerceToBooleanNode")
+@cython.test_fail_if_path_exists("//CoerceToPyTypeNode")
+def test_avoid_if_coercion(obj):
+    if obj == 1:  # this should not go through a Python intermediate
+        return True
+    else:
+        return False
+
+@cython.test_fail_if_path_exists('//AddNode')
+@cython.test_fail_if_path_exists('//NumBinopNode')
+@cython.test_fail_if_path_exists('//BinopNode')
+@cython.test_assert_path_exists('//PythonCapiFunctionNode')
+def pure_add_int(obj2: int):
+    """
+    >>> pure_add_int(1)
+    (2, 2)
+    """
+    res1 = obj2 + 1
+    res2 = 1 + obj2
+    return res1, res2
+
+@cython.test_fail_if_path_exists('//SubNode')
+@cython.test_fail_if_path_exists('//NumBinopNode')
+@cython.test_fail_if_path_exists('//BinopNode')
+@cython.test_assert_path_exists('//PythonCapiFunctionNode')
+def pure_sub_int(obj2: int):
+    """
+    >>> pure_sub_int(1)
+    (0, 0)
+    """
+    res1 = obj2 - 1
+    res2 = 1 - obj2
+    return res1, res2
+
+@cython.test_fail_if_path_exists('//MulNode')
+@cython.test_fail_if_path_exists('//NumBinopNode')
+@cython.test_fail_if_path_exists('//BinopNode')
+@cython.test_assert_path_exists('//PythonCapiFunctionNode')
+def pure_mul_int(obj2: int):
+    """
+    >>> pure_mul_int(2)
+    (4, 4)
+    """
+    res1 = obj2 * 2
+    res2 = 2 * obj2
+    return res1, res2
+
+@cython.test_fail_if_path_exists('//PrimaryCmpNode')
+@cython.test_assert_path_exists('//PythonCapiFunctionNode')
+def pure_eq_int(obj2: int):
+    """
+    >>> pure_eq_int(2)
+    (True, True)
+    >>> pure_eq_int(3)
+    (False, False)
+    """
+    res1 = obj2 == 2
+    res2 = 2 == obj2
+    return res1, res2
+
+@cython.test_fail_if_path_exists('//PrimaryCmpNode')
+@cython.test_assert_path_exists('//PythonCapiFunctionNode')
+def pure_ne_int(obj2: int):
+    """
+    >>> pure_ne_int(2)
+    (False, False)
+    >>> pure_ne_int(3)
+    (True, True)
+    """
+    res1 = obj2 != 2
+    res2 = 2 != obj2
+    return res1, res2
+
+@cython.test_fail_if_path_exists('//IntBinopNode')
+@cython.test_fail_if_path_exists('//NumBinopNode')
+@cython.test_fail_if_path_exists('//BinopNode')
+@cython.test_assert_path_exists('//PythonCapiFunctionNode')
+def pure_and_int(obj2: int):
+    """
+    >>> pure_and_int(1)
+    (0, 0)
+    >>> pure_and_int(3)
+    (2, 2)
+    """
+    res1 = obj2 & 2
+    res2 = 2 & obj2
+    return res1, res2
+
+@cython.test_fail_if_path_exists('//IntBinopNode')
+@cython.test_fail_if_path_exists('//NumBinopNode')
+@cython.test_fail_if_path_exists('//BinopNode')
+@cython.test_assert_path_exists('//PythonCapiFunctionNode')
+def pure_or_int(obj2: int):
+    """
+    >>> pure_or_int(1)
+    (3, 3)
+    >>> pure_or_int(0)
+    (2, 2)
+    """
+    res1 = obj2 | 2
+    res2 = 2 | obj2
+    return res1, res2
+
+@cython.test_fail_if_path_exists('//IntBinopNode')
+@cython.test_fail_if_path_exists('//NumBinopNode')
+@cython.test_fail_if_path_exists('//BinopNode')
+@cython.test_assert_path_exists('//PythonCapiFunctionNode')
+def pure_xor_int(obj2: int):
+    """
+    >>> pure_xor_int(1)
+    (3, 3)
+    >>> pure_xor_int(3)
+    (1, 1)
+    """
+    res1 = obj2 ^ 2
+    res2 = 2 ^ obj2
+    return res1, res2
+
+@cython.test_fail_if_path_exists('//IntBinopNode')
+@cython.test_fail_if_path_exists('//NumBinopNode')
+@cython.test_fail_if_path_exists('//BinopNode')
+@cython.test_assert_path_exists('//PythonCapiFunctionNode')
+def pure_rshift_int(obj2: int):
+    """
+    >>> pure_rshift_int(8)
+    4
+    """
+    res = obj2 >> 1
+    return res
+
+@cython.test_fail_if_path_exists('//IntBinopNode')
+@cython.test_fail_if_path_exists('//NumBinopNode')
+@cython.test_fail_if_path_exists('//BinopNode')
+@cython.test_assert_path_exists('//PythonCapiFunctionNode')
+def pure_lshift_int(obj2: int):
+    """
+    >>> pure_lshift_int(8)
+    16
+    """
+    res = obj2 << 1
+    return res
+
+@cython.test_fail_if_path_exists('//IntBinopNode')
+@cython.test_fail_if_path_exists('//NumBinopNode')
+@cython.test_fail_if_path_exists('//BinopNode')
+@cython.test_assert_path_exists('//PythonCapiFunctionNode')
+def pure_mod_int(obj2: int):
+    """
+    >>> pure_mod_int(3)
+    1
+    """
+    res = obj2 % 2
+    return res
+
+@cython.test_fail_if_path_exists('//DivNode')
+@cython.test_fail_if_path_exists('//NumBinopNode')
+@cython.test_fail_if_path_exists('//BinopNode')
+@cython.test_assert_path_exists('//PythonCapiFunctionNode')
+def pure_floordiv_int(obj2: int):
+    """
+    >>> pure_floordiv_int(3)
+    1
+    """
+    res = obj2 // 2
+    return res
+
+import sys
+
+
+@cython.test_fail_if_path_exists('//DivNode')
+@cython.test_fail_if_path_exists('//NumBinopNode')
+@cython.test_fail_if_path_exists('//BinopNode')
+@cython.test_assert_path_exists('//PythonCapiFunctionNode')
+def pure_truediv_int(obj2: int):
+    """
+    >>> pure_truediv_int(5)
+    2.5
+    """
+    res = obj2 / 2
+    return res
+
+
+def negative_rhs_lshift(obj: int):
+    """
+    >>> negative_rhs_lshift(5)
+    Traceback (most recent call last):
+        ...
+    ValueError: negative shift count
+    """
+    return (obj << (-1))
+
+def negative_rhs_rshift(obj: int):
+    """
+    >>> negative_rhs_rshift(5)
+    Traceback (most recent call last):
+        ...
+    ValueError: negative shift count
+    """
+    return (obj >> (-1))
+
+
+def big_lshift(obj):
+    """
+    >>> big_lshift(1)
+    1180591620717411303424
+    >>> big_lshift(-1)
+    -1180591620717411303424
+    """
+    return obj << 70
+
+def somewhat_big_lshift(obj):
+    """
+    Note that on MSVC this is bigger than a long
+
+    >>> somewhat_big_lshift(1)
+    (1099511627776, 4294967296)
+    >>> somewhat_big_lshift(-1)
+    (-1099511627776, -4294967296)
+    """
+    return obj << 40, obj << 32
+
+def big_rshift(obj):
+    """
+    >>> big_rshift(1)
+    0
+    >>> big_rshift(-1)
+    -1
+    >>> big_rshift(2**80)
+    1024
+    >>> big_rshift(-(2**80))
+    -1024
+    """
+    return obj >> 70
+
+def somewhat_big_rshift(obj):
+    """
+    Note that on MSVC this is bigger than a long
+
+    >>> somewhat_big_rshift(1)
+    (0, 0)
+    >>> somewhat_big_rshift(-1)
+    (-1, -1)
+    >>> somewhat_big_rshift(0x6f)
+    (0, 0)
+    >>> somewhat_big_rshift(-0x6f)
+    (-1, -1)
+    >>> somewhat_big_rshift(2**50)
+    (1024, 262144)
+    >>> somewhat_big_rshift(-(2**50))
+    (-1024, -262144)
+    """
+    return obj >> 40, obj >> 32
+
+cdef compare_lshift(obj, shift, cython_result):
+    py_result = py_lshift(obj, shift)
+    assert cython_result == py_result, f"{obj} << {shift} == {cython_result} != {py_result}"
+
+cdef compare_rshift(obj, shift, cython_result):
+    py_result = py_rshift(obj, shift)
+    assert cython_result == py_result, f"{obj} >> {shift} == {cython_result} != {py_result}"
+
+cdef compare_both_shifts(obj, shift, cython_lresult, cython_rresult):
+    compare_lshift(obj, shift, cython_lresult)
+    compare_rshift(obj, shift, cython_rresult)
+
+def integer_shifts(obj):
+    """
+    >>> integer_shifts(0)
+    >>> integer_shifts(1)
+    >>> integer_shifts(-1)
+    >>> integer_shifts(0xff)
+    >>> integer_shifts(-0xff)
+    >>> integer_shifts(0xff00)
+    >>> integer_shifts(-0xff00)
+    >>> integer_shifts(0xff0000)
+    >>> integer_shifts(-0xff0000)
+    >>> integer_shifts(0xff000000)
+    >>> integer_shifts(-0xff000000)
+    """
+    compare_both_shifts(obj, 0, obj << 0, obj >> 0)
+    compare_both_shifts(obj, 1, obj << 1, obj >> 1)
+    compare_both_shifts(obj, 2, obj << 2, obj >> 2)
+    compare_both_shifts(obj, 3, obj << 3, obj >> 3)
+    compare_both_shifts(obj, 4, obj << 4, obj >> 4)
+    compare_both_shifts(obj, 5, obj << 5, obj >> 5)
+    compare_both_shifts(obj, 6, obj << 6, obj >> 6)
+    compare_both_shifts(obj, 7, obj << 7, obj >> 7)
+    compare_both_shifts(obj, 8, obj << 8, obj >> 8)
+    compare_both_shifts(obj, 9, obj << 9, obj >> 9)
+    compare_both_shifts(obj, 10, obj << 10, obj >> 10)
+    compare_both_shifts(obj, 11, obj << 11, obj >> 11)
+    compare_both_shifts(obj, 12, obj << 12, obj >> 12)
+    compare_both_shifts(obj, 13, obj << 13, obj >> 13)
+    compare_both_shifts(obj, 14, obj << 14, obj >> 14)
+    compare_both_shifts(obj, 15, obj << 15, obj >> 15)
+    compare_both_shifts(obj, 16, obj << 16, obj >> 16)
+    compare_both_shifts(obj, 17, obj << 17, obj >> 17)
+    compare_both_shifts(obj, 18, obj << 18, obj >> 18)
+    compare_both_shifts(obj, 19, obj << 19, obj >> 19)
+    compare_both_shifts(obj, 20, obj << 20, obj >> 20)
+    compare_both_shifts(obj, 21, obj << 21, obj >> 21)
+    compare_both_shifts(obj, 22, obj << 22, obj >> 22)
+    compare_both_shifts(obj, 23, obj << 23, obj >> 23)
+    compare_both_shifts(obj, 24, obj << 24, obj >> 24)
+    compare_both_shifts(obj, 25, obj << 25, obj >> 25)
+    compare_both_shifts(obj, 26, obj << 26, obj >> 26)
+    compare_both_shifts(obj, 27, obj << 27, obj >> 27)
+    compare_both_shifts(obj, 28, obj << 28, obj >> 28)
+    compare_both_shifts(obj, 29, obj << 29, obj >> 29)
+    compare_both_shifts(obj, 30, obj << 30, obj >> 30)
+    compare_both_shifts(obj, 31, obj << 31, obj >> 31)
+    compare_both_shifts(obj, 32, obj << 32, obj >> 32)
+    compare_both_shifts(obj, 33, obj << 33, obj >> 33)
+    compare_both_shifts(obj, 34, obj << 34, obj >> 34)
+    compare_both_shifts(obj, 35, obj << 35, obj >> 35)
+    compare_both_shifts(obj, 36, obj << 36, obj >> 36)
+    compare_both_shifts(obj, 37, obj << 37, obj >> 37)
+    compare_both_shifts(obj, 38, obj << 38, obj >> 38)
+    compare_both_shifts(obj, 39, obj << 39, obj >> 39)
+    compare_both_shifts(obj, 40, obj << 40, obj >> 40)
+    compare_both_shifts(obj, 41, obj << 41, obj >> 41)
+    compare_both_shifts(obj, 42, obj << 42, obj >> 42)
+    compare_both_shifts(obj, 43, obj << 43, obj >> 43)
+    compare_both_shifts(obj, 44, obj << 44, obj >> 44)
+    compare_both_shifts(obj, 45, obj << 45, obj >> 45)
+    compare_both_shifts(obj, 46, obj << 46, obj >> 46)
+    compare_both_shifts(obj, 47, obj << 47, obj >> 47)
+    compare_both_shifts(obj, 48, obj << 48, obj >> 48)
+    compare_both_shifts(obj, 49, obj << 49, obj >> 49)
+    compare_both_shifts(obj, 50, obj << 50, obj >> 50)
+    compare_both_shifts(obj, 51, obj << 51, obj >> 51)
+    compare_both_shifts(obj, 52, obj << 52, obj >> 52)
+    compare_both_shifts(obj, 53, obj << 53, obj >> 53)
+    compare_both_shifts(obj, 54, obj << 54, obj >> 54)
+    compare_both_shifts(obj, 55, obj << 55, obj >> 55)
+    compare_both_shifts(obj, 56, obj << 56, obj >> 56)
+    compare_both_shifts(obj, 57, obj << 57, obj >> 57)
+    compare_both_shifts(obj, 58, obj << 58, obj >> 58)
+    compare_both_shifts(obj, 59, obj << 59, obj >> 59)
+    compare_both_shifts(obj, 60, obj << 60, obj >> 60)
+    compare_both_shifts(obj, 61, obj << 61, obj >> 61)
+    compare_both_shifts(obj, 62, obj << 62, obj >> 62)
+    compare_both_shifts(obj, 63, obj << 63, obj >> 63)
+    compare_both_shifts(obj, 64, obj << 64, obj >> 64)
+    compare_both_shifts(obj, 65, obj << 65, obj >> 65)
+    compare_both_shifts(obj, 66, obj << 66, obj >> 66)
+    compare_both_shifts(obj, 67, obj << 67, obj >> 67)
+    compare_both_shifts(obj, 68, obj << 68, obj >> 68)
+    compare_both_shifts(obj, 69, obj << 69, obj >> 69)
+    compare_both_shifts(obj, 70, obj << 70, obj >> 70)
+    compare_both_shifts(obj, 71, obj << 71, obj >> 71)
+    compare_both_shifts(obj, 72, obj << 72, obj >> 72)
+    compare_both_shifts(obj, 73, obj << 73, obj >> 73)
+    compare_both_shifts(obj, 74, obj << 74, obj >> 74)
+    compare_both_shifts(obj, 75, obj << 75, obj >> 75)
+    compare_both_shifts(obj, 76, obj << 76, obj >> 76)
+    compare_both_shifts(obj, 77, obj << 77, obj >> 77)
+    compare_both_shifts(obj, 78, obj << 78, obj >> 78)
+    compare_both_shifts(obj, 79, obj << 79, obj >> 79)
+    compare_both_shifts(obj, 80, obj << 80, obj >> 80)
+    compare_both_shifts(obj, 81, obj << 81, obj >> 81)
+    compare_both_shifts(obj, 82, obj << 82, obj >> 82)
+    compare_both_shifts(obj, 83, obj << 83, obj >> 83)
+    compare_both_shifts(obj, 84, obj << 84, obj >> 84)
+    compare_both_shifts(obj, 85, obj << 85, obj >> 85)
+    compare_both_shifts(obj, 86, obj << 86, obj >> 86)
+    compare_both_shifts(obj, 87, obj << 87, obj >> 87)
+    compare_both_shifts(obj, 88, obj << 88, obj >> 88)
+    compare_both_shifts(obj, 89, obj << 89, obj >> 89)
+    compare_both_shifts(obj, 90, obj << 90, obj >> 90)
+    compare_both_shifts(obj, 91, obj << 91, obj >> 91)
+    compare_both_shifts(obj, 92, obj << 92, obj >> 92)
+    compare_both_shifts(obj, 93, obj << 93, obj >> 93)
+    compare_both_shifts(obj, 94, obj << 94, obj >> 94)
+    compare_both_shifts(obj, 95, obj << 95, obj >> 95)
+    compare_both_shifts(obj, 96, obj << 96, obj >> 96)
+    compare_both_shifts(obj, 97, obj << 97, obj >> 97)
+    compare_both_shifts(obj, 98, obj << 98, obj >> 98)
+    compare_both_shifts(obj, 99, obj << 99, obj >> 99)
+    compare_both_shifts(obj, 100, obj << 100, obj >> 100)
+    compare_both_shifts(obj, 101, obj << 101, obj >> 101)
+    compare_both_shifts(obj, 102, obj << 102, obj >> 102)
+    compare_both_shifts(obj, 103, obj << 103, obj >> 103)
+    compare_both_shifts(obj, 104, obj << 104, obj >> 104)
+    compare_both_shifts(obj, 105, obj << 105, obj >> 105)
+    compare_both_shifts(obj, 106, obj << 106, obj >> 106)
+    compare_both_shifts(obj, 107, obj << 107, obj >> 107)
+    compare_both_shifts(obj, 108, obj << 108, obj >> 108)
+    compare_both_shifts(obj, 109, obj << 109, obj >> 109)
+    compare_both_shifts(obj, 110, obj << 110, obj >> 110)
+    compare_both_shifts(obj, 111, obj << 111, obj >> 111)
+    compare_both_shifts(obj, 112, obj << 112, obj >> 112)
+    compare_both_shifts(obj, 113, obj << 113, obj >> 113)
+    compare_both_shifts(obj, 114, obj << 114, obj >> 114)
+    compare_both_shifts(obj, 115, obj << 115, obj >> 115)
+    compare_both_shifts(obj, 116, obj << 116, obj >> 116)
+    compare_both_shifts(obj, 117, obj << 117, obj >> 117)
+    compare_both_shifts(obj, 118, obj << 118, obj >> 118)
+    compare_both_shifts(obj, 119, obj << 119, obj >> 119)
+    compare_both_shifts(obj, 120, obj << 120, obj >> 120)
+    compare_both_shifts(obj, 121, obj << 121, obj >> 121)
+    compare_both_shifts(obj, 122, obj << 122, obj >> 122)
+    compare_both_shifts(obj, 123, obj << 123, obj >> 123)
+    compare_both_shifts(obj, 124, obj << 124, obj >> 124)
+    compare_both_shifts(obj, 125, obj << 125, obj >> 125)
+    compare_both_shifts(obj, 126, obj << 126, obj >> 126)
+    compare_both_shifts(obj, 127, obj << 127, obj >> 127)
+    compare_both_shifts(obj, 128, obj << 128, obj >> 128)
+    compare_both_shifts(obj, 129, obj << 129, obj >> 129)

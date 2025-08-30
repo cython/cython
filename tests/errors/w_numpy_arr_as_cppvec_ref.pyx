@@ -1,9 +1,11 @@
 # mode: error
-# tag: cpp, werror, numpy
+# tag: cpp, werror, numpy, no-cpp-locals
 
 import numpy as np
 cimport numpy as np
 from libcpp.vector cimport vector
+
+np.import_array()
 
 cdef extern from *:
     void cpp_function_vector1(vector[int])
@@ -24,8 +26,8 @@ def main():
 
 
 _ERRORS = """
-17:25: Cannot pass Python object as C++ data structure reference (vector[int] &), will pass by copy.
-18:25: Cannot pass Python object as C++ data structure reference (vector[int] &), will pass by copy.
-19:28: Cannot pass Python object as C++ data structure reference (vector[int] &), will pass by copy.
-19:33: Cannot pass Python object as C++ data structure reference (vector[int] &), will pass by copy.
+19:25: Cannot pass Python object as C++ data structure reference (vector[int] &), will pass by copy.
+20:25: Cannot pass Python object as C++ data structure reference (vector[int] &), will pass by copy.
+21:28: Cannot pass Python object as C++ data structure reference (vector[int] &), will pass by copy.
+21:33: Cannot pass Python object as C++ data structure reference (vector[int] &), will pass by copy.
 """

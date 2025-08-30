@@ -24,3 +24,22 @@ def cond_if_bases(x):
     class PyClass(A if x else B):
         p = 5
     return PyClass
+
+
+def make_subclass(*bases):
+    """
+    >>> cls = make_subclass(list)
+    >>> issubclass(cls, list) or cls.__mro__
+    True
+
+    >>> class Cls(object): pass
+    >>> cls = make_subclass(Cls, list)
+    >>> issubclass(cls, list) or cls.__mro__
+    True
+    >>> issubclass(cls, Cls) or cls.__mro__
+    True
+    """
+    # GH-3338
+    class MadeClass(*bases):
+        pass
+    return MadeClass

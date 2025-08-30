@@ -6,13 +6,6 @@ PYTHON -m mydoctest
 
 ########### mydoctest.py #######
 
-import sys
-if (sys.version_info[0] < 3 or
-    (sys.version_info[0] == 3 and sys.version_info[1] < 5)):
-    # The module is only Cythonized and not build for these versions
-    # so don't run the tests
-    exit()
-    
 import doctest
 import from_py
 val = doctest.testmod(from_py)[0]
@@ -27,24 +20,19 @@ exit(val)
 
 from __future__ import unicode_literals
 
-import sys
 from Cython.Build import cythonize
 
-files = ["mymoδ.pyx", "from_cy.pyx"]
+files = ["mymoð.pyx", "from_cy.pyx", "测试.py" ]
 
-
-# For Python 2 and Python <= 3.4 just run pyx->c; 
-# don't compile the C file
 modules = cythonize(files)
 
-if sys.version_info >= (3, 5):
-    from distutils.core import setup
+from distutils.core import setup
 
-    setup(
-        ext_modules = modules
-    )
+setup(
+    ext_modules = modules
+)
 
-############ mymoδ.pyx #########
+############ mymoð.pyx #########
 
 def f():
     return True
@@ -52,37 +40,46 @@ def f():
 cdef public api void cdef_func():
     pass
 
-############ pxd_moδ.pxd ##########
+############ pxd_moð.pxd ##########
 
 cdef struct S:
     int x
     
 cdef public api void cdef_func() # just to test generation of headers
+
+############ 测试.py #############
+
+def g():
+    return 1
     
 ############ from_py.py #########
 
 # -*- coding: utf-8 -*-
 
-import mymoδ
-from mymoδ import f
+import mymoð
+from mymoð import f
+import 测试
 
 __doc__ = """
->>> mymoδ.f()
+>>> mymoð.f()
 True
 >>> f()
 True
+>>> 测试.g()
+1
 """
 
 ######### from_cy.pyx ##########
 
 # -*- coding: utf-8 -*-
 
-import mymoδ
+import mymoð
 
-from mymoδ import f
+from mymoð import f
+import 测试
 
-cimport pxd_moδ
-from pxd_moδ cimport S
+cimport pxd_moð
+from pxd_moð cimport S
 
 
 def test_imported():
@@ -90,14 +87,23 @@ def test_imported():
     >>> test_imported()
     True
     """
-    return mymoδ.f() and f() # True and True
+    return mymoð.f() and f() # True and True
+    
+    
+def test_imported2():
+    """
+    >>> test_imported2()
+    1
+    """
+    return 测试.g()
+
 
 def test_cimported():
     """
     >>> test_cimported()
     3
     """
-    cdef pxd_moδ.S v1
+    cdef pxd_moð.S v1
     v1.x = 1
     cdef S v2
     v2.x = 2

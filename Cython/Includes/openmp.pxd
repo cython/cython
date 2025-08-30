@@ -48,4 +48,3 @@ cdef extern from "<omp.h>":
     int omp_get_ancestor_thread_num(int) nogil
     int omp_get_team_size(int) nogil
     int omp_get_active_level() nogil
-

@@ -1,5 +1,3 @@
-from __future__ import absolute_import
-
 from .Errors import error, message
 from . import ExprNodes
 from . import Nodes
@@ -9,10 +7,7 @@ from .. import Utils
 from .PyrexTypes import py_object_type, unspecified_type
 from .Visitor import CythonTransform, EnvTransform
 
-try:
-    reduce
-except NameError:
-    from functools import reduce
+from functools import reduce
 
 
 class TypedExprNode(ExprNodes.ExprNode):
@@ -20,7 +15,7 @@ class TypedExprNode(ExprNodes.ExprNode):
     subexprs = []
 
     def __init__(self, type, pos=None):
-        super(TypedExprNode, self).__init__(pos, type=type)
+        super().__init__(pos, type=type)
 
 object_expr = TypedExprNode(py_object_type)
 
@@ -37,7 +32,7 @@ class MarkParallelAssignments(EnvTransform):
     def __init__(self, context):
         # Track the parallel block scopes (with parallel, for i in prange())
         self.parallel_block_stack = []
-        super(MarkParallelAssignments, self).__init__(context)
+        super().__init__(context)
 
     def mark_assignment(self, lhs, rhs, inplace_op=None):
         if isinstance(lhs, (ExprNodes.NameNode, Nodes.PyArgDeclNode)):
@@ -84,6 +79,8 @@ class MarkParallelAssignments(EnvTransform):
         return node
 
     def visit_SingleAssignmentNode(self, node):
+        if self.parallel_block_stack:
+            node.in_parallel_block = True
         self.mark_assignment(node.lhs, node.rhs)
         self.visitchildren(node)
         return node
@@ -104,10 +101,11 @@ class MarkParallelAssignments(EnvTransform):
         is_special = False
         sequence = node.iterator.sequence
         target = node.target
+        iterator_scope = node.iterator.expr_scope or self.current_env()
         if isinstance(sequence, ExprNodes.SimpleCallNode):
             function = sequence.function
             if sequence.self is None and function.is_name:
-                entry = self.current_env().lookup(function.name)
+                entry = iterator_scope.lookup(function.name)
                 if not entry or entry.is_builtin:
                     if function.name == 'reversed' and len(sequence.args) == 1:
                         sequence = sequence.args[0]
@@ -115,7 +113,7 @@ class MarkParallelAssignments(EnvTransform):
                         if target.is_sequence_constructor and len(target.args) == 2:
                             iterator = sequence.args[0]
                             if iterator.is_name:
-                                iterator_type = iterator.infer_type(self.current_env())
+                                iterator_type = iterator.infer_type(iterator_scope)
                                 if iterator_type.is_builtin_type:
                                     # assume that builtin types have a length within Py_ssize_t
                                     self.mark_assignment(
@@ -126,21 +124,19 @@ class MarkParallelAssignments(EnvTransform):
                                     sequence = sequence.args[0]
         if isinstance(sequence, ExprNodes.SimpleCallNode):
             function = sequence.function
-            if sequence.self is None and function.is_name:
-                entry = self.current_env().lookup(function.name)
-                if not entry or entry.is_builtin:
-                    if function.name in ('range', 'xrange'):
-                        is_special = True
-                        for arg in sequence.args[:2]:
-                            self.mark_assignment(target, arg)
-                        if len(sequence.args) > 2:
-                            self.mark_assignment(
-                                target,
-                                ExprNodes.binop_node(node.pos,
-                                                     '+',
-                                                     sequence.args[0],
-                                                     sequence.args[2]))
-
+            if sequence.self is None and function.is_name and function.name in ('range', 'xrange'):
+                entry = iterator_scope.lookup(function.name)
+                if not entry or entry.is_type and entry.type is Builtin.range_type:
+                    is_special = True
+                    for arg in sequence.args[:2]:
+                        self.mark_assignment(target, arg)
+                    if len(sequence.args) > 2:
+                        self.mark_assignment(
+                            target,
+                            ExprNodes.binop_node(node.pos,
+                                                    '+',
+                                                    sequence.args[0],
+                                                    sequence.args[2]))
         if not is_special:
             # A for-loop basically translates to subsequent calls to
             # __getitem__(), so using an IndexNode here allows us to
@@ -173,12 +169,12 @@ class MarkParallelAssignments(EnvTransform):
 
     def visit_ExceptClauseNode(self, node):
         if node.target is not None:
-            self.mark_assignment(node.target, object_expr)
+            self.mark_assignment(node.target, node.exc_value)
         self.visitchildren(node)
         return node
 
     def visit_FromCImportStatNode(self, node):
-        pass # Can't be assigned to...
+        return node  # Can't be assigned to...
 
     def visit_FromImportStatNode(self, node):
         for name, target in node.items:
@@ -233,10 +229,7 @@ class MarkParallelAssignments(EnvTransform):
             self.parallel_errors = True
 
         if node.is_prange:
-            child_attrs = node.child_attrs
-            node.child_attrs = ['body', 'target', 'args']
-            self.visitchildren(node)
-            node.child_attrs = child_attrs
+            self.visitchildren(node, attrs=('body', 'target', 'args'))
 
             self.parallel_block_stack.pop()
             if node.else_clause:
@@ -257,6 +250,12 @@ class MarkParallelAssignments(EnvTransform):
         node.in_parallel = bool(self.parallel_block_stack)
         return node
 
+    def visit_ExprNode(self, node):
+        self.visitchildren(node)
+        if self.parallel_block_stack:
+            node.in_parallel_block = True
+        return node
+
 
 class MarkOverflowingArithmetic(CythonTransform):
 
@@ -268,7 +267,7 @@ class MarkOverflowingArithmetic(CythonTransform):
     def __call__(self, root):
         self.env_stack = []
         self.env = root.scope
-        return super(MarkOverflowingArithmetic, self).__call__(root)
+        return super().__call__(root)
 
     def visit_safe_node(self, node):
         self.might_overflow, saved = False, self.might_overflow
@@ -308,10 +307,10 @@ class MarkOverflowingArithmetic(CythonTransform):
 
     def visit_SimpleCallNode(self, node):
         if node.function.is_name and node.function.name == 'abs':
-          # Overflows for minimum value of fixed size ints.
-          return self.visit_dangerous_node(node)
+            # Overflows for minimum value of fixed size ints.
+            return self.visit_dangerous_node(node)
         else:
-          return self.visit_neutral_node(node)
+            return self.visit_neutral_node(node)
 
     visit_UnopNode = visit_neutral_node
 
@@ -340,7 +339,7 @@ class MarkOverflowingArithmetic(CythonTransform):
         self.visitchildren(node)
         return node
 
-class PyObjectTypeInferer(object):
+class PyObjectTypeInferer:
     """
     If it's not declared, it's a PyObject.
     """
@@ -352,17 +351,24 @@ class PyObjectTypeInferer(object):
             if entry.type is unspecified_type:
                 entry.type = py_object_type
 
-class SimpleAssignmentTypeInferer(object):
+class SimpleAssignmentTypeInferer:
     """
     Very basic type inference.
 
     Note: in order to support cross-closure type inference, this must be
     applies to nested scopes in top-down order.
     """
-    def set_entry_type(self, entry, entry_type):
-        entry.type = entry_type
+    def set_entry_type(self, entry, entry_type, scope):
         for e in entry.all_entries():
             e.type = entry_type
+            if e.type.is_memoryviewslice:
+                # memoryview slices crash if they don't get initialized
+                e.init = e.type.default_value
+            if e.type.is_cpp_class:
+                if scope.directives['cpp_locals']:
+                    e.make_cpp_optional()
+                else:
+                    e.type.check_nullary_constructor(entry.pos)
 
     def infer_types(self, scope):
         enabled = scope.directives['infer_types']
@@ -370,12 +376,12 @@ class SimpleAssignmentTypeInferer(object):
 
         if enabled == True:
             spanning_type = aggressive_spanning_type
-        elif enabled is None: # safe mode
+        elif enabled is None:  # safe mode
             spanning_type = safe_spanning_type
         else:
             for entry in scope.entries.values():
                 if entry.type is unspecified_type:
-                    self.set_entry_type(entry, py_object_type)
+                    self.set_entry_type(entry, py_object_type, scope)
             return
 
         # Set of assignments
@@ -404,7 +410,7 @@ class SimpleAssignmentTypeInferer(object):
             else:
                 entry = node.entry
                 node_type = spanning_type(
-                    types, entry.might_overflow, entry.pos, scope)
+                    types, entry.might_overflow, scope)
             node.inferred_type = node_type
 
         def infer_name_node_type_partial(node):
@@ -413,7 +419,7 @@ class SimpleAssignmentTypeInferer(object):
             if not types:
                 return
             entry = node.entry
-            return spanning_type(types, entry.might_overflow, entry.pos, scope)
+            return spanning_type(types, entry.might_overflow, scope)
 
         def inferred_types(entry):
             has_none = False
@@ -488,9 +494,9 @@ class SimpleAssignmentTypeInferer(object):
                 types = inferred_types(entry)
                 if types and all(types):
                     entry_type = spanning_type(
-                        types, entry.might_overflow, entry.pos, scope)
+                        types, entry.might_overflow, scope)
                     inferred.add(entry)
-            self.set_entry_type(entry, entry_type)
+            self.set_entry_type(entry, entry_type, scope)
 
         def reinfer():
             dirty = False
@@ -498,9 +504,9 @@ class SimpleAssignmentTypeInferer(object):
                 for assmt in entry.cf_assignments:
                     assmt.infer_type()
                 types = inferred_types(entry)
-                new_type = spanning_type(types, entry.might_overflow, entry.pos, scope)
+                new_type = spanning_type(types, entry.might_overflow, scope)
                 if new_type != entry.type:
-                    self.set_entry_type(entry, new_type)
+                    self.set_entry_type(entry, new_type, scope)
                     dirty = True
             return dirty
 
@@ -530,34 +536,24 @@ def find_spanning_type(type1, type2):
         return PyrexTypes.c_double_type
     return result_type
 
-def simply_type(result_type, pos):
-    if result_type.is_reference:
-        result_type = result_type.ref_base_type
-    if result_type.is_cv_qualified:
-        result_type = result_type.cv_base_type
-    if result_type.is_cpp_class:
-        result_type.check_nullary_constructor(pos)
+def simply_type(result_type):
+    result_type = PyrexTypes.remove_cv_ref(result_type, remove_fakeref=True)
     if result_type.is_array:
         result_type = PyrexTypes.c_ptr_type(result_type.base_type)
     return result_type
 
-def aggressive_spanning_type(types, might_overflow, pos, scope):
-    return simply_type(reduce(find_spanning_type, types), pos)
+def aggressive_spanning_type(types, might_overflow, scope):
+    return simply_type(reduce(find_spanning_type, types))
 
-def safe_spanning_type(types, might_overflow, pos, scope):
-    result_type = simply_type(reduce(find_spanning_type, types), pos)
+def safe_spanning_type(types, might_overflow, scope):
+    result_type = simply_type(reduce(find_spanning_type, types))
     if result_type.is_pyobject:
-        # In theory, any specific Python type is always safe to
-        # infer. However, inferring str can cause some existing code
-        # to break, since we are also now much more strict about
-        # coercion from str to char *. See trac #553.
-        if result_type.name == 'str':
-            return py_object_type
-        else:
-            return result_type
-    elif result_type is PyrexTypes.c_double_type:
+        return result_type
+    elif (result_type is PyrexTypes.c_double_type or
+            result_type is PyrexTypes.c_float_type):
         # Python's float type is just a C double, so it's safe to use
-        # the C type instead
+        # the C type instead. Similarly if given a C float, it leads to
+        # a small loss of precision vs Python but is otherwise the same
         return result_type
     elif result_type is PyrexTypes.c_bint_type:
         # find_spanning_type() only returns 'bint' for clean boolean
@@ -577,8 +573,12 @@ def safe_spanning_type(types, might_overflow, pos, scope):
         # used, won't arise in pure Python, and there shouldn't be side
         # effects, so I'm declaring this safe.
         return result_type
-    # TODO: double complex should be OK as well, but we need
-    # to make sure everything is supported.
+    elif result_type.is_memoryviewslice:
+        return result_type
+    elif result_type is PyrexTypes.soft_complex_type:
+        return result_type
+    elif result_type == PyrexTypes.c_double_complex_type:
+        return result_type
     elif (result_type.is_int or result_type.is_enum) and not might_overflow:
         return result_type
     elif (not result_type.can_coerce_to_pyobject(scope)

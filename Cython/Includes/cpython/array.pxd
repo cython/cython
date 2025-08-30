@@ -46,8 +46,19 @@
               : 2012-05-02 andreasvc
               : (see revision control)
 """
-from libc.string cimport strcat, strncat, \
-    memset, memchr, memcmp, memcpy, memmove
+
+cdef extern from *:
+    """
+    #if CYTHON_COMPILING_IN_PYPY || CYTHON_COMPILING_IN_LIMITED_API
+    #ifdef _MSC_VER
+    #pragma message ("This module uses CPython specific internals of 'array.array', which are not available in PyPy or the limited API.")
+    #else
+    #warning This module uses CPython specific internals of 'array.array', which are not available in PyPy or the limited API.
+    #endif
+    #endif
+    """
+
+from libc.string cimport memset, memcpy
 
 from cpython.object cimport Py_SIZE
 from cpython.ref cimport PyTypeObject, Py_TYPE
@@ -59,12 +70,12 @@ cdef extern from *:  # Hard-coded utility code hack.
     ctypedef object GETF(array a, Py_ssize_t ix)
     ctypedef object SETF(array a, Py_ssize_t ix, object o)
     ctypedef struct arraydescr:  # [object arraydescr]:
-            char typecode
-            int itemsize
-            GETF getitem    # PyObject * (*getitem)(struct arrayobject *, Py_ssize_t);
-            SETF setitem    # int (*setitem)(struct arrayobject *, Py_ssize_t, PyObject *);
+        char typecode
+        int itemsize
+        GETF getitem    # PyObject * (*getitem)(struct arrayobject *, Py_ssize_t);
+        SETF setitem    # int (*setitem)(struct arrayobject *, Py_ssize_t, PyObject *);
 
-    ctypedef union __data_union:
+    ctypedef union __data_union "__Pyx_data_union":
         # views of ob_item:
         float* as_floats        # direct float pointer access to buffer
         double* as_doubles      # double ...
@@ -88,7 +99,10 @@ cdef extern from *:  # Hard-coded utility code hack.
         cdef:
             Py_ssize_t ob_size
             arraydescr* ob_descr    # struct arraydescr *ob_descr;
-            __data_union data
+
+        @property
+        cdef inline __data_union data(self) nogil:
+            return __Pyx_PyArray_Data(self)
 
         def __getbuffer__(self, Py_buffer* info, int flags):
             # This implementation of getbuffer is geared towards Cython
@@ -120,6 +134,7 @@ cdef extern from *:  # Hard-coded utility code hack.
 
     array newarrayobject(PyTypeObject* type, Py_ssize_t size, arraydescr *descr)
 
+    __data_union __Pyx_PyArray_Data(array self) nogil
     # fast resize/realloc
     # not suitable for small increments; reallocation 'to the point'
     int resize(array self, Py_ssize_t n) except -1
@@ -131,14 +146,14 @@ cdef inline array clone(array template, Py_ssize_t length, bint zero):
     """ fast creation of a new array, given a template array.
     type will be same as template.
     if zero is true, new array will be initialized with zeroes."""
-    op = newarrayobject(Py_TYPE(template), length, template.ob_descr)
+    cdef array op = newarrayobject(Py_TYPE(template), length, template.ob_descr)
     if zero and op is not None:
         memset(op.data.as_chars, 0, length * op.ob_descr.itemsize)
     return op
 
 cdef inline array copy(array self):
     """ make a copy of an array. """
-    op = newarrayobject(Py_TYPE(self), Py_SIZE(self), self.ob_descr)
+    cdef array op = newarrayobject(Py_TYPE(self), Py_SIZE(self), self.ob_descr)
     memcpy(op.data.as_chars, self.data.as_chars, Py_SIZE(op) * op.ob_descr.itemsize)
     return op
 
@@ -158,6 +173,6 @@ cdef inline int extend(array self, array other) except -1:
         PyErr_BadArgument()
     return extend_buffer(self, other.data.as_chars, Py_SIZE(other))
 
-cdef inline void zero(array self):
+cdef inline void zero(array self) noexcept:
     """ set all elements of array to zero. """
     memset(self.data.as_chars, 0, Py_SIZE(self) * self.ob_descr.itemsize)

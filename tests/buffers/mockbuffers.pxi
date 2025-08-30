@@ -1,6 +1,5 @@
-from libc cimport stdlib
-from libc cimport stdio
 cimport cpython.buffer
+cimport cpython.mem as pymem
 
 import sys
 
@@ -34,7 +33,7 @@ cdef class MockBuffer:
         cdef Py_ssize_t x, s, cumprod, itemsize
         self.label = label
         self.release_ok = True
-        self.log = ""
+        self.log = u""
         self.offset = offset
         self.itemsize = itemsize = self.get_itemsize()
         self.writable = writable
@@ -43,9 +42,7 @@ cdef class MockBuffer:
         if strides is None:
             strides = []
             cumprod = 1
-            rshape = list(shape)
-            rshape.reverse()
-            for s in rshape:
+            for s in shape[::-1]:
                 strides.append(cumprod)
                 cumprod *= s
             strides.reverse()
@@ -84,17 +81,17 @@ cdef class MockBuffer:
         self.shape = self.list_to_sizebuf(shape)
 
     def __dealloc__(self):
-        stdlib.free(self.strides)
-        stdlib.free(self.shape)
+        pymem.PyMem_Free(self.strides)
+        pymem.PyMem_Free(self.shape)
         if self.suboffsets != NULL:
-            stdlib.free(self.suboffsets)
+            pymem.PyMem_Free(self.suboffsets)
             # must recursively free indirect...
         else:
-            stdlib.free(self.buffer)
+            pymem.PyMem_Free(self.buffer)
 
     cdef void* create_buffer(self, data) except NULL:
         cdef size_t n = <size_t>(len(data) * self.itemsize)
-        cdef char* buf = <char*>stdlib.malloc(n)
+        cdef char* buf = <char*>pymem.PyMem_Malloc(n)
         if buf == NULL:
             raise MemoryError
         cdef char* it = buf
@@ -112,7 +109,7 @@ cdef class MockBuffer:
         else:
             shape = shape[1:]
             n = <size_t>len(data) * sizeof(void*)
-            buf = <void**>stdlib.malloc(n)
+            buf = <void**>pymem.PyMem_Malloc(n)
             if buf == NULL:
                 return NULL
 
@@ -124,7 +121,7 @@ cdef class MockBuffer:
     cdef Py_ssize_t* list_to_sizebuf(self, l):
         cdef Py_ssize_t i, x
         cdef size_t n = <size_t>len(l) * sizeof(Py_ssize_t)
-        cdef Py_ssize_t* buf = <Py_ssize_t*>stdlib.malloc(n)
+        cdef Py_ssize_t* buf = <Py_ssize_t*>pymem.PyMem_Malloc(n)
         for i, x in enumerate(l):
             buf[i] = x
         return buf
@@ -133,14 +130,14 @@ cdef class MockBuffer:
         if self.fail:
             raise ValueError("Failing on purpose")
 
-        self.received_flags = []
         cdef int value
-        for name, value in available_flags:
-            if (value & flags) == value:
-                self.received_flags.append(name)
+        self.received_flags = [
+            name for name, value in available_flags
+            if (value & flags) == value
+        ]
 
         if flags & cpython.buffer.PyBUF_WRITABLE and not self.writable:
-            raise BufferError("Writable buffer requested from read-only mock: %s" % ' | '.join(self.received_flags))
+            raise BufferError(f"Writable buffer requested from read-only mock: {' | '.join(self.received_flags)}")
 
         buffer.buf = <void*>(<char*>self.buffer + (<int>self.offset * self.itemsize))
         buffer.obj = self
@@ -154,29 +151,29 @@ cdef class MockBuffer:
         buffer.itemsize = self.itemsize
         buffer.internal = NULL
         if self.label:
-            msg = "acquired %s" % self.label
-            print msg
-            self.log += msg + "\n"
+            msg = f"acquired {self.label}"
+            print(msg)
+            self.log += msg + u"\n"
 
     def __releasebuffer__(MockBuffer self, Py_buffer* buffer):
         if buffer.suboffsets != self.suboffsets:
             self.release_ok = False
         if self.label:
-            msg = "released %s" % self.label
-            print msg
-            self.log += msg + "\n"
+            msg = f"released {self.label}"
+            print(msg)
+            self.log += msg + u"\n"
 
     def printlog(self):
-        print self.log[:-1]
+        print(self.log[:-1])
 
     def resetlog(self):
-        self.log = ""
+        self.log = u""
 
     cdef int write(self, char* buf, object value) except -1: raise Exception()
     cdef get_itemsize(self):
-        print "ERROR, not subclassed", self.__class__
+        print(f"ERROR, not subclassed: {self.__class__}")
     cdef get_default_format(self):
-        print "ERROR, not subclassed", self.__class__
+        print(f"ERROR, not subclassed {self.__class__}")
 
 cdef class CharMockBuffer(MockBuffer):
     cdef int write(self, char* buf, object value) except -1:
@@ -248,10 +245,10 @@ cdef class ErrorBuffer:
         self.label = label
 
     def __getbuffer__(ErrorBuffer self, Py_buffer* buffer, int flags):
-        raise Exception("acquiring %s" % self.label)
+        raise Exception(f"acquiring {self.label}")
 
     def __releasebuffer__(ErrorBuffer self, Py_buffer* buffer):
-        raise Exception("releasing %s" % self.label)
+        raise Exception(f"releasing {self.label}")
 
 #
 # Structs
@@ -338,12 +335,11 @@ cdef class LongComplexMockBuffer(MockBuffer):
 
 
 def print_offsets(*args, size, newline=True):
-    sys.stdout.write(' '.join([str(item // size) for item in args]))
-    if newline:
-        sys.stdout.write('\n')
+    sys.stdout.write(' '.join([str(item // size) for item in args]) + ('\n' if newline else ''))
 
 def print_int_offsets(*args, newline=True):
     print_offsets(*args, size=sizeof(int), newline=newline)
+
 
 shape_5_3_4_list = [[list(range(k * 12 + j * 4, k * 12 + j * 4 + 4))
                         for j in range(3)]

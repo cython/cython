@@ -35,6 +35,15 @@ cdef extern from "Python.h":
     # PyMem_Malloc(1) had been called instead. The memory will not
     # have been initialized in any way.
 
+    void* PyMem_RawCalloc(size_t nelem, size_t elsize) nogil
+    void* PyMem_Calloc(size_t nelem, size_t elsize)
+    # Allocates nelem elements each whose size in bytes is elsize and
+    # returns a pointer of type void* to the allocated memory, or NULL if
+    # the request fails. The memory is initialized to zeros. Requesting
+    # zero elements or elements of size zero bytes returns a distinct
+    # non-NULL pointer if possible, as if PyMem_Calloc(1, 1) had been
+    # called instead.
+
     void* PyMem_RawRealloc(void *p, size_t n) nogil
     void* PyMem_Realloc(void *p, size_t n)
     # Resizes the memory block pointed to by p to n bytes. The
@@ -43,13 +52,13 @@ cdef extern from "Python.h":
     # else if n is equal to zero, the memory block is resized but is
     # not freed, and the returned pointer is non-NULL. Unless p is
     # NULL, it must have been returned by a previous call to
-    # PyMem_Malloc() or PyMem_Realloc().
+    # PyMem_Malloc(), PyMem_Realloc(), or PyMem_Calloc().
 
     void PyMem_RawFree(void *p) nogil
     void PyMem_Free(void *p)
     # Frees the memory block pointed to by p, which must have been
-    # returned by a previous call to PyMem_Malloc() or
-    # PyMem_Realloc(). Otherwise, or if PyMem_Free(p) has been called
+    # returned by a previous call to PyMem_Malloc(), PyMem_Realloc(), or
+    # PyMem_Calloc(). Otherwise, or if PyMem_Free(p) has been called
     # before, undefined behavior occurs. If p is NULL, no operation is
     # performed.
 

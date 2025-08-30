@@ -40,7 +40,7 @@ cdef extern int a(int[][3], int[][3][5])
 cdef void f():
     cdef void *p=NULL
     global ifnp, cpa
-    ifnp = <int (*)()>p
+    ifnp = <int (*)() noexcept>p
 
 cdef char *g():
     pass

@@ -5,6 +5,10 @@ from libc.stddef cimport wchar_t
 cdef extern from "<time.h>" nogil:
     ctypedef long clock_t
     ctypedef long time_t
+    struct timespec:
+        time_t tv_sec
+        long tv_nsec
+    enum: TIME_UTC
 
     enum: CLOCKS_PER_SEC
     clock_t clock()             # CPU time
@@ -20,8 +24,9 @@ cdef extern from "<time.h>" nogil:
         int  tm_wday
         int  tm_yday
         int  tm_isdst
-        char *tm_zone
-        long tm_gmtoff
+        # GNU specific extensions
+        #char *tm_zone
+        #long tm_gmtoff
 
     int     daylight            # global state
     long    timezone
@@ -41,6 +46,7 @@ cdef extern from "<time.h>" nogil:
     time_t  mktime(tm *)
     size_t  strftime(char *, size_t, const char *, const tm *)
     size_t  wcsftime(wchar_t *str, size_t cnt, const wchar_t *fmt, tm *time)
+    int     timespec_get(timespec *spec, int base)
 
     # POSIX not stdC
     char    *strptime(const char *, const char *, tm *)

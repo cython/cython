@@ -27,7 +27,7 @@ for test_case in ["notcython.pyx", "my_module/cython.pyx", "cythontest/helper.py
 from Cython.Compiler.Main import main as cython
 import sys
 
-for test_case in ["cython.pyx", "scr2/cython.pyx", "src/cython/helper.pyx"]:
+for test_case in ["cython.pyx", "src2/cython.pyx", "src/cython/helper.pyx"]:
     sys.argv=["cython", test_case]  #cython.py will extract parameters from sys.argv
     try:
         cython(command_line=1)

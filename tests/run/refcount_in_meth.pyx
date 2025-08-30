@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 __doc__=u"""
 >>> t = RefCountInMeth()
@@ -12,10 +12,12 @@ True
 True
 """
 
-from cpython.ref cimport PyObject
+cimport cython
+from cpython.ref cimport PyObject, Py_REFCNT
 
+@cython.always_allow_keywords(False)
 def get_refcount(obj):
-    return (<PyObject*>obj).ob_refcnt
+    return Py_REFCNT(obj)
 
 cdef class RefCountInMeth(object):
     cdef double value

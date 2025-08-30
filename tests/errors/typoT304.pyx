@@ -1,4 +1,4 @@
-# ticket: 304
+# ticket: t304
 # mode: error
 
 def f():

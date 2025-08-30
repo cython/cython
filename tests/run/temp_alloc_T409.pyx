@@ -1,4 +1,4 @@
-# ticket: 409
+# ticket: t409
 # Extracted from sage/plot/plot3d/index_face_set.pyx:502
 # Turns out to be a bug in implementation of PEP 3132 (Extended Iterable Unpacking)
 

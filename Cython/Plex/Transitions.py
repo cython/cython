@@ -3,15 +3,12 @@ Plex - Transition Maps
 
 This version represents state sets directly as dicts for speed.
 """
-from __future__ import absolute_import
+import cython
 
-try:
-    from sys import maxsize as maxint
-except ImportError:
-    from sys import maxint
+maxint = 2**31-1  # sentinel value
 
 
-class TransitionMap(object):
+class TransitionMap:
     """
     A TransitionMap maps an input event to a set of states.
     An input event is one of: a range of character codes,
@@ -39,39 +36,38 @@ class TransitionMap(object):
     kept separately in a dictionary.
     """
 
-    map = None      # The list of codes and states
-    special = None  # Mapping for special events
-
     def __init__(self, map=None, special=None):
         if not map:
-            map = [-maxint, {}, maxint]
+            map = [-maxint, set(), maxint]
         if not special:
             special = {}
-        self.map = map
-        self.special = special
+        self.map = map          # The list of codes and states
+        self.special = special  # Mapping for special events
 
-    def add(self, event, new_state,
-            TupleType=tuple):
+    def add(self, event, new_state):
         """
         Add transition to |new_state| on |event|.
         """
-        if type(event) is TupleType:
+        i: cython.Py_ssize_t
+        j: cython.Py_ssize_t
+        if type(event) is tuple:
             code0, code1 = event
             i = self.split(code0)
             j = self.split(code1)
             map = self.map
             while i < j:
-                map[i + 1][new_state] = 1
+                map[i + 1].add(new_state)
                 i += 2
         else:
-            self.get_special(event)[new_state] = 1
+            self.get_special(event).add(new_state)
 
-    def add_set(self, event, new_set,
-                TupleType=tuple):
+    def add_set(self, event, new_set):
         """
         Add transitions to the states in |new_set| on |event|.
         """
-        if type(event) is TupleType:
+        i: cython.Py_ssize_t
+        j: cython.Py_ssize_t
+        if type(event) is tuple:
             code0, code1 = event
             i = self.split(code0)
             j = self.split(code1)
@@ -88,36 +84,34 @@ class TransitionMap(object):
         """
         return self.special.get('')
 
-    def iteritems(self,
-                  len=len):
+    def iteritems(self):
         """
         Return the mapping as an iterable of ((code1, code2), state_set) and
         (special_event, state_set) pairs.
         """
         result = []
         map = self.map
-        else_set = map[1]
-        i = 0
-        n = len(map) - 1
+        else_set: cython.bint = map[1]
+        i: cython.Py_ssize_t = 0
+        n: cython.Py_ssize_t = len(map) - 1
         code0 = map[0]
         while i < n:
-            set = map[i + 1]
+            state_set = map[i + 1]
             code1 = map[i + 2]
-            if set or else_set:
-                result.append(((code0, code1), set))
+            if state_set or else_set:
+                result.append(((code0, code1), state_set))
             code0 = code1
             i += 2
-        for event, set in self.special.items():
-            if set:
-                result.append((event, set))
+        for event, state_set in self.special.items():
+            if state_set:
+                result.append((event, state_set))
         return iter(result)
 
     items = iteritems
 
     # ------------------- Private methods --------------------
 
-    def split(self, code,
-              len=len, maxint=maxint):
+    def split(self, code: cython.long):
         """
         Search the list for the position of the split point for |code|,
         inserting a new split point if necessary. Returns index |i| such
@@ -125,13 +119,14 @@ class TransitionMap(object):
         """
         # We use a funky variation on binary search.
         map = self.map
-        hi = len(map) - 1
+        hi: cython.Py_ssize_t = len(map) - 1
         # Special case: code == map[-1]
         if code == maxint:
             return hi
 
         # General case
-        lo = 0
+        lo: cython.Py_ssize_t = 0
+        mid: cython.Py_ssize_t
         # loop invariant: map[lo] <= code < map[hi] and hi - lo >= 2
         while hi - lo >= 4:
             # Find midpoint truncated to even index
@@ -147,24 +142,24 @@ class TransitionMap(object):
             map[hi:hi] = [code, map[hi - 1].copy()]
             return hi
 
-    def get_special(self, event):
+    def get_special(self, event) -> set:
         """
         Get state set for special event, adding a new entry if necessary.
         """
         special = self.special
-        set = special.get(event, None)
-        if not set:
-            set = {}
-            special[event] = set
-        return set
+        state_set = special.get(event)
+        if state_set is None:
+            state_set = set()
+            special[event] = state_set
+        return state_set
 
     # --------------------- Conversion methods -----------------------
 
     def __str__(self):
         map_strs = []
         map = self.map
-        n = len(map)
-        i = 0
+        n: cython.Py_ssize_t = len(map)
+        i: cython.Py_ssize_t = 0
         while i < n:
             code = map[i]
             if code == -maxint:
@@ -196,8 +191,8 @@ class TransitionMap(object):
 
     def dump(self, file):
         map = self.map
-        i = 0
-        n = len(map) - 1
+        i: cython.Py_ssize_t = 0
+        n: cython.Py_ssize_t = len(map) - 1
         while i < n:
             self.dump_range(map[i], map[i + 2], map[i + 1], file)
             i += 2

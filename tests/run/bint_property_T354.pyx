@@ -1,4 +1,4 @@
-# ticket: 354
+# ticket: t354
 
 cdef class Test:
     """

@@ -1,5 +1,3 @@
-from __future__ import absolute_import
-
 from .Visitor import CythonTransform
 from .ModuleNode import ModuleNode
 from .Errors import CompileError
@@ -32,10 +30,9 @@ class IntroduceBufferAuxiliaryVars(CythonTransform):
     def __call__(self, node):
         assert isinstance(node, ModuleNode)
         self.max_ndim = 0
-        result = super(IntroduceBufferAuxiliaryVars, self).__call__(node)
+        result = super().__call__(node)
         if self.buffers_exists:
             use_bufstruct_declare_code(node.scope)
-            use_py2_buffer_functions(node.scope)
 
         return result
 
@@ -85,7 +82,7 @@ class IntroduceBufferAuxiliaryVars(CythonTransform):
                 aux_var = scope.declare_var(name=None, cname=cname,
                                             type=type, pos=node.pos)
                 if entry.is_arg:
-                    aux_var.used = True # otherwise, NameNode will mark whether it is used
+                    aux_var.used = True  # otherwise, NameNode will mark whether it is used
 
                 return aux_var
 
@@ -111,9 +108,9 @@ class IntroduceBufferAuxiliaryVars(CythonTransform):
 #
 # Analysis
 #
-buffer_options = ("dtype", "ndim", "mode", "negative_indices", "cast") # ordered!
+buffer_options = ("dtype", "ndim", "mode", "negative_indices", "cast")  # ordered!
 buffer_defaults = {"ndim": 1, "mode": "full", "negative_indices": True, "cast": False}
-buffer_positional_options_count = 1 # anything beyond this needs keyword argument
+buffer_positional_options_count = 1  # anything beyond this needs keyword argument
 
 ERR_BUF_OPTION_UNKNOWN = '"%s" is not a buffer option'
 ERR_BUF_TOO_MANY = 'Too many buffer options'
@@ -146,12 +143,12 @@ def analyse_buffer_options(globalpos, env, posargs, dictargs, defaults=None, nee
 
     options = {}
     for name, (value, pos) in dictargs.items():
-        if not name in buffer_options:
+        if name not in buffer_options:
             raise CompileError(pos, ERR_BUF_OPTION_UNKNOWN % name)
         options[name] = value
 
     for name, (value, pos) in zip(buffer_options, posargs):
-        if not name in buffer_options:
+        if name not in buffer_options:
             raise CompileError(pos, ERR_BUF_OPTION_UNKNOWN % name)
         if name in options:
             raise CompileError(pos, ERR_BUF_DUP % name)
@@ -159,7 +156,7 @@ def analyse_buffer_options(globalpos, env, posargs, dictargs, defaults=None, nee
 
     # Check that they are all there and copy defaults
     for name in buffer_options:
-        if not name in options:
+        if name not in options:
             try:
                 options[name] = defaults[name]
             except KeyError:
@@ -193,7 +190,7 @@ def analyse_buffer_options(globalpos, env, posargs, dictargs, defaults=None, nee
 # Code generation
 #
 
-class BufferEntry(object):
+class BufferEntry:
     def __init__(self, entry):
         self.entry = entry
         self.type = entry.type
@@ -298,9 +295,10 @@ def put_unpack_buffer_aux_into_scope(buf_entry, code):
     ln = []
     for i in range(buf_entry.type.ndim):
         for fldname in fldnames:
-            ln.append("%s.diminfo[%d].%s = %s.rcbuffer->pybuffer.%s[%d];" % \
-                    (pybuffernd_struct, i, fldname,
-                     pybuffernd_struct, fldname, i))
+            ln.append("%s.diminfo[%d].%s = %s.rcbuffer->pybuffer.%s[%d];" % (
+                pybuffernd_struct, i, fldname,
+                pybuffernd_struct, fldname, i,
+            ))
     code.putln(' '.join(ln))
 
 def put_init_vars(entry, code):
@@ -373,7 +371,7 @@ def put_assign_to_buffer(lhs_cname, rhs_cname, buf_entry,
     code.putln("{")  # Set up necessary stack for getbuffer
     code.putln("__Pyx_BufFmt_StackElem __pyx_stack[%d];" % buffer_type.dtype.struct_nesting_depth())
 
-    getbuffer = get_getbuffer_call(code, "%s", buffer_aux, buffer_type) # fill in object below
+    getbuffer = get_getbuffer_call(code, "%s", buffer_aux, buffer_type)  # fill in object below
 
     if is_initialized:
         # Release any existing buffer
@@ -419,7 +417,7 @@ def put_assign_to_buffer(lhs_cname, rhs_cname, buf_entry,
         put_unpack_buffer_aux_into_scope(buf_entry, code)
         code.putln('}')
 
-    code.putln("}") # Release stack
+    code.putln("}")  # Release stack
 
 
 def put_buffer_lookup_code(entry, index_signeds, index_cnames, directives,
@@ -550,72 +548,6 @@ def buf_lookup_fortran_code(proto, defin, name, nd):
         proto.putln("#define %s(type, buf, %s) ((type)((char*)buf + %s) + i%d)" % (name, args, offset, 0))
 
 
-def use_py2_buffer_functions(env):
-    env.use_utility_code(GetAndReleaseBufferUtilityCode())
-
-
-class GetAndReleaseBufferUtilityCode(object):
-    # Emulation of PyObject_GetBuffer and PyBuffer_Release for Python 2.
-    # For >= 2.6 we do double mode -- use the new buffer interface on objects
-    # which has the right tp_flags set, but emulation otherwise.
-
-    requires = None
-    is_cython_utility = False
-
-    def __init__(self):
-        pass
-
-    def __eq__(self, other):
-        return isinstance(other, GetAndReleaseBufferUtilityCode)
-
-    def __hash__(self):
-        return 24342342
-
-    def get_tree(self, **kwargs): pass
-
-    def put_code(self, output):
-        code = output['utility_code_def']
-        proto_code = output['utility_code_proto']
-        env = output.module_node.scope
-        cython_scope = env.context.cython_scope
-
-        # Search all types for __getbuffer__ overloads
-        types = []
-        visited_scopes = set()
-        def find_buffer_types(scope):
-            if scope in visited_scopes:
-                return
-            visited_scopes.add(scope)
-            for m in scope.cimported_modules:
-                find_buffer_types(m)
-            for e in scope.type_entries:
-                if isinstance(e.utility_code_definition, CythonUtilityCode):
-                    continue
-                t = e.type
-                if t.is_extension_type:
-                    if scope is cython_scope and not e.used:
-                        continue
-                    release = get = None
-                    for x in t.scope.pyfunc_entries:
-                        if x.name == u"__getbuffer__": get = x.func_cname
-                        elif x.name == u"__releasebuffer__": release = x.func_cname
-                    if get:
-                        types.append((t.typeptr_cname, get, release))
-
-        find_buffer_types(env)
-
-        util_code = TempitaUtilityCode.load(
-            "GetAndReleaseBuffer", from_file="Buffer.c",
-            context=dict(types=types))
-
-        proto = util_code.format_code(util_code.proto)
-        impl = util_code.format_code(
-            util_code.inject_string_constants(util_code.impl, output)[1])
-
-        proto_code.putln(proto)
-        code.putln(impl)
-
-
 def mangle_dtype_name(dtype):
     # Use prefixes to separate user defined types from builtins
     # (consider "typedef float unsigned_int")
@@ -668,16 +600,26 @@ def get_type_information_cname(code, dtype, maxdepth=None):
         if dtype.is_simple_buffer_dtype():
             structinfo_name = "NULL"
         elif dtype.is_struct:
-            fields = dtype.scope.var_entries
-            # Must pre-call all used types in order not to recurse utility code
-            # writing.
+            struct_scope = dtype.scope
+            if dtype.is_cv_qualified:
+                struct_scope = struct_scope.base_type_scope
+            # Must pre-call all used types in order not to recurse during utility code writing.
+            fields = struct_scope.var_entries
             assert len(fields) > 0
             types = [get_type_information_cname(code, f.type, maxdepth - 1)
                      for f in fields]
-            typecode.putln("static __Pyx_StructField %s[] = {" % structinfo_name, safe=True)
+            typecode.putln("static const __Pyx_StructField %s[] = {" % structinfo_name, safe=True)
+
+            if dtype.is_cv_qualified:
+                # roughly speaking, remove "const" from struct_type
+                struct_type = dtype.cv_base_type.empty_declaration_code()
+            else:
+                struct_type = dtype.empty_declaration_code()
+
             for f, typeinfo in zip(fields, types):
                 typecode.putln('  {&%s, "%s", offsetof(%s, %s)},' %
-                           (typeinfo, f.name, dtype.empty_declaration_code(), f.cname), safe=True)
+                               (typeinfo, f.name, struct_type, f.cname), safe=True)
+
             typecode.putln('  {NULL, NULL, 0}', safe=True)
             typecode.putln("};", safe=True)
         else:
@@ -688,10 +630,10 @@ def get_type_information_cname(code, dtype, maxdepth=None):
         flags = "0"
         is_unsigned = "0"
         if dtype is PyrexTypes.c_char_type:
-            is_unsigned = "IS_UNSIGNED(%s)" % declcode
+            is_unsigned = "__PYX_IS_UNSIGNED(%s)" % declcode
             typegroup = "'H'"
         elif dtype.is_int:
-            is_unsigned = "IS_UNSIGNED(%s)" % declcode
+            is_unsigned = "__PYX_IS_UNSIGNED(%s)" % declcode
             typegroup = "%s ? 'U' : 'I'" % is_unsigned
         elif complex_possible or dtype.is_complex:
             typegroup = "'C'"
@@ -706,7 +648,7 @@ def get_type_information_cname(code, dtype, maxdepth=None):
         else:
             assert False, dtype
 
-        typeinfo = ('static __Pyx_TypeInfo %s = '
+        typeinfo = ('static const __Pyx_TypeInfo %s = '
                         '{ "%s", %s, sizeof(%s), { %s }, %s, %s, %s, %s };')
         tup = (name, rep, structinfo_name, declcode,
                ', '.join([str(x) for x in arraysizes]) or '0', len(arraysizes),

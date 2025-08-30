@@ -1,5 +1,10 @@
 
 cimport cython
+try:
+    import typing
+    from typing import Optional, Union
+except ImportError:
+    pass  # Cython can still identify the use of "typing" even if the module doesn't exist
 
 
 ### extension types
@@ -78,6 +83,83 @@ def ext_not_none(MyExtType x not None):
     TypeError: Argument 'x' has incorrect type (expected ext_type_none_arg.MyExtType, got NoneType)
     """
     return attr(x)
+
+def ext_annotations(x: MyExtType):
+    """
+    Behaves the same as "MyExtType x not None"
+    >>> ext_annotations(MyExtType())
+    123
+    >>> ext_annotations(None)
+    Traceback (most recent call last):
+    TypeError: Argument 'x' has incorrect type (expected ext_type_none_arg.MyExtType, got NoneType)
+    """
+    return attr(x)
+
+@cython.allow_none_for_extension_args(False)
+def ext_annotations_check_on(x: MyExtType):
+    """
+    >>> ext_annotations_check_on(MyExtType())
+    123
+    >>> ext_annotations_check_on(None)
+    Traceback (most recent call last):
+    TypeError: Argument 'x' has incorrect type (expected ext_type_none_arg.MyExtType, got NoneType)
+    """
+    return attr(x)
+
+def ext_optional(x: typing.Optional[MyExtType], y: Optional[MyExtType]):
+    """
+    Behaves the same as "or None"
+    >>> ext_optional(MyExtType(), MyExtType())
+    246
+    >>> ext_optional(MyExtType(), None)
+    444
+    >>> ext_optional(None, MyExtType())
+    444
+    >>> ext_optional([], MyExtType())
+    Traceback (most recent call last):
+    TypeError: Argument 'x' has incorrect type (expected ext_type_none_arg.MyExtType, got list)
+    >>> ext_optional(MyExtType(), [])
+    Traceback (most recent call last):
+    TypeError: Argument 'y' has incorrect type (expected ext_type_none_arg.MyExtType, got list)
+    """
+    return attr(x) + attr(y)
+
+def ext_union(x: typing.Union[MyExtType, None], y: Union[None, MyExtType]):
+    """
+    Behaves the same as "or None"
+    >>> ext_union(MyExtType(), MyExtType())
+    246
+    >>> ext_union(MyExtType(), None)
+    444
+    >>> ext_union(None, MyExtType())
+    444
+    >>> ext_union([], MyExtType())
+    Traceback (most recent call last):
+    TypeError: Argument 'x' has incorrect type (expected ext_type_none_arg.MyExtType, got list)
+    >>> ext_union(MyExtType(), [])
+    Traceback (most recent call last):
+    TypeError: Argument 'y' has incorrect type (expected ext_type_none_arg.MyExtType, got list)
+    """
+    return attr(x) + attr(y)
+
+
+def ext_bitwise_or_none(x: MyExtType | None, y: None | MyExtType):
+    """
+    Behaves the same as "or None"
+    >>> ext_bitwise_or_none(MyExtType(), MyExtType())
+    246
+    >>> ext_bitwise_or_none(MyExtType(), None)
+    444
+    >>> ext_bitwise_or_none(None, MyExtType())
+    444
+    >>> ext_bitwise_or_none([], MyExtType())
+    Traceback (most recent call last):
+    TypeError: Argument 'x' has incorrect type (expected ext_type_none_arg.MyExtType, got list)
+    >>> ext_bitwise_or_none(MyExtType(), [])
+    Traceback (most recent call last):
+    TypeError: Argument 'y' has incorrect type (expected ext_type_none_arg.MyExtType, got list)
+    """
+    return attr(x) + attr(y)
 
 
 ### builtin types (using list)
@@ -163,6 +245,30 @@ def object_default(object o): # always behaves like 'or None'
     >>> object_default([])
     'list'
     >>> object_default(None)
+    'NoneType'
+    """
+    return type(o).__name__
+
+@cython.allow_none_for_extension_args(False)
+def object_default_annotation(o : object):
+    """
+    >>> object_default_annotation(object())
+    'object'
+    >>> object_default_annotation([])
+    'list'
+    >>> object_default_annotation(None)
+    'NoneType'
+    """
+    return type(o).__name__
+
+# no decorator
+def object_default_annotation2(o : object):
+    """
+    >>> object_default_annotation2(object())
+    'object'
+    >>> object_default_annotation2([])
+    'list'
+    >>> object_default_annotation2(None)
     'NoneType'
     """
     return type(o).__name__
@@ -259,3 +365,21 @@ def notype_not_none(o not None):
     TypeError: Argument 'o' must not be None
     """
     return type(o).__name__
+
+
+# Arg types specified in annotations do not allow None.
+cpdef non_none_arg_hint(a: MyExtType):
+    return a
+    
+def test_call_non_none_arg_hint_with_none():
+    """
+    >>> non_none_arg_hint(None)  # doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    TypeError: Argument 'a' has incorrect type ...
+    >>> test_call_non_none_arg_hint_with_none()
+    Traceback (most recent call last):
+    TypeError: cannot pass None into a C function argument that is declared 'not None'
+    """
+    
+    a = None
+    return non_none_arg_hint(a)

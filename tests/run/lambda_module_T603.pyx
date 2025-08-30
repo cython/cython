@@ -1,6 +1,6 @@
 # mode: run
 # tag: lambda
-# ticket: 603
+# ticket: t603
 
 # Module scope lambda functions
 

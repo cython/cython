@@ -3,6 +3,9 @@
 cdef extern from "Python.h":
 
     cdef enum:
+        PyBUF_MAX_NDIM
+
+    cdef enum:
         PyBUF_SIMPLE,
         PyBUF_WRITABLE,
         PyBUF_WRITEABLE, # backwards compatibility

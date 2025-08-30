@@ -13,7 +13,7 @@ cdef extern from "cpp_function_lib.h":
         double call "operator()"(double a, int b)
 
     cdef cppclass FunctionKeeper:
-        FunctionKeeper(function[double(double, int)] user_function)
-        void set_function(function[double(double, int)] user_function)
-        function[double(double, int)] get_function()
+        FunctionKeeper(function[double(double, int) noexcept] user_function)
+        void set_function(function[double(double, int) noexcept] user_function)
+        function[double(double, int) noexcept] get_function()
         double call_function(double a, int b) except +

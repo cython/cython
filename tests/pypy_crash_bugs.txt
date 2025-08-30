@@ -1,0 +1,15 @@
+# Bugs that causes hard crashes that we certainly don't 
+# want to run because it will break the testsuite
+
+# segfault
+run.fastcall
+memslice
+
+# gc issue?
+memoryview_in_subclasses
+
+# """Fatal RPython error: NotImplementedError"""
+pep442_tp_finalize
+
+# Deadlock when calling Event.set
+generator_thread_safety

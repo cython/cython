@@ -501,3 +501,20 @@ def complete_except_as_raise(x, a, b):
     else:
         i = 5
     return i
+
+
+def try_except_raise_new(initial, catch, throw):
+    """
+    >>> try_except_raise_new(None, TypeError, ValueError)
+    >>> try_except_raise_new(TypeError, IndexError, ValueError)
+    Traceback (most recent call last):
+    TypeError
+    >>> try_except_raise_new(TypeError, TypeError, ValueError)
+    Traceback (most recent call last):
+    ValueError
+    """
+    try:
+        if initial is not None:
+            raise initial
+    except catch:
+        raise throw

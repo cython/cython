@@ -1,0 +1,25 @@
+
+PYTHON -c "import pyimport_test; pyimport_test.test()"
+
+######## pyimport_test.py ########
+
+import os.path
+import pyximport
+
+pyximport.DEBUG_IMPORT = True
+
+pyximport.install(pyximport=False, pyimport=True,
+                  build_dir=os.path.join(os.path.dirname(__file__), "TEST_TMP"))
+
+def test():
+    import mymodule
+    assert mymodule.test_string == "TEST"
+    assert mymodule.compiled
+
+######## mymodule.py ########
+
+import cython
+
+compiled = cython.compiled
+
+test_string = "TEST"

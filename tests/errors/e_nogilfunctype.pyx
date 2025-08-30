@@ -10,7 +10,7 @@ fp = f
 fp = <fp_t>f
 
 _ERRORS = u"""
-9:5: Cannot assign type 'void (void)' to 'void (*)(void) nogil'
+9:5: Cannot assign type 'void (void) noexcept' to 'void (*)(void) noexcept nogil'
 """
 
 _WARNINGS = """

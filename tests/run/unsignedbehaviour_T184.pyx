@@ -1,4 +1,4 @@
-# ticket: 184
+# ticket: t184
 
 """
 >>> c_call()

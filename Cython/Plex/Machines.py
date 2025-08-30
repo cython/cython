@@ -3,32 +3,21 @@ Python Lexical Analyser
 
 Classes for building NFAs and DFAs
 """
-from __future__ import absolute_import
 
+import cython
 from .Transitions import TransitionMap
 
-try:
-    from sys import maxsize as maxint
-except ImportError:
-    from sys import maxint
-
-try:
-    unichr
-except NameError:
-    unichr = chr
+maxint = 2**31-1  # sentinel value
 
 LOWEST_PRIORITY = -maxint
 
 
-class Machine(object):
+class Machine:
     """A collection of Nodes representing an NFA or DFA."""
-    states = None          # [Node]
-    next_state_number = 1
-    initial_states = None  # {(name, bol): Node}
-
     def __init__(self):
-        self.states = []
-        self.initial_states = {}
+        self.states = []  # [Node]
+        self.initial_states = {}  # {(name, bol): Node}
+        self.next_state_number = 1
 
     def __del__(self):
         for state in self.states:
@@ -37,7 +26,7 @@ class Machine(object):
     def new_state(self):
         """Add a new state to the machine and return it."""
         s = Node()
-        n = self.next_state_number
+        n: cython.Py_ssize_t = self.next_state_number
         self.next_state_number = n + 1
         s.number = n
         self.states.append(s)
@@ -64,19 +53,17 @@ class Machine(object):
             s.dump(file)
 
 
-class Node(object):
+class Node:
     """A state of an NFA or DFA."""
-    transitions = None      # TransitionMap
-    action = None           # Action
-    action_priority = None  # integer
-    number = 0              # for debug output
-    epsilon_closure = None  # used by nfa_to_dfa()
 
     def __init__(self):
         # Preinitialise the list of empty transitions, because
         # the nfa-to-dfa algorithm needs it
-        self.transitions = TransitionMap()
-        self.action_priority = LOWEST_PRIORITY
+        self.transitions = TransitionMap()      # TransitionMap
+        self.action_priority = LOWEST_PRIORITY  # integer
+        self.action = None  # Action
+        self.number = 0     # for debug output
+        self.epsilon_closure = None  # used by nfa_to_dfa()
 
     def destroy(self):
         self.transitions = None
@@ -125,30 +112,30 @@ class Node(object):
     def __lt__(self, other):
         return self.number < other.number
 
+    def __hash__(self):
+        # Prevent overflowing hash values due to arbitrarily large unsigned addresses.
+        return id(self) & maxint
 
-class FastMachine(object):
+
+class FastMachine:
     """
     FastMachine is a deterministic machine represented in a way that
     allows fast scanning.
     """
-    initial_states = None  # {state_name:state}
-    states = None          # [state]  where state = {event:state, 'else':state, 'action':Action}
-    next_number = 1        # for debugging
-
-    new_state_template = {
-        '': None, 'bol': None, 'eol': None, 'eof': None, 'else': None
-    }
-
     def __init__(self):
-        self.initial_states = {}
-        self.states = []
+        self.initial_states = {}  # {state_name:state}
+        self.states = []          # [state]  where state = {event:state, 'else':state, 'action':Action}
+        self.next_number = 1      # for debugging
+        self.new_state_template = {
+            '': None, 'bol': None, 'eol': None, 'eof': None, 'else': None
+        }
 
     def __del__(self):
         for state in self.states:
             state.clear()
 
     def new_state(self, action=None):
-        number = self.next_number
+        number: cython.Py_ssize_t = self.next_number
         self.next_number = number + 1
         result = self.new_state_template.copy()
         result['number'] = number
@@ -159,15 +146,18 @@ class FastMachine(object):
     def make_initial_state(self, name, state):
         self.initial_states[name] = state
 
-    def add_transitions(self, state, event, new_state, maxint=maxint):
+    def add_transitions(self, state: dict, event, new_state, maxint: cython.int = maxint):
+        code:  cython.int
+        code0: cython.int
+        code1: cython.int
+
         if type(event) is tuple:
             code0, code1 = event
             if code0 == -maxint:
                 state['else'] = new_state
             elif code1 != maxint:
-                while code0 < code1:
-                    state[unichr(code0)] = new_state
-                    code0 += 1
+                for code in range(code0, code1):
+                    state[chr(code)] = new_state
         else:
             state[event] = new_state
 
@@ -197,7 +187,7 @@ class FastMachine(object):
         special_to_state = {}
         for (c, s) in state.items():
             if len(c) == 1:
-                chars = chars_leading_to_state.get(id(s), None)
+                chars = chars_leading_to_state.get(id(s))
                 if chars is None:
                     chars = []
                     chars_leading_to_state[id(s)] = chars
@@ -206,25 +196,26 @@ class FastMachine(object):
                 special_to_state[c] = s
         ranges_to_state = {}
         for state in self.states:
-            char_list = chars_leading_to_state.get(id(state), None)
+            char_list = chars_leading_to_state.get(id(state))
             if char_list:
                 ranges = self.chars_to_ranges(char_list)
                 ranges_to_state[ranges] = state
-        ranges_list = ranges_to_state.keys()
-        ranges_list.sort()
-        for ranges in ranges_list:
+        for ranges in sorted(ranges_to_state):
             key = self.ranges_to_string(ranges)
             state = ranges_to_state[ranges]
             file.write("      %s --> State %d\n" % (key, state['number']))
         for key in ('bol', 'eol', 'eof', 'else'):
-            state = special_to_state.get(key, None)
+            state = special_to_state.get(key)
             if state:
                 file.write("      %s --> State %d\n" % (key, state['number']))
 
-    def chars_to_ranges(self, char_list):
+    def chars_to_ranges(self, char_list: list) -> tuple:
         char_list.sort()
-        i = 0
-        n = len(char_list)
+
+        c1: cython.Py_ssize_t
+        c2: cython.Py_ssize_t
+        i: cython.Py_ssize_t = 0
+        n: cython.Py_ssize_t = len(char_list)
         result = []
         while i < n:
             c1 = ord(char_list[i])
@@ -236,12 +227,12 @@ class FastMachine(object):
             result.append((chr(c1), chr(c2)))
         return tuple(result)
 
-    def ranges_to_string(self, range_list):
+    def ranges_to_string(self, range_list) -> str:
         return ','.join(map(self.range_to_string, range_list))
 
-    def range_to_string(self, range_tuple):
+    def range_to_string(self, range_tuple: tuple):
         (c1, c2) = range_tuple
         if c1 == c2:
             return repr(c1)
         else:
-            return "%s..%s" % (repr(c1), repr(c2))
+            return f"{c1!r}..{c2!r}"

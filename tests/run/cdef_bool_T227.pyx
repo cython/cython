@@ -1,4 +1,4 @@
-# ticket: 227
+# ticket: t227
 
 from cpython.bool cimport bool
 

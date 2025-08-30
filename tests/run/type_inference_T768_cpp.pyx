@@ -1,6 +1,6 @@
 # mode: run
 # tag: cpp
-# ticket: 768
+# ticket: t768
 from cython cimport typeof
 
 cdef extern from "shapes.h" namespace "shapes":

@@ -191,9 +191,10 @@ cdef extern from "Python.h":
 
     int PyModule_AddObject(object module,  const char *name, object value) except -1
     # Add an object to module as name. This is a convenience function
-    # which can be used from the module's initialization
-    # function. This steals a reference to value. Return -1 on error,
-    # 0 on success.
+    # which can be used from the module's initialization function.
+    # Return -1 on error, 0 on success.
+    #
+    # WARNING: This _steals_ a reference to value.
 
     int PyModule_AddIntConstant(object module,  const char *name, long value) except -1
     # Add an integer constant to module as name. This convenience

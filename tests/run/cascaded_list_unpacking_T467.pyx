@@ -1,4 +1,4 @@
-# ticket: 467
+# ticket: t467
 
 def simple_parallel_assignment_from_call():
     """

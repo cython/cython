@@ -1,0 +1,67 @@
+# tag: numpy
+
+"""
+CYTHONIZE -M dep_np.pyx
+PYTHON check_np.py
+"""
+
+######## dep_np.pyx ########
+
+cimport numpy as np
+np.import_array()
+
+
+
+######## check_np.py ########
+
+import os.path
+import re
+
+import numpy as np
+import Cython
+
+def safe_relpath(path, start=None):
+    try:
+        result = os.path.relpath(path, start)
+    except ValueError:
+        # if they are on different Windows drives, absolute is fine
+        result = os.path.abspath(path)
+
+    return result
+
+with open("dep_np.c.dep", "r") as f:
+    contents = f.read().replace('\\\n', ' ').replace('\n', ' ')
+
+contents = contents.split()
+
+cy_prefix = os.path.dirname(safe_relpath(Cython.__file__))
+contents = [fname.replace(cy_prefix, "cy_prefix") for fname in contents]
+
+np_prefix = os.path.dirname(safe_relpath(np.__file__, '.'))
+contents = [fname.replace(np_prefix, "np_prefix") for fname in contents]
+
+# filter out the version number from `np_prefix/__init__.cython-30.pxd`.
+contents = [re.sub('[.]cython-[0-9]+', '', entry) for entry in contents]
+
+contents = [path.split(os.sep) for path in contents]
+contents.sort()
+
+expected = [path.split('/') for path in [
+    'cy_prefix/Includes/cpython/object.pxd',
+    'cy_prefix/Includes/cpython/ref.pxd',
+    'cy_prefix/Includes/cpython/type.pxd',
+    'cy_prefix/Includes/libc/stdio.pxd',
+    'cy_prefix/Includes/libc/string.pxd',
+    'dep_np.c:',
+    'dep_np.pyx',
+]]
+
+# Also account for legacy numpy versions, which do not ship
+# `__init__.pxd` hence the fallback is used:
+if ['cy_prefix', 'Includes', 'numpy', '__init__.pxd'] in contents:
+    expected.append(['cy_prefix', 'Includes', 'numpy', '__init__.pxd'])
+else:
+    expected.append(['np_prefix', '__init__.pxd'])
+
+expected.sort()
+assert contents == expected, contents

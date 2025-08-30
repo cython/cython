@@ -1,0 +1,46 @@
+# mode: compile
+# ticket: 2940
+
+PYTHON setup.py build_ext --inplace
+PYTHON -c "import a; a.test()"
+
+######## setup.py ########
+
+from Cython.Build import cythonize
+from Cython.Distutils.extension import Extension
+from distutils.core import setup
+
+setup(
+    ext_modules=cythonize([Extension("a", ["a.py", "b.c"])]),
+)
+
+######## a.pxd ########
+
+cdef public int foo()
+
+cdef extern from "b.h":
+    cpdef int bar()
+
+######## a.py ########
+
+def foo():
+    return 42
+
+def test():
+    assert bar() == 42
+
+######## b.h ########
+
+#ifndef B_H
+#define B_H
+
+int bar();
+
+#endif
+
+######## b.c ########
+
+#include "a.h"
+
+int bar() { return foo(); }
+

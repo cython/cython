@@ -1,3 +1,4 @@
+cimport cython as _cython
 
 cdef extern from "Python.h":
 
@@ -14,9 +15,18 @@ cdef extern from "Python.h":
 
     ctypedef class __builtin__.complex [object PyComplexObject]:
         cdef Py_complex cval
-        # not making these available to keep them read-only:
-        #cdef double imag "cval.imag"
-        #cdef double real "cval.real"
+
+        # unavailable in limited API
+        @property
+        @_cython.c_compile_guard("!CYTHON_COMPILING_IN_LIMITED_API")
+        cdef inline double real(self) noexcept:
+            return self.cval.real
+
+        # unavailable in limited API
+        @property
+        @_cython.c_compile_guard("!CYTHON_COMPILING_IN_LIMITED_API")
+        cdef inline double imag(self) noexcept:
+            return self.cval.imag
 
     # PyTypeObject PyComplex_Type
     # This instance of PyTypeObject represents the Python complex

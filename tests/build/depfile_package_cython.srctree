@@ -1,0 +1,61 @@
+"""
+PYTHON -c 'import os; os.makedirs("builddir/pkg/sub")'
+CYTHON -M pkg/test.pyx -o builddir/pkg/test.c
+CYTHON --depfile pkg/sub/test.pyx -o builddir/pkg/sub/test.c
+PYTHON check.py
+"""
+
+######## check.py ########
+
+import os.path
+
+def pkgpath(*args):
+    return os.path.join('pkg', *args)
+
+with open(os.path.join("builddir", "pkg", "test.c.dep"), "r") as f:
+    contents = f.read().replace("\\\n", " ").replace("\n", " ")
+
+assert sorted(contents.split()) == sorted([os.path.join('builddir', 'pkg', 'test.c:'), pkgpath('sub', 'incl.pxi'), pkgpath('test.pxd'), pkgpath('test.pyx')]), contents
+
+
+with open(os.path.join("builddir", "pkg", "sub", "test.c.dep"), "r") as f:
+    contents = f.read().replace("\\\n", " ").replace("\n", " ")
+
+contents = [os.path.relpath(entry, '.')
+            if os.path.isabs(entry) else entry for entry in contents.split()]
+assert sorted(contents) == sorted([os.path.join('builddir', 'pkg', 'sub', 'test.c:'), pkgpath('sub', 'incl.pxi'), pkgpath('sub', 'test.pyx'), pkgpath('test.pxd')]), contents  # last is really one level up
+
+######## pkg/__init__.py ########
+
+
+######## pkg/test.pyx ########
+
+TEST = "pkg.test"
+
+include "sub/incl.pxi"
+
+cdef object get_str():
+   return TEST
+
+
+######## pkg/test.pxd ########
+
+cdef object get_str()
+
+
+######## pkg/sub/__init__.py ########
+
+
+######## pkg/sub/test.pyx ########
+# cython: language_level=3
+
+from ..test cimport get_str
+
+include 'incl.pxi'
+
+TEST = 'pkg.sub.test'
+
+
+######## pkg/sub/incl.pxi ########
+
+pass

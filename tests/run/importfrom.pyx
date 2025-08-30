@@ -1,5 +1,9 @@
 from distutils import cmd, core, version
 
+cdef extern from *:
+    cdef enum:
+        CYTHON_COMPILING_IN_LIMITED_API
+
 def import1():
     """
     >>> import1() == (cmd, core, version)
@@ -68,6 +72,10 @@ def typed_imports():
     try:
         from sys import version_info as maxunicode
     except TypeError, e:
+        if getattr(sys, "pypy_version_info", None) or CYTHON_COMPILING_IN_LIMITED_API:
+            # translate message
+            if e.args[0].startswith("int() argument must be"):
+                e = "an integer is required"
         print(e)
 
     try:

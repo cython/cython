@@ -9,7 +9,7 @@ def diffuse():
     """
     >>> u = diffuse()
     >>> count_non_zero = np.sum(u > 0)
-    >>> 850 < count_non_zero < (2**5) * (2**5) or count_non_zero
+    >>> bool(850 < count_non_zero < (2**5) * (2**5)) or count_non_zero
     True
     """
     lx, ly = (2**5, 2**5)
@@ -40,7 +40,7 @@ def calculate_tax(cnp.ndarray[double, ndim=1] d):
     >>> np.random.seed(1234)
     >>> d = np.random.lognormal(mu, sigma, 10000)
     >>> avg = calculate_tax(d)
-    >>> 0.243 < avg < 0.244 or avg  # 0.24342652180085891
+    >>> bool(0.243 < avg < 0.244) or avg  # 0.24342652180085891
     True
     """
     tax_seg1 = d[(d > 256303)] * 0.45 - 16164.53
@@ -55,3 +55,13 @@ def calculate_tax(cnp.ndarray[double, ndim=1] d):
         np.sum(seg3 * prog_seg3 + 939.57) +
         np.sum(seg4 * prog_seg4)
     ) / np.sum(d)
+
+def access_shape():
+    """
+    >>> access_shape()
+    10
+    """
+    cdef cnp.ndarray[double, ndim=2, mode='c'] array_in = \
+                    1e10 * np.ones((10, 10))
+
+    return array_in.shape[0]

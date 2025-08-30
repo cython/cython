@@ -5,6 +5,8 @@ __doc__ = u"""
    'test'
 """
 
+cimport cython
+
 s = str
 z = str('test')
 
@@ -39,3 +41,33 @@ def sub(string):
 
 #def csub(string):
 #    return csubs(string)
+
+
+@cython.test_fail_if_path_exists("//SimpleCallNode")
+@cython.test_assert_path_exists("//PythonCapiCallNode")
+def typed(str s):
+    """
+    >>> print(typed(None))
+    None
+    >>> type(typed(None)) is type(typed(None))
+    True
+    >>> print(typed('abc'))
+    abc
+    >>> type(typed('abc')) is type(typed('abc'))
+    True
+    """
+    return str(s)
+
+
+@cython.test_fail_if_path_exists(
+    "//SimpleCallNode",
+    "//PythonCapiCallNode",
+)
+def typed_not_none(str s not None):
+    """
+    >>> print(typed('abc'))
+    abc
+    >>> type(typed('abc')) is type(typed('abc'))
+    True
+    """
+    return str(s)

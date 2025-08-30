@@ -185,6 +185,24 @@ def unpack_list_literal_mult():
     return [*([1, 2, *([4, 5] * 2)] * 3)]
 
 
+def unpack_list_tuple_mult():
+    """
+    >>> unpack_list_tuple_mult()
+    [1, 1]
+    """
+    return [*(1,) * 2]
+
+
+def unpack_list_tuple_bad_mult():
+    """
+    >>> unpack_list_tuple_bad_mult()  # doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    ...
+    TypeError: ... 'float'
+    """
+    return [*(1,) * 1.5]
+
+
 @cython.test_fail_if_path_exists(
     "//ListNode//ListNode",
     "//MergedSequenceNode",
@@ -270,6 +288,24 @@ def unpack_list_keep_originals(a, b, c):
     [3, 4]
     """
     return [*a, *b, 2, *c]
+
+
+def unpack_starred_arg_for_in_operator(x, l, m):
+    """
+    >>> l = [1,2,3]
+    >>> m = [4,5,6]
+    >>> x = 1
+    >>> unpack_starred_arg_for_in_operator(x, l, m)
+    True
+    >>> x = 10
+    >>> unpack_starred_arg_for_in_operator(x, l, m)
+    False
+    >>> unpack_starred_arg_for_in_operator(x, l, [])
+    False
+    >>> unpack_starred_arg_for_in_operator(x, [], [])
+    False
+    """
+    return x in [*l, *m]
 
 
 ###### sets
@@ -498,9 +534,9 @@ def unpack_dict_from_iterable(it):
     >>> d == dict(a=4, b=5) or d
     True
 
-    >>> d = unpack_dict_from_iterable(Iter())
+    >>> d = unpack_dict_from_iterable(Iter())  # doctest: +ELLIPSIS
     Traceback (most recent call last):
-    TypeError: 'Iter' object is not a mapping
+    TypeError: '...Iter' object is not a mapping
 
     >>> d = unpack_dict_from_iterable([])
     Traceback (most recent call last):
@@ -565,3 +601,48 @@ def unpack_in_call(f):
     def wrapper(*args, **kwargs):
         return f(*args, more=2, **{**kwargs, 'test': 1})
     return wrapper
+
+
+def unpack_in_loop(a: list[float], b: list[float]):
+    """
+    >>> unpack_in_loop([1., 2., 3.], [4., 5.])
+    Python object
+    [1.0, 2.0, 3.0, 4.0, 5.0]
+    Python object
+    [4.0, 5.0, 1.0, 2.0, 3.0]
+    Python object
+    [1.0, 2.0, 3.0, [4.0, 5.0]]
+    Python object
+    [[1.0, 2.0, 3.0], 4.0, 5.0]
+    list object
+    [[1.0, 2.0, 3.0], [4.0, 5.0]]
+    """
+    result = []
+    for x1 in [*a, *b]:
+        result.append(x1)
+    print(cython.typeof(x1))
+    print(result)
+
+    result = []
+    for x2 in (*b, *a):
+        result.append(x2)
+    print(cython.typeof(x2))
+    print(result)
+
+    result = []
+    for x3 in [*a, b]:
+        result.append(x3)
+    print(cython.typeof(x3))
+    print(result)
+
+    result = []
+    for x4 in (a, *b):
+        result.append(x4)
+    print(cython.typeof(x4))
+    print(result)
+
+    result = []
+    for x5 in (a, b):
+        result.append(x5)
+    print(cython.typeof(x5))
+    print(result)

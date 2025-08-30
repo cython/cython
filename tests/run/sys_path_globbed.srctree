@@ -1,0 +1,20 @@
+# tag: gh5942
+
+PYTHON setup.py build_ext --inplace
+PYTHON -c "from tglob import mytest; mytest()"
+
+######## tglob.pyx ########
+def mytest():
+    assert True
+
+######## setup.py ########
+import sys
+
+from Cython.Build.Dependencies import cythonize
+from distutils.core import setup, Extension
+
+sys.path.append("[Hello-World]*?")
+
+setup(
+    ext_modules=cythonize(["tglob.pyx"], language_level="3"),
+)

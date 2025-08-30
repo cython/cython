@@ -41,7 +41,7 @@ ctypedef int my_type
 
 ######## path/numpy/__init__.pxd ########
 
-# gh-2905: This should be found before Cython/Inlude/numpy/__init__.pxd
+# gh-2905: This should be found before Cython/Includes/numpy/__init__.pxd
 
 ctypedef int my_type
 

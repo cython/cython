@@ -13,10 +13,11 @@ Tutorials
    profiling_tutorial
    strings
    memory_allocation
+   embedding
    pure
    numpy
    array
+   parallelization
    readings
    related_work
    appendix
-

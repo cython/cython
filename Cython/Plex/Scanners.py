@@ -1,11 +1,8 @@
-# cython: language_level=3str
-# cython: auto_pickle=False
 """
 Python Lexical Analyser
 
 Scanning an input stream
 """
-from __future__ import absolute_import
 
 import cython
 
@@ -17,7 +14,7 @@ from .Regexps import BOL, EOL, EOF
 NOT_FOUND = object()
 
 
-class Scanner(object):
+class Scanner:
     """
     A Scanner is used to read tokens from a stream of characters
     using the token set specified by a Plex.Lexicon.
@@ -53,18 +50,25 @@ class Scanner(object):
     #  stream = None         # file-like object
     #  name = ''
     #  buffer = ''
+    #
+    #  These positions are used by the scanner to track its internal state:
     #  buf_start_pos = 0     # position in input of start of buffer
     #  next_pos = 0          # position in input of next char to read
     #  cur_pos = 0           # position in input of current char
     #  cur_line = 1          # line number of current char
     #  cur_line_start = 0    # position in input of start of current line
     #  start_pos = 0         # position in input of start of token
-    #  start_line = 0        # line number of start of token
-    #  start_col = 0         # position in line of start of token
+    #  current_scanner_position_tuple = ("", 0, 0)
+    #        tuple of filename, line number and position in line, really mainly for error reporting
+    #
+    #  These positions are used to track what was read from the queue
+    #   (which may differ from the internal state when tokens are replaced onto the queue)
+    #  last_token_position_tuple = ("", 0, 0)  # tuple of filename, line number and position in line
+
     #  text = None           # text of last token read
     #  initial_state = None  # Node
     #  state_name = ''       # Name of initial state
-    #  queue = None          # list of tokens to be returned
+    #  queue = None          # list of tokens and positions to be returned
     #  trace = 0
 
     def __init__(self, lexicon, stream, name='', initial_pos=None):
@@ -82,14 +86,14 @@ class Scanner(object):
         """
         self.trace = 0
 
-        self.buffer = u''
+        self.buffer = ''
         self.buf_start_pos = 0
         self.next_pos = 0
         self.cur_pos = 0
         self.cur_line = 1
         self.start_pos = 0
-        self.start_line = 0
-        self.start_col = 0
+        self.current_scanner_position_tuple = ("", 0, 0)
+        self.last_token_position_tuple = ("", 0, 0)
         self.text = None
         self.state_name = None
 
@@ -124,9 +128,16 @@ class Scanner(object):
                 value = action.perform(self, self.text)
                 if value is not None:
                     self.produce(value)
-        result = queue[0]
+        result, self.last_token_position_tuple = queue[0]
         del queue[0]
         return result
+
+    def unread(self, token, value, position):
+        self.queue.insert(0, ((token, value), position))
+
+    def get_current_scan_pos(self):
+        # distinct from the position of the last token due to the queue
+        return self.current_scanner_position_tuple
 
     def scan_a_token(self):
         """
@@ -135,8 +146,9 @@ class Scanner(object):
         file.
         """
         self.start_pos = self.cur_pos
-        self.start_line = self.cur_line
-        self.start_col = self.cur_pos - self.cur_line_start
+        self.current_scanner_position_tuple = (
+            self.name, self.cur_line, self.cur_pos - self.cur_line_start
+        )
         action = self.run_machine_inlined()
         if action is not None:
             if self.trace:
@@ -148,30 +160,33 @@ class Scanner(object):
             return (text, action)
         else:
             if self.cur_pos == self.start_pos:
-                if self.cur_char is EOL:
-                    self.next_char()
                 if self.cur_char is None or self.cur_char is EOF:
-                    return (u'', None)
+                    return ('', None)
             raise Errors.UnrecognizedInput(self, self.state_name)
 
+    @cython.final
     def run_machine_inlined(self):
         """
         Inlined version of run_machine for speed.
         """
-        state = self.initial_state
-        cur_pos = self.cur_pos
-        cur_line = self.cur_line
-        cur_line_start = self.cur_line_start
+        state: dict = self.initial_state
+        cur_pos: cython.Py_ssize_t = self.cur_pos
+        cur_line: cython.Py_ssize_t = self.cur_line
+        cur_line_start: cython.Py_ssize_t = self.cur_line_start
         cur_char = self.cur_char
-        input_state = self.input_state
-        next_pos = self.next_pos
-        buffer = self.buffer
-        buf_start_pos = self.buf_start_pos
-        buf_len = len(buffer)
-        b_action, b_cur_pos, b_cur_line, b_cur_line_start, b_cur_char, b_input_state, b_next_pos = \
-            None, 0, 0, 0, u'', 0, 0
+        input_state: cython.long = self.input_state
+        next_pos: cython.Py_ssize_t = self.next_pos
+        data: str
+        buffer: str = self.buffer
+        buf_start_pos: cython.Py_ssize_t = self.buf_start_pos
+        buf_len: cython.Py_ssize_t = len(buffer)
+        buf_index: cython.Py_ssize_t
+        discard: cython.Py_ssize_t
 
-        trace = self.trace
+        b_action, b_cur_pos, b_cur_line, b_cur_line_start, b_cur_char, b_input_state, b_next_pos = \
+            None, 0, 0, 0, '', 0, 0
+
+        trace: cython.bint = self.trace
         while 1:
             if trace:
                 print("State %d, %d/%d:%s -->" % (
@@ -214,9 +229,9 @@ class Scanner(object):
                             c = buffer[buf_index]
                             next_pos += 1
                         else:
-                            c = u''
+                            c = ''
                     # End inlined: c = self.read_char()
-                    if c == u'\n':
+                    if c == '\n':
                         cur_char = EOL
                         input_state = 2
                     elif not c:
@@ -224,19 +239,19 @@ class Scanner(object):
                         input_state = 4
                     else:
                         cur_char = c
-                elif input_state == 2:
-                    cur_char = u'\n'
+                elif input_state == 2:  # after EoL (1) -> BoL (3)
+                    cur_char = '\n'
                     input_state = 3
-                elif input_state == 3:
+                elif input_state == 3:  # start new code line
                     cur_line += 1
                     cur_line_start = cur_pos = next_pos
                     cur_char = BOL
                     input_state = 1
-                elif input_state == 4:
+                elif input_state == 4:  # after final line (1) -> EoF (5)
                     cur_char = EOF
                     input_state = 5
-                else:  # input_state = 5
-                    cur_char = u''
+                else:  # input_state == 5  (EoF)
+                    cur_char = ''
                     # End inlined self.next_char()
             else:  # not new_state
                 if trace:
@@ -263,38 +278,7 @@ class Scanner(object):
                 print("Doing %s" % action)
         return action
 
-    def next_char(self):
-        input_state = self.input_state
-        if self.trace:
-            print("Scanner: next: %s [%d] %d" % (" " * 20, input_state, self.cur_pos))
-        if input_state == 1:
-            self.cur_pos = self.next_pos
-            c = self.read_char()
-            if c == u'\n':
-                self.cur_char = EOL
-                self.input_state = 2
-            elif not c:
-                self.cur_char = EOL
-                self.input_state = 4
-            else:
-                self.cur_char = c
-        elif input_state == 2:
-            self.cur_char = u'\n'
-            self.input_state = 3
-        elif input_state == 3:
-            self.cur_line += 1
-            self.cur_line_start = self.cur_pos = self.next_pos
-            self.cur_char = BOL
-            self.input_state = 1
-        elif input_state == 4:
-            self.cur_char = EOF
-            self.input_state = 5
-        else:  # input_state = 5
-            self.cur_char = u''
-        if self.trace:
-            print("--> [%d] %d %r" % (input_state, self.cur_pos, self.cur_char))
-
-    def position(self):
+    def position(self) -> tuple:
         """
         Return a tuple (name, line, col) representing the location of
         the last token read using the read() method. |name| is the
@@ -303,7 +287,7 @@ class Scanner(object):
         position within the line of the first character of the token
         (0-based).
         """
-        return (self.name, self.start_line, self.start_col)
+        return self.last_token_position_tuple
 
     def get_position(self):
         """
@@ -330,7 +314,7 @@ class Scanner(object):
         """
         if text is None:
             text = self.text
-        self.queue.append((value, text))
+        self.queue.append(((value, text), self.current_scanner_position_tuple))
 
     def eof(self):
         """
@@ -338,3 +322,7 @@ class Scanner(object):
         end of file.
         """
         pass
+
+    @property
+    def start_line(self):
+        return self.last_token_position_tuple[1]

@@ -25,9 +25,9 @@ cdef class C:
 
 cdef extern from "Python.h":
     """
-    #define Py_SET_SIZE(obj, size)  Py_SIZE((obj)) = (size)
+    #define my_SET_SIZE(obj, size)  __Pyx_SET_SIZE(obj, size)
     """
-    void Py_SET_SIZE(object, Py_ssize_t)
+    void my_SET_SIZE(object, Py_ssize_t)
 
 
 def test_square(x):
@@ -59,4 +59,4 @@ def test_class():
 def test_set_size(x, size):
     # This function manipulates Python objects in a bad way, so we
     # do not call it. The real test is that it compiles.
-    Py_SET_SIZE(x, size)
+    my_SET_SIZE(x, size)

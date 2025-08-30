@@ -1,7 +1,3 @@
-# cython: language_level=3
-
-from __future__ import absolute_import
-
 from .PyrexTypes import CType, CTypedefType, CStructOrUnionType
 
 import cython
@@ -9,9 +5,16 @@ import cython
 try:
     import pythran
     pythran_is_pre_0_9 = tuple(map(int, pythran.__version__.split('.')[0:2])) < (0, 9)
+    pythran_is_pre_0_9_6 = tuple(map(int, pythran.__version__.split('.')[0:3])) < (0, 9, 6)
 except ImportError:
     pythran = None
     pythran_is_pre_0_9 = True
+    pythran_is_pre_0_9_6 = True
+
+if pythran_is_pre_0_9_6:
+    pythran_builtins = '__builtin__'
+else:
+    pythran_builtins = 'builtins'
 
 
 # Pythran/Numpy specific operations
@@ -47,7 +50,7 @@ def pythran_type(Ty, ptype="ndarray"):
     if Ty.is_pythran_expr:
         return Ty.pythran_type
     #if Ty.is_none:
-    #    return "decltype(pythonic::__builtin__::None)"
+    #    return "decltype(pythonic::builtins::None)"
     if Ty.is_numeric:
         return Ty.sign_and_name()
     raise ValueError("unsupported pythran type %s (%s)" % (Ty, type(Ty)))
@@ -82,7 +85,9 @@ def _index_type_code(index_with_type):
     idx, index_type = index_with_type
     if idx.is_slice:
         n = 2 + int(not idx.step.is_none)
-        return "pythonic::__builtin__::functor::slice{}(%s)" % (",".join(["0"]*n))
+        return "pythonic::%s::functor::slice{}(%s)" % (
+            pythran_builtins,
+            ",".join(["0"]*n))
     elif index_type.is_int:
         return "std::declval<%s>()" % index_type.sign_and_name()
     elif index_type.is_pythran_expr:
@@ -99,7 +104,7 @@ def _index_code(idx):
         else:
             func = "slice"
         return "pythonic::types::%s(%s)" % (
-            func, ",".join((v.pythran_result() for v in values)))
+            func, ",".join(v.pythran_result() for v in values))
     elif idx.type.is_int:
         return to_pythran(idx)
     elif idx.type.is_pythran_expr:
@@ -141,7 +146,7 @@ def pythran_functor(func):
     return "pythonic::numpy::%s::%s" % (submodules, func[-1])
 
 def pythran_func_type(func, args):
-    args = ",".join(("std::declval<%s>()" % pythran_type(a.type) for a in args))
+    args = ",".join("std::declval<%s>()" % pythran_type(a.type) for a in args)
     return "decltype(%s{}(%s))" % (pythran_functor(func), args)
 
 
@@ -151,10 +156,19 @@ def to_pythran(op, ptype=None):
     if op_type.is_int:
         # Make sure that integer literals always have exactly the type that the templates expect.
         return op_type.cast_code(op.result())
+    if is_pythran_expr(op_type) and (op.result_in_temp() or getattr(op, "entry", None)):
+        # Currently Pythran seems to generate different code for lvalve and rvalue references.
+        # The inferred variable types are all in terms of rvalue references (std::declval).
+        # Anything pythran expression written in terms of lvalue references ends up not
+        # default constructable so is unsuitable for use as a Cython temp.
+        # Therefore, we must make sure that we're passing rvalue references.
+        # (std::move would also do and likely be better in the case of most temps,
+        # but maybe not all temps)
+        return f"decltype({op.result()}){{{op.result()}}}"
     if is_type(op_type, ["is_pythran_expr", "is_numeric", "is_float", "is_complex"]):
         return op.result()
     if op.is_none:
-        return "pythonic::__builtin__::None"
+        return "pythonic::%s::None" % pythran_builtins
     if ptype is None:
         ptype = pythran_type(op_type)
 
@@ -207,7 +221,7 @@ def include_pythran_generic(env):
     env.add_include_file("pythonic/types/bool.hpp")
     env.add_include_file("pythonic/types/ndarray.hpp")
     env.add_include_file("pythonic/numpy/power.hpp")
-    env.add_include_file("pythonic/__builtin__/slice.hpp")
+    env.add_include_file("pythonic/%s/slice.hpp" % pythran_builtins)
     env.add_include_file("<new>")  # for placement new
 
     for i in (8, 16, 32, 64):

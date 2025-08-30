@@ -1,0 +1,71 @@
+# mode: run
+# tag: cpp, cpp11
+
+"""
+PYTHON setup.py build_ext --inplace
+PYTHON -c "import runner"
+"""
+
+######## setup.py ########
+
+from Cython.Build.Dependencies import cythonize
+from distutils.core import setup
+setup(ext_modules=cythonize("*.pyx", language='c++'))
+
+setup(
+  ext_modules = cythonize([
+              "cheese.pyx",
+              "import_scoped_enum_test.pyx",
+              "dotted_import_scoped_enum_test.pyx"
+              ])
+)
+
+######## cheese.pxd ########
+# distutils: language = c++
+# distutils: extra_compile_args = -std=c++11
+
+
+cdef extern from * namespace "Namespace":
+    """
+    namespace Namespace {
+        enum class Cheese {
+            cheddar = 1,
+            camembert = 2
+        };
+    }
+    """
+    cpdef enum class Cheese:
+        cheddar
+        camembert
+
+######## cheese.pyx ########
+# distutils: language = c++
+# distutils: extra_compile_args = -std=c++11
+
+pass
+
+######## import_scoped_enum_test.pyx ########
+# distutils: language = c++
+# distutils: extra_compile_args = -std=c++11
+
+from cheese import Cheese
+from cheese cimport Cheese
+
+cdef Cheese c = Cheese.cheddar
+assert list(Cheese) == [1, 2]
+
+######## dotted_import_scoped_enum_test.pyx ########
+# distutils: language = c++
+# distutils: extra_compile_args = -std=c++11
+
+
+cimport cheese
+
+cdef cheese.Cheese c = cheese.Cheese.cheddar
+assert [cheese.Cheese.cheddar, cheese.Cheese.camembert] == [1, 2]
+cdef cheese.Cheese d = int(1)
+
+######## runner.py ########
+
+import import_scoped_enum_test
+import dotted_import_scoped_enum_test

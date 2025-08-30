@@ -1,5 +1,5 @@
-# ticket: 155
-# tag: numpy_old
+# ticket: t155
+# tag: numpy
 
 """
 >>> myfunc()
@@ -17,4 +17,3 @@ def myfunc():
         A[i, :] /= 2
     return A[0,0]
 
-include "numpy_common.pxi"

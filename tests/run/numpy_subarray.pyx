@@ -1,4 +1,4 @@
-# tag: numpy_old
+# tag: numpy
 
 cimport numpy as np
 cimport cython

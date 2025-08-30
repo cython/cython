@@ -1,5 +1,5 @@
 # mode: run
-# ticket: 671
+# ticket: t671
 
 A = 1234
 

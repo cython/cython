@@ -1,4 +1,7 @@
 # mode: run
+# tag: perf_hints
+
+# Test declarations, behaviour and coercions of the memoryview type itself.
 
 u'''
 >>> f()
@@ -11,7 +14,7 @@ from cython.view cimport memoryview, array
 from cython cimport view
 
 from cpython.object cimport PyObject
-from cpython.ref cimport Py_INCREF, Py_DECREF
+from cpython.ref cimport Py_INCREF, Py_DECREF, Py_REFCNT
 cimport cython
 
 import array as pyarray
@@ -155,6 +158,7 @@ def assignmvs():
     cdef int[:] mv3
     mv1 = array((10,), itemsize=sizeof(int), format='i')
     mv2 = mv1
+    mv1 = mv1
     mv1 = mv2
     mv3 = mv2
 
@@ -247,7 +251,7 @@ def basic_struct(MyStruct[:] mslice):
     >>> basic_struct(MyStructMockBuffer(None, [(1, 2, 3, 4, 5)], format="ccqii"))
     [('a', 1), ('b', 2), ('c', 3), ('d', 4), ('e', 5)]
     """
-    buf = mslice
+    cdef object buf = mslice
     print sorted([(k, int(v)) for k, v in buf[0].items()])
 
 def nested_struct(NestedStruct[:] mslice):
@@ -259,7 +263,7 @@ def nested_struct(NestedStruct[:] mslice):
     >>> nested_struct(NestedStructMockBuffer(None, [(1, 2, 3, 4, 5)], format="T{ii}T{2i}i"))
     1 2 3 4 5
     """
-    buf = mslice
+    cdef object buf = mslice
     d = buf[0]
     print d['x']['a'], d['x']['b'], d['y']['a'], d['y']['b'], d['z']
 
@@ -275,7 +279,7 @@ def packed_struct(PackedStruct[:] mslice):
     1 2
 
     """
-    buf = mslice
+    cdef object buf = mslice
     print buf[0]['a'], buf[0]['b']
 
 def nested_packed_struct(NestedPackedStruct[:] mslice):
@@ -289,7 +293,7 @@ def nested_packed_struct(NestedPackedStruct[:] mslice):
     >>> nested_packed_struct(NestedPackedStructMockBuffer(None, [(1, 2, 3, 4, 5)], format="^c@i^ci@i"))
     1 2 3 4 5
     """
-    buf = mslice
+    cdef object buf = mslice
     d = buf[0]
     print d['a'], d['b'], d['sub']['a'], d['sub']['b'], d['c']
 
@@ -299,7 +303,7 @@ def complex_dtype(long double complex[:] mslice):
     >>> complex_dtype(LongComplexMockBuffer(None, [(0, -1)]))
     -1j
     """
-    buf = mslice
+    cdef object buf = mslice
     print buf[0]
 
 def complex_inplace(long double complex[:] mslice):
@@ -307,7 +311,7 @@ def complex_inplace(long double complex[:] mslice):
     >>> complex_inplace(LongComplexMockBuffer(None, [(0, -1)]))
     (1+1j)
     """
-    buf = mslice
+    cdef object buf = mslice
     buf[0] = buf[0] + 1 + 2j
     print buf[0]
 
@@ -318,7 +322,7 @@ def complex_struct_dtype(LongComplex[:] mslice):
     >>> complex_struct_dtype(LongComplexMockBuffer(None, [(0, -1)]))
     0.0 -1.0
     """
-    buf = mslice
+    cdef object buf = mslice
     print buf[0]['real'], buf[0]['imag']
 
 #
@@ -356,7 +360,7 @@ def get_int_2d(int[:, :] mslice, int i, int j):
         ...
     IndexError: Out of bounds on buffer access (axis 1)
     """
-    buf = mslice
+    cdef object buf = mslice
     return buf[i, j]
 
 def set_int_2d(int[:, :] mslice, int i, int j, int value):
@@ -409,9 +413,81 @@ def set_int_2d(int[:, :] mslice, int i, int j, int value):
     IndexError: Out of bounds on buffer access (axis 1)
 
     """
-    buf = mslice
+    cdef object buf = mslice
     buf[i, j] = value
 
+
+#
+# auto type inference
+# (note that for most numeric types "might_overflow" stops the type inference from working well)
+#
+def type_infer(double[:, :] arg):
+    """
+    >>> type_infer(DoubleMockBuffer(None, range(6), (2,3)))
+    double
+    double[:]
+    double[:]
+    double[:, :]
+    """
+    a = arg[0,0]
+    print(cython.typeof(a))
+    b = arg[0]
+    print(cython.typeof(b))
+    c = arg[0,:]
+    print(cython.typeof(c))
+    d = arg[:,:]
+    print(cython.typeof(d))
+
+#
+# Loop optimization
+#
+@cython.test_fail_if_path_exists("//CoerceToPyTypeNode")
+def memview_iter(double[:, :] arg):
+    """
+    >>> memview_iter(DoubleMockBuffer("C", range(6), (2,3)))
+    acquired C
+    released C
+    True
+    """
+    cdef double total = 0
+    for mview1d in arg:
+        for val in mview1d:
+            total += val
+    if total == 15:
+        return True
+
+@cython.test_fail_if_path_exists("//CoerceToPyTypeNode")
+def memview_backwards_iter(double[:] arg):
+    """
+    >>> memview_backwards_iter(DoubleMockBuffer("C", range(6), (6,)))
+    acquired C
+    released C
+    True
+    """
+    cdef double total = 0
+    cdef double first = 0
+    cdef double first_set = False
+    for val in arg[::-1]:
+        if not first_set:
+            first = val
+            first_set = True
+        total += val
+    if total == 15 and first == 5:
+        return True
+
+@cython.test_fail_if_path_exists("//CoerceToPyTypeNode")
+def memview_skip_iter(double[:] arg):
+    """
+    >>> memview_skip_iter(DoubleMockBuffer("C", range(6), (6,)))
+    acquired C
+    released C
+    True
+    """
+    cdef double total = 0
+    for val in arg[::2]:
+        total += val
+    if total == 6:
+        return True
 
 #
 # Test all kinds of indexing and flags
@@ -426,7 +502,7 @@ def writable(unsigned short int[:, :, :] mslice):
     >>> [str(x) for x in R.received_flags] # Py2/3
     ['FORMAT', 'ND', 'STRIDES', 'WRITABLE']
     """
-    buf = mslice
+    cdef object buf = mslice
     buf[2, 2, 1] = 23
 
 def strided(int[:] mslice):
@@ -441,7 +517,7 @@ def strided(int[:] mslice):
     >>> A.release_ok
     True
     """
-    buf = mslice
+    cdef object buf = mslice
     return buf[2]
 
 def c_contig(int[::1] mslice):
@@ -450,7 +526,7 @@ def c_contig(int[::1] mslice):
     >>> c_contig(A)
     2
     """
-    buf = mslice
+    cdef object buf = mslice
     return buf[2]
 
 def c_contig_2d(int[:, ::1] mslice):
@@ -461,7 +537,7 @@ def c_contig_2d(int[:, ::1] mslice):
     >>> c_contig_2d(A)
     7
     """
-    buf = mslice
+    cdef object buf = mslice
     return buf[1, 3]
 
 def f_contig(int[::1, :] mslice):
@@ -470,7 +546,7 @@ def f_contig(int[::1, :] mslice):
     >>> f_contig(A)
     2
     """
-    buf = mslice
+    cdef object buf = mslice
     return buf[0, 1]
 
 def f_contig_2d(int[::1, :] mslice):
@@ -481,7 +557,7 @@ def f_contig_2d(int[::1, :] mslice):
     >>> f_contig_2d(A)
     7
     """
-    buf = mslice
+    cdef object buf = mslice
     return buf[3, 1]
 
 def generic(int[::view.generic, ::view.generic] mslice1,
@@ -552,7 +628,7 @@ def printbuf_td_cy_int(td_cy_int[:] mslice, shape):
        ...
     ValueError: Buffer dtype mismatch, expected 'td_cy_int' but got 'short'
     """
-    buf = mslice
+    cdef object buf = mslice
     cdef int i
     for i in range(shape[0]):
         print buf[i],
@@ -567,7 +643,7 @@ def printbuf_td_h_short(td_h_short[:] mslice, shape):
        ...
     ValueError: Buffer dtype mismatch, expected 'td_h_short' but got 'int'
     """
-    buf = mslice
+    cdef object buf = mslice
     cdef int i
     for i in range(shape[0]):
         print buf[i],
@@ -582,7 +658,7 @@ def printbuf_td_h_cy_short(td_h_cy_short[:] mslice, shape):
        ...
     ValueError: Buffer dtype mismatch, expected 'td_h_cy_short' but got 'int'
     """
-    buf = mslice
+    cdef object buf = mslice
     cdef int i
     for i in range(shape[0]):
         print buf[i],
@@ -597,7 +673,7 @@ def printbuf_td_h_ushort(td_h_ushort[:] mslice, shape):
        ...
     ValueError: Buffer dtype mismatch, expected 'td_h_ushort' but got 'short'
     """
-    buf = mslice
+    cdef object buf = mslice
     cdef int i
     for i in range(shape[0]):
         print buf[i],
@@ -612,7 +688,7 @@ def printbuf_td_h_double(td_h_double[:] mslice, shape):
        ...
     ValueError: Buffer dtype mismatch, expected 'td_h_double' but got 'float'
     """
-    buf = mslice
+    cdef object buf = mslice
     cdef int i
     for i in range(shape[0]):
         print buf[i],
@@ -626,8 +702,10 @@ def addref(*args):
 def decref(*args):
     for item in args: Py_DECREF(item)
 
+@cython.binding(False)
+@cython.always_allow_keywords(False)
 def get_refcount(x):
-    return (<PyObject*>x).ob_refcnt
+    return Py_REFCNT(x)
 
 def printbuf_object(object[:] mslice, shape):
     """
@@ -638,19 +716,22 @@ def printbuf_object(object[:] mslice, shape):
     we to the "buffer implementor" refcounting directly in the
     testcase.
 
-    >>> a, b, c = "globally_unique_string_23234123", {4:23}, [34,3]
+    >>> _x = 1
+    >>> a, b, c = "globally_unique_string_2323412" + "3" * _x, {4:23}, [34,3]
+
     >>> get_refcount(a), get_refcount(b), get_refcount(c)
     (2, 2, 2)
+
     >>> A = ObjectMockBuffer(None, [a, b, c])
     >>> printbuf_object(A, (3,))
     'globally_unique_string_23234123' 2
     {4: 23} 2
     [34, 3] 2
     """
-    buf = mslice
+    cdef object buf = mslice
     cdef int i
     for i in range(shape[0]):
-        print repr(buf[i]), (<PyObject*>buf[i]).ob_refcnt
+        print repr(buf[i]), Py_REFCNT(buf[i])
 
 def assign_to_object(object[:] mslice, int idx, obj):
     """
@@ -668,7 +749,7 @@ def assign_to_object(object[:] mslice, int idx, obj):
     (2, 3)
     >>> decref(b)
     """
-    buf = mslice
+    cdef object buf = mslice
     buf[idx] = obj
 
 def assign_temporary_to_object(object[:] mslice):
@@ -695,7 +776,7 @@ def assign_temporary_to_object(object[:] mslice):
     >>> assign_to_object(A, 1, a)
     >>> decref(a)
     """
-    buf = mslice
+    cdef object buf = mslice
     buf[1] = {3-2: 2+(2*4)-2}
 
 
@@ -743,7 +824,7 @@ def test_generic_slicing(arg, indirect=False):
 
     """
     cdef int[::view.generic, ::view.generic, :] _a = arg
-    a = _a
+    cdef object a = _a
     b = a[2:8:2, -4:1:-1, 1:3]
 
     print b.shape
@@ -826,7 +907,7 @@ def test_direct_slicing(arg):
     released A
     """
     cdef int[:, :, :] _a = arg
-    a = _a
+    cdef object a = _a
     b = a[2:8:2, -4:1:-1, 1:3]
 
     print b.shape
@@ -854,7 +935,7 @@ def test_slicing_and_indexing(arg):
     released A
     """
     cdef int[:, :, :] _a = arg
-    a = _a
+    cdef object a = _a
     b = a[-5:, 1, 1::2]
     c = b[4:1:-1, ::-1]
     d = c[2, 1:2]
@@ -931,6 +1012,46 @@ def test_acquire_memoryview_slice():
     print b[2, 4]
     print c[2, 4]
 
+cdef class TestPassMemoryviewToSetter:
+    """
+    Setter has a fixed function signature and the
+    argument needs conversion so it ends up passing through
+    some slightly different reference counting code
+
+    >>> dmb = DoubleMockBuffer("dmb", range(2), shape=(2,))
+    >>> TestPassMemoryviewToSetter().prop = dmb
+    acquired dmb
+    In prop setter
+    released dmb
+    >>> TestPassMemoryviewToSetter().prop_with_reassignment = dmb
+    acquired dmb
+    In prop_with_reassignment setter
+    released dmb
+    >>> dmb = DoubleMockBuffer("dmb", range(1,3), shape=(2,))
+    >>> TestPassMemoryviewToSetter().prop_with_reassignment = dmb
+    acquired dmb
+    In prop_with_reassignment setter
+    released dmb
+    """
+    @property
+    def prop(self):
+        return None
+
+    @prop.setter
+    def prop(self, double[:] x):
+        print("In prop setter")
+
+    @property
+    def prop_with_reassignment(self):
+        return None
+
+    @prop_with_reassignment.setter
+    def prop_with_reassignment(self, double[:] x):
+        # reassignment again requires slightly different code
+        if x[0]:
+            x = x[1:]
+        print("In prop_with_reassignment setter")
+
 class SingleObject(object):
     def __init__(self, value):
         self.value = value
@@ -991,6 +1112,22 @@ def test_dtype_object_scalar_assignment():
 
     (<object> m)[:] = SingleObject(3)
     assert m[0] == m[4] == m[-1] == 3
+
+
+def test_assign_to_slice(obj, start, end):
+    """
+    >>> test_assign_to_slice(b'abc', 0, 3)
+    b'abc'
+    >>> test_assign_to_slice(b'a', 0, 1)
+    b'a'
+    >>> test_assign_to_slice(b'', 0, 0)
+    b''
+    >>> test_assign_to_slice(b'', 5, 5)
+    b''
+    """
+    view = memoryview(bytearray(len(obj)), PyBUF_C_CONTIGUOUS)
+    view[start:end] = obj[start:end]
+    return bytes(view)
 
 
 def test_assignment_in_conditional_expression(bint left):
@@ -1108,15 +1245,11 @@ def test_assign_from_byteslike(byteslike):
     hello
     >>> print(test_assign_from_byteslike(bytearray(b'howdy')).decode())
     howdy
+    >>> print(test_assign_from_byteslike(pyarray.array('B', b'aloha')).decode())
+    aloha
+    >>> print(test_assign_from_byteslike(memoryview(b'bye!!')).decode())
+    bye!!
     """
-    # fails on Python 2.7- with
-    #   TypeError: an integer is required
-    # >>> print(test_assign_from_byteslike(pyarray.array('B', b'aloha')).decode())
-    # aloha
-    # fails on Python 2.6- with
-    #   NameError: name 'memoryview' is not defined
-    # >>> print(test_assign_from_byteslike(memoryview(b'bye!!')).decode())
-    # bye!!
 
     def assign(m):
         m[:] = byteslike
@@ -1130,3 +1263,101 @@ def test_assign_from_byteslike(byteslike):
         return (<unsigned char*>buf)[:5]
     finally:
         free(buf)
+
+def multiple_memoryview_def(double[:] a, double[:] b):
+    return a[0] + b[0]
+
+cpdef multiple_memoryview_cpdef(double[:] a, double[:] b):
+    return a[0] + b[0]
+
+cdef multiple_memoryview_cdef(double[:] a, double[:] b):
+    return a[0] + b[0]
+
+multiple_memoryview_cdef_wrapper = multiple_memoryview_cdef
+
+def test_conversion_failures():
+    """
+    What we're concerned with here is that we don't lose references if one
+    of several memoryview arguments fails to convert.
+
+    >>> test_conversion_failures()
+    """
+    imb = IntMockBuffer("", range(1), shape=(1,))
+    dmb = DoubleMockBuffer("", range(1), shape=(1,))
+    for first, second in [(imb, dmb), (dmb, imb)]:
+        for func in [multiple_memoryview_def, multiple_memoryview_cpdef, multiple_memoryview_cdef_wrapper]:
+            # note - using python call of "multiple_memoryview_cpdef" deliberately
+            imb_before = get_refcount(imb)
+            dmb_before = get_refcount(dmb)
+            try:
+                func(first, second)
+            except:
+                assert get_refcount(imb) == imb_before, "before %s after %s" % (imb_before, get_refcount(imb))
+                assert get_refcount(dmb) == dmb_before, "before %s after %s" % (dmb_before, get_refcount(dmb))
+            else:
+                assert False, "Conversion should fail!"
+
+def test_is_Sequence(double[:] a):
+    """
+    >>> test_is_Sequence(DoubleMockBuffer(None, range(6), shape=(6,)))
+    1
+    1
+    True
+    """
+    from collections.abc import Sequence
+
+    for i in range(a.shape[0]):
+        a[i] = i
+    print(a.count(1.0))  # test for presence of added collection method
+    print(a.index(1.0))  # test for presence of added collection method
+
+    import sys
+    if sys.version_info >= (3, 10):
+        # test structural pattern match in Python
+        # (because Cython hasn't implemented it yet, and because the details
+        # of what Python considers a sequence are important)
+        globs = {'arr': a}
+        exec("""
+match arr:
+    case [*_]:
+        res = True
+    case _:
+        res = False
+""", globs)
+        assert globs['res']
+
+    return isinstance(<object>a, Sequence)
+
+
+ctypedef int aliasT
+def test_assignment_typedef():
+    """
+    >>> test_assignment_typedef()
+    1
+    2
+    """
+    cdef int[2] x
+    cdef aliasT[:] y
+    x[:] = [1, 2]
+    y = x
+    for v in y:
+        print(v)
+
+def test_untyped_index(i):
+    """
+    >>> test_untyped_index(2)
+    3
+    >>> test_untyped_index(0)
+    5
+    >>> test_untyped_index(-1)
+    0
+    """
+    cdef int[6] arr
+    arr = [5, 4, 3, 2, 1, 0]
+    cdef int[:] mview_arr = arr
+    return mview_arr[i]  # should generate a performance hint
+
+_PERFORMANCE_HINTS = """
+243:9: Use boundscheck(False) for faster access
+1358:21: Index should be typed for more efficient access
+"""

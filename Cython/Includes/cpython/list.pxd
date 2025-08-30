@@ -42,17 +42,19 @@ cdef extern from "Python.h":
 
     int PyList_SetItem(object list, Py_ssize_t index, object item) except -1
     # Set the item at index index in list to item. Return 0 on success
-    # or -1 on failure. Note: This function ``steals'' a reference to
-    # item and discards a reference to an item already in the list at
-    # the affected position.
+    # or -1 on failure.
+    #
+    # WARNING: This function _steals_ a reference to item and discards a
+    # reference to an item already in the list at the affected position.
 
     void PyList_SET_ITEM(object list, Py_ssize_t i, object o)
     # Macro form of PyList_SetItem() without error checking. This is
     # normally only used to fill in new lists where there is no
-    # previous content. Note: This function ``steals'' a reference to
-    # item, and, unlike PyList_SetItem(), does not discard a reference
-    # to any item that it being replaced; any reference in list at
-    # position i will be *leaked*.
+    # previous content.
+    #
+    # WARNING: This function _steals_ a reference to item, and, unlike
+    # PyList_SetItem(), does not discard a reference to any item that
+    # it being replaced; any reference in list at position i will be *leaked*.
 
     int PyList_Insert(object list, Py_ssize_t index, object item) except -1
     # Insert the item item into list list in front of index
@@ -88,5 +90,3 @@ cdef extern from "Python.h":
     # Return value: New reference.
     # Return a new tuple object containing the contents of list;
     # equivalent to "tuple(list)".
-
-

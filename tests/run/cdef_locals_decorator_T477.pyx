@@ -1,4 +1,4 @@
-# ticket: 477
+# ticket: t477
 
 import cython
 @cython.locals(x=double)

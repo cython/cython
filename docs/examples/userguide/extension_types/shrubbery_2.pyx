@@ -1,4 +1,6 @@
+ 
 from my_module cimport Shrubbery
+
 
 cdef Shrubbery another_shrubbery(Shrubbery sh1):
     cdef Shrubbery sh2

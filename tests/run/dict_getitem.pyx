@@ -21,16 +21,14 @@ def test(dict d, index):
     >>> try: d[(1,)]
     ... except KeyError:
     ...     args = sys.exc_info()[1].args
-    ...     if sys.version_info >= (2,5): print(args)
-    ...     else: print((args,))   # fake it for older CPython versions
+    ...     print(args)
     ((1,),)
 
     >>> import sys
     >>> try: test(d, (1,))
     ... except KeyError:
     ...     args = sys.exc_info()[1].args
-    ...     if sys.version_info >= (2,5): print(args)
-    ...     else: print((args,))   # fake it for older CPython versions
+    ...     print(args)
     ((1,),)
 
     >>> class Unhashable:

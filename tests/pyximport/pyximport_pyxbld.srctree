@@ -1,0 +1,37 @@
+
+PYTHON -c "import basic_test; basic_test.test()"
+
+######## basic_test.py ########
+
+import os.path
+import pyximport
+
+pyximport.DEBUG_IMPORT = True
+
+pyximport.install(build_dir=os.path.join(os.path.dirname(__file__), "TEST_TMP"))
+
+def test():
+    import mymodule
+    assert mymodule.test_string == "TEST"
+    assert mymodule.header_value == 5
+    assert not mymodule.__file__.rstrip('oc').endswith('.py'), mymodule.__file__
+
+######## mymodule.pyxbld ########
+
+def make_ext(modname, pyxfilename):
+    from distutils.extension import Extension
+    return Extension(name = modname,
+                     sources=[pyxfilename],
+                     include_dirs=['./headers'] )
+
+######## mymodule.pyx ########
+
+cdef extern from "myheader.h":
+    int test_value
+
+header_value = test_value
+test_string = "TEST"
+
+######## headers/myheader.h ########
+
+static int test_value = 5;

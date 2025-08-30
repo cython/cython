@@ -41,34 +41,37 @@ def test_with_reload():
     tempdir = make_tempdir()
     sys.path.append(tempdir)
     filename = os.path.join(tempdir, "dummy.pyx")
-    open(filename, "w").write("print 'Hello world from the Pyrex install hook'")
+    with open(filename, "w") as fid:
+        fid.write("print 'Hello world from the Pyrex install hook'")
     import dummy
     reload(dummy)
 
     depend_filename = os.path.join(tempdir, "dummy.pyxdep")
-    depend_file = open(depend_filename, "w")
-    depend_file.write("*.txt\nfoo.bar")
-    depend_file.close()
+    with open(depend_filename, "w") as depend_file:
+        depend_file.write("*.txt\nfoo.bar")
 
     build_filename = os.path.join(tempdir, "dummy.pyxbld")
-    build_file = open(build_filename, "w")
-    build_file.write("""
+    with open(build_filename, "w") as build_file:
+        build_file.write("""
 from distutils.extension import Extension
 def make_ext(name, filename):
     return Extension(name=name, sources=[filename])
 """)
-    build_file.close()
 
-    open(os.path.join(tempdir, "foo.bar"), "w").write(" ")
-    open(os.path.join(tempdir, "1.txt"), "w").write(" ")
-    open(os.path.join(tempdir, "abc.txt"), "w").write(" ")
+    with open(os.path.join(tempdir, "foo.bar"), "w") as fid:
+        fid.write(" ")
+    with open(os.path.join(tempdir, "1.txt"), "w") as fid:
+        fid.write(" ")
+    with open(os.path.join(tempdir, "abc.txt"), "w") as fid:
+        fid.write(" ")
     reload(dummy)
     assert len(pyximport._test_files)==1, pyximport._test_files
     reload(dummy)
 
-    time.sleep(1) # sleep a second to get safer mtimes
-    open(os.path.join(tempdir, "abc.txt"), "w").write(" ")
-    print("Here goes the reolad")
+    time.sleep(1)  # sleep a second to get safer mtimes
+    with open(os.path.join(tempdir, "abc.txt"), "w") as fid:
+        fid.write(" ")
+    print("Here goes the reload")
     reload(dummy)
     assert len(pyximport._test_files) == 1, pyximport._test_files
 

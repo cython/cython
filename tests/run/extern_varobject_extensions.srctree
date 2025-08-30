@@ -1,0 +1,94 @@
+# mode: run
+
+PYTHON setup.py build_ext --inplace
+PYTHON -c "import classes"
+PYTHON -c "import test_inherit"
+
+######## setup.py ########
+
+from Cython.Build.Dependencies import cythonize
+
+from distutils.core import setup
+
+setup(
+  ext_modules=cythonize("*.pyx"),
+)
+
+######  dummy_module.py ###########
+
+tpl = tuple
+lst = list
+
+###### classes.pxd ################
+
+cdef extern from *:
+    # apart from list, these are all variable sized types
+    # and Cython shouldn't trip up about the struct size
+    ctypedef class dummy_module.tpl [object PyTupleObject]:
+        pass
+    ctypedef class dummy_module.lst [object PyListObject]:
+        pass
+    ctypedef class types.CodeType [object PyCodeObject]:
+        pass
+    # Note that bytes doesn't work here because it further 
+    # the tp_basicsize to save space
+        
+##### classes.pyx #################
+
+def check_tuple(tpl x):
+    assert isinstance(x, tuple)
+    
+def check_list(lst x):
+    assert isinstance(x, list)
+    
+def check_code(CodeType x):
+    import types
+    assert isinstance(x, types.CodeType)
+    
+check_tuple((1, 2))
+check_list([1, 2])
+check_code(eval("lambda: None").__code__)
+
+##### failed_inherit1.pyx #############
+
+from classes cimport tpl
+
+cdef class SuperTuple(tpl):
+    cdef int a  # importing this gives an error message
+
+##### failed_inherit2.pyx #############
+
+from classes cimport tpl
+
+cdef class SuperTuple(tpl):
+    # adding a method creates a vtab so should also fail
+    cdef int func(self):
+        return 1
+    
+##### successful_inherit.pyx #########
+
+from classes cimport lst, tpl
+
+cdef class SuperList(lst):
+    cdef int a  # This works OK
+    
+cdef class SuperTuple(tpl):
+    # This is actually OK because it doesn't add anything
+    pass
+    
+##### test_inherit.py ################
+
+try:
+    import failed_inherit1
+except TypeError as e:
+    assert e.args[0] == "inheritance from PyVarObject types like 'tuple' not currently supported", e.args[0]
+else:
+    assert False
+try:
+    import failed_inherit2
+except TypeError as e:
+    assert e.args[0] == "inheritance from PyVarObject types like 'tuple' not currently supported", e.args[0]
+else:
+    assert False
+    
+import successful_inherit

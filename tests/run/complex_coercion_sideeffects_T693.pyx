@@ -1,5 +1,5 @@
 # mode: run
-# ticket: 693
+# ticket: t693
 
 cdef double complex func(double complex x):                                                  
     print "hello"

@@ -1,4 +1,4 @@
-# ticket: 166
+# ticket: t166
 
 __doc__ = u"""
 >>> l = None

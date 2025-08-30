@@ -19,7 +19,7 @@ def power(np.ndarray[double, ndim=1] values):
     """
     >>> a = np.array([0., 1., 2.])
     >>> res = power(a)
-    >>> res[0], res[1], res[2]
+    >>> float(res[0]), float(res[1]), float(res[2])
     (0.0, 1.0, 8.0)
     """
     return values ** 3

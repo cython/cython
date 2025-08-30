@@ -1,5 +1,3 @@
-# cqueue.pxd
-
 cdef extern from "c-algorithms/src/queue.h":
     ctypedef struct Queue:
         pass

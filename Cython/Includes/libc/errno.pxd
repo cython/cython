@@ -125,4 +125,3 @@ cdef extern from "<errno.h>" nogil:
         EDQUOT
 
     int errno
-

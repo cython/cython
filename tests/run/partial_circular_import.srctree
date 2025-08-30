@@ -1,0 +1,40 @@
+PYTHON -c 'import pkg.A'
+PYTHON setup.py build_ext --inplace
+PYTHON -c "import pkg.A"
+
+######## setup.py ########
+
+from Cython.Build.Dependencies import cythonize
+from distutils.core import setup
+
+setup(
+    ext_modules = cythonize("*/*.py"),
+    )
+
+######## pkg/__init__.py ########
+
+######## pkg/A.py ########
+from . import B
+
+def verify(rel_B):
+    import pkg.B as abs_B
+    assert abs_B == rel_B
+verify(B)
+
+######## pkg/B.py ########
+from . import C
+
+def verify(rel_C):
+    import pkg.C as abs_C
+    assert abs_C == rel_C
+verify(C)
+
+######## pkg/C.py ########
+from . import B
+
+def verify(rel_B):
+    import pkg.B as abs_B
+    assert abs_B == rel_B
+
+verify(B)
+

@@ -5,7 +5,6 @@ cimport cython
 
 
 cdef extern from *:
-    unsigned long PY_VERSION_HEX
     unsigned long Py_TPFLAGS_HAVE_VERSION_TAG
     ctypedef struct PyTypeObject:
         unsigned long tp_flags

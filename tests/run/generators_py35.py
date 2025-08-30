@@ -30,10 +30,10 @@ def anno_gen(x: 'int') -> 'float':
     >>> next(gen)
     2.0
     >>> ret, arg = sorted(anno_gen.__annotations__.items())
-    >>> print(ret[0]); print(ret[1])
+    >>> print(ret[0]); print(str(ret[1]).strip("'"))  # strip makes it pass with/without PEP563
     return
     float
-    >>> print(arg[0]); print(arg[1])
+    >>> print(arg[0]); print(str(arg[1]).strip("'"))
     x
     int
     """
