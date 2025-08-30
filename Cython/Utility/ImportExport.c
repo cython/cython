@@ -1,6 +1,6 @@
 /////////////// Import.proto ///////////////
 
-static PyObject *__Pyx_Import(PyObject *name, PyObject *from_tuple, PyObject *qualname, int level); /*proto*/
+static PyObject *__Pyx_Import(PyObject *name, PyObject **imported_names, Py_ssize_t len_imported_names, PyObject *qualname, int level); /*proto*/
 
 /////////////// Import ///////////////
 //@requires: StringTools.c::IncludeStringH
@@ -21,10 +21,10 @@ static int __Pyx__Import_GetModule(PyObject *qualname, PyObject **module) {
     return 1;
 }
 
-static int __Pyx__Import_Lookup(PyObject *qualname, PyObject *from_tuple, PyObject **module) {
+static int __Pyx__Import_Lookup(PyObject *qualname, PyObject **imported_names, Py_ssize_t len_imported_names, PyObject **module) {
     PyObject *imported_module;
     PyObject *name_parts, *top_level_package_name;
-    Py_ssize_t i, part_count, from_tuple_size;
+    Py_ssize_t i, part_count;
     int status, module_found;
 
     module_found = __Pyx__Import_GetModule(qualname, &imported_module);
@@ -33,26 +33,13 @@ static int __Pyx__Import_Lookup(PyObject *qualname, PyObject *from_tuple, PyObje
         return module_found;
     }
 
-    if (from_tuple) {
-        from_tuple_size = __Pyx_PyTuple_GET_SIZE(from_tuple);
-        #if !CYTHON_ASSUME_SAFE_SIZE
-        if (unlikely(from_tuple_size == -1)) {
-            goto error;
-        }
-        #endif
-        for (i = 0; i < from_tuple_size; i++) {
-#if CYTHON_AVOID_BORROWED_REFS
-            PyObject *imported_name = __Pyx_PySequence_ITEM(from_tuple, i);
-#else
-            PyObject *imported_name = __Pyx_PyTuple_GET_ITEM(from_tuple, i);
-#endif
+    if (imported_names) {
+        for (i = 0; i < len_imported_names; i++) {
+            PyObject *imported_name = imported_names[i];
             if (unlikely(!imported_name)) {
                 goto error;
             }
             int has_imported_attribute = PyObject_HasAttr(imported_module, imported_name);
-#if CYTHON_AVOID_BORROWED_REFS
-            Py_DECREF(imported_name);
-#endif
             if (!has_imported_attribute) {
                 goto not_found;
             }
@@ -103,7 +90,7 @@ not_found:
     return 0;
 }
 
-static PyObject *__Pyx_Import(PyObject *name, PyObject *from_tuple, PyObject *qualname, int level) {
+static PyObject *__Pyx_Import(PyObject *name, PyObject **imported_names, Py_ssize_t len_imported_names, PyObject *qualname, int level) {
     PyObject *module = 0;
     PyObject *empty_dict = 0;
     PyObject *from_list = 0;
@@ -112,7 +99,7 @@ static PyObject *__Pyx_Import(PyObject *name, PyObject *from_tuple, PyObject *qu
     if (!qualname) {
         qualname = name;
     }
-    module_found = __Pyx__Import_Lookup(qualname, from_tuple, &module);
+    module_found = __Pyx__Import_Lookup(qualname, imported_names, len_imported_names, &module);
     if (likely(module_found == 1)) {
         return module;
     } else if (unlikely(module_found == -1)) {
@@ -121,14 +108,18 @@ static PyObject *__Pyx_Import(PyObject *name, PyObject *from_tuple, PyObject *qu
     empty_dict = PyDict_New();
     if (unlikely(!empty_dict))
         goto bad;
-    if (from_tuple) {
-#if CYTHON_COMPILING_IN_CPYTHON && CYTHON_ASSUME_SAFE_MACROS
-        from_list = __Pyx_PyList_FromArray(&PyTuple_GET_ITEM(from_tuple, 0), PyTuple_GET_SIZE(from_tuple));
-#else
-        from_list = __Pyx_PyObject_CallOneArg(&PyList_Type, from_tuple); 
-#endif
+    if (imported_names) {
+#if CYTHON_COMPILING_IN_CPYTHON
+        from_list = __Pyx_PyList_FromArray(imported_names, len_imported_names);
         if (unlikely(!from_list))
             goto bad;
+#else
+        from_list = PyList_New(len_imported_names);
+        if (unlikely(!from_list)) goto bad;
+        for (Py_ssize_t i=0; i<len_imported_names; ++i) {
+            if (PyList_SetItem(from_list, __Pyx_NewRef(imported_names[i]), i) < 0) goto bad;
+        }
+#endif
     } 
     if (level == -1) {
         const char* package_sep = strchr(__Pyx_MODULE_NAME, '.');
@@ -149,6 +140,7 @@ static PyObject *__Pyx_Import(PyObject *name, PyObject *from_tuple, PyObject *qu
             name, NAMED_CGLOBAL(moddict_cname), empty_dict, from_list, level);
     }
 bad:
+    Py_XDECREF(from_list);
     Py_XDECREF(empty_dict);
     return module;
 }
@@ -887,7 +879,7 @@ Py_CLEAR(CGLOBAL(__pyx_numpy_ndarray));
 
 static PyObject* __Pyx__ImportNumPyArray(void) {
     PyObject *numpy_module, *ndarray_object = NULL;
-    numpy_module = __Pyx_Import(PYIDENT("numpy"), NULL, NULL, 0);
+    numpy_module = __Pyx_Import(PYIDENT("numpy"), NULL, 0, NULL, 0);
     if (likely(numpy_module)) {
         ndarray_object = PyObject_GetAttrString(numpy_module, "ndarray");
         Py_DECREF(numpy_module);
