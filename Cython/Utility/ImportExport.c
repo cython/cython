@@ -23,9 +23,10 @@ static int __Pyx__Import_GetModule(PyObject *qualname, PyObject **module) {
 
 static int __Pyx__Import_Lookup(PyObject *qualname, PyObject **imported_names, Py_ssize_t len_imported_names, PyObject **module) {
     PyObject *imported_module;
-    PyObject *name_parts, *top_level_package_name;
-    Py_ssize_t i, part_count;
+    PyObject *top_level_package_name;
+    Py_ssize_t i;
     int status, module_found;
+    Py_ssize_t dot_index;
 
     module_found = __Pyx__Import_GetModule(qualname, &imported_module);
     if (unlikely(!module_found || module_found == -1)) {
@@ -49,34 +50,20 @@ static int __Pyx__Import_Lookup(PyObject *qualname, PyObject **imported_names, P
     }
 
     // Get top-level module
-    name_parts = PyUnicode_Split(qualname, PYUNICODE("."), 1);
-    if (unlikely(!name_parts)) {
-        goto error;
-    }
-
-    part_count = __Pyx_PyList_GET_SIZE(name_parts);
-    #if !CYTHON_ASSUME_SAFE_SIZE
-    if (unlikely(part_count == -1)) {
-        goto error;
-    }
-    #endif
-    if (part_count == 1) {
+    dot_index = PyUnicode_FindChar(qualname, '.', 0, PY_SSIZE_T_MAX, 1);
+    if (dot_index == -1) {
         // No dot, so we already have the top-level module
         *module = imported_module;
         return 1;
     }
+    if (unlikely(dot_index == -2)) goto error;
+    top_level_package_name = PyUnicode_Substring(qualname, 0, dot_index);
+    if (unlikely(!top_level_package_name)) goto error;
+
     Py_DECREF(imported_module);
 
-    top_level_package_name = __Pyx_PyList_GET_ITEM(name_parts, 0);
-    #if !CYTHON_ASSUME_SAFE_MACROS
-    if (unlikely(!top_level_package_name)) {
-        *module = NULL;
-        return -1;
-    }
-    #endif
-
     status = __Pyx__Import_GetModule(top_level_package_name, module);
-    Py_DECREF(name_parts);
+    Py_DECREF(top_level_package_name);
     return status;
 
 error:
