@@ -37,9 +37,6 @@ static int __Pyx__Import_Lookup(PyObject *qualname, PyObject **imported_names, P
     if (imported_names) {
         for (i = 0; i < len_imported_names; i++) {
             PyObject *imported_name = imported_names[i];
-            if (unlikely(!imported_name)) {
-                goto error;
-            }
             int has_imported_attribute = PyObject_HasAttr(imported_module, imported_name);
             if (!has_imported_attribute) {
                 goto not_found;
