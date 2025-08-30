@@ -1204,6 +1204,14 @@ error:
     return NULL;
 }
 
+/////////////// Py3ClassCreate.export ///////////////
+
+static PyObject *__Pyx_Py3MetaclassPrepare(PyObject *metaclass, PyObject *bases, PyObject *name, PyObject *qualname,
+                                           PyObject *mkw, PyObject *modname, PyObject *doc);
+
+static PyObject *__Pyx_Py3ClassCreate(PyObject *metaclass, PyObject *name, PyObject *bases, PyObject *dict,
+                                      PyObject *mkw, int calculate_metaclass, int allow_py2_metaclass);
+
 /////////////// Py3ClassCreate.proto ///////////////
 
 static PyObject *__Pyx_Py3MetaclassPrepare(PyObject *metaclass, PyObject *bases, PyObject *name, PyObject *qualname,
@@ -2348,6 +2356,10 @@ static PyObject *__Pyx_Object_VectorcallMethod_CallFromBuilder(PyObject *name, P
 }
 #endif
 
+/////////////// PyObjectCallMethod0.export ///////////////
+
+static PyObject* __Pyx_PyObject_CallMethod0(PyObject* obj, PyObject* method_name);
+
 /////////////// PyObjectCallMethod0.proto ///////////////
 
 static PyObject* __Pyx_PyObject_CallMethod0(PyObject* obj, PyObject* method_name); /*proto*/
@@ -2381,6 +2393,10 @@ bad:
 #endif
 }
 
+
+/////////////// PyObjectCallMethod1.export ///////////////
+
+static PyObject* __Pyx_PyObject_CallMethod1(PyObject* obj, PyObject* method_name, PyObject* arg);
 
 /////////////// PyObjectCallMethod1.proto ///////////////
 
