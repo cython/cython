@@ -9209,6 +9209,13 @@ class CythonLockExitNode(StatNode):
     """
     child_attrs = []
 
+    def __deepcopy__(self, memo):
+        # This gets deepcopied when generating finally_clause and
+        # finally_except_clause. In this case the node has essentially
+        # no state, except for a reference to its parent.
+        # We definitely don't want to let that reference be copied.
+        return self
+
     def analyse_expressions(self, env):
         return self
 

@@ -3623,6 +3623,17 @@ class WithExitCallNode(ExprNode):
         if self.test_if_run:
             code.putln("}")
 
+    def __deepcopy__(self, memo):
+        # avoid copying with_stat - it's potentially complex
+        # and it really should remain a reference to the outer node.
+        shallow_copy = copy.copy(self)
+        shallow_copy.__deepcopy__ = None
+        shallow_copy.with_stat = None
+        result = copy.deepcopy(shallow_copy, memo)
+        result.with_stat = self.with_stat
+        del result.__deepcopy__
+        return result
+
 
 class ExcValueNode(AtomicExprNode):
     #  Node created during analyse_types phase
