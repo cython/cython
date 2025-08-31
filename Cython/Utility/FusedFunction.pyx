@@ -36,10 +36,9 @@ cdef object index_signature(dest_sig: tuple, signatures: dict, sigindex: dict):
 
 
 @cname("__pyx_ff_match_signatures")
-cdef object match_signatures(signatures: dict, dest_sig: list, sigindex: dict):
-    dest_sig_tuple = tuple(dest_sig)
-    found_match = sigindex.get(dest_sig_tuple)
+cdef object match_signatures(signatures: dict, dest_sig: tuple, sigindex: dict):
+    found_match = sigindex.get(dest_sig)
     if found_match is None:
         # Unknown, ambiguous or not initialised yet.
-        found_match = index_signature(dest_sig_tuple, signatures, sigindex)
+        found_match = index_signature(dest_sig, signatures, sigindex)
     return found_match

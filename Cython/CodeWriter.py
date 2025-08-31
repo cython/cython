@@ -512,7 +512,6 @@ class ExpressionWriter(TreeVisitor):
         if self.allow_unknown_nodes:
             self.put("...")
         else:
-            breakpoint()
             raise AssertionError("Node not handled by serializer: %r" % node)
 
     # TODO: Remove redundancy below. Most constants serialise fine as just "repr(node.value)".

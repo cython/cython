@@ -21,21 +21,11 @@ static int __Pyx_main(int argc, wchar_t **argv)
     m = fpgetmask();
     fpsetmask(m & ~FP_X_OFL);
 #endif
-#if PY_VERSION_HEX < 0x03080000
-    if (argc && argv)
-        Py_SetProgramName(argv[0]);
-#endif
 
     if (PyImport_AppendInittab("%(module_name)s", PyInit_%(module_name)s) < 0) return 1;
 
-#if PY_VERSION_HEX < 0x03080000
-    Py_Initialize();
-    if (argc && argv)
-        PySys_SetArgv(argc, argv);
-#else
     {
         PyStatus status;
-
         PyConfig config;
         PyConfig_InitPythonConfig(&config);
         // Disable parsing command line arguments
@@ -63,7 +53,6 @@ static int __Pyx_main(int argc, wchar_t **argv)
 
         PyConfig_Clear(&config);
     }
-#endif
 
     { /* init module '%(module_name)s' as '__main__' */
       PyObject* m = NULL;

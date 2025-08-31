@@ -263,19 +263,7 @@ static void __Pyx__Locks_PyThreadTypeLock_LockGil_spin(__Pyx_Locks_PyThreadTypeL
     while (1) {
         int res;
         Py_BEGIN_ALLOW_THREADS
-#if !CYTHON_COMPILING_IN_PYPY || PYPY_VERSION_NUM >= 0x07031400
-        // Don't block indefinitely. This ensures we don't deadlock (forever) on
-        //
-        // with nogil:
-        //   with lock:
-        //     with gil:
-        //       ...
-        //
-        // Arguably that's user error, but it seems better to try to help them out.
-        res = PyThread_acquire_lock_timed(lock, CYTHON_LOCK_AND_GIL_DEADLOCK_AVOIDANCE_TIME, 0);
-#else
         res = PyThread_acquire_lock(lock, WAIT_LOCK);
-#endif
         // Wait on the GIL while holding the lock. But importantly we never do the inverse
         // and wait on the lock while holding the GIL.
         Py_END_ALLOW_THREADS
