@@ -138,7 +138,7 @@ class CheckAnalysers(type):
             if isinstance(m, FunctionType) and mname in cls.methods:
                 attrs[mname] = check(mname, m)
         return super().__new__(cls, name, bases, attrs)
-    
+
 
 def CopyWithUpTreeRefsMixin(*uptree_refs_attrs):
     class CopyWithUpTreeRefsMixin:
