@@ -146,7 +146,7 @@ class CopyWithUpTreeRefsMixin:
         # However, if they're in memo (because they've already been deep-copied because
         # we're copying from far enough up the tree) then they should be replaced
         # with the memorised value.
-        
+
         cls = self.__class__
         result = cls.__new__(cls)
         for k, v in self.__dict__.items():
