@@ -566,14 +566,14 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
         code.enter_cfunc_scope(self.scope)
 
+        shared_func_definitions = code.globalstate.shared_utility_functions
         if shared_utility_export_code:
             with shared_utility_export_code as inner_code:
                 self.generate_c_shared_function_export_code(
                     inner_code,
-                    [(shared.name, shared.params, shared.ret) for shared in code.globalstate.shared_utility_functions]
+                    shared_func_definitions
                 )
 
-        shared_func_definitions = [(shared.name, shared.params, shared.ret) for shared in code.globalstate.shared_utility_functions]
         if shared_utility_import_code and shared_func_definitions:
             with shared_utility_import_code as inner_code:
                 self.generate_c_shared_function_import_code_for_module(
@@ -3751,7 +3751,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 f'__Pyx_ExportVoidPtr({api_dict}, {name}, (void *)&{entry.cname}, "{signature}")'
             )
 
-    def generate_c_shared_function_export_code(self, code, function_definitions):
+    def generate_c_shared_function_export_code(self, code, shared_function_definitions):
         api_dict = code.funcstate.allocate_temp(py_object_type, manage_ref=True)
         code.globalstate.use_utility_code(
             UtilityCode.load_cached("GetApiDict", "ImportExport.c"))
@@ -3764,11 +3764,14 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.globalstate.use_utility_code(
             UtilityCode.load_cached("FunctionExport", "ImportExport.c"))
 
-        for shared_func, params, return_type in function_definitions:
-            shared_func_from_mstate = code.intern_identifier(EncodedString(shared_func))
+        for shared_func_def in shared_function_definitions:
+            func_name = shared_func_def.name
+            func_params = shared_func_def.params
+            func_ret_type = shared_func_def.ret
+            func_name_from_mstate = code.intern_identifier(EncodedString(func_name))
             code.put_error_if_neg(
                 self.pos,
-                f'__Pyx_ExportFunction({api_dict}, {shared_func_from_mstate}, (void (*)(void)){shared_func}, "{return_type}({params})")'
+                f'__Pyx_ExportFunction({api_dict}, {func_name_from_mstate}, (void (*)(void)){func_name}, "{func_ret_type}({func_params})")'
             )
 
         code.put_decref_clear(api_dict, py_object_type)
@@ -3877,11 +3880,14 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.funcstate.release_temp(temp)
         cyversion = Naming.cyversion
 
-        for shared_func, params, return_type in function_definitions:
-            shared_func_proto = f'{return_type}({params})'
+        for shared_func_def in function_definitions:
+            func_name = shared_func_def.name
+            func_params = shared_func_def.params
+            func_return_type = shared_func_def.ret
+            func_proto = f'{func_return_type}({func_params})'
             code.put_error_if_neg(
                 self.pos,
-                f'__Pyx_ImportFunction_{cyversion}({temp}, "{shared_func}", (void (**)(void))&{shared_func}, "{shared_func_proto}")'
+                f'__Pyx_ImportFunction_{cyversion}({temp}, "{func_name}", (void (**)(void))&{func_name}, "{func_proto}")'
             )
 
         code.put_decref_clear(temp, py_object_type)
