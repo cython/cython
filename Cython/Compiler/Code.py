@@ -731,7 +731,7 @@ class UtilityCode(UtilityCodeBase):
     def parse_export_functions(self, export_proto: str) -> list:
 
         assert '//' not in export_proto and '/*' not in export_proto and '*/' not in export_proto, \
-            f'Export block \n{export_proto.strip()}\n in {self.file} must not contain comments'
+            f'Export block must not contain comments:\n{export_proto.strip()}\n in file {self.file}'
 
         parsed_protos = []
         proto_regex=r'''
