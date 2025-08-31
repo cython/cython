@@ -573,11 +573,12 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                     [(shared.name, shared.params, shared.ret) for shared in code.globalstate.shared_utility_functions]
                 )
 
-        if shared_utility_import_code:
+        shared_func_definitions = [(shared.name, shared.params, shared.ret) for shared in code.globalstate.shared_utility_functions]
+        if shared_utility_import_code and shared_func_definitions:
             with shared_utility_import_code as inner_code:
                 self.generate_c_shared_function_import_code_for_module(
                     inner_code, env,
-                    [(shared.name, shared.params, shared.ret) for shared in code.globalstate.shared_utility_functions]
+                    shared_func_definitions
                 )
 
         code.exit_cfunc_scope()
