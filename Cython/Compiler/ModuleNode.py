@@ -15,6 +15,7 @@ import os
 import pathlib
 import re
 import sys
+from typing import Sequence
 
 from .PyrexTypes import CPtrType
 from . import Future
@@ -3751,10 +3752,11 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 f'__Pyx_ExportVoidPtr({api_dict}, {name}, (void *)&{entry.cname}, "{signature}")'
             )
 
-    def generate_c_shared_function_export_code(self, code, shared_function_definitions):
+    def generate_c_shared_function_export_code(self, code, shared_function_definitions: Sequence[Code.SharedFunctionDecl]):
         api_dict = code.funcstate.allocate_temp(py_object_type, manage_ref=True)
-        code.globalstate.use_utility_code(
-            UtilityCode.load_cached("GetApiDict", "ImportExport.c"))
+        if shared_function_definitions:
+            code.globalstate.use_utility_code(
+                UtilityCode.load_cached("GetApiDict", "ImportExport.c"))
         code.putln(
             f"{api_dict} = __Pyx_ApiExport_GetApiDict(); "
             f"{code.error_goto_if_null(api_dict, self.pos)}"
@@ -3867,7 +3869,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             )
 
 
-    def generate_c_shared_function_import_code_for_module(self, code, env, function_definitions):
+    def generate_c_shared_function_import_code_for_module(self, code, env, function_definitions: Sequence[Code.SharedFunctionDecl]):
         # Import shared utility C functions
         if function_definitions:
             code.globalstate.use_utility_code(UtilityCode.load_cached("FunctionImport", "ImportExport.c"))
