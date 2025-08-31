@@ -138,6 +138,32 @@ class CheckAnalysers(type):
             if isinstance(m, FunctionType) and mname in cls.methods:
                 attrs[mname] = check(mname, m)
         return super().__new__(cls, name, bases, attrs)
+    
+
+def CopyWithUpTreeRefsMixin(*uptree_refs_attrs):
+    class CopyWithUpTreeRefsMixin:
+        def __deepcopy__(self, memo):
+            # Any references to objects further up the tree should not be deep-copied.
+            # However, if they're in memo (because they've already been deep-copied because
+            # we're copying from far enough up the tree) then they should be replaced
+            # with the memorised value.
+
+            shallow_copy = copy.copy(self)
+            # Run remove up-tree references and run the regular deep copy
+            shallow_copy.__deepcopy__ = None
+            for attr in uptree_refs_attrs:
+                setattr(shallow_copy, attr, None)
+            result = copy.deepcopy(shallow_copy, memo)
+            # Restore the up-tree references and this custom copy behaviour
+            for attr in uptree_refs_attrs:
+                old_attr_value = getattr(self, attr)
+                # Note that memo being keyed by "id" is a bit of an implementation detail;
+                # the documentation says to treat it as opaque.
+                old_attr_value = memo.get(id(old_attr_value), old_attr_value)
+                setattr(result, attr, old_attr_value)
+            del result.__deepcopy__
+            return result
+    return CopyWithUpTreeRefsMixin
 
 
 def _with_metaclass(cls):
@@ -9084,18 +9110,11 @@ class CriticalSectionStatNode(TryFinallyStatNode):
         error(self.pos, "Critical sections require the GIL")
 
 
-class CriticalSectionExitNode(StatNode):
+class CriticalSectionExitNode(StatNode, CopyWithUpTreeRefsMixin("critical_section")):
     """
     critical_section - the CriticalSectionStatNode that owns this
     """
     child_attrs = []
-
-    def __deepcopy__(self, memo):
-        # This gets deepcopied when generating finally_clause and
-        # finally_except_clause. In this case the node has essentially
-        # no state, except for a reference to its parent.
-        # We definitely don't want to let that reference be copied.
-        return self
 
     def analyse_expressions(self, env):
         return self
@@ -9203,18 +9222,11 @@ class CythonLockStatNode(TryFinallyStatNode):
         code.end_block()
 
 
-class CythonLockExitNode(StatNode):
+class CythonLockExitNode(StatNode, CopyWithUpTreeRefsMixin("lock_stat_node")):
     """
     lock_stat_node   CythonLockStatNode   the associated with block
     """
     child_attrs = []
-
-    def __deepcopy__(self, memo):
-        # This gets deepcopied when generating finally_clause and
-        # finally_except_clause. In this case the node has essentially
-        # no state, except for a reference to its parent.
-        # We definitely don't want to let that reference be copied.
-        return self
 
     def analyse_expressions(self, env):
         return self
