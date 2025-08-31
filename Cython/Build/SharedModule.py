@@ -1,8 +1,8 @@
-import tempfile
 import os
-import shutil
-from glob import glob
 import re
+import shutil
+import tempfile
+from glob import glob
 
 from Cython.Compiler import (
     MemoryView, Code, Options, Pipeline, Errors, Main, Symtab
