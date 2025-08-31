@@ -381,7 +381,7 @@ builtin_types_table = [
                                     BuiltinMethod("__mul__",  "Tz",   "T", "__Pyx_PySequence_Multiply",
                                                   utility_code=pysequence_multiply_utility_code),
                                     ]),
-    ("bytes",   "&PyBytes_Type",   [BuiltinMethod("join",  "TO",   "O", "__Pyx_PyBytes_Join",
+    ("bytes",   "&PyBytes_Type",   [BuiltinMethod("join",  "TO",   "T", "__Pyx_PyBytes_Join",
                                                   utility_code=UtilityCode.load("StringJoin", "StringTools.c")),
                                     BuiltinMethod("__mul__",  "Tz",   "T", "__Pyx_PySequence_Multiply",
                                                   utility_code=pysequence_multiply_utility_code),

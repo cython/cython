@@ -90,9 +90,7 @@ static PyObject* __Pyx_PyExec3(PyObject* o, PyObject* globals, PyObject* locals)
     } else {
         PyCompilerFlags cf;
         cf.cf_flags = 0;
-#if PY_VERSION_HEX >= 0x030800A3
         cf.cf_feature_version = PY_MINOR_VERSION;
-#endif
         if (PyUnicode_Check(o)) {
             cf.cf_flags = PyCF_SOURCE_IS_UTF8;
             s = PyUnicode_AsUTF8String(o);
@@ -625,6 +623,30 @@ static CYTHON_INLINE PyObject* __Pyx_PyDict_ViewItems(PyObject* d) {
 }
 
 
+/////////////// dict_setdefault.proto ///////////////
+
+static CYTHON_INLINE PyObject *__Pyx_PyDict_SetDefault(PyObject *d, PyObject *key, PyObject *default_value); /*proto*/
+
+/////////////// dict_setdefault ///////////////
+
+static CYTHON_INLINE PyObject *__Pyx_PyDict_SetDefault(PyObject *d, PyObject *key, PyObject *default_value) {
+    PyObject* value;
+#if CYTHON_COMPILING_IN_LIMITED_API && __PYX_LIMITED_VERSION_HEX >= 0x030C0000
+    PyObject *args[] = {d, key, default_value};
+    value = PyObject_VectorcallMethod(PYIDENT("setdefault"), args, 3 | PY_VECTORCALL_ARGUMENTS_OFFSET, NULL);
+#elif CYTHON_COMPILING_IN_LIMITED_API
+    value = PyObject_CallMethodObjArgs(d, PYIDENT("setdefault"), key, default_value, NULL);
+#elif PY_VERSION_HEX >= 0x030d0000
+    PyDict_SetDefaultRef(d, key, default_value, &value);
+#else
+    value = PyDict_SetDefault(d, key, default_value);
+    if (unlikely(!value)) return NULL;
+    Py_INCREF(value);
+#endif
+    return value;
+}
+
+
 //////////////////// pyfrozenset_new.proto ////////////////////
 
 static CYTHON_INLINE PyObject* __Pyx_PyFrozenSet_New(PyObject* it);
@@ -771,8 +793,13 @@ static {{out_type}} __Pyx_PyMemoryView_Get_{{name}}(PyObject *obj) {
 #define __Pyx_PySlice_Start(o) PyObject_GetAttr(o, PYIDENT("start"))
 #define __Pyx_PySlice_Stop(o) PyObject_GetAttr(o, PYIDENT("stop"))
 #define __Pyx_PySlice_Step(o) PyObject_GetAttr(o, PYIDENT("step"))
-#elif CYTHON_COMPILING_IN_GRAAL
+#elif CYTHON_COMPILING_IN_GRAAL && defined(GRAALPY_VERSION_NUM) && GRAALPY_VERSION_NUM > 0x19000000
 // Graal defines it's own accessor functions
+#define __Pyx_PySlice_Start(o) GraalPySlice_Start(o)
+#define __Pyx_PySlice_Stop(o) GraalPySlice_Stop(o)
+#define __Pyx_PySlice_Step(o) GraalPySlice_Step(o)
+#elif CYTHON_COMPILING_IN_GRAAL
+// Remove when GraalPy 24 goes EOL
 #define __Pyx_PySlice_Start(o) __Pyx_NewRef(PySlice_Start((PySliceObject*)o))
 #define __Pyx_PySlice_Stop(o) __Pyx_NewRef(PySlice_Stop((PySliceObject*)o))
 #define __Pyx_PySlice_Step(o) __Pyx_NewRef(PySlice_Step((PySliceObject*)o))

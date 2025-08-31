@@ -2279,67 +2279,77 @@ if VALUE is not None:
             all_members_names = [e.name for e in all_members]
             checksums = _calculate_pickle_checksums(all_members_names)
 
-            unpickle_func_name = '__pyx_unpickle_%s' % node.punycode_class_name
+            unpickle_func_name = f'__pyx_unpickle_{node.punycode_class_name}'
 
             # TODO(robertwb): Move the state into the third argument
             # so it can be pickled *after* self is memoized.
-            unpickle_func = TreeFragment("""
-                def %(unpickle_func_name)s(__pyx_type, long __pyx_checksum, __pyx_state):
+            unpickle_func = TreeFragment(
+                """
+                def {unpickle_func_name}(__pyx_type, long __pyx_checksum, __pyx_state):
                     cdef object __pyx_PickleError
                     cdef object __pyx_result
-                    if __pyx_checksum not in %(checksums)s:
+                    if __pyx_checksum not in ({checksums}):
                         from pickle import PickleError as __pyx_PickleError
-                        raise __pyx_PickleError, "Incompatible checksums (0x%%x vs %(checksums)s = (%(members)s))" %% __pyx_checksum
-                    __pyx_result = %(class_name)s.__new__(__pyx_type)
+                        raise __pyx_PickleError, "Incompatible checksums (0x%x vs ({checksums}) = ({members}))" % __pyx_checksum
+                    __pyx_result = {class_name}.__new__(__pyx_type)
                     if __pyx_state is not None:
-                        %(unpickle_func_name)s__set_state(<%(class_name)s> __pyx_result, __pyx_state)
+                        {unpickle_func_name}__set_state(<{class_name}> __pyx_result, __pyx_state)
                     return __pyx_result
 
-                cdef %(unpickle_func_name)s__set_state(%(class_name)s __pyx_result, tuple __pyx_state):
-                    %(assignments)s
-                    if len(__pyx_state) > %(num_members)d and hasattr(__pyx_result, '__dict__'):
-                        __pyx_result.__dict__.update(__pyx_state[%(num_members)d])
-                """ % {
-                    'unpickle_func_name': unpickle_func_name,
-                    'checksums': "(%s)" % ', '.join(checksums),
-                    'members': ', '.join(all_members_names),
-                    'class_name': node.class_name,
-                    'assignments': '; '.join(
+                cdef {unpickle_func_name}__set_state({class_name} __pyx_result, tuple __pyx_state):
+                    {assignments}
+                    if len(__pyx_state) > {num_members:d} and hasattr(__pyx_result, '__dict__'):
+                        __pyx_result.__dict__.update(__pyx_state[{num_members:d}])
+                """.format(
+                    unpickle_func_name=unpickle_func_name,
+                    checksums=', '.join(checksums),
+                    members=', '.join(all_members_names),
+                    class_name=node.class_name,
+                    assignments='; '.join([
                         '__pyx_result.%s = __pyx_state[%s]' % (v, ix)
-                        for ix, v in enumerate(all_members_names)),
-                    'num_members': len(all_members_names),
-                }, level='module', pipeline=[NormalizeTree(None)]).substitute({})
+                        for ix, v in enumerate(all_members_names)
+                    ]),
+                    num_members=len(all_members_names),
+                ),
+                level='module',
+                pipeline=[NormalizeTree(None)],
+            ).substitute({})
+
             unpickle_func.analyse_declarations(node.entry.scope)
             self.visit(unpickle_func)
             self.extra_module_declarations.append(unpickle_func)
 
-            pickle_func = TreeFragment("""
+            pickle_func = TreeFragment(
+                """
                 def __reduce_cython__(self):
                     cdef tuple state
                     cdef object _dict
                     cdef bint use_setstate
-                    state = (%(members)s)
+                    state = ({members})
                     _dict = getattr(self, '__dict__', None)
                     if _dict is not None:
                         state += (_dict,)
                         use_setstate = True
                     else:
-                        use_setstate = %(any_notnone_members)s
+                        use_setstate = {any_notnone_members}
                     if use_setstate:
-                        return %(unpickle_func_name)s, (type(self), %(checksum)s, None), state
+                        return {unpickle_func_name}, (type(self), {checksum}, None), state
                     else:
-                        return %(unpickle_func_name)s, (type(self), %(checksum)s, state)
+                        return {unpickle_func_name}, (type(self), {checksum}, state)
 
                 def __setstate_cython__(self, __pyx_state):
-                    %(unpickle_func_name)s__set_state(self, __pyx_state)
-                """ % {
-                    'unpickle_func_name': unpickle_func_name,
-                    'checksum': checksums[0],
-                    'members': ', '.join('self.%s' % v for v in all_members_names) + (',' if len(all_members_names) == 1 else ''),
+                    {unpickle_func_name}__set_state(self, __pyx_state)
+                """.format(
+                    unpickle_func_name=unpickle_func_name,
+                    checksum=checksums[0],
+                    members=', '.join('self.%s' % v for v in all_members_names) + (',' if len(all_members_names) == 1 else ''),
                     # Even better, we could check PyType_IS_GC.
-                    'any_notnone_members' : ' or '.join(['self.%s is not None' % e.name for e in all_members if e.type.is_pyobject] or ['False']),
-                },
-                level='c_class', pipeline=[NormalizeTree(None)]).substitute({})
+                    any_notnone_members=' or '.join(['self.%s is not None' % e.name for e in all_members if e.type.is_pyobject] or ['False']),
+                ),
+                level='c_class',
+                pipeline=[NormalizeTree(None)],
+            ).substitute({})
+
             pickle_func.analyse_declarations(node.scope)
             self.enter_scope(node, node.scope)  # functions should be visited in the class scope
             self.visit(pickle_func)
@@ -2590,10 +2600,15 @@ if VALUE is not None:
         init_assignments = []
         for entry, attr in zip(var_entries, attributes):
             # TODO: branch on visibility
-            init_assignments.append(self.init_assignment.substitute({
-                    "VALUE": ExprNodes.NameNode(entry.pos, name = entry.name),
-                    "ATTR": attr,
-                }, pos = entry.pos))
+            init_assignments.append(
+                self.init_assignment.substitute(
+                    {
+                        "VALUE": ExprNodes.NameNode(entry.pos, name = entry.name),
+                        "ATTR": attr,
+                    },
+                    pos=entry.pos,
+                )
+            )
 
         # create the class
         str_format = "%s(%s)" % (node.entry.type.name, ("%s, " * len(attributes))[:-2])
@@ -2631,9 +2646,12 @@ if VALUE is not None:
                 template = self.basic_pyobject_property
             else:
                 template = self.basic_property
-            property = template.substitute({
+            property = template.substitute(
+                {
                     "ATTR": attr,
-                }, pos = entry.pos).stats[0]
+                },
+                pos=entry.pos,
+            ).stats[0]
             property.name = entry.name
             wrapper_class.body.stats.append(property)
 
@@ -2692,11 +2710,14 @@ if VALUE is not None:
                 template = self.basic_property
         elif entry.visibility == 'readonly':
             template = self.basic_property_ro
-        property = template.substitute({
+        property = template.substitute(
+            {
                 "ATTR": ExprNodes.AttributeNode(pos=entry.pos,
                                                 obj=ExprNodes.NameNode(pos=entry.pos, name="self"),
                                                 attribute=entry.name),
-            }, pos=entry.pos).stats[0]
+            },
+            pos=entry.pos,
+        ).stats[0]
         property.name = entry.name
         property.doc = entry.doc
         return property
@@ -4507,3 +4528,113 @@ class DebugTransform(CythonTransform):
 
             self.tb.start('LocalVar', attrs)
             self.tb.end('LocalVar')
+
+
+class HasNoExceptionHandlingVisitor(TreeVisitor):
+    """
+    Used by finalExceptClauseNode to work out if the body
+    needs to handle exceptions at all. This includes:
+
+    1. Can raise an exception.
+    2. May try to access the traceback.
+    """
+    def __init__(self):
+        self.uses_no_exceptions = True
+        self.assignment_lhs = None
+        super().__init__()
+
+    def __call__(self, node) -> bool:
+        self.visit(node)
+        return self.uses_no_exceptions
+
+    def visit_Node(self, node):
+        self.uses_no_exceptions = False  # In general, nodes use exceptions
+
+    def visit_ExprStatNode(self, node):
+        self.visitchildren(node)
+
+    def visit_StatListNode(self, node):
+        self.visitchildren(node)
+
+    def visit_ExprNode(self, node):
+        if not node.is_literal:
+            self.uses_no_exceptions = False
+
+    def visit_CallNode(self, node):
+        # Implement this to make the behaviour as explicit as possible.
+        # Even noexcept functions might end up printing a traceback.
+        self.uses_no_exceptions = False
+
+    def visit_PassStatNode(self, node):
+        pass  # Does nothing.  Good.
+
+    def visit_ReturnStatNode(self, node):
+        if not self.uses_no_exceptions:
+            return  # shortcut
+        self.visitchildren(node)
+
+    def visit_SingleAssignmentNode(self, node):
+        if not self.uses_no_exceptions:
+            return  # shortcut
+        self.assignment_lhs = node.lhs
+        self.visit(node.lhs)
+        self.assignment_lhs = None
+        rhs_type = node.rhs.type
+        if not (rhs_type.is_numeric or rhs_type.is_pyobject or rhs_type.is_memoryviewslice):
+            # Treat everything we haven't explicitly thought about as potentially dubious.
+            # cpp classes may have non-trivial assignment operators for example.
+            self.uses_no_exceptions = False
+        if not self.uses_no_exceptions:
+            return
+        self.visitchildren(node, exclude=["lhs"])
+
+    def visit_NameNode(self, node):
+        if not self.uses_no_exceptions:
+            return  # shortcut
+        entry = node.entry
+        if self.assignment_lhs is node:
+            if not (entry.is_cglobal or entry.is_arg or
+                    entry.is_local or entry.in_closure or entry.from_closure):
+                self.uses_no_exceptions = False
+                return
+        else:
+            if entry.is_cglobal:
+                if entry.is_cpp_optional and node.initialized_check:
+                    # Otherwise, reading C globals should be safe.
+                    self.uses_no_exceptions = False
+                    return
+            elif entry.is_arg or entry.is_local or entry.in_closure or entry.from_closure:
+                if (node.cf_is_null or node.cf_maybe_null) and not node.type.is_numeric:
+                    # The logic here is slightly simpler than for NameNode error checking.
+                    # This gives a few false negatives (which is always the safe thing to do)
+                    # for memoryviews and cpp_optionals
+                    self.uses_no_exceptions = False
+                    return
+            else:
+                # Probably a py_global.
+                self.uses_no_exceptions = False
+                return
+
+    def visit_AttributeNode(self, node):
+        if node.is_py_attr:
+            self.uses_no_exceptions = False
+        elif (node.type.is_memoryviewslice or node.entry.is_cpp_optional) and self.assignment_lhs is not node:
+            # Memoryviewslices and cpp_optional are OK as a target, but reading them involves checks.
+            # (Although cpp optionals are currently banned elsewhere
+            # because C++ classes may have non-trivial assignment).
+            self.uses_no_exceptions = False
+        # Python objects just need an incref and simple C types are fine, too. Others may not be.
+        if not (node.type.is_pyobject or node.type.is_numeric or node.type.is_memoryviewslice):
+            self.uses_no_exceptions = False
+        if self.uses_no_exceptions:
+            self.visitchildren(node)
+
+    def visit_IndexNode(self, node):
+        if not (node.base.type.is_array or node.base.type.is_ptr):
+            self.uses_no_exceptions = False
+        if not self.uses_no_exceptions:
+            return
+        self.visitchildren(node)
+
+    def visit_CoerceToTempNode(self, node):
+        self.visitchildren(node)

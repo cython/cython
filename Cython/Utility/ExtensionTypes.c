@@ -48,11 +48,7 @@ static int __Pyx_fix_up_extension_type_from_spec(PyType_Spec *spec, PyTypeObject
                     // The PyMemberDef must be a Py_ssize_t and readonly.
                     assert(memb->type == T_PYSSIZET);
                     assert(memb->flags == READONLY);
-#if PY_VERSION_HEX >= 0x030800b4
                     type->tp_vectorcall_offset = memb->offset;
-#else
-                    type->tp_print = (printfunc) memb->offset;
-#endif
                     // FIXME: is it even worth calling PyType_Modified() here?
                     changed = 1;
                 }
@@ -362,7 +358,7 @@ static int __Pyx_PyType_Ready(PyTypeObject *t) {
 // Unlike the Py_TRASHCAN_SAFE_BEGIN/Py_TRASHCAN_SAFE_END macros, they
 // allow dealing correctly with subclasses.
 
-#if CYTHON_COMPILING_IN_CPYTHON && PY_VERSION_HEX >= 0x03080000
+#if CYTHON_COMPILING_IN_CPYTHON
 // https://github.com/python/cpython/pull/11841 merged so Cython reimplementation
 // is no longer necessary
 #define __Pyx_TRASHCAN_BEGIN Py_TRASHCAN_BEGIN

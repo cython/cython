@@ -115,3 +115,13 @@ def add_strings():
     """
     # FIXME: test encodings and unicode escapes
     return "abc" + "def", u"abc" + u"def", b"abc" + b"def"
+
+
+def constant_typecast():
+    """
+    >>> constant_typecast()
+    100.0
+    """
+    # https://github.com/cython/cython/issues/6779
+    cdef double a = (<double>10)**2
+    return a

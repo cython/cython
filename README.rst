@@ -1,13 +1,13 @@
 Welcome to Cython!
 ==================
 
-Cython is a Python compiler that makes writing C extensions for
-Python as easy as Python itself.  Cython is based on Pyrex,
-but supports more cutting edge functionality and optimizations.
+Cython is an optimising Python compiler that makes writing C extensions for
+Python as easy as Python itself.
 
 Cython translates Python code to C/C++ code, but additionally supports calling
 C functions and declaring C types on variables and class attributes.
-This allows the compiler to generate very efficient C code from Cython code.
+This allows broad to fine-grained manual tuning that lets the compiler
+generate very efficient C code from Cython code.
 
 This makes Cython the ideal language for wrapping external C libraries, and
 for fast C modules that speed up the execution of Python code.
@@ -17,7 +17,7 @@ for fast C modules that speed up the execution of Python code.
 * Github repository: https://github.com/cython/cython
 * Wiki: https://github.com/cython/cython/wiki
 
-Cython has `more than 60 million downloads <https://pypistats.org/packages/cython>`_
+Cython has `more than 70 million downloads <https://pypistats.org/packages/cython>`_
 per month on PyPI.  You can **support the Cython project** via
 `Github Sponsors <https://github.com/users/scoder/sponsorship>`_ or
 `Tidelift <https://tidelift.com/subscription/pkg/pypi-cython>`_.
@@ -36,7 +36,7 @@ otherwise, see `the installation page <https://docs.cython.org/en/latest/src/qui
 License:
 --------
 
-The original Pyrex program was licensed "free of restrictions" (see below).
+The original Pyrex program, which Cython is based on, was licensed "free of restrictions" (see below).
 Cython itself is licensed under the permissive **Apache License**.
 
 See `LICENSE.txt <https://github.com/cython/cython/blob/master/LICENSE.txt>`_.
@@ -115,23 +115,14 @@ In comparison to the above, Cython provides
 * seamless integration with C/C++ code
 * broad support for manual optimisation and tuning down to the C level
 * a large user base with thousands of libraries, packages and tools
-* almost two decades of bug fixing and static code optimisations
-
-
-Get the full source history:
-----------------------------
-
-Note that Cython used to ship the full version control repository in its source
-distribution, but no longer does so due to space constraints.  To get the
-full source history from a downloaded source archive, make sure you have git
-installed, then step into the base directory of the Cython source distribution
-and type::
-
-    make repo
+* more than two decades of bug fixing and static code optimisations
 
 
 The following is from Pyrex:
 ------------------------------------------------------
+Cython was originally based on `Pyrex <https://www.cosc.canterbury.ac.nz/~greg/python/Pyrex/>`_
+by Greg Ewing, with the following written in the Pyrex readme document:
+
 This is a development version of Pyrex, a language
 for writing Python extension modules.
 

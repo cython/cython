@@ -15,8 +15,18 @@ Features added
   `range` is now considered a type. `ascii`, `bin`, `format`, `hex`, `oct` were added as functions.
   (Github issue :issue:`6931`)
 
+* The f-string syntax was extended according to PEP-701.
+  (Github issue :issue:`5452`)
+
+* The runtime Python dispatch for fused functions is substantially faster.
+  (Github issues :issue:`1385`, :issue:`6996`)
+
 * Type checks on PEP-604 union types (`int | None`) are optimised into separate checks.
   (Github issue :issue:`6935`)
+
+* Assignments to the PEP-604 union type `float | None` allow any suitable Python number as input
+  and convert it to a Python `float` automatically.
+  (Github issue :issue:`5750`)
 
 * Item type inference was improved for looping over literals.
   (Github issue :issue:`6912`)
@@ -24,10 +34,50 @@ Features added
 * Looping over literal sequences and strings now uses efficient C array looping if possible.
   (Github issue :issue:`6926`)
 
+* Releasing the GIL from an unknown lock state is more efficient.
+  (Github issue :issue:`6847`)
+
+* ``cython.critical_section(PyMutex)`` now works, as with Python objects.
+  (Github issue :issue:`6847`)
+
+* ``bool(c_int/float/ptr)`` avoid passing through Python objects.
+  (Github issue :issue:`7015`)
+
+* Unused exceptions in ``except`` clauses are detected in some more cases to avoid their normalisation.
+  (Github issue :issue:`7021`)
+
+* Several improvements were made in freethreaded Python code.
+  (Github issues :issue:`6936`, :issue:`6939`, :issue:`6949`, :issue:`6984`, :issue:`7011`)
+
+* Several improvements were made for the Limited API.
+  (Github issues :issue:`6959`, :issue:`6991`)
+
+* Some GIL-safe C-API wrappers were added to the libc/libcpp declarations.
+  (Github issue :issue:`6829`)
+
+* String and number constants use less storage space in the module.
+  (Github issues :issue:`6971`, :issue:`6978`, :issue:`6986`)
+
+* The managed dict/weakref support in CPython 3.12+ is used for internal types
+  to benefit from future CPython optimisations here.
+  (Github issue :issue:`6891`)
+
 * Using ``NaN`` as exception return value is supported.
   (Github issues :issue:`6900`, :issue:`6903`)
 
 * Declarations for C++ condition variables were added.
+  (Github issue :issue:`6836`)
+
+* Declarations for the new ``PyUnstable_*()`` refcounting C-API functions in Py3.14 were added.
+  (Github issue :issue:`6836`)
+
+* Several improvements were made for the GraalPython support.
+  Patch by Michael Šimáček.  (Github issue :issue:`7074`)
+
+* The annotated source HTML page shows alternating +/− markers to open/close lines.
+  Patch by Kamil Monicz.  (Github issue :issue:`7099`)
+
+* Unicode 16.0.0 is used to parse identifiers.
   (Github issue :issue:`6836`)
 
 Bugs fixed
@@ -39,13 +89,86 @@ Bugs fixed
 * References to the Python ``bool`` type could generate invalid C code.
   (Github issue :issue:`6902`)
 
-* Pure mode type alias like ``p_int`` or ``ulong`` leaked into some C type contexts.
-  (Github issues :issue:`6922`, :issue:`6339`)
-
 * Vectorcalls could use needless temp assignments for ``self``.
   (Github issue :issue:`6909`)
 
-* Includes all fixes as of Cython 3.1.2.
+* Iterating over temporary memoryviews could crash Cython.
+  (Github issue :issue:`7005`)
+
+* Type casts on constants as part of numeric expressions could crash Cython.
+  (Github issue :issue:`6779`)
+
+* Indexing ``bytes`` failed to optimise in some cases.
+  (Github issue :issue:`6997`)
+
+* Pure mode type aliases like ``p_int`` or ``ulong`` leaked into some C type contexts,
+  risking to conflict with user declarations.
+  (Github issues :issue:`6922`, :issue:`6339`)
+
+* Boolean (emptyness) tests on builtin containers could fail to handle (unlikely) errors.
+  (Github issue :issue:`7090`)
+
+* The return type of ``bytes.join()`` was sometimes referred as plain ``object``.
+  (Github issue :issue:`6987`)
+
+* Type inference could fail to understand ``prange()`` arguments.
+  (Github issue :issue:`6974`)
+
+* ``embedsignatures`` failed if ``lambda`` was used in function default arguments.
+  (Github issue :issue:`6880`)
+
+* An internal C function was not marked as ``static`` and leaked a linker symbol.
+  (Github issue :issue:`6957`)
+
+* Cython's tools and frontend scripts now use ``python3``  instead of just ``python``
+  in their shebang line.
+  Patch by Matti Picus.  (Github issue :issue:`7053`)
+
+* Includes all fixes as of Cython 3.1.3.
+
+
+3.1.4 (2025-??-??)
+==================
+
+Bugs fixed
+----------
+
+* Optimised integer shifting triggered undefined behaviour in C.
+  (Github issue :issue:`7089`)
+
+
+3.1.3 (2025-08-13)
+==================
+
+Bugs fixed
+----------
+
+* Some method calls with 0 or 1 argument failed to use ``PyObject_VectorCallMethod()``.
+
+* Walrus assignments of literal Python integers could generate invalid C code.
+  (Github issue :issue:`6989`)
+
+* ``cython.pythread_type_lock`` (also used as fallback for ``cython.pymutex``)
+  could stall on heavily contended locks.
+  (Github issue :issue:`6999`)
+
+* C string arrays (not pointers) always coerced to the Python default string type,
+  even on explicit casts to other string types.
+  (Github issue :issue:`7020`)
+
+* Unterminated ``\N{}`` character escapes in strings could unrail the parser.
+  (Github issue :issue:`7056`)
+
+* An internal C function was not marked as ``static`` and leaked a linker symbol.
+  (Github issue :issue:`6957`)
+
+* Some Unicode letters were not recognised as lexically valid name parts.
+  (Github issue :issue:`7059`)
+
+* Compatibility with PyPy3.8 was lost by accident.
+
+* The Linux binary wheels of 3.1.2 used SSSE3 CPU instructions which are not available on some CPUs.
+  (Github issue :issue:`7038`)
 
 
 3.1.2 (2025-06-09)

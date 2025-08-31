@@ -320,40 +320,23 @@ cdef extern from *:
     }
 
     template <typename... LockTs>
-    void __pyx_py_safe_std_lock_slow_loop(LockTs& ...locks) {
-        while (true) {
-            PyThreadState *_save;
-            Py_UNBLOCK_THREADS
-            try {
-                #if defined(__cpp_lib_scoped_lock)
-                auto scoped_lock = std::scoped_lock(locks...);
-                #else
-                __pyx_std_lock_wrapper(locks...);
-                __pyx_libcpp_mutex_unlock(locks...);
-                #endif
-            } catch (...) {
-                // In this case, we probably can't reason about the state of the locks but we can at least
-                // make sure the GIL is consistent.
-                Py_BLOCK_THREADS
-                throw;
-            }
+    void __pyx_py_safe_std_lock_release_lock_reacquire(LockTs& ...locks) {
+        // Release the GIL, acquire the lock, then reacquire the GIL.
+        // This is safe provided the user never holds the GIL while trying
+        // to reacquire the lock (i.e. it's safe provided they always use
+        // the py-safe wrappers).
+        PyThreadState *_save;
+        Py_UNBLOCK_THREADS
+        try {
+            __pyx_std_lock_wrapper(locks...);
+        } catch (...) {
+            // In this case, we probably can't reason about the state of the locks but we can at least
+            // make sure the GIL is consistent.
             Py_BLOCK_THREADS
-            if (__pyx_std_try_lock_wrapper(locks...) == -1) {
-                return; // success
-            }
+            throw;
         }
-    }
-
-    template <typename... LockTs>
-    void __pyx_py_safe_std_lock_fast_loop(LockTs& ...locks) {
-        for (int i=0; i<100; ++i) {
-            Py_BEGIN_ALLOW_THREADS
-            Py_END_ALLOW_THREADS
-            if (__pyx_std_try_lock_wrapper(locks...) == -1) {
-                return; // success
-            }
-        }
-        __pyx_py_safe_std_lock_slow_loop(locks...);
+        Py_BLOCK_THREADS
+        return;
     }
 
     template <typename... LockTs>
@@ -376,7 +359,7 @@ cdef extern from *:
             // success!
             return;
         }
-        __pyx_py_safe_std_lock_fast_loop(locks...);
+        __pyx_py_safe_std_lock_release_lock_reacquire(locks...);
     }
 
     template <typename MutexT>

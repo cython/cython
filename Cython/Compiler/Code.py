@@ -7,7 +7,7 @@ import cython
 cython.declare(os=object, re=object, operator=object, textwrap=object,
                Template=object, Naming=object, Options=object, StringEncoding=object,
                Utils=object, SourceDescriptor=object, StringIOTree=object,
-               DebugFlags=object, defaultdict=object, groupby=object,
+               DebugFlags=object, defaultdict=object,
                closing=object, partial=object, wraps=object,
                zlib_compress=object, bz2_compress=object, lzma_compress=object, zstd_compress=object)
 
@@ -761,6 +761,7 @@ class UtilityCode(UtilityCodeBase):
             self.specialize_list.append(s)
             return s
 
+    @cython.final
     def _put_code_section(self, writer: "CCodeWriter", output: "GlobalState", code_type: str):
         code_string = getattr(self, code_type)
         if not code_string:
@@ -777,7 +778,7 @@ class UtilityCode(UtilityCodeBase):
             # can be reused across modules
             writer.put_or_include(code_string, f'{self.name}_{code_type}')
         else:
-            writer.put(code_string)
+            writer.put_multilines(code_string)
 
     def _put_init_code_section(self, output):
         if not self.init:
@@ -786,7 +787,7 @@ class UtilityCode(UtilityCodeBase):
         self._put_code_section(writer, output, 'init')
         # 'init' code can end with an 'if' statement for an error condition like:
         # if (check_ok()) ; else
-        writer.putln(writer.error_goto_if_PyErr(output.module_pos))
+        writer.putln("  " + writer.error_goto_if_PyErr(output.module_pos))
         writer.putln()
 
     def put_code(self, output):
@@ -1604,6 +1605,12 @@ class GlobalState:
         w.exit_cfunc_scope()
 
         w = self.parts['cached_constants']
+        for const_type in ["tuple", "slice"]:
+            if const_type in self.const_array_counters:
+                self.immortalize_constants(
+                    w.name_in_module_state(Naming.pyrex_prefix + const_type),
+                    self.const_array_counters[const_type],
+                    w)
         w.put_finish_refcount_context()
         w.putln("return 0;")
         if w.label_used(w.error_label):
@@ -2055,7 +2062,7 @@ class GlobalState:
             # splitting the user substrings. In addition to using more memory, this might not even be faster
             # because it must copy Unicode slices between different character sizes.
             # We avoid this by repeatedly calling PyUnicode_DecodeUTF8() for each substring.
-            w.putln(f"for (Py_ssize_t i = 0; i < {stringtab_bytes_start}; i++) {{")
+            w.putln(f"for ({'int' if stringtab_bytes_start < 2**15 else 'Py_ssize_t'} i = 0; i < {stringtab_bytes_start}; i++) {{")
             w.putln("Py_ssize_t bytes_length = index[i].length;")
 
             w.putln("PyObject *string = PyUnicode_DecodeUTF8(bytes + pos, bytes_length, NULL);")
@@ -2072,7 +2079,7 @@ class GlobalState:
 
         # Unpack byte strings.
         if stringtab_bytes_start < len(index):
-            w.putln(f"for (Py_ssize_t i = {stringtab_bytes_start}; i < {len(index)}; i++) {{")
+            w.putln(f"for ({'int' if len(index) < 2**15 else 'Py_ssize_t'} i = {stringtab_bytes_start}; i < {len(index)}; i++) {{")
             w.putln("Py_ssize_t bytes_length = index[i].length;")
 
             w.putln("PyObject *string = PyBytes_FromStringAndSize(bytes + pos, bytes_length);")
@@ -2094,6 +2101,8 @@ class GlobalState:
         w.putln(w.error_goto(self.module_pos))
         w.putln('}')
         w.putln('}')
+
+        self.immortalize_constants("stringtab", len(index), w)
 
         w.putln("}")  # close block
 
@@ -2118,7 +2127,6 @@ class GlobalState:
         max_posonly_args = 1
         max_vars = 1
         max_line = 1
-        max_positions = 1
         for node in self.codeobject_constants:
             def_node = node.def_node
             if not def_node.is_generator_expression:
@@ -2127,10 +2135,6 @@ class GlobalState:
                 max_posonly_args = max(max_posonly_args, def_node.num_posonly_args)
             max_vars = max(max_vars, len(node.varnames))
             max_line = max(max_line, def_node.pos[1])
-            max_positions = max(max_positions, len(def_node.node_positions))
-
-        # Even for full 64-bit line/column values, one entry in the line table can never be larger than 45 bytes.
-        max_linetable_len = max_positions * 47
 
         w.put(textwrap.dedent(f"""\
         typedef struct {{
@@ -2140,7 +2144,6 @@ class GlobalState:
             unsigned int nlocals : {max_vars.bit_length()};
             unsigned int flags : {max_flags.bit_length()};
             unsigned int first_line : {max_line.bit_length()};
-            unsigned int line_table_length : {max_linetable_len.bit_length()};
         }} __Pyx_PyCode_New_function_description;
         """))
 
@@ -2169,31 +2172,168 @@ class GlobalState:
         self._generate_module_array_traverse_and_clear(Naming.codeobjtab_cname, code_object_count, may_have_refcycles=False)
 
     def generate_num_constants(self):
-        consts = [(c.py_type, c.value[0] == '-', len(c.value), c.value, c.value_code, c)
+        consts = [(c.py_type, len(c.value.lstrip('-')), c.value.lstrip('-'), c.value, c.value_code, c)
                   for c in self.num_const_index.values()]
         consts.sort()
-        init_constants = self.parts['init_constants']
+        if not consts:
+            return
+
+        constant_count = len(consts)
+        self.parts['module_state'].putln(f"PyObject *{Naming.numbertab_cname}[{constant_count}];")
+        # Numeric constants can never participate in reference cycles.
+        self._generate_module_array_traverse_and_clear(Naming.numbertab_cname, constant_count, may_have_refcycles=False)
+
+        float_constants = []
+        int_constants_by_bytesize = [[]]  # [[1 byte], [2 bytes], [4 bytes], [8 bytes]]
+        large_constants = []
+        int_constant_count = 0
+        int_suffix = ''
+
         for py_type, _, _, value, value_code, c in consts:
             cname = c.cname
-            self.parts['module_state'].putln("PyObject *%s;" % cname)
-            self.parts['module_state_clear'].putln(
-                "Py_CLEAR(clear_module_state->%s);" % cname)
-            self.parts['module_state_traverse'].putln(
-                "__Pyx_VISIT_CONST(traverse_module_state->%s);" % cname)
             if py_type == 'float':
-                function = 'PyFloat_FromDouble(%s)'
-            elif py_type == 'long':
-                function = 'PyLong_FromString("%s", 0, 0)'
-            elif Utils.long_literal(value):
-                function = 'PyLong_FromString("%s", 0, 0)'
-            elif len(value.lstrip('-')) > 4:
-                function = "PyLong_FromLong(%sL)"
+                float_constants.append((cname, value_code))
             else:
-                function = "PyLong_FromLong(%s)"
-            init_cname = init_constants.name_in_main_c_code_module_state(cname)
-            init_constants.putln('%s = %s; %s' % (
-                init_cname, function % value_code,
-                init_constants.error_goto_if_null(init_cname, self.module_pos)))
+                number_value = Utils.str_to_number(value)
+                bit_length = number_value.bit_length()
+                if bit_length <= 63:
+                    while (bit_length + 8) // 8 > 1 << (len(int_constants_by_bytesize) - 1):
+                        int_constants_by_bytesize.append([])
+                        # Our <= 31-bit integer values pass happily as 'int32' without further modifiers,
+                        # but MSVC misinterprets a negative '-2147483648' (== INT_MIN) and similar values as
+                        # "that's 'uint32' just with a minus sign", where '-(2147483648)' == '2147483648'.
+                        # See https://learn.microsoft.com/en-us/cpp/error-messages/compiler-warnings/compiler-warning-level-2-c4146?view=msvc-170
+                        int_suffix = 'LL'[:len(int_constants_by_bytesize) - 2]
+                    int_constant_count += 1
+                    int_constants_by_bytesize[-1].append((cname, f"{number_value}{int_suffix}"))
+                else:
+                    large_constants.append((cname, number_value))
+
+        w = self.parts['init_constants']
+        defines = self.parts['constant_name_defines']
+
+        def store_array(w, name: str, ctype: str, constants: list):
+            c: tuple
+            values = ','.join([c[1] for c in constants])
+            w.putln(f"{ctype} const {name}[] = {{{values}}};")
+
+        def generate_forloop_start(w, end: cython.Py_ssize_t):
+            counter_type = 'int' if end < 2**15 else 'Py_ssize_t'
+            w.putln(f"for ({counter_type} i = 0; i < {end}; i++) {{")
+
+        def assign_constant(w, error_pos, rhs_code: str):
+            w.putln(f"numbertab[i] = {rhs_code};")
+            w.putln(w.error_goto_if_null("numbertab[i]", error_pos))
+
+        def define_constants(defines, constants: list, start_offset: cython.Py_ssize_t = 0):
+            i: cython.Py_ssize_t
+            c: tuple
+            numbertab_cname: str = Naming.numbertab_cname
+            for i, c in enumerate(constants):
+                cname: str = c[0]
+                defines.putln(f"#define {cname} {numbertab_cname}[{start_offset + i}]")
+
+        constant_offset: cython.Py_ssize_t = 0
+
+        if float_constants:
+            w.putln("{")
+            w.putln(f"PyObject **numbertab = {w.name_in_main_c_code_module_state(Naming.numbertab_cname)};")
+
+            store_array(w, "c_constants", 'double', float_constants)
+            define_constants(defines, float_constants, constant_offset)
+
+            generate_forloop_start(w, len(float_constants))
+            assign_constant(w, self.module_pos, "PyFloat_FromDouble(c_constants[i])")
+            w.putln("}")  # for()
+
+            w.putln("}")
+            constant_offset += len(float_constants)
+
+        if int_constant_count > 0:
+            w.putln("{")
+            w.putln(f"PyObject **numbertab = {w.name_in_main_c_code_module_state(Naming.numbertab_cname)} + {constant_offset};")
+
+            int_types = ['', 'int8_t', 'int16_t', 'int32_t', 'int64_t']
+            array_access = "%s"
+            int_constants_seen: cython.Py_ssize_t = 0
+            byte_size: cython.int
+            for byte_size, constants in enumerate(int_constants_by_bytesize, 1):
+                if not constants:
+                    continue
+
+                array_name = f"cint_constants_{1 << (byte_size - 1)}"
+                store_array(w, array_name, int_types[byte_size], constants)
+                define_constants(defines, constants, constant_offset + int_constants_seen)
+
+                read_item = f"{array_name}[i - {int_constants_seen}]"
+                int_constants_seen += len(constants)
+                array_access %= (
+                    read_item if byte_size == len(int_constants_by_bytesize)  # last is simple access
+                    else f"(i < {int_constants_seen} ? {read_item} : %s)"  # otherwise, access arrays step by step
+                )
+
+            generate_forloop_start(w, int_constant_count)
+            capi_func = "PyLong_FromLong" if len(int_constants_by_bytesize) <= 3 else "PyLong_FromLongLong"
+            assign_constant(w, self.module_pos, f"{capi_func}({array_access})")
+            w.putln("}")  # for()
+
+            w.putln("}")
+            constant_offset += int_constant_count
+
+        if large_constants:
+            # We store large integer constants in a single '\0'-separated C string of base32 digits.
+            def to_base32(number):
+                is_neg: bool = number < 0
+                if is_neg:
+                    number = -number
+
+                digits = bytearray()
+                while number:
+                    digit: cython.uint = number & 31
+                    digit_char: cython.char = b'0123456789abcdefghijklmnopqrstuv'[digit]
+                    digits.append(digit_char)
+                    number >>= 5
+                if not digits:
+                    return b'0'
+
+                if is_neg:
+                    digits.append(ord(b'-'))
+                digits.reverse()
+                return digits
+
+            w.putln("{")
+            w.putln(f"PyObject **numbertab = {w.name_in_main_c_code_module_state(Naming.numbertab_cname)} + {constant_offset};")
+            c_string = b'\\000'.join([to_base32(c[1]) for c in large_constants]).decode('ascii')
+            w.putln(f'const char* c_constant = "{StringEncoding.split_string_literal(c_string)}";')
+            define_constants(defines, large_constants, constant_offset)
+
+            generate_forloop_start(w, len(large_constants))
+            w.putln("char *end_pos;")
+            assign_constant(w, self.module_pos, "PyLong_FromString(c_constant, &end_pos, 32)")
+            w.putln("c_constant = end_pos + 1;")
+            w.putln("}")  # for()
+
+            w.putln("}")
+
+        self.immortalize_constants(
+            w.name_in_main_c_code_module_state(Naming.numbertab_cname),
+            constant_count,
+            w)
+
+    @staticmethod
+    def immortalize_constants(array_cname, constant_count, writer):
+        writer.putln("#if CYTHON_IMMORTAL_CONSTANTS")
+        writer.putln("{")
+        writer.putln(f"PyObject **table = {array_cname};")
+        writer.putln(f"for (Py_ssize_t i=0; i<{constant_count}; ++i) {{")
+        writer.putln("#if CYTHON_COMPILING_IN_CPYTHON_FREETHREADING")
+        writer.putln("Py_SET_REFCNT(table[i], _Py_IMMORTAL_REFCNT_LOCAL);")
+        writer.putln("#else")
+        writer.putln("Py_SET_REFCNT(table[i], _Py_IMMORTAL_INITIAL_REFCNT);")
+        writer.putln("#endif")
+        writer.putln("}")  # for()
+        writer.putln("}")
+        writer.putln("#endif")
 
     # The functions below are there in a transition phase only
     # and will be deprecated. They are called from Nodes.BlockNode.
@@ -2373,6 +2513,7 @@ class CCodeWriter:
         else:
             self._write_to_buffer(s)
 
+    @cython.final
     def _write_lines(self, s):
         # Cygdb needs to know which Cython source line corresponds to which C line.
         # Therefore, we write this information into "self.buffer.markers" and then write it from there
@@ -2597,6 +2738,7 @@ class CCodeWriter:
             return
         self.last_pos = (pos, trace)
 
+    @cython.final
     def emit_marker(self):
         pos, trace = self.last_pos
         self.last_marked_pos = pos
@@ -2608,12 +2750,14 @@ class CCodeWriter:
         if trace:
             self.write_trace_line(pos)
 
+    @cython.final
     def write_trace_line(self, pos):
         if self.funcstate and self.funcstate.can_trace and self.globalstate.directives['linetrace']:
             self.indent()
             self._write_lines(
                 f'__Pyx_TraceLine({pos[1]:d},{self.pos_to_offset(pos):d},{not self.funcstate.gil_owned:d},{self.error_goto(pos)})\n')
 
+    @cython.final
     def _build_marker(self, pos):
         source_desc, line, col = pos
         assert isinstance(source_desc, SourceDescriptor)
@@ -2629,6 +2773,7 @@ class CCodeWriter:
         self.write(code)
         self.bol = 0
 
+    @cython.final
     def put_or_include(self, code, name):
         include_dir = self.globalstate.common_utility_include_dir
         if include_dir and len(code) > 1024:
@@ -2655,14 +2800,19 @@ class CCodeWriter:
             # under Windows and Posix.  C/C++ compilers should still understand it.
             c_path = path.replace('\\', '/')
             code = f'#include "{c_path}"\n'
+        self.put_multilines(code)
+
+    @cython.final
+    def put_multilines(self, code):
+        # We assume that the code is consistently indented and just needs overall indenting.
+        # We also don't need to indent the first line since "self.put()" will do it for us.
+        if self.level and '\n' in code:
+            code = ("  " * self.level).join(code.splitlines(keepends=True))
         self.put(code)
 
     def put(self, code):
         fix_indent = False
-        if "{" in code:
-            dl = code.count("{")
-        else:
-            dl = 0
+        dl: cython.Py_ssize_t = code.count("{") if "{" in code else 0
         if "}" in code:
             dl -= code.count("}")
             if dl < 0:
@@ -2691,20 +2841,25 @@ class CCodeWriter:
             utility._put_code_section(
                 self.globalstate['cleanup_globals'], self.globalstate, "cleanup")
 
+    @cython.final
     def increase_indent(self):
         self.level += 1
 
+    @cython.final
     def decrease_indent(self):
         self.level -= 1
 
+    @cython.final
     def begin_block(self):
         self.putln("{")
         self.increase_indent()
 
+    @cython.final
     def end_block(self):
         self.decrease_indent()
         self.putln("}")
 
+    @cython.final
     def indent(self):
         self._write_to_buffer("  " * self.level)
 
@@ -2900,6 +3055,17 @@ class CCodeWriter:
     def put_var_xdecrefs_clear(self, entries):
         for entry in entries:
             self.put_var_xdecref_clear(entry)
+
+    def put_make_object_deferred(self, cname):
+        # Deferred reference counting is probably only worthwhile on global classes
+        # that we expect to be long-term accessible.  So for now exclude it if not
+        # at class or module scope.
+        if (self.funcstate.scope.is_module_scope or
+                self.funcstate.scope.is_c_class_scope or
+                self.funcstate.scope.is_py_class_scope):
+            self.putln("#if CYTHON_COMPILING_IN_CPYTHON && PY_VERSION_HEX >= 0x030E0000")
+            self.putln(f"PyUnstable_Object_EnableDeferredRefcount({cname});")
+            self.putln("#endif")
 
     def put_init_to_py_none(self, cname, type, nanny=True):
         from .PyrexTypes import py_object_type, typecast
@@ -3177,16 +3343,15 @@ class CCodeWriter:
 
         qualified_name should be the qualified name of the function.
         """
-        format_tuple = (
+        self.funcstate.uses_error_indicator = True
+        self.putln('__Pyx_WriteUnraisable("%s", %s, %s, %s, %d, %d);' % (
             qualified_name,
             Naming.clineno_cname,
             Naming.lineno_cname,
             Naming.filename_cname,
             self.globalstate.directives['unraisable_tracebacks'],
             nogil,
-        )
-        self.funcstate.uses_error_indicator = True
-        self.putln('__Pyx_WriteUnraisable("%s", %s, %s, %s, %d, %d);' % format_tuple)
+        ))
         self.globalstate.use_utility_code(
             UtilityCode.load_cached("WriteUnraisableException", "Exceptions.c"))
 

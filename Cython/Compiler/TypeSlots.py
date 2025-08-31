@@ -895,15 +895,15 @@ releasebufferproc = Signature("TB", "v")   # typedef void (*releasebufferproc)(P
 
 # typedef PySendResult (*sendfunc)(PyObject* iter, PyObject* value, PyObject** result);
 sendfunc = PyrexTypes.CPtrType(PyrexTypes.CFuncType(
-        return_type=PyrexTypes.PySendResult_type,
-        args=[
-            PyrexTypes.CFuncTypeArg("iter", PyrexTypes.py_object_type),
-            PyrexTypes.CFuncTypeArg("value", PyrexTypes.py_object_type),
-            PyrexTypes.CFuncTypeArg("result", PyrexTypes.CPtrType(PyrexTypes.py_objptr_type)),
-        ],
-        exception_value="PYGEN_ERROR",
-        exception_check=True,  # we allow returning PYGEN_ERROR without GeneratorExit / StopIteration
-    ))
+    return_type=PyrexTypes.PySendResult_type,
+    args=[
+        PyrexTypes.CFuncTypeArg("iter", PyrexTypes.py_object_type),
+        PyrexTypes.CFuncTypeArg("value", PyrexTypes.py_object_type),
+        PyrexTypes.CFuncTypeArg("result", PyrexTypes.CPtrType(PyrexTypes.py_objptr_type)),
+    ],
+    exception_value="PYGEN_ERROR",
+    exception_check=True,  # we allow returning PYGEN_ERROR without GeneratorExit / StopIteration
+))
 
 
 #------------------------------------------------------------------------------------------
@@ -1026,8 +1026,7 @@ class SlotTable:
 
         self.slot_table = (
             ConstructorSlot("tp_dealloc", '__dealloc__'),
-            EmptySlot("tp_print", ifdef="PY_VERSION_HEX < 0x030800b4"),
-            EmptySlot("tp_vectorcall_offset", ifdef="PY_VERSION_HEX >= 0x030800b4"),
+            EmptySlot("tp_vectorcall_offset"),
             EmptySlot("tp_getattr"),
             EmptySlot("tp_setattr"),
 
@@ -1091,7 +1090,7 @@ class SlotTable:
             EmptySlot("tp_version_tag"),
             SyntheticSlot("tp_finalize", ["__del__"], "0",
                           used_ifdef="CYTHON_USE_TP_FINALIZE"),
-            EmptySlot("tp_vectorcall", ifdef="PY_VERSION_HEX >= 0x030800b1 && (!CYTHON_COMPILING_IN_PYPY || PYPY_VERSION_NUM >= 0x07030800)"),
+            EmptySlot("tp_vectorcall", ifdef="!CYTHON_COMPILING_IN_PYPY || PYPY_VERSION_NUM >= 0x07030800"),
             EmptySlot("tp_print", ifdef="__PYX_NEED_TP_PRINT_SLOT == 1"),
             EmptySlot("tp_watched", ifdef="PY_VERSION_HEX >= 0x030C0000"),
             EmptySlot("tp_versions_used", ifdef="PY_VERSION_HEX >= 0x030d00A4"),

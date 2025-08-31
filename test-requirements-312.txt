@@ -1,4 +1,0 @@
-numpy
-coverage
-pycodestyle
-setuptools
