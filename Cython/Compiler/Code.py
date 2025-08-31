@@ -692,16 +692,16 @@ class UtilityCode(UtilityCodeBase):
 
     hashes/equals by instance
 
-    proto                    C prototypes
-    impl                     implementation code
-    init                     code to call on module initialization
-    requires                 utility code dependencies
-    proto_block              the place in the resulting file where the prototype should
-                             end up
-    name                     name of the utility code (or None)
-    file                     filename of the utility code file this utility was loaded
-                             from (or None)
-    shared_utility_functions List of parsed declaration line of the shared utility function
+    proto           C prototypes
+    impl            implementation code
+    init            code to call on module initialization
+    requires        utility code dependencies
+    proto_block     the place in the resulting file where the prototype should
+                    end up
+    name            name of the utility code (or None)
+    file            filename of the utility code file this utility was loaded
+                    from (or None)
+    shared_utility_functions        List of parsed declaration line of the shared utility function
     """
     code_parts = ["proto", "impl", "init", "cleanup", "module_state_decls", "module_state_traverse", "module_state_clear", "export"]
 
