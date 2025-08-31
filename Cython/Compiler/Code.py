@@ -16,8 +16,8 @@ import operator
 import os
 import re
 import shutil
-from dataclasses import dataclass
 import textwrap
+from dataclasses import dataclass
 from string import Template
 from functools import partial, wraps
 from contextlib import closing, contextmanager
