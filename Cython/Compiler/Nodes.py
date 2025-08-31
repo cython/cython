@@ -140,30 +140,22 @@ class CheckAnalysers(type):
         return super().__new__(cls, name, bases, attrs)
 
 
-def CopyWithUpTreeRefsMixin(*uptree_refs_attrs):
-    class CopyWithUpTreeRefsMixin:
-        def __deepcopy__(self, memo):
-            # Any references to objects further up the tree should not be deep-copied.
-            # However, if they're in memo (because they've already been deep-copied because
-            # we're copying from far enough up the tree) then they should be replaced
-            # with the memorised value.
-
-            shallow_copy = copy.copy(self)
-            # Run remove up-tree references and run the regular deep copy
-            shallow_copy.__deepcopy__ = None
-            for attr in uptree_refs_attrs:
-                setattr(shallow_copy, attr, None)
-            result = copy.deepcopy(shallow_copy, memo)
-            # Restore the up-tree references and this custom copy behaviour
-            for attr in uptree_refs_attrs:
-                old_attr_value = getattr(self, attr)
+class CopyWithUpTreeRefsMixin:
+    def __deepcopy__(self, memo):
+        # Any references to objects further up the tree should not be deep-copied.
+        # However, if they're in memo (because they've already been deep-copied because
+        # we're copying from far enough up the tree) then they should be replaced
+        # with the memorised value.
+        
+        cls = self.__class__
+        result = cls.__new__(cls)
+        for k, v in self.__dict__.items():
+            if k in self.uptree_ref_attrs:
                 # Note that memo being keyed by "id" is a bit of an implementation detail;
                 # the documentation says to treat it as opaque.
-                old_attr_value = memo.get(id(old_attr_value), old_attr_value)
-                setattr(result, attr, old_attr_value)
-            del result.__deepcopy__
-            return result
-    return CopyWithUpTreeRefsMixin
+                v = memo.get(id(v), v)
+            setattr(result, k, v)
+        return result
 
 
 def _with_metaclass(cls):
@@ -9110,11 +9102,12 @@ class CriticalSectionStatNode(TryFinallyStatNode):
         error(self.pos, "Critical sections require the GIL")
 
 
-class CriticalSectionExitNode(StatNode, CopyWithUpTreeRefsMixin("critical_section")):
+class CriticalSectionExitNode(StatNode, CopyWithUpTreeRefsMixin):
     """
     critical_section - the CriticalSectionStatNode that owns this
     """
     child_attrs = []
+    uptree_ref_attrs = ["critical_section"]
 
     def analyse_expressions(self, env):
         return self
@@ -9222,11 +9215,12 @@ class CythonLockStatNode(TryFinallyStatNode):
         code.end_block()
 
 
-class CythonLockExitNode(StatNode, CopyWithUpTreeRefsMixin("lock_stat_node")):
+class CythonLockExitNode(StatNode, CopyWithUpTreeRefsMixin):
     """
     lock_stat_node   CythonLockStatNode   the associated with block
     """
     child_attrs = []
+    uptree_ref_attrs = ["lock_stat_node"]
 
     def analyse_expressions(self, env):
         return self
