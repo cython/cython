@@ -24,6 +24,10 @@ def test_references():
     print(cython.typeof(takes_const_reference))
 
 
+cdef int raise_py_error() except *:
+    raise TypeError("custom")
+
+
 def test_fn_pointer_type():
     """
     >>> test_fn_pointer_type()
@@ -48,12 +52,18 @@ def test_fn_pointer_type_exceptions():
     """
     >>> test_fn_pointer_type_exceptions()
     double (*)(int) noexcept
+    double (*)(int) noexcept
     double (*)(int) except +
+    double (*)(int) except -1
     double (*)(int) except? -1
     """
     f1: cython.pointer[cython.function_type([cython.int], cython.double, noexcept=True)]
-    f2: cython.pointer[cython.function_type([cython.int], cython.double, except_plus=True)]
-    f3: cython.pointer[cython.function_type([cython.int], cython.double, except_val=-1)]
+    f2: cython.pointer[cython.function_type([cython.int], cython.double, check_exception=False)]
+    f3: cython.pointer[cython.function_type([cython.int], cython.double, except_plus=True)]
+    f4: cython.pointer[cython.function_type([cython.int], cython.double, exceptval=-1)]
+    f5: cython.pointer[cython.function_type([cython.int], cython.double, exceptval=-1, check_exception=True)]
     print(cython.typeof(f1))
     print(cython.typeof(f2))
     print(cython.typeof(f3))
+    print(cython.typeof(f4))
+    print(cython.typeof(f5))

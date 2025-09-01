@@ -6171,43 +6171,67 @@ class CallNode(ExprNode):
             if len(args) != 2:
                 error(self.args.pos, "function_type requires exactly two positional arguments.")
                 return None
-            if not isinstance(args[0], ListNode):
-                error(args[0].pos, "First argument of function_type must be a list of parameter types.")
+            func_args, func_return = args
+            if not isinstance(func_args, ListNode):
+                error(func_args.pos, "First argument of function_type must be a list literal with parameter types.")
                 return None
             if kwargs is not None and not isinstance(kwargs, DictNode):
                 error(kwargs.pos, "function_type kwargs should be in a dictionary.")
                 return None
-            param_types = [arg.analyse_as_type(env) for arg in args[0].args]
+            param_types = [arg.analyse_as_type(env) for arg in func_args.args]
             if None in param_types:
-                error(args[0].pos, "Unknown type in parameter types")
+                error(func_args.args[param_types.index(None)].pos, "Unknown type in parameter types")
                 return None
-            ret_type = args[1].analyse_as_type(env)
+            ret_type = func_return.analyse_as_type(env)
             if ret_type is None:
-                error(args[1].pos, "Unknown return type")
-            func_type_kwargs = {
-                'exception_value': None,
-                'exception_check': True
-            }
+                error(func_return.pos, "Unknown return type")
+            exc_value = None
+            noexcept = False
+            exc_check = False
+            exc_clause = False
+            func_type_kwargs = {}
             if kwargs is not None:
-                kwargs = kwargs.compile_time_value(env)
-                for k, v in (kwargs or {}).items():
-                    if k in ('nogil', 'has_varargs', 'noexcept', 'except_plus'):
+                for kv_pair in kwargs.key_value_pairs:
+                    k = kv_pair.key.constant_result
+                    v = kv_pair.value.constant_result
+                    if k in ('nogil', 'has_varargs', 'noexcept', 'check_exception'):
                         if isinstance(v, bool):
                             if k == 'noexcept':
-                                func_type_kwargs['exception_check'] = not v
-                            elif k == 'except_plus':
-                                func_type_kwargs['exception_check'] = '+' if v else False
+                                noexcept = v
+                            elif k == 'check_exception':
+                                exc_clause = True
+                                exc_check = v
                             else:
                                 func_type_kwargs[k] = v
                         else:
                             error(self.pos, f"Value for {k} must be boolean")
-                    elif k == 'except_val':
-                        func_type_kwargs['exception_value'] = v
+                    elif k == 'exceptval':
+                        exc_value = v
+                        exc_clause = True
+                    elif k == 'except_plus':
+                        exc_clause = True
+                        if v == '*':
+                            exc_check = '+'
+                            exc_value = CharNode(kv_pair.value.pos, value='*')
+                        elif isinstance(v, str):
+                            exc_check = '+'
+                            exc_value = NameNode(kv_pair.value.pos, value=v)
+                        elif isinstance(v, bool):
+                            exc_check = '+' if v else False
+                        else:
+                            error(self.pos, f"Value for {k} must be '*', string or boolean, was {v!r}")
+
                     else:
                         error(self.pos, f"Unknown kwarg in function_type: {k}")
+            if noexcept and exc_clause:
+                error(self.pos, "Cannot combine noexcept=True with another exception clause.")
+            if not exc_clause:
+                exc_check = not noexcept  # if nothing specified, default to 'except?'
             return PyrexTypes.CFuncType(
                 return_type=ret_type,
                 args=[PyrexTypes.CFuncTypeArg('', t) for t in param_types],
+                exception_value=exc_value,
+                exception_check=exc_check,
                 **func_type_kwargs
             )
 

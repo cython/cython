@@ -269,7 +269,10 @@ class array(ArrayType[_T]):
 def function_type(params: list[type], ret: type, /, *,
                   nogil: bool = False,
                   has_varargs: bool = False,
-                  exception_check: bool | Literal['+'] = True
+                  noexcept: bool = False,
+                  check_exception: bool = False,
+                  except_plus: bool = False,
+                  exceptval: Any = None,
                  ) -> Type[Any]: ...
 
 
