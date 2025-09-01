@@ -11,8 +11,14 @@ the source code.  The majority of development happens on the "master" branch, bu
 two stable release branches which are updated with bugfixes.  Changes that go into the main Cython repository should
 never make the branch unreleasable (even if minor breakages can happen from time to time).
 
-To get started working with Cython you'd usually clone the main Github repo (so that it appears on
-``github.com/<your_user_name>/cython``) and then clone that onto your local PC using:
+To get started working with Cython's code, you will require:
+
+* a `GitHub account <https://github.com/signup>`_
+* `git <https://git-scm.com/downloads>`_
+
+Then you will `fork the code <https://github.com/cython/cython/fork>`_, creating a repository in your own account named ``github.com/<your_user_name>/cython``.
+
+To then clone the repository to your local machine run:
 
 .. code-block:: bash
 
