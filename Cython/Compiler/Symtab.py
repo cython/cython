@@ -1194,7 +1194,7 @@ class Scope:
 
     def _emit_class_private_warning(self, pos, name):
         warning(pos, "Global name %s matched from within class scope "
-                            "in contradiction to to Python 'class private name' rules. "
+                            "in contradiction to Python 'class private name' rules. "
                             "This may change in a future release." % name, 1)
 
     def use_utility_code(self, new_code):
