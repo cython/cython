@@ -6,7 +6,7 @@ Getting started working on Cython
 Git
 ---
 
-Cython is current hosted in `on GitHub <https://github.com/cython/cython/>`_ and uses Git to track changes to
+Cython is currently hosted `on GitHub <https://github.com/cython/cython/>`_ and uses Git to track changes to
 the source code.  The majority of development happens on the "master" branch, but we typically maintain one or
 two stable release branches which are updated with bugfixes.  Changes that go into the main Cython repository should
 never make the branch unreleasable (even if minor breakages can happen from time to time).
