@@ -4678,15 +4678,17 @@ class DefNodeWrapper(FuncDefNode):
 
         if self.target.entry.is_special:
             for n in reversed(range(len(self.args), self.signature.max_num_fixed_args())):
-                # for special functions with optional args (e.g. power which can
+                # For special functions with optional args (e.g. power which can
                 # take 2 or 3 args), unused args are None since this is what the
-                # compilers sets
-                code.putln("if (unlikely(unused_arg_%s != Py_None)) {" % n)
+                # compilers sets. This is probably not more than one argument.
+                code.putln(f"if (unlikely(unused_arg_{n:d} != Py_None)) {{")
                 code.putln(
-                    'PyErr_SetString(PyExc_TypeError, '
-                    '"%s() takes %s arguments but %s were given");' % (
-                        self.target.entry.qualified_name, self.signature.max_num_fixed_args(), n))
-                code.putln("%s;" % code.error_goto(self.pos))
+                    'PyErr_Format(PyExc_TypeError, "%.200s() takes %zd arguments but %zd were given",'
+                    f' (const char*) {self.target.entry.qualified_name.as_c_string_literal()},'
+                    f' (Py_ssize_t) {self.signature.max_num_fixed_args()},'
+                    f' (Py_ssize_t) {n:d}'
+                    f'); {code.error_goto(self.pos)}'
+                )
                 code.putln("}")
 
     def error_value(self):
