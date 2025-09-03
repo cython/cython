@@ -249,7 +249,7 @@ jobs:
 
     steps:
       - name: Checkout repo
-        uses: actions/checkout@v4.1.1
+        uses: actions/checkout@v5
         with:
           fetch-depth: 1
 
@@ -296,7 +296,7 @@ jobs:
 
     steps:
       - name: Checkout repo
-        uses: actions/checkout@v4.1.1
+        uses: actions/checkout@v5
 
       - name: Setup python
         uses: actions/setup-python@v5.6.0
@@ -328,7 +328,7 @@ jobs:
 
     steps:
       - name: Checkout repo
-        uses: actions/checkout@v4.1.1
+        uses: actions/checkout@v5
         with:
           fetch-depth: 1
 
@@ -363,7 +363,7 @@ jobs:
 
     steps:
       - name: Checkout repo
-        uses: actions/checkout@v4.1.1
+        uses: actions/checkout@v5
         with:
           fetch-depth: 0
           fetch-tags: true
@@ -420,6 +420,6 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4.1.1
+        uses: actions/checkout@v5
       - name: Codespell
         uses: codespell-project/actions-codespell@v2
