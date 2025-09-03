@@ -255,7 +255,7 @@ If you find having an ``else`` after a for-loop strange, just know that it's a
 lesser known features of the Python language, and that Cython executes it at
 C speed for you.
 If the for-else syntax confuses you, see this excellent
-`blog post <https://shahriar.svbtle.com/pythons-else-clause-in-loops>`_.
+`blog post <https://s16h.medium.com/the-forgotten-optional-else-in-python-loops-90d9c465c830>`_.
 
 .. literalinclude:: ../../examples/tutorial/cython_tutorial/primes.pyx
     :lines: 25-27
