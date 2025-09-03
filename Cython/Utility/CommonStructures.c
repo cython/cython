@@ -179,6 +179,7 @@ static PyGetSetDef __pyx_CommonTypesMetaclass_getset[] = {
 };
 
 static PyType_Slot __pyx_CommonTypesMetaclass_slots[] = {
+    {Py_tp_base, (void *)&PyType_Type},
     {Py_tp_getset, (void *)__pyx_CommonTypesMetaclass_getset},
     {0, 0}
 };
@@ -197,11 +198,7 @@ static PyType_Spec __pyx_CommonTypesMetaclass_spec = {
 
 static int __pyx_CommonTypesMetaclass_init(PyObject *module) {
     $modulestatetype_cname *mstate = __Pyx_PyModule_GetState(module);
-    PyObject *bases = PyTuple_Pack(1, &PyType_Type);
-    if (unlikely(!bases)) {
-        return -1;
-    }
-    mstate->__pyx_CommonTypesMetaclassType = __Pyx_FetchCommonTypeFromSpec(NULL, module, &__pyx_CommonTypesMetaclass_spec, bases);
+    mstate->__pyx_CommonTypesMetaclassType = __Pyx_FetchCommonTypeFromSpec(NULL, module, &__pyx_CommonTypesMetaclass_spec, NULL);
     if (unlikely(mstate->__pyx_CommonTypesMetaclassType == NULL)) {
         return -1;
     }
