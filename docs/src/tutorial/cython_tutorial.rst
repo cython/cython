@@ -370,6 +370,7 @@ Now the ``setup.py`` looks like this:
                     ['primes.pyx',                  # Cython code file with primes() function
                      'primes_python_compiled.py'],  # Python code file with primes() function
                     annotate=True),                 # enables generation of the html annotation file
+                py_modules=["primes_python.py"],    # Tells setuptools to include this Python module as well
             )
 
 Now we can ensure that those two programs output the same values::
