@@ -2369,18 +2369,15 @@ class GlobalState:
             return self.input_file_contents[source_desc]
         except KeyError:
             pass
-        source_file = source_desc.get_lines(encoding='ASCII',
-                                            error_handling='ignore')
-        try:
-            F = [' * ' + line.rstrip().replace(
+        source_file = source_desc.get_lines(encoding='ASCII', error_handling='ignore')
+        F = [' * ' + (
+                line.replace(
                     '*/', '*[inserted by cython to avoid comment closer]/'
-                    ).replace(
+                ).replace(
                     '/*', '/[inserted by cython to avoid comment start]*'
-                    )
-                 for line in source_file]
-        finally:
-            if hasattr(source_file, 'close'):
-                source_file.close()
+                ) if '/' in line else line)
+            for line in source_file
+        ]
         if not F: F.append('')
         self.input_file_contents[source_desc] = F
         return F
