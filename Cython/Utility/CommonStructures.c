@@ -194,6 +194,7 @@ static int __pyx_CommonTypesMetaclass_init(PyObject *module) {
         return -1;
     }
     mstate->__pyx_CommonTypesMetaclassType = __Pyx_FetchCommonTypeFromSpec(NULL, module, &__pyx_CommonTypesMetaclass_spec, bases);
+    Py_DECREF(bases);
     if (unlikely(mstate->__pyx_CommonTypesMetaclassType == NULL)) {
         return -1;
     }
