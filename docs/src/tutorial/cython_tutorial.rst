@@ -344,7 +344,7 @@ Let's write the same program, but in Python:
 It is possible to take a plain (unannotated) ``.py`` file and to compile it with Cython.
 Let's create a copy of ``primes_python`` and name it ``primes_python_compiled``
 to be able to compare it to the (non-compiled) Python module.
-Then we compile that file with Cython, without changing the code.
+Then we compile that file with Cython, without changing the code. Your filenames must match exactly or setuptools will fail.
 Now the ``setup.py`` looks like this:
 
 .. tabs::
@@ -360,6 +360,7 @@ Now the ``setup.py`` looks like this:
                     ['primes.py',                   # Cython code file with primes() function
                      'primes_python_compiled.py'],  # Python code file with primes() function
                     annotate=True),                 # enables generation of the html annotation file
+                py_modules=["primes_python.py"],    # Tells setuptools to include this Python module as well
             )
 
     .. group-tab:: Cython
@@ -374,6 +375,7 @@ Now the ``setup.py`` looks like this:
                     ['primes.pyx',                  # Cython code file with primes() function
                      'primes_python_compiled.py'],  # Python code file with primes() function
                     annotate=True),                 # enables generation of the html annotation file
+                py_modules=["primes_python.py"],    # Tells setuptools to include this Python module as well
             )
 
 Now we can ensure that those two programs output the same values::
