@@ -667,6 +667,10 @@ in ``libcpp.typeindex``.
 Specify C++ language in setup.py
 ================================
 
+.. Note::
+    This is deprecated.
+
+
 Instead of specifying the language and the sources in the source files, it is
 possible to declare them in the :file:`setup.py` file::
 
@@ -679,6 +683,7 @@ possible to declare them in the :file:`setup.py` file::
             language="c++",  # generate C++ code
         )
     )
+
 Cython will generate and compile the :file:`rect.cpp` file (from
 :file:`rect.pyx`), then it will compile :file:`Rectangle.cpp`
 (implementation of the ``Rectangle`` class) and link both object files
