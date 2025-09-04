@@ -44,7 +44,8 @@ def locals(**kwargs: Any) -> _Decorator: ...
 
 def _class_deco(__cls: _TypeT) -> _TypeT: ...
 
-cclass = internal = c_api_binop_methods = type_version_tag = no_gc_clear = no_gc = _class_deco
+cclass = internal = c_api_binop_methods = type_version_tag = no_gc_clear = no_gc = total_ordering = \
+    ufunc = _class_deco
 
 # May be a bit hard to read but essentially means:
 # > Returns a callable that takes another callable with these parameters and *some*
