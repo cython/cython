@@ -250,12 +250,17 @@ over a Python list or NumPy array.  If you don't slice the C array with
     :lineno-start: 19
 
 If no breaks occurred, it means that we found a prime, and the block of code
-after the ``else`` line 20 will be executed. We add the prime found to ``p``.
-If you find having an ``else`` after a for-loop strange, just know that it's a
-lesser known features of the Python language, and that Cython executes it at
-C speed for you.
-If the for-else syntax confuses you, see this excellent
-`blog post <https://shahriar.svbtle.com/pythons-else-clause-in-loops>`_.
+after the ``else`` line 20 will be executed.  We add the prime found to ``p``.
+
+The ``else`` clause after a for-loop is a lesser known features of the Python language
+that Cython executes at C speed for you.  If this syntax confuses you, the
+`Python documentation <https://docs.python.org/3/tutorial/controlflow.html#else-clauses-on-loops>`_
+presents a good way to think of the ``else`` clause:
+Imagine it paired with the ``if`` inside the loop.
+As the loop executes, it will run a sequence like ``if`` / ``if`` / ``if`` / ``else``.
+The ``if`` is inside the loop, encountered a number of times.
+If the condition is ever true, a ``break`` will happen.
+If the condition is never true, the ``else`` clause outside the loop will execute.
 
 .. literalinclude:: ../../examples/tutorial/cython_tutorial/primes.pyx
     :lines: 25-27
