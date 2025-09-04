@@ -336,16 +336,18 @@ just like Python does. You can deactivate those checks by using the
 :ref:`compiler directives<compiler-directives>`.
 
 Now let's see if we get a speed increase even if there is a division check.
-Let's write the same program, but in Python:
+We can write the same program, but in simple Python, without type declarations:
 
 .. literalinclude:: ../../examples/tutorial/cython_tutorial/primes_python.py
     :caption: primes_python.py / primes_python_compiled.py
 
-It is possible to take a plain (unannotated) ``.py`` file and to compile it with Cython.
-Let's create a copy of ``primes_python`` and name it ``primes_python_compiled``
-to be able to compare it to the (non-compiled) Python module.
-Then we compile that file with Cython, without changing the code. Your filenames must match exactly or setuptools will fail.
-Now the ``setup.py`` looks like this:
+Save it as ``primes_python.py``.
+
+For comparison, let's create a copy of ``primes_python.py`` and name it ``primes_python_compiled.py``.
+Then we can compile that module with Cython and compare it to the (non-compiled) Python module
+with the same code.
+
+Now change the ``setup.py`` as follows, to compile both the optimised and the new plain Python code module:
 
 .. tabs::
     .. group-tab:: Pure Python
@@ -378,7 +380,7 @@ Now the ``setup.py`` looks like this:
                 py_modules=["primes_python.py"],    # Tells setuptools to include this Python module as well
             )
 
-Now we can ensure that those two programs output the same values::
+Now we can ensure that the two new modules output the same values as before::
 
     >>> import primes, primes_python, primes_python_compiled
     >>> primes_python.primes(1000) == primes.primes(1000)
@@ -386,7 +388,7 @@ Now we can ensure that those two programs output the same values::
     >>> primes_python_compiled.primes(1000) == primes.primes(1000)
     True
 
-It's possible to compare the speed now::
+Let's compare the speed of all three modules::
 
     python -m timeit -s "from primes_python import primes" "primes(1000)"
     10 loops, best of 3: 23 msec per loop
