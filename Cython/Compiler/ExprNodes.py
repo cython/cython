@@ -6192,6 +6192,8 @@ class CallNode(ExprNode):
             func_type_kwargs = {}
             if kwargs is not None:
                 for kv_pair in kwargs.key_value_pairs:
+                    if not kv_pair.value.has_constant_result():
+                        error(kv_pair.value.pos, "Value of function_type parameter is not a constant")
                     k = kv_pair.key.constant_result
                     v = kv_pair.value.constant_result
                     if k in ('nogil', 'has_varargs', 'noexcept', 'check_exception'):
@@ -6204,7 +6206,7 @@ class CallNode(ExprNode):
                             else:
                                 func_type_kwargs[k] = v
                         else:
-                            error(self.pos, f"Value for {k} must be boolean")
+                            error(kv_pair.value.pos, f"Value for {k} must be boolean")
                     elif k == 'exceptval':
                         converted_value = kv_pair.value.coerce_to(ret_type, env).analyse_const_expression(env)
                         exc_value = converted_value.as_exception_value(env)
@@ -6223,10 +6225,10 @@ class CallNode(ExprNode):
                         elif isinstance(v, bool):
                             exc_check = '+' if v else False
                         else:
-                            error(self.pos, f"Value for {k} must be '*', string or boolean, was {v!r}")
+                            error(kv_pair.value.pos, f"Value for {k} must be '*', string or boolean, was {v!r}")
 
                     else:
-                        error(self.pos, f"Unknown kwarg in function_type: {k}")
+                        error(kv_pair.key.pos, f"Unknown kwarg in function_type: {k}")
             if noexcept and exc_clause:
                 error(self.pos, "Cannot combine noexcept=True with another exception clause.")
             if not exc_clause:
