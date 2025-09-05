@@ -1,1 +1,1 @@
-See [docs/CONTRIBUTING.rst](docs/src/CONTRIBUTING.rst).
+See [docs/CONTRIBUTING.rst](docs/CONTRIBUTING.rst).
