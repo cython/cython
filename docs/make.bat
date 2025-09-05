@@ -7,6 +7,7 @@ REM Command file for Sphinx documentation
 if "%SPHINXBUILD%" == "" (
 	set SPHINXBUILD=sphinx-build
 )
+:: Looks for the conf.py in the same directory as make.bat instead of in the src directory
 set SPHINXOPTS=-c .
 set SOURCEDIR=src
 set BUILDDIR=build
