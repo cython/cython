@@ -6206,7 +6206,11 @@ class CallNode(ExprNode):
                         else:
                             error(self.pos, f"Value for {k} must be boolean")
                     elif k == 'exceptval':
-                        exc_value = v
+                        converted_value = kv_pair.value.coerce_to(ret_type, env).analyse_const_expression(env)
+                        exc_value = converted_value.as_exception_value(env)
+                        if not ret_type.assignable_from(converted_value.type):
+                            error(converted_value.pos,
+                                "Exception value incompatible with function return type")
                         exc_clause = True
                     elif k == 'except_cpp':
                         exc_clause = True

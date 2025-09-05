@@ -66,9 +66,11 @@ def test_fn_pointer_type_exceptions():
     double (*)(int) except +
     double (*)(int) except +
     double (*)(int) except -1.0
-    double (*)(int) except -1
+    double (*)(int) except -1.0
     double (*)(int) except? -1.0
-    double (*)(int) except? -1
+    double (*)(int) except? -1.0
+    object (*)(void)
+    object (*)(void)
     """
     cdef double (*f1a)(int) noexcept
     f1b: cython.pointer[cython.function_type([cython.int], cython.double, noexcept=True)]
@@ -79,6 +81,8 @@ def test_fn_pointer_type_exceptions():
     f3b: cython.pointer[cython.function_type([cython.int], cython.double, exceptval=-1)]
     cdef double (*f4a)(int) except? -1
     f4b: cython.pointer[cython.function_type([cython.int], cython.double, exceptval=-1, check_exception=True)]
+    cdef object (*f5a)()
+    f5b: cython.pointer[cython.function_type([], object)]
     print(cython.typeof(f1a))
     print(cython.typeof(f1b))
     print(cython.typeof(f1c))
@@ -88,3 +92,5 @@ def test_fn_pointer_type_exceptions():
     print(cython.typeof(f3b))
     print(cython.typeof(f4a))
     print(cython.typeof(f4b))
+    print(cython.typeof(f5a))
+    print(cython.typeof(f5b))
