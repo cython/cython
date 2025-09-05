@@ -6208,7 +6208,7 @@ class CallNode(ExprNode):
                     elif k == 'exceptval':
                         exc_value = v
                         exc_clause = True
-                    elif k == 'except_plus':
+                    elif k == 'except_cpp':
                         exc_clause = True
                         if v == '*':
                             exc_check = '+'

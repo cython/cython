@@ -271,7 +271,7 @@ def function_type(params: list[type], ret: type, /, *,
                   has_varargs: bool = False,
                   noexcept: bool = False,
                   check_exception: bool = False,
-                  except_plus: bool = False,
+                  except_cpp: bool = False,
                   exceptval: Any = None,
                  ) -> Type[Any]: ...
 

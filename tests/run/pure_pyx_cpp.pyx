@@ -59,7 +59,7 @@ def test_fn_pointer_type_exceptions():
     """
     f1: cython.pointer[cython.function_type([cython.int], cython.double, noexcept=True)]
     f2: cython.pointer[cython.function_type([cython.int], cython.double, check_exception=False)]
-    f3: cython.pointer[cython.function_type([cython.int], cython.double, except_plus=True)]
+    f3: cython.pointer[cython.function_type([cython.int], cython.double, except_cpp=True)]
     f4: cython.pointer[cython.function_type([cython.int], cython.double, exceptval=-1)]
     f5: cython.pointer[cython.function_type([cython.int], cython.double, exceptval=-1, check_exception=True)]
     print(cython.typeof(f1))
