@@ -24,7 +24,9 @@ sphinx_tabs_disable_tab_closing = True
 try:
     _match_version = re.compile(r'^\s*_*version\s*_*\s*=\s*["\']([^"\']+)["\'].*').match
     cwd = pathlib.Path.cwd().absolute()
-    shadow = cwd.parent.parent / "Cython" / "Shadow.py"
+    shadow = cwd.parent / "Cython" / "Shadow.py"
+    if not shadow.exists():
+        raise FileNotFoundError(f"Version lookup failed, unable to find {shadow}")
     with shadow.open() as fp:
         for line in itertools.islice(fp, 5):  # assume version comes early enough
             _m = _match_version(line)
@@ -84,7 +86,8 @@ extensions = [
     "sphinx_issues",  # if this is missing, pip install sphinx-issues
     "sphinx_tabs.tabs",  # if this is missing, pip install sphinx-tabs
 ]
-
+exclude_patterns = ["py*", "build", "BUILD", "TEST_TMP"]
+include_patterns = ["../"]
 ### Custom Cython Docs changes ###
 
 
@@ -93,7 +96,7 @@ extensions = [
 
 
 templates_path = ["_templates"]
-exclude_patterns = ["py*", "build", "BUILD", "TEST_TMP"]
+
 
 # -- Options for HTML output -------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#options-for-html-output
