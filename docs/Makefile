@@ -3,6 +3,8 @@
 
 # You can set these variables from the command line, and also
 # from the environment for the first two.
+# `-c .` makes sphinx look for the conf.py in the same directory as
+# make.bat instead of in the src directory
 SPHINXOPTS    ?= -c .
 SPHINXBUILD   ?= sphinx-build
 SOURCEDIR     = src
