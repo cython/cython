@@ -736,7 +736,7 @@ class UtilityCode(UtilityCodeBase):
         parsed_protos = []
         proto_regex=r'''
             ^(?:static\s)                                     # `static` keyword
-            (?P<ret_type>[^;()]+[\s*])\s?                     # return type + modifier with optional * - e.g.: int *, float, const str *, ...
+            (?P<ret_type>[^;()]+[\s*])                        # return type + modifier with optional * - e.g.: int *, float, const str *, ...
             (?P<func_name>\w+)\((?P<func_params>[^)]*)\)$     # function with params - e.g. foo(int, float, *PyObject)
         '''
 
