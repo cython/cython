@@ -2597,6 +2597,10 @@ static PyObject* __Pyx_PyCode_New(
         (__PYX_LIMITED_VERSION_HEX >= (0x030b0000) && line_table) ? line_table : EMPTY(bytes)
     );
 
+    #if CYTHON_COMPILING_IN_CPYTHON && PY_VERSION_HEX >= 0x030c00A1
+    ((PyCodeObject*) code_obj)->_co_firsttraceable = 0;
+    #endif
+
 done:
     Py_XDECREF(code_bytes);
     #if CYTHON_AVOID_BORROWED_REFS
