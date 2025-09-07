@@ -13,6 +13,7 @@ cdef class UtilityCodeBase(AbstractUtilityCode):
 cdef class UtilityCode(UtilityCodeBase):
     cdef public object name
     cdef public object proto
+    cdef public object export
     cdef public object impl
     cdef public object init
     cdef public object cleanup

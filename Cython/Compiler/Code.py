@@ -723,6 +723,7 @@ class UtilityCode(UtilityCodeBase):
         self.proto_block = proto_block
         self.name = name
         self.file = file
+        self.export = export
         self.shared_utility_functions = self.parse_export_functions(export) if export else []
 
         # cached for use in hash and eq
@@ -859,8 +860,10 @@ class UtilityCode(UtilityCodeBase):
             self._put_shared_function_declarations(output)
         output.shared_utility_functions.extend(self.shared_utility_functions)
 
-        if self.proto and not has_shared_utility_code:
+        if self.proto:
             self._put_code_section(output[self.proto_block], output, 'proto')
+        if not has_shared_utility_code:
+            self._put_code_section(output[self.proto_block], output, 'export')
         if self.impl and not has_shared_utility_code:
             self._put_code_section(output['utility_code_def'], output, 'impl')
         if self.cleanup and Options.generate_cleanup_code:
