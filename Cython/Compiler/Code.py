@@ -749,7 +749,7 @@ class UtilityCode(UtilityCodeBase):
                 continue
             matched = re.match(proto_regex, proto, re.VERBOSE)
             assert matched is not None, \
-                f"Wrong format of function definition in export block \n{export_proto.strip()}\n in {self.file}"
+                f"Wrong format of function definition in export block \n{proto!r}\n in {self.file}"
 
             ret_type, func_name, func_params = matched.groups()
             parsed_protos.append(
