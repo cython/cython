@@ -15,7 +15,7 @@ import os
 import pathlib
 import re
 import sys
-from typing import Sequence, Callable
+from typing import Sequence
 
 from .PyrexTypes import CPtrType
 from . import Future
@@ -109,9 +109,10 @@ TOTAL_ORDERING = {
 }
 
 class SharedUtilityExporter:
-    def __init__(self, mod_init_subfunction, scope):
+    def __init__(self, mod_init_subfunction, scope, pos):
         self.in_shared_utility_module = bool(scope.context.options.shared_c_file_path)
         self.using_shared_utility_module = bool(scope.context.shared_utility_qualified_name)
+        self.pos = pos
         self.scope = scope
         self.import_code = mod_init_subfunction("Shared function import code")
         self.export_code = mod_init_subfunction("Shared function export code")
@@ -129,39 +130,82 @@ class SharedUtilityExporter:
     def call_export_code(self, code):
         self.export_code.set_call_code(code)
 
+
+    def generate_c_shared_function_export_code(self, code, shared_function_definitions: Sequence[Code.SharedFunctionDecl]):
+        api_dict = code.funcstate.allocate_temp(py_object_type, manage_ref=True)
+        if shared_function_definitions:
+            code.globalstate.use_utility_code(
+                UtilityCode.load_cached("GetApiDict", "ImportExport.c"))
+        code.putln(
+            f"{api_dict} = __Pyx_ApiExport_GetApiDict(); "
+            f"{code.error_goto_if_null(api_dict, self.pos)}"
+        )
+        code.put_gotref(api_dict, py_object_type)
+
+        code.globalstate.use_utility_code(
+            UtilityCode.load_cached("FunctionExport", "ImportExport.c"))
+
+        for shared_func_def in shared_function_definitions:
+            func_name = shared_func_def.name
+            func_params = shared_func_def.params
+            func_ret_type = shared_func_def.ret
+            func_name_from_mstate = code.intern_identifier(EncodedString(func_name))
+            code.put_error_if_neg(
+                self.pos,
+                f'__Pyx_ExportFunction({api_dict}, {func_name_from_mstate}, (void (*)(void)){func_name}, "{func_ret_type}({func_params})")'
+            )
+
+        code.put_decref_clear(api_dict, py_object_type)
+        code.funcstate.release_temp(api_dict)
+
+    def generate_c_shared_function_import_code_for_module(self, code, function_definitions: Sequence[Code.SharedFunctionDecl]):
+        # Import shared utility C functions
+        if function_definitions:
+            code.globalstate.use_utility_code(UtilityCode.load_cached("FunctionImport", "ImportExport.c"))
+        shared_utility_qualified_name = self.scope.context.shared_utility_qualified_name
+        temp = code.funcstate.allocate_temp(py_object_type, manage_ref=True)
+        code.putln(
+            f'{temp} = PyImport_ImportModule("{shared_utility_qualified_name}"); {code.error_goto_if_null(temp, self.pos)}'
+        )
+        code.put_gotref(temp, py_object_type)
+        code.funcstate.release_temp(temp)
+        cyversion = Naming.cyversion
+
+        for shared_func_def in function_definitions:
+            func_name = shared_func_def.name
+            func_params = shared_func_def.params
+            func_return_type = shared_func_def.ret
+            func_proto = f'{func_return_type}({func_params})'
+            code.put_error_if_neg(
+                self.pos,
+                f'__Pyx_ImportFunction_{cyversion}({temp}, "{func_name}", (void (**)(void))&{func_name}, "{func_proto}")'
+            )
+
+        code.put_decref_clear(temp, py_object_type)
+
+
     # to be called after generating the module:
-    def _generate_exports(
-            self,
-            export_code_function: Callable[[Code.CCodeWriter, Sequence[Code.SharedFunctionDecl]], None],
-            shared_utility_functions: Sequence[Code.SharedFunctionDecl]
-    ):
+    def _generate_exports(self, shared_utility_functions: Sequence[Code.SharedFunctionDecl]):
         if self.has_shared_exports(shared_utility_functions):
             with self.export_code as inner_code:
-                export_code_function(
+                self.generate_c_shared_function_export_code(
                     inner_code,
                     shared_utility_functions
                 )
 
-    def _generate_imports(
-            self,
-            import_code_function: Callable[[Code.CCodeWriter, Sequence[Code.SharedFunctionDecl]], None],
-            shared_utility_functions: Sequence[Code.SharedFunctionDecl]):
+    def _generate_imports(self, shared_utility_functions: Sequence[Code.SharedFunctionDecl]):
         if self.has_shared_imports(shared_utility_functions):
             with self.import_code as inner_code:
-                import_code_function(
+                self.generate_c_shared_function_import_code_for_module(
                     inner_code,
                     shared_utility_functions
                 )
-    def generate_exporting_functions(
-            self,
-            code,
-            export_code_generator: Callable[[Code.CCodeWriter, Sequence[Code.SharedFunctionDecl]], None],
-            import_code_generator: Callable[[Code.CCodeWriter, Sequence[Code.SharedFunctionDecl]], None],
-    ):
+
+    def generate_exporting_functions(self, code):
         shared_utility_functions = code.globalstate.shared_utility_functions
         code.enter_cfunc_scope(self.scope)
-        self._generate_exports(export_code_generator, shared_utility_functions)
-        self._generate_imports(import_code_generator, shared_utility_functions)
+        self._generate_exports(shared_utility_functions)
+        self._generate_imports(shared_utility_functions)
         code.exit_cfunc_scope()
 
 
@@ -600,7 +644,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
         shared_utility_exporter = SharedUtilityExporter(
             self.mod_init_subfunction(self.pos, self.scope, globalstate['init_module']),
-            self.scope
+            self.scope,
+            self.pos
         )
 
         # init_globals is inserted before this
@@ -619,11 +664,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         for utilcode in env.utility_code_list[:]:
             globalstate.use_utility_code(utilcode)
 
-        shared_utility_exporter.generate_exporting_functions(
-                code,
-                export_code_generator=self.generate_c_shared_function_export_code,
-                import_code_generator=lambda code, suf: self.generate_c_shared_function_import_code_for_module(code, env, suf)
-                )
+        shared_utility_exporter.generate_exporting_functions(code)
 
         globalstate.finalize_main_c_code()
 
@@ -3791,34 +3832,6 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 f'__Pyx_ExportVoidPtr({api_dict}, {name}, (void *)&{entry.cname}, "{signature}")'
             )
 
-    def generate_c_shared_function_export_code(self, code, shared_function_definitions: Sequence[Code.SharedFunctionDecl]):
-        api_dict = code.funcstate.allocate_temp(py_object_type, manage_ref=True)
-        if shared_function_definitions:
-            code.globalstate.use_utility_code(
-                UtilityCode.load_cached("GetApiDict", "ImportExport.c"))
-        code.putln(
-            f"{api_dict} = __Pyx_ApiExport_GetApiDict(); "
-            f"{code.error_goto_if_null(api_dict, self.pos)}"
-        )
-        code.put_gotref(api_dict, py_object_type)
-
-        code.globalstate.use_utility_code(
-            UtilityCode.load_cached("FunctionExport", "ImportExport.c"))
-
-        for shared_func_def in shared_function_definitions:
-            func_name = shared_func_def.name
-            func_params = shared_func_def.params
-            func_ret_type = shared_func_def.ret
-            func_name_from_mstate = code.intern_identifier(EncodedString(func_name))
-            code.put_error_if_neg(
-                self.pos,
-                f'__Pyx_ExportFunction({api_dict}, {func_name_from_mstate}, (void (*)(void)){func_name}, "{func_ret_type}({func_params})")'
-            )
-
-        code.put_decref_clear(api_dict, py_object_type)
-        code.funcstate.release_temp(api_dict)
-
-
     def generate_c_function_export_code(self, env, code):
         """Generate code to create PyCFunction wrappers for exported C functions.
         """
@@ -3907,31 +3920,6 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 f')'
             )
 
-
-    def generate_c_shared_function_import_code_for_module(self, code, env, function_definitions: Sequence[Code.SharedFunctionDecl]):
-        # Import shared utility C functions
-        if function_definitions:
-            code.globalstate.use_utility_code(UtilityCode.load_cached("FunctionImport", "ImportExport.c"))
-        shared_utility_qualified_name = env.context.shared_utility_qualified_name
-        temp = code.funcstate.allocate_temp(py_object_type, manage_ref=True)
-        code.putln(
-            f'{temp} = PyImport_ImportModule("{shared_utility_qualified_name}"); {code.error_goto_if_null(temp, self.pos)}'
-        )
-        code.put_gotref(temp, py_object_type)
-        code.funcstate.release_temp(temp)
-        cyversion = Naming.cyversion
-
-        for shared_func_def in function_definitions:
-            func_name = shared_func_def.name
-            func_params = shared_func_def.params
-            func_return_type = shared_func_def.ret
-            func_proto = f'{func_return_type}({func_params})'
-            code.put_error_if_neg(
-                self.pos,
-                f'__Pyx_ImportFunction_{cyversion}({temp}, "{func_name}", (void (**)(void))&{func_name}, "{func_proto}")'
-            )
-
-        code.put_decref_clear(temp, py_object_type)
 
     def generate_type_init_code(self, env, code):
         # Generate type import code for extern extension types
