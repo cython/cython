@@ -109,6 +109,14 @@ TOTAL_ORDERING = {
 }
 
 class SharedUtilityExporter:
+    """
+    Class responsible for generating code responsible for importing and exporting shared utility functions.
+
+    This class is designed mark positions where the functions are being called by `call_import_code()`/`call_export_code()`.
+    The function calls and import/export functions are generated when `generate_exporting_functions()`
+    is called. This approach is needed because the list of the shared functions is known in the later stages
+    of compilation.
+    """
     def __init__(self, mod_init_subfunction, scope, pos):
         self.in_shared_utility_module = bool(scope.context.options.shared_c_file_path)
         self.using_shared_utility_module = bool(scope.context.shared_utility_qualified_name)
@@ -123,7 +131,6 @@ class SharedUtilityExporter:
     def has_shared_imports(self, shared_func_definitions: Sequence[Code.SharedFunctionDecl]) -> bool:
         return self.using_shared_utility_module and shared_func_definitions
 
-    # to be called from the module init code:
     def call_import_code(self, code):
         self.import_code.set_call_code(code)
 
@@ -131,7 +138,7 @@ class SharedUtilityExporter:
         self.export_code.set_call_code(code)
 
 
-    def generate_c_shared_function_export_code(self, code, shared_function_definitions: Sequence[Code.SharedFunctionDecl]):
+    def _generate_c_shared_function_export_code(self, code, shared_function_definitions: Sequence[Code.SharedFunctionDecl]):
         api_dict = code.funcstate.allocate_temp(py_object_type, manage_ref=True)
         if shared_function_definitions:
             code.globalstate.use_utility_code(
@@ -158,8 +165,7 @@ class SharedUtilityExporter:
         code.put_decref_clear(api_dict, py_object_type)
         code.funcstate.release_temp(api_dict)
 
-    def generate_c_shared_function_import_code_for_module(self, code, function_definitions: Sequence[Code.SharedFunctionDecl]):
-        # Import shared utility C functions
+    def _generate_c_shared_function_import_code_for_module(self, code, function_definitions: Sequence[Code.SharedFunctionDecl]):
         if function_definitions:
             code.globalstate.use_utility_code(UtilityCode.load_cached("FunctionImport", "ImportExport.c"))
         shared_utility_qualified_name = self.scope.context.shared_utility_qualified_name
@@ -184,11 +190,10 @@ class SharedUtilityExporter:
         code.put_decref_clear(temp, py_object_type)
 
 
-    # to be called after generating the module:
     def _generate_exports(self, shared_utility_functions: Sequence[Code.SharedFunctionDecl]):
         if self.has_shared_exports(shared_utility_functions):
             with self.export_code as inner_code:
-                self.generate_c_shared_function_export_code(
+                self._generate_c_shared_function_export_code(
                     inner_code,
                     shared_utility_functions
                 )
@@ -196,7 +201,7 @@ class SharedUtilityExporter:
     def _generate_imports(self, shared_utility_functions: Sequence[Code.SharedFunctionDecl]):
         if self.has_shared_imports(shared_utility_functions):
             with self.import_code as inner_code:
-                self.generate_c_shared_function_import_code_for_module(
+                self._generate_c_shared_function_import_code_for_module(
                     inner_code,
                     shared_utility_functions
                 )
