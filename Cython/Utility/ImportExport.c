@@ -1,10 +1,12 @@
 /////////////// Import.proto ///////////////
 
-static PyObject *__Pyx_Import(PyObject *name, PyObject *from_list, PyObject *qualname, int level); /*proto*/
+static PyObject *__Pyx_Import(PyObject *name, PyObject **imported_names, Py_ssize_t len_imported_names, PyObject *qualname, int level); /*proto*/
 
 /////////////// Import ///////////////
 //@requires: StringTools.c::IncludeStringH
 //@requires: Builtins.c::HasAttr
+//@requires: ObjectHandling.c::TupleAndListFromArray
+//@requires: ObjectHandling.c::PyObjectCallOneArg
 
 static int __Pyx__Import_GetModule(PyObject *qualname, PyObject **module) {
     PyObject *imported_module = PyImport_GetModule(qualname);
@@ -19,11 +21,12 @@ static int __Pyx__Import_GetModule(PyObject *qualname, PyObject **module) {
     return 1;
 }
 
-static int __Pyx__Import_Lookup(PyObject *qualname, PyObject *from_list, PyObject **module) {
+static int __Pyx__Import_Lookup(PyObject *qualname, PyObject **imported_names, Py_ssize_t len_imported_names, PyObject **module) {
     PyObject *imported_module;
-    PyObject *name_parts, *top_level_package_name;
-    Py_ssize_t i, part_count, from_list_size;
+    PyObject *top_level_package_name;
+    Py_ssize_t i;
     int status, module_found;
+    Py_ssize_t dot_index;
 
     module_found = __Pyx__Import_GetModule(qualname, &imported_module);
     if (unlikely(!module_found || module_found == -1)) {
@@ -31,20 +34,15 @@ static int __Pyx__Import_Lookup(PyObject *qualname, PyObject *from_list, PyObjec
         return module_found;
     }
 
-    if (from_list) {
-        from_list_size = __Pyx_PyList_GET_SIZE(from_list);
-        #if !CYTHON_ASSUME_SAFE_SIZE
-        if (unlikely(from_list_size == -1)) {
-            goto error;
-        }
-        #endif
-        for (i = 0; i < from_list_size; i++) {
-            PyObject *imported_name = __Pyx_PyList_GetItemRef(from_list, i);
-            if (unlikely(!imported_name)) {
-                goto error;
-            }
+    if (imported_names) {
+        for (i = 0; i < len_imported_names; i++) {
+            PyObject *imported_name = imported_names[i];
+#if __PYX_LIMITED_VERSION_HEX < 0x030d0000
             int has_imported_attribute = PyObject_HasAttr(imported_module, imported_name);
-            Py_DECREF(imported_name);
+#else
+            int has_imported_attribute = PyObject_HasAttrWithError(imported_module, imported_name);
+            if (unlikely(has_imported_attribute == -1)) goto error;
+#endif
             if (!has_imported_attribute) {
                 goto not_found;
             }
@@ -54,34 +52,20 @@ static int __Pyx__Import_Lookup(PyObject *qualname, PyObject *from_list, PyObjec
     }
 
     // Get top-level module
-    name_parts = PyUnicode_Split(qualname, PYUNICODE("."), 1);
-    if (unlikely(!name_parts)) {
-        goto error;
-    }
-
-    part_count = __Pyx_PyList_GET_SIZE(name_parts);
-    #if !CYTHON_ASSUME_SAFE_SIZE
-    if (unlikely(part_count == -1)) {
-        goto error;
-    }
-    #endif
-    if (part_count == 1) {
+    dot_index = PyUnicode_FindChar(qualname, '.', 0, PY_SSIZE_T_MAX, 1);
+    if (dot_index == -1) {
         // No dot, so we already have the top-level module
         *module = imported_module;
         return 1;
     }
+    if (unlikely(dot_index == -2)) goto error;
+    top_level_package_name = PyUnicode_Substring(qualname, 0, dot_index);
+    if (unlikely(!top_level_package_name)) goto error;
+
     Py_DECREF(imported_module);
 
-    top_level_package_name = __Pyx_PyList_GET_ITEM(name_parts, 0);
-    #if !CYTHON_ASSUME_SAFE_MACROS
-    if (unlikely(!top_level_package_name)) {
-        *module = NULL;
-        return -1;
-    }
-    #endif
-
     status = __Pyx__Import_GetModule(top_level_package_name, module);
-    Py_DECREF(name_parts);
+    Py_DECREF(top_level_package_name);
     return status;
 
 error:
@@ -95,24 +79,37 @@ not_found:
     return 0;
 }
 
-static PyObject *__Pyx_Import(PyObject *name, PyObject *from_list, PyObject *qualname, int level) {
+static PyObject *__Pyx_Import(PyObject *name, PyObject **imported_names, Py_ssize_t len_imported_names, PyObject *qualname, int level) {
     PyObject *module = 0;
     PyObject *empty_dict = 0;
+    PyObject *from_list = 0;
     int module_found;
 
     if (!qualname) {
         qualname = name;
     }
-    module_found = __Pyx__Import_Lookup(qualname, from_list, &module);
+    module_found = __Pyx__Import_Lookup(qualname, imported_names, len_imported_names, &module);
     if (likely(module_found == 1)) {
         return module;
     } else if (unlikely(module_found == -1)) {
         return NULL;
     }
-
     empty_dict = PyDict_New();
     if (unlikely(!empty_dict))
         goto bad;
+    if (imported_names) {
+#if CYTHON_COMPILING_IN_CPYTHON
+        from_list = __Pyx_PyList_FromArray(imported_names, len_imported_names);
+        if (unlikely(!from_list))
+            goto bad;
+#else
+        from_list = PyList_New(len_imported_names);
+        if (unlikely(!from_list)) goto bad;
+        for (Py_ssize_t i=0; i<len_imported_names; ++i) {
+            if (PyList_SetItem(from_list, i, __Pyx_NewRef(imported_names[i])) < 0) goto bad;
+        }
+#endif
+    } 
     if (level == -1) {
         const char* package_sep = strchr(__Pyx_MODULE_NAME, '.');
         if (package_sep != (0)) {
@@ -132,6 +129,7 @@ static PyObject *__Pyx_Import(PyObject *name, PyObject *from_list, PyObject *qua
             name, NAMED_CGLOBAL(moddict_cname), empty_dict, from_list, level);
     }
 bad:
+    Py_XDECREF(from_list);
     Py_XDECREF(empty_dict);
     return module;
 }
@@ -870,7 +868,7 @@ Py_CLEAR(CGLOBAL(__pyx_numpy_ndarray));
 
 static PyObject* __Pyx__ImportNumPyArray(void) {
     PyObject *numpy_module, *ndarray_object = NULL;
-    numpy_module = __Pyx_Import(PYIDENT("numpy"), NULL, NULL, 0);
+    numpy_module = __Pyx_Import(PYIDENT("numpy"), NULL, 0, NULL, 0);
     if (likely(numpy_module)) {
         ndarray_object = PyObject_GetAttrString(numpy_module, "ndarray");
         Py_DECREF(numpy_module);

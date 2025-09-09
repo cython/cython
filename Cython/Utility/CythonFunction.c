@@ -54,8 +54,7 @@ typedef struct {
     // PEP-573: PyCFunctionObject + mm_class
     PyCMethodObject func;
 #endif
-#if CYTHON_BACKPORT_VECTORCALL || \
-        (CYTHON_COMPILING_IN_LIMITED_API && CYTHON_METH_FASTCALL)
+#if CYTHON_COMPILING_IN_LIMITED_API && CYTHON_METH_FASTCALL
     __pyx_vectorcallfunc func_vectorcall;
 #endif
 #if CYTHON_COMPILING_IN_LIMITED_API
@@ -120,7 +119,7 @@ static PyObject * __Pyx_CyFunction_Vectorcall_NOARGS(PyObject *func, PyObject *c
 static PyObject * __Pyx_CyFunction_Vectorcall_O(PyObject *func, PyObject *const *args, size_t nargsf, PyObject *kwnames);
 static PyObject * __Pyx_CyFunction_Vectorcall_FASTCALL_KEYWORDS(PyObject *func, PyObject *const *args, size_t nargsf, PyObject *kwnames);
 static PyObject * __Pyx_CyFunction_Vectorcall_FASTCALL_KEYWORDS_METHOD(PyObject *func, PyObject *const *args, size_t nargsf, PyObject *kwnames);
-#if CYTHON_BACKPORT_VECTORCALL || CYTHON_COMPILING_IN_LIMITED_API
+#if CYTHON_COMPILING_IN_LIMITED_API
 #define __Pyx_CyFunction_func_vectorcall(f) (((__pyx_CyFunctionObject*)f)->func_vectorcall)
 #else
 #define __Pyx_CyFunction_func_vectorcall(f) (((PyCFunctionObject*)f)->vectorcall)
@@ -667,7 +666,7 @@ static PyMemberDef __pyx_CyFunction_members[] = {
     {"__dictoffset__", T_PYSSIZET, offsetof(__pyx_CyFunctionObject, func_dict), READONLY, 0},
 #endif
 #if CYTHON_METH_FASTCALL
-#if CYTHON_BACKPORT_VECTORCALL || CYTHON_COMPILING_IN_LIMITED_API
+#if CYTHON_COMPILING_IN_LIMITED_API
     {"__vectorcalloffset__", T_PYSSIZET, offsetof(__pyx_CyFunctionObject, func_vectorcall), READONLY, 0},
 #else
     {"__vectorcalloffset__", T_PYSSIZET, offsetof(PyCFunctionObject, vectorcall), READONLY, 0},
@@ -853,7 +852,7 @@ static int __Pyx_CyFunction_traverse(__pyx_CyFunctionObject *m, visitproc visit,
     Py_VISIT(m->func_dict);
 #else
     {
-        int e = 
+        int e =
 #if PY_VERSION_HEX < 0x030d0000
             _PyObject_VisitManagedDict
 #else
@@ -984,7 +983,7 @@ static PyObject *__Pyx_CyFunction_CallAsMethod(PyObject *func, PyObject *args, P
     PyObject *result;
     __pyx_CyFunctionObject *cyfunc = (__pyx_CyFunctionObject *) func;
 
-#if CYTHON_METH_FASTCALL && (CYTHON_VECTORCALL || CYTHON_BACKPORT_VECTORCALL)
+#if CYTHON_METH_FASTCALL && CYTHON_VECTORCALL
     // Prefer vectorcall if available. This is not the typical case, as
     // CPython would normally use vectorcall directly instead of tp_call.
      __pyx_vectorcallfunc vc = __Pyx_CyFunction_func_vectorcall(cyfunc);
@@ -1032,7 +1031,7 @@ static PyObject *__Pyx_CyFunction_CallAsMethod(PyObject *func, PyObject *args, P
     return result;
 }
 
-#if CYTHON_METH_FASTCALL && (CYTHON_VECTORCALL || CYTHON_BACKPORT_VECTORCALL)
+#if CYTHON_METH_FASTCALL && CYTHON_VECTORCALL
 // Check that kwnames is empty (if you want to allow keyword arguments,
 // simply pass kwnames=NULL) and figure out what to do with "self".
 // Return value:
@@ -1061,11 +1060,7 @@ static CYTHON_INLINE int __Pyx_CyFunction_Vectorcall_CheckArgs(__pyx_CyFunctionO
 static PyObject * __Pyx_CyFunction_Vectorcall_NOARGS(PyObject *func, PyObject *const *args, size_t nargsf, PyObject *kwnames)
 {
     __pyx_CyFunctionObject *cyfunc = (__pyx_CyFunctionObject *)func;
-#if CYTHON_BACKPORT_VECTORCALL
-    Py_ssize_t nargs = (Py_ssize_t)nargsf;
-#else
     Py_ssize_t nargs = PyVectorcall_NARGS(nargsf);
-#endif
     PyObject *self;
 #if CYTHON_COMPILING_IN_LIMITED_API
     PyCFunction meth = PyCFunction_GetFunction(cyfunc->func);
@@ -1104,11 +1099,7 @@ static PyObject * __Pyx_CyFunction_Vectorcall_NOARGS(PyObject *func, PyObject *c
 static PyObject * __Pyx_CyFunction_Vectorcall_O(PyObject *func, PyObject *const *args, size_t nargsf, PyObject *kwnames)
 {
     __pyx_CyFunctionObject *cyfunc = (__pyx_CyFunctionObject *)func;
-#if CYTHON_BACKPORT_VECTORCALL
-    Py_ssize_t nargs = (Py_ssize_t)nargsf;
-#else
     Py_ssize_t nargs = PyVectorcall_NARGS(nargsf);
-#endif
     PyObject *self;
 #if CYTHON_COMPILING_IN_LIMITED_API
     PyCFunction meth = PyCFunction_GetFunction(cyfunc->func);
@@ -1147,11 +1138,7 @@ static PyObject * __Pyx_CyFunction_Vectorcall_O(PyObject *func, PyObject *const 
 static PyObject * __Pyx_CyFunction_Vectorcall_FASTCALL_KEYWORDS(PyObject *func, PyObject *const *args, size_t nargsf, PyObject *kwnames)
 {
     __pyx_CyFunctionObject *cyfunc = (__pyx_CyFunctionObject *)func;
-#if CYTHON_BACKPORT_VECTORCALL
-    Py_ssize_t nargs = (Py_ssize_t)nargsf;
-#else
     Py_ssize_t nargs = PyVectorcall_NARGS(nargsf);
-#endif
     PyObject *self;
 #if CYTHON_COMPILING_IN_LIMITED_API
     PyCFunction meth = PyCFunction_GetFunction(cyfunc->func);
@@ -1186,11 +1173,7 @@ static PyObject * __Pyx_CyFunction_Vectorcall_FASTCALL_KEYWORDS_METHOD(PyObject 
 {
     __pyx_CyFunctionObject *cyfunc = (__pyx_CyFunctionObject *)func;
     PyTypeObject *cls = (PyTypeObject *) __Pyx_CyFunction_GetClassObj(cyfunc);
-#if CYTHON_BACKPORT_VECTORCALL
-    Py_ssize_t nargs = (Py_ssize_t)nargsf;
-#else
     Py_ssize_t nargs = PyVectorcall_NARGS(nargsf);
-#endif
     PyObject *self;
 #if CYTHON_COMPILING_IN_LIMITED_API
     PyCFunction meth = PyCFunction_GetFunction(cyfunc->func);
