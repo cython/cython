@@ -479,7 +479,8 @@ class ConstructorSlot(InternalMethodSlot):
             # delegate GC methods to its parent - iff the parent
             # functions are defined in the same module
             slot_code = self._parent_slot_function(scope)
-            return slot_code or '0'
+            if  slot_code is not None:
+                return slot_code
         return InternalMethodSlot.slot_code(self, scope)
 
     def spec_value(self, scope):
