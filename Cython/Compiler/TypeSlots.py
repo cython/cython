@@ -424,7 +424,7 @@ class GCDependentSlot(InternalMethodSlot):
         InternalMethodSlot.__init__(self, slot_name, **kargs)
 
     def slot_code(self, scope):
-        if not scope.needs_gc():
+        if not scope.needs_gc() or scope.parent_type.is_external:
             return "0"
         if not scope.has_cyclic_pyobject_attrs:
             # if the type does not have GC relevant object attributes, it can
