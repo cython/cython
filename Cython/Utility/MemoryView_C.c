@@ -93,7 +93,7 @@ __pyx_fail:
 }
 
 
-/////////////// MemviewSliceValidateAndInit.proto ///////////////
+/////////////// MemviewSliceValidateAndInit.export ///////////////
 
 static int __Pyx_ValidateAndInit_memviewslice(
                 int *axes_specs,
