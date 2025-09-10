@@ -424,6 +424,8 @@ class GCDependentSlot(InternalMethodSlot):
         InternalMethodSlot.__init__(self, slot_name, **kargs)
 
     def slot_code(self, scope):
+        # We treat external types as needing gc, but don't generate a slot code
+        # because we don't know it to be able to call it directly. 
         if not scope.needs_gc() or scope.parent_type.is_external:
             return "0"
         if not scope.has_cyclic_pyobject_attrs:
@@ -479,16 +481,12 @@ class ConstructorSlot(InternalMethodSlot):
             # delegate GC methods to its parent - iff the parent
             # functions are defined in the same module
             slot_code = self._parent_slot_function(scope)
-            if  slot_code is not None:
+            if slot_code is not None:
                 return slot_code
         return InternalMethodSlot.slot_code(self, scope)
 
     def spec_value(self, scope):
-        slot_function = self.slot_code(scope)
-        if self.slot_name == "tp_dealloc" and slot_function != scope.mangle_internal("tp_dealloc"):
-            # Not used => inherit from base type.
-            return "0"
-        return slot_function
+        return self.slot_code(scope)
 
     def generate_dynamic_init_code(self, scope, code):
         if self.slot_code(scope) != '0':
