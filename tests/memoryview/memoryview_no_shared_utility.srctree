@@ -32,7 +32,6 @@ def add_one(int a):
     return a + 1
 
 ######## test_missing_shared_utility.py ########
-
 import pkg1.no_memoryview
 result = pkg1.no_memoryview.add_one(1)
 assert result == 2, result
