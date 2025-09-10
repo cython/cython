@@ -3,8 +3,9 @@
 # For the full list of built-in configuration values, see the documentation:
 # https://www.sphinx-doc.org/en/master/usage/configuration.html
 import itertools
-import pathlib
+from pathlib import Path
 import re
+import sys
 
 # -- Project information -----------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#project-information
@@ -23,7 +24,7 @@ sphinx_tabs_disable_tab_closing = True
 # Looking up the release/version
 try:
     _match_version = re.compile(r'^\s*_*version\s*_*\s*=\s*["\']([^"\']+)["\'].*').match
-    cwd = pathlib.Path.cwd().absolute()
+    cwd = Path.cwd().absolute()
     shadow = cwd.parent / "Cython" / "Shadow.py"
     if not shadow.exists():
         raise FileNotFoundError(f"Version lookup failed, unable to find {shadow}")
@@ -42,6 +43,8 @@ except:
 # The short X.Y version.
 version = re.sub("^([0-9]+[.][0-9]+).*", r"\g<1>", release)
 
+# Autodoc: Adding the root of the repo to the Python Path
+sys.path.insert(0, str(Path(__file__).parent.parent.absolute()))
 
 ## HTML
 # The name of an image file (relative to this directory) to place at the top
@@ -86,8 +89,7 @@ extensions = [
     "sphinx_issues",  # if this is missing, pip install sphinx-issues
     "sphinx_tabs.tabs",  # if this is missing, pip install sphinx-tabs
 ]
-exclude_patterns = ["py*", "build", "BUILD", "TEST_TMP"]
-include_patterns = ["../"]
+include_patterns = ["../", "**"]
 ### Custom Cython Docs changes ###
 
 
