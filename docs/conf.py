@@ -46,7 +46,9 @@ version = re.sub("^([0-9]+[.][0-9]+).*", r"\g<1>", release)
 # Autodoc: Adding the root of the repo to the Python Path
 sys.path.insert(0, str(Path(__file__).parent.parent.absolute()))
 
+
 ## HTML
+html_theme = "nature"
 # The name of an image file (relative to this directory) to place at the top
 # of the sidebar.
 html_logo = "_static/cythonlogo.png"
@@ -89,7 +91,14 @@ extensions = [
     "sphinx_issues",  # if this is missing, pip install sphinx-issues
     "sphinx_tabs.tabs",  # if this is missing, pip install sphinx-tabs
 ]
-include_patterns = ["../", "**"]
+try:
+    import rst2pdf
+except ImportError:
+    pass
+else:
+    extensions.append("rst2pdf.pdfbuilder")
+# todo
+todo_include_todos = True
 ### Custom Cython Docs changes ###
 
 
@@ -102,6 +111,3 @@ templates_path = ["_templates"]
 
 # -- Options for HTML output -------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#options-for-html-output
-
-html_theme = "alabaster"
-html_static_path = ["_static"]
