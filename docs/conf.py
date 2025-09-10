@@ -81,7 +81,7 @@ htmlhelp_basename = "Cythondoc"
 intersphinx_mapping = {
     "python": ("https://docs.python.org/3/", None),
     "setuptools": ("https://setuptools.pypa.io/en/latest/", None),
-    "wheel": ("https://wheel.rtfd.io/en/latest/", None),
+    "wheel": ("https://wheel.readthedocs.io/en/latest/objects.inv", None),
 }
 extensions = [
     "sphinx.ext.imgmath",
