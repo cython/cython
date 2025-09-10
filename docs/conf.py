@@ -20,7 +20,7 @@ pygments_style = "sphinx"
 imgmath_image_format = "svg"
 issues_github_path = "cython/cython"
 sphinx_tabs_disable_tab_closing = True
-root_doc = "src/index"
+root_doc = "index"
 # Looking up the release/version
 try:
     _match_version = re.compile(r'^\s*_*version\s*_*\s*=\s*["\']([^"\']+)["\'].*').match
