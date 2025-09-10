@@ -7,7 +7,7 @@
 # make.bat instead of in the src directory
 SPHINXOPTS    ?= -c .
 SPHINXBUILD   ?= sphinx-build
-SOURCEDIR     = src
+SOURCEDIR     = .
 BUILDDIR      = build
 
 # Put it first so that "make" without argument is like "make help".
