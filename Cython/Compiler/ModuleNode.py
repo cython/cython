@@ -3920,7 +3920,6 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 f')'
             )
 
-
     def generate_type_init_code(self, env, code):
         # Generate type import code for extern extension types
         # and type ready code for non-extern ones.
