@@ -485,9 +485,6 @@ class ConstructorSlot(InternalMethodSlot):
                 return slot_code
         return InternalMethodSlot.slot_code(self, scope)
 
-    def spec_value(self, scope):
-        return self.slot_code(scope)
-
     def generate_dynamic_init_code(self, scope, code):
         if self.slot_code(scope) != '0':
             return
