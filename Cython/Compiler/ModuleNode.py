@@ -118,7 +118,7 @@ class SharedUtilityExporter:
     of compilation.
     """
     def __init__(self, mod_init_subfunction, scope, pos):
-        self.in_shared_utility_module = bool(scope.context.options.shared_c_file_path)
+        self.in_shared_utility_module = bool(scope.context.shared_c_file_path)
         self.using_shared_utility_module = bool(scope.context.shared_utility_qualified_name)
         self.pos = pos
         self.scope = scope
