@@ -425,7 +425,7 @@ class GCDependentSlot(InternalMethodSlot):
 
     def slot_code(self, scope):
         # We treat external types as needing gc, but don't generate a slot code
-        # because we don't know it to be able to call it directly. 
+        # because we don't know it to be able to call it directly.
         if not scope.needs_gc() or scope.parent_type.is_external:
             return "0"
         if not scope.has_cyclic_pyobject_attrs:
