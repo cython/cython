@@ -2454,6 +2454,9 @@ class CClassScope(ClassScope):
         # C attributes, then it needs to participate in GC.
         if self.has_cyclic_pyobject_attrs and not self.directives.get('no_gc', False):
             return True
+        if self.parent_type.is_external and not self.parent_type.is_builtin_type:
+            # It's impossible to really know - external types are often incomplete.
+            return True
         base_type = self.parent_type.base_type
         if base_type and base_type.scope is not None:
             return base_type.scope.needs_gc()
