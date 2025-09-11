@@ -2417,8 +2417,7 @@ static PyObject* __Pyx_PyCode_New(
         // PyCode_NewEmpty isn't in the limited API. Therefore the two options are
         //  1. Python call of the code type with a long list of positional args.
         //  2. Generate a code object by compiling some trivial code, and customize.
-        // We use the second because it's less sensitive to changes in the code type
-        // constructor with version.
+        // We use the first option here.
         PyObject *exception_table = NULL;
         PyObject *types_module=NULL, *code_type=NULL, *result=NULL;
         #if __PYX_LIMITED_VERSION_HEX < 0x030b0000
@@ -2499,6 +2498,11 @@ static PyObject* __Pyx_PyCode_New(
         PyCode_NewWithPosOnlyArgs
       #endif
         (a, p, k, l, s, f, code, c, n, v, fv, cell, fn, name, name, fline, lnos, EMPTY(bytes));
+  
+    #if CYTHON_COMPILING_IN_CPYTHON && PY_VERSION_HEX >= 0x030c00A1
+    if (likely(result))
+        result->_co_firsttraceable = 0;
+    #endif
     return result;
   }
 #elif !CYTHON_COMPILING_IN_PYPY
