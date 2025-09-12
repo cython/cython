@@ -1,3 +1,5 @@
+.. _tempita:
+
 Tempita templating language
 ===========================
 
