@@ -482,6 +482,7 @@ EXT_EXTRAS = {
 
 TAG_EXCLUDERS = sorted({
     'no-macos':  exclude_test_on_platform('darwin'),
+    'no-windows': exclude_test_on_platform('win32'),
     'pstats': exclude_test_in_pyver((3,12)),
     'coverage': exclude_test_in_pyver((3,12)) or exclude_test_on_dev(),
     'monitoring': exclude_test_in_pyver((3,12)),
