@@ -75,7 +75,7 @@ Cython's usage of the Limited API is controlled by setting the ``Py_LIMITED_API`
 when running the C compiler.  This macro should be set to the version-hex for the
 minimum Python version that you want to support.  Useful version-hexes are:
 
-* ``0x03070000`` - Python 3.7 - the minimum version that Cython supports.
+* ``0x03080000`` - Python 3.8 - the minimum version that Cython supports.
 * ``0x030B0000`` - Python 3.11 - the first version to support typed memoryviews.
 * ``0x030C0000`` - Python 3.12 - the first version to support vectorcall (performance
   improvement).
@@ -102,7 +102,7 @@ documentation)::
                 name="cy_code",
                 sources=["cy_code.pyx"],
                 define_macros=[
-                    ("Py_LIMITED_API", 0x03070000),
+                    ("Py_LIMITED_API", 0x030A0000),
                 ],
                 py_limited_api=True
             ),
@@ -126,7 +126,7 @@ Scikit-build
     add_library(cy_code MODULE ${cy_code})
     python_extension_module(cy_code)
     
-    target_compile_definitions(cy_code PUBLIC -DPy_LIMITED_API=0x03070000)
+    target_compile_definitions(cy_code PUBLIC -DPy_LIMITED_API=0x030A0000)
     set_target_properties(cy_code PROPERTIES SUFFIX .abi3.so)
     
     install(TARGETS cy_code LIBRARY DESTINATION .)
@@ -155,10 +155,10 @@ to generate Python modules::
     py.extension_module(
         'cy_code',
         'cy_code.pyx',
-        limited_api: '3.7'
+        limited_api: '3.10'
     )
     
 Again, this example is adapted from
 `the Meson documentation <https://mesonbuild.com/Cython.html#cython>`_ and more complete
-details are available there.  The Limited API modification is the argument ``limited_api: '3.7'``,
+details are available there.  The Limited API modification is the argument ``limited_api: '3.10'``,
 which both sets the version hex and names the generated module correctly.
