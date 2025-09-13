@@ -1862,6 +1862,9 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                     code.name_in_slot_module_state(freelist_name),
                     code.name_in_slot_module_state(freecount_name),
                     type.cast_code("o")))
+                code.putln("#if CYTHON_USE_TYPE_SPECS")
+                code.putln("Py_DECREF((PyObject*)Py_TYPE(o));")
+                code.putln("#endif")
                 code.putln("} else")
                 code.putln("#endif")
                 code.putln("{")
@@ -1876,6 +1879,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             code.putln("}")
             code.putln("#endif")
             code.putln("#if CYTHON_USE_TYPE_SPECS")
+            # Undo the INCREF of the type object in tp_new
             code.putln("Py_DECREF(tp);")
             code.putln("#endif")
             if freelist_size:
