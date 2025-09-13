@@ -36,7 +36,7 @@ Below are the different directive types and expression forms supported.
 Simple Expression Substitution
 ------------------------------
 
-Surround expression in ``{{ ... }}``, which is evaluated in the template
+Surround expression with ``{{ ... }}``, which is evaluated in the template
 context.
 
 Example:
