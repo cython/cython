@@ -1413,7 +1413,9 @@ static void __Pyx_Coroutine_dealloc(PyObject *self) {
     }
 #endif
     __Pyx_Coroutine_clear(self);
+    PyTypeObject *tp = Py_TYPE(gen);
     __Pyx_PyHeapTypeObject_GC_Del(gen);
+    Py_DECREF((PyObject*)tp); // heap types should decref their type
 }
 
 #if CYTHON_USE_TP_FINALIZE
@@ -1747,7 +1749,9 @@ if (likely(__pyx_Coroutine_init($module_cname) == 0)); else
 static void __Pyx_CoroutineAwait_dealloc(PyObject *self) {
     PyObject_GC_UnTrack(self);
     Py_CLEAR(((__pyx_CoroutineAwaitObject*)self)->coroutine);
+    PyTypeObject *tp = Py_TYPE(self);
     __Pyx_PyHeapTypeObject_GC_Del(self);
+    Py_DECREF((PyObject*)tp); // heap types should decref their type
 }
 
 static int __Pyx_CoroutineAwait_traverse(__pyx_CoroutineAwaitObject *self, visitproc visit, void *arg) {
