@@ -1596,22 +1596,25 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             code.putln("PyObject *o = %s(t, a, k);" % tp_new)
         else:
             code.putln("PyObject *o;")
-            code.putln("#if CYTHON_COMPILING_IN_LIMITED_API")
-            code.putln("allocfunc alloc_func = (allocfunc)PyType_GetSlot(t, Py_tp_alloc);")
-            code.putln("o = alloc_func(t, 0);")
-            code.putln("#else")
             if freelist_size:
                 code.globalstate.use_utility_code(
                     UtilityCode.load_cached("IncludeStringH", "StringTools.c"))
                 if is_final_type:
-                    type_safety_check = ''
+                    heap_type_safety_check = type_safety_check = ''
                 else:
                     type_safety_check = ' & (int)(!__Pyx_PyType_HasFeature(t, (Py_TPFLAGS_IS_ABSTRACT | Py_TPFLAGS_HEAPTYPE)))'
+                    heap_type_safety_check = ' & (int)(!__Pyx_PyType_HasFeature(t, Py_TPFLAGS_IS_ABSTRACT))'
                 obj_struct = type.declaration_code("", deref=True)
                 code.putln("#if CYTHON_USE_FREELISTS")
-                code.putln(
-                    "if (likely((int)(%s > 0) & (int)(t->tp_basicsize == sizeof(%s))%s)) {" % (
-                        code.name_in_slot_module_state(freecount_name), obj_struct, type_safety_check))
+                code.putln(f"if (likely((int)({code.name_in_slot_module_state(freecount_name)} > 0)) &")
+                code.putln("#if CYTHON_USE_TYPE_SPECS")
+                # with CYTHON_USE_TYPE_SPECS we can only reasonably use freelists for an exact type match,
+                # because everything fails the heap-type check.
+                code.putln(f"(t == {code.name_in_slot_module_state(type.typeptr_cname)}){heap_type_safety_check}")
+                code.putln("#else")
+                code.putln(f"(int)(t->tp_basicsize == sizeof({obj_struct})){type_safety_check}")
+                code.putln("#endif")
+                code.putln(") {")
                 code.putln("o = (PyObject*)%s[--%s];" % (
                     code.name_in_slot_module_state(freelist_name),
                     code.name_in_slot_module_state(freecount_name)))
@@ -1624,17 +1627,27 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 code.putln("{")
             if not is_final_type:
                 code.putln("if (likely(!__Pyx_PyType_HasFeature(t, Py_TPFLAGS_IS_ABSTRACT))) {")
-            code.putln("o = (*t->tp_alloc)(t, 0);")
+            code.putln("allocfunc alloc_func = __Pyx_PyType_GetSlot(t, tp_alloc, allocfunc);")
+            code.putln("o = alloc_func(t, 0);")
             if not is_final_type:
                 code.putln("} else {")
-                code.putln("o = (PyObject *) PyBaseObject_Type.tp_new(t, %s->%s, 0);" % (
+                code.putln("newfunc tp_new = __Pyx_PyType_TryGetSlot(&PyBaseObject_Type, tp_new, newfunc);")
+                code.putln("#if CYTHON_COMPILING_IN_LIMITED_API && __PYX_LIMITED_VERSION_HEX < 0x030A0000")
+                code.putln("if (!tp_new) {")
+                code.putln('PyObject *new_str = PyUnicode_FromString("__new__");')
+                code.putln("if (likely(new_str)) {")
+                code.putln("o = PyObject_CallMethodObjArgs((PyObject *)&PyBaseObject_Type, new_str, t, NULL);")
+                code.putln("Py_DECREF(new_str);")
+                code.putln("} else")
+                code.putln("o = NULL;")
+                code.putln("} else")
+                code.putln("#endif")
+                code.putln("o = tp_new(t, %s->%s, 0);" % (
                     Naming.modulestateglobal_cname, Naming.empty_tuple))
                 code.putln("}")
         code.putln("if (unlikely(!o)) return 0;")
         if freelist_size and not base_type:
             code.putln('}')
-        if not base_type:
-            code.putln("#endif")
         if need_self_cast:
             code.putln("p = %s;" % type.cast_code("o"))
         #if need_self_cast:
@@ -1845,19 +1858,26 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 freecount_name = scope.mangle_internal(Naming.freecount_name)
 
                 if is_final_type:
-                    type_safety_check = ''
+                    heap_type_safety_check = type_safety_check = ''
                 else:
                     type_safety_check = (
                         ' & (int)(!__Pyx_PyType_HasFeature(Py_TYPE(o), (Py_TPFLAGS_IS_ABSTRACT | Py_TPFLAGS_HEAPTYPE)))')
+                    heap_type_safety_check = (
+                        ' & (int)(!__Pyx_PyType_HasFeature(Py_TYPE(o), Py_TPFLAGS_IS_ABSTRACT))')
 
                 type = scope.parent_type
                 code.putln("#if CYTHON_USE_FREELISTS")
                 code.putln(
-                    "if (((int)(%s < %d) & (int)(Py_TYPE(o)->tp_basicsize == sizeof(%s))%s)) {" % (
-                        code.name_in_slot_module_state(freecount_name),
-                        freelist_size,
+                    f"if (((int)({code.name_in_slot_module_state(freecount_name)} < {freelist_size}) &")
+                code.putln("#if CYTHON_USE_TYPE_SPECS")
+                code.putln(
+                    f"(Py_TYPE(o) == {code.name_in_module_state(scope.parent_type.typeptr_cname)}){heap_type_safety_check}")
+                code.putln("#else")
+                code.putln("(int)(Py_TYPE(o)->tp_basicsize == sizeof(%s))%s" % (
                         type.declaration_code("", deref=True),
                         type_safety_check))
+                code.putln("#endif")
+                code.putln(")) {")
                 code.putln("%s[%s++] = %s;" % (
                     code.name_in_slot_module_state(freelist_name),
                     code.name_in_slot_module_state(freecount_name),
