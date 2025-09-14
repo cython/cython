@@ -1616,7 +1616,13 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                     code.name_in_slot_module_state(freelist_name),
                     code.name_in_slot_module_state(freecount_name)))
                 code.putln("memset(o, 0, sizeof(%s));" % obj_struct)
+                code.putln("#if CYTHON_COMPILING_IN_LIMITED_API")
+                # Although PyObject_INIT should be part of the Limited API, it causes
+                # link errors on some combinations of Python versions and OSs.
+                code.putln("(void) PyObject_Init(o, t);")
+                code.putln("#else")
                 code.putln("(void) PyObject_INIT(o, t);")
+                code.putln("#endif")
                 if scope.needs_gc():
                     code.putln("PyObject_GC_Track(o);")
                 code.putln("} else")
