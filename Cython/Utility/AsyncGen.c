@@ -29,7 +29,7 @@ Py_VISIT(traverse_module_state->__pyx__PyAsyncGenASendType);
 Py_VISIT(traverse_module_state->__pyx__PyAsyncGenAThrowType);
 Py_VISIT(traverse_module_state->__pyx_AsyncGenType);
 
-//////////////////// AsyncGenerator.module_state_traverse ////////////////////
+//////////////////// AsyncGenerator.module_state_clear ////////////////////
 
 Py_CLEAR(clear_module_state->__pyx__PyAsyncGenWrappedValueType);
 Py_CLEAR(clear_module_state->__pyx__PyAsyncGenASendType);
