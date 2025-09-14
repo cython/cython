@@ -641,7 +641,7 @@ __Pyx_async_gen_asend_new(__pyx_PyAsyncGenObject *gen, PyObject *sendval)
         CGLOBAL(__Pyx_ag_asend_freelist_free)--;
         o = CGLOBAL(__Pyx_ag_asend_freelist)[CGLOBAL(__Pyx_ag_asend_freelist_free)];
         #if CYTHON_COMPILING_IN_LIMITED_API
-        Py_DECREF(Py_TYPE(o)); // PyObject_Init resets and increfs the type
+        Py_DECREF((PyObject*)Py_TYPE(o)); // PyObject_Init resets and increfs the type
         (void) PyObject_Init((PyObject *)o, CGLOBAL(__pyx__PyAsyncGenASendType));
         #else
         _Py_NewReference((PyObject *)o);
@@ -732,7 +732,7 @@ __Pyx__PyAsyncGenValueWrapperNew(PyObject *val)
         o = CGLOBAL(__Pyx_ag_value_freelist)[CGLOBAL(__Pyx_ag_value_freelist_free)];
         assert(__pyx__PyAsyncGenWrappedValue_CheckExact((PyObject*)o));
         #if CYTHON_COMPILING_IN_LIMITED_API
-        Py_DECREF(Py_TYPE(o)); // PyObject_Init resets and increfs the type
+        Py_DECREF((PyObject*)Py_TYPE(o)); // PyObject_Init resets and increfs the type
         (void) PyObject_Init((PyObject*)o, CGLOBAL(__pyx__PyAsyncGenWrappedValueType));
         #else
         _Py_NewReference((PyObject*)o);
