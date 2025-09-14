@@ -497,7 +497,6 @@ __Pyx_async_gen_asend_dealloc(__pyx_PyAsyncGenASend *o)
     PyObject_GC_UnTrack((PyObject *)o);
     Py_CLEAR(o->ags_gen);
     Py_CLEAR(o->ags_sendval);
-    PyTypeObject *tp = Py_TYPE(o);
     #if CYTHON_USE_FREELISTS
     if (likely(CGLOBAL(__Pyx_ag_asend_freelist_free) < _PyAsyncGen_MAXFREELIST)) {
         assert(__pyx_PyAsyncGenASend_CheckExact(o));
@@ -507,7 +506,6 @@ __Pyx_async_gen_asend_dealloc(__pyx_PyAsyncGenASend *o)
     {
         __Pyx_PyHeapTypeObject_GC_Del(o);
     }
-    Py_DECREF((PyObject*)tp); // heap types should decref their type
 }
 
 static int
@@ -643,7 +641,6 @@ __Pyx_async_gen_asend_new(__pyx_PyAsyncGenObject *gen, PyObject *sendval)
         CGLOBAL(__Pyx_ag_asend_freelist_free)--;
         o = CGLOBAL(__Pyx_ag_asend_freelist)[CGLOBAL(__Pyx_ag_asend_freelist_free)];
         _Py_NewReference((PyObject *)o);
-        Py_INCREF(Py_TYPE(o)); // because GC_New would do this
     } else
     #endif
     {
@@ -674,7 +671,6 @@ __Pyx_async_gen_wrapped_val_dealloc(__pyx__PyAsyncGenWrappedValue *o)
 {
     PyObject_GC_UnTrack((PyObject *)o);
     Py_CLEAR(o->agw_val);
-    PyTypeObject *tp = Py_TYPE(o);
     #if CYTHON_USE_FREELISTS
     if (likely(CGLOBAL(__Pyx_ag_value_freelist_free) < _PyAsyncGen_MAXFREELIST)) {
         assert(__pyx__PyAsyncGenWrappedValue_CheckExact(o));
@@ -684,7 +680,6 @@ __Pyx_async_gen_wrapped_val_dealloc(__pyx__PyAsyncGenWrappedValue *o)
     {
         __Pyx_PyHeapTypeObject_GC_Del(o);
     }
-    Py_DECREF((PyObject*)tp); // heap types should decref their type
 }
 
 
@@ -732,7 +727,6 @@ __Pyx__PyAsyncGenValueWrapperNew(PyObject *val)
         o = CGLOBAL(__Pyx_ag_value_freelist)[CGLOBAL(__Pyx_ag_value_freelist_free)];
         assert(__pyx__PyAsyncGenWrappedValue_CheckExact(o));
         _Py_NewReference((PyObject*)o);
-        Py_INCREF(Py_TYPE(o)); // because GC_New would do this
     } else
     #endif
     {
@@ -755,12 +749,10 @@ __Pyx__PyAsyncGenValueWrapperNew(PyObject *val)
 static void
 __Pyx_async_gen_athrow_dealloc(__pyx_PyAsyncGenAThrow *o)
 {
-    PyTypeObject *tp = Py_TYPE(o);
     PyObject_GC_UnTrack((PyObject *)o);
     Py_CLEAR(o->agt_gen);
     Py_CLEAR(o->agt_args);
     __Pyx_PyHeapTypeObject_GC_Del(o);
-    Py_DECREF((PyObject*)tp); // heap types should decref their type
 }
 
 

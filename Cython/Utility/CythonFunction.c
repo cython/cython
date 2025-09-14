@@ -827,9 +827,7 @@ static void __Pyx__CyFunction_dealloc(__pyx_CyFunctionObject *m)
     if (__Pyx_CyFunction_weakreflist(m) != NULL)
         PyObject_ClearWeakRefs((PyObject *) m);
     __Pyx_CyFunction_clear(m);
-    PyTypeObject *tp = Py_TYPE(m);
     __Pyx_PyHeapTypeObject_GC_Del(m);
-    Py_DECREF((PyObject*)tp); // heap types should decref their type
 }
 
 static void __Pyx_CyFunction_dealloc(__pyx_CyFunctionObject *m)
