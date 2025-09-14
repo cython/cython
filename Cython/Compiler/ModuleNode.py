@@ -1631,26 +1631,10 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 code.putln("} else")
                 code.putln("#endif")
                 code.putln("{")
-            if not is_final_type:
-                code.putln("if (likely(!__Pyx_PyType_HasFeature(t, Py_TPFLAGS_IS_ABSTRACT))) {")
-            code.putln("allocfunc alloc_func = __Pyx_PyType_GetSlot(t, tp_alloc, allocfunc);")
-            code.putln("o = alloc_func(t, 0);")
-            if not is_final_type:
-                code.putln("} else {")
-                code.putln("newfunc tp_new = __Pyx_PyType_TryGetSlot(&PyBaseObject_Type, tp_new, newfunc);")
-                code.putln("#if CYTHON_COMPILING_IN_LIMITED_API && __PYX_LIMITED_VERSION_HEX < 0x030A0000")
-                code.putln("if (!tp_new) {")
-                code.putln('PyObject *new_str = PyUnicode_FromString("__new__");')
-                code.putln("if (likely(new_str)) {")
-                code.putln("o = PyObject_CallMethodObjArgs((PyObject *)&PyBaseObject_Type, new_str, t, NULL);")
-                code.putln("Py_DECREF(new_str);")
-                code.putln("} else")
-                code.putln("o = NULL;")
-                code.putln("} else")
-                code.putln("#endif")
-                code.putln("o = tp_new(t, %s->%s, 0);" % (
-                    Naming.modulestateglobal_cname, Naming.empty_tuple))
-                code.putln("}")
+            code.globalstate.use_utility_code(
+                UtilityCode.load_cached("AllocateExtensionType", "ExtensionTypes.c")
+            )
+            code.putln(f"o = __Pyx_AllocateExtensionType(t, {is_final_type:d});")
         code.putln("if (unlikely(!o)) return 0;")
         if freelist_size and not base_type:
             code.putln('}')

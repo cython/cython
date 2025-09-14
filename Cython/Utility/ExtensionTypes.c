@@ -836,3 +836,32 @@ static int __Pyx__DelItemOnTypeDict(PyTypeObject *tp, PyObject *k) {
     if (likely(!result)) PyType_Modified(tp);
     return result;
 }
+
+////////////////// AllocateExtensionType.proto ///////////////////////
+
+static PyObject *__Pyx_AllocateExtensionType(PyTypeObject *t, int is_final); /* proto */
+
+////////////////// AllocateExtensionType ////////////////////////////
+
+static PyObject *__Pyx_AllocateExtensionType(PyTypeObject *t, int is_final) {
+    if (is_final || likely(!__Pyx_PyType_HasFeature(t, Py_TPFLAGS_IS_ABSTRACT))) {
+        allocfunc alloc_func = __Pyx_PyType_GetSlot(t, tp_alloc, allocfunc);
+        return alloc_func(t, 0);
+    } else {
+        // Call PyBaseObject_Type.tp_new. This is is expected to fail, generating an appropriate
+        // error message about allocating an abstract type.
+        newfunc tp_new = __Pyx_PyType_TryGetSlot(&PyBaseObject_Type, tp_new, newfunc);
+    #if CYTHON_COMPILING_IN_LIMITED_API && __PYX_LIMITED_VERSION_HEX < 0x030A0000
+        if (!tp_new) {
+            PyObject *new_str = PyUnicode_FromString("__new__");
+            if (likely(new_str)) {
+                PyObject *o = PyObject_CallMethodObjArgs((PyObject *)&PyBaseObject_Type, new_str, t, NULL);
+                Py_DECREF(new_str);
+                return o;
+            } else
+                return NULL;
+        } else
+    #endif
+        return tp_new(t, EMPTY(tuple), 0);
+    }
+}
