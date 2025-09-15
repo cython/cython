@@ -6,6 +6,7 @@ import itertools
 from pathlib import Path
 import re
 import sys
+import datetime
 
 # -- Project information -----------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#project-information
@@ -21,6 +22,8 @@ imgmath_image_format = "svg"
 issues_github_path = "cython/cython"
 sphinx_tabs_disable_tab_closing = True
 root_doc = "index"
+
+YEAR = datetime.date.today().strftime("%Y")
 # Looking up the release/version
 try:
     _match_version = re.compile(r'^\s*_*version\s*_*\s*=\s*["\']([^"\']+)["\'].*').match
