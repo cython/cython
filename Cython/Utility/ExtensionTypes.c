@@ -872,14 +872,14 @@ static PyObject *__Pyx_AllocateExtensionType(PyTypeObject *t, int is_final) {
 #if CYTHON_USE_TYPE_SPECS
 // with CYTHON_USE_TYPE_SPECS we can only reasonably use freelists for an exact type match,
 // because it isn't easy to look up basicsize is the limited API, and because everything fails the heap-type check.
-#define __PYX_CHECK_FINAL_TYPE_FOR_FREELISTS(t, expected_tp, expected_size) (int)(t == expected_tp)
-#define __PYX_CHECK_TYPE_FOR_FREELIST_FLAGS Py_TPFLAGS_IS_ABSTRACT
+#define __PYX_CHECK_FINAL_TYPE_FOR_FREELISTS(t, expected_tp, expected_size) ((int) ((t) == (expected_tp)))
+#define __PYX_CHECK_TYPE_FOR_FREELIST_FLAGS  Py_TPFLAGS_IS_ABSTRACT
 #else
-#define __PYX_CHECK_FINAL_TYPE_FOR_FREELISTS(t, expected_tp, expected_size) (int)(t->tp_basicsize == expected_size)
-#define __PYX_CHECK_TYPE_FOR_FREELIST_FLAGS (Py_TPFLAGS_IS_ABSTRACT | Py_TPFLAGS_HEAPTYPE)
+#define __PYX_CHECK_FINAL_TYPE_FOR_FREELISTS(t, expected_tp, expected_size) ((int) ((t)->tp_basicsize == (expected_size)))
+#define __PYX_CHECK_TYPE_FOR_FREELIST_FLAGS  (Py_TPFLAGS_IS_ABSTRACT | Py_TPFLAGS_HEAPTYPE)
 #endif
 
 #define __PYX_CHECK_TYPE_FOR_FREELISTS(t, expected_tp, expected_size) \
-    __PYX_CHECK_FINAL_TYPE_FOR_FREELISTS(t, expected_tp, expected_size) & \
-    (int)(!__Pyx_PyType_HasFeature(t, __PYX_CHECK_TYPE_FOR_FREELIST_FLAGS))
+    (__PYX_CHECK_FINAL_TYPE_FOR_FREELISTS((t), (expected_tp), (expected_size)) & \
+     (int) (!__Pyx_PyType_HasFeature((t), __PYX_CHECK_TYPE_FOR_FREELIST_FLAGS)))
 #endif
