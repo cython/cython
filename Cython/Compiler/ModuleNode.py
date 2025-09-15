@@ -1540,7 +1540,6 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         else:
             freelist_check = '__PYX_CHECK_TYPE_FOR_FREELISTS'
         obj_struct = type.declaration_code("", deref=True)
-        freecount_name = code.name_in_slot_module_state(freecount_name)
         code.putln(f"if (likely((int)({freecount_name} {size_check}) &")
         typeptr_cname = code.name_in_slot_module_state(type.typeptr_cname)
         code.putln(
@@ -1615,11 +1614,13 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 code.globalstate.use_utility_code(
                     UtilityCode.load_cached("IncludeStringH", "StringTools.c"))
                 code.putln("#if CYTHON_USE_FREELISTS")
+                freecount_name = code.name_in_slot_module_state(freecount_name)
+                freelist_name = code.name_in_slot_module_state(freelist_name)
                 self.generate_freelist_condition(code, freecount_name, "> 0", "t", type)
                 code.putln("{")
                 code.putln("o = (PyObject*)%s[--%s];" % (
-                    code.name_in_slot_module_state(freelist_name),
-                    code.name_in_slot_module_state(freecount_name)))
+                    freelist_name,
+                    freecount_name))
                 obj_struct = type.declaration_code("", deref=True)
                 code.putln("#if CYTHON_USE_TYPE_SPECS")
                 # We still hold a reference to the type object held by the previous
@@ -1852,8 +1853,10 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         else:
             freelist_size = scope.directives.get('freelist', 0)
             if freelist_size:
-                freelist_name = scope.mangle_internal(Naming.freelist_name)
-                freecount_name = scope.mangle_internal(Naming.freecount_name)
+                freelist_name = code.name_in_slot_module_state( 
+                    scope.mangle_internal(Naming.freelist_name))
+                freecount_name = code.name_in_slot_module_state( 
+                    scope.mangle_internal(Naming.freecount_name))
 
                 type = scope.parent_type
                 code.putln("#if CYTHON_USE_FREELISTS")
@@ -1862,8 +1865,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                     "Py_TYPE(o)", type)
                 code.putln("{")
                 code.putln("%s[%s++] = %s;" % (
-                    code.name_in_slot_module_state(freelist_name),
-                    code.name_in_slot_module_state(freecount_name),
+                    freelist_name,
+                    freecount_name,
                     type.cast_code("o")))
                 # Deliberately don't DECREF the type object for objects returned to the freelist:
                 # we hold a reference to the type to allow them to be cleaned up properly.
