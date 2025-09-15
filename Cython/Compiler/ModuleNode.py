@@ -1532,7 +1532,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 type.empty_declaration_code()))
 
     @staticmethod
-    def generate_freelist_condition(code, freecount_name, size_check, type_cname, type):
+    def generate_freelist_condition(code, size_check, type_cname, type):
         code.globalstate.use_utility_code(
             UtilityCode.load_cached("CheckTypeForFreelists", "ExtensionTypes.c"))
         if type.is_final_type:
@@ -1540,10 +1540,9 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         else:
             freelist_check = '__PYX_CHECK_TYPE_FOR_FREELISTS'
         obj_struct = type.declaration_code("", deref=True)
-        code.putln(f"if (likely((int)({freecount_name} {size_check}) &")
         typeptr_cname = code.name_in_slot_module_state(type.typeptr_cname)
         code.putln(
-            f"{freelist_check}({type_cname}, {typeptr_cname}, sizeof({obj_struct}))))")
+            f"if (likely((int)({size_check}) & {freelist_check}({type_cname}, {typeptr_cname}, sizeof({obj_struct}))))")
 
     def generate_new_function(self, scope, code, cclass_entry):
         tp_slot = TypeSlots.ConstructorSlot("tp_new", "__cinit__")
@@ -1616,7 +1615,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 code.putln("#if CYTHON_USE_FREELISTS")
                 freecount_name = code.name_in_slot_module_state(freecount_name)
                 freelist_name = code.name_in_slot_module_state(freelist_name)
-                self.generate_freelist_condition(code, freecount_name, "> 0", "t", type)
+                self.generate_freelist_condition(code, f"{freecount_name} > 0", "t", type)
                 code.putln("{")
                 code.putln("o = (PyObject*)%s[--%s];" % (
                     freelist_name,
@@ -1861,7 +1860,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 type = scope.parent_type
                 code.putln("#if CYTHON_USE_FREELISTS")
                 self.generate_freelist_condition(
-                    code, freecount_name, f"< {freelist_size}",
+                    code, f"{freecount_name} < {freelist_size}",
                     "Py_TYPE(o)", type)
                 code.putln("{")
                 code.putln("%s[%s++] = %s;" % (
