@@ -30,7 +30,8 @@ cdef_bool_T227
 datetime_cimport
 datetime_pxd
 datetime_members
-run[.]exttype
+run[.]exttype$
+run[.]exttype_gc$
 isinstance
 pycontextvar
 run[.]pytype

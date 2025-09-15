@@ -29,7 +29,7 @@ Py_VISIT(traverse_module_state->__pyx__PyAsyncGenASendType);
 Py_VISIT(traverse_module_state->__pyx__PyAsyncGenAThrowType);
 Py_VISIT(traverse_module_state->__pyx_AsyncGenType);
 
-//////////////////// AsyncGenerator.module_state_traverse ////////////////////
+//////////////////// AsyncGenerator.module_state_clear ////////////////////
 
 Py_CLEAR(clear_module_state->__pyx__PyAsyncGenWrappedValueType);
 Py_CLEAR(clear_module_state->__pyx__PyAsyncGenASendType);
@@ -436,14 +436,14 @@ __Pyx_PyAsyncGen_ClearFreeLists(void)
     while (CGLOBAL(__Pyx_ag_value_freelist_free)) {
         __pyx__PyAsyncGenWrappedValue *o;
         o = CGLOBAL(__Pyx_ag_value_freelist)[--CGLOBAL(__Pyx_ag_value_freelist_free]);
-        assert(__pyx__PyAsyncGenWrappedValue_CheckExact(o));
+        assert(__pyx__PyAsyncGenWrappedValue_CheckExact((PyObject*)o));
         __Pyx_PyHeapTypeObject_GC_Del(o);
     }
 
     while (CGLOBAL(__Pyx_ag_asend_freelist_free)) {
         __pyx_PyAsyncGenASend *o;
         o = CGLOBAL(__Pyx_ag_asend_freelist)[--CGLOBAL(__Pyx_ag_asend_freelist_free)];
-        assert(__Pyx_IS_TYPE(o, CGLOBAL(__pyx__PyAsyncGenASendType)));
+        assert(__Pyx_IS_TYPE((PyObject*)o, CGLOBAL(__pyx__PyAsyncGenASendType)));
         __Pyx_PyHeapTypeObject_GC_Del(o);
     }
 
@@ -499,7 +499,7 @@ __Pyx_async_gen_asend_dealloc(__pyx_PyAsyncGenASend *o)
     Py_CLEAR(o->ags_sendval);
     #if CYTHON_USE_FREELISTS
     if (likely(CGLOBAL(__Pyx_ag_asend_freelist_free) < _PyAsyncGen_MAXFREELIST)) {
-        assert(__pyx_PyAsyncGenASend_CheckExact(o));
+        assert(__pyx_PyAsyncGenASend_CheckExact((PyObject*)o));
         CGLOBAL(__Pyx_ag_asend_freelist)[CGLOBAL(__Pyx_ag_asend_freelist_free)++] = o;
     } else
     #endif
@@ -640,7 +640,12 @@ __Pyx_async_gen_asend_new(__pyx_PyAsyncGenObject *gen, PyObject *sendval)
     if (likely(CGLOBAL(__Pyx_ag_asend_freelist_free))) {
         CGLOBAL(__Pyx_ag_asend_freelist_free)--;
         o = CGLOBAL(__Pyx_ag_asend_freelist)[CGLOBAL(__Pyx_ag_asend_freelist_free)];
+        #if CYTHON_COMPILING_IN_LIMITED_API
+        Py_DECREF(Py_TYPE((PyObject*)o)); // PyObject_Init resets and increfs the type
+        (void) PyObject_Init((PyObject *)o, CGLOBAL(__pyx__PyAsyncGenASendType));
+        #else
         _Py_NewReference((PyObject *)o);
+        #endif
     } else
     #endif
     {
@@ -673,7 +678,7 @@ __Pyx_async_gen_wrapped_val_dealloc(__pyx__PyAsyncGenWrappedValue *o)
     Py_CLEAR(o->agw_val);
     #if CYTHON_USE_FREELISTS
     if (likely(CGLOBAL(__Pyx_ag_value_freelist_free) < _PyAsyncGen_MAXFREELIST)) {
-        assert(__pyx__PyAsyncGenWrappedValue_CheckExact(o));
+        assert(__pyx__PyAsyncGenWrappedValue_CheckExact((PyObject*)o));
         CGLOBAL(__Pyx_ag_value_freelist)[CGLOBAL(__Pyx_ag_value_freelist_free)++] = o;
     } else
     #endif
@@ -725,8 +730,13 @@ __Pyx__PyAsyncGenValueWrapperNew(PyObject *val)
     if (likely(CGLOBAL(__Pyx_ag_value_freelist_free))) {
         CGLOBAL(__Pyx_ag_value_freelist_free)--;
         o = CGLOBAL(__Pyx_ag_value_freelist)[CGLOBAL(__Pyx_ag_value_freelist_free)];
-        assert(__pyx__PyAsyncGenWrappedValue_CheckExact(o));
+        assert(__pyx__PyAsyncGenWrappedValue_CheckExact((PyObject*)o));
+        #if CYTHON_COMPILING_IN_LIMITED_API
+        Py_DECREF(Py_TYPE((PyObject*)o)); // PyObject_Init resets and increfs the type
+        (void) PyObject_Init((PyObject*)o, CGLOBAL(__pyx__PyAsyncGenWrappedValueType));
+        #else
         _Py_NewReference((PyObject*)o);
+        #endif
     } else
     #endif
     {
