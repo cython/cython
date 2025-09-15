@@ -1852,9 +1852,9 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         else:
             freelist_size = scope.directives.get('freelist', 0)
             if freelist_size:
-                freelist_name = code.name_in_slot_module_state( 
+                freelist_name = code.name_in_slot_module_state(
                     scope.mangle_internal(Naming.freelist_name))
-                freecount_name = code.name_in_slot_module_state( 
+                freecount_name = code.name_in_slot_module_state(
                     scope.mangle_internal(Naming.freecount_name))
 
                 type = scope.parent_type
