@@ -1621,6 +1621,11 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                     code.name_in_slot_module_state(freelist_name),
                     code.name_in_slot_module_state(freecount_name)))
                 obj_struct = type.declaration_code("", deref=True)
+                code.putln("#if CYTHON_USE_TYPE_SPECS")
+                # We still hold a reference to the type object held by the previous
+                # user of the freelist object - release it.
+                code.putln("Py_DECREF(Py_TYPE(o));")
+                code.putln("#endif")
                 code.putln("memset(o, 0, sizeof(%s));" % obj_struct)
                 code.putln("#if CYTHON_COMPILING_IN_LIMITED_API")
                 # Although PyObject_INIT should be part of the Limited API, it causes
@@ -1860,17 +1865,24 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                     code.name_in_slot_module_state(freelist_name),
                     code.name_in_slot_module_state(freecount_name),
                     type.cast_code("o")))
+                # Deliberately don't DECREF the type object for objects returned to the freelist:
+                # we hold a reference to the type to allow them to be cleaned up properly.
                 code.putln("} else")
                 code.putln("#endif")
                 code.putln("{")
+            code.putln("PyTypeObject *tp = Py_TYPE(o);")
             code.putln("#if CYTHON_USE_TYPE_SLOTS")
             # Asking for PyType_GetSlot(..., Py_tp_free) seems to cause an error in pypy
-            code.putln("(*Py_TYPE(o)->tp_free)(o);")
+            code.putln("(*tp->tp_free)(o);")
             code.putln("#else")
             code.putln("{")
-            code.putln("freefunc tp_free = (freefunc)PyType_GetSlot(Py_TYPE(o), Py_tp_free);")
+            code.putln("freefunc tp_free = (freefunc)PyType_GetSlot(tp, Py_tp_free);")
             code.putln("if (tp_free) tp_free(o);")
             code.putln("}")
+            code.putln("#endif")
+            code.putln("#if CYTHON_USE_TYPE_SPECS")
+            # Undo the INCREF of the type object in tp_new
+            code.putln("Py_DECREF(tp);")
             code.putln("#endif")
             if freelist_size:
                 code.putln("}")
@@ -3404,12 +3416,17 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 code.putln("while (%s > 0) {" % freecount_name)
                 code.putln("PyObject* o = (PyObject*)%s[--%s];" % (
                     freelist_name, freecount_name))
+                code.putln("PyTypeObject *tp = Py_TYPE(o);")
                 code.putln("#if CYTHON_USE_TYPE_SLOTS")
-                code.putln("(*Py_TYPE(o)->tp_free)(o);")
+                code.putln("(*tp->tp_free)(o);")
                 code.putln("#else")
                 # Asking for PyType_GetSlot(..., Py_tp_free) seems to cause an error in pypy
-                code.putln("freefunc tp_free = (freefunc)PyType_GetSlot(Py_TYPE(o), Py_tp_free);")
+                code.putln("freefunc tp_free = (freefunc)PyType_GetSlot(tp, Py_tp_free);")
                 code.putln("if (tp_free) tp_free(o);")
+                code.putln("#endif")
+                code.putln("#if CYTHON_USE_TYPE_SPECS")
+                # Release the reference that "o" owned for its type.
+                code.putln("Py_DECREF(tp);")
                 code.putln("#endif")
                 code.putln("}")
                 code.putln('#endif')  # CYTHON_USE_FREELISTS
