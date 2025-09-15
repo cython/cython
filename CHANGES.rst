@@ -21,6 +21,13 @@ Features added
 * The runtime Python dispatch for fused functions is substantially faster.
   (Github issues :issue:`1385`, :issue:`6996`)
 
+* Freelists for internally used types (e.g. for ``async``) are now also used
+  in the Limited API and with type specs enabled.
+  (Github issue :issue:`7151`)
+
+* Module imports now quickly check for an already imported module to speed up reimports.
+  Patch by Lysandros Nikolaou.  (Github issue :issue:`7035`)
+
 * Type checks on PEP-604 union types (`int | None`) are optimised into separate checks.
   (Github issue :issue:`6935`)
 
@@ -46,8 +53,12 @@ Features added
 * Unused exceptions in ``except`` clauses are detected in some more cases to avoid their normalisation.
   (Github issue :issue:`7021`)
 
+* Some object onstants are now marked as ``immortal`` to speed up their reference counting
+  in recent CPython versions.  This can be configured with the ``CYTHON_IMMORTAL_CONSTANTS`` C macro.
+  (Github issue :issue:`7118`)
+
 * Several improvements were made in freethreaded Python code.
-  (Github issues :issue:`6936`, :issue:`6939`, :issue:`6949`, :issue:`6984`, :issue:`7011`)
+  (Github issues :issue:`6936`, :issue:`6939`, :issue:`6949`, :issue:`6984`, :issue:`7011`, :issue:`7114`)
 
 * Several improvements were made for the Limited API.
   (Github issues :issue:`6959`, :issue:`6991`)
@@ -66,9 +77,6 @@ Features added
   (Github issues :issue:`6900`, :issue:`6903`)
 
 * Declarations for C++ condition variables were added.
-  (Github issue :issue:`6836`)
-
-* Declarations for the new ``PyUnstable_*()`` refcounting C-API functions in Py3.14 were added.
   (Github issue :issue:`6836`)
 
 * Several improvements were made for the GraalPython support.
@@ -98,8 +106,14 @@ Bugs fixed
 * Type casts on constants as part of numeric expressions could crash Cython.
   (Github issue :issue:`6779`)
 
+* Long code bodies in ``with`` statements could crash Cython.
+  (Github issue :issue:`7122`)
+
 * Indexing ``bytes`` failed to optimise in some cases.
   (Github issue :issue:`6997`)
+
+* The type objects of heap types were not always correctly decrefed on deallocation.
+  (Github issue :issue:`7145`)
 
 * Pure mode type aliases like ``p_int`` or ``ulong`` leaked into some C type contexts,
   risking to conflict with user declarations.
@@ -124,7 +138,7 @@ Bugs fixed
   in their shebang line.
   Patch by Matti Picus.  (Github issue :issue:`7053`)
 
-* Includes all fixes as of Cython 3.1.3.
+* Includes all fixes as of Cython 3.1.4.
 
 
 3.1.4 (2025-??-??)
