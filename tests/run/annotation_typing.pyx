@@ -561,6 +561,13 @@ _WARNINGS = """
 368:15: Annotation ignored since class-level attributes must be Python objects. Were you trying to set up an instance attribute?
 459:32: Unknown type declaration in annotation, ignoring
 459:69: Unknown type declaration in annotation, ignoring
+511:20: Unknown type declaration in annotation, ignoring
+511:20: Unknown type declaration in annotation, ignoring
+511:29: Unknown type declaration in annotation, ignoring
+530:22: Unknown type declaration in annotation, ignoring
+530:31: Unknown type declaration in annotation, ignoring
+533:24: Unknown type declaration in annotation, ignoring
+533:33: Unknown type declaration in annotation, ignoring
 # DUPLICATE:
 75:44: Found C type name 'long' in a Python annotation. Did you mean to use 'cython.long'?
 75:44: Unknown type declaration 'long' in annotation, ignoring
@@ -572,11 +579,4 @@ _WARNINGS = """
 272:0: 'exception_default_uint' redeclared
 502:0: 'unknown_pyclass' redeclared
 510:0: 'none_as_type' redeclared
-511:20: Unknown type declaration in annotation, ignoring
-511:20: Unknown type declaration in annotation, ignoring
-511:29: Unknown type declaration in annotation, ignoring
-530:22: Unknown type declaration in annotation, ignoring
-530:31: Unknown type declaration in annotation, ignoring
-533:24: Unknown type declaration in annotation, ignoring
-533:33: Unknown type declaration in annotation, ignoring
 """
