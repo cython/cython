@@ -46,35 +46,41 @@ class MatchNode(StatNode):
         self.subject = ProxyNode(self.subject)
         subject = self.subject_clonenode = CloneNode(self.subject)
         current_if_statement = None
-        for n, c in enumerate(self.cases + [None]):  # The None is dummy at the end
-            if c is not None and c.is_simple_value_comparison():
+        new_cases = []
+        for c in self.cases:
+            if c.is_simple_value_comparison():
                 if_clause = Nodes.IfClauseNode(
                     c.pos,
                     condition=c.pattern.get_simple_comparison_node(subject),
                     body=c.body,
                 )
+                new_assignment_stats = []
                 for t in c.pattern.get_targets():
                     # generate an assignment at the start of the body
-                    if_clause.body.stats.insert(
-                        0,
+                    new_assignment_stats.append(
                         Nodes.SingleAssignmentNode(
                             c.pos, lhs=NameNode(c.pos, name=t), rhs=subject
-                        ),
-                    )
+                        ))
+                if_clause.body.stats = new_assignment_stats + if_clause.body.stats
                 if current_if_statement is None:
                     current_if_statement = Nodes.IfStatNode(
                         c.pos, if_clauses=[], else_clause=None
                     )
                 current_if_statement.if_clauses.append(if_clause)
-                self.cases[n] = None  # remove case
-            elif current_if_statement:
-                # this cannot be simplified, but previous case(s) were
-                self.cases[n - 1] = SubstitutedMatchCaseNode(
-                    current_if_statement.pos, body=current_if_statement
-                )
-                current_if_statement = None
-        # eliminate optimized cases
-        self.cases = [c for c in self.cases if c is not None]
+            else:
+                if current_if_statement:
+                    # this cannot be simplified, but previous case(s) were
+                    new_cases.append(SubstitutedMatchCaseNode(
+                        current_if_statement.pos, body=current_if_statement
+                    ))
+                    current_if_statement = None
+                new_cases.append(c)
+        if current_if_statement:
+            # this cannot be simplified, but previous case(s) were
+            new_cases.append(SubstitutedMatchCaseNode(
+                current_if_statement.pos, body=current_if_statement
+            ))
+        self.cases = new_cases
 
     def analyse_declarations(self, env):
         self.subject.analyse_declarations(env)
