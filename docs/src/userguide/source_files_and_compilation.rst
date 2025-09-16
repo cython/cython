@@ -1056,6 +1056,14 @@ Cython code.  Here is the list of currently supported directives:
 
 ``profile`` (True / False), *default=False*
     Write hooks for Python profilers into the compiled C code.
+    Whether the generated module actually uses profiling depends on
+    the value of the C macro ``CYTHON_PROFILE`` which is ``1`` by
+    default but which you can optionally set to ``0`` to turn off the
+    profiling code at C compile-time.  Define ``CYTHON_USE_SYS_MONITORING``
+    to either 1 or 0 to control the mechanism used to implement profiling
+    on Python 3.13 and above.  Note that neither ``profile``
+    nor ``linetrace`` work with any tool that uses ``sys.monitoring``
+    on Python 3.12.
 
 ``linetrace`` (True / False), *default=False*
     Write line tracing hooks for Python profilers or coverage reporting
@@ -1108,7 +1116,7 @@ Cython code.  Here is the list of currently supported directives:
     the cache is enabled for Cython implemented types.  To disable it
     explicitly in the rare cases where a type needs to juggle with its ``tp_dict``
     internally without paying attention to cache consistency, this option can
-    be set to False.
+    be set to False.  Note that this no longer applies to Python 3.11 and later.
 
 ``unraisable_tracebacks`` (True / False), *default=False*
     Whether to print tracebacks when suppressing unraisable exceptions.
@@ -1364,6 +1372,8 @@ most important to least important:
 ``CYTHON_PROFILE``, ``CYTHON_TRACE``, ``CYTHON_TRACE_NOGIL``
     These control the inclusion of profiling and line tracing calls in the module.
     See the ``profile`` and ``linetrace`` :ref:`compiler-directives`.
+    ``CYTHON_PROFILE`` is on by default; the ``CYTHON_TRACE`` macros are
+    off by default.
 
 ``CYTHON_USE_SYS_MONITORING``
     On Python 3.13+ this selects the new `sys.monitoring <https://docs.python.org/3/library/sys.monitoring.html>`_
@@ -1396,6 +1406,13 @@ most important to least important:
     ``compression.zstd`` can be selected with ``CYTHON_COMPRESS_STRINGS=3`` but is only
     available in the standard library in Python 3.14 and later.  Cython will then
     fall back to ``zlib`` when compiling in older Python versions.
+
+``CYTHON_IMMORTAL_CONSTANTS``
+    Makes cached constants (e.g. strings, tuples, ints, floats, slices) immortal,
+    in Python versions that support immortality. This is most useful when
+    the constants are used in many different threads because it avoids most writes
+    to the constants due to reference counting. Disabled by default, but enabled
+    in free-threaded builds.
 
 There is a further list of macros which turn off various optimizations or language
 features.  Under normal circumstance Cython enables these automatically based on the

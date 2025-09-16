@@ -1,0 +1,3 @@
+# MSVC compiler bug about large numbers of variadic arguments
+run[.]test_unicode
+run[.]pyint

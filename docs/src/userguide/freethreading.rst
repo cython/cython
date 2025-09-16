@@ -70,7 +70,9 @@ syntax::
     with cython.critical_section(o):
       ...
 
-Critical sections can take one or two Python objects as arguments.  You are required to
+Critical sections can take either one or two Python objects as arguments, or take one or
+two ``cython.pymutex`` arguments (for convenience you can pass either the mutexes or
+pointers to the mutexes).  You are required to
 hold the GIL on entry to a critical section (you can release the GIL inside the critical
 section but that also temporarily releases the critical section so is unlikely to be
 a useful thing to do).
@@ -413,10 +415,12 @@ the language standard libraries for more options.
 In addition to the plain standard library features, Cython (3.2) also produces "py_safe" versions
 of some of these features (e.g. ``call_once``, mutex ``lock``).  
 These ensure that the Python thread-state is released (if held) while blocking and then restored
-to its initial state after the call. The C++ version of ``py_safe_call_once`` also allows you to
-pass a Python callable.  Using the "py_safe" versions may be useful even in a function labelled
+to its initial state after the call.  The "py_safe" functions are only effective if you use
+them consistently every time you try to acquire the lock while you might be holding the Python
+thread-state.  This means you should use the "py_safe" versions even in a function labelled
 as ``nogil`` - remember that this says that a function *may* be called without an attached
-Python thread-state rather than ensuring that it definitely is. Therefore, avoiding deadlocks is still useful.
+Python thread-state rather than ensuring that it definitely is.
+The C++ version of ``py_safe_call_once`` also allows you to pass a Python callable.
 
 ``cython.critical_section`` vs GIL
 ----------------------------------

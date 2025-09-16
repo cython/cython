@@ -140,6 +140,24 @@ class CheckAnalysers(type):
         return super().__new__(cls, name, bases, attrs)
 
 
+class CopyWithUpTreeRefsMixin:
+    def __deepcopy__(self, memo):
+        # Any references to objects further up the tree should not be deep-copied.
+        # However, if they're in memo (because they've already been deep-copied because
+        # we're copying from far enough up the tree) then they should be replaced
+        # with the memorised value.
+
+        cls = self.__class__
+        result = cls.__new__(cls)
+        for k, v in self.__dict__.items():
+            if k in self.uptree_ref_attrs:
+                # Note that memo being keyed by "id" is a bit of an implementation detail;
+                # the documentation says to treat it as opaque.
+                v = memo.get(id(v), v)
+            setattr(result, k, v)
+        return result
+
+
 def _with_metaclass(cls):
     if DebugFlags.debug_trace_code_generation:
         return add_metaclass(VerboseCodeWriter)(cls)
@@ -316,10 +334,11 @@ class Node:
         current = lines[-1]
         if mark_column:
             current = current[:col] + marker + current[col:]
-        lines[-1] = current.rstrip() + '             # <<<<<<<<<<<<<<\n'
+        lines[-1] = current.rstrip() + '             # <<<<<<<<<<<<<<'
         lines += contents[line:line+2]
-        return '"%s":%d:%d\n%s\n' % (
-            source_desc.get_escaped_description(), line, col, ''.join(lines))
+
+        code = '\n'.join(lines)
+        return f'"{source_desc.get_escaped_description()}":{line:d}:{col:d}\n{code}\n'
 
 
 class CompilerDirectivesNode(Node):
@@ -4008,7 +4027,7 @@ class DefNodeWrapper(FuncDefNode):
                 Naming.args_cname,
                 code.unlikely("%s < 0" % Naming.nargs_cname),
                 self.error_value(),
-             ))
+            ))
             code.putln("#endif")
             if self.signature.use_fastcall:
                 code.putln("#endif")
@@ -4658,34 +4677,18 @@ class DefNodeWrapper(FuncDefNode):
 
         if self.target.entry.is_special:
             for n in reversed(range(len(self.args), self.signature.max_num_fixed_args())):
-                # for special functions with optional args (e.g. power which can
+                # For special functions with optional args (e.g. power which can
                 # take 2 or 3 args), unused args are None since this is what the
-                # compilers sets
-                if self.target.entry.name == "__ipow__":
-                    # Bug in Python < 3.8 - __ipow__ is used as a binary function
-                    # and attempts to access the third argument will always fail
-                    code.putln("#if PY_VERSION_HEX >= 0x03080000")
-                code.putln("if (unlikely(unused_arg_%s != Py_None)) {" % n)
+                # compilers sets. This is probably not more than one argument.
+                code.putln(f"if (unlikely(unused_arg_{n:d} != Py_None)) {{")
                 code.putln(
-                    'PyErr_SetString(PyExc_TypeError, '
-                    '"%s() takes %s arguments but %s were given");' % (
-                        self.target.entry.qualified_name, self.signature.max_num_fixed_args(), n))
-                code.putln("%s;" % code.error_goto(self.pos))
+                    'PyErr_Format(PyExc_TypeError, "%.200s() takes %zd arguments but %zd were given",'
+                    f' (const char*) {self.target.entry.qualified_name.as_c_string_literal()},'
+                    f' (Py_ssize_t) {self.signature.max_num_fixed_args()},'
+                    f' (Py_ssize_t) {n:d}'
+                    f'); {code.error_goto(self.pos)}'
+                )
                 code.putln("}")
-                if self.target.entry.name == "__ipow__":
-                    code.putln("#endif /*PY_VERSION_HEX >= 0x03080000*/")
-            if self.target.entry.name == "__ipow__" and len(self.args) != 2:
-                # It's basically impossible to safely support it:
-                # Class().__ipow__(1) is guaranteed to crash.
-                # Therefore, raise an error.
-                # Use "if" instead of "#if" to avoid warnings about unused variables
-                code.putln("if ((PY_VERSION_HEX < 0x03080000)) {")
-                code.putln(
-                    'PyErr_SetString(PyExc_NotImplementedError, '
-                    '"3-argument %s cannot be used in Python<3.8");' % (
-                        self.target.entry.qualified_name))
-                code.putln("%s;" % code.error_goto(self.pos))
-                code.putln('}')
 
     def error_value(self):
         return self.signature.error_value
@@ -5860,6 +5863,7 @@ class CClassDefNode(ClassDefNode):
                 UtilityCode.load_cached('PyType_Ready', 'ExtensionTypes.c'))
             code.put_error_if_neg(entry.pos, "__Pyx_PyType_Ready(%s)" % typeptr_cname)
             code.putln("#endif")
+            code.put_make_object_deferred(f"(PyObject*){typeptr_cname}")
 
             # Use specialised attribute lookup for types with generic lookup but no instance dict.
             getattr_slot_func = TypeSlots.get_slot_code_by_name(scope, 'tp_getattro')
@@ -8963,7 +8967,7 @@ class CriticalSectionStatNode(TryFinallyStatNode):
     Represents a freethreading Python critical section.
     In non-freethreading Python, this is a no-op.
 
-    args    list of ExprNode    1 or 2 elements, must be object
+    args    list of ExprNode    1 or 2 elements, must be object, pymutex or pymutex*
     """
 
     child_attrs = ["args"] + TryFinallyStatNode.child_attrs
@@ -8971,6 +8975,7 @@ class CriticalSectionStatNode(TryFinallyStatNode):
     var_type = None
     state_temp = None
     preserve_exception = False
+    is_pymutex_critical_section = False
 
     def __init__(self, pos, /, args, body, **kwds):
         if len(args) > 1:
@@ -8980,12 +8985,14 @@ class CriticalSectionStatNode(TryFinallyStatNode):
 
         self.create_state_temp_if_needed(pos, body)
 
+        self.length_tag = str(len(args)) if len(args) > 1 else ""
+
         super().__init__(
             pos,
             args=args,
             body=body,
             finally_clause=CriticalSectionExitNode(
-                pos, len=len(args), critical_section=self),
+                pos, length_tag=self.length_tag, critical_section=self),
             **kwds,
         )
 
@@ -9005,27 +9012,45 @@ class CriticalSectionStatNode(TryFinallyStatNode):
         return super().analyse_declarations(env)
 
     def analyse_expressions(self, env):
+        mutex_count = 0
         for i, arg in enumerate(self.args):
-            # Coerce to temp because it's a bit of a disaster if the argument is destroyed
-            # while we're working on it, and the Python critical section implementation
-            # doesn't ensure this.
-            # TODO - we could potentially be a bit smarter about this, and avoid
-            # it for local variables that we know are never re-assigned.
-            arg = arg.analyse_expressions(env).coerce_to_temp(env)
-            # Note - deliberately no coercion to Python object.
-            # Critical sections only really make sense on a specific known Python object,
-            # so using them on coerced Python objects is very unlikely to make sense.
-            if not arg.type.is_pyobject:
+            arg = arg.analyse_expressions(env)
+            if (arg.type is PyrexTypes.cy_pymutex_type or (
+                    arg.type.is_ptr and arg.type.base_type is PyrexTypes.cy_pymutex_type)):
+                mutex_count += 1
+                self.is_pymutex_critical_section = True
+            elif arg.type.is_pyobject:
+                # Coerce to temp because it's a bit of a disaster if the argument is destroyed
+                # while we're working on it, and the Python critical section implementation
+                # doesn't ensure this.
+                # TODO - we could potentially be a bit smarter about this, and avoid
+                # it for local variables that we know are never re-assigned.
+                arg = arg.coerce_to_temp(env)
+            else:
+                # Note - deliberately no coercion to Python object.
+                # Critical sections only really make sense on a specific known Python object,
+                # so using them on coerced Python objects is very unlikely to make sense.
                 error(
                     arg.pos,
-                    "Arguments to cython.critical_section must be Python objects."
+                    "Arguments to cython.critical_section must be Python objects, pymutex, or pymutex*."
                 )
             self.args[i] = arg
+        if mutex_count != 0 and mutex_count != len(self.args):
+            error(
+                self.pos,
+                "Arguments to cython.critical_section must not mix objects and pymutexes."
+            )
         return super().analyse_expressions(env)
 
     def generate_execution_code(self, code):
-        code.globalstate.use_utility_code(
-            UtilityCode.load_cached("CriticalSections", "ModuleSetupCode.c"))
+        if self.is_pymutex_critical_section:
+            code.globalstate.use_utility_code(
+                UtilityCode.load_cached("CriticalSectionsMutex", "Synchronization.c"))
+            mutex = "Mutex"
+        else:
+            code.globalstate.use_utility_code(
+                UtilityCode.load_cached("CriticalSections", "Synchronization.c"))
+            mutex = ""
 
         code.mark_pos(self.pos)
         code.begin_block()
@@ -9038,9 +9063,12 @@ class CriticalSectionStatNode(TryFinallyStatNode):
 
         for arg in self.args:
             arg.generate_evaluation_code(code)
-        args = [ f"(PyObject*){arg.result()}" for arg in self.args ]
+        if self.is_pymutex_critical_section:
+            args = [ f"{'' if arg.type.is_ptr else '&'}{arg.result()}" for arg in self.args ]
+        else:
+            args = [ f"(PyObject*){arg.result()}" for arg in self.args ]
         code.putln(
-            f"__Pyx_PyCriticalSection_Begin{len(args)}(&{variable}, {', '.join(args)});"
+            f"__Pyx_PyCriticalSection{self.length_tag}_Begin{mutex}(&{variable}, {', '.join(args)});"
         )
 
         TryFinallyStatNode.generate_execution_code(self, code)
@@ -9058,18 +9086,12 @@ class CriticalSectionStatNode(TryFinallyStatNode):
         error(self.pos, "Critical sections require the GIL")
 
 
-class CriticalSectionExitNode(StatNode):
+class CriticalSectionExitNode(StatNode, CopyWithUpTreeRefsMixin):
     """
     critical_section - the CriticalSectionStatNode that owns this
     """
     child_attrs = []
-
-    def __deepcopy__(self, memo):
-        # This gets deepcopied when generating finally_clause and
-        # finally_except_clause. In this case the node has essentially
-        # no state, except for a reference to its parent.
-        # We definitely don't want to let that reference be copied.
-        return self
+    uptree_ref_attrs = ["critical_section"]
 
     def analyse_expressions(self, env):
         return self
@@ -9079,8 +9101,9 @@ class CriticalSectionExitNode(StatNode):
             variable_name = self.critical_section.state_temp.result()
         else:
             variable_name =  Naming.critical_section_variable
+
         code.putln(
-            f"__Pyx_PyCriticalSection_End{self.len}(&{variable_name});"
+            f"__Pyx_PyCriticalSection{self.length_tag}_End(&{variable_name});"
         )
 
 class CythonLockStatNode(TryFinallyStatNode):
@@ -9145,14 +9168,6 @@ class CythonLockStatNode(TryFinallyStatNode):
         body = self.body
         if isinstance(body, StatListNode) and len(body.stats) >= 1:
             body = body.stats[0]
-        if isinstance(body, GILStatNode) and body.state == "gil":
-            # Only warn about the initial and most obvious mistake (directly nesting the loops)
-            type_name = self.arg.type.empty_declaration_code(pyrex=True).strip()
-            warning(
-                body.pos,
-                f"Acquiring the GIL inside a {type_name} lock. "
-                "To avoid potential deadlocks acquire the GIL first.",
-                2)
         return super().analyse_expressions(env)
 
     def generate_execution_code(self, code):
@@ -9184,11 +9199,12 @@ class CythonLockStatNode(TryFinallyStatNode):
         code.end_block()
 
 
-class CythonLockExitNode(StatNode):
+class CythonLockExitNode(StatNode, CopyWithUpTreeRefsMixin):
     """
     lock_stat_node   CythonLockStatNode   the associated with block
     """
     child_attrs = []
+    uptree_ref_attrs = ["lock_stat_node"]
 
     def analyse_expressions(self, env):
         return self
@@ -9231,10 +9247,9 @@ def cimport_numpy_check(node, code):
                 warning(node.pos, "'numpy.import_array()' has been added automatically "
                         "since 'numpy' was cimported but 'numpy.import_array' was not called.", 0)
                 code.globalstate.use_utility_code(
-                         UtilityCode.load_cached("NumpyImportArray", "NumpyImportArray.c")
-                    )
+                    UtilityCode.load_cached("NumpyImportArray", "NumpyImportArray.c")
+                )
                 return  # no need to continue once the utility code is added
-
 
 
 class CImportStatNode(StatNode):
@@ -9836,7 +9851,7 @@ class ParallelStatNode(StatNode, ParallelNode):
                     c.globalstate.use_utility_code(
                         UtilityCode.load_cached(
                             "SharedInFreeThreading",
-                            "ModuleSetupCode.c"))
+                            "Synchronization.c"))
                     c.put(f" __Pyx_shared_in_cpython_freethreading({Naming.parallel_freethreading_mutex})")
                     c.put(" private(%s, %s, %s)" % self.pos_info)
 
