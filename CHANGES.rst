@@ -21,8 +21,8 @@ Features added
 * The runtime Python dispatch for fused functions is substantially faster.
   (Github issues :issue:`1385`, :issue:`6996`)
 
-* Freelists for internally used types (e.g. for ``async``) are now also used
-  in the Limited API and with type specs enabled.
+* Freelists (via cdef class decorator and for internally used types such as ``async``)
+  are now also used in the Limited API and with extension type specs enabled.
   (Github issue :issue:`7151`)
 
 * Module imports now quickly check for an already imported module to speed up reimports.
@@ -53,7 +53,7 @@ Features added
 * Unused exceptions in ``except`` clauses are detected in some more cases to avoid their normalisation.
   (Github issue :issue:`7021`)
 
-* Some object onstants are now marked as ``immortal`` to speed up their reference counting
+* Some object constants are now marked as ``immortal`` to speed up their reference counting
   in recent CPython versions.  This can be configured with the ``CYTHON_IMMORTAL_CONSTANTS`` C macro.
   (Github issue :issue:`7118`)
 
