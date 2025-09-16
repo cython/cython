@@ -552,9 +552,12 @@ class TypeFlagsSlot(SlotDescriptor):
 
     def slot_code(self, scope):
         value = "Py_TPFLAGS_DEFAULT"
-        if not scope.directives['type_version_tag']:
-            # Remove flag from 'Py_TPFLAGS_DEFAULT'.
-            value = f"({value}&~Py_TPFLAGS_HAVE_VERSION_TAG)"
+        if scope.directives['type_version_tag']:
+            # it's not in 'Py_TPFLAGS_DEFAULT' in Py2
+            value += "|Py_TPFLAGS_HAVE_VERSION_TAG"
+        else:
+            # it's enabled in 'Py_TPFLAGS_DEFAULT' in Py3
+            value = "(%s&~Py_TPFLAGS_HAVE_VERSION_TAG)" % value
         value += "|Py_TPFLAGS_CHECKTYPES|Py_TPFLAGS_HAVE_NEWBUFFER"
         if not scope.parent_type.is_final_type:
             value += "|Py_TPFLAGS_BASETYPE"
