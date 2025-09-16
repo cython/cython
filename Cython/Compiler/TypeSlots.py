@@ -563,8 +563,6 @@ class TypeFlagsSlot(SlotDescriptor):
             value += "|Py_TPFLAGS_BASETYPE"
         if scope.needs_gc():
             value += "|Py_TPFLAGS_HAVE_GC"
-        if scope.may_have_finalize():
-            value += "|Py_TPFLAGS_HAVE_FINALIZE"
         if scope.parent_type.has_sequence_flag:
             value += "|Py_TPFLAGS_SEQUENCE"
         return value
