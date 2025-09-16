@@ -141,7 +141,7 @@ Bugs fixed
 * Includes all fixes as of Cython 3.1.4.
 
 
-3.1.4 (2025-??-??)
+3.1.4 (2025-09-16)
 ==================
 
 Features added
