@@ -414,7 +414,7 @@ cdef extern from "Python.h":
     const long Py_TPFLAGS_HAVE_GC
     const long Py_TPFLAGS_HAVE_STACKLESS_EXTENSION
     const long Py_TPFLAGS_HAVE_INDEX
-    const long Py_TPFLAGS_HAVE_VERSION_TAG
+    const long Py_TPFLAGS_HAVE_VERSION_TAG  # unused since Py3.11
     const long Py_TPFLAGS_VALID_VERSION_TAG
     const long Py_TPFLAGS_IS_ABSTRACT
     const long Py_TPFLAGS_HAVE_NEWBUFFER
