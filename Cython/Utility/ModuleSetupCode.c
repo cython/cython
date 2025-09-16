@@ -261,8 +261,9 @@
   #ifndef CYTHON_UPDATE_DESCRIPTOR_DOC
     #define CYTHON_UPDATE_DESCRIPTOR_DOC 0
   #endif
-  #undef CYTHON_USE_FREELISTS
-  #define CYTHON_USE_FREELISTS 0
+  #ifndef CYTHON_USE_FREELISTS
+  #define CYTHON_USE_FREELISTS 1
+  #endif
   #undef CYTHON_IMMORTAL_CONSTANTS
   #define CYTHON_IMMORTAL_CONSTANTS 0
 
@@ -2498,7 +2499,7 @@ static PyObject* __Pyx_PyCode_New(
         PyCode_NewWithPosOnlyArgs
       #endif
         (a, p, k, l, s, f, code, c, n, v, fv, cell, fn, name, name, fline, lnos, EMPTY(bytes));
-  
+
     #if CYTHON_COMPILING_IN_CPYTHON && PY_VERSION_HEX >= 0x030c00A1
     if (likely(result))
         result->_co_firsttraceable = 0;

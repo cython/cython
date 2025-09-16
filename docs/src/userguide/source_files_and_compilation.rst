@@ -1116,7 +1116,7 @@ Cython code.  Here is the list of currently supported directives:
     the cache is enabled for Cython implemented types.  To disable it
     explicitly in the rare cases where a type needs to juggle with its ``tp_dict``
     internally without paying attention to cache consistency, this option can
-    be set to False.
+    be set to False.  Note that this no longer applies to Python 3.11 and later.
 
 ``unraisable_tracebacks`` (True / False), *default=False*
     Whether to print tracebacks when suppressing unraisable exceptions.
