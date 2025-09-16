@@ -16,7 +16,7 @@ test_coroutines_pep492
 coverage
 line_profile_test
 cdef_multiple_inheritance_errors
-cline_in_traceback
+pythran
 
 # cimport cpython
 clone
@@ -30,7 +30,8 @@ cdef_bool_T227
 datetime_cimport
 datetime_pxd
 datetime_members
-run[.]exttype
+run[.]exttype$
+run[.]exttype_gc$
 isinstance
 pycontextvar
 run[.]pytype
@@ -39,17 +40,6 @@ pyclass_special_methods
 time_pxd
 array_cimport
 builtin_pycomplex
-
-# Relies on Numpy being OK in the Limited API (which is version-dependent)
-# TODO - these can be re-enabled later as we update test dependencies.
-complex_extern_GH1433
-extension_type_memoryview
-numpy_memoryview
-memoryviewattrs
-convolve2
-memoryview_shared_utility
-run[.]numpy
-run[.]ufunc
 
 # example in docs that use features unavailable in the limited API
 # (and it's a decision for the docs writers rather than a limitation
@@ -100,6 +90,3 @@ yield_from_pep380
 
 # Not actually a bug - the test is to ensure that some code is included that blocks compilation on the Limited API
 e_limited_lock$
-
-# Excluded for now - to be enabled incrementally
-buffers[.]

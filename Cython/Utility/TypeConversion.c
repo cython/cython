@@ -426,13 +426,118 @@ static CYTHON_INLINE PyObject *__Pyx_Owned_Py_None(int b) {
 }
 
 static CYTHON_INLINE PyObject * __Pyx_PyBool_FromLong(long b) {
-  return b ? __Pyx_NewRef(Py_True) : __Pyx_NewRef(Py_False);
+  return __Pyx_NewRef(b ? Py_True: Py_False);
 }
 
 
 static CYTHON_INLINE PyObject * __Pyx_PyLong_FromSize_t(size_t ival) {
     return PyLong_FromSize_t(ival);
 }
+
+
+/////////////// pybuiltin_invalid ///////////////
+
+static void __Pyx_PyBuiltin_Invalid(PyObject *obj, const char *type_name, const char *argname) {
+    __Pyx_TypeName obj_type_name = __Pyx_PyType_GetFullyQualifiedName(Py_TYPE(obj));
+    if (argname) {
+        PyErr_Format(PyExc_TypeError,
+            "Argument '%.200s' has incorrect type (expected %.200s, got " __Pyx_FMT_TYPENAME ")",
+            argname, type_name, obj_type_name
+        );
+    } else {
+        PyErr_Format(PyExc_TypeError,
+            "Expected %.200s, got " __Pyx_FMT_TYPENAME,
+            type_name, obj_type_name
+        );
+    }
+    __Pyx_DECREF_TypeName(obj_type_name);
+}
+
+
+/////////////// pyfloat_simplify.proto ///////////////
+
+static CYTHON_INLINE int __Pyx_PyFloat_FromNumber(PyObject **number_var, const char *argname, int accept_none); /*proto*/
+
+/////////////// pyfloat_simplify ///////////////
+//@requires: pybuiltin_invalid
+
+static CYTHON_INLINE int __Pyx_PyFloat_FromNumber(PyObject **number_var, const char *argname, int accept_none) {
+    // Convert any float-compatible Python number object into a Python float.
+    // NOTE: This function decrefs 'number' if a conversion happens to replace the original object.
+    PyObject *number = *number_var;
+    if (likely((accept_none && number == Py_None) || PyFloat_CheckExact(number))) {
+        return 0;
+    }
+
+    PyObject *float_object;
+    if (likely(PyLong_CheckExact(number))) {
+        double val;
+#if CYTHON_USE_PYLONG_INTERNALS
+        if (likely(__Pyx_PyLong_IsCompact(number))) {
+            val = (double) __Pyx_PyLong_CompactValue(number);
+        } else
+#endif
+        {
+            val = PyLong_AsDouble(number);
+            if (unlikely(val == -1.0 && PyErr_Occurred())) goto bad;
+        }
+        float_object = PyFloat_FromDouble(val);
+    }
+    else if (PyNumber_Check(number)) {
+        // PyNumber_Float() also parses strings, which we must reject.
+        float_object = PyNumber_Float(number);
+    } else {
+        __Pyx_PyBuiltin_Invalid(number, "float", argname);
+        goto bad;
+    }
+    if (unlikely(!float_object)) goto bad;
+
+    *number_var = float_object;
+    Py_DECREF(number);
+    return 0;
+
+bad:
+    *number_var = NULL;
+    Py_DECREF(number);
+    return -1;
+}
+
+
+/////////////// pyint_simplify.proto ///////////////
+
+static CYTHON_INLINE int __Pyx_PyInt_FromNumber(PyObject **number_var, const char *argname, int accept_none); /*proto*/
+
+/////////////// pyint_simplify ///////////////
+//@requires: pybuiltin_invalid
+
+static CYTHON_INLINE int __Pyx_PyInt_FromNumber(PyObject **number_var, const char *argname, int accept_none) {
+    // Convert any int-compatible Python number object into a Python int.
+    // NOTE: This function decrefs 'number' if a conversion happens to replace the original object.
+    PyObject *number = *number_var;
+    if (likely((accept_none && number == Py_None) || PyLong_CheckExact(number))) {
+        return 0;
+    }
+
+    PyObject *int_object;
+    if (likely(PyNumber_Check(number))) {
+        // PyNumber_Long() also parses strings, which we must reject.
+        int_object = PyNumber_Long(number);
+        if (unlikely(!int_object)) goto bad;
+    } else {
+        __Pyx_PyBuiltin_Invalid(number, "int", argname);
+        goto bad;
+    }
+
+    *number_var = int_object;
+    Py_DECREF(number);
+    return 0;
+
+bad:
+    *number_var = NULL;
+    Py_DECREF(number);
+    return -1;
+}
+
 
 /////////////// pynumber_float.proto ///////////////
 
@@ -724,7 +829,7 @@ static CYTHON_INLINE PyObject* {{TO_PY_FUNCTION}}({{TYPE}} value) {
             return PyLong_FromLong((long) value);
         } else if (sizeof({{TYPE}}) <= sizeof(unsigned long)) {
             return PyLong_FromUnsignedLong((unsigned long) value);
-#if defined(HAVE_LONG_LONG) && !CYTHON_COMPILING_IN_PYPY
+#if !CYTHON_COMPILING_IN_PYPY
         // PyLong_FromUnsignedLongLong() does not necessarily accept ULL arguments in PyPy.
         // See https://github.com/cython/cython/issues/6890
         } else if (sizeof({{TYPE}}) <= sizeof(unsigned PY_LONG_LONG)) {
@@ -734,10 +839,8 @@ static CYTHON_INLINE PyObject* {{TO_PY_FUNCTION}}({{TYPE}} value) {
     } else {
         if (sizeof({{TYPE}}) <= sizeof(long)) {
             return PyLong_FromLong((long) value);
-#ifdef HAVE_LONG_LONG
         } else if (sizeof({{TYPE}}) <= sizeof(PY_LONG_LONG)) {
             return PyLong_FromLongLong((PY_LONG_LONG) value);
-#endif
         }
     }
     {
@@ -1112,10 +1215,8 @@ static CYTHON_INLINE {{TYPE}} {{FROM_PY_FUNCTION}}(PyObject *x) {
 #endif
         if ((sizeof({{TYPE}}) <= sizeof(unsigned long))) {
             __PYX_VERIFY_RETURN_INT_EXC({{TYPE}}, unsigned long, PyLong_AsUnsignedLong(x))
-#ifdef HAVE_LONG_LONG
         } else if ((sizeof({{TYPE}}) <= sizeof(unsigned PY_LONG_LONG))) {
             __PYX_VERIFY_RETURN_INT_EXC({{TYPE}}, unsigned PY_LONG_LONG, PyLong_AsUnsignedLongLong(x))
-#endif
         }
 
     } else {
@@ -1145,10 +1246,8 @@ static CYTHON_INLINE {{TYPE}} {{FROM_PY_FUNCTION}}(PyObject *x) {
 #endif
         if ((sizeof({{TYPE}}) <= sizeof(long))) {
             __PYX_VERIFY_RETURN_INT_EXC({{TYPE}}, long, PyLong_AsLong(x))
-#ifdef HAVE_LONG_LONG
         } else if ((sizeof({{TYPE}}) <= sizeof(PY_LONG_LONG))) {
             __PYX_VERIFY_RETURN_INT_EXC({{TYPE}}, PY_LONG_LONG, PyLong_AsLongLong(x))
-#endif
         }
     }
 

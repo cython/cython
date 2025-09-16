@@ -5,7 +5,7 @@ import collections
 import time
 
 
-def _unpack_buffer_const_char_1d(provider, number, timer=time.perf_counter):
+def _unpack_buffer_const_char_1d(provider, int number, timer=time.perf_counter):
     cdef const unsigned char[:] buffer
 
     t = timer()
@@ -26,7 +26,7 @@ def bm_unpack_buffer_const_char_1d(number, timer=time.perf_counter):
     }
 
 
-def _with_contextmanager_pass(cm, number, timer=time.perf_counter):
+def _with_contextmanager_pass(cm, int number, timer=time.perf_counter):
     t = timer()
     for _ in range(number):
         with cm:
@@ -35,7 +35,7 @@ def _with_contextmanager_pass(cm, number, timer=time.perf_counter):
     return t
 
 
-def _with_contextmanager_raise(cm, number, timer=time.perf_counter):
+def _with_contextmanager_raise(cm, int number, timer=time.perf_counter):
     exception = TypeError()
     t = timer()
     for _ in range(number):
@@ -62,6 +62,34 @@ def bm_with_statement(number, timer=time.perf_counter):
         'with_raise_PyCM': _with_contextmanager_raise(PyCM(), number, timer),
         'with_raise_CyCM': _with_contextmanager_raise(CyCM(), number, timer),
     }
+
+
+def bm_create_inner_function(int number, timer=time.perf_counter):
+    t = timer()
+    for _ in range(number):
+        def inner_a(arg1, int arg2):
+            pass
+        def inner_b(arg1, int arg2):
+            pass
+        def inner_c(arg1, int arg2):
+            pass
+    plain_time = timer() - t
+
+    t = timer()
+    for _ in range(number):
+        def inner1():
+            pass
+        def inner2(arg1, int arg2):
+            return inner1()
+        def inner3(arg1, arg2=inner1):
+            return inner2()
+    closure_time = timer() - t
+
+    return {
+        'create_inner_function[plain]': plain_time,
+        'create_inner_function[closure]': closure_time,
+    }
+
 
 
 def run_benchmark(repeat: cython.int = 10, number=100, timer=time.perf_counter):

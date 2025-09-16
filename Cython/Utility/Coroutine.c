@@ -430,7 +430,9 @@ typedef struct __pyx_CoroutineObject {
     __pyx_coroutine_body_t body;
     PyObject *closure;
     __Pyx_ExcInfoStruct gi_exc_state;
+#if PY_VERSION_HEX < 0x030C0000 || CYTHON_COMPILING_IN_LIMITED_API
     PyObject *gi_weakreflist;
+#endif
     PyObject *classobj;
     PyObject *yieldfrom;
     // "yieldfrom_am_send" is always included to avoid changing the struct layout.
@@ -498,6 +500,8 @@ static PyObject *__Pyx_Coroutine_get_is_running_getter(PyObject *gen, void *clos
 static void __Pyx_SetBackportTypeAmSend(PyTypeObject *type, __Pyx_PyAsyncMethodsStruct *static_amsend_methods, __Pyx_pyiter_sendfunc am_send); /* proto */
 #endif
 
+static PyObject *__Pyx_Coroutine_fail_reduce_ex(PyObject *self, PyObject *arg); /*proto*/
+
 //////////////////// Coroutine.proto ////////////////////
 
 #define __Pyx_Coroutine_USED
@@ -554,6 +558,7 @@ static CYTHON_INLINE PyObject *__Pyx_Generator_GetInlinedResult(PyObject *self);
 //@requires: ObjectHandling.c::PyObjectGetAttrStrNoError
 //@requires: ObjectHandling.c::IterNextPlain
 //@requires: CommonStructures.c::FetchCommonType
+//@requires: CommonStructures.c::CommonTypesMetaclass
 //@requires: ModuleSetupCode.c::IncludeStructmemberH
 //@requires: ExtensionTypes.c::CallTypeTraverse
 
@@ -1374,7 +1379,10 @@ static void __Pyx_Coroutine_dealloc(PyObject *self) {
     __pyx_CoroutineObject *gen = (__pyx_CoroutineObject *) self;
 
     PyObject_GC_UnTrack(gen);
+
+    #if PY_VERSION_HEX < 0x030C0000 || CYTHON_COMPILING_IN_LIMITED_API
     if (gen->gi_weakreflist != NULL)
+    #endif
         PyObject_ClearWeakRefs(self);
 
     if (gen->resume_label >= 0) {
@@ -1610,7 +1618,9 @@ static __pyx_CoroutineObject *__Pyx__Coroutine_NewInit(
 #if CYTHON_USE_EXC_INFO_STACK
     gen->gi_exc_state.previous_item = NULL;
 #endif
+#if PY_VERSION_HEX < 0x030C0000 || CYTHON_COMPILING_IN_LIMITED_API
     gen->gi_weakreflist = NULL;
+#endif
     Py_XINCREF(qualname);
     gen->gi_qualname = qualname;
     Py_XINCREF(name);
@@ -1688,6 +1698,26 @@ static void __Pyx_SetBackportTypeAmSend(PyTypeObject *type, __Pyx_PyAsyncMethods
     type->tp_as_async = __Pyx_SlotTpAsAsync(static_amsend_methods);
 }
 #endif
+
+
+// In earlier versions of Python an object with no __dict__ and not __slots__ is assumed
+// to be pickleable by default. Coroutine-wrappers have significant state so shouldn't be.
+// Therefore provide a default implementation.
+// Something similar applies to heaptypes (i.e. with type_specs) with protocols 0 and 1
+// even in more recent versions.
+// We are applying this to all Python versions (hence the commented out version guard)
+// to make the behaviour explicit.
+// #if CYTHON_USE_TYPE_SPECS
+static PyObject *__Pyx_Coroutine_fail_reduce_ex(PyObject *self, PyObject *arg) {
+    CYTHON_UNUSED_VAR(arg);
+
+    __Pyx_TypeName self_type_name = __Pyx_PyType_GetFullyQualifiedName(Py_TYPE((PyObject*)self));
+    PyErr_Format(PyExc_TypeError, "cannot pickle '" __Pyx_FMT_TYPENAME "' object",
+                         self_type_name);
+    __Pyx_DECREF_TypeName(self_type_name);
+    return NULL;
+}
+// #endif
 
 //////////////////// Coroutine.module_state_decls ////////////////////
 
@@ -1785,25 +1815,6 @@ static PyObject *__Pyx_CoroutineAwait_no_new(PyTypeObject *type, PyObject *args,
 }
 #endif
 
-// In earlier versions of Python an object with no __dict__ and not __slots__ is assumed
-// to be pickleable by default. Coroutine-wrappers have significant state so shouldn't be.
-// Therefore provide a default implementation.
-// Something similar applies to heaptypes (i.e. with type_specs) with protocols 0 and 1
-// even in more recent versions.
-// We are applying this to all Python versions (hence the commented out version guard)
-// to make the behaviour explicit.
-// #if CYTHON_USE_TYPE_SPECS
-static PyObject *__Pyx_CoroutineAwait_reduce_ex(__pyx_CoroutineAwaitObject *self, PyObject *arg) {
-    CYTHON_UNUSED_VAR(arg);
-
-    __Pyx_TypeName self_type_name = __Pyx_PyType_GetFullyQualifiedName(Py_TYPE((PyObject*)self));
-    PyErr_Format(PyExc_TypeError, "cannot pickle '" __Pyx_FMT_TYPENAME "' object",
-                         self_type_name);
-    __Pyx_DECREF_TypeName(self_type_name);
-    return NULL;
-}
-// #endif
-
 static PyMethodDef __pyx_CoroutineAwait_methods[] = {
     {"send", (PyCFunction) __Pyx_CoroutineAwait_Send, METH_O,
      PyDoc_STR("send(arg) -> send 'arg' into coroutine,\nreturn next yielded value or raise StopIteration.")},
@@ -1812,8 +1823,8 @@ static PyMethodDef __pyx_CoroutineAwait_methods[] = {
     {"close", (PyCFunction) __Pyx_CoroutineAwait_Close_Method, METH_NOARGS, PyDoc_STR("close() -> raise GeneratorExit inside coroutine.")},
 // only needed with type-specs, but included in all versions for clarity
 // #if CYTHON_USE_TYPE_SPECS
-    {"__reduce_ex__", (PyCFunction) __Pyx_CoroutineAwait_reduce_ex, METH_O, 0},
-    {"__reduce__", (PyCFunction) __Pyx_CoroutineAwait_reduce_ex, METH_NOARGS, 0},
+    {"__reduce_ex__", (PyCFunction) __Pyx_Coroutine_fail_reduce_ex, METH_O, 0},
+    {"__reduce__", (PyCFunction) __Pyx_Coroutine_fail_reduce_ex, METH_NOARGS, 0},
 // #endif
     {0, 0, 0, 0}
 };
@@ -1872,6 +1883,8 @@ static PyMethodDef __pyx_Coroutine_methods[] = {
     {"throw", (PyCFunction) __Pyx_Coroutine_Throw, METH_VARARGS,
      PyDoc_STR("throw(typ[,val[,tb]]) -> raise exception in coroutine,\nreturn next iterated value or raise StopIteration.")},
     {"close", (PyCFunction) __Pyx_Coroutine_Close_Method, METH_NOARGS, PyDoc_STR("close() -> raise GeneratorExit inside coroutine.")},
+    {"__reduce_ex__", (PyCFunction) __Pyx_Coroutine_fail_reduce_ex, METH_O, 0},
+    {"__reduce__", (PyCFunction) __Pyx_Coroutine_fail_reduce_ex, METH_NOARGS, 0},
     {0, 0, 0, 0}
 };
 
@@ -1880,7 +1893,9 @@ static PyMemberDef __pyx_Coroutine_memberlist[] = {
      PyDoc_STR("object being awaited, or None")},
     {"cr_code", T_OBJECT, offsetof(__pyx_CoroutineObject, gi_code), READONLY, NULL},
     {"__module__", T_OBJECT, offsetof(__pyx_CoroutineObject, gi_modulename), 0, 0},
+#if PY_VERSION_HEX < 0x030C0000 || CYTHON_COMPILING_IN_LIMITED_API
     {"__weaklistoffset__", T_PYSSIZET, offsetof(__pyx_CoroutineObject, gi_weakreflist), READONLY, 0},
+#endif
     {0, 0, 0, 0, 0}
 };
 
@@ -1920,7 +1935,10 @@ static PyType_Spec __pyx_CoroutineType_spec = {
 #if PY_VERSION_HEX >= 0x030A0000
     Py_TPFLAGS_IMMUTABLETYPE |
 #endif
-    Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_GC | Py_TPFLAGS_HAVE_FINALIZE | __Pyx_TPFLAGS_HAVE_AM_SEND, /*tp_flags*/
+#if PY_VERSION_HEX >= 0x030C0000 && !CYTHON_COMPILING_IN_LIMITED_API
+    Py_TPFLAGS_MANAGED_WEAKREF |
+#endif
+    Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_GC | __Pyx_TPFLAGS_HAVE_AM_SEND, /*tp_flags*/
     __pyx_CoroutineType_slots
 };
 
@@ -1933,7 +1951,8 @@ static int __pyx_Coroutine_init(PyObject *module) {
     CYTHON_MAYBE_UNUSED_VAR(module);
     // on Windows, C-API functions can't be used in slots statically
     mstate = __Pyx_PyModule_GetState(module);
-    mstate->__pyx_CoroutineType = __Pyx_FetchCommonTypeFromSpec(module, &__pyx_CoroutineType_spec, NULL);
+    mstate->__pyx_CoroutineType = __Pyx_FetchCommonTypeFromSpec(
+        mstate->__pyx_CommonTypesMetaclassType, module, &__pyx_CoroutineType_spec, NULL);
     if (unlikely(!mstate->__pyx_CoroutineType))
         return -1;
 #if __PYX_HAS_PY_AM_SEND == 2
@@ -1945,12 +1964,13 @@ static int __pyx_Coroutine_init(PyObject *module) {
         return -1;
 #endif
 
-    mstate->__pyx_CoroutineAwaitType = __Pyx_FetchCommonTypeFromSpec(module, &__pyx_CoroutineAwaitType_spec, NULL);
+    mstate->__pyx_CoroutineAwaitType = __Pyx_FetchCommonTypeFromSpec(NULL, module, &__pyx_CoroutineAwaitType_spec, NULL);
     if (unlikely(!mstate->__pyx_CoroutineAwaitType))
         return -1;
 #if __PYX_HAS_PY_AM_SEND == 2
     __Pyx_SetBackportTypeAmSend(mstate->__pyx_CoroutineAwaitType, &__pyx_CoroutineAwait_as_async, &__Pyx_CoroutineAwait_AmSend);
 #endif
+
     return 0;
 }
 
@@ -1987,6 +2007,7 @@ static int __pyx_IterableCoroutine_init(PyObject *module);/*proto*/
 //////////////////// IterableCoroutine ////////////////////
 //@requires: Coroutine
 //@requires: CommonStructures.c::FetchCommonType
+//@requires: CommonStructures.c::CommonTypesMetaclass
 //@substitute: naming
 
 static PyType_Slot __pyx_IterableCoroutineType_slots[] = {
@@ -2015,14 +2036,18 @@ static PyType_Spec __pyx_IterableCoroutineType_spec = {
 #if PY_VERSION_HEX >= 0x030A0000
     Py_TPFLAGS_IMMUTABLETYPE |
 #endif
-    Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_GC | Py_TPFLAGS_HAVE_FINALIZE | __Pyx_TPFLAGS_HAVE_AM_SEND, /*tp_flags*/
+#if PY_VERSION_HEX >= 0x030C0000 && !CYTHON_COMPILING_IN_LIMITED_API
+    Py_TPFLAGS_MANAGED_WEAKREF |
+#endif
+    Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_GC | __Pyx_TPFLAGS_HAVE_AM_SEND, /*tp_flags*/
     __pyx_IterableCoroutineType_slots
 };
 
 
 static int __pyx_IterableCoroutine_init(PyObject *module) {
     $modulestatetype_cname *mstate = __Pyx_PyModule_GetState(module);
-    mstate->__pyx_IterableCoroutineType = __Pyx_FetchCommonTypeFromSpec(module, &__pyx_IterableCoroutineType_spec, NULL);
+    mstate->__pyx_IterableCoroutineType = __Pyx_FetchCommonTypeFromSpec(
+        mstate->__pyx_CommonTypesMetaclassType, module, &__pyx_IterableCoroutineType_spec, NULL);
     if (unlikely(!mstate->__pyx_IterableCoroutineType))
         return -1;
 #if __PYX_HAS_PY_AM_SEND == 2
@@ -2059,6 +2084,8 @@ static PyMethodDef __pyx_Generator_methods[] = {
      PyDoc_STR("throw(typ[,val[,tb]]) -> raise exception in generator,\nreturn next yielded value or raise StopIteration.")},
     {"close", (PyCFunction) __Pyx_Coroutine_Close_Method, METH_NOARGS,
      PyDoc_STR("close() -> raise GeneratorExit inside generator.")},
+    {"__reduce_ex__", (PyCFunction) __Pyx_Coroutine_fail_reduce_ex, METH_O, 0},
+    {"__reduce__", (PyCFunction) __Pyx_Coroutine_fail_reduce_ex, METH_NOARGS, 0},
     {0, 0, 0, 0}
 };
 
@@ -2067,7 +2094,9 @@ static PyMemberDef __pyx_Generator_memberlist[] = {
      PyDoc_STR("object being iterated by 'yield from', or None")},
     {"gi_code", T_OBJECT, offsetof(__pyx_CoroutineObject, gi_code), READONLY, NULL},
     {"__module__", T_OBJECT, offsetof(__pyx_CoroutineObject, gi_modulename), 0, 0},
+#if PY_VERSION_HEX < 0x030C0000 || CYTHON_COMPILING_IN_LIMITED_API
     {"__weaklistoffset__", T_PYSSIZET, offsetof(__pyx_CoroutineObject, gi_weakreflist), READONLY, 0},
+#endif
     {0, 0, 0, 0, 0}
 };
 
@@ -2107,7 +2136,10 @@ static PyType_Spec __pyx_GeneratorType_spec = {
 #if PY_VERSION_HEX >= 0x030A0000
     Py_TPFLAGS_IMMUTABLETYPE |
 #endif
-    Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_GC | Py_TPFLAGS_HAVE_FINALIZE | __Pyx_TPFLAGS_HAVE_AM_SEND, /*tp_flags*/
+#if PY_VERSION_HEX >= 0x030C0000 && !CYTHON_COMPILING_IN_LIMITED_API
+    Py_TPFLAGS_MANAGED_WEAKREF |
+#endif
+    Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_GC | __Pyx_TPFLAGS_HAVE_AM_SEND, /*tp_flags*/
     __pyx_GeneratorType_slots
 };
 
@@ -2117,7 +2149,8 @@ static __Pyx_PyAsyncMethodsStruct __pyx_Generator_as_async;
 
 static int __pyx_Generator_init(PyObject *module) {
     $modulestatetype_cname *mstate = __Pyx_PyModule_GetState(module);
-    mstate->__pyx_GeneratorType = __Pyx_FetchCommonTypeFromSpec(module, &__pyx_GeneratorType_spec, NULL);
+    mstate->__pyx_GeneratorType = __Pyx_FetchCommonTypeFromSpec(
+        mstate->__pyx_CommonTypesMetaclassType, module, &__pyx_GeneratorType_spec, NULL);
     if (unlikely(!mstate->__pyx_GeneratorType)) {
         return -1;
     }

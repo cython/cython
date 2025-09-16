@@ -1194,7 +1194,7 @@ class Scope:
 
     def _emit_class_private_warning(self, pos, name):
         warning(pos, "Global name %s matched from within class scope "
-                            "in contradiction to to Python 'class private name' rules. "
+                            "in contradiction to Python 'class private name' rules. "
                             "This may change in a future release." % name, 1)
 
     def use_utility_code(self, new_code):
@@ -1323,14 +1323,21 @@ class BuiltinScope(Scope):
         return entry
 
     def declare_builtin_type(self, name, cname,
-                             objstruct_cname=None, type_class=PyrexTypes.BuiltinObjectType):
+                             objstruct_cname=None, type_class=PyrexTypes.BuiltinObjectType,
+                             utility_code=None):
         name = EncodedString(name)
         type = type_class(name, cname, objstruct_cname)
         scope = CClassScope(name, outer_scope=None, visibility='extern', parent_type=type)
         scope.directives = {}
         type.set_scope(scope)
         self.type_names[name] = 1
+
         entry = self.declare_type(name, type, None, visibility='extern')
+        if utility_code:
+            entry.utility_code = utility_code
+        if name == 'range' and 'xrange' not in self.entries:
+            # Keep supporting legacy Py2 'xrange' because it's still in use.
+            self.entries['xrange'] = entry
 
         var_entry = Entry(
             name=entry.name,
@@ -1346,6 +1353,8 @@ class BuiltinScope(Scope):
         var_entry.scope = self
         if Options.cache_builtins:
             var_entry.is_const = True
+        if utility_code:
+            var_entry.utility_code = utility_code
         entry.as_variable = var_entry
 
         return type
@@ -1881,7 +1890,7 @@ class ModuleScope(Scope):
             type.objstruct_cname = objstruct_cname
         if typeobj_cname:
             if type.typeobj_cname and type.typeobj_cname != typeobj_cname:
-                    error(pos, "Type object name differs from previous declaration")
+                error(pos, "Type object name differs from previous declaration")
             type.typeobj_cname = typeobj_cname
 
         if self.directives.get('final'):
@@ -2444,6 +2453,9 @@ class CClassScope(ClassScope):
         # If the type or any of its base types have Python-valued
         # C attributes, then it needs to participate in GC.
         if self.has_cyclic_pyobject_attrs and not self.directives.get('no_gc', False):
+            return True
+        if self.parent_type.is_external and not self.parent_type.is_builtin_type:
+            # It's impossible to really know - external types are often incomplete.
             return True
         base_type = self.parent_type.base_type
         if base_type and base_type.scope is not None:

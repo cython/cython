@@ -424,7 +424,9 @@ class GCDependentSlot(InternalMethodSlot):
         InternalMethodSlot.__init__(self, slot_name, **kargs)
 
     def slot_code(self, scope):
-        if not scope.needs_gc():
+        # We treat external types as needing gc, but don't generate a slot code
+        # because we don't know it to be able to call it directly.
+        if not scope.needs_gc() or scope.parent_type.is_external:
             return "0"
         if not scope.has_cyclic_pyobject_attrs:
             # if the type does not have GC relevant object attributes, it can
@@ -479,15 +481,9 @@ class ConstructorSlot(InternalMethodSlot):
             # delegate GC methods to its parent - iff the parent
             # functions are defined in the same module
             slot_code = self._parent_slot_function(scope)
-            return slot_code or '0'
+            if slot_code is not None:
+                return slot_code
         return InternalMethodSlot.slot_code(self, scope)
-
-    def spec_value(self, scope):
-        slot_function = self.slot_code(scope)
-        if self.slot_name == "tp_dealloc" and slot_function != scope.mangle_internal("tp_dealloc"):
-            # Not used => inherit from base type.
-            return "0"
-        return slot_function
 
     def generate_dynamic_init_code(self, scope, code):
         if self.slot_code(scope) != '0':
@@ -556,19 +552,14 @@ class TypeFlagsSlot(SlotDescriptor):
 
     def slot_code(self, scope):
         value = "Py_TPFLAGS_DEFAULT"
-        if scope.directives['type_version_tag']:
-            # it's not in 'Py_TPFLAGS_DEFAULT' in Py2
-            value += "|Py_TPFLAGS_HAVE_VERSION_TAG"
-        else:
-            # it's enabled in 'Py_TPFLAGS_DEFAULT' in Py3
-            value = "(%s&~Py_TPFLAGS_HAVE_VERSION_TAG)" % value
+        if not scope.directives['type_version_tag']:
+            # Remove flag from 'Py_TPFLAGS_DEFAULT'.
+            value = f"({value}&~Py_TPFLAGS_HAVE_VERSION_TAG)"
         value += "|Py_TPFLAGS_CHECKTYPES|Py_TPFLAGS_HAVE_NEWBUFFER"
         if not scope.parent_type.is_final_type:
             value += "|Py_TPFLAGS_BASETYPE"
         if scope.needs_gc():
             value += "|Py_TPFLAGS_HAVE_GC"
-        if scope.may_have_finalize():
-            value += "|Py_TPFLAGS_HAVE_FINALIZE"
         if scope.parent_type.has_sequence_flag:
             value += "|Py_TPFLAGS_SEQUENCE"
         return value
@@ -895,15 +886,15 @@ releasebufferproc = Signature("TB", "v")   # typedef void (*releasebufferproc)(P
 
 # typedef PySendResult (*sendfunc)(PyObject* iter, PyObject* value, PyObject** result);
 sendfunc = PyrexTypes.CPtrType(PyrexTypes.CFuncType(
-        return_type=PyrexTypes.PySendResult_type,
-        args=[
-            PyrexTypes.CFuncTypeArg("iter", PyrexTypes.py_object_type),
-            PyrexTypes.CFuncTypeArg("value", PyrexTypes.py_object_type),
-            PyrexTypes.CFuncTypeArg("result", PyrexTypes.CPtrType(PyrexTypes.py_objptr_type)),
-        ],
-        exception_value="PYGEN_ERROR",
-        exception_check=True,  # we allow returning PYGEN_ERROR without GeneratorExit / StopIteration
-    ))
+    return_type=PyrexTypes.PySendResult_type,
+    args=[
+        PyrexTypes.CFuncTypeArg("iter", PyrexTypes.py_object_type),
+        PyrexTypes.CFuncTypeArg("value", PyrexTypes.py_object_type),
+        PyrexTypes.CFuncTypeArg("result", PyrexTypes.CPtrType(PyrexTypes.py_objptr_type)),
+    ],
+    exception_value="PYGEN_ERROR",
+    exception_check=True,  # we allow returning PYGEN_ERROR without GeneratorExit / StopIteration
+))
 
 
 #------------------------------------------------------------------------------------------
@@ -1026,8 +1017,7 @@ class SlotTable:
 
         self.slot_table = (
             ConstructorSlot("tp_dealloc", '__dealloc__'),
-            EmptySlot("tp_print", ifdef="PY_VERSION_HEX < 0x030800b4"),
-            EmptySlot("tp_vectorcall_offset", ifdef="PY_VERSION_HEX >= 0x030800b4"),
+            EmptySlot("tp_vectorcall_offset"),
             EmptySlot("tp_getattr"),
             EmptySlot("tp_setattr"),
 
@@ -1091,7 +1081,7 @@ class SlotTable:
             EmptySlot("tp_version_tag"),
             SyntheticSlot("tp_finalize", ["__del__"], "0",
                           used_ifdef="CYTHON_USE_TP_FINALIZE"),
-            EmptySlot("tp_vectorcall", ifdef="PY_VERSION_HEX >= 0x030800b1 && (!CYTHON_COMPILING_IN_PYPY || PYPY_VERSION_NUM >= 0x07030800)"),
+            EmptySlot("tp_vectorcall", ifdef="!CYTHON_COMPILING_IN_PYPY || PYPY_VERSION_NUM >= 0x07030800"),
             EmptySlot("tp_print", ifdef="__PYX_NEED_TP_PRINT_SLOT == 1"),
             EmptySlot("tp_watched", ifdef="PY_VERSION_HEX >= 0x030C0000"),
             EmptySlot("tp_versions_used", ifdef="PY_VERSION_HEX >= 0x030d00A4"),

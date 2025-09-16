@@ -1056,6 +1056,14 @@ Cython code.  Here is the list of currently supported directives:
 
 ``profile`` (True / False), *default=False*
     Write hooks for Python profilers into the compiled C code.
+    Whether the generated module actually uses profiling depends on
+    the value of the C macro ``CYTHON_PROFILE`` which is ``1`` by
+    default but which you can optionally set to ``0`` to turn off the
+    profiling code at C compile-time.  Define ``CYTHON_USE_SYS_MONITORING``
+    to either 1 or 0 to control the mechanism used to implement profiling
+    on Python 3.13 and above.  Note that neither ``profile``
+    nor ``linetrace`` work with any tool that uses ``sys.monitoring``
+    on Python 3.12.
 
 ``linetrace`` (True / False), *default=False*
     Write line tracing hooks for Python profilers or coverage reporting
@@ -1364,6 +1372,8 @@ most important to least important:
 ``CYTHON_PROFILE``, ``CYTHON_TRACE``, ``CYTHON_TRACE_NOGIL``
     These control the inclusion of profiling and line tracing calls in the module.
     See the ``profile`` and ``linetrace`` :ref:`compiler-directives`.
+    ``CYTHON_PROFILE`` is on by default; the ``CYTHON_TRACE`` macros are
+    off by default.
 
 ``CYTHON_USE_SYS_MONITORING``
     On Python 3.13+ this selects the new `sys.monitoring <https://docs.python.org/3/library/sys.monitoring.html>`_
@@ -1386,6 +1396,23 @@ most important to least important:
     has poor standards support (especially in C mode) and so struggles to
     use the standard library types.  It is on by default on platforms
     where we think it's likely to work.
+
+``CYTHON_COMPRESS_STRINGS``
+    Store Python strings in the binary module as compressed data, decompressing them
+    at import time.  By default, ``zlib`` compression is used (``CYTHON_COMPRESS_STRINGS=1``).
+    Set to ``0`` to disable compression or to ``2`` to select ``bzip2`` compression.
+    Note that the respective standard library decompression module must be available
+    at module import time, or the import will fail.
+    ``compression.zstd`` can be selected with ``CYTHON_COMPRESS_STRINGS=3`` but is only
+    available in the standard library in Python 3.14 and later.  Cython will then
+    fall back to ``zlib`` when compiling in older Python versions.
+
+``CYTHON_IMMORTAL_CONSTANTS``
+    Makes cached constants (e.g. strings, tuples, ints, floats, slices) immortal,
+    in Python versions that support immortality. This is most useful when
+    the constants are used in many different threads because it avoids most writes
+    to the constants due to reference counting. Disabled by default, but enabled
+    in free-threaded builds.
 
 There is a further list of macros which turn off various optimizations or language
 features.  Under normal circumstance Cython enables these automatically based on the

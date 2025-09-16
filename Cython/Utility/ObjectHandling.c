@@ -233,18 +233,6 @@ static CYTHON_INLINE PyObject *__Pyx_PyIter_Next2(PyObject *, PyObject *); /*pro
 //@requires: GetBuiltinName
 //@requires: IterNextPlain
 
-#if CYTHON_COMPILING_IN_LIMITED_API && __PYX_LIMITED_VERSION_HEX < 0x03080000
-// In the Limited API for Py 3.7, PyIter_Check is defined but as a macro that uses
-// non-limited API features and thus is unusable. Therefore, just call builtin next.
-static PyObject *__Pyx_PyIter_Next2(PyObject *o, PyObject *defval) {
-    PyObject *result;
-    PyObject *next = __Pyx_GetBuiltinNext_LimitedAPI();
-    if (unlikely(!next)) return NULL;
-    // This works if defval is NULL or not
-    result = PyObject_CallFunctionObjArgs(next, o, defval, NULL);
-    return result;
-}
-#else
 static PyObject *__Pyx_PyIter_Next2Default(PyObject* defval) {
     PyObject* exc_type;
     __Pyx_PyThreadState_declare
@@ -306,7 +294,7 @@ static CYTHON_INLINE PyObject *__Pyx_PyIter_Next2(PyObject* iterator, PyObject* 
     }
     return __Pyx_PyIter_Next2Default(defval);
 }
-#endif
+
 
 /////////////// IterFinish.proto ///////////////
 
@@ -355,7 +343,7 @@ static PyObject *__Pyx_PyObject_GetIndex(PyObject *obj, PyObject *index) {
     Py_ssize_t key_value;
     key_value = __Pyx_PyIndex_AsSsize_t(index);
     if (likely(key_value != -1 || !(runerr = PyErr_Occurred()))) {
-        return __Pyx_GetItemInt_Fast(obj, key_value, 0, 1, 1);
+        return __Pyx_GetItemInt_Fast(obj, key_value, 0, 1, 1, 1);
     }
 
     // Error handling code -- only manage OverflowError differently.
@@ -445,25 +433,25 @@ static PyObject *__Pyx_PyDict_GetItem(PyObject *d, PyObject* key) {
 /////////////// GetItemInt.proto ///////////////
 //@substitute: tempita
 
-#define __Pyx_GetItemInt(o, i, type, is_signed, to_py_func, is_list, wraparound, boundscheck) \
+#define __Pyx_GetItemInt(o, i, type, is_signed, to_py_func, is_list, wraparound, boundscheck, has_gil, unsafe_shared) \
     (__Pyx_fits_Py_ssize_t(i, type, is_signed) ? \
-    __Pyx_GetItemInt_Fast(o, (Py_ssize_t)i, is_list, wraparound, boundscheck) : \
+    __Pyx_GetItemInt_Fast(o, (Py_ssize_t)i, is_list, wraparound, boundscheck, unsafe_shared) : \
     (is_list ? (PyErr_SetString(PyExc_IndexError, "list index out of range"), (PyObject*)NULL) : \
                __Pyx_GetItemInt_Generic(o, to_py_func(i))))
 
 {{for type in ['List', 'Tuple']}}
-#define __Pyx_GetItemInt_{{type}}(o, i, type, is_signed, to_py_func, is_list, wraparound, boundscheck) \
+#define __Pyx_GetItemInt_{{type}}(o, i, type, is_signed, to_py_func, is_list, wraparound, boundscheck, has_gil, unsafe_shared) \
     (__Pyx_fits_Py_ssize_t(i, type, is_signed) ? \
-    __Pyx_GetItemInt_{{type}}_Fast(o, (Py_ssize_t)i, wraparound, boundscheck) : \
+    __Pyx_GetItemInt_{{type}}_Fast(o, (Py_ssize_t)i, wraparound, boundscheck, unsafe_shared) : \
     (PyErr_SetString(PyExc_IndexError, "{{ type.lower() }} index out of range"), (PyObject*)NULL))
 
 static CYTHON_INLINE PyObject *__Pyx_GetItemInt_{{type}}_Fast(PyObject *o, Py_ssize_t i,
-                                                              int wraparound, int boundscheck);
+                                                              int wraparound, int boundscheck, int unsafe_shared);
 {{endfor}}
 
 static PyObject *__Pyx_GetItemInt_Generic(PyObject *o, PyObject* j);
 static CYTHON_INLINE PyObject *__Pyx_GetItemInt_Fast(PyObject *o, Py_ssize_t i,
-                                                     int is_list, int wraparound, int boundscheck);
+                                                     int is_list, int wraparound, int boundscheck, int unsafe_shared);
 
 /////////////// GetItemInt ///////////////
 //@substitute: tempita
@@ -478,54 +466,69 @@ static PyObject *__Pyx_GetItemInt_Generic(PyObject *o, PyObject* j) {
 
 {{for type in ['List', 'Tuple']}}
 static CYTHON_INLINE PyObject *__Pyx_GetItemInt_{{type}}_Fast(PyObject *o, Py_ssize_t i,
-                                                              CYTHON_NCP_UNUSED int wraparound,
-                                                              CYTHON_NCP_UNUSED int boundscheck) {
-#if CYTHON_ASSUME_SAFE_MACROS && CYTHON_ASSUME_SAFE_SIZE && !CYTHON_AVOID_BORROWED_REFS{{if type == 'List'}} && !CYTHON_AVOID_THREAD_UNSAFE_BORROWED_REFS{{endif}}
+                                                              int wraparound, int boundscheck, int unsafe_shared) {
+    CYTHON_MAYBE_UNUSED_VAR(unsafe_shared);
+#if CYTHON_ASSUME_SAFE_SIZE{{if type == 'Tuple'}} && CYTHON_ASSUME_SAFE_MACROS && !CYTHON_AVOID_BORROWED_REFS{{endif}}
     Py_ssize_t wrapped_i = i;
     if (wraparound & unlikely(i < 0)) {
         wrapped_i += Py{{type}}_GET_SIZE(o);
     }
+    {{if type == 'List'}}
+    if ((CYTHON_AVOID_BORROWED_REFS || CYTHON_AVOID_THREAD_UNSAFE_BORROWED_REFS || !CYTHON_ASSUME_SAFE_MACROS)) {
+        // Note that there's a minor thread-safety issue where the size for wraparound may change before we use it.
+        // CPython doesn't worry about it and serious violations will be caught by boundschecking anyway.
+        return __Pyx_PyList_GetItemRefFast(o, wrapped_i, unsafe_shared);
+    } else
+    {{endif}}
     if ((!boundscheck) || likely(__Pyx_is_valid_index(wrapped_i, Py{{type}}_GET_SIZE(o)))) {
-        PyObject *r = Py{{type}}_GET_ITEM(o, wrapped_i);
-        Py_INCREF(r);
-        return r;
+        return __Pyx_NewRef(Py{{type}}_GET_ITEM(o, wrapped_i));
     }
     return __Pyx_GetItemInt_Generic(o, PyLong_FromSsize_t(i));
 #else
+    (void)wraparound;
+    (void)boundscheck;
     return PySequence_GetItem(o, i);
 #endif
 }
 {{endfor}}
 
 static CYTHON_INLINE PyObject *__Pyx_GetItemInt_Fast(PyObject *o, Py_ssize_t i, int is_list,
-                                                     CYTHON_NCP_UNUSED int wraparound,
-                                                     CYTHON_NCP_UNUSED int boundscheck) {
-#if CYTHON_ASSUME_SAFE_MACROS && CYTHON_ASSUME_SAFE_SIZE && !CYTHON_AVOID_BORROWED_REFS && CYTHON_USE_TYPE_SLOTS
+                                                     int wraparound, int boundscheck, int unsafe_shared) {
+    CYTHON_MAYBE_UNUSED_VAR(unsafe_shared);
+#if CYTHON_ASSUME_SAFE_MACROS && CYTHON_ASSUME_SAFE_SIZE
     if (is_list || PyList_CheckExact(o)) {
+        // We specifically aren't worrying about thread-safety issues from the delay between getting the size
+        // and using the size because Python itself doesn't either. If we have boundschecking on they'll
+        // be caught eventually.
         Py_ssize_t n = ((!wraparound) | likely(i >= 0)) ? i : i + PyList_GET_SIZE(o);
-        if ((!boundscheck) || (likely(__Pyx_is_valid_index(n, PyList_GET_SIZE(o))))) {
-            return __Pyx_PyList_GetItemRef(o, n);
+        if ((CYTHON_AVOID_BORROWED_REFS || CYTHON_AVOID_THREAD_UNSAFE_BORROWED_REFS)) {
+            return __Pyx_PyList_GetItemRefFast(o, n, unsafe_shared);
+        } else if ((!boundscheck) || (likely(__Pyx_is_valid_index(n, PyList_GET_SIZE(o))))) {
+            return __Pyx_NewRef(PyList_GET_ITEM(o, n));
         }
-    }
-    else if (PyTuple_CheckExact(o)) {
+    } else
+    #if !CYTHON_AVOID_BORROWED_REFS
+    if (PyTuple_CheckExact(o)) {
         Py_ssize_t n = ((!wraparound) | likely(i >= 0)) ? i : i + PyTuple_GET_SIZE(o);
         if ((!boundscheck) || likely(__Pyx_is_valid_index(n, PyTuple_GET_SIZE(o)))) {
-            PyObject *r = PyTuple_GET_ITEM(o, n);
-            Py_INCREF(r);
-            return r;
+            return __Pyx_NewRef(PyTuple_GET_ITEM(o, n));
         }
-    } else {
+    } else
+    #endif
+#endif
+#if CYTHON_USE_TYPE_SLOTS && !CYTHON_COMPILING_IN_PYPY
+    {
         // inlined PySequence_GetItem() + special cased length overflow
         PyMappingMethods *mm = Py_TYPE(o)->tp_as_mapping;
         PySequenceMethods *sm = Py_TYPE(o)->tp_as_sequence;
-        if (mm && mm->mp_subscript) {
+        if (!is_list && mm && mm->mp_subscript) {
             PyObject *r, *key = PyLong_FromSsize_t(i);
             if (unlikely(!key)) return NULL;
             r = mm->mp_subscript(o, key);
             Py_DECREF(key);
             return r;
         }
-        if (likely(sm && sm->sq_item)) {
+        if (is_list || likely(sm && sm->sq_item)) {
             if (wraparound && unlikely(i < 0) && likely(sm->sq_length)) {
                 Py_ssize_t l = sm->sq_length(o);
                 if (likely(l >= 0)) {
@@ -547,20 +550,22 @@ static CYTHON_INLINE PyObject *__Pyx_GetItemInt_Fast(PyObject *o, Py_ssize_t i, 
         return PySequence_GetItem(o, i);
     }
 #endif
+    (void)wraparound;
+    (void)boundscheck;
     return __Pyx_GetItemInt_Generic(o, PyLong_FromSsize_t(i));
 }
 
 /////////////// SetItemInt.proto ///////////////
 
-#define __Pyx_SetItemInt(o, i, v, type, is_signed, to_py_func, is_list, wraparound, boundscheck) \
+#define __Pyx_SetItemInt(o, i, v, type, is_signed, to_py_func, is_list, wraparound, boundscheck, has_gil, unsafe_shared) \
     (__Pyx_fits_Py_ssize_t(i, type, is_signed) ? \
-    __Pyx_SetItemInt_Fast(o, (Py_ssize_t)i, v, is_list, wraparound, boundscheck) : \
+    __Pyx_SetItemInt_Fast(o, (Py_ssize_t)i, v, is_list, wraparound, boundscheck, unsafe_shared) : \
     (is_list ? (PyErr_SetString(PyExc_IndexError, "list assignment index out of range"), -1) : \
                __Pyx_SetItemInt_Generic(o, to_py_func(i), v)))
 
 static int __Pyx_SetItemInt_Generic(PyObject *o, PyObject *j, PyObject *v);
 static CYTHON_INLINE int __Pyx_SetItemInt_Fast(PyObject *o, Py_ssize_t i, PyObject *v,
-                                               int is_list, int wraparound, int boundscheck);
+                                               int is_list, int wraparound, int boundscheck, int unsafe_shared);
 
 /////////////// SetItemInt ///////////////
 
@@ -573,26 +578,30 @@ static int __Pyx_SetItemInt_Generic(PyObject *o, PyObject *j, PyObject *v) {
 }
 
 static CYTHON_INLINE int __Pyx_SetItemInt_Fast(PyObject *o, Py_ssize_t i, PyObject *v, int is_list,
-                                               CYTHON_NCP_UNUSED int wraparound, CYTHON_NCP_UNUSED int boundscheck) {
-#if CYTHON_ASSUME_SAFE_MACROS && CYTHON_ASSUME_SAFE_SIZE && !CYTHON_AVOID_BORROWED_REFS && CYTHON_USE_TYPE_SLOTS
+                                               int wraparound, int boundscheck, int unsafe_shared) {
+    CYTHON_MAYBE_UNUSED_VAR(unsafe_shared);
+#if CYTHON_ASSUME_SAFE_MACROS && CYTHON_ASSUME_SAFE_SIZE && !CYTHON_AVOID_BORROWED_REFS
     if (is_list || PyList_CheckExact(o)) {
         Py_ssize_t n = (!wraparound) ? i : ((likely(i >= 0)) ? i : i + PyList_GET_SIZE(o));
-        if ((!boundscheck) || likely(__Pyx_is_valid_index(n, PyList_GET_SIZE(o)))) {
+        if ((CYTHON_AVOID_THREAD_UNSAFE_BORROWED_REFS && !__Pyx_IS_UNIQUELY_REFERENCED(o, unsafe_shared))) {
             Py_INCREF(v);
-#if CYTHON_AVOID_THREAD_UNSAFE_BORROWED_REFS
-            PyList_SetItem(o, n, v);
-#else
-            PyObject* old = PyList_GET_ITEM(o, n);
+            return PyList_SetItem(o, n, v);
+        } else if ((!boundscheck) || likely(__Pyx_is_valid_index(n, PyList_GET_SIZE(o)))) {
+            PyObject* old;
+            Py_INCREF(v);
+            old = PyList_GET_ITEM(o, n);
             PyList_SET_ITEM(o, n, v);
             Py_DECREF(old);
-#endif
-            return 1;
+            return 0;
         }
-    } else {
+    } else
+#endif
+#if CYTHON_USE_TYPE_SLOTS && !CYTHON_COMPILING_IN_PYPY
+    {
         // inlined PySequence_SetItem() + special cased length overflow
         PyMappingMethods *mm = Py_TYPE(o)->tp_as_mapping;
         PySequenceMethods *sm = Py_TYPE(o)->tp_as_sequence;
-        if (mm && mm->mp_ass_subscript) {
+        if (!is_list && mm && mm->mp_ass_subscript) {
             int r;
             PyObject *key = PyLong_FromSsize_t(i);
             if (unlikely(!key)) return -1;
@@ -600,7 +609,7 @@ static CYTHON_INLINE int __Pyx_SetItemInt_Fast(PyObject *o, Py_ssize_t i, PyObje
             Py_DECREF(key);
             return r;
         }
-        if (likely(sm && sm->sq_ass_item)) {
+        if (is_list || likely(sm && sm->sq_ass_item)) {
             if (wraparound && unlikely(i < 0) && likely(sm->sq_length)) {
                 Py_ssize_t l = sm->sq_length(o);
                 if (likely(l >= 0)) {
@@ -617,19 +626,20 @@ static CYTHON_INLINE int __Pyx_SetItemInt_Fast(PyObject *o, Py_ssize_t i, PyObje
     }
 #else
     // PySequence_SetItem behaves differently to PyObject_SetItem for i<0
-    // and possibly some other cases so can't generally be substituted
-    if (is_list || !PyMapping_Check(o))
-    {
+    // and possibly some other cases, so can't generally be substituted.
+    if (is_list || !PyMapping_Check(o)) {
         return PySequence_SetItem(o, i, v);
     }
 #endif
+    (void)wraparound;
+    (void)boundscheck;
     return __Pyx_SetItemInt_Generic(o, PyLong_FromSsize_t(i), v);
 }
 
 
 /////////////// DelItemInt.proto ///////////////
 
-#define __Pyx_DelItemInt(o, i, type, is_signed, to_py_func, is_list, wraparound, boundscheck) \
+#define __Pyx_DelItemInt(o, i, type, is_signed, to_py_func, is_list, wraparound, boundscheck, has_gil, unsafe_shared) \
     (__Pyx_fits_Py_ssize_t(i, type, is_signed) ? \
     __Pyx_DelItemInt_Fast(o, (Py_ssize_t)i, is_list, wraparound) : \
     (is_list ? (PyErr_SetString(PyExc_IndexError, "list assignment index out of range"), -1) : \
@@ -869,7 +879,7 @@ static CYTHON_INLINE PyObject* __Pyx_PyTuple_GetSlice(PyObject* src, Py_ssize_t 
 
 /////////////// SliceTupleAndList ///////////////
 //@requires: TupleAndListFromArray
-//@requires: ModuleSetupCode.c::CriticalSections
+//@requires: Synchronization.c::CriticalSections
 
 #if CYTHON_COMPILING_IN_CPYTHON
 static CYTHON_INLINE void __Pyx_crop_slice(Py_ssize_t* _start, Py_ssize_t* _stop, Py_ssize_t* _length) {
@@ -1775,7 +1785,7 @@ try_unpack:
 
 
 /////////////// UnpackUnboundCMethod.proto ///////////////
-//@requires:  MemoryView_C.c::Atomics
+//@requires:  Synchronization.c::Atomics
 
 typedef struct {
     PyObject *type;
@@ -2138,7 +2148,6 @@ static CYTHON_INLINE PyObject* __Pyx_PyObject_FastCallDict(PyObject *func, PyObj
 
 /////////////// PyObjectFastCall ///////////////
 //@requires: PyObjectCall
-//@requires: PyFunctionFastCall
 //@requires: PyObjectCallMethO
 
 #if PY_VERSION_HEX < 0x03090000 || CYTHON_COMPILING_IN_LIMITED_API
@@ -2207,40 +2216,16 @@ static CYTHON_INLINE PyObject* __Pyx_PyObject_FastCallDict(PyObject *func, PyObj
     }
 #endif
 
-    #if PY_VERSION_HEX < 0x030800B1
-    #if CYTHON_FAST_PYCCALL
-    if (PyCFunction_Check(func)) {
-        if (kwargs) {
-            return _PyCFunction_FastCallDict(func, args, nargs, kwargs);
-        } else {
-            return _PyCFunction_FastCallKeywords(func, args, nargs, NULL);
-        }
-    }
-    if (!kwargs && __Pyx_IS_TYPE(func, &PyMethodDescr_Type)) {
-        return _PyMethodDescr_FastCallKeywords(func, args, nargs, NULL);
-    }
-    #endif
-    #if CYTHON_FAST_PYCALL
-    if (PyFunction_Check(func)) {
-        return __Pyx_PyFunction_FastCallDict(func, args, nargs, kwargs);
-    }
-    #endif
-    #endif
-
     if (kwargs == NULL) {
-        #if CYTHON_VECTORCALL && !CYTHON_COMPILING_IN_LIMITED_API
-        vectorcallfunc f = __Pyx_PyVectorcall_Function(func);
-        if (f) {
-            return f(func, args, _nargs, NULL);
-        }
-        #elif defined(__Pyx_CyFunction_USED) && CYTHON_BACKPORT_VECTORCALL
-        // exclude fused functions for now
-        if (__Pyx_CyFunction_CheckExact(func)) {
-            __pyx_vectorcallfunc f = __Pyx_CyFunction_func_vectorcall(func);
-            if (f) return f(func, args, _nargs, NULL);
-        }
-        #elif CYTHON_COMPILING_IN_LIMITED_API && CYTHON_VECTORCALL
-        return PyObject_Vectorcall(func, args, _nargs, NULL);
+        #if CYTHON_VECTORCALL
+          #if CYTHON_COMPILING_IN_LIMITED_API
+            return PyObject_Vectorcall(func, args, _nargs, NULL);
+          #else
+            vectorcallfunc f = __Pyx_PyVectorcall_Function(func);
+            if (f) {
+                return f(func, args, _nargs, NULL);
+            }
+          #endif
         #endif
     }
 
@@ -2373,6 +2358,14 @@ static PyObject* __Pyx_PyObject_CallMethod0(PyObject* obj, PyObject* method_name
 //@requires: PyObjectCallNoArg
 
 static PyObject* __Pyx_PyObject_CallMethod0(PyObject* obj, PyObject* method_name) {
+#if CYTHON_VECTORCALL && (__PYX_LIMITED_VERSION_HEX >= 0x030C0000 || (!CYTHON_COMPILING_IN_LIMITED_API && PY_VERSION_HEX >= 0x03090000))
+    PyObject *args[1] = {obj};
+    // avoid unused functions
+    (void) __Pyx_PyObject_GetMethod;
+    (void) __Pyx_PyObject_CallOneArg;
+    (void) __Pyx_PyObject_CallNoArg;
+    return PyObject_VectorcallMethod(method_name, args, 1 | PY_VECTORCALL_ARGUMENTS_OFFSET, NULL);
+#else
     PyObject *method = NULL, *result = NULL;
     int is_method = __Pyx_PyObject_GetMethod(obj, method_name, &method);
     if (likely(is_method)) {
@@ -2385,6 +2378,7 @@ static PyObject* __Pyx_PyObject_CallMethod0(PyObject* obj, PyObject* method_name
     Py_DECREF(method);
 bad:
     return result;
+#endif
 }
 
 
@@ -2397,7 +2391,7 @@ static PyObject* __Pyx_PyObject_CallMethod1(PyObject* obj, PyObject* method_name
 //@requires: PyObjectCallOneArg
 //@requires: PyObjectCall2Args
 
-#if !(CYTHON_VECTORCALL && __PYX_LIMITED_VERSION_HEX >= 0x030C0000)
+#if !(CYTHON_VECTORCALL && (__PYX_LIMITED_VERSION_HEX >= 0x030C0000 || (!CYTHON_COMPILING_IN_LIMITED_API && PY_VERSION_HEX >= 0x03090000)))
 static PyObject* __Pyx__PyObject_CallMethod1(PyObject* method, PyObject* arg) {
     // Separate function to avoid excessive inlining.
     PyObject *result = __Pyx_PyObject_CallOneArg(method, arg);
@@ -2407,7 +2401,7 @@ static PyObject* __Pyx__PyObject_CallMethod1(PyObject* method, PyObject* arg) {
 #endif
 
 static PyObject* __Pyx_PyObject_CallMethod1(PyObject* obj, PyObject* method_name, PyObject* arg) {
-#if CYTHON_VECTORCALL && __PYX_LIMITED_VERSION_HEX >= 0x030C0000
+#if CYTHON_VECTORCALL && (__PYX_LIMITED_VERSION_HEX >= 0x030C0000 || (!CYTHON_COMPILING_IN_LIMITED_API && PY_VERSION_HEX >= 0x03090000))
     PyObject *args[2] = {obj, arg};
     // avoid unused functions
     (void) __Pyx_PyObject_GetMethod;
@@ -2429,21 +2423,9 @@ static PyObject* __Pyx_PyObject_CallMethod1(PyObject* obj, PyObject* method_name
 
 
 /////////////// tp_new.proto ///////////////
-//@requires: ModuleSetupCode.c::GetRuntimeVersion
 
 #define __Pyx_tp_new(type_obj, args) __Pyx_tp_new_kwargs(type_obj, args, NULL)
-#if CYTHON_COMPILING_IN_LIMITED_API && __PYX_LIMITED_VERSION_HEX < 0x030A0000
-static PyObject* __Pyx_tp_new_fallback(PyObject* type_obj, PyObject* args, PyObject* kwargs); /*proto*/
-#endif
-static CYTHON_INLINE PyObject* __Pyx_tp_new_kwargs(PyObject* type_obj, PyObject* args, PyObject* kwargs) {
-    newfunc tp_new = __Pyx_PyType_TryGetSlot((PyTypeObject*)type_obj, tp_new, newfunc);
-#if CYTHON_COMPILING_IN_LIMITED_API && __PYX_LIMITED_VERSION_HEX < 0x030A0000
-    if (!tp_new) return __Pyx_tp_new_fallback(type_obj, args, kwargs);
-#else
-    assert(tp_new != NULL);
-#endif
-    return tp_new((PyTypeObject*)type_obj, args, kwargs);
-}
+static CYTHON_INLINE PyObject* __Pyx_tp_new_kwargs(PyObject* type_obj, PyObject* args, PyObject* kwargs); /*proto*/
 
 /////////////// tp_new ///////////////
 
@@ -2475,6 +2457,17 @@ static PyObject* __Pyx_tp_new_fallback(PyObject* type_obj, PyObject* args, PyObj
     return NULL;
 }
 #endif
+
+static PyObject* __Pyx_tp_new_kwargs(PyObject* type_obj, PyObject* args, PyObject* kwargs) {
+    newfunc tp_new = __Pyx_PyType_TryGetSlot((PyTypeObject*)type_obj, tp_new, newfunc);
+#if CYTHON_COMPILING_IN_LIMITED_API && __PYX_LIMITED_VERSION_HEX < 0x030A0000
+    if (!tp_new) return __Pyx_tp_new_fallback(type_obj, args, kwargs);
+#else
+    assert(tp_new != NULL);
+#endif
+    return tp_new((PyTypeObject*)type_obj, args, kwargs);
+}
+
 
 /////////////// PyObjectCall.proto ///////////////
 
@@ -2536,193 +2529,6 @@ static CYTHON_INLINE PyObject* __Pyx_PyObject_CallMethO(PyObject *func, PyObject
 #endif
 
 
-/////////////// PyFunctionFastCall.proto ///////////////
-
-#if CYTHON_FAST_PYCALL
-
-#if !CYTHON_VECTORCALL
-#define __Pyx_PyFunction_FastCall(func, args, nargs) \
-    __Pyx_PyFunction_FastCallDict((func), (args), (nargs), NULL)
-
-static PyObject *__Pyx_PyFunction_FastCallDict(PyObject *func, PyObject *const *args, Py_ssize_t nargs, PyObject *kwargs);
-#endif
-
-// Backport from Python 3
-// Assert a build-time dependency, as an expression.
-//   Your compile will fail if the condition isn't true, or can't be evaluated
-//   by the compiler. This can be used in an expression: its value is 0.
-// Example:
-//   #define foo_to_char(foo)  \
-//       ((char *)(foo)        \
-//        + Py_BUILD_ASSERT_EXPR(offsetof(struct foo, string) == 0))
-//
-//   Written by Rusty Russell, public domain, https://ccodearchive.net/
-#define __Pyx_BUILD_ASSERT_EXPR(cond) \
-    (sizeof(char [1 - 2*!(cond)]) - 1)
-
-#ifndef Py_MEMBER_SIZE
-// Get the size of a structure member in bytes
-#define Py_MEMBER_SIZE(type, member) sizeof(((type *)0)->member)
-#endif
-
-#if !CYTHON_VECTORCALL
-#if PY_VERSION_HEX >= 0x03080000
-  #include "frameobject.h"
-  #define __Pxy_PyFrame_Initialize_Offsets()
-  #define __Pyx_PyFrame_GetLocalsplus(frame)  ((frame)->f_localsplus)
-#else
-  // Initialised by module init code.
-  static size_t __pyx_pyframe_localsplus_offset = 0;
-
-  #include "frameobject.h"
-  // This is the long runtime version of
-  //     #define __Pyx_PyFrame_GetLocalsplus(frame)  ((frame)->f_localsplus)
-  // offsetof(PyFrameObject, f_localsplus) differs between regular C-Python and Stackless Python < 3.8.
-  // Therefore the offset is computed at run time from PyFrame_type.tp_basicsize. That is feasible,
-  // because f_localsplus is the last field of PyFrameObject (checked by Py_BUILD_ASSERT_EXPR below).
-  #define __Pxy_PyFrame_Initialize_Offsets()  \
-    ((void)__Pyx_BUILD_ASSERT_EXPR(sizeof(PyFrameObject) == offsetof(PyFrameObject, f_localsplus) + Py_MEMBER_SIZE(PyFrameObject, f_localsplus)), \
-     (void)(__pyx_pyframe_localsplus_offset = ((size_t)PyFrame_Type.tp_basicsize) - Py_MEMBER_SIZE(PyFrameObject, f_localsplus)))
-  #define __Pyx_PyFrame_GetLocalsplus(frame)  \
-    (assert(__pyx_pyframe_localsplus_offset), (PyObject **)(((char *)(frame)) + __pyx_pyframe_localsplus_offset))
-#endif
-#endif /* !CYTHON_VECTORCALL */
-
-#endif /* CYTHON_FAST_PYCALL */
-
-
-/////////////// PyFunctionFastCall ///////////////
-// copied from CPython 3.6 ceval.c
-
-#if CYTHON_FAST_PYCALL && !CYTHON_VECTORCALL
-static PyObject* __Pyx_PyFunction_FastCallNoKw(PyCodeObject *co, PyObject *const *args, Py_ssize_t na,
-                                               PyObject *globals) {
-    PyFrameObject *f;
-    PyThreadState *tstate = __Pyx_PyThreadState_Current;
-    PyObject **fastlocals;
-    Py_ssize_t i;
-    PyObject *result;
-
-    assert(globals != NULL);
-    /* XXX Perhaps we should create a specialized
-       PyFrame_New() that doesn't take locals, but does
-       take builtins without sanity checking them.
-       */
-    assert(tstate != NULL);
-    f = PyFrame_New(tstate, co, globals, NULL);
-    if (f == NULL) {
-        return NULL;
-    }
-
-    fastlocals = __Pyx_PyFrame_GetLocalsplus(f);
-
-    for (i = 0; i < na; i++) {
-        Py_INCREF(*args);
-        fastlocals[i] = *args++;
-    }
-    result = PyEval_EvalFrameEx(f,0);
-
-    ++tstate->recursion_depth;
-    Py_DECREF(f);
-    --tstate->recursion_depth;
-
-    return result;
-}
-
-
-static PyObject *__Pyx_PyFunction_FastCallDict(PyObject *func, PyObject *const *args, Py_ssize_t nargs, PyObject *kwargs) {
-    PyCodeObject *co = (PyCodeObject *)PyFunction_GET_CODE(func);
-    PyObject *globals = PyFunction_GET_GLOBALS(func);
-    PyObject *argdefs = PyFunction_GET_DEFAULTS(func);
-    PyObject *closure;
-    PyObject *kwdefs;
-    //PyObject *name, *qualname;
-    PyObject *kwtuple, **k;
-    PyObject **d;
-    Py_ssize_t nd;
-    Py_ssize_t nk;
-    PyObject *result;
-
-    assert(kwargs == NULL || PyDict_Check(kwargs));
-    nk = kwargs ? PyDict_Size(kwargs) : 0;
-
-    if (unlikely(Py_EnterRecursiveCall(" while calling a Python object"))) {
-        return NULL;
-    }
-
-    if (
-            co->co_kwonlyargcount == 0 &&
-            likely(kwargs == NULL || nk == 0) &&
-            co->co_flags == (CO_OPTIMIZED | CO_NEWLOCALS | CO_NOFREE)) {
-        /* Fast paths */
-        if (argdefs == NULL && co->co_argcount == nargs) {
-            result = __Pyx_PyFunction_FastCallNoKw(co, args, nargs, globals);
-            goto done;
-        }
-        else if (nargs == 0 && argdefs != NULL
-                 && co->co_argcount == Py_SIZE(argdefs)) {
-            /* function called with no arguments, but all parameters have
-               a default value: use default values as arguments .*/
-            args = &PyTuple_GET_ITEM(argdefs, 0);
-            result =__Pyx_PyFunction_FastCallNoKw(co, args, Py_SIZE(argdefs), globals);
-            goto done;
-        }
-    }
-
-    if (kwargs != NULL) {
-        Py_ssize_t pos, i;
-        kwtuple = PyTuple_New(2 * nk);
-        if (kwtuple == NULL) {
-            result = NULL;
-            goto done;
-        }
-
-        k = &PyTuple_GET_ITEM(kwtuple, 0);
-        pos = i = 0;
-        while (PyDict_Next(kwargs, &pos, &k[i], &k[i+1])) {
-            Py_INCREF(k[i]);
-            Py_INCREF(k[i+1]);
-            i += 2;
-        }
-        nk = i / 2;
-    }
-    else {
-        kwtuple = NULL;
-        k = NULL;
-    }
-
-    closure = PyFunction_GET_CLOSURE(func);
-    kwdefs = PyFunction_GET_KW_DEFAULTS(func);
-    //name = ((PyFunctionObject *)func) -> func_name;
-    //qualname = ((PyFunctionObject *)func) -> func_qualname;
-
-    if (argdefs != NULL) {
-        d = &PyTuple_GET_ITEM(argdefs, 0);
-        nd = Py_SIZE(argdefs);
-    }
-    else {
-        d = NULL;
-        nd = 0;
-    }
-
-    //return _PyEval_EvalCodeWithName((PyObject*)co, globals, (PyObject *)NULL,
-    //                                args, nargs,
-    //                                NULL, 0,
-    //                                d, nd, kwdefs,
-    //                                closure, name, qualname);
-    result = PyEval_EvalCodeEx((PyObject*)co, globals, (PyObject *)NULL,
-                               args, (int)nargs,
-                               k, (int)nk,
-                               d, (int)nd, kwdefs, closure);
-    Py_XDECREF(kwtuple);
-
-done:
-    Py_LeaveRecursiveCall();
-    return result;
-}
-#endif  /* CYTHON_FAST_PYCALL && !CYTHON_VECTORCALL */
-
-
 /////////////// PyObjectCall2Args.proto ///////////////
 
 static CYTHON_INLINE PyObject* __Pyx_PyObject_Call2Args(PyObject* function, PyObject* arg1, PyObject* arg2); /*proto*/
@@ -2764,13 +2570,13 @@ static CYTHON_INLINE PyObject* __Pyx_PyObject_CallNoArg(PyObject *func) {
 
 /////////////// PyVectorcallFastCallDict.proto ///////////////
 
-#if CYTHON_METH_FASTCALL && (CYTHON_VECTORCALL || CYTHON_BACKPORT_VECTORCALL)
+#if CYTHON_METH_FASTCALL && CYTHON_VECTORCALL
 static CYTHON_INLINE PyObject *__Pyx_PyVectorcall_FastCallDict(PyObject *func, __pyx_vectorcallfunc vc, PyObject *const *args, size_t nargs, PyObject *kw);
 #endif
 
 /////////////// PyVectorcallFastCallDict ///////////////
 
-#if CYTHON_METH_FASTCALL && (CYTHON_VECTORCALL || CYTHON_BACKPORT_VECTORCALL)
+#if CYTHON_METH_FASTCALL && CYTHON_VECTORCALL
 // Slow path when kw is non-empty
 static PyObject *__Pyx_PyVectorcall_FastCallDict_kw(PyObject *func, __pyx_vectorcallfunc vc, PyObject *const *args, size_t nargs, PyObject *kw)
 {
@@ -2880,11 +2686,12 @@ static CYTHON_INLINE PyObject *__Pyx_PyVectorcall_FastCallDict(PyObject *func, _
     (version_var) = __PYX_GET_DICT_VERSION(dict); \
     (cache_var) = (value);
 
+// The lookup function should return a new reference.
 #define __PYX_PY_DICT_LOOKUP_IF_MODIFIED(VAR, DICT, LOOKUP) { \
     static PY_UINT64_T __pyx_dict_version = 0; \
     static PyObject *__pyx_dict_cached_value = NULL; \
     if (likely(__PYX_GET_DICT_VERSION(DICT) == __pyx_dict_version)) { \
-        (VAR) = __pyx_dict_cached_value; \
+        (VAR) = __Pyx_XNewRef(__pyx_dict_cached_value); \
     } else { \
         (VAR) = __pyx_dict_cached_value = (LOOKUP); \
         __pyx_dict_version = __PYX_GET_DICT_VERSION(DICT); \
@@ -3025,36 +2832,57 @@ static PyObject *__Pyx_PyMethod_New2Arg(PyObject *func, PyObject *self) {
 // However, unlike `PyUnicode_Append` it will never NULL it.
 // It behaves like a regular function - returns a new reference and NULL on error
     #if CYTHON_REFNANNY
-        #define __Pyx_PyUnicode_ConcatInPlace(left, right) __Pyx_PyUnicode_ConcatInPlaceImpl(&left, right, __pyx_refnanny)
+        #define __Pyx_PyUnicode_ConcatInPlace(left, right, unsafe_shared) __Pyx_PyUnicode_ConcatInPlaceImpl(&left, right, unsafe_shared, __pyx_refnanny)
     #else
-        #define __Pyx_PyUnicode_ConcatInPlace(left, right) __Pyx_PyUnicode_ConcatInPlaceImpl(&left, right)
+        #define __Pyx_PyUnicode_ConcatInPlace(left, right, unsafe_shared) __Pyx_PyUnicode_ConcatInPlaceImpl(&left, right, unsafe_shared)
     #endif
+    #define __Pyx_PyUnicode_Concat__Pyx_ReferenceSharing_DefinitelyUniqueInPlace(left, right) __Pyx_PyUnicode_ConcatInPlace(left, right, __Pyx_ReferenceSharing_DefinitelyUnique)
+    #define __Pyx_PyUnicode_Concat__Pyx_ReferenceSharing_OwnStrongReferenceInPlace(left, right) __Pyx_PyUnicode_ConcatInPlace(left, right, __Pyx_ReferenceSharing_OwnStrongReference)
+    #define __Pyx_PyUnicode_Concat__Pyx_ReferenceSharing_FunctionArgumentInPlace(left, right) __Pyx_PyUnicode_ConcatInPlace(left, right, __Pyx_ReferenceSharing_DefinitelyUnique)
+    #define __Pyx_PyUnicode_Concat__Pyx_ReferenceSharing_SharedReferenceInPlace(left, right) __Pyx_PyUnicode_ConcatInPlace(left, right, __Pyx_ReferenceSharing_SharedReference)
     // __Pyx_PyUnicode_ConcatInPlace is slightly odd because it has the potential to modify the input
     // argument (but only in cases where no user should notice). Therefore, it needs to keep Cython's
     // refnanny informed.
-    static CYTHON_INLINE PyObject *__Pyx_PyUnicode_ConcatInPlaceImpl(PyObject **p_left, PyObject *right
+    static CYTHON_INLINE PyObject *__Pyx_PyUnicode_ConcatInPlaceImpl(PyObject **p_left, PyObject *right, int unsafe_shared
         #if CYTHON_REFNANNY
         , void* __pyx_refnanny
         #endif
     ); /* proto */
 #else
-#define __Pyx_PyUnicode_ConcatInPlace __Pyx_PyUnicode_Concat
+#define __Pyx_PyUnicode_Concat__Pyx_ReferenceSharing_DefinitelyUniqueInPlace __Pyx_PyUnicode_Concat
+#define __Pyx_PyUnicode_Concat__Pyx_ReferenceSharing_OwnStrongReferenceInPlace __Pyx_PyUnicode_Concat
+#define __Pyx_PyUnicode_Concat__Pyx_ReferenceSharing_FunctionArgumentInPlace __Pyx_PyUnicode_Concat
+#define __Pyx_PyUnicode_Concat__Pyx_ReferenceSharing_SharedReferenceInPlace __Pyx_PyUnicode_Concat
 #endif
-#define __Pyx_PyUnicode_ConcatInPlaceSafe(left, right) ((unlikely((left) == Py_None) || unlikely((right) == Py_None)) ? \
-    PyNumber_InPlaceAdd(left, right) : __Pyx_PyUnicode_ConcatInPlace(left, right))
+#define __Pyx_PyUnicode_Concat__Pyx_ReferenceSharing_DefinitelyUniqueInPlaceSafe(left, right) \
+    ((unlikely((left) == Py_None) || unlikely((right) == Py_None)) ? \
+    PyNumber_InPlaceAdd(left, right) : __Pyx_PyUnicode_Concat__Pyx_ReferenceSharing_DefinitelyUniqueInPlace(left, right))
+#define __Pyx_PyUnicode_Concat__Pyx_ReferenceSharing_OwnStrongReferenceInPlaceSafe(left, right) \
+    ((unlikely((left) == Py_None) || unlikely((right) == Py_None)) ? \
+    PyNumber_InPlaceAdd(left, right) : __Pyx_PyUnicode_Concat__Pyx_ReferenceSharing_OwnStrongReferenceInPlace(left, right))
+#define __Pyx_PyUnicode_Concat__Pyx_ReferenceSharing_FunctionArgumentInPlaceSafe(left, right) \
+    ((unlikely((left) == Py_None) || unlikely((right) == Py_None)) ? \
+    PyNumber_InPlaceAdd(left, right) : __Pyx_PyUnicode_Concat__Pyx_ReferenceSharing_FunctionArgumentInPlace(left, right))
+#define __Pyx_PyUnicode_Concat__Pyx_ReferenceSharing_SharedReferenceInPlaceSafe(left, right) \
+    ((unlikely((left) == Py_None) || unlikely((right) == Py_None)) ? \
+    PyNumber_InPlaceAdd(left, right) : __Pyx_PyUnicode_Concat__Pyx_ReferenceSharing_SharedReferenceInPlace(left, right))
 
 /////////////// UnicodeConcatInPlace ////////////////
 
 # if CYTHON_COMPILING_IN_CPYTHON
-// copied directly from unicode_object.c "unicode_modifiable
-// removing _PyUnicode_HASH since it's a macro we don't have
+// copied directly from unicode_object.c "unicode_modifiable"
+// removing _PyUnicode_HASH if we don't have access to it
 //  - this is OK because trying PyUnicode_Resize on a non-modifyable
 //  object will still work, it just won't happen in place
 static int
-__Pyx_unicode_modifiable(PyObject *unicode)
+__Pyx_unicode_modifiable(PyObject *unicode, int unsafe_shared)
 {
-    if (Py_REFCNT(unicode) != 1)
+    if (!__Pyx_IS_UNIQUELY_REFERENCED(unicode, unsafe_shared))
         return 0;
+#if CYTHON_COMPILING_IN_CPYTHON && PY_VERSION_HEX > 0x030F0000
+    if (PyUnstable_Unicode_GET_CACHED_HASH(unicode) != -1)
+        return 0;
+#endif
     if (!PyUnicode_CheckExact(unicode))
         return 0;
     if (PyUnicode_CHECK_INTERNED(unicode))
@@ -3062,7 +2890,7 @@ __Pyx_unicode_modifiable(PyObject *unicode)
     return 1;
 }
 
-static CYTHON_INLINE PyObject *__Pyx_PyUnicode_ConcatInPlaceImpl(PyObject **p_left, PyObject *right
+static CYTHON_INLINE PyObject *__Pyx_PyUnicode_ConcatInPlaceImpl(PyObject **p_left, PyObject *right, int unsafe_shared
         #if CYTHON_REFNANNY
         , void* __pyx_refnanny
         #endif
@@ -3094,7 +2922,7 @@ static CYTHON_INLINE PyObject *__Pyx_PyUnicode_ConcatInPlaceImpl(PyObject **p_le
     }
     new_len = left_len + right_len;
 
-    if (__Pyx_unicode_modifiable(left)
+    if (__Pyx_unicode_modifiable(left, unsafe_shared)
             && PyUnicode_CheckExact(right)
             && PyUnicode_KIND(right) <= PyUnicode_KIND(left)
             // Don't resize for ascii += latin1. Convert ascii to latin1 requires

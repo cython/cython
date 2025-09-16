@@ -211,7 +211,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             # They have the potential to cause ABI issues.
             self.scope.use_utility_code(
                 UtilityCode.load_cached(
-                    "CythonPyMutexPublicCheck", "Lock.c"
+                    "CythonPyMutexPublicCheck", "Synchronization.c"
                 ))
 
     def prepare_utility_code(self):
@@ -921,6 +921,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln('static const char *%s;' % Naming.filename_cname)
 
         env.use_utility_code(UtilityCode.load_cached("FastTypeChecks", "ModuleSetupCode.c"))
+        env.use_utility_code(UtilityCode.load("GetRuntimeVersion", "ModuleSetupCode.c"))
         if has_np_pythran(env):
             env.use_utility_code(UtilityCode.load_cached("PythranConversion", "CppSupport.cpp"))
 
@@ -1530,6 +1531,19 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 type.declaration_code("p"),
                 type.empty_declaration_code()))
 
+    @staticmethod
+    def generate_freelist_condition(code, size_check, type_cname, type):
+        code.globalstate.use_utility_code(
+            UtilityCode.load_cached("CheckTypeForFreelists", "ExtensionTypes.c"))
+        if type.is_final_type:
+            freelist_check = '__PYX_CHECK_FINAL_TYPE_FOR_FREELISTS'
+        else:
+            freelist_check = '__PYX_CHECK_TYPE_FOR_FREELISTS'
+        obj_struct = type.declaration_code("", deref=True)
+        typeptr_cname = code.name_in_slot_module_state(type.typeptr_cname)
+        code.putln(
+            f"if (likely((int)({size_check}) & {freelist_check}({type_cname}, {typeptr_cname}, sizeof({obj_struct}))))")
+
     def generate_new_function(self, scope, code, cclass_entry):
         tp_slot = TypeSlots.ConstructorSlot("tp_new", "__cinit__")
         slot_func = scope.mangle_internal("tp_new")
@@ -1595,45 +1609,43 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             code.putln("PyObject *o = %s(t, a, k);" % tp_new)
         else:
             code.putln("PyObject *o;")
-            code.putln("#if CYTHON_COMPILING_IN_LIMITED_API")
-            code.putln("allocfunc alloc_func = (allocfunc)PyType_GetSlot(t, Py_tp_alloc);")
-            code.putln("o = alloc_func(t, 0);")
-            code.putln("#else")
             if freelist_size:
                 code.globalstate.use_utility_code(
                     UtilityCode.load_cached("IncludeStringH", "StringTools.c"))
-                if is_final_type:
-                    type_safety_check = ''
-                else:
-                    type_safety_check = ' & (int)(!__Pyx_PyType_HasFeature(t, (Py_TPFLAGS_IS_ABSTRACT | Py_TPFLAGS_HEAPTYPE)))'
-                obj_struct = type.declaration_code("", deref=True)
                 code.putln("#if CYTHON_USE_FREELISTS")
-                code.putln(
-                    "if (likely((int)(%s > 0) & (int)(t->tp_basicsize == sizeof(%s))%s)) {" % (
-                        code.name_in_slot_module_state(freecount_name), obj_struct, type_safety_check))
+                freecount_name = code.name_in_slot_module_state(freecount_name)
+                freelist_name = code.name_in_slot_module_state(freelist_name)
+                self.generate_freelist_condition(code, f"{freecount_name} > 0", "t", type)
+                code.putln("{")
                 code.putln("o = (PyObject*)%s[--%s];" % (
-                    code.name_in_slot_module_state(freelist_name),
-                    code.name_in_slot_module_state(freecount_name)))
+                    freelist_name,
+                    freecount_name))
+                obj_struct = type.declaration_code("", deref=True)
+                code.putln("#if CYTHON_USE_TYPE_SPECS")
+                # We still hold a reference to the type object held by the previous
+                # user of the freelist object - release it.
+                code.putln("Py_DECREF(Py_TYPE(o));")
+                code.putln("#endif")
                 code.putln("memset(o, 0, sizeof(%s));" % obj_struct)
+                code.putln("#if CYTHON_COMPILING_IN_LIMITED_API")
+                # Although PyObject_INIT should be part of the Limited API, it causes
+                # link errors on some combinations of Python versions and OSs.
+                code.putln("(void) PyObject_Init(o, t);")
+                code.putln("#else")
                 code.putln("(void) PyObject_INIT(o, t);")
+                code.putln("#endif")
                 if scope.needs_gc():
                     code.putln("PyObject_GC_Track(o);")
                 code.putln("} else")
                 code.putln("#endif")
                 code.putln("{")
-            if not is_final_type:
-                code.putln("if (likely(!__Pyx_PyType_HasFeature(t, Py_TPFLAGS_IS_ABSTRACT))) {")
-            code.putln("o = (*t->tp_alloc)(t, 0);")
-            if not is_final_type:
-                code.putln("} else {")
-                code.putln("o = (PyObject *) PyBaseObject_Type.tp_new(t, %s->%s, 0);" % (
-                    Naming.modulestateglobal_cname, Naming.empty_tuple))
-                code.putln("}")
+            code.globalstate.use_utility_code(
+                UtilityCode.load_cached("AllocateExtensionType", "ExtensionTypes.c")
+            )
+            code.putln(f"o = __Pyx_AllocateExtensionType(t, {is_final_type:d});")
         code.putln("if (unlikely(!o)) return 0;")
         if freelist_size and not base_type:
             code.putln('}')
-        if not base_type:
-            code.putln("#endif")
         if need_self_cast:
             code.putln("p = %s;" % type.cast_code("o"))
         #if need_self_cast:
@@ -1760,9 +1772,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 finalised_check = (
                     '(!PyType_IS_GC(Py_TYPE(o)) || !__Pyx_PyObject_GC_IsFinalized(o))')
             code.putln(
-                "if (unlikely("
-                "(PY_VERSION_HEX >= 0x03080000 || __Pyx_PyType_HasFeature(Py_TYPE(o), Py_TPFLAGS_HAVE_FINALIZE))"
-                " && __Pyx_PyObject_GetSlot(o, tp_finalize, destructor)) && %s) {" % finalised_check)
+                "if (unlikely(__Pyx_PyObject_GetSlot(o, tp_finalize, destructor)) && %s) {" % finalised_check)
 
             code.putln("if (__Pyx_PyObject_GetSlot(o, tp_dealloc, destructor) == %s) {" % slot_func_cname)
             # if instance was resurrected by finaliser, return
@@ -1842,38 +1852,39 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         else:
             freelist_size = scope.directives.get('freelist', 0)
             if freelist_size:
-                freelist_name = scope.mangle_internal(Naming.freelist_name)
-                freecount_name = scope.mangle_internal(Naming.freecount_name)
-
-                if is_final_type:
-                    type_safety_check = ''
-                else:
-                    type_safety_check = (
-                        ' & (int)(!__Pyx_PyType_HasFeature(Py_TYPE(o), (Py_TPFLAGS_IS_ABSTRACT | Py_TPFLAGS_HEAPTYPE)))')
+                freelist_name = code.name_in_slot_module_state(
+                    scope.mangle_internal(Naming.freelist_name))
+                freecount_name = code.name_in_slot_module_state(
+                    scope.mangle_internal(Naming.freecount_name))
 
                 type = scope.parent_type
                 code.putln("#if CYTHON_USE_FREELISTS")
-                code.putln(
-                    "if (((int)(%s < %d) & (int)(Py_TYPE(o)->tp_basicsize == sizeof(%s))%s)) {" % (
-                        code.name_in_slot_module_state(freecount_name),
-                        freelist_size,
-                        type.declaration_code("", deref=True),
-                        type_safety_check))
+                self.generate_freelist_condition(
+                    code, f"{freecount_name} < {freelist_size}",
+                    "Py_TYPE(o)", type)
+                code.putln("{")
                 code.putln("%s[%s++] = %s;" % (
-                    code.name_in_slot_module_state(freelist_name),
-                    code.name_in_slot_module_state(freecount_name),
+                    freelist_name,
+                    freecount_name,
                     type.cast_code("o")))
+                # Deliberately don't DECREF the type object for objects returned to the freelist:
+                # we hold a reference to the type to allow them to be cleaned up properly.
                 code.putln("} else")
                 code.putln("#endif")
                 code.putln("{")
+            code.putln("PyTypeObject *tp = Py_TYPE(o);")
             code.putln("#if CYTHON_USE_TYPE_SLOTS")
             # Asking for PyType_GetSlot(..., Py_tp_free) seems to cause an error in pypy
-            code.putln("(*Py_TYPE(o)->tp_free)(o);")
+            code.putln("(*tp->tp_free)(o);")
             code.putln("#else")
             code.putln("{")
-            code.putln("freefunc tp_free = (freefunc)PyType_GetSlot(Py_TYPE(o), Py_tp_free);")
+            code.putln("freefunc tp_free = (freefunc)PyType_GetSlot(tp, Py_tp_free);")
             code.putln("if (tp_free) tp_free(o);")
             code.putln("}")
+            code.putln("#endif")
+            code.putln("#if CYTHON_USE_TYPE_SPECS")
+            # Undo the INCREF of the type object in tp_new
+            code.putln("Py_DECREF(tp);")
             code.putln("#endif")
             if freelist_size:
                 code.putln("}")
@@ -3044,7 +3055,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.put_code_here(refnanny_import_code)
         code.put_setup_refcount_context(modinit_func_name)
 
-        env.use_utility_code(UtilityCode.load("GetRuntimeVersion", "ModuleSetupCode.c"))
+        code.putln("__Pyx_init_runtime_version();")
         env.use_utility_code(UtilityCode.load("CheckBinaryVersion", "ModuleSetupCode.c"))
         code.put_error_if_neg(self.pos, "__Pyx_check_binary_version("
                                         "__PYX_LIMITED_VERSION_HEX, "
@@ -3052,9 +3063,6 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                                         "CYTHON_COMPILING_IN_LIMITED_API)"
         )
 
-        code.putln("#ifdef __Pxy_PyFrame_Initialize_Offsets")
-        code.putln("__Pxy_PyFrame_Initialize_Offsets();")
-        code.putln("#endif")
         empty_tuple = code.name_in_main_c_code_module_state(Naming.empty_tuple)
         code.putln("%s = PyTuple_New(0); %s" % (
             empty_tuple, code.error_goto_if_null(empty_tuple, self.pos)))
@@ -3244,7 +3252,12 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 code.putln("/*--- %s ---*/" % self.description)
                 return code
 
-            def __exit__(self, *args):
+            def __exit__(self, exc_type, exc_value, exc_tb):
+                if exc_type is not None:
+                    # Don't generate any code or do any validations on errors.
+                    self.tempdecl_code = self.call_code = None
+                    return
+
                 code = function_code
                 code.put_finish_refcount_context()
                 code.putln("return 0;")
@@ -3405,12 +3418,17 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 code.putln("while (%s > 0) {" % freecount_name)
                 code.putln("PyObject* o = (PyObject*)%s[--%s];" % (
                     freelist_name, freecount_name))
+                code.putln("PyTypeObject *tp = Py_TYPE(o);")
                 code.putln("#if CYTHON_USE_TYPE_SLOTS")
-                code.putln("(*Py_TYPE(o)->tp_free)(o);")
+                code.putln("(*tp->tp_free)(o);")
                 code.putln("#else")
                 # Asking for PyType_GetSlot(..., Py_tp_free) seems to cause an error in pypy
-                code.putln("freefunc tp_free = (freefunc)PyType_GetSlot(Py_TYPE(o), Py_tp_free);")
+                code.putln("freefunc tp_free = (freefunc)PyType_GetSlot(tp, Py_tp_free);")
                 code.putln("if (tp_free) tp_free(o);")
+                code.putln("#endif")
+                code.putln("#if CYTHON_USE_TYPE_SPECS")
+                # Release the reference that "o" owned for its type.
+                code.putln("Py_DECREF(tp);")
                 code.putln("#endif")
                 code.putln("}")
                 code.putln('#endif')  # CYTHON_USE_FREELISTS
@@ -3666,43 +3684,57 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                         code.error_goto(entry.pos)))
                 code.putln("}")
 
+    def _generate_export_code(self, all_entries, utility_code_name, code):
+        # Generic function/pointer export implementation as generator.
+        entries = [
+            entry for entry in all_entries
+            if entry.api or entry.defined_in_pxd or (Options.cimport_from_pyx and entry.visibility != 'extern')
+        ]
+        if not entries:
+            return
+
+        api_dict = code.funcstate.allocate_temp(py_object_type, manage_ref=True)
+        code.globalstate.use_utility_code(
+            UtilityCode.load_cached("GetApiDict", "ImportExport.c"))
+        code.putln(
+            f"{api_dict} = __Pyx_ApiExport_GetApiDict(); "
+            f"{code.error_goto_if_null(api_dict, self.pos)}"
+        )
+        code.put_gotref(api_dict, py_object_type)
+
+        code.globalstate.use_utility_code(
+            UtilityCode.load_cached(utility_code_name, "ImportExport.c"))
+
+        for entry in entries:
+            name = code.intern_identifier(entry.name)
+            yield (entry, name, api_dict)
+
+        code.put_decref_clear(api_dict, py_object_type)
+        code.funcstate.release_temp(api_dict)
+
     def generate_c_variable_export_code(self, env, code):
-        # Generate code to create PyCFunction wrappers for exported C functions.
-        entries = []
-        for entry in env.var_entries:
-            if (entry.api
-                    or entry.defined_in_pxd
-                    or (Options.cimport_from_pyx and not entry.visibility == 'extern')):
-                entries.append(entry)
-        if entries:
-            env.use_utility_code(UtilityCode.load_cached("VoidPtrExport", "ImportExport.c"))
-            for entry in entries:
-                signature = entry.type.empty_declaration_code()
-                name = code.intern_identifier(entry.name)
-                code.putln('if (__Pyx_ExportVoidPtr(%s, (void *)&%s, "%s") < 0) %s' % (
-                    name, entry.cname, signature,
-                    code.error_goto(self.pos)))
+        """Generate code to create PyCFunction wrappers for exported C functions.
+        """
+        for entry, name, api_dict in self._generate_export_code(env.var_entries, "VoidPtrExport", code):
+            signature = entry.type.empty_declaration_code()
+
+            code.put_error_if_neg(
+                self.pos,
+                f'__Pyx_ExportVoidPtr({api_dict}, {name}, (void *)&{entry.cname}, "{signature}")'
+            )
 
     def generate_c_function_export_code(self, env, code):
-        # Generate code to create PyCFunction wrappers for exported C functions.
-        entries = []
-        for entry in env.cfunc_entries:
-            if (entry.api
-                    or entry.defined_in_pxd
-                    or (Options.cimport_from_pyx and not entry.visibility == 'extern')):
-                entries.append(entry)
-        if entries:
-            env.use_utility_code(
-                UtilityCode.load_cached("FunctionExport", "ImportExport.c"))
+        """Generate code to create PyCFunction wrappers for exported C functions.
+        """
+        for entry, name, api_dict in self._generate_export_code(env.cfunc_entries, "FunctionExport", code):
             # Note: while this looks like it could be more cheaply stored and read from a struct array,
             # investigation shows that the resulting binary is smaller with repeated functions calls.
-            for entry in entries:
-                signature = entry.type.signature_string()
-                code.putln('if (__Pyx_ExportFunction(%s, (void (*)(void))%s, "%s") < 0) %s' % (
-                    entry.name.as_c_string_literal(),
-                    entry.cname,
-                    signature,
-                    code.error_goto(self.pos)))
+            signature = entry.type.signature_string()
+
+            code.put_error_if_neg(
+                self.pos,
+                f'__Pyx_ExportFunction({api_dict}, {name}, (void (*)(void)){entry.cname}, "{signature}")'
+            )
 
     def generate_type_import_code_for_module(self, module, env, code):
         # Generate type import code for all exported extension types in
@@ -3725,65 +3757,59 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 # This call modifies the cfunc_entries in-place
                 entry.type.get_all_specialized_function_types()
 
+    def _generate_import_code(self, all_entries, qualified_module_name, utility_code_name, code, used_only=False):
+        # Generic function/pointer import implementation as generator.
+        entries = [
+            entry for entry in all_entries
+            if entry.defined_in_pxd and (not used_only or entry.used)
+        ]
+        if not entries:
+            return
+
+        code.globalstate.use_utility_code(
+            UtilityCode.load_cached(utility_code_name, "ImportExport.c"))
+
+        module_ref = code.funcstate.allocate_temp(py_object_type, manage_ref=True)
+        code.putln(
+            f'{module_ref} = PyImport_ImportModule({qualified_module_name.as_c_string_literal()}); '
+            f'{code.error_goto_if_null(module_ref, self.pos)}'
+        )
+        code.put_gotref(module_ref, py_object_type)
+
+        for entry in entries:
+            yield (module_ref, entry)
+
+        code.put_decref_clear(module_ref, py_object_type)
+        code.funcstate.release_temp(module_ref)
+
     def generate_c_variable_import_code_for_module(self, module, env, code):
-        # Generate import code for all exported C functions in a cimported module.
-        entries = []
-        for entry in module.var_entries:
-            if entry.defined_in_pxd:
-                entries.append(entry)
-        if entries:
-            env.use_utility_code(
-                UtilityCode.load_cached("VoidPtrImport", "ImportExport.c"))
-            temp = code.funcstate.allocate_temp(py_object_type, manage_ref=True)
-            code.putln(
-                '%s = PyImport_ImportModule("%s"); if (!%s) %s' % (
-                    temp,
-                    module.qualified_name,
-                    temp,
-                    code.error_goto(self.pos)))
-            code.put_gotref(temp, py_object_type)
-            for entry in entries:
-                if env is module:
-                    cname = entry.cname
-                else:
-                    cname = module.mangle(Naming.varptr_prefix, entry.name)
-                signature = entry.type.empty_declaration_code()
-                code.putln(
-                    'if (__Pyx_ImportVoidPtr_%s(%s, "%s", (void **)&%s, "%s") < 0) %s' % (
-                        Naming.cyversion,
-                        temp, entry.name, cname, signature,
-                        code.error_goto(self.pos)))
-            code.put_decref_clear(temp, py_object_type)
-            code.funcstate.release_temp(temp)
+        """Generate import code for all exported C functions in a cimported module.
+        """
+        for module_ref, entry in self._generate_import_code(
+                module.var_entries, module.qualified_name, "VoidPtrImport", code, used_only=False):
+            signature = entry.type.empty_declaration_code()
+            cname = entry.cname if env is module else module.mangle(Naming.varptr_prefix, entry.name)
+
+            code.put_error_if_neg(
+                self.pos,
+                f'__Pyx_ImportVoidPtr_{Naming.cyversion}('
+                f'{module_ref}, {entry.name.as_c_string_literal()}, (void **)&{cname}, "{signature}"'
+                f')'
+            )
 
     def generate_c_function_import_code_for_module(self, module, env, code):
-        # Generate import code for all exported C functions in a cimported module.
-        entries = []
-        for entry in module.cfunc_entries:
-            if entry.defined_in_pxd and entry.used:
-                entries.append(entry)
-        if entries:
-            env.use_utility_code(
-                UtilityCode.load_cached("FunctionImport", "ImportExport.c"))
-            temp = code.funcstate.allocate_temp(py_object_type, manage_ref=True)
-            code.putln(
-                '%s = PyImport_ImportModule("%s"); if (!%s) %s' % (
-                    temp,
-                    module.qualified_name,
-                    temp,
-                    code.error_goto(self.pos)))
-            code.put_gotref(temp, py_object_type)
-            for entry in entries:
-                code.putln(
-                    'if (__Pyx_ImportFunction_%s(%s, %s, (void (**)(void))&%s, "%s") < 0) %s' % (
-                        Naming.cyversion,
-                        temp,
-                        entry.name.as_c_string_literal(),
-                        entry.cname,
-                        entry.type.signature_string(),
-                        code.error_goto(self.pos)))
-            code.put_decref_clear(temp, py_object_type)
-            code.funcstate.release_temp(temp)
+        """Generate import code for all exported C functions in a cimported module.
+        """
+        for module_ref, entry in self._generate_import_code(
+                module.cfunc_entries, module.qualified_name, "FunctionImport", code, used_only=True):
+            signature = entry.type.signature_string()
+
+            code.put_error_if_neg(
+                self.pos,
+                f'__Pyx_ImportFunction_{Naming.cyversion}('
+                f'{module_ref}, {entry.name.as_c_string_literal()}, (void (**)(void))&{entry.cname}, "{signature}"'
+                f')'
+            )
 
     def generate_type_init_code(self, env, code):
         # Generate type import code for extern extension types

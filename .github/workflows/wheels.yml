@@ -42,8 +42,7 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
   cancel-in-progress: true
 
-permissions:
-  contents: write # to create GitHub release (softprops/action-gh-release)
+permissions: {}
 
 jobs:
   generate-wheels-matrix:
@@ -63,21 +62,21 @@ jobs:
     outputs:
       include: ${{ steps.set-matrix.outputs.include }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Install cibuildwheel
         # Nb. keep cibuildwheel version pin consistent with job below
-        run: pipx install cibuildwheel==2.21.3
+        run: pipx install cibuildwheel==3.1.4
       - id: set-matrix
         run: |
           MATRIX=$(
             {
-              cibuildwheel --print-build-identifiers --prerelease-pythons --platform linux \
+              cibuildwheel --print-build-identifiers --platform linux \
               | jq -nRc '{"only": inputs, "os": "ubuntu-latest"}' \
               | sed -e '/aarch64/s|ubuntu-latest|ubuntu-24.04-arm|' \
-              && cibuildwheel --print-build-identifiers --prerelease-pythons --platform macos \
+              && cibuildwheel --print-build-identifiers --platform macos \
               | jq -nRc '{"only": inputs, "os": "macos-latest"}' \
-              && cibuildwheel --print-build-identifiers --prerelease-pythons --platform windows \
-              | jq -nRc '{"only": inputs, "os": "windows-2019"}'
+              && cibuildwheel --print-build-identifiers --platform windows \
+              | jq -nRc '{"only": inputs, "os": "windows-2022"}'
             } | jq -sc
           )
           echo "$MATRIX"
@@ -103,27 +102,18 @@ jobs:
 
     steps:
       - name: Checkout Cython
-        uses: actions/checkout@v4.1.1
+        uses: actions/checkout@v5
 
       - name: Build wheels
         # Nb. keep cibuildwheel version pin consistent with generate-matrix job above
-        uses: pypa/cibuildwheel@v2.22.0
+        uses: pypa/cibuildwheel@v3.1.4
         with:
           only: ${{ matrix.only }}
         # TODO: Cython tests take a long time to complete
         # consider running a subset in the future?
         #CIBW_TEST_COMMAND: python {project}/runtests.py -vv
 
-      - name: Release
-        uses: softprops/action-gh-release@v2
-        if: startsWith(github.ref, 'refs/tags/')
-        with:
-          files: wheelhouse/*.whl
-          prerelease: >-
-            ${{ contains(github.ref_name, 'a') || contains(github.ref_name, 'b')
-              || contains(github.ref_name, 'rc') || contains(github.ref_name, 'dev') }}
-
-      - uses: actions/upload-artifact@v4.3.0
+      - uses: actions/upload-artifact@v4.6.2
         with:
           name: ${{ matrix.only }}
           path: ./wheelhouse/*.whl
@@ -140,10 +130,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Cython
-        uses: actions/checkout@v4.1.1
+        uses: actions/checkout@v5
 
       # Used to push the built wheels
-      - uses: actions/setup-python@v5.0.0
+      - uses: actions/setup-python@v5.6.0
         with:
           # Build sdist on lowest supported Python
           python-version: '3.8'
@@ -154,23 +144,47 @@ jobs:
           python setup.py sdist
           python setup.py bdist_wheel --no-cython-compile
 
-      - uses: actions/upload-artifact@v4.3.0
+      - uses: actions/upload-artifact@v4.6.2
         with:
           name: sdist
           path: ./dist/*.tar.gz
 
-      - uses: actions/upload-artifact@v4.3.0
+      - uses: actions/upload-artifact@v4.6.2
         with:
           name: pure-wheel
           path: ./dist/*.whl
 
+  upload_release_assets:
+    name: Upload Release Assets
+    needs: [ build_sdist_pure_wheel, build_wheels ]
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: write  # to create GitHub release (softprops/action-gh-release)
+
+    steps:
+      - name: Download artifacts
+        uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0 # v5.0.0
+        with:
+          path: ./release_upload
+          merge-multiple: true
+
+      - name: List downloaded artifacts
+        run: ls -la ./release_upload
+
+      - name: Upload wheels
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          path: ./release_upload/*.whl
+          name: all_wheels
+
       - name: Release
         uses: softprops/action-gh-release@v2
-        if: startsWith(github.ref, 'refs/tags/')
+        if: github.ref_type == 'tag'
         with:
           files: |
-            dist/*.tar.gz
-            dist/*-none-any.whl
+            ./release_upload/*.whl
+            ./release_upload/*.tar.gz
           prerelease: >-
             ${{ contains(github.ref_name, 'a') || contains(github.ref_name, 'b')
               || contains(github.ref_name, 'rc') || contains(github.ref_name, 'dev') }}
