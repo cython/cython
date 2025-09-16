@@ -61,7 +61,7 @@ class MatchNode(StatNode):
                             c.pos, lhs=NameNode(c.pos, name=t), rhs=subject
                         ),
                     )
-                if not current_if_statement:
+                if current_if_statement is None:
                     current_if_statement = Nodes.IfStatNode(
                         c.pos, if_clauses=[], else_clause=None
                     )
@@ -425,7 +425,7 @@ class ClassPatternNode(PatternNode):
 class MatchValuePrimaryCmpNode(ExprNodes.PrimaryCmpNode):
     """
     Overrides PrimaryCmpNode to be a little more restrictive
-    that normal. Specifically, Cython normally allows:
+    than normal. Specifically, Cython normally allows:
       int(1) is True
     Here, True should only match an exact Python object, or
     a bint(True).
