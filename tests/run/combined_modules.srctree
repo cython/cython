@@ -72,25 +72,27 @@ assert single_phase.internal.attr == "22222", single_phase.attr
 ################ multi_phase.pyx ########################
 # distutils: language=c++
 
+from cpython.ref cimport PyObject
+
 cdef extern from *:
     """
     extern "C" PyObject *PyInit_multi_phase_internal();
-    #define MODULE_DEF_CHECK(o) Py_IS_TYPE(o, &PyModuleDef_Type)
+    #define MODULE_DEF_CHECK(o) Py_IS_TYPE((PyObject*)o, &PyModuleDef_Type)
     """
-    object PyInit_multi_phase_internal()
-    int MODULE_DEF_CHECK(object o) noexcept
     struct PyModuleDef:
         pass
+    PyObject* PyInit_multi_phase_internal()
+    int MODULE_DEF_CHECK(PyModuleDef* o) noexcept
     object PyModule_FromDefAndSpec(PyModuleDef *m, object spec)
     int PyModule_ExecDef(object module, PyModuleDef *m) except -1 
 
 def _do_multi_phase_import():
-    mod_def = PyInit_multi_phase_internal()
+    mod_def = <PyModuleDef*>PyInit_multi_phase_internal()
     assert MODULE_DEF_CHECK(mod_def)
     import importlib.machinery as im
     spec = im.ModuleSpec('multi_phase_internal', None)
-    mod = PyModule_FromDefAndSpec(<PyModuleDef*>mod_def, spec)
-    PyModule_ExecDef(mod, <PyModuleDef*>mod_def)
+    mod = PyModule_FromDefAndSpec(mod_def, spec)
+    PyModule_ExecDef(mod, mod_def)
     return mod
 
 internal = _do_multi_phase_import()
