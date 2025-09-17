@@ -125,10 +125,10 @@ class SharedUtilityExporter:
         self.import_code = mod_init_subfunction("Shared function import code")
         self.export_code = mod_init_subfunction("Shared function export code")
 
-    def has_shared_exports(self, shared_func_definitions: Sequence[Code.SharedFunctionDecl]) -> bool:
+    def has_shared_exports(self, shared_func_definitions: Sequence[Code.SharedFunctionDecl]):
         return self.in_shared_utility_module and shared_func_definitions
 
-    def has_shared_imports(self, shared_func_definitions: Sequence[Code.SharedFunctionDecl]) -> bool:
+    def has_shared_imports(self, shared_func_definitions: Sequence[Code.SharedFunctionDecl]):
         return self.using_shared_utility_module and shared_func_definitions
 
     def call_import_code(self, code):
