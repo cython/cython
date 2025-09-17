@@ -165,8 +165,7 @@ class SharedUtilityExporter:
         code.funcstate.release_temp(api_dict)
 
     def _generate_c_shared_function_import_code_for_module(self, code, function_definitions: Sequence[Code.SharedFunctionDecl]):
-        if function_definitions:
-            code.globalstate.use_utility_code(UtilityCode.load_cached("FunctionImport", "ImportExport.c"))
+        code.globalstate.use_utility_code(UtilityCode.load_cached("FunctionImport", "ImportExport.c"))
         shared_utility_qualified_name = self.scope.context.shared_utility_qualified_name
         temp = code.funcstate.allocate_temp(py_object_type, manage_ref=True)
         code.putln(
