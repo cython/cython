@@ -137,7 +137,6 @@ class SharedUtilityExporter:
     def call_export_code(self, code):
         self.export_code.set_call_code(code)
 
-
     def _generate_c_shared_function_export_code(self, code, shared_function_definitions: Sequence[Code.SharedFunctionDecl]):
         api_dict = code.funcstate.allocate_temp(py_object_type, manage_ref=True)
         if shared_function_definitions:
