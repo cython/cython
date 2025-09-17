@@ -18,8 +18,9 @@ import sys
 
 extras = dict()
 if sys.platform not in ['win32']:
-    extras['extra_compile_args'] = ['-flto']
-    extras['extra_link_args'] = ['-flto']
+    args = ['-flto', '-Werror=odr', '-Werror=lto-type-mismatch', '-Werror=strict-aliasing']
+    extras['extra_compile_args'] = args
+    extras['extra_link_args'] = args
 
 modules = [
     Extension(
