@@ -1,3 +1,6 @@
+# mode: run
+# tag: cpp
+
 # This is mainly a check that it's possible to compile multiple
 # Cython modules into a single .so file without conflicts between
 # them.
