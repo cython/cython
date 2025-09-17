@@ -1260,9 +1260,9 @@ def p_ft_string_replacement_field(s: PyrexScanner,
 
 @cython.cfunc
 def p_ft_string_middles(s: PyrexScanner,
-                      is_raw: cython.bint, is_single_quoted: cython.bint,
-                      is_format_string: cython.bint,
-                      is_template_string: cython.bint):
+                        is_raw: cython.bint, is_single_quoted: cython.bint,
+                        is_format_string: cython.bint,
+                        is_template_string: cython.bint):
     middles: list = []
     builder = StringEncoding.UnicodeLiteralBuilder()
     pos = s.position()
