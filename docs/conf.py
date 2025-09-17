@@ -15,7 +15,7 @@ YEAR = datetime.date.today().strftime("%Y")
 
 project = 'Cython'
 authors = 'Stefan Behnel, Robert Bradshaw, Dag Sverre Seljebotn, Greg Ewing, William Stein, Gabriel Gellner, et al.'
-copyright = '%s, %s' % (YEAR, authors)
+copyright = f'{YEAR}, {authors}'
 
 ### Custom Cython Docs changes ###
 highlight_language = "cython"
