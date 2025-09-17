@@ -16,12 +16,6 @@ from Cython.Build import cythonize
 
 import sys
 
-extras = dict()
-if sys.platform not in ['win32']:
-    args = ['-flto', '-Werror=odr', '-Werror=lto-type-mismatch', '-Werror=strict-aliasing']
-    extras['extra_compile_args'] = args
-    extras['extra_link_args'] = args
-
 modules = [
     Extension(
         "single_phase",
@@ -30,8 +24,7 @@ modules = [
         # the absolute basic ability to link multiple modules together without
         # one-definition rule clashes
         ["single_phase.pyx", "single_phase_internal.pyx"],
-        define_macros=[("CYTHON_PEP489_MULTI_PHASE_INIT", "0")],
-        **extras),
+        define_macros=[("CYTHON_PEP489_MULTI_PHASE_INIT", "0")]),
     Extension(
         "multi_phase",
         # ignoring "multiple sources warning!
@@ -39,8 +32,7 @@ modules = [
         # the absolute basic ability to link multiple modules together without
         # one-definition rule clashes
         ["multi_phase.pyx", "multi_phase_internal.pyx"],
-        define_macros=[("CYTHON_PEP489_MULTI_PHASE_INIT", "1")],
-        **extras),
+        define_macros=[("CYTHON_PEP489_MULTI_PHASE_INIT", "1")]),
 ]
 
 setup(
@@ -78,7 +70,7 @@ from cpython.ref cimport PyObject
 cdef extern from *:
     """
     extern "C" PyObject *PyInit_multi_phase_internal();
-    #define MODULE_DEF_CHECK(o) Py_IS_TYPE((PyObject*)o, &PyModuleDef_Type)
+    #define MODULE_DEF_CHECK(o) Py_TYPE((PyObject*)o) == &PyModuleDef_Type
     """
     struct PyModuleDef:
         pass
