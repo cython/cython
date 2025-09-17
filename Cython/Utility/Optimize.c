@@ -1285,10 +1285,8 @@ static {{c_ret_type}} __Pyx_Unpacked_{{cfunc_name}}(PyObject *op1, PyObject *op2
     }
     {{endif}}
 
-    // handle most common case first to avoid indirect branch and optimise branch prediction
-    if (likely(__Pyx_PyLong_IsCompact({{pyval}}))) {
-        {{ival}} = __Pyx_PyLong_CompactValue({{pyval}});
-    } else {
+    // Handle most common case (fits into 'long') first to avoid indirect branch and optimise branch prediction.
+    if (unlikely(!__Pyx_PyLong_CompactAsLong({{pyval}}, &{{ival}}))) {
         const digit* digits = __Pyx_PyLong_Digits({{pyval}});
         const Py_ssize_t size = __Pyx_PyLong_SignedDigitCount({{pyval}});
         switch (size) {
