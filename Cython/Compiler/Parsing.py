@@ -1238,7 +1238,7 @@ def p_ft_string_replacement_field(s: PyrexScanner,
         pos = s.position()
         # Contents of format spec are handled closer to an f-string than a t-string
         # (even for t-strings).
-        format_spec_contents = p_ft_string_middles(s, is_raw, is_single_quoted, True, is_template_string=False)
+        format_spec_contents = p_ft_string_middles(s, is_raw, is_single_quoted, is_format_string=True, is_template_string=False)
         format_spec = ExprNodes.JoinedStrNode(
             pos,
             values=format_spec_contents
@@ -1262,7 +1262,7 @@ def p_ft_string_replacement_field(s: PyrexScanner,
 def p_ft_string_middles(s: PyrexScanner,
                       is_raw: cython.bint, is_single_quoted: cython.bint,
                       is_format_string: cython.bint,
-                      is_template_string):
+                      is_template_string: cython.bint):
     middles: list = []
     builder = StringEncoding.UnicodeLiteralBuilder()
     pos = s.position()
@@ -1307,7 +1307,7 @@ def p_ft_string_literal(s: PyrexScanner):
     is_raw: cython.bint = 'r' in kind_string
     quotes = s.systring.lstrip("rRbBuUfFtT")
     is_single_quoted: cython.bint = len(quotes) != 3
-    middles = p_ft_string_middles(s, is_raw, is_single_quoted, False, is_template_string)
+    middles = p_ft_string_middles(s, is_raw, is_single_quoted, is_format_string=False, is_template_string=is_template_string)
     if s.sy != "END_FT_STRING":
         s.expected(quotes)
     s.next()
