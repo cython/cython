@@ -1480,7 +1480,7 @@ class GlobalState:
     #                                  supplied directly instead.
     #
     # const_cnames_used  dict          global counter for unique constant identifiers
-    # shared_utility_functions         List of parsed declaration line of the shared utility function
+    # shared_utility_functions         List of parsed declaration lines of the shared utility functions
 
     # parts            {string:CCodeWriter}
 
