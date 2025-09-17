@@ -2149,7 +2149,7 @@ class GlobalState:
             unsigned int first_line : {max_line.bit_length()};
         }} __Pyx_PyCode_New_function_description;
         #ifdef __cplusplus
-        }} /* anonymous namespace
+        }} /* anonymous namespace */
         #endif
         """))
 

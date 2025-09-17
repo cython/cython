@@ -1,0 +1,110 @@
+# This is mainly a check that it's possible to compile multiple
+# Cython modules into a single .so file without conflicts between
+# them.
+# It is not really recommended (there are many pitfalls that Cython
+# doesn't attempt to solve) and it definitely should not be taken
+# as a recipe.
+
+PYTHON setup.py build_ext -if
+PYTHON test_single_phase.py
+PYTHON test_multi_phase.py
+
+################### setup.py ########################
+
+from setuptools import Extension, setup
+from Cython.Build import cythonize
+
+import sys
+
+extras = dict()
+if sys.platform not in ['win32']:
+    extras['extra_compile_args'] = ['-flto']
+    extras['extra_link_args'] = ['-flto']
+
+modules = [
+    Extension(
+        "single_phase",
+        # ignoring "multiple sources warning!
+        # There's more elegant was to do this, but we're just checking
+        # the absolute basic ability to link multiple modules together without
+        # one-definition rule clashes
+        ["single_phase.pyx", "single_phase_internal.pyx"],
+        define_macros=[("CYTHON_PEP489_MULTI_PHASE_INIT", "0")],
+        **extras),
+    Extension(
+        "multi_phase",
+        # ignoring "multiple sources warning!
+        # There's more elegant was to do this, but we're just checking
+        # the absolute basic ability to link multiple modules together without
+        # one-definition rule clashes
+        ["multi_phase.pyx", "multi_phase_internal.pyx"],
+        define_macros=[("CYTHON_PEP489_MULTI_PHASE_INIT", "1")],
+        **extras),
+]
+
+setup(
+    ext_modules= cythonize(modules)
+)
+
+################# single_phase.pyx ####################
+# distutils: language=c++
+
+cdef extern from *:
+    """
+    extern "C" PyObject *PyInit_single_phase_internal();
+    """
+    object PyInit_single_phase_internal()
+
+internal = PyInit_single_phase_internal()
+attr = "11111"
+
+################# single_phase_internal.pyx ###########
+# distutils: language=c++
+
+attr = "22222"
+
+################# test_single_phase.py ################
+
+import single_phase
+assert single_phase.attr == "11111", single_phase.attr
+assert single_phase.internal.attr == "22222", single_phase.attr
+
+################ multi_phase.pyx ########################
+# distutils: language=c++
+
+cdef extern from *:
+    """
+    extern "C" PyObject *PyInit_multi_phase_internal();
+    #define MODULE_DEF_CHECK(o) Py_IS_TYPE(o, &PyModuleDef_Type)
+    """
+    object PyInit_multi_phase_internal()
+    int MODULE_DEF_CHECK(object o) noexcept
+    struct PyModuleDef:
+        pass
+    object PyModule_FromDefAndSpec(PyModuleDef *m, object spec)
+    int PyModule_ExecDef(object module, PyModuleDef *m) except -1 
+
+def _do_multi_phase_import():
+    mod_def = PyInit_multi_phase_internal()
+    assert MODULE_DEF_CHECK(mod_def)
+    import importlib.machinery as im
+    spec = im.ModuleSpec('multi_phase_internal', None)
+    mod = PyModule_FromDefAndSpec(<PyModuleDef*>mod_def, spec)
+    PyModule_ExecDef(mod, <PyModuleDef*>mod_def)
+    return mod
+
+internal = _do_multi_phase_import()
+
+attr = "11111"
+
+
+################ multi_phase_internal.pyx ###########
+# distutils: language=c++
+
+attr = "22222"
+
+################# test_multi_phase.py ################
+
+import multi_phase
+assert multi_phase.attr == "11111", multi_phase.attr
+assert multi_phase.internal.attr == "22222", multi_phase.attr
