@@ -112,10 +112,10 @@ class SharedUtilityExporter:
     """
     Class responsible for generating code that imports and exports shared utility functions.
 
-    This class is designed mark positions where the functions are being called by `call_import_code()`/`call_export_code()`.
+    Mark the positions where the functions should be called with `call_import_code()`/`call_export_code()`.
     The function calls and import/export functions are generated when `generate_exporting_functions()`
-    is called. This approach is needed because the list of the shared functions is known in the later stages
-    of compilation.
+    is called. This approach is needed because the list of the shared functions is only known in the later
+    stages of compilation.
     """
     def __init__(self, mod_init_subfunction, scope, pos):
         self.in_shared_utility_module = bool(scope.context.shared_c_file_path)
