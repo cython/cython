@@ -840,12 +840,12 @@ class UtilityCode(UtilityCodeBase):
         writer.putln("  " + writer.error_goto_if_PyErr(output.module_pos))
         writer.putln()
 
-    def _put_shared_function_declarations(self, global_state: "GlobalState") -> None:
-        global_state[self.proto_block].putln(f'/* {self.name} */')
+    def _put_shared_function_declarations(self, writer: "CCodeWriter") -> None:
+        writer.putln(f'/* {self.name} */')
         for shared in self.shared_utility_functions:
             # Convert function declarations to static function pointers.
-            global_state[self.proto_block].putln(f'static {shared.ret}(*{shared.name})({shared.params});')
-        global_state[self.proto_block].putln()
+            writer.putln(f'static {shared.ret}(*{shared.name})({shared.params}); /*proto*/')
+        writer.putln()
 
     def put_code(self, output: "GlobalState") -> None:
         has_shared_utility_code = bool(
@@ -857,7 +857,7 @@ class UtilityCode(UtilityCodeBase):
                 output.use_utility_code(dependency)
 
         if has_shared_utility_code:
-            self._put_shared_function_declarations(output)
+            self._put_shared_function_declarations(output[self.proto_block])
         output.shared_utility_functions.extend(self.shared_utility_functions)
 
         if self.proto:
