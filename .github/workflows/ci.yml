@@ -244,8 +244,10 @@ jobs:
       USE_CCACHE: 1
       CCACHE_SLOPPINESS: "pch_defines,time_macros"
       CCACHE_COMPRESS: 1
-      CCACHE_COMPRESSLEVEL: 3
-      CCACHE_MAXSIZE: "250M"
+      CCACHE_COMPRESSLEVEL: 7
+      # Size guide: 10GB maximum cache storage / total number of CI jobs creating a cache.
+      # However, a single run currently generates 170-210 MB, so less would use less but be useless.
+      CCACHE_MAXSIZE: "220M"
 
     steps:
       - name: Checkout repo
@@ -263,6 +265,8 @@ jobs:
         with:
           variant: ${{ startsWith(runner.os, 'windows') && 'sccache' || 'ccache' }}  # fake ternary
           create-symlink: ${{ startsWith(runner.os, 'windows') && 'true' || 'false' }}  # fake ternary
+          # Disable ccache saving from pull requests to reserve caching storage for the main branches.
+          save: ${{ startsWith(github.ref, '/refs/pull/') && 'false' || 'true' }}  # fake ternary
           key: ${{ runner.os }}-hendrikmuhs-ccache${{ matrix.extra_hash }}-${{ matrix.python-version }}-${{ matrix.backend == 'c' || matrix.backend == 'c,cpp' }}-${{ contains(matrix.backend, 'cpp') }}-${{ hashFiles('test-requirements*.txt', '.github/**/ci.yml', 'Tools/**/ci-run.sh') }}
           max-size: ${{ env.CCACHE_MAXSIZE }}
 
@@ -357,7 +361,7 @@ jobs:
     env:
       CCACHE_SLOPPINESS: "pch_defines,time_macros"
       CCACHE_COMPRESS: 1
-      CCACHE_COMPRESSLEVEL: 5
+      CCACHE_COMPRESSLEVEL: 7
       CCACHE_NOHASHDIR: 1
       CFLAGS: -O3 -g1 -fPIC -mtune=generic
 
@@ -373,8 +377,9 @@ jobs:
         with:
           create-symlink: true
           variant: ${{ startsWith(runner.os, 'windows') && 'sccache' || 'ccache' }}  # fake ternary
+          save: ${{ startsWith(github.ref, '/refs/pull/') && 'false' || 'true' }}  # fake ternary
           key: ${{ runner.os }}-hendrikmuhs-ccache-benchmarks
-          max-size: 500M
+          max-size: 250M
 
       - name: Setup python
         uses: actions/setup-python@v5.6.0
