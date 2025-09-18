@@ -268,7 +268,7 @@ class Entry:
         if self.is_pyglobal or self.is_cclass_var_entry:
             return True
         if self.scope.is_comprehension_scope:
-            # TODO - comprehension variables would probably be better of declared as locals in the module init function
+            # TODO - comprehension variables would probably be better off declared as locals in the module init function
             # since in Python 3 mode they shouldn't leak to the outside world.  However, module state is more robust
             # than static globals.
             outer_scope = self.scope.outer_scope
