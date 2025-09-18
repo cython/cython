@@ -652,8 +652,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
         # init_globals is inserted before this
         self.generate_module_init_func(
-            modules[:-1], env, globalstate['init_module'],
-            shared_utility_exporter=shared_utility_exporter
+            modules[:-1], shared_utility_exporter, env, globalstate['init_module']
         )
         self.generate_module_cleanup_func(env, globalstate['cleanup_module'])
         if Options.embed:
@@ -3075,7 +3074,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln(f'__Pyx_VISIT_CONST(traverse_module_state->{Naming.empty_bytes});')
         code.putln(f'__Pyx_VISIT_CONST(traverse_module_state->{Naming.empty_unicode});')
 
-    def generate_module_init_func(self, imported_modules, env, code, shared_utility_exporter):
+    def generate_module_init_func(self, imported_modules, shared_utility_exporter, env, code):
         subfunction = self.mod_init_subfunction(self.pos, self.scope, code)
 
         self.generate_pymoduledef_struct(env, code)
