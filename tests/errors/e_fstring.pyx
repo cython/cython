@@ -20,6 +20,6 @@ _ERRORS = """
 9:13: invalid conversion character 'q'
 10:14: f-string: conversion type must come right after the exclamation mark
 # Note that position isn't perfect due to need to tokenize all brackets as a block
-11:12: f-string: single '}' is not allowed
+11:12: f-string or t-string: single '}' is not allowed
 12:13: Unclosed string literal
 """
