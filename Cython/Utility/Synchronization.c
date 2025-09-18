@@ -155,23 +155,32 @@
 #endif
 
 
-/////////////////////// CriticalSections.proto /////////////////////
+/////////////////////// CriticalSectionsDefinition.proto /////////////////////
 //@proto_block: utility_code_proto_before_types
 
 #if !CYTHON_COMPILING_IN_CPYTHON_FREETHREADING
 #define __Pyx_PyCriticalSection void*
 #define __Pyx_PyCriticalSection2 void*
-#define __Pyx_PyCriticalSection_Begin1(cs, arg) (void)cs
-#define __Pyx_PyCriticalSection_Begin2(cs, arg1, arg2) (void)cs
-#define __Pyx_PyCriticalSection_End1(cs)
-#define __Pyx_PyCriticalSection_End2(cs)
+#define __Pyx_PyCriticalSection_End(cs)
+#define __Pyx_PyCriticalSection2_End(cs)
 #else
 #define __Pyx_PyCriticalSection PyCriticalSection
 #define __Pyx_PyCriticalSection2 PyCriticalSection2
-#define __Pyx_PyCriticalSection_Begin1 PyCriticalSection_Begin
-#define __Pyx_PyCriticalSection_Begin2 PyCriticalSection2_Begin
-#define __Pyx_PyCriticalSection_End1 PyCriticalSection_End
-#define __Pyx_PyCriticalSection_End2 PyCriticalSection2_End
+#define __Pyx_PyCriticalSection_End PyCriticalSection_End
+#define __Pyx_PyCriticalSection2_End PyCriticalSection2_End
+#endif
+
+
+/////////////////////// CriticalSections.proto /////////////////////
+//@proto_block: utility_code_proto_before_types
+//@requires: CriticalSectionsDefinition
+
+#if !CYTHON_COMPILING_IN_CPYTHON_FREETHREADING
+#define __Pyx_PyCriticalSection_Begin(cs, arg) (void)(cs)
+#define __Pyx_PyCriticalSection2_Begin(cs, arg1, arg2) (void)(cs)
+#else
+#define __Pyx_PyCriticalSection_Begin PyCriticalSection_Begin
+#define __Pyx_PyCriticalSection2_Begin PyCriticalSection2_Begin
 #endif
 
 #if PY_VERSION_HEX < 0x030d0000 || CYTHON_COMPILING_IN_LIMITED_API
@@ -180,6 +189,27 @@
 #else
 #define __Pyx_BEGIN_CRITICAL_SECTION Py_BEGIN_CRITICAL_SECTION
 #define __Pyx_END_CRITICAL_SECTION Py_END_CRITICAL_SECTION
+#endif
+
+
+/////////////////////// CriticalSectionsMutex.proto /////////////////////
+//@requires: CriticalSectionsDefinition
+
+#if !CYTHON_COMPILING_IN_CPYTHON_FREETHREADING
+#define __Pyx_PyCriticalSection_BeginMutex(cs, arg) (void)(cs), (void)(arg)
+#define __Pyx_PyCriticalSection2_BeginMutex(cs, arg1, arg2) (void)(cs), (void)(arg1), (void)(arg2)
+
+#elif PY_VERSION_HEX < 0x030e00C1
+#ifndef Py_BUILD_CORE
+#define Py_BUILD_CORE
+#endif
+#include "internal/pycore_critical_section.h"
+#define __Pyx_PyCriticalSection_BeginMutex _PyCriticalSection_BeginMutex
+#define __Pyx_PyCriticalSection2_BeginMutex _PyCriticalSection2_BeginMutex
+
+#else
+#define __Pyx_PyCriticalSection_BeginMutex PyCriticalSection_BeginMutex
+#define __Pyx_PyCriticalSection2_BeginMutex PyCriticalSection2_BeginMutex
 #endif
 
 
@@ -217,19 +247,7 @@ static void __Pyx__Locks_PyThreadTypeLock_LockGil_spin(__Pyx_Locks_PyThreadTypeL
     while (1) {
         int res;
         Py_BEGIN_ALLOW_THREADS
-#if !CYTHON_COMPILING_IN_PYPY || PYPY_VERSION_NUM >= 0x07031400
-        // Don't block indefinitely. This ensures we don't deadlock (forever) on
-        //
-        // with nogil:
-        //   with lock:
-        //     with gil:
-        //       ...
-        //
-        // Arguably that's user error, but it seems better to try to help them out.
-        res = PyThread_acquire_lock_timed(lock, CYTHON_LOCK_AND_GIL_DEADLOCK_AVOIDANCE_TIME, 0);
-#else
         res = PyThread_acquire_lock(lock, WAIT_LOCK);
-#endif
         // Wait on the GIL while holding the lock. But importantly we never do the inverse
         // and wait on the lock while holding the GIL.
         Py_END_ALLOW_THREADS

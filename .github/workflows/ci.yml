@@ -39,9 +39,7 @@ jobs:
       matrix:
         # Tests [amd64]
         #
-        # FIXME: 'cpp' tests seems to fail due to compilation errors (numpy_pythran_unit)
-        # in all python versions and test failures (builtin_float) in 3.5<
-        os: [ubuntu-22.04, windows-2022, macos-13]
+        os: [ubuntu-22.04, windows-2022, macos-latest]
         backend: [c, cpp]
         python-version:
           - "3.8"
@@ -49,7 +47,7 @@ jobs:
           - "3.10"
           - "3.11"
           - "3.12"
-          - "3.13.5"  # 3.13.4 fails to build extensions on Windows.
+          - "3.13"
           - "3.13t"
           - "3.14-dev"
           - "3.14t-dev"
@@ -101,7 +99,7 @@ jobs:
             env: { GCC_VERSION: 13, EXTRA_CFLAGS: "-std=c17" }
             extra_hash: "-gcc11"
           - os: ubuntu-22.04
-            python-version: "3.13.5"
+            python-version: "3.13"
             backend: cpp
             env: { GCC_VERSION: 13, EXTRA_CFLAGS: "-std=c++20" }
             extra_hash: "-gcc11"
@@ -116,6 +114,16 @@ jobs:
             backend: cpp
             env: {}
             extra_hash: "arm64"
+          - os:  windows-11-arm
+            python-version: "3.12"
+            backend: "c"
+            extra_hash: "arm64"
+            env: {}
+          - os:  windows-11-arm
+            python-version: "3.12"
+            backend: "cpp"
+            extra_hash: "arm64"
+            env: {}
           # compile all modules
           - os: ubuntu-22.04
             python-version: "3.8"
@@ -160,7 +168,7 @@ jobs:
             env: { LIMITED_API: "--limited-api" }
             extra_hash: "-limited_api"
           - os: ubuntu-22.04
-            python-version: "3.13.5"
+            python-version: "3.13"
             backend: "c,cpp"
             env: { LIMITED_API: "--limited-api" }
             extra_hash: "-limited_api"
@@ -215,10 +223,10 @@ jobs:
 #            python-version: 3.13t
 #            backend: "cpp"
 #            allowed_failure: true
-          - os: macos-13
+          - os: macos-latest
             python-version: 3.13t
             backend: "c"
-          - os: macos-13
+          - os: macos-latest
             python-version: 3.13t
             backend: "cpp"
 
@@ -236,12 +244,14 @@ jobs:
       USE_CCACHE: 1
       CCACHE_SLOPPINESS: "pch_defines,time_macros"
       CCACHE_COMPRESS: 1
-      CCACHE_COMPRESSLEVEL: 3
-      CCACHE_MAXSIZE: "250M"
+      CCACHE_COMPRESSLEVEL: 7
+      # Size guide: 10GB maximum cache storage / total number of CI jobs creating a cache.
+      # However, a single run currently generates 170-210 MB, so less would use less but be useless.
+      CCACHE_MAXSIZE: "220M"
 
     steps:
       - name: Checkout repo
-        uses: actions/checkout@v4.1.1
+        uses: actions/checkout@v5
         with:
           fetch-depth: 1
 
@@ -255,6 +265,8 @@ jobs:
         with:
           variant: ${{ startsWith(runner.os, 'windows') && 'sccache' || 'ccache' }}  # fake ternary
           create-symlink: ${{ startsWith(runner.os, 'windows') && 'true' || 'false' }}  # fake ternary
+          # Disable ccache saving from pull requests to reserve caching storage for the main branches.
+          save: ${{ startsWith(github.ref, '/refs/pull/') && 'false' || 'true' }}  # fake ternary
           key: ${{ runner.os }}-hendrikmuhs-ccache${{ matrix.extra_hash }}-${{ matrix.python-version }}-${{ matrix.backend == 'c' || matrix.backend == 'c,cpp' }}-${{ contains(matrix.backend, 'cpp') }}-${{ hashFiles('test-requirements*.txt', '.github/**/ci.yml', 'Tools/**/ci-run.sh') }}
           max-size: ${{ env.CCACHE_MAXSIZE }}
 
@@ -288,7 +300,7 @@ jobs:
 
     steps:
       - name: Checkout repo
-        uses: actions/checkout@v4.1.1
+        uses: actions/checkout@v5
 
       - name: Setup python
         uses: actions/setup-python@v5.6.0
@@ -320,7 +332,7 @@ jobs:
 
     steps:
       - name: Checkout repo
-        uses: actions/checkout@v4.1.1
+        uses: actions/checkout@v5
         with:
           fetch-depth: 1
 
@@ -349,13 +361,13 @@ jobs:
     env:
       CCACHE_SLOPPINESS: "pch_defines,time_macros"
       CCACHE_COMPRESS: 1
-      CCACHE_COMPRESSLEVEL: 5
+      CCACHE_COMPRESSLEVEL: 7
       CCACHE_NOHASHDIR: 1
       CFLAGS: -O3 -g1 -fPIC -mtune=generic
 
     steps:
       - name: Checkout repo
-        uses: actions/checkout@v4.1.1
+        uses: actions/checkout@v5
         with:
           fetch-depth: 0
           fetch-tags: true
@@ -365,8 +377,9 @@ jobs:
         with:
           create-symlink: true
           variant: ${{ startsWith(runner.os, 'windows') && 'sccache' || 'ccache' }}  # fake ternary
+          save: ${{ startsWith(github.ref, '/refs/pull/') && 'false' || 'true' }}  # fake ternary
           key: ${{ runner.os }}-hendrikmuhs-ccache-benchmarks
-          max-size: 500M
+          max-size: 250M
 
       - name: Setup python
         uses: actions/setup-python@v5.6.0
@@ -376,7 +389,7 @@ jobs:
             3.13t
             3.10
             3.12
-            3.13.5
+            3.13
             3.14-dev
 
       - name: Run Benchmarks
@@ -412,6 +425,6 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4.1.1
+        uses: actions/checkout@v5
       - name: Codespell
         uses: codespell-project/actions-codespell@v2

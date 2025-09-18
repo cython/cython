@@ -233,18 +233,6 @@ static CYTHON_INLINE PyObject *__Pyx_PyIter_Next2(PyObject *, PyObject *); /*pro
 //@requires: GetBuiltinName
 //@requires: IterNextPlain
 
-#if CYTHON_COMPILING_IN_LIMITED_API && __PYX_LIMITED_VERSION_HEX < 0x03080000
-// In the Limited API for Py 3.7, PyIter_Check is defined but as a macro that uses
-// non-limited API features and thus is unusable. Therefore, just call builtin next.
-static PyObject *__Pyx_PyIter_Next2(PyObject *o, PyObject *defval) {
-    PyObject *result;
-    PyObject *next = __Pyx_GetBuiltinNext_LimitedAPI();
-    if (unlikely(!next)) return NULL;
-    // This works if defval is NULL or not
-    result = PyObject_CallFunctionObjArgs(next, o, defval, NULL);
-    return result;
-}
-#else
 static PyObject *__Pyx_PyIter_Next2Default(PyObject* defval) {
     PyObject* exc_type;
     __Pyx_PyThreadState_declare
@@ -306,7 +294,7 @@ static CYTHON_INLINE PyObject *__Pyx_PyIter_Next2(PyObject* iterator, PyObject* 
     }
     return __Pyx_PyIter_Next2Default(defval);
 }
-#endif
+
 
 /////////////// IterFinish.proto ///////////////
 
@@ -595,7 +583,7 @@ static CYTHON_INLINE int __Pyx_SetItemInt_Fast(PyObject *o, Py_ssize_t i, PyObje
 #if CYTHON_ASSUME_SAFE_MACROS && CYTHON_ASSUME_SAFE_SIZE && !CYTHON_AVOID_BORROWED_REFS
     if (is_list || PyList_CheckExact(o)) {
         Py_ssize_t n = (!wraparound) ? i : ((likely(i >= 0)) ? i : i + PyList_GET_SIZE(o));
-        if ((CYTHON_AVOID_THREAD_UNSAFE_BORROWED_REFS && (unsafe_shared || __Pyx_REFCNT_MAY_BE_SHARED(o)))) {
+        if ((CYTHON_AVOID_THREAD_UNSAFE_BORROWED_REFS && !__Pyx_IS_UNIQUELY_REFERENCED(o, unsafe_shared))) {
             Py_INCREF(v);
             return PyList_SetItem(o, n, v);
         } else if ((!boundscheck) || likely(__Pyx_is_valid_index(n, PyList_GET_SIZE(o)))) {
@@ -2160,7 +2148,6 @@ static CYTHON_INLINE PyObject* __Pyx_PyObject_FastCallDict(PyObject *func, PyObj
 
 /////////////// PyObjectFastCall ///////////////
 //@requires: PyObjectCall
-//@requires: PyFunctionFastCall
 //@requires: PyObjectCallMethO
 
 #if PY_VERSION_HEX < 0x03090000 || CYTHON_COMPILING_IN_LIMITED_API
@@ -2229,40 +2216,16 @@ static CYTHON_INLINE PyObject* __Pyx_PyObject_FastCallDict(PyObject *func, PyObj
     }
 #endif
 
-    #if PY_VERSION_HEX < 0x030800B1
-    #if CYTHON_FAST_PYCCALL
-    if (PyCFunction_Check(func)) {
-        if (kwargs) {
-            return _PyCFunction_FastCallDict(func, args, nargs, kwargs);
-        } else {
-            return _PyCFunction_FastCallKeywords(func, args, nargs, NULL);
-        }
-    }
-    if (!kwargs && __Pyx_IS_TYPE(func, &PyMethodDescr_Type)) {
-        return _PyMethodDescr_FastCallKeywords(func, args, nargs, NULL);
-    }
-    #endif
-    #if CYTHON_FAST_PYCALL
-    if (PyFunction_Check(func)) {
-        return __Pyx_PyFunction_FastCallDict(func, args, nargs, kwargs);
-    }
-    #endif
-    #endif
-
     if (kwargs == NULL) {
-        #if CYTHON_VECTORCALL && !CYTHON_COMPILING_IN_LIMITED_API
-        vectorcallfunc f = __Pyx_PyVectorcall_Function(func);
-        if (f) {
-            return f(func, args, _nargs, NULL);
-        }
-        #elif defined(__Pyx_CyFunction_USED) && CYTHON_BACKPORT_VECTORCALL
-        // exclude fused functions for now
-        if (__Pyx_CyFunction_CheckExact(func)) {
-            __pyx_vectorcallfunc f = __Pyx_CyFunction_func_vectorcall(func);
-            if (f) return f(func, args, _nargs, NULL);
-        }
-        #elif CYTHON_COMPILING_IN_LIMITED_API && CYTHON_VECTORCALL
-        return PyObject_Vectorcall(func, args, _nargs, NULL);
+        #if CYTHON_VECTORCALL
+          #if CYTHON_COMPILING_IN_LIMITED_API
+            return PyObject_Vectorcall(func, args, _nargs, NULL);
+          #else
+            vectorcallfunc f = __Pyx_PyVectorcall_Function(func);
+            if (f) {
+                return f(func, args, _nargs, NULL);
+            }
+          #endif
         #endif
     }
 
@@ -2566,193 +2529,6 @@ static CYTHON_INLINE PyObject* __Pyx_PyObject_CallMethO(PyObject *func, PyObject
 #endif
 
 
-/////////////// PyFunctionFastCall.proto ///////////////
-
-#if CYTHON_FAST_PYCALL
-
-#if !CYTHON_VECTORCALL
-#define __Pyx_PyFunction_FastCall(func, args, nargs) \
-    __Pyx_PyFunction_FastCallDict((func), (args), (nargs), NULL)
-
-static PyObject *__Pyx_PyFunction_FastCallDict(PyObject *func, PyObject *const *args, Py_ssize_t nargs, PyObject *kwargs);
-#endif
-
-// Backport from Python 3
-// Assert a build-time dependency, as an expression.
-//   Your compile will fail if the condition isn't true, or can't be evaluated
-//   by the compiler. This can be used in an expression: its value is 0.
-// Example:
-//   #define foo_to_char(foo)  \
-//       ((char *)(foo)        \
-//        + Py_BUILD_ASSERT_EXPR(offsetof(struct foo, string) == 0))
-//
-//   Written by Rusty Russell, public domain, https://ccodearchive.net/
-#define __Pyx_BUILD_ASSERT_EXPR(cond) \
-    (sizeof(char [1 - 2*!(cond)]) - 1)
-
-#ifndef Py_MEMBER_SIZE
-// Get the size of a structure member in bytes
-#define Py_MEMBER_SIZE(type, member) sizeof(((type *)0)->member)
-#endif
-
-#if !CYTHON_VECTORCALL
-#if PY_VERSION_HEX >= 0x03080000
-  #include "frameobject.h"
-  #define __Pxy_PyFrame_Initialize_Offsets()
-  #define __Pyx_PyFrame_GetLocalsplus(frame)  ((frame)->f_localsplus)
-#else
-  // Initialised by module init code.
-  static size_t __pyx_pyframe_localsplus_offset = 0;
-
-  #include "frameobject.h"
-  // This is the long runtime version of
-  //     #define __Pyx_PyFrame_GetLocalsplus(frame)  ((frame)->f_localsplus)
-  // offsetof(PyFrameObject, f_localsplus) differs between regular C-Python and Stackless Python < 3.8.
-  // Therefore the offset is computed at run time from PyFrame_type.tp_basicsize. That is feasible,
-  // because f_localsplus is the last field of PyFrameObject (checked by Py_BUILD_ASSERT_EXPR below).
-  #define __Pxy_PyFrame_Initialize_Offsets()  \
-    ((void)__Pyx_BUILD_ASSERT_EXPR(sizeof(PyFrameObject) == offsetof(PyFrameObject, f_localsplus) + Py_MEMBER_SIZE(PyFrameObject, f_localsplus)), \
-     (void)(__pyx_pyframe_localsplus_offset = ((size_t)PyFrame_Type.tp_basicsize) - Py_MEMBER_SIZE(PyFrameObject, f_localsplus)))
-  #define __Pyx_PyFrame_GetLocalsplus(frame)  \
-    (assert(__pyx_pyframe_localsplus_offset), (PyObject **)(((char *)(frame)) + __pyx_pyframe_localsplus_offset))
-#endif
-#endif /* !CYTHON_VECTORCALL */
-
-#endif /* CYTHON_FAST_PYCALL */
-
-
-/////////////// PyFunctionFastCall ///////////////
-// copied from CPython 3.6 ceval.c
-
-#if CYTHON_FAST_PYCALL && !CYTHON_VECTORCALL
-static PyObject* __Pyx_PyFunction_FastCallNoKw(PyCodeObject *co, PyObject *const *args, Py_ssize_t na,
-                                               PyObject *globals) {
-    PyFrameObject *f;
-    PyThreadState *tstate = __Pyx_PyThreadState_Current;
-    PyObject **fastlocals;
-    Py_ssize_t i;
-    PyObject *result;
-
-    assert(globals != NULL);
-    /* XXX Perhaps we should create a specialized
-       PyFrame_New() that doesn't take locals, but does
-       take builtins without sanity checking them.
-       */
-    assert(tstate != NULL);
-    f = PyFrame_New(tstate, co, globals, NULL);
-    if (f == NULL) {
-        return NULL;
-    }
-
-    fastlocals = __Pyx_PyFrame_GetLocalsplus(f);
-
-    for (i = 0; i < na; i++) {
-        Py_INCREF(*args);
-        fastlocals[i] = *args++;
-    }
-    result = PyEval_EvalFrameEx(f,0);
-
-    ++tstate->recursion_depth;
-    Py_DECREF(f);
-    --tstate->recursion_depth;
-
-    return result;
-}
-
-
-static PyObject *__Pyx_PyFunction_FastCallDict(PyObject *func, PyObject *const *args, Py_ssize_t nargs, PyObject *kwargs) {
-    PyCodeObject *co = (PyCodeObject *)PyFunction_GET_CODE(func);
-    PyObject *globals = PyFunction_GET_GLOBALS(func);
-    PyObject *argdefs = PyFunction_GET_DEFAULTS(func);
-    PyObject *closure;
-    PyObject *kwdefs;
-    //PyObject *name, *qualname;
-    PyObject *kwtuple, **k;
-    PyObject **d;
-    Py_ssize_t nd;
-    Py_ssize_t nk;
-    PyObject *result;
-
-    assert(kwargs == NULL || PyDict_Check(kwargs));
-    nk = kwargs ? PyDict_Size(kwargs) : 0;
-
-    if (unlikely(Py_EnterRecursiveCall(" while calling a Python object"))) {
-        return NULL;
-    }
-
-    if (
-            co->co_kwonlyargcount == 0 &&
-            likely(kwargs == NULL || nk == 0) &&
-            co->co_flags == (CO_OPTIMIZED | CO_NEWLOCALS | CO_NOFREE)) {
-        /* Fast paths */
-        if (argdefs == NULL && co->co_argcount == nargs) {
-            result = __Pyx_PyFunction_FastCallNoKw(co, args, nargs, globals);
-            goto done;
-        }
-        else if (nargs == 0 && argdefs != NULL
-                 && co->co_argcount == Py_SIZE(argdefs)) {
-            /* function called with no arguments, but all parameters have
-               a default value: use default values as arguments .*/
-            args = &PyTuple_GET_ITEM(argdefs, 0);
-            result =__Pyx_PyFunction_FastCallNoKw(co, args, Py_SIZE(argdefs), globals);
-            goto done;
-        }
-    }
-
-    if (kwargs != NULL) {
-        Py_ssize_t pos, i;
-        kwtuple = PyTuple_New(2 * nk);
-        if (kwtuple == NULL) {
-            result = NULL;
-            goto done;
-        }
-
-        k = &PyTuple_GET_ITEM(kwtuple, 0);
-        pos = i = 0;
-        while (PyDict_Next(kwargs, &pos, &k[i], &k[i+1])) {
-            Py_INCREF(k[i]);
-            Py_INCREF(k[i+1]);
-            i += 2;
-        }
-        nk = i / 2;
-    }
-    else {
-        kwtuple = NULL;
-        k = NULL;
-    }
-
-    closure = PyFunction_GET_CLOSURE(func);
-    kwdefs = PyFunction_GET_KW_DEFAULTS(func);
-    //name = ((PyFunctionObject *)func) -> func_name;
-    //qualname = ((PyFunctionObject *)func) -> func_qualname;
-
-    if (argdefs != NULL) {
-        d = &PyTuple_GET_ITEM(argdefs, 0);
-        nd = Py_SIZE(argdefs);
-    }
-    else {
-        d = NULL;
-        nd = 0;
-    }
-
-    //return _PyEval_EvalCodeWithName((PyObject*)co, globals, (PyObject *)NULL,
-    //                                args, nargs,
-    //                                NULL, 0,
-    //                                d, nd, kwdefs,
-    //                                closure, name, qualname);
-    result = PyEval_EvalCodeEx((PyObject*)co, globals, (PyObject *)NULL,
-                               args, (int)nargs,
-                               k, (int)nk,
-                               d, (int)nd, kwdefs, closure);
-    Py_XDECREF(kwtuple);
-
-done:
-    Py_LeaveRecursiveCall();
-    return result;
-}
-#endif  /* CYTHON_FAST_PYCALL && !CYTHON_VECTORCALL */
-
-
 /////////////// PyObjectCall2Args.proto ///////////////
 
 static CYTHON_INLINE PyObject* __Pyx_PyObject_Call2Args(PyObject* function, PyObject* arg1, PyObject* arg2); /*proto*/
@@ -2794,13 +2570,13 @@ static CYTHON_INLINE PyObject* __Pyx_PyObject_CallNoArg(PyObject *func) {
 
 /////////////// PyVectorcallFastCallDict.proto ///////////////
 
-#if CYTHON_METH_FASTCALL && (CYTHON_VECTORCALL || CYTHON_BACKPORT_VECTORCALL)
+#if CYTHON_METH_FASTCALL && CYTHON_VECTORCALL
 static CYTHON_INLINE PyObject *__Pyx_PyVectorcall_FastCallDict(PyObject *func, __pyx_vectorcallfunc vc, PyObject *const *args, size_t nargs, PyObject *kw);
 #endif
 
 /////////////// PyVectorcallFastCallDict ///////////////
 
-#if CYTHON_METH_FASTCALL && (CYTHON_VECTORCALL || CYTHON_BACKPORT_VECTORCALL)
+#if CYTHON_METH_FASTCALL && CYTHON_VECTORCALL
 // Slow path when kw is non-empty
 static PyObject *__Pyx_PyVectorcall_FastCallDict_kw(PyObject *func, __pyx_vectorcallfunc vc, PyObject *const *args, size_t nargs, PyObject *kw)
 {
@@ -3056,36 +2832,57 @@ static PyObject *__Pyx_PyMethod_New2Arg(PyObject *func, PyObject *self) {
 // However, unlike `PyUnicode_Append` it will never NULL it.
 // It behaves like a regular function - returns a new reference and NULL on error
     #if CYTHON_REFNANNY
-        #define __Pyx_PyUnicode_ConcatInPlace(left, right) __Pyx_PyUnicode_ConcatInPlaceImpl(&left, right, __pyx_refnanny)
+        #define __Pyx_PyUnicode_ConcatInPlace(left, right, unsafe_shared) __Pyx_PyUnicode_ConcatInPlaceImpl(&left, right, unsafe_shared, __pyx_refnanny)
     #else
-        #define __Pyx_PyUnicode_ConcatInPlace(left, right) __Pyx_PyUnicode_ConcatInPlaceImpl(&left, right)
+        #define __Pyx_PyUnicode_ConcatInPlace(left, right, unsafe_shared) __Pyx_PyUnicode_ConcatInPlaceImpl(&left, right, unsafe_shared)
     #endif
+    #define __Pyx_PyUnicode_Concat__Pyx_ReferenceSharing_DefinitelyUniqueInPlace(left, right) __Pyx_PyUnicode_ConcatInPlace(left, right, __Pyx_ReferenceSharing_DefinitelyUnique)
+    #define __Pyx_PyUnicode_Concat__Pyx_ReferenceSharing_OwnStrongReferenceInPlace(left, right) __Pyx_PyUnicode_ConcatInPlace(left, right, __Pyx_ReferenceSharing_OwnStrongReference)
+    #define __Pyx_PyUnicode_Concat__Pyx_ReferenceSharing_FunctionArgumentInPlace(left, right) __Pyx_PyUnicode_ConcatInPlace(left, right, __Pyx_ReferenceSharing_DefinitelyUnique)
+    #define __Pyx_PyUnicode_Concat__Pyx_ReferenceSharing_SharedReferenceInPlace(left, right) __Pyx_PyUnicode_ConcatInPlace(left, right, __Pyx_ReferenceSharing_SharedReference)
     // __Pyx_PyUnicode_ConcatInPlace is slightly odd because it has the potential to modify the input
     // argument (but only in cases where no user should notice). Therefore, it needs to keep Cython's
     // refnanny informed.
-    static CYTHON_INLINE PyObject *__Pyx_PyUnicode_ConcatInPlaceImpl(PyObject **p_left, PyObject *right
+    static CYTHON_INLINE PyObject *__Pyx_PyUnicode_ConcatInPlaceImpl(PyObject **p_left, PyObject *right, int unsafe_shared
         #if CYTHON_REFNANNY
         , void* __pyx_refnanny
         #endif
     ); /* proto */
 #else
-#define __Pyx_PyUnicode_ConcatInPlace __Pyx_PyUnicode_Concat
+#define __Pyx_PyUnicode_Concat__Pyx_ReferenceSharing_DefinitelyUniqueInPlace __Pyx_PyUnicode_Concat
+#define __Pyx_PyUnicode_Concat__Pyx_ReferenceSharing_OwnStrongReferenceInPlace __Pyx_PyUnicode_Concat
+#define __Pyx_PyUnicode_Concat__Pyx_ReferenceSharing_FunctionArgumentInPlace __Pyx_PyUnicode_Concat
+#define __Pyx_PyUnicode_Concat__Pyx_ReferenceSharing_SharedReferenceInPlace __Pyx_PyUnicode_Concat
 #endif
-#define __Pyx_PyUnicode_ConcatInPlaceSafe(left, right) ((unlikely((left) == Py_None) || unlikely((right) == Py_None)) ? \
-    PyNumber_InPlaceAdd(left, right) : __Pyx_PyUnicode_ConcatInPlace(left, right))
+#define __Pyx_PyUnicode_Concat__Pyx_ReferenceSharing_DefinitelyUniqueInPlaceSafe(left, right) \
+    ((unlikely((left) == Py_None) || unlikely((right) == Py_None)) ? \
+    PyNumber_InPlaceAdd(left, right) : __Pyx_PyUnicode_Concat__Pyx_ReferenceSharing_DefinitelyUniqueInPlace(left, right))
+#define __Pyx_PyUnicode_Concat__Pyx_ReferenceSharing_OwnStrongReferenceInPlaceSafe(left, right) \
+    ((unlikely((left) == Py_None) || unlikely((right) == Py_None)) ? \
+    PyNumber_InPlaceAdd(left, right) : __Pyx_PyUnicode_Concat__Pyx_ReferenceSharing_OwnStrongReferenceInPlace(left, right))
+#define __Pyx_PyUnicode_Concat__Pyx_ReferenceSharing_FunctionArgumentInPlaceSafe(left, right) \
+    ((unlikely((left) == Py_None) || unlikely((right) == Py_None)) ? \
+    PyNumber_InPlaceAdd(left, right) : __Pyx_PyUnicode_Concat__Pyx_ReferenceSharing_FunctionArgumentInPlace(left, right))
+#define __Pyx_PyUnicode_Concat__Pyx_ReferenceSharing_SharedReferenceInPlaceSafe(left, right) \
+    ((unlikely((left) == Py_None) || unlikely((right) == Py_None)) ? \
+    PyNumber_InPlaceAdd(left, right) : __Pyx_PyUnicode_Concat__Pyx_ReferenceSharing_SharedReferenceInPlace(left, right))
 
 /////////////// UnicodeConcatInPlace ////////////////
 
 # if CYTHON_COMPILING_IN_CPYTHON
-// copied directly from unicode_object.c "unicode_modifiable
-// removing _PyUnicode_HASH since it's a macro we don't have
+// copied directly from unicode_object.c "unicode_modifiable"
+// removing _PyUnicode_HASH if we don't have access to it
 //  - this is OK because trying PyUnicode_Resize on a non-modifyable
 //  object will still work, it just won't happen in place
 static int
-__Pyx_unicode_modifiable(PyObject *unicode)
+__Pyx_unicode_modifiable(PyObject *unicode, int unsafe_shared)
 {
-    if (__Pyx_REFCNT_MAY_BE_SHARED(unicode))
+    if (!__Pyx_IS_UNIQUELY_REFERENCED(unicode, unsafe_shared))
         return 0;
+#if CYTHON_COMPILING_IN_CPYTHON && PY_VERSION_HEX > 0x030F0000
+    if (PyUnstable_Unicode_GET_CACHED_HASH(unicode) != -1)
+        return 0;
+#endif
     if (!PyUnicode_CheckExact(unicode))
         return 0;
     if (PyUnicode_CHECK_INTERNED(unicode))
@@ -3093,7 +2890,7 @@ __Pyx_unicode_modifiable(PyObject *unicode)
     return 1;
 }
 
-static CYTHON_INLINE PyObject *__Pyx_PyUnicode_ConcatInPlaceImpl(PyObject **p_left, PyObject *right
+static CYTHON_INLINE PyObject *__Pyx_PyUnicode_ConcatInPlaceImpl(PyObject **p_left, PyObject *right, int unsafe_shared
         #if CYTHON_REFNANNY
         , void* __pyx_refnanny
         #endif
@@ -3125,7 +2922,7 @@ static CYTHON_INLINE PyObject *__Pyx_PyUnicode_ConcatInPlaceImpl(PyObject **p_le
     }
     new_len = left_len + right_len;
 
-    if (__Pyx_unicode_modifiable(left)
+    if (__Pyx_unicode_modifiable(left, unsafe_shared)
             && PyUnicode_CheckExact(right)
             && PyUnicode_KIND(right) <= PyUnicode_KIND(left)
             // Don't resize for ascii += latin1. Convert ascii to latin1 requires
