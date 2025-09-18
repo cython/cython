@@ -1398,29 +1398,29 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             storage_class = None
             dll_linkage = None
             init = None
-            destination_code = None
+            decl_code = None
             module_state_clear = module_state_traverse = None
 
             if entry.is_declared_in_module_state():
                 storage_class = ""
                 dll_linkage = None
-                destination_code = globalstate['module_state']
+                decl_code = globalstate['module_state']
                 module_state_clear = globalstate['module_state_clear']
                 module_state_traverse = globalstate['module_state_traverse']
             elif entry.visibility == 'extern':
                 storage_class = Naming.extern_c_macro
                 dll_linkage = "DL_IMPORT"
-                destination_code = globalstate['module_declarations']
+                decl_code = globalstate['module_declarations']
             elif entry.visibility == 'public':
                 storage_class = Naming.extern_c_macro
                 if definition:
                     dll_linkage = "DL_EXPORT"
                 else:
                     dll_linkage = "DL_IMPORT"
-                destination_code = globalstate['module_declarations']
+                decl_code = globalstate['module_declarations']
             elif entry.visibility == 'private':
                 # Most private entries end up in the module state though
-                destination_code = globalstate['module_declarations']
+                decl_code = globalstate['module_declarations']
                 if entry.init is not None:
                     assert entry.type.is_const, f"{entry.init} {entry.type} {entry.cname}"
                     init = entry.type.literal_code(entry.init)
@@ -1435,16 +1435,16 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 cname = env.mangle(Naming.varptr_prefix, entry.name)
 
             if storage_class:
-                destination_code.put("%s " % storage_class)
+                decl_code.put(f"{storage_class} ")
             if entry.is_cpp_optional:
-                destination_code.put(type.cpp_optional_declaration_code(
+                decl_code.put(type.cpp_optional_declaration_code(
                     cname, dll_linkage=dll_linkage))
             else:
-                destination_code.put(type.declaration_code(
+                decl_code.put(type.declaration_code(
                     cname, dll_linkage=dll_linkage))
             if init is not None:
-                destination_code.put_safe(" = %s" % init)
-            destination_code.putln(";")
+                decl_code.put_safe(f" = {init}")
+            decl_code.putln(";")
             if entry.cname != cname:
                 globalstate['module_declarations'].putln("#define %s %s[0]" % (entry.cname, cname))
             if module_state_traverse and type.is_pyobject:
