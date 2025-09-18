@@ -109,7 +109,7 @@ static PyObject *__Pyx_Import(PyObject *name, PyObject **imported_names, Py_ssiz
             if (PyList_SetItem(from_list, i, __Pyx_NewRef(imported_names[i])) < 0) goto bad;
         }
 #endif
-    } 
+    }
     if (level == -1) {
         const char* package_sep = strchr(__Pyx_MODULE_NAME, '.');
         if (package_sep != (0)) {
