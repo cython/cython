@@ -139,9 +139,8 @@ class SharedUtilityExporter:
 
     def _generate_c_shared_function_export_code(self, code, shared_function_definitions: Sequence[Code.SharedFunctionDecl]):
         api_dict = code.funcstate.allocate_temp(py_object_type, manage_ref=True)
-        if shared_function_definitions:
-            code.globalstate.use_utility_code(
-                UtilityCode.load_cached("GetApiDict", "ImportExport.c"))
+        code.globalstate.use_utility_code(
+            UtilityCode.load_cached("GetApiDict", "ImportExport.c"))
         code.putln(
             f"{api_dict} = __Pyx_ApiExport_GetApiDict(); "
             f"{code.error_goto_if_null(api_dict, self.pos)}"
