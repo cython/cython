@@ -128,7 +128,7 @@ class SharedUtilityExporter:
     def has_shared_exports(self, shared_func_definitions: Sequence[Code.SharedFunctionDecl]) -> bool:
         return bool(self.in_shared_utility_module and shared_func_definitions)
 
-    def has_shared_imports(self, shared_func_definitions: Sequence[Code.SharedFunctionDecl] -> bool):
+    def has_shared_imports(self, shared_func_definitions: Sequence[Code.SharedFunctionDecl]) -> bool:
         return bool(self.using_shared_utility_module and shared_func_definitions)
 
     def call_import_code(self, code):
