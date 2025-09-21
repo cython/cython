@@ -1798,6 +1798,13 @@ class TestCodeFormat(unittest.TestCase):
         source_dirs = ['Cython', 'Demos', 'docs', 'pyximport', 'tests']
 
         import pycodestyle
+
+        @pycodestyle.register_check
+        def breakpoint_check(physical_line):
+            idx = physical_line.find('breakpoint()')
+            if idx != -1:
+                return idx, "Z001 Stray 'breakpoint' call"
+
         config_file = os.path.join(self.cython_dir, "setup.cfg")
         if not os.path.exists(config_file):
             config_file = os.path.join(os.path.dirname(__file__), "setup.cfg")
