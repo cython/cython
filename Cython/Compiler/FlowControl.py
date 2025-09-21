@@ -1140,7 +1140,8 @@ class ControlFlowAnalysis(CythonTransform):
             private_node.entry.error_on_uninitialized = True
 
         self._delete_privates(node)
-        self.visitchildren(node)
+        self.visitchildren(node, exclude=("body",))
+        self._visit(node.body)
         self._delete_privates(node)
 
         return node

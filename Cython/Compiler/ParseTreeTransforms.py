@@ -3490,6 +3490,7 @@ class CreateClosureClasses(CythonTransform):
         super().__init__(context)
         self.path = []
         self.in_lambda = False
+        self.parallel_name_nodes = None
 
     def visit_ModuleNode(self, node):
         self.module_scope = node.scope
@@ -3604,14 +3605,17 @@ class CreateClosureClasses(CythonTransform):
         return node
 
     def visit_FuncDefNode(self, node):
+        parallel_name_nodes, self.parallel_name_nodes = self.parallel_name_nodes, None
         if self.in_lambda:
             self.visitchildren(node)
+            self.parallel_name_nodes = parallel_name_nodes
             return node
         if node.needs_closure or self.path:
             self.create_class_from_scope(node, self.module_scope)
             self.path.append(node)
             self.visitchildren(node)
             self.path.pop()
+        self.parallel_name_nodes = parallel_name_nodes
         return node
 
     def visit_GeneratorBodyDefNode(self, node):
@@ -3628,6 +3632,40 @@ class CreateClosureClasses(CythonTransform):
     def visit_GeneratorExpressionNode(self, node):
         node = _HandleGeneratorArguments()(node)
         return self.visit_LambdaNode(node)
+
+    def visit_ParallelStatNode(self, node):
+        self.visitchildren(node, exclude=("target", "body"))
+        parallel_name_nodes, self.parallel_name_nodes = self.parallel_name_nodes, []
+        self.visitchildren(node, attrs=("target", "body",))
+        parallel_name_nodes, self.parallel_name_nodes = self.parallel_name_nodes, parallel_name_nodes
+
+        substitutions = {
+            entry: node.thread_private_scope.declare_shadowed_var(entry)
+            for entry in node.assignments
+            if (entry.in_closure or entry.from_closure)
+        }
+
+        if not substitutions:
+            return node
+
+        for name_node in parallel_name_nodes:
+            if name_node.entry in substitutions:
+                name_node.entry = substitutions[name_node.entry]
+        node.assignments = {
+            substitutions.get(entry, entry): value
+            for entry, value in node.assignments.items()
+        }
+        node.privates = {
+            substitutions.get(entry, entry): value
+            for entry, value in node.privates.items()
+        }
+
+        return node
+
+    def visit_NameNode(self, node):
+        if self.parallel_name_nodes is not None:
+            self.parallel_name_nodes.append(node)
+        return node
 
 
 class InjectGilHandling(VisitorTransform, SkipDeclarations):

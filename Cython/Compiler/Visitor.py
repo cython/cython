@@ -419,6 +419,16 @@ class EnvTransform(CythonTransform):
             self._process_children(node)
         return node
 
+    def visit_ParllelStatNode(self, node):
+        self.visitchildren(node, exclude=('body', 'target'))
+        has_thread_private_scope = bool(node.thread_private_scope)
+        if has_thread_private_scope:
+            self.enter_scope(node, node.thread_private_scope)
+        self.visitchildren(node, ('body', 'target', ))
+        if has_thread_private_scope:
+            self.exit_scope()
+        return node
+
 
 class NodeRefCleanupMixin:
     """
