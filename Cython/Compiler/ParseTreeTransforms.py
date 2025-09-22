@@ -3634,7 +3634,7 @@ class CreateClosureClasses(CythonTransform):
         return self.visit_LambdaNode(node)
 
     def visit_ParallelStatNode(self, node):
-        self.visitchildren(node, exclude=("target", "body"))
+        self.visitchildren(node, attrs=None, exclude=("target", "body"))
         parallel_name_nodes, self.parallel_name_nodes = self.parallel_name_nodes, []
         self.visitchildren(node, attrs=("target", "body",))
         parallel_name_nodes, self.parallel_name_nodes = self.parallel_name_nodes, parallel_name_nodes
