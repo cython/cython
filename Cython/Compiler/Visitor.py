@@ -420,11 +420,11 @@ class EnvTransform(CythonTransform):
         return node
 
     def visit_ParllelStatNode(self, node):
-        self.visitchildren(node, exclude=('body', 'target'))
+        self.visitchildren(node, attrs=None, exclude=('body', 'target'))
         has_thread_private_scope = bool(node.thread_private_scope)
         if has_thread_private_scope:
             self.enter_scope(node, node.thread_private_scope)
-        self.visitchildren(node, ('body', 'target', ))
+        self.visitchildren(node, attrs=('body', 'target', ))
         if has_thread_private_scope:
             self.exit_scope()
         return node
