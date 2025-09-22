@@ -1801,9 +1801,10 @@ class TestCodeFormat(unittest.TestCase):
 
         @pycodestyle.register_check
         def breakpoint_check(physical_line):
+            if 'breakpoint()' not in physical_line:
+                return None
             idx = physical_line.find('breakpoint()')
-            if idx != -1:
-                return idx, "Z001 Stray 'breakpoint' call"
+            return idx, "Z001 Stray 'breakpoint' call"
 
         config_file = os.path.join(self.cython_dir, "setup.cfg")
         if not os.path.exists(config_file):
