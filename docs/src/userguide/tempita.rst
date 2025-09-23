@@ -8,7 +8,7 @@ This document describes template syntax features supported by Tempita - expressi
 Overview
 --------
 
-A Tempita is a simple templating language Cython built-in similar to Jinja. Basic usage
+Tempita is a simple templating language Cython built-in similar to Jinja. Basic usage
 is as follows:
 
 .. code-block:: python
@@ -21,7 +21,7 @@ is as follows:
     tmpl1.substitute(**kwargs)     # pass parameters as named arguments.
     tmpl2.sub_vars(mapping)        # pass an argument as dict-like mapping.
 
-Tempita supports also shortcut function:
+Tempita also provides a shortcut function:
 
 .. code-block:: python
 
@@ -90,7 +90,7 @@ You can specify a default value for a variable using ``default`` keyword:
 Inline Python Code
 ------------------
 
-Arbitrary python statements can be inserted inline with ``{{py: ...}}``.
+Arbitrary Python statements can be inserted inline with ``{{py: ...}}``.
 These do not emit output directly but can modify the template context.
 
 .. code-block:: python
@@ -116,7 +116,7 @@ from output.
 Custom delimiters
 -----------------
 
-If you want literal text that looks like a directive (e.g. `{{...}}`), you
+If you want literal text that looks like a directive (e.g. ``{{...}}``), you
 can use custom delimiters:
 
 .. code-block:: python
@@ -124,7 +124,7 @@ can use custom delimiters:
     >>> sub("Show literal braces: {{((name))}}", delimiters=['((', '))'], name="x")
     'Show literal braces: {{x}}'
 
-.. note:: Parameter `delimiters` can be also passed to ``Template`` class as an argument:
+.. note:: Parameter ``delimiters`` can be also passed to ``Template`` class as an argument:
 
    ``Template("...", delimiters=['((', '))'])``
 
@@ -238,8 +238,8 @@ Blocks can be nested arbitrarily.
 Indentation, Whitespace, and Newlines
 -------------------------------------
 
-- The template preserves whitespace exactly as written around directives.
-- Newlines in the template become newlines in output.
+- Templates preserve whitespace exactly as written around directives.
+- Newlines in templates become newlines in outputs.
 - Indentation is preserved, so control block bodies should be indented
   meaningfully by the template author if you want nice output.
 
