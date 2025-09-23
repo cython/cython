@@ -4,6 +4,8 @@ Tempita templating language
 ===========================
 
 This document describes template syntax features supported by Tempita - expressions, control blocks, escaping, filters, etc.
+Tempita is used internally in Cython for code-generation purposes. It is also available to users as a public API so they
+can generate or customize code when building a Cython module.
 
 Overview
 --------
