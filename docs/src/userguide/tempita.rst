@@ -3,7 +3,8 @@
 Tempita templating language
 ===========================
 
-This document describes template syntax features supported by Tempita - expressions, control blocks, escaping, filters, etc.
+This document describes vendored Tempita Templating Engine originally developed by Ian Bicking. Original version of Tempita
+is available on `PyPI <https://pypi.org/project/Tempita/>`_.
 Tempita is used internally in Cython for code-generation purposes. It is also available to users as a public API so they
 can generate or customize code when building a Cython module.
 
