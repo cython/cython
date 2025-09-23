@@ -292,6 +292,6 @@ Output::
 Notes and Limitations
 ---------------------
 
-- Templates are evaluated at runtime; errors show up when calling
+- Templates are evaluated when they are substituted, rather than when they are created; errors show up when calling
   :meth:`substitute`.
 - There is no sandbox: template code can execute arbitrary Python expressions.
