@@ -1,5 +1,6 @@
 .. _tempita:
 
+
 Tempita templating language
 ===========================
 
@@ -40,6 +41,7 @@ Templating Syntax
 
 Below are the different directive types and expression forms supported.
 
+
 Simple Expression Substitution
 ------------------------------
 
@@ -75,6 +77,7 @@ indexing, function calls etc.:
     >>> sub("Uppercase {{ string.upper() }}", string="hello")
     'Uppercase HELLO'
 
+
 Default Values
 --------------
 
@@ -109,6 +112,7 @@ These do not emit output directly but can modify the template context.
     >>> tmpl.substitute()
     'Value of x: 5\n'
 
+
 Comments
 --------
 
@@ -119,6 +123,7 @@ from output.
 
     >>> sub("Hello {{# This is a comment }}World.")
     'Hello World.'
+
 
 Custom delimiter characters
 ---------------------------
@@ -136,6 +141,7 @@ thus keeping them together with the template definition that uses them,
 rather than needing to remember them later in the substitution step.
 
    ``Template("...", delimiters=['((', '))'])``
+
 
 Filters
 -------
@@ -156,6 +162,7 @@ Example:
     >>> sub("Lowercase: {{ name | lower }}", name="ALICE", lower=lambda x: x.lower())
     'Lowercase: alice'
 
+
 Control Blocks
 **************
 
@@ -163,6 +170,7 @@ Tempita supports Python-like control flow directives.
 These are evaluated at runtime and allow conditional rendering and iteration.
 
 Each block has an explicit *closing directive* such as ``endif`` or ``endfor``.
+
 
 ``if`` / ``elif`` / ``else`` block
 ----------------------------------
@@ -195,6 +203,7 @@ Conditional execution based on an expression.
     >>> tmpl.substitute(x=-5)
     'Negative\n'
 
+
 ``for`` block
 -------------
 
@@ -224,6 +233,7 @@ You may also unpack tuples or iterate with multiple variables, as known from Pyt
 
 .. note:: As known from Python's for-loop, Tempita ``for`` blocks also support ``{{break}}`` and ``{{continue}}`` statements.
 
+
 Nesting Blocks
 --------------
 
@@ -246,6 +256,7 @@ Blocks can be nested arbitrarily.
       1 is odd
       2 is even
       3 is odd
+
 
 Indentation, Whitespace, and Newlines
 -------------------------------------
