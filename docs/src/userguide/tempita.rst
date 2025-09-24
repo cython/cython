@@ -3,16 +3,19 @@
 Tempita templating language
 ===========================
 
-This document describes vendored Tempita Templating Engine originally developed by Ian Bicking. Original version of Tempita
-is available on `PyPI <https://pypi.org/project/Tempita/>`_.
-Tempita is used internally in Cython for code-generation purposes. It is also available to users as a public API so they
-can generate or customize code when building a Cython module.
+This document describes the Tempita Templating Engine.
+It was originally developed by Ian Bicking.
+The original version of Tempita is available on `PyPI <https://pypi.org/project/Tempita/>`_ and documentation can be found at https://github.com/TurboGears/tempita/blob/main/README.rst.
+
+Tempita is used internally in Cython for non-trivial code-generation purposes.
+It is also available to users as a public API for generating or customizing code when building a Cython module.
+
 
 Overview
---------
+********
 
-Tempita is a simple templating language Cython built-in similar to Jinja. Basic usage
-is as follows:
+Tempita is a simple templating language, similar to Jinja.
+Basic usage is as follows:
 
 .. code-block:: python
 
@@ -31,16 +34,16 @@ Tempita also provides a shortcut function:
     from Cython.Tempita import sub
     sub(template_string, **kwargs)
 
+
 Templating Syntax
------------------
+*****************
 
 Below are the different directive types and expression forms supported.
 
 Simple Expression Substitution
 ------------------------------
 
-Surround expression with ``{{ ... }}``, which is evaluated in the template
-context.
+Write expressions as ``{{ ... }}``, which are evaluated in the template context.
 
 Example:
 
@@ -75,7 +78,8 @@ indexing, function calls etc.:
 Default Values
 --------------
 
-You can specify a default value for a variable using ``default`` keyword:
+You can specify a default value for a variable using the ``default`` keyword,
+and overwrite it by passing it as argument to the template substitution:
 
 .. code-block:: python
 
@@ -116,25 +120,30 @@ from output.
     >>> sub("Hello {{# This is a comment }}World.")
     'Hello World.'
 
-Custom delimiters
------------------
+Custom delimiter characters
+---------------------------
 
-If you want literal text that looks like a directive (e.g. ``{{...}}``), you
-can use custom delimiters:
+In cases where the double braces that Tempita normally uses as delimiters (``{{...}}``) get in the way,
+you can replace them with other characters:
 
 .. code-block:: python
 
-    >>> sub("Show literal braces: {{((name))}}", delimiters=['((', '))'], name="x")
+    >>> sub("Show literal braces: {{<<name>>}}", delimiters=['<<', '>>'], name="x")
     'Show literal braces: {{x}}'
 
-.. note:: Parameter ``delimiters`` can be also passed to ``Template`` class as an argument:
+.. note:: The ``delimiters`` can also be passed as an argument to the ``Template`` class,
+thus keeping them together with the template definition that uses them,
+rather than needing to remember them later in the substitution step.
 
    ``Template("...", delimiters=['((', '))'])``
 
 Filters
 -------
 
-You can pass callable which will be automatically called with expression as parameter:
+You can post-process the result of an expression before it is written into the template.
+Below, the ``filtername`` refers to a callable (function) that will be called by the template engine
+and receives the result of the preceding expression as argument.
+Whatever it outputs will then be written into the templating result.
 
 .. code-block:: python
 
@@ -148,7 +157,7 @@ Example:
     'Lowercase: alice'
 
 Control Blocks
-==============
+**************
 
 Tempita supports Python-like control flow directives.
 These are evaluated at runtime and allow conditional rendering and iteration.
@@ -197,7 +206,7 @@ Iterate over a sequence and render the body for each element.
       ... body using {{var}} ...
     {{endfor}}
 
-You may also unpack tuples or iterate with multiple variables.
+You may also unpack tuples or iterate with multiple variables, as known from Python for-loops.
 
 **Example**:
 
@@ -213,7 +222,7 @@ You may also unpack tuples or iterate with multiple variables.
     Bob: 88
 
 
-.. note:: Tempita ``for`` block supports also ``{{break}}`` and ``{{continue}}`` statements.
+.. note:: As known from Python's for-loop, Tempita ``for`` blocks also support ``{{break}}`` and ``{{continue}}`` statements.
 
 Nesting Blocks
 --------------
@@ -246,10 +255,11 @@ Indentation, Whitespace, and Newlines
 - Indentation is preserved, so control block bodies should be indented
   meaningfully by the template author if you want nice output.
 
-Examples
---------
 
-Here are consolidated examples showing most syntax in use:
+Examples
+********
+
+Here are consolidated examples showing most of the available syntax in use:
 
 .. code-block:: python
 
@@ -290,8 +300,9 @@ Output::
 
     Expression: 1 + 2 = 3
 
+
 Notes and Limitations
----------------------
+*********************
 
 - Templates are evaluated when they are substituted, rather than when they are created; errors show up when calling
   :meth:`substitute`.
