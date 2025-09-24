@@ -2204,7 +2204,7 @@ class CIntLike:
                 context={"TYPE": name_type.empty_declaration_code(),
                         "TO_PY_FUNCTION": conversion_func_cname})
             if name_type is self:
-               self.to_pyunicode_utility = (conversion_func_cname, to_pyunicode_utility)
+                self.to_pyunicode_utility = (conversion_func_cname, to_pyunicode_utility)
 
         code.globalstate.use_utility_code(to_pyunicode_utility)
         format_type, width, padding_char = self._parse_format(format_spec)
