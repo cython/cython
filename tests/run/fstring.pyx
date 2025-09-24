@@ -1,6 +1,12 @@
 # mode: run
 # tag: f_strings, pep498, werror
 
+# Validate that the typedefs use corresponding conversion functions.
+# cython: test_assert_c_code_has = __Pyx_PyUnicode_From_uintptr_t\(
+# cython: test_assert_c_code_has = __Pyx_PyUnicode_From_intptr_t\(
+# cython: test_assert_c_code_has = __Pyx_PyUnicode_From_int\(
+# cython: test_fail_if_c_code_has = __Pyx_PyUnicode_From_BIGINT
+
 ####
 # Cython specific PEP 498 tests in addition to test_fstring.pyx from CPython
 ####
@@ -11,6 +17,7 @@ import sys
 IS_PYPY = hasattr(sys, 'pypy_version_info')
 
 from libc.limits cimport INT_MAX, LONG_MAX, LONG_MIN
+from libc.stdint cimport uintptr_t
 
 max_int = INT_MAX
 max_long = LONG_MAX
@@ -153,6 +160,40 @@ def format_c_enum():
     True
     """
     return f"{enum_ABC}-{enum_XYZ}"
+
+
+ctypedef int BIGINT
+
+cdef extern from "stdint.h":
+    ctypedef char intptr_t  # typedef is intentionally too narrow
+
+
+@cython.test_fail_if_path_exists(
+    "//CoerceToPyTypeNode",
+)
+def format_typedefs(BIGINT local_tdef, uintptr_t ext_tdef, intptr_t wrong_typedef):
+    """
+    >>> format_typedefs(3434, 4343, 1234)
+    4343 3434 1234
+    4343 3434 1234
+          4343       3434       1234
+    >>> format_typedefs(-3434, 4343, -1234)
+    4343 -3434 -1234
+    4343 -3434 -1234
+          4343      -3434      -1234
+
+    >>> format_typedefs(2**30, 2**30, 2**30)
+    1073741824 1073741824 1073741824
+    1073741824 1073741824 1073741824
+    1073741824 1073741824 1073741824
+    >>> format_typedefs(-(2**30), 2**30, -(2**30))
+    1073741824 -1073741824 -1073741824
+    1073741824 -1073741824 -1073741824
+    1073741824 -1073741824 -1073741824
+    """
+    print(f"{ext_tdef} {local_tdef} {wrong_typedef}")
+    print(f"{ext_tdef:d} {local_tdef:d} {wrong_typedef:d}")
+    print(f"{ext_tdef:-10d} {local_tdef:-10d} {wrong_typedef:-10d}")
 
 
 def format_c_numbers(signed char c, short s, int n, long l, float f, double d):
