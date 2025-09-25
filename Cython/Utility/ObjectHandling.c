@@ -821,7 +821,7 @@ __Pyx_PyTuple_FromArray(PyObject *const *src, Py_ssize_t n)
     res = PyTuple_New(n);
     if (unlikely(res == NULL)) return NULL;
     for (i = 0; i < n; i++) {
-        if (unlikely(__Pyx_PyTuple_SET_ITEM(res, i, src[i]) < 0)) {
+        if (unlikely(__Pyx_PyTuple_SET_ITEM(res, i, src[i]) < (0))) {
             Py_DECREF(res);
             return NULL;
         }

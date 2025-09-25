@@ -31,7 +31,7 @@ cdef extern from *:
 
 @cname("{{cname.replace("PyObject", py_type, 1)}}")
 cdef inline object {{cname.replace("PyObject", py_type, 1)}}(const string& s):
-    return __Pyx_{{py_type}}_FromStringAndSize(s.data(), s.size())
+    return __Pyx_{{py_type}}_FromStringAndSize(s.data(), <Py_ssize_t> s.size())
 {{endfor}}
 
 
