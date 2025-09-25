@@ -296,6 +296,8 @@ cdef extern from *:
         std::lock(arg0, arg1, args...);
     }
 
+    inline void __pyx_libcpp_mutex_unlock() {} // no-op
+
     template <typename Lockable0T, typename ... Lockables>
     void __pyx_libcpp_mutex_unlock(Lockable0T& arg0, Lockables&... locks) {
         arg0.unlock();
