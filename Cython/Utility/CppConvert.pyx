@@ -13,7 +13,7 @@ cdef extern from *:
 cdef string {{cname}}(object o) except *:
     cdef Py_ssize_t length = 0
     cdef const char* data = __Pyx_PyObject_AsStringAndSize(o, &length)
-    return string(data, length)
+    return string(data, <size_t> length)
 
 
 #################### string.to_py ####################
@@ -21,6 +21,7 @@ cdef string {{cname}}(object o) except *:
 #cimport cython
 #from libcpp.string cimport string
 cdef extern from *:
+    const Py_ssize_t PY_SSIZE_T_MAX
     cdef cppclass string "{{type}}":
         char* data()
         size_t size()
@@ -31,6 +32,8 @@ cdef extern from *:
 
 @cname("{{cname.replace("PyObject", py_type, 1)}}")
 cdef inline object {{cname.replace("PyObject", py_type, 1)}}(const string& s):
+    if s.size() > <size_t> PY_SSIZE_T_MAX:
+        raise MemoryError()
     return __Pyx_{{py_type}}_FromStringAndSize(s.data(), <Py_ssize_t> s.size())
 {{endfor}}
 
