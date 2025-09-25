@@ -165,7 +165,7 @@ def format_c_enum():
 ctypedef int BIGINT
 
 cdef extern from "stdint.h":
-    ctypedef char intptr_t  # typedef is intentionally too narrow
+    ctypedef signed char intptr_t  # typedef is intentionally too narrow
 
 
 @cython.test_fail_if_path_exists(
