@@ -445,7 +445,7 @@ static CYTHON_INLINE PyObject* __Pyx_decode_cpp_string(
          const char* encoding, const char* errors,
          PyObject* (*decode_func)(const char *s, Py_ssize_t size, const char *errors)) {
     return __Pyx_decode_c_bytes(
-        cppstring.data(), cppstring.size(), start, stop, encoding, errors, decode_func);
+        cppstring.data(), (Py_ssize_t) cppstring.size(), start, stop, encoding, errors, decode_func);
 }
 
 /////////////// decode_cpp_string_view.proto ///////////////
@@ -457,7 +457,7 @@ static CYTHON_INLINE PyObject* __Pyx_decode_cpp_string_view(
          const char* encoding, const char* errors,
          PyObject* (*decode_func)(const char *s, Py_ssize_t size, const char *errors)) {
     return __Pyx_decode_c_bytes(
-        cppstring.data(), cppstring.size(), start, stop, encoding, errors, decode_func);
+        cppstring.data(), (Py_ssize_t) cppstring.size(), start, stop, encoding, errors, decode_func);
 }
 
 /////////////// decode_c_string.proto ///////////////
