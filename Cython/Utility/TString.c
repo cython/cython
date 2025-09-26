@@ -67,22 +67,25 @@ class Template:
     def __setattr__(self, attr, value):
         raise AttributeError('Template is immutable')
     def __new__(cls, *args, strings=None, interpolations=None):
-        if args and (strings is not None or interpolations is not None):
-            raise ValueError('\\'strings\\' or \\'interpolations\\' should not be passed with positional arguments')
-        if strings is None: strings = []
-        if interpolations is None: interpolations = []
-        last_string = ''
-        for arg in args:
-            if isinstance(arg, str):
-                last_string += arg
-            elif isinstance(arg, Interpolation):
-                strings.append(last_string)
-                last_string = ''
-                interpolations.append(arg)
-            else:
-                raise TypeError('Unexpected argument to Template')
-        if args:
+        if strings is None and interpolations is None:
+            strings = []
+            interpolations = []
+            last_string = ''
+            for arg in args:
+                if isinstance(arg, str):
+                    last_string += arg
+                elif isinstance(arg, Interpolation):
+                    strings.append(last_string)
+                    last_string = ''
+                    interpolations.append(arg)
+                else:
+                    raise TypeError('Unexpected argument to Template')
             strings.append(last_string)
+        else:
+            if args:
+                raise ValueError('\\'strings\\' or \\'interpolations\\' should not be passed with positional arguments')
+            if strings is None: strings = ()
+            if interpolations is None: interpolations = ()
         obj = super().__new__(cls)
         super().__setattr__(obj, 'strings', tuple(strings))
         super().__setattr__(obj, 'interpolations', tuple(interpolations))
