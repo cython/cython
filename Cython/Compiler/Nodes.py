@@ -24,7 +24,7 @@ from . import TypeSlots
 from .PyrexTypes import py_object_type, error_type
 from .Symtab import (ModuleScope, LocalScope, ClosureScope, PropertyScope,
                      StructOrUnionScope, PyClassScope, CppClassScope, TemplateScope, GeneratorExpressionScope,
-                     CppScopedEnumScope, punycodify_name)
+                     CppScopedEnumScope, ParallelThreadPrivateScope, punycodify_name)
 from .Code import UtilityCode
 from .StringEncoding import EncodedString
 from . import Future
@@ -2106,7 +2106,8 @@ class FuncDefNode(StatNode, BlockNode):
         self.generate_argument_declarations(lenv, code)
 
         for entry in lenv.var_entries:
-            if not (entry.in_closure or entry.is_arg):
+            if not (entry.in_closure or entry.is_arg or
+                    (entry.is_thread_private_shadowed and self.is_generator)):
                 code.put_var_declaration(entry)
 
         # Initialize the return variable __pyx_r
@@ -4834,6 +4835,9 @@ class GeneratorBodyDefNode(DefNode):
         closure_init_code = code.insertion_point()
         # ----- Local variables
         code.putln("PyObject *%s = NULL;" % Naming.retval_cname)
+        for entry in lenv.var_entries:
+            if entry.is_thread_private_shadowed:
+                code.put_var_declaration(entry)
         tempvardecl_code = code.insertion_point()
         code.put_declare_refcount_context()
         code.put_setup_refcount_context(self.entry.name or self.entry.qualified_name)
@@ -7093,7 +7097,6 @@ class RaiseStatNode(StatNode):
                     not (exc.args or (exc.arg_tuple is not None and exc.arg_tuple.args))):
                 exc = exc.function  # extract the exception type
             if exc.is_name and exc.entry.is_builtin:
-                from . import Symtab
                 self.builtin_exc_name = exc.name
                 if self.builtin_exc_name == 'MemoryError':
                     self.exc_type = None  # has a separate implementation
@@ -9533,6 +9536,8 @@ class ParallelStatNode(StatNode, ParallelNode):
     chunksize = None
     threading_condition = None
 
+    thread_private_scope = None
+
     parallel_exc = (
         Naming.parallel_exc_type,
         Naming.parallel_exc_value,
@@ -9561,7 +9566,7 @@ class ParallelStatNode(StatNode, ParallelNode):
         # All assignments in this scope
         self.assignments = kwargs.get('assignments') or {}
 
-        # All seen closure cnames and their temporary cnames
+        # All seen closure entries
         self.seen_closure_vars = set()
 
         # Dict of variables that should be declared (first|last|)private or
@@ -9615,6 +9620,9 @@ class ParallelStatNode(StatNode, ParallelNode):
                 setattr(self, kw, val)
 
     def analyse_expressions(self, env):
+        # create thread_private_scope in case we need it later
+        self.thread_private_scope = ParallelThreadPrivateScope(env)
+
         if self.num_threads:
             self.num_threads = self.num_threads.analyse_expressions(env)
 
@@ -9662,7 +9670,7 @@ class ParallelStatNode(StatNode, ParallelNode):
                     continue
 
             if not self.is_prange and op:
-                # Again possible, but considered to magicky
+                # Again possible, but considered too magicky
                 error(pos, "Reductions not allowed for parallel blocks")
                 continue
 
@@ -9742,27 +9750,22 @@ class ParallelStatNode(StatNode, ParallelNode):
             if parent and (op or lastprivate):
                 parent.propagate_var_privatization(entry, pos, op, lastprivate)
 
-    def _allocate_closure_temp(self, code, entry):
+    def _allocate_closure_temp(self, code, entry) -> None:
         """
         Helper function that allocate a temporary for a closure variable that
         is assigned to.
         """
         if self.parent:
-            return self.parent._allocate_closure_temp(code, entry)
+            self.parent._allocate_closure_temp(code, entry)
+            return
 
-        if entry.cname in self.seen_closure_vars:
-            return entry.cname
+        if entry in self.seen_closure_vars:
+            return
 
-        cname = code.funcstate.allocate_temp(entry.type, True)
+        self.seen_closure_vars.add(entry)
 
-        # Add both the actual cname and the temp cname, as the actual cname
-        # will be replaced with the temp cname on the entry
-        self.seen_closure_vars.add(entry.cname)
-        self.seen_closure_vars.add(cname)
-
-        self.modified_entries.append((entry, entry.cname))
-        code.putln("%s = %s;" % (cname, entry.cname))
-        entry.cname = cname
+        self.modified_entries.append(entry)
+        code.putln("%s = %s;" % (entry.cname, entry.outer_entry.cname))
 
     def initialize_privates_to_nan(self, code, exclude=None):
         first = True
@@ -9809,7 +9812,7 @@ class ParallelStatNode(StatNode, ParallelNode):
         self.modified_entries = []
 
         for entry in sorted(self.assignments):
-            if entry.from_closure or entry.in_closure:
+            if entry.is_thread_private_shadowed:
                 self._allocate_closure_temp(code, entry)
 
     def release_closure_privates(self, code):
@@ -9818,10 +9821,8 @@ class ParallelStatNode(StatNode, ParallelNode):
         outermost parallel block, we don't need to delete the cnames from
         self.seen_closure_vars.
         """
-        for entry, original_cname in self.modified_entries:
-            code.putln("%s = %s;" % (original_cname, entry.cname))
-            code.funcstate.release_temp(entry.cname)
-            entry.cname = original_cname
+        for entry in self.modified_entries:
+            code.putln("%s = %s;" % (entry.outer_entry.cname, entry.cname))
 
     def privatize_temps(self, code, exclude_temps=()):
         """
