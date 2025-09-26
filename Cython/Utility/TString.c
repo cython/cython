@@ -66,16 +66,12 @@ class Template:
     __slots__ = ('strings', 'interpolations')
     def __setattr__(self, attr, value):
         raise AttributeError('Template is immutable')
-    @classmethod
-    def _from_strings_and_interpolations(cls, strings, interpolations):
-        obj = super().__new__(cls)
-        super().__setattr__(obj, 'strings', tuple(strings))
-        super().__setattr__(obj, 'interpolations', tuple(interpolations))
-        return obj
-    def __new__(cls, *args):
+    def __new__(cls, *args, strings=None, interpolations=None):
+        if args and (strings is not None or interpolations is not None):
+            raise ValueError('\\'strings\\' or \\'interpolations\\' should not be passed with positional arguments')
+        if strings is None: strings = []
+        if interpolations is None: interpolations = []
         last_string = ''
-        strings = []
-        interpolations = []
         for arg in args:
             if isinstance(arg, str):
                 last_string += arg
@@ -85,8 +81,12 @@ class Template:
                 interpolations.append(arg)
             else:
                 raise TypeError('Unexpected argument to Template')
-        strings.append(last_string)
-        return cls._from_strings_and_interpolations(strings, interpolations)
+        if args:
+            strings.append(last_string)
+        obj = super().__new__(cls)
+        super().__setattr__(obj, 'strings', tuple(strings))
+        super().__setattr__(obj, 'interpolations', tuple(interpolations))
+        return obj
     def __repr__(self):
         return f'Template(strings={self.strings!r}, interpolations={self.interpolations!r})'
     def __reduce__(self):
@@ -107,7 +107,7 @@ class Template:
         interpolations = self.interpolations + other.interpolations
         middle_string = self.strings[-1] + other.strings[0]
         strings = self.strings[:-1] + (middle_string,) + other.strings[1:]
-        return Template._from_strings_and_interpolations(strings, interpolations)
+        return Template(strings=strings, interpolations=interpolations)
     @property
     def values(self):
         return tuple(i.value for i in self.interpolations)
@@ -263,7 +263,7 @@ static PyObject* __Pyx_MakeTemplateLibTemplate(PyObject *strings, PyObject *inte
 
 //////////////////////////// MakeTemplateLibTemplate ////////////////////////
 //@requires: InitializeTemplateLib
-//@requires: ObjectHandling.c::PyObjectFastCallMethod
+//@requires: ObjectHandling.c::PyObjectVectorCallKwBuilder
 
 #if PY_VERSION_HEX >= 0x030E0000 && CYTHON_COMPILING_IN_CPYTHON
 #ifndef Py_BUILD_CORE
@@ -287,18 +287,23 @@ static PyObject* __Pyx_MakeTemplateLibTemplate(PyObject *strings, PyObject *inte
     if (__Pyx_get_runtime_version() < 0x030E0000) {
         // There's a high chance (but not certain) that we're using our internal
         // fallback version of template. In this case we can try to use a better
-        // constructor. 
-        PyObject *args[] = { tp, strings, interpolations };
-        PyObject *name = PyUnicode_FromString("_from_strings_and_interpolations");
-        if (unlikely(!name)) goto failed_shortcut;
-        result = __Pyx_PyObject_FastCallMethod(name, args, 3 | __Pyx_PY_VECTORCALL_ARGUMENTS_OFFSET);
-        Py_DECREF(name);
+        // constructor.
+        PyObject *args[] = { NULL, NULL };
+        PyObject *kwargs_builder = __Pyx_MakeVectorcallBuilderKwds(2);
+        if (unlikely(!kwargs_builder)) goto failed_shortcut; 
+        if (unlikely(__Pyx_VectorcallBuilder_AddArg(PYIDENT("strings"), strings, kwargs_builder, args, 0)<0))
+            goto failed_shortcut;
+        if (unlikely(__Pyx_VectorcallBuilder_AddArg(PYIDENT("interpolations"), interpolations, kwargs_builder, args, 1)<0))
+            goto failed_shortcut;
+        result = __Pyx_Object_Vectorcall_CallFromBuilder(tp, args, 0, kwargs_builder);
+        Py_DECREF(kwargs_builder);
         if (result) {
             Py_DECREF(tp);
             return result;
         }
 
       failed_shortcut:
+        Py_CLEAR(kwargs_builder);
         PyErr_Clear();
     }
 #endif
