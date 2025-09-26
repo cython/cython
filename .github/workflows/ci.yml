@@ -240,7 +240,7 @@ jobs:
       USE_CCACHE: 1
       CCACHE_SLOPPINESS: "pch_defines,time_macros"
       CCACHE_COMPRESS: 1
-      CCACHE_COMPRESSLEVEL: 7
+      CCACHE_COMPRESSLEVEL: 5
       # Size guide: 10GB maximum cache storage / total number of CI jobs creating a cache.
       # However, a single run currently generates 170-210 MB, so less would use less but be useless.
       CCACHE_MAXSIZE: "220M"
@@ -357,7 +357,7 @@ jobs:
     env:
       CCACHE_SLOPPINESS: "pch_defines,time_macros"
       CCACHE_COMPRESS: 1
-      CCACHE_COMPRESSLEVEL: 7
+      CCACHE_COMPRESSLEVEL: 5
       CCACHE_NOHASHDIR: 1
       CFLAGS: -O3 -g1 -fPIC -mtune=generic
 
