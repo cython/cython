@@ -322,4 +322,4 @@ i.e. the usual Python patterns.  Specifically:
   but with the C struct name provided as :ref:`same cname string <resolve-conflicts>`.
   This allows their usage from more use case specific code that can be included and
   reused from different optional modules.
-- If all else fails, code generation can be used as a last resort.
+- If all else fails, code generation using the :ref:`Tempita template engine <tempita>` can be used as a last resort.
