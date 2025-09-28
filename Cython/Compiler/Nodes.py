@@ -2716,8 +2716,14 @@ class CFuncDefNode(FuncDefNode):
         self.directive_locals.update(env.directives.get('locals', {}))
         if self.directive_returns is not None:
             base_type = self.directive_returns.analyse_as_type(env)
+            # Annotated return types with wrong type produce warnings instead of errors.
             if base_type is None:
-                base_type = self.base_type.analyse(env)
+                from .ExprNodes import AnnotationNode
+                if isinstance(self.directive_returns, AnnotationNode):
+                    base_type = self.base_type.analyse(env)
+                else:
+                    error(self.directive_returns.pos, "Not a type")
+                    base_type = PyrexTypes.error_type
         else:
             base_type = self.base_type.analyse(env)
         self.is_static_method = 'staticmethod' in env.directives and not env.lookup_here('staticmethod')
