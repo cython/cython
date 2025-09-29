@@ -6181,6 +6181,7 @@ class SingleAssignmentNode(AssignmentNode):
     #  first                    bool          Is this guaranteed the first assignment to lhs?
     #  is_overloaded_assignment bool          Is this assignment done via an overloaded operator=
     #  is_assignment_expression bool          Internally SingleAssignmentNode is used to implement assignment expressions
+    #  from_pxd_cvardef         bool          Was created from a CVarDef node in a pxd file
     #  exception_check
     #  exception_value
 
@@ -6189,6 +6190,7 @@ class SingleAssignmentNode(AssignmentNode):
     is_overloaded_assignment = False
     is_assignment_expression = False
     declaration_only = False
+    from_pxd_cvardef = False
 
     def analyse_declarations(self, env):
         from . import ExprNodes
@@ -6336,6 +6338,14 @@ class SingleAssignmentNode(AssignmentNode):
         elif rhs.type.is_pyobject:
             rhs = rhs.coerce_to_simple(env)
         self.rhs = rhs
+
+        if self.from_pxd_cvardef and not self.lhs.type.is_const:
+            warning(
+                self.pos,
+                "Assignment in pxd file will not be executed. Suggest declaring as const",
+                2
+            )
+
         return self
 
     def unroll(self, node, target_size, env):

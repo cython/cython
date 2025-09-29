@@ -260,7 +260,8 @@ class PostParse(ScopeTrackingTransform):
                         first_assignment = self.scope_type != 'module'
                         stats.append(Nodes.SingleAssignmentNode(node.pos,
                             lhs=ExprNodes.NameNode(node.pos, name=declbase.name),
-                            rhs=declbase.default, first=first_assignment))
+                            rhs=declbase.default, first=first_assignment,
+                            from_pxd_cvardef=node.in_pxd))
                         declbase.default = None
                 newdecls.append(decl)
             node.declarators = newdecls
