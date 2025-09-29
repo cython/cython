@@ -40,6 +40,8 @@ _func_deco: _Decorator
 
 cfunc = ccall = compile = _func_deco
 
+ufunc = _func_deco
+
 def locals(**kwargs: Any) -> _Decorator: ...
 
 def _class_deco(__cls: _TypeT) -> _TypeT: ...
