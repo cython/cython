@@ -1116,7 +1116,7 @@ Cython code.  Here is the list of currently supported directives:
     the cache is enabled for Cython implemented types.  To disable it
     explicitly in the rare cases where a type needs to juggle with its ``tp_dict``
     internally without paying attention to cache consistency, this option can
-    be set to False.
+    be set to False.  Note that this no longer applies to Python 3.11 and later.
 
 ``unraisable_tracebacks`` (True / False), *default=False*
     Whether to print tracebacks when suppressing unraisable exceptions.
@@ -1345,8 +1345,8 @@ most important to least important:
     can be used by many Python interpreter versions (at the cost of some performance).
     At this stage many features do not work in the Limited API.  You should set this
     macro to be the version hex for the
-    minimum Python version you want to support (\>=3.7).  ``0x03070000`` will support
-    Python 3.7 upwards.
+    minimum Python version you want to support (\>=3.8).  ``0x03080000`` will support
+    Python 3.8 upwards.
     Note that this is a :external+python:c:macro:`Python macro <Py_LIMITED_API>`,
     rather than just a Cython macro, and so it changes what parts of the Python headers
     are visible too.  See :ref:`limited_api` for more details about this feature.

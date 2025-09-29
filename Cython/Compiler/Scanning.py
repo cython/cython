@@ -213,7 +213,7 @@ class FileSourceDescriptor(SourceDescriptor):
             return lines
 
         with self.get_file_object(encoding=encoding, error_handling=error_handling) as f:
-            lines = f.readlines()
+            lines = [line.rstrip() for line in f.readlines()]
 
         # Do not cache the first access, but add the key to remember that we already read it once.
         self._lines[key] = lines if key in self._lines else None
@@ -260,7 +260,7 @@ class StringSourceDescriptor(SourceDescriptor):
     def __init__(self, name, code):
         self.name = name
         #self.set_file_type_from_name(name)
-        self.codelines = [x + "\n" for x in code.split("\n")]
+        self.codelines = [line.rstrip() for line in code.splitlines()]
         self._cmp_name = name
 
     def get_lines(self, encoding=None, error_handling=None):
@@ -461,8 +461,6 @@ class PyrexScanner(Scanner):
             self.produce('CHARS', '{')
         len_text -= (double_braces*2)
 
-        if len_text < 0:
-            breakpoint()
         if len_text:
             assert len_text == 1
             self._handle_open_single_fstring_brace(started_fstring_expr)

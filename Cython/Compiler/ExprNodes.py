@@ -2879,13 +2879,13 @@ class BackquoteNode(ExprNode):
 class ImportNode(ExprNode):
     #  Used as part of import statement implementation.
     #  Implements result =
-    #    __import__(module_name, globals(), None, name_list, level)
+    #    __import__(module_name, globals(), None, list(imported_names), level)
     #
-    #  module_name   UnicodeNode            dotted name of module. Empty module
+    #  module_name    UnicodeNode            dotted name of module. Empty module
     #                       name means importing the parent package according
     #                       to level
-    #  name_list     ListNode or None      list of names to be imported
-    #  level         int                   relative import level:
+    #  imported_names [ExprNode] or None list of names to be imported
+    #  level          int                   relative import level:
     #                       -1: attempt both relative import and absolute import;
     #                        0: absolute import;
     #                       >0: the number of parent directories to search
@@ -2897,7 +2897,7 @@ class ImportNode(ExprNode):
     type = py_object_type
     is_temp = True
 
-    subexprs = ['module_name', 'name_list']
+    subexprs = ['module_name', 'imported_names']
 
     def analyse_types(self, env):
         if self.level is None:
@@ -2913,9 +2913,10 @@ class ImportNode(ExprNode):
         self.module_name = module_name.coerce_to_pyobject(env)
         assert self.module_name.is_string_literal
 
-        if self.name_list:
-            name_list = self.name_list.analyse_types(env)
-            self.name_list = name_list.coerce_to_pyobject(env)
+        if self.imported_names is not None:
+            self.imported_names = [
+                name.analyse_types(env) for name in self.imported_names
+            ]
 
         if self.level != 0:
             level = self.level if self.level > 0 else 1
@@ -2937,15 +2938,24 @@ class ImportNode(ExprNode):
             module_qualname = code.get_py_string_const(self.module_qualname)
 
         code.globalstate.use_utility_code(UtilityCode.load_cached("Import", "ImportExport.c"))
-        import_code = "__Pyx_Import(%s, %s, %s, %d)" % (
+
+        if self.imported_names is not None:
+            code.putln("{")
+            code.putln(
+                f"PyObject *__pyx_imported_names[] = {{{','.join(n.result() for n in self.imported_names)}}};")
+
+        import_code = "__Pyx_Import(%s, %s, %d, %s, %d)" % (
             self.module_name.py_result(),
-            self.name_list.py_result() if self.name_list else '0',
+            '__pyx_imported_names' if self.imported_names is not None else '0',
+            len(self.imported_names) if self.imported_names is not None else 0,
             module_qualname,
             self.level)
         tmp_submodule = code.funcstate.allocate_temp(self.type, manage_ref=False)
         code.putln(
             f"{tmp_submodule} = {import_code}; {code.error_goto_if_null(tmp_submodule, self.pos)}"
         )
+        if self.imported_names is not None:
+            code.putln("}")
 
         if self.is_import_as_name and "." in self.module_name.value:
             # We need to get the submodules in this case
@@ -3564,7 +3574,7 @@ class AsyncNextNode(AtomicExprNode):
         self.generate_gotref(code)
 
 
-class WithExitCallNode(ExprNode):
+class WithExitCallNode(ExprNode, Nodes.CopyWithUpTreeRefsMixin):
     # The __exit__() call of a 'with' statement.  Used in both the
     # except and finally clauses.
 
@@ -3573,6 +3583,7 @@ class WithExitCallNode(ExprNode):
     # await_expr  AwaitExprNode               the await expression of an 'async with' statement
 
     subexprs = ['args', 'await_expr']
+    uptree_ref_attrs = ['with_stat']
     test_if_run = True
     await_expr = None
 
@@ -3859,8 +3870,9 @@ class FormattedValueNode(ExprNode):
 
     def analyse_types(self, env):
         self.value = self.value.analyse_types(env)
+        resolved_type = self.value.type.resolve()
         if not self.format_spec or self.format_spec.is_string_literal:
-            c_format_spec = self.format_spec.value if self.format_spec else self.value.type.default_format_spec
+            c_format_spec = self.format_spec.value if self.format_spec else resolved_type.default_format_spec
             if self.value.type.can_coerce_to_pystring(env, format_spec=c_format_spec):
                 self.c_format_spec = c_format_spec
 
@@ -3869,7 +3881,7 @@ class FormattedValueNode(ExprNode):
         if self.c_format_spec is None:
             self.value = self.value.coerce_to_pyobject(env)
             if not self.format_spec and (not self.conversion_char or self.conversion_char == 's'):
-                if self.value.type is unicode_type and not self.value.may_be_none():
+                if resolved_type is unicode_type and not self.value.may_be_none():
                     # value is definitely a unicode string and we don't format it any special
                     return self.value
         return self

@@ -1,10 +1,18 @@
 /////////////// InitLimitedAPI ///////////////
 
-#if defined(Py_LIMITED_API) && !defined(CYTHON_LIMITED_API)
+#if defined(Py_LIMITED_API)
+  #if !defined(CYTHON_LIMITED_API)
   // Use Py_LIMITED_API as the main control for Cython's limited API mode.
   // However it's still possible to define CYTHON_LIMITED_API alone to
   // force Cython to use Limited-API code without enforcing it in Python.
   #define CYTHON_LIMITED_API 1
+  #endif
+#elif defined(CYTHON_LIMITED_API)
+  #ifdef _MSC_VER
+  #pragma message ("Limited API usage is enabled with 'CYTHON_LIMITED_API' but 'Py_LIMITED_API' does not define a Python target version. Consider setting 'Py_LIMITED_API' instead.")
+  #else
+  #warning Limited API usage is enabled with 'CYTHON_LIMITED_API' but 'Py_LIMITED_API' does not define a Python target version. Consider setting 'Py_LIMITED_API' instead.
+  #endif
 #endif
 
 /////////////// CModulePreamble ///////////////
@@ -261,8 +269,9 @@
   #ifndef CYTHON_UPDATE_DESCRIPTOR_DOC
     #define CYTHON_UPDATE_DESCRIPTOR_DOC 0
   #endif
-  #undef CYTHON_USE_FREELISTS
-  #define CYTHON_USE_FREELISTS 0
+  #ifndef CYTHON_USE_FREELISTS
+  #define CYTHON_USE_FREELISTS 1
+  #endif
   #undef CYTHON_IMMORTAL_CONSTANTS
   #define CYTHON_IMMORTAL_CONSTANTS 0
 
@@ -418,12 +427,9 @@
 //  available though.
 #define CYTHON_VECTORCALL  (__PYX_LIMITED_VERSION_HEX >= 0x030C0000)
 #else
-#define CYTHON_VECTORCALL  (CYTHON_FAST_PYCCALL && PY_VERSION_HEX >= 0x030800B1)
+#define CYTHON_VECTORCALL  (CYTHON_FAST_PYCCALL)
 #endif
 #endif
-
-/* Whether to use METH_FASTCALL with a fake backported implementation of vectorcall */
-#define CYTHON_BACKPORT_VECTORCALL (CYTHON_METH_FASTCALL && PY_VERSION_HEX < 0x030800B1)
 
 #if CYTHON_USE_PYLONG_INTERNALS
   /* These short defines from the PyLong header can easily conflict with other code */
@@ -566,9 +572,9 @@ typedef uintptr_t  __pyx_uintptr_t;
 #endif
 
 #if CYTHON_COMPILING_IN_PYPY == 1
-  #define __PYX_NEED_TP_PRINT_SLOT  (PY_VERSION_HEX >= 0x030800b4 && PY_VERSION_HEX < 0x030A0000)
+  #define __PYX_NEED_TP_PRINT_SLOT  (PY_VERSION_HEX < 0x030A0000)
 #else
-  #define __PYX_NEED_TP_PRINT_SLOT  (PY_VERSION_HEX >= 0x030800b4 && PY_VERSION_HEX < 0x03090000)
+  #define __PYX_NEED_TP_PRINT_SLOT  (PY_VERSION_HEX < 0x03090000)
 #endif
 // reinterpret
 
@@ -778,11 +784,6 @@ static int __Pyx_init_co_variables(void); /* proto */
   #define __pyx_vectorcallfunc vectorcallfunc
   #define __Pyx_PY_VECTORCALL_ARGUMENTS_OFFSET  PY_VECTORCALL_ARGUMENTS_OFFSET
   #define __Pyx_PyVectorcall_NARGS(n)  PyVectorcall_NARGS((size_t)(n))
-#elif CYTHON_BACKPORT_VECTORCALL
-  typedef PyObject *(*__pyx_vectorcallfunc)(PyObject *callable, PyObject *const *args,
-                                            size_t nargsf, PyObject *kwnames);
-  #define __Pyx_PY_VECTORCALL_ARGUMENTS_OFFSET  ((size_t)1 << (8 * sizeof(size_t) - 1))
-  #define __Pyx_PyVectorcall_NARGS(n)  ((Py_ssize_t)(((size_t)(n)) & ~__Pyx_PY_VECTORCALL_ARGUMENTS_OFFSET))
 #else
   #define __Pyx_PY_VECTORCALL_ARGUMENTS_OFFSET  0
   #define __Pyx_PyVectorcall_NARGS(n)  ((Py_ssize_t)(n))
@@ -965,7 +966,7 @@ static CYTHON_INLINE PyObject * __Pyx_PyDict_GetItemStrWithError(PyObject *dict,
 // PyIter_Next() discards the StopIteration, unlike Python's "next()".
 #define __Pyx_PyObject_GetIterNextFunc(iterator)  __Pyx_PyObject_GetSlot(iterator, tp_iternext, iternextfunc)
 
-#if CYTHON_USE_TYPE_SPECS && PY_VERSION_HEX >= 0x03080000
+#if CYTHON_USE_TYPE_SPECS
 // In Py3.8+, instances of heap types need to decref their type on deallocation.
 // https://bugs.python.org/issue35810
 #define __Pyx_PyHeapTypeObject_GC_Del(obj)  { \
@@ -2425,8 +2426,7 @@ static PyObject* __Pyx_PyCode_New(
         // PyCode_NewEmpty isn't in the limited API. Therefore the two options are
         //  1. Python call of the code type with a long list of positional args.
         //  2. Generate a code object by compiling some trivial code, and customize.
-        // We use the second because it's less sensitive to changes in the code type
-        // constructor with version.
+        // We use the first option here.
         PyObject *exception_table = NULL;
         PyObject *types_module=NULL, *code_type=NULL, *result=NULL;
         #if __PYX_LIMITED_VERSION_HEX < 0x030b0000
@@ -2507,9 +2507,14 @@ static PyObject* __Pyx_PyCode_New(
         PyCode_NewWithPosOnlyArgs
       #endif
         (a, p, k, l, s, f, code, c, n, v, fv, cell, fn, name, name, fline, lnos, EMPTY(bytes));
+
+    #if CYTHON_COMPILING_IN_CPYTHON && PY_VERSION_HEX >= 0x030c00A1
+    if (likely(result))
+        result->_co_firsttraceable = 0;
+    #endif
     return result;
   }
-#elif PY_VERSION_HEX >= 0x030800B2 && !CYTHON_COMPILING_IN_PYPY
+#elif !CYTHON_COMPILING_IN_PYPY
   #define __Pyx__PyCode_New(a, p, k, l, s, f, code, c, n, v, fv, cell, fn, name, fline, lnos) \
           PyCode_NewWithPosOnlyArgs(a, p, k, l, s, f, code, c, n, v, fv, cell, fn, name, fline, lnos)
 #else
