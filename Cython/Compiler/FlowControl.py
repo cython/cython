@@ -1107,6 +1107,11 @@ class ControlFlowAnalysis(CythonTransform):
         else:
             self.flow.block = None
         return node
+    
+    def _delete_privates(self, node, exclude=None):
+        for private_node in node.assigned_nodes:
+            if not exclude or private_node.entry is not exclude:
+                self.flow.mark_deletion(private_node, private_node.entry)
 
     def visit_ParallelRangeNode(self, node):
         reductions = self.reductions
@@ -1126,6 +1131,17 @@ class ControlFlowAnalysis(CythonTransform):
 
         self.reductions = reductions
         return node
+    
+    def visit_ParallelWithBlockNode(self, node):
+        for private_node in node.assigned_nodes:
+            private_node.entry.error_on_uninitialized = True
+
+        self.visitchildren(node)
+        # lastprivate isn't allowed/doesn't make sense for a parallel (non-for) block
+        self._delete_privates(node)
+
+        return node
+
 
     def visit_ForFromStatNode(self, node):
         condition_block = self.flow.nextblock()

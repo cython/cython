@@ -10270,7 +10270,7 @@ class ParallelWithBlockNode(ParallelStatNode):
                         if not e.type.is_pyobject]
             if privates:
                 joined_privates = ', '.join(sorted(privates))
-                code.put(f'firstprivate({joined_privates}) lastprivate{joined_privates}')
+                code.put(f'firstprivate({joined_privates})')
 
         self.privatization_insertion_point = code.insertion_point()
         self.put_num_threads(code)
