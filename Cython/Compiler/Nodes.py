@@ -6342,7 +6342,7 @@ class SingleAssignmentNode(AssignmentNode):
         if self.from_pxd_cvardef and not self.lhs.type.is_const:
             warning(
                 self.pos,
-                "Assignment in pxd file will not be executed. Suggest declaring as const",
+                "Assignment in pxd file will not be executed. Suggest declaring as const.",
                 2
             )
 
