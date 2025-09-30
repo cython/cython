@@ -1107,7 +1107,7 @@ class ControlFlowAnalysis(CythonTransform):
         else:
             self.flow.block = None
         return node
-    
+
     def _delete_privates(self, node, exclude=None):
         for private_node in node.assigned_nodes:
             if not exclude or private_node.entry is not exclude:
@@ -1131,7 +1131,7 @@ class ControlFlowAnalysis(CythonTransform):
 
         self.reductions = reductions
         return node
-    
+
     def visit_ParallelWithBlockNode(self, node):
         for private_node in node.assigned_nodes:
             private_node.entry.error_on_uninitialized = True
@@ -1141,7 +1141,6 @@ class ControlFlowAnalysis(CythonTransform):
         self._delete_privates(node)
 
         return node
-
 
     def visit_ForFromStatNode(self, node):
         condition_block = self.flow.nextblock()
