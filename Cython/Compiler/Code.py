@@ -2505,8 +2505,6 @@ class CCodeWriter:
         return self.buffer.getvalue()
 
     def write(self, s):
-        if "int __pyx_parallel_temp0 = ((int)0xbad0bad0);" in s:
-            breakpoint()
         if '\n' in s:
             self._write_lines(s)
         else:

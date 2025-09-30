@@ -280,7 +280,7 @@ def test_init_parallel():
 
     with nogil, cython.parallel.parallel():
         # First, trick the flow control to make it believe these variables
-        # are asssigned to within the parallel block
+        # are assigned to within the parallel block
 
         if mybool: # mybool is always false!
             a1 = a2 = b1 = b2 = c1 = c2 = d1 = d2 = e1 = e2 = 0
