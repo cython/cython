@@ -9977,76 +9977,13 @@ class ParallelStatNode(StatNode, ParallelNode):
                     self.fetch_parallel_exception(code)
 
                 code.putln("%s = %d;" % (Naming.parallel_why, i + 1))
-
-            if (self.breaking_label_used and self.is_prange and not
-                    is_continue_label):
-                code.put_goto(save_lastprivates_label)
-            else:
-                code.put_goto(dont_return_label)
+            code.put_goto(dont_return_label)
 
         if self.any_label_used:
-            if self.is_prange and self.breaking_label_used:
-                # Don't rely on lastprivate, save our lastprivates
-                code.put_label(save_lastprivates_label)
-                self.save_parallel_vars(code)
-
             code.put_label(dont_return_label)
 
             if should_flush and self.breaking_label_used:
                 code.putln_openmp("#pragma omp flush(%s)" % Naming.parallel_why)
-
-    def save_parallel_vars(self, code):
-        """
-        The following shenanigans are instated when we break, return or
-        propagate errors from a prange. In this case we cannot rely on
-        lastprivate() to do its job, as no iterations may have executed yet
-        in the last thread, leaving the values undefined. It is most likely
-        that the breaking thread has well-defined values of the lastprivate
-        variables, so we keep those values.
-        """
-        section_name = "__pyx_parallel_lastprivates%d" % self.critical_section_counter
-        code.putln_openmp("#pragma omp critical(%s)" % section_name)
-        ParallelStatNode.critical_section_counter += 1
-
-        code.begin_block()  # begin critical section
-
-        c = self.begin_of_parallel_control_block_point
-
-        temp_count = 0
-        for entry, op in sorted(self.privates.items()):
-            if entry.type.is_pyobject:
-                continue
-
-            if entry.type.is_cpp_class and not entry.type.is_fake_reference and code.globalstate.directives['cpp_locals']:
-                type_decl = entry.type.cpp_optional_declaration_code("")
-            else:
-                type_decl = entry.type.empty_declaration_code()
-            temp_cname = "__pyx_parallel_temp%d" % temp_count
-            private_cname = entry.cname
-
-            temp_count += 1
-
-            invalid_value = entry.type.invalid_value()
-            if invalid_value:
-                init = ' = ' + entry.type.cast_code(invalid_value)
-            else:
-                init = ''
-            # Declare the parallel private in the outer block
-            c.putln("%s %s%s;" % (type_decl, temp_cname, init))
-
-            self.parallel_private_temps.append((temp_cname, private_cname, entry.type))
-
-            if entry.type.is_cpp_class:
-                # moving is fine because we're quitting the loop and so won't be directly accessing the variable again
-                code.globalstate.use_utility_code(
-                    UtilityCode.load_cached("MoveIfSupported", "CppSupport.cpp"))
-                private_cname = "__PYX_STD_MOVE_IF_SUPPORTED(%s)" % private_cname
-            # Initialize before escaping
-            code.putln("%s = %s;" % (temp_cname, private_cname))
-
-
-
-        code.end_block()  # end critical section
 
     def fetch_parallel_exception(self, code):
         """
