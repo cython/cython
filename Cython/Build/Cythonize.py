@@ -89,8 +89,12 @@ def _build(ext_modules, parallel):
         run_distutils(ext_modules[0])
         return
 
+    mp_configured_to_spawn = multiprocessing.get_start_method() == 'spawn'
+    if mp_configured_to_spawn:
+        print('Disabling parallel cythonization for "spawn" process start method.')
+
     try:
-        pool = multiprocessing.Pool(parallel)
+        pool = _FakePool() if mp_configured_to_spawn else multiprocessing.Pool(parallel)
     except OSError:
         pool = _FakePool()
     try:
