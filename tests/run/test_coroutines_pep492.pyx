@@ -78,11 +78,8 @@ def no_pypy(f):
 
 # compiled exec()
 def exec(code_string, l, g):
-    from Cython.Shadow import inline
-    try:
-        from StringIO import StringIO
-    except ImportError:
-        from io import StringIO
+    from Cython.Build.Inline import inline
+    from io import StringIO
 
     old_stderr = sys.stderr
     try:
