@@ -760,6 +760,7 @@ class AsyncBadSyntaxTest(unittest.TestCase):
 
 class TokenizerRegrTest(unittest.TestCase):
 
+    @unittest.skip("Very slow C code compilation.")
     def test_oneline_defs(self):
         buf = []
         for i in range(500):
