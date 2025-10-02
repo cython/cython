@@ -106,7 +106,7 @@ jobs:
 
       - name: Build wheels
         # Nb. keep cibuildwheel version pin consistent with generate-matrix job above
-        uses: pypa/cibuildwheel@v3.1.4
+        uses: pypa/cibuildwheel@v3.2.0
         with:
           only: ${{ matrix.only }}
         # TODO: Cython tests take a long time to complete
@@ -133,7 +133,7 @@ jobs:
         uses: actions/checkout@v5
 
       # Used to push the built wheels
-      - uses: actions/setup-python@v5.6.0
+      - uses: actions/setup-python@v6.0.0
         with:
           # Build sdist on lowest supported Python
           python-version: '3.8'

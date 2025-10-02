@@ -252,12 +252,12 @@ jobs:
           fetch-depth: 1
 
       - name: Setup python
-        uses: actions/setup-python@v5.6.0
+        uses: actions/setup-python@v6.0.0
         with:
           python-version: ${{ matrix.python-version }}
 
       - name: Compilation Cache
-        uses: hendrikmuhs/ccache-action@v1.2.18
+        uses: hendrikmuhs/ccache-action@v1.2.19
         with:
           variant: ${{ startsWith(runner.os, 'Windows') && 'sccache' || 'ccache' }}  # fake ternary
           create-symlink: ${{ startsWith(runner.os, 'Linux') && 'false' || 'true' }}  # fake ternary
@@ -299,7 +299,7 @@ jobs:
         uses: actions/checkout@v5
 
       - name: Setup python
-        uses: actions/setup-python@v5.6.0
+        uses: actions/setup-python@v6.0.0
         with:
           python-version: "3.11"
 
@@ -333,7 +333,7 @@ jobs:
           fetch-depth: 1
 
       - name: Setup python
-        uses: actions/setup-python@v5.6.0
+        uses: actions/setup-python@v6.0.0
         with:
           python-version: "3.11"
 
@@ -369,7 +369,7 @@ jobs:
           fetch-tags: true
 
       - name: Compilation Cache
-        uses: hendrikmuhs/ccache-action@v1.2.18
+        uses: hendrikmuhs/ccache-action@v1.2.19
         with:
           create-symlink: true
           variant: ${{ startsWith(runner.os, 'Windows') && 'sccache' || 'ccache' }}  # fake ternary
@@ -378,7 +378,7 @@ jobs:
           max-size: 250M
 
       - name: Setup python
-        uses: actions/setup-python@v5.6.0
+        uses: actions/setup-python@v6.0.0
         with:
           # List special Pythons first to keep the 'normal' one as (last) "python3.xy".
           python-version: |
