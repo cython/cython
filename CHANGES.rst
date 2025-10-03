@@ -2,6 +2,21 @@
 Cython Changelog
 ================
 
+3.1.5 (2025-??-??)
+==================
+
+Bugs fixed
+----------
+
+* Conversion from C++ strings longer than ``PY_SSIZE_T_MAX`` did not validate the length.
+
+* Some non-Limited API code was incorrectly used in generated header files.
+  (Github issue :issue:`7157`)
+
+* Optimised unpacking of Python integers in expressions uses a slightly safer scheme.
+  (Github issue :issue:`7134`)
+
+
 3.1.4 (2025-09-16)
 ==================
 
