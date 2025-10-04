@@ -254,20 +254,14 @@ __Pyx_CyFunction_get_name_locked(__pyx_CyFunctionObject *op)
 }
 
 static PyObject *
-__Pyx_CyFunction_get_name_cast(__pyx_CyFunctionObject * op)
+__Pyx_CyFunction_get_name(PyObject *op, void *context)
 {
     PyObject *result = NULL;
-    __Pyx_BEGIN_CRITICAL_SECTION(op_in);
-    result = __Pyx_CyFunction_get_name_locked(op);
+    CYTHON_UNUSED_VAR(context);
+    __Pyx_BEGIN_CRITICAL_SECTION(op);
+    result = __Pyx_CyFunction_get_name_locked(__Pyx_GetSharedTypeData(op, CGLOBAL(__pyx_CyFunctionType), __pyx_CyFunctionObject *));
     __Pyx_END_CRITICAL_SECTION();
     return result;
-}
-
-static PyObject *
-__Pyx_CyFunction_get_name(PyObject *op_in, void *context)
-{
-    CYTHON_UNUSED_VAR(context);
-    return __Pyx_CyFunction_get_name_cast(__Pyx_GetSharedTypeData(op_in, CGLOBAL(__pyx_CyFunctionType), __pyx_CyFunctionObject *));
 }
 
 static int
@@ -604,9 +598,9 @@ __Pyx_CyFunction_get_is_coroutine(PyObject *op_in, void *context) {
 //    return NULL;
 //}
 
-static void __Pyx_CyFunction_raise_argument_count_error(__pyx_CyFunctionObject *func, const char* message, Py_ssize_t size) {
+static void __Pyx_CyFunction_raise_argument_count_error(PyObject *func, const char* message, Py_ssize_t size) {
 #if CYTHON_COMPILING_IN_LIMITED_API
-    PyObject *py_name = __Pyx_CyFunction_get_name_cast(func);
+    PyObject *py_name = __Pyx_CyFunction_get_name(func, NULL);
     if (!py_name) return;
     PyErr_Format(PyExc_TypeError,
         "%.200S() %s (%" CYTHON_FORMAT_SSIZE_T "d given)",
@@ -620,9 +614,9 @@ static void __Pyx_CyFunction_raise_argument_count_error(__pyx_CyFunctionObject *
 #endif
 }
 
-static void __Pyx_CyFunction_raise_type_error(__pyx_CyFunctionObject *func, const char* message) {
+static void __Pyx_CyFunction_raise_type_error(PyObject *func, const char* message) {
 #if CYTHON_COMPILING_IN_LIMITED_API
-    PyObject *py_name = __Pyx_CyFunction_get_name_cast(func);
+    PyObject *py_name = __Pyx_CyFunction_get_name(func, NULL);
     if (!py_name) return;
     PyErr_Format(PyExc_TypeError,
         "%.200S() %s",
@@ -932,8 +926,8 @@ __Pyx_CyFunction_repr(PyObject *op_in)
 
 static PyObject * __Pyx_CyFunction_CallMethod(PyObject *func, PyObject *self, PyObject *arg, PyObject *kw) {
     // originally copied from PyCFunction_Call() in CPython's Objects/methodobject.c
-    __pyx_CyFunctionObject *cyfunc = __Pyx_GetSharedTypeData(func, CGLOBAL(__pyx_CyFunctionType), __pyx_CyFunctionObject *);
 #if CYTHON_COMPILING_IN_LIMITED_API
+    __pyx_CyFunctionObject *cyfunc = __Pyx_GetSharedTypeData(func, CGLOBAL(__pyx_CyFunctionType), __pyx_CyFunctionObject *);
     PyObject *f = cyfunc->func;
     PyCFunction meth;
     int flags;
@@ -966,7 +960,7 @@ static PyObject * __Pyx_CyFunction_CallMethod(PyObject *func, PyObject *self, Py
             if (likely(size == 0))
                 return (*meth)(self, NULL);
             __Pyx_CyFunction_raise_argument_count_error(
-                cyfunc,
+                func,
                 "takes no arguments", size);
             return NULL;
         }
@@ -993,7 +987,7 @@ static PyObject * __Pyx_CyFunction_CallMethod(PyObject *func, PyObject *self, Py
                 return result;
             }
             __Pyx_CyFunction_raise_argument_count_error(
-                cyfunc,
+                func,
                 "takes exactly one argument", size);
             return NULL;
         }
@@ -1003,7 +997,7 @@ static PyObject * __Pyx_CyFunction_CallMethod(PyObject *func, PyObject *self, Py
         return NULL;
     }
     __Pyx_CyFunction_raise_type_error(
-        cyfunc, "takes no keyword arguments");
+        func, "takes no keyword arguments");
     return NULL;
 }
 
@@ -1080,20 +1074,20 @@ static PyObject *__Pyx_CyFunction_CallAsMethod(PyObject *func, PyObject *args, P
 //  1: self = args[0]
 //  0: self = cyfunc->func.m_self
 // -1: error
-static CYTHON_INLINE int __Pyx_CyFunction_Vectorcall_CheckArgs(__pyx_CyFunctionObject *cyfunc, Py_ssize_t nargs, PyObject *kwnames)
+static CYTHON_INLINE int __Pyx_CyFunction_Vectorcall_CheckArgs(PyObject *func, __pyx_CyFunctionObject *cyfunc, Py_ssize_t nargs, PyObject *kwnames)
 {
     int ret = 0;
     if ((cyfunc->flags & __Pyx_CYFUNCTION_CCLASS) && !(cyfunc->flags & __Pyx_CYFUNCTION_STATICMETHOD)) {
         if (unlikely(nargs < 1)) {
             __Pyx_CyFunction_raise_type_error(
-                cyfunc, "needs an argument");
+                func, "needs an argument");
             return -1;
         }
         ret = 1;
     }
     if (unlikely(kwnames) && unlikely(__Pyx_PyTuple_GET_SIZE(kwnames))) {
         __Pyx_CyFunction_raise_type_error(
-            cyfunc, "takes no keyword arguments");
+            func, "takes no keyword arguments");
         return -1;
     }
     return ret;
@@ -1111,7 +1105,7 @@ static PyObject * __Pyx_CyFunction_Vectorcall_NOARGS(PyObject *func, PyObject *c
     PyCFunction meth = ((PyCFunctionObject*)cyfunc)->m_ml->ml_meth;
 #endif
 
-    switch (__Pyx_CyFunction_Vectorcall_CheckArgs(cyfunc, nargs, kwnames)) {
+    switch (__Pyx_CyFunction_Vectorcall_CheckArgs(func, cyfunc, nargs, kwnames)) {
     case 1:
         self = args[0];
         args += 1;
@@ -1132,7 +1126,7 @@ static PyObject * __Pyx_CyFunction_Vectorcall_NOARGS(PyObject *func, PyObject *c
 
     if (unlikely(nargs != 0)) {
         __Pyx_CyFunction_raise_argument_count_error(
-            cyfunc, "takes no arguments", nargs);
+            func, "takes no arguments", nargs);
         return NULL;
     }
     return meth(self, NULL);
@@ -1150,7 +1144,7 @@ static PyObject * __Pyx_CyFunction_Vectorcall_O(PyObject *func, PyObject *const 
     PyCFunction meth = ((PyCFunctionObject*)cyfunc)->m_ml->ml_meth;
 #endif
 
-    switch (__Pyx_CyFunction_Vectorcall_CheckArgs(cyfunc, nargs, kwnames)) {
+    switch (__Pyx_CyFunction_Vectorcall_CheckArgs(func, cyfunc, nargs, kwnames)) {
     case 1:
         self = args[0];
         args += 1;
@@ -1171,7 +1165,7 @@ static PyObject * __Pyx_CyFunction_Vectorcall_O(PyObject *func, PyObject *const 
 
     if (unlikely(nargs != 1)) {
         __Pyx_CyFunction_raise_argument_count_error(
-            cyfunc, "takes exactly one argument", nargs);
+            func, "takes exactly one argument", nargs);
         return NULL;
     }
     return meth(self, args[0]);
@@ -1189,7 +1183,7 @@ static PyObject * __Pyx_CyFunction_Vectorcall_FASTCALL_KEYWORDS(PyObject *func, 
     PyCFunction meth = ((PyCFunctionObject*)cyfunc)->m_ml->ml_meth;
 #endif
 
-    switch (__Pyx_CyFunction_Vectorcall_CheckArgs(cyfunc, nargs, NULL)) {
+    switch (__Pyx_CyFunction_Vectorcall_CheckArgs(func, cyfunc, nargs, NULL)) {
     case 1:
         self = args[0];
         args += 1;
@@ -1223,7 +1217,7 @@ static PyObject * __Pyx_CyFunction_Vectorcall_FASTCALL_KEYWORDS_METHOD(PyObject 
 #else
     PyCFunction meth = ((PyCFunctionObject*)cyfunc)->m_ml->ml_meth;
 #endif
-    switch (__Pyx_CyFunction_Vectorcall_CheckArgs(cyfunc, nargs, NULL)) {
+    switch (__Pyx_CyFunction_Vectorcall_CheckArgs(func, cyfunc, nargs, NULL)) {
     case 1:
         self = args[0];
         args += 1;
