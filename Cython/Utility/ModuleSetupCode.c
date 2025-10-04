@@ -123,6 +123,8 @@
   #define CYTHON_USE_FREELISTS 0
   #undef CYTHON_IMMORTAL_CONSTANTS
   #define CYTHON_IMMORTAL_CONSTANTS 0
+  #undef CYTHON_OPAQUE_OBJECTS
+  #define CYTHON_OPAQUE_OBJECTS 0
 
 #elif defined(PYPY_VERSION)
   #define CYTHON_COMPILING_IN_PYPY 1
@@ -195,6 +197,8 @@
   #define CYTHON_USE_FREELISTS 0
   #undef CYTHON_IMMORTAL_CONSTANTS
   #define CYTHON_IMMORTAL_CONSTANTS 0
+  #undef CYTHON_OPAQUE_OBJECTS
+  #define CYTHON_OPAQUE_OBJECTS 0
 
 #elif defined(CYTHON_LIMITED_API)
   // EXPERIMENTAL !!
@@ -274,6 +278,15 @@
   #endif
   #undef CYTHON_IMMORTAL_CONSTANTS
   #define CYTHON_IMMORTAL_CONSTANTS 0
+  #if __PYX_LIMITED_VERSION_HEX < 0x030E0000
+  // although opaque objects are introduced in earlier in Python 3.12 they aren't usable
+  // for use because we can't specify relative offsets like vectorcall until 3.14.
+  #undef CYTHON_OPAQUE_OBJECTS
+  #define CYTHON_OPAQUE_OBJECTS 0
+  #elif !defined(CYTHON_OPAQUE_OBJECTS)
+  // From 3.15 it starts being needed for freethreading compatibility
+  #define CYTHON_OPAQUE_OBJECTS (__PYX_LIMITED_VERSION_HEX >= 0x030F0000)
+  #endif
 
 #else
   #define CYTHON_COMPILING_IN_PYPY 0
@@ -407,6 +420,9 @@
     // (hence freethreading only), and that with module state the module may be unloaded and reloaded (so they
     // could be a memory leak). However the user can always override these assumptions.
     #define CYTHON_IMMORTAL_CONSTANTS (PY_VERSION_HEX >= 0x030C0000 && !CYTHON_USE_MODULE_STATE && CYTHON_COMPILING_IN_CPYTHON_FREETHREADING)
+  #endif
+  #ifndef CYTHON_OPAQUE_OBJECTS
+    #define CYTHON_OPAQUE_OBJECTS 0
   #endif
 #endif
 
@@ -863,6 +879,16 @@ static CYTHON_INLINE int __Pyx__IsSameCFunction(PyObject *func, void (*cfunc)(vo
   #define __Pyx_PyThreadState_Current PyThreadState_GetUnchecked()
 #else
   #define __Pyx_PyThreadState_Current _PyThreadState_UncheckedGet()
+#endif
+
+#if CYTHON_OPAQUE_OBJECTS && CYTHON_COMPILING_IN_LIMITED_API
+    #define __PYX_SHARED_SIZEOF(T) -((int)sizeof(T))
+    #define __PYX_SHARED_RELATIVE_OFFSET Py_RELATIVE_OFFSET
+    #define __Pyx_GetSharedTypeData(o, cls, T) ((T)PyObject_GetTypeData((o), cls))
+#else
+    #define __PYX_SHARED_SIZEOF(T) sizeof(T)
+    #define __PYX_SHARED_RELATIVE_OFFSET 0
+    #define __Pyx_GetSharedTypeData(o, cls, T) ((T)(o))
 #endif
 
 #if CYTHON_USE_MODULE_STATE
@@ -1358,7 +1384,14 @@ static int __Pyx_init_co_variables(void) {
     #define __PYX_FREELISTS_ABI_SUFFIX "nofreelists"
 #endif
 
-#define CYTHON_ABI  __PYX_ABI_VERSION __PYX_LIMITED_ABI_SUFFIX __PYX_MONITORING_ABI_SUFFIX __PYX_TP_FINALIZE_ABI_SUFFIX __PYX_FREELISTS_ABI_SUFFIX __PYX_AM_SEND_ABI_SUFFIX
+// Outside the Limited API we don't use opaque objects for shared types (even if we may use them elsewhere)
+#if CYTHON_OPAQUE_OBJECTS && CYTHON_COMPILING_IN_LIMITED_API
+    #define __PYX_OPAQUE_OBJECTS_ABI_SUFFIX "opaque"
+#else
+    #define __PYX_OPAQUE_OBJECTS_ABI_SUFFIX
+#endif
+
+#define CYTHON_ABI  __PYX_ABI_VERSION __PYX_LIMITED_ABI_SUFFIX __PYX_MONITORING_ABI_SUFFIX __PYX_TP_FINALIZE_ABI_SUFFIX __PYX_FREELISTS_ABI_SUFFIX __PYX_AM_SEND_ABI_SUFFIX __PYX_OPAQUE_OBJECTS_ABI_SUFFIX
 
 #define __PYX_ABI_MODULE_NAME "_cython_" CYTHON_ABI
 #define __PYX_TYPE_MODULE_PREFIX __PYX_ABI_MODULE_NAME "."
