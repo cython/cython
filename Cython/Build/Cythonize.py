@@ -1,7 +1,9 @@
 import os
 import shutil
+import sys
 import tempfile
 from collections import defaultdict
+import concurrent.futures as _con_fut
 
 from .Dependencies import cythonize, extended_iglob
 from ..Utils import is_package_dir
@@ -13,21 +15,6 @@ try:
 except ImportError:
     multiprocessing = None
     parallel_compiles = 0
-
-
-class _FakePool:
-    def map_async(self, func, args):
-        for _ in map(func, args):
-            pass
-
-    def close(self):
-        pass
-
-    def terminate(self):
-        pass
-
-    def join(self):
-        pass
 
 
 def find_package_base(path):
@@ -89,23 +76,40 @@ def _build(ext_modules, parallel):
         run_distutils(ext_modules[0])
         return
 
-    mp_configured_to_spawn = multiprocessing.get_start_method() == 'spawn'
-    if mp_configured_to_spawn:
-        print('Disabling parallel cythonization for "spawn" process start method.')
+    with _con_fut.ProcessPoolExecutor(max_workers=parallel) as proc_pool:
+        compiler_tasks = [
+            proc_pool.submit(run_distutils, (base_dir, [ext]))
+            for base_dir, modules in ext_modules
+            for ext in modules
+        ]
 
-    try:
-        pool = _FakePool() if mp_configured_to_spawn else multiprocessing.Pool(parallel)
-    except OSError:
-        pool = _FakePool()
-    try:
-        pool.map_async(run_distutils, [
-            (base_dir, [ext]) for base_dir, modules in ext_modules for ext in modules])
-    except:
-        pool.terminate()
-        raise
-    else:
-        pool.close()
-        pool.join()
+        try:
+            _con_fut.wait(compiler_tasks, return_when=_con_fut.FIRST_EXCEPTION)
+        except KeyboardInterrupt:
+            for task in compiler_tasks:
+                task.cancel()
+            raise
+
+        worker_exceptions = []
+        for task in compiler_tasks:  # discover any crashes
+            try:
+                task.result()
+            except BaseException as proc_err:  # could be SystemExit
+                worker_exceptions.append(proc_err)
+
+        if worker_exceptions:
+            exc_msg = 'Compiling Cython modules failed with these errors:\n\n'
+            exc_msg += '\n\t* '.join(('', *map(str, worker_exceptions)))
+            exc_msg += '\n\n'
+
+            non_base_exceptions = [
+                exc for exc in worker_exceptions
+                if isinstance(exc, Exception)
+            ]
+            if sys.version_info[:2] >= (3, 11) and non_base_exceptions:
+                raise ExceptionGroup(exc_msg, non_base_exceptions)
+            else:
+                raise RuntimeError(exc_msg) from worker_exceptions[1]
 
 
 def run_distutils(args):
@@ -293,7 +297,6 @@ def main(args=None):
     for path in paths:
         expanded_path = [os.path.abspath(p) for p in extended_iglob(path)]
         if not expanded_path:
-            import sys
             print("{}: No such file or directory: '{}'".format(sys.argv[0], path), file=sys.stderr)
             sys.exit(1)
         all_paths.extend(expanded_path)
@@ -310,7 +313,6 @@ def main(args=None):
             if first_extensions:
                 import_module = first_extensions[0].name
 
-        import sys
         if base_dir is not None:
             sys.path.insert(0, base_dir)
 
