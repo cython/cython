@@ -1548,6 +1548,7 @@ class CythonRunTestCase(CythonCompileTestCase):
                 failures, errors, skipped = len(result.failures), len(result.errors), len(result.skipped)
                 if not self.cython_only and ext_so_path is not None:
                     self.run_tests(result, ext_so_path)
+                self.runAbi3AuditTest()
                 if failures == len(result.failures) and errors == len(result.errors):
                     # No new errors...
                     self.success = True
