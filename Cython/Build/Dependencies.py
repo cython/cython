@@ -1136,7 +1136,7 @@ def cythonize(module_list, exclude=None, nthreads=0, aliases=None, quiet=False, 
             initializer=_init_multiprocessing_helper,
         ) as proc_pool:
             try:
-                list(proc_pool.map(run_distutils, to_compile, chunksize=1))
+                list(proc_pool.map(cythonize_one_helper, to_compile, chunksize=1))
             except KeyboardInterrupt:
                 for task in compiler_tasks:
                     task.cancel()
