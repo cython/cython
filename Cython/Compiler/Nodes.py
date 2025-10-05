@@ -154,6 +154,8 @@ class CopyWithUpTreeRefsMixin:
                 # Note that memo being keyed by "id" is a bit of an implementation detail;
                 # the documentation says to treat it as opaque.
                 v = memo.get(id(v), v)
+            else:
+                v = copy.deepcopy(v, memo)
             setattr(result, k, v)
         return result
 
