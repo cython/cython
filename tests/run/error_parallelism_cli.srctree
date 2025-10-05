@@ -1,0 +1,25 @@
+PYTHON failure_test.py
+
+######## mod1.pyx ###########
+# cython: extra_compile_args = -boom
+
+######## mod2.pyx ###########
+
+######## failure_test.py ###########
+import subprocess
+import sys
+
+proc_result = subprocess.run(  # shouldn't get stuck indefinitely
+    (
+        sys.executable,
+        '-c',
+        'from Cython.Build.Cythonize import main as cythonize; '
+        'cythonize(("--build", "--parallel=2", "mod1.pyx", "mod2.pyx"))',
+    ),
+    stderr=subprocess.PIPE,
+    text=True,
+)
+
+assert proc_result.returncode == 1
+syntax_error_msg = 'Compiling Cython modules failed with these errors:'
+assert syntax_error_msg in proc_result.stderr, proc_result.stderr
