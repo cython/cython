@@ -177,6 +177,8 @@ static CYTHON_INLINE Py_hash_t __Pyx_PyIndex_AsHash_t(PyObject*);
   typedef digit  __Pyx_compact_upylong;
   #endif
 
+  static CYTHON_INLINE int __Pyx_PyLong_CompactAsLong(PyObject *x, long *return_value); /*proto*/
+
   #if PY_VERSION_HEX >= 0x030C00A5
   #define __Pyx_PyLong_Digits(x)  (((PyLongObject*)x)->long_value.ob_digit)
   #else
@@ -433,6 +435,21 @@ static CYTHON_INLINE PyObject * __Pyx_PyBool_FromLong(long b) {
 static CYTHON_INLINE PyObject * __Pyx_PyLong_FromSize_t(size_t ival) {
     return PyLong_FromSize_t(ival);
 }
+
+#if CYTHON_USE_PYLONG_INTERNALS
+static CYTHON_INLINE int __Pyx_PyLong_CompactAsLong(PyObject *x, long *return_value) {
+    // Safely convert a compact (Py_ssize_t, usually max. 30 bits) PyLong into a C long.
+    if (unlikely(!__Pyx_PyLong_IsCompact(x)))
+        return 0;
+
+    Py_ssize_t value = __Pyx_PyLong_CompactValue(x);
+    if ((sizeof(long) < sizeof(Py_ssize_t)) && unlikely(value != (long) value))
+        return 0;
+
+    *return_value = (long) value;
+    return 1;
+}
+#endif
 
 
 /////////////// pybuiltin_invalid ///////////////

@@ -6,13 +6,16 @@ import itertools
 from pathlib import Path
 import re
 import sys
+import datetime
 
 # -- Project information -----------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#project-information
 
-project = "Cython"
-copyright = "2025, Stefan Behnel, Robert Bradshaw, Dag Sverre Seljebotn, Greg Ewing, William Stein, Gabriel Gellner, et al."
-authors = "Stefan Behnel, Robert Bradshaw, Dag Sverre Seljebotn, Greg Ewing, William Stein, Gabriel Gellner, et al."
+YEAR = datetime.date.today().strftime("%Y")
+
+project = 'Cython'
+authors = 'Stefan Behnel, Robert Bradshaw, Dag Sverre Seljebotn, Greg Ewing, William Stein, Gabriel Gellner, et al.'
+copyright = f'{YEAR}, {authors}'
 
 ### Custom Cython Docs changes ###
 highlight_language = "cython"
@@ -21,6 +24,7 @@ imgmath_image_format = "svg"
 issues_github_path = "cython/cython"
 sphinx_tabs_disable_tab_closing = True
 root_doc = "index"
+
 # Looking up the release/version
 try:
     _match_version = re.compile(r'^\s*_*version\s*_*\s*=\s*["\']([^"\']+)["\'].*').match
