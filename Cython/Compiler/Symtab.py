@@ -1194,7 +1194,7 @@ class Scope:
 
     def _emit_class_private_warning(self, pos, name):
         warning(pos, "Global name %s matched from within class scope "
-                            "in contradiction to to Python 'class private name' rules. "
+                            "in contradiction to Python 'class private name' rules. "
                             "This may change in a future release." % name, 1)
 
     def use_utility_code(self, new_code):
@@ -1253,20 +1253,6 @@ class Scope:
             if type_scope.find_shared_usages_of_type(type_check_predicate, _seen_scopes):
                 return True
         return False
-
-
-class PreImportScope(Scope):
-
-    namespace_cname = Naming.preimport_cname
-
-    def __init__(self):
-        Scope.__init__(self, Options.pre_import, None, None)
-
-    def declare_builtin(self, name, pos):
-        entry = self.declare(name, name, py_object_type, pos, 'private')
-        entry.is_variable = True
-        entry.is_pyglobal = True
-        return entry
 
 
 class BuiltinScope(Scope):
@@ -2453,6 +2439,9 @@ class CClassScope(ClassScope):
         # If the type or any of its base types have Python-valued
         # C attributes, then it needs to participate in GC.
         if self.has_cyclic_pyobject_attrs and not self.directives.get('no_gc', False):
+            return True
+        if self.parent_type.is_external and not self.parent_type.is_builtin_type:
+            # It's impossible to really know - external types are often incomplete.
             return True
         base_type = self.parent_type.base_type
         if base_type and base_type.scope is not None:

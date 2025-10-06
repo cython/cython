@@ -116,7 +116,7 @@ cache_builtins = True
 gcc_branch_hints = True
 
 #: Enable this to allow one to write ``your_module.foo = ...`` to overwrite the
-#: definition if the cpdef function foo, at the cost of an extra dictionary
+#: definition of the cpdef function foo, at the cost of an extra dictionary
 #: lookup on every call.
 #: If this is false it generates only the Python wrapper and no override check.
 lookup_module_cpdef = False

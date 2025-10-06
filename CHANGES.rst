@@ -21,6 +21,13 @@ Features added
 * The runtime Python dispatch for fused functions is substantially faster.
   (Github issues :issue:`1385`, :issue:`6996`)
 
+* Freelists (via cdef class decorator and for internally used types such as ``async``)
+  are now also used in the Limited API and with extension type specs enabled.
+  (Github issue :issue:`7151`)
+
+* Module imports now quickly check for an already imported module to speed up reimports.
+  Patch by Lysandros Nikolaou.  (Github issue :issue:`7035`)
+
 * Type checks on PEP-604 union types (`int | None`) are optimised into separate checks.
   (Github issue :issue:`6935`)
 
@@ -46,8 +53,12 @@ Features added
 * Unused exceptions in ``except`` clauses are detected in some more cases to avoid their normalisation.
   (Github issue :issue:`7021`)
 
+* Some object constants are now marked as ``immortal`` to speed up their reference counting
+  in recent CPython versions.  This can be configured with the ``CYTHON_IMMORTAL_CONSTANTS`` C macro.
+  (Github issue :issue:`7118`)
+
 * Several improvements were made in freethreaded Python code.
-  (Github issues :issue:`6936`, :issue:`6939`, :issue:`6949`, :issue:`6984`, :issue:`7011`)
+  (Github issues :issue:`6936`, :issue:`6939`, :issue:`6949`, :issue:`6984`, :issue:`7011`, :issue:`7114`)
 
 * Several improvements were made for the Limited API.
   (Github issues :issue:`6959`, :issue:`6991`)
@@ -66,9 +77,6 @@ Features added
   (Github issues :issue:`6900`, :issue:`6903`)
 
 * Declarations for C++ condition variables were added.
-  (Github issue :issue:`6836`)
-
-* Declarations for the new ``PyUnstable_*()`` refcounting C-API functions in Py3.14 were added.
   (Github issue :issue:`6836`)
 
 * Several improvements were made for the GraalPython support.
@@ -98,8 +106,14 @@ Bugs fixed
 * Type casts on constants as part of numeric expressions could crash Cython.
   (Github issue :issue:`6779`)
 
+* Long code bodies in ``with`` statements could crash Cython.
+  (Github issue :issue:`7122`)
+
 * Indexing ``bytes`` failed to optimise in some cases.
   (Github issue :issue:`6997`)
+
+* The type objects of heap types were not always correctly decrefed on deallocation.
+  (Github issue :issue:`7145`)
 
 * Pure mode type aliases like ``p_int`` or ``ulong`` leaked into some C type contexts,
   risking to conflict with user declarations.
@@ -124,17 +138,63 @@ Bugs fixed
   in their shebang line.
   Patch by Matti Picus.  (Github issue :issue:`7053`)
 
-* Includes all fixes as of Cython 3.1.3.
+* Includes all fixes as of Cython 3.1.4.
 
 
-3.1.4 (2025-??-??)
+3.1.5 (2025-??-??)
 ==================
 
 Bugs fixed
 ----------
 
+* Conversion from C++ strings longer than ``PY_SSIZE_T_MAX`` did not validate the length.
+
+* Some non-Limited API code was incorrectly used in generated header files.
+  (Github issue :issue:`7157`)
+
+* Optimised unpacking of Python integers in expressions uses a slightly safer scheme.
+  (Github issue :issue:`7134`)
+
+
+3.1.4 (2025-09-16)
+==================
+
+Features added
+--------------
+
+* Declarations for the new ``PyUnstable_*()`` refcounting C-API functions in Py3.14 were added.
+  (Github issue :issue:`6836`)
+
+Bugs fixed
+----------
+
+* The monitoring code could crash on tracing.
+  (Github issue :issue:`7050`)
+
+* Initialising the monitoring code could fail with a CPython exception.
+  See https://github.com/nedbat/coveragepy/issues/1790#issuecomment-3257410149
+
 * Optimised integer shifting triggered undefined behaviour in C.
   (Github issue :issue:`7089`)
+
+* Deallocating objects that inherit from external types defined in pxd files
+  could run into an infinite loop.
+  (Github issue :issue:`7143`)
+
+* A reference to metaclasses could be leaked on instantiation.
+  (Github issue :issue:`7130`)
+
+* (Unlikely) error handling during empty builtin container tests was ineffective.
+  (Github issue :issue:`7190`)
+
+* Generated ``*_api.h`` files used potentially unknown Cython configuration macros.
+  (Github issue :issue:`7108`)
+
+* ``cythonize()`` avoids parallel compiler runs on systems using ``spawn()`` in multiprocessing.
+  Patch by Marcel Bargull.  (Github issue :issue:`3262`)
+
+* The ``@cython.ufunc``  decorator was missing in type checker stubs.
+  Patch by jayClean.  (Github issue :issue:`7109`)
 
 
 3.1.3 (2025-08-13)

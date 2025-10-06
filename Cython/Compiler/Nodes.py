@@ -140,6 +140,26 @@ class CheckAnalysers(type):
         return super().__new__(cls, name, bases, attrs)
 
 
+class CopyWithUpTreeRefsMixin:
+    def __deepcopy__(self, memo):
+        # Any references to objects further up the tree should not be deep-copied.
+        # However, if they're in memo (because they've already been deep-copied because
+        # we're copying from far enough up the tree) then they should be replaced
+        # with the memorised value.
+
+        cls = self.__class__
+        result = cls.__new__(cls)
+        for k, v in self.__dict__.items():
+            if k in self.uptree_ref_attrs:
+                # Note that memo being keyed by "id" is a bit of an implementation detail;
+                # the documentation says to treat it as opaque.
+                v = memo.get(id(v), v)
+            else:
+                v = copy.deepcopy(v, memo)
+            setattr(result, k, v)
+        return result
+
+
 def _with_metaclass(cls):
     if DebugFlags.debug_trace_code_generation:
         return add_metaclass(VerboseCodeWriter)(cls)
@@ -316,10 +336,11 @@ class Node:
         current = lines[-1]
         if mark_column:
             current = current[:col] + marker + current[col:]
-        lines[-1] = current.rstrip() + '             # <<<<<<<<<<<<<<\n'
+        lines[-1] = current.rstrip() + '             # <<<<<<<<<<<<<<'
         lines += contents[line:line+2]
-        return '"%s":%d:%d\n%s\n' % (
-            source_desc.get_escaped_description(), line, col, ''.join(lines))
+
+        code = '\n'.join(lines)
+        return f'"{source_desc.get_escaped_description()}":{line:d}:{col:d}\n{code}\n'
 
 
 class CompilerDirectivesNode(Node):
@@ -4659,15 +4680,17 @@ class DefNodeWrapper(FuncDefNode):
 
         if self.target.entry.is_special:
             for n in reversed(range(len(self.args), self.signature.max_num_fixed_args())):
-                # for special functions with optional args (e.g. power which can
+                # For special functions with optional args (e.g. power which can
                 # take 2 or 3 args), unused args are None since this is what the
-                # compilers sets
-                code.putln("if (unlikely(unused_arg_%s != Py_None)) {" % n)
+                # compilers sets. This is probably not more than one argument.
+                code.putln(f"if (unlikely(unused_arg_{n:d} != Py_None)) {{")
                 code.putln(
-                    'PyErr_SetString(PyExc_TypeError, '
-                    '"%s() takes %s arguments but %s were given");' % (
-                        self.target.entry.qualified_name, self.signature.max_num_fixed_args(), n))
-                code.putln("%s;" % code.error_goto(self.pos))
+                    'PyErr_Format(PyExc_TypeError, "%.200s() takes %zd arguments but %zd were given",'
+                    f' (const char*) {self.target.entry.qualified_name.as_c_string_literal()},'
+                    f' (Py_ssize_t) {self.signature.max_num_fixed_args()},'
+                    f' (Py_ssize_t) {n:d}'
+                    f'); {code.error_goto(self.pos)}'
+                )
                 code.putln("}")
 
     def error_value(self):
@@ -6160,6 +6183,7 @@ class SingleAssignmentNode(AssignmentNode):
     #  first                    bool          Is this guaranteed the first assignment to lhs?
     #  is_overloaded_assignment bool          Is this assignment done via an overloaded operator=
     #  is_assignment_expression bool          Internally SingleAssignmentNode is used to implement assignment expressions
+    #  from_pxd_cvardef         bool          Was created from a CVarDef node in a pxd file
     #  exception_check
     #  exception_value
 
@@ -6168,6 +6192,7 @@ class SingleAssignmentNode(AssignmentNode):
     is_overloaded_assignment = False
     is_assignment_expression = False
     declaration_only = False
+    from_pxd_cvardef = False
 
     def analyse_declarations(self, env):
         from . import ExprNodes
@@ -6315,6 +6340,14 @@ class SingleAssignmentNode(AssignmentNode):
         elif rhs.type.is_pyobject:
             rhs = rhs.coerce_to_simple(env)
         self.rhs = rhs
+
+        if self.from_pxd_cvardef and not self.lhs.type.is_const:
+            warning(
+                self.pos,
+                "Assignment in pxd file will not be executed. Suggest declaring as const.",
+                2
+            )
+
         return self
 
     def unroll(self, node, target_size, env):
@@ -9066,18 +9099,12 @@ class CriticalSectionStatNode(TryFinallyStatNode):
         error(self.pos, "Critical sections require the GIL")
 
 
-class CriticalSectionExitNode(StatNode):
+class CriticalSectionExitNode(StatNode, CopyWithUpTreeRefsMixin):
     """
     critical_section - the CriticalSectionStatNode that owns this
     """
     child_attrs = []
-
-    def __deepcopy__(self, memo):
-        # This gets deepcopied when generating finally_clause and
-        # finally_except_clause. In this case the node has essentially
-        # no state, except for a reference to its parent.
-        # We definitely don't want to let that reference be copied.
-        return self
+    uptree_ref_attrs = ["critical_section"]
 
     def analyse_expressions(self, env):
         return self
@@ -9185,11 +9212,12 @@ class CythonLockStatNode(TryFinallyStatNode):
         code.end_block()
 
 
-class CythonLockExitNode(StatNode):
+class CythonLockExitNode(StatNode, CopyWithUpTreeRefsMixin):
     """
     lock_stat_node   CythonLockStatNode   the associated with block
     """
     child_attrs = []
+    uptree_ref_attrs = ["lock_stat_node"]
 
     def analyse_expressions(self, env):
         return self
