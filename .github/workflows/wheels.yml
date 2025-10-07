@@ -62,20 +62,20 @@ jobs:
     outputs:
       include: ${{ steps.set-matrix.outputs.include }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Install cibuildwheel
         # Nb. keep cibuildwheel version pin consistent with job below
-        run: pipx install cibuildwheel==2.23.3
+        run: pipx install cibuildwheel==3.2.0
       - id: set-matrix
         run: |
           MATRIX=$(
             {
-              cibuildwheel --print-build-identifiers --prerelease-pythons --platform linux \
+              cibuildwheel --print-build-identifiers --platform linux \
               | jq -nRc '{"only": inputs, "os": "ubuntu-latest"}' \
               | sed -e '/aarch64/s|ubuntu-latest|ubuntu-24.04-arm|' \
-              && cibuildwheel --print-build-identifiers --prerelease-pythons --platform macos \
+              && cibuildwheel --print-build-identifiers --platform macos \
               | jq -nRc '{"only": inputs, "os": "macos-latest"}' \
-              && cibuildwheel --print-build-identifiers --prerelease-pythons --platform windows \
+              && cibuildwheel --print-build-identifiers --platform windows \
               | jq -nRc '{"only": inputs, "os": "windows-2022"}'
             } | jq -sc
           )
@@ -102,11 +102,11 @@ jobs:
 
     steps:
       - name: Checkout Cython
-        uses: actions/checkout@v4.1.1
+        uses: actions/checkout@v5
 
       - name: Build wheels
         # Nb. keep cibuildwheel version pin consistent with generate-matrix job above
-        uses: pypa/cibuildwheel@v3.0.0
+        uses: pypa/cibuildwheel@v3.2.0
         with:
           only: ${{ matrix.only }}
         # TODO: Cython tests take a long time to complete
@@ -130,10 +130,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Cython
-        uses: actions/checkout@v4.1.1
+        uses: actions/checkout@v5
 
       # Used to push the built wheels
-      - uses: actions/setup-python@v5.6.0
+      - uses: actions/setup-python@v6.0.0
         with:
           # Build sdist on lowest supported Python
           python-version: '3.8'
@@ -164,7 +164,7 @@ jobs:
 
     steps:
       - name: Download artifacts
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0 # v5.0.0
         with:
           path: ./release_upload
           merge-multiple: true

@@ -314,7 +314,7 @@ i.e. the usual Python patterns.  Specifically:
 - Non-trivial or platform specific functionalities can often be separated out into optional
   Cython modules that can be imported/used at need (with regular runtime Python imports).
 - Version specific struct field names that are unused can be left out of a Cython
-  :ref:`extern struct definition <_external-C-code>` (which does not have to be complete).
+  :ref:`extern struct definition <external-C-code>` (which does not have to be complete).
   If they are used, C shims to access them with functions or macros can often be used,
   easily defined in :ref:`verbatim C code <verbatim_c>`.
 - Largely different layouts of extern structs can be declared in Cython as separate structs
@@ -322,4 +322,4 @@ i.e. the usual Python patterns.  Specifically:
   but with the C struct name provided as :ref:`same cname string <resolve-conflicts>`.
   This allows their usage from more use case specific code that can be included and
   reused from different optional modules.
-- If all else fails, code generation can be used as a last resort.
+- If all else fails, code generation using the :ref:`Tempita template engine <tempita>` can be used as a last resort.

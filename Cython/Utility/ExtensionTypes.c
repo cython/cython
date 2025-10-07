@@ -48,11 +48,7 @@ static int __Pyx_fix_up_extension_type_from_spec(PyType_Spec *spec, PyTypeObject
                     // The PyMemberDef must be a Py_ssize_t and readonly.
                     assert(memb->type == T_PYSSIZET);
                     assert(memb->flags == READONLY);
-#if PY_VERSION_HEX >= 0x030800b4
                     type->tp_vectorcall_offset = memb->offset;
-#else
-                    type->tp_print = (printfunc) memb->offset;
-#endif
                     // FIXME: is it even worth calling PyType_Modified() here?
                     changed = 1;
                 }
@@ -362,7 +358,7 @@ static int __Pyx_PyType_Ready(PyTypeObject *t) {
 // Unlike the Py_TRASHCAN_SAFE_BEGIN/Py_TRASHCAN_SAFE_END macros, they
 // allow dealing correctly with subclasses.
 
-#if CYTHON_COMPILING_IN_CPYTHON && PY_VERSION_HEX >= 0x03080000
+#if CYTHON_COMPILING_IN_CPYTHON
 // https://github.com/python/cpython/pull/11841 merged so Cython reimplementation
 // is no longer necessary
 #define __Pyx_TRASHCAN_BEGIN Py_TRASHCAN_BEGIN
@@ -840,3 +836,50 @@ static int __Pyx__DelItemOnTypeDict(PyTypeObject *tp, PyObject *k) {
     if (likely(!result)) PyType_Modified(tp);
     return result;
 }
+
+////////////////// AllocateExtensionType.proto ///////////////////////
+
+static PyObject *__Pyx_AllocateExtensionType(PyTypeObject *t, int is_final); /* proto */
+
+////////////////// AllocateExtensionType ////////////////////////////
+
+static PyObject *__Pyx_AllocateExtensionType(PyTypeObject *t, int is_final) {
+    if (is_final || likely(!__Pyx_PyType_HasFeature(t, Py_TPFLAGS_IS_ABSTRACT))) {
+        allocfunc alloc_func = __Pyx_PyType_GetSlot(t, tp_alloc, allocfunc);
+        return alloc_func(t, 0);
+    } else {
+        // Call PyBaseObject_Type.tp_new. This is is expected to fail, generating an appropriate
+        // error message about allocating an abstract type.
+        newfunc tp_new = __Pyx_PyType_TryGetSlot(&PyBaseObject_Type, tp_new, newfunc);
+    #if CYTHON_COMPILING_IN_LIMITED_API && __PYX_LIMITED_VERSION_HEX < 0x030A0000
+        if (!tp_new) {
+            PyObject *new_str = PyUnicode_FromString("__new__");
+            if (likely(new_str)) {
+                PyObject *o = PyObject_CallMethodObjArgs((PyObject *)&PyBaseObject_Type, new_str, t, NULL);
+                Py_DECREF(new_str);
+                return o;
+            } else
+                return NULL;
+        } else
+    #endif
+        return tp_new(t, EMPTY(tuple), 0);
+    }
+}
+
+///////////////////// CheckTypeForFreelists.proto ////////////////////////
+
+#if CYTHON_USE_FREELISTS
+#if CYTHON_USE_TYPE_SPECS
+// with CYTHON_USE_TYPE_SPECS we can only reasonably use freelists for an exact type match,
+// because it isn't easy to look up basicsize is the limited API, and because everything fails the heap-type check.
+#define __PYX_CHECK_FINAL_TYPE_FOR_FREELISTS(t, expected_tp, expected_size) ((int) ((t) == (expected_tp)))
+#define __PYX_CHECK_TYPE_FOR_FREELIST_FLAGS  Py_TPFLAGS_IS_ABSTRACT
+#else
+#define __PYX_CHECK_FINAL_TYPE_FOR_FREELISTS(t, expected_tp, expected_size) ((int) ((t)->tp_basicsize == (expected_size)))
+#define __PYX_CHECK_TYPE_FOR_FREELIST_FLAGS  (Py_TPFLAGS_IS_ABSTRACT | Py_TPFLAGS_HEAPTYPE)
+#endif
+
+#define __PYX_CHECK_TYPE_FOR_FREELISTS(t, expected_tp, expected_size) \
+    (__PYX_CHECK_FINAL_TYPE_FOR_FREELISTS((t), (expected_tp), (expected_size)) & \
+     (int) (!__Pyx_PyType_HasFeature((t), __PYX_CHECK_TYPE_FOR_FREELIST_FLAGS)))
+#endif

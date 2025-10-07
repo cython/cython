@@ -6,7 +6,8 @@
 
 raw_prefixes = "rR"
 bytes_prefixes = "bB"
-string_prefixes = "fFuU" + bytes_prefixes
+string_prefixes = "uU" + bytes_prefixes
+fstring_prefixes = "fF"
 char_prefixes = "cC"
 any_string_prefix = raw_prefixes + string_prefixes + char_prefixes
 IDENT = 'IDENT'
@@ -61,17 +62,32 @@ def make_lexicon():
     beginstring = Opt(Rep(Any(string_prefixes + raw_prefixes)) |
                       Any(char_prefixes)
                       ) + (Str("'") | Str('"') | Str("'''") | Str('"""'))
+    begin_fstring = (
+        ((Any(fstring_prefixes) + Opt(Any(raw_prefixes))) | (Any(raw_prefixes) + Any(fstring_prefixes))) +
+        (Str("'") | Str('"') | Str("'''") | Str('"""')))
     two_oct = octdigit + octdigit
     three_oct = octdigit + octdigit + octdigit
     two_hex = hexdigit + hexdigit
     four_hex = two_hex + two_hex
-    escapeseq = Str("\\") + (two_oct | three_oct |
-                             Str('N{') + Rep(AnyBut('}')) + Str('}') |
+    escapeseq = Str("\\") + (octdigit | two_oct | three_oct |
+                             # Unicode character names are [A-Z \-]
+                             # https://www.unicode.org/versions/Unicode16.0.0/core-spec/chapter-4/
+                             # Although Python itself is case agnostic
+                             Str('N{') + Rep(Range('azAZ') | Any('- ')) + Str('}') |
                              Str('u') + four_hex | Str('x') + two_hex |
-                             Str('U') + four_hex + four_hex | AnyChar)
+                             Str('U') + four_hex + four_hex |
+                             # Invalid escape sequences just produce a slash
+                             Opt(Any("\n\\'\"abfnrtvNxuU")))
+    rawescapeseq = (  # Double \\ isn't actually escaped in raw strings, but
+                      # we do want to process it so that the end of '\\'
+                      # doesn't get processed.
+                    Str("\\\\") |
+                    Str("\\") + Opt(Any('"\'')))
 
-    bra = Any("([{")
-    ket = Any(")]}")
+    bra = Any("([")
+    ket = Any(")]")
+    open_brace = Str('{')
+    close_brace = Str('}')
     ellipsis = Str("...")
     punct = Any(":,;+-*/|&<>=.%`~^?!@")
     diphthong = Str("==", "<>", "!=", "<=", ">=", "<<", ">>", "**", "//",
@@ -83,6 +99,62 @@ def make_lexicon():
 
     comment = Str("#") + Rep(AnyBut("\n"))
 
+    def generate_fstring_states():
+        out = []
+
+        # In order for self-documenting strings to work, we need to
+        # pre-scan the fstring into a string, and then parse it
+        # again as an expression.  This allows us to accurately
+        # preserve whitespace (at the cost of repeatedly tokenizing
+        # for deeply nested fstrings).
+        # To do this we need to pay attention to brackets, strings,
+        # colons, and comments, but can ignore anything else.
+        out.append(
+            State("FSTRING_EXPR_PRESCAN", [
+                (Rep1(AnyBut('"\'{}()[]:#')), 'CHARS'),
+                (comment, IGNORE),
+                (Str(':'), Method('colon_action')),
+                (open_brace, Method('open_brace_action')),
+                (close_brace, Method('close_brace_action')),
+                (bra, Method('open_bracket_action')),
+                (ket, Method('close_bracket_action')),
+                (beginstring, Method('begin_string_action')),
+                (begin_fstring, Method('begin_fstring_action')),
+                (Eof, 'EOF')
+            ]))
+
+        unclosed_string_method = Method('unclosed_string_action')
+        open_fstring_brace_method = Method('open_fstring_brace_action')
+        close_fstring_brace_method = Method('close_fstring_brace_action')
+        end_fstring_method = Method('end_fstring_action')
+
+        for prefix in ["'", '"', "'''", '"""']:
+            quote_type = 'SQ' if "'" in prefix else 'DQ'
+            if len(prefix) > 1:
+                triple = "T"
+                newline_method = "NEWLINE"
+                allowed_string_chars = Any("'\"")
+            else:
+                triple = ""
+                newline_method = unclosed_string_method
+                allowed_string_chars = Str('"' if quote_type == 'SQ' else "'")
+
+            for raw in ["", "R"]:
+                escapeseq_sy = rawescapeseq if raw else escapeseq
+                out.append(
+                    State(f"{triple}{quote_type}_STRING_F{raw}", [
+                        (escapeseq_sy, 'ESCAPE'),
+                        (Rep1(Str('{')), open_fstring_brace_method),
+                        (Rep1(Str('}')), close_fstring_brace_method),
+                        (Rep1(AnyBut("'\"\n\\{}")), 'CHARS'),
+                        (allowed_string_chars, 'CHARS'),
+                        (Str("\n"), newline_method),
+                        (Str(prefix), end_fstring_method),
+                        (Eof, 'EOF')
+                    ])
+            )
+        return out
+
     return Lexicon([
         (name, Method('normalize_ident')),
         (intliteral, Method('strip_underscores', symbol='INT')),
@@ -92,9 +164,12 @@ def make_lexicon():
 
         (bra, Method('open_bracket_action')),
         (ket, Method('close_bracket_action')),
+        (open_brace, Method('open_brace_action')),
+        (close_brace, Method('close_brace_action')),
         (lineterm, Method('newline_action')),
 
         (beginstring, Method('begin_string_action')),
+        (begin_fstring, Method('begin_fstring_action')),
 
         (comment, IGNORE),
         (spaces, IGNORE),
@@ -142,6 +217,7 @@ def make_lexicon():
             (Str('"""'), Method('end_string_action')),
             (Eof, 'EOF')
         ]),
+        *generate_fstring_states(),
 
         (Eof, Method('eof_action'))
         ],
