@@ -7028,19 +7028,20 @@ class ReturnStatNode(StatNode):
                     Naming.retval_cname,
                     value.result_as(self.return_type)))
                 value.generate_post_assignment_code(code)
-                if code.globalstate.directives['profile'] or code.globalstate.directives['linetrace']:
-                    code.put_trace_return(
-                        Naming.retval_cname,
-                        self.pos,
-                        return_type=self.return_type,
-                        nogil=not code.funcstate.gil_owned,
-                    )
             value.free_temps(code)
         else:
             if self.return_type.is_pyobject:
                 code.put_init_to_py_none(Naming.retval_cname, self.return_type)
             elif self.return_type.is_returncode:
                 self.put_return(code, self.return_type.default_value)
+
+        if code.globalstate.directives['profile'] or code.globalstate.directives['linetrace']:
+            code.put_trace_return(
+                Naming.retval_cname,
+                self.pos,
+                return_type=self.return_type,
+                nogil=not code.funcstate.gil_owned,
+            )
 
         for cname, type in code.funcstate.temps_holding_reference():
             code.put_decref_clear(cname, type)
