@@ -5,21 +5,11 @@
 #endif
 
 
-{{if embed_modules}}
-#if PY_MAJOR_VERSION < 3
-{{for mname in embed_modules}}
-    __Pyx_PyMODINIT_FUNC init{{mname}}(void) CYTHON_SMALL_CODE; /*proto*/
-{{endfor}}
-#else
 {{for mname in embed_modules}}
     __Pyx_PyMODINIT_FUNC PyInit_{{mname}}(void) CYTHON_SMALL_CODE; /*proto*/
 {{endfor}}
-#endif
-{{endif}}
 
-#if PY_MAJOR_VERSION < 3
-int {{main_method}}(int argc, char** argv)
-#elif defined(_WIN32) || defined(WIN32) || defined(MS_WINDOWS)
+#if defined(_WIN32) || defined(WIN32) || defined(MS_WINDOWS)
 int {{wmain_method}}(int argc, wchar_t **argv)
 #else
 static int __Pyx_main(int argc, wchar_t **argv)
@@ -39,15 +29,9 @@ static int __Pyx_main(int argc, wchar_t **argv)
     if (argc && argv)
         Py_SetProgramName(argv[0]);
 
-    #if PY_MAJOR_VERSION < 3
-    {{for mname in (module_name,) + embed_modules}}
-    if (PyImport_AppendInittab("{{mname}}", init{{mname}}) < 0) return 1;
-    {{endfor}}
-    #else
     {{for mname in (module_name,) + embed_modules}}
     if (PyImport_AppendInittab("{{mname}}", PyInit_{{mname}}) < 0) return 1;
     {{endfor}}
-    #endif
 
     Py_Initialize();
     if (argc && argv)
