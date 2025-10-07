@@ -834,6 +834,15 @@ def _get_memviewslice_declare_code():
 atomic_utility = load_memview_c_utility(
     "Atomics", util_code_filename="Synchronization.c", context=template_context)
 
+def _get_pyx_init_memviewslice_code():
+    memviewslice_init_code = load_memview_c_utility(
+        "PyxInitMemviewslice",
+        context=dict(template_context, BUF_MAX_NDIMS=Options.buffer_max_dims),
+        requires=[],
+    )
+    return memviewslice_init_code
+
+
 def _get_memviewslice_init_code(memviewslice_declare_code):
     memviewslice_init_code = load_memview_c_utility(
         "MemviewSliceInit",
@@ -863,10 +872,11 @@ is_contig_utility = load_memview_c_utility("MemviewSliceIsContig", context=templ
 overlapping_utility = load_memview_c_utility("OverlappingSlices", context=template_context)
 
 def _get_copy_contents_new_utility():
+    pyx_init_memviewslice_code = _get_pyx_init_memviewslice_code()
     copy_contents_new_utility = load_memview_c_utility(
         "MemviewSliceCopyTemplate",
         context=template_context,
-        requires=[],  # require cython_array_utility_code
+        requires=[pyx_init_memviewslice_code],  # require cython_array_utility_code
     )
     return copy_contents_new_utility
 
