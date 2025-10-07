@@ -1,6 +1,12 @@
 # mode: run
 # tag: f_strings, pep498, werror
 
+# Validate that the typedefs use corresponding conversion functions.
+# cython: test_assert_c_code_has = __Pyx_PyUnicode_From_uintptr_t\(
+# cython: test_assert_c_code_has = __Pyx_PyUnicode_From_intptr_t\(
+# cython: test_assert_c_code_has = __Pyx_PyUnicode_From_int\(
+# cython: test_fail_if_c_code_has = __Pyx_PyUnicode_From_BIGINT
+
 ####
 # Cython specific PEP 498 tests in addition to test_fstring.pyx from CPython
 ####
@@ -11,6 +17,7 @@ import sys
 IS_PYPY = hasattr(sys, 'pypy_version_info')
 
 from libc.limits cimport INT_MAX, LONG_MAX, LONG_MIN
+from libc.stdint cimport uintptr_t
 
 max_int = INT_MAX
 max_long = LONG_MAX
@@ -153,6 +160,40 @@ def format_c_enum():
     True
     """
     return f"{enum_ABC}-{enum_XYZ}"
+
+
+ctypedef int BIGINT
+
+cdef extern from "stdint.h":
+    ctypedef signed char intptr_t  # typedef is intentionally too narrow
+
+
+@cython.test_fail_if_path_exists(
+    "//CoerceToPyTypeNode",
+)
+def format_typedefs(BIGINT local_tdef, uintptr_t ext_tdef, intptr_t wrong_typedef):
+    """
+    >>> format_typedefs(3434, 4343, 1234)
+    4343 3434 1234
+    4343 3434 1234
+          4343       3434       1234
+    >>> format_typedefs(-3434, 4343, -1234)
+    4343 -3434 -1234
+    4343 -3434 -1234
+          4343      -3434      -1234
+
+    >>> format_typedefs(2**30, 2**30, 2**30)
+    1073741824 1073741824 1073741824
+    1073741824 1073741824 1073741824
+    1073741824 1073741824 1073741824
+    >>> format_typedefs(-(2**30), 2**30, -(2**30))
+    1073741824 -1073741824 -1073741824
+    1073741824 -1073741824 -1073741824
+    1073741824 -1073741824 -1073741824
+    """
+    print(f"{ext_tdef} {local_tdef} {wrong_typedef}")
+    print(f"{ext_tdef:d} {local_tdef:d} {wrong_typedef:d}")
+    print(f"{ext_tdef:-10d} {local_tdef:-10d} {wrong_typedef:-10d}")
 
 
 def format_c_numbers(signed char c, short s, int n, long l, float f, double d):
@@ -526,6 +567,22 @@ def format_decoded_bytes(bytes value):
 
 
 @cython.test_fail_if_path_exists(
+    "//CoerceToPyTypeNode",
+)
+def format_uchar(int x):
+    """
+    >>> format_uchar(0)
+    ('\\x00', '           \\x00', '       \\x00')
+    >>> format_uchar(13)
+    ('\\r', '           \\r', '       \\r')
+    >>> format_uchar(1114111 + 1)
+    Traceback (most recent call last):
+    OverflowError: %c arg not in range(0x110000)
+    """
+    return f"{x:c}", f"{x:12c}", f"{x:>8c}"
+
+
+@cython.test_fail_if_path_exists(
     "//AddNode",
     "//ModNode",
 )
@@ -571,9 +628,9 @@ def generated_fstring(int i, float f, unicode u not None, o):
 )
 def percent_s_unicode(u, int i):
     u"""
-    >>> u = u'x\u0194z'
+    >>> u = u'x\\u0194z'
     >>> print(percent_s_unicode(u, 12))
-    x\u0194z-12
+    x\\u0194z-12
     """
     return u"%s-%d" % (u, i)
 
@@ -599,6 +656,58 @@ def sideeffect(l):
     return list(l)
 
 
+@cython.test_assert_path_exists(
+    "//JoinedStrNode",
+    "//JoinedStrNode/CloneNode",
+)
+def dedup_same(x, int i, float f):
+    """
+    >>> dedup_same('abc', 5, 5.5)
+    'xabci5f5.5xabci5f5.5'
+    """
+    return f"x{x}i{i}f{f}x{x}i{i}f{f}"
+
+
+@cython.test_assert_path_exists(
+    "//JoinedStrNode",
+    "//JoinedStrNode/CloneNode",
+)
+def dedup_same_kind(x, int i, float f):
+    """
+    >>> dedup_same_kind('abc', 5, 5.5)
+    'xabci5f5.5xabci5f5.5'
+    """
+    return f"x{x}i{i}f{f}x{x!s}i{i!s}f{f!s}"
+
+
+@cython.test_fail_if_path_exists(
+    "//JoinedStrNode//CloneNode",
+)
+@cython.test_assert_path_exists(
+    "//JoinedStrNode",
+)
+def dedup_different_format_char(x, int i, float f):
+    """
+    >>> dedup_different_format_char('abc', 5, 5.5)
+    "xabci5f5.5x'abc'i5f5.5"
+    """
+    return f"x{x}i{i}f{f}x{x!r}i{i:d}f{f!a}"
+
+
+@cython.test_fail_if_path_exists(
+    "//JoinedStrNode//CloneNode",
+)
+@cython.test_assert_path_exists(
+    "//JoinedStrNode",
+)
+def dedup_non_simple(x, int i, float f):
+    """
+    >>> dedup_non_simple('abc', 5, 5.5)
+    'xabci6f6.5xabci6f6.5'
+    """
+    return f"x{x+''}i{i+1}f{f+1}x{x}i{i+1}f{f+1}"
+
+
 ########################################
 # await inside f-string
 
@@ -615,3 +724,13 @@ def test_await_inside_f_string():
         print(f"{await f()}")
 
     print("PARSED_SUCCESSFULLY")
+
+
+# Be very careful allowing this test to be reformatted by an editor.
+# It deliberately contains tabs which should not be replaced with spaces.
+def test_print_self_documenting_tabs(x):
+    r"""
+    >>> test_print_self_documenting_tabs(5)
+    '\tx\t=5'
+    """
+    print(repr(f'{	x	=}'))

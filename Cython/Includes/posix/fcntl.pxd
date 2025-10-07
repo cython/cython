@@ -84,4 +84,3 @@ cdef extern from "<fcntl.h>" nogil:
     int openat(int, const char *, int, ...)
     int posix_fadvise(int, off_t, off_t, int)
     int posix_fallocate(int, off_t, off_t)
-

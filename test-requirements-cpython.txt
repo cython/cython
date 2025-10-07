@@ -1,3 +1,4 @@
-jupyter
-line_profiler
-setuptools<60
+ipython
+pytest  # needed by IPython/Jupyter integration tests
+# for line_profiler, 4 collects no profiling info, and 5 doesn't build on arm Windows right now
+line_profiler != 4.* ; platform_machine != 'arm64' and sys_platform != 'win32'

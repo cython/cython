@@ -1,5 +1,8 @@
 # tag: run
 
+# This file is also included from "parallel.pyx" to run the same tests
+# but with OpenMP enabled.
+
 cimport cython.parallel
 from cython.parallel import prange, threadid
 from cython.view cimport array
@@ -8,12 +11,20 @@ from libc.stdio cimport puts
 
 import os
 import sys
+import sysconfig
 
 try:
     from builtins import next # Py3k
 except ImportError:
     def next(it):
         return it.next()
+
+def skip_in_freethreading(f):
+    # defined in parallel.pyx
+    if "OPENMP_PARALLEL" in globals():
+        if sysconfig.get_config_var("Py_GIL_DISABLED"):
+            return None
+    return f
 
 #@cython.test_assert_path_exists(
 #    "//ParallelWithBlockNode//ParallelRangeNode[@schedule = 'dynamic']",
@@ -315,7 +326,7 @@ def test_nan_init():
         c1 = 16
 
 
-cdef void nogil_print(char *s) with gil:
+cdef void nogil_print(char *s) noexcept with gil:
     print s.decode('ascii')
 
 def test_else_clause():
@@ -406,7 +417,7 @@ def test_nested_break_continue():
 
     print i
 
-cdef int parallel_return() nogil:
+cdef int parallel_return() noexcept nogil:
     cdef int i
 
     for i in prange(10):
@@ -604,6 +615,7 @@ def parallel_exceptions2():
                     continue
                     return
 
+@skip_in_freethreading  # Reassignment of 'obj'
 def test_parallel_with_gil_return():
     """
     >>> test_parallel_with_gil_return()
@@ -640,7 +652,7 @@ def test_parallel_with_gil_continue_unnested():
     print sum
 
 
-cdef int inner_parallel_section() nogil:
+cdef int inner_parallel_section() noexcept nogil:
     cdef int j, sum = 0
     for j in prange(10):
         sum += j
@@ -656,10 +668,10 @@ def outer_parallel_section():
         sum += inner_parallel_section()
     return sum
 
-cdef int nogil_cdef_except_clause() nogil except -1:
+cdef int nogil_cdef_except_clause() except -1 nogil:
     return 1
 
-cdef void nogil_cdef_except_star() nogil except *:
+cdef void nogil_cdef_except_star() except * nogil:
     pass
 
 def test_nogil_cdef_except_clause():
@@ -683,7 +695,7 @@ def test_num_threads_compile():
         for i in prange(10):
             pass
 
-cdef int chunksize() nogil:
+cdef int chunksize() noexcept nogil:
     return 3
 
 def test_chunksize():
@@ -730,6 +742,8 @@ def test_clean_temps():
     try:
         for i in prange(100, nogil=True, num_threads=1):
             with gil:
+                # freethreading - if we actually assigned to x this would currently be dodgy
+                # but the test doesn't get that far.
                 x = PrintOnDealloc() + error()
     except Exception, e:
         print e.args[0]
@@ -752,6 +766,7 @@ def test_pointer_temps(double x):
     return f[0]
 
 
+@skip_in_freethreading  #  "+=" on a Python object isn't atomic
 def test_prange_in_with(int x, ctx):
     """
     >>> from contextlib import contextmanager
@@ -784,7 +799,7 @@ cdef extern from *:
     """
     void address_of_temp(...) nogil
     void address_of_temp2(...) nogil
-    double get_value() nogil except -1.0  # will generate a temp for exception checking
+    double get_value() except -1.0 nogil  # will generate a temp for exception checking
 
 def test_inner_private():
     """
@@ -816,3 +831,73 @@ def test_inner_private():
     assert inner_are_the_same == False,  "Temporary variables in inner loop should be private"
 
     print('ok')
+
+cdef void prange_exception_checked_function(int* ptr, int id) except * nogil:
+    # requires the GIL after each call
+    ptr[0] = id;
+
+cdef void prange_call_exception_checked_function_impl(int* arr, int N) nogil:
+    # Inside a nogil function, prange can't be sure the GIL has been released.
+    # Therefore Cython must release the GIL itself.
+    # Otherwise, we can experience cause lock-ups if anything inside it acquires the GIL
+    # (since if any other thread has finished, it will be holding the GIL).
+    #
+    # An equivalent test with prange is in "sequential_parallel.pyx"
+    cdef int i
+    for i in prange(N, num_threads=4, schedule='static', chunksize=1):
+        prange_exception_checked_function(arr+i, i)
+
+def test_prange_call_exception_checked_function():
+    """
+    >>> test_prange_call_exception_checked_function()
+    """
+
+    cdef int N = 10000
+    cdef int* buf = <int*>malloc(sizeof(int)*N)
+    if buf == NULL:
+        raise MemoryError
+    try:
+        # Don't release the GIL
+        prange_call_exception_checked_function_impl(buf, N)
+
+        for i in range(N):
+            assert buf[i] == i
+    finally:
+        free(buf)
+
+def test_prange_type_inference_1(short end):
+    """
+    >>> test_prange_type_inference_1(1)
+    """
+    for i in prange(end, nogil=True):
+        pass
+    assert cython.typeof(i) == "short", cython.typeof(i)
+
+def test_prange_type_inference_2(long start, short end):
+    """
+    >>> test_prange_type_inference_2(-100, 5)
+    """
+    for i in prange(start, end, nogil=True):
+        pass
+    assert cython.typeof(i) == "long", cython.typeof(i)
+
+def test_prange_type_inference_3(short start, short end, short step):
+    """
+    >>> test_prange_type_inference_3(-100, 5, 2)
+    """
+    for i in prange(start, end, step, nogil=True):
+        pass
+    # Addition in "step" makes it expand the type to "int"
+    assert cython.typeof(i) == "int", cython.typeof(i)
+
+def test_type_inference_two_step(unsigned char[:] x):
+    """
+    >>> ba = bytearray(b'\\0'*50)
+    >>> test_type_inference_two_step(ba)
+    >>> for n, c in enumerate(ba):
+    ...     assert c==n, c
+    """
+    length = x.shape[0]  # type of length should be inferred...
+    for n in prange(length, nogil=True):  # then used to infer the type of n
+        x[n] = n
+    assert cython.typeof(n) == "Py_ssize_t", cython.typeof(n)

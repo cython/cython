@@ -1,9 +1,9 @@
 # mode: run
 # tag: cpp, werror, cpp17, cppexecpolicies
 
-from libcpp.numeric cimport (reduce, transform_reduce, inclusive_scan, 
-                             exclusive_scan, transform_inclusive_scan, 
-                             transform_exclusive_scan)
+from libcpp.numeric cimport (reduce, transform_reduce, inclusive_scan,
+                             exclusive_scan, transform_inclusive_scan,
+                             transform_exclusive_scan, gcd, lcm)
 from libcpp.execution cimport seq
 from libcpp.vector cimport vector
 
@@ -36,7 +36,7 @@ def test_reduce(vector[int] v, int init):
 
 def test_reduce_with_bin_op(vector[int] v, int init):
     """
-    Test reduce with a binary operation (subtraction). 
+    Test reduce with a binary operation (subtraction).
      0 - 1 = -1
     -1 - 2 = -3
     -3 - 3 = -6
@@ -47,7 +47,7 @@ def test_reduce_with_bin_op(vector[int] v, int init):
 
 # def test_reduce_with_execpolicy(vector[int] v, int init):
 #     """
-#     Test reduce with execution policy. 
+#     Test reduce with execution policy.
 #      0 + 1 = 1
 #      1 + 2 = 3
 #      3 + 3 = 6
@@ -58,7 +58,7 @@ def test_reduce_with_bin_op(vector[int] v, int init):
 
 def test_reduce_with_bin_op_and_execpolicy(vector[int] v, int init):
     """
-    Test reduce with execution policy and a binary operation (subtraction). 
+    Test reduce with execution policy and a binary operation (subtraction).
      0 - 1 = -1
     -1 - 2 = -3
     -3 - 3 = -6
@@ -275,3 +275,19 @@ def test_transform_exclusive_scan_with_execpolicy(vector[int] v, int init):
     cdef vector[int] out = vector[int](v.size())
     transform_exclusive_scan(seq, v.begin(), v.end(), out.begin(), init, add_integers, multiply_with_2)
     return out
+
+def test_gcd(int a, int b):
+    """
+    Test gcd
+    >>> test_gcd(12, 18)
+    6
+    """
+    return gcd[int](a, b)
+
+def test_lcm(int a, int b):
+    """
+    Test lcm
+    >>> test_lcm(45, 75)
+    225
+    """
+    return lcm[int](a, b)

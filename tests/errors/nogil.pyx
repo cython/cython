@@ -90,20 +90,29 @@ def bare_pyvar_name(object x):
     with nogil:
         x
 
-cdef int fstrings(int x, object obj) nogil except -1:
+cdef int fstrings(int x, object obj) except -1 nogil:
     f""         # allowed
     f"a"        # allowed
     f"a"f"b"    # allowed
     f"{x}"
     f"{obj}"
 
+cdef void slice_array() nogil:
+    with gil:
+        b = [1, 2, 3, 4]
+    cdef int[4] a = b[:]
+
+cdef int[:] main() nogil:
+    cdef int[4] a = [1,2,3,4]
+    return a
+
 
 _ERRORS = u"""
-4:5: Function with Python return type cannot be declared nogil
-7:5: Function declared nogil has Python locals or temporaries
+4:0: Function with Python return type cannot be declared nogil
+7:0: Function declared nogil has Python locals or temporaries
 9:4: Assignment of Python object not allowed without gil
 12:5: Discarding owned Python object not allowed without gil
-14:5: Function with Python return type cannot be declared nogil
+14:0: Function with Python return type cannot be declared nogil
 18:5: Calling gil-requiring function not allowed without gil
 27:9: Calling gil-requiring function not allowed without gil
 29:8: Assignment of Python object not allowed without gil
@@ -113,7 +122,6 @@ _ERRORS = u"""
 34:15: Assignment of Python object not allowed without gil
 34:15: Python import not allowed without gil
 35:13: Python import not allowed without gil
-35:25: Constructing Python list not allowed without gil
 36:17: Iterating over Python object not allowed without gil
 38:11: Discarding owned Python object not allowed without gil
 38:11: Indexing Python object not allowed without gil
@@ -169,4 +177,8 @@ _ERRORS = u"""
 97:6: String formatting not allowed without gil
 98:4: Discarding owned Python object not allowed without gil
 98:6: String formatting not allowed without gil
+
+103:21: Coercion from Python not allowed without the GIL
+103:21: Slicing Python object not allowed without gil
+107:11: Operation not allowed without gil
 """

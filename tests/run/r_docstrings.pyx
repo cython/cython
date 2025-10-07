@@ -42,8 +42,8 @@ Compare with standard Python:
     ...     '''
     ...     This is a function docstring.
     ...     '''
-    >>> Pyf.__doc__
-    '\\n    This is a function docstring.\\n    '
+    >>> Pyf.__doc__.strip()  # .strip() is needed because Py3.13 removes the indentation.
+    'This is a function docstring.'
 
     >>> class PyC(object):
     ...     '''
@@ -58,21 +58,21 @@ Compare with standard Python:
     >>> class PyCSS(PyCS):
     ...     docstring_copy_CSS = __doc__
 
-    >>> PyC.__doc__
-    '\\n    This is a class docstring.\\n    '
-    >>> PyC.docstring_copy_C
-    '\\n    This is a class docstring.\\n    '
-    >>> PyCS.docstring_copy_C
-    '\\n    This is a class docstring.\\n    '
-    >>> PyCSS.docstring_copy_C
-    '\\n    This is a class docstring.\\n    '
+    >>> PyC.__doc__.strip()
+    'This is a class docstring.'
+    >>> PyC.docstring_copy_C.strip()
+    'This is a class docstring.'
+    >>> PyCS.docstring_copy_C.strip()
+    'This is a class docstring.'
+    >>> PyCSS.docstring_copy_C.strip()
+    'This is a class docstring.'
 
-    >>> PyCS.__doc__
-    '\\n    This is a subclass docstring.\\n    '
-    >>> PyCS.docstring_copy_CS
-    '\\n    This is a subclass docstring.\\n    '
-    >>> PyCSS.docstring_copy_CS
-    '\\n    This is a subclass docstring.\\n    '
+    >>> PyCS.__doc__.strip()
+    'This is a subclass docstring.'
+    >>> PyCS.docstring_copy_CS.strip()
+    'This is a subclass docstring.'
+    >>> PyCSS.docstring_copy_CS.strip()
+    'This is a subclass docstring.'
 
     >>> PyCSS.__doc__
     >>> PyCSS.docstring_copy_CSS

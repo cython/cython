@@ -1,0 +1,323 @@
+# mode: run
+# tag: cimport, pep489
+
+PYTHON setup.py build_ext --inplace
+PYTHON -c "import test_import"
+PYTHON -c "import test_cimport"
+
+
+######## setup.py ########
+
+from distutils.core import setup
+from Cython.Build import cythonize
+from Cython.Distutils.extension import Extension
+
+setup(
+    ext_modules=cythonize('**/*.pyx'),
+)
+
+######## test_import.py ########
+
+import cypkg.sub.submodule
+import cypkg.sub.sub2.sub2module
+import pypkg.module
+import pypkg.sub.submodule
+import pypkg.sub.sub2.sub2module
+
+######## test_cimport.py ########
+
+import module
+
+
+######## module.pyx ########
+cimport cypkg
+
+cdef cypkg.a_type a1 = 3
+assert a1 == 3
+cdef cypkg.a.a_type a2 = 3
+assert a2 == 3
+cdef cypkg.b_type b1 = 4
+assert b1 == 4
+cdef cypkg.b.b_type b2 = 4
+assert b2 == 4
+
+
+cimport cypkg.sub
+cdef cypkg.sub.a_type a3 = 3
+assert a3 == 3
+cdef cypkg.sub.a.a_type a4 = 3
+assert a4 == 3
+cdef cypkg.sub.b_type b3 = 4
+assert b3 == 4
+cdef cypkg.sub.b.b_type b4 = 4
+assert b4 == 4
+
+
+cimport cypkg.sub.sub2
+cdef cypkg.sub.sub2.a_type a5 = 3
+assert a5 == 3
+cdef cypkg.sub.sub2.a.a_type a6 = 3
+assert a6 == 3
+cdef cypkg.sub.sub2.b_type b5 = 4
+assert b5 == 4
+cdef cypkg.sub.sub2.b.b_type b6 = 4
+assert b6 == 4
+
+import pypkg
+assert pypkg.a_value == 3
+assert pypkg.a.a_value == 3
+assert pypkg.b_value == 4
+assert pypkg.b.b_value == 4
+
+
+import pypkg.sub
+assert pypkg.sub.a_value == 3
+assert pypkg.sub.a.a_value == 3
+assert pypkg.sub.b_value == 4
+assert pypkg.sub.b.b_value == 4
+
+
+import cypkg.sub.sub2
+assert pypkg.sub.sub2.a_value == 3
+assert pypkg.sub.sub2.a.a_value == 3
+assert pypkg.sub.sub2.b_value == 4
+assert pypkg.sub.sub2.b.b_value == 4
+
+
+######## cypkg/__init__.pxd ########
+
+cimport cypkg.sub
+cimport cypkg.sub.sub2
+
+from cypkg.sub cimport a
+from cypkg.sub.a cimport a_type
+from cypkg.sub.sub2 cimport b
+from cypkg.sub.sub2.b cimport b_type
+
+from . cimport sub
+from .sub cimport a
+from .sub.a cimport a_type
+from .sub.sub2 cimport b
+from .sub.sub2.b cimport b_type
+
+######## cypkg/__init__.pyx ########
+
+
+######## cypkg/module.pyx ########
+
+cimport cypkg
+cimport cypkg.sub
+cimport cypkg.sub.sub2
+from cypkg.sub cimport a
+from cypkg.sub.a cimport a_type
+from cypkg.sub.sub2 cimport b
+from cypkg.sub.sub2.b cimport b_type
+
+from . cimport sub
+from .sub cimport a
+from .sub.a cimport a_type
+from .sub.sub2 cimport b
+from .sub.sub2.b cimport b_type
+
+
+######## cypkg/sub/__init__.pxd ########
+
+cimport cypkg
+from cypkg.sub cimport a
+from cypkg.sub.a cimport a_type
+from cypkg.sub.sub2 cimport b
+from cypkg.sub.sub2.b cimport b_type
+
+from . cimport a
+from .a cimport a_type
+
+from .. cimport sub
+from ..sub cimport a
+from ..sub.a cimport a_type
+from ..sub.sub2 cimport b
+from ..sub.sub2.b cimport b_type
+
+######## cypkg/sub/__init__.pyx ########
+
+######## cypkg/sub/a.pxd ########
+
+ctypedef int a_type
+
+######## cypkg/sub/submodule.pyx ########
+
+cimport cypkg
+cimport cypkg.sub
+from cypkg.sub cimport a
+from cypkg.sub.a cimport a_type
+from cypkg.sub.sub2 cimport b
+from cypkg.sub.sub2.b cimport b_type
+
+from . cimport a
+from .a cimport a_type
+
+from .. cimport sub
+from ..sub cimport a
+from ..sub.a cimport a_type
+from ..sub.sub2 cimport b
+from ..sub.sub2.b cimport b_type
+
+######## cypkg/sub/sub2/__init__.pxd ########
+
+cimport cypkg
+cimport cypkg.sub
+from cypkg.sub cimport a
+from cypkg.sub.a cimport a_type
+from cypkg.sub.sub2 cimport b
+from cypkg.sub.sub2.b cimport b_type
+
+from ..sub2 cimport b
+from ..sub2.b cimport b_type
+
+from ...sub cimport a
+from ...sub.a cimport a_type
+
+from ... cimport sub
+from ...sub.sub2 cimport b
+from ...sub.sub2.b cimport b_type
+
+######## cypkg/sub/sub2/__init__.pyx ########
+
+######## cypkg/sub/sub2/b.pxd ########
+
+ctypedef int b_type
+
+
+######## cypkg/sub/sub2/sub2module.pyx ########
+
+cimport cypkg
+cimport cypkg.sub
+from cypkg.sub cimport a
+from cypkg.sub.a cimport a_type
+from cypkg.sub.sub2 cimport b
+from cypkg.sub.sub2.b cimport b_type
+
+from .. cimport sub2
+from ..sub2 cimport b
+from ..sub2.b cimport b_type
+
+from ...sub cimport a
+from ...sub.a cimport a_type
+
+from ... cimport sub
+from ...sub.sub2 cimport b
+from ...sub.sub2.b cimport b_type
+
+######## pypkg/__init__.py ########
+
+import pypkg.sub
+import pypkg.sub.sub2
+
+from pypkg.sub import a
+from pypkg.sub.a import a_value
+from pypkg.sub.sub2 import b
+from pypkg.sub.sub2.b import b_value
+
+from . import sub
+from .sub import a
+from .sub.a import a_value
+from .sub.sub2 import b
+from .sub.sub2.b import b_value
+
+######## pypkg/module.py ########
+
+import pypkg
+import pypkg.sub
+import pypkg.sub.sub2
+from pypkg.sub import a
+from pypkg.sub.a import a_value
+from pypkg.sub.sub2 import b
+from pypkg.sub.sub2.b import b_value
+
+from . import sub
+from .sub import a
+from .sub.a import a_value
+from .sub.sub2 import b
+from .sub.sub2.b import b_value
+
+######## pypkg/sub/__init__.py ########
+
+import pypkg
+from pypkg.sub import a
+from pypkg.sub.a import a_value
+from pypkg.sub.sub2 import b
+from pypkg.sub.sub2.b import b_value
+
+from . import a
+from .a import a_value
+
+from .. import sub
+from ..sub import a
+from ..sub.a import a_value
+from ..sub.sub2 import b
+from ..sub.sub2.b import b_value
+
+######## pypkg/sub/a.py ########
+
+a_value = 3
+
+######## pypkg/sub/submodule.py ########
+
+import pypkg
+import pypkg.sub
+from pypkg.sub import a
+from pypkg.sub.a import a_value
+from pypkg.sub.sub2 import b
+from pypkg.sub.sub2.b import b_value
+
+from . import a
+from .a import a_value
+
+from .. import sub
+from ..sub import a
+from ..sub.a import a_value
+from ..sub.sub2 import b
+from ..sub.sub2.b import b_value
+
+######## pypkg/sub/sub2/__init__.py ########
+
+import pypkg
+import pypkg.sub
+from pypkg.sub import a
+from pypkg.sub.a import a_value
+from pypkg.sub.sub2 import b
+from pypkg.sub.sub2.b import b_value
+
+from ..sub2 import b
+from ..sub2.b import b_value
+
+from ...sub import a
+from ...sub.a import a_value
+
+from ... import sub
+from ...sub.sub2 import b
+from ...sub.sub2.b import b_value
+
+######## pypkg/sub/sub2/b.py ########
+
+b_value = 4
+
+
+######## pypkg/sub/sub2/sub2module.py ########
+
+import pypkg
+import pypkg.sub
+from pypkg.sub import a
+from pypkg.sub.a import a_value
+from pypkg.sub.sub2 import b
+from pypkg.sub.sub2.b import b_value
+
+from .. import sub2
+from ..sub2 import b
+from ..sub2.b import b_value
+
+from ...sub import a
+from ...sub.a import a_value
+
+from ... import sub
+from ...sub.sub2 import b
+from ...sub.sub2.b import b_value

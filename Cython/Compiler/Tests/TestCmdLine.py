@@ -1,18 +1,34 @@
 import os
 import sys
 import re
+from io import StringIO
 from unittest import TestCase
-try:
-    from StringIO import StringIO
-except ImportError:
-    from io import StringIO  # doesn't accept 'str' in Py2
+from unittest.mock import patch, Mock
 
 from .. import Options
 from ..CmdLine import parse_command_line
 
 from .Utils import backup_Options, restore_Options, check_global_options
 
+unpatched_exists = os.path.exists
 
+def patched_exists(path):
+    # avoid the Cython command raising a file not found error
+    if path in (
+        'source.pyx',
+        os.path.join('/work/dir', 'source.pyx'),
+        os.path.join('my_working_path', 'source.pyx'),
+        'file.pyx',
+        'file1.pyx',
+        'file2.pyx',
+        'file3.pyx',
+        'foo.pyx',
+        'bar.pyx',
+    ):
+        return True
+    return unpatched_exists(path)
+
+@patch('os.path.exists', new=Mock(side_effect=patched_exists))
 class CmdLineParserTest(TestCase):
     def setUp(self):
         self._options_backup = backup_Options()
@@ -92,6 +108,7 @@ class CmdLineParserTest(TestCase):
             '--annotate-coverage=cov.xml',
             '--gdb-outdir=/gdb/outdir',
             '--directive=wraparound=false',
+            '--shared=foo.shared',
         ])
         self.assertEqual(sources, ['source.pyx'])
         self.assertEqual(Options.embed, 'huhu')
@@ -105,6 +122,7 @@ class CmdLineParserTest(TestCase):
         self.assertTrue(options.gdb_debug)
         self.assertEqual(options.output_dir, '/gdb/outdir')
         self.assertEqual(options.compiler_directives['wraparound'], False)
+        self.assertEqual(options.shared_utility_qualified_name, 'foo.shared')
 
     def test_embed_before_positional(self):
         options, sources = parse_command_line([
@@ -226,7 +244,7 @@ class CmdLineParserTest(TestCase):
             '--3str',
             'source.pyx'
         ])
-        self.assertEqual(options.language_level, '3str')
+        self.assertEqual(options.language_level, '3')
         self.check_default_global_options()
         self.check_default_options(options, ['language_level'])
 
@@ -511,6 +529,13 @@ class CmdLineParserTest(TestCase):
         self.check_default_global_options()
         self.check_default_options(options, ['module_name'])
 
+    def test_generate_shared(self):
+        options, sources = parse_command_line([
+            '--generate-shared=foo/shared.c',
+        ])
+        self.assertEqual(sources, [])
+        self.assertEqual(options.shared_c_file_path, 'foo/shared.c')
+
     def test_errors(self):
         def error(args, regex=None):
             old_stderr = sys.stderr
@@ -555,3 +580,7 @@ class CmdLineParserTest(TestCase):
               "Only one source file allowed when using --module-name")
         error(['--module-name', 'foo.bar', '--timestamps', 'foo.pyx'],
               "Cannot use --module-name with --timestamps")
+        error(['--generate-shared=shared.c', 'foo.pyx'],
+              "Source file not allowed when using --generate-shared")
+        error(['--generate-shared'],
+              "argument --generate-shared: expected one argument")

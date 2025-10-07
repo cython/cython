@@ -8,7 +8,7 @@ class TestTreePath(TransformTest):
 
     def _build_tree(self):
         if self._tree is None:
-            self._tree = self.run_pipeline([], u"""
+            self._tree = self.run_pipeline([], """
             def decorator(fun):  # DefNode
                 return fun       # ReturnStatNode, NameNode
             @decorator           # NameNode
@@ -75,9 +75,19 @@ class TestTreePath(TransformTest):
     def test_node_path_and(self):
         t = self._build_tree()
         self.assertEqual(1, len(find_all(t, "//DefNode[.//ReturnStatNode and .//NameNode]")))
+        self.assertEqual(0, len(find_all(t, "//DefNode[.//ReturnStatNode and .//DecoratorNode]")))
         self.assertEqual(0, len(find_all(t, "//NameNode[@honking and @name]")))
         self.assertEqual(0, len(find_all(t, "//NameNode[@name and @honking]")))
         self.assertEqual(2, len(find_all(t, "//DefNode[.//NameNode[@name] and @name]")))
+
+    def test_node_path_or(self):
+        t = self._build_tree()
+        self.assertEqual(2, len(find_all(t, "//DefNode[.//ReturnStatNode or .//DecoratorNode]")))
+        self.assertEqual(2, len(find_all(t, "//NameNode[@name]")))
+        self.assertEqual(0, len(find_all(t, "//NameNode[@honking]")))
+        self.assertEqual(2, len(find_all(t, "//NameNode[@name or @honking]")))
+        self.assertEqual(2, len(find_all(t, "//NameNode[@honking or @name]")))
+        self.assertEqual(2, len(find_all(t, "//DefNode[.//NameNode[@name] or @name]")))
 
     def test_node_path_attribute_string_predicate(self):
         t = self._build_tree()

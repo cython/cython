@@ -1,0 +1,64 @@
+# Workflow to build non-compiled nightly wheel.
+
+name: Nightly wheels
+on:
+  schedule:
+  #        ┌───────────── minute (0 - 59)
+  #        │  ┌───────────── hour (0 - 23)
+  #        │  │ ┌───────────── day of the month (1 - 31)
+  #        │  │ │ ┌───────────── month (1 - 12 or JAN-DEC)
+  #        │  │ │ │ ┌───────────── day of the week (0 - 6 or SUN-SAT)
+  #        │  │ │ │ │
+  - cron: "42 1 * * 0,3"
+  pull_request:
+    types: [labeled, opened, synchronize, reopened]
+    paths:
+      #- Cython/Build/**
+      - .github/workflows/nightly-wheels.yml
+      - pyproject.toml
+      - MANIFEST.in
+      - setup.*
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read # to fetch code (actions/checkout)
+
+jobs:
+  build_pure_wheel:
+    name: Build pure wheel and upload to Anaconda's PyPI
+    if: >-
+      github.repository == 'cython/cython' && (
+        github.event_name == 'schedule' ||
+        github.event_name == 'workflow_dispatch' ||
+        (github.event_name == 'pull_request' &&
+        contains(github.event.pull_request.labels.*.name, 'Build System'))
+      )
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Cython
+        uses: actions/checkout@v5
+
+      - uses: deadsnakes/action@v3.2.0
+        with:
+          python-version: "3.13"
+
+      - name: Build pure wheel
+        run: |
+          pip install --upgrade wheel setuptools
+          python setup.py bdist_wheel --no-cython-compile
+
+      - uses: actions/upload-artifact@v4.6.2
+        with:
+          name: pure-wheel
+          path: ./dist/*.whl
+
+      - name: Upload wheels to scientific-python-nightly-wheels
+        if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+        uses: scientific-python/upload-nightly-action@b36e8c0c10dbcfd2e05bf95f17ef8c14fd708dbf # 0.6.2
+        with:
+          artifacts_path: dist
+          anaconda_nightly_upload_token: ${{ secrets.CYTHON_NIGHTLY_UPLOAD_TOKEN }}

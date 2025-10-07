@@ -92,7 +92,7 @@ def ccall_sqr(x):
     return x*x
 
 @cclass
-class Overidable(object):
+class Overridable(object):
     @ccall
     def meth(self):
         return 0
@@ -108,11 +108,11 @@ def test_ccall():
 
 def test_ccall_method(x):
     """
-    >>> test_ccall_method(Overidable())
+    >>> test_ccall_method(Overridable())
     0
-    >>> Overidable().meth()
+    >>> Overridable().meth()
     0
-    >>> class Foo(Overidable):
+    >>> class Foo(Overridable):
     ...    def meth(self):
     ...        return 1
     >>> test_ccall_method(Foo())

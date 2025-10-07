@@ -36,7 +36,7 @@ from .test_ext_import import test_add
 
 ######## pkg/test_ext_import.pyx ########
 # cython: linetrace=True
-# distutils: define_macros=CYTHON_TRACE=1
+# distutils: define_macros=CYTHON_TRACE=1 CYTHON_USE_SYS_MONITORING=0
 
 import ext_pkg
 

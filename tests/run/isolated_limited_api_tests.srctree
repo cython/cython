@@ -1,0 +1,202 @@
+# mode: run
+# tag: limited-api
+
+# This is a bare minimum test to test compilation of the limited
+# API with the Py_LIMITED_API macro defined, with an example that's
+# known and working. It should be dropped once the limited API is
+# better tested
+
+UNSET CFLAGS
+PYTHON setup.py build_ext --inplace
+PYTHON run.py limited_single_phase
+PYTHON run.py limited_single_phase_modstate
+PYTHON run.py limited_multi_phase
+
+
+##################### setup.py ################################
+
+import sysconfig
+from setuptools import setup
+from Cython.Build import cythonize
+
+if sysconfig.get_config_var("Py_GIL_DISABLED"):
+    print("Skipping isolated_limited_api tests on free-threading build")
+    exit(0)  # At least for 3.13, freethreading and limited API don't mix
+
+modules = [
+    "limited_single_phase.pyx",
+    "limited_single_phase_modstate.pyx",
+    "limited_multi_phase.pyx"
+]
+
+setup(
+    ext_modules = cythonize(modules),
+)
+
+##################### run.py ##################################
+
+import decimal
+
+import weakref
+import sys
+import sysconfig
+
+if sysconfig.get_config_var("Py_GIL_DISABLED"):
+    print("Skipping isolated_limited_api tests on free-threading build")
+    exit(0)  # At least for 3.13, freethreading and limited API don't mix
+
+module_name = sys.argv[1]
+
+limited = __import__(module_name)
+
+limited.fib(11)
+
+assert limited.lsum(list(range(10))) == 90
+assert limited.lsum(tuple(range(10))) == 90
+assert limited.lsum(iter(range(10))) == 45
+
+try:
+    limited.raises()
+except RuntimeError:
+    pass
+
+limited.catches()
+
+limited.C()
+limited.D()
+limited.E()
+if sys.version_info >= (3, 9):
+    # Weak-referenceable classes won't work in Python <3.9 because
+    # of an interpreter bug (https://github.com/python/cpython/issues/82321).
+    # This depends on the interpreter version, not the limited API version.
+    weakref.ref(limited.D())
+    weakref.ref(limited.E())
+
+assert limited.C.cm() == limited.C().cm() == limited.C
+assert limited.D.cm() == limited.D().cm() == limited.D
+
+assert limited.decode(b'a', bytearray(b'b')) == "ab"
+
+assert limited.cast_float(1) == 1.0
+assert limited.cast_float("2.0") == 2.0
+assert limited.cast_float(bytearray(b"3")) == 3.0
+
+gen = limited.my_generator(1)
+assert next(gen) == 1
+assert next(gen) == 1
+try:
+    next(gen)
+except StopIteration:
+    pass
+else:
+    assert False  # should have finished
+
+gen = limited.my_generator("raise")
+try:
+    next(gen)
+except RuntimeError:
+    pass
+else:
+    assert False  # should have raised
+
+assert limited.add_one(2) == 3
+assert limited.float_equals(1.5)
+assert not limited.float_equals(2)
+assert not limited.float_equals(None)
+assert limited.float_equals(decimal.Decimal("1.5"))
+
+
+##################### limited_single_phase.pyx ################
+
+# distutils: extra_compile_args = -DPy_LIMITED_API=0x03070000 -DCYTHON_PEP489_MULTI_PHASE_INIT=0
+
+include 'limited.pxi'
+
+##################### limited_multi_phase.pyx ################
+
+# distutils: extra_compile_args = -DPy_LIMITED_API=0x03070000 -DCYTHON_PEP489_MULTI_PHASE_INIT=1
+
+include 'limited.pxi'
+
+##################### limited_single_phase_modstate.pyx ################
+
+# distutils: extra_compile_args = -DPy_LIMITED_API=0x03070000 -DCYTHON_PEP489_MULTI_PHASE_INIT=0 -DCYTHON_USE_MODULE_STATE=1
+
+include 'limited.pxi'
+
+##################### limited.pxi #############################
+
+import cython
+
+# Cimporting from cpython imports a range of types with their internals exposed.
+# These can't necessarily be used in the limited API but simply cimporting them
+# shouldn't break compilation.
+cimport cpython
+cimport cpython.bool
+cimport cpython.complex
+cimport cpython.descr
+cimport cpython.longintrepr
+cimport cpython.type
+
+@cython.binding(False)
+def fib(int n):
+    cdef int a, b
+    a, b = 0, 1
+    while b < n:
+        a, b = b, a + b
+    return b
+
+def lsum(values):
+    cdef long result = 0
+    for value in values:
+        result += value
+    if type(values) is list:
+        for value in reversed(<list>values):
+            result += value
+    elif type(values) is tuple:
+        for value in reversed(<tuple>values):
+            result += value
+    return result
+
+def add_one(value):
+    return value + 1
+
+@cython.binding(False)
+def raises():
+    raise RuntimeError()
+
+def decode(bytes b, bytearray ba):
+    return b.decode("utf-8") + ba.decode("utf-8")
+
+def catches():
+    try:
+        raises()
+    except Exception:
+        pass
+
+def cast_float(object o):
+    return float(o)
+
+def float_equals(o):
+    return o == 1.5
+
+class C:
+    @classmethod
+    def cm(cls):
+        return cls
+
+cdef class D:
+    cdef object __weakref__
+
+    @classmethod
+    def cm(cls):
+        return cls
+
+cdef class E(D):
+    pass
+
+def my_generator(x):
+    if x == "raise":
+        raise RuntimeError
+    yield x
+    yield x

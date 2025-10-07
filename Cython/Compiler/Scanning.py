@@ -1,9 +1,8 @@
-# cython: infer_types=True, language_level=3, auto_pickle=False
+# cython: infer_types=True
 #
 #   Cython Scanner
 #
 
-from __future__ import absolute_import
 
 import cython
 cython.declare(make_lexicon=object, lexicon=object,
@@ -19,7 +18,7 @@ from .. import Utils
 from ..Plex.Scanners import Scanner
 from ..Plex.Errors import UnrecognizedInput
 from .Errors import error, warning, hold_errors, release_errors, CompileError
-from .Lexicon import any_string_prefix, make_lexicon, IDENT
+from .Lexicon import any_string_prefix, fstring_prefixes, make_lexicon, IDENT
 from .Future import print_function
 
 debug_scanner = 0
@@ -55,7 +54,7 @@ pyx_reserved_words = py_reserved_words + [
 
 #------------------------------------------------------------------
 
-class CompileTimeScope(object):
+class CompileTimeScope:
 
     def __init__(self, outer=None):
         self.entries = {}
@@ -89,17 +88,14 @@ def initial_compile_time_env():
     names = ('UNAME_SYSNAME', 'UNAME_NODENAME', 'UNAME_RELEASE', 'UNAME_VERSION', 'UNAME_MACHINE')
     for name, value in zip(names, platform.uname()):
         benv.declare(name, value)
-    try:
-        import __builtin__ as builtins
-    except ImportError:
-        import builtins
+    import builtins
 
     names = (
         'False', 'True',
         'abs', 'all', 'any', 'ascii', 'bin', 'bool', 'bytearray', 'bytes',
-        'chr', 'cmp', 'complex', 'dict', 'divmod', 'enumerate', 'filter',
+        'chr', 'complex', 'dict', 'divmod', 'enumerate', 'filter',
         'float', 'format', 'frozenset', 'hash', 'hex', 'int', 'len',
-        'list', 'map', 'max', 'min', 'oct', 'ord', 'pow', 'range',
+        'list', 'map', 'max', 'min', 'next', 'oct', 'ord', 'pow', 'range',
         'repr', 'reversed', 'round', 'set', 'slice', 'sorted', 'str',
         'sum', 'tuple', 'zip',
         ### defined below in a platform independent way
@@ -107,18 +103,14 @@ def initial_compile_time_env():
     )
 
     for name in names:
-        try:
-            benv.declare(name, getattr(builtins, name))
-        except AttributeError:
-            # ignore, likely Py3
-            pass
+        benv.declare(name, getattr(builtins, name))
 
-    # Py2/3 adaptations
+    # legacy Py2 names
     from functools import reduce
     benv.declare('reduce', reduce)
-    benv.declare('unicode', getattr(builtins, 'unicode', getattr(builtins, 'str')))
-    benv.declare('long', getattr(builtins, 'long', getattr(builtins, 'int')))
-    benv.declare('xrange', getattr(builtins, 'xrange', getattr(builtins, 'range')))
+    benv.declare('unicode', str)
+    benv.declare('long', int)
+    benv.declare('xrange', range)
 
     denv = CompileTimeScope(benv)
     return denv
@@ -126,11 +118,12 @@ def initial_compile_time_env():
 
 #------------------------------------------------------------------
 
-class SourceDescriptor(object):
+class SourceDescriptor:
     """
     A SourceDescriptor should be considered immutable.
     """
     filename = None
+    in_utility_code = False
 
     _file_type = 'pyx'
 
@@ -151,11 +144,9 @@ class SourceDescriptor(object):
 
     def get_escaped_description(self):
         if self._escaped_description is None:
-            esc_desc = \
-                self.get_description().encode('ASCII', 'replace').decode("ASCII")
             # Use forward slashes on Windows since these paths
             # will be used in the #line directives in the C/C++ files.
-            self._escaped_description = esc_desc.replace('\\', '/')
+            self._escaped_description = self.get_description().replace('\\', '/')
         return self._escaped_description
 
     def __gt__(self, other):
@@ -196,8 +187,13 @@ class FileSourceDescriptor(SourceDescriptor):
     """
     def __init__(self, filename, path_description=None):
         filename = Utils.decode_filename(filename)
-        self.path_description = path_description or filename
         self.filename = filename
+        self.path_description = path_description or filename
+        try:
+            self._short_path_description = os.path.relpath(self.path_description)
+        except ValueError:
+            # path not under current directory => use complete file path
+            self._short_path_description = self.path_description
         # Prefer relative paths to current directory (which is most likely the project root) over absolute paths.
         workdir = os.path.abspath('.') + os.sep
         self.file_path = filename[len(workdir):] if filename.startswith(workdir) else filename
@@ -209,30 +205,22 @@ class FileSourceDescriptor(SourceDescriptor):
         # we cache the lines only the second time this is called, in
         # order to save memory when they are only used once
         key = (encoding, error_handling)
-        try:
-            lines = self._lines[key]
-            if lines is not None:
-                return lines
-        except KeyError:
-            pass
+        lines = self._lines.get(key)
+        if lines is not None:
+            return lines
 
-        with Utils.open_source_file(self.filename, encoding=encoding, error_handling=error_handling) as f:
-            lines = list(f)
+        with self.get_file_object(encoding=encoding, error_handling=error_handling) as f:
+            lines = [line.rstrip() for line in f.readlines()]
 
-        if key in self._lines:
-            self._lines[key] = lines
-        else:
-            # do not cache the first access, but remember that we
-            # already read it once
-            self._lines[key] = None
+        # Do not cache the first access, but add the key to remember that we already read it once.
+        self._lines[key] = lines if key in self._lines else None
         return lines
 
+    def get_file_object(self, encoding=None, error_handling=None):
+        return Utils.open_source_file(self.filename, encoding, error_handling)
+
     def get_description(self):
-        try:
-            return os.path.relpath(self.path_description)
-        except ValueError:
-            # path not under current directory => use complete file path
-            return self.path_description
+        return self._short_path_description
 
     def get_error_description(self):
         path = self.filename
@@ -262,7 +250,7 @@ class StringSourceDescriptor(SourceDescriptor):
     def __init__(self, name, code):
         self.name = name
         #self.set_file_type_from_name(name)
-        self.codelines = [x + "\n" for x in code.split("\n")]
+        self.codelines = [line.rstrip() for line in code.splitlines()]
         self._cmp_name = name
 
     def get_lines(self, encoding=None, error_handling=None):
@@ -310,10 +298,11 @@ class PyrexScanner(Scanner):
 
         if filename.is_python_file():
             self.in_python_file = True
-            self.keywords = set(py_reserved_words)
+            keywords = py_reserved_words
         else:
             self.in_python_file = False
-            self.keywords = set(pyx_reserved_words)
+            keywords = pyx_reserved_words
+        self.keywords = {keyword: keyword for keyword in keywords}
 
         self.async_enabled = 0
 
@@ -338,8 +327,11 @@ class PyrexScanner(Scanner):
         self.source_encoding = source_encoding
         self.trace = trace_scanner
         self.indentation_stack = [0]
-        self.indentation_char = None
+        self.indentation_char = '\0'
         self.bracket_nesting_level = 0
+        # fstrings
+        self.fstring_state_stack = []
+        self.in_fstring_expr_prescan = 0
 
         self.put_back_on_failure = None
 
@@ -348,9 +340,7 @@ class PyrexScanner(Scanner):
         self.next()
 
     def normalize_ident(self, text):
-        try:
-            text.encode('ascii')  # really just name.isascii but supports Python 2 and 3
-        except UnicodeEncodeError:
+        if not text.isascii():
             text = normalize('NFKC', text)
         self.produce(IDENT, text)
 
@@ -372,6 +362,32 @@ class PyrexScanner(Scanner):
         self.bracket_nesting_level -= 1
         return text
 
+    def open_brace_action(self, text):
+        return self.open_bracket_action(text)
+
+    def close_brace_action(self, text):
+        assert text == '}'
+        if (self.fstring_state_stack and
+                self.fstring_state_stack[-1].bracket_nesting_level() == self.bracket_nesting_level):
+            if not self.fstring_state_stack[-1].in_format_specifier():
+                self.in_fstring_expr_prescan -= 1
+                if self.in_fstring_expr_prescan == 0:
+                    self.produce("END_FSTRING_EXPR")
+            self.begin(self.fstring_state_stack[-1].scanner_state)
+            self.fstring_state_stack[-1].pop_bracket_state()
+        self.bracket_nesting_level -= 1
+        return text
+
+    def colon_action(self, text):
+        if (self.fstring_state_stack and
+                self.fstring_state_stack[-1].bracket_nesting_level() == self.bracket_nesting_level):
+            self.in_fstring_expr_prescan -= 1
+            if self.in_fstring_expr_prescan == 0:
+                self.produce("END_FSTRING_EXPR")
+            self.begin(self.fstring_state_stack[-1].scanner_state)
+            self.fstring_state_stack[-1].set_in_format_specifier()
+        return text
+
     def newline_action(self, text):
         if self.bracket_nesting_level == 0:
             self.begin('INDENT')
@@ -384,21 +400,90 @@ class PyrexScanner(Scanner):
         '"""': 'TDQ_STRING'
     }
 
-    def begin_string_action(self, text):
-        while text[:1] in any_string_prefix:
+    def begin_string_action(self, text: str):
+        while text and text[0] in any_string_prefix:
             text = text[1:]
         self.begin(self.string_states[text])
         self.produce('BEGIN_STRING')
 
     def end_string_action(self, text):
-        self.begin('')
+        self.begin('FSTRING_EXPR_PRESCAN' if self.in_fstring_expr_prescan else '')
         self.produce('END_STRING')
+
+    def begin_fstring_action(self, text):
+        is_raw = 'r' in text or 'R' in text
+        while text and (text[0] in any_string_prefix or text[0] in fstring_prefixes):
+            text = text[1:]
+        fstring_state = f'{self.string_states[text]}_F{"R" if is_raw else ""}'
+        self.fstring_state_stack.append(
+            FStringState(fstring_state)
+        )
+        self.begin(fstring_state)
+        self.produce('BEGIN_FSTRING')
+
+    def end_fstring_action(self, text):
+        self.fstring_state_stack.pop()
+        self.begin('FSTRING_EXPR_PRESCAN' if self.in_fstring_expr_prescan else '')
+        self.produce('END_FSTRING')
+
+    def _handle_open_single_fstring_brace(self, started_fstring_expr):
+        self.bracket_nesting_level += 1
+        if not started_fstring_expr:
+            self.fstring_state_stack[-1].push_bracket_state(self.bracket_nesting_level)
+            self.begin('FSTRING_EXPR_PRESCAN')
+            self.in_fstring_expr_prescan += 1
+        self.produce('{')
+
+    def open_fstring_brace_action(self, text):
+        len_text = len(text)
+        started_fstring_expr = False
+        if self.fstring_state_stack[-1].in_format_specifier():
+            self._handle_open_single_fstring_brace(started_fstring_expr)
+            len_text -= 1
+            started_fstring_expr = True
+        assert not self.fstring_state_stack[-1].in_format_specifier()
+
+        double_braces = len_text // 2
+        for _ in range(double_braces):
+            self.produce('CHARS', '{')
+        len_text -= (double_braces*2)
+
+        if len_text:
+            assert len_text == 1
+            self._handle_open_single_fstring_brace(started_fstring_expr)
+
+    def _handle_close_single_fstring_brace(self):
+        fstring_bracket_level = self.fstring_state_stack[-1].bracket_nesting_level()
+        if fstring_bracket_level is None or self.bracket_nesting_level < fstring_bracket_level:
+            # To help try to parse a little further, don't reduce the bracket
+            # nesting level more.
+            self.error(
+                "f-string: single '}' is not allowed",
+                pos=self.get_current_scan_pos(),
+                fatal=False)
+            self.produce('}', '}')
+        else:
+            self.produce(self.close_brace_action('}'), '}')
+
+    def close_fstring_brace_action(self, text):
+        len_text = len(text)
+        while len_text and self.fstring_state_stack[-1].in_format_specifier():
+            self._handle_close_single_fstring_brace()
+            len_text -= 1
+
+        double_braces = len_text // 2
+        for _ in range(double_braces):
+            self.produce('CHARS', '}')
+        len_text -= double_braces*2
+
+        if len_text:
+            self._handle_close_single_fstring_brace()
 
     def unclosed_string_action(self, text):
         self.end_string_action(text)
         self.error_at_scanpos("Unclosed string literal")
 
-    def indentation_action(self, text):
+    def indentation_action(self, text: str):
         self.begin('')
         # Indentation within brackets should be ignored.
         #if self.bracket_nesting_level > 0:
@@ -407,7 +492,7 @@ class PyrexScanner(Scanner):
         if text:
             c = text[0]
             #print "Scanner.indentation_action: indent with", repr(c) ###
-            if self.indentation_char is None:
+            if self.indentation_char == '\0':
                 self.indentation_char = c
                 #print "Scanner.indentation_action: setting indent_char to", repr(c)
             else:
@@ -416,8 +501,8 @@ class PyrexScanner(Scanner):
             if text.replace(c, "") != "":
                 self.error_at_scanpos("Mixed use of tabs and spaces")
         # Figure out how many indents/dedents to do
-        current_level = self.current_level()
-        new_level = len(text)
+        current_level: cython.Py_ssize_t = self.current_level()
+        new_level: cython.Py_ssize_t = len(text)
         #print "Changing indent level from", current_level, "to", new_level ###
         if new_level == current_level:
             return
@@ -448,12 +533,12 @@ class PyrexScanner(Scanner):
             return  # just a marker, error() always raises
         if sy == IDENT:
             if systring in self.keywords:
-                if systring == u'print' and print_function in self.context.future_directives:
-                    self.keywords.discard('print')
-                elif systring == u'exec' and self.context.language_level >= 3:
-                    self.keywords.discard('exec')
+                if systring == 'print' and print_function in self.context.future_directives:
+                    self.keywords.pop('print', None)
+                elif systring == 'exec' and self.context.language_level >= 3:
+                    self.keywords.pop('exec', None)
                 else:
-                    sy = systring
+                    sy = self.keywords[systring]  # intern
             systring = self.context.intern_ustring(systring)
         if self.put_back_on_failure is not None:
             self.put_back_on_failure.append((sy, systring, self.position()))
@@ -526,7 +611,7 @@ class PyrexScanner(Scanner):
     def expect_dedent(self):
         self.expect('DEDENT', "Expected a decrease in indentation level")
 
-    def expect_newline(self, message="Expected a newline", ignore_semicolon=False):
+    def expect_newline(self, message="Expected a newline", ignore_semicolon: cython.bint = False):
         # Expect either a newline or end of file
         useless_trailing_semicolon = None
         if ignore_semicolon and self.sy == ';':
@@ -540,21 +625,20 @@ class PyrexScanner(Scanner):
     def enter_async(self):
         self.async_enabled += 1
         if self.async_enabled == 1:
-            self.keywords.add('async')
-            self.keywords.add('await')
+            self.keywords['async'] = 'async'
+            self.keywords['await'] = 'await'
 
     def exit_async(self):
         assert self.async_enabled > 0
         self.async_enabled -= 1
         if not self.async_enabled:
-            self.keywords.discard('await')
-            self.keywords.discard('async')
+            del self.keywords['await']
+            del self.keywords['async']
             if self.sy in ('async', 'await'):
                 self.sy, self.systring = IDENT, self.context.intern_ustring(self.sy)
 
 @contextmanager
-@cython.locals(scanner=Scanner)
-def tentatively_scan(scanner):
+def tentatively_scan(scanner: PyrexScanner):
     errors = hold_errors()
     try:
         put_back_on_failure = scanner.put_back_on_failure
@@ -578,3 +662,39 @@ def tentatively_scan(scanner):
             scanner.put_back_on_failure = put_back_on_failure
     finally:
         release_errors(ignore=True)
+
+
+class FStringState:
+    def __init__(self, scanner_state):
+        self.scanner_state = scanner_state
+        self.bracket_states = []
+
+    def bracket_nesting_level(self):
+        if not self.bracket_states:
+            return None
+        return self.bracket_states[-1].bracket_nesting_level
+
+    def in_format_specifier(self):
+        if not self.bracket_states:
+            return False
+        return self.bracket_states[-1].in_format_specifier
+
+    def set_in_format_specifier(self):
+        self.bracket_states[-1].in_format_specifier = True
+
+    def push_bracket_state(self, bracket_nesting_level: int):
+        self.bracket_states.append(FStringBracketState(bracket_nesting_level))
+
+    def pop_bracket_state(self):
+        self.bracket_states.pop()
+
+
+class FStringBracketState:
+    # Because of the way this is accessed, it probably doesn't make sense as a cdef class
+    # so just use __slots__ to keep it compact.
+    __slots__ = ('bracket_nesting_level', 'in_format_specifier')
+    bracket_nesting_level: int
+    in_format_specifier: bool
+    def __init__(self, bracket_nesting_level: int):
+        self.bracket_nesting_level = bracket_nesting_level
+        self.in_format_specifier = False

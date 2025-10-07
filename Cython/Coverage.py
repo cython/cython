@@ -20,7 +20,7 @@ and as a general human debugging helper, it always copies the current source cod
        *         z = 0                    # 3
        *         z += cy_add_nogil(x, y)  # 4
        */
-       __Pyx_TraceLine(147,1,__PYX_ERR(0, 147, __pyx_L4_error))
+       __Pyx_TraceLine(147,6,1,__PYX_ERR(0, 147, __pyx_L4_error))
       [C code generated for file line_trace.pyx, line 147, follows here]
 
 The crux is that multiple source files can contribute code to a single C (or C++) file
@@ -46,7 +46,6 @@ declarative code lines that do not contribute executable code, and such (missing
 can then be marked as excluded from coverage analysis.
 """
 
-from __future__ import absolute_import
 
 import re
 import os.path
@@ -55,6 +54,11 @@ from collections import defaultdict
 
 from coverage.plugin import CoveragePlugin, FileTracer, FileReporter  # requires coverage.py 4.0+
 from coverage.files import canonical_filename
+try:
+    import coverage.tracer  # we mainly do this so that runtests can identify if coverage won't work
+except ImportError:
+    raise ImportError("Installed 'coverage' does not support plugins. "
+                      "See https://coverage.readthedocs.io/en/latest/install.html#c-extension")
 
 from .Utils import find_root_package_dir, is_package_dir, is_cython_generated_file, open_source_file
 
@@ -83,6 +87,23 @@ def _find_dep_file_path(main_file, file_path, relative_path_search=False):
         rel_file_path = os.path.join(os.path.dirname(main_file), file_path)
         if os.path.exists(rel_file_path):
             abs_path = os.path.abspath(rel_file_path)
+
+        abs_no_ext = os.path.splitext(abs_path)[0]
+        file_no_ext, extension = os.path.splitext(file_path)
+        # We check if the paths match by matching the directories in reverse order.
+        # pkg/module.pyx /long/absolute_path/bla/bla/site-packages/pkg/module.c should match.
+        # this will match the pairs: module-module and pkg-pkg. After which there is nothing left to zip.
+        abs_no_ext = os.path.normpath(abs_no_ext)
+        file_no_ext = os.path.normpath(file_no_ext)
+        matching_paths = zip(reversed(abs_no_ext.split(os.sep)), reversed(file_no_ext.split(os.sep)))
+        for one, other in matching_paths:
+            if one != other:
+                break
+        else:  # No mismatches detected
+            matching_abs_path = os.path.splitext(main_file)[0] + extension
+            if os.path.exists(matching_abs_path):
+                return canonical_filename(matching_abs_path)
+
     # search sys.path for external locations if a valid file hasn't been found
     if not os.path.exists(abs_path):
         for sys_path in sys.path:
@@ -90,6 +111,10 @@ def _find_dep_file_path(main_file, file_path, relative_path_search=False):
             if os.path.exists(test_path):
                 return canonical_filename(test_path)
     return canonical_filename(abs_path)
+
+
+def _offset_to_line(offset):
+    return offset >> 9
 
 
 class Plugin(CoveragePlugin):
@@ -285,7 +310,7 @@ class Plugin(CoveragePlugin):
         if self._excluded_lines_map is None:
             self._excluded_lines_map = defaultdict(set)
 
-        with open(c_file) as lines:
+        with open(c_file, encoding='utf8') as lines:
             lines = iter(lines)
             for line in lines:
                 match = match_source_path_line(line)
@@ -293,7 +318,8 @@ class Plugin(CoveragePlugin):
                     if '__Pyx_TraceLine(' in line and current_filename is not None:
                         trace_line = match_trace_line(line)
                         if trace_line:
-                            executable_lines[current_filename].add(int(trace_line.group(1)))
+                            lineno = int(trace_line.group(1))
+                            executable_lines[current_filename].add(lineno)
                     continue
                 filename, lineno = match.groups()
                 current_filename = filename
@@ -326,7 +352,7 @@ class CythonModuleTracer(FileTracer):
     Find the Python/Cython source file for a Cython module.
     """
     def __init__(self, module_file, py_file, c_file, c_files_map, file_path_map):
-        super(CythonModuleTracer, self).__init__()
+        super().__init__()
         self.module_file = module_file
         self.py_file = py_file
         self.c_file = c_file
@@ -364,7 +390,7 @@ class CythonModuleReporter(FileReporter):
     Provide detailed trace information for one source file to coverage.py.
     """
     def __init__(self, c_file, source_file, rel_file_path, code, excluded_lines):
-        super(CythonModuleReporter, self).__init__(source_file)
+        super().__init__(source_file)
         self.name = rel_file_path
         self.c_file = c_file
         self._code = code
