@@ -132,6 +132,8 @@ lookup_module_cpdef = False
 #: Default is False.
 embed = None
 
+#: When embedding, this allows listing the names of statically linked extension modules
+#: to register with Python's inittab mechanism on startup, so that they can be imported.
 embed_modules = []
 
 # In previous iterations of Cython, globals() gave the first non-Cython module
