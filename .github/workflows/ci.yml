@@ -108,21 +108,17 @@ jobs:
             python-version: "3.12"
             backend: c
             env: {}
-            extra_hash: "arm64"
           - os: ubuntu-22.04-arm
             python-version: "3.12"
             backend: cpp
             env: {}
-            extra_hash: "arm64"
           - os:  windows-11-arm
             python-version: "3.12"
             backend: "c"
-            extra_hash: "arm64"
             env: {}
           - os:  windows-11-arm
             python-version: "3.12"
             backend: "cpp"
-            extra_hash: "arm64"
             env: {}
           # compile all modules
           - os: ubuntu-22.04
@@ -244,7 +240,7 @@ jobs:
       USE_CCACHE: 1
       CCACHE_SLOPPINESS: "pch_defines,time_macros"
       CCACHE_COMPRESS: 1
-      CCACHE_COMPRESSLEVEL: 7
+      CCACHE_COMPRESSLEVEL: 5
       # Size guide: 10GB maximum cache storage / total number of CI jobs creating a cache.
       # However, a single run currently generates 170-210 MB, so less would use less but be useless.
       CCACHE_MAXSIZE: "220M"
@@ -256,18 +252,18 @@ jobs:
           fetch-depth: 1
 
       - name: Setup python
-        uses: actions/setup-python@v5.6.0
+        uses: actions/setup-python@v6.0.0
         with:
           python-version: ${{ matrix.python-version }}
 
       - name: Compilation Cache
-        uses: hendrikmuhs/ccache-action@v1.2.18
+        uses: hendrikmuhs/ccache-action@v1.2.19
         with:
-          variant: ${{ startsWith(runner.os, 'windows') && 'sccache' || 'ccache' }}  # fake ternary
-          create-symlink: ${{ startsWith(runner.os, 'windows') && 'true' || 'false' }}  # fake ternary
+          variant: ${{ startsWith(runner.os, 'Windows') && 'sccache' || 'ccache' }}  # fake ternary
+          create-symlink: ${{ startsWith(runner.os, 'Linux') && 'false' || 'true' }}  # fake ternary
           # Disable ccache saving from pull requests to reserve caching storage for the main branches.
           save: ${{ startsWith(github.ref, '/refs/pull/') && 'false' || 'true' }}  # fake ternary
-          key: ${{ runner.os }}-hendrikmuhs-ccache${{ matrix.extra_hash }}-${{ matrix.python-version }}-${{ matrix.backend == 'c' || matrix.backend == 'c,cpp' }}-${{ contains(matrix.backend, 'cpp') }}-${{ hashFiles('test-requirements*.txt', '.github/**/ci.yml', 'Tools/**/ci-run.sh') }}
+          key: ${{ runner.os }}-${{ runner.arch }}-hendrikmuhs-ccache${{ matrix.extra_hash }}-${{ matrix.python-version }}-${{ matrix.backend == 'c' || matrix.backend == 'c,cpp' }}-${{ contains(matrix.backend, 'cpp') }}-${{ hashFiles('test-requirements*.txt', '.github/**/ci.yml', 'Tools/**/ci-run.sh') }}
           max-size: ${{ env.CCACHE_MAXSIZE }}
 
       - name: Run CI
@@ -285,7 +281,7 @@ jobs:
       - name: Upload wheels
         uses: actions/upload-artifact@v4.6.2
         with:
-          name: wheels-${{ runner.os }}-${{ matrix.python-version }}${{ matrix.extra_hash }}
+          name: wheels-${{ runner.os }}-${{ runner.arch }}-${{ matrix.python-version }}${{ matrix.extra_hash }}
           path: dist/*.whl
           if-no-files-found: ignore
 
@@ -303,7 +299,7 @@ jobs:
         uses: actions/checkout@v5
 
       - name: Setup python
-        uses: actions/setup-python@v5.6.0
+        uses: actions/setup-python@v6.0.0
         with:
           python-version: "3.11"
 
@@ -337,7 +333,7 @@ jobs:
           fetch-depth: 1
 
       - name: Setup python
-        uses: actions/setup-python@v5.6.0
+        uses: actions/setup-python@v6.0.0
         with:
           python-version: "3.11"
 
@@ -361,7 +357,7 @@ jobs:
     env:
       CCACHE_SLOPPINESS: "pch_defines,time_macros"
       CCACHE_COMPRESS: 1
-      CCACHE_COMPRESSLEVEL: 7
+      CCACHE_COMPRESSLEVEL: 5
       CCACHE_NOHASHDIR: 1
       CFLAGS: -O3 -g1 -fPIC -mtune=generic
 
@@ -373,16 +369,16 @@ jobs:
           fetch-tags: true
 
       - name: Compilation Cache
-        uses: hendrikmuhs/ccache-action@v1.2.18
+        uses: hendrikmuhs/ccache-action@v1.2.19
         with:
           create-symlink: true
-          variant: ${{ startsWith(runner.os, 'windows') && 'sccache' || 'ccache' }}  # fake ternary
+          variant: ${{ startsWith(runner.os, 'Windows') && 'sccache' || 'ccache' }}  # fake ternary
           save: ${{ startsWith(github.ref, '/refs/pull/') && 'false' || 'true' }}  # fake ternary
-          key: ${{ runner.os }}-hendrikmuhs-ccache-benchmarks
+          key: ${{ runner.os }}-${{ runner.arch }}-hendrikmuhs-ccache-benchmarks
           max-size: 250M
 
       - name: Setup python
-        uses: actions/setup-python@v5.6.0
+        uses: actions/setup-python@v6.0.0
         with:
           # List special Pythons first to keep the 'normal' one as (last) "python3.xy".
           python-version: |

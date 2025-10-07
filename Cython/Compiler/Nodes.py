@@ -154,6 +154,8 @@ class CopyWithUpTreeRefsMixin:
                 # Note that memo being keyed by "id" is a bit of an implementation detail;
                 # the documentation says to treat it as opaque.
                 v = memo.get(id(v), v)
+            else:
+                v = copy.deepcopy(v, memo)
             setattr(result, k, v)
         return result
 
@@ -6181,6 +6183,7 @@ class SingleAssignmentNode(AssignmentNode):
     #  first                    bool          Is this guaranteed the first assignment to lhs?
     #  is_overloaded_assignment bool          Is this assignment done via an overloaded operator=
     #  is_assignment_expression bool          Internally SingleAssignmentNode is used to implement assignment expressions
+    #  from_pxd_cvardef         bool          Was created from a CVarDef node in a pxd file
     #  exception_check
     #  exception_value
 
@@ -6189,6 +6192,7 @@ class SingleAssignmentNode(AssignmentNode):
     is_overloaded_assignment = False
     is_assignment_expression = False
     declaration_only = False
+    from_pxd_cvardef = False
 
     def analyse_declarations(self, env):
         from . import ExprNodes
@@ -6336,6 +6340,14 @@ class SingleAssignmentNode(AssignmentNode):
         elif rhs.type.is_pyobject:
             rhs = rhs.coerce_to_simple(env)
         self.rhs = rhs
+
+        if self.from_pxd_cvardef and not self.lhs.type.is_const:
+            warning(
+                self.pos,
+                "Assignment in pxd file will not be executed. Suggest declaring as const.",
+                2
+            )
+
         return self
 
     def unroll(self, node, target_size, env):
@@ -7016,19 +7028,20 @@ class ReturnStatNode(StatNode):
                     Naming.retval_cname,
                     value.result_as(self.return_type)))
                 value.generate_post_assignment_code(code)
-                if code.globalstate.directives['profile'] or code.globalstate.directives['linetrace']:
-                    code.put_trace_return(
-                        Naming.retval_cname,
-                        self.pos,
-                        return_type=self.return_type,
-                        nogil=not code.funcstate.gil_owned,
-                    )
             value.free_temps(code)
         else:
             if self.return_type.is_pyobject:
                 code.put_init_to_py_none(Naming.retval_cname, self.return_type)
             elif self.return_type.is_returncode:
                 self.put_return(code, self.return_type.default_value)
+
+        if code.globalstate.directives['profile'] or code.globalstate.directives['linetrace']:
+            code.put_trace_return(
+                Naming.retval_cname,
+                self.pos,
+                return_type=self.return_type,
+                nogil=not code.funcstate.gil_owned,
+            )
 
         for cname, type in code.funcstate.temps_holding_reference():
             code.put_decref_clear(cname, type)
@@ -9863,7 +9876,7 @@ class ParallelStatNode(StatNode, ParallelNode):
         if self.is_parallel and not self.is_nested_prange:
             code.putln("/* Clean up any temporaries */")
             for temp, type in sorted(self.temps):
-                code.put_xdecref_clear(temp, type, have_gil=False)
+                code.put_xdecref_clear(temp, type, have_gil=True)
 
     def setup_parallel_control_flow_block(self, code):
         """
