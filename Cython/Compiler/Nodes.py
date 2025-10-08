@@ -8861,11 +8861,14 @@ class GILStatNode(NogilTryFinallyStatNode):
     child_attrs = ["condition"] + NogilTryFinallyStatNode.child_attrs
     state_temp = None
     scope_gil_state_known = True
+    internally_generated = False
 
-    def __init__(self, pos, state, body, condition=None):
+    def __init__(self, pos, state, body, condition=None, internally_generated=False):
         self.state = state
         self.condition = condition
         self.create_state_temp_if_needed(pos, state, body)
+        if internally_generated:
+            self.internally_generated = internally_generated
         TryFinallyStatNode.__init__(
             self, pos,
             body=body,
@@ -9939,16 +9942,18 @@ class ParallelStatNode(StatNode, ParallelNode):
         begin_code = self.begin_of_parallel_block
         self.begin_of_parallel_block = None
 
-        if self.error_label_used:
+        if self.error_label_used or self.acquire_gil:
             end_code = code
 
             begin_code.putln("#ifdef _OPENMP")
             begin_code.put_ensure_gil(declare_gilstate=True)
-            begin_code.putln("Py_BEGIN_ALLOW_THREADS")
+            if not self.acquire_gil:
+                begin_code.putln("Py_BEGIN_ALLOW_THREADS")
             begin_code.putln("#endif /* _OPENMP */")
 
             end_code.putln("#ifdef _OPENMP")
-            end_code.putln("Py_END_ALLOW_THREADS")
+            if not self.acquire_gil:
+                end_code.putln("Py_END_ALLOW_THREADS")
             end_code.putln("#else")
             end_code.put_safe("{\n")
             end_code.put_ensure_gil()
@@ -10274,6 +10279,7 @@ class ParallelWithBlockNode(ParallelStatNode):
 
     num_threads = None
     threading_condition = None
+    acquire_gil = False
 
     def analyse_declarations(self, env):
         super().analyse_declarations(env)
@@ -10357,6 +10363,7 @@ class ParallelRangeNode(ParallelStatNode):
     is_prange = True
 
     nogil = None
+    acquire_gil = False
     schedule = None
 
     valid_keyword_arguments = ['schedule', 'nogil', 'num_threads', 'chunksize', 'use_threads_if']
@@ -10610,7 +10617,8 @@ class ParallelRangeNode(ParallelStatNode):
             code.putln("#ifdef _OPENMP")
 
         if not self.is_parallel:
-            code.put("#pragma omp for")
+            acquire_gil_deadlock_avoidance_point = code.insertion_point()
+            code.put("#pragma omp for nowait")
             self.privatization_insertion_point = code.insertion_point()
             reduction_codepoint = self.parent.privatization_insertion_point
         else:
@@ -10633,7 +10641,15 @@ class ParallelRangeNode(ParallelStatNode):
                 code.putln("#if 0")
             else:
                 code.putln("#ifdef _OPENMP")
-            code.put("#pragma omp for")
+            acquire_gil_deadlock_avoidance_point = code.insertion_point()
+            code.put("#pragma omp for nowait")
+
+        if self.acquire_gil:
+            # Any firstprivate creates a barrier at least on GCC (and thus
+            # a deadlock if we're using the GIL). So at very least we need
+            # a barrier starting the loop
+            acquire_gil_deadlock_avoidance_point.putln(
+                "PyThreadState *__pyx_parallel_loop_threadstate = PyEval_SaveThread();")
 
         for entry, (op, lastprivate) in sorted(self.privates.items()):
             # Don't declare the index variable as a reduction
@@ -10681,6 +10697,14 @@ class ParallelRangeNode(ParallelStatNode):
         # at least it doesn't spoil indentation
         code.begin_block()
 
+        if self.acquire_gil:
+            code.putln("#ifdef _OPENMP")
+            code.putln("if (__pyx_parallel_loop_threadstate) {")
+            code.putln("PyEval_RestoreThread(__pyx_parallel_loop_threadstate);")
+            code.putln("__pyx_parallel_loop_threadstate = NULL;")
+            code.putln("}")
+            code.putln("#endif")
+
         code.putln("%(target)s = (%(target_type)s)(%(start)s + %(step)s * %(i)s);" % fmt_dict)
         self.initialize_privates_to_nan(code, exclude=self.target.entry)
 
@@ -10701,6 +10725,16 @@ class ParallelRangeNode(ParallelStatNode):
 
         code.end_block()  # end guard around loop body
         code.end_block()  # end for loop block
+
+        if self.acquire_gil:
+            code.putln("#ifdef _OPENMP")
+            code.putln("if (!__pyx_parallel_loop_threadstate) {")
+            code.putln("__pyx_parallel_loop_threadstate = PyEval_SaveThread();")
+            code.putln("}")
+            # synchronization point for all loops at the end of the thread but without the GIL
+            code.putln("#pragma omp barrier")
+            code.putln("PyEval_RestoreThread(__pyx_parallel_loop_threadstate);")
+            code.putln("#endif")
 
         if self.is_parallel:
             # Release the GIL and deallocate the thread state

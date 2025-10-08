@@ -12,12 +12,24 @@ Using Parallelism
     ../two-syntax-variants-used
 
 Cython supports native parallelism through the :py:mod:`cython.parallel`
-module. To use this kind of parallelism, the :term:`GIL<Global Interpreter Lock or GIL>` must be released
-(see :ref:`Releasing the GIL <nogil>`).
-It currently supports OpenMP, but later on more backends might be supported.
+module.  It currently supports OpenMP, but later on more backends might be supported.
 
 .. NOTE:: Functionality in this module may only be used from the main thread
           or parallel regions due to OpenMP restrictions.
+
+
+Historically, this kind of parallelism could only be used with the
+:term:`GIL<Global Interpreter Lock or GIL>` released (see :ref:`Releasing the GIL <nogil>`).
+However, from Cython 3.2 there is now some experimental support for running these parallel blocks with
+the GIL.  This will only work well (i.e. actually run your code in parallel) on freethreaded
+builds of Python
+
+.. WARNING:: Running ``cython.parallel`` and ``cython.prange`` with the GIL is currently
+             very experimental.  Specifically
+             Cython currently does almost nothing to ensure that Python variables
+             are accessed in a thread-safe manner - this is entirely your responsibility.
+             If you do not get this right then you may see crashes, reference-counting
+             errors, and other similar bugs.
 
 
 .. function:: prange([start,] stop[, step][, nogil=False][, use_threads_if=CONDITION][, schedule=None[, chunksize=None]][, num_threads=None])
@@ -49,8 +61,9 @@ It currently supports OpenMP, but later on more backends might be supported.
         It must not be 0.
 
     :param nogil:
-        This function can only be used with the GIL released.
-        If ``nogil`` is true, the loop will be wrapped in a nogil section.
+        If ``nogil`` is true, the loop will be wrapped in a nogil section.  Except on
+        the experimental free-threaded Python interpreter, this is needed to actually
+        run in parallel.
 
     :param use_threads_if: The loop is run in multiple threads only if ``CONDITION``
         is evaluated as true. Otherwise the code is run sequentially. Running
