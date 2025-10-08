@@ -16,10 +16,6 @@ typedef struct {
 #define __Pyx_MemoryView_Len(m)  (m.shape[0])
 
 
-/////////////// ObjectToMemviewSlice.proto ///////////////
-static CYTHON_INLINE {{memviewslice_name}} {{funcname}}(PyObject *, int writable_flag);
-
-
 ////////// PyxInitMemviewslice.proto //////////
 
 static int __Pyx_init_memviewslice(
@@ -118,10 +114,9 @@ static CYTHON_INLINE void __Pyx_INC_MEMVIEW({{memviewslice_name}} *, int, int);
 static CYTHON_INLINE void __Pyx_XCLEAR_MEMVIEW({{memviewslice_name}} *, int, int);
 
 
-/////////////// MemviewSliceIndex.proto ///////////////
+/////////////// ObjectToMemviewSlice.proto ///////////////
 
-static CYTHON_INLINE char *__pyx_memviewslice_index_full(
-    const char *bufp, Py_ssize_t idx, Py_ssize_t stride, Py_ssize_t suboffset);
+static CYTHON_INLINE {{memviewslice_name}} {{funcname}}(PyObject *, int writable_flag);
 
 
 /////////////// ObjectToMemviewSlice ///////////////
@@ -687,6 +682,12 @@ __pyx_memviewslice_is_contig(const {{memviewslice_name}} mvs, char order, int nd
 
     return 1;
 }
+
+
+/////////////// MemviewSliceIndex.proto ///////////////
+
+static CYTHON_INLINE char *
+__pyx_memviewslice_index_full(const char *bufp, Py_ssize_t idx, Py_ssize_t stride, Py_ssize_t suboffset); /*proto*/
 
 
 /////////////// MemviewSliceIndex ///////////////
