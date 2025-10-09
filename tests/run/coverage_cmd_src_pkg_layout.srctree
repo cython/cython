@@ -4,7 +4,7 @@
 """
 PYTHON -VV
 PYTHON -m pip --version
-PYTHON -m pip install .
+PYTHON -m pip install --no-build-isolation .
 PYTHON setup.py build_ext --inplace
 PYTHON -m coverage run --source=pkg coverage_test.py
 PYTHON collect_coverage.py
