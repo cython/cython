@@ -29,6 +29,7 @@ setup(
 
 ######## .coveragerc ########
 [run]
+core = ctrace
 plugins = Cython.Coverage
 
 ######## src/pkg/__init__.py ########
