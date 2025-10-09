@@ -49,8 +49,8 @@ jobs:
           - "3.12"
           - "3.13"
           - "3.13t"
-          - "3.14-dev"
-          - "3.14t-dev"
+          - "3.14"
+          - "3.14t"
         env: [{}]
 
         exclude:
@@ -62,16 +62,16 @@ jobs:
             python-version: 3.13t
             backend: "cpp"
           - os: windows-2022
-            python-version: 3.14t-dev
+            python-version: 3.14t
             backend: "c"
           - os: windows-2022
-            python-version: 3.14t-dev
+            python-version: 3.14t
             backend: "cpp"
 
         include:
-          #- python-version: "3.14-dev"
+          #- python-version: "3.15-dev"
           #  allowed_failure: true
-          #- python-version: "3.14t-dev"
+          #- python-version: "3.15t-dev"
           #  allowed_failure: true
 
           # Ubuntu sub-jobs:
@@ -382,11 +382,12 @@ jobs:
         with:
           # List special Pythons first to keep the 'normal' one as (last) "python3.xy".
           python-version: |
+            3.14t
             3.13t
             3.10
             3.12
             3.13
-            3.14-dev
+            3.14
 
       - name: Run Benchmarks
         run: |
