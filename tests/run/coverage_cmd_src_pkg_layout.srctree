@@ -2,6 +2,8 @@
 # tag: coverage,trace
 
 """
+PYTHON -VV
+PYTHON -m pip --version
 PYTHON -m pip install .
 PYTHON setup.py build_ext --inplace
 PYTHON -m coverage run --source=pkg coverage_test.py
