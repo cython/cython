@@ -382,7 +382,6 @@ jobs:
         with:
           # List special Pythons first to keep the 'normal' one as (last) "python3.xy".
           python-version: |
-            3.14t
             3.13t
             3.10
             3.12
