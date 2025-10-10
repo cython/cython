@@ -1,5 +1,6 @@
 [build-system]
 requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
 
 [tool.cibuildwheel]
 build-verbosity = 2
