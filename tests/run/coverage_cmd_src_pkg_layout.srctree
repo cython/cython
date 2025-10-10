@@ -2,6 +2,7 @@
 # tag: coverage,trace
 
 """
+# Install without build isolation as this currently fails in Py3.14.0.
 PYTHON -m pip install --no-build-isolation .
 PYTHON setup.py build_ext --inplace
 PYTHON -m coverage run --source=pkg coverage_test.py
