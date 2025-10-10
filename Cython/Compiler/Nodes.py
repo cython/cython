@@ -9470,26 +9470,66 @@ class FromImportStatNode(StatNode):
                     Naming.import_star,
                     self.module.py_result(),
                     code.error_goto(self.pos)))
-        item_temp = code.funcstate.allocate_temp(py_object_type, manage_ref=True)
-        self.item.set_cname(item_temp)
+
         if self.interned_items:
+            code.putln("{")
             code.globalstate.use_utility_code(
                 UtilityCode.load_cached("ImportFrom", "ImportExport.c"))
-        for name, target, coerced_item in self.interned_items:
+
+            counter_var = code.funcstate.allocate_temp(PyrexTypes.c_py_ssize_t_type, manage_ref=False)
+            item_temp = code.funcstate.allocate_temp(py_object_type, manage_ref=True)
+            self.item.set_cname(item_temp)
+
+            imported_names = [
+                code.intern_identifier(name)
+                for name, _, _ in self.interned_items
+            ]
+            code.putln(f"PyObject* const __pyx_imported_names[] = {{{','.join(imported_names)}}};")
+
+            # Special-case Python globals: they are simple enough to handle them jointly in the loop.
+            simple_pyglobals = []
+            non_trivial_items = []
+            for i, (name, target, coerced_item) in enumerate(self.interned_items):
+                if coerced_item is None:
+                    if target.is_name and target.name == name:
+                        if target.entry and target.entry.is_pyglobal and target.entry.scope.is_module_scope:
+                            simple_pyglobals.append(i)
+                            continue
+                non_trivial_items.append((i, name, target, coerced_item))
+
+            code.putln(f"for ({counter_var}=0; {counter_var} < {len(imported_names)}; {counter_var}++) {{")
             code.putln(
-                '%s = __Pyx_ImportFrom(%s, %s); %s' % (
-                    item_temp,
-                    self.module.py_result(),
-                    code.intern_identifier(name),
-                    code.error_goto_if_null(item_temp, self.pos)))
+                f'{item_temp} = __Pyx_ImportFrom({self.module.py_result()}, __pyx_imported_names[{counter_var}]); '
+                f'{code.error_goto_if_null(item_temp, self.pos)}'
+            )
             code.put_gotref(item_temp, py_object_type)
-            if coerced_item is None:
-                target.generate_assignment_code(self.item, code)
-            else:
-                coerced_item.generate_evaluation_code(code)
-                target.generate_assignment_code(coerced_item, code)
+            code.putln(f"switch ({counter_var}) {{")
+
+            if simple_pyglobals:
+                code.putln(' '.join(f"case {i}:" for i in simple_pyglobals))
+                code.put_error_if_neg(
+                    self.pos,
+                    f"PyDict_SetItem({code.name_in_module_state(Naming.moddict_cname)}, __pyx_imported_names[{counter_var}], {item_temp})")
+                code.putln("break;")
+
+            for i, name, target, coerced_item in non_trivial_items:
+                code.putln(f"case {i}:")
+                if coerced_item is None:
+                    target.generate_assignment_code(self.item, code)
+                else:
+                    coerced_item.generate_evaluation_code(code)
+                    target.generate_assignment_code(coerced_item, code)
+                code.putln("break;")
+
+            code.putln("}")  # switch
+
             code.put_decref_clear(item_temp, py_object_type)
-        code.funcstate.release_temp(item_temp)
+            code.putln("}")  # for
+
+            code.funcstate.release_temp(item_temp)
+            code.funcstate.release_temp(counter_var)
+            code.putln("}")
+
         self.module.generate_disposal_code(code)
         self.module.free_temps(code)
 
