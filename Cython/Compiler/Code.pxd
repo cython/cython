@@ -17,9 +17,9 @@ cdef class UtilityCode(UtilityCodeBase):
     cdef public object init
     cdef public object cleanup
     cdef object proto_block
-    cdef object module_state_decls
-    cdef object module_state_traverse
-    cdef object module_state_clear
+    cdef readonly object module_state_decls
+    cdef readonly object module_state_traverse
+    cdef readonly object module_state_clear
     cdef public object requires
     cdef dict _cache
     cdef list specialize_list
@@ -35,7 +35,7 @@ cdef class UtilityCode(UtilityCodeBase):
 @cython.final
 cdef class FunctionState:
     cdef set names_taken
-    cdef readonly object owner
+    cdef public object owner
     cdef public object scope
 
     cdef public object error_label
@@ -62,7 +62,7 @@ cdef class FunctionState:
 
     cdef readonly object closure_temps
     cdef bint should_declare_error_indicator
-    cdef readonly bint uses_error_indicator
+    cdef public bint uses_error_indicator
     cdef public bint error_without_exception
 
     cdef public bint needs_refnanny
@@ -99,8 +99,8 @@ cdef class StringConst:
 cdef class PyStringConst:
     cdef public object cname
     cdef public object encoding
-    cdef public bint is_unicode
-    cdef public bint intern
+    cdef readonly bint is_unicode
+    cdef readonly bint intern
 
 
 #class GlobalState(object):
