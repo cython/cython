@@ -16,15 +16,15 @@ cdef class UtilityCode(UtilityCodeBase):
     cdef public object impl
     cdef public object init
     cdef public object cleanup
-    cdef public object proto_block
-    cdef public object module_state_decls
-    cdef public object module_state_traverse
-    cdef public object module_state_clear
+    cdef object proto_block
+    cdef object module_state_decls
+    cdef object module_state_traverse
+    cdef object module_state_clear
     cdef public object requires
-    cdef public dict _cache
-    cdef public list specialize_list
+    cdef dict _cache
+    cdef list specialize_list
     cdef public object file
-    cdef public tuple _parts_tuple
+    cdef tuple _parts_tuple
 
     cpdef none_or_sub(self, s, context)
     # TODO - Signature not compatible with previous declaration
@@ -34,8 +34,8 @@ cdef class UtilityCode(UtilityCodeBase):
 
 @cython.final
 cdef class FunctionState:
-    cdef public set names_taken
-    cdef public object owner
+    cdef set names_taken
+    cdef readonly object owner
     cdef public object scope
 
     cdef public object error_label
@@ -44,7 +44,7 @@ cdef class FunctionState:
     cdef public object return_label
     cdef public object continue_label
     cdef public object break_label
-    cdef public list yield_labels
+    cdef readonly list yield_labels
 
     cdef public object return_from_error_cleanup_label # not used in __init__ ?
 
@@ -53,16 +53,16 @@ cdef class FunctionState:
     cdef public bint can_trace
     cdef public bint gil_owned
 
-    cdef public list temps_allocated
-    cdef public dict temps_free
-    cdef public dict temps_used_type
-    cdef public set zombie_temps
-    cdef public size_t temp_counter
-    cdef public list collect_temps_stack
+    cdef list temps_allocated
+    cdef dict temps_free
+    cdef dict temps_used_type
+    cdef set zombie_temps
+    cdef size_t temp_counter
+    cdef list collect_temps_stack
 
-    cdef public object closure_temps
-    cdef public bint should_declare_error_indicator
-    cdef public bint uses_error_indicator
+    cdef readonly object closure_temps
+    cdef bint should_declare_error_indicator
+    cdef readonly bint uses_error_indicator
     cdef public bint error_without_exception
 
     cdef public bint needs_refnanny
