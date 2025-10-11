@@ -111,7 +111,7 @@ cdef class CCodeWriter(object):
     cdef readonly StringIOTree buffer
     cdef readonly list pyclass_stack
     cdef readonly object globalstate
-    cdef readonly object funcstate
+    cdef readonly FunctionState funcstate
     cdef object code_config
     cdef tuple last_pos
     cdef tuple last_marked_pos
