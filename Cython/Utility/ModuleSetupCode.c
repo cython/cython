@@ -1545,19 +1545,6 @@ static CYTHON_INLINE int __Pyx_PyErr_GivenExceptionMatches2(PyObject *err, PyObj
 #endif
 #include <math.h>
 
-#ifdef NAN
-#define __PYX_NAN() ((float) NAN)
-#else
-static CYTHON_INLINE float __PYX_NAN() {
-  // Initialize NaN.  The sign is irrelevant, an exponent with all bits 1 and
-  // a nonzero mantissa means NaN.  If the first bit in the mantissa is 1, it is
-  // a quiet NaN.
-  float value;
-  memset(&value, 0xFF, sizeof(value));
-  return value;
-}
-#endif
-
 #if defined(__CYGWIN__) && defined(_LDBL_EQ_DBL)
 #define __Pyx_truncl trunc
 #else
