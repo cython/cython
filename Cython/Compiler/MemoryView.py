@@ -834,23 +834,23 @@ def _get_memviewslice_declare_code():
 atomic_utility = load_memview_c_utility(
     "Atomics", util_code_filename="Synchronization.c", context=template_context)
 
-def _get_pyx_init_memviewslice_code():
+def _get_memview_slice_init_code():
     memviewslice_init_code = load_memview_c_utility(
-        "PyxInitMemviewslice",
+        "MemviewSliceInit",
         context=dict(template_context, BUF_MAX_NDIMS=Options.buffer_max_dims),
         requires=[],
     )
     return memviewslice_init_code
 
 
-def _get_memviewslice_init_code(memviewslice_declare_code):
-    memviewslice_init_code = load_memview_c_utility(
-        "MemviewSliceInit",
+def _get_memview_slice_utils_code(memviewslice_declare_code):
+    memview_slice_utils_code = load_memview_c_utility(
+        "MemviewSliceUtils",
         context=dict(template_context, BUF_MAX_NDIMS=Options.buffer_max_dims),
         requires=[memviewslice_declare_code,
                 atomic_utility],
     )
-    return memviewslice_init_code
+    return memview_slice_utils_code
 
 memviewslice_index_helpers = load_memview_c_utility("MemviewSliceIndex")
 
@@ -872,18 +872,18 @@ is_contig_utility = load_memview_c_utility("MemviewSliceIsContig", context=templ
 overlapping_utility = load_memview_c_utility("OverlappingSlices", context=template_context)
 
 def _get_copy_contents_new_utility():
-    pyx_init_memviewslice_code = _get_pyx_init_memviewslice_code()
+    memview_slice_init_code = _get_memview_slice_init_code()
     copy_contents_new_utility = load_memview_c_utility(
         "MemviewSliceCopyTemplate",
         context=template_context,
-        requires=[pyx_init_memviewslice_code],  # require cython_array_utility_code
+        requires=[memview_slice_init_code],  # require cython_array_utility_code
     )
     return copy_contents_new_utility
 
 @Utils.cached_function
 def _get_memoryview_utility_code():
     memviewslice_declare_code = _get_memviewslice_declare_code()
-    memviewslice_init_code = _get_memviewslice_init_code(memviewslice_declare_code)
+    memview_slice_utils_code = _get_memview_slice_utils_code(memviewslice_declare_code)
     copy_contents_new_utility = _get_copy_contents_new_utility()
     memoryview_utility_code = load_memview_cy_utility(
             "View.MemoryView",
@@ -891,7 +891,7 @@ def _get_memoryview_utility_code():
             requires=[
                     Buffer.buffer_struct_declare_code,
                     Buffer.buffer_formats_declare_code,
-                    memviewslice_init_code,
+                    memview_slice_utils_code,
                     is_contig_utility,
                     overlapping_utility,
                     copy_contents_new_utility,
@@ -899,12 +899,12 @@ def _get_memoryview_utility_code():
     )
     memviewslice_declare_code.requires.append(memoryview_utility_code)
     copy_contents_new_utility.requires.append(memoryview_utility_code)
-    return memoryview_utility_code, memviewslice_init_code
+    return memoryview_utility_code, memview_slice_utils_code
 
 @Utils.cached_function
 def _get_memoryview_shared_utility_code(shared_utility_qualified_name):
     memviewslice_declare_code = _get_memviewslice_declare_code()
-    memviewslice_init_code = _get_memviewslice_init_code(memviewslice_declare_code)
+    memview_slice_utils_code = _get_memview_slice_utils_code(memviewslice_declare_code)
     copy_contents_new_utility = _get_copy_contents_new_utility()
     shared_utility_code = CythonSharedUtilityCode(
         'MemoryView.pxd',
@@ -913,12 +913,12 @@ def _get_memoryview_shared_utility_code(shared_utility_qualified_name):
         requires=[
                 Buffer.buffer_struct_declare_code,
                 Buffer.buffer_formats_declare_code,
-                memviewslice_init_code,
+                memview_slice_utils_code,
                 ],
     )
     memviewslice_declare_code.requires.append(shared_utility_code)
     copy_contents_new_utility.requires.append(shared_utility_code)
-    return (shared_utility_code, memviewslice_init_code)
+    return (shared_utility_code, memview_slice_utils_code)
 
 def get_view_utility_code(shared_utility_qualified_name):
     if shared_utility_qualified_name:

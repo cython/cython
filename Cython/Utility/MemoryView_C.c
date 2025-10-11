@@ -16,7 +16,7 @@ typedef struct {
 #define __Pyx_MemoryView_Len(m)  (m.shape[0])
 
 
-////////// PyxInitMemviewslice.proto //////////
+////////// MemviewSliceInit.proto //////////
 
 static int __Pyx_init_memviewslice(
                 struct __pyx_memoryview_obj *memview,
@@ -25,7 +25,7 @@ static int __Pyx_init_memviewslice(
                 int memview_is_new_reference);
 
 
-////////// PyxInitMemviewslice //////////
+////////// MemviewSliceInit //////////
 
 static int
 __Pyx_init_memviewslice(struct __pyx_memoryview_obj *memview,
@@ -85,7 +85,7 @@ no_fail:
 }
 
 
-////////// MemviewSliceInit.proto //////////
+////////// MemviewSliceUtils.proto //////////
 
 // vsnprintf
 #include <stdio.h>
@@ -378,7 +378,7 @@ no_fail:
 }
 
 
-////////// MemviewSliceInit //////////
+////////// MemviewSliceUtils //////////
 
 #ifndef Py_NO_RETURN
 // available since Py3.3
