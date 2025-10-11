@@ -18,6 +18,75 @@ typedef struct {
 
 ////////// MemviewSliceInit.proto //////////
 
+static int __Pyx_init_memviewslice(
+                struct __pyx_memoryview_obj *memview,
+                int ndim,
+                __Pyx_memviewslice *memviewslice,
+                int memview_is_new_reference);
+
+
+////////// MemviewSliceInit //////////
+
+static int
+__Pyx_init_memviewslice(struct __pyx_memoryview_obj *memview,
+                        int ndim,
+                        {{memviewslice_name}} *memviewslice,
+                        int memview_is_new_reference)
+{
+    __Pyx_RefNannyDeclarations
+    int i, retval=-1;
+    Py_buffer *buf = &memview->view;
+    __Pyx_RefNannySetupContext("init_memviewslice", 0);
+
+    if (unlikely(memviewslice->memview || memviewslice->data)) {
+        PyErr_SetString(PyExc_ValueError,
+            "memviewslice is already initialized!");
+        goto fail;
+    }
+
+    if (buf->strides) {
+        for (i = 0; i < ndim; i++) {
+            memviewslice->strides[i] = buf->strides[i];
+        }
+    } else {
+        Py_ssize_t stride = buf->itemsize;
+        for (i = ndim - 1; i >= 0; i--) {
+            memviewslice->strides[i] = stride;
+            stride *= buf->shape[i];
+        }
+    }
+
+    for (i = 0; i < ndim; i++) {
+        memviewslice->shape[i]   = buf->shape[i];
+        if (buf->suboffsets) {
+            memviewslice->suboffsets[i] = buf->suboffsets[i];
+        } else {
+            memviewslice->suboffsets[i] = -1;
+        }
+    }
+
+    memviewslice->memview = memview;
+    memviewslice->data = (char *)buf->buf;
+    if (__pyx_add_acquisition_count(memview) == 0 && !memview_is_new_reference) {
+        Py_INCREF((PyObject*)memview);
+    }
+    retval = 0;
+    goto no_fail;
+
+fail:
+    /* Don't decref, the memoryview may be borrowed. Let the caller do the cleanup */
+    /* __Pyx_XDECREF(memviewslice->memview); */
+    memviewslice->memview = 0;
+    memviewslice->data = 0;
+    retval = -1;
+no_fail:
+    __Pyx_RefNannyFinishContext();
+    return retval;
+}
+
+
+////////// MemviewSliceUtils.proto //////////
+
 // vsnprintf
 #include <stdio.h>
 
@@ -32,12 +101,6 @@ typedef struct {
 
 #define __Pyx_IS_C_CONTIG 1
 #define __Pyx_IS_F_CONTIG 2
-
-static int __Pyx_init_memviewslice(
-                struct __pyx_memoryview_obj *memview,
-                int ndim,
-                __Pyx_memviewslice *memviewslice,
-                int memview_is_new_reference);
 
 static CYTHON_INLINE int __pyx_add_acquisition_count_locked(
     __pyx_atomic_int_type *acquisition_count, PyThread_type_lock lock);
@@ -87,7 +150,7 @@ __pyx_fail:
 }
 
 
-/////////////// MemviewSliceValidateAndInit.proto ///////////////
+/////////////// MemviewSliceValidateAndInit.export ///////////////
 
 static int __Pyx_ValidateAndInit_memviewslice(
                 int *axes_specs,
@@ -315,64 +378,7 @@ no_fail:
 }
 
 
-////////// MemviewSliceInit //////////
-
-static int
-__Pyx_init_memviewslice(struct __pyx_memoryview_obj *memview,
-                        int ndim,
-                        {{memviewslice_name}} *memviewslice,
-                        int memview_is_new_reference)
-{
-    __Pyx_RefNannyDeclarations
-    int i, retval=-1;
-    Py_buffer *buf = &memview->view;
-    __Pyx_RefNannySetupContext("init_memviewslice", 0);
-
-    if (unlikely(memviewslice->memview || memviewslice->data)) {
-        PyErr_SetString(PyExc_ValueError,
-            "memviewslice is already initialized!");
-        goto fail;
-    }
-
-    if (buf->strides) {
-        for (i = 0; i < ndim; i++) {
-            memviewslice->strides[i] = buf->strides[i];
-        }
-    } else {
-        Py_ssize_t stride = buf->itemsize;
-        for (i = ndim - 1; i >= 0; i--) {
-            memviewslice->strides[i] = stride;
-            stride *= buf->shape[i];
-        }
-    }
-
-    for (i = 0; i < ndim; i++) {
-        memviewslice->shape[i]   = buf->shape[i];
-        if (buf->suboffsets) {
-            memviewslice->suboffsets[i] = buf->suboffsets[i];
-        } else {
-            memviewslice->suboffsets[i] = -1;
-        }
-    }
-
-    memviewslice->memview = memview;
-    memviewslice->data = (char *)buf->buf;
-    if (__pyx_add_acquisition_count(memview) == 0 && !memview_is_new_reference) {
-        Py_INCREF((PyObject*)memview);
-    }
-    retval = 0;
-    goto no_fail;
-
-fail:
-    /* Don't decref, the memoryview may be borrowed. Let the caller do the cleanup */
-    /* __Pyx_XDECREF(memviewslice->memview); */
-    memviewslice->memview = 0;
-    memviewslice->data = 0;
-    retval = -1;
-no_fail:
-    __Pyx_RefNannyFinishContext();
-    return retval;
-}
+////////// MemviewSliceUtils //////////
 
 #ifndef Py_NO_RETURN
 // available since Py3.3
