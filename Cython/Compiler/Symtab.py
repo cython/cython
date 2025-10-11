@@ -6,7 +6,6 @@
 import re
 import copy
 import operator
-import math
 
 from ..Utils import try_finally_contextmanager
 from .Errors import warning, error, InternalError, performance_hint
@@ -235,6 +234,7 @@ class Entry:
     pytyping_modifiers = None
     enum_int_value = None
     vtable_type = None
+    is_thread_private_shadowed = False
 
     def __init__(self, name, cname, type, pos = None, init = None):
         self.name = name
@@ -343,6 +343,51 @@ class InnerEntry(Entry):
 
     def all_entries(self):
         return self.defining_entry.all_entries()
+
+
+class ThreadPrivateEntry(Entry):
+    is_thread_private_shadowed = True
+
+    def __init__(self, outer_entry, scope):
+        Entry.__init__(self, outer_entry.name,
+                       outer_entry.cname,
+                       outer_entry.type,
+                       outer_entry.pos)
+        self.outer_entry = outer_entry
+        self.scope = scope
+
+        # share state with (outermost) defining entry
+        outermost_entry = outer_entry
+        while outermost_entry.outer_entry:
+            outermost_entry = outermost_entry.outer_entry
+        self.defining_entry = outermost_entry
+        self.inner_entries = outermost_entry.inner_entries
+        self.cf_assignments = outermost_entry.cf_assignments
+        self.cf_references = outermost_entry.cf_references
+        self.overloaded_alternatives = outermost_entry.overloaded_alternatives
+        self.is_cpp_optional = outermost_entry.is_cpp_optional
+        self.inner_entries.append(self)
+        for attr in ["is_type", "is_pyglobal", "is_const", "is_variable", "is_local",
+                     "is_builtin", "is_cfunction", "is_cpp_class", "is_cglobal"]:
+            setattr(self, attr, getattr(self.defining_entry, attr))
+        self.cname = self.scope.mangle(Naming.var_prefix, self.name)
+        self.scope.outer_scope.var_entries.append(self)
+        self.in_closure = self.from_closure = False
+        self.is_arg = False
+
+    def __getattr__(self, name):
+        if name.startswith('__'):
+            # we wouldn't have been called if it was there
+            raise AttributeError(name)
+        return getattr(self.defining_entry, name)
+
+    @property
+    def used(self):
+        return self.defining_entry.used
+
+    @used.setter
+    def used(self, value):
+        self.defining_entry.used = value
 
 
 class Scope:
@@ -3068,3 +3113,52 @@ class TemplateScope(Scope):
     def __init__(self, name, outer_scope):
         Scope.__init__(self, name, outer_scope, None)
         self.directives = outer_scope.directives
+
+
+class ParallelThreadPrivateScope(Scope):
+    """
+    Parallel nodes have their own mini-scope for things that are assigned to
+    within the parallel block and which can't be simply made lastprivate
+    because they're looked up from elsewhere (e.g closure variables).
+    """
+    def __init__(self, outer_scope):
+        parent_scope = outer_scope
+        assert not parent_scope.is_comprehension_scope
+        name = parent_scope.global_scope().next_id(Naming.genexpr_id_ref)
+        Scope.__init__(self, name, outer_scope, parent_scope)
+        self.directives = outer_scope.directives
+        self.is_local_scope = outer_scope.is_local_scope
+        self.is_module_scope = outer_scope.is_module_scope
+
+    def lookup_here(self, name):
+        # Unlike most types of scope, just defer to the outer scope
+        entry = super().lookup_here(name)
+        if entry:
+            return entry
+        return self.outer_scope.lookup_here(name)
+
+    def lookup_assignment_expression_target(self, name):
+        entry = super().lookup_assignment_expression_target(name)
+        if entry:
+            return entry
+        return self.outer_scope.lookup_here(name)
+
+    def declare_var(self, name, type, pos,
+                    cname=None, visibility='private',
+                    api=False, in_pxd=False, is_cdef=True, pytyping_modifiers=None):
+        # everything gets declared in the outer scope
+        return self.outer_scope.declare_var(
+            name, type, pos, cname=cname, visibility=visibility,
+            api=api, in_pxd=in_pxd, is_cdef=is_cdef, pytyping_modifiers=pytyping_modifiers)
+
+    def declare_shadowed_var(self, original_entry):
+        new_entry = ThreadPrivateEntry(original_entry, self)
+        self.entries[new_entry.name] = new_entry
+        return new_entry
+
+    def mangle(self, prefix, name=None):
+        return self.outer_scope.mangle(prefix, name)
+
+    @property
+    def return_type(self):
+        return self.outer_scope.return_type
