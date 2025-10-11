@@ -484,7 +484,6 @@ static CYTHON_INLINE void __Pyx_XCLEAR_MEMVIEW({{memviewslice_name}} *memslice,
 
 
 ////////// MemviewSliceCopyTemplate.proto //////////
-//@requires: MemviewSliceInit
 
 static {{memviewslice_name}}
 __pyx_memoryview_copy_new_contig(const __Pyx_memviewslice *from_mvs,
