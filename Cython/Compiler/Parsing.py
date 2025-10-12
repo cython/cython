@@ -792,7 +792,7 @@ def p_atom(s: PyrexScanner):
         value = s.systring[:-1]
         s.next()
         return ExprNodes.ImagNode(pos, value = value)
-    elif sy == 'BEGIN_STRING' or sy == 'BEGIN_FSTRING':
+    elif sy == 'BEGIN_STRING' or sy == 'BEGIN_FT_STRING':
         return p_atom_string(s)
     elif sy == 'IDENT':
         result = p_atom_ident_constants(s)
@@ -806,7 +806,7 @@ def p_atom(s: PyrexScanner):
 
 @cython.cfunc
 def p_atom_string(s: PyrexScanner):
-    # s.sy == 'BEGIN_STRING' or s.sy == 'BEGIN_FSTRING'
+    # s.sy == 'BEGIN_STRING' or s.sy == 'BEGIN_FT_STRING'
     pos = s.position()
     kind, bytes_value, unicode_value = p_cat_string_literal(s)
     if not kind:
@@ -820,6 +820,9 @@ def p_atom_string(s: PyrexScanner):
         return ExprNodes.BytesNode(pos, value=bytes_value)
     elif kind_char == 'f':
         return ExprNodes.JoinedStrNode(pos, values=unicode_value)
+    elif kind_char == 't':
+        # TODO
+        return ExprNodes.TemplateStringNode(pos, values=unicode_value)
     else:
         # This is actually prevented by the scanner (Lexicon.py).
         s.error(f"invalid string kind '{kind}'")
@@ -934,14 +937,14 @@ def wrap_compile_time_constant(pos, value):
 def p_cat_string_literal(s: PyrexScanner) -> tuple:
     # A sequence of one or more adjacent string literals.
     # Returns (kind, bytes_value, unicode_value)
-    # where kind in ('b', 'c', 'u', 'f', '')
+    # where kind in ('b', 'c', 'u', 'f', 't', '')
     pos = s.position()
     kind, bytes_value, unicode_value = p_string_literal(s)
-    if kind == 'c' or (s.sy != 'BEGIN_STRING' and s.sy != 'BEGIN_FSTRING'):
+    if kind == 'c' or (s.sy != 'BEGIN_STRING' and s.sy != 'BEGIN_FT_STRING'):
         return kind, bytes_value, unicode_value
     bstrings, ustrings, positions = [bytes_value], [unicode_value], [pos]
     bytes_value = unicode_value = None
-    while s.sy == 'BEGIN_STRING' or s.sy == 'BEGIN_FSTRING':
+    while s.sy == 'BEGIN_STRING' or s.sy == 'BEGIN_FT_STRING':
         pos = s.position()
         next_kind, next_bytes_value, next_unicode_value = p_string_literal(s)
         if next_kind == 'c':
@@ -951,6 +954,9 @@ def p_cat_string_literal(s: PyrexScanner) -> tuple:
             # concatenating f strings and normal strings is allowed and leads to an f string
             if {kind, next_kind} in ({'f', 'u'}, {'f', ''}):
                 kind = 'f'
+            elif kind == 't' or next_kind == 't':
+                error(pos, "cannot mix t-string literals with string or bytes literals")
+                continue
             else:
                 error(pos, "Cannot mix string literals of different types, expected %s'', got %s''" % (
                     kind, next_kind))
@@ -972,6 +978,10 @@ def p_cat_string_literal(s: PyrexScanner) -> tuple:
             else:
                 # non-f-string concatenated into the f-string
                 unicode_value.append(ExprNodes.UnicodeNode(pos, value=EncodedString(u)))
+    if kind == 't':
+        unicode_value = []
+        for u in ustrings:
+            unicode_value.extend(u)
     return kind, bytes_value, unicode_value
 
 
@@ -1033,7 +1043,7 @@ def p_string_literal_shared_read(
 @cython.cfunc
 def _validate_kind_string(pos, systring: str):
     kind_string = systring.rstrip('"\'').lower()
-    if len(kind_string) <= 1 or (len(kind_string) == 2 and kind_string in "rbrurfr"):
+    if len(kind_string) <= 1 or (len(kind_string) == 2 and kind_string in "rbrurfrtr"):
         return kind_string
     # Otherwise an error of some sort
     unique_string_prefixes = set(kind_string)
@@ -1056,10 +1066,10 @@ def p_string_literal(s: PyrexScanner, kind_override=None) -> tuple:
     # on the 'kind' of string, only unprefixed strings have both
     # representations. In f-strings, the uvalue is a list of the Unicode
     # strings and f-string expressions that make up the f-string.
-    # s.sy == 'BEGIN_STRING' or s.sy == 'BEGIN_FSTRING'
-    if s.sy == 'BEGIN_FSTRING':
+    # s.sy == 'BEGIN_STRING' or s.sy == 'BEGIN_FT_STRING'
+    if s.sy == 'BEGIN_FT_STRING':
         assert kind_override is None
-        return p_fstring_literal(s)
+        return p_ft_string_literal(s)
     pos = s.position()
     is_python3_source: cython.bint = s.context.language_level >= 3
     has_non_ascii_literal_characters = False
@@ -1127,32 +1137,35 @@ def p_string_literal(s: PyrexScanner, kind_override=None) -> tuple:
 
 
 @cython.cfunc
-def p_read_fstring_expression(s: PyrexScanner):
+def p_read_ft_string_expression(s: PyrexScanner):
     strings = []
     while True:
         s.next()
         sy = s.sy
-        if sy in ["END_FSTRING_EXPR",
+        if sy in ["END_FT_STRING_EXPR",
                     # probably an error, but handle it elsewhere
                    "EOF", None]:
-            if sy == "END_FSTRING_EXPR":
+            if sy == "END_FT_STRING_EXPR":
                 s.next()
             return ''.join(strings)
         strings.append(s.systring)
 
 
 @cython.cfunc
-def p_fstring_replacement_field(s: PyrexScanner,
-                                is_raw: cython.bint, is_single_quoted: cython.bint):
+def p_ft_string_replacement_field(s: PyrexScanner,
+                                is_raw: cython.bint, is_single_quoted: cython.bint,
+                                tf_string_kind: cython.Py_UCS4):
     result = []
     conversion_char = format_spec = expr = None
+    t_string_expression = None
     self_documenting = False
 
     bracket_pos = s.position()
     expr_pos = (bracket_pos[0], bracket_pos[1], bracket_pos[2]+1)
-    expr_string = p_read_fstring_expression(s)
+    expr_string = p_read_ft_string_expression(s)
     if not expr_string.strip():
-        error(bracket_pos, "empty expression not allowed in f-string")
+        error(bracket_pos,
+              f"empty expression not allowed in {tf_string_kind}-string")
         result = []
     else:
         original_scanner = s
@@ -1194,28 +1207,38 @@ def p_fstring_replacement_field(s: PyrexScanner,
             else:
                 s.next()
 
-        if self_documenting:
+        if self_documenting or tf_string_kind == 't':
             if conversion_char is not None:
                 expr_string, _ = expr_string.rsplit('!', 1)
-            result.append(
-                ExprNodes.UnicodeNode(
+            if tf_string_kind == 't':
+                t_string_expression = ExprNodes.UnicodeNode(
                     pos=expr_pos,
-                    value=StringEncoding.EncodedString(expr_string)
+                    value=StringEncoding.EncodedString(expr_string.rstrip().rstrip('=').rstrip())
                 )
-            )
+            if self_documenting:
+                result.append(
+                    ExprNodes.UnicodeNode(
+                        pos=expr_pos,
+                        value=StringEncoding.EncodedString(expr_string)
+                    )
+                )
 
         # Validate that the expression string has actually ended
         while s.sy == "NEWLINE" or s.sy == "DEDENT":
             s.next()
         if s.sy != "EOF":
-            error(s.position(), f"Unexpected characters after f-string expression: {s.systring}")
+            error(
+                s.position(),
+                f"Unexpected characters after {tf_string_kind}-string expression: {s.systring}")
 
         s = original_scanner
 
     if s.sy == ":":
         # full format spec
         pos = s.position()
-        format_spec_contents = p_fstring_middles(s, is_raw, is_single_quoted, True)
+        # Contents of format spec are handled closer to an f-string than a t-string
+        # (even for t-strings).
+        format_spec_contents = p_ft_string_middles(s, is_raw, is_single_quoted, is_format_string=True, tf_string_kind='f')
         format_spec = ExprNodes.JoinedStrNode(
             pos,
             values=format_spec_contents
@@ -1223,16 +1246,25 @@ def p_fstring_replacement_field(s: PyrexScanner,
     if self_documenting and conversion_char is None and format_spec is None:
         conversion_char = 'r'
 
-    result.append(ExprNodes.FormattedValueNode(
-        bracket_pos, value=expr, conversion_char=conversion_char,
-        format_spec=format_spec
-    ))
+    if conversion_char is not None:
+        conversion_char = StringEncoding.EncodedString(conversion_char)
+    if tf_string_kind == 't':
+        result.append(ExprNodes.TStringInterpolationNode(
+            bracket_pos, value=expr, conversion_char=conversion_char,
+            format_spec=format_spec, expression_str=t_string_expression
+        ))
+    else:
+        result.append(ExprNodes.FormattedValueNode(
+            bracket_pos, value=expr, conversion_char=conversion_char,
+            format_spec=format_spec
+        ))
     return result
 
 @cython.cfunc
-def p_fstring_middles(s: PyrexScanner,
-                      is_raw: cython.bint, is_single_quoted: cython.bint,
-                      is_format_string: cython.bint):
+def p_ft_string_middles(s: PyrexScanner,
+                        is_raw: cython.bint, is_single_quoted: cython.bint,
+                        is_format_string: cython.bint,
+                        tf_string_kind: cython.Py_UCS4):
     middles: list = []
     builder = StringEncoding.UnicodeLiteralBuilder()
     pos = s.position()
@@ -1250,12 +1282,13 @@ def p_fstring_middles(s: PyrexScanner,
             middles.append(ExprNodes.UnicodeNode(pos, value=builder.getstring()))
             builder = StringEncoding.UnicodeLiteralBuilder()
         if sy == "{":
-            fields = p_fstring_replacement_field(s, is_raw, is_single_quoted)
+            fields = p_ft_string_replacement_field(
+                s, is_raw, is_single_quoted, tf_string_kind=tf_string_kind)
             middles.extend(fields)
             if not s.sy == '}':
                 s.expected('}')
             continue
-        elif sy == "END_FSTRING":
+        elif sy == "END_FT_STRING":
             break
         elif s.sy == '}':
             if is_format_string:
@@ -1264,22 +1297,23 @@ def p_fstring_middles(s: PyrexScanner,
         else:
             error(
                 s.position(),
-                "Unexpected token %r:%r in f-string literal" % (
-                s.sy, s.systring))
+                "Unexpected token %r:%r in %s-string literal" % (
+                s.sy, s.systring, tf_string_kind))
     return middles
 
 @cython.cfunc
-def p_fstring_literal(s: PyrexScanner):
-    # s.sy == BEGIN_FSTRING
+def p_ft_string_literal(s: PyrexScanner):
+    # s.sy == BEGIN_FT_STRING
     kind_string = _validate_kind_string(s.position(), s.systring)
+    tf_string_kind: cython.Py_UCS4 = 't' if 't' in kind_string else 'f'
     is_raw: cython.bint = 'r' in kind_string
-    quotes = "".join(filter(lambda x: not x.isalnum(), s.systring))
+    quotes = s.systring.lstrip("rRbBuUfFtT")
     is_single_quoted: cython.bint = len(quotes) != 3
-    middles = p_fstring_middles(s, is_raw, is_single_quoted, False)
-    if s.sy != "END_FSTRING":
+    middles = p_ft_string_middles(s, is_raw, is_single_quoted, is_format_string=False, tf_string_kind=tf_string_kind)
+    if s.sy != "END_FT_STRING":
         s.expected(quotes)
     s.next()
-    return 'f', None, middles
+    return tf_string_kind, None, middles
 
 
 @cython.cfunc
