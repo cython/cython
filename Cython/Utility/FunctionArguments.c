@@ -779,15 +779,12 @@ static int __Pyx_MergeKeywords_dict(PyObject *kwdict, PyObject *source_dict) {
 
         __Pyx_BEGIN_CRITICAL_SECTION(smaller_dict);
         while (
-            #if CYTHON_AVOID_BORROWED_REFS
+            #if CYTHON_AVOID_BORROWED_REFS || CYTHON_AVOID_THREAD_UNSAFE_BORROWED_REFS
             __Pyx_PyDict_NextRef(smaller_dict, &ppos, &key, NULL)
             #else
             PyDict_Next(smaller_dict, &ppos, &key, NULL)
             #endif
         ) {
-            #if CYTHON_AVOID_THREAD_UNSAFE_BORROWED_REFS
-            Py_INCREF(key);
-            #endif
             if (unlikely(PyDict_Contains(larger_dict, key))) {
                 __Pyx_RaiseDoubleKeywordsError("function", key);
                 #if CYTHON_AVOID_BORROWED_REFS || CYTHON_AVOID_THREAD_UNSAFE_BORROWED_REFS
