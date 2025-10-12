@@ -261,6 +261,20 @@ static PyObject *__Pyx__Coroutine_GetAwaitableIter(PyObject *obj) {
     } else
 #endif
     {
+#if CYTHON_VECTORCALL && (__PYX_LIMITED_VERSION_HEX >= 0x030C0000 || (!CYTHON_COMPILING_IN_LIMITED_API && PY_VERSION_HEX >= 0x03090000))
+        PyObject *args[] = { obj };
+        res = PyObject_VectorcallMethod(PYIDENT("__await__"), args, 1 |  PY_VECTORCALL_ARGUMENTS_OFFSET, NULL);
+        if (unlikely(!res)) {
+            // We need to distinguish between "doesn't have __await__" vs "__await__ failed"
+            if (PyErr_ExceptionMatches(PyExc_AttributeError)) {
+                PyObject *type, *value, *traceback;
+                PyErr_Fetch(&type, &value, &traceback);
+                int has_attr = PyObject_HasAttr(obj, PYIDENT("__await__"));
+                PyErr_Restore(type, value, traceback);
+                if (!has_attr) goto slot_error;
+            }
+        }
+#else
         PyObject *method = NULL;
         int is_method = __Pyx_PyObject_GetMethod(obj, PYIDENT("__await__"), &method);
         if (likely(is_method)) {
@@ -270,6 +284,7 @@ static PyObject *__Pyx__Coroutine_GetAwaitableIter(PyObject *obj) {
         } else
             goto slot_error;
         Py_DECREF(method);
+#endif
     }
     if (unlikely(!res)) {
         // surprisingly, CPython replaces the exception here...
