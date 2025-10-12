@@ -6,7 +6,6 @@ PYTHON -c "import test_missing_shared_utility"
 ######## setup.py ########
 
 from Cython.Build import cythonize
-from Cython.Compiler import Options
 from setuptools import setup, Extension
 
 extensions = [
