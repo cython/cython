@@ -3423,19 +3423,14 @@ static int __Pyx_PyDict_NextRef(PyObject *p, __PYX_PYDICT_NEXTREF_PPOS *ppos, Py
     if (!*ppos) {
         // Intentionally using lazy iterators instead of PyDict_Items/Keys/Values
         // at the cost of a function call.
-        PyObject *tmp;
         if (pvalue) {
-            if (pkey)
-                tmp = __Pyx_PyDict_Items(p);
-            else
-                tmp = __Pyx_PyDict_Values(p);
-            if (unlikely(!tmp)) goto bad;
+            PyObject *dictview = pkey ? __Pyx_PyDict_Items(p) : __Pyx_PyDict_Values(p);
+            if (unlikely(!dictview)) goto bad;
+            *ppos = PyObject_GetIter(dictview);
+            Py_DECREF(dictview);
         } else {
-            tmp = p;
+            *ppos = PyObject_GetIter(p);
         }
-        
-        *ppos = PyObject_GetIter(tmp);
-        if (pvalue) Py_DECREF(tmp);
         if (unlikely(!*ppos)) goto bad;
     }
     next = PyIter_Next(*ppos);
