@@ -851,7 +851,7 @@ memviewslice_declare_code = load_memview_c_utility("MemviewSliceStruct", context
 copy_contents_new_utility = load_memview_c_utility(
     "MemviewSliceCopyTemplate",
     context=template_context,
-    # Requires general memoryview code - depenency is added below.
+    # Requires general memoryview code - dependency is added below.
 )
 
 
