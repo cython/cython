@@ -15457,9 +15457,8 @@ class TStringInterpolationNode(ExprNode):
 
     def __init__(self, pos, **kwds):
         super().__init__(pos, **kwds)
-        if self.conversion_char is not None:
-            self.conversion_char = StringEncoding.EncodedString(
-                self.conversion_char)
+        assert (self.conversion_char is None or
+                isinstance(self.conversion_char, StringEncoding.EncodedString))
 
     def analyse_declarations(self, env):
         self.value.analyse_declarations(env)
@@ -15484,7 +15483,7 @@ class TStringInterpolationNode(ExprNode):
         expression = self.expression_str.result()
         conversion_char = (
             code.get_py_string_const(self.conversion_char) if self.conversion_char
-            else "__Pyx_NewRef(Py_None)")
+            else "Py_None")
         format_spec = (
             self.format_spec.result() if self.format_spec is not None
             else code.name_in_module_state(Naming.empty_unicode))
@@ -15538,10 +15537,10 @@ class TemplateStringNode(ExprNode):
     def analyse_types(self, env):
         # convert both strings and interpolations into a tuple
         self.strings = TupleNode(
-            self.pos, args=[s.analyse_types(env) for s in self.strings]
+            self.pos, args=self.strings
         ).analyse_types(env)
         self.interpolations = TupleNode(
-            self.pos, args=[i.analyse_types(env) for i in self.interpolations]
+            self.pos, args=self.interpolations
         ).analyse_types(env)
         return self
 
