@@ -6,8 +6,8 @@ from .. import Utils
 from .Code import UtilityCode, TempitaUtilityCode
 from .UtilityCode import CythonUtilityCode, CythonSharedUtilityCode
 from . import Buffer
+from . import Naming
 from . import PyrexTypes
-from . import ModuleNode
 
 START_ERR = "Start must not be given."
 STOP_ERR = "Axis specification only allowed in the 'step' slot."
@@ -27,7 +27,6 @@ memview_c_contiguous = "(PyBUF_C_CONTIGUOUS | PyBUF_FORMAT)"
 memview_f_contiguous = "(PyBUF_F_CONTIGUOUS | PyBUF_FORMAT)"
 memview_any_contiguous = "(PyBUF_ANY_CONTIGUOUS | PyBUF_FORMAT)"
 memview_full_access = "PyBUF_FULL_RO"
-#memview_strided_access = "PyBUF_STRIDED_RO"
 memview_strided_access = "PyBUF_RECORDS_RO"
 
 MEMVIEW_DIRECT = '__Pyx_MEMVIEW_DIRECT'
@@ -54,13 +53,6 @@ _spec_to_abbrev = {
     'strided' : 's',
     'follow'  : '_',
 }
-
-memslice_entry_init = "{ 0, 0, { 0 }, { 0 }, { 0 } }"
-
-memview_name = 'memoryview'
-memview_typeptr_cname = '__pyx_memoryview_type'
-memview_objstruct_cname = '__pyx_memoryview_obj'
-memviewslice_cname = '__Pyx_memviewslice'
 
 
 def put_init_entry(mv_cname, code):
@@ -817,9 +809,9 @@ def use_cython_array_utility_code(env):
     cython_scope.viewscope.lookup('array_cwrapper').used = True
 
 template_context = {
-    'memview_struct_name': memview_objstruct_cname,
+    'memview_struct_name': Naming.memview_objstruct_cname,
     'max_dims': Options.buffer_max_dims,
-    'memviewslice_name': memviewslice_cname,
+    'memviewslice_name': Naming.memviewslice_cname,
     'memslice_init': PyrexTypes.MemoryViewSliceType.default_value,
     'THREAD_LOCKS_PREALLOCATED': 8,
 }
