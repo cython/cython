@@ -502,6 +502,7 @@
               Py_DECREF(pyvalue);                                                         \
           }                                                                               \
       }                                                                                   \
+      if ((1)); else goto_error;                                                          \
   }
 
   #define __Pyx_TraceExceptionUnwind(offset, nogil) \
