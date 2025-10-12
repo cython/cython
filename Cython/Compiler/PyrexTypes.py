@@ -1000,11 +1000,11 @@ class MemoryViewSliceType(PyrexType):
         # We don't have 'code', so use a LazyUtilityCode with a callback.
         def lazy_utility_callback(code):
             context['dtype_typeinfo'] = Buffer.get_type_information_cname(code, self.dtype)
-            utility_code = TempitaUtilityCode.load(
+            return TempitaUtilityCode.load(
                 "ObjectToMemviewSlice", "MemoryView_C.c", context=context)
-            return utility_code
 
-        env.use_utility_code(MemoryView.get_view_utility_code(env.context.shared_utility_qualified_name))
+        env.use_utility_code(
+            MemoryView.get_view_utility_code(env.context.shared_utility_qualified_name))
         env.use_utility_code(LazyUtilityCode(lazy_utility_callback))
 
         if self.is_c_contig:
