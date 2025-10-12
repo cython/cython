@@ -219,14 +219,20 @@ static void __Pyx_RejectKeywords(const char* function_name, PyObject *kwds) {
     if (CYTHON_METH_FASTCALL && likely(PyTuple_Check(kwds))) {
         key = __Pyx_PySequence_ITEM(kwds, 0);
     } else {
-        __PYX_PYDICT_NEXTREF_PPOS pos = 0;
+#if CYTHON_AVOID_BORROWED_REFS
+        PyObject *pos = NULL;
+#else
+        Py_ssize_t pos = 0;
+#endif
 #if !CYTHON_COMPILING_IN_PYPY || defined(PyArg_ValidateKeywordArguments)
         // Check if dict is unicode-keys-only and let Python set the error otherwise.
         if (unlikely(!PyArg_ValidateKeywordArguments(kwds))) return;
 #endif
         // Read first key.
         __Pyx_PyDict_NextRef(kwds, &pos, &key, NULL);
-        __PYX_XDECREF_PYDICT_NEXTREF_PPOS(pos);
+#if CYTHON_AVOID_BORROWED_REFS
+        Py_XDECREF(pos);
+#endif
     }
 
     if (likely(key)) {

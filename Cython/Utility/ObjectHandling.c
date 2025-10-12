@@ -2587,7 +2587,11 @@ static PyObject *__Pyx_PyVectorcall_FastCallDict_kw(PyObject *func, __pyx_vector
     PyObject **newargs;
     PyObject **kwvalues;
     Py_ssize_t i;
-    __PYX_PYDICT_NEXTREF_PPOS pos;
+    #if CYTHON_AVOID_BORROWED_REFS
+    PyObject *pos;
+    #else
+    Py_ssize_t pos;
+    #endif
     size_t j;
     PyObject *key, *value;
     unsigned long keys_are_strings;
@@ -2640,6 +2644,9 @@ static PyObject *__Pyx_PyVectorcall_FastCallDict_kw(PyObject *func, __pyx_vector
     res = vc(func, newargs, nargs, kwnames);
 
 cleanup:
+    #if CYTHON_AVOID_BORROWED_REFS
+    Py_DECREF(pos);
+    #endif
     Py_DECREF(kwnames);
     for (i = 0; i < nkw; i++)
         Py_DECREF(kwvalues[i]);
@@ -3189,28 +3196,22 @@ static PyObject *__Pyx_PyList_Pack(Py_ssize_t n, ...) {
 
 //////////////////////// OwnedDictNext.proto ///////////////////////////////
 
-#if CYTHON_AVOID_BORROWED_REFS
-#define __PYX_PYDICT_NEXTREF_PPOS PyObject*
-#define __PYX_XDECREF_PYDICT_NEXTREF_PPOS(ppos) Py_XDECREF(ppos)
-#else
-#define __PYX_PYDICT_NEXTREF_PPOS Py_ssize_t
-#define __PYX_XDECREF_PYDICT_NEXTREF_PPOS(ppos)
-#endif
-
 // Like PyDict_Next but pkey and pvalue are new references (and thus must be decrefed).
 // pkey and pvalue may be NULL but this must be the same for all subsequent calls.
 // If it encounters an exception it prints it as unraisable and stops.
-#if !CYTHON_AVOID_BORROWED_REFS
-CYTHON_INLINE
+#if CYTHON_AVOID_BORROWED_REFS
+static int __Pyx_PyDict_NextRef(PyObject *p, PyObject **ppos, PyObject **pkey, PyObject **pvalue); /* proto */
+#else
+CYTHON_INLINE static int __Pyx_PyDict_NextRef(PyObject *p, Py_ssize_t *ppos, PyObject **pkey, PyObject **pvalue); /* proto */
 #endif
-static int __Pyx_PyDict_NextRef(PyObject *p, __PYX_PYDICT_NEXTREF_PPOS *ppos, PyObject **pkey, PyObject **pvalue); /* proto */
+    
 
 //////////////////////// OwnedDictNext //////////////////////////////////////
 //@requires: Builtins.c::py_dict_values
 //@requires: Builtins.c::py_dict_items
 
-static int __Pyx_PyDict_NextRef(PyObject *p, __PYX_PYDICT_NEXTREF_PPOS *ppos, PyObject **pkey, PyObject **pvalue) {
 #if CYTHON_AVOID_BORROWED_REFS
+static int __Pyx_PyDict_NextRef(PyObject *p, PyObject **ppos, PyObject **pkey, PyObject **pvalue) {
     PyObject *next = NULL;
     if (!*ppos) {
         // Intentionally using lazy iterators instead of PyDict_Items/Keys/Values
@@ -3255,12 +3256,15 @@ static int __Pyx_PyDict_NextRef(PyObject *p, __PYX_PYDICT_NEXTREF_PPOS *ppos, Py
     if (pkey) *pkey = NULL;
     if (pvalue) *pvalue = NULL;
     return 0;
-#else
+}
+
+#else // !CYTHON_AVOID_BORROWED_REFS
+static int __Pyx_PyDict_NextRef(PyObject *p, Py_ssize_t *ppos, PyObject **pkey, PyObject **pvalue) {
     int result = PyDict_Next(p, ppos, pkey, pvalue);
     if (likely(result == 1)) {
         if (pkey) Py_INCREF(*pkey);
         if (pvalue) Py_INCREF(*pvalue);
     }
     return result;
-#endif
 }
+#endif
