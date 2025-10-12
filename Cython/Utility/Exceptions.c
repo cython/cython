@@ -787,19 +787,17 @@ static int __Pyx_CLineForTraceback(PyThreadState *tstate, int c_line);/*proto*/
 #if CYTHON_COMPILING_IN_LIMITED_API && __PYX_LIMITED_VERSION_HEX < 0x030A0000
 // On earlier version of the Limited API we're less flexible and assume it's
 // definitely a module. Which will break some odd user monkey-patching...
-#define __Pyx_PyProbablyModule_GetDict(o) PyModule_GetDict(o)
-#define __Pyx_PyProbablyModule_XDecrefDict(o)
-#elif !CYTHON_COMPILING_IN_CPYTHON
+#define __Pyx_PyProbablyModule_GetDict(o) __Pyx_XNewRef(PyModule_GetDict(o))
+#elif !CYTHON_COMPILING_IN_CPYTHON || CYTHON_COMPILING_IN_CPYTHON_FREETHREADING
+// On freethreading, use PyObject_GenericGetDict to avoid having to think too hard
+// about atomics and _PyObject_GetDictPtr.
 #define __Pyx_PyProbablyModule_GetDict(o) PyObject_GenericGetDict(o, NULL);
-#define __Pyx_PyProbablyModule_XDecrefDict(o) Py_XDECREF(o)
 #else
 PyObject* __Pyx_PyProbablyModule_GetDict(PyObject *o) {
     PyObject **dict_ptr = _PyObject_GetDictPtr(o);
-    return dict_ptr ? *dict_ptr : NULL;
+    return dict_ptr ? __Pyx_XNewRef(*dict_ptr) : NULL;
 }
-#define __Pyx_PyProbablyModule_XDecrefDict(o)
 #endif
-
 
 
 static int __Pyx_CLineForTraceback(PyThreadState *tstate, int c_line) {
@@ -826,7 +824,7 @@ static int __Pyx_CLineForTraceback(PyThreadState *tstate, int c_line) {
         c_line = 0;
     }
     Py_XDECREF(use_cline);
-    __Pyx_PyProbablyModule_XDecrefDict(cython_runtime_dict);
+    Py_XDECREF(cython_runtime_dict);
     __Pyx_ErrRestoreInState(tstate, ptype, pvalue, ptraceback);
     return c_line;
 }
