@@ -80,8 +80,8 @@ cdef class FunctionState:
 
 @cython.final
 cdef class PyObjectConst:
-    cdef public object cname
-    cdef public object type
+    cdef readonly object cname
+    cdef readonly object type
 
 
 @cython.final
@@ -90,15 +90,15 @@ cdef class StringConst:
     cdef readonly object text
     cdef readonly object escaped_value
     cdef readonly dict py_strings
-    cdef readonly bint c_used
+    cdef public bint c_used
 
     cpdef get_py_string_const(self, encoding, identifier=*)
 
 
 @cython.final
 cdef class PyStringConst:
-    cdef public object cname
-    cdef public object encoding
+    cdef readonly object cname
+    cdef readonly object encoding
     cdef readonly bint is_unicode
     cdef readonly bint intern
 
@@ -134,8 +134,8 @@ cdef class CCodeWriter(object):
 
 
 cdef class PyrexCodeWriter:
-    cdef public object f
-    cdef public Py_ssize_t level
+    cdef readonly object f
+    cdef readonly Py_ssize_t level
 
 
 cdef class PyxCodeWriter:
