@@ -401,13 +401,17 @@ jobs:
                 COMMITS=("origin/3.0.x"  "3a7a936e099df468dcaa01829ae6567c577489c0"  "${LIMITED_API}" "origin/master"  "${LIMITED_API}" "HEAD")
                 CYTHONIZE_ARGS=
               fi
-              ${PYTHON} Demos/benchmarks/run_benchmarks.py  --show-size --report benchmark_results_${PYTHON}.csv --with-python  ${CYTHONIZE_ARGS} ${COMMITS[*]}
+              ${PYTHON} Demos/benchmarks/run_benchmarks.py  --report-size benchmark_sizes_${PYTHON}.csv --report benchmark_results_${PYTHON}.csv --with-python  ${CYTHONIZE_ARGS} ${COMMITS[*]}
               LIMITED_API=
           done | tee benchmarks.log
 
       - name: Create summary
         run: |
-          { echo "## Benchmark results:"; echo; python Demos/benchmarks/report.py benchmark_results_*.csv; } >> $GITHUB_STEP_SUMMARY
+          { echo "## Benchmark results:";
+            echo; python Demos/benchmarks/report.py -t timings benchmark_results_*.csv;
+            echo; echo "## Benchmark module sizes:";
+            echo; python Demos/benchmarks/report.py -t sizes benchmark_sizes_*.csv;
+          } >> $GITHUB_STEP_SUMMARY
 
       - name: Upload results
         uses: actions/upload-artifact@v4.6.2
