@@ -392,12 +392,12 @@ static CYTHON_INLINE void __Pyx_XCLEAR_MEMVIEW($memviewslice_cname *, int, int);
 // vsnprintf
 #include <stdio.h>
 
-#ifndef Py_NO_RETURN
-// available since CPython 3.3
-#define Py_NO_RETURN
+#ifndef _Py_NO_RETURN
+// It's non-public and just a hint, so allow it to be missing.
+#define _Py_NO_RETURN
 #endif
 
-static void __pyx_fatalerror(const char *fmt, ...) Py_NO_RETURN {
+static void __pyx_fatalerror(const char *fmt, ...) _Py_NO_RETURN {
     va_list vargs;
     char msg[200];
 
