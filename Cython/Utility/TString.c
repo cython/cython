@@ -83,7 +83,7 @@ class Template:
             strings.append(last_string)
         else:
             if args:
-                raise ValueError('\\'strings\\' or \\'interpolations\\' should not be passed with positional arguments')
+                raise ValueError("'strings' or 'interpolations' should not be passed with positional arguments")
             if strings is None: strings = ()
             if interpolations is None: interpolations = ()
         obj = super().__new__(cls)

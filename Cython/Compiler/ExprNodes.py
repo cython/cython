@@ -15479,9 +15479,7 @@ class TStringInterpolationNode(ExprNode):
 
     def generate_result_code(self, code):
         code.globalstate.use_utility_code(
-            UtilityCode.load_cached(
-                "MakeTemplateLibInterpolation", "TString.c"
-            ))
+            UtilityCode.load_cached("MakeTemplateLibInterpolation", "TString.c"))
         value = self.value.result()
         expression = self.expression_str.result()
         conversion_char = (
@@ -15527,11 +15525,8 @@ class TemplateStringNode(ExprNode):
             else:
                 assert False, type(v)
         if last_string_node is None:
-            strings.append(
-                UnicodeNode(pos, value=StringEncoding.EncodedString(""))
-            )
-        else:
-            strings.append(last_string_node)
+            last_string_node = UnicodeNode(pos, value=StringEncoding.EncodedString(""))
+        strings.append(last_string_node)
         super().__init__(pos, strings=strings, interpolations=interpolations)
 
     def analyse_declarations(self, env):
@@ -15552,9 +15547,7 @@ class TemplateStringNode(ExprNode):
 
     def generate_result_code(self, code):
         code.globalstate.use_utility_code(
-            UtilityCode.load_cached(
-                "MakeTemplateLibTemplate", "TString.c"
-            ))
+            UtilityCode.load_cached("MakeTemplateLibTemplate", "TString.c"))
         strings = self.strings.result()
         interpolations = self.interpolations.result()
         code.putln(f"{self.result()} = __Pyx_MakeTemplateLibTemplate({strings}, {interpolations});")
