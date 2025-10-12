@@ -13,7 +13,7 @@ if (likely(__Pyx_init_assertions_enabled() == 0)); else
 
 /////////////// AssertionsEnabled.proto ///////////////
 
-#if CYTHON_COMPILING_IN_LIMITED_API  ||  (CYTHON_COMPILING_IN_CPYTHON && PY_VERSION_HEX >= 0x030C0000)
+#if CYTHON_COMPILING_IN_LIMITED_API  ||  PY_VERSION_HEX >= 0x030C0000
   // Py_OptimizeFlag is deprecated in Py3.12+ and not available in the Limited API.
   static int __pyx_assertions_enabled_flag;
   #define __pyx_assertions_enabled() (__pyx_assertions_enabled_flag)

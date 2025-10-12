@@ -1605,6 +1605,12 @@ class GlobalState:
         w.exit_cfunc_scope()
 
         w = self.parts['cached_constants']
+        for const_type in ["tuple", "slice"]:
+            if const_type in self.const_array_counters:
+                self.immortalize_constants(
+                    w.name_in_module_state(Naming.pyrex_prefix + const_type),
+                    self.const_array_counters[const_type],
+                    w)
         w.put_finish_refcount_context()
         w.putln("return 0;")
         if w.label_used(w.error_label):
@@ -2096,6 +2102,8 @@ class GlobalState:
         w.putln('}')
         w.putln('}')
 
+        self.immortalize_constants("stringtab", len(index), w)
+
         w.putln("}")  # close block
 
     def generate_codeobject_constants(self):
@@ -2307,6 +2315,26 @@ class GlobalState:
 
             w.putln("}")
 
+        self.immortalize_constants(
+            w.name_in_main_c_code_module_state(Naming.numbertab_cname),
+            constant_count,
+            w)
+
+    @staticmethod
+    def immortalize_constants(array_cname, constant_count, writer):
+        writer.putln("#if CYTHON_IMMORTAL_CONSTANTS")
+        writer.putln("{")
+        writer.putln(f"PyObject **table = {array_cname};")
+        writer.putln(f"for (Py_ssize_t i=0; i<{constant_count}; ++i) {{")
+        writer.putln("#if CYTHON_COMPILING_IN_CPYTHON_FREETHREADING")
+        writer.putln("Py_SET_REFCNT(table[i], _Py_IMMORTAL_REFCNT_LOCAL);")
+        writer.putln("#else")
+        writer.putln("Py_SET_REFCNT(table[i], _Py_IMMORTAL_INITIAL_REFCNT);")
+        writer.putln("#endif")
+        writer.putln("}")  # for()
+        writer.putln("}")
+        writer.putln("#endif")
+
     # The functions below are there in a transition phase only
     # and will be deprecated. They are called from Nodes.BlockNode.
     # The copy&paste duplication is intentional in order to be able
@@ -2341,18 +2369,15 @@ class GlobalState:
             return self.input_file_contents[source_desc]
         except KeyError:
             pass
-        source_file = source_desc.get_lines(encoding='ASCII',
-                                            error_handling='ignore')
-        try:
-            F = [' * ' + line.rstrip().replace(
+        source_file = source_desc.get_lines(encoding='ASCII', error_handling='ignore')
+        F = [' * ' + (
+                line.replace(
                     '*/', '*[inserted by cython to avoid comment closer]/'
-                    ).replace(
+                ).replace(
                     '/*', '/[inserted by cython to avoid comment start]*'
-                    )
-                 for line in source_file]
-        finally:
-            if hasattr(source_file, 'close'):
-                source_file.close()
+                ) if '/' in line else line)
+            for line in source_file
+        ]
         if not F: F.append('')
         self.input_file_contents[source_desc] = F
         return F
@@ -3028,6 +3053,17 @@ class CCodeWriter:
         for entry in entries:
             self.put_var_xdecref_clear(entry)
 
+    def put_make_object_deferred(self, cname):
+        # Deferred reference counting is probably only worthwhile on global classes
+        # that we expect to be long-term accessible.  So for now exclude it if not
+        # at class or module scope.
+        if (self.funcstate.scope.is_module_scope or
+                self.funcstate.scope.is_c_class_scope or
+                self.funcstate.scope.is_py_class_scope):
+            self.putln("#if CYTHON_COMPILING_IN_CPYTHON && PY_VERSION_HEX >= 0x030E0000")
+            self.putln(f"PyUnstable_Object_EnableDeferredRefcount({cname});")
+            self.putln("#endif")
+
     def put_init_to_py_none(self, cname, type, nanny=True):
         from .PyrexTypes import py_object_type, typecast
         py_none = typecast(type, py_object_type, "Py_None")
@@ -3205,7 +3241,7 @@ class CCodeWriter:
     def put_error_if_neg(self, pos, value):
         # TODO this path is almost _never_ taken, yet this macro makes is slower!
         # return self.putln("if (unlikely(%s < 0)) %s" % (value, self.error_goto(pos)))
-        return self.putln("if (%s < 0) %s" % (value, self.error_goto(pos)))
+        return self.putln("if (%s < (0)) %s" % (value, self.error_goto(pos)))
 
     def put_error_if_unbound(self, pos, entry, in_nogil_context=False, unbound_check_code=None):
         nogil_tag = "Nogil" if in_nogil_context else ""

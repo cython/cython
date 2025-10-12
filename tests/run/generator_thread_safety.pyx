@@ -54,7 +54,7 @@ def test_simple_generator(n_threads, n_loops):
 
     g = gen()
 
-    threads = [ 
+    threads = [
         threading.Thread(
             target=make_thread_func(
                 barrier=barrier,
@@ -99,7 +99,7 @@ def test_yield_from_generator(n_threads, n_loops):
 
     g = gen2(gen())
 
-    threads = [ 
+    threads = [
         threading.Thread(
             target=make_thread_func(
                 barrier=barrier,
@@ -147,7 +147,7 @@ def test_value_into_generator(n_threads, n_loops):
         out = g.send("hello")
         assert isinstance(out, int), out
 
-    threads = [ 
+    threads = [
         threading.Thread(
             target=make_thread_func(
                 barrier=barrier,
@@ -207,10 +207,10 @@ def test_throw_into_generator(n_threads, n_loops):
             if not done.is_set():
                 raise
             # For an exhausted generator the correct behaviour is to rethrow
-            # the error that was passed to it, so swallow the exception in this case. 
+            # the error that was passed to it, so swallow the exception in this case.
             pass
 
-    threads = [ 
+    threads = [
         threading.Thread(
             target=make_thread_func(
                 barrier=barrier,
