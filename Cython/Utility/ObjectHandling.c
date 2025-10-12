@@ -3209,9 +3209,6 @@ static int __Pyx_PyDict_NextRef(PyObject *p, __PYX_PYDICT_NEXTREF_PPOS *ppos, Py
 //@requires: Builtins.c::py_dict_values
 //@requires: Builtins.c::py_dict_items
 
-#if !CYTHON_AVOID_BORROWED_REFS
-CYTHON_INLINE
-#endif
 static int __Pyx_PyDict_NextRef(PyObject *p, __PYX_PYDICT_NEXTREF_PPOS *ppos, PyObject **pkey, PyObject **pvalue) {
 #if CYTHON_AVOID_BORROWED_REFS
     PyObject *next = NULL;
@@ -3267,18 +3264,3 @@ static int __Pyx_PyDict_NextRef(PyObject *p, __PYX_PYDICT_NEXTREF_PPOS *ppos, Py
     return result;
 #endif
 }
-
-//////////////////////// AvoidBorrowedDictNext.proto ///////////////////////////////
-//@requires: OwnedDictNext
-
-// This returns an owned ref for keys and values if CYTHON_AVOID_BORROWED_REFS,
-// otherwise a borrowed ref.
-#if CYTHON_AVOID_BORROWED_REFS
-#define __PYX_PYDICT_NEXTREFIFAVOIDBORROWED_PPOS PyObject*
-#define __PYX_XDECREF_PYDICT_NEXTREFIFAVOIDBORROWED_PPOS(o) __PYX_XDECREF_PYDICT_NEXTREF_PPOS(o)
-#define __Pyx_PyDict_NextRefIfAvoidBorrowed __Pyx_PyDict_NextRef
-#else
-#define __PYX_PYDICT_NEXTREFIFAVOIDBORROWED_PPOS Py_ssize_t
-#define __PYX_XDECREF_PYDICT_NEXTREFIFAVOIDBORROWED_PPOS(o)
-#define __Pyx_PyDict_NextRefIfAvoidBorrowed PyDict_Next
-#endif
