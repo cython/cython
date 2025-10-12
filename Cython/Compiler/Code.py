@@ -712,7 +712,7 @@ class UtilityCode(UtilityCodeBase):
     def __hash__(self):
         return hash(self._parts_tuple)
 
-    def __eq__(self, other: "UtilityCode"):
+    def __eq__(self, other):
         if self is other:
             return True
         self_type, other_type = type(self), type(other)

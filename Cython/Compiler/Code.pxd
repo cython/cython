@@ -24,7 +24,7 @@ cdef class UtilityCode(UtilityCodeBase):
     cdef dict _cache
     cdef list specialize_list
     cdef public object file
-    cdef tuple _parts_tuple
+    cdef readonly tuple _parts_tuple
 
     cpdef none_or_sub(self, s, context)
     # TODO - Signature not compatible with previous declaration
