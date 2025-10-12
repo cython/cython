@@ -86,11 +86,11 @@ cdef class PyObjectConst:
 
 @cython.final
 cdef class StringConst:
-    cdef public object cname
-    cdef public object text
-    cdef public object escaped_value
-    cdef public dict py_strings
-    cdef public bint c_used
+    cdef readonly object cname
+    cdef readonly object text
+    cdef readonly object escaped_value
+    cdef readonly dict py_strings
+    cdef readonly bint c_used
 
     cpdef get_py_string_const(self, encoding, identifier=*)
 
