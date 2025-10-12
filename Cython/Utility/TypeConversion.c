@@ -177,6 +177,8 @@ static CYTHON_INLINE Py_hash_t __Pyx_PyIndex_AsHash_t(PyObject*);
   typedef digit  __Pyx_compact_upylong;
   #endif
 
+  static CYTHON_INLINE int __Pyx_PyLong_CompactAsLong(PyObject *x, long *return_value); /*proto*/
+
   #if PY_VERSION_HEX >= 0x030C00A5
   #define __Pyx_PyLong_Digits(x)  (((PyLongObject*)x)->long_value.ob_digit)
   #else
@@ -433,6 +435,21 @@ static CYTHON_INLINE PyObject * __Pyx_PyBool_FromLong(long b) {
 static CYTHON_INLINE PyObject * __Pyx_PyLong_FromSize_t(size_t ival) {
     return PyLong_FromSize_t(ival);
 }
+
+#if CYTHON_USE_PYLONG_INTERNALS
+static CYTHON_INLINE int __Pyx_PyLong_CompactAsLong(PyObject *x, long *return_value) {
+    // Safely convert a compact (Py_ssize_t, usually max. 30 bits) PyLong into a C long.
+    if (unlikely(!__Pyx_PyLong_IsCompact(x)))
+        return 0;
+
+    Py_ssize_t value = __Pyx_PyLong_CompactValue(x);
+    if ((sizeof(long) < sizeof(Py_ssize_t)) && unlikely(value != (long) value))
+        return 0;
+
+    *return_value = (long) value;
+    return 1;
+}
+#endif
 
 
 /////////////// pybuiltin_invalid ///////////////
@@ -829,7 +846,7 @@ static CYTHON_INLINE PyObject* {{TO_PY_FUNCTION}}({{TYPE}} value) {
             return PyLong_FromLong((long) value);
         } else if (sizeof({{TYPE}}) <= sizeof(unsigned long)) {
             return PyLong_FromUnsignedLong((unsigned long) value);
-#if defined(HAVE_LONG_LONG) && !CYTHON_COMPILING_IN_PYPY
+#if !CYTHON_COMPILING_IN_PYPY
         // PyLong_FromUnsignedLongLong() does not necessarily accept ULL arguments in PyPy.
         // See https://github.com/cython/cython/issues/6890
         } else if (sizeof({{TYPE}}) <= sizeof(unsigned PY_LONG_LONG)) {
@@ -839,10 +856,8 @@ static CYTHON_INLINE PyObject* {{TO_PY_FUNCTION}}({{TYPE}} value) {
     } else {
         if (sizeof({{TYPE}}) <= sizeof(long)) {
             return PyLong_FromLong((long) value);
-#ifdef HAVE_LONG_LONG
         } else if (sizeof({{TYPE}}) <= sizeof(PY_LONG_LONG)) {
             return PyLong_FromLongLong((PY_LONG_LONG) value);
-#endif
         }
     }
     {
@@ -1217,10 +1232,8 @@ static CYTHON_INLINE {{TYPE}} {{FROM_PY_FUNCTION}}(PyObject *x) {
 #endif
         if ((sizeof({{TYPE}}) <= sizeof(unsigned long))) {
             __PYX_VERIFY_RETURN_INT_EXC({{TYPE}}, unsigned long, PyLong_AsUnsignedLong(x))
-#ifdef HAVE_LONG_LONG
         } else if ((sizeof({{TYPE}}) <= sizeof(unsigned PY_LONG_LONG))) {
             __PYX_VERIFY_RETURN_INT_EXC({{TYPE}}, unsigned PY_LONG_LONG, PyLong_AsUnsignedLongLong(x))
-#endif
         }
 
     } else {
@@ -1250,10 +1263,8 @@ static CYTHON_INLINE {{TYPE}} {{FROM_PY_FUNCTION}}(PyObject *x) {
 #endif
         if ((sizeof({{TYPE}}) <= sizeof(long))) {
             __PYX_VERIFY_RETURN_INT_EXC({{TYPE}}, long, PyLong_AsLong(x))
-#ifdef HAVE_LONG_LONG
         } else if ((sizeof({{TYPE}}) <= sizeof(PY_LONG_LONG))) {
             __PYX_VERIFY_RETURN_INT_EXC({{TYPE}}, PY_LONG_LONG, PyLong_AsLongLong(x))
-#endif
         }
     }
 

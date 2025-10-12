@@ -32,9 +32,8 @@ main(int argc, char *argv[])
        If this step fails, it will be a fatal error. */
     Py_Initialize();
 
-    /* Optionally import the module; alternatively,
-       import can be deferred until the embedded script
-       imports it. */
+    /* You must import the module before calling any
+       function in the module. */
     pmodule = PyImport_ImportModule("embedded");
     if (!pmodule) {
         PyErr_Print();
