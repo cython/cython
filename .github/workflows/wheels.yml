@@ -76,7 +76,9 @@ jobs:
               && cibuildwheel --print-build-identifiers --platform macos \
               | jq -nRc '{"only": inputs, "os": "macos-latest"}' \
               && cibuildwheel --print-build-identifiers --platform windows \
-              | jq -nRc '{"only": inputs, "os": "windows-2022"}'
+              | jq -nRc '{"only": inputs, "os": "windows-2022"} \
+              && cibuildwheel --print-build-identifiers --platform windows \
+              | jq -nRc '{"only": inputs, "os": "windows-11-arm"}'
             } | jq -sc
           )
           echo "$MATRIX"
