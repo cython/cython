@@ -397,7 +397,8 @@ static CYTHON_INLINE void __Pyx_XCLEAR_MEMVIEW($memviewslice_cname *, int, int);
 #define _Py_NO_RETURN
 #endif
 
-static void __pyx_fatalerror(const char *fmt, ...) _Py_NO_RETURN {
+_Py_NO_RETURN
+static void __pyx_fatalerror(const char *fmt, ...) {
     va_list vargs;
     char msg[200];
 
