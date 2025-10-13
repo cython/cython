@@ -2965,7 +2965,7 @@ class CCodeWriter:
         self.putln(";")
         self.funcstate.scope.use_entry_utility_code(entry)
 
-    def put_temp_declarations(self, func_context):
+    def put_temp_declarations(self, func_context: FunctionState):
         for name, type, manage_ref, static in func_context.temps_allocated:
             if type.is_cpp_class and not type.is_fake_reference and func_context.scope.directives['cpp_locals']:
                 decl = type.cpp_optional_declaration_code(name)

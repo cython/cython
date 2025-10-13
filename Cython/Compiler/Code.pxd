@@ -17,15 +17,15 @@ cdef class UtilityCode(UtilityCodeBase):
     cdef public object impl
     cdef public object init
     cdef public object cleanup
-    cdef public object proto_block
-    cdef public object module_state_decls
-    cdef public object module_state_traverse
-    cdef public object module_state_clear
+    cdef object proto_block
+    cdef readonly object module_state_decls
+    cdef readonly object module_state_traverse
+    cdef readonly object module_state_clear
     cdef public object requires
-    cdef public dict _cache
-    cdef public list specialize_list
+    cdef dict _cache
+    cdef list specialize_list
     cdef public object file
-    cdef public tuple _parts_tuple
+    cdef readonly tuple _parts_tuple
     cdef list shared_utility_functions
 
     cpdef none_or_sub(self, s, context)
@@ -36,7 +36,7 @@ cdef class UtilityCode(UtilityCodeBase):
 
 @cython.final
 cdef class FunctionState:
-    cdef public set names_taken
+    cdef set names_taken
     cdef public object owner
     cdef public object scope
 
@@ -46,7 +46,7 @@ cdef class FunctionState:
     cdef public object return_label
     cdef public object continue_label
     cdef public object break_label
-    cdef public list yield_labels
+    cdef readonly list yield_labels
 
     cdef public object return_from_error_cleanup_label # not used in __init__ ?
 
@@ -55,15 +55,15 @@ cdef class FunctionState:
     cdef public bint can_trace
     cdef public bint gil_owned
 
-    cdef public list temps_allocated
-    cdef public dict temps_free
-    cdef public dict temps_used_type
-    cdef public set zombie_temps
-    cdef public size_t temp_counter
-    cdef public list collect_temps_stack
+    cdef list temps_allocated
+    cdef dict temps_free
+    cdef dict temps_used_type
+    cdef set zombie_temps
+    cdef size_t temp_counter
+    cdef list collect_temps_stack
 
-    cdef public object closure_temps
-    cdef public bint should_declare_error_indicator
+    cdef readonly object closure_temps
+    cdef bint should_declare_error_indicator
     cdef public bint uses_error_indicator
     cdef public bint error_without_exception
 
@@ -82,16 +82,16 @@ cdef class FunctionState:
 
 @cython.final
 cdef class PyObjectConst:
-    cdef public object cname
-    cdef public object type
+    cdef readonly object cname
+    cdef readonly object type
 
 
 @cython.final
 cdef class StringConst:
-    cdef public object cname
-    cdef public object text
-    cdef public object escaped_value
-    cdef public dict py_strings
+    cdef readonly object cname
+    cdef readonly object text
+    cdef readonly object escaped_value
+    cdef readonly dict py_strings
     cdef public bint c_used
 
     cpdef get_py_string_const(self, encoding, identifier=*)
@@ -99,10 +99,10 @@ cdef class StringConst:
 
 @cython.final
 cdef class PyStringConst:
-    cdef public object cname
-    cdef public object encoding
-    cdef public bint is_unicode
-    cdef public bint intern
+    cdef readonly object cname
+    cdef readonly object encoding
+    cdef readonly bint is_unicode
+    cdef readonly bint intern
 
 
 #class GlobalState(object):
@@ -113,7 +113,7 @@ cdef class CCodeWriter(object):
     cdef readonly StringIOTree buffer
     cdef readonly list pyclass_stack
     cdef readonly object globalstate
-    cdef readonly object funcstate
+    cdef readonly FunctionState funcstate
     cdef object code_config
     cdef tuple last_pos
     cdef tuple last_marked_pos
@@ -136,8 +136,8 @@ cdef class CCodeWriter(object):
 
 
 cdef class PyrexCodeWriter:
-    cdef public object f
-    cdef public Py_ssize_t level
+    cdef readonly object f
+    cdef readonly Py_ssize_t level
 
 
 cdef class PyxCodeWriter:

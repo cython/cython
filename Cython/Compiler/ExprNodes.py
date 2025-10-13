@@ -15449,3 +15449,108 @@ class FirstArgumentForCriticalSectionNode(ExprNode):
         if self.name_node:
             return self.name_node.analyse_expressions(env)
         return self  # error earlier
+
+
+class TStringInterpolationNode(ExprNode):
+    # conversion_char   str
+    subexprs = ['value', 'format_spec', 'expression_str']
+    is_temp = True
+    type = py_object_type
+
+    def __init__(self, pos, **kwds):
+        super().__init__(pos, **kwds)
+        assert (self.conversion_char is None or
+                isinstance(self.conversion_char, StringEncoding.EncodedString))
+
+    def analyse_declarations(self, env):
+        self.value.analyse_declarations(env)
+        if self.format_spec is not None:
+            self.format_spec.analyse_declarations(env)
+        self.expression_str.analyse_declarations(env)
+
+    def analyse_types(self, env):
+        self.value = self.value.analyse_types(env).coerce_to_pyobject(env)
+        if self.conversion_char is not None and self.format_spec is None:
+            self.format_spec = UnicodeNode(
+                self.pos, value=StringEncoding.EncodedString(""))
+        if self.format_spec is not None:
+            self.format_spec = self.format_spec.analyse_types(env)
+        self.expression_str = self.expression_str.analyse_types(env)
+        return self
+
+    def generate_result_code(self, code):
+        code.globalstate.use_utility_code(
+            UtilityCode.load_cached("MakeTemplateLibInterpolation", "TString.c"))
+        value = self.value.result()
+        expression = self.expression_str.result()
+        conversion_char = (
+            code.get_py_string_const(self.conversion_char) if self.conversion_char
+            else "Py_None")
+        format_spec = (
+            self.format_spec.result() if self.format_spec is not None
+            else code.name_in_module_state(Naming.empty_unicode))
+        code.putln(f"{self.result()} = __Pyx_MakeTemplateLibInterpolation({value}, {expression}, {conversion_char}, {format_spec});")
+        code.putln(code.error_goto_if_null(self.result(), self.pos))
+        code.put_gotref(self.result(), py_object_type)
+
+
+class TemplateStringNode(ExprNode):
+    """t-string"""
+    subexprs = ['strings', 'interpolations']
+    is_temp = True
+    type = py_object_type
+
+    def __init__(self, pos, *, values: list):
+        last_string_node = None
+        strings = []
+        interpolations = []
+        for v in values:
+            if isinstance(v, TStringInterpolationNode):
+                if last_string_node is None:
+                    strings.append(UnicodeNode(
+                        v.pos, value=StringEncoding.EncodedString("")
+                    ))
+                else:
+                    strings.append(last_string_node)
+                    last_string_node = None
+                interpolations.append(v)
+            elif isinstance(v, UnicodeNode):
+                if last_string_node is None:
+                    last_string_node = v
+                else:
+                    last_string_node = UnicodeNode(
+                        pos = last_string_node.pos,
+                        value = StringEncoding.EncodedString(
+                            last_string_node.value + v.value
+                        ))
+            else:
+                assert False, type(v)
+        if last_string_node is None:
+            last_string_node = UnicodeNode(pos, value=StringEncoding.EncodedString(""))
+        strings.append(last_string_node)
+        super().__init__(pos, strings=strings, interpolations=interpolations)
+
+    def analyse_declarations(self, env):
+        for s in self.strings:
+            s.analyse_declarations(env)
+        for i in self.interpolations:
+            i.analyse_declarations(env)
+
+    def analyse_types(self, env):
+        # convert both strings and interpolations into a tuple
+        self.strings = TupleNode(
+            self.pos, args=self.strings
+        ).analyse_types(env)
+        self.interpolations = TupleNode(
+            self.pos, args=self.interpolations
+        ).analyse_types(env)
+        return self
+
+    def generate_result_code(self, code):
+        code.globalstate.use_utility_code(
+            UtilityCode.load_cached("MakeTemplateLibTemplate", "TString.c"))
+        strings = self.strings.result()
+        interpolations = self.interpolations.result()
+        code.putln(f"{self.result()} = __Pyx_MakeTemplateLibTemplate({strings}, {interpolations});")
+        code.putln(code.error_goto_if_null(self.result(), self.pos))
+        code.put_gotref(self.result(), py_object_type)
