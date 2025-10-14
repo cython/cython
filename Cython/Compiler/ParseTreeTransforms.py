@@ -2299,7 +2299,7 @@ if VALUE is not None:
 
                 def {unpickle_func_name}(__pyx_type, long __pyx_checksum, __pyx_state):
                     cdef object __pyx_result
-                    __Pyx_CheckUnpickleChecksum(__pyx_checksum, {', '.join(checksums)}, "{', '.join(all_members_names)}")
+                    __Pyx_CheckUnpickleChecksum(__pyx_checksum, {', '.join(checksums)}, {', '.join(all_members_names).encode('UTF-8')!r})
                     __pyx_result = {node.class_name}.__new__(__pyx_type)
                     if __pyx_state is not None:
                         {unpickle_func_name}__set_state(<{node.class_name}> __pyx_result, __pyx_state)
