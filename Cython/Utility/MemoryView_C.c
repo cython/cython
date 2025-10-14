@@ -741,7 +741,7 @@ static CYTHON_INLINE int {{set_function}}(char *itemp, PyObject *obj); /* proto 
 
 {{if to_py_function}}
 static CYTHON_INLINE PyObject *{{get_function}}(const char *itemp) {
-    return (PyObject *) {{to_py_function}}(*(const {{dtype}} *) itemp);
+    return (PyObject *) {{to_py_function}}(*({{dtype}} {{'' if dtype_is_const else 'const'}} *) itemp);
 }
 {{endif}}
 

@@ -1092,6 +1092,7 @@ class MemoryViewSliceType(PyrexType):
                 from_py_function=from_py_function,
                 dtype=self.dtype.empty_declaration_code(),
                 error_condition=error_condition,
+                dtype_is_const=self.dtype.is_const,
             )
 
         utility = TempitaUtilityCode.load_cached(
