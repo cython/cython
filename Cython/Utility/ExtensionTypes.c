@@ -649,7 +649,7 @@ static int __Pyx__UpdateUnpickledDict(PyObject *obj, PyObject *state, Py_ssize_t
         return 0;
     }
 
-    PyObject *state_dict = PySequence_ITEM(state, index);
+    PyObject *state_dict = __Pyx_PySequence_ITEM(state, index);
     if (unlikely(!state_dict)) {
         Py_DECREF(dict);
         return -1;
