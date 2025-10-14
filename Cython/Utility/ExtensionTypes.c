@@ -592,6 +592,47 @@ __PYX_GOOD:
 }
 
 
+/////////////// CheckUnpickleChecksum.proto ///////////////
+
+static CYTHON_INLINE int __Pyx_CheckUnpickleChecksum(long checksum, long checksum1, long checksum2, long checksum3, const char *members); /*proto*/
+
+/////////////// CheckUnpickleChecksum ///////////////
+
+static void __Pyx_RaiseUnpickleChecksumError(long checksum, long checksum1, long checksum2, long checksum3, const char *members) {
+    // This function always raises some kind of error, either the expected one or a different one.
+    PyObject *pickle_module = PyImport_ImportModule("pickle");
+    if (unlikely(!pickle_module)) return;
+
+    PyObject *pickle_error = PyObject_GetAttrString(pickle_module, "PickleError");
+    Py_DECREF(pickle_module);
+    if (unlikely(!pickle_error)) return;
+
+    if (checksum2 == checksum1) {
+        PyErr_Format(pickle_error, "Incompatible checksums (0x%x vs (0x%x) = (%s))",
+            checksum, checksum1, members);
+    } else if (checksum3 == checksum2) {
+        PyErr_Format(pickle_error, "Incompatible checksums (0x%x vs (0x%x, 0x%x) = (%s))",
+            checksum, checksum1, checksum2, members);
+    } else {
+        PyErr_Format(pickle_error, "Incompatible checksums (0x%x vs (0x%x, 0x%x, 0x%x) = (%s))",
+            checksum, checksum1, checksum2, checksum3, members);
+    }
+    Py_DECREF(pickle_error);
+}
+
+static int __Pyx_CheckUnpickleChecksum(long checksum, long checksum1, long checksum2, long checksum3, const char *members) {
+    int found = 0;
+    found |= checksum1 == checksum;
+    found |= checksum2 == checksum;
+    found |= checksum3 == checksum;
+    if (likely(found))
+        return 0;
+
+    __Pyx_RaiseUnpickleChecksumError(checksum, checksum1, checksum2, checksum3, members);
+    return -1;
+}
+
+
 /////////////// BinopSlot ///////////////
 
 static CYTHON_INLINE PyObject *{{func_name}}_maybe_call_slot(PyTypeObject* type, PyObject *left, PyObject *right {{extra_arg_decl}}) {
