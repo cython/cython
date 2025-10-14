@@ -642,8 +642,13 @@ static int __Pyx_UpdateUnpickledDict(PyObject *obj, PyObject *state, Py_ssize_t 
 
 static int __Pyx__UpdateUnpickledDict(PyObject *obj, PyObject *state, Py_ssize_t index) {
     // Since we received a dict from pickling, we assume that we're unpickling an object that has one, too.
-    PyObject *dict = PyObject_GenericGetDict(obj, NULL);
-    if (unlikely(dict == NULL)) {
+    PyObject *dict;
+    #if CYTHON_COMPILING_IN_LIMITED_API && __PYX_LIMITED_VERSION_HEX < 0x030A0000
+    dict = PyObject_GetAttrString(obj, "__dict__");
+    #else
+    dict = PyObject_GenericGetDict(obj, NULL);
+    #endif
+    if (unlikely(!dict)) {
         if (!PyErr_ExceptionMatches(PyExc_AttributeError)) return -1;
         PyErr_Clear();
         return 0;
