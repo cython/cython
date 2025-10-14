@@ -9488,14 +9488,18 @@ class FromImportStatNode(StatNode):
 
             # Special-case Python globals: they are simple enough to handle them jointly in the loop.
             simple_pyglobals = []
-            non_trivial_items = []
+            direct_assignments = []
+            coerced_assignments = []
+
             for i, (name, target, coerced_item) in enumerate(self.interned_items):
-                if coerced_item is None:
-                    if target.is_name and target.name == name:
-                        if target.entry and target.entry.is_pyglobal and target.entry.scope.is_module_scope:
-                            simple_pyglobals.append(i)
-                            continue
-                non_trivial_items.append((i, name, target, coerced_item))
+                if coerced_item is not None:
+                    coerced_assignments.append((i, name, target, coerced_item))
+                    continue
+                if target.is_name and target.name == name:
+                    if target.entry and target.entry.is_pyglobal and target.entry.scope.is_module_scope:
+                        simple_pyglobals.append(i)
+                        continue
+                direct_assignments.append((i, name, target))
 
             code.putln(f"for ({counter_var}=0; {counter_var} < {len(imported_names)}; {counter_var}++) {{")
             code.putln(
@@ -9512,13 +9516,15 @@ class FromImportStatNode(StatNode):
                     f"PyDict_SetItem({code.name_in_module_state(Naming.moddict_cname)}, __pyx_imported_names[{counter_var}], {item_temp})")
                 code.putln("break;")
 
-            for i, name, target, coerced_item in non_trivial_items:
+            for i, name, target in direct_assignments:
                 code.putln(f"case {i}:")
-                if coerced_item is None:
-                    target.generate_assignment_code(self.item, code)
-                else:
-                    coerced_item.generate_evaluation_code(code)
-                    target.generate_assignment_code(coerced_item, code)
+                target.generate_assignment_code(self.item, code)
+                code.putln("break;")
+
+            for i, name, target, coerced_item in coerced_assignments:
+                code.putln(f"case {i}:")
+                coerced_item.generate_evaluation_code(code)
+                target.generate_assignment_code(coerced_item, code)
                 code.putln("break;")
 
             code.putln("}")  # switch
