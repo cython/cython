@@ -2291,13 +2291,16 @@ if VALUE is not None:
             unpickle_func_name = f'__pyx_unpickle_{node.punycode_class_name}'
             num_members = len(all_members_names)
 
+            env.use_utility_code(Code.UtilityCode.load_cached("UpdateUnpickledDict", "ExtensionTypes.c"))
+
             # TODO(robertwb): Move the state into the third argument
             # so it can be pickled *after* self is memoized.
             unpickle_code = f"""
                 cdef extern from *:
                     int __Pyx_CheckUnpickleChecksum(long checksum, long checksum1, long checksum2, long checksum3, const char *members) except -1
+                    int __Pyx_UpdateUnpickledDict(object obj, object state, Py_ssize_t index) except -1
 
-                def {unpickle_func_name}(__pyx_type, long __pyx_checksum, __pyx_state):
+                def {unpickle_func_name}(__pyx_type, long __pyx_checksum, tuple __pyx_state):
                     cdef object __pyx_result
                     __Pyx_CheckUnpickleChecksum(__pyx_checksum, {', '.join(checksums)}, {', '.join(all_members_names).encode('UTF-8')!r})
                     __pyx_result = {node.class_name}.__new__(__pyx_type)
@@ -2305,10 +2308,9 @@ if VALUE is not None:
                         {unpickle_func_name}__set_state(<{node.class_name}> __pyx_result, __pyx_state)
                     return __pyx_result
 
-                cdef {unpickle_func_name}__set_state({node.class_name} __pyx_result, tuple __pyx_state):
+                cdef {unpickle_func_name}__set_state({node.class_name} __pyx_result, __pyx_state: tuple):
                     {assignments}
-                    if len(__pyx_state) > {num_members:d} and hasattr(__pyx_result, '__dict__'):
-                        __pyx_result.__dict__.update(__pyx_state[{num_members:d}])
+                    __Pyx_UpdateUnpickledDict(__pyx_result, __pyx_state, {num_members:d})
             """
 
             env.use_utility_code(Code.UtilityCode.load_cached("CheckUnpickleChecksum", "ExtensionTypes.c"))

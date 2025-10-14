@@ -633,6 +633,52 @@ static int __Pyx_CheckUnpickleChecksum(long checksum, long checksum1, long check
 }
 
 
+/////////////// UpdateUnpickledDict.proto ///////////////
+
+static int __Pyx_UpdateUnpickledDict(PyObject *obj, PyObject *state, Py_ssize_t index); /*proto*/
+
+/////////////// UpdateUnpickledDict ///////////////
+
+static int __Pyx__UpdateUnpickledDict(PyObject *obj, PyObject *state, Py_ssize_t index) {
+    // Since we received a dict from pickling, we assume that we're unpickling an object that has one, too.
+    PyObject *dict = PyObject_GenericGetDict(obj, NULL);
+    if (unlikely(dict == NULL)) {
+        if (!PyErr_ExceptionMatches(PyExc_AttributeError)) return -1;
+        PyErr_Clear();
+        return 0;
+    }
+
+    PyObject *state_dict = __Pyx_PyTuple_GET_ITEM(state, index);
+    #if !CYTHON_ASSUME_SAFE_MACROS
+    if (unlikely(!state_dict)) {
+        Py_DECREF(dict);
+        return -1;
+    }
+    #endif
+
+    PyObject *args[] = {dict, state_dict};
+    PyObject *result = PyObject_VectorcallMethod(PYIDENT("update"), args, 2 | PY_VECTORCALL_ARGUMENTS_OFFSET, NULL);
+    Py_DECREF(state_dict);
+    Py_DECREF(dict);
+    if (unlikely(!result)) return -1;
+    Py_DECREF(result);
+    return 0;
+}
+
+static int __Pyx_UpdateUnpickledDict(PyObject *obj, PyObject *state, Py_ssize_t index) {
+    Py_ssize_t state_size = __Pyx_PyTuple_GET_SIZE(state);
+    #if !CYTHON_ASSUME_SAFE_SIZE
+    if (unlikely(state_size == -1)) return -1;
+    #endif
+    if (state_size <= index) {
+        // No dict from pickling.
+        return 0;
+    }
+
+    return __Pyx__UpdateUnpickledDict(obj, state, index);
+}
+
+
 /////////////// BinopSlot ///////////////
 
 static CYTHON_INLINE PyObject *{{func_name}}_maybe_call_slot(PyTypeObject* type, PyObject *left, PyObject *right {{extra_arg_decl}}) {
