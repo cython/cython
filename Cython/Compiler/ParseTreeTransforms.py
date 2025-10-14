@@ -2297,8 +2297,8 @@ if VALUE is not None:
             # so it can be pickled *after* self is memoized.
             unpickle_code = f"""
                 cdef extern from *:
-                    int __Pyx_CheckUnpickleChecksum(long checksum, long checksum1, long checksum2, long checksum3, const char *members) except -1
-                    int __Pyx_UpdateUnpickledDict(object obj, object state, Py_ssize_t index) except -1
+                    int __Pyx_CheckUnpickleChecksum(long, long, long, long, const char*) except -1
+                    int __Pyx_UpdateUnpickledDict(object, object, Py_ssize_t) except -1
 
                 def {unpickle_func_name}(__pyx_type, long __pyx_checksum, tuple __pyx_state):
                     cdef object __pyx_result
