@@ -648,13 +648,11 @@ static int __Pyx__UpdateUnpickledDict(PyObject *obj, PyObject *state, Py_ssize_t
         return 0;
     }
 
-    PyObject *state_dict = __Pyx_PyTuple_GET_ITEM(state, index);
-    #if !CYTHON_ASSUME_SAFE_MACROS
+    PyObject *state_dict = PySequence_ITEM(state, index);
     if (unlikely(!state_dict)) {
         Py_DECREF(dict);
         return -1;
     }
-    #endif
 
     PyObject *args[] = {dict, state_dict};
     PyObject *result = PyObject_VectorcallMethod(PYIDENT("update"), args, 2 | PY_VECTORCALL_ARGUMENTS_OFFSET, NULL);
