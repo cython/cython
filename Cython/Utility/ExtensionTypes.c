@@ -638,6 +638,7 @@ static int __Pyx_CheckUnpickleChecksum(long checksum, long checksum1, long check
 static int __Pyx_UpdateUnpickledDict(PyObject *obj, PyObject *state, Py_ssize_t index); /*proto*/
 
 /////////////// UpdateUnpickledDict ///////////////
+//@requires: ObjectHandling.c::PyObjectCallMethod1
 
 static int __Pyx__UpdateUnpickledDict(PyObject *obj, PyObject *state, Py_ssize_t index) {
     // Since we received a dict from pickling, we assume that we're unpickling an object that has one, too.
@@ -654,13 +655,21 @@ static int __Pyx__UpdateUnpickledDict(PyObject *obj, PyObject *state, Py_ssize_t
         return -1;
     }
 
-    PyObject *args[] = {dict, state_dict};
-    PyObject *result = PyObject_VectorcallMethod(PYIDENT("update"), args, 2 | PY_VECTORCALL_ARGUMENTS_OFFSET, NULL);
+    int result;
+    if (likely(PyDict_CheckExact(dict))) {
+        result = PyDict_Update(dict, state_dict);
+    } else {
+        PyObject *obj_result = __Pyx_PyObject_CallMethod1(dict, PYIDENT("update"), state_dict);
+        if (likely(obj_result)) {
+            Py_DECREF(obj_result);
+            result = 0;
+        } else {
+            result = -1;
+        }
+    }
     Py_DECREF(state_dict);
     Py_DECREF(dict);
-    if (unlikely(!result)) return -1;
-    Py_DECREF(result);
-    return 0;
+    return result;
 }
 
 static int __Pyx_UpdateUnpickledDict(PyObject *obj, PyObject *state, Py_ssize_t index) {
