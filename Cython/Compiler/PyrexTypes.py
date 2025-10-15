@@ -763,7 +763,7 @@ class MemoryViewSliceType(PyrexType):
         assert not dll_linkage
         from . import MemoryView
         base_code = StringEncoding.EncodedString(
-            str(self) if pyrex or for_display else MemoryView.memviewslice_cname)
+            str(self) if pyrex or for_display else Naming.memviewslice_cname)
         return self.base_declaration_code(
                 base_code,
                 entity_code)
@@ -1004,10 +1004,7 @@ class MemoryViewSliceType(PyrexType):
                 "ObjectToMemviewSlice", "MemoryView_C.c", context=context)
 
         env.use_utility_code(
-            MemoryView.get_memviewslice_init_code(
-                env.context.shared_utility_qualified_name
-            )
-        )
+            MemoryView.get_view_utility_code(env.context.shared_utility_qualified_name))
         env.use_utility_code(LazyUtilityCode(lazy_utility_callback))
 
         if self.is_c_contig:

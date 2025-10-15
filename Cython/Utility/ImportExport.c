@@ -1,6 +1,6 @@
 /////////////// Import.proto ///////////////
 
-static PyObject *__Pyx_Import(PyObject *name, PyObject **imported_names, Py_ssize_t len_imported_names, PyObject *qualname, int level); /*proto*/
+static PyObject *__Pyx_Import(PyObject *name, PyObject *const *imported_names, Py_ssize_t len_imported_names, PyObject *qualname, int level); /*proto*/
 
 /////////////// Import ///////////////
 //@requires: StringTools.c::IncludeStringH
@@ -21,7 +21,7 @@ static int __Pyx__Import_GetModule(PyObject *qualname, PyObject **module) {
     return 1;
 }
 
-static int __Pyx__Import_Lookup(PyObject *qualname, PyObject **imported_names, Py_ssize_t len_imported_names, PyObject **module) {
+static int __Pyx__Import_Lookup(PyObject *qualname, PyObject *const *imported_names, Py_ssize_t len_imported_names, PyObject **module) {
     PyObject *imported_module;
     PyObject *top_level_package_name;
     Py_ssize_t i;
@@ -79,7 +79,7 @@ not_found:
     return 0;
 }
 
-static PyObject *__Pyx_Import(PyObject *name, PyObject **imported_names, Py_ssize_t len_imported_names, PyObject *qualname, int level) {
+static PyObject *__Pyx_Import(PyObject *name, PyObject *const *imported_names, Py_ssize_t len_imported_names, PyObject *qualname, int level) {
     PyObject *module = 0;
     PyObject *empty_dict = 0;
     PyObject *from_list = 0;
