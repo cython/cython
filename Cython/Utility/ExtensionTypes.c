@@ -109,6 +109,8 @@ static int __Pyx_fix_up_extension_type_from_spec(PyType_Spec *spec, PyTypeObject
             ++getset;
         }
     }
+#else
+    CYTHON_UNUSED_VAR(__Pyx__SetItemOnTypeDict);
 #endif  // !CYTHON_COMPILING_IN_PYPY
     if (changed)
         PyType_Modified(type);
