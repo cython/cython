@@ -648,11 +648,9 @@ static int __Pyx__UpdateUnpickledDict(PyObject *obj, PyObject *state, Py_ssize_t
     #else
     dict = PyObject_GenericGetDict(obj, NULL);
     #endif
-    if (unlikely(!dict)) {
-        if (!PyErr_ExceptionMatches(PyExc_AttributeError)) return -1;
-        PyErr_Clear();
-        return 0;
-    }
+    // It is debatable if it is a fatal error if we cannot reassign the state of the dict because
+    // the unpickled object does not have a '__dict__'. But the user should probably know.
+    if (unlikely(!dict)) return -1;
 
     PyObject *state_dict = __Pyx_PySequence_ITEM(state, index);
     if (unlikely(!state_dict)) {
