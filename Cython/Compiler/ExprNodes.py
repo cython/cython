@@ -2942,7 +2942,7 @@ class ImportNode(ExprNode):
         if self.imported_names is not None:
             code.putln("{")
             code.putln(
-                f"PyObject *__pyx_imported_names[] = {{{','.join(n.result() for n in self.imported_names)}}};")
+                f"PyObject* const __pyx_imported_names[] = {{{','.join(n.result() for n in self.imported_names)}}};")
 
         import_code = "__Pyx_Import(%s, %s, %d, %s, %d)" % (
             self.module_name.py_result(),
