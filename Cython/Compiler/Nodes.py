@@ -2720,8 +2720,7 @@ class CFuncDefNode(FuncDefNode):
             base_type = self.directive_returns.analyse_as_type(env)
             # Annotated return types with wrong type produce warnings instead of errors.
             if base_type is None:
-                from .ExprNodes import AnnotationNode
-                if isinstance(self.directive_returns, AnnotationNode):
+                if self.directive_returns.is_annotation:
                     base_type = self.base_type.analyse(env)
                 else:
                     error(self.directive_returns.pos, "Not a type")
