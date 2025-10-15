@@ -471,6 +471,7 @@ class ExprNode(Node):
     has_temp_moved = False  # if True then attempting to do anything but free the temp is invalid
     is_target = False
     is_starred = False
+    is_annotation = False
 
     constant_result = constant_value_not_set
 
@@ -15201,6 +15202,7 @@ class AnnotationNode(ExprNode):
     # annotation is evaluated into a Python Object.
 
     subexprs = []
+    is_annotation = True
 
     # 'untyped' is set for fused specializations:
     # Once a fused function has been created we don't want
