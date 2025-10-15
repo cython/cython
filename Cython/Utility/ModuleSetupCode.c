@@ -1,10 +1,18 @@
 /////////////// InitLimitedAPI ///////////////
 
-#if defined(Py_LIMITED_API) && !defined(CYTHON_LIMITED_API)
+#if defined(Py_LIMITED_API)
+  #if !defined(CYTHON_LIMITED_API)
   // Use Py_LIMITED_API as the main control for Cython's limited API mode.
   // However it's still possible to define CYTHON_LIMITED_API alone to
   // force Cython to use Limited-API code without enforcing it in Python.
   #define CYTHON_LIMITED_API 1
+  #endif
+#elif defined(CYTHON_LIMITED_API)
+  #ifdef _MSC_VER
+  #pragma message ("Limited API usage is enabled with 'CYTHON_LIMITED_API' but 'Py_LIMITED_API' does not define a Python target version. Consider setting 'Py_LIMITED_API' instead.")
+  #else
+  #warning Limited API usage is enabled with 'CYTHON_LIMITED_API' but 'Py_LIMITED_API' does not define a Python target version. Consider setting 'Py_LIMITED_API' instead.
+  #endif
 #endif
 
 /////////////// CModulePreamble ///////////////

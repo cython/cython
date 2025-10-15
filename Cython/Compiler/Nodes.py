@@ -154,6 +154,8 @@ class CopyWithUpTreeRefsMixin:
                 # Note that memo being keyed by "id" is a bit of an implementation detail;
                 # the documentation says to treat it as opaque.
                 v = memo.get(id(v), v)
+            else:
+                v = copy.deepcopy(v, memo)
             setattr(result, k, v)
         return result
 
@@ -6181,6 +6183,7 @@ class SingleAssignmentNode(AssignmentNode):
     #  first                    bool          Is this guaranteed the first assignment to lhs?
     #  is_overloaded_assignment bool          Is this assignment done via an overloaded operator=
     #  is_assignment_expression bool          Internally SingleAssignmentNode is used to implement assignment expressions
+    #  from_pxd_cvardef         bool          Was created from a CVarDef node in a pxd file
     #  exception_check
     #  exception_value
 
@@ -6189,6 +6192,7 @@ class SingleAssignmentNode(AssignmentNode):
     is_overloaded_assignment = False
     is_assignment_expression = False
     declaration_only = False
+    from_pxd_cvardef = False
 
     def analyse_declarations(self, env):
         from . import ExprNodes
@@ -6336,6 +6340,14 @@ class SingleAssignmentNode(AssignmentNode):
         elif rhs.type.is_pyobject:
             rhs = rhs.coerce_to_simple(env)
         self.rhs = rhs
+
+        if self.from_pxd_cvardef and not self.lhs.type.is_const:
+            warning(
+                self.pos,
+                "Assignment in pxd file will not be executed. Suggest declaring as const.",
+                2
+            )
+
         return self
 
     def unroll(self, node, target_size, env):
@@ -7016,19 +7028,20 @@ class ReturnStatNode(StatNode):
                     Naming.retval_cname,
                     value.result_as(self.return_type)))
                 value.generate_post_assignment_code(code)
-                if code.globalstate.directives['profile'] or code.globalstate.directives['linetrace']:
-                    code.put_trace_return(
-                        Naming.retval_cname,
-                        self.pos,
-                        return_type=self.return_type,
-                        nogil=not code.funcstate.gil_owned,
-                    )
             value.free_temps(code)
         else:
             if self.return_type.is_pyobject:
                 code.put_init_to_py_none(Naming.retval_cname, self.return_type)
             elif self.return_type.is_returncode:
                 self.put_return(code, self.return_type.default_value)
+
+        if code.globalstate.directives['profile'] or code.globalstate.directives['linetrace']:
+            code.put_trace_return(
+                Naming.retval_cname,
+                self.pos,
+                return_type=self.return_type,
+                nogil=not code.funcstate.gil_owned,
+            )
 
         for cname, type in code.funcstate.temps_holding_reference():
             code.put_decref_clear(cname, type)
@@ -9457,26 +9470,72 @@ class FromImportStatNode(StatNode):
                     Naming.import_star,
                     self.module.py_result(),
                     code.error_goto(self.pos)))
-        item_temp = code.funcstate.allocate_temp(py_object_type, manage_ref=True)
-        self.item.set_cname(item_temp)
+
         if self.interned_items:
+            code.putln("{")
             code.globalstate.use_utility_code(
                 UtilityCode.load_cached("ImportFrom", "ImportExport.c"))
-        for name, target, coerced_item in self.interned_items:
+
+            counter_var = code.funcstate.allocate_temp(PyrexTypes.c_py_ssize_t_type, manage_ref=False)
+            item_temp = code.funcstate.allocate_temp(py_object_type, manage_ref=True)
+            self.item.set_cname(item_temp)
+
+            imported_names = [
+                code.intern_identifier(name)
+                for name, _, _ in self.interned_items
+            ]
+            code.putln(f"PyObject* const __pyx_imported_names[] = {{{','.join(imported_names)}}};")
+
+            # Special-case Python globals: they are simple enough to handle them jointly in the loop.
+            simple_pyglobals = []
+            direct_assignments = []
+            coerced_assignments = []
+
+            for i, (name, target, coerced_item) in enumerate(self.interned_items):
+                if coerced_item is not None:
+                    coerced_assignments.append((i, name, target, coerced_item))
+                    continue
+                if target.is_name and target.name == name:
+                    if target.entry and target.entry.is_pyglobal and target.entry.scope.is_module_scope:
+                        simple_pyglobals.append(i)
+                        continue
+                direct_assignments.append((i, name, target))
+
+            code.putln(f"for ({counter_var}=0; {counter_var} < {len(imported_names)}; {counter_var}++) {{")
             code.putln(
-                '%s = __Pyx_ImportFrom(%s, %s); %s' % (
-                    item_temp,
-                    self.module.py_result(),
-                    code.intern_identifier(name),
-                    code.error_goto_if_null(item_temp, self.pos)))
+                f'{item_temp} = __Pyx_ImportFrom({self.module.py_result()}, __pyx_imported_names[{counter_var}]); '
+                f'{code.error_goto_if_null(item_temp, self.pos)}'
+            )
             code.put_gotref(item_temp, py_object_type)
-            if coerced_item is None:
+            code.putln(f"switch ({counter_var}) {{")
+
+            if simple_pyglobals:
+                code.putln(' '.join(f"case {i}:" for i in simple_pyglobals))
+                code.put_error_if_neg(
+                    self.pos,
+                    f"PyDict_SetItem({code.name_in_module_state(Naming.moddict_cname)}, __pyx_imported_names[{counter_var}], {item_temp})")
+                code.putln("break;")
+
+            for i, name, target in direct_assignments:
+                code.putln(f"case {i}:")
                 target.generate_assignment_code(self.item, code)
-            else:
+                code.putln("break;")
+
+            for i, name, target, coerced_item in coerced_assignments:
+                code.putln(f"case {i}:")
                 coerced_item.generate_evaluation_code(code)
                 target.generate_assignment_code(coerced_item, code)
+                code.putln("break;")
+
+            code.putln("}")  # switch
+
             code.put_decref_clear(item_temp, py_object_type)
-        code.funcstate.release_temp(item_temp)
+            code.putln("}")  # for
+
+            code.funcstate.release_temp(item_temp)
+            code.funcstate.release_temp(counter_var)
+            code.putln("}")
+
         self.module.generate_disposal_code(code)
         self.module.free_temps(code)
 
@@ -9845,7 +9904,7 @@ class ParallelStatNode(StatNode, ParallelNode):
         if self.is_parallel and not self.is_nested_prange:
             code.putln("/* Clean up any temporaries */")
             for temp, type in sorted(self.temps):
-                code.put_xdecref_clear(temp, type, have_gil=False)
+                code.put_xdecref_clear(temp, type, have_gil=True)
 
     def setup_parallel_control_flow_block(self, code):
         """

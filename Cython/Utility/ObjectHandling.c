@@ -821,7 +821,7 @@ __Pyx_PyTuple_FromArray(PyObject *const *src, Py_ssize_t n)
     res = PyTuple_New(n);
     if (unlikely(res == NULL)) return NULL;
     for (i = 0; i < n; i++) {
-        if (unlikely(__Pyx_PyTuple_SET_ITEM(res, i, src[i]) < 0)) {
+        if (unlikely(__Pyx_PyTuple_SET_ITEM(res, i, src[i]) < (0))) {
             Py_DECREF(res);
             return NULL;
         }
@@ -1675,11 +1675,14 @@ static CYTHON_INLINE int __Pyx_PyObject_SetAttrStr(PyObject* obj, PyObject* attr
 
 /////////////// PyObjectGetMethod.proto ///////////////
 
+#if !(CYTHON_VECTORCALL && (__PYX_LIMITED_VERSION_HEX >= 0x030C0000 || (!CYTHON_COMPILING_IN_LIMITED_API && PY_VERSION_HEX >= 0x03090000)))
 static int __Pyx_PyObject_GetMethod(PyObject *obj, PyObject *name, PyObject **method);/*proto*/
+#endif
 
 /////////////// PyObjectGetMethod ///////////////
 //@requires: PyObjectGetAttrStr
 
+#if !(CYTHON_VECTORCALL && (__PYX_LIMITED_VERSION_HEX >= 0x030C0000 || (!CYTHON_COMPILING_IN_LIMITED_API && PY_VERSION_HEX >= 0x03090000)))
 static int __Pyx_PyObject_GetMethod(PyObject *obj, PyObject *name, PyObject **method) {
     PyObject *attr;
 #if CYTHON_UNPACK_METHODS && CYTHON_COMPILING_IN_CPYTHON && CYTHON_USE_PYTYPE_LOOKUP
@@ -1782,6 +1785,7 @@ try_unpack:
     *method = attr;
     return 0;
 }
+#endif
 
 
 /////////////// UnpackUnboundCMethod.proto ///////////////
@@ -2361,7 +2365,6 @@ static PyObject* __Pyx_PyObject_CallMethod0(PyObject* obj, PyObject* method_name
 #if CYTHON_VECTORCALL && (__PYX_LIMITED_VERSION_HEX >= 0x030C0000 || (!CYTHON_COMPILING_IN_LIMITED_API && PY_VERSION_HEX >= 0x03090000))
     PyObject *args[1] = {obj};
     // avoid unused functions
-    (void) __Pyx_PyObject_GetMethod;
     (void) __Pyx_PyObject_CallOneArg;
     (void) __Pyx_PyObject_CallNoArg;
     return PyObject_VectorcallMethod(method_name, args, 1 | PY_VECTORCALL_ARGUMENTS_OFFSET, NULL);
@@ -2404,7 +2407,6 @@ static PyObject* __Pyx_PyObject_CallMethod1(PyObject* obj, PyObject* method_name
 #if CYTHON_VECTORCALL && (__PYX_LIMITED_VERSION_HEX >= 0x030C0000 || (!CYTHON_COMPILING_IN_LIMITED_API && PY_VERSION_HEX >= 0x03090000))
     PyObject *args[2] = {obj, arg};
     // avoid unused functions
-    (void) __Pyx_PyObject_GetMethod;
     (void) __Pyx_PyObject_CallOneArg;
     (void) __Pyx_PyObject_Call2Args;
     return PyObject_VectorcallMethod(method_name, args, 2 | PY_VECTORCALL_ARGUMENTS_OFFSET, NULL);

@@ -1557,7 +1557,7 @@ __pyx_FusedFunction_getitem(__pyx_FusedFunctionObject *self, PyObject *idx)
             Py_DECREF(item);
 #endif
             if (unlikely(!string)) goto __pyx_err;
-	    if (__Pyx_PyList_SET_ITEM(list, i, string) < 0) goto __pyx_err;
+	    if (__Pyx_PyList_SET_ITEM(list, i, string) < (0)) goto __pyx_err;
         }
 
         signature = PyUnicode_Join(PYUNICODE("|"), list);
@@ -1637,7 +1637,7 @@ __pyx_FusedFunction_call(PyObject *func, PyObject *args, PyObject *kw)
         self = binding_func->self;
 
         Py_INCREF(self);
-        if (__Pyx_PyTuple_SET_ITEM(new_args, 0, self)) goto bad;
+        if (__Pyx_PyTuple_SET_ITEM(new_args, 0, self) < (0)) goto bad;
         self = NULL;
 
         for (i = 0; i < argc; i++) {
@@ -1647,7 +1647,7 @@ __pyx_FusedFunction_call(PyObject *func, PyObject *args, PyObject *kw)
 #else
             PyObject *item = __Pyx_PySequence_ITEM(args, i);  if (unlikely(!item)) goto bad;
 #endif
-        if (__Pyx_PyTuple_SET_ITEM(new_args, i + 1, item)) goto bad;
+        if (__Pyx_PyTuple_SET_ITEM(new_args, i + 1, item) < (0)) goto bad;
         }
 
         args = new_args;

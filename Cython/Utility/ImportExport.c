@@ -1,6 +1,6 @@
 /////////////// Import.proto ///////////////
 
-static PyObject *__Pyx_Import(PyObject *name, PyObject **imported_names, Py_ssize_t len_imported_names, PyObject *qualname, int level); /*proto*/
+static PyObject *__Pyx_Import(PyObject *name, PyObject *const *imported_names, Py_ssize_t len_imported_names, PyObject *qualname, int level); /*proto*/
 
 /////////////// Import ///////////////
 //@requires: StringTools.c::IncludeStringH
@@ -21,7 +21,7 @@ static int __Pyx__Import_GetModule(PyObject *qualname, PyObject **module) {
     return 1;
 }
 
-static int __Pyx__Import_Lookup(PyObject *qualname, PyObject **imported_names, Py_ssize_t len_imported_names, PyObject **module) {
+static int __Pyx__Import_Lookup(PyObject *qualname, PyObject *const *imported_names, Py_ssize_t len_imported_names, PyObject **module) {
     PyObject *imported_module;
     PyObject *top_level_package_name;
     Py_ssize_t i;
@@ -79,7 +79,7 @@ not_found:
     return 0;
 }
 
-static PyObject *__Pyx_Import(PyObject *name, PyObject **imported_names, Py_ssize_t len_imported_names, PyObject *qualname, int level) {
+static PyObject *__Pyx_Import(PyObject *name, PyObject *const *imported_names, Py_ssize_t len_imported_names, PyObject *qualname, int level) {
     PyObject *module = 0;
     PyObject *empty_dict = 0;
     PyObject *from_list = 0;
@@ -109,7 +109,7 @@ static PyObject *__Pyx_Import(PyObject *name, PyObject **imported_names, Py_ssiz
             if (PyList_SetItem(from_list, i, __Pyx_NewRef(imported_names[i])) < 0) goto bad;
         }
 #endif
-    } 
+    }
     if (level == -1) {
         const char* package_sep = strchr(__Pyx_MODULE_NAME, '.');
         if (package_sep != (0)) {
@@ -406,7 +406,7 @@ static PyTypeObject *__Pyx_ImportType_$cyversion(PyObject* module, const char *m
 /////////////// TypeImport ///////////////
 //@substitute: naming
 
-// Note that this goes into headers so CYTHON_COMPILING_IN_LIMITED_API isn't available.
+// Note that this goes into headers so CYTHON_COMPILING_IN_LIMITED_API may not be available.
 
 #ifndef __PYX_HAVE_RT_ImportType_$cyversion
 #define __PYX_HAVE_RT_ImportType_$cyversion
@@ -416,7 +416,7 @@ static PyTypeObject *__Pyx_ImportType_$cyversion(PyObject *module, const char *m
     PyObject *result = 0;
     Py_ssize_t basicsize;
     Py_ssize_t itemsize;
-#ifdef Py_LIMITED_API
+#if defined(Py_LIMITED_API) || (defined(CYTHON_COMPILING_IN_LIMITED_API) && CYTHON_COMPILING_IN_LIMITED_API)
     PyObject *py_basicsize;
     PyObject *py_itemsize;
 #endif
@@ -430,7 +430,7 @@ static PyTypeObject *__Pyx_ImportType_$cyversion(PyObject *module, const char *m
             module_name, class_name);
         goto bad;
     }
-#ifndef Py_LIMITED_API
+#if !( defined(Py_LIMITED_API) || (defined(CYTHON_COMPILING_IN_LIMITED_API) && CYTHON_COMPILING_IN_LIMITED_API) )
     basicsize = ((PyTypeObject *)result)->tp_basicsize;
     itemsize = ((PyTypeObject *)result)->tp_itemsize;
 #else

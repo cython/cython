@@ -109,6 +109,8 @@ static int __Pyx_fix_up_extension_type_from_spec(PyType_Spec *spec, PyTypeObject
             ++getset;
         }
     }
+#else
+    CYTHON_UNUSED_VAR(__Pyx__SetItemOnTypeDict);
 #endif  // !CYTHON_COMPILING_IN_PYPY
     if (changed)
         PyType_Modified(type);
@@ -589,6 +591,105 @@ __PYX_GOOD:
     Py_XDECREF(setstate);
     Py_XDECREF(setstate_cython);
     return ret;
+}
+
+
+/////////////// CheckUnpickleChecksum.proto ///////////////
+
+static CYTHON_INLINE int __Pyx_CheckUnpickleChecksum(long checksum, long checksum1, long checksum2, long checksum3, const char *members); /*proto*/
+
+/////////////// CheckUnpickleChecksum ///////////////
+
+static void __Pyx_RaiseUnpickleChecksumError(long checksum, long checksum1, long checksum2, long checksum3, const char *members) {
+    // This function always raises some kind of error, either the expected one or a different one.
+    PyObject *pickle_module = PyImport_ImportModule("pickle");
+    if (unlikely(!pickle_module)) return;
+
+    PyObject *pickle_error = PyObject_GetAttrString(pickle_module, "PickleError");
+    Py_DECREF(pickle_module);
+    if (unlikely(!pickle_error)) return;
+
+    if (checksum2 == checksum1) {
+        PyErr_Format(pickle_error, "Incompatible checksums (0x%x vs (0x%x) = (%s))",
+            checksum, checksum1, members);
+    } else if (checksum3 == checksum2) {
+        PyErr_Format(pickle_error, "Incompatible checksums (0x%x vs (0x%x, 0x%x) = (%s))",
+            checksum, checksum1, checksum2, members);
+    } else {
+        PyErr_Format(pickle_error, "Incompatible checksums (0x%x vs (0x%x, 0x%x, 0x%x) = (%s))",
+            checksum, checksum1, checksum2, checksum3, members);
+    }
+    Py_DECREF(pickle_error);
+}
+
+static int __Pyx_CheckUnpickleChecksum(long checksum, long checksum1, long checksum2, long checksum3, const char *members) {
+    int found = 0;
+    found |= checksum1 == checksum;
+    found |= checksum2 == checksum;
+    found |= checksum3 == checksum;
+    if (likely(found))
+        return 0;
+
+    __Pyx_RaiseUnpickleChecksumError(checksum, checksum1, checksum2, checksum3, members);
+    return -1;
+}
+
+
+/////////////// UpdateUnpickledDict.proto ///////////////
+
+static int __Pyx_UpdateUnpickledDict(PyObject *obj, PyObject *state, Py_ssize_t index); /*proto*/
+
+/////////////// UpdateUnpickledDict ///////////////
+//@requires: ObjectHandling.c::PyObjectCallMethod1
+
+static int __Pyx__UpdateUnpickledDict(PyObject *obj, PyObject *state, Py_ssize_t index) {
+    // Since we received a dict from pickling, we assume that we're unpickling an object that has one, too.
+    PyObject *dict;
+    #if CYTHON_COMPILING_IN_LIMITED_API && __PYX_LIMITED_VERSION_HEX < 0x030A0000
+    dict = PyObject_GetAttrString(obj, "__dict__");
+    #else
+    dict = PyObject_GenericGetDict(obj, NULL);
+    #endif
+    if (unlikely(!dict)) {
+        if (!PyErr_ExceptionMatches(PyExc_AttributeError)) return -1;
+        PyErr_Clear();
+        return 0;
+    }
+
+    PyObject *state_dict = __Pyx_PySequence_ITEM(state, index);
+    if (unlikely(!state_dict)) {
+        Py_DECREF(dict);
+        return -1;
+    }
+
+    int result;
+    if (likely(PyDict_CheckExact(dict))) {
+        result = PyDict_Update(dict, state_dict);
+    } else {
+        PyObject *obj_result = __Pyx_PyObject_CallMethod1(dict, PYIDENT("update"), state_dict);
+        if (likely(obj_result)) {
+            Py_DECREF(obj_result);
+            result = 0;
+        } else {
+            result = -1;
+        }
+    }
+    Py_DECREF(state_dict);
+    Py_DECREF(dict);
+    return result;
+}
+
+static int __Pyx_UpdateUnpickledDict(PyObject *obj, PyObject *state, Py_ssize_t index) {
+    Py_ssize_t state_size = __Pyx_PyTuple_GET_SIZE(state);
+    #if !CYTHON_ASSUME_SAFE_SIZE
+    if (unlikely(state_size == -1)) return -1;
+    #endif
+    if (state_size <= index) {
+        // No dict from pickling.
+        return 0;
+    }
+
+    return __Pyx__UpdateUnpickledDict(obj, state, index);
 }
 
 

@@ -37,7 +37,7 @@ class BaseType:
     def can_coerce_to_pystring(self, env, format_spec=None):
         return False
 
-    def convert_to_pystring(self, cvalue, code, format_spec=None):
+    def convert_to_pystring(self, cvalue, code, format_spec=None, name_type=None):
         raise NotImplementedError("C types that support string formatting must override this method")
 
     def cast_code(self, expr_code):
@@ -634,6 +634,16 @@ class CTypedefType(BaseType):
     def can_coerce_from_pyobject(self, env):
         return self.typedef_base_type.can_coerce_from_pyobject(env)
 
+    def can_coerce_to_pystring(self, env, format_spec=None):
+        return self.typedef_base_type.can_coerce_to_pystring(env, format_spec)
+
+    def convert_to_pystring(self, cvalue, code, format_spec=None, name_type=None):
+        if self.typedef_is_external and name_type is None:
+            # The declared base type of external typedefs may not be exact, so use the typedef type name.
+            name_type = self
+
+        return self.typedef_base_type.convert_to_pystring(cvalue, code, format_spec, name_type)
+
 
 class MemoryViewSliceType(PyrexType):
 
@@ -744,7 +754,7 @@ class MemoryViewSliceType(PyrexType):
         assert not dll_linkage
         from . import MemoryView
         base_code = StringEncoding.EncodedString(
-            str(self) if pyrex or for_display else MemoryView.memviewslice_cname)
+            str(self) if pyrex or for_display else Naming.memviewslice_cname)
         return self.base_declaration_code(
                 base_code,
                 entity_code)
@@ -985,10 +995,7 @@ class MemoryViewSliceType(PyrexType):
                 "ObjectToMemviewSlice", "MemoryView_C.c", context=context)
 
         env.use_utility_code(
-            MemoryView.get_memviewslice_init_code(
-                env.context.shared_utility_qualified_name
-            )
-        )
+            MemoryView.get_view_utility_code(env.context.shared_utility_qualified_name))
         env.use_utility_code(LazyUtilityCode(lazy_utility_callback))
 
         if self.is_c_contig:
@@ -2173,16 +2180,19 @@ class CIntLike:
         format_type, width, padding = self._parse_format(format_spec)
         return format_type is not None and width <= 2**30
 
-    def convert_to_pystring(self, cvalue, code, format_spec=None):
-        if self.to_pyunicode_utility is not None:
+    def convert_to_pystring(self, cvalue, code, format_spec=None, name_type=None):
+        if self.to_pyunicode_utility is not None and name_type is None:
             conversion_func_cname, to_pyunicode_utility = self.to_pyunicode_utility
         else:
-            conversion_func_cname = f"__Pyx_PyUnicode_From_{self.specialization_name()}"
+            if name_type is None:
+                name_type = self
+            conversion_func_cname = f"__Pyx_PyUnicode_From_{name_type.specialization_name()}"
             to_pyunicode_utility = TempitaUtilityCode.load_cached(
                 "CIntToPyUnicode", "TypeConversion.c",
-                context={"TYPE": self.empty_declaration_code(),
+                context={"TYPE": name_type.empty_declaration_code(),
                         "TO_PY_FUNCTION": conversion_func_cname})
-            self.to_pyunicode_utility = (conversion_func_cname, to_pyunicode_utility)
+            if name_type is self:
+                self.to_pyunicode_utility = (conversion_func_cname, to_pyunicode_utility)
 
         code.globalstate.use_utility_code(to_pyunicode_utility)
         format_type, width, padding_char = self._parse_format(format_spec)
@@ -2284,7 +2294,7 @@ class CReturnCodeType(CIntType):
     def can_coerce_to_pystring(self, env, format_spec=None):
         return not format_spec
 
-    def convert_to_pystring(self, cvalue, code, format_spec=None):
+    def convert_to_pystring(self, cvalue, code, format_spec=None, name_type=None):
         return "__Pyx_NewRef(%s)" % code.get_py_string_const(StringEncoding.EncodedString("None"))
 
 
@@ -2298,11 +2308,13 @@ class CBIntType(CIntType):
     def can_coerce_to_pystring(self, env, format_spec=None):
         return not format_spec or super().can_coerce_to_pystring(env, format_spec)
 
-    def convert_to_pystring(self, cvalue, code, format_spec=None):
+    def convert_to_pystring(self, cvalue, code, format_spec=None, name_type=None):
         if format_spec:
-            return super().convert_to_pystring(cvalue, code, format_spec)
+            return super().convert_to_pystring(cvalue, code, format_spec, name_type)
+        if name_type is None:
+            name_type = self
         # NOTE: no caching here as the string constant cnames depend on the current module
-        utility_code_name = "__Pyx_PyUnicode_FromBInt_" + self.specialization_name()
+        utility_code_name = "__Pyx_PyUnicode_FromBInt_" + name_type.specialization_name()
         to_pyunicode_utility = TempitaUtilityCode.load_cached(
             "CBIntToPyUnicode", "TypeConversion.c", context={
                 "TRUE_CONST":  code.get_py_string_const(StringEncoding.EncodedString("True")),

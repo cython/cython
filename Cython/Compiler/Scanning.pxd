@@ -35,14 +35,14 @@ cdef class PyrexScanner(Scanner):
     cdef public unicode sy
     cdef public systring  # EncodedString
     cdef public list put_back_on_failure
-    # fstrings
-    cdef list fstring_state_stack
-    cdef int in_fstring_expr_prescan
+    # fstrings/tstrings
+    cdef list ft_string_state_stack
+    cdef int in_ft_string_expr_prescan
 
     cdef Py_ssize_t current_level(self)
     cdef int error_at_scanpos(self, str message) except -1
 
 
-cdef class FStringState:
+cdef class FTStringState:
     cdef list bracket_states
     cdef readonly str scanner_state
