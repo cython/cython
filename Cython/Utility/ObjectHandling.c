@@ -3202,7 +3202,8 @@ static PyObject *__Pyx_PyList_Pack(Py_ssize_t n, ...) {
 #if CYTHON_AVOID_BORROWED_REFS
 static int __Pyx_PyDict_NextRef(PyObject *p, PyObject **ppos, PyObject **pkey, PyObject **pvalue); /* proto */
 #else
-CYTHON_INLINE static int __Pyx_PyDict_NextRef(PyObject *p, Py_ssize_t *ppos, PyObject **pkey, PyObject **pvalue); /* proto */
+CYTHON_INLINE
+static int __Pyx_PyDict_NextRef(PyObject *p, Py_ssize_t *ppos, PyObject **pkey, PyObject **pvalue); /* proto */
 #endif
     
 
