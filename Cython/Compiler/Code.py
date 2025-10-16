@@ -693,6 +693,7 @@ class UtilityCode(UtilityCodeBase):
     hashes/equals by instance
 
     proto           C prototypes
+    export          C prototypes exported from the shared utility code module
     impl            implementation code
     init            code to call on module initialization
     requires        utility code dependencies
