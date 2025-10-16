@@ -643,7 +643,22 @@ static int __Pyx_UpdateUnpickledDict(PyObject *obj, PyObject *state, Py_ssize_t 
 //@requires: ObjectHandling.c::PyObjectCallMethod1
 
 static int __Pyx__UpdateUnpickledDict(PyObject *obj, PyObject *state, Py_ssize_t index) {
-    // Since we received a dict from pickling, we assume that we're unpickling an object that has one, too.
+    PyObject *state_dict = __Pyx_PySequence_ITEM(state, index);
+    if (unlikely(!state_dict)) {
+        return -1;
+    }
+
+    int non_empty = PyObject_IsTrue(state_dict);
+    if (non_empty == 0) {
+        // Nothing to do.
+        Py_DECREF(state_dict);
+        return 0;
+    } else if (unlikely(non_empty == -1)) {
+        return -1;
+    }
+
+    // Since we received a non-empty dict from pickling,
+    // we assume that we're unpickling an object that has one, too.
     PyObject *dict;
     #if CYTHON_COMPILING_IN_LIMITED_API && __PYX_LIMITED_VERSION_HEX < 0x030A0000
     dict = PyObject_GetAttrString(obj, "__dict__");
@@ -651,14 +666,9 @@ static int __Pyx__UpdateUnpickledDict(PyObject *obj, PyObject *state, Py_ssize_t
     dict = PyObject_GenericGetDict(obj, NULL);
     #endif
     if (unlikely(!dict)) {
-        if (!PyErr_ExceptionMatches(PyExc_AttributeError)) return -1;
-        PyErr_Clear();
-        return 0;
-    }
-
-    PyObject *state_dict = __Pyx_PySequence_ITEM(state, index);
-    if (unlikely(!state_dict)) {
-        Py_DECREF(dict);
+        // It is debatable if it is a fatal error if we cannot reassign the state of the dict because
+        // the unpickled object does not have a '__dict__'. But the user should probably know.
+        Py_DECREF(state_dict);
         return -1;
     }
 

@@ -2332,7 +2332,7 @@ if VALUE is not None:
                     cdef bint use_setstate
                     state = ({members})
                     _dict = getattr(self, '__dict__', None)
-                    if _dict is not None:
+                    if _dict is not None and _dict:
                         state += (_dict,)
                         use_setstate = True
                     else:
