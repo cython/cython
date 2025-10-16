@@ -4155,28 +4155,22 @@ class TransformBuiltinMethods(EnvTransform):
                     error(node.function.pos,
                           "cast() takes exactly two arguments and an optional typecheck keyword")
                 else:
-                    if hasattr(node.args[0], 'index') and node.args[0].index.start.is_none:
+                    if isinstance(node.args[0], (ExprNodes.IndexNode, ExprNodes.SliceIndexNode)):
+                        if hasattr(node.args[0], 'index') and node.args[0].index.start.is_none:
+                            start_node = node.args[0].index.start
+                            stop_node = node.args[0].index.stop
+                            step_node = node.args[0].index.step
+                        elif node.args[0].start is None:
+                            start_node = ExprNodes.NoneNode(node.function.pos)
+                            stop_node = node.args[0].stop
+                            step_node = ExprNodes.NoneNode(node.function.pos)
+
                         type = node.args[0].base.analyse_as_type(self.current_env())
                         memslicenode = Nodes.MemoryViewSliceTypeNode(
                             node.function.pos,
                             axes=[
                                 ExprNodes.SliceNode(
-                                    node.function.pos, start=node.args[0].index.start, stop=node.args[0].index.stop, step=node.args[0].index.step)
-                            ],
-                            base_type_node=Nodes.CSimpleBaseTypeNode(
-                                node.function.pos, name = type.typeof_name(), module_path = [],
-                                is_basic_c_type = True, signed = type.signed, complex = type.is_complex,
-                                longness = 0, is_self_arg = False, templates = None)
-                        )
-                        node = ExprNodes.CythonArrayNode(node.function.pos, base_type_node=memslicenode, operand=node.args[1])
-                    elif node.args[0].start is None:
-                        none_node = ExprNodes.NoneNode(node.function.pos)
-                        type = node.args[0].base.analyse_as_type(self.current_env())
-                        memslicenode = Nodes.MemoryViewSliceTypeNode(
-                            node.function.pos,
-                            axes=[
-                                ExprNodes.SliceNode(
-                                    node.function.pos, start=none_node, stop=node.args[0].stop, step=none_node)
+                                    node.function.pos, start=start_node, stop=stop_node, step=step_node)
                             ],
                             base_type_node=Nodes.CSimpleBaseTypeNode(
                                 node.function.pos, name = type.typeof_name(), module_path = [],
