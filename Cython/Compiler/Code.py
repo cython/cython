@@ -703,7 +703,7 @@ class UtilityCode(UtilityCodeBase):
                     from (or None)
     shared_utility_functions        List of parsed declaration line of the shared utility function
     """
-    code_parts = ["proto", "impl", "init", "cleanup", "module_state_decls", "module_state_traverse", "module_state_clear", "export"]
+    code_parts = ["proto", "export", "impl", "init", "cleanup", "module_state_decls", "module_state_traverse", "module_state_clear"]
 
     def __init__(self, proto=None, impl=None, init=None, cleanup=None,
                  module_state_decls=None, module_state_traverse=None,
