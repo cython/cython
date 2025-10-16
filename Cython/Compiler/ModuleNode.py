@@ -185,8 +185,6 @@ class SharedUtilityExporter:
             )
 
         code.put_decref_clear(temp, py_object_type)
-
-
     def _generate_exports(self, shared_utility_functions: Sequence[Code.SharedFunctionDecl]):
         if self.has_shared_exports(shared_utility_functions):
             with self.export_code as inner_code:
