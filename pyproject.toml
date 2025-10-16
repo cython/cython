@@ -3,7 +3,7 @@ requires = ["setuptools"]
 
 [tool.cibuildwheel]
 build-verbosity = 2
-skip = ["pp*", "gp*", "cp31?t-*", "cp36*", "cp37*"]
+skip = ["pp*", "gp*", "cp31?t-*", "cp36*", "cp37*", "cp3[!9]*aarch64", "cp3[!9]*i686", "cp3[!9]*win32", "cp3[!9]*win_arm64"]
 enable = ["cpython-prerelease"]
 # test-command = "make test"
 
@@ -19,10 +19,22 @@ RANLIB = "gcc-ranlib"
 
 [[tool.cibuildwheel.overrides]]
 select = "*aarch64"
-environment = {CFLAGS = "-O3 -g0 -pipe -fPIC -march=armv8-a -mtune=cortex-a72", AR = "gcc-ar", NM = "gcc-nm", RANLIB = "gcc-ranlib" }
+environment = {CFLAGS = "-O3 -g0 -pipe -fPIC -march=armv8-a -mtune=cortex-a72", AR = "gcc-ar", NM = "gcc-nm", RANLIB = "gcc-ranlib", CYTHON_LIMITED_API=true }
+
+[[tool.cibuildwheel.overrides]]
+select = "*i686"
+environment = {CFLAGS = "-O3 -g0 -pipe -fPIC -march=core2 -mno-ssse3",  AR = "gcc-ar", NM = "gcc-nm", RANLIB = "gcc-ranlib", CYTHON_LIMITED_API=true }
 
 [tool.cibuildwheel.windows]
-archs = ["AMD64", "x86"]
+archs = ["AMD64", "x86", "ARM64"]
+
+[[tool.cibuildwheel.overrides]]
+select = "*win32"
+environment = {CYTHON_LIMITED_API = "true"}
+
+[[tool.cibuildwheel.overrides]]
+select = "*win_arm64"
+environment = {CYTHON_LIMITED_API = "true"}
 
 [tool.cibuildwheel.macos]
 # https://cibuildwheel.readthedocs.io/en/stable/faq/#what-to-provide suggests to provide
