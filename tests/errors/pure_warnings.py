@@ -36,7 +36,7 @@ def bar2() -> Bar:  # warning
     pass
 
 @cython.cfunc
-def bar3() -> stdint.bar:  # error
+def bar3() -> stdint.bar:  # warning
     pass
 
 def bar4(a: cython.foo[:]):  # error
@@ -65,9 +65,6 @@ _WARNINGS = """
 
 _ERRORS = """
 17:16: Unknown type declaration 'cython.bar' in annotation
-30:13: Not a type
 30:19: Unknown type declaration 'cython.bar' in annotation
-35:14: Not a type
-39:14: Not a type
 42:18: Unknown type declaration 'cython.foo[:]' in annotation
 """

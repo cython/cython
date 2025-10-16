@@ -493,6 +493,49 @@ def optional_c_bool(a: Optional[c_bool]):
     """
     return a
 
+# Mostly code-generation tests
+class PyClass:
+
+    def __repr__(self):
+        return 'PyClass()'
+
+@cython.ccall
+def unknown_pyclass(a: PyClass) -> PyClass:
+    """
+    >>> unknown_pyclass(PyClass())
+    PyClass()
+    """
+    return a
+
+@cython.ccall
+def none_as_type(a: None) -> None:
+    """
+    >>> repr(none_as_type(None))
+    'None'
+    """
+    return a
+
+@cython.cfunc
+def c_unknown_pyclass(a: PyClass) -> PyClass:
+    return a
+
+def def_unknown_pyclass(a: PyClass) -> PyClass:
+    """
+    >>> def_unknown_pyclass(PyClass())
+    PyClass()
+    """
+    return c_unknown_pyclass(a)
+
+@cython.cfunc
+def c_none_as_type(a: None) -> None:
+    return a
+
+def def_none_as_type(a: None) -> None:
+    """
+    >>> repr(def_none_as_type(None))
+    'None'
+    """
+    return c_none_as_type(a)
 
 _WARNINGS = """
 15:32: Strings should no longer be used for type declarations. Use 'cython.int' etc. directly.
@@ -518,6 +561,13 @@ _WARNINGS = """
 368:15: Annotation ignored since class-level attributes must be Python objects. Were you trying to set up an instance attribute?
 459:32: Unknown type declaration in annotation, ignoring
 459:69: Unknown type declaration in annotation, ignoring
+511:20: Unknown type declaration in annotation, ignoring
+511:20: Unknown type declaration in annotation, ignoring
+511:29: Unknown type declaration in annotation, ignoring
+530:22: Unknown type declaration in annotation, ignoring
+530:31: Unknown type declaration in annotation, ignoring
+533:24: Unknown type declaration in annotation, ignoring
+533:33: Unknown type declaration in annotation, ignoring
 # DUPLICATE:
 75:44: Found C type name 'long' in a Python annotation. Did you mean to use 'cython.long'?
 75:44: Unknown type declaration 'long' in annotation, ignoring
@@ -527,4 +577,6 @@ _WARNINGS = """
 222:0: 'struct_convert' redeclared
 241:0: 'exception_default' redeclared
 272:0: 'exception_default_uint' redeclared
+502:0: 'unknown_pyclass' redeclared
+510:0: 'none_as_type' redeclared
 """

@@ -2,7 +2,7 @@
 Cython Changelog
 ================
 
-3.2.0a0 (2025-??-??)
+3.2.0b1 (2025-10-??)
 ====================
 
 Features added
@@ -17,6 +17,15 @@ Features added
 
 * The f-string syntax was extended according to PEP-701.
   (Github issue :issue:`5452`)
+
+* t-strings are implemented according to PEP-750.  The implementation backports the template classes
+  but prefers existing backports if installed separately.
+  (Github issue :issue:`6811`)
+
+* Unknown return type annotations with `->` are no longer rejected but produce warnings.
+  This allows better integration with Python type hints that are not always usable for Cython.
+  ``-> None``  is also allowed now.
+  Patch by jpe.  (Github issue :issue:`6946`)
 
 * The runtime Python dispatch for fused functions is substantially faster.
   (Github issues :issue:`1385`, :issue:`6996`)
@@ -50,6 +59,9 @@ Features added
 * ``bool(c_int/float/ptr)`` avoid passing through Python objects.
   (Github issue :issue:`7015`)
 
+* Variables assigned inside of ``prange`` loops can now be initialised outside of the loop.
+  (Github issue :issue:`7178`)
+
 * Unused exceptions in ``except`` clauses are detected in some more cases to avoid their normalisation.
   (Github issue :issue:`7021`)
 
@@ -57,14 +69,21 @@ Features added
   in recent CPython versions.  This can be configured with the ``CYTHON_IMMORTAL_CONSTANTS`` C macro.
   (Github issue :issue:`7118`)
 
+* Further improvements were made to reduce the size of the resulting extension modules.
+  (Github issue :issue:`7199`, :issue:`7220`)
+
 * Several improvements were made in freethreaded Python code.
-  (Github issues :issue:`6936`, :issue:`6939`, :issue:`6949`, :issue:`6984`, :issue:`7011`, :issue:`7114`)
+  (Github issues :issue:`6936`, :issue:`6939`, :issue:`6949`, :issue:`6984`,
+   :issue:`7011`, :issue:`7066`, :issue:`7114`, :issue:`7200`)
 
 * Several improvements were made for the Limited API.
   (Github issues :issue:`6959`, :issue:`6991`)
 
+* Several improvements were made for the GraalPython support.
+  Patch by Michael Šimáček.  (Github issue :issue:`7074`)
+
 * Some GIL-safe C-API wrappers were added to the libc/libcpp declarations.
-  (Github issue :issue:`6829`)
+  (Github issue :issue:`6829`, :issue:`6993`)
 
 * String and number constants use less storage space in the module.
   (Github issues :issue:`6971`, :issue:`6978`, :issue:`6986`)
@@ -79,8 +98,10 @@ Features added
 * Declarations for C++ condition variables were added.
   (Github issue :issue:`6836`)
 
-* Several improvements were made for the GraalPython support.
-  Patch by Michael Šimáček.  (Github issue :issue:`7074`)
+* ``cython --embed`` gained a new option ``--embed-modules=…`` to list further extension modules
+  that will be statically linked into the generated extension module, to get them initialised
+  on application start.
+  (Github issue :issue:`2849`)
 
 * The annotated source HTML page shows alternating +/− markers to open/close lines.
   Patch by Kamil Monicz.  (Github issue :issue:`7099`)
@@ -112,6 +133,21 @@ Bugs fixed
 * Indexing ``bytes`` failed to optimise in some cases.
   (Github issue :issue:`6997`)
 
+* Optimised C integer formatting in f-strings failed to apply to typedef types.
+  (Github issue :issue:`7170`)
+
+* Conversion from C++ strings longer than ``PY_SSIZE_T_MAX`` did not validate the length.
+
+* Some non-Limited API code was incorrectly used in generated header files.
+  (Github issue :issue:`7157`)
+
+* Optimised unpacking of Python integers in expressions uses a slightly safer scheme.
+  (Github issue :issue:`7134`)
+
+* In auto-pickling, trying to unpickle an object that has no ``__dict__`` from object pickle data
+  that includes instance dict state is now an error.
+  (Github issue :issue:`7222`)
+
 * The type objects of heap types were not always correctly decrefed on deallocation.
   (Github issue :issue:`7145`)
 
@@ -122,11 +158,18 @@ Bugs fixed
 * Boolean (emptyness) tests on builtin containers could fail to handle (unlikely) errors.
   (Github issue :issue:`7090`)
 
-* The return type of ``bytes.join()`` was sometimes referred as plain ``object``.
+* The return type of ``bytes.join()`` was sometimes inferred as plain ``object``.
   (Github issue :issue:`6987`)
 
 * Type inference could fail to understand ``prange()`` arguments.
   (Github issue :issue:`6974`)
+
+* Empty return statements were not always reported when tracing.
+  (Github issue :issue:`7022`)
+
+* Value conversion errors when tracing C return statements no longer fail the trace
+  but fall back to reporting ``None`` returns instead.
+  (Github issue :issue:`7022`)
 
 * ``embedsignatures`` failed if ``lambda`` was used in function default arguments.
   (Github issue :issue:`6880`)
@@ -134,11 +177,22 @@ Bugs fixed
 * An internal C function was not marked as ``static`` and leaked a linker symbol.
   (Github issue :issue:`6957`)
 
+* Conversion code for memoryview dtypes from and to Python objects generated C warnings about
+  incorrect ``const`` / non-``const``  casting code.
+  (Github issue :issue:`7219`)
+
 * Cython's tools and frontend scripts now use ``python3``  instead of just ``python``
   in their shebang line.
   Patch by Matti Picus.  (Github issue :issue:`7053`)
 
 * Includes all fixes as of Cython 3.1.4.
+
+Other changes
+-------------
+
+* Usages of `Py_TPFLAGS_HAVE_FINALIZE` were removed.  The constant remains available as cimport from
+  ``cpython.object`` for legacy reasons.
+  (Github issue :issue:`6423`)
 
 
 3.1.5 (2025-??-??)

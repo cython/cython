@@ -2,7 +2,24 @@
 # tag: coverage,trace
 
 """
-# Install without build isolation as this currently fails in Py3.14.0.
+# Install without build isolation is required as importing Cython in
+# `setup.py` fails in ephemeral temporary build virtualenvs.
+# Sometimes, pip does no use PEP 517 mechanisms when neither
+# `pyproject.toml` is present, nor `--use-pep517` is passed and falls
+# back to running the legacy `setup.py bdist_wheel` mechanism.
+# pip 25.1 deprecated that mechanism and it is scheduled for removal
+# in pip 25.3 [1]. However, some environments seem to make use of it
+# already, which creates difference in behavior between the CI and
+# some contributor's local runtimes. With `--use-pep517` active, it
+# also implies `--build-isolation` that causes the build to fail.
+# Using `--no-build-isolation` makes `pip install` behave
+# consistently across runtimes and keep the `Cython` importable
+# accessible to `setup.py`.
+# Another way could be figuring out how to point `pyproject.toml`'s
+# `[build-system].requires` to a Cython copy under test and letting
+# pip provision that into the ephemeral build env.
+#
+# [1]: https://github.com/pypa/pip/issues/6334
 PYTHON -m pip install --no-build-isolation .
 PYTHON setup.py build_ext --inplace
 PYTHON -m coverage run --source=pkg coverage_test.py
