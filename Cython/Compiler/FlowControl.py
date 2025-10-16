@@ -1085,9 +1085,6 @@ class ControlFlowAnalysis(CythonTransform):
             assert False, type(node)
 
         # Body block
-        if isinstance(node, Nodes.ParallelRangeNode):
-            # In case of an invalid
-            self._delete_privates(node, exclude=node.target.entry)
 
         self.flow.nextblock()
         self._visit(node.body)
@@ -1139,8 +1136,8 @@ class ControlFlowAnalysis(CythonTransform):
         for private_node in node.assigned_nodes:
             private_node.entry.error_on_uninitialized = True
 
-        self._delete_privates(node)
         self.visitchildren(node)
+        # lastprivate isn't allowed/doesn't make sense for a parallel (non-for) block
         self._delete_privates(node)
 
         return node
