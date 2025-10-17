@@ -67,7 +67,7 @@ __pyx_fail:
 }
 
 
-/////////////// MemviewSliceValidateAndInit.proto ///////////////
+/////////////// MemviewSliceValidateAndInit.export ///////////////
 //@requires: Buffer.c::BufferFormatStructs
 //@substitute: naming
 

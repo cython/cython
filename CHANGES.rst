@@ -59,6 +59,9 @@ Features added
 * ``bool(c_int/float/ptr)`` avoid passing through Python objects.
   (Github issue :issue:`7015`)
 
+* Variables assigned inside of ``prange`` loops can now be initialised outside of the loop.
+  (Github issue :issue:`7178`)
+
 * Unused exceptions in ``except`` clauses are detected in some more cases to avoid their normalisation.
   (Github issue :issue:`7021`)
 
@@ -67,7 +70,7 @@ Features added
   (Github issue :issue:`7118`)
 
 * Further improvements were made to reduce the size of the resulting extension modules.
-  (Github issue :issue:`7199`, :issue:`7220`)
+  (Github issue :issue:`6983`, :issue:`7199`, :issue:`7220`)
 
 * Several improvements were made in freethreaded Python code.
   (Github issues :issue:`6936`, :issue:`6939`, :issue:`6949`, :issue:`6984`,
@@ -173,6 +176,10 @@ Bugs fixed
 
 * An internal C function was not marked as ``static`` and leaked a linker symbol.
   (Github issue :issue:`6957`)
+
+* Conversion code for memoryview dtypes from and to Python objects generated C warnings about
+  incorrect ``const`` / non-``const``  casting code.
+  (Github issue :issue:`7219`)
 
 * Cython's tools and frontend scripts now use ``python3``  instead of just ``python``
   in their shebang line.
