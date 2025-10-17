@@ -210,7 +210,7 @@ static int __Pyx_CheckKeywordStrings(
 }
 
 
-//////////////////// RejectKeywords.proto ////////////////////
+//////////////////// RejectKeywords.export ////////////////////
 
 static void __Pyx_RejectKeywords(const char* function_name, PyObject *kwds); /*proto*/
 
