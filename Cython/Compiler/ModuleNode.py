@@ -15,6 +15,7 @@ import os
 import pathlib
 import re
 import sys
+from typing import Sequence
 
 from .PyrexTypes import CPtrType
 from . import Future
@@ -106,6 +107,106 @@ TOTAL_ORDERING = {
     # a < b from (not a >= b)
     ('__ge__', '__lt__'): (True, '', None),
 }
+
+class SharedUtilityExporter:
+    """
+    Class responsible for generating code that imports and exports shared utility functions.
+
+    Mark the positions where the functions should be called with `call_import_code()`/`call_export_code()`.
+    The function calls and import/export functions are generated when `generate_exporting_functions()`
+    is called. This approach is needed because the list of the shared functions is only known in the later
+    stages of compilation.
+    """
+    def __init__(self, pos, mod_init_subfunction, scope):
+        self.in_shared_utility_module = bool(scope.context.shared_c_file_path)
+        self.using_shared_utility_module = bool(scope.context.shared_utility_qualified_name)
+        self.pos = pos
+        self.scope = scope
+        self.import_code = mod_init_subfunction("Shared function import code")
+        self.export_code = mod_init_subfunction("Shared function export code")
+
+    def has_shared_exports(self, shared_func_definitions: Sequence[Code.SharedFunctionDecl]) -> bool:
+        return bool(self.in_shared_utility_module and shared_func_definitions)
+
+    def has_shared_imports(self, shared_func_definitions: Sequence[Code.SharedFunctionDecl]) -> bool:
+        return bool(self.using_shared_utility_module and shared_func_definitions)
+
+    def call_import_code(self, code):
+        self.import_code.set_call_code(code)
+
+    def call_export_code(self, code):
+        self.export_code.set_call_code(code)
+
+    def _generate_c_shared_function_export_code(self, code, shared_function_definitions: Sequence[Code.SharedFunctionDecl]):
+        api_dict = code.funcstate.allocate_temp(py_object_type, manage_ref=True)
+        code.globalstate.use_utility_code(
+            UtilityCode.load_cached("GetApiDict", "ImportExport.c"))
+        code.putln(
+            f"{api_dict} = __Pyx_ApiExport_GetApiDict(); "
+            f"{code.error_goto_if_null(api_dict, self.pos)}"
+        )
+        code.put_gotref(api_dict, py_object_type)
+
+        code.globalstate.use_utility_code(
+            UtilityCode.load_cached("FunctionExport", "ImportExport.c"))
+
+        for shared_func_def in shared_function_definitions:
+            func_name = shared_func_def.name
+            func_params = shared_func_def.params
+            func_ret_type = shared_func_def.ret
+            func_name_from_mstate = code.intern_identifier(EncodedString(func_name))
+            code.put_error_if_neg(
+                self.pos,
+                f'__Pyx_ExportFunction({api_dict}, {func_name_from_mstate}, (void (*)(void)){func_name}, "{func_ret_type}({func_params})")'
+            )
+
+        code.put_decref_clear(api_dict, py_object_type)
+        code.funcstate.release_temp(api_dict)
+
+    def _generate_c_shared_function_import_code_for_module(self, code, function_definitions: Sequence[Code.SharedFunctionDecl]):
+        code.globalstate.use_utility_code(UtilityCode.load_cached("FunctionImport", "ImportExport.c"))
+        shared_utility_qualified_name = self.scope.context.shared_utility_qualified_name
+        temp = code.funcstate.allocate_temp(py_object_type, manage_ref=True)
+        code.putln(
+            f'{temp} = PyImport_ImportModule("{shared_utility_qualified_name}"); {code.error_goto_if_null(temp, self.pos)}'
+        )
+        code.put_gotref(temp, py_object_type)
+        code.funcstate.release_temp(temp)
+        cyversion = Naming.cyversion
+
+        for shared_func_def in function_definitions:
+            func_name = shared_func_def.name
+            func_params = shared_func_def.params
+            func_return_type = shared_func_def.ret
+            func_proto = f'{func_return_type}({func_params})'
+            code.put_error_if_neg(
+                self.pos,
+                f'__Pyx_ImportFunction_{cyversion}({temp}, "{func_name}", (void (**)(void))&{func_name}, "{func_proto}")'
+            )
+
+        code.put_decref_clear(temp, py_object_type)
+    def _generate_exports(self, shared_utility_functions: Sequence[Code.SharedFunctionDecl]):
+        if self.has_shared_exports(shared_utility_functions):
+            with self.export_code as inner_code:
+                self._generate_c_shared_function_export_code(
+                    inner_code,
+                    shared_utility_functions
+                )
+
+    def _generate_imports(self, shared_utility_functions: Sequence[Code.SharedFunctionDecl]):
+        if self.has_shared_imports(shared_utility_functions):
+            with self.import_code as inner_code:
+                self._generate_c_shared_function_import_code_for_module(
+                    inner_code,
+                    shared_utility_functions
+                )
+
+    def generate_exporting_functions(self, code):
+        shared_utility_functions = code.globalstate.shared_utility_functions
+        code.enter_cfunc_scope(self.scope)
+        self._generate_exports(shared_utility_functions)
+        self._generate_imports(shared_utility_functions)
+        code.exit_cfunc_scope()
 
 
 class ModuleNode(Nodes.Node, Nodes.BlockNode):
@@ -541,8 +642,16 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         self.generate_module_state_clear(env, globalstate['module_state_clear'])
         self.generate_module_state_traverse(env, globalstate['module_state_traverse'])
 
+        shared_utility_exporter = SharedUtilityExporter(
+            self.pos,
+            self.mod_init_subfunction(self.pos, self.scope, globalstate['init_module']),
+            self.scope
+        )
+
         # init_globals is inserted before this
-        self.generate_module_init_func(modules[:-1], env, globalstate['init_module'])
+        self.generate_module_init_func(
+            modules[:-1], shared_utility_exporter, env, globalstate['init_module']
+        )
         self.generate_module_cleanup_func(env, globalstate['cleanup_module'])
         if Options.embed:
             self.generate_main_method(env, globalstate['main_method'])
@@ -553,6 +662,9 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
         for utilcode in env.utility_code_list[:]:
             globalstate.use_utility_code(utilcode)
+
+        shared_utility_exporter.generate_exporting_functions(code)
+
         globalstate.finalize_main_c_code()
 
         self.generate_module_state_end(env, modules, globalstate)
@@ -2960,7 +3072,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln(f'__Pyx_VISIT_CONST(traverse_module_state->{Naming.empty_bytes});')
         code.putln(f'__Pyx_VISIT_CONST(traverse_module_state->{Naming.empty_unicode});')
 
-    def generate_module_init_func(self, imported_modules, env, code):
+    def generate_module_init_func(self, imported_modules, shared_utility_exporter, env, code):
         subfunction = self.mod_init_subfunction(self.pos, self.scope, code)
 
         self.generate_pymoduledef_struct(env, code)
@@ -3119,6 +3231,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         with subfunction("Function export code") as inner_code:
             self.generate_c_function_export_code(env, inner_code)
 
+        shared_utility_exporter.call_export_code(code)
+
         with subfunction("Type init code") as inner_code:
             self.generate_type_init_code(env, inner_code)
 
@@ -3134,6 +3248,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             for module in imported_modules:
                 self.specialize_fused_types(module)
                 self.generate_c_function_import_code_for_module(module, env, inner_code)
+
+        shared_utility_exporter.call_import_code(code)
 
         code.putln("/*--- Execution code ---*/")
         code.mark_pos(None)
@@ -3239,8 +3355,12 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 self.tempdecl_code = None
                 self.call_code = None
 
+            def set_call_code(self, code):
+                self.call_code = code.insertion_point()
+
             def __enter__(self):
-                self.call_code = orig_code.insertion_point()
+                if self.call_code is None:
+                    self.call_code = orig_code.insertion_point()
                 code = function_code
                 code.start_initcfunc(
                     f"int {self.cfunc_name}({Naming.modulestatetype_cname} *{Naming.modulestatevalue_cname})",
