@@ -70,7 +70,7 @@ Features added
   (Github issue :issue:`7118`)
 
 * Further improvements were made to reduce the size of the resulting extension modules.
-  (Github issue :issue:`7199`, :issue:`7220`)
+  (Github issue :issue:`6983`, :issue:`7199`, :issue:`7220`)
 
 * Several improvements were made in freethreaded Python code.
   (Github issues :issue:`6936`, :issue:`6939`, :issue:`6949`, :issue:`6984`,
