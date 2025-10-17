@@ -198,7 +198,7 @@ static PyObject* __Pyx__PyList_PopIndex(PyObject* L, PyObject* py_ix, Py_ssize_t
 #endif
 
 
-/////////////// dict_getitem_default.proto ///////////////
+/////////////// dict_getitem_default.export ///////////////
 
 static PyObject* __Pyx_PyDict_GetItemDefault(PyObject* d, PyObject* key, PyObject* default_value); /*proto*/
 
