@@ -1,4 +1,4 @@
-/////////////// Import.proto ///////////////
+/////////////// Import.export ///////////////
 
 static PyObject *__Pyx_Import(PyObject *name, PyObject *const *imported_names, Py_ssize_t len_imported_names, PyObject *qualname, int level); /*proto*/
 
