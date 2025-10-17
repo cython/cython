@@ -1,4 +1,5 @@
 //////////////////// ArgTypeTest.proto ////////////////////
+//@requires: ArgTypeTestFunc
 
 // Exact is 0 (False), 1 (True) or 2 (True and from annotation)
 // The latter gives a small amount of extra error diagnostics
@@ -6,9 +7,12 @@
     ((likely(__Pyx_IS_TYPE(obj, type) | (none_allowed && (obj == Py_None)))) ? 1 : \
         __Pyx__ArgTypeTest(obj, type, name, exact))
 
+
+//////////////////// ArgTypeTestFunc.proto ////////////////////
+
 static int __Pyx__ArgTypeTest(PyObject *obj, PyTypeObject *type, const char *name, int exact); /*proto*/
 
-//////////////////// ArgTypeTest ////////////////////
+//////////////////// ArgTypeTestFunc ////////////////////
 
 static int __Pyx__ArgTypeTest(PyObject *obj, PyTypeObject *type, const char *name, int exact)
 {
