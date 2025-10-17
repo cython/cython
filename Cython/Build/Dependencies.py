@@ -452,10 +452,15 @@ def resolve_depends(depends, include_dirs):
 def resolve_depend(depend, include_dirs):
     if depend[0] == '<' and depend[-1] == '>':
         return None
-    for dir in include_dirs:
-        path = join_path(dir, depend)
+    if(isinstance(include_dirs, str)):
+        path = join_path(include_dirs, depend)
         if path_exists(path):
             return os.path.normpath(path)
+    else:
+        for dir in include_dirs:
+            path = join_path(dir, depend)
+            if path_exists(path):
+                return os.path.normpath(path)
     return None
 
 
@@ -709,7 +714,9 @@ def create_dependency_tree(ctx=None, quiet=False):
 # which mentions this function
 def default_create_extension(template, kwds):
     if 'depends' in kwds:
-        include_dirs = kwds.get('include_dirs', []) + ["."]
+        include_dirs = kwds.get('include_dirs', [])
+        if(not isinstance(include_dirs,str)):
+            include_dirs = include_dirs + ["."]
         depends = resolve_depends(kwds['depends'], include_dirs)
         kwds['depends'] = sorted(set(depends + template.depends))
 
