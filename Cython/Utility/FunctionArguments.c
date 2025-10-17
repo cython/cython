@@ -249,6 +249,7 @@ static void __Pyx_RejectKeywords(const char* function_name, PyObject *kwds) {
 
 
 //////////////////// ParseKeywords.proto ////////////////////
+//@requires: ParseKeywordsImpl
 
 static CYTHON_INLINE int __Pyx_ParseKeywords(
     PyObject *kwds, PyObject *const *kwvalues, PyObject ** const argnames[],
@@ -259,10 +260,6 @@ static CYTHON_INLINE int __Pyx_ParseKeywords(
 ); /*proto*/
 
 //////////////////// ParseKeywords ////////////////////
-//@requires: RaiseDoubleKeywords
-//@requires: Synchronization.c::CriticalSections
-//@requires: ObjectHandling.c::OwnedDictNext
-
 //  __Pyx_ParseOptionalKeywords copies the optional/unknown keyword
 //  arguments from kwds into the dict kwds2.  If kwds2 is NULL, unknown
 //  keywords will raise an invalid keyword error.
@@ -279,6 +276,66 @@ static CYTHON_INLINE int __Pyx_ParseKeywords(
 //  amongst the keywords as well.
 //
 //  This method does not check for required keyword arguments.
+
+static int __Pyx_ParseKeywords(
+    PyObject *kwds,
+    PyObject * const *kwvalues,
+    PyObject ** const argnames[],
+    PyObject *kwds2,
+    PyObject *values[],
+    Py_ssize_t num_pos_args,
+    Py_ssize_t num_kwargs,
+    const char* function_name,
+    int ignore_unknown_kwargs)
+{
+    // Only called if kwds contains at least one optional keyword argument.
+    if (CYTHON_METH_FASTCALL && likely(PyTuple_Check(kwds)))
+        return __Pyx_ParseKeywordsTuple(kwds, kwvalues, argnames, kwds2, values, num_pos_args, num_kwargs, function_name, ignore_unknown_kwargs);
+    else if (kwds2)
+        return __Pyx_ParseKeywordDictToDict(kwds, argnames, kwds2, values, num_pos_args, function_name);
+    else
+        return __Pyx_ParseKeywordDict(kwds, argnames, values, num_pos_args, num_kwargs, function_name, ignore_unknown_kwargs);
+}
+
+
+//////////////////// ParseKeywordsImpl.export ////////////////////
+//@requires: RaiseDoubleKeywords
+//@requires: Synchronization.c::CriticalSections
+//@requires: ObjectHandling.c::OwnedDictNext
+
+
+static int __Pyx_ParseKeywordsTuple(
+    PyObject *kwds,
+    PyObject * const *kwvalues,
+    PyObject ** const argnames[],
+    PyObject *kwds2,
+    PyObject *values[],
+    Py_ssize_t num_pos_args,
+    Py_ssize_t num_kwargs,
+    const char* function_name,
+    int ignore_unknown_kwargs
+);
+
+static int __Pyx_ParseKeywordDictToDict(
+    PyObject *kwds,
+    PyObject ** const argnames[],
+    PyObject *kwds2,
+    PyObject *values[],
+    Py_ssize_t num_pos_args,
+    const char* function_name
+);
+
+static int __Pyx_ParseKeywordDict(
+    PyObject *kwds,
+    PyObject ** const argnames[],
+    PyObject *values[],
+    Py_ssize_t num_pos_args,
+    Py_ssize_t num_kwargs,
+    const char* function_name,
+    int ignore_unknown_kwargs
+);
+
+//////////////////// ParseKeywordsImpl ////////////////////
 
 static int __Pyx_ValidateDuplicatePosArgs(
     PyObject *kwds,
@@ -719,26 +776,6 @@ bad:
     Py_XDECREF(key);
     #endif
     return -1;
-}
-
-static int __Pyx_ParseKeywords(
-    PyObject *kwds,
-    PyObject * const *kwvalues,
-    PyObject ** const argnames[],
-    PyObject *kwds2,
-    PyObject *values[],
-    Py_ssize_t num_pos_args,
-    Py_ssize_t num_kwargs,
-    const char* function_name,
-    int ignore_unknown_kwargs)
-{
-    // Only called if kwds contains at least one optional keyword argument.
-    if (CYTHON_METH_FASTCALL && likely(PyTuple_Check(kwds)))
-        return __Pyx_ParseKeywordsTuple(kwds, kwvalues, argnames, kwds2, values, num_pos_args, num_kwargs, function_name, ignore_unknown_kwargs);
-    else if (kwds2)
-        return __Pyx_ParseKeywordDictToDict(kwds, argnames, kwds2, values, num_pos_args, function_name);
-    else
-        return __Pyx_ParseKeywordDict(kwds, argnames, values, num_pos_args, num_kwargs, function_name, ignore_unknown_kwargs);
 }
 
 
