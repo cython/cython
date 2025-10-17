@@ -8,7 +8,7 @@
         __Pyx__ArgTypeTest(obj, type, name, exact))
 
 
-//////////////////// ArgTypeTestFunc.proto ////////////////////
+//////////////////// ArgTypeTestFunc.export ////////////////////
 
 static int __Pyx__ArgTypeTest(PyObject *obj, PyTypeObject *type, const char *name, int exact); /*proto*/
 
