@@ -4138,12 +4138,10 @@ class TransformBuiltinMethods(EnvTransform):
                 ExprNodes.SliceNode(
                     pos, start=start_node, stop=stop_node, step=step_node)
             ],
-            base_type_node=Nodes.CSimpleBaseTypeNode(
-                pos, name = type.typeof_name(), module_path = [],
-                is_basic_c_type = True, signed = type.signed, complex = type.is_complex,
-                longness = 0, is_self_arg = False, templates = None)
+            # We pass array_dtype hence we can set this parameter as None
+            base_type_node=None
         )
-        return ExprNodes.CythonArrayNode(pos, base_type_node=memslicenode, operand=operand)
+        return ExprNodes.CythonArrayNode(pos, base_type_node=memslicenode, array_dtype=type, operand=operand)
 
     def visit_SimpleCallNode(self, node):
         function = node.function.as_cython_attribute()
