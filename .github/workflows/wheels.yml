@@ -141,8 +141,8 @@ jobs:
         # Nb. keep cibuildwheel version pin consistent with generate-matrix job above
         uses: pypa/cibuildwheel@v3.2.0
         env:
-          # Skip the "major" platforms
-          CIBW_SKIP: "*-macos* *linux_x86_64 *win_amd64"
+          # Smaller set of platforms that we only provide Stable ABI wheels for
+          CIBW_BUILD: "*win_arm64 *win32 *linux_i686 *linux_aarch64"
 
       - uses: actions/upload-artifact@v4
         with:
