@@ -2171,7 +2171,9 @@ class GlobalState:
         w.putln('}')
         w.putln('}')
 
-        self.immortalize_constants("stringtab", len(index), w)
+        # DISABLED: strings are not trivially immortal but require certain rules.
+        # See https://github.com/python/cpython/blob/920de7ccdcfa7284b6d23a124771b17c66dd3e4f/Objects/unicodeobject.c#L713-L739
+        #self.immortalize_constants("stringtab", len(index), w)
 
         w.putln("}")  # close block
 
