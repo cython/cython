@@ -77,7 +77,7 @@ jobs:
               | sed -e '/aarch64/s|ubuntu-latest|ubuntu-24.04-arm|' \
               && cibuildwheel --print-build-identifiers --platform macos \
               | jq -nRc '{"only": inputs, "os": "macos-latest"}' \
-              && cibuildwheel --print-build-identifiers --platform windows --archs amd64 \
+              && cibuildwheel --print-build-identifiers --platform windows --archs AMD64 \
               | jq -nRc '{"only": inputs, "os": "windows-2022"}' \
               | sed -e '/arm64/s|windows-2022|windows-11-arm|'
             } | jq -sc
