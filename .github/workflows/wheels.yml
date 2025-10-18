@@ -73,7 +73,7 @@ jobs:
               cibuildwheel --print-build-identifiers --platform linux --archs "x86_64,aarch64" \
               | jq -nRc '{"only": inputs, "os": "ubuntu-latest"}' \
               | sed -e '/aarch64/s|ubuntu-latest|ubuntu-24.04-arm|' \
-              && cibuildwheel --print-build-identifiers --platform macos \
+              && cibuildwheel --print-build-identifiers --platform macos --archs arm64 \
               | jq -nRc '{"only": inputs, "os": "macos-latest"}' \
               && cibuildwheel --print-build-identifiers --platform windows --archs AMD64 \
               | jq -nRc '{"only": inputs, "os": "windows-2022"}' \
@@ -130,7 +130,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-latest, windows-11-arm]
+        os: [ubuntu-latest, windows-latest, windows-11-arm, macos-latest]
 
     steps:
       - name: Checkout Cython
@@ -143,6 +143,7 @@ jobs:
           CIBW_BUILD: |
             ${{ matrix.os == 'ubuntu-latest' && '*linux_i686' ||
                 matrix.os == 'windows-latest' && '*win32' ||
+                matrix.os == 'macos-latest' && '*macosx_x86_64' ||
                 matrix.os == 'windows-11-arm' && '*win_arm64' || '' }}
 
       - uses: actions/upload-artifact@v4

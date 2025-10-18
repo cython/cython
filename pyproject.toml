@@ -10,7 +10,7 @@ skip = [
     # pure-Python wheels. cibuildwheel will identify Stable ABI wheels and
     # only build them for the one Python version. It will test them for all
     # Python versions though.
-    "cp38*i686", "cp38*win32", "cp38*win_arm64"
+    "cp38*i686", "cp38*win32", "cp38*win_arm64", "cp38-macosx_x86_64",
 ]
 enable = ["cpython-prerelease"]
 # As a quick sanity check, run Cython on some of its own sources
@@ -47,6 +47,11 @@ environment.CYTHON_LIMITED_API = "true"
 
 [[tool.cibuildwheel.overrides]]
 select = "*win_arm64"
+inherit.environment = "append"
+environment.CYTHON_LIMITED_API = "true"
+
+[[tool.cibuildwheel.overrides]]
+select = "*macosx_x86_64"
 inherit.environment = "append"
 environment.CYTHON_LIMITED_API = "true"
 
