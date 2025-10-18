@@ -142,9 +142,9 @@ jobs:
         env:
           # Smaller set of platforms that we only provide Stable ABI wheels for
           CIBW_BUILD: |
-            ${{ matrix.os == 'ubuntu-latest' && '*linux_i686' || \
-                matrix.os == 'ubuntu-24.04-arm' && '*linux_aarch64' || \
-                matrix.os == 'windows-latest' && '*win32' || \
+            ${{ matrix.os == 'ubuntu-latest' && '*linux_i686' ||
+                matrix.os == 'ubuntu-24.04-arm' && '*linux_aarch64' ||
+                matrix.os == 'windows-latest' && '*win32' ||
                 matrix.os == 'windows-11-arm' && '*win_arm64' || '' }}
 
       - uses: actions/upload-artifact@v4
