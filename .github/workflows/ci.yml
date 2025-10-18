@@ -107,19 +107,19 @@ jobs:
             extra_hash: "-gcc11"
           # Arm64
           - os: ubuntu-22.04-arm
-            python-version: "3.12"
+            python-version: "3.13"
             backend: c
             env: {}
           - os: ubuntu-22.04-arm
-            python-version: "3.12"
+            python-version: "3.13"
             backend: cpp
             env: {}
           - os:  windows-11-arm
-            python-version: "3.12"
+            python-version: "3.13"
             backend: "c"
             env: {}
           - os:  windows-11-arm
-            python-version: "3.12"
+            python-version: "3.13"
             backend: "cpp"
             env: {}
           # compile all modules
