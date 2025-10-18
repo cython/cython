@@ -143,6 +143,7 @@ jobs:
         env:
           # Smaller set of platforms that we only provide Stable ABI wheels for
           CIBW_BUILD: "*win_arm64 *win32 *linux_i686 *linux_aarch64"
+          CIBW_ARCH: "auto auto32"
 
       - uses: actions/upload-artifact@v4
         with:
