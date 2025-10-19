@@ -2502,6 +2502,15 @@ class FuncDefNode(StatNode, BlockNode):
             code.funcstate.can_trace = False
             code.put_trace_exit(nogil=not code.funcstate.gil_owned)
 
+        has_cclass_self = (
+            lenv.parent_scope and lenv.parent_scope.is_c_class_scope and
+            len(self.args) > 0 and self.args[0].is_self_arg
+        )
+        refnanny_setup_code.put_function_get_module_state_definitions(
+            self_arg_name=(self.args[0].entry.cname if has_cclass_self else None)
+        )
+        code.put_undef_get_module_state_definition()
+
         if code.funcstate.needs_refnanny:
             refnanny_decl_code.put_declare_refcount_context()
             refnanny_setup_code.put_setup_refcount_context(self.entry.name, acquire_gil=refnanny_needs_gil)
@@ -3836,6 +3845,12 @@ class DefNodeWrapper(FuncDefNode):
                 self.return_type.declaration_code(Naming.retval_cname),
                 retval_init))
         code.put_declare_refcount_context()
+        has_cclass_self = (
+            lenv.parent_scope and lenv.parent_scope.is_c_class_scope and
+            len(self.args) > 0 and
+            self.args[0].is_self_arg
+        )
+        code.put_function_get_module_state_definitions(self_arg_name=self.args[0].entry.cname if has_cclass_self else None)
         code.put_setup_refcount_context(EncodedString('%s (wrapper)' % self.name))
 
         self.generate_argument_parsing_code(lenv, code, tempvardecl_code)
@@ -3888,6 +3903,7 @@ class DefNodeWrapper(FuncDefNode):
                     code.put_var_decref(arg.entry)
 
         code.put_finish_refcount_context()
+        code.put_undef_get_module_state_definition()
         if not self.return_type.is_void:
             code.putln("return %s;" % Naming.retval_cname)
         code.putln('}')

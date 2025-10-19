@@ -2089,7 +2089,7 @@ class NameNode(AtomicExprNode):
     allow_null = False
     nogil = False
     inferred_type = None
-    module_state_lookup = ""
+    module_state_lookup = False
 
     def as_cython_attribute(self):
         return self.cython_attribute
@@ -2420,7 +2420,7 @@ class NameNode(AtomicExprNode):
         if entry.scope.is_module_scope and (
                 entry.is_pyglobal or entry.is_cclass_var_entry):
             # TODO - eventually this should apply to cglobals too
-            self.module_state_lookup = env.name_in_module_state("")
+            self.module_state_lookup = True
 
     def check_identifier_kind(self):
         # Check that this is an appropriate kind of name for use in an
@@ -2525,7 +2525,9 @@ class NameNode(AtomicExprNode):
             return "<error>"  # There was an error earlier
         if self.entry.is_cpp_optional and not self.is_target:
             return "(*%s)" % entry.cname
-        return self.module_state_lookup + entry.cname
+        if self.module_state_lookup:
+            return f"__PYX_GET_MODULE_STATE()->{entry.cname}"
+        return entry.cname
 
     def generate_result_code(self, code):
         entry = self.entry
