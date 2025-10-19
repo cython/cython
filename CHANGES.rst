@@ -21,7 +21,7 @@ Bugs fixed
 
 * Value conversion errors when tracing C return statements no longer fail the trace
   but fall back to reporting ``None`` returns instead.
-  (Github issue :issue:`7022`)
+  (Github issue :issue:`6503`)
 
 
 3.1.4 (2025-09-16)
