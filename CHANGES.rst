@@ -136,14 +136,6 @@ Bugs fixed
 * Optimised C integer formatting in f-strings failed to apply to typedef types.
   (Github issue :issue:`7170`)
 
-* Conversion from C++ strings longer than ``PY_SSIZE_T_MAX`` did not validate the length.
-
-* Some non-Limited API code was incorrectly used in generated header files.
-  (Github issue :issue:`7157`)
-
-* Optimised unpacking of Python integers in expressions uses a slightly safer scheme.
-  (Github issue :issue:`7134`)
-
 * In auto-pickling, trying to unpickle an object that has no ``__dict__`` from object pickle data
   that includes instance dict state is now an error.
   (Github issue :issue:`7222`)
@@ -164,13 +156,6 @@ Bugs fixed
 * Type inference could fail to understand ``prange()`` arguments.
   (Github issue :issue:`6974`)
 
-* Empty return statements were not always reported when tracing.
-  (Github issue :issue:`7022`)
-
-* Value conversion errors when tracing C return statements no longer fail the trace
-  but fall back to reporting ``None`` returns instead.
-  (Github issue :issue:`7022`)
-
 * ``embedsignatures`` failed if ``lambda`` was used in function default arguments.
   (Github issue :issue:`6880`)
 
@@ -185,7 +170,7 @@ Bugs fixed
   in their shebang line.
   Patch by Matti Picus.  (Github issue :issue:`7053`)
 
-* Includes all fixes as of Cython 3.1.4.
+* Includes all fixes as of Cython 3.1.5.
 
 Other changes
 -------------
