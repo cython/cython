@@ -288,6 +288,32 @@ jobs:
           if-no-files-found: ignore
 
 
+  pydebug:
+    runs-on: ubuntu-latest
+
+    env:
+      BACKEND: c,cpp
+      PYTHON_VERSION: 3.x-dev
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v5
+
+      - name: Build Python
+        run: |
+          git clone https://github.com/python/cpython/ cpython_main
+          cd cpython_main
+          ./configure --with-pydebug --prefix=${GITHUB_WORKSPACE}/cpython_install CFLAGS="-O2"
+          make -j8
+          make install
+          ${GITHUB_WORKSPACE}/cpython_install/bin/python3 -m venv ${GITHUB_WORKSPACE}/venv_pydebug
+
+      - name: Run CI
+        run: |
+          cd "${GITHUB_WORKSPACE}/"
+          source venv_pydebug/bin/activate
+          bash ./Tools/ci-run.sh
+
   pycoverage:
     runs-on: ubuntu-22.04
 
