@@ -195,7 +195,7 @@ Other changes
   (Github issue :issue:`6423`)
 
 
-3.1.5 (2025-??-??)
+3.1.5 (2025-01-19)
 ==================
 
 Bugs fixed
@@ -208,6 +208,13 @@ Bugs fixed
 
 * Optimised unpacking of Python integers in expressions uses a slightly safer scheme.
   (Github issue :issue:`7134`)
+
+* Empty return statements were not always reported when tracing.
+  (Github issue :issue:`7022`)
+
+* Value conversion errors when tracing C return statements no longer fail the trace
+  but fall back to reporting ``None`` returns instead.
+  (Github issue :issue:`7022`)
 
 
 3.1.4 (2025-09-16)

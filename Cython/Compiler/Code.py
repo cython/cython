@@ -2171,7 +2171,11 @@ class GlobalState:
         w.putln('}')
         w.putln('}')
 
-        self.immortalize_constants("stringtab", len(index), w)
+        # Unicode strings are not trivially immortal but require certain rules.
+        # See https://github.com/python/cpython/blob/920de7ccdcfa7284b6d23a124771b17c66dd3e4f/Objects/unicodeobject.c#L713-L739
+        # But we can make bytes strings immortal.
+        if stringtab_bytes_start < len(index):
+            self.immortalize_constants(f"stringtab + {stringtab_bytes_start}", len(index) - stringtab_bytes_start, w)
 
         w.putln("}")  # close block
 
