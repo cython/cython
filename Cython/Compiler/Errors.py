@@ -20,7 +20,7 @@ class _ErrorsThreadLocals(_threadlocal):
 
     def __init__(self):
         # mutable defaults
-        self.cython_errors_once_seen = set()
+        self.cython_errors_warn_once_seen = set()
         self.cython_errors_stack = []
 
     def reset(self):
