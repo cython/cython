@@ -141,8 +141,7 @@ Bugs fixed
 * ``cythonize`` (program and function) now uses :class:`concurrent.futures.ProcessPoolExecutor`
   instead of :class:`multiprocessing.Pool` to fix a hang on build failures in parallel builds.
   A possible work-around is to disable parallel builds.
-  Patch by :user:`Sviatoslav Sydorenko <webknjaz>`.
-  (Github issue :issue:`3973`, PR :pr:`7183`)
+  Patch by Sviatoslav Sydorenko.  (Github issue :issue:`7183`)
 
 * Includes all fixes as of Cython 3.1.4.
 
