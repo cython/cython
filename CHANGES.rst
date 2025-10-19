@@ -138,13 +138,9 @@ Bugs fixed
   in their shebang line.
   Patch by Matti Picus.  (Github issue :issue:`7053`)
 
-* The ``cythonize`` script now makes use of the high-level API provided by
-  :class:`concurrent.futures.ProcessPoolExecutor` instead of
-  :class:`multiprocessing.Pool`. Prior to this fix,
-  compilation failures would cause ``cythonize`` to hang in parallel mode.
-  This release replaces a workaround applied earlier this year in :pr:`3263`.
-  A workaround for older versions is to manually set parallelism to ``0``
-  or ``1``.
+* ``cythonize`` (program and function) now uses :class:`concurrent.futures.ProcessPoolExecutor`
+  instead of :class:`multiprocessing.Pool` to fix a hang on build failures in parallel builds.
+  A possible work-around is to disable parallel builds.
   Patch by :user:`Sviatoslav Sydorenko <webknjaz>`.
   (Github issue :issue:`3973`, PR :pr:`7183`)
 
