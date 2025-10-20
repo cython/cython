@@ -1261,39 +1261,42 @@ static {{c_ret_type}} __Pyx_Unpacked_{{cfunc_name}}(PyObject *op1, PyObject *op2
     // Handle most common case (fits into 'long') first to avoid indirect branch and optimise branch prediction.
     if (unlikely(!__Pyx_PyLong_CompactAsLong({{pyval}}, &{{ival}}))) {
         const digit* digits = __Pyx_PyLong_Digits({{pyval}});
-        const Py_ssize_t size = __Pyx_PyLong_SignedDigitCount({{pyval}});
+        const int is_neg = !__Pyx_PyLong_IsPos({{pyval}});
+        const Py_ssize_t size = __Pyx_PyLong_DigitCount({{pyval}});
         switch (size) {
             {{for _size in range(2, 5)}}
-            {{for _case in (-_size, _size)}}
-            case {{_case}}:
+            case {{_size}}:
                 if (8 * sizeof(long) - 1 > {{_size}} * PyLong_SHIFT{{if c_op == '*'}}+30{{endif}}{{if op == 'TrueDivide'}} && {{_size-1}} * PyLong_SHIFT < 53{{endif}}) {
-                    {{ival}} = {{'-' if _case < 0 else ''}}(long) {{pylong_join(_size, 'digits')}};
-                    break;
+                    {{ival}} = (long) {{pylong_join(_size, 'digits')}};
+                    if (is_neg) {{ival}} *= -1;
+                    goto calculate_long;
                 {{if op not in ('Eq', 'Ne', 'TrueDivide')}}
                 } else if (8 * sizeof(PY_LONG_LONG) - 1 > {{_size}} * PyLong_SHIFT{{if c_op == '*'}}+30{{endif}}) {
-                    ll{{ival}} = {{'-' if _case < 0 else ''}}(PY_LONG_LONG) {{pylong_join(_size, 'digits', 'unsigned PY_LONG_LONG')}};
-                    goto long_long;
+                    ll{{ival}} = (PY_LONG_LONG) {{pylong_join(_size, 'digits', 'unsigned PY_LONG_LONG')}};
+                    if (is_neg) ll{{ival}} *= -1;
+                    goto calculate_long_long;
                 {{endif}}
                 }
-                // if size doesn't fit into a long or PY_LONG_LONG anymore, fall through to default
-                CYTHON_FALLTHROUGH;
+                // size doesn't fit into a long or PY_LONG_LONG any more
+                break;
             {{endfor}}
-            {{endfor}}
-
-            {{if op in ('Eq', 'Ne')}}
-            #if PyLong_SHIFT < 30 && PyLong_SHIFT != 15
-            // unusual setup - your fault
-            default: return {{'' if ret_type.is_pyobject else '__Pyx_PyObject_IsTrueAndDecref'}}(
-                PyLong_Type.tp_richcompare({{'op1, op2' if order == 'ObjC' else 'op2, op1'}}, Py_{{op.upper()}}));
-            #else
-            // too large for the long values we allow => definitely not equal
-            default: {{return_false if op == 'Eq' else return_true}};
-            #endif
-            {{else}}
-            default: return PyLong_Type.tp_as_number->nb_{{slot_name}}(op1, op2);
-            {{endif}}
         }
+
+        {{if op in ('Eq', 'Ne')}}
+        #if PyLong_SHIFT < 30 && PyLong_SHIFT != 15
+        // unusual setup - your fault
+        return {{'' if ret_type.is_pyobject else '__Pyx_PyObject_IsTrueAndDecref'}}(
+            PyLong_Type.tp_richcompare({{'op1, op2' if order == 'ObjC' else 'op2, op1'}}, Py_{{op.upper()}}));
+        #else
+        // too large for the long values we allow => definitely not equal
+        {{return_false if op == 'Eq' else return_true}};
+        #endif
+        {{else}}
+        return PyLong_Type.tp_as_number->nb_{{slot_name}}(op1, op2);
+        {{endif}}
     }
+
+    calculate_long:
 
     {{if op in ('Eq', 'Ne')}}
         if (a {{c_op}} b) {
@@ -1302,52 +1305,55 @@ static {{c_ret_type}} __Pyx_Unpacked_{{cfunc_name}}(PyObject *op1, PyObject *op2
             {{return_false}};
         }
     {{else}}
-        {{if c_op == '*'}}
-            CYTHON_UNUSED_VAR(a);
-            CYTHON_UNUSED_VAR(b);
-            ll{{ival}} = {{ival}};
-            goto long_long;
-        {{elif c_op == '%'}}
-            // see CMath.c :: ModInt utility code
-            x = a % b;
-            x += ((x != 0) & ((x ^ b) < 0)) * b;
-        {{elif op == 'TrueDivide'}}
-            if ((8 * sizeof(long) <= 53 || likely(labs({{ival}}) <= ((PY_LONG_LONG)1 << 53)))
-                    || __Pyx_PyLong_DigitCount({{pyval}}) <= 52 / PyLong_SHIFT) {
-                return PyFloat_FromDouble((double)a / (double)b);
-            }
-            return PyLong_Type.tp_as_number->nb_{{slot_name}}(op1, op2);
-        {{elif op == 'FloorDivide'}}
-            {
-                long q, r;
-                // see CMath.c :: DivInt utility code
-                q = a / b;
-                r = a - q*b;
-                q -= ((r != 0) & ((r ^ b) < 0));
-                x = q;
-            }
-        {{else}}
 
-            {{if op == 'Rshift' or op == 'Lshift'}}
-            if ((!negative_shift_works) && unlikely(a < 0)) goto fallback;
-            {{endif}}
-            {{if op == 'Rshift'}}
-            if (unlikely(b >= (long) (sizeof(long)*8))) {
-                x = (a < 0) ? -1 : 0;
-            } else
-            {{endif}}
-            x = a {{c_op}} b;
-            {{if op == 'Lshift'}}
-            if (unlikely(!(b < (long) (sizeof(long)*8) && a == x >> b)) && a) {
-                ll{{ival}} = {{ival}};
-                goto long_long;
-            }
-            {{endif}}
-        {{endif}}
+    {{if c_op == '*'}}
+        CYTHON_UNUSED_VAR(a);
+        CYTHON_UNUSED_VAR(b);
+        ll{{ival}} = {{ival}};
+        goto calculate_long_long;
+    {{elif c_op == '%'}}
+        // see CMath.c :: ModInt utility code
+        x = a % b;
+        x += ((x != 0) & ((x ^ b) < 0)) * b;
         return PyLong_FromLong(x);
+    {{elif op == 'TrueDivide'}}
+        if ((8 * sizeof(long) <= 53 || likely(labs({{ival}}) <= ((PY_LONG_LONG)1 << 53)))
+                || __Pyx_PyLong_DigitCount({{pyval}}) <= 52 / PyLong_SHIFT) {
+            return PyFloat_FromDouble((double)a / (double)b);
+        }
+        return PyLong_Type.tp_as_number->nb_{{slot_name}}(op1, op2);
+    {{elif op == 'FloorDivide'}}
+        {
+            long q, r;
+            // see CMath.c :: DivInt utility code
+            q = a / b;
+            r = a - q*b;
+            q -= ((r != 0) & ((r ^ b) < 0));
+            x = q;
+        }
+        return PyLong_FromLong(x);
+    {{else}}
+        {{if op == 'Rshift' or op == 'Lshift'}}
+        if ((!negative_shift_works) && unlikely(a < 0)) goto fallback;
+        {{endif}}
+        {{if op == 'Rshift'}}
+        if (unlikely(b >= (long) (sizeof(long)*8))) {
+            x = (a < 0) ? -1 : 0;
+        } else
+        {{endif}}
+        x = a {{c_op}} b;
+        {{if op == 'Lshift'}}
+        if (unlikely(!(b < (long) (sizeof(long)*8) && a == x >> b)) && a) {
+            ll{{ival}} = {{ival}};
+            goto calculate_long_long;
+        }
+        {{endif}}
+
+        return PyLong_FromLong(x);
+    {{endif}}
 
     {{if op != 'TrueDivide'}}
-    long_long:
+    calculate_long_long:
         {{if c_op == '%'}}
             // see CMath.c :: ModInt utility code
             llx = lla % llb;
