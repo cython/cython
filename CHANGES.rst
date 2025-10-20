@@ -190,6 +190,17 @@ Other changes
   (Github issue :issue:`6423`)
 
 
+3.1.6 (2025-??-??)
+==================
+
+Bugs fixed
+----------
+
+* Unicode characters formatted from C integers with ``f"{value:c}"`` could result in
+  invalid Python string objects since Cython 3.1.0.
+  (Github issue :issue:`7240`)
+
+
 3.1.5 (2025-10-20)
 ==================
 
