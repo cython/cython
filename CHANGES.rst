@@ -190,7 +190,7 @@ Other changes
   (Github issue :issue:`6423`)
 
 
-3.1.5 (2025-01-19)
+3.1.5 (2025-10-20)
 ==================
 
 Bugs fixed
