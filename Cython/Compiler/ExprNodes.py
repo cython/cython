@@ -3665,7 +3665,8 @@ class JoinedStrNode(ExprNode):
         for node in self.values:
             if isinstance(node, UnicodeNode):
                 max_char_value = max(max_char_value, node.estimate_max_charval())
-            elif isinstance(node, FormattedValueNode) and node.value.type.is_numeric:
+            elif (isinstance(node, FormattedValueNode) and
+                    node.c_format_spec != 'c' and node.value.type.is_numeric):
                 # formatted C numbers are always ASCII
                 pass
             elif isinstance(node, CloneNode):
