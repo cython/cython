@@ -605,6 +605,18 @@ def format_chars(int x, int y, int z):
     return f"{x:c}{y:c}{z:c}"
 
 
+@cython.test_assert_path_exists(
+    "//CoerceToPyTypeNode",
+)
+def format_cint_padding(int x):
+    """
+    >>> format_cint_padding(123)
+    ('x=123\N{SNOWMAN}\N{SNOWMAN}=x', 'x=\N{SNOWMAN}\N{SNOWMAN}123=x')
+    """
+    # not currently optimised
+    return f"x={x:\N{SNOWMAN}<5}=x", f"x={x:\N{SNOWMAN}>5}=x"
+
+
 @cython.test_fail_if_path_exists(
     "//AddNode",
     "//ModNode",
