@@ -583,6 +583,29 @@ def format_uchar(int x):
 
 
 @cython.test_fail_if_path_exists(
+    "//CoerceToPyTypeNode",
+)
+def format_chars(int x, int y, int z):
+    """
+    >>> format_chars(32, 32, 32)
+    '   '
+    >>> format_chars(32, ord('ö'), 32)
+    ' ö '
+    >>> snowman = ord('\\N{SNOWMAN}')
+    >>> emoji = ord('\\N{WHITE SMILING FACE}')
+    >>> format_chars(32, snowman, 32)
+    ' \N{SNOWMAN} '
+    >>> format_chars(snowman, emoji, snowman)
+    '\N{SNOWMAN}\N{WHITE SMILING FACE}\N{SNOWMAN}'
+    >>> format_chars(emoji, snowman, snowman)
+    '\N{WHITE SMILING FACE}\N{SNOWMAN}\N{SNOWMAN}'
+    >>> format_chars(snowman, snowman, emoji)
+    '\N{SNOWMAN}\N{SNOWMAN}\N{WHITE SMILING FACE}'
+    """
+    return f"{x:c}{y:c}{z:c}"
+
+
+@cython.test_fail_if_path_exists(
     "//AddNode",
     "//ModNode",
 )
