@@ -98,13 +98,17 @@ Features added
 * Declarations for C++ condition variables were added.
   (Github issue :issue:`6836`)
 
+* The annotated source HTML page shows alternating +/− markers to open/close lines.
+  Patch by Kamil Monicz.  (Github issue :issue:`7099`)
+
 * ``cython --embed`` gained a new option ``--embed-modules=…`` to list further extension modules
   that will be statically linked into the generated extension module, to get them initialised
   on application start.
   (Github issue :issue:`2849`)
 
-* The annotated source HTML page shows alternating +/− markers to open/close lines.
-  Patch by Kamil Monicz.  (Github issue :issue:`7099`)
+* The ``setup.py`` script of Cython now allows passing the desired Limited API version
+  like ``--cython-limited-api=3.11``.
+  (Github issue :issue:`7228`)
 
 * Unicode 16.0.0 is used to parse identifiers.
   (Github issue :issue:`6836`)
@@ -136,14 +140,6 @@ Bugs fixed
 * Optimised C integer formatting in f-strings failed to apply to typedef types.
   (Github issue :issue:`7170`)
 
-* Conversion from C++ strings longer than ``PY_SSIZE_T_MAX`` did not validate the length.
-
-* Some non-Limited API code was incorrectly used in generated header files.
-  (Github issue :issue:`7157`)
-
-* Optimised unpacking of Python integers in expressions uses a slightly safer scheme.
-  (Github issue :issue:`7134`)
-
 * In auto-pickling, trying to unpickle an object that has no ``__dict__`` from object pickle data
   that includes instance dict state is now an error.
   (Github issue :issue:`7222`)
@@ -164,18 +160,14 @@ Bugs fixed
 * Type inference could fail to understand ``prange()`` arguments.
   (Github issue :issue:`6974`)
 
-* Empty return statements were not always reported when tracing.
-  (Github issue :issue:`7022`)
-
-* Value conversion errors when tracing C return statements no longer fail the trace
-  but fall back to reporting ``None`` returns instead.
-  (Github issue :issue:`7022`)
-
 * ``embedsignatures`` failed if ``lambda`` was used in function default arguments.
   (Github issue :issue:`6880`)
 
 * An internal C function was not marked as ``static`` and leaked a linker symbol.
   (Github issue :issue:`6957`)
+
+* ``PyType_FromModuleAndSpec`` was incorrectly used in Limited API code before Py3.10.
+  (Github issue :issue:`7181`)
 
 * Conversion code for memoryview dtypes from and to Python objects generated C warnings about
   incorrect ``const`` / non-``const``  casting code.
@@ -185,7 +177,10 @@ Bugs fixed
   in their shebang line.
   Patch by Matti Picus.  (Github issue :issue:`7053`)
 
-* Includes all fixes as of Cython 3.1.4.
+* The ``setup.py`` script in the ``Demos/`` subdirectory failed to build.
+  (Github issue :issue:`7228`)
+
+* Includes all fixes as of Cython 3.1.5.
 
 Other changes
 -------------
@@ -195,7 +190,7 @@ Other changes
   (Github issue :issue:`6423`)
 
 
-3.1.5 (2025-01-19)
+3.1.5 (2025-10-20)
 ==================
 
 Bugs fixed
@@ -214,7 +209,7 @@ Bugs fixed
 
 * Value conversion errors when tracing C return statements no longer fail the trace
   but fall back to reporting ``None`` returns instead.
-  (Github issue :issue:`7022`)
+  (Github issue :issue:`6503`)
 
 
 3.1.4 (2025-09-16)
