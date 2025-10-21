@@ -1129,31 +1129,22 @@ def cythonize(module_list, exclude=None, nthreads=0, aliases=None, quiet=False, 
 
     if N <= 1:
         nthreads = 0
+    try:
+        from concurrent.futures import ProcessPoolExecutor
+    except ImportError:
+        nthreads = 0
+
     if nthreads:
-        import multiprocessing
-        if multiprocessing.get_start_method() == 'spawn':
-            print('Disabling parallel cythonization for "spawn" process start method.')
-            nthreads = 0
-    if nthreads:
-        import multiprocessing
-        pool = multiprocessing.Pool(
-            nthreads, initializer=_init_multiprocessing_helper)
-        # This is a bit more involved than it should be, because KeyboardInterrupts
-        # break the multiprocessing workers when using a normal pool.map().
-        # See, for example:
-        # https://noswap.com/blog/python-multiprocessing-keyboardinterrupt
-        try:
-            result = pool.map_async(cythonize_one_helper, to_compile, chunksize=1)
-            pool.close()
-            while not result.ready():
-                try:
-                    result.get(99999)  # seconds
-                except multiprocessing.TimeoutError:
-                    pass
-        except KeyboardInterrupt:
-            pool.terminate()
-            raise
-        pool.join()
+        with ProcessPoolExecutor(
+            max_workers=nthreads,
+            initializer=_init_multiprocessing_helper,
+        ) as proc_pool:
+            try:
+                list(proc_pool.map(cythonize_one_helper, to_compile, chunksize=1))
+            except KeyboardInterrupt:
+                proc_pool.terminate_workers()
+                proc_pool.shutdown(cancel_futures=True)
+                raise
     else:
         for args in to_compile:
             cythonize_one(*args)
