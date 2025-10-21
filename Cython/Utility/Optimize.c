@@ -1205,10 +1205,10 @@ static {{c_ret_type}} __Pyx_Unpacked_{{cfunc_name}}(PyObject *op1, PyObject *op2
     CYTHON_UNUSED_VAR(zerodivision_check);
 
     const long {{'a' if order == 'CObj' else 'b'}} = intval;
-    long {{ival}}{{if op not in ('Eq', 'Ne')}}, x{{endif}};
+    long {{ival}};
     {{if op not in ('Eq', 'Ne', 'TrueDivide')}}
     const PY_LONG_LONG ll{{'a' if order == 'CObj' else 'b'}} = intval;
-    PY_LONG_LONG ll{{ival}}, llx;
+    PY_LONG_LONG ll{{ival}};
     {{endif}}
     {{if op == 'Rshift' or op == 'Lshift'}}
 // shifting negative numbers is technically implementation defined on C, and
@@ -1248,32 +1248,37 @@ static {{c_ret_type}} __Pyx_Unpacked_{{cfunc_name}}(PyObject *op1, PyObject *op2
         {{endif}}
     }
 
+    // IsZero/IsPos/IsNeg are practically the same and can probably be decided almost for free.
+    const int is_positive = __Pyx_PyLong_IsPos({{pyval}});
+
     {{if c_op == '&'}}
     // special case for &-ing arbitrarily large numbers with known single digit operands
     if ((intval & PyLong_MASK) == intval) {
         // Calling PyLong_CompactValue() requires the PyLong value to be compact, we only need the last digit.
         long last_digit = (long) __Pyx_PyLong_Digits({{pyval}})[0];
-        long result = intval & (likely(__Pyx_PyLong_IsPos({{pyval}})) ? last_digit : (PyLong_MASK - last_digit + 1));
+        long result = intval & (likely(is_positive) ? last_digit : (PyLong_MASK - last_digit + 1));
         return PyLong_FromLong(result);
     }
     {{endif}}
 
     // Handle most common case (fits into 'long') first to avoid indirect branch and optimise branch prediction.
-    if (unlikely(!__Pyx_PyLong_CompactAsLong({{pyval}}, &{{ival}}))) {
-        const digit* digits = __Pyx_PyLong_Digits({{pyval}});
-        const int is_neg = !__Pyx_PyLong_IsPos({{pyval}});
-        const Py_ssize_t size = __Pyx_PyLong_DigitCount({{pyval}});
+    const digit* digits = __Pyx_PyLong_Digits({{pyval}});
+    const Py_ssize_t size = __Pyx_PyLong_DigitCount({{pyval}});
+    if (likely(size == 1)) {
+        {{ival}} = (long) digits[0];
+        if (!is_positive) {{ival}} *= -1;
+    } else {
         switch (size) {
             {{for _size in range(2, 5)}}
             case {{_size}}:
                 if (8 * sizeof(long) - 1 > {{_size}} * PyLong_SHIFT{{if c_op == '*'}}+30{{endif}}{{if op == 'TrueDivide'}} && {{_size-1}} * PyLong_SHIFT < 53{{endif}}) {
                     {{ival}} = (long) {{pylong_join(_size, 'digits')}};
-                    if (is_neg) {{ival}} *= -1;
+                    if (!is_positive) {{ival}} *= -1;
                     goto calculate_long;
                 {{if op not in ('Eq', 'Ne', 'TrueDivide')}}
                 } else if (8 * sizeof(PY_LONG_LONG) - 1 > {{_size}} * PyLong_SHIFT{{if c_op == '*'}}+30{{endif}}) {
                     ll{{ival}} = (PY_LONG_LONG) {{pylong_join(_size, 'digits', 'unsigned PY_LONG_LONG')}};
-                    if (is_neg) ll{{ival}} *= -1;
+                    if (!is_positive) ll{{ival}} *= -1;
                     goto calculate_long_long;
                 {{endif}}
                 }
@@ -1307,15 +1312,18 @@ static {{c_ret_type}} __Pyx_Unpacked_{{cfunc_name}}(PyObject *op1, PyObject *op2
     {{else}}
 
     {{if c_op == '*'}}
+        // Multiplying two 'long' values can give a 'long long' value.
         CYTHON_UNUSED_VAR(a);
         CYTHON_UNUSED_VAR(b);
         ll{{ival}} = {{ival}};
         goto calculate_long_long;
     {{elif c_op == '%'}}
-        // see CMath.c :: ModInt utility code
-        x = a % b;
-        x += ((x != 0) & ((x ^ b) < 0)) * b;
-        return PyLong_FromLong(x);
+        {
+            // see CMath.c :: ModInt utility code
+            long x = a % b;
+            x += ((x != 0) & ((x ^ b) < 0)) * b;
+            return PyLong_FromLong(x);
+        }
     {{elif op == 'TrueDivide'}}
         if ((8 * sizeof(long) <= 53 || likely(labs({{ival}}) <= ((PY_LONG_LONG)1 << 53)))
                 || __Pyx_PyLong_DigitCount({{pyval}}) <= 52 / PyLong_SHIFT) {
@@ -1329,59 +1337,71 @@ static {{c_ret_type}} __Pyx_Unpacked_{{cfunc_name}}(PyObject *op1, PyObject *op2
             q = a / b;
             r = a - q*b;
             q -= ((r != 0) & ((r ^ b) < 0));
-            x = q;
+            return PyLong_FromLong(q);
         }
-        return PyLong_FromLong(x);
     {{else}}
         {{if op == 'Rshift' or op == 'Lshift'}}
         if ((!negative_shift_works) && unlikely(a < 0)) goto fallback;
         {{endif}}
-        {{if op == 'Rshift'}}
-        if (unlikely(b >= (long) (sizeof(long)*8))) {
-            x = (a < 0) ? -1 : 0;
-        } else
-        {{endif}}
-        x = a {{c_op}} b;
-        {{if op == 'Lshift'}}
-        if (unlikely(!(b < (long) (sizeof(long)*8) && a == x >> b)) && a) {
-            ll{{ival}} = {{ival}};
-            goto calculate_long_long;
-        }
-        {{endif}}
 
-        return PyLong_FromLong(x);
+        {
+            long x;
+            {{if op == 'Rshift'}}
+            if (unlikely(b >= (long) (sizeof(long)*8))) {
+                x = (a < 0) ? -1 : 0;
+            } else
+            {{endif}}
+            x = a {{c_op}} b;
+
+            {{if op == 'Lshift'}}
+            if (unlikely(!(b < (long) (sizeof(long)*8) && a == x >> b)) && a) {
+                ll{{ival}} = {{ival}};
+                goto calculate_long_long;
+            }
+            {{endif}}
+
+            return PyLong_FromLong(x);
+        }
     {{endif}}
 
     {{if op != 'TrueDivide'}}
     calculate_long_long:
-        {{if c_op == '%'}}
+    {{if c_op == '%'}}
+        {
             // see CMath.c :: ModInt utility code
-            llx = lla % llb;
+            PY_LONG_LONG llx = lla % llb;
             llx += ((llx != 0) & ((llx ^ llb) < 0)) * llb;
-        {{elif op == 'FloorDivide'}}
-            {
-                PY_LONG_LONG q, r;
-                // see CMath.c :: DivInt utility code
-                q = lla / llb;
-                r = lla - q*llb;
-                q -= ((r != 0) & ((r ^ llb) < 0));
-                llx = q;
-            }
-        {{else}}
-            {{if op == 'LShift' or op == 'Rshift'}}
-            if ((!negative_shift_works) && unlikely(a < 0)) goto fallback;
-            {{endif}}
+            return PyLong_FromLongLong(llx);
+        }
+    {{elif op == 'FloorDivide'}}
+        {
+            PY_LONG_LONG q, r;
+            // see CMath.c :: DivInt utility code
+            q = lla / llb;
+            r = lla - q*llb;
+            q -= ((r != 0) & ((r ^ llb) < 0));
+            return PyLong_FromLongLong(q);
+        }
+    {{else}}
+        {{if op == 'LShift' or op == 'Rshift'}}
+        if ((!negative_shift_works) && unlikely(lla < 0)) goto fallback;
+        {{endif}}
+
+        {
+            PY_LONG_LONG llx;
             {{if op == 'Rshift'}}
             if (unlikely(llb >= (long long) (sizeof(long long)*8))) {
                 llx = (lla < 0) ? -1 : 0;
             } else
             {{endif}}
             llx = lla {{c_op}} llb;
+
             {{if op == 'Lshift'}}
-            if (likely(lla == llx >> llb)) /* then execute 'return' below */
+            if (likely(lla == llx >> llb)) /* then execute 'return' below, otherwise use the fallback */
             {{endif}}
-        {{endif}}
-        return PyLong_FromLongLong(llx);
+            return PyLong_FromLongLong(llx);
+        }
+    {{endif}}
 
 {{if op == 'Lshift' or op == 'Rshift'}}
   fallback:
