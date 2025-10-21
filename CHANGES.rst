@@ -177,11 +177,6 @@ Bugs fixed
   incorrect ``const`` / non-``const``  casting code.
   (Github issue :issue:`7219`)
 
-* ``cythonize`` (program and function) now uses :class:`concurrent.futures.ProcessPoolExecutor`
-  instead of :class:`multiprocessing.Pool` to fix a hang on build failures in parallel builds.
-  A possible work-around is to disable parallel builds.
-  Patch by Sviatoslav Sydorenko.  (Github issue :issue:`7183`)
-
 * Cython's tools and frontend scripts now use ``python3``  instead of just ``python``
   in their shebang line.
   Patch by Matti Picus.  (Github issue :issue:`7053`)

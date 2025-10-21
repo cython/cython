@@ -1,10 +1,7 @@
-import concurrent.futures
 import os
 import shutil
-import sys
 import tempfile
 from collections import defaultdict
-from contextlib import contextmanager
 
 from .Dependencies import cythonize, extended_iglob
 from ..Utils import is_package_dir
@@ -16,6 +13,21 @@ try:
 except ImportError:
     multiprocessing = None
     parallel_compiles = 0
+
+
+class _FakePool:
+    def map_async(self, func, args):
+        for _ in map(func, args):
+            pass
+
+    def close(self):
+        pass
+
+    def terminate(self):
+        pass
+
+    def join(self):
+        pass
 
 
 def find_package_base(path):
@@ -69,68 +81,27 @@ def _cython_compile_files(all_paths, options) -> dict:
     return dict(ext_modules_to_build)
 
 
-@contextmanager
-def _interruptible_pool(pool_cm):
-    with pool_cm as proc_pool:
-        try:
-            yield proc_pool
-        except KeyboardInterrupt:
-            proc_pool.terminate_workers()
-            proc_pool.shutdown(cancel_futures=True)
-            raise
-
-
 def _build(ext_modules, parallel):
     modcount = sum(len(modules) for _, modules in ext_modules)
     if not modcount:
         return
-
-    serial_execution_mode = modcount == 1 or parallel < 2
-
-    try:
-        pool_cm = (
-            None if serial_execution_mode
-            else concurrent.futures.ProcessPoolExecutor(max_workers=parallel)
-        )
-    except (OSError, ImportError):
-        # `OSError` is a historic exception in `multiprocessing`
-        # `ImportError` happens e.g. under pyodide (`ModuleNotFoundError`)
-        serial_execution_mode = True
-
-    if serial_execution_mode:
-        for ext in ext_modules:
-            run_distutils(ext)
+    if modcount == 1 or parallel < 2:
+        run_distutils(ext_modules[0])
         return
 
-    with _interruptible_pool(pool_cm) as proc_pool:
-        compiler_tasks = [
-            proc_pool.submit(run_distutils, (base_dir, [ext]))
-            for base_dir, modules in ext_modules
-            for ext in modules
-        ]
-
-        concurrent.futures.wait(compiler_tasks, return_when=concurrent.futures.FIRST_EXCEPTION)
-
-        worker_exceptions = []
-        for task in compiler_tasks:  # discover any crashes
-            try:
-                task.result()
-            except BaseException as proc_err:  # could be SystemExit
-                worker_exceptions.append(proc_err)
-
-        if worker_exceptions:
-            exc_msg = 'Compiling Cython modules failed with these errors:\n\n'
-            exc_msg += '\n\t* '.join(('', *map(str, worker_exceptions)))
-            exc_msg += '\n\n'
-
-            non_base_exceptions = [
-                exc for exc in worker_exceptions
-                if isinstance(exc, Exception)
-            ]
-            if sys.version_info[:2] >= (3, 11) and non_base_exceptions:
-                raise ExceptionGroup(exc_msg, non_base_exceptions)
-            else:
-                raise RuntimeError(exc_msg) from worker_exceptions[0]
+    try:
+        pool = multiprocessing.Pool(parallel)
+    except OSError:
+        pool = _FakePool()
+    try:
+        pool.map_async(run_distutils, [
+            (base_dir, [ext]) for base_dir, modules in ext_modules for ext in modules])
+    except:
+        pool.terminate()
+        raise
+    else:
+        pool.close()
+        pool.join()
 
 
 def run_distutils(args):
@@ -318,6 +289,7 @@ def main(args=None):
     for path in paths:
         expanded_path = [os.path.abspath(p) for p in extended_iglob(path)]
         if not expanded_path:
+            import sys
             print("{}: No such file or directory: '{}'".format(sys.argv[0], path), file=sys.stderr)
             sys.exit(1)
         all_paths.extend(expanded_path)
@@ -334,6 +306,7 @@ def main(args=None):
             if first_extensions:
                 import_module = first_extensions[0].name
 
+        import sys
         if base_dir is not None:
             sys.path.insert(0, base_dir)
 
