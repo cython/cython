@@ -1,0 +1,26 @@
+PYTHON failure_test.py
+
+######## mod1.pyx ###########
+~  # Syntax error
+
+######## mod2.pyx ###########
+pass
+
+######## failure_test.py ###########
+import subprocess
+import sys
+
+proc_result = subprocess.run(  # shouldn't get stuck indefinitely
+    (
+        sys.executable,
+        '-c',
+        'from Cython.Build import cythonize; '
+        'cythonize(("mod1.pyx", "mod2.pyx"), nthreads=2)',
+    ),
+    stderr=subprocess.PIPE,
+    text=True,
+)
+
+assert proc_result.returncode == 1
+syntax_error_msg = 'mod1.pyx:1:17: Expected an identifier or literal'
+assert syntax_error_msg in proc_result.stderr, proc_result.stderr
