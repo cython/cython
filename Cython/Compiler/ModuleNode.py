@@ -879,8 +879,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             defined_here = module is env
             modulecode.putln("")
             modulecode.putln("/* Module declarations from %s */" % module.qualified_name.as_c_string_literal())
-            self.generate_c_class_declarations(module, modulecode, defined_here, globalstate)
-            self.generate_cvariable_declarations(module, modulecode, defined_here)
+            self.generate_c_class_declarations(module, defined_here, globalstate)
+            self.generate_cvariable_declarations(module, defined_here, globalstate)
             self.generate_cfunction_declarations(module, modulecode, defined_here)
 
     @staticmethod
@@ -1476,7 +1476,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             # Only for exposing public typedef name.
             code.putln("typedef struct %s %s;" % (type.objstruct_cname, type.objtypedef_cname))
 
-    def generate_c_class_declarations(self, env, code, definition, globalstate):
+    def generate_c_class_declarations(self, env, definition, globalstate):
         module_state = globalstate['module_state']
         module_state_clear = globalstate['module_state_clear']
         module_state_traverse = globalstate['module_state_traverse']
@@ -1499,7 +1499,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                         "Py_VISIT(traverse_module_state->%s);" % (
                         entry.type.typeobj_cname))
 
-    def generate_cvariable_declarations(self, env, code, definition):
+    def generate_cvariable_declarations(self, env, definition, globalstate):
         if env.is_cython_builtin:
             return
         for entry in env.var_entries:
@@ -1510,44 +1510,67 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             storage_class = None
             dll_linkage = None
             init = None
+            decl_code = None
+            module_state_clear = module_state_traverse = None
 
-            if entry.visibility == 'extern':
+            if entry.is_declared_in_module_state():
+                storage_class = ""
+                dll_linkage = None
+                decl_code = globalstate['module_state']
+                module_state_clear = globalstate['module_state_clear']
+                module_state_traverse = globalstate['module_state_traverse']
+            elif entry.visibility == 'extern':
                 storage_class = Naming.extern_c_macro
                 dll_linkage = "DL_IMPORT"
+                decl_code = globalstate['module_declarations']
             elif entry.visibility == 'public':
                 storage_class = Naming.extern_c_macro
                 if definition:
                     dll_linkage = "DL_EXPORT"
                 else:
                     dll_linkage = "DL_IMPORT"
+                decl_code = globalstate['module_declarations']
             elif entry.visibility == 'private':
-                storage_class = "static"
-                dll_linkage = None
+                # Most private entries end up in the module state though
+                decl_code = globalstate['module_declarations']
                 if entry.init is not None:
+                    assert entry.type.is_const, f"{entry.init} {entry.type} {entry.cname}"
                     init = entry.type.literal_code(entry.init)
+
             type = entry.type
             cname = entry.cname
 
             if entry.defined_in_pxd and not definition:
-                storage_class = "static"
+                storage_class = ""
                 dll_linkage = None
                 type = CPtrType(type)
                 cname = env.mangle(Naming.varptr_prefix, entry.name)
-                init = 0
 
             if storage_class:
-                code.put("%s " % storage_class)
+                decl_code.put(f"{storage_class} ")
             if entry.is_cpp_optional:
-                code.put(type.cpp_optional_declaration_code(
+                decl_code.put(type.cpp_optional_declaration_code(
                     cname, dll_linkage=dll_linkage))
             else:
-                code.put(type.declaration_code(
+                decl_code.put(type.declaration_code(
                     cname, dll_linkage=dll_linkage))
             if init is not None:
-                code.put_safe(" = %s" % init)
-            code.putln(";")
+                decl_code.put_safe(f" = {init}")
+            decl_code.putln(";")
             if entry.cname != cname:
-                code.putln("#define %s (*%s)" % (entry.cname, cname))
+                globalstate['module_declarations'].putln("#define %s %s[0]" % (entry.cname, cname))
+            if module_state_traverse and type.is_pyobject:
+                module_state_traverse.putln(f"Py_VISIT(traverse_module_state->{cname});")
+            if module_state_clear:
+                if type.needs_refcounting:
+                    module_state_clear.put_decref_clear(
+                        f"clear_module_state->{cname}", type, clear_before_decref=True, nanny=False
+                    )
+                if type.needs_explicit_destruction(self.scope):
+                    type.generate_explicit_destruction(
+                        module_state_clear, entry,
+                        extra_access_code="clear_module_state->")
+
             env.use_entry_utility_code(entry)
 
     def generate_cfunction_declarations(self, env, code, definition):
@@ -2931,6 +2954,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         msvc_count = 0
         for name, entry in sorted(env.entries.items()):
             if entry.is_cglobal and entry.used and not entry.type.is_const:
+                entry_cname = code.entry_cname_in_module_state(entry)
                 msvc_count += 1
                 if msvc_count % 100 == 0:
                     code.putln("#ifdef _MSC_VER")
@@ -2945,14 +2969,14 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                             type_test,
                             code.error_goto(entry.pos)))
                     code.putln("Py_INCREF(o);")
-                    code.put_decref(entry.cname, entry.type, nanny=False)
+                    code.put_decref(entry_cname, entry.type, nanny=False)
                     code.putln("%s = %s;" % (
-                        entry.cname,
+                        entry_cname,
                         PyrexTypes.typecast(entry.type, py_object_type, "o")))
                 elif entry.type.create_from_py_utility_code(env):
                     # if available, utility code was already created in self.prepare_utility_code()
                     code.putln(entry.type.from_py_call_code(
-                        'o', entry.cname, entry.pos, code))
+                        'o', entry_cname, entry.pos, code))
                 else:
                     code.putln('PyErr_Format(PyExc_TypeError, "Cannot convert Python object %s to %s");' % (
                         name, entry.type))
@@ -3491,12 +3515,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             rev_entries.reverse()
             for entry in rev_entries:
                 if entry.visibility != 'extern':
-                    if entry.type.is_pyobject and entry.used:
-                        if entry.is_cglobal:
-                            # TODO - eventually these should probably be in the module state too
-                            entry_cname = entry.cname
-                        else:
-                            entry_cname = code.name_in_module_state(entry.cname)
+                    if entry.type.needs_refcounting and entry.used:
+                        entry_cname = code.entry_cname_in_module_state(entry)
                         code.put_xdecref_clear(
                             entry_cname, entry.type,
                             clear_before_decref=True,
@@ -3840,9 +3860,10 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         for entry, name, api_dict in self._generate_export_code(env.var_entries, "VoidPtrExport", code):
             signature = entry.type.empty_declaration_code()
 
+            entry_cname = code.entry_cname_in_module_state(entry)
             code.put_error_if_neg(
                 self.pos,
-                f'__Pyx_ExportVoidPtr({api_dict}, {name}, (void *)&{entry.cname}, "{signature}")'
+                f'__Pyx_ExportVoidPtr({api_dict}, {name}, (void *)&{entry_cname}, "{signature}")'
             )
 
     def generate_c_function_export_code(self, env, code):
@@ -3911,6 +3932,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 module.var_entries, module.qualified_name, "VoidPtrImport", code, used_only=False):
             signature = entry.type.empty_declaration_code()
             cname = entry.cname if env is module else module.mangle(Naming.varptr_prefix, entry.name)
+            if entry.is_declared_in_module_state():
+                cname = code.name_in_module_state(cname)
 
             code.put_error_if_neg(
                 self.pos,

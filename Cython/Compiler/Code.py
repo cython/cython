@@ -2751,7 +2751,7 @@ class CCodeWriter:
         return self.globalstate.get_cached_constants_writer(target)
 
     def name_in_module_state(self, cname):
-        if self.funcstate.scope is None:
+        if self.funcstate is None or self.funcstate.scope is None:
             # This is a mess. For example, within the codeobj generation
             # funcstate.scope is None while evaluating the strings, but not while
             # evaluating the code objects themselves. Right now it doesn't matter
@@ -2759,6 +2759,11 @@ class CCodeWriter:
             # it into something useful this mess will need to be fixed.
             return self.name_in_main_c_code_module_state(cname)
         return self.funcstate.scope.name_in_module_state(cname)
+
+    def entry_cname_in_module_state(self, entry):
+        if not entry.is_declared_in_module_state():
+            return entry.cname
+        return self.name_in_module_state(entry.cname)
 
     @staticmethod
     def name_in_main_c_code_module_state(cname):
@@ -3075,40 +3080,52 @@ class CCodeWriter:
         self.put_incref_memoryviewslice(entry.cname, entry.type, have_gil=have_gil)
 
     def put_var_gotref(self, entry):
-        self.put_gotref(entry.cname, entry.type)
+        cname = self.entry_cname_in_module_state(entry)
+        self.put_gotref(cname, entry.type)
 
     def put_var_giveref(self, entry):
-        self.put_giveref(entry.cname, entry.type)
+        cname = self.entry_cname_in_module_state(entry)
+        self.put_giveref(cname, entry.type)
 
     def put_var_xgotref(self, entry):
-        self.put_xgotref(entry.cname, entry.type)
+        cname = self.entry_cname_in_module_state(entry)
+        self.put_xgotref(cname, entry.type)
 
     def put_var_xgiveref(self, entry):
-        self.put_xgiveref(entry.cname, entry.type)
+        cname = self.entry_cname_in_module_state(entry)
+        self.put_xgiveref(cname, entry.type)
 
     def put_var_incref(self, entry, **kwds):
-        self.put_incref(entry.cname, entry.type, **kwds)
+        cname = self.entry_cname_in_module_state(entry)
+        self.put_incref(cname, entry.type, **kwds)
 
     def put_var_xincref(self, entry, **kwds):
-        self.put_xincref(entry.cname, entry.type, **kwds)
+        cname = self.entry_cname_in_module_state(entry)
+        self.put_xincref(cname, entry.type, **kwds)
 
     def put_var_decref(self, entry, **kwds):
-        self.put_decref(entry.cname, entry.type, **kwds)
+        cname = self.entry_cname_in_module_state(entry)
+        self.put_decref(cname, entry.type, **kwds)
 
     def put_var_xdecref(self, entry, **kwds):
-        self.put_xdecref(entry.cname, entry.type, **kwds)
+        cname = self.entry_cname_in_module_state(entry)
+        self.put_xdecref(cname, entry.type, **kwds)
 
     def put_var_decref_clear(self, entry, **kwds):
-        self.put_decref_clear(entry.cname, entry.type, clear_before_decref=entry.in_closure, **kwds)
+        cname = self.entry_cname_in_module_state(entry)
+        self.put_decref_clear(cname, entry.type, clear_before_decref=entry.in_closure, **kwds)
 
     def put_var_decref_set(self, entry, rhs_cname, **kwds):
-        self.put_decref_set(entry.cname, entry.type, rhs_cname, **kwds)
+        cname = self.entry_cname_in_module_state(entry)
+        self.put_decref_set(cname, entry.type, rhs_cname, **kwds)
 
     def put_var_xdecref_set(self, entry, rhs_cname, **kwds):
-        self.put_xdecref_set(entry.cname, entry.type, rhs_cname, **kwds)
+        cname = self.entry_cname_in_module_state(entry)
+        self.put_xdecref_set(cname, entry.type, rhs_cname, **kwds)
 
     def put_var_xdecref_clear(self, entry, **kwds):
-        self.put_xdecref_clear(entry.cname, entry.type, clear_before_decref=entry.in_closure, **kwds)
+        cname = self.entry_cname_in_module_state(entry)
+        self.put_xdecref_clear(cname, entry.type, clear_before_decref=entry.in_closure, **kwds)
 
     def put_var_decrefs(self, entries, used_only = 0):
         for entry in entries:
@@ -3146,7 +3163,7 @@ class CCodeWriter:
             self.putln("%s = %s; Py_INCREF(Py_None);" % (cname, py_none))
 
     def put_init_var_to_py_none(self, entry, template = "%s", nanny=True):
-        code = template % entry.cname
+        code = template % self.entry_cname_in_module_state(entry)
         #if entry.type.is_extension_type:
         #    code = "((PyObject*)%s)" % code
         self.put_init_to_py_none(code, entry.type, nanny)
@@ -3333,7 +3350,8 @@ class CCodeWriter:
                 UtilityCode.load_cached(f"{func}{nogil_tag}", "ObjectHandling.c"))
 
         if not unbound_check_code:
-            unbound_check_code = entry.type.check_for_null_code(entry.cname)
+            entry_cname = self.entry_cname_in_module_state(entry)
+            unbound_check_code = entry.type.check_for_null_code(entry_cname)
         self.putln('if (unlikely(!%s)) { %s(%s); %s }' % (
                                 unbound_check_code,
                                 f"__Pyx_{func}{nogil_tag}",

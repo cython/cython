@@ -32,8 +32,14 @@ setup(
 import _interpreters
 
 some_global = []
+cdef some_cdef_global = []
 def append_to_global():
-    some_global.append(f"hello from interpreter {_interpreters.get_current()}")
+    value = f"hello from interpreter {_interpreters.get_current()}"
+    some_global.append(value)
+    some_cdef_global.append(value)
+
+def get_cdef_global():
+    return some_cdef_global
 
 #################### with_multiphase.pyx ####################
 
@@ -112,6 +118,7 @@ import {cython_module} as cymod
 cymod.append_to_global()
 # will fail if accidentally shared
 assert len(cymod.some_global) == 1
+assert len(cymod.get_cdef_global()) == 1
 """
 
 # skip_first is useful because we apply an optimization when all the interpreter ids are small,

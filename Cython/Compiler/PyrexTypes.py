@@ -4429,7 +4429,7 @@ class CppClassType(CType):
 
     def cpp_optional_check_for_null_code(self, cname):
         # only applies to c++ classes that are being declared as std::optional
-        return "(%s.has_value())" % cname
+        return f"{cname}.has_value()"
 
     def needs_explicit_construction(self, scope):
         return scope.is_c_class_scope
@@ -4438,10 +4438,12 @@ class CppClassType(CType):
         return self.needs_explicit_construction(scope)  # same rules
 
     def generate_explicit_destruction(self, code, entry, extra_access_code=""):
-        code.putln(f"__Pyx_call_destructor({extra_access_code}{entry.cname});")
+        cname = code.entry_cname_in_module_state(entry)
+        code.putln(f"__Pyx_call_destructor({extra_access_code}{cname});")
 
     def generate_explicit_construction(self, code, entry, extra_access_code=""):
-        code.put_cpp_placement_new(f"{extra_access_code}{entry.cname}")
+        cname = code.entry_cname_in_module_state(entry)
+        code.put_cpp_placement_new(f"{extra_access_code}{cname}")
 
 
 class EnumMixin:
@@ -4966,11 +4968,13 @@ class CythonLockType(PyrexType):
         code.globalstate.use_utility_code(
             self.get_utility_code()
         )
-        code.putln(f"__Pyx_Locks_{self.cname_part}_Init({extra_access_code}{entry.cname});")
+        cname = code.entry_cname_in_module_state(entry)
+        code.putln(f"__Pyx_Locks_{self.cname_part}_Init({extra_access_code}{cname});")
 
     def generate_explicit_destruction(self, code, entry, extra_access_code=""):
+        cname = code.entry_cname_in_module_state(entry)
         code.putln(
-            f"__Pyx_Locks_{self.cname_part}_Delete({extra_access_code}{entry.cname});")
+            f"__Pyx_Locks_{self.cname_part}_Delete({extra_access_code}{cname});")
 
     def attributes_known(self):
         if self.scope is None:
