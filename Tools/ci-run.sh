@@ -90,7 +90,7 @@ echo "===================="
 
 # Install python requirements
 echo "Installing requirements [python]"
-if [[ $PYTHON_VERSION == "3.1"[2-9]* ]]; then
+if [[ $PYTHON_VERSION == "3.1"[2-9]* || $PYTHON_VERSION == *"-dev" ]]; then
   python -m pip install -U pip wheel setuptools || exit 1
 else
   # Drop dependencies cryptography and nh3 (purely from twine) when removing support for PyPy3.8.
@@ -109,7 +109,7 @@ fi
 if [[ $PYTHON_VERSION == "3.13"* ]]; then
   python -m pip install --pre -r test-requirements-313.txt || exit 1
 fi
-if [[ $PYTHON_VERSION != "pypy"* && $PYTHON_VERSION != "graalpy"* ]]; then
+if [[ $PYTHON_VERSION != "pypy"* && $PYTHON_VERSION != "graalpy"* && $PYTHON_VERSION != *"-dev" ]]; then
   python -m pip install -r test-requirements-cpython.txt || exit 1
 fi
 
