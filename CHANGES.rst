@@ -70,7 +70,7 @@ Features added
   (Github issue :issue:`7118`)
 
 * Further improvements were made to reduce the size of the resulting extension modules.
-  (Github issue :issue:`6983`, :issue:`7199`, :issue:`7220`)
+  (Github issue :issue:`6983`, :issue:`7199`, :issue:`7220`, :issue:`7238`)
 
 * Several improvements were made in freethreaded Python code.
   (Github issues :issue:`6936`, :issue:`6939`, :issue:`6949`, :issue:`6984`,
@@ -121,6 +121,10 @@ Bugs fixed
 
 * References to the Python ``bool`` type could generate invalid C code.
   (Github issue :issue:`6902`)
+
+* Unicode characters formatted from C integers with ``f"{value:c}"`` could result in
+  invalid Python string objects since Cython 3.1.0.
+  (Github issue :issue:`7240`)
 
 * Vectorcalls could use needless temp assignments for ``self``.
   (Github issue :issue:`6909`)
