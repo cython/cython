@@ -13,7 +13,7 @@ import sys
 
 from Cython.Build.Inline import cython_inline
 from Cython.TestUtils import CythonTest
-from Cython.Compiler.Errors import CompileError, hold_errors, init_thread, held_errors
+from Cython.Compiler.Errors import CompileError, hold_errors, reset as reset_errors, held_errors
 
 def cy_eval(s, **kwargs):
     return cython_inline('return ' + s, force=True, **kwargs)
@@ -39,7 +39,7 @@ class TestCase(CythonTest):
                 else:
                     assert held_errors(), "Invalid Cython code failed to raise SyntaxError: %r" % str
                 finally:
-                    init_thread()  # reset error status
+                    reset_errors()  # reset error status
             else:
                 try:
                     cython_inline(str, quiet=True)
@@ -48,7 +48,7 @@ class TestCase(CythonTest):
                 else:
                     assert False, "Invalid Cython code failed to raise %s: %r" % (exception_type, str)
                 finally:
-                    init_thread()  # reset error status
+                    reset_errors()  # reset error status
 
     @contextlib.contextmanager
     def assertRaisesRegex(self, exception, regex, *, msg=None):
@@ -68,7 +68,7 @@ class TestCase(CythonTest):
                 with super().assertRaisesRegex(exception, regex, msg=msg):
                     yield
         finally:
-            init_thread()  # reset error status
+            reset_errors()  # reset error status
 
     def test__format__lookup(self):
         # Make sure __format__ is looked up on the type, not the instance.
