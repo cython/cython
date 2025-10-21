@@ -118,7 +118,7 @@ cdef inline list {{cname}}({{base_type}} *v, Py_ssize_t length):
     for i in range(<size_t>length):
         value = v[i]
         Py_INCREF(value)
-        __Pyx_PyList_SET_ITEM(l, i, value)
+        __Pyx_PyList_SET_ITEM(l, <Py_ssize_t> i, value)
     return l
 
 
@@ -130,5 +130,5 @@ cdef inline tuple {{to_tuple_cname}}({{base_type}} *v, Py_ssize_t length):
     for i in range(<size_t>length):
         value = v[i]
         Py_INCREF(value)
-        __Pyx_PyTuple_SET_ITEM(t, i, value)
+        __Pyx_PyTuple_SET_ITEM(t, <Py_ssize_t> i, value)
     return t
