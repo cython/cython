@@ -1275,7 +1275,7 @@ static {{c_ret_type}} __Pyx_Unpacked_{{cfunc_name}}(PyObject *op1, PyObject *op2
                     {{ival}} = (long) {{pylong_join(_size, 'digits')}};
                     if (!is_positive) {{ival}} *= -1;
                     goto calculate_long;
-                {{if op not in ('Eq', 'Ne', 'TrueDivide')}}
+                {{if op != 'TrueDivide'}}
                 } else if (8 * sizeof(PY_LONG_LONG) - 1 > {{_size}} * PyLong_SHIFT{{if c_op == '*'}}+30{{endif}}) {
                     ll{{ival}} = (PY_LONG_LONG) {{pylong_join(_size, 'digits', 'unsigned PY_LONG_LONG')}};
                     if (!is_positive) ll{{ival}} *= -1;
@@ -1309,10 +1309,9 @@ static {{c_ret_type}} __Pyx_Unpacked_{{cfunc_name}}(PyObject *op1, PyObject *op2
         } else {
             {{return_false}};
         }
-    {{else}}
-
-    {{if c_op == '*'}}
-        // Multiplying two 'long' values can give a 'long long' value.
+    {{elif c_op == '*'}}
+        // Multiplying a 'long' value with a <= 30 bits constant can give a 'long long' value.
+        // Note that we constrain the bit count of the PyLong in the unpacking code above.
         CYTHON_UNUSED_VAR(a);
         CYTHON_UNUSED_VAR(b);
         ll{{ival}} = {{ival}};
@@ -1366,7 +1365,13 @@ static {{c_ret_type}} __Pyx_Unpacked_{{cfunc_name}}(PyObject *op1, PyObject *op2
 
     {{if op != 'TrueDivide'}}
     calculate_long_long:
-    {{if c_op == '%'}}
+    {{if op == 'Eq'}}
+        // One operand fits into a 30 bit 'long', the other doesn't => not equal.
+        {{return_false}};
+    {{elif op == 'Ne'}}
+        // One operand fits into a 30 bit 'long', the other doesn't => not equal.
+        {{return_true}};
+    {{elif c_op == '%'}}
         {
             // see CMath.c :: ModInt utility code
             PY_LONG_LONG llx = lla % llb;
@@ -1397,20 +1402,18 @@ static {{c_ret_type}} __Pyx_Unpacked_{{cfunc_name}}(PyObject *op1, PyObject *op2
             llx = lla {{c_op}} llb;
 
             {{if op == 'Lshift'}}
-            if (likely(lla == llx >> llb)) /* then execute 'return' below, otherwise use the fallback */
+            if (unlikely(lla != llx >> llb)) goto fallback;
             {{endif}}
             return PyLong_FromLongLong(llx);
         }
     {{endif}}
 
 {{if op == 'Lshift' or op == 'Rshift'}}
-  fallback:
+    fallback:
+        return __Pyx_Fallback_{{cfunc_name}}(op1, op2, inplace);
 {{endif}}
 
-    return __Pyx_Fallback_{{cfunc_name}}(op1, op2, inplace);
-
     {{endif}}{{# if op != 'TrueDivide' #}}
-    {{endif}}{{# if op in ('Eq', 'Ne') #}}
 }
 #endif
 
