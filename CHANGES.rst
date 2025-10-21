@@ -2,7 +2,7 @@
 Cython Changelog
 ================
 
-3.2.0b1 (2025-10-??)
+3.2.0b1 (2025-10-22)
 ====================
 
 Features added
@@ -64,6 +64,9 @@ Features added
 
 * Unused exceptions in ``except`` clauses are detected in some more cases to avoid their normalisation.
   (Github issue :issue:`7021`)
+
+* Mixed operations on C integers with Python ints use less code and are more streamlined for Py3.12+.
+  (Github issue :issue:`7244`)
 
 * Some object constants are now marked as ``immortal`` to speed up their reference counting
   in recent CPython versions.  This can be configured with the ``CYTHON_IMMORTAL_CONSTANTS`` C macro.
