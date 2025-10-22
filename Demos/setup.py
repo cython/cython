@@ -8,7 +8,10 @@ from distutils.core import setup
 from distutils.extension import Extension
 from Cython.Build import cythonize
 
-ext_modules = cythonize("**/*.pyx", exclude="numpy_*.pyx")
+ext_modules = cythonize("**/*.pyx", 
+                            exclude=["numpy_*.pyx",
+                                     "callback/*.pyx",
+                                     "libraries/*.pyx"])
 
 # Only compile the following if numpy is installed.
 try:
@@ -16,10 +19,20 @@ try:
 except ImportError:
     pass
 else:
-    numpy_demo = [Extension("*",
+    ext_def = [Extension("cheese",
+                            sources=["callback/*.pyx",
+                                     "callback/cheesefinder.c"],
+                            include_dirs=[get_include(),
+                                          "callback"]),
+               Extension("call_mymath",
+                            sources=["libraries/*.pyx",
+                                     "libraries/mymath.c"],
+                            include_dirs=[get_include(),
+                                          "libraries"]),
+               Extension("*",
                             ["numpy_*.pyx"],
                             include_dirs=[get_include()])]
-    ext_modules.extend(cythonize(numpy_demo))
+    ext_modules.extend(cythonize(ext_def))
 
 setup(
     name = 'Demos',

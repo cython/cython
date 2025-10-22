@@ -11,7 +11,7 @@ static char *cheeses[] = {
   0
 };
 
-void find_cheeses(cheesefunc user_func, void *user_data) {
+DLL_EXPORT void find_cheeses(cheesefunc user_func, void *user_data) {
   char **p = cheeses;
   while (*p) {
     user_func(*p, user_data);
