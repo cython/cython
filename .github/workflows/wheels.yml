@@ -146,6 +146,11 @@ jobs:
                 matrix.os == 'macos-latest' && '*macosx_x86_64' ||
                 matrix.os == 'windows-11-arm' && '*win_arm64' || '' }}
 
+      - name: Check wheel
+        run: |
+          pip install twine
+          twine check ./wheelhouse/*.whl
+
       - uses: actions/upload-artifact@v4
         with:
           name: Stable-ABI-${{ matrix.os }}-${{ strategy.job-index }}
@@ -173,9 +178,10 @@ jobs:
 
       - name: Build sdist
         run: |
-          pip install --upgrade wheel setuptools
+          pip install --upgrade wheel setuptools twine
           python setup.py sdist
           python setup.py bdist_wheel --no-cython-compile
+          twine check ./dist/*.whl
 
       - uses: actions/upload-artifact@v4.6.2
         with:
