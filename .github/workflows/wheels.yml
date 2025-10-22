@@ -136,6 +136,10 @@ jobs:
       - name: Checkout Cython
         uses: actions/checkout@v5
 
+      - uses: actions/setup-python@v6.0.0
+        with:
+          python-version: '3.13'
+
       - name: Build wheels
         uses: pypa/cibuildwheel@v3.2.0
         env:
@@ -148,8 +152,8 @@ jobs:
 
       - name: Check wheel
         run: |
-          pip install twine
-          twine check ./wheelhouse/*.whl
+          python -m pip install twine
+          python -m twine check ./wheelhouse/*.whl
 
       - uses: actions/upload-artifact@v4
         with:
