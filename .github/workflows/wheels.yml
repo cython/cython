@@ -127,10 +127,17 @@ jobs:
       (github.event_name == 'pull_request' &&
       contains(github.event.pull_request.labels.*.name, 'Build System'))
     runs-on: ${{ matrix.os }}
+
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-latest, windows-11-arm, macos-latest]
+        os:
+          - 'ubuntu-latest'
+          - 'ubuntu-24.04'
+          - 'ubuntu-24.04-arm'
+          - 'windows-latest'
+          - 'windows-11-arm'
+          - 'macos-latest'
 
     steps:
       - name: Checkout Cython
@@ -140,15 +147,25 @@ jobs:
         with:
           python-version: '3.13'
 
+      - name: Set up QEMU
+        if: runner.os == 'Linux'
+        uses: docker/setup-qemu-action@v3
+        with:
+          platforms: all
+
       - name: Build wheels
-        uses: pypa/cibuildwheel@v3.2.0
+        uses: pypa/cibuildwheel@v3.2.1
         env:
           # Smaller set of platforms that we only provide Stable ABI wheels for
           CIBW_BUILD: |
-            ${{ matrix.os == 'ubuntu-latest' && '*linux_i686' ||
+            ${{
+                matrix.os == 'ubuntu-24.04-arm' && '*armv7l' ||
+                matrix.os == 'ubuntu-24.04' && '*ppc64le' ||
+                matrix.os == 'ubuntu-latest' && '*linux_i686' ||
                 matrix.os == 'windows-latest' && '*win32' ||
                 matrix.os == 'macos-latest' && '*macosx_x86_64' ||
-                matrix.os == 'windows-11-arm' && '*win_arm64' || '' }}
+                matrix.os == 'windows-11-arm' && '*win_arm64' ||
+            '' }}
 
       - name: Check wheel
         run: |
