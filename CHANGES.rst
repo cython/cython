@@ -197,6 +197,10 @@ Bugs fixed
 Other changes
 -------------
 
+* Some lesser used platforms (Windows ARM/i686, macOS x86_64, Linux i686) now use Py3.9 abi3 binary wheels
+  instead of Python version specific wheels.  We also added a abi3 wheel for armv7l.
+  (Github issues :issue:`7227`, :issue:`7248`)
+
 * Usages of `Py_TPFLAGS_HAVE_FINALIZE` were removed.  The constant remains available as cimport from
   ``cpython.object`` for legacy reasons.
   (Github issue :issue:`6423`)
