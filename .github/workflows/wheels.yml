@@ -104,6 +104,10 @@ jobs:
       - name: Checkout Cython
         uses: actions/checkout@v4.1.1
 
+      - uses: actions/setup-python@v6.0.0
+        with:
+          python-version: '3.13'
+
       - name: Build wheels
         # Nb. keep cibuildwheel version pin consistent with generate-matrix job above
         uses: pypa/cibuildwheel@v3.2.1
@@ -112,6 +116,11 @@ jobs:
         # TODO: Cython tests take a long time to complete
         # consider running a subset in the future?
         #CIBW_TEST_COMMAND: python {project}/runtests.py -vv
+
+      - name: Check wheel
+        run: |
+          python -m pip install twine
+          python -m twine check ./wheelhouse/*.whl
 
       - uses: actions/upload-artifact@v4.6.2
         with:
@@ -140,9 +149,10 @@ jobs:
 
       - name: Build sdist
         run: |
-          pip install --upgrade wheel setuptools
+          pip install --upgrade wheel setuptools twine
           python setup.py sdist
           python setup.py bdist_wheel --no-cython-compile
+          twine check ./dist/*.whl
 
       - uses: actions/upload-artifact@v4.6.2
         with:
