@@ -180,8 +180,8 @@ Bugs fixed
   incorrect ``const`` / non-``const``  casting code.
   (Github issue :issue:`7219`)
 
-* ``cythonize`` (program and function) now uses :class:`concurrent.futures.ProcessPoolExecutor`
-  instead of :class:`multiprocessing.Pool` to fix a hang on build failures in parallel builds.
+* ``cythonize`` (program and function) now uses ``concurrent.futures.ProcessPoolExecutor``
+  instead of ``multiprocessing.Pool`` to fix a hang on build failures in parallel builds.
   A possible work-around is to disable parallel builds.
   Patch by Sviatoslav Sydorenko.  (Github issue :issue:`7183`)
 
