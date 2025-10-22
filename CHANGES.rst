@@ -77,7 +77,7 @@ Features added
 
 * Several improvements were made in freethreaded Python code.
   (Github issues :issue:`6936`, :issue:`6939`, :issue:`6949`, :issue:`6984`,
-   :issue:`7011`, :issue:`7066`, :issue:`7114`, :issue:`7200`)
+  :issue:`7011`, :issue:`7066`, :issue:`7114`, :issue:`7200`)
 
 * Several improvements were made for the Limited API.
   (Github issues :issue:`6959`, :issue:`6991`)
