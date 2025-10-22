@@ -58,13 +58,13 @@ environment.CYTHON_LIMITED_API = "true"
 [[tool.cibuildwheel.overrides]]
 select = "*armv7l"
 inherit.environment = "append"
-environment.CFLAGS = "-O3 -g0 -pipe -fPIC -mtune=generic"
+environment.CFLAGS = "-O3 -g0 -pipe -fPIC"
 environment.CYTHON_LIMITED_API = "true"
 
 [[tool.cibuildwheel.overrides]]
 select = "*ppc64le"
 inherit.environment = "append"
-environment.CFLAGS = "-O3 -g0 -pipe -fPIC -mtune=generic"
+environment.CFLAGS = "-O3 -g0 -pipe -fPIC"
 environment.CYTHON_LIMITED_API = "true"
 
 [tool.cibuildwheel.windows]
