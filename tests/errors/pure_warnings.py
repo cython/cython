@@ -7,7 +7,7 @@ from cython.cimports.libc import stdint
 
 
 def main():
-    foo1: typing.Tuple = None
+    foo0: typing.Tuple = None
     foo1: typing.Bar = None
     foo2: Bar = 1  # warning
     foo3: int = 1
@@ -21,9 +21,9 @@ def main():
     foo11: Bar[:, :, :]  # warning
     foo12: cython.int[:, ::1]
     with cython.annotation_typing(False):
-        foo8: Bar = 1
-        foo9: stdint.bar = 5
-        foo10: cython.bar = 1
+        foo13: Bar = 1
+        foo14: stdint.bar = 5
+        foo15: cython.bar = 1
 
 
 @cython.cfunc
