@@ -206,7 +206,7 @@ Other changes
   (Github issue :issue:`6423`)
 
 
-3.1.6 (2025-??-??)
+3.1.6 (2025-10-23)
 ==================
 
 Bugs fixed
@@ -215,6 +215,11 @@ Bugs fixed
 * Unicode characters formatted from C integers with ``f"{value:c}"`` could result in
   invalid Python string objects since Cython 3.1.0.
   (Github issue :issue:`7240`)
+
+* ``cythonize`` (program and function) now uses ``concurrent.futures.ProcessPoolExecutor``
+  instead of ``multiprocessing.Pool`` to fix a hang on build failures in parallel builds.
+  A possible work-around is to disable parallel builds.
+  Patch by Sviatoslav Sydorenko.  (Github issue :issue:`7183`)
 
 
 3.1.5 (2025-10-20)
