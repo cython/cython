@@ -154,10 +154,11 @@ class SharedUtilityExporter:
             func_name = shared_func_def.name
             func_params = shared_func_def.params
             func_ret_type = shared_func_def.ret
-            func_name_from_mstate = code.intern_identifier(EncodedString(func_name))
+            func_name_cstring = EncodedString(func_name).as_c_string_literal()
+            signature_cstring = EncodedString(f"{func_ret_type}({func_params})").as_c_string_literal()
             code.put_error_if_neg(
                 self.pos,
-                f'__Pyx_ExportFunction({api_dict}, {func_name_from_mstate}, (void (*)(void)){func_name}, "{func_ret_type}({func_params})")'
+                f'__Pyx_ExportFunction({api_dict}, {func_name_cstring}, (void (*)(void)){func_name}, {signature_cstring})'
             )
 
         code.put_decref_clear(api_dict, py_object_type)
@@ -3828,8 +3829,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             UtilityCode.load_cached(utility_code_name, "ImportExport.c"))
 
         for entry in entries:
-            name = code.intern_identifier(entry.name)
-            yield (entry, name, api_dict)
+            yield (entry, entry.name, api_dict)
 
         code.put_decref_clear(api_dict, py_object_type)
         code.funcstate.release_temp(api_dict)
@@ -3838,11 +3838,12 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         """Generate code to create PyCFunction wrappers for exported C functions.
         """
         for entry, name, api_dict in self._generate_export_code(env.var_entries, "VoidPtrExport", code):
-            signature = entry.type.empty_declaration_code()
+            signature_cstring = EncodedString(entry.type.empty_declaration_code()).as_c_string_literal()
+            name_cstring = name.as_c_string_literal()
 
             code.put_error_if_neg(
                 self.pos,
-                f'__Pyx_ExportVoidPtr({api_dict}, {name}, (void *)&{entry.cname}, "{signature}")'
+                f'__Pyx_ExportVoidPtr({api_dict}, {name_cstring}, (void *)&{entry.cname}, {signature_cstring})'
             )
 
     def generate_c_function_export_code(self, env, code):
@@ -3851,11 +3852,12 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         for entry, name, api_dict in self._generate_export_code(env.cfunc_entries, "FunctionExport", code):
             # Note: while this looks like it could be more cheaply stored and read from a struct array,
             # investigation shows that the resulting binary is smaller with repeated functions calls.
-            signature = entry.type.signature_string()
+            signature_cstring = EncodedString(entry.type.signature_string()).as_c_string_literal()
+            name_cstring = name.as_c_string_literal()
 
             code.put_error_if_neg(
                 self.pos,
-                f'__Pyx_ExportFunction({api_dict}, {name}, (void (*)(void)){entry.cname}, "{signature}")'
+                f'__Pyx_ExportFunction({api_dict}, {name_cstring}, (void (*)(void)){entry.cname}, {signature_cstring})'
             )
 
     def generate_type_import_code_for_module(self, module, env, code):
