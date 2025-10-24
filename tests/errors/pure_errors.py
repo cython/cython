@@ -107,6 +107,10 @@ def variable_redeclared(x):
         c: float = 5.0
     else:
         c: float = 10.0  # not ok
+    with cython.annotation_typing(False):
+        a: int = 6
+        b: str = 'foo'
+        c: float = 10.0
 
 
 _ERRORS = """

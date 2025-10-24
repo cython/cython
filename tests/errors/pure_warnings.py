@@ -21,9 +21,9 @@ def main():
     foo11: Bar[:, :, :]  # warning
     foo12: cython.int[:, ::1]
     with cython.annotation_typing(False):
-        foo13: Bar = 1
-        foo14: stdint.bar = 5
-        foo15: cython.bar = 1
+        foo8: Bar = 1
+        foo9: stdint.bar = 5
+        foo10: cython.bar = 1
 
 
 @cython.cfunc
