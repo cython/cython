@@ -1326,6 +1326,8 @@ From Cython 3.1, this is still possible, but should be migrated to using the C m
 Before Cython 3.1, the ``CYTHON_CLINE_IN_TRACEBACK`` macro already works as described
 but the Cython option is needed to remove the compile-time cost.
 
+.. _C_macro_defines:
+
 C macro defines
 ===============
 
