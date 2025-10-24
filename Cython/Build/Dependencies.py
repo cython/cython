@@ -773,6 +773,10 @@ def create_extension_list(patterns, exclude=None, ctx=None, aliases=None, quiet=
         elif isinstance(pattern, extension_classes):
             cython_sources = [s for s in pattern.sources
                               if os.path.splitext(s)[1] in ('.py', '.pyx')]
+            template = pattern
+            name = template.name
+            base = DistutilsInfo(exn=template)
+            ext_language = None  # do not override whatever the Extension says
             if cython_sources:
                 filepattern = cython_sources[0]
                 if len(cython_sources) > 1:
@@ -781,11 +785,14 @@ def create_extension_list(patterns, exclude=None, ctx=None, aliases=None, quiet=
                           "for sharing declarations among Cython files." % (pattern.name, cython_sources))
             elif shared_utility_qualified_name and pattern.name == shared_utility_qualified_name:
                 # This is the shared utility code file.
+                sources = pattern.sources or [
+                        shared_utility_qualified_name.replace('.', os.sep) + ('.cpp' if pattern.language == 'c++' else '.c')]
                 m, _ = create_extension(pattern, dict(
                     name=shared_utility_qualified_name,
-                    sources=pattern.sources or [
-                        shared_utility_qualified_name.replace('.', os.sep) + ('.cpp' if pattern.language == 'c++' else '.c')],
+                    sources=sources,
                     language=pattern.language,
+                    # shared utility code uses only parameters specified as argument of Extension() class
+                    **base.values
                 ))
                 m.np_pythran = False
                 m.shared_utility_qualified_name = None
@@ -795,10 +802,6 @@ def create_extension_list(patterns, exclude=None, ctx=None, aliases=None, quiet=
                 # ignore non-cython modules
                 module_list.append(pattern)
                 continue
-            template = pattern
-            name = template.name
-            base = DistutilsInfo(exn=template)
-            ext_language = None  # do not override whatever the Extension says
         else:
             msg = str("pattern is not of type str nor subclass of Extension (%s)"
                       " but of type %s and class %s" % (repr(Extension),
