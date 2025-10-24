@@ -77,7 +77,7 @@ Features added
 
 * Several improvements were made in freethreaded Python code.
   (Github issues :issue:`6936`, :issue:`6939`, :issue:`6949`, :issue:`6984`,
-   :issue:`7011`, :issue:`7066`, :issue:`7114`, :issue:`7200`)
+  :issue:`7011`, :issue:`7066`, :issue:`7114`, :issue:`7200`)
 
 * Several improvements were made for the Limited API.
   (Github issues :issue:`6959`, :issue:`6991`)
@@ -180,8 +180,8 @@ Bugs fixed
   incorrect ``const`` / non-``const``  casting code.
   (Github issue :issue:`7219`)
 
-* ``cythonize`` (program and function) now uses :class:`concurrent.futures.ProcessPoolExecutor`
-  instead of :class:`multiprocessing.Pool` to fix a hang on build failures in parallel builds.
+* ``cythonize`` (program and function) now uses ``concurrent.futures.ProcessPoolExecutor``
+  instead of ``multiprocessing.Pool`` to fix a hang on build failures in parallel builds.
   A possible work-around is to disable parallel builds.
   Patch by Sviatoslav Sydorenko.  (Github issue :issue:`7183`)
 
@@ -197,12 +197,16 @@ Bugs fixed
 Other changes
 -------------
 
+* Some lesser used platforms (Windows ARM/i686, macOS x86_64, Linux i686) now use Py3.9 abi3 binary wheels
+  instead of Python version specific wheels.  We also added a abi3 wheel for armv7l.
+  (Github issues :issue:`7227`, :issue:`7248`)
+
 * Usages of `Py_TPFLAGS_HAVE_FINALIZE` were removed.  The constant remains available as cimport from
   ``cpython.object`` for legacy reasons.
   (Github issue :issue:`6423`)
 
 
-3.1.6 (2025-??-??)
+3.1.6 (2025-10-23)
 ==================
 
 Bugs fixed
@@ -211,6 +215,11 @@ Bugs fixed
 * Unicode characters formatted from C integers with ``f"{value:c}"`` could result in
   invalid Python string objects since Cython 3.1.0.
   (Github issue :issue:`7240`)
+
+* ``cythonize`` (program and function) now uses ``concurrent.futures.ProcessPoolExecutor``
+  instead of ``multiprocessing.Pool`` to fix a hang on build failures in parallel builds.
+  A possible work-around is to disable parallel builds.
+  Patch by Sviatoslav Sydorenko.  (Github issue :issue:`7183`)
 
 
 3.1.5 (2025-10-20)
