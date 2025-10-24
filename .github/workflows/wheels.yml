@@ -71,6 +71,7 @@ jobs:
           MATRIX=$(
             {
               cibuildwheel --print-build-identifiers --platform linux --archs "x86_64,aarch64" \
+              | grep -v musllinux \
               | jq -nRc '{"only": inputs, "os": "ubuntu-latest"}' \
               | sed -e '/aarch64/s|ubuntu-latest|ubuntu-24.04-arm|' \
               && cibuildwheel --print-build-identifiers --platform macos --archs arm64 \
@@ -161,8 +162,8 @@ jobs:
           # Smaller set of platforms that we only provide Stable ABI wheels for
           CIBW_BUILD: |
             ${{
-                matrix.os == 'ubuntu-24.04-arm' && '*armv7l' ||
-                matrix.os == 'ubuntu-latest' && '*linux_i686' ||
+                matrix.os == 'ubuntu-24.04-arm' && '*armv7l *musllinux_aarch64' ||
+                matrix.os == 'ubuntu-latest' && '*linux_i686 *musllinux_x86_64' ||
                 matrix.os == 'windows-latest' && '*win32' ||
                 matrix.os == 'macos-latest' && '*macosx_x86_64' ||
                 matrix.os == 'windows-11-arm' && '*win_arm64' ||
