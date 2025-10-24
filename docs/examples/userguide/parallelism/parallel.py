@@ -3,6 +3,7 @@ from cython.cimports.libc.stdlib import abort, malloc, free
 
 @cython.nogil
 @cython.cfunc
+@cython.exceptval(check=False)
 def func(buf: cython.p_int) -> cython.void:
     pass
     # ...
@@ -11,10 +12,11 @@ idx = cython.declare(cython.Py_ssize_t)
 i = cython.declare(cython.Py_ssize_t)
 j = cython.declare(cython.Py_ssize_t)
 n = cython.declare(cython.Py_ssize_t, 100)
+local_buf = cython.declare(cython.p_int)
 size = cython.declare(cython.size_t, 10)
 
 with cython.nogil, parallel():
-    local_buf: cython.p_int = cython.cast(cython.p_int, malloc(cython.sizeof(cython.int) * size))
+    local_buf = cython.cast(cython.p_int, malloc(cython.sizeof(cython.int) * size))
     if local_buf is cython.NULL:
         abort()
 
