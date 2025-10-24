@@ -8,7 +8,7 @@ from distutils.core import setup
 from distutils.extension import Extension
 from Cython.Build import cythonize
 
-ext_modules = cythonize("**/*.pyx", 
+ext_modules = cythonize("**/*.pyx",
                             exclude=["numpy_*.pyx",
                                      "callback/*.pyx",
                                      "libraries/*.pyx"])
