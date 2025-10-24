@@ -155,12 +155,6 @@ jobs:
         with:
           python-version: '3.13'
 
-      - name: Set up QEMU
-        if: runner.os == 'Linux'
-        uses: docker/setup-qemu-action@v3
-        with:
-          platforms: all
-
       - name: Build wheels
         uses: pypa/cibuildwheel@v3.2.1
         env:
