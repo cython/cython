@@ -187,110 +187,6 @@ class SharedUtilityExporter:
         code.exit_cfunc_scope()
 
 
-def _deduplicate_inout_signatures(item_tuples):
-    # We can save runtime space for identical signatures by reusing the same C strings.
-    # To deduplicate the signatures, we sort by them and store duplicates as empty C strings.
-    signatures, names, items = zip(*sorted(item_tuples))
-    signatures = list(signatures)  # tuple -> list, to allow reassignments again
-
-    last_sig = None
-    for i, signature in enumerate(signatures):
-        if signature == last_sig:
-            signatures[i] = ''
-        else:
-            last_sig = signature
-
-    return signatures, names, items
-
-
-def _generate_import_export_code(code: Code.CCodeWriter, pos, inout_item_tuples, per_item_func, target, pointer_decl, use_pybytes, is_import):
-    signatures, names, inout_items = _deduplicate_inout_signatures(inout_item_tuples)
-
-    prefix = f"{Naming.pyrex_prefix}{'import' if is_import else 'export'}_"
-
-    pointer_cast = pointer_decl.format(name='')
-    sig_bytes = '\0'.join(signatures).encode('utf-8')
-    names_bytes = '\0'.join(names).encode('utf-8')
-    pointers = [f"({pointer_cast})&{item_cname}" for item_cname in inout_items]
-
-    sigs_and_names_bytes = bytes_literal(sig_bytes + b'\0' + names_bytes, 'utf-8')
-    if use_pybytes:
-        code.putln(f"const char * {prefix}signature = __Pyx_PyBytes_AsString({code.get_py_string_const(sigs_and_names_bytes)});")
-        code.putln("#if !CYTHON_ASSUME_SAFE_MACROS")
-        code.putln(code.error_goto_if_null(f'{prefix}signature', pos))
-        code.putln("#endif")
-    else:
-        code.putln(f"const char * {prefix}signature = {sigs_and_names_bytes.as_c_string_literal()};")
-
-    code.putln(f"const char * {prefix}name = {prefix}signature + {len(sig_bytes) + 1};")
-    code.putln(f"{pointer_decl.format(name=f'const {prefix}pointers[]')} = {{{', '.join(pointers)}, ({pointer_cast}) NULL}};")
-
-    code.globalstate.use_utility_code(
-        UtilityCode.load_cached("IncludeStringH", "StringTools.c"))
-
-    code.putln(f"{pointer_decl.format(name=f'const *{prefix}pointer')} = {prefix}pointers;")
-    code.putln(f"const char *__pyx_current_signature = {prefix}signature;")
-    code.putln(f"while (*{prefix}pointer) {{")
-
-    code.put_error_if_neg(
-        pos,
-        f"{per_item_func}({target}, {prefix}name, *{prefix}pointer, __pyx_current_signature)"
-    )
-    code.putln(f"++{prefix}pointer;")
-    code.putln(f"{prefix}name = strchr({prefix}name, '\\0') + 1;")
-    code.putln(f"{prefix}signature = strchr({prefix}signature, '\\0') + 1;")
-    # Keep reusing the current signature until we find a new non-empty one.
-    code.putln(f"if (*{prefix}signature != '\\0') __pyx_current_signature = {prefix}signature;")
-
-    code.putln("}")  # while
-
-
-def _generate_export_code(code: Code.CCodeWriter, pos, exports, export_func, pointer_decl):
-    """Generate function/pointer export code.
-
-    'exports' is a list of (signature, name, exported_cname) tuples.
-    """
-    code.putln("{")
-
-    api_dict = code.funcstate.allocate_temp(py_object_type, manage_ref=True)
-    code.globalstate.use_utility_code(
-        UtilityCode.load_cached("GetApiDict", "ImportExport.c"))
-    code.putln(
-        f"{api_dict} = __Pyx_ApiExport_GetApiDict(); "
-        f"{code.error_goto_if_null(api_dict, pos)}"
-    )
-    code.put_gotref(api_dict, py_object_type)
-
-    _generate_import_export_code(code, pos, exports, export_func, api_dict, pointer_decl, use_pybytes=True, is_import=False)
-
-    code.put_decref_clear(api_dict, py_object_type)
-    code.funcstate.release_temp(api_dict)
-
-    code.putln("}")
-
-
-def _generate_import_code(code, pos, imports, qualified_module_name, import_func, pointer_decl):
-    """Generate function/pointer import code.
-
-    'imports' is a list of (signature, name, imported_cname) tuples.
-    """
-    code.putln("{")
-
-    module_ref = code.funcstate.allocate_temp(py_object_type, manage_ref=True)
-    code.putln(
-        f'{module_ref} = PyImport_ImportModule({qualified_module_name.as_c_string_literal()}); '
-        f'{code.error_goto_if_null(module_ref, pos)}'
-    )
-    code.put_gotref(module_ref, py_object_type)
-
-    _generate_import_export_code(code, pos, imports, import_func, module_ref, pointer_decl, use_pybytes=True, is_import=True)
-
-    code.put_decref_clear(module_ref, py_object_type)
-    code.funcstate.release_temp(module_ref)
-
-    code.putln("}")
-
-
 class ModuleNode(Nodes.Node, Nodes.BlockNode):
     #  doc       string or None
     #  body      StatListNode
@@ -4133,6 +4029,114 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                             cast,
                             meth_entry.func_cname))
 
+
+# cimport/export code for functions and pointers.
+
+def _deduplicate_inout_signatures(item_tuples):
+    # We can save runtime space for identical signatures by reusing the same C strings.
+    # To deduplicate the signatures, we sort by them and store duplicates as empty C strings.
+    signatures, names, items = zip(*sorted(item_tuples))
+    signatures = list(signatures)  # tuple -> list, to allow reassignments again
+
+    last_sig = None
+    for i, signature in enumerate(signatures):
+        if signature == last_sig:
+            signatures[i] = ''
+        else:
+            last_sig = signature
+
+    return signatures, names, items
+
+
+def _generate_import_export_code(code: Code.CCodeWriter, pos, inout_item_tuples, per_item_func, target, pointer_decl, use_pybytes, is_import):
+    signatures, names, inout_items = _deduplicate_inout_signatures(inout_item_tuples)
+
+    prefix = f"{Naming.pyrex_prefix}{'import' if is_import else 'export'}_"
+
+    pointer_cast = pointer_decl.format(name='')
+    sig_bytes = '\0'.join(signatures).encode('utf-8')
+    names_bytes = '\0'.join(names).encode('utf-8')
+    pointers = [f"({pointer_cast})&{item_cname}" for item_cname in inout_items]
+
+    sigs_and_names_bytes = bytes_literal(sig_bytes + b'\0' + names_bytes, 'utf-8')
+    if use_pybytes:
+        code.putln(f"const char * {prefix}signature = __Pyx_PyBytes_AsString({code.get_py_string_const(sigs_and_names_bytes)});")
+        code.putln("#if !CYTHON_ASSUME_SAFE_MACROS")
+        code.putln(code.error_goto_if_null(f'{prefix}signature', pos))
+        code.putln("#endif")
+    else:
+        code.putln(f"const char * {prefix}signature = {sigs_and_names_bytes.as_c_string_literal()};")
+
+    code.putln(f"const char * {prefix}name = {prefix}signature + {len(sig_bytes) + 1};")
+    code.putln(f"{pointer_decl.format(name=f'const {prefix}pointers[]')} = {{{', '.join(pointers)}, ({pointer_cast}) NULL}};")
+
+    code.globalstate.use_utility_code(
+        UtilityCode.load_cached("IncludeStringH", "StringTools.c"))
+
+    code.putln(f"{pointer_decl.format(name=f'const *{prefix}pointer')} = {prefix}pointers;")
+    code.putln(f"const char *__pyx_current_signature = {prefix}signature;")
+    code.putln(f"while (*{prefix}pointer) {{")
+
+    code.put_error_if_neg(
+        pos,
+        f"{per_item_func}({target}, {prefix}name, *{prefix}pointer, __pyx_current_signature)"
+    )
+    code.putln(f"++{prefix}pointer;")
+    code.putln(f"{prefix}name = strchr({prefix}name, '\\0') + 1;")
+    code.putln(f"{prefix}signature = strchr({prefix}signature, '\\0') + 1;")
+    # Keep reusing the current signature until we find a new non-empty one.
+    code.putln(f"if (*{prefix}signature != '\\0') __pyx_current_signature = {prefix}signature;")
+
+    code.putln("}")  # while
+
+
+def _generate_export_code(code: Code.CCodeWriter, pos, exports, export_func, pointer_decl):
+    """Generate function/pointer export code.
+
+    'exports' is a list of (signature, name, exported_cname) tuples.
+    """
+    code.putln("{")
+
+    api_dict = code.funcstate.allocate_temp(py_object_type, manage_ref=True)
+    code.globalstate.use_utility_code(
+        UtilityCode.load_cached("GetApiDict", "ImportExport.c"))
+    code.putln(
+        f"{api_dict} = __Pyx_ApiExport_GetApiDict(); "
+        f"{code.error_goto_if_null(api_dict, pos)}"
+    )
+    code.put_gotref(api_dict, py_object_type)
+
+    _generate_import_export_code(code, pos, exports, export_func, api_dict, pointer_decl, use_pybytes=True, is_import=False)
+
+    code.put_decref_clear(api_dict, py_object_type)
+    code.funcstate.release_temp(api_dict)
+
+    code.putln("}")
+
+
+def _generate_import_code(code, pos, imports, qualified_module_name, import_func, pointer_decl):
+    """Generate function/pointer import code.
+
+    'imports' is a list of (signature, name, imported_cname) tuples.
+    """
+    code.putln("{")
+
+    module_ref = code.funcstate.allocate_temp(py_object_type, manage_ref=True)
+    code.putln(
+        f'{module_ref} = PyImport_ImportModule({qualified_module_name.as_c_string_literal()}); '
+        f'{code.error_goto_if_null(module_ref, pos)}'
+    )
+    code.put_gotref(module_ref, py_object_type)
+
+    _generate_import_export_code(code, pos, imports, import_func, module_ref, pointer_decl, use_pybytes=True, is_import=True)
+
+    code.put_decref_clear(module_ref, py_object_type)
+    code.funcstate.release_temp(module_ref)
+
+    code.putln("}")
+
+
+# Module import helper
 
 class ModuleImportGenerator:
     """
