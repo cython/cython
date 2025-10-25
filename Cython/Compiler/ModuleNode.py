@@ -138,14 +138,15 @@ class SharedUtilityExporter:
         self.export_code.set_call_code(code)
 
     def _generate_c_shared_function_export_code(self, code, shared_function_definitions: Sequence[Code.SharedFunctionDecl]):
-        names = []
-        signatures = []
+        # We use the function cname also as exported name.
+        exports = [
+            (f"{shared_func_def.ret}({shared_func_def.params})", shared_func_def.name, shared_func_def.name)
+            for shared_func_def in shared_function_definitions
+        ]
+        code.globalstate.use_utility_code(
+            UtilityCode.load_cached("FunctionExport", "ImportExport.c"))
 
-        for shared_func_def in shared_function_definitions:
-            names.append(shared_func_def.name)
-            signatures.append(f"{shared_func_def.ret}({shared_func_def.params})")
-
-        _generate_export_code(code, self.pos, names, names, signatures, "FunctionExport", "__Pyx_ExportFunction", "void (*{name})(void)")
+        _generate_export_code(code, self.pos, exports, "__Pyx_ExportFunction", "void (*{name})(void)")
 
     def _generate_c_shared_function_import_code_for_module(self, code, function_definitions: Sequence[Code.SharedFunctionDecl]):
         code.globalstate.use_utility_code(UtilityCode.load_cached("FunctionImport", "ImportExport.c"))
@@ -194,14 +195,14 @@ class SharedUtilityExporter:
         code.exit_cfunc_scope()
 
 
-def _generate_export_code(code: Code.CCodeWriter, pos, exports, names, signatures, utility_code_name, export_func, pointer_decl):
+def _generate_export_code(code: Code.CCodeWriter, pos, exports, export_func, pointer_decl):
     """Generate function/pointer export code.
-    """
-    assert len(signatures) == len(names) == len(exports), (len(signatures), len(names), len(exports))
 
+    'exports' is a list of (signature, name, exported_cname) tuples.
+    """
     # We can save runtime space for identical signatures by reusing the same C strings for the PyCapsules.
     # To deduplicate the signatures, we sort by them and store duplicates as empty C strings.
-    signatures, names, exports = zip(*sorted(zip(signatures, names, exports)))
+    signatures, names, exported_items = zip(*sorted(exports))
     signatures = list(signatures)  # tuple -> list, to allow reassignments again
 
     last_sig = None
@@ -214,7 +215,7 @@ def _generate_export_code(code: Code.CCodeWriter, pos, exports, names, signature
     pointer_cast = pointer_decl.format(name='')
     sig_bytes = '\0'.join(signatures).encode('utf-8')
     names_bytes = '\0'.join(names).encode('utf-8')
-    pointers = [f"({pointer_cast})&{export}" for export in exports]
+    pointers = [f"({pointer_cast})&{export}" for export in exported_items]
 
     code.putln("{")
 
@@ -235,8 +236,6 @@ def _generate_export_code(code: Code.CCodeWriter, pos, exports, names, signature
     code.putln(f"const char * __pyx_exported_name = __pyx_exported_signature + {len(sig_bytes) + 1};")
     code.putln(f"{pointer_decl.format(name='const __pyx_exported_pointers[]')} = {{{', '.join(pointers)}, ({pointer_cast}) NULL}};")
 
-    code.globalstate.use_utility_code(
-        UtilityCode.load_cached(utility_code_name, "ImportExport.c"))
     code.globalstate.use_utility_code(
         UtilityCode.load_cached("IncludeStringH", "StringTools.c"))
 
@@ -3859,41 +3858,45 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                         code.error_goto(entry.pos)))
                 code.putln("}")
 
-    def _generate_export_code(self, all_entries, utility_code_name, export_func, pointer_decl, get_signature, code):
-        # Generic function/pointer export implementation as generator.
-        entries = [
+    def _select_exported_entries(self, all_entries):
+        return [
             entry for entry in all_entries
             if entry.api or entry.defined_in_pxd or (Options.cimport_from_pyx and entry.visibility != 'extern')
         ]
-        if not entries:
-            return
-
-        exports = []
-        names = []
-        signatures = []
-
-        for entry in entries:
-            exports.append(entry.cname)
-            names.append(entry.name)
-            signatures.append(get_signature(entry.type))
-
-        _generate_export_code(code, self.pos, exports, names, signatures, utility_code_name, export_func, pointer_decl)
 
     def generate_c_variable_export_code(self, env, code):
         """Generate code to create PyCFunction wrappers for exported C functions.
         """
-        def get_signature(entry_type):
-            return entry_type.empty_declaration_code()
+        entries = self._select_exported_entries(env.var_entries)
+        if not entries:
+            return
 
-        self._generate_export_code(env.var_entries, "VoidPtrExport", "__Pyx_ExportVoidPtr", "void *{name}", get_signature, code)
+        exports = [
+            # (signature, name, cname)
+            (entry.type.empty_declaration_code(), entry.name, entry.cname)
+            for entry in entries
+        ]
+        code.globalstate.use_utility_code(
+            UtilityCode.load_cached("VoidPtrExport", "ImportExport.c"))
+
+        _generate_export_code(code, self.pos, exports, "__Pyx_ExportVoidPtr", "void *{name}")
 
     def generate_c_function_export_code(self, env, code):
         """Generate code to create PyCFunction wrappers for exported C functions.
         """
-        def get_signature(entry_type):
-            return entry_type.signature_string()
+        entries = self._select_exported_entries(env.cfunc_entries)
+        if not entries:
+            return
 
-        self._generate_export_code(env.cfunc_entries, "FunctionExport", "__Pyx_ExportFunction", "void (*{name})(void)", get_signature, code)
+        exports = [
+            # (signature, name, cname)
+            (entry.type.signature_string(), entry.name, entry.cname)
+            for entry in entries
+        ]
+        code.globalstate.use_utility_code(
+            UtilityCode.load_cached("FunctionExport", "ImportExport.c"))
+
+        _generate_export_code(code, self.pos, exports, "__Pyx_ExportFunction", "void (*{name})(void)")
 
     def generate_type_import_code_for_module(self, module, env, code):
         # Generate type import code for all exported extension types in
