@@ -19,16 +19,12 @@ try:
 except ImportError:
     pass
 else:
-    ext_def = [Extension("cheese",
+    ext_def = [Extension("*",
                             sources=["callback/*.pyx",
-                                     "callback/cheesefinder.c"],
-                            include_dirs=[get_include(),
-                                          "callback"]),
-               Extension("call_mymath",
+                                     "callback/cheesefinder.c"]),
+               Extension("*",
                             sources=["libraries/*.pyx",
-                                     "libraries/mymath.c"],
-                            include_dirs=[get_include(),
-                                          "libraries"]),
+                                     "libraries/mymath.c"]),
                Extension("*",
                             ["numpy_*.pyx"],
                             include_dirs=[get_include()])]
