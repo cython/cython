@@ -3004,15 +3004,12 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         module_state.putln('static struct PyModuleDef %s;' % Naming.pymoduledef_cname)
         module_state.putln('#endif')
         module_state.putln('')
-        module_state.putln('#define %s (__Pyx_PyModule_GetState(__Pyx_State_FindModule(&%s)))' % (
-            Naming.modulestateglobal_cname,
-            Naming.pymoduledef_cname))
         module_state.putln('')
         module_state.putln('#define %s (__Pyx_State_FindModule(&%s))' % (
             env.module_cname,
             Naming.pymoduledef_cname))
         module_state.putln("#else")
-        module_state.putln('static %s %s_static =' % (
+        module_state.putln('static %s %s =' % (
             Naming.modulestatetype_cname,
             Naming.modulestateglobal_cname
         ))
@@ -3023,11 +3020,6 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         module_state.putln('#else')
         module_state.putln('    {0};')
         module_state.putln('#endif')
-        module_state.putln('static %s * const %s = &%s_static;' % (
-            Naming.modulestatetype_cname,
-            Naming.modulestateglobal_cname,
-            Naming.modulestateglobal_cname
-        ))
         module_state.putln("#endif")
         module_state_clear.putln("return 0;")
         module_state_clear.putln("}")
@@ -3121,8 +3113,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln('int stringtab_initialized = 0;')
         code.putln("#if CYTHON_USE_MODULE_STATE")
         code.putln('int pystate_addmodule_run = 0;')
-        code.putln("#endif")
         code.putln(f"{Naming.modulestatetype_cname} *{Naming.modulestatevalue_cname} = NULL;")
+        code.putln("#endif")
 
         tempdecl_code = code.insertion_point()
 
@@ -3175,13 +3167,13 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                                         "CYTHON_COMPILING_IN_LIMITED_API)"
         )
 
-        empty_tuple = code.name_in_main_c_code_module_state(Naming.empty_tuple)
+        empty_tuple = code.name_in_module_state(Naming.empty_tuple)
         code.putln("%s = PyTuple_New(0); %s" % (
             empty_tuple, code.error_goto_if_null(empty_tuple, self.pos)))
-        empty_bytes = code.name_in_main_c_code_module_state(Naming.empty_bytes)
+        empty_bytes = code.name_in_module_state(Naming.empty_bytes)
         code.putln("%s = PyBytes_FromStringAndSize(\"\", 0); %s" % (
             empty_bytes, code.error_goto_if_null(empty_bytes, self.pos)))
-        empty_unicode = code.name_in_main_c_code_module_state(Naming.empty_unicode)
+        empty_unicode = code.name_in_module_state(Naming.empty_unicode)
         code.putln("%s = PyUnicode_FromStringAndSize(\"\", 0); %s" % (
             empty_unicode, code.error_goto_if_null(empty_unicode, self.pos)))
 
@@ -3191,7 +3183,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             code.put_error_if_neg(self.pos, "_import_array()")
 
         code.putln("/*--- Initialize various global constants etc. ---*/")
-        code.put_error_if_neg(self.pos, f"__Pyx_InitConstants({Naming.modulestatevalue_cname})")
+        code.put_error_if_neg(self.pos, f"__Pyx_InitConstants(__PYX_GET_MODULE_STATE())")
         code.putln("stringtab_initialized = 1;")
         code.put_error_if_neg(self.pos, "__Pyx_InitGlobals()")  # calls any utility code
 
@@ -3209,16 +3201,16 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             code.putln("/*--- Builtin init code ---*/")
             code.put_error_if_neg(
                 self.pos,
-                f"__Pyx_InitCachedBuiltins({Naming.modulestatevalue_cname})")
+                f"__Pyx_InitCachedBuiltins(__PYX_GET_MODULE_STATE())")
 
         code.putln("/*--- Constants init code ---*/")
         code.put_error_if_neg(
             self.pos,
-            f"__Pyx_InitCachedConstants({Naming.modulestatevalue_cname})")
+            f"__Pyx_InitCachedConstants(__PYX_GET_MODULE_STATE())")
         # code objects come after the other globals (since they use strings and tuples)
         code.put_error_if_neg(
             self.pos,
-            f"__Pyx_CreateCodeObjects({Naming.modulestatevalue_cname})")
+            f"__Pyx_CreateCodeObjects(__PYX_GET_MODULE_STATE())")
 
         code.putln("/*--- Global type/function init code ---*/")
 
@@ -3290,7 +3282,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
         code.putln('if (%s) {' % env.module_cname)
         code.putln(
-            f'if ({code.name_in_main_c_code_module_state(env.module_dict_cname)} && stringtab_initialized) {{')
+            f'if ({code.name_in_module_state(env.module_dict_cname)} && stringtab_initialized) {{')
         # We can run into errors before the module or stringtab are initialized.
         # In this case it is not safe to add a traceback (because it uses the stringtab)
         code.put_add_traceback(EncodedString("init %s" % env.qualified_name))
@@ -3366,6 +3358,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                     f"int {self.cfunc_name}({Naming.modulestatetype_cname} *{Naming.modulestatevalue_cname})",
                     scope, refnanny=True)
                 code.putln(f"CYTHON_UNUSED_VAR({Naming.modulestatevalue_cname});")
+                code.put_module_init_get_module_state_definitions()
                 self.tempdecl_code = code.insertion_point()
                 code.put_setup_refcount_context(EncodedString(self.cfunc_name))
                 # Leave a grepable marker that makes it easy to find the generator source.
@@ -3380,6 +3373,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
                 code = function_code
                 code.put_finish_refcount_context()
+                code.put_undef_get_module_state_definition()
                 code.putln("return 0;")
 
                 self.tempdecl_code.put_temp_declarations(code.funcstate)
@@ -3397,11 +3391,11 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
                 if needs_error_handling:
                     self.call_code.putln(
-                        self.call_code.error_goto_if_neg("%s(%s)" % (
-                            self.cfunc_name, Naming.modulestatevalue_cname), pos))
+                        self.call_code.error_goto_if_neg("%s(__PYX_GET_MODULE_STATE())" % (
+                            self.cfunc_name), pos))
                 else:
                     self.call_code.putln(
-                        f"(void){self.cfunc_name}({Naming.modulestatevalue_cname});")
+                        f"(void){self.cfunc_name}(__PYX_GET_MODULE_STATE());")
                 self.call_code = None
 
         return ModInitSubfunction
@@ -3507,7 +3501,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         if Options.generate_cleanup_code >= 3:
             code.putln("/*--- Type import cleanup code ---*/")
             for ext_type in sorted(env.types_imported, key=operator.attrgetter('typeptr_cname')):
-                typeptr_cname = code.name_in_main_c_code_module_state(ext_type.typeptr_cname)
+                typeptr_cname = code.name_in_module_state(ext_type.typeptr_cname)
                 code.put_xdecref_clear(
                     typeptr_cname, ext_type,
                     clear_before_decref=True,
@@ -3520,7 +3514,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                     clear_before_decref=True,
                     nanny=False)
         code.putln("/*--- Intern cleanup code ---*/")
-        code.put_decref_clear(f"{code.name_in_main_c_code_module_state(Naming.empty_tuple)}",
+        code.put_decref_clear(f"{code.name_in_module_state(Naming.empty_tuple)}",
                               PyrexTypes.py_object_type,
                               clear_before_decref=True,
                               nanny=False)
@@ -3530,9 +3524,9 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 continue
             if cclass_type.scope.directives.get('freelist', 0):
                 scope = cclass_type.scope
-                freelist_name = code.name_in_main_c_code_module_state(
+                freelist_name = code.name_in_module_state(
                     scope.mangle_internal(Naming.freelist_name))
-                freecount_name = code.name_in_main_c_code_module_state(
+                freecount_name = code.name_in_module_state(
                     scope.mangle_internal(Naming.freecount_name))
                 code.putln('#if CYTHON_USE_FREELISTS')
                 code.putln("while (%s > 0) {" % freecount_name)
@@ -3569,10 +3563,10 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             code.put_decref_clear(Naming.preimport_cname, py_object_type,
                                   nanny=False, clear_before_decref=True)
         for cname in [Naming.cython_runtime_cname, Naming.builtins_cname]:
-            cname = code.name_in_main_c_code_module_state(cname)
+            cname = code.name_in_module_state(cname)
             code.put_decref_clear(cname, py_object_type, nanny=False, clear_before_decref=True)
         code.put_decref_clear(
-            code.name_in_main_c_code_module_state(env.module_dict_cname),
+            code.name_in_module_state(env.module_dict_cname),
             py_object_type, nanny=False, clear_before_decref=True)
 
     def generate_main_method(self, env, code):
@@ -3744,22 +3738,26 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln(f"PyUnstable_Module_SetGIL({env.module_cname}, {gil_option});")
         code.putln("#endif")
 
-        code.putln(f"{Naming.modulestatevalue_cname} = {Naming.modulestateglobal_cname};")
+        code.putln("#if CYTHON_USE_MODULE_STATE")
+        code.putln(f"{Naming.modulestatevalue_cname} = PyModule_GetState({env.module_cname});")
+        code.putln(f"#define __PYX_GET_MODULE_STATE() {Naming.modulestatevalue_cname}")
+        # TODO - undef at the end of the function
+        code.putln("#endif")
         code.putln("CYTHON_UNUSED_VAR(%s);" % module_temp)  # only used in limited API
 
-        dict_cname = code.name_in_main_c_code_module_state(env.module_dict_cname)
+        dict_cname = code.name_in_module_state(env.module_dict_cname)
         code.putln(
             "%s = PyModule_GetDict(%s); %s" % (
                 dict_cname, env.module_cname,
                 code.error_goto_if_null(dict_cname, self.pos)))
         code.put_incref(dict_cname, py_object_type, nanny=False)
 
-        builtins_cname = code.name_in_main_c_code_module_state(Naming.builtins_cname)
+        builtins_cname = code.name_in_module_state(Naming.builtins_cname)
         code.putln(
             '%s = __Pyx_PyImport_AddModuleRef(__Pyx_BUILTIN_MODULE_NAME); %s' % (
                 builtins_cname,
                 code.error_goto_if_null(builtins_cname, self.pos)))
-        runtime_cname = code.name_in_main_c_code_module_state(Naming.cython_runtime_cname)
+        runtime_cname = code.name_in_module_state(Naming.cython_runtime_cname)
         code.putln(
             '%s = __Pyx_PyImport_AddModuleRef("cython_runtime"); %s' % (
                 runtime_cname,
@@ -3970,7 +3968,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             code.putln("%s = (struct %s*)__Pyx_GetVtable(%s); %s" % (
                 type.vtabptr_cname,
                 type.vtabstruct_cname,
-                code.name_in_main_c_code_module_state(type.typeptr_cname),
+                code.name_in_module_state(type.typeptr_cname),
                 code.error_goto_if_null(type.vtabptr_cname, pos)))
         env.types_imported.add(type)
 
@@ -4001,7 +3999,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         module = import_generator.imported_module(module_name, error_code)
         typeptr_cname = type.typeptr_cname
         if not is_api:
-            typeptr_cname = code.name_in_main_c_code_module_state(typeptr_cname)
+            typeptr_cname = code.name_in_module_state(typeptr_cname)
 
         code.putln(
             f"{typeptr_cname} = __Pyx_ImportType_{Naming.cyversion}("

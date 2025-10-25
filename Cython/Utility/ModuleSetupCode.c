@@ -878,8 +878,18 @@ static CYTHON_INLINE void *__Pyx__PyModule_GetState(PyObject *op)
 // Define a macro with a cast because the modulestate type isn't known yet and
 // is a typedef struct so impossible to forward declare
 #define __Pyx_PyModule_GetState(o) ($modulestatetype_cname *)__Pyx__PyModule_GetState(o)
+#define __PYX_GET_MODULE_STATE_FALLBACK() (__Pyx_PyModule_GetState(__Pyx_State_FindModule(&$pymoduledef_cname)))
+#define __PYX_GET_MODULE_STATE_UTILITY_CODE() __PYX_GET_MODULE_STATE_FALLBACK()
+#if CYTHON_USE_TYPE_SPECS && ((!CYTHON_COMPILING_IN_LIMITED_API && PY_VERSION_HEX >= 0x030B0000) || \
+      __PYX_LIMITED_VERSION_HEX >= 0x030d0000)
+#define __PYX_GET_MODULE_STATE_FROM_CCLASS(obj) (__Pyx_PyModule_GetState(PyType_GetModuleByDef(Py_TYPE(obj), &$pymoduledef_cname)))
 #else
-#define __Pyx_PyModule_GetState(op) ((void)op,$modulestateglobal_cname)
+#define __PYX_GET_MODULE_STATE_FROM_CCLASS(obj) __PYX_GET_MODULE_STATE_FALLBACK()
+#endif
+#else
+#define __PYX_GET_MODULE_STATE() (&$modulestateglobal_cname)
+#define __PYX_GET_MODULE_STATE_UTILITY_CODE() __PYX_GET_MODULE_STATE()
+#define __Pyx_PyModule_GetState(op) ((void)op,&$modulestateglobal_cname)
 #endif
 
 // The "Try" variants may return NULL on static types with the Limited API on earlier versions

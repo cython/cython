@@ -959,7 +959,7 @@ def _inject_unbound_method(output, matchobj):
     args = [arg.strip() for arg in args[1:].split(',')] if args else []
     assert len(args) < 3, f"CALL_UNBOUND_METHOD() does not support {len(args):d} call arguments"
     return output.cached_unbound_method_call_code(
-        f"{Naming.modulestateglobal_cname}->",
+        "__PYX_GET_MODULE_STATE_UTILITY_CODE()->",
         obj_cname, type_cname, method_name, args)
 
 
@@ -972,8 +972,7 @@ def _inject_string_constant(output, matchobj):
     """Replace 'PYIDENT("xyz")' by a constant Python identifier cname.
     """
     str_type, name = matchobj.groups()
-    return "%s->%s" % (
-        Naming.modulestateglobal_cname,
+    return "__PYX_GET_MODULE_STATE_UTILITY_CODE()->%s" % (
         output.get_py_string_const(
             StringEncoding.EncodedString(name), identifier=str_type == 'IDENT').cname)
 
@@ -988,8 +987,7 @@ def _inject_empty_collection_constant(output, matchobj):
     """Replace 'EMPTY(bytes|tuple|...)' by a constant Python identifier cname.
     """
     type_name = matchobj.group(1)
-    return "%s->%s" % (
-        Naming.modulestateglobal_cname,
+    return "__PYX_GET_MODULE_STATE_UTILITY_CODE()->%s" % (
         getattr(Naming, f'empty_{type_name}'))
 
 
@@ -1002,7 +1000,7 @@ def _inject_cglobal(output, matchobj):
     is_named, name = matchobj.groups()
     if is_named:
         name = getattr(Naming, name)
-    return f"{Naming.modulestateglobal_cname}->{name}"
+    return f"__PYX_GET_MODULE_STATE_UTILITY_CODE()->{name}"
 
 
 @add_macro_processor()
@@ -1589,6 +1587,7 @@ class GlobalState:
             "int __Pyx_InitCachedBuiltins("
             f"{Naming.modulestatetype_cname} *{Naming.modulestatevalue_cname})")
         w.putln(f"CYTHON_UNUSED_VAR({Naming.modulestatevalue_cname});")
+        w.put_module_init_get_module_state_definitions()
 
         w = self.parts['cached_constants']
         w.start_initcfunc(
@@ -1597,6 +1596,7 @@ class GlobalState:
             refnanny=True)
         w.putln(f"CYTHON_UNUSED_VAR({Naming.modulestatevalue_cname});")
         w.put_setup_refcount_context(StringEncoding.EncodedString("__Pyx_InitCachedConstants"))
+        w.put_module_init_get_module_state_definitions()
 
         w = self.parts['init_globals']
         w.start_initcfunc("int __Pyx_InitGlobals(void)")
@@ -1606,6 +1606,7 @@ class GlobalState:
             "int __Pyx_InitConstants("
             f"{Naming.modulestatetype_cname} *{Naming.modulestatevalue_cname})")
         w.putln(f"CYTHON_UNUSED_VAR({Naming.modulestatevalue_cname});")
+        w.put_module_init_get_module_state_definitions()
 
         if not Options.generate_cleanup_code:
             del self.parts['cleanup_globals']
@@ -1883,7 +1884,7 @@ class GlobalState:
 
     def put_cached_builtin_init(self, pos, name, cname):
         w = self.parts['cached_builtins']
-        cname_in_modulestate = w.name_in_main_c_code_module_state(
+        cname_in_modulestate = w.name_in_module_state(
             self.get_interned_identifier(name).cname)
         self.use_utility_code(
             UtilityCode.load_cached("GetBuiltinName", "ObjectHandling.c"))
@@ -1952,7 +1953,7 @@ class GlobalState:
                 part_writer.put(f"for (size_t i=0; i<{count}; ++i) ")
                 part_writer.putln(
                     "{ Py_CLEAR(%s); }" %
-                        part_writer.name_in_main_c_code_module_state(f"{struct_attr_cname}[i]")
+                        part_writer.name_in_module_state(f"{struct_attr_cname}[i]")
                 )
 
     def generate_cached_methods_decls(self):
@@ -1973,16 +1974,16 @@ class GlobalState:
                 cname))
             # split type reference storage as it might not be static
             init.putln('%s.type = (PyObject*)%s;' % (
-                init.name_in_main_c_code_module_state(cname), type_cname))
+                init.name_in_module_state(cname), type_cname))
             # method name string isn't static in limited api
             init.putln(
-                f'{init.name_in_main_c_code_module_state(cname)}.method_name = '
-                f'&{init.name_in_main_c_code_module_state(method_name_cname)};')
+                f'{init.name_in_module_state(cname)}.method_name = '
+                f'&{init.name_in_module_state(method_name_cname)};')
 
         if Options.generate_cleanup_code:
             cleanup = self.parts['cleanup_globals']
             for cname in cnames:
-                cleanup.putln(f"Py_CLEAR({init.name_in_main_c_code_module_state(cname)}.method);")
+                cleanup.putln(f"Py_CLEAR({init.name_in_module_state(cname)}.method);")
 
     def generate_string_constants(self):
         c_consts = []
@@ -2120,7 +2121,7 @@ class GlobalState:
             w.putln("#endif")
 
         # Populate stringtab.
-        w.putln(f"PyObject **stringtab = {w.name_in_main_c_code_module_state(Naming.stringtab_cname)};")
+        w.putln(f"PyObject **stringtab = {w.name_in_module_state(Naming.stringtab_cname)};")
         w.putln("Py_ssize_t pos = 0;")
 
         # Unpack Unicode strings.
@@ -2310,7 +2311,7 @@ class GlobalState:
 
         if float_constants:
             w.putln("{")
-            w.putln(f"PyObject **numbertab = {w.name_in_main_c_code_module_state(Naming.numbertab_cname)};")
+            w.putln(f"PyObject **numbertab = {w.name_in_module_state(Naming.numbertab_cname)};")
 
             store_array(w, "c_constants", 'double', float_constants)
             define_constants(defines, float_constants, constant_offset)
@@ -2324,7 +2325,7 @@ class GlobalState:
 
         if int_constant_count > 0:
             w.putln("{")
-            w.putln(f"PyObject **numbertab = {w.name_in_main_c_code_module_state(Naming.numbertab_cname)} + {constant_offset};")
+            w.putln(f"PyObject **numbertab = {w.name_in_module_state(Naming.numbertab_cname)} + {constant_offset};")
 
             int_types = ['', 'int8_t', 'int16_t', 'int32_t', 'int64_t']
             array_access = "%s"
@@ -2375,7 +2376,7 @@ class GlobalState:
                 return digits
 
             w.putln("{")
-            w.putln(f"PyObject **numbertab = {w.name_in_main_c_code_module_state(Naming.numbertab_cname)} + {constant_offset};")
+            w.putln(f"PyObject **numbertab = {w.name_in_module_state(Naming.numbertab_cname)} + {constant_offset};")
             c_string = b'\\000'.join([to_base32(c[1]) for c in large_constants]).decode('ascii')
             w.putln(f'const char* c_constant = "{StringEncoding.split_string_literal(c_string)}";')
             define_constants(defines, large_constants, constant_offset)
@@ -2389,7 +2390,7 @@ class GlobalState:
             w.putln("}")
 
         self.immortalize_constants(
-            w.name_in_main_c_code_module_state(Naming.numbertab_cname),
+            w.name_in_module_state(Naming.numbertab_cname),
             constant_count,
             w)
 
@@ -2751,27 +2752,7 @@ class CCodeWriter:
         return self.globalstate.get_cached_constants_writer(target)
 
     def name_in_module_state(self, cname):
-        if self.funcstate.scope is None:
-            # This is a mess. For example, within the codeobj generation
-            # funcstate.scope is None while evaluating the strings, but not while
-            # evaluating the code objects themselves. Right now it doesn't matter
-            # because it all ends up going to the same place, but to actually turn
-            # it into something useful this mess will need to be fixed.
-            return self.name_in_main_c_code_module_state(cname)
-        return self.funcstate.scope.name_in_module_state(cname)
-
-    @staticmethod
-    def name_in_main_c_code_module_state(cname):
-        # The functions where this applies to have the modulestate passed
-        # as an argument to them and so it's better use that argument than
-        # to try to get it from a global variable.
-        return f"{Naming.modulestatevalue_cname}->{cname}"
-
-    @staticmethod
-    def name_in_slot_module_state(cname):
-        # TODO - eventually this will go through PyType_GetModuleByDef
-        # in cases where it's supported.
-        return f"{Naming.modulestateglobal_cname}->{cname}"
+        return f"__PYX_GET_MODULE_STATE()->{cname}"
 
     def namespace_cname_in_module_state(self, scope):
         if scope.is_py_class_scope:
@@ -3389,6 +3370,25 @@ class CCodeWriter:
 
     def put_finish_refcount_context(self, nogil=False):
         self.putln("__Pyx_RefNannyFinishContextNogil()" if nogil else "__Pyx_RefNannyFinishContext();")
+
+    def put_function_get_module_state_definitions(self, self_arg_name):
+        self.putln("#if CYTHON_USE_MODULE_STATE")
+        if self_arg_name is None:
+            self.putln("#define __PYX_GET_MODULE_STATE() __PYX_GET_MODULE_STATE_FALLBACK()")
+        else:
+            self.putln(f"#define __PYX_GET_MODULE_STATE() __PYX_GET_MODULE_STATE_FROM_CCLASS({self_arg_name})")
+        # TODO - for module-level def functions we can store the module on the CyFunction/PyCFunction
+        self.putln("#endif")
+
+    def put_module_init_get_module_state_definitions(self):
+        self.putln("#if CYTHON_USE_MODULE_STATE")
+        self.putln(f"#define __PYX_GET_MODULE_STATE() {Naming.modulestatevalue_cname}")
+        self.putln("#endif")
+
+    def put_undef_get_module_state_definition(self):
+        self.putln("#if CYTHON_USE_MODULE_STATE")
+        self.putln("#undef __PYX_GET_MODULE_STATE")
+        self.putln("#endif")
 
     def put_add_traceback(self, qualified_name, include_cline=True):
         """
