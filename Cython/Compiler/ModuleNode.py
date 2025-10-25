@@ -212,8 +212,8 @@ def _generate_export_code(code: Code.CCodeWriter, pos, exports, names, signature
             last_sig = signature
 
     pointer_cast = pointer_decl.format(name='')
-    sig_bytes = bytes_literal('\0'.join(signatures).encode('utf-8'), 'utf-8')
-    names_bytes = bytes_literal('\0'.join(names).encode('utf-8'), 'utf-8')
+    sig_bytes = '\0'.join(signatures).encode('utf-8')
+    names_bytes = '\0'.join(names).encode('utf-8')
     pointers = [f"({pointer_cast})&{export}" for export in exports]
 
     code.putln("{")
@@ -227,14 +227,12 @@ def _generate_export_code(code: Code.CCodeWriter, pos, exports, names, signature
     )
     code.put_gotref(api_dict, py_object_type)
 
-    code.putln(f"const char * __pyx_exported_signature = __Pyx_PyBytes_AsString({code.get_py_string_const(sig_bytes)});")
+    sigs_and_names_bytes = bytes_literal(sig_bytes + b'\0' + names_bytes, 'utf-8')
+    code.putln(f"const char * __pyx_exported_signature = __Pyx_PyBytes_AsString({code.get_py_string_const(sigs_and_names_bytes)});")
     code.putln("#if !CYTHON_ASSUME_SAFE_MACROS")
     code.putln(code.error_goto_if_null('__pyx_exported_signature', pos))
     code.putln("#endif")
-    code.putln(f"const char * __pyx_exported_name = __Pyx_PyBytes_AsString({code.get_py_string_const(names_bytes)});")
-    code.putln("#if !CYTHON_ASSUME_SAFE_MACROS")
-    code.putln(code.error_goto_if_null('__pyx_exported_name', pos))
-    code.putln("#endif")
+    code.putln(f"const char * __pyx_exported_name = __pyx_exported_signature + {len(sig_bytes) + 1};")
     code.putln(f"{pointer_decl.format(name='const __pyx_exported_pointers[]')} = {{{', '.join(pointers)}, ({pointer_cast}) NULL}};")
 
     code.globalstate.use_utility_code(
