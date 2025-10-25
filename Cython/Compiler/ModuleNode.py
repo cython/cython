@@ -138,31 +138,14 @@ class SharedUtilityExporter:
         self.export_code.set_call_code(code)
 
     def _generate_c_shared_function_export_code(self, code, shared_function_definitions: Sequence[Code.SharedFunctionDecl]):
-        api_dict = code.funcstate.allocate_temp(py_object_type, manage_ref=True)
-        code.globalstate.use_utility_code(
-            UtilityCode.load_cached("GetApiDict", "ImportExport.c"))
-        code.putln(
-            f"{api_dict} = __Pyx_ApiExport_GetApiDict(); "
-            f"{code.error_goto_if_null(api_dict, self.pos)}"
-        )
-        code.put_gotref(api_dict, py_object_type)
-
-        code.globalstate.use_utility_code(
-            UtilityCode.load_cached("FunctionExport", "ImportExport.c"))
+        names = []
+        signatures = []
 
         for shared_func_def in shared_function_definitions:
-            func_name = shared_func_def.name
-            func_params = shared_func_def.params
-            func_ret_type = shared_func_def.ret
-            func_name_cstring = EncodedString(func_name).as_c_string_literal()
-            signature_cstring = EncodedString(f"{func_ret_type}({func_params})").as_c_string_literal()
-            code.put_error_if_neg(
-                self.pos,
-                f'__Pyx_ExportFunction({api_dict}, {func_name_cstring}, (void (*)(void)){func_name}, {signature_cstring})'
-            )
+            names.append(shared_func_def.name)
+            signatures.append(f"{shared_func_def.ret}({shared_func_def.params})")
 
-        code.put_decref_clear(api_dict, py_object_type)
-        code.funcstate.release_temp(api_dict)
+        _generate_export_code(code, self.pos, names, names, signatures, "FunctionExport", "__Pyx_ExportFunction", "void (*{name})(void)")
 
     def _generate_c_shared_function_import_code_for_module(self, code, function_definitions: Sequence[Code.SharedFunctionDecl]):
         code.globalstate.use_utility_code(UtilityCode.load_cached("FunctionImport", "ImportExport.c"))
@@ -186,6 +169,7 @@ class SharedUtilityExporter:
             )
 
         code.put_decref_clear(temp, py_object_type)
+
     def _generate_exports(self, shared_utility_functions: Sequence[Code.SharedFunctionDecl]):
         if self.has_shared_exports(shared_utility_functions):
             with self.export_code as inner_code:
@@ -208,6 +192,60 @@ class SharedUtilityExporter:
         self._generate_exports(shared_utility_functions)
         self._generate_imports(shared_utility_functions)
         code.exit_cfunc_scope()
+
+
+def _generate_export_code(code: Code.CCodeWriter, pos, exports, names, signatures, utility_code_name, export_func, pointer_decl):
+    """Generate function/pointer export code.
+    """
+    assert len(signatures) == len(names) == len(exports), (len(signatures), len(names), len(exports))
+    pointer_cast = pointer_decl.format(name='')
+    sig_bytes = bytes_literal('\0'.join(signatures).encode('utf-8'), 'utf-8')
+    names_bytes = bytes_literal('\0'.join(names).encode('utf-8'), 'utf-8')
+    pointers = [f"({pointer_cast})&{export}" for export in exports]
+
+    code.putln("{")
+
+    api_dict = code.funcstate.allocate_temp(py_object_type, manage_ref=True)
+    code.globalstate.use_utility_code(
+        UtilityCode.load_cached("GetApiDict", "ImportExport.c"))
+    code.putln(
+        f"{api_dict} = __Pyx_ApiExport_GetApiDict(); "
+        f"{code.error_goto_if_null(api_dict, pos)}"
+    )
+    code.put_gotref(api_dict, py_object_type)
+
+    code.putln(f"const char * __pyx_exported_signature = __Pyx_PyBytes_AsString({code.get_py_string_const(sig_bytes)});")
+    code.putln("#if !CYTHON_ASSUME_SAFE_MACROS")
+    code.putln(code.error_goto_if_null('__pyx_exported_signature', pos))
+    code.putln("#endif")
+    code.putln(f"const char * __pyx_exported_name = __Pyx_PyBytes_AsString({code.get_py_string_const(names_bytes)});")
+    code.putln("#if !CYTHON_ASSUME_SAFE_MACROS")
+    code.putln(code.error_goto_if_null('__pyx_exported_name', pos))
+    code.putln("#endif")
+    code.putln(f"{pointer_decl.format(name='const __pyx_exported_pointers[]')} = {{{', '.join(pointers)}, ({pointer_cast}) NULL}};")
+
+    code.globalstate.use_utility_code(
+        UtilityCode.load_cached(utility_code_name, "ImportExport.c"))
+    code.globalstate.use_utility_code(
+        UtilityCode.load_cached("IncludeStringH", "StringTools.c"))
+
+    code.putln(f"{pointer_decl.format(name='const *__pyx_exported_pointer')} = __pyx_exported_pointers;")
+    code.putln("while (*__pyx_exported_pointer) {")
+
+    code.put_error_if_neg(
+        pos,
+        f"{export_func}({api_dict}, __pyx_exported_name, *__pyx_exported_pointer, __pyx_exported_signature)"
+    )
+    code.putln("++__pyx_exported_pointer;")
+    code.putln("__pyx_exported_name = strchr(__pyx_exported_name, '\\0') + 1;")
+    code.putln("__pyx_exported_signature = strchr(__pyx_exported_signature, '\\0') + 1;")
+
+    code.putln("}")  # while
+
+    code.put_decref_clear(api_dict, py_object_type)
+    code.funcstate.release_temp(api_dict)
+
+    code.putln("}")
 
 
 class ModuleNode(Nodes.Node, Nodes.BlockNode):
@@ -3825,54 +3863,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             names.append(entry.name)
             signatures.append(get_signature(entry.type))
 
-        pointer_cast = pointer_decl.format(name='')
-        sig_bytes = bytes_literal('\0'.join(signatures).encode('utf-8'), 'utf-8')
-        names_bytes = bytes_literal('\0'.join(names).encode('utf-8'), 'utf-8')
-        pointers = [f"({pointer_cast})&{export}" for export in exports]
-
-        code.putln("{")
-
-        api_dict = code.funcstate.allocate_temp(py_object_type, manage_ref=True)
-        code.globalstate.use_utility_code(
-            UtilityCode.load_cached("GetApiDict", "ImportExport.c"))
-        code.putln(
-            f"{api_dict} = __Pyx_ApiExport_GetApiDict(); "
-            f"{code.error_goto_if_null(api_dict, self.pos)}"
-        )
-        code.put_gotref(api_dict, py_object_type)
-
-        code.putln(f"const char * __pyx_exported_signature = __Pyx_PyBytes_AsString({code.get_py_string_const(sig_bytes)});")
-        code.putln("#if !CYTHON_ASSUME_SAFE_MACROS")
-        code.putln(code.error_goto_if_null('__pyx_exported_signature', self.pos))
-        code.putln("#endif")
-        code.putln(f"const char * __pyx_exported_name = __Pyx_PyBytes_AsString({code.get_py_string_const(names_bytes)});")
-        code.putln("#if !CYTHON_ASSUME_SAFE_MACROS")
-        code.putln(code.error_goto_if_null('__pyx_exported_name', self.pos))
-        code.putln("#endif")
-        code.putln(f"{pointer_decl.format(name='const __pyx_exported_pointers[]')} = {{{', '.join(pointers)}, ({pointer_cast}) NULL}};")
-
-        code.globalstate.use_utility_code(
-            UtilityCode.load_cached(utility_code_name, "ImportExport.c"))
-        code.globalstate.use_utility_code(
-            UtilityCode.load_cached("IncludeStringH", "StringTools.c"))
-
-        code.putln(f"{pointer_decl.format(name='const *__pyx_exported_pointer')} = __pyx_exported_pointers;")
-        code.putln("while (*__pyx_exported_pointer) {")
-
-        code.put_error_if_neg(
-            self.pos,
-            f"{export_func}({api_dict}, __pyx_exported_name, *__pyx_exported_pointer, __pyx_exported_signature)"
-        )
-        code.putln("++__pyx_exported_pointer;")
-        code.putln("__pyx_exported_name = strchr(__pyx_exported_name, '\\0') + 1;")
-        code.putln("__pyx_exported_signature = strchr(__pyx_exported_signature, '\\0') + 1;")
-
-        code.putln("}")  # while
-
-        code.put_decref_clear(api_dict, py_object_type)
-        code.funcstate.release_temp(api_dict)
-
-        code.putln("}")
+        _generate_export_code(code, self.pos, exports, names, signatures, utility_code_name, export_func, pointer_decl)
 
     def generate_c_variable_export_code(self, env, code):
         """Generate code to create PyCFunction wrappers for exported C functions.
