@@ -149,27 +149,19 @@ class SharedUtilityExporter:
         _generate_export_code(code, self.pos, exports, "__Pyx_ExportFunction", "void (*{name})(void)")
 
     def _generate_c_shared_function_import_code_for_module(self, code, function_definitions: Sequence[Code.SharedFunctionDecl]):
-        code.globalstate.use_utility_code(UtilityCode.load_cached("FunctionImport", "ImportExport.c"))
-        shared_utility_qualified_name = self.scope.context.shared_utility_qualified_name
-        temp = code.funcstate.allocate_temp(py_object_type, manage_ref=True)
-        code.putln(
-            f'{temp} = PyImport_ImportModule("{shared_utility_qualified_name}"); {code.error_goto_if_null(temp, self.pos)}'
-        )
-        code.put_gotref(temp, py_object_type)
-        code.funcstate.release_temp(temp)
-        cyversion = Naming.cyversion
+        # We use the function cname also as exported name.
 
-        for shared_func_def in function_definitions:
-            func_name = shared_func_def.name
-            func_params = shared_func_def.params
-            func_return_type = shared_func_def.ret
-            func_proto = f'{func_return_type}({func_params})'
-            code.put_error_if_neg(
-                self.pos,
-                f'__Pyx_ImportFunction_{cyversion}({temp}, "{func_name}", (void (**)(void))&{func_name}, "{func_proto}")'
-            )
+        imports = [
+            (f"{shared_func_def.ret}({shared_func_def.params})", shared_func_def.name, shared_func_def.name)
+            for shared_func_def in function_definitions
+        ]
+        code.globalstate.use_utility_code(
+            UtilityCode.load_cached("FunctionImport", "ImportExport.c"))
 
-        code.put_decref_clear(temp, py_object_type)
+        shared_utility_qualified_name = EncodedString(self.scope.context.shared_utility_qualified_name)
+        import_func = f"__Pyx_ImportFunction_{Naming.cyversion}"
+        _generate_import_code(
+            code, self.pos, imports, shared_utility_qualified_name, import_func, "void (*{name})(void)")
 
     def _generate_exports(self, shared_utility_functions: Sequence[Code.SharedFunctionDecl]):
         if self.has_shared_exports(shared_utility_functions):
@@ -195,14 +187,10 @@ class SharedUtilityExporter:
         code.exit_cfunc_scope()
 
 
-def _generate_export_code(code: Code.CCodeWriter, pos, exports, export_func, pointer_decl):
-    """Generate function/pointer export code.
-
-    'exports' is a list of (signature, name, exported_cname) tuples.
-    """
-    # We can save runtime space for identical signatures by reusing the same C strings for the PyCapsules.
+def _deduplicate_inout_signatures(item_tuples):
+    # We can save runtime space for identical signatures by reusing the same C strings.
     # To deduplicate the signatures, we sort by them and store duplicates as empty C strings.
-    signatures, names, exported_items = zip(*sorted(exports))
+    signatures, names, items = zip(*sorted(item_tuples))
     signatures = list(signatures)  # tuple -> list, to allow reassignments again
 
     last_sig = None
@@ -212,11 +200,56 @@ def _generate_export_code(code: Code.CCodeWriter, pos, exports, export_func, poi
         else:
             last_sig = signature
 
+    return signatures, names, items
+
+
+def _generate_import_export_code(code: Code.CCodeWriter, pos, inout_item_tuples, per_item_func, target, pointer_decl, use_pybytes, is_import):
+    signatures, names, inout_items = _deduplicate_inout_signatures(inout_item_tuples)
+
+    prefix = f"{Naming.pyrex_prefix}{'import' if is_import else 'export'}_"
+
     pointer_cast = pointer_decl.format(name='')
     sig_bytes = '\0'.join(signatures).encode('utf-8')
     names_bytes = '\0'.join(names).encode('utf-8')
-    pointers = [f"({pointer_cast})&{export}" for export in exported_items]
+    pointers = [f"({pointer_cast})&{item_cname}" for item_cname in inout_items]
 
+    sigs_and_names_bytes = bytes_literal(sig_bytes + b'\0' + names_bytes, 'utf-8')
+    if use_pybytes:
+        code.putln(f"const char * {prefix}signature = __Pyx_PyBytes_AsString({code.get_py_string_const(sigs_and_names_bytes)});")
+        code.putln("#if !CYTHON_ASSUME_SAFE_MACROS")
+        code.putln(code.error_goto_if_null(f'{prefix}signature', pos))
+        code.putln("#endif")
+    else:
+        code.putln(f"const char * {prefix}signature = {sigs_and_names_bytes.as_c_string_literal()};")
+
+    code.putln(f"const char * {prefix}name = {prefix}signature + {len(sig_bytes) + 1};")
+    code.putln(f"{pointer_decl.format(name=f'const {prefix}pointers[]')} = {{{', '.join(pointers)}, ({pointer_cast}) NULL}};")
+
+    code.globalstate.use_utility_code(
+        UtilityCode.load_cached("IncludeStringH", "StringTools.c"))
+
+    code.putln(f"{pointer_decl.format(name=f'const *{prefix}pointer')} = {prefix}pointers;")
+    code.putln(f"const char *__pyx_current_signature = {prefix}signature;")
+    code.putln(f"while (*{prefix}pointer) {{")
+
+    code.put_error_if_neg(
+        pos,
+        f"{per_item_func}({target}, {prefix}name, *{prefix}pointer, __pyx_current_signature)"
+    )
+    code.putln(f"++{prefix}pointer;")
+    code.putln(f"{prefix}name = strchr({prefix}name, '\\0') + 1;")
+    code.putln(f"{prefix}signature = strchr({prefix}signature, '\\0') + 1;")
+    # Keep reusing the current signature until we find a new non-empty one.
+    code.putln(f"if (*{prefix}signature != '\\0') __pyx_current_signature = {prefix}signature;")
+
+    code.putln("}")  # while
+
+
+def _generate_export_code(code: Code.CCodeWriter, pos, exports, export_func, pointer_decl):
+    """Generate function/pointer export code.
+
+    'exports' is a list of (signature, name, exported_cname) tuples.
+    """
     code.putln("{")
 
     api_dict = code.funcstate.allocate_temp(py_object_type, manage_ref=True)
@@ -228,35 +261,32 @@ def _generate_export_code(code: Code.CCodeWriter, pos, exports, export_func, poi
     )
     code.put_gotref(api_dict, py_object_type)
 
-    sigs_and_names_bytes = bytes_literal(sig_bytes + b'\0' + names_bytes, 'utf-8')
-    code.putln(f"const char * __pyx_exported_signature = __Pyx_PyBytes_AsString({code.get_py_string_const(sigs_and_names_bytes)});")
-    code.putln("#if !CYTHON_ASSUME_SAFE_MACROS")
-    code.putln(code.error_goto_if_null('__pyx_exported_signature', pos))
-    code.putln("#endif")
-    code.putln(f"const char * __pyx_exported_name = __pyx_exported_signature + {len(sig_bytes) + 1};")
-    code.putln(f"{pointer_decl.format(name='const __pyx_exported_pointers[]')} = {{{', '.join(pointers)}, ({pointer_cast}) NULL}};")
-
-    code.globalstate.use_utility_code(
-        UtilityCode.load_cached("IncludeStringH", "StringTools.c"))
-
-    code.putln(f"{pointer_decl.format(name='const *__pyx_exported_pointer')} = __pyx_exported_pointers;")
-    code.putln("const char *__pyx_current_signature = __pyx_exported_signature;")
-    code.putln("while (*__pyx_exported_pointer) {")
-
-    code.put_error_if_neg(
-        pos,
-        f"{export_func}({api_dict}, __pyx_exported_name, *__pyx_exported_pointer, __pyx_current_signature)"
-    )
-    code.putln("++__pyx_exported_pointer;")
-    code.putln("__pyx_exported_name = strchr(__pyx_exported_name, '\\0') + 1;")
-    code.putln("__pyx_exported_signature = strchr(__pyx_exported_signature, '\\0') + 1;")
-    # Keep reusing the current signature until we find a new non-empty one.
-    code.putln("if (*__pyx_exported_signature != '\\0') __pyx_current_signature = __pyx_exported_signature;")
-
-    code.putln("}")  # while
+    _generate_import_export_code(code, pos, exports, export_func, api_dict, pointer_decl, use_pybytes=True, is_import=False)
 
     code.put_decref_clear(api_dict, py_object_type)
     code.funcstate.release_temp(api_dict)
+
+    code.putln("}")
+
+
+def _generate_import_code(code, pos, imports, qualified_module_name, import_func, pointer_decl):
+    """Generate function/pointer import code.
+
+    'imports' is a list of (signature, name, imported_cname) tuples.
+    """
+    code.putln("{")
+
+    module_ref = code.funcstate.allocate_temp(py_object_type, manage_ref=True)
+    code.putln(
+        f'{module_ref} = PyImport_ImportModule({qualified_module_name.as_c_string_literal()}); '
+        f'{code.error_goto_if_null(module_ref, pos)}'
+    )
+    code.put_gotref(module_ref, py_object_type)
+
+    _generate_import_export_code(code, pos, imports, import_func, module_ref, pointer_decl, use_pybytes=True, is_import=True)
+
+    code.put_decref_clear(module_ref, py_object_type)
+    code.funcstate.release_temp(module_ref)
 
     code.putln("}")
 
@@ -3919,59 +3949,50 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 # This call modifies the cfunc_entries in-place
                 entry.type.get_all_specialized_function_types()
 
-    def _generate_import_code(self, all_entries, qualified_module_name, utility_code_name, code, used_only=False):
-        # Generic function/pointer import implementation as generator.
-        entries = [
+    def _select_imported_entries(self, all_entries, used_only=False):
+        return [
             entry for entry in all_entries
             if entry.defined_in_pxd and (not used_only or entry.used)
         ]
-        if not entries:
-            return
-
-        code.globalstate.use_utility_code(
-            UtilityCode.load_cached(utility_code_name, "ImportExport.c"))
-
-        module_ref = code.funcstate.allocate_temp(py_object_type, manage_ref=True)
-        code.putln(
-            f'{module_ref} = PyImport_ImportModule({qualified_module_name.as_c_string_literal()}); '
-            f'{code.error_goto_if_null(module_ref, self.pos)}'
-        )
-        code.put_gotref(module_ref, py_object_type)
-
-        for entry in entries:
-            yield (module_ref, entry)
-
-        code.put_decref_clear(module_ref, py_object_type)
-        code.funcstate.release_temp(module_ref)
 
     def generate_c_variable_import_code_for_module(self, module, env, code):
         """Generate import code for all exported C functions in a cimported module.
         """
-        for module_ref, entry in self._generate_import_code(
-                module.var_entries, module.qualified_name, "VoidPtrImport", code, used_only=False):
-            signature = entry.type.empty_declaration_code()
-            cname = entry.cname if env is module else module.mangle(Naming.varptr_prefix, entry.name)
+        entries = self._select_imported_entries(module.var_entries, used_only=False)
+        if not entries:
+            return
 
-            code.put_error_if_neg(
-                self.pos,
-                f'__Pyx_ImportVoidPtr_{Naming.cyversion}('
-                f'{module_ref}, {entry.name.as_c_string_literal()}, (void **)&{cname}, "{signature}"'
-                f')'
-            )
+        is_module_scope = env is module
+        imports = [
+            # (signature, name, cname)
+            (entry.type.empty_declaration_code(),
+             entry.name,
+             entry.cname if is_module_scope else module.mangle(Naming.varptr_prefix, entry.name))
+            for entry in entries
+        ]
+        code.globalstate.use_utility_code(
+            UtilityCode.load_cached("VoidPtrImport", "ImportExport.c"))
+
+        _generate_import_code(
+            code, self.pos, imports, module.qualified_name, f"__Pyx_ImportVoidPtr_{Naming.cyversion}", "void **{name}")
 
     def generate_c_function_import_code_for_module(self, module, env, code):
         """Generate import code for all exported C functions in a cimported module.
         """
-        for module_ref, entry in self._generate_import_code(
-                module.cfunc_entries, module.qualified_name, "FunctionImport", code, used_only=True):
-            signature = entry.type.signature_string()
+        entries = self._select_imported_entries(module.cfunc_entries, used_only=True)
+        if not entries:
+            return
 
-            code.put_error_if_neg(
-                self.pos,
-                f'__Pyx_ImportFunction_{Naming.cyversion}('
-                f'{module_ref}, {entry.name.as_c_string_literal()}, (void (**)(void))&{entry.cname}, "{signature}"'
-                f')'
-            )
+        imports = [
+            # (signature, name, cname)
+            (entry.type.signature_string(), entry.name, entry.cname)
+            for entry in entries
+        ]
+        code.globalstate.use_utility_code(
+            UtilityCode.load_cached("FunctionImport", "ImportExport.c"))
+
+        _generate_import_code(
+            code, self.pos, imports, module.qualified_name, f"__Pyx_ImportFunction_{Naming.cyversion}", "void (**{name})(void)")
 
     def generate_type_init_code(self, env, code):
         # Generate type import code for extern extension types
