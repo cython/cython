@@ -3,16 +3,17 @@ from libc.stdlib cimport abort, malloc, free
 
 
 
+
 cdef void func(int *buf) noexcept nogil:
     pass
     # ...
 
 cdef Py_ssize_t idx, i, j, n = 100
+
+
+
 cdef int * local_buf
 cdef size_t size = 10
-
-
-
 
 with nogil, parallel():
     local_buf = <int *> malloc(sizeof(int) * size)
