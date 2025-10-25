@@ -3807,7 +3807,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                         code.error_goto(entry.pos)))
                 code.putln("}")
 
-    def _generate_export_code(self, all_entries, utility_code_name, code):
+    def _generate_export_code(self, all_entries, utility_code_name, export_func, pointer_decl, get_signature, code):
         # Generic function/pointer export implementation as generator.
         entries = [
             entry for entry in all_entries
@@ -3825,11 +3825,44 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         )
         code.put_gotref(api_dict, py_object_type)
 
-        code.globalstate.use_utility_code(
-            UtilityCode.load_cached(utility_code_name, "ImportExport.c"))
+        pointer_cast = pointer_decl.format(name='')
+        pointers = []
+        names = []
+        signatures = []
 
         for entry in entries:
-            yield (entry, entry.name, api_dict)
+            pointers.append(f"({pointer_cast})&{entry.cname}")
+            names.append(entry.name)
+            signatures.append(get_signature(entry.type))
+
+        signatures_cstring = EncodedString('\0'.join(signatures)).as_c_string_literal()
+        names_cstring = EncodedString('\0'.join(names)).as_c_string_literal()
+
+        code.putln("{")
+
+        code.putln(f"const char * __pyx_exported_signature = {signatures_cstring};")
+        code.putln(f"const char * __pyx_exported_name = {names_cstring};")
+        code.putln(f"{pointer_decl.format(name='const __pyx_exported_pointers[]')} = {{{', '.join(pointers)}, ({pointer_cast}) NULL}};")
+
+        code.globalstate.use_utility_code(
+            UtilityCode.load_cached(utility_code_name, "ImportExport.c"))
+        code.globalstate.use_utility_code(
+            UtilityCode.load_cached("IncludeStringH", "StringTools.c"))
+
+        code.putln(f"{pointer_decl.format(name='const *__pyx_exported_pointer')} = __pyx_exported_pointers;")
+
+        code.putln("while (*__pyx_exported_pointer) {")
+        code.put_error_if_neg(
+            self.pos,
+            f"{export_func}({api_dict}, __pyx_exported_name, *__pyx_exported_pointer, __pyx_exported_signature)"
+        )
+        code.putln("++__pyx_exported_pointer;")
+        code.putln("__pyx_exported_name = strchr(__pyx_exported_name, '\\0') + 1;")
+        code.putln("__pyx_exported_signature = strchr(__pyx_exported_signature, '\\0') + 1;")
+
+        code.putln("}")  # while
+
+        code.putln("}")
 
         code.put_decref_clear(api_dict, py_object_type)
         code.funcstate.release_temp(api_dict)
@@ -3837,28 +3870,18 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
     def generate_c_variable_export_code(self, env, code):
         """Generate code to create PyCFunction wrappers for exported C functions.
         """
-        for entry, name, api_dict in self._generate_export_code(env.var_entries, "VoidPtrExport", code):
-            signature_cstring = EncodedString(entry.type.empty_declaration_code()).as_c_string_literal()
-            name_cstring = name.as_c_string_literal()
+        def get_signature(entry_type):
+            return entry_type.empty_declaration_code()
 
-            code.put_error_if_neg(
-                self.pos,
-                f'__Pyx_ExportVoidPtr({api_dict}, {name_cstring}, (void *)&{entry.cname}, {signature_cstring})'
-            )
+        self._generate_export_code(env.var_entries, "VoidPtrExport", "__Pyx_ExportVoidPtr", "void *{name}", get_signature, code)
 
     def generate_c_function_export_code(self, env, code):
         """Generate code to create PyCFunction wrappers for exported C functions.
         """
-        for entry, name, api_dict in self._generate_export_code(env.cfunc_entries, "FunctionExport", code):
-            # Note: while this looks like it could be more cheaply stored and read from a struct array,
-            # investigation shows that the resulting binary is smaller with repeated functions calls.
-            signature_cstring = EncodedString(entry.type.signature_string()).as_c_string_literal()
-            name_cstring = name.as_c_string_literal()
+        def get_signature(entry_type):
+            return entry_type.signature_string()
 
-            code.put_error_if_neg(
-                self.pos,
-                f'__Pyx_ExportFunction({api_dict}, {name_cstring}, (void (*)(void)){entry.cname}, {signature_cstring})'
-            )
+        self._generate_export_code(env.cfunc_entries, "FunctionExport", "__Pyx_ExportFunction", "void (*{name})(void)", get_signature, code)
 
     def generate_type_import_code_for_module(self, module, env, code):
         # Generate type import code for all exported extension types in
