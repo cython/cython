@@ -198,6 +198,19 @@ def _generate_export_code(code: Code.CCodeWriter, pos, exports, names, signature
     """Generate function/pointer export code.
     """
     assert len(signatures) == len(names) == len(exports), (len(signatures), len(names), len(exports))
+
+    # We can save runtime space for identical signatures by reusing the same C strings for the PyCapsules.
+    # To deduplicate the signatures, we sort by them and store duplicates as empty C strings.
+    signatures, names, exports = zip(*sorted(zip(signatures, names, exports)))
+    signatures = list(signatures)  # tuple -> list, to allow reassignments again
+
+    last_sig = None
+    for i, signature in enumerate(signatures):
+        if signature == last_sig:
+            signatures[i] = ''
+        else:
+            last_sig = signature
+
     pointer_cast = pointer_decl.format(name='')
     sig_bytes = bytes_literal('\0'.join(signatures).encode('utf-8'), 'utf-8')
     names_bytes = bytes_literal('\0'.join(names).encode('utf-8'), 'utf-8')
@@ -230,15 +243,18 @@ def _generate_export_code(code: Code.CCodeWriter, pos, exports, names, signature
         UtilityCode.load_cached("IncludeStringH", "StringTools.c"))
 
     code.putln(f"{pointer_decl.format(name='const *__pyx_exported_pointer')} = __pyx_exported_pointers;")
+    code.putln("const char *__pyx_current_signature = __pyx_exported_signature;")
     code.putln("while (*__pyx_exported_pointer) {")
 
     code.put_error_if_neg(
         pos,
-        f"{export_func}({api_dict}, __pyx_exported_name, *__pyx_exported_pointer, __pyx_exported_signature)"
+        f"{export_func}({api_dict}, __pyx_exported_name, *__pyx_exported_pointer, __pyx_current_signature)"
     )
     code.putln("++__pyx_exported_pointer;")
     code.putln("__pyx_exported_name = strchr(__pyx_exported_name, '\\0') + 1;")
     code.putln("__pyx_exported_signature = strchr(__pyx_exported_signature, '\\0') + 1;")
+    # Keep reusing the current signature until we find a new non-empty one.
+    code.putln("if (*__pyx_exported_signature != '\\0') __pyx_current_signature = __pyx_exported_signature;")
 
     code.putln("}")  # while
 
