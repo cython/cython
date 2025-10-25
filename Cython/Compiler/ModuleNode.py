@@ -32,7 +32,7 @@ from .Errors import error, warning, CompileError, format_position
 from .PyrexTypes import py_object_type, get_all_subtypes
 from ..Utils import open_new_file, replace_suffix, decode_filename, build_hex_version, is_cython_generated_file
 from .Code import UtilityCode, IncludeCode, TempitaUtilityCode
-from .StringEncoding import EncodedString, encoded_string_or_bytes_literal
+from .StringEncoding import EncodedString, bytes_literal, encoded_string_or_bytes_literal
 from .Pythran import has_np_pythran
 
 
@@ -3816,6 +3816,22 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         if not entries:
             return
 
+        exports = []
+        names = []
+        signatures = []
+
+        for entry in entries:
+            exports.append(entry.cname)
+            names.append(entry.name)
+            signatures.append(get_signature(entry.type))
+
+        pointer_cast = pointer_decl.format(name='')
+        sig_bytes = bytes_literal('\0'.join(signatures).encode('utf-8'), 'utf-8')
+        names_bytes = bytes_literal('\0'.join(names).encode('utf-8'), 'utf-8')
+        pointers = [f"({pointer_cast})&{export}" for export in exports]
+
+        code.putln("{")
+
         api_dict = code.funcstate.allocate_temp(py_object_type, manage_ref=True)
         code.globalstate.use_utility_code(
             UtilityCode.load_cached("GetApiDict", "ImportExport.c"))
@@ -3825,23 +3841,14 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         )
         code.put_gotref(api_dict, py_object_type)
 
-        pointer_cast = pointer_decl.format(name='')
-        pointers = []
-        names = []
-        signatures = []
-
-        for entry in entries:
-            pointers.append(f"({pointer_cast})&{entry.cname}")
-            names.append(entry.name)
-            signatures.append(get_signature(entry.type))
-
-        signatures_cstring = EncodedString('\0'.join(signatures)).as_c_string_literal()
-        names_cstring = EncodedString('\0'.join(names)).as_c_string_literal()
-
-        code.putln("{")
-
-        code.putln(f"const char * __pyx_exported_signature = {signatures_cstring};")
-        code.putln(f"const char * __pyx_exported_name = {names_cstring};")
+        code.putln(f"const char * __pyx_exported_signature = __Pyx_PyBytes_AsString({code.get_py_string_const(sig_bytes)});")
+        code.putln("#if !CYTHON_ASSUME_SAFE_MACROS")
+        code.putln(code.error_goto_if_null('__pyx_exported_signature', self.pos))
+        code.putln("#endif")
+        code.putln(f"const char * __pyx_exported_name = __Pyx_PyBytes_AsString({code.get_py_string_const(names_bytes)});")
+        code.putln("#if !CYTHON_ASSUME_SAFE_MACROS")
+        code.putln(code.error_goto_if_null('__pyx_exported_name', self.pos))
+        code.putln("#endif")
         code.putln(f"{pointer_decl.format(name='const __pyx_exported_pointers[]')} = {{{', '.join(pointers)}, ({pointer_cast}) NULL}};")
 
         code.globalstate.use_utility_code(
@@ -3850,8 +3857,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             UtilityCode.load_cached("IncludeStringH", "StringTools.c"))
 
         code.putln(f"{pointer_decl.format(name='const *__pyx_exported_pointer')} = __pyx_exported_pointers;")
-
         code.putln("while (*__pyx_exported_pointer) {")
+
         code.put_error_if_neg(
             self.pos,
             f"{export_func}({api_dict}, __pyx_exported_name, *__pyx_exported_pointer, __pyx_exported_signature)"
@@ -3862,10 +3869,10 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
         code.putln("}")  # while
 
-        code.putln("}")
-
         code.put_decref_clear(api_dict, py_object_type)
         code.funcstate.release_temp(api_dict)
+
+        code.putln("}")
 
     def generate_c_variable_export_code(self, env, code):
         """Generate code to create PyCFunction wrappers for exported C functions.
