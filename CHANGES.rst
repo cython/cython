@@ -2,6 +2,27 @@
 Cython Changelog
 ================
 
+3.2.0rc1 (2025-??-??)
+=====================
+
+Bugs fixed
+----------
+
+* Iteration over memoryviews could loop indefinitely in 3.2b1 when encountering a ``continue`` statement.
+  (Github issue :issue:`7259`)
+
+* Extension arguments defined for the shared code module were ignored in ``cythonize()``.
+  (Github issue :issue:`7251`)
+
+* Failures while following package attributes in ``import pkg.module as …`` were not handled.
+
+Other changes
+-------------
+
+* The ``musllinux`` platform is now served with an abi3 Cython wheel instead of Python specific ones.
+  (Github issue :issue:`7250`)
+
+
 3.2.0b1 (2025-10-22)
 ====================
 
