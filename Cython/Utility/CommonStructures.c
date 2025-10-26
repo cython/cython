@@ -175,12 +175,12 @@ static PyObject* __pyx_CommonTypesMetaclass_get_module(CYTHON_UNUSED PyObject *s
 
 #if __PYX_LIMITED_VERSION_HEX < 0x030A0000
 static PyObject* __pyx_CommonTypesMetaclass_call(CYTHON_UNUSED PyObject *self, CYTHON_UNUSED PyObject *args, CYTHON_UNUSED PyObject *kwds) {
-    PyErr_SetString(PyExc_TypeError, "Cannot instantiate Cython shared types");
+    PyErr_SetString(PyExc_TypeError, "Cannot instantiate Cython internal types");
     return NULL;
 }
 
 static int __pyx_CommonTypesMetaclass_setattr(CYTHON_UNUSED PyObject *self, CYTHON_UNUSED PyObject *attr, CYTHON_UNUSED PyObject *value) {
-    PyErr_SetString(PyExc_TypeError, "Cython shared types are immutable");
+    PyErr_SetString(PyExc_TypeError, "Cython internal types are immutable");
     return -1;
 }
 #endif
