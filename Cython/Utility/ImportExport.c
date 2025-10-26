@@ -516,7 +516,7 @@ static int __Pyx_ImportFunction_$cyversion(PyObject *module, const char *funcnam
         void *p;
     } tmp;
     int result = __Pyx_ImportFromPxd_$cyversion(module, funcname, &tmp.p, sig, "function");
-    if (likely(result == 0)) {
+    if (result == 0) {
         *f = tmp.fp;
     }
     return result;
