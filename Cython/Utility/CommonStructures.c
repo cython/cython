@@ -178,6 +178,11 @@ static PyObject* __pyx_CommonTypesMetaclass_call(CYTHON_UNUSED PyObject *self, C
     PyErr_SetString(PyExc_TypeError, "Cannot instantiate Cython shared types");
     return NULL;
 }
+
+static PyObject* __pyx_CommonTypesMetaclass_setattr(CYTHON_UNUSED PyObject *self, CYTHON_UNUSED PyObject *attr, CYTHON_UNUSED PyObject *value) {
+    PyErr_SetString(PyExc_TypeError, "Cython shared types are immutable");
+    return NULL;
+}
 #endif
 
 static PyGetSetDef __pyx_CommonTypesMetaclass_getset[] = {
@@ -189,6 +194,8 @@ static PyType_Slot __pyx_CommonTypesMetaclass_slots[] = {
     {Py_tp_getset, (void *)__pyx_CommonTypesMetaclass_getset},
     #if __PYX_LIMITED_VERSION_HEX < 0x030A0000
     {Py_tp_call, (void*)__pyx_CommonTypesMetaclass_call},
+    {Py_tp_new, (void*)__pyx_CommonTypesMetaclass_call},
+    {Py_tp_setattro, (void*)__pyx_CommonTypesMetaclass_setattr},
     #endif
     {0, 0}
 };
