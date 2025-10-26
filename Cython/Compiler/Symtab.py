@@ -235,6 +235,7 @@ class Entry:
     pytyping_modifiers = None
     enum_int_value = None
     vtable_type = None
+    inherited_scope = None
 
     def __init__(self, name, cname, type, pos = None, init = None):
         self.name = name
@@ -2769,16 +2770,17 @@ class CClassScope(ClassScope):
         # Declare entries for all the C attributes of an
         # inherited type, with cnames modified appropriately
         # to work with this type.
-        def adapt(cname):
-            return "%s.%s" % (Naming.obj_base_cname, base_entry.cname)
+        def adapt(base_cname):
+            return "%s.%s" % (Naming.obj_base_cname, base_cname)
 
         entries = base_scope.inherited_var_entries + base_scope.var_entries
         for base_entry in entries:
             entry = self.declare(
-                base_entry.name, adapt(base_entry.cname),
+                base_entry.name, base_entry.cname,
                 base_entry.type, None, 'private')
             entry.is_variable = 1
             entry.is_inherited = True
+            entry.inherited_scope = base_entry.inherited_scope or base_scope
             entry.annotation = base_entry.annotation
             self.inherited_var_entries.append(entry)
 
@@ -2794,11 +2796,12 @@ class CClassScope(ClassScope):
             var_entry = base_entry.as_variable
             is_builtin = var_entry and var_entry.is_builtin
             if not is_builtin:
-                cname = adapt(cname)
+                cname = adapt(base_entry.cname)
             entry = self.add_cfunction(
                 base_entry.name, base_entry.type, base_entry.pos, cname,
                 base_entry.visibility, base_entry.func_modifiers, inherited=True)
             entry.is_inherited = 1
+            entry.inherited_scope = base_entry.inherited_scope or base_scope
             if base_entry.is_final_cmethod:
                 entry.is_final_cmethod = True
                 entry.is_inline_cmethod = base_entry.is_inline_cmethod

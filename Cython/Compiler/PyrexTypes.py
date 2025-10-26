@@ -43,11 +43,13 @@ class BaseType:
     def cast_code(self, expr_code):
         return "((%s)%s)" % (self.empty_declaration_code(), expr_code)
 
-    def empty_declaration_code(self, pyrex=False):
+    def empty_declaration_code(self, pyrex=False, **kwds):
         if pyrex:
-            return self.declaration_code('', pyrex=True)
+            return self.declaration_code('', pyrex=True, **kwds)
+        if kwds:
+            return self.declaration_code('', **kwds)
         if self._empty_declaration is None:
-            self._empty_declaration = self.declaration_code('')
+            self._empty_declaration = self.declaration_code('', **kwds)
         return self._empty_declaration
 
     def specialization_name(self):
@@ -1690,7 +1692,7 @@ class PyExtensionType(PyObjectType):
         return False
 
     def declaration_code(self, entity_code,
-            for_display = 0, dll_linkage = None, pyrex = 0, deref = 0):
+            for_display = 0, dll_linkage = None, pyrex = 0, deref = 0, allow_opaque_decl = True):
         if pyrex or for_display:
             base_code = self.name
         else:
@@ -1698,6 +1700,8 @@ class PyExtensionType(PyObjectType):
                 objstruct = self.objstruct_cname
             else:
                 objstruct = "struct %s" % self.objstruct_cname
+            if allow_opaque_decl and not self.is_external:
+                objstruct = f"__PYX_C_CLASS_DECL({objstruct})"
             base_code = public_decl(objstruct, dll_linkage)
             if deref:
                 assert not entity_code
@@ -1716,6 +1720,13 @@ class PyExtensionType(PyObjectType):
 
     def attributes_known(self):
         return self.scope is not None
+    
+    def cast_code(self, expr_code, type_data_cast: bool = False):
+        if not type_data_cast or self.is_external:
+            return super().cast_code(expr_code)
+        # FIXME - we really need Code to get to this
+        typeptr_cname = f"{Naming.modulestateglobal_cname}->{self.typeptr_cname}"
+        return f"__Pyx_GetCClassTypeData({expr_code}, {typeptr_cname}, {self.declaration_code("", allow_opaque_decl=False)})"
 
     def __str__(self):
         return self.name
@@ -5743,7 +5754,7 @@ def same_type(type1, type2):
 def assignable_from(type1, type2):
     return type1.assignable_from(type2)
 
-def typecast(to_type, from_type, expr_code):
+def typecast(to_type, from_type, expr_code, type_data_cast=False):
     #  Return expr_code cast to a C type which can be
     #  assigned to to_type, assuming its existing C type
     #  is from_type.

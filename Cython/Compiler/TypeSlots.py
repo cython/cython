@@ -734,7 +734,7 @@ class DictOffsetSlot(SlotDescriptor):
         dict_offset = self.slot_code(scope)
         if dict_offset == "0":
             return None
-        return '{"__dictoffset__", T_PYSSIZET, %s, READONLY, NULL},' % dict_offset
+        return '{"__dictoffset__", T_PYSSIZET, %s, __PYX_C_CLASS_RELATIVE_OFFSET | READONLY, NULL},' % dict_offset
 
 ## The following slots are (or could be) initialised with an
 ## extern function pointer.

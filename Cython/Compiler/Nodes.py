@@ -2095,13 +2095,16 @@ class FuncDefNode(StatNode, BlockNode):
         while cenv.is_py_class_scope or cenv.is_c_class_scope:
             cenv = cenv.outer_scope
         if self.needs_closure:
-            code.put(lenv.scope_class.type.declaration_code(Naming.cur_scope_cname))
+            code.put(lenv.scope_class.type.declaration_code(Naming.cur_scope_cname, allow_opaque_decl=False))
             code.putln(";")
+            code.putln("#if CYTHON_OPAQUE_OBJECTS")
+            code.putln(f"PyObject* {Naming.cur_scope_obj_cname};")
+            code.putln("#endif")
         elif self.needs_outer_scope:
             if lenv.is_passthrough:
-                code.put(lenv.scope_class.type.declaration_code(Naming.cur_scope_cname))
+                code.put(lenv.scope_class.type.declaration_code(Naming.cur_scope_cname, allow_opaque_decl=False))
                 code.putln(";")
-            code.put(cenv.scope_class.type.declaration_code(Naming.outer_scope_cname))
+            code.put(cenv.scope_class.type.declaration_code(Naming.outer_scope_cname, allow_opaque_decl=False))
             code.putln(";")
         self.generate_argument_declarations(lenv, code)
 
@@ -2178,33 +2181,40 @@ class FuncDefNode(StatNode, BlockNode):
                 slot_func_cname = '%s->tp_new' % (
                     code.name_in_module_state(lenv.scope_class.type.typeptr_cname))
             code.putln("%s = (%s)%s(%s, %s, NULL);" % (
-                Naming.cur_scope_cname,
-                lenv.scope_class.type.empty_declaration_code(),
+                Naming.cur_scope_obj_cname,
+                lenv.scope_class.type.empty_declaration_code(allow_opaque_decl=True),
                 slot_func_cname,
                 code.name_in_module_state(lenv.scope_class.type.typeptr_cname),
                 code.name_in_module_state(Naming.empty_tuple)))
-            code.putln("if (unlikely(!%s)) {" % Naming.cur_scope_cname)
+            code.putln("if (unlikely(!%s)) {" % Naming.cur_scope_obj_cname)
             # Scope unconditionally DECREFed on return.
-            code.putln("%s = %s;" % (
-                Naming.cur_scope_cname,
-                lenv.scope_class.type.cast_code("Py_None")))
+            code.putln("%s = (%s)Py_None;" % (
+                Naming.cur_scope_obj_cname,
+                lenv.scope_class.type.empty_declaration_code(allow_opaque_decl=True)))
             code.put_incref("Py_None", py_object_type)
             code.putln(code.error_goto(self.pos))
             code.putln("} else {")
-            code.put_gotref(Naming.cur_scope_cname, lenv.scope_class.type)
+            code.put_gotref(Naming.cur_scope_obj_cname, lenv.scope_class.type)
             code.putln("}")
             # Note that it is unsafe to decref the scope at this point.
+            code.putln("#if CYTHON_OPAQUE_OBJECTS")
+            code.putln(f"{Naming.cur_scope_cname} = __Pyx_GetCClassTypeData({Naming.cur_scope_obj_cname}, "
+                    f"{code.name_in_module_state(lenv.scope_class.type.typeptr_cname)}, "
+                    f"{lenv.scope_class.type.empty_declaration_code(allow_opaque_decl=False)});")
+            code.putln("#endif")
         if self.needs_outer_scope:
             if self.is_cyfunction:
-                code.putln("%s = (%s) __Pyx_CyFunction_GetClosure(%s);" % (
+                code.putln("%s = __Pyx_GetCClassTypeData(__Pyx_CyFunction_GetClosure(%s), %s, %s);" % (
                     outer_scope_cname,
-                    cenv.scope_class.type.empty_declaration_code(),
-                    Naming.self_cname))
+                    Naming.self_cname,
+                    code.name_in_module_state(cenv.scope_class.type.typeptr_cname),
+                    cenv.scope_class.type.empty_declaration_code(allow_opaque_decl=False),))
             else:
-                code.putln("%s = (%s) %s;" % (
+                code.putln("%s = __Pyx_GetCClassTypeData(%s, %s, %s);" % (
                     outer_scope_cname,
-                    cenv.scope_class.type.empty_declaration_code(),
-                    Naming.self_cname))
+                    Naming.self_cname,
+                    code.name_in_module_state(cenv.scope_class.type.typeptr_cname),
+                    cenv.scope_class.type.empty_declaration_code(),))
             if lenv.is_passthrough:
                 code.putln("%s = %s;" % (Naming.cur_scope_cname, outer_scope_cname))
             elif self.needs_closure:
@@ -2478,7 +2488,7 @@ class FuncDefNode(StatNode, BlockNode):
             code.put_var_xdecref(entry, have_gil=gil_owned['success'])
         if self.needs_closure:
             assure_gil('success')
-            code.put_decref(Naming.cur_scope_cname, lenv.scope_class.type)
+            code.put_decref(Naming.cur_scope_obj_cname, lenv.scope_class.type)
 
         # ----- Return
         # This code is duplicated in ModuleNode.generate_module_init_func
@@ -4731,12 +4741,12 @@ class GeneratorDefNode(DefNode):
             f'__pyx_CoroutineObject *gen = __Pyx_{self.gen_type_name}_New('
             f'(__pyx_coroutine_body_t) {body_cname},'
             f' {self.code_object.py_result()},'
-            f' (PyObject *) {Naming.cur_scope_cname},'
+            f' (PyObject *) {Naming.cur_scope_obj_cname},'
             f' {name}, {qualname}, {module_name}'
             f'); {code.error_goto_if_null("gen", self.pos)}'
         )
 
-        code.put_decref(Naming.cur_scope_cname, py_object_type)
+        code.put_decref(Naming.cur_scope_obj_cname, py_object_type)
         if self.requires_classobj:
             classobj_cname = 'gen->classobj'
             code.putln('%s = __Pyx_CyFunction_GetClassObj(%s);' % (
@@ -4895,9 +4905,9 @@ class GeneratorBodyDefNode(DefNode):
         # ----- Closure initialization
         if lenv.scope_class.type.scope.var_entries:
             closure_init_code.putln('%s = %s;' % (
-                lenv.scope_class.type.declaration_code(Naming.cur_scope_cname),
+                lenv.scope_class.type.declaration_code(Naming.cur_scope_cname, allow_opaque_decl=False),
                 lenv.scope_class.type.cast_code('%s->closure' %
-                                                Naming.generator_cname)))
+                                                Naming.generator_cname, type_data_cast=True)))
             # FIXME: this silences a potential "unused" warning => try to avoid unused closures in more cases
             code.putln("CYTHON_MAYBE_UNUSED_VAR(%s);" % Naming.cur_scope_cname)
 

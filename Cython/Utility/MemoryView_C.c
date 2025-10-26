@@ -238,7 +238,8 @@ static int __Pyx_ValidateAndInit_memviewslice(
                 __Pyx_memviewslice *memviewslice,
                 PyObject *original_obj)
 {
-    struct __pyx_memoryview_obj *memview, *new_memview;
+    struct __pyx_memoryview_obj *memview;
+    PyObject *new_memview;
     __Pyx_RefNannyDeclarations
     Py_buffer *buf;
     int i, spec = 0, retval = -1;
@@ -247,17 +248,21 @@ static int __Pyx_ValidateAndInit_memviewslice(
 
     __Pyx_RefNannySetupContext("ValidateAndInit_memviewslice", 0);
 
-    if (from_memoryview && __pyx_typeinfo_cmp(dtype, ((struct __pyx_memoryview_obj *)
-                                                            original_obj)->typeinfo)) {
-        /* We have a matching dtype, skip format parsing */
-        memview = (struct __pyx_memoryview_obj *) original_obj;
-        new_memview = NULL;
+    if (from_memoryview) {
+        memview = (struct __pyx_memoryview_obj *)__Pyx_GetCClassTypeData(
+            original_obj, __pyx_memoryview_type(), struct __pyx_memoryview_obj *);
+        if (__pyx_typeinfo_cmp(dtype, memview->typeinfo)) {
+            new_memview = NULL;
+        } else {
+            goto from_memoryview_else;
+        }
     } else {
-        memview = (struct __pyx_memoryview_obj *) __pyx_memoryview_new(
-                                            original_obj, buf_flags, 0, dtype);
-        new_memview = memview;
-        if (unlikely(!memview))
+      from_memoryview_else:
+        new_memview = __pyx_memoryview_new(original_obj, buf_flags, 0, dtype);
+        if (unlikely(!new_memview))
             goto fail;
+        memview = (struct __pyx_memoryview_obj *)__Pyx_GetCClassTypeData(
+            original_obj, __pyx_memoryview_type(), struct __pyx_memoryview_obj *);
     }
 
     buf = &memview->view;
@@ -312,7 +317,7 @@ static int __Pyx_ValidateAndInit_memviewslice(
     goto no_fail;
 
 fail:
-    Py_XDECREF((PyObject*)new_memview);
+    Py_XDECREF(new_memview);
     retval = -1;
 
 no_fail:
@@ -507,8 +512,8 @@ __pyx_memoryview_copy_new_contig(const __Pyx_memviewslice *from_mvs,
     Py_buffer *buf = &from_memview->view;
     PyObject *shape_tuple = NULL;
     PyObject *temp_int = NULL;
-    struct __pyx_array_obj *array_obj = NULL;
-    struct __pyx_memoryview_obj *memview_obj = NULL;
+    __PYX_C_CLASS_DECL(struct __pyx_array_obj)* array_obj = NULL;
+    __PYX_C_CLASS_DECL(struct __pyx_memoryview_obj) *memview_obj = NULL;
 
     __Pyx_RefNannySetupContext("__pyx_memoryview_copy_new_contig", 0);
 
@@ -549,7 +554,7 @@ __pyx_memoryview_copy_new_contig(const __Pyx_memviewslice *from_mvs,
     }
     __Pyx_GOTREF(array_obj);
 
-    memview_obj = (struct __pyx_memoryview_obj *) __pyx_memoryview_new(
+    memview_obj = (__PYX_C_CLASS_DECL(struct __pyx_memoryview_obj)*)__pyx_memoryview_new(
                                     (PyObject *) array_obj, contig_flag,
                                     dtype_is_object,
                                     from_mvs->memview->typeinfo);
@@ -557,7 +562,9 @@ __pyx_memoryview_copy_new_contig(const __Pyx_memviewslice *from_mvs,
         goto fail;
 
     /* initialize new_mvs */
-    if (unlikely(__Pyx_init_memviewslice(memview_obj, ndim, &new_mvs, 1) < 0))
+    if (unlikely(__Pyx_init_memviewslice(
+            __Pyx_GetCClassTypeData(memview_obj, __pyx_memoryview_type(), struct __pyx_memoryview_obj*),
+            ndim, &new_mvs, 1) < 0))
         goto fail;
 
     if (unlikely(__pyx_memoryview_copy_contents(*from_mvs, new_mvs, ndim, ndim,

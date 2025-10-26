@@ -90,6 +90,10 @@ cdef memoryview_cwrapper(object o, int flags, bint dtype_is_object, const __Pyx_
 cdef inline bint memoryview_check(object o) noexcept:
     return isinstance(o, memoryview)
 
+@cname('__pyx_memoryview_type')
+cdef inline type memoryview_type() noexcept:
+    return memoryview
+
 @cname('__pyx_memview_slice')
 cdef memoryview memview_slice(memoryview memview, object indices)
 

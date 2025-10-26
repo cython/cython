@@ -423,6 +423,10 @@
   #endif
   #ifndef CYTHON_OPAQUE_OBJECTS
     #define CYTHON_OPAQUE_OBJECTS 0
+  #elif !CYTHON_USE_TYPE_SPECS /* || PY_VERION_HEX < 0x030E0000 */  // TODO re-enable this check
+    // opaque objects are incompatible with static types
+    #undef CYTHON_OPAQUE_OBJECTS
+    #define CYTHON_OPAQUE_OBJECTS 0
   #endif
 #endif
 
@@ -889,6 +893,31 @@ static CYTHON_INLINE int __Pyx__IsSameCFunction(PyObject *func, void (*cfunc)(vo
     #define __PYX_SHARED_SIZEOF(T) sizeof(T)
     #define __PYX_SHARED_RELATIVE_OFFSET 0
     #define __Pyx_GetSharedTypeData(o, cls, T) ((T)(o))
+#endif
+#if CYTHON_OPAQUE_OBJECTS
+    #define __PYX_C_CLASS_SIZEOF(T) -((int)sizeof(T))
+    #if __PYX_LIMITED_VERSION_HEX < 0x030E0000
+    // Relative offset can't work in this case. This does not produce a great error, but it won't compile.
+    #define __PYX_C_CLASS_RELATIVE_OFFSET ("Relative offset does not work on Python <3.14"/0)
+    #else
+    #define __PYX_C_CLASS_RELATIVE_OFFSET Py_RELATIVE_OFFSET
+    #endif
+    #define __PYX_C_CLASS_DECL(T) PyObject
+    #define __Pyx_GetCClassTypeData(o, cls, T, ...) ((T)PyObject_GetTypeData((o), cls))
+
+    #if CYTHON_USE_FREELISTS
+    // It's a bit difficult (but not impossible) to work out how much memory to zero out in this case
+    // so turn it off in the short-term.
+    #undef CYTHON_USE_FREELISTS
+    #define CYTHON_USE_FREELISTS 0
+    #endif
+#else
+    #define __PYX_C_CLASS_SIZEOF(T) sizeof(T)
+    #define __PYX_C_CLASS_RELATIVE_OFFSET
+    #define __PYX_C_CLASS_DECL(T) T
+    // No cast - o should be the correct type
+    #define __Pyx_GetCClassTypeData(o, cls, T, ...) ((o)__VA_ARGS__)
+    #define $cur_scope_obj_cname $cur_scope_cname 
 #endif
 
 #if CYTHON_USE_MODULE_STATE

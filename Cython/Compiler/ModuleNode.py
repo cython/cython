@@ -1330,6 +1330,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             self.sue_header_footer(type, "struct", type.objstruct_cname)
         code.putln(header)
         base_type = type.base_type
+        code.putln("#if !CYTHON_OPAQUE_OBJECTS")
         if base_type:
             basestruct_cname = base_type.objstruct_cname
             if basestruct_cname == "PyTypeObject":
@@ -1343,6 +1344,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         else:
             code.putln(
                 "PyObject_HEAD")
+        code.putln("#endif")  # opaque objects
         if type.vtabslot_cname and not (type.base_type and type.base_type.vtabslot_cname):
             code.putln(
                 "struct %s *%s;" % (
@@ -1527,9 +1529,9 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
     def generate_self_cast(self, scope, code):
         type = scope.parent_type
         code.putln(
-            "%s = (%s)o;" % (
-                type.declaration_code("p"),
-                type.empty_declaration_code()))
+            "%s = %s;" % (
+                type.declaration_code("p", allow_opaque_decl=False),
+                type.cast_code("o", type_data_cast=True)))
 
     @staticmethod
     def generate_freelist_condition(code, size_check, type_cname, type):
@@ -1539,7 +1541,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             freelist_check = '__PYX_CHECK_FINAL_TYPE_FOR_FREELISTS'
         else:
             freelist_check = '__PYX_CHECK_TYPE_FOR_FREELISTS'
-        obj_struct = type.declaration_code("", deref=True)
+        obj_struct = type.declaration_code("", deref=True, allow_opaque_decl=False)
         typeptr_cname = code.name_in_slot_module_state(type.typeptr_cname)
         code.putln(
             f"if (likely((int)({size_check}) & {freelist_check}({type_cname}, {typeptr_cname}, sizeof({obj_struct}))))")
@@ -1598,7 +1600,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                           (py_buffers or memoryview_slices or py_attrs) or
                           explicitly_constructable_attrs)
         if need_self_cast:
-            code.putln("%s;" % scope.parent_type.declaration_code("p"))
+            code.putln("%s;" % scope.parent_type.declaration_code("p", allow_opaque_decl=False))
         if base_type:
             tp_new = TypeSlots.get_base_slot_function(scope, tp_slot)
             base_type_typeptr_cname = base_type.typeptr_cname
@@ -1620,7 +1622,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 code.putln("o = (PyObject*)%s[--%s];" % (
                     freelist_name,
                     freecount_name))
-                obj_struct = type.declaration_code("", deref=True)
+                obj_struct = type.declaration_code("", deref=True, allow_opaque_decl=False)
                 code.putln("#if CYTHON_USE_TYPE_SPECS")
                 # We still hold a reference to the type object held by the previous
                 # user of the freelist object - release it.
@@ -1647,7 +1649,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         if freelist_size and not base_type:
             code.putln('}')
         if need_self_cast:
-            code.putln("p = %s;" % type.cast_code("o"))
+            code.putln("p = %s;" % type.cast_code("o", type_data_cast=True))
         #if need_self_cast:
         #    self.generate_self_cast(scope, code)
 
@@ -1662,9 +1664,15 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 struct_type_cast = "(struct %s*)" % vtab_base_type.vtabstruct_cname
             else:
                 struct_type_cast = ""
+            code.putln("#if CYTHON_OPAQUE_OBJECTS")
+            code.putln(f"__Pyx_GetCClassTypeData(o, {code.name_in_module_state(vtab_base_type.typeptr_cname)}, "
+                       f"{vtab_base_type.empty_declaration_code(allow_opaque_decl=False)})->{vtab_base_type.vtabslot_cname}"
+                       f" = {struct_type_cast}{type.vtabptr_cname};")
+            code.putln("#else")
             code.putln("p->%s = %s%s;" % (
                 type.vtabslot_cname,
                 struct_type_cast, type.vtabptr_cname))
+            code.putln("#endif")
 
         for entry in explicitly_constructable_attrs:
             entry.type.generate_explicit_construction(
@@ -2641,7 +2649,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 # used in the non-limited API case, this doesn't preserve the weaklistoffset
                 # from base classes.
                 # Practically that doesn't matter, but it isn't exactly the identical.
-                code.putln('{"__weaklistoffset__", T_PYSSIZET, offsetof(%s, %s), READONLY, 0},'
+                code.putln('{"__weaklistoffset__", T_PYSSIZET, offsetof(%s, %s), __PYX_C_CLASS_RELATIVE_OFFSET | READONLY, 0},'
                            % (objstruct, weakref_entry.cname))
             code.putln("#endif")
             code.putln("{0, 0, 0, 0, 0}")
@@ -2674,7 +2682,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         classname = scope.class_name.as_c_string_literal()
         code.putln("static PyType_Spec %s_spec = {" % ext_type.typeobj_cname)
         code.putln('"%s.%s",' % (self.full_module_name, classname.replace('"', '')))
-        code.putln("sizeof(%s)," % objstruct)
+        code.putln("__PYX_C_CLASS_SIZEOF(%s)," % objstruct)
         code.putln("0,")
         code.putln("%s," % TypeSlots.get_slot_by_name("tp_flags", scope.directives).slot_code(scope))
         code.putln("%s_slots," % ext_type.typeobj_cname)

@@ -555,7 +555,7 @@ class ExprNode(Node):
         """
         return True
 
-    def result_as(self, type = None):
+    def result_as(self, type=None):
         #  Return the result code cast to the specified C type.
         if (self.is_temp and self.type.is_pyobject and
                 type != py_object_type):
@@ -8151,7 +8151,27 @@ class AttributeNode(ExprNode):
         # Does the job of calculate_result_code but doesn't dereference cpp_optionals
         # Therefore allowing access to the holder variable
         obj = self.obj
-        obj_code = obj.result_as(obj.type)
+        if obj.type.is_extension_type:
+            obj_code = obj.result()
+            access_type = obj.type
+            access_code = ""
+            if self.entry.is_inherited:
+                access_type = self.entry.inherited_scope.parent_type
+                levels = 0
+                tp = obj.type
+                while tp != access_type:
+                    tp = tp.base_type
+                    levels += 1
+                access_code = f", {''.join([f'->{Naming.obj_base_cname}']*levels)}"
+            if access_type.is_external:
+                obj_code = obj.result_as(access_type, type_data_cast=True)
+            else:
+                # FIXME - we really need Code to get to this
+                typeptr_cname = f"{Naming.modulestateglobal_cname}->{access_type.typeptr_cname}"
+                objstruct_cname = access_type.objstruct_cname if access_type.typedef_flag else f"struct {access_type.objstruct_cname}"
+                obj_code = f"__Pyx_GetCClassTypeData({obj_code}, {typeptr_cname}, {objstruct_cname}*{access_code})"
+        else:
+            obj_code = obj.result_as(obj.type)
         #print "...obj_code =", obj_code ###
         if self.entry and self.entry.is_cmethod:
             if obj.type.is_extension_type and not self.entry.is_builtin_cmethod:
@@ -10506,7 +10526,7 @@ class InnerFunctionNode(PyCFunctionNode):
 
     def closure_result_code(self):
         if self.needs_closure_code:
-            return "((PyObject*)%s)" % Naming.cur_scope_cname
+            return "((PyObject*)%s)" % Naming.cur_scope_obj_cname
         return "NULL"
 
 
