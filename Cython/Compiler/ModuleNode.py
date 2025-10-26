@@ -4051,7 +4051,7 @@ def _deduplicate_inout_signatures(item_tuples):
 def _generate_import_export_code(code: Code.CCodeWriter, pos, inout_item_tuples, per_item_func, target, pointer_decl, use_pybytes, is_import):
     signatures, names, inout_items = _deduplicate_inout_signatures(inout_item_tuples)
 
-    prefix = f"{Naming.pyrex_prefix}{'import' if is_import else 'export'}_"
+    pyx = f"{Naming.pyrex_prefix}{'import' if is_import else 'export'}_"
 
     pointer_cast = pointer_decl.format(name='')
     sig_bytes = '\0'.join(signatures).encode('utf-8')
@@ -4060,32 +4060,32 @@ def _generate_import_export_code(code: Code.CCodeWriter, pos, inout_item_tuples,
 
     sigs_and_names_bytes = bytes_literal(sig_bytes + b'\0' + names_bytes, 'utf-8')
     if use_pybytes:
-        code.putln(f"const char * {prefix}signature = __Pyx_PyBytes_AsString({code.get_py_string_const(sigs_and_names_bytes)});")
+        code.putln(f"const char * {pyx}signature = __Pyx_PyBytes_AsString({code.get_py_string_const(sigs_and_names_bytes)});")
         code.putln("#if !CYTHON_ASSUME_SAFE_MACROS")
-        code.putln(code.error_goto_if_null(f'{prefix}signature', pos))
+        code.putln(code.error_goto_if_null(f'{pyx}signature', pos))
         code.putln("#endif")
     else:
-        code.putln(f"const char * {prefix}signature = {sigs_and_names_bytes.as_c_string_literal()};")
+        code.putln(f"const char * {pyx}signature = {sigs_and_names_bytes.as_c_string_literal()};")
 
-    code.putln(f"const char * {prefix}name = {prefix}signature + {len(sig_bytes) + 1};")
-    code.putln(f"{pointer_decl.format(name=f'const {prefix}pointers[]')} = {{{', '.join(pointers)}, ({pointer_cast}) NULL}};")
+    code.putln(f"const char * {pyx}name = {pyx}signature + {len(sig_bytes) + 1};")
+    code.putln(f"{pointer_decl.format(name=f'const {pyx}pointers[]')} = {{{', '.join(pointers)}, ({pointer_cast}) NULL}};")
 
     code.globalstate.use_utility_code(
         UtilityCode.load_cached("IncludeStringH", "StringTools.c"))
 
-    code.putln(f"{pointer_decl.format(name=f'const *{prefix}pointer')} = {prefix}pointers;")
-    code.putln(f"const char *__pyx_current_signature = {prefix}signature;")
-    code.putln(f"while (*{prefix}pointer) {{")
+    code.putln(f"{pointer_decl.format(name=f'const *{pyx}pointer')} = {pyx}pointers;")
+    code.putln(f"const char *{pyx}current_signature = {pyx}signature;")
+    code.putln(f"while (*{pyx}pointer) {{")
 
     code.put_error_if_neg(
         pos,
-        f"{per_item_func}({target}, {prefix}name, *{prefix}pointer, __pyx_current_signature)"
+        f"{per_item_func}({target}, {pyx}name, *{pyx}pointer, {pyx}current_signature)"
     )
-    code.putln(f"++{prefix}pointer;")
-    code.putln(f"{prefix}name = strchr({prefix}name, '\\0') + 1;")
-    code.putln(f"{prefix}signature = strchr({prefix}signature, '\\0') + 1;")
+    code.putln(f"++{pyx}pointer;")
+    code.putln(f"{pyx}name = strchr({pyx}name, '\\0') + 1;")
+    code.putln(f"{pyx}signature = strchr({pyx}signature, '\\0') + 1;")
     # Keep reusing the current signature until we find a new non-empty one.
-    code.putln(f"if (*{prefix}signature != '\\0') __pyx_current_signature = {prefix}signature;")
+    code.putln(f"if (*{pyx}signature != '\\0') {pyx}current_signature = {pyx}signature;")
 
     code.putln("}")  # while
 
