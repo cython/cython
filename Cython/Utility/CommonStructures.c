@@ -179,9 +179,9 @@ static PyObject* __pyx_CommonTypesMetaclass_call(CYTHON_UNUSED PyObject *self, C
     return NULL;
 }
 
-static PyObject* __pyx_CommonTypesMetaclass_setattr(CYTHON_UNUSED PyObject *self, CYTHON_UNUSED PyObject *attr, CYTHON_UNUSED PyObject *value) {
+static int __pyx_CommonTypesMetaclass_setattr(CYTHON_UNUSED PyObject *self, CYTHON_UNUSED PyObject *attr, CYTHON_UNUSED PyObject *value) {
     PyErr_SetString(PyExc_TypeError, "Cython shared types are immutable");
-    return NULL;
+    return -1;
 }
 #endif
 
