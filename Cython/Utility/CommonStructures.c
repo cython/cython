@@ -173,6 +173,13 @@ static PyObject* __pyx_CommonTypesMetaclass_get_module(CYTHON_UNUSED PyObject *s
     return PyUnicode_FromString(__PYX_ABI_MODULE_NAME);
 }
 
+#if __PYX_LIMITED_VERSION_HEX < 0x030A0000
+static PyObject* __pyx_CommonTypesMetaclass_call(CYTHON_UNUSED PyObject *self, CYTHON_UNUSED PyObject *args, CYTHON_UNUSED PyObject *kwds) {
+    PyErr_SetString(PyExc_TypeError, "Cannot instantiate Cython shared types");
+    return NULL;
+}
+#endif
+
 static PyGetSetDef __pyx_CommonTypesMetaclass_getset[] = {
     {"__module__", __pyx_CommonTypesMetaclass_get_module, NULL, NULL, NULL},
     {0, 0, 0, 0, 0}
@@ -180,6 +187,9 @@ static PyGetSetDef __pyx_CommonTypesMetaclass_getset[] = {
 
 static PyType_Slot __pyx_CommonTypesMetaclass_slots[] = {
     {Py_tp_getset, (void *)__pyx_CommonTypesMetaclass_getset},
+    #if __PYX_LIMITED_VERSION_HEX < 0x030A0000
+    {Py_tp_call, (void*)__pyx_CommonTypesMetaclass_call},
+    #endif
     {0, 0}
 };
 
@@ -187,7 +197,7 @@ static PyType_Spec __pyx_CommonTypesMetaclass_spec = {
     __PYX_TYPE_MODULE_PREFIX "_common_types_metatype",
     0,
     0,
-#if PY_VERSION_HEX >= 0x030A0000
+#if __PYX_LIMITED_VERSION_HEX >= 0x030A0000
     Py_TPFLAGS_IMMUTABLETYPE |
     Py_TPFLAGS_DISALLOW_INSTANTIATION |
 #endif

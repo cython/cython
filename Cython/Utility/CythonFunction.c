@@ -1238,8 +1238,8 @@ static PyType_Spec __pyx_CyFunctionType_spec = {
     _Py_TPFLAGS_HAVE_VECTORCALL |
 #endif
 #endif // CYTHON_METH_FASTCALL
-#if PY_VERSION_HEX >= 0x030A0000
-    Py_TPFLAGS_IMMUTABLETYPE |
+#if __PYX_LIMITED_VERSION_HEX >= 0x030A0000
+    Py_TPFLAGS_IMMUTABLETYPE | Py_TPFLAGS_DISALLOW_INSTANTIATION |
 #endif
 #if PY_VERSION_HEX >= 0x030C0000 && !CYTHON_COMPILING_IN_LIMITED_API
     Py_TPFLAGS_MANAGED_DICT |
@@ -1729,10 +1729,10 @@ static PyType_Spec __pyx_FusedFunctionType_spec = {
     __PYX_TYPE_MODULE_PREFIX "fused_cython_function",
     sizeof(__pyx_FusedFunctionObject),
     0,
-#if PY_VERSION_HEX >= 0x030A0000
-    Py_TPFLAGS_IMMUTABLETYPE |
+#if __PYX_LIMITED_VERSION_HEX >= 0x030A0000
+    Py_TPFLAGS_IMMUTABLETYPE | Py_TPFLAGS_DISALLOW_INSTANTIATION |
 #endif
-    Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_GC, /*tp_flags*/
+    Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_GC , /*tp_flags*/
     __pyx_FusedFunctionType_slots
 };
 
