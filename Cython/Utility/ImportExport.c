@@ -597,13 +597,13 @@ static int __Pyx_ImportFromPxd_$cyversion(PyObject *module, const char *name, vo
 #endif
     if (!cobj) {
         PyErr_Format(PyExc_ImportError,
-            "%.200s does not export expected C %s %.200s",
+            "%.200s does not export expected C %.8s %.200s",
                 PyModule_GetName(module), what, name);
         goto bad;
     }
     if (!PyCapsule_IsValid(cobj, sig)) {
         PyErr_Format(PyExc_TypeError,
-            "C %s %.200s.%.200s has wrong signature (expected %.500s, got %.500s)",
+            "C %.8s %.200s.%.200s has wrong signature (expected %.500s, got %.500s)",
              what, PyModule_GetName(module), name, sig, PyCapsule_GetName(cobj));
         goto bad;
     }
