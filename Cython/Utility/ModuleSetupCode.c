@@ -765,6 +765,12 @@ static int __Pyx_init_co_variables(void); /* proto */
 #ifndef Py_TPFLAGS_MAPPING
   #define Py_TPFLAGS_MAPPING 0
 #endif
+#ifndef Py_TPFLAGS_IMMUTABLETYPE
+  #define Py_TPFLAGS_IMMUTABLETYPE (1UL << 8)
+#endif
+#ifndef Py_TPFLAGS_DISALLOW_INSTANTIATION
+  #define Py_TPFLAGS_DISALLOW_INSTANTIATION (1UL << 7)
+#endif
 
 #ifndef METH_STACKLESS
   // already defined for Stackless Python (all versions) and C-Python >= 3.7
