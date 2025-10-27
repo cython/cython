@@ -46,7 +46,7 @@ test-command = ["abi3audit {wheel}"]
 
 [[tool.cibuildwheel.overrides]]
 select = "*armv7l"
-inherit.environment = "append"
+inherit.environment = "none"
 environment.CFLAGS = "-O3 -g0 -pipe -fPIC"
 
 [tool.cibuildwheel.windows]
