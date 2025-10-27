@@ -1236,7 +1236,7 @@ class Scope:
         # e.g. slot, function, method
         return f"{Naming.modulestateglobal_cname}->{cname}"
 
-    def find_shared_usages_of_type(self, type_check_predicate, _seen_scopes=None):
+    def find_shared_usages_of_type(self, type_to_find, _seen_scopes=None):
         if _seen_scopes is None:
             _seen_scopes = set()
         include_all_entries = not self.is_module_scope
@@ -1244,13 +1244,13 @@ class Scope:
             if not (include_all_entries or entry.defined_in_pxd or entry.visibility == "public" or entry.api):
                 continue
             entry_subtypes = PyrexTypes.get_all_subtypes(entry.type)
-            if any(type_check_predicate(sub_tp) for sub_tp in entry_subtypes):
+            if any(type_to_find == sub_tp for sub_tp in entry_subtypes):
                 return True
             type_scope = getattr(entry.type, "scope", None)
             if type_scope is None or type_scope in _seen_scopes:
                 continue
             _seen_scopes.add(type_scope)
-            if type_scope.find_shared_usages_of_type(type_check_predicate, _seen_scopes):
+            if type_scope.find_shared_usages_of_type(type_to_find, _seen_scopes):
                 return True
         return False
 

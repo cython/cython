@@ -286,7 +286,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         self.body.analyse_declarations(env)
 
         cy_pymutex_type = PyrexTypes.get_cy_pymutex_type()
-        if env.find_shared_usages_of_type(lambda tp: tp == cy_pymutex_type):
+        if env.find_shared_usages_of_type(cy_pymutex_type):
             # Be very suspicious of cython locks that are shared.
             # They have the potential to cause ABI issues.
             self.scope.use_utility_code(
