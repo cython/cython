@@ -552,12 +552,12 @@ bad:
 
 /////////////// FunctionExport.proto ///////////////
 
-static int __Pyx_ExportFunction(PyObject *api_dict, PyObject *name, void (*f)(void), const char *sig); /*proto*/
+static int __Pyx_ExportFunction(PyObject *api_dict, const char *name, void (*f)(void), const char *sig); /*proto*/
 
 /////////////// FunctionExport ///////////////
 
-static int __Pyx_ExportFunction(PyObject *api_dict, PyObject *name, void (*f)(void), const char *sig) {
-    PyObject *cobj = 0;
+static int __Pyx_ExportFunction(PyObject *api_dict, const char *name, void (*f)(void), const char *sig) {
+    PyObject *cobj;
     union {
         void (*fp)(void);
         void *p;
@@ -567,7 +567,7 @@ static int __Pyx_ExportFunction(PyObject *api_dict, PyObject *name, void (*f)(vo
     cobj = PyCapsule_New(tmp.p, sig, 0);
     if (!cobj)
         goto bad;
-    if (PyDict_SetItem(api_dict, name, cobj) < 0)
+    if (PyDict_SetItemString(api_dict, name, cobj) < 0)
         goto bad;
     Py_DECREF(cobj);
     return 0;
@@ -639,17 +639,17 @@ static int __Pyx_ImportVoidPtr_$cyversion(PyObject *module, const char *name, vo
 
 /////////////// VoidPtrExport.proto ///////////////
 
-static int __Pyx_ExportVoidPtr(PyObject *api_dict, PyObject *name, void *p, const char *sig); /*proto*/
+static int __Pyx_ExportVoidPtr(PyObject *api_dict, const char *name, void *p, const char *sig); /*proto*/
 
 /////////////// VoidPtrExport ///////////////
 
-static int __Pyx_ExportVoidPtr(PyObject *api_dict, PyObject *name, void *p, const char *sig) {
-    PyObject *cobj = 0;
+static int __Pyx_ExportVoidPtr(PyObject *api_dict, const char *name, void *p, const char *sig) {
+    PyObject *cobj;
 
     cobj = PyCapsule_New(p, sig, 0);
     if (!cobj)
         goto bad;
-    if (PyDict_SetItem(api_dict, name, cobj) < 0)
+    if (PyDict_SetItemString(api_dict, name, cobj) < 0)
         goto bad;
     Py_DECREF(cobj);
     return 0;
