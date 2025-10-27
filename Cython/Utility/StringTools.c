@@ -1037,7 +1037,7 @@ static CYTHON_INLINE PyObject* __Pyx_PyBytes_Join(PyObject* sep, PyObject* value
 }
 
 
-/////////////// JoinPyUnicode.proto ///////////////
+/////////////// JoinPyUnicode.export ///////////////
 
 static PyObject* __Pyx_PyUnicode_Join(PyObject** values, Py_ssize_t value_count, Py_ssize_t result_ulength,
                                       Py_UCS4 max_char);

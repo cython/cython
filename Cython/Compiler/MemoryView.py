@@ -893,7 +893,6 @@ def _get_memoryview_shared_utility_code(shared_utility_qualified_name):
 
     return shared_utility_code
 
-
 def get_view_utility_code(shared_utility_qualified_name):
     if shared_utility_qualified_name:
         return _get_memoryview_shared_utility_code(shared_utility_qualified_name)

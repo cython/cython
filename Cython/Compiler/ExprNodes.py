@@ -471,6 +471,7 @@ class ExprNode(Node):
     has_temp_moved = False  # if True then attempting to do anything but free the temp is invalid
     is_target = False
     is_starred = False
+    is_annotation = False
 
     constant_result = constant_value_not_set
 
@@ -2942,7 +2943,7 @@ class ImportNode(ExprNode):
         if self.imported_names is not None:
             code.putln("{")
             code.putln(
-                f"PyObject *__pyx_imported_names[] = {{{','.join(n.result() for n in self.imported_names)}}};")
+                f"PyObject* const __pyx_imported_names[] = {{{','.join(n.result() for n in self.imported_names)}}};")
 
         import_code = "__Pyx_Import(%s, %s, %d, %s, %d)" % (
             self.module_name.py_result(),
@@ -2966,7 +2967,7 @@ class ImportNode(ExprNode):
                 module_obj = code.get_py_string_const(StringEncoding.EncodedString(module))
                 code.putln(f"{submodule} = __Pyx_ImportFrom({tmp_submodule}, {module_obj});")
                 code.putln(f"Py_DECREF({tmp_submodule});")
-                code.error_goto_if_null(submodule, self.pos)
+                code.putln(code.error_goto_if_null(submodule, self.pos))
                 code.putln(f"{tmp_submodule} = {submodule};")
             code.funcstate.release_temp(submodule)
 
@@ -3769,7 +3770,8 @@ class JoinedStrNode(ExprNode):
         for node in self.values:
             if isinstance(node, UnicodeNode):
                 max_char_value = max(max_char_value, node.estimate_max_charval())
-            elif isinstance(node, FormattedValueNode) and node.value.type.is_numeric:
+            elif (isinstance(node, FormattedValueNode) and
+                    node.c_format_spec != 'c' and node.value.type.is_numeric):
                 # formatted C numbers are always ASCII
                 pass
             elif isinstance(node, CloneNode):
@@ -15201,6 +15203,7 @@ class AnnotationNode(ExprNode):
     # annotation is evaluated into a Python Object.
 
     subexprs = []
+    is_annotation = True
 
     # 'untyped' is set for fused specializations:
     # Once a fused function has been created we don't want

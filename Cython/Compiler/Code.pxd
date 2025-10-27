@@ -13,6 +13,7 @@ cdef class UtilityCodeBase(AbstractUtilityCode):
 cdef class UtilityCode(UtilityCodeBase):
     cdef public object name
     cdef public object proto
+    cdef public object export
     cdef public object impl
     cdef public object init
     cdef public object cleanup
@@ -25,6 +26,7 @@ cdef class UtilityCode(UtilityCodeBase):
     cdef list specialize_list
     cdef public object file
     cdef readonly tuple _parts_tuple
+    cdef list shared_utility_functions
 
     cpdef none_or_sub(self, s, context)
     # TODO - Signature not compatible with previous declaration

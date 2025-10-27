@@ -90,7 +90,7 @@ echo "===================="
 
 # Install python requirements
 echo "Installing requirements [python]"
-if [[ $PYTHON_VERSION == "3.1"[2-9]* ]]; then
+if [[ $PYTHON_VERSION == "3.1"[2-9]* || $PYTHON_VERSION == *"-dev" ]]; then
   python -m pip install -U pip wheel setuptools || exit 1
 else
   # Drop dependencies cryptography and nh3 (purely from twine) when removing support for PyPy3.8.
@@ -109,7 +109,7 @@ fi
 if [[ $PYTHON_VERSION == "3.13"* ]]; then
   python -m pip install --pre -r test-requirements-313.txt || exit 1
 fi
-if [[ $PYTHON_VERSION != "pypy"* && $PYTHON_VERSION != "graalpy"* ]]; then
+if [[ $PYTHON_VERSION != "pypy"* && $PYTHON_VERSION != "graalpy"* && $PYTHON_VERSION != *"-dev" ]]; then
   python -m pip install -r test-requirements-cpython.txt || exit 1
 fi
 
@@ -180,8 +180,7 @@ if [[ $NO_CYTHON_COMPILE != "1" && $PYTHON_VERSION != "pypy"* ]]; then
     SETUP_ARGS="$SETUP_ARGS --cython-compile-all"
   fi
   if [[ $LIMITED_API != "" && $NO_LIMITED_COMPILE != "1" ]]; then
-    # in the limited API tests, also build Cython in this mode (for more thorough
-    # testing rather than performance since it's currently a pessimization)
+    # in the limited API tests, also build Cython in this mode.
     SETUP_ARGS="$SETUP_ARGS --cython-limited-api"
   fi
   # It looks like parallel build may be causing occasional link failures on Windows
@@ -196,7 +195,7 @@ if [[ $NO_CYTHON_COMPILE != "1" && $PYTHON_VERSION != "pypy"* ]]; then
   # COVERAGE can be either "" (empty or not set) or "1" (when we set it)
   # STACKLESS can be either  "" (empty or not set) or "true" (when we set it)
   if [[ $COVERAGE != "1" && $STACKLESS != "true" && $BACKEND != *"cpp"* &&
-        $LIMITED_API == "" && $EXTRA_CFLAGS == "" ]]; then
+        $EXTRA_CFLAGS == "" ]]; then
     python setup.py bdist_wheel || exit 1
     ls -l dist/ || true
 
