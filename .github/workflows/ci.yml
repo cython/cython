@@ -158,17 +158,17 @@ jobs:
           - os: ubuntu-22.04
             python-version: "3.11"
             backend: "c,cpp"
-            env: { LIMITED_API: "--limited-api" }
+            env: { LIMITED_API: "--limited-api --abi3audit" }
             extra_hash: "-limited_api"
           - os: ubuntu-22.04
             python-version: "3.12"
             backend: "c,cpp"
-            env: { LIMITED_API: "--limited-api" }
+            env: { LIMITED_API: "--limited-api --abi3audit" }
             extra_hash: "-limited_api"
           - os: ubuntu-22.04
             python-version: "3.13"
             backend: "c,cpp"
-            env: { LIMITED_API: "--limited-api" }
+            env: { LIMITED_API: "--limited-api --abi3audit" }
             extra_hash: "-limited_api"
           # Type specs
           - os: ubuntu-22.04
