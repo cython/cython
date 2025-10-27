@@ -1188,7 +1188,9 @@ static CYTHON_INLINE int __Pyx_PyDict_GetItemRef(PyObject *dict, PyObject *key, 
   static CYTHON_INLINE PyObject *__Pyx_PyImport_AddModuleRef(const char *name) {
       PyObject *py_name = PyUnicode_FromString(name);
       if (!py_name) return NULL;
-      return __Pyx_PyImport_AddModuleObjectRef(py_name);
+      PyObject *module = __Pyx_PyImport_AddModuleObjectRef(py_name);
+      Py_DECREF(py_name);
+      return module;
   }
 #elif __PYX_LIMITED_VERSION_HEX >= 0x030d0000
   #define __Pyx_PyImport_AddModuleRef(name) PyImport_AddModuleRef(name)
