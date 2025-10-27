@@ -2,8 +2,14 @@
 Cython Changelog
 ================
 
-3.2.0rc1 (2025-??-??)
-=====================
+3.2.0b2 (2025-10-27)
+====================
+
+Features added
+--------------
+
+* The code generated for importing and exporting cimports across modules uses less space.
+  (Github issues :issue:`7255`, :issue:`7265`)
 
 Bugs fixed
 ----------
@@ -15,6 +21,11 @@ Bugs fixed
   (Github issue :issue:`7251`)
 
 * Failures while following package attributes in ``import pkg.module as …`` were not handled.
+
+* Trying to instantiate internal types used by Cython is now prohibited.
+  (Github issue :issue:`7263`)
+
+* Includes all fixes as of Cython 3.1.6.
 
 Other changes
 -------------
